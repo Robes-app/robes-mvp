@@ -324,6 +324,58 @@ console.log('\n\x1b[1m== skipping through ==\x1b[0m');
   await ctx.close();
 }
 
+// A retake starts the looks again, not only the read (Kelli, 2026-10-01):
+// the first piece's prefire was latched once-only, so the second piece
+// composed under its own name over the FIRST piece's three looks. The
+// second read must fire its own /api/style, and a slow first answer landing
+// late writes nothing.
+console.log('\n\x1b[1m== retake composes the SECOND piece ==\x1b[0m');
+{
+  const { ctx, p, errs, styleCalls, inserts } = await open({ width: 1280, height: 900 });
+  let reads = 0;
+  await p.route('**/api/wardrobe/analyse', async route => {
+    await new Promise(r => setTimeout(r, 300));
+    reads++;
+    const first = reads === 1;
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      label: first ? 'White shirt' : 'Blue wide-leg jeans', category: first ? 'Tops' : 'Bottoms', color: first ? 'White' : 'Blue', brand: '',
+      item_dna: { display: { editorial_color_name: first ? 'Chalk' : 'Indigo' }, structural_dna: { silhouette_fit: ['Relaxed'] } },
+    }) });
+  });
+  // the first prefire is SLOW and lands after the second — the stale case
+  await p.route('**/api/style', async r => {
+    const body = JSON.parse(r.request().postData() || '{}');
+    styleCalls.push(body);
+    const first = /white shirt/i.test(body.prompt || '');
+    await new Promise(res => setTimeout(res, first ? 2500 : 300));
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ways: first
+      ? [{ title: 'The Shirt Look' }, { title: 'Shirt Two' }, { title: 'Shirt Three' }]
+      : [{ title: 'The Jeans Look' }, { title: 'Jeans Two' }, { title: 'Jeans Three' }], jobId: 'x', generatedImages: [] }) });
+  });
+  await toPiece(p);
+  await p.setInputFiles('#kp-file', TMP);
+  ok(await waitFiled(p), 'the first read files');
+  ok((await p.locator('.kp-banner').innerText()).trim() === 'White shirt', 'the first read is the white shirt');
+  await p.click('#kp-retake'); await p.waitForTimeout(200);
+  ok(await p.locator('#ob-next').count() === 0 && await p.locator('#kp-add').count() === 1, 'Retake empties the well and takes the CTA with it');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_onboard_piece'))) === null && (await p.evaluate(() => sessionStorage.getItem('rb_onboard_styled'))) === null, 'Retake clears the handoff');
+  await p.setInputFiles('#kp-file', TMP);
+  ok(await waitFiled(p), 'the second read files');
+  ok((await p.locator('.kp-banner').innerText()).trim() === 'Blue wide-leg jeans', 'the second read is the jeans');
+  ok(inserts.length === 2, 'a retake un-files nothing — both rows stay hers (' + inserts.length + ')');
+  await p.waitForTimeout(3000); // let the SLOW first prefire land after the second
+  ok(styleCalls.length === 2 && styleCalls[1].prompt === 'Blue wide-leg jeans', 'the second piece fires its OWN prefire, got ' + JSON.stringify(styleCalls.map(c => c.prompt)));
+  const styled = await p.evaluate(() => sessionStorage.getItem('rb_onboard_styled'));
+  ok(!!styled && /Blue wide-leg jeans/.test(styled) && /The Jeans Look/.test(styled) && !/Shirt/.test(styled), 'the stored looks are the jeans’ — the late shirt answer wrote nothing');
+  const piece = await p.evaluate(() => sessionStorage.getItem('rb_onboard_piece'));
+  ok(!!piece && /Blue wide-leg jeans/.test(piece), 'the handoff names the jeans');
+  await p.click('#ob-next'); await p.waitForTimeout(1200);
+  const lines = await p.locator('.ob-line .l').allInnerTexts();
+  ok(lines[0] === 'The Jeans Look', 'Composing ticks the jeans’ titles, got ' + JSON.stringify(lines));
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+
 console.log(`\n${passes} passed, ${fails} failed`);
 await browser.close(); srv.close();
 process.exit(fails ? 1 : 0);

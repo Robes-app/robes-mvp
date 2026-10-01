@@ -123,6 +123,13 @@ async function boot(browser, tagBody, opts = {}) {
       if (req.method() === 'PATCH') {
         const body = JSON.parse(req.postData() || '{}');
         inboxPatches.push({ url: req.url(), body });
+        // inboxPatch 'strict' = the live table lags migration 23's later
+        // columns (PGRST204 names the column); 'down' = every PATCH fails
+        if (opts.inboxPatch === 'down') return r.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' });
+        if (opts.inboxPatch === 'strict') {
+          const missing = ['filed_to', 'decided_at'].find((k) => k in body);
+          if (missing) return r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST204', message: "Could not find the '" + missing + "' column of 'wardrobe_inbox' in the schema cache" }) });
+        }
         const id = (req.url().match(/id=eq\.([^&]+)/) || [])[1];
         inboxRows = inboxRows.map((r) => (String(r.id) === String(id) ? { ...r, ...body } : r));
         return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
@@ -1105,6 +1112,40 @@ const browser = await chromium.launch(
     !d1.open && !d1.notice && inboxPatches.length === 2 && inboxPatches[1].body.status === 'dismissed' && supaPosts.length === 2, JSON.stringify([d1, inboxPatches[1]]));
   check('no page errors (receipts)', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
+}
+{
+  // The receipt leaves the queue whatever its status write did (Annie,
+  // 2026-10-01: "forwarded receipts stays stuck on the wardrobe screen"):
+  // a live table lagging a column of migration 23 400s the PATCH, and
+  // _waLoad's refetch then painted the same receipt straight back.
+  for (const mode of ['strict', 'down']) {
+    const { ctx, page, errs, supaPosts, inboxPatches } = await boot(browser, TAG, { rows: ROWS, inbox: INBOX, inboxAddress: 'annie-4f2k', inboxPatch: mode });
+    await page.evaluate(() => window.App && App.showWardrobe());
+    await page.waitForTimeout(700);
+    await page.click('#rb-wg-inbox .rb-wg-inbox-go');
+    await page.waitForTimeout(500);
+    await page.click('.rb-wf-rcpt[data-id="rc-1"]');
+    await page.waitForTimeout(300);
+    await page.click('#rb-wf-file');
+    await page.waitForTimeout(1800);
+    const f = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), h: document.querySelector('#wa-modal .fm-h')?.textContent || '', notice: document.getElementById('rb-wg-inbox')?.querySelector('.h')?.textContent || '', noticeS: document.getElementById('rb-wg-inbox')?.querySelector('.s')?.textContent || '' }));
+    if (mode === 'strict') {
+      const bodies = inboxPatches.filter((p) => /rc-1/.test(p.url)).map((p) => Object.keys(p.body).sort().join(','));
+      check('receipts · a PATCH refused for a column the table lacks is retried without it, down to one that lands',
+        bodies.length === 3 && bodies[0] === 'decided_at,filed_ids,filed_to,status' && bodies[1] === 'decided_at,filed_ids,status' && bodies[2] === 'filed_ids,status', JSON.stringify(bodies));
+    } else {
+      check('receipts · a PATCH that never lands is given up after one try, the pieces already filed', inboxPatches.filter((p) => /rc-1/.test(p.url)).length === 1 && supaPosts.length === 2, JSON.stringify(inboxPatches));
+    }
+    check('receipts (' + mode + ') · the filed receipt leaves the queue and the refetch never brings it back — the strip counts down to the one left',
+      f.open && f.h === '1 piece read' && f.notice === 'Robes read one receipt' && f.noticeS === '1 piece waiting', JSON.stringify(f));
+    // the second receipt — "Nothing to keep" — clears the strip for good too
+    await page.click('#rb-wf-chosen .rb-wf-back');
+    await page.waitForTimeout(800);
+    const d = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), notice: !!document.getElementById('rb-wg-inbox') }));
+    check('receipts (' + mode + ') · the last receipt dismissed takes the strip down and it stays down', !d.open && !d.notice, JSON.stringify(d));
+    check('no page errors (receipts · ' + mode + ')', errs.length === 0, errs.join(' | ').slice(0, 240));
+    await ctx.close();
+  }
 }
 {
   // The quiet way back: pieces filed from a receipt stay findable under Refine → Added from · Receipts.

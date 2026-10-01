@@ -88,7 +88,7 @@ async function boot(browser, n, width = 1280, { looks = true, pics = 0, prompt =
 
   await page.addInitScript((count) => {
     window.__TEST_PROFILE = {
-      first_name: 'Annie', last_name: '', mobile: '', style_icons: JSON.parse(localStorage.getItem('rb_test_icons') || '[]'), budget: null,
+      first_name: localStorage.getItem('rb_test_name') || 'Annie', last_name: '', mobile: '', style_icons: JSON.parse(localStorage.getItem('rb_test_icons') || '[]'), budget: null,
       wardrobe_description: '', style_dna: JSON.parse(localStorage.getItem('rb_test_dna') || '{}'), wardrobe_items_count: count,
       onboarded_at: '2026-07-01', gender_identity: 'woman',
       notification_prefs: window.__TEST_PREFS || {},
@@ -1221,6 +1221,34 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   check('next line · the robes door opens the composer with the rack filled by Robes, nothing saved, no second door',
     built.open && built.composer && built.built && built.pieces >= 2 && built.tryAnother && !built.door, JSON.stringify(built));
+  await ctx.close();
+}
+
+// The robes line is a first-time offer (2026-10-01 — it read "Five pieces
+// filed" on an account with fifty): it counts the pieces it sees, and it
+// stands down once the ladder is done. The nav avatar carries HER initial.
+{
+  const { ctx, page, errs } = await boot(browser, 7, 1280, { pics: 7 });
+  await page.evaluate(() => {
+    localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
+    localStorage.setItem('rb_test_name', 'Sinead');
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const r7 = await page.evaluate(() => ({ text: document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim(), avatar: document.getElementById('avatar')?.textContent.trim(), greet: document.getElementById('dash-greet')?.textContent.trim() }));
+  check('next line · seven photographed pieces → the robes line counts seven, never "Five"', /^Seven pieces filed\. Robes can build from yours now\./.test(r7.text || ''), JSON.stringify(r7));
+  check('nav · the avatar circle carries her initial (Sinead → S), not the bundle’s A', r7.avatar === 'S' && /Sinead/.test(r7.greet || ''), JSON.stringify(r7));
+  check('next line · no page errors (robes · seven)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+{
+  const { ctx, page, errs } = await boot(browser, 16, 1280, { pics: 16 });
+  await page.evaluate(() => { localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 })); });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const r16 = await page.evaluate(() => ({ text: document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim(), door: document.querySelector('.dash-echo .rb-echo-door')?.textContent }));
+  check('next line · past the ladder (sixteen filed) the robes line stands down', !!r16.text && !/pieces filed\. Robes can build/.test(r16.text) && r16.door !== 'Let Robes build one →', JSON.stringify(r16));
+  check('next line · no page errors (robes · sixteen)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
 

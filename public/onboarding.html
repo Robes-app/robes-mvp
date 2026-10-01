@@ -604,9 +604,15 @@
       if (addBtn) addBtn.onclick = pick;
       if (retake) retake.onclick = () => {
         // a retake un-files nothing already written — it only starts the
-        // read again on a new photograph (the row, if any, stays hers)
+        // read again on a new photograph (the row, if any, stays hers).
+        // The looks, though, start again too: the prefire's once-only
+        // latch is released and the handoff is cleared, so the next piece
+        // composes ITS looks (Kelli's retake, 2026-10-01: the second
+        // piece's name over the first piece's three looks).
         P.img = ''; P.data = ''; P.url = ''; P.err = ''; P.tag = null; P.renderable = true; P.link = false; P.imgDead = false;
         P.saved = false; P.savePromise = null;
+        st.stylePrefired = false; st.stylePromise = null; st.styleSeq = (st.styleSeq || 0) + 1; st.pieceStyled = false;
+        try { sessionStorage.removeItem('rb_onboard_styled'); sessionStorage.removeItem('rb_onboard_piece'); } catch (e) {}
         paint(); pick();
       };
       const linkOpen = document.getElementById('kp-linkopen');
@@ -856,6 +862,9 @@
       st.stylePrefired = true;
       const t = P.tag || {};
       const prompt = t.label || '';
+      // One prefire may be in flight per piece: a retake bumps the sequence,
+      // and a stale answer landing after it writes nothing.
+      const seq = st.styleSeq = (st.styleSeq || 0) + 1;
       try { sessionStorage.removeItem('rb_onboard_styled'); } catch (e) {}
       st.stylePromise = pieceDataUrl().then(photo => fetch('/api/style', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -870,7 +879,7 @@
           userId: st.uid || undefined,
         }),
       })).then(r => r.ok ? r.json() : null).then(d => {
-        if (!d) return null;
+        if (!d || seq !== st.styleSeq) return null;
         try { sessionStorage.setItem('rb_onboard_styled', JSON.stringify({ prompt, data: d, ts: Date.now() })); } catch (e) {}
         return d;
       }).catch(() => null);

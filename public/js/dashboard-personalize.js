@@ -66,6 +66,11 @@
       // Populate av-name with real name
       const avNameEl = document.getElementById('av-name');
       if (avNameEl) avNameEl.textContent = name;
+      // The nav circle carries HER initial — the bundle's static "A" only
+      // ever changed through App.setName, which nothing calls, and the
+      // "Annie" text walk above never matches a lone letter (bug 2026-10-01:
+      // Sinead and Liberty both wore an A).
+      _rbAvatarInitial(name);
 
       // Insert Account Details button before My wardrobe
       const avMenu = document.getElementById('av-menu');
@@ -200,6 +205,7 @@
             if (newFirst) {
               const avN = document.getElementById('av-name');
               if (avN) avN.textContent = newFirst;
+              _rbAvatarInitial(newFirst);
               const hr = new Date().getHours();
               const t = hr < 12 ? 'morning' : hr < 18 ? 'afternoon' : 'evening';
               const g1 = document.getElementById('greeting');
@@ -4142,6 +4148,13 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
       // The receipt inbox (2026-09-22): held wardrobe_inbox rows, the
       // migration-23 stand-down flag, her minted address (local part).
       var _wiRows = [], _wiDown = false, _wiAddr = null, _wiLoaded = false;
+      // Receipts she has decided this session (filed or dismissed), by id.
+      // A refetch — _waLoad runs _wiLoad the moment a receipt is filed —
+      // never brings one of these back, whatever the PATCH did (the live
+      // table lagging a column of migration 23 used to 400 the PATCH, the
+      // row stayed `held` server-side, and the strip re-painted the same
+      // receipt straight after she filed it: "stuck on the wardrobe screen").
+      var _wiDone = {};
       var _WI_DOMAIN = 'in.byrobes.com';
 
       // ── One row write, one strip-and-retry ladder ─────────────────────
@@ -4226,7 +4239,7 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
         if (!uid || _wiDown) return;
         try {
           const rows = await _waFetch('GET', 'wardrobe_inbox?user_id=eq.' + uid + '&status=eq.held&order=received_at.desc&select=*');
-          _wiRows = Array.isArray(rows) ? rows : [];
+          _wiRows = (Array.isArray(rows) ? rows : []).filter(function(r) { return r && !_wiDone[String(r.id)]; });
           _wiLoaded = true;
         } catch (e) {
           const msg = String(e && e.message || e);
@@ -4365,18 +4378,40 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           } catch (e) { failed++; console.warn('[inbox] file:', e && e.message); }
         }
         if (!failed) {
-          try { await _waFetch('PATCH', 'wardrobe_inbox?id=eq.' + row.id, { status: 'filed', filed_ids: ids, filed_to: toWl ? 'wishlist' : 'wardrobe', decided_at: new Date().toISOString() }); }
-          catch (e) { console.warn('[inbox] patch:', e && e.message); }
+          await _wiPatch(row.id, { status: 'filed', filed_ids: ids, filed_to: toWl ? 'wishlist' : 'wardrobe', decided_at: new Date().toISOString() });
+          _wiDone[String(row.id)] = true;
           _wiRows = _wiRows.filter(function(r) { return r.id !== row.id; });
           _wiSync();
           _rbTrack('inbox_reviewed', { filed: ids.length, skipped: items.length - picks.length, retailer: row.retailer || '', to: toWl ? 'wishlist' : 'wardrobe' });
         }
         return { filed: ids.length, ids: ids, failed: failed };
       }
+      // The receipt's status write, with the strip-and-retry ladder every
+      // other write in this file carries: a PGRST204 naming a column the
+      // live table lacks (filed_to / decided_at / filed_ids — added to
+      // migration 23 after its first cut) drops that column and retries,
+      // down to the bare status. The status is what takes the receipt off
+      // the held list; the rest is bookkeeping.
+      async function _wiPatch(id, body) {
+        const payload = Object.assign({}, body);
+        for (let tries = 0; tries < 4; tries++) {
+          try { await _waFetch('PATCH', 'wardrobe_inbox?id=eq.' + id, payload); return true; }
+          catch (e) {
+            const msg = String(e && e.message || e);
+            const m = /PGRST204|column/i.test(msg) && msg.match(/'?(filed_ids|filed_to|decided_at)'?/);
+            if (m && m[1] in payload) { delete payload[m[1]]; continue; }
+            const extra = Object.keys(payload).filter(function(k) { return k !== 'status'; });
+            if (/PGRST204|column/i.test(msg) && extra.length) { extra.forEach(function(k) { delete payload[k]; }); continue; }
+            console.warn('[inbox] patch:', msg.slice(0, 200));
+            return false;
+          }
+        }
+        return false;
+      }
       async function _wiDismiss(row) {
         if (!row) return;
-        try { await _waFetch('PATCH', 'wardrobe_inbox?id=eq.' + row.id, { status: 'dismissed', decided_at: new Date().toISOString() }); }
-        catch (e) { console.warn('[inbox] dismiss:', e && e.message); }
+        await _wiPatch(row.id, { status: 'dismissed', decided_at: new Date().toISOString() });
+        _wiDone[String(row.id)] = true;
         _wiRows = _wiRows.filter(function(r) { return r.id !== row.id; });
         _rbTrack('inbox_reviewed', { filed: 0, skipped: (row.items || []).length, retailer: row.retailer || '' });
         _wiSync();
@@ -17871,8 +17906,13 @@ button.rb-lk-live{cursor:pointer}
           return { key: 'five', text: _msWord(left) + ' more piece' + (left === 1 ? '' : 's') + ' and Robes builds a look from yours alone.',
             doorLabel: 'Add pieces', door: 'five' };
         }
-        if (pics >= _LK_ROBES_AT && !looks.some(l => l.source === 'robes-build')) {
-          return { key: 'robes', text: _msWord(_LK_ROBES_AT) + ' pieces filed. Robes can build from yours now.',
+        // A first-time offer, not a standing line (Annie, 2026-10-01: it
+        // read "Five pieces filed" on an account with fifty): it counts the
+        // pieces it actually sees and stands down once a Robes build is
+        // saved, once she has three looks of her own, or once the ladder
+        // is done (fifteen filed — the tracker retires there too).
+        if (pics >= _LK_ROBES_AT && pics < _WA_TARGET && looks.length < 3 && !looks.some(l => l.source === 'robes-build')) {
+          return { key: 'robes', text: _msWord(pics) + ' pieces filed. Robes can build from yours now.',
             doorLabel: 'Let Robes build one', door: 'robes' };
         }
         // The brief (slice A): once there is behaviour to read — five
@@ -26534,6 +26574,14 @@ body>*:not(#tv-result-page){display:none !important}
       // Masthead: one register for everyone — time-of-day greeting + the
       // static echo. (The returner-detection path was removed in the Wave 5
       // sweep: _rbUpdateMasthead stopped consuming it in bug report 4.7.)
+      // The avatar circle in the nav shows the first letter of her first
+      // name (upper-cased); nothing on file leaves the bundle's letter alone.
+      function _rbAvatarInitial(name) {
+        const el = document.getElementById('avatar');
+        const first = String(name || '').trim().split(/\s+/)[0] || '';
+        if (!el || !first) return;
+        el.textContent = first.charAt(0).toUpperCase();
+      }
       function _rbUpdateMasthead() {
         // One masthead for everyone (bug report 4.7): time-of-day greeting +
         // the static echo. The returner "Welcome back · N pieces catalogued …"
@@ -26541,6 +26589,7 @@ body>*:not(#tv-result-page){display:none !important}
         const greetEl = document.getElementById('dash-greet');
         const p = window.__robes_profile || {};
         const nm = (p.first_name || '').trim().split(/\s+/)[0] || '';
+        _rbAvatarInitial(nm);
         if (greetEl) {
           const h = new Date().getHours();
           const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
@@ -30284,7 +30333,11 @@ body.rb-hb-on #dash .concierge{display:none!important}
           } catch (e) { return null; }
         }
 
-        if (styled && styled.data && styled.data.ways && Date.now() - (styled.ts || 0) < 10 * 60 * 1000) {
+        // A prefire result belongs to the piece it was asked for — after an
+        // onboarding retake the stored looks can be the FIRST read's while
+        // the handoff names the second; a mismatch re-fires quietly.
+        const styledMatches = !styled || !styled.prompt || !piece.prompt || String(styled.prompt).trim().toLowerCase() === String(piece.prompt).trim().toLowerCase();
+        if (styled && styled.data && styled.data.ways && styledMatches && Date.now() - (styled.ts || 0) < 10 * 60 * 1000) {
           paintReady(styled.data, styled.prompt || piece.prompt || '');
         } else {
           paintLoading();
