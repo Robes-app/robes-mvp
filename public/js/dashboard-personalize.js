@@ -232,6 +232,9 @@
           var openLook = !!sessionStorage.getItem('rb_model_open_look');
           sessionStorage.removeItem('rb_model_open_look');
           var revealPrompt = function() {
+            // The home box (phase 3, default on) is the prompt now — open
+            // it; the card path survives for ?prompt=card.
+            try { if (window._rbHbOn && window._rbHbOn() && typeof window.__rbHbOpen === 'function') { window.__rbHbOpen(); return; } } catch (e) {}
             try { if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt(); } catch (e) {}
             var ta = document.getElementById('cb-ta');
             if (ta) {
@@ -1143,6 +1146,7 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
           if (_rbLp !== s) return;
           s.reading = false;
           if (r && typeof r.go === 'function') {
+            s.thread = [];   // the ask is answered — nothing to hold
             window.__rbLpClose();
             try { r.go(); } catch (e) { console.error('[Robes] home box route', e); _waShowToast('Robes couldn’t start that look — please try again.'); }
             return;
@@ -29706,10 +29710,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       })();
 
       // ── The home field — ONE door on home (look prompt brief, phase 3) ─
-      // FLAGGED, per device: ?prompt=box turns it on (localStorage
-      // rb_prompt_box = 'on'), ?prompt=card turns it off; _HB_DEFAULT is
-      // the one constant to flip once Annie has tested it live (the Diary
-      // intake's own path, 2026-07-24). Under the flag the prompt card,
+      // DEFAULT ON since 2026-10-01 (Annie: "deploy this into beta without
+      // the feature flag"); the per-device flag survives as the opt-out —
+      // ?prompt=card turns it off (localStorage rb_prompt_box = 'off'),
+      // ?prompt=box turns it back on; _HB_DEFAULT is the one constant.
+      // With the box on, the prompt card,
       // its three pills, the scaffolds and the typewriter hold stand down
       // (the card stays in the DOM, hidden — the + menu's five rows ride
       // out of it into the field's row). The field reads "A new look
@@ -29717,12 +29722,13 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       // the classifier as today (a photo or a wardrobe pick is the piece
       // track; "dress me" is the daily fast path), a day ask lands a LOOSE
       // composer draft carrying the day her words named (Save → the date
-      // sheet), travel opens the intake prefilled, unclear → Robes asks in
-      // the thread. A look filed for today leads the page over the field.
+      // sheet), travel opens the intake prefilled, anything the classifier
+      // cannot place defaults to the new look. A look filed for today
+      // leads the page over the field.
       // The web has no dock — the field sits in flow under the greeting;
       // ≤767px the row docks 12px above the menu.
       var _HB_FLAG_KEY = 'rb_prompt_box';
-      var _HB_DEFAULT = 'off';
+      var _HB_DEFAULT = 'on';
       function _rbHbOn() {
         try { const v = localStorage.getItem(_HB_FLAG_KEY); return v ? v === 'on' : _HB_DEFAULT === 'on'; } catch (_) { return _HB_DEFAULT === 'on'; }
       }
@@ -29899,11 +29905,15 @@ body.rb-hb-on #dash .concierge{display:none!important}
             // or a date she didn't give.
             return { go: () => { _cbReset(); window.__tvOpen({ brief: prompt, dest: seed.destination || undefined, dateFrom: seed.date_start || undefined, dateTo: seed.date_end || undefined, vibe: seed.vibe || undefined }); } };
           }
-          _rbTrack('prompt_submitted', { intent: (seed && seed.intent) || 'unclear', scope: 'none', source: 'box', ok: true, latency_ms: Date.now() - t0, asked: true });
-          return { reply: 'A day, a trip, or a piece?', pending: prompt, placeholder: 'A day, a trip, or a piece…' };
+          // Anything else DEFAULTS TO A NEW LOOK (Annie, 2026-10-01 — the
+          // box never questions her): a loose draft she names, saves and
+          // then assigns to a day from the sheet. The classifier's date
+          // still rides as the hint when it heard one.
+          track('daily', { defaulted: true, read: (seed && seed.intent) || 'unclear' });
+          return { go: _rbHbRoute(prompt, seed, s) };
         }).catch(() => {
-          _rbTrack('prompt_submitted', { intent: 'error', scope: 'none', source: 'box', ok: false, latency_ms: Date.now() - t0 });
-          return { reply: 'Robes couldn’t read that — a day, a trip, or a piece?', pending: prompt, placeholder: 'A day, a trip, or a piece…' };
+          _rbTrack('prompt_submitted', { intent: 'daily', scope: 'none', source: 'box', ok: true, latency_ms: Date.now() - t0, defaulted: true, read: 'error' });
+          return { go: _rbHbRoute(prompt, null, s) };
         });
       }
       // o: {text, date}. A date (a dated door: the rail, the Diary, Style

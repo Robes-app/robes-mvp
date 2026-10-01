@@ -1,6 +1,6 @@
 # The look prompt — one box on every look, and the draft it edits (build brief)
 
-**Date**: 2026-10-01 · **Branch**: `beta` · **Status**: phases 1, 2 and 3 built (2026-10-01); phase 3 ships behind `?prompt=box` (per device, default off — flip `_HB_DEFAULT` once tested live)
+**Date**: 2026-10-01 · **Branch**: `beta` · **Status**: phases 1, 2 and 3 built (2026-10-01); phase 3 is the DEFAULT on beta since 2026-10-01 (Annie: "deploy this into beta without the feature flag"); `?prompt=card` is the per-device opt-out, `_HB_DEFAULT` the constant
 **Supersedes**: slice C of `docs/style-memory-brief.md` as built on 2026-09-30 (the ask sheet). Slices A and B stand; D, E and F are unchanged.
 **Sources**: the beta feedback corpus (Sinead's and Liberty's 👎 notes, 14–28 Sep), `Look_Prompt_Spec.dc.html` (1 Oct) and `Home.dc.html` (1 Oct) from Annie's Claude Design project.
 

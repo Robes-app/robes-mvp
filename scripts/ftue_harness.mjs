@@ -56,10 +56,12 @@ function wardrobe(n) {
 // exactly ONE look shows the O7 "Your looks" page (FTU simplification
 // 2026-08-18). Seed TWO saved looks by default so the milestone rules below
 // still have a card to assert against; pass looks:false for the zero state.
-// prompt: 'box' | 'card' seeds the home field's per-device flag (phase 3);
+// prompt: 'box' | 'card' seeds the home field's per-device flag (phase 3).
+// The box is the DEFAULT since 2026-10-01, so every section built on the
+// prompt CARD seeds 'card' — pass prompt:null to boot on the live default;
 // planned: planned_days rows the stub answers with; intent: the /api/intent
 // answer; the boot records every /api/intent, /api/daily and /api/style post.
-async function boot(browser, n, width = 1280, { looks = true, pics = 0, prompt = null, planned = [], intent = null } = {}) {
+async function boot(browser, n, width = 1280, { looks = true, pics = 0, prompt = 'card', planned = [], intent = null } = {}) {
   WARDROBE_PICS = pics;
   const ctx = await browser.newContext({ viewport: { width, height: 1100 }, hasTouch: width < 768 });
   const page = await ctx.newPage();
@@ -1539,8 +1541,10 @@ const HB_ROWS = ['Upload', 'Take a picture', 'From wardrobe', 'Add a look', 'Add
 // Both flag states at the three postures that carry the prompt: zero-lead
 // (no looks, no styled card), the first look (O7) and the standard home.
 for (const posture of ['zero-lead', 'look', 'standard']) {
-  for (const flag of ['card', 'box']) {
-    const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: posture === 'standard', pics: 6, prompt: flag });
+  // 'default' seeds nothing — the live default, which is the box since
+  // 2026-10-01 (?prompt=card is the per-device opt-out).
+  for (const flag of ['card', 'box', 'default']) {
+    const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: posture === 'standard', pics: 6, prompt: flag === 'default' ? null : flag });
     if (posture === 'look') {
       await page.evaluate((lk) => { localStorage.setItem('rb_looks__u-test', JSON.stringify([lk])); }, HB_LOOK);
       await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2600);
@@ -1552,10 +1556,10 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
       check(`home field · ${posture} · card · the prompt card and its three pills stand, no field`,
         modeOk && h.conc === true && h.pills === 3 && h.hb === false && h.bodyOn === false, JSON.stringify(h));
     } else {
-      check(`home field · ${posture} · box · the card and the pills stand down; ONE field under the greeting reads "A new look for…", in flow on the web`,
+      check(`home field · ${posture} · ${flag} · the card and the pills stand down; ONE field under the greeting reads "A new look for…", in flow on the web`,
         modeOk && h.conc === false && h.pills === 0 && h.hb === true && h.fields === 1 && h.label === 'A new look for…'
           && h.order[0] === 'dash-mast' && h.order[1] === 'rb-hb' && h.rowPos === 'static', JSON.stringify(h));
-      check(`home field · ${posture} · box · the + keeps its five rows, no ink inside the field's row`,
+      check(`home field · ${posture} · ${flag} · the + keeps its five rows, no ink inside the field's row`,
         JSON.stringify(h.plusRows) === JSON.stringify(HB_ROWS) && h.inkInHb === 0, JSON.stringify([h.plusRows, h.inkInHb]));
     }
     await ctx.close();
@@ -1655,18 +1659,21 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   const tv = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), modal: !!document.getElementById('tv-brief-modal'), dest: document.getElementById('tv-dest')?.value }));
   check('home field · route 2 · a trip → the travel intake, prefilled from the classifier (Lisbon)', posts.intent.length === 1 && !tv.box && tv.modal && tv.dest === 'Lisbon', JSON.stringify(tv));
   await page.evaluate(() => document.getElementById('tv-brief-modal')?.remove());
-  // Unclear → Robes asks in the thread, never a dead end; "a day" answers it.
+  // Unclear → the box never questions her: it DEFAULTS to a new look (a
+  // loose draft), the day assigned afterwards from the sheet.
   await page.route('**/api/intent', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ intent: 'unclear', confidence: 0.3 }) }));
   await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
   await page.evaluate(() => window.__rbLpText('Something for Saturday'));
-  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1000);
-  const u = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), thread: Array.from(document.querySelectorAll('#rb-lp-thread > div')).map((x) => x.className + ':' + x.textContent), ph: document.getElementById('rb-lp-in')?.placeholder }));
-  check('home field · unclear → "A day, a trip, or a piece?" in the thread, the box held open',
-    u.box && JSON.stringify(u.thread) === JSON.stringify(['robes:What’s it for?', 'her:Something for Saturday', 'robes:A day, a trip, or a piece?']) && /A day, a trip, or a piece/.test(u.ph || ''), JSON.stringify(u));
-  await page.evaluate(() => window.__rbLpText('a day'));
   await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2200);
-  const a = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), composer: !!document.querySelector('#rb-lk-body .rb-lk-composer') }));
-  check('home field · "a day" answers it — the first ask runs the day route', !a.box && a.composer && posts.daily.length === 1 && posts.daily[0].prompt === 'Something for Saturday', JSON.stringify([a, posts.daily.map((x) => x && x.prompt)]));
+  const u = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), composer: !!document.querySelector('#rb-lk-body .rb-lk-composer'), day: !!document.querySelector('.rb-lk-daychip'), save: document.querySelector('.rb-lk-save')?.textContent.trim() }));
+  check('home field · unclear → no question: a NEW look (a loose draft) by default, Save reads Save this look',
+    !u.box && u.composer && !u.day && u.save === 'Save this look' && posts.daily.length === 1 && posts.daily[0].prompt === 'Something for Saturday', JSON.stringify([u, posts.daily.map((x) => x && x.prompt)]));
+  // A completed ask never holds its thread — the next open is clean.
+  await page.evaluate(() => { window.__rbNavGo('home'); }); await page.waitForTimeout(400);
+  await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
+  const a = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), thread: Array.from(document.querySelectorAll('#rb-lp-thread > div')).map((x) => x.className + ':' + x.textContent) }));
+  await page.evaluate(() => window.__rbLpClose());
+  check('home field · the box reopens clean after a completed ask (no held thread)', a.box && JSON.stringify(a.thread) === JSON.stringify(['robes:What’s it for?']), JSON.stringify(a));
   check('home field · routes 2 + ask · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }

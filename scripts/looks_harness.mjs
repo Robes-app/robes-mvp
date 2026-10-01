@@ -3552,9 +3552,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.waitForTimeout(1200);
   const fall = await page.evaluate(() => {
     const sn = document.getElementById('sn-page');
-    return { snOpen: !!sn && getComputedStyle(sn).display !== 'none', promptFocused: document.activeElement?.id === 'cb-ta' };
+    return { snOpen: !!sn && getComputedStyle(sn).display !== 'none', box: document.querySelector('#rb-lp .ttl')?.textContent.trim() || null, focused: document.activeElement?.id };
   });
-  check('model-build landing · no undressed look → the prompt leads, focused', !fall.snOpen && fall.promptFocused && errs.length === 0, JSON.stringify([fall, errs.slice(0, 1)]));
+  // The home box is the prompt now (phase 3, default on since 2026-10-01):
+  // the landing opens it in new mode with the field focused.
+  check('model-build landing · no undressed look → the home box opens ("A new look"), focused', !fall.snOpen && fall.box === 'A new look' && fall.focused === 'rb-lp-in' && errs.length === 0, JSON.stringify([fall, errs.slice(0, 1)]));
   await ctx.close();
 }
 

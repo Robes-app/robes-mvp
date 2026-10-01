@@ -354,7 +354,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     window.__rbNavGo('home');
     await new Promise((r) => setTimeout(r, 400));
     const opt = document.getElementById('cb-addopt-tv');
-    const labels = Array.from(document.querySelectorAll('#cb-addmenu .hp-addopt')).map((b) => (b.querySelector('span span') || b).textContent.trim());
+    // :scope — the menu rides inside the home field's row now (the box is
+    // the default), so a bare 'span span' matched the row's OUTER span
+    // through an ancestor and read both lines as one.
+    const labels = Array.from(document.querySelectorAll('#cb-addmenu .hp-addopt')).map((b) => (b.querySelector(':scope > span > span') || b).textContent.trim());
     opt && opt.click();
     await new Promise((r) => setTimeout(r, 200));
     const modal = document.getElementById('tv-brief-modal');
