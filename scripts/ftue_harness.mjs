@@ -56,17 +56,29 @@ function wardrobe(n) {
 // exactly ONE look shows the O7 "Your looks" page (FTU simplification
 // 2026-08-18). Seed TWO saved looks by default so the milestone rules below
 // still have a card to assert against; pass looks:false for the zero state.
-async function boot(browser, n, width = 1280, { looks = true, pics = 0 } = {}) {
+// prompt: 'box' | 'card' seeds the home field's per-device flag (phase 3);
+// planned: planned_days rows the stub answers with; intent: the /api/intent
+// answer; the boot records every /api/intent, /api/daily and /api/style post.
+async function boot(browser, n, width = 1280, { looks = true, pics = 0, prompt = null, planned = [], intent = null } = {}) {
   WARDROBE_PICS = pics;
-  const ctx = await browser.newContext({ viewport: { width, height: 1100 } });
+  const ctx = await browser.newContext({ viewport: { width, height: 1100 }, hasTouch: width < 768 });
   const page = await ctx.newPage();
+  const posts = { intent: [], daily: [], style: [] };
   await page.route('**img.test/**', (r) => r.abort());
+  await page.route('**/api/intent', (r) => { try { posts.intent.push(r.request().postDataJSON()); } catch (_) { posts.intent.push(null); }
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(intent || { intent: 'unclear', confidence: 0.2 }) }); });
+  await page.route('**/api/daily', (r) => { try { posts.daily.push(r.request().postDataJSON()); } catch (_) { posts.daily.push(null); }
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(HB_DAILY) }); });
+  await page.route('**/api/style', (r) => { try { posts.style.push(r.request().postDataJSON()); } catch (_) { posts.style.push(null); }
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], fallback: false }) }); });
+  await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  if (prompt) await page.addInitScript((v) => { localStorage.setItem('rb_prompt_box', v === 'box' ? 'on' : 'off'); }, prompt);
 
   await page.route('**cdn.jsdelivr.net/**', (r) =>
     r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
   await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
     const u = r.request().url();
-    const body = u.includes('wardrobe_items') ? JSON.stringify(wardrobe(n)) : '[]';
+    const body = u.includes('wardrobe_items') ? JSON.stringify(wardrobe(n)) : (u.includes('planned_days') && r.request().method() === 'GET') ? JSON.stringify(planned) : '[]';
     return r.fulfill({ status: 200, contentType: 'application/json', body });
   });
   await page.route('**nominatim**', (r) => r.abort());
@@ -105,8 +117,21 @@ async function boot(browser, n, width = 1280, { looks = true, pics = 0 } = {}) {
   page.on('pageerror', (e) => errs.push(String(e)));
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
-  return { ctx, page, errs };
+  return { ctx, page, errs, posts };
 }
+const HB_ISO = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const HB_TODAY = HB_ISO(new Date());
+const HB_TOMORROW = HB_ISO(new Date(Date.now() + 86400000));
+const HB_DAILY = { headline: 'Soft office armour', occasion_label: 'Office', stylist_summary: 'A note.', transition_tip: '', palette: ['#111111', '#EEEEEE'],
+  look_tags: { climate: 'mild', light: 'daylight', wear: ['work'], vibe: 'chic' }, itemCount: 2,
+  steps: [
+    { title: 'The Anchor', items: [{ name: 'Piece 1', category: 'Tops', color: 'Black', wardrobe_index: 0, wardrobe_match: { id: 'w0', label: 'Piece 1', image_url: 'https://img.test/w0.jpg', color: 'Black' }, alternates: [] }] },
+    { title: 'The Canvas', items: [{ name: 'Piece 2', category: 'Bottoms', color: 'Black', wardrobe_index: 1, wardrobe_match: { id: 'w1', label: 'Piece 2', image_url: 'https://img.test/w1.jpg', color: 'Black' }, alternates: [] }] },
+  ] };
+const HB_LOOK = { id: 'lk-hb', name: 'The office one', name_provisional: false, note: '', photo_url: null, tags: null, climate_band: 'year_round', climate_source: 'derived',
+  source: 'manual', origin_look_id: null, created_at: '2026-08-05T10:00:00.000Z', pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }, { id: 'w1', slot: 'Bottom', position: 1, role: null }], wears: [] };
+const HB_PLANNED = [{ user_id: 'u-test', source_type: 'look', source_id: 'lk-hb', day_index: 0, slot: 'day', day_date: HB_TODAY, status: 'planned',
+  activity: 'The office one', headline: 'The office one', item_ids: ['w0', 'w1'], thumb_urls: [], updated_at: new Date().toISOString(), created_at: new Date().toISOString() }];
 
 const _RB_ROLE_NAMES = ['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'];
 const results = [];
@@ -1481,6 +1506,175 @@ for (const prefs of [{ nudges: true }, null]) {
   });
   check('draft line · once the draft is let go the line yields to the next rule', gone.park == null && !/is waiting, unsaved/.test(gone.text || ''), JSON.stringify(gone));
   check('draft line · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// The home field (look prompt brief, phase 3 · 2026-10-01 — FLAGGED):
+// ?prompt=box, per device. Both flag states at every posture; the field's
+// one slot; today's look leading; the classifier's three routes; Save →
+// the date sheet with the named day; a Diary-dated draft skips the sheet.
+// ─────────────────────────────────────────────────────────────────────────
+const hbRead = (page) => page.evaluate(() => {
+  const dash = document.getElementById('dash');
+  const vis = (el) => !!el && el.offsetParent !== null;
+  const hb = document.getElementById('rb-hb');
+  return {
+    mode: dash.getAttribute('data-home'),
+    order: Array.from(dash.children).filter(vis).map((e) => e.id || e.className.split(' ')[0]),
+    conc: vis(dash.querySelector('.concierge')),
+    pills: Array.from(document.querySelectorAll('#rb-sugg button')).filter(vis).length,
+    hb: vis(hb),
+    fields: hb ? hb.querySelectorAll('.rb-lp-field').length : 0,
+    label: hb?.querySelector('.rb-lp-field .ph')?.textContent || '',
+    plusRows: Array.from(document.querySelectorAll('#rb-hb #cb-addmenu .hp-addopt')).map((b) => b.textContent.trim().split('\n')[0].replace(/Where are we.*$/, '').trim()),
+    inkInHb: hb ? Array.from(hb.querySelectorAll('button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length : 0,
+    today: document.querySelector('#rb-today .nm')?.textContent || '',
+    more: document.querySelector('#rb-today .rb-today-more')?.textContent || '',
+    rowPos: hb ? getComputedStyle(hb.querySelector('.rb-hb-row')).position : '',
+    bodyOn: document.body.classList.contains('rb-hb-on'),
+  };
+});
+const HB_ROWS = ['Upload', 'Take a picture', 'From wardrobe', 'Add a look', 'Add a travel edit'];
+// Both flag states at the three postures that carry the prompt: zero-lead
+// (no looks, no styled card), the first look (O7) and the standard home.
+for (const posture of ['zero-lead', 'look', 'standard']) {
+  for (const flag of ['card', 'box']) {
+    const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: posture === 'standard', pics: 6, prompt: flag });
+    if (posture === 'look') {
+      await page.evaluate((lk) => { localStorage.setItem('rb_looks__u-test', JSON.stringify([lk])); }, HB_LOOK);
+      await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2600);
+    }
+    const h = await hbRead(page);
+    const modeOk = posture === 'standard' ? h.mode === 'standard' : h.mode === posture;
+    check(`home field · ${posture} · ${flag} · no page errors`, errs.length === 0, errs.join(' | ').slice(0, 200));
+    if (flag === 'card') {
+      check(`home field · ${posture} · card · the prompt card and its three pills stand, no field`,
+        modeOk && h.conc === true && h.pills === 3 && h.hb === false && h.bodyOn === false, JSON.stringify(h));
+    } else {
+      check(`home field · ${posture} · box · the card and the pills stand down; ONE field under the greeting reads "A new look for…", in flow on the web`,
+        modeOk && h.conc === false && h.pills === 0 && h.hb === true && h.fields === 1 && h.label === 'A new look for…'
+          && h.order[0] === 'dash-mast' && h.order[1] === 'rb-hb' && h.rowPos === 'static', JSON.stringify(h));
+      check(`home field · ${posture} · box · the + keeps its five rows, no ink inside the field's row`,
+        JSON.stringify(h.plusRows) === JSON.stringify(HB_ROWS) && h.inkInHb === 0, JSON.stringify([h.plusRows, h.inkInHb]));
+    }
+    await ctx.close();
+  }
+}
+// Zero (the styled card as the hero): the field stands down exactly as the
+// prompt does — one goal at a time — and returns when the card retires.
+{
+  const { ctx, page, errs } = await boot(browser, 1, 1280, { looks: false, prompt: 'box' });
+  await page.evaluate(() => {
+    sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt: 'Acid green cropped jumper', photo: null, cataloged: true }));
+    sessionStorage.setItem('rb_onboard_styled', JSON.stringify({ prompt: 'Acid green cropped jumper', ts: Date.now(),
+      data: { ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], fallback: false, photoUrl: null } }));
+  });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2600);
+  const z = await hbRead(page);
+  check('home field · zero · box · the styled card is the hero and the field stands down', z.mode === 'zero' && z.hb === false && z.conc === false, JSON.stringify(z));
+  await page.evaluate(() => document.getElementById('rb-styled-open')?.click()); await page.waitForTimeout(900);
+  await page.evaluate(() => window.__rbNavGo('home')); await page.waitForTimeout(500);
+  const z2 = await hbRead(page);
+  check('home field · zero → zero-lead · the field returns the moment the card retires', z2.mode === 'zero-lead' && z2.hb === true && z2.fields === 1 && z2.conc === false, JSON.stringify(z2));
+  check('home field · zero · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+// Today's look leads: the Diary holds a look for today → the card under the
+// greeting, the field reading "Change today's look…", opening the look with
+// its box titled with the look.
+{
+  const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: false, pics: 6, prompt: 'box', planned: HB_PLANNED });
+  await page.evaluate((lk) => { localStorage.setItem('rb_looks__u-test', JSON.stringify([lk, Object.assign({}, lk, { id: 'lk-hb-2', name: 'A second look' })])); }, HB_LOOK);
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2800);
+  const t = await hbRead(page);
+  check('home field · today · the look leads the page and the field reads "Change today’s look…"',
+    t.today === 'The office one' && t.label === 'Change today’s look…' && t.fields === 1 && t.more === '', JSON.stringify(t));
+  const opened = await page.evaluate(async () => {
+    document.querySelector('#rb-hb .rb-lp-field').click();
+    await new Promise((r) => setTimeout(r, 700));
+    return { sn: document.getElementById('sn-page')?.style.display === 'block', box: !!document.getElementById('rb-lp'), ttl: document.querySelector('#rb-lp .ttl')?.textContent,
+      mode: document.querySelector('#rb-lp .robes')?.textContent, band: document.querySelector('#rb-lk-body .rb-ret .lab')?.textContent };
+  });
+  check('home field · today · the field opens the look itself with its box titled with the look, ‹ Home as the way back',
+    opened.sn && opened.box && opened.ttl === 'The office one' && opened.mode === 'What would you change?' && opened.band === 'Home', JSON.stringify(opened));
+  check('home field · today · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+// The classifier's three routes + Save → the date sheet with the named day.
+{
+  const { ctx, page, errs, posts } = await boot(browser, 6, 1280, { looks: true, pics: 6, prompt: 'box', intent: { intent: 'daily', confidence: 0.9, date_start: HB_TOMORROW } });
+  await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(200);
+  const b = await page.evaluate(() => ({ ttl: document.querySelector('#rb-lp .ttl')?.textContent, meta: document.querySelector('#rb-lp .meta')?.textContent, opener: document.querySelector('#rb-lp .robes')?.textContent,
+    chips: document.querySelectorAll('#rb-lp .rs-chip').length, ph: document.getElementById('rb-lp-in')?.placeholder, helper: document.getElementById('rb-lp-helper')?.textContent,
+    rowHidden: getComputedStyle(document.querySelector('#rb-hb .rb-hb-row')).visibility }));
+  check('home field · the box: "A new look", the date as meta, "What’s it for?", no chips, the brief placeholder',
+    b.ttl === 'A new look' && /^\w{3} \d{1,2} \w{3}/.test(b.meta || '') && b.opener === 'What’s it for?' && b.chips === 0 && /travel day/.test(b.ph || '') && /from your wardrobe/.test(b.helper || ''), JSON.stringify(b));
+  await page.evaluate(() => window.__rbLpText('Dinner with Mary tomorrow'));
+  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2600);
+  const d = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), composer: !!document.querySelector('#rb-lk-body .rb-lk-composer'), title: document.getElementById('rb-lk-newtitle')?.value,
+    day: !!document.querySelector('.rb-lk-daychip'), save: document.querySelector('.rb-lk-save')?.textContent.trim() }));
+  check('home field · route 1 · a day ask → the classifier → a LOOSE composer draft (no day attached, Save reads Save this look)',
+    posts.intent.length === 1 && posts.intent[0].prompt === 'Dinner with Mary tomorrow' && posts.daily.length === 1 && posts.daily[0].prompt === 'Dinner with Mary tomorrow'
+      && !d.box && d.composer && d.title === 'Soft office armour' && d.save === 'Save this look', JSON.stringify([posts.intent.length, posts.daily.length, d]));
+  const sv = await page.evaluate(async () => {
+    window.__lkSave();
+    await new Promise((r) => setTimeout(r, 900));
+    return { sheet: !!document.getElementById('rb-lkdy'), picked: document.querySelector('#rb-lkdy .c.sel .n')?.textContent, pick: document.querySelector('#rb-lkdy .pick')?.textContent,
+      detail: !!document.querySelector('#rb-lk-body .rb-lk-held'), band: document.querySelector('#rb-lk-body .rb-ret .lab')?.textContent, pins: (JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]').length) };
+  });
+  check('home field · Save, then the date: the look is filed, its page opens with ‹ Home, and the diary sheet rises on the day her words named (tomorrow)',
+    sv.sheet && sv.picked === String(Number(HB_TOMORROW.slice(8, 10))) && sv.detail && sv.band === 'Home' && sv.pins === 3, JSON.stringify([sv, HB_TOMORROW]));
+  const closed = await page.evaluate(async () => { window.__lkDiaryClose(); await new Promise((r) => setTimeout(r, 200)); return { sheet: !!document.getElementById('rb-lkdy'), strip: document.querySelectorAll('.rb-lk-pinstrip').length, day: !!document.getElementById('dl-result-page') && document.getElementById('dl-result-page').style.display === 'block' }; });
+  check('home field · closing the sheet leaves the look dated nothing', !closed.sheet && closed.strip === 0 && !closed.day, JSON.stringify(closed));
+  // Route 3 — a piece: a named piece in her words goes to the piece track.
+  await page.evaluate(() => { window.__rbNavGo('home'); }); await page.waitForTimeout(400);
+  await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
+  await page.evaluate(() => window.__rbLpText('Style my cream blazer three ways'));
+  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1500);
+  check('home field · route 3 · a named piece → the piece track (/api/style), the classifier never asked',
+    posts.style.length === 1 && posts.style[0].intent === 'style' && posts.intent.length === 1, JSON.stringify([posts.style.length, posts.intent.length]));
+  check('home field · routes · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+{
+  const { ctx, page, errs, posts } = await boot(browser, 6, 1280, { looks: true, pics: 6, prompt: 'box', intent: { intent: 'travel', confidence: 0.9, destination: 'Lisbon', date_start: HB_TOMORROW, date_end: HB_ISO(new Date(Date.now() + 4 * 86400000)), vibe: 'easy' } });
+  await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
+  await page.evaluate(() => window.__rbLpText('Four days in Lisbon from tomorrow'));
+  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1200);
+  const tv = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), modal: !!document.getElementById('tv-brief-modal'), dest: document.getElementById('tv-dest')?.value }));
+  check('home field · route 2 · a trip → the travel intake, prefilled from the classifier (Lisbon)', posts.intent.length === 1 && !tv.box && tv.modal && tv.dest === 'Lisbon', JSON.stringify(tv));
+  await page.evaluate(() => document.getElementById('tv-brief-modal')?.remove());
+  // Unclear → Robes asks in the thread, never a dead end; "a day" answers it.
+  await page.route('**/api/intent', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ intent: 'unclear', confidence: 0.3 }) }));
+  await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
+  await page.evaluate(() => window.__rbLpText('Something for Saturday'));
+  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1000);
+  const u = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), thread: Array.from(document.querySelectorAll('#rb-lp-thread > div')).map((x) => x.className + ':' + x.textContent), ph: document.getElementById('rb-lp-in')?.placeholder }));
+  check('home field · unclear → "A day, a trip, or a piece?" in the thread, the box held open',
+    u.box && JSON.stringify(u.thread) === JSON.stringify(['robes:What’s it for?', 'her:Something for Saturday', 'robes:A day, a trip, or a piece?']) && /A day, a trip, or a piece/.test(u.ph || ''), JSON.stringify(u));
+  await page.evaluate(() => window.__rbLpText('a day'));
+  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2200);
+  const a = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), composer: !!document.querySelector('#rb-lk-body .rb-lk-composer') }));
+  check('home field · "a day" answers it — the first ask runs the day route', !a.box && a.composer && posts.daily.length === 1 && posts.daily[0].prompt === 'Something for Saturday', JSON.stringify([a, posts.daily.map((x) => x && x.prompt)]));
+  check('home field · routes 2 + ask · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+// A Diary-dated door (the rail's scope, Style today) opens the box ON the
+// date: the words land attached, and Save files to the day — no sheet.
+{
+  const { ctx, page, errs, posts } = await boot(browser, 6, 1280, { looks: true, pics: 6, prompt: 'box' });
+  await page.evaluate((iso) => window._ikScopeDay(iso), HB_TOMORROW); await page.waitForTimeout(200);
+  const m = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), meta: document.querySelector('#rb-lp .meta')?.textContent, chip: document.getElementById('rb-scopechip')?.className || '' }));
+  check('home field · a dated door opens the box on the date (no chip under the flag)', m.box && /^\w{3} \d{1,2} \w{3}$/.test(m.meta || '') && !/on/.test(m.chip), JSON.stringify(m));
+  await page.evaluate(() => window.__rbLpText('The office, then drinks'));
+  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2600);
+  const dd = await page.evaluate(() => ({ composer: !!document.querySelector('#rb-lk-body .rb-lk-composer'), save: document.querySelector('.rb-lk-save')?.textContent.trim() }));
+  check('home field · dated · the words go straight to the day (no classifier) and the draft carries it',
+    posts.intent.length === 0 && posts.daily.length === 1 && posts.daily[0].prompt === 'The office, then drinks' && dd.composer && /^Save to /.test(dd.save || ''), JSON.stringify([posts.intent.length, dd]));
+  const s2 = await page.evaluate(async () => { window.__lkSave(); await new Promise((r) => setTimeout(r, 900)); return { sheet: !!document.getElementById('rb-lkdy'), day: document.getElementById('dl-result-page')?.style.display === 'block' }; });
+  check('home field · dated · Save files to the day and skips the date sheet', !s2.sheet && s2.day, JSON.stringify(s2));
+  check('home field · dated · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
 

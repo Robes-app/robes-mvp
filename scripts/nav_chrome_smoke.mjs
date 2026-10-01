@@ -347,6 +347,30 @@ const titleTop = (page) => page.evaluate(() => {
   await ctx.close();
 }
 
+// ── 5 · the home field (phase 3, flagged): docked above the menu ≤767px,
+//        in flow on the web; the open box slides the menu away and hides
+//        the docked field — the two never show together.
+{
+  const { ctx, page, errs } = await boot(browser, { width: 390, path: '/dashboard?prompt=box' });
+  const d = await page.evaluate(() => {
+    const row = document.querySelector('#rb-hb .rb-hb-row'); const r = row.getBoundingClientRect(); const dk = document.getElementById('rb-dock').getBoundingClientRect();
+    return { pos: getComputedStyle(row).position, gap: Math.round(dk.top - r.bottom), vis: getComputedStyle(row).visibility, label: document.querySelector('#rb-hb .ph')?.textContent, conc: getComputedStyle(document.querySelector('#dash .concierge')).display,
+      overflow: document.documentElement.scrollWidth <= window.innerWidth + 1, dockOn: dk.top < window.innerHeight };
+  });
+  check('mobile home field · the row is docked 12px above the menu, the card hidden, no overflow', d.pos === 'fixed' && d.gap === 12 && d.vis === 'visible' && d.label === 'A new look for…' && d.conc === 'none' && d.overflow && d.dockOn, JSON.stringify(d));
+  await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(400);
+  const o = await page.evaluate(() => { const dk = document.getElementById('rb-dock').getBoundingClientRect(); return { box: !!document.getElementById('rb-lp'), dockGone: dk.top >= window.innerHeight, rowHidden: getComputedStyle(document.querySelector('#rb-hb .rb-hb-row')).visibility === 'hidden', sheetBottom: Math.round(document.querySelector('#rb-lp .rb-lp').getBoundingClientRect().bottom), inner: window.innerHeight }; });
+  check('mobile home field · the open box slides the menu away and hides the docked field — never together', o.box && o.dockGone && o.rowHidden && o.sheetBottom === o.inner, JSON.stringify(o));
+  await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(400);
+  const c = await page.evaluate(() => { const dk = document.getElementById('rb-dock').getBoundingClientRect(); return { dockBack: dk.top < window.innerHeight, rowVis: getComputedStyle(document.querySelector('#rb-hb .rb-hb-row')).visibility === 'visible' }; });
+  check('mobile home field · closing the box brings the menu and the field back', c.dockBack && c.rowVis, JSON.stringify(c));
+  await page.setViewportSize({ width: 1280, height: 1100 }); await page.waitForTimeout(400);
+  const w = await page.evaluate(() => ({ pos: getComputedStyle(document.querySelector('#rb-hb .rb-hb-row')).position, after: document.querySelector('#dash .dash-mast')?.nextElementSibling?.id }));
+  check('web home field · no dock: the field sits in flow under the greeting', w.pos === 'static' && w.after === 'rb-hb', JSON.stringify(w));
+  check('no page errors (home field)', errs.length === 0, errs.join(' | '));
+  await ctx.close();
+}
+
 await browser.close();
 server.kill();
 function report() {

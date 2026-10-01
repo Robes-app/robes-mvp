@@ -851,7 +851,9 @@ body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
 .rbc-hownote.rb-lp-was{color:var(--rose,#8E7077);font-style:normal;font-family:inherit;font-size:10.5px;letter-spacing:.04em}
 .rbc-hownote.rb-lp-styled{color:var(--ink-soft,#4A4744)}
 @media(max-width:767px){.rb-lp-wrap{align-items:flex-end;padding:0}.rb-lp{max-width:none;max-height:88dvh;border-radius:18px 18px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom,0px))}.rb-lp .grab{display:block;width:36px;height:4px;border-radius:2px;background:var(--rule-mid,#CFC7B9);margin:0 auto 14px}.rb-lp .thread{max-height:170px}}
-@media(prefers-reduced-motion:reduce){.rb-lp .reading .dots i{animation:none;opacity:.7}}`;
+#rb-dock{transition:transform .22s ease}
+body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
+@media(prefers-reduced-motion:reduce){.rb-lp .reading .dots i{animation:none;opacity:.7}#rb-dock{transition:none}}`;
       function _rbLpCss() {
         if (document.getElementById('rb-lp-style')) return;
         const st = document.createElement('style'); st.id = 'rb-lp-style'; st.textContent = _RB_LP_CSS; document.head.appendChild(st);
@@ -934,8 +936,23 @@ body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
       window.__rbLpKey = function(e) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.__rbLpSend(); }
       };
+      // ≤767px the sheet rides the keyboard: the wrap takes the VISUAL
+      // viewport's box (phase 3, the spec's section E) so the field never
+      // hides behind the keys on iOS, where the layout viewport stands still.
+      function _rbLpViewport() {
+        const w = document.getElementById('rb-lp'), vv = window.visualViewport;
+        if (!w || !vv) return;
+        if (!window.matchMedia('(max-width:767px)').matches) { w.style.top = ''; w.style.height = ''; w.style.bottom = ''; return; }
+        w.style.top = Math.max(0, vv.offsetTop) + 'px'; w.style.height = vv.height + 'px'; w.style.bottom = 'auto';
+      }
+      function _rbLpViewportOn(on) {
+        const vv = window.visualViewport; if (!vv) return;
+        vv.removeEventListener('resize', _rbLpViewport); vv.removeEventListener('scroll', _rbLpViewport);
+        if (on) { vv.addEventListener('resize', _rbLpViewport); vv.addEventListener('scroll', _rbLpViewport); _rbLpViewport(); }
+      }
       window.__rbLpClose = function() {
         const s = _rbLp;
+        _rbLpViewportOn(false);
         document.getElementById('rb-lp')?.remove();
         document.querySelectorAll('.rb-lp-busy').forEach(el => el.classList.remove('rb-lp-busy'));
         if (s) _rbTrack('look_prompt_closed', { surface: s.surface, turns: s.turns || 0, applied_count: s.applied || 0, saved: false });
@@ -954,6 +971,7 @@ body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
         w.id = 'rb-lp'; w.className = 'rb-lp-wrap';
         document.body.appendChild(w);
         _rbLpPaint();
+        _rbLpViewportOn(true);
         try { const ta = document.getElementById('rb-lp-in'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {}
         _rbTrack('look_prompt_opened', { surface: _rbLp.surface, mode: _rbLp.mode, look_id: _rbLp.lookId || null });
       }
@@ -967,6 +985,32 @@ body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
         if (!text) { try { document.getElementById('rb-lp-in')?.focus(); } catch (_) {} return; }
         const fromDraft = !!s.draft && text === s.draftText;
         s.turns = (s.turns || 0) + 1;
+        // mode 'new' with onAsk (the home field, phase 3): the box holds —
+        // her line lands on the thread, Robes reads it, and the answer is
+        // either a REPLY (the thread continues: "A day, a trip, or a
+        // piece?") or a GO (the box closes, the route runs). Never a dead
+        // end: a failed read answers with the question.
+        if (s.mode === 'new' && typeof s.onAsk === 'function') {
+          _rbTrack('look_prompt_sent', { surface: s.surface, intent: 'new', chars: text.length, from_draft: false });
+          s.thread.push({ who: 'her', text });
+          s.text = ''; s.draft = false; s.draftText = null; s.reading = true;
+          _rbLpSync(true);
+          let r = null;
+          try { r = await s.onAsk(text, s); } catch (e) { console.error('[Robes] home box', e); r = { reply: 'Robes couldn’t read that — a day, a trip, or a piece?' }; }
+          if (_rbLp !== s) return;
+          s.reading = false;
+          if (r && typeof r.go === 'function') {
+            window.__rbLpClose();
+            try { r.go(); } catch (e) { console.error('[Robes] home box route', e); _waShowToast('Robes couldn’t start that look — please try again.'); }
+            return;
+          }
+          if (r && r.reply) s.thread.push({ who: 'robes', text: r.reply });
+          if (r && r.pending !== undefined) s.hbPending = r.pending;
+          if (r && r.placeholder) s.placeholder = r.placeholder;
+          _rbLpSync(true);
+          try { document.getElementById('rb-lp-in')?.focus(); } catch (_) {}
+          return;
+        }
         if (s.mode === 'new') {
           _rbTrack('look_prompt_sent', { surface: s.surface, intent: 'new', chars: text.length, from_draft: false });
           const fn = s.onNew; window.__rbLpClose();
@@ -1430,6 +1474,10 @@ body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
         if (!dash || !mast || !conc || !trk) return;
         const rail = document.getElementById('rb-rail');
         const styled = document.getElementById('rb-styled');
+        // The home field (phase 3, flagged) sits directly under the
+        // greeting in every posture — every sequence hangs from it.
+        const hb = document.getElementById('rb-hb');
+        const base = (hb && hb.parentNode === dash) ? hb : mast;
         // The model door (slice 2, 2026-09-18) sits after the prompt + rail
         // (after "Your looks" in the first-look posture) and before the
         // concierge band.
@@ -1456,7 +1504,7 @@ body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
             ? [styled, notes, ftuRows, svc0]
             : [conc, notes, firstlook, door, ftuRows, svc0]).filter(Boolean);
           seq0.forEach((el, i) => {
-            const prev = i === 0 ? mast : seq0[i - 1];
+            const prev = i === 0 ? base : seq0[i - 1];
             if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
           });
           return;
@@ -1473,7 +1521,7 @@ body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
           ? (styled ? [styled, notes, conc, firstlook, rail, door, svc] : [conc, firstlook, notes, rail, door, svc])
           : [conc, firstlook, notes, rail, door, styled, svc]).filter(Boolean);
         seq.forEach((el, i) => {
-          const prev = i === 0 ? mast : seq[i - 1];
+          const prev = i === 0 ? base : seq[i - 1];
           if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
         });
       }
@@ -9755,6 +9803,7 @@ body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
           _lkDraftFromDaily({ ...data, context }, {
             kind: 'daily',
             day: data._dlLoose ? null : data.anchor_date,
+            dateHint: (data._dlLoose && opts && opts.dateHint) ? opts.dateHint : null,
             src: { prompt, opts: submitOpts },
             // Try another re-runs the ask as it stands — a refined draft
             // re-runs the REFINED ask (submitOpts carries her words).
@@ -13796,6 +13845,11 @@ button.rb-lk-live{cursor:pointer}
       // trip:{di}|null}. Set by the picker's Create a new look and by a
       // day look Robes styles; null from the Lookbook or a piece page.
       var _lkDay = null;
+      // Phase 3: a LOOSE draft from the home field remembers the day her
+      // words named (the classifier's date, else today) — never attached,
+      // so Save files the look first and the diary sheet rises with that
+      // day preselected; closing it leaves the look dated nothing.
+      var _lkDateHint = null;
       // Where a Robes-drafted composer came from — Try another re-runs it.
       var _lkDraftSrc = null;
       // The key piece page hosts the draft (design Key_Piece_Reveal,
@@ -14900,6 +14954,7 @@ button.rb-lk-live{cursor:pointer}
           shop: _lkShop, shopImgs: _lkShopImgs, note: _lkBuildNote, palette: _lkBuildPalette,
           built: !!_lkBuilt, aspirational: !!_lkAspirational, gaps: _lkBuildGaps, mine: !!_lkBuildMine,
           day: _lkDay ? { date: _lkDay.date || null, trip: _lkDay.trip || null } : null,
+          dateHint: _lkDateHint || null,
           src, was: _lkDraftWas, styled: _lkDraftStyled,
         };
       }
@@ -14991,6 +15046,7 @@ button.rb-lk-live{cursor:pointer}
         _lkBuildGaps = Array.isArray(d.gaps) ? d.gaps : [];
         _lkBuildMine = !!d.mine;
         if (d.day && (d.day.date || d.day.trip)) _lkDay = { date: d.day.date || null, trip: d.day.trip || null };
+        _lkDateHint = (!_lkDay && d.dateHint) ? d.dateHint : null;
         _lkBuildSeq++;
         // Try another re-runs the ask the draft came from — a closure cannot
         // survive a reload, so the prompt and its options ride the park.
@@ -15750,11 +15806,13 @@ button.rb-lk-live{cursor:pointer}
           _lkDiaryPaint();
         });
       }
-      window.__lkDiaryOpen = function() {
+      window.__lkDiaryOpen = function(preset) {
         const l = _lkFind(_lkActive);
         if (!l) return;
         const today = _pdLocalISO();
-        _lkDy = { ym: today.slice(0, 7), picked: today, rows: [] };
+        // A preset day (the home field's Save, phase 3) opens the sheet on it.
+        const d0 = (typeof preset === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(preset)) ? preset : today;
+        _lkDy = { ym: d0.slice(0, 7), picked: d0, rows: [] };
         _lkDiaryPaint();
         _lkDyMonthRows();
         _rbTrack('look_diary_opened', {});
@@ -16312,7 +16370,7 @@ button.rb-lk-live{cursor:pointer}
         _lkmShown = null;
         _lkNewTitleDraft = null; _lkNewTitleTouched = false;
         _lkNewTags = null; _lkNewRoles = {};
-        _lkDay = null; _lkDraftSrc = null; _lkKpHost = false;
+        _lkDay = null; _lkDateHint = null; _lkDraftSrc = null; _lkKpHost = false;
         // A reset never drops the PARK — only Save, Discard and the
         // let-it-go confirm do. It only forgets which draft this composer was.
         if (_lkDraftParkT) { clearTimeout(_lkDraftParkT); _lkDraftParkT = null; }
@@ -17386,7 +17444,8 @@ button.rb-lk-live{cursor:pointer}
             '</div>').join('');
           const styled = document.getElementById('rb-styled');
           const mast = dash.querySelector('.dash-mast');
-          const anchor = (styled && styled.nextSibling) || (mast && mast.nextSibling) || null;
+          const hb0 = document.getElementById('rb-hb');
+          const anchor = (styled && styled.nextSibling) || (hb0 && hb0.parentNode === dash && hb0.nextSibling) || (mast && mast.nextSibling) || null;
           if (anchor) dash.insertBefore(el, anchor); else dash.appendChild(el);
         }
         // Where the demoted modules live: the rail always inside its row;
@@ -17626,6 +17685,8 @@ button.rb-lk-live{cursor:pointer}
       function _rbNextRailSlots(slots) {
         _rbNextSlots = Array.isArray(slots) ? slots : null;
         _rbNextPaint();
+        // Today's look leads the home field (phase 3) — the rail's data.
+        if (typeof _rbHbSync === 'function') _rbHbSync();
       }
       function _rbNextLine() {
         if (_rbHomeMode === 'zero') return { key: 'styled' };
@@ -17933,6 +17994,7 @@ button.rb-lk-live{cursor:pointer}
         if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
         _rbNotesDoorSync();
         _rbModelDoorSync();
+        if (typeof _rbHbSync === 'function') _rbHbSync();
         if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length);
         _rbNextPaint();
       }
@@ -18065,6 +18127,7 @@ button.rb-lk-live{cursor:pointer}
         _lkResetComposer();
         _lkKpHost = kpHost;
         if (o.day) _lkDay = { date: o.day, trip: null };
+        if (!o.day && o.dateHint) _lkDateHint = o.dateHint;
         _lkBuilt = true; _lkBuilding = false; _lkBuildSeq++;
         _lkDraftSrc = { kind: o.kind || 'daily', eyebrow: String(o.eyebrow || '').trim(), again: typeof o.again === 'function' ? o.again : null,
           refine: typeof o.refine === 'function' ? o.refine : null,
@@ -18490,6 +18553,7 @@ button.rb-lk-live{cursor:pointer}
         _lkBuildFrame = null; _lkBuildNote = null; _lkBuildPalette = []; _lkBuildSeq++;
         _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
         const day = _lkDay; _lkDay = null; _lkDraftSrc = null;
+        const dateHint = _lkDateHint; _lkDateHint = null;
         // A draft hosted on the key piece page (2026-09-16) lands there —
         // the host reads Filed, the look one tap away; the Lookbook grid
         // repaints underneath as ever.
@@ -18525,6 +18589,17 @@ button.rb-lk-live{cursor:pointer}
         // The kp host carries its own "Filed under X." toast with the
         // look one tap away — the generic line would double it.
         if (kpHosted && typeof _kpBuildSaved === 'function') { _kpBuildSaved(l); return; }
+        // Save, then the date (phase 3): a loose look from the home field
+        // is filed first, then the Put-in-the-Diary sheet rises on the
+        // look's own page with the day her words named preselected.
+        // Closing the sheet leaves the look dated nothing.
+        if (dateHint && window.__lkOpen && window.__lkDiaryOpen) {
+          window.__lkOpen(l.id, { from: { label: 'Home', go: function() { window.__rbNavGo && window.__rbNavGo('home'); } } });
+          setTimeout(() => { try { window.__lkDiaryOpen(dateHint); } catch (_) {} }, 60);
+          _rbTrack('look_saved_then_dated', { hint: dateHint });
+          _waShowToast(l.name + ' saved to Looks ✓');
+          return;
+        }
         _waShowToast(l.name + ' saved to Looks ✓');
       };
 
@@ -25240,6 +25315,14 @@ body>*:not(#tv-result-page){display:none !important}
         // guard left a stale unroutable intent (e.g. legacy 'moodboard')
         // permanently bypassing NL detection.
         if (!def || !ta) return;
+        // The home field (phase 3): the scaffolds stand down — a travel
+        // door goes straight to the intake (the modal path), the others
+        // open the box with the scaffold as her first line to edit.
+        if (typeof _rbHbOn === 'function' && _rbHbOn() && window.__rbHbOpen) {
+          if (intent === 'travel') { if (window.__tvOpen) window.__tvOpen({}); return; }
+          window.__rbHbOpen({ text: def.inject });
+          return;
+        }
         _cbIntent = intent;
         // Remember the scaffold's static prefix — if the user later rewrites
         // the prompt wholesale, _cbSubmit re-detects instead of trusting the
@@ -25581,6 +25664,9 @@ body>*:not(#tv-result-page){display:none !important}
         _rbDownscale(file).then(function(dataUrl) {
           _cbPhotoData = dataUrl;
           _rbTrack('photo_attached', {});
+          // The home field (phase 3): a photo from + is a piece — the box
+          // opens with it attached, the words lead with "three ways".
+          if (typeof _rbHbOn === 'function' && _rbHbOn() && window.__rbHbOpen) window.__rbHbOpen({ text: 'Style this piece three ways' });
         }).catch(function() {
           _waShowToast('Couldn’t read that image — try another photo.');
         });
@@ -28768,6 +28854,10 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         _ikSetScope(null);
       }
       window._ikScopeDay = function(date, slot) {
+        // The home field (phase 3): a dated door opens the box ON the date
+        // — the words land attached to it (a Diary-dated draft skips the
+        // date sheet on Save).
+        if (typeof _rbHbOn === 'function' && _rbHbOn() && window.__rbHbOpen) { window.__rbHbOpen({ date }); return; }
         const m = slot && slot.moments && slot.moments.length ? slot.moments[0] : null;
         _ikSetScope({ kind: 'day', id: m ? m.source_id : null, date, label: _ikChipDateLabel(date) });
         // FTU rows: scoping from the rail must unfurl the prompt's row
@@ -29450,6 +29540,285 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           else if (++tries2 > 60) clearInterval(t2);
         }, 1500);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) _ikPillsPaint(); });
+      })();
+
+      // ── The home field — ONE door on home (look prompt brief, phase 3) ─
+      // FLAGGED, per device: ?prompt=box turns it on (localStorage
+      // rb_prompt_box = 'on'), ?prompt=card turns it off; _HB_DEFAULT is
+      // the one constant to flip once Annie has tested it live (the Diary
+      // intake's own path, 2026-07-24). Under the flag the prompt card,
+      // its three pills, the scaffolds and the typewriter hold stand down
+      // (the card stays in the DOM, hidden — the + menu's five rows ride
+      // out of it into the field's row). The field reads "A new look
+      // for…" and opens the look prompt box in new mode: her words go to
+      // the classifier as today (a photo or a wardrobe pick is the piece
+      // track; "dress me" is the daily fast path), a day ask lands a LOOSE
+      // composer draft carrying the day her words named (Save → the date
+      // sheet), travel opens the intake prefilled, unclear → Robes asks in
+      // the thread. A look filed for today leads the page over the field.
+      // The web has no dock — the field sits in flow under the greeting;
+      // ≤767px the row docks 12px above the menu.
+      var _HB_FLAG_KEY = 'rb_prompt_box';
+      var _HB_DEFAULT = 'off';
+      function _rbHbOn() {
+        try { const v = localStorage.getItem(_HB_FLAG_KEY); return v ? v === 'on' : _HB_DEFAULT === 'on'; } catch (_) { return _HB_DEFAULT === 'on'; }
+      }
+      window._rbHbOn = _rbHbOn;
+      var _HB_CSS = `
+body.rb-hb-on #dash .concierge{display:none!important}
+#rb-hb{margin:0 0 44px;max-width:760px}
+#rb-hb .rb-hb-row{display:flex;align-items:center;gap:10px}
+#rb-hb .rb-hb-row .rb-lp-field{flex:1;min-width:0;margin:0;background:#fff;padding:13px 10px 13px 20px}
+#rb-hb .rb-hb-row .rb-lp-field .ph{font-size:17px}
+#rb-hb .rb-hb-row .hp-add-wrap{flex:none}
+#rb-hb .hp-add{width:34px;height:34px}
+#rb-hb .hp-addmenu{top:calc(100% + 8px);bottom:auto;min-width:200px}
+#rb-today{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}
+#rb-today .rb-today-main{display:flex;align-items:center;gap:16px;width:100%;box-sizing:border-box;padding:14px 16px;background:#fff;border:0.5px solid var(--rule-mid,#CFC7B9);border-radius:var(--rad-card,14px);cursor:pointer;text-align:left;font-family:inherit;color:var(--ink,#202021)}
+#rb-today .rb-today-main:hover{border-color:var(--ink-faint,#9A958E)}
+#rb-today .th{flex:none;width:64px;aspect-ratio:4/5;border-radius:var(--rad-sm,8px);background:var(--cream-200,#EDE9E2) center/cover no-repeat;overflow:hidden;position:relative}
+#rb-today .th .rb-lk-mos{position:absolute;inset:0;height:100%;aspect-ratio:auto}
+#rb-today .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+#rb-today .ey{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077)}
+#rb-today .nm{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:300;font-size:clamp(21px,2.2vw,25px);line-height:1.14;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#rb-today .wx{font-size:12px;color:var(--ink-soft,#55524E);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#rb-today .ar{flex:none;font-size:15px;color:var(--ink-faint,#9A958E)}
+#rb-today .rb-today-more{align-self:flex-start;border:0;background:none;padding:0 2px;cursor:pointer;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:15px;color:var(--ink-soft,#55524E)}
+#rb-today .rb-today-more:hover{color:var(--ink,#202021)}
+@media(max-width:767px){
+#rb-hb{margin-bottom:22px}
+#rb-hb .rb-hb-row.rb-hb-dock{position:fixed;left:12px;right:12px;bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:47;margin:0}
+#rb-hb .rb-hb-row.rb-hb-dock .rb-lp-field{background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 32px rgba(32,32,33,.14),0 1px 2px rgba(32,32,33,.06)}
+#rb-hb .rb-hb-row.rb-hb-dock .hp-add{background:rgba(255,255,255,.96);box-shadow:0 10px 32px rgba(32,32,33,.14)}
+#rb-hb .hp-addmenu{bottom:calc(100% + 8px);top:auto}
+body:has(#rb-lp) #rb-hb .rb-hb-row.rb-hb-dock{visibility:hidden}
+body.rb-hb-on{padding-bottom:170px}
+}`;
+      function _rbHbCss() {
+        if (document.getElementById('rb-hb-style') || !_HB_CSS) return;
+        const st = document.createElement('style'); st.id = 'rb-hb-style'; st.textContent = _HB_CSS; document.head.appendChild(st);
+      }
+      // Today's look, off the rail's data (_pdSlots → the next line's
+      // slots): the first look on the date leads the card; the rest count.
+      function _rbHbTodayLook() {
+        const today = _pdLocalISO();
+        const slot = (_rbNextSlots || []).find(sl => sl && sl.date === today);
+        const looks = slot ? (slot.looks || []) : [];
+        if (!looks.length) return null;
+        const m = looks[0];
+        let name = String(m.headline || m.activity || '').trim(), thumb = null, mosaic = '';
+        if (m.source_type === 'look') {
+          const l = typeof _lkFind === 'function' ? _lkFind(m.source_id) : null;
+          if (l) {
+            name = String(l.name || name || 'Today’s look').trim();
+            thumb = _lkHeroUrl(l);
+            if (!thumb && typeof _ltMosaicHtml === 'function') { try { mosaic = _ltMosaicHtml(_ltCells(_lkPieceIds(l))); } catch (_) { mosaic = ''; } }
+          }
+        }
+        if (!thumb && Array.isArray(m.thumb_urls)) thumb = m.thumb_urls.find(u => _pdHttp(u)) || null;
+        return { m, name: name || 'Today’s look', thumb, mosaic, n: looks.length, title: slot.title || '' };
+      }
+      function _rbHbWxLine() {
+        const rc = window.__rbCtx || {};
+        return [rc.city, rc.tempRange || (rc.tempC != null ? rc.tempC + '°C' : ''), rc.condition].filter(Boolean).join(' · ');
+      }
+      function _rbHbSync() {
+        const dash = document.getElementById('dash');
+        const mast = dash && dash.querySelector('.dash-mast');
+        if (!dash || !mast) return;
+        const on = _rbHbOn();
+        document.body.classList.toggle('rb-hb-on', on);
+        let el = document.getElementById('rb-hb');
+        // Zero (the styled card as the hero, 2026-09-25) stands the field
+        // down exactly as it stands the prompt down — one goal at a time.
+        const show = on && _rbHomeMode !== 'zero';
+        if (!show) {
+          if (el) {
+            // The + menu goes home to the card before the row goes.
+            const wrap = el.querySelector('.hp-add-wrap'), foot = dash.querySelector('.concierge .cb-foot');
+            if (wrap && foot) foot.insertBefore(wrap, foot.firstChild);
+            el.remove();
+          }
+          return;
+        }
+        _rbHbCss();
+        if (!el) {
+          el = document.createElement('section');
+          el.id = 'rb-hb';
+          el.innerHTML = '<div id="rb-today-slot"></div><div class="rb-hb-row rb-hb-dock" id="rb-hb-row"><span id="rb-hb-plus"></span><span id="rb-hb-fieldslot" style="display:contents"></span></div>';
+          _rbTrack('home_box_shown', {});
+        }
+        if (mast.nextSibling !== el) dash.insertBefore(el, mast.nextSibling);
+        // The + keeps its five rows: the card's own .hp-add-wrap (button +
+        // menu, the rows personalize appends to it by id) moves into the
+        // field's row — one menu, one set of doors.
+        const plus = document.getElementById('rb-hb-plus');
+        const wrap = document.querySelector('#dash .concierge .hp-add-wrap') || (plus && plus.querySelector('.hp-add-wrap'));
+        if (plus && wrap && wrap.parentNode !== plus) plus.appendChild(wrap);
+        const t = _rbHbTodayLook();
+        const todaySlot = document.getElementById('rb-today-slot');
+        if (todaySlot) {
+          if (t) {
+            const wx = _rbHbWxLine();
+            const wd = new Date(_pdLocalISO() + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+            todaySlot.innerHTML = '<div id="rb-today">' +
+              '<button type="button" class="rb-today-main" onclick="window.__rbHbToday()">' +
+                '<span class="th"' + (t.thumb ? ' style="background-image:url(\'' + _waEsc(t.thumb) + '\')"' : '') + '>' + (t.thumb ? '' : t.mosaic) + '</span>' +
+                '<span class="tx"><span class="ey">Today' + (t.title ? ' · ' + _waEsc(t.title) : '') + '</span><span class="nm">' + _waEsc(t.name) + '</span>' +
+                (wx ? '<span class="wx">' + _waEsc(wx) + '</span>' : '') + '</span>' +
+                '<span class="ar">→</span>' +
+              '</button>' +
+              (t.n > 1 ? '<button type="button" class="rb-today-more" onclick="window.__rbHbMore()">' + (t.n - 1) + ' more today · ' + _waEsc(wd) + ' ›</button>' : '') +
+              '</div>';
+          } else todaySlot.innerHTML = '';
+        }
+        const slot = document.getElementById('rb-hb-fieldslot');
+        if (slot) slot.innerHTML = _rbLpFieldHtml({ mode: 'new', label: t ? 'Change today’s look…' : null, onclick: t ? 'window.__rbHbToday()' : 'window.__rbHbOpen()', cls: 'rb-hb-field' });
+      }
+      window._rbHbSync = _rbHbSync;
+      // The date her words named, if any: the classifier's date_start,
+      // else today — only ever a hint on a loose draft.
+      function _rbHbRoute(prompt, seed, s) {
+        const today = _pdLocalISO();
+        const date = s.hbDate || null;
+        if (date) return () => { window.__dlSubmit(prompt, { anchorDate: date }); };
+        const hint = (seed && /^\d{4}-\d{2}-\d{2}$/.test(String(seed.date_start || ''))) ? seed.date_start : today;
+        return () => { window.__dlSubmit(prompt, { loose: true, dateHint: hint }); };
+      }
+      function _rbHbAsk(text, s) {
+        const t0 = Date.now();
+        let prompt = String(text || '').trim();
+        // The scaffolds' [brackets] run with their defaults (the prompt's
+        // own rule) — the box takes the scaffold as her first line to edit.
+        if (/\[[^\]]*\]/.test(prompt)) prompt = prompt.replace(/\[([^\]]*)\]/g, '$1').replace(/\s{2,}/g, ' ').trim();
+        const track = (intent, extra) => _rbTrack('prompt_submitted', Object.assign({ intent, scope: s.hbDate ? 'day' : 'none', source: 'box', ok: true, latency_ms: Date.now() - t0 }, extra || {}));
+        // A look attached from + : Enter PINS it to the day — her words
+        // become the day's name (the card's own A.2 rule).
+        if (_cbLookId) {
+          const lk = _lkFind(_cbLookId);
+          _cbLookId = null;
+          if (!lk) { _cbClearPhoto(); return { reply: 'That look is gone from your lookbook — what would you like instead?' }; }
+          const date = s.hbDate || _pdLocalISO();
+          track('pin-look');
+          return { go: () => { _lkPin(lk.id, date, prompt ? prompt.slice(0, 120) : null); _cbReset(); _waShowToast('“' + (lk.name || 'Your look') + '” pinned to ' + (date === _pdLocalISO() ? 'today' : _lkFmt(date))); } };
+        }
+        // A photo (or a wardrobe pick) is the piece track — always.
+        if (_cbPhotoData) {
+          const photo = _cbPhotoData;
+          track('style', { has_photo: true });
+          return { go: () => { _cbReset(); _cbStyleSubmit(prompt, photo, { intent: 'style' }); } };
+        }
+        // A named piece in her words is the piece track too (the card's
+        // detector) — "Style my cream blazer three ways".
+        if (typeof _cbDetectIntent === 'function' && _cbDetectIntent(prompt, false) === 'style') {
+          track('style');
+          return { go: () => { _cbReset(); _cbStyleSubmit(prompt, null, { intent: 'style' }); } };
+        }
+        // A dated door (the rail, the Diary, Style today): the words land
+        // ON the day, no classifier — a Diary-dated draft skips the sheet.
+        if (s.hbDate) { track('daily', { dated: true }); return { go: _rbHbRoute(prompt, null, s) }; }
+        // "dress me …" needs no model round-trip (the card's fast path).
+        if (/\bdress me\b/i.test(prompt)) { track('daily'); return { go: _rbHbRoute(prompt, null, s) }; }
+        // Her answer to "A day, a trip, or a piece?"
+        if (s.hbPending) {
+          const first = s.hbPending;
+          if (/^\s*(a |the )?(day|today|tomorrow|outfit|look)\b/i.test(prompt)) { s.hbPending = null; track('daily', { from_ask: true }); return { go: _rbHbRoute(first, null, s) }; }
+          if (/^\s*(a |the )?(trip|travel|holiday|pack)/i.test(prompt)) { s.hbPending = null; track('travel', { from_ask: true }); return { go: () => { _cbReset(); window.__tvOpen({ brief: first }); } }; }
+          if (/^\s*(a |the )?(piece|key piece|item)\b/i.test(prompt)) { s.hbPending = null; track('style', { from_ask: true }); return { go: () => { _cbReset(); _cbStyleSubmit(first, null, { intent: 'style' }); } }; }
+          prompt = first + ' — ' + prompt;
+        }
+        return _ikClassify(prompt).then(seed => {
+          const conf = seed && seed.confidence >= 0.6 && seed.intent !== 'unclear';
+          if (conf && seed.intent === 'daily') { track('daily'); return { go: _rbHbRoute(prompt, seed, s) }; }
+          if (conf && seed.intent === 'travel') {
+            track('travel');
+            // The intake, prefilled from the classifier — never a place
+            // or a date she didn't give.
+            return { go: () => { _cbReset(); window.__tvOpen({ brief: prompt, dest: seed.destination || undefined, dateFrom: seed.date_start || undefined, dateTo: seed.date_end || undefined, vibe: seed.vibe || undefined }); } };
+          }
+          _rbTrack('prompt_submitted', { intent: (seed && seed.intent) || 'unclear', scope: 'none', source: 'box', ok: true, latency_ms: Date.now() - t0, asked: true });
+          return { reply: 'A day, a trip, or a piece?', pending: prompt, placeholder: 'A day, a trip, or a piece…' };
+        }).catch(() => {
+          _rbTrack('prompt_submitted', { intent: 'error', scope: 'none', source: 'box', ok: false, latency_ms: Date.now() - t0 });
+          return { reply: 'Robes couldn’t read that — a day, a trip, or a piece?', pending: prompt, placeholder: 'A day, a trip, or a piece…' };
+        });
+      }
+      // o: {text, date}. A date (a dated door: the rail, the Diary, Style
+      // today) is the meta line and attaches the words to the day.
+      window.__rbHbOpen = function(o) {
+        o = o || {};
+        document.getElementById('cb-addmenu')?.classList.remove('open');
+        const today = _pdLocalISO();
+        const date = (o.date && /^\d{4}-\d{2}-\d{2}$/.test(o.date)) ? o.date : null;
+        const rc = window.__rbCtx || {};
+        const wx = (!date || date === today) ? [rc.tempRange, rc.condition].filter(Boolean).join(', ') : '';
+        // Months by table (the standing rule — newer ICU prints "Sept").
+        const dl = iso => { const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('en-GB', { weekday: 'short' }) + ' ' + d.getDate() + ' ' + _rbMon3(iso); };
+        let meta = dl(date || today);
+        if (wx) meta += ' · ' + wx;
+        let lkName = null;
+        if (_cbLookId) { const lk = _lkFind(_cbLookId); lkName = lk ? (lk.name || 'Your look') : null; }
+        if (lkName) meta = 'Pin “' + lkName + '” · name the day';
+        else if (_cbPhotoData) meta = 'Your piece · styled three ways';
+        _rbLookPrompt({
+          mode: 'new', surface: 'home', title: 'A new look', name: 'A new look', meta,
+          text: o.text || '', hbDate: date, onAsk: _rbHbAsk,
+          opener: lkName ? 'What’s the day?' : undefined,
+          placeholder: lkName ? 'Dinner with Mary…' : (_cbPhotoData ? 'Style this piece three ways…' : undefined),
+          helper: lkName ? 'Enter pins the look to the day.' : (_cbPhotoData ? 'Robes styles it three ways.' : undefined),
+        });
+        _rbTrack('home_box_opened', { today: !!_rbHbTodayLook(), dated: !!date, photo: !!_cbPhotoData, look: !!lkName });
+      };
+      // Today's look: the field opens the look ITSELF with the box on it —
+      // a saved look's page (its box in look mode), a generated day's
+      // console (its box), a trip's day (the trip).
+      window.__rbHbToday = function() {
+        const t = _rbHbTodayLook();
+        if (!t) { window.__rbHbOpen(); return; }
+        const m = t.m;
+        _rbTrack('home_today_opened', { source: m.source_type });
+        if (m.source_type === 'look' && window.__lkOpen && _lkFind(m.source_id)) {
+          window.__lkOpen(m.source_id, { from: { label: 'Home', go: function() { window.__rbNavGo && window.__rbNavGo('home'); } } });
+          setTimeout(() => { try { window.__lkLpOpen && window.__lkLpOpen('look'); } catch (_) {} }, 80);
+          return;
+        }
+        if (window._rbOpenMoment) window._rbOpenMoment(m, { from: 'home' });
+        if (m.source_type === 'daily') setTimeout(() => { try { if (window.__lastDlData && window.__dlLpOpen) window.__dlLpOpen(); } catch (_) {} }, 500);
+      };
+      window.__rbHbMore = function() {
+        const today = _pdLocalISO();
+        if (window.__rbDayOpen) window.__rbDayOpen(today, { from: 'home' });
+      };
+      (function _rbHbBoot() {
+        try {
+          const m = location.search.match(/[?&]prompt=(box|card)/);
+          if (m) localStorage.setItem(_HB_FLAG_KEY, m[1] === 'box' ? 'on' : 'off');
+        } catch (_) {}
+        if (!_rbHbOn()) return;
+        // Hide the card before it can paint — the sync lands the field.
+        try { document.body.classList.add('rb-hb-on'); } catch (_) {}
+        _rbHbCss();
+        // A wardrobe pick or an attached look from the + menu opens the
+        // box with the words it wrote into the card (the card is hidden).
+        const wrapApply = (name, textOf) => {
+          const orig = window[name];
+          if (typeof orig !== 'function') return;
+          window[name] = async function() {
+            const r = await orig.apply(this, arguments);
+            if (_rbHbOn()) { const ta = document.getElementById('cb-ta'); window.__rbHbOpen({ text: textOf ? textOf(ta) : '' }); }
+            return r;
+          };
+        };
+        setTimeout(() => {
+          wrapApply('__cbWardrobeApply', ta => (ta && ta.value) || '');
+          wrapApply('__cbLookApply', () => '');
+        }, 1200);
+        let tries = 0;
+        const t = setInterval(() => {
+          const mast = document.querySelector('#dash .dash-mast');
+          if (mast) { _rbHbSync(); if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length); }
+          if (mast || ++tries > 40) clearInterval(t);
+        }, 250);
       })();
 
       (function _rbOnboardHandoff() {

@@ -1,6 +1,6 @@
 # The look prompt — one box on every look, and the draft it edits (build brief)
 
-**Date**: 2026-10-01 · **Branch**: `beta` · **Status**: phases 1 and 2 built (2026-10-01); phase 3 pending
+**Date**: 2026-10-01 · **Branch**: `beta` · **Status**: phases 1, 2 and 3 built (2026-10-01); phase 3 ships behind `?prompt=box` (per device, default off — flip `_HB_DEFAULT` once tested live)
 **Supersedes**: slice C of `docs/style-memory-brief.md` as built on 2026-09-30 (the ask sheet). Slices A and B stand; D, E and F are unchanged.
 **Sources**: the beta feedback corpus (Sinead's and Liberty's 👎 notes, 14–28 Sep), `Look_Prompt_Spec.dc.html` (1 Oct) and `Home.dc.html` (1 Oct) from Annie's Claude Design project.
 
@@ -111,7 +111,7 @@ The prompt carries the spec's intent order verbatim (new look is the client's �
 
 ## Phase 3 · Home, one door (flagged)
 
-The Home design removes the prompt card and the three pills and docks **"A new look for…"** above the menu; a look filed for today leads the page. The direction stands; the surface is the most-tested in the app (the FTUE harness's three postures, the Diary intake flag, the typewriter), so it ships the way the Diary intake did — **behind a per-device flag** (`?prompt=box`, localStorage), default on once the harness is green.
+The Home design removes the prompt card and the three pills and docks **"A new look for…"** above the menu; a look filed for today leads the page. The direction stands; the surface is the most-tested in the app (the FTUE harness's three postures, the Diary intake flag, the typewriter), so it ships the way the Diary intake did — **behind a per-device flag** (`?prompt=box`, localStorage), default on once the harness is green. *As built (2026-10-01): default OFF, `?prompt=box` opts a device in and `?prompt=card` out; `_HB_DEFAULT` is the flip, Annie's call after the live run.*
 
 - **Routing is the classifier's**: her words go to `/api/intent` as today. Travel opens the travel intake as the modal path (`__tvOpen` prefilled from the classifier's destination/dates/vibe) — the unfurl's host disappears with the card. A day ask lands a composer draft with the day attached (`__dlSubmit(brief, {anchorDate})`). A photo from + goes to the piece track as now. Unclear → Robes asks in the thread ("A day, a trip, or a piece?"), never a dead end.
 - **Today's look leads** when the Diary holds one for today (the rail's data, `_pdSlots`): the card under the greeting, the weather line inside it, the field reading "Change today's look…" and opening titled with the look; "1 more today · Thursday ›" past the first.
