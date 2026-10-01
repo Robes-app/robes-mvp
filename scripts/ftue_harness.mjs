@@ -1581,22 +1581,32 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await ctx.close();
 }
 // Today's look leads: the Diary holds a look for today → the card under the
-// greeting, the field reading "Change today's look…", opening the look with
-// its box titled with the look.
+// greeting is the door to the look (its box titled with the look); the
+// FIELD stays neutral (Annie, 2026-10-01 — "Change today's look…" read
+// wrong for planning): "A new look for…", opening the new-look box.
 {
   const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: false, pics: 6, prompt: 'box', planned: HB_PLANNED });
   await page.evaluate((lk) => { localStorage.setItem('rb_looks__u-test', JSON.stringify([lk, Object.assign({}, lk, { id: 'lk-hb-2', name: 'A second look' })])); }, HB_LOOK);
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2800);
   const t = await hbRead(page);
-  check('home field · today · the look leads the page and the field reads "Change today’s look…"',
-    t.today === 'The office one' && t.label === 'Change today’s look…' && t.fields === 1 && t.more === '', JSON.stringify(t));
-  const opened = await page.evaluate(async () => {
+  check('home field · today · the look leads the page and the field stays neutral — "A new look for…"',
+    t.today === 'The office one' && t.label === 'A new look for…' && t.fields === 1 && t.more === '', JSON.stringify(t));
+  const neutral = await page.evaluate(async () => {
     document.querySelector('#rb-hb .rb-lp-field').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const out = { sn: document.getElementById('sn-page')?.style.display === 'block', box: !!document.getElementById('rb-lp'), ttl: document.querySelector('#rb-lp .ttl')?.textContent, opener: document.querySelector('#rb-lp .robes')?.textContent };
+    window.__rbLpClose();
+    return out;
+  });
+  check('home field · today · the field opens the NEW-look box (a day to plan, a trip, a piece), never today’s look',
+    !neutral.sn && neutral.box && neutral.ttl === 'A new look' && neutral.opener === 'What’s it for?', JSON.stringify(neutral));
+  const opened = await page.evaluate(async () => {
+    document.querySelector('#rb-today .rb-today-main').click();
     await new Promise((r) => setTimeout(r, 700));
     return { sn: document.getElementById('sn-page')?.style.display === 'block', box: !!document.getElementById('rb-lp'), ttl: document.querySelector('#rb-lp .ttl')?.textContent,
       mode: document.querySelector('#rb-lp .robes')?.textContent, band: document.querySelector('#rb-lk-body .rb-ret .lab')?.textContent };
   });
-  check('home field · today · the field opens the look itself with its box titled with the look, ‹ Home as the way back',
+  check('home field · today · the card opens the look itself with its box titled with the look, ‹ Home as the way back',
     opened.sn && opened.box && opened.ttl === 'The office one' && opened.mode === 'What would you change?' && opened.band === 'Home', JSON.stringify(opened));
   check('home field · today · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();

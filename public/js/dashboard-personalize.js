@@ -847,7 +847,18 @@
 .rb-lp-field.rb-lp-dock .ph{font-size:17px}
 body:has(#rb-lp) .rb-lp-field.rb-lp-dock{visibility:hidden}
 #sn-page:has(.rb-lp-dock) #rb-lk-wrap,#kp-result-page:has(.rb-lp-dock) .kp-wrap,#dl-result-page:has(.rb-lp-dock) .dlm-wrap{padding-bottom:132px}
-@media(max-width:767px){.rb-lp-field.rb-lp-dock{bottom:calc(98px + env(safe-area-inset-bottom,0px));width:calc(100vw - 24px)}#kp-result-page.kp-building .rb-lp-field.rb-lp-dock{bottom:calc(172px + env(safe-area-inset-bottom,0px))}#sn-page:has(.rb-lp-dock) #rb-lk-wrap,#kp-result-page:has(.rb-lp-dock) .kp-wrap,#dl-result-page:has(.rb-lp-dock) .dlm-wrap{padding-bottom:190px}}
+@media(max-width:767px){.rb-lp-field.rb-lp-dock{display:none}#sn-page:has(.rb-lp-dock) #rb-lk-wrap,#kp-result-page:has(.rb-lp-dock) .kp-wrap,#dl-result-page:has(.rb-lp-dock) .dlm-wrap{padding-bottom:120px}}
+#rb-lp-slot{display:none;position:fixed;right:12px;bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:47}
+@media(max-width:767px){#rb-lp-slot.on{display:block}}
+body:has(#rb-lp) #rb-lp-slot{display:none!important}
+#rb-lp-slot .rb-lps{position:relative;display:flex;align-items:center;gap:0;height:44px;max-width:calc(100vw - 24px);box-sizing:border-box;padding:0 0 0 13px;border-radius:100px;border:0.5px solid var(--rule-mid,#CFC7B9);background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 32px rgba(32,32,33,.14),0 1px 2px rgba(32,32,33,.06);cursor:pointer;font-family:inherit;color:var(--ink,#202021);transition:padding .22s ease}
+#rb-lp-slot .rb-lps .sp{flex:none;width:17px;height:17px;display:block;color:var(--ink,#202021)}
+#rb-lp-slot .rb-lps .w{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;color:var(--ink-soft,#55524E);white-space:nowrap;overflow:hidden;max-width:260px;padding:0 18px 0 9px;opacity:1;transition:max-width .22s ease,opacity .16s ease,padding .22s ease}
+#rb-lp-slot .rb-lps.folded .w,#rb-lp-slot .rb-lps.bare .w{max-width:0;padding:0;opacity:0}
+#rb-lp-slot .rb-lps.folded,#rb-lp-slot .rb-lps.bare{padding:0 13px}
+#rb-lp-slot .rb-lps .dot{display:none;position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--rose,#8E7077)}
+#rb-lp-slot .rb-lps.held .dot{display:block}
+@media(prefers-reduced-motion:reduce){#rb-lp-slot .rb-lps,#rb-lp-slot .rb-lps .w{transition:none}}
 .rbc-hownote.rb-lp-was{color:var(--rose,#8E7077);font-style:normal;font-family:inherit;font-size:10.5px;letter-spacing:.04em}
 .rbc-hownote.rb-lp-styled{color:var(--ink-soft,#4A4744)}
 @media(max-width:767px){.rb-lp-wrap{align-items:flex-end;padding:0}.rb-lp{max-width:none;max-height:88dvh;border-radius:18px 18px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom,0px))}.rb-lp .grab{display:block;width:36px;height:4px;border-radius:2px;background:var(--rule-mid,#CFC7B9);margin:0 auto 14px}.rb-lp .thread{max-height:170px}}
@@ -950,13 +961,25 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
         vv.removeEventListener('resize', _rbLpViewport); vv.removeEventListener('scroll', _rbLpViewport);
         if (on) { vv.addEventListener('resize', _rbLpViewport); vv.addEventListener('scroll', _rbLpViewport); _rbLpViewport(); }
       }
+      // A box closed MID-THREAD (her lines on it) is held, one at a time,
+      // keyed on the slot it was opened from: the sparkle carries a rose
+      // dot and the thread comes back the next time she opens that box
+      // (the closed-state design, 2026-10-01). A reopen clears the hold.
+      var _rbLpHeld = null;
       window.__rbLpClose = function() {
         const s = _rbLp;
         _rbLpViewportOn(false);
         document.getElementById('rb-lp')?.remove();
         document.querySelectorAll('.rb-lp-busy').forEach(el => el.classList.remove('rb-lp-busy'));
         if (s) _rbTrack('look_prompt_closed', { surface: s.surface, turns: s.turns || 0, applied_count: s.applied || 0, saved: false });
+        // Held only while the thread is HERS and live: a thread she
+        // reopened and then left without adding a line is let go.
+        const herN = s && Array.isArray(s.thread) ? s.thread.filter(t => t.who === 'her').length : 0;
+        if (s && !s.reading && s.key && herN && (!s.restored || herN > s.herAtOpen)) {
+          _rbLpHeld = { key: s.key, thread: s.thread.slice(), pending: s.hbPending, placeholder: s.placeholder || null, at: Date.now() };
+        } else if (s && s.key && _rbLpHeld && _rbLpHeld.key === s.key) _rbLpHeld = null;
         _rbLp = null;
+        if (typeof _rbLpSlotSync === 'function') _rbLpSlotSync();
       };
       document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && _rbLp) window.__rbLpClose(); });
       // cfg: {mode: 'look'|'new'|'way', surface, title, meta, name, text,
@@ -965,17 +988,136 @@ body:has(#rb-lp) #rb-dock{transform:translateY(120%)}
       function _rbLookPrompt(cfg) {
         window.__rbLpClose();
         _rbLpCss();
-        _rbLp = Object.assign({ mode: 'look', thread: [], text: '', draft: false, draftText: null, reading: false, applied: 0, turns: 0 }, cfg || {});
+        // The slot this box belongs to (read BEFORE the box is in the DOM):
+        // the key a held thread comes back on.
+        let key = (cfg && cfg.key) || null;
+        if (!key) { try { const c = _rbLpSlotCtx(); key = c ? c.key : null; } catch (_) {} }
+        _rbLp = Object.assign({ mode: 'look', thread: [], text: '', draft: false, draftText: null, reading: false, applied: 0, turns: 0 }, cfg || {}, { key });
+        if (_rbLpHeld && key && _rbLpHeld.key === key) {
+          _rbLp.thread = _rbLpHeld.thread.slice();
+          if (_rbLpHeld.pending !== undefined) _rbLp.hbPending = _rbLpHeld.pending;
+          if (!_rbLp.placeholder && _rbLpHeld.placeholder) _rbLp.placeholder = _rbLpHeld.placeholder;
+          _rbLp.restored = true; _rbLp.herAtOpen = _rbLp.thread.filter(t => t.who === 'her').length;
+          _rbLpHeld = null;
+        }
         if (_rbLp.mode === 'look' && typeof _rbLp.changed === 'function') { try { _rbLp.applied = _rbLp.changed() || 0; } catch (_) {} }
         const w = document.createElement('div');
         w.id = 'rb-lp'; w.className = 'rb-lp-wrap';
         document.body.appendChild(w);
         _rbLpPaint();
         _rbLpViewportOn(true);
+        _rbLpSlotSync();
         try { const ta = document.getElementById('rb-lp-in'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {}
         _rbTrack('look_prompt_opened', { surface: _rbLp.surface, mode: _rbLp.mode, look_id: _rbLp.lookId || null });
       }
       window._rbLookPrompt = _rbLookPrompt;
+      // ── The closed state (≤767px): ONE slot, 12px above the menu on the
+      // right, on every page. A page with one subject Robes can act on
+      // carries the pill with its verb (folding to the sparkle while she
+      // scrolls, unfolding 700ms after she stops); a grid of many things
+      // carries the sparkle alone. Tapping either opens the same box.
+      // The web keeps the docked field (the pill is the phone's).
+      var _RB_LPS_SPARK = '<svg class="sp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9z"/><path d="M19 3v3M17.5 4.5h3M5 17v3M3.5 18.5h3"/></svg>';
+      var _rbLpsFoldT = null, _rbLpsFolded = false, _rbLpsLast = '';
+      function _rbLpSlotCtx() {
+        if (document.getElementById('rb-lp')) return null;
+        const vis = id => { const el = document.getElementById(id); return !!el && el.style.display !== 'none' && getComputedStyle(el).display !== 'none'; };
+        const hb = typeof _rbHbOn === 'function' && _rbHbOn();
+        const fresh = (el) => ({ key: 'new', words: null, go: () => window.__rbHbOpen && window.__rbHbOpen() });
+        // A surface carrying the look prompt's docked field: the slot reads
+        // it — its words, its door — so every look surface (the composer,
+        // the saved look, the trip look, the day console, the kp builder)
+        // needs nothing of its own.
+        const mirror = (root, keyBase) => {
+          const f = root.querySelector('.rb-lp-field.rb-lp-dock');
+          if (!f) return null;
+          for (let a = f.parentElement; a && a !== root; a = a.parentElement) { if (a.style.display === 'none') return null; }
+          const ph = f.querySelector('.ph');
+          return { key: keyBase, words: ph ? ph.textContent : _RB_LP_COPY.doorLook, go: () => f.click() };
+        };
+        if (vis('rb-piece-page')) return null;
+        const sn = document.getElementById('sn-page');
+        if (sn && sn.style.display === 'block') {
+          if (sn.classList.contains('rb-cal-on')) return hb ? Object.assign(fresh(), { key: 'diary' }) : null;
+          const lv = (typeof _lkView !== 'undefined') ? _lkView : 'grid';
+          if (lv === 'grid') return hb ? Object.assign(fresh(), { key: 'lookbook' }) : null;
+          const m = mirror(sn, (lv === 'detail' ? 'look:' + (typeof _lkActive !== 'undefined' ? _lkActive : '') : 'composer'));
+          return m;
+        }
+        if (vis('rb-insp-page')) return hb ? Object.assign(fresh(), { key: 'inspiration' }) : null;
+        const kp = document.getElementById('kp-result-page');
+        if (kp && kp.style.display !== 'none') {
+          const m = mirror(kp, 'kp-build');
+          return m || (hb ? Object.assign(fresh(), { key: 'kp' }) : null);
+        }
+        const dl = document.getElementById('dl-result-page');
+        if (dl && dl.style.display !== 'none') {
+          const m = mirror(dl, 'day:' + ((window.__lastDlData && (window.__lastDlData.anchor_date || window.__lastDlData.headline)) || ''));
+          if (m) return m;
+          const pg = (typeof _dyPg !== 'undefined') ? _dyPg : null;
+          if (pg && pg.date && hb) return { key: 'daypage:' + pg.date, words: 'Dress this day…', go: () => window.__rbHbOpen && window.__rbHbOpen({ date: pg.date }) };
+          return null;
+        }
+        const tv = document.getElementById('tv-result-page');
+        if (tv && tv.style.display !== 'none') {
+          if (!hb || !window.__lastTvData || !window.__tvLpOpen) return null;
+          return { key: 'trip:' + (window.__lastTvData.destination || ''), words: 'Pack for this trip…', go: () => window.__tvLpOpen() };
+        }
+        const wp = document.querySelector('.wardrobe-panel');
+        if (wp && wp.classList.contains('visible')) return hb ? Object.assign(fresh(), { key: 'wardrobe' }) : null;
+        // Home: the field on the page carries the words; the slot stands
+        // down while that row is on screen and takes over once she has
+        // scrolled past it.
+        if (!hb) return null;
+        const row = document.getElementById('rb-hb-row');
+        if (!row) return null;
+        const r = row.getBoundingClientRect();
+        if (r.bottom > 0 && r.top < window.innerHeight) return null;
+        return { key: 'home', words: _RB_LP_COPY.doorNew, go: () => window.__rbHbOpen && window.__rbHbOpen() };
+      }
+      function _rbLpSlotSync() {
+        let el = document.getElementById('rb-lp-slot');
+        const ctx = (() => { try { return _rbLpSlotCtx(); } catch (_) { return null; } })();
+        if (!ctx) { if (el) el.classList.remove('on'); _rbLpsLast = ''; return; }
+        if (!el) {
+          _rbLpCss();
+          el = document.createElement('div'); el.id = 'rb-lp-slot';
+          el.innerHTML = '<button type="button" class="rb-lps" onclick="window.__rbLpSlotTap()">' + _RB_LPS_SPARK + '<span class="w"></span><span class="dot"></span></button>';
+          document.body.appendChild(el);
+        }
+        el._ctx = ctx;
+        const b = el.querySelector('.rb-lps');
+        const sig = ctx.key + '|' + (ctx.words || '');
+        if (sig !== _rbLpsLast) { _rbLpsLast = sig; _rbLpsFolded = false; clearTimeout(_rbLpsFoldT); }
+        b.querySelector('.w').textContent = ctx.words || '';
+        b.classList.toggle('bare', !ctx.words);
+        b.classList.toggle('folded', !!ctx.words && _rbLpsFolded);
+        b.classList.toggle('held', !!(_rbLpHeld && _rbLpHeld.key === ctx.key));
+        b.setAttribute('aria-label', ctx.words || 'A new look');
+        el.classList.add('on');
+      }
+      window._rbLpSlotSync = _rbLpSlotSync;
+      window.__rbLpSlotTap = function() {
+        const el = document.getElementById('rb-lp-slot');
+        const ctx = (el && el._ctx) || _rbLpSlotCtx();
+        if (!ctx) return;
+        _rbTrack('look_prompt_slot_tapped', { key: String(ctx.key).split(':')[0], words: !!ctx.words });
+        try { ctx.go(); } catch (e) { console.error('[Robes] slot', e); }
+      };
+      // Folds while she scrolls (any scroll container — the pages scroll
+      // inside themselves), unfolds 700ms after the last scroll; reduced
+      // motion never folds.
+      document.addEventListener('scroll', function() {
+        if (window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+        _rbLpSlotSync();
+        const el = document.getElementById('rb-lp-slot');
+        if (!el || !el.classList.contains('on')) return;
+        _rbLpsFolded = true;
+        const b = el.querySelector('.rb-lps');
+        if (b && !b.classList.contains('bare')) b.classList.add('folded');
+        clearTimeout(_rbLpsFoldT);
+        _rbLpsFoldT = setTimeout(() => { _rbLpsFolded = false; const b2 = document.querySelector('#rb-lp-slot .rb-lps'); if (b2) b2.classList.remove('folded'); }, 700);
+      }, true);
       function _rbLpDim(on) {
         document.querySelectorAll('.rbc-rack, .rb-lk-rack').forEach(el => el.classList.toggle('rb-lp-busy', !!on));
       }
@@ -23502,6 +23644,26 @@ body>*:not(#tv-result-page){display:none !important}
         }
       };
 
+      // The trip's closed-state verb (≤767px, the slot): the box in new
+      // mode over the trip — her words are the plan, Robes styles one look
+      // from the case (the "+ Style another look" sheet's own path).
+      window.__tvLpOpen = function() {
+        const data = window.__lastTvData;
+        if (!data) return;
+        const dest = String(data.destination || '').trim();
+        const name = String(data.headline || (dest ? 'Trip to ' + dest : 'The trip')).replace(/\.$/, '').trim();
+        _rbLookPrompt({
+          mode: 'new', surface: 'trip-new', title: name, name,
+          meta: (dest ? 'Trip to ' + dest : 'Your trip') + (data.dateLine ? ' · ' + data.dateLine : ''),
+          opener: 'What’s the plan?', placeholder: 'A beach day, dinner by the harbour…', helper: 'Robes styles one look from what you’re packing.',
+          onAsk: text => {
+            const plan = String(text || '').trim().slice(0, 60);
+            if (!plan) return { reply: 'What’s the plan?' };
+            _rbTrack('prompt_submitted', { intent: 'travel', scope: 'trip', source: 'box', ok: true });
+            return { go: () => { _tvMoreSel = [plan]; _tvMorePinTo = null; window.__tvMoreGo(); } };
+          },
+        });
+      };
       // The intake's day-scoped travel prompt: style a look for her words,
       // pinned straight to that day (replaces the old per-day restyle).
       window.__tvStyleLookForDay = function(di, text) {
@@ -24672,12 +24834,12 @@ body>*:not(#tv-result-page){display:none !important}
             else if (wxEl.style.display === 'none') wxEl.style.removeProperty('display');
           }
         }
-        window._rbNavSync = _rbNavSync;
-        _rbNavSync();
+        window._rbNavSync = function() { _rbNavSync(); try { window._rbLpSlotSync && window._rbLpSlotSync(); } catch (_) {} };
+        window._rbNavSync();
         // Poll — views open/close through many independent paths (chips,
         // popstate, observers, bundle toggles); a cheap visibility poll is
         // the one hook that covers them all (same idiom as _waInit).
-        setInterval(_rbNavSync, 350);
+        setInterval(window._rbNavSync, 350);
         window.addEventListener('resize', _rbNavSync);
       })();
 
@@ -29587,12 +29749,8 @@ body.rb-hb-on #dash .concierge{display:none!important}
 #rb-today .rb-today-more:hover{color:var(--ink,#202021)}
 @media(max-width:767px){
 #rb-hb{margin-bottom:22px}
-#rb-hb .rb-hb-row.rb-hb-dock{position:fixed;left:12px;right:12px;bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:47;margin:0}
-#rb-hb .rb-hb-row.rb-hb-dock .rb-lp-field{background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 32px rgba(32,32,33,.14),0 1px 2px rgba(32,32,33,.06)}
-#rb-hb .rb-hb-row.rb-hb-dock .hp-add{background:rgba(255,255,255,.96);box-shadow:0 10px 32px rgba(32,32,33,.14)}
-#rb-hb .hp-addmenu{bottom:calc(100% + 8px);top:auto}
-body:has(#rb-lp) #rb-hb .rb-hb-row.rb-hb-dock{visibility:hidden}
-body.rb-hb-on{padding-bottom:170px}
+#rb-hb .rb-hb-row .rb-lp-field{padding:12px 8px 12px 16px}
+#rb-hb .rb-hb-row .rb-lp-field .ph{font-size:16px}
 }`;
       function _rbHbCss() {
         if (document.getElementById('rb-hb-style') || !_HB_CSS) return;
@@ -29645,7 +29803,7 @@ body.rb-hb-on{padding-bottom:170px}
         if (!el) {
           el = document.createElement('section');
           el.id = 'rb-hb';
-          el.innerHTML = '<div id="rb-today-slot"></div><div class="rb-hb-row rb-hb-dock" id="rb-hb-row"><span id="rb-hb-plus"></span><span id="rb-hb-fieldslot" style="display:contents"></span></div>';
+          el.innerHTML = '<div id="rb-today-slot"></div><div class="rb-hb-row" id="rb-hb-row"><span id="rb-hb-plus"></span><span id="rb-hb-fieldslot" style="display:contents"></span></div>';
           _rbTrack('home_box_shown', {});
         }
         if (mast.nextSibling !== el) dash.insertBefore(el, mast.nextSibling);
@@ -29672,8 +29830,12 @@ body.rb-hb-on{padding-bottom:170px}
               '</div>';
           } else todaySlot.innerHTML = '';
         }
+        // The field stays NEUTRAL whatever today holds (Annie, 2026-10-01:
+        // "Change today's look…" read wrong for planning) — it reads
+        // "A new look for…" and opens the box; the card above is the door
+        // to today's look.
         const slot = document.getElementById('rb-hb-fieldslot');
-        if (slot) slot.innerHTML = _rbLpFieldHtml({ mode: 'new', label: t ? 'Change today’s look…' : null, onclick: t ? 'window.__rbHbToday()' : 'window.__rbHbOpen()', cls: 'rb-hb-field' });
+        if (slot && !slot.querySelector('.rb-lp-field')) slot.innerHTML = _rbLpFieldHtml({ mode: 'new', onclick: 'window.__rbHbOpen()', cls: 'rb-hb-field' });
       }
       window._rbHbSync = _rbHbSync;
       // The date her words named, if any: the classifier's date_start,

@@ -4070,18 +4070,26 @@ const lpSend = async (text, wait) => {
   });
   check('box · with no piece named every change goes back; the door reads “Change this look…” again',
     backAll.rows.includes('Cream silk shirt') && !backAll.rows.includes('Ribbed white tank') && backAll.was === 0 && backAll.ph === 'Restyle it, or swap the red shoes for black…', JSON.stringify(backAll));
+  // The closed-state rule (2026-10-01): a thread closed MID-WAY is held
+  // and comes back on the next open; left there without a new line, it
+  // is let go — the open after THAT shows the opener alone.
   const closed = await page.evaluate(async () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await new Promise((r) => setTimeout(r, 150));
     const gone = !document.getElementById('rb-lp');
     document.querySelector('#rb-lk-body .rb-lp-field')?.click();
     await new Promise((r) => setTimeout(r, 200));
-    const out = window.__lpRead(); out.gone = gone;
+    const held = window.__lpRead().thread.length;
+    window.__rbLpClose();
+    await new Promise((r) => setTimeout(r, 100));
+    document.querySelector('#rb-lk-body .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const out = window.__lpRead(); out.gone = gone; out.held = held;
     out.door = document.querySelector('#rb-lk-body .rb-lp-field .ph')?.textContent;
     return out;
   });
-  check('box · Escape closes it and the thread is dropped — reopened, only the opener stands',
-    closed.gone && closed.open && closed.thread.length === 1 && closed.door === 'Change this look…', JSON.stringify(closed));
+  check('box · Escape closes it; the thread comes back once on reopen, and a reopen she leaves unanswered lets it go — only the opener stands after that',
+    closed.gone && closed.held > 1 && closed.open && closed.thread.length === 1 && closed.door === 'Change this look…', JSON.stringify(closed));
   check('box · nothing is written by any of it — no look, no row; the brief write and the events are the only PATCHes',
     !writes.slice(wb).some((w) => w.method === 'POST' && /^(looks|look_pieces|lookbook_items|planned_days)/.test(w.url)), JSON.stringify(writes.slice(wb).map((w) => w.method + ' ' + w.url)));
   check('box · composer: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
