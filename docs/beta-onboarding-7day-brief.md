@@ -1,6 +1,6 @@
 # The first seven days — onboarding + check-in brief
 
-**Date**: 2026-10-02 (revised the same day: WhatsApp removed, push notifications planned for the native app, Annie's personal emails added) · **Branch**: `beta` · **Status**: brief, nothing built
+**Date**: 2026-10-02 (revised the same day: WhatsApp removed, push notifications planned for the native app, Annie's emails added; the invite rebuilt as a short formatted email from annie@byrobes.com, modelled on Kyha's welcome) · **Branch**: `beta` · **Status**: brief, nothing built
 **Builds on**: `docs/four-session-funnel-brief.md` (the four sessions), slice 6 as built in `notify.js` (the five state-keyed mails + the morning cue), the onboarding split (2026-09-25), the home box as default (2026-10-01).
 **Voice**: `robes-voice` rules apply to every line Robes sends. "AI" never appears in anything she reads. Annie's own emails are first person and may name the stage plainly ("one of the first people to use it"), but avoid the words "beta", "MVP" and "platform".
 
@@ -10,17 +10,17 @@ A seven-day journey for a newly invited tester, from the invite to the first log
 
 | Sender | Job | Voice | How it is sent |
 |---|---|---|---|
-| **Annie, from Gmail** | The invitation and the feedback ask. Sets the week's expectations on day 0, asks how it felt on day 7. | Annie, first person, warm and plain | By hand, from slatteryannie@gmail.com |
+| **Annie** | The invitation and the feedback ask. Sets the week's expectations on day 0, asks how it felt on day 7. | Annie, first person, warm and plain | By hand, from annie@byrobes.com |
 | **Robes** | The next step. A picture of hers, one sentence, one deep link into the exact screen. | Robes, editorial, third person | The server (`notifyTick`, Resend), state-keyed |
 | **Push** *(phase 2, native app)* | The moment. Short, timely, one tap. Takes over the morning and the "wore it?" beats. | Robes, shortest register | The native app, once built |
 
-**Why no WhatsApp.** Most testers are not personal contacts, and a founder's WhatsApp from an unknown number reads as an intrusion. Email from Annie carries the personal touch. Push carries the timely touch once the native app exists.
+**Why no WhatsApp.** Most testers are not personal contacts, and a founder's WhatsApp from an unknown number reads as an intrusion. Email from Annie, on the Robes domain, carries the personal touch. Push carries the timely touch once the native app exists.
 
 **The rhythm.** At most one message a day, of any kind. Robes emails land on days 0, 1, 3, 5 and 6. Annie's emails land on day 0 (before signup) and day 7. Days 2 and 4 are quiet in this phase — they are the slots push fills later.
 
 **Feedback runs all week through three doors**, each named in the invite so she knows they exist:
 
-1. **Reply to any email.** Annie's emails come from her Gmail. Robes mails get a `Reply-To` pointing at Annie (build delta 1), so a reply to any of them reaches her. Every Robes mail ends with one line saying so.
+1. **Reply to any email.** Annie's emails come from annie@byrobes.com. Robes mails get a `Reply-To` pointing at the same address (build delta 1), so a reply to any of them reaches her. Every Robes mail ends with one line saying so.
 2. **Tell Robes in the box.** Every look carries the look prompt box. "Not the loafers", "too formal", "I'd never wear grey" — the box changes the look, files a standing rule when she states one, and writes the line to her style memory. It is in-app feedback that improves the next look, so it is the door most worth pointing at.
 3. **The day-7 ask.** Fifteen minutes on a call, or three questions answered by email.
 
@@ -45,14 +45,14 @@ Two feedback measures sit beside the tiers: the share of testers who reply to an
 
 | Day | Her state | In-app door that already exists | Message |
 |---|---|---|---|
-| **0** | Invited → signup → first piece → three ways → a look saved | The styled card; card 01 the one ink; the Filed card's forward line | **Annie: the invite** (Gmail, before signup). **Robes: `looks_ready`** (built) when the frames land, or **`first_piece`** (new) at +4h if nothing was filed |
+| **0** | Invited → signup → first piece → three ways → a look saved | The styled card; card 01 the one ink; the Filed card's forward line | **Annie: the invite** (annie@byrobes.com, before signup). **Robes: `looks_ready`** (built) when the frames land, or **`first_piece`** (new) at +4h if nothing was filed |
 | **1** | A look saved, no model | The model door on home; the next line's `model` rule | **Robes: `look_waiting`** (built) — or **`pick_one`** (new) if she saw the three ways and built nothing |
 | **2** | A model on file, or not | Style notes; the look page's Model view | Quiet. *Push later: the model nudge* |
 | **3** | A look borrowing pieces, fewer than five photographed | Swap in yours · N; the briefed add | **Robes: `borrowing`** or **`five`** (both built) |
 | **4** | Filing pieces, or stalled | The add flow's batch; the chooser | Quiet. *Push later: the batch nudge* |
 | **5** | Pieces filed, nothing in the diary | The home box; the diary; the day page | **Robes: `plan_a_day`** (retuned `week_empty`) |
 | **6** | A day dressed, or not | The day page's ✓ Wore it | **Robes: `week_one`** (new) — her week on paper |
-| **7** | Whatever she reached | — | **Annie: the feedback ask** (Gmail) |
+| **7** | Whatever she reached | — | **Annie: the feedback ask** (annie@byrobes.com) |
 
 Robes mails carry `?from=email` (already captured on land). The invite link carries UTM parameters, which PostHog records as initial person properties with no code change.
 
@@ -60,49 +60,32 @@ Robes mails carry `?from=email` (already captured on land). The invite link carr
 
 ## Day 0 · The invite and the spark
 
-### Annie's invitation (Gmail, before signup)
+### Annie's invitation (from annie@byrobes.com, before signup)
 
-Sent by hand. One per tester, with her first name. The link's visible text is `beta.byrobes.com`; its address is `https://beta.byrobes.com/?utm_source=invite&utm_medium=email`.
+The built email is `docs/emails/invite.html`, with a plain-text twin in `docs/emails/invite.txt`. It is modelled on the Kyha welcome email's skeleton: one image, one headline, one short paragraph, one button, a single-line list, and a tinted sign-off. It runs to about 120 words.
 
 **Subject:** You're invited to Robes
-**Alternative subjects:** "One piece, three ways — your invitation" · "Robes: you're one of the first"
+**Preheader:** One piece you love, styled three ways. Your first week starts here.
 
-> Hi {Name},
->
-> I'm building Robes, a styling app that starts with the clothes you already own. I'd love you to be one of the first people to use it.
->
-> **Your link: beta.byrobes.com**
->
-> It starts with one piece you love. Photograph it, or paste a link from a shop, and Robes shows you three ways to wear it. From there you keep looks, build a model of you to wear them, and plan what you're wearing in a diary. It's made for your phone. Add it to your home screen and it opens like an app.
->
-> **Your first week**
->
-> I've shaped the first seven days so it takes a few minutes a day, not an afternoon:
->
-> - **Today** — add one piece and see it styled three ways. Keep the look you like best.
-> - **Days 1–2** — build your model, from two photos or thirty seconds by hand. Every look you keep, she wears.
-> - **Days 3–4** — add a handful of pieces. At five, Robes starts building looks from your wardrobe alone.
-> - **Days 5–6** — name a day in the diary, like a dinner, the office or the weekend, and Robes dresses it.
-> - **Day 7** — wear it, and tap the day to tell Robes you did.
->
-> Robes will send you a short email on a few of those days to point you to the next step. Each one has a one-tap stop if you'd rather it didn't.
->
-> **What I'd love from you**
->
-> Honest feedback, all week, in whatever form is easiest:
->
-> - **Reply to this email, or to any email from Robes.** They all come to me, and I read every one.
-> - **If a look is wrong, tell Robes in the box under it.** "Not the loafers" or "too formal" both work. It changes the look and remembers for next time.
-> - **At the end of the week** I'll ask for fifteen minutes on how it felt: what you used, what you ignored, what annoyed you.
->
-> The small irritations are the most useful part, so nothing is too minor to mention.
->
-> Thank you for being early.
->
-> Annie
-> Founder, Robes
+The layout, top to bottom:
 
-**Before the first one goes out**: build delta 1 (the Reply-To) must be live, or the "any email from Robes" promise is false. Until it is, cut that clause to "Reply to this email."
+1. **Hero**: the waistcoat styled three ways, from `public/images/looks/look1–3.jpg` on beta.byrobes.com. It tells the product story before she reads a word.
+2. **Headline**: "Welcome to Robes, {Name}."
+3. **One paragraph**: "You're one of the first people to use Robes, a stylist for the clothes you already own. It starts with one piece you love."
+4. **One button**: **Style my first piece** → `https://beta.byrobes.com/?utm_source=invite&utm_medium=email`. Kyha uses two buttons; Robes keeps its one-ink rule.
+5. **Your first week**, four lines, label then a serif-italic phrase:
+   - Today — *One piece, styled three ways.*
+   - Day 1–2 — *Your model, wearing every look you keep.*
+   - Day 3–4 — *Five pieces, and Robes builds from yours.*
+   - Day 5–7 — *A day in the diary, dressed and worn.*
+6. **Tinted sign-off** (the feedback ask): "Tell me what works and what doesn't. Reply to this email, or tell Robes in the box under any look. I read every word." Signed Annie, Founder, Robes.
+7. **Footer**: "Robes will send a short note on a few days this week. Each one has a one-tap stop." Plus the privacy link.
+
+**What was cut from the longer draft, and where it lives now**: the feature explanation (the product shows it), the add-to-home-screen tip (move it into the `looks_ready` mail's footer), and the day-7 fifteen-minute ask (it arrives on day 7 in its own email; announcing it on day 0 is one ask too many).
+
+**How to send it**: replace `{Name}`, open the HTML in a browser, select all, copy, and paste into a compose window sending as annie@byrobes.com. Gmail keeps the inline styles and the hosted images when pasted this way. Send yourself one first and check it on a phone. For a larger cohort, send it through Resend as a broadcast instead.
+
+**Before the first one goes out**: annie@byrobes.com must receive mail, because the email asks for replies. Build delta 1 (the Reply-To on Robes mails) should point at the same address, so replies from the whole week land in one inbox.
 
 ### The product moment
 
@@ -201,7 +184,7 @@ Day 6, not 7, so Annie's personal ask on day 7 lands alone.
 
 ## Day 7 · How did it feel?
 
-### Annie's feedback ask (Gmail)
+### Annie's feedback ask (annie@byrobes.com)
 
 Sent by hand to everyone who signed up, whatever tier they reached. Reply in the same thread as the invite so she sees the history.
 
@@ -278,7 +261,7 @@ Nothing sends until `RESEND_API_KEY` is on Railway, `byrobes.com` is verified in
 
 | # | Delta | Where | Size |
 |---|---|---|---|
-| 1 | **`Reply-To` on every Robes mail**: a `REPLY_TO` env var (Annie's address) passed as Resend's `reply_to`. Every mail gains the closing line "Reply to this email — it reaches Annie, who reads every one." | `notify.js` `sendMail`, `mailShell`, `mailText` | XS |
+| 1 | **`Reply-To` on every Robes mail**: a `REPLY_TO` env var (`annie@byrobes.com`) passed as Resend's `reply_to`. Every mail gains the closing line "Reply to this email — it reaches Annie, who reads every one." | `notify.js` `sendMail`, `mailShell`, `mailText` | XS |
 | 2 | `first_piece` kind: +4h, no key piece and no wardrobe row, transactional, ref `'first'` | `notify.js` sequence, before `looks_ready` | S |
 | 3 | `pick_one` kind: a kp with three frames, zero `looks` rows, +24h, `nudges`, ref = kp id, ahead of `look_waiting` | `notify.js` | S |
 | 4 | `week_empty` earliest +7d → +5d; body gains the morning-line paragraph | `notify.js` | XS |
@@ -300,7 +283,7 @@ Also watch: `email_sent` against `?from=email` lands per kind (which mail pulls)
 ## Open decisions for Annie
 
 1. **Consent.** Recommended: the invite naming the week's emails, plus the name screen's one line, plus the beta terms, together count as informed consent, with a one-tap stop on every mail. Set `nudges: true` at signup for invited accounts if you take this. Today it stays `null` until the styled card's ask.
-2. **Reply-To address.** Your Gmail, or a `hello@byrobes.com` mailbox that forwards to it. Recommended: `hello@byrobes.com` forwarding to Gmail. Replies still reach you, and the address survives the day someone else helps answer.
+2. **The annie@byrobes.com inbox.** It sends the invite and the day-7 ask, and receives every reply from the week. Decide where it lives: a real mailbox, or forwarding into your Gmail with "Send mail as" set up so you can reply from the same address.
 3. **Day 6's CTA order.** Proposed as the home next line's order. If this month's question is the model, move `model` first.
 4. **The fifteen minutes.** Recommended: offer both, book a call with anyone who reached Engaged, and take the three lines from the rest.
 5. **Push permission copy and timing**, when the native app is scoped. The rule above (after the first saved look) is the recommendation to carry into that build.
