@@ -443,6 +443,71 @@ const titleTop = (page) => page.evaluate(() => {
   await ctx.close();
 }
 
+// ── §5b · The sparkle is the NEW-look door, whatever stands (Annie, 2026-10-02):
+//        with a draft under home's field the slot opens a fresh docked box,
+//        never the draft; the Lookbook's sparkle never shows home's draft;
+//        the draft page itself is design 4d — DRAFT LOOK over the centred
+//        name, a fixed Discard · Save footer, the sparkle 12px above it.
+{
+  const { ctx, page, errs } = await boot(browser, { width: 390, path: '/dashboard?prompt=box' });
+  const SHOT = process.env.SLOT_SHOTS || '';
+  await page.evaluate(() => { window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' }; });
+  await page.evaluate(() => window.__dlSubmit('A polished everyday Dublin look', { loose: true, quiet: true }));
+  await page.waitForTimeout(1600);
+  const hd = await page.evaluate(() => ({ ph: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, row: !!document.querySelector('#rb-hb #rb-lp .rb-lpd-row'), mode: window._rbLp && window._rbLp.mode }));
+  const sl0 = await page.evaluate(() => { const b = document.querySelector('#rb-lp-slot .rb-lps'); return { on: !!b && getComputedStyle(document.getElementById('rb-lp-slot')).display !== 'none', bare: !!b && b.classList.contains('bare'), label: b && b.getAttribute('aria-label') }; });
+  check('mobile home + draft · the field works on the draft (“Change this draft…”, the row beneath); the slot stands as the bare sparkle named “A new look”',
+    hd.ph === 'Change this draft…' && hd.row && sl0.on && sl0.bare && sl0.label === 'A new look', JSON.stringify([hd, sl0]));
+  if (SHOT) await page.screenshot({ path: SHOT + 'draft-home.png' });
+  await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(500);
+  const fresh = await page.evaluate(() => { const w = document.getElementById('rb-lp'); return { dock: !!w && w.classList.contains('rb-lp-dock'), inHome: !!document.querySelector('#rb-hb #rb-lp'), ph: document.getElementById('rb-lp-in')?.placeholder, rows: document.querySelectorAll('#rb-lp .rb-lpd-row').length, name: w && w.querySelector('.rb-lp')?.getAttribute('aria-label'), focused: document.activeElement?.id, standIn: !!document.querySelector('#rb-hb-fieldslot .rb-lp-field') }; });
+  check('mobile home + draft · the sparkle opens a FRESH docked box — “A new look for…”, no draft row, the home field a stand-in beneath it',
+    fresh.dock && !fresh.inHome && fresh.ph === 'A new look for…' && fresh.rows === 0 && fresh.name === 'A new look' && fresh.focused === 'rb-lp-in' && fresh.standIn, JSON.stringify(fresh));
+  if (SHOT) await page.screenshot({ path: SHOT + 'draft-home-fresh.png' });
+  await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(600);
+  const back = await page.evaluate(() => ({ inline: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), ph: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, row: !!document.querySelector('#rb-hb #rb-lp .rb-lpd-row') }));
+  check('mobile home + draft · closing the fresh box hands the row back to home’s field, the draft still under it', back.inline && back.ph === 'Change this draft…' && back.row, JSON.stringify(back));
+  // The Lookbook's sparkle: a new look, never home's draft.
+  await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(700);
+  const lk0 = await page.evaluate(() => ({ grid: document.getElementById('sn-page')?.style.display === 'block', tile: !!document.getElementById('rb-lk-drafttile'), slot: !!document.querySelector('#rb-lp-slot .rb-lps.bare') }));
+  await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(500);
+  const lkb = await page.evaluate(() => { const w = document.getElementById('rb-lp'); return { dock: !!w && w.classList.contains('rb-lp-dock'), ph: document.getElementById('rb-lp-in')?.placeholder, rows: document.querySelectorAll('#rb-lp .rb-lpd-row').length, name: w && w.querySelector('.rb-lp')?.getAttribute('aria-label'), onLookbook: document.getElementById('sn-page')?.style.display === 'block' }; });
+  check('mobile Lookbook + draft · the grid holds the draft tile and the bare sparkle; the sparkle opens a NEW-look box over the grid (“A new look for…”, no draft row) — never home’s draft',
+    lk0.grid && lk0.tile && lk0.slot && lkb.dock && lkb.ph === 'A new look for…' && lkb.rows === 0 && lkb.name === 'A new look' && lkb.onLookbook, JSON.stringify([lk0, lkb]));
+  if (SHOT) await page.screenshot({ path: SHOT + 'draft-lookbook-fresh.png' });
+  await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(400);
+  // The draft page (design 4d): the tile opens it.
+  await page.locator('#rb-lk-drafttile').click(); await page.waitForTimeout(900);
+  const dp = await page.evaluate(() => {
+    const bar = document.querySelector('#rb-lk-body .rb-lk-draftbar'); const r = bar && bar.getBoundingClientRect();
+    const sl = document.getElementById('rb-lp-slot'); const sr = sl && sl.querySelector('.rb-lps').getBoundingClientRect();
+    const t = document.getElementById('rb-lk-newtitle');
+    return { ey: document.querySelector('#rb-lk-body .rb-lk-drafty')?.textContent, eyCentred: (() => { const e = document.querySelector('#rb-lk-body .rb-lk-drafty'); return !!e && getComputedStyle(e).textAlign === 'center'; })(),
+      title: t?.value, titleCentred: !!t && getComputedStyle(t).textAlign === 'center',
+      bar: !!bar, fixed: bar && getComputedStyle(bar).position, barBottom: r ? Math.round(r.bottom) : null, barW: r ? Math.round(r.width) : null,
+      btns: bar ? Array.from(bar.querySelectorAll('button:not(.rb-lp-field)')).map((b) => b.textContent.trim()) : [], saveInk: bar ? getComputedStyle(bar.querySelector('.rb-lk-save')).backgroundColor : '',
+      noNote: !document.getElementById('rb-lk-namegate'), noFiled: !/Filed under/.test(document.getElementById('rb-lk-body')?.textContent || ''), noMeta: !document.querySelector('.rb-lk-draftmeta'),
+      slotOn: !!sl && getComputedStyle(sl).display !== 'none', slotGap: (sr && r) ? Math.round(r.top - sr.bottom) : null, bare: !!sl && sl.querySelector('.rb-lps').classList.contains('bare') };
+  });
+  check('mobile draft page (4d) · DRAFT LOOK centred over the centred name; a fixed full-width Discard · Save footer at the foot, Save in ink; no name-gate note, no “Filed under”, no “Draft · not saved yet”; the sparkle floats 12px above the footer',
+    dp.ey === 'Draft look' && dp.eyCentred && dp.title === 'Coffee run, elevated' && dp.titleCentred && dp.bar && dp.fixed === 'fixed' && dp.barBottom === 1100 && dp.barW === 390
+      && JSON.stringify(dp.btns) === JSON.stringify(['Discard', 'Save']) && dp.saveInk === INK && dp.noNote && dp.noFiled && dp.noMeta && dp.slotOn && dp.bare && dp.slotGap === 12, JSON.stringify(dp));
+  if (SHOT) await page.screenshot({ path: SHOT + 'draft-page-390.png' });
+  // The box over the footer: the footer stands down under it.
+  await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(500);
+  const over = await page.evaluate(() => ({ dock: !!document.querySelector('#rb-lp.rb-lp-dock'), ph: document.getElementById('rb-lp-in')?.placeholder, barHidden: getComputedStyle(document.querySelector('#rb-lk-body .rb-lk-draftbar')).visibility === 'hidden' }));
+  check('mobile draft page (4d) · the sparkle docks the look’s box over the footer (“Change this look…”), the footer hidden beneath it', over.dock && over.ph === 'Change this look…' && over.barHidden, JSON.stringify(over));
+  if (SHOT) await page.screenshot({ path: SHOT + 'draft-page-390-box.png' });
+  await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(300);
+  // The web: the footer is a sticky bar at the card's foot.
+  await page.setViewportSize({ width: 1280, height: 1100 }); await page.waitForTimeout(600);
+  const wb = await page.evaluate(() => { const bar = document.querySelector('#rb-lk-body .rb-lk-draftbar'); const card = document.querySelector('#rb-lk-body .rb-lk-composer'); const r = bar && bar.getBoundingClientRect(); const c = card && card.getBoundingClientRect(); return { pos: bar && getComputedStyle(bar).position, inCard: !!bar && !!card && card.contains(bar), flush: r && c ? Math.abs(r.right - c.right) < 2 && Math.abs(r.left - c.left) < 2 : false, btns: bar ? Array.from(bar.querySelectorAll('button:not(.rb-lp-field)')).map((b) => b.textContent.trim()) : [] }; });
+  check('web draft page (4d) · the Discard · Save footer is a sticky bar flush with the card’s own edges', wb.pos === 'sticky' && wb.inCard && wb.flush && JSON.stringify(wb.btns) === JSON.stringify(['Discard', 'Save']), JSON.stringify(wb));
+  if (SHOT) await page.screenshot({ path: SHOT + 'draft-page-1280.png' });
+  check('no page errors (the sparkle rule + the draft page)', errs.length === 0, errs.join(' | '));
+  await ctx.close();
+}
+
 await browser.close();
 server.kill();
 function report() {

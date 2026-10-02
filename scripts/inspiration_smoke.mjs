@@ -241,8 +241,8 @@ const looseState = await page.evaluate(() => ({
   bandBelow: !!document.querySelector('#kp-model-band .kp-model-band'),
   lookbookBody: (document.getElementById('rb-lk-body')?.innerHTML || '').length,
 }));
-check('the way names the draft under its own eyebrow, Save this look is the commitment, no day, no second return band',
-  looseState.title === 'Urbane Weekend' && looseState.eyebrow === 'Sporty cool' && looseState.cta === 'Save this look'
+check('the draft names itself under a DRAFT LOOK eyebrow (design 4d), Save on the footer is the commitment, no day, no second return band',
+  looseState.title === 'Urbane Weekend' && looseState.eyebrow === 'Draft look' && looseState.cta === 'Save'
   && looseState.dayChip === false && looseState.band === false && looseState.proposals === 4 && looseState.swaps >= 4,
   JSON.stringify(looseState));
 check('one header per step (2026-09-16): the Build step is ONE rule line — the eyebrow + the name field, and nothing else (the All three pill went with the thumbs, 2026-09-21); the key-piece masthead and the Yours thumb stand down; the composer paints no masthead of its own, so the panel opens on the style note',
@@ -278,7 +278,7 @@ await buildBtns.nth(2).click();
 await page.waitForTimeout(1500);
 check('the choose step hands her the next look (a fresh call, the strip re-pointed, still no doors on it)',
   dailyCalls === 3 && (await page.evaluate(() => document.getElementById('rb-lk-newtitle')?.value)) === 'Park Hangout'
-  && (await page.evaluate(() => document.querySelector('#kp-build .kp-build-ey')?.textContent?.trim())) === 'Elevated leisure'
+  && (await page.evaluate(() => document.querySelector('#kp-build .kp-build-ey')?.textContent?.trim())) === 'Draft look'
   && await page.locator('#kp-build .kp-build-other, #kp-build .kp-build-all').count() === 0);
 await page.evaluate(() => window.__lkTryAnother());
 await page.waitForTimeout(1500);
@@ -328,13 +328,14 @@ check('filed IN PLACE (2026-09-28): she stays in the builder — the saved view 
   && await page.locator('#kp-build .kp-build-title-set').count() === 1 && await page.locator('#kp-build input#rb-lk-newtitle').count() === 0
   && /Park Hangout/.test(await page.locator('#kp-build').innerText())
   && !(await page.locator('#sn-page').isVisible()) && await page.locator('#kp-build .kp-build-other, #kp-build .kp-build-all').count() === 0);
-// The bar reads Filed under X + ✓ Saved, its line the forward sentence
+// The bar reads Saved · X + ✓ Saved (no "Filed under" — design 4d), its line the forward sentence
 // (slice 1.2: no model on file and proposals travelled, so it names the
 // model and the pieces to photograph); the toast carries Open the look;
 // the saved rows read ✓ Saved (they went to the wishlist at the keep); the
 // calendar circle stands on the hero now that there is a look to pin.
 const filedNext = await page.evaluate(() => ({
   kicker: document.querySelector('#kp-build-bar .k')?.textContent || '',
+  eyebrow: document.querySelector('#kp-build .kp-build-ey')?.textContent?.trim(),
   line: document.querySelector('#kp-build-bar .t')?.textContent || '',
   saved: document.querySelector('#kp-build-bar .kp-bar-save')?.textContent.trim(),
   savedDisabled: !!document.querySelector('#kp-build-bar .kp-bar-save')?.disabled,
@@ -346,10 +347,10 @@ const filedNext = await page.evaluate(() => ({
   genericToast: /saved to Looks/.test(document.getElementById('toast')?.textContent || '') && document.getElementById('toast')?.classList.contains('show'),
   firstUnfilled: getComputedStyle(document.getElementById('kp-build-btn-0')).backgroundColor !== 'rgb(32, 32, 33)',
 }));
-check('filed · the bar reads FILED UNDER Park Hangout + ✓ Saved (inert), the forward line names the model and the borrowed pieces, the toast carries Open the look, the four rows read ✓ Saved with no Swap, the calendar circle stands; one toast, not two; card 01 stands down',
-  filedNext.kicker === 'Filed under Park Hangout' && filedNext.saved === '✓ Saved' && filedNext.savedDisabled
+check('filed · the bar reads SAVED · Park Hangout + ✓ Saved (inert), the forward line names the model and the borrowed pieces, the toast carries Open the look, the four rows read ✓ Saved with no Swap, the calendar circle stands; one toast, not two; card 01 stands down',
+  filedNext.kicker === 'Saved · Park Hangout' && filedNext.saved === '✓ Saved' && filedNext.savedDisabled && filedNext.eyebrow === 'Saved look'
     && /^Build your model and she’ll wear it\. Photograph the \d+ pieces? that (aren’t|isn’t) yours yet and swap them in\.$/.test(filedNext.line)
-    && /^Filed under Park Hangout\.\s*Open the look$/.test(filedNext.toast) && filedNext.rows === 4 && filedNext.savedRows === 4
+    && /^Park Hangout is in your Lookbook\.\s*Open the look$/.test(filedNext.toast) && filedNext.rows === 4 && filedNext.savedRows === 4
     && filedNext.calendar && filedNext.noSwap && !filedNext.genericToast && filedNext.firstUnfilled === true, JSON.stringify(filedNext));
 await page.locator('#kp-build-host button:has-text("Open the look")').click();
 await page.waitForTimeout(600);
@@ -667,7 +668,7 @@ await page.waitForTimeout(400);
 await page.evaluate(() => window.__kpBuildLook(1));
 await page.waitForTimeout(1600);
 const phoneBuild = await page.evaluate(() => {
-  const strip = document.querySelector('#kp-build .kp-build-strip'), bar = document.getElementById('kp-build-bar');
+  const strip = document.querySelector('#kp-build .kp-build-strip'), bar = document.querySelector('#kp-build-host .rb-lk-draftbar');
   const pg = document.getElementById('kp-result-page');
   const row = document.querySelector('#kp-build-host .rbc-row');
   return {
@@ -675,13 +676,18 @@ const phoneBuild = await page.evaluate(() => {
     barFixed: getComputedStyle(bar).position, barBottom: Math.round(bar.getBoundingClientRect().bottom), barTxt: bar.innerText.replace(/\n/g, ' | '),
     building: pg.classList.contains('kp-building'), actrow: getComputedStyle(document.getElementById('kp-actrow')).display,
     thumbW: Math.round(row.querySelector('.rbc-vp').getBoundingClientRect().width), rowSave: getComputedStyle(row.querySelector('.rbc-act.save')).backgroundColor,
-    hostSaveHidden: getComputedStyle(document.querySelector('#kp-build-host .rb-lk-save')).display === 'none',
+    kpBarHidden: document.getElementById('kp-build-bar')?.hidden === true,
+    saveInk: getComputedStyle(document.querySelector('#kp-build-host .rb-lk-draftbar .rb-lk-save')).backgroundColor,
+    slotAbove: (() => { const sl = document.getElementById('rb-lp-slot'); return sl ? Math.round(sl.getBoundingClientRect().bottom) : null; })(),
+    barTop: Math.round(bar.getBoundingClientRect().top),
     overflowX: pg.scrollWidth > pg.clientWidth,
   };
 });
-check('phone · the builder: a sticky header with the back circle, the bar fixed at the foot (kicker · line · Save this look), the host’s own Save gone, 64px thumbs on white rows with a hairline Save, the pager’s row hidden; no horizontal overflow',
-  phoneBuild.sticky === 'sticky' && phoneBuild.back && phoneBuild.barFixed === 'fixed' && phoneBuild.barBottom === 844 && /SAVE THIS LOOK/i.test(phoneBuild.barTxt) && /Worn this way\./.test(phoneBuild.barTxt)
-    && phoneBuild.building && phoneBuild.actrow === 'none' && phoneBuild.thumbW === 64 && phoneBuild.rowSave === 'rgb(255, 255, 255)' && phoneBuild.hostSaveHidden && !phoneBuild.overflowX, JSON.stringify(phoneBuild));
+if (process.env.KP_SHOTS) await page.screenshot({ path: process.env.KP_SHOTS + 'kp-build-390.png' });
+check('phone · the builder: a sticky header with the back circle, the draft footer fixed at the foot (Discard · SAVE in ink — design 4d; the kp bar waits for the save), 64px thumbs on white rows with a hairline Save, the pager’s row hidden; no horizontal overflow',
+  phoneBuild.sticky === 'sticky' && phoneBuild.back && phoneBuild.barFixed === 'fixed' && phoneBuild.barBottom === 844 && /^Discard \| Save$/i.test(phoneBuild.barTxt)
+    && phoneBuild.kpBarHidden && phoneBuild.saveInk === 'rgb(32, 32, 33)'
+    && phoneBuild.building && phoneBuild.actrow === 'none' && phoneBuild.thumbW === 64 && phoneBuild.rowSave === 'rgb(255, 255, 255)' && !phoneBuild.overflowX, JSON.stringify(phoneBuild));
 // Back to looks: untouched → straight back; a change → the one-line confirm.
 await page.evaluate(() => window.__kpBuildBackAsk());
 await page.waitForTimeout(300);
@@ -709,10 +715,10 @@ await page.waitForTimeout(3200);
 const lkFb = await page.evaluate(() => {
   const host = document.getElementById('kp-build-host');
   return { composer: !!host?.querySelector('.rb-lk-composer'), line: !!host?.querySelector('#lk-fb, .rb-fb'), field: !!host?.querySelector('.rb-lp-field'),
-    inkFills: Array.from(host.querySelectorAll('button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()).filter((t) => t !== 'Save') };
+    inkFills: Array.from(host.querySelectorAll('button:not(.rbc-act)')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()) };
 });
-check('composer · the in-situ composer carries no feedback line; the look prompt’s field is its one door to words; Save this look stays the one ink fill',
-  lkFb.composer && !lkFb.line && lkFb.field && lkFb.inkFills.length === 1 && /Save this look/.test(lkFb.inkFills[0]), JSON.stringify(lkFb));
+check('composer · the in-situ composer carries no feedback line; the look prompt’s field is its one door to words; the footer’s Save stays the one ink fill',
+  lkFb.composer && !lkFb.line && lkFb.field && lkFb.inkFills.length === 1 && lkFb.inkFills[0] === 'Save', JSON.stringify(lkFb));
 
 check('no page errors', errs.length === 0, errs.join(' | '));
 

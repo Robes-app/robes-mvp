@@ -1115,6 +1115,12 @@ const browser = await chromium.launch(
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       saveUnnamed: document.querySelector('.rb-lk-save')?.classList.contains('unnamed'),
       saveNote: document.getElementById('rb-lk-namegate')?.textContent,
+      // Design 4d (2026-10-02): the draft footer — Discard · Save on a bar
+      saveInBar: !!document.querySelector('.rb-lk-composer > .rb-lk-draftbar .rb-lk-save'),
+      barDiscard: document.querySelector('.rb-lk-draftbar .rb-lk-discard')?.textContent ?? null,
+      barInk: (() => { const b = document.querySelector('.rb-lk-draftbar .rb-lk-save'); return !!b && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)'; })(),
+      drafty: document.querySelector('.rb-lk-newmast .rb-lk-drafty')?.textContent,
+      titleCentred: (() => { const t = document.getElementById('rb-lk-newtitle'); return !!t && getComputedStyle(t).textAlign === 'center'; })(),
       // The model on the canvas (2026-09-03): her photograph, in the base
       // layer, from the first second
       stage: !!document.querySelector('.rb-lk-con .rb-lkm-stage'),
@@ -1181,12 +1187,15 @@ const browser = await chromium.launch(
   check('composer · the whole slot row is the tap target, 52px+',
     hit.tap === true && hit.h >= 52 && hit.opened === true, JSON.stringify(hit));
   // Save stands on screen and LIVE from the first second — the name is
-  // the one gate (2026-09-03; the two-piece floor is gone). The pill reads
-  // cream until the look is named, and the note beside it says why.
-  check('composer · Save stands on screen, live, cream until the look is named',
-    c0.saveShown === true && c0.saveDisabled === false && c0.saveUnnamed === true
-      && c0.saveNote === 'Name your look and it is yours to keep.',
-    JSON.stringify([c0.saveShown, c0.saveDisabled, c0.saveUnnamed, c0.saveNote]));
+  // the one gate (2026-09-03; the two-piece floor is gone). Design 4d
+  // (2026-10-02): Save is INK on the draft footer beside a quiet Discard
+  // (an empty draft has none to discard); no "Filed under" note anywhere —
+  // the gate answers at the click. The header reads DRAFT LOOK over the
+  // centred name.
+  check('composer · Save stands on screen, live and ink on the draft footer; no name-gate note; DRAFT LOOK over the centred name',
+    c0.saveShown === true && c0.saveDisabled === false && c0.saveInBar === true && c0.barInk === true && c0.barDiscard === null
+      && c0.saveNote === undefined && c0.drafty === 'Draft look' && c0.titleCentred === true,
+    JSON.stringify([c0.saveShown, c0.saveDisabled, c0.saveInBar, c0.barInk, c0.barDiscard, c0.saveNote, c0.drafty, c0.titleCentred]));
   check('composer · the whole composer sits in ONE card, the name leading it from outside',
     c0.card === true && c0.titleOutside === true, JSON.stringify([c0.card, c0.titleOutside]));
   // The "Or let Robes create your look" door is gone (2026-09-03) — the
@@ -1433,6 +1442,7 @@ const browser = await chromium.launch(
       saveShown: !!document.querySelector('.rb-lk-save'),
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       gate: !!document.getElementById('rb-lk-namegate'),
+      discard: document.querySelector('.rb-lk-draftbar .rb-lk-discard')?.textContent,
       img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
       head: document.querySelector('.rb-lk-con .rb-lkm-panel .lab')?.textContent,
     };
@@ -1449,11 +1459,11 @@ const browser = await chromium.launch(
   // RULE 02 — pieces are not enough. The name is still the gate, but it
   // answers at the CLICK (2026-08-20): Save is live, an unnamed save
   // refuses out loud (focus + toast) and writes nothing.
-  check('composer · two pieces are not enough — the name gates at the click',
-    two.saveShown === true && two.saveDisabled === false && two.gate === true,
-    JSON.stringify([two.saveShown, two.saveDisabled, two.gate]));
-  check('composer · naming it inks Save in place, without losing the caret',
-    two.namedLive === true && two.namedNote === 'Filed under Terrace mornings.' && two.unnamedAgain === true,
+  check('composer · two pieces are not enough — the name gates at the click (no note on the page; Discard joins Save once something hangs)',
+    two.saveShown === true && two.saveDisabled === false && two.gate === false && two.discard === 'Discard',
+    JSON.stringify([two.saveShown, two.saveDisabled, two.gate, two.discard]));
+  check('composer · naming it flips Save in place, without losing the caret',
+    two.namedLive === true && two.namedNote === undefined && two.unnamedAgain === true,
     JSON.stringify([two.namedLive, two.namedNote, two.unnamedAgain]));
   const refusal = await page.evaluate(async () => {
     window.__lkSaveAsk();
@@ -1739,8 +1749,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // on it cannot offer to REPLACE one.
   check('build · the photo door reads Add your photograph while the look has none',
     b.photo === 'Add your photograph', b.photo);
-  check('build · Save leads; Try another, Wear it today and Discard follow',
-    b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today', 'Discard']),
+  check('build · Save leads on the footer with Discard; Try another and Wear it today are the quiet doors under the rack',
+    b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today']),
     JSON.stringify([b.saveDisabled, b.foot]));
   check('build · nothing is written until she saves',
     !writes.some((w) => w.method === 'POST' && /^looks/.test(w.url)),
@@ -1999,7 +2009,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('aspirational · the title comes from her icons, not the pieces',
     a.title === 'Margot Robbie meets Chanel.', a.title);
   check('aspirational · Wear it today is withheld; the exit is Build from mine only',
-    JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only', 'Discard']),
+    JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only']),
     JSON.stringify(a.foot));
   const mine = await page.evaluate(async () => {
     window.__lkBuildMineOnly();
@@ -2015,7 +2025,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       && mine.gaps.every((g) => /Nothing in your wardrobe fits here yet/.test(g)),
     JSON.stringify(mine));
   check('aspirational · …and Wear it today returns with it',
-    JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today', 'Discard']), JSON.stringify(mine.foot));
+    JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today']), JSON.stringify(mine.foot));
   await ctx.close();
 }
 
@@ -2246,8 +2256,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     window.__lkApplyNew('w-top1');   // the empty composer holds no rows now — measure a filled one
     const n = document.querySelector('.rb-lk-con');
     window.__lkApplyNew('w-bot1');   // two pieces: Save comes live
-    const save = document.querySelector('.rb-lk-save');
-    const row = document.querySelector('.rb-lk-saverow');
+    const save = document.querySelector('.rb-lk-draftbar .rb-lk-save');
+    const row = document.querySelector('.rb-lk-draftbar');
     const card = document.querySelector('.rb-lk-composer');
     return {
       stacked: n ? getComputedStyle(n).gridTemplateColumns.split(' ').length === 1 : false,
@@ -2261,10 +2271,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       inCard: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
       titleOutside: !document.querySelector('.rb-lk-composer #rb-lk-newtitle')
         && !!document.querySelector('.rb-lk-newmast #rb-lk-newtitle'),
-      // Save stacks full width over the Robes door, and clears 44px
-      saveStacks: !!row && getComputedStyle(row).flexDirection === 'column',
-      saveFull: !!save && !!card
-        && Math.abs(save.getBoundingClientRect().width - (card.getBoundingClientRect().width - 32)) < 3,
+      // Design 4d: the draft footer is FIXED above the dock on the phone —
+      // Discard left, Save right, Save clearing 44px
+      saveStacks: !!row && getComputedStyle(row).position === 'fixed' && Math.round(row.getBoundingClientRect().width) === window.innerWidth,
+      saveFull: !!save && !!row && save.getBoundingClientRect().right > row.getBoundingClientRect().right - 60
+        && (row.querySelector('.rb-lk-discard')?.getBoundingClientRect().left || 0) < save.getBoundingClientRect().left,
       saveH: save ? Math.round(save.getBoundingClientRect().height) : 0,
       door: document.querySelector('.rb-lk-robesdoor')?.textContent,
     };
@@ -2274,7 +2285,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('390px · no horizontal overflow on the composer', mc.overflow === true);
   check('390px · the composer is one card, the name leading it from outside',
     mc.inCard === true && mc.titleOutside === true, JSON.stringify([mc.inCard, mc.titleOutside]));
-  check('390px · Save runs full width at 44px+, no Robes door beneath it',
+  check('390px · the draft footer is fixed at the foot — Discard left, Save (44px+) right, no Robes door beneath it',
     mc.saveStacks === true && mc.saveFull === true && mc.saveH >= 44 && mc.door === undefined,
     JSON.stringify([mc.saveStacks, mc.saveFull, mc.saveH, mc.door]));
   // Save is the last thing on the page and the dock is fixed over it —
@@ -2286,7 +2297,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     if (sc) sc.scrollTop = sc.scrollHeight;
     window.scrollTo(0, document.body.scrollHeight);
     await new Promise((r) => setTimeout(r, 200));
-    const save = document.querySelector('.rb-lk-save')?.getBoundingClientRect();
+    const save = document.querySelector('.rb-lk-draftbar .rb-lk-save')?.getBoundingClientRect();
     const dock = document.getElementById('rb-dock');
     const d = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
     return { saveBottom: save ? Math.round(save.bottom) : null, dockTop: d ? Math.round(d.top) : null };
@@ -3989,11 +4000,11 @@ const lpSend = async (text, wait) => {
   const door = await page.evaluate(() => {
     const con = document.querySelector('#rb-lk-body');
     const f = con?.querySelector('.rb-lp-field');
-    return { field: !!f, label: f?.querySelector('.ph')?.textContent, afterSave: !!f && !!f.previousElementSibling?.classList.contains('rb-lk-saverow'),
+    return { field: !!f, label: f?.querySelector('.ph')?.textContent, afterSave: !!f && !!f.closest('.rb-lk-draftbar') && !!f.nextElementSibling?.classList.contains('rb-lk-save'),
       old: con?.querySelectorAll('.rb-lk-askdoor').length, foot: Array.from(con?.querySelectorAll('.rb-lk-buildfoot button') || []).map((x) => x.textContent),
       rows: Array.from(con?.querySelectorAll('.rbc-rack .rbc-name') || []).map((n) => n.textContent) };
   });
-  check('box · the door is a pill-shaped field under Save reading “Change this look…” — Adjust with words is gone from the foot',
+  check('box · the door is a pill-shaped field on the draft footer, before Save, reading “Change this look…” — Adjust with words is gone from the foot',
     door.field && door.label === 'Change this look…' && door.afterSave && door.old === 0 && !door.foot.includes('Adjust with words') && door.rows.includes('Flat leather sandals'), JSON.stringify(door));
   const opened = await page.evaluate(async () => {
     document.querySelector('#rb-lk-body .rb-lp-field')?.click();
@@ -4303,7 +4314,8 @@ const composerRead = () => ({
   rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
   shop: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-prop .rbc-name')).map((n) => n.textContent),
   title: document.getElementById('rb-lk-newtitle')?.value,
-  meta: document.querySelector('.rb-lk-newmast .rb-lk-draftmeta')?.textContent,
+  meta: document.querySelector('.rb-lk-newmast .rb-lk-drafty')?.textContent,
+  discard: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-draftbar button:not(.rb-lp-field)')).map((x) => x.textContent),
   foot: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-buildfoot button')).map((x) => x.textContent),
   park: JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null'),
   modal: document.querySelector('#rb-del-modal p')?.textContent || null,
@@ -4328,8 +4340,8 @@ const composerRead = () => ({
       && Array.isArray(a.park.shop) && a.park.shop.length === 1 && a.park.src?.kind === 'daily' && a.park.src?.prompt === 'A chic outfit for a date night'
       && a.park.src?.opts?.sameDraft === true && a.park.built === true,
     JSON.stringify({ open: a.open, rows: a.rows, shop: a.shop, title: a.title, park: a.park && { id: a.park.id, name: a.park.name, src: a.park.src, built: a.park.built } }));
-  check('draft · the masthead reads Draft · not saved yet, and the foot carries Discard beside Try another',
-    a.meta === 'Draft · not saved yet' && a.foot.includes('Try another') && a.foot.includes('Discard'), JSON.stringify([a.meta, a.foot]));
+  check('draft · the header reads DRAFT LOOK, the footer Discard · Save, and Try another stays the quiet door (design 4d)',
+    a.meta === 'Draft look' && a.foot.includes('Try another') && JSON.stringify(a.discard) === JSON.stringify(['Discard', 'Save']), JSON.stringify([a.meta, a.foot, a.discard]));
   check('draft · nothing is written by the draft', !writes.some((w) => w.method === 'POST' && /^(looks|lookbook_items|planned_days)/.test(w.url)), JSON.stringify(writes.map((w) => w.method + ' ' + w.url)));
   // Home: the next line names the draft, first.
   const h = await page.evaluate(async () => {
@@ -4372,7 +4384,7 @@ const composerRead = () => ({
     await new Promise((r) => setTimeout(r, 700));
     return window.__cr();
   });
-  check('draft · the tile opens the composer with the draft where she left it, after a reload', fromTile.open && fromTile.rows.length === 3 && JSON.stringify(fromTile.shop) === JSON.stringify(['Camel wool coat']) && fromTile.title === 'Date night' && fromTile.meta === 'Draft · not saved yet',
+  check('draft · the tile opens the composer with the draft where she left it, after a reload', fromTile.open && fromTile.rows.length === 3 && JSON.stringify(fromTile.shop) === JSON.stringify(['Camel wool coat']) && fromTile.title === 'Date night' && fromTile.meta === 'Draft look',
     JSON.stringify({ open: fromTile.open, rows: fromTile.rows, shop: fromTile.shop, title: fromTile.title }));
   const n0 = dailyPosts.length;
   const again = await page.evaluate(async () => {
@@ -4404,7 +4416,7 @@ const composerRead = () => ({
     await new Promise((r) => setTimeout(r, 700));
     return window.__cr();
   });
-  check('draft · Let it go drops the park and opens an empty composer', ask2.park == null && ask2.open && ask2.rows.length === 0 && ask2.shop.length === 0 && !ask2.title && ask2.meta == null, JSON.stringify({ park: ask2.park, rows: ask2.rows, title: ask2.title, meta: ask2.meta }));
+  check('draft · Let it go drops the park and opens an empty composer', ask2.park == null && ask2.open && ask2.rows.length === 0 && ask2.shop.length === 0 && !ask2.title && ask2.meta === 'Draft look' && JSON.stringify(ask2.discard) === JSON.stringify(['Save']), JSON.stringify({ park: ask2.park, rows: ask2.rows, title: ask2.title, meta: ask2.meta }));
   const n1 = dailyPosts.length;
   const gen1 = await page.evaluate(async () => {
     window.__dlSubmit('A park day', { loose: true });
@@ -4472,7 +4484,7 @@ const composerRead = () => ({
   await page.waitForTimeout(900);
   const rt = await page.evaluate(composerRead);
   check('draft · an empty Lookbook arms the composer on the parked draft itself — its pieces and name on the rack',
-    rt.open && JSON.stringify(rt.rows) === JSON.stringify(['Cream silk shirt', 'Barrel-leg jeans']) && rt.title === 'Seeded draft' && rt.meta === 'Draft · not saved yet', JSON.stringify({ open: rt.open, rows: rt.rows, title: rt.title }));
+    rt.open && JSON.stringify(rt.rows) === JSON.stringify(['Cream silk shirt', 'Barrel-leg jeans']) && rt.title === 'Seeded draft' && rt.meta === 'Draft look', JSON.stringify({ open: rt.open, rows: rt.rows, title: rt.title }));
   check('draft · the re-park keeps the id and carries `was` and `styled` through untouched',
     rt.park && rt.park.id === 'dseed' && JSON.stringify(rt.park.was) === JSON.stringify(seededPark.was) && JSON.stringify(rt.park.styled) === JSON.stringify(seededPark.styled),
     JSON.stringify(rt.park && { id: rt.park.id, was: rt.park.was, styled: rt.park.styled }));

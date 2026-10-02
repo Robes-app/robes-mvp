@@ -135,6 +135,15 @@ Annie's refinement off the live phases 2 and 3: **no shade, no sheet, no second 
 
 **Harness.** `ftue_harness`: the box inline in the row, the draft built in the box with the busy line and no overlay, Save look → the week → the confirmation line → Change, the saved row opening the look, a dated door's box filing to the day; `nav_chrome_smoke`: home's pill focuses the box in place, a look's bare sparkle docks the box with no shade and the look visible, × keeps the thread; `looks_harness`: the docked box's anatomy, the verdict typed into the composer's box landing in the memory, the draft carried by home's box; `inspiration_smoke`: the field above Build on unbuilt cards, a change re-writing the way with the box back on the fresh card, a verdict noted with its feedback row, × keeping the thread.
 
+### Phase 4, second pass (2 Oct) — the draft page is one design; the sparkle is always the new-look door
+
+Two calls off the live inline build (Annie, with the updated 4d iteration — Discard and Save as a sticky footer).
+
+- **The draft page is design 4d whatever door it came through** — the Lookbook composer holding a prompted draft, a hand-built draft, and the key piece's in-situ builder: a centred **DRAFT LOOK** eyebrow over the centred name (the kp strip's eyebrow reads the same; it flips to "Saved look" once saved), the rack, "+ Add a piece", and **a Discard · SAVE footer** (`.rb-lk-draftbar`): fixed above the dock on the phone, a sticky bar at the card's foot on the web where it also holds the look's field between Discard and Save. The quiet doors (Try another, Build from mine only, Wear it today, the Robes door) stay under the rack. The sparkle floats 12px above the footer; the box docks over it. **"Filed under …" is gone** everywhere — the name-gate note, the kp bar's kicker and its toast ("{name} is in your Lookbook."); the name still gates at the click. The kp page's own `#kp-build-bar` paints only after Save (the composer's footer is the bar until then). Home's own composer (`_lkNewHtml({home:true})`) keeps its save row.
+- **The sparkle is the NEW-look door, always.** With a draft under home's field (the field reads "Change this draft…"), the slot's tap opens a FRESH docked box ("A new look for…") instead of focusing the draft's field; closing it hands the row back. A docked box opened from a grid, a dated door or that slot never inherits the standing draft (`_rbHbDraftMode` and `_rbHbResultHtml` act on a docked box only for a draft it built itself — `s.hbBuilt`). The Lookbook's sparkle no longer shows home's draft.
+
+**Harness.** `nav_chrome_smoke` §5b (+8): the draft under home's field and the sparkle's fresh box, the row handed back on close, the Lookbook's sparkle a new-look box over the grid, the 390 draft page's anatomy (eyebrow, centred name, the fixed footer, Save in ink, no note, no "Filed under", the sparkle 12px above), the box over the footer, the web's sticky footer. `looks_harness` and `inspiration_smoke` pins moved to the footer (Discard · Save, the field on the footer, the kp bar's "Saved · {name}" + toast).
+
 ---
 
 ## Decisions taken (1 Oct)

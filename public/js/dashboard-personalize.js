@@ -905,7 +905,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-lp-slot{display:none!important}
 @media(prefers-reduced-motion:reduce){#rb-lp-slot .rb-lps,#rb-lp-slot .rb-lps .w{transition:none}}
 .rbc-hownote.rb-lp-was{color:var(--rose,#8E7077);font-style:normal;font-family:inherit;font-size:10.5px;letter-spacing:.04em}
 .rbc-hownote.rb-lp-styled{color:var(--ink-soft,#4A4744)}
-@media(max-width:767px){#rb-lp.rb-lp-dock{left:14px;right:14px;width:auto;transform:none;bottom:calc(12px + env(safe-area-inset-bottom,0px))}body:has(#rb-lp.rb-lp-dock) #kp-build-bar{visibility:hidden}}
+@media(max-width:767px){#rb-lp.rb-lp-dock{left:14px;right:14px;width:auto;transform:none;bottom:calc(12px + env(safe-area-inset-bottom,0px))}body:has(#rb-lp.rb-lp-dock) #kp-build-bar,body:has(#rb-lp.rb-lp-dock) .rb-lk-draftbar{visibility:hidden}}
 #rb-dock{transition:transform .22s ease}
 body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 @media(prefers-reduced-motion:reduce){#rb-dock{transition:none}.rb-lp{transition:none}}`;
@@ -1198,7 +1198,14 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (!row) return null;
         const r = row.getBoundingClientRect();
         const rowOn = r.bottom > 0 && r.top < window.innerHeight;
-        return { key: 'home', words: rowOn ? null : _RB_LP_COPY.doorNew, go: () => window.__rbHbOpen && window.__rbHbOpen() };
+        // The sparkle is ALWAYS the new-look door (Annie, 2026-10-02: with
+        // a draft under the field, a tap that opened the draft read as
+        // confusing). While the field works on a draft, the slot opens a
+        // fresh docked box instead of focusing it.
+        return { key: 'home', words: rowOn ? null : _RB_LP_COPY.doorNew, go: () => {
+          const onDraft = !!(_rbLp && _rbLp.persist && _rbLp.mode === 'look');
+          if (window.__rbHbOpen) window.__rbHbOpen(onDraft ? { fresh: true } : {});
+        } };
       }
       function _rbLpSlotSync() {
         let el = document.getElementById('rb-lp-slot');
@@ -1226,10 +1233,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // stands (the kp builder's), else 12px above the menu.
         let bottom = '';
         try {
-          const bar = document.getElementById('kp-build-bar');
-          if (bar && !bar.hidden && getComputedStyle(bar).position === 'fixed' && bar.offsetParent !== null) {
+          const bars = [document.getElementById('kp-build-bar')].concat(Array.from(document.querySelectorAll('.rb-lk-draftbar')));
+          for (const bar of bars) {
+            if (!bar || bar.hidden || getComputedStyle(bar).position !== 'fixed' || !bar.getClientRects().length) continue;
             const top = bar.getBoundingClientRect().top;
-            if (top > 0 && top < window.innerHeight) bottom = Math.round(window.innerHeight - top + 12) + 'px';
+            if (top > 0 && top < window.innerHeight) { bottom = Math.round(window.innerHeight - top + 12) + 'px'; break; }
           }
         } catch (_) {}
         el.style.bottom = bottom;
@@ -9339,10 +9347,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '#kp-build-host .rbc-act.done{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink,#202021);height:36px;padding:0 16px;font-size:13px;display:inline-flex;align-items:center;gap:6px}' +
           '#kp-build-host .rbc-act.done svg{display:none}' +
           '#kp-build-host .rbc-addpiece{height:52px;margin-top:10px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad-card,12px);font-size:12px;color:var(--ink-soft,#55524E)}' +
-          // Save and its note live in the BAR now; Try another and the
-          // feedback line stay under the rack.
-          '#kp-build-host .rb-lk-save,#kp-build-host .rb-lk-savenote{display:none}' +
+          // Save and Discard ride the composer's own draft footer (design
+          // 4d); the quiet doors (Try another) stay under the rack.
           '#kp-build-host .rb-lk-saverow{border-top:0;padding-top:6px;margin-top:14px;justify-content:center}' +
+          '#kp-build-host .rb-lk-draftbar{margin-left:0;margin-right:0;margin-bottom:0;border-radius:0;background:rgba(250,248,245,.92)}' +
+          '#kp-build-host .rb-lk-draftbar .rb-lk-save{background:#202021}' +
           '#kp-build-host .rb-lk-saverow.built .rb-lk-buildfoot{justify-content:center}' +
           // The bar: kicker + line, Save this look — in flow on the web,
           // fixed above the dock on the phone.
@@ -9419,7 +9428,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         return '<div class="kp-build-strip">' +
           '<button type="button" class="kp-circ" id="kp-build-back" aria-label="Back to looks" title="Back to looks" onclick="window.__kpBuildBackAsk()"><svg viewBox="0 0 9 15"><path d="M7.5 1.5l-6 6 6 6"></path></svg></button>' +
           '<div class="kp-build-l">' +
-            (w.eyebrow ? '<div class="kp-build-ey">' + _waEsc(w.eyebrow) + '</div>' : '') +
+            '<div class="kp-build-ey">Draft look</div>' +
             '<input id="rb-lk-newtitle" class="rb-lk-title-in kp-build-title" value="' + _waEsc(title) + '" placeholder="' + namePh + '" aria-label="Name your look" oninput="window.__lkNewTitleInput(this.value)">' +
           '</div><span></span></div>';
       }
@@ -9482,18 +9491,13 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // in one line, and Save this look. Repainted with every host paint
       // (a wishlist save changes the kicker); the name gate's copy rides
       // the line in place through __lkNewTitleInput.
+      // While the draft stands the composer's own footer (Discard · Save,
+      // design 4d) is the bar; #kp-build-bar paints only once the look is
+      // saved (_kpBuildSaved marks it filed).
       function _kpBuildBarSync() {
         const bar = document.getElementById('kp-build-bar');
-        if (!bar) return;
-        if (!_lkKpHost || _lkBuilding || !document.querySelector('#kp-build-host .rb-lk-composer')) { bar.hidden = true; return; }
-        const c = _kpBuildCtx || {};
-        const saved = _lkShop.filter(r => r.saved).length;
-        const named = !!String(_lkNewTitleDraft || '').trim();
-        const piece = c.piece ? 'Your ' + c.piece : (c.daily ? 'Your day' : 'Your key piece');
-        bar.innerHTML = '<div class="l"><div class="k">' + _waEsc(saved ? saved + ' on your wishlist' : piece) + '</div>' +
-          '<div class="t" id="kp-bar-line">' + (named ? 'Worn this way.' : 'Name your look and it is yours to keep.') + '</div></div>' +
-          '<button type="button" class="kp-bar-save" onclick="window.__lkSaveAsk()">Save this look</button>';
-        bar.hidden = false;
+        if (!bar || bar.classList.contains('filed')) return;
+        bar.hidden = true;
       }
       function _kpToast(html, ms) {
         document.getElementById('kp-build-toast')?.remove();
@@ -9599,12 +9603,15 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         host.innerHTML = _kpSavedViewHtml(l);
         const bar = document.getElementById('kp-build-bar');
         if (bar) {
-          bar.innerHTML = '<div class="l"><div class="k">' + _waEsc('Filed under ' + (l.name || 'your look')) + '</div>' +
+          bar.classList.add('filed');
+          bar.innerHTML = '<div class="l"><div class="k">' + _waEsc('Saved · ' + (l.name || 'your look')) + '</div>' +
             '<div class="t' + (next ? '' : ' door') + '"' + (next ? '' : ' onclick="window.__kpBuildOpenLook()"') + '>' + _waEsc(next || 'In your Lookbook — open the look →') + '</div></div>' +
             '<button type="button" class="kp-bar-save saved" disabled>✓ Saved</button>';
           bar.hidden = false;
         }
-        _kpToast('<span class="t">Filed under ' + _waEsc(l.name || 'your look') + '.</span><a onclick="window.__kpBuildOpenLook()">Open the look</a>');
+        const ey = document.querySelector('#kp-build .kp-build-ey');
+        if (ey) ey.textContent = 'Saved look';
+        _kpToast('<span class="t">' + _waEsc(l.name || 'Your look') + ' is in your Lookbook.</span><a onclick="window.__kpBuildOpenLook()">Open the look</a>');
         _kpBuildSig = null;
         _kpCurSync();
         _kpModelBandSync();
@@ -13481,6 +13488,21 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-wornbox .rb-lk-worn{margin-top:0}
 .rb-lk-foot{border-top:none;padding-top:0;margin-top:18px}
 .rb-lk-newmast{max-width:560px}
+/* Design 4d (2026-10-02): the draft's one header — DRAFT LOOK over the
+   centred name; the footer a sticky Discard · Save bar. */
+.rb-lk-draftmast{max-width:none;text-align:center;margin-bottom:18px}
+.rb-lk-drafty{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
+.rb-lk-draftmast .rb-lk-title-in{text-align:center;margin-top:4px;font-size:clamp(26px,2.6vw,32px);border-bottom-color:transparent}
+.rb-lk-draftmast .rb-lk-title-in:focus{border-bottom-color:var(--rule-mid)}
+.rb-lk-draftbar{position:sticky;bottom:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:18px;margin:22px -26px -24px;padding:14px 26px;background:rgba(255,255,255,.94);border-top:0.5px solid var(--rule);border-radius:0 0 var(--rad-lg) var(--rad-lg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.rb-lk-draftbar .rb-lk-save{margin:0;height:48px;padding:0 30px;font-size:10px;letter-spacing:.2em;flex:none}
+.rb-lk-draftbar .rb-lk-discard{flex:none}
+.rb-lk-draftbar .rb-lp-field.rb-lp-dock{position:static;transform:none;left:auto;bottom:auto;z-index:auto;width:auto;flex:1;max-width:620px;margin:0 auto;background:#fff;box-shadow:0 1px 2px rgba(32,32,33,.06)}
+.rb-lk-draftbar .rb-lk-save.unnamed{background:var(--ink)}
+.rb-lk-draftbar .rb-lk-discard{font-size:12px;color:var(--ink-soft);border-bottom:none}
+.rb-lk-draftbar .rb-lk-discard:hover{color:var(--ink)}
+.rb-lk-saverow-quiet{justify-content:center}
+.rb-lk-saverow-quiet:empty{display:none}
 .rb-lk-saverow{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:22px;padding-top:18px;border-top:0.5px solid var(--rule)}
 .rb-lk-robesdoor{margin-left:auto}
 .rb-lk-save{margin:0;padding:15px 34px;border:none;border-radius:100px;background:var(--ink);color:#fff;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
@@ -13625,6 +13647,9 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-robesdoor{margin-left:0;align-self:center}
 .rb-lk-save{width:100%;min-height:52px;order:-1}
 .rb-lk-savenote{text-align:center}
+.rb-lk-draftbar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(94px + env(safe-area-inset-bottom,0px));border-radius:0;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.rb-lk-draftbar .rb-lk-save{width:auto;min-height:48px;order:0;flex:none}
+#rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:210px}
 .rb-lkm-note{text-align:left}
 }`;
       function _lkEnsureCss() {
@@ -15714,9 +15739,12 @@ button.rb-lk-live{cursor:pointer}
         // the name field) — the composer paints none of its own, so the
         // panel opens on the style note.
         // The masthead says what the draft is (phase 1): not saved yet.
-        const draftMeta = (!_lkBuilding && !_lkDraftEmptyNow()) ? '<div class="rb-lk-draftmeta">Draft · not saved yet</div>' : '';
+        // Design Inline_Prompt 4d (2026-10-02): the eyebrow reads DRAFT
+        // LOOK, centred, over the centred name — the one header for a
+        // draft, whatever door it came through (the kp builder's strip
+        // reads the same). "Draft · not saved yet" folded into the eyebrow.
         const mastHtml = (home || kp) ? ''
-          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast">' + titleHtml + draftMeta + '</div>';
+          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast rb-lk-draftmast"><div class="rb-lk-drafty">Draft look</div>' + titleHtml + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).
@@ -15782,12 +15810,11 @@ button.rb-lk-live{cursor:pointer}
               (_lkAspirational
                 ? '<span class="sep"></span><button type="button" class="rb-lk-quiet" onclick="window.__lkBuildMineOnly()">Build from mine only</button>'
                 : (_lkDay || _lkDraftSrc ? '' : '<span class="sep"></span><button type="button" class="rb-lk-quiet" onclick="window.__lkSaveAndWear()">Wear it today</button>')) +
-              // Adjust with words (slice C): the ask sheet over the draft —
-              // her words re-run the generator behind it with the look as
-              // it stands; nothing is written until she saves.
-              '<span class="sep"></span><button type="button" class="rb-lk-quiet rb-lk-discard" onclick="window.__lkComposerDiscard()">Discard</button>' +
+              // Discard lives in the draft footer beside Save (design 4d);
+              // home's own composer keeps it here.
+              (home ? '<span class="sep"></span><button type="button" class="rb-lk-quiet rb-lk-discard" onclick="window.__lkComposerDiscard()">Discard</button>' : '') +
             '</div>'
-          : (!_lkBuilding && !_lkDraftEmptyNow()
+          : (home && !_lkBuilding && !_lkDraftEmptyNow()
             // A hand-built draft has no foot — Discard stands alone beside
             // Save, the one way to let an unsaved look go (phase 1).
             ? '<div class="rb-lk-buildfoot"><button type="button" class="rb-lk-quiet rb-lk-discard" onclick="window.__lkComposerDiscard()">Discard</button></div>'
@@ -15796,7 +15823,7 @@ button.rb-lk-live{cursor:pointer}
         // invisible on touch): the name is the gate. __lkNewTitleInput
         // rewrites it in place so typing never repaints.
         const saveNote = '<div class="rb-lk-namenote rb-lk-savenote" id="rb-lk-namegate">' +
-          (named ? 'Filed under ' + _waEsc(String(_lkNewTitleDraft).trim()) + '.' : 'Name your look and it is yours to keep.') +
+          (named ? 'Saved as ' + _waEsc(String(_lkNewTitleDraft).trim()) + '.' : 'Name your look and it is yours to keep.') +
           '</div>';
         // The Robes-builds door (funnel slice 3.1, 2026-09-21): from five
         // PHOTOGRAPHED pieces a hairline pill beside Save lets Robes fill
@@ -15808,15 +15835,23 @@ button.rb-lk-live{cursor:pointer}
           ? '<button type="button" class="rb-pill rb-lk-robesdoor" onclick="window.__lkRobesBuild({door:\'composer\'})">' +
               (_lkModel ? 'Robes dresses ' + _lkModelPro().her + ' from what you’ve filed' : 'Robes builds one from what you’ve filed') + '</button>'
           : '';
-        rackHtml += '<div class="rb-lk-saverow' + (_lkBuilt && !_lkBuilding ? ' built' : '') + '">' +
-          saveNote +
-          '<button type="button" class="rb-lk-save' + (named ? '' : ' unnamed') + '" onclick="window.__lkSaveAsk()"' +
-            (canSave ? '' : ' disabled') + '>' + (_lkDay ? 'Save to ' + _waEsc(_lkDay.date ? _lkDayWeekday(_lkDay.date) : 'the trip') : 'Save this look') + '</button>' +
+        const lpField = (!_lkBuilding && !_lkDraftEmptyNow()) ? _rbLpFieldHtml({ onclick: "window.__lkLpOpen('composer')", changed: Object.keys(_lkDraftWas).length, cls: 'rb-lk-lpfield', dock: true }) : '';
+        const saveBtn = (label) => '<button type="button" class="rb-lk-save' + (named ? '' : ' unnamed') + '" onclick="window.__lkSaveAsk()"' +
+            (canSave ? '' : ' disabled') + '>' + (_lkDay ? 'Save to ' + _waEsc(_lkDay.date ? _lkDayWeekday(_lkDay.date) : 'the trip') : label) + '</button>';
+        // Home's composer keeps its save row (note · Save · foot · door).
+        // Everywhere else the row holds only the quiet doors — Save and
+        // Discard moved to the draft footer (design 4d, below).
+        rackHtml += '<div class="rb-lk-saverow' + (_lkBuilt && !_lkBuilding ? ' built' : '') + (home ? '' : ' rb-lk-saverow-quiet') + '">' +
+          (home ? saveNote + saveBtn('Save this look') : '') +
           foot + robesDoor +
           '</div>' +
-          // The look prompt's door (phase 2): the field under Save — the one
-          // way to change the draft in words. Never while it is building.
-          ((!_lkBuilding && !_lkDraftEmptyNow()) ? _rbLpFieldHtml({ onclick: "window.__lkLpOpen('composer')", changed: Object.keys(_lkDraftWas).length, cls: 'rb-lk-lpfield', dock: true }) : '');
+          // The look prompt's door (phase 2): the field — the one way to
+          // change the draft in words. Never while it is building. Home's
+          // composer carries it under its save row; everywhere else it
+          // rides the draft footer between Discard and Save (design 4d: on
+          // the web the footer holds the field, on the phone the slot's
+          // sparkle reads it and the box docks over the footer).
+          (home ? lpField : '');
         // A look Robes generated carries the feedback line under its foot
         // (design Look_Feedback 2a, 2026-09-17) — a prompted /api/daily
         // draft, a key piece's way built in situ, a Robes build. Keyed on
@@ -15830,7 +15865,19 @@ button.rb-lk-live{cursor:pointer}
         // The zero-piece stand-in stretches to the rack's height; the model
         // canvas keeps its own 4:5 frame.
         const stretchLeft = _lkBuilt && !items.length && !(_lkPhoto && _lkPhoto.url) && !_lkBuildFrame;
-        return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + (kp ? ' rb-lk-kpcomposer' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' class="rb-lk-stretch" style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div></div>';
+        // The draft footer (design Inline_Prompt 4d, 2026-10-02): Discard
+        // (quiet) and SAVE (the one ink) on a sticky bar — in flow at the
+        // card's foot on the web, fixed above the dock on the phone — the
+        // same on the Lookbook composer and the kp builder. The name still
+        // gates at the click (__lkSaveAsk); no "Filed under" note.
+        const bar = (!home && !_lkBuilding)
+          ? '<div class="rb-lk-draftbar">' +
+              (!_lkDraftEmptyNow() ? '<button type="button" class="rb-lk-quiet rb-lk-discard" onclick="window.__lkComposerDiscard()">Discard</button>' : '<span></span>') +
+              lpField +
+              saveBtn('Save') +
+            '</div>'
+          : '';
+        return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + (kp ? ' rb-lk-kpcomposer' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' class="rb-lk-stretch" style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>' + bar + '</div>';
       }
       function _lkRowOptions(r) {
         const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
@@ -18772,12 +18819,9 @@ button.rb-lk-live{cursor:pointer}
         // rather than repainting, which would take the caret out of the
         // field she is typing into.
         const named = String(v || '').trim().length > 0;
-        const btn = document.querySelector('#kp-build-host .rb-lk-save') || document.querySelector('.rb-lk-composer .rb-lk-save, .rb-lkh-composer .rb-lk-save');
-        if (btn) btn.classList.toggle('unnamed', !named);
+        document.querySelectorAll('.rb-lk-composer .rb-lk-save, .rb-lkh-composer .rb-lk-save').forEach(btn => btn.classList.toggle('unnamed', !named));
         const gate = document.getElementById('rb-lk-namegate');
-        if (gate) gate.textContent = named ? 'Filed under ' + String(v).trim() + '.' : 'Name your look and it is yours to keep.';
-        const bl = document.getElementById('kp-bar-line');
-        if (bl) bl.textContent = named ? 'Worn this way.' : 'Name your look and it is yours to keep.';
+        if (gate) gate.textContent = named ? 'Saved as ' + String(v).trim() + '.' : 'Name your look and it is yours to keep.';
       };
       window.__lkNewTagsEdit = function() {
         window.__rbTagSheet(_lkNewTags || _rbInheritLookTags(_lkUsed()), '__lkNewTagsApply', 'New look');
@@ -30210,7 +30254,11 @@ body.rb-hb-on #dash .concierge{display:none!important}
       // saved, or gone, the field asks for a new look again.
       function _rbHbDraftMode() {
         const s = _rbLp; if (!s || (s.surface !== 'home' && s.surface !== 'day')) return;
-        let d = (!_rbHbStage || !_rbHbStage.lookId) ? _rbHbDraft() : null;
+        // A DOCKED box (a grid's sparkle, a dated door, the home slot over
+        // a standing draft) is the new-look ask — it works on a draft only
+        // once it has built one itself (Annie, 2026-10-02: the Lookbook's
+        // sparkle opening home's "Change this draft…" read as a detour).
+        let d = (s.persist || s.hbBuilt) && (!_rbHbStage || !_rbHbStage.lookId) ? _rbHbDraft() : null;
         // A dated box works only on a draft made FOR that day — the standing
         // draft elsewhere is not this day's.
         if (d && s.hbDate && d.day !== s.hbDate) d = null;
@@ -30297,6 +30345,9 @@ body.rb-hb-on #dash .concierge{display:none!important}
       }
       function _rbHbResultHtml(s) {
         if (s.building) return '<div class="rb-lpd-busy">' + _waEsc(_RB_LP_COPY.busyBuild) + '</div>';
+        // A docked box shows only what it built itself — never the row of a
+        // draft standing elsewhere.
+        if (!s.persist && !s.hbBuilt) return '';
         const st = _rbHbStage;
         if (st && st.lookId) {
           const l = _lkFind(st.lookId);
@@ -30318,6 +30369,7 @@ body.rb-hb-on #dash .concierge{display:none!important}
       // The draft landed under the field: the field turns to it.
       function _rbHbBuilt(s) {
         _rbHbStage = null;
+        s.hbBuilt = true;
         _rbHbDraftMode();
         try { s._hbSig = _rbHbSig(); } catch (_) {}
         try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
@@ -30447,16 +30499,18 @@ body.rb-hb-on #dash .concierge{display:none!important}
         let lkName = null;
         if (_cbLookId) { const lk = _lkFind(_cbLookId); lkName = lk ? (lk.name || 'Your look') : null; }
         const attached = !!(lkName || _cbPhotoData);
-        const home = !date && _rbHbOnTop();
+        // o.fresh: a NEW look whatever stands under home's field — the slot's
+        // tap while the field works on a draft (2026-10-02).
+        let home = !date && !o.fresh && _rbHbOnTop();
         let s = null;
-        if (home) { s = _rbHbBoxEnsure(); if (s) s.hbDate = null; }
+        if (home) { s = _rbHbBoxEnsure(); if (s) s.hbDate = null; else home = false; }
         if (!s) {
+          // Docked, and the new-look ask only: it never inherits the
+          // standing draft (_rbHbDraftMode reads s.hbBuilt).
           _rbLookPrompt({ mode: 'new', surface: date ? 'day' : 'home', name: 'A new look', hbDate: date,
             onAsk: _rbHbAsk, onBuilt: _rbHbBuilt, resultHtml: _rbHbResultHtml });
           s = _rbLp;
           if (!s) return;
-          _rbHbDraftMode();
-          try { s._hbSig = _rbHbSig(); } catch (_) {}
         }
         // A piece or a look attached from + is always the NEW-look ask,
         // whatever stands under the field: Enter styles the piece three
