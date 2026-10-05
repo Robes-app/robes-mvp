@@ -223,7 +223,7 @@ ok(!(await page.locator('#tv-result-page').isVisible()), 'the trip stands down b
 // beneath it said the same thing a second time (Annie, 2026-09-10).
 ok(/pinned for Saturday 1 Aug/i.test(await page.locator('#sn-page .rb-tb-meta').innerText()) && await page.locator('#sn-page .rb-lk-tripstrip').count() === 0, 'the pin reads on the meta line, and the duplicate sage strip is gone');
 ok(await page.locator('#sn-page .rb-lk-packbtn').count() === 2 && await page.locator('#sn-page .rb-lk-packall').count() === 1, 'every owned row carries the case’s Pack toggle, the head Pack this look');
-ok(await page.locator('#sn-page .rb-lk-editbtn', { hasText: 'Edit & resave' }).count() === 1 && await page.locator('#sn-page .rbc-wears').count() === 2, 'the look page is otherwise the Lookbook’s: Edit & resave, the wear counts');
+ok(await page.locator('#sn-page .rb-lk-pinbar .rb-lk-editlook', { hasText: 'Edit look' }).count() === 1 && await page.locator('#sn-page .rbc-wears').count() === 2, 'the look page is otherwise the Lookbook’s: the pinned Edit look bar, the wear counts');
 const packCi = await page.evaluate(() => window.__lastTvData.capsule.findIndex(c => c.wardrobe_match && c.wardrobe_match.id === 'w1'));
 await page.evaluate((ci) => window.__lkTripPack(ci), packCi);
 await page.waitForTimeout(200);
@@ -303,7 +303,7 @@ await page.route('**/api/look/ask', (r) => {
 ok(await page.locator('#sn-page .rb-lk-held .rb-lp-field').count() === 1 && await page.locator('#sn-page .rb-lk-askdoor').count() === 0, 'the draft’s editing page carries the look prompt field under the look — no Adjust-with-words pill on the head');
 await page.locator('#sn-page .rb-lk-held .rb-lp-field').click();
 await page.waitForTimeout(250);
-ok(await page.locator('#rb-lp').count() === 1 && /Coast after dark/i.test(await page.locator('#rb-lp .ttl').innerText()) && /Lahinch/.test(await page.locator('#rb-lp .meta').innerText()) && await page.locator('#rb-lp .rs-chip').count() === 0, 'the box names the look, the meta line names the trip, no chips');
+ok(await page.locator('#rb-lp').count() === 1 && /Coast after dark/i.test((await page.locator('#rb-lp .rb-lp').getAttribute('aria-label')) || '') && await page.locator('#rb-lp .ttl, #rb-lp .meta, #rb-lp .rs-chip').count() === 0, 'the inline box names the look (its aria-label) — no title, no meta line, no chips (2026-10-01)');
 await page.evaluate(async () => {
   window.__rbLpText('swap the slides for the sandals');
   const ta = document.getElementById('rb-lp-in'); ta.value = 'swap the slides for the sandals';
@@ -315,7 +315,7 @@ const a0 = askPosts[0] || {};
 ok(askPosts.length === 1 && a0.surface === 'trip' && a0.pool?.kind === 'capsule' && a0.pool.items.length === caseN && a0.pool.items.every((c, i) => c.ci === i) && a0.rack?.length === 4 && a0.rack.some((x) => /slides/i.test(x.name)), 'the words go to /api/look/ask with the CASE as the pool (each piece carrying its capsule index), the look as it stands as the rack');
 const rackNow = await page.locator('#sn-page .rbc-rack .rbc-name').allInnerTexts();
 ok(rackNow.includes('Flat leather sandals') && !rackNow.includes('Tan leather slides') && await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && await page.locator('#sn-page .rb-lk-prop').count() === 1, 'the sandals land on the draft’s rack from the case — still a draft, the shell still a proposal');
-ok(JSON.stringify(await page.locator('#sn-page .rb-lp-was').allInnerTexts()) === JSON.stringify(['Just changed · was Tan leather slides']) && /swap the slides for the sandals/.test(await page.locator('#sn-page .rb-lk-draftbar').innerText()), 'the row says what it was; the bar names her words');
+ok(JSON.stringify(await page.locator('#sn-page .rb-lp-was').allInnerTexts()) === JSON.stringify(['Swapped in · was the tan leather slides']) && /swap the slides for the sandals/.test(await page.locator('#sn-page .rb-lk-draftbar').innerText()), 'the row says what it was; the bar names her words');
 await page.evaluate(async () => {
   window.__rbLpText('a raincoat');
   const ta = document.getElementById('rb-lp-in'); ta.value = 'a raincoat';
@@ -513,7 +513,7 @@ await page.evaluate(() => window.__lkTripDraftSave());
 await page.waitForTimeout(700);
 ok(await page.locator('#sn-page').isVisible() && await page.locator('#sn-page .rb-lk-page.editing').count() === 0 && /^saved look/i.test((await page.locator('#sn-page .rb-lk-eyebrow').innerText()).trim()), 'Save lands on the SAVED look’s reading page');
 ok(/Packed for Lahinch — not yet on a day/.test(await page.locator('#sn-page .rb-lk-tripstrip').innerText()), 'the trip strip reads it as packed, not yet on a day');
-ok(await page.locator('#sn-page .rb-lk-packbtn').count() === draftRows - 1 && await page.locator('#sn-page .rb-lk-packall').count() === 1 && await page.locator('#sn-page .rb-lk-editbtn', { hasText: 'Edit & resave' }).count() === 1, 'the saved page carries the Pack toggles, Pack this look and Edit & resave');
+ok(await page.locator('#sn-page .rb-lk-packbtn').count() === draftRows - 1 && await page.locator('#sn-page .rb-lk-packall').count() === 1 && await page.locator('#sn-page .rb-lk-pinbar .rb-lk-editlook', { hasText: 'Edit look' }).count() === 1, 'the saved page carries the Pack toggles, Pack this look and the pinned Edit look');
 const linked = await page.evaluate(() => { const l = window.__lastTvData.looks[1]; return { imported: !!l.imported, lookId: l.lookId, title: l.title, formula: l.formula.length, pieces: (l.pieces || []).length }; });
 ok(linked.imported && !!linked.lookId && linked.title === 'Tide-line, again', 'the trip look is now an import of the saved look, carrying its name');
 ok(linked.formula === draftRows - 1 && linked.pieces === draftRows - 1, 'the trip’s formula follows the saved composition');

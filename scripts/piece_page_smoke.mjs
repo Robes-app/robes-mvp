@@ -264,8 +264,8 @@ const SHOT = process.env.SHOT_DIR || '';
   check('look · the row opens the piece page from the look', await pg.isVisible());
   check('look · the return pill names the look', (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'The Thursday one');
   check('look · the position reads 1 of 4 in this look', /1 of 4 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()));
-  check('look · the meta line carries category · worn', /Tops · worn eight times/i.test(t2));
-  check('look · the star sits on the object here too (identical whichever route reached it)', await page.locator('.rb-tb-trow .rb-pc-star').count() === 1);
+  check('look · the meta line carries category · brand · worn', /Tops · Arket · worn eight times/i.test(t2), t2.slice(0, 160));
+  check('look · no star and no pencil from a look — the preview, not the record (handoff 4c)', await page.locator('.rb-tb-trow .rb-pc-star').count() === 0 && await page.locator('.rb-tb-trow .rb-pc-pencil').count() === 0);
   check('look · no wear ledger on the preview', await page.locator('.rb-pc-rule').count() === 0 && await page.locator('.rb-pc-wear').count() === 0);
   // The card wears the Look panel's dress — compared against the held card
   // underneath (since 2026-09-08 the look page's panel merges into the
@@ -346,13 +346,14 @@ const SHOT = process.env.SHOT_DIR || '';
     && await page.locator('#sn-page .rb-lk-daychip').count() === 0
     && /^save to /i.test(await page.locator('#sn-page .rb-lk-save').innerText()));
   const dlNames = page.locator('#sn-page .rbc-rack .rbc-namebtn');
-  check('daily · only owned rows are doors (2 of 4)', await dlNames.count() === 2);
+  // Handoff 4d: a proposal opens its own page too (Not yours yet)
+  check('daily · every row is a door — owned pieces and proposals alike (4 of 4)', await dlNames.count() === 4);
   await dlNames.first().click();
   await page.waitForTimeout(400);
   const pg = page.locator('#rb-piece-page');
   const t = (await pg.innerText()).replace(/\n/g, ' ');
   check('daily · opens from the draft with its name as the way back', await pg.isVisible() && (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'Coffee run, elevated');
-  check('daily · the position walks the two owned pieces', /2 of 2 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()) && t.includes('Barrel-leg jeans'), t.slice(0, 200));
+  check('daily · the position walks every row of the draft, proposals included (handoff 4d)', /2 of 4 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()) && t.includes('Barrel-leg jeans'), t.slice(0, 200));
   check('daily · the rail holds SAVED looks only — the unsaved draft is not in it', /In 1 look/i.test(t) && !t.includes('Coffee run, elevated.'), t.slice(0, 300));
   await page.locator('#rb-piece-page .rb-ret-pill').click();
   await page.waitForTimeout(300);

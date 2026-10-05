@@ -219,7 +219,9 @@ const titleTop = (page) => page.evaluate(() => {
   await page.locator('#sn-page .rbc-rack .rbc-namebtn').first().click(); await page.waitForTimeout(500);
   const b3 = await band(page);
   check('piece from the look · ‹ The Thursday one, "1 of 4 in this look", Wardrobe still lit — three deep, one section', !!b3 && b3.label === 'The Thursday one' && /1 of 4 in this look/i.test(b3.pos) && JSON.stringify(await lit(page)) === '["wardrobe"]', JSON.stringify(b3));
-  check('piece · the star and the pencil are in the title block from this door too', await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-star').count() === 1 && await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-pencil').count() === 1);
+  // Look_Creation_Handoff 4c (2026-10-05): from a look the piece page is a
+  // preview in the look's context — no star, no pencil in the title block.
+  check('piece · from a look the title block carries neither the star nor the pencil (the record lives behind the wardrobe door)', await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-star').count() === 0 && await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-pencil').count() === 0);
   await page.locator('#rb-piece-page .rb-ret-pill').click(); await page.waitForTimeout(400);
   check('piece · ‹ returns to the look it came from', !(await page.locator('#rb-piece-page').isVisible()) && await page.locator('#sn-page').isVisible() && (await band(page))?.label === 'Cream silk shirt');
   await page.locator('#sn-page .rb-ret-pill').click(); await page.waitForTimeout(500);
@@ -291,7 +293,9 @@ const titleTop = (page) => page.evaluate(() => {
   await page.locator('#sn-page .rbc-rack .rbc-namebtn').first().click(); await page.waitForTimeout(500);
   const b3 = await band(page);
   check('piece from the look · ‹ The Thursday one, "1 of 4 in this look", Wardrobe still lit — three deep, one section', !!b3 && b3.label === 'The Thursday one' && /1 of 4 in this look/i.test(b3.pos) && JSON.stringify(await lit(page)) === '["wardrobe"]', JSON.stringify(b3));
-  check('piece · the star and the pencil are in the title block from this door too', await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-star').count() === 1 && await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-pencil').count() === 1);
+  // Look_Creation_Handoff 4c (2026-10-05): from a look the piece page is a
+  // preview in the look's context — no star, no pencil in the title block.
+  check('piece · from a look the title block carries neither the star nor the pencil (the record lives behind the wardrobe door)', await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-star').count() === 0 && await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-pencil').count() === 0);
   await page.locator('#rb-piece-page .rb-ret-pill').click(); await page.waitForTimeout(400);
   check('piece · ‹ returns to the look it came from', !(await page.locator('#rb-piece-page').isVisible()) && await page.locator('#sn-page').isVisible() && (await band(page))?.label === 'Cream silk shirt');
   await page.locator('#sn-page .rb-ret-pill').click(); await page.waitForTimeout(500);

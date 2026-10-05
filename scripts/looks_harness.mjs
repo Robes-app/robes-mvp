@@ -600,10 +600,20 @@ const browser = await chromium.launch(
     };
   });
   check('detail · the name leads the page (masthead above the console)', layout.mastFirst && layout.titleInMast, JSON.stringify(layout));
-  check('detail · rename is the pencil, not a standing input', layout.pencil === true);
-  check('detail · the card list is The Rack, and offers Edit & resave',
-    /^The rack · 4 pieces/.test(layout.rackLabel || '') && /Edit & resave/.test(layout.rackLabel || ''),
-    String(layout.rackLabel));
+  // Look_Creation_Handoff 5a (2026-10-05): the pencil is gone — renaming
+  // lives in edit mode; the edit door is the PINNED bar's hairline pill.
+  check('detail · no pencil beside the title (renaming lives in edit mode)', layout.pencil === false);
+  check('detail · the card list is The Rack, with no edit door on its head',
+    /^The rack · 4 pieces$/.test((layout.rackLabel || '').trim()), String(layout.rackLabel));
+  const pinbar = await page.evaluate(() => {
+    const bar = document.querySelector('.rb-lk-held .rb-lk-pinbar');
+    const btn = bar?.querySelector('.rb-lk-editlook');
+    return { bar: !!bar, meta: bar?.querySelector('.rb-lk-pinmeta')?.textContent, btn: btn?.textContent.trim(),
+      ink: btn ? getComputedStyle(btn).backgroundColor === 'rgb(32, 32, 33)' : null, last: !!bar && bar === bar.parentElement.lastElementChild };
+  });
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-reading-1280.png', fullPage: true }).catch(() => {});
+  check('detail · the pinned bar carries the facts and Edit look as a hairline pill, no ink at rest',
+    pinbar.bar && /^4 pieces · 2 wears/.test(pinbar.meta || '') && pinbar.btn === 'Edit look' && pinbar.ink === false && pinbar.last, JSON.stringify(pinbar));
   check('detail · the rack ends and the wear log STANDS ALONE — its own card below the held one, never inside the rack\'s column',
     layout.wornBelowRack === true && layout.wornStandsAlone === true, JSON.stringify(layout));
   const renamed = await page.evaluate(async () => {
@@ -652,7 +662,12 @@ const browser = await chromium.launch(
     const out = {
       wearsBefore,
       flicks: document.querySelectorAll('.rbc-rack .rbc-arrow').length,
-      swaps: Array.from(document.querySelectorAll('.rbc-rack .rbc-act')).filter((b) => /Swap/.test(b.textContent)).length,
+      swaps: document.querySelectorAll('.rbc-rack .rbc-swap').length,
+      chevrons: document.querySelectorAll('.rbc-rack .rbc-more').length,
+      xs: document.querySelectorAll('.rbc-rack .rbc-rm').length,
+      pin: Array.from(document.querySelectorAll('.rb-lk-editpin button:not(.rb-lp-field)')).map((x) => x.textContent.trim()),
+      updateFaint: (() => { const b = document.querySelector('.rb-lk-editpin .rb-lk-update'); return !!b && b.classList.contains('faint') && getComputedStyle(b).backgroundColor !== 'rgb(32, 32, 33)'; })(),
+      titleTap: !!document.querySelector('#rb-lk-title .rb-lk-title-tap'),
       // Editing is the composer's frame (Robes_Create_Edit_Look_IA):
       // eyebrow, the held card, where it lives, the change bar.
       eyebrow: document.querySelector('.rb-lk-eyebrow')?.textContent,
@@ -670,20 +685,22 @@ const browser = await chromium.launch(
   });
   check('detail · reading, each row carries its piece\'s wear count',
     editMode.wearsBefore.length === 4 && /wear/.test(editMode.wearsBefore[0] || ''), JSON.stringify(editMode.wearsBefore));
-  check('detail · Edit & resave brings the flick cluster and Swap back',
-    editMode.flicks === 8 && editMode.swaps === 4, JSON.stringify([editMode.flicks, editMode.swaps]));
-  // No "Lookbook / Editing" crumb (Annie, 2026-09-08: it read as a bug) —
-  // the eyebrow stays Saved look; the held card and the change bar say edit.
-  check('editing · opens in the held card, the eyebrow still Saved look',
-    editMode.eyebrow === 'Saved look' && editMode.frame === true, JSON.stringify([editMode.eyebrow, editMode.frame]));
-  check('editing · the change bar stands from the first second and says nothing has changed yet',
-    /^No changes yet/.test(editMode.bar) && editMode.acts.join(' | ') === 'Discard | Update this look', JSON.stringify([editMode.bar.slice(0, 60), editMode.acts]));
+  // Handoff 5c: the same rows as the draft — ↻ and › on every row, no
+  // steppers, no ✕ (swipe removes); the eyebrow reads Editing and the
+  // title is the tap target; the pinned bar reads Done · Update look,
+  // Update a faint hairline until something changes.
+  check('detail · Edit look brings ↻ and › to every row — no steppers, no ✕',
+    editMode.flicks === 0 && editMode.swaps === 4 && editMode.chevrons === 4 && editMode.xs === 0, JSON.stringify([editMode.flicks, editMode.swaps, editMode.chevrons, editMode.xs]));
+  check('editing · opens in the held card, the eyebrow reads Editing, the title tappable',
+    editMode.eyebrow === 'Editing' && editMode.frame === true && editMode.titleTap === true, JSON.stringify([editMode.eyebrow, editMode.frame, editMode.titleTap]));
+  check('editing · the pinned bar reads Done · Update look, Update faint until something changes',
+    editMode.pin.join(' | ') === 'Done | Update look' && editMode.updateFaint === true, JSON.stringify([editMode.pin, editMode.updateFaint]));
   check('editing · where it lives leads with the lookbook and offers the diary',
     editMode.lives[0] === 'The lookbook' && editMode.lives.includes('+ Put it in the diary'), JSON.stringify(editMode.lives));
   check('editing · drops what belongs to the look page: no image controls, no wear record',
     editMode.noImgActs === 0 && editMode.noWorn === true, JSON.stringify([editMode.noImgActs, editMode.noWorn]));
-  check('editing · every filled role carries its +, and + Add a piece closes the rack',
-    editMode.stripAdds >= 1 && editMode.addPiece === true, JSON.stringify([editMode.stripAdds, editMode.addPiece]));
+  check('editing · no + on the strips; + Add a piece closes the rack',
+    editMode.stripAdds === 0 && editMode.addPiece === true, JSON.stringify([editMode.stripAdds, editMode.addPiece]));
   check('detail · The Look is the standing 4:5 board',
     d.lookv2 && d.boardTiles === 4 && d.boardN === '4', JSON.stringify([d.lookv2, d.boardTiles, d.boardN]));
   check('detail · the panel head reads The look — the count lives on the rack alone', d.headLabel === 'The look', d.headLabel);
@@ -859,14 +876,38 @@ const browser = await chromium.launch(
     window.__lkDSwap(3);   // the tote
     const modal = document.getElementById('lkd-swap-modal');
     return {
-      open: !!modal,
+      open: !!modal && !!modal.querySelector('.rb-sd'),
+      title: modal?.querySelector('.rb-sd-t')?.textContent,
       candidate: /Raffia basket bag/.test(modal?.textContent || ''),
-      snap: /Snap mine/.test(modal?.textContent || ''),
+      chipOn: modal?.querySelector('.rb-sd-chip.on')?.textContent.trim(),
+      snapFirst: modal?.querySelector('.rb-sd-row .rb-sd-tile')?.classList.contains('snap'),
+      cur: modal?.querySelector('.rb-sd-tile.cur .nm')?.textContent,
+      go: modal?.querySelector('.rb-sd-go')?.disabled,
+      dimmed: !!document.querySelector('#lkd-swap-modal.rb-swap-wrap'),
     };
   });
-  check('swap · opens the SAME modal the consoles use', swap.open === true);
-  check('swap · her wardrobe by category, plus Snap mine',
-    swap.candidate === true && swap.snap === true, JSON.stringify(swap));
+  // Handoff 4b: ↻ opens the DRAWER — her wardrobe only, the taxonomy
+  // chips open on the piece's own category, Snap the first tile, the
+  // current piece ticked, the look undimmed behind it.
+  check('swap · ↻ opens the drawer, titled for the piece, undimmed', swap.open === true && /^Swap the woven straw tote/.test(swap.title || '') && swap.dimmed === false, JSON.stringify(swap));
+  check('swap · her wardrobe by category — the Bags chip on, Snap first, the tote ticked, the commit withheld',
+    swap.candidate === true && /Bags/.test(swap.chipOn || '') && swap.snapFirst === true && swap.cur === 'Woven straw tote' && swap.go === true, JSON.stringify(swap));
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-swap-drawer-1280.png' }).catch(() => {});
+  // A tap PREVIEWS on the draft; Close puts the original back.
+  const previewed = await page.evaluate(async () => {
+    window.__rbSdPick('w-bag2');
+    await new Promise((r) => setTimeout(r, 100));
+    const names = () => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((x) => x.textContent);
+    const during = names();
+    const go = document.querySelector('#lkd-swap-modal .rb-sd-go');
+    const goTxt = go?.textContent, goOn = go && !go.disabled;
+    window.__rbSdClose();
+    await new Promise((r) => setTimeout(r, 100));
+    return { during, goTxt, goOn, after: names(), gone: !document.getElementById('lkd-swap-modal') };
+  });
+  check('swap · a tap previews the pick on the rack and arms "Swap in …"; Close puts the original back',
+    previewed.during.includes('Raffia basket bag') && previewed.goOn === true && /^Swap in the raffia basket bag$/i.test(previewed.goTxt || '')
+      && previewed.after.includes('Woven straw tote') && !previewed.after.includes('Raffia basket bag') && previewed.gone, JSON.stringify(previewed));
 
   // Edits land LIVE on the view (Annie's beta pass 2026-08-17) — the swap
   // shows immediately on the mosaic and the rack, the saved look is
@@ -874,12 +915,15 @@ const browser = await chromium.launch(
   // ways out: discard, update, or save as a new look (D2's question).
   const liveEdit = await page.evaluate(() => {
     window.__lkEditToggle();
-    window.__lkDSwapApply(3, 'w-bag2');
-    const bar = document.querySelector('.rb-lk-editbar');
+    window.__lkDSwapApply('w-bag1', 'w-bag2');
+    const bar = document.querySelector('.rb-lk-editpin');
+    const row = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row')).find((r) => /Raffia basket bag/.test(r.textContent));
     return {
-      bar: (bar?.textContent || '').replace(/\s+/g, ' '),
-      acts: Array.from(bar?.querySelectorAll('button') || []).map((x) => x.textContent),
+      acts: Array.from(bar?.querySelectorAll('button:not(.rb-lp-field)') || []).map((x) => x.textContent.trim()),
+      updateInk: (() => { const b = bar?.querySelector('.rb-lk-update'); return !!b && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)'; })(),
       pieces: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((x) => x.textContent),
+      warm: !!row && row.classList.contains('changed') && getComputedStyle(row).backgroundColor === 'rgb(243, 239, 230)',
+      was: row?.querySelector('.rb-lp-was')?.textContent,
       boardN: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
       modalGone: !document.getElementById('lkd-swap-modal'),
     };
@@ -888,11 +932,13 @@ const browser = await chromium.launch(
     liveEdit.pieces.includes('Raffia basket bag') && !liveEdit.pieces.includes('Woven straw tote')
       && liveEdit.modalGone,
     JSON.stringify(liveEdit.pieces));
-  check('live edit · one quiet strip says the wears stand until she updates',
-    /One change to this look/.test(liveEdit.bar) && /2 wears stay with it/.test(liveEdit.bar),
-    liveEdit.bar.slice(0, 140));
-  check('live edit · the change bar offers Discard / Save as a new look / Update this look',
-    liveEdit.acts.join(' | ') === 'Discard | Save as a new look | Update this look', JSON.stringify(liveEdit.acts));
+  // Handoff 5d: the changed row turns warm and names what it replaced;
+  // Update look becomes the one ink fill and Done becomes Discard.
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-editing-warm-1280.png', fullPage: true }).catch(() => {});
+  check('live edit · the changed row turns warm and names what it replaced',
+    liveEdit.warm === true && liveEdit.was === 'Swapped in · was the woven straw tote', JSON.stringify([liveEdit.warm, liveEdit.was]));
+  check('live edit · the pinned bar reads Discard · Update look, Update the one ink fill',
+    liveEdit.acts.join(' | ') === 'Discard | Update look' && liveEdit.updateInk === true, JSON.stringify([liveEdit.acts, liveEdit.updateInk]));
   await page.waitForTimeout(400);
   check('live edit · the saved look is untouched while the strip stands',
     !writes.some((w) => w.method === 'DELETE' && /look_pieces\?look_id=eq\.lk-1/.test(w.url)),
@@ -942,7 +988,7 @@ const browser = await chromium.launch(
   const upd = await page.evaluate(() => {
     window.__lkOpen('lk-1');
     window.__lkEditToggle();
-    window.__lkDSwapApply(2, 'w-sho2');
+    window.__lkDSwapApply('w-sho1', 'w-sho2');
     window.__lkResave();
     return {
       note: document.getElementById('toast-msg')?.textContent,
@@ -950,7 +996,7 @@ const browser = await chromium.launch(
       wears: document.querySelector('.rb-lk-worn .rb-lk-rule .val')?.textContent,
       pieces: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent),
       firstWearSnapshot: document.querySelector('.rb-lk-wear .pc')?.textContent,
-      barGone: !document.querySelector('.rb-lk-editbar'),
+      barGone: !document.querySelector('.rb-lk-editpin'),
     };
   });
   check('update · keeps the look — a toast says Updated, no banner stands',
@@ -966,10 +1012,10 @@ const browser = await chromium.launch(
     const names = () => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent);
     window.__lkDFlip(2, 1);
     const after = names();
-    const bar = !!document.querySelector('.rb-lk-editbar');
+    const bar = !!document.querySelector('.rb-lk-editpin .rb-lk-update:not(.faint)');
     window.__lkDraftDiscard();
     const restored = names();
-    const barGone = !document.querySelector('.rb-lk-editbar');
+    const barGone = !document.querySelector('.rb-lk-editpin');
     return { after, bar, restored, barGone };
   });
   check('flick · lands live on the view, with the strip standing',
@@ -1158,18 +1204,21 @@ const browser = await chromium.launch(
   // A fresh session has rendered no console — the composer must inject the
   // shared stylesheet itself, and the styles must actually apply.
   const css = await page.evaluate(() => {
-    // The empty composer holds no rows any more — the strips are the
-    // styled markup to probe.
-    const strip = document.querySelector('.rbc-rolestrip');
-    const ey = strip?.querySelector('span');
+    // The empty composer holds ONE door (handoff 4·0): the guided card.
+    const g = document.querySelector('.rb-lk-con .rb-lk-guide');
     return {
       sheet: !!document.getElementById('rbc-style'),
-      stripIsFlex: strip ? getComputedStyle(strip).display === 'flex' : false,
-      eyCaps: ey ? getComputedStyle(ey).textTransform === 'uppercase' : false,
+      guide: !!g, dashed: g ? getComputedStyle(g).borderTopStyle === 'dashed' : false,
+      head: g?.querySelector('.gh')?.textContent, def: g?.querySelector('.gd')?.textContent, ex: g?.querySelector('.gx')?.textContent,
+      acts: Array.from(g?.querySelectorAll('.ga button') || []).map((b) => b.textContent.trim()),
+      quiet: Array.from(g?.querySelectorAll('.gq button') || []).map((b) => b.textContent.trim()),
+      strips: document.querySelectorAll('.rb-lk-con .rbc-rolestrip').length,
     };
   });
-  check('composer · shared console stylesheet is injected without a console render',
-    css.sheet && css.stripIsFlex && css.eyCaps, JSON.stringify(css));
+  check('composer · shared console stylesheet is injected without a console render', css.sheet, JSON.stringify(css));
+  check('composer · the empty rack is ONE door — the guided dashed card: Start with the canvas, its definition and example, + Canvas / + Any piece, Skip the guide; no strips',
+    css.guide && css.dashed && css.head === 'Start with the canvas' && /proportion and tone/.test(css.def || '') && /A tee, jeans, a knit/.test(css.ex || '')
+      && JSON.stringify(css.acts) === JSON.stringify(['+ Canvas', '+ Any piece']) && css.quiet.includes('Skip the guide') && css.strips === 0, JSON.stringify(css));
   check('composer · the standing console scale: 480px look column',
     /^480px/.test(c0.cols) && c0.lookv2, c0.cols + ' lookv2=' + c0.lookv2);
   check('composer · the look panel is the shared rbc-panel', c0.panel === true);
@@ -1179,30 +1228,30 @@ const browser = await chromium.launch(
   // ALWAYS closes the rack (regression fixed 2026-08-12 — it used to wait
   // until all four roles were inked, taking the door away from the empty
   // look that most needs it).
-  check('composer · no slot-bound empty rows; four role rows carry the way in',
-    c0.emptyRows === 0 && c0.ghostAdds === 4, JSON.stringify([c0.emptyRows, c0.ghostAdds]));
-  check('composer · the generic + Add a piece always closes the rack', c0.addPiece === true);
-  // The whole dashed row is the hit area, not just the pill (~52px)
+  check('composer · no slot-bound empty rows, no ghosted definition rows — the guide is the one door',
+    c0.emptyRows === 0 && c0.ghostAdds === 0, JSON.stringify([c0.emptyRows, c0.ghostAdds]));
+  check('composer · the bare rack carries no second + Add a piece beneath the door', c0.addPiece === false);
+  // "+ Any piece" opens the chooser with no role preset; both targets 40px+
   const hit = await page.evaluate(() => {
-    const row = document.querySelector('.rb-lk-con .rbc-rghost');
-    const r = row?.getBoundingClientRect();
-    // Tap the ROW's own padding, well clear of the pill
-    row?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    const opened = !!document.getElementById('rb-lkadd-sheet');
+    const b = Array.from(document.querySelectorAll('.rb-lk-con .rb-lk-guide .ga button')).find((x) => /Any piece/.test(x.textContent));
+    const r = b?.getBoundingClientRect();
+    b?.click();
+    const sheet = document.getElementById('rb-lkadd-sheet');
+    const opened = !!sheet, eyebrow = sheet?.querySelector('p')?.textContent || '';
     window.__lkAddClose && window.__lkAddClose();
-    return { h: r ? Math.round(r.height) : 0, tap: row?.classList.contains('tap'), opened };
+    return { h: r ? Math.round(r.height) : 0, opened, eyebrow };
   });
-  check('composer · the whole slot row is the tap target, 52px+',
-    hit.tap === true && hit.h >= 52 && hit.opened === true, JSON.stringify(hit));
+  check('composer · + Any piece opens the chooser with no role preset, a 40px target',
+    hit.h >= 40 && hit.opened === true && !/The Canvas/.test(hit.eyebrow), JSON.stringify(hit));
   // Save stands on screen and LIVE from the first second — the name is
   // the one gate (2026-09-03; the two-piece floor is gone). Design 4d
   // (2026-10-02): Save is INK on the draft footer beside a quiet Discard
   // (an empty draft has none to discard); no "Filed under" note anywhere —
   // the gate answers at the click. The header reads DRAFT LOOK over the
   // centred name.
-  check('composer · Save stands on screen, live and ink on the draft footer; no name-gate note; DRAFT LOOK over the centred name',
-    c0.saveShown === true && c0.saveDisabled === false && c0.saveInBar === true && c0.barInk === true && c0.barDiscard === null
-      && c0.saveNote === undefined && c0.drafty === 'Draft look' && c0.titleCentred === true,
+  check('composer · Save stands on screen, withheld (cream, no ink) until a piece or a photograph, on the draft footer; no name-gate note; DRAFT LOOK over the centred name',
+    c0.saveShown === true && c0.saveDisabled === true && c0.saveInBar === true && c0.barInk === false && c0.barDiscard === null
+      && !c0.saveNote && c0.drafty === 'Draft look' && c0.titleCentred === true,
     JSON.stringify([c0.saveShown, c0.saveDisabled, c0.saveInBar, c0.barInk, c0.barDiscard, c0.saveNote, c0.drafty, c0.titleCentred]));
   check('composer · the whole composer sits in ONE card, the name leading it from outside',
     c0.card === true && c0.titleOutside === true, JSON.stringify([c0.card, c0.titleOutside]));
@@ -1222,28 +1271,26 @@ const browser = await chromium.launch(
   check('composer · the photograph door is an icon on the canvas, named on hover, nothing beneath',
     c0.photoDoor === 'Add your photograph' && c0.photoDoorIcon === true && c0.photoRow === false,
     JSON.stringify([c0.photoDoor, c0.photoDoorIcon, c0.photoRow]));
-  // B1 amendment (2026-08-07): the empty state teaches the formula — every
-  // empty row sits under a GHOSTED strip forecast from its slot. Education
-  // only: the forecast never binds what she adds where.
-  const ghosts = await page.evaluate(() => {
-    const strips = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip'));
-    const notes = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolenote')).map((n) => n.textContent);
+  // Look_Creation_Handoff 4·0 (2026-10-05): the empty draft is ONE door —
+  // the guide card for her first ten drafts — never four ghosted strips.
+  const guide = await page.evaluate(() => {
+    const g = document.querySelector('.rb-lk-con .rb-lk-guide');
     return {
-      labels: strips.map((s) => s.textContent.trim()),
-      allGhost: strips.length > 0 && strips.every((s) => s.classList.contains('ghost')),
-      notes,
+      strips: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip').length,
+      doors: document.querySelectorAll('.rb-lk-con .rb-lk-guide').length,
+      h: g?.querySelector('.gh')?.textContent.trim(), d: g?.querySelector('.gd')?.textContent.trim(), ex: g?.querySelector('.gx')?.textContent.trim(),
+      acts: Array.from(g?.querySelectorAll('.ga button') || []).map((b) => b.textContent.trim()),
+      quiet: Array.from(g?.querySelectorAll('.gq button') || []).map((b) => b.textContent.trim()),
+      trailingAdd: !!document.querySelector('.rb-lk-con .rbc-addpiece'),
     };
   });
-  check('composer · empty rows sit under ghosted formula strips',
-    JSON.stringify(ghosts.labels) === JSON.stringify(['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'])
-      && ghosts.allGhost, JSON.stringify(ghosts.labels));
-  check('composer · each awaiting role carries its education line',
-    ghosts.notes.length === 4
-      && /Elevated basics balancing proportion and tone/.test(ghosts.notes[0])
-      && /hero piece setting the look/.test(ghosts.notes[1])
-      && /tactile layer/.test(ghosts.notes[2])
-      && /signature finish/.test(ghosts.notes[3]),
-    JSON.stringify(ghosts.notes));
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/composer-empty-guide-1280.png', fullPage: true }).catch(() => {});
+  check('composer · the empty draft is ONE guided door — no ghosted strips, no trailing + Add a piece',
+    guide.strips === 0 && guide.doors === 1 && guide.trailingAdd === false, JSON.stringify(guide));
+  check('composer · the guide reads Start with the canvas, its line and its examples, with + Canvas / + Any piece and Skip the guide',
+    guide.h === 'Start with the canvas' && /proportion and tone/.test(guide.d || '') && /A tee, jeans, a knit/.test(guide.ex || '')
+      && JSON.stringify(guide.acts) === JSON.stringify(['+ Canvas', '+ Any piece']) && guide.quiet.includes('Skip the guide'),
+    JSON.stringify(guide));
   // No second header above the strips — the formula strips name themselves
   // and the masthead names the look (FTUE pass 2026-08-12).
   check('composer · no rack header above the formula strips', c0.rackEyebrow === undefined, c0.rackEyebrow);
@@ -1313,8 +1360,11 @@ const browser = await chromium.launch(
       name: row?.querySelector('.rbc-name')?.textContent,
       owned: /In your wardrobe/.test(row?.querySelector('.rbc-sub')?.textContent || ''),
       flick: row?.querySelectorAll('.rbc-arrow').length,
-      swap: !!Array.from(row?.querySelectorAll('.rbc-act') || []).find((b) => /Swap/.test(b.textContent)),
+      swap: !!row?.querySelector('.rbc-trail .rbc-swap'),
+      more: !!row?.querySelector('.rbc-trail .rbc-more'),
+      trH: row ? Math.round(row.querySelector('.rbc-trail .rbc-swap')?.getBoundingClientRect().height || 0) : 0,
       x: !!row?.querySelector('.rbc-rm'),
+      addPiece: !!document.querySelector('.rb-lk-con .rbc-addpiece'),
       img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
       busy: document.querySelector('.rb-lk-con .rb-lkm-busy')?.textContent,
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
@@ -1332,18 +1382,23 @@ const browser = await chromium.launch(
   }));
   check('composer · a filled row is the shared rack card',
     one.name === 'Cream silk shirt' && one.owned === true, `${one.name}/${one.owned}`);
-  check('composer · the education line gives way once its role is cast',
-    one.roleNotes === 3, String(one.roleNotes));
-  check('composer · the card carries the flick cluster', one.flick === 2, String(one.flick));
-  check('composer · the card carries Swap', one.swap === true);
-  check('composer · the card carries the corner ✕', one.x === true);
+  // Handoff 4a: a row carries ↻ and › at its right edge — no steppers,
+  // no Swap pill, no corner ✕ (swipe removes); the door is now the
+  // trailing + Add a piece, no definition rows.
+  check('composer · no education rows once a piece hangs — the trailing + Add a piece is the door',
+    one.roleNotes === 0 && one.addPiece === true, JSON.stringify([one.roleNotes, one.addPiece]));
+  check('composer · the row carries no flick cluster', one.flick === 0, String(one.flick));
+  check('composer · the row carries ↻ (swap) and › (the piece), 40px each', one.swap === true && one.more === true && one.trH >= 40, JSON.stringify([one.swap, one.more, one.trH]));
+  check('composer · the row carries no corner ✕', one.x === false);
   check('composer · a pick keeps her photograph up and says the next one is coming',
     one.img === 'https://img.test/cell.jpg' && one.busy === 'Dressing her…', JSON.stringify([one.img, one.busy]));
   check('composer · one render per settled composition, for the piece on the rack',
     JSON.stringify(renders) === JSON.stringify([['Cream silk shirt']]) && oneLanded.img === 'https://img.test/render-1.jpg' && oneLanded.busy === false,
     JSON.stringify([renders, oneLanded]));
-  check('composer · one piece: Save is live, still cream until named',
-    one.saveDisabled === false && one.saveUnnamed === true, JSON.stringify([one.saveDisabled, one.saveUnnamed]));
+  // Handoff 4·0: the first piece makes Save live and INK — the name is
+  // optional (it defaults to the date).
+  check('composer · one piece: Save comes live and ink, the name optional',
+    one.saveDisabled === false && one.saveUnnamed === false, JSON.stringify([one.saveDisabled, one.saveUnnamed]));
   const still = await page.evaluate(() => ({ gone: window.__rbLkSheetGone, ...window.__rbLkStill }));
   check('composer · picking a piece closes the sheet into the rack', still.gone === true);
   check('composer · with a piece placed, Still-open leads the chooser',
@@ -1356,14 +1411,16 @@ const browser = await chromium.launch(
     const before = { canvas: stripOf('The Canvas')?.classList.contains('ghost') };
     window.__lkCRoleDrop(0, 'The Anchor');
     const after = {
-      canvasGhost: stripOf('The Canvas')?.classList.contains('ghost'),
+      canvasGone: !stripOf('The Canvas'),
       anchorGhost: stripOf('The Anchor')?.classList.contains('ghost'),
     };
     window.__lkCRoleDrop(0, 'The Canvas');
     return { beforeCanvasGhost: before.canvas, ...after };
   });
-  check('composer · a landed piece inks its strip; a drag re-casts it freely',
-    inked.beforeCanvasGhost === false && inked.canvasGhost === true && inked.anchorGhost === false,
+  // Strips only ever head pieces now (handoff 4a): a re-cast moves the
+  // piece under its new role and the old strip goes.
+  check('composer · a landed piece heads its strip; a re-cast moves it, the old strip goes',
+    inked.beforeCanvasGhost === false && inked.canvasGone === true && inked.anchorGhost === false,
     JSON.stringify(inked));
 
   // The flick cycles same-category pieces
@@ -1380,30 +1437,32 @@ const browser = await chromium.launch(
     window.__lkCSwap(0);
     const modal = document.getElementById('lk-swap-modal');
     return {
-      open: !!modal,
-      head: modal?.querySelector('p')?.textContent,
+      open: !!modal && !!modal.querySelector('.rb-sd'),
+      head: modal?.querySelector('.rb-sd-t')?.textContent,
       wardrobe: /From your wardrobe/.test(modal?.textContent || ''),
-      snap: /Snap mine/.test(modal?.textContent || ''),
+      snap: /^Snap /.test(modal?.querySelector('.rb-sd-tile.snap .nm')?.textContent || ''),
+      chipOn: modal?.querySelector('.rb-sd-chip.on')?.textContent.trim(),
     };
   });
-  check('composer · Swap opens the shared swap modal', swap.open === true);
-  check('composer · the modal offers her wardrobe and Snap mine',
-    swap.wardrobe === true && swap.snap === true, JSON.stringify(swap));
-  const swapped = await page.evaluate(() => {
-    window.__lkCSwapApply(0, 'w-top2');
+  check('composer · ↻ opens the swap drawer', swap.open === true && /^Swap the cream silk shirt/.test(swap.head || ''), JSON.stringify(swap));
+  check('composer · the drawer offers her wardrobe on the piece\'s category, Snap the first tile',
+    swap.wardrobe === true && swap.snap === true && /Tops/.test(swap.chipOn || ''), JSON.stringify(swap));
+  const swapped = await page.evaluate(async () => {
+    window.__rbSdPick('w-top2');
+    await new Promise((r) => setTimeout(r, 60));
+    window.__rbSdGo();
     return {
       modalGone: !document.getElementById('lk-swap-modal'),
       name: document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent,
     };
   });
-  check('composer · the swap applies and closes the modal',
+  check('composer · "Swap in …" commits the pick and closes the drawer',
     swapped.modalGone && swapped.name === 'Ribbed white tank', JSON.stringify(swapped));
 
-  // ✕ removes the row; the slot returns to the chooser's Still-open list
-  // (no placeholder rows since the A2 amendment — slots never sit in the
-  // rack empty, and never forecast a role)
+  // Swipe (programmatically, the row's remove) takes the piece out; the
+  // slot returns to the chooser's Still-open list (no placeholder rows)
   const xed = await page.evaluate(() => {
-    document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-rm').click();
+    window.__lkCRemove(0);
     window.__lkAddOpen();
     const sheet = document.getElementById('rb-lkadd-sheet');
     const stillOpen = /Still open in this look/i.test(sheet?.textContent || '');
@@ -1414,24 +1473,23 @@ const browser = await chromium.launch(
       stillOpen,
     };
   });
-  check('composer · ✕ removes the row; the slot returns to the chooser, never a bound placeholder',
+  check('composer · a removed row returns its slot to the chooser, never a bound placeholder',
     xed.empties === 0 && xed.filled === 0 && xed.stillOpen === false, JSON.stringify(xed));
 
-  // A role row's + Add pre-casts that role on the pick — a TOP added
-  // through The Anchor's row anchors (nothing dictates what goes where).
+  // The guide's "+ Canvas" pre-casts the role on the pick (nothing
+  // dictates what goes where — the role picker on the piece page recasts).
   const armed = await page.evaluate(() => {
-    const row = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rghost'))
-      .find((r) => r.previousElementSibling?.textContent.trim() === 'The Anchor');
-    row.querySelector('.rbc-act').click();
+    const b = Array.from(document.querySelectorAll('.rb-lk-con .rb-lk-guide .ga button')).find((x) => /^\+ Canvas$/.test(x.textContent.trim()));
+    b.click();
     const eyebrow = document.querySelector('#rb-lkadd-sheet p')?.textContent || '';
     document.querySelector('[data-lkadd-cat="Tops"]').click();
     Array.from(document.querySelectorAll('#rb-lkadd-sheet .rb-lk-opt'))
-      .find((b) => b.querySelector('span')?.textContent === 'Cream silk shirt').click();
+      .find((b2) => b2.querySelector('span')?.textContent === 'Cream silk shirt').click();
     const rack = document.querySelector('.rb-lk-con .rbc-rack');
     const names = [];
     let inGroup = false;
     Array.from(rack.children).forEach((el) => {
-      if (el.classList.contains('rbc-rolestrip')) inGroup = el.textContent.trim() === 'The Anchor';
+      if (el.classList.contains('rbc-rolestrip')) inGroup = el.textContent.trim() === 'The Canvas';
       else if (inGroup && !el.classList.contains('rbc-rghost')) {
         const n = el.querySelector('.rbc-name');
         if (n) names.push(n.textContent);
@@ -1440,8 +1498,8 @@ const browser = await chromium.launch(
     window.__lkNew();   // reset roles + rows for the sections below
     return { eyebrow, names };
   });
-  check('composer · a role row\'s + Add pre-casts the role — a top can anchor',
-    /The Anchor/.test(armed.eyebrow) && armed.names.includes('Cream silk shirt'), JSON.stringify(armed));
+  check('composer · the guide\'s + Canvas pre-casts the role on the pick',
+    /The Canvas/.test(armed.eyebrow) && armed.names.includes('Cream silk shirt'), JSON.stringify(armed));
 
   const two = await page.evaluate(() => {
     window.__lkRowPick('r1', 'w-top1');
@@ -1467,22 +1525,14 @@ const browser = await chromium.launch(
   // RULE 02 — pieces are not enough. The name is still the gate, but it
   // answers at the CLICK (2026-08-20): Save is live, an unnamed save
   // refuses out loud (focus + toast) and writes nothing.
-  check('composer · two pieces are not enough — the name gates at the click (no note on the page; Discard joins Save once something hangs)',
+  check('composer · two pieces: Save is live (no note on the page; Discard joins Save once something hangs)',
     two.saveShown === true && two.saveDisabled === false && two.gate === false && two.discard === 'Discard',
     JSON.stringify([two.saveShown, two.saveDisabled, two.gate, two.discard]));
-  check('composer · naming it flips Save in place, without losing the caret',
-    two.namedLive === true && two.namedNote === undefined && two.unnamedAgain === true,
+  // The name is optional (handoff 4·0): typing never changes the button,
+  // and emptying it never takes the ink away.
+  check('composer · naming it never repaints; Save stays ink, named or not',
+    two.namedLive === true && two.namedNote === undefined && two.unnamedAgain === false,
     JSON.stringify([two.namedLive, two.namedNote, two.unnamedAgain]));
-  const refusal = await page.evaluate(async () => {
-    window.__lkSaveAsk();
-    await new Promise((r) => setTimeout(r, 400));
-    return {
-      stillComposing: !!document.getElementById('rb-lk-newtitle'),
-      looksCount: (window.__TEST_LOOKS_WRITES || 0),
-    };
-  });
-  check('composer · an unnamed save writes nothing and stays on the composer',
-    refusal.stillComposing === true, JSON.stringify(refusal));
   // Two picks in one beat → ONE render, for both pieces; the last frame
   // stayed up meanwhile.
   await page.waitForTimeout(2600);
@@ -1577,7 +1627,7 @@ const browser = await chromium.launch(
       head: document.querySelector('.rb-lk-editing .rbc-lhead .lab')?.textContent,
       rackHead: document.querySelector('.rb-lk-editing .rb-lk-rackhead span')?.textContent,
     };
-    window.__lkDSwapApply(2, 'w-sho2');
+    window.__lkDSwapApply('w-sho1', 'w-sho2');
     await new Promise((r) => setTimeout(r, 2600));
     out.img = document.querySelector('.rb-lk-editing .rb-lkm-img')?.getAttribute('src');
     window.__lkResave();
@@ -1598,22 +1648,30 @@ const browser = await chromium.launch(
 
   // An unnamed look never reaches the grid (rule 02): Save declines and
   // puts the caret where the answer goes.
+  // Handoff 4·0 (2026-10-05): the name is OPTIONAL — an unnamed look
+  // saves under today's date, provisional (italic) until she renames it.
   const offered = await page.evaluate(() => {
     window.__lkNew();
     window.__lkRowPick('r1', 'w-top2');
     window.__lkRowPick('r2', 'w-bot2');
+    const sv = document.querySelector('.rb-lk-draftbar .rb-lk-save');
+    const live = !!sv && !sv.disabled && getComputedStyle(sv).backgroundColor === 'rgb(32, 32, 33)';
     const start = document.querySelectorAll('#rb-lk-grid .lt-title').length;
     window.__lkSave();
-    const before = document.querySelectorAll('#rb-lk-grid .lt-title').length;
-    const grew = before > start;
-    const focused = document.activeElement && document.activeElement.id;
+    const titles = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title'));
+    const grew = titles.length === start + 1;
+    const dated = titles.find((t) => /^(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day \d{1,2} [A-Z][a-z]{2}$/.test(t.textContent.trim()));
+    window.__lkNew();
+    window.__lkRowPick('r1', 'w-top2');
+    window.__lkRowPick('r2', 'w-bot2');
     window.__lkNewTitleInput('The tank one');
     window.__lkSave();
     const tile = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).find((t) => t.textContent === 'The tank one');
-    return { grew, focused, onGrid: !!tile, prov: tile ? tile.classList.contains('prov') : null };
+    return { live, grew, dated: dated ? dated.textContent.trim() : null, datedProv: dated ? dated.classList.contains('prov') : null, onGrid: !!tile, prov: tile ? tile.classList.contains('prov') : null };
   });
-  check('composer · an unnamed look does not save — it asks for the name',
-    offered.grew === false && offered.focused === 'rb-lk-newtitle', JSON.stringify(offered));
+  check('composer · Save comes live and ink with the first piece', offered.live === true, JSON.stringify(offered));
+  check('composer · an unnamed look saves under today\'s date, provisional',
+    offered.grew === true && !!offered.dated && offered.datedProv === true, JSON.stringify(offered));
   check('composer · named, it lands on the grid as HER name, not a provisional one',
     offered.onGrid === true && offered.prov === false, JSON.stringify(offered));
   await page.waitForTimeout(400);
@@ -1714,7 +1772,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     robes: document.querySelector('.rbc-lhead .robes')?.textContent,
     rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
     shop: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-name')).map((n) => n.textContent),
-    shopActs: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-act')).map((b2) => b2.textContent.trim()),
+    shopActs: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-trail button')).map((b2) => b2.getAttribute('aria-label')),
     flicks: document.querySelectorAll('.rbc-rack .rbc-arrow').length,
     removes: document.querySelectorAll('.rbc-rack .rbc-rm').length,
     title: document.getElementById('rb-lk-newtitle')?.value,
@@ -1727,16 +1785,17 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     fabrics: document.querySelectorAll('.rbc-fabrics .fab').length,
     slotEye: document.querySelector('.rb-lk-prop .vslot')?.textContent,
     hownote: document.querySelector('.rb-lk-prop .rbc-hownote')?.textContent,
-    swapIcon: !!document.querySelector('.rb-lk-prop .rbc-acts button svg'),
-    saveCls: !!document.querySelector('.rb-lk-prop .rbc-act.save'),
+    swapIcon: !!document.querySelector('.rb-lk-prop .rbc-swap svg'),
+    saveCls: !!document.querySelector('.rb-lk-prop .rbc-wish'),
   }));
   check('build · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('build · her own pieces hang in the rack, attributed to Robes',
     b.rows.length === 3 && b.robes === 'Robes', JSON.stringify([b.rows, b.robes]));
   check('build · one shop suggestion covers the slot her wardrobe cannot',
     b.shop.length === 1 && b.shop[0] === 'Cropped Bouclé Jacket', JSON.stringify(b.shop));
-  check('build · a proposal carries only Swap and Save',
-    JSON.stringify(b.shopActs) === JSON.stringify(['Swap', 'Save']), JSON.stringify(b.shopActs));
+  // Handoff 4a: a proposal row's trail is ♡ (wishlist) · ↻ (swap) · › (its page).
+  check('build · a proposal carries ♡ · ↻ · ›',
+    JSON.stringify(b.shopActs) === JSON.stringify(['Save to wishlist', 'Swap this piece', 'Open this piece']), JSON.stringify(b.shopActs));
   // No image carousel until the look is saved — it belongs to the saved card
   check('build · no carousel and no remove on an unsaved build',
     b.flicks === 0 && b.removes === 0, JSON.stringify([b.flicks, b.removes]));
@@ -1751,7 +1810,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     b.tags.length >= 1 && b.fabrics >= 1, JSON.stringify([b.tags, b.fabrics]));
   check('build · a proposal is the shared rack row — slot label on the frame, row note beneath',
     /Jacket/.test(b.slotEye || '') && !!b.hownote, JSON.stringify([b.slotEye, b.hownote]));
-  check('build · the proposal carries the same Swap (icon) and Save components as every rack card',
+  check('build · the proposal carries the same ↻ (icon) and ♡ as every trail row',
     b.swapIcon === true && b.saveCls === true, JSON.stringify([b.swapIcon, b.saveCls]));
   // The door names what it does (2026-09-16): a build with no photograph
   // on it cannot offer to REPLACE one.
@@ -1780,9 +1839,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const kept = await page.evaluate(async () => {
     window.__lkShopSave(0);
     await new Promise((r) => setTimeout(r, 400));
-    return { label: document.querySelector('.rb-lk-prop .rbc-act.done')?.textContent };
+    const w = document.querySelector('.rb-lk-prop .rbc-wish');
+    return { on: !!w && w.classList.contains('on'), label: w?.getAttribute('aria-label'), lead: document.querySelector('.rb-lk-prop .rbc-sub .wl')?.textContent };
   });
-  check('build · Save keeps the proposal, and says so', /Saved/.test(kept.label || ''), kept.label);
+  check('build · ♡ keeps the proposal — the heart turns warm and Wishlist leads the provenance', kept.on === true && kept.label === 'On your wishlist' && kept.lead === 'Wishlist', JSON.stringify(kept));
   await page.waitForTimeout(400);
   check('build · a kept proposal lands in the wishlist',
     writes.some((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)),
@@ -1915,7 +1975,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
       board: document.querySelectorAll('.rbc-board .rbc-tile').length,
       head: document.querySelector('.rbc-lhead .lab')?.textContent,
-      propActs: Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-act')).map((x) => x.textContent.trim()),
+      propActs: Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-trail button')).map((x) => x.getAttribute('aria-label')),
+      propLeads: Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-sub .wl')).map((x) => x.textContent),
       arrows: document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-arrow').length,
       quote: document.querySelector('.rbc-quote')?.textContent,
     };
@@ -1925,9 +1986,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('nothing owned · the saved look reopens WHOLE — mosaic and rack cards, like the composer',
     det.props === 4 && det.board === 4 && det.head === 'The look · 0 yours, 4 to find',
     JSON.stringify([det.props, det.board, det.head]));
-  check('nothing owned · saved proposals keep Swap, and read as already kept to the wishlist',
-    det.propActs.filter((x) => x === 'Swap').length === 4 && det.propActs.filter((x) => /Saved/.test(x)).length === 4,
-    JSON.stringify(det.propActs));
+  // Handoff 5b: at rest a proposal row reads — Wishlist · brand · price
+  // and › alone; ↻ and ♡ arrive with Edit look.
+  check('nothing owned · saved proposals read at rest — › alone, Wishlist leading the provenance',
+    det.propActs.length === 4 && det.propActs.every((x) => x === 'Open this piece') && det.propLeads.length === 4,
+    JSON.stringify([det.propActs, det.propLeads]));
   check('nothing owned · no wear record with nothing to wear', det.stats === 0, JSON.stringify(det.stats));
   // Superseded 2026-08-17: a proposal is never flicked into another
   // suggestion — the cluster is reserved for pieces she owns; Swap stays.
@@ -1941,37 +2004,46 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // the moment the look becomes hers: proposal off the rack, piece onto
   // look_pieces, the wear verbs return.
   const swapM = await page.evaluate(async () => {
-    const btn = Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop button.rbc-act')).find((x) => /Swap/.test(x.textContent));
+    window.__lkEditToggle();
+    await new Promise((r) => setTimeout(r, 150));
+    const btn = document.querySelector('.rbc-rack .rb-lk-prop .rbc-swap');
     btn?.click();
     await new Promise((r) => setTimeout(r, 250));
     const m = document.getElementById('rb-lkprop-swap');
     return {
-      open: !!m,
+      open: !!m && !!m.querySelector('.rb-sd'),
       wardrobe: /From your wardrobe/.test(m?.textContent || ''),
-      snap: /Snap mine/.test(m?.textContent || ''),
-      // Audit 6.2 (2026-08-19): the affiliate coming-soon dead end is
-      // replaced by a real Save-to-wishlist in the shared modal.
-      affiliate: /Save to wishlist/.test(m?.textContent || ''),
+      snap: /^Snap /.test(m?.querySelector('.rb-sd-tile.snap .nm')?.textContent || ''),
+      tiles: m?.querySelectorAll('.rb-sd-tile:not(.snap)').length,
     };
   });
-  check('nothing owned · Swap on a saved proposal opens the swap modal, daily-style',
-    swapM.open === true && swapM.wardrobe === true && swapM.snap === true && swapM.affiliate === true,
+  check('nothing owned · ↻ on a saved proposal (editing) opens the drawer — her wardrobe, Snap first',
+    swapM.open === true && swapM.wardrobe === true && swapM.snap === true && swapM.tiles >= 1,
     JSON.stringify(swapM));
   const adopted = await page.evaluate(async () => {
-    const card = document.querySelector('#rb-lkprop-swap [onclick*="__lkPropSwapApply"]');
-    card?.click();
+    const tile = document.querySelector('#rb-lkprop-swap .rb-sd-tile:not(.snap):not(.inlook)');
+    tile?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const preview = {
+      props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
+      ownedRows: document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length,
+      warm: document.querySelectorAll('.rbc-rack .rbc-row.changed').length,
+    };
+    window.__rbSdGo();
+    await new Promise((r) => setTimeout(r, 200));
+    window.__lkResave();
     await new Promise((r) => setTimeout(r, 600));
     return {
-      picked: !!card,
+      picked: !!tile, preview,
       props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
       ownedRows: document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length,
       acts: document.querySelectorAll('.rb-lk-diarybtn').length,
       modalGone: !document.getElementById('rb-lkprop-swap'),
     };
   });
-  check('nothing owned · picking an owned piece moves it ONTO the look — proposal off, wear verbs back',
-    adopted.picked === true && adopted.props === 3 && adopted.ownedRows === 1
-      && adopted.acts === 1 && adopted.modalGone === true,
+  check('nothing owned · a tap previews her piece in the proposal\'s place (warm row); Swap in + Update move it ONTO the look — proposal off, wear verbs back',
+    adopted.picked === true && adopted.preview.props === 3 && adopted.preview.ownedRows === 1 && adopted.preview.warm === 1
+      && adopted.props === 3 && adopted.ownedRows === 1 && adopted.acts === 1 && adopted.modalGone === true,
     JSON.stringify(adopted));
   const propMem = writes.filter((w) => w.method === 'PATCH' && /^profiles\?/.test(w.url) && w.body?.style_dna?.memory).pop();
   check('nothing owned · the adoption lands on the memory as a swap (out → her piece, with the category)',
@@ -2162,8 +2234,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
     };
   });
-  check('empty · the first-time composer carries no Robes door, and Save is live',
-    ftue.door === undefined && ftue.card === true && ftue.saveDisabled === false,
+  check('empty · the first-time composer carries no Robes door; Save is withheld until a piece or a photograph',
+    ftue.door === undefined && ftue.card === true && ftue.saveDisabled === true,
     JSON.stringify(ftue));
   await ctx.close();
 }
@@ -2217,8 +2289,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const mslot = document.querySelector('.rbc-mslot');
     const badge = document.querySelector('.rbc-share-m');
     const action = document.querySelector('.rbc-action');
-    const arrow = document.querySelector('.rbc-arrow');
-    const act = document.querySelector('.rbc-acts .rbc-act');
+    const arrow = document.querySelector('.rbc-trail .rbc-swap');
+    const act = document.querySelector('.rbc-trail .rbc-more');
     return {
       stacked: det ? getComputedStyle(det).gridTemplateColumns.split(' ').length === 1 : false,
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
@@ -2235,6 +2307,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       actH: act ? Math.round(act.getBoundingClientRect().height) : 0,
     };
   });
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-editing-390.png', fullPage: true }).catch(() => {});
   check('390px · detail stacks', md.stacked === true);
   check('390px · the wear door survives — the diary on the image', md.actions === 1, String(md.actions));
   check('390px · no horizontal overflow on the detail', md.overflow === true && md.conFits === true, JSON.stringify([md.overflow, md.conFits]));
@@ -2259,8 +2332,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   });
   check('390px E · Share compresses to a badge on the mosaic, footer stays free',
     share.badgeShown === true && share.actionHidden === true && share.detailBadge === false, JSON.stringify(share));
-  check('390px E · every action survives at 44px touch height',
-    md.arrowH >= 44 && md.actH >= 44, JSON.stringify([md.arrowH, md.actH]));
+  // Handoff 4a: the row's three targets are 40pt circles (↻ ♡ ›).
+  check('390px E · every row action survives at 40px touch height',
+    md.arrowH >= 40 && md.actH >= 40, JSON.stringify([md.arrowH, md.actH]));
 
   const mc = await page.evaluate(() => {
     window.__lkNew();
@@ -2293,6 +2367,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   });
   check('390px · composer stacks the card above the rack', mc.stacked === true);
   check('390px · rack rows run full width (no cramped shelf)', mc.rowsFullWidth === true);
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/composer-390.png', fullPage: true }).catch(() => {});
   check('390px · no horizontal overflow on the composer', mc.overflow === true);
   check('390px · the composer is one card, the name leading it from outside',
     mc.inCard === true && mc.titleOutside === true, JSON.stringify([mc.inCard, mc.titleOutside]));
@@ -3269,12 +3344,12 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       pinStrip: document.querySelectorAll('#rb-lk-wrap .rb-lk-pinstrip').length,
       // The head's own type register, so the lighter Edit & resave can't
       // silently go back to the uppercase pill (Annie, 2026-09-21).
+      // Handoff 5a (2026-10-05): the edit door is the pinned bar's hairline pill.
       editBtn: (function () {
-        // the look prompt's field sits under the card now (phase 2) — read the resave door by name
-        const b = Array.from(document.querySelectorAll('#rb-lk-wrap .rb-lk-rackhead-read .rb-lk-editbtn')).find((x) => /Edit & resave/.test(x.textContent));
+        const b = document.querySelector('#rb-lk-wrap .rb-lk-pinbar .rb-lk-editlook');
         if (!b) return null;
         const c = getComputedStyle(b);
-        return { t: b.textContent.trim(), tt: c.textTransform, fw: c.fontWeight, fs: c.fontSize };
+        return { t: b.textContent.trim(), ink: c.backgroundColor === 'rgb(32, 32, 33)' };
       })(),
     };
   });
@@ -3285,10 +3360,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     /^‹?\s*[A-Z][a-z]{2} \d+ [A-Z][a-z]{2}$/.test(look.back || ''), look.back);
   check('day page · no pinned-for banner on the day she came through — the band\'s ‹ date IS that strip\'s one door',
     look.pinStrip === 0, JSON.stringify([look.pinStrip]));
-  check('day page · Edit & resave is the head\'s quiet sentence-case link, never the uppercase pill',
-    !!look.editBtn && look.editBtn.t === 'Edit & resave' && look.editBtn.tt === 'none'
-      && Number(look.editBtn.fw) <= 400 && parseFloat(look.editBtn.fs) <= 12,
-    JSON.stringify(look.editBtn));
+  check('day page · Edit look is the pinned bar\'s hairline pill, never ink',
+    !!look.editBtn && look.editBtn.t === 'Edit look' && look.editBtn.ink === false, JSON.stringify(look.editBtn));
   if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/day-look.png' }).catch(() => {});
   await page.evaluate(async () => {
     document.querySelector('#rb-lk-wrap .rb-ret-pill').click();
@@ -3640,7 +3713,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       on: seg?.querySelector('button.on')?.textContent.trim() || null,
       note: con?.querySelector('.rb-lk-viewrow .note')?.textContent.trim() ?? null,
       creating: /creating her frame/i.test(con?.textContent || ''),
-      proposals: con ? Array.from(con.querySelectorAll('.rbc-act')).filter((b) => /Swap/.test(b.textContent)).length : -1,
+      proposals: con ? con.querySelectorAll('.rbc-row .rbc-vp.dashed').length : -1,
     };
   });
   const a = await read();
@@ -3692,23 +3765,21 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // door beside each proposal.
   const g = await page.evaluate(() => {
     const head = document.querySelector('#rb-lk-body .rb-lk-rackhead');
-    const zone = document.querySelector('#rb-lk-body .rb-lk-swapzone');
-    const rack = document.querySelector('#rb-lk-body .rbc-rack');
     return {
-      door: zone?.querySelector('.rb-lk-filldoor')?.textContent || null,
-      doorInHead: !!head?.querySelector('.rb-lk-filldoor'),
-      zoneTitle: zone?.querySelector('b')?.textContent || null,
-      zoneSub: zone?.querySelector('span')?.textContent || null,
-      zoneBeforeRack: !!(zone && rack) && !!(zone.compareDocumentPosition(rack) & Node.DOCUMENT_POSITION_FOLLOWING),
-      edit: !!head?.querySelector('.rb-lk-editbtn:not(.rb-lk-filldoor)'),
-      rowSwaps: Array.from(document.querySelectorAll('#rb-lk-body .rbc-act')).filter((b) => /Swap/.test(b.textContent)).length,
+      zone: !!document.querySelector('#rb-lk-body .rb-lk-swapzone'),
+      headBtns: head ? head.querySelectorAll('button').length : -1,
+      rowSwaps: document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-swap').length,
+      propDoors: document.querySelectorAll('#rb-lk-body .rb-lk-prop .rbc-more').length,
+      pinbar: document.querySelector('#rb-lk-body .rb-lk-pinbar .rb-lk-editlook')?.textContent.trim(),
     };
   });
-  check('fill door · a look borrowing two pieces gets its own swap zone between the head and the rack — "Two aren\'t yours yet" + Swap; the head keeps Edit & resave alone, the row Swaps still there',
-    g.door === 'Swap' && g.doorInHead === false && g.zoneTitle === 'Two aren’t yours yet'
-    && /Swap them for something you own/.test(g.zoneSub || '') && g.zoneBeforeRack && g.edit && g.rowSwaps === 2,
-    JSON.stringify(g));
-  await page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-filldoor').click());
+  // Handoff 5b: at rest the rack reads — no swap zone, no head button, no
+  // ↻; each borrowed row's › opens its page (Wishlist / Snap mine); the
+  // pinned bar is the one edit door. The batch fill door survives off the
+  // page (the next line, the deep link) — driven programmatically here.
+  check('fill door · at rest the look carries no swap zone and no row ↻ — the proposals\' › and the pinned Edit look are the doors',
+    g.zone === false && g.headBtns === 0 && g.rowSwaps === 0 && g.propDoors === 2 && g.pinbar === 'Edit look', JSON.stringify(g));
+  await page.evaluate(() => window.__rbFillOpen('lk-nophoto', 'rack'));
   await page.waitForTimeout(500);
   const h = await page.evaluate(() => {
     const step = document.querySelector('#wa-modal .fm-step');
@@ -3739,9 +3810,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const { ctx, page, errs } = await boot(browser, { pics: 4, seed: false });
   const under = await page.evaluate(() => {
     window.__lkNew();
-    return { composer: !!document.querySelector('.rb-lk-composer'), door: document.querySelector('.rb-lk-robesdoor')?.textContent ?? null };
+    return { composer: !!document.querySelector('.rb-lk-composer'), door: Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent))?.textContent ?? null };
   });
-  check('robes door · four photographed pieces → no door in the composer', under.composer && under.door === null, JSON.stringify(under));
+  check('robes door · four photographed pieces → no "Let Robes dress her" on the guide', under.composer && under.door === null, JSON.stringify(under));
   check('robes door · no page errors (under)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -3759,27 +3830,29 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   });
   const at = await page.evaluate(() => {
     window.__lkNew();
-    const d = document.querySelector('.rb-lk-robesdoor');
+    const d = Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent));
     return {
       door: d?.textContent ?? null,
-      pill: !!d && d.classList.contains('rb-pill') && getComputedStyle(d).backgroundColor !== 'rgb(32, 32, 33)',
-      inSaveRow: !!d && !!d.closest('.rb-lk-saverow'),
+      quiet: !!d && getComputedStyle(d).backgroundColor !== 'rgb(32, 32, 33)',
+      inGuide: !!d && !!d.closest('.rb-lk-guide'),
       inks: Array.from(document.querySelectorAll('.rb-lk-composer button, .rb-lk-saverow button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
     };
   });
-  check('robes door · five photographed pieces + a model → the pill beside Save, "Robes dresses her from what you’ve filed", hairline',
-    at.door === 'Robes dresses her from what you’ve filed' && at.pill && at.inSaveRow, JSON.stringify(at));
+  // Handoff 4·0: "Let Robes dress her" rides the guide's card — the rack
+  // has one door; the pill beside Save is gone from the Lookbook composer.
+  check('robes door · five photographed pieces + a model → "Let Robes dress her" on the guide, a quiet link',
+    at.door === 'Let Robes dress her' && at.quiet && at.inGuide, JSON.stringify(at));
   const built = await page.evaluate(async () => {
-    document.querySelector('.rb-lk-robesdoor').click();
+    Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent)).click();
     await new Promise((r) => setTimeout(r, 2200));
     return {
       built: !!document.querySelector('.rb-lk-saverow.built'),
       pieces: document.querySelectorAll('.rbc-rack .rbc-name').length,
-      door: !!document.querySelector('.rb-lk-robesdoor'),
+      door: !!document.querySelector('.rb-lk-guide'),
       name: document.getElementById('rb-lk-newtitle')?.value || '',
     };
   });
-  check('robes door · the tap fills the same rack (a build stands, the door retires)', built.built && built.pieces >= 2 && !built.door, JSON.stringify(built));
+  check('robes door · the tap fills the same rack (a build stands, the guide retires)', built.built && built.pieces >= 2 && !built.door, JSON.stringify(built));
   check('robes door · nothing written until she saves', !writes.some((w) => w.method === 'POST' && /^looks\b/.test(w.url)), JSON.stringify(writes.filter((w) => /^looks\b/.test(w.url)).length));
   await page.evaluate(async () => {
     const inp = document.getElementById('rb-lk-newtitle');
@@ -3795,8 +3868,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
 {
   // No model on file → the door's other wording.
   const { ctx, page, errs } = await boot(browser, { pics: 5, seed: false, pre: async (page) => { await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })); } });
-  const nm = await page.evaluate(() => { window.__lkNew(); return document.querySelector('.rb-lk-robesdoor')?.textContent ?? null; });
-  check('robes door · no model → "Robes builds one from what you’ve filed"', nm === 'Robes builds one from what you’ve filed', String(nm));
+  const nm = await page.evaluate(() => { window.__lkNew(); return Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent))?.textContent ?? null; });
+  check('robes door · no model → the guide still reads "Let Robes dress her"', nm === 'Let Robes dress her', String(nm));
   check('robes door · no page errors (no model)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -3822,17 +3895,27 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   });
   await page.evaluate(() => window.__lkOpen('lk-photo'));
   await page.waitForTimeout(700);
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-photo-only-1280.png', fullPage: true }).catch(() => {});
   const r0 = await page.evaluate(() => {
-    const head = document.querySelector('#rb-lk-body .rb-lk-rackhead-read');
+    const door = document.querySelector('#rb-lk-body .rb-lk-emptydoor');
     return {
-      edit: Array.from(head?.querySelectorAll('.rb-lk-editbtn') || []).map((b) => b.textContent.trim()),
-      empty: document.querySelector('#rb-lk-body .rb-lk-wornempty')?.textContent.trim() || '',
-      door: !!document.querySelector('#rb-lk-body .rb-lk-emptyadd'),
+      pin: document.querySelector('#rb-lk-body .rb-lk-pinbar .rb-lk-editlook')?.textContent.trim(),
+      meta: document.querySelector('#rb-lk-body .rb-lk-pinmeta')?.textContent,
+      titleMeta: document.querySelector('#rb-lk-body .rb-tb-meta')?.textContent,
+      notice: !!document.querySelector('#rb-lk-body .rb-lk-panel'),
+      head: door?.querySelector('.gh')?.textContent, sub: door?.querySelector('.gd')?.textContent,
+      doorBtn: door?.querySelector('.rb-pill')?.textContent.trim(),
+      hangs: /Nothing hangs here yet/.test(document.querySelector('#rb-lk-body')?.textContent || ''),
     };
   });
-  check('photo-only look · the empty rack still carries Edit & resave', r0.edit.includes('Edit & resave'), JSON.stringify(r0));
-  check('photo-only look · the empty line carries its own add door', r0.door && /Nothing hangs here yet/.test(r0.empty), JSON.stringify(r0));
-  await page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-emptyadd').click());
+  // Handoff 6d: the pinned pill reads "+ Add pieces" while the rack is
+  // empty, the meta "Photograph · not yet filed", the dashed door under the
+  // photograph repeats it; no "Nothing on it yet" notice, no duplicate link.
+  check('photo-only look · the pinned pill reads + Add pieces, the meta Photograph · not yet filed, no notice',
+    r0.pin === '+ Add pieces' && /^Photograph · not yet filed/.test(r0.meta || '') && /^Photograph · not yet filed/.test(r0.titleMeta || '') && r0.notice === false, JSON.stringify(r0));
+  check('photo-only look · the dashed door reads Add the pieces you wore, and the duplicate line is gone',
+    r0.head === 'Add the pieces you wore' && r0.sub === 'Photograph · not yet filed' && r0.doorBtn === '+ Add pieces' && r0.hangs === false, JSON.stringify(r0));
+  await page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-emptydoor .rb-pill').click());
   await page.waitForTimeout(400);
   const r1 = await page.evaluate(() => ({
     editing: !!document.querySelector('#rb-lk-body .rb-lk-editing'),
@@ -3896,7 +3979,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const v = await page.evaluate(async () => {
     window.__lkNew();
     await new Promise((r) => setTimeout(r, 200));
-    document.querySelector('.rb-lk-robesdoor').click();
+    window.__lkRobesBuild({ door: 'composer' });
     await new Promise((r) => setTimeout(r, 2200));
     const inp = document.getElementById('rb-lk-newtitle');
     // The thumbs line is gone from the composer (2026-10-01): a verdict is a
@@ -3921,7 +4004,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     window.__lkRowPick('r1', 'w-top1');
     await new Promise((r) => setTimeout(r, 200));
     const row = document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent;
-    window.__lkCSwapApply(0, 'w-top2');
+    window.__lkCSwapApply('r1', 'w-top2');
     await new Promise((r) => setTimeout(r, 400));
     return { before: row, after: document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent };
   });
@@ -4048,8 +4131,8 @@ const lpSend = async (text, wait) => {
     sw.midInk && askPosts.length === 1 && a0.mode === 'look' && a0.surface === 'composer' && a0.text === 'swap the sandals for the slides'
       && Array.isArray(a0.rack) && a0.rack.filter((x) => x.owned).length === 3 && a0.rack.some((x) => !x.owned) && a0.pool?.kind === 'wardrobe' && a0.pool.items.length === 10 && a0.rack.every((x) => x.keep === false),
     JSON.stringify([sw.midInk, askPosts.length, a0.mode, a0.surface, a0.text, a0.rack, a0.pool?.kind, a0.pool?.items?.length]));
-  check('box · a clear swap changes the look behind on Enter — the slides on the rack, the sandals gone, the row reading “Just changed · was Flat leather sandals” — and the thread carries her turn and Robes’ Done',
-    sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals') && JSON.stringify(sw.was) === JSON.stringify(['Just changed · was Flat leather sandals'])
+  check('box · a clear swap changes the look behind on Enter — the slides on the rack, the sandals gone, the row reading “Swapped in · was the flat leather sandals” — and the thread carries her turn and Robes’ Done',
+    sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals') && JSON.stringify(sw.was) === JSON.stringify(['Swapped in · was the flat leather sandals'])
       && sw.thread.length === 2 && /^her:swap the sandals/.test(sw.thread[0]) && /^robes:Done\./.test(sw.thread[1]) && sw.value === '' && !sw.drafted, JSON.stringify(sw));
   check('box · the door and the placeholder flip to “Anything else, or put something back…”; the park carries `was`',
     sw.door === 'Anything else, or put something back…' && sw.ph === 'Anything else, or put something back…' && sw.park && Object.keys(sw.park.was || {}).length === 1, JSON.stringify([sw.door, sw.ph, sw.park && sw.park.was]));
@@ -4073,7 +4156,7 @@ const lpSend = async (text, wait) => {
   });
   check('box · Enter on the draft unedited applies exactly the swap it names — the tank in, the shirt out and marked',
     askPosts.length === 3 && askPosts[2].text === 'Change the cream silk shirt for the ribbed white tank' && fromDraft.rows.includes('Ribbed white tank') && !fromDraft.rows.includes('Cream silk shirt')
-      && fromDraft.was.includes('Just changed · was Cream silk shirt') && !fromDraft.drafted && fromDraft.value === '', JSON.stringify(fromDraft));
+      && fromDraft.was.includes('Swapped in · was the cream silk shirt') && !fromDraft.drafted && fromDraft.value === '', JSON.stringify(fromDraft));
   const styled = await page.evaluate(async () => {
     await window.__lpSend('tuck the tank in', 900);
     return { styled: Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-styled')).map((n) => n.textContent), rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent).length, park: JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null') };
@@ -4095,16 +4178,18 @@ const lpSend = async (text, wait) => {
     return { rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent), was: Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-was')).map((n) => n.textContent) };
   });
   check('box · “put the sandals back” reverts that row alone — the sandals return, the tank stays changed',
-    back1.rows.includes('Flat leather sandals') && !back1.rows.includes('Tan leather slides') && back1.rows.includes('Ribbed white tank') && JSON.stringify(back1.was) === JSON.stringify(['Just changed · was Cream silk shirt']), JSON.stringify(back1));
+    back1.rows.includes('Flat leather sandals') && !back1.rows.includes('Tan leather slides') && back1.rows.includes('Ribbed white tank') && JSON.stringify(back1.was) === JSON.stringify(['Swapped in · was the cream silk shirt', 'Back in · from the prompt']), JSON.stringify(back1));
   const backAll = await page.evaluate(async () => {
     await window.__lpSend('put everything back', 900);
     const out = window.__lpRead();
     out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent);
-    out.was = document.querySelectorAll('#rb-lk-body .rb-lp-was').length;
+    out.was = Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-was')).map((n) => n.textContent);
     return out;
   });
-  check('box · with no piece named every change goes back; the door reads “Change this look…” again',
-    backAll.rows.includes('Cream silk shirt') && !backAll.rows.includes('Ribbed white tank') && backAll.was === 0 && backAll.ph === 'Change this look…', JSON.stringify(backAll));
+  // Handoff 5e: a put-back row reads “Back in · from the prompt” — the
+  // door still reads Change this look… because nothing stands changed.
+  check('box · with no piece named every change goes back; the rows read Back in · from the prompt; the door reads “Change this look…” again',
+    backAll.rows.includes('Cream silk shirt') && !backAll.rows.includes('Ribbed white tank') && backAll.was.length === 2 && backAll.was.every((t) => t === 'Back in · from the prompt') && backAll.ph === 'Change this look…', JSON.stringify(backAll));
   // The closed-state rule (2026-10-01): a thread closed MID-WAY is held
   // and comes back on the next open; left there without a new line, it
   // is let go — the open after THAT shows the opener alone.
@@ -4146,7 +4231,7 @@ const lpSend = async (text, wait) => {
     const head = pg.querySelector('.rb-lk-rackhead-read');
     return { heads: Array.from(head?.querySelectorAll('button') || []).map((b) => b.textContent.trim()), field: !!pg.querySelector('.rb-lk-held .rb-lp-field'), label: pg.querySelector('.rb-lk-held .rb-lp-field .ph')?.textContent, editing: !!pg.querySelector('.rb-lk-page.editing') };
   });
-  check('box · saved look: the field sits under the card and the rack head carries Edit & resave alone', door.field && door.label === 'Change this look…' && JSON.stringify(door.heads) === JSON.stringify(['Edit & resave']) && !door.editing, JSON.stringify(door));
+  check('box · saved look: the field sits under the card; the rack head carries nothing (the pinned bar is the edit door)', door.field && door.label === 'Change this look…' && door.heads.length === 0 && !door.editing, JSON.stringify(door));
   const wb = writes.length;
   const sw = await page.evaluate(async () => {
     document.querySelector('#sn-page .rb-lk-held .rb-lp-field')?.click();
@@ -4155,12 +4240,15 @@ const lpSend = async (text, wait) => {
     await window.__lpSend('swap the sandals for the slides', 900);
     const pg = document.querySelector('#sn-page');
     return { title: o.title, meta: o.meta, editing: !!pg.querySelector('.rb-lk-page.editing'), rows: Array.from(pg.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
-      was: Array.from(pg.querySelectorAll('.rb-lp-was')).map((n) => n.textContent), bar: pg.querySelector('.rb-lk-editbar')?.textContent.replace(/\s+/g, ' ').trim(), acts: Array.from(pg.querySelectorAll('.rb-lk-editbar .acts button')).map((b) => b.textContent.trim()) };
+      was: Array.from(pg.querySelectorAll('.rb-lp-was')).map((n) => n.textContent), warm: pg.querySelectorAll('.rbc-rack .rbc-row.changed').length, acts: Array.from(pg.querySelectorAll('.rb-lk-editpin button:not(.rb-lp-field)')).map((b) => b.textContent.trim()) };
   });
   const a0 = askPosts[0] || {};
-  check('box · the box names the saved look; a swap opens it EDITING — the slides on the rack marked, the change bar naming her words with Discard · Save as a new look · Update',
+  // Handoff 5e: the prompt edits the same draft — the change shows on the
+  // rack straight away as a warm row naming what it replaced, and the
+  // pinned bar reads Discard · Update look; the prompt never commits.
+  check('box · the box names the saved look; a swap opens it EDITING — the slides on the rack as a warm row naming the sandals, the pinned bar Discard · Update look',
     a0.name === 'The Thursday one' && a0.surface === 'saved' && a0.rack?.length === 4 && sw.editing && sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals')
-      && JSON.stringify(sw.was) === JSON.stringify(['Just changed · was Flat leather sandals']) && /Adjusted — “swap the sandals for the slides”/.test(sw.bar || '') && sw.acts.includes('Discard') && sw.acts.includes('Update this look'), JSON.stringify(sw));
+      && JSON.stringify(sw.was) === JSON.stringify(['Swapped in · was the flat leather sandals']) && sw.warm === 1 && sw.acts.join(' | ') === 'Discard | Update look', JSON.stringify(sw));
   const rowWrites = () => writes.slice(wb).filter((w) => !/^events/.test(w.url) && !/^profiles/.test(w.url));
   check('box · nothing is written by the swap itself', rowWrites().length === 0, JSON.stringify(rowWrites().map((w) => w.method + ' ' + w.url)));
   const disc = await page.evaluate(async () => {

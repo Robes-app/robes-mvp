@@ -286,9 +286,11 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     emptyShown: document.getElementById('sn-empty')?.style.display !== 'none',
     composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
     titlePlaceholder: document.getElementById('rb-lk-newtitle')?.placeholder || '',
-    // The four formula strips are the whole of the rack at zero
+    // Handoff 4·0 (2026-10-05): the empty draft is ONE guided door
     strips: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rolestrip span')).map((s) => s.textContent.trim()),
     ghostRows: document.querySelectorAll('.rb-lk-con .rbc-rghost').length,
+    guide: document.querySelector('.rb-lk-con .rb-lk-guide .gh')?.textContent.trim() || '',
+    guideActs: Array.from(document.querySelectorAll('.rb-lk-con .rb-lk-guide .ga button')).map((b) => b.textContent.trim()),
     trailingAdd: !!document.querySelector('.rb-lk-con .rbc-addpiece'),
     save: !!document.querySelector('.rb-lk-save'),
     saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
@@ -302,13 +304,13 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('lookbook empty · ONE DOOR — the composer, no ways-to-fill shelf',
     l.composer === true && l.ways === false && l.emptyShown === false, JSON.stringify(l));
   check('lookbook empty · the name leads it', l.titlePlaceholder === 'Name your first look', l.titlePlaceholder);
-  check('lookbook empty · the four formula strips are the rack',
-    JSON.stringify(l.strips) === JSON.stringify(['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'])
-      && l.ghostRows === 4, JSON.stringify([l.strips, l.ghostRows]));
-  check('lookbook empty · the generic + Add a piece closes the rack', l.trailingAdd === true);
-  // The name is the one gate (2026-09-03): Save stands there, live
-  check('lookbook empty · Save stands there, live from the first second',
-    l.save === true && l.saveDisabled === false, JSON.stringify([l.save, l.saveDisabled]));
+  check('lookbook empty · the guide is the rack: Start with the canvas, + Canvas / + Any piece — no strips, no ghost rows',
+    l.strips.length === 0 && l.ghostRows === 0 && l.guide === 'Start with the canvas'
+      && JSON.stringify(l.guideActs) === JSON.stringify(['+ Canvas', '+ Any piece']), JSON.stringify([l.strips, l.ghostRows, l.guide, l.guideActs]));
+  check('lookbook empty · no trailing + Add a piece — the guide is the one door', l.trailingAdd === false);
+  // Save is withheld (cream, no ink) until the first piece or a photograph
+  check('lookbook empty · Save stands there, withheld until a piece or a photograph',
+    l.save === true && l.saveDisabled === true, JSON.stringify([l.save, l.saveDisabled]));
   check('lookbook empty · no "Or let Robes build the first one" door (the prompt box is where Robes builds)',
     l.door === '', l.door);
   check('lookbook empty · nothing competes: no travel strip, All-looks header, sort or refine',
@@ -323,14 +325,14 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     build: document.querySelector('.rb-lk-con .rb-lkm-build')?.textContent,
     orPhoto: document.querySelector('.rb-lk-con .rb-lkm-orphoto')?.textContent,
     notice: document.querySelector('.rb-lk-composer .rb-lkm-notice')?.textContent || '',
-    ghostRows: document.querySelectorAll('.rb-lk-con .rbc-rghost').length,
+    guide: !!document.querySelector('.rb-lk-con .rb-lk-guide'),
   }));
   check('lookbook empty · with no model, the canvas asks for one',
     noModel.prompt === true && noModel.ey === 'No model yet' && noModel.build === 'Build your model'
       && noModel.orPhoto === 'Or start from your own photograph', JSON.stringify(noModel));
   check('lookbook empty · the rack stays open under the notice',
-    /They stay on the rack, and your model wears them the moment she exists/.test(noModel.notice) && noModel.ghostRows === 4,
-    JSON.stringify([noModel.notice, noModel.ghostRows]));
+    /They stay on the rack, and your model wears them the moment she exists/.test(noModel.notice) && noModel.guide === true,
+    JSON.stringify([noModel.notice, noModel.guide]));
 
   await ctx.close();
 }

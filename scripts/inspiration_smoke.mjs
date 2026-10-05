@@ -254,7 +254,7 @@ const looseState = await page.evaluate(() => ({
   dayChip: !!document.querySelector('#kp-build-host .rb-lk-daychip'),
   band: !!document.querySelector('#kp-build-host .rb-ret'),
   proposals: document.querySelectorAll('#kp-build-host .rbc-rack .rbc-row').length,
-  swaps: document.querySelectorAll('#kp-build-host .rbc-rack .rbc-row .rbc-act').length,
+  swaps: document.querySelectorAll('#kp-build-host .rbc-rack .rbc-row .rbc-trail .rbc-swap').length,
   frame: !!document.querySelector('#kp-build-host img[alt="This look"]'),
   youModel: document.querySelectorAll('#kp-build-host .rb-lkm-row').length,
   others: document.querySelectorAll('#kp-build .kp-build-other, #kp-build .kp-build-others').length,
@@ -704,7 +704,7 @@ const phoneBuild = await page.evaluate(() => {
     sticky: getComputedStyle(strip).position, back: !!document.getElementById('kp-build-back'),
     barFixed: getComputedStyle(bar).position, barBottom: Math.round(bar.getBoundingClientRect().bottom), barTxt: bar.innerText.replace(/\n/g, ' | '),
     building: pg.classList.contains('kp-building'), actrow: getComputedStyle(document.getElementById('kp-actrow')).display,
-    thumbW: Math.round(row.querySelector('.rbc-vp').getBoundingClientRect().width), rowSave: getComputedStyle(row.querySelector('.rbc-act.save')).backgroundColor,
+    thumbW: Math.round(row.querySelector('.rbc-vp').getBoundingClientRect().width), rowSave: getComputedStyle(row.querySelector('.rbc-trail .rbc-wish')).backgroundColor,
     kpBarHidden: document.getElementById('kp-build-bar')?.hidden === true,
     saveInk: getComputedStyle(document.querySelector('#kp-build-host .rb-lk-draftbar .rb-lk-save')).backgroundColor,
     slotAbove: (() => { const sl = document.getElementById('rb-lp-slot'); return sl ? Math.round(sl.getBoundingClientRect().bottom) : null; })(),
@@ -713,10 +713,10 @@ const phoneBuild = await page.evaluate(() => {
   };
 });
 if (process.env.KP_SHOTS) await page.screenshot({ path: process.env.KP_SHOTS + 'kp-build-390.png' });
-check('phone · the builder: a sticky header with the back circle, the draft footer fixed at the foot (Discard · SAVE in ink — design 4d; the kp bar waits for the save), 64px thumbs on white rows with a hairline Save, the pager’s row hidden; no horizontal overflow',
+check('phone · the builder: a sticky header with the back circle, the draft footer fixed at the foot (Discard · SAVE in ink — design 4d; the kp bar waits for the save), 64px thumbs on white rows with a bare ♡ in the trail, the pager’s row hidden; no horizontal overflow',
   phoneBuild.sticky === 'sticky' && phoneBuild.back && phoneBuild.barFixed === 'fixed' && phoneBuild.barBottom === 844 && /^Discard \| Save$/i.test(phoneBuild.barTxt)
     && phoneBuild.kpBarHidden && phoneBuild.saveInk === 'rgb(32, 32, 33)'
-    && phoneBuild.building && phoneBuild.actrow === 'none' && phoneBuild.thumbW === 64 && phoneBuild.rowSave === 'rgb(255, 255, 255)' && !phoneBuild.overflowX, JSON.stringify(phoneBuild));
+    && phoneBuild.building && phoneBuild.actrow === 'none' && phoneBuild.thumbW === 64 && phoneBuild.rowSave === 'rgba(0, 0, 0, 0)' && !phoneBuild.overflowX, JSON.stringify(phoneBuild));
 // Back to looks: untouched → straight back; a change → the one-line confirm.
 await page.evaluate(() => window.__kpBuildBackAsk());
 await page.waitForTimeout(300);
@@ -744,7 +744,7 @@ await page.waitForTimeout(3200);
 const lkFb = await page.evaluate(() => {
   const host = document.getElementById('kp-build-host');
   return { composer: !!host?.querySelector('.rb-lk-composer'), line: !!host?.querySelector('#lk-fb, .rb-fb'), field: !!host?.querySelector('.rb-lp-field'),
-    inkFills: Array.from(host.querySelectorAll('button:not(.rbc-act)')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()) };
+    inkFills: Array.from(host.querySelectorAll('button:not(.rbc-act):not(.rbc-tr)')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()) };
 });
 check('composer · the in-situ composer carries no feedback line; the look prompt’s field is its one door to words; the footer’s Save stays the one ink fill',
   lkFb.composer && !lkFb.line && lkFb.field && lkFb.inkFills.length === 1 && lkFb.inkFills[0] === 'Save', JSON.stringify(lkFb));

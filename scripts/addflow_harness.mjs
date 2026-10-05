@@ -677,12 +677,13 @@ const browser = await chromium.launch(
       sn: !!sn && getComputedStyle(sn).display !== 'none',
       title: !!sn && sn.textContent.includes('A Parisian Night Out'),
       props: look?.proposals?.length, pieces: look?.pieces?.length,
-      door: sn?.querySelector('.rb-lk-filldoor')?.textContent || null,
+      door: sn?.querySelector('.rb-lk-pinbar .rb-lk-editlook')?.textContent.trim() || null,
     };
   });
   check('brief · the second blazer matched nothing open and filed normally (two inserts, the shoes still borrowed)', supaPosts.length === 2 && end.props === 1 && end.pieces === 2, JSON.stringify(end));
-  // The batch door on the look is the swap zone's Swap pill since 2026-09-21.
-  check('brief · the batch done, the modal closes and the look she dressed opens, its swap zone offering Swap', end.modal === false && end.sn && end.title && end.door === 'Swap', JSON.stringify(end));
+  // The swap zone is off the look page (Look_Creation_Handoff 5a, 2026-10-05):
+  // the look opens on its pinned Edit look bar; a proposal's › is its door.
+  check('brief · the batch done, the modal closes and the look she dressed opens on its pinned Edit look bar', end.modal === false && end.sn && end.title && end.door === 'Edit look', JSON.stringify(end));
   // WA.close clears the brief like the batch queue.
   await page.evaluate(() => { window.__rbFillOpen('lk-fill', 'rack'); });
   await page.waitForTimeout(400);
