@@ -835,6 +835,7 @@
       var _RB_LP_CSS = `
 #rb-lp{box-sizing:border-box;font-family:inherit;color:var(--ink,#202021)}
 #rb-lp.rb-lp-in{position:relative;width:100%}
+#rb-lp.rb-lp-dock{position:fixed}
 #rb-lp.rb-lp-dock{position:fixed;z-index:955;left:50%;transform:translateX(-50%);bottom:24px;width:min(620px,calc(100vw - 48px))}
 #rb-lp.rb-lp-dock .rb-lp{box-shadow:0 6px 20px rgba(32,32,33,.08)}
 .rb-lp{position:relative;background:#fff;border:0.5px solid var(--rule-mid,#CFC7B9);border-radius:100px;overflow:hidden;transition:border-color .2s ease,border-radius .2s ease}
@@ -899,13 +900,46 @@ body:has(#rb-lp.rb-lp-dock) #rb-lp-slot{display:none!important}
 #rb-lp-slot .rb-lps .sp{flex:none;width:19px;height:19px;display:block;color:var(--ink,#202021)}
 #rb-lp-slot .rb-lps .w{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;color:var(--ink-soft,#55524E);white-space:nowrap;overflow:hidden;max-width:260px;padding:0 18px 0 9px;opacity:1;transition:max-width .22s ease,opacity .16s ease,padding .22s ease}
 #rb-lp-slot .rb-lps.folded .w,#rb-lp-slot .rb-lps.bare .w{max-width:0;padding:0;opacity:0}
-#rb-lp-slot .rb-lps.folded,#rb-lp-slot .rb-lps.bare{padding:0 12px}
+#rb-lp-slot .rb-lps.folded{padding:0 12px}
+#rb-lp-slot .rb-lps.bare{width:54px;height:54px;padding:0;justify-content:center}
+#rb-lp-slot .rb-lps.bare .sp{width:24px;height:24px}
 #rb-lp-slot .rb-lps .dot{display:none;position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--rose,#8E7077)}
 #rb-lp-slot .rb-lps.held .dot{display:block}
 @media(prefers-reduced-motion:reduce){#rb-lp-slot .rb-lps,#rb-lp-slot .rb-lps .w{transition:none}}
 .rbc-hownote.rb-lp-was{color:var(--rose,#8E7077);font-style:normal;font-family:inherit;font-size:10.5px;letter-spacing:.04em}
 .rbc-hownote.rb-lp-styled{color:var(--ink-soft,#4A4744)}
 @media(max-width:767px){#rb-lp.rb-lp-dock{left:14px;right:14px;width:auto;transform:none;bottom:calc(12px + env(safe-area-inset-bottom,0px))}body:has(#rb-lp.rb-lp-dock) #kp-build-bar,body:has(#rb-lp.rb-lp-dock) .rb-lk-draftbar{visibility:hidden}}
+/* The + inside the field (2026-10-05): a piece by photo or from the
+   wardrobe, then the mode. The sparkle is the FAB's; the + takes its slot. */
+.rb-lp .plus{flex:none;width:38px;height:38px;border-radius:50%;background:#fff;border:1px solid var(--rule-mid,#CFC7B9);color:var(--ink,#202021);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-family:inherit;font-weight:300;font-size:19px;line-height:1;margin-left:-6px}
+.rb-lp .plus span{display:block;transition:transform .2s}
+.rb-lp .plus.open{background:#F3EFE6;border-color:#C9BCA6}
+.rb-lp .plus.open span{transform:rotate(45deg)}
+.rb-lp-plusmenu{position:absolute;left:8px;bottom:64px;width:240px;background:#fff;border:1px solid var(--rule,#E7E0CF);border-radius:14px;box-shadow:0 6px 20px rgba(32,32,33,.1);padding:6px;display:none;flex-direction:column;z-index:3}
+.rb-lp-plusmenu.open{display:flex}
+.rb-lp-plusmenu button{display:flex;align-items:center;gap:12px;min-height:46px;padding:6px 12px;border-radius:10px;background:none;border:0;cursor:pointer;font-family:inherit;font-size:13.5px;line-height:1.2;color:var(--ink,#202021);text-align:left}
+.rb-lp-plusmenu button:hover{background:var(--cream-100,#F7F4EE)}
+.rb-lp-plusmenu button svg{width:19px;height:19px;flex:none;stroke:currentColor;fill:none;stroke-width:1.3;stroke-linejoin:round;stroke-linecap:round}
+.rb-lp-plusmenu button .s{display:block;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-size:12px;color:var(--ink-faint,#9A958E);margin-top:2px}
+.rb-lp-piece{background:#fff;border:0.5px solid var(--rule-mid,#CFC7B9);border-radius:18px;padding:14px;box-shadow:0 6px 20px rgba(32,32,33,.08);margin-bottom:8px}
+.rb-lp-piece .hd{display:flex;align-items:center;gap:12px}
+.rb-lp-piece .th{flex:none;width:44px;height:56px;border-radius:6px;border:1px solid var(--rule,#E7E0CF);background:var(--cream-200,#EDE9E2) center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-size:20px;color:#C8B8A2}
+.rb-lp-piece .tx{flex:1;min-width:0}
+.rb-lp-piece .nm,.rb-lp-piece .sb,.rb-lp-piece .mode .t,.rb-lp-piece .mode .s{display:block}
+.rb-lp-piece .mode .tx{flex:1;min-width:0}
+.rb-lp-piece .nm{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:400;font-size:19px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-lp-piece .sb{font-size:11px;color:var(--ink-faint,#9A958E);margin-top:3px}
+.rb-lp-piece .rm{flex:none;width:30px;height:30px;border-radius:50%;background:#fff;border:0.5px solid var(--rule-mid,#CFC7B9);font-size:13px;color:var(--ink-soft,#55524E);cursor:pointer;font-family:inherit;padding:0}
+.rb-lp-piece .ey{font-size:9.5px;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:var(--sage,#7E7C5A);margin-top:16px}
+.rb-lp-piece .modes{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.rb-lp-piece .mode{display:flex;align-items:center;gap:12px;text-align:left;padding:12px 14px;border-radius:12px;background:#fff;border:1px solid var(--rule-mid,#CFC7B9);cursor:pointer;color:var(--ink,#202021);font-family:inherit}
+.rb-lp-piece .mode.on{background:#F3EFE6;border-color:#C9BCA6}
+.rb-lp-piece .mode .t{font-size:14px;line-height:1.2}
+.rb-lp-piece .mode .s{font-size:11.5px;color:var(--ink-soft,#55524E);margin-top:3px}
+.rb-lp-piece .mode .tk{flex:none;width:20px;height:20px;border-radius:50%;border:1px solid var(--rule-mid,#CFC7B9);background:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;opacity:0}
+.rb-lp-piece .mode.on .tk{opacity:1;border-color:#C9BCA6}
+.rb-lp.haspiece .send{display:flex}
+#rb-lp-scrim{position:fixed;inset:0;z-index:954;background:rgba(32,32,33,.28)}
 #rb-dock{transition:transform .22s ease}
 body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 @media(prefers-reduced-motion:reduce){#rb-dock{transition:none}.rb-lp{transition:none}}`;
@@ -918,6 +952,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         phDraft: 'Change this draft…',
         busyBuild: 'Building a draft from your wardrobe…', busyChange: 'Changing the look…', busyNote: 'Noting it…', busyRead: 'Reading it…',
         doneNone: 'Nothing has changed yet, so there’s nothing to put back.',
+        phPiece: 'Where to? Optional',
       };
       // The closed door: a pill-shaped field reading the page's verb; a
       // tap opens the box where the field sits. o.mode 'new' reads "A new
@@ -948,6 +983,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         return h;
       }
       function _rbLpPlaceholder(s) {
+        if (s.piece) return _RB_LP_COPY.phPiece;
         if (s.placeholder) return s.placeholder;
         if (s.mode === 'new') return _RB_LP_COPY.doorNew;
         return s.applied ? _RB_LP_COPY.doorAfter : _RB_LP_COPY.doorLook;
@@ -955,13 +991,26 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       function _rbLpPaint() {
         const s = _rbLp, host = document.getElementById('rb-lp');
         if (!s || !host) return;
-        host.innerHTML = '<div class="rb-lp" role="group" aria-label="' + _waEsc(s.name || s.title || 'Change this look') + '">' +
+        // The NEW-look box carries the + (a piece by photo or from the
+        // wardrobe — 2026-10-05); a look's box keeps the sparkle.
+        const plus = s.mode === 'new'
+          ? '<button type="button" class="plus" id="rb-lp-plus" onclick="window.__rbLpPlus(event)" aria-label="Add a piece" aria-haspopup="true"><span>+</span></button>' +
+            '<input type="file" id="rb-lp-cam" accept="image/*" capture="environment" hidden onchange="window.__rbLpFile(event)">' +
+            '<input type="file" id="rb-lp-file" accept="image/*" hidden onchange="window.__rbLpFile(event)">'
+          : _RB_LP_SPARK;
+        host.innerHTML = '<div class="rb-lp-piecehost" id="rb-lp-piecehost"></div>' +
+          '<div class="rb-lp" role="group" aria-label="' + _waEsc(s.name || s.title || 'Change this look') + '">' +
           '<button type="button" class="x" id="rb-lp-x" onclick="window.__rbLpClose()" aria-label="Close">×</button>' +
           '<div class="thread" id="rb-lp-thread"></div>' +
-          '<div class="fieldrow">' + _RB_LP_SPARK +
+          '<div class="fieldrow">' + plus +
             '<textarea id="rb-lp-in" rows="1" maxlength="240" oninput="window.__rbLpText(this.value)" onkeydown="window.__rbLpKey(event)" onfocus="window.__rbLpFocus(true)" onblur="window.__rbLpFocus(false)"></textarea>' +
             '<button type="button" class="send" id="rb-lp-send" onclick="window.__rbLpSend()" aria-label="Send">→</button></div>' +
-          '<div class="rb-lpd" id="rb-lp-result"></div></div>';
+          '<div class="rb-lpd" id="rb-lp-result"></div></div>' +
+          (s.mode === 'new' ? '<div class="rb-lp-plusmenu" id="rb-lp-plusmenu">' +
+              '<button type="button" onclick="window.__rbLpAdd(\'camera\')"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-2h6l2 2h3v11H4zM12 16.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path></svg><span>Take a picture<span class="s">Lay the piece flat, in good light.</span></span></button>' +
+              '<button type="button" onclick="window.__rbLpAdd(\'upload\')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>Upload a photo</span></button>' +
+              '<button type="button" onclick="window.__rbLpAdd(\'wardrobe\')"><svg viewBox="0 0 24 24"><path d="M12 7a2 2 0 1 1 2-2M12 7v2L3 16h18l-9-7"></path></svg><span>From wardrobe</span></button>' +
+            '</div>' : '');
         _rbLpSync(true);
       }
       // The result slot alone (home: the draft row, Save, the week, the
@@ -998,8 +1047,199 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         }
         const txt = !!String(s.text || '').trim();
         box.classList.toggle('has', txt);
+        // With a piece attached the arrow turns ink only once a mode is
+        // picked (the design) — a note is optional.
+        const ready = s.piece ? !!s.pieceMode : txt;
+        box.classList.toggle('haspiece', !!s.piece);
         const send = document.getElementById('rb-lp-send');
-        if (send) { send.classList.toggle('ink', txt); send.disabled = !!s.reading; }
+        if (send) { send.classList.toggle('ink', ready); send.disabled = !!s.reading; }
+        _rbLpPieceSync();
+      }
+      // ── The piece in the box (2026-10-05): a card above the field — the
+      // piece (filed, or just taken and filing), × to put it back, then
+      // STYLE THIS PIECE with two modes. The + feeds it; Send hands off.
+      function _rbLpPieceSync() {
+        const s = _rbLp, host = document.getElementById('rb-lp-piecehost');
+        if (!host) return;
+        const pc = s && s.piece;
+        if (!pc) { host.innerHTML = ''; return; }
+        const mode = (k, t, sub) => '<button type="button" class="mode' + (s.pieceMode === k ? ' on' : '') + '" onclick="window.__rbLpMode(\'' + k + '\')"><span class="tx"><span class="t">' + t + '</span><span class="s">' + sub + '</span></span><span class="tk">✓</span></button>';
+        host.innerHTML = '<div class="rb-lp-piece" id="rb-lp-piece">' +
+          '<div class="hd"><span class="th"' + (pc.img ? ' style="background-image:url(\'' + _waEsc(pc.img) + '\')"' : '') + '>' + (pc.img ? '' : _waEsc(String(pc.name || '?').charAt(0).toUpperCase())) + '</span>' +
+            '<span class="tx"><span class="nm">' + _waEsc(pc.name || 'New piece') + '</span><span class="sb" id="rb-lp-piece-sub">' + _waEsc(pc.sub || '') + '</span></span>' +
+            '<button type="button" class="rm" onclick="window.__rbLpPieceRemove()" aria-label="Remove piece">×</button></div>' +
+          '<div class="ey">Style this piece</div>' +
+          '<div class="modes">' + mode('build', 'Build a look', 'Start from this piece') + mode('three', 'Style it three ways', 'Robes proposes three') + '</div>' +
+          '</div>';
+      }
+      var _rbLpHold = false;   // a picker or the camera is open for this box — never fold it
+      window.__rbLpPlus = function(ev) {
+        if (ev) ev.stopPropagation();
+        const m = document.getElementById('rb-lp-plusmenu'), b = document.getElementById('rb-lp-plus');
+        if (!m) return;
+        const open = !m.classList.contains('open');
+        m.classList.toggle('open', open); if (b) b.classList.toggle('open', open);
+      };
+      function _rbLpPlusClose() {
+        const m = document.getElementById('rb-lp-plusmenu'), b = document.getElementById('rb-lp-plus');
+        if (m) m.classList.remove('open'); if (b) b.classList.remove('open');
+      }
+      document.addEventListener('pointerdown', function(e) {
+        const m = document.getElementById('rb-lp-plusmenu');
+        if (!m || !m.classList.contains('open')) return;
+        if (e.target && e.target.closest && e.target.closest('#rb-lp-plusmenu, #rb-lp-plus')) return;
+        _rbLpPlusClose();
+      }, true);
+      window.__rbLpAdd = function(kind) {
+        _rbLpPlusClose();
+        const s = _rbLp; if (!s) return;
+        _rbLpHold = true;
+        if (kind === 'wardrobe') {
+          if (!_waItems.length) { _rbLpHold = false; _waShowToast('Nothing catalogued yet — take a picture of the piece instead'); return; }
+          window.__cbWardrobePick({ source: 'wardrobe', onPick: function(it) { _rbLpHold = false; _rbLpAttachPiece(it, 'wardrobe'); }, onClose: function() { _rbLpHold = false; _rbLpRefocus(); } });
+          return;
+        }
+        // The dedicated camera input carries capture (the one legitimate
+        // use); Upload is the capture-less picker.
+        const inp = document.getElementById(kind === 'camera' ? 'rb-lp-cam' : 'rb-lp-file');
+        if (!inp) { _rbLpHold = false; return; }
+        inp.value = '';
+        inp.click();
+        // A cancelled picker never fires change — let the hold go after a beat.
+        setTimeout(() => { if (_rbLp === s && !(s.piece && s.piece.fresh)) _rbLpHold = false; }, 60000);
+      };
+      function _rbLpRefocus() {
+        try { const ta = document.getElementById('rb-lp-in'); if (ta) ta.focus(); } catch (_) {}
+      }
+      window.__rbLpFile = function(e) {
+        const file = e && e.target && e.target.files && e.target.files[0];
+        const src = e && e.target && e.target.id === 'rb-lp-cam' ? 'camera' : 'upload';
+        if (!file) { _rbLpHold = false; return; }
+        _rbDownscale(file).then(function(dataUrl) {
+          _rbLpHold = false;
+          _rbLpAttachPhoto(dataUrl, src);
+        }).catch(function() { _rbLpHold = false; _waShowToast('Couldn’t read that image — try another photo.'); });
+      };
+      // A piece she already owns: its photo rides the ask as the brief's image.
+      function _rbLpAttachPiece(wi, src) {
+        const s = _rbLp; if (!s || !wi) return;
+        s.piece = { id: wi.id, name: wi.label || 'A piece', img: _pdHttp(wi.image_url) || null, sub: (typeof _waSheetCatOf === 'function' ? _waSheetCatOf(wi) : (wi.category || 'Piece')) + ' · in your wardrobe', worn: Number(wi.times_worn) || 0, filed: true };
+        if (!s.pieceMode) s.pieceMode = null;
+        _cbLookId = null;
+        _cbPhotoData = null;
+        if (wi.image_url) _rbUrlToDataUrl(wi.image_url).then(d => { if (_rbLp === s && s.piece && s.piece.id === wi.id) _cbPhotoData = d; }).catch(() => {});
+        _rbLpSync(false);
+        _rbLpRefocus();
+        _rbTrack('piece_attached', { source: src || 'wardrobe', filed: true });
+      }
+      // A photograph just taken: it attaches at once and files to the
+      // wardrobe quietly behind the card (cataloguing is a by-product of
+      // styling) — the card says so, and the name lands when the read does.
+      function _rbLpAttachPhoto(dataUrl, src) {
+        const s = _rbLp; if (!s || !dataUrl) return;
+        s.piece = { id: null, name: 'New piece', img: dataUrl, sub: 'Just taken · Robes will file it', worn: 0, filed: false, fresh: true };
+        _cbLookId = null;
+        _cbPhotoData = dataUrl;
+        _rbLpSync(false);
+        _rbLpRefocus();
+        _rbTrack('piece_attached', { source: src || 'camera', filed: false });
+        const pc = s.piece;
+        s.pieceFiling = _rbQuietFile(dataUrl).then(function(r) {
+          if (_rbLp !== s || s.piece !== pc) return r;
+          if (r && r.row) {
+            pc.id = r.row.id; pc.name = r.row.label || pc.name; pc.filed = true; pc.fresh = false;
+            pc.sub = (typeof _waSheetCatOf === 'function' ? _waSheetCatOf(r.row) : (r.row.category || 'Piece')) + ' · filed to your wardrobe';
+            if (_pdHttp(r.row.image_url)) pc.img = r.row.image_url;
+          } else {
+            pc.fresh = false;
+            pc.sub = r && r.status === 'none' ? 'Robes couldn’t see a piece to file — the looks still run' : 'Not filed yet — the looks still run';
+          }
+          _rbLpPieceSync();
+          return r;
+        }).catch(function() { if (_rbLp === s && s.piece === pc) { pc.fresh = false; pc.sub = 'Not filed yet — the looks still run'; _rbLpPieceSync(); } return null; });
+      }
+      // Analyse + host + insert, quietly (the key piece modal's scan,
+      // extracted — one filer). Resolves {status:'filed'|'none'|'failed', row}.
+      async function _rbQuietFile(dataUrl) {
+        const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
+        if (!m) return { status: 'failed', row: null };
+        const analyse = () => fetch('/api/wardrobe/analyse', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: m[2], mimeType: m[1], userId: _waUid() || undefined }) }).then(r => r.ok ? r.json() : null).catch(() => null);
+        try {
+          const pair = await Promise.all([analyse(),
+            fetch('/api/wardrobe/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: m[2], mimeType: m[1] }) }).then(r => r.ok ? r.json() : null).catch(() => null)]);
+          let tag = pair[0]; const up = pair[1];
+          if (!tag || tag.analysisFailed || (!tag.noItemDetected && !tag.label)) {
+            await new Promise(r => setTimeout(r, 1500));
+            tag = (await analyse()) || tag;
+          }
+          if (tag && tag.noItemDetected) return { status: 'none', row: null };
+          if (!tag || !tag.label || !_waUid()) return { status: 'failed', row: null };
+          const row = { user_id: _waUid(), label: tag.label, category: tag.category || 'Other', category_l2: tag.category_l2 || null, category_l3: tag.category_l3 || null,
+            color: tag.color || null, brand: tag.brand || null, notes: tag.notes || null, image_url: (up && up.url) || null, item_dna: tag.item_dna || undefined };
+          if (!_waTaxCols) { delete row.category_l2; delete row.category_l3; }
+          let saved;
+          try { saved = await _waFetch('POST', 'wardrobe_items', row); }
+          catch (err) {
+            if (!/PGRST204|column/i.test(String(err && err.message || err))) throw err;
+            _waTaxCols = false; delete row.category_l2; delete row.category_l3;
+            saved = await _waFetch('POST', 'wardrobe_items', row);
+          }
+          let it = Array.isArray(saved) ? saved[0] : saved;
+          if (!it || it.id == null) it = Object.assign({ id: null }, row);
+          it.times_worn = it.times_worn || 0;
+          _rbTrack('wardrobe_added', { source: 'prompt_plus', category: it.category || '', batch_n: 1, batch_i: 1 });
+          try { await _waLoad(); } catch (_) {}
+          return { status: 'filed', row: it };
+        } catch (e) { console.warn('[robes] quiet file failed:', e); return { status: 'failed', row: null }; }
+      }
+      window.__rbLpPieceRemove = function() {
+        const s = _rbLp; if (!s) return;
+        s.piece = null; s.pieceMode = null; s.pieceFiling = null;
+        _cbPhotoData = null;
+        _rbLpSync(false);
+        _rbLpRefocus();
+      };
+      window.__rbLpMode = function(k) {
+        const s = _rbLp; if (!s || !s.piece) return;
+        s.pieceMode = (k === 'build' || k === 'three') ? k : null;
+        _rbLpSync(false);
+        _rbTrack('piece_mode_picked', { mode: s.pieceMode });
+      };
+      // Send with a piece: the live flow the mode names. Three ways is the
+      // piece track (/api/style with the photograph); Build a look is the
+      // composer with the piece on its rack. A photograph still filing is
+      // waited on first, briefly.
+      async function _rbLpSendPiece(s) {
+        if (!s.pieceMode) { const m = document.getElementById('rb-lp-piece'); if (m) { m.classList.add('rb-lp-nudge'); setTimeout(() => m.classList.remove('rb-lp-nudge'), 600); } return; }
+        const pc = s.piece, mode = s.pieceMode, note = String(s.text || '').trim();
+        if (s.pieceFiling && !pc.filed) {
+          s.reading = true; s.readingText = 'Filing it to your wardrobe…'; _rbLpSync(true);
+          try { await Promise.race([s.pieceFiling, new Promise(r => setTimeout(r, 25000))]); } catch (_) {}
+          if (_rbLp !== s) return;
+          s.reading = false; s.readingText = null;
+        }
+        _rbTrack('prompt_submitted', { intent: mode === 'three' ? 'style' : 'build', scope: 'none', source: 'box', ok: true, piece: true, filed: !!pc.filed, note: !!note });
+        const photo = _cbPhotoData;
+        s.thread = [];
+        // Home's persistent box stays (its field asks again); a docked box goes.
+        if (s.persist) { s.piece = null; s.pieceMode = null; s.pieceFiling = null; s.text = ''; _cbPhotoData = null; _rbLpSync(true); }
+        else window.__rbLpClose();
+        if (mode === 'three') {
+          const lead = pc.filed ? ('Style my ' + String(pc.name || 'piece').trim() + ' three ways' + (pc.worn ? ' (worn ' + pc.worn + ' time' + (pc.worn === 1 ? '' : 's') + ')' : '')) : 'Style this piece three ways';
+          _cbStyleSubmit(note ? lead + '. ' + note : lead, photo, { intent: 'style' });
+          return;
+        }
+        if (pc.filed && pc.id != null) {
+          const id = pc.id;
+          if (window.__lkNew) window.__lkNew({ then: function() { setTimeout(function() { if (window.__lkApplyNew) window.__lkApplyNew(id); }, 60); } });
+          return;
+        }
+        // Not filed (the read failed): the standard add flow files it, and
+        // the piece lands on the composer's rack from there.
+        _waShowToast('Robes couldn’t file that photograph — add the piece and it lands on the rack.');
+        _waAfterAdd = function(newId) { if (window.__lkNew) window.__lkNew({ then: function() { setTimeout(function() { if (window.__lkApplyNew) window.__lkApplyNew(newId); }, 60); } }); };
+        if (window.WA && WA.open) WA.open();
       }
       window.__rbLpText = function(v) {
         const s = _rbLp; if (!s) return;
@@ -1028,7 +1268,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (s) s.focused = !!on;
         if (!on && s && !s.persist) {
           setTimeout(() => {
-            const c = _rbLp; if (!c || c !== s || c.persist || c.reading) return;
+            const c = _rbLp; if (!c || c !== s || c.persist || c.reading || c.piece || _rbLpHold) return;
             const w = document.getElementById('rb-lp'); if (!w || w.contains(document.activeElement)) return;
             if (!c.thread.length && !String(c.text || '').trim()) window.__rbLpClose();
           }, 140);
@@ -1066,6 +1306,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           else w.remove();
         }
         document.querySelectorAll('.rb-lp-busy').forEach(el => el.classList.remove('rb-lp-busy'));
+        document.getElementById('rb-lp-scrim')?.remove();
+        _rbLpHold = false;
+        if (s && s.piece) { s.piece = null; s.pieceMode = null; _cbPhotoData = null; }
         if (s) _rbTrack('look_prompt_closed', { surface: s.surface, turns: s.turns || 0, applied_count: s.applied || 0, saved: false });
         // Held only while the thread is HERS and live: a thread she
         // reopened and then left without adding a line is let go.
@@ -1076,15 +1319,15 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         _rbLp = null;
         if (typeof _rbLpSlotSync === 'function') _rbLpSlotSync();
       };
-      document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && _rbLp && !_rbLp.persist) window.__rbLpClose(); });
+      document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && _rbLp && !_rbLp.persist && !_rbLpHold) window.__rbLpClose(); });
       // A tap outside a docked box that holds nothing yet folds it away —
       // the page is still the page around it. (A thread, or words in the
       // field, keep it open; × is the way out then.)
       document.addEventListener('pointerdown', function(e) {
-        const s = _rbLp; if (!s || s.persist || s.reading) return;
+        const s = _rbLp; if (!s || s.persist || s.reading || _rbLpHold) return;
         const w = document.getElementById('rb-lp'); if (!w || w.contains(e.target)) return;
-        if (e.target && e.target.closest && e.target.closest('#rb-lp-slot, .rb-lp-field, #rb-del-modal, .kp-sheet-wrap')) return;
-        if (!s.thread.length && !String(s.text || '').trim()) window.__rbLpClose();
+        if (e.target && e.target.closest && e.target.closest('#rb-lp-slot, .rb-lp-field, #rb-del-modal, .kp-sheet-wrap, #cb-wa-pick, #rb-lp-scrim')) return;
+        if (!s.thread.length && !String(s.text || '').trim() && !s.piece) window.__rbLpClose();
       }, true);
       // cfg: {mode: 'look'|'new'|'way', surface, name, text, placeholder,
       //       host (an element or its id — the box renders INLINE there,
@@ -1124,6 +1367,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           w.className = 'rb-lp-wrap rb-lp-in';
         } else {
           w.className = 'rb-lp-wrap rb-lp-dock';
+          // Over a dimmed screen (the design, 2026-10-05): the scrim closes
+          // the box — a thread mid-way is held, nothing is lost.
+          const sc = document.createElement('div'); sc.id = 'rb-lp-scrim';
+          sc.onclick = function() { const c = _rbLp; if (!c || c.reading) return; window.__rbLpClose(); };
+          document.body.appendChild(sc);
           document.body.appendChild(w);
         }
         _rbLpPaint();
@@ -1168,7 +1416,6 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const m = mirror(sn, (lv === 'detail' ? 'look:' + (typeof _lkActive !== 'undefined' ? _lkActive : '') : 'composer'));
           return m;
         }
-        if (vis('rb-insp-page')) return hb ? Object.assign(fresh(), { key: 'inspiration' }) : null;
         const kp = document.getElementById('kp-result-page');
         if (kp && kp.style.display !== 'none') {
           const m = mirror(kp, 'kp-build');
@@ -1270,6 +1517,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       }
       window.__rbLpSend = async function() {
         const s = _rbLp; if (!s || s.reading) return;
+        if (s.piece) { await _rbLpSendPiece(s); return; }
         const text = String(s.text || '').trim().slice(0, 240);
         if (!text) { try { document.getElementById('rb-lp-in')?.focus(); } catch (_) {} return; }
         const fromDraft = !!s.draft && text === s.draftText;
@@ -5681,13 +5929,13 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // The section she entered through, as a pill label.
       function _rbOriginLabel() {
         const o = window._rbNavOrigin;
-        return o === 'diary' ? 'Diary' : o === 'wardrobe' ? 'Wardrobe' : o === 'inspiration' ? 'Inspiration' : o === 'lookbook' ? 'Lookbook' : 'Home';
+        return o === 'diary' ? 'Diary' : o === 'wardrobe' ? 'Wardrobe' : (o === 'lookbook' || o === 'inspiration') ? 'Lookbook' : 'Home';
       }
       // The topmost visible return band — the nav bar mirrors it ≤767px.
       // Overlays in z order: piece (46) › lookbook/inspiration (45) › the
       // result pages (40). A root on top has no band, so this reads null.
       function _rbRetTop() {
-        const ids = ['rb-piece-page', 'sn-page', 'rb-insp-page', 'kp-result-page', 'dl-result-page', 'tv-result-page'];
+        const ids = ['rb-piece-page', 'sn-page', 'kp-result-page', 'dl-result-page', 'tv-result-page'];
         for (let i = 0; i < ids.length; i++) {
           const el = document.getElementById(ids[i]);
           if (!el || el.style.display === 'none') continue;
@@ -6001,9 +6249,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         setTimeout(() => window.__rbDiaryOpen && window.__rbDiaryOpen(), 400);
       }
       if (window.location.pathname === '/inspiration') {
-        // /inspiration?open=<id> (slice 6): the looks_ready email lands on
-        // its key piece — open the index, then the entry once the cloud
-        // pull has it.
+        // /inspiration?open=<id> (slice 6's looks_ready mail, pre-fold): the
+        // key pieces live in the Lookbook now (2026-10-05) — the alias opens
+        // it on Show = Key pieces, then the entry once the cloud pull has it.
+        // (New mails link /lookbook?open=<id>, handled below.)
         let inspOpen = null;
         try { inspOpen = new URL(window.location.href).searchParams.get('open'); } catch (_) {}
         setTimeout(() => {
@@ -6063,8 +6312,17 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           }
           if (!openId) return;
           let tries = 0;
+          // A numeric id is a lookbook ENTRY (a key piece — the looks_ready
+          // mail lands here since the fold, 2026-10-05); a uuid is a Look.
+          const kpId = /^\d{10,}$/.test(String(openId)) ? Number(openId) : null;
           const tick = () => {
             tries++;
+            if (kpId != null) {
+              const it = snLoad().find(i => i && i.id === kpId);
+              if (it && window.__snOpenItem) { if (_lkRefine) _lkRefine.show = 'kp'; window.__snOpenItem(it.id); return; }
+              if (tries > 40) return;
+              setTimeout(tick, 300); return;
+            }
             if (_lkFind(openId)) {
               window.__lkOpen && window.__lkOpen(openId);
               if (fill && window.__rbFillOpen) setTimeout(() => window.__rbFillOpen(openId, 'link'), 250);
@@ -6906,10 +7164,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (!item) return;
         // Close the pages an item can be opened from
         document.getElementById('sn-page').style.display = 'none';
-        const inEl = document.getElementById('rb-insp-page');
-        if (inEl) inEl.style.display = 'none';
         if (window._rbNavOrigin === 'home' || !window._rbNavOrigin) {
-          window._rbNavOrigin = item.type === 'key-piece' ? 'inspiration'
+          window._rbNavOrigin = item.type === 'key-piece' ? 'lookbook'
             : item.type === 'travel-edit' ? 'diary'
             : (item.dlData && item.dlData.anchor_date) ? 'diary' : 'lookbook';
         }
@@ -7375,8 +7631,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         window.__rbPieceHide();
         _pcCtx = null;
         _rbTrack('piece_style_three', {});
-        if (window.__rbInspOpen) window.__rbInspOpen();
-        if (window.__inStyleNew) window.__inStyleNew({ piece: wi });
+        // The prompt is the one door (2026-10-05): the box opens with the
+        // piece attached and "Style it three ways" already ticked — a note
+        // is optional, Send runs it.
+        if (window.__rbHbOpen) window.__rbHbOpen({ fresh: true, piece: wi, pieceMode: 'three' });
       };
       window.__rbPieceBought = async function() {
         if (!_pcCtx) return;
@@ -7434,87 +7692,23 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           siblings: entries.filter(x => x.it && x.it.wardrobe_match && x.it.wardrobe_match.id != null).map(x => String(x.it.wardrobe_match.id)) });
       };
 
-      // ═══ Inspiration — the undated shelf (IA refinement 2026-08-10) ═════
-      // Key pieces styled live here, out of the Lookbook: nothing on this
-      // page carries a date. Opening an entry shows the full three-way
-      // styling. The card carries NO action (Annie, 2026-09-17: the
-      // Restyle pill served no purpose — the card itself is the door;
-      // __inRestyle survives doorless). Save-as-look is deferred.
-      const inPage = document.createElement('div');
-      inPage.id = 'rb-insp-page';
-      inPage.style.cssText = 'display:none;position:fixed;left:0;right:0;bottom:0;top:var(--nav-h,64px);z-index:45;background:#FAF8F5;overflow-y:auto';
-      inPage.innerHTML = `
-        <div style="padding:32px var(--s6,24px) 64px;max-width:var(--shell,1440px);margin:0 auto;box-sizing:border-box">
-          <div class="rb-mast" id="rb-in-mast" style="margin:0 0 22px"><div class="rb-mast-l"><div class="rb-mast-line"><span class="rb-mast-lab">Key pieces, styled</span><span class="rb-mast-n" id="rb-in-count"></span></div></div>
-            <div class="rb-mast-acts"><button class="rb-pill" onclick="window.__inStyleNew()">Style a key piece</button></div>
-          </div>
-          <div id="rb-in-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px"></div>
-          <div id="rb-in-empty" style="display:none;padding:8px 0 40px"></div>
-        </div>`;
-      document.body.appendChild(inPage);
-      if (!document.getElementById('rb-in-style')) {
-        const inSt = document.createElement('style');
-        inSt.id = 'rb-in-style';
-        inSt.textContent =
-          '@media(max-width:1023px){#rb-in-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}' +
-          '@media(max-width:767px){#rb-in-grid{grid-template-columns:1fr!important}}' +
-          '.rb-in-card{background:#fff;border-radius:var(--rad);overflow:hidden;box-shadow:0 1px 3px rgba(32,32,33,0.08);cursor:pointer;text-align:left;font-family:inherit}' +
-          '.rb-in-imgs{display:grid;grid-template-columns:2fr 1fr;gap:1px;background:var(--rule-mid);aspect-ratio:3/2}' +
-          '.rb-in-imgs .lead{grid-row:1/3}' +
-          '.rb-in-imgs span{display:block;background-size:cover;background-position:center;background-color:var(--cream-200)}' +
-          '.rb-in-pad{padding:13px 16px 15px}' +
-          '.rb-in-title{font-family:var(--font-serif);font-weight:300;font-size:17px;line-height:1.3;color:var(--ink)}' +
-          '.rb-in-sub{font-size:10.5px;color:var(--ink-faint);margin-top:3px}' +
-          '.rb-in-acts{display:flex;gap:8px;margin-top:12px}' +
-          '.rb-in-act{padding:8px 14px;border:0.5px solid var(--rule-mid);border-radius:100px;background:#fff;color:var(--ink-soft);font-family:inherit;font-size:11px;cursor:pointer;transition:all .15s}' +
-          '.rb-in-act:hover{border-color:var(--ink);color:var(--ink)}';
-        document.head.appendChild(inSt);
-      }
+      // ═══ Key pieces — folded into the Lookbook (2026-10-05) ═══════════════
+      // The Inspiration page (IA refinement 2026-08-10) is retired: a key
+      // piece styled is a tile in the Lookbook's mixed grid, tagged on its
+      // photo, filtered by Refine's Show row. __rbInspOpen survives as the
+      // ALIAS every old door still calls (the /inspiration route, the home
+      // row's View all, the nav's legacy 'inspiration' dest): the Lookbook
+      // on Show = Key pieces. _inItems is the one reader of the entries.
       function _inItems() {
         try { return snLoad().filter(i => i && i.type === 'key-piece'); } catch (_) { return []; }
-      }
-      function inRenderPage() {
-        const grid = document.getElementById('rb-in-grid');
-        const empty = document.getElementById('rb-in-empty');
-        const cnt = document.getElementById('rb-in-count');
-        if (!grid) return;
-        const items = _inItems();
-        _rbChromeEnsure();
-        grid.style.display = items.length ? 'grid' : 'none';
-        if (cnt) cnt.textContent = items.length ? items.length + ' styled' : '';
-        if (empty) empty.style.display = items.length ? 'none' : 'block';
-        // The "Style a piece" card moved here off home (FTUE step 3) — a
-        // piece styled three ways lives on Inspiration, so the invitation
-        // to make one belongs on Inspiration's empty state.
-        if (!items.length) {
-          if (empty) empty.innerHTML = _rbStylePieceCardHtml();
-          return;
-        }
-        grid.innerHTML = items.map(i => {
-          const imgs = ((i.kpData && i.kpData.generatedImages) || [])
-            .filter(u => typeof u === 'string' && u.indexOf('http') === 0);
-          const lead = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : imgs[0] || null;
-          const rest = imgs.filter(u => u !== lead).slice(0, 2);
-          const cell = (u, cls) => '<span class="' + cls + '"' + (u ? ' style="background-image:url(\'' + _waEsc(u) + '\')"' : '') + '></span>';
-          return '<div class="rb-in-card" onclick="window.__snOpenItem(' + Number(i.id) + ')" role="button" tabindex="0">' +
-            '<div class="rb-in-imgs">' + cell(lead, 'lead') + cell(rest[0], '') + cell(rest[1], '') + '</div>' +
-            '<div class="rb-in-pad">' +
-              '<div class="rb-in-title">' + _waEsc(i.title || 'A piece, styled') + '</div>' +
-              '<div class="rb-in-sub">Styled three ways by Robes</div>' +
-            '</div></div>';
-        }).join('');
       }
       window.__rbInspOpen = function() {
         const av = document.getElementById('av-menu');
         if (av) av.classList.remove('open');
-        inRenderPage();
-        inPage.style.display = 'block';
-        window.rbSetCrumb && window.rbSetCrumb([{ label: 'Inspiration' }]);
-        window._rbNav && window._rbNav('/inspiration');
+        if (typeof _lkRefine !== 'undefined' && _lkRefine) _lkRefine.show = 'kp';
+        if (window.__lkGo) window.__lkGo(); else if (window.__snOpen) window.__snOpen();
       };
-      window.__inClose = function() {
-        inPage.style.display = 'none';
-      };
+      window.__inClose = function() {};
       // Restyle lands on the home prompt with the original ask re-armed —
       // every route lands on the prompt box (the app's standing rule).
       // Doorless since 2026-09-17 (kept programmatically).
@@ -8508,16 +8702,16 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // model band's button is a hairline on a first-session account.
 
       window.__kpRenderResult = function(data, promptText, opts) {
-        // A key-piece result is Inspiration's, whichever door raised it
+        // A key-piece result is the Lookbook's, whichever door raised it
         // (the home card, the home row, the prompt): rule 1 lights the
         // section the object belongs to — never nothing, never a stale one.
-        window._rbNavOrigin = 'inspiration';
+        // (Inspiration folded into the Lookbook, 2026-10-05.)
+        window._rbNavOrigin = 'lookbook';
         // The standing rule: an opener that renders one fixed overlay from
         // inside another closes the higher-z pages first (kp is z-40 under
-        // the Lookbook / Inspiration pages at 45).
+        // the Lookbook page at 45).
         (function() {
           const snEl = document.getElementById('sn-page'); if (snEl) snEl.style.display = 'none';
-          const inEl = document.getElementById('rb-insp-page'); if (inEl) inEl.style.display = 'none';
         })();
         if (!data || !Array.isArray(data.ways) || !data.ways.length) {
           _waShowToast('Could not render looks — please try again');
@@ -8666,8 +8860,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // back pill alone — no "n of N" pager over Inspiration's set — and
         // the title block is the eyebrow + the piece's words, no pencil, no
         // Share (share belongs on a look once she has built one).
-        _rbRetReg('kp', { back: function() { window.__rbNavGo('inspiration'); } });
-        const kpBand = _rbRetHtml({ key: 'kp', label: kpDaily ? _rbOriginLabel() : 'Inspiration', pos: null });
+        // ‹ Lookbook: the key piece lives in the Lookbook's mixed grid now
+        // (2026-10-05); her Show filter there stands, so back lands where
+        // she was.
+        _rbRetReg('kp', { back: function() { window.__rbNavGo('lookbook'); } });
+        const kpBand = _rbRetHtml({ key: 'kp', label: kpDaily ? _rbOriginLabel() : 'Lookbook', pos: null });
         // Feedback is PER LOOK (design Look_Feedback 2b, 2026-09-17): each
         // of the three ways carries its own hairline line, never one verdict
         // across the three. Armed before the template paints so a reopen
@@ -11447,7 +11644,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 /* The card dress (Lookbook redesign 2026-08-18, "one column width, one
    mosaic"): white on cream, 1px rule, 3px corners, shadow-free — and the
    image area is SQUARE inside the card, so nothing is letterboxed. */
-.lt-card{background:#fff;border:1px solid var(--rule,#E7E0CF);border-radius:3px;overflow:hidden;transition:border-color .2s}
+.lt-card{position:relative;background:#fff;border:1px solid var(--rule,#E7E0CF);border-radius:3px;overflow:hidden;transition:border-color .2s}
+.lt-tag{position:absolute;top:10px;left:10px;z-index:2;padding:5px 9px;border-radius:100px;font-family:'Inter',-apple-system,sans-serif;font-size:8.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;line-height:1;pointer-events:none}
+.lt-tag.look{background:rgba(250,248,245,.94);border:0.5px solid var(--rule-mid,#D8CFC0);color:var(--ink-faint,#9A9082)}
+.lt-tag.kp{background:#F1EAE8;border:0.5px solid var(--mauve,#D4C8C4);color:var(--rose,#8E7077)}
 .lt-card:hover{border-color:var(--rule-mid,#D8CFC0)}
 .lt-card .rb-lk-mos{border-radius:0;aspect-ratio:1/1}
 .lt-card .lt-info{padding:14px 18px 18px}
@@ -11542,8 +11742,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         _ltEnsureCss();
         opts = opts || {};
         const body = opts.body ? ` onclick="${opts.body}" role="button" tabindex="0"` : '';
+        // d.tag: the kind, as a pill ON the photo (the mixed Lookbook grid,
+        // 2026-10-05) — 'kp' wears the rose tint, 'look' the cream.
+        const tag = d.tag ? `<span class="lt-tag ${d.tag === 'kp' ? 'kp' : 'look'}">${d.tag === 'kp' ? 'Key piece' : 'Look'}</span>` : '';
         return `<div class="rb-lk-tile${opts.extraClass ? ' ' + opts.extraClass : ''}"${body}>` +
-          _ltMosaicHtml(d.cells, { photo: d.photo, alt: d.title, hero: opts.hero }) +
+          tag + _ltMosaicHtml(d.cells, { photo: d.photo, alt: d.title, hero: opts.hero }) +
           `<div class="lt-info">` +
             (d.eyebrow ? `<span class="lt-ey">${_waEsc(d.eyebrow)}</span>` : '') +
             _ltTitleHtml(d.title, 'lt', d.provisional) +
@@ -13291,8 +13494,24 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rb-lkref-chip.on{background:var(--secondary,#E3E1CC);border-color:transparent;color:var(--ink)}
 .rb-lkref-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:0.5px solid var(--rule);padding-top:12px}
 #rb-lk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.rb-lk-refdot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--rose,#8E7077);margin-left:6px;flex:none}
+.rb-lkref-showrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:3px;border-radius:100px;background:var(--cream-200,#EDE9E2)}
+.rb-lkref-show{height:32px;border-radius:100px;background:transparent;border:1px solid transparent;font-family:inherit;font-size:12px;color:var(--ink);cursor:pointer;padding:0}
+.rb-lkref-show.on{background:#F3EFE6;border-color:#C9BCA6;font-weight:500}
+.rb-lk-none{border:1px dashed var(--cream-400,#D8CFBE);background:var(--cream-100,#F7F4EE);border-radius:var(--rad-card,14px);padding:30px 20px;text-align:center}
+.rb-lk-none .t{font-family:var(--font-serif);font-weight:400;font-size:22px;line-height:1.1;color:var(--ink)}
+.rb-lk-none .s{font-size:12px;color:var(--ink-soft);margin:6px 0 14px}
+#rb-lk-grid .rb-lk-kpdoor{min-height:250px}
 @media(max-width:1023px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:767px){#rb-lk-grid{grid-template-columns:1fr}
+/* Two columns on the phone (the mixed-grid design, 2026-10-05): looks and
+   key pieces side by side, the pad tightened to the tile. */
+@media(max-width:767px){#rb-lk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#rb-lk-grid .lt-card .lt-info{padding:10px 11px 12px}
+#rb-lk-grid .lt-card .lt-title{font-size:17px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rb-lk-grid .lt-card .lt-meta{font-size:11px;margin-top:4px}
+#rb-lk-grid .lt-card .rb-lk-mos{aspect-ratio:3/4}
+#rb-lk-grid .rb-add-card{min-height:250px}
+.rb-lk-none{grid-column:1/-1}
 /* One column at touch: the change bar stacks — Update full width, the
    quiet answers centred beneath (the mobile frame of the composer mock). */
 .rb-lk-editbar{flex-direction:column;align-items:stretch;text-align:center}
@@ -13699,7 +13918,10 @@ button.rb-lk-live{cursor:pointer}
       function _lkPaint() {
         if (_snFilter !== 'looks' || !_lkEnsureDom()) return;
         const shelfItems = _lkShelfItems();
-        const streamN = _lkLooks.length + shelfItems.length;
+        const kpItems = _lkKpItems();
+        // Key pieces share the grid (2026-10-05) and count as content: a
+        // key piece alone is a Lookbook with one tile, not an empty one.
+        const streamN = _lkLooks.length + shelfItems.length + kpItems.length;
         // Travel edits no longer count — they live in the Diary (2026-09-08).
         const any = streamN;
         // ONE DOOR (FTUE pass 2026-08-12): an empty Lookbook IS the
@@ -13761,6 +13983,9 @@ button.rb-lk-live{cursor:pointer}
         bar.style.display = detail || !any ? 'none' : 'block';
         if (allHead) allHead.style.display = detail || !any || !_lkRefineOpen ? 'none' : 'block';
         grid.style.display = detail || !any ? 'none' : 'grid';
+        // A hidden grid holds nothing stale (a tile deleted down to zero
+        // lands on the composer, and the grid behind it must be empty).
+        if (!any) grid.innerHTML = '';
         // The page's old eyebrow row is retired — the masthead line is the
         // one header on the index, and a detail carries its own bands.
         const headRow = document.getElementById('sn-headrow');
@@ -13780,6 +14005,7 @@ button.rb-lk-live{cursor:pointer}
         body.innerHTML = any ? '' : _lkEmptyHtml();
         if (!any) { _lkHomeSync(); return; }
         const refN = _lkRefineCount();
+        const show = _lkRefine.show || 'both';
         // Top row: the collection stat (looks only — trips moved to the
         // Diary, 2026-09-08) beside the one creation door, + New look. The
         // split menu retired with the travel edit; a trip is added from
@@ -13793,29 +14019,43 @@ button.rb-lk-live{cursor:pointer}
         // control that appears from nowhere is harder to learn than one
         // that is visibly not yet needed. Four LOOKS as the count line
         // counts them — the whole stream (ADR-002 [C10]).
-        const sortLive = streamN >= 4;
+        // Refine comes live at four — or the moment a Show filter stands
+        // (a door can set one on any count: the home row's View all lands
+        // on key pieces), so a standing filter is always clearable.
+        const sortLive = streamN >= 4 || show !== 'both';
         const inert = sortLive ? '' : ' disabled';
+        // Filters can only be SET while Refine is live, but a delete can
+        // drop the count back under four — never leave a live filter
+        // hiding looks behind an inert control. Show (Looks / Key pieces /
+        // Both) is a filter too (2026-10-05).
+        const refActive = sortLive && refN;
+        const showLive = sortLive ? show : 'both';
+        const looksShown = showLive === 'kp' ? [] : (refActive ? _lkSorted().filter(_lkMatchRefine) : _lkSorted());
+        const itemsShown = showLive === 'kp' ? [] : (refActive ? shelfItems.filter(_lkMatchRefineItem) : shelfItems);
+        const kpShown = showLive === 'looks' ? [] : (refActive ? kpItems.filter(_lkMatchRefineItem) : kpItems);
+        const nLooks = looksShown.length + itemsShown.length, nKp = kpShown.length;
+        // The count line says what the grid holds after the filters —
+        // "7 looks · 4 key pieces" (both), or the one kind on show.
+        const countLine = showLive === 'looks' ? _lkN(nLooks, 'look') : showLive === 'kp' ? _lkN(nKp, 'key piece')
+          : (nLooks || nKp) ? [nLooks ? _lkN(nLooks, 'look') : '', nKp ? _lkN(nKp, 'key piece') : ''].filter(Boolean).join(' · ') : _lkN(0, 'look');
+        const hasFilters = sortLive && (refN > 0 || show !== 'both');
         bar.innerHTML = _rbMastHtml({
-          label: 'All looks', count: _lkN(streamN, 'look'),
+          label: showLive === 'kp' ? 'Key pieces' : showLive === 'looks' ? 'All looks' : 'Lookbook', count: countLine,
           actionsHtml:
             '<button type="button" class="rb-pill sm rb-lk-sort"' + inert +
               (sortLive ? ' onclick="window.__lkSort()"' : '') + '>' +
               '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
               '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
-            '<button type="button" class="rb-pill sm rb-lk-sort rb-lk-refine' + (sortLive && (refN || _lkRefineOpen) ? ' on' : '') + '"' + inert +
+            // A small rose dot on Refine says a filter is on (the design).
+            '<button type="button" class="rb-pill sm rb-lk-sort rb-lk-refine' + (sortLive && _lkRefineOpen ? ' on' : '') + '"' + inert +
               (sortLive ? ' onclick="window.__lkRefineToggle()"' : '') + '>' +
-              '<span>Refine' + (sortLive && refN ? ' · ' + refN : '') + '</span></button>' +
+              '<span>Refine</span>' + (hasFilters ? '<i class="rb-lk-refdot" aria-label="Filters on"></i>' : '') + '</button>' +
             '<button type="button" class="rb-pill rb-lk-act rb-lk-new" onclick="window.__lkNew()">+ New look</button>',
         });
         // The Refine drawer opens beneath the masthead line.
-        if (allHead) allHead.innerHTML = sortLive && _lkRefineOpen ? _lkRefineHtml() : '';
-        // Filters can only be SET while Refine is live, but a delete can
-        // drop the count back under four — never leave a live filter
-        // hiding looks behind an inert control.
-        const refActive = sortLive && refN;
-        const looksShown = refActive ? _lkSorted().filter(_lkMatchRefine) : _lkSorted();
-        const noneHtml = refActive && !looksShown.length
-          ? '<div style="grid-column:1/-1;padding:26px 0 6px;font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-faint)">No looks carry those tags. <button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()" style="font-style:normal">Clear the filters</button></div>'
+        if (allHead) allHead.innerHTML = sortLive && _lkRefineOpen ? _lkRefineHtml(countLine) : '';
+        const noneHtml = hasFilters && !nLooks && !nKp
+          ? '<div class="rb-lk-none" style="grid-column:1/-1"><div class="t">Nothing in this edit</div><div class="s">Loosen a filter to see more of your lookbook.</div><button type="button" class="rb-pill" onclick="window.__lkRefineClear()">Clear all</button></div>'
           : '';
         // ONE stream (cohesion pass 2026-08-08): her Looks and every saved
         // result — key pieces styled, daily looks, travel edits — interleave
@@ -13827,22 +14067,26 @@ button.rb-lk-live{cursor:pointer}
         // in the blob (Q1 option a) and the client already holds every row,
         // so they filter in memory on the same axes as a Look.
         const entries = looksShown.map(l => ({ ts: _lkCardTs(l), html: _lkLookCard(l) }))
-          .concat((refActive ? shelfItems.filter(_lkMatchRefineItem) : shelfItems)
-            .map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })));
+          .concat(itemsShown.map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })))
+          // Key pieces interleave by the moment they were styled (the fold).
+          .concat(kpShown.map(i => ({ ts: Number(i.id) || 0, html: _lkKpCard(i) })));
         entries.sort((a, b) => _lkSortDesc ? b.ts - a.ts : a.ts - b.ts);
         _lkHomeSync();
         // The draft leads the grid as a dashed tile in the add-card
         // register (phase 1) — never a look card: it is not a look yet.
         const parkedTile = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
-        grid.innerHTML = (parkedTile ? _lkDraftTileHtml(parkedTile) : '') + noneHtml + entries.map(e => e.html).join('') +
+        grid.innerHTML = (parkedTile && showLive !== 'kp' ? _lkDraftTileHtml(parkedTile) : '') + noneHtml + entries.map(e => e.html).join('') +
         // The way in stays on the grid — the same amplified add card the
         // pieces grid carries (Annie, 2026-07-30: the CTA vanished once a
-        // look existed; only the empty state offered one).
-        '<div class="rb-add-card" onclick="window.__lkNew()" role="button" tabindex="0">' +
+        // look existed; only the empty state offered one). While key pieces
+        // show, the dashed "Style a key piece" door closes the grid (the
+        // fold, 2026-10-05).
+        (showLive !== 'kp' ? '<div class="rb-add-card" onclick="window.__lkNew()" role="button" tabindex="0">' +
           '<span class="rb-add-plus">+</span>' +
           '<span class="rb-add-serif">New look</span>' +
           '<span class="rb-add-hint">Built on the rack</span>' +
-        '</div>';
+        '</div>' : '') +
+        (showLive !== 'looks' ? _lkKpDoorHtml() : '');
       }
 
       // The Looks stream holds SAVED LOOKS ONLY (Look Rules 1a, 2026-08-17).
@@ -13863,6 +14107,54 @@ button.rb-lk-live{cursor:pointer}
           return (typeof snLoad === 'function' ? snLoad() : []).filter(i => i && i.type === 'travel-edit');
         } catch (_) { return []; }
       }
+      // Key pieces share the grid (the fold, 2026-10-05): a key piece styled
+      // is a tile among the looks, tagged on its photo, its looks as small
+      // tiles of 1–3 frames. Read apart from _lkShelfItems so home's
+      // zero-state rules (which key on looks) are untouched.
+      function _lkKpItems() {
+        try {
+          return (typeof snLoad === 'function' ? snLoad() : []).filter(i => i && i.type === 'key-piece');
+        } catch (_) { return []; }
+      }
+      function _lkKpFrames(i) {
+        const kd = i.kpData || {};
+        const imgs = (kd.generatedImages || []).filter(u => typeof u === 'string' && u.indexOf('http') === 0);
+        if (imgs.length) return imgs.slice(0, 3);
+        const lead = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : (typeof kd.photoUrl === 'string' && kd.photoUrl.indexOf('http') === 0 ? kd.photoUrl : null);
+        return lead ? [lead] : [];
+      }
+      function _lkKpWays(i) {
+        const n = (i.kpData && Array.isArray(i.kpData.ways)) ? i.kpData.ways.length : 0;
+        return n === 1 ? 'Styled one way' : n === 2 ? 'Styled two ways' : 'Styled three ways';
+      }
+      function _lkKpCard(i) {
+        const frames = _lkKpFrames(i);
+        const cells = frames.map((u, k) => ({ url: u, name: 'Look ' + (k + 1) }));
+        return '<div class="rb-lk-tilewrap" data-rmfn="__snRemove" data-rmidx="' + Number(i.id) + '" data-rmconfirm="1">' + _ltTile({
+          tag: 'kp',
+          title: i.title || 'A piece, styled',
+          meta: _lkKpWays(i),
+          cells,
+          photo: null,
+        }, { body: 'window.__snOpenItem(' + Number(i.id) + ')', extraClass: 'lt-card lt-kp' }) +
+        '<button class="rb-lk-rmx" onclick="event.stopPropagation();window.__snRemove(' + Number(i.id) + ')" title="Delete" aria-label="Delete">' +
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+        '</button>' +
+        '</div>';
+      }
+      // The dashed door at the end of the grid while key pieces show: the
+      // prompt with its wardrobe sheet open — the piece, then the mode.
+      function _lkKpDoorHtml() {
+        return '<div class="rb-add-card rb-lk-kpdoor" onclick="window.__lkStyleKeyPiece()" role="button" tabindex="0">' +
+          '<span class="rb-add-plus">+</span>' +
+          '<span class="rb-add-serif">Style a key piece</span>' +
+          '<span class="rb-add-hint">From your wardrobe</span>' +
+        '</div>';
+      }
+      window.__lkStyleKeyPiece = function() {
+        _rbTrack('kp_door_tapped', { from: 'lookbook' });
+        if (window.__rbHbOpen) window.__rbHbOpen({ fresh: true, pick: 'wardrobe' });
+      };
       // Recency for the unified stream: a look sorts by its last wear
       // (never-worn falls to the end descending, the front ascending —
       // the standing sort semantics); an item by the moment it was saved
@@ -13875,7 +14167,7 @@ button.rb-lk-live{cursor:pointer}
         const n = _lkWearCount(l);
         const last = _lkLastWorn(l);
         return '<div class="rb-lk-tilewrap">' + _ltTile({
-          eyebrow: 'Look',
+          tag: 'look',
           title: l.name,
           provisional: l.name_provisional,
           vibe: _rbVibeLabel(_lkTagsOf(l)),
@@ -13913,7 +14205,7 @@ button.rb-lk-live{cursor:pointer}
       function _lkItemCard(i) {
         const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
         return '<div class="rb-lk-tilewrap" data-rmfn="__snRemove" data-rmidx="' + Number(i.id) + '" data-rmconfirm="1">' + _ltTile({
-          eyebrow: 'Look',
+          tag: 'look',
           title: i.title || 'Saved look',
           meta: _lkItemMeta(i),
           cells: [],
@@ -14015,7 +14307,7 @@ button.rb-lk-live{cursor:pointer}
       // A look's read is its stored tags, else the inherited overlap of its
       // pieces (the same read the detail shows) — so legacy looks filter
       // too. Within an axis picks OR; across axes they AND.
-      var _lkRefine = { climate: [], wear: [], vibe: [] };   // ADR-002 §7: Light removed
+      var _lkRefine = { climate: [], wear: [], vibe: [], show: 'both' };   // ADR-002 §7: Light removed; show: 'both'|'looks'|'kp' (the fold, 2026-10-05)
       var _lkRefineOpen = false;
       function _lkRefineCount() {
         return _lkRefine.climate.length + _lkRefine.wear.length + _lkRefine.vibe.length;
@@ -14048,6 +14340,15 @@ button.rb-lk-live{cursor:pointer}
         const out = [];
         const dl = d && (d.dlData || d.kpData);
         if (dl && dl.look_tags) out.push(_rbTagsParse(dl.look_tags));
+        // A key piece carries no look_tags (/api/style writes none): its
+        // read is what its ways' OWNED pieces imply — the same inherited
+        // read a legacy look gets (2026-10-05).
+        if (d && d.kpData && !(d.kpData.look_tags) && Array.isArray(d.kpData.ways)) {
+          d.kpData.ways.forEach(w => {
+            const ids = (w && Array.isArray(w.pieces) ? w.pieces : []).map(pc => pc && pc.wardrobe_match && pc.wardrobe_match.id).filter(Boolean);
+            if (ids.length) out.push(_rbInheritLookTags(ids));
+          });
+        }
         const tv = d && d.tvData;
         if (tv && Array.isArray(tv.looks)) tv.looks.forEach(l => { if (l && l.look_tags) out.push(_rbTagsParse(l.look_tags)); });
         if (d && d.look_tags) out.push(_rbTagsParse(d.look_tags));
@@ -14081,9 +14382,15 @@ button.rb-lk-live{cursor:pointer}
         // filters them alongside Looks — so their values have to be offered
         // or the axis is filterable in principle and empty in practice.
         _lkShelfItems().forEach(i => _lkItemTagSets(i).forEach(take));
+        _lkKpItems().forEach(i => _lkItemTagSets(i).forEach(take));
         return base;
       }
-      function _lkRefineHtml() {
+      function _lkRefineHtml(countLine) {
+        const show = _lkRefine.show || 'both';
+        const seg = (k, label) => '<button type="button" class="rb-lkref-show' + (show === k ? ' on' : '') + '" onclick="window.__lkRefineShow(\'' + k + '\')">' + label + '</button>';
+        // Show leads the drawer (the fold, 2026-10-05): Looks, Key pieces or
+        // Both — Season, Wear it for and Vibe filter both kinds beneath.
+        const showRow = '<div><div class="rb-lkref-ax">Show</div><div class="rb-lkref-showrow">' + seg('looks', 'Looks') + seg('kp', 'Key pieces') + seg('both', 'Both') + '</div></div>';
         const g = axis => {
           const sel = _lkRefine[axis];
           const opts = _lkRefineOpts(axis);
@@ -14093,17 +14400,21 @@ button.rb-lk-live{cursor:pointer}
               '<button type="button" class="rb-lkref-chip' + (sel.indexOf(o) > -1 ? ' on' : '') + '" data-ax="' + axis + '" data-val="' + _waEsc(o) + '" onclick="window.__lkRefinePick(this)">' + _waEsc(_rbTagLabel(axis, o)) + '</button>').join('') +
             '</div></div>';
         };
-        // Count what the grid will actually show — Looks AND artifacts.
-        const n = _lkLooks.filter(_lkMatchRefine).length
-          + _lkShelfItems().filter(_lkMatchRefineItem).length;
+        // The foot repeats the masthead's count line — what the grid will
+        // actually show after every filter, looks and key pieces.
         // Vibe filters HERE, under Season and Wear it for — one filtering
         // system, one place (Annie, 2026-08-17: no standing vibe row on the
         // Lookbook; the vibe is part of Refine, not a second surface).
-        return '<div class="rb-lk-refwrap">' + g('climate') + g('wear') + g('vibe') +
+        return '<div class="rb-lk-refwrap">' + showRow + g('climate') + g('wear') + g('vibe') +
           '<div class="rb-lkref-foot"><button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()">Clear all</button>' +
-          '<span style="font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)">' + _lkN(n, 'look') + '</span></div></div>';
+          '<span class="rb-lkref-count" style="font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)">' + _waEsc(countLine || '') + '</span></div></div>';
       }
       window.__lkRefineToggle = function() { _lkRefineOpen = !_lkRefineOpen; _lkPaint(); };
+      window.__lkRefineShow = function(k) {
+        _lkRefine.show = (k === 'looks' || k === 'kp') ? k : 'both';
+        _lkPaint();
+        _rbTrack('looks_refined', { axis: 'show', value: _lkRefine.show, active: _lkRefineCount() });
+      };
       window.__lkRefinePick = function(el) {
         const ax = el.getAttribute('data-ax'), v = el.getAttribute('data-val');
         const sel = _lkRefine[ax];
@@ -14114,7 +14425,7 @@ button.rb-lk-live{cursor:pointer}
         _rbTrack('looks_refined', { axis: ax, active: _lkRefineCount() });
       };
       window.__lkRefineClear = function() {
-        _lkRefine = { climate: [], wear: [], vibe: [] };
+        _lkRefine = { climate: [], wear: [], vibe: [], show: 'both' };
         _lkPaint();
       };
 
@@ -25061,6 +25372,8 @@ body>*:not(#tv-result-page){display:none !important}
             if (window.__rbDiaryOpenAt) window.__rbDiaryOpenAt(_pdLocalISO());
             else if (window.__rbDiaryOpen) window.__rbDiaryOpen();
           }
+          // 'inspiration' survives as an alias: the Lookbook on Show = Key
+          // pieces (the fold, 2026-10-05).
           else if (dest === 'inspiration') { window.__rbInspOpen && window.__rbInspOpen(); }
           else if (dest === 'wardrobe') {
             if (!_wardrobeOpen() && window.App && App.showWardrobe) App.showWardrobe();
@@ -25083,7 +25396,7 @@ body>*:not(#tv-result-page){display:none !important}
             _closeOverlays();
             _closeWardrobe(); // its patched open would re-hide sn-page, so close first
             const o = window._rbNavOrigin;
-            _rootOpen(o === 'diary' || o === 'wardrobe' || o === 'inspiration' ? o : 'lookbook');
+            _rootOpen(o === 'diary' || o === 'wardrobe' ? o : 'lookbook');
           } else if (dest === 'lookbook' || dest === 'diary' || dest === 'calendar' || dest === 'inspiration') {
             // 'calendar' survives as a legacy alias
             _closeOverlays();
@@ -25098,12 +25411,10 @@ body>*:not(#tv-result-page){display:none !important}
         const tnW = document.getElementById('rb-tn-wardrobe');
         const tnL = document.getElementById('rb-tn-lookbook');
         const tnD = document.getElementById('rb-tn-diary');
-        const tnI = document.getElementById('rb-tn-inspiration');
         const dkH = document.getElementById('rb-dock-home');
         const dkW = document.getElementById('rb-dock-wardrobe');
         const dkL = document.getElementById('rb-dock-lookbook');
         const dkD = document.getElementById('rb-dock-diary');
-        const dkI = document.getElementById('rb-dock-inspiration');
         const backPill = document.getElementById('rb-backpill');
         const backLabel = document.getElementById('rb-backpill-label');
         const navSet = document.getElementById('rb-navset');
@@ -25111,8 +25422,7 @@ body>*:not(#tv-result-page){display:none !important}
           const snEl = document.getElementById('sn-page');
           const snOpen = !!(snEl && snEl.style.display === 'block');
           const diaryOpen = snOpen && snEl.classList.contains('rb-cal-on');
-          const inEl = document.getElementById('rb-insp-page');
-          const inOpen = !!(inEl && inEl.style.display === 'block');
+          const inOpen = false;   // Inspiration folded into the Lookbook (2026-10-05)
           const wOpen = _wardrobeOpen();
           const detail = _detailOpen();
           const pcEl = document.getElementById('rb-piece-page');
@@ -25125,23 +25435,21 @@ body>*:not(#tv-result-page){display:none !important}
           let root = null;
           if (!pcOn && !detail) {
             if (wOpen) root = 'wardrobe';
-            else if (inOpen) root = 'inspiration';
             else if (diaryOpen) root = 'diary';
             else if (snOpen && !lkDetail) root = 'lookbook';
           }
           const anyOpen = pcOn || detail || wOpen || inOpen || snOpen;
           if (root) window._rbNavOrigin = root;
           else if (!anyOpen) window._rbNavOrigin = 'home';
+          else if (window._rbNavOrigin === 'inspiration') window._rbNavOrigin = 'lookbook';
           const active = root || (anyOpen ? window._rbNavOrigin : 'home');
           if (tnW) tnW.classList.toggle('active', active === 'wardrobe');
           if (tnL) tnL.classList.toggle('active', active === 'lookbook');
           if (tnD) tnD.classList.toggle('active', active === 'diary');
-          if (tnI) tnI.classList.toggle('active', active === 'inspiration');
           if (dkH) dkH.classList.toggle('active', active === 'home');
           if (dkW) dkW.classList.toggle('active', active === 'wardrobe');
           if (dkL) dkL.classList.toggle('active', active === 'lookbook');
           if (dkD) dkD.classList.toggle('active', active === 'diary');
-          if (dkI) dkI.classList.toggle('active', active === 'inspiration');
           // ≤767px the nav bar IS the return band at any depth: the pill
           // (naming the previous screen) replaces the wordmark, the set
           // position replaces the avatar, and nothing else rides the bar.
@@ -25451,7 +25759,7 @@ body>*:not(#tv-result-page){display:none !important}
         el.style.display = '';
         el.innerHTML = `
           <div class="rb-sec-head">
-            <span class="rb-sec-ey">Inspiration</span>
+            <span class="rb-sec-ey">Key pieces</span>
             <button class="rb-sec-link" onclick="window.__rbInspOpen()">View all</button>
           </div>
           <div class="rb-sn-grid">
@@ -25654,59 +25962,95 @@ body>*:not(#tv-result-page){display:none !important}
       // Wishlist switch in the header; onPick(item, source) replaces the
       // prompt apply (the key piece modal uses it — one picker, two doors).
       var _cbPickOpts = null;
+      var _cbPickCat = 'All';   // the sheet's category chip (All, then every sheet category she holds)
       window.__cbWardrobePick = function(opts) {
         opts = opts || {};
-        _cbPickOpts = opts.onPick ? opts : null;
+        _cbPickOpts = (opts.onPick || opts.onClose) ? opts : null;
+        if (!opts._keepCat) _cbPickCat = 'All';
         const source = opts.source === 'wishlist' ? 'wishlist' : 'wardrobe';
-        const items = source === 'wishlist' ? _wlItems : _waItems;
+        const all = source === 'wishlist' ? _wlItems : _waItems;
         document.getElementById('cb-wa-pick')?.remove();
-        if (!items.length && !opts.segments) {
+        if (!all.length && !opts.segments) {
           _waShowToast(source === 'wishlist' ? 'Nothing on your wishlist yet' : 'Nothing catalogued yet — add a piece to your wardrobe first');
+          if (opts.onClose) opts.onClose();
           return;
         }
-        const serif = "'Cormorant',Georgia,serif";
+        // The sheet filters by category (the design's All / Tops / Bottoms):
+        // All, then every sheet category her pieces actually hold.
+        const catOf = it => (typeof _waSheetCatOf === 'function' ? _waSheetCatOf(it) : (it.category || 'Other'));
+        const cats = ['All'];
+        all.forEach(it => { const c = catOf(it); if (c && cats.indexOf(c) < 0) cats.push(c); });
+        if (cats.indexOf(_cbPickCat) < 0) _cbPickCat = 'All';
+        const items = _cbPickCat === 'All' ? all : all.filter(it => catOf(it) === _cbPickCat);
         const modal = document.createElement('div');
         modal.id = 'cb-wa-pick';
-        modal.style.cssText = 'position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:24px';
-        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.className = 'cb-pick-wrap';
+        const close = () => { modal.remove(); const o = _cbPickOpts; _cbPickOpts = null; if (o && o.onClose) o.onClose(); };
+        modal.onclick = function(e) { if (e.target === modal) close(); };
+        window.__cbPickClose = close;
         const pick = wi => opts.onPick
           ? `window.__cbPickApply('${source}','${_waEsc(String(wi.id))}')`
           : `window.__cbWardrobeApply('${_waEsc(String(wi.id))}')`;
         const seg = (k, label) => `<button type="button" class="cb-pick-seg${k === source ? ' on' : ''}" onclick="window.__cbPickSwitch('${k}')">${label}</button>`;
         const segs = opts.segments ? `<div class="cb-pick-segs">${seg('wardrobe', 'Wardrobe')}${seg('wishlist', 'Wishlist')}</div>` : '';
+        const chips = cats.length > 1 ? `<div class="cb-pick-cats">${cats.map(c => `<button type="button" class="cb-pick-cat${c === _cbPickCat ? ' on' : ''}" onclick="window.__cbPickCat('${_waEsc(c)}')">${_waEsc(c)}</button>`).join('')}</div>` : '';
         const empty = !items.length
-          ? `<p style="grid-column:1/-1;margin:20px 0;text-align:center;font-family:${serif};font-style:italic;font-size:15px;color:var(--ink-faint)">${source === 'wishlist' ? 'Nothing on your wishlist yet.' : 'Nothing in your wardrobe yet.'}</p>`
+          ? `<p class="cb-pick-empty">${source === 'wishlist' ? 'Nothing on your wishlist yet.' : 'Nothing filed here yet.'}</p>`
           : '';
-        const tiles = empty + items.slice(0, 60).map(wi => `
-          <button onclick="${pick(wi)}" style="background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:10px;padding:0;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit">
-            <div style="aspect-ratio:3/4;background:#F0EDE8;display:flex;align-items:center;justify-content:center;overflow:hidden">${wi.image_url
-              ? `<img src="${_waEsc(wi.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" alt="">`
-              : `<span style="font-family:${serif};font-size:22px;color:#C8B8A2">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</span>`}</div>
-            <div style="padding:7px 9px 9px;font-size:11px;color:#202021;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_waEsc(wi.label)}</div>
+        const tiles = empty + items.slice(0, 90).map(wi => `
+          <button type="button" class="cb-pick-tile" onclick="${pick(wi)}">
+            <span class="im">${wi.image_url
+              ? `<img src="${_waEsc(wi.image_url)}" alt="">`
+              : `<span class="mono">${_waEsc((wi.label || '?').charAt(0).toUpperCase())}</span>`}</span>
+            <span class="nm">${_waEsc(wi.label)}</span>
           </button>`).join('');
         modal.innerHTML = `
-          <div style="background:#FAF8F5;border-radius:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);padding:24px">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
-              <p style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);margin:0">${source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'}</p>
-              <button onclick="document.getElementById('cb-wa-pick').remove()" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--ink-faint);font-size:16px;line-height:1">×</button>
+          <div class="cb-pick-card" role="dialog" aria-label="${source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'}">
+            <div class="cb-pick-grab"><span></span></div>
+            <div class="cb-pick-head">
+              <div><div class="cb-pick-title">${source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'}</div><div class="cb-pick-sub">Pick the piece to start from.</div></div>
+              <button type="button" class="cb-pick-x" onclick="window.__cbPickClose()" aria-label="Close">×</button>
             </div>
-            <p style="font-family:${serif};font-size:24px;font-weight:300;color:#202021;margin:0 0 16px;line-height:1.2">Which piece are we styling?</p>
-            ${segs}
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px">${tiles}</div>
+            ${segs}${chips}
+            <div class="cb-pick-scroll"><div class="cb-pick-grid">${tiles}</div></div>
           </div>`;
         if (!document.getElementById('cb-pick-style')) {
           const st = document.createElement('style');
           st.id = 'cb-pick-style';
-          st.textContent = '.cb-pick-segs{display:inline-flex;background:var(--cream-200,#EDE7DE);border-radius:100px;padding:3px;margin:0 0 14px}' +
+          st.textContent = '.cb-pick-wrap{position:fixed;inset:0;z-index:960;background:rgba(32,32,33,.28);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}' +
+            '.cb-pick-card{background:var(--cream,#FAF8F5);border-radius:20px;width:100%;max-width:520px;max-height:82vh;display:flex;flex-direction:column;box-sizing:border-box;box-shadow:0 24px 60px -12px rgba(32,32,33,0.28);overflow:hidden;font-family:inherit;color:var(--ink,#202021)}' +
+            '.cb-pick-grab{display:none;padding:10px 0 4px}.cb-pick-grab span{display:block;width:36px;height:5px;border-radius:3px;background:var(--cream-400,#D8CFBE);margin:0 auto}' +
+            '.cb-pick-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:22px 20px 0}' +
+            '.cb-pick-title{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:28px;line-height:1.08}' +
+            '.cb-pick-sub{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:400;font-size:18px;line-height:1.2;color:var(--ink-soft,#55524E);margin-top:2px}' +
+            '.cb-pick-x{flex:none;width:32px;height:32px;border-radius:50%;background:#fff;border:0.5px solid var(--rule-mid,#CFC7B9);cursor:pointer;font-size:14px;color:var(--ink-soft,#55524E);font-family:inherit;padding:0}' +
+            '.cb-pick-segs{display:inline-flex;background:var(--cream-200,#EDE7DE);border-radius:100px;padding:3px;margin:14px 20px 0;align-self:flex-start}' +
             '.cb-pick-seg{border:none;background:transparent;border-radius:100px;padding:6px 14px;font-family:inherit;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft,#5C574F);cursor:pointer}' +
-            '.cb-pick-seg.on{background:#fff;color:var(--ink,#202021);box-shadow:0 1px 2px rgba(32,32,33,0.08)}';
+            '.cb-pick-seg.on{background:#fff;color:var(--ink,#202021);box-shadow:0 1px 2px rgba(32,32,33,0.08)}' +
+            '.cb-pick-cats{display:flex;gap:8px;padding:16px 20px 0;overflow-x:auto;scrollbar-width:none;flex:none}.cb-pick-cats::-webkit-scrollbar{display:none}' +
+            '.cb-pick-cat{flex:none;height:34px;padding:0 14px;border-radius:100px;background:#fff;border:1px solid var(--rule-mid,#CFC7B9);font-family:inherit;font-size:12px;color:var(--ink,#202021);cursor:pointer}' +
+            '.cb-pick-cat.on{background:#F3EFE6;border-color:#C9BCA6}' +
+            '.cb-pick-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px 20px 24px}' +
+            '.cb-pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px 10px}' +
+            '.cb-pick-tile{background:none;border:0;padding:0;cursor:pointer;text-align:left;font-family:inherit;min-width:0;color:var(--ink,#202021)}' +
+            '.cb-pick-tile .im{display:flex;align-items:center;justify-content:center;aspect-ratio:3/4;border-radius:var(--rad-sm,8px);border:1px solid var(--rule,#E7E0CF);background:#F0EDE8;overflow:hidden;box-sizing:border-box}' +
+            '.cb-pick-tile .im img{width:100%;height:100%;object-fit:cover;display:block}' +
+            '.cb-pick-tile .mono{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:22px;color:#C8B8A2}' +
+            '.cb-pick-tile .nm{display:block;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:14px;line-height:1.15;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+            '.cb-pick-empty{grid-column:1/-1;margin:20px 0;text-align:center;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-size:15px;color:var(--ink-faint,#9A958E)}' +
+            '@media(max-width:767px){.cb-pick-wrap{align-items:flex-end;padding:0}.cb-pick-card{max-width:none;max-height:86vh;height:660px;border-radius:18px 18px 0 0;box-shadow:0 -8px 30px rgba(32,32,33,.1)}.cb-pick-grab{display:block}.cb-pick-head{padding-top:12px}.cb-pick-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}';
           document.head.appendChild(st);
         }
         document.body.appendChild(modal);
       };
+      window.__cbPickCat = function(c) {
+        _cbPickCat = c || 'All';
+        const o = _cbPickOpts || {};
+        window.__cbWardrobePick(Object.assign({}, o, { source: o.source, _keepCat: true }));
+      };
       // The segment buttons re-open the picker on the other source with
       // the SAME options (and callback); a tile hands the item to it and closes.
-      window.__cbPickSwitch = function(k) { window.__cbWardrobePick(Object.assign({ segments: true }, _cbPickOpts || {}, { source: k })); };
+      window.__cbPickSwitch = function(k) { window.__cbWardrobePick(Object.assign({ segments: true }, _cbPickOpts || {}, { source: k, _keepCat: true })); };
       window.__cbPickApply = function(source, id) {
         const items = source === 'wishlist' ? _wlItems : _waItems;
         const it = items.find(w => String(w.id) === String(id));
@@ -26180,8 +26524,8 @@ body>*:not(#tv-result-page){display:none !important}
           _cbPhotoData = dataUrl;
           _rbTrack('photo_attached', {});
           // The home field (phase 3): a photo from + is a piece — the box
-          // opens with it attached, the words lead with "three ways".
-          if (typeof _rbHbOn === 'function' && _rbHbOn() && window.__rbHbOpen) window.__rbHbOpen({ text: 'Style this piece three ways' });
+          // opens with it on the card above the field (2026-10-05).
+          if (typeof _rbHbOn === 'function' && _rbHbOn() && window.__rbHbOpen) { _cbPhotoData = null; window.__rbHbOpen({ photo: dataUrl }); }
         }).catch(function() {
           _waShowToast('Couldn’t read that image — try another photo.');
         });
@@ -27001,9 +27345,7 @@ body>*:not(#tv-result-page){display:none !important}
         try {
           const p = window.location.pathname;
           const snEl = document.getElementById('sn-page');
-          if (snEl && p !== '/lookbook' && p !== '/looks' && p !== '/diary' && p !== '/calendar') { snEl.style.display = 'none'; }
-          const inEl = document.getElementById('rb-insp-page');
-          if (inEl && p !== '/inspiration') { inEl.style.display = 'none'; }
+          if (snEl && p !== '/lookbook' && p !== '/looks' && p !== '/diary' && p !== '/calendar' && p !== '/inspiration') { snEl.style.display = 'none'; }
           if (p.indexOf('/piece/') !== 0) window.__rbPieceHide && window.__rbPieceHide();
           if (p !== '/moodboards') _mbListPage.style.display = 'none';
           window.__mbCloseResult && window.__mbCloseResult();
@@ -30173,16 +30515,14 @@ body.rb-hb-on #dash .concierge{display:none!important}
         if (!el) {
           el = document.createElement('section');
           el.id = 'rb-hb';
-          el.innerHTML = '<div id="rb-today-slot"></div><div class="rb-hb-row" id="rb-hb-row"><span id="rb-hb-plus"></span><span id="rb-hb-fieldslot" style="display:contents"></span></div>';
+          el.innerHTML = '<div id="rb-today-slot"></div><div class="rb-hb-row" id="rb-hb-row"><span id="rb-hb-fieldslot" style="display:contents"></span></div>';
           _rbTrack('home_box_shown', {});
         }
         if (mast.nextSibling !== el) dash.insertBefore(el, mast.nextSibling);
-        // The + keeps its five rows: the card's own .hp-add-wrap (button +
-        // menu, the rows personalize appends to it by id) moves into the
-        // field's row — one menu, one set of doors.
-        const plus = document.getElementById('rb-hb-plus');
-        const wrap = document.querySelector('#dash .concierge .hp-add-wrap') || (plus && plus.querySelector('.hp-add-wrap'));
-        if (plus && wrap && wrap.parentNode !== plus) plus.appendChild(wrap);
+        // The + lives INSIDE the box now (2026-10-05): Take a picture /
+        // Upload a photo / From wardrobe, then the piece's two modes. The
+        // card's own .hp-add-wrap stays in the hidden card (its Add a look
+        // and Add a travel edit rows survive under ?prompt=card).
         const t = _rbHbTodayLook();
         const todaySlot = document.getElementById('rb-today-slot');
         if (todaySlot) {
@@ -30522,12 +30862,20 @@ body.rb-hb-on #dash .concierge{display:none!important}
           _rbHbStage = null;
         } else if (date) s.placeholder = 'Dress ' + _lkFmtDay(date) + '…';
         if (o.text) s.text = String(o.text).slice(0, 240);
+        // A piece handed over by a door (the piece page's Style it three
+        // ways, a photo from the hidden card's +): the card above the field,
+        // its mode already ticked when the door chose one.
+        if (o.piece) { _rbLpAttachPiece(o.piece, 'door'); if (o.pieceMode) s.pieceMode = o.pieceMode; }
+        else if (o.photo) _rbLpAttachPhoto(o.photo, 'upload');
         _rbLpSync(true);
         try {
           const ta = document.getElementById('rb-lp-in');
           if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); if (home) ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
         } catch (_) {}
-        _rbTrack('home_box_opened', { today: !!_rbHbTodayLook(), dated: !!date, photo: !!_cbPhotoData, look: !!lkName, inline: home });
+        // The Lookbook's "Style a key piece" door: the box with its wardrobe
+        // sheet already open — the piece first, then the mode.
+        if (o.pick === 'wardrobe') setTimeout(() => { if (_rbLp === s) window.__rbLpAdd('wardrobe'); }, 60);
+        _rbTrack('home_box_opened', { today: !!_rbHbTodayLook(), dated: !!date, photo: !!_cbPhotoData, look: !!lkName, inline: home, piece: !!o.piece });
       };
       // Today's look: the field opens the look ITSELF with the box on it —
       // a saved look's page (its box in look mode), a generated day's

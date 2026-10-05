@@ -312,19 +312,21 @@ const SHOT = process.env.SHOT_DIR || '';
     !(await pg.isVisible()) && await page.locator('#sn-page .rb-lk-composer').count() === 1
     && (await page.locator('#sn-page .rb-lk-composer').innerText()).includes('Cream silk shirt'));
 
-  // Style it three ways — prefilled modal in Inspiration
+  // Style it three ways — the prompt box with the piece on its card and
+  // the mode already ticked (the fold, 2026-10-05): a note is optional,
+  // Send runs it.
   await page.evaluate(() => window.__rbPieceOpen('w-top1', { from: 'wardrobe' }));
   await page.waitForTimeout(300);
   await page.locator('.rb-pc-stylebtn').click();
   await page.waitForTimeout(200);
   await page.locator('#rb-popmenu .card button', { hasText: 'Style it three ways' }).click();
   await page.waitForTimeout(600);
-  const mt = await page.locator('#rb-inst-wrap').innerText();
-  check('style · lands in Inspiration with the modal open', await page.locator('#rb-insp-page').isVisible() && await page.locator('#rb-inst-wrap').count() === 1);
-  check('style · the piece arrives attached', await page.locator('#rb-inst-piece').count() === 1 && /Your key piece/i.test(mt) && mt.includes('Cream silk shirt'));
-  check('style · the hint says Robes already knows it', /Robes already knows the shirt/.test(mt), mt.slice(0, 300));
-  check('style · the prompt asks for the occasion', (await page.locator('#rb-inst-ta').getAttribute('placeholder') || '').startsWith('The occasion'));
-  await page.locator('.rb-inst-cta').click();
+  const mt = await page.evaluate(() => ({ dock: !!document.querySelector('#rb-lp.rb-lp-dock'), scrim: !!document.getElementById('rb-lp-scrim'), card: document.getElementById('rb-lp-piece')?.textContent.replace(/\s+/g, ' ').trim() || '',
+    mode: document.querySelector('#rb-lp-piece .mode.on .t')?.textContent, ph: document.getElementById('rb-lp-in')?.placeholder, ink: document.getElementById('rb-lp-send')?.classList.contains('ink'), noPage: !document.getElementById('rb-insp-page') }));
+  check('style · the box opens docked over a dimmed screen with the piece on its card, no Inspiration page', mt.dock && mt.scrim && mt.noPage && /Cream silk shirt/.test(mt.card) && /Tops · in your wardrobe/.test(mt.card), JSON.stringify(mt));
+  check('style · Style it three ways is already ticked and the arrow is ink', mt.mode === 'Style it three ways' && mt.ink, JSON.stringify(mt));
+  check('style · the note is optional — "Where to? Optional"', mt.ph === 'Where to? Optional', String(mt.ph));
+  await page.evaluate(() => window.__rbLpSend());
   await page.waitForTimeout(900);
   check('style · a bare submit runs with Robes\' own words', api.style.length === 1 && /^Style my Cream silk shirt three ways/.test(api.style[0]?.prompt || ''), JSON.stringify(api.style[0]?.prompt));
   check('style · the result lands on the kp page', await page.locator('#kp-result-page').isVisible());

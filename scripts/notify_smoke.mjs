@@ -168,9 +168,9 @@ await new Promise((r) => setTimeout(r, 200));   // the event insert is fire-and-
 check('tick 1 · email_sent events landed with kind + ref', db.events.filter((e) => e.event_type === 'email_sent').length === 6 && db.events.every((e) => e.metadata.kind && e.metadata.ref));
 
 const fresh = byUser('aaaaaaaa-0000-4000-8000-000000000001')[0];
-check('looks_ready · subject, the piece capitalised, three frames, the Inspiration deep link with ?open + from=email',
+check('looks_ready · subject, the piece capitalised, three frames, the Lookbook deep link with ?open + from=email (key pieces live there since 2026-10-05)',
   fresh && fresh.subject === 'Your three looks are ready.' && /Acid green cropped jumper/.test(fresh.html) && (fresh.html.match(/img\.test\/k\d\.jpg/g) || []).length === 3
-    && /https:\/\/beta\.byrobes\.com\/inspiration\?open=1758400000000&amp;from=email/.test(fresh.html) && /\/inspiration\?open=1758400000000&from=email/.test(fresh.text),
+    && /https:\/\/beta\.byrobes\.com\/lookbook\?open=1758400000000&amp;from=email/.test(fresh.html) && /\/lookbook\?open=1758400000000&from=email/.test(fresh.text),
   fresh && fresh.subject);
 check('looks_ready · List-Unsubscribe headers + a signed unsub link naming the looks_ready pref',
   fresh && /^<https:\/\/beta\.byrobes\.com\/api\/notify\/unsub\?t=aaaaaaaa-0000-4000-8000-000000000001\.looks_ready\.[0-9a-f]{40}>$/.test(fresh.headers['List-Unsubscribe'])

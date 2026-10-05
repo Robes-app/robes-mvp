@@ -84,6 +84,9 @@ const SEED_WISH = [
     image_url: 'https://res.cloudinary.com/demo/image/upload/wl-1.jpg', note: 'For the winter edit.', source_type: 'robes', source_label: null, created_at: '2026-08-01T10:00:00Z' },
 ];
 const SEED_LOOKBOOK = [
+  { id: 1757000000000, user_id: 'u-test', type: 'key-piece', title: 'Pink barrel-leg jeans', subtitle: 'Worn three ways', img: 'https://res.cloudinary.com/demo/image/upload/kp-1.jpg', created_at: '2026-09-01T09:00:00Z',
+    data: { kpData: { ways: [{ eyebrow: 'Sporty', title: 'Café morning', outfit: '', details: '', accessories: '' }, { eyebrow: 'Smart', title: 'Gallery', outfit: '', details: '', accessories: '' }, { eyebrow: 'Evening', title: 'Late dinner', outfit: '', details: '', accessories: '' }],
+      generatedImages: ['https://res.cloudinary.com/demo/image/upload/kp-1.jpg', 'https://res.cloudinary.com/demo/image/upload/kp-2.jpg', 'https://res.cloudinary.com/demo/image/upload/kp-3.jpg'], fallback: false, photoUrl: null } } },
   { id: 1756000000000, user_id: 'u-test', type: 'daily-look', title: 'Coffee with Mum', subtitle: '', img: null, created_at: '2026-08-24T09:00:00Z',
     data: { dlData: { headline: 'Coffee with Mum.', occasion_label: 'Coffee with Mum', anchor_date: '2026-08-24', worn: true, stylist_summary: '', palette: [],
       steps: [{ title: 'The Anchor', items: [{ name: 'Cream silk shirt', category: 'Tops', wardrobe_index: 0, wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: null, color: 'Cream' }, alternates: [] }] }] } } },
@@ -182,7 +185,7 @@ const check = (name, pass, detail = '') => results.push({ name, pass, detail });
 process.on('uncaughtException', (e) => { console.error(String(e).split('\n')[0]); report(); server.kill(); process.exit(1); });
 const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
 const INK = 'rgb(32, 32, 33)';
-const lit = (page) => page.evaluate(() => ['lookbook', 'diary', 'wardrobe', 'inspiration'].filter((k) => document.getElementById('rb-tn-' + k).classList.contains('active')));
+const lit = (page) => page.evaluate(() => ['lookbook', 'diary', 'wardrobe'].filter((k) => document.getElementById('rb-tn-' + k).classList.contains('active')));
 const band = (page) => page.evaluate(() => {
   const b = window._rbRetTop ? window._rbRetTop() : null;
   if (!b) return null;
@@ -234,7 +237,79 @@ const titleTop = (page) => page.evaluate(() => {
     const pills = Array.from(m.querySelectorAll('.rb-pill')).map((b) => { const c = getComputedStyle(b); return { t: b.textContent.trim(), fs: c.fontSize, rad: c.borderRadius, bg: c.backgroundColor, tt: c.textTransform }; });
     return { lab: m.querySelector('.rb-mast-lab')?.textContent, n: m.querySelector('.rb-mast-n')?.textContent, labCase: getComputedStyle(m.querySelector('.rb-mast-lab')).textTransform, pills, headRow: getComputedStyle(document.getElementById('sn-headrow')).display };
   });
-  check('lookbook · ONE masthead line: ALL LOOKS in tracked caps + "2 looks" in serif italic, no eyebrow row above', mast.lab === 'All looks' && mast.labCase === 'uppercase' && mast.n === '2 looks' && mast.headRow === 'none', JSON.stringify(mast));
+  check('lookbook · ONE masthead line: LOOKBOOK in tracked caps + "2 looks · 1 key piece" in serif italic (the mixed grid, 2026-10-05), no eyebrow row above', mast.lab === 'Lookbook' && mast.labCase === 'uppercase' && mast.n === '2 looks · 1 key piece' && mast.headRow === 'none', JSON.stringify(mast));
+  // Sort and Refine sit inert below four looks (transparent, no fill); + New look is live.
+  check('lookbook · sort, Refine and + New look are hairline pills — 11px, radius 100, sentence case, the live one white', mast.pills.length === 3 && mast.pills.every((p) => p.fs === '11px' && p.rad === '100px' && p.tt === 'none') && mast.pills[2].bg === 'rgb(255, 255, 255)', JSON.stringify(mast.pills));
+  check('lookbook · a root: no band, Lookbook lit', (await band(page)) === null && JSON.stringify(await lit(page)) === '["lookbook"]');
+  await page.locator('#rb-lk-grid .rb-lk-tile').first().click(); await page.waitForTimeout(500);
+  const lb = await band(page);
+  check('look from the grid · ‹ Lookbook + its position in the set', !!lb && lb.label === 'Lookbook' && /^[12] of 2$/.test(lb.pos), JSON.stringify(lb));
+  const before = await page.locator('#rb-lk-title').innerText();
+  await page.locator('#sn-page .rb-ret-nav:not([disabled])').first().click(); await page.waitForTimeout(400);
+  const after = await page.locator('#rb-lk-title').innerText();
+  check('look · ‹ › walk the set without leaving the screen', before !== after && (await band(page))?.label === 'Lookbook', before + ' → ' + after);
+  await page.locator('#sn-page .rb-ret-pill').click(); await page.waitForTimeout(400);
+  check('look · ‹ Lookbook lands on the grid', await page.locator('#rb-lk-grid').isVisible() && (await band(page)) === null);
+  await page.evaluate(() => window.__rbNavGo('diary')); await page.waitForTimeout(700);
+  // The list carries + alone; ‹ › are Month's, since the list scrolls a
+  // rolling window rather than paging (Annie, 2026-09-10).
+  check('diary · a root: no band; the masthead is the window in caps + the count, the toggle and + on the line, ‹ › only on Month',
+    (await band(page)) === null && await page.evaluate(async () => {
+      const h = () => document.querySelector('#sn-cal .rb-mv-head');
+      const ok1 = getComputedStyle(h().querySelector('.rb-mv-title')).textTransform === 'uppercase' && !!h().querySelector('.rb-mast-n')
+        && h().querySelectorAll('.rb-mv-seg button').length === 2 && h().querySelectorAll('.rb-mv-nav .rb-circ').length === 1
+        && ![...h().querySelectorAll('button')].some((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)');
+      window.__dySetMode('month'); await new Promise((r) => setTimeout(r, 400));
+      const ok2 = h().querySelectorAll('.rb-mv-nav .rb-circ').length === 3;
+      window.__dySetMode('list'); await new Promise((r) => setTimeout(r, 300));
+      return ok1 && ok2;
+    }));
+  // Inspiration folded into the Lookbook (2026-10-05): the legacy dest
+  // lands on the Lookbook with Show = Key pieces — no tab, no page.
+  await page.evaluate(() => window.__rbNavGo('inspiration')); await page.waitForTimeout(600);
+  const insp = await page.evaluate(() => ({ lab: document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent, count: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
+    kpTiles: document.querySelectorAll('#rb-lk-grid .lt-kp').length, lookTiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:not(.lt-kp)').length, door: !!document.querySelector('#rb-lk-grid .rb-lk-kpdoor'),
+    tag: document.querySelector('#rb-lk-grid .lt-kp .lt-tag')?.textContent, dot: !!document.querySelector('#rb-lk-bar .rb-lk-refdot'), tab: !!document.getElementById('rb-tn-inspiration'), dock: document.querySelectorAll('#rb-dock .rb-dock-tab').length, path: location.pathname }));
+  check('inspiration · no tab, no page: the legacy dest is the Lookbook on Show = Key pieces — "Key pieces · 1 key piece", the one tile tagged on its photo, looks hidden, the dashed Style a key piece door, the dot on Refine, four dock tabs',
+    (await band(page)) === null && insp.lab === 'Key pieces' && insp.count === '1 key piece' && insp.kpTiles === 1 && insp.lookTiles === 0 && insp.door && insp.tag === 'Key piece' && insp.dot && !insp.tab && insp.dock === 4 && JSON.stringify(await lit(page)) === '["lookbook"]', JSON.stringify(insp));
+  await page.evaluate(() => window.__lkRefineClear()); await page.waitForTimeout(300);
+  const mixed = await page.evaluate(() => ({ lab: document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent, count: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent, kp: document.querySelectorAll('#rb-lk-grid .lt-kp').length, looks: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:not(.lt-kp) .lt-tag.look').length, dot: !!document.querySelector('#rb-lk-bar .rb-lk-refdot') }));
+  check('lookbook · one grid: looks and the key piece side by side, each tagged on its photo, the count reading both kinds, no dot once cleared',
+    mixed.lab === 'Lookbook' && mixed.count === '2 looks · 1 key piece' && mixed.kp === 1 && mixed.looks === 2 && !mixed.dot, JSON.stringify(mixed));
+  await page.evaluate(() => window.__rbNavGo('wardrobe')); await page.waitForTimeout(500);
+  check('wardrobe · a root: Wardrobe lit, no band', JSON.stringify(await lit(page)) === '["wardrobe"]' && (await band(page)) === null);
+  await page.evaluate(() => window.__rbPieceOpen('w-top1', { from: 'wardrobe' })); await page.waitForTimeout(500);
+  const b1 = await band(page);
+  check('piece from the wardrobe · ‹ Wardrobe, "1 of 2 in tops", Wardrobe stays lit', !!b1 && b1.label === 'Wardrobe' && /^1 of 2 in tops$/i.test(b1.pos) && JSON.stringify(await lit(page)) === '["wardrobe"]', JSON.stringify(b1));
+  check('piece · band two is 48px, sits right under the nav, hairline-bottomed, nothing else in it', !!b1 && b1.h === 48 && b1.top === 0 && b1.hairline && b1.extras === 0, JSON.stringify(b1));
+  check('piece · the title block starts 48px below the nav (every title in the app now starts at the same height)', (await titleTop(page)) === 48, String(await titleTop(page)));
+  await page.locator('#rb-piece-page .rb-pc-rail .rb-lk-tile').first().click(); await page.waitForTimeout(600);
+  const b2 = await band(page);
+  check('look from the piece · ‹ Cream silk shirt, "1 of 1 with this piece" prints nothing (a set of one), Wardrobe STILL lit',
+    !!b2 && b2.label === 'Cream silk shirt' && b2.pos === '' && JSON.stringify(await lit(page)) === '["wardrobe"]' && /^saved look$/i.test(await page.locator('#rb-lk-body .rb-lk-mast .rb-tb-ey').innerText()), JSON.stringify(b2));
+  check('look · the title block starts at the same height as the piece\'s', (await titleTop(page)) === 48, String(await titleTop(page)));
+  await page.locator('#sn-page .rbc-rack .rbc-namebtn').first().click(); await page.waitForTimeout(500);
+  const b3 = await band(page);
+  check('piece from the look · ‹ The Thursday one, "1 of 4 in this look", Wardrobe still lit — three deep, one section', !!b3 && b3.label === 'The Thursday one' && /1 of 4 in this look/i.test(b3.pos) && JSON.stringify(await lit(page)) === '["wardrobe"]', JSON.stringify(b3));
+  check('piece · the star and the pencil are in the title block from this door too', await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-star').count() === 1 && await page.locator('#rb-piece-page .rb-tb-trow .rb-pc-pencil').count() === 1);
+  await page.locator('#rb-piece-page .rb-ret-pill').click(); await page.waitForTimeout(400);
+  check('piece · ‹ returns to the look it came from', !(await page.locator('#rb-piece-page').isVisible()) && await page.locator('#sn-page').isVisible() && (await band(page))?.label === 'Cream silk shirt');
+  await page.locator('#sn-page .rb-ret-pill').click(); await page.waitForTimeout(500);
+  check('look · ‹ returns to the piece, then the wardrobe record', await page.locator('#rb-piece-page').isVisible() && (await band(page))?.label === 'Wardrobe');
+  check('no page errors (journey)', errs.length === 0, errs.join(' | '));
+  await ctx.close();
+}
+
+// ── 2 · The Lookbook: index masthead, the look's set, the roots ─────────
+{
+  const { ctx, page, errs } = await boot(browser);
+  await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(600);
+  const mast = await page.evaluate(() => {
+    const m = document.querySelector('#rb-lk-bar .rb-mast');
+    const pills = Array.from(m.querySelectorAll('.rb-pill')).map((b) => { const c = getComputedStyle(b); return { t: b.textContent.trim(), fs: c.fontSize, rad: c.borderRadius, bg: c.backgroundColor, tt: c.textTransform }; });
+    return { lab: m.querySelector('.rb-mast-lab')?.textContent, n: m.querySelector('.rb-mast-n')?.textContent, labCase: getComputedStyle(m.querySelector('.rb-mast-lab')).textTransform, pills, headRow: getComputedStyle(document.getElementById('sn-headrow')).display };
+  });
+  check('lookbook · ONE masthead line: LOOKBOOK in tracked caps + "2 looks · 1 key piece" in serif italic (the mixed grid, 2026-10-05), no eyebrow row above', mast.lab === 'Lookbook' && mast.labCase === 'uppercase' && mast.n === '2 looks · 1 key piece' && mast.headRow === 'none', JSON.stringify(mast));
   // Sort and Refine sit inert below four looks (transparent, no fill); + New look is live.
   check('lookbook · sort, Refine and + New look are hairline pills — 11px, radius 100, sentence case, the live one white', mast.pills.length === 3 && mast.pills.every((p) => p.fs === '11px' && p.rad === '100px' && p.tt === 'none') && mast.pills[2].bg === 'rgb(255, 255, 255)', JSON.stringify(mast.pills));
   check('lookbook · a root: no band, Lookbook lit', (await band(page)) === null && JSON.stringify(await lit(page)) === '["lookbook"]');
@@ -315,10 +390,10 @@ const titleTop = (page) => page.evaluate(() => {
   await page.evaluate((r) => window.__kpRenderResult(r, 'Style my black dress for a ball', { intent: 'style' }), STYLE_RESP); await page.waitForTimeout(900);
   const kb = await band(page);
   const kt = await page.evaluate(() => ({ ey: document.querySelector('#kp-result-page .rb-tb-ey')?.textContent, title: (document.getElementById('kp-headline')?.textContent || '').replace(/\s+/g, ' '), pen: document.querySelectorAll('#kp-result-page .kp-pen, #kp-result-page .rb-tb-trow .rb-tb-btn').length, share: document.querySelectorAll('#kp-result-page .rb-kp-share').length }));
-  check('key piece · one header for the Choose step: ‹ Inspiration with NO pager; eyebrow Key piece (· yours with a photograph); the italic wink still lands; no pencil, no Share pill (2026-09-16); Inspiration lit',
-    !!kb && kb.label === 'Inspiration' && kb.pos === '' && kb.extras === 0 && /^Key piece/.test(kt.ey || '') && /worn three ways\./.test(kt.title) && kt.pen === 0 && kt.share === 0 && JSON.stringify(await lit(page)) === '["inspiration"]', JSON.stringify([kb, kt]));
+  check('key piece · one header for the Choose step: ‹ Lookbook with NO pager (the fold, 2026-10-05); eyebrow Key piece (· yours with a photograph); the italic wink still lands; no pencil, no Share pill (2026-09-16); Lookbook lit',
+    !!kb && kb.label === 'Lookbook' && kb.pos === '' && kb.extras === 0 && /^Key piece/.test(kt.ey || '') && /worn three ways\./.test(kt.title) && kt.pen === 0 && kt.share === 0 && JSON.stringify(await lit(page)) === '["lookbook"]', JSON.stringify([kb, kt]));
   await page.locator('#kp-result-page .rb-ret-pill').click(); await page.waitForTimeout(600);
-  check('key piece · ‹ lands on Inspiration', await page.locator('#rb-insp-page').isVisible() && !(await page.locator('#kp-result-page').isVisible()));
+  check('key piece · ‹ lands on the Lookbook', await page.locator('#sn-page').isVisible() && !(await page.locator('#kp-result-page').isVisible()));
   check('no page errors (kp, day, trip)', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }
@@ -364,7 +439,7 @@ const titleTop = (page) => page.evaluate(() => {
       gap: r ? Math.round(dk.top - r.bottom) : null, right: r ? Math.round(window.innerWidth - r.right) : null, w: r ? Math.round(r.width) : null, h: r ? Math.round(r.height) : null,
       wordsVis: !!(b && b.querySelector('.w').getBoundingClientRect().width > 10), ink: b ? getComputedStyle(b).backgroundColor : '' };
   });
-  const h = await page.evaluate(() => { const row = document.querySelector('#rb-hb .rb-hb-row'); const r = row.getBoundingClientRect(); return { pos: getComputedStyle(row).position, inView: r.top >= 0 && r.bottom <= window.innerHeight, label: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, inline: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), conc: getComputedStyle(document.querySelector('#dash .concierge')).display, overflow: document.documentElement.scrollWidth <= window.innerWidth + 1, plus: !!document.querySelector('#rb-hb .hp-add') }; });
+  const h = await page.evaluate(() => { const row = document.querySelector('#rb-hb .rb-hb-row'); const r = row.getBoundingClientRect(); return { pos: getComputedStyle(row).position, inView: r.top >= 0 && r.bottom <= window.innerHeight, label: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, inline: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), conc: getComputedStyle(document.querySelector('#dash .concierge')).display, overflow: document.documentElement.scrollWidth <= window.innerWidth + 1, plus: !!document.querySelector('#rb-hb #rb-lp-plus') && !document.querySelector('#rb-hb .hp-add') }; });
   const s0 = await slotRead();
   check('mobile home · the box sits IN FLOW under the greeting with its + (no dock), inline in the row, the card hidden, no overflow; the slot is the bare sparkle while the row is on screen',
     h.pos === 'static' && h.inView && h.inline && h.label === 'A new look for…' && h.conc === 'none' && h.overflow && h.plus && s0.on && s0.bare && !s0.wordsVis && s0.gap === 12, JSON.stringify([h, s0]));
@@ -403,10 +478,10 @@ const titleTop = (page) => page.evaluate(() => {
   check('mobile look · the slot is the bare sparkle (no floating pill) and the full-width docked field stands down on the phone', l1.on && l1.bare && !l1.wordsVis && l1.gap === 12 && dockGone, JSON.stringify([l1, dockGone]));
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-look.png' });
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(400);
-  const lb = await page.evaluate(() => { const w = document.getElementById('rb-lp'); const b = w && w.querySelector('.rb-lp'); const dk = document.getElementById('rb-dock').getBoundingClientRect(); const sl = document.getElementById('rb-lp-slot'); return { box: !!w, dock: !!(w && w.classList.contains('rb-lp-dock')), scrim: !!document.querySelector('.rb-lp-scrim'), name: b && b.getAttribute('aria-label'), page: document.getElementById('rb-lk-title')?.textContent.trim(), ph: document.getElementById('rb-lp-in')?.placeholder, foot: w ? Math.round(window.innerHeight - w.getBoundingClientRect().bottom) : null, dockGone: dk.top >= window.innerHeight, slotGone: !sl || getComputedStyle(sl).display === 'none', lookVis: !!document.querySelector('#rb-lk-body .rb-lk-held') && getComputedStyle(document.querySelector('#rb-lk-body .rb-lk-held')).display !== 'none' }; });
+  const lb = await page.evaluate(() => { const w = document.getElementById('rb-lp'); const b = w && w.querySelector('.rb-lp'); const dk = document.getElementById('rb-dock').getBoundingClientRect(); const sl = document.getElementById('rb-lp-slot'); return { box: !!w, dock: !!(w && w.classList.contains('rb-lp-dock')), scrim: !!document.querySelector('#rb-lp-scrim'), name: b && b.getAttribute('aria-label'), page: document.getElementById('rb-lk-title')?.textContent.trim(), ph: document.getElementById('rb-lp-in')?.placeholder, foot: w ? Math.round(window.innerHeight - w.getBoundingClientRect().bottom) : null, dockGone: dk.top >= window.innerHeight, slotGone: !sl || getComputedStyle(sl).display === 'none', lookVis: !!document.querySelector('#rb-lk-body .rb-lk-held') && getComputedStyle(document.querySelector('#rb-lk-body .rb-lk-held')).display !== 'none' }; });
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-look-box.png' });
-  check('mobile look · the sparkle turns the foot into the field: the box docks 12px off the bottom with no shade, named for the look, reading “Change this look…”; the menu slides away, the slot hides, the look stays visible above',
-    lb.box && lb.dock && !lb.scrim && lb.name === lb.page && lb.ph === 'Change this look…' && lb.foot === 12 && lb.dockGone && lb.slotGone && lb.lookVis, JSON.stringify(lb));
+  check('mobile look · the sparkle turns the foot into the field: the box docks 12px off the bottom over a dimmed screen (2026-10-05), named for the look, reading “Change this look…”; the menu slides away, the slot hides, the look stays visible above',
+    lb.box && lb.dock && lb.scrim && lb.name === lb.page && lb.ph === 'Change this look…' && lb.foot === 12 && lb.dockGone && lb.slotGone && lb.lookVis, JSON.stringify(lb));
   // Close mid-thread → the dot; reopen → the thread comes back and the dot clears.
   await page.evaluate(() => { const ta = document.getElementById('rb-lp-in'); ta.value = 'Not the jeans'; ta.dispatchEvent(new Event('input', { bubbles: true })); });
   await page.route('**/api/look/ask', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ intent: 'clarify', reply: 'Which jeans — the barrel-leg?', swaps: [], back: [], styled: [] }) }));

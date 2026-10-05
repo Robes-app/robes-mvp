@@ -894,10 +894,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     };
   });
   check('inspiration row · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('inspiration row · a key piece rides its own row under an Inspiration header',
-    k.shown === true && k.ey === 'Inspiration' && k.title === 'Pink barrel-leg jeans' && k.type === 'Key piece',
+  check('key pieces row · a key piece rides its own row under a Key pieces header (Inspiration folded into the Lookbook, 2026-10-05)',
+    k.shown === true && k.ey === 'Key pieces' && k.title === 'Pink barrel-leg jeans' && k.type === 'Key piece',
     JSON.stringify(k));
-  check('inspiration row · View all lands on the Inspiration tab',
+  check('key pieces row · View all lands on the Lookbook with Show = Key pieces',
     /__rbInspOpen/.test(k.link || ''), k.link);
   // The home row mirrors what the Lookbook holds: her looks and her travel
   // edits. Key pieces are Inspiration's; days are the Diary's.
@@ -905,19 +905,20 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     k.kpInLookbookRow === false && k.lookbookRowHasLook === true, JSON.stringify(k));
   check('lookbook row · a saved look draws its piece mosaic, never a blank card',
     k.lookMosaic === true, JSON.stringify(k.lookMosaic));
-  // …and the key-piece result lights Inspiration in the nav, not Lookbook
+  // …and the key-piece result lights the Lookbook in the nav (no
+  // Inspiration tab since the fold)
   const nav = await page.evaluate(async () => {
     window.__snOpenItem(1754700000000);
     await new Promise((r) => setTimeout(r, 1200));
     const kp = document.getElementById('kp-result-page');
     return {
       opened: !!kp && kp.style.display !== 'none',
-      insp: document.getElementById('rb-tn-inspiration')?.classList.contains('active'),
+      insp: !!document.getElementById('rb-tn-inspiration'),
       look: document.getElementById('rb-tn-lookbook')?.classList.contains('active'),
     };
   });
-  check('inspiration row · a key-piece result lights Inspiration, not Lookbook',
-    nav.opened === true && nav.insp === true && nav.look === false, JSON.stringify(nav));
+  check('key pieces row · a key-piece result lights the Lookbook; no Inspiration tab',
+    nav.opened === true && nav.insp === false && nav.look === true, JSON.stringify(nav));
   await ctx.close();
 }
 
@@ -1562,7 +1563,8 @@ const hbRead = (page) => page.evaluate(() => {
     save: hb?.querySelector('#rb-lp .rb-lpd-save')?.textContent.trim() || '', busy: hb?.querySelector('#rb-lp .rb-lpd-busy')?.textContent || '',
     days: hb ? hb.querySelectorAll('#rb-lp .rb-lpd-days button').length : 0, hint: hb?.querySelector('#rb-lp .rb-lpd-days button.hint .n')?.textContent || '',
     done: hb?.querySelector('#rb-lp .rb-lpd-done')?.textContent.replace(/\s+/g, ' ').trim() || '',
-    plusRows: Array.from(document.querySelectorAll('#rb-hb #cb-addmenu .hp-addopt')).map((b) => b.textContent.trim().split('\n')[0].replace(/Where are we.*$/, '').trim()),
+    plusRows: Array.from(document.querySelectorAll('#rb-hb #rb-lp-plusmenu button')).map((b) => b.querySelector('span')?.childNodes[0]?.textContent.trim()),
+    plusInField: !!hb?.querySelector('#rb-lp .fieldrow #rb-lp-plus') && !hb?.querySelector('.hp-add'),
     inkInHb: hb ? Array.from(hb.querySelectorAll('button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length : 0,
     today: document.querySelector('#rb-today .nm')?.textContent || '',
     more: document.querySelector('#rb-today .rb-today-more')?.textContent || '',
@@ -1570,7 +1572,9 @@ const hbRead = (page) => page.evaluate(() => {
     bodyOn: document.body.classList.contains('rb-hb-on'),
   };
 });
-const HB_ROWS = ['Upload', 'Take a picture', 'From wardrobe', 'Add a look', 'Add a travel edit'];
+// The + lives INSIDE the field (2026-10-05): a piece by camera, by upload or
+// from the wardrobe — then its two modes on the card above the field.
+const HB_ROWS = ['Take a picture', 'Upload a photo', 'From wardrobe'];
 // Both flag states at the three postures that carry the prompt: zero-lead
 // (no looks, no styled card), the first look (O7) and the standard home.
 for (const posture of ['zero-lead', 'look', 'standard']) {
@@ -1592,8 +1596,8 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
       check(`home field · ${posture} · ${flag} · the card and the pills stand down; ONE box under the greeting — inline in the row, no sheet — reads "A new look for…", in flow on the web`,
         modeOk && h.conc === false && h.pills === 0 && h.hb === true && h.fields === 1 && h.inline && h.label === 'A new look for…'
           && h.order[0] === 'dash-mast' && h.order[1] === 'rb-hb' && h.rowPos === 'static', JSON.stringify(h));
-      check(`home field · ${posture} · ${flag} · the + keeps its five rows, no ink inside the field's row`,
-        JSON.stringify(h.plusRows) === JSON.stringify(HB_ROWS) && h.inkInHb === 0, JSON.stringify([h.plusRows, h.inkInHb]));
+      check(`home field · ${posture} · ${flag} · the + sits inside the field with its three rows, no ink inside the field's row`,
+        JSON.stringify(h.plusRows) === JSON.stringify(HB_ROWS) && h.plusInField && h.inkInHb === 0, JSON.stringify([h.plusRows, h.plusInField, h.inkInHb]));
     }
     await ctx.close();
   }

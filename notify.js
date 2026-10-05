@@ -326,7 +326,7 @@ export function createNotifier(cfg) {
             m = { kind: 'looks_ready', ref: kp.id, subject: 'Your three looks are ready.', heading: 'Your three looks are ready.',
               bodyHtml: `<strong>${esc(piece)}</strong>, worn three ways. Pick one and Robes builds it around what’s yours.`,
               bodyText: `${piece}, worn three ways. Pick one and Robes builds it around what’s yours.`,
-              images: frames.slice(0, 3), cta: { label: 'See the looks', url: link(`/inspiration?open=${encodeURIComponent(kp.id)}`) } };
+              images: frames.slice(0, 3), cta: { label: 'See the looks', url: link(`/lookbook?open=${encodeURIComponent(kp.id)}`) } };
           } else if (nudges && age >= DAY && u.avatarKnown && u.avatarId == null && myLooks.length && !ev.some((e) => e.event_type === 'model_filed') && !has('look_waiting')) {
             const l = myLooks[0];
             m = { kind: 'look_waiting', ref: l.id, subject: 'She’d wear it.', heading: 'She’d wear it.',

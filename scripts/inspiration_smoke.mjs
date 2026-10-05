@@ -1,4 +1,5 @@
-// Inspiration smoke — the "Style a key piece" modal journey: Inspiration "Style a key piece" modal → kp result
+// Inspiration smoke — the key piece journey since the fold (2026-10-05): the Lookbook's "Style a key piece" door → the prompt
+// box with its wardrobe sheet → the piece's card + Style it three ways → kp result
 // (Worn three ways, 2026-09-28: the 4:5 cards with the swatch pill, the pager on the phone, the piece-by-piece
 // sheet) → "Build this look" → the composer IN SITU on the kp page (the builder's header, the bar) → save → the saved
 // view with the toast; the model park/return; the dressed canvas; the thumbs + feedback sheet; the modal's wardrobe /
@@ -82,6 +83,9 @@ await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
     writes.push({ method: req.method(), url: req.url().split('/rest/v1/')[1] || req.url(), body });
     return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
   }
+  const u = req.url();
+  // One filed piece — the piece the box's wardrobe sheet picks.
+  if (u.includes('wardrobe_items')) return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 'w-kp', user_id: 'u-test', label: 'Umbro shorts', category: 'Bottoms', color: 'Navy', brand: 'Umbro', image_url: 'https://res.cloudinary.com/demo/piece.jpg', times_worn: 3, created_at: '2026-09-01T10:00:00Z', item_dna: {} }]) });
   return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
 });
 await page.route('**nominatim**', (r) => r.abort());
@@ -128,41 +132,58 @@ page.on('pageerror', (e) => errs.push(String(e)));
 await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(2800);
 
-// 1 · Inspiration page + header CTA
-await page.evaluate(() => window.__rbInspOpen());
+// 1 · The Lookbook's "Style a key piece" door → the prompt box with its wardrobe sheet
+await page.evaluate(() => window.__rbNavGo('lookbook'));
+await page.waitForTimeout(500);
+// An EMPTY Lookbook is the composer (the one-door rule) — the dashed door
+// joins the grid once anything stands in it (pinned in section 7); the
+// handler is the same either way.
+const door = await page.evaluate(() => ({ composer: !!document.querySelector('#sn-page .rb-lk-composer'), grid: document.getElementById('rb-lk-grid')?.style.display, noPage: !document.getElementById('rb-insp-page'), noTab: !document.getElementById('rb-tn-inspiration'), fn: typeof window.__lkStyleKeyPiece }));
+check('an empty Lookbook is still the composer (no grid, no door); no Inspiration page, no tab', door.composer && door.grid === 'none' && door.noPage && door.noTab && door.fn === 'function', JSON.stringify(door));
+await page.evaluate(() => window.__lkStyleKeyPiece());
+await page.waitForTimeout(500);
+const opened = await page.evaluate(() => ({ dock: !!document.querySelector('#rb-lp.rb-lp-dock'), scrim: !!document.getElementById('rb-lp-scrim'), plus: !!document.querySelector('#rb-lp .fieldrow #rb-lp-plus'), ph: document.getElementById('rb-lp-in')?.placeholder,
+  sheet: !!document.getElementById('cb-wa-pick'), title: document.querySelector('#cb-wa-pick .cb-pick-title')?.textContent, sub: document.querySelector('#cb-wa-pick .cb-pick-sub')?.textContent,
+  chips: Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-cat')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')), tiles: document.querySelectorAll('#cb-wa-pick .cb-pick-tile').length }));
+check('the door opens the box docked over a dimmed screen — the + inside the field, "A new look for…" — with the wardrobe sheet already open (its title, its line, All + her categories, her pieces)',
+  opened.dock && opened.scrim && opened.plus && opened.ph === 'A new look for…' && opened.sheet && opened.title === 'From your wardrobe' && opened.sub === 'Pick the piece to start from.'
+    && JSON.stringify(opened.chips) === JSON.stringify(['All*', 'Bottoms']) && opened.tiles === 1, JSON.stringify(opened));
+
+// 2 · A pick lands on the card above the field; the arrow stays quiet until a mode is picked
+await page.locator('#cb-wa-pick .cb-pick-tile').first().click();
 await page.waitForTimeout(400);
-const cta = page.locator('#rb-insp-page button:has-text("Style a key piece")').first();
-check('inspiration header carries the Style a key piece pill', await cta.count() > 0);
+const card = await page.evaluate(() => ({ sheetGone: !document.getElementById('cb-wa-pick'), box: !!document.getElementById('rb-lp'), name: document.querySelector('#rb-lp-piece .nm')?.textContent, sub: document.querySelector('#rb-lp-piece .sb')?.textContent,
+  ey: document.querySelector('#rb-lp-piece .ey')?.textContent, modes: Array.from(document.querySelectorAll('#rb-lp-piece .mode .t')).map((t) => t.textContent), ticked: document.querySelectorAll('#rb-lp-piece .mode.on').length,
+  ph: document.getElementById('rb-lp-in')?.placeholder, ink: document.getElementById('rb-lp-send')?.classList.contains('ink'), x: !!document.querySelector('#rb-lp-piece .rm') }));
+check('a pick closes the sheet and lands the piece on the card: name, "Bottoms · in your wardrobe", STYLE THIS PIECE, Build a look / Style it three ways, × — nothing ticked, the arrow quiet, "Where to? Optional"',
+  card.sheetGone && card.box && card.name === 'Umbro shorts' && card.sub === 'Bottoms · in your wardrobe' && /Style this piece/i.test(card.ey || '') && JSON.stringify(card.modes) === JSON.stringify(['Build a look', 'Style it three ways'])
+    && card.ticked === 0 && card.ph === 'Where to? Optional' && card.ink === false && card.x, JSON.stringify(card));
 
-// 2 · CTA opens the modal on step 1
-await cta.click();
+// 3 · Send without a mode does nothing; a mode turns the arrow ink
+await page.evaluate(() => window.__rbLpSend());
 await page.waitForTimeout(300);
-check('modal opens', await page.locator('#rb-inst-wrap').isVisible());
-check('step 1 headline', (await page.locator('#rb-inst-wrap').innerText()).includes('Style a key piece'));
-check('snap/attach tile', (await page.locator('#rb-inst-wrap').innerText()).includes('Snap or attach'));
-check('brief textarea present', await page.locator('#rb-inst-ta').count() === 1);
-check('hint line', (await page.locator('#rb-inst-wrap').innerText()).includes('A photo makes it sharper'));
-check('CTA reads Style it three ways', (await page.locator('#rb-inst-wrap').innerText()).toLowerCase().includes('style it three ways'));
+check('send without a mode sends nothing — the box stays, no /api/style call', styleCalls === 0 && await page.locator('#rb-lp-piece').count() === 1);
+await page.locator('#rb-lp-piece .mode', { hasText: 'Style it three ways' }).click();
+await page.waitForTimeout(150);
+check('picking Style it three ways ticks it and inks the arrow', await page.evaluate(() => document.querySelectorAll('#rb-lp-piece .mode.on .t')[0]?.textContent === 'Style it three ways' && document.getElementById('rb-lp-send').classList.contains('ink')));
 
-// 3 · Empty submit refuses (no fetch, stays on step 1)
-await page.evaluate(() => window.__inStGo());
-await page.waitForTimeout(300);
-check('empty submit stays on step 1, no call', styleCalls === 0 && await page.locator('#rb-inst-ta').count() === 1);
-
-// 4 · Words → step 2 scan state → kp result
-await page.fill('#rb-inst-ta', 'My Umbro shorts, sporty cool');
-await page.locator('.rb-inst-cta').click();
+// 4 · A note + Send → the piece track → kp result
+let stylePost = null;
+// A capture of the one three-way post; unrouted once it lands so the boot's
+// refine-aware /api/style stub answers the later sections.
+const styleCapture = async (r) => { try { stylePost = r.request().postDataJSON(); } catch (_) {} styleCalls++; await new Promise((res) => setTimeout(res, 600)); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(STYLE_RESP) }); };
+await page.route('**/api/style', styleCapture);
+await page.fill('#rb-lp-in', 'sporty cool');
+await page.evaluate(() => window.__rbLpSend());
 await page.waitForTimeout(400);
-const scanTxt = await page.locator('#rb-inst-wrap').innerText();
-check('step 2 scan state shows', /Reading your piece|Generating your look/.test(scanTxt));
-check('scan cancel offered', scanTxt.includes('This takes about twenty seconds'));
-await page.waitForTimeout(1600);
-check('one /api/style call', styleCalls === 1);
-check('modal closed after landing', await page.locator('#rb-inst-wrap').count() === 0);
-check('inspiration page closed under the result', !(await page.locator('#rb-insp-page').isVisible()));
+check('the box closes on send and the styling overlay stands in', !(await page.locator('#rb-lp').count()) && await page.locator('#kp-loading-overlay').isVisible());
+await page.waitForTimeout(1200);
+check('one /api/style call, the brief led by the piece with its wear count and her note after it', styleCalls === 1 && stylePost && stylePost.prompt === 'Style my Umbro shorts three ways (worn 3 times). sporty cool' && stylePost.intent === 'style', JSON.stringify(stylePost && stylePost.prompt));
+await page.unroute('**/api/style', styleCapture);
 check('kp result page visible', await page.locator('#kp-result-page').isVisible());
 const kpTxt = await page.locator('#kp-result-page').innerText();
 check('three ways rendered', kpTxt.includes('Urbane Weekend') && kpTxt.includes('Park Hangout'));
+check('the key piece climbs back to the Lookbook (‹ Lookbook)', (await page.locator('#kp-result-page .rb-ret-pill .lab').innerText()) === 'Lookbook');
 
 // 5 · Build this look → the composer IN SITU on the kp page (design
 // Key_Piece_Reveal, 2026-09-16): the three cards fold away, a strip keeps
@@ -294,7 +315,7 @@ const parked = await page.evaluate(() => {
   let d = null; try { d = JSON.parse(sessionStorage.getItem('rb_lk_draft') || 'null'); } catch (_) {}
   return { ret: sessionStorage.getItem('rb_model_return'), kp: d && d.kp ? { savedId: d.kp.savedId, wayIdx: d.kp.wayIdx, shop: (d.kp.shop || []).length } : null, frame: !!(d && d.photo && d.photo.frame) };
 });
-check('Build your model parks the kp draft and returns to Inspiration',
+check('Build your model parks the kp draft and returns to the key piece (the Lookbook since the fold)',
   parked.ret === 'inspiration' && parked.kp && parked.kp.savedId != null && parked.kp.wayIdx === 2 && parked.kp.shop === 4 && parked.frame, JSON.stringify(parked));
 const dailyBefore = dailyCalls;
 await page.goto(`${BASE}/inspiration`, { waitUntil: 'networkidle' });
@@ -384,22 +405,30 @@ check('tapping the built way opens the SAVED look — no new build, no /api/dail
 await page.locator('#sn-page .rb-ret-pill').first().click();
 await page.waitForTimeout(600);
 
-// 6 · The kp result survives — reopening from Inspiration still shows the three ways
+// 6 · The kp result survives — the Lookbook lists the key piece as a tile among the looks
 await page.evaluate(() => window.__rbInspOpen());
 await page.waitForTimeout(500);
-check('inspiration still lists the styled key piece', (await page.locator('#rb-insp-page').innerText()).includes('Styled three ways by Robes'));
+const tile = await page.evaluate(() => ({ label: document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent, kp: document.querySelectorAll('#rb-lk-grid .lt-kp').length, tag: document.querySelector('#rb-lk-grid .lt-kp .lt-tag')?.textContent,
+  meta: document.querySelector('#rb-lk-grid .lt-kp .lt-meta')?.textContent, frames: document.querySelectorAll('#rb-lk-grid .lt-kp .rb-lk-mos i').length, showOn: document.querySelector('#rb-lk-allhead .rb-lkref-show.on')?.textContent }));
+check('the Lookbook on Show = Key pieces lists the styled key piece: tagged Key piece on its photo, its three frames as small tiles, "Styled three ways"',
+  tile.label === 'Key pieces' && tile.kp === 1 && tile.tag === 'Key piece' && tile.meta === 'Styled three ways' && tile.frames === 3, JSON.stringify(tile));
+await page.evaluate(() => window.__lkRefineClear());
+await page.waitForTimeout(300);
 
-// 7 · Cancel path: reopen modal, submit, cancel mid-scan
-await page.evaluate(() => window.__rbInspOpen());
+// 7 · The grid now carries the dashed door; × on the card puts the piece back, the box folds, nothing runs
+const door7 = await page.evaluate(() => { const d = document.querySelector('#rb-lk-grid .rb-lk-kpdoor'); return { had: !!d, text: d?.textContent.replace(/\s+/g, ' ').trim(), last: !!d && d === document.getElementById('rb-lk-grid').lastElementChild }; });
+check('with a key piece in the grid the dashed Style a key piece door (From your wardrobe) closes it', door7.had && /Style a key piece/.test(door7.text) && /From your wardrobe/.test(door7.text) && door7.last, JSON.stringify(door7));
+await page.locator('#rb-lk-grid .rb-lk-kpdoor').click();
+await page.waitForTimeout(500);
+await page.locator('#cb-wa-pick .cb-pick-tile').first().click();
 await page.waitForTimeout(300);
-await page.locator('#rb-insp-page button:has-text("Style a key piece")').first().click();
+await page.locator('#rb-lp-piece .rm').click();
 await page.waitForTimeout(200);
-await page.fill('#rb-inst-ta', 'Another piece');
-await page.locator('.rb-inst-cta').click();
+const putBack = await page.evaluate(() => ({ card: !!document.getElementById('rb-lp-piece'), ph: document.getElementById('rb-lp-in')?.placeholder, ink: document.getElementById('rb-lp-send')?.classList.contains('ink') }));
+check('× puts the piece back: no card, the field asks for a new look again, the arrow quiet', !putBack.card && putBack.ph === 'A new look for…' && putBack.ink === false, JSON.stringify(putBack));
+await page.evaluate(() => window.__rbLpClose());
 await page.waitForTimeout(300);
-await page.locator('#rb-inst-wrap button:has-text("Cancel")').click();
-await page.waitForTimeout(400);
-check('cancel closes the modal quietly', await page.locator('#rb-inst-wrap').count() === 0);
+check('closing the box runs nothing', styleCalls === 1 && !(await page.locator('#rb-lp').count()));
 
 // 8 · With a model on file: the build opens DRESSED on her canvas (as a
 // prompt look does), the frame yields, no You / Model switch, no band.
@@ -774,122 +803,100 @@ check('no page errors', errs.length === 0, errs.join(' | '));
   });
   await p2.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
   await p2.waitForTimeout(2800);
-  await p2.evaluate(() => window.__rbInspOpen());
-  await p2.waitForTimeout(300);
-  await p2.locator('#rb-insp-page button:has-text("Style a key piece")').first().click();
+  // The + inside the box (2026-10-05): a piece by camera, by upload, or
+  // from the wardrobe — then its two modes on the card above the field.
+  await p2.evaluate(() => window.__rbNavGo('lookbook'));
+  await p2.waitForTimeout(400);
+  await p2.evaluate(() => window.__rbHbOpen({ fresh: true }));
   await p2.waitForTimeout(300);
   const menu = await p2.evaluate(() => ({
-    add: !!document.querySelector('#rb-inst-left .hp-add#rb-inst-add'),
-    closed: !document.getElementById('rb-inst-addmenu')?.classList.contains('open'),
-    opts: Array.from(document.querySelectorAll('#rb-inst-addmenu .hp-addopt')).map((b) => b.textContent.trim()),
-    tile: /Snap or attach/.test(document.getElementById('rb-inst-left')?.textContent || ''),
-    cam: document.getElementById('rb-inst-cam')?.getAttribute('capture'), file: document.getElementById('rb-inst-file')?.hasAttribute('capture'),
+    plus: !!document.querySelector('#rb-lp .fieldrow #rb-lp-plus'), noSpark: !document.querySelector('#rb-lp .fieldrow .sp'),
+    closed: !document.getElementById('rb-lp-plusmenu')?.classList.contains('open'),
+    opts: Array.from(document.querySelectorAll('#rb-lp-plusmenu button')).map((b) => b.querySelector('span')?.childNodes[0]?.textContent.trim()),
+    camLine: document.querySelector('#rb-lp-plusmenu button .s')?.textContent,
+    cam: document.getElementById('rb-lp-cam')?.getAttribute('capture'), file: document.getElementById('rb-lp-file')?.hasAttribute('capture'),
   }));
-  check('+ menu · the modal reuses the prompt’s + (Upload · Take a picture · From wardrobe · From wishlist), capture only on the camera row',
-    menu.add && menu.closed && menu.opts.join('|') === 'Upload|Take a picture|From wardrobe|From wishlist' && menu.tile && menu.cam === 'environment' && menu.file === false, JSON.stringify(menu));
-  await p2.locator('#rb-inst-add').click();
+  check('+ menu · the + sits inside the field (Take a picture · Upload a photo · From wardrobe), the camera row says "Lay the piece flat, in good light.", capture only on the camera input',
+    menu.plus && menu.noSpark && menu.closed && menu.opts.join('|') === 'Take a picture|Upload a photo|From wardrobe' && menu.camLine === 'Lay the piece flat, in good light.' && menu.cam === 'environment' && menu.file === false, JSON.stringify(menu));
+  await p2.locator('#rb-lp-plus').click();
   await p2.waitForTimeout(150);
-  check('+ menu · opens on tap', await p2.evaluate(() => document.getElementById('rb-inst-addmenu').classList.contains('open')));
-  await p2.locator('#rb-inst-addmenu .hp-addopt:has-text("From wardrobe")').click();
+  check('+ menu · opens on tap', await p2.evaluate(() => document.getElementById('rb-lp-plusmenu').classList.contains('open')));
+  await p2.locator('#rb-lp-plusmenu button:has-text("From wardrobe")').click();
   await p2.waitForTimeout(250);
   const pick = await p2.evaluate(() => ({
     open: !!document.getElementById('cb-wa-pick'),
-    menuClosed: !document.getElementById('rb-inst-addmenu')?.classList.contains('open'),
-    eyebrow: document.querySelector('#cb-wa-pick p')?.textContent.trim(),
-    tiles: document.querySelectorAll('#cb-wa-pick button[onclick*="__cbPickApply"]').length,
-    seg: Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-seg')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')).join('|'),
+    menuClosed: !document.getElementById('rb-lp-plusmenu')?.classList.contains('open'),
+    title: document.querySelector('#cb-wa-pick .cb-pick-title')?.textContent.trim(),
+    tiles: document.querySelectorAll('#cb-wa-pick .cb-pick-tile').length,
+    chips: Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-cat')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')),
+    boxStands: !!document.getElementById('rb-lp'),
   }));
-  check('+ menu · From wardrobe opens the EXISTING picker (#cb-wa-pick) with her pieces and a Wardrobe | Wishlist switch, Wardrobe lit',
-    pick.open && pick.menuClosed && pick.eyebrow === 'From your wardrobe' && pick.tiles === 2 && pick.seg === 'Wardrobe*|Wishlist', JSON.stringify(pick));
-  await p2.locator('#cb-wa-pick button[onclick*="__cbPickApply"]').first().click();
+  check('+ menu · From wardrobe opens the sheet (#cb-wa-pick) over the box with her pieces and the category chips, All lit',
+    pick.open && pick.menuClosed && pick.title === 'From your wardrobe' && pick.tiles === 2 && pick.chips[0] === 'All*' && pick.chips.length === 3 && pick.boxStands, JSON.stringify(pick));
+  await p2.locator('#cb-wa-pick .cb-pick-cat:has-text("Tops")').click();
+  await p2.waitForTimeout(200);
+  check('+ menu · a category chip narrows the sheet in place', await p2.evaluate(() => document.querySelectorAll('#cb-wa-pick .cb-pick-tile').length === 1 && document.querySelector('#cb-wa-pick .cb-pick-cat.on')?.textContent === 'Tops'));
+  await p2.locator('#cb-wa-pick .cb-pick-tile').first().click();
   await p2.waitForTimeout(300);
   const attached = await p2.evaluate(() => ({
     pickerGone: !document.getElementById('cb-wa-pick'),
-    piece: document.getElementById('rb-inst-piece')?.textContent.replace(/\s+/g, ' ').trim(),
-    addGone: !document.querySelector('#rb-inst-left .hp-add'),
-    ph: document.getElementById('rb-inst-ta')?.placeholder,
-    hint: document.getElementById('rb-inst-hint')?.textContent,
+    name: document.querySelector('#rb-lp-piece .nm')?.textContent, sub: document.querySelector('#rb-lp-piece .sb')?.textContent,
+    ph: document.getElementById('rb-lp-in')?.placeholder,
     prompt: document.getElementById('cb-ta')?.value || '',
   }));
-  check('+ menu · a wardrobe pick attaches as the key piece (eyebrow, name, Change), the brief asks for the occasion, the home prompt is untouched',
-    attached.pickerGone && /Your key piece/i.test(attached.piece) && /Cream silk shirt/.test(attached.piece) && attached.addGone
-      && attached.ph.startsWith('The occasion') && /how you have worn it/.test(attached.hint) && attached.prompt === '', JSON.stringify(attached));
-  await p2.locator('#rb-inst-piece button:has-text("Change")').click();
-  await p2.waitForTimeout(150);
-  check('+ menu · Change returns the tile and the +', (await p2.locator('#rb-inst-piece').count()) === 0 && (await p2.locator('#rb-inst-left .hp-add').count()) === 1);
-  await p2.locator('#rb-inst-add').click();
-  await p2.locator('#rb-inst-addmenu .hp-addopt:has-text("From wishlist")').click();
-  await p2.waitForTimeout(250);
-  const wl = await p2.evaluate(() => ({
-    eyebrow: document.querySelector('#cb-wa-pick p')?.textContent.trim(),
-    seg: Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-seg')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')).join('|'),
-    tiles: Array.from(document.querySelectorAll('#cb-wa-pick button[onclick*="__cbPickApply"]')).map((b) => b.lastElementChild.textContent.trim()),
-  }));
-  check('+ menu · From wishlist lists her wanted pieces in the same picker', wl.eyebrow === 'From your wishlist' && wl.seg === 'Wardrobe|Wishlist*' && wl.tiles.join() === 'Gold hoop earrings', JSON.stringify(wl));
-  // The segment inside the picker walks to the other source and keeps the callback.
-  await p2.locator('#cb-wa-pick .cb-pick-seg:has-text("Wardrobe")').click();
-  await p2.waitForTimeout(150);
-  check('+ menu · the picker’s segment switches source in place', (await p2.locator('#cb-wa-pick button[onclick*="__cbPickApply"]').count()) === 2);
-  await p2.locator('#cb-wa-pick .cb-pick-seg:has-text("Wishlist")').click();
-  await p2.waitForTimeout(150);
-  await p2.locator('#cb-wa-pick button[onclick*="__cbPickApply"]').first().click();
-  await p2.waitForTimeout(200);
-  const wlAttached = await p2.evaluate(() => ({
-    piece: document.getElementById('rb-inst-piece')?.textContent.replace(/\s+/g, ' ').trim(),
-    hint: document.getElementById('rb-inst-hint')?.textContent,
-  }));
-  check('+ menu · a wishlist pick attaches under its own eyebrow', /From your wishlist/i.test(wlAttached.piece) && /Gold hoop earrings/.test(wlAttached.piece) && /from your wishlist/.test(wlAttached.hint), JSON.stringify(wlAttached));
-  await p2.fill('#rb-inst-ta', 'dinner, a little glamour');
-  await p2.locator('.rb-inst-cta').click();
-  await p2.waitForTimeout(700);
-  check('+ menu · the brief leads with the wishlist piece — "the", never "my", no wear count',
-    stylePrompts.length === 1 && stylePrompts[0].prompt === 'Style the Gold hoop earrings three ways. dinner, a little glamour', JSON.stringify(stylePrompts.map((b) => b && b.prompt)));
-  check('+ menu · no wardrobe row was written for a pick', writes2.filter((w) => w.url.startsWith('wardrobe_items')).length === 0);
+  check('+ menu · a wardrobe pick attaches on the card (name, "Tops · in your wardrobe"), the note optional, the hidden home card untouched',
+    attached.pickerGone && attached.name === 'Cream silk shirt' && attached.sub === 'Tops · in your wardrobe' && attached.ph === 'Where to? Optional' && attached.prompt === '', JSON.stringify(attached));
+  // Build a look: the composer with the piece on its rack.
+  await p2.locator('#rb-lp-piece .mode', { hasText: 'Build a look' }).click();
+  await p2.evaluate(() => window.__rbLpSend());
+  await p2.waitForTimeout(900);
+  const built = await p2.evaluate(() => ({ boxGone: !document.getElementById('rb-lp'), composer: !!document.querySelector('#sn-page .rb-lk-composer'), onRack: /Cream silk shirt/.test(document.querySelector('#sn-page .rb-lk-composer')?.textContent || ''), styleCalls: 0 }));
+  check('+ menu · Build a look hands off to the composer with the piece already on the rack, no /api/style call', built.boxGone && built.composer && built.onRack && stylePrompts.length === 0, JSON.stringify(built));
+  await p2.evaluate(() => window.__lkDraftDrop && window.__lkDraftDrop());
 
-  // A NEW upload is scanned into the wardrobe and attaches itself.
-  await p2.evaluate(() => window.__rbInspOpen());
-  await p2.waitForTimeout(300);
-  await p2.locator('#rb-insp-page button:has-text("Style a key piece")').first().click();
+  // A NEW upload files quietly behind the card and the card takes its name.
+  await p2.evaluate(() => window.__rbNavGo('lookbook'));
+  await p2.waitForTimeout(400);
+  await p2.evaluate(() => window.__rbHbOpen({ fresh: true }));
   await p2.waitForTimeout(300);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4nGP8z8DwnwEKGBkYAB1IA/wSCV0LAAAAAElFTkSuQmCC', 'base64');
-  await p2.setInputFiles('#rb-inst-file', { name: 'jacket.png', mimeType: 'image/png', buffer: png });
+  await p2.setInputFiles('#rb-lp-file', { name: 'jacket.png', mimeType: 'image/png', buffer: png });
   await p2.waitForTimeout(150);
   const filing = await p2.evaluate(() => ({
-    line: document.querySelector('#rb-inst-left .rb-inst-scan')?.textContent.trim(),
-    photo: !!document.querySelector('#rb-inst-left img'),
+    name: document.querySelector('#rb-lp-piece .nm')?.textContent, sub: document.querySelector('#rb-lp-piece .sb')?.textContent,
+    photo: !!document.querySelector('#rb-lp-piece .th[style*="data:image"]'),
   }));
-  check('scan · the upload says it is filing to the wardrobe while it reads', filing.line === 'Filing it to your wardrobe…' && filing.photo, JSON.stringify(filing));
-  await p2.waitForTimeout(1500);
+  check('scan · the upload lands on the card at once and says Robes will file it', filing.name === 'New piece' && filing.sub === 'Just taken · Robes will file it' && filing.photo, JSON.stringify(filing));
+  await p2.waitForTimeout(1800);
   const filed = await p2.evaluate(() => ({
-    line: document.querySelector('#rb-inst-left .rb-inst-scan')?.textContent.trim(),
-    piece: document.getElementById('rb-inst-piece')?.textContent.replace(/\s+/g, ' ').trim(),
-    ph: document.getElementById('rb-inst-ta')?.placeholder,
+    name: document.querySelector('#rb-lp-piece .nm')?.textContent, sub: document.querySelector('#rb-lp-piece .sb')?.textContent,
   }));
   const rows = writes2.filter((w) => w.method === 'POST' && w.url.startsWith('wardrobe_items'));
-  check('scan · the piece is filed (one wardrobe row, analysed + hosted) and attaches as the key piece',
-    filed.line === '✓ Filed to your wardrobe' && /Red tweed jacket/.test(filed.piece) && filed.ph.startsWith('The occasion')
+  check('scan · the piece is filed (one wardrobe row, analysed + hosted) and the card takes its name',
+    filed.name === 'Red tweed jacket' && filed.sub === 'Outerwear · filed to your wardrobe'
       && rows.length === 1 && rows[0].body.label === 'Red tweed jacket' && rows[0].body.category === 'Outerwear' && rows[0].body.category_l2 === 'Jackets'
       && rows[0].body.image_url === 'https://res.cloudinary.com/demo/up.jpg' && rows[0].body.brand === 'Chanel', JSON.stringify({ filed, rows: rows.map((r) => r.body) }));
-  await p2.locator('.rb-inst-cta').click();
+  await p2.locator('#rb-lp-piece .mode', { hasText: 'Style it three ways' }).click();
+  await p2.fill('#rb-lp-in', 'dinner, a little glamour');
+  await p2.evaluate(() => window.__rbLpSend());
   await p2.waitForTimeout(700);
-  check('scan · the brief leads with the filed piece and carries the photo',
-    stylePrompts.length === 2 && stylePrompts[1].prompt === 'Style my Red tweed jacket three ways' && /^data:image/.test(stylePrompts[1].photo || ''), JSON.stringify(stylePrompts[1] && stylePrompts[1].prompt));
+  check('scan · the brief leads with the filed piece, her note after it, and carries the photo',
+    stylePrompts.length === 1 && stylePrompts[0].prompt === 'Style my Red tweed jacket three ways. dinner, a little glamour' && /^data:image/.test(stylePrompts[0].photo || ''), JSON.stringify(stylePrompts[0] && stylePrompts[0].prompt));
 
-  // A face or a room files nothing, and says so.
+  // A face or a room files nothing, and says so — the looks still run.
   analyseMode = 'none';
-  await p2.evaluate(() => window.__rbInspOpen());
+  await p2.evaluate(() => { window.__kpGoBack && window.__kpGoBack(); window.__rbNavGo('lookbook'); });
+  await p2.waitForTimeout(400);
+  await p2.evaluate(() => window.__rbHbOpen({ fresh: true }));
   await p2.waitForTimeout(300);
-  await p2.locator('#rb-insp-page button:has-text("Style a key piece")').first().click();
-  await p2.waitForTimeout(300);
-  await p2.setInputFiles('#rb-inst-file', { name: 'me.png', mimeType: 'image/png', buffer: png });
+  await p2.setInputFiles('#rb-lp-file', { name: 'me.png', mimeType: 'image/png', buffer: png });
   await p2.waitForTimeout(1800);
   const none = await p2.evaluate(() => ({
-    line: document.querySelector('#rb-inst-left .rb-inst-scan')?.textContent.trim(),
-    piece: !!document.getElementById('rb-inst-piece'),
-    photo: !!document.querySelector('#rb-inst-left img'),
+    sub: document.querySelector('#rb-lp-piece .sb')?.textContent,
+    photo: !!document.querySelector('#rb-lp-piece .th[style*="data:image"]'),
   }));
   check('scan · nothing to file says so, keeps the photo for the looks, writes no row',
-    /couldn’t see a piece/.test(none.line || '') && !none.piece && none.photo && writes2.filter((w) => w.method === 'POST' && w.url.startsWith('wardrobe_items')).length === 1, JSON.stringify(none));
+    /couldn’t see a piece/.test(none.sub || '') && none.photo && writes2.filter((w) => w.method === 'POST' && w.url.startsWith('wardrobe_items')).length === 1, JSON.stringify(none));
   check('+ menu · no page errors', errs2.length === 0, errs2.join(' | '));
   await ctx2.close();
 }
