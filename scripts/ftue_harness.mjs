@@ -891,9 +891,24 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       // A saved Look's card draws its piece MOSAIC — photo_url is rare on a
       // Look, and the row must never show a blank cream card for one.
       lookMosaic: !!sn?.querySelector('.rb-sn-card .rb-lk-mos'),
+      snEy: sn?.querySelector('.rb-sec-ey')?.textContent,
+      snLink: sn?.querySelector('.rb-sec-link')?.getAttribute('onclick'),
     };
   });
   check('inspiration row · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('saved looks row · reads Saved looks and its View all opens the Lookbook on Show = Looks (Annie, 2026-10-05)',
+    k.snEy === 'Saved looks' && /__rbLooksOpen/.test(k.snLink || ''), JSON.stringify([k.snEy, k.snLink]));
+  // A kp filter a door set earlier never hides the looks View all asked for.
+  await page.evaluate(() => window.__rbInspOpen());
+  await page.waitForTimeout(300);
+  const showKp = await page.evaluate(() => document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent);
+  await page.evaluate(() => window.__rbLooksOpen());
+  await page.waitForTimeout(300);
+  const showLooks = await page.evaluate(() => ({ lab: document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent, kp: document.querySelectorAll('#rb-lk-grid .lt-kp').length, looks: document.querySelectorAll('#rb-lk-grid .lt-card:not(.lt-kp)').length }));
+  check('saved looks row · View all after the key-pieces door flips Show to Looks — the saved looks show, the key piece stands down',
+    showKp === 'Key pieces' && showLooks.lab === 'All looks' && showLooks.kp === 0 && showLooks.looks >= 1, JSON.stringify([showKp, showLooks]));
+  await page.evaluate(() => window.__rbNavGo('home'));
+  await page.waitForTimeout(300);
   check('key pieces row · a key piece rides its own row under a Key pieces header (Inspiration folded into the Lookbook, 2026-10-05)',
     k.shown === true && k.ey === 'Key pieces' && k.title === 'Pink barrel-leg jeans' && k.type === 'Key piece',
     JSON.stringify(k));

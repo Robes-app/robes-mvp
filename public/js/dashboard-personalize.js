@@ -1073,8 +1073,21 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '</div>';
       }
       var _rbLpHold = false;   // a picker or the camera is open for this box — never fold it
+      // The last tap INSIDE the box. A phone gives a tapped button no
+      // focus, so the + (and its menu) blurred the field and the blur
+      // closer read the box as left — and folded it under her finger.
+      var _rbLpInsideAt = 0;
+      document.addEventListener('pointerdown', function(e) {
+        const w = document.getElementById('rb-lp');
+        if (w && e.target && w.contains(e.target)) _rbLpInsideAt = Date.now();
+      }, true);
+      function _rbLpPlusOpen() {
+        const m = document.getElementById('rb-lp-plusmenu');
+        return !!(m && m.classList.contains('open'));
+      }
       window.__rbLpPlus = function(ev) {
         if (ev) ev.stopPropagation();
+        _rbLpInsideAt = Date.now();
         const m = document.getElementById('rb-lp-plusmenu'), b = document.getElementById('rb-lp-plus');
         if (!m) return;
         const open = !m.classList.contains('open');
@@ -1269,6 +1282,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (!on && s && !s.persist) {
           setTimeout(() => {
             const c = _rbLp; if (!c || c !== s || c.persist || c.reading || c.piece || _rbLpHold) return;
+            if (_rbLpPlusOpen() || Date.now() - _rbLpInsideAt < 800) return;
             const w = document.getElementById('rb-lp'); if (!w || w.contains(document.activeElement)) return;
             if (!c.thread.length && !String(c.text || '').trim()) window.__rbLpClose();
           }, 140);
@@ -7709,6 +7723,13 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (window.__lkGo) window.__lkGo(); else if (window.__snOpen) window.__snOpen();
       };
       window.__inClose = function() {};
+      // The home Saved-looks row's View all: the Lookbook on Show = Looks —
+      // a kp filter a door set earlier never hides the looks she asked for
+      // (Annie, 2026-10-05).
+      window.__rbLooksOpen = function() {
+        if (typeof _lkRefine !== 'undefined' && _lkRefine) _lkRefine.show = 'looks';
+        if (window.__lkGo) window.__lkGo(); else if (window.__snOpen) window.__snOpen();
+      };
       // Restyle lands on the home prompt with the original ask re-armed —
       // every route lands on the prompt box (the app's standing rule).
       // Doorless since 2026-09-17 (kept programmatically).
@@ -11645,9 +11666,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
    mosaic"): white on cream, 1px rule, 3px corners, shadow-free — and the
    image area is SQUARE inside the card, so nothing is letterboxed. */
 .lt-card{position:relative;background:#fff;border:1px solid var(--rule,#E7E0CF);border-radius:3px;overflow:hidden;transition:border-color .2s}
-.lt-tag{position:absolute;top:10px;left:10px;z-index:2;padding:5px 9px;border-radius:100px;font-family:'Inter',-apple-system,sans-serif;font-size:8.5px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;line-height:1;pointer-events:none}
-.lt-tag.look{background:rgba(250,248,245,.94);border:0.5px solid var(--rule-mid,#D8CFC0);color:var(--ink-faint,#9A9082)}
-.lt-tag.kp{background:#F1EAE8;border:0.5px solid var(--mauve,#D4C8C4);color:var(--rose,#8E7077)}
+.lt-tag{display:block;font-family:'Inter',-apple-system,sans-serif;font-size:9px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;line-height:1;color:var(--ink-faint,#9A9082);margin-bottom:6px}
 .lt-card:hover{border-color:var(--rule-mid,#D8CFC0)}
 .lt-card .rb-lk-mos{border-radius:0;aspect-ratio:1/1}
 .lt-card .lt-info{padding:14px 18px 18px}
@@ -11742,13 +11761,14 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         _ltEnsureCss();
         opts = opts || {};
         const body = opts.body ? ` onclick="${opts.body}" role="button" tabindex="0"` : '';
-        // d.tag: the kind, as a pill ON the photo (the mixed Lookbook grid,
-        // 2026-10-05) — 'kp' wears the rose tint, 'look' the cream.
+        // d.tag: the kind (the mixed Lookbook grid, 2026-10-05) — an
+        // eyebrow in the pad above the name, per the design; never a
+        // label on the photo (Annie, 2026-10-05).
         const tag = d.tag ? `<span class="lt-tag ${d.tag === 'kp' ? 'kp' : 'look'}">${d.tag === 'kp' ? 'Key piece' : 'Look'}</span>` : '';
         return `<div class="rb-lk-tile${opts.extraClass ? ' ' + opts.extraClass : ''}"${body}>` +
-          tag + _ltMosaicHtml(d.cells, { photo: d.photo, alt: d.title, hero: opts.hero }) +
+          _ltMosaicHtml(d.cells, { photo: d.photo, alt: d.title, hero: opts.hero }) +
           `<div class="lt-info">` +
-            (d.eyebrow ? `<span class="lt-ey">${_waEsc(d.eyebrow)}</span>` : '') +
+            tag + (d.eyebrow ? `<span class="lt-ey">${_waEsc(d.eyebrow)}</span>` : '') +
             _ltTitleHtml(d.title, 'lt', d.provisional) +
             // The vibe rides the card (Look Rules 1e) — it is what the
             // Lookbook browses by, so it has to be readable at grid scale.
@@ -25716,8 +25736,8 @@ body>*:not(#tv-result-page){display:none !important}
         el.style.display = '';
         el.innerHTML = `
           <div class="rb-sec-head">
-            <span class="rb-sec-ey">Lookbook</span>
-            <button class="rb-sec-link" onclick="window.__snOpen()">View all</button>
+            <span class="rb-sec-ey">Saved looks</span>
+            <button class="rb-sec-link" onclick="window.__rbLooksOpen()">View all</button>
           </div>
           <div class="rb-sn-grid">
             ${items.map(item => `

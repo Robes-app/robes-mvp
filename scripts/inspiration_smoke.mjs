@@ -818,9 +818,21 @@ check('no page errors', errs.length === 0, errs.join(' | '));
   }));
   check('+ menu · the + sits inside the field (Take a picture · Upload a photo · From wardrobe), the camera row says "Lay the piece flat, in good light.", capture only on the camera input',
     menu.plus && menu.noSpark && menu.closed && menu.opts.join('|') === 'Take a picture|Upload a photo|From wardrobe' && menu.camLine === 'Lay the piece flat, in good light.' && menu.cam === 'environment' && menu.file === false, JSON.stringify(menu));
-  await p2.locator('#rb-lp-plus').click();
-  await p2.waitForTimeout(150);
-  check('+ menu · opens on tap', await p2.evaluate(() => document.getElementById('rb-lp-plusmenu').classList.contains('open')));
+  // A phone gives a tapped button no focus: the + blurs the field, the
+  // blur closer saw nothing focused inside and folded the DOCKED box
+  // under her finger (Annie, 2026-10-05). Replay that sequence by hand.
+  await p2.evaluate(() => { document.getElementById('rb-lp-in').focus(); });
+  await p2.waitForTimeout(80);
+  await p2.evaluate(() => {
+    const b = document.getElementById('rb-lp-plus');
+    b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }));
+    document.getElementById('rb-lp-in').blur();
+    document.body.focus();
+    window.__rbLpPlus();
+  });
+  await p2.waitForTimeout(400);
+  const plusTap = await p2.evaluate(() => ({ box: !!document.getElementById('rb-lp'), open: !!document.getElementById('rb-lp-plusmenu')?.classList.contains('open') }));
+  check('+ menu · opens on tap, and the tap never folds the box (the field blurs, nothing inside holds focus)', plusTap.box && plusTap.open, JSON.stringify(plusTap));
   await p2.locator('#rb-lp-plusmenu button:has-text("From wardrobe")').click();
   await p2.waitForTimeout(250);
   const pick = await p2.evaluate(() => ({

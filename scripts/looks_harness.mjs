@@ -302,6 +302,12 @@ const browser = await chromium.launch(
       sortLabel: document.querySelector('.rb-lk-sort span')?.textContent,
       sortArrow: document.querySelector('.rb-lk-sort b')?.textContent,
       eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-tag')).map((e) => e.textContent),
+      // The kind is an eyebrow IN THE PAD, above the name (Annie,
+      // 2026-10-05) — never a label over the photo.
+      tagInPad: Array.from(document.querySelectorAll('#rb-lk-grid .lt-card')).every((c) => {
+        const t = c.querySelector('.lt-tag');
+        return !!t && t.parentElement.classList.contains('lt-info') && t.nextElementSibling?.classList.contains('lt-title') && getComputedStyle(t).position === 'static';
+      }),
       cardDress: document.querySelectorAll('#rb-lk-grid .lt-card').length,
       path: location.pathname,
     };
@@ -322,6 +328,8 @@ const browser = await chromium.launch(
   check('grid · cards carry the kind as a tag ON the photo in the shared card dress (the mixed grid, 2026-10-05)',
     s.eyebrows.every((e) => e === 'Look') && s.eyebrows.length === 2 && s.cardDress === 2,
     JSON.stringify([s.eyebrows, s.cardDress]));
+  check('shelf · the kind reads as an eyebrow in the pad above the name, never a label on the photo',
+    s.tagInPad === true, String(s.tagInPad));
   check('grid · one tile per look', s.tiles === 2, String(s.tiles));
   check('grid · a New look add card mirrors the pieces grid',
     s.addCard === true && /New look/.test(s.addCardText || ''), JSON.stringify([s.addCard, s.addCardText]));
