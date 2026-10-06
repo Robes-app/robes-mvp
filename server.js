@@ -3058,7 +3058,7 @@ app.post('/api/wardrobe/analyse', async (req, res) => {
 IMPORTANT: If no clothing item, garment, or accessory is clearly visible (e.g. the photo shows a face, a room, a screenshot, or unidentifiable content), set "no_item_detected": true and return all other fields as empty strings or empty arrays.
 
 If a clothing item IS present, set "no_item_detected": false and fill every field:
-"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans")
+"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans") — never the brand; the brand goes in "brand" alone ("Ballet sneakers", not "Miu Miu ballet sneakers")
 "category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
 "formality": how dressed up the piece is — casual (jeans, tees, trainers), smart (tailoring, a silk shirt, a loafer), formal (cocktail dress, a tuxedo blazer, an evening shoe), black_tie (a gown, a dinner suit). Judge the GARMENT, not how it happens to be styled in the photo.
 "category_l2" and "category_l3": file the piece in the Robes taxonomy below. Each line reads Category › Subcategory: item types. Pick the ONE line whose subcategory fits best, copy the subcategory name EXACTLY into category_l2, then copy the best-fitting item type from that line EXACTLY into category_l3. If no item type on the line fits, set category_l3 to "". If no subcategory fits at all, set both to "".

@@ -2587,7 +2587,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           : (_wgPackMode ? '' : _wrStarHtml(it, true));
         return '<div class="rb-wr-photo wg-img-wrap' + (wish ? ' rb-wl-tile' : '') + '">' + photo + act + '</div>' +
           '<div class="rb-wr-info">' + _wrEyeHtml(_waSheetCatOf(it), it.brand) +
-            '<div class="rb-wr-name wg-name">' + _waEsc(it.label) + '</div>' + _wrStatHtml(_wrStatus(it, wish)) + '</div>';
+            '<div class="rb-wr-name wg-name">' + _waEsc(_rbNameNoBrand(it.label, it.brand)) + '</div>' + _wrStatHtml(_wrStatus(it, wish)) + '</div>';
       }
       function _wrRowHtml(it, wish) {
         const id = _waEsc(String(it.id));
@@ -2597,7 +2597,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         return '<button type="button" class="rb-wr-rmbtn" tabindex="-1" onclick="event.stopPropagation();window.__wrAsk(\'' + (wish ? 'l' : 'w') + '\',\'' + id + '\')">Remove</button>' +
           '<div class="rb-wr-face" role="button" tabindex="0">' +
             _wrThumbHtml(it, wish) +
-            '<div class="rb-wr-body">' + _wrEyeHtml(_waSheetCatOf(it), it.brand) + '<div class="rb-wr-name wg-name">' + _waEsc(it.label) + '</div></div>' +
+            '<div class="rb-wr-body">' + _wrEyeHtml(_waSheetCatOf(it), it.brand) + '<div class="rb-wr-name wg-name">' + _waEsc(_rbNameNoBrand(it.label, it.brand)) + '</div></div>' +
             '<div class="rb-wr-acts">' + act + '<span class="rb-wr-chev" aria-hidden="true">›</span></div>' +
             _wrStatHtml(_wrStatus(it, wish)) +
           '</div>';
@@ -4801,7 +4801,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 
             const payload = {
               user_id:   _waUid(),
-              label,
+              label: _rbNameNoBrand(label, ((document.getElementById('wa-brand') || {}).value || '').trim()),
               category:  (document.getElementById('wa-cat')   || {}).value || 'Other',
               color:     colorName || null,
               brand:     ((document.getElementById('wa-brand') || {}).value || '').trim() || null,
@@ -5234,7 +5234,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             const wlDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
             wlDna.source = { kind: 'receipt', retailer: row.retailer || '', order_ref: row.order_ref || '', inbox_id: row.id };
             const wlPayload = {
-              user_id: uid, label: String(it.label || '').slice(0, 120) || 'A piece',
+              user_id: uid, label: _rbNameNoBrand(String(it.label || '').slice(0, 120), it.brand) || 'A piece',
               category: it.category || 'Other', color: it.color || null, brand: it.brand || null, note: null,
               image_url: _pdHttp(it.image_url) ? it.image_url : null,
               price: (it.price != null && it.price !== '') ? Number(it.price) : null,
@@ -5254,7 +5254,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           dna.source = { kind: 'receipt', retailer: row.retailer || '', order_ref: row.order_ref || '', inbox_id: row.id };
           const payload = {
             user_id: uid,
-            label: String(it.label || '').slice(0, 120) || 'A piece',
+            label: _rbNameNoBrand(String(it.label || '').slice(0, 120), it.brand) || 'A piece',
             category: it.category || 'Other',
             color: it.color || null,
             brand: it.brand || null,
@@ -10145,9 +10145,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '#kp-build-host .rbc-body>div:first-child{display:flex;flex-direction:column}' +
           '#kp-build-host .rbc-sub{order:-1;margin:0 0 6px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#55524E);gap:6px}' +
           '#kp-build-host .rbc-sub .rbc-mslot{display:inline}' +
-          '#kp-build-host .rbc-trailrow .rbc-sub{order:0;margin:5px 0 0;font-size:11px;letter-spacing:0;text-transform:none}' +
-          '#kp-build-host .rbc-trailrow .rbc-sub .brand{font-size:11px}' +
-          '#kp-build-host .rbc-eye{font-size:9px;letter-spacing:.2em;color:var(--ink-soft,#55524E);margin-bottom:5px}' +
+          '#kp-build-host .rbc-trailrow .rbc-sub.rbc-ctx{order:0;margin:5px 0 0;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint,#8C8780)}' +
+          '#kp-build-host .rbc-eye{font-size:9px;letter-spacing:.18em;color:var(--ink-faint,#8C8780);margin-bottom:5px}' +
           '#kp-build-host .rbc-sub .brand{font-family:inherit;font-style:normal;font-size:9px}' +
           '#kp-build-host .rbc-sub .price{font-size:9px}' +
           '#kp-build-host .rbc-sub .owned{font-size:9px;letter-spacing:.2em;color:var(--sage,#7E7C5A)}' +
@@ -10639,7 +10638,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         }) + photoNote;
         const rackItems = items.map(it => Object.assign({}, it, {
           count: { cur: 0, len: 1 },
-          subHtml: (it.subHtml || '') + (it.owned ? '<span class="rbc-wears">' + _lkN(it.wearCount || 0, 'wear') + '</span>' : ''),
+          subHtml: it.subHtml || '',
           thirdHtml: '',
         }));
         // The rack head in the look page's register: the count, the wear
@@ -11887,7 +11886,14 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rbc-row.rbc-tap:hover{border-color:rgba(32,32,33,0.22)}
 .rbc-row.rbc-tap:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .rbc-trailrow .rbc-vp .vslot{display:none}
-.rbc-eye{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px;line-height:1.3}
+.rbc-eye{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rbc-eye .b{color:var(--rose)}
+/* Line 3 (fix 13): the role + the exception, the wardrobe status line's
+   tracked-caps register. */
+.rbc-trailrow .rbc-sub.rbc-ctx{display:block;margin-top:5px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);line-height:1.4}
+.rbc-trailrow .rbc-ctx .sep{font-style:normal}
+.rbc-trailrow .rbc-ctx .price,.rbc-trailrow .rbc-ctx .wl{font-family:inherit;font-style:normal;font-size:9px}
+
 .rbc-trailrow .rbc-namebtn{cursor:pointer}
 /* A row the edit changed turns warm and names what it replaced. */
 .rbc-row.changed{background:#F3EFE6;border-color:#C9BCA6}
@@ -11897,7 +11903,6 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
    exception prints (Look_Screen_Redline 06). */
 .rbc-trailrow .rbc-sub .owned{display:none}
 .rbc-trailrow .rbc-sub .rbc-wears{font-size:11px}
-.rbc-trailrow .rbc-sub .wl+.brand::before,.rbc-trailrow .rbc-sub .wl+.price::before,.rbc-trailrow .rbc-sub .notyours+.brand::before,.rbc-trailrow .rbc-sub .notyours+.price::before{content:'· ';color:var(--ink-faint)}
 .rbd-strip{display:grid;grid-auto-flow:column;grid-auto-columns:200px;gap:10px;overflow-x:auto;padding-bottom:10px;margin-bottom:24px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
 .rbd-day{scroll-snap-align:start;position:relative;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:13px 13px 12px;min-height:132px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .2s,background .2s;font-family:inherit}
 .rbd-day:hover{border-color:rgba(32,32,33,0.22)}
@@ -11951,14 +11956,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rbc-act{min-height:44px}
 .rbc-row.rbc-trailrow{grid-template-columns:52px minmax(0,1fr) auto;gap:12px;padding:14px 4px 14px 12px}
 .rbc-trailrow .rbc-eye{order:-1}
-.rbc-trailrow .rbc-sub{order:0;margin-top:3px;margin-bottom:0;font-size:11px;letter-spacing:0;text-transform:none}
-.rbc-trailrow .rbc-sub .brand{font-size:11px}
+.rbc-trailrow .rbc-sub.rbc-ctx{order:0;margin-top:5px;margin-bottom:0;font-size:9px;letter-spacing:.14em;text-transform:uppercase}
 .rbc-trailrow .rbc-hownote.rb-lp-was{display:block}
 .rbc-trailrow .rbc-vp{aspect-ratio:52/62}
 /* The exception takes its own line on the phone (the sub wraps there),
    so no stray "·" leads the brand. */
-.rbc-trailrow .rbc-sub .notyours{flex-basis:100%}
-.rbc-trailrow .rbc-sub .notyours+.brand::before,.rbc-trailrow .rbc-sub .notyours+.price::before{content:none}
 /* 03 · Share compresses to a badge on the mosaic; the full-width action
    leaves the footer to the dock */
 .rbc-action{display:none}
@@ -12169,6 +12171,54 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         </button>`;
       }
 
+      // ── Fix 13 helpers: the piece's own facts for the three lines ────────
+      // The slot chip a generated piece carries ("Top", "Shoes") read as the
+      // wardrobe's plural category, so a proposal and her own piece share
+      // one vocabulary.
+      var _RBC_SLOT_PLURAL = { top:'Tops', tops:'Tops', bottom:'Bottoms', bottoms:'Bottoms', dress:'Dresses & jumpsuits', dresses:'Dresses & jumpsuits', shoe:'Shoes', shoes:'Shoes', bag:'Bags', bags:'Bags', layer:'Outerwear', outerwear:'Outerwear', jacket:'Outerwear', coat:'Outerwear', accessory:'Accessories', accessories:'Accessories', jewellery:'Jewellery', jewelry:'Jewellery', knitwear:'Knitwear', swim:'Swim & beach', swimwear:'Swim & beach', trousers:'Bottoms', jeans:'Bottoms', skirt:'Bottoms', shorts:'Bottoms', blazer:'Outerwear', shirt:'Tops', knit:'Knitwear', jumper:'Knitwear', cardigan:'Knitwear', boots:'Shoes', heels:'Shoes', sandals:'Shoes', trainers:'Shoes', sneakers:'Shoes', flats:'Shoes', belt:'Accessories', scarf:'Accessories', hat:'Accessories' };
+      function _rbPluralCat(word) {
+        const w = String(word || '').trim();
+        if (!w) return 'Piece';
+        return _RBC_SLOT_PLURAL[w.toLowerCase()] || _WA_LEGACY_TO_SHEET[w] || w;
+      }
+      // A piece's name without its brand: "Miu Miu ballet sneakers" →
+      // "Ballet sneakers", "Jumper by Wimbledon" → "Jumper". Never empties
+      // a name — a name that IS the brand stays as it is.
+      function _rbNameNoBrand(name, brand) {
+        const n = String(name || '').trim();
+        const b = String(brand || '').trim();
+        if (!n || !b || b.length < 2) return n;
+        const esc = b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let out = n.replace(new RegExp('^' + esc + "(?:['’]s)?[\\s\\-–—:·,]+", 'i'), '');
+        out = out.replace(new RegExp('[\\s,]+(?:by|from|[\\-–—·|])\\s*' + esc + '$', 'i'), '');
+        out = out.replace(new RegExp('\\s+' + esc + '$', 'i'), '');
+        out = out.trim();
+        if (!out || out.length < 2) return n;
+        return out.charAt(0).toUpperCase() + out.slice(1);
+      }
+      window._rbNameNoBrand = _rbNameNoBrand;
+      function _rbcAnatomy(it) {
+        const wi = it.pieceId != null && typeof _waItems !== 'undefined' && _waItems
+          ? _waItems.find(w => String(w.id) === String(it.pieceId)) : null;
+        const brand = _rbDeEsc(String(it.eyeBrand != null ? it.eyeBrand : (wi ? (wi.brand || '') : (it.brand || ''))).trim());
+        const cat = it.eyeCat || (wi ? _waSheetCatOf(wi) : _rbPluralCat(it.slot));
+        return { cat, brand, name: _rbNameNoBrand(it.name, brand) };
+      }
+      // Line 3 on a look: the role, then whatever is the exception — "Not
+      // yours yet" / "Wishlist" and a price. The brand moved to line 1 and
+      // "In your wardrobe" is true of every row, so neither prints here.
+      function _rbcCtxHtml(role, subHtml) {
+        const sub = String(subHtml || '')
+          .replace(/<span class="(?:brand|owned|rbc-wears)">[\s\S]*?<\/span>/g, '')
+          .trim();
+        const parts = [];
+        if (role) parts.push('<span class="role">' + _waEsc(role) + '</span>');
+        const spans = sub.match(/<span class="(?:notyours|wl|price)">[\s\S]*?<\/span>/g);
+        if (spans) parts.push.apply(parts, spans);
+        else if (sub) parts.push(sub);
+        if (!parts.length) return '';
+        return '<div class="rbc-sub rbc-ctx">' + parts.join('<i class="sep"> · </i>') + '</div>';
+      }
       function _rbcRow(it, cfg) {
         const dots = it.count.len > 1 && it.count.len <= 8
           ? `<span class="rbc-dots">${Array.from({ length: it.count.len }, (_, k) => `<span${k === it.count.cur ? ' class="on"' : ''}></span>`).join('')}</span>`
@@ -12197,8 +12247,17 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const rowTap = trail && pieceTap
           ? ` role="button" tabindex="0" onclick="if(!event.target.closest('button,a,input'))${pieceTap}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${pieceTap}}"`
           : '';
+        // One piece anatomy, every surface (Look_Screen_Redline fix 13,
+        // 2026-10-06): line 1 is Category · Brand (the wardrobe's plural
+        // category, the brand in rose), line 2 the name WITHOUT the brand,
+        // line 3 the context — on a look, the role in tracked caps (plus
+        // the exception on a piece she doesn't own). Wear counts stay in
+        // the wardrobe; they are not what a look's rack is for.
+        const _anat = trail ? _rbcAnatomy(it) : null;
         const eyeHtml = trail
-          ? `<div class="rbc-eye">${_waEsc(it.slot)}${roleShort ? ' · ' + _waEsc(roleShort) : ''}</div>` : '';
+          ? `<div class="rbc-eye">${_waEsc(_anat.cat)}${_anat.brand ? `<span class="b"> · ${_waEsc(_anat.brand)}</span>` : ''}</div>` : '';
+        const ctxHtml = trail ? _rbcCtxHtml(roleShort, it.subHtml) : '';
+        const nameTxt = trail ? _anat.name : it.name;
         const trailHtml = trail
           ? `<div class="rbc-trail">${it.thirdHtml || ''}` +
             (cfg.onWish && it.wishable ? `<button type="button" class="rbc-tr rbc-wish${it.wishlisted ? ' on' : ''}" onclick="window.${cfg.onWish}(${it.idx})" title="${it.wishlisted ? 'On your wishlist' : 'Save to wishlist'}" aria-label="${it.wishlisted ? 'On your wishlist' : 'Save to wishlist'}" aria-pressed="${it.wishlisted ? 'true' : 'false'}">${it.wishlisted ? _RBC_HEART_ON : _RBC_HEART}</button>` : '') +
@@ -12218,10 +12277,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             <div>
               ${eyeHtml}
               <div class="rbc-namerow">
-                ${pieceTap ? `<button type="button" class="rbc-name rbc-namebtn" onclick="${pieceTap}" title="Open this piece">${_waEsc(it.name)}</button>` : `<div class="rbc-name">${_waEsc(it.name)}</div>`}
+                ${pieceTap ? `<button type="button" class="rbc-name rbc-namebtn" onclick="${pieceTap}" title="Open this piece">${_waEsc(nameTxt)}</button>` : `<div class="rbc-name">${_waEsc(nameTxt)}</div>`}
                 ${it.anchored ? `<span class="rbc-anchpill">${_rbcLockSvg} Anchored</span>` : ''}
               </div>
-              <div class="rbc-sub">${trail ? '' : `<span class="rbc-mslot">${_waEsc(it.slot)} ·&nbsp;</span>`}${it.subHtml}</div>
+              ${trail ? ctxHtml : `<div class="rbc-sub"><span class="rbc-mslot">${_waEsc(it.slot)} ·&nbsp;</span>${it.subHtml}</div>`}
               ${it.noteHtml || ''}
             </div>
             ${trail ? '' : `<div class="rbc-foot">
@@ -15842,7 +15901,7 @@ body.rb-lk-push #rb-dock{display:none}
           const cap = ci >= 0 ? trip.data.capsule[ci] : null;
           return Object.assign({}, it, {
             count: { cur: 0, len: 1 },
-            subHtml: (it.subHtml || '') + (it.owned ? '<span class="rbc-wears">' + _lkN(it.wearCount || 0, 'wear') + '</span>' : ''),
+            subHtml: it.subHtml || '',
             thirdHtml: cap ? '<button type="button" class="rbc-act rb-lk-packbtn' + (cap.packed ? ' on' : '') + '" onclick="window.__lkTripPack(' + ci + ')">' + (cap.packed ? _rbcCheckSvg + ' Packed' : 'Pack') + '</button>' : '',
           });
         });
@@ -16078,6 +16137,8 @@ body.rb-lk-push #rb-dock{display:none}
           idx: i,
           role: row.role || null,
           slot: row.chip || 'Piece',
+          eyeCat: (_RBC_SLOT_PLURAL[String(row.chip || '').toLowerCase()]) || _rbPluralCat((row.cats && row.cats[0]) || row.chip),
+          eyeBrand: a.brand || '',
           name: a.name || '',
           shortName: String(a.name || row.chip || 'piece').split(/\s+/).slice(-1)[0].toLowerCase(),
           owned: false, anchored: false, isNew: true, openable: !!fns.open, dashed: true,

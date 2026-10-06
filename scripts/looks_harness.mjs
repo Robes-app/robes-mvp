@@ -662,9 +662,12 @@ const browser = await chromium.launch(
   check('detail · the inline swap strip is gone', d.inlineStrip === false);
   const editMode = await page.evaluate(() => {
     const wearsBefore = Array.from(document.querySelectorAll('.rbc-rack .rbc-wears')).map((e) => e.textContent.trim());
+    const anat = Array.from(document.querySelectorAll('.rbc-rack .rbc-trailrow')).map((r) => ({
+      eye: r.querySelector('.rbc-eye')?.textContent.trim(), brand: r.querySelector('.rbc-eye .b')?.textContent.trim() || '',
+      name: r.querySelector('.rbc-name')?.textContent.trim(), ctx: r.querySelector('.rbc-ctx')?.textContent.trim() || '' }));
     window.__lkEditToggle();
     const out = {
-      wearsBefore,
+      wearsBefore, anat,
       flicks: document.querySelectorAll('.rbc-rack .rbc-arrow').length,
       swaps: document.querySelectorAll('.rbc-rack .rbc-swap').length,
       chevrons: document.querySelectorAll('.rbc-rack .rbc-more').length,
@@ -687,8 +690,11 @@ const browser = await chromium.launch(
     window.__lkEditToggle();
     return out;
   });
-  check('detail · reading, each row carries its piece\'s wear count',
-    editMode.wearsBefore.length === 4 && /wear/.test(editMode.wearsBefore[0] || ''), JSON.stringify(editMode.wearsBefore));
+  check('detail · fix 13: no wear count on a look\'s rack rows', editMode.wearsBefore.length === 0, JSON.stringify(editMode.wearsBefore));
+  check('detail · fix 13: line 1 is the plural category (· Brand in rose when known), line 2 the name, line 3 the role',
+    editMode.anat.length === 4 && editMode.anat.every((a) => /^(Tops|Bottoms|Shoes|Bags|Outerwear|Knitwear|Accessories|Jewellery|Dresses & jumpsuits|Other)( · .+)?$/.test(a.eye || '')
+      && /^(Canvas|Anchor|Texture|Exclamation)$/.test(a.ctx) && (!a.brand || !(a.name || '').toLowerCase().includes(a.brand.replace(/^· /, '').toLowerCase()))),
+    JSON.stringify(editMode.anat));
   // Handoff 5c: the same rows as the draft — ↻ and › on every row, no
   // steppers, no ✕ (swipe removes); the eyebrow reads Editing and the
   // title is the tap target; the pinned bar reads Done · Update look,
@@ -725,7 +731,7 @@ const browser = await chromium.launch(
   const specA3F = await page.evaluate(() => {
     const strips = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip span')).map((s) => s.textContent);
     const rows = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row'));
-    const eyes = rows.map((r) => r.querySelector('.rbc-eye')?.textContent.trim() || '');
+    const eyes = rows.map((r) => r.querySelector('.rbc-ctx .role')?.textContent.trim() || '');
     const tagsRow = document.querySelector('.rb-lk-con .rbc-tags');
     return {
       strips, eyes,
@@ -736,9 +742,9 @@ const browser = await chromium.launch(
       tagsEmptyInvite: tagsRow ? /Untagged|Tags/.test(tagsRow.textContent) : false,
     };
   });
-  check('roles · no strips on the look page — every row is a tappable card whose eyebrow reads Slot · Role',
+  check('roles · no strips on the look page — every row is a tappable card whose line 3 reads the role',
     specA3F.strips.length === 0 && specA3F.rows === 4 && specA3F.cards === 4 && specA3F.vslotHidden
-      && specA3F.eyes.every((e) => /^[A-Za-z]+ · (Canvas|Anchor|Texture|Exclamation)$/.test(e)), JSON.stringify(specA3F));
+      && specA3F.eyes.every((e) => /^(Canvas|Anchor|Texture|Exclamation)$/.test(e)), JSON.stringify(specA3F));
   check('roles · display order is Canvas before Anchor before finishers',
     specA3F.eyes.findIndex((e) => /Canvas$/.test(e)) === 0
       && specA3F.eyes.findIndex((e) => /Anchor$/.test(e)) === 1, JSON.stringify(specA3F.eyes));
@@ -811,15 +817,15 @@ const browser = await chromium.launch(
     const name0 = document.querySelector('.rb-lk-con .rbc-rack .rbc-dragrow[data-roledrag="0"] .rbc-name')?.textContent;
     window.__lkDRoleDrop(0, 'The Exclamation Point');
     const rows = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row'));
-    const names = rows.filter((r) => /Exclamation$/.test(r.querySelector('.rbc-eye')?.textContent.trim() || ''))
+    const names = rows.filter((r) => /Exclamation$/.test(r.querySelector('.rbc-ctx .role')?.textContent.trim() || ''))
       .map((r) => r.querySelector('.rbc-name')?.textContent);
     // Order inside a group is stable (by index), so the re-cast shirt
     // sits with the finishers but ahead of the tote that was already one.
-    const first = rows[0]?.querySelector('.rbc-eye')?.textContent.trim();
+    const first = rows[0]?.querySelector('.rbc-ctx .role')?.textContent.trim();
     return { draggable: wraps.length, name0, names, first };
   });
   check('roles · every rack row is draggable', cast.draggable === 4, String(cast.draggable));
-  check('roles · a drop re-casts the piece: its eyebrow reads the new role and it leaves the canvas',
+  check('roles · a drop re-casts the piece: line 3 reads the new role and it leaves the canvas',
     !!cast.name0 && cast.names.includes(cast.name0) && !/Canvas$/.test(cast.first || ''), JSON.stringify(cast));
   await page.waitForTimeout(400);
   const roleWrite = writes.filter((w) => w.method === 'POST' && /^look_pieces/.test(w.url)).pop();
@@ -1367,7 +1373,9 @@ const browser = await chromium.launch(
     window.__rbLkStill = { stillOpen, stillChips };
     return {
       name: row?.querySelector('.rbc-name')?.textContent,
-      owned: /In your wardrobe/.test(row?.querySelector('.rbc-sub')?.textContent || ''),
+      // Fix 13: her own piece prints no status — the eyebrow is its plural
+      // category, line 3 the role, and nothing says "Not yours yet".
+      owned: !!row && /^Tops( · |$)/.test(row.querySelector('.rbc-eye')?.textContent.trim() || '') && !/Not yours yet/.test(row.textContent),
       // Look_Screen_Redline 06: "✓ In your wardrobe" is true on every row
       // of a look — it never prints; only the exception does.
       ownedHidden: (() => { const o = row?.querySelector('.rbc-sub .owned'); return !o || getComputedStyle(o).display === 'none'; })(),
@@ -1428,15 +1436,15 @@ const browser = await chromium.launch(
   // The role prints on the row's eyebrow (2026-10-06 — no strips on the
   // composer), and a drag re-casts freely: the eyebrow follows.
   const inked = await page.evaluate(() => {
-    const eye = () => document.querySelector('.rb-lk-con .rbc-rack .rbc-row .rbc-eye')?.textContent.trim();
+    const eye = () => document.querySelector('.rb-lk-con .rbc-rack .rbc-row .rbc-ctx .role')?.textContent.trim();
     const before = eye();
     window.__lkCRoleDrop(0, 'The Anchor');
     const after = eye();
     window.__lkCRoleDrop(0, 'The Canvas');
     return { before, after, strips: document.querySelectorAll('.rb-lk-con .rbc-rolestrip').length, restored: eye() };
   });
-  check('composer · a landed piece prints its role on the row eyebrow; a re-cast rewrites it; no strips',
-    /· Canvas$/.test(inked.before || '') && /· Anchor$/.test(inked.after || '') && inked.strips === 0 && /· Canvas$/.test(inked.restored || ''),
+  check('composer · a landed piece prints its role on line 3; a re-cast rewrites it; no strips',
+    /^Canvas$/.test(inked.before || '') && /^Anchor$/.test(inked.after || '') && inked.strips === 0 && /^Canvas$/.test(inked.restored || ''),
     JSON.stringify(inked));
 
   // The flick cycles same-category pieces
@@ -1502,7 +1510,7 @@ const browser = await chromium.launch(
     Array.from(document.querySelectorAll('#rb-lkadd-sheet .rb-lk-opt'))
       .find((b2) => b2.querySelector('span')?.textContent === 'Cream silk shirt').click();
     const names = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row'))
-      .filter((r) => /· Canvas$/.test(r.querySelector('.rbc-eye')?.textContent.trim() || ''))
+      .filter((r) => /^Canvas$/.test(r.querySelector('.rbc-ctx .role')?.textContent.trim() || ''))
       .map((r) => r.querySelector('.rbc-name')?.textContent);
     window.__lkNew();   // reset roles + rows for the sections below
     return { eyebrow, names };
@@ -2085,7 +2093,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
     shop: document.querySelectorAll('.rb-lk-prop').length,
     chips: Array.from(document.querySelectorAll('.rb-lk-prop .rb-lk-shopph span')).map((c) => c.textContent),
-    prov: document.querySelector('.rb-lk-prop .rbc-sub')?.textContent,
+    prov: (document.querySelector('.rb-lk-prop .rbc-eye .b')?.textContent || '') + ' | ' + (document.querySelector('.rb-lk-prop .rbc-ctx')?.textContent || ''),
     title: document.getElementById('rb-lk-newtitle')?.value,
     foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
   }));
@@ -2094,7 +2102,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     JSON.stringify([a.rows, a.shop, a.head]));
   check('aspirational · each proposal is a full piece card with its category chip and provenance',
     JSON.stringify(a.chips) === JSON.stringify(['Trousers', 'Jacket', 'Shoes'])
-      && /Sézane|Toteme/.test(a.prov || ''), JSON.stringify([a.chips, a.prov]));
+      && /· (Sézane|Toteme)/.test(a.prov || '') && /Not yours yet/.test(a.prov || ''), JSON.stringify([a.chips, a.prov]));
   check('aspirational · the title comes from her icons, not the pieces',
     a.title === 'Margot Robbie meets Chanel.', a.title);
   check('aspirational · Wear it today is withheld; the exit is Build from mine only',
@@ -3065,7 +3073,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     return out;
   });
   check('saved view · an untouched day holds the saved look as it reads on its page',
-    savedView.saved === true && savedView.arrows === 0 && savedView.swaps === 0 && savedView.wears === 4
+    savedView.saved === true && savedView.arrows === 0 && savedView.swaps === 0 && savedView.wears === 0
       && savedView.head === 'The look' && savedView.pieceDoors === 4,
     JSON.stringify(savedView));
   // (The weather pill reads the live forecast, absent under the stub.)

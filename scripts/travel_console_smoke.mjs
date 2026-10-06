@@ -223,7 +223,7 @@ ok(!(await page.locator('#tv-result-page').isVisible()), 'the trip stands down b
 // beneath it said the same thing a second time (Annie, 2026-09-10).
 ok(/pinned for Saturday 1 Aug/i.test(await page.locator('#sn-page .rb-tb-meta').innerText()) && await page.locator('#sn-page .rb-lk-tripstrip').count() === 0, 'the pin reads on the meta line, and the duplicate sage strip is gone');
 ok(await page.locator('#sn-page .rb-lk-packbtn').count() === 2 && await page.locator('#sn-page .rb-lk-packall').count() === 1, 'every owned row carries the case’s Pack toggle, the head Pack this look');
-ok(await page.locator('#sn-page .rb-lk-pinbar .rb-lk-editlook', { hasText: 'Edit look' }).count() === 1 && await page.locator('#sn-page .rbc-wears').count() === 2, 'the look page is otherwise the Lookbook’s: the pinned Edit look bar, the wear counts');
+ok(await page.locator('#sn-page .rb-lk-pinbar .rb-lk-editlook', { hasText: 'Edit look' }).count() === 1 && await page.locator('#sn-page .rbc-wears').count() === 0, 'the look page is otherwise the Lookbook’s: the pinned Edit look bar, no wear counts on the rack (fix 13)');
 const packCi = await page.evaluate(() => window.__lastTvData.capsule.findIndex(c => c.wardrobe_match && c.wardrobe_match.id === 'w1'));
 await page.evaluate((ci) => window.__lkTripPack(ci), packCi);
 await page.waitForTimeout(200);
