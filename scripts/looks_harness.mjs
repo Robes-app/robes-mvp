@@ -544,7 +544,7 @@ const browser = await chromium.launch(
   check('detail · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('detail · no sub-sub-nav back line', d.back === false);
   check('detail · the return band names the Lookbook and walks its set (n of N)',
-    !!d.ret && d.ret.label === 'Lookbook' && /^\d of 2$/.test(d.ret.pos || '') && d.ret.h === 48, JSON.stringify(d.ret));
+    !!d.ret && d.ret.label === 'Lookbook' && !d.ret.pos && d.ret.h === 48, JSON.stringify(d.ret));
   check('detail · grid yields to the detail', d.gridHidden === true);
   const tabBack = await page.evaluate(() => {
     document.getElementById('rb-tn-lookbook').click();
@@ -612,6 +612,7 @@ const browser = await chromium.launch(
       ink: btn ? getComputedStyle(btn).backgroundColor === 'rgb(32, 32, 33)' : null, last: !!bar && bar === bar.parentElement.lastElementChild };
   });
   if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-reading-1280.png', fullPage: true }).catch(() => {});
+  if (process.env.SHOT_DIR) { await page.evaluate(() => document.querySelector('.rbc-rack')?.scrollIntoView({ block: 'start' })); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOT_DIR + '/look-reading-1280-rack.png' }).catch(() => {}); await page.evaluate(() => { const sc = document.getElementById('sn-page'); if (sc) sc.scrollTop = 0; }); }
   check('detail · the pinned bar carries the facts and Edit look as a hairline pill, no ink at rest',
     pinbar.bar && /^4 pieces · 2 wears/.test(pinbar.meta || '') && pinbar.btn === 'Edit look' && pinbar.ink === false && pinbar.last, JSON.stringify(pinbar));
   check('detail · the rack ends and the wear log STANDS ALONE — its own card below the held one, never inside the rack\'s column',
@@ -1364,6 +1365,13 @@ const browser = await chromium.launch(
     return {
       name: row?.querySelector('.rbc-name')?.textContent,
       owned: /In your wardrobe/.test(row?.querySelector('.rbc-sub')?.textContent || ''),
+      // Look_Screen_Redline 06: "✓ In your wardrobe" is true on every row
+      // of a look — it never prints; only the exception does.
+      ownedHidden: (() => { const o = row?.querySelector('.rbc-sub .owned'); return !o || getComputedStyle(o).display === 'none'; })(),
+      cardRad: row ? getComputedStyle(row).borderTopLeftRadius : null,
+      cardBorder: row ? getComputedStyle(row).borderTopWidth : null,
+      nameFs: row ? getComputedStyle(row.querySelector('.rbc-name')).fontSize : null,
+      thumbW: row ? Math.round(row.querySelector('.rbc-vp').getBoundingClientRect().width) : null,
       flick: row?.querySelectorAll('.rbc-arrow').length,
       swap: !!row?.querySelector('.rbc-trail .rbc-swap'),
       more: !!row?.querySelector('.rbc-trail .rbc-more'),
@@ -1387,6 +1395,11 @@ const browser = await chromium.launch(
   }));
   check('composer · a filled row is the shared rack card',
     one.name === 'Cream silk shirt' && one.owned === true, `${one.name}/${one.owned}`);
+  // Look_Screen_Redline 04–07 (2026-10-06): 52px thumb, 18px serif name,
+  // 12px radius on a 1px hairline, the owned tick never printed.
+  check('composer · the card is the redline\'s: 52px thumb, 18px name, radius 12 on a 1px hairline, "In your wardrobe" never printed',
+    one.ownedHidden === true && one.cardRad === '12px' && one.cardBorder === '1px' && one.nameFs === '18px' && one.thumbW === 52,
+    JSON.stringify([one.ownedHidden, one.cardRad, one.cardBorder, one.nameFs, one.thumbW]));
   // Handoff 4a: a row carries ↻ and › at its right edge — no steppers,
   // no Swap pill, no corner ✕ (swipe removes); the door is now the
   // trailing + Add a piece, no definition rows.
@@ -2301,6 +2314,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     };
   });
   if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-editing-390.png', fullPage: true }).catch(() => {});
+  if (process.env.SHOT_DIR) { await page.evaluate(() => document.querySelector('.rb-lk-lives')?.scrollIntoView({ block: 'end' })); await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOT_DIR + '/look-editing-390-foot.png' }).catch(() => {}); await page.evaluate(() => { const sc = document.getElementById('sn-page'); if (sc) sc.scrollTop = 0; window.scrollTo(0, 0); }); }
   check('390px · detail stacks', md.stacked === true);
   check('390px · the wear door survives — the diary on the image', md.actions === 1, String(md.actions));
   check('390px · no horizontal overflow on the detail', md.overflow === true && md.conFits === true, JSON.stringify([md.overflow, md.conFits]));
@@ -2361,6 +2375,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('390px · composer stacks the card above the rack', mc.stacked === true);
   check('390px · rack rows run full width (no cramped shelf)', mc.rowsFullWidth === true);
   if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/composer-390.png', fullPage: true }).catch(() => {});
+  if (process.env.SHOT_DIR) { await page.evaluate(() => document.querySelector('.rbc-rack')?.scrollIntoView({ block: 'start' })); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOT_DIR + '/composer-390-rack.png' }).catch(() => {}); }
   check('390px · no horizontal overflow on the composer', mc.overflow === true);
   check('390px · the composer is one card, the name leading it from outside',
     mc.inCard === true && mc.titleOutside === true, JSON.stringify([mc.inCard, mc.titleOutside]));

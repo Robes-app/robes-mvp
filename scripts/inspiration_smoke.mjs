@@ -305,6 +305,7 @@ await page.evaluate(() => window.__lkTryAnother());
 await page.waitForTimeout(1500);
 check('Try another re-runs the same way in place', dailyCalls === 4 && await page.locator('#kp-build-host .rb-lk-composer').isVisible()
   && (await page.evaluate(() => document.getElementById('rb-lk-newtitle')?.value)) === 'Park Hangout');
+if (process.env.KP_SHOTS) { await page.evaluate(() => document.querySelector('#kp-build-host .rbc-rack')?.scrollIntoView({ block: 'start' })); await page.waitForTimeout(200); await page.screenshot({ path: process.env.KP_SHOTS + 'kp-build-1280-rack.png' }); }
 
 // 5b · Build your model from the band parks the draft and comes back to it
 // — the result AND the composer, nothing generated twice.
@@ -713,10 +714,11 @@ const phoneBuild = await page.evaluate(() => {
   };
 });
 if (process.env.KP_SHOTS) await page.screenshot({ path: process.env.KP_SHOTS + 'kp-build-390.png' });
-check('phone · the builder: a sticky header with the back circle, the draft footer fixed at the foot (Discard · SAVE in ink — design 4d; the kp bar waits for the save), 64px thumbs on white rows with a bare ♡ in the trail, the pager’s row hidden; no horizontal overflow',
+if (process.env.KP_SHOTS) { await page.evaluate(() => document.querySelector('#kp-build-host .rbc-rack')?.scrollIntoView({ block: 'start' })); await page.waitForTimeout(400); await page.screenshot({ path: process.env.KP_SHOTS + 'kp-build-390-rack.png' }); }
+check('phone · the builder: a sticky header with the back circle, the draft footer fixed at the foot (Discard · SAVE in ink — design 4d; the kp bar waits for the save), 52px thumbs on white rows with a bare ♡ in the trail (Look_Screen_Redline), the pager’s row hidden; no horizontal overflow',
   phoneBuild.sticky === 'sticky' && phoneBuild.back && phoneBuild.barFixed === 'fixed' && phoneBuild.barBottom === 844 && /^Discard \| Save$/i.test(phoneBuild.barTxt)
     && phoneBuild.kpBarHidden && phoneBuild.saveInk === 'rgb(32, 32, 33)'
-    && phoneBuild.building && phoneBuild.actrow === 'none' && phoneBuild.thumbW === 64 && phoneBuild.rowSave === 'rgba(0, 0, 0, 0)' && !phoneBuild.overflowX, JSON.stringify(phoneBuild));
+    && phoneBuild.building && phoneBuild.actrow === 'none' && phoneBuild.thumbW === 52 && phoneBuild.rowSave === 'rgba(0, 0, 0, 0)' && !phoneBuild.overflowX, JSON.stringify(phoneBuild));
 // Back to looks: untouched → straight back; a change → the one-line confirm.
 await page.evaluate(() => window.__kpBuildBackAsk());
 await page.waitForTimeout(300);

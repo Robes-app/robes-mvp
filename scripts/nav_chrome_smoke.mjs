@@ -245,11 +245,13 @@ const titleTop = (page) => page.evaluate(() => {
   check('lookbook · a root: no band, Lookbook lit', (await band(page)) === null && JSON.stringify(await lit(page)) === '["lookbook"]');
   await page.locator('#rb-lk-grid .rb-lk-tile').first().click(); await page.waitForTimeout(500);
   const lb = await band(page);
-  check('look from the grid · ‹ Lookbook + its position in the set', !!lb && lb.label === 'Lookbook' && /^[12] of 2$/.test(lb.pos), JSON.stringify(lb));
+  // Look_Screen_Redline 01 (2026-10-06): the band carries the back pill
+  // ALONE — "1 of 42" is a denominator; the set survives for __lkStep.
+  check('look from the grid · ‹ Lookbook alone — no position, no ‹ › (a denominator)', !!lb && lb.label === 'Lookbook' && lb.pos === '' && (await page.locator('#sn-page .rb-ret-nav').count()) === 0, JSON.stringify(lb));
   const before = await page.locator('#rb-lk-title').innerText();
-  await page.locator('#sn-page .rb-ret-nav:not([disabled])').first().click(); await page.waitForTimeout(400);
+  await page.evaluate(() => window.__lkStep(1)); await page.waitForTimeout(400);
   const after = await page.locator('#rb-lk-title').innerText();
-  check('look · ‹ › walk the set without leaving the screen', before !== after && (await band(page))?.label === 'Lookbook', before + ' → ' + after);
+  check('look · the set still walks (__lkStep — the phone\'s swipe) without leaving the screen', before !== after && (await band(page))?.label === 'Lookbook', before + ' → ' + after);
   await page.locator('#sn-page .rb-ret-pill').click(); await page.waitForTimeout(400);
   check('look · ‹ Lookbook lands on the grid', await page.locator('#rb-lk-grid').isVisible() && (await band(page)) === null);
   await page.evaluate(() => window.__rbNavGo('diary')); await page.waitForTimeout(700);
@@ -280,6 +282,12 @@ const titleTop = (page) => page.evaluate(() => {
     mixed.lab === 'Lookbook' && mixed.count === '2 looks · 1 key piece' && mixed.kp === 1 && mixed.looks === 2 && !mixed.dot, JSON.stringify(mixed));
   await page.evaluate(() => window.__rbNavGo('wardrobe')); await page.waitForTimeout(500);
   check('wardrobe · a root: Wardrobe lit, no band', JSON.stringify(await lit(page)) === '["wardrobe"]' && (await band(page)) === null);
+  const wd = await page.evaluate(() => ({ tabs: [...document.querySelectorAll('#rb-wsub .rb-mast-tab')].map((b) => b.textContent), inHead: !!document.querySelector('.wg-header #rb-add-pill') && !!document.querySelector('.wg-header #rb-refine-pill'), title: !!document.querySelector('.wg-title'), add: document.getElementById('rb-add-pill').textContent, fills: [...document.querySelectorAll('.wg-header button')].filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length }));
+  check('wardrobe · the tabs ARE the masthead: Wardrobe | Wishlist (1), + Add piece and Refine beside them, no YOUR WARDROBE title, nothing filled ink', JSON.stringify(wd.tabs) === JSON.stringify(['Wardrobe', 'Wishlist (1)']) && wd.inHead && !wd.title && wd.add === '+ Add piece' && wd.fills === 0, JSON.stringify(wd));
+  await page.evaluate(() => window.__waSetView('wishlist')); await page.waitForTimeout(300);
+  check('wishlist · a toggle, not a destination: the add pill follows the tab (+ Save a piece), Refine steps aside, the nav and band are untouched',
+    (await page.locator('#rb-add-pill').innerText()) === '+ Save a piece' && !(await page.locator('#rb-refine-pill').isVisible()) && (await band(page)) === null && JSON.stringify(await lit(page)) === '["wardrobe"]');
+  await page.evaluate(() => window.__waSetView('all')); await page.waitForTimeout(300);
   await page.evaluate(() => window.__rbPieceOpen('w-top1', { from: 'wardrobe' })); await page.waitForTimeout(500);
   const b1 = await band(page);
   check('piece from the wardrobe · ‹ Wardrobe, "1 of 2 in tops", Wardrobe stays lit', !!b1 && b1.label === 'Wardrobe' && /^1 of 2 in tops$/i.test(b1.pos) && JSON.stringify(await lit(page)) === '["wardrobe"]', JSON.stringify(b1));
@@ -301,55 +309,6 @@ const titleTop = (page) => page.evaluate(() => {
   await page.locator('#sn-page .rb-ret-pill').click(); await page.waitForTimeout(500);
   check('look · ‹ returns to the piece, then the wardrobe record', await page.locator('#rb-piece-page').isVisible() && (await band(page))?.label === 'Wardrobe');
   check('no page errors (journey)', errs.length === 0, errs.join(' | '));
-  await ctx.close();
-}
-
-// ── 2 · The Lookbook: index masthead, the look's set, the roots ─────────
-{
-  const { ctx, page, errs } = await boot(browser);
-  await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(600);
-  const mast = await page.evaluate(() => {
-    const m = document.querySelector('#rb-lk-bar .rb-mast');
-    const pills = Array.from(m.querySelectorAll('.rb-pill')).map((b) => { const c = getComputedStyle(b); return { t: b.textContent.trim(), fs: c.fontSize, rad: c.borderRadius, bg: c.backgroundColor, tt: c.textTransform }; });
-    return { lab: m.querySelector('.rb-mast-lab')?.textContent, n: m.querySelector('.rb-mast-n')?.textContent, labCase: getComputedStyle(m.querySelector('.rb-mast-lab')).textTransform, pills, headRow: getComputedStyle(document.getElementById('sn-headrow')).display };
-  });
-  check('lookbook · ONE masthead line: LOOKBOOK in tracked caps + "2 looks · 1 key piece" in serif italic (the mixed grid, 2026-10-05), no eyebrow row above', mast.lab === 'Lookbook' && mast.labCase === 'uppercase' && mast.n === '2 looks · 1 key piece' && mast.headRow === 'none', JSON.stringify(mast));
-  // Sort and Refine sit inert below four looks (transparent, no fill); + New look is live.
-  check('lookbook · sort, Refine and + New look are hairline pills — 11px, radius 100, sentence case, the live one white', mast.pills.length === 3 && mast.pills.every((p) => p.fs === '11px' && p.rad === '100px' && p.tt === 'none') && mast.pills[2].bg === 'rgb(255, 255, 255)', JSON.stringify(mast.pills));
-  check('lookbook · a root: no band, Lookbook lit', (await band(page)) === null && JSON.stringify(await lit(page)) === '["lookbook"]');
-  await page.locator('#rb-lk-grid .rb-lk-tile').first().click(); await page.waitForTimeout(500);
-  const lb = await band(page);
-  check('look from the grid · ‹ Lookbook + its position in the set', !!lb && lb.label === 'Lookbook' && /^[12] of 2$/.test(lb.pos), JSON.stringify(lb));
-  const before = await page.locator('#rb-lk-title').innerText();
-  await page.locator('#sn-page .rb-ret-nav:not([disabled])').first().click(); await page.waitForTimeout(400);
-  const after = await page.locator('#rb-lk-title').innerText();
-  check('look · ‹ › walk the set without leaving the screen', before !== after && (await band(page))?.label === 'Lookbook', before + ' → ' + after);
-  await page.locator('#sn-page .rb-ret-pill').click(); await page.waitForTimeout(400);
-  check('look · ‹ Lookbook lands on the grid', await page.locator('#rb-lk-grid').isVisible() && (await band(page)) === null);
-  await page.evaluate(() => window.__rbNavGo('diary')); await page.waitForTimeout(700);
-  // The list carries + alone; ‹ › are Month's, since the list scrolls a
-  // rolling window rather than paging (Annie, 2026-09-10).
-  check('diary · a root: no band; the masthead is the window in caps + the count, the toggle and + on the line, ‹ › only on Month',
-    (await band(page)) === null && await page.evaluate(async () => {
-      const h = () => document.querySelector('#sn-cal .rb-mv-head');
-      const ok1 = getComputedStyle(h().querySelector('.rb-mv-title')).textTransform === 'uppercase' && !!h().querySelector('.rb-mast-n')
-        && h().querySelectorAll('.rb-mv-seg button').length === 2 && h().querySelectorAll('.rb-mv-nav .rb-circ').length === 1
-        && ![...h().querySelectorAll('button')].some((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)');
-      window.__dySetMode('month'); await new Promise((r) => setTimeout(r, 400));
-      const ok2 = h().querySelectorAll('.rb-mv-nav .rb-circ').length === 3;
-      window.__dySetMode('list'); await new Promise((r) => setTimeout(r, 300));
-      return ok1 && ok2;
-    }));
-  await page.evaluate(() => window.__rbNavGo('inspiration')); await page.waitForTimeout(600);
-  const insp = await page.evaluate(() => { const m = document.getElementById('rb-in-mast'); const p = m.querySelector('.rb-pill'); return { lab: m.querySelector('.rb-mast-lab')?.textContent, pill: p?.textContent, bg: getComputedStyle(p).backgroundColor, oldEyebrow: !!document.querySelector('#rb-insp-page p'), sec: !!document.getElementById('rb-in-sec') }; });
-  check('inspiration · a root: one masthead line "Key pieces, styled", the Style a key piece pill is hairline, no stacked labels', (await band(page)) === null && insp.lab === 'Key pieces, styled' && insp.pill === 'Style a key piece' && insp.bg === 'rgb(255, 255, 255)' && insp.sec === false, JSON.stringify(insp));
-  await page.evaluate(() => window.__rbNavGo('wardrobe')); await page.waitForTimeout(500);
-  const wd = await page.evaluate(() => ({ tabs: [...document.querySelectorAll('#rb-wsub .rb-mast-tab')].map((b) => b.textContent), inHead: !!document.querySelector('.wg-header #rb-add-pill') && !!document.querySelector('.wg-header #rb-refine-pill'), title: !!document.querySelector('.wg-title'), add: document.getElementById('rb-add-pill').textContent, fills: [...document.querySelectorAll('.wg-header button')].filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length }));
-  check('wardrobe · the tabs ARE the masthead: Wardrobe | Wishlist (1), + Add piece and Refine beside them, no YOUR WARDROBE title, nothing filled ink', JSON.stringify(wd.tabs) === JSON.stringify(['Wardrobe', 'Wishlist (1)']) && wd.inHead && !wd.title && wd.add === '+ Add piece' && wd.fills === 0, JSON.stringify(wd));
-  await page.evaluate(() => window.__waSetView('wishlist')); await page.waitForTimeout(300);
-  check('wishlist · a toggle, not a destination: the add pill follows the tab (+ Save a piece), Refine steps aside, the nav and band are untouched',
-    (await page.locator('#rb-add-pill').innerText()) === '+ Save a piece' && !(await page.locator('#rb-refine-pill').isVisible()) && (await band(page)) === null && JSON.stringify(await lit(page)) === '["wardrobe"]');
-  check('no page errors (roots)', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }
 
@@ -408,11 +367,14 @@ const titleTop = (page) => page.evaluate(() => {
   await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(600);
   check('mobile root · wordmark + avatar, no return pill, no depth class', await page.locator('#nav-wordmark').isVisible() && await page.locator('.av-wrap').isVisible() && !(await page.locator('#rb-backpill').isVisible()) && !(await page.locator('.nav.rb-depth').count()));
   await page.locator('#rb-lk-grid .rb-lk-tile').first().click(); await page.waitForTimeout(600);
-  const m = await page.evaluate(() => ({ depth: document.querySelector('.nav').classList.contains('rb-depth'), pill: document.getElementById('rb-backpill-label').textContent, pos: document.getElementById('rb-navset').textContent, wm: getComputedStyle(document.getElementById('nav-wordmark')).display, av: getComputedStyle(document.querySelector('.av-wrap')).display, inPage: getComputedStyle(document.querySelector('#rb-lk-body .rb-ret')).display, navH: Math.round(document.querySelector('.nav').getBoundingClientRect().height), dock: !!document.querySelector('#rb-dock-lookbook.active') }));
-  check('mobile depth · the nav bar IS the return band: the pill replaces the wordmark, the position replaces the avatar, the in-page band hides, the dock keeps the section',
-    m.depth && m.pill === 'Lookbook' && /^[12] of 2$/.test(m.pos) && m.wm === 'none' && m.av === 'none' && m.inPage === 'none' && m.dock, JSON.stringify(m));
+  const m = await page.evaluate(() => ({ depth: document.querySelector('.nav').classList.contains('rb-depth'), pill: document.getElementById('rb-backpill-label').textContent, pos: document.getElementById('rb-navset').textContent, wm: getComputedStyle(document.getElementById('nav-wordmark')).display, av: getComputedStyle(document.querySelector('.av-wrap')).display, inPage: getComputedStyle(document.querySelector('#rb-lk-body .rb-ret')).display, navH: Math.round(document.querySelector('.nav').getBoundingClientRect().height), dockLit: !!document.querySelector('#rb-dock-lookbook.active'), dockGone: getComputedStyle(document.getElementById('rb-dock')).display === 'none', push: document.body.classList.contains('rb-lk-push'), bar: !!document.querySelector('.rb-lk-draftbar') && getComputedStyle(document.querySelector('.rb-lk-draftbar')).position === 'fixed' }));
+  // Look_Screen_Redline 01/02 (2026-10-06): no position on a look (a
+  // denominator), and the look is a PUSHED view — its action bar alone
+  // closes the screen, the dock stands down under it.
+  check('mobile depth · the nav bar IS the return band: the pill replaces the wordmark, no position (the look), the in-page band hides, the section stays lit while the dock stands down under the pinned bar',
+    m.depth && m.pill === 'Lookbook' && m.pos === '' && m.wm === 'none' && m.av === 'none' && m.inPage === 'none' && m.dockLit && m.dockGone && m.push && m.bar, JSON.stringify(m));
   await page.locator('#rb-backpill').click(); await page.waitForTimeout(500);
-  check('mobile · the pill climbs back and the wordmark returns', await page.locator('#rb-lk-grid').isVisible() && await page.locator('#nav-wordmark').isVisible() && !(await page.locator('.nav.rb-depth').count()));
+  check('mobile · the pill climbs back, the wordmark and the dock return', await page.locator('#rb-lk-grid').isVisible() && await page.locator('#nav-wordmark').isVisible() && !(await page.locator('.nav.rb-depth').count()) && (await page.evaluate(() => getComputedStyle(document.getElementById('rb-dock')).display !== 'none' && !document.body.classList.contains('rb-lk-push'))));
   // The Diary ROOT rides the Lookbook's #sn-page with #rb-lk-wrap hidden
   // beneath it — the hidden Lookbook band must not collapse the bar
   // (pre-existing "‹ Lookbook" on the Diary root, fixed 2026-09-29).
@@ -438,9 +400,14 @@ const titleTop = (page) => page.evaluate(() => {
   const slotRead = () => page.evaluate(() => {
     const el = document.getElementById('rb-lp-slot'); const b = el && el.querySelector('.rb-lps');
     const on = !!el && getComputedStyle(el).display !== 'none';
-    const r = b && b.getBoundingClientRect(); const dk = document.getElementById('rb-dock').getBoundingClientRect();
+    const r = b && b.getBoundingClientRect(); const dock = document.getElementById('rb-dock'); const dk = dock.getBoundingClientRect();
+    const dockOn = getComputedStyle(dock).display !== 'none';
+    // Look_Screen_Redline 02/03 (2026-10-06): on a pushed look the dock
+    // stands down and the sparkle floats 16px above the action bar.
+    const bar = Array.from(document.querySelectorAll('.rb-lk-draftbar, #kp-build-bar')).find((x) => getComputedStyle(x).position === 'fixed' && x.getClientRects().length);
+    const barTop = bar ? bar.getBoundingClientRect().top : null;
     return { on, words: b ? b.querySelector('.w').textContent : '', bare: !!(b && b.classList.contains('bare')), folded: !!(b && b.classList.contains('folded')), held: !!(b && b.classList.contains('held')),
-      gap: r ? Math.round(dk.top - r.bottom) : null, right: r ? Math.round(window.innerWidth - r.right) : null, w: r ? Math.round(r.width) : null, h: r ? Math.round(r.height) : null,
+      gap: r ? Math.round(dk.top - r.bottom) : null, dockOn, barGap: (r && barTop != null) ? Math.round(barTop - r.bottom) : null, right: r ? Math.round(window.innerWidth - r.right) : null, w: r ? Math.round(r.width) : null, h: r ? Math.round(r.height) : null,
       wordsVis: !!(b && b.querySelector('.w').getBoundingClientRect().width > 10), ink: b ? getComputedStyle(b).backgroundColor : '' };
   });
   const h = await page.evaluate(() => { const row = document.querySelector('#rb-hb .rb-hb-row'); const r = row.getBoundingClientRect(); return { pos: getComputedStyle(row).position, inView: r.top >= 0 && r.bottom <= window.innerHeight, label: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, inline: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), conc: getComputedStyle(document.querySelector('#dash .concierge')).display, overflow: document.documentElement.scrollWidth <= window.innerWidth + 1, plus: !!document.querySelector('#rb-hb #rb-lp-plus') && !document.querySelector('#rb-hb .hp-add') }; });
@@ -470,7 +437,7 @@ const titleTop = (page) => page.evaluate(() => {
   await page.evaluate(() => window.__rbNavGo('diary')); await page.waitForTimeout(700);
   const g3 = await slotRead();
   check('mobile grids · Lookbook, Wardrobe and Diary carry the sparkle alone (ink on a white hairline circle, no words), 12px above the menu',
-    [g1, g2, g3].every((g) => g.on && g.bare && !g.wordsVis && g.gap === 12 && g.w >= 44 && g.w <= 46 && g.h === 44 && g.ink !== 'rgb(32, 32, 33)'), JSON.stringify([g1, g2, g3]));
+    [g1, g2, g3].every((g) => g.on && g.bare && !g.wordsVis && g.gap === 12 && g.dockOn && g.w === 54 && g.h === 54 && g.ink !== 'rgb(32, 32, 33)'), JSON.stringify([g1, g2, g3]));
   if (SHOT) { await page.evaluate(() => window.__rbNavGo('wardrobe')); await page.waitForTimeout(600); await page.screenshot({ path: SHOT + 'slot-wardrobe.png' }); }
   // A look: the pill reads the look's own door; the full-width dock field is gone on the phone.
   await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(500);
@@ -479,13 +446,13 @@ const titleTop = (page) => page.evaluate(() => {
   const dockGone = await page.evaluate(() => { const f = document.querySelector('#sn-page .rb-lk-held .rb-lp-field.rb-lp-dock'); return !!f && getComputedStyle(f).display === 'none'; });
   // Inline since 2026-10-01: a look carries the BARE sparkle (the floating
   // "Change this look…" pill is gone — the box holds the words).
-  check('mobile look · the slot is the bare sparkle (no floating pill) and the full-width docked field stands down on the phone', l1.on && l1.bare && !l1.wordsVis && l1.gap === 12 && dockGone, JSON.stringify([l1, dockGone]));
+  check('mobile look · the slot is the bare sparkle (no floating pill) 16px above the pinned bar, the full-width docked field stands down and so does the dock (a pushed view — Look_Screen_Redline 02/03)', l1.on && l1.bare && !l1.wordsVis && !l1.dockOn && l1.barGap === 16 && dockGone, JSON.stringify([l1, dockGone]));
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-look.png' });
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(400);
-  const lb = await page.evaluate(() => { const w = document.getElementById('rb-lp'); const b = w && w.querySelector('.rb-lp'); const dk = document.getElementById('rb-dock').getBoundingClientRect(); const sl = document.getElementById('rb-lp-slot'); return { box: !!w, dock: !!(w && w.classList.contains('rb-lp-dock')), scrim: !!document.querySelector('#rb-lp-scrim'), name: b && b.getAttribute('aria-label'), page: document.getElementById('rb-lk-title')?.textContent.trim(), ph: document.getElementById('rb-lp-in')?.placeholder, foot: w ? Math.round(window.innerHeight - w.getBoundingClientRect().bottom) : null, dockGone: dk.top >= window.innerHeight, slotGone: !sl || getComputedStyle(sl).display === 'none', lookVis: !!document.querySelector('#rb-lk-body .rb-lk-held') && getComputedStyle(document.querySelector('#rb-lk-body .rb-lk-held')).display !== 'none' }; });
+  const lb = await page.evaluate(() => { const w = document.getElementById('rb-lp'); const b = w && w.querySelector('.rb-lp'); const dk = document.getElementById('rb-dock').getBoundingClientRect(); const sl = document.getElementById('rb-lp-slot'); return { box: !!w, dock: !!(w && w.classList.contains('rb-lp-dock')), scrim: !!document.querySelector('#rb-lp-scrim'), name: b && b.getAttribute('aria-label'), page: document.getElementById('rb-lk-title')?.textContent.trim(), ph: document.getElementById('rb-lp-in')?.placeholder, foot: w ? Math.round(window.innerHeight - w.getBoundingClientRect().bottom) : null, dockGone: dk.top >= window.innerHeight || getComputedStyle(document.getElementById('rb-dock')).display === 'none', slotGone: !sl || getComputedStyle(sl).display === 'none', lookVis: !!document.querySelector('#rb-lk-body .rb-lk-held') && getComputedStyle(document.querySelector('#rb-lk-body .rb-lk-held')).display !== 'none' }; });
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-look-box.png' });
-  check('mobile look · the sparkle turns the foot into the field: the box docks 12px off the bottom over a dimmed screen (2026-10-05), named for the look, reading “Change this look…”; the menu slides away, the slot hides, the look stays visible above',
-    lb.box && lb.dock && lb.scrim && lb.name === lb.page && lb.ph === 'Change this look…' && lb.foot === 12 && lb.dockGone && lb.slotGone && lb.lookVis, JSON.stringify(lb));
+  check('mobile look · the sparkle turns the foot into the field: the box docks above the pinned bar (76px off the foot, 5e 2026-10-05) over a dimmed screen, named for the look, reading “Change this look…”; the menu slides away, the slot hides, the look stays visible above',
+    lb.box && lb.dock && lb.scrim && lb.name === lb.page && lb.ph === 'Change this look…' && lb.foot === 76 && lb.dockGone && lb.slotGone && lb.lookVis, JSON.stringify(lb));
   // Close mid-thread → the dot; reopen → the thread comes back and the dot clears.
   await page.evaluate(() => { const ta = document.getElementById('rb-lp-in'); ta.value = 'Not the jeans'; ta.dispatchEvent(new Event('input', { bubbles: true })); });
   await page.route('**/api/look/ask', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ intent: 'clarify', reply: 'Which jeans — the barrel-leg?', swaps: [], back: [], styled: [] }) }));
@@ -566,16 +533,18 @@ const titleTop = (page) => page.evaluate(() => {
       bar: !!bar, fixed: bar && getComputedStyle(bar).position, barBottom: r ? Math.round(r.bottom) : null, barW: r ? Math.round(r.width) : null,
       btns: bar ? Array.from(bar.querySelectorAll('button:not(.rb-lp-field)')).map((b) => b.textContent.trim()) : [], saveInk: bar ? getComputedStyle(bar.querySelector('.rb-lk-save')).backgroundColor : '',
       noNote: !document.getElementById('rb-lk-namegate'), noFiled: !/Filed under/.test(document.getElementById('rb-lk-body')?.textContent || ''), noMeta: !document.querySelector('.rb-lk-draftmeta'),
-      slotOn: !!sl && getComputedStyle(sl).display !== 'none', slotGap: (sr && r) ? Math.round(r.top - sr.bottom) : null, bare: !!sl && sl.querySelector('.rb-lps').classList.contains('bare') };
+      slotOn: !!sl && getComputedStyle(sl).display !== 'none', slotGap: (sr && r) ? Math.round(r.top - sr.bottom) : null, bare: !!sl && sl.querySelector('.rb-lps').classList.contains('bare'),
+      dockOff: getComputedStyle(document.getElementById('rb-dock')).display === 'none' };
   });
-  check('mobile draft page (4d) · DRAFT LOOK centred over the centred name; a fixed full-width Discard · Save footer at the foot, Save in ink; no name-gate note, no “Filed under”, no “Draft · not saved yet”; the sparkle floats 12px above the footer',
+  check('mobile draft page (4d) · DRAFT LOOK centred over the centred name; a fixed full-width Discard · Save footer at the foot, Save in ink; no name-gate note, no “Filed under”, no “Draft · not saved yet”; the sparkle floats 16px above the footer, the dock stands down (a pushed view)',
     dp.ey === 'Draft look' && dp.eyCentred && dp.title === 'Coffee run, elevated' && dp.titleCentred && dp.bar && dp.fixed === 'fixed' && dp.barBottom === 1100 && dp.barW === 390
-      && JSON.stringify(dp.btns) === JSON.stringify(['Discard', 'Save']) && dp.saveInk === INK && dp.noNote && dp.noFiled && dp.noMeta && dp.slotOn && dp.bare && dp.slotGap === 12, JSON.stringify(dp));
+      && JSON.stringify(dp.btns) === JSON.stringify(['Discard', 'Save']) && dp.saveInk === INK && dp.noNote && dp.noFiled && dp.noMeta && dp.slotOn && dp.bare && dp.slotGap === 16 && dp.dockOff, JSON.stringify(dp));
   if (SHOT) await page.screenshot({ path: SHOT + 'draft-page-390.png' });
   // The box over the footer: the footer stands down under it.
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(500);
-  const over = await page.evaluate(() => ({ dock: !!document.querySelector('#rb-lp.rb-lp-dock'), ph: document.getElementById('rb-lp-in')?.placeholder, barHidden: getComputedStyle(document.querySelector('#rb-lk-body .rb-lk-draftbar')).visibility === 'hidden' }));
-  check('mobile draft page (4d) · the sparkle docks the look’s box over the footer (“Change this look…”), the footer hidden beneath it', over.dock && over.ph === 'Change this look…' && over.barHidden, JSON.stringify(over));
+  const over = await page.evaluate(() => { const bar = document.querySelector('#rb-lk-body .rb-lk-draftbar'); const w = document.getElementById('rb-lp'); return { dock: !!document.querySelector('#rb-lp.rb-lp-dock'), ph: document.getElementById('rb-lp-in')?.placeholder, barVisible: getComputedStyle(bar).visibility === 'visible', boxAbove: !!w && w.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top + 1 }; });
+  // Handoff 5e (2026-10-05): the box sits ABOVE the footer — Save stays in reach, the prompt never commits on its own.
+  check('mobile draft page (4d) · the sparkle docks the look’s box ABOVE the footer (“Change this look…”), the footer still in reach beneath it', over.dock && over.ph === 'Change this look…' && over.barVisible && over.boxAbove, JSON.stringify(over));
   if (SHOT) await page.screenshot({ path: SHOT + 'draft-page-390-box.png' });
   await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(300);
   // The web: the footer is a sticky bar at the card's foot.

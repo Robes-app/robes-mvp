@@ -1496,15 +1496,16 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         b.classList.toggle('folded', !!ctx.words && _rbLpsFolded);
         b.classList.toggle('held', !!(_rbLpHeld && _rbLpHeld.key === ctx.key));
         b.setAttribute('aria-label', ctx.words || (String(ctx.key).indexOf('look') === 0 || ctx.key === 'composer' || ctx.key === 'kp-build' || String(ctx.key).indexOf('day:') === 0 ? _RB_LP_COPY.doorLook : 'A new look'));
-        // The sparkle floats 12px above a surface's FIXED save bar when one
-        // stands (the kp builder's), else 12px above the menu.
+        // The sparkle floats 16px above a surface's FIXED action bar when
+        // one stands (the look's, the kp builder's — Look_Screen_Redline
+        // 03), else 12px above the menu.
         let bottom = '';
         try {
           const bars = [document.getElementById('kp-build-bar')].concat(Array.from(document.querySelectorAll('.rb-lk-draftbar')));
           for (const bar of bars) {
             if (!bar || bar.hidden || getComputedStyle(bar).position !== 'fixed' || !bar.getClientRects().length) continue;
             const top = bar.getBoundingClientRect().top;
-            if (top > 0 && top < window.innerHeight) { bottom = Math.round(window.innerHeight - top + 12) + 'px'; break; }
+            if (top > 0 && top < window.innerHeight) { bottom = Math.round(window.innerHeight - top + 16) + 'px'; break; }
           }
         } catch (_) {}
         el.style.bottom = bottom;
@@ -9716,21 +9717,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '#kp-build-host .rbc-tags .tnone{font-size:12px}' +
           '#kp-build-host .rbc-tags .tedit{border:1px dashed var(--cream-400,#D8CFBE);border-radius:100px;padding:6px 12px;font-size:11px;letter-spacing:0;text-transform:none;font-weight:400;color:var(--ink-soft,#55524E)}' +
           '#kp-build-host .rb-lk-quiet{margin:12px 6px 0}' +
-          // The rows, grouped under their role: label + plain-word aside
-          // as the section head; a white card per piece — 64×72 thumb,
-          // category · source, the serif name, Swap + Save at the right.
-          '#kp-build-host .rbc-rolestrip{margin:22px 0 8px;padding:0 6px;gap:8px;align-items:baseline}' +
-          '#kp-build-host .rbc-rolestrip span{font-size:9px;letter-spacing:.24em;color:var(--ink-soft,#55524E)}' +
-          '#kp-build-host .rbc-rolestrip.ghost span{color:var(--ink-faint,#9C9891)}' +
-          '#kp-build-host .rbc-rolestrip span[data-hint]::after{font-size:14px;color:var(--ink-faint,#9C9891);margin-left:8px}' +
-          '#kp-build-host .rbc-rolestrip i{display:none}' +
-          '#kp-build-host .rbc-rolestrip .rbc-stripadd{margin-left:auto}' +
-          '#kp-build-host .rbc-rack{gap:8px}' +
-          '#kp-build-host .rbc-row{grid-template-columns:64px minmax(0,1fr);gap:14px;padding:12px;border:1px solid var(--rule,rgba(32,32,33,0.1));border-radius:var(--rad-card,12px);align-items:start}' +
+          // The rows are the look surfaces' cards (Look_Screen_Redline,
+          // 2026-10-06): no role strips — the shared .rbc-trailrow rules
+          // draw the 52×62 thumb, the eyebrow, the 18px name and the
+          // ⇅ › cluster; only the proposal's own Save pill is styled here.
           '#kp-build-host .rbc-row.rbc-rghost{display:flex;padding:14px 16px;border-style:dashed;border-color:var(--cream-400,#D8CFBE)}' +
-          '#kp-build-host .rbc-row.rbc-trailrow{grid-template-columns:64px minmax(0,1fr) auto;align-items:center}' +
-          '#kp-build-host .rbc-trail .rbc-tr{width:40px;height:40px;padding:0;border:0;background:transparent}' +
-          '#kp-build-host .rbc-vp{aspect-ratio:64/72;border-radius:10px}' +
           '#kp-build-host .rbc-vp .vslot,#kp-build-host .rbc-vp .vcount{display:none}' +
           '#kp-build-host .rbc-body{padding:0}' +
           '#kp-build-host .rbc-body>div:first-child{display:flex;flex-direction:column}' +
@@ -9742,7 +9733,6 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '#kp-build-host .rbc-sub .price{font-size:9px}' +
           '#kp-build-host .rbc-sub .owned{font-size:9px;letter-spacing:.2em;color:var(--sage,#7E7C5A)}' +
           '#kp-build-host .rbc-sub .owned svg{display:none}' +
-          '#kp-build-host .rbc-name{font-size:20px;line-height:1.15}' +
           '#kp-build-host .rbc-hownote{display:none}' +
           '#kp-build-host .rbc-foot{justify-content:flex-end;margin-top:10px}' +
           '#kp-build-host .rbc-foot>span:first-child{display:none}' +
@@ -9751,7 +9741,6 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '#kp-build-host .rbc-act.save:hover{opacity:1;border-color:var(--ink,#202021)}' +
           '#kp-build-host .rbc-act.done{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink,#202021);height:36px;padding:0 16px;font-size:13px;display:inline-flex;align-items:center;gap:6px}' +
           '#kp-build-host .rbc-act.done svg{display:none}' +
-          '#kp-build-host .rbc-addpiece{height:52px;margin-top:10px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad-card,12px);font-size:12px;color:var(--ink-soft,#55524E)}' +
           // Save and Discard ride the composer's own draft footer (design
           // 4d); the quiet doors (Try another) stay under the rack.
           '#kp-build-host .rb-lk-saverow{border-top:0;padding-top:6px;margin-top:14px;justify-content:center}' +
@@ -9792,8 +9781,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '@media(max-width:767px){' +
             '.kp-build-strip{position:sticky;top:0;z-index:6;margin:0 -20px 18px;padding:10px 16px 12px;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}' +
             '#kp-build .kp-build-title{font-size:19px;white-space:nowrap;overflow:hidden}' +
-            '#kp-build-bar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(94px + env(safe-area-inset-bottom));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}' +
-            '#kp-result-page.kp-building .kp-wrap{padding-bottom:230px}' +
+            '#kp-build-bar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(14px + env(safe-area-inset-bottom));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}' +
+            '#kp-result-page.kp-building .kp-wrap{padding-bottom:150px}' +
             '#kp-build-toast{top:calc(var(--nav-h,64px) + 66px)}' +
           '}' +
           // The NO MODEL YET band — the page's foot when no model is on file.
@@ -11450,20 +11439,25 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rbc-act.save:hover{opacity:.85;color:#fff}
 .rbc-act.done{cursor:default;color:var(--ink-faint)}
 .rbc-act.done:hover{border-color:var(--rule-mid);color:var(--ink-faint)}
-.rbc-addpiece{margin-top:12px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--rule-mid);border-radius:var(--rad);padding:13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
-.rbc-addpiece:hover{border-color:var(--ink-faint);color:var(--ink);background:#fff}
+.rbc-addpiece{margin-top:12px;width:100%;min-height:52px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--cream-400);border-radius:var(--rad);padding:0 13px;font-size:12px;letter-spacing:.02em;background:transparent;color:var(--ink-soft);cursor:pointer;transition:all .15s;font-family:inherit}
+.rbc-addpiece:hover{border-color:var(--ink-faint);color:var(--ink)}
 /* The look surfaces' row (Look_Creation_Handoff §4, 2026-10-05): three
    separate targets at the right edge — ♡ · ↻ · › — each 40px inside a
    44px row; no steppers, no pills, no corner ✕ (swipe left removes). */
-.rbc-row.rbc-trailrow{grid-template-columns:112px minmax(0,1fr) auto;align-items:center;min-height:44px}
-.rbc-trailrow .rbc-vp{align-self:center}
+.rbc-row.rbc-trailrow{grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:44px;padding:14px 4px 14px 12px;border:1px solid var(--rule);border-radius:var(--rad);background:#fff}
+.rbc-trailrow .rbc-vp{align-self:center;aspect-ratio:52/62;border-radius:8px}
+/* The name: 18px serif, two lines then an ellipsis — the full name lives
+   behind › (Look_Screen_Redline 04). */
+.rbc-trailrow .rbc-name{font-size:18px;line-height:1.15;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .rbc-trailrow .rbc-vp.dashed{border:1px dashed var(--cream-400);background:var(--cream-100)}
 .rbc-trailrow .rbc-vp.dashed img{opacity:.92}
-.rbc-trail{display:flex;align-items:center;gap:2px;align-self:center;flex:none}
+.rbc-trail{display:flex;align-items:center;gap:0;align-self:center;flex:none}
 .rbc-trail .rbc-wears{margin-right:6px}
-.rbc-tr{width:40px;height:40px;border-radius:50%;border:0;background:transparent;display:grid;place-items:center;color:var(--ink-soft);cursor:pointer;padding:0;font-family:inherit;transition:background .15s,color .15s}
+/* ⇅ and › sit together at the right edge, 0 gap, each a 44px hit target
+   (Look_Screen_Redline 05). */
+.rbc-tr{width:40px;height:44px;border-radius:10px;border:0;background:transparent;display:grid;place-items:center;color:var(--ink-soft);cursor:pointer;padding:0;font-family:inherit;transition:background .15s,color .15s}
 .rbc-tr:hover{background:var(--cream-100);color:var(--ink)}
-.rbc-tr.rbc-more{color:var(--ink-faint)}
+.rbc-tr.rbc-more{width:32px;color:var(--ink-faint)}
 .rbc-tr.rbc-wish.on{color:var(--rose)}
 .rbc-tr.rbc-wish.on:hover{background:transparent}
 /* The trail row is a CARD (2026-10-06): the whole row opens the piece, the
@@ -11478,7 +11472,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 /* A row the edit changed turns warm and names what it replaced. */
 .rbc-row.changed{background:#F3EFE6;border-color:#C9BCA6}
 .rbc-row.changed .rbc-hownote.rb-lp-was{color:var(--ink-soft);font-style:normal;font-family:inherit;font-size:11px}
-.rbc-trailrow .rbc-sub .notyours{color:var(--rose)}
+.rbc-trailrow .rbc-sub .notyours{color:var(--sage)}
+/* "✓ In your wardrobe" is true on every row of a look — only the
+   exception prints (Look_Screen_Redline 06). */
+.rbc-trailrow .rbc-sub .owned{display:none}
+.rbc-trailrow .rbc-sub .wl+.brand::before,.rbc-trailrow .rbc-sub .wl+.price::before,.rbc-trailrow .rbc-sub .notyours+.brand::before,.rbc-trailrow .rbc-sub .notyours+.price::before{content:'· ';color:var(--ink-faint)}
 .rbd-strip{display:grid;grid-auto-flow:column;grid-auto-columns:200px;gap:10px;overflow-x:auto;padding-bottom:10px;margin-bottom:24px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
 .rbd-day{scroll-snap-align:start;position:relative;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:13px 13px 12px;min-height:132px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .2s,background .2s;font-family:inherit}
 .rbd-day:hover{border-color:rgba(32,32,33,0.22)}
@@ -11530,11 +11528,15 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rbc-foot{margin-top:9px}
 .rbc-arrow{width:44px;height:44px}
 .rbc-act{min-height:44px}
-.rbc-row.rbc-trailrow{grid-template-columns:56px minmax(0,1fr) auto;gap:10px;padding:8px 6px 8px 10px}
+.rbc-row.rbc-trailrow{grid-template-columns:52px minmax(0,1fr) auto;gap:12px;padding:14px 4px 14px 12px}
 .rbc-trailrow .rbc-eye{order:-1}
 .rbc-trailrow .rbc-sub{order:0;margin-top:3px;margin-bottom:0}
 .rbc-trailrow .rbc-hownote.rb-lp-was{display:block}
-.rbc-trailrow .rbc-vp{aspect-ratio:1/1.2}
+.rbc-trailrow .rbc-vp{aspect-ratio:52/62}
+/* The exception takes its own line on the phone (the sub wraps there),
+   so no stray "·" leads the brand. */
+.rbc-trailrow .rbc-sub .notyours{flex-basis:100%}
+.rbc-trailrow .rbc-sub .notyours+.brand::before,.rbc-trailrow .rbc-sub .notyours+.price::before{content:none}
 /* 03 · Share compresses to a badge on the mosaic; the full-width action
    leaves the footer to the dock */
 .rbc-action{display:none}
@@ -13840,7 +13842,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rb-lk-photonote{margin-top:14px;font-family:var(--font-serif);font-style:italic;font-size:13px;line-height:1.35;color:var(--ink-soft)}
 .rb-lk-rackhead{display:flex;align-items:center;gap:14px;margin:0 0 12px}
 .rb-lk-editbtn{text-transform:uppercase;letter-spacing:.18em;font-size:9px;color:var(--ink-soft)}
-.rb-lk-page.editing .rb-lk-rackhead{border-bottom:1px solid var(--rule);padding-bottom:9px;margin-bottom:20px}
+.rb-lk-page.editing .rb-lk-rackhead{padding-bottom:0;margin-bottom:14px}
 /* The wear record, the way a wardrobe piece prints it: the rule, the
    dated rows (white cards, a chevron — each opens its day), then
    Worn today / Add a date. */
@@ -13860,7 +13862,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rb-lk-quiet.rose{color:var(--rose);border-bottom:none}
 .rb-lk-editfoot{text-align:center;margin-top:18px}
 /* Where it lives (editing): every door keeps its wears. */
-.rb-lk-lives{margin-top:26px;padding-top:20px;border-top:1px solid var(--rule)}
+.rb-lk-lives{margin-top:28px}
 .rb-lk-lives .lh{display:flex;align-items:baseline;gap:9px}
 .rb-lk-lives .lh .lab{font-size:9px;font-weight:400;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lk-lives .lh .sub{font-family:var(--font-serif);font-style:italic;font-size:12px;color:var(--ink-faint)}
@@ -13869,6 +13871,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 button.rb-lk-live{cursor:pointer}
 .rb-lk-live.on{background:#F3EFE6;border-color:#C9BCA6}
 .rb-lk-live.add{border-style:dashed;background:transparent}
+/* An entry point is white on a hairline with a chevron — warm means
+   selected (Look_Screen_Redline 12). */
+.rb-lk-live.door .m{font-size:16px;line-height:1;color:var(--ink-faint)}
 .rb-lk-live.add b{color:var(--ink-faint)}
 .rb-lk-live .l{min-width:0}
 .rb-lk-live b{display:block;font-size:13px;font-weight:400;line-height:1.2;color:var(--ink)}
@@ -13974,7 +13979,7 @@ button.rb-lk-live{cursor:pointer}
    hairline, the way every other section head on this page reads
    (Annie's design, 2026-09-21). Edit & resave keeps its own sentence
    case there: the caps register belongs to the label beside it. */
-.rb-lk-rackhead-read{border-bottom:1px solid var(--rule);padding-bottom:10px;margin-bottom:16px}
+.rb-lk-rackhead-read{padding-bottom:0;margin-bottom:14px}
 .rb-lk-emptyadd{background:none;border:0;padding:0;font:inherit;font-style:normal;font-family:var(--font-sans,inherit);font-size:12px;color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule-mid);text-underline-offset:3px;cursor:pointer}
 .rb-lk-rackhead-read .rb-lk-editbtn{text-transform:none;letter-spacing:.01em;font-size:11.5px;font-weight:400;color:var(--ink-soft)}
 .rb-lk-rackhead-read .rb-lk-editbtn:hover{color:var(--ink)}
@@ -14051,7 +14056,7 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-save.unnamed{background:var(--cream-400)}
 .rb-lk-savenote{flex:1;margin-top:0}
 /* ── The model on the canvas (2026-09-03) ── */
-.rb-lkm-canvas{position:relative;aspect-ratio:4/5;border:1px solid #E6DFD2;border-radius:var(--rad-sm);background:#F1ECE4;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.rb-lkm-canvas{position:relative;aspect-ratio:4/5;border:1px solid var(--rule);border-radius:var(--rad-sm);background:#F1ECE4;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .rb-lkm-canvas.prompt{border:1px dashed #D8CFBE;background:transparent}
 .rb-lkm-canvas.photo{background:var(--cream-200)}
 .rb-lkm-stage{position:absolute;inset:0;background:#EDE8E0 radial-gradient(circle at 50% 22%,rgba(243,225,215,.5),transparent 66%)}
@@ -14174,7 +14179,7 @@ button.rb-lk-live{cursor:pointer}
 }
 @media(max-width:767px){
 .rb-lk-stats{gap:20px}
-.rb-lk-composer,.rb-lk-held{padding:18px 16px 20px;border-radius:var(--rad-card)}
+.rb-lk-composer,.rb-lk-held{padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
 .rb-lk-wornbox{padding:18px 16px;border-radius:var(--rad-card)}
 .rb-lk-swapzone{padding:14px 15px}
 .rb-lk-swapzone .rb-lk-filldoor{width:100%;justify-content:center}
@@ -14182,9 +14187,13 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-robesdoor{margin-left:0;align-self:center}
 .rb-lk-save{width:100%;min-height:52px;order:-1}
 .rb-lk-savenote{text-align:center}
-.rb-lk-draftbar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(94px + env(safe-area-inset-bottom,0px));border-radius:0;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.rb-lk-draftbar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));border-radius:0;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .rb-lk-draftbar .rb-lk-save{width:auto;min-height:48px;order:0;flex:none}
-#rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:210px}
+#rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:150px!important}
+/* The look screen is a PUSHED view (Look_Screen_Redline 02): the dock
+   stands down while a look's band is on top, the action bar alone closes
+   the screen. body.rb-lk-push is set by _rbNavSync. */
+body.rb-lk-push #rb-dock{display:none}
 .rb-lkm-note{text-align:left}
 }`;
       function _lkEnsureCss() {
@@ -14960,7 +14969,7 @@ button.rb-lk-live{cursor:pointer}
         return '<div class="rb-lk-lives">' +
           '<div class="lh"><span class="lab">Where it lives</span><span class="sub">every door keeps its wears</span></div>' +
           '<div class="rows">' +
-            row(' on', 'The lookbook', 'Findable by name, tags and wears', '✓', '') +
+            row(' door', 'The lookbook', 'Findable by name, tags and wears', '›', 'window.__lkLivesLookbook()') +
             pins.map(d => row(' on', 'A day · ' + _waEsc(_lkFmtLong(d)), 'Sits in the diary', '✓', 'window.__lkSeeDay(\'' + d + '\')')).join('') +
             trips.map(t => row(' on', 'A travel edit · ' + _waEsc(String(t.title || (t.tvData && t.tvData.destination) || 'A trip')), 'Packs with the trip', '✓', 'window.__snOpenItem(' + Number(t.id) + ')')).join('') +
             row(' add', '+ Put it in the diary', '', '', 'window.__lkDiaryOpen()') +
@@ -15206,8 +15215,11 @@ button.rb-lk-live{cursor:pointer}
           prev: function() { window.__lkStep(-1); },
           next: function() { window.__lkStep(1); },
         });
-        const lkBand = _rbRetHtml({ key: 'look', label: back.label || 'Lookbook',
-          pos: (!draft && lkSibs.length > 1 && lkAt > -1) ? { i: lkAt + 1, n: lkSibs.length, suffix: lkSet.suffix || '' } : null });
+        // The band carries the back pill ALONE (Look_Screen_Redline 01:
+        // "1 of 42" is a denominator) — the set survives for ‹ › on the
+        // keyboard and the phone's swipe (__lkStep), never printed.
+        void lkSibs; void lkAt;
+        const lkBand = _rbRetHtml({ key: 'look', label: back.label || 'Lookbook', pos: null });
         const lastW = _lkLastWorn(l);
         // "Photograph · not yet filed", never "0 pieces" (handoff 6d).
         const metaBits = draft ? [] : [ids.length ? _lkN(ids.length, 'piece') : (dPhoto ? 'Photograph · not yet filed' : 'No pieces yet'), n ? _lkN(n, 'wear') : 'not yet worn'];
@@ -15617,7 +15629,7 @@ button.rb-lk-live{cursor:pointer}
           wishable: !fns.readOnly, wishlisted: !!row.saved,
           changed: !!(was && was.name),
           frame: { pollAttr: '', inner: frameInner },
-          subHtml: (row.saved ? '<span class="wl">Wishlist</span>' : '') + _rbcProvenance(a),
+          subHtml: (row.saved ? '<span class="wl">Wishlist</span>' : '<span class="notyours">Not yours yet</span>') + _rbcProvenance(a),
           noteHtml: _rbLpNoteHtml(row.key, lp && lp.was, lp && lp.styled, lp && lp.back) + (a.how ? '<div class="rbc-hownote">' + _waEsc(a.how) + '</div>' : ''),
           rowClass: ' rb-lk-prop' + (row.busy ? ' rb-lk-busy' : ''),
           count: { cur: 0, len: 1 },
@@ -16499,11 +16511,11 @@ button.rb-lk-live{cursor:pointer}
             ? { onSwap: '__lkCSwap', onRoleDrop: '__lkCRoleDrop', onRoleAdd: '__lkHomeSnap', allStrips: true, roleHints: true, onPiece: '__lkCPieceOpen' }
             : { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop',
                 onRoleAdd: '__lkHomeSnap', allStrips: true, roleHints: true, onPiece: '__lkCPieceOpen' })
-          : { trail: true, filledOnly: true, noStrips: !kp, onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop', roleHints: !!kp, onPiece: '__lkCPieceOpen' };
-        // The kp in-situ builder keeps its native strips (Canvas · the
-        // base…, 2026-09-28); the Lookbook composer and the saved look
-        // draw bare cards (2026-10-06).
-        if (kp) rowCfg.roleHintMap = _KP_ROLE_HINTS;
+          : { trail: true, filledOnly: true, noStrips: true, onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop', onPiece: '__lkCPieceOpen' };
+        // The kp in-situ builder draws the SAME bare cards as the Lookbook
+        // composer and the saved look (Look_Screen_Redline, 2026-10-06) —
+        // its native strips (Canvas · the base…, 2026-09-28) are gone; the
+        // row's eyebrow carries the role.
         const empties = _lkBuilt ? _lkBuildEmpties() : [];
         const rackBare = !home && !items.length && !empties.length;
         // No slot-bound empty rows (founder call 2026-08-07: her trousers
@@ -16906,6 +16918,9 @@ button.rb-lk-live{cursor:pointer}
         _lkPaint();
         _rbTrack('look_opened', {});
       };
+      // "The lookbook" in Where it lives is an entry point (Look_Screen_
+      // Redline 12): the grid, where the look is findable.
+      window.__lkLivesLookbook = function() { window.__lkBack(); };
       window.__lkBack = function() {
         _lkSet = null;
         _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null; _lkEditMode = false; _lkDraft = null; _lkTripDraft = null;
@@ -26206,6 +26221,12 @@ body>*:not(#tv-result-page){display:none !important}
           const depth = !!band && mobile;
           const navEl = document.querySelector('.nav');
           if (navEl) navEl.classList.toggle('rb-depth', depth);
+          // The look screen is a PUSHED view ≤767px (Look_Screen_Redline
+          // 02): the saved look, the draft and the kp builder carry their
+          // own action bar, so the dock stands down under them.
+          const bandKey = band ? band.getAttribute('data-rbret') : '';
+          const push = depth && (bandKey === 'look' || (bandKey === 'kp' && !!document.querySelector('#kp-result-page.kp-building')));
+          document.body.classList.toggle('rb-lk-push', push);
           if (backPill) backPill.style.display = depth ? 'inline-flex' : 'none';
           if (backLabel && band) {
             const lab = band.querySelector('.rb-ret-pill .lab');
