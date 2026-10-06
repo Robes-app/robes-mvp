@@ -1926,6 +1926,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // the hero invitation is the one door (the ghost tiles retired
           // with it).
           if (_waItems.length) frag.appendChild(_waAddCard());
+          _wrHostSync(grid);
           grid.innerHTML = '';
           grid.appendChild(frag);
           _waSyncCounts();
@@ -2516,24 +2517,106 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         }).observe(wp, { attributes: true, attributeFilter: ['class'] });
       })();
 
+      // ═══ The piece card, everywhere (Wardrobe_List, 2026-10-06) ═══════════
+      // The wardrobe and the wishlist draw the rack card a look draws: a
+      // 52 × 64 photograph, a 9pt eyebrow (Category · Brand, the brand in
+      // rose — where a look reads Category · Role), the 18pt serif name over
+      // two lines, a 9pt status line, the 40pt hairline action circle and ›,
+      // 14 / 10 / 14 / 12 padding on a 1px --rule card at --rad. Grid tiles
+      // keep the same three lines; only the action moves onto the
+      // photograph. A list row swipes left to reveal Remove; the remove is
+      // asked once in a sheet, then held five seconds behind Undo before
+      // the row is deleted.
+      // Layout: list | grid, per device (rb_wa_layout). The phone opens on
+      // the list, the web on the grid, until she picks.
+      var _waLayout = null;
+      function _waLayoutNow() {
+        if (_waLayout) return _waLayout;
+        let v = null;
+        try { v = localStorage.getItem('rb_wa_layout'); } catch (e) {}
+        _waLayout = v === 'list' || v === 'grid' ? v : (window.matchMedia && window.matchMedia('(max-width: 767px)').matches ? 'list' : 'grid');
+        return _waLayout;
+      }
+      window.__waLayout = function(v) {
+        if (v !== 'list' && v !== 'grid') return;
+        _waLayout = v;
+        try { localStorage.setItem('rb_wa_layout', v); } catch (e) {}
+        _wrCloseOpen(true);
+        _waRender();
+        if (_waView === 'wishlist') _wlRender();
+      };
+      function _wrHostSync(el) {
+        if (!el) return;
+        const list = _waLayoutNow() === 'list';
+        el.classList.toggle('rb-wr-list', list);
+        el.classList.toggle('rb-wr-grid', !list);
+      }
+      var _WR_STAR = '<svg width="15" height="15" viewBox="0 0 24 24" fill="FILL" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
+      function _wrStarHtml(it, tile) {
+        const on = it.hero_position != null;
+        return '<button type="button" class="rb-star rb-wr-star' + (tile ? ' tile' : '') + (on ? ' on' : '') + '" aria-pressed="' + on + '" title="' + (on ? 'Remove from Hero Rack' : 'Feature in Hero Rack') + '" aria-label="' + (on ? 'Remove from Hero Rack' : 'Feature in Hero Rack') + '" onclick="event.stopPropagation();window.__waHeroToggle(\'' + _waEsc(String(it.id)) + '\')">' + _WR_STAR.replace('FILL', on ? 'currentColor' : 'none') + '</button>';
+      }
+      function _wrEyeHtml(cat, brand) {
+        return '<div class="rb-wr-eye">' + _waEsc(cat || 'Piece') + (brand ? '<span class="b"> · ' + _waEsc(brand) + '</span>' : '') + '</div>';
+      }
+      // Status: what she has done with it (wardrobe) or what it costs and
+      // that it is not hers yet (wishlist). The warm line prints in rose.
+      function _wrStatus(it, wish) {
+        if (wish) {
+          const p = it.price > 0 ? _waPriceFmt(it.price, it.currency || 'EUR') + ' · ' : '';
+          return { text: p + 'Not yours yet', warm: true };
+        }
+        const n = Number(it.times_worn) || 0;
+        return n > 0 ? { text: 'Worn ' + n + '\xd7', warm: false } : { text: 'Never worn', warm: true };
+      }
+      function _wrStatHtml(st) { return '<div class="rb-wr-stat' + (st.warm ? ' warm' : '') + '">' + _waEsc(st.text) + '</div>'; }
+      function _wrThumbHtml(it, wish) {
+        if (it.image_url) return '<div class="rb-wr-th' + (wish ? ' rb-wl-tile' : '') + '"><img src="' + _waEsc(it.image_url) + '" alt="' + _waEsc(it.label) + '" loading="lazy"></div>';
+        if (wish) return '<div class="rb-wr-th rb-wl-tile mono"><span>' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</span></div>';
+        return '<button type="button" class="rb-wr-th none" title="Photograph it" aria-label="Photograph it" onclick="event.stopPropagation();window.__waRowPhoto(\'' + _waEsc(String(it.id)) + '\')">+</button>';
+      }
+      function _wrTileHtml(it, wish) {
+        const id = _waEsc(String(it.id));
+        const photo = it.image_url
+          ? '<img src="' + _waEsc(it.image_url) + '" alt="' + _waEsc(it.label) + '" loading="lazy">'
+          : (wish
+            ? '<span class="mono">' + _waEsc((it.label || '?').charAt(0).toUpperCase()) + '</span>'
+            : '<button type="button" class="rb-wr-tnone" onclick="event.stopPropagation();window.__waRowPhoto(\'' + id + '\')">+ Photograph</button>');
+        const act = wish
+          ? '<button type="button" class="rb-wr-bought tile" onclick="event.stopPropagation();window.__wlBought(\'' + id + '\')">Bought</button>'
+          : (_wgPackMode ? '' : _wrStarHtml(it, true));
+        return '<div class="rb-wr-photo wg-img-wrap' + (wish ? ' rb-wl-tile' : '') + '">' + photo + act + '</div>' +
+          '<div class="rb-wr-info">' + _wrEyeHtml(_waSheetCatOf(it), it.brand) +
+            '<div class="rb-wr-name wg-name">' + _waEsc(it.label) + '</div>' + _wrStatHtml(_wrStatus(it, wish)) + '</div>';
+      }
+      function _wrRowHtml(it, wish) {
+        const id = _waEsc(String(it.id));
+        const act = wish
+          ? '<button type="button" class="rb-wr-bought" onclick="event.stopPropagation();window.__wlBought(\'' + id + '\')">Bought</button>'
+          : (_wgPackMode ? '' : _wrStarHtml(it, false));
+        return '<button type="button" class="rb-wr-rmbtn" tabindex="-1" onclick="event.stopPropagation();window.__wrAsk(\'' + (wish ? 'l' : 'w') + '\',\'' + id + '\')">Remove</button>' +
+          '<div class="rb-wr-face" role="button" tabindex="0">' +
+            _wrThumbHtml(it, wish) +
+            '<div class="rb-wr-body">' + _wrEyeHtml(_waSheetCatOf(it), it.brand) + '<div class="rb-wr-name wg-name">' + _waEsc(it.label) + '</div></div>' +
+            '<div class="rb-wr-acts">' + act + '<span class="rb-wr-chev" aria-hidden="true">›</span></div>' +
+            _wrStatHtml(_wrStatus(it, wish)) +
+          '</div>';
+      }
+
       function _waCard(it) {
+        _wrEnsure();
+        const list = _waLayoutNow() === 'list';
         const div = document.createElement('div');
-        div.className = 'wg-item';
-        const meta = [it.brand, it.times_worn > 0 ? it.times_worn + '\xd7 worn' : null].filter(Boolean).join(' \xb7 ');
-        // Star = feature on the Hero Rack (hidden in pack mode — the pack
-        // check occupies the same corner)
-        const isHero = it.hero_position != null;
-        const star = _wgPackMode ? '' :
-          '<button class="rb-star' + (isHero ? ' on' : '') + '" title="' + (isHero ? 'Remove from Hero Rack' : 'Feature in Hero Rack') + '" onclick="event.stopPropagation();window.__waHeroToggle(\'' + _waEsc(String(it.id)) + '\')">' + _waStarSvg(isHero) + '</button>';
-        div.innerHTML = '<div class="wg-img-wrap">' +
-          (it.image_url ? '<img src="' + _waEsc(it.image_url) + '" alt="' + _waEsc(it.label) + '" loading="lazy">' :
-            '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.3"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>') +
-          (it.times_worn === 0 ? '<div class="wg-owned-badge">Never worn</div>' : '') +
-          star +
-          '</div><div class="wg-info"><div class="wg-name">' + _waEsc(it.label) + '</div>' +
-          (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') + '</div>';
+        div.className = 'wg-item ' + (list ? 'rb-wr-row' : 'rb-wr-tile');
+        div.dataset.wrid = String(it.id);
+        div.dataset.wrkind = 'w';
+        div.innerHTML = list ? _wrRowHtml(it, false) : _wrTileHtml(it, false);
         if (_wgPackMode) _wgDecorate(div, _wgPackSel.indexOf(String(it.id)) !== -1);
-        div.addEventListener('click', () => {
+        const tap = div.querySelector('.rb-wr-face') || div;
+        tap.addEventListener('click', (e) => {
+          if (_wrSwallow) { _wrSwallow = false; return; }
+          if (e.target.closest('button')) return;
+          if (_wrOpenRow) { const was = _wrOpenRow; _wrCloseOpen(); if (was === div) return; }
           if (_wgPackMode) {
             const id = String(it.id);
             const i = _wgPackSel.indexOf(id);
@@ -2546,19 +2629,314 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // editor is the pencil on that page, one door in from here.
           window.__rbPieceOpen(it.id, { from: 'wardrobe' });
         });
+        tap.addEventListener('keydown', (e) => {
+          if (e.target === tap && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); window.__rbPieceOpen(it.id, { from: 'wardrobe' }); }
+        });
         return div;
       }
 
       function _waAddCard() {
-        // Amplified entry card (was a bare `+`): the engine room of the
-        // product deserves weight — and it sells the roadmap doors too.
+        // The add card closes the set: a tile in the grid, and in the list
+        // the dashed "+ Add a piece" row a look's rack ends on.
         const div = document.createElement('div');
-        div.className = 'wg-item rb-add-card';
-        div.innerHTML = '<span class="rb-add-plus">+</span>' +
-          '<span class="rb-add-serif">Add a piece</span>' +
-          '<span class="rb-add-hint">Photograph \xb7 Receipt \xb7 Link</span>';
+        if (_waLayoutNow() === 'list') {
+          div.className = 'wg-item rb-add-card rb-wr-addrow';
+          div.setAttribute('role', 'button');
+          div.tabIndex = 0;
+          div.innerHTML = '<span class="p">+</span> Add a piece';
+        } else {
+          div.className = 'wg-item rb-add-card';
+          div.innerHTML = '<span class="rb-add-plus">+</span>' +
+            '<span class="rb-add-serif">Add a piece</span>' +
+            '<span class="rb-add-hint">Photograph \xb7 Receipt \xb7 Link</span>';
+        }
         div.addEventListener('click', () => window.__waAddChooser());
         return div;
+      }
+
+      // A piece filed without a photograph: the dashed thumb IS the camera.
+      window.__waRowPhoto = function(id) {
+        let inp = document.getElementById('rb-wr-photoin');
+        if (!inp) {
+          inp = document.createElement('input');
+          inp.type = 'file';
+          inp.id = 'rb-wr-photoin';
+          inp.accept = 'image/*,.jpg,.jpeg,.png,.heic,.heif,.webp';
+          inp.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9px;top:0';
+          document.body.appendChild(inp);
+          inp.addEventListener('change', async function() {
+            const f = inp.files && inp.files[0];
+            const pid = inp.dataset.pid;
+            inp.value = '';
+            if (!f || !pid) return;
+            _waShowToast('Adding the photograph…');
+            try {
+              const dataUrl = await _rbDownscale(f);
+              const m = String(dataUrl).match(/^data:([^;]+);base64,(.+)$/);
+              if (!m) throw new Error('bad image');
+              const res = await fetch('/api/wardrobe/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: m[2], mimeType: m[1] }) });
+              const j = await res.json();
+              if (!j || !j.url) throw new Error('upload');
+              await _waFetch('PATCH', 'wardrobe_items?id=eq.' + pid, { image_url: j.url });
+              const wi = _waItems.find(w => String(w.id) === String(pid));
+              if (wi) wi.image_url = j.url;
+              _waRender();
+              _waShowToast('Photograph added');
+            } catch (e) { _waShowToast('Could not add the photograph — try again'); }
+          });
+        }
+        inp.dataset.pid = String(id);
+        inp.click();
+      };
+
+      // ── Swipe to let go ───────────────────────────────────────────────
+      // Pointer events (a finger or a mouse): a horizontal drag slides the
+      // face left over the rose Remove; past 44px it rests open at 88, past
+      // 160 it asks straight away. A vertical move is a scroll and never
+      // starts a drag (touch-action:pan-y on the face).
+      var _wrOpenRow = null, _wrDrag = null, _wrSwallow = false;
+      function _wrSet(row, tx, anim) {
+        const face = row && row.querySelector('.rb-wr-face');
+        if (!face) return;
+        face.style.transition = anim ? 'transform .28s cubic-bezier(.4,0,.2,1)' : 'none';
+        face.style.transform = tx ? 'translateX(' + Math.round(tx) + 'px)' : '';
+        row.classList.toggle('sw', !!tx);
+      }
+      function _wrCloseOpen(instant) {
+        if (_wrOpenRow) { _wrSet(_wrOpenRow, 0, !instant); _wrOpenRow = null; }
+      }
+      function _wrSwipeInit() {
+        if (window.__wrSwipeOn) return;
+        window.__wrSwipeOn = true;
+        document.addEventListener('pointerdown', function(e) {
+          const face = e.target.closest && e.target.closest('.rb-wr-face');
+          if (!face || (e.button != null && e.button > 0)) {
+            if (_wrOpenRow && !(e.target.closest && e.target.closest('.rb-wr-rmbtn'))) _wrCloseOpen();
+            return;
+          }
+          if (e.target.closest('button')) return;
+          const row = face.parentNode;
+          if (_wrOpenRow && _wrOpenRow !== row) _wrCloseOpen();
+          _wrDrag = { row: row, x: e.clientX, y: e.clientY, base: _wrOpenRow === row ? -88 : 0, tx: 0, moved: false, dead: false, pid: e.pointerId };
+        });
+        document.addEventListener('pointermove', function(e) {
+          const d = _wrDrag;
+          if (!d || d.dead || e.pointerId !== d.pid) return;
+          const dx = e.clientX - d.x, dy = e.clientY - d.y;
+          if (!d.moved) {
+            if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) { d.dead = true; return; }
+            if (Math.abs(dx) < 6) return;
+            d.moved = true;
+          }
+          let tx = Math.min(0, d.base + dx);
+          if (tx < -88) tx = -88 + (tx + 88) * 0.7;
+          d.tx = tx;
+          _wrSet(d.row, tx, false);
+        });
+        const up = function(e) {
+          const d = _wrDrag;
+          if (!d || (e && e.pointerId !== d.pid)) return;
+          _wrDrag = null;
+          if (!d.moved || d.dead) return;
+          _wrSwallow = true;
+          setTimeout(function() { _wrSwallow = false; }, 350);
+          const row = d.row;
+          if (d.tx < -160) {
+            _wrSet(row, -88, true);
+            _wrOpenRow = row;
+            window.__wrAsk(row.dataset.wrkind, row.dataset.wrid);
+          } else if (d.tx < -44) {
+            _wrSet(row, -88, true);
+            _wrOpenRow = row;
+          } else {
+            _wrSet(row, 0, true);
+            if (_wrOpenRow === row) _wrOpenRow = null;
+          }
+        };
+        document.addEventListener('pointerup', up);
+        document.addEventListener('pointercancel', up);
+      }
+
+      // ── The ask, the hold, the undo ───────────────────────────────────
+      function _wrFind(kind, id) {
+        const arr = kind === 'l' ? _wlItems : _waItems;
+        return arr.find(x => String(x.id) === String(id)) || null;
+      }
+      function _wrAskClose() {
+        document.getElementById('rb-wr-confirm')?.remove();
+        document.removeEventListener('keydown', _wrAskKey);
+      }
+      function _wrAskKey(e) { if (e.key === 'Escape') window.__wrKeep(); }
+      window.__wrKeep = function() { _wrAskClose(); _wrCloseOpen(); };
+      window.__wrAsk = function(kind, id) {
+        const it = _wrFind(kind, id);
+        if (!it) return;
+        _wrEnsure();
+        _wrAskClose();
+        const wish = kind === 'l';
+        const el = document.createElement('div');
+        el.id = 'rb-wr-confirm';
+        el.className = 'rb-wr-cf';
+        el.innerHTML = '<div class="scrim" onclick="window.__wrKeep()"></div>' +
+          '<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rb-wr-cf-t">' +
+            '<span class="grab" aria-hidden="true"></span>' +
+            '<div class="hd">' +
+              (it.image_url ? '<div class="th"><img src="' + _waEsc(it.image_url) + '" alt=""></div>' : '<div class="th none"></div>') +
+              '<div class="tx"><span class="t" id="rb-wr-cf-t">' + (wish ? 'Remove from your wishlist?' : 'Remove from your wardrobe?') + '</span>' +
+              '<span class="n">' + _waEsc(it.label) + '</span></div>' +
+            '</div>' +
+            '<p>' + (wish ? 'It leaves your wishlist. You can save it again from the product page.' : 'Its wears and photographs go with it. Looks it was filed in keep their other pieces.') + '</p>' +
+            '<button type="button" class="go" id="rb-wr-cf-go" onclick="window.__wrRemove(\'' + kind + '\',\'' + _waEsc(String(id)) + '\')">Remove</button>' +
+            '<button type="button" class="keep" onclick="window.__wrKeep()">Keep it</button>' +
+          '</div>';
+        document.body.appendChild(el);
+        document.addEventListener('keydown', _wrAskKey);
+      };
+      // One removal is held at a time; a second commits the first.
+      var _wrPending = null;
+      function _wrRepaint(kind) {
+        if (kind === 'l') { _waV2Sync(); } else { _waRender(); }
+        _waTrailSync();
+      }
+      async function _wrCommit() {
+        const p = _wrPending;
+        if (!p) return;
+        _wrPending = null;
+        clearTimeout(p.timer);
+        document.getElementById('rb-wr-undo')?.remove();
+        try {
+          await _waFetch('DELETE', (p.kind === 'l' ? 'wishlist_items' : 'wardrobe_items') + '?id=eq.' + p.item.id, undefined);
+          if (p.kind === 'w') _waLoad();
+        } catch (e) {
+          const arr = p.kind === 'l' ? _wlItems : _waItems;
+          arr.splice(Math.min(p.idx, arr.length), 0, p.item);
+          _wrRepaint(p.kind);
+          _waShowToast('Could not remove it — try again');
+        }
+      }
+      window.__wrRemove = function(kind, id) {
+        _wrAskClose();
+        _wrOpenRow = null;
+        if (_wrPending) _wrCommit();
+        const arr = kind === 'l' ? _wlItems : _waItems;
+        const idx = arr.findIndex(x => String(x.id) === String(id));
+        if (idx < 0) return;
+        const item = arr.splice(idx, 1)[0];
+        _wrRepaint(kind);
+        if (typeof _rbTrack === 'function') _rbTrack('piece_removed', { surface: kind === 'l' ? 'wishlist' : 'wardrobe', from: 'list' });
+        _wrPending = { kind: kind, item: item, idx: idx, timer: setTimeout(_wrCommit, 5000) };
+        document.getElementById('rb-wr-undo')?.remove();
+        const t = document.createElement('div');
+        t.id = 'rb-wr-undo';
+        t.className = 'rb-wr-undo';
+        t.setAttribute('role', 'status');
+        t.innerHTML = '<span class="m">' + _waEsc(item.label) + ' removed from your ' + (kind === 'l' ? 'wishlist' : 'wardrobe') + '</span>' +
+          '<button type="button" onclick="window.__wrUndo()">Undo</button>';
+        document.body.appendChild(t);
+      };
+      window.__wrUndo = function() {
+        const p = _wrPending;
+        if (!p) return;
+        _wrPending = null;
+        clearTimeout(p.timer);
+        document.getElementById('rb-wr-undo')?.remove();
+        const arr = p.kind === 'l' ? _wlItems : _waItems;
+        arr.splice(Math.min(p.idx, arr.length), 0, p.item);
+        _wrRepaint(p.kind);
+      };
+      window.addEventListener('pagehide', function() { if (_wrPending) _wrCommit(); });
+
+      // The view toggle — grid | list, hairline track, the picked one warm.
+      function _wrToggleHtml() {
+        const l = _waLayoutNow() === 'list';
+        return '<div class="rb-wr-vt" role="group" aria-label="View">' +
+          '<button type="button" data-v="grid" class="' + (l ? '' : 'on') + '" aria-pressed="' + !l + '" aria-label="Grid" title="Grid" onclick="window.__waLayout(\'grid\')"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="5" height="5"/><rect x="7.5" y="0.5" width="5" height="5"/><rect x="0.5" y="7.5" width="5" height="5"/><rect x="7.5" y="7.5" width="5" height="5"/></svg></button>' +
+          '<button type="button" data-v="list" class="' + (l ? 'on' : '') + '" aria-pressed="' + l + '" aria-label="List" title="List" onclick="window.__waLayout(\'list\')"><svg width="14" height="12" viewBox="0 0 14 12" fill="none" stroke="currentColor" stroke-width="1"><path d="M0 1.5h14M0 6h14M0 10.5h14"/></svg></button>' +
+          '</div>';
+      }
+
+      var _WR_CSS = `
+#wg-grid.rb-wr-list,#rb-wl-grid.rb-wr-list{grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:8px 14px;align-items:start}
+#wg-grid.rb-wr-grid,#rb-wl-grid.rb-wr-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:22px 16px}
+@media(max-width:1199px){#wg-grid.rb-wr-grid,#rb-wl-grid.rb-wr-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1023px){#wg-grid.rb-wr-grid,#rb-wl-grid.rb-wr-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:767px){#wg-grid.rb-wr-grid,#rb-wl-grid.rb-wr-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}#wg-grid.rb-wr-list,#rb-wl-grid.rb-wr-list{grid-template-columns:minmax(0,1fr);gap:8px}}
+.rb-wr-row{position:relative;border-radius:var(--rad);overflow:hidden;cursor:default}
+.rb-wr-row.sw{background:var(--rose)}
+.rb-wr-rmbtn{position:absolute;top:0;right:0;bottom:0;width:88px;border:0;background:transparent;color:#fff;font:500 10px/1 var(--font-sans);letter-spacing:.2em;text-transform:uppercase;cursor:pointer;padding:0}
+.rb-wr-row:not(.sw) .rb-wr-rmbtn{visibility:hidden}
+.rb-wr-face{position:relative;touch-action:pan-y;cursor:pointer;display:grid;grid-template-columns:52px minmax(0,1fr) auto;column-gap:12px;row-gap:8px;align-items:center;background:#fff;border:1px solid var(--rule);border-radius:var(--rad);padding:14px 10px 14px 12px;transition:border-color .15s;-webkit-user-select:none;user-select:none}
+.rb-wr-face:hover{border-color:rgba(32,32,33,0.22)}
+.rb-wr-face:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.rb-wr-th{width:52px;height:64px;border-radius:6px;grid-row:1 / 3;overflow:hidden;background:var(--cream-200);display:block;box-sizing:border-box}
+.rb-wr-th img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none}
+.rb-wr-th.rb-wl-tile{border:0;aspect-ratio:auto;position:static;border-radius:6px}
+.rb-wr-photo.rb-wl-tile{border:1px solid var(--rule)}
+#wg-grid.rb-wr-grid .rb-add-card,#rb-wl-grid.rb-wr-grid .rb-add-card{aspect-ratio:169/205}
+#rb-wg-trail.wish{border-top:0;margin-top:0}
+.rb-wr-th.mono{display:flex;align-items:center;justify-content:center;background:var(--cream-100)}
+.rb-wr-th.mono span{font-family:var(--font-serif);font-size:22px;color:var(--cream-400)}
+.rb-wr-th.none{border:1px dashed var(--cream-400);background:transparent;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--ink-faint);cursor:pointer;padding:0;font-family:inherit}
+.rb-wr-th.none:hover{border-color:var(--ink-faint);color:var(--ink)}
+.rb-wr-body{min-width:0;align-self:end}
+.rb-wr-eye{font:400 9px/1.2 var(--font-sans);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-wr-eye .b{color:var(--rose)}
+.rb-wr-name{font:400 18px/1.2 var(--font-serif);color:var(--ink);margin-top:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rb-wr-acts{display:flex;gap:6px;align-items:center;align-self:end}
+.rb-wr-chev{width:20px;text-align:center;font-size:16px;color:var(--ink-soft);flex:none}
+.rb-wr-stat{font:400 9px/1.3 var(--font-sans);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);grid-column:2 / 4;align-self:start}
+.rb-wr-stat.warm{color:var(--rose)}
+.rb-star.rb-wr-star{position:static;width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;border:0.5px solid var(--rule-mid);background:#fff;color:var(--ink-soft);box-sizing:border-box;backdrop-filter:none;padding:0;opacity:1}
+.rb-star.rb-wr-star svg{width:15px;height:15px}
+.rb-star.rb-wr-star.on{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink)}
+.rb-star.rb-wr-star.tile{position:absolute;top:8px;right:8px;width:36px;height:36px;background:rgba(255,255,255,.92)}
+.rb-star.rb-wr-star.tile svg{width:14px;height:14px}
+.rb-star.rb-wr-star.tile.on{background:#F3EFE6}
+.rb-wr-bought{height:40px;padding:0 16px;border:0.5px solid var(--rule-mid);border-radius:100px;display:flex;align-items:center;font:400 13px/1 var(--font-sans);background:#fff;color:var(--ink);box-sizing:border-box;cursor:pointer;white-space:nowrap}
+.rb-wr-bought:hover{border-color:var(--ink-faint)}
+.rb-wr-bought.tile{position:absolute;right:8px;bottom:8px;height:34px;padding:0 14px;font-size:12px}
+.rb-wr-tile{display:flex;flex-direction:column;min-width:0;cursor:pointer}
+.rb-wr-photo.wg-img-wrap{position:relative;aspect-ratio:169/205;border-radius:var(--rad);border:1px solid var(--rule);box-sizing:border-box;overflow:hidden;background:var(--cream-200)}
+.rb-wr-photo .mono{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif);font-size:34px;color:var(--cream-400);background:var(--cream-100)}
+.rb-wr-tnone{position:absolute;inset:0;width:100%;border:1px dashed var(--cream-400);border-radius:var(--rad);background:var(--cream);display:flex;align-items:center;justify-content:center;font:400 12px/1 var(--font-sans);color:var(--ink-soft);cursor:pointer}
+.rb-wr-info{padding:10px 2px 0}
+.rb-wr-info .rb-wr-stat{margin-top:8px}
+.rb-add-card.rb-wr-addrow{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border:1px dashed var(--cream-400);border-radius:var(--rad);background:transparent;color:var(--ink-soft);font-size:12px;letter-spacing:.02em;cursor:pointer;aspect-ratio:auto;padding:0 13px;flex-direction:row}
+.rb-add-card.rb-wr-addrow:hover{border-color:var(--ink-faint);color:var(--ink);background:transparent}
+.rb-wr-addrow .p{font-size:16px;line-height:1;margin-top:-1px}
+.rb-wr-vt{display:flex;border:0.5px solid var(--rule-mid);border-radius:100px;padding:2px;background:#fff}
+.rb-wr-vt button{width:34px;height:28px;border-radius:100px;border:0;display:flex;align-items:center;justify-content:center;background:transparent;color:var(--ink-faint);cursor:pointer;padding:0}
+.rb-wr-vt button.on{background:#F3EFE6;box-shadow:inset 0 0 0 1px #C9BCA6;color:var(--ink)}
+.rb-wr-filter{height:34px;padding:0 14px;display:inline-flex;align-items:center;gap:7px}
+.rb-wr-cf{position:fixed;inset:0;z-index:975}
+.rb-wr-cf .scrim{position:absolute;inset:0;background:rgba(32,32,33,.28)}
+.rb-wr-cf .sheet{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,calc(100vw - 32px));background:var(--cream);border-radius:var(--rad-lg);padding:24px 24px 18px;display:flex;flex-direction:column;box-sizing:border-box;box-shadow:0 24px 60px -18px rgba(32,32,33,.35)}
+.rb-wr-cf .grab{display:none;align-self:center;width:36px;height:4px;border-radius:2px;background:var(--cream-400)}
+.rb-wr-cf .hd{display:grid;grid-template-columns:52px minmax(0,1fr);column-gap:14px;align-items:center;padding:0 0 18px;border-bottom:0.5px solid var(--rule-mid)}
+.rb-wr-cf .th{width:52px;height:64px;border-radius:6px;border:1px solid var(--rule);overflow:hidden;background:var(--cream-200);box-sizing:border-box}
+.rb-wr-cf .th img{width:100%;height:100%;object-fit:cover;display:block}
+.rb-wr-cf .th.none{border:1px dashed var(--cream-400);background:transparent}
+.rb-wr-cf .tx{display:flex;flex-direction:column;gap:6px;min-width:0}
+.rb-wr-cf .t{font:400 26px/1.1 var(--font-serif);color:var(--ink)}
+.rb-wr-cf .n{font-size:12px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb-wr-cf p{margin:16px 0 22px;font-size:13px;line-height:1.55;color:var(--ink-soft)}
+.rb-wr-cf .go{height:48px;border-radius:100px;border:0;background:var(--ink);color:var(--cream);font:500 10px/1 var(--font-sans);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+.rb-wr-cf .keep{height:44px;margin-top:6px;border:0;background:none;font:400 13px/1 var(--font-sans);color:var(--ink-soft);cursor:pointer}
+.rb-wr-undo{position:fixed;z-index:950;left:50%;transform:translateX(-50%);bottom:24px;width:min(440px,calc(100vw - 32px));height:44px;background:#fff;border:0.5px solid var(--rule-mid);border-radius:100px;box-shadow:0 4px 14px rgba(32,32,33,.08);display:flex;align-items:center;justify-content:space-between;padding:0 6px 0 18px;font-size:12px;box-sizing:border-box}
+.rb-wr-undo .m{color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.rb-wr-undo button{padding:0 12px;height:44px;border:0;background:none;font:500 10px/1 var(--font-sans);letter-spacing:.2em;text-transform:uppercase;color:var(--ink);cursor:pointer;flex:none}
+@media(max-width:767px){
+.rb-wr-cf .sheet{left:0;right:0;top:auto;bottom:0;transform:none;width:auto;border-radius:var(--rad-lg) var(--rad-lg) 0 0;padding:12px 24px calc(34px + env(safe-area-inset-bottom,0px))}
+.rb-wr-cf .grab{display:block;margin-bottom:22px}
+.rb-wr-undo{left:18px;right:84px;transform:none;width:auto;bottom:calc(112px + env(safe-area-inset-bottom,0px))}
+}`;
+      function _wrEnsure() {
+        _wrSwipeInit();
+        if (document.getElementById('rb-wr-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-wr-style';
+        st.textContent = _WR_CSS;
+        document.head.appendChild(st);
       }
 
       // The tab row holds the top TEN sheet categories by piece count —
@@ -2661,7 +3039,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           trail.id = 'rb-wg-trail';
           // The row carries the drill path + the count alone — the add and
           // Refine pills sit on the masthead line (nav architecture 2026-09-10).
-          trail.innerHTML = '<div id="rb-wg-crumbs" class="rb-wg-crumbs"></div>';
+          // The count row (Wardrobe_List, 2026-10-06): the count left;
+          // Filter (Refine, renamed — same drawer) and the grid | list
+          // toggle right.
+          trail.innerHTML = '<div id="rb-wg-crumbs" class="rb-wg-crumbs"></div><div id="rb-wg-trailr" class="rb-wg-trailbtns"></div>';
           container.parentNode.insertBefore(trail, container.nextSibling);
         }
         _waRefinePillSync();
@@ -2815,6 +3196,14 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       function _waTrailSync() {
         const crumbs = document.getElementById('rb-wg-crumbs');
         if (!crumbs) return;
+        _waTrailRSync();
+        const tr = document.getElementById('rb-wg-trail');
+        if (tr) tr.classList.toggle('wish', _waView === 'wishlist');
+        if (_waView === 'wishlist') {
+          const k = _wlItems.length;
+          crumbs.innerHTML = '<span class="rb-wg-trailcount">' + k + ' piece' + (k === 1 ? '' : 's') + ' saved</span>';
+          return;
+        }
         const n = _waFilteredItems().length;
         const countHtml = '<span class="rb-wg-trailcount">' + n + ' piece' + (n === 1 ? '' : 's') + '</span>';
         if (_waCat === 'All') { crumbs.innerHTML = countHtml; return; }
@@ -2823,6 +3212,38 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           path.map((p, i) => '<span class="rb-wg-crumb-sep">›</span><span class="rb-wg-crumb' + (i === path.length - 1 ? ' cur' : '') + '">' + _waEsc(p) + '</span>').join('') +
           '<button class="rb-wg-trailx" onclick="window.__waTrailClear()" title="Clear">✕</button>' +
           countHtml;
+      }
+
+      // The count row's right side: Filter (wardrobe only) + the toggle.
+      function _waTrailRSync() {
+        const r = document.getElementById('rb-wg-trailr');
+        if (!r) return;
+        let pill = document.getElementById('rb-refine-pill');
+        if (!pill) {
+          pill = document.createElement('button');
+          pill.type = 'button';
+          pill.id = 'rb-refine-pill';
+          pill.className = 'rb-pill rb-refine-pill rb-wr-filter';
+          pill.addEventListener('click', function() { window.__waRefToggle(); });
+        }
+        if (pill.parentNode !== r) r.insertBefore(pill, r.firstChild);
+        pill.style.display = _waView === 'wishlist' ? 'none' : '';
+        let vt = r.querySelector('.rb-wr-vt');
+        const html = _wrToggleHtml();
+        if (!vt) { r.insertAdjacentHTML('beforeend', html); }
+        else {
+          const l = _waLayoutNow() === 'list';
+          vt.querySelectorAll('button').forEach(b => { const on = (b.dataset.v === 'list') === l; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+        }
+        // The Filter drawer opens under the count row (it was created under
+        // the tabs, before the count row existed).
+        const ref = document.getElementById('rb-refine'), trail = document.getElementById('rb-wg-trail');
+        if (ref && trail && (ref.compareDocumentPosition(trail) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+          const inbox = document.getElementById('rb-wg-inbox');
+          const after = inbox && inbox.previousElementSibling === trail ? inbox : trail;
+          after.parentNode.insertBefore(ref, after.nextSibling);
+        }
+        _waRefinePillSync();
       }
 
       function _waOpenEdit(it) {
@@ -5390,7 +5811,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const n = _waRefineCount();
         // Live = the warm selected treatment, never an ink fill.
         pill.classList.toggle('on', _waRefineOpen || n > 0);
-        pill.innerHTML = 'Refine' + (n ? ' <span class="badge rb-refine-badge">' + n + '</span>' : '');
+        pill.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filter' + (n ? ' <span class="badge rb-refine-badge">' + n + '</span>' : '');
       }
 
       function _waRefineRender() {
@@ -5446,7 +5867,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // grid areas: Season | Colour | Brand on the first row, Wear it for
         // full-width above the footer (design screen 08).
         drawer.innerHTML =
-          '<div class="rb-ref-mhead"><span>Refine</span><button onclick="window.__waRefToggle()" aria-label="Close">✕</button></div>' +
+          '<div class="rb-ref-mhead"><span>Filter</span><button onclick="window.__waRefToggle()" aria-label="Close">✕</button></div>' +
           '<div class="rb-ref-grid' + (brands.length ? '' : ' nobrand') + '">' +
           '<div class="rb-ref-sec sea"><div class="rb-ref-lbl">Season</div><div class="rb-ref-chips">' + seasonChips + '</div></div>' +
           '<div class="rb-ref-sec wear"><div class="rb-ref-lbl">Wear it for</div><div class="rb-ref-chips">' + wearChips + '</div></div>' +
@@ -5566,27 +5987,26 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         }
       }
 
+      // The wishlist draws the same piece card (Wardrobe_List, 2026-10-06):
+      // Category · Brand, the name, "€27.95 · Not yours yet" in rose;
+      // Bought takes the hairline pill where the wardrobe has its star.
       function _wlCard(w) {
-        const src = _WL_SRC[w.source_type] || _WL_SRC.photo;
-        const chipLabel = w.source_label || src.label;
-        const img = w.image_url
-          ? '<img src="' + _waEsc(w.image_url) + '" alt="' + _waEsc(w.label) + '" loading="lazy">'
-          : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="font-family:var(--font-serif);font-size:30px;color:var(--cream-400)">' + _waEsc((w.label || '?').charAt(0).toUpperCase()) + '</span></div>';
-        const meta = [w.brand, w.price > 0 ? _waPriceFmt(w.price, w.currency || 'EUR') : null, w.size ? 'Size ' + w.size : null].filter(Boolean).join(' \xb7 ');
-        return '<div class="rb-wl-item" style="cursor:pointer" onclick="window.__rbPieceOpen(\'' + _waEsc(String(w.id)) + '\',{from:\'wishlist\'})">' +
-          '<div class="rb-wl-tile' + (w.source_type === 'robes' ? ' rb-wl-robes' : '') + '">' + img +
-            '<span class="rb-wl-chip' + (src.sage ? ' sage' : '') + '">' +
-              (src.sage ? '' : '<span class="rb-wl-dot" style="background:' + (src.dot || '#A89880') + '"></span>') +
-              '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _waEsc(chipLabel) + '</span></span>' +
-          '</div>' +
-          '<div class="wg-info"><div class="wg-name">' + _waEsc(w.label) + '</div>' +
-          (meta ? '<div class="wg-metar">' + _waEsc(meta) + '</div>' : '') +
-          (w.note ? '<div class="rb-wl-note">' + _waEsc(w.note) + '</div>' : '') +
-          '<div class="rb-wl-actions">' +
-            '<button class="rb-wl-buy" onclick="event.stopPropagation();window.__wlBought(\'' + _waEsc(String(w.id)) + '\')">I bought this</button>' +
-            '<button class="rb-wl-rm" title="Remove" onclick="event.stopPropagation();window.__wlRemove(\'' + _waEsc(String(w.id)) + '\')">✕</button>' +
-          '</div></div></div>';
+        _wrEnsure();
+        const id = _waEsc(String(w.id));
+        if (_waLayoutNow() === 'list') {
+          return '<div class="rb-wl-item wg-item rb-wr-row" data-wrid="' + id + '" data-wrkind="l">' +
+            _wrRowHtml(w, true).replace('<div class="rb-wr-face" role="button" tabindex="0">',
+              '<div class="rb-wr-face" role="button" tabindex="0" onclick="window.__wlRowTap(event,\'' + id + '\')" onkeydown="if(event.target===this&&(event.key===\'Enter\'||event.key===\' \')){event.preventDefault();window.__rbPieceOpen(\'' + id + '\',{from:\'wishlist\'})}">') +
+            '</div>';
+        }
+        return '<div class="rb-wl-item wg-item rb-wr-tile" data-wrid="' + id + '" data-wrkind="l" onclick="window.__wlRowTap(event,\'' + id + '\')">' + _wrTileHtml(w, true) + '</div>';
       }
+      window.__wlRowTap = function(e, id) {
+        if (_wrSwallow) { _wrSwallow = false; return; }
+        if (e && e.target && e.target.closest('button')) return;
+        if (_wrOpenRow) { const was = _wrOpenRow; _wrCloseOpen(); if (e && e.currentTarget && was === e.currentTarget.parentNode) return; }
+        window.__rbPieceOpen(id, { from: 'wishlist' });
+      };
 
       function _wlRender() {
         const grid = document.getElementById('rb-wl-grid');
@@ -5604,11 +6024,14 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             '<div style="margin-top:12px;font-size:11px;color:var(--ink-faint)">A screenshot, a photo, a link, a forwarded receipt — Robes reads what it can.</div></div>';
           return;
         }
+        _wrHostSync(grid);
         grid.innerHTML = _wlItems.map(_wlCard).join('') +
-          '<div class="rb-wl-item"><button class="rb-add-card" style="width:100%" onclick="window.__wlOpenAdd()">' +
-            '<span class="rb-add-plus">+</span>' +
-            '<span class="rb-add-serif">Save something</span>' +
-            '<span class="rb-add-hint">Photograph \xb7 Receipt \xb7 Link</span></button></div>';
+          (_waLayoutNow() === 'list'
+            ? '<div class="rb-add-card rb-wr-addrow" role="button" tabindex="0" onclick="window.__wlOpenAdd()"><span class="p">+</span> Save a piece</div>'
+            : '<div class="rb-wl-item"><button class="rb-add-card" style="width:100%" onclick="window.__wlOpenAdd()">' +
+              '<span class="rb-add-plus">+</span>' +
+              '<span class="rb-add-serif">Save something</span>' +
+              '<span class="rb-add-hint">Photograph \xb7 Receipt \xb7 Link</span></button></div>');
       }
 
       // The link door is live (2026-09-22) — the name survives for its callers.
@@ -5735,12 +6158,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         }
         const addPill = document.getElementById('rb-add-pill');
         if (addPill) addPill.textContent = wish ? '+ Save a piece' : '+ Add piece';
-        const refPill = document.getElementById('rb-refine-pill');
-        if (refPill) refPill.style.display = wish ? 'none' : '';
         const filters = document.getElementById('wg-filters');
         if (filters) filters.style.display = wish ? 'none' : '';
-        const trail = document.getElementById('rb-wg-trail');
-        if (trail) trail.style.display = wish ? 'none' : '';
+        _waTrailSync();
         _wiSync();
         if (wish) _waCascadeClose();
         const grid = document.getElementById('wg-grid');
@@ -6071,7 +6491,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             '.wg-pill.rb-add-pill{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border-color:var(--ink)}',
             '.wg-pill.rb-add-pill:hover{opacity:.85}',
             // Trail row — breadcrumb + count left, Add piece + Refine right
-            '#rb-wg-trail{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-top:0.5px solid var(--rule-mid);padding:14px 0;margin:-10px 0 18px}',
+            '#rb-wg-trail{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-top:0.5px solid var(--rule-mid);padding:14px 0 12px;margin:-10px 0 12px}',
             // The receipt notice (2026-09-22) — under the trail, above the grid;
             // lives here, not in the modal's sheet, because it paints on the
             // wardrobe page before the add modal has ever opened.
@@ -6088,8 +6508,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             '.rb-wg-crumb.cur{color:var(--ink)}',
             '.rb-wg-trailx{border:0.5px solid var(--rule-mid);border-radius:100px;background:none;padding:2px 8px;font-size:10.5px;color:var(--ink-faint);cursor:pointer;font-family:inherit}',
             '.rb-wg-trailx:hover{color:var(--ink);border-color:var(--ink-faint)}',
-            '.rb-wg-trailcount{font-family:var(--font-serif);font-style:italic;font-size:16px;color:var(--ink-soft);margin-left:4px}',
-            '.rb-wg-trailbtns{display:flex;gap:9px;margin-left:auto}',
+            '.rb-wg-trailcount{font-family:var(--font-serif);font-style:italic;font-size:18px;color:var(--ink-soft);margin-left:4px}',
+            '.rb-wg-trailbtns{display:flex;gap:8px;margin-left:auto;align-items:center}',
             // Category cascade — desktop flyout / mobile drill sheet
             '.rb-wg-cas{position:absolute;top:100%;margin-top:6px;z-index:60;background:#FDFCFA;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);box-shadow:0 18px 44px -10px rgba(32,32,33,.24);display:flex;overflow:hidden}',
             '.rb-wg-cas .cas-col{width:230px;padding:12px 0;max-height:340px;overflow-y:auto}',
@@ -6178,13 +6598,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // Both are hairline pills — nothing on this screen is filled ink.
         const actions = document.createElement('div');
         actions.className = 'rb-wg-actions rb-mast-acts';
-        actions.innerHTML = '<button class="rb-pill rb-add-pill" id="rb-add-pill">+ Add piece</button>' +
-          '<button class="rb-pill rb-refine-pill" id="rb-refine-pill">Refine</button>';
+        actions.innerHTML = '<button class="rb-pill rb-add-pill" id="rb-add-pill">+ Add piece</button>';
         actions.querySelector('#rb-add-pill').addEventListener('click', function() {
           if (_waView === 'wishlist') window.__wlOpenAdd();
           else window.__waAddChooser();
         });
-        actions.querySelector('#rb-refine-pill').addEventListener('click', function() { window.__waRefToggle(); });
         header.appendChild(actions);
 
         // The mobile FAB retired 2026-08-05 — "+ Add piece" lives in the

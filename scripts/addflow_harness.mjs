@@ -1208,8 +1208,10 @@ const browser = await chromium.launch(
   check('wishlist · the save is a wishlist_items row: label, Instagram provenance, price 245 EUR, size, the taxonomy pair, the hosted photo — and nothing reached wardrobe_items',
     wlPosts.length === 1 && supaPosts.length === 0 && wp.label === 'Cream wool blazer' && wp.source_type === 'instagram' && wp.source_label === 'Saved from Instagram' && wp.price === 245 && wp.currency === 'EUR' && wp.size === 'M' && wp.image_url === 'https://res.cloudinary.com/robes/test.jpg' && wp.category === 'Outerwear' && 'category_l2' in wp && !('season_band' in wp) && !('notes' in wp) && 'note' in wp,
     JSON.stringify(wp));
-  const w5 = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), view: document.getElementById('rb-wl-grid')?.style.display, card: document.querySelector('#rb-wl-grid .wg-metar')?.textContent || '' }));
-  check('wishlist · the modal closes, the wishlist repaints with the piece (price with its currency, the size)', !w5.open && w5.view === 'grid' && w5.card === 'Zara · €245 · Size M', JSON.stringify(w5));
+  const w5 = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), view: document.getElementById('rb-wl-grid')?.style.display, card: document.querySelector('#rb-wl-grid .rb-wr-eye')?.textContent || '', stat: document.querySelector('#rb-wl-grid .rb-wr-stat')?.textContent || '' }));
+  // The wishlist draws the rack card (Wardrobe_List, 2026-10-06): Category ·
+  // Brand on the eyebrow, the price and "Not yours yet" on the status line.
+  check('wishlist · the modal closes, the wishlist repaints with the piece (Category · Brand, the price with its currency)', !w5.open && w5.view === 'grid' && w5.card === 'Outerwear · Zara' && w5.stat === '€245 · Not yours yet', JSON.stringify(w5));
 
   // A link, saved to the wishlist: provenance A link + the page URL kept.
   await page.evaluate(() => window.__wlSoonLink());
