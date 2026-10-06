@@ -329,7 +329,11 @@ const SHOT = process.env.SHOT_DIR || '';
   await page.evaluate(() => window.__rbLpSend());
   await page.waitForTimeout(900);
   check('style · a bare submit runs with Robes\' own words', api.style.length === 1 && /^Style my Cream silk shirt three ways/.test(api.style[0]?.prompt || ''), JSON.stringify(api.style[0]?.prompt));
-  check('style · the result lands on the kp page', await page.locator('#kp-result-page').isVisible());
+  // Look states (2026-10-06): the result lands on the Lookbook's Suggested
+  // tab as three suggested looks around the shirt, never the kp page.
+  const landed = await page.evaluate(() => ({ kp: document.getElementById('kp-result-page')?.style.display || 'none', sn: document.getElementById('sn-page')?.style.display, tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent,
+    tiles: document.querySelectorAll('#rb-lk-grid [data-sugg]').length, meta: document.querySelector('#rb-lk-grid [data-sugg] .lt-meta')?.textContent }));
+  check('style · the result lands on the Suggested tab — suggested tiles around the shirt, no kp page', landed.kp === 'none' && landed.sn === 'block' && landed.tab === 'Suggested' && landed.tiles >= 1 && /^Around your /.test(landed.meta || ''), JSON.stringify(landed));
   check('no page errors (wardrobe + look doors)', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }

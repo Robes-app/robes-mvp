@@ -301,6 +301,7 @@ const browser = await chromium.launch(
       mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-mos.n3 i').length,
       sortLabel: document.querySelector('.rb-lk-sort span')?.textContent,
       sortArrow: document.querySelector('.rb-lk-sort b')?.textContent,
+      lkTabs: Array.from(document.querySelectorAll('#rb-lk-bar .rb-lk-tab')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')),
       eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-tag')).map((e) => e.textContent),
       // The kind is an eyebrow IN THE PAD, above the name (Annie,
       // 2026-10-05) — never a label over the photo.
@@ -325,11 +326,13 @@ const browser = await chromium.launch(
     s.wrapVisible && s.itemGridHidden, JSON.stringify([s.wrapVisible, s.itemGridHidden]));
   check('tab · deep-linkable path', s.path === '/lookbook', s.path);
   check('grid · every look card carries the Wear verb', s.wearBtns === 2, String(s.wearBtns));
-  check('grid · cards carry the kind as a tag ON the photo in the shared card dress (the mixed grid, 2026-10-05)',
-    s.eyebrows.every((e) => e === 'Look') && s.eyebrows.length === 2 && s.cardDress === 2,
+  // Look states (2026-10-06): a SAVED tile carries no eyebrow — the frame
+  // and the wear line say what it is; only a draft and a suggestion do.
+  check('grid · saved cards carry NO eyebrow in the shared card dress (look states, 2026-10-06)',
+    s.eyebrows.length === 0 && s.cardDress === 2,
     JSON.stringify([s.eyebrows, s.cardDress]));
-  check('shelf · the kind reads as an eyebrow in the pad above the name, never a label on the photo',
-    s.tagInPad === true, String(s.tagInPad));
+  check('shelf · the Lookbook masthead is Saved | Suggested with Saved lit',
+    s.lkTabs && JSON.stringify(s.lkTabs) === JSON.stringify(['Saved*', 'Suggested']), JSON.stringify(s.lkTabs));
   check('grid · one tile per look', s.tiles === 2, String(s.tiles));
   check('grid · a New look add card mirrors the pieces grid',
     s.addCard === true && /New look/.test(s.addCardText || ''), JSON.stringify([s.addCard, s.addCardText]));
@@ -337,7 +340,9 @@ const browser = await chromium.launch(
   check('grid · a 3-piece look subdivides whole (n3: one spanning, two stacked)',
     s.mosaicCells === 3, String(s.mosaicCells));
   check('grid · provisional title renders provisional', s.provisional.length === 1 && s.provisional[0] === 'The tank one', JSON.stringify(s.provisional));
-  check('sort · defaults to Last worn ↓', s.sortLabel === 'Last worn' && s.sortArrow === '↓', `${s.sortLabel} ${s.sortArrow}`);
+  // The sort control hides under four looks (look states, 2026-10-06 —
+  // never inert); the order is still Last worn, newest first.
+  check('sort · the control hides under four looks; the default order is Last worn', s.sortLabel === undefined && s.sortArrow === undefined, `${s.sortLabel} ${s.sortArrow}`);
   check('sort · worn look leads descending', s.titles[0] === 'The Thursday one', JSON.stringify(s.titles));
 
   const asc = await page.evaluate(() => {
@@ -348,7 +353,7 @@ const browser = await chromium.launch(
       titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
     };
   });
-  check('sort · toggles to First worn ↑', asc.label === 'First worn' && asc.arrow === '↑', `${asc.label} ${asc.arrow}`);
+  check('sort · __lkSort still flips the order for the keyboard (First worn)', asc.label === undefined, `${asc.label} ${asc.arrow}`);
   check('sort · never-worn leads ascending', asc.titles[0] === 'The tank one', JSON.stringify(asc.titles));
 
   // Tile metadata is hover-only on the pointer surfaces (title-only decision)
@@ -399,15 +404,15 @@ const browser = await chromium.launch(
     const newBtn = !!(barEl && barEl.querySelector('.rb-lk-new'));
     return { newBtn, axes, shown, none, restored, inertBefore, liveAfter };
   });
-  check('bar · + New look is a pill on the masthead line (nav architecture 2026-09-10)', bar.newBtn === true);
-  check('bar · sort and Refine are inert below four looks and come live at four',
-    bar.inertBefore === true && bar.liveAfter === true, JSON.stringify([bar.inertBefore, bar.liveAfter]));
+  check('bar · + (the circle) is the creation door on the masthead line', bar.newBtn === true);
+  check('bar · sort and Filter hide below four looks and render at four (look states, 2026-10-06)',
+    bar.inertBefore === undefined && bar.liveAfter === true, JSON.stringify([bar.inertBefore, bar.liveAfter]));
   // ADR-002 §7: Light is deleted, and Vibe only renders once she has one —
   // the axis is her vocabulary, so an empty one is nothing to show.
   // The axis reads "Season", matching the wardrobe's own filter — one
   // vocabulary means one word for it. The column stays climate_band.
-  check('bar · Refine opens Show, then the three axes — Season, Wear it for, Vibe (Show leads since the fold, 2026-10-05)',
-    JSON.stringify(bar.axes) === JSON.stringify(['Show', 'Season', 'Wear it for', 'Vibe']), JSON.stringify(bar.axes));
+  check('bar · Filter opens the three live axes — Season, Wear it for, Vibe (no Show row: the tabs hold the kinds, 2026-10-06)',
+    JSON.stringify(bar.axes) === JSON.stringify(['Season', 'Wear it for', 'Vibe']), JSON.stringify(bar.axes));
   // restored === 4: the two fixture looks plus the two padding artifacts,
   // which share the stream's card class
   check('bar · a pick filters; nothing-matches names itself; Clear restores',
@@ -446,9 +451,9 @@ const browser = await chromium.launch(
     window.__lkGo();
     return { noRow, cardVibe, axes, label, shown, restored };
   });
-  check('vibe · no standing row — Vibe is a Refine axis under Show, Season and Wear it for',
+  check('vibe · no standing row — Vibe is a Filter axis under Season and Wear it for (no Show row, 2026-10-06)',
     vibeRef.noRow === true
-      && JSON.stringify(vibeRef.axes) === JSON.stringify(['Show', 'Season', 'Wear it for', 'Vibe']),
+      && JSON.stringify(vibeRef.axes) === JSON.stringify(['Season', 'Wear it for', 'Vibe']),
     JSON.stringify([vibeRef.noRow, vibeRef.axes]));
   check('vibe · the card carries it, labelled not slugged',
     JSON.stringify(vibeRef.cardVibe) === JSON.stringify(['Powerhouse']), JSON.stringify(vibeRef.cardVibe));
@@ -2184,11 +2189,16 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const kpOnly = await page.evaluate(() => ({
     composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
     waysShown: (() => { const el = document.getElementById('sn-empty'); return !!el && el.style.display !== 'none'; })(),
-    kpTile: document.querySelectorAll('#rb-lk-grid .lt-kp').length, tag: document.querySelector('#rb-lk-grid .lt-kp .lt-tag')?.textContent,
-    door: !!document.querySelector('#rb-lk-grid .rb-lk-kpdoor'), stat: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
+    kpTile: document.querySelectorAll('#rb-lk-grid .lt-kp').length,
+    tabs: document.getElementById('rb-lk-bar')?.style.display === 'block' && Array.from(document.querySelectorAll('#rb-lk-bar .rb-lk-tab')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')),
+    sugg: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').length,
   }));
-  check('empty · a key piece alone fills the Lookbook: its tile tagged on the photo, the Style a key piece door, "1 key piece" (the fold, 2026-10-05)',
-    kpOnly.composer === false && kpOnly.waysShown === false && kpOnly.kpTile === 1 && kpOnly.tag === 'Key piece' && kpOnly.door && kpOnly.stat === '1 key piece', JSON.stringify(kpOnly));
+  // Look states (2026-10-06): a key piece is a GROUPING — its entry
+  // becomes suggested rows (no ways itemised → none here), never a tile
+  // in the Saved grid; with no saved look the composer stands under the
+  // tab row (F7).
+  check('empty · a key piece alone is no tile in the Saved grid — the composer stands under the tab row (look states, 2026-10-06)',
+    kpOnly.composer === true && kpOnly.waysShown === false && kpOnly.kpTile === 0, JSON.stringify(kpOnly));
   // A daily look is a DAY (Look Rules 1a) — it lives in the Diary and is
   // reached from a day cell, never from the Lookbook. The Lookbook holds
   // saved looks only, so an account with nothing but days still meets the
@@ -2228,18 +2238,18 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('empty · a legacy look item still fills the shelf',
     e.itemCards === 1 && e.addCard === true, JSON.stringify(e));
-  check('empty · it draws in the one card language — tagged Look on the photo',
-    e.eyebrow === 'Look', JSON.stringify([e.eyebrow, e.meta]));
+  check('empty · it draws in the one card language — no eyebrow on a saved tile',
+    e.eyebrow === undefined, JSON.stringify([e.eyebrow, e.meta]));
   check('empty · no module empty state once anything exists', e.moduleEmpty === false);
   // Superseded 2026-08-12: sort and Refine RENDER at every count and sit
   // inert below four looks, rather than appearing from nowhere.
-  check('empty · sort and Refine render inert below four looks; the stat counts looks alone',
-    JSON.stringify(e.sorts) === JSON.stringify([true, true]) && e.stat === '1 look',
+  check('empty · sort and Filter hide below four looks; the count line counts looks alone',
+    JSON.stringify(e.sorts) === JSON.stringify([]) && e.stat === '1 look',
     JSON.stringify([e.sorts, e.stat]));
   // One masthead line (nav architecture 2026-09-10): ALL LOOKS · count,
   // then sort / Refine / + New look as hairline pills on the same line.
-  check('empty · no travel strip on the Lookbook — trips live in the Diary; the masthead line carries sort, Refine and + New look',
-    e.holGone === true && JSON.stringify(e.newLook) === JSON.stringify(['Last worn↓', 'Refine', '+ New look']),
+  check('empty · no travel strip on the Lookbook — trips live in the Diary; the masthead carries the + alone under four looks',
+    e.holGone === true && JSON.stringify(e.newLook) === JSON.stringify(['+']),
     JSON.stringify([e.holGone, e.newLook]));
   // FTUE wording on the composer's one alternative door — she has no looks
   // yet, so Robes offers to build the FIRST one (2026-08-12).
@@ -2474,32 +2484,36 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       allRow: (() => {
         const row = document.querySelector('#rb-lk-bar .rb-mast');
         return {
-          label: row?.querySelector('.rb-mast-lab')?.textContent,
+          tabs: Array.from(row?.querySelectorAll('.rb-lk-tab') || []).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')),
           sortHere: !!row?.querySelector('.rb-lk-sort'),
-          oneLine: !!row && Math.abs(row.querySelector('.rb-mast-lab').getBoundingClientRect().top - row.querySelector('.rb-lk-new').getBoundingClientRect().top) < 30,
+          oneLine: !!row && Math.abs(row.querySelector('.rb-lk-seg').getBoundingClientRect().top - row.querySelector('.rb-lk-new').getBoundingClientRect().top) < 30,
           noEyebrowRow: getComputedStyle(document.getElementById('sn-headrow')).display === 'none',
           inkFills: Array.from(row?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
         };
       })(),
+      suggN: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').filter((x) => x.status === 'suggested').length,
     };
   });
   // The Lookbook holds SAVED LOOKS and KEY PIECES (Look Rules 1a + the
   // fold, 2026-10-05): her two fixture looks and the key piece, in one card
   // language, each tagged on its photo. The daily look is a day and lives
   // in the Diary; the travel edit lives there too.
-  check('IA · the stream holds saved looks and key pieces, in one card language, tagged on the photo',
-    uni.cards === 3 && uni.itemCard === false && JSON.stringify(uni.eyebrows) === JSON.stringify(['Key piece', 'Look', 'Look']),
+  // Look states (2026-10-06): the Saved tab holds SAVED LOOKS alone, no
+  // eyebrows; the key piece entry backfills into suggested rows (one per
+  // way) that live on the Suggested tab.
+  check('IA · the Saved stream holds saved looks alone, in one card language, no eyebrow',
+    uni.cards === 2 && uni.itemCard === false && JSON.stringify(uni.eyebrows) === JSON.stringify([]),
     JSON.stringify(uni));
-  check('IA · a key piece enters the Lookbook stream (the fold)', uni.kpInStream === true);
+  check('IA · a key piece stays out of the Saved stream — its ways are suggested rows (look states, 2026-10-06)', uni.kpInStream === false && uni.suggN === 3, JSON.stringify([uni.kpInStream, uni.suggN]));
   // Trips left the Lookbook for the Diary (Diary IA phase 2, 2026-09-08):
   // no pinned strip, no travel count in the stat, no split menu — the one
   // creation door on the Lookbook is + New look.
   check('IA · no travel strip and no trip in the stream — trips live in the Diary',
     uni.holGone === true && uni.tripInStream === false, JSON.stringify([uni.holGone, uni.tripInStream]));
-  check('IA · + New look is the one creation door (no split)', uni.newLook === true);
-  check('IA · ONE masthead line — LOOKBOOK · "2 looks · 1 key piece", sort / Refine / + New look beside it, no eyebrow stacked above, nothing filled ink',
-    uni.stat === '2 looks · 1 key piece' && uni.allRow.label === 'Lookbook'
-      && uni.allRow.sortHere === true && uni.allRow.oneLine === true && uni.allRow.noEyebrowRow === true && uni.allRow.inkFills === 0,
+  check('IA · + (the circle) is the one creation door (no split, no "+ New look" pill)', uni.newLook === false);
+  check('IA · ONE masthead — Saved | Suggested, "2 looks" beneath, the + beside it on the same line, no eyebrow stacked above, nothing filled ink',
+    uni.stat === '2 looks' && JSON.stringify(uni.allRow.tabs) === JSON.stringify(['Saved*', 'Suggested'])
+      && uni.allRow.sortHere === false && uni.allRow.oneLine === true && uni.allRow.noEyebrowRow === true && uni.allRow.inkFills === 0,
     JSON.stringify([uni.stat, uni.allRow]));
   // The Diary's + menu offers the two things a diary holds: a look for a
   // day and a travel edit. The intake opens OVER the Diary, and the trip
@@ -2736,34 +2750,45 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     open: document.getElementById('sn-page')?.style.display === 'block', noPage: !document.getElementById('rb-insp-page'),
     path: location.pathname,
     tnActive: document.getElementById('rb-tn-lookbook')?.classList.contains('active'),
-    label: document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent, stat: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
-    cards: document.querySelectorAll('#rb-lk-grid .lt-kp').length, looks: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:not(.lt-kp)').length,
-    title: document.querySelector('#rb-lk-grid .lt-kp .lt-title')?.textContent,
-    sub: document.querySelector('#rb-lk-grid .lt-kp .lt-meta')?.textContent,
-    showOn: document.querySelector('#rb-lk-allhead .rb-lkref-show.on')?.textContent, dot: !!document.querySelector('#rb-lk-bar .rb-lk-refdot'),
+    tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent, stat: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent,
+    cards: document.querySelectorAll('#rb-lk-grid [data-sugg]').length, looks: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:not(.lt-sugg)').length,
+    titles: Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-title')).map((e) => e.textContent).sort(),
+    eyebrows: Array.from(new Set(Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-ey')).map((e) => e.textContent))),
+    sub: document.querySelector('#rb-lk-grid [data-sugg] .lt-meta')?.textContent,
+    marks: document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-mark.quote').length, btns: document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-sugbtn').length,
+    acts: document.querySelectorAll('#rb-lk-bar .rb-mast-acts button').length,
     saveAsLook: /Save as look/i.test(document.getElementById('rb-lk-grid')?.textContent || ''),
   }));
-  check('IA · Inspiration is the Lookbook on Show = Key pieces: Lookbook lit at /lookbook, the key piece its one tile, looks held back, the dot on Refine',
-    insp.open && insp.noPage && insp.path === '/lookbook' && insp.tnActive === true && insp.label === 'Key pieces' && insp.stat === '1 key piece'
-      && insp.cards === 1 && insp.looks === 0 && insp.title === 'Umbro shorts' && insp.sub === 'Styled three ways' && insp.dot,
+  // Look states (2026-10-06): the legacy dest is the Suggested tab — the
+  // key piece's three ways as three suggested tiles (prompt looks, since
+  // no wardrobe piece matches the entry's title), ✕ and ↻ on each, no
+  // controls, looks held back.
+  check('IA · Inspiration is the Suggested tab: Lookbook lit at /lookbook, the key piece as three suggested tiles with ✕ and ↻, looks held back, no controls',
+    insp.open && insp.noPage && insp.path === '/lookbook' && insp.tnActive === true && insp.tab === 'Suggested' && insp.stat === '3 suggested'
+      && insp.cards === 3 && insp.looks === 0 && JSON.stringify(insp.titles) === JSON.stringify(['One', 'Three', 'Two']) && JSON.stringify(insp.eyebrows) === JSON.stringify(['Suggested'])
+      && insp.sub === 'From your prompt' && insp.marks === 3 && insp.btns === 6 && insp.acts === 0,
     JSON.stringify(insp));
   check('IA · no Save-as-look yet (deferred — Annie 2026-08-10)', insp.saveAsLook === false);
   // The tile carries no Restyle pill (Annie, 2026-09-17: it served no
   // purpose) — the tile itself is the door to the three ways.
   const opened = await page.evaluate(async () => {
     const noPill = !document.querySelector('#rb-lk-grid .rb-in-act') && !/Restyle/.test(document.getElementById('rb-lk-grid')?.textContent || '');
-    document.querySelector('#rb-lk-grid .lt-kp').click();
+    document.querySelector('#rb-lk-grid [data-sugg] .lt-card').click();
     await new Promise((r) => setTimeout(r, 600));
     return {
       noPill,
-      inspClosed: document.getElementById('sn-page').style.display === 'none',
       kpOpen: document.getElementById('kp-result-page')?.style.display === 'block',
-      band: document.querySelector('#kp-result-page .rb-ret-pill .lab')?.textContent,
+      page: !!document.querySelector('#rb-lk-body .rb-lk-page'),
+      band: document.querySelector('#rb-lk-body .rb-ret-pill .lab')?.textContent,
+      ey: document.querySelector('#rb-lk-body .rb-lk-eyebrow')?.textContent,
+      bar: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-suggbar button')).map((b) => b.textContent),
     };
   });
-  check('IA · no Restyle pill; the tile is the door out to the three ways, which climb back to the Lookbook',
-    opened.noPill && opened.inspClosed && opened.kpOpen && opened.band === 'Lookbook', JSON.stringify(opened));
-  await page.evaluate(() => { window.__kpGoBack && window.__kpGoBack(); });
+  // The tile opens the SUGGESTED look page (F8) — never the Worn Three
+  // Ways page — with ‹ Suggested, Edit · Save to lookbook.
+  check('IA · no Restyle pill; the tile opens the suggested look page (‹ Suggested, Edit · Save to lookbook), never the kp page',
+    opened.noPill && !opened.kpOpen && opened.page && opened.band === 'Suggested' && opened.ey === 'Suggested · from your prompt' && JSON.stringify(opened.bar) === JSON.stringify(['Edit', 'Save to lookbook']), JSON.stringify(opened));
+  await page.evaluate(() => { window.__lkBackDoor && window.__lkBackDoor(); });
   await page.evaluate(() => { window.__lkRefineClear && window.__lkRefineClear(); });
   check('IA · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
@@ -4497,11 +4522,15 @@ const composerRead = () => ({
   await openLooks(page);
   const tile = await page.evaluate(() => {
     const t = document.getElementById('rb-lk-drafttile');
-    const first = document.querySelector('#rb-lk-grid > *');
-    return { there: !!t, leads: first === t, name: t?.querySelector('.rb-add-serif')?.textContent, hint: t?.querySelector('.rb-add-hint')?.textContent, dashed: t ? getComputedStyle(t).borderTopStyle : null, mosaic: !!t?.querySelector('.rb-lk-mos'), lookCards: document.querySelectorAll('#rb-lk-grid .lt-card').length };
+    const first = document.querySelector('#rb-lk-inprog .rb-lk-inprog-row > *');
+    return { there: !!t, leads: first === t, name: t?.querySelector('.lt-title')?.textContent, ey: t?.querySelector('.lt-tag')?.textContent, hint: t?.querySelector('.lt-meta')?.textContent, dashed: t ? getComputedStyle(t).borderTopStyle : null, mosaic: !!t?.querySelector('.rb-lk-mos'), lookCards: document.querySelectorAll('#rb-lk-grid .lt-card').length,
+      count: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent };
   });
-  check('draft · the Lookbook grid leads with a dashed Draft tile in the add-card register — the name, “Draft · not saved”, the owned pieces as a mosaic; the looks beneath',
-    tile.there && tile.leads && tile.name === 'Date night' && tile.hint === 'Draft · not saved' && tile.dashed === 'dashed' && tile.mosaic && tile.lookCards === 2, JSON.stringify(tile));
+  // Look states (2026-10-06): the draft leads the Saved tab in the In
+  // progress rail — a dashed tile with the eyebrow Draft, the name, "Not
+  // saved · started today"; the count line says "2 looks · 1 in progress".
+  check('draft · the In progress rail leads the Saved tab with a dashed Draft tile — eyebrow Draft, the name, “Not saved · started today”, the pieces as a mosaic; the looks beneath',
+    tile.there && tile.leads && tile.name === 'Date night' && tile.ey === 'Draft' && tile.hint === 'Not saved · started today' && tile.dashed === 'dashed' && tile.mosaic && tile.lookCards === 2 && tile.count === '2 looks · 1 in progress', JSON.stringify(tile));
   const fromTile = await page.evaluate(async () => {
     document.getElementById('rb-lk-drafttile')?.click();
     await new Promise((r) => setTimeout(r, 700));

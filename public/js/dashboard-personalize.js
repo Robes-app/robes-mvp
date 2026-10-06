@@ -1246,7 +1246,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         else window.__rbLpClose();
         if (mode === 'three') {
           const lead = pc.filed ? ('Style my ' + String(pc.name || 'piece').trim() + ' three ways' + (pc.worn ? ' (worn ' + pc.worn + ' time' + (pc.worn === 1 ? '' : 's') + ')' : '')) : 'Style this piece three ways';
-          _cbStyleSubmit(note ? lead + '. ' + note : lead, photo, { intent: 'style' });
+          _cbStyleSubmit(note ? lead + '. ' + note : lead, photo, { intent: 'style', pieceId: pc.filed && pc.id != null ? pc.id : null });
           return;
         }
         if (pc.filed && pc.id != null) {
@@ -7685,6 +7685,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rb-pc-rail .rb-lk-tile .lt-title{font:300 14px/1.2 var(--font-serif,Cormorant,Georgia,serif);margin:0}
 .rb-pc-rail .rb-lk-tile .lt-meta{font:400 10px/1 var(--font-sans,Inter,sans-serif);color:var(--ink-soft,#6E6A64);margin-top:4px}
 .rb-pc-rail .rb-lk-tile .rb-lk-mos{aspect-ratio:4/5;border:1px solid var(--rule,rgba(32,32,33,0.08));border-radius:2px}
+.rb-pc-suggrail .rb-lk-sugwrap{min-width:0}
+.rb-pc-suggrail .lt-card{border-radius:var(--rad,12px)}
+.rb-pc-suggrail .lt-card .rb-lk-mos{border:none;aspect-ratio:3/4;border-radius:0}
+.rb-pc-suggrail .lt-card .lt-info{padding:10px 11px 12px}
+.rb-pc-suggrail .lt-card .lt-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rb-pc-empty{margin-top:14px;font:300 14px/1.4 var(--font-serif,Cormorant,Georgia,serif);font-style:italic;color:var(--ink-soft,#6E6A64)}
 .rb-pc-cta{display:inline-flex;align-items:center;justify-content:center;gap:12px;background:var(--ink,#202021);color:var(--cream,#FAF8F5);border:none;border-radius:100px;padding:14px 22px;cursor:pointer;font:500 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.2em;text-transform:uppercase;font-family:inherit}
 /* The look's context (Look_Creation_Handoff 4c/4d): the role picker, the
@@ -7951,6 +7956,15 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           rest += '<div class="rb-pc-sec">' + (n ? 'In ' + _lkN(n, 'look') : 'Not in a look yet') + '</div>';
           if (n) rest += _pcRailHtml(looks);
           else rest += '<div class="rb-pc-empty">Build a look and it files here.</div>';
+          // "Robes suggested" (F11 · 1): the suggestions built around this
+          // piece, as tiles that keep ✕ and ↻ but drop the mark — the piece
+          // is the page. Nothing renders when there are none (F11 · 2: the
+          // Style this piece ▾ menu above is the way in).
+          const sugg = (!fromLook && !fromDay && typeof _lkSugg !== 'undefined') ? (_lkSugg || []).filter(l => l && l.status === 'suggested' && String(l.anchor_piece_id || '') === String(it.id)) : [];
+          if (sugg.length) {
+            rest += '<div class="rb-pc-sec">Robes suggested</div><div class="rb-pc-rail rb-pc-suggrail">' +
+              sugg.slice().sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))).map(l => _lkSuggCard(l, { mark: false })).join('') + '</div>';
+          }
           if (fromLook || fromDay) rest += '<button type="button" class="rb-pc-link" style="margin-top:16px" onclick="window.__rbPieceRecord()">See the full record in your wardrobe →</button>';
         }
         el.innerHTML = band + title + '<div class="rb-pc-body"><div class="rb-pc-cols"><div class="rb-pc-media">' + media + '</div><div class="rb-pc-rest">' + rest + '</div></div></div>';
@@ -8321,7 +8335,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       window.__rbInspOpen = function() {
         const av = document.getElementById('av-menu');
         if (av) av.classList.remove('open');
-        if (typeof _lkRefine !== 'undefined' && _lkRefine) _lkRefine.show = 'kp';
+        // The Suggested tab (look states, 2026-10-06) — the key pieces'
+        // looks live there as suggested rows.
+        _lkTab = 'suggested';
         if (window.__lkGo) window.__lkGo(); else if (window.__snOpen) window.__snOpen();
       };
       window.__inClose = function() {};
@@ -8329,7 +8345,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // a kp filter a door set earlier never hides the looks she asked for
       // (Annie, 2026-10-05).
       window.__rbLooksOpen = function() {
-        if (typeof _lkRefine !== 'undefined' && _lkRefine) _lkRefine.show = 'looks';
+        _lkTab = 'saved';
         if (window.__lkGo) window.__lkGo(); else if (window.__snOpen) window.__snOpen();
       };
       // Restyle lands on the home prompt with the original ask re-armed —
@@ -8697,6 +8713,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           data.genId = genId;
           _inStClose();
           window.__inClose();
+          if (typeof _lkSuggLand === 'function' && _lkSuggLand(data, prompt, { intent: 'style', pieceId: (_inStPiece && _inStPiece.id != null) ? _inStPiece.id : null })) return;
           window.__kpRenderResult(data, prompt, { intent: 'style' });
         } catch (err) {
           clearTimeout(abortTimer);
@@ -13443,6 +13460,27 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // and warns ONCE — the planned_days / wishlist degradation convention.
       var _lkDown = false, _lkWarned = false, _lkLoaded = false;
       var _lkLooks = [];
+      // ── Look states (migration 25, 2026-10-06 · docs/look-states-brief.md,
+      // design Look_States_Native) ──────────────────────────────────────
+      // ONE entity, three states — suggested (Robes made it), draft (she
+      // started it, or started editing a suggestion), saved (the Lookbook).
+      // The two unsaved states ride the SAME table and the same row shape,
+      // held APART from _lkLooks so every reader of the saved looks (home,
+      // the Diary, the piece page's "In N looks", wears, Refine, the
+      // pickers) is untouched: only the Suggested tab, the In progress
+      // rail, the piece page's "Robes suggested" rail and home's row read
+      // _lkSugg. A key piece is a GROUPING, not a state — anchor_piece_id
+      // (the piece a suggestion was built around), set_id (the generation
+      // it came from: the key-piece lookbook entry's id) and set_index.
+      var _lkSugg = [];
+      var _lkStatusCol = true;        // migration 25 landed (flipped on PGRST204)
+      var _lkStatusWarned = false;
+      var _lkTab = 'saved';           // the Lookbook's tab: 'saved' | 'suggested'
+      var _lkSortBy = 'worn';         // the sort menu: 'worn' | 'newest' | 'name'
+      var _lkSortOpen = false;
+      var _lkSuggBusy = {};           // look id → true while ↻ or its frame is in flight
+      var _lkSuggPending = null;      // the held removal (Removed · Undo)
+      var _lkSuggPollT = null;
       // Last worn ↓ by default; never-worn looks fall to the END descending
       // and to the FRONT ascending, so "what have I not worn?" is one tap.
       var _lkSortDesc = true;
@@ -13560,6 +13598,16 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const k = LK_KEY(); if (!k) return;
         try { localStorage.setItem(k, JSON.stringify(_lkLooks)); } catch (_) {}
       }
+      // The unsaved rows keep their own cache beside the saved ones — a
+      // suggestion made before migration 25 runs lives here alone.
+      function _lkSuggCacheRead() {
+        const k = LK_KEY(); if (!k) return [];
+        try { const v = JSON.parse(localStorage.getItem(k + '_sugg') || '[]'); return Array.isArray(v) ? v : []; } catch (_) { return []; }
+      }
+      function _lkSuggCacheWrite() {
+        const k = LK_KEY(); if (!k) return;
+        try { localStorage.setItem(k + '_sugg', JSON.stringify(_lkSugg)); } catch (_) {}
+      }
       function _lkMissing(t) {
         return /looks|look_pieces|wears/.test(t) && /PGRST205|42P01|Could not find the table|does not exist/.test(t);
       }
@@ -13585,7 +13633,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // neither needs a user filter — the policies are the filter.
       async function _lkLoad() {
         _lkLooks = _lkCacheRead();
-        if (_lkLooks.length) _lkPaint();
+        _lkSugg = _lkSuggCacheRead();
+        if (_lkLooks.length || _lkSugg.length) _lkPaint();
         if (_lkDown || !_waUid() || !_waToken()) { _lkLoaded = true; _lkPaint(); return; }
         try {
           const [looks, pieces, wears] = await Promise.all([
@@ -13602,6 +13651,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               proposals: Array.isArray(l.proposals) ? l.proposals : null,
               styling: (l.styling && typeof l.styling === 'object') ? l.styling : null,
               source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
+              status: (l.status === 'suggested' || l.status === 'draft') ? l.status : 'saved',
+              anchor_piece_id: l.anchor_piece_id || null, set_id: l.set_id != null ? String(l.set_id) : null,
+              set_index: Number.isInteger(l.set_index) ? l.set_index : null,
               created_at: l.created_at, pieces: [], wears: [],
             };
           });
@@ -13613,17 +13665,36 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             const l = byId[w.look_id];
             if (l) l.wears.push({ id: w.id, worn_on: w.worn_on, piece_ids: w.piece_ids || [], source: w.source || null, source_id: w.source_id || null });
           });
-          const cloud = Object.keys(byId).map(k => byId[k]);
+          const cloudAll = Object.keys(byId).map(k => byId[k]);
+          const cloud = cloudAll.filter(l => l.status === 'saved');
+          const cloudSugg = cloudAll.filter(l => l.status !== 'saved');
           // Local-only looks (saved before the migration ran, or offline) sync up
           _lkCacheRead().forEach(l => {
-            const c = cloud.find(x => String(x.id) === String(l.id));
+            const c = cloudAll.find(x => String(x.id) === String(l.id));
             if (!c) { cloud.push(l); _lkPushCloud(l); return; }
             // Pre-migration-19: the cloud row can't hold proposals — the
             // local cache carries them so a saved build keeps its pieces.
             if (!c.proposals && Array.isArray(l.proposals) && l.proposals.length) c.proposals = l.proposals;
           });
+          // A suggestion or draft the cloud does not hold (made before
+          // migration 25, or offline) stays local — and tries the cloud
+          // once more only while the columns are believed to exist.
+          _lkSuggCacheRead().forEach(l => {
+            const c = cloudAll.find(x => String(x.id) === String(l.id));
+            if (c) { if (!c.proposals && Array.isArray(l.proposals) && l.proposals.length) c.proposals = l.proposals; return; }
+            if (l.status !== 'suggested' && l.status !== 'draft') return;
+            cloudSugg.push(l);
+            if (_lkStatusCol) _lkPushCloud(l);
+          });
           _lkLooks = cloud.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
           _lkCacheWrite();
+          // One row per (set, slot): two devices minting the same
+          // generation in the same minute keep the newer.
+          const seenSet = {};
+          _lkSugg = cloudSugg.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+            .filter(l => { const k = l.set_id != null && l.set_index != null ? l.set_id + '|' + l.set_index : null; if (!k) return true; if (seenSet[k]) return false; seenSet[k] = true; return true; });
+          _lkSuggCacheWrite();
+          _lkSuggBackfill();
           _lkLoaded = true;
           // The looks cache lands after the wishlist as often as not — the
           // repair tries again the moment the stills are in hand.
@@ -13642,8 +13713,23 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // enters _lkLooks, the cache or the cloud.
       function _lkFind(id) {
         if (_lkTripDraft && String(_lkTripDraft.id) === String(id)) return _lkTripDraft;
-        return _lkLooks.find(l => String(l.id) === String(id)) || null;
+        return _lkLooks.find(l => String(l.id) === String(id)) || _lkSugg.find(l => String(l.id) === String(id)) || null;
       }
+      function _lkSuggFind(id) { return _lkSugg.find(l => String(l.id) === String(id)) || null; }
+      // The piece a suggestion was built around, as the pages say it:
+      // "around your rust slip dress" (the name without its brand, in her
+      // wardrobe's own words). Nothing when the piece is gone or unset.
+      function _lkAnchorPiece(l) {
+        if (!l || !l.anchor_piece_id) return null;
+        return _waItems.find(w => String(w.id) === String(l.anchor_piece_id)) || null;
+      }
+      function _lkAnchorName(l) {
+        const wi = _lkAnchorPiece(l);
+        if (!wi) return '';
+        const nm = String((typeof _rbNameNoBrand === 'function' ? _rbNameNoBrand(wi.label, wi.brand) : wi.label) || '').trim();
+        return nm ? nm.charAt(0).toLowerCase() + nm.slice(1) : '';
+      }
+      function _lkIsSaved(l) { return !!l && (l.status || 'saved') === 'saved'; }
       function _lkPieceIds(l) { return ((l && l.pieces) || []).map(p => p.id); }
       // Identity for passive accrual (B3): the exact SET of pieces. Not a
       // similarity threshold — an identical composition IS the same look.
@@ -13743,6 +13829,15 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             source: l.source || 'wear', origin_look_id: l.origin_look_id || null,
           };
           if (withProps && l.proposals) row.proposals = l.proposals;
+          // Migration 25: the state and the grouping. A row that is NOT
+          // saved never goes up without its status — it would land as a
+          // saved look — so those columns are all-or-nothing for it.
+          if (_lkStatusCol) {
+            row.status = (l.status === 'suggested' || l.status === 'draft') ? l.status : 'saved';
+            row.anchor_piece_id = l.anchor_piece_id || null;
+            row.set_id = l.set_id != null ? String(l.set_id) : null;
+            row.set_index = Number.isInteger(l.set_index) ? l.set_index : null;
+          }
           return row;
         };
         const after = () => {
@@ -13756,8 +13851,17 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             _tgSetLinks('look', l.id, 'vibe', l._lookTags.vibe || [], 'inferred');
           }
         };
+        // Pre-migration-25 an unsaved row stays in the local cache alone.
+        if (!_lkStatusCol && (l.status === 'suggested' || l.status === 'draft')) return;
         _waFetch('POST', 'looks', mk(_lkPropCol)).then(after).catch(e => {
           const t = String(e && e.message || e);
+          if (/PGRST204/.test(t) && /status|anchor_piece_id|set_id|set_index/.test(t)) {
+            _lkStatusCol = false;
+            if (!_lkStatusWarned) { console.warn('[robes] looks: run supabase/look_states_migration.sql — suggestions and drafts stay on this device until it runs'); _lkStatusWarned = true; }
+            if (l.status === 'suggested' || l.status === 'draft') return;
+            _waFetch('POST', 'looks', mk(_lkPropCol)).then(after).catch(e2 => _lkGuard(e2, 'create'));
+            return;
+          }
           if (/PGRST204/.test(t) && /styling/.test(t)) {
             _lkStylingCol = false;
             _waFetch('POST', 'looks', mk(_lkPropCol)).then(after).catch(e2 => _lkGuard(e2, 'create'));
@@ -13777,6 +13881,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       var _lkRoleCol = true;
       function _lkPiecesCloud(l) {
         if (_lkDown || !_waUid() || (l && l._draft)) return;
+        if (!_lkStatusCol && l && (l.status === 'suggested' || l.status === 'draft')) return;
         const mk = withRole => (l.pieces || []).map((p, i) => {
           const row = { look_id: l.id, wardrobe_item_id: p.id, slot: p.slot || null, position: p.position != null ? p.position : i };
           if (withRole) row.role = p.role || null;
@@ -13802,10 +13907,12 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       var _lkRenderCol = true;
       function _lkPatchCloud(l, patch) {
         if (_lkDown || !_waUid() || (l && l._draft)) return;
+        if (!_lkStatusCol && (l.status === 'suggested' || l.status === 'draft') && patch.status !== 'saved') return;
         const body = Object.assign({ updated_at: new Date().toISOString() }, patch);
         if (!_lkPropCol) delete body.proposals;
         if (!_lkStylingCol) delete body.styling;
         if (!_lkRenderCol) { delete body.render_url; delete body.render_key; }
+        if (!_lkStatusCol) { delete body.status; delete body.anchor_piece_id; delete body.set_id; delete body.set_index; }
         _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(), body)
           .catch(e => {
             const t = String(e && e.message || e);
@@ -13815,6 +13922,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               _waFetch('PATCH', 'looks?id=eq.' + l.id + '&user_id=eq.' + _waUid(), retry)
                 .catch(e2 => _lkGuard(e2, 'patch'));
             };
+            if (/PGRST204/.test(t) && /status|anchor_piece_id|set_id|set_index/.test(t)) {
+              _lkStatusCol = false;
+              retryWithout(['status', 'anchor_piece_id', 'set_id', 'set_index']);
+              return;
+            }
             if (/PGRST204/.test(t) && /styling/.test(t)) {
               _lkStylingCol = false;
               retryWithout(['styling']);
@@ -13837,7 +13949,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const l = _lkFind(id);
         if (!l) return null;
         Object.assign(l, patch);
-        _lkCacheWrite();
+        if (_lkIsSaved(l)) _lkCacheWrite(); else _lkSuggCacheWrite();
         _lkPatchCloud(l, patch);
         if (pieces) _lkPiecesCloud(l);
         if (pieces) _avRenderKick(l);   // composition changed → her model re-wears it
@@ -13944,9 +14056,21 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         });
       }
       function _lkCreate(o) {
+        const l = _lkRowBuild(o);
+        const ids = l.pieces.map(p => p.id);
+        _lkLooks.unshift(l);
+        _lkCacheWrite();
+        _lkPushCloud(l);
+        _avRenderKick(l);
+        _rbTrack('look_created', { source: l.source, pieces: ids.length, anchored: !!l.anchor_piece_id });
+        return l;
+      }
+      // The row, built once for every state (status decides which cache
+      // and which readers see it).
+      function _lkRowBuild(o) {
         const ids = o.pieces || [];
         const l = {
-          id: _lkUuid(),
+          id: o.id || _lkUuid(),
           name: o.name || _lkOfferName(ids, o.hint),
           name_provisional: o.name_provisional !== false,
           note: o.note != null ? o.note : _lkStyleNote(ids),
@@ -13965,16 +14089,318 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           _lookTags: o.lookTags || null,
           source: o.source || 'wear',
           origin_look_id: o.origin_look_id || null,
+          status: (o.status === 'suggested' || o.status === 'draft') ? o.status : 'saved',
+          anchor_piece_id: o.anchor_piece_id != null ? String(o.anchor_piece_id) : null,
+          set_id: o.set_id != null ? String(o.set_id) : null,
+          set_index: Number.isInteger(o.set_index) ? o.set_index : null,
           created_at: new Date().toISOString(),
           pieces: ids.map((id, i) => ({ id, slot: (o.slots || {})[id] || null, position: i, role: (o.roles || {})[id] || null })),
           wears: [],
         };
+        return l;
+      }
+      // A SUGGESTED row: Robes made it, she has not touched it. No render
+      // of her model (the way's own frame is its photograph — a suggestion
+      // spends nothing until she saves it), no wears, no pins.
+      function _lkSuggCreate(o) {
+        const l = _lkRowBuild(Object.assign({}, o, { status: 'suggested', name_provisional: true }));
+        _lkSugg.unshift(l);
+        _lkSuggCacheWrite();
+        _lkPushCloud(l);
+        return l;
+      }
+      // Removed, for good — a suggestion she dismissed or a draft she
+      // discarded (discard = delete; the brief's rule).
+      function _lkSuggDelete(id) {
+        const i = _lkSugg.findIndex(x => String(x.id) === String(id));
+        if (i < 0) return null;
+        const l = _lkSugg.splice(i, 1)[0];
+        _lkSuggCacheWrite();
+        if (!_lkDown && _waUid() && (_lkStatusCol || l._cloud)) _waFetch('DELETE', 'looks?id=eq.' + id + '&user_id=eq.' + _waUid()).catch(e => _lkGuard(e, 'delete'));
+        return l;
+      }
+      // suggested → draft: she pressed Edit. The row leaves Suggested and
+      // waits in In progress; the composer holds it meanwhile.
+      function _lkSuggToDraft(id) {
+        const l = _lkSuggFind(id);
+        if (!l) return null;
+        l.status = 'draft';
+        _lkSuggCacheWrite();
+        _lkPatchCloud(l, { status: 'draft' });
+        return l;
+      }
+      // suggested | draft → saved, keeping the id: the row crosses into
+      // _lkLooks, her model wears it, its proposals go to the wishlist (the
+      // composer's own save rule — nothing Robes offered is lost).
+      function _lkSuggToSaved(id, extra) {
+        const i = _lkSugg.findIndex(x => String(x.id) === String(id));
+        if (i < 0) return null;
+        const l = _lkSugg.splice(i, 1)[0];
+        _lkSuggCacheWrite();
+        Object.assign(l, extra || {}, { status: 'saved', created_at: new Date().toISOString() });
+        if (Array.isArray(l.proposals)) l.proposals = l.proposals.map(r => Object.assign({}, r, { saved: true }));
         _lkLooks.unshift(l);
         _lkCacheWrite();
-        _lkPushCloud(l);
+        if (_lkStatusCol || l._cloud) _lkPatchCloud(l, Object.assign({ status: 'saved', name: l.name, name_provisional: !!l.name_provisional, created_at: l.created_at }, extra || {}));
+        else _lkPushCloud(l);
+        (l.proposals || []).forEach(row => {
+          const a = (row.opts || [])[row.oi || 0] || {};
+          if (a.name && typeof _wlSaveFromItem === 'function') _wlSaveFromItem({ name: a.name, brand: a.brand, price_point: a.price_point, retailer_hint: a.retailer_hint, category: (row.cats || [])[0] }, { silent: true, imageUrl: row.image_url || null });
+        });
         _avRenderKick(l);
-        _rbTrack('look_created', { source: l.source, pieces: ids.length });
+        _rbTrack('look_created', { source: l.source, pieces: l.pieces.length, anchored: !!l.anchor_piece_id, from: 'suggested' });
         return l;
+      }
+      // Three ways → three SUGGESTED rows (the mint). The way's itemised
+      // pieces (since 2026-09-28) land as her pieces where she owns them
+      // and as proposal rows where she does not; the way's frame is the
+      // row's photograph (patched in by the poller as it lands); the key
+      // piece entry it came from is the set.
+      function _lkSuggRow(w, i, o) { return _lkSuggCreate(_lkSuggSpec(w, i, o)); }
+      function _lkSuggSpec(w, i, o) {
+        const owned = [], roles = {}, seen = {}, props = [];
+        (Array.isArray(w.pieces) ? w.pieces : []).forEach(p => {
+          if (!p || !p.name) return;
+          const m = (p.wardrobe_match && p.wardrobe_match.id != null) ? String(p.wardrobe_match.id) : null;
+          if (m && _waItems.some(x => String(x.id) === m)) {
+            if (seen[m]) return;
+            seen[m] = true; owned.push(m);
+            const r = _rbRoleNorm(p.role); if (r) roles[m] = r;
+            return;
+          }
+          props.push({ role: _rbRoleNorm(p.role) || 'The Canvas', chip: _dlSlot(p).l, cats: [p.category || 'Other'],
+            opts: [{ name: String(p.name), brand: p.brand || '', retailer_hint: p.retailer_hint || '', price_point: p.price_point || '', how: '' }],
+            oi: 0, img_oi: 0, saved: false, image_url: null });
+        });
+        // The anchor is hers by definition — on the rack whether or not the
+        // model matched it by index.
+        if (o.anchor && owned.indexOf(String(o.anchor)) < 0 && _waItems.some(x => String(x.id) === String(o.anchor))) owned.unshift(String(o.anchor));
+        const note = [w.outfit, w.details, w.accessories].map(x => String(x || '').trim()).filter(Boolean).join('\n\n');
+        return {
+          name: String(w.title || '').replace(/\.$/, '').trim() || 'A look',
+          note: note || '', photo_url: o.photo || null, source: 'robes',
+          pieces: owned, roles, proposals: props.length ? props : null,
+          anchor_piece_id: o.anchor || null, set_id: o.setId, set_index: i,
+        };
+      }
+      function _lkSuggFromStyle(data, o) {
+        o = o || {};
+        const ways = Array.isArray(data && data.ways) ? data.ways : [];
+        if (!ways.length) return [];
+        const imgs = Array.isArray(data.generatedImages) ? data.generatedImages : [];
+        const setId = o.setId != null ? String(o.setId) : ('s' + Date.now().toString(36));
+        // Minted once per generation — a set already in hand is not minted twice.
+        if (_lkSugg.some(r => String(r.set_id) === setId) || _lkLooks.some(r => String(r.set_id) === setId)) return _lkSugg.filter(r => String(r.set_id) === setId);
+        const anchor = o.pieceId != null ? String(o.pieceId) : null;
+        const rows = ways.slice(0, 3).map((w, i) => _lkSuggRow(w, i, { setId, anchor, photo: _pdHttp(imgs[i]) || null }));
+        rows.forEach(r => { if (!r.photo_url && data.jobId) _lkSuggBusy[r.id] = true; });
+        _rbTrack('looks_suggested', { n: rows.length, anchored: !!anchor });
+        return rows;
+      }
+      // "Style my rust slip dress three ways" → the piece, when the ask was
+      // written by the box (its label, verbatim). A prompt that names no
+      // filed piece is a prompt look.
+      function _lkSuggAnchorFromPrompt(prompt) {
+        const m = String(prompt || '').match(/^(?:please\s+)?style\s+(?:my|the|this)\s+(.+?)\s+three ways/i);
+        const label = m ? m[1].trim().toLowerCase() : String(prompt || '').trim().toLowerCase();
+        if (!label) return null;
+        const hits = _waItems.filter(w => String(w.label || '').trim().toLowerCase() === label);
+        if (!hits.length) return null;
+        hits.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+        return String(hits[0].id);
+      }
+      // A key-piece entry made before this build becomes three suggested
+      // rows once (the brief's backfill — client-side, on the first load
+      // that finds one unmarked). A set already minted, or one she saved a
+      // look from, is left alone; the entry keeps the mark either way.
+      function _lkSuggBackfill(noPaint) {
+        let items = [];
+        try { items = typeof snLoad === 'function' ? snLoad().filter(i => i && i.type === 'key-piece' && i.kpData && !i.kpData.suggested) : []; } catch (_) { items = []; }
+        if (!items.length) return false;
+        items.forEach(it => {
+          const setId = String(it.id);
+          const had = _lkSugg.some(r => String(r.set_id) === setId) || _lkLooks.some(r => String(r.set_id) === setId);
+          if (!had && Array.isArray(it.kpData.ways) && it.kpData.ways.length && it.kpData.intent !== 'dress-me') {
+            _lkSuggFromStyle(Object.assign({}, it.kpData, { jobId: null }), { setId, pieceId: _lkSuggAnchorFromPrompt(it.title) });
+          }
+          try { snUpdate(it.id, { kpData: Object.assign({}, it.kpData, { suggested: true }) }); } catch (_) {}
+        });
+        // The surfaces that list suggestions follow — home's row included,
+        // which paints before the looks land.
+        if (!noPaint) _lkSuggRepaint();
+        return true;
+      }
+      // The frames land late (the server shoots them in the background):
+      // each one patches its row and the tile it is drawn on, in place.
+      function _lkSuggFrame(setId, i, url) {
+        const r = _lkSugg.find(x => String(x.set_id) === String(setId) && x.set_index === i);
+        if (!r) return;
+        if (_pdHttp(url) && !r.photo_url) _lkPatch(r.id, { photo_url: url });
+        delete _lkSuggBusy[r.id];
+        _lkSuggTileSync(r);
+      }
+      function _lkSuggPoll(jobId, setId, count) {
+        if (_lkSuggPollT) { clearTimeout(_lkSuggPollT); _lkSuggPollT = null; }
+        if (!jobId) return;
+        const t0 = Date.now();
+        const settle = () => { _lkSugg.filter(x => String(x.set_id) === String(setId)).forEach(r => { delete _lkSuggBusy[r.id]; _lkSuggTileSync(r); }); };
+        function tick() {
+          fetch('/api/images/' + jobId).then(r => r.ok ? r.json() : null).then(job => {
+            if (job && Array.isArray(job.images)) {
+              job.images.forEach((src, i) => {
+                if (!src) return;
+                _lkSuggFrame(setId, i, src);
+                // The set's record keeps the frames too (the mail and the
+                // admin viewer read it).
+                try {
+                  const it = snLoad().find(x => String(x.id) === String(setId));
+                  if (it && it.kpData) {
+                    const gi = (it.kpData.generatedImages || []).slice(); if (gi[i] !== src) { gi[i] = src; snUpdate(it.id, { img: it.img || src, kpData: Object.assign({}, it.kpData, { generatedImages: gi }) }); }
+                  }
+                } catch (_) {}
+              });
+              if (job.done) { settle(); return; }
+            } else if (!job) { settle(); return; }
+            if (Date.now() - t0 < 300000) _lkSuggPollT = setTimeout(tick, 3500); else settle();
+          }).catch(() => { if (Date.now() - t0 < 300000) _lkSuggPollT = setTimeout(tick, 5000); else settle(); });
+        }
+        _lkSuggPollT = setTimeout(tick, 2500);
+      }
+      // The grid tile and the rail tile both carry data-sugg; a fresh frame
+      // or a swap repaints that one tile, never the page.
+      function _lkSuggTileSync(r) {
+        document.querySelectorAll('[data-sugg="' + _waEsc(String(r.id)) + '"]').forEach(el => {
+          const rail = el.closest('.rb-pc-rail') ? true : false;
+          el.outerHTML = _lkSuggCard(r, { mark: !rail });
+        });
+      }
+      // The landing after /api/style (the piece track): the generation is
+      // recorded as a key-piece entry (the set — the looks_ready mail and
+      // the admin viewer read it), three suggested rows are minted from it,
+      // and she lands on the Suggested tab with the frames arriving. The
+      // Worn Three Ways page survives for entries saved before this build.
+      function _lkSuggLand(data, prompt, o) {
+        o = o || {};
+        if (!data || !Array.isArray(data.ways) || !data.ways.length) return false;
+        if ((o.intent || data.intent || 'style') === 'dress-me') return false;
+        const persistable = (data.generatedImages || []).map(s => _pdHttp(s) || null);
+        const pieceWords = typeof _kpPieceWords === 'function' ? _kpPieceWords(String(prompt || '').trim()) : '';
+        const setId = snAdd({
+          type: 'key-piece',
+          title: data.fallback ? 'Balmain waistcoat' : (pieceWords || String(prompt || '').trim() || 'Your piece'),
+          subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
+          img: persistable.find(Boolean) || data.photoUrl || null,
+          kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: 'style', context: null, genId: data.genId || null, suggested: true },
+        });
+        window.__lastKpData = data;
+        _kpActiveSaveId = setId;
+        const pieceId = o.pieceId != null ? String(o.pieceId) : _lkSuggAnchorFromPrompt(prompt);
+        _lkSuggFromStyle(data, { setId, pieceId });
+        if (data.jobId) _lkSuggPoll(data.jobId, setId, data.ways.length);
+        _rbTrack('look_generated', { track: 'key-piece', item: String(setId), fallback: !!data.fallback, landed: 'suggested' });
+        window.__rbInspOpen();
+        return true;
+      }
+      // ↻ on a suggested tile: ONE new look from the same piece or prompt —
+      // the kp refine path (/api/style with refine + wayIndex answers one
+      // way and one frame), asked for a different direction, the other
+      // looks of the set named so it stays apart from them.
+      window.__lkSuggSwap = async function(id, ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        const l = _lkSuggFind(id);
+        if (!l || _lkSuggBusy[id]) return;
+        let set = null;
+        try { set = l.set_id != null ? snLoad().find(x => String(x.id) === String(l.set_id)) : null; } catch (_) { set = null; }
+        const anchor = _lkAnchorPiece(l);
+        const promptText = (set && set.title && !/^Balmain/.test(set.title)) ? ('Style my ' + set.title + ' three ways') : anchor ? ('Style my ' + anchor.label + ' three ways') : (set ? String(set.title || '') : '');
+        const photoSrc = (set && set.kpData && _pdHttp(set.kpData.photoUrl)) || (anchor && _pdHttp(anchor.image_url)) || null;
+        _lkSuggBusy[id] = true;
+        _lkSuggTileSync(l);
+        const genId = _rbGenId();
+        try {
+          let photo = null;
+          if (photoSrc) { try { photo = await Promise.race([_rbUrlToDataUrl(photoSrc), new Promise(r => setTimeout(() => r(null), 4000))]); } catch (_) { photo = null; } }
+          const others = _lkSugg.filter(x => String(x.set_id) === String(l.set_id) && String(x.id) !== String(id)).map(x => x.name);
+          const cur = { title: l.name, eyebrow: '', others,
+            pieces: (l.pieces || []).map(p => { const wi = _waItems.find(w => String(w.id) === String(p.id)); return wi ? { name: wi.label, category: wi.category, owned: true, keep: anchor && String(anchor.id) === String(wi.id) } : null; }).filter(Boolean)
+              .concat((l.proposals || []).map(r => { const a = (r.opts || [])[r.oi || 0] || {}; return a.name ? { name: a.name, category: (r.cats || [])[0] || '', owned: false, keep: false } : null; }).filter(Boolean)) };
+          const res = await fetch('/api/style', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+            photo: photo || undefined, prompt: promptText, pieceName: anchor ? anchor.label : '', intent: 'style',
+            refine: 'A different look entirely — change the whole direction, not one piece' + (anchor ? ', built around the same key piece' : '') + (others.length ? ', unlike the other looks' : '') + '.',
+            wayIndex: Number.isInteger(l.set_index) ? Math.max(0, Math.min(2, l.set_index)) : 0, current: cur,
+            styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+            wardrobeCount: _waItems.length, wardrobeItems: _rbAskWardrobe(), userId: _waUid() || undefined, genId }) });
+          if (!res.ok) throw new Error(await res.text());
+          const out = await res.json();
+          if (!out || !out.way) throw new Error('empty way');
+          // The same row, re-written: the pieces, the name, the note; the
+          // frame comes with the job.
+          const tmp = _lkRowBuild(Object.assign(_lkSuggSpec(out.way, Number.isInteger(l.set_index) ? l.set_index : 0, { setId: l.set_id, anchor: anchor ? String(anchor.id) : null, photo: null }), { status: 'suggested' }));
+          Object.assign(l, { name: tmp.name, note: tmp.note, pieces: tmp.pieces, proposals: tmp.proposals, photo_url: null, render_url: null, render_key: null, name_provisional: true });
+          _lkSuggCacheWrite();
+          _lkPatchCloud(l, { name: l.name, note: l.note, proposals: l.proposals, photo_url: null });
+          _lkPiecesCloud(l);
+          if (set && set.kpData && Array.isArray(set.kpData.ways)) {
+            try { const ways = set.kpData.ways.slice(); ways[Number.isInteger(l.set_index) ? l.set_index : 0] = out.way; snUpdate(set.id, { kpData: Object.assign({}, set.kpData, { ways }) }); } catch (_) {}
+          }
+          _lkSuggTileSync(l);
+          if (out.jobId) _lkSuggPoll(out.jobId, l.set_id, 3); else { delete _lkSuggBusy[id]; _lkSuggTileSync(l); }
+          _rbTrack('look_swapped', { surface: 'suggested' });
+        } catch (err) {
+          delete _lkSuggBusy[id];
+          _lkSuggTileSync(l);
+          console.warn('[robes] suggested swap failed:', err && err.message);
+          _waShowToast('Robes couldn’t swap that look — please try again in a moment.');
+        }
+      };
+      // ✕ on a suggested tile — one tap removes the look, held six seconds
+      // behind "Removed · Undo" (the wardrobe's own hold); no reason asked.
+      function _lkSuggCommit() {
+        const p = _lkSuggPending;
+        if (!p) return;
+        _lkSuggPending = null;
+        clearTimeout(p.timer);
+        document.getElementById('rb-lk-undo')?.remove();
+        _lkSuggDelete(p.look.id);
+      }
+      window.__lkSuggRemove = function(id, ev, o) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        const i = _lkSugg.findIndex(x => String(x.id) === String(id));
+        if (i < 0) return;
+        if (_lkSuggPending) _lkSuggCommit();
+        const look = _lkSugg[i];
+        // Held out of the list, written on commit — Undo puts it back whole.
+        _lkSugg.splice(i, 1);
+        _lkSuggCacheWrite();
+        if (String(_lkActive) === String(id)) { _lkActive = null; _lkView = 'grid'; }
+        _lkSuggRepaint();
+        _lkSuggPending = { look, idx: i, timer: setTimeout(_lkSuggCommit, 6000) };
+        if (typeof _wrEnsure === 'function') _wrEnsure();
+        document.getElementById('rb-lk-undo')?.remove();
+        const t = document.createElement('div');
+        t.id = 'rb-lk-undo';
+        t.className = 'rb-wr-undo';
+        t.setAttribute('role', 'status');
+        t.innerHTML = '<span class="m">Removed</span><button type="button" onclick="window.__lkSuggUndo()">Undo</button>';
+        document.body.appendChild(t);
+        _rbTrack('look_dismissed', { surface: (o && o.from) || 'tile', verdict: (o && o.verdict) || null });
+      };
+      window.__lkSuggUndo = function() {
+        const p = _lkSuggPending;
+        if (!p) return;
+        _lkSuggPending = null;
+        clearTimeout(p.timer);
+        document.getElementById('rb-lk-undo')?.remove();
+        _lkSugg.splice(Math.min(p.idx, _lkSugg.length), 0, p.look);
+        _lkSuggCacheWrite();
+        _lkSuggRepaint();
+      };
+      try { window.addEventListener('pagehide', function() { if (_lkSuggPending) _lkSuggCommit(); }); } catch (_) {}
+      // Every surface that lists suggestions, repainted from the rows.
+      function _lkSuggRepaint() {
+        try { if (document.getElementById('rb-lk-grid')) _lkPaint(); } catch (_) {}
+        try { if (typeof _pcCtx !== 'undefined' && _pcCtx && typeof _pcPaint === 'function') _pcPaint(); } catch (_) {}
+        try { if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow(); } catch (_) {}
       }
 
       // A wear is written once and never updated (B4). Idempotent per
@@ -14403,9 +14829,45 @@ button.rb-lk-live{cursor:pointer}
 #rb-lk-hol{margin:6px 0 30px}
 /* New look — the same footprint as the cards beside it (1b) */
 #rb-lk-grid .rb-add-card{aspect-ratio:auto;min-height:340px;background:#F7F4EE;border:1px solid var(--rule);border-radius:3px}
+/* ── Look states (design Look_States_Native, 2026-10-06) ── */
+.rb-lk-mastv2{align-items:flex-start}
+.rb-lk-seg{display:inline-grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:100px;background:var(--cream-200,#EDE9E2);min-width:220px}
+.rb-lk-tab{height:32px;padding:0 18px;border-radius:100px;background:transparent;border:1px solid transparent;font-family:inherit;font-size:12px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.rb-lk-tab.on{background:#F3EFE6;border-color:#C9BCA6;font-weight:500}
+.rb-lk-countline{margin-top:10px;min-height:14px}
+.rb-lk-mastv2 .rb-mast-acts{padding-top:3px}
+.rb-lk-sortbtn svg,.rb-lk-refine svg{margin-right:6px;flex:none}
+.rb-lk-sortbtn b{font-weight:400;margin-left:4px}
+.rb-lk-sortbtn.on,.rb-lk-refine.on{background:#F3EFE6;border-color:#C9BCA6}
+.rb-lkref-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+.rb-lkref-head .rb-lk-sec{margin:0}
+.rb-lkref-show-n{border-color:rgba(32,32,33,0.28);color:var(--ink)}
+.rb-lk-inprog-h{margin:22px 0 10px}
+.rb-lk-inprog-row{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:22px;padding-bottom:22px;border-bottom:1px solid var(--rule)}
+.rb-lk-inprog-row::-webkit-scrollbar{display:none}
+.rb-lk-inprog-row .lt-draft{flex:0 0 220px;scroll-snap-align:start}
+.lt-card.lt-draft{border:1.5px dashed var(--rule-mid,#D8CFC0);background:var(--cream-100,#F7F4EE);border-radius:var(--rad,12px)}
+.lt-card.lt-draft .lt-draftwell{padding:6px 6px 0}
+.lt-card.lt-draft .lt-draftwell .rb-lk-mos{border-radius:calc(var(--rad,12px) - 6px);aspect-ratio:3/4}
+.lt-card.lt-draft .lt-title.prov{font-style:italic;color:var(--ink-soft)}
+.lt-tag.draft{color:var(--ink-faint)}
+.lt-card.lt-sugg .lt-ey{color:var(--sage,#7E8B74);margin-bottom:5px}
+.rb-lk-sugwrap .lt-mark{position:absolute;left:8px;bottom:8px;width:36px;height:44px;border-radius:6px;border:2px solid #fff;background:var(--cream-100,#F7F4EE);box-shadow:0 1px 3px rgba(32,32,33,.14);overflow:hidden;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif);font-size:18px;color:var(--ink);z-index:2}
+.rb-lk-sugwrap .lt-mark img{width:100%;height:100%;object-fit:cover;display:block}
+.rb-lk-sugwrap .lt-mark.quote{font-size:26px;line-height:1;color:var(--rose);cursor:default;padding-top:8px}
+.rb-lk-sugwrap .lt-sugacts{position:absolute;top:6px;right:6px;z-index:2;display:flex;gap:0}
+.rb-lk-sugwrap .lt-sugbtn{width:44px;height:44px;padding:0;border:none;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)}
+.rb-lk-sugwrap .lt-sugbtn::before{content:'';position:absolute;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.92);border:1px solid var(--rule-mid,#D8CFC0);box-shadow:0 1px 2px rgba(32,32,33,.08)}
+.rb-lk-sugwrap .lt-sugbtn svg{position:relative}
+.rb-lk-sugwrap.busy .lt-swap{opacity:.45;pointer-events:none}
+.rb-lk-sugwrap .lt-chip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;padding:5px 10px;border-radius:100px;background:rgba(255,255,255,.92);border:1px solid var(--rule-mid);font:400 10px/1 var(--font-sans);color:var(--ink-soft);white-space:nowrap}
+.rb-lk-suggnone{padding:34px 20px 26px}
+.rb-lk-suggnone .rb-lk-suggfield{margin:16px auto 0;max-width:360px}
+#rb-lk-grid .lt-card{border-radius:var(--rad,12px)}
+#rb-lk-grid .rb-add-card{border-radius:var(--rad,12px)}
+#rb-lk-grid .lt-card .rb-lk-mos{aspect-ratio:3/4}
+#rb-lk-grid .lt-card .lt-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #rb-lk-grid .rb-lk-drafttile{border:1.5px dashed var(--rule-mid);background:var(--cream-100)}
-.rb-lk-drafttile .rb-lk-draftmos{width:104px;margin-bottom:6px}
-.rb-lk-drafttile .rb-lk-draftmos .rb-lk-mos{border-radius:3px}
 .rb-lk-lpfield:not(.rb-lp-dock){margin-top:16px}
 .rb-lk-draftmeta{margin-top:4px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lk-pick{display:flex;gap:10px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
@@ -14506,6 +14968,10 @@ button.rb-lk-live{cursor:pointer}
 /* Edit look alone, at the right — the facts read once, under the title. */
 .rb-lk-draftbar.rb-lk-pinbar{justify-content:flex-end}
 .rb-lk-pinbar .rb-lk-editlook{flex:none;min-height:40px;padding:0 20px;color:var(--ink);border-color:rgba(32,32,33,0.28)}
+.rb-lk-draftbar.rb-lk-suggbar{justify-content:flex-end;gap:12px}
+.rb-lk-suggbar .rb-lk-suggsave{height:48px;padding:0 26px;font-size:10px;letter-spacing:.2em}
+.rb-lk-sgfb{margin-top:18px}
+.rb-lk-sgfb .rb-fb{border-top:none;padding-top:0}
 .rb-lk-save.rb-lk-update.faint{background:transparent;color:var(--ink-soft);border:1px solid var(--rule-mid)}
 .rb-lk-save.rb-lk-update.faint:hover{opacity:1;border-color:rgba(32,32,33,0.28)}
 .rb-lk-title-tap{cursor:text;border-bottom:1px dashed var(--rule-mid);padding-bottom:2px}
@@ -14708,7 +15174,7 @@ body.rb-lk-push #rb-dock{display:none}
         wrap.id = 'rb-lk-wrap';
         // No travel row (Diary IA phase 2, 2026-09-08): a trip is a plan and
         // lives in the Diary; the Lookbook holds looks only.
-        wrap.innerHTML = '<div id="rb-lk-bar"></div><div id="rb-lk-allhead"></div><div id="rb-lk-grid"></div><div id="rb-lk-body"></div>';
+        wrap.innerHTML = '<div id="rb-lk-bar"></div><div id="rb-lk-allhead"></div><div id="rb-lk-inprog"></div><div id="rb-lk-grid"></div><div id="rb-lk-body"></div>';
         const empty = sn.querySelector('#sn-empty');
         (empty || grid).parentNode.insertBefore(wrap, (empty || grid).nextSibling);
         return true;
@@ -14733,18 +15199,28 @@ body.rb-lk-push #rb-dock{display:none}
 
       function _lkPaint() {
         if (_snFilter !== 'looks' || !_lkEnsureDom()) return;
+        // A key-piece entry that landed after the load (the lookbook cache
+        // syncing, a legacy save) backfills on the next paint — idempotent,
+        // and snLoad is read by this paint anyway.
+        _lkSuggBackfill(true);
         const shelfItems = _lkShelfItems();
-        const kpItems = _lkKpItems();
-        // Key pieces share the grid (2026-10-05) and count as content: a
-        // key piece alone is a Lookbook with one tile, not an empty one.
-        const streamN = _lkLooks.length + shelfItems.length + kpItems.length;
+        // Look states (2026-10-06): the Saved tab holds her SAVED looks; a
+        // key piece styled is three SUGGESTED rows on the Suggested tab
+        // (no key-piece tiles in the grid any more — the set is a grouping,
+        // not a tile); a draft — the park, or a row she started editing —
+        // leads the Saved tab in the In progress rail.
+        const suggAll = _lkSugg.filter(l => l.status === 'suggested');
+        const draftRows = _lkSugg.filter(l => l.status === 'draft');
+        const onSugg = _lkTab === 'suggested';
+        const streamN = _lkLooks.length + shelfItems.length;
         // Travel edits no longer count — they live in the Diary (2026-09-08).
         const any = streamN;
         // ONE DOOR (FTUE pass 2026-08-12): an empty Lookbook IS the
         // composer, whatever route landed here — the seg's Looks tab, a
         // bridge, a delete that emptied it. Guarding here rather than at
         // each caller is what makes it a rule instead of a path.
-        if (!any && _lkView !== 'new' && !_lkTripDraft) {
+        // The Suggested tab is a grid at any count (F6 is its empty state).
+        if (!any && !onSugg && _lkView !== 'new' && !_lkTripDraft) {
           // Arm it — but a draft in progress is HERS: the home module and
           // this page render one shared draft, so landing here (e.g. via
           // __snOpen, which resets the view to 'grid') must never wipe it.
@@ -14795,13 +15271,28 @@ body.rb-lk-push #rb-dock{display:none}
           _lkKpHost = false; _lkResetComposer(); _lkView = 'grid'; _lkActive = null;
         }
         const allHead = document.getElementById('rb-lk-allhead');
+        const inprog = document.getElementById('rb-lk-inprog');
         const detail = _lkView !== 'grid';
-        bar.style.display = detail || !any ? 'none' : 'block';
-        if (allHead) allHead.style.display = detail || !any || !_lkRefineOpen ? 'none' : 'block';
-        grid.style.display = detail || !any ? 'none' : 'grid';
+        // The drafts the rail shows: the park (the composer's one draft)
+        // and every draft ROW the park does not already hold.
+        const parkedTile = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
+        const parkSugg = parkedTile && parkedTile.src && parkedTile.src.sugg ? String(parkedTile.src.sugg.suggId || '') : '';
+        const draftsShown = draftRows.filter(r => String(r.id) !== parkSugg).length + (parkedTile ? 1 : 0);
+        // F7: the empty composer under the tab row — the Saved tab with no
+        // saved looks while suggestions (or drafts) stand: the composer is
+        // still the one door, the tabs still reach the other kind.
+        const tabsOverComposer = !any && !onSugg && _lkView === 'new' && (suggAll.length + draftRows.length) > 0 && !_lkKpHost && !_lkTripDraft && !document.querySelector('.rb-lkh-composer');
+        const showBar = (!detail && (any || onSugg || suggAll.length > 0 || draftsShown > 0)) || tabsOverComposer;
+        bar.style.display = showBar ? 'block' : 'none';
+        if (allHead) allHead.style.display = showBar && !tabsOverComposer && !onSugg && any && _lkRefineOpen ? 'none' : 'none';
+        if (allHead && showBar && !tabsOverComposer && !onSugg && any && _lkRefineOpen) allHead.style.display = 'block';
+        if (inprog) inprog.style.display = (!detail && !onSugg && draftsShown > 0) ? 'block' : 'none';
+        grid.style.display = (detail || (!any && !onSugg)) ? 'none' : 'grid';
         // A hidden grid holds nothing stale (a tile deleted down to zero
         // lands on the composer, and the grid behind it must be empty).
-        if (!any) grid.innerHTML = '';
+        if (!any && !onSugg) grid.innerHTML = '';
+        if (inprog && (detail || onSugg)) inprog.innerHTML = '';
+        if (tabsOverComposer) bar.innerHTML = _lkMastHtml({ any, suggN: suggAll.length, draftsShown, onSugg: false, sortLive: false, countLine: '' });
         // The page's old eyebrow row is retired — the masthead line is the
         // one header on the index, and a detail carries its own bands.
         const headRow = document.getElementById('sn-headrow');
@@ -14818,10 +15309,25 @@ body.rb-lk-push #rb-dock{display:none}
           _lkHomeSync();
           return;
         }
-        body.innerHTML = any ? '' : _lkEmptyHtml();
-        if (!any) { _lkHomeSync(); return; }
+        body.innerHTML = (any || onSugg) ? '' : _lkEmptyHtml();
+        if (!any && !onSugg) { _lkHomeSync(); return; }
+        _lkHomeSync();
+        // ── The Suggested tab (F4 / F6): one ungrouped grid, newest first,
+        // each look on its own with ✕ and ↻; the anchor mark says what it
+        // was built around. No set rows, no Around picker, no filters.
+        if (onSugg) {
+          bar.innerHTML = _lkMastHtml({ any, suggN: suggAll.length, draftsShown, onSugg: true, sortLive: false, countLine: suggAll.length ? suggAll.length + ' suggested' : '' });
+          if (allHead) allHead.innerHTML = '';
+          const rows = suggAll.slice().sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+          grid.innerHTML = rows.length
+            ? rows.map(l => _lkSuggCard(l, { mark: true })).join('')
+            : _lkSuggEmptyHtml();
+          grid.classList.toggle('rb-lk-suggrid', true);
+          return;
+        }
+        grid.classList.toggle('rb-lk-suggrid', false);
         const refN = _lkRefineCount();
-        const show = _lkRefine.show || 'both';
+        const show = 'both';
         // Top row: the collection stat (looks only — trips moved to the
         // Diary, 2026-09-08) beside the one creation door, + New look. The
         // split menu retired with the travel edit; a trip is added from
@@ -14838,40 +15344,34 @@ body.rb-lk-push #rb-dock{display:none}
         // Refine comes live at four — or the moment a Show filter stands
         // (a door can set one on any count: the home row's View all lands
         // on key pieces), so a standing filter is always clearable.
-        const sortLive = streamN >= 4 || show !== 'both';
+        const sortLive = streamN >= 4;
         const inert = sortLive ? '' : ' disabled';
+        void inert;
         // Filters can only be SET while Refine is live, but a delete can
         // drop the count back under four — never leave a live filter
         // hiding looks behind an inert control. Show (Looks / Key pieces /
         // Both) is a filter too (2026-10-05).
         const refActive = sortLive && refN;
-        const showLive = sortLive ? show : 'both';
-        const looksShown = showLive === 'kp' ? [] : (refActive ? _lkSorted().filter(_lkMatchRefine) : _lkSorted());
-        const itemsShown = showLive === 'kp' ? [] : (refActive ? shelfItems.filter(_lkMatchRefineItem) : shelfItems);
-        const kpShown = showLive === 'looks' ? [] : (refActive ? kpItems.filter(_lkMatchRefineItem) : kpItems);
-        const nLooks = looksShown.length + itemsShown.length, nKp = kpShown.length;
-        // The count line says what the grid holds after the filters —
-        // "7 looks · 4 key pieces" (both), or the one kind on show.
-        const countLine = showLive === 'looks' ? _lkN(nLooks, 'look') : showLive === 'kp' ? _lkN(nKp, 'key piece')
-          : (nLooks || nKp) ? [nLooks ? _lkN(nLooks, 'look') : '', nKp ? _lkN(nKp, 'key piece') : ''].filter(Boolean).join(' · ') : _lkN(0, 'look');
-        const hasFilters = sortLive && (refN > 0 || show !== 'both');
-        bar.innerHTML = _rbMastHtml({
-          label: showLive === 'kp' ? 'Key pieces' : showLive === 'looks' ? 'All looks' : 'Lookbook', count: countLine,
-          actionsHtml:
-            '<button type="button" class="rb-pill sm rb-lk-sort"' + inert +
-              (sortLive ? ' onclick="window.__lkSort()"' : '') + '>' +
-              '<span>' + (_lkSortDesc ? 'Last worn' : 'First worn') + '</span>' +
-              '<b>' + (_lkSortDesc ? '↓' : '↑') + '</b></button>' +
-            // A small rose dot on Refine says a filter is on (the design).
-            '<button type="button" class="rb-pill sm rb-lk-sort rb-lk-refine' + (sortLive && _lkRefineOpen ? ' on' : '') + '"' + inert +
-              (sortLive ? ' onclick="window.__lkRefineToggle()"' : '') + '>' +
-              '<span>Refine</span>' + (hasFilters ? '<i class="rb-lk-refdot" aria-label="Filters on"></i>' : '') + '</button>' +
-            '<button type="button" class="rb-pill rb-lk-act rb-lk-new" onclick="window.__lkNew()">+ New look</button>',
-        });
-        // The Refine drawer opens beneath the masthead line.
-        if (allHead) allHead.innerHTML = sortLive && _lkRefineOpen ? _lkRefineHtml(countLine) : '';
+        const looksShown = refActive ? _lkSorted().filter(_lkMatchRefine) : _lkSorted();
+        const itemsShown = refActive ? shelfItems.filter(_lkMatchRefineItem) : shelfItems;
+        const kpShown = [];
+        const nLooks = looksShown.length + itemsShown.length, nKp = 0;
+        void show;
+        // The count line (F2/F3/F12): "42 looks · 2 in progress"; with a
+        // filter on, "9 of 42 looks". It drops its clause when nothing is
+        // in progress, and hides at zero.
+        const hasFilters = sortLive && refN > 0;
+        const countLine = !streamN ? '' :
+          (hasFilters ? nLooks + ' of ' + _lkN(streamN, 'look') : _lkN(streamN, 'look')) +
+          (draftsShown ? ' · ' + draftsShown + ' in progress' : '');
+        bar.innerHTML = _lkMastHtml({ any, suggN: suggAll.length, draftsShown, onSugg: false, sortLive, countLine, hasFilters });
+        // The Filter drawer opens beneath the masthead line.
+        if (allHead) allHead.innerHTML = sortLive && _lkRefineOpen ? _lkRefineHtml(nLooks) : '';
+        // The In progress rail (F2): the drafts at 220px, so one and a half
+        // show and the rail reads as a scroll. Filters never reach it.
+        if (inprog) inprog.innerHTML = draftsShown ? _lkInprogHtml(parkedTile, draftRows.filter(r => String(r.id) !== parkSugg)) : '';
         const noneHtml = hasFilters && !nLooks && !nKp
-          ? '<div class="rb-lk-none" style="grid-column:1/-1"><div class="t">Nothing in this edit</div><div class="s">Loosen a filter to see more of your lookbook.</div><button type="button" class="rb-pill" onclick="window.__lkRefineClear()">Clear all</button></div>'
+          ? '<div class="rb-lk-none" style="grid-column:1/-1"><div class="t">Nothing in this edit</div><div class="s">Loosen a filter to see more of your lookbook.</div><button type="button" class="rb-pill" onclick="window.__lkRefineClear()">Clear</button></div>'
           : '';
         // ONE stream (cohesion pass 2026-08-08): her Looks and every saved
         // result — key pieces styled, daily looks, travel edits — interleave
@@ -14882,28 +15382,226 @@ body.rb-lk-push #rb-dock{display:none}
         // silently emptied most of the Lookbook. Artifacts carry their tags
         // in the blob (Q1 option a) and the client already holds every row,
         // so they filter in memory on the same axes as a Look.
-        const entries = looksShown.map(l => ({ ts: _lkCardTs(l), html: _lkLookCard(l) }))
-          .concat(itemsShown.map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i) })))
-          // Key pieces interleave by the moment they were styled (the fold).
-          .concat(kpShown.map(i => ({ ts: Number(i.id) || 0, html: _lkKpCard(i) })));
-        entries.sort((a, b) => _lkSortDesc ? b.ts - a.ts : a.ts - b.ts);
-        _lkHomeSync();
-        // The draft leads the grid as a dashed tile in the add-card
-        // register (phase 1) — never a look card: it is not a look yet.
-        const parkedTile = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
-        grid.innerHTML = (parkedTile && showLive !== 'kp' ? _lkDraftTileHtml(parkedTile) : '') + noneHtml + entries.map(e => e.html).join('') +
+        // The sort menu's order (F12 · 2): Last worn (the standing sort),
+        // Newest (saved), Name. The grid's order IS _lkSorted's when a Look
+        // sorts by its wear; legacy items ride by their save moment.
+        const entries = looksShown.map(l => ({ ts: _lkCardTs(l), html: _lkLookCard(l), l }))
+          .concat(itemsShown.map(i => ({ ts: Number(i.id) || 0, html: _lkItemCard(i), l: null })));
+        void kpShown;
+        if (_lkSortBy === 'worn') entries.sort((a, b) => _lkSortDesc ? b.ts - a.ts : a.ts - b.ts);
+        else {
+          const order = {}; looksShown.forEach((l, i) => { order[String(l.id)] = i; });
+          entries.sort((a, b) => (a.l ? order[String(a.l.id)] : 1e9) - (b.l ? order[String(b.l.id)] : 1e9));
+        }
+        // The draft no longer leads the GRID (phase 1's dashed tile) — it
+        // leads the tab in the In progress rail above (the design's F2).
+        grid.innerHTML = noneHtml + entries.map(e => e.html).join('') +
         // The way in stays on the grid — the same amplified add card the
         // pieces grid carries (Annie, 2026-07-30: the CTA vanished once a
-        // look existed; only the empty state offered one). While key pieces
-        // show, the dashed "Style a key piece" door closes the grid (the
-        // fold, 2026-10-05).
-        (showLive !== 'kp' ? '<div class="rb-add-card" onclick="window.__lkNew()" role="button" tabindex="0">' +
+        // look existed; only the empty state offered one).
+        '<div class="rb-add-card" onclick="window.__lkNew()" role="button" tabindex="0">' +
           '<span class="rb-add-plus">+</span>' +
           '<span class="rb-add-serif">New look</span>' +
           '<span class="rb-add-hint">Built on the rack</span>' +
-        '</div>' : '') +
-        (showLive !== 'looks' ? _lkKpDoorHtml() : '');
+        '</div>';
       }
+      // The Lookbook's one masthead (F2–F7): Saved | Suggested as the
+      // Diary's segmented control, the count line beneath it, the controls
+      // at the right — ↕ (the sort menu), Filter (the funnel, a rose dot
+      // while a filter stands) and the + circle, on Saved alone; sort and
+      // Filter hide at zero looks, never inert. No ink anywhere in it.
+      function _lkMastHtml(o) {
+        const seg = (k, label) => '<button type="button" class="rb-lk-tab' + (((o.onSugg && k === 'suggested') || (!o.onSugg && k === 'saved')) ? ' on' : '') + '" data-tab="' + k + '" aria-pressed="' + (((o.onSugg && k === 'suggested') || (!o.onSugg && k === 'saved')) ? 'true' : 'false') + '" onclick="window.__lkTab(\'' + k + '\')">' + label + '</button>';
+        const tabs = '<div class="rb-lk-seg" role="tablist" aria-label="Lookbook">' + seg('saved', 'Saved') + seg('suggested', 'Suggested') + '</div>';
+        const SORT = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16"></path><path d="M3 8l4-4 4 4"></path><path d="M17 20V4"></path><path d="M21 16l-4 4-4-4"></path></svg>';
+        const FUNNEL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"></path></svg>';
+        const sortLabel = _lkSortBy === 'newest' ? 'Newest' : _lkSortBy === 'name' ? 'Name' : (_lkSortDesc ? 'Last worn' : 'First worn');
+        const acts = o.onSugg ? '' :
+          (o.sortLive
+            ? '<button type="button" class="rb-pill sm rb-lk-sort rb-lk-sortbtn' + (_lkSortOpen ? ' on' : '') + '" aria-label="Sort" title="Sort" onclick="window.__lkSortMenu(event)">' + SORT + '<span>' + sortLabel + '</span><b aria-hidden="true">↕</b></button>' +
+              '<button type="button" class="rb-pill sm rb-lk-sort rb-lk-refine' + (_lkRefineOpen ? ' on' : '') + '" onclick="window.__lkRefineToggle()">' + FUNNEL + '<span>Filter</span>' + (o.hasFilters ? '<i class="rb-lk-refdot" aria-label="Filters on"></i>' : '') + '</button>'
+            : '') +
+          '<button type="button" class="rb-circ rb-lk-new" aria-label="New look" title="New look" onclick="window.__lkNew()">+</button>';
+        return _rbMastHtml({
+          tabsHtml: tabs, actionsHtml: acts, cls: 'rb-lk-mastv2',
+          belowHtml: o.countLine ? '<div class="rb-lk-countline"><span class="rb-mast-n">' + _waEsc(o.countLine) + '</span></div>' : '',
+        });
+      }
+      window.__lkTab = function(k) {
+        const to = k === 'suggested' ? 'suggested' : 'saved';
+        if (_lkTab === to && _lkView === 'grid') return;
+        _lkTab = to;
+        _lkRefineOpen = false; _lkSortOpen = false;
+        _lkView = 'grid'; _lkActive = null;
+        _lkPaint();
+        _rbTrack('lookbook_tab', { tab: to });
+      };
+      // The sort menu (F12 · 2): one tap sorts and closes; the direction
+      // toggles are retired (Last worn is newest-first; First worn survives
+      // for the keyboard through __lkSort).
+      window.__lkSortMenu = function(ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        const pick = k => { _lkSortBy = k; if (k === 'worn') _lkSortDesc = true; _lkSortOpen = false; _lkPaint(); _rbTrack('looks_sorted', { by: k }); };
+        _lkSortOpen = true;
+        const b = document.querySelector('#rb-lk-bar .rb-lk-sortbtn'); if (b) b.classList.add('on');
+        window.__rbPopMenu(ev, [
+          { t: 'Last worn' + (_lkSortBy === 'worn' ? '  ✓' : ''), onclick: () => pick('worn') },
+          { t: 'Newest' + (_lkSortBy === 'newest' ? '  ✓' : ''), onclick: () => pick('newest') },
+          { t: 'Name' + (_lkSortBy === 'name' ? '  ✓' : ''), onclick: () => pick('name') },
+        ]);
+        setTimeout(() => { if (!document.getElementById('rb-popmenu')) { _lkSortOpen = false; const b2 = document.querySelector('#rb-lk-bar .rb-lk-sortbtn'); if (b2) b2.classList.remove('on'); } }, 400);
+      };
+      // The In progress rail: the park and the draft rows as dashed tiles.
+      function _lkInprogHtml(park, rows) {
+        const tiles = (park ? [_lkDraftTileHtml(park)] : []).concat(rows.map(r => _lkDraftRowCard(r)));
+        return '<div class="rb-lk-sec rb-lk-inprog-h">In progress</div><div class="rb-lk-inprog-row">' + tiles.join('') + '</div>';
+      }
+      // When a draft was started, the way the tile says it: "started
+      // today", a weekday inside the week, else the date.
+      function _lkStartedWord(iso) {
+        const d = String(iso || '').slice(0, 10);
+        if (!d) return '';
+        const today = _pdLocalISO();
+        if (d === today) return 'today';
+        const days = Math.round((Date.parse(today + 'T00:00:00') - Date.parse(d + 'T00:00:00')) / 86400000);
+        if (days > 0 && days < 7) return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+        return _lkFmt(d);
+      }
+      // ONE draft tile (F1 · Draft): 1.5px dashed rule-mid on a cream-100
+      // well, the image 6px inside the dash, eyebrow Draft, the name (an
+      // italic Untitled when it has none), "Not saved · started Tuesday".
+      function _lkDraftCardHtml(o) {
+        const nm = String(o.title || '').trim();
+        const started = _lkStartedWord(o.started);
+        return '<div class="rb-lk-tile lt-card lt-draft' + (o.cls ? ' ' + o.cls : '') + '"' + (o.id ? ' id="' + _waEsc(o.id) + '"' : '') + (o.dataAttr || '') + ' onclick="' + o.onclick + '" role="button" tabindex="0" aria-label="' + _waEsc('Open the draft' + (nm ? ' ' + nm : '')) + '">' +
+          '<div class="lt-draftwell">' + _ltMosaicHtml(o.cells || [], { photo: o.photo || null, alt: nm || 'Draft' }) + '</div>' +
+          '<div class="lt-info"><span class="lt-tag draft">Draft</span>' +
+            '<div class="lt-title' + (nm ? '' : ' prov') + '">' + _waEsc(nm || 'Untitled') + '</div>' +
+            '<div class="lt-meta">Not saved' + (started ? ' · started ' + _waEsc(started) : '') + '</div>' +
+          '</div></div>';
+      }
+      function _lkDraftRowCard(r) {
+        const photo = _lkHeroUrl(r);
+        return _lkDraftCardHtml({ title: r.name_provisional ? '' : r.name, photo, cells: photo ? [] : _ltCells(_lkPieceIds(r)), started: r.created_at,
+          dataAttr: ' data-draftrow="' + _waEsc(String(r.id)) + '"', onclick: "window.__lkDraftRowOpen('" + _waEsc(String(r.id)) + "')" });
+      }
+      // The suggested tile (F1 · Suggested): 1px rule on white, the sage
+      // eyebrow, the anchor piece's photograph bottom-left (a monogram when
+      // it has none, an open-quote for a prompt look), ✕ and ↻ always shown
+      // top-right (28px drawn, 44px hit). "Creating her frame…" while the
+      // frame is on its way.
+      function _lkSuggCard(l, o) {
+        o = o || {};
+        const anchor = _lkAnchorPiece(l);
+        const nm = _lkAnchorName(l);
+        const photo = _lkHeroUrl(l);
+        const busy = !!_lkSuggBusy[l.id] && !photo;
+        const meta = anchor ? 'Around your ' + nm : 'From your prompt';
+        const id = _waEsc(String(l.id));
+        let mark = '';
+        if (o.mark !== false) {
+          if (anchor) {
+            const img = _pdHttp(anchor.image_url);
+            mark = '<button type="button" class="lt-mark' + (img ? '' : ' mono') + '" onclick="window.__lkSuggMarkOpen(\'' + id + '\',event)" aria-label="' + _waEsc('Your ' + nm) + '" title="' + _waEsc('Your ' + nm) + '">' +
+              (img ? '<img src="' + _waEsc(img) + '" alt="">' : _waEsc(String(nm || 'P').charAt(0).toUpperCase())) + '</button>';
+          } else mark = '<span class="lt-mark mono quote" aria-hidden="true">“</span>';
+        }
+        // The mark and the frame chip sit IN the image, so they hold
+        // their place whatever the pad beneath says.
+        const tile = _ltTile({ eyebrow: 'Suggested', title: l.name, cells: photo ? [] : _ltCells(_lkPieceIds(l)), photo, meta },
+            { body: "window.__lkSuggOpen('" + id + "')", extraClass: 'lt-card lt-sugg' })
+          .replace('</div><div class="lt-info">', mark + (busy ? '<span class="lt-chip">Creating her frame…</span>' : '') + '</div><div class="lt-info">');
+        return '<div class="rb-lk-tilewrap rb-lk-sugwrap' + (busy ? ' busy' : '') + '" data-sugg="' + id + '">' + tile +
+          '<div class="lt-sugacts">' +
+            '<button type="button" class="lt-sugbtn lt-swap" onclick="window.__lkSuggSwap(\'' + id + '\',event)" aria-label="Swap this look" title="Swap this look"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg></button>' +
+            '<button type="button" class="lt-sugbtn lt-x" onclick="window.__lkSuggRemove(\'' + id + '\',event)" aria-label="Remove this look" title="Remove this look"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>' +
+          '</div>' +
+        '</div>';
+      }
+      // F6: nothing suggested — one door, the prompt box (the + inside it
+      // starts from a piece; words land a prompt look in this grid).
+      function _lkSuggEmptyHtml() {
+        const field = typeof _rbLpFieldHtml === 'function'
+          ? _rbLpFieldHtml({ mode: 'new', spark: true, cls: 'rb-lk-suggfield', onclick: 'window.__rbHbOpen&&window.__rbHbOpen({fresh:true})' })
+          : '';
+        return '<div class="rb-lk-none rb-lk-suggnone" style="grid-column:1/-1"><div class="t">Nothing suggested yet.</div>' +
+          '<div class="s">Tell Robes where you’re going, or pick a piece, and it dresses you.</div>' + field + '</div>';
+      }
+      window.__lkSuggOpen = function(id) {
+        const l = _lkSuggFind(id);
+        if (!l) return;
+        // From the piece page the band reads the piece's name and back
+        // reopens the piece (F8); from the grid, ‹ Suggested.
+        const pc = (typeof _pcCtx !== 'undefined' && _pcCtx && document.getElementById('rb-piece-page') && document.getElementById('rb-piece-page').style.display !== 'none') ? _pcCtx : null;
+        if (pc && l.anchor_piece_id && String(pc.id) === String(l.anchor_piece_id)) {
+          const wi = _waItems.find(w => String(w.id) === String(pc.id));
+          const pid = pc.id;
+          const sibs = _lkSugg.filter(x => x.status === 'suggested' && String(x.anchor_piece_id || '') === String(pid)).map(x => String(x.id));
+          if (window.__rbPieceHide) window.__rbPieceHide();
+          window.__lkOpen(id, { from: { label: (wi && wi.label) || 'Piece', go: function() { window.__rbPieceOpen(pid, { from: 'wardrobe' }); } }, siblings: sibs });
+          return;
+        }
+        const sibs = _lkSugg.filter(x => x.status === 'suggested').map(x => String(x.id));
+        window.__lkOpen(id, { from: { label: 'Suggested', go: function() { _lkTab = 'suggested'; window.__lkGo(); } }, siblings: sibs });
+      };
+      // F8 → F9: Edit makes the suggestion a DRAFT (it leaves Suggested and
+      // waits in In progress) and opens it in the composer, rows live —
+      // 4d's Discard · Save. A standing draft asks once first.
+      window.__lkSuggEdit = function(id) {
+        const l = _lkSuggFind(id);
+        if (!l) return;
+        _lkDraftLetGo(function() {
+          _lkSuggToDraft(id);
+          _lkDraftFromLook(l);
+          _rbTrack('look_edit_from_suggested', {});
+        });
+      };
+      // F8 → F10: one tap. The row crosses into the Lookbook with its id,
+      // the page reopens as a saved look under "Saved to your lookbook".
+      window.__lkSuggSave = function(id) {
+        const l = _lkSuggToSaved(id);
+        if (!l) return;
+        _lkGuideUse();
+        window.__lkOpen(l.id, { from: { label: 'Lookbook', go: function() { window.__lkGo(); } } });
+        _waShowToast('Saved to your lookbook');
+        _waV2Sync();
+        _rbTrack('look_saved_from_suggested', { pieces: (l.pieces || []).length, proposed: (l.proposals || []).length });
+      };
+      // The composer, loaded from a row: her pieces on the rack with their
+      // roles, every proposal a shop row (its still re-shot if missing),
+      // the note, the name as Robes offered it, the frame on the canvas.
+      function _lkDraftFromLook(l) {
+        _lkShelfOpen();
+        _lkResetComposer();
+        _lkBuilt = true; _lkBuilding = false; _lkBuildSeq++;
+        _lkDraftSrc = { kind: 'suggested', eyebrow: 'Draft · from Robes’ suggestion', again: null, refine: null,
+          sugg: { suggId: String(l.id), anchor: l.anchor_piece_id || null, setId: l.set_id != null ? String(l.set_id) : null, setIndex: Number.isInteger(l.set_index) ? l.set_index : null } };
+        (l.pieces || []).forEach(p => { if (_lkPlaceQuiet(p.id) && p.role) _lkNewRoles[String(p.id)] = _rbRoleNorm(p.role) || null; });
+        _lkShop = (l.proposals || []).map(r => ({ role: r.role || 'The Canvas', chip: r.chip || 'Piece', cats: (r.cats && r.cats.length) ? r.cats : ['Other'], opts: Array.isArray(r.opts) ? r.opts : [], oi: r.oi || 0, saved: !!r.saved, ask: (((r.opts || [])[r.oi || 0]) || {}).name || '' }));
+        _lkShopImgs = (l.proposals || []).map(r => _pdHttp(r.image_url) || null);
+        _lkBuildNote = String(l.note || '').trim() || null;
+        _lkBuildPalette = [];
+        _lkNewTags = l.tags ? _rbTagsParse(l.tags) : null;
+        _lkNewTitleDraft = String(l.name || '').trim() || null;
+        _lkNewTitleTouched = !l.name_provisional && !!String(l.name || '').trim();
+        if (_pdHttp(l.photo_url)) _lkPhoto = { url: l.photo_url, frame: true };
+        _lkView = 'new'; _lkActive = null;
+        _lkPaint();
+        if (_lkShop.length && _lkShop.some((r, i) => !_lkShopImgs[i])) _lkShopImages(true);
+      }
+      window.__lkSuggMarkOpen = function(id, ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        const l = _lkSuggFind(id) || _lkFind(id);
+        if (!l || !l.anchor_piece_id || !window.__rbPieceOpen) return;
+        window.__rbPieceOpen(l.anchor_piece_id, { from: 'wardrobe' });
+      };
+      // A draft ROW (a suggestion she pressed Edit on, then let go of)
+      // reopens in the composer, whole.
+      window.__lkDraftRowOpen = function(id) {
+        const l = _lkSuggFind(id);
+        if (!l) return;
+        _lkDraftLetGo(function() { _lkDraftFromLook(l); });
+      };
 
       // The Looks stream holds SAVED LOOKS ONLY (Look Rules 1a, 2026-08-17).
       // A daily look is a DAY — date, weather, what was worn — and the day
@@ -14982,8 +15680,9 @@ body.rb-lk-push #rb-dock{display:none}
       function _lkLookCard(l) {
         const n = _lkWearCount(l);
         const last = _lkLastWorn(l);
+        // No eyebrow on a saved tile (F1 · Saved): the frame and the wear
+        // line say what it is; only a draft and a suggestion carry one.
         return '<div class="rb-lk-tilewrap">' + _ltTile({
-          tag: 'look',
           title: l.name,
           provisional: l.name_provisional,
           vibe: _rbVibeLabel(_lkTagsOf(l)),
@@ -14993,7 +15692,7 @@ body.rb-lk-push #rb-dock{display:none}
           // say how often this look actually gets worn. Zero wears is a
           // legitimate state and says so (E2), never hidden.
           meta: (n ? _lkN(n, 'wear') : 'Not yet worn') + ' · ' + _lkN(_lkPieceIds(l).length, 'piece') +
-            (n ? ' · last ' + _lkFmt(last) : ''),
+            (n ? ' · last ' + _lkFmt(last) : '') + (_lkAnchorName(l) ? ' · around your ' + _lkAnchorName(l) : ''),
         }, { body: "window.__lkCardOpen('" + l.id + "')", extraClass: 'lt-card' }) +
         '<button class="rb-lk-rmx" onclick="window.__lkDeleteAsk(\'' + l.id + '\', event)" title="Delete this look" aria-label="Delete this look">' +
           '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
@@ -15021,7 +15720,6 @@ body.rb-lk-push #rb-dock{display:none}
       function _lkItemCard(i) {
         const img = (typeof i.img === 'string' && i.img.indexOf('http') === 0) ? i.img : null;
         return '<div class="rb-lk-tilewrap" data-rmfn="__snRemove" data-rmidx="' + Number(i.id) + '" data-rmconfirm="1">' + _ltTile({
-          tag: 'look',
           title: i.title || 'Saved look',
           meta: _lkItemMeta(i),
           cells: [],
@@ -15201,12 +15899,12 @@ body.rb-lk-push #rb-dock{display:none}
         _lkKpItems().forEach(i => _lkItemTagSets(i).forEach(take));
         return base;
       }
-      function _lkRefineHtml(countLine) {
-        const show = _lkRefine.show || 'both';
-        const seg = (k, label) => '<button type="button" class="rb-lkref-show' + (show === k ? ' on' : '') + '" onclick="window.__lkRefineShow(\'' + k + '\')">' + label + '</button>';
-        // Show leads the drawer (the fold, 2026-10-05): Looks, Key pieces or
-        // Both — Season, Wear it for and Vibe filter both kinds beneath.
-        const showRow = '<div><div class="rb-lkref-ax">Show</div><div class="rb-lkref-showrow">' + seg('looks', 'Looks') + seg('kp', 'Key pieces') + seg('both', 'Both') + '</div></div>';
+      function _lkRefineHtml(nShown) {
+        // The Show row is GONE (look states, 2026-10-06): the tabs hold the
+        // two kinds; the drawer groups are the live ones — Season, Wear it
+        // for, Vibe — and it closes on "Show N looks", a hairline pill
+        // (filtering is not a commitment, so no ink).
+        const showRow = '';
         const g = axis => {
           const sel = _lkRefine[axis];
           const opts = _lkRefineOpts(axis);
@@ -15221,16 +15919,11 @@ body.rb-lk-push #rb-dock{display:none}
         // Vibe filters HERE, under Season and Wear it for — one filtering
         // system, one place (Annie, 2026-08-17: no standing vibe row on the
         // Lookbook; the vibe is part of Refine, not a second surface).
-        return '<div class="rb-lk-refwrap">' + showRow + g('climate') + g('wear') + g('vibe') +
-          '<div class="rb-lkref-foot"><button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()">Clear all</button>' +
-          '<span class="rb-lkref-count" style="font-family:var(--font-serif);font-style:italic;font-size:13px;color:var(--ink-faint)">' + _waEsc(countLine || '') + '</span></div></div>';
+        return '<div class="rb-lk-refwrap"><div class="rb-lkref-head"><span class="rb-lk-sec">Filter</span><button type="button" class="rb-lk-quiet" onclick="window.__lkRefineClear()">Clear</button></div>' + showRow + g('climate') + g('wear') + g('vibe') +
+          '<div class="rb-lkref-foot"><span></span>' +
+          '<button type="button" class="rb-pill rb-lkref-count rb-lkref-show-n" onclick="window.__lkRefineToggle()">Show ' + _waEsc(_lkN(Number(nShown) || 0, 'look')) + '</button></div></div>';
       }
       window.__lkRefineToggle = function() { _lkRefineOpen = !_lkRefineOpen; _lkPaint(); };
-      window.__lkRefineShow = function(k) {
-        _lkRefine.show = (k === 'looks' || k === 'kp') ? k : 'both';
-        _lkPaint();
-        _rbTrack('looks_refined', { axis: 'show', value: _lkRefine.show, active: _lkRefineCount() });
-      };
       window.__lkRefinePick = function(el) {
         const ax = el.getAttribute('data-ax'), v = el.getAttribute('data-val');
         const sel = _lkRefine[ax];
@@ -15244,9 +15937,16 @@ body.rb-lk-push #rb-dock{display:none}
         _lkRefine = { climate: [], wear: [], vibe: [], show: 'both' };
         _lkPaint();
       };
+      // Legacy doors that set a Show filter land on the tab it names.
+      window.__lkRefineShow = function(k) {
+        _lkRefine.show = 'both';
+        window.__lkTab(k === 'kp' ? 'suggested' : 'saved');
+      };
 
       // Never-worn falls to the end descending, the front ascending.
       function _lkSorted() {
+        if (_lkSortBy === 'newest') return _lkLooks.slice().sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+        if (_lkSortBy === 'name') return _lkLooks.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' }));
         return _lkLooks.slice().sort((a, b) => {
           const av = _lkLastWorn(a) || '', bv = _lkLastWorn(b) || '';
           return _lkSortDesc ? bv.localeCompare(av) : av.localeCompare(bv);
@@ -15625,7 +16325,11 @@ body.rb-lk-push #rb-dock{display:none}
         // A trip draft (a Robes-styled trip look) ONLY ever edits — save
         // or discard are its two ways out (Annie, 2026-09-09).
         const draft = !!l._draft;
-        const editing = _lkEditMode || dirty > 0 || draft;
+        // SUGGESTED (F8): the look reads — a read-only rack, Edit and Save
+        // to lookbook on the bar, the feedback row at the foot; no wears,
+        // no diary, no camera, no tags, no delete (✕ lives on the tile).
+        const sugg = !draft && l.status === 'suggested';
+        const editing = !sugg && (_lkEditMode || dirty > 0 || draft);
         const n = _lkWearCount(l);
         const cpw = _lkCpw(l);
         const today = _pdLocalISO();
@@ -15684,18 +16388,18 @@ body.rb-lk-push #rb-dock{display:none}
         // Robes frame on the Model view still offers ADD (her photograph
         // takes the frame's place). Her own photograph → replace on the You
         // view, nothing on Model. Editing carries neither.
-        const acts = editing ? '' : _lkImgActsHtml({
+        const acts = (editing || sugg) ? '' : _lkImgActsHtml({
           diary: !ownedNone,
           camera: !dPhoto ? 'add' : (dView === 'photo' ? 'replace' : (dFrame ? 'add' : null)),
           fn: '__lkDetailPhotoAdd',
         });
-        const viewRow = (!editing && dSwitch)
+        const viewRow = (!editing && !sugg && dSwitch)
           ? '<div class="rb-lk-viewrow"><div class="rb-lkm-seg" role="group" aria-label="Look view">' +
               '<button type="button"' + (dView === 'photo' ? ' class="on"' : '') + ' onclick="window.__lkDetailPhotoView(\'photo\')">You</button>' +
               '<button type="button"' + (dView === 'photo' ? '' : ' class="on"') + ' onclick="window.__lkDetailPhotoView(\'model\')">Model</button></div>' +
               '<span class="note">' + (_lkDetailPhotoPending ? 'Uploading…' : (dFrame ? '' : 'Kept as the record of this look')) + '</span></div>'
           : '';
-        const panelTail = lkTagsRow + viewRow;
+        const panelTail = (sugg ? '' : lkTagsRow) + viewRow;
         if (editing) _lkModelEnsure();
         const lookPanel = _lkLookPanelHtml(l, { items, ids, props, dirty, editing, dPhoto, dView, dFrame, acts, tail: panelTail });
 
@@ -15732,15 +16436,19 @@ body.rb-lk-push #rb-dock{display:none}
         // her pieces AND the proposal rows — on the title, on the rack head,
         // nowhere else (the pinned bar carries no facts any more).
         const pieceN = items.length + props.length;
-        const metaBits = draft ? [] : [pieceN ? _lkN(pieceN, 'piece') : (dPhoto ? 'Photograph · not yet filed' : 'No pieces yet'), n ? _lkN(n, 'wear') : 'not yet worn'];
-        if (!draft && lastW) metaBits.push('last worn ' + _lkFmt(lastW));
+        const anchorNm = _lkAnchorName(l);
+        const metaBits = draft ? [] : sugg ? [_lkN(pieceN, 'piece')] : [pieceN ? _lkN(pieceN, 'piece') : (dPhoto ? 'Photograph · not yet filed' : 'No pieces yet'), n ? _lkN(n, 'wear') : 'not yet worn'];
+        if (!draft && !sugg && lastW) metaBits.push('last worn ' + _lkFmt(lastW));
+        // A saved look keeps what it was built around (F10/F13): "around
+        // your rust dress" after the wear line.
+        if (!draft && !sugg && anchorNm) metaBits.push('around your ' + anchorNm);
         if (lkSet.meta) metaBits.push(lkSet.meta);
         // The meta line NAMES the first pinned day, so the strip below must
         // not say it again (Annie, 2026-09-21 — the same duplicate the trip
         // strip lost on 2026-09-10, in its general form). The clause is the
         // door too: "pinned for Tuesday 22 Sep" opens that day, which is the
         // one thing the strip carried that the meta could not.
-        const metaPin = (!draft && !lkSet.meta && pins.length) ? pins[0] : null;
+        const metaPin = (!draft && !sugg && !lkSet.meta && pins.length) ? pins[0] : null;
         // "· Robes named it" is GONE (Annie, 2026-09-21) — the name is hers
         // to change from the pencil beside it; who offered it is not a fact
         // the page needs to carry. `prov` still italicises the title and
@@ -15748,7 +16456,9 @@ body.rb-lk-push #rb-dock{display:none}
         // The pencil is GONE (Look_Creation_Handoff 5a/5c, 2026-10-05):
         // renaming lives in edit mode, where the title itself is the tap
         // target (dashed = tap to rename); the eyebrow reads Editing.
-        const eyebrowText = draft ? 'Draft look · Robes styled it for the trip' : (editing ? 'Editing' : 'Saved look');
+        const eyebrowText = draft ? 'Draft look · Robes styled it for the trip'
+          : sugg ? ('Suggested · ' + (anchorNm ? 'around your ' + _waEsc(anchorNm) : 'from your prompt'))
+          : (editing ? 'Editing' : 'Saved look');
         const titleInput = _lkTitleEditing
           ? '<input id="rb-lk-title" class="rb-tb-title-in rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
             ' oninput="window.__lkTitleInput(this.value)" onkeydown="if(event.key===\'Enter\')this.blur()" onblur="window.__lkTitleCommit(this.value)">'
@@ -15773,8 +16483,8 @@ body.rb-lk-push #rb-dock{display:none}
         // The "Nothing on it yet" notice is GONE (handoff 6d): it said
         // there was nothing to wear, untrue for a look with a photograph;
         // the dashed door in the rack carries the ask.
-        if (draft || (ownedNone && !props.length)) {
-          // No wishlist / empty panels on a draft — the rack says it all.
+        if (draft || sugg || (ownedNone && !props.length)) {
+          // No wishlist / empty panels on a draft or a suggestion — the rack says it all.
         } else if (ownedNone) {
           h += '<div class="rb-lk-panel">' +
             '<div class="pl">Not yours yet.</div>' +
@@ -15926,8 +16636,13 @@ body.rb-lk-push #rb-dock{display:none}
         // "+ Add pieces" while the rack is empty.
         // The bar carries NO facts (Annie, 2026-10-06 third pass — the title's
         // meta said them already): Edit look alone, aligned right.
-        const pinBar = draft ? '' :
-          '<div class="rb-lk-draftbar rb-lk-pinbar">' +
+        // F8's bar: Edit (hairline) · Save to lookbook (the page's one ink).
+        const pinBar = draft ? '' : sugg
+          ? '<div class="rb-lk-draftbar rb-lk-pinbar rb-lk-suggbar">' +
+              '<button type="button" class="rb-pill rb-lk-editlook rb-lk-suggedit" onclick="window.__lkSuggEdit(\'' + _waEsc(String(l.id)) + '\')">Edit</button>' +
+              '<button type="button" class="rb-lk-save rb-lk-suggsave" onclick="window.__lkSuggSave(\'' + _waEsc(String(l.id)) + '\')">Save to lookbook</button>' +
+            '</div>'
+          : '<div class="rb-lk-draftbar rb-lk-pinbar">' +
             '<button type="button" class="rb-pill rb-lk-editlook" onclick="window.__lkEditToggle()">' + (rackEmpty ? '+ Add pieces' : 'Edit look') + '</button>' +
           '</div>';
 
@@ -15942,7 +16657,7 @@ body.rb-lk-push #rb-dock{display:none}
         // composition, so it is built here and appended as its OWN card
         // AFTER the held card closes, never inside the rack's column.
         let wornHtml = '';
-        if (!ownedNone) {
+        if (!ownedNone && !sugg) {
           const wears = (l.wears || []).slice().sort((a, b) => String(b.worn_on).localeCompare(String(a.worn_on)));
           wornHtml = '<div class="rb-lk-worn">' +
             '<div class="rb-lk-rule"><span class="lab">Worn</span><i></i><span class="val">' + _lkTimes(n) + (cpw ? ' · ' + cpw + ' a wear' : '') + '</span></div>' +
@@ -15984,6 +16699,18 @@ body.rb-lk-push #rb-dock{display:none}
 
         h += '</div></div>' + pinBar + '</div>';
         if (wornHtml) h += '<div class="rb-lk-wornbox">' + wornHtml + '</div>';
+        if (sugg) {
+          // The live "How was this look?" row at the foot (F8 · 2): thumbs
+          // down opens "What would have made it better?"; Send removes the
+          // look with Removed · Undo and returns to Suggested. Thumbs up
+          // keeps it. No sheet, no header.
+          const sid = String(l.id);
+          _rbFeedbackArm('sg', () => ({ prompt: '', on: l.name, note: l.name + ' — ' + ((_rbFbState.sg || {}).text || ''), looksOutput: JSON.stringify({ surface: 'suggested', look: l.name, set: l.set_id }) }),
+            { key: sid, track: 'suggested', itemId: (l.set_id && /^\d+$/.test(String(l.set_id))) ? Number(l.set_id) : null,
+              onSent: st => { if (st.rating === 0) { window.__lkSuggRemove(sid, null, { from: 'feedback', verdict: 'down' }); if (window.__lkBackDoor) window.__lkBackDoor(); } } });
+          h += '<div class="rb-lk-sgfb">' + _rbFeedbackBlock('sg', { title: 'How was this look?', sub: '' }) + '</div>';
+          return h + '</div>';
+        }
         h += '<div class="rb-lk-foot">' +
           (lineage.length ? '<span style="font-size:12px;color:var(--ink-faint)">' + lineage.join(' · ') + '</span><span style="flex:1"></span>' : '') +
           '<button type="button" class="rb-lk-quiet rose" onclick="window.__lkDeleteAsk(\'' + l.id + '\')">Delete this look</button></div>';
@@ -16608,7 +17335,7 @@ body.rb-lk-push #rb-dock{display:none}
       function _lkDraftSnapshot() {
         const kp = (_lkKpHost && typeof _kpBuildPark === 'function') ? _kpBuildPark() : null;
         const s = _lkDraftSrc;
-        const src = s ? { kind: s.kind || null, eyebrow: s.eyebrow || '', prompt: s.src ? s.src.prompt : null, opts: s.src ? s.src.opts : null } : null;
+        const src = s ? { kind: s.kind || null, eyebrow: s.eyebrow || '', prompt: s.src ? s.src.prompt : null, opts: s.src ? s.src.opts : null, sugg: s.sugg || null } : null;
         return {
           v: 2, id: _lkDraftId, at: new Date().toISOString(),
           rows: _lkRows, seq: _lkRowSeq, name: _lkNewTitleDraft, tags: _lkNewTags, roles: _lkNewRoles,
@@ -16655,22 +17382,15 @@ body.rb-lk-push #rb-dock{display:none}
       }
       function _lkDraftTileHtml(d) {
         const ids = (d.rows || []).map(r => r && r.piece).filter(Boolean);
-        const nm = String(d.name || '').trim();
-        return '<div class="rb-add-card rb-lk-drafttile" id="rb-lk-drafttile" onclick="window.__lkDraftOpen()" role="button" tabindex="0" aria-label="Open the draft">' +
-          '<div class="rb-lk-draftmos">' + _ltMosaicHtml(_ltCells(ids), {}) + '</div>' +
-          '<span class="rb-add-serif">' + _waEsc(nm || 'A look you started') + '</span>' +
-          '<span class="rb-add-hint">Draft · not saved</span>' +
-        '</div>';
+        const photo = (d.photo && _pdHttp(d.photo.url)) || null;
+        return _lkDraftCardHtml({ id: 'rb-lk-drafttile', cls: 'rb-lk-drafttile', title: d.name, photo, cells: photo ? [] : _ltCells(ids), started: d.at, onclick: 'window.__lkDraftOpen()' });
       }
+      // The park changed under an open grid: the In progress rail follows
+      // (it holds the park beside the draft rows), never the whole page.
       function _lkDraftTileSync() {
         const grid = document.getElementById('rb-lk-grid');
         if (!grid || grid.style.display === 'none') return;
-        const d = _lkDraftParked();
-        const cur = document.getElementById('rb-lk-drafttile');
-        if (!d) { if (cur) cur.remove(); return; }
-        const html = _lkDraftTileHtml(d);
-        if (cur) { if (cur.outerHTML !== html) cur.outerHTML = html; return; }
-        grid.insertAdjacentHTML('afterbegin', html);
+        _lkPaint();
       }
       // Starting a NEW look while a draft stands asks once (the kp builder's
       // Back confirm) — yes lets the draft go before the new one lands, so
@@ -16720,7 +17440,7 @@ body.rb-lk-push #rb-dock{display:none}
             again: () => window.__dlSubmit(p, so),
             refine: (words, current) => window.__dlSubmit(p, Object.assign({}, so, { refine: words, current })) };
         } else if (src && src.kind && src.kind !== 'kp') {
-          _lkDraftSrc = { kind: src.kind, eyebrow: String(src.eyebrow || ''), again: null, refine: null };
+          _lkDraftSrc = { kind: src.kind, eyebrow: String(src.eyebrow || ''), again: null, refine: null, sugg: src.sugg || null };
         }
         // A still that never landed died with its job — re-shoot the
         // missing ones, keeping every still that did land.
@@ -16744,6 +17464,9 @@ body.rb-lk-push #rb-dock{display:none}
         window._rbConfirmDelete('Let this draft go?', function() {
           _rbTrack('draft_discarded', { built: !!_lkBuilt, pieces: _lkUsed().length, proposed: _lkShop.length });
           _lkGuideUse();
+          // Discard = delete (the brief): a draft that began as a
+          // suggestion goes with its row.
+          if (_lkDraftSrc && _lkDraftSrc.sugg) _lkSuggDelete(_lkDraftSrc.sugg.suggId);
           _lkDraftDrop();
           const kpHosted = _lkKpHost, home = !!document.querySelector('.rb-lkh-composer');
           _lkResetComposer();
@@ -16995,7 +17718,7 @@ body.rb-lk-push #rb-dock{display:none}
         // draft, whatever door it came through (the kp builder's strip
         // reads the same). "Draft · not saved yet" folded into the eyebrow.
         const mastHtml = (home || kp) ? ''
-          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast rb-lk-draftmast"><div class="rb-lk-drafty">Draft look</div>' + titleHtml + '</div>';
+          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast rb-lk-draftmast"><div class="rb-lk-drafty">' + ((_lkDraftSrc && _lkDraftSrc.kind === 'suggested') ? 'Draft · from Robes’ suggestion' : 'Draft look') + '</div>' + titleHtml + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).
@@ -17070,7 +17793,10 @@ body.rb-lk-push #rb-dock{display:none}
         // two quiet doors are Try another and — only when everything in the
         // look is hers — Wear it today. She cannot wear what she does not
         // own yet, so the aspirational build offers the exit instead.
-        const foot = _lkBuilt && !_lkBuilding
+        // A draft that began as a suggestion has no re-runner — another
+        // look comes from ↻ on the tile (look states, 2026-10-06).
+        const fromSugg = !!(_lkDraftSrc && _lkDraftSrc.kind === 'suggested');
+        const foot = _lkBuilt && !_lkBuilding && !fromSugg
           ? '<div class="rb-lk-buildfoot">' +
               '<button type="button" class="rb-lk-quiet" onclick="window.__lkTryAnother()">Try another</button>' +
               (_lkAspirational
@@ -20389,6 +21115,9 @@ body.rb-lk-push #rb-dock{display:none}
         // finally-guarded: a throw anywhere in here must never leave the
         // busy latch stuck — that reads as "Save does nothing, forever".
         let l;
+        // A draft that began as a suggestion keeps its grouping on the saved
+        // look and its row leaves (the save IS the row, re-made).
+        const suggSrc = (_lkDraftSrc && _lkDraftSrc.sugg) ? _lkDraftSrc.sugg : null;
         try {
           const slots = {};
           _lkRows.forEach(r => { if (r.piece) slots[r.piece] = r.slot; });
@@ -20444,11 +21173,17 @@ body.rb-lk-push #rb-dock{display:none}
             slots,
             lookTags: lookTags,
             roles: _lkNewRoles,
+            anchor_piece_id: suggSrc ? suggSrc.anchor : null,
+            set_id: suggSrc ? suggSrc.setId : null,
+            set_index: suggSrc ? suggSrc.setIndex : null,
           });
         } finally { _lkBusy = false; }
         // Saved: the draft is a look now, the park goes (phase 1); the
         // guide counts one more draft ended.
         if (l) { _lkGuideUse(); _lkDraftDrop(); }
+        // The saved look lives on the Saved tab — land there, whichever
+        // tab the Edit came from.
+        if (l && suggSrc) { _lkSuggDelete(suggSrc.suggId); _lkTab = 'saved'; }
         // Proposals travel to the wishlist on save — nothing Robes offered
         // is lost, and the look grows as she acquires them.
         if (_lkShop.length && typeof _wlSaveFromItem === 'function') {
@@ -20687,6 +21422,7 @@ body.rb-lk-push #rb-dock{display:none}
         const same = !!prev && opts.key !== undefined && prev.key === opts.key;
         _rbFbState[prefix] = {
           key: opts.key, payload: payloadFn, track: opts.track || null, itemId: opts.itemId != null ? opts.itemId : null,
+          onSent: typeof opts.onSent === 'function' ? opts.onSent : null,
           copy: prev ? prev.copy : null,
           rating: same ? prev.rating : null, text: same ? prev.text : '', sent: same ? prev.sent : false,
         };
@@ -20762,6 +21498,7 @@ body.rb-lk-push #rb-dock{display:none}
         _rbMemoryPush({ k: 'verdict', v: st.rating, surface: track, on: String(p.on || p.prompt || '').slice(0, 120), text: comment });
         st.sent = true;
         _rbFbRepaint(prefix);
+        if (typeof st.onSent === 'function') { try { st.onSent(st); } catch (_) {} }
       };
 
       // ── Shared surgical-fetch guard — one abort/timeout policy for the
@@ -27038,27 +27775,33 @@ body>*:not(#tv-result-page){display:none !important}
           el.style.display = 'none';
           return;
         }
+        // Look states (2026-10-06): the row holds the newest SUGGESTED
+        // looks — each its own tile, "Around your rust dress" / "From your
+        // prompt" — and View all lands on the Suggested tab.
         let items = [];
-        try { items = _inItems().slice(0, 4); } catch (_) { items = []; }
+        try { items = (_lkSugg || []).filter(l => l && l.status === 'suggested').slice().sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))).slice(0, 4); } catch (_) { items = []; }
         if (!items.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
         el.style.display = '';
         el.innerHTML = `
           <div class="rb-sec-head">
-            <span class="rb-sec-ey">Key pieces</span>
+            <span class="rb-sec-ey">Suggested</span>
             <button class="rb-sec-link" onclick="window.__rbInspOpen()">View all</button>
           </div>
           <div class="rb-sn-grid">
-            ${items.map(item => `
-              <div class="rb-sn-card" onclick="window.__snOpenItem(${Number(item.id)})">
-                ${item.img
-                  ? `<img src="${_waEsc(item.img)}" class="rb-sn-img" alt="">`
+            ${items.map(l => {
+              const img = _lkHeroUrl(l);
+              const nm = _lkAnchorName(l);
+              return `
+              <div class="rb-sn-card" onclick="window.__lkSuggOpen('${_waEsc(String(l.id))}')">
+                ${img
+                  ? `<img src="${_waEsc(img)}" class="rb-sn-img" alt="">`
                   : '<div class="rb-sn-img-ph"></div>'}
                 <div class="rb-sn-body">
-                  <div class="rb-sn-type">Key piece</div>
-                  <div class="rb-sn-title">${_waEsc(item.title || 'A piece, styled')}</div>
-                  <div class="rb-sn-meta">Styled three ways by Robes</div>
+                  <div class="rb-sn-type">Suggested</div>
+                  <div class="rb-sn-title">${_waEsc(l.name || 'A look')}</div>
+                  <div class="rb-sn-meta">${_waEsc(nm ? 'Around your ' + nm : 'From your prompt')}</div>
                 </div>
-              </div>`).join('')}
+              </div>`; }).join('')}
           </div>`;
       }
 
@@ -27567,6 +28310,10 @@ body>*:not(#tv-result-page){display:none !important}
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
           data.genId = genId;
+          // Look states (2026-10-06): the three ways land as three
+          // suggested looks on the Lookbook's Suggested tab; the Worn
+          // Three Ways page keeps the dress-me variant and old entries.
+          if (typeof _lkSuggLand === 'function' && _lkSuggLand(data, prompt, { intent, pieceId: meta && meta.pieceId })) return;
           window.__kpRenderResult(data, prompt, { intent, context });
         } catch (err) {
           guard.done();
@@ -32432,12 +33179,16 @@ body.rb-hb-on #dash .concierge{display:none!important}
               title,
               subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
               img: persistable.find(Boolean) || data.photoUrl || null,
-              kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: 'style', context: null },
+              kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: 'style', context: null, suggested: true },
             });
+            // The three looks are SUGGESTED rows too (look states, 2026-10-06)
+            // — the card is their first showing, the Suggested tab their home.
+            if (typeof _lkSuggFromStyle === 'function') _lkSuggFromStyle(data, { setId: cardSaveId, pieceId: typeof _lkSuggAnchorFromPrompt === 'function' ? _lkSuggAnchorFromPrompt(prompt) : null });
           }
           const open = document.getElementById('rb-styled-open');
           if (open) open.onclick = function() {
-            window.__kpRenderResult(data, prompt, { intent: 'style', skipSave: true, savedId: cardSaveId });
+            if (window.__rbInspOpen) window.__rbInspOpen();
+            else window.__kpRenderResult(data, prompt, { intent: 'style', skipSave: true, savedId: cardSaveId });
             collapse();
           };
           if (pending) pollImgs(data);
@@ -32457,6 +33208,7 @@ body.rb-hb-on #dash .concierge{display:none!important}
                     if (!src) return;
                     if (!Array.isArray(data.generatedImages)) data.generatedImages = [];
                     if (data.generatedImages[i] !== src) { data.generatedImages[i] = src; changed = true; }
+                    if (cardSaveId && typeof _lkSuggFrame === 'function') _lkSuggFrame(cardSaveId, i, src);
                     const wrap = document.getElementById('rb-styled-img-' + i);
                     if (wrap && !wrap.querySelector('img')) {
                       wrap.style.animation = 'none';

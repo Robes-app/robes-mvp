@@ -237,11 +237,15 @@ const titleTop = (page) => page.evaluate(() => {
   const mast = await page.evaluate(() => {
     const m = document.querySelector('#rb-lk-bar .rb-mast');
     const pills = Array.from(m.querySelectorAll('.rb-pill')).map((b) => { const c = getComputedStyle(b); return { t: b.textContent.trim(), fs: c.fontSize, rad: c.borderRadius, bg: c.backgroundColor, tt: c.textTransform }; });
-    return { lab: m.querySelector('.rb-mast-lab')?.textContent, n: m.querySelector('.rb-mast-n')?.textContent, labCase: getComputedStyle(m.querySelector('.rb-mast-lab')).textTransform, pills, headRow: getComputedStyle(document.getElementById('sn-headrow')).display };
+    const circ = m.querySelector('.rb-circ.rb-lk-new');
+    return { tabs: Array.from(m.querySelectorAll('.rb-lk-tab')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')), n: m.querySelector('.rb-lk-countline .rb-mast-n')?.textContent, pills,
+      circ: circ ? { rad: getComputedStyle(circ).borderRadius, bg: getComputedStyle(circ).backgroundColor, t: circ.textContent.trim() } : null, headRow: getComputedStyle(document.getElementById('sn-headrow')).display };
   });
-  check('lookbook · ONE masthead line: LOOKBOOK in tracked caps + "2 looks · 1 key piece" in serif italic (the mixed grid, 2026-10-05), no eyebrow row above', mast.lab === 'Lookbook' && mast.labCase === 'uppercase' && mast.n === '2 looks · 1 key piece' && mast.headRow === 'none', JSON.stringify(mast));
-  // Sort and Refine sit inert below four looks (transparent, no fill); + New look is live.
-  check('lookbook · sort, Refine and + New look are hairline pills — 11px, radius 100, sentence case, the live one white', mast.pills.length === 3 && mast.pills.every((p) => p.fs === '11px' && p.rad === '100px' && p.tt === 'none') && mast.pills[2].bg === 'rgb(255, 255, 255)', JSON.stringify(mast.pills));
+  // Look states (2026-10-06): ONE masthead — Saved | Suggested as the
+  // segmented control, the count line beneath, the + circle; sort and
+  // Filter hide under four looks.
+  check('lookbook · ONE masthead: Saved | Suggested, "2 looks" beneath in serif italic, no eyebrow row above', JSON.stringify(mast.tabs) === JSON.stringify(['Saved*', 'Suggested']) && mast.n === '2 looks' && mast.headRow === 'none', JSON.stringify(mast));
+  check('lookbook · under four looks the controls are the + circle alone — hairline, white, radius 100; no sort, no Filter', mast.pills.length === 0 && !!mast.circ && mast.circ.rad === '100px' && mast.circ.bg === 'rgb(255, 255, 255)' && mast.circ.t === '+', JSON.stringify([mast.pills, mast.circ]));
   check('lookbook · a root: no band, Lookbook lit', (await band(page)) === null && JSON.stringify(await lit(page)) === '["lookbook"]');
   await page.locator('#rb-lk-grid .rb-lk-tile').first().click(); await page.waitForTimeout(500);
   const lb = await band(page);
@@ -268,18 +272,19 @@ const titleTop = (page) => page.evaluate(() => {
       window.__dySetMode('list'); await new Promise((r) => setTimeout(r, 300));
       return ok1 && ok2;
     }));
-  // Inspiration folded into the Lookbook (2026-10-05): the legacy dest
-  // lands on the Lookbook with Show = Key pieces — no tab, no page.
+  // Look states (2026-10-06): the legacy dest is the Lookbook's SUGGESTED
+  // tab — the key piece entry's three ways as suggested tiles (no wardrobe
+  // piece matches the title, so prompt looks), no tab, no page.
   await page.evaluate(() => window.__rbNavGo('inspiration')); await page.waitForTimeout(600);
-  const insp = await page.evaluate(() => ({ lab: document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent, count: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
-    kpTiles: document.querySelectorAll('#rb-lk-grid .lt-kp').length, lookTiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:not(.lt-kp)').length, door: !!document.querySelector('#rb-lk-grid .rb-lk-kpdoor'),
-    tag: document.querySelector('#rb-lk-grid .lt-kp .lt-tag')?.textContent, dot: !!document.querySelector('#rb-lk-bar .rb-lk-refdot'), tab: !!document.getElementById('rb-tn-inspiration'), dock: document.querySelectorAll('#rb-dock .rb-dock-tab').length, path: location.pathname }));
-  check('inspiration · no tab, no page: the legacy dest is the Lookbook on Show = Key pieces — "Key pieces · 1 key piece", the one tile tagged on its photo, looks hidden, the dashed Style a key piece door, the dot on Refine, four dock tabs',
-    (await band(page)) === null && insp.lab === 'Key pieces' && insp.count === '1 key piece' && insp.kpTiles === 1 && insp.lookTiles === 0 && insp.door && insp.tag === 'Key piece' && insp.dot && !insp.tab && insp.dock === 4 && JSON.stringify(await lit(page)) === '["lookbook"]', JSON.stringify(insp));
-  await page.evaluate(() => window.__lkRefineClear()); await page.waitForTimeout(300);
-  const mixed = await page.evaluate(() => ({ lab: document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent, count: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent, kp: document.querySelectorAll('#rb-lk-grid .lt-kp').length, looks: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:not(.lt-kp) .lt-tag.look').length, dot: !!document.querySelector('#rb-lk-bar .rb-lk-refdot') }));
-  check('lookbook · one grid: looks and the key piece side by side, each tagged on its photo, the count reading both kinds, no dot once cleared',
-    mixed.lab === 'Lookbook' && mixed.count === '2 looks · 1 key piece' && mixed.kp === 1 && mixed.looks === 2 && !mixed.dot, JSON.stringify(mixed));
+  const insp = await page.evaluate(() => ({ tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent, count: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent,
+    suggTiles: document.querySelectorAll('#rb-lk-grid [data-sugg]').length, lookTiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:not(.lt-sugg)').length, door: !!document.querySelector('#rb-lk-grid .rb-lk-kpdoor'),
+    ey: document.querySelector('#rb-lk-grid [data-sugg] .lt-ey')?.textContent, meta: document.querySelector('#rb-lk-grid [data-sugg] .lt-meta')?.textContent, acts: document.querySelectorAll('#rb-lk-bar .rb-mast-acts button').length, tab2: !!document.getElementById('rb-tn-inspiration'), dock: document.querySelectorAll('#rb-dock .rb-dock-tab').length, path: location.pathname }));
+  check('inspiration · no tab, no page: the legacy dest is the Suggested tab — "3 suggested", the key piece\'s ways as suggested tiles, looks hidden, no door, no controls, four dock tabs',
+    (await band(page)) === null && insp.tab === 'Suggested' && insp.count === '3 suggested' && insp.suggTiles === 3 && insp.lookTiles === 0 && !insp.door && insp.ey === 'Suggested' && insp.meta === 'From your prompt' && insp.acts === 0 && !insp.tab2 && insp.dock === 4 && JSON.stringify(await lit(page)) === '["lookbook"]', JSON.stringify(insp));
+  await page.evaluate(() => window.__lkTab('saved')); await page.waitForTimeout(300);
+  const mixed = await page.evaluate(() => ({ tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent, count: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent, sugg: document.querySelectorAll('#rb-lk-grid [data-sugg]').length, looks: document.querySelectorAll('#rb-lk-grid .lt-card').length, eyebrows: document.querySelectorAll('#rb-lk-grid .lt-tag').length, dot: !!document.querySelector('#rb-lk-bar .rb-lk-refdot') }));
+  check('lookbook · the Saved tab holds the saved looks alone, no eyebrows, "2 looks", no dot',
+    mixed.tab === 'Saved' && mixed.count === '2 looks' && mixed.sugg === 0 && mixed.looks === 2 && mixed.eyebrows === 0 && !mixed.dot, JSON.stringify(mixed));
   await page.evaluate(() => window.__rbNavGo('wardrobe')); await page.waitForTimeout(500);
   check('wardrobe · a root: Wardrobe lit, no band', JSON.stringify(await lit(page)) === '["wardrobe"]' && (await band(page)) === null);
   const wd = await page.evaluate(() => ({ tabs: [...document.querySelectorAll('#rb-wsub .rb-mast-tab')].map((b) => b.textContent), inHead: !!document.querySelector('.wg-header #rb-add-pill') && !!document.querySelector('#rb-wg-trail #rb-refine-pill'), title: !!document.querySelector('.wg-title'), add: document.getElementById('rb-add-pill').textContent, fills: [...document.querySelectorAll('.wg-header button')].filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length }));

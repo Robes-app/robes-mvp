@@ -698,17 +698,17 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         && !document.getElementById('rb-conc-ey'),
       // Load rules (2026-08-19): the click through brings the concierge in
       servicesShown: document.querySelector('.services')?.offsetParent !== null,
-      // The first landing (slice 1.3, 2026-09-18): no guide band; card 01
-      // filled by default; the model band's button a hairline at one piece.
+      // Look states (2026-10-06): the click through lands on the Lookbook's
+      // SUGGESTED tab — the three looks as suggested tiles around her piece
+      // — never the Worn Three Ways page.
       kpOpen: document.getElementById('kp-result-page')?.style.display === 'block',
-      band: !!document.getElementById('kp-guide-band'),
-      firstFilled: filled('kp-build-btn-0'),
-      secondFilled: filled('kp-build-btn-1'),
-      thirdFilled: filled('kp-build-btn-2'),
-      modelBtnClass: document.getElementById('kp-model-build')?.className,
-      modelBtnFilled: filled('kp-model-build'),
-      inkFills: Array.from(document.querySelectorAll('#kp-result-page button'))
-        .filter((b) => b.offsetParent !== null && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+      snOpen: document.getElementById('sn-page')?.style.display === 'block',
+      tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent,
+      tiles: Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-title')).map((e) => e.textContent).sort(),
+      metas: Array.from(new Set(Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-meta')).map((e) => e.textContent))),
+      inkFills: Array.from(document.querySelectorAll('#sn-page button'))
+        .filter((b) => b.offsetParent !== null && b.getBoundingClientRect().height > 20 && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+      filled,
     };
   });
   check('styled card · once it retires the prompt steps out to lead',
@@ -721,29 +721,30 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     JSON.stringify(doorAfter) === JSON.stringify(['concierge', 'rb-notes-door', 'rb-ftu-rows']), JSON.stringify(doorAfter));
   check('styled card · the concierge loads the moment she clicks through',
     after.servicesShown === true, String(after.servicesShown));
-  check('kp first landing · no guide band; card 01 carries the ONE filled Build this look',
-    after.kpOpen === true && after.band === false && after.firstFilled === true
-      && after.secondFilled === false && after.thirdFilled === false,
-    JSON.stringify([after.kpOpen, after.band, after.firstFilled, after.secondFilled, after.thirdFilled]));
-  check('kp first landing · the model band’s button is a hairline on a one-piece account — one ink fill on the page',
-    after.modelBtnClass === 'rb-pill' && after.modelBtnFilled === false && after.inkFills === 1,
-    JSON.stringify([after.modelBtnClass, after.modelBtnFilled, after.inkFills]));
+  // The handoff carries no wardrobe row id: the anchor resolves by the
+  // filed piece's label when it is in the wardrobe (this fixture's is not,
+  // so the looks read "From your prompt").
+  check('styled card · See the full looks lands on the Suggested tab — the three looks as suggested tiles, no kp page, nothing filled ink',
+    after.kpOpen === false && after.snOpen === true && after.tab === 'Suggested' && after.tiles.length === 3 && after.metas.length === 1 && after.inkFills === 0,
+    JSON.stringify([after.kpOpen, after.snOpen, after.tab, after.tiles, after.metas, after.inkFills]));
 
-  // A re-render keeps the same landing: nothing to dismiss, nothing to
-  // remember — no per-user flag is written.
+  // The Worn Three Ways page survives for the SET's entry (__snOpenItem on
+  // a key-piece row): the same landing, no guide band, card 01 filled, no
+  // per-user flag written.
   const again = await page.evaluate(async () => {
-    window.__kpRenderResult(window.__lastKpData, 'Acid green cropped jumper',
-      { intent: 'style', skipSave: true, savedId: null });
-    await new Promise((r) => setTimeout(r, 200));
+    const it = JSON.parse(localStorage.getItem('robes_style_notes__u-test') || '[]').find((x) => x.type === 'key-piece');
+    if (it) window.__snOpenItem(it.id);
+    await new Promise((r) => setTimeout(r, 300));
     const b0 = document.getElementById('kp-build-btn-0');
     return {
+      entry: !!it, suggested: !!(it && it.kpData && it.kpData.suggested),
       band: !!document.getElementById('kp-guide-band'),
       firstFilled: b0 ? getComputedStyle(b0).backgroundColor === 'rgb(32, 32, 33)' : null,
       flag: !!localStorage.getItem('rb_kp_guide_done__u-test'),
     };
   });
-  check('kp first landing · a re-render is the same landing, no flag written',
-    again.band === false && again.firstFilled === true && again.flag === false, JSON.stringify(again));
+  check('kp legacy page · the set\'s entry (marked suggested) still opens the Worn Three Ways page — no band, card 01 filled, no flag written',
+    again.entry && again.suggested && again.band === false && again.firstFilled === true && again.flag === false, JSON.stringify(again));
   await ctx.close();
 }
 
@@ -761,11 +762,12 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         proposals: [{ role: null, chip: 'Bag', cats: ['Bags'], opts: [{ name: 'A bag' }], oi: 0, saved: false, image_url: null }],
         wears: [] },
     ]));
-    // A styled key piece lives on Inspiration — it must surface in the home
-    // Inspiration row here (the styled card has retired, so no duplicate).
+    // A styled key piece's ways are suggested looks (look states,
+    // 2026-10-06) — they surface in home's Suggested row here (the styled
+    // card has retired, so no duplicate).
     localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
       { id: 1754700000000, type: 'key-piece', title: 'Acid green cropped jumper', subtitle: 'Worn three ways',
-        img: null, kpData: { ways: [] } },
+        img: null, kpData: { ways: [{ eyebrow: 'A', title: 'Gallery green', outfit: 'The jumper.', details: '', accessories: '' }, { eyebrow: 'B', title: 'Green at lunch', outfit: '', details: '', accessories: '' }, { eyebrow: 'C', title: 'After dark', outfit: '', details: '', accessories: '' }], generatedImages: [], fallback: false, photoUrl: null, intent: 'style' } },
     ]));
   });
   await page.reload({ waitUntil: 'networkidle' });
@@ -793,12 +795,15 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         || !document.getElementById('rb-sn')?.textContent.trim(),
       servicesHidden: document.querySelector('.services')?.offsetParent === null,
       styled: !!document.getElementById('rb-styled'),
+      // Look states (2026-10-06): the row reads Suggested — the key
+      // piece's ways as suggested looks, never the entry's own title.
       inspShown: document.getElementById('rb-insp-row')?.offsetParent !== null
-        && /Acid green cropped jumper/.test(document.getElementById('rb-insp-row')?.textContent || ''),
+        && document.querySelector('#rb-insp-row .rb-sec-ey')?.textContent === 'Suggested'
+        && document.querySelectorAll('#rb-insp-row .rb-sn-card').length >= 1,
     };
   });
   check('O7 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('O7 · a saved key piece surfaces in the home Inspiration row',
+  check('O7 · a saved key piece surfaces in the home Suggested row as its looks (look states, 2026-10-06)',
     o.inspShown === true, String(o.inspShown));
   // The home cut (Annie, 2026-09-18): prompt, Your looks, the Inspiration
   // row — no hairline rows, no rail until a day is planned, no band.
@@ -903,18 +908,20 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // A kp filter a door set earlier never hides the looks View all asked for.
   await page.evaluate(() => window.__rbInspOpen());
   await page.waitForTimeout(300);
-  const showKp = await page.evaluate(() => document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent);
+  const showKp = await page.evaluate(() => document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent);
   await page.evaluate(() => window.__rbLooksOpen());
   await page.waitForTimeout(300);
-  const showLooks = await page.evaluate(() => ({ lab: document.querySelector('#rb-lk-bar .rb-mast-lab')?.textContent, kp: document.querySelectorAll('#rb-lk-grid .lt-kp').length, looks: document.querySelectorAll('#rb-lk-grid .lt-card:not(.lt-kp)').length }));
-  check('saved looks row · View all after the key-pieces door flips Show to Looks — the saved looks show, the key piece stands down',
-    showKp === 'Key pieces' && showLooks.lab === 'All looks' && showLooks.kp === 0 && showLooks.looks >= 1, JSON.stringify([showKp, showLooks]));
+  const showLooks = await page.evaluate(() => ({ lab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent, kp: document.querySelectorAll('#rb-lk-grid [data-sugg]').length, looks: document.querySelectorAll('#rb-lk-grid .lt-card:not(.lt-sugg)').length }));
+  check('saved looks row · View all after the Suggested door lands on the Saved tab — the saved looks show, no suggested tile',
+    showKp === 'Suggested' && showLooks.lab === 'Saved' && showLooks.kp === 0 && showLooks.looks >= 1, JSON.stringify([showKp, showLooks]));
   await page.evaluate(() => window.__rbNavGo('home'));
   await page.waitForTimeout(300);
-  check('key pieces row · a key piece rides its own row under a Key pieces header (Inspiration folded into the Lookbook, 2026-10-05)',
-    k.shown === true && k.ey === 'Key pieces' && k.title === 'Pink barrel-leg jeans' && k.type === 'Key piece',
+  // Look states (2026-10-06): the row reads Suggested — the key piece's
+  // ways as suggested looks (prompt looks here: no wardrobe piece matches).
+  check('suggested row · the key piece\'s looks ride home\'s Suggested row',
+    k.shown === true && k.ey === 'Suggested' && ['The Art Gallery Opening', 'Brunch in the City', 'Evening Cocktails'].indexOf(k.title) > -1 && k.type === 'Suggested',
     JSON.stringify(k));
-  check('key pieces row · View all lands on the Lookbook with Show = Key pieces',
+  check('suggested row · View all lands on the Lookbook\'s Suggested tab',
     /__rbInspOpen/.test(k.link || ''), k.link);
   // The home row mirrors what the Lookbook holds: her looks and her travel
   // edits. Key pieces are Inspiration's; days are the Diary's.
