@@ -9736,6 +9736,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '#kp-build-host .rbc-body>div:first-child{display:flex;flex-direction:column}' +
           '#kp-build-host .rbc-sub{order:-1;margin:0 0 6px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#55524E);gap:6px}' +
           '#kp-build-host .rbc-sub .rbc-mslot{display:inline}' +
+          '#kp-build-host .rbc-trailrow .rbc-sub{order:0;margin:5px 0 0}' +
+          '#kp-build-host .rbc-eye{font-size:9px;letter-spacing:.2em;color:var(--ink-soft,#55524E);margin-bottom:5px}' +
           '#kp-build-host .rbc-sub .brand{font-family:inherit;font-style:normal;font-size:9px}' +
           '#kp-build-host .rbc-sub .price{font-size:9px}' +
           '#kp-build-host .rbc-sub .owned{font-size:9px;letter-spacing:.2em;color:var(--sage,#7E7C5A)}' +
@@ -10917,13 +10919,23 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const hints = cfg.roleHintMap || _RB_ROLE_HINTS;
         const stripHtml = (role, ghost, withAdd) =>
           `<div class="rbc-rolestrip${ghost ? ' ghost' : ''}"${cfg.onRoleDrop ? ` data-roledrop="${_waEsc(role)}" data-rolefn="${cfg.onRoleDrop}"${ctxAttr}` : ''}><span${cfg.roleHints && hints[role] ? ` data-hint="· ${_waEsc(hints[role])}"` : ''}>${_waEsc(role)}</span><i></i>${withAdd ? `<button type="button" class="rbc-stripadd" title="Add another piece here" aria-label="Add another ${_waEsc(role)} piece" onclick="event.stopPropagation();window.${cfg.onRoleAdd}('${_waEsc(role)}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>` : ''}</div>`;
-        const rowHtml = x => cfg.onRoleDrop
-          ? `<div class="rbc-dragrow" draggable="true" data-roledrag="${x.i}" data-rolefn="${cfg.onRoleDrop}" data-rolehome="${_waEsc(x.role)}"${ctxAttr}>${_rbcRow(x.it, cfg)}</div>`
-          : _rbcRow(x.it, cfg);
+        // cfg.noStrips (Annie, 2026-10-06 — the look surfaces): no
+        // role strips at all. The rows keep the formula's ORDER and each
+        // row's eyebrow prints its role ("Top · Canvas"), so the piece
+        // carries the note the strip used to head. The heuristic role a
+        // row was grouped under rides as _groupRole so the eyebrow can
+        // print it when nothing was cast.
+        const noStrips = !!cfg.noStrips;
+        const rowHtml = x => {
+          if (noStrips) x.it._groupRole = x.role;
+          return cfg.onRoleDrop
+            ? `<div class="rbc-dragrow" draggable="true" data-roledrag="${x.i}" data-rolefn="${cfg.onRoleDrop}" data-rolehome="${_waEsc(x.role)}"${ctxAttr}>${_rbcRow(x.it, cfg)}</div>`
+            : _rbcRow(x.it, cfg);
+        };
         if ((!empties || !empties.length) && !cfg.allStrips) {
           let html = '', last = null;
           withRole.forEach(x => {
-            if (x.role && x.role !== last) { html += stripHtml(x.role, false); last = x.role; }
+            if (!noStrips && x.role && x.role !== last) { html += stripHtml(x.role, false); last = x.role; }
             html += rowHtml(x);
           });
           return html;
@@ -10946,7 +10958,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // definition rows with their own + Add; the rack's one door is
           // the trailing + Add a piece and the role prints on the row.
           if (!filled.length && !empty.length && (cfg.filledOnly || _RB_ROLES.indexOf(role) < 0)) return;
-          html += stripHtml(role, !filled.length, !!(filled.length && cfg.onRoleAdd));
+          if (!noStrips) html += stripHtml(role, !filled.length, !!(filled.length && cfg.onRoleAdd));
           // An awaiting role is a dashed definition row — the education
           // line on the left, its own + Add on the right (cfg.onRoleAdd,
           // called with the role so the pick arrives pre-cast). It gives
@@ -10955,7 +10967,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // pill is the affordance, the 52px row is the target. The pill
           // carries no handler of its own so its click simply bubbles to
           // the row; two handlers would fire the chooser twice.
-          if (!filled.length && !empty.length && _RB_ROLE_NOTES[role]) {
+          if (!noStrips && !filled.length && !empty.length && _RB_ROLE_NOTES[role]) {
             const addCall = cfg.onRoleAdd ? `window.${cfg.onRoleAdd}('${_waEsc(role)}')` : '';
             html += `<div class="rbc-row rbc-rghost${addCall ? ' tap' : ''}"` +
               (addCall ? ` role="button" tabindex="0" onclick="${addCall}"` : '') +
@@ -11454,6 +11466,15 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rbc-tr.rbc-more{color:var(--ink-faint)}
 .rbc-tr.rbc-wish.on{color:var(--rose)}
 .rbc-tr.rbc-wish.on:hover{background:transparent}
+/* The trail row is a CARD (2026-10-06): the whole row opens the piece, the
+   eyebrow above the name carries slot · role at every width, the thumb's
+   slot pill goes (the eyebrow says it). */
+.rbc-row.rbc-tap{cursor:pointer;transition:border-color .15s,background .15s}
+.rbc-row.rbc-tap:hover{border-color:rgba(32,32,33,0.22)}
+.rbc-row.rbc-tap:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.rbc-trailrow .rbc-vp .vslot{display:none}
+.rbc-eye{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px;line-height:1.3}
+.rbc-trailrow .rbc-namebtn{cursor:pointer}
 /* A row the edit changed turns warm and names what it replaced. */
 .rbc-row.changed{background:#F3EFE6;border-color:#C9BCA6}
 .rbc-row.changed .rbc-hownote.rb-lp-was{color:var(--ink-soft);font-style:normal;font-family:inherit;font-size:11px}
@@ -11510,6 +11531,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rbc-arrow{width:44px;height:44px}
 .rbc-act{min-height:44px}
 .rbc-row.rbc-trailrow{grid-template-columns:56px minmax(0,1fr) auto;gap:10px;padding:8px 6px 8px 10px}
+.rbc-trailrow .rbc-eye{order:-1}
+.rbc-trailrow .rbc-sub{order:0;margin-top:3px;margin-bottom:0}
 .rbc-trailrow .rbc-hownote.rb-lp-was{display:block}
 .rbc-trailrow .rbc-vp{aspect-ratio:1/1.2}
 /* 03 · Share compresses to a badge on the mosaic; the full-width action
@@ -11741,7 +11764,17 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // (data-rmfn stays), so the ✕ button goes. The mobile eyebrow
         // reads "Slot · Role" — the role is Robes' note on the piece.
         const trail = !!cfg.trail;
-        const roleShort = it.role ? String(_rbRoleNorm(it.role) || it.role).replace(/^The\s+/i, '').replace(/\s+Point$/i, '') : '';
+        const roleRaw = it.role || it._groupRole || '';
+        const roleShort = roleRaw ? String(_rbRoleNorm(roleRaw) || roleRaw).replace(/^The\s+/i, '').replace(/\s+Point$/i, '') : '';
+        // The trail row is a CARD (Annie, 2026-10-06 — reference design):
+        // the whole row opens the piece; the eyebrow above the name reads
+        // "Top · Canvas" at every width (the role strips are gone from the
+        // look surfaces); the trail buttons keep their own jobs.
+        const rowTap = trail && pieceTap
+          ? ` role="button" tabindex="0" onclick="if(!event.target.closest('button,a,input'))${pieceTap}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${pieceTap}}"`
+          : '';
+        const eyeHtml = trail
+          ? `<div class="rbc-eye">${_waEsc(it.slot)}${roleShort ? ' · ' + _waEsc(roleShort) : ''}</div>` : '';
         const trailHtml = trail
           ? `<div class="rbc-trail">${it.thirdHtml || ''}` +
             (cfg.onWish && it.wishable ? `<button type="button" class="rbc-tr rbc-wish${it.wishlisted ? ' on' : ''}" onclick="window.${cfg.onWish}(${it.idx})" title="${it.wishlisted ? 'On your wishlist' : 'Save to wishlist'}" aria-label="${it.wishlisted ? 'On your wishlist' : 'Save to wishlist'}" aria-pressed="${it.wishlisted ? 'true' : 'false'}">${it.wishlisted ? _RBC_HEART_ON : _RBC_HEART}</button>` : '') +
@@ -11749,9 +11782,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             (pieceTap ? `<button type="button" class="rbc-tr rbc-more" onclick="${pieceTap}" title="Open this piece" aria-label="Open this piece">${_rbcChevR}</button>` : '') +
             `</div>`
           : '';
-        return `<div class="rbc-row${it.anchored ? ' anchored' : ''}${trail ? ' rbc-trailrow' : ''}${it.changed ? ' changed' : ''}${it.rowClass || ''}"${cfg.onRemove ? ` data-rmfn="${cfg.onRemove}" data-rmidx="${it.idx}"` : ''}>
+        return `<div class="rbc-row${it.anchored ? ' anchored' : ''}${trail ? ' rbc-trailrow' : ''}${rowTap ? ' rbc-tap' : ''}${it.changed ? ' changed' : ''}${it.rowClass || ''}"${cfg.onRemove ? ` data-rmfn="${cfg.onRemove}" data-rmidx="${it.idx}"` : ''}${rowTap}>
           ${cfg.onRemove && !trail ? `<button class="rbc-rm" onclick="window.${cfg.onRemove}(${it.idx})" title="Remove from this look" aria-label="Remove from this look">×</button>` : ''}
-          <div class="rbc-vp${pieceTap ? ' rbc-vpbtn' : ''}${it.dashed ? ' dashed' : ''}"${pieceTap ? ` onclick="${pieceTap}" title="Open this piece"` : ''}>
+          <div class="rbc-vp${pieceTap ? ' rbc-vpbtn' : ''}${it.dashed ? ' dashed' : ''}"${pieceTap && !rowTap ? ` onclick="${pieceTap}" title="Open this piece"` : ''}>
             <span class="vslot">${_waEsc(it.slot)}</span>
             <div${it.frame.pollAttr} style="position:absolute;inset:0">${it.frame.inner}</div>
             ${it.wearsHtml || ''}
@@ -11759,11 +11792,12 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           </div>
           <div class="rbc-body">
             <div>
+              ${eyeHtml}
               <div class="rbc-namerow">
                 ${pieceTap ? `<button type="button" class="rbc-name rbc-namebtn" onclick="${pieceTap}" title="Open this piece">${_waEsc(it.name)}</button>` : `<div class="rbc-name">${_waEsc(it.name)}</div>`}
                 ${it.anchored ? `<span class="rbc-anchpill">${_rbcLockSvg} Anchored</span>` : ''}
               </div>
-              <div class="rbc-sub"><span class="rbc-mslot">${_waEsc(it.slot)}${trail && roleShort ? ' · ' + _waEsc(roleShort) : ''} ·&nbsp;</span>${it.subHtml}</div>
+              <div class="rbc-sub">${trail ? '' : `<span class="rbc-mslot">${_waEsc(it.slot)} ·&nbsp;</span>`}${it.subHtml}</div>
               ${it.noteHtml || ''}
             </div>
             ${trail ? '' : `<div class="rbc-foot">
@@ -15291,7 +15325,7 @@ button.rb-lk-live{cursor:pointer}
           // something changes, the one ink fill after. Every edit lands on
           // the DRAFT and paints live; the SAVED look waits for Update.
           // A trip draft keeps its own bar (Discard · Save this look).
-          const rackCfg = { trail: true, filledOnly: true, onSwap: '__lkDSwap', onRemove: '__lkDRemove', onRoleDrop: '__lkDRoleDrop', roleHints: true, onPiece: '__lkPieceOpen' };
+          const rackCfg = { trail: true, filledOnly: true, noStrips: true, onSwap: '__lkDSwap', onRemove: '__lkDRemove', onRoleDrop: '__lkDRoleDrop', onPiece: '__lkPieceOpen' };
           const line = draft
             ? (dirty
                 ? ((_lkDraft && _lkDraft.refined) ? 'Adjusted — “' + _lkDraft.refined + '”. Not yet saved — save it and the trip wears it as it stands here.'
@@ -15360,7 +15394,7 @@ button.rb-lk-live{cursor:pointer}
             ? '<div class="rb-lk-guide plain rb-lk-emptydoor"><div class="gh">Add the pieces you wore</div>' +
                 '<div class="gd">' + (dPhoto ? 'Photograph · not yet filed' : 'Nothing hangs here yet') + '</div>' +
                 '<div class="ga"><button type="button" class="rb-pill" onclick="window.__lkEditToggle()">+ Add pieces</button></div></div>'
-            : _rbRackRolesHtml(rackItems, { trail: true, filledOnly: true, onRoleDrop: '__lkDRoleDrop', onPiece: '__lkPieceOpen' }, propEmpties)) +
+            : _rbRackRolesHtml(rackItems, { trail: true, filledOnly: true, noStrips: true, onRoleDrop: '__lkDRoleDrop', onPiece: '__lkPieceOpen' }, propEmpties)) +
           '</div>';
         // The PINNED bar (handoff 5a): the facts + Edit look as a hairline
         // pill, visible at every scroll position — no ink fill at rest.
@@ -16465,7 +16499,10 @@ button.rb-lk-live{cursor:pointer}
             ? { onSwap: '__lkCSwap', onRoleDrop: '__lkCRoleDrop', onRoleAdd: '__lkHomeSnap', allStrips: true, roleHints: true, onPiece: '__lkCPieceOpen' }
             : { onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop',
                 onRoleAdd: '__lkHomeSnap', allStrips: true, roleHints: true, onPiece: '__lkCPieceOpen' })
-          : { trail: true, filledOnly: true, onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop', roleHints: true, onPiece: '__lkCPieceOpen' };
+          : { trail: true, filledOnly: true, noStrips: !kp, onSwap: '__lkCSwap', onRemove: '__lkCRemove', onRoleDrop: '__lkCRoleDrop', roleHints: !!kp, onPiece: '__lkCPieceOpen' };
+        // The kp in-situ builder keeps its native strips (Canvas · the
+        // base…, 2026-09-28); the Lookbook composer and the saved look
+        // draw bare cards (2026-10-06).
         if (kp) rowCfg.roleHintMap = _KP_ROLE_HINTS;
         const empties = _lkBuilt ? _lkBuildEmpties() : [];
         const rackBare = !home && !items.length && !empties.length;

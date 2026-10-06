@@ -714,24 +714,30 @@ const browser = await chromium.launch(
     d.wearLines.some((x) => x === 'Worn as saved') && d.wearLines.some((x) => /instead of the/.test(x)),
     JSON.stringify(d.wearLines));
 
-  // Formula strips + look tags (Look Template spec A3 + F, 2026-08-07)
+  // Formula roles + look tags (Look Template spec A3 + F, 2026-08-07;
+  // Annie 2026-10-06: the strips are GONE from the look surfaces — each
+  // row is a card whose eyebrow reads "Slot · Role", rows keep the
+  // formula's order, and the whole card opens the piece).
   const specA3F = await page.evaluate(() => {
     const strips = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip span')).map((s) => s.textContent);
+    const rows = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row'));
+    const eyes = rows.map((r) => r.querySelector('.rbc-eye')?.textContent.trim() || '');
     const tagsRow = document.querySelector('.rb-lk-con .rbc-tags');
     return {
-      strips,
-      stripsLeadRows: (() => {
-        const rack = document.querySelector('.rb-lk-con .rbc-rack');
-        return rack && rack.firstElementChild && rack.firstElementChild.classList.contains('rbc-rolestrip');
-      })(),
+      strips, eyes,
+      cards: rows.filter((r) => r.classList.contains('rbc-tap') && r.getAttribute('role') === 'button').length,
+      rows: rows.length,
+      vslotHidden: rows.every((r) => { const v = r.querySelector('.rbc-vp .vslot'); return !v || getComputedStyle(v).display === 'none'; }),
       tagsRow: !!tagsRow,
       tagsEmptyInvite: tagsRow ? /Untagged|Tags/.test(tagsRow.textContent) : false,
     };
   });
-  check('roles · the rack groups under hairline formula strips', specA3F.strips.length >= 2 && specA3F.stripsLeadRows, JSON.stringify(specA3F.strips));
+  check('roles · no strips on the look page — every row is a tappable card whose eyebrow reads Slot · Role',
+    specA3F.strips.length === 0 && specA3F.rows === 4 && specA3F.cards === 4 && specA3F.vslotHidden
+      && specA3F.eyes.every((e) => /^[A-Za-z]+ · (Canvas|Anchor|Texture|Exclamation)$/.test(e)), JSON.stringify(specA3F));
   check('roles · display order is Canvas before Anchor before finishers',
-    specA3F.strips.indexOf('The Canvas') === 0
-      && specA3F.strips.indexOf('The Anchor') === 1, JSON.stringify(specA3F.strips));
+    specA3F.eyes.findIndex((e) => /Canvas$/.test(e)) === 0
+      && specA3F.eyes.findIndex((e) => /Anchor$/.test(e)) === 1, JSON.stringify(specA3F.eyes));
   check('tags · The Look carries the quiet tag row', specA3F.tagsRow === true);
   check('tags · untagged is an invitation, never a form', specA3F.tagsEmptyInvite === true);
 
@@ -800,18 +806,17 @@ const browser = await chromium.launch(
     const wraps = document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-dragrow[draggable="true"]');
     const name0 = document.querySelector('.rb-lk-con .rbc-rack .rbc-dragrow[data-roledrag="0"] .rbc-name')?.textContent;
     window.__lkDRoleDrop(0, 'The Exclamation Point');
-    const rack = document.querySelector('.rb-lk-con .rbc-rack');
-    const names = [];
-    let inGroup = false;
-    Array.from(rack.children).forEach((el) => {
-      if (el.classList.contains('rbc-rolestrip')) inGroup = el.textContent.trim() === 'The Exclamation Point';
-      else if (inGroup) { const n = el.querySelector('.rbc-name'); if (n) names.push(n.textContent); }
-    });
-    return { draggable: wraps.length, name0, names };
+    const rows = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row'));
+    const names = rows.filter((r) => /Exclamation$/.test(r.querySelector('.rbc-eye')?.textContent.trim() || ''))
+      .map((r) => r.querySelector('.rbc-name')?.textContent);
+    // Order inside a group is stable (by index), so the re-cast shirt
+    // sits with the finishers but ahead of the tote that was already one.
+    const first = rows[0]?.querySelector('.rbc-eye')?.textContent.trim();
+    return { draggable: wraps.length, name0, names, first };
   });
   check('roles · every rack row is draggable', cast.draggable === 4, String(cast.draggable));
-  check('roles · a drop re-casts the piece under the target strip',
-    !!cast.name0 && cast.names.includes(cast.name0), JSON.stringify(cast));
+  check('roles · a drop re-casts the piece: its eyebrow reads the new role and it leaves the canvas',
+    !!cast.name0 && cast.names.includes(cast.name0) && !/Canvas$/.test(cast.first || ''), JSON.stringify(cast));
   await page.waitForTimeout(400);
   const roleWrite = writes.filter((w) => w.method === 'POST' && /^look_pieces/.test(w.url)).pop();
   const roleRows = roleWrite && (Array.isArray(roleWrite.body) ? roleWrite.body : [roleWrite.body]);
@@ -1404,23 +1409,18 @@ const browser = await chromium.launch(
   check('composer · with a piece placed, Still-open leads the chooser',
     still.stillOpen === true && JSON.stringify(still.stillChips) === JSON.stringify(['Bottom', 'Shoe', 'Bag']),
     JSON.stringify(still));
-  // The strip inks in as the role is cast (B1), and a drag re-casts freely
+  // The role prints on the row's eyebrow (2026-10-06 — no strips on the
+  // composer), and a drag re-casts freely: the eyebrow follows.
   const inked = await page.evaluate(() => {
-    const stripOf = (label) => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip'))
-      .find((s) => s.textContent.trim() === label);
-    const before = { canvas: stripOf('The Canvas')?.classList.contains('ghost') };
+    const eye = () => document.querySelector('.rb-lk-con .rbc-rack .rbc-row .rbc-eye')?.textContent.trim();
+    const before = eye();
     window.__lkCRoleDrop(0, 'The Anchor');
-    const after = {
-      canvasGone: !stripOf('The Canvas'),
-      anchorGhost: stripOf('The Anchor')?.classList.contains('ghost'),
-    };
+    const after = eye();
     window.__lkCRoleDrop(0, 'The Canvas');
-    return { beforeCanvasGhost: before.canvas, ...after };
+    return { before, after, strips: document.querySelectorAll('.rb-lk-con .rbc-rolestrip').length, restored: eye() };
   });
-  // Strips only ever head pieces now (handoff 4a): a re-cast moves the
-  // piece under its new role and the old strip goes.
-  check('composer · a landed piece heads its strip; a re-cast moves it, the old strip goes',
-    inked.beforeCanvasGhost === false && inked.canvasGone === true && inked.anchorGhost === false,
+  check('composer · a landed piece prints its role on the row eyebrow; a re-cast rewrites it; no strips',
+    /· Canvas$/.test(inked.before || '') && /· Anchor$/.test(inked.after || '') && inked.strips === 0 && /· Canvas$/.test(inked.restored || ''),
     JSON.stringify(inked));
 
   // The flick cycles same-category pieces
@@ -1485,16 +1485,9 @@ const browser = await chromium.launch(
     document.querySelector('[data-lkadd-cat="Tops"]').click();
     Array.from(document.querySelectorAll('#rb-lkadd-sheet .rb-lk-opt'))
       .find((b2) => b2.querySelector('span')?.textContent === 'Cream silk shirt').click();
-    const rack = document.querySelector('.rb-lk-con .rbc-rack');
-    const names = [];
-    let inGroup = false;
-    Array.from(rack.children).forEach((el) => {
-      if (el.classList.contains('rbc-rolestrip')) inGroup = el.textContent.trim() === 'The Canvas';
-      else if (inGroup && !el.classList.contains('rbc-rghost')) {
-        const n = el.querySelector('.rbc-name');
-        if (n) names.push(n.textContent);
-      }
-    });
+    const names = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row'))
+      .filter((r) => /· Canvas$/.test(r.querySelector('.rbc-eye')?.textContent.trim() || ''))
+      .map((r) => r.querySelector('.rbc-name')?.textContent);
     window.__lkNew();   // reset roles + rows for the sections below
     return { eyebrow, names };
   });
@@ -2286,7 +2279,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const det = document.querySelector('.rb-lk-con');
     const ey = document.querySelector('.rbc-rackhead .ey');
     const vslot = document.querySelector('.rbc-vp .vslot');
-    const mslot = document.querySelector('.rbc-mslot');
+    const mslot = document.querySelector('.rbc-trailrow .rbc-eye');
     const badge = document.querySelector('.rbc-share-m');
     const action = document.querySelector('.rbc-action');
     const arrow = document.querySelector('.rbc-trail .rbc-swap');
@@ -2313,7 +2306,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('390px · no horizontal overflow on the detail', md.overflow === true && md.conFits === true, JSON.stringify([md.overflow, md.conFits]));
   // Spec E · mobile parity
   check('390px E · one header — the rack\'s duplicate eyebrow folds away', md.rackEyHidden === true);
-  check('390px E · slot and status share the row eyebrow',
+  check('390px E · the row eyebrow carries slot · role; the thumb\'s slot pill is gone',
     md.vslotHidden === true && md.mslotShown === true, JSON.stringify([md.vslotHidden, md.mslotShown]));
   // The Look detail carries no Share (Wear/Pin/Pack are its actions), so
   // the badge contract is probed on a synthetic console fragment — the
