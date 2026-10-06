@@ -609,12 +609,15 @@ const browser = await chromium.launch(
     const bar = document.querySelector('.rb-lk-held .rb-lk-pinbar');
     const btn = bar?.querySelector('.rb-lk-editlook');
     return { bar: !!bar, meta: bar?.querySelector('.rb-lk-pinmeta')?.textContent, btn: btn?.textContent.trim(),
-      ink: btn ? getComputedStyle(btn).backgroundColor === 'rgb(32, 32, 33)' : null, last: !!bar && bar === bar.parentElement.lastElementChild };
+      ink: btn ? getComputedStyle(btn).backgroundColor === 'rgb(32, 32, 33)' : null, last: !!bar && bar === bar.parentElement.lastElementChild,
+      titleMeta: document.querySelector('#rb-lk-body .rb-tb-meta')?.textContent, right: btn ? Math.round(bar.getBoundingClientRect().right - btn.getBoundingClientRect().right) : null, barW: bar ? Math.round(bar.getBoundingClientRect().width) : null };
   });
   if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-reading-1280.png', fullPage: true }).catch(() => {});
   if (process.env.SHOT_DIR) { await page.evaluate(() => document.querySelector('.rbc-rack')?.scrollIntoView({ block: 'start' })); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOT_DIR + '/look-reading-1280-rack.png' }).catch(() => {}); await page.evaluate(() => { const sc = document.getElementById('sn-page'); if (sc) sc.scrollTop = 0; }); }
-  check('detail · the pinned bar carries the facts and Edit look as a hairline pill, no ink at rest',
-    pinbar.bar && /^4 pieces · 2 wears/.test(pinbar.meta || '') && pinbar.btn === 'Edit look' && pinbar.ink === false && pinbar.last, JSON.stringify(pinbar));
+  // Third pass (2026-10-06): the facts live under the title ONCE — the bar
+  // carries Edit look alone, aligned right.
+  check('detail · the pinned bar carries Edit look alone (a hairline pill, right-aligned, no ink at rest) — the facts read once, under the title',
+    pinbar.bar && pinbar.meta === undefined && /^4 pieces · 2 wears/.test(pinbar.titleMeta || '') && pinbar.btn === 'Edit look' && pinbar.ink === false && pinbar.last && pinbar.right !== null && pinbar.right < pinbar.barW / 3, JSON.stringify(pinbar));
   check('detail · the rack ends and the wear log STANDS ALONE — its own card below the held one, never inside the rack\'s column',
     layout.wornBelowRack === true && layout.wornStandsAlone === true, JSON.stringify(layout));
   const renamed = await page.evaluate(async () => {
@@ -1795,8 +1798,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     saveCls: !!document.querySelector('.rb-lk-prop .rbc-wish'),
   }));
   check('build · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('build · her own pieces hang in the rack, attributed to Robes',
-    b.rows.length === 3 && b.robes === 'Robes', JSON.stringify([b.rows, b.robes]));
+  check('build · her own pieces hang in the rack, the head crediting "Composed by Robes"',
+    b.rows.length === 3 && b.robes === 'Composed by Robes', JSON.stringify([b.rows, b.robes]));
   check('build · one shop suggestion covers the slot her wardrobe cannot',
     b.shop.length === 1 && b.shop[0] === 'Cropped Bouclé Jacket', JSON.stringify(b.shop));
   // Handoff 4a: a proposal row's trail is ♡ (wishlist) · ↻ (swap) · › (its page).
@@ -3920,7 +3923,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // empty, the meta "Photograph · not yet filed", the dashed door under the
   // photograph repeats it; no "Nothing on it yet" notice, no duplicate link.
   check('photo-only look · the pinned pill reads + Add pieces, the meta Photograph · not yet filed, no notice',
-    r0.pin === '+ Add pieces' && /^Photograph · not yet filed/.test(r0.meta || '') && /^Photograph · not yet filed/.test(r0.titleMeta || '') && r0.notice === false, JSON.stringify(r0));
+    r0.pin === '+ Add pieces' && r0.meta === undefined && /^Photograph · not yet filed/.test(r0.titleMeta || '') && r0.notice === false, JSON.stringify(r0));
   check('photo-only look · the dashed door reads Add the pieces you wore, and the duplicate line is gone',
     r0.head === 'Add the pieces you wore' && r0.sub === 'Photograph · not yet filed' && r0.doorBtn === '+ Add pieces' && r0.hangs === false, JSON.stringify(r0));
   await page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-emptydoor .rb-pill').click());

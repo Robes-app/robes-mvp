@@ -9727,7 +9727,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '#kp-build-host .rbc-body>div:first-child{display:flex;flex-direction:column}' +
           '#kp-build-host .rbc-sub{order:-1;margin:0 0 6px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#55524E);gap:6px}' +
           '#kp-build-host .rbc-sub .rbc-mslot{display:inline}' +
-          '#kp-build-host .rbc-trailrow .rbc-sub{order:0;margin:5px 0 0}' +
+          '#kp-build-host .rbc-trailrow .rbc-sub{order:0;margin:5px 0 0;font-size:11px;letter-spacing:0;text-transform:none}' +
+          '#kp-build-host .rbc-trailrow .rbc-sub .brand{font-size:11px}' +
           '#kp-build-host .rbc-eye{font-size:9px;letter-spacing:.2em;color:var(--ink-soft,#55524E);margin-bottom:5px}' +
           '#kp-build-host .rbc-sub .brand{font-family:inherit;font-style:normal;font-size:9px}' +
           '#kp-build-host .rbc-sub .price{font-size:9px}' +
@@ -9781,8 +9782,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '@media(max-width:767px){' +
             '.kp-build-strip{position:sticky;top:0;z-index:6;margin:0 -20px 18px;padding:10px 16px 12px;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}' +
             '#kp-build .kp-build-title{font-size:19px;white-space:nowrap;overflow:hidden}' +
-            '#kp-build-bar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(14px + env(safe-area-inset-bottom));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}' +
-            '#kp-result-page.kp-building .kp-wrap{padding-bottom:150px}' +
+            '#kp-build-bar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}' +
+            '#kp-result-page.kp-building .kp-wrap{padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}' +
             '#kp-build-toast{top:calc(var(--nav-h,64px) + 66px)}' +
           '}' +
           // The NO MODEL YET band — the page's foot when no model is on file.
@@ -10220,11 +10221,12 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         }) + photoNote;
         const rackItems = items.map(it => Object.assign({}, it, {
           count: { cur: 0, len: 1 },
-          thirdHtml: it.owned ? '<span class="rbc-wears">' + _lkN(it.wearCount || 0, 'wear') + '</span>' : '',
+          subHtml: (it.subHtml || '') + (it.owned ? '<span class="rbc-wears">' + _lkN(it.wearCount || 0, 'wear') + '</span>' : ''),
+          thirdHtml: '',
         }));
         // The rack head in the look page's register: the count, the wear
         // verb, and ONE edit door ("Edit this day" ↔ "Edit & resave").
-        const rackHtml = '<div class="rb-lk-sec rb-lk-rackhead"><span>The rack · ' + _lkN(ids.length, 'piece') + '</span><span style="flex:1"></span>' +
+        const rackHtml = '<div class="rb-lk-sec rb-lk-rackhead"><span>The rack · ' + _lkN(items.length, 'piece') + '</span><span style="flex:1"></span>' +
           (o.headButtonsHtml || '') + '</div>' +
           '<div class="rbc-rack">' + _rbRackRolesHtml(rackItems, { onPiece: '__dlLookPieceOpen' }, []) + '</div>';
         return { lookHtml, rackHtml };
@@ -11476,6 +11478,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 /* "✓ In your wardrobe" is true on every row of a look — only the
    exception prints (Look_Screen_Redline 06). */
 .rbc-trailrow .rbc-sub .owned{display:none}
+.rbc-trailrow .rbc-sub .rbc-wears{font-size:11px}
 .rbc-trailrow .rbc-sub .wl+.brand::before,.rbc-trailrow .rbc-sub .wl+.price::before,.rbc-trailrow .rbc-sub .notyours+.brand::before,.rbc-trailrow .rbc-sub .notyours+.price::before{content:'· ';color:var(--ink-faint)}
 .rbd-strip{display:grid;grid-auto-flow:column;grid-auto-columns:200px;gap:10px;overflow-x:auto;padding-bottom:10px;margin-bottom:24px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
 .rbd-day{scroll-snap-align:start;position:relative;text-align:left;border:0.5px solid var(--rule-mid);border-radius:var(--rad);background:#fff;padding:13px 13px 12px;min-height:132px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .2s,background .2s;font-family:inherit}
@@ -11530,7 +11533,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rbc-act{min-height:44px}
 .rbc-row.rbc-trailrow{grid-template-columns:52px minmax(0,1fr) auto;gap:12px;padding:14px 4px 14px 12px}
 .rbc-trailrow .rbc-eye{order:-1}
-.rbc-trailrow .rbc-sub{order:0;margin-top:3px;margin-bottom:0}
+.rbc-trailrow .rbc-sub{order:0;margin-top:3px;margin-bottom:0;font-size:11px;letter-spacing:0;text-transform:none}
+.rbc-trailrow .rbc-sub .brand{font-size:11px}
 .rbc-trailrow .rbc-hownote.rb-lp-was{display:block}
 .rbc-trailrow .rbc-vp{aspect-ratio:52/62}
 /* The exception takes its own line on the phone (the sub wraps there),
@@ -11848,7 +11852,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           <div class="rbc-panel">
             <div class="rbc-lhead">
               <span class="lab">${cfg.headLabel}</span>
-              <span class="robes">${cfg.robesLabel || 'Robes'}</span>
+              ${_lkCreditSpan(cfg.robesLabel === undefined ? 'Composed by Robes' : cfg.robesLabel)}
             </div>
             ${cfg.occHtml || ''}
             ${cfg.quoteHtml ? `<div class="rbc-quote">${cfg.quoteHtml}</div>` : ''}
@@ -14022,6 +14026,8 @@ button.rb-lk-live{cursor:pointer}
    hairline pill — no ink at rest. Editing: Done/Discard · Update look,
    faint until something changes (5c/5d). */
 .rb-lk-pinbar .rb-lk-pinmeta{font-size:12px;color:var(--ink-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Edit look alone, at the right — the facts read once, under the title. */
+.rb-lk-draftbar.rb-lk-pinbar{justify-content:flex-end}
 .rb-lk-pinbar .rb-lk-editlook{flex:none;min-height:40px;padding:0 20px;color:var(--ink);border-color:rgba(32,32,33,0.28)}
 .rb-lk-save.rb-lk-update.faint{background:transparent;color:var(--ink-soft);border:1px solid var(--rule-mid)}
 .rb-lk-save.rb-lk-update.faint:hover{opacity:1;border-color:rgba(32,32,33,0.28)}
@@ -14187,9 +14193,17 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-robesdoor{margin-left:0;align-self:center}
 .rb-lk-save{width:100%;min-height:52px;order:-1}
 .rb-lk-savenote{text-align:center}
-.rb-lk-draftbar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));border-radius:0;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+/* The bar's foot is 12px + the safe area (Annie, 2026-10-06 third pass:
+   the pill crowded the home indicator — env() only resolves once the
+   viewport meta carries viewport-fit=cover, which dashboard.html now does). */
+.rb-lk-draftbar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-radius:0;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .rb-lk-draftbar .rb-lk-save{width:auto;min-height:48px;order:0;flex:none}
-#rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:150px!important}
+/* The scroll end clears the bar (72), the sparkle (54) and its two 16px gaps. */
+#rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))!important}
+/* A pushed view: the title sits 20px under the header line (the overlay's
+   32px + the title block's 22px read as a hole — Annie, same pass). */
+#sn-page:has(.rb-lk-page,.rb-lk-newmast)>div{padding-top:20px!important}
+.rb-lk-page .rb-tb,.rb-lk-newmast{padding-top:0}
 /* The look screen is a PUSHED view (Look_Screen_Redline 02): the dock
    stands down while a look's band is on top, the action bar alone closes
    the screen. body.rb-lk-push is set by _rbNavSync. */
@@ -14993,8 +15007,22 @@ body.rb-lk-push #rb-dock{display:none}
         if (!l || !_lkModel || !_avBusy[l.id]) return '';
         return '<span class="rb-lk-framebusy">Creating ' + _waEsc(_lkModelPro().her) + ' frame…</span>';
       }
+      // The look head's right slot (Annie, 2026-10-06 third pass: a bare
+      // "Robes" was unclear): "Composed by Robes" when Robes composed it —
+      // a prompt, a key piece, a day, a trip, or a build carrying proposals —
+      // and NOTHING on a look she built by hand or that accrued from a wear.
+      function _lkRobesComposed(l) {
+        if (!l) return false;
+        if (/^(robes|robes-build|daily|travel)$/.test(String(l.source || ''))) return true;
+        return Array.isArray(l.proposals) && l.proposals.length > 0;
+      }
+      function _lkCreditSpan(label) {
+        return label ? '<span class="robes">' + label + '</span>' : '';
+      }
       function _lkLookPanelHtml(l, o) {
         const ids = o.ids, items = o.items, props = o.props || [];
+        const creditLabel = _lkRobesComposed(l) ? 'Composed by Robes' : '';
+        const credit = _lkCreditSpan(creditLabel);
         const acts = (o.acts || '') + _lkFrameBusyHtml(l), tail = o.tail || '';
         const shareBadge = o.actionHtml
           ? '<button class="rbc-share-m" onclick="window.__rbShare&&window.__rbShare()" aria-label="Share this look"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>'
@@ -15011,7 +15039,7 @@ body.rb-lk-push #rb-dock{display:none}
         // a render lands, and the whole panel when there is no photograph).
         if (o.dPhoto && o.dView === 'photo' && !o.dirty && !o.editing) {
           return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
-            '<span class="lab">' + (props.length ? 'The look · ' + ids.length + ' yours, ' + props.length + ' to find' : headLabel) + '</span><span class="robes">Robes</span></div>' +
+            '<span class="lab">' + (props.length ? 'The look · ' + ids.length + ' yours, ' + props.length + ' to find' : headLabel) + '</span>' + credit + '</div>' +
             (o.occHtml || '') +
             '<div class="rb-lkm-canvas photo"><div class="rb-lkm-photo"><img src="' + _waEsc(o.dPhoto) + '" alt="' + (o.dFrame ? '' : 'Your photograph of ') + _waEsc(l.name) + '"></div>' + acts + shareBadge + '</div>' +
             (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
@@ -15028,7 +15056,7 @@ body.rb-lk-push #rb-dock{display:none}
         // 2026-10-01). Without a model on file the board carries the edit.
         if (o.editing && _lkModel) {
           _lkmSeedFromLook(l);
-          return _lkModelPanelHtml({
+          return _lkModelPanelHtml({ robesLabel: creditLabel,
             saved: true,
             items: ids.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
             props: _lkPropGarments(props, pr => (pr.img_oi == null || pr.img_oi === (pr.oi || 0)) ? pr.image_url : null),
@@ -15049,7 +15077,7 @@ body.rb-lk-push #rb-dock{display:none}
               subHtml: '', noteHtml: '', count: { cur: 0, len: 1 },
             };
           });
-          return _rbConsole({
+          return _rbConsole({ robesLabel: creditLabel,
             boardOnlyItems: items.concat(propBoard),
             headLabel: 'The look · ' + ids.length + ' yours, ' + props.length + ' to find',
             occHtml: o.occHtml || '',
@@ -15066,7 +15094,7 @@ body.rb-lk-push #rb-dock{display:none}
           // Her photograph of the look — the record, with the model a
           // second view of it (the You / Model switch inside the card).
           return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
-            '<span class="lab">' + headLabel + '</span><span class="robes">Robes</span></div>' +
+            '<span class="lab">' + headLabel + '</span>' + credit + '</div>' +
             (o.occHtml || '') +
             '<div class="rb-lkm-canvas photo"><div class="rb-lkm-photo"><img src="' + _waEsc(o.dPhoto) + '" alt="Your photograph of ' + _waEsc(l.name) + '"></div>' + acts + shareBadge + '</div>' +
             (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
@@ -15075,7 +15103,7 @@ body.rb-lk-push #rb-dock{display:none}
         }
         if (_pdHttp(l.render_url) && !o.dirty) {
           return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
-            '<span class="lab">' + headLabel + '</span><span class="robes">Robes</span></div>' +
+            '<span class="lab">' + headLabel + '</span>' + credit + '</div>' +
             (o.occHtml || '') +
             '<div class="rb-lkm-canvas"><img src="' + _waEsc(_pdHttp(l.render_url)) + '" class="rb-lkm-img" alt="' + _waEsc(l.name) + '">' + acts + shareBadge + '</div>' +
             (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
@@ -15086,14 +15114,14 @@ body.rb-lk-push #rb-dock{display:none}
           // Saved by name with nothing on the rack (the name is the one
           // gate, 2026-09-03): her model stands in her basics rather than
           // an empty board.
-          return _lkModelPanelHtml({
+          return _lkModelPanelHtml({ robesLabel: creditLabel,
             saved: true, items: [],
             headLabel,
             tailHtml: tail + actionHtml,
             canvasExtraHtml: acts + shareBadge,
           });
         }
-        return _rbConsole({
+        return _rbConsole({ robesLabel: creditLabel,
           headLabel,
           occHtml: o.occHtml || '',
           quoteHtml: l.note ? _waEsc(l.note) : '',
@@ -15222,7 +15250,12 @@ body.rb-lk-push #rb-dock{display:none}
         const lkBand = _rbRetHtml({ key: 'look', label: back.label || 'Lookbook', pos: null });
         const lastW = _lkLastWorn(l);
         // "Photograph · not yet filed", never "0 pieces" (handoff 6d).
-        const metaBits = draft ? [] : [ids.length ? _lkN(ids.length, 'piece') : (dPhoto ? 'Photograph · not yet filed' : 'No pieces yet'), n ? _lkN(n, 'wear') : 'not yet worn'];
+        // ONE count everywhere (Annie, 2026-10-06 third pass: the title said
+        // 2, the rack held 4 rows): the number is what the rack HOLDS —
+        // her pieces AND the proposal rows — on the title, on the rack head,
+        // nowhere else (the pinned bar carries no facts any more).
+        const pieceN = items.length + props.length;
+        const metaBits = draft ? [] : [pieceN ? _lkN(pieceN, 'piece') : (dPhoto ? 'Photograph · not yet filed' : 'No pieces yet'), n ? _lkN(n, 'wear') : 'not yet worn'];
         if (!draft && lastW) metaBits.push('last worn ' + _lkFmt(lastW));
         if (lkSet.meta) metaBits.push(lkSet.meta);
         // The meta line NAMES the first pinned day, so the strip below must
@@ -15348,7 +15381,7 @@ body.rb-lk-push #rb-dock{display:none}
             ? _rbRackRolesHtml(items, rackCfg, propEmpties)
             : _lkRackDoorHtml({ items: [], addFn: '__lkDAddOpen', robes: false });
           h += '<div class="rb-lk-held rb-lk-editing"><div class="rb-lk-con"><div>' + lookPanel + (draft ? lpField : '') + '</div><div>' +
-            '<div class="rb-lk-sec rb-lk-rackhead"><span>The rack · ' + _lkN(ids.length, 'piece') + '</span></div>' +
+            '<div class="rb-lk-sec rb-lk-rackhead"><span>The rack · ' + _lkN(pieceN, 'piece') + '</span></div>' +
             '<div class="rbc-rack">' + editRows + '</div>' +
             (items.length || propEmpties.length ? '<button class="rbc-addpiece" onclick="window.__lkDAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>' : '') +
             _lkLivesHtml(l) +
@@ -15383,13 +15416,16 @@ body.rb-lk-push #rb-dock{display:none}
         // From a trip, every owned row also carries the case's Pack toggle
         // (the trip's own write path) — the pieces of a pinned look are
         // what she packs.
+        // The wear count sits UNDER the title as small sans meta (Annie,
+        // 2026-10-06 third pass — in the trail column it pushed long names
+        // onto two lines): "Bag · Texture" above the name, "0 wears" below.
         const rackItems = items.map(it => {
           const ci = (trip && it.owned) ? _lkTripCi(trip.data, it.pieceId) : -1;
           const cap = ci >= 0 ? trip.data.capsule[ci] : null;
           return Object.assign({}, it, {
             count: { cur: 0, len: 1 },
-            thirdHtml: (it.owned ? '<span class="rbc-wears">' + _lkN(it.wearCount || 0, 'wear') + '</span>' : '') +
-              (cap ? '<button type="button" class="rbc-act rb-lk-packbtn' + (cap.packed ? ' on' : '') + '" onclick="window.__lkTripPack(' + ci + ')">' + (cap.packed ? _rbcCheckSvg + ' Packed' : 'Pack') + '</button>' : ''),
+            subHtml: (it.subHtml || '') + (it.owned ? '<span class="rbc-wears">' + _lkN(it.wearCount || 0, 'wear') + '</span>' : ''),
+            thirdHtml: cap ? '<button type="button" class="rbc-act rb-lk-packbtn' + (cap.packed ? ' on' : '') + '" onclick="window.__lkTripPack(' + ci + ')">' + (cap.packed ? _rbcCheckSvg + ' Packed' : 'Pack') + '</button>' : '',
           });
         });
         // The rack READS (handoff 5b): rows carry the piece's wear count
@@ -15398,7 +15434,7 @@ body.rb-lk-push #rb-dock{display:none}
         // pinned bar below is the one edit door. An EMPTY rack is the
         // dashed door (6d) — "Add the pieces you wore", which opens edit
         // mode; a photograph-only look reads "Photograph · not yet filed".
-        h += '<div class="rb-lk-sec rb-lk-rackhead rb-lk-rackhead-read"><span>The rack · ' + _lkN(ids.length, 'piece') + '</span><span style="flex:1"></span>' +
+        h += '<div class="rb-lk-sec rb-lk-rackhead rb-lk-rackhead-read"><span>The rack · ' + _lkN(pieceN, 'piece') + '</span><span style="flex:1"></span>' +
           (trip && !rackEmpty ? '<button type="button" class="rb-lk-sort rb-lk-editbtn rb-lk-packall" onclick="window.__lkTripPackAll()">Pack this look</button>' : '') +
           '</div>' +
           '<div class="rbc-rack">' +
@@ -15411,9 +15447,10 @@ body.rb-lk-push #rb-dock{display:none}
         // The PINNED bar (handoff 5a): the facts + Edit look as a hairline
         // pill, visible at every scroll position — no ink fill at rest.
         // "+ Add pieces" while the rack is empty.
-        const pinMeta = draft ? '' : _waEsc(metaBits.join(' · '));
+        // The bar carries NO facts (Annie, 2026-10-06 third pass — the title's
+        // meta said them already): Edit look alone, aligned right.
         const pinBar = draft ? '' :
-          '<div class="rb-lk-draftbar rb-lk-pinbar"><span class="rb-lk-pinmeta">' + pinMeta + '</span>' +
+          '<div class="rb-lk-draftbar rb-lk-pinbar">' +
             '<button type="button" class="rb-pill rb-lk-editlook" onclick="window.__lkEditToggle()">' + (rackEmpty ? '+ Add pieces' : 'Edit look') + '</button>' +
           '</div>';
 
@@ -15442,7 +15479,7 @@ body.rb-lk-push #rb-dock{display:none}
                   return '<button type="button" class="rb-lk-wear" onclick="' + open + '"><span class="dt">' + _lkFmtDay(iso) + '</span>' +
                     '<span class="pc">' + d.line + '</span>' + _LK_ARROW + '</button>';
                 }).join('') + '</div>'
-              : '<div class="rb-lk-wornempty">Not worn yet. The counter started when you saved it.</div>') +
+              : '<div class="rb-lk-wornempty">The counter started when you saved it.</div>') +
             // Today's wear is filed from the diary button on the image
             // ("I wore this today"); down here only the retro door stands
             // (Annie, 2026-09-08: "Worn today / Not this, actually" read unclear).
@@ -15931,7 +15968,7 @@ body.rb-lk-push #rb-dock{display:none}
         // o.quoteHtml: the stylist note, in the saved look's own register —
         // it sits under the canvas exactly as the render branch prints it.
         return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
-          '<span class="lab">' + o.headLabel + '</span><span class="robes">' + (o.robesLabel || 'Robes') + '</span></div>' +
+          '<span class="lab">' + o.headLabel + '</span>' + _lkCreditSpan(o.robesLabel === undefined ? 'Robes' : o.robesLabel) + '</div>' +
           '<div class="rb-lkm-canvas' + (noModel ? ' prompt' : '') + (showPhoto ? ' photo' : '') + '">' + inner + (noModel ? '' : (o.canvasExtraHtml || '')) + '</div>' +
           (o.quoteHtml ? '<div class="rbc-quote">' + o.quoteHtml + '</div>' : '') +
           (o.tailHtml || '') +
@@ -16306,7 +16343,7 @@ body.rb-lk-push #rb-dock{display:none}
         const items = _lkConItems();
         // The masthead credit reads plain Robes on every surface (Annie,
         // 2026-08-13 second pass — "Robes' build" was a second label).
-        const robesLabel = 'Robes';
+        const robesLabel = (_lkBuilt || _lkDraftSrc || (_lkShop && _lkShop.length)) ? 'Composed by Robes' : '';
         // "N pieces" while they are all hers; "1 yours, 3 to find" once Robes
         // has proposed pieces she doesn't own yet.
         const headLabel = _lkBuilt && _lkShop.length
@@ -16333,7 +16370,7 @@ body.rb-lk-push #rb-dock{display:none}
           });
         } else if (_lkPhoto && _lkPhoto.url && !(_lkPhoto.frame && _lkModel)) {
           lookHtml = '<div class="rbc-panel"><div class="rbc-lhead">' +
-            '<span class="lab">' + headLabel + '</span><span class="robes">' + robesLabel + '</span></div>' +
+            '<span class="lab">' + headLabel + '</span>' + _lkCreditSpan(robesLabel) + '</div>' +
             '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
               '<img src="' + _waEsc(_lkPhoto.url) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="This look"></div>' +
             // A Robes build's frame (a kp way with no model on file) still
@@ -16352,7 +16389,7 @@ body.rb-lk-push #rb-dock{display:none}
           // block for the beat. No spinner, no full-screen loader, no
           // navigation.
           lookHtml = '<div class="rbc-panel" style="flex:1"><div class="rbc-lhead">' +
-            '<span class="lab">The look</span><span class="robes">' + robesLabel + '</span></div>' +
+            '<span class="lab">The look</span>' + _lkCreditSpan(robesLabel) + '</div>' +
             (_lkBuildFrame
               ? '<div style="aspect-ratio:4/5;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200)">' +
                   '<img src="' + _waEsc(_lkBuildFrame) + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="This look"></div>'
@@ -16364,7 +16401,7 @@ body.rb-lk-push #rb-dock{display:none}
           // align-self:stretch below), so the whitespace reads intentional
           // rather than towering past the rack.
           lookHtml = '<div class="rbc-panel" style="flex:1"><div class="rbc-lhead">' +
-            '<span class="lab">' + headLabel + '</span><span class="robes">' + robesLabel + '</span></div>' +
+            '<span class="lab">' + headLabel + '</span>' + _lkCreditSpan(robesLabel) + '</div>' +
             '<div style="flex:1;min-height:280px;border:1.5px dashed var(--rule-mid);border-radius:var(--rad-sm);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center">' +
               '<span style="font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:19px;color:var(--ink-faint)">The look, once you start.</span></div>' +
             '</div>';
@@ -21410,7 +21447,7 @@ body.rb-lk-push #rb-dock{display:none}
           // rack keeps the weekday; the Look detail keeps "The look".
           // The count lives on the rack alone (Annie, 2026-09-09).
           headLabel: dlLoose ? 'The look' : `The ${dlEve ? 'evening' : 'day'}`,
-          robesLabel: dayChg.n ? '<span style="color:#8C9A72">Adjusted</span>' : 'Robes',
+          robesLabel: dayChg.n ? '<span style="color:#8C9A72">Adjusted</span>' : 'Composed by Robes',
           occHtml: dlOccHtml,
           quoteHtml: summaryHtml || (quote ? '“' + _waEsc(quote) + '”' : ''),
           fabricsHtml,
