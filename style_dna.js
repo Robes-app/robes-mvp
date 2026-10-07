@@ -673,6 +673,22 @@ function overrideLines(uo) {
   return lines;
 }
 
+// The facts (style_dna.facts, Settings 2026-10-07): {height_cm, size_uk,
+// shoe_uk, age_band}. Size, never weight — and never estimated from a
+// photograph: these are hers, given.
+export function factsLines(f) {
+  if (!f || typeof f !== 'object') return [];
+  const parts = [];
+  const h = Number(f.height_cm), s = Number(f.size_uk), sh = Number(f.shoe_uk);
+  if (h >= 120 && h <= 230) parts.push(`height ${Math.round(h)} cm`);
+  if (s >= 2 && s <= 30) parts.push(`dress size UK ${s} (EU ${s + 28})`);
+  if (sh >= 1 && sh <= 14) parts.push(`shoes UK ${sh}`);
+  const age = typeof f.age_band === 'string' && f.age_band.trim() ? f.age_band.trim().slice(0, 20) : '';
+  if (age) parts.push(`age ${age}`);
+  if (!parts.length) return [];
+  return [`THE FACTS she gave — size, never weight: ${parts.join(', ')}. Propose what fits these and size every piece to them; never estimate them from a photograph.`];
+}
+
 export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []) {
   const icons = Array.isArray(styleIcons) ? styleIcons.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 12) : [];
   const dna = styleDna && typeof styleDna === 'object' ? styleDna : {};
@@ -686,7 +702,14 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   const soft = strs(dna.style_archetypes_soft).filter(s => !arch.includes(s));
   const briefLines = styleBriefLines(dna.brief);
   const memLines = memoryLines(dna.memory);
-  if (!ch && !sp && !icons.length && !arch.length && !soft.length && !briefLines.length && !memLines.length) return '';
+  // The Style DNA page (Settings, 2026-10-07): the brands she reaches for,
+  // the one investment level, the facts she gave (size, never weight) and a
+  // tag per icon — all on the same jsonb, all read here.
+  const brands = strs(dna.brands).slice(0, 20);
+  const investment = typeof dna.investment === 'string' && dna.investment.trim() ? dna.investment.trim().slice(0, 40) : '';
+  const factLines = factsLines(dna.facts);
+  const tags = dna.icon_tags && typeof dna.icon_tags === 'object' ? dna.icon_tags : {};
+  if (!ch && !sp && !icons.length && !arch.length && !soft.length && !briefLines.length && !memLines.length && !brands.length && !investment && !factLines.length) return '';
   const lines = [];
   // Her brief, in her own words (the In-your-words chapter, 2026-09-30):
   // rendered FIRST and said to outrank every rule beneath it — a line she
@@ -705,9 +728,19 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   // Style icons are the user's declared taste — they steer the aesthetic of
   // every downstream recommendation, layered over the photo-verified DNA.
   if (icons.length) {
-    lines.push(`STYLE ICONS — the user named these as their taste references: ${icons.join(', ')}.`);
+    const named = icons.map(i => { const t = typeof tags[i] === 'string' && tags[i].trim() ? tags[i].trim().slice(0, 40) : ''; return t ? `${i} (${t})` : i; });
+    lines.push(`STYLE ICONS — the user named these as their taste references: ${named.join(', ')}.`);
     lines.push('Follow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.');
   }
+  // The houses she reaches for, the ceiling she set, the facts she gave.
+  if (brands.length) {
+    lines.push(`BRANDS she reaches for: ${brands.join(', ')}.`);
+    lines.push('When a piece has to be found, look to these houses and their register first — a proposal should read as something she would have chosen herself.');
+  }
+  if (investment) {
+    lines.push(`INVESTMENT LEVEL — she spends ${investment} a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph.`);
+  }
+  if (factLines.length) lines.push(...factLines);
   // Colours she confirmed or refused on the brief ride the same override
   // slots the DNA engine has always honoured.
   const uo = briefOverrides(dna);

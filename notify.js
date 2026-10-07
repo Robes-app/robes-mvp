@@ -332,7 +332,7 @@ export function createNotifier(cfg) {
             m = { kind: 'look_waiting', ref: l.id, subject: 'She’d wear it.', heading: 'She’d wear it.',
               bodyHtml: `<em>${esc(l.name)}</em> is in your Lookbook. Build your model once and she wears every look you keep.`,
               bodyText: `${l.name} is in your Lookbook. Build your model once and she wears every look you keep.`,
-              images: [lookFrame(l)], cta: { label: 'Build your model', url: link('/stylenotes') } };
+              images: [lookFrame(l)], cta: { label: 'Build your model', url: link('/settings?page=twin') } };
           } else if (nudges && age >= 3 * DAY && pics.length < 5 && !has('borrowing')) {
             const l = myLooks.find((x) => Array.isArray(x.proposals) && x.proposals.length >= 2);
             if (l) {

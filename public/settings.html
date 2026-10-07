@@ -1,0 +1,2219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="/js/posthog.js"></script>
+  <title>Settings — Robes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="/css/tokens.css">
+<style>
+    /* ══ Settings — the digital twin (design: Settings_Prototype.dc.html, 2026-10-07)
+       One surface behind the avatar: Style Profile | Account. A card slides
+       its page in; a row lifts a sheet titled with Done; the dimmed page
+       closes it. Every engine on this page is the Style notes engine it
+       replaced (the model, the analyse pipeline, the brief) — only the
+       surface is new. ══ */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--cream); }
+    body { font-family: 'Inter', -apple-system, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--cream-300); border-radius: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    button { font-family: inherit; }
+    [hidden] { display: none !important; }
+
+    /* ── the topbar (unchanged from Style notes: ROBES | ‹ Home · the account avatar) ── */
+    .topbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; height: var(--nav-h); padding: 0 calc(max((100% - var(--shell)) / 2, 0px) + var(--s6)); background: rgba(250,248,245,0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--cream-300); }
+    .topbar-l { display: flex; align-items: center; gap: 16px; min-width: 0; }
+    .wordmark { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 20px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink); text-decoration: none; }
+    .topbar-sep { width: 1px; height: 16px; background: #E0D8C8; }
+    #save-state { font: 400 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); opacity: 0; transition: opacity 0.3s; }
+    #save-state.on { opacity: 1; }
+    #save-state.err { color: #8B3A30; }
+    .topbar-r { display: flex; align-items: center; gap: 12px; }
+    .sn-weather { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 100px; font: 300 11.5px/1 'Inter'; letter-spacing: 0.01em; color: var(--ink-soft); }
+    .sn-weather .wx { font-size: 14px; opacity: 0.85; }
+    .sn-weather .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-faint); opacity: 0.6; }
+    .sn-back { position: relative; display: inline-flex; align-items: center; gap: 5px; font: 400 13px/1 'Inter'; color: var(--ink-faint); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; transition: color .2s; white-space: nowrap; }
+    .sn-back::after { content: ''; position: absolute; inset: -14px -10px; }
+    .sn-back svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .sn-back:hover { color: var(--ink); }
+    @media (max-width: 767px) {
+      .sn-back { gap: 5px; padding: 6px 12px 6px 8px; border: 0.5px solid var(--rule-mid); border-radius: 100px; background: rgba(255,255,255,0.7); font-size: 12.5px; color: var(--ink); }
+      .sn-back::after { display: none; }
+      .sn-back svg { width: 15px; height: 15px; stroke: var(--ink-soft); }
+    }
+    .sn-av-wrap { position: relative; }
+    .sn-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--cream); display: flex; align-items: center; justify-content: center; font: 400 13px/1 'Cormorant', Georgia, serif; cursor: pointer; user-select: none; }
+    .sn-av-menu { position: absolute; top: 42px; right: 0; width: 208px; background: var(--cream); border: 0.5px solid #E0D8C8; border-radius: 10px; box-shadow: 0 14px 40px rgba(32,32,33,0.12); padding: 6px; opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; z-index: 300; }
+    .sn-av-menu.open { opacity: 1; transform: translateY(0); pointer-events: all; }
+    .sn-av-name { padding: 10px 12px 8px; border-bottom: 0.5px solid #EDE6D8; margin-bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
+    .sn-av-name strong { font: 500 13px/1.2 'Inter'; color: var(--ink); }
+    .sn-av-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: none; background: none; border-radius: 7px; cursor: pointer; font: 400 12.5px/1 'Inter'; color: var(--ink); text-align: left; }
+    .sn-av-item:hover { background: #F3EFE6; }
+    .sn-av-item svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+    .sn-av-item.sn-av-out { border-top: 0.5px solid #EDE6D8; border-radius: 0 0 7px 7px; margin-top: 4px; padding-top: 12px; }
+    @media (max-width: 767px) { .sn-weather { display: none; } }
+
+    /* Mobile dock — the dashboard's anchored destinations; nothing lit here */
+    #rb-dock { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 48; padding: 10px 10px calc(12px + env(safe-area-inset-bottom)); }
+    #rb-dock-in { display: flex; gap: 0; background: rgba(255,255,255,0.7); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border: 1px solid rgba(231,224,207,0.85); border-radius: 24px; padding: 5px 4px; }
+    .rb-dock-tab { position: relative; flex: 1; min-width: 0; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 7px; color: var(--ink-soft); font-family: 'Inter', sans-serif; font-size: 9.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+    .rb-dock-tab svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    @media (max-width: 767px) {
+      #rb-dock { display: block; }
+      body { padding-bottom: 96px; }
+      .wordmark, .topbar-sep { display: none; }
+    }
+
+    main { max-width: var(--shell); margin: 0 auto; padding: 32px var(--s6) 120px; }
+    .sp-col { max-width: 720px; margin: 0 auto; }
+
+    /* ── the type register ── */
+    .eyebrow { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink-faint); }
+    .eyebrow-rose { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rose, #8E6A7C); }
+    .note-it { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-weight: 300; font-size: 14px; color: var(--ink-faint); }
+    .sec-head { display: flex; align-items: baseline; justify-content: space-between; }
+    .hr { height: 1px; background: var(--cream-300); margin: 48px 0; }
+    .sp-title { margin: 0; font: 300 34px/1.06 'Cormorant', Georgia, serif; color: var(--ink); letter-spacing: -0.01em; }
+    .sp-title em { font-style: italic; color: #8A8378; }
+    .sp-sub { margin: 10px 0 0; font: 300 14px/1.6 'Inter'; color: var(--ink-soft); max-width: 520px; text-wrap: pretty; }
+
+    /* ── the root: Settings · Style Profile | Account ── */
+    .sp-head { display: flex; flex-direction: column; gap: 18px; }
+    .rb-seg2 { display: grid; grid-template-columns: 1fr 1fr; width: 260px; height: 36px; padding: 3px; border-radius: 100px; background: var(--cream-200); align-items: stretch; }
+    .rb-seg2 button { border: 0; background: none; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; padding: 0 10px; white-space: nowrap; }
+    .rb-seg2 button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(32,32,33,0.08); }
+    @media (max-width: 767px) { .rb-seg2 { width: 100%; } }
+    .sp-tab { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; }
+
+    /* ── cards — white on a hairline; the whole card is the door ── */
+    .sp-card { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid var(--rule); border-radius: var(--rad-card); padding: 20px 22px; font-family: inherit; color: var(--ink); cursor: pointer; transition: border-color .2s, transform .2s; position: relative; }
+    .sp-card:hover { border-color: var(--rule-mid); }
+    .sp-card.static { cursor: default; }
+    .sp-card.static:hover { border-color: var(--rule); }
+    .sp-card .k { font: 400 9.5px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rose); }
+    .sp-card .t { font: 400 24px/1.15 'Cormorant', Georgia, serif; color: var(--ink); margin-top: 8px; display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+    .sp-card .t .chev { font: 300 20px/1 'Inter'; color: var(--ink-faint); flex: none; }
+    .sp-card .s { font: 300 13px/1.55 'Inter'; color: var(--ink-soft); margin-top: 6px; text-wrap: pretty; }
+    .sp-card .st { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; }
+    .sp-card .st span { font: 400 11px/1.4 'Inter'; color: var(--ink-soft); }
+    .sp-card .st span b { font-weight: 400; color: var(--ink); }
+    .sp-card .st span.none { font-style: italic; color: var(--ink-faint); }
+    .sp-card .st span.new { color: var(--sage); }
+    .sp-card .st span.new::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--sage); margin-right: 6px; vertical-align: 1px; }
+
+    /* the "Robes noticed" swipe card on the Style Profile tab */
+    .sp-notice { position: relative; overflow: hidden; background: var(--cream-100); border: 1px solid var(--rule-mid); border-radius: var(--rad-card); padding: 20px 22px 18px; touch-action: pan-y; user-select: none; }
+    .sp-notice .k { font: 400 9.5px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--sage); }
+    .sp-notice .t { font: 400 22px/1.25 'Cormorant', Georgia, serif; color: var(--ink); margin-top: 10px; }
+    .sp-notice .b { font: italic 300 14px/1.5 'Cormorant', Georgia, serif; color: var(--ink-soft); margin-top: 6px; }
+    .sp-notice .verbs { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+    .sp-notice .verbs button { height: 40px; padding: 0 18px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; }
+    .sp-notice .verbs button:hover { border-color: var(--ink); }
+    .sp-notice .stamp { position: absolute; top: 18px; font: 500 10px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; padding: 8px 12px; border-radius: 100px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+    .sp-notice .stamp.keep { right: 18px; background: #F3EFE6; border: 1px solid #C9BCA6; color: var(--ink); }
+    .sp-notice .stamp.no { left: 18px; border: 1px solid var(--cream-400); color: var(--ink-soft); background: #fff; }
+    .sp-notice.fly { transition: transform .24s ease, opacity .24s ease; }
+    @media (prefers-reduced-motion: reduce) { .sp-notice.fly { transition: none; } }
+    .sp-toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--cream); font: 400 12px/1 'Inter'; letter-spacing: 0.02em; padding: 12px 18px; border-radius: 100px; z-index: 500; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; max-width: calc(100vw - 32px); }
+    .sp-toast.on { opacity: 1; }
+    @media (max-width: 767px) { .sp-toast { bottom: calc(108px + env(safe-area-inset-bottom)); } }
+
+    /* ── pages: a card slides its page in from the right; ‹ Settings takes it back ── */
+    .sp-page { animation: spPageIn .3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    @keyframes spPageIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+    .sp-page.back { animation: spPageBack .26s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    @keyframes spPageBack { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .sp-page, .sp-page.back { animation: none; } }
+    .sp-pagehead { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
+    .sp-backpill { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; font: 400 13px/1 'Inter'; color: var(--ink-faint); cursor: pointer; position: relative; }
+    .sp-backpill::after { content: ''; position: absolute; inset: -12px -10px; }
+    .sp-backpill svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .sp-backpill:hover { color: var(--ink); }
+
+    /* a group of rows — the Style DNA page, the Account cards */
+    .sp-group { background: #fff; border: 1px solid var(--rule); border-radius: var(--rad-card); overflow: hidden; }
+    .sp-group + .sp-group, .sp-gk + .sp-group { margin-top: 0; }
+    .sp-gk { font: 400 9.5px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint); margin: 26px 0 10px 2px; }
+    .sp-gk:first-child { margin-top: 0; }
+    .sp-row { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 60px; padding: 14px 18px; background: none; border: 0; border-top: 1px solid var(--rule); text-align: left; font-family: inherit; color: var(--ink); cursor: pointer; }
+    .sp-row:first-child { border-top: 0; }
+    .sp-row:hover { background: var(--cream-100); }
+    .sp-row.static { cursor: default; }
+    .sp-row.static:hover { background: none; }
+    .sp-row .l { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .sp-row .n { font: 400 17px/1.2 'Cormorant', Georgia, serif; }
+    .sp-row .d { font: 300 12px/1.45 'Inter'; color: var(--ink-soft); }
+    .sp-row .v { font: 300 13px/1.35 'Inter'; color: var(--ink-soft); text-align: right; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sp-row .v.none { font-style: italic; color: var(--ink-faint); }
+    .sp-row .v.rose { color: var(--rose); }
+    .sp-row .chev { font: 300 18px/1 'Inter'; color: var(--ink-faint); flex: none; }
+    .sp-row.danger .n { color: #8B3A30; }
+    .sp-row .ext { font: 300 13px/1 'Inter'; color: var(--ink-faint); }
+    .sp-alert { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 22px; padding: 14px 18px; background: var(--cream-100); border: 1px solid var(--rule-mid); border-radius: var(--rad); text-align: left; font-family: inherit; cursor: pointer; }
+    .sp-alert .l { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+    .sp-alert .n { font: 400 15px/1.2 'Cormorant', Georgia, serif; color: var(--ink); }
+    .sp-alert .d { font: 300 12px/1.4 'Inter'; color: var(--ink-soft); }
+    .sp-alert .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); flex: none; }
+
+    /* toggles (Notifications) */
+    .sp-tog { position: relative; width: 42px; height: 24px; border-radius: 100px; background: var(--cream-300); border: 0; cursor: pointer; flex: none; transition: background .2s; }
+    .sp-tog::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(32,32,33,0.14); transition: transform .2s; }
+    .sp-tog.on { background: var(--ink); }
+    .sp-tog.on::after { transform: translateX(18px); }
+    .sp-tog[disabled] { opacity: .4; cursor: default; }
+    .sp-hour { height: 30px; border: 1px solid var(--rule-mid); border-radius: var(--rad-sm); background: #fff; color: var(--ink); font: 400 12px/1 'Inter'; padding: 0 6px; }
+    .sp-foot { margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+    .sp-foot .h { font: 300 13px/1.5 'Inter'; color: var(--ink-soft); }
+    .sp-foot .h a { color: var(--ink); }
+    .sp-foot .ver { font: 400 9.5px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); }
+    .sp-out { margin-top: 6px; background: none; border: 1px solid var(--cream-400); border-radius: 100px; padding: 12px 24px; font: 500 10px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink); cursor: pointer; }
+    .sp-out:hover { border-color: var(--ink); }
+
+    /* ── the twin page ── */
+    #pg-twin > .sp-col { max-width: 1100px; }
+    .tw-grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+    @media (min-width: 1024px) {
+      .tw-grid { grid-template-columns: 430px minmax(0, 1fr); gap: 48px; align-items: start; }
+      .tw-stage { position: sticky; top: calc(var(--nav-h) + 24px); height: calc(100vh - var(--nav-h) - 48px); min-height: 520px; max-height: 760px; }
+    }
+    .tw-stage { position: relative; height: 480px; background: #F5F0E9; border: 1px solid var(--cream-300); border-radius: var(--rad-card); overflow: hidden; }
+    @media (max-width: 767px) { .tw-stage { height: 420px; margin: 0 calc(-1 * var(--s6)); border-radius: 0; border-left: 0; border-right: 0; } }
+    .tw-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .tw-stage::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: linear-gradient(to top, rgba(245,240,233,0.94), rgba(245,240,233,0)); z-index: 2; pointer-events: none; }
+    .mv-fig-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 34px; text-align: center; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 16px; line-height: 1.6; color: #B0A798; z-index: 3; }
+    .mv2-stagehead { position: absolute; left: 22px; right: 22px; bottom: 20px; display: none; flex-direction: column; gap: 6px; z-index: 3; }
+    .mv2-ey { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rose, #8E6A7C); }
+    .mv-caption { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 18px; line-height: 1.45; color: #4F4A44; }
+    @keyframes mvFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .mv-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; animation: mvFadeIn 0.4s ease both; z-index: 1; }
+    .mv-photo-busy { position: absolute; right: 14px; top: 16px; white-space: nowrap; font: 400 9.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); background: rgba(250,248,245,0.88); border: 1px solid var(--cream-300); border-radius: 100px; padding: 8px 14px; animation: rb-pulse 1.4s ease-in-out infinite; z-index: 4; }
+    @keyframes rb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    .tw-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .tw-main .sp-card .t { font-size: 21px; }
+
+    /* the two photograph slots — dashed in the empty state, tiles inside the sheet */
+    .tw-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .tw-slot { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .photo-slot { display: block; width: 100%; aspect-ratio: 3 / 4; border-radius: var(--rad); overflow: hidden; border: 1.5px dashed var(--cream-400); background: var(--cream-100); cursor: pointer; position: relative; padding: 0; font-family: inherit; }
+    .photo-slot:has(img) { border-style: solid; border-color: var(--cream-300); }
+    .photo-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .slot-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; }
+    .slot-title { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-weight: 300; font-size: 18px; color: var(--ink-faint); text-align: center; }
+    .slot-hint { font: 500 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink); border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; padding: 9px 14px; }
+    .photo-slot:hover .slot-hint { border-color: var(--ink); }
+    .photo-slot.drag-over { border-color: var(--ink); }
+    .photo-slot.busy { pointer-events: none; }
+    .photo-slot.busy .slot-hint { color: var(--ink-faint); border-color: transparent; animation: rb-pulse 1.4s ease-in-out infinite; }
+    .slot-scrim { position: absolute; inset: 0; background: rgba(243,239,230,0.82); display: flex; align-items: center; justify-content: center; }
+    .slot-replace { position: absolute; right: 10px; bottom: 10px; width: 30px; height: 30px; border-radius: 50%; background: rgba(250,248,245,0.92); border: 1px solid var(--cream-300); display: flex; align-items: center; justify-content: center; color: var(--ink); }
+    .slot-replace svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .slot-err { font: 300 12px/1.5 'Inter'; color: #8B3A30; display: none; }
+    .slot-err.on { display: block; }
+    .tw-slotlab { font: 400 9.5px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
+    .mv-read { font: 400 10px/1 'Inter'; color: var(--sage, #4A7B6F); letter-spacing: 0.1em; text-transform: uppercase; }
+    .mv-guide { font: 300 12px/1.55 'Inter'; color: #8A8378; margin: 0; }
+    .mv2-likread { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 13.5px; line-height: 1.5; color: #4F4A44; margin: 0; }
+
+    /* the by-hand rows (skin · hair · the line · the frame) — in place while
+       nothing has read, inside the sheets after */
+    .mvr { display: flex; align-items: center; gap: 16px; border-bottom: 1px solid rgba(225,218,203,0.6); padding: 14px 0; }
+    .mvr:last-child { border-bottom: 0; }
+    .mvr-k { flex: none; width: 92px; font: 400 10.5px/1.4 'Inter'; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8378; }
+    .mvr-opts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+    .mvr-pill { border-radius: 100px; padding: 10px 16px; cursor: pointer; font: 400 12px/1 'Inter'; color: var(--ink); background: #FFFFFF; border: 1px solid var(--cream-300); }
+    .mvr-pill.on { background: #F3EFE6; border-color: #C9BCA6; }
+    .mvr-dot { width: 28px; height: 28px; border-radius: 100px; cursor: pointer; padding: 0; border: 1px solid rgba(32,32,33,0.14); }
+    .mvr-dot.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--cream), 0 0 0 3px var(--ink); }
+    .mvr-cur { font: 400 12px/1 'Inter'; color: #6E675E; margin-left: 6px; }
+    @media (max-width: 767px) { .mvr { flex-wrap: wrap; gap: 10px 14px; } .mvr-k { width: 100%; } }
+
+    /* the facts card — five cells */
+    .tw-facts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+    .tw-facts .c { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .tw-facts .c .k { font: 400 9px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); }
+    .tw-facts .c .v { font: 400 17px/1.15 'Cormorant', Georgia, serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tw-facts .c .v.add { font-style: italic; font-weight: 300; color: var(--ink-faint); }
+    @media (max-width: 767px) { .tw-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; } }
+
+    /* the footer — the one ink pill (Build a look), the filed line, the status */
+    .mv2-foot { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
+    .mv2-footcol { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .mv-filed { font: 400 10px/1.5 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sage, #4A7B6F); }
+    .mv-filed.flash { animation: mvFadeIn 0.5s ease both; }
+    .mv-build { flex: none; white-space: nowrap; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 34px; font: 400 11px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; }
+    .mv-status { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.5; color: #8A8378; }
+    @media (max-width: 767px) { .mv2-foot { flex-direction: column; align-items: stretch; text-align: center; gap: 12px; } .mv2-footcol { display: contents; } .mv-filed { order: 1; } .mv-build { order: 2; width: 100%; } .mv-status { order: 3; } }
+
+    /* ── sheets — a bottom sheet with a grab bar on the phone, a centred card on the web ── */
+    #sh-wrap { position: fixed; inset: 0; z-index: 400; background: rgba(32,32,33,0.22); display: flex; align-items: center; justify-content: center; padding: 24px; animation: mvFadeIn 0.2s ease both; }
+    #sh { width: 100%; max-width: 560px; max-height: calc(100vh - 48px); background: var(--cream); border: 1px solid var(--cream-300); border-radius: var(--rad-lg); box-shadow: 0 24px 70px rgba(32,32,33,0.16); display: flex; flex-direction: column; animation: shIn 0.26s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    @keyframes shIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    .sh-grab { display: none; }
+    .sh-head { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 24px 14px; }
+    .sh-title { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 26px; line-height: 1.1; color: var(--ink); }
+    .sh-sub { font: 300 13px/1.5 'Inter'; color: var(--ink-soft); margin-top: 6px; text-wrap: pretty; }
+    .sh-done { flex: none; background: none; border: 1px solid var(--cream-400); border-radius: 100px; padding: 9px 18px; cursor: pointer; font: 500 10px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
+    .sh-done:hover { border-color: var(--ink); }
+    .sh-body { flex: 1; overflow-y: auto; padding: 4px 24px 26px; -webkit-overflow-scrolling: touch; }
+    @media (max-width: 767px) {
+      #sh-wrap { align-items: flex-end; padding: 0; }
+      #sh { max-width: none; max-height: calc(92dvh - env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; border-left: 0; border-right: 0; border-bottom: 0; animation: shUp 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+      @keyframes shUp { from { transform: translateY(100%); } to { transform: none; } }
+      .sh-grab { display: flex; justify-content: center; padding: 10px 0 0; }
+      .sh-grab span { width: 44px; height: 4px; border-radius: 100px; background: #E1DACB; }
+      .sh-head { padding: 12px 20px 12px; }
+      .sh-body { padding: 0 20px calc(26px + env(safe-area-inset-bottom)); }
+    }
+    .sh-k { font: 400 9.5px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rose); margin: 22px 0 10px; }
+    .sh-k:first-child { margin-top: 6px; }
+    .sh-k.sage { color: var(--sage); }
+    .sh-k .h { font: italic 300 13px/1 'Cormorant', Georgia, serif; color: var(--ink-soft); text-transform: none; letter-spacing: 0; margin-left: 10px; }
+    .sh-note { font: italic 300 14px/1.5 'Cormorant', Georgia, serif; color: var(--ink-soft); margin: 8px 0 0; }
+    .sh-filed { font: 400 10px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--sage); margin-top: 14px; }
+    .sh-empty { font: italic 300 15px/1.5 'Cormorant', Georgia, serif; color: var(--ink-faint); padding: 6px 0; }
+
+    /* pills — chosen is warm, never black */
+    .sh-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .sh-pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; padding: 10px 14px; font: 400 12.5px/1 'Inter'; color: var(--ink); cursor: pointer; text-align: left; }
+    .sh-pill:hover { border-color: var(--ink); }
+    .sh-pill.on { border-color: #C9BCA6; background: #F3EFE6; }
+    .sh-pill .tag { font: italic 300 12px/1 'Cormorant', Georgia, serif; color: var(--ink-soft); }
+    .sh-pill .x { font: 300 14px/1 'Inter'; color: var(--ink-faint); }
+    .sh-pill .mono { width: 20px; height: 20px; border-radius: 50%; background: var(--cream-200); display: inline-flex; align-items: center; justify-content: center; font: 300 12px/1 'Cormorant', Georgia, serif; color: var(--ink-faint); }
+    .sh-search { height: 46px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; display: flex; align-items: center; padding: 0 16px; gap: 10px; margin-top: 6px; }
+    .sh-search:focus-within { border-color: var(--ink); }
+    .sh-search .q { font: 300 15px/1 'Inter'; color: var(--ink-faint); }
+    .sh-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font: 300 15px/1 'Inter'; color: var(--ink); }
+    .sh-search input::placeholder { color: var(--ink-faint); }
+    .sh-search .clr { background: none; border: 0; padding: 0; font: 300 16px/1 'Inter'; color: var(--ink-faint); cursor: pointer; }
+
+    /* option rows (style type · investment) */
+    .sh-opts { display: flex; flex-direction: column; gap: 8px; }
+    .sh-opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; padding: 14px 18px; border-radius: var(--rad); border: 1px solid var(--cream-300); background: #fff; cursor: pointer; text-align: left; font-family: inherit; color: var(--ink); }
+    .sh-opt:hover { border-color: var(--cream-400); }
+    .sh-opt.on { border-color: #C9BCA6; background: #F3EFE6; }
+    .sh-opt .n { font: 400 18px/1.15 'Cormorant', Georgia, serif; }
+    .sh-opt .d { font: 300 12px/1.4 'Inter'; color: var(--ink-soft); margin-top: 3px; }
+    .sh-opt .r { font: 400 15px/1 'Cormorant', Georgia, serif; color: var(--ink-soft); white-space: nowrap; }
+    .sh-opt .ck { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--cream-400); display: inline-flex; align-items: center; justify-content: center; font: 500 10px/1 'Inter'; color: var(--ink); flex: none; }
+    .sh-opt.on .ck { background: #fff; border-color: #C9BCA6; }
+    .sh-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sh-grid2 .sh-opt { padding: 12px 14px; }
+
+    /* the facts sheet */
+    .fx-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+    .fx-row:last-child { border-bottom: 0; }
+    .fx-k { font: 400 10.5px/1.4 'Inter'; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8378; width: 72px; flex: none; }
+    .fx-step { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--cream-300); border-radius: 100px; background: #fff; padding: 3px; }
+    .fx-step button { width: 36px; height: 36px; border-radius: 50%; border: 0; background: none; font: 300 20px/1 'Inter'; color: var(--ink); cursor: pointer; }
+    .fx-step button:hover { background: var(--cream-100); }
+    .fx-step .v { min-width: 92px; text-align: center; font: 400 17px/1 'Cormorant', Georgia, serif; color: var(--ink); }
+    .fx-step .v.none { font-style: italic; font-weight: 300; color: var(--ink-faint); font-size: 15px; }
+    .fx-side { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .fx-sub { font: 300 12px/1 'Inter'; color: var(--ink-soft); min-width: 48px; }
+    .fx-unit { display: inline-flex; border: 1px solid var(--cream-300); border-radius: 100px; padding: 2px; background: #fff; }
+    .fx-unit button { border: 0; background: none; border-radius: 100px; padding: 6px 10px; font: 500 9.5px/1 'Inter'; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; }
+    .fx-unit button.on { background: #F3EFE6; color: var(--ink); }
+    .fx-clear { background: none; border: 0; padding: 0; font: 300 12px/1 'Inter'; color: var(--ink-faint); cursor: pointer; text-decoration: underline; }
+    .fx-clear:hover { color: var(--ink); }
+
+    /* lines (In your words sheets · the observations) */
+    .ln { display: flex; align-items: baseline; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+    .ln:last-child { border-bottom: 0; }
+    .ln .t { flex: 1; font: 400 18px/1.3 'Cormorant', Georgia, serif; color: var(--ink); min-width: 0; }
+    .ln .t.typed { font-style: italic; }
+    .ln .from { font: italic 300 13px/1.4 'Cormorant', Georgia, serif; color: var(--ink-faint); display: block; margin-top: 2px; }
+    .ln .x { background: none; border: 0; padding: 0 2px; font: 300 18px/1 'Inter'; color: var(--ink-faint); cursor: pointer; flex: none; }
+    .ln .x:hover { color: var(--ink); }
+    .ln-add { display: flex; align-items: center; gap: 10px; padding: 12px 0 0; }
+    .ln-add .plus { font: 300 16px/1 'Inter'; color: var(--ink-faint); }
+    .ln-add input { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid var(--cream-400); background: transparent; padding: 6px 0; font: italic 400 17px/1.2 'Cormorant', Georgia, serif; color: var(--ink); outline: none; }
+    .ln-add input:focus { border-bottom-color: var(--ink); }
+    .ln-add input::placeholder { color: var(--ink-faint); }
+    .ob { background: #fff; border: 1px solid var(--rule); border-radius: var(--rad-card); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .ob .k { font: 400 9px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rose); }
+    .ob .t { font: 400 20px/1.25 'Cormorant', Georgia, serif; color: var(--ink); }
+    .ob .b { font: italic 300 13.5px/1.5 'Cormorant', Georgia, serif; color: var(--ink-soft); }
+    .ob .verbs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+    .ob .verbs button { height: 40px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; }
+    .ob .verbs button:hover { border-color: var(--ink); }
+    .ob-list { display: flex; flex-direction: column; gap: 10px; }
+    .ob-wait { display: flex; align-items: center; gap: 12px; font: italic 300 16px/1.4 'Cormorant', Georgia, serif; color: var(--ink-soft); padding: 8px 0; }
+    .ob-wait i { width: 14px; height: 14px; border: 1px solid var(--cream-400); border-top-color: var(--ink); border-radius: 50%; animation: snbSpin .9s linear infinite; flex: none; }
+    @keyframes snbSpin { to { transform: rotate(360deg); } }
+    .sp-pill { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 18px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; }
+    .sp-pill:hover { border-color: var(--ink); }
+    .sp-pill[disabled] { opacity: .45; cursor: default; }
+    .sp-pill.ink { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+    .sp-pill.rose { border-color: #D7B9B3; color: #8B3A30; }
+    .sp-pill.rose:hover { border-color: #8B3A30; }
+
+    /* pieces you love */
+    .pc-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+    .pc-row:last-child { border-bottom: 0; }
+    .pc-row .im { width: 44px; height: 54px; border-radius: 6px; background: var(--cream-200); overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; font: 300 18px/1 'Cormorant', Georgia, serif; color: var(--ink-faint); }
+    .pc-row .im img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .pc-row .l { flex: 1; min-width: 0; }
+    .pc-row .k { font: 400 9px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); }
+    .pc-row .n { font: 400 17px/1.2 'Cormorant', Georgia, serif; color: var(--ink); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pc-row .star { width: 18px; height: 18px; flex: none; color: #C9BCA6; }
+
+    /* account inputs */
+    .sh-field { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+    .sh-field label { font: 400 9.5px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft); }
+    .sh-field input { height: 46px; border: 1px solid var(--rule-mid); border-radius: var(--rad-sm); padding: 0 14px; font: 400 15px/1 'Inter'; color: var(--ink); background: #fff; outline: none; }
+    .sh-field input:focus { border-color: var(--ink); }
+    .sh-msg { font: 300 13px/1.5 'Inter'; color: var(--ink-soft); min-height: 18px; margin-top: 12px; }
+    .sh-msg.err { color: #8B3A30; }
+    .sh-msg.ok { color: var(--sage); }
+    .sh-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+    /* ── the full-notes drawer (colour · line), the Style notes engine's own ── */
+    #mv-notes-wrap { position: fixed; left: 0; right: 0; bottom: 0; top: var(--nav-h); z-index: 420; background: rgba(32,32,33,0.08); animation: mvFadeIn 0.2s ease both; }
+    #mv-notes-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 660px; max-width: 100%; background: var(--cream); border-left: 1px solid var(--cream-300); box-shadow: -18px 0 50px rgba(32,32,33,0.08); display: flex; flex-direction: column; animation: mvnSlideIn 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    @keyframes mvnSlideIn { from { transform: translateX(100%); } to { transform: none; } }
+    .mvn-grab { display: none; }
+    .mvn-head { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 26px 34px 18px; border-bottom: 1px solid var(--cream-300); }
+    .mvn-title { font-family: 'Cormorant', Georgia, serif; font-weight: 300; font-size: 32px; color: var(--ink); margin-top: 8px; }
+    .mvn-close { flex: none; background: none; border: 1px solid var(--cream-300); border-radius: 100px; padding: 9px 18px; cursor: pointer; font: 400 10px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
+    .mvn-close:hover { border-color: #C9BCA6; }
+    .mvn-body { flex: 1; overflow-y: auto; padding: 0 34px 40px; }
+    .mv-notes { margin-top: 0; }
+    .g-side { display: grid; grid-template-columns: 1fr; gap: 36px; }
+    .g-4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .g-5 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .g-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+    .g-7, .g-8 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    @media (max-width: 767px) {
+      #mv-notes-drawer { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-height: calc(88dvh - env(safe-area-inset-bottom)); border-left: none; border-top: 1px solid var(--cream-300); border-radius: 14px 14px 0 0; animation: mvnSheetUp 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+      .mvn-grab { display: flex; justify-content: center; padding: 10px 0 0; }
+      .mvn-grab span { width: 44px; height: 4px; border-radius: 100px; background: #E1DACB; }
+      .mvn-head { padding: 12px 20px 12px; }
+      .mvn-title { font-size: 26px; margin-top: 7px; }
+      .mvn-body { padding: 0 20px calc(28px + env(safe-area-inset-bottom)); }
+      .g-6 { grid-template-columns: repeat(3, 1fr); }
+    }
+    @keyframes mvnSheetUp { from { transform: translateY(100%); } to { transform: none; } }
+    .sw { border-radius: 6px; }
+    .sw-name { font-family: 'Cormorant', Georgia, serif; font-size: 16px; color: var(--ink); margin-top: 9px; }
+    .sw-name-muted { font-family: 'Cormorant', Georgia, serif; font-size: 14px; color: var(--ink-faint); margin-top: 9px; }
+    .ut-row { display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid var(--cream-300); }
+    .ut-label { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 22px; }
+    .ut-yours { display: inline-flex; align-items: center; gap: 8px; font: 500 8px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); flex: none; }
+    .trait-row { display: flex; align-items: center; gap: 11px; padding: 13px 0; border-bottom: 1px solid var(--cream-300); }
+    .trait-label { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 19px; color: var(--ink); }
+    .rec-card { border: 1px solid var(--cream-300); border-radius: 10px; padding: 20px 22px; background: #FFFDF9; }
+    .rec-name { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 21px; color: var(--ink); }
+    .rec-note { font: 300 13.5px/1.6 'Inter'; color: #6E6354; margin-top: 8px; }
+    .rec-pill { display: inline-flex; align-items: center; padding: 11px 18px; border: 1px solid #E0D8C8; border-radius: 100px; background: #F3EFE6; font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 17px; color: var(--ink); }
+    .rec-tip { display: flex; align-items: flex-start; gap: 13px; padding: 15px 0; border-bottom: 1px solid var(--cream-300); }
+    .rec-tip-check { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid var(--cream-400); border-radius: 50%; flex: none; margin-top: 1px; }
+    .rec-tip-txt { font: 300 15px/1.55 'Inter'; color: #3A352F; }
+    .mv-sw-row { display: flex; gap: 4px; margin-top: 10px; }
+    .mv-sw-row div { flex: 1; max-width: 56px; height: 34px; border-radius: 4px; }
+    .mv-door { display: inline-block; background: none; border: none; padding: 0; cursor: pointer; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 14px; color: var(--rose, #8E6A7C); }
+    .mv-door:hover { color: var(--ink); }
+
+/* a11y: keyboard focus + no-zoom-needed input sizing */
+:focus-visible{outline:2px solid var(--ink,var(--ink));outline-offset:2px}
+@media (max-width:820px){input:not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea{font-size:16px !important}}
+</style>
+  <link rel="icon" type="image/png" sizes="64x64" href="/images/robes-icon-64.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-title" content="Robes">
+  <meta name="theme-color" content="#202021">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-l">
+      <a class="wordmark" href="/dashboard">Robes</a>
+      <span class="topbar-sep"></span>
+      <button class="sn-back" id="sn-back" type="button">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>
+        <span id="sn-back-label">Home</span>
+      </button>
+    </div>
+    <div class="topbar-r">
+      <span id="save-state"></span>
+      <div class="sn-weather" id="sn-weather">
+        <span class="wx">🌤</span><span id="sn-wx-day"></span>
+        <span class="dot" style="display:none"></span><span id="sn-wx-city" style="display:none"></span>
+        <span class="dot" style="display:none"></span><span id="sn-wx-temp" style="display:none"></span>
+      </div>
+      <div class="sn-av-wrap">
+        <div class="sn-avatar" id="sn-avatar" onclick="event.stopPropagation();document.getElementById('sn-av-menu').classList.toggle('open')">·</div>
+        <div class="sn-av-menu" id="sn-av-menu">
+          <div class="sn-av-name"><strong id="sn-av-name">&nbsp;</strong></div>
+          <button class="sn-av-item" id="sn-av-style"><svg viewBox="0 0 24 24"><path d="M12 3c3.5 4.2 6 7.5 6 10.2a6 6 0 0 1-12 0C6 10.5 8.5 7.2 12 3z"></path></svg>Style Profile</button>
+          <button class="sn-av-item" id="sn-av-account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>Account</button>
+          <button class="sn-av-item sn-av-out" id="sn-logout"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ══ ROOT · Settings — Style Profile | Account ══ -->
+    <section class="sp-page sp-col" id="pg-root">
+      <div class="sp-head">
+        <div>
+          <div class="eyebrow-rose">Settings</div>
+          <h1 class="sp-title" style="margin-top:12px" id="root-title">Your <em>style profile.</em></h1>
+          <p class="sp-sub" id="root-sub">What Robes knows about you, in one place. It reads this before every look.</p>
+        </div>
+        <div class="rb-seg2" role="tablist" id="sp-seg">
+          <button type="button" class="on" data-tab="style" role="tab" aria-selected="true">Style Profile</button>
+          <button type="button" data-tab="account" role="tab" aria-selected="false">Account</button>
+        </div>
+      </div>
+
+      <div class="sp-tab" id="tab-style">
+        <div id="sp-notice-host"></div>
+        <button type="button" class="sp-card" id="card-twin">
+          <span class="k">01 · Your digital twin</span>
+          <span class="t">Who Robes is dressing <span class="chev">›</span></span>
+          <span class="s">Your model, read from two photographs, and the five facts that size a piece.</span>
+          <span class="st" id="card-twin-st"></span>
+        </button>
+        <button type="button" class="sp-card" id="card-dna">
+          <span class="k">02 · Style DNA</span>
+          <span class="t">What you love, and the lines you dress by <span class="chev">›</span></span>
+          <span class="s">Your style type, the brands and icons you reach for, the pieces you love, and your words.</span>
+          <span class="st" id="card-dna-st"></span>
+        </button>
+        <button type="button" class="sp-card" id="card-obs">
+          <span class="k">03 · Robes observations</span>
+          <span class="t">What Robes has noticed <span class="chev">›</span></span>
+          <span class="s">Read from what you wear. Keep a line and it joins your Style DNA.</span>
+          <span class="st" id="card-obs-st"></span>
+        </button>
+      </div>
+
+      <div class="sp-tab" id="tab-account" hidden>
+        <div class="sp-gk">Profile</div>
+        <div class="sp-group">
+          <button type="button" class="sp-row" id="ac-name"><span class="l"><span class="n">Name</span><span class="d">How Robes addresses you</span></span><span class="v" id="ac-name-v"></span><span class="chev">›</span></button>
+          <button type="button" class="sp-row" id="ac-email"><span class="l"><span class="n">Email</span><span class="d">Where sign-in links and receipts go</span></span><span class="v" id="ac-email-v"></span><span class="chev">›</span></button>
+          <button type="button" class="sp-row" id="ac-pass"><span class="l"><span class="n">Password</span><span class="d">At least eight characters</span></span><span class="chev">›</span></button>
+          <button type="button" class="sp-row danger" id="ac-delete"><span class="l"><span class="n">Delete account</span><span class="d">Your wardrobe, looks and digital twin are removed for good.</span></span><span class="chev">›</span></button>
+        </div>
+        <div class="sp-gk" id="ac-notif-k">Notifications</div>
+        <div class="sp-group" id="ac-notif">
+          <div class="sp-row static"><span class="l"><span class="n">Email</span><span class="d">Your looks when they’re ready, and the odd note from Robes.</span></span><button type="button" class="sp-tog" id="tog-email" role="switch" aria-checked="false" aria-label="Email"></button></div>
+          <div class="sp-row static"><span class="l"><span class="n">A morning line</span><span class="d">On days you’ve planned, before you dress — by email, at <select class="sp-hour" id="tog-hour" aria-label="Hour">
+            <option value="6">6:00</option><option value="7" selected>7:00</option><option value="8">8:00</option><option value="9">9:00</option><option value="10">10:00</option></select></span></span><button type="button" class="sp-tog" id="tog-morning" role="switch" aria-checked="false" aria-label="A morning line"></button></div>
+        </div>
+        <div class="sp-gk">Privacy &amp; terms</div>
+        <div class="sp-group">
+          <a class="sp-row" href="/privacy" target="_blank" rel="noopener"><span class="l"><span class="n">Privacy notice</span><span class="d">What Robes keeps, and why</span></span><span class="ext">↗</span></a>
+          <a class="sp-row" href="/terms" target="_blank" rel="noopener"><span class="l"><span class="n">Beta terms</span><span class="d">Plain English</span></span><span class="ext">↗</span></a>
+        </div>
+        <div class="sp-foot">
+          <span class="h">Need a hand? <a href="mailto:hello@byrobes.com">hello@byrobes.com</a></span>
+          <span class="ver">Robes beta</span>
+          <button type="button" class="sp-out" id="ac-logout">Log out</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 01 · YOUR DIGITAL TWIN ══ -->
+    <section class="sp-page" id="pg-twin" hidden>
+      <div class="sp-col">
+        <div class="sp-pagehead">
+          <button type="button" class="sp-backpill" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>Settings</button>
+          <div>
+            <div class="eyebrow-rose">Your digital twin</div>
+            <h1 class="sp-title" style="margin-top:12px">Who Robes <em>is dressing.</em></h1>
+            <p class="sp-sub" id="tw-sub">Two photographs read your colouring and your line. Five facts size what Robes proposes.</p>
+          </div>
+        </div>
+      </div>
+      <div class="tw-grid" style="max-width:1100px;margin:0 auto">
+        <aside class="tw-stage" id="mv-figframe">
+          <svg viewBox="0 0 200 250" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+            <defs>
+              <radialGradient id="mv-glow" cx="50%" cy="28%" r="62%">
+                <stop offset="0%" stop-color="rgba(243,210,215,0.24)"></stop>
+                <stop offset="100%" stop-color="rgba(243,210,215,0)"></stop>
+              </radialGradient>
+            </defs>
+            <rect x="0" y="0" width="200" height="250" fill="url(#mv-glow)"></rect>
+            <g id="mv-fig" opacity="0.22">
+              <ellipse id="mv-hair" cx="100" cy="38" rx="24" ry="17" fill="#D6CFC2"></ellipse>
+              <ellipse id="mv-head" cx="100" cy="46" rx="18" ry="21" fill="#E3DED4"></ellipse>
+              <polygon id="mv-dress" points="" fill="#E3DED4"></polygon>
+              <rect id="mv-legs" x="87" y="196" width="26" height="54" fill="#E3DED4" opacity="0.9"></rect>
+            </g>
+          </svg>
+          <div class="mv-fig-empty" id="mv-fig-empty">Your model starts the moment your first photograph reads.</div>
+          <div class="mv2-stagehead" id="mv-stagehead">
+            <div class="mv2-ey" id="mv-stage-ey"></div>
+            <div class="mv-caption" id="mv-caption"></div>
+          </div>
+        </aside>
+
+        <div class="tw-main">
+          <!-- the empty state: the two slots in place, the by-hand rows open -->
+          <div class="sp-card static" id="tw-slotscard">
+            <span class="k">Two photographs</span>
+            <div class="tw-slots" id="tw-slots" style="margin-top:14px">
+              <div class="tw-slot">
+                <span class="tw-slotlab">Close-up <span class="mv-read" id="st1-read" hidden>✓ Read</span></span>
+                <button class="photo-slot" id="headshot-slot" aria-label="Add your close-up photo" type="button">
+                  <span class="slot-empty"><span class="slot-title">Close-up</span><span class="slot-hint" id="headshot-hint">Add photo</span></span>
+                </button>
+                <input type="file" id="headshot-file" accept="image/*" hidden>
+                <p class="mv-guide" id="st1-guide">Soft daylight, facing a window. No filters.</p>
+                <p class="mv2-likread" id="st1-readline" hidden></p>
+                <p class="slot-err" id="headshot-err"></p>
+              </div>
+              <div class="tw-slot">
+                <span class="tw-slotlab">Full length <span class="mv-read" id="st2-read" hidden>✓ Read</span></span>
+                <button class="photo-slot" id="full-slot" aria-label="Add your full-length photo" type="button">
+                  <span class="slot-empty"><span class="slot-title">Full length</span><span class="slot-hint" id="full-hint">Add photo</span></span>
+                </button>
+                <input type="file" id="full-file" accept="image/*" hidden>
+                <p class="mv-guide" id="st2-guide">Head to toe, fitted clothes. A mirror is fine.</p>
+                <p class="mv2-likread" id="st2-readline" hidden></p>
+                <p class="slot-err" id="full-err"></p>
+              </div>
+            </div>
+          </div>
+          <div class="sp-card static" id="mv-shape">
+            <span class="k" id="mv-shape-ey">Or shape her by hand</span>
+            <span class="s" id="mv-shape-note">She changes as you choose.</span>
+            <div id="mv-shape-rows" style="margin-top:6px"></div>
+          </div>
+
+          <!-- the read state: one card, two rows, the sheets behind them -->
+          <div class="sp-card static" id="tw-read" hidden>
+            <span class="k">Read from your photographs</span>
+            <div class="sp-group" style="margin-top:14px;border:0;border-radius:0">
+              <button type="button" class="sp-row" id="tw-row-colour" style="padding-left:0;padding-right:0"><span class="l"><span class="n">Colouring</span><span class="d" id="tw-colour-d"></span></span><span class="v" id="tw-colour-v"></span><span class="chev">›</span></button>
+              <button type="button" class="sp-row" id="tw-row-line" style="padding-left:0;padding-right:0"><span class="l"><span class="n">Body shape</span><span class="d" id="tw-line-d"></span></span><span class="v" id="tw-line-v"></span><span class="chev">›</span></button>
+              <button type="button" class="sp-row" id="mv-adjust" style="padding-left:0;padding-right:0"><span class="l"><span class="n">Adjust by hand</span><span class="d">Skin, hair, the line and the frame</span></span><span class="chev">›</span></button>
+            </div>
+          </div>
+
+          <div class="sp-card" id="tw-facts" type="button" role="button" tabindex="0">
+            <span class="k">The facts</span>
+            <span class="s">Size, never weight. Robes uses these to propose what fits.</span>
+            <div class="tw-facts" id="tw-facts-cells"></div>
+          </div>
+
+          <div class="mv2-foot">
+            <div class="mv2-footcol">
+              <div class="mv-filed" id="mv-filed" hidden></div>
+              <div class="mv-status" id="mv-status"></div>
+            </div>
+            <button class="mv-build" id="mv-build" hidden>Build a look</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 02 · STYLE DNA ══ -->
+    <section class="sp-page sp-col" id="pg-dna" hidden>
+      <div class="sp-pagehead">
+        <button type="button" class="sp-backpill" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>Settings</button>
+        <div>
+          <div class="eyebrow-rose">Style DNA</div>
+          <h1 class="sp-title" style="margin-top:12px">What you love, <em>and the lines you dress by.</em></h1>
+        </div>
+      </div>
+      <div class="sp-gk">Your taste</div>
+      <div class="sp-group">
+        <button type="button" class="sp-row" id="dna-type"><span class="l"><span class="n">Style type</span></span><span class="v" id="dna-type-v"></span><span class="chev">›</span></button>
+        <button type="button" class="sp-row" id="dna-brands"><span class="l"><span class="n">Brands</span></span><span class="v" id="dna-brands-v"></span><span class="chev">›</span></button>
+        <button type="button" class="sp-row" id="dna-icons"><span class="l"><span class="n">Icons</span></span><span class="v" id="dna-icons-v"></span><span class="chev">›</span></button>
+        <button type="button" class="sp-row" id="dna-pieces"><span class="l"><span class="n">Pieces you love</span></span><span class="v" id="dna-pieces-v"></span><span class="chev">›</span></button>
+        <button type="button" class="sp-row" id="dna-invest"><span class="l"><span class="n">Investment level</span></span><span class="v" id="dna-invest-v"></span><span class="chev">›</span></button>
+      </div>
+      <div class="sp-gk">In your words</div>
+      <div class="sp-group">
+        <button type="button" class="sp-row" id="dna-loves"><span class="l"><span class="n">What works on you</span></span><span class="v" id="dna-loves-v"></span><span class="chev">›</span></button>
+        <button type="button" class="sp-row" id="dna-avoids"><span class="l"><span class="n">Hard nos</span></span><span class="v" id="dna-avoids-v"></span><span class="chev">›</span></button>
+        <button type="button" class="sp-row" id="dna-rules"><span class="l"><span class="n">Your rules</span></span><span class="v" id="dna-rules-v"></span><span class="chev">›</span></button>
+      </div>
+      <button type="button" class="sp-alert" id="dna-noticed" hidden><span class="dot"></span><span class="l"><span class="n" id="dna-noticed-n">Noticed and kept</span><span class="d">Read from what you wear.</span></span><span class="chev" style="font:300 18px/1 'Inter';color:var(--ink-faint)">›</span></button>
+    </section>
+
+    <!-- ══ 03 · ROBES OBSERVATIONS ══ -->
+    <section class="sp-page sp-col" id="pg-obs" hidden>
+      <div class="sp-pagehead">
+        <button type="button" class="sp-backpill" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>Settings</button>
+        <div>
+          <div class="eyebrow-rose">Robes observations</div>
+          <h1 class="sp-title" style="margin-top:12px">What Robes <em>has noticed.</em></h1>
+          <p class="sp-sub">Read from what you wear. Keep a line and it joins your Style DNA.</p>
+        </div>
+      </div>
+      <div id="obs-body"></div>
+    </section>
+
+  </main>
+
+  <!-- the sheet host -->
+  <div id="sh-wrap" hidden>
+    <div id="sh" role="dialog" aria-modal="true">
+      <div class="sh-grab"><span></span></div>
+      <div class="sh-head"><div><div class="sh-title" id="sh-title"></div><div class="sh-sub" id="sh-sub"></div></div><button type="button" class="sh-done" id="sh-done">Done</button></div>
+      <div class="sh-body" id="sh-body"></div>
+    </div>
+  </div>
+  <div class="sp-toast" id="sp-toast" aria-live="polite"></div>
+
+  <!-- The full notes drawer (colour · line) — the Style notes engine's own -->
+  <div id="mv-notes-wrap" hidden>
+    <aside id="mv-notes-drawer" role="dialog" aria-label="Full notes">
+      <div class="mvn-grab"><span></span></div>
+      <div class="mvn-head">
+        <div>
+          <div class="mv2-ey" id="mvn-ey"></div>
+          <div class="mvn-title" id="mvn-title"></div>
+        </div>
+        <button class="mvn-close" id="mvn-close">Close</button>
+      </div>
+      <div class="mvn-body" id="mvn-body">
+        <div id="colour-sections" class="mv-notes" hidden>
+          <section style="margin-top:28px;">
+            <div class="sec-head"><div class="eyebrow">Seasonal palette</div><div class="note-it">Eighteen shades that are yours</div></div>
+            <div style="margin-top:18px;display:flex;flex-direction:column;gap:9px;" id="palette-grid"></div>
+          </section>
+          <section class="g-side" style="margin-top:48px;">
+            <div>
+              <div class="eyebrow">Undertone</div>
+              <div style="margin-top:20px;display:flex;flex-direction:column;" id="undertone-rows"></div>
+              <p style="font:300 12px/1.6 'Inter';font-style:italic;color:var(--ink-faint);margin:16px 0 0;" id="undertone-note"></p>
+            </div>
+            <div>
+              <div class="eyebrow">Best neutrals</div>
+              <div style="margin-top:20px;display:grid;grid-template-columns:repeat(6,1fr);gap:0;border:1px solid var(--cream-300);border-radius:6px;overflow:hidden;" id="neutrals-grid"></div>
+              <div style="margin-top:11px;display:grid;grid-template-columns:repeat(6,1fr);gap:0;" id="neutrals-names"></div>
+              <p style="font:300 12px/1.6 'Inter';color:var(--ink-faint);margin:18px 0 0;max-width:440px;">Build from these. They carry a whole outfit and let one of your colours do the talking.</p>
+            </div>
+          </section>
+          <div class="hr"></div>
+          <section>
+            <div class="sec-head"><div class="eyebrow">Best clothing colours</div><div class="note-it">Reach for these first</div></div>
+            <div class="g-8" style="margin-top:20px;" id="best-grid"></div>
+          </section>
+          <section style="margin-top:48px;">
+            <div style="display:flex;align-items:baseline;gap:16px;"><div class="eyebrow">Colours that fight you</div><div class="note-it" id="avoid-note"></div></div>
+            <div class="g-7" style="margin-top:18px;" id="avoid-grid"></div>
+          </section>
+          <div class="hr"></div>
+          <section class="g-side" style="align-items:center;">
+            <div><div class="eyebrow">Best metals</div><p style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:20px;line-height:1.4;color:var(--ink-faint);margin:16px 0 0;" id="metals-note"></p></div>
+            <div style="display:flex;gap:40px;" id="metals-row"></div>
+          </section>
+        </div>
+        <div id="sil-sections" class="mv-notes" hidden>
+          <section style="margin-top:28px;">
+            <div class="sec-head"><div class="eyebrow">Your line, in traits</div><div class="note-it">What Robes read</div></div>
+            <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:0 36px;" id="trait-grid"></div>
+          </section>
+          <section style="margin-top:48px;">
+            <div class="sec-head"><div class="eyebrow">Best dress silhouettes</div><div class="note-it">Cut for your waist, every time</div></div>
+            <div class="g-4" style="margin-top:22px;" id="dress-grid"></div>
+          </section>
+          <section style="margin-top:48px;">
+            <div class="sec-head"><div class="eyebrow">Neckline recommendations</div><div class="note-it">Open lines that lengthen and frame</div></div>
+            <div class="g-5" style="margin-top:20px;" id="neck-grid"></div>
+          </section>
+          <div class="hr"></div>
+          <section>
+            <div class="sec-head"><div class="eyebrow">Styling tips that flatter</div><div class="note-it">The moves that always work on you</div></div>
+            <div class="g-5" style="margin-top:24px;gap:16px;" id="tips-grid"></div>
+          </section>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Mobile dock — anchored destinations; nothing lit on this off-bar page -->
+  <div id="rb-dock" aria-label="Primary">
+    <div id="rb-dock-in">
+      <button class="rb-dock-tab" onclick="window.location.href='/dashboard'"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.3V21h14V9.3"></path></svg>Home</button>
+      <button class="rb-dock-tab" onclick="window.location.href='/lookbook'"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"></rect><path d="M12 4.5v15"></path></svg>Lookbook</button>
+      <button class="rb-dock-tab" onclick="window.location.href='/diary'"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="1.5"></rect><path d="M3.5 10h17"></path><path d="M8 3v4M16 3v4"></path></svg>Diary</button>
+      <button class="rb-dock-tab" onclick="window.location.href='/wardrobe'"><svg viewBox="0 0 24 24"><path d="M12 4.2a1.9 1.9 0 1 0 1.4 3.2"></path><path d="M12 7.6 3.6 14.2a1.4 1.4 0 0 0 .9 2.5h15a1.4 1.4 0 0 0 .9-2.5L12 7.6z"></path></svg>Wardrobe</button>
+    </div>
+  </div>
+
+  <script>
+    /* ══ Settings · the engines ═══════════════════════════════════════
+       Everything below the surface is the Style notes engine it replaced:
+       the model (mapping, persist, the photographed cell), the analyse
+       pipeline (two photographs → colour + line reads), the brief (lines
+       Robes drafts from her rows, kept or struck). The surface above it
+       is the Settings prototype (2026-10-07). */
+    const SUPABASE_URL  = 'https://ayowpaknssulsqqvwpqx.supabase.co';
+    const SUPABASE_ANON = 'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ';
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    const UNDERTONES = ['Warm', 'Neutral', 'Cool'];
+    // Legacy Taste & budget tiers — read ONCE to derive an investment level
+    // for an account that never picked one; never written again.
+    const TIER_TO_LEVEL = { 'Everyday': 'Under €500', 'Contemporary': '€500–1,500', 'Designer': '€1,500–5,000', 'Luxury': '€5,000+', 'Ultra luxury': '€5,000+' };
+    // The investment level — ONE mandatory answer by yearly spend (the
+    // prototype's rows, Prefer not to say dropped: decision 2026-10-07).
+    const INVEST_LEVELS = [
+      { label: 'Under €500', note: 'Occasional picks' },
+      { label: '€500–1,500', note: 'Regular wardrobe updates' },
+      { label: '€1,500–5,000', note: 'Considered investment' },
+      { label: '€5,000+', note: 'Fashion is a priority' },
+    ];
+    // The ten style types — the vocabulary every prompt reads today, drawn
+    // in the prototype's multi-select sheet (decision 2026-10-07).
+    const ARCHETYPES = [
+      { name: 'Minimal', desc: 'Clean lines, few decisions, nothing loud.' },
+      { name: 'Bohemian', desc: 'Loose shapes, print and texture worn together.' },
+      { name: 'Classic', desc: 'Tailoring, good shoes, nothing that dates.' },
+      { name: 'Romantic', desc: 'Soft volume, lace, colour that flatters.' },
+      { name: 'Sculptural', desc: 'Architectural cuts. The volume is the point.' },
+      { name: 'Utility', desc: 'Workwear roots, pockets, honest hardware.' },
+      { name: 'Heritage', desc: 'Collars, knits, a little of the old school.' },
+      { name: 'Eclectic', desc: 'Nothing matches. It works anyway.' },
+      { name: 'Off-duty', desc: 'Technical fabric, worn like it is not.' },
+      { name: 'Avant-garde', desc: 'Asymmetry, black, the unfamiliar shape.' },
+    ];
+    // The brand wall: the names the app already carried, the prototype's
+    // fifty and Liberty's list (2026-10-07), one pool deduped by name. A
+    // picked type seeds the top of the pool with the houses in its world.
+    const BRAND_POOL = [
+      'The Row', 'Totême', 'Khaite', 'Loewe', 'Celine', 'Prada', 'Miu Miu', 'Bottega Veneta', 'Jil Sander', 'Lemaire',
+      'Max Mara', 'Chloé', 'Dôen', 'Sézane', 'Ganni', 'Acne Studios', 'Jacquemus', 'Alaïa', 'Maison Margiela', 'Dries Van Noten',
+      'Marni', 'Simone Rocha', 'Isabel Marant', 'Saint Laurent', 'Valentino', 'Gucci', 'Hermès', 'Chanel', 'Dior', 'Fendi',
+      'Victoria Beckham', 'Gabriela Hearst', 'Proenza Schouler', 'Staud', 'Reformation', 'COS', 'Arket', 'Me+Em', 'Joseph', 'Vince',
+      'Agolde', 'Ulla Johnson', 'Zimmermann', 'Nili Lotan', 'Loro Piana', 'Brunello Cucinelli', 'Comme des Garçons', 'Yohji Yamamoto', 'Paloma Wool', 'Courrèges',
+      'Cou Cou', 'The Frankie Shop', 'Phoebe Philo', 'Auralee', 'Rick Owens', 'Carolina Herrera',
+      // Liberty's list (2026-10-07) — the existing names stay, these join them.
+      'Adidas', 'Nike', 'H&M', 'Zara', 'Uniqlo', 'Louis Vuitton', 'Ralph Lauren', 'CAMILLA AND MARC',
+      'Carven', 'Chopova Lowena', 'Julie Kegels', 'Kallmeyer', 'LABRUM London', 'Matières Fécales',
+    ];
+    const BRAND_SEED = {
+      Minimal: ['The Row', 'Phoebe Philo', 'Lemaire', 'COS', 'Jil Sander'], Bohemian: ['Dôen', 'Chloé', 'Ulla Johnson', 'Zimmermann'],
+      Classic: ['Max Mara', 'Ralph Lauren', 'Joseph', 'Loro Piana'], Romantic: ['Simone Rocha', 'Zimmermann', 'Dôen'],
+      Sculptural: ['Totême', 'Khaite', 'Alaïa', 'Jil Sander'], Utility: ['Arket', 'Carhartt', 'Nike', 'Adidas'],
+      Heritage: ['Loro Piana', 'Brunello Cucinelli', 'Ralph Lauren'], Eclectic: ['Miu Miu', 'Marni', 'Chopova Lowena', 'Dries Van Noten'],
+      'Off-duty': ['Auralee', 'Nike', 'Adidas', 'Uniqlo'], 'Avant-garde': ['Rick Owens', 'Comme des Garçons', 'Yohji Yamamoto', 'Maison Margiela'],
+    };
+    // The icon wall — each name carries the one tag Robes reads as a register.
+    const ICON_POOL = [
+      ['Carolyn Bessette-Kennedy', 'Nineties minimal'], ['Jane Birkin', 'French undone'], ['Hailey Bieber', 'Clean-girl minimal'],
+      ['Zoë Kravitz', 'Rock-and-roll ease'], ['Sienna Miller', 'Boho polish'], ['Sophia Loren', 'Italian glamour'],
+      ['Phoebe Philo', 'Intellectual minimal'], ['Audrey Hepburn', 'Gamine classic'], ['Lauren Hutton', 'American ease'],
+      ['Caroline de Maigret', 'Parisian cool'], ['Charlotte Gainsbourg', 'Undone tailoring'], ['Grace Kelly', 'Polished classic'],
+      ['Lee Radziwill', 'Society precision'], ['Olivia Dean', 'Soft modern'], ['Gwyneth Paltrow', 'Mature minimal'],
+      ['Kendall Jenner', 'Designer, fashion-forward'], ['Sofia Coppola', 'Quiet preppy'], ['Tilda Swinton', 'Avant-garde'],
+      ['Iris Apfel', 'Maximal eclectic'], ['Diane Keaton', 'Tailored heritage'], ['Margot Robbie', 'Modern utility'],
+    ];
+    const ICON_SEED = {
+      Minimal: ['Carolyn Bessette-Kennedy', 'Phoebe Philo', 'Gwyneth Paltrow'], Bohemian: ['Jane Birkin', 'Sienna Miller'],
+      Classic: ['Grace Kelly', 'Carolyn Bessette-Kennedy', 'Lee Radziwill'], Romantic: ['Sofia Coppola', 'Audrey Hepburn'],
+      Sculptural: ['Tilda Swinton', 'Phoebe Philo'], Utility: ['Margot Robbie', 'Lauren Hutton'], Heritage: ['Diane Keaton', 'Lauren Hutton'],
+      Eclectic: ['Iris Apfel', 'Zoë Kravitz'], 'Off-duty': ['Hailey Bieber', 'Zoë Kravitz'], 'Avant-garde': ['Tilda Swinton'],
+    };
+    // The facts — size, never weight. Ranges per the prototype.
+    const FACT_AGES = ['Under 25', '25–34', '35–44', '45–54', '55–64', '65+'];
+    const FACT_HEIGHT = [140, 210], FACT_SIZE = [4, 16], FACT_SHOE = [2, 8];
+
+    /* ── The model: catalog attribute space (design 2026-08-25) ────── */
+    const MV_SKINS = ['#3B2A22','#5A3B2A','#7A5238','#95664A','#B78A63','#D0A47F','#E3BE9C','#F0D6BE'];
+    const MV_HAIRS = ['#1B1614','#3A2A20','#6B4A2E','#A9793F','#CBAE87'];
+    const MV_SKIN_NAMES = ['Espresso','Mahogany','Chestnut','Golden','Honey','Sand','Peach','Porcelain'];
+    const MV_HAIR_NAMES = ['jet black','espresso brown','chestnut brown','caramel blonde','ash blonde'];
+    // Gender — the fifth fact (labelled Gender on screen, decision 2026-10-07).
+    // Values match profiles.gender_identity; asked, never inferred.
+    const MV_PRESENCE = [['woman','Woman'],['man','Man'],['unspecified','Prefer not to say']];
+    const MV_NUDGES = [
+      { key: 'line',  left: 'Softer', right: 'Straighter' },
+      { key: 'frame', left: 'Fuller', right: 'Narrower' },
+    ];
+    const MV_FIGS = {
+      'Hourglass':         { key: 'hg', clip: [[20,0],[80,0],[100,62],[84,100],[16,100],[0,62]] },
+      'Pear / Triangle':   { key: 'pe', clip: [[26,0],[74,0],[100,100],[0,100]] },
+      'Pear':              { key: 'pe', clip: [[26,0],[74,0],[100,100],[0,100]] },
+      'Rectangle':         { key: 're', clip: [[14,0],[86,0],[92,100],[8,100]] },
+      'Inverted Triangle': { key: 'it', clip: [[2,0],[98,0],[76,100],[24,100]] },
+      'Apple / Round':     { key: 'ap', clip: [[18,0],[82,0],[98,52],[86,100],[14,100],[2,52]] },
+      'Apple':             { key: 'ap', clip: [[18,0],[82,0],[98,52],[86,100],[14,100],[2,52]] },
+    };
+    const MV_FIG_NEUTRAL = { key: 'nt', clip: [[12,0],[88,0],[100,100],[0,100]] };
+    const MV_CLIP_SOFT     = [[18,0],[82,0],[98,58],[84,100],[16,100],[2,58]];
+    const MV_CLIP_STRAIGHT = [[14,0],[86,0],[90,100],[10,100]];
+
+    const st = {
+      uid: null,
+      email: '',
+      firstName: '', lastName: '',
+      colour: null,
+      sil: null,
+      styleDna: {},
+      icons: [],   // profiles.style_icons — the people (brands split off into styleDna.brands)
+      brands: [],
+      iconTags: {},
+      types: [],   // style_dna.style_archetypes
+      investment: null,
+      facts: {},   // style_dna.facts = {height_cm, size_uk, shoe_uk, age_band}
+      heroes: null,   // starred wardrobe pieces, fetched once
+      notify: null,   // profiles.notification_prefs, or null when the column is missing
+      headshotUrl: null,
+      fullLengthUrl: null,
+      gender: 'woman',   // profiles.gender_identity, normalised at load
+      model: { skin: null, hair: null, nudges: {}, kept: false, gender: null, touched: false },
+    };
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function hex(h) {
+      return /^#[0-9a-fA-F]{3,8}$/.test(String(h || '').trim()) ? String(h).trim() : 'var(--cream-400)';
+    }
+    const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+    const saveEl = document.getElementById('save-state');
+    let saveTimer = null;
+    async function save(patch) {
+      if (!st.uid) return null;
+      clearTimeout(saveTimer);
+      saveEl.textContent = 'Saving…';
+      saveEl.className = 'on';
+      const { error } = await sbClient.from('profiles').update(patch).eq('id', st.uid);
+      if (error) {
+        console.error('Settings save failed:', error.message);
+        saveEl.textContent = 'Couldn’t save';
+        saveEl.className = 'on err';
+        saveTimer = setTimeout(() => { saveEl.className = ''; }, 3000);
+        return error;
+      }
+      saveEl.textContent = 'Saved';
+      saveEl.className = 'on';
+      saveTimer = setTimeout(() => { saveEl.className = ''; }, 1500);
+      return null;
+    }
+    function saveDna(patch) {
+      st.styleDna = Object.assign({}, st.styleDna || {}, patch);
+      return save({ style_dna: st.styleDna });
+    }
+    let toastT = null;
+    function toast(msg) {
+      const t = document.getElementById('sp-toast');
+      t.textContent = msg; t.classList.add('on');
+      clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2400);
+    }
+    // Product events — the dashboard's two planes (PostHog + the events table).
+    function snTrack(type, meta) {
+      try { if (window.__rbPH) window.__rbPH(function (ph) { ph.capture(type, meta || {}); }); } catch (e) {}
+      try {
+        if (!st.uid) return;
+        const h = location.hostname;
+        const env = (h === 'www.byrobes.com' || h === 'byrobes.com') ? 'production' : 'beta';
+        sbClient.from('events').insert({ user_id: st.uid, event_type: type, metadata: meta || {}, environment: env })
+          .then(function () {}, function () {});
+      } catch (e) {}
+    }
+
+    /* ── the colour read ─────────────────────────────────────────── */
+    function renderColour() {
+      const a = st.colour;
+      const read = document.getElementById('st1-read');
+      const guide = document.getElementById('st1-guide');
+      const readline = document.getElementById('st1-readline');
+      if (!a) { read.hidden = true; readline.hidden = true; guide.hidden = false; renderModel(); return; }
+      read.hidden = false; guide.hidden = true; readline.hidden = false;
+      readline.textContent = a.season + ' — read from this photograph.';
+
+      const pal = (a.palette || []).slice(0, 18);
+      let rows = '';
+      for (let r = 0; r < 3; r++) {
+        rows += '<div class="g-6">' + pal.slice(r * 6, r * 6 + 6).map(h => '<div style="height:62px;border-radius:6px;background:' + hex(h) + ';"></div>').join('') + '</div>';
+      }
+      document.getElementById('palette-grid').innerHTML = rows;
+      document.getElementById('undertone-rows').innerHTML = UNDERTONES.map(u => {
+        const on = u === a.undertone;
+        return '<div class="ut-row"><span class="ut-label" style="color:' + (on ? 'var(--ink)' : '#C4B8A4') + ';">' + u + '</span>' + (on ? '<span class="ut-yours"><span class="dot"></span>Yours</span>' : '') + '</div>';
+      }).join('');
+      document.getElementById('undertone-note').textContent = a.undertone_note || '';
+      const neutrals = (a.neutrals || []).slice(0, 6);
+      document.getElementById('neutrals-grid').innerHTML = neutrals.map(n => '<div style="height:140px;background:' + hex(n.hex) + ';"></div>').join('');
+      document.getElementById('neutrals-names').innerHTML = neutrals.map(n => '<div style="font-family:\'Cormorant\',Georgia,serif;font-size:14px;color:var(--ink);">' + esc(n.name) + '</div>').join('');
+      document.getElementById('best-grid').innerHTML = (a.best_colours || []).slice(0, 8).map(c => '<div><div class="sw" style="height:96px;background:' + hex(c.hex) + ';"></div><div class="sw-name">' + esc(c.name) + '</div></div>').join('');
+      document.getElementById('avoid-note').textContent = a.avoid_note || '';
+      document.getElementById('avoid-grid').innerHTML = (a.avoid_colours || []).slice(0, 7).map(c => {
+        const h = hex(c.hex);
+        const border = /^#f/i.test(h) || h.toUpperCase() === '#FFFFFF' ? 'border:1px solid var(--cream-300);' : '';
+        return '<div><div class="sw" style="height:72px;background:' + h + ';' + border + '"></div><div class="sw-name-muted">' + esc(c.name) + '</div></div>';
+      }).join('');
+      document.getElementById('metals-note').textContent = a.metals_note || '';
+      document.getElementById('metals-row').innerHTML = (a.metals || []).slice(0, 3).map(m => {
+        const hx = (m.hexes || []).map(hex);
+        while (hx.length < 3) hx.push('#C4B8A4');
+        return '<div style="text-align:center;"><div style="width:96px;height:96px;border-radius:50%;background:radial-gradient(circle at 36% 32%,' + hx[0] + ',' + hx[1] + ' 55%,' + hx[2] + ');"></div><div style="font-family:\'Cormorant\',Georgia,serif;font-size:17px;color:var(--ink);margin-top:12px;">' + esc(m.name) + '</div></div>';
+      }).join('');
+      renderModel();
+    }
+
+    /* ── the line read ───────────────────────────────────────────── */
+    function renderSil() {
+      const a = st.sil;
+      const read = document.getElementById('st2-read');
+      const guide = document.getElementById('st2-guide');
+      const readline = document.getElementById('st2-readline');
+      if (!a) { read.hidden = true; readline.hidden = true; guide.hidden = false; renderModel(); return; }
+      read.hidden = false; guide.hidden = true; readline.hidden = false;
+      readline.textContent = a.body_type + ' — read from this photograph.';
+      document.getElementById('trait-grid').innerHTML = (a.traits || []).slice(0, 4).map(t => '<div class="trait-row"><span class="dot"></span><span class="trait-label">' + esc(t) + '</span></div>').join('');
+      const dg = document.getElementById('dress-grid');
+      dg.style.gridTemplateColumns = 'repeat(auto-fill,minmax(250px,1fr))';
+      dg.innerHTML = (a.dress_silhouettes || []).slice(0, 4).map(d => '<div class="rec-card"><div class="rec-name">' + esc(d.name) + '</div><div class="rec-note">' + esc(d.note) + '</div></div>').join('');
+      const ng = document.getElementById('neck-grid');
+      ng.style.display = 'flex'; ng.style.flexWrap = 'wrap'; ng.style.gap = '11px';
+      ng.innerHTML = (a.neckline_recommendations || []).slice(0, 5).map(n => '<span class="rec-pill">' + esc(n) + '</span>').join('');
+      const tg = document.getElementById('tips-grid');
+      tg.style.display = 'flex'; tg.style.flexDirection = 'column'; tg.style.gap = '0';
+      tg.innerHTML = (a.styling_tips || []).slice(0, 5).map(label => '<div class="rec-tip"><span class="rec-tip-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#A89880" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span><span class="rec-tip-txt">' + esc(label) + '</span></div>').join('');
+      renderModel();
+    }
+
+    /* ── the full-notes drawer ───────────────────────────────────── */
+    function mvNotesOpen(kind) {
+      const colour = kind === 'colour';
+      document.getElementById('colour-sections').hidden = !colour;
+      document.getElementById('sil-sections').hidden = colour;
+      document.getElementById('mvn-ey').textContent = colour
+        ? (((st.colour && st.colour.season) || 'Your colouring') + ' · one of twelve')
+        : (((st.sil && st.sil.body_type) || 'Your line') + ' · one of five');
+      document.getElementById('mvn-title').textContent = colour ? 'Colour notes.' : 'Line notes.';
+      document.getElementById('mvn-close').textContent = window.matchMedia('(max-width: 767px)').matches ? 'Done' : 'Close';
+      document.getElementById('mvn-body').scrollTop = 0;
+      document.getElementById('mv-notes-wrap').hidden = false;
+    }
+    function mvNotesClose() { document.getElementById('mv-notes-wrap').hidden = true; }
+    document.getElementById('mvn-close').addEventListener('click', mvNotesClose);
+    document.getElementById('mv-notes-wrap').addEventListener('click', e => { if (e.target === document.getElementById('mv-notes-wrap')) mvNotesClose(); });
+
+    /* ── the model — mapping, figure, the photographed cell ──────── */
+    function hexDist(a, b) {
+      const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+      try { const [r1, g1, b1] = p(a), [r2, g2, b2] = p(b); return (r1 - r2) * (r1 - r2) + (g1 - g2) * (g1 - g2) + (b1 - b2) * (b1 - b2); } catch (e) { return Infinity; }
+    }
+    function nearestIdx(h, list, fallback) {
+      if (!/^#[0-9a-fA-F]{6}$/.test(String(h || ''))) return fallback;
+      let best = fallback, bd = Infinity;
+      list.forEach((c, i) => { const d = hexDist(h, c); if (d < bd) { bd = d; best = i; } });
+      return best;
+    }
+    function mvSkinIdx() {
+      if (st.model.skin != null) return st.model.skin;
+      const ev = st.styleDna && st.styleDna.color_harmony && st.styleDna.color_harmony.extracted_values;
+      return nearestIdx(ev && ev.skin_tone_hex, MV_SKINS, 3);
+    }
+    function mvHairIdx() {
+      if (st.model.hair != null) return st.model.hair;
+      const ev = st.styleDna && st.styleDna.color_harmony && st.styleDna.color_harmony.extracted_values;
+      return nearestIdx(ev && ev.hair_color_hex, MV_HAIRS, 1);
+    }
+    function mvFig() {
+      const bt = (st.sil && st.sil.body_type) || (st.styleDna && st.styleDna.silhouette_proportions && st.styleDna.silhouette_proportions.body_type);
+      return (bt && MV_FIGS[bt]) || MV_FIG_NEUTRAL;
+    }
+    function mvGender() {
+      const g = st.model.gender || st.gender;
+      return (g === 'man' || g === 'unspecified') ? g : 'woman';
+    }
+    const mvMan = () => mvGender() === 'man';
+    const mvP = () => mvMan()
+      ? { She: 'He', she: 'he', her: 'his', him: 'him', hers: 'his', Shes: 'He’s' }
+      : { She: 'She', she: 'she', her: 'her', him: 'her', hers: 'hers', Shes: 'She’s' };
+    function mvModelId() {
+      const n = st.model.nudges || {};
+      let id = (mvMan() ? 'm' : 'w') + '-s' + mvSkinIdx() + '-h' + mvHairIdx() + '-' + mvFig().key;
+      if (n.line) id += '-l' + n.line.toLowerCase();
+      if (n.frame) id += '-f' + n.frame.toLowerCase();
+      return id;
+    }
+    function mvChosen() { return !!(st.model.touched || st.model.kept || st.model.skin != null || st.model.hair != null || st.model.gender); }
+    function mvReadAny() { return !!(st.colour || st.sil); }
+    function mvNudgeWords() {
+      const n = st.model.nudges || {};
+      const w = [];
+      if (n.line) w.push(n.line === 'L' ? 'Softer' : 'Straighter');
+      if (n.frame) w.push(n.frame === 'L' ? 'Fuller' : 'Narrower');
+      return w;
+    }
+
+    function renderModel() {
+      const hasColor = !!st.colour, hasLine = !!st.sil;
+      const readAny = hasColor || hasLine;
+      const any = readAny || mvChosen();
+      const kept = !!st.model.kept;
+      const n = st.model.nudges || {};
+      const P = mvP();
+
+      const fig = document.getElementById('mv-fig');
+      fig.setAttribute('opacity', any ? '1' : '0.22');
+      document.getElementById('mv-fig-empty').style.display = any ? 'none' : 'flex';
+      const skin = any ? MV_SKINS[mvSkinIdx()] : '#E3DED4';
+      const hair = any ? MV_HAIRS[mvHairIdx()] : '#D6CFC2';
+      document.getElementById('mv-hair').setAttribute('fill', hair);
+      document.getElementById('mv-head').setAttribute('fill', skin);
+      document.getElementById('mv-dress').setAttribute('fill', any ? '#A9987F' : '#E3DED4');
+      const legs = document.getElementById('mv-legs');
+      legs.setAttribute('fill', skin);
+      let clip = hasLine ? mvFig().clip : MV_FIG_NEUTRAL.clip;
+      if (n.line === 'L') clip = MV_CLIP_SOFT;
+      if (n.line === 'R') clip = MV_CLIP_STRAIGHT;
+      let W = 66;
+      if (n.frame === 'L') W = 76;
+      if (n.frame === 'R') W = 58;
+      const x0 = 100 - W / 2, y0 = 70, H = 126;
+      document.getElementById('mv-dress').setAttribute('points', clip.map(([px, py]) => (x0 + px / 100 * W).toFixed(1) + ',' + (y0 + py / 100 * H).toFixed(1)).join(' '));
+      legs.setAttribute('x', String(100 - 13));
+
+      const shead = document.getElementById('mv-stagehead');
+      shead.style.display = any ? 'flex' : 'none';
+      document.getElementById('mv-stage-ey').textContent = (hasColor && hasLine) ? 'Read from your photographs' : readAny ? 'Part read, part chosen' : 'Chosen by hand';
+      document.getElementById('mv-caption').textContent = MV_SKIN_NAMES[mvSkinIdx()] + ' · ' + MV_HAIR_NAMES[mvHairIdx()] + ' hair';
+
+      // the empty state (slots + the by-hand rows in place) vs the read card
+      document.getElementById('tw-slotscard').hidden = readAny;
+      document.getElementById('mv-shape').hidden = readAny;
+      document.getElementById('tw-read').hidden = !readAny;
+      if (!readAny) {
+        document.getElementById('mv-shape-ey').textContent = 'Or shape ' + P.him + ' by hand';
+        document.getElementById('mv-shape-note').textContent = P.She + ' changes as you choose.';
+        document.getElementById('mv-shape-rows').innerHTML = mvShapeRowsHtml();
+      } else {
+        document.getElementById('mv-shape-rows').innerHTML = '';
+        document.getElementById('tw-colour-v').textContent = hasColor ? st.colour.season : 'Not read yet';
+        document.getElementById('tw-colour-v').className = 'v' + (hasColor ? '' : ' none');
+        document.getElementById('tw-colour-d').textContent = hasColor ? [st.colour.undertone, st.colour.contrast].filter(Boolean).join(' · ') : 'Add a close-up and Robes reads it';
+        const words = mvNudgeWords();
+        document.getElementById('tw-line-v').textContent = hasLine ? st.sil.body_type : words.length ? words.join(', ') : 'Not read yet';
+        document.getElementById('tw-line-v').className = 'v' + (hasLine || words.length ? '' : ' none');
+        document.getElementById('tw-line-d').textContent = hasLine ? 'Read from the full-length' : words.length ? 'Set by hand' : 'Add a full-length and Robes reads it';
+      }
+      const shRows = document.getElementById('sh-shape-rows');
+      if (shRows) shRows.innerHTML = mvShapeRowsHtml();
+
+      const filed = document.getElementById('mv-filed');
+      filed.hidden = !kept;
+      filed.textContent = '✓ Filed · ' + P.she + ' updates as you change ' + P.him;
+      document.getElementById('mv-build').hidden = !any;
+      const note = document.getElementById('mv-status');
+      let txt;
+      if (hasColor && hasLine) txt = 'Two photographs read. ' + P.Shes + ' as close as ' + P.she + ' gets.';
+      else if (readAny) txt = 'One more photograph and ' + P.she + ' settles.';
+      else if (any) txt = 'Add a photograph whenever you like — ' + P.she + ' updates.';
+      else txt = 'Nothing yet. Add a photograph, or shape the model by hand.';
+      note.textContent = txt;
+
+      mvPhotoSync(any);
+      if (typeof spPaintRoot === 'function') spPaintRoot();
+      if (typeof twPaintFacts === 'function') twPaintFacts();
+    }
+
+    /* the by-hand rows — skin, hair, the line, the frame. Gender lives in
+       The facts (the fifth fact). The tap is always the preview: every pick
+       repaints the stage live and auto-files. */
+    const MV_NUDGE_LABELS = { line: 'The line', frame: 'The frame' };
+    function mvShapeRowsHtml() {
+      const skin = mvSkinIdx(), hairI = mvHairIdx(), nn = st.model.nudges || {};
+      const row = (k, inner) => '<div class="mvr"><div class="mvr-k">' + k + '</div><div class="mvr-opts">' + inner + '</div></div>';
+      const hairName = MV_HAIR_NAMES[hairI].charAt(0).toUpperCase() + MV_HAIR_NAMES[hairI].slice(1);
+      return (
+        row('Skin', MV_SKINS.map((c, i) => '<button type="button" class="mvr-dot' + (i === skin ? ' on' : '') + '" data-axis="skin" data-v="' + i + '" style="background:' + c + ';" aria-label="Skin tone ' + (i + 1) + '"></button>').join('') + '<span class="mvr-cur">' + MV_SKIN_NAMES[skin] + '</span>') +
+        row('Hair', MV_HAIRS.map((c, i) => '<button type="button" class="mvr-dot' + (i === hairI ? ' on' : '') + '" data-axis="hair" data-v="' + i + '" style="background:' + c + ';" aria-label="Hair colour ' + (i + 1) + '"></button>').join('') + '<span class="mvr-cur">' + hairName + '</span>') +
+        MV_NUDGES.map(nd => row(MV_NUDGE_LABELS[nd.key], ['L', 'R'].map((v, i) => '<button type="button" class="mvr-pill' + (nn[nd.key] === v ? ' on' : '') + '" data-axis="' + nd.key + '" data-v="' + v + '">' + (i === 0 ? nd.left : nd.right) + '</button>').join(''))).join(''));
+    }
+    function mvShapeRowPick(e) {
+      const b = e.target.closest('button'); if (!b || !b.dataset.axis) return;
+      const axis = b.dataset.axis, v = b.dataset.v;
+      if (axis === 'presence') { factSetGender(v); return; }
+      if (axis === 'skin') st.model.skin = Number(v);
+      else if (axis === 'hair') st.model.hair = Number(v);
+      else {
+        const nn = st.model.nudges || {};
+        nn[axis] = nn[axis] === v ? null : v;   // second tap clears the nudge
+        if (!nn[axis]) delete nn[axis];
+        st.model.nudges = nn;
+      }
+      st.model.touched = true;
+      mvFile();
+    }
+    document.getElementById('mv-shape-rows').addEventListener('click', mvShapeRowPick);
+    // Gender writes gender_identity at once — identity, not styling — and
+    // re-files a kept model under the new catalog.
+    function factSetGender(v) {
+      if (v !== mvGender()) {
+        st.model.gender = v;
+        st.gender = v;
+        save({ gender_identity: v });
+        if (mvChosen() || mvReadAny()) mvFile(); else renderModel();
+      }
+    }
+
+    /* persistence — localStorage is the instant cache, the cloud write
+       degrades silently until migration 20 runs. */
+    const MV_LS = () => st.uid ? 'rb_model__' + st.uid : null;
+    let _mvAvatarCols = true;
+    async function mvPersist() {
+      const prefs = { skin: mvSkinIdx(), hair: mvHairIdx(), nudges: st.model.nudges || {}, kept: !!st.model.kept, gender: st.model.gender || null, v: 2 };
+      try { const k = MV_LS(); if (k) localStorage.setItem(k, JSON.stringify(prefs)); } catch (e) {}
+      if (!st.uid || !_mvAvatarCols) return;
+      const { error } = await sbClient.from('profiles').update({ avatar_id: mvModelId(), avatar_prefs: prefs }).eq('id', st.uid);
+      if (error && /avatar_id|avatar_prefs/.test(error.message || '')) {
+        _mvAvatarCols = false;
+        console.warn('avatar columns missing (run supabase/avatar_migration.sql) — model kept locally only');
+      } else if (error) console.error('Model save failed:', error.message);
+    }
+    // Auto-file: every change files the model — the ✓ line flashes as the
+    // affirmation, never a button. model_filed fires ONCE per model.
+    function mvFile() {
+      const firstFiling = !st.model.kept;
+      st.model.kept = true;
+      mvPersist();
+      renderModel();
+      if (firstFiling) snTrack('model_filed', { by: (st.colour || st.sil) ? 'photo' : 'hand', gender: st.model.gender || st.gender || null });
+      const filed = document.getElementById('mv-filed');
+      filed.classList.remove('flash'); void filed.offsetWidth; filed.classList.add('flash');
+    }
+
+    // Build a look — back to the homepage prompt with the model on file. Sent
+    // here by a look's "Build your model" door (rb_model_return): the draft is
+    // parked and the dashboard restores it, so the pill reads Back to your look.
+    let mvReturnTo = null, mvDraftParked = false;
+    try {
+      const _u = new URL(window.location.href);
+      if (_u.searchParams.get('from') === 'email') {
+        sessionStorage.removeItem('rb_lk_draft');
+        sessionStorage.setItem('rb_model_return', 'home');
+        _u.searchParams.delete('from');
+        history.replaceState(null, '', _u.pathname + (_u.search || '') + _u.hash);
+        if (window.__rbPH) window.__rbPH(function (p) { p.register({ from_email: true }); p.capture('email_landed', { path: '/settings' }); });
+      }
+    } catch (e) {}
+    try { mvReturnTo = sessionStorage.getItem('rb_model_return'); mvDraftParked = !!sessionStorage.getItem('rb_lk_draft'); } catch (e) {}
+    if (mvReturnTo === 'home' && !mvDraftParked) mvReturnTo = null;
+    if (mvReturnTo === 'lookbook' || mvReturnTo === 'home' || mvReturnTo === 'inspiration') document.getElementById('mv-build').textContent = 'Back to your look';
+    document.getElementById('mv-build').addEventListener('click', () => {
+      if (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') { window.location.href = '/lookbook'; return; }
+      if (mvReturnTo === 'home') { window.location.href = '/dashboard'; return; }
+      try {
+        sessionStorage.setItem('rb_model_build', '1');
+        if (st.model && st.model.kept) sessionStorage.setItem('rb_model_open_look', '1');
+      } catch (e) {}
+      window.location.href = '/dashboard';
+    });
+
+    /* the photographed model — the actual catalog cell on the stage */
+    let _mvPhotoSeq = 0, _mvPhotoTimer = null, _mvPhotoShown = null, _mvPhotoPoll = null;
+    function mvPhotoBusy(on) {
+      const frame = document.getElementById('mv-figframe');
+      let chip = frame.querySelector('.mv-photo-busy');
+      if (on && !chip) { chip = document.createElement('span'); chip.className = 'mv-photo-busy'; chip.textContent = 'Creating your model…'; frame.appendChild(chip); }
+      else if (!on && chip) chip.remove();
+    }
+    function mvPhotoClear() {
+      _mvPhotoSeq++; clearTimeout(_mvPhotoTimer); clearInterval(_mvPhotoPoll); _mvPhotoShown = null;
+      const img = document.getElementById('mv-figframe').querySelector('.mv-photo');
+      if (img) img.remove();
+      mvPhotoBusy(false);
+    }
+    function mvPhotoSync(any) {
+      if (!any) { mvPhotoClear(); return; }
+      const id = mvModelId();
+      if (id === _mvPhotoShown) return;
+      clearTimeout(_mvPhotoTimer);
+      _mvPhotoTimer = setTimeout(() => mvPhotoFetch(id), _mvPhotoShown || _mvPhotoSeq ? 900 : 0);
+    }
+    async function mvPhotoFetch(id) {
+      const seq = ++_mvPhotoSeq;
+      clearInterval(_mvPhotoPoll);
+      mvPhotoBusy(true);
+      const land = url => {
+        if (seq !== _mvPhotoSeq) return;
+        _mvPhotoShown = id;
+        const frame = document.getElementById('mv-figframe');
+        let img = frame.querySelector('.mv-photo');
+        if (!img) { img = document.createElement('img'); img.className = 'mv-photo'; img.alt = 'Your model'; img.onerror = () => { img.remove(); _mvPhotoShown = null; }; frame.appendChild(img); }
+        img.src = url;
+        mvPhotoBusy(false);
+      };
+      try {
+        const r = await fetch('/api/avatar/cell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatarId: id }) });
+        const out = r.ok ? await r.json() : null;
+        if (seq !== _mvPhotoSeq) return;
+        if (out && out.url) return land(out.url);
+        if (out && out.jobId) {
+          const t0 = Date.now();
+          _mvPhotoPoll = setInterval(async () => {
+            if (seq !== _mvPhotoSeq) { clearInterval(_mvPhotoPoll); return; }
+            if (Date.now() - t0 > 180000) { clearInterval(_mvPhotoPoll); mvPhotoBusy(false); return; }
+            try {
+              const jr = await fetch('/api/images/' + out.jobId);
+              const job = jr.ok ? await jr.json() : null;
+              if (seq !== _mvPhotoSeq) { clearInterval(_mvPhotoPoll); return; }
+              const url = job && job.images && job.images[0];
+              if (typeof url === 'string' && url.indexOf('http') === 0) { clearInterval(_mvPhotoPoll); land(url); }
+              else if (!job || job.done) { clearInterval(_mvPhotoPoll); mvPhotoBusy(false); }
+            } catch (e) {}
+          }, 3500);
+        } else mvPhotoBusy(false);
+      } catch (e) { if (seq === _mvPhotoSeq) mvPhotoBusy(false); }
+    }
+
+    /* ── the photograph slots + the analyse pipeline ─────────────── */
+    const SLOT_REPLACE_SVG = '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"></path><path d="M21 3v6h-6"></path></svg>';
+    function renderSlot(slotId, url) {
+      const slot = document.getElementById(slotId);
+      let img = slot.querySelector('img');
+      if (!url) { if (img) img.remove(); const r = slot.querySelector('.slot-replace'); if (r) r.remove(); return; }
+      if (!img) {
+        img = document.createElement('img'); img.alt = ''; slot.appendChild(img);
+        const replace = document.createElement('span'); replace.className = 'slot-replace'; replace.innerHTML = SLOT_REPLACE_SVG; replace.setAttribute('aria-label', 'Replace'); slot.appendChild(replace);
+      }
+      img.src = url;
+    }
+    function slotBusy(slotId, hintId, msg) {
+      const slot = document.getElementById(slotId), hint = document.getElementById(hintId);
+      if (msg) {
+        slot.classList.add('busy');
+        if (slot.querySelector('img') && !slot.querySelector('.slot-scrim')) {
+          const scrim = document.createElement('span'); scrim.className = 'slot-scrim';
+          scrim.innerHTML = '<span class="slot-hint" style="animation:rb-pulse 1.4s ease-in-out infinite;border-color:transparent;color:var(--ink-faint);">' + msg + '</span>';
+          slot.appendChild(scrim);
+        }
+        hint.textContent = msg;
+      } else {
+        slot.classList.remove('busy');
+        const scrim = slot.querySelector('.slot-scrim'); if (scrim) scrim.remove();
+        hint.textContent = 'Add photo';
+      }
+    }
+    function slotError(errId, msg) { const el = document.getElementById(errId); el.textContent = msg || ''; el.className = 'slot-err' + (msg ? ' on' : ''); }
+    async function fileToPayload(file) {
+      try {
+        const bmp = await createImageBitmap(file);
+        const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bmp.width * scale); canvas.height = Math.round(bmp.height * scale);
+        canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+        bmp.close();
+        return { mimeType: 'image/jpeg', data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1] };
+      } catch (e) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => { const m = String(reader.result).match(/^data:(.+?);base64,(.+)$/); if (m) resolve({ mimeType: m[1], data: m[2] }); else reject(new Error('unreadable')); };
+          reader.onerror = () => reject(new Error('unreadable'));
+          reader.readAsDataURL(file);
+        });
+      }
+    }
+    function wireSlot(cfg) {
+      const slot = document.getElementById(cfg.slotId), input = document.getElementById(cfg.fileId);
+      slot.addEventListener('click', () => input.click());
+      ['dragenter', 'dragover'].forEach(ev => slot.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); slot.classList.add('drag-over'); }));
+      ['dragleave', 'dragend'].forEach(ev => slot.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); slot.classList.remove('drag-over'); }));
+      slot.addEventListener('drop', e => {
+        e.preventDefault(); e.stopPropagation(); slot.classList.remove('drag-over');
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f && (/^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name))) processFile(f);
+      });
+      input.addEventListener('change', () => processFile(input.files[0]));
+      async function processFile(file) {
+        if (!file) return;
+        slotError(cfg.errId, '');
+        let payload;
+        try { payload = await fileToPayload(file); } catch (e) { slotError(cfg.errId, 'Couldn’t read that image — try another file.'); input.value = ''; return; }
+        slotBusy(cfg.slotId, cfg.hintId, cfg.busyMsg);
+        const ctrl = new AbortController();
+        const killer = setTimeout(() => ctrl.abort(), 100000);
+        try {
+          const [analysis, upload] = await Promise.all([
+            fetch('/api/stylenotes/analyse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+              body: JSON.stringify({ kind: cfg.kind, data: payload.data, mimeType: payload.mimeType, userId: st.uid || undefined }) })
+              .then(async r => { if (r.ok) return r.json(); const body = await r.json().catch(() => ({})); throw new Error(body.reason || 'analysis_failed (' + r.status + ')'); }),
+            fetch('/api/wardrobe/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+              body: JSON.stringify({ data: payload.data, mimeType: payload.mimeType }) }).then(r => r.json()).catch(() => ({})),
+          ]);
+          if (cfg.kind === 'colour' ? analysis.no_face_detected : analysis.no_person_detected) { slotError(cfg.errId, cfg.rejectMsg); return; }
+          const url = upload.url || null;
+          const { style_dna: dnaFragment, ...render } = analysis;
+          const patch = {};
+          if (cfg.kind === 'colour') {
+            st.colour = render;
+            if (url) st.headshotUrl = url;
+            if (dnaFragment) st.styleDna = { ...st.styleDna, color_harmony: dnaFragment };
+            patch.colour_analysis = render; patch.style_dna = st.styleDna;
+            patch.season = dnaFragment ? dnaFragment.archetype_name : render.season;
+            patch.undertone = dnaFragment ? dnaFragment.verified_undertone : render.undertone;
+            patch.contrast = dnaFragment ? dnaFragment.calculated_contrast : render.contrast;
+            if (url) patch.headshot_url = url;
+            renderSlot(cfg.slotId, st.headshotUrl);
+            renderColour(); renderSil();
+          } else {
+            st.sil = render;
+            if (url) st.fullLengthUrl = url;
+            if (dnaFragment) st.styleDna = { ...st.styleDna, silhouette_proportions: dnaFragment };
+            patch.silhouette_analysis = render; patch.style_dna = st.styleDna;
+            patch.body_type = render.body_type;
+            if (url) patch.full_length_url = url;
+            renderSlot(cfg.slotId, st.fullLengthUrl);
+            renderSil();
+          }
+          save(patch);
+          mvFile();   // a fresh read auto-files — the model always tracks it
+          if (typeof shRepaintIf === 'function') shRepaintIf('photos');
+        } catch (err) {
+          console.error('Analysis failed:', err.message);
+          slotError(cfg.errId, err.name === 'AbortError' ? 'That took longer than it should — try the photo again.' : 'Robes couldn’t read that photo just now — try again in a moment.');
+        } finally {
+          clearTimeout(killer);
+          slotBusy(cfg.slotId, cfg.hintId, null);
+          input.value = '';
+        }
+      }
+    }
+    wireSlot({ kind: 'colour', slotId: 'headshot-slot', fileId: 'headshot-file', hintId: 'headshot-hint', errId: 'headshot-err', busyMsg: 'Reading your colouring…', rejectMsg: 'Robes couldn’t find a face in that photo — try a clearer close-up.' });
+    wireSlot({ kind: 'silhouette', slotId: 'full-slot', fileId: 'full-file', hintId: 'full-hint', errId: 'full-err', busyMsg: 'Reading your line…', rejectMsg: 'Robes couldn’t read a full-length figure — try a head-to-toe photo.' });
+
+    /* ── the brief — her words, and what Robes noticed ───────────────
+       Shape: style_dna.brief = {loves[], avoids[], rules[], notes, colours:{loved,rejected},
+       struck[], pending[], read_at, source, updated_at} — a list entry is
+       {text, source: drafted|edited|typed, from?}; a pending entry is a line
+       Robes drafted that she has not yet kept or struck: {list, text, because, at}. */
+    function chBrief() {
+      const b = (st.styleDna && st.styleDna.brief && typeof st.styleDna.brief === 'object') ? st.styleDna.brief : {};
+      const list = a => (Array.isArray(a) ? a : []).map(x => (x && typeof x === 'object') ? { text: String(x.text || '').trim(), source: x.source || 'drafted', from: x.from ? String(x.from) : '' } : { text: String(x || '').trim(), source: 'typed', from: '' }).filter(x => x.text);
+      return {
+        loves: list(b.loves), avoids: list(b.avoids), rules: list(b.rules),
+        notes: typeof b.notes === 'string' ? b.notes : '',
+        colours: { loved: Array.isArray(b.colours && b.colours.loved) ? b.colours.loved.slice() : [], rejected: Array.isArray(b.colours && b.colours.rejected) ? b.colours.rejected.slice() : [] },
+        struck: Array.isArray(b.struck) ? b.struck.slice(0, 30) : [],
+        pending: (Array.isArray(b.pending) ? b.pending : []).filter(x => x && typeof x === 'object' && x.text).slice(0, 12),
+        read_at: typeof b.read_at === 'string' ? b.read_at : '',
+        source: b.source || 'drafted',
+      };
+    }
+    function chBriefEmpty() { const b = chBrief(); return !b.loves.length && !b.avoids.length && !b.rules.length && !b.notes.trim(); }
+    function chSaveBrief(b) {
+      const clean = a => a.slice(0, 8).map(x => Object.assign({ text: x.text.slice(0, 160), source: x.source }, x.from ? { from: x.from.slice(0, 160) } : {}));
+      const brief = {
+        loves: clean(b.loves), avoids: clean(b.avoids), rules: clean(b.rules),
+        notes: (b.notes || '').trim().slice(0, 600),
+        colours: { loved: b.colours.loved.slice(0, 8), rejected: b.colours.rejected.slice(0, 8) },
+        struck: b.struck.slice(0, 30),
+        pending: b.pending.slice(0, 12).map(x => ({ list: x.list, text: String(x.text).slice(0, 160), because: String(x.because || '').slice(0, 200), at: x.at || new Date().toISOString(), loved: x.loved, rejected: x.rejected })),
+        read_at: b.read_at || '',
+        source: b.source, updated_at: new Date().toISOString(),
+      };
+      saveDna({ brief });
+      if (window.__rbBriefSaved) try { window.__rbBriefSaved(brief); } catch (e) {}
+    }
+    // The evidence, compiled from her own rows (never a server-side read keyed on a body userId).
+    async function chEvidence() {
+      const out = { wardrobe: [], looks: [], memory: [] };
+      try {
+        const r = await sbClient.from('wardrobe_items').select('*').eq('user_id', st.uid);
+        const rows = Array.isArray(r && r.data) ? r.data : [];
+        out.wardrobe = rows.slice(0, 80).map(w => ({
+          id: w.id, label: w.label, category: w.category, l2: w.category_l2 || '', color: w.color, brand: w.brand || '',
+          notes: w.notes || '', sentiment: w.sentiment || '', fit_confidence: w.fit_confidence || '',
+          occasions: Array.isArray(w.occasions) ? w.occasions : [], seasons: Array.isArray(w.seasons) ? w.seasons : [],
+          times_worn: Number(w.times_worn) || 0, price: w.price || null, hero: w.hero_position != null,
+          fit: (w.item_dna && w.item_dna.structural_dna && Array.isArray(w.item_dna.structural_dna.silhouette_fit)) ? w.item_dna.structural_dna.silhouette_fit : [],
+        }));
+      } catch (e) {}
+      try {
+        const r = await sbClient.from('looks').select('id,name,note,look_pieces(wardrobe_item_id),wears(worn_on)').eq('user_id', st.uid);
+        const rows = Array.isArray(r && r.data) ? r.data : [];
+        const byId = {}; out.wardrobe.forEach(w => { byId[String(w.id)] = w.label; });
+        out.looks = rows.slice(0, 30).map(l => ({ name: l.name, pieces: (Array.isArray(l.look_pieces) ? l.look_pieces : []).map(p => byId[String(p.wardrobe_item_id)]).filter(Boolean), wears: Array.isArray(l.wears) ? l.wears.length : 0 }));
+      } catch (e) {}
+      try {
+        const m = st.styleDna && st.styleDna.memory && Array.isArray(st.styleDna.memory.entries) ? st.styleDna.memory.entries : [];
+        out.memory = m.slice(0, 40).map(e => chMemoryLine(e)).filter(Boolean);
+      } catch (e) {}
+      return out;
+    }
+    function chMemoryLine(e) {
+      if (!e || typeof e !== 'object') return '';
+      const d = e.t ? String(e.t).slice(0, 10) : '';
+      if (e.k === 'verdict') return d + ' · rated "' + (e.on || 'a look') + '" ' + (e.v === 1 ? 'loved it' : 'not quite') + (e.text ? ': "' + e.text + '"' : '');
+      if (e.k === 'swap') return d + ' · swapped out ' + (e.out || 'a piece') + (e.in ? ' for her ' + e.in : '');
+      if (e.k === 'wear') return d + ' · wore "' + (e.look || 'a look') + '"';
+      if (e.k === 'strike') return d + ' · struck a line Robes drafted: ' + (e.text || '');
+      return e.text ? d + ' · ' + e.text : '';
+    }
+    function chBriefCur(a) { return a.flatMap(x => [x.text, x.from]).filter(Boolean); }
+    // A struck observation is evidence too — slice B's memory reads it.
+    function snMemory() {
+      const m = st.styleDna && st.styleDna.memory && typeof st.styleDna.memory === 'object' ? st.styleDna.memory : {};
+      return Object.assign({ v: 1 }, m, { entries: Array.isArray(m.entries) ? m.entries.slice() : [] });
+    }
+    function snMemoryPush(entry) {
+      const m = snMemory();
+      m.entries = [Object.assign({ t: new Date().toISOString() }, entry)].concat(m.entries).slice(0, 60);
+      st.styleDna = Object.assign({}, st.styleDna || {}, { memory: m });
+    }
+    function chStrikeMemory(text) { try { snMemoryPush({ k: 'strike', surface: 'brief', text: String(text).slice(0, 160) }); } catch (e) {} }
+
+    // The read: Robes drafts from her rows; the lines land as PENDING on the
+    // brief (so a visit never re-reads what she has not yet answered), each
+    // kept or struck from the Observations page or the card on the tab.
+    const ob = { loading: false, err: '', everRead: false };
+    async function obsDraft() {
+      if (ob.loading || !st.uid) return;
+      ob.loading = true; ob.err = ''; obsPaintAll();
+      const b = chBrief();
+      try {
+        const ev = await chEvidence();
+        ob.everRead = true;
+        const res = await fetch('/api/stylenotes/brief', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: st.uid, name: st.firstName,
+            styleDna: st.styleDna || {}, styleIcons: st.icons, gender: st.gender || 'woman',
+            current: { loves: chBriefCur(b.loves), avoids: chBriefCur(b.avoids), rules: chBriefCur(b.rules) },
+            wardrobe: ev.wardrobe, looks: ev.looks, memory: ev.memory,
+          }),
+        });
+        if (!res.ok) { let reason = ''; try { reason = (await res.json()).reason || ''; } catch (e) {} console.warn('[settings/brief] failed', res.status, reason); throw new Error('brief_failed'); }
+        const d = await res.json();
+        const struck = new Set(b.struck.map(x => String(x).toLowerCase()));
+        const have = new Set(b.loves.concat(b.avoids, b.rules).flatMap(x => [x.text, x.from]).filter(Boolean).map(x => x.toLowerCase()));
+        const at = new Date().toISOString();
+        const pending = [];
+        [['loves', d.loves], ['avoids', d.avoids], ['rules', d.rules]].forEach(([list, a]) => {
+          (Array.isArray(a) ? a : []).forEach(x => {
+            if (!x || !x.text) return;
+            const t = String(x.text).toLowerCase();
+            if (struck.has(t) || have.has(t) || pending.some(p => p.text.toLowerCase() === t)) return;
+            pending.push({ list, text: String(x.text), because: String(x.because || ''), at });
+          });
+        });
+        if (!b.notes.trim() && typeof d.notes === 'string' && d.notes.trim() && !struck.has(d.notes.trim().toLowerCase())) pending.push({ list: 'notes', text: d.notes.trim(), because: 'How you dress well, read whole', at });
+        const loved = (Array.isArray(d.colours && d.colours.loved) ? d.colours.loved : []).filter(c => !b.colours.loved.some(x => x.toLowerCase() === c.toLowerCase()));
+        const rejected = (Array.isArray(d.colours && d.colours.rejected) ? d.colours.rejected : []).filter(c => !b.colours.rejected.some(x => x.toLowerCase() === c.toLowerCase()));
+        if (loved.length || rejected.length) pending.push({ list: 'colours', text: (loved.length ? 'You reach for ' + loved.join(', ') + '.' : '') + (rejected.length ? ' You own ' + rejected.join(', ') + ' and leave ' + (rejected.length > 1 ? 'them' : 'it') + ' on the rail.' : ''), because: 'Read from what you wear most, and what you never do.', at, loved, rejected });
+        b.pending = pending; b.read_at = at;
+        // The read consumed the memory to date — home's "noticed more" line counts what lands after this stamp.
+        try { const m = snMemory(); m.read_at = at; st.styleDna = Object.assign({}, st.styleDna || {}, { memory: m }); } catch (e) {}
+        chSaveBrief(b);
+        snTrack('brief_drafted', { lines: pending.length, thin: !!d.thin, pieces: ev.wardrobe.length });
+      } catch (e) {
+        ob.err = 'Robes couldn’t read your wardrobe just now — try again in a moment.';
+      }
+      ob.loading = false; obsPaintAll();
+    }
+    // Auto-read: once, and again when the last read is a week old and nothing waits.
+    function obsEnsure() {
+      const b = chBrief();
+      if (b.pending.length || ob.loading || ob.everRead) return;
+      const age = b.read_at ? Date.now() - Date.parse(b.read_at) : Infinity;
+      if (age > 7 * 86400000) obsDraft();
+    }
+    function obsKeep(i) {
+      const b = chBrief(); const x = b.pending[i]; if (!x) return;
+      b.pending.splice(i, 1);
+      if (x.list === 'notes') b.notes = x.text;
+      else if (x.list === 'colours') { b.colours.loved = b.colours.loved.concat(x.loved || []); b.colours.rejected = b.colours.rejected.concat(x.rejected || []); }
+      else if (b[x.list]) b[x.list].push({ text: x.text, source: 'drafted' });
+      chSaveBrief(b);
+      snTrack('brief_line', { verb: 'keep', list: x.list });
+      toast('Kept. Filed under Style DNA.');
+      obsPaintAll();
+    }
+    function obsNotMe(i) {
+      const b = chBrief(); const x = b.pending[i]; if (!x) return;
+      b.pending.splice(i, 1);
+      b.struck.unshift(String(x.text).slice(0, 160));
+      chStrikeMemory(x.text);
+      chSaveBrief(b);
+      snTrack('brief_line', { verb: 'strike', list: x.list });
+      obsPaintAll();
+    }
+    const WORD_LISTS = { loves: ['What works on you', 'Lines Robes dresses toward, every time.', 'Another that works'], avoids: ['Hard nos', 'Robes never proposes these, whatever the occasion.', 'Another no'], rules: ['Your rules', 'The lines you dress by.', 'Another rule'] };
+    function wordsAdd(list, value) {
+      const v = String(value || '').trim().replace(/\s+/g, ' ').slice(0, 160);
+      if (!v) return false;
+      const b = chBrief();
+      if (b[list].some(x => x.text.toLowerCase() === v.toLowerCase())) return false;
+      b[list].push({ text: v, source: 'typed' }); b.source = 'edited';
+      chSaveBrief(b); snTrack('brief_line', { verb: 'add', list });
+      return true;
+    }
+    function wordsStrike(list, i) {
+      const b = chBrief(); const x = b[list][i]; if (!x) return;
+      b[list].splice(i, 1);
+      if (x.source === 'drafted') { b.struck.unshift(x.text); chStrikeMemory(x.text); }
+      chSaveBrief(b); snTrack('brief_line', { verb: 'strike', list, kept: true });
+    }
+
+    /* ══ Settings · the surface ═══════════════════════════════════════
+       Pages: root (Style Profile | Account) · twin · dna · observations.
+       A card slides its page in; ‹ Settings takes it back; a row lifts a
+       sheet titled with Done; the dimmed page closes it. */
+    const PAGE_HASH = { root: '', account: '#account', twin: '#twin', dna: '#dna', obs: '#observations' };
+    const sp = { page: 'root', tab: 'style', pendingTab: null };
+    function spHashFor() { return sp.page === 'root' ? (sp.tab === 'account' ? '#account' : '') : PAGE_HASH[sp.page]; }
+    function spShow(page, tab, back) {
+      sp.page = page;
+      if (tab) sp.tab = tab;
+      ['root', 'twin', 'dna', 'obs'].forEach(k => {
+        const el = document.getElementById('pg-' + k);
+        el.hidden = k !== page;
+        el.classList.toggle('back', k === page && !!back);
+      });
+      if (page === 'root') {
+        document.querySelectorAll('#sp-seg button').forEach(b => { const on = b.dataset.tab === sp.tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+        document.getElementById('tab-style').hidden = sp.tab !== 'style';
+        document.getElementById('tab-account').hidden = sp.tab !== 'account';
+        document.getElementById('root-title').innerHTML = sp.tab === 'account' ? 'Your <em>account.</em>' : 'Your <em>style profile.</em>';
+        document.getElementById('root-sub').textContent = sp.tab === 'account' ? 'Who you are to Robes, and how it reaches you.' : 'What Robes knows about you, in one place. It reads this before every look.';
+        if (sp.tab === 'style') obsEnsure();
+      }
+      if (page === 'obs') obsEnsure();
+      if (page === 'dna') dnaLoadHeroes();
+      // the header's back: Home from the root, Settings from a page
+      const lab = document.getElementById('sn-back-label');
+      const home = (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') ? 'Lookbook' : 'Home';
+      lab.textContent = page === 'root' ? home : 'Settings';
+      window.scrollTo(0, 0);
+      snTrack('settings_page', { page, tab: page === 'root' ? sp.tab : undefined });
+    }
+    function spGo(page, tab) {
+      const back = page === 'root';
+      spShow(page, tab, back);
+      const h = spHashFor();
+      if ((window.location.hash || '') !== h) {
+        sp.routing = true;
+        if (h) window.location.hash = h; else history.pushState(null, '', window.location.pathname + window.location.search);
+        setTimeout(() => { sp.routing = false; }, 0);
+      }
+      paintAll();
+    }
+    function spRoute() {
+      if (sp.routing) return;
+      let h = (window.location.hash || '').replace('#', '');
+      // legacy deep links from the Style notes page
+      if (h === 'taste') { history.replaceState(null, '', window.location.pathname + window.location.search + '#dna'); h = 'dna'; }
+      if (h === 'silhouette' || h === 'model') { history.replaceState(null, '', window.location.pathname + window.location.search + '#twin'); h = 'twin'; }
+      const page = h === 'twin' ? 'twin' : h === 'dna' ? 'dna' : h === 'observations' ? 'obs' : 'root';
+      spShow(page, page === 'root' ? (h === 'account' ? 'account' : 'style') : null, false);
+      paintAll();
+    }
+    window.addEventListener('hashchange', spRoute);
+    document.querySelectorAll('#sp-seg button').forEach(b => b.addEventListener('click', () => spGo('root', b.dataset.tab)));
+    document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => spGo('root')));
+    document.getElementById('sn-back').addEventListener('click', () => {
+      if (sp.page !== 'root') { spGo('root'); return; }
+      window.location.href = (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') ? '/lookbook' : '/dashboard';
+    });
+    document.getElementById('card-twin').addEventListener('click', () => spGo('twin'));
+    document.getElementById('card-dna').addEventListener('click', () => spGo('dna'));
+    document.getElementById('card-obs').addEventListener('click', () => spGo('obs'));
+    document.getElementById('dna-noticed').addEventListener('click', () => spGo('obs'));
+
+    /* ── the sheet ── */
+    const sh = { open: false, cfg: null };
+    function shOpen(cfg) {
+      if (sh.open) shClose(true);
+      sh.open = true; sh.cfg = cfg;
+      document.getElementById('sh-title').innerHTML = cfg.title || '';
+      document.getElementById('sh-sub').textContent = cfg.sub || '';
+      document.getElementById('sh-sub').hidden = !cfg.sub;
+      document.getElementById('sh-wrap').hidden = false;
+      shRepaint();
+      document.getElementById('sh-body').scrollTop = 0;
+      snTrack('settings_sheet', { kind: cfg.kind });
+    }
+    function shRepaint() {
+      if (!sh.open || !sh.cfg) return;
+      const body = document.getElementById('sh-body');
+      const top = body.scrollTop;
+      if (sh.cfg.before) sh.cfg.before(body);
+      body.innerHTML = sh.cfg.body();
+      if (sh.cfg.wire) sh.cfg.wire(body);
+      body.scrollTop = top;
+    }
+    function shRepaintIf(kind) { if (sh.open && sh.cfg && sh.cfg.kind === kind) shRepaint(); }
+    function shClose(silent) {
+      if (!sh.open) return;
+      const cfg = sh.cfg;
+      sh.open = false; sh.cfg = null;
+      if (cfg && cfg.onClose) cfg.onClose();
+      document.getElementById('sh-wrap').hidden = true;
+      document.getElementById('sh-body').innerHTML = '';
+      if (!silent) paintAll();
+    }
+    document.getElementById('sh-done').addEventListener('click', () => shClose());
+    document.getElementById('sh-wrap').addEventListener('click', e => { if (e.target === document.getElementById('sh-wrap')) shClose(); });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (!document.getElementById('mv-notes-wrap').hidden) mvNotesClose();
+      else if (sh.open) shClose();
+    });
+    const pillHtml = (label, on, data, extra) => '<button type="button" class="sh-pill' + (on ? ' on' : '') + '" ' + data + '>' + (on ? '<span>✓</span>' : '') + esc(label) + (extra || '') + '</button>';
+    const n2w = n => ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][n] || String(n);
+    const linesCount = n => n === 0 ? 'Not yet' : n === 1 ? '1 line' : n + ' lines';
+
+    /* ══ ROOT · the cards' state + the swipe card ══ */
+    function twinState() {
+      if (st.colour && st.sil) return 'Read from your photographs';
+      if (st.colour || st.sil) return 'Part read, part chosen';
+      if (mvChosen()) return 'Shaped by hand';
+      return 'Not yet';
+    }
+    function factsCount() {
+      const f = st.facts || {};
+      let n = ['height_cm', 'size_uk', 'shoe_uk', 'age_band'].filter(k => f[k] != null && f[k] !== '').length;
+      if (st.gender) n++;   // gender always has an answer on file (default woman — asked again on the sheet)
+      return n;
+    }
+    function dnaAnswered() {
+      return [st.types.length > 0, st.brands.length > 0, st.icons.length > 0, (st.heroes || []).length > 0, !!st.investment].filter(Boolean).length;
+    }
+    function spPaintRoot() {
+      const b = chBrief();
+      const tw = twinState();
+      document.getElementById('card-twin-st').innerHTML =
+        '<span' + (tw === 'Not yet' ? ' class="none"' : '') + '><b>Model</b> · ' + esc(tw) + '</span>' +
+        '<span><b>The facts</b> · ' + factsCount() + ' of 5</span>';
+      const n = dnaAnswered(), lines = b.loves.length + b.avoids.length + b.rules.length;
+      document.getElementById('card-dna-st').innerHTML =
+        '<span' + (n === 0 ? ' class="none"' : '') + '><b>Your taste</b> · ' + (n === 5 ? 'Complete' : n === 0 ? 'Not yet' : n + ' of 5 answered') + '</span>' +
+        '<span' + (lines === 0 ? ' class="none"' : '') + '><b>In your words</b> · ' + esc(linesCount(lines)) + '</span>';
+      const pend = b.pending.length;
+      document.getElementById('card-obs-st').innerHTML = ob.loading ? '<span class="none">Robes is reading your wardrobe…</span>'
+        : pend ? '<span class="new">' + pend + ' new</span>' : '<span class="none">Nothing new. Robes keeps reading.</span>';
+      // the "Robes noticed" card — the first pending line, swiped or tapped
+      const host = document.getElementById('sp-notice-host');
+      const x = b.pending[0];
+      if (!x || sp.page !== 'root') { host.innerHTML = ''; return; }
+      if (host.dataset.text === x.text && host.firstElementChild) return;   // the same card stands — never redraw under a drag
+      host.dataset.text = x.text;
+      host.innerHTML = '<div class="sp-notice" id="sp-notice"><span class="stamp no">✕ Not me</span><span class="stamp keep">✓ Keep</span>' +
+        '<div class="k">Robes noticed</div><div class="t">' + esc(x.text) + '</div>' + (x.because ? '<div class="b">' + esc(x.because) + '</div>' : '') +
+        '<div class="verbs"><button type="button" data-v="no">← Not me</button><button type="button" data-v="keep">Keep →</button></div></div>';
+      const card = document.getElementById('sp-notice');
+      const decide = (v) => {
+        card.classList.add('fly');
+        card.style.transform = 'translateX(' + (v === 'keep' ? 120 : -120) + '%) rotate(' + (v === 'keep' ? 4 : -4) + 'deg)';
+        card.style.opacity = '0';
+        const i = chBrief().pending.findIndex(p => p.text === x.text);
+        setTimeout(() => { host.dataset.text = ''; if (i >= 0) { if (v === 'keep') obsKeep(i); else obsNotMe(i); } else obsPaintAll(); }, 220);
+      };
+      card.querySelectorAll('.verbs button').forEach(bt => bt.addEventListener('click', () => decide(bt.dataset.v)));
+      // the drag: sideways only, the stamp fades in, past 90px it commits
+      let x0 = null, dx = 0, moved = false;
+      card.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; x0 = e.clientX; dx = 0; moved = false; card.setPointerCapture(e.pointerId); card.classList.remove('fly'); });
+      card.addEventListener('pointermove', e => {
+        if (x0 == null) return;
+        dx = e.clientX - x0; if (Math.abs(dx) > 4) moved = true;
+        card.style.transform = 'translateX(' + dx + 'px) rotate(' + (dx * 0.03) + 'deg)';
+        card.querySelector('.stamp.keep').style.opacity = String(Math.min(1, Math.max(0, dx / 90)));
+        card.querySelector('.stamp.no').style.opacity = String(Math.min(1, Math.max(0, -dx / 90)));
+      });
+      const release = () => {
+        if (x0 == null) return;
+        x0 = null;
+        if (Math.abs(dx) >= 90) { decide(dx > 0 ? 'keep' : 'no'); return; }
+        card.classList.add('fly'); card.style.transform = ''; card.querySelectorAll('.stamp').forEach(s => { s.style.opacity = '0'; });
+      };
+      card.addEventListener('pointerup', release); card.addEventListener('pointercancel', release);
+    }
+
+    /* ══ 01 · THE TWIN ══ */
+    function factHeight(cm) { return cm ? cm + ' cm' : ''; }
+    function factSize(uk) { return uk ? 'UK ' + uk : ''; }
+    function factShoe(uk) { return uk ? 'UK ' + (Number.isInteger(uk) ? uk : uk.toFixed(1)) : ''; }
+    function factGender() { const g = mvGender(); return g === 'man' ? 'Man' : g === 'woman' ? 'Woman' : '—'; }
+    function twPaintFacts() {
+      const f = st.facts || {};
+      const cell = (k, v) => '<div class="c"><span class="k">' + k + '</span><span class="v' + (v ? '' : ' add') + '">' + (v ? esc(v) : 'Add') + '</span></div>';
+      document.getElementById('tw-facts-cells').innerHTML = cell('Height', factHeight(f.height_cm)) + cell('Size', factSize(f.size_uk)) + cell('Shoes', factShoe(f.shoe_uk)) + cell('Age', f.age_band || '') + cell('Gender', factGender());
+    }
+    function factsSave() { saveDna({ facts: Object.assign({}, st.facts) }); snTrack('facts_set', { n: factsCount() }); }
+    function factStep(k, dir) {
+      const f = st.facts;
+      if (k === 'height_cm') { const v = f.height_cm || 168; f.height_cm = Math.min(FACT_HEIGHT[1], Math.max(FACT_HEIGHT[0], v + dir)); }
+      if (k === 'size_uk') { const v = f.size_uk || 10; f.size_uk = Math.min(FACT_SIZE[1], Math.max(FACT_SIZE[0], v + dir * 2)); }
+      if (k === 'shoe_uk') { const v = f.shoe_uk || 5; f.shoe_uk = Math.min(FACT_SHOE[1], Math.max(FACT_SHOE[0], Math.round((v + dir * 0.5) * 2) / 2)); }
+      factsSave(); twPaintFacts(); shRepaintIf('facts');
+    }
+    let factUnit = 'cm';
+    function ftIn(cm) { const inches = Math.round(cm / 2.54); return Math.floor(inches / 12) + '′' + (inches % 12) + '″'; }
+    function shFacts() {
+      shOpen({
+        kind: 'facts', title: 'The facts.', sub: 'Size, never weight. Robes uses these to propose what fits.',
+        body: () => {
+          const f = st.facts || {};
+          const step = (k, v, sub) => '<div class="fx-step"><button type="button" data-step="' + k + '" data-dir="-1" aria-label="Less">−</button><span class="v' + (v ? '' : ' none') + '">' + (v || 'Add') + '</span><button type="button" data-step="' + k + '" data-dir="1" aria-label="More">+</button></div>' + (sub ? '<span class="fx-sub">' + esc(sub) + '</span>' : '');
+          return '<div class="fx-row"><span class="fx-k">Height</span><div class="fx-side">' + step('height_cm', f.height_cm ? (factUnit === 'cm' ? f.height_cm + ' cm' : ftIn(f.height_cm)) : '') +
+              '<div class="fx-unit"><button type="button" data-unit="cm"' + (factUnit === 'cm' ? ' class="on"' : '') + '>cm</button><button type="button" data-unit="ft"' + (factUnit === 'ft' ? ' class="on"' : '') + '>ft / in</button></div></div></div>' +
+            '<div class="fx-row"><span class="fx-k">Size</span><div class="fx-side">' + step('size_uk', f.size_uk ? 'UK ' + f.size_uk : '', f.size_uk ? 'EU ' + (f.size_uk + 28) : '') + '</div></div>' +
+            '<div class="fx-row"><span class="fx-k">Shoes</span><div class="fx-side">' + step('shoe_uk', f.shoe_uk ? 'UK ' + (Number.isInteger(f.shoe_uk) ? f.shoe_uk : f.shoe_uk.toFixed(1)) : '', f.shoe_uk ? 'EU ' + Math.round(f.shoe_uk + 33) : '') + '</div></div>' +
+            '<div class="fx-row"><span class="fx-k">Age</span><div class="sh-pills">' + FACT_AGES.map(a => pillHtml(a, f.age_band === a, 'data-age="' + esc(a) + '"')).join('') + '</div></div>' +
+            '<div class="fx-row"><span class="fx-k">Gender</span><div class="sh-pills">' + MV_PRESENCE.map(([v, l]) => pillHtml(l, mvGender() === v, 'data-axis="presence" data-v="' + v + '"')).join('') + '</div></div>' +
+            ((f.height_cm || f.size_uk || f.shoe_uk || f.age_band) ? '<div style="margin-top:14px"><button type="button" class="fx-clear" id="fx-clear">Clear the facts</button></div>' : '');
+        },
+        wire: body => {
+          body.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => factStep(b.dataset.step, Number(b.dataset.dir))));
+          body.querySelectorAll('[data-unit]').forEach(b => b.addEventListener('click', () => { factUnit = b.dataset.unit; shRepaint(); }));
+          body.querySelectorAll('[data-age]').forEach(b => b.addEventListener('click', () => { st.facts.age_band = st.facts.age_band === b.dataset.age ? null : b.dataset.age; if (!st.facts.age_band) delete st.facts.age_band; factsSave(); twPaintFacts(); shRepaint(); }));
+          body.querySelectorAll('[data-axis="presence"]').forEach(b => b.addEventListener('click', () => { factSetGender(b.dataset.v); shRepaint(); }));
+          const clr = body.querySelector('#fx-clear'); if (clr) clr.addEventListener('click', () => { st.facts = {}; factsSave(); twPaintFacts(); shRepaint(); });
+        },
+      });
+    }
+    document.getElementById('tw-facts').addEventListener('click', shFacts);
+    document.getElementById('tw-facts').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); shFacts(); } });
+
+    // The Photographs sheet — the two slots move INTO it (their listeners
+    // travel with them), the reads beneath, the by-hand rows under those.
+    function shPhotos() {
+      const P = mvP();
+      shOpen({
+        kind: 'photos', title: 'Photographs.', sub: 'Robes read these from your photographs. Nudge anything that looks off.',
+        before: body => { const s = document.getElementById('tw-slots'); if (s && body.contains(s)) document.getElementById('tw-slotscard').appendChild(s); },
+        body: () => {
+          const c = st.colour, l = st.sil;
+          return '<div id="sh-slots-host"></div>' +
+            (c ? '<div class="sh-k">Colouring <span class="h">' + esc(c.season) + '</span></div><div class="mv-sw-row">' + (c.palette || []).slice(0, 9).map(h => '<div style="background:' + hex(h) + ';"></div>').join('') + '</div>' +
+              '<p class="sh-note">' + esc([c.undertone, c.contrast].filter(Boolean).join(' · ')) + (c.summary ? ' — ' + esc(c.summary) : '') + '</p><button type="button" class="mv-door" id="sh-door-colour">Full colour notes →</button>' : '') +
+            (l ? '<div class="sh-k">The line <span class="h">' + esc(l.body_type) + '</span></div><p class="sh-note">' + esc(l.summary || 'Read from the full-length.') + '</p><button type="button" class="mv-door" id="sh-door-line">Full line notes →</button>' : '') +
+            '<div class="sh-k">By hand <span class="h">' + P.She + ' changes as you choose</span></div><div id="sh-shape-rows">' + mvShapeRowsHtml() + '</div>';
+        },
+        wire: body => {
+          const host = body.querySelector('#sh-slots-host'); const s = document.getElementById('tw-slots');
+          if (host && s) host.appendChild(s);
+          body.querySelector('#sh-shape-rows').addEventListener('click', mvShapeRowPick);
+          const dc = body.querySelector('#sh-door-colour'); if (dc) dc.addEventListener('click', () => mvNotesOpen('colour'));
+          const dl = body.querySelector('#sh-door-line'); if (dl) dl.addEventListener('click', () => mvNotesOpen('line'));
+        },
+        onClose: () => { const s = document.getElementById('tw-slots'); const card = document.getElementById('tw-slotscard'); if (s && card && !card.contains(s)) card.appendChild(s); },
+      });
+    }
+    function shAdjust() {
+      const P = mvP();
+      shOpen({
+        kind: 'adjust', title: 'Adjust by hand.', sub: 'Robes read these from your photographs. Nudge anything that looks off.',
+        body: () => '<div id="sh-shape-rows">' + mvShapeRowsHtml() + '</div><p class="sh-note" style="margin-top:16px">Nothing to save — ' + P.she + ' updates as you choose.</p>',
+        wire: body => body.querySelector('#sh-shape-rows').addEventListener('click', mvShapeRowPick),
+      });
+    }
+    document.getElementById('tw-row-colour').addEventListener('click', shPhotos);
+    document.getElementById('tw-row-line').addEventListener('click', shPhotos);
+    document.getElementById('mv-adjust').addEventListener('click', shAdjust);
+
+    /* ══ 02 · STYLE DNA ══ */
+    function dnaPaint() {
+      const b = chBrief();
+      const v = (id, text, none) => { const el = document.getElementById(id); el.textContent = text; el.className = 'v' + (none ? ' none' : ''); };
+      v('dna-type-v', st.types.length ? st.types.join(', ') : 'Not yet', !st.types.length);
+      v('dna-brands-v', st.brands.length ? (st.brands.length <= 3 ? st.brands.join(', ') : st.brands.length + ' brands') : 'Not yet', !st.brands.length);
+      v('dna-icons-v', st.icons.length ? (st.icons.length <= 2 ? st.icons.join(', ') : st.icons.length + ' icons') : 'Not yet', !st.icons.length);
+      const hn = st.heroes ? st.heroes.length : null;
+      v('dna-pieces-v', hn == null ? '' : hn ? hn + (hn === 1 ? ' piece' : ' pieces') : 'None starred', hn === 0);
+      v('dna-invest-v', st.investment || 'Pick one', !st.investment);
+      v('dna-loves-v', linesCount(b.loves.length), !b.loves.length);
+      v('dna-avoids-v', linesCount(b.avoids.length), !b.avoids.length);
+      v('dna-rules-v', linesCount(b.rules.length), !b.rules.length);
+      const kept = b.loves.concat(b.avoids, b.rules).filter(x => x.source !== 'typed').length;
+      const al = document.getElementById('dna-noticed');
+      al.hidden = !(kept || b.pending.length);
+      document.getElementById('dna-noticed-n').textContent = b.pending.length ? b.pending.length + ' new from Robes' : 'Noticed and kept';
+    }
+    function shTypes() {
+      shOpen({
+        kind: 'types', title: 'Style type.', sub: 'Pick as many as feel like you.',
+        body: () => '<div class="sh-opts">' + ARCHETYPES.map(a => { const on = st.types.includes(a.name); return '<button type="button" class="sh-opt' + (on ? ' on' : '') + '" data-type="' + esc(a.name) + '"><span><span class="n">' + esc(a.name) + '</span><span class="d">' + esc(a.desc) + '</span></span><span class="ck">' + (on ? '✓' : '') + '</span></button>'; }).join('') + '</div>',
+        wire: body => body.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', () => {
+          const n = b.dataset.type;
+          st.types = st.types.includes(n) ? st.types.filter(x => x !== n) : st.types.concat([n]);
+          saveDna({ style_archetypes: st.types.slice() });
+          snTrack('style_type_set', { n: st.types.length });
+          shRepaint(); dnaPaint();
+        })),
+      });
+    }
+    // The brand wall and the icon wall share one sheet: search, Your
+    // selections as pills, the pool beneath (seeded by her types), "+ Add" for
+    // a name not in the pool — which joins her selections, never the pool.
+    const wall = { q: '' };
+    function wallPool(kind) {
+      const out = [];
+      const push = n => { if (n && !out.some(x => norm(x) === norm(n))) out.push(n); };
+      const seed = kind === 'brands' ? BRAND_SEED : ICON_SEED;
+      st.types.forEach(t => (seed[t] || []).forEach(push));
+      (kind === 'brands' ? BRAND_POOL : ICON_POOL.map(x => x[0])).forEach(push);
+      return out;
+    }
+    function iconTag(n) { const hit = ICON_POOL.find(x => norm(x[0]) === norm(n)); return hit ? hit[1] : (st.iconTags[n] || ''); }
+    function wallList(kind) { return kind === 'brands' ? st.brands : st.icons; }
+    function wallHas(kind, n) { return wallList(kind).some(x => norm(x) === norm(n)); }
+    function wallToggle(kind, n) {
+      const list = wallList(kind);
+      const at = list.findIndex(x => norm(x) === norm(n));
+      if (at >= 0) list.splice(at, 1); else list.push(n);
+      if (kind === 'brands') saveDna({ brands: st.brands.slice() });
+      else {
+        const tags = {}; st.icons.forEach(i => { const t = iconTag(i); if (t) tags[i] = t; });
+        st.iconTags = tags;
+        st.styleDna = Object.assign({}, st.styleDna || {}, { icon_tags: tags });
+        save({ style_icons: st.icons.slice(), style_dna: st.styleDna });
+      }
+      snTrack(kind === 'brands' ? 'brands_set' : 'icons_set', { n: list.length });
+      wall.q = '';
+      shRepaint(); dnaPaint();
+    }
+    function shWall(kind) {
+      const brands = kind === 'brands';
+      shOpen({
+        kind, title: brands ? 'Brands.' : 'Icons.',
+        sub: brands ? 'Select 3+ brands you like. This informs your Style DNA.' : 'Whose style runs close to yours? Robes reads the register, not the wardrobe.',
+        body: () => {
+          const q = norm(wall.q);
+          const mine = wallList(kind);
+          const pool = wallPool(kind).filter(n => !wallHas(kind, n));
+          const matches = q ? pool.filter(n => norm(n).includes(q)).slice(0, 12) : pool;
+          const exact = q && (wallPool(kind).some(n => norm(n) === q) || wallHas(kind, wall.q.trim()));
+          const pill = n => pillHtml(n, wallHas(kind, n), 'data-name="' + esc(n) + '"', !brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '');
+          return '<div class="sh-search"><span class="q">⌕</span><input id="wall-q" type="text" placeholder="' + (brands ? 'Search brands' : 'Search or type a name') + '" autocomplete="off" value="' + esc(wall.q) + '">' + (wall.q ? '<button type="button" class="clr" id="wall-clr" aria-label="Clear">×</button>' : '') + '</div>' +
+            (mine.length ? '<div class="sh-k">Your selections <span class="h">' + mine.length + ' kept</span></div><div class="sh-pills">' + mine.map(n => '<button type="button" class="sh-pill on" data-name="' + esc(n) + '">' + esc(n) + (!brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '') + '<span class="x">×</span></button>').join('') + '</div>' : '') +
+            '<div class="sh-k">' + (q ? 'Matches' : brands ? 'Popular among stylists' : 'Often chosen') + (q ? '' : '<span class="h">Tap a name to keep it</span>') + '</div>' +
+            (matches.length ? '<div class="sh-pills">' + matches.map(pill).join('') + '</div>' : '<div class="sh-empty">' + (q ? 'Nothing in the pool by that name.' : 'Everything here is yours already.') + '</div>') +
+            (q && !exact ? '<div style="margin-top:12px"><button type="button" class="sh-pill" id="wall-add">+ Add “' + esc(wall.q.trim()) + '”</button></div>' : '');
+        },
+        wire: body => {
+          const input = body.querySelector('#wall-q');
+          input.addEventListener('input', () => { wall.q = input.value; const pos = input.selectionStart; shRepaint(); const i2 = body.querySelector('#wall-q'); if (i2) { i2.focus(); try { i2.setSelectionRange(pos, pos); } catch (e) {} } });
+          input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); const v = input.value.trim(); if (v && !wallHas(kind, v)) wallToggle(kind, v); } });
+          const clr = body.querySelector('#wall-clr'); if (clr) clr.addEventListener('click', () => { wall.q = ''; shRepaint(); const i2 = body.querySelector('#wall-q'); if (i2) i2.focus(); });
+          body.querySelectorAll('.sh-pill[data-name]').forEach(b => b.addEventListener('click', () => wallToggle(kind, b.dataset.name)));
+          const add = body.querySelector('#wall-add'); if (add) add.addEventListener('click', () => wallToggle(kind, wall.q.trim()));
+        },
+        onClose: () => { wall.q = ''; },
+      });
+    }
+    async function dnaLoadHeroes(force) {
+      if (st.heroes && !force) return;
+      try {
+        const r = await sbClient.from('wardrobe_items').select('id,label,category,brand,image_url,hero_position').eq('user_id', st.uid);
+        const rows = Array.isArray(r && r.data) ? r.data : [];
+        st.heroes = rows.filter(w => w.hero_position != null).sort((a, b) => a.hero_position - b.hero_position);
+      } catch (e) { st.heroes = []; }
+      dnaPaint(); spPaintRoot(); shRepaintIf('pieces');
+    }
+    function shPieces() {
+      shOpen({
+        kind: 'pieces', title: 'The pieces you love.', sub: 'Robes reads what they share. It never dresses you in the same one two days running.',
+        body: () => {
+          const h = st.heroes;
+          if (!h) return '<div class="ob-wait"><i></i>Reading your wardrobe…</div>';
+          const rows = h.map(w => '<div class="pc-row"><span class="im">' + (w.image_url ? '<img src="' + esc(w.image_url) + '" alt="">' : esc((w.label || '?')[0])) + '</span><span class="l"><span class="k">' + esc([w.category, w.brand].filter(Boolean).join(' · ')) + '</span><span class="n">' + esc(w.label || 'A piece') + '</span></span><svg class="star" viewBox="0 0 24 24" fill="#F3EFE6" stroke="currentColor" stroke-width="1.4"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"></path></svg></div>').join('');
+          return (h.length ? rows : '<div class="sh-empty">Nothing starred yet. The star on a piece in your wardrobe marks it as one you love.</div>') +
+            '<div style="margin-top:16px"><a class="sp-pill" href="/wardrobe">Star more from your wardrobe</a></div>';
+        },
+      });
+    }
+    function shInvest() {
+      shOpen({
+        kind: 'invest', title: 'Investment level.', sub: 'How much you spend a year. Robes proposes inside it, whatever you admire.',
+        body: () => '<div class="sh-opts">' + INVEST_LEVELS.map(l => { const on = st.investment === l.label; return '<button type="button" class="sh-opt' + (on ? ' on' : '') + '" data-level="' + esc(l.label) + '"><span><span class="n">' + esc(l.label) + '</span><span class="d">' + esc(l.note) + '</span></span><span class="ck">' + (on ? '✓' : '') + '</span></button>'; }).join('') + '</div>',
+        wire: body => body.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => {
+          st.investment = b.dataset.level;
+          st.styleDna = Object.assign({}, st.styleDna || {}, { investment: st.investment });
+          save({ style_dna: st.styleDna, annual_spend: st.investment });
+          snTrack('investment_set', { level: st.investment });
+          shRepaint(); dnaPaint(); spPaintRoot();
+        })),
+      });
+    }
+    function shWords(list) {
+      const [title, sub, another] = WORD_LISTS[list];
+      shOpen({
+        kind: 'words-' + list, title: title + '.', sub,
+        body: () => {
+          const b = chBrief();
+          const rows = b[list];
+          const sugg = list === 'avoids' ? b.pending.filter(p => p.list === 'avoids') : [];
+          return (rows.length ? rows.map((x, i) => '<div class="ln"><span class="t' + (x.source === 'typed' ? ' typed' : '') + '">' + esc(x.text) + (x.from ? '<span class="from">from “' + esc(x.from) + '”</span>' : '') + '</span><button type="button" class="x" data-strike="' + i + '" aria-label="Strike">×</button></div>').join('') : '<div class="sh-empty">' + (list === 'loves' ? 'Nothing kept yet. Keep a line Robes noticed, or write your own.' : list === 'avoids' ? 'No hard nos yet. Covered arms, no heels, no polo nects — whatever Robes should never do.' : 'No rules yet. The lines you dress by, in your words.').replace('nects', 'necks') + '</div>') +
+            '<div class="ln-add"><span class="plus">+</span><input id="words-in" type="text" placeholder="' + esc(rows.length ? another : 'A line of your own') + '" maxlength="160" autocomplete="off"></div>' +
+            (sugg.length ? '<div class="sh-k sage">Robes suggests <span class="h">From what you’ve never kept</span></div>' + sugg.map(p => '<div class="ln"><span class="t">' + esc(p.text) + (p.because ? '<span class="from">' + esc(p.because) + '</span>' : '') + '</span><button type="button" class="sh-pill" data-keep="' + esc(p.text) + '" style="height:32px;padding:0 14px">Keep</button></div>').join('') : '') +
+            (rows.length ? '<div class="sh-filed">✓ Filed · Robes reads it from here on</div>' : '');
+        },
+        wire: body => {
+          body.querySelectorAll('[data-strike]').forEach(b => b.addEventListener('click', () => { wordsStrike(list, Number(b.dataset.strike)); shRepaint(); dnaPaint(); }));
+          const inp = body.querySelector('#words-in');
+          inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (wordsAdd(list, inp.value)) { shRepaint(); dnaPaint(); const i2 = body.querySelector('#words-in'); if (i2) i2.focus(); } } });
+          body.querySelectorAll('[data-keep]').forEach(b => b.addEventListener('click', () => { const i = chBrief().pending.findIndex(p => p.text === b.dataset.keep); if (i >= 0) obsKeep(i); shRepaint(); }));
+        },
+      });
+    }
+    document.getElementById('dna-type').addEventListener('click', shTypes);
+    document.getElementById('dna-brands').addEventListener('click', () => shWall('brands'));
+    document.getElementById('dna-icons').addEventListener('click', () => shWall('icons'));
+    document.getElementById('dna-pieces').addEventListener('click', shPieces);
+    document.getElementById('dna-invest').addEventListener('click', shInvest);
+    document.getElementById('dna-loves').addEventListener('click', () => shWords('loves'));
+    document.getElementById('dna-avoids').addEventListener('click', () => shWords('avoids'));
+    document.getElementById('dna-rules').addEventListener('click', () => shWords('rules'));
+
+    /* ══ 03 · OBSERVATIONS ══ */
+    const LIST_LABEL = { loves: 'Works', avoids: 'Never', rules: 'Rule', notes: 'How you dress well', colours: 'Colour' };
+    function obsPaint() {
+      const host = document.getElementById('obs-body');
+      const b = chBrief();
+      let html = '<div class="sp-gk">Since your last visit</div>';
+      if (ob.loading) html += '<div class="ob-wait"><i></i>Robes is reading your wardrobe…</div>';
+      else if (ob.err) html += '<div class="sh-empty">' + esc(ob.err) + '</div>';
+      else if (b.pending.length) html += '<div class="ob-list">' + b.pending.map((p, i) => '<div class="ob"><span class="k">' + esc(LIST_LABEL[p.list] || 'Noticed') + '</span><span class="t">' + esc(p.text) + '</span>' + (p.because ? '<span class="b">' + esc(p.because) + '</span>' : '') + '<div class="verbs"><button type="button" data-keep="' + i + '">Keep</button><button type="button" data-no="' + i + '">Not me</button></div></div>').join('') + '</div>';
+      else html += '<div class="sh-empty">Nothing new. Robes keeps reading.</div>';
+      html += '<div style="margin-top:16px"><button type="button" class="sp-pill" id="obs-again"' + (ob.loading ? ' disabled' : '') + '>' + (b.read_at || ob.everRead ? 'Read again' : 'Read my wardrobe') + '</button></div>';
+      const kept = [].concat(b.loves.map(x => Object.assign({ list: 'loves' }, x)), b.avoids.map(x => Object.assign({ list: 'avoids' }, x)), b.rules.map(x => Object.assign({ list: 'rules' }, x))).filter(x => x.source !== 'typed');
+      if (kept.length) html += '<div class="sp-gk" style="margin-top:30px">Kept before</div><div class="sp-group" style="padding:4px 18px">' + kept.map(x => '<div class="ln"><span class="t">' + esc(x.text) + '<span class="from">' + esc(LIST_LABEL[x.list]) + (x.from ? ' · from “' + esc(x.from) + '”' : '') + '</span></span></div>').join('') + '</div>';
+      host.innerHTML = html;
+      host.querySelectorAll('[data-keep]').forEach(bt => bt.addEventListener('click', () => obsKeep(Number(bt.dataset.keep))));
+      host.querySelectorAll('[data-no]').forEach(bt => bt.addEventListener('click', () => obsNotMe(Number(bt.dataset.no))));
+      const again = host.querySelector('#obs-again'); if (again) again.addEventListener('click', () => { snTrack('brief_read_again', {}); obsDraft(); });
+    }
+    function obsPaintAll() { obsPaint(); dnaPaint(); spPaintRoot(); shRepaintIf('words-avoids'); }
+
+    /* ══ ACCOUNT ══ */
+    function acPaint() {
+      document.getElementById('ac-name-v').textContent = [st.firstName, st.lastName].filter(Boolean).join(' ') || 'Add';
+      document.getElementById('ac-name-v').className = 'v' + (st.firstName ? '' : ' none');
+      document.getElementById('ac-email-v').textContent = st.email || '';
+      const nk = document.getElementById('ac-notif-k'), ng = document.getElementById('ac-notif');
+      const down = st.notify === null;
+      nk.hidden = down; ng.hidden = down;
+      if (!down) {
+        const p = st.notify || {};
+        const em = p.looks_ready !== false || p.nudges === true;
+        const tog = (id, on) => { const t = document.getElementById(id); t.classList.toggle('on', on); t.setAttribute('aria-checked', on ? 'true' : 'false'); };
+        tog('tog-email', em); tog('tog-morning', p.morning === true);
+        document.getElementById('tog-hour').value = String(Math.min(10, Math.max(6, Number(p.morning_hour) || 7)));
+      }
+    }
+    // notification_prefs is ONE jsonb — every write merges over the profile's copy.
+    async function notifyPatch(partial) {
+      const merged = Object.assign({}, st.notify || {}, partial);
+      const err = await save({ notification_prefs: merged });
+      if (err && /notification_prefs|PGRST204/i.test(String(err.message || ''))) { st.notify = null; acPaint(); return; }
+      if (!err) { st.notify = merged; Object.keys(partial).forEach(k => { if (partial[k] === true) snTrack('email_optin', { kind: k }); }); }
+      acPaint();
+    }
+    document.getElementById('tog-email').addEventListener('click', () => { const on = !document.getElementById('tog-email').classList.contains('on'); notifyPatch({ looks_ready: on, nudges: on }); });
+    document.getElementById('tog-morning').addEventListener('click', () => { const on = !document.getElementById('tog-morning').classList.contains('on'); notifyPatch({ morning: on, morning_hour: Number(document.getElementById('tog-hour').value) || 7 }); });
+    document.getElementById('tog-hour').addEventListener('change', () => notifyPatch({ morning_hour: Number(document.getElementById('tog-hour').value) || 7 }));
+    function shName() {
+      shOpen({
+        kind: 'name', title: 'Your name.', sub: 'How Robes addresses you.',
+        body: () => '<div class="sh-field"><label for="ac-first">First name</label><input id="ac-first" type="text" value="' + esc(st.firstName) + '" autocomplete="given-name"></div><div class="sh-field"><label for="ac-last">Last name</label><input id="ac-last" type="text" value="' + esc(st.lastName) + '" autocomplete="family-name"></div><div class="sh-msg" id="ac-msg"></div>',
+        wire: body => { body.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') shClose(); })); },
+        onClose: () => {
+          const f = (document.getElementById('ac-first') || {}).value, l = (document.getElementById('ac-last') || {}).value;
+          if (f == null) return;
+          const first = f.trim(), last = (l || '').trim();
+          if (first === st.firstName && last === st.lastName) return;
+          if (!first) return;
+          st.firstName = first; st.lastName = last;
+          save({ first_name: first, last_name: last });
+          document.getElementById('sn-avatar').textContent = first[0].toUpperCase();
+          document.getElementById('sn-av-name').textContent = first;
+          acPaint();
+        },
+      });
+    }
+    function shEmail() {
+      shOpen({
+        kind: 'email', title: 'Your email.', sub: 'Where sign-in links and receipts go. A new address takes effect once you confirm it from your inbox.',
+        body: () => '<div class="sh-field"><label for="ac-em">Email</label><input id="ac-em" type="email" value="' + esc(st.email) + '" autocomplete="email"></div><div class="sh-msg" id="ac-msg"></div><div class="sh-actions"><button type="button" class="sp-pill ink" id="ac-em-go">Send a confirmation</button></div>',
+        wire: body => body.querySelector('#ac-em-go').addEventListener('click', async () => {
+          const v = body.querySelector('#ac-em').value.trim(), msg = body.querySelector('#ac-msg');
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) { msg.className = 'sh-msg err'; msg.textContent = 'That doesn’t read as an email address.'; return; }
+          if (v === st.email) { msg.className = 'sh-msg'; msg.textContent = 'That’s the address on file already.'; return; }
+          msg.className = 'sh-msg'; msg.textContent = 'Sending…';
+          const { error } = await sbClient.auth.updateUser({ email: v });
+          if (error) { msg.className = 'sh-msg err'; msg.textContent = 'Robes couldn’t change it just now — ' + error.message; return; }
+          msg.className = 'sh-msg ok'; msg.textContent = 'Check ' + v + ' — the change completes when you confirm it.';
+          snTrack('account_email_change', {});
+        }),
+      });
+    }
+    function shPassword() {
+      shOpen({
+        kind: 'password', title: 'Your password.', sub: 'At least eight characters.',
+        body: () => '<div class="sh-field"><label for="ac-pw">New password</label><input id="ac-pw" type="password" autocomplete="new-password" class="ph-no-capture"></div><div class="sh-msg" id="ac-msg"></div><div class="sh-actions"><button type="button" class="sp-pill ink" id="ac-pw-go">Update password</button></div>',
+        wire: body => body.querySelector('#ac-pw-go').addEventListener('click', async () => {
+          const v = body.querySelector('#ac-pw').value, msg = body.querySelector('#ac-msg');
+          if (v.length < 8) { msg.className = 'sh-msg err'; msg.textContent = 'Eight characters at least.'; return; }
+          msg.className = 'sh-msg'; msg.textContent = 'Updating…';
+          const { error } = await sbClient.auth.updateUser({ password: v });
+          if (error) { msg.className = 'sh-msg err'; msg.textContent = 'Robes couldn’t update it — ' + error.message; return; }
+          msg.className = 'sh-msg ok'; msg.textContent = 'Updated.'; body.querySelector('#ac-pw').value = '';
+          snTrack('account_password_change', {});
+        }),
+      });
+    }
+    function shDelete() {
+      shOpen({
+        kind: 'delete', title: 'Delete your account?', sub: 'Your wardrobe, looks and digital twin are removed for good. This can’t be undone.',
+        body: () => '<div class="sh-msg" id="ac-msg"></div><div class="sh-actions"><button type="button" class="sp-pill rose" id="ac-del-go">Delete my account</button><button type="button" class="sp-pill" id="ac-del-keep">Keep my account</button></div>',
+        wire: body => {
+          body.querySelector('#ac-del-keep').addEventListener('click', () => shClose());
+          body.querySelector('#ac-del-go').addEventListener('click', async () => {
+            const msg = body.querySelector('#ac-msg'), go = body.querySelector('#ac-del-go');
+            go.disabled = true; msg.className = 'sh-msg'; msg.textContent = 'Removing your account…';
+            try {
+              const { data: { session } } = await sbClient.auth.getSession();
+              const r = await fetch('/api/account/delete', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (session && session.access_token || ''), 'Content-Type': 'application/json' }, body: '{}' });
+              if (!r.ok) throw new Error('delete_failed');
+              snTrack('account_deleted', {});
+              try { await sbClient.auth.signOut(); } catch (e) {}
+              if (window.__rbPHReset) window.__rbPHReset();
+              window.location.href = '/';
+            } catch (e) {
+              go.disabled = false; msg.className = 'sh-msg err'; msg.textContent = 'Robes couldn’t remove it just now. Write to hello@byrobes.com and we’ll do it by hand.';
+            }
+          });
+        },
+      });
+    }
+    document.getElementById('ac-name').addEventListener('click', shName);
+    document.getElementById('ac-email').addEventListener('click', shEmail);
+    document.getElementById('ac-pass').addEventListener('click', shPassword);
+    document.getElementById('ac-delete').addEventListener('click', shDelete);
+    async function logout() {
+      try { await sbClient.auth.signOut(); } catch (e) {}
+      if (window.__rbPHReset) window.__rbPHReset();
+      window.location.href = '/signup.html?mode=signin';
+    }
+    document.getElementById('ac-logout').addEventListener('click', function () { this.textContent = 'Signing out…'; logout(); });
+    document.getElementById('sn-logout').addEventListener('click', function () { this.textContent = 'Signing out…'; logout(); });
+    document.getElementById('sn-av-style').addEventListener('click', () => { document.getElementById('sn-av-menu').classList.remove('open'); spGo('root', 'style'); });
+    document.getElementById('sn-av-account').addEventListener('click', () => { document.getElementById('sn-av-menu').classList.remove('open'); spGo('root', 'account'); });
+    document.addEventListener('click', () => { const m = document.getElementById('sn-av-menu'); if (m) m.classList.remove('open'); });
+    document.getElementById('sn-av-menu').addEventListener('click', e => e.stopPropagation());
+
+    function paintAll() { spPaintRoot(); twPaintFacts(); dnaPaint(); obsPaint(); acPaint(); }
+
+    /* ══ boot ══ */
+    function renderAll() {
+      renderColour(); renderSil();
+      renderSlot('headshot-slot', st.headshotUrl);
+      renderSlot('full-slot', st.fullLengthUrl);
+      renderModel();
+      paintAll();
+    }
+    async function init() {
+      const { data: { session } } = await sbClient.auth.getSession();
+      if (!session) { window.location.href = '/signup.html?mode=signin'; return; }
+      st.uid = session.user.id;
+      st.email = (session.user && session.user.email) || '';
+      if (window.__rbPHUser) window.__rbPHUser(session);
+      const { data: profile, error } = await sbClient.from('profiles').select('*').eq('id', st.uid).single();
+      let once = null;   // a one-time reconcile write, when the old shape needs mapping
+      if (!error && profile) {
+        st.firstName = (profile.first_name || '').trim(); st.lastName = (profile.last_name || '').trim();
+        if (st.firstName) { document.getElementById('sn-avatar').textContent = st.firstName[0].toUpperCase(); document.getElementById('sn-av-name').textContent = st.firstName; }
+        if (profile.style_dna && typeof profile.style_dna === 'object') st.styleDna = profile.style_dna;
+        if (profile.colour_analysis && profile.colour_analysis.season) st.colour = profile.colour_analysis;
+        if (profile.silhouette_analysis && profile.silhouette_analysis.body_type) st.sil = profile.silhouette_analysis;
+        if (Array.isArray(profile.style_icons)) st.icons = profile.style_icons.filter(x => typeof x === 'string' && x.trim());
+        if (profile.headshot_url) st.headshotUrl = profile.headshot_url;
+        if (profile.full_length_url) st.fullLengthUrl = profile.full_length_url;
+        if (profile.gender_identity === 'man' || profile.gender_identity === 'unspecified') st.gender = profile.gender_identity;
+        st.notify = (profile.notification_prefs && typeof profile.notification_prefs === 'object') ? profile.notification_prefs : null;
+        const dna = st.styleDna || {};
+        st.types = Array.isArray(dna.style_archetypes) ? dna.style_archetypes.filter(x => typeof x === 'string') : [];
+        st.facts = dna.facts && typeof dna.facts === 'object' ? Object.assign({}, dna.facts) : {};
+        st.iconTags = dna.icon_tags && typeof dna.icon_tags === 'object' ? dna.icon_tags : {};
+        // Brands split off the icons once (the old pool was one mixed list).
+        if (Array.isArray(dna.brands)) st.brands = dna.brands.filter(x => typeof x === 'string');
+        else {
+          const isBrand = n => BRAND_POOL.some(b => norm(b) === norm(n));
+          st.brands = st.icons.filter(isBrand);
+          if (st.brands.length) { st.icons = st.icons.filter(n => !isBrand(n)); once = Object.assign(once || {}, { style_icons: st.icons.slice() }); st.styleDna = Object.assign({}, st.styleDna, { brands: st.brands.slice() }); }
+        }
+        // The investment level: the saved one, else annual_spend, else the old tiers mapped once.
+        if (typeof dna.investment === 'string' && INVEST_LEVELS.some(l => l.label === dna.investment)) st.investment = dna.investment;
+        else if (INVEST_LEVELS.some(l => l.label === profile.annual_spend)) { st.investment = profile.annual_spend; st.styleDna = Object.assign({}, st.styleDna, { investment: st.investment }); once = once || {}; }
+        else if (profile.budget) {
+          const tiers = profile.budget.split(',').map(s => s.trim());
+          const order = INVEST_LEVELS.map(l => l.label);
+          const lv = tiers.map(t => TIER_TO_LEVEL[t]).filter(Boolean).sort((a, b) => order.indexOf(b) - order.indexOf(a))[0];
+          if (lv) { st.investment = lv; st.styleDna = Object.assign({}, st.styleDna, { investment: lv }); once = Object.assign(once || {}, { annual_spend: lv }); }
+        }
+        let prefs = profile.avatar_prefs && typeof profile.avatar_prefs === 'object' ? profile.avatar_prefs : null;
+        if (!prefs) { try { const k = MV_LS(); const raw = k && localStorage.getItem(k); if (raw) prefs = JSON.parse(raw); } catch (e) {} }
+        if (prefs) {
+          st.model = {
+            skin: Number.isInteger(prefs.skin) ? prefs.skin : null, hair: Number.isInteger(prefs.hair) ? prefs.hair : null,
+            nudges: prefs.nudges && typeof prefs.nudges === 'object' ? prefs.nudges : {}, kept: !!prefs.kept,
+            gender: (prefs.gender === 'man' || prefs.gender === 'woman' || prefs.gender === 'unspecified') ? prefs.gender : null,
+            touched: !!(prefs.kept || Number.isInteger(prefs.skin) || Number.isInteger(prefs.hair) || prefs.gender),
+          };
+        }
+      }
+      if (once) save(Object.assign({ style_dna: st.styleDna }, once));
+      renderAll();
+      if ((st.colour || st.sil || mvChosen()) && !st.model.kept) { st.model.kept = true; mvPersist(); renderModel(); }
+      dnaLoadHeroes();
+      spBoot();
+    }
+    // Doors from home and the mail, mapped from the Style notes page's:
+    // ?begin=1 → Style Profile · ?chapter=brief → observations · ?from=email → twin.
+    function spBoot() {
+      let landed = null;
+      try {
+        const u = new URL(window.location.href);
+        if (u.searchParams.get('chapter') === 'brief') { landed = 'obs'; u.searchParams.delete('chapter'); }
+        if (u.searchParams.get('begin') === '1') { landed = landed || 'root'; u.searchParams.delete('begin'); }
+        if (u.searchParams.get('page') === 'twin') { landed = 'twin'; u.searchParams.delete('page'); }
+        if (landed) { history.replaceState(null, '', u.pathname + (u.search || '') + (landed === 'root' ? '' : landed === 'obs' ? '#observations' : '#twin')); snTrack('style_notes_opened', { from: 'home', to: landed }); }
+      } catch (e) {}
+      spRoute();
+    }
+    (function snWeather() {
+      const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const WX_ICONS = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌧',82:'🌧',95:'⛈',96:'⛈',99:'⛈'};
+      document.getElementById('sn-wx-day').textContent = DAYS[new Date().getDay()];
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        try {
+          const geoRes = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon, { headers: { 'Accept-Language': 'en' } });
+          const geo = await geoRes.json();
+          const city = geo.address?.city || geo.address?.town || geo.address?.village || geo.address?.county || '';
+          const wxRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,weather_code&temperature_unit=celsius');
+          const wx = await wxRes.json();
+          const temp = Math.round(wx.current?.temperature_2m), code = wx.current?.weather_code;
+          if (city) { const c = document.getElementById('sn-wx-city'); c.textContent = city; c.style.display = ''; c.previousElementSibling.style.display = ''; }
+          if (!isNaN(temp)) { const t = document.getElementById('sn-wx-temp'); t.textContent = temp + '°C'; t.style.display = ''; t.previousElementSibling.style.display = ''; }
+          if (code !== undefined && WX_ICONS[code]) document.querySelector('#sn-weather .wx').textContent = WX_ICONS[code];
+        } catch (e) {}
+      }, () => {});
+    })();
+
+    renderAll();
+    spRoute();
+    init();
+  </script>
+</body>
+</html>

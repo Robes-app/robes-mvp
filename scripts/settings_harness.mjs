@@ -1,0 +1,518 @@
+#!/usr/bin/env node
+/*
+ * Settings harness — boots the real /settings (the digital twin, design
+ * Settings_Prototype.dc.html · 2026-10-07) against a Supabase stub and
+ * asserts: the root's two tabs and three cards with their state; the twin
+ * page in its empty, read and by-hand states (the slots in place, the
+ * model's cell fetched, the Photographs + Adjust sheets, the five facts
+ * and their writes, gender writing gender_identity); the Style DNA page's
+ * sheets (the ten types multi-select, the brand + icon walls with search
+ * and "+ Add", the four investment rows, the three word lists); the
+ * observations (the draft lands as pending, Keep files under Style DNA,
+ * Not me strikes + the memory); the swipe card on the tab; the Account
+ * tab (name, email, password, notifications, delete); the legacy doors
+ * (#taste, #silhouette, ?chapter=brief, ?begin=1, ?page=twin); the one-time
+ * brands split + investment mapping; 390 and 1280.
+ *
+ *   npm i --no-save playwright && node scripts/settings_harness.mjs
+ *   (set CHROME_PATH if playwright's bundled build isn't installed)
+ */
+import { chromium } from 'playwright';
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const PORT = Number(process.env.PORT || 4383);
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const TMP = path.join(process.env.TMPDIR || '/tmp', 'rb_sp_photo.png');
+fs.writeFileSync(TMP, PNG);
+
+const srv = http.createServer((q, r) => {
+  const u = q.url.split('?')[0];
+  if (u === '/dashboard' || u === '/lookbook' || u === '/wardrobe' || u === '/') { r.writeHead(200, { 'Content-Type': 'text/html' }); return r.end('<html><body>' + u + '</body></html>'); }
+  if (u === '/api/account/delete') { r.writeHead(200, { 'Content-Type': 'application/json' }); return r.end('{"ok":true}'); }
+  const f = u === '/settings' ? path.join(ROOT, 'settings.html') : path.join(ROOT, u);
+  if (fs.existsSync(f) && fs.statSync(f).isFile()) { r.writeHead(200); return r.end(fs.readFileSync(f)); }
+  r.writeHead(404); r.end('');
+});
+await new Promise(r => srv.listen(PORT, r));
+
+let fails = 0, passes = 0;
+const ok = (c, m) => { if (c) passes++; else { fails++; console.log('  \x1b[31m✗\x1b[0m ' + m); } };
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
+
+const COLOUR = {
+  season: 'Soft Autumn', undertone: 'Neutral', contrast: 'Low, blended', summary: 'Rich, muted, beautifully grounded.',
+  undertone_note: 'A warm-leaning neutral.', avoid_note: 'Too sharp for you.', metals_note: 'Brushed gold.',
+  palette: Array.from({ length: 18 }, (_, i) => '#8A6' + String(100 + i).slice(-3)),
+  neutrals: [{ name: 'Oat', hex: '#E4D8C3' }], best_colours: [{ name: 'Sage', hex: '#7F8B5C' }],
+  avoid_colours: [{ name: 'Fuchsia', hex: '#FF1493' }], metals: [{ name: 'Gold', hexes: ['#C9AE86', '#B0713F', '#8A6A4C'] }],
+};
+const COLOUR_DNA = { archetype_name: 'Soft Autumn', verified_undertone: 'Neutral-Warm', calculated_contrast: 'Low', extracted_values: { skin_tone_hex: '#D2A57F', hair_color_hex: '#3A2A20', eye_color_hex: '#6B4A2E' } };
+const SIL = { body_type: 'Hourglass', summary: 'Shoulders and hips aligned, waist defined.', traits: ['Defined waist', 'Balanced frame'], dress_silhouettes: [{ name: 'Wrap', note: 'Follows the waist.' }], neckline_recommendations: ['V-neck'], styling_tips: ['Belt at the natural waist'] };
+const SIL_DNA = { body_type: 'Hourglass', geometric_ratios: { shoulder_to_waist: 1.35, hip_to_waist: 1.32, shoulder_to_hip: 1.02 } };
+const DRAFT = {
+  loves: [{ text: 'You reach for a defined waist', because: 'your two most-worn tops sit at the natural waist' }],
+  avoids: [{ text: 'Anything that reads polite', because: 'the pieces you never wear are the safest ones' }],
+  rules: [{ text: 'Loafers only with a cropped trouser', because: 'every wear of the loafers was with the cropped wool' }],
+  notes: '', colours: { loved: ['black'], rejected: [] }, thin: false,
+};
+const WARDROBE = [
+  { id: 'w1', label: 'Black wool blazer', category: 'Outerwear', brand: 'Totême', times_worn: 11, hero_position: 1, image_url: 'https://res.cloudinary.com/x/image/upload/w1.jpg' },
+  { id: 'w2', label: 'Ivory silk shirt', category: 'Tops', brand: '', times_worn: 6 },
+];
+
+// profile: 'empty' | 'colour' | 'both' | 'full'   extras: { row, draft, path, hash, noNotify, updateMode }
+async function open(vp, profile = 'empty', o = {}) {
+  const ctx = await browser.newContext({ viewport: vp });
+  const p = await ctx.newPage();
+  const errs = [], cellPosts = [], briefPosts = [], deletes = [];
+  p.on('pageerror', e => errs.push(String(e)));
+  await p.route('**cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: '/* stubbed */' }));
+  await p.route('**fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
+  await p.route('**/api/avatar/cell', r => { cellPosts.push(r.request().postDataJSON().avatarId); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://res.cloudinary.com/x/image/upload/model-cell.jpg' }) }); });
+  await p.route('**res.cloudinary.com/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG }));
+  await p.route('**nominatim.openstreetmap.org/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  await p.route('**api.open-meteo.com/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  await p.route('**/api/stylenotes/analyse', async route => {
+    const kind = route.request().postDataJSON().kind;
+    await new Promise(r => setTimeout(r, 200));
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(kind === 'colour' ? { ...COLOUR, style_dna: COLOUR_DNA } : { ...SIL, style_dna: SIL_DNA }) });
+  });
+  await p.route('**/api/wardrobe/upload', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"https://res.cloudinary.com/x/image/upload/p.jpg"}' }));
+  await p.route('**/api/stylenotes/brief', async route => {
+    briefPosts.push(route.request().postDataJSON());
+    await new Promise(r => setTimeout(r, 150));
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(o.draft || { loves: [], avoids: [], rules: [], notes: '', colours: { loved: [], rejected: [] }, thin: true }) });
+  });
+  await p.route('**/api/account/delete', r => { deletes.push(r.request().headers()['authorization'] || ''); r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); });
+  await p.addInitScript(({ profile, o, COLOUR, COLOUR_DNA, SIL, SIL_DNA, WARDROBE }) => {
+    const row = Object.assign({ id: 'u1', first_name: 'Annie', last_name: 'Slattery', notification_prefs: { looks_ready: true, morning_hour: 7 } }, o.row || {});
+    if (o.noNotify) delete row.notification_prefs;
+    if (profile === 'colour' || profile === 'both' || profile === 'full') { row.colour_analysis = COLOUR; row.style_dna = Object.assign({}, row.style_dna || {}, { color_harmony: COLOUR_DNA }); row.season = 'Soft Autumn'; }
+    if (profile === 'both' || profile === 'full') { row.silhouette_analysis = SIL; row.style_dna = Object.assign({}, row.style_dna || {}, { silhouette_proportions: SIL_DNA }); }
+    if (profile === 'full') {
+      row.avatar_prefs = { skin: 2, hair: 0, nudges: {}, kept: true, v: 2 };
+      row.style_dna = Object.assign({}, row.style_dna, { style_archetypes: ['Minimal', 'Classic'], brands: ['The Row', 'Zara'], icon_tags: { 'Jane Birkin': 'French undone' }, investment: '€500–1,500', facts: { height_cm: 168, size_uk: 10, shoe_uk: 5, age_band: '45–54' } });
+      row.style_icons = ['Jane Birkin'];
+    }
+    window.__updates = []; window.__auth = [];
+    window.supabase = { createClient: () => ({
+      auth: {
+        getSession: async () => ({ data: { session: { user: { id: 'u1', email: 'annie@example.com' }, access_token: 'jwt-u1' } } }),
+        signOut: async () => ({}),
+        updateUser: async (patch) => { window.__auth.push(patch); return { data: {}, error: null }; },
+      },
+      from: (table) => ({
+        select: () => ({ eq: () => { const list = { data: table === 'wardrobe_items' ? WARDROBE : [] }; return { single: async () => ({ data: row }), then: (res) => res(list) }; } }),
+        insert: () => ({ then: (res) => res({}) }),
+        update: (patch) => ({ eq: async () => {
+          window.__updates.push(patch);
+          if (o.updateMode === 'nocol' && (patch.avatar_id !== undefined || patch.avatar_prefs !== undefined)) return { error: { message: "Could not find the 'avatar_id' column of 'profiles' in the schema cache" } };
+          if (o.updateMode === 'nonotify' && patch.notification_prefs !== undefined) return { error: { message: "Could not find the 'notification_prefs' column of 'profiles' in the schema cache" } };
+          return { error: null };
+        } }),
+      }),
+    }) };
+  }, { profile, o, COLOUR, COLOUR_DNA, SIL, SIL_DNA, WARDROBE });
+  await p.goto(`http://localhost:${PORT}/settings${o.path || ''}${o.hash || ''}`);
+  await p.waitForTimeout(600);
+  const upd = async (pred) => p.evaluate((src) => { const f = new Function('u', 'return ' + src); return window.__updates.filter(f).pop() || null; }, pred);
+  return { ctx, p, errs, cellPosts, briefPosts, deletes, upd };
+}
+const txt = async (p, sel) => (await p.locator(sel).innerText()).replace(/\s+/g, ' ').trim();
+
+for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
+
+  console.log(`\n\x1b[1m== ${label} · the root — Style Profile | Account ==\x1b[0m`);
+  {
+    const { ctx, p, errs, briefPosts } = await open(vp);
+    ok(await p.locator('#pg-root').isVisible() && await p.locator('#pg-twin').isHidden() && await p.locator('#pg-dna').isHidden() && await p.locator('#pg-obs').isHidden(), 'the root is the page; every other page waits');
+    ok((await txt(p, '#sn-back-label')) === 'Home', 'the header back reads Home on the root');
+    ok(/your style profile\./i.test(await txt(p, '#root-title')), 'titled Your style profile.');
+    ok((await p.locator('#sp-seg button').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === 'style profile | account', 'the two tabs: Style Profile | Account');
+    ok(await p.locator('#tab-style').isVisible() && await p.locator('#tab-account').isHidden(), 'Style Profile is the tab on open');
+    ok(await p.locator('#tab-style .sp-card').count() === 3, 'three cards: the twin, Style DNA, observations');
+    ok(/Model · Not yet/.test(await txt(p, '#card-twin-st')) && /The facts · 1 of 5/.test(await txt(p, '#card-twin-st')), 'the twin card reads Not yet, gender the one fact on file: ' + await txt(p, '#card-twin-st'));
+    ok(/Your taste · 1 of 5 answered/.test(await txt(p, '#card-dna-st')) && /In your words · Not yet/.test(await txt(p, '#card-dna-st')), 'the Style DNA card counts the starred piece as the one answer, the words Not yet: ' + await txt(p, '#card-dna-st'));
+    ok(/Nothing new/.test(await txt(p, '#card-obs-st')), 'the observations card reads Nothing new on a thin read');
+    ok(briefPosts.length === 1, 'the Style Profile tab reads her wardrobe once (never read before)');
+    ok(await p.locator('#sp-notice').count() === 0, 'no "Robes noticed" card with nothing pending');
+    ok(await p.locator('#sh-wrap').isHidden(), 'no sheet open');
+    // the account tab
+    await p.click('#sp-seg button[data-tab="account"]'); await p.waitForTimeout(200);
+    ok(await p.locator('#tab-account').isVisible() && await p.locator('#tab-style').isHidden() && p.url().endsWith('#account'), 'Account shows and the hash follows');
+    ok(/your account\./i.test(await txt(p, '#root-title')), 'titled Your account.');
+    ok((await txt(p, '#ac-name-v')) === 'Annie Slattery' && (await txt(p, '#ac-email-v')) === 'annie@example.com', 'the Profile rows carry her name and email');
+    ok(await p.locator('#ac-notif').isVisible() && await p.locator('#tog-email.on').count() === 1 && await p.locator('#tog-morning.on').count() === 0, 'Notifications: email on (looks_ready true), the morning line off');
+    ok(await p.locator('#tab-account a.sp-row[href="/privacy"]').count() === 1 && await p.locator('#tab-account a.sp-row[href="/terms"]').count() === 1, 'Privacy & terms are two ↗ rows');
+    ok(/hello@byrobes\.com/.test(await txt(p, '#tab-account .sp-foot')) && await p.locator('#ac-logout').isVisible(), 'the foot: a hand, the beta, Log out');
+    ok(await p.locator('#tab-account button').evaluateAll(bs => bs.filter(b => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' && b.getClientRects().length).length) === 1, 'the one ink on the account tab is the email switch that is on — no filled button');
+    ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'no horizontal overflow');
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · the twin — empty: the slots in place, the by-hand rows open ==\x1b[0m`);
+  {
+    const { ctx, p, errs, cellPosts, upd } = await open(vp, 'empty', { hash: '#twin' });
+    ok(await p.locator('#pg-twin').isVisible() && await p.locator('#pg-root').isHidden(), '#twin opens the twin page');
+    ok((await txt(p, '#sn-back-label')) === 'Settings', 'the header back reads Settings on a page');
+    ok(await p.locator('#mv-fig-empty').isVisible() && /starts the moment your first photograph reads/i.test(await txt(p, '#mv-fig-empty')), 'the ghost figure carries the it-starts line');
+    ok(await p.locator('#tw-slotscard').isVisible() && await p.locator('#headshot-slot').isVisible() && await p.locator('#full-slot').isVisible(), 'the two dashed slots stand in place');
+    ok(/Soft daylight, facing a window\. No filters\./.test(await txt(p, '#st1-guide')) && /Head to toe, fitted clothes\. A mirror is fine\./.test(await txt(p, '#st2-guide')), 'each slot carries its one guide line');
+    ok(await p.locator('#tw-read').isHidden(), 'no Read-from-your-photographs card yet');
+    ok(/or shape her by hand/i.test(await txt(p, '#mv-shape-ey')) && await p.locator('#mv-shape-rows .mvr').count() === 4, 'Or shape her by hand: four rows open (skin · hair · the line · the frame)');
+    ok(await p.locator('#mv-shape-rows [data-axis="presence"]').count() === 0, 'gender is NOT a by-hand row — it is the fifth fact');
+    ok((await p.locator('#tw-facts-cells .c .v.add').count()) === 4 && /Woman/.test(await txt(p, '#tw-facts-cells')), 'four facts read Add; Gender reads Woman');
+    ok(cellPosts.length === 0 && await p.locator('.mv-photo').count() === 0, 'no cell asked for before anything exists');
+    ok(await p.locator('#mv-build').isHidden() && await p.locator('#mv-filed').isHidden(), 'no Build a look, nothing filed');
+    // the by-hand path: a skin pick files the model + fetches the cell
+    await p.click('#mv-shape-rows [data-axis="skin"][data-v="0"]'); await p.waitForTimeout(1300);
+    ok((await p.locator('#mv-head').getAttribute('fill')) === '#3B2A22', 'a skin pick repaints the figure');
+    const u1 = await upd('u.avatar_id');
+    ok(u1 && /^w-s0-h1-nt$/.test(u1.avatar_id) && u1.avatar_prefs.kept === true, 'the model auto-files by hand: ' + (u1 && u1.avatar_id));
+    ok(await p.locator('#mv-filed').isVisible() && await p.locator('#mv-build').isVisible(), 'the ✓ Filed line + Build a look appear');
+    ok(cellPosts[0] === 'w-s0-h1-nt', 'the cell asked for is the by-hand model');
+    ok(/Model · Shaped by hand/.test(await (async () => { await p.evaluate(() => { location.hash = ''; }); await p.waitForTimeout(300); return txt(p, '#card-twin-st'); })()), 'back on the root the twin card reads Shaped by hand');
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · the twin — read: the card, the Photographs sheet, the cell ==\x1b[0m`);
+  {
+    const { ctx, p, errs, cellPosts, upd } = await open(vp, 'both', { hash: '#twin' });
+    ok(await p.locator('#tw-slotscard').isHidden() && await p.locator('#mv-shape').isHidden(), 'the slots and the by-hand rows leave the page once something has read');
+    ok(await p.locator('#tw-read').isVisible(), 'the Read-from-your-photographs card stands');
+    ok((await txt(p, '#tw-colour-v')) === 'Soft Autumn' && /Neutral · Low, blended/.test(await txt(p, '#tw-colour-d')), 'Colouring row: the season, undertone · contrast');
+    ok((await txt(p, '#tw-line-v')) === 'Hourglass' && /Read from the full-length/.test(await txt(p, '#tw-line-d')), 'Body shape row: the read, its provenance');
+    ok(await p.waitForSelector('.mv-photo', { timeout: 5000 }).then(() => true).catch(() => false) && cellPosts[0] === 'w-s5-h1-hg', 'the model photograph lands — the cell is the resolved id: ' + cellPosts[0]);
+    ok(/read from your photographs/i.test(await txt(p, '#mv-stage-ey')) && (await txt(p, '#mv-caption')) === 'Sand · espresso brown hair', 'the stage names the provenance and her colouring in colour words');
+    ok(/two photographs read/i.test(await txt(p, '#mv-status')), 'the status: two photographs read');
+    const u = await upd('u.avatar_id');
+    ok(u && u.avatar_id === 'w-s5-h1-hg', 'a read account files on load (pre-auto-file rows)');
+    // the Photographs sheet — the slots move in, the reads and the rows beneath
+    await p.click('#tw-row-colour'); await p.waitForTimeout(350);
+    ok(await p.locator('#sh-wrap').isVisible() && /photographs\./i.test(await txt(p, '#sh-title')), 'the Colouring row lifts the Photographs sheet');
+    ok(await p.locator('#sh-body #tw-slots').count() === 1 && await p.locator('#sh-body #headshot-slot').isVisible(), 'the two slots live inside the sheet');
+    ok(await p.locator('#sh-body #st1-read').isVisible() && await p.locator('#sh-body #st2-read').isVisible(), 'both slots read ✓ Read');
+    ok(await p.locator('#sh-body .mv-sw-row div').count() === 9 && /Soft Autumn/.test(await txt(p, '#sh-body')), 'nine swatches under Colouring');
+    ok(await p.locator('#sh-body #sh-shape-rows .mvr').count() === 4, 'the four by-hand rows sit beneath');
+    await p.click('#sh-door-colour'); await p.waitForTimeout(350);
+    ok(await p.locator('#mv-notes-wrap').isVisible() && await p.locator('#colour-sections').isVisible() && await p.locator('#palette-grid .g-6 div').count() === 18, 'Full colour notes → the drawer with all eighteen');
+    await p.click('#mvn-close'); await p.waitForTimeout(200);
+    await p.click('#sh-body [data-axis="skin"][data-v="0"]'); await p.waitForTimeout(300);
+    ok((await p.locator('#mv-head').getAttribute('fill')) === '#3B2A22' && (await upd('u.avatar_id')).avatar_id === 'w-s0-h1-hg', 'a pick inside the sheet repaints the stage and re-files: ' + (await upd('u.avatar_id')).avatar_id);
+    await p.click('#sh-done'); await p.waitForTimeout(250);
+    ok(await p.locator('#sh-wrap').isHidden() && await p.locator('#tw-slotscard #tw-slots').count() === 1 && await p.locator('#tw-slotscard').isHidden(), 'Done closes the sheet; the slots return to their card, still off the page');
+    // Adjust by hand — the same rows, no photographs
+    await p.click('#mv-adjust'); await p.waitForTimeout(300);
+    ok(/adjust by hand\./i.test(await txt(p, '#sh-title')) && await p.locator('#sh-body .mvr').count() === 4 && await p.locator('#sh-body #tw-slots').count() === 0, 'Adjust by hand: the four rows, no slots');
+    const before = await p.locator('#mv-dress').getAttribute('points');
+    await p.click('#sh-body [data-axis="frame"][data-v="R"]'); await p.waitForTimeout(300);
+    ok((await p.locator('#mv-dress').getAttribute('points')) !== before && /-fr$/.test((await upd('u.avatar_id')).avatar_id), 'a nudge redraws the figure and rides the id');
+    await p.locator('#sh-wrap').click({ position: { x: 6, y: 6 } }); await p.waitForTimeout(200);
+    ok(await p.locator('#sh-wrap').isHidden(), 'the dimmed page closes the sheet');
+    ok(/Narrower/.test(await txt(p, '#tw-line-v')) === false && (await txt(p, '#tw-line-v')) === 'Hourglass', 'a read line keeps its name on the row');
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · the facts — size, never weight; gender writes gender_identity ==\x1b[0m`);
+  {
+    const { ctx, p, errs, upd } = await open(vp, 'empty', { hash: '#twin' });
+    await p.click('#tw-facts'); await p.waitForTimeout(300);
+    ok(/the facts\./i.test(await txt(p, '#sh-title')) && /Size, never weight/.test(await txt(p, '#sh-sub')), 'The facts sheet: size, never weight');
+    ok(await p.locator('#sh-body .fx-row').count() === 5, 'five rows: Height · Size · Shoes · Age · Gender');
+    ok(!/weight/i.test(await txt(p, '#sh-body').then(t => t.replace(/Size, never weight/g, ''))), 'no weight anywhere');
+    ok(await p.locator('#sh-body [data-axis="presence"]').count() === 3 && /Woman/.test(await txt(p, '#sh-body [data-axis="presence"].on')), 'Gender: Woman · Man · Prefer not to say, Woman on file');
+    await p.click('#sh-body [data-step="height_cm"][data-dir="1"]'); await p.waitForTimeout(150);
+    ok(/169 cm/.test(await txt(p, '#sh-body')) && (await upd('u.style_dna && u.style_dna.facts')).style_dna.facts.height_cm === 169, 'height steps from 168 and writes style_dna.facts');
+    await p.click('#sh-body [data-unit="ft"]'); await p.waitForTimeout(150);
+    ok(/5′7″/.test(await txt(p, '#sh-body')), 'ft / in reads 5′7″ for 169 cm');
+    await p.click('#sh-body [data-step="size_uk"][data-dir="1"]'); await p.waitForTimeout(150);
+    ok(/UK 12/.test(await txt(p, '#sh-body')) && /EU 40/.test(await txt(p, '#sh-body')), 'size steps in twos with the EU size beneath');
+    await p.click('#sh-body [data-step="shoe_uk"][data-dir="-1"]'); await p.waitForTimeout(150);
+    ok(/UK 4\.5/.test(await txt(p, '#sh-body')), 'shoes step in halves');
+    await p.click('#sh-body [data-age="45–54"]'); await p.waitForTimeout(150);
+    ok(/45–54/.test(await txt(p, '#sh-body [data-age].on')), 'an age chip selects');
+    await p.click('#sh-body [data-axis="presence"][data-v="man"]'); await p.waitForTimeout(250);
+    ok((await upd('u.gender_identity')).gender_identity === 'man', 'Man writes profiles.gender_identity at once');
+    ok(/Man/.test(await txt(p, '#sh-body [data-axis="presence"].on')), 'and the pill moves');
+    await p.click('#sh-done'); await p.waitForTimeout(250);
+    ok(/169 cm/.test(await txt(p, '#tw-facts-cells')) && /UK 12/.test(await txt(p, '#tw-facts-cells')) && /UK 4\.5/.test(await txt(p, '#tw-facts-cells')) && /45–54/.test(await txt(p, '#tw-facts-cells')) && /Man/.test(await txt(p, '#tw-facts-cells')), 'the five cells carry the facts: ' + await txt(p, '#tw-facts-cells'));
+    const f = (await upd('u.style_dna && u.style_dna.facts')).style_dna.facts;
+    ok(f.height_cm === 169 && f.size_uk === 12 && f.shoe_uk === 4.5 && f.age_band === '45–54' && f.weight === undefined, 'style_dna.facts holds the four, never a weight');
+    ok(/or shape him by hand/i.test(await txt(p, '#mv-shape-ey')), 'the by-hand copy follows the gender');
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · a fresh read lands in the sheet ==\x1b[0m`);
+  {
+    const { ctx, p, errs, upd } = await open(vp, 'empty', { hash: '#twin' });
+    const [chooser] = await Promise.all([p.waitForEvent('filechooser'), p.click('#headshot-slot')]);
+    await chooser.setFiles(TMP);
+    await p.waitForTimeout(900);
+    ok(await p.locator('#tw-read').isVisible() && (await txt(p, '#tw-colour-v')) === 'Soft Autumn', 'a close-up read lands on the card');
+    ok(await p.locator('#tw-slotscard').isHidden(), 'the slots leave the page');
+    const u = await upd('u.colour_analysis');
+    ok(u && u.season === 'Soft Autumn' && u.headshot_url && u.style_dna.color_harmony, 'the read writes colour_analysis + the DNA fragment + the photograph');
+    ok((await upd('u.avatar_id')).avatar_id === 'w-s5-h1-nt', 'and files the model from the read');
+    await p.click('#tw-row-line'); await p.waitForTimeout(300);
+    ok(await p.locator('#sh-body #st1-read').isVisible() && await p.locator('#sh-body #st2-read').isHidden(), 'inside the sheet the close-up reads ✓ Read, the full-length not yet');
+    const [ch2] = await Promise.all([p.waitForEvent('filechooser'), p.click('#sh-body #full-slot')]);
+    await ch2.setFiles(TMP);
+    await p.waitForTimeout(900);
+    ok(await p.locator('#sh-body #st2-read').isVisible() && /Hourglass/.test(await txt(p, '#sh-body')), 'a full-length added from the sheet reads there');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
+    ok((await txt(p, '#tw-line-v')) === 'Hourglass' && /two photographs read/i.test(await txt(p, '#mv-status')), 'the row and the status follow');
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · Style DNA — the sheets ==\x1b[0m`);
+  {
+    const { ctx, p, errs, upd } = await open(vp, 'empty', { hash: '#dna', row: { style_icons: ['The Row', 'Jane Birkin'], budget: 'Everyday, Designer' } });
+    ok(await p.locator('#pg-dna').isVisible(), '#dna opens Style DNA');
+    // the one-time reconcile: brands split off the icons, the tiers mapped to a level
+    const once = await upd('u.style_icons');
+    ok(once && once.style_icons.join() === 'Jane Birkin' && once.style_dna.brands.join() === 'The Row' && once.style_dna.investment === '€1,500–5,000' && once.annual_spend === '€1,500–5,000', 'ONE write splits the brands off the icons and maps the highest tier to a level: ' + JSON.stringify(once));
+    ok((await txt(p, '#dna-brands-v')) === 'The Row' && (await txt(p, '#dna-icons-v')) === 'Jane Birkin' && (await txt(p, '#dna-invest-v')) === '€1,500–5,000', 'the rows read the split');
+    ok((await txt(p, '#dna-type-v')) === 'Not yet' && (await txt(p, '#dna-loves-v')) === 'Not yet', 'type and the words read Not yet');
+    await p.waitForTimeout(300);
+    ok((await txt(p, '#dna-pieces-v')) === '1 piece', 'Pieces you love counts her starred pieces');
+    // style type: the ten, multi-select
+    await p.click('#dna-type'); await p.waitForTimeout(300);
+    ok(/pick as many as feel like you/i.test(await txt(p, '#sh-sub')) && await p.locator('#sh-body [data-type]').count() === 10, 'Style type: the ten types, pick as many');
+    await p.click('#sh-body [data-type="Minimal"]'); await p.click('#sh-body [data-type="Sculptural"]'); await p.waitForTimeout(250);
+    ok(await p.locator('#sh-body .sh-opt.on').count() === 2 && (await upd('u.style_dna && u.style_dna.style_archetypes')).style_dna.style_archetypes.join() === 'Minimal,Sculptural', 'two kept, written to style_archetypes');
+    const onBg = await p.locator('#sh-body .sh-opt.on').first().evaluate(el => getComputedStyle(el).backgroundColor);
+    ok(onBg === 'rgb(243, 239, 230)', 'selected is warm, never black: ' + onBg);
+    await p.click('#sh-body [data-type="Minimal"]'); await p.waitForTimeout(200);
+    ok((await upd('u.style_dna && u.style_dna.style_archetypes')).style_dna.style_archetypes.join() === 'Sculptural', 'a second tap clears it');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
+    ok((await txt(p, '#dna-type-v')) === 'Sculptural', 'the row reads the pick');
+    // the brand wall
+    await p.click('#dna-brands'); await p.waitForTimeout(300);
+    ok(/select 3\+ brands/i.test(await txt(p, '#sh-sub')) && await p.locator('#sh-body #wall-q').isVisible(), 'Brands: the search field leads');
+    ok(/your selections/i.test(await txt(p, '#sh-body')) && await p.locator('#sh-body .sh-pill.on').count() === 1, 'Your selections holds The Row');
+    ok(/popular among stylists/i.test(await txt(p, '#sh-body')) && (await p.locator('#sh-body .sh-pill:not(.on)').allInnerTexts()).slice(0, 2).join() === 'Totême,Khaite', 'the pool leads with the picked type’s houses (Sculptural → Totême, Khaite)');
+    ok(await p.locator('#sh-body .sh-pill[data-name="The Row"]').count() === 1, 'a kept name shows once — in her selections, not the pool');
+    await p.click('#sh-body .sh-pill[data-name="Zara"]'); await p.waitForTimeout(250);
+    ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Zara', 'a tap keeps a brand');
+    await p.fill('#sh-body #wall-q', 'Chopova'); await p.waitForTimeout(250);
+    ok(await p.locator('#sh-body .sh-pill[data-name="Chopova Lowena"]').count() === 1, 'search finds Liberty’s names in the pool');
+    await p.fill('#sh-body #wall-q', 'Chopova Lowena'); await p.waitForTimeout(250);
+    ok(await p.locator('#sh-body #wall-add').count() === 0, 'an exact match offers no + Add');
+    await p.fill('#sh-body #wall-q', 'Marfa Stance'); await p.waitForTimeout(250);
+    ok(await p.locator('#sh-body #wall-add').count() === 1 && /Add “Marfa Stance”/.test(await txt(p, '#sh-body #wall-add')), 'a name not in the pool offers + Add');
+    await p.click('#sh-body #wall-add'); await p.waitForTimeout(250);
+    ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Zara,Marfa Stance' && await p.locator('#sh-body .sh-pill.on').count() === 3, 'the added name joins her selections');
+    await p.click('#sh-body .sh-pill.on[data-name="Zara"]'); await p.waitForTimeout(200);
+    ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Marfa Stance', '× on a selection lets it go');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
+    // the icon wall carries a tag
+    await p.click('#dna-icons'); await p.waitForTimeout(300);
+    ok(/often chosen/i.test(await txt(p, '#sh-body')) && /Clean-girl minimal/.test(await txt(p, '#sh-body')), 'Icons: Often chosen, each with its tag');
+    await p.click('#sh-body .sh-pill[data-name="Hailey Bieber"]'); await p.waitForTimeout(250);
+    const ic = await upd('u.style_icons');
+    ok(ic.style_icons.join() === 'Jane Birkin,Hailey Bieber' && ic.style_dna.icon_tags['Hailey Bieber'] === 'Clean-girl minimal', 'an icon writes style_icons + its tag on style_dna.icon_tags');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
+    // the investment level: four rows, no Prefer not to say
+    await p.click('#dna-invest'); await p.waitForTimeout(300);
+    const levels = (await p.locator('#sh-body .sh-opt .n').allInnerTexts()).map(t => t.trim());
+    ok(levels.join(' | ') === 'Under €500 | €500–1,500 | €1,500–5,000 | €5,000+', 'four rows by yearly spend, no Prefer not to say: ' + levels.join(' | '));
+    await p.click('#sh-body [data-level="€500–1,500"]'); await p.waitForTimeout(250);
+    const inv = await upd('u.annual_spend');
+    ok(inv.annual_spend === '€500–1,500' && inv.style_dna.investment === '€500–1,500', 'a level writes annual_spend + style_dna.investment together');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
+    // the pieces she loves
+    await p.click('#dna-pieces'); await p.waitForTimeout(300);
+    ok(await p.locator('#sh-body .pc-row').count() === 1 && /Black wool blazer/.test(await txt(p, '#sh-body')) && /never dresses you in the same one two days running/.test(await txt(p, '#sh-sub')), 'Pieces you love: her starred piece and what a star does');
+    ok(await p.locator('#sh-body a[href="/wardrobe"]').count() === 1, 'Star more from your wardrobe → /wardrobe');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
+    // in your words
+    await p.click('#dna-avoids'); await p.waitForTimeout(300);
+    ok(/hard nos\./i.test(await txt(p, '#sh-title')) && /never proposes these, whatever the occasion/i.test(await txt(p, '#sh-sub')), 'Hard nos: never proposes these, whatever the occasion');
+    await p.fill('#sh-body #words-in', 'No polo necks'); await p.press('#sh-body #words-in', 'Enter'); await p.waitForTimeout(250);
+    const w = await upd('u.style_dna && u.style_dna.brief');
+    ok(w.style_dna.brief.avoids.length === 1 && w.style_dna.brief.avoids[0].text === 'No polo necks' && w.style_dna.brief.avoids[0].source === 'typed' && w.style_dna.brief.source === 'edited', 'a typed no files at once as her own line');
+    ok(await p.locator('#sh-body .ln').count() === 1 && /✓ filed/i.test(await txt(p, '#sh-body')), 'the line stands with the Filed mark');
+    await p.click('#sh-body [data-strike="0"]'); await p.waitForTimeout(250);
+    ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids.length === 0 && (await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.struck.length === 0, '× strikes a typed line without recording it as struck (it was hers, not Robes’)');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
+    ok(await p.locator('#dna-noticed').isHidden(), 'no Noticed row with nothing kept or pending');
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · the observations — a draft lands pending, Keep files under Style DNA ==\x1b[0m`);
+  {
+    const { ctx, p, errs, briefPosts, upd } = await open(vp, 'full', { draft: DRAFT });
+    await p.waitForTimeout(500);
+    ok(briefPosts.length === 1 && briefPosts[0].wardrobe.length === 2 && briefPosts[0].styleIcons.join() === 'Jane Birkin', 'the root reads her wardrobe once, her rows as the evidence');
+    const d = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.pending');
+    ok(d && d.style_dna.brief.pending.length === 4 && d.style_dna.brief.read_at && d.style_dna.memory.read_at, 'the draft lands as four pending lines, read_at stamped on the brief and the memory');
+    ok(/4 new/.test(await txt(p, '#card-obs-st')), 'the observations card counts 4 new');
+    ok(await p.locator('#sp-notice').isVisible() && /You reach for a defined waist/.test(await txt(p, '#sp-notice .t')), 'the "Robes noticed" card carries the first line');
+    ok(/Model · Read from your photographs/.test(await txt(p, '#card-twin-st')) && /The facts · 5 of 5/.test(await txt(p, '#card-twin-st')) && /Your taste · Complete/.test(await txt(p, '#card-dna-st')), 'a full profile reads complete on the cards');
+    // Keep on the card
+    await p.click('#sp-notice [data-v="keep"]'); await p.waitForTimeout(500);
+    const k = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.loves.length');
+    ok(k && k.style_dna.brief.loves[0].text === 'You reach for a defined waist' && k.style_dna.brief.loves[0].source === 'drafted' && k.style_dna.brief.pending.length === 3, 'Keep files the line under Works and takes it off pending');
+    ok(/Kept\. Filed under Style DNA\./.test(await txt(p, '#sp-toast')), 'the toast: Kept. Filed under Style DNA.');
+    ok(/Anything that reads polite/.test(await txt(p, '#sp-notice .t')), 'the next line takes the card');
+    // the drag: past 90px commits
+    const box = await p.locator('#sp-notice').boundingBox();
+    await p.mouse.move(box.x + 60, box.y + 40); await p.mouse.down(); await p.mouse.move(box.x + 100, box.y + 40); await p.mouse.move(box.x + 180, box.y + 40); await p.mouse.up();
+    await p.waitForTimeout(500);
+    const k2 = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.avoids.length');
+    ok(k2 && k2.style_dna.brief.avoids[0].text === 'Anything that reads polite' && k2.style_dna.brief.pending.length === 2, 'a drag to the right keeps the next line');
+    // the page
+    await p.click('#card-obs'); await p.waitForTimeout(400);
+    ok(await p.locator('#pg-obs').isVisible() && await p.locator('#obs-body .ob').count() === 2, 'the observations page lists the two still pending');
+    ok(/kept before/i.test(await txt(p, '#obs-body')) && /You reach for a defined waist/.test(await txt(p, '#obs-body')), 'Kept before lists what she kept');
+    await p.click('#obs-body [data-no="0"]'); await p.waitForTimeout(400);
+    const s = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.struck.length');
+    ok(s && s.style_dna.brief.struck[0] === 'Loafers only with a cropped trouser' && s.style_dna.memory.entries[0].k === 'strike', 'Not me strikes the line and the memory records it');
+    await p.click('#obs-body [data-keep="0"]'); await p.waitForTimeout(400);
+    const c = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.loved.length');
+    ok(c && c.style_dna.brief.colours.loved.join() === 'black' && c.style_dna.brief.pending.length === 0, 'keeping the colour line lands the colour');
+    ok(/Nothing new\. Robes keeps reading\./.test(await txt(p, '#obs-body')) && /read again/i.test(await txt(p, '#obs-again')), 'empty: Nothing new, Read again stays');
+    await p.click('#obs-again'); await p.waitForTimeout(500);
+    ok(briefPosts.length === 2 && briefPosts[1].current.loves.join() === 'You reach for a defined waist' && briefPosts[1].current.avoids.join() === 'Anything that reads polite', 'Read again posts the kept lines as the never-repeat list');
+    ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.pending.length === 0, 'and a line already kept or struck never returns');
+    await p.evaluate(() => { location.hash = '#dna'; }); await p.waitForTimeout(300);
+    ok(await p.locator('#dna-noticed').isVisible() && /Noticed and kept/.test(await txt(p, '#dna-noticed-n')), 'Style DNA carries the Noticed and kept row');
+    ok((await txt(p, '#dna-loves-v')) === '1 line' && (await txt(p, '#dna-avoids-v')) === '1 line', 'the word rows count what she kept');
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · account — name, email, password, notifications, delete ==\x1b[0m`);
+  {
+    const { ctx, p, errs, upd, deletes } = await open(vp, 'empty', { hash: '#account' });
+    await p.click('#ac-name'); await p.waitForTimeout(300);
+    await p.fill('#sh-body #ac-first', 'Liberty'); await p.fill('#sh-body #ac-last', 'Byrne');
+    await p.click('#sh-done'); await p.waitForTimeout(250);
+    const n = await upd('u.first_name');
+    ok(n && n.first_name === 'Liberty' && n.last_name === 'Byrne' && (await txt(p, '#ac-name-v')) === 'Liberty Byrne' && (await txt(p, '#sn-avatar')) === 'L', 'Done saves the name; the row and the avatar follow');
+    await p.click('#ac-email'); await p.waitForTimeout(300);
+    await p.fill('#sh-body #ac-em', 'liberty@example.com'); await p.click('#sh-body #ac-em-go'); await p.waitForTimeout(300);
+    ok((await p.evaluate(() => window.__auth)).some(a => a.email === 'liberty@example.com') && /Check liberty@example\.com/.test(await txt(p, '#sh-body #ac-msg')), 'a new email goes through auth and asks her to confirm');
+    await p.click('#sh-done');
+    await p.click('#ac-pass'); await p.waitForTimeout(300);
+    await p.fill('#sh-body #ac-pw', 'short'); await p.click('#sh-body #ac-pw-go'); await p.waitForTimeout(150);
+    ok(/Eight characters at least/.test(await txt(p, '#sh-body #ac-msg')), 'a short password is refused in place');
+    await p.fill('#sh-body #ac-pw', 'longenough1'); await p.click('#sh-body #ac-pw-go'); await p.waitForTimeout(300);
+    ok((await p.evaluate(() => window.__auth)).some(a => a.password === 'longenough1') && /Updated/.test(await txt(p, '#sh-body #ac-msg')), 'a good one updates through auth');
+    ok(await p.locator('#sh-body #ac-pw').getAttribute('class').then(c => /ph-no-capture/.test(c || '')), 'the password field is never captured in replay');
+    await p.click('#sh-done');
+    // notifications — one jsonb, merged
+    await p.click('#tog-morning'); await p.waitForTimeout(250);
+    const m = await upd('u.notification_prefs');
+    ok(m && m.notification_prefs.morning === true && m.notification_prefs.morning_hour === 7 && m.notification_prefs.looks_ready === true, 'the morning switch merges over the profile’s prefs');
+    await p.selectOption('#tog-hour', '9'); await p.waitForTimeout(250);
+    ok((await upd('u.notification_prefs')).notification_prefs.morning_hour === 9, 'the hour writes');
+    await p.click('#tog-email'); await p.waitForTimeout(250);
+    const e = await upd('u.notification_prefs');
+    ok(e.notification_prefs.looks_ready === false && e.notification_prefs.nudges === false && e.notification_prefs.morning === true, 'Email off turns looks_ready + nudges off and leaves the morning line');
+    // delete
+    await p.click('#ac-delete'); await p.waitForTimeout(300);
+    ok(/delete your account\?/i.test(await txt(p, '#sh-title')) && /can’t be undone/.test(await txt(p, '#sh-sub')) && await p.locator('#sh-body #ac-del-keep').isVisible(), 'Delete asks, names what goes, offers Keep my account');
+    await p.click('#sh-body #ac-del-keep'); await p.waitForTimeout(200);
+    ok(await p.locator('#sh-wrap').isHidden() && deletes.length === 0, 'Keep my account closes with nothing sent');
+    await p.click('#ac-delete'); await p.waitForTimeout(300);
+    await p.click('#sh-body #ac-del-go');
+    await p.waitForURL(u => /\/$/.test(u.pathname) && !/settings/.test(u.pathname), { timeout: 5000 }).catch(() => {});
+    ok(deletes.length === 1 && deletes[0] === 'Bearer jwt-u1' && /localhost:\d+\/$/.test(p.url()), 'Delete my account posts with her JWT and leaves for the front door: ' + p.url());
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+}
+
+console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, the chapter param ==\x1b[0m');
+{
+  const vp = { width: 1280, height: 900 };
+  const a = await open(vp, 'empty', { hash: '#taste' });
+  ok(await a.p.locator('#pg-dna').isVisible() && a.p.url().endsWith('#dna'), '#taste (the old Taste & budget) lands on Style DNA');
+  await a.ctx.close();
+  const b = await open(vp, 'empty', { hash: '#silhouette' });
+  ok(await b.p.locator('#pg-twin').isVisible() && b.p.url().endsWith('#twin'), '#silhouette lands on the twin');
+  await b.ctx.close();
+  const c = await open(vp, 'empty', { path: '?chapter=brief', draft: DRAFT });
+  await c.p.waitForTimeout(400);
+  ok(await c.p.locator('#pg-obs').isVisible() && !/chapter=/.test(c.p.url()) && c.p.url().endsWith('#observations'), '?chapter=brief (the next line’s door) lands on the observations, the param stripped');
+  ok(c.briefPosts.length === 1 && await c.p.locator('#obs-body .ob').count() === 4, 'and reads her wardrobe into pending lines');
+  await c.ctx.close();
+  const d = await open(vp, 'empty', { path: '?begin=1' });
+  ok(await d.p.locator('#pg-root').isVisible() && await d.p.locator('#tab-style').isVisible() && !/begin=/.test(d.p.url()), '?begin=1 (home’s dashed door) lands on Style Profile, the param stripped');
+  await d.ctx.close();
+  const e = await open(vp, 'empty', { path: '?page=twin&from=email' });
+  ok(await e.p.locator('#pg-twin').isVisible() && !/from=|page=/.test(e.p.url()), '?page=twin&from=email (the look_waiting mail) lands on the twin with the params stripped');
+  await e.ctx.close();
+  const f = await open(vp, 'empty', { hash: '#account' });
+  ok(await f.p.locator('#tab-account').isVisible(), '#account opens the Account tab');
+  await f.p.click('[data-back]').catch(() => {});
+  await f.p.click('#sn-avatar'); await f.p.waitForTimeout(150);
+  const items = (await f.p.locator('#sn-av-menu .sn-av-item').allInnerTexts()).map(t => t.trim());
+  ok(items.join(' · ') === 'Style Profile · Account · Log out', 'the avatar menu: Style Profile · Account · Log out — ' + items.join(' · '));
+  await f.p.click('#sn-av-style'); await f.p.waitForTimeout(200);
+  ok(await f.p.locator('#tab-style').isVisible() && !/#/.test(f.p.url()), 'Style Profile from the menu');
+  await f.ctx.close();
+  // the forward action: Build a look → the dashboard with the flags set
+  const h = await open(vp, 'colour', { hash: '#twin' });
+  ok(await h.p.locator('#mv-build').isVisible() && /build a look/i.test(await txt(h.p, '#mv-build')), 'with no return the pill reads Build a look');
+  await h.p.click('#mv-build');
+  await h.p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
+  ok(/\/dashboard$/.test(h.p.url()), 'Build a look lands on the dashboard');
+  await h.ctx.close();
+  ok(a.errs.length + b.errs.length + c.errs.length + d.errs.length + e.errs.length + f.errs.length === 0, 'no page errors across the doors');
+}
+
+console.log('\n\x1b[1m== degrade — the columns a migration adds ==\x1b[0m');
+{
+  const vp = { width: 1280, height: 900 };
+  const a = await open(vp, 'colour', { hash: '#twin', updateMode: 'nocol' });
+  await a.p.waitForTimeout(300);
+  ok(await a.p.locator('#mv-filed').isVisible() && !!(await a.p.evaluate(() => localStorage.getItem('rb_model__u1'))), 'avatar columns missing: the model files locally, the ✓ line still stands');
+  await a.p.click('#tw-row-colour'); await a.p.waitForTimeout(300);
+  await a.p.click('#sh-body [data-axis="hair"][data-v="4"]'); await a.p.waitForTimeout(300);
+  ok((await a.p.evaluate(() => window.__updates.filter(u => u.avatar_id).length)) === 1, 'after one refusal no avatar write is retried this session');
+  ok(a.errs.length === 0, 'no page errors');
+  await a.ctx.close();
+  const b = await open(vp, 'empty', { hash: '#account', noNotify: true });
+  ok(await b.p.locator('#ac-notif').isHidden() && await b.p.locator('#ac-notif-k').isHidden(), 'no notification_prefs on the profile (migration 22 not run): the Notifications card stands down');
+  await b.ctx.close();
+}
+
+console.log('\n\x1b[1m== mobile — the sheet is a bottom sheet; the stage leads ==\x1b[0m');
+{
+  const { ctx, p } = await open({ width: 390, height: 844 }, 'both', { hash: '#twin' });
+  const stage = await p.locator('.tw-stage').boundingBox();
+  const card = await p.locator('#tw-read').boundingBox();
+  ok(stage.y < card.y && stage.width >= 390, 'the stage leads the page full-bleed');
+  await p.click('#tw-facts'); await p.waitForTimeout(400);
+  const sh = await p.locator('#sh').boundingBox();
+  ok(Math.abs(sh.y + sh.height - 844) < 2 && sh.width === 390, 'the sheet rises from the foot, full width');
+  ok(await p.locator('#sh .sh-grab').isVisible(), 'with a grab bar');
+  await ctx.close();
+}
+{
+  const { ctx, p } = await open({ width: 1280, height: 900 }, 'both', { hash: '#twin' });
+  const stage = await p.locator('.tw-stage').boundingBox();
+  const main = await p.locator('.tw-main').boundingBox();
+  ok(stage.x < main.x && stage.height > 500, 'at 1280 the stage stands beside the content');
+  await p.click('#tw-facts'); await p.waitForTimeout(400);
+  const sh = await p.locator('#sh').boundingBox();
+  ok(sh.width <= 560 && sh.y > 40, 'the sheet is a centred card on the web');
+  await ctx.close();
+}
+
+console.log(`\n\x1b[1m${passes} passed, ${fails} failed\x1b[0m`);
+await browser.close();
+srv.close();
+process.exit(fails ? 1 : 0);

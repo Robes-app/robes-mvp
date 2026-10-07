@@ -178,7 +178,7 @@ check('looks_ready · List-Unsubscribe headers + a signed unsub link naming the 
 check('looks_ready · plain-text alternative always', fresh && typeof fresh.text === 'string' && /worn three ways/.test(fresh.text));
 const bea = byUser('aaaaaaaa-0000-4000-8000-000000000002')[0];
 check('look_waiting · "She’d wear it.", the look named, her photograph as the frame, the model deep link',
-  bea && bea.subject === 'She’d wear it.' && /A Parisian night out/.test(bea.html) && /img\.test\/look-b\.jpg/.test(bea.html) && /\/stylenotes\?from=email/.test(bea.html), bea && bea.subject);
+  bea && bea.subject === 'She’d wear it.' && /A Parisian night out/.test(bea.html) && /img\.test\/look-b\.jpg/.test(bea.html) && /\/settings\?page=twin&amp;from=email/.test(bea.html), bea && bea.subject);
 check('look_waiting · unsub link flips the nudges pref, not looks_ready', bea && /\.nudges\.[0-9a-f]{40}>$/.test(bea.headers['List-Unsubscribe']));
 const fay = byUser('aaaaaaaa-0000-4000-8000-000000000006')[0];
 check('five · the composer deep link with the Robes build armed', fay && fay.subject === 'Robes can build from yours now.' && /\/lookbook\?new=1&amp;robes=1&amp;from=email/.test(fay.html));

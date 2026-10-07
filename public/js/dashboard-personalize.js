@@ -79,10 +79,11 @@
         const acctBtn = document.createElement('button');
         acctBtn.className = 'av-item';
         acctBtn.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>Account details';
+        // Settings (2026-10-07): the account lives on /settings#account — the
+        // modal below survives only for the ?account=1 deep link.
         acctBtn.onclick = () => {
           document.getElementById('av-menu').classList.remove('open');
-          if (window.__rbAcctEmailsSync) window.__rbAcctEmailsSync();
-          document.getElementById('acct-modal').style.display = 'flex';
+          window.location.href = '/settings#account';
         };
         avMenu.insertBefore(acctBtn, firstBtn);
       }
@@ -112,7 +113,7 @@
             <span style="display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:6px">Mobile number</span>
             <input id="acct-mobile" type="tel" value="${_acctEsc(prof.mobile)}" placeholder="+353..." style="width:100%;height:46px;border:1px solid rgba(32,32,33,0.12);border-radius:var(--rad-sm);padding:0 14px;font-size:14px;color:#202021;background:#fff;outline:none;box-sizing:border-box">
           </label>
-          <p style="font-size:12px;color:#6E6A64;margin:0 0 20px;line-height:1.5">How you identify now lives with your model — <a href="/stylenotes" style="color:#8E6A7C;text-decoration:underline">Style notes</a>.</p>
+          <p style="font-size:12px;color:#6E6A64;margin:0 0 20px;line-height:1.5">Your gender, name and emails live in <a href="/settings#account" style="color:#8E6A7C;text-decoration:underline">Settings</a> now.</p>
           <div id="acct-emails" style="margin:0 0 26px;padding-top:18px;border-top:0.5px solid rgba(32,32,33,0.10)">
             <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6E6A64;margin-bottom:10px">Emails</div>
             <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:#202021;margin-bottom:9px;cursor:pointer"><input type="checkbox" id="acct-em-ready" style="width:16px;height:16px;margin:0;accent-color:#202021">When my looks are ready</label>
@@ -9053,8 +9054,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const snBtn = document.createElement('button');
           snBtn.id = 'av-stylenotes';
           snBtn.className = 'av-item';
-          snBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3.5 4.2 6 7.5 6 10.2a6 6 0 0 1-12 0C6 10.5 8.5 7.2 12 3z"></path></svg>Style notes`;
-          snBtn.onclick = () => { avMenu.classList.remove('open'); window.location.href = '/stylenotes'; };
+          snBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3.5 4.2 6 7.5 6 10.2a6 6 0 0 1-12 0C6 10.5 8.5 7.2 12 3z"></path></svg>Style Profile`;
+          snBtn.onclick = () => { avMenu.classList.remove('open'); window.location.href = '/settings'; };
           const mbItem = document.getElementById('av-moodboards');
           if (mbItem && mbItem.parentNode === avMenu) {
             avMenu.insertBefore(snBtn, mbItem.nextSibling);
@@ -9066,36 +9067,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           }
         }
 
-        // Taste & budget is its own entry point (2026-08-25: moved out of
-        // the model flow on /stylenotes — the #taste hash is its home)
-        if (avMenu && !document.getElementById('av-taste')) {
-          const tbBtn = document.createElement('button');
-          tbBtn.id = 'av-taste';
-          tbBtn.className = 'av-item';
-          tbBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>Taste & budget`;
-          tbBtn.onclick = () => { avMenu.classList.remove('open'); window.location.href = '/stylenotes#taste'; };
-          const snItem = document.getElementById('av-stylenotes');
-          if (snItem && snItem.parentNode === avMenu) {
-            avMenu.insertBefore(tbBtn, snItem.nextSibling);
-          } else {
-            avMenu.appendChild(tbBtn);
-          }
-        }
-
-        // In your words — the brief chapter's standing door (slice A, 2026-09-30)
-        if (avMenu && !document.getElementById('av-brief')) {
-          const brBtn = document.createElement('button');
-          brBtn.id = 'av-brief';
-          brBtn.className = 'av-item';
-          brBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"></path><path d="M6 16l10.5-10.5a2.1 2.1 0 0 1 3 3L9 19l-4 1z"></path></svg>In your words`;
-          brBtn.onclick = () => { avMenu.classList.remove('open'); window.location.href = '/stylenotes?chapter=brief'; };
-          const tbItem = document.getElementById('av-taste');
-          if (tbItem && tbItem.parentNode === avMenu) {
-            avMenu.insertBefore(brBtn, tbItem.nextSibling);
-          } else {
-            avMenu.appendChild(brBtn);
-          }
-        }
+        // Taste & budget and In your words fold into Settings → Style DNA (2026-10-07).
 
         // Add Log out item at the bottom of av-menu
         if (avMenu && !document.getElementById('av-logout')) {
@@ -14041,7 +14013,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       var _avBusy = {};               // look id → true while a render is in flight
       var _AV_FIG_KEYS = { 'Hourglass': 'hg', 'Pear / Triangle': 'pe', 'Pear': 'pe', 'Rectangle': 're', 'Inverted Triangle': 'it', 'Apple / Round': 'ap', 'Apple': 'ap' };
       // Fallback mapper for the pre-migration-20 window — mirrors
-      // stylenotes.html's mvModelId (kept prefs always carry resolved
+      // settings.html's mvModelId (kept prefs always carry resolved
       // skin/hair indices; the figure key derives from style_dna).
       function _avLocalId() {
         try {
@@ -17802,7 +17774,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           sessionStorage.setItem('rb_model_return', kp ? 'inspiration' : home ? 'home' : 'lookbook');
         } catch (_) {}
         _rbTrack('look_model_build', { home, kp: !!kp });
-        window.location.href = '/stylenotes';
+        window.location.href = '/settings#twin';
       };
       // The model door with no draft to park (slice 2, 2026-09-18): home's
       // band and the masthead's next line. rb_model_return = 'home' with NO
@@ -17815,7 +17787,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           sessionStorage.setItem('rb_model_return', 'home');
         } catch (_) {}
         _rbTrack('model_door_tapped', { from: from || 'door' });
-        window.location.href = '/stylenotes';
+        window.location.href = '/settings#twin';
       };
       // ── THE DRAFT (look prompt brief, phase 1 · 2026-10-01) ─────────────
       // A draft is a look Robes composed or she started that she has not
@@ -21048,7 +21020,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _rbTrack('next_line_tapped', { rule: nx.key });
         if (nx.door === 'model') {
           if (window.__rbModelGo) { window.__rbModelGo('next'); return; }        // slice 2's door
-          window.location.assign('/stylenotes');
+          window.location.assign('/settings#twin');
         } else if (nx.door === 'finish') {
           if (window.__rbFillOpen) { window.__rbFillOpen(nx.id, 'next'); return; }   // slice 4's door: the briefed add
           if (window.__lkCardOpen) window.__lkCardOpen(nx.id, 'home');
@@ -21063,7 +21035,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         } else if (nx.door === 'week') {
           if (window.__rbDiaryOpen) window.__rbDiaryOpen();
         } else if (nx.door === 'brief') {
-          window.location.assign('/stylenotes?chapter=brief');
+          window.location.assign('/settings#observations');
         } else if (nx.door === 'wear') {
           if (window.__rbDayOpen) window.__rbDayOpen(nx.date, { from: 'home' });
         }
@@ -21174,7 +21146,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         if (!el) {
           el = document.createElement('section');
           el.id = 'rb-notes-door';
-          el.innerHTML = '<div class="l"><div class="ey">Next · Style notes</div><h3>Let Robes <em>get to know you.</em></h3></div>' +
+          el.innerHTML = '<div class="l"><div class="ey">Next · Your digital twin</div><h3>Let Robes <em>get to know you.</em></h3></div>' +
             '<button type="button" class="rb-pill" onclick="window.__rbNotesGo()">Begin</button>';
           const mast = dash.querySelector('.dash-mast');
           if (mast && mast.nextSibling) dash.insertBefore(el, mast.nextSibling); else dash.appendChild(el);
@@ -21184,7 +21156,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       window._rbNotesDoorSync = _rbNotesDoorSync;
       window.__rbNotesGo = function() {
         _rbTrack('notes_door_tapped', { mode: _rbHomeMode });
-        window.location.href = '/stylenotes?begin=1';
+        window.location.href = '/settings?begin=1';
       };
       function _rbModelDoorWants() {
         if (_lkModel === undefined) { _lkModelEnsure(); return false; }   // not asked yet — never guess
@@ -30128,7 +30100,7 @@ body>*:not(#tv-result-page){display:none !important}
               ? 'Your colour harmony, <em style="font-style:italic;color:#C4B8A4">whenever suits.</em>'
               : 'Your silhouette, <em style="font-style:italic;color:#C4B8A4">whenever suits.</em>');
           const cta = both ? 'Complete my style notes →' : (needsColour ? 'Complete my colours →' : 'Complete my silhouette →');
-          const target = needsColour ? '/stylenotes' : '/stylenotes#silhouette';
+          const target = '/settings#twin';
           const host = grid.closest('section') || grid;
           const card = document.createElement('section');
           card.id = 'rb-sil-prompt';

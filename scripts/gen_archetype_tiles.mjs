@@ -28,7 +28,7 @@ const flag = f => args.includes(f);
 const only = (args[args.indexOf('--only') + 1] || '').split(',').map(s => s.trim()).filter(Boolean);
 const DRY = flag('--dry-run'), FORCE = flag('--force'), LOCAL = flag('--local');
 
-// Keep the names in step with ARCHETYPES in public/stylenotes.html —
+// Keep the names in step with ARCHETYPES in public/settings.html —
 // the deck looks its frames up by name.
 const ARCHETYPES = [
   { name: 'Minimal', frames: [

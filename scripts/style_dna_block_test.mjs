@@ -72,5 +72,18 @@ const many = { entries: Array.from({ length: 40 }, (_, i) => ({ k: 'verdict', v:
 ok(styleDnaPromptBlock({ memory: many }, 0, []).split('\n').length === 14, 'the memory never exceeds twelve lines plus its two frames');
 ok(memoryEntries(Array.from({ length: 80 }, () => ({ k: 'wear', look: 'x' }))).length === MEMORY_MAX, 'memoryEntries caps at MEMORY_MAX');
 
+// The Style DNA page (Settings, 2026-10-07): brands, the investment level,
+// the facts and a tag per icon ride the same block.
+const dnaPage = styleDnaPromptBlock({ brands: ['The Row', 'Zara', '  ', 7], investment: '€500–1,500', facts: { height_cm: 168, size_uk: 10, shoe_uk: 5, age_band: '45–54' }, icon_tags: { 'Hailey Bieber': 'Clean-girl minimal' } }, 0, ['Hailey Bieber', 'Jane Birkin']);
+ok(/BRANDS she reaches for: The Row, Zara\./.test(dnaPage), 'brands render as one line, blanks and non-strings dropped');
+ok(/INVESTMENT LEVEL — she spends €500–1,500 a year/.test(dnaPage) && /never a piece above what that level buys/.test(dnaPage), 'the investment level is the ceiling on every proposal');
+ok(/THE FACTS she gave — size, never weight: height 168 cm, dress size UK 10 \(EU 38\), shoes UK 5, age 45–54\./.test(dnaPage), 'the facts print with the EU size derived, never a weight');
+ok(/STYLE ICONS[^\n]*Hailey Bieber \(Clean-girl minimal\), Jane Birkin\./.test(dnaPage), 'an icon carries its tag, an untagged one its name alone');
+ok(dnaPage.indexOf('STYLE ICONS') < dnaPage.indexOf('BRANDS') && dnaPage.indexOf('BRANDS') < dnaPage.indexOf('INVESTMENT') && dnaPage.indexOf('INVESTMENT') < dnaPage.indexOf('THE FACTS'), 'icons → brands → investment → facts, in that order');
+ok(!/STYLE DNA/.test(dnaPage), 'no DNA header without a photograph read');
+ok(styleDnaPromptBlock({ facts: { height_cm: 'tall', size_uk: 99 } }, 0, []) === '', 'facts out of range render nothing');
+ok(/dress size UK 12 \(EU 40\)/.test(styleDnaPromptBlock({ facts: { size_uk: 12 } }, 0, [])), 'a lone fact still renders');
+ok(/THE FACTS/.test(styleDnaPromptBlock({ facts: { size_uk: 12 }, color_harmony: dnaFull.color_harmony }, 3, [])), 'the facts ride beside a photograph read too');
+
 console.log(`\n\x1b[1m${passes} passed, ${fails} failed\x1b[0m`);
 process.exit(fails ? 1 : 0);

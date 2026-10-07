@@ -671,7 +671,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     s.rows === false && s.promptHidden === true && s.railHidden === true && s.servicesHidden === true && s.modelDoor === false,
     JSON.stringify([s.rows, s.promptHidden, s.railHidden, s.servicesHidden, s.modelDoor]));
   check('styled card · the dashed Style-notes door: eyebrow, the serif line, a hairline Begin → the chapters',
-    s.doorDashed === 'dashed' && s.doorEy === 'Next · Style notes' && s.doorH === 'Let Robes get to know you.'
+    s.doorDashed === 'dashed' && s.doorEy === 'Next · Your digital twin' && s.doorH === 'Let Robes get to know you.'
       && s.pillText === 'Begin' && s.pillInk === false && /__rbNotesGo/.test(s.pillGo || ''),
     JSON.stringify([s.doorDashed, s.doorEy, s.doorH, s.pillText, s.pillInk, s.pillGo]));
   // The saved key piece IS the hero card — the Inspiration row would be a

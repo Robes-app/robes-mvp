@@ -2977,8 +2977,39 @@ app.get('/board/:shareId', rateLimit({ windowMs: 60_000, max: 40 }), async (req,
   }
 });
 
+// Settings — the digital twin (2026-10-07): Style Profile | Account behind
+// the avatar. /stylenotes was the page it replaced; every old door
+// (?chapter=brief, ?begin=1, ?from=email, #taste, #silhouette) lands here —
+// the query rides the redirect, the hash never reaches the server, so the
+// page maps the legacy hashes itself.
+app.get('/settings', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'settings.html'));
+});
 app.get('/stylenotes', (req, res) => {
-  res.sendFile(join(__dirname, 'public', 'stylenotes.html'));
+  const q = req.originalUrl.indexOf('?') >= 0 ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+  res.redirect(301, '/settings' + q);
+});
+
+// Delete the account — her own JWT names the user, the service key does the
+// delete (auth.users cascades to profiles, wardrobe_items, looks, the lot).
+app.post('/api/account/delete', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res) => {
+  if (!SUPA_SERVICE_KEY) return res.status(503).json({ error: 'not_available' });
+  const auth = String(req.headers.authorization || '');
+  const jwt = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (!jwt) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    const who = await fetch(`${SUPA_URL}/auth/v1/user`, { headers: { apikey: SUPA_SERVICE_KEY, Authorization: 'Bearer ' + jwt } });
+    if (!who.ok) return res.status(401).json({ error: 'unauthorized' });
+    const u = await who.json();
+    if (!u || !u.id) return res.status(401).json({ error: 'unauthorized' });
+    const del = await fetch(`${SUPA_URL}/auth/v1/admin/users/${encodeURIComponent(u.id)}`, { method: 'DELETE', headers: { apikey: SUPA_SERVICE_KEY, Authorization: 'Bearer ' + SUPA_SERVICE_KEY } });
+    if (!del.ok) { console.error('[account/delete] auth admin refused:', del.status); return res.status(502).json({ error: 'delete_failed' }); }
+    console.log('[account/delete] removed', u.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[account/delete]', err.message);
+    res.status(500).json({ error: 'delete_failed' });
+  }
 });
 
 app.get('/onboarding', (req, res) => {
@@ -3428,7 +3459,7 @@ app.post('/api/stylenotes/tryon', rateLimit({ windowMs: 60_000, max: 6 }), async
 /* ── avatar render — looks photographed on her model ─────────────────
    Phase 2 of the avatar work (docs/avatar-render-proposal.md §3.4).
    The avatar catalog's attribute space mirrors the client mapper in
-   stylenotes.html (MV_SKINS/MV_HAIRS/figure keys) — keep the two in sync.
+   settings.html (MV_SKINS/MV_HAIRS/figure keys) — keep the two in sync.
    Cells generate LAZILY: the first render that needs a cell generates its
    reference image once, uploads to Cloudinary, and stores it in
    avatar_cells (service key; in-process cache when the table/key is

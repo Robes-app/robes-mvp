@@ -1,6 +1,6 @@
 # Digital Twin · Style DNA brief
 
-**Date**: 2026-10-07 · **Branch**: `beta` · **Status**: plan + design brief, decisions taken 7 Oct, Settings prototype received 7 Oct (the design reference), nothing built
+**Date**: 2026-10-07 · **Branch**: `beta` · **Status**: plan + design brief, decisions taken 7 Oct, Settings prototype received 7 Oct (the design reference), the three open calls decided and the Settings surface built the same evening (`public/settings.html` at `/settings`, see the foot)
 **Source**: Annie & Lib catch-up, 6 Oct 2026 (Gemini notes + transcript) · **Published copy**: https://claude.ai/code/artifact/44d8ac0e-c3c3-4aa9-9e08-ae950d9b2099
 **Companion briefs**: `docs/style-memory-brief.md` (the brief and the memory), `docs/onboarding-split-review-2026-09-25.md` (the chapters), `docs/avatar-design-brief.md` (the model)
 
@@ -271,3 +271,14 @@ Landed the same day: the fourteen new names are appended to `ROBES_ICONS` in `pu
 ### What the build takes from it now
 
 Phase 0 (one home) becomes the Settings surface: the avatar menu's rows collapse into Style Profile · Account and `/stylenotes` redirects there. Phase 1 (Style DNA) takes its data home exactly as the prototype groups it: `style_dna.style_archetypes`, `style_dna.brands`, `style_icons`, the hero pieces, `style_dna.investment`, and the brief's lines under In your words. Phase 2 (Your model) draws the twin page and its two sheets; the facts sheet's rows are the prototype's ranges (height 140–210 cm, UK 4–16, shoes UK 2–8). Nothing here changes the phase order.
+
+### Built (7 Oct, evening)
+
+Annie took the three recommendations and asked for the build. Shipped on `beta` as `public/settings.html` at `/settings` (`/stylenotes` redirects), with every Style notes engine underneath it:
+
+- **F6 · decided**: the ten style types stay the vocabulary, drawn in the prototype's multi-select sheet.
+- **F10 · decided**: the prototype's rows by yearly spend, Prefer not to say dropped — one mandatory answer, written to `annual_spend` and `style_dna.investment` together; an old tier maps once to its level.
+- **F5 · decided**: the fifth fact reads Gender on screen; the data stays `profiles.gender_identity`.
+- Style Profile | Account; the twin page with the Photographs, Adjust and Facts sheets; Style DNA with the type, brand, icon, pieces, investment and three word sheets; Robes observations with Keep / Not me and the swipe card on the tab; Account with name, email, password, delete, notifications and the legal rows.
+- One honest deviation: the prototype's "Push · A morning look, before you dress" is labelled as the morning email — Robes sends no push.
+- Verified by `scripts/settings_harness.mjs` (311 checks at 390 and 1280). The CLAUDE.md entry of the same date is the build record.
