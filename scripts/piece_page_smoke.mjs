@@ -329,11 +329,16 @@ const SHOT = process.env.SHOT_DIR || '';
   await page.evaluate(() => window.__rbLpSend());
   await page.waitForTimeout(900);
   check('style · a bare submit runs with Robes\' own words', api.style.length === 1 && /^Style my Cream silk shirt three ways/.test(api.style[0]?.prompt || ''), JSON.stringify(api.style[0]?.prompt));
-  // Look states (2026-10-06): the result lands on the Lookbook's Suggested
-  // tab as three suggested looks around the shirt, never the kp page.
-  const landed = await page.evaluate(() => ({ kp: document.getElementById('kp-result-page')?.style.display || 'none', sn: document.getElementById('sn-page')?.style.display, tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent,
-    tiles: document.querySelectorAll('#rb-lk-grid [data-sugg]').length, meta: document.querySelector('#rb-lk-grid [data-sugg] .lt-meta')?.textContent }));
-  check('style · the result lands on the Suggested tab — suggested tiles around the shirt, no kp page', landed.kp === 'none' && landed.sn === 'block' && landed.tab === 'Suggested' && landed.tiles >= 1 && /^Around your /.test(landed.meta || ''), JSON.stringify(landed));
+  // Keep or pass (F14, 2026-10-07): the result lands on the deck inside the
+  // Lookbook — three suggested looks around the shirt, one card at a time
+  // (no job here, so all three are live at once), never the kp page.
+  const landed = await page.evaluate(() => ({ kp: document.getElementById('kp-result-page')?.style.display || 'none', sn: document.getElementById('sn-page')?.style.display, deck: document.querySelector('#rb-lk-body .rb-lk-deck')?.className,
+    band: document.querySelector('#rb-lk-body .rb-ret-pill .lab')?.textContent, ey: document.querySelector('.rb-lk-decktb .rb-tb-ey')?.textContent, top: document.querySelector('.rb-deck-card.top .rb-deck-t')?.textContent, under: document.querySelectorAll('.rb-deck-card.under').length, dots: document.querySelectorAll('.rb-deck-dots i').length }));
+  check('style · the result lands on the keep-or-pass deck — ‹ Cream silk shirt, "Around your cream silk shirt", the first way on top with two behind, three dots, no kp page',
+    landed.kp === 'none' && landed.sn === 'block' && /live/.test(landed.deck || '') && landed.band === 'Cream silk shirt' && landed.ey === 'Around your cream silk shirt' && landed.top === 'Way One' && landed.under === 2 && landed.dots === 3, JSON.stringify(landed));
+  await page.evaluate(() => window.__lkDeckBack());
+  await page.waitForTimeout(400);
+  check('style · the deck\'s back pill returns to the piece page', await page.evaluate(() => document.getElementById('rb-piece-page')?.style.display !== 'none' && !document.querySelector('.rb-lk-deck')));
   check('no page errors (wardrobe + look doors)', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }

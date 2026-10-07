@@ -14320,14 +14320,15 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (!r) return;
         if (_pdHttp(url) && !r.photo_url) _lkPatch(r.id, { photo_url: url });
         delete _lkSuggBusy[r.id];
+        _lkDeckFrame(setId, r);
         if (_lkIsSaved(r)) { if (_lkView !== 'new') _lkPaint(); try { _lkHomeSync(); } catch (_) {} }
-        else _lkSuggTileSync(r);
+        else if (_lkView !== 'deck') _lkSuggTileSync(r);
       }
       function _lkSuggPoll(jobId, setId, count) {
         if (_lkSuggPollT) { clearTimeout(_lkSuggPollT); _lkSuggPollT = null; }
         if (!jobId) return;
         const t0 = Date.now();
-        const settle = () => { _lkSugg.filter(x => String(x.set_id) === String(setId)).forEach(r => { delete _lkSuggBusy[r.id]; _lkSuggTileSync(r); }); };
+        const settle = () => { _lkSugg.filter(x => String(x.set_id) === String(setId)).forEach(r => { delete _lkSuggBusy[r.id]; if (_lkView !== 'deck') _lkSuggTileSync(r); }); _lkDeckSettle(setId); };
         function tick() {
           fetch('/api/images/' + jobId).then(r => r.ok ? r.json() : null).then(job => {
             if (job && Array.isArray(job.images)) {
@@ -14381,8 +14382,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const pieceId = o.pieceId != null ? String(o.pieceId) : _lkSuggAnchorFromPrompt(prompt);
         _lkSuggFromStyle(data, { setId, pieceId });
         if (data.jobId) _lkSuggPoll(data.jobId, setId, data.ways.length);
-        _rbTrack('look_generated', { track: 'key-piece', item: String(setId), fallback: !!data.fallback, landed: 'suggested' });
-        window.__rbInspOpen();
+        _rbTrack('look_generated', { track: 'key-piece', item: String(setId), fallback: !!data.fallback, landed: 'deck' });
+        // The keep-or-pass deck (F14) is the landing; the Suggested tab is
+        // where it leads, and the fallback when nothing minted.
+        if (!_lkDeckOpen(setId, { anchorId: pieceId, prompt })) window.__rbInspOpen();
         return true;
       }
       // ↻ on a suggested tile: ONE new look from the same piece or prompt —
@@ -14458,14 +14461,14 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         _lkSuggCacheWrite();
         if (String(_lkActive) === String(id)) { _lkActive = null; _lkView = 'grid'; }
         _lkSuggRepaint();
-        _lkSuggPending = { look, idx: i, timer: setTimeout(_lkSuggCommit, 6000) };
+        _lkSuggPending = { look, idx: i, timer: setTimeout(_lkSuggCommit, 6000), deck: !!(o && o.deck) };
         if (typeof _wrEnsure === 'function') _wrEnsure();
         document.getElementById('rb-lk-undo')?.remove();
         const t = document.createElement('div');
         t.id = 'rb-lk-undo';
         t.className = 'rb-wr-undo';
         t.setAttribute('role', 'status');
-        t.innerHTML = '<span class="m">Removed</span><button type="button" onclick="window.__lkSuggUndo()">Undo</button>';
+        t.innerHTML = '<span class="m">' + _waEsc((o && o.label) || 'Removed') + '</span><button type="button" onclick="window.__lkSuggUndo()">Undo</button>';
         document.body.appendChild(t);
         _rbTrack('look_dismissed', { surface: (o && o.from) || 'tile', verdict: (o && o.verdict) || null });
       };
@@ -14477,9 +14480,308 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         document.getElementById('rb-lk-undo')?.remove();
         _lkSugg.splice(Math.min(p.idx, _lkSugg.length), 0, p.look);
         _lkSuggCacheWrite();
+        // A pass undone on the deck puts the card back on top.
+        if (p.deck && _lkDeck) {
+          const id = String(p.look.id);
+          _lkDeck.passed = _lkDeck.passed.filter(x => x !== id);
+          const at = _lkDeck.order.indexOf(id);
+          if (at >= 0) _lkDeck.at = at;
+        }
         _lkSuggRepaint();
       };
       try { window.addEventListener('pagehide', function() { if (_lkSuggPending) _lkSuggCommit(); }); } catch (_) {}
+      // ── Keep or pass (F14, 2026-10-07): a fresh set of suggestions lands
+      // on a DECK, not the grid — the three looks stacked as one card each
+      // (the image, the title, the piece count), right keeps, left passes
+      // ("Passed · Undo"), a tap opens F8. While the frames compose the
+      // deck shows her piece as the top card with a line that changes
+      // every two seconds and a dot filling per look ready (F14·0); the
+      // first time ever it also teaches the gesture. The looks she keeps
+      // wait in Suggested until she saves them; a passed look is gone.
+      var _lkDeck = null;
+      var _LK_DECK_LINES = ['Dressing it three ways', 'Looking at the hem', 'Choosing the shoes', 'Finding a layer', 'Weighing the bag', 'Setting the colour'];
+      var _LK_DECK_LINES_PROMPT = ['Reading your words', 'Choosing the pieces', 'Setting the tone', 'Finding the shoes', 'Weighing a layer'];
+      var _LK_DECK_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
+      function _lkDeckSeenKey() { const u = _waUid(); return u ? 'rb_lk_deck_seen__' + u : null; }
+      function _lkDeckSetRows(setId) {
+        return _lkSugg.filter(x => x.status === 'suggested' && String(x.set_id) === String(setId)).sort((a, b) => (a.set_index || 0) - (b.set_index || 0));
+      }
+      function _lkDeckRow(id) { return _lkSugg.find(x => String(x.id) === String(id)) || null; }
+      function _lkDeckAnchor() { const d = _lkDeck; return d && d.anchorId ? (_waItems.find(w => String(w.id) === d.anchorId) || null) : null; }
+      function _lkDeckAnchorNm() {
+        const wi = _lkDeckAnchor();
+        if (!wi) return '';
+        const nm = String((typeof _rbNameNoBrand === 'function' ? _rbNameNoBrand(wi.label, wi.brand) : wi.label) || '').trim();
+        return nm ? nm.charAt(0).toLowerCase() + nm.slice(1) : '';
+      }
+      function _lkDeckOpen(setId, o) {
+        o = o || {};
+        const rows = _lkDeckSetRows(setId);
+        if (!rows.length) return false;
+        const key = _lkDeckSeenKey();
+        let first = true;
+        try { first = !(key && localStorage.getItem(key)); if (key) localStorage.setItem(key, '1'); } catch (_) {}
+        if (_lkDeck && _lkDeck.lineT) clearInterval(_lkDeck.lineT);
+        _lkDeck = { setId: String(setId), anchorId: o.anchorId != null ? String(o.anchorId) : null, prompt: String(o.prompt || ''), order: [], at: 0, kept: [], passed: [], first, lineI: 0, lineT: null, settled: false };
+        // A look whose frame is already here (or is not coming) is in the
+        // deck from the start; the rest join as their frames land.
+        rows.forEach(r => { if (_lkHeroUrl(r) || !_lkSuggBusy[r.id]) _lkDeck.order.push(String(r.id)); });
+        if (window._rbNavOrigin === 'home' || !window._rbNavOrigin) window._rbNavOrigin = 'lookbook';
+        // The deck is the Suggested side of the Lookbook: a look opened from
+        // it (F8) and the tab it leads to both read that way.
+        _lkTab = 'suggested';
+        _lkShelfOpen();
+        _lkView = 'deck'; _lkActive = null;
+        _lkPaint();
+        _rbTrack('deck_opened', { n: rows.length, anchored: !!_lkDeck.anchorId, first });
+        return true;
+      }
+      function _lkDeckClose() {
+        if (_lkDeck && _lkDeck.lineT) clearInterval(_lkDeck.lineT);
+        _lkDeck = null;
+      }
+      // A frame landed for a row of the set: the look joins the deck BEHIND
+      // the card she is on (the top card never changes under her finger).
+      function _lkDeckFrame(setId, row) {
+        const d = _lkDeck;
+        if (!d || !row || String(d.setId) !== String(setId)) return;
+        const id = String(row.id);
+        if (d.order.indexOf(id) < 0) d.order.push(id);
+        if (_lkView === 'deck') _lkDeckPaint();
+      }
+      // The job settled with frames still missing: the rest join as they are.
+      function _lkDeckSettle(setId) {
+        const d = _lkDeck;
+        if (!d || String(d.setId) !== String(setId)) return;
+        _lkDeckSetRows(setId).forEach(r => { if (d.order.indexOf(String(r.id)) < 0) d.order.push(String(r.id)); });
+        d.settled = true;
+        if (_lkView === 'deck') _lkDeckPaint();
+      }
+      function _lkDeckWaiting() {
+        const d = _lkDeck;
+        if (!d) return [];
+        return _lkDeckSetRows(d.setId).filter(r => d.order.indexOf(String(r.id)) < 0);
+      }
+      // A decision made elsewhere counts here: a card she saved or edited
+      // from F8 is kept, one she removed there is passed.
+      function _lkDeckReconcile() {
+        const d = _lkDeck;
+        if (!d) return;
+        while (d.at < d.order.length) {
+          const id = d.order[d.at];
+          if (d.kept.indexOf(id) >= 0 || d.passed.indexOf(id) >= 0) { d.at++; continue; }
+          const r = _lkDeckRow(id);
+          if (r && r.status === 'suggested') break;
+          const gone = !r && !_lkLooks.some(x => String(x.id) === id);
+          const pendingPass = !!(_lkSuggPending && String(_lkSuggPending.look.id) === id);
+          if (gone || pendingPass) d.passed.push(id); else d.kept.push(id);
+          d.at++;
+        }
+      }
+      window.__lkDeckKeep = function(id) {
+        const d = _lkDeck;
+        if (!d) return;
+        id = String(id);
+        if (d.kept.indexOf(id) < 0 && d.passed.indexOf(id) < 0) d.kept.push(id);
+        if (d.order[d.at] === id) d.at++;
+        _lkDeckPaint();
+        _rbTrack('deck_kept', { n: d.kept.length });
+      };
+      window.__lkDeckPass = function(id) {
+        const d = _lkDeck;
+        if (!d) return;
+        id = String(id);
+        if (d.passed.indexOf(id) < 0) d.passed.push(id);
+        if (d.order[d.at] === id) d.at++;
+        window.__lkSuggRemove(id, null, { from: 'deck', verdict: 'pass', label: 'Passed', deck: true });
+      };
+      // The buttons do what the gesture does, with the same flight.
+      window.__lkDeckBtn = function(id, dir, ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        const card = document.querySelector('#rb-lk-body .rb-deck-card.top[data-deck="' + _waEsc(String(id)) + '"]');
+        if (card) _lkDeckFly(card, dir); else if (dir > 0) window.__lkDeckKeep(id); else window.__lkDeckPass(id);
+      };
+      window.__lkDeckOpenLook = function(id) {
+        const l = _lkDeckRow(id);
+        if (!l) return;
+        const sibs = _lkDeck ? _lkDeck.order.filter(x => { const r = _lkDeckRow(x); return r && r.status === 'suggested'; }) : [];
+        window.__lkOpen(id, { from: { label: 'Three ways', go: function() { window.__lkDeckResume(); } }, siblings: sibs });
+      };
+      window.__lkDeckResume = function() {
+        if (_lkDeck && _lkDeckSetRows(_lkDeck.setId).length + _lkDeck.kept.length + _lkDeck.passed.length) {
+          _lkTab = 'suggested';
+          _lkView = 'deck'; _lkActive = null; _lkEditMode = false; _lkDraft = null;
+          _lkShelfOpen();
+          _lkPaint();
+          return;
+        }
+        _lkTab = 'suggested';
+        window.__lkGo();
+      };
+      // F14·3's one door: the Suggested tab, the kept looks at its head.
+      window.__lkDeckSee = function() {
+        const n = _lkDeck ? _lkDeck.kept.length : 0;
+        _lkDeckClose();
+        _lkTab = 'suggested';
+        window.__lkGo();
+        _rbTrack('deck_done', { kept: n, to: 'suggested' });
+      };
+      window.__lkDeckBack = function() {
+        const aid = _lkDeck ? _lkDeck.anchorId : null;
+        const n = _lkDeck ? _lkDeck.kept.length : 0;
+        _lkDeckClose();
+        // The Lookbook beneath settles on the Suggested grid — the piece page
+        // sits over it, and closing that must never land back on a dead deck.
+        if (_lkView === 'deck') { _lkTab = 'suggested'; _lkView = 'grid'; _lkActive = null; _lkPaint(); }
+        _rbTrack('deck_done', { kept: n, to: aid ? 'piece' : 'home' });
+        if (aid && _waItems.some(w => String(w.id) === aid) && window.__rbPieceOpen) { window.__rbPieceOpen(aid, { from: 'wardrobe' }); return; }
+        window.__rbNavGo('home');
+      };
+      function _lkDeckCardHtml(l, o) {
+        o = o || {};
+        const photo = _lkHeroUrl(l);
+        const n = (l.pieces || []).length + (l.proposals || []).length;
+        const id = _waEsc(String(l.id));
+        return '<div class="rb-deck-card' + (o.top ? ' top' : ' under u' + o.depth) + '" data-deck="' + id + '"' + (o.top ? ' role="button" tabindex="0" aria-label="' + _waEsc('Open ' + (l.name || 'this look')) + '"' : ' aria-hidden="true"') + '>' +
+          '<div class="rb-deck-im">' + _ltMosaicHtml(photo ? [] : _ltCells(_lkPieceIds(l)), { photo: photo || null, alt: l.name || 'A look' }) +
+            (o.top ? '<span class="rb-deck-stamp keep" aria-hidden="true">✓ Keep</span><span class="rb-deck-stamp pass" aria-hidden="true">✕ Pass</span>' : '') + '</div>' +
+          '<div class="rb-deck-info"><div class="rb-deck-t">' + _waEsc(l.name || 'A look') + '</div><div class="rb-deck-m">' + _waEsc(_lkN(n, 'piece')) + '</div></div>' +
+        '</div>';
+      }
+      function _lkDeckDressHtml(nm) {
+        const d = _lkDeck;
+        const wi = _lkDeckAnchor();
+        let photo = wi ? _pdHttp(wi.image_url) : null;
+        if (!photo) { try { const set = snLoad().find(x => String(x.id) === String(d.setId)); photo = set && set.kpData ? _pdHttp(set.kpData.photoUrl) : null; } catch (_) { photo = null; } }
+        const lines = wi ? _LK_DECK_LINES : _LK_DECK_LINES_PROMPT;
+        const im = photo
+          ? '<img src="' + _waEsc(photo) + '" alt="">'
+          : '<div class="rb-deck-quote"><span class="q">“</span>' + (d.prompt ? '<span class="w">' + _waEsc(d.prompt.slice(0, 90)) + '</span>' : '') + '</div>';
+        return '<div class="rb-deck-card top dress" aria-live="polite">' +
+          '<div class="rb-deck-im">' + im + '</div>' +
+          '<div class="rb-deck-info"><div class="rb-deck-t">' + _waEsc(wi ? ('Your ' + nm) : 'Robes is composing') + '</div><div class="rb-deck-m" id="rb-deck-line">' + _waEsc(lines[d.lineI % lines.length]) + '</div></div>' +
+        '</div>';
+      }
+      function _lkDeckHtml() {
+        const d = _lkDeck;
+        if (!d) return '';
+        _lkDeckReconcile();
+        _rbcEnsureCss();
+        const nm = _lkDeckAnchorNm();
+        const anchored = !!_lkDeckAnchor();
+        _rbRetReg('deck', { back: function() { window.__lkDeckBack(); } });
+        const band = _rbRetHtml({ key: 'deck', label: anchored ? nm.charAt(0).toUpperCase() + nm.slice(1) : 'Home', pos: null });
+        const tb = _rbTitleHtml({ cls: 'rb-lk-decktb', eyebrow: anchored ? 'Around your ' + _waEsc(nm) : 'From your prompt',
+          titleHtml: anchored ? 'Your ' + _waEsc(nm) + ', <em>three ways.</em>' : 'Your ask, <em>three ways.</em>' });
+        const waiting = _lkDeckWaiting();
+        const curId = d.order[d.at] || null;
+        const cur = curId ? _lkDeckRow(curId) : null;
+        const total = d.order.length + waiting.length;
+        let stage = '', ctrl = '', dots = '';
+        const dotRow = (onN, at) => '<div class="rb-deck-dots" aria-hidden="true">' + Array.from({ length: Math.max(total, 1) }, (_, i) => '<i class="' + (at != null ? (i === at ? 'on' : '') : (i < onN ? 'on' : '')) + '"></i>').join('') + '</div>';
+        if (cur) {
+          const behind = d.order.slice(d.at + 1).map(x => _lkDeckRow(x)).filter(r => r && r.status === 'suggested').slice(0, 2);
+          stage = '<div class="rb-deck-stack">' + behind.map((r, i) => _lkDeckCardHtml(r, { depth: i + 1 })).reverse().join('') + _lkDeckCardHtml(cur, { top: true }) + '</div>';
+          ctrl = '<div class="rb-deck-ctrl">' +
+            '<button type="button" class="rb-deck-btn pass" onclick="window.__lkDeckBtn(\'' + _waEsc(curId) + '\',-1,event)" aria-label="Pass">✕</button>' +
+            '<button type="button" class="rb-deck-btn keep" onclick="window.__lkDeckBtn(\'' + _waEsc(curId) + '\',1,event)" aria-label="Keep">✓</button></div>';
+          dots = dotRow(0, d.at);
+        } else if (waiting.length) {
+          stage = '<div class="rb-deck-stack">' + _lkDeckDressHtml(nm) + '</div>';
+          ctrl = d.first
+            ? '<div class="rb-deck-ctrl teach"><span class="rb-deck-arrow" aria-hidden="true">‹</span><span class="rb-deck-teach">Swipe left to pass, right to keep.</span><span class="rb-deck-arrow" aria-hidden="true">›</span></div>'
+            : '';
+          dots = dotRow(d.order.length, null);
+        } else {
+          const kept = d.kept.map(x => _lkDeckRow(x) || _lkLooks.find(y => String(y.id) === x) || null).filter(Boolean);
+          const n = kept.length;
+          const thumbs = n ? '<div class="rb-deck-thumbs">' + kept.map(r => { const p = _lkHeroUrl(r); return '<button type="button" class="rb-deck-thumb" onclick="window.__lkDeckOpenLook(\'' + _waEsc(String(r.id)) + '\')" aria-label="' + _waEsc('Open ' + (r.name || 'this look')) + '">' + _ltMosaicHtml(p ? [] : _ltCells(_lkPieceIds(r)), { photo: p || null, alt: r.name || '' }) + '</button>'; }).join('') + '</div>' : '';
+          stage = '<div class="rb-deck-end">' +
+            '<div class="t">' + (_LK_DECK_WORDS[n] || String(n)) + ' kept.</div>' +
+            '<div class="s">' + (n ? 'They wait in Suggested until you save them.' : (anchored ? 'Style it three ways again from the piece page.' : 'Ask Robes again from the prompt box.')) + '</div>' +
+            thumbs +
+            (n ? '<button type="button" class="rb-lk-save rb-deck-see" onclick="window.__lkDeckSee()">See Suggested</button>' : '') +
+            '<button type="button" class="rb-deck-backlink" onclick="window.__lkDeckBack()">' + (anchored ? 'Back to the ' + _waEsc(nm) : 'Back home') + '</button>' +
+          '</div>';
+        }
+        return '<div class="rb-lk-deck' + (cur ? ' live' : waiting.length ? ' dressing' : ' done') + '">' + band + tb + stage + ctrl + dots + '</div>';
+      }
+      function _lkDeckPaint() {
+        if (_lkView !== 'deck') return;
+        const body = document.getElementById('rb-lk-body');
+        if (!body) return;
+        body.innerHTML = _lkDeckHtml();
+        _lkDeckWire();
+      }
+      // The drag: the card moves sideways only, the stamp fades in with
+      // the drag and commits past 100px, released short it springs back; a
+      // tap (no move) opens the look.
+      function _lkDeckDragTo(card, dx) {
+        card.style.transform = dx ? 'translateX(' + dx + 'px) rotate(' + (dx * 0.04) + 'deg)' : '';
+        const k = card.querySelector('.rb-deck-stamp.keep'), p = card.querySelector('.rb-deck-stamp.pass');
+        if (k) k.style.opacity = String(Math.max(0, Math.min(1, dx / 100)));
+        if (p) p.style.opacity = String(Math.max(0, Math.min(1, -dx / 100)));
+      }
+      function _lkDeckFly(card, dir) {
+        if (!card || card.classList.contains('fly')) return;
+        const id = card.getAttribute('data-deck');
+        const stamp = card.querySelector(dir > 0 ? '.rb-deck-stamp.keep' : '.rb-deck-stamp.pass');
+        if (stamp) stamp.style.opacity = '1';
+        const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const commit = () => { if (dir > 0) window.__lkDeckKeep(id); else window.__lkDeckPass(id); };
+        if (reduce) { commit(); return; }
+        card.classList.add('fly');
+        card.style.transform = 'translateX(' + (dir * (window.innerWidth + 200)) + 'px) rotate(' + (dir * 14) + 'deg)';
+        setTimeout(commit, 240);
+      }
+      function _lkDeckWire() {
+        const d = _lkDeck;
+        if (!d) return;
+        const lineEl = document.getElementById('rb-deck-line');
+        if (lineEl && !d.lineT) {
+          d.lineT = setInterval(() => {
+            const el = document.getElementById('rb-deck-line');
+            if (!el || !_lkDeck) { clearInterval(d.lineT); if (_lkDeck && _lkDeck.lineT === d.lineT) _lkDeck.lineT = null; return; }
+            const lines = _lkDeckAnchor() ? _LK_DECK_LINES : _LK_DECK_LINES_PROMPT;
+            _lkDeck.lineI = (_lkDeck.lineI + 1) % lines.length;
+            el.textContent = lines[_lkDeck.lineI];
+          }, 2000);
+        } else if (!lineEl && d.lineT) { clearInterval(d.lineT); d.lineT = null; }
+        const card = document.querySelector('#rb-lk-body .rb-deck-card.top:not(.dress)');
+        if (!card) return;
+        let x0 = 0, dx = 0, drag = false, moved = false;
+        const end = (e) => {
+          if (!drag) return;
+          drag = false;
+          card.classList.remove('dragging');
+          try { card.releasePointerCapture(e.pointerId); } catch (_) {}
+          if (dx > 100) _lkDeckFly(card, 1);
+          else if (dx < -100) _lkDeckFly(card, -1);
+          else { _lkDeckDragTo(card, 0); if (!moved && e.type === 'pointerup') window.__lkDeckOpenLook(card.getAttribute('data-deck')); }
+          dx = 0;
+        };
+        // A native image drag would cancel the pointer drag mid-way.
+        card.addEventListener('dragstart', (e) => e.preventDefault());
+        card.addEventListener('pointerdown', (e) => {
+          if (e.button != null && e.button !== 0) return;
+          drag = true; moved = false; x0 = e.clientX; dx = 0;
+          card.classList.add('dragging');
+          try { card.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        card.addEventListener('pointermove', (e) => {
+          if (!drag) return;
+          dx = e.clientX - x0;
+          if (Math.abs(dx) > 6) moved = true;
+          if (moved) _lkDeckDragTo(card, dx);
+        });
+        card.addEventListener('pointerup', end);
+        card.addEventListener('pointercancel', end);
+        card.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.__lkDeckOpenLook(card.getAttribute('data-deck')); }
+          else if (e.key === 'ArrowRight') { e.preventDefault(); _lkDeckFly(card, 1); }
+          else if (e.key === 'ArrowLeft') { e.preventDefault(); _lkDeckFly(card, -1); }
+        });
+      }
       // Every surface that lists suggestions, repainted from the rows.
       function _lkSuggRepaint() {
         try { if (document.getElementById('rb-lk-grid')) _lkPaint(); } catch (_) {}
@@ -15226,13 +15528,68 @@ button.rb-lk-live{cursor:pointer}
 #rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))!important}
 /* A pushed view: the title sits 20px under the header line (the overlay's
    32px + the title block's 22px read as a hole — Annie, same pass). */
-#sn-page:has(.rb-lk-page,.rb-lk-newmast)>div{padding-top:20px!important}
-.rb-lk-page .rb-tb,.rb-lk-newmast{padding-top:0}
+#sn-page:has(.rb-lk-page,.rb-lk-newmast,.rb-lk-deck)>div{padding-top:20px!important}
+.rb-lk-page .rb-tb,.rb-lk-newmast,.rb-lk-deck .rb-tb{padding-top:0}
 /* The look screen is a PUSHED view (Look_Screen_Redline 02): the dock
    stands down while a look's band is on top, the action bar alone closes
    the screen. body.rb-lk-push is set by _rbNavSync. */
 body.rb-lk-push #rb-dock{display:none}
 .rb-lkm-note{text-align:left}
+}`;
+      // Keep or pass (F14): the deck's dress — one card at a time, the
+      // image leading, no scroll inside a card; the ✓ is the one ink on the
+      // screen (✕ hairline); the stamp is the warm selected fill.
+      _LK_CSS += `
+.rb-lk-deck{max-width:560px;margin:0 auto}
+.rb-lk-decktb{margin-bottom:6px}
+.rb-deck-stack{position:relative;width:min(100%,340px);aspect-ratio:3/4.3;margin:26px auto 0}
+.rb-deck-card{position:absolute;inset:0;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rule);border-radius:var(--rad-lg,16px);overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none;transition:transform .32s cubic-bezier(.2,.8,.3,1),opacity .2s;will-change:transform}
+.rb-deck-card.top{cursor:pointer;z-index:3}
+.rb-deck-card.top:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.rb-deck-card.dragging{transition:none}
+.rb-deck-card.fly{transition:transform .26s ease-in,opacity .26s;opacity:.4}
+.rb-deck-card.under{pointer-events:none}
+.rb-deck-card.under.u1{z-index:2;transform:scale(.955) translateY(12px);opacity:.92}
+.rb-deck-card.under.u2{z-index:1;transform:scale(.91) translateY(24px);opacity:.8}
+.rb-deck-im{position:relative;flex:1;min-height:0;background:var(--cream-100)}
+.rb-deck-im .rb-lk-mos{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;border-radius:0}
+.rb-deck-im>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.rb-deck-card img{-webkit-user-drag:none;user-drag:none;pointer-events:none}
+.rb-deck-info{padding:14px 16px 16px;border-top:1px solid var(--rule)}
+.rb-deck-t{font:400 20px/1.2 var(--font-serif);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-deck-m{font:400 11px/1.4 var(--font-sans);color:var(--ink-faint);margin-top:3px;letter-spacing:.02em;min-height:1.4em}
+.rb-deck-stamp{position:absolute;top:16px;padding:8px 13px;border-radius:100px;font:500 10px/1 var(--font-sans);letter-spacing:.2em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .12s;z-index:2}
+.rb-deck-stamp.keep{left:16px;background:#F3EFE6;border:1px solid #C9BCA6;color:var(--ink)}
+.rb-deck-stamp.pass{right:16px;background:rgba(255,255,255,.94);border:1px solid var(--rule-mid);color:var(--ink-soft)}
+.rb-deck-quote{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+.rb-deck-quote .q{font:300 76px/1 var(--font-serif);color:var(--rose)}
+.rb-deck-quote .w{font:300 17px/1.45 var(--font-serif);font-style:italic;color:var(--ink-soft);margin-top:6px}
+.rb-deck-ctrl{display:flex;align-items:center;justify-content:center;gap:28px;margin-top:22px;min-height:52px}
+.rb-deck-btn{width:52px;height:52px;border-radius:50%;border:1px solid var(--rule-mid);background:#fff;color:var(--ink-soft);font:400 18px/1 var(--font-sans);font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,transform .12s}
+.rb-deck-btn:hover{border-color:rgba(32,32,33,.3)}
+.rb-deck-btn:active{transform:scale(.94)}
+.rb-deck-btn.keep{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rb-deck-ctrl.teach{gap:14px}
+.rb-deck-arrow{font:300 26px/1 var(--font-serif);color:var(--ink-faint)}
+.rb-deck-teach{font:400 11px/1.4 var(--font-sans);color:var(--ink-faint);letter-spacing:.02em}
+.rb-deck-dots{display:flex;justify-content:center;gap:8px;margin-top:18px}
+.rb-deck-dots i{display:block;width:6px;height:6px;border-radius:50%;border:1px solid var(--rule-mid);background:#fff;transition:background .25s,border-color .25s}
+.rb-deck-dots i.on{background:var(--ink);border-color:var(--ink)}
+.rb-deck-end{max-width:340px;margin:40px auto 0;text-align:center}
+.rb-deck-end .t{font:300 34px/1.1 var(--font-serif);color:var(--ink)}
+.rb-deck-end .s{font:400 13px/1.6 var(--font-sans);color:var(--ink-soft);margin-top:10px}
+.rb-deck-thumbs{display:flex;justify-content:center;gap:10px;margin-top:22px}
+.rb-deck-thumb{position:relative;width:72px;height:92px;padding:0;border:1px solid var(--rule);border-radius:var(--rad-sm,8px);overflow:hidden;background:var(--cream-100);cursor:pointer}
+.rb-deck-thumb .rb-lk-mos{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;border-radius:0}
+.rb-deck-see{display:block;margin:26px auto 0}
+.rb-deck-backlink{display:block;margin:16px auto 0;padding:6px 2px;background:none;border:0;font:400 12px/1.4 var(--font-sans);color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+@media(prefers-reduced-motion:reduce){.rb-deck-card,.rb-deck-dots i{transition:none}}
+@media(max-width:767px){
+.rb-deck-stack{width:min(100%,340px);margin-top:20px}
+/* The dock stands down under the deck, so the Passed · Undo pill sits at
+   the foot, clear of the two buttons. */
+body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.rb-lk-deck{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
 }`;
       function _lkEnsureCss() {
         if (document.getElementById('rb-lk-style')) return;
@@ -15301,7 +15658,7 @@ body.rb-lk-push #rb-dock{display:none}
         // bridge, a delete that emptied it. Guarding here rather than at
         // each caller is what makes it a rule instead of a path.
         // The Suggested tab is a grid at any count (F6 is its empty state).
-        if (!any && !onSugg && _lkView !== 'new' && !_lkTripDraft) {
+        if (!any && !onSugg && _lkView !== 'new' && _lkView !== 'deck' && !_lkTripDraft) {
           // Arm it — but a draft in progress is HERS: the home module and
           // this page render one shared draft, so landing here (e.g. via
           // __snOpen, which resets the view to 'grid') must never wipe it.
@@ -15384,6 +15741,7 @@ body.rb-lk-push #rb-dock{display:none}
           // surfaces would both answer a bare `.rb-lk-composer` query — and
           // duplicate the ids inside it.
           const pgOpen = !!snEl && snEl.style.display !== 'none';
+          if (_lkView === 'deck') { _lkDeckPaint(); _lkHomeSync(); return; }
           body.innerHTML = (!pgOpen && _lkView === 'new' && _lkHomeZero())
             ? ''
             : (_lkView === 'new' ? _lkNewHtml() : _lkDetailHtml());
@@ -27782,7 +28140,7 @@ body>*:not(#tv-result-page){display:none !important}
           // 02): the saved look, the draft and the kp builder carry their
           // own action bar, so the dock stands down under them.
           const bandKey = band ? band.getAttribute('data-rbret') : '';
-          const push = depth && (bandKey === 'look' || (bandKey === 'kp' && !!document.querySelector('#kp-result-page.kp-building')));
+          const push = depth && (bandKey === 'look' || bandKey === 'deck' || (bandKey === 'kp' && !!document.querySelector('#kp-result-page.kp-building')));
           document.body.classList.toggle('rb-lk-push', push);
           if (backPill) backPill.style.display = depth ? 'inline-flex' : 'none';
           if (backLabel && band) {

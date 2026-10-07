@@ -167,10 +167,10 @@ await page.locator('#rb-lp-piece .mode', { hasText: 'Style it three ways' }).cli
 await page.waitForTimeout(150);
 check('picking Style it three ways ticks it and inks the arrow', await page.evaluate(() => document.querySelectorAll('#rb-lp-piece .mode.on .t')[0]?.textContent === 'Style it three ways' && document.getElementById('rb-lp-send').classList.contains('ink')));
 
-// 4 · A note + Send → the piece track → three SUGGESTED rows on the
-// Suggested tab (look states, 2026-10-06): the generation is recorded as a
-// key-piece entry (the set), one row per way is minted around her piece,
-// and the frames arrive on the tiles as the job lands them.
+// 4 · A note + Send → the piece track → three SUGGESTED rows (look states,
+// 2026-10-06): the generation is recorded as a key-piece entry (the set),
+// one row per way is minted around her piece, and she lands on the keep-
+// or-pass DECK (F14, 2026-10-07) with the frames arriving.
 let stylePost = null;
 const styleCapture = async (r) => { try { stylePost = r.request().postDataJSON(); } catch (_) {} styleCalls++; await new Promise((res) => setTimeout(res, 600)); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(Object.assign({}, STYLE_RESP, { generatedImages: [null, null, null], jobId: 'j1' })) }); };
 await page.route('**/api/style', styleCapture);
@@ -183,18 +183,98 @@ check('the box closes on send and the styling overlay stands in', !(await page.l
 await page.waitForTimeout(1200);
 check('one /api/style call, the brief led by the piece with its wear count and her note after it', styleCalls === 1 && stylePost && stylePost.prompt === 'Style my Umbro shorts three ways (worn 3 times). sporty cool' && stylePost.intent === 'style', JSON.stringify(stylePost && stylePost.prompt));
 await page.unroute('**/api/style', styleCapture);
-const land = await page.evaluate(() => ({
+// Keep or pass (F14, 2026-10-07): a fresh set lands on the DECK, not the
+// grid — while the frames compose her piece is the top card with a line
+// that changes every two seconds (F14·0, the gesture taught the first
+// time), then the three stack as one card each (F14·1).
+const deckRead = () => page.evaluate(() => ({
   sn: document.getElementById('sn-page')?.style.display, kp: document.getElementById('kp-result-page')?.style.display || 'none',
-  tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent, count: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent, acts: document.querySelectorAll('#rb-lk-bar .rb-mast-acts button').length,
-  tiles: Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg]')).map((e) => ({ t: e.querySelector('.lt-title')?.textContent, ey: e.querySelector('.lt-ey')?.textContent, m: e.querySelector('.lt-meta')?.textContent, chip: e.querySelector('.lt-chip')?.textContent, mark: e.querySelector('.lt-mark img')?.getAttribute('src'), btns: Array.from(e.querySelectorAll('.lt-sugbtn')).map((b) => b.getAttribute('aria-label')) })),
+  cls: document.querySelector('#rb-lk-body .rb-lk-deck')?.className, band: document.querySelector('#rb-lk-body .rb-ret-pill .lab')?.textContent,
+  ey: document.querySelector('.rb-lk-decktb .rb-tb-ey')?.textContent, title: document.querySelector('.rb-lk-decktb .rb-tb-title')?.textContent,
+  line: document.getElementById('rb-deck-line')?.textContent, teach: document.querySelector('.rb-deck-teach')?.textContent, arrows: document.querySelectorAll('.rb-deck-arrow').length,
+  top: document.querySelector('.rb-deck-card.top .rb-deck-t')?.textContent, topM: document.querySelector('.rb-deck-card.top .rb-deck-m')?.textContent, topPhoto: document.querySelector('.rb-deck-card.top .lt-photo')?.getAttribute('src'),
+  dress: !!document.querySelector('.rb-deck-card.top.dress'), under: document.querySelectorAll('.rb-deck-card.under').length,
+  dots: Array.from(document.querySelectorAll('.rb-deck-dots i')).map((i) => (i.classList.contains('on') ? 1 : 0)),
+  btns: Array.from(document.querySelectorAll('.rb-deck-btn')).map((b) => b.getAttribute('aria-label') + ':' + getComputedStyle(b).backgroundColor),
+  bar: document.getElementById('rb-lk-bar')?.style.display, grid: document.getElementById('rb-lk-grid')?.style.display,
+  inks: Array.from(document.querySelectorAll('#sn-page button')).filter((b) => b.offsetParent !== null && b.getBoundingClientRect().height > 20 && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.getAttribute('aria-label') || b.textContent.trim()),
+  undo: document.getElementById('rb-lk-undo')?.textContent || '', sugg: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').filter((x) => x.status === 'suggested').map((x) => x.name).sort(),
+  end: { t: document.querySelector('.rb-deck-end .t')?.textContent, s: document.querySelector('.rb-deck-end .s')?.textContent, thumbs: document.querySelectorAll('.rb-deck-thumb').length, see: document.querySelector('.rb-deck-see')?.textContent, back: document.querySelector('.rb-deck-backlink')?.textContent },
+}));
+const land = await deckRead();
+check('F14·0 · the send lands on the DECK inside the Lookbook — never the kp page, never the grid — ‹ Shorts, "Around your shorts", "Your shorts, three ways.", no masthead, no grid',
+  land.sn === 'block' && land.kp === 'none' && /dressing/.test(land.cls || '') && land.band === 'Shorts' && land.ey === 'Around your shorts' && land.title === 'Your shorts, three ways.' && land.bar === 'none' && land.grid === 'none', JSON.stringify(land));
+check('F14·0 · her piece is the top card while the frames compose — "Your shorts" over the changing line, three empty dots, the gesture taught the first time (hairline arrows, no ink anywhere)',
+  land.dress && land.top === 'Your shorts' && land.line === 'Dressing it three ways' && land.teach === 'Swipe left to pass, right to keep.' && land.arrows === 2 && JSON.stringify(land.dots) === '[0,0,0]' && land.btns.length === 0 && land.inks.length === 0, JSON.stringify(land));
+await page.waitForTimeout(6500);
+const live = await deckRead();
+check('F14·1 · the first ready look replaces the card as its frame lands (the job delivers way 1 first), the other two join behind it once the job settles: one deck, "Urbane Weekend · 4 pieces" on top, two under, the first dot on',
+  j1Polls >= 2 && /live/.test(live.cls || '') && live.top === 'Urbane Weekend' && live.topM === '4 pieces' && live.topPhoto === 'https://res.cloudinary.com/demo/way1.jpg' && live.under === 2 && JSON.stringify(live.dots) === '[1,0,0]' && !live.line && !live.teach, JSON.stringify(live));
+check('F14·1 · ✕ hairline, ✓ the one ink fill on the screen', JSON.stringify(live.btns) === JSON.stringify(['Pass:rgb(255, 255, 255)', 'Keep:rgb(32, 32, 33)']) && JSON.stringify(live.inks) === JSON.stringify(['Keep']), JSON.stringify([live.btns, live.inks]));
+const framePatch = writes.find((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && w.body && w.body.photo_url === 'https://res.cloudinary.com/demo/way1.jpg');
+check('the landed frame is PATCHed onto its row', !!framePatch);
+// F14·2 — the drag: the card moves sideways, the KEEP stamp fades in with
+// it, released short it springs back; past 100px it commits.
+const cardBox = await page.locator('.rb-deck-card.top').boundingBox();
+const cx = cardBox.x + cardBox.width / 2, cy = cardBox.y + cardBox.height / 2;
+await page.mouse.move(cx, cy); await page.mouse.down();
+await page.mouse.move(cx + 30, cy, { steps: 3 }); await page.mouse.move(cx + 70, cy, { steps: 3 });
+await page.waitForTimeout(120);
+const mid = await page.evaluate(() => ({ tf: document.querySelector('.rb-deck-card.top').style.transform, keep: document.querySelector('.rb-deck-card.top .rb-deck-stamp.keep').style.opacity, pass: document.querySelector('.rb-deck-card.top .rb-deck-stamp.pass').style.opacity }));
+check('F14·2 · dragging right moves the card sideways and fades the ✓ KEEP stamp in with the drag (the pass stamp stays out)', /translateX\(70px\)/.test(mid.tf) && Number(mid.keep) > 0.6 && Number(mid.keep) < 1 && mid.pass === '0', JSON.stringify(mid));
+await page.mouse.move(cx + 40, cy, { steps: 3 }); await page.mouse.up();
+await page.waitForTimeout(450);
+const sprung = await page.evaluate(() => ({ tf: document.querySelector('.rb-deck-card.top').style.transform, top: document.querySelector('.rb-deck-card.top .rb-deck-t')?.textContent }));
+check('F14·2 · released short, the card springs back and nothing is decided', sprung.tf === '' && sprung.top === 'Urbane Weekend', JSON.stringify(sprung));
+await page.mouse.move(cx, cy); await page.mouse.down();
+await page.mouse.move(cx + 60, cy, { steps: 3 }); await page.mouse.move(cx + 170, cy, { steps: 4 }); await page.mouse.up();
+await page.waitForTimeout(600);
+const kept1 = await deckRead();
+check('F14·2 · past 100px the keep commits — the next card is on top, the second dot on, the look still suggested (it waits in Suggested)',
+  kept1.top === 'Coffee Run' && JSON.stringify(kept1.dots) === '[0,1,0]' && kept1.under === 1 && JSON.stringify(kept1.sugg) === JSON.stringify(['Coffee Run', 'Park Hangout', 'Urbane Weekend']), JSON.stringify(kept1));
+// A pass: left, held six seconds behind "Passed · Undo"; Undo puts the
+// card back on top with nothing written.
+await page.mouse.move(cx, cy); await page.mouse.down();
+await page.mouse.move(cx - 60, cy, { steps: 3 }); await page.mouse.move(cx - 170, cy, { steps: 4 }); await page.mouse.up();
+await page.waitForTimeout(600);
+const passed = await deckRead();
+check('F14·1 · a drag left passes: the look leaves the set at once behind "Passed · Undo", the next card is on top, nothing deleted yet',
+  passed.top === 'Park Hangout' && /^Passed/.test(passed.undo) && /Undo$/.test(passed.undo) && JSON.stringify(passed.sugg) === JSON.stringify(['Park Hangout', 'Urbane Weekend']) && !writes.some((w) => w.method === 'DELETE' && /^looks\?/.test(w.url)), JSON.stringify(passed));
+await page.evaluate(() => window.__lkSuggUndo());
+await page.waitForTimeout(300);
+const undone = await deckRead();
+check('F14·1 · Undo puts the passed card back on top, whole', undone.top === 'Coffee Run' && undone.undo === '' && JSON.stringify(undone.sugg) === JSON.stringify(['Coffee Run', 'Park Hangout', 'Urbane Weekend']) && JSON.stringify(undone.dots) === '[0,1,0]', JSON.stringify(undone));
+// The buttons do what the gesture does.
+await page.locator('.rb-deck-btn.keep').click();
+await page.waitForTimeout(500);
+check('F14·1 · ✓ keeps — the third card is on top', (await deckRead()).top === 'Park Hangout');
+// A tap opens F8; its back returns to the deck where she left it.
+await page.locator('.rb-deck-card.top').click();
+await page.waitForTimeout(500);
+const tapF8 = await page.evaluate(() => ({ page: !!document.querySelector('#rb-lk-body .rb-lk-page'), band: document.querySelector('#rb-lk-body .rb-ret-pill .lab')?.textContent, title: document.getElementById('rb-lk-title')?.textContent, bar: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-suggbar button')).map((b) => b.textContent) }));
+check('F14·1 · a tap on the card opens F8 — ‹ Three ways, the look, Edit · Save to lookbook', tapF8.page && tapF8.band === 'Three ways' && tapF8.title === 'Park Hangout' && JSON.stringify(tapF8.bar) === JSON.stringify(['Edit', 'Save to lookbook']), JSON.stringify(tapF8));
+await page.evaluate(() => window.__lkBackDoor());
+await page.waitForTimeout(400);
+check('F14·1 · back from F8 resumes the deck on the same card', (await deckRead()).top === 'Park Hangout');
+await page.locator('.rb-deck-btn.keep').click();
+await page.waitForTimeout(500);
+const done = await deckRead();
+check('F14·3 · all three seen: "Three kept." / "They wait in Suggested until you save them.", the kept looks as thumbnails, See Suggested the one ink, "Back to the shorts" beneath',
+  /done/.test(done.cls || '') && done.end.t === 'Three kept.' && done.end.s === 'They wait in Suggested until you save them.' && done.end.thumbs === 3 && done.end.see === 'See Suggested' && done.end.back === 'Back to the shorts' && JSON.stringify(done.inks) === JSON.stringify(['See Suggested']), JSON.stringify(done));
+const seenKey = await page.evaluate(() => localStorage.getItem('rb_lk_deck_seen__u-test'));
+check('F14·0 · the gesture is taught once — the seen flag is set for the next run', seenKey === '1');
+await page.locator('.rb-deck-see').click();
+await page.waitForTimeout(500);
+const tabLand = await page.evaluate(() => ({
+  deck: !!document.querySelector('.rb-lk-deck'), tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent, count: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent, acts: document.querySelectorAll('#rb-lk-bar .rb-mast-acts button').length,
+  tiles: Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg]')).map((e) => ({ t: e.querySelector('.lt-title')?.textContent, ey: e.querySelector('.lt-ey')?.textContent, m: e.querySelector('.lt-meta')?.textContent, chip: e.querySelector('.lt-chip')?.textContent, photo: e.querySelector('.lt-photo')?.getAttribute('src'), mark: e.querySelector('.lt-mark img')?.getAttribute('src'), btns: Array.from(e.querySelectorAll('.lt-sugbtn')).map((b) => b.getAttribute('aria-label')) })),
   inks: Array.from(document.querySelectorAll('#sn-page button')).filter((b) => b.offsetParent !== null && b.getBoundingClientRect().height > 20 && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
 }));
-check('the send lands on the Lookbook\'s SUGGESTED tab — never the kp page — "3 suggested", no controls, nothing filled ink',
-  land.sn === 'block' && land.kp === 'none' && land.tab === 'Suggested' && land.count === '3 suggested' && land.acts === 0 && land.inks === 0, JSON.stringify(land));
-check('three suggested tiles, newest first: sage eyebrow, the way\'s title, "Around your shorts" (her piece, without its brand), the piece\'s photograph as the mark, ✕ and ↻ on each, "Creating her frame…" while the job runs',
-  land.tiles.length === 3 && JSON.stringify(land.tiles.map((t) => t.t)) === JSON.stringify(['Park Hangout', 'Coffee Run', 'Urbane Weekend'])
-    && land.tiles.every((t) => t.ey === 'Suggested' && t.m === 'Around your shorts' && t.chip === 'Creating her frame…' && t.mark === 'https://res.cloudinary.com/demo/piece.jpg' && JSON.stringify(t.btns) === JSON.stringify(['Swap this look', 'Remove this look'])),
-  JSON.stringify(land.tiles));
+check('F14·3 · See Suggested opens the Suggested tab (F4) — "3 suggested", the kept looks as ordinary suggested tiles (mark, ✕, ↻), no controls, nothing filled ink',
+  !tabLand.deck && tabLand.tab === 'Suggested' && tabLand.count === '3 suggested' && tabLand.acts === 0 && tabLand.inks === 0 && tabLand.tiles.length === 3 && JSON.stringify(tabLand.tiles.map((t) => t.t)) === JSON.stringify(['Park Hangout', 'Coffee Run', 'Urbane Weekend'])
+    && tabLand.tiles.every((t) => t.ey === 'Suggested' && t.m === 'Around your shorts' && !t.chip && t.mark === 'https://res.cloudinary.com/demo/piece.jpg' && JSON.stringify(t.btns) === JSON.stringify(['Swap this look', 'Remove this look'])),
+  JSON.stringify(tabLand));
+check('the frame rides its tile — the first way\'s photograph, no chip on any', tabLand.tiles.find((t) => t.t === 'Urbane Weekend')?.photo === 'https://res.cloudinary.com/demo/way1.jpg', JSON.stringify(tabLand.tiles));
 const kpWrite = writes.find((w) => w.method === 'POST' && /^lookbook_items/.test(w.url) && w.body && w.body.type === 'key-piece');
 const rowWrites = writes.filter((w) => w.method === 'POST' && /^looks\b/.test(w.url) && w.body && w.body.status === 'suggested');
 const pieceWrites = writes.filter((w) => w.method === 'POST' && /^look_pieces/.test(w.url));
@@ -206,12 +286,6 @@ check('the way\'s itemised pieces land: her shorts as The Anchor in look_pieces,
   pieceWrites.some((w) => Array.isArray(w.body) && w.body.some((p) => p.wardrobe_item_id === 'w-kp' && p.role === 'The Anchor'))
     && rowWrites.some((w) => w.body.name === 'Urbane Weekend' && Array.isArray(w.body.proposals) && w.body.proposals.length === 3 && w.body.proposals[0].opts[0].name === 'White ribbed tank'),
   JSON.stringify(rowWrites.map((w) => [w.body.name, (w.body.proposals || []).length])));
-await page.waitForTimeout(6500);
-const framed = await page.evaluate(() => Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg]')).map((e) => ({ t: e.querySelector('.lt-title')?.textContent, chip: e.querySelector('.lt-chip')?.textContent, photo: e.querySelector('.lt-photo')?.getAttribute('src') })));
-check('the frame lands on its tile as the job delivers it — the first way\'s photograph, its chip gone; the others settle without one',
-  j1Polls >= 2 && framed.find((t) => t.t === 'Urbane Weekend')?.photo === 'https://res.cloudinary.com/demo/way1.jpg' && framed.every((t) => !t.chip), JSON.stringify(framed));
-const framePatch = writes.find((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && w.body && w.body.photo_url === 'https://res.cloudinary.com/demo/way1.jpg');
-check('the landed frame is PATCHed onto its row', !!framePatch);
 // Home's row reads the suggestions.
 await page.evaluate(() => window.__rbNavGo('home'));
 await page.waitForTimeout(400);
@@ -480,7 +554,7 @@ check('the suggested journey · no page errors', errs.length === 0, errs.join(' 
 
   // A face or a room files nothing, and says so — the looks still run.
   analyseMode = 'none';
-  // The send landed on the Suggested tab (look states, 2026-10-06) — back to the grid.
+  // The send landed on the keep-or-pass deck (F14) — back to the grid.
   await p2.evaluate(() => { window.__lkTab && window.__lkTab('saved'); window.__rbNavGo('lookbook'); });
   await p2.waitForTimeout(400);
   await p2.evaluate(() => window.__rbHbOpen({ fresh: true }));
