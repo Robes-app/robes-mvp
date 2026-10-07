@@ -265,14 +265,18 @@ const titleTop = (page) => page.evaluate(() => {
   await page.evaluate(() => window.__rbNavGo('diary')); await page.waitForTimeout(700);
   // The list carries + alone; ‹ › are Month's, since the list scrolls a
   // rolling window rather than paging (Annie, 2026-09-10).
-  check('diary · a root: no band; the masthead is the window in caps + the count, the toggle and + on the line, ‹ › only on Month',
+  check('diary · a root: no band; row 1 is the 213 track + the 36 +, row 2 the eyebrow alone with ‹ › on Month',
     (await band(page)) === null && await page.evaluate(async () => {
       const h = () => document.querySelector('#sn-cal .rb-mv-head');
-      const ok1 = getComputedStyle(h().querySelector('.rb-mv-title')).textTransform === 'uppercase' && !!h().querySelector('.rb-mast-n')
-        && h().querySelectorAll('.rb-mv-seg button').length === 2 && h().querySelectorAll('.rb-mv-nav .rb-circ').length === 1
+      // Header Audit Round 2: row 1 = the 213×36 track + the 36 +; row 2 =
+      // the eyebrow alone (no count), ‹ › as 32pt circles at its right on Month.
+      const sg = h().querySelector('.rb-hdr-r1 .rb-mv-seg').getBoundingClientRect(), ad = h().querySelector('.rb-hdr-r1 .rb-mv-add').getBoundingClientRect();
+      const ok1 = getComputedStyle(h().querySelector('.rb-mv-title')).textTransform === 'uppercase' && !h().querySelector('.rb-mast-n')
+        && h().querySelectorAll('.rb-mv-seg button').length === 2 && h().querySelectorAll('.rb-mv-nav .rb-circ').length === 0
+        && Math.round(sg.width) === 213 && Math.round(sg.height) === 36 && Math.round(ad.width) === 36 && Math.abs(sg.top - ad.top) < 2
         && ![...h().querySelectorAll('button')].some((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)');
       window.__dySetMode('month'); await new Promise((r) => setTimeout(r, 400));
-      const ok2 = h().querySelectorAll('.rb-mv-nav .rb-circ').length === 3;
+      const ok2 = h().querySelectorAll('.rb-hdr-r2 .rb-mv-nav .rb-circ').length === 2 && [...h().querySelectorAll('.rb-mv-nav .rb-circ')].every((c) => Math.round(c.getBoundingClientRect().height) === 32);
       window.__dySetMode('list'); await new Promise((r) => setTimeout(r, 300));
       return ok1 && ok2;
     }));
@@ -298,8 +302,14 @@ const titleTop = (page) => page.evaluate(() => {
   check('wardrobe · the header audit: WARDROBE | WISHLIST as the 213×36 control (no count in the label), the 36pt + on its row, no rule under it, Filter + the 72pt toggle on the 32pt count row, nothing filled ink',
     JSON.stringify(wd.tabs) === JSON.stringify(['Wardrobe*', 'Wishlist']) && wd.seg && wd.seg[0] === 213 && wd.seg[1] === 36 && wd.add.t === '+' && wd.add.w === 36 && wd.add.oneRow && wd.rule === '0px' && wd.filter && wd.trailH === 32 && wd.vt === 72 && !wd.title && wd.fills === 0, JSON.stringify(wd));
   await page.evaluate(() => window.__waSetView('wishlist')); await page.waitForTimeout(300);
-  check('wishlist · a toggle, not a destination: the + adds to the wishlist, Filter steps aside, the count reads "N wishlisted", the nav and band are untouched',
-    (await page.locator('#rb-add-pill').getAttribute('aria-label')) === 'Save a piece' && !(await page.locator('#rb-refine-pill').isVisible()) && /^\d+ wishlisted$/.test(await page.locator('.rb-wg-trailcount').innerText()) && (await band(page)) === null && JSON.stringify(await lit(page)) === '["wardrobe"]');
+  // Header Audit Round 2 (R5): the Wishlist keeps the categories and Filter
+  // — both tabs share their rows, so the grid never jumps on the switch.
+  const rowsAt = () => page.evaluate(() => ['#rb-wsub', '#wg-filters', '#rb-wg-trail'].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top)).join(','));
+  await page.evaluate(() => window.__waSetView('all')); await page.waitForTimeout(300);
+  const rowsAll = await rowsAt();
+  await page.evaluate(() => window.__waSetView('wishlist')); await page.waitForTimeout(300);
+  check('wishlist · a toggle, not a destination: the + adds to the wishlist, the categories and Filter stay on their rows, the count reads "N wishlisted", the nav and band are untouched',
+    (await page.locator('#rb-add-pill').getAttribute('aria-label')) === 'Save a piece' && (await page.locator('#rb-refine-pill').isVisible()) && (await page.locator('#wg-filters').isVisible()) && (await rowsAt()) === rowsAll && /^\d+ wishlisted$/.test(await page.locator('.rb-wg-trailcount').innerText()) && (await band(page)) === null && JSON.stringify(await lit(page)) === '["wardrobe"]');
   await page.evaluate(() => window.__waSetView('all')); await page.waitForTimeout(300);
   await page.evaluate(() => window.__rbPieceOpen('w-top1', { from: 'wardrobe' })); await page.waitForTimeout(500);
   const b1 = await band(page);

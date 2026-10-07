@@ -159,7 +159,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       grid: !!q('#sn-cal .rb-mv-cal'),
       segOn: qa('#sn-cal .rb-mv-seg button').map((b) => b.classList.contains('on')),
       nav: qa('#sn-cal .rb-mv-nav > button[aria-label]').map((b) => b.getAttribute('aria-label')),
-      segInActs: (() => { const sg = q('#sn-cal .rb-mv-nav .rb-mv-seg'), nx = q('#sn-cal .rb-mv-nav .rb-mv-add'); if (!sg || !nx) return false; const a = sg.getBoundingClientRect(), b = nx.getBoundingClientRect(); return Math.abs(a.top - b.top) < 24; })(),
+      segInActs: (() => { const sg = q('#sn-cal .rb-hdr-r1 .rb-mv-seg'), nx = q('#sn-cal .rb-hdr-r1 .rb-mv-add'); if (!sg || !nx) return false; const a = sg.getBoundingClientRect(), b = nx.getBoundingClientRect(); return Math.abs(a.top - b.top) < 2 && Math.round(a.width) === 213 && Math.round(a.height) === 36 && Math.round(b.height) === 36; })(),
       whiteBlocks: qa('#sn-cal .dy-wk').every((c) => getComputedStyle(c).backgroundColor === 'rgb(255, 255, 255)'),
       hoverLift: (() => { const c = q('#sn-cal .dy-r'); return !!c && /background/.test(getComputedStyle(c).transition || ''); })(),
       title: q('#sn-cal .rb-mv-title')?.textContent,
@@ -182,8 +182,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     s.path === '/diary' && s.eyebrow === 'Diary' && s.diaryLit === true && s.list === true && s.grid === false && s.cap === false
       && JSON.stringify(s.segOn) === JSON.stringify([true, false]), JSON.stringify([s.path, s.eyebrow, s.diaryLit, s.list, s.grid, s.segOn]));
   check('list · the header names the window, and the List | Month toggle sits on the line with + (Annie 2026-09-10)',
-    s.title === 'The next ' + WIN_DAYS + ' days' && JSON.stringify(s.nav) === JSON.stringify(['Add']) && s.segInActs, JSON.stringify([s.title, s.nav, s.segInActs]));
-  check('list · the count names the days the window holds', /^\d+ days? filed$/.test(s.count || ''), s.count);
+    s.title === 'The next ' + WIN_DAYS + ' days' && JSON.stringify(s.nav) === JSON.stringify([]) && s.segInActs, JSON.stringify([s.title, s.nav, s.segInActs]));
+  check('list · the eyebrow stands alone — no count (Header Audit Round 2, R6)', s.count === undefined && /^the next 30 days$/i.test(s.title || ''), String(s.count) + ' / ' + s.title);
   // The native row (2026-09-29): weekday + numeral, her title or the faint
   // "Name the day", "N looks · N pieces" only when looks exist, the chevron
   // — and the whole row opens the day.
@@ -406,7 +406,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // ‹ › are the MONTH's (Annie, 2026-09-10): the list scrolls a rolling
   // window, so paging only exists where it means something.
   check('month · the month names itself and ‹ › page it — the pair the list does not carry',
-    JSON.stringify(month.nav) === JSON.stringify(['Previous month', 'Next month', 'Add']) && /^[A-Z][a-z]+ \d{4}$/.test(month.title || ''),
+    JSON.stringify(month.nav) === JSON.stringify(['Previous month', 'Next month']) && /^[A-Z][a-z]+ \d{4}$/.test(month.title || ''),
     JSON.stringify([month.nav, month.title]));
   check('list · no page errors after the walk', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
@@ -460,7 +460,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       tripFits: trip ? trip.getBoundingClientRect().right <= 390 : true,
       dock: document.getElementById('rb-dock-diary')?.classList.contains('active'),
       // the design's phone head: the toggle as a full track beside a 40px +, the window's name beneath
-      segTrack: seg && add ? seg.getBoundingClientRect().width > 200 && add.getBoundingClientRect().width >= 40 && Math.abs(seg.getBoundingClientRect().top - add.getBoundingClientRect().top) < 12 : false,
+      // Header Audit Round 2: the track is fixed at 213×36 and the + is 36, same top
+      segTrack: seg && add ? Math.round(seg.getBoundingClientRect().width) === 213 && Math.round(add.getBoundingClientRect().width) === 36 && Math.abs(seg.getBoundingClientRect().top - add.getBoundingClientRect().top) < 2 : false,
       titleBelow: (() => { const t = document.querySelector('#sn-cal .rb-mv-title'); return !!t && !!seg && t.getBoundingClientRect().top > seg.getBoundingClientRect().bottom; })(),
     };
   });

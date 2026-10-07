@@ -2948,7 +2948,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       var _waMoreCats = [];
       function _waTabCounts() {
         const counts = {};
-        _waItems.forEach(it => { const c = _waSheetCatOf(it) || 'Other'; counts[c] = (counts[c] || 0) + 1; });
+        (_waView === 'wishlist' ? (_wlItems || []) : _waItems).forEach(it => { const c = _waSheetCatOf(it) || 'Other'; counts[c] = (counts[c] || 0) + 1; });
         return counts;
       }
       function _waTabsPaint() {
@@ -3199,13 +3199,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         _waTrailRSync();
         const tr = document.getElementById('rb-wg-trail');
         if (tr) tr.classList.toggle('wish', _waView === 'wishlist');
-        if (_waView === 'wishlist') {
-          const k = _wlItems.length;
-          crumbs.innerHTML = '<span class="rb-wg-trailcount">' + k + ' wishlisted</span>';
-          return;
-        }
-        const n = _waFilteredItems().length;
-        const countHtml = '<span class="rb-wg-trailcount">' + n + ' piece' + (n === 1 ? '' : 's') + '</span>';
+        const wishV = _waView === 'wishlist';
+        const n = wishV ? _wlFilteredItems().length : _waFilteredItems().length;
+        const countHtml = '<span class="rb-wg-trailcount">' + n + (wishV ? ' wishlisted' : ' piece' + (n === 1 ? '' : 's')) + '</span>';
         if (_waCat === 'All') { crumbs.innerHTML = countHtml; return; }
         const path = [_waCat].concat(_waDrill.l2 ? [_waDrill.l2] : []).concat(_waDrill.l3 ? [_waDrill.l3] : []);
         crumbs.innerHTML = '<span class="rb-wg-crumb-mark">Robes</span>' +
@@ -3227,7 +3223,6 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           pill.addEventListener('click', function() { window.__waRefToggle(); });
         }
         if (pill.parentNode !== r) r.insertBefore(pill, r.firstChild);
-        pill.style.display = _waView === 'wishlist' ? 'none' : '';
         let vt = r.querySelector('.rb-wr-vt');
         const html = _wrToggleHtml();
         if (!vt) { r.insertAdjacentHTML('beforeend', html); }
@@ -5677,11 +5672,19 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // Category tab, then the cascade drill (Subcategory › Item type —
         // pre-migration pieces carry null L2/L3 and only match while no
         // drill is active), then the Refine layer.
-        return _waItems.filter(i => (_waCat === 'All' || _waSheetCatOf(i) === _waCat)
+        return _waItems.filter(_waPassFilters);
+      }
+      function _waPassFilters(i) {
+        return (_waCat === 'All' || _waSheetCatOf(i) === _waCat)
           && (!_waDrill.l2 || i.category_l2 === _waDrill.l2)
           && (!_waDrill.l3 || i.category_l3 === _waDrill.l3)
-          && _waMatchRefine(i));
+          && _waMatchRefine(i);
       }
+      // Header Audit Round 2 (R5): the Wishlist keeps the categories and
+      // Filter, so both tabs share their rows and the grid never jumps — and
+      // they filter the wishlist by the same rules (a wishlist row carries
+      // its category, colour and brand; the untagged axes pass any pick).
+      function _wlFilteredItems() { return (_wlItems || []).filter(_waPassFilters); }
 
       // "Coming soon" door — reuses the bundle's dialog like the affiliate CTA
       function _waSoon(title, sub) {
@@ -5861,7 +5864,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const srcHtml = anyReceipt
           ? '<div class="rb-ref-sec src"><div class="rb-ref-lbl">Added from</div><div class="rb-ref-chips"><button class="rb-ref-chip' + (r.src === 'receipt' ? ' on' : '') + '" onclick="window.__waRefSrc(\'receipt\')">Receipts</button></div></div>'
           : '';
-        const n = _waFilteredItems().length;
+        const n = _waView === 'wishlist' ? _wlFilteredItems().length : _waFilteredItems().length;
         // DOM order is the MOBILE order (Season, Wear it for, Colour,
         // Brand — the sheet stacks it); desktop re-places the sections via
         // grid areas: Season | Colour | Brand on the first row, Wear it for
@@ -6025,7 +6028,12 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           return;
         }
         _wrHostSync(grid);
-        grid.innerHTML = _wlItems.map(_wlCard).join('') +
+        const shown = _wlFilteredItems();
+        if (!shown.length) {
+          grid.innerHTML = '<div class="rb-wl-none" style="grid-column:1/-1;padding:48px 16px;text-align:center"><div style="font-family:var(--font-serif);font-style:italic;font-size:20px;color:var(--ink-soft);margin-bottom:10px">Nothing on your wishlist here.</div><button class="rb-pill" onclick="window.__waTrailClear();window.__waRefClear&&window.__waRefClear()">Show everything</button></div>';
+          return;
+        }
+        grid.innerHTML = shown.map(_wlCard).join('') +
           (_waLayoutNow() === 'list'
             ? '<div class="rb-add-card rb-wr-addrow" role="button" tabindex="0" onclick="window.__wlOpenAdd()"><span class="p">+</span> Save a piece</div>'
             : '<div class="rb-wl-item"><button class="rb-add-card" style="width:100%" onclick="window.__wlOpenAdd()">' +
@@ -6159,10 +6167,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const addPill = document.getElementById('rb-add-pill');
         if (addPill) { const al = wish ? 'Save a piece' : 'Add a piece'; addPill.setAttribute('aria-label', al); addPill.title = al; }
         const filters = document.getElementById('wg-filters');
-        if (filters) filters.style.display = wish ? 'none' : '';
+        if (filters) filters.style.display = '';
+        // The tab row ranks by what the view holds — repaint on a view flip.
+        if (filters && filters.dataset.view !== _waView) { filters.dataset.view = _waView; _waTabsPaint(); }
         _waTrailSync();
         _wiSync();
-        if (wish) _waCascadeClose();
         const grid = document.getElementById('wg-grid');
         if (grid) grid.style.display = wish ? 'none' : '';
         const wlGrid = document.getElementById('rb-wl-grid');
@@ -14877,7 +14886,10 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-inprog-h{margin:22px 0 10px}
 .rb-lk-inprog-row{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:22px;padding-bottom:22px;border-bottom:1px solid var(--rule)}
 .rb-lk-inprog-row::-webkit-scrollbar{display:none}
-.rb-lk-inprog-row .lt-draft{flex:0 0 220px;scroll-snap-align:start}
+.rb-lk-inprog-row .lt-draft{flex:0 0 140px;width:140px;scroll-snap-align:start}
+.rb-lk-inprog-row .lt-draft .lt-info{padding:8px 8px 10px}
+.rb-lk-inprog-row .lt-draft .lt-title{font-size:17px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-lk-inprog-row .lt-draft .lt-meta{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lt-card.lt-draft{border:1.5px dashed var(--rule-mid,#D8CFC0);background:var(--cream-100,#F7F4EE);border-radius:var(--rad,12px)}
 .lt-card.lt-draft .lt-draftwell{padding:6px 6px 0}
 .lt-card.lt-draft .lt-draftwell .rb-lk-mos{border-radius:calc(var(--rad,12px) - 6px);aspect-ratio:3/4}
@@ -30249,8 +30261,10 @@ body>*:not(#tv-result-page){display:none !important}
 #sn-page.rb-cal-on #sn-empty{display:none!important}
 #sn-page.rb-cal-on #rb-lk-wrap{display:none!important}
 .rb-mv-head{margin:0 0 22px}
-.rb-mv-nav{display:flex;gap:10px;align-items:center}
-.rb-mv-nav .rb-mv-add{font-size:16px}
+.rb-mv-head .rb-mv-title{font:400 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A958D);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-mv-head .rb-mv-nav{display:flex;gap:8px;align-items:center;margin-left:auto;flex:none}
+.rb-mv-head .rb-mv-nav .rb-circ{width:32px;height:32px;flex:none;position:relative}
+.rb-mv-head .rb-mv-nav .rb-circ::after{content:'';position:absolute;inset:-6px -4px}
 #rb-dy-addmenu{position:fixed;inset:0;z-index:930}
 #rb-dy-addmenu .card{position:absolute;min-width:216px;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-sm,8px);box-shadow:0 10px 32px rgba(32,32,33,0.12);padding:6px 0;display:flex;flex-direction:column}
 #rb-dy-addmenu .card button{display:flex;align-items:flex-start;gap:11px;border:none;background:transparent;padding:10px 16px;cursor:pointer;font-family:inherit;text-align:left;color:var(--ink,#202021)}
@@ -30338,9 +30352,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .rb-mcells .rb-dc.dc-v4.dc-compact.dc-trip .dc-ey{padding-left:0}
 }
 /* ── Diary list view (phase 3) ── */
-.rb-mv-seg{display:inline-flex;gap:3px;padding:3px;background:var(--cream-100,#F5F0E8);border-radius:100px;margin-right:4px}
-.rb-mv-seg button{border:1px solid transparent;border-radius:100px;background:transparent;color:var(--ink-soft,#6E6A64);font:400 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.16em;text-transform:uppercase;height:24px;padding:0 13px;cursor:pointer;font-family:var(--font-sans,Inter,sans-serif)}
-.rb-mv-seg button.on{background:#fff;border-color:var(--rule-mid,rgba(32,32,33,0.12));color:var(--ink,#202021)}
 .rb-mv-cap{font-size:11px;line-height:1.5;color:var(--ink-faint,#9A9082);text-align:center;margin:18px 0 0}
 .dy-list{display:flex;flex-direction:column;gap:16px;max-width:760px}
 .dy-block{display:flex;flex-direction:column;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:var(--rad-sm,8px);overflow:hidden}
@@ -30478,15 +30489,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 .dy-r-m{font-size:11px;color:var(--ink-faint,#9A9082);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dy-r-worn{color:var(--ink-soft,#6E6A64)}
 .dy-r-ar{flex:none;font-size:18px;line-height:1;color:var(--ink-faint,#9A9082)}
-@media(max-width:767px){.dy-list{max-width:none}.dy-row{gap:12px}.dy-tday{padding:12px 12px 12px 10px}.rb-mv-head{gap:10px}.rb-mv-nav{gap:8px;flex-wrap:wrap}
-  /* The phone's head is the design's: the List | Month pill as a full track beside the +, the window's name as an eyebrow beneath */
-  .rb-mv-head.rb-mast{flex-direction:column-reverse;align-items:stretch;gap:18px}
-  .rb-mv-head .rb-mv-nav{display:flex;flex-wrap:nowrap;align-items:center;gap:10px}
-  .rb-mv-head .rb-mv-seg{flex:1;display:grid;grid-template-columns:1fr 1fr;margin-right:0;padding:3px;background:var(--cream-200,#F1EDE6)}
-  .rb-mv-head .rb-mv-seg button{height:32px;font-size:10px;letter-spacing:.2em}
-  .rb-mv-head .rb-mv-seg button.on{font-weight:500}
-  .rb-mv-head .rb-circ{width:40px;height:40px;flex:none}
-  .rb-mv-head .rb-mast-l{margin-top:0}
+@media(max-width:767px){.dy-list{max-width:none}.dy-row{gap:12px}.dy-tday{padding:12px 12px 12px 10px}
 }`;
           document.head.appendChild(st);
         }
@@ -30679,15 +30682,18 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const filed = {};
           (rows || []).forEach(r => { const d = String(r.day_date || '').slice(0, 10); if (d >= first && d <= last && r.status !== 'free') filed[d] = 1; });
           const nFiled = Object.keys(filed).length;
+          // Header Audit Round 2: row 1 is the track + the + and nothing
+          // else (the Lookbook's and the Wardrobe's anatomy); row 2 is the
+          // eyebrow alone, with ‹ › at its right end on Month. No count.
           return `
-            <div class="rb-mv-head rb-mast">
-              <div class="rb-mast-l">
-                <div class="rb-mast-line"><span class="rb-mast-lab rb-mv-title">${_waEsc(title)}</span><span class="rb-mast-n">${nFiled ? nFiled + (nFiled === 1 ? ' day filed' : ' days filed') : 'nothing filed yet'}</span></div>
+            <div class="rb-mv-head rb-hdr2">
+              <div class="rb-hdr-r1">
+                <span class="rb-seg2 rb-mv-seg" role="group" aria-label="View"><button class="${_dyMode === 'list' ? 'on' : ''}" onclick="window.__dySetMode('list')" title="List" aria-label="List">List</button><button class="${_dyMode === 'month' ? 'on' : ''}" onclick="window.__dySetMode('month')" title="Month" aria-label="Month">Month</button></span>
+                <button class="rb-hdr-add rb-mv-add" onclick="window.__rbDiaryAddMenu(event)" aria-label="Add" title="Add">+</button>
               </div>
-              <div class="rb-mv-nav rb-mast-acts">
-                <span class="rb-mv-seg" role="group" aria-label="View"><button class="${_dyMode === 'list' ? 'on' : ''}" onclick="window.__dySetMode('list')" title="List" aria-label="List">List</button><button class="${_dyMode === 'month' ? 'on' : ''}" onclick="window.__dySetMode('month')" title="Month" aria-label="Month">Month</button></span>
-                ${list ? '' : `<button class="rb-circ" onclick="window.__mvNav(-1)" aria-label="Previous month">‹</button><button class="rb-circ" onclick="window.__mvNav(1)" aria-label="Next month">›</button>`}
-                <button class="rb-circ rb-mv-add" onclick="window.__rbDiaryAddMenu(event)" aria-label="Add" title="Add">+</button>
+              <div class="rb-hdr-r2">
+                <span class="rb-mv-title">${_waEsc(title)}</span>
+                ${list ? '' : `<div class="rb-mv-nav"><button class="rb-circ" onclick="window.__mvNav(-1)" aria-label="Previous month">‹</button><button class="rb-circ" onclick="window.__mvNav(1)" aria-label="Next month">›</button></div>`}
               </div>
             </div>`;
         }
