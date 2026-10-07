@@ -3761,14 +3761,15 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     };
   });
   const a = await read();
-  check('camera · a proposals look with a Robes frame and a model opens on Model, her frame coming, the diary bottom-left',
-    a.title === 'A Parisian Night Out' && a.diary && a.switcher && a.on === 'Model' && a.creating && a.proposals === 3, JSON.stringify(a));
-  check('camera · …and the CAMERA is there — Add your photograph (it was missing on every proposals look)',
-    a.camera === 'Add your photograph', JSON.stringify(a));
-  await page.evaluate(() => window.__lkDetailPhotoView('photo'));
-  await page.waitForTimeout(300);
-  const b = await read();
-  check('camera · on the You view a Robes frame offers Replace — her photograph takes its place', b.on === 'You' && b.camera === 'Replace your photograph', JSON.stringify(b));
+  // 2026-10-07: Robes' frame of the whole look HOLDS — it leads the page,
+  // her model is never rendered over it (no "Creating her frame…"), and
+  // there is no You / Model switch: the frame is the look's picture.
+  check('camera · a proposals look with a Robes frame and a model opens ON THE FRAME — no Model view, no render asked, the diary bottom-left',
+    a.title === 'A Parisian Night Out' && a.diary && !a.switcher && !a.creating && a.proposals === 3, JSON.stringify(a));
+  check('camera · …and the CAMERA is there — Replace: her own photograph may take the frame\'s place',
+    a.camera === 'Replace your photograph', JSON.stringify(a));
+  const b = await page.evaluate(() => ({ frame: document.querySelector('#rb-lk-body .rb-lkm-photo img')?.getAttribute('src') }));
+  check('camera · the frame is the picture on the page', b.frame === 'https://img.test/frame-paris.jpg', JSON.stringify(b));
   // Her upload: the camera opens the picker (a dynamically created input,
   // so the file chooser is the seam), the upload lands photo_url and
   // source 'manual', and the page reads the photograph as hers.
@@ -4167,7 +4168,7 @@ const lpSend = async (text, wait) => {
     out.rows = Array.from(con.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent);
     out.was = Array.from(con.querySelectorAll('.rb-lp-was')).map((n) => n.textContent);
     out.door = con.querySelector('.rb-lp-field .ph')?.textContent;
-    out.park = JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null');
+    out.park = ((d) => (d && d.v === 3) ? (d.drafts[0] || null) : d)(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null'));
     return out;
   });
   const a0 = askPosts[0] || {};
@@ -4203,7 +4204,7 @@ const lpSend = async (text, wait) => {
       && fromDraft.was.includes('Swapped in · was the cream silk shirt') && !fromDraft.drafted && fromDraft.value === '', JSON.stringify(fromDraft));
   const styled = await page.evaluate(async () => {
     await window.__lpSend('tuck the tank in', 900);
-    return { styled: Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-styled')).map((n) => n.textContent), rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent).length, park: JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null') };
+    return { styled: Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-styled')).map((n) => n.textContent), rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent).length, park: ((d) => (d && d.v === 3) ? (d.drafts[0] || null) : d)(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null')) };
   });
   check('box · how it’s worn: the same pieces, the note on the row, the park carrying `styled`',
     JSON.stringify(styled.styled) === JSON.stringify(['tucked at the front']) && styled.rows === 4 && styled.park && Object.keys(styled.park.styled || {}).length === 1, JSON.stringify([styled.styled, styled.rows, styled.park && styled.park.styled]));
@@ -4438,6 +4439,109 @@ const lpSend = async (text, wait) => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// 13z · ROBES' FRAME HOLDS (Annie, 2026-10-07 — the suggested-look flow):
+// a suggestion's photograph — the model in her setting — is the look's
+// picture through suggested → draft → saved. The look page leads with it
+// (no You / Model switch, no avatar render), Editing re-draws THE FRAME
+// through the server's frame mode (frameUrl, no avatarId), Update keeps
+// the re-drawn frame as photo_url and never writes a render; the note
+// under the image is three sentences at most; no colour dots on a look.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const FRAME = 'https://res.cloudinary.com/demo/image/upload/frame-sugg.jpg';
+  const FRAME2 = 'https://res.cloudinary.com/demo/image/upload/frame-sugg-2.jpg';
+  const renders = [];
+  const { ctx, page, errs, writes } = await boot(browser, {
+    avatar: 'w-s5-h2-hg', pics: 6, seed: false,
+    init: () => {
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-sugg', name: 'Garden party', name_provisional: true,
+          note: 'The silk shirt leads. The jeans keep it easy. The sandals finish it. A fourth sentence that should not print. Nor a fifth one, however good.',
+          photo_url: 'https://res.cloudinary.com/demo/image/upload/frame-sugg.jpg', render_url: null, render_key: null, source: 'robes', origin_look_id: null, status: 'saved', anchor_piece_id: 'w-top1', set_id: 's1', set_index: 0,
+          created_at: '2026-10-06T10:00:00.000Z', proposals: null,
+          pieces: [{ id: 'w-top1', slot: 'Top', position: 0, role: 'The Canvas' }, { id: 'w-bot1', slot: 'Bottom', position: 1, role: 'The Canvas' }, { id: 'w-sho1', slot: 'Shoe', position: 2, role: 'The Exclamation Point' }], wears: [] }]));
+    },
+    pre: async (page) => {
+      await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+      await page.route('**/api/avatar/render', (r) => { try { renders.push(r.request().postDataJSON()); } catch (_) { renders.push(null); } r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'fj1' }) }); });
+      await page.route('**/api/images/fj1', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [FRAME2], done: true }) }));
+      await page.route('**res.cloudinary.com/**', (r) => r.abort());
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  await page.evaluate(() => window.__lkOpen('lk-sugg'));
+  await page.waitForTimeout(900);
+  const read = () => page.evaluate(() => {
+    const con = document.querySelector('#rb-lk-body .rb-lk-con');
+    const quote = con?.querySelector('.rbc-quote')?.textContent.trim() || '';
+    return {
+      photo: con?.querySelector('.rb-lkm-photo img')?.getAttribute('src') || null,
+      stage: con?.querySelector('.rb-lkf-stage') ? { src: con.querySelector('.rb-lkf-stage .rb-lkm-img')?.getAttribute('src'), busy: con.querySelector('.rb-lkf-stage').classList.contains('busy'), chip: con.querySelector('.rb-lkf-stage .rb-lkm-busy')?.textContent || null } : null,
+      avatarStage: !!con?.querySelector('.rb-lkm-stage:not(.rb-lkf-stage)'),
+      switcher: !!con?.querySelector('.rb-lk-viewrow .rb-lkm-seg'),
+      creating: /creating her frame/i.test(con?.textContent || ''),
+      dots: con ? con.querySelectorAll('.rbc-palette span').length : -1,
+      quote, sentences: (quote.match(/[.!?](\s|$)/g) || []).length,
+      editing: !!document.querySelector('#rb-lk-body .rb-lk-page.editing'),
+      rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent),
+    };
+  });
+  const a = await read();
+  check('frame · the saved suggested look opens ON ITS FRAME — no You / Model switch, no avatar render asked, no colour dots',
+    a.photo === FRAME && !a.switcher && !a.creating && !a.avatarStage && a.dots === 0 && renders.length === 0, JSON.stringify(a));
+  check('frame · the note under the image is capped at three sentences', a.sentences === 3 && /^The silk shirt leads\. The jeans keep it easy\. The sandals finish it\.$/.test(a.quote), JSON.stringify([a.sentences, a.quote]));
+  await page.evaluate(() => window.__lkEditToggle());
+  await page.waitForTimeout(400);
+  const e = await read();
+  check('frame · Editing keeps the frame on the canvas (the frame stage, not her model) and asks for nothing while the composition stands',
+    e.editing && e.stage && e.stage.src === FRAME && !e.stage.busy && !e.avatarStage && renders.length === 0, JSON.stringify(e));
+  await page.evaluate(() => window.__lkDSwapApply('w-sho1', 'w-sho2'));
+  await page.waitForTimeout(300);
+  const mid = await read();
+  check('frame · a swap re-draws THE FRAME: the stage says “Changing the look…” over the frame she had',
+    mid.stage && mid.stage.busy && mid.stage.chip === 'Changing the look…' && mid.stage.src === FRAME && mid.rows.includes('Tan leather slides'), JSON.stringify(mid));
+  await page.waitForTimeout(2600);
+  const landed = await read();
+  const r0 = renders[0] || {};
+  check('frame · ONE render, in frame mode — frameUrl is the frame, no avatarId, the slides among the pieces',
+    renders.length === 1 && r0.frameUrl === FRAME && r0.avatarId === undefined && Array.isArray(r0.pieces) && r0.pieces.some((p) => p.name === 'Tan leather slides') && !r0.pieces.some((p) => p.name === 'Flat leather sandals'),
+    JSON.stringify(r0));
+  check('frame · the re-drawn frame lands on the canvas, the chip goes', landed.stage && landed.stage.src === FRAME2 && !landed.stage.busy, JSON.stringify(landed.stage));
+  const wb = writes.length;
+  await page.evaluate(() => window.__lkResave());
+  await page.waitForTimeout(600);
+  const after = await read();
+  const patches = writes.slice(wb).filter((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && /lk-sugg/.test(w.url)).map((w) => w.body);
+  check('frame · Update keeps the re-drawn frame as the photograph — photo_url patched, render_url never',
+    patches.some((b) => b && b.photo_url === FRAME2) && !patches.some((b) => b && b.render_url) && after.photo === FRAME2 && !after.editing && !after.switcher && renders.length === 1,
+    JSON.stringify({ patches, after: { photo: after.photo, editing: after.editing } }));
+  // The composer path (F9): Edit on a suggested row loads the frame onto
+  // the composer's canvas — the frame stage, never her model.
+  const sugg = await page.evaluate(async () => {
+    const l = JSON.parse(localStorage.getItem('rb_looks__u-test'))[0];
+    localStorage.setItem('rb_looks__u-test_sugg', JSON.stringify([Object.assign({}, l, { id: 'lk-sugg2', status: 'suggested', set_index: 1, photo_url: 'https://res.cloudinary.com/demo/image/upload/frame-sugg.jpg', name: 'City dinner' })]));
+    return true;
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const comp = await page.evaluate(async () => {
+    window.__lkSuggEdit('lk-sugg2');
+    await new Promise((r) => setTimeout(r, 700));
+    const c = document.querySelector('#rb-lk-body .rb-lk-composer');
+    return {
+      open: !!c, stage: c?.querySelector('.rb-lkf-stage .rb-lkm-img')?.getAttribute('src') || null, busy: !!c?.querySelector('.rb-lkf-stage.busy'),
+      avatarStage: !!c?.querySelector('.rb-lkm-stage:not(.rb-lkf-stage)'), dots: c ? c.querySelectorAll('.rbc-palette span').length : -1,
+      replaceDoor: Array.from(c?.querySelectorAll('.rb-lk-quiet') || []).some((b) => /Replace the photo/.test(b.textContent)),
+      title: document.getElementById('rb-lk-newtitle')?.value,
+    };
+  });
+  check('frame · Edit on a suggestion loads the composer ON THE FRAME — the frame stage, no model, no dots, no “Replace the photo” door',
+    sugg && comp.open && comp.stage === FRAME && !comp.busy && !comp.avatarStage && comp.dots === 0 && !comp.replaceDoor && comp.title === 'City dinner', JSON.stringify(comp));
+  check('frame · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // 14 · THE DRAFT (look prompt brief, phase 1 · 2026-10-01) — one standing
 // draft per user, parked in localStorage on every composer mutation. It
 // survives a navigation and a reload, is named by the home next line and
@@ -4465,7 +4569,9 @@ const composerRead = () => ({
   meta: document.querySelector('.rb-lk-newmast .rb-lk-drafty')?.textContent,
   discard: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-draftbar button:not(.rb-lp-field)')).map((x) => x.textContent),
   foot: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-buildfoot button')).map((x) => x.textContent),
-  park: JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null'),
+  park: ((d) => (d && d.v === 3) ? (d.drafts[0] || null) : d)(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null')),
+  parks: ((d) => (d && d.v === 3) ? d.drafts.map((x) => ({ id: x.id, name: x.name, prompt: x.src?.prompt })) : (d ? [{ id: d.id, name: d.name, prompt: d.src?.prompt }] : []))(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null')),
+  tiles: document.querySelectorAll('#rb-lk-inprog .rb-lk-drafttile').length,
   modal: document.querySelector('#rb-del-modal p')?.textContent || null,
 });
 {
@@ -4547,76 +4653,95 @@ const composerRead = () => ({
   check('draft · Try another after a reload re-runs the SAME ask on the same draft — one more /api/daily, no confirm',
     dailyPosts.length === n0 + 1 && dailyPosts[n0]?.prompt === 'A chic outfit for a date night' && again.modal == null && again.open && again.rows.length === 3,
     JSON.stringify({ n: dailyPosts.length - n0, prompt: dailyPosts[n0]?.prompt, modal: again.modal }));
-  // 14b · let it go: a new look asks once; cancel keeps the draft, yes
-  // drops it before the new one lands. Discard on the composer drops it.
-  const ask1 = await page.evaluate(async () => {
+  // 14b · UP TO FIVE drafts (Annie, 2026-10-07 — phase 1 held one): a new
+  // look parks the standing draft and lands at once; the drafts wait in
+  // In progress; Discard drops only the one on the composer; the SIXTH
+  // asks once, naming the oldest, and yes lets that one go.
+  const new1 = await page.evaluate(async () => {
     const ret = window.__lkNew();
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 400));
     const out = window.__cr(); out.ret = ret;
-    document.getElementById('rb-del-cancel')?.click();
-    await new Promise((r) => setTimeout(r, 200));
-    out.after = window.__cr();
     return out;
   });
-  check('draft · + New look over a standing draft asks “Let the draft go?” — Cancel keeps the draft and the composer untouched',
-    ask1.ret === false && /Let the draft go\?/.test(ask1.modal || '') && ask1.after.modal == null && !!ask1.after.park && ask1.after.park.name === 'Date night' && ask1.after.rows.length === 3,
-    JSON.stringify({ ret: ask1.ret, modal: ask1.modal, after: { park: !!ask1.after.park, rows: ask1.after.rows } }));
-  const ask2 = await page.evaluate(async () => {
-    window.__lkNew();
-    await new Promise((r) => setTimeout(r, 200));
-    document.getElementById('rb-del-yes')?.click();
-    await new Promise((r) => setTimeout(r, 700));
-    return window.__cr();
-  });
-  check('draft · Let it go drops the park and opens an empty composer', ask2.park == null && ask2.open && ask2.rows.length === 0 && ask2.shop.length === 0 && !ask2.title && ask2.meta === 'Draft look' && JSON.stringify(ask2.discard) === JSON.stringify(['Save']), JSON.stringify({ park: ask2.park, rows: ask2.rows, title: ask2.title, meta: ask2.meta }));
+  check('draft · + New look over a standing draft asks nothing — the draft is parked, an empty composer opens',
+    new1.ret === true && new1.modal == null && new1.open && new1.rows.length === 0 && new1.shop.length === 0 && !new1.title && new1.meta === 'Draft look'
+      && new1.parks.length === 1 && new1.parks[0].name === 'Date night',
+    JSON.stringify({ ret: new1.ret, modal: new1.modal, rows: new1.rows, parks: new1.parks }));
   const n1 = dailyPosts.length;
   const gen1 = await page.evaluate(async () => {
     window.__dlSubmit('A park day', { loose: true });
     await new Promise((r) => setTimeout(r, 2200));
     return window.__cr();
   });
-  check('draft · a fresh generation with no draft standing asks nothing and parks', dailyPosts.length === n1 + 1 && gen1.modal == null && !!gen1.park, JSON.stringify({ n: dailyPosts.length - n1, modal: gen1.modal, park: !!gen1.park }));
+  check('draft · a fresh generation with a draft standing asks nothing and parks beside it — two drafts, the new one first',
+    dailyPosts.length === n1 + 1 && gen1.modal == null && gen1.parks.length === 2 && gen1.parks[0].prompt === 'A park day' && gen1.parks[1].name === 'Date night',
+    JSON.stringify({ n: dailyPosts.length - n1, modal: gen1.modal, parks: gen1.parks }));
   const gen2 = await page.evaluate(async () => {
     window.__dlSubmit('Something else entirely', { loose: true });
-    await new Promise((r) => setTimeout(r, 300));
-    const out = window.__cr();
-    document.getElementById('rb-del-yes')?.click();
     await new Promise((r) => setTimeout(r, 2200));
-    out.after = window.__cr();
-    return out;
+    return window.__cr();
   });
-  check('draft · a second generation asks first; yes lets the draft go, then the new one lands and parks under a new id',
-    /Let the draft go\?/.test(gen2.modal || '') && dailyPosts.length === n1 + 2 && dailyPosts[n1 + 1]?.prompt === 'Something else entirely'
-      && !!gen2.after.park && gen2.after.park.id !== gen1.park.id && gen2.after.park.src?.prompt === 'Something else entirely',
-    JSON.stringify({ modal: gen2.modal, n: dailyPosts.length - n1, ids: [gen1.park?.id, gen2.after.park?.id] }));
+  check('draft · a third generation lands and parks under its own id — three drafts, none lost',
+    gen2.modal == null && dailyPosts.length === n1 + 2 && gen2.parks.length === 3 && gen2.parks[0].prompt === 'Something else entirely'
+      && new Set(gen2.parks.map((x) => x.id)).size === 3,
+    JSON.stringify({ modal: gen2.modal, parks: gen2.parks }));
   const disc = await page.evaluate(async () => {
     Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-discard')).find((b) => b.textContent === 'Discard')?.click();
     await new Promise((r) => setTimeout(r, 200));
-    const out = { modal: document.querySelector('#rb-del-modal p')?.textContent };
+    const ask = document.querySelector('#rb-del-modal p')?.textContent;
     document.getElementById('rb-del-yes')?.click();
     await new Promise((r) => setTimeout(r, 600));
-    out.park = localStorage.getItem('rb_lk_draft__u-test');
+    const out = window.__cr(); out.ask = ask;
     out.grid = document.getElementById('rb-lk-grid')?.style.display;
-    out.tile = !!document.getElementById('rb-lk-drafttile');
-    const echo = document.querySelector('.dash-echo');
-    out.next = echo?.textContent.replace(/\s+/g, ' ').trim();
     return out;
   });
-  check('draft · Discard asks, then drops the park — the grid returns with no tile and the next line moves on',
-    /Let this draft go\?/.test(disc.modal || '') && disc.park == null && disc.grid === 'grid' && !disc.tile && !/is waiting, unsaved/.test(disc.next || ''), JSON.stringify(disc));
-  // 14c · Save drops the park: the draft is a look now.
+  check('draft · Discard asks, then drops ONLY the draft on the composer — the other two keep their tiles',
+    /Let this draft go\?/.test(disc.ask || '') && disc.parks.length === 2 && !disc.parks.some((x) => x.prompt === 'Something else entirely') && disc.grid === 'grid' && disc.tiles === 2,
+    JSON.stringify({ ask: disc.ask, parks: disc.parks, tiles: disc.tiles }));
+  const five = await page.evaluate(async () => {
+    for (const p of ['Third', 'Fourth', 'Fifth']) { window.__dlSubmit(p, { loose: true }); await new Promise((r) => setTimeout(r, 1500)); }
+    await new Promise((r) => setTimeout(r, 800));
+    return window.__cr();
+  });
+  check('draft · five drafts stand without a question', five.modal == null && five.parks.length === 5 && five.tiles === 0 && five.parks[0].prompt === 'Fifth', JSON.stringify({ modal: five.modal, parks: five.parks }));
+  const sixth = await page.evaluate(async () => {
+    window.__dlSubmit('Sixth', { loose: true });
+    await new Promise((r) => setTimeout(r, 300));
+    const out = window.__cr();
+    out.sub = document.querySelector('#rb-del-modal p + p')?.textContent || null;
+    document.getElementById('rb-del-cancel')?.click();
+    await new Promise((r) => setTimeout(r, 300));
+    out.after = window.__cr();
+    return out;
+  });
+  check('draft · the SIXTH asks once — “Five drafts are waiting.”, naming the oldest; Cancel keeps all five',
+    /Five drafts are waiting\./.test(sixth.modal || '') && /Date night/.test(sixth.sub || '') && sixth.after.modal == null && sixth.after.parks.length === 5 && sixth.after.parks.some((x) => x.prompt === 'A chic outfit for a date night'),
+    JSON.stringify({ modal: sixth.modal, sub: sixth.sub, parks: sixth.after.parks }));
+  const n6 = dailyPosts.length;
+  const yes6 = await page.evaluate(async () => {
+    window.__dlSubmit('Sixth', { loose: true });
+    await new Promise((r) => setTimeout(r, 300));
+    document.getElementById('rb-del-yes')?.click();
+    await new Promise((r) => setTimeout(r, 2200));
+    return window.__cr();
+  });
+  check('draft · Let it go drops the OLDEST and the sixth lands — still five, the newest first, Date night gone',
+    dailyPosts.length === n6 + 1 && yes6.parks.length === 5 && yes6.parks[0].prompt === 'Sixth' && !yes6.parks.some((x) => x.prompt === 'A chic outfit for a date night') && yes6.parks[4].prompt === 'A park day',
+    JSON.stringify({ n: dailyPosts.length - n6, parks: yes6.parks }));
+  // 14c · Save drops ITS park: the draft is a look now; the others stand.
   const wb = writes.length;
   const saved = await page.evaluate(async () => {
-    window.__dlSubmit('A chic outfit for a date night', { loose: true });
-    await new Promise((r) => setTimeout(r, 2200));
+    const before = window.__cr().parks[0];
     window.__lkSaveAsk();
     await new Promise((r) => setTimeout(r, 250));
     document.getElementById('rb-lksave-yes')?.click();
     await new Promise((r) => setTimeout(r, 900));
-    return { park: localStorage.getItem('rb_lk_draft__u-test'), tile: !!document.getElementById('rb-lk-drafttile'), cards: document.querySelectorAll('#rb-lk-grid .lt-card').length };
+    const out = window.__cr(); out.before = before; out.cards = document.querySelectorAll('#rb-lk-grid .lt-card').length;
+    return out;
   });
-  check('draft · Save turns the draft into a look and drops the park — the tile gone, the look on the grid',
-    saved.park == null && !saved.tile && saved.cards === 3 && writes.slice(wb).some((w) => w.method === 'POST' && /^looks/.test(w.url)), JSON.stringify(saved));
+  check('draft · Save turns the draft into a look and drops its park — four tiles stay, the look on the grid',
+    saved.before?.prompt === 'Sixth' && saved.parks.length === 4 && !saved.parks.some((x) => x.id === saved.before.id) && saved.tiles === 4 && saved.cards === 3 && writes.slice(wb).some((w) => w.method === 'POST' && /^looks/.test(w.url)),
+    JSON.stringify({ before: saved.before, parks: saved.parks, tiles: saved.tiles, cards: saved.cards }));
   check('draft · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }

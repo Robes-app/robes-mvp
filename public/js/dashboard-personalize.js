@@ -10010,6 +10010,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const wi = Number.isInteger(kp.wayIdx) ? kp.wayIdx : null;
           const same = parked && parked.kp && parked.kp.savedId != null && String(parked.kp.savedId) === String(_kpActiveSaveId) && parked.kp.wayIdx === wi;
           if (parked && !same) { _lkDraftLetGo(() => _kpBuildLookRun(w, Object.assign({}, kp, { _letGo: true }))); return; }
+          // The same way again (Try another, a refine): the park keeps its id.
+          if (same) kp = Object.assign({}, kp, { _same: true });
         }
         // IN SITU (design Key_Piece_Reveal, 2026-09-16): the three cards
         // give way to the build strip + the composer's own "building" state
@@ -10116,6 +10118,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // proposal; Save this look is the one commitment.
           _lkDraftFromDaily(data, {
             kind: 'kp', host: 'kp', headline: data.headline, photoUrl: data._dlPhotoUrl || null,
+            sameDraft: !!(kp && kp._same),
             eyebrow: String(w.eyebrow || '').trim(),
             again: () => _kpBuildLookRun(w, kp),
             refine: (words, current) => _kpBuildLookRun(w, Object.assign({}, kp, { refine: words, current })),
@@ -10425,8 +10428,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // confirms the loss when the draft is dirty, so a second "Let the
         // draft go?" on the next build would ask the same question twice.
         // A kp draft survives a reload and the model trip, not a leave.
-        const p = _lkDraftParked();
-        if (p && p.kp && Number.isInteger(p.kp.wayIdx)) _lkDraftDrop();
+        _lkDraftList().filter(p => p.kp && Number.isInteger(p.kp.wayIdx)).forEach(p => { if (p.id === _lkDraftId) _lkDraftDrop(); else _lkDraftDropId(p.id); });
+        _lkDraftSurfacesSync();
       }
       // Save (through __lkSave, the one write) lands here: the host reads
       // Filed, the look one tap away, the other two looks still in the
@@ -11067,7 +11070,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // as `src`, so Try another survives a reload (phase 1).
           const submitOpts = Object.assign({}, opts || {}, { savedId: undefined, _letGo: undefined, sameDraft: true });
           _lkDraftFromDaily({ ...data, context }, {
-            kind: 'daily', quiet,
+            kind: 'daily', quiet, sameDraft: !!(opts && opts.sameDraft),
             day: data._dlLoose ? null : data.anchor_date,
             dateHint: (data._dlLoose && opts && opts.dateHint) ? opts.dateHint : null,
             src: { prompt, opts: submitOpts },
@@ -14008,7 +14011,32 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // patch. Cache key = avatar_id | sorted piece ids — an unchanged
       // composition never re-renders. Display ladder everywhere a look
       // draws: render_url → photo_url → mosaic (_lkHeroUrl).
-      function _lkHeroUrl(l) { return _pdHttp(l && l.render_url) || _pdHttp(l && l.photo_url) || null; }
+      function _lkHeroUrl(l) { return _lkFrameOf(l) || _pdHttp(l && l.render_url) || _pdHttp(l && l.photo_url) || null; }
+      // ROBES' FRAME of the whole look (2026-10-07, the suggested-look flow):
+      // the generated photograph a suggestion carries — the model in her
+      // setting — with `source: 'robes'`. It is the look's picture through
+      // suggested → draft → saved: her avatar is NEVER rendered over it,
+      // an edit re-renders THE FRAME (same model, same backdrop — the
+      // server's frame mode), and Save keeps it as photo_url. A zero-owned
+      // build's lead still (one proposal's still-life standing in) is not
+      // a frame — it stays on the mosaic as ever.
+      function _lkFrameOf(l) {
+        if (!l || l.source === 'manual' || l.source === 'robes-build') return null;
+        if (!(l.source === 'robes' || (Array.isArray(l.proposals) && l.proposals.length > 0))) return null;
+        const u = _pdHttp(l.photo_url);
+        if (!u) return null;
+        const stills = (l.proposals || []).map(r => _pdHttp(r.image_url)).filter(Boolean);
+        return stills.indexOf(u) < 0 ? u : null;
+      }
+      // The explainer under the image is two or three sentences, never a
+      // block (Annie, 2026-10-07): paragraphs collapse, the first three
+      // sentences stand, the rest is cut at a sentence end.
+      function _lkNoteShort(note, n) {
+        const t = String(note || '').replace(/\s+/g, ' ').trim();
+        if (!t) return '';
+        const parts = t.match(/[^.!?]+[.!?]+(?:["'”’)]+)?(?=\s|$)|[^.!?]+$/g) || [t];
+        return parts.slice(0, n || 3).map(x => x.trim()).filter(Boolean).join(' ');
+      }
       var _avId = undefined;          // undefined = not fetched; null = no kept model
       var _avBusy = {};               // look id → true while a render is in flight
       var _AV_FIG_KEYS = { 'Hourglass': 'hg', 'Pear / Triangle': 'pe', 'Pear': 'pe', 'Rectangle': 're', 'Inverted Triangle': 'it', 'Apple / Round': 'ap', 'Apple': 'ap' };
@@ -14043,6 +14071,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // takes 1–12 pieces since 2026-09-03, and a Session-1 look holds
         // one piece of hers and Robes' proposals — it must render too.
         if (!l || l._draft || ((l.pieces || []).length + (l.proposals || []).length) < 1) return;
+        // Robes' frame IS the picture of this look — her model never
+        // replaces it (2026-10-07; an edit re-draws the frame instead).
+        if (_lkFrameOf(l) || _lkSuggBusy[l.id]) return;
         if (_avBusy[l.id]) return;
         // The men's catalog is live (2026-09-01): a kept 'm-…' model renders
         // exactly like a 'w-…' one — the server's prefix gate handles any
@@ -14222,7 +14253,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // The anchor is hers by definition — on the rack whether or not the
         // model matched it by index.
         if (o.anchor && owned.indexOf(String(o.anchor)) < 0 && _waItems.some(x => String(x.id) === String(o.anchor))) owned.unshift(String(o.anchor));
-        const note = [w.outfit, w.details, w.accessories].map(x => String(x || '').trim()).filter(Boolean).join('\n\n');
+        // Two or three sentences under the frame, never the three-paragraph
+        // prose (that stays on the set's record for the mail and the admin).
+        const note = _lkNoteShort([w.outfit, w.details, w.accessories].map(x => String(x || '').trim()).filter(Boolean).join(' '), 3);
         return {
           name: String(w.title || '').replace(/\.$/, '').trim() || 'A look',
           note: note || '', photo_url: o.photo || null, source: 'robes',
@@ -14280,11 +14313,15 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // The frames land late (the server shoots them in the background):
       // each one patches its row and the tile it is drawn on, in place.
       function _lkSuggFrame(setId, i, url) {
-        const r = _lkSugg.find(x => String(x.set_id) === String(setId) && x.set_index === i);
+        const at = x => String(x.set_id) === String(setId) && x.set_index === i;
+        // The row may have crossed into the Lookbook (saved before its frame
+        // landed) — the frame is its photograph either way.
+        const r = _lkSugg.find(at) || _lkLooks.find(at);
         if (!r) return;
         if (_pdHttp(url) && !r.photo_url) _lkPatch(r.id, { photo_url: url });
         delete _lkSuggBusy[r.id];
-        _lkSuggTileSync(r);
+        if (_lkIsSaved(r)) { if (_lkView !== 'new') _lkPaint(); try { _lkHomeSync(); } catch (_) {} }
+        else _lkSuggTileSync(r);
       }
       function _lkSuggPoll(jobId, setId, count) {
         if (_lkSuggPollT) { clearTimeout(_lkSuggPollT); _lkSuggPollT = null; }
@@ -15319,9 +15356,9 @@ body.rb-lk-push #rb-dock{display:none}
         const detail = _lkView !== 'grid';
         // The drafts the rail shows: the park (the composer's one draft)
         // and every draft ROW the park does not already hold.
-        const parkedTile = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
-        const parkSugg = parkedTile && parkedTile.src && parkedTile.src.sugg ? String(parkedTile.src.sugg.suggId || '') : '';
-        const draftsShown = draftRows.filter(r => String(r.id) !== parkSugg).length + (parkedTile ? 1 : 0);
+        const parkedTiles = (typeof _lkDraftList === 'function') ? _lkDraftList() : [];
+        const parkSugg = parkedTiles.map(d => (d.src && d.src.sugg) ? String(d.src.sugg.suggId || '') : '').filter(Boolean);
+        const draftsShown = draftRows.filter(r => parkSugg.indexOf(String(r.id)) < 0).length + parkedTiles.length;
         // F7: the empty composer under the tab row — the Saved tab with no
         // saved looks while suggestions (or drafts) stand: the composer is
         // still the one door, the tabs still reach the other kind.
@@ -15413,7 +15450,7 @@ body.rb-lk-push #rb-dock{display:none}
         if (allHead) allHead.innerHTML = sortLive && _lkRefineOpen ? _lkRefineHtml(nLooks) : '';
         // The In progress rail (F2): the drafts at 220px, so one and a half
         // show and the rail reads as a scroll. Filters never reach it.
-        if (inprog) inprog.innerHTML = draftsShown ? _lkInprogHtml(parkedTile, draftRows.filter(r => String(r.id) !== parkSugg)) : '';
+        if (inprog) inprog.innerHTML = draftsShown ? _lkInprogHtml(parkedTiles, draftRows.filter(r => parkSugg.indexOf(String(r.id)) < 0)) : '';
         const noneHtml = hasFilters && !nLooks && !nKp
           ? '<div class="rb-lk-none" style="grid-column:1/-1"><div class="t">Nothing in this edit</div><div class="s">Loosen a filter to see more of your lookbook.</div><button type="button" class="rb-pill" onclick="window.__lkRefineClear()">Clear</button></div>'
           : '';
@@ -15500,8 +15537,8 @@ body.rb-lk-push #rb-dock{display:none}
         setTimeout(() => { if (!document.getElementById('rb-popmenu')) { _lkSortOpen = false; const b2 = document.querySelector('#rb-lk-bar .rb-lk-sortbtn'); if (b2) b2.classList.remove('on'); } }, 400);
       };
       // The In progress rail: the park and the draft rows as dashed tiles.
-      function _lkInprogHtml(park, rows) {
-        const tiles = (park ? [_lkDraftTileHtml(park)] : []).concat(rows.map(r => _lkDraftRowCard(r)));
+      function _lkInprogHtml(parks, rows) {
+        const tiles = (parks || []).map((d, i) => _lkDraftTileHtml(d, i)).concat(rows.map(r => _lkDraftRowCard(r)));
         return '<div class="rb-lk-sec rb-lk-inprog-h">In progress</div><div class="rb-lk-inprog-row">' + tiles.join('') + '</div>';
       }
       // When a draft was started, the way the tile says it: "started
@@ -15632,7 +15669,8 @@ body.rb-lk-push #rb-dock{display:none}
         _lkNewTags = l.tags ? _rbTagsParse(l.tags) : null;
         _lkNewTitleDraft = String(l.name || '').trim() || null;
         _lkNewTitleTouched = !l.name_provisional && !!String(l.name || '').trim();
-        if (_pdHttp(l.photo_url)) _lkPhoto = { url: l.photo_url, frame: true };
+        if (_lkFrameOf(l)) { _lkPhoto = { url: _lkFrameOf(l), frame: true }; _lkPhoto.baseKey = _lkfComposerKey(); }
+        else if (_pdHttp(l.photo_url)) _lkPhoto = { url: l.photo_url, frame: true };
         _lkView = 'new'; _lkActive = null;
         _lkPaint();
         if (_lkShop.length && _lkShop.some((r, i) => !_lkShopImgs[i])) _lkShopImages(true);
@@ -16253,10 +16291,11 @@ body.rb-lk-push #rb-dock{display:none}
           ? '<button class="rbc-share-m" onclick="window.__rbShare&&window.__rbShare()" aria-label="Share this look"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>'
           : '';
         const actionHtml = o.actionHtml ? '<div class="rbc-action">' + o.actionHtml + '</div>' : '';
-        const paletteHtml = ids.map(id => {
-          const tone = _ltToneOf(_waItems.find(w => String(w.id) === String(id)));
-          return tone ? '<span style="background:' + _waEsc(tone) + '"></span>' : '';
-        }).join('');
+        // No colour dots on a look (Annie, 2026-10-07) — the palette row
+        // was the console's legacy chrome; the note alone sits under the
+        // image, capped at three sentences.
+        const paletteHtml = '';
+        const noteHtml = l.note ? '<div class="rbc-quote">' + _waEsc(_lkNoteShort(l.note)) + '</div>' : '';
         // The count belongs to the rack alone (Annie, 2026-09-09).
         const headLabel = 'The look';
         // The photograph of the look — hers, or Robes' frame — outranks the
@@ -16267,7 +16306,22 @@ body.rb-lk-push #rb-dock{display:none}
             '<span class="lab">' + (props.length ? 'The look · ' + ids.length + ' yours, ' + props.length + ' to find' : headLabel) + '</span>' + credit + '</div>' +
             (o.occHtml || '') +
             '<div class="rb-lkm-canvas photo"><div class="rb-lkm-photo"><img src="' + _waEsc(o.dPhoto) + '" alt="' + (o.dFrame ? '' : 'Your photograph of ') + _waEsc(l.name) + '"></div>' + acts + shareBadge + '</div>' +
-            (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
+            noteHtml +
+            tail + actionHtml +
+            '</div>';
+        }
+        // EDITING a look that carries ROBES' FRAME (2026-10-07): the frame
+        // stays on the canvas — the same model, the same backdrop — and a
+        // change re-draws it through the server's frame mode (debounced,
+        // cached by frame key); her avatar is never drawn here.
+        if (o.editing && o.frameUrl) {
+          const base = _lkfBaseKey(l);
+          const styled = _lkLpStyledById(ids);
+          const propG = _lkPropGarments(props, pr => (pr.img_oi == null || pr.img_oi === (pr.oi || 0)) ? pr.image_url : null);
+          return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
+            '<span class="lab">' + (props.length ? 'The look · ' + ids.length + ' yours, ' + props.length + ' to find' : headLabel) + '</span>' + credit + '</div>' +
+            '<div class="rb-lkm-canvas">' + _lkfStageHtml(o.frameUrl, base, ids, propG, styled) + acts + shareBadge + '</div>' +
+            noteHtml +
             tail + actionHtml +
             '</div>';
         }
@@ -16306,7 +16360,7 @@ body.rb-lk-push #rb-dock{display:none}
             boardOnlyItems: items.concat(propBoard),
             headLabel: 'The look · ' + ids.length + ' yours, ' + props.length + ' to find',
             occHtml: o.occHtml || '',
-            quoteHtml: l.note ? _waEsc(l.note) : '',
+            quoteHtml: l.note ? _waEsc(_lkNoteShort(l.note)) : '',
             paletteHtml,
             tagsHtml: tail,
             boardExtraHtml: acts,
@@ -16322,7 +16376,7 @@ body.rb-lk-push #rb-dock{display:none}
             '<span class="lab">' + headLabel + '</span>' + credit + '</div>' +
             (o.occHtml || '') +
             '<div class="rb-lkm-canvas photo"><div class="rb-lkm-photo"><img src="' + _waEsc(o.dPhoto) + '" alt="Your photograph of ' + _waEsc(l.name) + '"></div>' + acts + shareBadge + '</div>' +
-            (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
+            noteHtml +
             tail + actionHtml +
             '</div>';
         }
@@ -16331,7 +16385,7 @@ body.rb-lk-push #rb-dock{display:none}
             '<span class="lab">' + headLabel + '</span>' + credit + '</div>' +
             (o.occHtml || '') +
             '<div class="rb-lkm-canvas"><img src="' + _waEsc(_pdHttp(l.render_url)) + '" class="rb-lkm-img" alt="' + _waEsc(l.name) + '">' + acts + shareBadge + '</div>' +
-            (l.note ? '<div class="rbc-quote">' + _waEsc(l.note) + '</div>' : '') +
+            noteHtml +
             tail + actionHtml +
             '</div>';
         }
@@ -16349,7 +16403,7 @@ body.rb-lk-push #rb-dock{display:none}
         return _rbConsole({ robesLabel: creditLabel,
           headLabel,
           occHtml: o.occHtml || '',
-          quoteHtml: l.note ? _waEsc(l.note) : '',
+          quoteHtml: l.note ? _waEsc(_lkNoteShort(l.note)) : '',
           paletteHtml,
           tagsHtml: tail,
           boardExtraHtml: acts,
@@ -16421,13 +16475,15 @@ body.rb-lk-push #rb-dock{display:none}
         // camera fix), so a frame she has since replaced stops reading as
         // Robes' the moment it is replaced.
         const dFrame = !!dPhoto && l.source !== 'manual' && l.source !== 'robes-build' && (l.source === 'robes' || props.length > 0);
-        if (dFrame) _lkModelEnsure();
-        const dSwitch = !!dPhoto && (!dFrame || !!_lkModel);
-        // Her own photograph leads; ROBES' frame yields to her model the
-        // moment one is on file (Annie, 2026-09-18: filing the model lands
-        // on the look and it must land on HER — the render, or the mosaic
-        // with "Creating her frame…" until it comes; You keeps the frame).
-        const dView = _lkDetailView || ((dPhoto && !(dFrame && _lkModel)) ? 'photo' : 'model');
+        // Robes' frame of the WHOLE look (a suggestion's photograph — the
+        // model in her setting) holds through every state (Annie,
+        // 2026-10-07): it leads the page, it is what Editing re-draws, and
+        // her avatar never stands on the other side of a switch — so a
+        // frame look carries no You / Model row. Supersedes the 2026-09-18
+        // "a Robes frame yields to her model" default.
+        const frameUrl = _lkFrameOf(l);
+        const dSwitch = !!dPhoto && !dFrame;
+        const dView = _lkDetailView || (dPhoto ? 'photo' : 'model');
         // Controls on the image (reading only): the diary — never on a look
         // she owns nothing of — and the camera. The camera is ALWAYS there
         // until her own photograph exists (Annie, 2026-09-18 — "A Parisian
@@ -16438,7 +16494,7 @@ body.rb-lk-push #rb-dock{display:none}
         // view, nothing on Model. Editing carries neither.
         const acts = (editing || sugg) ? '' : _lkImgActsHtml({
           diary: !ownedNone,
-          camera: !dPhoto ? 'add' : (dView === 'photo' ? 'replace' : (dFrame ? 'add' : null)),
+          camera: !dPhoto ? 'add' : (dView === 'photo' ? 'replace' : null),
           fn: '__lkDetailPhotoAdd',
         });
         const viewRow = (!editing && !sugg && dSwitch)
@@ -16449,7 +16505,7 @@ body.rb-lk-push #rb-dock{display:none}
           : '';
         const panelTail = (sugg ? '' : lkTagsRow) + viewRow;
         if (editing) _lkModelEnsure();
-        const lookPanel = _lkLookPanelHtml(l, { items, ids, props, dirty, editing, dPhoto, dView, dFrame, acts, tail: panelTail });
+        const lookPanel = _lkLookPanelHtml(l, { items, ids, props, dirty, editing, dPhoto, dView, dFrame, frameUrl, acts, tail: panelTail });
 
         // The masthead: back to the door she came through (the chevron
         // names the previous step — Lookbook, the day, the travel edit,
@@ -17127,7 +17183,7 @@ body.rb-lk-push #rb-dock{display:none}
         // while hidden (boot, the early empty-lookbook arming), and a
         // hidden canvas must never spend a render or a cell.
         setTimeout(function() {
-          const el = Array.prototype.slice.call(document.querySelectorAll('.rb-lkm-stage')).find(function(x) {
+          const el = Array.prototype.slice.call(document.querySelectorAll('.rb-lkm-stage:not(.rb-lkf-stage)')).find(function(x) {
             return String(x.getAttribute('data-ids') || '') === ids.join(',') && String(x.getAttribute('data-pn') || '') === pKey;
           });
           if (!el || !el.getClientRects().length || !_lkModel) return;
@@ -17167,7 +17223,7 @@ body.rb-lk-push #rb-dock{display:none}
       // Paint a landed photograph INTO the stage on screen — never a whole
       // composer repaint, which would take the caret out of the name field.
       function _lkmPaintStage() {
-        document.querySelectorAll('.rb-lkm-stage').forEach(function(el) {
+        document.querySelectorAll('.rb-lkm-stage:not(.rb-lkf-stage)').forEach(function(el) {
           const ids = String(el.getAttribute('data-ids') || '').split(',').filter(Boolean);
           const props = String(el.getAttribute('data-pn') || '').split('~').filter(Boolean).map(n => ({ name: n }));
           const st = _lkmStageState(ids, props);
@@ -17227,6 +17283,125 @@ body.rb-lk-push #rb-dock{display:none}
           (o.quoteHtml ? '<div class="rbc-quote">' + o.quoteHtml + '</div>' : '') +
           (o.tailHtml || '') +
           '</div>';
+      }
+      // ── Robes' frame, re-drawn (2026-10-07) ──────────────────────────
+      // One photograph through suggested · draft · saved. The canvas shows
+      // the frame; a change to the rack asks the server's frame mode for
+      // the same picture with the garments changed (the model, the
+      // backdrop, the light all held), debounced like the model canvas and
+      // cached by frame key, so flicking asks for one frame and an
+      // unchanged composition never asks at all. The frame's own
+      // composition (its base key) never renders.
+      var _lkfRenders = {};   // frame key → url, or false when the render failed
+      var _lkfBusy = {};      // frame key → true while in flight
+      var _lkfWant = {};      // frame key → look id waiting to adopt the frame when it lands
+      var _lkfTimer = null;
+      function _lkfKey(frame, ids, props, styled) {
+        const pk = _lkmPKey(props);
+        return String(frame) + '|' + (ids || []).map(String).sort().join(',') + (pk ? '|p:' + pk : '') + _lkmStyledSig(styled || {});
+      }
+      // The saved look's own composition under its frame.
+      function _lkfBaseKey(l) {
+        const frame = _lkFrameOf(l);
+        return frame ? _lkfKey(frame, _lkPieceIds(l), _lkLookPropGarments(l), (l.styling && typeof l.styling === 'object') ? l.styling : {}) : null;
+      }
+      // The composer's composition under the frame on its canvas.
+      function _lkfComposerKey() {
+        if (!_lkPhoto || !_lkPhoto.frame || !_pdHttp(_lkPhoto.url)) return null;
+        const used = _lkUsed().map(String);
+        return _lkfKey(_lkPhoto.url, used, _lkShopGarments(), _lkLpStyledById(used));
+      }
+      function _lkfGarments(ids, props, styled) {
+        const sm = styled || {};
+        return (ids || []).map(id => {
+          const wi = (_waItems || []).find(w => String(w.id) === String(id));
+          return wi ? { name: wi.label, category: wi.category, color: wi.color, brand: wi.brand, image_url: _pdHttp(wi.image_url), styled: sm[String(wi.id)] || undefined } : null;
+        }).filter(Boolean).concat(props || []).filter(g => g && g.name);
+      }
+      function _lkfStageState(frame, base, key) {
+        if (key === base) return { url: frame, busy: false };
+        const r = _lkfRenders[key];
+        if (typeof r === 'string') return { url: r, busy: false };
+        if (r === false) return { url: frame, busy: false };
+        return { url: frame, busy: true };
+      }
+      function _lkfStageHtml(frame, base, ids, props, styled) {
+        const key = _lkfKey(frame, ids, props, styled);
+        const st = _lkfStageState(frame, base, key);
+        _lkfSync(frame, key, ids, props, styled);
+        return '<div class="rb-lkm-stage rb-lkf-stage' + (st.busy ? ' busy' : '') + '" data-fkey="' + _waEsc(key) + '" data-frame="' + _waEsc(frame) + '" data-base="' + _waEsc(base || '') + '">' +
+          '<img class="rb-lkm-img" src="' + _waEsc(st.url) + '" alt="This look" onload="window.__lkmFit(this)">' +
+          (st.busy ? '<div class="rb-lkm-busy">Changing the look…</div>' : '') +
+          '</div>';
+      }
+      function _lkfPaintStage() {
+        document.querySelectorAll('.rb-lkf-stage').forEach(function(el) {
+          const st = _lkfStageState(el.getAttribute('data-frame'), el.getAttribute('data-base'), el.getAttribute('data-fkey'));
+          const img = el.querySelector('.rb-lkm-img');
+          if (img && st.url && img.getAttribute('src') !== st.url) img.setAttribute('src', st.url);
+          el.classList.toggle('busy', st.busy);
+          let chip = el.querySelector('.rb-lkm-busy');
+          if (st.busy) { if (!chip) { chip = document.createElement('div'); chip.className = 'rb-lkm-busy'; chip.textContent = 'Changing the look…'; el.appendChild(chip); } }
+          else if (chip) chip.remove();
+        });
+      }
+      // Ask after a beat of quiet, for a stage that is on screen; a key
+      // already answered or in flight never asks twice.
+      function _lkfSync(frame, key, ids, props, styled) {
+        if (_lkfRenders[key] !== undefined || _lkfBusy[key]) return;
+        setTimeout(function() {
+          const el = document.querySelector('.rb-lkf-stage[data-fkey="' + (window.CSS && CSS.escape ? CSS.escape(key) : key.replace(/"/g, '\\"')) + '"]');
+          if (!el || !el.getClientRects().length) return;
+          if (String(el.getAttribute('data-base') || '') === key) return;
+          if (_lkfRenders[key] !== undefined || _lkfBusy[key]) return;
+          clearTimeout(_lkfTimer);
+          _lkfTimer = setTimeout(function() {
+            _lkfTimer = null;
+            if (_lkfRenders[key] !== undefined || _lkfBusy[key]) return;
+            _lkfRender(frame, key, _lkfGarments(ids, props, styled));
+          }, _LKM_DEBOUNCE);
+        }, 0);
+      }
+      function _lkfRender(frame, key, garments) {
+        if (!garments.length || garments.length > 12) { _lkfRenders[key] = false; return; }
+        _lkfBusy[key] = true;
+        const finish = url => { _lkfRenders[key] = url || false; delete _lkfBusy[key]; _lkfPaintStage(); if (url) _lkfLanded(key, url); };
+        fetch('/api/avatar/render', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ frameUrl: frame, pieces: garments, userId: _waUid(), genId: _rbGenId(), gender: _rbGender() }),
+        }).then(r => r.ok ? r.json() : null).then(function(out) {
+          if (!out || !out.jobId) return finish(null);
+          _rbTrack('frame_render', { pieces: garments.length });
+          _lkmPoll(out.jobId, finish);
+        }).catch(() => finish(null));
+      }
+      // A frame that landed for a look already saved with that composition
+      // (Update pressed before the frame came) becomes its photograph now.
+      function _lkfLanded(key, url) {
+        const id = _lkfWant[key];
+        if (!id) return;
+        delete _lkfWant[key];
+        const l = _lkFind(id);
+        if (!l || _lkfBaseKey(l) !== key) return;
+        _lkPatch(l.id, { photo_url: url });
+        if (_lkView !== 'new') _lkPaint();
+        try { if (typeof _lkHomeSync === 'function') _lkHomeSync(); } catch (_) {}
+      }
+      // The saved look takes the frame drawn for its composition — now, or
+      // when it lands. Its base key moves with the photograph, so the next
+      // edit re-draws from the picture she sees.
+      function _lkfAdopt(l) {
+        const frame = _lkFrameOf(l);
+        if (!frame) return;
+        const key = _lkfBaseKey(l);
+        const r = _lkfRenders[key];
+        if (typeof r === 'string') { if (r !== frame) _lkPatch(l.id, { photo_url: r }); return; }
+        if (r === false) return;
+        _lkfWant[key] = l.id;
+        if (!_lkfBusy[key]) {
+          clearTimeout(_lkfTimer); _lkfTimer = null;
+          _lkfRender(frame, key, _lkfGarments(_lkPieceIds(l), _lkLookPropGarments(l), (l.styling && typeof l.styling === 'object') ? l.styling : {}));
+        }
       }
       // Under the canvas: the photograph door, or — once one exists — the
       // You / Model switch. The photograph is never replaced by the model:
@@ -17296,15 +17471,34 @@ body.rb-lk-push #rb-dock{display:none}
       // the day, a re-runnable `src` for Try another, and the box's `was` /
       // `styled` (phase 2 writes them).
       function _lkDraftKey() { const u = _waUid(); return u ? 'rb_lk_draft__' + u : null; }
-      function _lkDraftParked() {
+      // UP TO FIVE drafts (Annie, 2026-10-07; phase 1 held ONE): the park
+      // is a list under the same key — {v:3, drafts:[…]}, newest first — a
+      // phase-1 park (v:2, one object) reads as a list of one. Starting a
+      // new look while drafts stand parks the one on the composer and
+      // moves on; only the SIXTH asks, and lets the oldest go.
+      var _LK_DRAFT_MAX = 5;
+      function _lkDraftList() {
         try {
-          const k = _lkDraftKey(); if (!k) return null;
-          const raw = localStorage.getItem(k); if (!raw) return null;
+          const k = _lkDraftKey(); if (!k) return [];
+          const raw = localStorage.getItem(k); if (!raw) return [];
           const d = JSON.parse(raw);
-          return d && typeof d === 'object' && d.v === 2 && d.id ? d : null;
-        } catch (_) { return null; }
+          if (d && typeof d === 'object' && d.v === 3 && Array.isArray(d.drafts)) return d.drafts.filter(x => x && typeof x === 'object' && x.id);
+          return (d && typeof d === 'object' && d.v === 2 && d.id) ? [d] : [];
+        } catch (_) { return []; }
       }
+      function _lkDraftListWrite(list) {
+        const k = _lkDraftKey(); if (!k) return;
+        try {
+          if (list.length) localStorage.setItem(k, JSON.stringify({ v: 3, drafts: list.slice(0, _LK_DRAFT_MAX) }));
+          else localStorage.removeItem(k);
+        } catch (_) {}
+      }
+      function _lkDraftParkedById(id) { return id ? (_lkDraftList().find(d => d.id === id) || null) : null; }
+      // THE draft, for the surfaces that name one: the composer's own
+      // while it holds one, else the newest parked.
+      function _lkDraftParked() { return _lkDraftParkedById(_lkDraftId) || _lkDraftList()[0] || null; }
       window._lkDraftParked = _lkDraftParked;
+      window._lkDraftList = _lkDraftList;
       function _lkDraftStands() { return !!_lkDraftParked(); }
       function _lkDraftEmptyNow() {
         return !_lkUsed().length && !_lkShop.length && !(_lkPhoto && _lkPhoto.url) && !String(_lkNewTitleDraft || '').trim();
@@ -17387,7 +17581,7 @@ body.rb-lk-push #rb-dock{display:none}
         return {
           v: 2, id: _lkDraftId, at: new Date().toISOString(),
           rows: _lkRows, seq: _lkRowSeq, name: _lkNewTitleDraft, tags: _lkNewTags, roles: _lkNewRoles,
-          photo: (_lkPhoto && _lkPhoto.url) ? { url: _lkPhoto.url, frame: !!_lkPhoto.frame } : null,
+          photo: (_lkPhoto && _lkPhoto.url) ? { url: _lkPhoto.url, frame: !!_lkPhoto.frame, baseKey: _lkPhoto.baseKey || undefined } : null,
           home: !!document.querySelector('.rb-lkh-composer'), kp: kp || undefined,
           shop: _lkShop, shopImgs: _lkShopImgs, note: _lkBuildNote, palette: _lkBuildPalette,
           built: !!_lkBuilt, aspirational: !!_lkAspirational, gaps: _lkBuildGaps, mine: !!_lkBuildMine,
@@ -17396,28 +17590,36 @@ body.rb-lk-push #rb-dock{display:none}
           src, was: _lkDraftWas, styled: _lkDraftStyled,
         };
       }
-      function _lkDraftPark() {
+      function _lkDraftPark(quiet) {
         if (_lkDraftParkT) { clearTimeout(_lkDraftParkT); _lkDraftParkT = null; }
         const k = _lkDraftKey();
         if (!k || _lkBuilding) return;
         if (_lkDraftEmptyNow()) {
           // She emptied THIS draft herself — it goes. A fresh, untouched
           // composer never touches a park it did not come from.
-          const cur = _lkDraftParked();
-          if (_lkDraftId && cur && cur.id === _lkDraftId) _lkDraftDrop();
+          if (_lkDraftId && _lkDraftParkedById(_lkDraftId)) _lkDraftDrop();
           return;
         }
         if (!_lkDraftId) _lkDraftId = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-        try { localStorage.setItem(k, JSON.stringify(_lkDraftSnapshot())); } catch (_) {}
-        _lkDraftSurfacesSync();
+        // This draft to the front of the list; the others stand.
+        const list = _lkDraftList().filter(d => d.id !== _lkDraftId);
+        list.unshift(_lkDraftSnapshot());
+        _lkDraftListWrite(list);
+        if (!quiet) _lkDraftSurfacesSync();
       }
       function _lkDraftParkSoon() {
         if (_lkDraftParkT) clearTimeout(_lkDraftParkT);
         _lkDraftParkT = setTimeout(_lkDraftPark, 400);
       }
+      // One parked draft goes (by id) — the others stand.
+      function _lkDraftDropId(id) {
+        if (!id) return;
+        _lkDraftListWrite(_lkDraftList().filter(d => d.id !== id));
+      }
+      // The composer's own draft goes: Save, Discard, emptied by hand.
       function _lkDraftDrop() {
         if (_lkDraftParkT) { clearTimeout(_lkDraftParkT); _lkDraftParkT = null; }
-        try { const k = _lkDraftKey(); if (k) localStorage.removeItem(k); } catch (_) {}
+        _lkDraftDropId(_lkDraftId);
         _lkDraftId = null; _lkDraftWas = {}; _lkDraftStyled = {}; _lkLpBack = {};
         _lkDraftSurfacesSync();
       }
@@ -17428,10 +17630,13 @@ body.rb-lk-push #rb-dock{display:none}
         try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
         try { _lkDraftTileSync(); } catch (_) {}
       }
-      function _lkDraftTileHtml(d) {
+      function _lkDraftTileHtml(d, i) {
         const ids = (d.rows || []).map(r => r && r.piece).filter(Boolean);
         const photo = (d.photo && _pdHttp(d.photo.url)) || null;
-        return _lkDraftCardHtml({ id: 'rb-lk-drafttile', cls: 'rb-lk-drafttile', title: d.name, photo, cells: photo ? [] : _ltCells(ids), started: d.at, onclick: 'window.__lkDraftOpen()' });
+        // The newest park keeps the id the harnesses read; every park
+        // carries data-draft.
+        return _lkDraftCardHtml({ id: i ? 'rb-lk-drafttile-' + String(d.id) : 'rb-lk-drafttile', cls: 'rb-lk-drafttile', title: d.name, photo, cells: photo ? [] : _ltCells(ids), started: d.at,
+          dataAttr: ' data-draft="' + _waEsc(String(d.id)) + '"', onclick: "window.__lkDraftOpen('" + _waEsc(String(d.id)) + "')" });
       }
       // The park changed under an open grid: the In progress rail follows
       // (it holds the park beside the draft rows), never the whole page.
@@ -17440,17 +17645,24 @@ body.rb-lk-push #rb-dock{display:none}
         if (!grid || grid.style.display === 'none') return;
         _lkPaint();
       }
-      // Starting a NEW look while a draft stands asks once (the kp builder's
-      // Back confirm) — yes lets the draft go before the new one lands, so
-      // an abandoned empty composer can never let the old draft resurface.
+      // Starting a NEW look while drafts stand: under five, the draft on
+      // the composer is parked (it waits in In progress) and the new look
+      // simply lands. At five the SIXTH asks once, naming the oldest, and
+      // yes lets that one go before the new look lands.
       function _lkDraftLetGo(onYes, onNo) {
-        const d = _lkDraftParked();
-        if (!d) { onYes(); return; }
-        const nm = String(d.name || '').trim();
-        window._rbConfirmDelete('Let the draft go?', function() { _lkGuideUse(); _lkDraftDrop(); onYes(); },
-          { sub: (nm ? '“' + nm + '”' : 'The look you started') + ' isn’t saved. A new look replaces it.', yes: 'Let it go' });
+        if (_lkDraftParkT) _lkDraftPark(true);
+        const list = _lkDraftList();
+        if (list.length < _LK_DRAFT_MAX) { onYes(); return true; }
+        const oldest = list[list.length - 1];
+        const nm = String(oldest.name || '').trim();
+        window._rbConfirmDelete('Five drafts are waiting.', function() {
+          _lkGuideUse();
+          if (oldest.id === _lkDraftId) _lkDraftDrop(); else { _lkDraftDropId(oldest.id); _lkDraftSurfacesSync(); }
+          onYes();
+        }, { sub: (nm ? '“' + nm + '”' : 'The oldest') + ' is the oldest unsaved look. A new look replaces it — or save one first.', yes: 'Let it go' });
         const c = document.getElementById('rb-del-cancel');
         if (c && typeof onNo === 'function') { const prev = c.onclick; c.onclick = function() { if (prev) prev(); onNo(); }; }
+        return false;
       }
       // The park, back onto the composer: state only. A kp draft is
       // restored through _kpBuildReturn (its page must be open first).
@@ -17465,7 +17677,7 @@ body.rb-lk-push #rb-dock{display:none}
         _lkNewTitleTouched = !!(d.name && String(d.name).trim());
         _lkNewTags = d.tags || null;
         _lkNewRoles = (d.roles && typeof d.roles === 'object') ? d.roles : {};
-        _lkPhoto = (d.photo && d.photo.url) ? { url: d.photo.url, frame: !!d.photo.frame } : null;
+        _lkPhoto = (d.photo && d.photo.url) ? { url: d.photo.url, frame: !!d.photo.frame, baseKey: d.photo.baseKey || undefined } : null;
         _lkShowPhoto = false;
         const kp = d.kp || null;
         _lkShop = Array.isArray(d.shop) ? d.shop : (kp && Array.isArray(kp.shop) ? kp.shop : []);
@@ -17496,8 +17708,8 @@ body.rb-lk-push #rb-dock{display:none}
       }
       // The next line's and the tile's door: the draft, where it was. A kp
       // draft reopens its key piece first (the builder lives on that page).
-      window.__lkDraftOpen = function() {
-        const d = _lkDraftParked();
+      window.__lkDraftOpen = function(id) {
+        const d = (id && _lkDraftParkedById(String(id))) || _lkDraftParked();
         if (!d) return;
         _rbTrack('draft_opened', { kp: !!(d.kp && Number.isInteger(d.kp.wayIdx)), built: !!d.built });
         if (d.kp && Number.isInteger(d.kp.wayIdx) && d.kp.savedId != null && typeof _kpBuildReturn === 'function') { _kpBuildReturn(d); return; }
@@ -17618,6 +17830,22 @@ body.rb-lk-push #rb-dock{display:none}
             items: used.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
             canvasExtraHtml: (_lkPhoto && _lkPhoto.url) ? '' : _lkImgActsHtml({ camera: 'add', fn: '__lkPhotoToggle' }),
           });
+        } else if (_lkPhoto && _lkPhoto.url && _lkPhoto.frame && !_lkBuilding) {
+          // ROBES' FRAME on the canvas (2026-10-07): a suggestion she is
+          // editing, or a kp way built in situ, keeps the photograph it
+          // came with — the model in her setting — and a change to the
+          // rack re-draws THAT picture (the server's frame mode), never her
+          // avatar. The base composition is the one the frame was shot for.
+          const fUsed = used.map(String);
+          const fProps = _lkShopGarments();
+          const fStyled = _lkLpStyledById(fUsed);
+          if (!_lkPhoto.baseKey) _lkPhoto.baseKey = _lkfKey(_lkPhoto.url, fUsed, fProps, fStyled);
+          _lkEnsureCss();
+          lookHtml = '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
+            '<span class="lab">' + headLabel + '</span>' + _lkCreditSpan(robesLabel) + '</div>' +
+            '<div class="rb-lkm-canvas">' + _lkfStageHtml(_lkPhoto.url, _lkPhoto.baseKey, fUsed, fProps, fStyled) + '</div>' +
+            (_lkBuilt && _lkBuildNote ? '<div class="rbc-quote">' + _waEsc(_lkNoteShort(_lkBuildNote)) + '</div>' : '') +
+            '</div>';
         } else if (_lkPhoto && _lkPhoto.url && !(_lkPhoto.frame && _lkModel)) {
           lookHtml = '<div class="rbc-panel"><div class="rbc-lhead">' +
             '<span class="lab">' + headLabel + '</span>' + _lkCreditSpan(robesLabel) + '</div>' +
@@ -17627,7 +17855,7 @@ body.rb-lk-push #rb-dock{display:none}
             // carries the stylist note under it — with no masthead above the
             // card (one header per step, 2026-09-16) the panel is where the
             // look speaks first.
-            (_lkBuilt && !_lkBuilding && _lkBuildNote ? '<div class="rbc-quote" style="margin:14px 0 0;padding-left:0;border-left:none;font-size:15px;line-height:1.62">' + _waEsc(_lkBuildNote) + '</div>' : '') +
+            (_lkBuilt && !_lkBuilding && _lkBuildNote ? '<div class="rbc-quote" style="margin:14px 0 0;padding-left:0;border-left:none;font-size:15px;line-height:1.62">' + _waEsc(_lkNoteShort(_lkBuildNote)) + '</div>' : '') +
             (nPlaced ? '<div class="rbc-lfoot"><span class="rbc-palette"></span><span class="rbc-yours"><b>' + nPlaced + '</b>&thinsp;of&thinsp;' + nPlaced + ' from your wardrobe</span></div>' : '') +
             '</div>';
         } else if (_lkBuilding) {
@@ -17658,7 +17886,7 @@ body.rb-lk-push #rb-dock{display:none}
         } else {
           // A Robes build speaks: the fetched stylist note leads the panel
           // (the hand-built composer keeps its quiet derived line).
-          const note = (_lkBuilt && _lkBuildNote) || _lkStyleNote(used);
+          const note = _lkNoteShort((_lkBuilt && _lkBuildNote) || _lkStyleNote(used));
           // A Robes build is WORN, not tiled (Annie, 2026-09-16): a
           // generated look opened on the mosaic + colour and fabric
           // swatches while the look it saves shows her model wearing it, so
@@ -17706,10 +17934,8 @@ body.rb-lk-push #rb-dock{display:none}
               robesLabel: robesLabel,
               quoteHtml: note ? _waEsc(note) : '',
               fabricsHtml: _lkBuilt && !_lkBuilding ? _rbcFabricsHtml(fabItems, tones) : '',
-              // Owned tones lead; a build whose pieces are all proposals reads
-              // its colour story from the stylist instead of showing nothing.
-              paletteHtml: (tones.length || !_lkBuilt ? tones : _lkBuildPalette)
-                .map(t => '<span style="background:' + _waEsc(t) + '"></span>').join(''),
+              // No colour dots on a look (Annie, 2026-10-07).
+              paletteHtml: '',
               rackLabel: 'The Rack',
               onFlip: '__lkCFlip', onSwap: '__lkCSwap', onRemove: '__lkCRemove',
             }, items).lookHtml;
@@ -17727,7 +17953,8 @@ body.rb-lk-push #rb-dock{display:none}
         // anatomy — the door is the pill on the canvas, this row is the
         // switch. A build keeps its quiet text door, which now names what it
         // does: "Replace" only ever reads on a look that HAS a photograph.
-        const photoRow = ((_lkBuilt && !lkOnModel)
+        const onFrame = !!(_lkPhoto && _lkPhoto.url && _lkPhoto.frame && !_lkBuilding);
+        const photoRow = ((_lkBuilt && !lkOnModel && !onFrame)
           ? '<div style="display:flex;align-items:baseline;gap:14px;margin-top:12px">' +
             '<button type="button" class="rb-lk-quiet" onclick="window.__lkPhotoToggle()">' +
               ((_lkPhoto && _lkPhoto.url) ? 'Replace the photo' : 'Add your photograph') + '</button>' +
@@ -18744,10 +18971,17 @@ body.rb-lk-push #rb-dock{display:none}
       // reused when it already rendered this exact composition).
       function _lkCommitPieces(l, pieces) {
         l.pieces = pieces.map((p, i) => ({ id: p.id, slot: p.slot || null, position: i, role: p.role || null }));
-        l.note = _lkStyleNote(l.pieces.map(p => p.id));
+        // Robes' own note stays on a look Robes composed; a hand-built
+        // look's derived line follows its pieces.
+        if (!_lkFrameOf(l)) l.note = _lkStyleNote(l.pieces.map(p => p.id));
         _lkCacheWrite();
         _lkPatchCloud(l, { note: l.note });
         _lkPiecesCloud(l);
+        // A frame look (2026-10-07): the frame re-drawn for this
+        // composition becomes the photograph — landed already, or the
+        // moment it lands; her avatar is never rendered for it.
+        const frame = _lkFrameOf(l);
+        if (frame) { _lkfAdopt(l); return; }
         const key = _lkModel ? _lkmKey(l.pieces.map(p => p.id), _lkLookPropGarments(l)) : null;
         const live = key && typeof _lkmRenders[key] === 'string' ? _lkmRenders[key] : null;
         if (live) _lkPatch(l.id, { render_url: live, render_key: key });
@@ -18917,8 +19151,9 @@ body.rb-lk-push #rb-dock{display:none}
         _lkNewTags = null; _lkNewRoles = {};
         _lkDay = null; _lkDateHint = null; _lkDraftSrc = null; _lkKpHost = false;
         // A reset never drops the PARK — only Save, Discard and the
-        // let-it-go confirm do. It only forgets which draft this composer was.
-        if (_lkDraftParkT) { clearTimeout(_lkDraftParkT); _lkDraftParkT = null; }
+        // let-it-go confirm do. It only forgets which draft this composer
+        // was; a change still waiting on the debounce is parked first.
+        if (_lkDraftParkT) _lkDraftPark(true);
         _lkDraftId = null; _lkDraftWas = {}; _lkDraftStyled = {}; _lkLpBack = {};
       }
       // opts.day (ISO) attaches a day: the return band reads the date, the
@@ -18931,8 +19166,9 @@ body.rb-lk-push #rb-dock{display:none}
       window.__lkNew = function(opts) {
         opts = opts || {};
         if (!opts._letGo && _lkDraftStands()) {
-          _lkDraftLetGo(function() { window.__lkNew(Object.assign({}, opts, { _letGo: true })); });
-          return false;
+          // Under five drafts the standing one is parked and this lands at
+          // once (true); the sixth waits on the ask (false).
+          return _lkDraftLetGo(function() { window.__lkNew(Object.assign({}, opts, { _letGo: true })); });
         }
         _lkShelfOpen();
         _lkResetComposer();
@@ -20360,7 +20596,9 @@ body.rb-lk-push #rb-dock{display:none}
         const parked = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
         if (parked && !document.getElementById('rb-lkhome') && !document.querySelector('#rb-hb #rb-lp .rb-lpd-row')) {
           const dn = String(parked.name || '').trim();
-          return { key: 'draft', text: (dn ? '<em class="rb-echo-name">' + _waEsc(dn) + '</em>' : 'A look you started') + ' is waiting, unsaved.',
+          const more = (typeof _lkDraftList === 'function' ? _lkDraftList().length : 1) - 1;
+          const who = dn ? '<em class="rb-echo-name">' + _waEsc(dn) + '</em>' : 'A look you started';
+          return { key: 'draft', text: more > 0 ? who + ' and ' + _msWord(more) + ' more ' + (more === 1 ? 'look are' : 'looks are') + ' waiting, unsaved.' : who + ' is waiting, unsaved.',
             doorLabel: 'Open it', door: 'draft' };
         }
         const looks = (_lkLooks || []).filter(l => l && !l._draft);
@@ -20807,7 +21045,13 @@ body.rb-lk-push #rb-dock{display:none}
         // o.quiet: the draft lands under the box that asked for it — no page
         // opens, no paint; the park carries it (the box reads the park).
         if (!kpHost && !o.quiet) _lkShelfOpen();
+        // A re-run of the same ask (Try another) edits the draft it made —
+        // the park keeps its id; a fresh ask parks the standing draft and
+        // starts its own.
+        const keepId = o.sameDraft ? _lkDraftId : null;
+        if (keepId && _lkDraftParkT) { clearTimeout(_lkDraftParkT); _lkDraftParkT = null; }
         _lkResetComposer();
+        if (keepId) _lkDraftId = keepId;
         _lkKpHost = kpHost;
         if (o.day) _lkDay = { date: o.day, trip: null };
         if (!o.day && o.dateHint) _lkDateHint = o.dateHint;
@@ -20841,6 +21085,9 @@ body.rb-lk-push #rb-dock{display:none}
         // look opens dressed, as a prompt look does — and it never earns
         // the You / Model switch (it is not her).
         if (o.photoUrl && _pdHttp(o.photoUrl)) _lkPhoto = { url: o.photoUrl, frame: o.kind === 'kp' };
+        // The frame was shot for THIS composition — it is the base the
+        // canvas re-draws from (2026-10-07).
+        if (_lkPhoto && _lkPhoto.frame) _lkPhoto.baseKey = _lkfComposerKey();
         if (o.quiet) {
           // The Lookbook open on its grid keeps the grid — the draft tile
           // takes the draft; a closed page waits in 'new' for the open.
@@ -21191,8 +21438,14 @@ body.rb-lk-push #rb-dock{display:none}
           // The photograph already on the canvas is the saved look's render
           // (same key as _avRenderKick, proposals included) — Save never
           // renders her twice.
-          const canvasKey = _lkModel ? _lkmKey(used.map(String), _lkShopGarments()) : null;
+          const onFrame = !!(_lkPhoto && _lkPhoto.frame && _pdHttp(_lkPhoto.url));
+          const canvasKey = (_lkModel && !onFrame) ? _lkmKey(used.map(String), _lkShopGarments()) : null;
           const canvasUrl = canvasKey ? _pdHttp(_lkmRenders[canvasKey]) : null;
+          // A frame draft (2026-10-07): the frame re-drawn for what stands
+          // on the rack is the photograph — landed, or adopted when it lands.
+          const frameKey = onFrame ? _lkfComposerKey() : null;
+          const frameNow = frameKey ? (frameKey === _lkPhoto.baseKey ? _lkPhoto.url : (_pdHttp(_lkfRenders[frameKey]) || null)) : null;
+          const frameWait = !!(frameKey && !frameNow && _lkfRenders[frameKey] !== false);
           // How each piece is worn (the box's notes) rides the saved look.
           const styling = {};
           _lkRows.forEach(r => { if (r.piece && _lkDraftStyled[r.key]) styling[String(r.piece)] = _lkDraftStyled[r.key]; });
@@ -21216,7 +21469,7 @@ body.rb-lk-push #rb-dock{display:none}
             // A look she owns nothing of yet would save with no imagery at
             // all — its own generated still stands in until she has a piece
             // (or a photo) of her own.
-            photo_url: (_lkPhoto && _lkPhoto.url)
+            photo_url: frameNow || (_lkPhoto && _lkPhoto.url)
               || (!used.length && _pdHttp(_lkShopImgs[0])) || null,
             slots,
             lookTags: lookTags,
@@ -21225,6 +21478,9 @@ body.rb-lk-push #rb-dock{display:none}
             set_id: suggSrc ? suggSrc.setId : null,
             set_index: suggSrc ? suggSrc.setIndex : null,
           });
+          // The frame still on its way lands on the saved look (the
+          // composition it was asked for is the look's own).
+          if (l && frameWait) { _lkfWant[frameKey] = l.id; if (!_lkfBusy[frameKey]) _lkfAdopt(l); }
         } finally { _lkBusy = false; }
         // Saved: the draft is a look now, the park goes (phase 1); the
         // guide counts one more draft ended.

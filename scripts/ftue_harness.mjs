@@ -1695,7 +1695,7 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await page.waitForTimeout(2600);
   if (process.env.HB_SHOTS) await page.screenshot({ path: process.env.HB_SHOTS + 'hb-draft-1280.png' });
   const d = await hbRead(page);
-  const d2 = await page.evaluate(() => ({ sn: document.getElementById('sn-page')?.style.display === 'block', overlay: document.getElementById('kp-loading-overlay')?.style.display, thread: document.querySelectorAll('#rb-lp-thread > div').length, park: JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null')?.name }));
+  const d2 = await page.evaluate(() => ({ sn: document.getElementById('sn-page')?.style.display === 'block', overlay: document.getElementById('kp-loading-overlay')?.style.display, thread: document.querySelectorAll('#rb-lp-thread > div').length, park: ((d) => (d && d.v === 3) ? (d.drafts[0] || null) : d)(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null'))?.name }));
   check('home field · route 1 · a day ask → the classifier → the draft is built IN the box: typing turns the send ink, one busy line while it builds (no overlay, no navigation), then the draft row lands under the field',
     typing.ink && posts.intent.length === 1 && posts.intent[0].prompt === 'Dinner with Mary tomorrow' && posts.daily.length === 1 && posts.daily[0].prompt === 'Dinner with Mary tomorrow' && posts.daily[0].name !== undefined
       && mid.busy === 'Building a draft from your wardrobe…' && d2.overlay !== 'flex' && !d2.sn && d.inline && d.row === 'Soft office armour' && d.rowEy === 'Draft look · not saved yet' && d.rowMeta === '2 pieces · all yours' && d.save === 'Save look'

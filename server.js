@@ -3645,9 +3645,16 @@ app.post('/api/avatar/cell', rateLimit({ windowMs: 60_000, max: 20 }), async (re
 // The look composer renders her on every rack change (debounced client-side,
 // cached by render key), so the window is wider than the save-only days and a
 // single piece is a legitimate ask — she wears it over her base layer.
+// FRAME MODE (2026-10-07, the suggested-look flow): `frameUrl` — Robes'
+// own frame of the look (a kp way's editorial photograph, Cloudinary-hosted)
+// — rides as IMAGE 1 in place of the avatar cell, and the ask is to keep the
+// SAME model, setting, light and framing and change only the garments. A
+// suggested look edited (shoes, a jacket) stays the picture it was: her
+// avatar never replaces the model Robes photographed. No avatarId needed.
 app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (req, res) => {
-  const { avatarId, pieces } = req.body;
-  if (!parseAvatarId(avatarId)) return res.status(400).json({ error: 'bad avatarId' });
+  const { avatarId, pieces, frameUrl, gender } = req.body;
+  const frameMode = typeof frameUrl === 'string' && /^https:\/\/res\.cloudinary\.com\//.test(frameUrl);
+  if (!frameMode && !parseAvatarId(avatarId)) return res.status(400).json({ error: 'bad avatarId' });
   if (!Array.isArray(pieces) || pieces.length < 1 || pieces.length > 12) {
     return res.status(400).json({ error: 'pieces must hold 1–12 entries' });
   }
@@ -3670,10 +3677,16 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
   (async () => {
     const finish = () => { const job = imageJobs.get(jobId); if (job) job.done = true; };
     try {
-      const cellUrl = await avatarCellEnsure(avatarId);
-      if (!cellUrl) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'no_cell' }); return finish(); }
-      const avatar = await fetchCloudinaryB64(cellUrl);
-      if (!avatar) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'cell_fetch_failed' }); return finish(); }
+      let avatar = null;
+      if (frameMode) {
+        avatar = await fetchCloudinaryB64(frameUrl);
+        if (!avatar) { logAI({ feature: 'avatar_render', frame: true, success: false, reason: 'frame_fetch_failed' }); return finish(); }
+      } else {
+        const cellUrl = await avatarCellEnsure(avatarId);
+        if (!cellUrl) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'no_cell' }); return finish(); }
+        avatar = await fetchCloudinaryB64(cellUrl);
+        if (!avatar) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'cell_fetch_failed' }); return finish(); }
+      }
 
       // Garment references: up to 9 photographed pieces ride as images
       // (1 avatar + 9 garments stays well inside the 14-reference budget);
@@ -3693,12 +3706,16 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
           lines.push(`- the ${p.name}${detail ? ' (' + detail + ')' : ''}.${p.styled ? ' Worn: ' + p.styled + '.' : ''}`);
         }
       }
-      const cellMan = parseAvatarId(avatarId).gender === 'man';
-      const prompt =
-        `Create one photorealistic editorial photograph. IMAGE 1 is the model. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ` +
-        `Dress ${cellMan ? 'him' : 'her'} in ${clean.length > 1 ? 'this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials' : 'this piece, worn over the plain fitted base layer from IMAGE 1 — nothing substituted, nothing extra'}:\n` +
-        lines.join('\n') + '\n' +
-        `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO} Generate the single photograph now.`;
+      const cellMan = frameMode ? normGender(gender) === 'man' : parseAvatarId(avatarId).gender === 'man';
+      const prompt = frameMode
+        ? `Create one photorealistic editorial photograph. IMAGE 1 is an existing photograph of this look. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure — a faithful likeness of IMAGE 1. Keep the SAME location, backdrop, light, time of day, pose and framing as IMAGE 1: this is the same photograph with the clothes changed, never a new scene. ` +
+          `Re-dress ${cellMan ? 'him' : 'her'} in this complete outfit — every listed piece worn together, nothing from the outfit in IMAGE 1 kept unless it is listed here, nothing extra beyond simple essentials:\n` +
+          lines.join('\n') + '\n' +
+          `${FULL_BODY_FRAME} No text overlays, no collage, one single image. Generate the single photograph now.`
+        : `Create one photorealistic editorial photograph. IMAGE 1 is the model. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ` +
+          `Dress ${cellMan ? 'him' : 'her'} in ${clean.length > 1 ? 'this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials' : 'this piece, worn over the plain fitted base layer from IMAGE 1 — nothing substituted, nothing extra'}:\n` +
+          lines.join('\n') + '\n' +
+          `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO} Generate the single photograph now.`;
       parts.push({ text: prompt });
 
       // Three attempts with widening backoff — a demand spike returns text
@@ -3736,7 +3753,7 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
       if (url) {
         const job = imageJobs.get(jobId);
         if (job) job.images[0] = url;
-        logAI({ feature: 'avatar_render', avatarId, pieces: clean.length, refs: imgN - 1, success: true, ms: Date.now() - t0 });
+        logAI({ feature: 'avatar_render', avatarId: frameMode ? null : avatarId, frame: frameMode || undefined, pieces: clean.length, refs: imgN - 1, success: true, ms: Date.now() - t0 });
       }
     } catch (err) {
       logAI({ feature: 'avatar_render', avatarId, success: false, reason: err.message });
