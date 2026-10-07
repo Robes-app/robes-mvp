@@ -1,6 +1,6 @@
 # Digital Twin · Style DNA brief
 
-**Date**: 2026-10-07 · **Branch**: `beta` · **Status**: plan + design brief, nothing built
+**Date**: 2026-10-07 · **Branch**: `beta` · **Status**: plan + design brief, decisions taken 7 Oct, nothing built
 **Source**: Annie & Lib catch-up, 6 Oct 2026 (Gemini notes + transcript) · **Published copy**: https://claude.ai/code/artifact/44d8ac0e-c3c3-4aa9-9e08-ae950d9b2099
 **Companion briefs**: `docs/style-memory-brief.md` (the brief and the memory), `docs/onboarding-split-review-2026-09-25.md` (the chapters), `docs/avatar-design-brief.md` (the model)
 
@@ -93,7 +93,7 @@ How it fits: the three chapters and the feed all write one jsonb column on her p
 
 ## The plan
 
-Five phases. The first is copy and wiring and can ship this week on the web; it is also what makes the native brief in the next section buildable, because the native app should inherit one object, not three pages. Phases 1 to 3 each rebuild one chapter on the web and in the native mocks together. Phase 4 is the native build itself.
+Five phases. The first is copy and wiring and can ship this week on the web; it is also what makes the design brief in the next section buildable, because the phone screens should inherit one object, not three pages. Phases 1 to 3 each rebuild one chapter on the web and in the phone mocks together. Phase 4 is the phone pass over the whole twin on the web; no iOS code yet.
 
 | Phase | Ships | Supersedes | Size | Depends on |
 | --- | --- | --- | --- | --- |
@@ -101,15 +101,15 @@ Five phases. The first is copy and wiring and can ship this week on the web; it 
 | **1 · Style DNA** | Chapter 02 rebuilt: style type deck (as is), **brand wall** (thumbnail tiles, tap to keep, Robes suggests more from what she tapped, never a blank field), **icon wall** with one tag per icon (Liberty's list of up to 30), **the pieces you love** (her starred pieces as a row, star more from here, with one line saying what a star does), **wardrobe investment level** (four levels, mandatory, one tap). The engine reads investment as the ceiling on every proposed piece and the icon tags as the register. Tiers, splurge and yearly spend retire. | Taste & budget whole; chapter 01 and 02 as separate sheets | M | 0; Liberty's icon list and tags |
 | **2 · Your model** | The page loses the printed reads: after a photograph it shows the model, one line each for colouring and line, and the **facts row** (height, size, shoe size, age range, presence) as a single edit. The full colour and line notes stay behind one door. Adjust by hand gains a chest axis if the avatar catalogue can carry it; if not, the brief says so and the line read absorbs it. | The two read drawers on the page; the stage facts | M | 0; a decision on the catalogue (decisions below) |
 | **3 · In your words, living** | Hard nos as prompts (covered arms, hijab, no heels, no polo necks, metal allergy, free text), each saved as a rule. Every read ends with **one question** from Robes that she answers by tapping, and one pointer at what would teach it more ("log today's outfit", "star three pieces"). Read again is unlimited and never repeats a kept, edited or struck line. The feed shows what Robes noticed since her last visit and offers to fold it in. | The one-off draft; the twenty-entry fold threshold | M | 0; the memory (built) |
-| **4 · Native** | The mocks from the design brief, then the build in the native app: the twin as a tab-less sheet stack, the chapters as full-screen steps with the three-segment rule, the walls as grids, the model as a hero stage. | The web chapter sheet as the phone's version | L | 1, 2, 3 mocked |
+| **4 · The phone pass** | The mocks from the design brief built on the web app at 390: the twin as a tab-less sheet stack, the chapters as full-screen steps with the three-segment rule, the walls as grids, the model as a hero stage. The web at 1280 keeps the twin page and the model page as pages. | The web chapter sheet as the phone's version | L | 1, 2, 3 mocked |
 
 Order matters for one reason: phase 0 is cheap and it is the thing every later phase lands into. Renaming without the home would still leave three doors; the home without the renames would still read as Style notes.
 
 What each phase has to prove before it ships, in the standing harnesses: the chapters harness (`stylenotes_model_harness`) rewritten to the twin page and the new chapter 02; the FTUE harness for the doors on home; one new engine test that a Zara-level investment never proposes a luxury house and that a hero appears in at most one look of three.
 
-## Design brief: the digital twin, native
+## Design brief: the digital twin, native-feeling on the web
 
-For Claude Design and the native build. Self-contained; it does not assume the codebase. Phone first at 390, with a 1280 web frame for the two screens the web keeps (the twin page and the model page).
+For Claude Design and the web build. Self-contained; it does not assume the codebase. A native-feeling design for the web app, phone first at 390 and the web at 1280; no React Native or iOS code is being built yet. The 1280 frames cover the two screens the web keeps as pages (the twin page and the model page).
 
 ### What this is
 
@@ -155,7 +155,7 @@ Number them as below. Every frame at 390; F1 and F3 also at 1280.
 
 **F4 · 01 Your model, read.** The photographed model fills the stage. Under it two lines only: "Colouring · Soft Autumn, read from your close-up" and "Line · read from your full-length". One text door, "Full notes". The Adjust pill on the section rule. The facts row filled. No Harmony and Line facts on the stage, no printed summaries. This is the frame Liberty asked for: punchy.
 
-**F5 · The facts sheet.** A bottom sheet with five rows. Height as a stepper in cm with a ft/in toggle. Size as a row of UK sizes 4 to 24 (EU in grey beneath). Shoes as a row of UK 2 to 9 with halves. Age as six chips: 18 to 24 · 25 to 34 · 35 to 44 · 45 to 54 · 55 to 64 · 65 and over. Presence as the three pills. One line under the sheet title: "Size, never weight. Robes uses these to propose what fits." Done is the ink.
+**F5 · The facts sheet.** A bottom sheet with five rows. Height as a stepper in cm with a ft/in toggle. Size as a row of UK sizes 4 to 24 (EU in grey beneath). Shoes as a row of UK 2 to 9 with halves. Age as six chips: 18 to 24 · 25 to 34 · 35 to 44 · 45 to 54 · 55 to 64 · 65 and over. Presence as the three pills, Woman · Man · Prefer not to say, asked plainly and never inferred; it sets the model's catalogue and the pronouns everywhere. One line under the sheet title: "Size, never weight. Robes uses these to propose what fits." Done is the ink.
 
 **F6 · 02 Style DNA, the type deck.** As built: one card at a time, Not me · Sometimes · Very me. Redraw only the chrome to match the new names.
 
@@ -204,20 +204,24 @@ Transactional lines stay plain (Done, Skip, Keep, Strike). The delight register 
 - Printed analysis. The colour and line reads exist behind one door; the page shows the model and two lines.
 - Any copy that positions her wardrobe as insufficient. The twin is about what she owns and loves.
 
-## Decisions for Annie
+## Decisions taken
 
-Each of these changes what gets built. A recommendation sits first.
+Annie settled every call on 7 Oct. The build runs on these.
 
-1. **The name.** "Your digital twin" for the object, with "Style DNA" as the taste chapter inside it, or "Style DNA" for the whole thing. Recommend the twin as the object: it says there is a her in the app, and it is where the facts and the model naturally live. Style DNA as a chapter name keeps Liberty's word where it earns it.
-2. **Where it lives in the nav.** Behind the avatar plus the invitation on home (recommended), or a dock tab. A dock tab would make it a destination she visits; it is a thing she builds once and tends, which is what the invitation card is for.
-3. **The chest axis on the model.** The avatar catalogue is a fixed matrix (skin, hair, line, frame); a new axis multiplies the cells Robes has to photograph. Options: add one "fuller / narrower" chest nudge as a prompt-only adjustment on the render (cheap, not visible on the stage until a look renders), or extend the catalogue (a week of generation and cost). Recommend the prompt-only nudge first.
-4. **Portraits on the icon wall.** Photographs of living people are a likeness question; the live icon grid uses serif monograms for that reason. Recommend monograms with the tag doing the work, and a photograph tile only for the houses (brands), which carry no likeness.
-5. **Liberty's icon list.** Thirty names with one tag each. She offered to write it; the tags need to be a fixed vocabulary (clean-girl minimal, mature minimal, designer fashion-forward, French classic, off-duty, and so on) so the engine reads them the way it reads the type deck.
-6. **Investment level and the memory.** When the memory shows she keeps buying above her stated level, does Robes say so? Recommend yes, as one line in What Robes has noticed, never as a lecture.
-7. **What to do with the data already saved.** Tiers, splurge and spend exist on live profiles. Recommend: map the highest tier to an investment level once, show it as pre-picked, and let her confirm; drop the rest.
+| Call | Decision |
+| --- | --- |
+| The name | **Your digital twin** is the object; **Style DNA** is the taste chapter inside it. |
+| Where it lives | Behind the avatar, with the invitation on home as the prompt nudge. No dock tab. |
+| The chest axis on the model | A prompt-only nudge on the render first. The avatar catalogue is not extended. |
+| Portraits on the icon wall | Monograms, with the tag doing the work. A photograph tile only for the houses. |
+| Liberty's icon list | Thirty names with one tag each, from a fixed tag vocabulary. Liberty is sending the list. |
+| Investment level and the memory | Yes: when the memory shows she buys above her stated level, one line in What Robes has noticed, never a lecture. |
+| The data already saved | Tiers, splurge and spend map to an investment level once, pre-picked for her to confirm; the rest is dropped. It is all test data, so nothing is at risk. |
+| `/stylenotes` | The twin page replaces it outright, with a redirect. The model page has no separate address. |
+| The brand list | The brand list already in the app is the wall's starting set; Robes suggests from there. |
+| Age range | Six standard bands, as drawn. |
 
-Open questions with no recommendation yet:
+Two notes that govern the whole plan:
 
-- [ ] Does the twin page replace `/stylenotes` outright, or does the model page keep its own web address for a release?
-- [ ] Who owns the brand list the wall starts from, and how large is it before Robes suggests?
-- [ ] Age range: six standard bands as drawn, or the four the fashion panels use?
+- **Woman or man stays an asked question.** Presence is set on the model, never inferred from a photograph or a brief, and it decides the avatar catalogue, the size rows and the pronouns on every surface. Men's chest and suit sizes come later; the facts sheet is drawn for the woman's rows first.
+- **This is a native-feeling design for the web app.** Every frame is built in the web app at 390 and 1280. No React Native or iOS code is being written yet; nothing in the plan depends on an app-store build.
