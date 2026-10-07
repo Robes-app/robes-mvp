@@ -1,6 +1,6 @@
 # Digital Twin · Style DNA brief
 
-**Date**: 2026-10-07 · **Branch**: `beta` · **Status**: plan + design brief, decisions taken 7 Oct, nothing built
+**Date**: 2026-10-07 · **Branch**: `beta` · **Status**: plan + design brief, decisions taken 7 Oct, Settings prototype received 7 Oct (the design reference), nothing built
 **Source**: Annie & Lib catch-up, 6 Oct 2026 (Gemini notes + transcript) · **Published copy**: https://claude.ai/code/artifact/44d8ac0e-c3c3-4aa9-9e08-ae950d9b2099
 **Companion briefs**: `docs/style-memory-brief.md` (the brief and the memory), `docs/onboarding-split-review-2026-09-25.md` (the chapters), `docs/avatar-design-brief.md` (the model)
 
@@ -147,6 +147,8 @@ Files to reuse rather than redraw: `Onboarding_Flow.dc.html` 3a to 3g (the sheet
 
 Number them as below. Every frame at 390; F1 and F3 also at 1280.
 
+*Updated 7 Oct, afternoon.* Annie's Settings prototype supersedes F1, F5, F7, F8, F10, F11 and F13 as drawn here. [The updated prototype (7 Oct)](#the-updated-prototype-7-oct) at the foot records it and the call on each.
+
 **F1 · The twin page.** Eyebrow "Your digital twin", title "{Name}, *on paper.*", sub "Robes reads this every time it dresses you." Then one **invitation card** at the top, the only ink on the screen, naming the one thing Robes wants next ("Add a full-length photograph and Robes reads your line"). Then three chapter rows, each a card: number, name, state line, chevron. Then **What Robes has noticed** as a short feed (the three newest lines, "See all"). Foot: a text link "Create a look". Draw it in four states: nothing answered; model only; everything but the hard nos; complete (the invitation card becomes "Robes knows you. Log today's outfit and it learns more.").
 
 **F2 · The intro sheet** (first run, over home). Eyebrow "Your digital twin", title "Let Robes *get to know you.*", one line, the three chapters as a numbered list, Begin (ink) and Later. As built today, with the new names.
@@ -225,3 +227,47 @@ Two notes that govern the whole plan:
 
 - **Woman or man stays an asked question.** Presence is set on the model, never inferred from a photograph or a brief, and it decides the avatar catalogue, the size rows and the pronouns on every surface. Men's chest and suit sizes come later; the facts sheet is drawn for the woman's rows first.
 - **This is a native-feeling design for the web app.** Every frame is built in the web app at 390 and 1280. No React Native or iOS code is being written yet; nothing in the plan depends on an app-store build.
+
+## The updated prototype (7 Oct)
+
+Annie's `Settings_Prototype.dc.html` arrived the same afternoon, with two screenshots of the empty state. It is the design reference from here: where it differs from the frames above, the prototype wins and the frame is marked superseded below. Everything in it is a web design at 390 and 1280.
+
+**The IA is a Settings surface, not a page of its own.** Behind the avatar sits one screen with two tabs, **Style Profile | Account**. Style Profile holds three cards: **Your Digital Twin**, **Style DNA** and **Robes Observations**. Account holds **Profile**, **Notifications** and **Privacy & Terms**, a footer ("Need a hand? hello@byrobes.com", "Robes beta · 0.9.4") and Log out. A card slides its page in from the right; a row on a page lifts a bottom sheet titled with a Done; the dimmed page closes it. Every page carries a ‹ back to Settings. So F1's "twin page as hub with chapter rows" becomes the Style Profile tab, and the model lives on the Your Digital Twin page.
+
+**Your Digital Twin page.** The render of her model fills the top, full bleed. Beneath it a card **Read from your photographs** with two rows, Colouring (Soft Autumn) and Body shape (read from the full-length, or "Softer, Fuller, set by hand"), opening the **Photographs** sheet: the two photographs as tiles with a replace icon and "Read 2 Sep"; Colouring as four swatch rows to pick from (Soft Autumn · Warm Autumn · Soft Summer · Deep Winter); Skin, eight dots; Hair, six dots; Body shape as The line (Softer / Straighter) and The frame (Fuller / Narrower). A second door, **Adjust by hand**, opens the same rows under "Robes read these from your photographs. Nudge anything that looks off." Then **The facts**, a card of five cells, Height · Size · Shoes · Age · Gender (168 · UK 10 · UK 5 · 45–54 · Woman; Prefer not to say prints "—"), opening the Facts sheet under "Size, never weight. Robes uses these to propose what fits.": Height as a stepper 140–210 cm with a ft/in toggle; Size UK 4–16 with the EU size beneath; Shoes UK 2–8 in halves; Age as six chips; Gender as Woman · Man · Prefer not to say.
+
+**The empty state** (the two screenshots): a ghost figure where the render will be, "Your model starts the moment your first photograph reads.", two dashed slots Close-up and Full length each with Add photo and one guide line ("Soft daylight, facing a window. No filters." / "Head to toe, fitted clothes. A mirror is fine."), **Or shape her by hand** with its rows open, and the five facts cells each reading an italic "Add".
+
+**Style DNA page.** Sub "What you love, and the lines you dress by." Two groups of rows. *Your taste*: **Style type** (sheet "Pick as many as feel like you": Minimal, Classic, Romantic, Bohemian, Edgy, Sporty, Preppy, Glamorous), **Brands** (sheet "Select 3+ brands you like. This informs your Style DNA.": a Search brands field, Your selections as pills, Popular among stylists as a pool of pills, "+ Add “x”" for a name not in the pool), **Icons** (the same sheet, "Search or type a name", Often chosen), **Pieces you love** ("6 pieces"), **Investment level** (sheet "How much you spend a year": Under €500 · Occasional picks / €500–1,500 · Regular wardrobe updates / €1,500–5,000 · Considered investment / €5,000+ · Fashion is a priority / Prefer not to say). *In your words*: **What works on you** ("3 lines"), **Hard nos** (sheet "Robes never proposes these, whatever the occasion": her lines with ✕, "+ Another no", and "Robes suggests · From what you've never kept" with Keep), **Your rules** ("2 lines"). When something new has been noticed the page adds a row, "Noticed and kept · Read from what you wear."
+
+**Robes Observations page.** Sub "Read from what you wear. Keep a line and it joins your Style DNA." *Since your last visit*: each line with its evidence ("From eleven looks since August") and Keep / Not me; empty, "Nothing new. Robes keeps reading." Then *Kept before* ("Kept in March"). The prototype also draws an alert variant on the Style Profile tab: one "Robes noticed" card she swipes, Keep → or Not me ←, toasting "Kept. Filed under Style DNA."
+
+**Account.** Profile rows Name ("How Robes addresses you"), Email ("Where sign-in links and receipts go"), Password ("At least eight characters", Update password) and Delete account in rose ("Your wardrobe, looks and digital twin are removed for good. This can't be undone." Delete my account / Keep my account). Notifications: Email "Your weekly edit and new looks." and Push "A morning look, before you dress." Privacy & Terms as two ↗ rows, "Last updated 1 September 2026".
+
+### The brand wall
+
+Annie's rule: **keep the existing brands and icons already selected, and introduce Liberty's new ones.** The pool is the union of three lists, deduped by name:
+
+- the names the app already carries (the `ROBES_ICONS` pool and the per-type seeds in `ARCH_SEED`, from Chanel and The Row to Caroline de Maigret);
+- the prototype's fifty-brand pool (The Row, Totême, Khaite, Loewe, Celine, Prada, Miu Miu, Bottega Veneta, Jil Sander, Lemaire, Max Mara, Chloé, Dôen, Sézane, Ganni, Acne Studios, Jacquemus, Alaïa, Maison Margiela, Dries Van Noten, Marni, Simone Rocha, Isabel Marant, Saint Laurent, Valentino, Gucci, Hermès, Chanel, Dior, Fendi, Victoria Beckham, Gabriela Hearst, Proenza Schouler, Staud, Reformation, COS, Arket, Me+Em, Joseph, Vince, Agolde, Ulla Johnson, Zimmermann, Nili Lotan, Loro Piana, Brunello Cucinelli, Comme des Garçons, Yohji Yamamoto, Paloma Wool, Courrèges) and its forty icons;
+- **Liberty's additions**: Adidas, Nike, H&M, Arket, COS, Zara, Uniqlo, Louis Vuitton, Chanel, Dior, Gucci, Ralph Lauren, CAMILLA AND MARC, Carven, Chopova Lowena, Julie Kegels, Kallmeyer, LABRUM London, Matières Fécales.
+
+Five of Liberty's names were already in a pool (Arket, COS, Chanel, Dior, Gucci). The fourteen new ones span the high street (Adidas, Nike, H&M, Zara, Uniqlo), the houses (Louis Vuitton, Ralph Lauren) and a younger designer set (CAMILLA AND MARC, Carven, Chopova Lowena, Julie Kegels, Kallmeyer, LABRUM London, Matières Fécales). That spread is the point: the wall must read at every investment level, not only the quiet-luxury register the current pool leans to. A brand she adds through "+ Add" joins her selections, never the shared pool. The pool shows the names she has not kept; a kept name moves to Your selections.
+
+Landed the same day: the fourteen new names are appended to `ROBES_ICONS` in `public/stylenotes.html`, so the live Icons & brands chapter already offers them. The current pool is one mixed list; the split into Brands and Icons comes with phase 1.
+
+### Where the prototype departs from the brief, and the call on each
+
+| Frame | The brief said | The prototype draws | Call |
+| --- | --- | --- | --- |
+| F1 | A twin page as hub: invitation card, three chapter rows, the feed | Settings with Style Profile · Account; the twin, Style DNA and Observations as three cards; no invitation card | Prototype wins. The invitation moves to home's prompt nudge (decided) and the next line; the Style Profile cards show state instead. |
+| F5 | Five facts, the fifth labelled Presence | Five facts, the fifth labelled Gender, the same three pills | The prototype's label wins on screen. The data stays `profiles.gender_identity`, asked and never inferred. |
+| F6 | The ten archetypes as a deck | A sheet of eight types: Minimal, Classic, Romantic, Bohemian, Edgy, Sporty, Preppy, Glamorous | **Open.** The app's ten (Minimal, Bohemian, Classic, Romantic, Sculptural, Utility, Heritage, Eclectic, Off-duty, Avant-garde) are what every prompt reads today. Recommended: keep the ten as the vocabulary, draw them in the prototype's multi-select sheet, rename only if Liberty's eight test better. |
+| F7 · F8 | Two tile walls (3:4 tiles, monograms, a tag on each icon) with Robes suggests beneath | Search + pool sheets with Your selections pills and Popular among stylists | Prototype wins for the sheet. Monograms and the icon's tag survive as the pill's content; "Popular among stylists" is where Robes suggests. |
+| F10 | Four levels by house, mandatory, no Prefer not to say | Five rows by yearly spend, with Prefer not to say | **Open.** The rows are today's Taste & budget tiers, so the saved data maps one to one. Against them stands rule 5 (the one mandatory answer, no opt-out). Recommended: the prototype's five rows with Prefer not to say dropped. |
+| F11 · F13 | What Robes has noticed as a feed on the twin page | Robes Observations as its own page, plus the swipe card on the tab | Prototype wins. Keep lands in Style DNA ("Filed under Style DNA"), which replaces the brief's "folds into her brief". |
+| F15 | The doors on home | Not drawn | Stands as briefed. |
+
+### What the build takes from it now
+
+Phase 0 (one home) becomes the Settings surface: the avatar menu's rows collapse into Style Profile · Account and `/stylenotes` redirects there. Phase 1 (Style DNA) takes its data home exactly as the prototype groups it: `style_dna.style_archetypes`, `style_dna.brands`, `style_icons`, the hero pieces, `style_dna.investment`, and the brief's lines under In your words. Phase 2 (Your model) draws the twin page and its two sheets; the facts sheet's rows are the prototype's ranges (height 140–210 cm, UK 4–16, shoes UK 2–8). Nothing here changes the phase order.
