@@ -325,9 +325,9 @@ await page.evaluate(() => window.__rbInspOpen());
 await page.waitForTimeout(400);
 await page.evaluate(() => { Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg]')).map((e) => e.dataset.sugg).forEach((id) => window.__lkSuggRemove(id)); });
 await page.waitForTimeout(300);
-const f6 = await page.evaluate(() => ({ none: document.querySelector('#rb-lk-grid .rb-lk-suggnone')?.textContent.replace(/\s+/g, ' ').trim(), field: !!document.querySelector('#rb-lk-grid .rb-lk-suggfield'), count: document.querySelector('#rb-lk-bar .rb-lk-countline'), tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent }));
-check('F6 · "Nothing suggested yet." + the line + the prompt field; the count line hides at zero',
-  /^Nothing suggested yet\.\s*Tell Robes where you’re going, or pick a piece, and it dresses you\./.test(f6.none || '') && f6.field && f6.count === null && f6.tab === 'Suggested', JSON.stringify(f6));
+const f6 = await page.evaluate(() => ({ none: document.querySelector('#rb-lk-grid .rb-lk-suggnone')?.textContent.replace(/\s+/g, ' ').trim(), field: !!document.querySelector('#rb-lk-grid .rb-lk-suggfield'), count: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent, tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent }));
+check('F6 · "Nothing suggested yet." + the line + the prompt field; the count row stays (32pt, no jump) but reads nothing at zero',
+  /^Nothing suggested yet\.\s*Tell Robes where you’re going, or pick a piece, and it dresses you\./.test(f6.none || '') && f6.field && f6.count === '' && f6.tab === 'Suggested', JSON.stringify(f6));
 await page.locator('#rb-lk-grid .rb-lk-suggfield').click();
 await page.waitForTimeout(300);
 check('F6 · the field opens the fresh box (the + inside it starts from a piece)', await page.evaluate(() => !!document.querySelector('#rb-lp.rb-lp-dock') && document.getElementById('rb-lp-in')?.placeholder === 'A new look for…' && !!document.getElementById('rb-lp-plus')));

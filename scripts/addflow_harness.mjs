@@ -769,14 +769,14 @@ const browser = await chromium.launch(
     tabs: Array.from(document.querySelectorAll('#wg-filters .wg-tab')).map((t) => t.dataset.cat),
     trail: !!document.getElementById('rb-wg-trail'),
     count: document.querySelector('.rb-wg-trailcount')?.textContent || '',
-    add: document.getElementById('rb-add-pill')?.textContent || '',
+    add: document.getElementById('rb-add-pill')?.getAttribute('aria-label') || '',
     refine: !!document.getElementById('rb-refine-pill'),
     pack: !!document.querySelector('.wg-pack-pill'),
     fab: !!document.getElementById('rb-wa-fab'),
     starOpacity: (() => { const s = document.querySelector('.rb-star'); return s ? getComputedStyle(s).opacity : ''; })(),
   }));
   check('browse · sheet-L1 tabs + trail row with count', base.tabs.includes('Knitwear') && base.trail && base.count === '3 pieces', base.count);
-  check('browse · Add piece + Refine live in the trail', /Add piece/.test(base.add) && base.refine, base.add);
+  check('browse · the + (Add a piece) and Filter stand in the header', /Add a piece/.test(base.add) && base.refine, base.add);
   check('browse · Pack-a-trip pill and FAB retired', !base.pack && !base.fab);
   check('browse · star always visible on cards', base.starOpacity === '1', base.starOpacity);
 
@@ -1177,8 +1177,8 @@ const browser = await chromium.launch(
   await page.waitForTimeout(500);
   await page.evaluate(() => window.__waSetView('wishlist'));
   await page.waitForTimeout(400);
-  const w0 = await page.evaluate(() => ({ pill: document.getElementById('rb-add-pill')?.textContent, soon: !!document.querySelector('.rb-soon-tag'), modal: !!document.getElementById('rb-wl-modal'), notice: !!document.getElementById('rb-wg-inbox'), empty: document.querySelector('.rb-wl-empty')?.textContent || '' }));
-  check('wishlist · the empty state offers Save a piece + a live Paste a link (no Coming soon), no bespoke modal, no receipt notice on this view', w0.pill === '+ Save a piece' && !w0.soon && !w0.modal && !w0.notice && /Paste a link/.test(w0.empty), JSON.stringify(w0));
+  const w0 = await page.evaluate(() => ({ pill: document.getElementById('rb-add-pill')?.getAttribute('aria-label'), soon: !!document.querySelector('.rb-soon-tag'), modal: !!document.getElementById('rb-wl-modal'), notice: !!document.getElementById('rb-wg-inbox'), empty: document.querySelector('.rb-wl-empty')?.textContent || '' }));
+  check('wishlist · the empty state offers Save a piece + a live Paste a link (no Coming soon), no bespoke modal, no receipt notice on this view', w0.pill === 'Save a piece' && !w0.soon && !w0.modal && !w0.notice && /Paste a link/.test(w0.empty), JSON.stringify(w0));
   await page.click('#rb-add-pill');
   await page.waitForTimeout(400);
   const w1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', sub: document.querySelector('#wa-modal .fm-step > p')?.textContent || '', ways: Array.from(document.querySelectorAll('.rb-wf-way')).map((b) => b.dataset.way), photoSub: document.querySelector('.rb-wf-way[data-way="photo"] .rb-wf-way-s')?.textContent || '' }));

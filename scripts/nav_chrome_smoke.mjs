@@ -235,17 +235,21 @@ const titleTop = (page) => page.evaluate(() => {
   const { ctx, page, errs } = await boot(browser);
   await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(600);
   const mast = await page.evaluate(() => {
-    const m = document.querySelector('#rb-lk-bar .rb-mast');
-    const pills = Array.from(m.querySelectorAll('.rb-pill')).map((b) => { const c = getComputedStyle(b); return { t: b.textContent.trim(), fs: c.fontSize, rad: c.borderRadius, bg: c.backgroundColor, tt: c.textTransform }; });
-    const circ = m.querySelector('.rb-circ.rb-lk-new');
-    return { tabs: Array.from(m.querySelectorAll('.rb-lk-tab')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')), n: m.querySelector('.rb-lk-countline .rb-mast-n')?.textContent, pills,
-      circ: circ ? { rad: getComputedStyle(circ).borderRadius, bg: getComputedStyle(circ).backgroundColor, t: circ.textContent.trim() } : null, headRow: getComputedStyle(document.getElementById('sn-headrow')).display };
+    const m = document.querySelector('#rb-lk-bar .rb-hdr2');
+    const seg = m.querySelector('.rb-seg2.rb-lk-seg'), on = seg.querySelector('.rb-lk-tab.on'), circ = m.querySelector('.rb-hdr-add.rb-lk-new'), r2 = m.querySelector('.rb-hdr-r2');
+    const sr = seg.getBoundingClientRect(), cr = circ.getBoundingClientRect(), oc = getComputedStyle(on), sc = getComputedStyle(seg);
+    return { tabs: Array.from(m.querySelectorAll('.rb-lk-tab')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')), n: m.querySelector('.rb-lk-countline .rb-mast-n')?.textContent,
+      pills: m.querySelectorAll('.rb-hdr-pill').length, seg: [Math.round(sr.width), Math.round(sr.height)], track: sc.backgroundColor,
+      thumb: { bg: oc.backgroundColor, sh: oc.boxShadow !== 'none', tt: oc.textTransform, fs: oc.fontSize, fw: oc.fontWeight, border: oc.borderTopWidth },
+      circ: { w: Math.round(cr.width), h: Math.round(cr.height), rad: getComputedStyle(circ).borderRadius, bg: getComputedStyle(circ).backgroundColor, t: circ.textContent.trim(), oneRow: Math.abs(cr.top + cr.height / 2 - (sr.top + sr.height / 2)) < 2 },
+      r2h: Math.round(r2.getBoundingClientRect().height), headRow: getComputedStyle(document.getElementById('sn-headrow')).display };
   });
-  // Look states (2026-10-06): ONE masthead — Saved | Suggested as the
-  // segmented control, the count line beneath, the + circle; sort and
-  // Filter hide under four looks.
-  check('lookbook · ONE masthead: Saved | Suggested, "2 looks" beneath in serif italic, no eyebrow row above', JSON.stringify(mast.tabs) === JSON.stringify(['Saved*', 'Suggested']) && mast.n === '2 looks' && mast.headRow === 'none', JSON.stringify(mast));
-  check('lookbook · under four looks the controls are the + circle alone — hairline, white, radius 100; no sort, no Filter', mast.pills.length === 0 && !!mast.circ && mast.circ.rad === '100px' && mast.circ.bg === 'rgb(255, 255, 255)' && mast.circ.t === '+', JSON.stringify([mast.pills, mast.circ]));
+  // Header audit (2026-10-07): Diary's segmented control is the standard —
+  // SAVED | SUGGESTED 213×36, white raised thumb, uppercase 10px tracked;
+  // the 36pt + circle on row 1; the count row a fixed 32pt beneath.
+  check('lookbook · ONE header: Saved | Suggested, "2 looks" beneath in serif italic, no eyebrow row above', JSON.stringify(mast.tabs) === JSON.stringify(['Saved*', 'Suggested']) && mast.n === '2 looks' && mast.headRow === 'none', JSON.stringify(mast));
+  check('lookbook · the control is the Diary\'s: 213×36, white thumb with a shadow and no border, uppercase 10px 500', mast.seg[0] === 213 && mast.seg[1] === 36 && mast.thumb.bg === 'rgb(255, 255, 255)' && mast.thumb.sh && mast.thumb.border === '0px' && mast.thumb.tt === 'uppercase' && mast.thumb.fs === '10px' && mast.thumb.fw === '500', JSON.stringify(mast));
+  check('lookbook · under four looks: the 36pt + circle on row 1, no sort, no Filter, the count row still 32pt', mast.pills === 0 && mast.circ.w === 36 && mast.circ.h === 36 && mast.circ.oneRow && mast.circ.bg === 'rgb(255, 255, 255)' && mast.circ.t === '+' && mast.r2h === 32, JSON.stringify(mast.circ));
   check('lookbook · a root: no band, Lookbook lit', (await band(page)) === null && JSON.stringify(await lit(page)) === '["lookbook"]');
   await page.locator('#rb-lk-grid .rb-lk-tile').first().click(); await page.waitForTimeout(500);
   const lb = await band(page);
@@ -287,11 +291,15 @@ const titleTop = (page) => page.evaluate(() => {
     mixed.tab === 'Saved' && mixed.count === '2 looks' && mixed.sugg === 0 && mixed.looks === 2 && mixed.eyebrows === 0 && !mixed.dot, JSON.stringify(mixed));
   await page.evaluate(() => window.__rbNavGo('wardrobe')); await page.waitForTimeout(500);
   check('wardrobe · a root: Wardrobe lit, no band', JSON.stringify(await lit(page)) === '["wardrobe"]' && (await band(page)) === null);
-  const wd = await page.evaluate(() => ({ tabs: [...document.querySelectorAll('#rb-wsub .rb-mast-tab')].map((b) => b.textContent), inHead: !!document.querySelector('.wg-header #rb-add-pill') && !!document.querySelector('#rb-wg-trail #rb-refine-pill'), title: !!document.querySelector('.wg-title'), add: document.getElementById('rb-add-pill').textContent, fills: [...document.querySelectorAll('.wg-header button')].filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length }));
-  check('wardrobe · the tabs ARE the masthead: Wardrobe | Wishlist (1), + Add piece beside them, Filter on the count row (Wardrobe_List), no YOUR WARDROBE title, nothing filled ink', JSON.stringify(wd.tabs) === JSON.stringify(['Wardrobe', 'Wishlist (1)']) && wd.inHead && !wd.title && wd.add === '+ Add piece' && wd.fills === 0, JSON.stringify(wd));
+  const wd = await page.evaluate(() => { const seg = document.querySelector('.wg-header #rb-wsub.rb-seg2'), add = document.getElementById('rb-add-pill'), sr = seg?.getBoundingClientRect(), ar = add?.getBoundingClientRect(), hd = document.querySelector('.wg-header'), vt = document.querySelector('#rb-wg-trail .rb-wr-vt.rb-seg2.sm');
+    return { tabs: [...document.querySelectorAll('#rb-wsub .rb-mast-tab')].map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')), seg: sr && [Math.round(sr.width), Math.round(sr.height)], add: add && { t: add.textContent.trim(), w: Math.round(ar.width), oneRow: Math.abs(ar.top + ar.height / 2 - (sr.top + sr.height / 2)) < 2 },
+      filter: !!document.querySelector('#rb-wg-trail #rb-refine-pill'), trailH: Math.round(document.getElementById('rb-wg-trail').getBoundingClientRect().height), rule: getComputedStyle(hd).borderBottomWidth, vt: vt && Math.round(vt.getBoundingClientRect().width),
+      title: !!document.querySelector('.wg-title'), fills: [...document.querySelectorAll('.wg-header button')].filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length }; });
+  check('wardrobe · the header audit: WARDROBE | WISHLIST as the 213×36 control (no count in the label), the 36pt + on its row, no rule under it, Filter + the 72pt toggle on the 32pt count row, nothing filled ink',
+    JSON.stringify(wd.tabs) === JSON.stringify(['Wardrobe*', 'Wishlist']) && wd.seg && wd.seg[0] === 213 && wd.seg[1] === 36 && wd.add.t === '+' && wd.add.w === 36 && wd.add.oneRow && wd.rule === '0px' && wd.filter && wd.trailH === 32 && wd.vt === 72 && !wd.title && wd.fills === 0, JSON.stringify(wd));
   await page.evaluate(() => window.__waSetView('wishlist')); await page.waitForTimeout(300);
-  check('wishlist · a toggle, not a destination: the add pill follows the tab (+ Save a piece), Refine steps aside, the nav and band are untouched',
-    (await page.locator('#rb-add-pill').innerText()) === '+ Save a piece' && !(await page.locator('#rb-refine-pill').isVisible()) && (await band(page)) === null && JSON.stringify(await lit(page)) === '["wardrobe"]');
+  check('wishlist · a toggle, not a destination: the + adds to the wishlist, Filter steps aside, the count reads "N wishlisted", the nav and band are untouched',
+    (await page.locator('#rb-add-pill').getAttribute('aria-label')) === 'Save a piece' && !(await page.locator('#rb-refine-pill').isVisible()) && /^\d+ wishlisted$/.test(await page.locator('.rb-wg-trailcount').innerText()) && (await band(page)) === null && JSON.stringify(await lit(page)) === '["wardrobe"]');
   await page.evaluate(() => window.__waSetView('all')); await page.waitForTimeout(300);
   await page.evaluate(() => window.__rbPieceOpen('w-top1', { from: 'wardrobe' })); await page.waitForTimeout(500);
   const b1 = await band(page);

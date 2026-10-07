@@ -524,8 +524,8 @@ const SHOT = process.env.SHOT_DIR || '';
   await page.locator('#rb-wg-trail .rb-wr-vt button[data-v="list"]').click(); await page.waitForTimeout(200);
   await page.evaluate(() => window.__waSetView('wishlist')); await page.waitForTimeout(400);
   const w = await page.evaluate(() => { const r = document.querySelector('#rb-wl-grid .rb-wr-row'); return { eye: r?.querySelector('.rb-wr-eye')?.textContent, stat: r?.querySelector('.rb-wr-stat')?.textContent, warm: r?.querySelector('.rb-wr-stat')?.classList.contains('warm'), bought: r?.querySelector('.rb-wr-bought')?.textContent, star: !!r?.querySelector('.rb-wr-star'), count: document.querySelector('.rb-wg-trailcount')?.textContent, filter: document.getElementById('rb-refine-pill')?.style.display }; });
-  check('wishlist · the same card: Category · Brand, "€690 · Not yours yet" in rose, Bought where the star sits; the count reads "1 piece saved", no Filter',
-    w.eye === 'Outerwear · Toteme' && w.stat === '€690 · Not yours yet' && w.warm && w.bought === 'Bought' && !w.star && w.count === '1 piece saved' && w.filter === 'none', JSON.stringify(w));
+  check('wishlist · the same card: Category · Brand, "€690 · Not yours yet" in rose, Bought where the star sits; the count reads "1 wishlisted", no Filter',
+    w.eye === 'Outerwear · Toteme' && w.stat === '€690 · Not yours yet' && w.warm && w.bought === 'Bought' && !w.star && w.count === '1 wishlisted' && w.filter === 'none', JSON.stringify(w));
   await swipe('Camel wool coat', 200, '#rb-wl-grid');
   check('wishlist · the ask reads "Remove from your wishlist?"', (await page.locator('#rb-wr-confirm .t').innerText()) === 'Remove from your wishlist?');
   await page.locator('#rb-wr-confirm .keep').click();

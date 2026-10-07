@@ -2849,7 +2849,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // The view toggle — grid | list, hairline track, the picked one warm.
       function _wrToggleHtml() {
         const l = _waLayoutNow() === 'list';
-        return '<div class="rb-wr-vt" role="group" aria-label="View">' +
+        return '<div class="rb-seg2 sm rb-wr-vt" role="group" aria-label="View">' +
           '<button type="button" data-v="grid" class="' + (l ? '' : 'on') + '" aria-pressed="' + !l + '" aria-label="Grid" title="Grid" onclick="window.__waLayout(\'grid\')"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="5" height="5"/><rect x="7.5" y="0.5" width="5" height="5"/><rect x="0.5" y="7.5" width="5" height="5"/><rect x="7.5" y="7.5" width="5" height="5"/></svg></button>' +
           '<button type="button" data-v="list" class="' + (l ? 'on' : '') + '" aria-pressed="' + l + '" aria-label="List" title="List" onclick="window.__waLayout(\'list\')"><svg width="14" height="12" viewBox="0 0 14 12" fill="none" stroke="currentColor" stroke-width="1"><path d="M0 1.5h14M0 6h14M0 10.5h14"/></svg></button>' +
           '</div>';
@@ -2904,10 +2904,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rb-add-card.rb-wr-addrow{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border:1px dashed var(--cream-400);border-radius:var(--rad);background:transparent;color:var(--ink-soft);font-size:12px;letter-spacing:.02em;cursor:pointer;aspect-ratio:auto;padding:0 13px;flex-direction:row}
 .rb-add-card.rb-wr-addrow:hover{border-color:var(--ink-faint);color:var(--ink);background:transparent}
 .rb-wr-addrow .p{font-size:16px;line-height:1;margin-top:-1px}
-.rb-wr-vt{display:flex;border:0.5px solid var(--rule-mid);border-radius:100px;padding:2px;background:#fff}
-.rb-wr-vt button{width:34px;height:28px;border-radius:100px;border:0;display:flex;align-items:center;justify-content:center;background:transparent;color:var(--ink-faint);cursor:pointer;padding:0}
-.rb-wr-vt button.on{background:#F3EFE6;box-shadow:inset 0 0 0 1px #C9BCA6;color:var(--ink)}
-.rb-wr-filter{height:34px;padding:0 14px;display:inline-flex;align-items:center;gap:7px}
+.rb-wr-filter.rb-pill{position:relative;height:32px;padding:0 14px;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--rule-mid);background:#fff;font:400 12px/1 var(--font-sans);letter-spacing:0;color:var(--ink-soft)}
+.rb-wr-filter.rb-pill::after{content:'';position:absolute;inset:-6px 0}
+.rb-wr-filter.rb-pill svg{width:14px;height:14px}
+.rb-wr-filter.rb-pill.on{background:#F3EFE6;border-color:#C9BCA6;color:var(--ink-soft)}
 .rb-wr-cf{position:fixed;inset:0;z-index:975}
 .rb-wr-cf .scrim{position:absolute;inset:0;background:rgba(32,32,33,.28)}
 .rb-wr-cf .sheet{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,calc(100vw - 32px));background:var(--cream);border-radius:var(--rad-lg);padding:24px 24px 18px;display:flex;flex-direction:column;box-sizing:border-box;box-shadow:0 24px 60px -18px rgba(32,32,33,.35)}
@@ -3201,7 +3201,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (tr) tr.classList.toggle('wish', _waView === 'wishlist');
         if (_waView === 'wishlist') {
           const k = _wlItems.length;
-          crumbs.innerHTML = '<span class="rb-wg-trailcount">' + k + ' piece' + (k === 1 ? '' : 's') + ' saved</span>';
+          crumbs.innerHTML = '<span class="rb-wg-trailcount">' + k + ' wishlisted</span>';
           return;
         }
         const n = _waFilteredItems().length;
@@ -6157,7 +6157,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             : _waItems.length + ' piece' + (_waItems.length === 1 ? '' : 's');
         }
         const addPill = document.getElementById('rb-add-pill');
-        if (addPill) addPill.textContent = wish ? '+ Save a piece' : '+ Add piece';
+        if (addPill) { const al = wish ? 'Save a piece' : 'Add a piece'; addPill.setAttribute('aria-label', al); addPill.title = al; }
         const filters = document.getElementById('wg-filters');
         if (filters) filters.style.display = wish ? 'none' : '';
         _waTrailSync();
@@ -6170,10 +6170,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const tabs = document.getElementById('rb-wsub');
         if (tabs) {
           tabs.querySelectorAll('button').forEach(function(b) {
-            b.classList.toggle('active', b.dataset.view === _waView);
+            const on = b.dataset.view === _waView;
+            b.classList.toggle('active', on); b.classList.toggle('on', on);
+            b.setAttribute('aria-selected', String(on));
           });
-          const wlTab = tabs.querySelector('[data-view="wishlist"]');
-          if (wlTab) wlTab.textContent = 'Wishlist' + (_wlItems.length ? ' (' + _wlItems.length + ')' : '');
         }
         _waRefineRender();
         if (wish) _wlRender();
@@ -6259,6 +6259,27 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rb-mast-tab{background:none;border:none;border-bottom:1px solid transparent;padding:0 0 5px;font:400 13px/1 var(--font-sans,Inter,sans-serif);color:var(--ink-soft,#6E6A64);cursor:pointer;font-family:inherit;transition:color .15s}
 .rb-mast-tab:hover{color:var(--ink,#202021)}
 .rb-mast-tab.active{color:var(--ink,#202021);border-bottom-color:var(--ink,#202021)}
+.rb-hdr2{display:flex;flex-direction:column;gap:20px}
+.rb-hdr-r1{display:flex;align-items:center;gap:10px}
+.rb-seg2{display:grid;grid-template-columns:1fr 1fr;align-items:stretch;gap:0;width:213px;height:36px;padding:3px;box-sizing:border-box;background:var(--cream-200,#EDE9E2);border-radius:100px;flex:none}
+.rb-seg2 button{position:relative;display:flex;align-items:center;justify-content:center;border:0;border-radius:100px;background:transparent;box-shadow:none;padding:0;margin:0;font:500 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.24em;text-transform:uppercase;color:var(--ink-soft,#6E6A64);cursor:pointer;white-space:nowrap;transition:background .2s,color .2s,box-shadow .2s}
+.rb-seg2 button::after{content:'';position:absolute;inset:-4px 0}
+.rb-seg2 button.on{background:#fff;box-shadow:0 1px 2px rgba(32,32,33,.08);color:var(--ink,#202021)}
+.rb-seg2.sm{width:72px;height:32px}
+.rb-seg2.sm button{color:var(--ink-soft,#6E6A64)}
+.rb-seg2.sm button::after{inset:-6px -4px}
+.rb-seg2.sm button svg{display:block}
+.rb-hdr-add{position:relative;flex:none;margin-left:auto;width:36px;height:36px;border-radius:50%;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));background:#fff;display:inline-flex;align-items:center;justify-content:center;padding:0;font:300 16px/1 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021);cursor:pointer;transition:border-color .15s}
+.rb-hdr-add::after{content:'';position:absolute;inset:-4px}
+.rb-hdr-add:hover{border-color:rgba(32,32,33,0.3)}
+.rb-hdr-r2{display:flex;align-items:center;justify-content:space-between;gap:12px;height:32px;min-width:0}
+.rb-hdr-n{font:italic 400 19px/1 var(--font-serif,Cormorant,Georgia,serif);color:var(--ink-faint,#7E6F50);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rb-hdr-tools{display:flex;align-items:center;gap:8px;flex:none}
+.rb-hdr-pill{position:relative;height:32px;padding:0 14px;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));border-radius:100px;background:#fff;font:400 12px/1 var(--font-sans,Inter,sans-serif);letter-spacing:0;color:var(--ink-soft,#6E6A64);cursor:pointer;white-space:nowrap;transition:border-color .15s,background .15s}
+.rb-hdr-pill::after{content:'';position:absolute;inset:-6px 0}
+.rb-hdr-pill svg{width:14px;height:14px;flex:none}
+.rb-hdr-pill:hover{border-color:rgba(32,32,33,0.3)}
+.rb-hdr-pill.on{background:#F3EFE6;border-color:#C9BCA6}
 .rb-popmenu{position:fixed;inset:0;z-index:930}
 .rb-popmenu .card{position:absolute;min-width:216px;max-width:260px;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,0.12));border-radius:var(--rad-sm,8px);box-shadow:0 6px 22px rgba(32,32,33,0.07);overflow:hidden;display:flex;flex-direction:column}
 .rb-popmenu .card button{display:block;width:100%;border:none;border-bottom:1px solid var(--rule,rgba(32,32,33,0.075));background:transparent;padding:12px 16px;cursor:pointer;font-family:inherit;text-align:left;color:var(--ink,#202021)}
@@ -6491,7 +6512,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             '.wg-pill.rb-add-pill{display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border-color:var(--ink)}',
             '.wg-pill.rb-add-pill:hover{opacity:.85}',
             // Trail row — breadcrumb + count left, Add piece + Refine right
-            '#rb-wg-trail{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-top:0.5px solid var(--rule-mid);padding:14px 0 12px;margin:-10px 0 12px}',
+            '#rb-wg-trail{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;height:32px;border-top:0;padding:0;margin:0 0 20px}',
             // The receipt notice (2026-09-22) — under the trail, above the grid;
             // lives here, not in the modal's sheet, because it paints on the
             // wardrobe page before the add modal has ever opened.
@@ -6502,14 +6523,26 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             '.rb-wg-inbox-t .s{font-size:11.5px;color:var(--ink-faint)}',
             '.rb-wg-inbox-go{white-space:nowrap}',
             '@media(max-width:767px){.rb-wg-inbox-go{width:100%;justify-content:center}}',
-            '.rb-wg-crumbs{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:13px;color:var(--ink-faint);min-width:0}',
+            '.rb-wg-crumbs{display:flex;align-items:center;gap:9px;flex-wrap:nowrap;white-space:nowrap;overflow:hidden;font-size:13px;color:var(--ink-faint);min-width:0}',
             '.rb-wg-crumb-mark{font-family:var(--font-serif);font-size:15px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}',
             '.rb-wg-crumb-sep{color:var(--ink-faint)}',
             '.rb-wg-crumb.cur{color:var(--ink)}',
             '.rb-wg-trailx{border:0.5px solid var(--rule-mid);border-radius:100px;background:none;padding:2px 8px;font-size:10.5px;color:var(--ink-faint);cursor:pointer;font-family:inherit}',
             '.rb-wg-trailx:hover{color:var(--ink);border-color:var(--ink-faint)}',
-            '.rb-wg-trailcount{font-family:var(--font-serif);font-style:italic;font-size:18px;color:var(--ink-soft);margin-left:4px}',
-            '.rb-wg-trailbtns{display:flex;gap:8px;margin-left:auto;align-items:center}',
+            '.rb-wg-trailcount{font:italic 400 19px/1 var(--font-serif);color:var(--ink-faint)}',
+            '.rb-wg-crumbs .rb-wg-crumb-mark~.rb-wg-trailcount{margin-left:4px}',
+            '.rb-wg-trailbtns{display:flex;gap:8px;margin-left:auto;align-items:center;flex:none}',
+            // Header audit (2026-10-07): row 1 = the segmented control + the
+            // circle, no rule beneath it; the categories 20pt below as
+            // underline tabs on one hairline baseline; the count row 20pt
+            // below that; the grid 20pt below the count row.
+            '.wg-header.rb-wa-hdr{padding:0;border-bottom:0;margin:0 0 20px;gap:10px;justify-content:flex-start;align-items:center;flex-wrap:nowrap}',
+            '.wg-header.rb-wa-hdr .rb-wg-actions{margin-left:auto}',
+            '#wg-filters.wg-filters{display:flex;flex-wrap:nowrap;gap:22px;overflow:visible;height:28px;align-items:flex-start;padding:0;margin:0 0 20px;border-bottom:1px solid var(--rule)}',
+            '@media(max-width:767px){#wg-filters.wg-filters{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}}',
+            '#wg-filters.wg-filters::-webkit-scrollbar{display:none}',
+            '#wg-filters .wg-tab{flex-shrink:0;margin:0 0 -1px;padding:0 0 8px;font-size:13px;font-weight:400;color:var(--ink-faint);letter-spacing:0;border-bottom:1.5px solid transparent}',
+            '#wg-filters .wg-tab.active{color:var(--ink);font-weight:400;border-bottom-color:var(--ink)}',
             // Category cascade — desktop flyout / mobile drill sheet
             '.rb-wg-cas{position:absolute;top:100%;margin-top:6px;z-index:60;background:#FDFCFA;border:0.5px solid var(--rule-mid);border-radius:var(--rad-sm);box-shadow:0 18px 44px -10px rgba(32,32,33,.24);display:flex;overflow:hidden}',
             '.rb-wg-cas .cas-col{width:230px;padding:12px 0;max-height:340px;overflow-y:auto}',
@@ -6578,15 +6611,20 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         _rbChromeEnsure();
         const tabs = document.createElement('div');
         tabs.id = 'rb-wsub';
-        tabs.className = 'rb-mast-tabs';
-        tabs.innerHTML = '<button data-view="all" class="rb-mast-tab active">Wardrobe</button>' +
-          '<button data-view="wishlist" class="rb-mast-tab">Wishlist</button>';
+        // Header audit (2026-10-07): the Diary's segmented control —
+        // WARDROBE | WISHLIST, no counts in the labels (the count row
+        // carries them), the + circle at the row's end.
+        tabs.className = 'rb-seg2 rb-mast-tabs';
+        tabs.setAttribute('role', 'tablist');
+        tabs.setAttribute('aria-label', 'Wardrobe');
+        tabs.innerHTML = '<button type="button" role="tab" data-view="all" class="rb-mast-tab active on" aria-selected="true">Wardrobe</button>' +
+          '<button type="button" role="tab" data-view="wishlist" class="rb-mast-tab" aria-selected="false">Wishlist</button>';
         tabs.addEventListener('click', function(e) {
           const b = e.target.closest('button[data-view]');
           if (b) window.__waSetView(b.dataset.view);
         });
         header.innerHTML = '';
-        header.classList.add('rb-mast');
+        header.classList.add('rb-mast', 'rb-hdr-r1', 'rb-wa-hdr');
         header.appendChild(tabs);
 
         // Header carries only the count now (add rework, nav architecture
@@ -6598,7 +6636,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // Both are hairline pills — nothing on this screen is filled ink.
         const actions = document.createElement('div');
         actions.className = 'rb-wg-actions rb-mast-acts';
-        actions.innerHTML = '<button class="rb-pill rb-add-pill" id="rb-add-pill">+ Add piece</button>';
+        actions.innerHTML = '<button type="button" class="rb-hdr-add rb-add-pill" id="rb-add-pill" aria-label="Add a piece" title="Add a piece">+</button>';
         actions.querySelector('#rb-add-pill').addEventListener('click', function() {
           if (_waView === 'wishlist') window.__wlOpenAdd();
           else window.__waAddChooser();
@@ -14639,7 +14677,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       var _LK_CSS = `
 #rb-lk-wrap{display:none}
 #sn-headrow{display:none !important}
-#rb-lk-bar{display:block;margin:0 0 22px}
+#rb-lk-bar{display:block;margin:0 0 20px}
+.rb-lk-mastv2 .rb-hdr-pill{gap:8px}
+.rb-lk-mastv2 .rb-hdr-pill:hover{border-color:rgba(32,32,33,0.3)}
+.rb-lk-mastv2 .rb-lk-refdot{margin-left:-2px}
 #rb-lk-body .rb-ret{margin:-32px calc(-1 * var(--s6,24px)) 0}
 .rb-tb-right .rb-lk-actrow{padding-top:0}
 .rb-lk-sort b{font-weight:400;color:var(--ink-faint)}
@@ -14830,15 +14871,6 @@ button.rb-lk-live{cursor:pointer}
 /* New look — the same footprint as the cards beside it (1b) */
 #rb-lk-grid .rb-add-card{aspect-ratio:auto;min-height:340px;background:#F7F4EE;border:1px solid var(--rule);border-radius:3px}
 /* ── Look states (design Look_States_Native, 2026-10-06) ── */
-.rb-lk-mastv2{align-items:flex-start}
-.rb-lk-seg{display:inline-grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:100px;background:var(--cream-200,#EDE9E2);min-width:220px}
-.rb-lk-tab{height:32px;padding:0 18px;border-radius:100px;background:transparent;border:1px solid transparent;font-family:inherit;font-size:12px;color:var(--ink);cursor:pointer;white-space:nowrap}
-.rb-lk-tab.on{background:#F3EFE6;border-color:#C9BCA6;font-weight:500}
-.rb-lk-countline{margin-top:10px;min-height:14px}
-.rb-lk-mastv2 .rb-mast-acts{padding-top:3px}
-.rb-lk-sortbtn svg,.rb-lk-refine svg{margin-right:6px;flex:none}
-.rb-lk-sortbtn b{font-weight:400;margin-left:4px}
-.rb-lk-sortbtn.on,.rb-lk-refine.on{background:#F3EFE6;border-color:#C9BCA6}
 .rb-lkref-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
 .rb-lkref-head .rb-lk-sec{margin:0}
 .rb-lkref-show-n{border-color:rgba(32,32,33,0.28);color:var(--ink)}
@@ -15411,21 +15443,25 @@ body.rb-lk-push #rb-dock{display:none}
       // while a filter stands) and the + circle, on Saved alone; sort and
       // Filter hide at zero looks, never inert. No ink anywhere in it.
       function _lkMastHtml(o) {
-        const seg = (k, label) => '<button type="button" class="rb-lk-tab' + (((o.onSugg && k === 'suggested') || (!o.onSugg && k === 'saved')) ? ' on' : '') + '" data-tab="' + k + '" aria-pressed="' + (((o.onSugg && k === 'suggested') || (!o.onSugg && k === 'saved')) ? 'true' : 'false') + '" onclick="window.__lkTab(\'' + k + '\')">' + label + '</button>';
-        const tabs = '<div class="rb-lk-seg" role="tablist" aria-label="Lookbook">' + seg('saved', 'Saved') + seg('suggested', 'Suggested') + '</div>';
-        const SORT = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16"></path><path d="M3 8l4-4 4 4"></path><path d="M17 20V4"></path><path d="M21 16l-4 4-4-4"></path></svg>';
-        const FUNNEL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"></path></svg>';
+        // Header audit (2026-10-07): Diary's segmented control is the
+        // standard. Row 1 — SAVED | SUGGESTED (213×36, white raised thumb)
+        // + the 36pt circle; row 2 — the count left, Sort + Filter right,
+        // a fixed 32pt on BOTH tabs so the grid never jumps on a switch
+        // (the tools simply hide on Suggested and under four looks).
+        const seg = (k, label) => { const on = (o.onSugg && k === 'suggested') || (!o.onSugg && k === 'saved'); return '<button type="button" class="rb-lk-tab' + (on ? ' on' : '') + '" role="tab" data-tab="' + k + '" aria-selected="' + on + '" aria-pressed="' + on + '" onclick="window.__lkTab(\'' + k + '\')">' + label + '</button>'; };
+        const tabs = '<div class="rb-seg2 rb-lk-seg" role="tablist" aria-label="Lookbook">' + seg('saved', 'Saved') + seg('suggested', 'Suggested') + '</div>';
+        const SORT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16"></path><path d="M3 8l4-4 4 4"></path><path d="M17 20V4"></path><path d="M21 16l-4 4-4-4"></path></svg>';
+        const LINES = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>';
         const sortLabel = _lkSortBy === 'newest' ? 'Newest' : _lkSortBy === 'name' ? 'Name' : (_lkSortDesc ? 'Last worn' : 'First worn');
-        const acts = o.onSugg ? '' :
-          (o.sortLive
-            ? '<button type="button" class="rb-pill sm rb-lk-sort rb-lk-sortbtn' + (_lkSortOpen ? ' on' : '') + '" aria-label="Sort" title="Sort" onclick="window.__lkSortMenu(event)">' + SORT + '<span>' + sortLabel + '</span><b aria-hidden="true">↕</b></button>' +
-              '<button type="button" class="rb-pill sm rb-lk-sort rb-lk-refine' + (_lkRefineOpen ? ' on' : '') + '" onclick="window.__lkRefineToggle()">' + FUNNEL + '<span>Filter</span>' + (o.hasFilters ? '<i class="rb-lk-refdot" aria-label="Filters on"></i>' : '') + '</button>'
-            : '') +
-          '<button type="button" class="rb-circ rb-lk-new" aria-label="New look" title="New look" onclick="window.__lkNew()">+</button>';
-        return _rbMastHtml({
-          tabsHtml: tabs, actionsHtml: acts, cls: 'rb-lk-mastv2',
-          belowHtml: o.countLine ? '<div class="rb-lk-countline"><span class="rb-mast-n">' + _waEsc(o.countLine) + '</span></div>' : '',
-        });
+        const tools = (!o.onSugg && o.sortLive)
+          ? '<button type="button" class="rb-hdr-pill rb-lk-sort rb-lk-sortbtn' + (_lkSortOpen ? ' on' : '') + '" aria-label="Sort: ' + sortLabel + '" onclick="window.__lkSortMenu(event)">' + SORT + '<span>' + sortLabel + '</span></button>' +
+            '<button type="button" class="rb-hdr-pill rb-lk-sort rb-lk-refine' + (_lkRefineOpen ? ' on' : '') + '" onclick="window.__lkRefineToggle()">' + LINES + '<span>Filter</span>' + (o.hasFilters ? '<i class="rb-lk-refdot" aria-label="Filters on"></i>' : '') + '</button>'
+          : '';
+        _rbChromeEnsure();
+        return '<div class="rb-hdr2 rb-lk-mastv2">' +
+          '<div class="rb-hdr-r1">' + tabs + '<button type="button" class="rb-hdr-add rb-lk-new" aria-label="New look" title="New look" onclick="window.__lkNew()">+</button></div>' +
+          '<div class="rb-hdr-r2 rb-lk-countline"><span class="rb-hdr-n rb-mast-n">' + _waEsc(o.countLine || '') + '</span><div class="rb-hdr-tools rb-mast-acts">' + tools + '</div></div>' +
+        '</div>';
       }
       window.__lkTab = function(k) {
         const to = k === 'suggested' ? 'suggested' : 'saved';

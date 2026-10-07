@@ -2233,7 +2233,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     stat: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
     // No travel strip on the Lookbook (Diary IA phase 2, 2026-09-08)
     holGone: !document.getElementById('rb-lk-hol') && !document.querySelector('.rb-lk-holcard'),
-    newLook: Array.from(document.querySelectorAll('#rb-lk-bar .rb-mast-acts button')).map((b) => b.textContent),
+    newLook: Array.from(document.querySelectorAll('#rb-lk-bar .rb-hdr-add, #rb-lk-bar .rb-mast-acts button')).map((b) => b.textContent),
   }));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('empty · a legacy look item still fills the shelf',
@@ -2482,7 +2482,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       newLook: /\+ New look/.test(document.getElementById('rb-lk-bar')?.textContent || '') && !/▾/.test(document.getElementById('rb-lk-bar')?.textContent || ''),
       stat: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
       allRow: (() => {
-        const row = document.querySelector('#rb-lk-bar .rb-mast');
+        const row = document.querySelector('#rb-lk-bar .rb-hdr2');
         return {
           tabs: Array.from(row?.querySelectorAll('.rb-lk-tab') || []).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')),
           sortHere: !!row?.querySelector('.rb-lk-sort'),
