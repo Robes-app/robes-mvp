@@ -234,6 +234,24 @@
     .sh-done:hover { color: var(--ink); text-decoration-color: var(--ink); }
     .sh-body { flex: 1; overflow-y: auto; padding: 4px 24px 26px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     .sh-body::-webkit-scrollbar { display: none; }
+    /* the twin walk (2026-10-08): four cards on this shell — the four-segment
+       rule, Skip as a text door, Continue / Done as the sheet's one ink */
+    .sh-walk { flex: none; padding: 12px 24px 22px; border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: 14px; }
+    .sh-walk-segs { display: flex; gap: 4px; }
+    .sh-walk-segs span { flex: 1; height: 1px; background: var(--cream-400); }
+    .sh-walk-segs span.on { background: var(--ink); }
+    .sh-walk-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .sh-walk-skip { background: none; border: 0; padding: 0; font: 300 13px/1 'Inter'; color: var(--ink-faint); cursor: pointer; }
+    .sh-walk-skip:hover { color: var(--ink); }
+    .sh-walk-skip[hidden] { display: inline; visibility: hidden; }
+    .sh-walk-go { background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 34px; font: 400 11px/1 'Inter'; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
+    .sh-walk-go:disabled { background: var(--cream-200); border-color: var(--cream-200); color: var(--ink-faint); cursor: default; }
+    #sh-wrap.walking .sh-done { display: none; }
+    .sh-tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--cream-100); border: 1px solid var(--rule); border-radius: 100px; padding: 3px; margin: 6px 0 2px; }
+    .sh-tabs button { border: 1px solid transparent; background: none; border-radius: 100px; padding: 9px; font: 500 10px/1 'Inter'; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; }
+    .sh-tabs button.on { background: #F3EFE6; border-color: #C9BCA6; color: var(--ink); }
+    .sh-more-note { font: italic 300 13px/1.4 'Cormorant', Georgia, serif; color: var(--ink-faint); margin-top: 10px; }
+    @media (max-width: 767px) { .sh-walk { padding: 12px 20px calc(18px + env(safe-area-inset-bottom)); } }
     @media (max-width: 767px) {
       #sh-wrap { align-items: flex-end; padding: 0; }
       #sh { max-width: none; max-height: calc(92dvh - env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; animation: shUp 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
@@ -586,6 +604,10 @@
       <div class="sh-grab"><span></span></div>
       <div class="sh-head"><div><div class="sh-title" id="sh-title"></div><div class="sh-sub" id="sh-sub"></div></div><button type="button" class="sh-done" id="sh-done">Done</button></div>
       <div class="sh-body" id="sh-body"></div>
+      <div class="sh-walk" id="sh-walk" hidden>
+        <div class="sh-walk-segs" id="sh-walk-segs" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <div class="sh-walk-row"><button type="button" class="sh-walk-skip" id="sh-walk-skip">Skip</button><button type="button" class="sh-walk-go" id="sh-walk-go">Continue</button></div>
+      </div>
     </div>
   </div>
   <div class="sp-toast" id="sp-toast" aria-live="polite"></div>
@@ -1318,7 +1340,7 @@
        Robes drafted that she has not yet kept or struck: {list, text, because, at}. */
     function chBrief() {
       const b = (st.styleDna && st.styleDna.brief && typeof st.styleDna.brief === 'object') ? st.styleDna.brief : {};
-      const list = a => (Array.isArray(a) ? a : []).map(x => (x && typeof x === 'object') ? { text: String(x.text || '').trim(), source: x.source || 'drafted', from: x.from ? String(x.from) : '', at: typeof x.at === 'string' ? x.at : '' } : { text: String(x || '').trim(), source: 'typed', from: '', at: '' }).filter(x => x.text);
+      const list = a => (Array.isArray(a) ? a : []).map(x => (x && typeof x === 'object') ? { text: String(x.text || '').trim(), source: x.source || 'drafted', from: x.from ? String(x.from) : '', at: typeof x.at === 'string' ? x.at : '', prompt: typeof x.prompt === 'string' ? x.prompt : '' } : { text: String(x || '').trim(), source: 'typed', from: '', at: '' }).filter(x => x.text);
       return {
         loves: list(b.loves), avoids: list(b.avoids), rules: list(b.rules),
         notes: typeof b.notes === 'string' ? b.notes : '',
@@ -1346,7 +1368,7 @@
       return m ? m[0].trim() : cutWords(s, 160);
     }
     function chSaveBrief(b) {
-      const clean = a => a.slice(0, 8).map(x => Object.assign({ text: cutWords(x.text, 160), source: x.source }, x.from ? { from: cutWords(x.from, 160) } : {}, x.at ? { at: x.at } : {}));
+      const clean = a => a.slice(0, 8).map(x => Object.assign({ text: cutWords(x.text, 160), source: x.source }, x.from ? { from: cutWords(x.from, 160) } : {}, x.at ? { at: x.at } : {}, x.prompt ? { prompt: x.prompt } : {}));
       const brief = {
         loves: clean(b.loves), avoids: clean(b.avoids), rules: clean(b.rules),
         notes: cutWords((b.notes || '').trim(), 600),
@@ -1497,14 +1519,41 @@
       obsPaintAll();
     }
     const WORD_LISTS = { loves: ['What works on you', 'Lines Robes dresses toward, every time.', 'Another that works'], avoids: ['Hard nos', 'Robes never proposes these, whatever the occasion.', 'Another no'], rules: ['Your rules', 'The lines you dress by.', 'Another rule'] };
-    function wordsAdd(list, value) {
+    function wordsAdd(list, value, prompt) {
       const v = String(value || '').trim().replace(/\s+/g, ' ').slice(0, 160);
       if (!v) return false;
       const b = chBrief();
       if (b[list].some(x => x.text.toLowerCase() === v.toLowerCase())) return false;
-      b[list].push({ text: v, source: 'typed' }); b.source = 'edited';
-      chSaveBrief(b); snTrack('brief_line', { verb: 'add', list });
+      b[list].push(Object.assign({ text: v, source: 'typed', at: new Date().toISOString() }, prompt ? { prompt } : {})); b.source = 'edited';
+      chSaveBrief(b); snTrack('brief_line', { verb: 'add', list, prompt: !!prompt });
       return true;
+    }
+    // Musts and hard nos as chips (2026-10-08, the walk's W4 and the two
+    // word sheets): a tap files the line at once with the chip as its
+    // prompt; a second tap strikes it. Head covered is a MUST, so it files
+    // as a rule Robes keeps on every look, never as a no (Annie, 8 Oct).
+    const MUST_CHIPS = { rules: ['Head covered', 'Covered arms', 'Covered legs'], avoids: ['No heels', 'No polo necks', 'No metal', 'Nothing sheer', 'No prints'] };
+    function chipRowsHtml(list) {
+      const b = chBrief();
+      const has = t => b[list].some(x => x.text.toLowerCase() === t.toLowerCase());
+      const head = list === 'rules' ? 'Always <span class="h">Robes keeps these on every look</span>' : 'Never <span class="h">whatever the occasion</span>';
+      return '<div class="sh-k">' + head + '</div><div class="sh-pills">' +
+        MUST_CHIPS[list].map(t => '<button type="button" class="sh-pill' + (has(t) ? ' on' : '') + '" data-chip="' + esc(t) + '" data-list="' + list + '">' + (has(t) ? '<span>✓</span>' : '') + esc(t) + '</button>').join('') +
+        '</div><div class="ln-add"><span class="plus">+</span><input type="text" data-own="' + list + '" placeholder="Your own" maxlength="160" autocomplete="off"></div>';
+    }
+    function chipWire(body, after) {
+      body.querySelectorAll('[data-chip]').forEach(c => c.addEventListener('click', () => {
+        const list = c.dataset.list, t = c.dataset.chip;
+        const b = chBrief();
+        const i = b[list].findIndex(x => x.text.toLowerCase() === t.toLowerCase());
+        if (i >= 0) wordsStrike(list, i); else wordsAdd(list, t, t);
+        after();
+      }));
+      body.querySelectorAll('input[data-own]').forEach(inp => inp.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        if (wordsAdd(inp.dataset.own, inp.value)) after();
+      }));
     }
     function wordsStrike(list, i) {
       const b = chBrief(); const x = b[list][i]; if (!x) return;
@@ -1597,6 +1646,7 @@
       body.innerHTML = sh.cfg.body();
       if (sh.cfg.wire) sh.cfg.wire(body);
       body.scrollTop = top;
+      if (typeof walkFootPaint === 'function') walkFootPaint();
     }
     function shRepaintIf(kind) { if (sh.open && sh.cfg && sh.cfg.kind === kind) shRepaint(); }
     function shClose(silent) {
@@ -1812,8 +1862,9 @@
       v('dna-avoids-v', linesCount(b.avoids.length), !b.avoids.length);
       v('dna-rules-v', linesCount(b.rules.length), !b.rules.length);
     }
-    function shTypes() {
-      shOpen({
+    function shTypes() { shOpen(cfgTypes()); }
+    function cfgTypes() {
+      return ({
         kind: 'types', title: 'Style type', sub: 'Pick as many as feel like you.',
         body: () => '<div class="sh-opts">' + ARCHETYPES.map(a => { const on = st.types.includes(a.name); return '<button type="button" class="sh-opt' + (on ? ' on' : '') + '" data-type="' + esc(a.name) + '"><span><span class="n">' + esc(a.name) + '</span><span class="d">' + esc(a.desc) + '</span></span><span class="ck">' + (on ? '✓' : '') + '</span></button>'; }).join('') + '</div>',
         wire: body => body.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', () => {
@@ -1825,6 +1876,9 @@
         })),
       });
     }
+    // the wall shows a short set at a time, never all 70 (Annie, 8 Oct):
+    // 18 pills, the next cycling in as one is kept; search reaches the rest
+    const WALL_N = 18;
     // The brand wall and the icon wall share one sheet: search, Your
     // selections as pills, the pool beneath (seeded by her types), "+ Add" for
     // a name not in the pool — which joins her selections, never the pool.
@@ -1855,22 +1909,25 @@
       wall.q = '';
       shRepaint(); dnaPaint();
     }
-    function shWall(kind) {
+    function shWall(kind) { shOpen(cfgWall(kind)); }
+    function cfgWall(kind) {
       const brands = kind === 'brands';
-      shOpen({
+      return ({
         kind, title: brands ? 'Brands' : 'Icons',
         sub: brands ? 'Select 3+ brands you like. This informs your Style DNA.' : 'Whose style runs close to yours? Robes reads the register, not the wardrobe.',
         body: () => {
           const q = norm(wall.q);
           const mine = wallList(kind);
           const pool = wallPool(kind).filter(n => !wallHas(kind, n));
-          const matches = q ? pool.filter(n => norm(n).includes(q)).slice(0, 12) : pool;
+          const matches = q ? pool.filter(n => norm(n).includes(q)).slice(0, 12) : pool.slice(0, WALL_N);
+          const rest = q ? 0 : Math.max(0, pool.length - WALL_N);
           const exact = q && (wallPool(kind).some(n => norm(n) === q) || wallHas(kind, wall.q.trim()));
           const pill = n => pillHtml(n, wallHas(kind, n), 'data-name="' + esc(n) + '"', !brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '');
           return '<div class="sh-search"><span class="q">⌕</span><input id="wall-q" type="text" placeholder="' + (brands ? 'Search brands' : 'Search or type a name') + '" autocomplete="off" value="' + esc(wall.q) + '">' + (wall.q ? '<button type="button" class="clr" id="wall-clr" aria-label="Clear">×</button>' : '') + '</div>' +
             (mine.length ? '<div class="sh-k">Your selections <span class="h">' + mine.length + ' kept</span></div><div class="sh-pills">' + mine.map(n => '<button type="button" class="sh-pill on" data-name="' + esc(n) + '">' + esc(n) + (!brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '') + '<span class="x">×</span></button>').join('') + '</div>' : '') +
             '<div class="sh-k">' + (q ? 'Matches' : brands ? 'Popular among stylists' : 'Often chosen') + (q ? '' : '<span class="h">Tap a name to keep it</span>') + '</div>' +
             (matches.length ? '<div class="sh-pills">' + matches.map(pill).join('') + '</div>' : '<div class="sh-empty">' + (q ? 'Nothing in the pool by that name.' : 'Everything here is yours already.') + '</div>') +
+            (rest ? '<div class="sh-more-note">' + rest + ' more in the pool. Keep one and the next steps in, or search for a name.</div>' : '') +
             (q && !exact ? '<div style="margin-top:12px"><button type="button" class="sh-pill" id="wall-add">+ Add “' + esc(wall.q.trim()) + '”</button></div>' : '');
         },
         wire: body => {
@@ -1905,8 +1962,9 @@
         },
       });
     }
-    function shInvest() {
-      shOpen({
+    function shInvest() { shOpen(cfgInvest()); }
+    function cfgInvest() {
+      return ({
         kind: 'invest', title: 'Investment level', sub: 'How much you spend a year. Robes proposes inside it, whatever you admire.',
         body: () => '<div class="sh-opts">' + INVEST_LEVELS.map(l => { const on = st.investment === l.label; return '<button type="button" class="sh-opt' + (on ? ' on' : '') + '" data-level="' + esc(l.label) + '"><span><span class="n">' + esc(l.label) + '</span><span class="d">' + esc(l.note) + '</span></span><span class="ck">' + (on ? '✓' : '') + '</span></button>'; }).join('') + '</div>',
         wire: body => body.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => {
@@ -1926,12 +1984,14 @@
           const b = chBrief();
           const rows = b[list];
           const sugg = list === 'avoids' ? b.pending.filter(p => p.list === 'avoids') : [];
-          return (rows.length ? rows.map((x, i) => '<div class="ln"><span class="t' + (x.source === 'typed' ? ' typed' : '') + '">' + esc(x.text) + (x.from ? '<span class="from">from “' + esc(x.from) + '”</span>' : '') + '</span><button type="button" class="x" data-strike="' + i + '" aria-label="Strike">×</button></div>').join('') : '<div class="sh-empty">' + (list === 'loves' ? 'Nothing kept yet. Keep a line Robes noticed, or write your own.' : list === 'avoids' ? 'No hard nos yet. Covered arms, no heels, no polo nects — whatever Robes should never do.' : 'No rules yet. The lines you dress by, in your words.').replace('nects', 'necks') + '</div>') +
+          return (list !== 'loves' ? chipRowsHtml(list) + '<div class="sh-k">' + (list === 'avoids' ? 'Your nos' : 'Your rules') + '</div>' : '') +
+            (rows.length ? rows.map((x, i) => '<div class="ln"><span class="t' + (x.source === 'typed' ? ' typed' : '') + '">' + esc(x.text) + (x.from ? '<span class="from">from “' + esc(x.from) + '”</span>' : '') + '</span><button type="button" class="x" data-strike="' + i + '" aria-label="Strike">×</button></div>').join('') : '<div class="sh-empty">' + (list === 'loves' ? 'Nothing kept yet. Keep a line Robes noticed, or write your own.' : list === 'avoids' ? 'No hard nos yet. Tap a chip, or write whatever Robes should never do.' : 'No rules yet. The lines you dress by, in your words.') + '</div>') +
             '<div class="ln-add"><span class="plus">+</span><input id="words-in" type="text" placeholder="' + esc(rows.length ? another : 'A line of your own') + '" maxlength="160" autocomplete="off"></div>' +
             (sugg.length ? '<div class="sh-k sage">Robes suggests <span class="h">From what you’ve never kept</span></div>' + sugg.map(p => '<div class="ln"><span class="t">' + esc(p.text) + (p.because ? '<span class="from">' + esc(p.because) + '</span>' : '') + '</span><button type="button" class="sh-pill" data-keep="' + esc(p.text) + '" style="height:32px;padding:0 14px">Keep</button></div>').join('') : '') +
             (rows.length ? '<div class="sh-filed">✓ Filed · Robes reads it from here on</div>' : '');
         },
         wire: body => {
+          chipWire(body, () => { shRepaint(); dnaPaint(); });
           body.querySelectorAll('[data-strike]').forEach(b => b.addEventListener('click', () => { wordsStrike(list, Number(b.dataset.strike)); shRepaint(); dnaPaint(); }));
           const inp = body.querySelector('#words-in');
           inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (wordsAdd(list, inp.value)) { shRepaint(); dnaPaint(); const i2 = body.querySelector('#words-in'); if (i2) i2.focus(); } } });
@@ -1939,6 +1999,99 @@
         },
       });
     }
+    /* ══ THE WALK · four cards after the first result (2026-10-08) ══════
+       The first-run door into the twin: ?walk=1 opens the type, the two
+       walls, the investment level and the musts as one run on this sheet,
+       Skip on every card but the one must, Done landing on home with the
+       box open. Every card is a Settings sheet body already, so nothing
+       here writes anywhere new. */
+    const WALK_TITLES = [
+      ['Style type', 'Pick as many as feel like you. Robes reads the register.'],
+      ['Brands and icons', 'Whose clothes do you reach for, and whose style runs close to yours? Tap three of either.'],
+      ['Investment level', 'One tap, the only must. Robes proposes inside it, whatever you admire.'],
+      ['Musts and hard nos', 'Anything Robes should always do, or never? Tap a chip and it is filed.'],
+    ];
+    const walk = { on: false, at: 0, answered: {}, wallKind: 'brands', snap: null, switching: false };
+    function walkSnap() { const b = chBrief(); return { types: st.types.length, brands: st.brands.length, icons: st.icons.length, invest: st.investment || '', lines: b.avoids.length + b.rules.length }; }
+    function walkAnswered(i) {
+      const a = walkSnap(), b = walk.snap || a;
+      return i === 0 ? a.types !== b.types : i === 1 ? (a.brands !== b.brands || a.icons !== b.icons) : i === 2 ? !!a.invest : a.lines !== b.lines;
+    }
+    function cfgWalkWall() {
+      const base = () => cfgWall(walk.wallKind);
+      return {
+        kind: 'walk-wall',
+        body: () => '<div class="sh-tabs" id="walk-tabs"><button type="button" data-kind="brands"' + (walk.wallKind === 'brands' ? ' class="on"' : '') + '>Brands</button><button type="button" data-kind="icons"' + (walk.wallKind === 'icons' ? ' class="on"' : '') + '>Icons</button></div>' + base().body(),
+        wire: body => {
+          body.querySelectorAll('#walk-tabs button').forEach(b => b.addEventListener('click', () => { walk.wallKind = b.dataset.kind; wall.q = ''; shRepaint(); }));
+          base().wire(body);
+        },
+        onClose: () => { wall.q = ''; },
+      };
+    }
+    function cfgMusts() {
+      return {
+        kind: 'musts',
+        body: () => chipRowsHtml('rules') + chipRowsHtml('avoids'),
+        wire: body => chipWire(body, () => { shRepaint(); dnaPaint(); }),
+      };
+    }
+    function walkStart() {
+      walk.on = true; walk.at = 0; walk.answered = {}; walk.wallKind = 'brands';
+      snTrack('walk_begun', {});
+      walkShow(0);
+    }
+    function walkShow(i) {
+      walk.at = i;
+      const base = i === 0 ? cfgTypes() : i === 1 ? cfgWalkWall() : i === 2 ? cfgInvest() : cfgMusts();
+      const cfg = Object.assign({}, base, { walk: i, title: WALK_TITLES[i][0], sub: WALK_TITLES[i][1], onClose: () => { if (base.onClose) base.onClose(); walkLeft(); } });
+      walk.switching = true;
+      shOpen(cfg);
+      walk.switching = false;
+      walk.snap = walkSnap();
+      walkFootPaint();
+    }
+    function walkFootPaint() {
+      const foot = document.getElementById('sh-walk');
+      const on = walk.on && sh.open && sh.cfg && typeof sh.cfg.walk === 'number';
+      foot.hidden = !on;
+      document.getElementById('sh-wrap').classList.toggle('walking', !!on);
+      if (!on) return;
+      const i = sh.cfg.walk;
+      document.querySelectorAll('#sh-walk-segs span').forEach((s, k) => s.classList.toggle('on', k <= i));
+      const skip = document.getElementById('sh-walk-skip'), go = document.getElementById('sh-walk-go');
+      skip.hidden = i === 2;   // the investment level is the one must
+      go.textContent = i === 3 ? 'Done' : 'Continue';
+      go.disabled = i === 2 && !st.investment;
+    }
+    function walkNext(skip) {
+      if (!walk.on) return;
+      const i = walk.at;
+      const answered = !skip && walkAnswered(i);
+      walk.answered[i] = answered;
+      snTrack('walk_card', { n: i + 1, outcome: skip ? 'skipped' : (answered ? 'answered' : 'passed') });
+      if (i < 3) { walkShow(i + 1); return; }
+      walkDone();
+    }
+    function walkDone() {
+      const n = Object.keys(walk.answered).filter(k => walk.answered[k]).length;
+      snTrack('walk_done', { answered: n });
+      walk.on = false;
+      try { sessionStorage.setItem('rb_walk_done', '1'); } catch (e) {}
+      shClose(true);
+      walkFootPaint();
+      window.location.href = '/dashboard';
+    }
+    function walkLeft() {
+      if (!walk.on || walk.switching) return;
+      walk.on = false;
+      snTrack('walk_later', { from: 'walk', n: walk.at + 1 });
+      walkFootPaint();
+    }
+    document.getElementById('sh-walk-skip').addEventListener('click', () => walkNext(true));
+    document.getElementById('sh-walk-go').addEventListener('click', () => walkNext(false));
+    window.__rbWalkStart = walkStart;
+
     document.getElementById('dna-type').addEventListener('click', shTypes);
     document.getElementById('dna-brands').addEventListener('click', () => shWall('brands'));
     document.getElementById('dna-icons').addEventListener('click', () => shWall('icons'));
@@ -2152,9 +2305,11 @@
         if (u.searchParams.get('chapter') === 'brief') { landed = 'obs'; u.searchParams.delete('chapter'); }
         if (u.searchParams.get('begin') === '1') { landed = landed || 'root'; u.searchParams.delete('begin'); }
         if (u.searchParams.get('page') === 'twin') { landed = 'twin'; u.searchParams.delete('page'); }
+        if (u.searchParams.get('walk') === '1') { landed = landed || 'root'; sp.walk = true; u.searchParams.delete('walk'); }
         if (landed) { history.replaceState(null, '', u.pathname + (u.search || '') + (landed === 'root' ? '' : landed === 'obs' ? '#observations' : '#twin')); snTrack('style_notes_opened', { from: 'home', to: landed }); }
       } catch (e) {}
       spRoute();
+      if (sp.walk) { sp.walk = false; walkStart(); }
     }
     renderAll();
     spRoute();

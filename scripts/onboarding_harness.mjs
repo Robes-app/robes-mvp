@@ -56,9 +56,10 @@ async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', style
   const p = await ctx.newPage();
   const errs = [];
   const styleCalls = [];
-  const inserts = [];
+  const inserts = [], events = [], updates = [];
   p.on('pageerror', e => errs.push(String(e)));
-  await p.exposeFunction('__rbInsert', row => { inserts.push(row); });
+  await p.exposeFunction('__rbInsert', (t, row) => { if (t === 'events') events.push(row); else inserts.push(row); });
+  await p.exposeFunction('__rbUpdate', patch => { updates.push(patch); });
   await p.addInitScript((nm) => {
     window.supabase = { createClient: () => ({
       auth: {
@@ -67,8 +68,8 @@ async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', style
       },
       from: (t) => ({
         select: () => ({ eq: () => ({ single: async () => ({ data: { first_name: nm, style_icons: [], style_dna: {}, onboarded_at: null } }) }) }),
-        update: () => ({ eq: async () => ({}) }),
-        insert: async (row) => { if (t === 'wardrobe_items') window.__rbInsert(row); return {}; },
+        update: (patch) => { window.__rbUpdate(patch); return { eq: async () => ({}) }; },
+        insert: async (row) => { window.__rbInsert(t, row); return {}; },
       }),
     }) };
   }, name);
@@ -106,11 +107,13 @@ async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', style
   await p.goto(`http://localhost:${PORT}/onboarding`);
   await p.waitForTimeout(900);
   await p.click('body'); await p.waitForTimeout(450);          // splash → name
-  return { ctx, p, errs, styleCalls, inserts, uploads };
+  return { ctx, p, errs, styleCalls, inserts, uploads, events, updates };
 }
+// name → the fork → the piece door (the one door that still asks for a piece)
 async function toPiece(p, typeName) {
   if (typeName) await p.fill('#ob-name-input', typeName);
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
+  await p.click('#ob-doors [data-door="piece"]'); await p.waitForTimeout(450);
 }
 const segsOn = p => p.locator('.ob-seg.on').count();
 const title = async p => (await p.locator('.ob-title').innerText()).replace(/\s+/g, ' ').trim();
@@ -119,7 +122,7 @@ const waitFiled = p => p.waitForSelector('#ob-next', { timeout: 9000 }).then(() 
 
 for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
   console.log(`\n\x1b[1m== ${label} · splash → name (1b) ==\x1b[0m`);
-  const { ctx, p, errs, styleCalls, inserts } = await open(vp);
+  const { ctx, p, errs, styleCalls, inserts, events, updates } = await open(vp);
   ok(await p.locator('.dk').count() === 0 && /call you/.test(await title(p)), 'the splash lands on the cream name screen — no intro, no dark stage');
   ok((await p.locator('.ob-eyebrow').innerText()).trim().toLowerCase() === 'hello', 'eyebrow reads Hello');
   ok(await p.locator('#ob-name-input').count() === 1, 'the name stage stands for everyone');
@@ -131,7 +134,22 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   const ctaBg = await p.locator('#ob-name-next').evaluate(el => getComputedStyle(el).backgroundColor);
   ok(ctaBg === 'rgb(255, 255, 255)', 'Continue is the hairline pill, never ink — got ' + ctaBg);
   ok(await p.locator('#ob-skip').count() === 0, 'no skip on the name');
+  ok((await p.locator('.ob-sub').innerText()).trim() === 'A name for your digital twin.' && /a few notes over your first week/.test(await p.locator('.ob-note').innerText()), 'the sub names the twin and the consent line sits beneath it');
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
+
+  console.log(`\n\x1b[1m== ${label} · where would you like to start? (the intent fork) ==\x1b[0m`);
+  ok(await title(p) === 'Where would you like to start?', 'the fork asks where to start');
+  ok((await p.locator('.ob-eyebrow').textContent()).trim() === 'Annie’s first visit', 'the eyebrow names her first visit');
+  const doors = await p.locator('#ob-doors .ob-door').evaluateAll(bs => bs.map(b => [b.dataset.door, b.querySelector('.n').textContent, b.querySelector('.s').textContent, getComputedStyle(b).backgroundColor]));
+  ok(doors.length === 4 && doors.map(d => d[0]).join() === 'dress,style,catalogue,piece', 'four doors in the study’s order, the piece last');
+  ok(doors.map(d => d[1]).join(' | ') === 'Dress me for today. | Find my style. | Catalogue my pieces. | Style a piece I own.', 'each door reads as she does: ' + doors.map(d => d[1]).join(' | '));
+  ok(doors.every(d => d[3] === 'rgb(255, 255, 255)') && await p.locator('.ob-footer .ob-cta').count() === 0, 'white cards on a hairline, no Continue, no ink');
+  ok((await p.locator('#ob-notsure').innerText()).trim() === 'Not sure yet', 'Not sure yet as the text door');
+  ok(await segsOn(p) === 2 && !(await p.locator('#ob-back').isHidden()), 'two segments lit, Back stands');
+  await p.click('#ob-back'); await p.waitForTimeout(300);
+  ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === 'Annie', 'Back from the fork returns to the name');
+  await p.click('#ob-name-next'); await p.waitForTimeout(450);
+  await p.click('#ob-doors [data-door="piece"]'); await p.waitForTimeout(450);
 
   console.log(`\n\x1b[1m== ${label} · the first piece, read live on one page (1c) ==\x1b[0m`);
   ok(await title(p) === 'Add your first piece.', 'title');
@@ -166,10 +184,10 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(await p.locator('.ob-footer a, .ob-footer .ob-skip').count() === 0, 'no Edit-the-details link, no skip under the CTA');
   ok(styleCalls.length === 1 && styleCalls[0].prompt === 'Cream blazer', 'the prefire fired the moment the piece filed');
   ok(inserts.length === 1 && inserts[0].label === 'Cream blazer' && /piece\.png$/.test(inserts[0].image_url || ''), 'the wardrobe row landed with its photograph');
-  // Back lands on the name stage (prefilled), forward again keeps the piece.
+  // Back lands on the fork, forward again keeps the piece.
   await p.click('#ob-back'); await p.waitForTimeout(350);
-  ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === 'Annie', 'Back from the piece returns to the name stage, prefilled');
-  await p.click('#ob-name-next'); await p.waitForTimeout(450);
+  ok(await p.locator('#ob-doors').count() === 1, 'Back from the piece returns to the fork');
+  await p.click('#ob-doors [data-door="piece"]'); await p.waitForTimeout(450);
   ok((await p.locator('#ob-next').textContent()).trim() === 'Style it three ways →' && await p.locator('.kp-tag').count() === 4, 'the filed piece survives the round trip, tags and all');
   ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'no horizontal overflow');
 
@@ -196,7 +214,31 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(!!piece && /Cream blazer/.test(piece) && /"cataloged":true/.test(piece), 'the handoff payload rides along, cataloged');
   const styled = await p.evaluate(() => sessionStorage.getItem('rb_onboard_styled'));
   ok(!!styled && /Brunch in Bloom/.test(styled), 'the prefire result rides along for the card');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_onboard_intent'))) === 'piece', 'the door rides the handoff');
+  const steps = events.filter(e => e.event_type === 'onboarding_step').map(e => e.metadata.step + ':' + e.metadata.outcome);
+  ok(steps.includes('name:answered') && steps.includes('intent:shown') && steps.includes('intent:answered') && steps.includes('piece:shown') && steps.includes('piece:answered'), 'every step shown and answered is an event: ' + steps.join(' '));
+  ok(events.some(e => e.event_type === 'onboarding_intent' && e.metadata.intent === 'piece' && e.metadata.sure === true), 'onboarding_intent names the door');
+  ok(updates.some(u => u.style_dna && u.style_dna.intent === 'piece'), 'the pick writes style_dna.intent');
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+
+// The three doors that never ask for a piece land straight on home with the
+// handoff the dashboard reads; Not sure yet is the lowest-effort door.
+console.log('\n\x1b[1m== the doors — dress · style · catalogue · not sure ==\x1b[0m');
+for (const [door, notSure] of [['dress', false], ['style', false], ['catalogue', false], ['dress', true]]) {
+  const { ctx, p, errs, styleCalls, events } = await open({ width: 390, height: 844 });
+  await p.click('#ob-name-next'); await p.waitForTimeout(450);
+  if (notSure) await p.click('#ob-notsure'); else await p.click('#ob-doors [data-door="' + door + '"]');
+  await p.waitForURL('**/dashboard', { timeout: 6000 }).catch(() => {});
+  const tag = (notSure ? 'Not sure yet' : door);
+  ok(p.url().endsWith('/dashboard'), tag + ' lands on /dashboard');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_onboard_intent'))) === door, tag + ': the handoff names the door (' + door + ')');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_onboarded__u1'))) === '1' && (await p.evaluate(() => sessionStorage.getItem('rb_onboard_piece'))) === null, tag + ': onboarded, no piece handoff');
+  ok(styleCalls.length === 0, tag + ': nothing prefired');
+  const ev = events.find(e => e.event_type === 'onboarding_intent');
+  ok(!!ev && ev.metadata.intent === door && ev.metadata.sure === !notSure, tag + ': onboarding_intent {intent, sure} — ' + JSON.stringify(ev && ev.metadata));
+  ok(errs.length === 0, tag + ': no page errors: ' + errs.join(' | '));
   await ctx.close();
 }
 
@@ -207,9 +249,11 @@ console.log('\n\x1b[1m== the name stage · no name on file ==\x1b[0m');
   ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === '', 'the splash lands on the name stage, empty');
   ok(await p.locator('#ob-name-next').isDisabled(), 'Continue waits for a name');
   await p.fill('#ob-name-input', 'Mary'); await p.click('#ob-name-next'); await p.waitForTimeout(450);
-  ok((await p.locator('#kp-eyebrow').textContent()).trim() === 'Mary’s wardrobe', 'the name lands on the piece page, in her name');
-  await p.click('#ob-back'); await p.waitForTimeout(350);
-  ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === 'Mary', 'Back returns to the name she typed');
+  ok((await p.locator('.ob-eyebrow').textContent()).trim() === 'Mary’s first visit', 'the name lands on the fork, in her name');
+  await p.click('#ob-doors [data-door="piece"]'); await p.waitForTimeout(450);
+  ok((await p.locator('#kp-eyebrow').textContent()).trim() === 'Mary’s wardrobe', 'and on the piece page, in her name');
+  await p.click('#ob-back'); await p.waitForTimeout(350); await p.click('#ob-back'); await p.waitForTimeout(350);
+  ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === 'Mary', 'Back twice returns to the name she typed');
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
   await ctx.close();
 }
@@ -320,6 +364,7 @@ console.log('\n\x1b[1m== skipping through ==\x1b[0m');
   ok(styleCalls.length === 0, 'nothing prefired without a piece');
   ok((await p.evaluate(() => sessionStorage.getItem('rb_onboarded__u1'))) === '1', 'the onboarded flag landed');
   ok((await p.evaluate(() => sessionStorage.getItem('rb_onboard_piece'))) === null, 'no handoff without a piece');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_onboard_intent'))) === 'piece', 'the piece door still rides the handoff (home decides what to do with it)');
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
   await ctx.close();
 }

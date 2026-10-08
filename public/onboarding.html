@@ -107,6 +107,17 @@
     }
     .ob-namein::placeholder { color: var(--cream-500); }
     .ob-namein:focus-visible { outline: none; }
+    .ob-note { font-weight: 300; font-size: 11.5px; line-height: 1.5; color: var(--ink-faint); margin: -6px 0 0; }
+
+    /* ── Where to start: the intent fork (2026-10-08) ─────────────────
+       Four doors, one tap, no Continue, no ink. The whole card is the
+       target; the serif line names the door and the italic line says
+       what it gives her. "Not sure yet" lands on the lowest-effort door. */
+    .ob-doors { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+    .ob-door { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; cursor: pointer; background: #fff; border: 1px solid var(--cream-300); border-radius: var(--rad-card); padding: 18px 20px; font-family: inherit; transition: border-color .2s var(--ease-default); }
+    .ob-door:hover { border-color: var(--foreground); }
+    .ob-door .n { font-family: var(--font-serif); font-weight: 400; font-size: 22px; line-height: 1.1; color: var(--foreground); }
+    .ob-door .s { font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 15px; line-height: 1.3; color: var(--ink-soft); }
 
     /* ── The first piece, read live on one page (1c) ───────────────── */
     .kp-well {
@@ -230,17 +241,27 @@
     'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
   );
 
-  // Onboarding is four decisions and one wow (design 2026-09-25): splash →
-  // name → first piece → composing → home. The Style questions (archetypes,
-  // icons and brands) left this flow entirely — they are the Style notes
-  // chapters now, opened from home once the three looks exist. Nothing
-  // stands between the first piece and the three looks.
+  // Onboarding is splash → name → WHERE TO START → (the first piece →
+  // composing) → home. The intent fork (2026-10-08): testers dropped at the
+  // key-piece ask, so the piece stops being the presumed first step. Four
+  // doors from the Intents & Purposes catalogue; only "Style a piece I own"
+  // enters the piece step, the other three land on home with a handoff the
+  // dashboard boot reads (rb_onboard_intent) and open their first screen
+  // there. The Style questions live in the twin walk, after the first
+  // result, whichever door she chose.
   const STEPS = ['keypiece'];
+  const DOORS = [
+    { key: 'dress', n: 'Dress me for today.', s: 'One prompt, dressed.' },
+    { key: 'style', n: 'Find my style.', s: 'A few taps and Robes knows you.' },
+    { key: 'catalogue', n: 'Catalogue my pieces.', s: 'A few photos at a time.' },
+    { key: 'piece', n: 'Style a piece I own.', s: 'One piece, three ways.' },
+  ];
 
   const st = {
     uid: null,
-    stage: 'splash',       // 'splash' | 'name' | 0 | 'compose'
+    stage: 'splash',       // 'splash' | 'name' | 'intent' | 0 | 'compose'
     name: '',
+    intent: null,          // the door she picked: dress | style | catalogue | piece
     savedName: '',
     icons: [],             // read from the profile for the prefire only — never asked here
     styleDna: {},
@@ -270,6 +291,10 @@
     clearTimeout(splashTimer);
     render();
     window.scrollTo(0, 0);
+    // the one event the live flow never had: every step shown, answered or
+    // skipped, so a drop reads in numbers
+    const step = stage === 0 ? 'piece' : String(stage);
+    if (step !== 'compose') obTrack('onboarding_step', { step, outcome: 'shown' });
   }
 
   // Product events (four-session funnel brief, slice 1.4 · 2026-09-18): the
@@ -306,6 +331,7 @@
     document.body.classList.toggle('is-dark', st.stage === 'splash');
     if (st.stage === 'splash') return renderSplash();
     if (st.stage === 'name') return renderName();
+    if (st.stage === 'intent') return renderIntent();
     if (st.stage === 'compose') return renderCompose();
     renderKeyPiece(st.stage);
   }
@@ -352,7 +378,8 @@
       <span class="ob-eyebrow">Hello</span>
       <h1 class="ob-title">What should Robes<br><em>call you?</em></h1>
       <div class="ob-namefield"><input class="ob-namein" id="ob-name-input" type="text" placeholder="Your name" autocomplete="off" value="${esc(st.name)}"></div>
-      <p class="ob-sub">A name for your style notes.</p>`;
+      <p class="ob-sub">A name for your digital twin.</p>
+      <p class="ob-note">Robes sends a few notes over your first week. Stop them from any one.</p>`;
     document.getElementById('ob-footer').innerHTML =
       `<button class="ob-cta" id="ob-name-next" ${st.name.trim() ? '' : 'disabled'}>Continue</button>`;
     const input = document.getElementById('ob-name-input');
@@ -363,12 +390,48 @@
       st.name = val;
       const first = val.split(/\s+/)[0];
       if (first && first !== st.savedName) { st.savedName = first; save({ first_name: first }); }
-      go(0);
+      obTrack('onboarding_step', { step: 'name', outcome: 'answered' });
+      go('intent');
     };
     input.oninput = () => { st.name = input.value; next.disabled = !input.value.trim(); };
     input.onkeydown = e => { if (e.key === 'Enter') submit(); };
     next.onclick = submit;
     setTimeout(() => input.focus(), 360);
+  }
+
+  /* ── Where to start (the intent fork) ──────────────────────────── */
+  // One tap, no Continue, no ink. The pick writes style_dna.intent (jsonb,
+  // no migration) and a PostHog person property, so home's next line and
+  // the walk's card order can follow it; the dashboard boot reads the
+  // sessionStorage handoff to open the door's first screen. "Not sure yet"
+  // lands on Dress me for today — the lowest-effort door, since the cost
+  // of the piece ask is the thing the fork removes.
+  function renderIntent() {
+    frame({ segs: 2, back: () => go('name') });
+    const n = firstName();
+    document.getElementById('ob-body').innerHTML = `
+      <div class="ob-head">
+        <span class="ob-eyebrow">${n ? esc(n) + '’s first visit' : 'Your first visit'}</span>
+        <h1 class="ob-title">Where would you<br><em>like to start?</em></h1>
+      </div>
+      <div class="ob-doors" id="ob-doors">${DOORS.map(d => `
+        <button type="button" class="ob-door" data-door="${d.key}"><span class="n">${esc(d.n)}</span><span class="s">${esc(d.s)}</span></button>`).join('')}</div>`;
+    document.getElementById('ob-footer').innerHTML = `<button class="ob-skip" id="ob-notsure">Not sure yet</button>`;
+    document.querySelectorAll('#ob-doors .ob-door').forEach(b => b.addEventListener('click', () => pickDoor(b.dataset.door, false)));
+    document.getElementById('ob-notsure').onclick = () => pickDoor('dress', true);
+  }
+  function pickDoor(key, notSure) {
+    if (st.picking) return;
+    st.picking = true;
+    st.intent = key;
+    st.styleDna = Object.assign({}, st.styleDna || {}, { intent: key });
+    save({ style_dna: st.styleDna });
+    try { sessionStorage.setItem('rb_onboard_intent', key); } catch (e) {}
+    obTrack('onboarding_intent', { intent: key, sure: !notSure });
+    obTrack('onboarding_step', { step: 'intent', outcome: notSure ? 'skipped' : 'answered' });
+    try { if (window.__rbPH) window.__rbPH(function (ph) { if (ph.setPersonProperties) ph.setPersonProperties({ intent: key }); }); } catch (e) {}
+    if (key === 'piece') { st.picking = false; go(0); return; }
+    finishToDashboard();
   }
 
   /* ── Photo capture helpers ───────────────────────────────────────── */
@@ -451,7 +514,7 @@
     // foot of this function — a let would be in the temporal dead zone.
     var skipArmed = false;
 
-    frame({ segs: P.tag ? 3 : 2, tight: true, back: () => go('name') });
+    frame({ segs: P.tag ? 3 : 2, tight: true, back: () => go('intent') });
 
     function eyebrow() {
       if (P.tag) return 'Filed';
@@ -629,7 +692,7 @@
       const skip = document.getElementById('ob-skip');
       if (skip) skip.onclick = () => {
         if (P.busy) return;
-        if (skipArmed) { skip.style.pointerEvents = 'none'; finishToDashboard(); return; }
+        if (skipArmed) { skip.style.pointerEvents = 'none'; obTrack('onboarding_step', { step: 'piece', outcome: 'skipped' }); finishToDashboard(); return; }
         skipArmed = true;
         skip.textContent = 'Skip anyway — Robes styles only what you add';
       };
@@ -812,6 +875,7 @@
       }).catch(() => false);
 
       if (st.stage !== i) return;
+      obTrack('onboarding_step', { step: 'piece', outcome: 'answered' });
       prefireStyle();
       writeHandoff();
       P.revealing = true;

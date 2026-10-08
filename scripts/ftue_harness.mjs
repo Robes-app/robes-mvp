@@ -655,6 +655,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       pillText: pill?.textContent.trim(),
       pillInk: pill ? getComputedStyle(pill).backgroundColor === 'rgb(32, 32, 33)' : null,
       pillGo: pill?.getAttribute('onclick'),
+      later: door?.querySelector('.rb-walk-later')?.textContent.trim(),
     };
   });
   check('styled card · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
@@ -670,10 +671,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   check('styled card · the setup screen holds nothing else — no rows, no prompt, no rail, no band, no model door',
     s.rows === false && s.promptHidden === true && s.railHidden === true && s.servicesHidden === true && s.modelDoor === false,
     JSON.stringify([s.rows, s.promptHidden, s.railHidden, s.servicesHidden, s.modelDoor]));
-  check('styled card · the dashed Style-notes door: eyebrow, the serif line, a hairline Begin → the chapters',
-    s.doorDashed === 'dashed' && s.doorEy === 'Next · Your digital twin' && s.doorH === 'Let Robes get to know you.'
-      && s.pillText === 'Begin' && s.pillInk === false && /__rbNotesGo/.test(s.pillGo || ''),
-    JSON.stringify([s.doorDashed, s.doorEy, s.doorH, s.pillText, s.pillInk, s.pillGo]));
+  check('styled card · the walk’s invitation: a cream card on a hairline, the one serif line, a hairline Begin → the walk, Later as a text door',
+    s.doorDashed === 'solid' && s.doorEy === 'Your digital twin' && s.doorH === 'Four taps, and Robes knows you.'
+      && s.pillText === 'Begin' && s.pillInk === false && /__rbNotesGo/.test(s.pillGo || '') && s.later === 'Later',
+    JSON.stringify([s.doorDashed, s.doorEy, s.doorH, s.pillText, s.pillInk, s.pillGo, s.later]));
   // The saved key piece IS the hero card — the Inspiration row would be a
   // second copy of it, so it stands down only while the card is up.
   const inspWhileCard = await page.evaluate(() =>
@@ -1382,7 +1383,27 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await page.waitForTimeout(2600);
   const o3 = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door') }));
   check('model door · a kept line in her brief retires the notes door and opens the model door', o3.door && !o3.notes, JSON.stringify(o3));
+  // Any card of the walk answered retires the invitation (2026-10-08): a
+  // brand, the investment level, a fact.
+  for (const [label, dna] of [['a brand', { brands: ['Zara'] }], ['the investment level', { investment: 'Under €500' }], ['a fact', { facts: { size_uk: 10 } }]]) {
+    await page.evaluate((d) => localStorage.setItem('rb_test_dna', JSON.stringify(d)), dna);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(2600);
+    const ox = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door') }));
+    check('model door · ' + label + ' on file retires the walk card and opens the model door', ox.door && !ox.notes, JSON.stringify(ox));
+  }
   await page.evaluate(() => localStorage.removeItem('rb_test_dna'));
+  // Later folds the card for the session; it returns on the next visit.
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const later = await page.evaluate(async () => {
+    const before = !!document.getElementById('rb-notes-door');
+    document.querySelector('#rb-notes-door .rb-walk-later')?.click();
+    await new Promise((r) => setTimeout(r, 300));
+    return { before, after: !!document.getElementById('rb-notes-door'), flag: sessionStorage.getItem('rb_walk_later__u-test') };
+  });
+  check('model door · Later folds the walk card for the session', later.before && !later.after && later.flag === '1', JSON.stringify(later));
+  await page.evaluate(() => sessionStorage.removeItem('rb_walk_later__u-test'));
   check('model door · no page errors (postures)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1767,6 +1788,33 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   const s2 = await page.evaluate(async () => { document.querySelector('#rb-lp .rb-lpd-save').click(); await new Promise((r) => setTimeout(r, 900)); return { sheet: !!document.getElementById('rb-lkdy'), done: document.querySelector('#rb-lp .rb-lpd-done')?.textContent.replace(/\s+/g, ' ').trim(), days: document.querySelectorAll('#rb-lp .rb-lpd-days button').length, looks: JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]').length }; });
   check('home field · dated · Save files to the day in the box — the confirmation line, no week to pick, no sheet', !s2.sheet && /^✓ In your diary for \w{3} \d{1,2} \w{3}\.\s*Change$/.test(s2.done || '') && s2.days === 0 && s2.looks === 3, JSON.stringify(s2));
   check('home field · dated · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+// The intent fork's landings (2026-10-08): the door she picked in onboarding
+// opens its first screen here — dress → the home box focused in place,
+// catalogue → the add flow, and the walk's Done → the box under one sage
+// line, the first ask after it logged as walk_asked.
+{
+  const { ctx, page, errs } = await boot(browser, 0, 1280, { looks: false, prompt: null });
+  await page.evaluate(() => sessionStorage.setItem('rb_onboard_intent', 'dress'));
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
+  const dr = await page.evaluate(() => ({ box: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), focused: document.activeElement?.id, ph: document.getElementById('rb-lp-in')?.placeholder, handoff: sessionStorage.getItem('rb_onboard_intent'), card: !!document.getElementById('rb-notes-door') }));
+  check('intent fork · Dress me for today lands on home with the box focused in place, the handoff consumed, the walk card beneath',
+    dr.box && dr.focused === 'rb-lp-in' && dr.ph === 'A new look for…' && dr.handoff === null && dr.card, JSON.stringify(dr));
+  await page.evaluate(() => sessionStorage.setItem('rb_onboard_intent', 'catalogue'));
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
+  const ca = await page.evaluate(() => ({ modal: document.getElementById('wa-modal')?.classList.contains('open'), file: !!document.getElementById('wa-rb-file'), multiple: document.getElementById('wa-rb-file')?.hasAttribute('multiple') }));
+  check('intent fork · Catalogue my pieces lands on the add flow, several photos at a time', ca.modal === true && ca.file && ca.multiple === true, JSON.stringify(ca));
+  await page.evaluate(() => sessionStorage.setItem('rb_walk_done', '1'));
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
+  const wd = await page.evaluate(() => ({ line: document.getElementById('rb-walk-line')?.textContent.replace(/\s+/g, ' ').trim(), before: document.getElementById('rb-walk-line')?.nextElementSibling?.id, focused: document.activeElement?.id, handoff: sessionStorage.getItem('rb_walk_done') }));
+  check('intent fork · the walk’s Done lands on home with the box focused under “Read. Ask Robes for a look.”',
+    wd.line === 'Read. Ask Robes for a look.' && wd.before === 'rb-hb-row' && wd.focused === 'rb-lp-in' && wd.handoff === null, JSON.stringify(wd));
+  await page.evaluate(() => window.__rbLpText('Dinner on Friday'));
+  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1500);
+  const asked = await page.evaluate(() => ({ line: !!document.getElementById('rb-walk-line') }));
+  check('intent fork · the first ask after the walk takes the line with it', asked.line === false, JSON.stringify(asked));
+  check('intent fork · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
 

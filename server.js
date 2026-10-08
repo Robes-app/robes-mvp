@@ -2034,7 +2034,11 @@ function heroMark(i) {
 }
 function heroDirective(closetItems) {
   if (!closetItems.some(i => i && i.hero === true)) return '';
-  return `HERO PIECES: the wardrobe items marked ★ HERO are her Hero Rack — the pieces she reaches for first, the spine of her wardrobe. Whenever a hero piece genuinely suits the occasion AND the season/climate in play, PRIORITISE it over any other comparable owned piece and let it lead the look. The bracket names the season band each hero belongs to — Spring/Summer, Autumn/Winter, or Year-round. Its priority only applies when the look's season or climate matches that band (Year-round always matches); never force an off-season hero into a look.`;
+  // A hero is a SIGNATURE, not a default (2026-10-08, Liberty's repeat-
+  // dressing complaint: five stars read as a loop). At most one per look,
+  // rotated across looks and days; the memory's recent wears say which one
+  // has just been worn.
+  return `HERO PIECES: the wardrobe items marked ★ HERO are the pieces she loves — her signatures. A hero is a signature, never a default: build AT MOST ONE hero into a look, as the piece the look is built around, and never put two heroes side by side. Rotate them: when the look's occasion and season fit, prefer the hero the recent wears above do NOT show, and never build two looks in a row around the same hero. The bracket names the season band each hero belongs to — Spring/Summer, Autumn/Winter, or Year-round; a hero only ever leads a look whose season or climate matches that band (Year-round always matches), and an off-season hero is never forced in. A look with no hero in it is a fine look.`;
 }
 
 /* ── travel edit (PRD: AI-Powered Capsule Packing & Lookbook,

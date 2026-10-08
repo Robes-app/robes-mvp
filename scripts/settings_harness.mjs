@@ -111,7 +111,7 @@ async function open(vp, profile = 'empty', o = {}) {
       row.style_dna = Object.assign({}, row.style_dna, { style_archetypes: ['Minimal', 'Classic'], brands: ['The Row', 'Zara'], icon_tags: { 'Jane Birkin': 'French undone' }, investment: '€500–1,500', facts: { height_cm: 168, size_uk: 10, shoe_uk: 5, age_band: '45–54' } });
       row.style_icons = ['Jane Birkin'];
     }
-    window.__updates = []; window.__auth = [];
+    window.__updates = []; window.__auth = []; window.__events = [];
     window.supabase = { createClient: () => ({
       auth: {
         getSession: async () => ({ data: { session: { user: { id: 'u1', email: 'annie@example.com' }, access_token: 'jwt-u1' } } }),
@@ -120,7 +120,7 @@ async function open(vp, profile = 'empty', o = {}) {
       },
       from: (table) => ({
         select: () => ({ eq: () => { const list = { data: table === 'wardrobe_items' ? WARDROBE : [] }; return { single: async () => ({ data: row }), then: (res) => res(list) }; } }),
-        insert: () => ({ then: (res) => res({}) }),
+        insert: (rowIn) => { if (table === 'events') window.__events.push(rowIn); return { then: (res) => res({}) }; },
         update: (patch) => ({ eq: async () => {
           window.__updates.push(patch);
           if (o.updateMode === 'nocol' && (patch.avatar_id !== undefined || patch.avatar_prefs !== undefined)) return { error: { message: "Could not find the 'avatar_id' column of 'profiles' in the schema cache" } };
@@ -351,9 +351,10 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(/select 3\+ brands/i.test(await txt(p, '#sh-sub')) && await p.locator('#sh-body #wall-q').isVisible(), 'Brands: the search field leads');
     ok(/your selections/i.test(await txt(p, '#sh-body')) && await p.locator('#sh-body .sh-pill.on').count() === 1, 'Your selections holds The Row');
     ok(/popular among stylists/i.test(await txt(p, '#sh-body')) && (await p.locator('#sh-body .sh-pill:not(.on)').allInnerTexts()).slice(0, 2).join() === 'Totême,Khaite', 'the pool leads with the picked type’s houses (Sculptural → Totême, Khaite)');
+    ok(await p.locator('#sh-body .sh-pill:not(.on)').count() === 18 && /more in the pool/.test(await txt(p, '#sh-body .sh-more-note')), 'the wall shows 18 at a time, never all 70, and says how many more there are');
     ok(await p.locator('#sh-body .sh-pill[data-name="The Row"]').count() === 1, 'a kept name shows once — in her selections, not the pool');
-    await p.click('#sh-body .sh-pill[data-name="Zara"]'); await p.waitForTimeout(250);
-    ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Zara', 'a tap keeps a brand');
+    await p.click('#sh-body .sh-pill[data-name="Loewe"]'); await p.waitForTimeout(250);
+    ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Loewe', 'a tap keeps a brand');
     await p.fill('#sh-body #wall-q', 'Chopova'); await p.waitForTimeout(250);
     ok(await p.locator('#sh-body .sh-pill[data-name="Chopova Lowena"]').count() === 1, 'search finds Liberty’s names in the pool');
     await p.fill('#sh-body #wall-q', 'Chopova Lowena'); await p.waitForTimeout(250);
@@ -361,8 +362,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.fill('#sh-body #wall-q', 'Marfa Stance'); await p.waitForTimeout(250);
     ok(await p.locator('#sh-body #wall-add').count() === 1 && /Add “Marfa Stance”/.test(await txt(p, '#sh-body #wall-add')), 'a name not in the pool offers + Add');
     await p.click('#sh-body #wall-add'); await p.waitForTimeout(250);
-    ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Zara,Marfa Stance' && await p.locator('#sh-body .sh-pill.on').count() === 3, 'the added name joins her selections');
-    await p.click('#sh-body .sh-pill.on[data-name="Zara"]'); await p.waitForTimeout(200);
+    ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Loewe,Marfa Stance' && await p.locator('#sh-body .sh-pill.on').count() === 3, 'the added name joins her selections');
+    await p.click('#sh-body .sh-pill.on[data-name="Loewe"]'); await p.waitForTimeout(200);
     ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Marfa Stance', '× on a selection lets it go');
     await p.click('#sh-done'); await p.waitForTimeout(200);
     // the icon wall carries a tag
@@ -544,6 +545,65 @@ console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, t
   ok(/\/dashboard$/.test(h.p.url()), 'Build a look lands on the dashboard');
   await h.ctx.close();
   ok(a.errs.length + b.errs.length + c.errs.length + d.errs.length + e.errs.length + f.errs.length + g.errs.length === 0, 'no page errors across the doors');
+}
+
+console.log('\n\x1b[1m== the walk — four cards after the first result (?walk=1) ==\x1b[0m');
+for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
+  const { ctx, p, errs, upd } = await open(vp, 'empty', { path: '?walk=1' });
+  await p.waitForTimeout(400);
+  const ev = () => p.evaluate(() => window.__events.map(e => e.event_type + ' ' + JSON.stringify(e.metadata)));
+  ok(await p.locator('#sh-wrap').isVisible() && !/walk=/.test(p.url()) && (await p.evaluate(() => document.getElementById('sh-wrap').classList.contains('walking'))), label + ': ?walk=1 opens the walk on the sheet, the param stripped');
+  ok((await txt(p, '#sh-title')) === 'Style type' && await p.locator('#sh-body [data-type]').count() === 10, label + ': card 1 is the style type — the ten, pick as many');
+  ok(await p.locator('#sh-walk').isVisible() && await p.locator('#sh-walk-segs span.on').count() === 1 && await p.locator('#sh-walk-skip').isVisible() && (await p.locator('#sh-walk-go').textContent()).trim() === 'Continue' && await p.locator('#sh-done').isHidden(), label + ': the four-segment rule, Skip, Continue — no Done link');
+  ok((await p.locator('#sh-walk-go').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgb(32, 32, 33)' && (await p.locator('#sh-body button, #sh-walk button').evaluateAll(bs => bs.filter(b => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' && b.getClientRects().length).length)) === 1, label + ': Continue is the one ink');
+  ok((await ev()).some(e => /^walk_begun/.test(e)), label + ': walk_begun');
+  await p.click('#sh-body [data-type="Minimal"]'); await p.waitForTimeout(200);
+  await p.click('#sh-walk-go'); await p.waitForTimeout(300);
+  ok((await txt(p, '#sh-title')) === 'Brands and icons' && await p.locator('#sh-walk-segs span.on').count() === 2, label + ': card 2 — brands and icons, two segments lit');
+  ok((await ev()).some(e => /^walk_card \{"n":1,"outcome":"answered"\}/.test(e)), label + ': card 1 logged as answered');
+  ok(await p.locator('#walk-tabs button').count() === 2 && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18 && (await p.locator('#sh-body .sh-pill:not(.on)').first().innerText()).trim() === 'The Row', label + ': the Brands tab first, 18 pills, the picked type’s houses leading');
+  await p.click('#sh-body .sh-pill[data-name="The Row"]'); await p.waitForTimeout(250);
+  ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row' && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18, label + ': a tap keeps a brand and the next name steps in');
+  await p.click('#walk-tabs [data-kind="icons"]'); await p.waitForTimeout(250);
+  ok(/Clean-girl minimal/.test(await txt(p, '#sh-body')), label + ': the Icons tab carries the tags');
+  await p.click('#sh-body .sh-pill[data-name="Hailey Bieber"]'); await p.waitForTimeout(250);
+  ok((await upd('u.style_icons')).style_icons.join() === 'Hailey Bieber', label + ': an icon kept from the walk');
+  await p.click('#sh-walk-go'); await p.waitForTimeout(300);
+  ok((await txt(p, '#sh-title')) === 'Investment level' && await p.locator('#sh-walk-skip').isHidden() && await p.locator('#sh-walk-go').isDisabled(), label + ': card 3 — the one must: no Skip, Continue cream until picked');
+  await p.click('#sh-body [data-level="Under €500"]'); await p.waitForTimeout(250);
+  ok(!(await p.locator('#sh-walk-go').isDisabled()) && (await upd('u.annual_spend')).annual_spend === 'Under €500', label + ': a level picked turns Continue ink and writes');
+  await p.click('#sh-walk-go'); await p.waitForTimeout(300);
+  ok((await txt(p, '#sh-title')) === 'Musts and hard nos' && (await p.locator('#sh-walk-go').textContent()).trim() === 'Done' && await p.locator('#sh-body [data-chip]').count() === 8, label + ': card 4 — eight chips, Done as the ink');
+  const rows = await p.locator('#sh-body .sh-k').evaluateAll(es => es.map(e => e.textContent.trim()));
+  ok(/^Always/.test(rows[0]) && /^Never/.test(rows[1]), label + ': Always above Never');
+  await p.click('#sh-body [data-chip="Head covered"]'); await p.waitForTimeout(250);
+  const rule = await upd('u.style_dna && u.style_dna.brief');
+  ok(rule.style_dna.brief.rules.length === 1 && rule.style_dna.brief.rules[0].text === 'Head covered' && rule.style_dna.brief.rules[0].prompt === 'Head covered' && rule.style_dna.brief.avoids.length === 0, label + ': Head covered files as a RULE Robes keeps, never a no');
+  await p.click('#sh-body [data-chip="No heels"]'); await p.waitForTimeout(250);
+  ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids[0].text === 'No heels' && await p.locator('#sh-body [data-chip].on').count() === 2, label + ': No heels files as a hard no; both chips warm');
+  await p.click('#sh-body [data-chip="No heels"]'); await p.waitForTimeout(250);
+  ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids.length === 0, label + ': a second tap strikes it');
+  await p.click('#sh-walk-go');
+  await p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
+  ok(/\/dashboard$/.test(p.url()) && (await p.evaluate(() => sessionStorage.getItem('rb_walk_done'))) === '1', label + ': Done lands on home with the walk’s handoff');
+  ok(errs.length === 0, label + ': no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+{
+  // Skip on every card but the must; leaving mid-walk is walk_later and stays on Settings
+  const { ctx, p, errs } = await open({ width: 1280, height: 900 }, 'empty', { path: '?walk=1' });
+  await p.waitForTimeout(400);
+  await p.click('#sh-walk-skip'); await p.waitForTimeout(250);
+  ok((await txt(p, '#sh-title')) === 'Brands and icons' && (await p.evaluate(() => window.__events.some(e => e.event_type === 'walk_card' && e.metadata.n === 1 && e.metadata.outcome === 'skipped'))), 'Skip moves on and logs the card as skipped');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  ok(await p.locator('#sh-wrap').isHidden() && await p.locator('#pg-root').isVisible() && (await p.evaluate(() => window.__events.some(e => e.event_type === 'walk_later' && e.metadata.n === 2))), 'Escape leaves the walk on Settings and logs walk_later with the card');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_walk_done'))) === null, 'no handoff without Done');
+  // the chips sit on the Settings word sheets too
+  await p.click('#card-dna'); await p.waitForTimeout(300);
+  await p.click('#dna-avoids'); await p.waitForTimeout(300);
+  ok(await p.locator('#sh-body [data-chip]').count() === 5 && /^Never/.test((await p.locator('#sh-body .sh-k').first().textContent()).trim()), 'Hard nos in Settings carries the Never chips');
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
 }
 
 console.log('\n\x1b[1m== degrade — the columns a migration adds ==\x1b[0m');

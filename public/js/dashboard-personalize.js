@@ -287,6 +287,32 @@
         }
       } catch (e) { /* storage blocked — the prompt still leads home */ }
 
+      // The intent fork (2026-10-08): the door she picked in onboarding
+      // opens its first screen here. dress → the home box, catalogue → the
+      // add flow on its batch step, style → the twin walk on Settings. And
+      // the walk's Done lands back here with the box open under one line:
+      // the next look she asks for reads what she just said.
+      try {
+        var obIntent = sessionStorage.getItem('rb_onboard_intent');
+        if (obIntent) sessionStorage.removeItem('rb_onboard_intent');
+        var walkDone = !!sessionStorage.getItem('rb_walk_done');
+        if (walkDone) sessionStorage.removeItem('rb_walk_done');
+        if (obIntent === 'style') {
+          window.location.replace('/settings?walk=1');
+        } else if (obIntent === 'dress' || walkDone) {
+          setTimeout(function() {
+            if (walkDone) _rbWalkLine();
+            try { if (window._rbHbOn && window._rbHbOn() && typeof window.__rbHbOpen === 'function') { window.__rbHbOpen(); return; } } catch (e) {}
+            try { if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt(); } catch (e) {}
+            var ta0 = document.getElementById('cb-ta');
+            if (ta0) { try { ta0.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} ta0.focus(); }
+          }, 1700);
+        } else if (obIntent === 'catalogue') {
+          setTimeout(function() { try { if (typeof _wtrkOpenAdd === 'function') _wtrkOpenAdd(); } catch (e) {} }, 1700);
+        }
+        if (obIntent) _rbTrack('onboarding_landed', { intent: obIntent });
+      } catch (e) { /* storage blocked — home as it is */ }
+
       // Time-based greeting
       const hour = new Date().getHours();
       const tod = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
@@ -21129,25 +21155,38 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const dna = (prof.style_dna && typeof prof.style_dna === 'object') ? prof.style_dna : {};
         const n = a => Array.isArray(a) ? a.length : 0;
         if (n(dna.style_archetypes) || n(dna.style_archetypes_soft) || n(prof.style_icons)) return true;
+        // any card of the walk answered counts (2026-10-08): the brands, the
+        // investment level, a fact — the invitation retires the moment one lands
+        if (n(dna.brands) || (typeof dna.investment === 'string' && dna.investment)) return true;
+        if (dna.facts && typeof dna.facts === 'object' && Object.keys(dna.facts).some(k => dna.facts[k] != null && dna.facts[k] !== '')) return true;
         if (_rbBriefLines() > 0) return true;   // a kept line in her brief is an answer too (slice A)
         return !!(_lkModel && typeof _lkModel === 'object');
       }
       function _rbNotesDoorWants() {
         if (!(_rbHomeMode === 'zero' || _rbHomeMode === 'zero-lead' || _rbHomeMode === 'look')) return false;
         if (_lkModel === undefined) { _lkModelEnsure(); return false; }   // not asked yet — never guess
+        if (_rbWalkLater()) return false;   // Later folds it for the session; it returns on the next visit
         return !_rbNotesBegun();
       }
+      function _rbWalkLater() { try { return !!sessionStorage.getItem('rb_walk_later__' + (_waUid() || '')); } catch (e) { return false; } }
       function _rbNotesDoorCss() {
         if (document.getElementById('rb-notes-door-style')) return;
         const st = document.createElement('style');
         st.id = 'rb-notes-door-style';
         st.textContent =
-          '#rb-notes-door{margin:0 0 40px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad-card,14px);padding:16px;display:flex;align-items:center;gap:14px}' +
+          // the walk's invitation (2026-10-08): the Robes-noticed register —
+          // cream on a hairline, the one serif line, Begin as a hairline pill,
+          // Later as a text door. Never ink: Style me stays the one ink on home.
+          '#rb-notes-door{margin:0 0 40px;background:var(--cream-100,#F5F0E8);border:1px solid var(--rule-mid,rgba(32,32,33,0.12));border-radius:var(--rad-card,14px);padding:18px 20px;display:flex;align-items:center;gap:16px}' +
           '#rb-notes-door .l{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}' +
-          '#rb-notes-door .ey{font-size:9px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--rose,#8E7077)}' +
-          '#rb-notes-door h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:20px;line-height:1.15;margin:0;color:var(--ink,#202021)}' +
+          '#rb-notes-door .ey{font-size:9px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--sage,#7E7C5A)}' +
+          '#rb-notes-door h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:22px;line-height:1.15;margin:0;color:var(--ink,#202021)}' +
           '#rb-notes-door h3 em{font-style:italic}' +
-          '#rb-notes-door .rb-pill{flex:none;margin:0;padding:10px 16px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);border-color:var(--cream-400,#D8CFBE)}';
+          '#rb-notes-door .sub{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:300;font-size:14px;line-height:1.4;color:var(--ink-soft,#55524E)}' +
+          '#rb-notes-door .r{flex:none;display:flex;flex-direction:column;align-items:center;gap:8px}' +
+          '#rb-notes-door .rb-pill{flex:none;margin:0;padding:11px 18px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink,#202021);border-color:var(--cream-400,#D8CFBE);background:#fff}' +
+          '#rb-notes-door .rb-walk-later{background:none;border:0;padding:0;font-size:12px;color:var(--ink-faint,#9C9891);cursor:pointer;text-decoration:underline;text-decoration-color:var(--cream-400,#D8CFBE);text-underline-offset:3px}' +
+          '@media(max-width:560px){#rb-notes-door{flex-direction:column;align-items:stretch}#rb-notes-door .r{flex-direction:row;justify-content:space-between}}';
         document.head.appendChild(st);
       }
       var _rbNotesDoorShown = false;
@@ -21160,18 +21199,50 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         if (!el) {
           el = document.createElement('section');
           el.id = 'rb-notes-door';
-          el.innerHTML = '<div class="l"><div class="ey">Next · Your digital twin</div><h3>Let Robes <em>get to know you.</em></h3></div>' +
-            '<button type="button" class="rb-pill" onclick="window.__rbNotesGo()">Begin</button>';
+          el.innerHTML = '<div class="l"><div class="ey">Your digital twin</div><h3>Four taps, and Robes <em>knows you.</em></h3>' +
+            '<div class="sub">Your type, the houses you reach for, what you spend, and what Robes must and must never do.</div></div>' +
+            '<div class="r"><button type="button" class="rb-pill" onclick="window.__rbNotesGo()">Begin</button>' +
+            '<button type="button" class="rb-walk-later" onclick="window.__rbNotesLater()">Later</button></div>';
           const mast = dash.querySelector('.dash-mast');
           if (mast && mast.nextSibling) dash.insertBefore(el, mast.nextSibling); else dash.appendChild(el);
         }
-        if (!_rbNotesDoorShown) { _rbNotesDoorShown = true; _rbTrack('notes_door_shown', { mode: _rbHomeMode }); }
+        if (!_rbNotesDoorShown) { _rbNotesDoorShown = true; _rbTrack('walk_shown', { mode: _rbHomeMode }); }
       }
       window._rbNotesDoorSync = _rbNotesDoorSync;
       window.__rbNotesGo = function() {
         _rbTrack('notes_door_tapped', { mode: _rbHomeMode });
-        window.location.href = '/settings?begin=1';
+        window.location.href = '/settings?walk=1';
       };
+      // Later folds the card for the session (sessionStorage, per user); it
+      // returns on the next visit until any card is answered — never a
+      // dismissal count (Annie, 8 Oct).
+      window.__rbNotesLater = function() {
+        try { sessionStorage.setItem('rb_walk_later__' + (_waUid() || ''), '1'); } catch (e) {}
+        _rbTrack('walk_later', { from: 'home' });
+        _rbNotesDoorSync();
+        if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length);
+      };
+      // The walk's landing: one sage line above home's field — the next look
+      // she asks for reads what she just said — and walk_asked armed for
+      // the first prompt sent after it.
+      var _rbWalkAskArm = false;
+      function _rbWalkLine(tries) {
+        const hb = document.getElementById('rb-hb');
+        const row = hb && document.getElementById('rb-hb-row');
+        if (!row) { if ((tries || 0) < 12) setTimeout(() => _rbWalkLine((tries || 0) + 1), 300); return; }
+        _rbWalkAskArm = true;
+        if (document.getElementById('rb-walk-line')) return;
+        if (!document.getElementById('rb-walk-line-style')) {
+          const s = document.createElement('style');
+          s.id = 'rb-walk-line-style';
+          s.textContent = '#rb-walk-line{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:300;font-size:17px;line-height:1.3;color:var(--sage,#7E7C5A);margin:0 0 10px}#rb-walk-line em{font-style:italic}';
+          document.head.appendChild(s);
+        }
+        const line = document.createElement('div');
+        line.id = 'rb-walk-line';
+        line.innerHTML = 'Read. <em>Ask Robes for a look.</em>';
+        hb.insertBefore(line, row);
+      }
       function _rbModelDoorWants() {
         if (_lkModel === undefined) { _lkModelEnsure(); return false; }   // not asked yet — never guess
         if (_lkModel !== null) return false;
@@ -33444,7 +33515,11 @@ body.rb-hb-on #dash .concierge{display:none!important}
         // The scaffolds' [brackets] run with their defaults (the prompt's
         // own rule) — the box takes the scaffold as her first line to edit.
         if (/\[[^\]]*\]/.test(prompt)) prompt = prompt.replace(/\[([^\]]*)\]/g, '$1').replace(/\s{2,}/g, ' ').trim();
-        const track = (intent, extra) => _rbTrack('prompt_submitted', Object.assign({ intent, scope: s.hbDate ? 'day' : 'none', source: 'box', ok: true, latency_ms: Date.now() - t0 }, extra || {}));
+        const track = (intent, extra) => {
+          _rbTrack('prompt_submitted', Object.assign({ intent, scope: s.hbDate ? 'day' : 'none', source: 'box', ok: true, latency_ms: Date.now() - t0 }, extra || {}));
+          // the first ask after the walk's Done — the walk's own measure
+          if (_rbWalkAskArm) { _rbWalkAskArm = false; _rbTrack('walk_asked', { intent }); const wl = document.getElementById('rb-walk-line'); if (wl) wl.remove(); }
+        };
         // A look attached from + : Enter PINS it to the day — her words
         // become the day's name (the card's own A.2 rule).
         if (_cbLookId) {
