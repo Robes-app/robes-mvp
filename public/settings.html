@@ -40,7 +40,9 @@
     .sn-back { width: 44px; height: 44px; margin-left: -10px; display: inline-flex; align-items: center; justify-content: center; background: none; border: 0; padding: 0; font: 300 24px/1 'Inter'; color: var(--ink); cursor: pointer; }
     .sn-back:hover { color: var(--ink-soft); }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    .sp-hdr-title { text-align: center; font: 400 22px/1 'Cormorant', Georgia, serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sp-hdr-title { text-align: center; font: 400 22px/1.2 'Cormorant', Georgia, serif; line-height: var(--sp-hdr); height: var(--sp-hdr); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; }
+    /* the row's own line-height: at 22px/1 the descenders (the g of Digital) clipped under overflow:hidden; a narrow phone steps the size down before it ellipsises */
+    @media (max-width: 374px) { .sp-hdr-title { font-size: 19px; } }
     .topbar-r { position: relative; height: 44px; }
     #save-state { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font: 400 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); opacity: 0; transition: opacity 0.3s; white-space: nowrap; pointer-events: none; }
     #save-state.on { opacity: 1; }
@@ -127,7 +129,8 @@
     .sp-row .chev { font: 300 18px/1 'Inter'; color: var(--ink-faint); flex: none; }
     .sp-row.danger .n { color: #8B3A30; }
     a.sp-row { text-decoration: none; }
-    .sp-row .ext { font: 300 13px/1 'Inter'; color: var(--ink-faint); }
+    .sp-row .ext { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex: none; color: var(--ink-faint); }
+    .sp-row .ext svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
 
     /* toggles (Notifications) */
     .sp-tog { position: relative; width: 42px; height: 24px; border-radius: 100px; background: var(--cream-300); border: 0; cursor: pointer; flex: none; transition: background .2s; }
@@ -456,8 +459,8 @@
         </div>
         <div class="sp-gk">Privacy &amp; terms</div>
         <div class="sp-group">
-          <a class="sp-row" href="/privacy" target="_blank" rel="noopener"><span class="l"><span class="n">Privacy notice</span><span class="d">What Robes keeps, and why</span></span><span class="ext">↗</span></a>
-          <a class="sp-row" href="/terms" target="_blank" rel="noopener"><span class="l"><span class="n">Beta terms</span><span class="d">Plain English</span></span><span class="ext">↗</span></a>
+          <a class="sp-row" href="/privacy" target="_blank" rel="noopener"><span class="l"><span class="n">Privacy notice</span><span class="d">What Robes keeps, and why</span></span><span class="ext" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17L17 7M8 7h9v9"/></svg></span></a>
+          <a class="sp-row" href="/terms" target="_blank" rel="noopener"><span class="l"><span class="n">Beta terms</span><span class="d">Plain English</span></span><span class="ext" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17L17 7M8 7h9v9"/></svg></span></a>
         </div>
         <div class="sp-foot">
           <span class="h">Need a hand? <a href="mailto:hello@byrobes.com">hello@byrobes.com</a></span>

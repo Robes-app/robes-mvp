@@ -72,6 +72,20 @@
       // Sinead and Liberty both wore an A).
       _rbAvatarInitial(name);
 
+      // Settings (2026-10-08, Annie): the avatar IS the door — a tap lands
+      // on /settings (Style Profile | Account, opening on Style Profile)
+      // at once, never the dropdown. The menu below is still built (the
+      // items keep their handlers) but nothing opens it any more.
+      const avEl = document.getElementById('avatar');
+      if (avEl) {
+        avEl.setAttribute('role', 'link');
+        avEl.setAttribute('aria-label', 'Settings');
+        avEl.onclick = (e) => {
+          if (e) { e.stopPropagation(); e.preventDefault(); }
+          window.location.href = '/settings';
+        };
+      }
+
       // Insert Account Details button before My wardrobe
       const avMenu = document.getElementById('av-menu');
       if (avMenu) {
