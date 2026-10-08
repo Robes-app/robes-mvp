@@ -6,7 +6,7 @@ import { createHash, randomBytes } from 'crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
-import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
+import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock, SEASONS } from './style_dna.js';
 import { TAXONOMY_GROUPS, resolveTaxonomy, taxonomyPromptBlock, tagDefaultRows, WEAR_SEEDS } from './wardrobe_taxonomy.js';
 import { createNotifier } from './notify.js';
 import { createInbox } from './inbox.js';
@@ -1782,6 +1782,29 @@ function briefLinesOf(a, max) {
     .map(x => (x && typeof x === 'object') ? { text: briefStr(x.text, 160), because: briefStr(x.because, 200) } : { text: briefStr(x, 160), because: '' })
     .filter(x => x.text).slice(0, max);
 }
+// A season she chose by hand (Settings › Your photographs › Colouring,
+// redline P4): the catalog render for that season, no model call — the
+// catalog is deterministic and the values the photograph gave (undertone,
+// contrast, the extracted hexes) ride along unchanged. The answer has the
+// analyse route's shape so the page lands it the same way.
+app.post('/api/stylenotes/season', rateLimit({ windowMs: 60_000, max: 30 }), (req, res) => {
+  const { season, current } = req.body || {};
+  if (!SEASONS[season]) return res.status(400).json({ error: 'unknown_season' });
+  const c = current && typeof current === 'object' ? current : {};
+  const ev = c.extracted_values && typeof c.extracted_values === 'object' ? c.extracted_values : {};
+  const { render, dna } = buildColorHarmony({
+    season, undertone: c.verified_undertone, contrast: c.calculated_contrast,
+    skin_tone_hex: ev.skin_tone_hex, hair_color_hex: ev.hair_color_hex, eye_color_hex: ev.eye_color_hex,
+    season_reasoning: 'Chosen by hand in Settings.',
+  });
+  dna.classification.source = 'chosen';
+  if (c.classification && c.classification.primitive_season) {
+    dna.classification.primitive_season = c.classification.primitive_season;
+    dna.classification.agreement = c.classification.primitive_season === season;
+  }
+  res.json({ ...render, style_dna: dna, chosen: true });
+});
+
 app.post('/api/stylenotes/brief', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
   const { styleDna, styleIcons, gender, name, current, wardrobe, looks, memory } = req.body || {};
   const g = normGender(gender);

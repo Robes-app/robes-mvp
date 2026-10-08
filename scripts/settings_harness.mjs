@@ -1,18 +1,25 @@
 #!/usr/bin/env node
 /*
  * Settings harness — boots the real /settings (the digital twin, design
- * Settings_Prototype.dc.html · 2026-10-07) against a Supabase stub and
- * asserts: the root's two tabs and three cards with their state; the twin
- * page in its empty, read and by-hand states (the slots in place, the
- * model's cell fetched, the Photographs + Adjust sheets, the five facts
- * and their writes, gender writing gender_identity); the Style DNA page's
- * sheets (the ten types multi-select, the brand + icon walls with search
- * and "+ Add", the four investment rows, the three word lists); the
- * observations (the draft lands as pending, Keep files under Style DNA,
- * Not me strikes + the memory); the swipe card on the tab; the Account
- * tab (name, email, password, notifications, delete); the legacy doors
- * (#taste, #silhouette, ?chapter=brief, ?begin=1, ?page=twin); the one-time
- * brands split + investment mapping; 390 and 1280.
+ * Settings_Prototype.dc.html · 2026-10-07, redlined 2026-10-08 in
+ * Settings_Redlines.dc.html) against a Supabase stub and asserts: the ONE
+ * 44px header row (← · the title · nothing right) on every screen, no dock,
+ * the warm selected tab; the root's title-only cards; the twin page in its
+ * empty, read and by-hand states (the slots in place, the model's cell
+ * fetched, the caption alone on the stage, Body shape printing the line and
+ * frame — never a shape's name, the facts as one strip, Build a look with
+ * the italic line); the "Your photographs" sheet (grouped by photograph,
+ * the season picker re-rendering the catalog, the read's date on a slot,
+ * opened on the tapped section, Done a text link, no scrollbar); the Style
+ * DNA page's sheets (the ten types multi-select, the brand + icon walls with
+ * search and "+ Add", the four investment rows, the three word lists, no
+ * new-from-Robes door); the observations (the draft lands as pending —
+ * notes as one sentence with the paragraph behind it, colours as a
+ * lower-case sentence, every source line naming the evidence — Keep a
+ * hairline pill, Not me a link, Kept before dated, no Read again); the
+ * swipe card on the tab; the Account tab (label + value rows, name, email,
+ * password, notifications, delete); the legacy doors; the one-time brands
+ * split + investment mapping; 390 and 1280.
  *
  *   npm i --no-save playwright && node scripts/settings_harness.mjs
  *   (set CHROME_PATH if playwright's bundled build isn't installed)
@@ -57,7 +64,8 @@ const DRAFT = {
   loves: [{ text: 'You reach for a defined waist', because: 'your two most-worn tops sit at the natural waist' }],
   avoids: [{ text: 'Anything that reads polite', because: 'the pieces you never wear are the safest ones' }],
   rules: [{ text: 'Loafers only with a cropped trouser', because: 'every wear of the loafers was with the cropped wool' }],
-  notes: '', colours: { loved: ['black'], rejected: [] }, thin: false,
+  notes: 'You dress best when one line runs uninterrupted from shoulder to shoe. Long over lean, one colour, a single hardware note — that is when the pieces you own most read as yours.',
+  colours: { loved: ['Black', 'Taupe'], rejected: ['Red'] }, thin: false,
 };
 const WARDROBE = [
   { id: 'w1', label: 'Black wool blazer', category: 'Outerwear', brand: 'Totême', times_worn: 11, hero_position: 1, image_url: 'https://res.cloudinary.com/x/image/upload/w1.jpg' },
@@ -68,7 +76,7 @@ const WARDROBE = [
 async function open(vp, profile = 'empty', o = {}) {
   const ctx = await browser.newContext({ viewport: vp });
   const p = await ctx.newPage();
-  const errs = [], cellPosts = [], briefPosts = [], deletes = [];
+  const errs = [], cellPosts = [], briefPosts = [], deletes = [], seasonPosts = [];
   p.on('pageerror', e => errs.push(String(e)));
   await p.route('**cdn.jsdelivr.net/**', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: '/* stubbed */' }));
   await p.route('**fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
@@ -82,6 +90,11 @@ async function open(vp, profile = 'empty', o = {}) {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(kind === 'colour' ? { ...COLOUR, style_dna: COLOUR_DNA } : { ...SIL, style_dna: SIL_DNA }) });
   });
   await p.route('**/api/wardrobe/upload', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"https://res.cloudinary.com/x/image/upload/p.jpg"}' }));
+  await p.route('**/api/stylenotes/season', async route => {
+    const b = route.request().postDataJSON(); seasonPosts.push(b);
+    await new Promise(r => setTimeout(r, 120));
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...COLOUR, season: b.season, summary: b.season + ', chosen.', style_dna: { ...COLOUR_DNA, archetype_name: b.season, classification: { source: 'chosen' } }, chosen: true }) });
+  });
   await p.route('**/api/stylenotes/brief', async route => {
     briefPosts.push(route.request().postDataJSON());
     await new Promise(r => setTimeout(r, 150));
@@ -120,7 +133,7 @@ async function open(vp, profile = 'empty', o = {}) {
   await p.goto(`http://localhost:${PORT}/settings${o.path || ''}${o.hash || ''}`);
   await p.waitForTimeout(600);
   const upd = async (pred) => p.evaluate((src) => { const f = new Function('u', 'return ' + src); return window.__updates.filter(f).pop() || null; }, pred);
-  return { ctx, p, errs, cellPosts, briefPosts, deletes, upd };
+  return { ctx, p, errs, cellPosts, briefPosts, deletes, seasonPosts, upd };
 }
 const txt = async (p, sel) => (await p.locator(sel).innerText()).replace(/\s+/g, ' ').trim();
 
@@ -130,22 +143,31 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   {
     const { ctx, p, errs, briefPosts } = await open(vp);
     ok(await p.locator('#pg-root').isVisible() && await p.locator('#pg-twin').isHidden() && await p.locator('#pg-dna').isHidden() && await p.locator('#pg-obs').isHidden(), 'the root is the page; every other page waits');
-    ok((await txt(p, '#sn-back-label')) === 'Home', 'the header back reads Home on the root');
-    ok(/your style profile\./i.test(await txt(p, '#root-title')), 'titled Your style profile.');
+    ok((await p.evaluate(() => document.getElementById('sn-back-label').textContent)) === 'Home', 'the header ← reads Home on the root (its label for the screen reader)');
+    // G1 · L1 · A2 — ONE header row: ← · Settings · nothing right; no eyebrow, no masthead, no avatar
+    const hdr = await p.locator('.topbar').boundingBox();
+    ok(Math.round(hdr.height) === 44, 'the header is one 44px row: ' + hdr.height);
+    ok((await txt(p, '#sp-hdr-title')) === 'Settings', 'titled Settings, in the header row');
+    ok(await p.locator('.topbar .sn-back').isVisible() && (await p.locator('.sn-back').evaluate(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width >= 44 && r.height >= 44 && s.fontSize === '24px' && s.fontWeight === '300'; })), '← at the left: Inter 300 24px on a 44px hit area');
+    ok((await p.locator('#sp-hdr-title').evaluate(el => { const s = getComputedStyle(el); return /Cormorant/.test(s.fontFamily) && s.fontSize === '22px' && s.textAlign === 'center'; })), 'the title centred, Cormorant 22px');
+    ok(await p.locator('.sn-avatar, .sn-av-menu, .sn-weather, .wordmark, .eyebrow-rose, .sp-title, #root-title').count() === 0, 'no avatar, no weather, no wordmark, no eyebrow, no serif masthead (the four layers are gone)');
+    ok(await p.locator('#rb-dock').count() === 0, 'no mobile dock on the settings stack (G3)');
     ok((await p.locator('#sp-seg button').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === 'style profile | account', 'the two tabs: Style Profile | Account');
+    const segOn = await p.locator('#sp-seg button.on').evaluate(el => { const s = getComputedStyle(el); return s.backgroundColor + ' ' + s.borderTopColor; });
+    ok(segOn === 'rgb(243, 239, 230) rgb(201, 188, 166)', 'selected is warm — #F3EFE6 on a #C9BCA6 hairline (G5): ' + segOn);
     ok(await p.locator('#tab-style').isVisible() && await p.locator('#tab-account').isHidden(), 'Style Profile is the tab on open');
     ok(await p.locator('#tab-style .sp-card').count() === 3, 'three cards: the twin, Style DNA, observations');
-    ok(/Model · Not yet/.test(await txt(p, '#card-twin-st')) && /The facts · 1 of 5/.test(await txt(p, '#card-twin-st')), 'the twin card reads Not yet, gender the one fact on file: ' + await txt(p, '#card-twin-st'));
-    ok(/Your taste · 1 of 5 answered/.test(await txt(p, '#card-dna-st')) && /In your words · Not yet/.test(await txt(p, '#card-dna-st')), 'the Style DNA card counts the starred piece as the one answer, the words Not yet: ' + await txt(p, '#card-dna-st'));
-    ok(/Nothing new/.test(await txt(p, '#card-obs-st')), 'the observations card reads Nothing new on a thin read');
+    ok((await p.locator('#tab-style .sp-card').allInnerTexts()).map(t => t.replace(/\s*›\s*$/, '').trim()).join(' | ') === 'Your digital twin | Style DNA | Robes observations', 'each card prints its title only (G4 · L5)');
+    ok(await p.locator('#tab-style .sp-card .k, #tab-style .sp-card .s, #tab-style .sp-card .st').count() === 0, 'no number, no description, no meta line on a card');
     ok(briefPosts.length === 1, 'the Style Profile tab reads her wardrobe once (never read before)');
     ok(await p.locator('#sp-notice').count() === 0, 'no "Robes noticed" card with nothing pending');
     ok(await p.locator('#sh-wrap').isHidden(), 'no sheet open');
     // the account tab
     await p.click('#sp-seg button[data-tab="account"]'); await p.waitForTimeout(200);
     ok(await p.locator('#tab-account').isVisible() && await p.locator('#tab-style').isHidden() && p.url().endsWith('#account'), 'Account shows and the hash follows');
-    ok(/your account\./i.test(await txt(p, '#root-title')), 'titled Your account.');
-    ok((await txt(p, '#ac-name-v')) === 'Annie Slattery' && (await txt(p, '#ac-email-v')) === 'annie@example.com', 'the Profile rows carry her name and email');
+    ok((await txt(p, '#sp-hdr-title')) === 'Settings' && await p.locator('#pg-root .sp-sub, #pg-root .eyebrow-rose').count() === 0, 'the Account tab opens on the same header row and the switch — no masthead (A2)');
+    ok((await txt(p, '#ac-name-v')) === 'Annie Slattery' && (await txt(p, '#ac-email-v')) === 'annie@example.com' && (await txt(p, '#ac-pass-v')) === '••••••••', 'the Profile rows carry her name, email and a masked password');
+    ok(await p.locator('#ac-name .d, #ac-email .d, #ac-pass .d, #ac-delete .d').count() === 0, 'the rows print label and value only — the helpers live in the sheets (A1)');
     ok(await p.locator('#ac-notif').isVisible() && await p.locator('#tog-email.on').count() === 1 && await p.locator('#tog-morning.on').count() === 0, 'Notifications: email on (looks_ready true), the morning line off');
     ok(await p.locator('#tab-account a.sp-row[href="/privacy"]').count() === 1 && await p.locator('#tab-account a.sp-row[href="/terms"]').count() === 1, 'Privacy & terms are two ↗ rows');
     ok(/hello@byrobes\.com/.test(await txt(p, '#tab-account .sp-foot')) && await p.locator('#ac-logout').isVisible(), 'the foot: a hand, the beta, Log out');
@@ -159,7 +181,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   {
     const { ctx, p, errs, cellPosts, upd } = await open(vp, 'empty', { hash: '#twin' });
     ok(await p.locator('#pg-twin').isVisible() && await p.locator('#pg-root').isHidden(), '#twin opens the twin page');
-    ok((await txt(p, '#sn-back-label')) === 'Settings', 'the header back reads Settings on a page');
+    ok((await p.evaluate(() => document.getElementById('sn-back-label').textContent)) === 'Settings', 'the header ← reads Settings on a page');
+    ok((await txt(p, '#sp-hdr-title')) === 'Your Digital Twin' && /Two photographs read your colouring/.test(await txt(p, '#pg-twin .sp-pagesub')), 'titled Your Digital Twin in the header row, the one sub line below (D1)');
+    ok(await p.locator('#pg-twin .sp-backpill, #pg-twin .eyebrow-rose, #pg-twin .sp-title').count() === 0, 'no second back control, no eyebrow, no italic masthead on the page (G2)');
     ok(await p.locator('#mv-fig-empty').isVisible() && /starts the moment your first photograph reads/i.test(await txt(p, '#mv-fig-empty')), 'the ghost figure carries the it-starts line');
     ok(await p.locator('#tw-slotscard').isVisible() && await p.locator('#headshot-slot').isVisible() && await p.locator('#full-slot').isVisible(), 'the two dashed slots stand in place');
     ok(/Soft daylight, facing a window\. No filters\./.test(await txt(p, '#st1-guide')) && /Head to toe, fitted clothes\. A mirror is fine\./.test(await txt(p, '#st2-guide')), 'each slot carries its one guide line');
@@ -168,54 +192,78 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(await p.locator('#mv-shape-rows [data-axis="presence"]').count() === 0, 'gender is NOT a by-hand row — it is the fifth fact');
     ok((await p.locator('#tw-facts-cells .c .v.add').count()) === 4 && /Woman/.test(await txt(p, '#tw-facts-cells')), 'four facts read Add; Gender reads Woman');
     ok(cellPosts.length === 0 && await p.locator('.mv-photo').count() === 0, 'no cell asked for before anything exists');
-    ok(await p.locator('#mv-build').isHidden() && await p.locator('#mv-filed').isHidden(), 'no Build a look, nothing filed');
+    ok(await p.locator('#mv-build').isHidden() && await p.locator('#mv-filed').count() === 0, 'no Build a look yet; the ✓ Filed line is gone for good (T6)');
+    const cells = await p.locator('#tw-facts-cells .c').evaluateAll(cs => cs.map(c => Math.round(c.getBoundingClientRect().top)));
+    ok(cells.length === 5 && cells.every(y => y === cells[0]), 'the five facts lay out in ONE row with dividers (T5): ' + cells.join(','));
+    ok(/the facts/i.test(await p.locator('#pg-twin .tw-sec:not([hidden]) .sp-gk').first().innerText()) && !/Size, never weight/.test(await txt(p, '#pg-twin')), 'The facts is a section eyebrow above the card; the sentence lives in the sheet');
     // the by-hand path: a skin pick files the model + fetches the cell
     await p.click('#mv-shape-rows [data-axis="skin"][data-v="0"]'); await p.waitForTimeout(1300);
     ok((await p.locator('#mv-head').getAttribute('fill')) === '#3B2A22', 'a skin pick repaints the figure');
     const u1 = await upd('u.avatar_id');
     ok(u1 && /^w-s0-h1-nt$/.test(u1.avatar_id) && u1.avatar_prefs.kept === true, 'the model auto-files by hand: ' + (u1 && u1.avatar_id));
-    ok(await p.locator('#mv-filed').isVisible() && await p.locator('#mv-build').isVisible(), 'the ✓ Filed line + Build a look appear');
+    ok(await p.locator('#mv-build').isVisible() && /updates/.test(await txt(p, '#mv-status')) && (await p.locator('#mv-status').boundingBox()).y > (await p.locator('#mv-build').boundingBox()).y, 'Build a look appears as the one ink fill, the italic line under it');
+    ok(await p.locator('#pg-twin button').evaluateAll(bs => bs.filter(b => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' && b.getClientRects().length).length) === 1, 'Build a look is the screen’s one ink fill');
     ok(cellPosts[0] === 'w-s0-h1-nt', 'the cell asked for is the by-hand model');
-    ok(/Model · Shaped by hand/.test(await (async () => { await p.evaluate(() => { location.hash = ''; }); await p.waitForTimeout(300); return txt(p, '#card-twin-st'); })()), 'back on the root the twin card reads Shaped by hand');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
   }
 
   console.log(`\n\x1b[1m== ${label} · the twin — read: the card, the Photographs sheet, the cell ==\x1b[0m`);
   {
-    const { ctx, p, errs, cellPosts, upd } = await open(vp, 'both', { hash: '#twin' });
+    const { ctx, p, errs, cellPosts, seasonPosts, upd } = await open(vp, 'both', { hash: '#twin' });
     ok(await p.locator('#tw-slotscard').isHidden() && await p.locator('#mv-shape').isHidden(), 'the slots and the by-hand rows leave the page once something has read');
     ok(await p.locator('#tw-read').isVisible(), 'the Read-from-your-photographs card stands');
     ok((await txt(p, '#tw-colour-v')) === 'Soft Autumn' && /Neutral · Low, blended/.test(await txt(p, '#tw-colour-d')), 'Colouring row: the season, undertone · contrast');
-    ok((await txt(p, '#tw-line-v')) === 'Hourglass' && /Read from the full-length/.test(await txt(p, '#tw-line-d')), 'Body shape row: the read, its provenance');
+    ok((await p.evaluate(() => document.getElementById('tw-line-v').textContent)) === '' && /Read from the full-length/.test(await txt(p, '#tw-line-d')), 'Body shape row: nothing until the line and frame are set, the sub says it was read (T4)');
+    ok(!/Hourglass/.test(await txt(p, '#pg-twin')), 'the page never names a shape — Robes says what it read, not what she is');
+    ok(/read from your photographs/i.test(await p.locator('#tw-read .sp-gk').innerText()), 'Read from your photographs is the section eyebrow above the three rows (T3)');
     ok(await p.waitForSelector('.mv-photo', { timeout: 5000 }).then(() => true).catch(() => false) && cellPosts[0] === 'w-s5-h1-hg', 'the model photograph lands — the cell is the resolved id: ' + cellPosts[0]);
-    ok(/read from your photographs/i.test(await txt(p, '#mv-stage-ey')) && (await txt(p, '#mv-caption')) === 'Sand · espresso brown hair', 'the stage names the provenance and her colouring in colour words');
+    ok(await p.locator('#mv-stage-ey').count() === 0 && (await txt(p, '#mv-caption')) === 'Sand · espresso brown hair', 'the stage carries the italic caption alone — its eyebrow is gone (T1)');
     ok(/two photographs read/i.test(await txt(p, '#mv-status')), 'the status: two photographs read');
     const u = await upd('u.avatar_id');
     ok(u && u.avatar_id === 'w-s5-h1-hg', 'a read account files on load (pre-auto-file rows)');
-    // the Photographs sheet — the slots move in, the reads and the rows beneath
+    // the "Your photographs" sheet — the slots move in; Colouring then Body shape, each with the controls that nudge it
     await p.click('#tw-row-colour'); await p.waitForTimeout(350);
-    ok(await p.locator('#sh-wrap').isVisible() && /photographs\./i.test(await txt(p, '#sh-title')), 'the Colouring row lifts the Photographs sheet');
+    ok(await p.locator('#sh-wrap').isVisible() && (await txt(p, '#sh-title')) === 'Your photographs', 'the Colouring row lifts the Your photographs sheet — no full stop (P1 · P2)');
+    ok((await p.locator('#sh-title').evaluate(el => getComputedStyle(el).fontWeight)) === '300' && (await p.locator('#sh-done').evaluate(el => { const s = getComputedStyle(el); return s.borderTopStyle === 'none' && s.fontSize === '13px' && el.textContent.trim() === 'Done'; })), 'the title Cormorant 300, Done a plain 13px text link (P2)');
+    ok((await p.locator('#sh-body').evaluate(el => getComputedStyle(el).scrollbarWidth)) === 'none' && (await p.locator('#sh').evaluate(el => getComputedStyle(el).borderTopStyle)) === 'none', 'no scrollbar on the sheet, no second border behind it (P8)');
     ok(await p.locator('#sh-body #tw-slots').count() === 1 && await p.locator('#sh-body #headshot-slot').isVisible(), 'the two slots live inside the sheet');
-    ok(await p.locator('#sh-body #st1-read').isVisible() && await p.locator('#sh-body #st2-read').isVisible(), 'both slots read ✓ Read');
-    ok(await p.locator('#sh-body .mv-sw-row div').count() === 9 && /Soft Autumn/.test(await txt(p, '#sh-body')), 'nine swatches under Colouring');
-    ok(await p.locator('#sh-body #sh-shape-rows .mvr').count() === 4, 'the four by-hand rows sit beneath');
+    ok(await p.locator('#sh-body .mv-read').count() === 0 && !/read from this photograph/.test(await txt(p, '#sh-body')) && /^Read/.test(await txt(p, '#sh-body #st1-readline')) && /^Read/.test(await txt(p, '#sh-body #st2-readline')), 'a slot prints its name and the read, never ✓ Read or a verdict caption (P3)');
+    ok(await p.locator('#sh-body .sh-opts > .sh-opt').count() === 4 && (await p.locator('#sh-body [data-season] .n').allInnerTexts()).map(t => t.trim()).join(' | ') === 'Soft Autumn | True Autumn | Soft Summer' && (await txt(p, '#sh-body .sh-opt.on .n')) === 'Soft Autumn' && await p.locator('#sh-body #sh-season-more.sh-opt').count() === 1, 'Colouring is a four-row picker: the read season selected, its two neighbours on the wheel, Another season (P4)');
+    ok(await p.locator('#sh-body .sh-opt.on + .sh-opt-in .mv-sw-row div').count() === 9 && await p.locator('#sh-body .mv-sw-row').count() === 1 && await p.locator('#sh-body .sh-opt.on + .sh-opt-in #sh-door-colour').count() === 1, 'the strip and Full colour notes → sit under the selected row only');
+    ok(!/By hand/.test(await txt(p, '#sh-body')) && await p.locator('#sh-body .mvr').count() === 4, 'no By hand block — four rows grouped by photograph (P6)');
+    ok((await p.evaluate(() => { const b = document.getElementById('sh-body'); const skin = b.querySelector('[data-axis="skin"]'), hair = b.querySelector('[data-axis="hair"]'), line = b.querySelector('[data-axis="line"]'), frame = b.querySelector('[data-axis="frame"]'), c = b.querySelector('#sh-sec-colour'), l = b.querySelector('#sh-sec-line'); const after = (a, z) => !!(a.compareDocumentPosition(z) & Node.DOCUMENT_POSITION_FOLLOWING); return after(c, skin) && after(skin, l) && after(c, hair) && after(hair, l) && after(l, line) && after(l, frame); })), 'skin and hair sit under Colouring, the line and the frame under Body shape');
+    ok(/Read from your full-length/.test(await txt(p, '#sh-body')) && !/Hourglass/.test(await txt(p, '#sh-body')) && !/waist/.test(await txt(p, '#sh-body')), 'Body shape prints Read from your full-length, then the pickers — never the shape or a body line (P5)');
+    ok(/Sand/.test(await txt(p, '#sh-body')) && /Espresso brown/.test(await txt(p, '#sh-body')), 'the swatch names print beside the selected swatch (P7)');
     await p.click('#sh-door-colour'); await p.waitForTimeout(350);
     ok(await p.locator('#mv-notes-wrap').isVisible() && await p.locator('#colour-sections').isVisible() && await p.locator('#palette-grid .g-6 div').count() === 18, 'Full colour notes → the drawer with all eighteen');
     await p.click('#mvn-close'); await p.waitForTimeout(200);
     await p.click('#sh-body [data-axis="skin"][data-v="0"]'); await p.waitForTimeout(300);
     ok((await p.locator('#mv-head').getAttribute('fill')) === '#3B2A22' && (await upd('u.avatar_id')).avatar_id === 'w-s0-h1-hg', 'a pick inside the sheet repaints the stage and re-files: ' + (await upd('u.avatar_id')).avatar_id);
+    // P4 · a different reading: the picker asks for that season's catalog and lands it as a read
+    await p.click('#sh-body #sh-season-more'); await p.waitForTimeout(200);
+    ok(await p.locator('#sh-body [data-season]').count() === 12, 'Another season opens the full wheel');
+    await p.click('#sh-body [data-season="Dark Autumn"]'); await p.waitForTimeout(500);
+    ok(seasonPosts.length === 1 && seasonPosts[0].season === 'Dark Autumn' && seasonPosts[0].current.archetype_name === 'Soft Autumn', 'a pick posts the season with the photograph’s read riding along');
+    const chosen = await upd('u.colour_analysis');
+    ok(chosen && chosen.season === 'Dark Autumn' && chosen.colour_analysis.chosen === true && chosen.style_dna.color_harmony.archetype_name === 'Dark Autumn', 'the chosen season writes colour_analysis + the DNA fragment, marked chosen');
+    ok((await txt(p, '#sh-body .sh-opt.on .n')) === 'Dark Autumn' && (await txt(p, '#tw-colour-v')) === 'Dark Autumn', 'the picker and the row read the new season');
     await p.click('#sh-done'); await p.waitForTimeout(250);
     ok(await p.locator('#sh-wrap').isHidden() && await p.locator('#tw-slotscard #tw-slots').count() === 1 && await p.locator('#tw-slotscard').isHidden(), 'Done closes the sheet; the slots return to their card, still off the page');
+    // Body shape opens the SAME sheet on its own section (P1)
+    await p.click('#tw-row-line'); await p.waitForTimeout(350);
+    ok((await txt(p, '#sh-title')) === 'Your photographs' && (await p.evaluate(() => { const b = document.getElementById('sh-body'); return b.scrollHeight <= b.clientHeight + 2 || b.scrollTop > 0; })), 'the Body shape row lifts the same sheet, scrolled to Body shape');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
     // Adjust by hand — the same rows, no photographs
     await p.click('#mv-adjust'); await p.waitForTimeout(300);
-    ok(/adjust by hand\./i.test(await txt(p, '#sh-title')) && await p.locator('#sh-body .mvr').count() === 4 && await p.locator('#sh-body #tw-slots').count() === 0, 'Adjust by hand: the four rows, no slots');
+    ok(/^adjust by hand$/i.test(await txt(p, '#sh-title')) && await p.locator('#sh-body .mvr').count() === 4 && await p.locator('#sh-body #tw-slots').count() === 0, 'Adjust by hand: the four rows, no slots');
     const before = await p.locator('#mv-dress').getAttribute('points');
     await p.click('#sh-body [data-axis="frame"][data-v="R"]'); await p.waitForTimeout(300);
     ok((await p.locator('#mv-dress').getAttribute('points')) !== before && /-fr$/.test((await upd('u.avatar_id')).avatar_id), 'a nudge redraws the figure and rides the id');
+    ok(/✓\s*Narrower/.test(await txt(p, '#sh-body [data-axis="frame"].on')), 'the chosen pill carries the small ✓ (P6)');
     await p.locator('#sh-wrap').click({ position: { x: 6, y: 6 } }); await p.waitForTimeout(200);
     ok(await p.locator('#sh-wrap').isHidden(), 'the dimmed page closes the sheet');
-    ok(/Narrower/.test(await txt(p, '#tw-line-v')) === false && (await txt(p, '#tw-line-v')) === 'Hourglass', 'a read line keeps its name on the row');
+    ok((await txt(p, '#tw-line-v')) === 'Narrower frame' && /Read from the full-length/.test(await txt(p, '#tw-line-d')), 'Body shape prints the frame as set — "Narrower frame" — the sub still naming the read (T4)');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
   }
@@ -224,7 +272,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   {
     const { ctx, p, errs, upd } = await open(vp, 'empty', { hash: '#twin' });
     await p.click('#tw-facts'); await p.waitForTimeout(300);
-    ok(/the facts\./i.test(await txt(p, '#sh-title')) && /Size, never weight/.test(await txt(p, '#sh-sub')), 'The facts sheet: size, never weight');
+    ok(/^the facts$/i.test(await txt(p, '#sh-title')) && /Size, never weight/.test(await txt(p, '#sh-sub')), 'The facts sheet: size, never weight — the sentence lives here (T5)');
     ok(await p.locator('#sh-body .fx-row').count() === 5, 'five rows: Height · Size · Shoes · Age · Gender');
     ok(!/weight/i.test(await txt(p, '#sh-body').then(t => t.replace(/Size, never weight/g, ''))), 'no weight anywhere');
     ok(await p.locator('#sh-body [data-axis="presence"]').count() === 3 && /Woman/.test(await txt(p, '#sh-body [data-axis="presence"].on')), 'Gender: Woman · Man · Prefer not to say, Woman on file');
@@ -261,14 +309,15 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     const u = await upd('u.colour_analysis');
     ok(u && u.season === 'Soft Autumn' && u.headshot_url && u.style_dna.color_harmony, 'the read writes colour_analysis + the DNA fragment + the photograph');
     ok((await upd('u.avatar_id')).avatar_id === 'w-s5-h1-nt', 'and files the model from the read');
+    ok(u.colour_analysis.read_at && /^Read \d+ [A-Z][a-z]{2}$/.test(await txt(p, '#st1-readline')), 'the read stamps its date and the slot prints it — "Read 2 Sep" (P3): ' + await txt(p, '#st1-readline'));
     await p.click('#tw-row-line'); await p.waitForTimeout(300);
-    ok(await p.locator('#sh-body #st1-read').isVisible() && await p.locator('#sh-body #st2-read').isHidden(), 'inside the sheet the close-up reads ✓ Read, the full-length not yet');
+    ok(/^Read \d+/.test(await txt(p, '#sh-body #st1-readline')) && await p.locator('#sh-body #st2-readline').isHidden() && await p.locator('#sh-body #st2-guide').isVisible(), 'inside the sheet the close-up reads its date, the full-length still shows its guide');
     const [ch2] = await Promise.all([p.waitForEvent('filechooser'), p.click('#sh-body #full-slot')]);
     await ch2.setFiles(TMP);
     await p.waitForTimeout(900);
-    ok(await p.locator('#sh-body #st2-read').isVisible() && /Hourglass/.test(await txt(p, '#sh-body')), 'a full-length added from the sheet reads there');
+    ok(await p.locator('#sh-body #st2-readline').isVisible() && /Read from your full-length/.test(await txt(p, '#sh-body')) && !/Hourglass/.test(await txt(p, '#sh-body')), 'a full-length added from the sheet reads there — as a read, never a shape');
     await p.click('#sh-done'); await p.waitForTimeout(200);
-    ok((await txt(p, '#tw-line-v')) === 'Hourglass' && /two photographs read/i.test(await txt(p, '#mv-status')), 'the row and the status follow');
+    ok((await p.evaluate(() => document.getElementById('tw-line-v').textContent)) === '' && /Read from the full-length/.test(await txt(p, '#tw-line-d')) && /two photographs read/i.test(await txt(p, '#mv-status')), 'the row and the status follow');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
   }
@@ -277,6 +326,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   {
     const { ctx, p, errs, upd } = await open(vp, 'empty', { hash: '#dna', row: { style_icons: ['The Row', 'Jane Birkin'], budget: 'Everyday, Designer' } });
     ok(await p.locator('#pg-dna').isVisible(), '#dna opens Style DNA');
+    ok((await txt(p, '#sp-hdr-title')) === 'Style DNA' && (await txt(p, '#pg-dna .sp-pagesub')) === 'What you love, and the lines you dress by.', 'titled Style DNA in the header row, the masthead now the 12px sub (D1)');
+    ok(await p.locator('#pg-dna .sp-group').count() === 2 && await p.locator('#pg-dna .sp-row .chev').count() === 8, 'grouped rows in white cards with chevrons stay (D2)');
     // the one-time reconcile: brands split off the icons, the tiers mapped to a level
     const once = await upd('u.style_icons');
     ok(once && once.style_icons.join() === 'Jane Birkin' && once.style_dna.brands.join() === 'The Row' && once.style_dna.investment === '€1,500–5,000' && once.annual_spend === '€1,500–5,000', 'ONE write splits the brands off the icons and maps the highest tier to a level: ' + JSON.stringify(once));
@@ -336,7 +387,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.click('#sh-done'); await p.waitForTimeout(200);
     // in your words
     await p.click('#dna-avoids'); await p.waitForTimeout(300);
-    ok(/hard nos\./i.test(await txt(p, '#sh-title')) && /never proposes these, whatever the occasion/i.test(await txt(p, '#sh-sub')), 'Hard nos: never proposes these, whatever the occasion');
+    ok(/^hard nos$/i.test(await txt(p, '#sh-title')) && /never proposes these, whatever the occasion/i.test(await txt(p, '#sh-sub')), 'Hard nos: never proposes these, whatever the occasion');
     await p.fill('#sh-body #words-in', 'No polo necks'); await p.press('#sh-body #words-in', 'Enter'); await p.waitForTimeout(250);
     const w = await upd('u.style_dna && u.style_dna.brief');
     ok(w.style_dna.brief.avoids.length === 1 && w.style_dna.brief.avoids[0].text === 'No polo necks' && w.style_dna.brief.avoids[0].source === 'typed' && w.style_dna.brief.source === 'edited', 'a typed no files at once as her own line');
@@ -344,7 +395,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.click('#sh-body [data-strike="0"]'); await p.waitForTimeout(250);
     ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids.length === 0 && (await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.struck.length === 0, '× strikes a typed line without recording it as struck (it was hers, not Robes’)');
     await p.click('#sh-done'); await p.waitForTimeout(200);
-    ok(await p.locator('#dna-noticed').isHidden(), 'no Noticed row with nothing kept or pending');
+    ok((await txt(p, '#dna-avoids-v')) === 'Not yet', 'Hard nos reads as a count on the row (D3)');
+    ok(await p.locator('#dna-noticed').count() === 0, 'no "new from Robes" door on Style DNA (D4)');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
   }
@@ -355,14 +407,20 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.waitForTimeout(500);
     ok(briefPosts.length === 1 && briefPosts[0].wardrobe.length === 2 && briefPosts[0].styleIcons.join() === 'Jane Birkin', 'the root reads her wardrobe once, her rows as the evidence');
     const d = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.pending');
-    ok(d && d.style_dna.brief.pending.length === 4 && d.style_dna.brief.read_at && d.style_dna.memory.read_at, 'the draft lands as four pending lines, read_at stamped on the brief and the memory');
-    ok(/4 new/.test(await txt(p, '#card-obs-st')), 'the observations card counts 4 new');
+    ok(d && d.style_dna.brief.pending.length === 5 && d.style_dna.brief.read_at && d.style_dna.memory.read_at, 'the draft lands as five pending lines, read_at stamped on the brief and the memory');
+    const pend = d.style_dna.brief.pending;
+    ok(pend[3].list === 'notes' && pend[3].text === 'You dress best when one line runs uninterrupted from shoulder to shoe.' && /^You dress best.*read as yours\.$/.test(pend[3].full), 'the notes land as ONE sentence, the paragraph riding behind it — never a character cut (L2)');
+    ok(pend[3].because === 'From 2 pieces filed' && pend[4].because === 'From 2 pieces filed', 'the source line names the evidence, never a label (L3 · O4): ' + pend[3].because);
+    ok(pend[4].text === 'You reach for black and taupe. Red stays on the rail.' && pend[4].loved.join() === 'black,taupe', 'the colours read as a lower-case sentence joined with and (O3): ' + pend[4].text);
     ok(await p.locator('#sp-notice').isVisible() && /You reach for a defined waist/.test(await txt(p, '#sp-notice .t')), 'the "Robes noticed" card carries the first line');
-    ok(/Model · Read from your photographs/.test(await txt(p, '#card-twin-st')) && /The facts · 5 of 5/.test(await txt(p, '#card-twin-st')) && /Your taste · Complete/.test(await txt(p, '#card-dna-st')), 'a full profile reads complete on the cards');
+    ok((await p.locator('#sp-notice .t').evaluate(el => getComputedStyle(el).webkitLineClamp)) === '3', 'the card’s line clamps at three lines with an ellipsis (L2)');
+    ok((await p.locator('#sp-notice .verbs button').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === '← not me | keep →', 'the alert keeps its labelled actions (L4)');
+    ok(await p.locator('#tab-style .sp-card .st').count() === 0, 'the cards carry no state lines (G4)');
     // Keep on the card
     await p.click('#sp-notice [data-v="keep"]'); await p.waitForTimeout(500);
     const k = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.loves.length');
-    ok(k && k.style_dna.brief.loves[0].text === 'You reach for a defined waist' && k.style_dna.brief.loves[0].source === 'drafted' && k.style_dna.brief.pending.length === 3, 'Keep files the line under Works and takes it off pending');
+    ok(k && k.style_dna.brief.loves[0].text === 'You reach for a defined waist' && k.style_dna.brief.loves[0].source === 'drafted' && k.style_dna.brief.pending.length === 4, 'Keep files the line under Works and takes it off pending');
+    ok(/^\d{4}-\d{2}-\d{2}T/.test(k.style_dna.brief.loves[0].at || ''), 'a kept line carries the date it was kept (O7)');
     ok(/Kept\. Filed under Style DNA\./.test(await txt(p, '#sp-toast')), 'the toast: Kept. Filed under Style DNA.');
     ok(/Anything that reads polite/.test(await txt(p, '#sp-notice .t')), 'the next line takes the card');
     // the drag: past 90px commits
@@ -370,23 +428,27 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.mouse.move(box.x + 60, box.y + 40); await p.mouse.down(); await p.mouse.move(box.x + 100, box.y + 40); await p.mouse.move(box.x + 180, box.y + 40); await p.mouse.up();
     await p.waitForTimeout(500);
     const k2 = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.avoids.length');
-    ok(k2 && k2.style_dna.brief.avoids[0].text === 'Anything that reads polite' && k2.style_dna.brief.pending.length === 2, 'a drag to the right keeps the next line');
+    ok(k2 && k2.style_dna.brief.avoids[0].text === 'Anything that reads polite' && k2.style_dna.brief.pending.length === 3, 'a drag to the right keeps the next line');
     // the page
     await p.click('#card-obs'); await p.waitForTimeout(400);
-    ok(await p.locator('#pg-obs').isVisible() && await p.locator('#obs-body .ob').count() === 2, 'the observations page lists the two still pending');
-    ok(/kept before/i.test(await txt(p, '#obs-body')) && /You reach for a defined waist/.test(await txt(p, '#obs-body')), 'Kept before lists what she kept');
+    ok(await p.locator('#pg-obs').isVisible() && await p.locator('#obs-body .ob').count() === 3, 'the observations page lists the three still pending');
+    ok((await txt(p, '#sp-hdr-title')) === 'Robes Observations' && /Read from what you wear/.test(await txt(p, '#pg-obs .sp-pagesub')), 'titled Robes Observations in the header row, the sub below (D1)');
+    ok((await p.locator('#obs-body .ob .k').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === 'rule | how you dress well | colour', 'each card keeps its category eyebrow (O2)');
+    ok((await p.locator('#obs-body .ob .verbs .keep').first().evaluate(el => { const s = getComputedStyle(el); return s.borderTopStyle === 'solid' && s.fontSize === '12px' && s.paddingTop === '10px' && s.paddingLeft === '16px'; })) && (await p.locator('#obs-body .ob .verbs .no').first().evaluate(el => getComputedStyle(el).borderTopStyle === 'none')), 'in the list Keep is a hairline pill, Not me a text link beside it (O5)');
+    ok((await p.locator('#obs-body .ob .t').first().evaluate(el => getComputedStyle(el).webkitLineClamp)) === '3', 'an observation clamps at three lines (L2)');
+    ok(/kept before/i.test(await txt(p, '#obs-body')) && /You reach for a defined waist/.test(await txt(p, '#obs-body')) && /Kept in [A-Z][a-z]+/.test(await p.locator('#obs-body .ln .when').first().innerText()), 'Kept before lists what she kept, dated at the right — "Kept in March" (O7)');
     await p.click('#obs-body [data-no="0"]'); await p.waitForTimeout(400);
     const s = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.struck.length');
     ok(s && s.style_dna.brief.struck[0] === 'Loafers only with a cropped trouser' && s.style_dna.memory.entries[0].k === 'strike', 'Not me strikes the line and the memory records it');
     await p.click('#obs-body [data-keep="0"]'); await p.waitForTimeout(400);
+    const nts = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.notes');
+    ok(nts && /^You dress best.*read as yours\.$/.test(nts.style_dna.brief.notes), 'keeping the notes line files the WHOLE paragraph behind its sentence');
+    await p.click('#obs-body [data-keep="0"]'); await p.waitForTimeout(400);
     const c = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.loved.length');
-    ok(c && c.style_dna.brief.colours.loved.join() === 'black' && c.style_dna.brief.pending.length === 0, 'keeping the colour line lands the colour');
-    ok(/Nothing new\. Robes keeps reading\./.test(await txt(p, '#obs-body')) && /read again/i.test(await txt(p, '#obs-again')), 'empty: Nothing new, Read again stays');
-    await p.click('#obs-again'); await p.waitForTimeout(500);
-    ok(briefPosts.length === 2 && briefPosts[1].current.loves.join() === 'You reach for a defined waist' && briefPosts[1].current.avoids.join() === 'Anything that reads polite', 'Read again posts the kept lines as the never-repeat list');
-    ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.pending.length === 0, 'and a line already kept or struck never returns');
+    ok(c && c.style_dna.brief.colours.loved.join() === 'black,taupe' && c.style_dna.brief.colours.rejected.join() === 'red' && c.style_dna.brief.pending.length === 0, 'keeping the colour line lands the colours');
+    ok(/Nothing new\. Robes keeps reading\./.test(await txt(p, '#obs-body')) && await p.locator('#obs-again').count() === 0, 'empty: one italic line, no Read again (O6)');
     await p.evaluate(() => { location.hash = '#dna'; }); await p.waitForTimeout(300);
-    ok(await p.locator('#dna-noticed').isVisible() && /Noticed and kept/.test(await txt(p, '#dna-noticed-n')), 'Style DNA carries the Noticed and kept row');
+    ok(await p.locator('#dna-noticed').count() === 0, 'Style DNA carries no Noticed door (D4)');
     ok((await txt(p, '#dna-loves-v')) === '1 line' && (await txt(p, '#dna-avoids-v')) === '1 line', 'the word rows count what she kept');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
@@ -399,8 +461,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.fill('#sh-body #ac-first', 'Liberty'); await p.fill('#sh-body #ac-last', 'Byrne');
     await p.click('#sh-done'); await p.waitForTimeout(250);
     const n = await upd('u.first_name');
-    ok(n && n.first_name === 'Liberty' && n.last_name === 'Byrne' && (await txt(p, '#ac-name-v')) === 'Liberty Byrne' && (await txt(p, '#sn-avatar')) === 'L', 'Done saves the name; the row and the avatar follow');
+    ok(n && n.first_name === 'Liberty' && n.last_name === 'Byrne' && (await txt(p, '#ac-name-v')) === 'Liberty Byrne', 'Done saves the name; the row follows');
     await p.click('#ac-email'); await p.waitForTimeout(300);
+    ok(/Where sign-in links and receipts go/.test(await txt(p, '#sh-sub')), 'the helper line moved into the sheet the row opens (A1)');
     await p.fill('#sh-body #ac-em', 'liberty@example.com'); await p.click('#sh-body #ac-em-go'); await p.waitForTimeout(300);
     ok((await p.evaluate(() => window.__auth)).some(a => a.email === 'liberty@example.com') && /Check liberty@example\.com/.test(await txt(p, '#sh-body #ac-msg')), 'a new email goes through auth and asks her to confirm');
     await p.click('#sh-done');
@@ -446,7 +509,7 @@ console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, t
   const c = await open(vp, 'empty', { path: '?chapter=brief', draft: DRAFT });
   await c.p.waitForTimeout(400);
   ok(await c.p.locator('#pg-obs').isVisible() && !/chapter=/.test(c.p.url()) && c.p.url().endsWith('#observations'), '?chapter=brief (the next line’s door) lands on the observations, the param stripped');
-  ok(c.briefPosts.length === 1 && await c.p.locator('#obs-body .ob').count() === 4, 'and reads her wardrobe into pending lines');
+  ok(c.briefPosts.length === 1 && await c.p.locator('#obs-body .ob').count() === 5, 'and reads her wardrobe into pending lines');
   await c.ctx.close();
   const d = await open(vp, 'empty', { path: '?begin=1' });
   ok(await d.p.locator('#pg-root').isVisible() && await d.p.locator('#tab-style').isVisible() && !/begin=/.test(d.p.url()), '?begin=1 (home’s dashed door) lands on Style Profile, the param stripped');
@@ -456,13 +519,23 @@ console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, t
   await e.ctx.close();
   const f = await open(vp, 'empty', { hash: '#account' });
   ok(await f.p.locator('#tab-account').isVisible(), '#account opens the Account tab');
-  await f.p.click('[data-back]').catch(() => {});
-  await f.p.click('#sn-avatar'); await f.p.waitForTimeout(150);
-  const items = (await f.p.locator('#sn-av-menu .sn-av-item').allInnerTexts()).map(t => t.trim());
-  ok(items.join(' · ') === 'Style Profile · Account · Log out', 'the avatar menu: Style Profile · Account · Log out — ' + items.join(' · '));
-  await f.p.click('#sn-av-style'); await f.p.waitForTimeout(200);
-  ok(await f.p.locator('#tab-style').isVisible() && !/#/.test(f.p.url()), 'Style Profile from the menu');
+  await f.p.click('#sp-seg button[data-tab="style"]'); await f.p.waitForTimeout(200);
+  ok(await f.p.locator('#tab-style').isVisible() && !/#/.test(f.p.url()), 'Style Profile from the switch');
+  await f.p.click('#card-dna'); await f.p.waitForTimeout(300);
+  await f.p.click('#sn-back'); await f.p.waitForTimeout(300);
+  ok(await f.p.locator('#pg-root').isVisible() && (await txt(f.p, '#sp-hdr-title')) === 'Settings', 'the header ← takes a page back to Settings');
+  await f.p.click('#sn-back');
+  await f.p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
+  ok(/\/dashboard$/.test(f.p.url()), 'and from the root it takes her Home');
   await f.ctx.close();
+  // a kept line never comes back: the auto-read posts it as the never-repeat list
+  const g = await open(vp, 'empty', { draft: DRAFT, row: { style_dna: { brief: { loves: [{ text: 'You reach for a defined waist', source: 'drafted', at: '2026-03-02T10:00:00Z' }], read_at: '2026-01-01T00:00:00Z' } } } });
+  await g.p.waitForTimeout(500);
+  ok(g.briefPosts.length === 1 && g.briefPosts[0].current.loves.join() === 'You reach for a defined waist', 'a stale read runs itself and posts the kept lines as the never-repeat list');
+  ok((await g.upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.pending')).style_dna.brief.pending.every(x => x.text !== 'You reach for a defined waist'), 'and a line already kept never returns');
+  await g.p.click('#card-obs'); await g.p.waitForTimeout(300);
+  ok(/Kept in March/.test(await g.p.locator('#obs-body .ln .when').first().innerText()), 'Kept before names the month a line was kept');
+  await g.ctx.close();
   // the forward action: Build a look → the dashboard with the flags set
   const h = await open(vp, 'colour', { hash: '#twin' });
   ok(await h.p.locator('#mv-build').isVisible() && /build a look/i.test(await txt(h.p, '#mv-build')), 'with no return the pill reads Build a look');
@@ -470,7 +543,7 @@ console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, t
   await h.p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
   ok(/\/dashboard$/.test(h.p.url()), 'Build a look lands on the dashboard');
   await h.ctx.close();
-  ok(a.errs.length + b.errs.length + c.errs.length + d.errs.length + e.errs.length + f.errs.length === 0, 'no page errors across the doors');
+  ok(a.errs.length + b.errs.length + c.errs.length + d.errs.length + e.errs.length + f.errs.length + g.errs.length === 0, 'no page errors across the doors');
 }
 
 console.log('\n\x1b[1m== degrade — the columns a migration adds ==\x1b[0m');
@@ -478,7 +551,7 @@ console.log('\n\x1b[1m== degrade — the columns a migration adds ==\x1b[0m');
   const vp = { width: 1280, height: 900 };
   const a = await open(vp, 'colour', { hash: '#twin', updateMode: 'nocol' });
   await a.p.waitForTimeout(300);
-  ok(await a.p.locator('#mv-filed').isVisible() && !!(await a.p.evaluate(() => localStorage.getItem('rb_model__u1'))), 'avatar columns missing: the model files locally, the ✓ line still stands');
+  ok(await a.p.locator('#mv-build').isVisible() && !!(await a.p.evaluate(() => localStorage.getItem('rb_model__u1'))), 'avatar columns missing: the model files locally, Build a look still stands');
   await a.p.click('#tw-row-colour'); await a.p.waitForTimeout(300);
   await a.p.click('#sh-body [data-axis="hair"][data-v="4"]'); await a.p.waitForTimeout(300);
   ok((await a.p.evaluate(() => window.__updates.filter(u => u.avatar_id).length)) === 1, 'after one refusal no avatar write is retried this session');
@@ -494,7 +567,10 @@ console.log('\n\x1b[1m== mobile — the sheet is a bottom sheet; the stage leads
   const { ctx, p } = await open({ width: 390, height: 844 }, 'both', { hash: '#twin' });
   const stage = await p.locator('.tw-stage').boundingBox();
   const card = await p.locator('#tw-read').boundingBox();
-  ok(stage.y < card.y && stage.width >= 390, 'the stage leads the page full-bleed');
+  ok(stage.y < card.y && stage.width >= 390, 'the stage leads the page full-bleed (T2)');
+  ok(Math.round((await p.locator('.topbar').boundingBox()).height) === 44 && await p.locator('#rb-dock').count() === 0, 'at 390 the header is the one 44px row and there is no dock');
+  const foot = await p.evaluate(() => { const m = document.querySelector('main'); return parseFloat(getComputedStyle(m).paddingBottom); });
+  ok(foot >= 40 && (await p.evaluate(() => { const r = document.querySelector('.mv2-foot').getBoundingClientRect(); return r.bottom <= document.documentElement.scrollHeight; })), 'nothing floats over the last row (G3)');
   await p.click('#tw-facts'); await p.waitForTimeout(400);
   const sh = await p.locator('#sh').boundingBox();
   ok(Math.abs(sh.y + sh.height - 844) < 2 && sh.width === 390, 'the sheet rises from the foot, full width');

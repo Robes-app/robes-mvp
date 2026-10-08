@@ -11,7 +11,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="/css/tokens.css">
 <style>
-    /* ══ Settings — the digital twin (design: Settings_Prototype.dc.html, 2026-10-07)
+    /* ══ Settings — the digital twin (design: Settings_Prototype.dc.html, 2026-10-07;
+       redlined against the shipped build in Settings_Redlines.dc.html, 2026-10-08)
        One surface behind the avatar: Style Profile | Account. A card slides
        its page in; a row lifts a sheet titled with Done; the dimmed page
        closes it. Every engine on this page is the Style notes engine it
@@ -26,51 +27,28 @@
     button { font-family: inherit; }
     [hidden] { display: none !important; }
 
-    /* ── the topbar (unchanged from Style notes: ROBES | ‹ Home · the account avatar) ── */
-    .topbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; height: var(--nav-h); padding: 0 calc(max((100% - var(--shell)) / 2, 0px) + var(--s6)); background: rgba(250,248,245,0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--cream-300); }
-    .topbar-l { display: flex; align-items: center; gap: 16px; min-width: 0; }
-    .wordmark { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 20px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink); text-decoration: none; }
-    .topbar-sep { width: 1px; height: 16px; background: #E0D8C8; }
-    #save-state { font: 400 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); opacity: 0; transition: opacity 0.3s; }
+    /* ── the header — ONE 44px row on every screen (redlines G1 · G2 · L1 ·
+       A2 · D1): ← at the left, the page's title centred, nothing right. One
+       12px sub line below it, on the page. The four layers it replaces — the
+       back pill + avatar, the inline ‹ Settings, the eyebrow, the serif
+       masthead — are gone, and with them the weather pill and the avatar menu
+       (Style Profile · Account are the switch; Log out is the Account foot).
+       Settings is a stack pushed from the avatar, so it carries no mobile
+       dock either (G3): ← takes her home. ── */
+    :root { --sp-hdr: 44px; }
+    .topbar { position: sticky; top: 0; z-index: 50; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; height: var(--sp-hdr); padding: 0 calc(max((100% - var(--shell)) / 2, 0px) + var(--s6)); background: rgba(250,248,245,0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--cream-300); }
+    .sn-back { width: 44px; height: 44px; margin-left: -10px; display: inline-flex; align-items: center; justify-content: center; background: none; border: 0; padding: 0; font: 300 24px/1 'Inter'; color: var(--ink); cursor: pointer; }
+    .sn-back:hover { color: var(--ink-soft); }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .sp-hdr-title { text-align: center; font: 400 22px/1 'Cormorant', Georgia, serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .topbar-r { position: relative; height: 44px; }
+    #save-state { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font: 400 9px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); opacity: 0; transition: opacity 0.3s; white-space: nowrap; pointer-events: none; }
     #save-state.on { opacity: 1; }
     #save-state.err { color: #8B3A30; }
-    .topbar-r { display: flex; align-items: center; gap: 12px; }
-    .sn-weather { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 100px; font: 300 11.5px/1 'Inter'; letter-spacing: 0.01em; color: var(--ink-soft); }
-    .sn-weather .wx { font-size: 14px; opacity: 0.85; }
-    .sn-weather .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-faint); opacity: 0.6; }
-    .sn-back { position: relative; display: inline-flex; align-items: center; gap: 5px; font: 400 13px/1 'Inter'; color: var(--ink-faint); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; transition: color .2s; white-space: nowrap; }
-    .sn-back::after { content: ''; position: absolute; inset: -14px -10px; }
-    .sn-back svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    .sn-back:hover { color: var(--ink); }
-    @media (max-width: 767px) {
-      .sn-back { gap: 5px; padding: 6px 12px 6px 8px; border: 0.5px solid var(--rule-mid); border-radius: 100px; background: rgba(255,255,255,0.7); font-size: 12.5px; color: var(--ink); }
-      .sn-back::after { display: none; }
-      .sn-back svg { width: 15px; height: 15px; stroke: var(--ink-soft); }
-    }
-    .sn-av-wrap { position: relative; }
-    .sn-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--cream); display: flex; align-items: center; justify-content: center; font: 400 13px/1 'Cormorant', Georgia, serif; cursor: pointer; user-select: none; }
-    .sn-av-menu { position: absolute; top: 42px; right: 0; width: 208px; background: var(--cream); border: 0.5px solid #E0D8C8; border-radius: 10px; box-shadow: 0 14px 40px rgba(32,32,33,0.12); padding: 6px; opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity 0.16s, transform 0.16s; z-index: 300; }
-    .sn-av-menu.open { opacity: 1; transform: translateY(0); pointer-events: all; }
-    .sn-av-name { padding: 10px 12px 8px; border-bottom: 0.5px solid #EDE6D8; margin-bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
-    .sn-av-name strong { font: 500 13px/1.2 'Inter'; color: var(--ink); }
-    .sn-av-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: none; background: none; border-radius: 7px; cursor: pointer; font: 400 12.5px/1 'Inter'; color: var(--ink); text-align: left; }
-    .sn-av-item:hover { background: #F3EFE6; }
-    .sn-av-item svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-    .sn-av-item.sn-av-out { border-top: 0.5px solid #EDE6D8; border-radius: 0 0 7px 7px; margin-top: 4px; padding-top: 12px; }
-    @media (max-width: 767px) { .sn-weather { display: none; } }
+    .sp-pagesub { margin: 0 auto 22px; text-align: center; font: 300 12px/1.5 'Inter'; color: var(--ink-soft); text-wrap: pretty; max-width: 520px; }
 
-    /* Mobile dock — the dashboard's anchored destinations; nothing lit here */
-    #rb-dock { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 48; padding: 10px 10px calc(12px + env(safe-area-inset-bottom)); }
-    #rb-dock-in { display: flex; gap: 0; background: rgba(255,255,255,0.7); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border: 1px solid rgba(231,224,207,0.85); border-radius: 24px; padding: 5px 4px; }
-    .rb-dock-tab { position: relative; flex: 1; min-width: 0; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 7px; color: var(--ink-soft); font-family: 'Inter', sans-serif; font-size: 9.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
-    .rb-dock-tab svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    @media (max-width: 767px) {
-      #rb-dock { display: block; }
-      body { padding-bottom: 96px; }
-      .wordmark, .topbar-sep { display: none; }
-    }
-
-    main { max-width: var(--shell); margin: 0 auto; padding: 32px var(--s6) 120px; }
+    main { max-width: var(--shell); margin: 0 auto; padding: 24px var(--s6) 80px; }
+    @media (max-width: 767px) { main { padding-bottom: calc(40px + env(safe-area-inset-bottom)); } }
     .sp-col { max-width: 720px; margin: 0 auto; }
 
     /* ── the type register ── */
@@ -83,34 +61,33 @@
     .sp-title em { font-style: italic; color: #8A8378; }
     .sp-sub { margin: 10px 0 0; font: 300 14px/1.6 'Inter'; color: var(--ink-soft); max-width: 520px; text-wrap: pretty; }
 
-    /* ── the root: Settings · Style Profile | Account ── */
-    .sp-head { display: flex; flex-direction: column; gap: 18px; }
-    .rb-seg2 { display: grid; grid-template-columns: 1fr 1fr; width: 260px; height: 36px; padding: 3px; border-radius: 100px; background: var(--cream-200); align-items: stretch; }
-    .rb-seg2 button { border: 0; background: none; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; padding: 0 10px; white-space: nowrap; }
-    .rb-seg2 button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(32,32,33,0.08); }
+    /* ── the root: Settings · Style Profile | Account. Selected is warm —
+       #F3EFE6 on a #C9BCA6 hairline over a cream-100 track (G5), never a
+       white thumb. ── */
+    .sp-head { display: flex; justify-content: center; }
+    .rb-seg2 { display: grid; grid-template-columns: 1fr 1fr; width: 260px; height: 36px; padding: 3px; border-radius: 100px; background: var(--cream-100); border: 1px solid var(--rule); align-items: stretch; }
+    .rb-seg2 button { border: 1px solid transparent; background: none; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; padding: 0 10px; white-space: nowrap; }
+    .rb-seg2 button.on { background: #F3EFE6; border-color: #C9BCA6; color: var(--ink); }
     @media (max-width: 767px) { .rb-seg2 { width: 100%; } }
     .sp-tab { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; }
 
-    /* ── cards — white on a hairline; the whole card is the door ── */
+    /* ── cards — white on a hairline; the whole card is the door. A landing
+       card prints its TITLE ONLY (G4 · L5): no number, no description, no
+       meta line. ── */
     .sp-card { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid var(--rule); border-radius: var(--rad-card); padding: 20px 22px; font-family: inherit; color: var(--ink); cursor: pointer; transition: border-color .2s, transform .2s; position: relative; }
     .sp-card:hover { border-color: var(--rule-mid); }
     .sp-card.static { cursor: default; }
     .sp-card.static:hover { border-color: var(--rule); }
     .sp-card .k { font: 400 9.5px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rose); }
-    .sp-card .t { font: 400 24px/1.15 'Cormorant', Georgia, serif; color: var(--ink); margin-top: 8px; display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+    .sp-card .t { font: 400 24px/1.15 'Cormorant', Georgia, serif; color: var(--ink); display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+    .sp-card .k + .t { margin-top: 8px; }
     .sp-card .t .chev { font: 300 20px/1 'Inter'; color: var(--ink-faint); flex: none; }
     .sp-card .s { font: 300 13px/1.55 'Inter'; color: var(--ink-soft); margin-top: 6px; text-wrap: pretty; }
-    .sp-card .st { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; }
-    .sp-card .st span { font: 400 11px/1.4 'Inter'; color: var(--ink-soft); }
-    .sp-card .st span b { font-weight: 400; color: var(--ink); }
-    .sp-card .st span.none { font-style: italic; color: var(--ink-faint); }
-    .sp-card .st span.new { color: var(--sage); }
-    .sp-card .st span.new::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--sage); margin-right: 6px; vertical-align: 1px; }
 
     /* the "Robes noticed" swipe card on the Style Profile tab */
     .sp-notice { position: relative; overflow: hidden; background: var(--cream-100); border: 1px solid var(--rule-mid); border-radius: var(--rad-card); padding: 20px 22px 18px; touch-action: pan-y; user-select: none; }
     .sp-notice .k { font: 400 9.5px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--sage); }
-    .sp-notice .t { font: 400 22px/1.25 'Cormorant', Georgia, serif; color: var(--ink); margin-top: 10px; }
+    .sp-notice .t { font: 400 22px/1.25 'Cormorant', Georgia, serif; color: var(--ink); margin-top: 10px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .sp-notice .b { font: italic 300 14px/1.5 'Cormorant', Georgia, serif; color: var(--ink-soft); margin-top: 6px; }
     .sp-notice .verbs { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
     .sp-notice .verbs button { height: 40px; padding: 0 18px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; }
@@ -122,19 +99,13 @@
     @media (prefers-reduced-motion: reduce) { .sp-notice.fly { transition: none; } }
     .sp-toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--cream); font: 400 12px/1 'Inter'; letter-spacing: 0.02em; padding: 12px 18px; border-radius: 100px; z-index: 500; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; max-width: calc(100vw - 32px); }
     .sp-toast.on { opacity: 1; }
-    @media (max-width: 767px) { .sp-toast { bottom: calc(108px + env(safe-area-inset-bottom)); } }
 
-    /* ── pages: a card slides its page in from the right; ‹ Settings takes it back ── */
+    /* ── pages: a card slides its page in from the right; the header's ← takes it back ── */
     .sp-page { animation: spPageIn .3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
     @keyframes spPageIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
     .sp-page.back { animation: spPageBack .26s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
     @keyframes spPageBack { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) { .sp-page, .sp-page.back { animation: none; } }
-    .sp-pagehead { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
-    .sp-backpill { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; font: 400 13px/1 'Inter'; color: var(--ink-faint); cursor: pointer; position: relative; }
-    .sp-backpill::after { content: ''; position: absolute; inset: -12px -10px; }
-    .sp-backpill svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    .sp-backpill:hover { color: var(--ink); }
 
     /* a group of rows — the Style DNA page, the Account cards */
     .sp-group { background: #fff; border: 1px solid var(--rule); border-radius: var(--rad-card); overflow: hidden; }
@@ -149,17 +120,14 @@
     .sp-row .l { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
     .sp-row .n { font: 400 17px/1.2 'Cormorant', Georgia, serif; }
     .sp-row .d { font: 300 12px/1.45 'Inter'; color: var(--ink-soft); }
-    .sp-row .v { font: 300 13px/1.35 'Inter'; color: var(--ink-soft); text-align: right; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sp-row .v { font: 300 13px/1.35 'Inter'; color: var(--ink-soft); text-align: right; max-width: 56%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sp-row .v:empty { display: none; }
     .sp-row .v.none { font-style: italic; color: var(--ink-faint); }
     .sp-row .v.rose { color: var(--rose); }
     .sp-row .chev { font: 300 18px/1 'Inter'; color: var(--ink-faint); flex: none; }
     .sp-row.danger .n { color: #8B3A30; }
+    a.sp-row { text-decoration: none; }
     .sp-row .ext { font: 300 13px/1 'Inter'; color: var(--ink-faint); }
-    .sp-alert { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 22px; padding: 14px 18px; background: var(--cream-100); border: 1px solid var(--rule-mid); border-radius: var(--rad); text-align: left; font-family: inherit; cursor: pointer; }
-    .sp-alert .l { flex: 1; display: flex; flex-direction: column; gap: 3px; }
-    .sp-alert .n { font: 400 15px/1.2 'Cormorant', Georgia, serif; color: var(--ink); }
-    .sp-alert .d { font: 300 12px/1.4 'Inter'; color: var(--ink-soft); }
-    .sp-alert .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); flex: none; }
 
     /* toggles (Notifications) */
     .sp-tog { position: relative; width: 42px; height: 24px; border-radius: 100px; background: var(--cream-300); border: 0; cursor: pointer; flex: none; transition: background .2s; }
@@ -180,7 +148,7 @@
     .tw-grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
     @media (min-width: 1024px) {
       .tw-grid { grid-template-columns: 430px minmax(0, 1fr); gap: 48px; align-items: start; }
-      .tw-stage { position: sticky; top: calc(var(--nav-h) + 24px); height: calc(100vh - var(--nav-h) - 48px); min-height: 520px; max-height: 760px; }
+      .tw-stage { position: sticky; top: calc(var(--sp-hdr) + 24px); height: calc(100vh - var(--sp-hdr) - 48px); min-height: 520px; max-height: 760px; }
     }
     .tw-stage { position: relative; height: 480px; background: #F5F0E9; border: 1px solid var(--cream-300); border-radius: var(--rad-card); overflow: hidden; }
     @media (max-width: 767px) { .tw-stage { height: 420px; margin: 0 calc(-1 * var(--s6)); border-radius: 0; border-left: 0; border-right: 0; } }
@@ -190,12 +158,13 @@
     .mv2-stagehead { position: absolute; left: 22px; right: 22px; bottom: 20px; display: none; flex-direction: column; gap: 6px; z-index: 3; }
     .mv2-ey { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rose, #8E6A7C); }
     .mv-caption { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 18px; line-height: 1.45; color: #4F4A44; }
+    .tw-main { gap: 22px; }
+    .tw-sec .sp-gk { margin-top: 0; }
     @keyframes mvFadeIn { from { opacity: 0; } to { opacity: 1; } }
     .mv-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; animation: mvFadeIn 0.4s ease both; z-index: 1; }
     .mv-photo-busy { position: absolute; right: 14px; top: 16px; white-space: nowrap; font: 400 9.5px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); background: rgba(250,248,245,0.88); border: 1px solid var(--cream-300); border-radius: 100px; padding: 8px 14px; animation: rb-pulse 1.4s ease-in-out infinite; z-index: 4; }
     @keyframes rb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
     .tw-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-    .tw-main .sp-card .t { font-size: 21px; }
 
     /* the two photograph slots — dashed in the empty state, tiles inside the sheet */
     .tw-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -216,9 +185,8 @@
     .slot-err { font: 300 12px/1.5 'Inter'; color: #8B3A30; display: none; }
     .slot-err.on { display: block; }
     .tw-slotlab { font: 400 9.5px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
-    .mv-read { font: 400 10px/1 'Inter'; color: var(--sage, #4A7B6F); letter-spacing: 0.1em; text-transform: uppercase; }
     .mv-guide { font: 300 12px/1.55 'Inter'; color: #8A8378; margin: 0; }
-    .mv2-likread { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 13.5px; line-height: 1.5; color: #4F4A44; margin: 0; }
+    .mv2-likread { font: 300 12px/1.5 'Inter'; color: var(--ink-soft); margin: 0; }
 
     /* the by-hand rows (skin · hair · the line · the frame) — in place while
        nothing has read, inside the sheets after */
@@ -228,42 +196,44 @@
     .mvr-opts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
     .mvr-pill { border-radius: 100px; padding: 10px 16px; cursor: pointer; font: 400 12px/1 'Inter'; color: var(--ink); background: #FFFFFF; border: 1px solid var(--cream-300); }
     .mvr-pill.on { background: #F3EFE6; border-color: #C9BCA6; }
+    .mvr-pill .ck { margin-right: 7px; font-size: 11px; }
     .mvr-dot { width: 28px; height: 28px; border-radius: 100px; cursor: pointer; padding: 0; border: 1px solid rgba(32,32,33,0.14); }
     .mvr-dot.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--cream), 0 0 0 3px var(--ink); }
     .mvr-cur { font: 400 12px/1 'Inter'; color: #6E675E; margin-left: 6px; }
     @media (max-width: 767px) { .mvr { flex-wrap: wrap; gap: 10px 14px; } .mvr-k { width: 100%; } }
 
-    /* the facts card — five cells */
-    .tw-facts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
-    .tw-facts .c { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-    .tw-facts .c .k { font: 400 9px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); }
+    /* the facts — ONE strip of five with hairline dividers (T5); the card is the door */
+    .tw-factscard { display: block; width: 100%; padding: 0; text-align: left; font-family: inherit; color: var(--ink); cursor: pointer; }
+    .tw-factscard:hover { border-color: var(--rule-mid); }
+    .tw-facts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .tw-facts .c { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 14px 12px; border-left: 1px solid var(--rule); }
+    .tw-facts .c:first-child { border-left: 0; }
+    .tw-facts .c .k { font: 400 9px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tw-facts .c .v { font: 400 17px/1.15 'Cormorant', Georgia, serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tw-facts .c .v.add { font-style: italic; font-weight: 300; color: var(--ink-faint); }
-    @media (max-width: 767px) { .tw-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; } }
+    @media (max-width: 767px) { .tw-facts .c { padding: 12px 8px; gap: 5px; } .tw-facts .c .v { font-size: 15px; } .tw-facts .c .k { font-size: 8px; letter-spacing: 0.12em; } }
 
-    /* the footer — the one ink pill (Build a look), the filed line, the status */
-    .mv2-foot { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
-    .mv2-footcol { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-    .mv-filed { font: 400 10px/1.5 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sage, #4A7B6F); }
-    .mv-filed.flash { animation: mvFadeIn 0.5s ease both; }
+    /* the closing CTA — Build a look as the screen's one ink fill, the italic line under it (T6) */
+    .mv2-foot { margin-top: 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
     .mv-build { flex: none; white-space: nowrap; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 34px; font: 400 11px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; }
     .mv-status { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.5; color: #8A8378; }
-    @media (max-width: 767px) { .mv2-foot { flex-direction: column; align-items: stretch; text-align: center; gap: 12px; } .mv2-footcol { display: contents; } .mv-filed { order: 1; } .mv-build { order: 2; width: 100%; } .mv-status { order: 3; } }
+    @media (max-width: 767px) { .mv2-foot { align-items: stretch; text-align: center; gap: 12px; } .mv-build { width: 100%; } }
 
     /* ── sheets — a bottom sheet with a grab bar on the phone, a centred card on the web ── */
     #sh-wrap { position: fixed; inset: 0; z-index: 400; background: rgba(32,32,33,0.22); display: flex; align-items: center; justify-content: center; padding: 24px; animation: mvFadeIn 0.2s ease both; }
-    #sh { width: 100%; max-width: 560px; max-height: calc(100vh - 48px); background: var(--cream); border: 1px solid var(--cream-300); border-radius: var(--rad-lg); box-shadow: 0 24px 70px rgba(32,32,33,0.16); display: flex; flex-direction: column; animation: shIn 0.26s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    #sh { width: 100%; max-width: 560px; max-height: calc(100vh - 48px); background: var(--cream); border: 0; border-radius: var(--rad-lg); box-shadow: 0 24px 70px rgba(32,32,33,0.16); display: flex; flex-direction: column; animation: shIn 0.26s cubic-bezier(0.22, 0.7, 0.2, 1) both; overflow: hidden; }
     @keyframes shIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
     .sh-grab { display: none; }
     .sh-head { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 22px 24px 14px; }
-    .sh-title { font-family: 'Cormorant', Georgia, serif; font-weight: 400; font-size: 26px; line-height: 1.1; color: var(--ink); }
+    .sh-title { font-family: 'Cormorant', Georgia, serif; font-weight: 300; font-size: 26px; line-height: 1.1; color: var(--ink); }
     .sh-sub { font: 300 13px/1.5 'Inter'; color: var(--ink-soft); margin-top: 6px; text-wrap: pretty; }
-    .sh-done { flex: none; background: none; border: 1px solid var(--cream-400); border-radius: 100px; padding: 9px 18px; cursor: pointer; font: 500 10px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
-    .sh-done:hover { border-color: var(--ink); }
-    .sh-body { flex: 1; overflow-y: auto; padding: 4px 24px 26px; -webkit-overflow-scrolling: touch; }
+    .sh-done { flex: none; background: none; border: 0; padding: 6px 0; margin-top: 2px; cursor: pointer; font: 400 13px/1 'Inter'; color: var(--ink-soft); text-decoration: underline; text-decoration-color: var(--cream-400); text-underline-offset: 3px; }
+    .sh-done:hover { color: var(--ink); text-decoration-color: var(--ink); }
+    .sh-body { flex: 1; overflow-y: auto; padding: 4px 24px 26px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .sh-body::-webkit-scrollbar { display: none; }
     @media (max-width: 767px) {
       #sh-wrap { align-items: flex-end; padding: 0; }
-      #sh { max-width: none; max-height: calc(92dvh - env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; border-left: 0; border-right: 0; border-bottom: 0; animation: shUp 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+      #sh { max-width: none; max-height: calc(92dvh - env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; animation: shUp 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
       @keyframes shUp { from { transform: translateY(100%); } to { transform: none; } }
       .sh-grab { display: flex; justify-content: center; padding: 10px 0 0; }
       .sh-grab span { width: 44px; height: 4px; border-radius: 100px; background: #E1DACB; }
@@ -305,6 +275,14 @@
     .sh-opt.on .ck { background: #fff; border-color: #C9BCA6; }
     .sh-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .sh-grid2 .sh-opt { padding: 12px 14px; }
+    .sh-opt.busy { opacity: .5; pointer-events: none; }
+    .sh-opt-in { padding: 0 18px 14px; border: 1px solid #C9BCA6; border-top: 0; background: #F3EFE6; border-radius: 0 0 var(--rad) var(--rad); margin-top: -8px; }
+    .sh-opts .sh-opt.on.open { border-radius: var(--rad) var(--rad) 0 0; }
+    .sh-opt-in .mv-sw-row { margin-top: 12px; }
+    .sh-opt-in .sh-note { margin-top: 10px; }
+    .sh-opt.sh-more { border-style: dashed; background: transparent; }
+    .sh-opt.sh-more .n { font-style: italic; font-weight: 300; color: var(--ink-soft); }
+    .sh-opt.sh-more .ck { border: 0; }
 
     /* the facts sheet */
     .fx-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
@@ -338,11 +316,14 @@
     .ln-add input::placeholder { color: var(--ink-faint); }
     .ob { background: #fff; border: 1px solid var(--rule); border-radius: var(--rad-card); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 8px; }
     .ob .k { font: 400 9px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rose); }
-    .ob .t { font: 400 20px/1.25 'Cormorant', Georgia, serif; color: var(--ink); }
+    .ob .t { font: 400 20px/1.25 'Cormorant', Georgia, serif; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .ob .b { font: italic 300 13.5px/1.5 'Cormorant', Georgia, serif; color: var(--ink-soft); }
-    .ob .verbs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
-    .ob .verbs button { height: 40px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; }
-    .ob .verbs button:hover { border-color: var(--ink); }
+    .ob .verbs { display: flex; align-items: center; gap: 18px; margin-top: 6px; }
+    .ob .verbs .keep { border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; padding: 10px 16px; font: 400 12px/1 'Inter'; color: var(--ink); cursor: pointer; }
+    .ob .verbs .keep:hover { border-color: var(--ink); }
+    .ob .verbs .no { background: none; border: 0; padding: 0; font: 400 12px/1 'Inter'; color: var(--ink-soft); cursor: pointer; text-decoration: underline; text-decoration-color: var(--cream-400); text-underline-offset: 3px; }
+    .ob .verbs .no:hover { color: var(--ink); }
+    .ln .when { font: 400 11px/1.4 'Inter'; color: var(--ink-faint); white-space: nowrap; flex: none; }
     .ob-list { display: flex; flex-direction: column; gap: 10px; }
     .ob-wait { display: flex; align-items: center; gap: 12px; font: italic 300 16px/1.4 'Cormorant', Georgia, serif; color: var(--ink-soft); padding: 8px 0; }
     .ob-wait i { width: 14px; height: 14px; border: 1px solid var(--cream-400); border-top-color: var(--ink); border-radius: 50%; animation: snbSpin .9s linear infinite; flex: none; }
@@ -375,7 +356,7 @@
     .sh-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
 
     /* ── the full-notes drawer (colour · line), the Style notes engine's own ── */
-    #mv-notes-wrap { position: fixed; left: 0; right: 0; bottom: 0; top: var(--nav-h); z-index: 420; background: rgba(32,32,33,0.08); animation: mvFadeIn 0.2s ease both; }
+    #mv-notes-wrap { position: fixed; left: 0; right: 0; bottom: 0; top: var(--sp-hdr); z-index: 420; background: rgba(32,32,33,0.08); animation: mvFadeIn 0.2s ease both; }
     #mv-notes-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 660px; max-width: 100%; background: var(--cream); border-left: 1px solid var(--cream-300); box-shadow: -18px 0 50px rgba(32,32,33,0.08); display: flex; flex-direction: column; animation: mvnSlideIn 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
     @keyframes mvnSlideIn { from { transform: translateX(100%); } to { transform: none; } }
     .mvn-grab { display: none; }
@@ -383,7 +364,8 @@
     .mvn-title { font-family: 'Cormorant', Georgia, serif; font-weight: 300; font-size: 32px; color: var(--ink); margin-top: 8px; }
     .mvn-close { flex: none; background: none; border: 1px solid var(--cream-300); border-radius: 100px; padding: 9px 18px; cursor: pointer; font: 400 10px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
     .mvn-close:hover { border-color: #C9BCA6; }
-    .mvn-body { flex: 1; overflow-y: auto; padding: 0 34px 40px; }
+    .mvn-body { flex: 1; overflow-y: auto; padding: 0 34px 40px; scrollbar-width: none; }
+    .mvn-body::-webkit-scrollbar { display: none; }
     .mv-notes { margin-top: 0; }
     .g-side { display: grid; grid-template-columns: 1fr; gap: 36px; }
     .g-4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
@@ -433,32 +415,11 @@
 </head>
 <body>
 
+  <!-- ONE header row (G1): ← · the page's title · nothing right -->
   <header class="topbar">
-    <div class="topbar-l">
-      <a class="wordmark" href="/dashboard">Robes</a>
-      <span class="topbar-sep"></span>
-      <button class="sn-back" id="sn-back" type="button">
-        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>
-        <span id="sn-back-label">Home</span>
-      </button>
-    </div>
-    <div class="topbar-r">
-      <span id="save-state"></span>
-      <div class="sn-weather" id="sn-weather">
-        <span class="wx">🌤</span><span id="sn-wx-day"></span>
-        <span class="dot" style="display:none"></span><span id="sn-wx-city" style="display:none"></span>
-        <span class="dot" style="display:none"></span><span id="sn-wx-temp" style="display:none"></span>
-      </div>
-      <div class="sn-av-wrap">
-        <div class="sn-avatar" id="sn-avatar" onclick="event.stopPropagation();document.getElementById('sn-av-menu').classList.toggle('open')">·</div>
-        <div class="sn-av-menu" id="sn-av-menu">
-          <div class="sn-av-name"><strong id="sn-av-name">&nbsp;</strong></div>
-          <button class="sn-av-item" id="sn-av-style"><svg viewBox="0 0 24 24"><path d="M12 3c3.5 4.2 6 7.5 6 10.2a6 6 0 0 1-12 0C6 10.5 8.5 7.2 12 3z"></path></svg>Style Profile</button>
-          <button class="sn-av-item" id="sn-av-account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path></svg>Account</button>
-          <button class="sn-av-item sn-av-out" id="sn-logout"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Log out</button>
-        </div>
-      </div>
-    </div>
+    <button class="sn-back" id="sn-back" type="button" aria-label="Back to Home"><span aria-hidden="true">←</span><span class="sr" id="sn-back-label">Home</span></button>
+    <div class="sp-hdr-title" id="sp-hdr-title">Settings</div>
+    <div class="topbar-r"><span id="save-state"></span></div>
   </header>
 
   <main>
@@ -466,11 +427,6 @@
     <!-- ══ ROOT · Settings — Style Profile | Account ══ -->
     <section class="sp-page sp-col" id="pg-root">
       <div class="sp-head">
-        <div>
-          <div class="eyebrow-rose">Settings</div>
-          <h1 class="sp-title" style="margin-top:12px" id="root-title">Your <em>style profile.</em></h1>
-          <p class="sp-sub" id="root-sub">What Robes knows about you, in one place. It reads this before every look.</p>
-        </div>
         <div class="rb-seg2" role="tablist" id="sp-seg">
           <button type="button" class="on" data-tab="style" role="tab" aria-selected="true">Style Profile</button>
           <button type="button" data-tab="account" role="tab" aria-selected="false">Account</button>
@@ -479,33 +435,18 @@
 
       <div class="sp-tab" id="tab-style">
         <div id="sp-notice-host"></div>
-        <button type="button" class="sp-card" id="card-twin">
-          <span class="k">01 · Your digital twin</span>
-          <span class="t">Who Robes is dressing <span class="chev">›</span></span>
-          <span class="s">Your model, read from two photographs, and the five facts that size a piece.</span>
-          <span class="st" id="card-twin-st"></span>
-        </button>
-        <button type="button" class="sp-card" id="card-dna">
-          <span class="k">02 · Style DNA</span>
-          <span class="t">What you love, and the lines you dress by <span class="chev">›</span></span>
-          <span class="s">Your style type, the brands and icons you reach for, the pieces you love, and your words.</span>
-          <span class="st" id="card-dna-st"></span>
-        </button>
-        <button type="button" class="sp-card" id="card-obs">
-          <span class="k">03 · Robes observations</span>
-          <span class="t">What Robes has noticed <span class="chev">›</span></span>
-          <span class="s">Read from what you wear. Keep a line and it joins your Style DNA.</span>
-          <span class="st" id="card-obs-st"></span>
-        </button>
+        <button type="button" class="sp-card" id="card-twin"><span class="t">Your digital twin <span class="chev">›</span></span></button>
+        <button type="button" class="sp-card" id="card-dna"><span class="t">Style DNA <span class="chev">›</span></span></button>
+        <button type="button" class="sp-card" id="card-obs"><span class="t">Robes observations <span class="chev">›</span></span></button>
       </div>
 
       <div class="sp-tab" id="tab-account" hidden>
         <div class="sp-gk">Profile</div>
         <div class="sp-group">
-          <button type="button" class="sp-row" id="ac-name"><span class="l"><span class="n">Name</span><span class="d">How Robes addresses you</span></span><span class="v" id="ac-name-v"></span><span class="chev">›</span></button>
-          <button type="button" class="sp-row" id="ac-email"><span class="l"><span class="n">Email</span><span class="d">Where sign-in links and receipts go</span></span><span class="v" id="ac-email-v"></span><span class="chev">›</span></button>
-          <button type="button" class="sp-row" id="ac-pass"><span class="l"><span class="n">Password</span><span class="d">At least eight characters</span></span><span class="chev">›</span></button>
-          <button type="button" class="sp-row danger" id="ac-delete"><span class="l"><span class="n">Delete account</span><span class="d">Your wardrobe, looks and digital twin are removed for good.</span></span><span class="chev">›</span></button>
+          <button type="button" class="sp-row" id="ac-name"><span class="l"><span class="n">Name</span></span><span class="v" id="ac-name-v"></span><span class="chev">›</span></button>
+          <button type="button" class="sp-row" id="ac-email"><span class="l"><span class="n">Email</span></span><span class="v" id="ac-email-v"></span><span class="chev">›</span></button>
+          <button type="button" class="sp-row" id="ac-pass"><span class="l"><span class="n">Password</span></span><span class="v" id="ac-pass-v">••••••••</span><span class="chev">›</span></button>
+          <button type="button" class="sp-row danger" id="ac-delete"><span class="l"><span class="n">Delete account</span></span><span class="chev">›</span></button>
         </div>
         <div class="sp-gk" id="ac-notif-k">Notifications</div>
         <div class="sp-group" id="ac-notif">
@@ -528,16 +469,7 @@
 
     <!-- ══ 01 · YOUR DIGITAL TWIN ══ -->
     <section class="sp-page" id="pg-twin" hidden>
-      <div class="sp-col">
-        <div class="sp-pagehead">
-          <button type="button" class="sp-backpill" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>Settings</button>
-          <div>
-            <div class="eyebrow-rose">Your digital twin</div>
-            <h1 class="sp-title" style="margin-top:12px">Who Robes <em>is dressing.</em></h1>
-            <p class="sp-sub" id="tw-sub">Two photographs read your colouring and your line. Five facts size what Robes proposes.</p>
-          </div>
-        </div>
-      </div>
+      <p class="sp-pagesub" id="tw-sub">Two photographs read your colouring and your line. Five facts size what Robes proposes.</p>
       <div class="tw-grid" style="max-width:1100px;margin:0 auto">
         <aside class="tw-stage" id="mv-figframe">
           <svg viewBox="0 0 200 250" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
@@ -557,7 +489,6 @@
           </svg>
           <div class="mv-fig-empty" id="mv-fig-empty">Your model starts the moment your first photograph reads.</div>
           <div class="mv2-stagehead" id="mv-stagehead">
-            <div class="mv2-ey" id="mv-stage-ey"></div>
             <div class="mv-caption" id="mv-caption"></div>
           </div>
         </aside>
@@ -568,7 +499,7 @@
             <span class="k">Two photographs</span>
             <div class="tw-slots" id="tw-slots" style="margin-top:14px">
               <div class="tw-slot">
-                <span class="tw-slotlab">Close-up <span class="mv-read" id="st1-read" hidden>✓ Read</span></span>
+                <span class="tw-slotlab">Close-up</span>
                 <button class="photo-slot" id="headshot-slot" aria-label="Add your close-up photo" type="button">
                   <span class="slot-empty"><span class="slot-title">Close-up</span><span class="slot-hint" id="headshot-hint">Add photo</span></span>
                 </button>
@@ -578,7 +509,7 @@
                 <p class="slot-err" id="headshot-err"></p>
               </div>
               <div class="tw-slot">
-                <span class="tw-slotlab">Full length <span class="mv-read" id="st2-read" hidden>✓ Read</span></span>
+                <span class="tw-slotlab">Full length</span>
                 <button class="photo-slot" id="full-slot" aria-label="Add your full-length photo" type="button">
                   <span class="slot-empty"><span class="slot-title">Full length</span><span class="slot-hint" id="full-hint">Add photo</span></span>
                 </button>
@@ -595,28 +526,25 @@
             <div id="mv-shape-rows" style="margin-top:6px"></div>
           </div>
 
-          <!-- the read state: one card, two rows, the sheets behind them -->
-          <div class="sp-card static" id="tw-read" hidden>
-            <span class="k">Read from your photographs</span>
-            <div class="sp-group" style="margin-top:14px;border:0;border-radius:0">
-              <button type="button" class="sp-row" id="tw-row-colour" style="padding-left:0;padding-right:0"><span class="l"><span class="n">Colouring</span><span class="d" id="tw-colour-d"></span></span><span class="v" id="tw-colour-v"></span><span class="chev">›</span></button>
-              <button type="button" class="sp-row" id="tw-row-line" style="padding-left:0;padding-right:0"><span class="l"><span class="n">Body shape</span><span class="d" id="tw-line-d"></span></span><span class="v" id="tw-line-v"></span><span class="chev">›</span></button>
-              <button type="button" class="sp-row" id="mv-adjust" style="padding-left:0;padding-right:0"><span class="l"><span class="n">Adjust by hand</span><span class="d">Skin, hair, the line and the frame</span></span><span class="chev">›</span></button>
+          <!-- the read state: three rows under a section eyebrow, the sheet behind them -->
+          <div class="tw-sec" id="tw-read" hidden>
+            <div class="sp-gk">Read from your photographs</div>
+            <div class="sp-group">
+              <button type="button" class="sp-row" id="tw-row-colour"><span class="l"><span class="n">Colouring</span><span class="d" id="tw-colour-d"></span></span><span class="v" id="tw-colour-v"></span><span class="chev">›</span></button>
+              <button type="button" class="sp-row" id="tw-row-line"><span class="l"><span class="n">Body shape</span><span class="d" id="tw-line-d"></span></span><span class="v" id="tw-line-v"></span><span class="chev">›</span></button>
+              <button type="button" class="sp-row" id="mv-adjust"><span class="l"><span class="n">Adjust by hand</span><span class="d">Skin, hair, the line and the frame</span></span><span class="chev">›</span></button>
             </div>
           </div>
 
-          <div class="sp-card" id="tw-facts" type="button" role="button" tabindex="0">
-            <span class="k">The facts</span>
-            <span class="s">Size, never weight. Robes uses these to propose what fits.</span>
-            <div class="tw-facts" id="tw-facts-cells"></div>
+          <!-- the facts: one strip of five under its eyebrow; the sentence lives in the sheet -->
+          <div class="tw-sec">
+            <div class="sp-gk">The facts</div>
+            <button type="button" class="sp-group tw-factscard" id="tw-facts" aria-label="The facts"><div class="tw-facts" id="tw-facts-cells"></div></button>
           </div>
 
           <div class="mv2-foot">
-            <div class="mv2-footcol">
-              <div class="mv-filed" id="mv-filed" hidden></div>
-              <div class="mv-status" id="mv-status"></div>
-            </div>
             <button class="mv-build" id="mv-build" hidden>Build a look</button>
+            <div class="mv-status" id="mv-status"></div>
           </div>
         </div>
       </div>
@@ -624,13 +552,7 @@
 
     <!-- ══ 02 · STYLE DNA ══ -->
     <section class="sp-page sp-col" id="pg-dna" hidden>
-      <div class="sp-pagehead">
-        <button type="button" class="sp-backpill" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>Settings</button>
-        <div>
-          <div class="eyebrow-rose">Style DNA</div>
-          <h1 class="sp-title" style="margin-top:12px">What you love, <em>and the lines you dress by.</em></h1>
-        </div>
-      </div>
+      <p class="sp-pagesub">What you love, and the lines you dress by.</p>
       <div class="sp-gk">Your taste</div>
       <div class="sp-group">
         <button type="button" class="sp-row" id="dna-type"><span class="l"><span class="n">Style type</span></span><span class="v" id="dna-type-v"></span><span class="chev">›</span></button>
@@ -645,19 +567,11 @@
         <button type="button" class="sp-row" id="dna-avoids"><span class="l"><span class="n">Hard nos</span></span><span class="v" id="dna-avoids-v"></span><span class="chev">›</span></button>
         <button type="button" class="sp-row" id="dna-rules"><span class="l"><span class="n">Your rules</span></span><span class="v" id="dna-rules-v"></span><span class="chev">›</span></button>
       </div>
-      <button type="button" class="sp-alert" id="dna-noticed" hidden><span class="dot"></span><span class="l"><span class="n" id="dna-noticed-n">Noticed and kept</span><span class="d">Read from what you wear.</span></span><span class="chev" style="font:300 18px/1 'Inter';color:var(--ink-faint)">›</span></button>
     </section>
 
     <!-- ══ 03 · ROBES OBSERVATIONS ══ -->
     <section class="sp-page sp-col" id="pg-obs" hidden>
-      <div class="sp-pagehead">
-        <button type="button" class="sp-backpill" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"></path></svg>Settings</button>
-        <div>
-          <div class="eyebrow-rose">Robes observations</div>
-          <h1 class="sp-title" style="margin-top:12px">What Robes <em>has noticed.</em></h1>
-          <p class="sp-sub">Read from what you wear. Keep a line and it joins your Style DNA.</p>
-        </div>
-      </div>
+      <p class="sp-pagesub">Read from what you wear. Keep a line and it joins your Style DNA.</p>
       <div id="obs-body"></div>
     </section>
 
@@ -739,16 +653,6 @@
         </div>
       </div>
     </aside>
-  </div>
-
-  <!-- Mobile dock — anchored destinations; nothing lit on this off-bar page -->
-  <div id="rb-dock" aria-label="Primary">
-    <div id="rb-dock-in">
-      <button class="rb-dock-tab" onclick="window.location.href='/dashboard'"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.3V21h14V9.3"></path></svg>Home</button>
-      <button class="rb-dock-tab" onclick="window.location.href='/lookbook'"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"></rect><path d="M12 4.5v15"></path></svg>Lookbook</button>
-      <button class="rb-dock-tab" onclick="window.location.href='/diary'"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="1.5"></rect><path d="M3.5 10h17"></path><path d="M8 3v4M16 3v4"></path></svg>Diary</button>
-      <button class="rb-dock-tab" onclick="window.location.href='/wardrobe'"><svg viewBox="0 0 24 24"><path d="M12 4.2a1.9 1.9 0 1 0 1.4 3.2"></path><path d="M12 7.6 3.6 14.2a1.4 1.4 0 0 0 .9 2.5h15a1.4 1.4 0 0 0 .9-2.5L12 7.6z"></path></svg>Wardrobe</button>
-    </div>
   </div>
 
   <script>
@@ -926,14 +830,23 @@
     }
 
     /* ── the colour read ─────────────────────────────────────────── */
+    // "Read 2 Sep" — the date a photograph was read (P3); a read saved before
+    // the date was stamped prints "Read" alone.
+    const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const MON_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    function readLine(a) {
+      const t = a && a.read_at ? Date.parse(a.read_at) : NaN;
+      if (isNaN(t)) return 'Read';
+      const d = new Date(t);
+      return 'Read ' + d.getDate() + ' ' + MON3[d.getMonth()];
+    }
     function renderColour() {
       const a = st.colour;
-      const read = document.getElementById('st1-read');
       const guide = document.getElementById('st1-guide');
       const readline = document.getElementById('st1-readline');
-      if (!a) { read.hidden = true; readline.hidden = true; guide.hidden = false; renderModel(); return; }
-      read.hidden = false; guide.hidden = true; readline.hidden = false;
-      readline.textContent = a.season + ' — read from this photograph.';
+      if (!a) { readline.hidden = true; guide.hidden = false; renderModel(); return; }
+      guide.hidden = true; readline.hidden = false;
+      readline.textContent = readLine(a);
 
       const pal = (a.palette || []).slice(0, 18);
       let rows = '';
@@ -968,12 +881,11 @@
     /* ── the line read ───────────────────────────────────────────── */
     function renderSil() {
       const a = st.sil;
-      const read = document.getElementById('st2-read');
       const guide = document.getElementById('st2-guide');
       const readline = document.getElementById('st2-readline');
-      if (!a) { read.hidden = true; readline.hidden = true; guide.hidden = false; renderModel(); return; }
-      read.hidden = false; guide.hidden = true; readline.hidden = false;
-      readline.textContent = a.body_type + ' — read from this photograph.';
+      if (!a) { readline.hidden = true; guide.hidden = false; renderModel(); return; }
+      guide.hidden = true; readline.hidden = false;
+      readline.textContent = readLine(a);
       document.getElementById('trait-grid').innerHTML = (a.traits || []).slice(0, 4).map(t => '<div class="trait-row"><span class="dot"></span><span class="trait-label">' + esc(t) + '</span></div>').join('');
       const dg = document.getElementById('dress-grid');
       dg.style.gridTemplateColumns = 'repeat(auto-fill,minmax(250px,1fr))';
@@ -994,7 +906,7 @@
       document.getElementById('sil-sections').hidden = colour;
       document.getElementById('mvn-ey').textContent = colour
         ? (((st.colour && st.colour.season) || 'Your colouring') + ' · one of twelve')
-        : (((st.sil && st.sil.body_type) || 'Your line') + ' · one of five');
+        : 'Your line · read from your full-length';
       document.getElementById('mvn-title').textContent = colour ? 'Colour notes.' : 'Line notes.';
       document.getElementById('mvn-close').textContent = window.matchMedia('(max-width: 767px)').matches ? 'Done' : 'Close';
       document.getElementById('mvn-body').scrollTop = 0;
@@ -1053,6 +965,18 @@
       if (n.frame) w.push(n.frame === 'L' ? 'Fuller' : 'Narrower');
       return w;
     }
+    // Robes says what it read, never what she is (T4 · P5): the Body shape
+    // value is the line and the frame as set — "Softer line, narrower frame" —
+    // or nothing until one is.
+    function mvLinePhrase() {
+      const n = st.model.nudges || {};
+      const w = [];
+      if (n.line) w.push((n.line === 'L' ? 'softer' : 'straighter') + ' line');
+      if (n.frame) w.push((n.frame === 'L' ? 'fuller' : 'narrower') + ' frame');
+      if (!w.length) return '';
+      const s = w.join(', ');
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
 
     function renderModel() {
       const hasColor = !!st.colour, hasLine = !!st.sil;
@@ -1084,7 +1008,6 @@
 
       const shead = document.getElementById('mv-stagehead');
       shead.style.display = any ? 'flex' : 'none';
-      document.getElementById('mv-stage-ey').textContent = (hasColor && hasLine) ? 'Read from your photographs' : readAny ? 'Part read, part chosen' : 'Chosen by hand';
       document.getElementById('mv-caption').textContent = MV_SKIN_NAMES[mvSkinIdx()] + ' · ' + MV_HAIR_NAMES[mvHairIdx()] + ' hair';
 
       // the empty state (slots + the by-hand rows in place) vs the read card
@@ -1100,17 +1023,12 @@
         document.getElementById('tw-colour-v').textContent = hasColor ? st.colour.season : 'Not read yet';
         document.getElementById('tw-colour-v').className = 'v' + (hasColor ? '' : ' none');
         document.getElementById('tw-colour-d').textContent = hasColor ? [st.colour.undertone, st.colour.contrast].filter(Boolean).join(' · ') : 'Add a close-up and Robes reads it';
-        const words = mvNudgeWords();
-        document.getElementById('tw-line-v').textContent = hasLine ? st.sil.body_type : words.length ? words.join(', ') : 'Not read yet';
-        document.getElementById('tw-line-v').className = 'v' + (hasLine || words.length ? '' : ' none');
-        document.getElementById('tw-line-d').textContent = hasLine ? 'Read from the full-length' : words.length ? 'Set by hand' : 'Add a full-length and Robes reads it';
+        const phrase = mvLinePhrase();
+        document.getElementById('tw-line-v').textContent = phrase;
+        document.getElementById('tw-line-v').className = 'v';
+        document.getElementById('tw-line-d').textContent = hasLine ? 'Read from the full-length' : phrase ? 'Set by hand' : 'Add a full-length and Robes reads it';
       }
-      const shRows = document.getElementById('sh-shape-rows');
-      if (shRows) shRows.innerHTML = mvShapeRowsHtml();
-
-      const filed = document.getElementById('mv-filed');
-      filed.hidden = !kept;
-      filed.textContent = '✓ Filed · ' + P.she + ' updates as you change ' + P.him;
+      if (typeof shRepaintIf === 'function') { shRepaintIf('photos'); shRepaintIf('adjust'); }
       document.getElementById('mv-build').hidden = !any;
       const note = document.getElementById('mv-status');
       let txt;
@@ -1129,14 +1047,15 @@
        The facts (the fifth fact). The tap is always the preview: every pick
        repaints the stage live and auto-files. */
     const MV_NUDGE_LABELS = { line: 'The line', frame: 'The frame' };
-    function mvShapeRowsHtml() {
+    function mvShapeRowsHtml(axes) {
+      const want = k => !axes || axes.includes(k);
       const skin = mvSkinIdx(), hairI = mvHairIdx(), nn = st.model.nudges || {};
       const row = (k, inner) => '<div class="mvr"><div class="mvr-k">' + k + '</div><div class="mvr-opts">' + inner + '</div></div>';
       const hairName = MV_HAIR_NAMES[hairI].charAt(0).toUpperCase() + MV_HAIR_NAMES[hairI].slice(1);
       return (
-        row('Skin', MV_SKINS.map((c, i) => '<button type="button" class="mvr-dot' + (i === skin ? ' on' : '') + '" data-axis="skin" data-v="' + i + '" style="background:' + c + ';" aria-label="Skin tone ' + (i + 1) + '"></button>').join('') + '<span class="mvr-cur">' + MV_SKIN_NAMES[skin] + '</span>') +
-        row('Hair', MV_HAIRS.map((c, i) => '<button type="button" class="mvr-dot' + (i === hairI ? ' on' : '') + '" data-axis="hair" data-v="' + i + '" style="background:' + c + ';" aria-label="Hair colour ' + (i + 1) + '"></button>').join('') + '<span class="mvr-cur">' + hairName + '</span>') +
-        MV_NUDGES.map(nd => row(MV_NUDGE_LABELS[nd.key], ['L', 'R'].map((v, i) => '<button type="button" class="mvr-pill' + (nn[nd.key] === v ? ' on' : '') + '" data-axis="' + nd.key + '" data-v="' + v + '">' + (i === 0 ? nd.left : nd.right) + '</button>').join(''))).join(''));
+        (want('skin') ? row('Skin', MV_SKINS.map((c, i) => '<button type="button" class="mvr-dot' + (i === skin ? ' on' : '') + '" data-axis="skin" data-v="' + i + '" style="background:' + c + ';" aria-label="Skin tone ' + (i + 1) + '"></button>').join('') + '<span class="mvr-cur">' + MV_SKIN_NAMES[skin] + '</span>') : '') +
+        (want('hair') ? row('Hair', MV_HAIRS.map((c, i) => '<button type="button" class="mvr-dot' + (i === hairI ? ' on' : '') + '" data-axis="hair" data-v="' + i + '" style="background:' + c + ';" aria-label="Hair colour ' + (i + 1) + '"></button>').join('') + '<span class="mvr-cur">' + hairName + '</span>') : '') +
+        MV_NUDGES.filter(nd => want(nd.key)).map(nd => row(MV_NUDGE_LABELS[nd.key], ['L', 'R'].map((v, i) => { const on = nn[nd.key] === v; return '<button type="button" class="mvr-pill' + (on ? ' on' : '') + '" data-axis="' + nd.key + '" data-v="' + v + '">' + (on ? '<span class="ck">✓</span>' : '') + (i === 0 ? nd.left : nd.right) + '</button>'; }).join(''))).join(''));
     }
     function mvShapeRowPick(e) {
       const b = e.target.closest('button'); if (!b || !b.dataset.axis) return;
@@ -1187,8 +1106,6 @@
       mvPersist();
       renderModel();
       if (firstFiling) snTrack('model_filed', { by: (st.colour || st.sil) ? 'photo' : 'hand', gender: st.model.gender || st.gender || null });
-      const filed = document.getElementById('mv-filed');
-      filed.classList.remove('flash'); void filed.offsetWidth; filed.classList.add('flash');
     }
 
     // Build a look — back to the homepage prompt with the model on file. Sent
@@ -1352,6 +1269,7 @@
           if (cfg.kind === 'colour' ? analysis.no_face_detected : analysis.no_person_detected) { slotError(cfg.errId, cfg.rejectMsg); return; }
           const url = upload.url || null;
           const { style_dna: dnaFragment, ...render } = analysis;
+          render.read_at = new Date().toISOString();
           const patch = {};
           if (cfg.kind === 'colour') {
             st.colour = render;
@@ -1397,7 +1315,7 @@
        Robes drafted that she has not yet kept or struck: {list, text, because, at}. */
     function chBrief() {
       const b = (st.styleDna && st.styleDna.brief && typeof st.styleDna.brief === 'object') ? st.styleDna.brief : {};
-      const list = a => (Array.isArray(a) ? a : []).map(x => (x && typeof x === 'object') ? { text: String(x.text || '').trim(), source: x.source || 'drafted', from: x.from ? String(x.from) : '' } : { text: String(x || '').trim(), source: 'typed', from: '' }).filter(x => x.text);
+      const list = a => (Array.isArray(a) ? a : []).map(x => (x && typeof x === 'object') ? { text: String(x.text || '').trim(), source: x.source || 'drafted', from: x.from ? String(x.from) : '', at: typeof x.at === 'string' ? x.at : '' } : { text: String(x || '').trim(), source: 'typed', from: '', at: '' }).filter(x => x.text);
       return {
         loves: list(b.loves), avoids: list(b.avoids), rules: list(b.rules),
         notes: typeof b.notes === 'string' ? b.notes : '',
@@ -1409,14 +1327,29 @@
       };
     }
     function chBriefEmpty() { const b = chBrief(); return !b.loves.length && !b.avoids.length && !b.rules.length && !b.notes.trim(); }
+    // A line is never sliced mid-word (L2): over the cap it ends at the last
+    // sentence end, else the last word, before it.
+    function cutWords(s, n) {
+      s = String(s || '');
+      if (s.length <= n) return s;
+      const head = s.slice(0, n);
+      const sent = Math.max(head.lastIndexOf('. '), head.lastIndexOf('! '), head.lastIndexOf('? '));
+      if (sent > n * 0.4) return head.slice(0, sent + 1);
+      const sp = head.lastIndexOf(' ');
+      return (sp > 0 ? head.slice(0, sp) : head).replace(/[,;:\s]+$/, '');
+    }
+    function firstSentence(s) {
+      const m = String(s || '').trim().match(/^[^.!?]*[.!?]/);
+      return m ? m[0].trim() : cutWords(s, 160);
+    }
     function chSaveBrief(b) {
-      const clean = a => a.slice(0, 8).map(x => Object.assign({ text: x.text.slice(0, 160), source: x.source }, x.from ? { from: x.from.slice(0, 160) } : {}));
+      const clean = a => a.slice(0, 8).map(x => Object.assign({ text: cutWords(x.text, 160), source: x.source }, x.from ? { from: cutWords(x.from, 160) } : {}, x.at ? { at: x.at } : {}));
       const brief = {
         loves: clean(b.loves), avoids: clean(b.avoids), rules: clean(b.rules),
-        notes: (b.notes || '').trim().slice(0, 600),
+        notes: cutWords((b.notes || '').trim(), 600),
         colours: { loved: b.colours.loved.slice(0, 8), rejected: b.colours.rejected.slice(0, 8) },
         struck: b.struck.slice(0, 30),
-        pending: b.pending.slice(0, 12).map(x => ({ list: x.list, text: String(x.text).slice(0, 160), because: String(x.because || '').slice(0, 200), at: x.at || new Date().toISOString(), loved: x.loved, rejected: x.rejected })),
+        pending: b.pending.slice(0, 12).map(x => Object.assign({ list: x.list, text: cutWords(x.text, 160), because: cutWords(x.because || '', 200), at: x.at || new Date().toISOString(), loved: x.loved, rejected: x.rejected }, x.full ? { full: cutWords(x.full, 600) } : {})),
         read_at: b.read_at || '',
         source: b.source, updated_at: new Date().toISOString(),
       };
@@ -1505,10 +1438,24 @@
             pending.push({ list, text: String(x.text), because: String(x.because || ''), at });
           });
         });
-        if (!b.notes.trim() && typeof d.notes === 'string' && d.notes.trim() && !struck.has(d.notes.trim().toLowerCase())) pending.push({ list: 'notes', text: d.notes.trim(), because: 'How you dress well, read whole', at });
-        const loved = (Array.isArray(d.colours && d.colours.loved) ? d.colours.loved : []).filter(c => !b.colours.loved.some(x => x.toLowerCase() === c.toLowerCase()));
-        const rejected = (Array.isArray(d.colours && d.colours.rejected) ? d.colours.rejected : []).filter(c => !b.colours.rejected.some(x => x.toLowerCase() === c.toLowerCase()));
-        if (loved.length || rejected.length) pending.push({ list: 'colours', text: (loved.length ? 'You reach for ' + loved.join(', ') + '.' : '') + (rejected.length ? ' You own ' + rejected.join(', ') + ' and leave ' + (rejected.length > 1 ? 'them' : 'it') + ' on the rail.' : ''), because: 'Read from what you wear most, and what you never do.', at, loved, rejected });
+        // The source line says what the line was read FROM (L3 · O4), never a
+        // label: "From 40 pieces filed", "From 40 pieces and 11 looks".
+        const evidence = ev.wardrobe.length && ev.looks.length ? 'From ' + ev.wardrobe.length + ' pieces and ' + ev.looks.length + (ev.looks.length === 1 ? ' look' : ' looks')
+          : ev.wardrobe.length ? 'From ' + ev.wardrobe.length + (ev.wardrobe.length === 1 ? ' piece' : ' pieces') + ' filed'
+          : ev.looks.length ? 'From ' + ev.looks.length + (ev.looks.length === 1 ? ' look' : ' looks') : 'From your style type and icons';
+        // The notes paragraph lands as its FIRST SENTENCE (an observation is one
+        // sentence, L2); the whole paragraph rides behind it and files on Keep.
+        if (!b.notes.trim() && typeof d.notes === 'string' && d.notes.trim() && !struck.has(d.notes.trim().toLowerCase())) pending.push({ list: 'notes', text: firstSentence(d.notes), full: d.notes.trim(), because: evidence, at });
+        // Colours read as a sentence, lower-case, joined with "and" (O3):
+        // "You reach for white, black, taupe and camel. Red and pink stay on the rail."
+        const lc = a => a.map(c => String(c).trim().toLowerCase()).filter(Boolean);
+        const joinAnd = a => a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+        const loved = lc(Array.isArray(d.colours && d.colours.loved) ? d.colours.loved : []).filter(c => !b.colours.loved.some(x => x.toLowerCase() === c));
+        const rejected = lc(Array.isArray(d.colours && d.colours.rejected) ? d.colours.rejected : []).filter(c => !b.colours.rejected.some(x => x.toLowerCase() === c));
+        if (loved.length || rejected.length) {
+          const rej = joinAnd(rejected);
+          pending.push({ list: 'colours', text: ((loved.length ? 'You reach for ' + joinAnd(loved) + '.' : '') + (rejected.length ? ' ' + rej.charAt(0).toUpperCase() + rej.slice(1) + (rejected.length > 1 ? ' stay' : ' stays') + ' on the rail.' : '')).trim(), because: evidence, at, loved, rejected });
+        }
         b.pending = pending; b.read_at = at;
         // The read consumed the memory to date — home's "noticed more" line counts what lands after this stamp.
         try { const m = snMemory(); m.read_at = at; st.styleDna = Object.assign({}, st.styleDna || {}, { memory: m }); } catch (e) {}
@@ -1529,9 +1476,9 @@
     function obsKeep(i) {
       const b = chBrief(); const x = b.pending[i]; if (!x) return;
       b.pending.splice(i, 1);
-      if (x.list === 'notes') b.notes = x.text;
+      if (x.list === 'notes') b.notes = x.full || x.text;
       else if (x.list === 'colours') { b.colours.loved = b.colours.loved.concat(x.loved || []); b.colours.rejected = b.colours.rejected.concat(x.rejected || []); }
-      else if (b[x.list]) b[x.list].push({ text: x.text, source: 'drafted' });
+      else if (b[x.list]) b[x.list].push({ text: x.text, source: 'drafted', at: new Date().toISOString() });
       chSaveBrief(b);
       snTrack('brief_line', { verb: 'keep', list: x.list });
       toast('Kept. Filed under Style DNA.');
@@ -1582,16 +1529,16 @@
         document.querySelectorAll('#sp-seg button').forEach(b => { const on = b.dataset.tab === sp.tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
         document.getElementById('tab-style').hidden = sp.tab !== 'style';
         document.getElementById('tab-account').hidden = sp.tab !== 'account';
-        document.getElementById('root-title').innerHTML = sp.tab === 'account' ? 'Your <em>account.</em>' : 'Your <em>style profile.</em>';
-        document.getElementById('root-sub').textContent = sp.tab === 'account' ? 'Who you are to Robes, and how it reaches you.' : 'What Robes knows about you, in one place. It reads this before every look.';
         if (sp.tab === 'style') obsEnsure();
       }
       if (page === 'obs') obsEnsure();
       if (page === 'dna') dnaLoadHeroes();
-      // the header's back: Home from the root, Settings from a page
+      // the one header row: ← (Home from the root, Settings from a page) · the page's title
       const lab = document.getElementById('sn-back-label');
       const home = (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') ? 'Lookbook' : 'Home';
       lab.textContent = page === 'root' ? home : 'Settings';
+      document.getElementById('sn-back').setAttribute('aria-label', 'Back to ' + lab.textContent);
+      document.getElementById('sp-hdr-title').textContent = { root: 'Settings', twin: 'Your Digital Twin', dna: 'Style DNA', obs: 'Robes Observations' }[page] || 'Settings';
       window.scrollTo(0, 0);
       snTrack('settings_page', { page, tab: page === 'root' ? sp.tab : undefined });
     }
@@ -1618,7 +1565,6 @@
     }
     window.addEventListener('hashchange', spRoute);
     document.querySelectorAll('#sp-seg button').forEach(b => b.addEventListener('click', () => spGo('root', b.dataset.tab)));
-    document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => spGo('root')));
     document.getElementById('sn-back').addEventListener('click', () => {
       if (sp.page !== 'root') { spGo('root'); return; }
       window.location.href = (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') ? '/lookbook' : '/dashboard';
@@ -1626,7 +1572,6 @@
     document.getElementById('card-twin').addEventListener('click', () => spGo('twin'));
     document.getElementById('card-dna').addEventListener('click', () => spGo('dna'));
     document.getElementById('card-obs').addEventListener('click', () => spGo('obs'));
-    document.getElementById('dna-noticed').addEventListener('click', () => spGo('obs'));
 
     /* ── the sheet ── */
     const sh = { open: false, cfg: null };
@@ -1671,35 +1616,15 @@
     const n2w = n => ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][n] || String(n);
     const linesCount = n => n === 0 ? 'Not yet' : n === 1 ? '1 line' : n + ' lines';
 
-    /* ══ ROOT · the cards' state + the swipe card ══ */
-    function twinState() {
-      if (st.colour && st.sil) return 'Read from your photographs';
-      if (st.colour || st.sil) return 'Part read, part chosen';
-      if (mvChosen()) return 'Shaped by hand';
-      return 'Not yet';
-    }
+    /* ══ ROOT · the swipe card (the cards themselves print their title only, G4) ══ */
     function factsCount() {
       const f = st.facts || {};
       let n = ['height_cm', 'size_uk', 'shoe_uk', 'age_band'].filter(k => f[k] != null && f[k] !== '').length;
       if (st.gender) n++;   // gender always has an answer on file (default woman — asked again on the sheet)
       return n;
     }
-    function dnaAnswered() {
-      return [st.types.length > 0, st.brands.length > 0, st.icons.length > 0, (st.heroes || []).length > 0, !!st.investment].filter(Boolean).length;
-    }
     function spPaintRoot() {
       const b = chBrief();
-      const tw = twinState();
-      document.getElementById('card-twin-st').innerHTML =
-        '<span' + (tw === 'Not yet' ? ' class="none"' : '') + '><b>Model</b> · ' + esc(tw) + '</span>' +
-        '<span><b>The facts</b> · ' + factsCount() + ' of 5</span>';
-      const n = dnaAnswered(), lines = b.loves.length + b.avoids.length + b.rules.length;
-      document.getElementById('card-dna-st').innerHTML =
-        '<span' + (n === 0 ? ' class="none"' : '') + '><b>Your taste</b> · ' + (n === 5 ? 'Complete' : n === 0 ? 'Not yet' : n + ' of 5 answered') + '</span>' +
-        '<span' + (lines === 0 ? ' class="none"' : '') + '><b>In your words</b> · ' + esc(linesCount(lines)) + '</span>';
-      const pend = b.pending.length;
-      document.getElementById('card-obs-st').innerHTML = ob.loading ? '<span class="none">Robes is reading your wardrobe…</span>'
-        : pend ? '<span class="new">' + pend + ' new</span>' : '<span class="none">Nothing new. Robes keeps reading.</span>';
       // the "Robes noticed" card — the first pending line, swiped or tapped
       const host = document.getElementById('sp-notice-host');
       const x = b.pending[0];
@@ -1759,7 +1684,7 @@
     function ftIn(cm) { const inches = Math.round(cm / 2.54); return Math.floor(inches / 12) + '′' + (inches % 12) + '″'; }
     function shFacts() {
       shOpen({
-        kind: 'facts', title: 'The facts.', sub: 'Size, never weight. Robes uses these to propose what fits.',
+        kind: 'facts', title: 'The facts', sub: 'Size, never weight. Robes uses these to propose what fits.',
         body: () => {
           const f = st.facts || {};
           const step = (k, v, sub) => '<div class="fx-step"><button type="button" data-step="' + k + '" data-dir="-1" aria-label="Less">−</button><span class="v' + (v ? '' : ' none') + '">' + (v || 'Add') + '</span><button type="button" data-step="' + k + '" data-dir="1" aria-label="More">+</button></div>' + (sub ? '<span class="fx-sub">' + esc(sub) + '</span>' : '');
@@ -1781,43 +1706,93 @@
       });
     }
     document.getElementById('tw-facts').addEventListener('click', shFacts);
-    document.getElementById('tw-facts').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); shFacts(); } });
 
-    // The Photographs sheet — the two slots move INTO it (their listeners
-    // travel with them), the reads beneath, the by-hand rows under those.
-    function shPhotos() {
-      const P = mvP();
+    // The season picker (P4) — the twelve seasons on the wheel; the read one
+    // leads, its two neighbours follow (a misread usually lands next door),
+    // "Another season" opens the rest. A pick asks the server for THAT
+    // season's catalog render (no model call) and lands it exactly as a read.
+    const SEASON_WHEEL = ['Light Spring', 'Warm Spring', 'Clear Spring', 'Clear Winter', 'True Winter', 'Dark Winter', 'Dark Autumn', 'True Autumn', 'Soft Autumn', 'Soft Summer', 'True Summer', 'Light Summer'];
+    const ph = { more: false, busy: '' };
+    function seasonRows() {
+      const cur = st.colour && st.colour.season;
+      const i = SEASON_WHEEL.indexOf(cur);
+      if (i < 0) return SEASON_WHEEL.slice();
+      const near = [cur, SEASON_WHEEL[(i + 11) % 12], SEASON_WHEEL[(i + 1) % 12]];
+      return ph.more ? near.concat(SEASON_WHEEL.filter(s => !near.includes(s))) : near;
+    }
+    async function seasonChoose(season) {
+      if (!st.colour || season === st.colour.season || ph.busy) return;
+      ph.busy = season; shRepaintIf('photos');
+      try {
+        const r = await fetch('/api/stylenotes/season', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ season, current: (st.styleDna && st.styleDna.color_harmony) || {}, userId: st.uid || undefined }) });
+        if (!r.ok) throw new Error('season_failed');
+        const { style_dna: dnaFragment, ...render } = await r.json();
+        render.read_at = st.colour.read_at || '';
+        render.chosen = true;
+        st.colour = render;
+        if (dnaFragment) st.styleDna = { ...st.styleDna, color_harmony: dnaFragment };
+        save({ colour_analysis: render, style_dna: st.styleDna, season: render.season, undertone: dnaFragment ? dnaFragment.verified_undertone : render.undertone, contrast: dnaFragment ? dnaFragment.calculated_contrast : render.contrast });
+        snTrack('season_chosen', { season });
+        renderColour();
+        mvFile();
+      } catch (e) {
+        toast('Robes couldn’t change the reading just now.');
+      }
+      ph.busy = ''; shRepaintIf('photos');
+    }
+    // The "Your photographs" sheet (P1 · P2 · P6) — the two slots move INTO
+    // it (their listeners travel with them); then Colouring — the season
+    // picker, skin and hair — and Body shape — the line and the frame — so
+    // each control sits with the reading it nudges. Opened from a row, it
+    // lands on that row's section.
+    function shPhotos(section) {
       shOpen({
-        kind: 'photos', title: 'Photographs.', sub: 'Robes read these from your photographs. Nudge anything that looks off.',
+        kind: 'photos', title: 'Your photographs', sub: 'What Robes read from each, and the readings you can nudge.',
         before: body => { const s = document.getElementById('tw-slots'); if (s && body.contains(s)) document.getElementById('tw-slotscard').appendChild(s); },
         body: () => {
           const c = st.colour, l = st.sil;
+          const rows = c ? seasonRows().map(s => {
+            const on = s === c.season, busy = ph.busy === s;
+            return '<button type="button" class="sh-opt' + (on ? ' on open' : '') + (busy ? ' busy' : '') + '" data-season="' + esc(s) + '"><span class="n">' + esc(s) + '</span><span class="ck">' + (on ? '✓' : busy ? '…' : '') + '</span></button>' +
+              (on ? '<div class="sh-opt-in"><div class="mv-sw-row">' + (c.palette || []).slice(0, 9).map(h => '<div style="background:' + hex(h) + ';"></div>').join('') + '</div>' +
+                '<p class="sh-note">' + esc([c.undertone, c.contrast].filter(Boolean).join(' · ')) + (c.summary ? ' — ' + esc(c.summary) : '') + '</p><button type="button" class="mv-door" id="sh-door-colour">Full colour notes →</button></div>' : '');
+          }).join('') : '';
           return '<div id="sh-slots-host"></div>' +
-            (c ? '<div class="sh-k">Colouring <span class="h">' + esc(c.season) + '</span></div><div class="mv-sw-row">' + (c.palette || []).slice(0, 9).map(h => '<div style="background:' + hex(h) + ';"></div>').join('') + '</div>' +
-              '<p class="sh-note">' + esc([c.undertone, c.contrast].filter(Boolean).join(' · ')) + (c.summary ? ' — ' + esc(c.summary) : '') + '</p><button type="button" class="mv-door" id="sh-door-colour">Full colour notes →</button>' : '') +
-            (l ? '<div class="sh-k">The line <span class="h">' + esc(l.body_type) + '</span></div><p class="sh-note">' + esc(l.summary || 'Read from the full-length.') + '</p><button type="button" class="mv-door" id="sh-door-line">Full line notes →</button>' : '') +
-            '<div class="sh-k">By hand <span class="h">' + P.She + ' changes as you choose</span></div><div id="sh-shape-rows">' + mvShapeRowsHtml() + '</div>';
+            '<div class="sh-k" id="sh-sec-colour">Colouring</div>' +
+            (c ? '<div class="sh-opts">' + rows + (ph.more ? '' : '<button type="button" class="sh-opt sh-more" id="sh-season-more"><span class="n">Another season</span><span class="ck">›</span></button>') + '</div>'
+               : '<p class="sh-note">Add a close-up and Robes reads your colouring.</p>') +
+            '<div id="sh-shape-colour" style="margin-top:8px">' + mvShapeRowsHtml(['skin', 'hair']) + '</div>' +
+            '<div class="sh-k" id="sh-sec-line">Body shape</div>' +
+            '<p class="sh-note" style="margin-top:0">' + (l ? 'Read from your full-length.' : 'Add a full-length and Robes reads your line.') + (l ? ' <button type="button" class="mv-door" id="sh-door-line">Full line notes →</button>' : '') + '</p>' +
+            '<div id="sh-shape-line" style="margin-top:8px">' + mvShapeRowsHtml(['line', 'frame']) + '</div>';
         },
         wire: body => {
           const host = body.querySelector('#sh-slots-host'); const s = document.getElementById('tw-slots');
           if (host && s) host.appendChild(s);
-          body.querySelector('#sh-shape-rows').addEventListener('click', mvShapeRowPick);
+          body.querySelector('#sh-shape-colour').addEventListener('click', mvShapeRowPick);
+          body.querySelector('#sh-shape-line').addEventListener('click', mvShapeRowPick);
+          body.querySelectorAll('[data-season]').forEach(b => b.addEventListener('click', () => seasonChoose(b.dataset.season)));
+          const more = body.querySelector('#sh-season-more'); if (more) more.addEventListener('click', () => { ph.more = true; shRepaint(); });
           const dc = body.querySelector('#sh-door-colour'); if (dc) dc.addEventListener('click', () => mvNotesOpen('colour'));
           const dl = body.querySelector('#sh-door-line'); if (dl) dl.addEventListener('click', () => mvNotesOpen('line'));
         },
-        onClose: () => { const s = document.getElementById('tw-slots'); const card = document.getElementById('tw-slotscard'); if (s && card && !card.contains(s)) card.appendChild(s); },
+        onClose: () => { ph.more = false; const s = document.getElementById('tw-slots'); const card = document.getElementById('tw-slotscard'); if (s && card && !card.contains(s)) card.appendChild(s); },
       });
+      if (section) {
+        const body = document.getElementById('sh-body'), el = body.querySelector('#sh-sec-' + section);
+        if (el) body.scrollTop = Math.max(0, el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 6);
+      }
     }
     function shAdjust() {
       const P = mvP();
       shOpen({
-        kind: 'adjust', title: 'Adjust by hand.', sub: 'Robes read these from your photographs. Nudge anything that looks off.',
+        kind: 'adjust', title: 'Adjust by hand', sub: 'Robes read these from your photographs. Nudge anything that looks off.',
         body: () => '<div id="sh-shape-rows">' + mvShapeRowsHtml() + '</div><p class="sh-note" style="margin-top:16px">Nothing to save — ' + P.she + ' updates as you choose.</p>',
         wire: body => body.querySelector('#sh-shape-rows').addEventListener('click', mvShapeRowPick),
       });
     }
-    document.getElementById('tw-row-colour').addEventListener('click', shPhotos);
-    document.getElementById('tw-row-line').addEventListener('click', shPhotos);
+    document.getElementById('tw-row-colour').addEventListener('click', () => shPhotos('colour'));
+    document.getElementById('tw-row-line').addEventListener('click', () => shPhotos('line'));
     document.getElementById('mv-adjust').addEventListener('click', shAdjust);
 
     /* ══ 02 · STYLE DNA ══ */
@@ -1833,14 +1808,10 @@
       v('dna-loves-v', linesCount(b.loves.length), !b.loves.length);
       v('dna-avoids-v', linesCount(b.avoids.length), !b.avoids.length);
       v('dna-rules-v', linesCount(b.rules.length), !b.rules.length);
-      const kept = b.loves.concat(b.avoids, b.rules).filter(x => x.source !== 'typed').length;
-      const al = document.getElementById('dna-noticed');
-      al.hidden = !(kept || b.pending.length);
-      document.getElementById('dna-noticed-n').textContent = b.pending.length ? b.pending.length + ' new from Robes' : 'Noticed and kept';
     }
     function shTypes() {
       shOpen({
-        kind: 'types', title: 'Style type.', sub: 'Pick as many as feel like you.',
+        kind: 'types', title: 'Style type', sub: 'Pick as many as feel like you.',
         body: () => '<div class="sh-opts">' + ARCHETYPES.map(a => { const on = st.types.includes(a.name); return '<button type="button" class="sh-opt' + (on ? ' on' : '') + '" data-type="' + esc(a.name) + '"><span><span class="n">' + esc(a.name) + '</span><span class="d">' + esc(a.desc) + '</span></span><span class="ck">' + (on ? '✓' : '') + '</span></button>'; }).join('') + '</div>',
         wire: body => body.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', () => {
           const n = b.dataset.type;
@@ -1884,7 +1855,7 @@
     function shWall(kind) {
       const brands = kind === 'brands';
       shOpen({
-        kind, title: brands ? 'Brands.' : 'Icons.',
+        kind, title: brands ? 'Brands' : 'Icons',
         sub: brands ? 'Select 3+ brands you like. This informs your Style DNA.' : 'Whose style runs close to yours? Robes reads the register, not the wardrobe.',
         body: () => {
           const q = norm(wall.q);
@@ -1921,7 +1892,7 @@
     }
     function shPieces() {
       shOpen({
-        kind: 'pieces', title: 'The pieces you love.', sub: 'Robes reads what they share. It never dresses you in the same one two days running.',
+        kind: 'pieces', title: 'The pieces you love', sub: 'Robes reads what they share. It never dresses you in the same one two days running.',
         body: () => {
           const h = st.heroes;
           if (!h) return '<div class="ob-wait"><i></i>Reading your wardrobe…</div>';
@@ -1933,7 +1904,7 @@
     }
     function shInvest() {
       shOpen({
-        kind: 'invest', title: 'Investment level.', sub: 'How much you spend a year. Robes proposes inside it, whatever you admire.',
+        kind: 'invest', title: 'Investment level', sub: 'How much you spend a year. Robes proposes inside it, whatever you admire.',
         body: () => '<div class="sh-opts">' + INVEST_LEVELS.map(l => { const on = st.investment === l.label; return '<button type="button" class="sh-opt' + (on ? ' on' : '') + '" data-level="' + esc(l.label) + '"><span><span class="n">' + esc(l.label) + '</span><span class="d">' + esc(l.note) + '</span></span><span class="ck">' + (on ? '✓' : '') + '</span></button>'; }).join('') + '</div>',
         wire: body => body.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => {
           st.investment = b.dataset.level;
@@ -1947,7 +1918,7 @@
     function shWords(list) {
       const [title, sub, another] = WORD_LISTS[list];
       shOpen({
-        kind: 'words-' + list, title: title + '.', sub,
+        kind: 'words-' + list, title, sub,
         body: () => {
           const b = chBrief();
           const rows = b[list];
@@ -1982,15 +1953,15 @@
       let html = '<div class="sp-gk">Since your last visit</div>';
       if (ob.loading) html += '<div class="ob-wait"><i></i>Robes is reading your wardrobe…</div>';
       else if (ob.err) html += '<div class="sh-empty">' + esc(ob.err) + '</div>';
-      else if (b.pending.length) html += '<div class="ob-list">' + b.pending.map((p, i) => '<div class="ob"><span class="k">' + esc(LIST_LABEL[p.list] || 'Noticed') + '</span><span class="t">' + esc(p.text) + '</span>' + (p.because ? '<span class="b">' + esc(p.because) + '</span>' : '') + '<div class="verbs"><button type="button" data-keep="' + i + '">Keep</button><button type="button" data-no="' + i + '">Not me</button></div></div>').join('') + '</div>';
+      else if (b.pending.length) html += '<div class="ob-list">' + b.pending.map((p, i) => '<div class="ob"><span class="k">' + esc(LIST_LABEL[p.list] || 'Noticed') + '</span><span class="t">' + esc(p.text) + '</span>' + (p.because ? '<span class="b">' + esc(p.because) + '</span>' : '') + '<div class="verbs"><button type="button" class="keep" data-keep="' + i + '">Keep</button><button type="button" class="no" data-no="' + i + '">Not me</button></div></div>').join('') + '</div>';
       else html += '<div class="sh-empty">Nothing new. Robes keeps reading.</div>';
-      html += '<div style="margin-top:16px"><button type="button" class="sp-pill" id="obs-again"' + (ob.loading ? ' disabled' : '') + '>' + (b.read_at || ob.everRead ? 'Read again' : 'Read my wardrobe') + '</button></div>';
+      // Robes reads continuously — no manual re-run (O6). Kept lines carry the month they were kept (O7).
+      const keptWhen = x => { const t = x.at ? Date.parse(x.at) : NaN; if (isNaN(t)) return ''; const d = new Date(t), now = new Date(); return 'Kept in ' + MON_LONG[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : ''); };
       const kept = [].concat(b.loves.map(x => Object.assign({ list: 'loves' }, x)), b.avoids.map(x => Object.assign({ list: 'avoids' }, x)), b.rules.map(x => Object.assign({ list: 'rules' }, x))).filter(x => x.source !== 'typed');
-      if (kept.length) html += '<div class="sp-gk" style="margin-top:30px">Kept before</div><div class="sp-group" style="padding:4px 18px">' + kept.map(x => '<div class="ln"><span class="t">' + esc(x.text) + '<span class="from">' + esc(LIST_LABEL[x.list]) + (x.from ? ' · from “' + esc(x.from) + '”' : '') + '</span></span></div>').join('') + '</div>';
+      if (kept.length) html += '<div class="sp-gk" style="margin-top:30px">Kept before</div><div class="sp-group" style="padding:4px 18px">' + kept.map(x => '<div class="ln"><span class="t">' + esc(x.text) + '<span class="from">' + esc(LIST_LABEL[x.list]) + (x.from ? ' · from “' + esc(x.from) + '”' : '') + '</span></span>' + (keptWhen(x) ? '<span class="when">' + esc(keptWhen(x)) + '</span>' : '') + '</div>').join('') + '</div>';
       host.innerHTML = html;
       host.querySelectorAll('[data-keep]').forEach(bt => bt.addEventListener('click', () => obsKeep(Number(bt.dataset.keep))));
       host.querySelectorAll('[data-no]').forEach(bt => bt.addEventListener('click', () => obsNotMe(Number(bt.dataset.no))));
-      const again = host.querySelector('#obs-again'); if (again) again.addEventListener('click', () => { snTrack('brief_read_again', {}); obsDraft(); });
     }
     function obsPaintAll() { obsPaint(); dnaPaint(); spPaintRoot(); shRepaintIf('words-avoids'); }
 
@@ -2023,7 +1994,7 @@
     document.getElementById('tog-hour').addEventListener('change', () => notifyPatch({ morning_hour: Number(document.getElementById('tog-hour').value) || 7 }));
     function shName() {
       shOpen({
-        kind: 'name', title: 'Your name.', sub: 'How Robes addresses you.',
+        kind: 'name', title: 'Your name', sub: 'How Robes addresses you.',
         body: () => '<div class="sh-field"><label for="ac-first">First name</label><input id="ac-first" type="text" value="' + esc(st.firstName) + '" autocomplete="given-name"></div><div class="sh-field"><label for="ac-last">Last name</label><input id="ac-last" type="text" value="' + esc(st.lastName) + '" autocomplete="family-name"></div><div class="sh-msg" id="ac-msg"></div>',
         wire: body => { body.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') shClose(); })); },
         onClose: () => {
@@ -2034,15 +2005,13 @@
           if (!first) return;
           st.firstName = first; st.lastName = last;
           save({ first_name: first, last_name: last });
-          document.getElementById('sn-avatar').textContent = first[0].toUpperCase();
-          document.getElementById('sn-av-name').textContent = first;
           acPaint();
         },
       });
     }
     function shEmail() {
       shOpen({
-        kind: 'email', title: 'Your email.', sub: 'Where sign-in links and receipts go. A new address takes effect once you confirm it from your inbox.',
+        kind: 'email', title: 'Your email', sub: 'Where sign-in links and receipts go. A new address takes effect once you confirm it from your inbox.',
         body: () => '<div class="sh-field"><label for="ac-em">Email</label><input id="ac-em" type="email" value="' + esc(st.email) + '" autocomplete="email"></div><div class="sh-msg" id="ac-msg"></div><div class="sh-actions"><button type="button" class="sp-pill ink" id="ac-em-go">Send a confirmation</button></div>',
         wire: body => body.querySelector('#ac-em-go').addEventListener('click', async () => {
           const v = body.querySelector('#ac-em').value.trim(), msg = body.querySelector('#ac-msg');
@@ -2058,7 +2027,7 @@
     }
     function shPassword() {
       shOpen({
-        kind: 'password', title: 'Your password.', sub: 'At least eight characters.',
+        kind: 'password', title: 'Your password', sub: 'At least eight characters.',
         body: () => '<div class="sh-field"><label for="ac-pw">New password</label><input id="ac-pw" type="password" autocomplete="new-password" class="ph-no-capture"></div><div class="sh-msg" id="ac-msg"></div><div class="sh-actions"><button type="button" class="sp-pill ink" id="ac-pw-go">Update password</button></div>',
         wire: body => body.querySelector('#ac-pw-go').addEventListener('click', async () => {
           const v = body.querySelector('#ac-pw').value, msg = body.querySelector('#ac-msg');
@@ -2105,11 +2074,6 @@
       window.location.href = '/signup.html?mode=signin';
     }
     document.getElementById('ac-logout').addEventListener('click', function () { this.textContent = 'Signing out…'; logout(); });
-    document.getElementById('sn-logout').addEventListener('click', function () { this.textContent = 'Signing out…'; logout(); });
-    document.getElementById('sn-av-style').addEventListener('click', () => { document.getElementById('sn-av-menu').classList.remove('open'); spGo('root', 'style'); });
-    document.getElementById('sn-av-account').addEventListener('click', () => { document.getElementById('sn-av-menu').classList.remove('open'); spGo('root', 'account'); });
-    document.addEventListener('click', () => { const m = document.getElementById('sn-av-menu'); if (m) m.classList.remove('open'); });
-    document.getElementById('sn-av-menu').addEventListener('click', e => e.stopPropagation());
 
     function paintAll() { spPaintRoot(); twPaintFacts(); dnaPaint(); obsPaint(); acPaint(); }
 
@@ -2131,7 +2095,6 @@
       let once = null;   // a one-time reconcile write, when the old shape needs mapping
       if (!error && profile) {
         st.firstName = (profile.first_name || '').trim(); st.lastName = (profile.last_name || '').trim();
-        if (st.firstName) { document.getElementById('sn-avatar').textContent = st.firstName[0].toUpperCase(); document.getElementById('sn-av-name').textContent = st.firstName; }
         if (profile.style_dna && typeof profile.style_dna === 'object') st.styleDna = profile.style_dna;
         if (profile.colour_analysis && profile.colour_analysis.season) st.colour = profile.colour_analysis;
         if (profile.silhouette_analysis && profile.silhouette_analysis.body_type) st.sil = profile.silhouette_analysis;
@@ -2190,27 +2153,6 @@
       } catch (e) {}
       spRoute();
     }
-    (function snWeather() {
-      const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-      const WX_ICONS = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌧',82:'🌧',95:'⛈',96:'⛈',99:'⛈'};
-      document.getElementById('sn-wx-day').textContent = DAYS[new Date().getDay()];
-      if (!navigator.geolocation) return;
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        const { latitude: lat, longitude: lon } = pos.coords;
-        try {
-          const geoRes = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon, { headers: { 'Accept-Language': 'en' } });
-          const geo = await geoRes.json();
-          const city = geo.address?.city || geo.address?.town || geo.address?.village || geo.address?.county || '';
-          const wxRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,weather_code&temperature_unit=celsius');
-          const wx = await wxRes.json();
-          const temp = Math.round(wx.current?.temperature_2m), code = wx.current?.weather_code;
-          if (city) { const c = document.getElementById('sn-wx-city'); c.textContent = city; c.style.display = ''; c.previousElementSibling.style.display = ''; }
-          if (!isNaN(temp)) { const t = document.getElementById('sn-wx-temp'); t.textContent = temp + '°C'; t.style.display = ''; t.previousElementSibling.style.display = ''; }
-          if (code !== undefined && WX_ICONS[code]) document.querySelector('#sn-weather .wx').textContent = WX_ICONS[code];
-        } catch (e) {}
-      }, () => {});
-    })();
-
     renderAll();
     spRoute();
     init();
