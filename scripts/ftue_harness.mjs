@@ -1364,6 +1364,13 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await page.evaluate(() => localStorage.setItem('rb_test_icons', JSON.stringify(['The Row'])));
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
+  // Cut C (2026-10-09): with the walk begun and the facts unset, the facts
+  // card takes the slot first and the model door yields — never two at once.
+  const oc = await page.evaluate(() => ({ card: document.getElementById('rb-twin-card')?.dataset.kind || null, door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door') }));
+  check('model door · with the walk begun and the facts unset, the facts card leads and the door yields (cut C)', oc.card === 'facts' && !oc.door && !oc.notes, JSON.stringify(oc));
+  await page.evaluate(() => localStorage.setItem('rb_test_dna', JSON.stringify({ facts: { size_uk: 10 } })));
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
   const o2 = await page.evaluate(() => ({
     door: !!document.getElementById('rb-model-door'),
     notes: !!document.getElementById('rb-notes-door'),
@@ -1378,14 +1385,15 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await page.evaluate(() => localStorage.removeItem('rb_test_icons'));
   // A kept line in her brief is an answer too (slice A): the notes door
   // retires on it exactly as on an icon.
-  await page.evaluate(() => localStorage.setItem('rb_test_dna', JSON.stringify({ brief: { rules: [{ text: 'No more button-ups', source: 'drafted' }] } })));
+  await page.evaluate(() => localStorage.setItem('rb_test_dna', JSON.stringify({ facts: { size_uk: 10 }, brief: { rules: [{ text: 'No more button-ups', source: 'drafted' }] } })));
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
   const o3 = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door') }));
   check('model door · a kept line in her brief retires the notes door and opens the model door', o3.door && !o3.notes, JSON.stringify(o3));
   // Any card of the walk answered retires the invitation (2026-10-08): a
   // brand, the investment level, a fact.
-  for (const [label, dna] of [['a brand', { brands: ['Zara'] }], ['the investment level', { investment: 'Under €500' }], ['a fact', { facts: { size_uk: 10 } }]]) {
+  // (the facts ride every seed since cut C — set, the facts card stands down and the door is what shows)
+  for (const [label, dna] of [['a brand', { brands: ['Zara'], facts: { size_uk: 10 } }], ['the investment level', { investment: 'Under €500', facts: { size_uk: 10 } }], ['a fact', { facts: { size_uk: 10 } }]]) {
     await page.evaluate((d) => localStorage.setItem('rb_test_dna', JSON.stringify(d)), dna);
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(2600);
@@ -1828,6 +1836,195 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   check('intent fork · the first ask after the walk takes the line with it', asked.line === false, JSON.stringify(asked));
   check('intent fork · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
+}
+
+// The question cards (cut C of the first-run plan, 2026-10-09): one card a
+// visit once the walk's invitation has retired — the facts, three pieces
+// she loves, one Robes-noticed line — in the Robes-noticed register, never
+// beside the model door, never the same card twice in a day, every answer
+// landing on the key Settings writes. Then the investment-vs-memory read
+// riding styleDna into the next generation.
+{
+  const TW_TODAY = HB_TODAY, TW_YDAY = HB_ISO(new Date(Date.now() - 86400000));
+  // Six photographed pieces; `heroes` carry a star, `priced` carry EUR prices.
+  const twinRows = ({ heroes = 0, priced = false } = {}) => wardrobe(6).map((w, i) => Object.assign(w, {
+    image_url: 'https://img.test/w' + i + '.jpg', times_worn: 6 - i,
+    hero_position: i < heroes ? i + 1 : null,
+    price: priced && i < 4 ? [600, 500, 400, 700][i] : null, currency: priced && i < 4 ? 'EUR' : null,
+  }));
+  const twinBoot = async ({ dna = {}, icons = ['The Row'], heroes = 0, priced = false, width = 1280, looks = true, record = null } = {}) => {
+    const r = await boot(browser, 6, width, { pics: 6, prompt: null, looks });
+    const { page } = r;
+    const patches = [], wpatches = [], events = [];
+    await page.route('**ayowpaknssulsqqvwpqx.supabase.co/rest/v1/profiles**', (rt) => {
+      const req = rt.request();
+      if (req.method() === 'PATCH') { try { patches.push(JSON.parse(req.postData() || '{}')); } catch (_) { patches.push({}); } }
+      return rt.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+    await page.route('**ayowpaknssulsqqvwpqx.supabase.co/rest/v1/wardrobe_items**', (rt) => {
+      const req = rt.request();
+      if (req.method() === 'PATCH') { try { wpatches.push({ url: req.url(), body: JSON.parse(req.postData() || '{}') }); } catch (_) {} return rt.fulfill({ status: 200, contentType: 'application/json', body: '[]' }); }
+      return rt.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(twinRows({ heroes, priced })) });
+    });
+    await page.route('**ayowpaknssulsqqvwpqx.supabase.co/rest/v1/events**', (rt) => {
+      try { events.push(JSON.parse(rt.request().postData() || '{}').event_type); } catch (_) {}
+      return rt.fulfill({ status: 201, contentType: 'application/json', body: '' });
+    });
+    await page.evaluate(({ dna, icons, record }) => {
+      localStorage.setItem('rb_test_dna', JSON.stringify(dna));
+      localStorage.setItem('rb_test_icons', JSON.stringify(icons));
+      if (record) localStorage.setItem('rb_twin_card__u-test', JSON.stringify(record)); else localStorage.removeItem('rb_twin_card__u-test');
+    }, { dna, icons, record });
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
+    return Object.assign(r, { patches, wpatches, events });
+  };
+  const twinRead = () => ({
+    kind: document.getElementById('rb-twin-card')?.dataset.kind || null,
+    k: document.querySelector('#rb-twin-card .k')?.textContent.trim(),
+    t: document.querySelector('#rb-twin-card .t')?.textContent.replace(/\s+/g, ' ').trim(),
+    b: document.querySelector('#rb-twin-card .b')?.textContent.replace(/\s+/g, ' ').trim(),
+    rows: document.querySelectorAll('#rb-twin-card .rb-tc-row').length,
+    tiles: document.querySelectorAll('#rb-twin-card .rb-tc-tile').length,
+    on: document.querySelectorAll('#rb-twin-card .rb-tc-tile.on').length,
+    count: document.querySelector('#rb-twin-card .rb-tc-count')?.textContent.trim(),
+    verbs: Array.from(document.querySelectorAll('#rb-twin-card .verbs button')).map((b) => b.textContent.trim() + (b.disabled ? ' (off)' : '')),
+    ink: Array.from(document.querySelectorAll('#rb-twin-card button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+    stamps: document.querySelectorAll('#rb-twin-card .stamp').length,
+    prev: document.getElementById('rb-twin-card')?.previousElementSibling?.className.split(' ')[0],
+    notes: !!document.getElementById('rb-notes-door'), door: !!document.getElementById('rb-model-door'),
+    record: JSON.parse(localStorage.getItem('rb_twin_card__u-test') || 'null'),
+    overflow: document.documentElement.scrollWidth > window.innerWidth,
+  });
+
+  // The facts card leads; Not now puts it off for the day and the model door takes the slot.
+  {
+    const { ctx, page, errs, patches, events } = await twinBoot();
+    const a = await page.evaluate(twinRead);
+    check('twin cards · the facts card: Your digital twin, size never weight, the four rows, Not now + Done (cream until a fact lands)',
+      a.kind === 'facts' && a.k === 'Your digital twin' && /^Size, never weight\. Four facts, and Robes proposes what fits\.$/.test(a.t) && /Your digital twin/.test(a.b) && a.rows === 4
+        && JSON.stringify(a.verbs) === JSON.stringify(['Not now', 'Done → (off)']), JSON.stringify(a));
+    check('twin cards · never ink, never beside the model door or the invitation, after the prompt', a.ink === 0 && !a.door && !a.notes && a.prev === 'concierge', JSON.stringify([a.ink, a.door, a.notes, a.prev]));
+    check('twin cards · the day’s record and twin_card_shown {kind}', a.record && a.record.date === TW_TODAY && a.record.kind === 'facts' && a.record.done === false && events.includes('twin_card_shown'), JSON.stringify([a.record, events]));
+    await page.click('#rb-twin-card [data-v="later"]'); await page.waitForTimeout(600);
+    const l = await page.evaluate(twinRead);
+    check('twin cards · Not now closes it for the day, writes nothing to the twin, and the model door stands in its slot', l.kind === null && l.record.done === true && l.door && !patches.some((p) => p.style_dna) && events.includes('twin_card_later'), JSON.stringify([l.kind, l.record, l.door, patches]));
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
+    const l2 = await page.evaluate(twinRead);
+    check('twin cards · never the same card twice in a day: a reload shows no card, the door stays', l2.kind === null && l2.door, JSON.stringify([l2.kind, l2.door]));
+    check('twin cards · facts · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    await ctx.close();
+  }
+  // A new day: the facts write to style_dna.facts as the Settings sheet does — the first write is the answer.
+  {
+    const { ctx, page, errs, patches, events } = await twinBoot({ record: { date: TW_YDAY, kind: 'facts', done: true } });
+    const a = await page.evaluate(twinRead);
+    check('twin cards · yesterday’s record is spent — the facts card returns', a.kind === 'facts', JSON.stringify(a.record));
+    await page.click('#rb-twin-card [data-fact="height_cm"][data-dir="1"]'); await page.waitForTimeout(300);
+    await page.click('#rb-twin-card [data-age="35–44"]'); await page.waitForTimeout(400);
+    const w = await page.evaluate(() => ({ v: document.querySelector('#rb-twin-card .rb-tc-step .v')?.textContent.trim(), age: document.querySelector('#rb-twin-card [data-age="35–44"]')?.classList.contains('on'), done: document.querySelector('#rb-twin-card [data-v="done"]')?.disabled, prof: window.__robes_profile.style_dna.facts }));
+    const fp = patches.filter((p) => p.style_dna && p.style_dna.facts);
+    check('twin cards · a step and an age land on style_dna.facts (one merge-PATCH each), the profile copy first, Done comes live',
+      w.v === '169 cm' && w.age === true && w.done === false && w.prof.height_cm === 169 && w.prof.age_band === '35–44'
+        && fp.length === 2 && fp[0].style_dna.facts.height_cm === 169 && fp[1].style_dna.facts.age_band === '35–44' && fp[1].style_dna.facts.height_cm === 169, JSON.stringify([w, fp]));
+    check('twin cards · the first write is the answer: twin_card_answered once, facts_set each time', events.filter((e) => e === 'twin_card_answered').length === 1 && events.filter((e) => e === 'facts_set').length === 2, JSON.stringify(events));
+    await page.click('#rb-twin-card [data-v="done"]'); await page.waitForTimeout(600);
+    const d = await page.evaluate(twinRead);
+    check('twin cards · Done closes the card and marks the day', d.kind === null && d.record.done === true && d.record.kind === 'facts', JSON.stringify(d.record));
+    check('twin cards · facts write · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    await ctx.close();
+  }
+  // The loved pieces: the facts set, fewer than three stars → her six most worn, the wardrobe's own star.
+  {
+    const { ctx, page, errs, wpatches, events } = await twinBoot({ dna: { facts: { size_uk: 10 } } });
+    const a = await page.evaluate(twinRead);
+    check('twin cards · the loved card: six photographed pieces, the most worn first, nothing starred, Done cream',
+      a.kind === 'loved' && /^Star three pieces you love\.$/.test(a.t) && a.tiles === 6 && a.on === 0 && a.count === 'Tap a piece to star it' && JSON.stringify(a.verbs) === JSON.stringify(['Not now', 'Done → (off)']), JSON.stringify(a));
+    await page.click('#rb-twin-card [data-star="w0"]'); await page.waitForTimeout(600);
+    const s1 = await page.evaluate(twinRead);
+    check('twin cards · a star is the wardrobe’s star: hero_position PATCHed, the tile warm, “1 of 3 starred”, Done live',
+      s1.on === 1 && s1.count === '1 of 3 starred' && s1.verbs[1] === 'Done →' && wpatches.length === 1 && /id=eq\.w0/.test(wpatches[0].url) && wpatches[0].body.hero_position === 1 && events.includes('twin_card_answered'), JSON.stringify([s1.on, s1.count, s1.verbs, wpatches]));
+    await page.click('#rb-twin-card [data-star="w1"]'); await page.waitForTimeout(500);
+    await page.click('#rb-twin-card [data-star="w2"]'); await page.waitForTimeout(900);
+    const s3 = await page.evaluate(twinRead);
+    check('twin cards · the third star answers the card — it leaves, the day is marked, the model door takes the slot', s3.kind === null && s3.record.kind === 'loved' && s3.record.done === true && s3.door && wpatches.length === 3, JSON.stringify([s3.kind, s3.record, s3.door, wpatches.length]));
+    check('twin cards · loved · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    await ctx.close();
+  }
+  // The Robes-noticed line: the facts set, three stars on → the pending line, Settings' own swipe card.
+  const pending = { list: 'loves', text: 'A sharp shoulder, every time.', because: 'From 6 pieces filed', at: '2026-10-08T09:00:00.000Z' };
+  {
+    const { ctx, page, errs, patches, events } = await twinBoot({ dna: { facts: { size_uk: 10 }, brief: { pending: [pending], loves: [{ text: 'A defined waist', source: 'typed', at: '2026-10-01T00:00:00.000Z' }] } }, heroes: 3 });
+    const a = await page.evaluate(twinRead);
+    check('twin cards · the noticed card: Robes noticed, the line, the evidence, ← Not me / Keep →, the two stamps',
+      a.kind === 'noticed' && a.k === 'Robes noticed' && a.t === pending.text && a.b === pending.because && JSON.stringify(a.verbs) === JSON.stringify(['← Not me', 'Keep →']) && a.stamps === 2, JSON.stringify(a));
+    const box = await page.locator('#rb-twin-card').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 6 });
+    const mid = await page.evaluate(() => ({ keep: Number(document.querySelector('#rb-twin-card .stamp.keep')?.style.opacity), tx: document.getElementById('rb-twin-card')?.style.transform }));
+    await page.mouse.move(box.x + box.width / 2 + 150, box.y + box.height / 2, { steps: 6 }); await page.mouse.up();
+    await page.waitForTimeout(700);
+    const k = await page.evaluate(twinRead);
+    const bp = patches.find((p) => p.style_dna && p.style_dna.brief);
+    check('twin cards · the drag: the ✓ Keep stamp fades in with it; past 90px it keeps — the line files under Works, pending empties, nothing else on the brief moves',
+      mid.keep > 0.5 && mid.keep < 1 && /translateX\(60px\)/.test(mid.tx) && k.kind === null && k.record.done === true && bp && bp.style_dna.brief.pending.length === 0
+        && bp.style_dna.brief.loves.length === 2 && bp.style_dna.brief.loves[1].text === pending.text && bp.style_dna.brief.loves[1].source === 'drafted' && bp.style_dna.brief.loves[0].text === 'A defined waist'
+        && bp.style_dna.facts.size_uk === 10, JSON.stringify([mid, k.kind, k.record, bp && bp.style_dna]));
+    check('twin cards · Keep: brief_line keep + twin_card_answered', events.includes('brief_line') && events.includes('twin_card_answered'), JSON.stringify(events));
+    check('twin cards · noticed · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, errs, patches } = await twinBoot({ dna: { facts: { size_uk: 10 }, brief: { pending: [pending] } }, heroes: 3 });
+    await page.click('#rb-twin-card [data-v="no"]'); await page.waitForTimeout(900);
+    const n = await page.evaluate(twinRead);
+    const bp = patches.find((p) => p.style_dna && p.style_dna.brief);
+    const mp = patches.find((p) => p.style_dna && p.style_dna.memory);
+    check('twin cards · Not me strikes the line (brief.struck) and lands a memory strike, the brief untouched otherwise',
+      n.kind === null && bp && bp.style_dna.brief.struck[0] === pending.text && bp.style_dna.brief.pending.length === 0 && !(bp.style_dna.brief.loves || []).length
+        && mp && mp.style_dna.memory.entries[0].k === 'strike' && mp.style_dna.memory.entries[0].text === pending.text && mp.style_dna.brief.struck[0] === pending.text, JSON.stringify([n.kind, bp && bp.style_dna.brief, mp && mp.style_dna.memory]));
+    check('twin cards · strike · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    await ctx.close();
+  }
+  // The order and the gates: the facts outrank the loved pieces; nothing until the walk has begun; the invitation outranks every card.
+  {
+    const { ctx, page, errs } = await twinBoot({ dna: { brief: { pending: [pending] } } });
+    const o = await page.evaluate(twinRead);
+    check('twin cards · facts first: with the facts unset, three stars short and a line pending, the facts card is the one shown', o.kind === 'facts', JSON.stringify(o.kind));
+    await page.evaluate(() => { localStorage.setItem('rb_test_icons', '[]'); localStorage.setItem('rb_test_dna', '{}'); });
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
+    const g = await page.evaluate(twinRead);
+    check('twin cards · nothing of the walk answered → no card (the standard home shows no invitation either)', g.kind === null && !g.notes, JSON.stringify([g.kind, g.notes]));
+    await ctx.close();
+    const z = await twinBoot({ icons: [], looks: false });
+    const zi = await z.page.evaluate(twinRead);
+    check('twin cards · the invitation outranks every card: zero-lead with nothing begun shows the walk card alone', zi.notes && zi.kind === null, JSON.stringify([zi.notes, zi.kind]));
+    check('twin cards · gates · no page errors', errs.length === 0 && z.errs.length === 0, errs.concat(z.errs).join(' | ').slice(0, 200));
+    await z.ctx.close();
+  }
+  // 390: the card fits, the rows wrap, the tiles run three across.
+  {
+    const { ctx, page, errs } = await twinBoot({ width: 390 });
+    const m = await page.evaluate(twinRead);
+    const { ctx: c2, page: p2, errs: e2 } = await twinBoot({ width: 390, dna: { facts: { size_uk: 10 } } });
+    const m2 = await p2.evaluate(() => ({ overflow: document.documentElement.scrollWidth > window.innerWidth, cols: getComputedStyle(document.querySelector('#rb-twin-card .rb-tc-tiles')).gridTemplateColumns.split(' ').length, w: document.getElementById('rb-twin-card').getBoundingClientRect().width }));
+    check('twin cards · 390: the facts card fits the viewport, the loved tiles run three across', m.kind === 'facts' && !m.overflow && m.rows === 4 && !m2.overflow && m2.cols === 3 && m2.w <= 390, JSON.stringify([m.kind, m.overflow, m2]));
+    check('twin cards · 390 · no page errors', errs.length === 0 && e2.length === 0, errs.concat(e2).join(' | ').slice(0, 200));
+    await ctx.close(); await c2.close();
+  }
+  // The investment-vs-memory read: four priced pieces over her level ride styleDna.spend into the next ask.
+  {
+    const { ctx, page, errs, posts } = await twinBoot({ dna: { investment: '€500–1,500', facts: { size_uk: 10 } }, heroes: 3, priced: true });
+    await page.evaluate(() => window.__rbHbOpen && window.__rbHbOpen());
+    await page.evaluate(() => window.__rbLpText('Dinner on Friday'));
+    await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2500);
+    const sp = posts.daily[0] && posts.daily[0].styleDna && posts.daily[0].styleDna.spend;
+    check('twin cards · spend read: €2,200 across four priced pieces against €500–1,500 rides the ask as styleDna.spend, verdict above',
+      !!sp && sp.n === 4 && sp.total === 2200 && sp.median === 600 && sp.level === '€500–1,500' && sp.verdict === 'above' && posts.daily[0].styleDna.investment === '€500–1,500', JSON.stringify([posts.daily.length, sp, posts.daily[0] && Object.keys(posts.daily[0].styleDna || {})]));
+    const prof = await page.evaluate(() => Object.keys(window.__robes_profile.style_dna));
+    check('twin cards · spend is compiled at send time, never written to the profile', !prof.includes('spend'), JSON.stringify(prof));
+    check('twin cards · spend · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    await ctx.close();
+  }
 }
 
 await browser.close();

@@ -689,6 +689,15 @@ export function factsLines(f) {
   return [`THE FACTS she gave — size, never weight: ${parts.join(', ')}. Propose what fits these and size every piece to them; never estimate them from a photograph.`];
 }
 
+// The client's spend read: {n, total, median, verdict} — numbers only, or nothing.
+function spendRead(sp) {
+  if (!sp || typeof sp !== 'object') return null;
+  const n = Number(sp.n), total = Number(sp.total), median = Number(sp.median);
+  if (!(n >= 3) || !(total > 0) || !(median > 0)) return null;
+  return { n: Math.round(n), total: Math.round(total), median: Math.round(median), verdict: sp.verdict === 'above' ? 'above' : 'inside' };
+}
+function euro(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
 export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []) {
   const icons = Array.isArray(styleIcons) ? styleIcons.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 12) : [];
   const dna = styleDna && typeof styleDna === 'object' ? styleDna : {};
@@ -739,6 +748,14 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   }
   if (investment) {
     lines.push(`INVESTMENT LEVEL — she spends ${investment} a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph.`);
+    // The investment-vs-memory line (cut C, 2026-10-09): the client compiles
+    // `spend` at send time from the EUR prices on what she filed this year
+    // (never written to the profile); only "above" earns a line — a partial
+    // year can prove she buys above her level, never below it.
+    const sp = spendRead(dna.spend);
+    if (sp && sp.verdict === 'above') {
+      lines.push(`WHAT SHE ACTUALLY BUYS — the ${sp.n} priced pieces she filed this year come to €${euro(sp.total)}, a typical one €${euro(sp.median)}: above the level she set. The level she set still rules what Robes proposes — never raise the ceiling to match her receipts — but read her prices as taste: a piece that has to be found should sit at her level and read like the pricier ones she already owns, never as a cheaper copy of them.`);
+    }
   }
   if (factLines.length) lines.push(...factLines);
   // Colours she confirmed or refused on the brief ride the same override

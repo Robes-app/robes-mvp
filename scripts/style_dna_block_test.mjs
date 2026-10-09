@@ -80,6 +80,16 @@ ok(/INVESTMENT LEVEL — she spends €500–1,500 a year/.test(dnaPage) && /nev
 ok(/THE FACTS she gave — size, never weight: height 168 cm, dress size UK 10 \(EU 38\), shoes UK 5, age 45–54\./.test(dnaPage), 'the facts print with the EU size derived, never a weight');
 ok(/STYLE ICONS[^\n]*Hailey Bieber \(Clean-girl minimal\), Jane Birkin\./.test(dnaPage), 'an icon carries its tag, an untagged one its name alone');
 ok(dnaPage.indexOf('STYLE ICONS') < dnaPage.indexOf('BRANDS') && dnaPage.indexOf('BRANDS') < dnaPage.indexOf('INVESTMENT') && dnaPage.indexOf('INVESTMENT') < dnaPage.indexOf('THE FACTS'), 'icons → brands → investment → facts, in that order');
+
+// The investment-vs-memory line (cut C, 2026-10-09): the client's spend read
+// rides `dna.spend`; only "above" earns a line, under the level, before the facts.
+const above = styleDnaPromptBlock({ investment: '€500–1,500', facts: { size_uk: 10 }, spend: { n: 4, total: 2140, median: 390, verdict: 'above' } }, 0, []);
+ok(/WHAT SHE ACTUALLY BUYS — the 4 priced pieces she filed this year come to €2,140, a typical one €390: above the level she set\./.test(above), 'she buys above her level: the count, the total, the typical piece');
+ok(/never raise the ceiling to match her receipts/.test(above) && /never as a cheaper copy of them/.test(above), 'the level still rules; her prices read as taste');
+ok(above.indexOf('INVESTMENT LEVEL') < above.indexOf('WHAT SHE ACTUALLY BUYS') && above.indexOf('WHAT SHE ACTUALLY BUYS') < above.indexOf('THE FACTS'), 'the line sits under the level, before the facts');
+ok(!/WHAT SHE ACTUALLY BUYS/.test(styleDnaPromptBlock({ investment: '€500–1,500', spend: { n: 4, total: 900, median: 200, verdict: 'inside' } }, 0, [])), 'inside the level renders no line');
+ok(!/WHAT SHE ACTUALLY BUYS/.test(styleDnaPromptBlock({ investment: '€500–1,500', spend: { n: 2, total: 2000, median: 1000, verdict: 'above' } }, 0, [])), 'fewer than three priced pieces renders no line');
+ok(!/WHAT SHE ACTUALLY BUYS/.test(styleDnaPromptBlock({ brands: ['Zara'], spend: { n: 4, total: 2140, median: 390, verdict: 'above' } }, 0, [])), 'no level set, no line — there is nothing to be above');
 ok(!/STYLE DNA/.test(dnaPage), 'no DNA header without a photograph read');
 ok(styleDnaPromptBlock({ facts: { height_cm: 'tall', size_uk: 99 } }, 0, []) === '', 'facts out of range render nothing');
 ok(/dress size UK 12 \(EU 40\)/.test(styleDnaPromptBlock({ facts: { size_uk: 12 } }, 0, [])), 'a lone fact still renders');
