@@ -1594,12 +1594,17 @@
     // prompt; a second tap strikes it. Head covered is a MUST, so it files
     // as a rule Robes keeps on every look, never as a no (Annie, 8 Oct).
     const MUST_CHIPS = { rules: ['Head covered', 'Covered arms', 'Covered legs'], avoids: ['Heels', 'Polo necks', 'Metals', 'Sheer', 'Prints'] };
-    function chipRowsHtml(list) {
+    // own: the lines she typed herself ride the row as kept pills (the walk —
+    // the Settings sheets list them under Your nos / Your rules instead), so
+    // "+ Your own" visibly lands and a second tap strikes it like a chip.
+    function chipRowsHtml(list, own) {
       const b = chBrief();
       const has = t => b[list].some(x => x.text.toLowerCase() === t.toLowerCase());
+      const preset = MUST_CHIPS[list].map(t => t.toLowerCase());
+      const mine = own ? b[list].filter(x => preset.indexOf(x.text.toLowerCase()) < 0).map(x => x.text) : [];
       const head = list === 'rules' ? 'Always <span class="h">Robes keeps these on every look</span>' : 'Never <span class="h">whatever the occasion</span>';
       return '<div class="sh-k">' + head + '</div><div class="sh-pills">' +
-        MUST_CHIPS[list].map(t => '<button type="button" class="sh-pill' + (has(t) ? ' on' : '') + '" data-chip="' + esc(t) + '" data-list="' + list + '">' + (has(t) ? '<span>✓</span>' : '') + esc(t) + '</button>').join('') +
+        MUST_CHIPS[list].concat(mine).map(t => '<button type="button" class="sh-pill' + (has(t) ? ' on' : '') + '" data-chip="' + esc(t) + '" data-list="' + list + '">' + (has(t) ? '<span>✓</span>' : '') + esc(t) + '</button>').join('') +
         '</div><div class="ln-add"><span class="plus">+</span><input type="text" data-own="' + list + '" placeholder="Your own" maxlength="160" autocomplete="off"></div>';
     }
     function chipWire(body, after) {
@@ -1610,11 +1615,21 @@
         if (i >= 0) wordsStrike(list, i); else wordsAdd(list, t, t);
         after();
       }));
-      body.querySelectorAll('input[data-own]').forEach(inp => inp.addEventListener('keydown', e => {
-        if (e.key !== 'Enter') return;
-        e.preventDefault();
-        if (wordsAdd(inp.dataset.own, inp.value)) after();
-      }));
+      // A typed line files on Enter AND on leaving the field — on a phone she
+      // taps Continue / Done rather than return, and the line must not vanish.
+      body.querySelectorAll('input[data-own]').forEach(inp => {
+        const commit = refocus => {
+          if (inp._done || !inp.value.trim()) return;
+          inp._done = true;
+          const list = inp.dataset.own;
+          if (wordsAdd(list, inp.value)) {
+            after();
+            if (refocus) { const i2 = document.querySelector('#sh-body input[data-own="' + list + '"]'); if (i2) i2.focus(); }
+          } else { inp._done = false; inp.value = ''; }
+        };
+        inp.addEventListener('keydown', e => { if (e.key !== 'Enter') return; e.preventDefault(); commit(true); });
+        inp.addEventListener('blur', () => commit(false));
+      });
     }
     function wordsStrike(list, i) {
       const b = chBrief(); const x = b[list][i]; if (!x) return;
@@ -2211,7 +2226,7 @@
     function cfgMusts() {
       return {
         kind: 'musts',
-        body: () => chipRowsHtml('rules') + chipRowsHtml('avoids'),
+        body: () => chipRowsHtml('rules', true) + chipRowsHtml('avoids', true),
         wire: body => chipWire(body, () => { shRepaint(); dnaPaint(); }),
       };
     }

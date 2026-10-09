@@ -614,11 +614,11 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   await ctx.close();
 }
 
-// The styled card — the first home, one door (design 2a, 2026-09-25): the
-// setup screen holds the card ("See the full looks" full-width under the
-// looks, the one ink), the dashed Style-notes door beneath it, and nothing
-// else — no rows, no prompt, no rail, no band. The prompt and the rows
-// return the moment the card collapses.
+// The onboarding key piece lands on the DECK (Annie, 2026-10-09): Style a
+// key piece three ways ends where a piece styled from the box ends — the
+// keep-or-pass deck (F14) in the Lookbook, the set saved, the three looks
+// minted as suggested rows; the old "Your piece, styled" card never paints.
+// Back from the deck lands home, where the look step reads done.
 {
   const { ctx, page, errs } = await boot(browser, 1, 1280, { looks: false });
   await page.evaluate(() => {
@@ -632,109 +632,30 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
-  const s = await page.evaluate(() => {
-    const card = document.getElementById('rb-styled');
-    const open = document.getElementById('rb-styled-open');
-    const vis = (el) => !!el && el.offsetParent !== null;
-    const filled = Array.from(document.querySelectorAll('#dash button'))
-      .filter((btn) => btn.offsetParent !== null)
-      .filter((btn) => {
-        const bg = getComputedStyle(btn).backgroundColor;
-        return bg === 'rgb(32, 32, 33)' || bg === 'rgb(0, 0, 0)';
-      }).map((btn) => btn.textContent.trim());
+  const d = await page.evaluate(() => ({
+    card: !!document.getElementById('rb-styled'),
+    sn: document.getElementById('sn-page')?.style.display === 'block',
+    deck: !!document.querySelector('#rb-lk-body .rb-lk-deck'),
+    cards: document.querySelectorAll('#rb-lk-body .rb-deck-card').length,
+    top: document.querySelector('.rb-deck-card.top .rb-deck-t')?.textContent,
+    set: (JSON.parse(localStorage.getItem('robes_style_notes__u-test') || '[]').find((x) => x.type === 'key-piece') || {}).kpData,
+  }));
+  check('onboarding deck · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('onboarding deck · the styled key piece lands on the keep-or-pass deck in the Lookbook — never the "Your piece, styled" card',
+    d.card === false && d.sn === true && d.deck === true && d.cards >= 1, JSON.stringify([d.card, d.sn, d.deck, d.cards, d.top]));
+  check('onboarding deck · the set is saved and marked suggested', !!d.set && d.set.suggested === true && (d.set.ways || []).length === 3, JSON.stringify(d.set && { s: d.set.suggested, n: (d.set.ways || []).length }));
+  await page.evaluate(() => window.__lkDeckBack()); await page.waitForTimeout(700);
+  const h = await page.evaluate(() => {
     const g = document.getElementById('rb-gtky');
     return {
       mode: document.getElementById('dash').getAttribute('data-home'),
-      cardFirst: document.querySelector('.dash-mast')?.nextElementSibling?.id,
-      doorNext: card?.nextElementSibling?.id,
-      openFilled: open ? getComputedStyle(open).backgroundColor === 'rgb(32, 32, 33)' : false,
-      openUnderTiles: open?.previousElementSibling?.id === 'rb-styled-tiles',
-      openWide: open && card ? Math.abs(open.getBoundingClientRect().width - document.getElementById('rb-styled-tiles').getBoundingClientRect().width) < 2 : false,
-      addNext: !!document.getElementById('rb-styled-addnext'),
-      foot: !!document.getElementById('rb-styled-foot'),
-      filledButtons: filled,
-      echo: document.querySelector('.dash-echo')?.textContent,
-      echoHidden: !vis(document.querySelector('.dash-echo')),
-      rows: !!document.getElementById('rb-ftu-rows'),
-      promptShown: vis(document.getElementById('cb-ta')),
-      railHidden: !vis(document.getElementById('rb-rail')),
-      servicesHidden: !vis(document.querySelector('.services')),
-      modelDoor: !!document.getElementById('rb-model-door'),
-      notesDoor: !!document.getElementById('rb-notes-door'),
-      twinCard: !!document.getElementById('rb-twin-card'),
+      sn: document.getElementById('sn-page')?.style.display === 'block',
       next: g?.getAttribute('data-next'),
-      ey: g?.querySelector('.rb-gtky-body .ey')?.textContent,
-      rowsList: Array.from(g?.querySelectorAll('.rb-gtky-row') || []).map((r) => r.dataset.step + ':' + r.dataset.state + ':' + r.querySelector('.l')?.textContent),
-      afterG: g?.nextElementSibling?.className.split(' ')[0],
+      rowsList: Array.from(g?.querySelectorAll('.rb-gtky-row') || []).map((r) => r.dataset.step + ':' + r.dataset.state),
     };
   });
-  check('styled card · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('styled card · the hero leads, the Getting-to-know-you card beneath it (the twin next — the piece IS her first look), the mode gtky',
-    s.mode === 'gtky' && s.cardFirst === 'rb-styled' && s.doorNext === 'rb-gtky' && s.next === 'photos' && s.ey === 'Next · Your digital twin'
-      && JSON.stringify(s.rowsList) === JSON.stringify(['style:later:The styles that feel like you', 'look:done:Saved to your lookbook']),
-    JSON.stringify([s.mode, s.cardFirst, s.doorNext, s.next, s.ey, s.rowsList]));
-  check('styled card · "See the full looks" is the one filled button, full-width under the looks, no add-next CTA',
-    s.openFilled === true && s.openUnderTiles === true && s.openWide === true && s.addNext === false
-      && s.filledButtons.length === 1 && /See the full looks/i.test(s.filledButtons[0] || ''),
-    JSON.stringify([s.openFilled, s.openUnderTiles, s.openWide, s.addNext, s.filledButtons]));
-  check('styled card · no piece-count caption on the card (the composing screen said it)', s.foot === false, String(s.foot));
-  check('styled card · the greeting is one line (H7): the italic sub stands down',
-    s.echoHidden === true, String(s.echoHidden));
-  check('styled card · the prompt card waits behind the hero (See the full looks keeps the one ink); no rows, no rail, no band, no model door, no walk card, no question card',
-    s.promptShown === false && s.rows === false && s.railHidden === true && s.servicesHidden === true && s.modelDoor === false && s.notesDoor === false && s.twinCard === false,
-    JSON.stringify([s.promptShown, s.rows, s.railHidden, s.servicesHidden, s.modelDoor, s.notesDoor, s.twinCard]));
-  // The saved key piece IS the hero card — the Inspiration row would be a
-  // second copy of it, so it stands down only while the card is up.
-  const inspWhileCard = await page.evaluate(() =>
-    document.getElementById('rb-insp-row')?.offsetParent === null
-      || !document.getElementById('rb-insp-row')?.textContent.trim());
-  check('styled card · the Inspiration row yields to the hero (one copy of the piece)',
-    inspWhileCard === true, String(inspWhileCard));
-
-  // Opening the looks retires the card — home re-decides, and the prompt
-  // steps out to lead the page (never a bare index with no door).
-  const after = await page.evaluate(async () => {
-    document.getElementById('rb-styled-open')?.click();
-    await new Promise((r) => setTimeout(r, 900));
-    const filled = (id) => {
-      const b = document.getElementById(id);
-      return b ? getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' : null;
-    };
-    return {
-      styledGone: !document.getElementById('rb-styled'),
-      mode: document.getElementById('rb-ftu-rows')?.getAttribute('data-mode'),
-      concLeads: document.querySelector('.concierge')?.parentNode?.id === 'dash'
-        && !document.getElementById('rb-conc-ey'),
-      // Load rules (2026-08-19): the click through brings the concierge in
-      servicesShown: document.querySelector('.services')?.offsetParent !== null,
-      // Look states (2026-10-06): the click through lands on the Lookbook's
-      // SUGGESTED tab — the three looks as suggested tiles around her piece
-      // — never the Worn Three Ways page.
-      kpOpen: document.getElementById('kp-result-page')?.style.display === 'block',
-      snOpen: document.getElementById('sn-page')?.style.display === 'block',
-      tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent,
-      tiles: Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-title')).map((e) => e.textContent).sort(),
-      metas: Array.from(new Set(Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-meta')).map((e) => e.textContent))),
-      inkFills: Array.from(document.querySelectorAll('#sn-page button'))
-        .filter((b) => b.offsetParent !== null && b.getBoundingClientRect().height > 20 && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
-      filled,
-    };
-  });
-  check('styled card · once it retires the Getting-to-know-you card leads (no rows — the first run is not done)',
-    after.styledGone === true && after.mode === undefined && after.concLeads === true,
-    JSON.stringify([after.styledGone, after.mode, after.concLeads]));
-  const doorAfter = await page.evaluate(() => Array.from(document.getElementById('dash').children)
-    .map((e) => e.id || e.className.split(' ')[0]).filter((id) => ['concierge', 'rb-gtky', 'rb-notes-door', 'rb-ftu-rows', 'rb-styled'].includes(id)));
-  check('styled card · the door card leads, the prompt under it, once the card retires',
-    JSON.stringify(doorAfter) === JSON.stringify(['rb-gtky', 'concierge']), JSON.stringify(doorAfter));
-  check('styled card · the band stays down while the first run stands',
-    after.servicesShown === false, String(after.servicesShown));
-  // The handoff carries no wardrobe row id: the anchor resolves by the
-  // filed piece's label when it is in the wardrobe (this fixture's is not,
-  // so the looks read "From your prompt").
-  check('styled card · See the full looks lands on the Suggested tab — the three looks as suggested tiles, no kp page, nothing filled ink',
-    after.kpOpen === false && after.snOpen === true && after.tab === 'Suggested' && after.tiles.length === 3 && after.metas.length === 1 && after.inkFills === 0,
-    JSON.stringify([after.kpOpen, after.snOpen, after.tab, after.tiles, after.metas, after.inkFills]));
+  check('onboarding deck · back from the deck lands home: the Getting-to-know-you card with the look step done, the twin next',
+    h.mode === 'gtky' && h.sn === false && h.next === 'photos' && h.rowsList.indexOf('look:done') >= 0, JSON.stringify(h));
 
   // The Worn Three Ways page survives for the SET's entry (__snOpenItem on
   // a key-piece row): the same landing, no guide band, card 01 filled, no
@@ -1407,17 +1328,17 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     if (req.method() === 'PATCH') { try { patches.push(JSON.parse(req.postData() || '{}')); } catch (_) { patches.push({}); } }
     return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
   });
-  let framesIn = false;
-  await page.route('**/api/images/**', (r) => r.fulfill({ status: 200, contentType: 'application/json',
-    body: JSON.stringify(framesIn ? { images: ['https://img.test/1.jpg', 'https://img.test/2.jpg', 'https://img.test/3.jpg'], done: true } : { images: [], done: false }) }));
+  // The ask lives on the card while the looks compose — the slow path,
+  // where no prefire landed: /api/style is held until the frames are "in".
+  let releaseStyle = null;
+  const styleGate = new Promise((r) => { releaseStyle = r; });
+  await page.route('**/api/style', async (r) => { await styleGate; r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], fallback: false }) }); });
   await page.evaluate(() => {
     sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt: 'Acid green cropped jumper', photo: null, cataloged: true }));
-    sessionStorage.setItem('rb_onboard_styled', JSON.stringify({
-      prompt: 'Acid green cropped jumper', ts: Date.now(),
-      data: { ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], jobId: 'job-1', fallback: false, photoUrl: null } }));
+    sessionStorage.removeItem('rb_onboard_styled');
   });
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForTimeout(3200);
   const a = await page.evaluate(() => {
     const ask = document.getElementById('rb-styled-mail');
     const btn = document.getElementById('rb-styled-mail-btn');
@@ -1428,15 +1349,14 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       line: ask ? ask.textContent.replace(/\s+/g, ' ').trim() : '',
       btn: btn ? btn.textContent.trim() : '', btnBg: btn ? getComputedStyle(btn).backgroundColor : '',
       filled,
-      afterOpen: !!ask && ask.previousElementSibling?.id === 'rb-styled-open',
-      pulsing: /rbStyPulse/.test(document.getElementById('rb-styled-img-0')?.style.animation || ''),
+      pulsing: !!document.querySelector('#rb-styled [style*="rbStyPulse"]'),
     };
   });
-  check('email ask · renders under the pulsing tiles, after the See-the-full-looks door', a.ask && a.inCard && a.afterOpen && a.pulsing, JSON.stringify(a));
+  check('email ask · renders under the pulsing tiles while the looks compose', a.ask && a.inCard && a.pulsing, JSON.stringify(a));
   check('email ask · the line, the text door and the consent sub-line',
     /^Robes is composing your three looks\. Email me when they’re ready →\s*and the odd note when your wardrobe’s ready for more$/.test(a.line) && a.btn === 'Email me when they’re ready →', a.line);
-  check('email ask · the door is text, never a fill — See the full looks stays the one ink button',
-    a.btnBg !== 'rgb(32, 32, 33)' && a.filled.length === 1 && /See the full looks/.test(a.filled[0] || ''), JSON.stringify([a.btnBg, a.filled]));
+  check('email ask · the door is text, never a fill — no ink on the composing card',
+    a.btnBg !== 'rgb(32, 32, 33)' && a.filled.length === 0, JSON.stringify([a.btnBg, a.filled]));
   const tzPatch = patches.find((p) => p.notification_prefs && p.notification_prefs.timezone);
   check('email · the boot writes her timezone once when empty', !!tzPatch && typeof tzPatch.notification_prefs.timezone === 'string' && tzPatch.notification_prefs.timezone.length > 2, JSON.stringify(patches));
   const before = patches.length;
@@ -1451,13 +1371,14 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
     tapped.line === '✓ Robes will email you.' && optin && optin.notification_prefs.looks_ready === true && optin.notification_prefs.nudges === true
       && typeof optin.notification_prefs.timezone === 'string' && tapped.prefs && tapped.prefs.nudges === true,
     JSON.stringify([tapped, optin]));
-  framesIn = true;
-  await page.waitForTimeout(5200);   // the card's poll ticks at 4s
+  releaseStyle();
+  await page.waitForTimeout(1500);
   const landed = await page.evaluate(() => ({
     ask: !!document.getElementById('rb-styled-mail'),
-    imgs: document.querySelectorAll('#rb-styled-tiles img').length,
+    card: !!document.getElementById('rb-styled'),
+    deck: !!document.querySelector('#rb-lk-body .rb-lk-deck'),
   }));
-  check('email ask · retires with the loading state once the frames land', landed.ask === false && landed.imgs === 3, JSON.stringify(landed));
+  check('email ask · retires with the card once the looks land — on the deck', landed.ask === false && landed.card === false && landed.deck === true, JSON.stringify(landed));
 
   // Account details · Emails: defaults from the brief, the save's own merge-write
   const acct = await page.evaluate(() => {
@@ -1504,16 +1425,15 @@ for (const prefs of [{ nudges: true }, null]) {
   await page.route('**nominatim**', (r) => r.abort());
   await page.route('**open-meteo**', (r) => r.abort());
   await page.route('**/api/images/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [], done: false }) }));
+  await page.route('**/api/style', () => {});   // held: the card stays composing
   await page.addInitScript((p) => {
     window.__TEST_PROFILE = { first_name: 'Annie', last_name: '', mobile: '', style_icons: [], budget: null, wardrobe_description: '', style_dna: {},
       wardrobe_items_count: 1, onboarded_at: '2026-07-01', gender_identity: 'woman', ...(p ? { notification_prefs: p } : {}) };
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
     sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt: 'Acid green cropped jumper', photo: null, cataloged: true }));
-    sessionStorage.setItem('rb_onboard_styled', JSON.stringify({ prompt: 'Acid green cropped jumper', ts: Date.now(),
-      data: { ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], jobId: 'job-1', fallback: false, photoUrl: null } }));
   }, prefs);
-  await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
+  await page.goto(`${BASE}/dashboard`, { waitUntil: 'load' });
+  await page.waitForTimeout(3200);
   const q = await page.evaluate(() => {
     window.__rbAcctEmailsSync();
     return { card: !!document.getElementById('rb-styled'), ask: !!document.getElementById('rb-styled-mail'), emails: document.getElementById('acct-emails')?.style.display };
@@ -1637,19 +1557,22 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
 // prompt does — one goal at a time — and returns when the card retires.
 {
   const { ctx, page, errs } = await boot(browser, 1, 1280, { looks: false, prompt: 'box' });
+  // the card stands while the looks compose (the slow path — /api/style held)
+  let releaseZ = null;
+  const gateZ = new Promise((r) => { releaseZ = r; });
+  await page.route('**/api/style', async (r) => { await gateZ; r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], fallback: false }) }); });
   await page.evaluate(() => {
     sessionStorage.setItem('rb_onboard_piece', JSON.stringify({ prompt: 'Acid green cropped jumper', photo: null, cataloged: true }));
-    sessionStorage.setItem('rb_onboard_styled', JSON.stringify({ prompt: 'Acid green cropped jumper', ts: Date.now(),
-      data: { ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], fallback: false, photoUrl: null } }));
+    sessionStorage.removeItem('rb_onboard_styled');
   });
-  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2600);
+  await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(3200);
   const z = await hbRead(page);
   const zg = await page.evaluate(() => ({ askey: document.getElementById('rb-gtky-askey')?.textContent, askeyNext: document.getElementById('rb-gtky-askey')?.nextElementSibling?.id, hbPrev: document.getElementById('rb-hb')?.previousElementSibling?.id }));
   check('home field · the styled card over the door card · the field stands under the list as "Or ask Robes" (H8)', z.mode === 'gtky' && z.hb === true && z.fields === 1 && z.conc === false && zg.hbPrev === 'rb-gtky' && zg.askey === 'Or ask Robes' && zg.askeyNext === 'rb-hb-row', JSON.stringify([z, zg]));
-  await page.evaluate(() => document.getElementById('rb-styled-open')?.click()); await page.waitForTimeout(900);
+  releaseZ(); await page.waitForTimeout(1500);   // the looks land on the deck
   await page.evaluate(() => window.__rbNavGo('home')); await page.waitForTimeout(500);
   const z2 = await hbRead(page);
-  check('home field · the card retires, the door card and the field stand', z2.mode === 'gtky' && z2.hb === true && z2.fields === 1 && z2.conc === false && z2.order[1] === 'rb-gtky' && z2.order[2] === 'rb-hb', JSON.stringify(z2));
+  check('home field · the card retires onto the deck; home again: the door card and the field stand', z2.mode === 'gtky' && z2.hb === true && z2.fields === 1 && z2.conc === false && z2.order[1] === 'rb-gtky' && z2.order[2] === 'rb-hb', JSON.stringify(z2));
   check('home field · zero · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1870,7 +1793,7 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
       ftuRows: !!document.getElementById('rb-ftu-rows'), firstlook: !!document.getElementById('rb-firstlook'),
       rail: vis(document.getElementById('rb-rail')), services: vis(document.querySelector('.services')), sn: vis(document.getElementById('rb-sn')), insp: vis(document.getElementById('rb-insp-row')),
       echo: vis(mast.querySelector('.dash-echo')),
-      wxFirst: mast.firstElementChild?.id === 'dash-wx-m', greet: document.getElementById('dash-greet')?.textContent,
+      wxFirst: mast.firstElementChild?.id === 'dash-wx-m', wxLast: mast.lastElementChild?.id === 'dash-wx-m' && mast.firstElementChild?.id === 'dash-greet', echoText: mast.querySelector('.dash-echo')?.textContent, greet: document.getElementById('dash-greet')?.textContent,
       hbPrev: document.getElementById('rb-hb')?.previousElementSibling?.id, askey: document.getElementById('rb-gtky-askey')?.textContent, askeyNext: document.getElementById('rb-gtky-askey')?.nextElementSibling?.id,
       hbVis: vis(document.getElementById('rb-hb')),
       overflow: document.documentElement.scrollWidth > window.innerWidth,
@@ -1910,8 +1833,8 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     JSON.stringify([a.head, a.headColor, a.rows]));
   check('gtky · nothing else stands: no question card, no walk card, no model door, no rows, no Your looks, no rail, no band, no Lookbook or Inspiration row',
     !a.twin && !a.notes && !a.model && !a.ftuRows && !a.firstlook && !a.rail && !a.services && !a.sn && !a.insp, JSON.stringify([a.twin, a.notes, a.model, a.ftuRows, a.firstlook, a.rail, a.services, a.sn, a.insp]));
-  check('gtky · the greeting is one line (H7): the context line stands above it, the italic sub is gone',
-    a.echo === false && a.wxFirst === true && /^Good (morning|afternoon|evening), Annie\.$/.test(a.greet || ''), JSON.stringify([a.echo, a.wxFirst, a.greet]));
+  check('gtky · the header (Annie, 2026-10-09): the greeting, the italic sub, the weather line beneath them',
+    a.echo === true && a.echoText === 'What are you dressing for today?' && a.wxLast === true && a.wxFirst === false && /^Good (morning|afternoon|evening), Annie\.$/.test(a.greet || ''), JSON.stringify([a.echo, a.echoText, a.wxLast, a.greet]));
   check('gtky · "Or ask Robes" names the box beneath the list (H8)', a.askey === 'Or ask Robes' && a.askeyNext === 'rb-hb-row', JSON.stringify([a.askey, a.askeyNext]));
   check('gtky · gtky_shown {next, order}', events.some(([t, m]) => t === 'gtky_shown' && m.next === 'photos' && m.order === 'photos,style,look'), JSON.stringify(events.filter(([t]) => /gtky/.test(t))));
   // H8: before the twin exists, the box says so once — a line, never a gate

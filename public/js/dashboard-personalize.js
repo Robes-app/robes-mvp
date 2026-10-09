@@ -396,9 +396,9 @@
       // Built from window.__rbCtx once geolocation + forecast land; stays
       // hidden until at least day + one of city/temp is known.
       const mWxEl = document.getElementById('dash-wx-m');
-      // H7 (First Run redlines, 2026-10-09): the context line sits ABOVE the
-      // greeting — "Friday · Dublin · 14°C" — with no cloud emoji.
-      try { const g = document.getElementById('dash-greet'); if (mWxEl && g && g.parentNode === mWxEl.parentNode) mWxEl.parentNode.insertBefore(mWxEl, g); } catch (_) {}
+      // The context line sits BELOW the greeting and the italic sub, led by
+      // the weather icon (Annie, 2026-10-09 — reverts H7's above-the-greeting move).
+      var _rbWxCode;
       function _rbSyncMobileWx(code) {
         if (!mWxEl) return;
         const day = DAYS[new Date().getDay()];
@@ -407,8 +407,11 @@
         const parts = [day, city, temp].filter(Boolean);
         if (parts.length < 2) { mWxEl.classList.remove('on'); return; }
         mWxEl.textContent = '';
+        if (code !== undefined) _rbWxCode = code;
+        const icon = (_rbWxCode !== undefined && WX_ICONS[_rbWxCode]) || '';
+        if (icon) { const s = document.createElement('span'); s.className = 'wx'; s.textContent = icon; mWxEl.appendChild(s); }
         parts.forEach((p, i) => {
-          if (i > 0) { const d = document.createElement('span'); d.className = 'dot'; mWxEl.appendChild(d); }
+          if (i > 0 || icon) { const d = document.createElement('span'); d.className = 'dot'; mWxEl.appendChild(d); }
           const s = document.createElement('span'); s.textContent = p; mWxEl.appendChild(s);
         });
         mWxEl.classList.add('on');
@@ -21027,7 +21030,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       }
       function _rbNextLine() {
         if (_rbHomeMode === 'zero') return { key: 'styled' };
-        if (_rbHomeMode === 'gtky') return null;   // the door card IS the next step; the greeting stays one line (H7)
+        if (_rbHomeMode === 'gtky') return null;   // the door card IS the next step; the sub reads the standing question
         // The draft (phase 1): a thing SHE started outranks a thing Robes
         // noticed — unless the home composer is on screen holding it.
         const parked = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
@@ -21397,8 +21400,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           '.rb-gtky-row .ch{font-size:18px;font-weight:300;line-height:1;color:var(--ink-faint,#9C9891)}' +
           // H8 — the prompt sits under the card and the list, named
           '.rb-gtky-askey{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft,#55524E);margin:0 0 12px}' +
-          // H7 — the greeting is one line while the module stands: the next line (the italic sub) stands down
-          'body.rb-gtky .dash-echo{display:none}' +
           '@media(min-width:768px){.rb-gtky-door{max-width:620px}.rb-gtky-list{max-width:620px}}';
         document.head.appendChild(st);
       }
@@ -34543,12 +34544,35 @@ body.rb-hb-on #dash .concierge{display:none!important}
         // onboarding retake the stored looks can be the FIRST read's while
         // the handoff names the second; a mismatch re-fires quietly.
         const styledMatches = !styled || !styled.prompt || !piece.prompt || String(styled.prompt).trim().toLowerCase() === String(piece.prompt).trim().toLowerCase();
+        // Style a key piece three ways lands on the keep-or-pass deck (F14,
+        // Annie 2026-10-09) — the same landing a piece styled from the box
+        // gets: her piece on the top card while the frames compose, then one
+        // card per look. The deck needs the looks and the wardrobe loaded
+        // (the anchor is her filed piece; a cold _lkLoad would drop rows
+        // minted before it). If she has already moved on (typed into the
+        // box) or the deck can't open, the card carries the result instead.
+        function landDeck(data, prompt) {
+          let tries = 0;
+          (function wait() {
+            tries++;
+            const ready = typeof _lkSuggLand === 'function' && _lkLoaded && _waLoaded;
+            if (!ready && tries < 40) { setTimeout(wait, 200); return; }
+            if (collapsed || !ready) { paintReady(data, prompt); return; }
+            collapsed = true;
+            card.remove();
+            let landed = false;
+            try { landed = _lkSuggLand(data, prompt, {}); } catch (e) { console.warn('[robes] onboarding deck:', e && e.message); landed = false; }
+            if (!landed) { collapsed = false; paintReady(data, prompt); return; }
+            _rbTrack('onboarding_deck', { prefired: data === (styled && styled.data) });
+            if (typeof window._lkHomeSync === 'function') { try { window._lkHomeSync(); } catch (_) {} }
+          })();
+        }
         if (styled && styled.data && styled.data.ways && styledMatches && Date.now() - (styled.ts || 0) < 10 * 60 * 1000) {
-          paintReady(styled.data, styled.prompt || piece.prompt || '');
+          landDeck(styled.data, styled.prompt || piece.prompt || '');
         } else {
           paintLoading();
           quietStyle().then(function(data) {
-            if (data && Array.isArray(data.ways) && data.ways.length) paintReady(data, piece.prompt || '');
+            if (data && Array.isArray(data.ways) && data.ways.length) landDeck(data, piece.prompt || '');
             else paintError();
           });
         }

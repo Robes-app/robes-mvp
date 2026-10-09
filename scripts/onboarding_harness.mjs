@@ -36,7 +36,7 @@ const srv = http.createServer((q, r) => {
   // A same-origin stub for /dashboard — the straight-to-dashboard sections
   // assert sessionStorage after navigating there, and a bare 404 gives
   // Chrome's error page an opaque origin that denies the read.
-  if (u === '/dashboard') { r.writeHead(200, { 'Content-Type': 'text/html' }); return r.end('<!doctype html><title>dash stub</title>'); }
+  if (u === '/dashboard' || u === '/settings') { r.writeHead(200, { 'Content-Type': 'text/html' }); return r.end('<!doctype html><title>stub</title>'); }
   if (u === '/piece.png') { r.writeHead(200, { 'Content-Type': 'image/png' }); return r.end(PNG); }
   const f = u === '/onboarding' ? path.join(ROOT, 'onboarding.html') : path.join(ROOT, u);
   if (fs.existsSync(f) && fs.statSync(f).isFile()) { r.writeHead(200); return r.end(fs.readFileSync(f)); }
@@ -238,17 +238,18 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await ctx.close();
 }
 
-// Find my style lands straight on home (B5: Style DNA is the first home
-// door there); Not sure yet. Show me around sets Dress me today and goes
+// Find my style goes straight into the walk (/settings?walk=1 — never home
+// with a door card asking for a second tap); Not sure yet. Show me around sets Dress me today and goes
 // home with no prompt; Dress me today opens its own prompt page (B6).
 console.log('\n\x1b[1m== the doors — style · not sure ==\x1b[0m');
 for (const [door, notSure] of [['style', false], ['dress', true]]) {
   const { ctx, p, errs, styleCalls, events } = await open({ width: 390, height: 844 });
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
   if (notSure) await p.click('#ob-notsure'); else await pickBegin(p, door);
-  await p.waitForURL('**/dashboard', { timeout: 6000 }).catch(() => {});
+  const dest = door === 'style' ? '/settings?walk=1' : '/dashboard';
+  await p.waitForURL('**' + dest, { timeout: 6000 }).catch(() => {});
   const tag = (notSure ? 'Not sure yet' : door);
-  ok(p.url().endsWith('/dashboard'), tag + ' lands on /dashboard');
+  ok(p.url().endsWith(dest), tag + ' lands on ' + dest + ' — got ' + p.url());
   ok((await p.evaluate(() => sessionStorage.getItem('rb_onboard_intent'))) === door, tag + ': the handoff names the door (' + door + ')');
   ok((await p.evaluate(() => sessionStorage.getItem('rb_onboarded__u1'))) === '1' && (await p.evaluate(() => sessionStorage.getItem('rb_onboard_piece'))) === null && (await p.evaluate(() => sessionStorage.getItem('rb_onboard_prompt'))) === null, tag + ': onboarded, no piece handoff, no prompt');
   ok(styleCalls.length === 0, tag + ': nothing prefired');
@@ -264,19 +265,19 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
   await pickBegin(p, 'dress');
   ok(await p.locator('.ob-today-body').count() === 1 && !p.url().endsWith('/dashboard'), label + ': Begin on Dress me today opens its own page, not home');
-  ok((await p.locator('.ob-today-wm').innerText()).trim().toLowerCase() === 'robes' && (await p.locator('.ob-today-av').innerText()).trim() === 'A' && await p.locator('.ob-segs').count() === 0, label + ': the production home header — wordmark and her initial, no segments');
+  ok((await p.locator('.ob-today-wm').innerText()).trim().toLowerCase() === 'robes' && (await p.locator('.ob-today-av').innerText()).trim() === 'A' && await p.locator('#ob-today-back').count() === 1 && await p.locator('.ob-segs').count() === 0, label + ': the header — ← Back, the wordmark and her initial, no segments');
   ok(/^Good (morning|afternoon|evening), Annie\.$/.test((await p.locator('.ob-today-greet').innerText()).trim()) && (await p.locator('.ob-today-sub').innerText()).trim() === 'What are you dressing for today?', label + ': the greeting and the italic question');
   const ctx1 = (await p.locator('#ob-today-ctx').evaluate(el => el.textContent)).trim();   // CSS-uppercased — read textContent
   ok(/^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)$/.test(ctx1), label + ': the context line carries the weekday (city and temperature only when the browser already knows) — got ' + ctx1);
-  const box = await p.locator('.ob-today-box').evaluate(el => ({ h: Math.round(el.getBoundingClientRect().height), ph: el.querySelector('textarea').placeholder, plus: !!el.querySelector('.hp-add, #cb-add-btn'), pills: document.querySelectorAll('.ob-today-body .chip, .ob-today-body .rb-pill').length }));
-  ok(box.h >= 120 && box.ph === 'A new look for…' && !box.plus && box.pills === 0, label + ': one box, 120px, "A new look for…", no + and no pills — got ' + JSON.stringify(box));
-  ok((await p.locator('#ob-today-go').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgba(0, 0, 0, 0)', label + ': the arrow waits, transparent, until there are words');
-  await p.click('#ob-today-go'); await p.waitForTimeout(150);
+  const box = await p.locator('.ob-today-box').evaluate(el => ({ h: Math.round(el.getBoundingClientRect().height), r: getComputedStyle(el).borderRadius, ph: el.querySelector('textarea').placeholder, plus: !!el.querySelector('#ob-today-plus'), pills: document.querySelectorAll('.ob-today-body .chip, .ob-today-body .rb-pill').length }));
+  ok(box.h >= 50 && box.h <= 70 && box.r === '100px' && box.ph === 'A new look for…' && box.plus && box.pills === 0, label + ': home\'s pill field — the +, "A new look for…", no pills — got ' + JSON.stringify(box));
+  ok((await p.locator('#ob-today-go').evaluate(el => getComputedStyle(el).display)) === 'none', label + ': the arrow waits, hidden, until there are words');
+  await p.focus('#ob-today-q'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
   ok(!p.url().endsWith('/dashboard') && /dressing for/.test(await p.locator('#ob-toast').innerText()), label + ': an empty send toasts and stays');
   await p.fill('#ob-today-q', 'Lunch with my sister, then the park'); await p.waitForTimeout(400);
-  ok((await p.locator('#ob-today-go').evaluate(el => el.classList.contains('on') && getComputedStyle(el).backgroundColor === 'rgb(255, 255, 255)')), label + ': words turn the arrow on');
-  await p.click('.ob-today-wm'); await p.waitForTimeout(350);
-  ok(await p.locator('#ob-doors').count() === 1, label + ': the wordmark returns to the fork');
+  ok((await p.locator('#ob-today-go').evaluate(el => el.classList.contains('on') && getComputedStyle(el).display === 'flex')), label + ': words turn the arrow on');
+  await p.click('#ob-today-back'); await p.waitForTimeout(350);
+  ok(await p.locator('#ob-doors').count() === 1, label + ': ← Back returns to the fork');
   await p.click('#ob-begin'); await p.waitForTimeout(400);
   ok((await p.inputValue('#ob-today-q')) === 'Lunch with my sister, then the park', label + ': her words survive the round trip');
   await p.click('#ob-today-go');

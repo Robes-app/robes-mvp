@@ -618,7 +618,13 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids[0].text === 'Heels' && await p.locator('#sh-body [data-chip].on').count() === 2, label + ': Heels files as a hard no; both chips warm');
   await p.click('#sh-body [data-chip="Heels"]'); await p.waitForTimeout(250);
   ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids.length === 0, label + ': a second tap strikes it');
+  // + Your own: Enter files the line and it lands on the row as a kept pill
+  await p.fill('#sh-body input[data-own="avoids"]', 'Logos'); await p.press('#sh-body input[data-own="avoids"]', 'Enter'); await p.waitForTimeout(250);
+  ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids.some(x => x.text === 'Logos' && x.source === 'typed') && await p.locator('#sh-body [data-chip="Logos"].on').count() === 1, label + ': + Your own files the line and shows it as a kept pill');
+  // …and a line left in the field files when she taps Done instead of Enter
+  await p.fill('#sh-body input[data-own="rules"]', 'Long sleeves'); await p.waitForTimeout(100);
   await p.click('#sh-walk-go'); await p.waitForTimeout(500);
+  ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.rules.some(x => x.text === 'Long sleeves'), label + ': a typed line left in the field files on Done');
   ok(await p.locator('#pg-twin').isVisible() && await p.locator('#sh-wrap').isHidden() && /Filed under Style DNA\./.test(await txt(p, '#sp-toast')) && (await p.evaluate(() => sessionStorage.getItem('rb_walk_done'))) === null && !/\/dashboard/.test(p.url()), label + ': Done with the twin still to come continues to the twin page under the toast "Filed under Style DNA." (S1)');
   // the twin done next → the model CTA reads the next step, Build a look, with Back to home beneath (T3)
   await p.click('#mv-shape-rows [data-axis="skin"][data-v="0"]'); await p.waitForTimeout(1300);
