@@ -1567,12 +1567,12 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   });
   await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(3200);
   const z = await hbRead(page);
-  const zg = await page.evaluate(() => ({ askey: document.getElementById('rb-gtky-askey')?.textContent, askeyNext: document.getElementById('rb-gtky-askey')?.nextElementSibling?.id, hbPrev: document.getElementById('rb-hb')?.previousElementSibling?.id }));
-  check('home field · the styled card over the door card · the field stands under the list as "Or ask Robes" (H8)', z.mode === 'gtky' && z.hb === true && z.fields === 1 && z.conc === false && zg.hbPrev === 'rb-gtky' && zg.askey === 'Or ask Robes' && zg.askeyNext === 'rb-hb-row', JSON.stringify([z, zg]));
+  const zg = await page.evaluate(() => ({ askey: document.getElementById('rb-gtky-askey')?.textContent, askeyNext: document.getElementById('rb-gtky-askey')?.nextElementSibling?.id, hbPrev: ((p) => p && (p.id || p.className))(document.getElementById('rb-hb')?.previousElementSibling) }));
+  check('home field · the field leads under the masthead, bare, over the styled card and the door card (ninth pass)', z.mode === 'gtky' && z.hb === true && z.fields === 1 && z.conc === false && zg.hbPrev === 'dash-mast' && zg.askey === undefined, JSON.stringify([z, zg]));
   releaseZ(); await page.waitForTimeout(1500);   // the looks land on the deck
   await page.evaluate(() => window.__rbNavGo('home')); await page.waitForTimeout(500);
   const z2 = await hbRead(page);
-  check('home field · the card retires onto the deck; home again: the door card and the field stand', z2.mode === 'gtky' && z2.hb === true && z2.fields === 1 && z2.conc === false && z2.order[1] === 'rb-gtky' && z2.order[2] === 'rb-hb', JSON.stringify(z2));
+  check('home field · the card retires onto the deck; home again: the door card and the field stand', z2.mode === 'gtky' && z2.hb === true && z2.fields === 1 && z2.conc === false && z2.order[1] === 'rb-hb' && z2.order[2] === 'rb-gtky', JSON.stringify(z2));
   check('home field · zero · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1794,7 +1794,7 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
       rail: vis(document.getElementById('rb-rail')), services: vis(document.querySelector('.services')), sn: vis(document.getElementById('rb-sn')), insp: vis(document.getElementById('rb-insp-row')),
       echo: vis(mast.querySelector('.dash-echo')),
       wxFirst: mast.firstElementChild?.id === 'dash-wx-m', wxLast: mast.lastElementChild?.id === 'dash-wx-m' && mast.firstElementChild?.id === 'dash-greet', echoText: mast.querySelector('.dash-echo')?.textContent, greet: document.getElementById('dash-greet')?.textContent,
-      hbPrev: document.getElementById('rb-hb')?.previousElementSibling?.id, askey: document.getElementById('rb-gtky-askey')?.textContent, askeyNext: document.getElementById('rb-gtky-askey')?.nextElementSibling?.id,
+      hbPrev: ((p) => p && (p.id || p.className))(document.getElementById('rb-hb')?.previousElementSibling), askey: document.getElementById('rb-gtky-askey')?.textContent, askeyNext: document.getElementById('rb-gtky-askey')?.nextElementSibling?.id,
       hbVis: vis(document.getElementById('rb-hb')),
       overflow: document.documentElement.scrollWidth > window.innerWidth,
       gW: g ? Math.round(g.getBoundingClientRect().width) : null,
@@ -1818,8 +1818,8 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await gboot();
   const a = await gtkyRead();
   check('gtky · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('gtky · the mode: the door card straight under the masthead, then the box — nothing else on the page',
-    a.mode === 'gtky' && a.bodyCls && JSON.stringify(a.order) === JSON.stringify(['dash-mast', 'rb-gtky', 'rb-hb']) && a.hbVis && a.hbPrev === 'rb-gtky', JSON.stringify([a.mode, a.order, a.hbPrev]));
+  check('gtky · the mode: the box straight under the masthead, then the door card — nothing else on the page',
+    a.mode === 'gtky' && a.bodyCls && JSON.stringify(a.order) === JSON.stringify(['dash-mast', 'rb-hb', 'rb-gtky']) && a.hbVis && a.hbPrev === 'dash-mast', JSON.stringify([a.mode, a.order, a.hbPrev]));
   check('gtky · the twin door (H3): Next · Your digital twin, two dashed 4:5 slots Close-up / Full length, the serif title with its italic half, the sans line, "Add photographs"',
     a.next === 'photos' && a.ey === 'Next · Your digital twin' && JSON.stringify(a.slots) === JSON.stringify([['Close-up', 'dashed', 0.8], ['Full length', 'dashed', 0.8]])
       && a.h === 'Two photographs, one model of you.' && a.hEm === 'one model of you.' && /A close-up and a full length\./.test(a.line) && /Inter/.test(a.lineFont) && a.cta === 'Add photographs',
@@ -1835,7 +1835,7 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     !a.twin && !a.notes && !a.model && !a.ftuRows && !a.firstlook && !a.rail && !a.services && !a.sn && !a.insp, JSON.stringify([a.twin, a.notes, a.model, a.ftuRows, a.firstlook, a.rail, a.services, a.sn, a.insp]));
   check('gtky · the header (Annie, 2026-10-09): the greeting, the italic sub, the weather line beneath them',
     a.echo === true && a.echoText === 'What are you dressing for today?' && a.wxLast === true && a.wxFirst === false && /^Good (morning|afternoon|evening), Annie\.$/.test(a.greet || ''), JSON.stringify([a.echo, a.echoText, a.wxLast, a.greet]));
-  check('gtky · "Or ask Robes" names the box beneath the list (H8)', a.askey === 'Or ask Robes' && a.askeyNext === 'rb-hb-row', JSON.stringify([a.askey, a.askeyNext]));
+  check('gtky · the box carries no eyebrow and sits between the weather line and the door card (ninth pass)', a.askey === undefined && a.hbPrev === 'dash-mast', JSON.stringify([a.askey, a.hbPrev]));
   check('gtky · gtky_shown {next, order}', events.some(([t, m]) => t === 'gtky_shown' && m.next === 'photos' && m.order === 'photos,style,look'), JSON.stringify(events.filter(([t]) => /gtky/.test(t))));
   // H8: before the twin exists, the box says so once — a line, never a gate
   const h8 = await page.evaluate(async () => {

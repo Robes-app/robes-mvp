@@ -2210,12 +2210,13 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // The question card (cut C, 2026-10-09) takes the invitation's slot
         // once it has retired — the two never stand together.
         const twin = document.getElementById('rb-twin-card');
-        // Getting to know you (2026-10-09): the styled card (when the piece
-        // flow left one), the door card + list, then the box under "Or ask
-        // Robes" — and nothing else on the page.
+        // Getting to know you (2026-10-09, ninth pass): the box leads under
+        // the masthead as it does on the standard home, then the styled card
+        // (when the piece flow left one), the door card + list — and
+        // nothing else on the page.
         const gtky = document.getElementById('rb-gtky');
         if (gtky) {
-          const seqG = [styled, gtky, hb && hb.parentNode === dash ? hb : null, conc].filter(Boolean);
+          const seqG = [hb && hb.parentNode === dash ? hb : null, styled, gtky, conc].filter(Boolean);
           seqG.forEach((el, i) => {
             const prev = i === 0 ? mast : seqG[i - 1];
             if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -21477,16 +21478,11 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           done: { photos: _rbGtkyDone('photos'), style: _rbGtkyDone('style'), look: _rbGtkyDone('look') },
           model: _lkModel === undefined ? 'unasked' : (_lkModel ? _lkModel.id : null), loaded: !!_lkLoaded, zero: (function() { try { return _lkHomeZero(); } catch (e) { return 'err'; } })() };
       };
-      // The "Or ask Robes" eyebrow rides home's box while the module stands.
+      // The box carries no eyebrow (ninth pass): it leads under the
+      // masthead now, bare, as on the standard home — a stale one goes.
       function _rbGtkyAskSync() {
-        const hb = document.getElementById('rb-hb');
-        let ey = document.getElementById('rb-gtky-askey');
-        const want = !!document.getElementById('rb-gtky') && !!hb;
-        if (!want) { if (ey) ey.remove(); return; }
-        if (!ey) { ey = document.createElement('div'); ey.id = 'rb-gtky-askey'; ey.className = 'rb-gtky-askey'; ey.textContent = 'Or ask Robes'; }
-        // the walk's landing line (Read. Ask Robes for a look.) sits between the eyebrow and the row
-        const row = document.getElementById('rb-walk-line') || document.getElementById('rb-hb-row');
-        if (row && ey.nextSibling !== row) hb.insertBefore(ey, row);
+        const ey = document.getElementById('rb-gtky-askey');
+        if (ey) ey.remove();
       }
       window.__rbGtkyGo = function(step, from) {
         _rbTrack('gtky_tapped', { step, from: from || 'door', intent: _rbGtkyIntent() });
@@ -33827,10 +33823,9 @@ body.rb-hb-on #dash .concierge{display:none!important}
           el.innerHTML = '<div id="rb-today-slot"></div><div class="rb-hb-row" id="rb-hb-row"><span id="rb-hb-fieldslot" style="display:contents"></span></div>';
           _rbTrack('home_box_shown', {});
         }
-        // under the Getting-to-know-you card and list while they stand (H8)
-        const gtkyEl = document.getElementById('rb-gtky');
-        const hbAfter = (gtkyEl && gtkyEl.parentNode === dash) ? gtkyEl : mast;
-        if (hbAfter.nextSibling !== el) dash.insertBefore(el, hbAfter.nextSibling);
+        // under the masthead in every posture — Getting to know you included
+        // (ninth pass: the box sits between the weather line and the door card)
+        if (mast.nextSibling !== el) dash.insertBefore(el, mast.nextSibling);
         // The + lives INSIDE the box now (2026-10-05): Take a picture /
         // Upload a photo / From wardrobe, then the piece's two modes. The
         // card's own .hp-add-wrap stays in the hidden card (its Add a look
