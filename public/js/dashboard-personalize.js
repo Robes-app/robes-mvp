@@ -14448,7 +14448,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       function _lkSuggLand(data, prompt, o) {
         o = o || {};
         if (!data || !Array.isArray(data.ways) || !data.ways.length) return false;
-        if ((o.intent || data.intent || 'style') === 'dress-me') return false;
+        const dressMe = (o.intent || data.intent || 'style') === 'dress-me';
+        if (dressMe && !o.deck) return false;
         const persistable = (data.generatedImages || []).map(s => _pdHttp(s) || null);
         const pieceWords = typeof _kpPieceWords === 'function' ? _kpPieceWords(String(prompt || '').trim()) : '';
         const setId = snAdd({
@@ -14456,14 +14457,14 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           title: data.fallback ? 'Balmain waistcoat' : (pieceWords || String(prompt || '').trim() || 'Your piece'),
           subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
           img: persistable.find(Boolean) || data.photoUrl || null,
-          kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: 'style', context: null, genId: data.genId || null, suggested: true },
+          kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: dressMe ? 'dress-me' : 'style', context: dressMe ? (o.context || null) : null, genId: data.genId || null, suggested: true },
         });
         window.__lastKpData = data;
         _kpActiveSaveId = setId;
-        const pieceId = o.pieceId != null ? String(o.pieceId) : _lkSuggAnchorFromPrompt(prompt);
+        const pieceId = dressMe ? null : (o.pieceId != null ? String(o.pieceId) : _lkSuggAnchorFromPrompt(prompt));
         _lkSuggFromStyle(data, { setId, pieceId });
         if (data.jobId) _lkSuggPoll(data.jobId, setId, data.ways.length);
-        _rbTrack('look_generated', { track: 'key-piece', item: String(setId), fallback: !!data.fallback, landed: 'deck' });
+        _rbTrack('look_generated', { track: dressMe ? 'prompt' : 'key-piece', item: String(setId), fallback: !!data.fallback, landed: 'deck' });
         // The keep-or-pass deck (F14) is the landing; the Suggested tab is
         // where it leads, and the fallback when nothing minted.
         if (!_lkDeckOpen(setId, { anchorId: pieceId, prompt })) window.__rbInspOpen();
@@ -14480,7 +14481,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         let set = null;
         try { set = l.set_id != null ? snLoad().find(x => String(x.id) === String(l.set_id)) : null; } catch (_) { set = null; }
         const anchor = _lkAnchorPiece(l);
-        const promptText = (set && set.title && !/^Balmain/.test(set.title)) ? ('Style my ' + set.title + ' three ways') : anchor ? ('Style my ' + anchor.label + ' three ways') : (set ? String(set.title || '') : '');
+        const fromPrompt = !!(set && set.kpData && set.kpData.intent === 'dress-me');
+        const promptText = fromPrompt ? String(set.title || '') : (set && set.title && !/^Balmain/.test(set.title)) ? ('Style my ' + set.title + ' three ways') : anchor ? ('Style my ' + anchor.label + ' three ways') : (set ? String(set.title || '') : '');
         const photoSrc = (set && set.kpData && _pdHttp(set.kpData.photoUrl)) || (anchor && _pdHttp(anchor.image_url)) || null;
         _lkSuggBusy[id] = true;
         _lkSuggTileSync(l);
@@ -14493,7 +14495,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             pieces: (l.pieces || []).map(p => { const wi = _waItems.find(w => String(w.id) === String(p.id)); return wi ? { name: wi.label, category: wi.category, owned: true, keep: anchor && String(anchor.id) === String(wi.id) } : null; }).filter(Boolean)
               .concat((l.proposals || []).map(r => { const a = (r.opts || [])[r.oi || 0] || {}; return a.name ? { name: a.name, category: (r.cats || [])[0] || '', owned: false, keep: false } : null; }).filter(Boolean)) };
           const res = await fetch('/api/style', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-            photo: photo || undefined, prompt: promptText, pieceName: anchor ? anchor.label : '', intent: 'style',
+            photo: photo || undefined, prompt: promptText, pieceName: anchor ? anchor.label : '', intent: fromPrompt ? 'dress-me' : 'style',
+            context: fromPrompt ? (set.kpData.context || null) : undefined, avatarId: (_lkModel && _lkModel.id) || undefined,
             refine: 'A different look entirely — change the whole direction, not one piece' + (anchor ? ', built around the same key piece' : '') + (others.length ? ', unlike the other looks' : '') + '.',
             wayIndex: Number.isInteger(l.set_index) ? Math.max(0, Math.min(2, l.set_index)) : 0, current: cur,
             styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
@@ -14752,11 +14755,19 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const anchored = !!_lkDeckAnchor();
         _rbRetReg('deck', { back: function() { window.__lkDeckBack(); } });
         const band = _rbRetHtml({ key: 'deck', label: anchored ? nm.charAt(0).toUpperCase() + nm.slice(1) : 'Home', pos: null });
-        const tb = _rbTitleHtml({ cls: 'rb-lk-decktb', eyebrow: anchored ? 'Around your ' + _waEsc(nm) : 'From your prompt',
-          titleHtml: anchored ? 'Your ' + _waEsc(nm) + ', <em>three ways.</em>' : 'Your ask, <em>three ways.</em>' });
+        // Who wears the looks (2026-10-09): her model when she has one —
+        // every frame is shot on it — else a Robes model, with the door to
+        // build hers. Asked, never guessed: nothing until the id answers.
+        let modelLine = '';
+        if (_lkModel === undefined) { try { _lkModelEnsure(); } catch (_) {} }
+        else if (_lkModel === null) modelLine = '<span class="rb-deck-model">A Robes model wears these for now. <button type="button" onclick="window.__rbModelGo(\'deck\')">Build your model</button></span>';
+        else modelLine = '<span class="rb-deck-model">Each look, shot on your model.</span>';
         const waiting = _lkDeckWaiting();
         const curId = d.order[d.at] || null;
         const cur = curId ? _lkDeckRow(curId) : null;
+        const tb = _rbTitleHtml({ cls: 'rb-lk-decktb', eyebrow: anchored ? 'Around your ' + _waEsc(nm) : 'From your prompt',
+          titleHtml: anchored ? 'Your ' + _waEsc(nm) + ', <em>three ways.</em>' : 'Your ask, <em>three ways.</em>',
+          metaHtml: (cur || waiting.length) ? modelLine : '' });
         const total = d.order.length + waiting.length;
         let stage = '', ctrl = '', dots = '';
         const dotRow = (onN, at) => '<div class="rb-deck-dots" aria-hidden="true">' + Array.from({ length: Math.max(total, 1) }, (_, i) => '<i class="' + (at != null ? (i === at ? 'on' : '') : (i < onN ? 'on' : '')) + '"></i>').join('') + '</div>';
@@ -15628,6 +15639,8 @@ body.rb-lk-push #rb-dock{display:none}
       _LK_CSS += `
 .rb-lk-deck{max-width:560px;margin:0 auto}
 .rb-lk-decktb{margin-bottom:6px}
+.rb-deck-model{font:400 12px/1.5 var(--font-sans);color:var(--ink-soft)}
+.rb-deck-model button{padding:0;background:none;border:0;font:inherit;color:var(--ink);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .rb-deck-stack{position:relative;width:min(100%,340px);aspect-ratio:3/4.3;margin:26px auto 0}
 .rb-deck-card{position:absolute;inset:0;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rule);border-radius:var(--rad-lg,16px);overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none;transition:transform .32s cubic-bezier(.2,.8,.3,1),opacity .2s;will-change:transform}
 .rb-deck-card.top{cursor:pointer;z-index:3}
@@ -17472,7 +17485,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           _lkModel = _lkModelFromId(id);
           // Deferred: a cached id answers synchronously, mid-paint.
           setTimeout(function() {
-            if (document.querySelector('.rb-lk-composer, .rb-lkm-stage, .rb-lk-editing, .rb-lkm-panel')) _lkRepaint();
+            if (document.querySelector('.rb-lk-composer, .rb-lkm-stage, .rb-lk-editing, .rb-lkm-panel, .rb-lk-deck')) _lkRepaint();
             if (document.getElementById('kp-model-band') && typeof _kpModelBandSync === 'function') _kpModelBandSync();
             if (typeof _rbNextPaint === 'function') _rbNextPaint();
             // The home model door (slice 2) stands or retires on the id —
@@ -29544,6 +29557,10 @@ body>*:not(#tv-result-page){display:none !important}
       async function _cbStyleSubmit(prompt, photoData, meta) {
         const intent = (meta && meta.intent) || 'style';
         const daily = intent === 'dress-me';
+        // A prompted look (2026-10-09): three ways, landing on the keep-or-
+        // pass deck exactly as a key piece does — never the composer draft.
+        const deck = !!(meta && meta.deck);
+        try { _lkModelEnsure(); } catch (_) {}
         let overlay = document.getElementById('kp-loading-overlay');
         if (!overlay) {
           overlay = document.createElement('div');
@@ -29558,7 +29575,9 @@ body>*:not(#tv-result-page){display:none !important}
           document.body.appendChild(overlay);
         }
         const loadTitle = document.getElementById('kp-load-title');
-        if (loadTitle) loadTitle.innerHTML = daily
+        if (loadTitle) loadTitle.innerHTML = deck
+          ? 'Your ask,<br><em>three ways…</em>'
+          : daily
           ? 'One prompt.<br><em>Dressed for anything.</em>'
           : 'Styling your piece<br><em>three ways…</em>';
         overlay.style.display = 'flex';
@@ -29599,6 +29618,10 @@ body>*:not(#tv-result-page){display:none !important}
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand || '', image_url: i.image_url || null, times_worn: i.times_worn })),
               intent,
               context,
+              // Her model wears every frame when she has one (the server
+              // also reads the profile; this covers a model kept on the
+              // device before the column existed).
+              avatarId: (_lkModel && _lkModel.id) || undefined,
             }),
           });
           guard.done();
@@ -29610,7 +29633,7 @@ body>*:not(#tv-result-page){display:none !important}
           // Look states (2026-10-06): the three ways land as three
           // suggested looks on the Lookbook's Suggested tab; the Worn
           // Three Ways page keeps the dress-me variant and old entries.
-          if (typeof _lkSuggLand === 'function' && _lkSuggLand(data, prompt, { intent, pieceId: meta && meta.pieceId })) return;
+          if (typeof _lkSuggLand === 'function' && _lkSuggLand(data, prompt, { intent, deck, context, pieceId: meta && meta.pieceId })) return;
           window.__kpRenderResult(data, prompt, { intent, context });
         } catch (err) {
           guard.done();
@@ -29622,6 +29645,16 @@ body>*:not(#tv-result-page){display:none !important}
             : 'Robes couldn’t finish those looks — please try again in a moment.');
         }
       }
+
+      // A NEW look from her words (2026-10-09, Annie): the three ways land
+      // on the keep-or-pass deck — the key piece's own format — with each
+      // look photographed on her model, or on a Robes model until she
+      // builds hers. A dated ask (a Diary day, the rail) still builds in
+      // the composer, where the day is attached.
+      window.__rbPromptLook = function(prompt) {
+        const p = String(prompt || '').trim() || 'An outfit for today';
+        _cbStyleSubmit(p, null, { intent: 'dress-me', deck: true });
+      };
 
       // ── Post-add fork modal — REMOVED 2026-08-21 (Mary's user testing:
       // "Remove the fork modal entirely after logging a wardrobe piece -
@@ -29673,7 +29706,7 @@ body>*:not(#tv-result-page){display:none !important}
       function _cbShowClarify(prompt) {
         _cbHideClarify();
         const anchor = document.querySelector('.concierge-box');
-        if (!anchor || !anchor.parentNode) { _cbReset(); window.__dlSubmit(prompt); return; }
+        if (!anchor || !anchor.parentNode) { _cbReset(); window.__rbPromptLook(prompt); return; }
         const row = document.createElement('div');
         row.id = 'cb-clarify';
         row.style.cssText = 'margin:12px 0 0;padding:16px 18px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad)';
@@ -29713,7 +29746,7 @@ body>*:not(#tv-result-page){display:none !important}
           }
           const anchorDate = _cbAnchorDate;
           _cbReset();
-          window.__dlSubmit(prompt, anchorDate ? { anchorDate } : undefined);
+          if (anchorDate) window.__dlSubmit(prompt, { anchorDate }); else window.__rbPromptLook(prompt);
           return;
         }
         if (intent === 'style') {
@@ -33165,7 +33198,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         if (/\bdress me\b/i.test(prompt)) {
           _ikTrack('typed', 'daily');
           _ikClearPrompt();
-          try { window.__dlSubmit(prompt); } catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
+          try { window.__rbPromptLook(prompt); } catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
           return;
         }
         // Model call — open the reading state immediately, resolve into
@@ -33185,7 +33218,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             // A throw here used to vanish inside the promise chain — the
             // panel had already closed, so the flow read as "collapsed back
             // to home" with no error. Never silent.
-            try { window.__dlSubmit(prompt); } catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
+            try { window.__rbPromptLook(prompt); } catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
             return;
           }
           _ikOpen(seed.intent, { ...seed, prompt });
@@ -33471,7 +33504,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       // planned_days or the lookbook until commit)
       window._ikClarify = function(kind) {
         const p = _ikState ? _ikState.prompt : '';
-        if (kind === 'daily') { _ikClose(); _ikClearPrompt(); window.__dlSubmit(p || 'An outfit for today'); return; }
+        if (kind === 'daily') { _ikClose(); _ikClearPrompt(); window.__rbPromptLook(p || 'An outfit for today'); return; }
         _ikOpen(kind, { prompt: p });
       };
       window._ikCat = function(c) { if (_ikState) { _ikState.cat = c; _ikPaint(); } };
@@ -34081,15 +34114,13 @@ body.rb-hb-on #dash .concierge{display:none!important}
         st.step = 'saved';
         _rbLpSync(true);
       };
-      // The route her words take: a dated door lands ON the day; else a
-      // LOOSE draft carrying the classifier's date as a hint. Either way the
-      // draft is built IN the box — no overlay, no navigation.
+      // The route her words take: a dated door lands ON the day (the draft
+      // built IN the box); an undated ask is a NEW look — three ways on the
+      // keep-or-pass deck (2026-10-09), the key piece's own format.
       function _rbHbRoute(prompt, seed, s) {
-        const today = _pdLocalISO();
         const date = s.hbDate || null;
-        const hint = (seed && /^\d{4}-\d{2}-\d{2}$/.test(String(seed.date_start || ''))) ? seed.date_start : today;
-        const o = date ? { anchorDate: date, quiet: true } : { loose: true, dateHint: hint, quiet: true };
-        return { build: () => window.__dlSubmit(prompt, o) };
+        if (!date) return { go: () => { _cbReset(); window.__rbPromptLook(prompt); } };
+        return { build: () => window.__dlSubmit(prompt, { anchorDate: date, quiet: true }) };
       }
       function _rbHbAsk(text, s) {
         const t0 = Date.now();

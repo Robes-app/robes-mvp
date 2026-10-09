@@ -1632,20 +1632,30 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     b.inline && b.label === 'A new look for…' && b2.chips === 0 && b2.thread === 0 && !b2.sheet && b2.send === 'flex' && !b2.sendInk && b2.focused === 'rb-lp-in' && b.inkInHb === 0, JSON.stringify([b, b2]));
   await page.evaluate(() => window.__rbLpText('Dinner with Mary tomorrow'));
   const typing = await page.evaluate(() => ({ ink: document.getElementById('rb-lp-send').classList.contains('ink') }));
-  // The live build takes seconds; the stub answers in milliseconds — hold it
-  // long enough for the busy line to be seen.
-  await page.route('**/api/daily', async (r) => { try { posts.daily.push(r.request().postDataJSON()); } catch (_) { posts.daily.push(null); } await new Promise((res) => setTimeout(res, 700)); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(HB_DAILY) }); });
+  // A prompted look (2026-10-09): three ways on the keep-or-pass deck — the
+  // key piece's own format — never the composer draft.
   await page.locator('#rb-lp-in').press('Enter');
-  const busySeen = await page.waitForSelector('#rb-hb .rb-lpd-busy', { timeout: 4000 }).then(() => true).catch(() => false);
-  const mid = { busy: busySeen ? await page.evaluate(() => document.querySelector('#rb-hb .rb-lpd-busy')?.textContent || '') : '' };
-  await page.waitForTimeout(2600);
-  if (process.env.HB_SHOTS) await page.screenshot({ path: process.env.HB_SHOTS + 'hb-draft-1280.png' });
+  await page.waitForTimeout(1800);
+  const dk = await page.evaluate(() => ({ sn: document.getElementById('sn-page')?.style.display === 'block', deck: !!document.querySelector('#rb-lk-body .rb-lk-deck'),
+    ey: document.querySelector('#rb-lk-body .rb-lk-decktb .rb-tb-ey')?.textContent || '', top: document.querySelector('#rb-lk-body .rb-deck-card.top .rb-deck-t')?.textContent || '',
+    band: document.querySelector('#rb-lk-body .rb-ret .lab')?.textContent, composer: !!document.querySelector('.rb-lk-composer'), mosaicTiles: document.querySelectorAll('#rb-lk-body .rb-lk-draftbar').length,
+    sugg: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').filter((r) => r.status === 'suggested').length,
+    park: !!localStorage.getItem('rb_lk_draft__u-test'), model: document.querySelector('#rb-lk-body .rb-deck-model')?.textContent || '' }));
+  check('home field · route 1 · a day ask → the classifier → /api/style (dress-me, her words, her model id asked for) → the keep-or-pass deck: three suggested looks, "From your prompt", ‹ Home — no /api/daily, no composer draft, nothing parked',
+    typing.ink && posts.intent.length === 1 && posts.intent[0].prompt === 'Dinner with Mary tomorrow' && posts.daily.length === 0 && posts.style.length === 1 && posts.style[0].intent === 'dress-me' && posts.style[0].prompt === 'Dinner with Mary tomorrow'
+      && dk.sn && dk.deck && /from your prompt/i.test(dk.ey) && dk.top === 'One' && dk.band === 'Home' && !dk.composer && dk.mosaicTiles === 0 && dk.sugg === 3 && !dk.park, JSON.stringify([typing, posts.style.length, posts.daily.length, dk]));
+  check('home field · route 1 · no model on file: the deck says a Robes model wears them, with the door to build hers',
+    /A Robes model wears these for now\.\s*Build your model/.test(dk.model), dk.model);
+  // The undated draft's Save → week flow still stands for a draft parked
+  // elsewhere (the composer's own loose build), read back in home's box.
+  await page.evaluate(() => { window.__rbNavGo('home'); }); await page.waitForTimeout(400);
+  await page.route('**/api/daily', async (r) => { try { posts.daily.push(r.request().postDataJSON()); } catch (_) { posts.daily.push(null); } r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(HB_DAILY) }); });
+  await page.evaluate((iso) => window.__dlSubmit('Dinner with Mary tomorrow', { loose: true, quiet: true, dateHint: iso }), HB_TOMORROW);
+  await page.waitForTimeout(1600);
+  await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(400);
   const d = await hbRead(page);
-  const d2 = await page.evaluate(() => ({ sn: document.getElementById('sn-page')?.style.display === 'block', overlay: document.getElementById('kp-loading-overlay')?.style.display, thread: document.querySelectorAll('#rb-lp-thread > div').length, park: ((d) => (d && d.v === 3) ? (d.drafts[0] || null) : d)(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null'))?.name }));
-  check('home field · route 1 · a day ask → the classifier → the draft is built IN the box: typing turns the send ink, one busy line while it builds (no overlay, no navigation), then the draft row lands under the field',
-    typing.ink && posts.intent.length === 1 && posts.intent[0].prompt === 'Dinner with Mary tomorrow' && posts.daily.length === 1 && posts.daily[0].prompt === 'Dinner with Mary tomorrow' && posts.daily[0].name !== undefined
-      && mid.busy === 'Building a draft from your wardrobe…' && d2.overlay !== 'flex' && !d2.sn && d.inline && d.row === 'Soft office armour' && d.rowEy === 'Draft look · not saved yet' && d.rowMeta === '2 pieces · all yours' && d.save === 'Save look'
-      && d.label === 'Change this draft…' && d2.thread === 0 && d2.park === 'Soft office armour', JSON.stringify([typing, mid.busy, d, d2]));
+  check('home field · a parked loose draft reads in home’s box: the row, Save look, “Change this draft…”',
+    d.inline && d.row === 'Soft office armour' && d.rowEy === 'Draft look · not saved yet' && d.save === 'Save look' && d.label === 'Change this draft…', JSON.stringify(d));
   const sv0 = await page.evaluate(async () => { document.querySelector('#rb-hb .rb-lpd-save').click(); await new Promise((r) => setTimeout(r, 900)); return { sheet: !!document.getElementById('rb-lkdy'), sn: document.getElementById('sn-page')?.style.display === 'block', looks: JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]').length, park: !!localStorage.getItem('rb_lk_draft__u-test') }; });
   if (process.env.HB_SHOTS) await page.screenshot({ path: process.env.HB_SHOTS + 'hb-saved-1280.png' });
   const sv = await hbRead(page);
@@ -1669,7 +1679,7 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1500);
 
   check('home field · route 3 · a named piece → the piece track (/api/style), the classifier never asked',
-    posts.style.length === 1 && posts.style[0].intent === 'style' && posts.intent.length === 1, JSON.stringify([posts.style.length, posts.intent.length]));
+    posts.style.length === 2 && posts.style[1].intent === 'style' && posts.intent.length === 1, JSON.stringify([posts.style.length, posts.intent.length]));
   check('home field · routes · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1681,15 +1691,15 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   const tv = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), modal: !!document.getElementById('tv-brief-modal'), dest: document.getElementById('tv-dest')?.value }));
   check('home field · route 2 · a trip → the travel intake, prefilled from the classifier (Lisbon)', posts.intent.length === 1 && tv.modal && tv.dest === 'Lisbon', JSON.stringify(tv));
   await page.evaluate(() => document.getElementById('tv-brief-modal')?.remove());
-  // Unclear → the box never questions her: it DEFAULTS to a new look (a
-  // loose draft), the day assigned afterwards from the sheet.
+  // Unclear → the box never questions her: it DEFAULTS to a new look —
+  // three ways on the deck (2026-10-09).
   await page.route('**/api/intent', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ intent: 'unclear', confidence: 0.3 }) }));
   await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
   await page.evaluate(() => window.__rbLpText('Something for Saturday'));
   await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2200);
-  const u = await hbRead(page);
-  check('home field · unclear → no question: a NEW look (a loose draft) by default, landing in the box with Save look',
-    u.inline && u.row === 'Soft office armour' && u.rowEy === 'Draft look · not saved yet' && u.save === 'Save look' && posts.daily.length === 1 && posts.daily[0].prompt === 'Something for Saturday', JSON.stringify([u, posts.daily.map((x) => x && x.prompt)]));
+  const u = await page.evaluate(() => ({ deck: !!document.querySelector('#rb-lk-body .rb-lk-deck'), composer: !!document.querySelector('.rb-lk-composer') }));
+  check('home field · unclear → no question: a NEW look by default — three ways on the deck',
+    u.deck && !u.composer && posts.daily.length === 0 && posts.style.length === 1 && posts.style[0].intent === 'dress-me' && posts.style[0].prompt === 'Something for Saturday', JSON.stringify([u, posts.style.map((x) => x && x.prompt)]));
   // A completed ask never holds its thread — the next open is clean.
   await page.evaluate(() => { window.__rbNavGo('home'); }); await page.waitForTimeout(400);
   await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
@@ -1733,14 +1743,17 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await page.exposeFunction('__rbToastSeen', (t) => toasts.push(t));
   await page.evaluate(() => { const mo = new MutationObserver(() => { document.querySelectorAll('.wa-toast, #wa-toast, .rb-toast, [class*="toast"]').forEach((t) => { if (t.textContent.trim()) window.__rbToastSeen(t.textContent.trim()); }); }); mo.observe(document.body, { childList: true, subtree: true, characterData: true }); });
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(4200);
-  const dp = await page.evaluate(() => ({ prompt: sessionStorage.getItem('rb_onboard_prompt'), row: document.querySelector('#rb-hb #rb-lp .rb-lpd-row .nm')?.textContent || '', ey: document.querySelector('#rb-hb #rb-lp .rb-lpd-row .ey')?.textContent || '',
+  const dp = await page.evaluate(() => ({ prompt: sessionStorage.getItem('rb_onboard_prompt'), deck: !!document.querySelector('#rb-lk-body .rb-lk-deck'),
+    sugg: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').filter((r) => r.status === 'suggested').length,
     rows: Array.from(document.querySelectorAll('#rb-gtky .rb-gtky-row')).map((r) => r.dataset.step + ':' + r.dataset.state) }));
-  check('intent fork · Dress me today with her words: the box sends them (one /api/daily with her prompt), the draft lands beneath the field, the look step reads done',
-    dp.prompt === null && posts.daily.length === 1 && posts.daily[0].prompt === 'Lunch with my sister, then the park' && dp.row === 'Soft office armour' && /^Draft look/.test(dp.ey) && dp.rows.includes('look:done'),
-    JSON.stringify([dp, posts.daily.map((x) => x && x.prompt)]));
+  const gs = await page.evaluate(() => window.__rbGtkyState && window.__rbGtkyState().done.look);
+  check('intent fork · Dress me today with her words: the box sends them (one /api/style, dress-me, her prompt), the three ways land on the deck, the look step reads done',
+    dp.prompt === null && posts.daily.length === 0 && posts.style.length === 1 && posts.style[0].intent === 'dress-me' && posts.style[0].prompt === 'Lunch with my sister, then the park' && dp.deck && dp.sugg === 3 && gs === true && !dp.rows.includes('look:later'),
+    JSON.stringify([dp, posts.style.map((x) => x && x.prompt)]));
   // Find my style lands HOME (B5) — the door card leads with Style DNA.
-  await page.evaluate(() => { localStorage.setItem('rb_test_dna', JSON.stringify({ intent: 'style' })); sessionStorage.setItem('rb_onboard_intent', 'style'); localStorage.removeItem('rb_lk_draft__u-test'); });
-  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
+  await page.evaluate(() => { localStorage.setItem('rb_test_dna', JSON.stringify({ intent: 'style' })); sessionStorage.setItem('rb_onboard_intent', 'style'); localStorage.removeItem('rb_lk_draft__u-test'); localStorage.removeItem('rb_looks__u-test_sugg'); localStorage.removeItem('robes_style_notes__u-test'); });
+  // the deck left the Lookbook's URL behind — back to the dashboard itself
+  await page.goto(new URL('/dashboard', page.url()).href, { waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
   const fs = await page.evaluate(() => ({ url: location.pathname, handoff: sessionStorage.getItem('rb_onboard_intent'), next: document.getElementById('rb-gtky')?.getAttribute('data-next'), ey: document.querySelector('#rb-gtky .rb-gtky-body .ey')?.textContent, cta: document.querySelector('#rb-gtky .rb-gtky-cta')?.textContent,
     rows: Array.from(document.querySelectorAll('#rb-gtky .rb-gtky-row')).map((r) => r.dataset.step + ':' + r.dataset.state) }));
   check('intent fork · Find my style lands on home with Style DNA as the first door; the twin and the first look follow in the list',
@@ -2090,9 +2103,11 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     await page.evaluate(() => window.__rbHbOpen && window.__rbHbOpen());
     await page.evaluate(() => window.__rbLpText('Dinner on Friday'));
     await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2500);
-    const sp = posts.daily[0] && posts.daily[0].styleDna && posts.daily[0].styleDna.spend;
+    // A new look from the box asks /api/style (the deck, 2026-10-09).
+    const ask = posts.style[0];
+    const sp = ask && ask.styleDna && ask.styleDna.spend;
     check('twin cards · spend read: €2,200 across four priced pieces against €500–1,500 rides the ask as styleDna.spend, verdict above',
-      !!sp && sp.n === 4 && sp.total === 2200 && sp.median === 600 && sp.level === '€500–1,500' && sp.verdict === 'above' && posts.daily[0].styleDna.investment === '€500–1,500', JSON.stringify([posts.daily.length, sp, posts.daily[0] && Object.keys(posts.daily[0].styleDna || {})]));
+      !!sp && sp.n === 4 && sp.total === 2200 && sp.median === 600 && sp.level === '€500–1,500' && sp.verdict === 'above' && ask.styleDna.investment === '€500–1,500', JSON.stringify([posts.style.length, sp, ask && Object.keys(ask.styleDna || {})]));
     const prof = await page.evaluate(() => Object.keys(window.__robes_profile.style_dna));
     check('twin cards · spend is compiled at send time, never written to the profile', !prof.includes('spend'), JSON.stringify(prof));
     check('twin cards · spend · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
