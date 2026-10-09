@@ -299,6 +299,8 @@
         if (walkDone) sessionStorage.removeItem('rb_walk_done');
         if (obIntent === 'style') {
           window.location.replace('/settings?walk=1');
+        } else if (obIntent === 'twin') {
+          window.location.replace('/settings?page=twin');
         } else if (obIntent === 'dress' || walkDone) {
           setTimeout(function() {
             if (walkDone) _rbWalkLine();

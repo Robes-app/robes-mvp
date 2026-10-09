@@ -141,8 +141,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(await title(p) === 'Where would you like to start?', 'the fork asks where to start');
   ok((await p.locator('.ob-eyebrow').textContent()).trim() === 'Annie’s first visit', 'the eyebrow names her first visit');
   const doors = await p.locator('#ob-doors .ob-door').evaluateAll(bs => bs.map(b => [b.dataset.door, b.querySelector('.n').textContent, b.querySelector('.s').textContent, getComputedStyle(b).backgroundColor]));
-  ok(doors.length === 4 && doors.map(d => d[0]).join() === 'dress,style,catalogue,piece', 'four doors in the study’s order, the piece last');
-  ok(doors.map(d => d[1]).join(' | ') === 'Dress me for today. | Find my style. | Catalogue my pieces. | Style a piece I own.', 'each door reads as she does: ' + doors.map(d => d[1]).join(' | '));
+  ok(doors.length === 5 && doors.map(d => d[0]).join() === 'dress,piece,style,catalogue,twin', 'five doors in Annie’s order, the twin last');
+  ok(doors.map(d => d[1]).join(' | ') === 'Dress me today | Style a key piece | Define my style | Build my wardrobe | Build my digital twin', 'each door is a verb: ' + doors.map(d => d[1]).join(' | '));
+  ok(doors.map(d => d[2]).join(' | ') === 'Review and approve suggested looks for today. | Discover three fresh ways to wear your favourite item. | Teach Robes what you love so every suggestion hits the mark. | Start adding pieces so Robes can dress you with what you own. | Create your model to see and style your looks in real time.', 'each sub says what it buys her');
   ok(doors.every(d => d[3] === 'rgb(255, 255, 255)') && await p.locator('.ob-footer .ob-cta').count() === 0, 'white cards on a hairline, no Continue, no ink');
   ok((await p.locator('#ob-notsure').innerText()).trim() === 'Not sure yet', 'Not sure yet as the text door');
   ok(await segsOn(p) === 2 && !(await p.locator('#ob-back').isHidden()), 'two segments lit, Back stands');
@@ -223,10 +224,10 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await ctx.close();
 }
 
-// The three doors that never ask for a piece land straight on home with the
+// The four doors that never ask for a piece land straight on home with the
 // handoff the dashboard reads; Not sure yet is the lowest-effort door.
-console.log('\n\x1b[1m== the doors — dress · style · catalogue · not sure ==\x1b[0m');
-for (const [door, notSure] of [['dress', false], ['style', false], ['catalogue', false], ['dress', true]]) {
+console.log('\n\x1b[1m== the doors — dress · style · catalogue · twin · not sure ==\x1b[0m');
+for (const [door, notSure] of [['dress', false], ['style', false], ['catalogue', false], ['twin', false], ['dress', true]]) {
   const { ctx, p, errs, styleCalls, events } = await open({ width: 390, height: 844 });
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
   if (notSure) await p.click('#ob-notsure'); else await p.click('#ob-doors [data-door="' + door + '"]');

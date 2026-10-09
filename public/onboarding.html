@@ -109,10 +109,10 @@
     .ob-namein:focus-visible { outline: none; }
     .ob-note { font-weight: 300; font-size: 11.5px; line-height: 1.5; color: var(--ink-faint); margin: -6px 0 0; }
 
-    /* ── Where to start: the intent fork (2026-10-08) ─────────────────
-       Four doors, one tap, no Continue, no ink. The whole card is the
-       target; the serif line names the door and the italic line says
-       what it gives her. "Not sure yet" lands on the lowest-effort door. */
+    /* ── Where to start: the intent fork (2026-10-08, five doors 10-09) ──
+       Five doors, one tap, no Continue, no ink. The whole card is the
+       target; the serif line is the verb and the line beneath says what
+       it buys her. "Not sure yet" lands on the lowest-effort door. */
     .ob-doors { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
     .ob-door { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; cursor: pointer; background: #fff; border: 1px solid var(--cream-300); border-radius: var(--rad-card); padding: 18px 20px; font-family: inherit; transition: border-color .2s var(--ease-default); }
     .ob-door:hover { border-color: var(--foreground); }
@@ -243,18 +243,20 @@
 
   // Onboarding is splash → name → WHERE TO START → (the first piece →
   // composing) → home. The intent fork (2026-10-08): testers dropped at the
-  // key-piece ask, so the piece stops being the presumed first step. Four
-  // doors from the Intents & Purposes catalogue; only "Style a piece I own"
-  // enters the piece step, the other three land on home with a handoff the
+  // key-piece ask, so the piece stops being the presumed first step. Five
+  // doors (Annie, 9 Oct: a verb and what it buys her; the style notes and
+  // the digital twin as two doors, not one); only "Style a key piece"
+  // enters the piece step, the other four land on home with a handoff the
   // dashboard boot reads (rb_onboard_intent) and open their first screen
-  // there. The Style questions live in the twin walk, after the first
-  // result, whichever door she chose.
+  // there — the walk for Define my style, the twin page for Build my
+  // digital twin.
   const STEPS = ['keypiece'];
   const DOORS = [
-    { key: 'dress', n: 'Dress me for today.', s: 'One prompt, dressed.' },
-    { key: 'style', n: 'Find my style.', s: 'A few taps and Robes knows you.' },
-    { key: 'catalogue', n: 'Catalogue my pieces.', s: 'A few photos at a time.' },
-    { key: 'piece', n: 'Style a piece I own.', s: 'One piece, three ways.' },
+    { key: 'dress', n: 'Dress me today', s: 'Review and approve suggested looks for today.' },
+    { key: 'piece', n: 'Style a key piece', s: 'Discover three fresh ways to wear your favourite item.' },
+    { key: 'style', n: 'Define my style', s: 'Teach Robes what you love so every suggestion hits the mark.' },
+    { key: 'catalogue', n: 'Build my wardrobe', s: 'Start adding pieces so Robes can dress you with what you own.' },
+    { key: 'twin', n: 'Build my digital twin', s: 'Create your model to see and style your looks in real time.' },
   ];
 
   const st = {
@@ -404,7 +406,7 @@
   // no migration) and a PostHog person property, so home's next line and
   // the walk's card order can follow it; the dashboard boot reads the
   // sessionStorage handoff to open the door's first screen. "Not sure yet"
-  // lands on Dress me for today — the lowest-effort door, since the cost
+  // lands on Dress me today — the lowest-effort door, since the cost
   // of the piece ask is the thing the fork removes.
   function renderIntent() {
     frame({ segs: 2, back: () => go('name') });

@@ -1799,12 +1799,24 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await page.evaluate(() => sessionStorage.setItem('rb_onboard_intent', 'dress'));
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
   const dr = await page.evaluate(() => ({ box: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), focused: document.activeElement?.id, ph: document.getElementById('rb-lp-in')?.placeholder, handoff: sessionStorage.getItem('rb_onboard_intent'), card: !!document.getElementById('rb-notes-door') }));
-  check('intent fork · Dress me for today lands on home with the box focused in place, the handoff consumed, the walk card beneath',
+  check('intent fork · Dress me today lands on home with the box focused in place, the handoff consumed, the walk card beneath',
     dr.box && dr.focused === 'rb-lp-in' && dr.ph === 'A new look for…' && dr.handoff === null && dr.card, JSON.stringify(dr));
   await page.evaluate(() => sessionStorage.setItem('rb_onboard_intent', 'catalogue'));
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
   const ca = await page.evaluate(() => ({ modal: document.getElementById('wa-modal')?.classList.contains('open'), file: !!document.getElementById('wa-rb-file'), multiple: document.getElementById('wa-rb-file')?.hasAttribute('multiple') }));
-  check('intent fork · Catalogue my pieces lands on the add flow, several photos at a time', ca.modal === true && ca.file && ca.multiple === true, JSON.stringify(ca));
+  check('intent fork · Build my wardrobe lands on the add flow, several photos at a time', ca.modal === true && ca.file && ca.multiple === true, JSON.stringify(ca));
+  // Build my digital twin → the twin page (?page=twin, which spBoot routes
+  // to #twin); the settings page itself is stubbed blank here — the pin is
+  // the redirect, not the page (the settings harness pins the page).
+  await page.route('**/settings?page=twin', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>twin</title>' }));
+  await page.evaluate(() => sessionStorage.setItem('rb_onboard_intent', 'twin'));
+  // 'commit', not 'networkidle' — the boot's location.replace cuts the
+  // dashboard load short, which networkidle reads as a hang.
+  await page.reload({ waitUntil: 'commit' }).catch(() => {});
+  await page.waitForURL('**/settings?page=twin', { timeout: 6000 }).catch(() => {});
+  const tw = { url: page.url(), handoff: await page.evaluate(() => sessionStorage.getItem('rb_onboard_intent')) };
+  check('intent fork · Build my digital twin lands on the twin page, the handoff consumed', tw.url.endsWith('/settings?page=twin') && tw.handoff === null, JSON.stringify(tw));
+  await page.goto(page.url().replace(/\/settings\?page=twin$/, '/dashboard'), { waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
   await page.evaluate(() => sessionStorage.setItem('rb_walk_done', '1'));
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
   const wd = await page.evaluate(() => ({ line: document.getElementById('rb-walk-line')?.textContent.replace(/\s+/g, ' ').trim(), before: document.getElementById('rb-walk-line')?.nextElementSibling?.id, focused: document.activeElement?.id, handoff: sessionStorage.getItem('rb_walk_done') }));
