@@ -254,8 +254,8 @@
     .sh-walk-go:disabled { background: transparent; border-color: var(--rule-mid); color: var(--ink-faint); cursor: default; }
     #sh-wrap.walking .sh-done { display: none; }
     /* the walk's header row (G3, 2026-10-09): Settings' 44px grid — ← left
-       on a 44px hit area, the card's title centred in Cormorant 22px, Later
-       right; the sheet's own title stands down beneath it */
+       on a 44px hit area, the card's title centred in Cormorant 22px; nothing right
+       — the sheet's own title stands down beneath it */
     .sh-walkhead { display: none; flex: none; padding: 10px 22px 0; min-height: 44px; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; }
     #sh-wrap.walking .sh-walkhead { display: grid; }
     #sh-wrap.walking .sh-walkhead[hidden] { display: none; }
@@ -263,8 +263,7 @@
     #sh-wrap.walking .sh-head { padding-top: 6px; }
     .sh-walk-back { background: none; border: 0; padding: 10px 0; cursor: pointer; font: 300 24px/1 'Inter'; color: var(--ink); text-align: left; }
     .sh-walk-title { text-align: center; font: 400 22px/1.1 'Cormorant', Georgia, serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sh-walk-later { background: none; border: 0; padding: 10px 0; cursor: pointer; font: 300 13px/1 'Inter'; color: var(--ink-faint); text-align: right; }
-    .sh-walk-later:hover, .sh-walk-back:hover { color: var(--ink); }
+    .sh-walk-back:hover { color: var(--ink); }
     @media (max-width: 767px) {
       .sh-walk { padding: 12px 20px calc(18px + env(safe-area-inset-bottom)); }
       /* full screens, not sheets: the walk fills the phone, no scrim, no grab bar, no rounding */
@@ -291,8 +290,7 @@
     .sh-deck-card .stamp.no { left: 18px; border: 1px solid var(--cream-400); color: var(--ink-soft); background: #fff; }
     .sh-deck-card.fly { transition: transform .24s ease, opacity .24s ease; }
     @media (prefers-reduced-motion: reduce) { .sh-deck-card.fly { transition: none; } }
-    .sh-deck-soft, .sh-deck-plenty { text-align: center; margin-top: 16px; }
-    .sh-deck-plenty { margin-top: 22px; }
+    .sh-deck-soft { text-align: center; margin-top: 16px; }
     .sh-deck-link { background: none; border: 0; padding: 4px 0; font: 300 13px/1 'Inter'; color: var(--ink-soft); cursor: pointer; text-decoration: underline; text-decoration-color: var(--cream-400); text-underline-offset: 3px; }
     .sh-deck-link:hover { color: var(--ink); text-decoration-color: var(--ink); }
     .sh-deck-end .sh-k:first-of-type { margin-top: 18px; }
@@ -648,7 +646,7 @@
   <div id="sh-wrap" hidden>
     <div id="sh" role="dialog" aria-modal="true">
       <div class="sh-grab"><span></span></div>
-      <div class="sh-walkhead" id="sh-walkhead" hidden><button type="button" class="sh-walk-back" id="sh-walk-back" aria-label="Back">←</button><span class="sh-walk-title" id="sh-walk-title"></span><button type="button" class="sh-walk-later" id="sh-walk-later">Later</button></div>
+      <div class="sh-walkhead" id="sh-walkhead" hidden><button type="button" class="sh-walk-back" id="sh-walk-back" aria-label="Back">←</button><span class="sh-walk-title" id="sh-walk-title"></span><span aria-hidden="true"></span></div>
       <div class="sh-head"><div><div class="sh-title" id="sh-title"></div><div class="sh-sub" id="sh-sub"></div></div><button type="button" class="sh-done" id="sh-done">Done</button></div>
       <div class="sh-body" id="sh-body"></div>
       <div class="sh-walk" id="sh-walk" hidden>
@@ -1971,16 +1969,6 @@
       deck.order = ARCHETYPES.filter(a => all || !decided(a.name)).map(a => a.name);
       deck.at = 0; deck.verdicts = 0;
     }
-    // the end state's rows move a type between Very you and Sometimes (S2:
-    // the two read as options she could not choose between)
-    function deckMove(name) {
-      if (st.types.includes(name)) { st.types = st.types.filter(x => x !== name); st.typesSoft.push(name); }
-      else if (st.typesSoft.includes(name)) { st.typesSoft = st.typesSoft.filter(x => x !== name); st.types.push(name); }
-      else return;
-      saveDna({ style_archetypes: st.types.slice(), style_archetypes_soft: st.typesSoft.slice() });
-      snTrack('style_type_set', { n: st.types.length });
-      shRepaint(); dnaPaint();
-    }
     function deckVerdict(name, v) {
       st.types = st.types.filter(x => x !== name);
       st.typesSoft = st.typesSoft.filter(x => x !== name);
@@ -1992,25 +1980,23 @@
       snTrack('archetype_reacted', { name, verdict: v });
       snTrack('style_type_set', { n: st.types.length });
       deck.at++; deck.verdicts++;
+      // the deck run out on the walk goes straight on to Brands — no summary
+      // screen (Annie, 9 Oct: it duplicated Continue)
+      if (walk.on && sh.cfg && sh.cfg.walk === 0 && deck.at >= deck.order.length) { dnaPaint(); walkNext(false); return; }
       shRepaint(); dnaPaint();
     }
     function cfgDeck() {
       deckOpen();
+      // every type already answered (a step back from Brands) → the ten again
+      if (!deck.order.length) deckOpen(true);
       return ({
         kind: 'deck', title: 'Style type', sub: 'Swipe right for very you, left for not you. Robes reads the register.',
         body: () => {
           const name = deck.order[deck.at];
-          const sub = document.getElementById('sh-sub');
-          // the sub speaks to the screen it is on: the gesture on a card, the rows on the end state (S2)
-          if (sub) { sub.textContent = name ? (sh.cfg && sh.cfg.sub) || '' : 'Tap a type to move it between Very you and Sometimes.'; sub.hidden = !sub.textContent; }
-          const pill = (n, on) => '<button type="button" class="sh-pill' + (on ? ' on' : '') + '" data-move="' + esc(n) + '">' + esc(n) + '</button>';
+          const pill = (n, on) => '<span class="sh-pill' + (on ? ' on' : '') + '">' + esc(n) + '</span>';
           const warm = st.types.length ? '<div class="sh-k">Very you</div><div class="sh-pills">' + st.types.map(n => pill(n, true)).join('') + '</div>' : '';
           const soft = st.typesSoft.length ? '<div class="sh-k">Sometimes</div><div class="sh-pills">' + st.typesSoft.map(n => pill(n, false)).join('') + '</div>' : '';
-          if (!name) {
-            const ten = deck.verdicts > 0 && deck.verdicts >= deck.order.length && deck.order.length === ARCHETYPES.length;
-            return '<div class="sh-deck-end"><div class="sh-empty">' + (ten ? 'That’s the ten.' : 'Every type has an answer.') + ' Change any of them later under Style DNA.</div>' + warm + soft +
-              '<div class="sh-deck-plenty"><button type="button" class="sh-deck-link" id="sh-deck-again">Go through the ten again →</button></div></div>';
-          }
+          if (!name) return '<div class="sh-empty">Every type has an answer. Change any of them under Style DNA.</div>' + warm + soft;
           const a = ARCHETYPES.find(x => x.name === name);
           const next = deck.order[deck.at + 1];
           const tags = (BRAND_SEED[name] || []).map(b => '<span class="sh-deck-tag">' + esc(b) + '</span>').join('');
@@ -2021,14 +2007,10 @@
             (tags ? '<div class="sh-deck-tags">' + tags + '</div>' : '') +
             '<div class="sh-deck-verbs"><button type="button" data-v="no">← Not me</button><button type="button" data-v="very">Very me →</button></div></div></div>' +
             '<div class="sh-deck-soft"><button type="button" class="sh-deck-link" data-v="soft">Sometimes</button></div>' +
-            (sh.cfg && typeof sh.cfg.walk === 'number' && deck.verdicts >= 3 ? '<div class="sh-deck-plenty"><button type="button" class="sh-deck-link" id="sh-deck-plenty">That’s plenty →</button></div>' : '') +
             warm + soft + '</div>';
         },
         wire: body => {
           const card = body.querySelector('#sh-deck-card');
-          const plenty = body.querySelector('#sh-deck-plenty'); if (plenty) plenty.addEventListener('click', () => walkNext(false));
-          body.querySelectorAll('[data-move]').forEach(b => b.addEventListener('click', () => deckMove(b.dataset.move)));
-          const again = body.querySelector('#sh-deck-again'); if (again) again.addEventListener('click', () => { deckOpen(true); shRepaint(); });
           if (!card) return;
           const name = card.dataset.type;
           let done = false;
@@ -2204,7 +2186,7 @@
     /* ══ THE WALK · four cards (2026-10-08; five on 9 Oct; four since the redlines) ══
        The first-run door into Style DNA: ?walk=1 opens the type deck, the
        brands, the icons and the musts as one run on this sheet — full
-       screens on the phone, each with ← · title · Later — Skip on every
+       screens on the phone, each with ← · title — Skip on every
        card, Done landing on home with the box open. Every card is a Settings
        sheet body already, so nothing here writes anywhere new. */
     // FOUR cards since the First Run redlines (2026-10-09, R1): the
@@ -2212,8 +2194,8 @@
     // it lives under Style DNA in Settings, whenever she wants to set it.
     const WALK_TITLES = [
       ['Style type', 'Swipe right for very you, left for not you. Robes reads the register.'],
-      ['Brands', 'Whose clothes do you reach for? Tap three.'],
-      ['Icons', 'Whose style runs close to yours? Tap three.'],
+      ['Brands', 'Whose clothes do you reach for? Choose at least three.'],
+      ['Icons', 'Whose style runs close to yours? Choose at least three.'],
       ['Musts and hard nos', 'Anything Robes should always do, or never? Tap a chip and it is filed.'],
     ];
     const WALK_N = WALK_TITLES.length;
@@ -2233,7 +2215,9 @@
     function walkStart() {
       walk.on = true; walk.at = 0; walk.answered = {};
       snTrack('walk_begun', {});
-      walkShow(0);
+      // every type already answered → straight into Brands
+      const undecided = ARCHETYPES.some(a => !st.types.includes(a.name) && !st.typesSoft.includes(a.name) && !deck.passed.includes(a.name));
+      walkShow(undecided ? 0 : 1);
     }
     function walkShow(i) {
       walk.at = i;
@@ -2258,7 +2242,7 @@
       skip.hidden = false;   // no must on the walk any more (R1) — every card skips
       go.textContent = i === WALK_N - 1 ? 'Done' : 'Continue';
       go.disabled = false;
-      // G3: the walk's own header row — ← · the card's title · Later
+      // G3: the walk's own header row — ← · the card's title
       const wt = document.getElementById('sh-walk-title');
       if (wt) wt.textContent = WALK_TITLES[i][0];
     }
@@ -2277,11 +2261,7 @@
       walk.on = false;
       shClose(true);
       walkFootPaint();
-      // S1 (First Run redlines, 2026-10-09): the style filed, the twin still
-      // to come → it continues there, the toast saying what landed; a model
-      // on file → home, where the box opens under the walk's line.
-      const twinToCome = !(st.model && st.model.kept) && !st.colour && !st.sil;
-      if (twinToCome) { sp.firstRun = true; spShow('twin'); toast('Filed under Style DNA.'); return; }
+      // always home: the twin is driven from its own door there (Annie, 9 Oct)
       try { sessionStorage.setItem('rb_walk_done', '1'); } catch (e) {}
       window.location.href = '/dashboard';
     }
@@ -2291,8 +2271,9 @@
       snTrack('walk_later', { from: 'walk', n: walk.at + 1 });
       walkFootPaint();
     }
-    // Later returns to HOME (G3) — what she answered stays; the door card
-    // there carries the step until she comes back.
+    // ← on the first card returns HOME — what she answered stays; the door
+    // card there carries the step until she comes back. (The Later button is
+    // gone — it duplicated Skip.)
     function walkLater() {
       if (!walk.on) return;
       const n = walk.at + 1;
@@ -2304,7 +2285,6 @@
     }
     document.getElementById('sh-walk-skip').addEventListener('click', () => walkNext(true));
     document.getElementById('sh-walk-go').addEventListener('click', () => walkNext(false));
-    document.getElementById('sh-walk-later').addEventListener('click', walkLater);
     document.getElementById('sh-walk-back').addEventListener('click', () => { if (!walk.on) return; if (walk.at > 0) walkShow(walk.at - 1); else walkLater(); });
     window.__rbWalkStart = walkStart;
 

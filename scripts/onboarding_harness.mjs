@@ -270,7 +270,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   const ctx1 = (await p.locator('#ob-today-ctx').evaluate(el => el.textContent)).trim();   // CSS-uppercased — read textContent
   ok(/^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)$/.test(ctx1), label + ': the context line carries the weekday (city and temperature only when the browser already knows) — got ' + ctx1);
   const box = await p.locator('.ob-today-box').evaluate(el => ({ h: Math.round(el.getBoundingClientRect().height), r: getComputedStyle(el).borderRadius, ph: el.querySelector('textarea').placeholder, plus: !!el.querySelector('#ob-today-plus'), pills: document.querySelectorAll('.ob-today-body .chip, .ob-today-body .rb-pill').length }));
-  ok(box.h >= 50 && box.h <= 70 && box.r === '100px' && box.ph === 'A new look for…' && box.plus && box.pills === 0, label + ': home\'s pill field — the +, "A new look for…", no pills — got ' + JSON.stringify(box));
+  ok(box.h >= 50 && box.h <= 70 && box.r === '100px' && box.ph === 'A new look for…' && !box.plus && box.pills === 0, label + ': the pill field — no + (it cut the flow), "A new look for…", no pills — got ' + JSON.stringify(box));
   ok((await p.locator('#ob-today-go').evaluate(el => getComputedStyle(el).display)) === 'none', label + ': the arrow waits, hidden, until there are words');
   await p.focus('#ob-today-q'); await p.keyboard.press('Enter'); await p.waitForTimeout(150);
   ok(!p.url().endsWith('/dashboard') && /dressing for/.test(await p.locator('#ob-toast').innerText()), label + ': an empty send toasts and stays');

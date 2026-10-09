@@ -146,9 +146,7 @@
     .ob-today-ctx { margin-top: 16px; display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); }
     .ob-today-ctx .wx { font-size: 13px; letter-spacing: 0; }
     .ob-today-ctx i { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-faint); opacity: 0.6; }
-    .ob-today-box { flex: none; margin-top: 36px; display: flex; align-items: center; gap: 12px; min-height: 58px; box-sizing: border-box; padding: 7px 7px 7px 7px; border: 1px solid var(--cream-400); border-radius: 100px; background: #fff; }
-    .ob-today-plus { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid var(--cream-400); background: #fff; color: var(--foreground); display: flex; align-items: center; justify-content: center; font-weight: 300; font-size: 21px; line-height: 1; cursor: pointer; padding: 0; }
-    .ob-today-plus:hover { border-color: var(--foreground); }
+    .ob-today-box { flex: none; margin-top: 36px; display: flex; align-items: center; gap: 12px; min-height: 58px; box-sizing: border-box; padding: 7px 7px 7px 24px; border: 1px solid var(--cream-400); border-radius: 100px; background: #fff; }
     .ob-today-ta { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; resize: none; padding: 0; font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 19px; line-height: 1.35; color: var(--foreground); height: 26px; max-height: 160px; overflow-y: auto; }
     .ob-today-ta::placeholder { color: var(--ink-faint); }
     /* the box IS the field: focus shows on its border, never a second ring inside it */
@@ -503,21 +501,20 @@
 
   /* ── Dress me today (B6) ─────────────────────────────────────────── */
   // ← Back, the wordmark, her initial; the greeting, the italic question,
-  // the weather line beneath (icon first), and home's pill field — the +
-  // is home's piece door, which here is the key-piece step. Her words ride
+  // the weather line beneath (icon first), and home's pill field — no +
+  // (Annie, 9 Oct: it cut the flow; a piece is its own door). Her words ride
   // the handoff (rb_onboard_prompt) — the dashboard sends them through its
   // own box the moment home boots, so Robes composes the look there.
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const WX_ICONS = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌧',82:'🌧',95:'⛈',96:'⛈',99:'⛈'};
   function todayPart() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; }
-  // The city and the temperature only when the browser already knows where
-  // she is — the page never asks for location mid-flow (the dashboard
-  // asks, once, on its own masthead).
+  // The weather on this page (Annie, 9 Oct): it asks for location itself —
+  // the door is "a look for today, from the weather", so the weather has to
+  // show. Declined or slow → the weekday stands alone.
   function todayCtx(el) {
     try {
-      if (!navigator.permissions || !navigator.geolocation) return;
-      navigator.permissions.query({ name: 'geolocation' }).then(res => {
-        if (res.state !== 'granted') return;
+      if (!navigator.geolocation) return;
+      {
         navigator.geolocation.getCurrentPosition(async pos => {
           try {
             const { latitude: lat, longitude: lon } = pos.coords;
@@ -534,8 +531,8 @@
             el.innerHTML = (icon ? '<span class="wx">' + icon + '</span><i></i>' : '') +
               [DAYS[new Date().getDay()], city, temp].filter(Boolean).map(t => '<span>' + esc(t) + '</span>').join('<i></i>');
           } catch (e) {}
-        }, () => {}, { timeout: 4000, maximumAge: 600000 });
-      }).catch(() => {});
+        }, () => {}, { timeout: 10000, maximumAge: 600000 });
+      }
     } catch (e) {}
   }
   function renderToday() {
@@ -552,7 +549,6 @@
           <p class="ob-today-sub">What are you dressing for today?</p>
           <div class="ob-today-ctx" id="ob-today-ctx">${esc(DAYS[new Date().getDay()])}</div>
           <div class="ob-today-box" id="ob-today-box">
-            <button type="button" class="ob-today-plus" id="ob-today-plus" aria-label="Style a piece you own">+</button>
             <textarea class="ob-today-ta" id="ob-today-q" rows="1" placeholder="A new look for…" maxlength="240">${esc(st.todayQ)}</textarea>
             <button type="button" class="ob-today-go${st.todayQ.trim() ? ' on' : ''}" id="ob-today-go" aria-label="Ask Robes">→</button>
           </div>
@@ -576,15 +572,6 @@
     goBtn.onclick = submit;
     document.getElementById('ob-today-back').onclick = () => go('intent');
     document.getElementById('ob-today-wm').onclick = () => go('intent');
-    // the + is home's piece door: here it is the key-piece step itself
-    document.getElementById('ob-today-plus').onclick = () => {
-      st.intent = 'piece';
-      st.styleDna = Object.assign({}, st.styleDna || {}, { intent: 'piece' });
-      save({ style_dna: st.styleDna });
-      try { sessionStorage.setItem('rb_onboard_intent', 'piece'); } catch (e) {}
-      obTrack('onboarding_intent', { intent: 'piece', sure: true, from: 'today' });
-      go(0);
-    };
     document.getElementById('ob-today-home').onclick = () => { obTrack('onboarding_step', { step: 'today', outcome: 'skipped' }); finishToDashboard(); };
     todayCtx(document.getElementById('ob-today-ctx'));
     setTimeout(() => ta.focus(), 360);

@@ -563,9 +563,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok((await p.locator('#sh-deck-card [data-v]').allInnerTexts()).map(t => t.trim().toLowerCase()).join('|') === '← not me|very me →' && (await txt(p, '#sh-body .sh-deck-soft button')) === 'Sometimes' && await p.locator('#sh-deck-plenty').count() === 0, label + ': Not me · Very me on the card, Sometimes small beneath, no plenty door yet');
   ok(await p.locator('#sh-walk').isVisible() && await p.locator('#sh-walk-segs span').count() === 4 && await p.locator('#sh-walk-segs span.on').count() === 1 && await p.locator('#sh-walk-skip').isVisible() && (await p.locator('#sh-walk-go').textContent()).trim() === 'Continue' && await p.locator('#sh-done').isHidden(), label + ': the four-segment rule, Skip, Continue — no Done link');
   ok((await p.locator('#sh-walk-go').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgb(255, 255, 255)' && (await p.locator('#sh-body button, #sh-walk button').evaluateAll(bs => bs.filter(b => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' && b.getClientRects().length).length)) === 0, label + ': Continue is a hairline pill — no ink on the walk (G2)');
-  // G3: the walk's header row — ← · the card's title · Later; full screen on the phone
+  // G3: the walk's header row — ← · the card's title, no Later (it duplicated Skip); full screen on the phone
   const head = await p.evaluate(() => { const h = document.getElementById('sh-walkhead'); const sh = document.getElementById('sh'); const r = sh.getBoundingClientRect(); return { shown: !!h && getComputedStyle(h).display === 'grid', back: h?.querySelector('#sh-walk-back')?.textContent.trim(), title: h?.querySelector('#sh-walk-title')?.textContent.trim(), later: h?.querySelector('#sh-walk-later')?.textContent.trim(), sheetTitleHidden: getComputedStyle(document.getElementById('sh-title')).display === 'none', radius: getComputedStyle(sh).borderTopLeftRadius, top: Math.round(r.top), h: Math.round(r.height), vh: window.innerHeight, scrim: getComputedStyle(document.getElementById('sh-wrap')).backgroundColor }; });
-  ok(head.shown && head.back === '←' && head.title === 'Style type' && head.later === 'Later' && head.sheetTitleHidden, label + ': the header row — ←, the card’s title, Later — the sheet’s own title standing down: ' + JSON.stringify(head));
+  ok(head.shown && head.back === '←' && head.title === 'Style type' && head.later === undefined && await p.locator('#sh-walk-later').count() === 0 && head.sheetTitleHidden, label + ': the header row — ←, the card’s title, no Later — the sheet’s own title standing down: ' + JSON.stringify(head));
   if (vp.width < 768) ok(head.top === 0 && head.h === head.vh && head.radius === '0px' && head.scrim === 'rgb(250, 248, 245)', label + ': a full screen on the phone — no sheet, no scrim, no rounding: ' + JSON.stringify(head));
   ok((await ev()).some(e => /^walk_begun/.test(e)), label + ': walk_begun');
   // Very me by the button, Sometimes by its door, Not me by a drag past 100px
@@ -584,7 +584,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await p.mouse.move(box.x + box.width / 2 - 140, box.y + 40, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(400);
   ok(midStamp > 0.4 && midStamp < 0.8 && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Romantic', label + ': a drag left fades the ✕ stamp in and past 100px passes the type');
   ok((await p.evaluate(() => window.__updates.length)) === writesBefore, label + ': Not me writes nothing');
-  ok(await p.locator('#sh-deck-plenty').count() === 1 && (await txt(p, '#sh-deck-plenty')) === 'That’s plenty →', label + ': three verdicts open the plenty door');
+  ok(await p.locator('#sh-deck-plenty').count() === 0 && !/plenty/i.test(await txt(p, '#sh-body')), label + ': no plenty door, however many verdicts — Continue is the way on');
   ok(await p.locator('#sh-body .sh-pill.on').count() === 1 && (await txt(p, '#sh-body .sh-pill.on')) === 'Minimal', label + ': the kept types read back under the deck');
   await p.click('#sh-walk-go'); await p.waitForTimeout(300);
   ok((await txt(p, '#sh-walk-title')) === 'Brands' && await p.locator('#sh-walk-segs span').count() === 4 && await p.locator('#sh-walk-segs span.on').count() === 2, label + ': card 2 — Brands on its own, two of four segments lit');
@@ -623,12 +623,14 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids.some(x => x.text === 'Logos' && x.source === 'typed') && await p.locator('#sh-body [data-chip="Logos"].on').count() === 1, label + ': + Your own files the line and shows it as a kept pill');
   // …and a line left in the field files when she taps Done instead of Enter
   await p.fill('#sh-body input[data-own="rules"]', 'Long sleeves'); await p.waitForTimeout(100);
-  await p.click('#sh-walk-go'); await p.waitForTimeout(500);
-  ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.rules.some(x => x.text === 'Long sleeves'), label + ': a typed line left in the field files on Done');
-  ok(await p.locator('#pg-twin').isVisible() && await p.locator('#sh-wrap').isHidden() && /Filed under Style DNA\./.test(await txt(p, '#sp-toast')) && (await p.evaluate(() => sessionStorage.getItem('rb_walk_done'))) === null && !/\/dashboard/.test(p.url()), label + ': Done with the twin still to come continues to the twin page under the toast "Filed under Style DNA." (S1)');
-  // the twin done next → the model CTA reads the next step, Build a look, with Back to home beneath (T3)
-  await p.click('#mv-shape-rows [data-axis="skin"][data-v="0"]'); await p.waitForTimeout(1300);
-  ok(await p.locator('#mv-build').isVisible() && (await txt(p, '#mv-build')).toLowerCase() === 'build a look' && await p.locator('#mv-home').isVisible() && (await txt(p, '#mv-home')) === 'Back to home', label + ': the model filed with the style done — the CTA reads Build a look, Back to home beneath');
+  // Done navigates home — carry the writes across the page change to read them
+  await p.evaluate(() => addEventListener('pagehide', () => sessionStorage.setItem('__upd', JSON.stringify(window.__updates))));
+  await p.click('#sh-walk-go');
+  await p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
+  const carried = await p.evaluate(() => JSON.parse(sessionStorage.getItem('__upd') || '[]'));
+  ok(carried.filter(u => u.style_dna && u.style_dna.brief).pop()?.style_dna.brief.rules.some(x => x.text === 'Long sleeves'), label + ': a typed line left in the field files on Done');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_walk_done'))) === '1', label + ': Done sets the walk handoff');
+  ok(/\/dashboard$/.test(p.url()), label + ': Done always lands home — the twin is driven from its own door there, never the end of the walk');
   ok(errs.length === 0, label + ': no page errors: ' + errs.join(' | '));
   await ctx.close();
 }
@@ -653,24 +655,26 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await ctx.close();
 }
 {
-  // S2: the deck's end state — her types already on file open the deck
-  // on what is left; the kept rows are the control (tap to move a type
-  // between Very you and Sometimes), the sub says so, the ten can run again.
-  const { ctx, p, errs, upd } = await open({ width: 390, height: 844 }, 'empty', { path: '?walk=1', row: { style_dna: { style_archetypes: ['Minimal', 'Bohemian', 'Classic', 'Romantic', 'Sculptural', 'Utility', 'Heritage', 'Eclectic'], style_archetypes_soft: ['Off-duty', 'Avant-garde'] } } });
+  // every type already decided → the walk opens straight on Brands (no
+  // summary screen); ← steps back to the deck on all ten; ← again is home
+  const { ctx, p, errs } = await open({ width: 390, height: 844 }, 'empty', { path: '?walk=1', row: { style_dna: { style_archetypes: ['Minimal', 'Bohemian', 'Classic', 'Romantic', 'Sculptural', 'Utility', 'Heritage', 'Eclectic'], style_archetypes_soft: ['Off-duty', 'Avant-garde'] } } });
   await p.waitForTimeout(400);
-  const end = await p.evaluate(() => ({ card: !!document.querySelector('#sh-deck-card'), line: document.querySelector('#sh-body .sh-empty')?.textContent.trim(), sub: document.getElementById('sh-sub')?.textContent.trim(), very: Array.from(document.querySelectorAll('#sh-body .sh-pill.on')).map(b => b.textContent.trim()), soft: Array.from(document.querySelectorAll('#sh-body .sh-pill:not(.on)')).map(b => b.textContent.trim()), again: document.getElementById('sh-deck-again')?.textContent.trim() }));
-  ok(!end.card && /^Every type has an answer\./.test(end.line || '') && end.sub === 'Tap a type to move it between Very you and Sometimes.' && end.very.length === 8 && end.soft.join() === 'Off-duty,Avant-garde' && end.again === 'Go through the ten again →', 'every type decided → the end state, honest (never "That’s the ten" over what she set before), the rows as the control: ' + JSON.stringify(end));
-  await p.click('#sh-body .sh-pill[data-move="Minimal"]'); await p.waitForTimeout(300);
-  const mv = await upd('u.style_dna && u.style_dna.style_archetypes_soft');
-  ok(mv.style_dna.style_archetypes.length === 7 && mv.style_dna.style_archetypes_soft.join() === 'Off-duty,Avant-garde,Minimal' && await p.locator('#sh-body .sh-pill:not(.on)[data-move="Minimal"]').count() === 1, 'a tap on a Very-you type moves it to Sometimes and writes');
-  await p.click('#sh-body .sh-pill[data-move="Off-duty"]'); await p.waitForTimeout(300);
-  ok((await upd('u.style_dna && u.style_dna.style_archetypes.includes("Off-duty")')).style_dna.style_archetypes.includes('Off-duty'), 'a tap on a Sometimes type moves it to Very you');
-  await p.click('#sh-deck-again'); await p.waitForTimeout(300);
-  ok(await p.locator('#sh-deck-card').count() === 1 && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Minimal' && (await txt(p, '#sh-deck-card .k')).toLowerCase() === '1 of 10', 'Go through the ten again opens the deck on all ten');
-  // Later returns to HOME (G3) — what she answered stays
-  await p.click('#sh-walk-later');
+  ok((await txt(p, '#sh-walk-title')) === 'Brands' && await p.locator('#sh-deck-card').count() === 0 && await p.locator('#sh-deck-again').count() === 0 && /Choose at least three\./.test(await txt(p, '#sh-sub')), 'every type decided → the walk opens on Brands, "Choose at least three." — no end-state summary');
+  await p.click('#sh-walk-back'); await p.waitForTimeout(300);
+  ok(await p.locator('#sh-deck-card').count() === 1 && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Minimal' && (await txt(p, '#sh-deck-card .k')).toLowerCase() === '1 of 10', '← from Brands opens the deck on all ten');
+  await p.click('#sh-walk-back');
   await p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
-  ok(/\/dashboard$/.test(p.url()), 'Later lands on home (G3)');   // the stub dashboard holds no __events — the walk_later write precedes the navigation
+  ok(/\/dashboard$/.test(p.url()), '← on the first card lands home');
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+{
+  // the last undecided type answered → straight on to Brands
+  const { ctx, p, errs } = await open({ width: 1280, height: 900 }, 'empty', { path: '?walk=1', row: { style_dna: { style_archetypes: ['Minimal', 'Bohemian', 'Classic', 'Romantic', 'Sculptural', 'Utility', 'Heritage', 'Eclectic'], style_archetypes_soft: ['Off-duty'] } } });
+  await p.waitForTimeout(400);
+  ok((await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Avant-garde', 'one type left → the deck opens on it');
+  await p.click('#sh-deck-card [data-v="no"]'); await p.waitForTimeout(500);
+  ok((await txt(p, '#sh-walk-title')) === 'Brands' && await p.locator('#sh-walk-segs span.on').count() === 2 && await p.locator('#sh-body .sh-empty').count() === 0, 'the deck run out goes straight to Brands');
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
   await ctx.close();
 }
