@@ -15602,6 +15602,9 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-draftbar .rb-lk-save{width:auto;min-height:48px;order:0;flex:none}
 /* The scroll end clears the bar (72), the sparkle (54) and its two 16px gaps. */
 #rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))!important}
+/* The empty Lookbook's composer keeps the dock (a root) — its bar rides above it. */
+body:not(.rb-lk-push) #rb-lk-wrap .rb-lk-draftbar{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+body:not(.rb-lk-push) #rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:calc(240px + env(safe-area-inset-bottom,0px))!important}
 /* A pushed view: the title sits 20px under the header line (the overlay's
    32px + the title block's 22px read as a hole — Annie, same pass). */
 #sn-page:has(.rb-lk-page,.rb-lk-newmast,.rb-lk-deck)>div{padding-top:20px!important}
@@ -18417,7 +18420,14 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // The name gate's own note lives beside Save (saveNote, below).
         // The thread back to the day she came from (design C, 2026-09-15):
         // the band reads the date, a warm chip says where the look files.
-        if (!home && !kp) _rbRetReg('look', { back: function() { if (_lkDay) window.__lkDayBack(); else window.__lkBack(); } });
+        // An EMPTY Lookbook's composer is a ROOT, not a pushed view (Annie,
+        // 2026-10-09): ‹ Lookbook looped back to this same composer and the
+        // dock stood down under it — no way out. Its band reads ‹ Home under
+        // its own key ('lkroot', never 'look'), so _rbNavSync keeps the dock.
+        const lkRoot = !home && !kp && !_lkDay && !_lkTripDraft && (_lkLooks.length + _lkShelfItems().length) === 0;
+        const retKey = lkRoot ? 'lkroot' : 'look';
+        if (lkRoot) _rbRetReg('lkroot', { back: function() { window.__rbNavGo('home'); } });
+        else if (!home && !kp) _rbRetReg('look', { back: function() { if (_lkDay) window.__lkDayBack(); else window.__lkBack(); } });
         // The "✓ FILING TO MON 21 SEP" chip is GONE (Annie, 2026-09-21): the
         // return band already reads the date and Save reads "Save to
         // Monday" — three statements of the same fact on one screen.
@@ -18430,7 +18440,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // draft, whatever door it came through (the kp builder's strip
         // reads the same). "Draft · not saved yet" folded into the eyebrow.
         const mastHtml = (home || kp) ? ''
-          : _rbRetHtml({ key: 'look', label: _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast rb-lk-draftmast"><div class="rb-lk-drafty">' + ((_lkDraftSrc && _lkDraftSrc.kind === 'suggested') ? 'Draft · from Robes’ suggestion' : 'Draft look') + '</div>' + titleHtml + '</div>';
+          : _rbRetHtml({ key: retKey, label: lkRoot ? 'Home' : _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast rb-lk-draftmast"><div class="rb-lk-drafty">' + ((_lkDraftSrc && _lkDraftSrc.kind === 'suggested') ? 'Draft · from Robes’ suggestion' : 'Draft look') + '</div>' + titleHtml + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).

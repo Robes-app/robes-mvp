@@ -2132,6 +2132,42 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// 6a · The empty Lookbook is a ROOT (2026-10-09): its band reads ‹ Home and
+// goes home; the dock stays (it used to read ‹ Lookbook, loop to itself and
+// hide the dock — a dead end).
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs } = await boot(browser, { seed: false, width: 390 });
+  await page.evaluate(() => { const b = document.querySelector('#rb-dock-lookbook'); if (b) b.click(); else window.__lkGo(); });
+  await page.waitForTimeout(800);
+  const r = await page.evaluate(() => {
+    const band = document.querySelector('#rb-lk-wrap .rb-ret');
+    const dock = document.getElementById('rb-dock');
+    const bar = document.querySelector('#rb-lk-wrap .rb-lk-draftbar');
+    return {
+      composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+      key: band && band.getAttribute('data-rbret'),
+      pill: document.getElementById('rb-backpill-label')?.textContent,
+      push: document.body.classList.contains('rb-lk-push'),
+      dock: dock ? getComputedStyle(dock).display : null,
+      barAboveDock: bar && dock ? bar.getBoundingClientRect().bottom <= dock.getBoundingClientRect().top + 2 : null, bb: bar && [bar.getBoundingClientRect().top, bar.getBoundingClientRect().bottom, getComputedStyle(bar).bottom, getComputedStyle(bar).position], db: dock && [dock.getBoundingClientRect().top, dock.getBoundingClientRect().bottom],
+    };
+  });
+  check('empty root · the band reads ‹ Home (key lkroot), the dock stays, the bar rides above it',
+    r.composer && r.key === 'lkroot' && r.pill === 'Home' && !r.push && r.dock === 'block' && r.barAboveDock === true, JSON.stringify(r));
+  await page.evaluate(() => window.__rbNavBack());
+  await page.waitForTimeout(700);
+  const h = await page.evaluate(() => ({
+    sn: document.getElementById('sn-page')?.style.display,
+    path: location.pathname,
+    homeLit: document.getElementById('rb-dock-home')?.classList.contains('active'),
+  }));
+  check('empty root · back lands home', h.sn === 'none' && h.homeLit === true, JSON.stringify(h));
+  check('empty root · no page errors', errs.length === 0, errs.join(' | '));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // 6 · Early days — the empty state (A1)
 // ─────────────────────────────────────────────────────────────────────────
 {
