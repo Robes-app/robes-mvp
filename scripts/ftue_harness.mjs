@@ -652,10 +652,13 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       sn: document.getElementById('sn-page')?.style.display === 'block',
       next: g?.getAttribute('data-next'),
       rowsList: Array.from(g?.querySelectorAll('.rb-gtky-row') || []).map((r) => r.dataset.step + ':' + r.dataset.state),
+      insp: (() => { const r = document.getElementById('rb-insp-row'); return r && r.style.display !== 'none' ? r.querySelectorAll('.rb-sn-card').length : 0; })(),
+      inspTitle: document.querySelector('#rb-insp-row .rb-sec-ey')?.textContent,
+      order: Array.from(document.getElementById('dash').children).filter((e) => e.offsetParent !== null || e.id === 'rb-insp-row').map((e) => e.id || e.className.split(' ')[0]).filter((id) => ['rb-gtky', 'rb-insp-row'].includes(id)),
     };
   });
-  check('onboarding deck · back from the deck lands home: the Getting-to-know-you card with the look step done, the twin next',
-    h.mode === 'gtky' && h.sn === false && h.next === 'photos' && h.rowsList.indexOf('look:done') >= 0, JSON.stringify(h));
+  check('onboarding deck · back from the deck lands home: the twin next, and the suggested looks STAND on home under the card — no ticked "saved to your lookbook" row (tenth pass)',
+    h.mode === 'gtky' && h.sn === false && h.next === 'photos' && h.insp >= 1 && h.inspTitle === 'Suggested' && h.rowsList.indexOf('look:done') < 0 && JSON.stringify(h.order) === JSON.stringify(['rb-gtky', 'rb-insp-row']), JSON.stringify(h));
 
   // The Worn Three Ways page survives for the SET's entry (__snOpenItem on
   // a key-piece row): the same landing, no guide band, card 01 filled, no

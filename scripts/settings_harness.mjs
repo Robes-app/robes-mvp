@@ -350,7 +350,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.click('#dna-brands'); await p.waitForTimeout(300);
     ok(/select 3\+ brands/i.test(await txt(p, '#sh-sub')) && await p.locator('#sh-body #wall-q').isVisible(), 'Brands: the search field leads');
     ok(/your selections/i.test(await txt(p, '#sh-body')) && await p.locator('#sh-body .sh-pill.on').count() === 1, 'Your selections holds The Row');
-    ok(/popular among stylists/i.test(await txt(p, '#sh-body')) && (await p.locator('#sh-body .sh-pill:not(.on)').allInnerTexts()).slice(0, 2).join() === 'Totême,Khaite', 'the pool leads with the picked type’s houses (Sculptural → Totême, Khaite)');
+    ok(/popular among stylists/i.test(await txt(p, '#sh-body')) && (await p.locator('#sh-body .sh-pill:not(.on)').allInnerTexts()).slice(0, 3).join() === 'Jil Sander,Totême,Khaite', 'the pool ranks by what she chose: Jil Sander (Sculptural, and Minimal like The Row) leads, then Totême, Khaite (tenth pass)');
     ok(await p.locator('#sh-body .sh-pill:not(.on)').count() === 18 && await p.locator('#sh-body .sh-more-note').count() === 0, 'the wall shows 18 at a time, never all 70, with no pool count beneath (Annie, 9 Oct)');
     ok(await p.locator('#sh-body .sh-pill[data-name="The Row"]').count() === 1, 'a kept name shows once — in her selections, not the pool');
     await p.click('#sh-body .sh-pill[data-name="Loewe"]'); await p.waitForTimeout(250);
@@ -594,13 +594,13 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok((await ev()).some(e => /^walk_card \{"n":1,"outcome":"answered"\}/.test(e)), label + ': card 1 logged as answered');
   ok(await p.locator('#walk-tabs').count() === 0 && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18 && (await p.locator('#sh-body .sh-pill:not(.on)').first().innerText()).trim() === 'The Row' && await p.locator('#sh-body .sh-more-note').count() === 0, label + ': no tabs, 18 pills, the picked type’s houses leading, no pool count');
   await p.click('#sh-body .sh-pill[data-name="The Row"]'); await p.waitForTimeout(250);
-  ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row' && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18 && await p.locator('#wall-suggest').count() === 0, label + ': a tap keeps a brand and the next name steps in — no suggestion under three');
+  ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row' && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18 && await p.locator('#wall-suggest').count() === 0 && !/Robes suggests/i.test(await txt(p, '#sh-body')), label + ': a tap keeps a brand and the next name steps in — no Robes suggests row');
   await p.click('#sh-body .sh-pill[data-name="Phoebe Philo"]'); await p.waitForTimeout(200);
   await p.click('#sh-body .sh-pill[data-name="Lemaire"]'); await p.waitForTimeout(250);
-  const sug = await p.locator('#wall-suggest .sh-pill').allInnerTexts();
-  ok(sug.map(t => t.trim()).join() === 'COS,Jil Sander' && /^Robes suggests/i.test((await p.locator('#sh-body .sh-k.sage').first().textContent()).trim()) && await p.locator('#sh-body .sh-pills:not(#wall-suggest) .sh-pill[data-name="COS"]').count() === 0, label + ': the third keep opens Robes suggests — the Minimal houses she has not kept, lifted out of the pool');
-  await p.click('#wall-suggest .sh-pill[data-name="COS"]'); await p.waitForTimeout(250);
-  ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Phoebe Philo,Lemaire,COS' && (await p.locator('#wall-suggest .sh-pill').allInnerTexts()).join() === 'Jil Sander', label + ': a suggested name keeps like any other and the row follows');
+  const lead = (await p.locator('#sh-body .sh-pill:not(.on)').allInnerTexts()).slice(0, 2).map(t => t.trim());
+  ok(lead.join() === 'COS,Jil Sander' && await p.locator('#wall-suggest').count() === 0 && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18, label + ': what she keeps ranks the pool — the Minimal houses she has not kept rise to the top, in the one list');
+  await p.click('#sh-body .sh-pill[data-name="COS"]'); await p.waitForTimeout(250);
+  ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Phoebe Philo,Lemaire,COS' && (await p.locator('#sh-body .sh-pill:not(.on)').first().innerText()).trim() === 'Jil Sander', label + ': a risen name keeps like any other and the next one leads');
   await p.click('#sh-walk-go'); await p.waitForTimeout(300);
   ok((await txt(p, '#sh-walk-title')) === 'Icons' && await p.locator('#sh-walk-segs span.on').count() === 3 && /Clean-girl minimal/.test(await txt(p, '#sh-body')), label + ': card 3 — Icons on its own card, carrying the tags');
   await p.click('#sh-body .sh-pill[data-name="Hailey Bieber"]'); await p.waitForTimeout(250);

@@ -2216,7 +2216,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // nothing else on the page.
         const gtky = document.getElementById('rb-gtky');
         if (gtky) {
-          const seqG = [hb && hb.parentNode === dash ? hb : null, styled, gtky, conc].filter(Boolean);
+          // Her looks stand on home under the card (tenth pass): the
+          // Suggested row, then her saved looks.
+          const insG = document.getElementById('rb-insp-row');
+          const snG = document.getElementById('rb-sn');
+          const seqG = [hb && hb.parentNode === dash ? hb : null, styled, gtky, insG, snG, conc].filter(Boolean);
           seqG.forEach((el, i) => {
             const prev = i === 0 ? mast : seqG[i - 1];
             if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
@@ -14864,6 +14868,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         try { if (document.getElementById('rb-lk-grid')) _lkPaint(); } catch (_) {}
         try { if (typeof _pcCtx !== 'undefined' && _pcCtx && typeof _pcPaint === 'function') _pcPaint(); } catch (_) {}
         try { if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow(); } catch (_) {}
+        // the first-run home re-reads its list and order beside the row
+        try { if (_rbHomeMode === 'gtky' && window._lkHomeSync) window._lkHomeSync(); } catch (_) {}
       }
 
       // A wear is written once and never updated (B4). Idempotent per
@@ -21445,7 +21451,12 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const d = _rbGtkyDoor(next);
         // her model, when one exists and a look has been drawn on it
         const hero = (!d.slots && typeof _lkHeroUrl === 'function') ? (((_lkLooks || []).map(l => l && _pdHttp(l.render_url)).find(Boolean)) || null) : null;
-        const rows = order.filter(k => k !== next).map(k => {
+        // The look step's done row yields to the looks themselves once
+        // home is showing them (tenth pass, Annie): a tick that opened the
+        // prompt read as a dead end beside three suggested looks.
+        const shownRow = id => { const r = document.getElementById(id); return !!(r && r.style.display !== 'none' && r.innerHTML.trim()); };
+        const looksShown = shownRow('rb-insp-row') || shownRow('rb-sn');
+        const rows = order.filter(k => k !== next && !(k === 'look' && looksShown && _rbGtkyDone('look'))).map(k => {
           const done = _rbGtkyDone(k), path = _rbGtkyPath(k);
           return '<button type="button" class="rb-gtky-row" data-step="' + k + '" data-state="' + (done ? 'done' : 'later') + '" onclick="window.__rbGtkyGo(\'' + k + '\',\'row\')">' +
             '<span class="mk">' + (done ? '✓' : '') + '</span>' +
@@ -21488,6 +21499,11 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _rbTrack('gtky_tapped', { step, from: from || 'door', intent: _rbGtkyIntent() });
         if (step === 'photos') { window.location.assign('/settings?page=twin'); return; }
         if (step === 'style') { window.location.assign('/settings?walk=1'); return; }
+        // a done look step opens what she made, never the prompt again
+        if (step === 'look' && _rbGtkyDone('look')) {
+          if ((_lkSugg || []).some(l => l && l.status === 'suggested') && window.__rbInspOpen) { window.__rbInspOpen(); return; }
+          if (window.__rbLooksOpen) { window.__rbLooksOpen(); return; }
+        }
         if (!window.__rbHbOpen) return;
         if (_rbGtkyIntent() === 'piece') {
           // the piece first: her wardrobe when it holds anything, else the
@@ -28982,7 +28998,9 @@ body>*:not(#tv-result-page){display:none !important}
         // "Your looks" card carry home, the Lookbook row stands down — the
         // card IS the Lookbook's presence, and a second grid of the same
         // content is exactly the clutter the pass removes.
-        if (document.getElementById('rb-ftu-rows') || document.getElementById('rb-firstlook') || _rbHomeMode === 'gtky') {
+        // (Getting to know you shows it — tenth pass: the content she made
+        // stands on home, never a ticked "saved to your lookbook" row.)
+        if (document.getElementById('rb-ftu-rows') || document.getElementById('rb-firstlook')) {
           el.innerHTML = '';
           el.style.display = 'none';
           return;
@@ -29049,7 +29067,7 @@ body>*:not(#tv-result-page){display:none !important}
         // the hero — the card IS that key piece, and two copies of it on
         // one screen is the clutter the pass removes.
         // (zero carries no rows since 2026-09-25 — the mode is the guard)
-        if ((_rbHomeMode === 'zero' && document.getElementById('rb-styled')) || _rbHomeMode === 'gtky') {
+        if ((_rbHomeMode === 'zero' || _rbHomeMode === 'gtky') && document.getElementById('rb-styled')) {
           el.innerHTML = '';
           el.style.display = 'none';
           return;

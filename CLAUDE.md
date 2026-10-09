@@ -11,6 +11,16 @@ Renamed from `claude/beta-deployment-setup-wdvxb6` (2026-07-12); this is the bra
 - **All four result pages hide their siblings on render** (`_rbHideResultPages(except)`) — they're equal-z-index (40) fixed overlays, so DOM order (not open order) decides stacking; without the mutual hide a stale later-appended page paints over the one just opened.
 - **Rollback caveat**: weekly plans sync to `lookbook_items` as `type: 'weekly-plan'`. The `signup-flow` build can't render that type — after pointing Railway back, any weekly rows saved during the test show as "Key piece"-labelled cards that dead-end on tap (harmless; delete the rows or redeploy this branch to fix).
 
+### 2026-10-09 (tenth pass) — First Run home shows her looks; the walls rank, no Robes suggests (Annie)
+In `dashboard-personalize.js`, `settings.html`, and the ftue + settings harnesses. Verified: `ftue_harness` **294/294**, `settings_harness` **481/481**, `nav_chrome_smoke` 72/72, `inspiration_smoke` 55/55.
+- **The Getting-to-know-you home shows the looks she made.** `_rbRenderInspRow` and `_rbRenderStyleNotes` no longer stand down in gtky mode. The Suggested row still yields while `#rb-styled` holds the screen. `_rbFtueOrder`'s gtky sequence is `[hb, styled, gtky, rb-insp-row, rb-sn, conc]`.
+- **The done look row is dropped from the list while either row is on screen.** It used to read "Your first look · Saved to your lookbook" and open the prompt. A done look step that still shows (a draft only) opens the Suggested tab or the Lookbook (`__rbGtkyGo`), never the prompt again. `_lkSuggRepaint` re-runs `_lkHomeSync` in gtky mode so the list follows the rows.
+- **Brands / Icons: the "Robes suggests" row is gone.** `wallSuggest`, `SUGGEST_AT` and `SUGGEST_N` were deleted. `wallRanked(kind)` orders the one pool instead:
+  - Each picked style type scores +2.
+  - Each kept name's types (the seed inverted) score +1, from the first keep.
+  - Highest score leads; ties keep the pool's own order; nothing is lifted out of the pool.
+  - Example: Sculptural picked with The Row kept puts Jil Sander first (Sculptural and Minimal), then Totême and Khaite.
+
 ### 2026-10-09 (ninth pass) — First Run home: the box leads, bare (Annie)
 On the Getting-to-know-you home the prompt box now sits where it does for an engaged user: directly under the masthead (the weather line), ABOVE the styled card and the door card — `_rbFtueOrder`'s gtky sequence is `[hb, styled, gtky, conc]` and `_rbHbSync` always anchors `#rb-hb` after `.dash-mast`. **The "Or ask Robes" eyebrow is gone** (`_rbGtkyAskSync` only removes a stale `#rb-gtky-askey`; its CSS is dead). Supersedes the fifth pass's "the box under Or ask Robes" and H8's placement. `ftue_harness` pins re-pointed (order `dash-mast · rb-hb · rb-gtky`, no eyebrow).
 

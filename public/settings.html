@@ -2060,20 +2060,22 @@
       (kind === 'brands' ? BRAND_POOL : ICON_POOL.map(x => x[0])).forEach(push);
       return out;
     }
-    // Robes suggests (cut B): a client rule, never a model call — the kept
-    // names' types (the seed inverted) rank the unkept pool; the row shows
-    // the top six once she has kept three, and follows every keep after.
-    const SUGGEST_AT = 3, SUGGEST_N = 6;
+    // The names she would reach for rise to the top (tenth pass, Annie —
+    // supersedes cut B's separate "Robes suggests" row): a client rule,
+    // never a model call. From her first keep, the kept names' types (the
+    // seed inverted) and the types she picked score every unkept name, and
+    // the pool reads highest
+    // first — ties keep the pool's own order. Nothing is lifted out.
     function seedTypes(kind, n) { const seed = kind === 'brands' ? BRAND_SEED : ICON_SEED; return Object.keys(seed).filter(t => seed[t].some(x => norm(x) === norm(n))); }
-    function wallSuggest(kind) {
-      const mine = wallList(kind);
-      if (mine.length < SUGGEST_AT) return [];
+    function wallRanked(kind) {
+      const pool = wallPool(kind).filter(n => !wallHas(kind, n));
       const score = {};
-      mine.forEach(n => seedTypes(kind, n).forEach(t => { score[t] = (score[t] || 0) + 1; }));
-      if (!Object.keys(score).length) return [];
-      return wallPool(kind).filter(n => !wallHas(kind, n))
-        .map(n => ({ n, s: seedTypes(kind, n).reduce((a, t) => a + (score[t] || 0), 0) }))
-        .filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, SUGGEST_N).map(x => x.n);
+      // the types she picked weigh in too — what she chose leads
+      (st.types || []).forEach(t => { score[t] = (score[t] || 0) + 2; });
+      wallList(kind).forEach(n => seedTypes(kind, n).forEach(t => { score[t] = (score[t] || 0) + 1; }));
+      if (!Object.keys(score).length) return pool;
+      return pool.map((n, i) => ({ n, i, s: seedTypes(kind, n).reduce((a, t) => a + (score[t] || 0), 0) }))
+        .sort((a, b) => (b.s - a.s) || (a.i - b.i)).map(x => x.n);
     }
     function iconTag(n) { const hit = ICON_POOL.find(x => norm(x[0]) === norm(n)); return hit ? hit[1] : (st.iconTags[n] || ''); }
     function wallList(kind) { return kind === 'brands' ? st.brands : st.icons; }
@@ -2102,14 +2104,12 @@
         body: () => {
           const q = norm(wall.q);
           const mine = wallList(kind);
-          const suggest = q ? [] : wallSuggest(kind);
-          const pool = wallPool(kind).filter(n => !wallHas(kind, n) && !suggest.includes(n));
+          const pool = wallRanked(kind);
           const matches = q ? pool.filter(n => norm(n).includes(q)).slice(0, 12) : pool.slice(0, WALL_N);
           const exact = q && (wallPool(kind).some(n => norm(n) === q) || wallHas(kind, wall.q.trim()));
           const pill = n => pillHtml(n, wallHas(kind, n), 'data-name="' + esc(n) + '"', !brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '');
           return '<div class="sh-search"><span class="q">⌕</span><input id="wall-q" type="text" placeholder="' + (brands ? 'Search brands' : 'Search or type a name') + '" autocomplete="off" value="' + esc(wall.q) + '">' + (wall.q ? '<button type="button" class="clr" id="wall-clr" aria-label="Clear">×</button>' : '') + '</div>' +
             (mine.length ? '<div class="sh-k">Your selections <span class="h">' + mine.length + ' kept</span></div><div class="sh-pills">' + mine.map(n => '<button type="button" class="sh-pill on" data-name="' + esc(n) + '">' + esc(n) + (!brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '') + '<span class="x">×</span></button>').join('') + '</div>' : '') +
-            (suggest.length ? '<div class="sh-k sage">Robes suggests <span class="h">' + (brands ? 'Houses' : 'Names') + ' that share a world with what you tapped</span></div><div class="sh-pills" id="wall-suggest">' + suggest.map(n => pillHtml(n, false, 'data-name="' + esc(n) + '" data-suggest="1"', !brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '')).join('') + '</div>' : '') +
             '<div class="sh-k">' + (q ? 'Matches' : brands ? 'Popular among stylists' : 'Often chosen') + (q ? '' : '<span class="h">Tap a name to keep it</span>') + '</div>' +
             (matches.length ? '<div class="sh-pills">' + matches.map(pill).join('') + '</div>' : '<div class="sh-empty">' + (q ? 'Nothing in the pool by that name.' : 'Everything here is yours already.') + '</div>') +
             (q && !exact ? '<div style="margin-top:12px"><button type="button" class="sh-pill" id="wall-add">+ Add “' + esc(wall.q.trim()) + '”</button></div>' : '');
