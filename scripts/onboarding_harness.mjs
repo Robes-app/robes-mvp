@@ -15,7 +15,9 @@
  * prefire fires the moment the piece files — pinned by counting /api/style);
  * the composing screen ticks the REAL titles and lands on /dashboard with
  * the flag and the handoff written; a shop link files the piece the way a
- * photograph does; there is no Style step anywhere in the flow.
+ * photograph does; there is no Style step anywhere in the flow. The fork
+ * (First Run v2, 2026-10-09) is three doors, select then Begin; Dress me
+ * today has its own prompt page whose words ride the handoff.
  */
 import { chromium } from 'playwright';
 import http from 'http';
@@ -109,11 +111,16 @@ async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', style
   await p.click('body'); await p.waitForTimeout(450);          // splash → name
   return { ctx, p, errs, styleCalls, inserts, uploads, events, updates };
 }
-// name → the fork → the piece door (the one door that still asks for a piece)
+// name → the fork → the piece door (the one door that still asks for a piece):
+// select the card, then Begin commits (B3)
+async function pickBegin(p, door) {
+  await p.click('#ob-doors [data-door="' + door + '"]'); await p.waitForTimeout(120);
+  await p.click('#ob-begin'); await p.waitForTimeout(450);
+}
 async function toPiece(p, typeName) {
   if (typeName) await p.fill('#ob-name-input', typeName);
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
-  await p.click('#ob-doors [data-door="piece"]'); await p.waitForTimeout(450);
+  await pickBegin(p, 'piece');
 }
 const segsOn = p => p.locator('.ob-seg.on').count();
 const title = async p => (await p.locator('.ob-title').innerText()).replace(/\s+/g, ' ').trim();
@@ -128,35 +135,42 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(await p.locator('#ob-name-input').count() === 1, 'the name stage stands for everyone');
   ok(await p.locator('#ob-back').isHidden(), 'no Back on the name stage — nothing behind it');
   ok((await p.locator('.ob-wm').innerText()).trim().toLowerCase() === 'robes', 'the wordmark sits in the bar');
-  ok(await segsOn(p) === 1, 'the three-segment rule: one lit on the name');
+  ok(await segsOn(p) === 1 && await p.locator('.ob-seg').count() === 2, 'ONE progress model (G1): a two-segment rule, one lit on the name');
   ok((await p.inputValue('#ob-name-input')) === 'Annie', 'a known name is prefilled');
   ok(!(await p.locator('#ob-name-next').isDisabled()), 'Continue is live on the prefilled name');
   const ctaBg = await p.locator('#ob-name-next').evaluate(el => getComputedStyle(el).backgroundColor);
   ok(ctaBg === 'rgb(255, 255, 255)', 'Continue is the hairline pill, never ink — got ' + ctaBg);
   ok(await p.locator('#ob-skip').count() === 0, 'no skip on the name');
-  ok((await p.locator('.ob-sub').innerText()).trim() === 'A name for your digital twin.' && /a few notes over your first week/.test(await p.locator('.ob-note').innerText()), 'the sub names the twin and the consent line sits beneath it');
+  ok(await p.locator('.ob-sub').count() === 0 && await p.locator('.ob-note').count() === 0 && (await p.getAttribute('#ob-name-input', 'placeholder')) === 'Your first name', 'no helper line, no notes notice (N1, N2); the field reads Your first name');
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
 
-  console.log(`\n\x1b[1m== ${label} · where would you like to start? (the intent fork) ==\x1b[0m`);
-  ok(await title(p) === 'Where would you like to start?', 'the fork asks where to start');
-  ok((await p.locator('.ob-eyebrow').textContent()).trim() === 'Annie’s first visit', 'the eyebrow names her first visit');
-  const doors = await p.locator('#ob-doors .ob-door').evaluateAll(bs => bs.map(b => [b.dataset.door, b.querySelector('.n').textContent, b.querySelector('.s').textContent, getComputedStyle(b).backgroundColor]));
-  ok(doors.length === 5 && doors.map(d => d[0]).join() === 'dress,piece,style,catalogue,twin', 'five doors in Annie’s order, the twin last');
-  ok(doors.map(d => d[1]).join(' | ') === 'Dress me today | Style a key piece | Define my style | Build my wardrobe | Build my digital twin', 'each door is a verb: ' + doors.map(d => d[1]).join(' | '));
-  ok(doors.map(d => d[2]).join(' | ') === 'Review and approve suggested looks for today. | Discover three fresh ways to wear your favourite item. | Teach Robes what you love so every suggestion hits the mark. | Start adding pieces so Robes can dress you with what you own. | Create your model to see and style your looks in real time.', 'each sub says what it buys her');
-  ok(doors.every(d => d[3] === 'rgb(255, 255, 255)') && await p.locator('.ob-footer .ob-cta').count() === 0, 'white cards on a hairline, no Continue, no ink');
-  ok((await p.locator('#ob-notsure').innerText()).trim() === 'Not sure yet', 'Not sure yet as the text door');
-  ok(await segsOn(p) === 2 && !(await p.locator('#ob-back').isHidden()), 'two segments lit, Back stands');
+  console.log(`\n\x1b[1m== ${label} · where shall we begin? (the intent fork, three doors) ==\x1b[0m`);
+  ok(await title(p) === 'Where shall we begin?', 'the fork asks where to begin (B1)');
+  ok((await p.locator('.ob-eyebrow').textContent()).trim() === 'Welcome, Annie', 'the eyebrow welcomes her by name');
+  const doors = await p.locator('#ob-doors .ob-door').evaluateAll(bs => bs.map(b => [b.dataset.door, b.querySelector('.n').textContent, b.querySelector('.s').textContent, getComputedStyle(b).backgroundColor, getComputedStyle(b.querySelector('.s')).fontFamily, Math.round(b.getBoundingClientRect().height)]));
+  ok(doors.length === 3 && doors.map(d => d[0]).join() === 'dress,piece,style', 'THREE doors, in order: dress · piece · style (B2) — got ' + doors.map(d => d[0]).join());
+  ok(doors.map(d => d[1]).join(' | ') === 'Dress me today | Style a key piece | Find my style', 'the verbs: ' + doors.map(d => d[1]).join(' | '));
+  ok(doors.map(d => d[2]).join(' | ') === 'A look for today, from the weather and your plans. | One piece you love, worn three ways. | Tell Robes what feels like you.', 'the sublines, Annie’s copy');
+  ok(doors.every(d => d[3] === 'rgb(255, 255, 255)') && doors.every(d => /Inter/.test(d[4])) && new Set(doors.map(d => d[5])).size === 1, 'white cards, sans sublines (G4), one shared height (B3)');
+  ok(await p.locator('#ob-begin').count() === 1 && (await p.locator('#ob-begin').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgba(0, 0, 0, 0)' && (await p.locator('#ob-notsure').innerText()).trim() === 'Not sure yet. Show me around', 'Begin stands disabled (transparent) until a pick; Not sure yet. Show me around beneath it (B4)');
+  await p.click('#ob-begin'); await p.waitForTimeout(150);
+  ok(await p.locator('#ob-doors').count() === 1 && (await p.locator('#ob-toast').innerText()).trim() === 'Choose where to begin.', 'tapping Begin with nothing picked toasts the reason and goes nowhere (G2)');
+  await p.click('#ob-doors [data-door="style"]'); await p.waitForTimeout(400);   // the fill transitions in over .2s
+  const sel = await p.locator('#ob-doors [data-door="style"]').evaluate(b => [b.classList.contains('on'), getComputedStyle(b).backgroundColor, b.getAttribute('aria-checked'), getComputedStyle(b.querySelector('.r i')).backgroundColor]);
+  ok(sel[0] && sel[1] === 'rgb(243, 239, 230)' && sel[2] === 'true' && sel[3] === 'rgb(32, 32, 33)' && await p.locator('#ob-doors').count() === 1, 'a tap SELECTS the card — warm fill, the radio dot — and does not navigate');
+  ok((await p.locator('#ob-begin').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgb(255, 255, 255)' && await p.locator('#ob-footer .ob-cta').count() === 1, 'Begin comes live as the one hairline pill');
+  ok(await segsOn(p) === 2 && await p.locator('.ob-seg').count() === 2 && !(await p.locator('#ob-back').isHidden()), 'both segments lit, Back stands');
   await p.click('#ob-back'); await p.waitForTimeout(300);
   ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === 'Annie', 'Back from the fork returns to the name');
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
-  await p.click('#ob-doors [data-door="piece"]'); await p.waitForTimeout(450);
+  ok(await p.locator('#ob-doors [data-door="style"].on').count() === 1, 'the pick survives the round trip');
+  await pickBegin(p, 'piece');
 
   console.log(`\n\x1b[1m== ${label} · the first piece, read live on one page (1c) ==\x1b[0m`);
   ok(await title(p) === 'Add your first piece.', 'title');
   ok(await p.locator('.ob-title em').count() === 1, 'title carries the serif-italic accent');
   ok((await p.locator('#kp-eyebrow').textContent()).trim() === 'Annie’s wardrobe', 'the eyebrow is her wardrobe while empty');
-  ok(await segsOn(p) === 2, 'two segments lit on the piece');
+  ok(await segsOn(p) === 2 && await p.locator('.ob-seg').count() === 3, 'the piece page keeps its own three-segment rule, two lit (B7: unchanged)');
   ok(!(await p.locator('#ob-back').isHidden()), 'Back stands on the piece');
   const wellStyle = await p.locator('#kp-well').evaluate(el => getComputedStyle(el).borderTopStyle);
   ok(wellStyle === 'dashed' && (await p.locator('.kp-label').innerText()) === 'Your key piece', 'the well is dashed and reads Your key piece');
@@ -187,8 +201,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(inserts.length === 1 && inserts[0].label === 'Cream blazer' && /piece\.png$/.test(inserts[0].image_url || ''), 'the wardrobe row landed with its photograph');
   // Back lands on the fork, forward again keeps the piece.
   await p.click('#ob-back'); await p.waitForTimeout(350);
-  ok(await p.locator('#ob-doors').count() === 1, 'Back from the piece returns to the fork');
-  await p.click('#ob-doors [data-door="piece"]'); await p.waitForTimeout(450);
+  ok(await p.locator('#ob-doors').count() === 1 && await p.locator('#ob-doors [data-door="piece"].on').count() === 1, 'Back from the piece returns to the fork, the pick still selected');
+  await p.click('#ob-begin'); await p.waitForTimeout(450);
   ok((await p.locator('#ob-next').textContent()).trim() === 'Style it three ways →' && await p.locator('.kp-tag').count() === 4, 'the filed piece survives the round trip, tags and all');
   ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'no horizontal overflow');
 
@@ -224,22 +238,54 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await ctx.close();
 }
 
-// The four doors that never ask for a piece land straight on home with the
-// handoff the dashboard reads; Not sure yet is the lowest-effort door.
-console.log('\n\x1b[1m== the doors — dress · style · catalogue · twin · not sure ==\x1b[0m');
-for (const [door, notSure] of [['dress', false], ['style', false], ['catalogue', false], ['twin', false], ['dress', true]]) {
+// Find my style lands straight on home (B5: Style DNA is the first home
+// door there); Not sure yet. Show me around sets Dress me today and goes
+// home with no prompt; Dress me today opens its own prompt page (B6).
+console.log('\n\x1b[1m== the doors — style · not sure ==\x1b[0m');
+for (const [door, notSure] of [['style', false], ['dress', true]]) {
   const { ctx, p, errs, styleCalls, events } = await open({ width: 390, height: 844 });
   await p.click('#ob-name-next'); await p.waitForTimeout(450);
-  if (notSure) await p.click('#ob-notsure'); else await p.click('#ob-doors [data-door="' + door + '"]');
+  if (notSure) await p.click('#ob-notsure'); else await pickBegin(p, door);
   await p.waitForURL('**/dashboard', { timeout: 6000 }).catch(() => {});
   const tag = (notSure ? 'Not sure yet' : door);
   ok(p.url().endsWith('/dashboard'), tag + ' lands on /dashboard');
   ok((await p.evaluate(() => sessionStorage.getItem('rb_onboard_intent'))) === door, tag + ': the handoff names the door (' + door + ')');
-  ok((await p.evaluate(() => sessionStorage.getItem('rb_onboarded__u1'))) === '1' && (await p.evaluate(() => sessionStorage.getItem('rb_onboard_piece'))) === null, tag + ': onboarded, no piece handoff');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_onboarded__u1'))) === '1' && (await p.evaluate(() => sessionStorage.getItem('rb_onboard_piece'))) === null && (await p.evaluate(() => sessionStorage.getItem('rb_onboard_prompt'))) === null, tag + ': onboarded, no piece handoff, no prompt');
   ok(styleCalls.length === 0, tag + ': nothing prefired');
   const ev = events.find(e => e.event_type === 'onboarding_intent');
   ok(!!ev && ev.metadata.intent === door && ev.metadata.sure === !notSure, tag + ': onboarding_intent {intent, sure} — ' + JSON.stringify(ev && ev.metadata));
   ok(errs.length === 0, tag + ': no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+
+console.log('\n\x1b[1m== Dress me today — the prompt page (B6) ==\x1b[0m');
+for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
+  const { ctx, p, errs, styleCalls, events } = await open(vp);
+  await p.click('#ob-name-next'); await p.waitForTimeout(450);
+  await pickBegin(p, 'dress');
+  ok(await p.locator('.ob-today-body').count() === 1 && !p.url().endsWith('/dashboard'), label + ': Begin on Dress me today opens its own page, not home');
+  ok((await p.locator('.ob-today-wm').innerText()).trim().toLowerCase() === 'robes' && (await p.locator('.ob-today-av').innerText()).trim() === 'A' && await p.locator('.ob-segs').count() === 0, label + ': the production home header — wordmark and her initial, no segments');
+  ok(/^Good (morning|afternoon|evening), Annie\.$/.test((await p.locator('.ob-today-greet').innerText()).trim()) && (await p.locator('.ob-today-sub').innerText()).trim() === 'What are you dressing for today?', label + ': the greeting and the italic question');
+  const ctx1 = (await p.locator('#ob-today-ctx').evaluate(el => el.textContent)).trim();   // CSS-uppercased — read textContent
+  ok(/^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)$/.test(ctx1), label + ': the context line carries the weekday (city and temperature only when the browser already knows) — got ' + ctx1);
+  const box = await p.locator('.ob-today-box').evaluate(el => ({ h: Math.round(el.getBoundingClientRect().height), ph: el.querySelector('textarea').placeholder, plus: !!el.querySelector('.hp-add, #cb-add-btn'), pills: document.querySelectorAll('.ob-today-body .chip, .ob-today-body .rb-pill').length }));
+  ok(box.h >= 120 && box.ph === 'A new look for…' && !box.plus && box.pills === 0, label + ': one box, 120px, "A new look for…", no + and no pills — got ' + JSON.stringify(box));
+  ok((await p.locator('#ob-today-go').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgba(0, 0, 0, 0)', label + ': the arrow waits, transparent, until there are words');
+  await p.click('#ob-today-go'); await p.waitForTimeout(150);
+  ok(!p.url().endsWith('/dashboard') && /dressing for/.test(await p.locator('#ob-toast').innerText()), label + ': an empty send toasts and stays');
+  await p.fill('#ob-today-q', 'Lunch with my sister, then the park'); await p.waitForTimeout(400);
+  ok((await p.locator('#ob-today-go').evaluate(el => el.classList.contains('on') && getComputedStyle(el).backgroundColor === 'rgb(255, 255, 255)')), label + ': words turn the arrow on');
+  await p.click('.ob-today-wm'); await p.waitForTimeout(350);
+  ok(await p.locator('#ob-doors').count() === 1, label + ': the wordmark returns to the fork');
+  await p.click('#ob-begin'); await p.waitForTimeout(400);
+  ok((await p.inputValue('#ob-today-q')) === 'Lunch with my sister, then the park', label + ': her words survive the round trip');
+  await p.click('#ob-today-go');
+  await p.waitForURL('**/dashboard', { timeout: 6000 }).catch(() => {});
+  ok(p.url().endsWith('/dashboard'), label + ': the send lands on /dashboard');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_onboard_intent'))) === 'dress' && (await p.evaluate(() => sessionStorage.getItem('rb_onboard_prompt'))) === 'Lunch with my sister, then the park', label + ': the handoff carries dress + her words for home’s box');
+  ok((await p.evaluate(() => sessionStorage.getItem('rb_onboarded__u1'))) === '1' && styleCalls.length === 0, label + ': onboarded, nothing generated on the page itself');
+  ok(events.some(e => e.event_type === 'onboarding_step' && e.metadata.step === 'today' && e.metadata.outcome === 'answered'), label + ': onboarding_step today:answered');
+  ok(errs.length === 0, label + ': no page errors: ' + errs.join(' | '));
   await ctx.close();
 }
 
@@ -250,8 +296,8 @@ console.log('\n\x1b[1m== the name stage · no name on file ==\x1b[0m');
   ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === '', 'the splash lands on the name stage, empty');
   ok(await p.locator('#ob-name-next').isDisabled(), 'Continue waits for a name');
   await p.fill('#ob-name-input', 'Mary'); await p.click('#ob-name-next'); await p.waitForTimeout(450);
-  ok((await p.locator('.ob-eyebrow').textContent()).trim() === 'Mary’s first visit', 'the name lands on the fork, in her name');
-  await p.click('#ob-doors [data-door="piece"]'); await p.waitForTimeout(450);
+  ok((await p.locator('.ob-eyebrow').textContent()).trim() === 'Welcome, Mary', 'the name lands on the fork, in her name');
+  await pickBegin(p, 'piece');
   ok((await p.locator('#kp-eyebrow').textContent()).trim() === 'Mary’s wardrobe', 'and on the piece page, in her name');
   await p.click('#ob-back'); await p.waitForTimeout(350); await p.click('#ob-back'); await p.waitForTimeout(350);
   ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === 'Mary', 'Back twice returns to the name she typed');

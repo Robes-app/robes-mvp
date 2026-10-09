@@ -61,7 +61,11 @@ function wardrobe(n) {
 // prompt CARD seeds 'card' — pass prompt:null to boot on the live default;
 // planned: planned_days rows the stub answers with; intent: the /api/intent
 // answer; the boot records every /api/intent, /api/daily and /api/style post.
-async function boot(browser, n, width = 1280, { looks = true, pics = 0, prompt = 'card', planned = [], intent = null } = {}) {
+// gtky: 'done' seeds the three first-run steps as answered (a kept model, a
+// style type, a styled key piece) so the legacy postures — zero-lead, the
+// first look — can still be pinned; without it those postures are the
+// Getting-to-know-you card (First Run v2, 2026-10-09).
+async function boot(browser, n, width = 1280, { looks = true, pics = 0, prompt = 'card', planned = [], intent = null, gtky = null } = {}) {
   WARDROBE_PICS = pics;
   const ctx = await browser.newContext({ viewport: { width, height: 1100 }, hasTouch: width < 768 });
   const page = await ctx.newPage();
@@ -75,6 +79,12 @@ async function boot(browser, n, width = 1280, { looks = true, pics = 0, prompt =
     r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ways: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }], generatedImages: [], fallback: false }) }); });
   await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   if (prompt) await page.addInitScript((v) => { localStorage.setItem('rb_prompt_box', v === 'box' ? 'on' : 'off'); }, prompt);
+  if (gtky === 'done') await page.addInitScript(() => {
+    if (!localStorage.getItem('rb_test_dna')) localStorage.setItem('rb_test_dna', JSON.stringify({ style_archetypes: ['Minimal'] }));
+    if (!localStorage.getItem('rb_model__u-test')) localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
+    if (!localStorage.getItem('robes_style_notes__u-test')) localStorage.setItem('robes_style_notes__u-test', JSON.stringify([
+      { id: 1754000000000, type: 'key-piece', title: 'Cream blazer', subtitle: 'Worn three ways', img: null, saved_at: '2026-08-01T10:00:00.000Z', kpData: { ways: [], generatedImages: [], suggested: true, intent: 'style' } }]));
+  });
 
   await page.route('**cdn.jsdelivr.net/**', (r) =>
     r.fulfill({ status: 200, contentType: 'application/javascript', body: SUPA_STUB }));
@@ -406,8 +416,9 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
 // zero looks with NO styled card, the prompt LEADS the page in focus under
 // the greeting's question; Build your own and The week ahead are hairlines
 // that unfurl in place. The rack renders only when she asks.
+// (gtky: 'done' — the first run answered, else the door card leads, 2026-10-09)
 {
-  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false, gtky: 'done' });
   const h = await page.evaluate(() => {
     const dash = document.getElementById('dash');
     const rows = document.getElementById('rb-ftu-rows');
@@ -567,7 +578,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
 // The rows on a phone: unfurled rack collapses texture + finish, preview
 // stands down; no horizontal overflow.
 {
-  const { ctx, page, errs } = await boot(browser, 4, 390, { looks: false });
+  const { ctx, page, errs } = await boot(browser, 4, 390, { looks: false, gtky: 'done' });
   const m = await page.evaluate(async () => {
     window.__rbFtuToggle('build');
     await new Promise((r) => setTimeout(r, 300));
@@ -631,8 +642,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
         const bg = getComputedStyle(btn).backgroundColor;
         return bg === 'rgb(32, 32, 33)' || bg === 'rgb(0, 0, 0)';
       }).map((btn) => btn.textContent.trim());
-    const door = document.getElementById('rb-notes-door');
-    const pill = door?.querySelector('.rb-pill');
+    const g = document.getElementById('rb-gtky');
     return {
       mode: document.getElementById('dash').getAttribute('data-home'),
       cardFirst: document.querySelector('.dash-mast')?.nextElementSibling?.id,
@@ -644,37 +654,35 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       foot: !!document.getElementById('rb-styled-foot'),
       filledButtons: filled,
       echo: document.querySelector('.dash-echo')?.textContent,
+      echoHidden: !vis(document.querySelector('.dash-echo')),
       rows: !!document.getElementById('rb-ftu-rows'),
-      promptHidden: !vis(document.getElementById('cb-ta')),
+      promptShown: vis(document.getElementById('cb-ta')),
       railHidden: !vis(document.getElementById('rb-rail')),
       servicesHidden: !vis(document.querySelector('.services')),
       modelDoor: !!document.getElementById('rb-model-door'),
-      doorEy: door?.querySelector('.ey')?.textContent,
-      doorH: door?.querySelector('h3')?.textContent.replace(/\s+/g, ' ').trim(),
-      doorDashed: door ? getComputedStyle(door).borderTopStyle : null,
-      pillText: pill?.textContent.trim(),
-      pillInk: pill ? getComputedStyle(pill).backgroundColor === 'rgb(32, 32, 33)' : null,
-      pillGo: pill?.getAttribute('onclick'),
-      later: door?.querySelector('.rb-walk-later')?.textContent.trim(),
+      notesDoor: !!document.getElementById('rb-notes-door'),
+      twinCard: !!document.getElementById('rb-twin-card'),
+      next: g?.getAttribute('data-next'),
+      ey: g?.querySelector('.rb-gtky-body .ey')?.textContent,
+      rowsList: Array.from(g?.querySelectorAll('.rb-gtky-row') || []).map((r) => r.dataset.step + ':' + r.dataset.state + ':' + r.querySelector('.l')?.textContent),
+      afterG: g?.nextElementSibling?.className.split(' ')[0],
     };
   });
   check('styled card · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('styled card · the hero leads, the Style-notes door beneath it, the mode zero',
-    s.mode === 'zero' && s.cardFirst === 'rb-styled' && s.doorNext === 'rb-notes-door', JSON.stringify([s.mode, s.cardFirst, s.doorNext]));
+  check('styled card · the hero leads, the Getting-to-know-you card beneath it (the twin next — the piece IS her first look), the mode gtky',
+    s.mode === 'gtky' && s.cardFirst === 'rb-styled' && s.doorNext === 'rb-gtky' && s.next === 'photos' && s.ey === 'Next · Your digital twin'
+      && JSON.stringify(s.rowsList) === JSON.stringify(['style:later:The styles that feel like you', 'look:done:Saved to your lookbook']),
+    JSON.stringify([s.mode, s.cardFirst, s.doorNext, s.next, s.ey, s.rowsList]));
   check('styled card · "See the full looks" is the one filled button, full-width under the looks, no add-next CTA',
     s.openFilled === true && s.openUnderTiles === true && s.openWide === true && s.addNext === false
       && s.filledButtons.length === 1 && /See the full looks/i.test(s.filledButtons[0] || ''),
     JSON.stringify([s.openFilled, s.openUnderTiles, s.openWide, s.addNext, s.filledButtons]));
   check('styled card · no piece-count caption on the card (the composing screen said it)', s.foot === false, String(s.foot));
-  check('styled card · the masthead answers the state',
-    s.echo === 'Your first piece is filed.', s.echo);
-  check('styled card · the setup screen holds nothing else — no rows, no prompt, no rail, no band, no model door',
-    s.rows === false && s.promptHidden === true && s.railHidden === true && s.servicesHidden === true && s.modelDoor === false,
-    JSON.stringify([s.rows, s.promptHidden, s.railHidden, s.servicesHidden, s.modelDoor]));
-  check('styled card · the walk’s invitation: a cream card on a hairline, the one serif line, a hairline Begin → the walk, Later as a text door',
-    s.doorDashed === 'solid' && s.doorEy === 'Your digital twin' && s.doorH === 'Five taps, and Robes knows you.'
-      && s.pillText === 'Begin' && s.pillInk === false && /__rbNotesGo/.test(s.pillGo || '') && s.later === 'Later',
-    JSON.stringify([s.doorDashed, s.doorEy, s.doorH, s.pillText, s.pillInk, s.pillGo, s.later]));
+  check('styled card · the greeting is one line (H7): the italic sub stands down',
+    s.echoHidden === true, String(s.echoHidden));
+  check('styled card · the prompt card waits behind the hero (See the full looks keeps the one ink); no rows, no rail, no band, no model door, no walk card, no question card',
+    s.promptShown === false && s.rows === false && s.railHidden === true && s.servicesHidden === true && s.modelDoor === false && s.notesDoor === false && s.twinCard === false,
+    JSON.stringify([s.promptShown, s.rows, s.railHidden, s.servicesHidden, s.modelDoor, s.notesDoor, s.twinCard]));
   // The saved key piece IS the hero card — the Inspiration row would be a
   // second copy of it, so it stands down only while the card is up.
   const inspWhileCard = await page.evaluate(() =>
@@ -712,16 +720,15 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
       filled,
     };
   });
-  check('styled card · once it retires the prompt steps out to lead',
-    after.styledGone === true && after.mode === 'zero-lead' && after.concLeads === true,
+  check('styled card · once it retires the Getting-to-know-you card leads (no rows — the first run is not done)',
+    after.styledGone === true && after.mode === undefined && after.concLeads === true,
     JSON.stringify([after.styledGone, after.mode, after.concLeads]));
-  // The Style-notes door follows her: under the prompt now, before the rows.
   const doorAfter = await page.evaluate(() => Array.from(document.getElementById('dash').children)
-    .map((e) => e.id || e.className.split(' ')[0]).filter((id) => ['concierge', 'rb-notes-door', 'rb-ftu-rows'].includes(id)));
-  check('styled card · the Style-notes door sits under the prompt once the card retires',
-    JSON.stringify(doorAfter) === JSON.stringify(['concierge', 'rb-notes-door', 'rb-ftu-rows']), JSON.stringify(doorAfter));
-  check('styled card · the concierge loads the moment she clicks through',
-    after.servicesShown === true, String(after.servicesShown));
+    .map((e) => e.id || e.className.split(' ')[0]).filter((id) => ['concierge', 'rb-gtky', 'rb-notes-door', 'rb-ftu-rows', 'rb-styled'].includes(id)));
+  check('styled card · the door card leads, the prompt under it, once the card retires',
+    JSON.stringify(doorAfter) === JSON.stringify(['rb-gtky', 'concierge']), JSON.stringify(doorAfter));
+  check('styled card · the band stays down while the first run stands',
+    after.servicesShown === false, String(after.servicesShown));
   // The handoff carries no wardrobe row id: the anchor resolves by the
   // filed piece's label when it is in the wardrobe (this fixture's is not,
   // so the looks read "From your prompt").
@@ -751,7 +758,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
 
 // O7 — hero card retired, prompt leads: exactly one look, nothing planned.
 {
-  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false, gtky: 'done' });
   await page.evaluate(() => {
     localStorage.setItem('rb_looks__u-test', JSON.stringify([
       { id: 'lk-1', name: 'Effortless Parisian Polish', name_provisional: false, note: '', photo_url: null,
@@ -863,7 +870,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
 // Inspiration tab — never the Lookbook row (Annie, 2026-08-12).
 {
   // looks:false so boot's own seed can't overwrite this fixture on reload
-  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
+  const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false, gtky: 'done' });
   await page.evaluate(() => {
     localStorage.setItem('rb_looks__u-test', JSON.stringify([
       { id: 'lk-row', name: 'A look', name_provisional: false, note: '', photo_url: null,
@@ -1074,6 +1081,7 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   // look that borrows two pieces at three photographed → the finish rule.
   await page.evaluate(() => {
     localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
+    localStorage.setItem('rb_test_dna', JSON.stringify({ style_archetypes: ['Minimal'] }));   // the first run done — else the door card leads (2026-10-09)
     localStorage.setItem('rb_looks__u-test', JSON.stringify([
       { id: 'lk-b', name: 'The Thursday one', name_provisional: false, note: '', photo_url: null, tags: null, source: 'robes',
         origin_look_id: null, created_at: '2026-09-10T10:00:00.000Z',
@@ -1336,8 +1344,8 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
 }
 {
   const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
-  const z = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), mode: document.getElementById('dash').getAttribute('data-home') }));
-  check('model door · no saved look → no door (the styled card / prompt lead)', !z.door && z.mode === 'zero-lead', JSON.stringify(z));
+  const z = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), mode: document.getElementById('dash').getAttribute('data-home'), next: document.getElementById('rb-gtky')?.getAttribute('data-next') }));
+  check('model door · no saved look → no door: the Getting-to-know-you card leads (the twin its first step)', !z.door && z.mode === 'gtky' && z.next === 'photos', JSON.stringify(z));
   await page.evaluate(() => {
     localStorage.setItem('rb_looks__u-test', JSON.stringify([
       { id: 'lk-only', name: 'The first one', name_provisional: false, note: '', photo_url: null, tags: null, source: 'manual',
@@ -1349,69 +1357,39 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   const o = await page.evaluate(() => ({
     door: !!document.getElementById('rb-model-door'),
     notes: !!document.getElementById('rb-notes-door'),
+    card: !!document.getElementById('rb-twin-card'),
     mode: document.getElementById('dash').getAttribute('data-home'),
+    next: document.getElementById('rb-gtky')?.getAttribute('data-next'),
     rows: !!document.getElementById('rb-ftu-rows'),
+    firstlook: !!document.getElementById('rb-firstlook'),
     servicesHidden: document.querySelector('.services')?.style.display === 'none',
-    order: Array.from(document.getElementById('dash').children).map((e) => e.id || e.className.split(' ')[0])
-      .filter((id) => ['concierge', 'rb-firstlook', 'rb-model-door', 'rb-notes-door', 'rb-ftu-rows'].includes(id)),
   }));
-  check('model door · first-look posture with no notes begun: the Style-notes door after "Your looks", never the model door',
-    !o.door && o.mode === 'look' && o.rows === false && o.servicesHidden === true
-      && JSON.stringify(o.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-notes-door']),
+  check('model door · one look, nothing begun: still the door card (the twin next), never the model door, the notes door or a question card',
+    !o.door && !o.notes && !o.card && o.mode === 'gtky' && o.next === 'photos' && o.rows === false && o.firstlook === false && o.servicesHidden === true,
     JSON.stringify(o));
-  // An icon on file = a chapter answered: the notes door retires and the
-  // model door takes its slot — never both together (Annie, 2026-09-25).
+  // An icon on file answers the style step — the door card still carries the twin.
   await page.evaluate(() => localStorage.setItem('rb_test_icons', JSON.stringify(['The Row'])));
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
-  // Cut C (2026-10-09): with the walk begun and the facts unset, the facts
-  // card takes the slot first and the model door yields — never two at once.
-  const oc = await page.evaluate(() => ({ card: document.getElementById('rb-twin-card')?.dataset.kind || null, door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door') }));
-  check('model door · with the walk begun and the facts unset, the facts card leads and the door yields (cut C)', oc.card === 'facts' && !oc.door && !oc.notes, JSON.stringify(oc));
-  await page.evaluate(() => localStorage.setItem('rb_test_dna', JSON.stringify({ facts: { size_uk: 10 } })));
+  const oc = await page.evaluate(() => ({ card: document.getElementById('rb-twin-card')?.dataset.kind || null, door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door'), next: document.getElementById('rb-gtky')?.getAttribute('data-next'),
+    rowsList: Array.from(document.querySelectorAll('#rb-gtky .rb-gtky-row')).map((r) => r.dataset.step + ':' + r.dataset.state) }));
+  check('model door · with the style answered (an icon) the door card keeps the twin as its step — the style row reads done, nothing else stands',
+    oc.card === null && !oc.door && !oc.notes && oc.next === 'photos' && JSON.stringify(oc.rowsList) === JSON.stringify(['style:done', 'look:done']), JSON.stringify(oc));
+  // A model on file retires the door card: the first look posture, and with
+  // a model there is no model door — it lives on the standard home alone now.
+  await page.evaluate(() => localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 })));
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
   const o2 = await page.evaluate(() => ({
-    door: !!document.getElementById('rb-model-door'),
-    notes: !!document.getElementById('rb-notes-door'),
-    order: Array.from(document.getElementById('dash').children).map((e) => e.id || e.className.split(' ')[0])
-      .filter((id) => ['concierge', 'rb-firstlook', 'rb-model-door', 'rb-notes-door'].includes(id)),
-    echo: document.querySelector('.dash-echo')?.textContent,
+    gtky: !!document.getElementById('rb-gtky'), door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door'),
+    mode: document.getElementById('dash').getAttribute('data-home'),
+    order: Array.from(document.getElementById('dash').children).map((e) => e.id || e.className.split(' ')[0]).filter((id) => ['concierge', 'rb-firstlook', 'rb-model-door', 'rb-notes-door', 'rb-gtky'].includes(id)),
+    echoShown: document.querySelector('.dash-echo')?.offsetParent !== null,
   }));
-  check('model door · once notes begin (an icon on file) the notes door retires and the model door opens after "Your looks"',
-    o2.door && !o2.notes && JSON.stringify(o2.order) === JSON.stringify(['concierge', 'rb-firstlook', 'rb-model-door'])
-      && /Build your model/.test(o2.echo || ''),
+  check('model door · every step done → the first-look posture returns: Your looks after the prompt, no door card, no model door (she has one), the next line back',
+    !o2.gtky && !o2.door && !o2.notes && o2.mode === 'look' && JSON.stringify(o2.order) === JSON.stringify(['concierge', 'rb-firstlook']) && o2.echoShown === true,
     JSON.stringify(o2));
-  await page.evaluate(() => localStorage.removeItem('rb_test_icons'));
-  // A kept line in her brief is an answer too (slice A): the notes door
-  // retires on it exactly as on an icon.
-  await page.evaluate(() => localStorage.setItem('rb_test_dna', JSON.stringify({ facts: { size_uk: 10 }, brief: { rules: [{ text: 'No more button-ups', source: 'drafted' }] } })));
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const o3 = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door') }));
-  check('model door · a kept line in her brief retires the notes door and opens the model door', o3.door && !o3.notes, JSON.stringify(o3));
-  // Any card of the walk answered retires the invitation (2026-10-08): a
-  // brand, the investment level, a fact.
-  // (the facts ride every seed since cut C — set, the facts card stands down and the door is what shows)
-  for (const [label, dna] of [['a brand', { brands: ['Zara'], facts: { size_uk: 10 } }], ['the investment level', { investment: 'Under €500', facts: { size_uk: 10 } }], ['a fact', { facts: { size_uk: 10 } }]]) {
-    await page.evaluate((d) => localStorage.setItem('rb_test_dna', JSON.stringify(d)), dna);
-    await page.reload({ waitUntil: 'networkidle' });
-    await page.waitForTimeout(2600);
-    const ox = await page.evaluate(() => ({ door: !!document.getElementById('rb-model-door'), notes: !!document.getElementById('rb-notes-door') }));
-    check('model door · ' + label + ' on file retires the walk card and opens the model door', ox.door && !ox.notes, JSON.stringify(ox));
-  }
-  await page.evaluate(() => localStorage.removeItem('rb_test_dna'));
-  // Later folds the card for the session; it returns on the next visit.
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const later = await page.evaluate(async () => {
-    const before = !!document.getElementById('rb-notes-door');
-    document.querySelector('#rb-notes-door .rb-walk-later')?.click();
-    await new Promise((r) => setTimeout(r, 300));
-    return { before, after: !!document.getElementById('rb-notes-door'), flag: sessionStorage.getItem('rb_walk_later__u-test') };
-  });
-  check('model door · Later folds the walk card for the session', later.before && !later.after && later.flag === '1', JSON.stringify(later));
-  await page.evaluate(() => sessionStorage.removeItem('rb_walk_later__u-test'));
+  await page.evaluate(() => { localStorage.removeItem('rb_test_icons'); localStorage.removeItem('rb_model__u-test'); });
   check('model door · no page errors (postures)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1634,7 +1612,7 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   // 'default' seeds nothing — the live default, which is the box since
   // 2026-10-01 (?prompt=card is the per-device opt-out).
   for (const flag of ['card', 'box', 'default']) {
-    const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: posture === 'standard', pics: 6, prompt: flag === 'default' ? null : flag });
+    const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: posture === 'standard', pics: 6, prompt: flag === 'default' ? null : flag, gtky: posture === 'standard' ? null : 'done' });
     if (posture === 'look') {
       await page.evaluate((lk) => { localStorage.setItem('rb_looks__u-test', JSON.stringify([lk])); }, HB_LOOK);
       await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2600);
@@ -1666,11 +1644,12 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   });
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(2600);
   const z = await hbRead(page);
-  check('home field · zero · box · the styled card is the hero and the field stands down', z.mode === 'zero' && z.hb === false && z.conc === false, JSON.stringify(z));
+  const zg = await page.evaluate(() => ({ askey: document.getElementById('rb-gtky-askey')?.textContent, askeyNext: document.getElementById('rb-gtky-askey')?.nextElementSibling?.id, hbPrev: document.getElementById('rb-hb')?.previousElementSibling?.id }));
+  check('home field · the styled card over the door card · the field stands under the list as "Or ask Robes" (H8)', z.mode === 'gtky' && z.hb === true && z.fields === 1 && z.conc === false && zg.hbPrev === 'rb-gtky' && zg.askey === 'Or ask Robes' && zg.askeyNext === 'rb-hb-row', JSON.stringify([z, zg]));
   await page.evaluate(() => document.getElementById('rb-styled-open')?.click()); await page.waitForTimeout(900);
   await page.evaluate(() => window.__rbNavGo('home')); await page.waitForTimeout(500);
   const z2 = await hbRead(page);
-  check('home field · zero → zero-lead · the field returns the moment the card retires', z2.mode === 'zero-lead' && z2.hb === true && z2.fields === 1 && z2.conc === false, JSON.stringify(z2));
+  check('home field · the card retires, the door card and the field stand', z2.mode === 'gtky' && z2.hb === true && z2.fields === 1 && z2.conc === false && z2.order[1] === 'rb-gtky' && z2.order[2] === 'rb-hb', JSON.stringify(z2));
   check('home field · zero · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1803,12 +1782,32 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
 // catalogue → the add flow, and the walk's Done → the box under one sage
 // line, the first ask after it logged as walk_asked.
 {
-  const { ctx, page, errs } = await boot(browser, 0, 1280, { looks: false, prompt: null });
+  const { ctx, page, errs, posts } = await boot(browser, 0, 1280, { looks: false, prompt: null });
   await page.evaluate(() => sessionStorage.setItem('rb_onboard_intent', 'dress'));
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
-  const dr = await page.evaluate(() => ({ box: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), focused: document.activeElement?.id, ph: document.getElementById('rb-lp-in')?.placeholder, handoff: sessionStorage.getItem('rb_onboard_intent'), card: !!document.getElementById('rb-notes-door') }));
-  check('intent fork · Dress me today lands on home with the box focused in place, the handoff consumed, the walk card beneath',
-    dr.box && dr.focused === 'rb-lp-in' && dr.ph === 'A new look for…' && dr.handoff === null && dr.card, JSON.stringify(dr));
+  const dr = await page.evaluate(() => ({ box: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), focused: document.activeElement?.id, handoff: sessionStorage.getItem('rb_onboard_intent'), next: document.getElementById('rb-gtky')?.getAttribute('data-next'), cta: document.querySelector('#rb-gtky .rb-gtky-cta')?.textContent, notes: !!document.getElementById('rb-notes-door') }));
+  check('intent fork · Not sure yet (Dress me today, no words) lands on home: the door card leads with the twin, the box under it unfocused, the handoff consumed',
+    dr.box && dr.focused !== 'rb-lp-in' && dr.handoff === null && dr.next === 'photos' && dr.cta === 'Add photographs' && !dr.notes, JSON.stringify(dr));
+  // Dress me today WITH her words: they go through home's own box — the
+  // draft lands beneath the field, Robes composes the look, the toast says so.
+  await page.evaluate(() => { sessionStorage.setItem('rb_onboard_intent', 'dress'); sessionStorage.setItem('rb_onboard_prompt', 'Lunch with my sister, then the park'); });
+  const toasts = [];
+  await page.exposeFunction('__rbToastSeen', (t) => toasts.push(t));
+  await page.evaluate(() => { const mo = new MutationObserver(() => { document.querySelectorAll('.wa-toast, #wa-toast, .rb-toast, [class*="toast"]').forEach((t) => { if (t.textContent.trim()) window.__rbToastSeen(t.textContent.trim()); }); }); mo.observe(document.body, { childList: true, subtree: true, characterData: true }); });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(4200);
+  const dp = await page.evaluate(() => ({ prompt: sessionStorage.getItem('rb_onboard_prompt'), row: document.querySelector('#rb-hb #rb-lp .rb-lpd-row .nm')?.textContent || '', ey: document.querySelector('#rb-hb #rb-lp .rb-lpd-row .ey')?.textContent || '',
+    rows: Array.from(document.querySelectorAll('#rb-gtky .rb-gtky-row')).map((r) => r.dataset.step + ':' + r.dataset.state) }));
+  check('intent fork · Dress me today with her words: the box sends them (one /api/daily with her prompt), the draft lands beneath the field, the look step reads done',
+    dp.prompt === null && posts.daily.length === 1 && posts.daily[0].prompt === 'Lunch with my sister, then the park' && dp.row === 'Soft office armour' && /^Draft look/.test(dp.ey) && dp.rows.includes('look:done'),
+    JSON.stringify([dp, posts.daily.map((x) => x && x.prompt)]));
+  // Find my style lands HOME (B5) — the door card leads with Style DNA.
+  await page.evaluate(() => { localStorage.setItem('rb_test_dna', JSON.stringify({ intent: 'style' })); sessionStorage.setItem('rb_onboard_intent', 'style'); localStorage.removeItem('rb_lk_draft__u-test'); });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
+  const fs = await page.evaluate(() => ({ url: location.pathname, handoff: sessionStorage.getItem('rb_onboard_intent'), next: document.getElementById('rb-gtky')?.getAttribute('data-next'), ey: document.querySelector('#rb-gtky .rb-gtky-body .ey')?.textContent, cta: document.querySelector('#rb-gtky .rb-gtky-cta')?.textContent,
+    rows: Array.from(document.querySelectorAll('#rb-gtky .rb-gtky-row')).map((r) => r.dataset.step + ':' + r.dataset.state) }));
+  check('intent fork · Find my style lands on home with Style DNA as the first door; the twin and the first look follow in the list',
+    fs.url === '/dashboard' && fs.handoff === null && fs.next === 'style' && fs.ey === 'Next · Style DNA' && fs.cta === 'Find my style' && JSON.stringify(fs.rows) === JSON.stringify(['photos:later', 'look:later']), JSON.stringify(fs));
+  await page.evaluate(() => localStorage.removeItem('rb_test_dna'));
   await page.evaluate(() => sessionStorage.setItem('rb_onboard_intent', 'catalogue'));
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
   const ca = await page.evaluate(() => ({ modal: document.getElementById('wa-modal')?.classList.contains('open'), file: !!document.getElementById('wa-rb-file'), multiple: document.getElementById('wa-rb-file')?.hasAttribute('multiple') }));
@@ -1835,6 +1834,152 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   const asked = await page.evaluate(() => ({ line: !!document.getElementById('rb-walk-line') }));
   check('intent fork · the first ask after the walk takes the line with it', asked.line === false, JSON.stringify(asked));
   check('intent fork · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Getting to know you (First Run v2 + the redlines, 2026-10-09): while the
+// twin, her style or the first look is still to come — and the Lookbook
+// holds at most her first look — home is ONE door card carrying the next
+// step, a short list of what follows, and the box under "Or ask Robes".
+// The order follows the onboarding door (Find my style leads with Style
+// DNA); every step done retires the module for good.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const gtkyRead = () => page.evaluate(() => {
+    const dash = document.getElementById('dash');
+    const vis = (el) => !!el && el.offsetParent !== null;
+    const g = document.getElementById('rb-gtky');
+    const door = g?.querySelector('.rb-gtky-door');
+    const cta = g?.querySelector('.rb-gtky-cta');
+    const mast = dash.querySelector('.dash-mast');
+    return {
+      mode: dash.getAttribute('data-home'), bodyCls: document.body.classList.contains('rb-gtky'),
+      order: Array.from(dash.children).filter(vis).map((e) => e.id || e.className.split(' ')[0]),
+      next: g?.getAttribute('data-next'),
+      slots: Array.from(g?.querySelectorAll('.rb-gtky-slots .sl') || []).map((s) => [s.textContent.trim(), getComputedStyle(s).borderTopStyle, Math.round(s.getBoundingClientRect().width / s.getBoundingClientRect().height * 100) / 100]),
+      ey: door?.querySelector('.ey')?.textContent, eyColor: door ? getComputedStyle(door.querySelector('.ey')).color : null,
+      h: door?.querySelector('h3')?.textContent.replace(/\s+/g, ' ').trim(), hEm: door?.querySelector('h3 em')?.textContent,
+      line: door?.querySelector('p')?.textContent, lineFont: door ? getComputedStyle(door.querySelector('p')).fontFamily : null,
+      cta: cta?.textContent, ctaBg: cta ? getComputedStyle(cta).backgroundColor : null, ctaBorder: cta ? getComputedStyle(cta).borderTopWidth : null,
+      doorBg: door ? getComputedStyle(door).backgroundColor : null, doorShadow: door ? getComputedStyle(door).boxShadow : null,
+      head: g?.querySelector('.rb-gtky-head')?.textContent, headColor: g ? getComputedStyle(g.querySelector('.rb-gtky-head')).color : null,
+      rows: Array.from(g?.querySelectorAll('.rb-gtky-row') || []).map((r) => ({ step: r.dataset.step, state: r.dataset.state, t: r.querySelector('.t')?.textContent, l: r.querySelector('.l')?.textContent, mk: r.querySelector('.mk')?.textContent.trim(), mkStyle: getComputedStyle(r.querySelector('.mk')).borderTopStyle, h: Math.round(r.getBoundingClientRect().height), chev: r.querySelector('.ch')?.textContent })),
+      ink: Array.from(dash.querySelectorAll('button')).filter((b) => vis(b) && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()),
+      twin: !!document.getElementById('rb-twin-card'), notes: !!document.getElementById('rb-notes-door'), model: !!document.getElementById('rb-model-door'),
+      ftuRows: !!document.getElementById('rb-ftu-rows'), firstlook: !!document.getElementById('rb-firstlook'),
+      rail: vis(document.getElementById('rb-rail')), services: vis(document.querySelector('.services')), sn: vis(document.getElementById('rb-sn')), insp: vis(document.getElementById('rb-insp-row')),
+      echo: vis(mast.querySelector('.dash-echo')),
+      wxFirst: mast.firstElementChild?.id === 'dash-wx-m', greet: document.getElementById('dash-greet')?.textContent,
+      hbPrev: document.getElementById('rb-hb')?.previousElementSibling?.id, askey: document.getElementById('rb-gtky-askey')?.textContent, askeyNext: document.getElementById('rb-gtky-askey')?.nextElementSibling?.id,
+      hbVis: vis(document.getElementById('rb-hb')),
+      overflow: document.documentElement.scrollWidth > window.innerWidth,
+      gW: g ? Math.round(g.getBoundingClientRect().width) : null,
+    };
+  });
+  let ctx, page, errs, events;
+  const gboot = async (o = {}, dna = null, model = false) => {
+    const r = await boot(browser, o.n ?? 2, o.width || 1280, { looks: false, prompt: null, pics: o.pics || 0 });
+    ({ ctx, page, errs } = r); events = [];
+    await page.route('**ayowpaknssulsqqvwpqx.supabase.co/rest/v1/events**', (rt) => { try { const b = JSON.parse(rt.request().postData() || '{}'); events.push([b.event_type, b.metadata]); } catch (_) {} return rt.fulfill({ status: 201, contentType: 'application/json', body: '' }); });
+    await page.route('**/settings?**', (rt) => rt.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>settings</title>' }));
+    await page.evaluate(({ dna, model }) => {
+      if (dna) localStorage.setItem('rb_test_dna', JSON.stringify(dna)); else localStorage.removeItem('rb_test_dna');
+      if (model) localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 })); else localStorage.removeItem('rb_model__u-test');
+      localStorage.removeItem('rb_lk_draft__u-test');
+    }, { dna, model });
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3000);
+    return r;
+  };
+  // The twin door: two pieces, nothing done, no intent → the twin first.
+  await gboot();
+  const a = await gtkyRead();
+  check('gtky · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  check('gtky · the mode: the door card straight under the masthead, then the box — nothing else on the page',
+    a.mode === 'gtky' && a.bodyCls && JSON.stringify(a.order) === JSON.stringify(['dash-mast', 'rb-gtky', 'rb-hb']) && a.hbVis && a.hbPrev === 'rb-gtky', JSON.stringify([a.mode, a.order, a.hbPrev]));
+  check('gtky · the twin door (H3): Next · Your digital twin, two dashed 4:5 slots Close-up / Full length, the serif title with its italic half, the sans line, "Add photographs"',
+    a.next === 'photos' && a.ey === 'Next · Your digital twin' && JSON.stringify(a.slots) === JSON.stringify([['Close-up', 'dashed', 0.8], ['Full length', 'dashed', 0.8]])
+      && a.h === 'Two photographs, one model of you.' && a.hEm === 'one model of you.' && /A close-up and a full length\./.test(a.line) && /Inter/.test(a.lineFont) && a.cta === 'Add photographs',
+    JSON.stringify([a.next, a.ey, a.slots, a.h, a.hEm, a.line, a.cta]));
+  check('gtky · the card (H2): white on a hairline with a soft shadow; the CTA a hairline pill, never ink — no ink anywhere on home',
+    a.doorBg === 'rgb(255, 255, 255)' && a.doorShadow !== 'none' && a.ctaBg === 'rgb(255, 255, 255)' && a.ctaBorder === '1px' && a.eyColor === 'rgb(126, 124, 90)' && a.ink.length === 0, JSON.stringify([a.doorBg, a.doorShadow, a.ctaBg, a.ctaBorder, a.eyColor, a.ink]));
+  check('gtky · the list (H4): Getting to know you, the two steps that follow — dashed markers, the 62px rows, › — no counts',
+    a.head === 'Getting to know you' && a.headColor === 'rgb(142, 112, 119)' && a.rows.length === 2
+      && a.rows[0].step === 'style' && a.rows[0].state === 'later' && a.rows[0].t === 'Your style' && a.rows[0].l === 'The styles that feel like you' && a.rows[0].mk === '' && a.rows[0].mkStyle === 'dashed' && a.rows[0].h >= 62 && a.rows[0].chev === '›'
+      && a.rows[1].step === 'look' && a.rows[1].t === 'Your first look' && a.rows[1].l === 'Dressed for today' && !/\d/.test(a.head + a.rows.map((r) => r.t + r.l).join('')),
+    JSON.stringify([a.head, a.headColor, a.rows]));
+  check('gtky · nothing else stands: no question card, no walk card, no model door, no rows, no Your looks, no rail, no band, no Lookbook or Inspiration row',
+    !a.twin && !a.notes && !a.model && !a.ftuRows && !a.firstlook && !a.rail && !a.services && !a.sn && !a.insp, JSON.stringify([a.twin, a.notes, a.model, a.ftuRows, a.firstlook, a.rail, a.services, a.sn, a.insp]));
+  check('gtky · the greeting is one line (H7): the context line stands above it, the italic sub is gone',
+    a.echo === false && a.wxFirst === true && /^Good (morning|afternoon|evening), Annie\.$/.test(a.greet || ''), JSON.stringify([a.echo, a.wxFirst, a.greet]));
+  check('gtky · "Or ask Robes" names the box beneath the list (H8)', a.askey === 'Or ask Robes' && a.askeyNext === 'rb-hb-row', JSON.stringify([a.askey, a.askeyNext]));
+  check('gtky · gtky_shown {next, order}', events.some(([t, m]) => t === 'gtky_shown' && m.next === 'photos' && m.order === 'photos,style,look'), JSON.stringify(events.filter(([t]) => /gtky/.test(t))));
+  // H8: before the twin exists, the box says so once — a line, never a gate
+  const h8 = await page.evaluate(async () => {
+    const toastText = () => document.querySelector('#toast.show #toast-msg, #toast.show, .toast.show')?.textContent.trim() || '';
+    window.__rbHbOpen(); await new Promise((r) => setTimeout(r, 200));
+    const first = toastText(); const focused = document.activeElement?.id;
+    document.getElementById('rb-lp-in')?.blur();
+    await new Promise((r) => setTimeout(r, 3200));
+    window.__rbHbOpen(); await new Promise((r) => setTimeout(r, 200));
+    const second = toastText();
+    document.getElementById('rb-lp-in')?.blur();
+    return { first, focused, second };
+  });
+  check('gtky · tapping the box before the twin exists shows "Robes dresses you on your model. Two photographs first." once — the field still works',
+    h8.first === 'Robes dresses you on your model. Two photographs first.' && h8.focused === 'rb-lp-in' && h8.second === '', JSON.stringify(h8));
+  // The row and the door are doors: the twin page, the walk.
+  await page.click('#rb-gtky .rb-gtky-row[data-step="style"]');
+  await page.waitForURL('**/settings?walk=1', { timeout: 5000 }).catch(() => {});
+  check('gtky · the style row opens the walk', /\/settings\?walk=1$/.test(page.url()), page.url());
+  check('gtky · gtky_tapped {step, from}', events.some(([t, m]) => t === 'gtky_tapped' && m.step === 'style' && m.from === 'row'), JSON.stringify(events.filter(([t]) => t === 'gtky_tapped')));
+  await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' }); await page.waitForTimeout(3000);
+  await page.click('#rb-gtky .rb-gtky-cta');
+  await page.waitForURL('**/settings?page=twin', { timeout: 5000 }).catch(() => {});
+  check('gtky · Add photographs opens the twin page', /\/settings\?page=twin$/.test(page.url()), page.url());
+  await ctx.close();
+
+  // Find my style: Style DNA leads, the twin and the look follow.
+  await gboot({}, { intent: 'style' });
+  const b = await gtkyRead();
+  check('gtky · Find my style → the Style DNA door first (B5): Next · Style DNA, "Now, what feels like you.", Find my style; the twin and the first look in the list',
+    b.next === 'style' && b.ey === 'Next · Style DNA' && b.h === 'Now, what feels like you.' && b.cta === 'Find my style' && b.slots.length === 0
+      && b.rows.map((r) => r.step + ':' + r.state + ':' + r.t).join('|') === 'photos:later:Your digital twin|look:later:Your first look', JSON.stringify([b.next, b.ey, b.h, b.cta, b.rows]));
+  check('gtky · style order · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+
+  // The look door, the key-piece way: model + style done, piece intent.
+  await gboot({ n: 2 }, { intent: 'piece', style_archetypes: ['Minimal'] }, true);
+  const c = await gtkyRead();
+  check('gtky · the twin and the style done → the look door: Ready · A key piece, "One piece, three ways to wear it.", Style a key piece; the two done rows read as such',
+    c.next === 'look' && c.ey === 'Ready · A key piece' && c.h === 'One piece, three ways to wear it.' && c.cta === 'Style a key piece'
+      && c.rows.map((r) => r.step + ':' + r.state + ':' + r.l + ':' + r.mk + ':' + r.mkStyle).join('|') === 'photos:done:A model of you, built:✓:solid|style:done:Filed under Style DNA:✓:solid', JSON.stringify([c.next, c.ey, c.h, c.cta, c.rows]));
+  const pick = await page.evaluate(async () => { document.querySelector('#rb-gtky .rb-gtky-cta').click(); await new Promise((r) => setTimeout(r, 500)); return { box: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), sheet: !!document.getElementById('cb-wa-pick') }; });
+  check('gtky · Style a key piece opens the box with her wardrobe sheet — the piece first', pick.box && pick.sheet, JSON.stringify(pick));
+  check('gtky · piece door · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+
+  // The look door, the today way; a look saved retires the module.
+  await gboot({ n: 2 }, { intent: 'dress', style_archetypes: ['Minimal'] }, true);
+  const d = await gtkyRead();
+  check('gtky · Dress me today → Ready · Today, the weekday leading the title, "Robes has a look in mind.", Dress me today',
+    d.next === 'look' && d.ey === 'Ready · Today' && /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\. Robes has a look in mind\.$/.test(d.h || '') && d.cta === 'Dress me today', JSON.stringify([d.next, d.ey, d.h, d.cta]));
+  const dm = await page.evaluate(async () => { document.querySelector('#rb-gtky .rb-gtky-cta').click(); await new Promise((r) => setTimeout(r, 400)); return { focused: document.activeElement?.id, dock: !!document.querySelector('#rb-lp.rb-lp-dock') }; });
+  check('gtky · Dress me today focuses the box in place', dm.focused === 'rb-lp-in' && !dm.dock, JSON.stringify(dm));
+  await page.evaluate((lk) => { document.getElementById('rb-lp-in')?.blur(); localStorage.setItem('rb_looks__u-test', JSON.stringify([lk])); }, HB_LOOK);
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3000);
+  const e = await gtkyRead();
+  check('gtky · every step done → the module retires for good: the first-look posture, the next line back, the body class gone',
+    e.mode === 'look' && !e.bodyCls && e.next === undefined && e.firstlook && e.echo === true && e.askey === undefined, JSON.stringify([e.mode, e.bodyCls, e.next, e.firstlook, e.echo, e.askey]));
+  check('gtky · done · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+
+  // 390: the card fits, the slots run two across, no overflow (H6: the box clears the dock).
+  await gboot({ width: 390 });
+  const m = await gtkyRead();
+  const m2 = await page.evaluate(() => { const hb = document.getElementById('rb-hb'); const dock = document.getElementById('rb-dock'); return { hbBottom: Math.round(hb.getBoundingClientRect().bottom), docTop: dock ? Math.round(dock.getBoundingClientRect().top) : null, bodyH: document.body.scrollHeight, vh: window.innerHeight }; });
+  check('gtky · 390: the card fits the viewport, two slots across, no horizontal overflow', !m.overflow && m.gW <= 390 && m.slots.length === 2 && m.next === 'photos', JSON.stringify([m.overflow, m.gW, m.slots.length]));
+  check('gtky · 390 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
 
@@ -1896,41 +2041,30 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     overflow: document.documentElement.scrollWidth > window.innerWidth,
   });
 
-  // The facts card leads; Not now puts it off for the day and the model door takes the slot.
+  // The facts card is RETIRED from home (First Run redlines H1 / R2, 2026-10-09:
+  // height, size, shoes and age are collected in Settings only). The loved
+  // card leads; Not now puts it off for the day and the model door takes the slot.
   {
     const { ctx, page, errs, patches, events } = await twinBoot();
     const a = await page.evaluate(twinRead);
-    check('twin cards · the facts card: Your digital twin, size never weight, the four rows, Not now + Done (cream until a fact lands)',
-      a.kind === 'facts' && a.k === 'Your digital twin' && /^Size, never weight\. Four facts, and Robes proposes what fits\.$/.test(a.t) && /Your digital twin/.test(a.b) && a.rows === 4
-        && JSON.stringify(a.verbs) === JSON.stringify(['Not now', 'Done → (off)']), JSON.stringify(a));
+    check('twin cards · no facts card on home — the loved card leads with the facts unset', a.kind === 'loved' && a.rows === 0 && a.tiles === 6, JSON.stringify(a));
     check('twin cards · never ink, never beside the model door or the invitation, after the prompt', a.ink === 0 && !a.door && !a.notes && a.prev === 'concierge', JSON.stringify([a.ink, a.door, a.notes, a.prev]));
-    check('twin cards · the day’s record and twin_card_shown {kind}', a.record && a.record.date === TW_TODAY && a.record.kind === 'facts' && a.record.done === false && events.includes('twin_card_shown'), JSON.stringify([a.record, events]));
+    check('twin cards · the day’s record and twin_card_shown {kind}', a.record && a.record.date === TW_TODAY && a.record.kind === 'loved' && a.record.done === false && events.includes('twin_card_shown'), JSON.stringify([a.record, events]));
     await page.click('#rb-twin-card [data-v="later"]'); await page.waitForTimeout(600);
     const l = await page.evaluate(twinRead);
     check('twin cards · Not now closes it for the day, writes nothing to the twin, and the model door stands in its slot', l.kind === null && l.record.done === true && l.door && !patches.some((p) => p.style_dna) && events.includes('twin_card_later'), JSON.stringify([l.kind, l.record, l.door, patches]));
     await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
     const l2 = await page.evaluate(twinRead);
     check('twin cards · never the same card twice in a day: a reload shows no card, the door stays', l2.kind === null && l2.door, JSON.stringify([l2.kind, l2.door]));
-    check('twin cards · facts · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    check('twin cards · loved first · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
     await ctx.close();
   }
-  // A new day: the facts write to style_dna.facts as the Settings sheet does — the first write is the answer.
+  // A new day: yesterday's record is spent and the card returns.
   {
-    const { ctx, page, errs, patches, events } = await twinBoot({ record: { date: TW_YDAY, kind: 'facts', done: true } });
+    const { ctx, page, errs } = await twinBoot({ record: { date: TW_YDAY, kind: 'loved', done: true } });
     const a = await page.evaluate(twinRead);
-    check('twin cards · yesterday’s record is spent — the facts card returns', a.kind === 'facts', JSON.stringify(a.record));
-    await page.click('#rb-twin-card [data-fact="height_cm"][data-dir="1"]'); await page.waitForTimeout(300);
-    await page.click('#rb-twin-card [data-age="35–44"]'); await page.waitForTimeout(400);
-    const w = await page.evaluate(() => ({ v: document.querySelector('#rb-twin-card .rb-tc-step .v')?.textContent.trim(), age: document.querySelector('#rb-twin-card [data-age="35–44"]')?.classList.contains('on'), done: document.querySelector('#rb-twin-card [data-v="done"]')?.disabled, prof: window.__robes_profile.style_dna.facts }));
-    const fp = patches.filter((p) => p.style_dna && p.style_dna.facts);
-    check('twin cards · a step and an age land on style_dna.facts (one merge-PATCH each), the profile copy first, Done comes live',
-      w.v === '169 cm' && w.age === true && w.done === false && w.prof.height_cm === 169 && w.prof.age_band === '35–44'
-        && fp.length === 2 && fp[0].style_dna.facts.height_cm === 169 && fp[1].style_dna.facts.age_band === '35–44' && fp[1].style_dna.facts.height_cm === 169, JSON.stringify([w, fp]));
-    check('twin cards · the first write is the answer: twin_card_answered once, facts_set each time', events.filter((e) => e === 'twin_card_answered').length === 1 && events.filter((e) => e === 'facts_set').length === 2, JSON.stringify(events));
-    await page.click('#rb-twin-card [data-v="done"]'); await page.waitForTimeout(600);
-    const d = await page.evaluate(twinRead);
-    check('twin cards · Done closes the card and marks the day', d.kind === null && d.record.done === true && d.record.kind === 'facts', JSON.stringify(d.record));
-    check('twin cards · facts write · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    check('twin cards · yesterday’s record is spent — the loved card returns', a.kind === 'loved', JSON.stringify(a.record));
+    check('twin cards · new day · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
     await ctx.close();
   }
   // The loved pieces: the facts set, fewer than three stars → her six most worn, the wardrobe's own star.
@@ -1985,11 +2119,11 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     check('twin cards · strike · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
     await ctx.close();
   }
-  // The order and the gates: the facts outrank the loved pieces; nothing until the walk has begun; the invitation outranks every card.
+  // The order and the gates: the loved pieces outrank a pending line; nothing until the walk has begun; the first run outranks every card.
   {
     const { ctx, page, errs } = await twinBoot({ dna: { brief: { pending: [pending] } } });
     const o = await page.evaluate(twinRead);
-    check('twin cards · facts first: with the facts unset, three stars short and a line pending, the facts card is the one shown', o.kind === 'facts', JSON.stringify(o.kind));
+    check('twin cards · loved first: with three stars short and a line pending, the loved card is the one shown (never the facts)', o.kind === 'loved', JSON.stringify(o.kind));
     await page.evaluate(() => { localStorage.setItem('rb_test_icons', '[]'); localStorage.setItem('rb_test_dna', '{}'); });
     await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
     const g = await page.evaluate(twinRead);
@@ -1997,7 +2131,8 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     await ctx.close();
     const z = await twinBoot({ icons: [], looks: false });
     const zi = await z.page.evaluate(twinRead);
-    check('twin cards · the invitation outranks every card: zero-lead with nothing begun shows the walk card alone', zi.notes && zi.kind === null, JSON.stringify([zi.notes, zi.kind]));
+    const zg = await z.page.evaluate(() => !!document.getElementById('rb-gtky'));
+    check('twin cards · the first run outranks every card: nothing begun shows the Getting-to-know-you card alone — no walk card, no question card', zg && !zi.notes && zi.kind === null, JSON.stringify([zg, zi.notes, zi.kind]));
     check('twin cards · gates · no page errors', errs.length === 0 && z.errs.length === 0, errs.concat(z.errs).join(' | ').slice(0, 200));
     await z.ctx.close();
   }
@@ -2007,7 +2142,7 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     const m = await page.evaluate(twinRead);
     const { ctx: c2, page: p2, errs: e2 } = await twinBoot({ width: 390, dna: { facts: { size_uk: 10 } } });
     const m2 = await p2.evaluate(() => ({ overflow: document.documentElement.scrollWidth > window.innerWidth, cols: getComputedStyle(document.querySelector('#rb-twin-card .rb-tc-tiles')).gridTemplateColumns.split(' ').length, w: document.getElementById('rb-twin-card').getBoundingClientRect().width }));
-    check('twin cards · 390: the facts card fits the viewport, the loved tiles run three across', m.kind === 'facts' && !m.overflow && m.rows === 4 && !m2.overflow && m2.cols === 3 && m2.w <= 390, JSON.stringify([m.kind, m.overflow, m2]));
+    check('twin cards · 390: the loved card fits the viewport, its tiles run three across', m.kind === 'loved' && !m.overflow && !m2.overflow && m2.cols === 3 && m2.w <= 390, JSON.stringify([m.kind, m.overflow, m2]));
     check('twin cards · 390 · no page errors', errs.length === 0 && e2.length === 0, errs.concat(e2).join(' | ').slice(0, 200));
     await ctx.close(); await c2.close();
   }

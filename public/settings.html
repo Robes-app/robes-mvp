@@ -220,6 +220,9 @@
     .mv2-foot { margin-top: 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
     .mv-build { flex: none; white-space: nowrap; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 34px; font: 400 11px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; }
     .mv-status { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.5; color: #8A8378; }
+    .mv-home { font: 300 13px/1 'Inter'; color: var(--ink-soft); text-decoration: none; padding: 4px 0; }
+    .mv-home:hover { color: var(--ink); }
+    .mv-home[hidden] { display: none; }
     @media (max-width: 767px) { .mv2-foot { align-items: stretch; text-align: center; gap: 12px; } .mv-build { width: 100%; } }
 
     /* ── sheets — a bottom sheet with a grab bar on the phone, a centred card on the web ── */
@@ -244,10 +247,31 @@
     .sh-walk-skip { background: none; border: 0; padding: 0; font: 300 13px/1 'Inter'; color: var(--ink-faint); cursor: pointer; }
     .sh-walk-skip:hover { color: var(--ink); }
     .sh-walk-skip[hidden] { display: inline; visibility: hidden; }
-    .sh-walk-go { background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 34px; font: 400 11px/1 'Inter'; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
-    .sh-walk-go:disabled { background: var(--cream-200); border-color: var(--cream-200); color: var(--ink-faint); cursor: default; }
+    /* G2 (2026-10-09): hairline actions, no heavy ink — the walk's Continue /
+       Done is the first-run pill: #fff on a --rule-mid hairline, 10px .2em */
+    .sh-walk-go { background: #fff; color: var(--ink); border: 1px solid var(--rule-mid); border-radius: 100px; padding: 15px 34px; font: 500 10px/1 'Inter'; letter-spacing: .2em; text-transform: uppercase; cursor: pointer; }
+    .sh-walk-go:hover { border-color: var(--ink); }
+    .sh-walk-go:disabled { background: transparent; border-color: var(--rule-mid); color: var(--ink-faint); cursor: default; }
     #sh-wrap.walking .sh-done { display: none; }
-    @media (max-width: 767px) { .sh-walk { padding: 12px 20px calc(18px + env(safe-area-inset-bottom)); } }
+    /* the walk's header row (G3, 2026-10-09): Settings' 44px grid — ← left
+       on a 44px hit area, the card's title centred in Cormorant 22px, Later
+       right; the sheet's own title stands down beneath it */
+    .sh-walkhead { display: none; flex: none; padding: 10px 22px 0; min-height: 44px; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; }
+    #sh-wrap.walking .sh-walkhead { display: grid; }
+    #sh-wrap.walking .sh-walkhead[hidden] { display: none; }
+    #sh-wrap.walking .sh-head .sh-title { display: none; }
+    #sh-wrap.walking .sh-head { padding-top: 6px; }
+    .sh-walk-back { background: none; border: 0; padding: 10px 0; cursor: pointer; font: 300 24px/1 'Inter'; color: var(--ink); text-align: left; }
+    .sh-walk-title { text-align: center; font: 400 22px/1.1 'Cormorant', Georgia, serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sh-walk-later { background: none; border: 0; padding: 10px 0; cursor: pointer; font: 300 13px/1 'Inter'; color: var(--ink-faint); text-align: right; }
+    .sh-walk-later:hover, .sh-walk-back:hover { color: var(--ink); }
+    @media (max-width: 767px) {
+      .sh-walk { padding: 12px 20px calc(18px + env(safe-area-inset-bottom)); }
+      /* full screens, not sheets: the walk fills the phone, no scrim, no grab bar, no rounding */
+      #sh-wrap.walking { padding: 0; background: var(--cream); align-items: stretch; animation: none; }
+      #sh-wrap.walking #sh { max-height: none; height: 100dvh; border-radius: 0; animation: none; box-shadow: none; }
+      #sh-wrap.walking .sh-grab { display: none; }
+    }
     /* the deck (cut B): one type at a time, the look deck's gesture */
     .sh-deck { padding-top: 8px; }
     .sh-deck-stack { position: relative; }
@@ -587,6 +611,7 @@
           <div class="mv2-foot">
             <button class="mv-build" id="mv-build" hidden>Build a look</button>
             <div class="mv-status" id="mv-status"></div>
+            <a class="mv-home" id="mv-home" href="/dashboard" hidden>Back to home</a>
           </div>
         </div>
       </div>
@@ -623,10 +648,11 @@
   <div id="sh-wrap" hidden>
     <div id="sh" role="dialog" aria-modal="true">
       <div class="sh-grab"><span></span></div>
+      <div class="sh-walkhead" id="sh-walkhead" hidden><button type="button" class="sh-walk-back" id="sh-walk-back" aria-label="Back">←</button><span class="sh-walk-title" id="sh-walk-title"></span><button type="button" class="sh-walk-later" id="sh-walk-later">Later</button></div>
       <div class="sh-head"><div><div class="sh-title" id="sh-title"></div><div class="sh-sub" id="sh-sub"></div></div><button type="button" class="sh-done" id="sh-done">Done</button></div>
       <div class="sh-body" id="sh-body"></div>
       <div class="sh-walk" id="sh-walk" hidden>
-        <div class="sh-walk-segs" id="sh-walk-segs" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="sh-walk-segs" id="sh-walk-segs" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
         <div class="sh-walk-row"><button type="button" class="sh-walk-skip" id="sh-walk-skip">Skip</button><button type="button" class="sh-walk-go" id="sh-walk-go">Continue</button></div>
       </div>
     </div>
@@ -1077,6 +1103,17 @@
       }
       if (typeof shRepaintIf === 'function') { shRepaintIf('photos'); shRepaintIf('adjust'); }
       document.getElementById('mv-build').hidden = !any;
+      // T3 (First Run redlines, 2026-10-09): on the first run the model's
+      // CTA names the NEXT step — Find my style, the walk — and goes
+      // straight there; a Back to home link sits under it. A look's own
+      // return (Back to your look) outranks it.
+      if (!(mvReturnTo === 'lookbook' || mvReturnTo === 'home' || mvReturnTo === 'inspiration')) {
+        const nextStyle = sp.firstRun && !spStyleDone();
+        document.getElementById('mv-build').textContent = nextStyle ? 'Find my style' : 'Build a look';
+        document.getElementById('mv-build').dataset.next = nextStyle ? 'style' : 'look';
+        const home = document.getElementById('mv-home');
+        if (home) home.hidden = !(sp.firstRun && any);
+      }
       const note = document.getElementById('mv-status');
       let txt;
       if (hasColor && hasLine) txt = 'Two photographs read. ' + P.Shes + ' as close as ' + P.she + ' gets.';
@@ -1175,6 +1212,8 @@
     document.getElementById('mv-build').addEventListener('click', () => {
       if (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') { window.location.href = '/lookbook'; return; }
       if (mvReturnTo === 'home') { window.location.href = '/dashboard'; return; }
+      // the first run keeps moving: the model done, the next step is her style
+      if (document.getElementById('mv-build').dataset.next === 'style') { snTrack('twin_next', { to: 'style' }); spShow('root'); walkStart(); return; }
       try {
         sessionStorage.setItem('rb_model_build', '1');
         if (st.model && st.model.kept) sessionStorage.setItem('rb_model_open_look', '1');
@@ -1589,7 +1628,9 @@
        A card slides its page in; ‹ Settings takes it back; a row lifts a
        sheet titled with Done; the dimmed page closes it. */
     const PAGE_HASH = { root: '', account: '#account', twin: '#twin', dna: '#dna', obs: '#observations' };
-    const sp = { page: 'root', tab: 'style', pendingTab: null };
+    const sp = { page: 'root', tab: 'style', pendingTab: null, firstRun: false };
+    // the first run's steps as home reads them: her style answered?
+    function spStyleDone() { return !!((st.types && st.types.length) || (st.typesSoft && st.typesSoft.length) || (st.icons && st.icons.length) || (st.brands && st.brands.length)); }
     function spHashFor() { return sp.page === 'root' ? (sp.tab === 'account' ? '#account' : '') : PAGE_HASH[sp.page]; }
     function spShow(page, tab, back) {
       sp.page = page;
@@ -1909,10 +1950,21 @@
     // multi-select — the deck exists only on the walk.
     const DECK_COMMIT = 100;   // px — the look deck's threshold
     const deck = { order: [], at: 0, verdicts: 0, passed: [] };
-    function deckOpen() {
+    function deckOpen(all) {
       const decided = n => st.types.includes(n) || st.typesSoft.includes(n) || deck.passed.includes(n);
-      deck.order = ARCHETYPES.filter(a => !decided(a.name)).map(a => a.name);
+      if (all) deck.passed = [];
+      deck.order = ARCHETYPES.filter(a => all || !decided(a.name)).map(a => a.name);
       deck.at = 0; deck.verdicts = 0;
+    }
+    // the end state's rows move a type between Very you and Sometimes (S2:
+    // the two read as options she could not choose between)
+    function deckMove(name) {
+      if (st.types.includes(name)) { st.types = st.types.filter(x => x !== name); st.typesSoft.push(name); }
+      else if (st.typesSoft.includes(name)) { st.typesSoft = st.typesSoft.filter(x => x !== name); st.types.push(name); }
+      else return;
+      saveDna({ style_archetypes: st.types.slice(), style_archetypes_soft: st.typesSoft.slice() });
+      snTrack('style_type_set', { n: st.types.length });
+      shRepaint(); dnaPaint();
     }
     function deckVerdict(name, v) {
       st.types = st.types.filter(x => x !== name);
@@ -1933,9 +1985,17 @@
         kind: 'deck', title: 'Style type', sub: 'Swipe right for very you, left for not you. Robes reads the register.',
         body: () => {
           const name = deck.order[deck.at];
-          const warm = st.types.length ? '<div class="sh-k">Very you</div><div class="sh-pills">' + st.types.map(n => '<span class="sh-pill on">' + esc(n) + '</span>').join('') + '</div>' : '';
-          const soft = st.typesSoft.length ? '<div class="sh-k">Sometimes</div><div class="sh-pills">' + st.typesSoft.map(n => '<span class="sh-pill">' + esc(n) + '</span>').join('') + '</div>' : '';
-          if (!name) return '<div class="sh-deck-end"><div class="sh-empty">' + (deck.verdicts ? 'That’s the ten.' : 'Every type has an answer.') + ' Change any of them later under Style DNA.</div>' + warm + soft + '</div>';
+          const sub = document.getElementById('sh-sub');
+          // the sub speaks to the screen it is on: the gesture on a card, the rows on the end state (S2)
+          if (sub) { sub.textContent = name ? (sh.cfg && sh.cfg.sub) || '' : 'Tap a type to move it between Very you and Sometimes.'; sub.hidden = !sub.textContent; }
+          const pill = (n, on) => '<button type="button" class="sh-pill' + (on ? ' on' : '') + '" data-move="' + esc(n) + '">' + esc(n) + '</button>';
+          const warm = st.types.length ? '<div class="sh-k">Very you</div><div class="sh-pills">' + st.types.map(n => pill(n, true)).join('') + '</div>' : '';
+          const soft = st.typesSoft.length ? '<div class="sh-k">Sometimes</div><div class="sh-pills">' + st.typesSoft.map(n => pill(n, false)).join('') + '</div>' : '';
+          if (!name) {
+            const ten = deck.verdicts > 0 && deck.verdicts >= deck.order.length && deck.order.length === ARCHETYPES.length;
+            return '<div class="sh-deck-end"><div class="sh-empty">' + (ten ? 'That’s the ten.' : 'Every type has an answer.') + ' Change any of them later under Style DNA.</div>' + warm + soft +
+              '<div class="sh-deck-plenty"><button type="button" class="sh-deck-link" id="sh-deck-again">Go through the ten again →</button></div></div>';
+          }
           const a = ARCHETYPES.find(x => x.name === name);
           const next = deck.order[deck.at + 1];
           const tags = (BRAND_SEED[name] || []).map(b => '<span class="sh-deck-tag">' + esc(b) + '</span>').join('');
@@ -1952,6 +2012,8 @@
         wire: body => {
           const card = body.querySelector('#sh-deck-card');
           const plenty = body.querySelector('#sh-deck-plenty'); if (plenty) plenty.addEventListener('click', () => walkNext(false));
+          body.querySelectorAll('[data-move]').forEach(b => b.addEventListener('click', () => deckMove(b.dataset.move)));
+          const again = body.querySelector('#sh-deck-again'); if (again) again.addEventListener('click', () => { deckOpen(true); shRepaint(); });
           if (!card) return;
           const name = card.dataset.type;
           let done = false;
@@ -2124,17 +2186,19 @@
         },
       });
     }
-    /* ══ THE WALK · five cards after the first result (2026-10-08, five since 9 Oct) ══
-       The first-run door into the twin: ?walk=1 opens the type, the brands,
-       the icons, the investment level and the musts as one run on this sheet,
-       Skip on every card but the one must, Done landing on home with the
-       box open. Every card is a Settings sheet body already, so nothing
-       here writes anywhere new. */
+    /* ══ THE WALK · four cards (2026-10-08; five on 9 Oct; four since the redlines) ══
+       The first-run door into Style DNA: ?walk=1 opens the type deck, the
+       brands, the icons and the musts as one run on this sheet — full
+       screens on the phone, each with ← · title · Later — Skip on every
+       card, Done landing on home with the box open. Every card is a Settings
+       sheet body already, so nothing here writes anywhere new. */
+    // FOUR cards since the First Run redlines (2026-10-09, R1): the
+    // investment level and its required gate leave onboarding entirely —
+    // it lives under Style DNA in Settings, whenever she wants to set it.
     const WALK_TITLES = [
       ['Style type', 'Swipe right for very you, left for not you. Robes reads the register.'],
       ['Brands', 'Whose clothes do you reach for? Tap three.'],
       ['Icons', 'Whose style runs close to yours? Tap three.'],
-      ['Investment level', 'One tap, the only must. Robes proposes inside it, whatever you admire.'],
       ['Musts and hard nos', 'Anything Robes should always do, or never? Tap a chip and it is filed.'],
     ];
     const WALK_N = WALK_TITLES.length;
@@ -2142,7 +2206,7 @@
     function walkSnap() { const b = chBrief(); return { verdicts: deck.verdicts, brands: st.brands.length, icons: st.icons.length, invest: st.investment || '', lines: b.avoids.length + b.rules.length }; }
     function walkAnswered(i) {
       const a = walkSnap(), b = walk.snap || a;
-      return i === 0 ? a.verdicts !== b.verdicts : i === 1 ? a.brands !== b.brands : i === 2 ? a.icons !== b.icons : i === 3 ? !!a.invest : a.lines !== b.lines;
+      return i === 0 ? a.verdicts !== b.verdicts : i === 1 ? a.brands !== b.brands : i === 2 ? a.icons !== b.icons : a.lines !== b.lines;
     }
     function cfgMusts() {
       return {
@@ -2158,7 +2222,7 @@
     }
     function walkShow(i) {
       walk.at = i;
-      const base = i === 0 ? cfgDeck() : i === 1 ? cfgWall('brands') : i === 2 ? cfgWall('icons') : i === 3 ? cfgInvest() : cfgMusts();
+      const base = i === 0 ? cfgDeck() : i === 1 ? cfgWall('brands') : i === 2 ? cfgWall('icons') : cfgMusts();
       const cfg = Object.assign({}, base, { walk: i, title: WALK_TITLES[i][0], sub: WALK_TITLES[i][1], onClose: () => { if (base.onClose) base.onClose(); walkLeft(); } });
       walk.switching = true;
       shOpen(cfg);
@@ -2170,14 +2234,18 @@
       const foot = document.getElementById('sh-walk');
       const on = walk.on && sh.open && sh.cfg && typeof sh.cfg.walk === 'number';
       foot.hidden = !on;
+      document.getElementById('sh-walkhead').hidden = !on;
       document.getElementById('sh-wrap').classList.toggle('walking', !!on);
       if (!on) return;
       const i = sh.cfg.walk;
       document.querySelectorAll('#sh-walk-segs span').forEach((s, k) => s.classList.toggle('on', k <= i));
       const skip = document.getElementById('sh-walk-skip'), go = document.getElementById('sh-walk-go');
-      skip.hidden = i === 3;   // the investment level is the one must
+      skip.hidden = false;   // no must on the walk any more (R1) — every card skips
       go.textContent = i === WALK_N - 1 ? 'Done' : 'Continue';
-      go.disabled = i === 3 && !st.investment;
+      go.disabled = false;
+      // G3: the walk's own header row — ← · the card's title · Later
+      const wt = document.getElementById('sh-walk-title');
+      if (wt) wt.textContent = WALK_TITLES[i][0];
     }
     function walkNext(skip) {
       if (!walk.on) return;
@@ -2192,9 +2260,14 @@
       const n = Object.keys(walk.answered).filter(k => walk.answered[k]).length;
       snTrack('walk_done', { answered: n });
       walk.on = false;
-      try { sessionStorage.setItem('rb_walk_done', '1'); } catch (e) {}
       shClose(true);
       walkFootPaint();
+      // S1 (First Run redlines, 2026-10-09): the style filed, the twin still
+      // to come → it continues there, the toast saying what landed; a model
+      // on file → home, where the box opens under the walk's line.
+      const twinToCome = !(st.model && st.model.kept) && !st.colour && !st.sil;
+      if (twinToCome) { sp.firstRun = true; spShow('twin'); toast('Filed under Style DNA.'); return; }
+      try { sessionStorage.setItem('rb_walk_done', '1'); } catch (e) {}
       window.location.href = '/dashboard';
     }
     function walkLeft() {
@@ -2203,8 +2276,21 @@
       snTrack('walk_later', { from: 'walk', n: walk.at + 1 });
       walkFootPaint();
     }
+    // Later returns to HOME (G3) — what she answered stays; the door card
+    // there carries the step until she comes back.
+    function walkLater() {
+      if (!walk.on) return;
+      const n = walk.at + 1;
+      walk.on = false;
+      snTrack('walk_later', { from: 'walk', n, to: 'home' });
+      shClose(true);
+      walkFootPaint();
+      window.location.href = '/dashboard';
+    }
     document.getElementById('sh-walk-skip').addEventListener('click', () => walkNext(true));
     document.getElementById('sh-walk-go').addEventListener('click', () => walkNext(false));
+    document.getElementById('sh-walk-later').addEventListener('click', walkLater);
+    document.getElementById('sh-walk-back').addEventListener('click', () => { if (!walk.on) return; if (walk.at > 0) walkShow(walk.at - 1); else walkLater(); });
     window.__rbWalkStart = walkStart;
 
     document.getElementById('dna-type').addEventListener('click', shTypes);
@@ -2420,7 +2506,7 @@
         const u = new URL(window.location.href);
         if (u.searchParams.get('chapter') === 'brief') { landed = 'obs'; u.searchParams.delete('chapter'); }
         if (u.searchParams.get('begin') === '1') { landed = landed || 'root'; u.searchParams.delete('begin'); }
-        if (u.searchParams.get('page') === 'twin') { landed = 'twin'; u.searchParams.delete('page'); }
+        if (u.searchParams.get('page') === 'twin') { landed = 'twin'; u.searchParams.delete('page'); sp.firstRun = !spStyleDone(); }   // home's door card (First Run v2): the model CTA names the next step
         if (u.searchParams.get('walk') === '1') { landed = landed || 'root'; sp.walk = true; u.searchParams.delete('walk'); }
         if (landed) { history.replaceState(null, '', u.pathname + (u.search || '') + (landed === 'root' ? '' : landed === 'obs' ? '#observations' : '#twin')); snTrack('style_notes_opened', { from: 'home', to: landed }); }
       } catch (e) {}

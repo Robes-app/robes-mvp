@@ -113,11 +113,44 @@
        Five doors, one tap, no Continue, no ink. The whole card is the
        target; the serif line is the verb and the line beneath says what
        it buys her. "Not sure yet" lands on the lowest-effort door. */
-    .ob-doors { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
-    .ob-door { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; cursor: pointer; background: #fff; border: 1px solid var(--cream-300); border-radius: var(--rad-card); padding: 18px 20px; font-family: inherit; transition: border-color .2s var(--ease-default); }
+    .ob-doors { display: grid; grid-auto-rows: 1fr; gap: 10px; margin-top: 32px; }
+    .ob-door { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer; background: #fff; border: 1px solid var(--cream-300); border-radius: var(--rad-card); padding: 20px 18px 20px 20px; font-family: inherit; transition: border-color .2s var(--ease-default), background .2s var(--ease-default); }
     .ob-door:hover { border-color: var(--foreground); }
-    .ob-door .n { font-family: var(--font-serif); font-weight: 400; font-size: 22px; line-height: 1.1; color: var(--foreground); }
-    .ob-door .s { font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 15px; line-height: 1.3; color: var(--ink-soft); }
+    .ob-door.on { background: #F3EFE6; border-color: #C9BCA6; }
+    .ob-door .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+    .ob-door .n { font-family: var(--font-serif); font-weight: 400; font-size: 23px; line-height: 1.15; color: var(--foreground); }
+    /* the subline is sans, 13px — Cormorant stays above the 17px floor (G4) */
+    .ob-door .s { font-weight: 300; font-size: 13px; line-height: 1.5; color: var(--ink-soft); text-wrap: pretty; }
+    .ob-door .r { width: 22px; height: 22px; flex: none; border-radius: 50%; border: 1px solid var(--cream-400); display: flex; align-items: center; justify-content: center; }
+    .ob-door .r i { width: 8px; height: 8px; border-radius: 50%; background: transparent; }
+    .ob-door.on .r { border-color: #C9BCA6; }
+    .ob-door.on .r i { background: var(--foreground); }
+    .ob-cta.off { background: transparent; color: var(--ink-faint); opacity: 1; cursor: pointer; }
+    .ob-cta.off:hover { border-color: var(--cream-400); }
+    .ob-notsure { background: none; border: none; cursor: pointer; padding: 4px; font-weight: 300; font-size: 13px; color: var(--ink-soft); }
+    .ob-notsure:hover { color: var(--foreground); }
+    .ob-toast { position: fixed; left: 22px; right: 22px; bottom: 100px; display: flex; justify-content: center; pointer-events: none; opacity: 0; transform: translateY(10px); transition: all .3s var(--ease-default); z-index: 5; }
+    .ob-toast.on { opacity: 1; transform: none; }
+    .ob-toast span { background: #fff; border: 1px solid var(--cream-400); border-radius: 100px; padding: 12px 18px; font-size: 12px; box-shadow: 0 4px 18px rgba(32,32,33,.08); }
+
+    /* ── Dress me today: the prompt page (B6) — home's own header, the
+       greeting, the context line, one box. No +, no pills. ─────────── */
+    .ob-today-top { height: 54px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 1px solid var(--cream-400); }
+    .ob-today-wm { background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font-serif); font-weight: 400; font-size: 15px; letter-spacing: 0.42em; text-indent: 0.42em; text-transform: uppercase; color: var(--foreground); }
+    .ob-today-av { width: 34px; height: 34px; border-radius: 50%; background: var(--cream-100); border: 1px solid var(--cream-400); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-weight: 400; font-size: 15px; color: var(--foreground); cursor: pointer; padding: 0; }
+    .ob-today-body { flex: 1; padding: 34px 24px 0; display: flex; flex-direction: column; }
+    .ob-today-greet { font-family: var(--font-serif); font-weight: 300; font-size: 34px; line-height: 1.1; margin: 0; color: var(--foreground); }
+    .ob-today-sub { font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 19px; line-height: 1.3; color: var(--ink-soft); margin: 8px 0 0; }
+    .ob-today-ctx { margin-top: 18px; display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); }
+    .ob-today-ctx i { width: 3px; height: 3px; border-radius: 50%; background: var(--cream-400); }
+    .ob-today-box { flex: none; margin-top: 32px; display: flex; align-items: flex-end; gap: 12px; min-height: 120px; padding: 18px 7px 7px 22px; border: 1px solid var(--cream-400); border-radius: var(--rad-lg, 18px); background: #fff; }
+    .ob-today-ta { flex: 1; min-width: 0; align-self: stretch; border: 0; background: transparent; outline: none; resize: none; padding: 0; font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 19px; line-height: 1.35; color: var(--foreground); }
+    .ob-today-ta::placeholder { color: var(--ink-faint); }
+    /* the box IS the field: focus shows on its border, never a second ring inside it */
+    .ob-today-ta:focus-visible { outline: none; }
+    .ob-today-box:focus-within { border-color: var(--foreground); }
+    .ob-today-go { width: 46px; height: 46px; flex: none; border-radius: 50%; border: 1px solid var(--cream-400); background: transparent; color: var(--ink-faint); display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; transition: background .2s var(--ease-default), color .2s var(--ease-default); }
+    .ob-today-go.on { background: #fff; color: var(--foreground); }
 
     /* ── The first piece, read live on one page (1c) ───────────────── */
     .kp-well {
@@ -241,29 +274,31 @@
     'sb_publishable_D_iIPtp_R6kjN_711jfyTg_sFmRdpwJ'
   );
 
-  // Onboarding is splash → name → WHERE TO START → (the first piece →
-  // composing) → home. The intent fork (2026-10-08): testers dropped at the
-  // key-piece ask, so the piece stops being the presumed first step. Five
-  // doors (Annie, 9 Oct: a verb and what it buys her; the style notes and
-  // the digital twin as two doors, not one); only "Style a key piece"
-  // enters the piece step, the other four land on home with a handoff the
-  // dashboard boot reads (rb_onboard_intent) and open their first screen
-  // there — the walk for Define my style, the twin page for Build my
-  // digital twin.
+  // Onboarding is splash → name → WHERE SHALL WE BEGIN → (Dress me today's
+  // prompt page | the first piece → composing) → home. The intent fork
+  // (2026-10-08): testers dropped at the key-piece ask, so the piece stops
+  // being the presumed first step. Three doors since the First Run
+  // redlines (2026-10-09): Dress me today, Style a key piece, Find my
+  // style. Home does the rest of the onboarding — its one card always
+  // carries the next Getting-to-know-you step, ordered by the intent the
+  // dashboard boot reads off the handoff (rb_onboard_intent).
+  // THREE doors since the First Run redlines (2026-10-09, B2): the twin
+  // and the wardrobe are not starting options — the twin is the first home
+  // step anyway, and home's "Getting to know you" card carries the rest.
   const STEPS = ['keypiece'];
   const DOORS = [
-    { key: 'dress', n: 'Dress me today', s: 'Review and approve suggested looks for today.' },
-    { key: 'piece', n: 'Style a key piece', s: 'Discover three fresh ways to wear your favourite item.' },
-    { key: 'style', n: 'Define my style', s: 'Teach Robes what you love so every suggestion hits the mark.' },
-    { key: 'catalogue', n: 'Build my wardrobe', s: 'Start adding pieces so Robes can dress you with what you own.' },
-    { key: 'twin', n: 'Build my digital twin', s: 'Create your model to see and style your looks in real time.' },
+    { key: 'dress', n: 'Dress me today', s: 'A look for today, from the weather and your plans.' },
+    { key: 'piece', n: 'Style a key piece', s: 'One piece you love, worn three ways.' },
+    { key: 'style', n: 'Find my style', s: 'Tell Robes what feels like you.' },
   ];
 
   const st = {
     uid: null,
-    stage: 'splash',       // 'splash' | 'name' | 'intent' | 0 | 'compose'
+    stage: 'splash',       // 'splash' | 'name' | 'intent' | 'today' | 0 | 'compose'
     name: '',
-    intent: null,          // the door she picked: dress | style | catalogue | piece
+    intent: null,          // the door she picked: dress | piece | style
+    picked: null,          // the door selected on the fork, before Begin commits it
+    todayQ: '',            // her words on the Dress-me-today page
     savedName: '',
     icons: [],             // read from the profile for the prefire only — never asked here
     styleDna: {},
@@ -334,6 +369,7 @@
     if (st.stage === 'splash') return renderSplash();
     if (st.stage === 'name') return renderName();
     if (st.stage === 'intent') return renderIntent();
+    if (st.stage === 'today') return renderToday();
     if (st.stage === 'compose') return renderCompose();
     renderKeyPiece(st.stage);
   }
@@ -354,8 +390,10 @@
   }
 
   /* ── The cream frame (1b/1c): bar · three-segment rule · body · footer ── */
-  // segs = how many of the three segments are ink: 1 on the name, 2 on the
-  // piece, 3 once it is filed. Progress without a denominator.
+  // segs = how many of the segments are ink. ONE progress model (redline
+  // G1, 2026-10-09): a two-segment hairline on the name and the fork — 1
+  // then 2 — and after that the home card is the progress. The piece page
+  // (the one flow that stays) keeps its own three: 2 on the piece, 3 filed.
   function frame(cfg) {
     root.innerHTML = `
       <div class="flow-anim"><div class="ob-screen"><div class="ob-frame">
@@ -364,7 +402,7 @@
           <span class="ob-wm">Robes</span>
           <span class="ob-top-spacer"></span>
         </header>
-        <div class="ob-segs" aria-hidden="true">${[1, 2, 3].map(n => `<span class="ob-seg${n <= cfg.segs ? ' on' : ''}"></span>`).join('')}</div>
+        <div class="ob-segs" aria-hidden="true">${Array.from({ length: cfg.of || 2 }, (_, k) => k + 1).map(n => `<span class="ob-seg${n <= cfg.segs ? ' on' : ''}"></span>`).join('')}</div>
         <main class="ob-body${cfg.tight ? ' tight' : ''}" id="ob-body"></main>
         <footer class="ob-footer" id="ob-footer"></footer>
       </div></div></div>`;
@@ -379,9 +417,7 @@
     document.getElementById('ob-body').innerHTML = `
       <span class="ob-eyebrow">Hello</span>
       <h1 class="ob-title">What should Robes<br><em>call you?</em></h1>
-      <div class="ob-namefield"><input class="ob-namein" id="ob-name-input" type="text" placeholder="Your name" autocomplete="off" value="${esc(st.name)}"></div>
-      <p class="ob-sub">A name for your digital twin.</p>
-      <p class="ob-note">Robes sends a few notes over your first week. Stop them from any one.</p>`;
+      <div class="ob-namefield"><input class="ob-namein" id="ob-name-input" type="text" placeholder="Your first name" autocomplete="off" value="${esc(st.name)}"></div>`;
     document.getElementById('ob-footer').innerHTML =
       `<button class="ob-cta" id="ob-name-next" ${st.name.trim() ? '' : 'disabled'}>Continue</button>`;
     const input = document.getElementById('ob-name-input');
@@ -401,25 +437,43 @@
     setTimeout(() => input.focus(), 360);
   }
 
-  /* ── Where to start (the intent fork) ──────────────────────────── */
-  // One tap, no Continue, no ink. The pick writes style_dna.intent (jsonb,
-  // no migration) and a PostHog person property, so home's next line and
-  // the walk's card order can follow it; the dashboard boot reads the
-  // sessionStorage handoff to open the door's first screen. "Not sure yet"
-  // lands on Dress me today — the lowest-effort door, since the cost
-  // of the piece ask is the thing the fork removes.
+  /* ── Where shall we begin? (the intent fork) ───────────────────── */
+  // Three doors, select then commit (B3): a tap selects the card (the warm
+  // fill, the radio's dot), the hairline Begin pill commits. The pick writes
+  // style_dna.intent (jsonb, no migration) and a PostHog person property —
+  // home orders its Getting-to-know-you steps by it — and the dashboard
+  // boot reads the sessionStorage handoff. Begin routes by intent (B5):
+  // Dress me today → its own prompt page; Style a key piece → the piece
+  // flow, unchanged; Find my style → home, Style DNA the first door.
+  // "Not sure yet. Show me around" sets Dress me today and goes home.
+  let toastTimer = null;
+  function toast(msg) {
+    let el = document.getElementById('ob-toast');
+    if (!el) { el = document.createElement('div'); el.className = 'ob-toast'; el.id = 'ob-toast'; document.body.appendChild(el); }
+    el.innerHTML = '<span>' + esc(msg) + '</span>';
+    el.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('on'), 2400);
+  }
   function renderIntent() {
     frame({ segs: 2, back: () => go('name') });
     const n = firstName();
     document.getElementById('ob-body').innerHTML = `
       <div class="ob-head">
-        <span class="ob-eyebrow">${n ? esc(n) + '’s first visit' : 'Your first visit'}</span>
-        <h1 class="ob-title">Where would you<br><em>like to start?</em></h1>
+        <span class="ob-eyebrow">${n ? 'Welcome, ' + esc(n) : 'Welcome'}</span>
+        <h1 class="ob-title">Where shall<br><em>we begin?</em></h1>
       </div>
-      <div class="ob-doors" id="ob-doors">${DOORS.map(d => `
-        <button type="button" class="ob-door" data-door="${d.key}"><span class="n">${esc(d.n)}</span><span class="s">${esc(d.s)}</span></button>`).join('')}</div>`;
-    document.getElementById('ob-footer').innerHTML = `<button class="ob-skip" id="ob-notsure">Not sure yet</button>`;
-    document.querySelectorAll('#ob-doors .ob-door').forEach(b => b.addEventListener('click', () => pickDoor(b.dataset.door, false)));
+      <div class="ob-doors" id="ob-doors" role="radiogroup">${DOORS.map(d => `
+        <button type="button" class="ob-door${st.picked === d.key ? ' on' : ''}" role="radio" aria-checked="${st.picked === d.key}" data-door="${d.key}"><span class="t"><span class="n">${esc(d.n)}</span><span class="s">${esc(d.s)}</span></span><span class="r"><i></i></span></button>`).join('')}</div>`;
+    document.getElementById('ob-footer').innerHTML =
+      `<button class="ob-cta${st.picked ? '' : ' off'}" id="ob-begin">Begin</button>` +
+      `<button class="ob-notsure" id="ob-notsure">Not sure yet. Show me around</button>`;
+    document.querySelectorAll('#ob-doors .ob-door').forEach(b => b.addEventListener('click', () => {
+      st.picked = b.dataset.door;
+      document.querySelectorAll('#ob-doors .ob-door').forEach(x => { const on = x.dataset.door === st.picked; x.classList.toggle('on', on); x.setAttribute('aria-checked', String(on)); });
+      document.getElementById('ob-begin').classList.remove('off');
+    }));
+    document.getElementById('ob-begin').onclick = () => { if (!st.picked) { toast('Choose where to begin.'); return; } pickDoor(st.picked, false); };
     document.getElementById('ob-notsure').onclick = () => pickDoor('dress', true);
   }
   function pickDoor(key, notSure) {
@@ -433,7 +487,78 @@
     obTrack('onboarding_step', { step: 'intent', outcome: notSure ? 'skipped' : 'answered' });
     try { if (window.__rbPH) window.__rbPH(function (ph) { if (ph.setPersonProperties) ph.setPersonProperties({ intent: key }); }); } catch (e) {}
     if (key === 'piece') { st.picking = false; go(0); return; }
+    if (key === 'dress' && !notSure) { st.picking = false; go('today'); return; }
     finishToDashboard();
+  }
+
+  /* ── Dress me today (B6) ─────────────────────────────────────────── */
+  // The production home header (the wordmark, her initial), the greeting,
+  // the italic question, the context line, one box. Her words ride the
+  // handoff (rb_onboard_prompt) — the dashboard sends them through its own
+  // box the moment home boots, so Robes composes the look there. No +,
+  // no suggestion pills: one ask, then home.
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function todayPart() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; }
+  // The city and the temperature only when the browser already knows where
+  // she is — the page never asks for location mid-flow (the dashboard
+  // asks, once, on its own masthead).
+  function todayCtx(el) {
+    try {
+      if (!navigator.permissions || !navigator.geolocation) return;
+      navigator.permissions.query({ name: 'geolocation' }).then(res => {
+        if (res.state !== 'granted') return;
+        navigator.geolocation.getCurrentPosition(async pos => {
+          try {
+            const { latitude: lat, longitude: lon } = pos.coords;
+            const [wx, geo] = await Promise.all([
+              fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`).then(r => r.json()).catch(() => null),
+              fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`).then(r => r.json()).catch(() => null),
+            ]);
+            const a = (geo && geo.address) || {};
+            const city = a.city || a.town || a.village || a.county || '';
+            const temp = wx && wx.current_weather && typeof wx.current_weather.temperature === 'number' ? Math.round(wx.current_weather.temperature) + '°C' : '';
+            if (st.stage !== 'today' || !el.isConnected) return;
+            el.innerHTML = [DAYS[new Date().getDay()], city, temp].filter(Boolean).map(esc).join('<i></i>');
+          } catch (e) {}
+        }, () => {}, { timeout: 4000, maximumAge: 600000 });
+      }).catch(() => {});
+    } catch (e) {}
+  }
+  function renderToday() {
+    const n = firstName();
+    root.innerHTML = `
+      <div class="flow-anim"><div class="ob-screen"><div class="ob-frame">
+        <header class="ob-today-top">
+          <button type="button" class="ob-today-wm" id="ob-today-back" aria-label="Back">Robes</button>
+          <button type="button" class="ob-today-av" id="ob-today-home" aria-label="Skip to home">${esc((n[0] || 'R').toUpperCase())}</button>
+        </header>
+        <main class="ob-today-body">
+          <h1 class="ob-today-greet">${esc(todayPart())}${n ? ', ' + esc(n) : ''}.</h1>
+          <p class="ob-today-sub">What are you dressing for today?</p>
+          <div class="ob-today-ctx" id="ob-today-ctx">${esc(DAYS[new Date().getDay()])}</div>
+          <div class="ob-today-box">
+            <textarea class="ob-today-ta" id="ob-today-q" rows="3" placeholder="A new look for…" maxlength="240">${esc(st.todayQ)}</textarea>
+            <button type="button" class="ob-today-go${st.todayQ.trim() ? ' on' : ''}" id="ob-today-go" aria-label="Ask Robes">→</button>
+          </div>
+        </main>
+      </div></div></div>`;
+    const ta = document.getElementById('ob-today-q'), goBtn = document.getElementById('ob-today-go');
+    ta.oninput = () => { st.todayQ = ta.value; goBtn.classList.toggle('on', !!ta.value.trim()); };
+    ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } };
+    const submit = () => {
+      const q = (st.todayQ || '').trim();
+      if (!q) { toast('Tell Robes what you’re dressing for.'); ta.focus(); return; }
+      if (st.picking) return;
+      st.picking = true;
+      try { sessionStorage.setItem('rb_onboard_prompt', q.slice(0, 240)); } catch (e) {}
+      obTrack('onboarding_step', { step: 'today', outcome: 'answered' });
+      finishToDashboard();
+    };
+    goBtn.onclick = submit;
+    document.getElementById('ob-today-back').onclick = () => go('intent');
+    document.getElementById('ob-today-home').onclick = () => { obTrack('onboarding_step', { step: 'today', outcome: 'skipped' }); finishToDashboard(); };
+    todayCtx(document.getElementById('ob-today-ctx'));
+    setTimeout(() => ta.focus(), 360);
   }
 
   /* ── Photo capture helpers ───────────────────────────────────────── */
@@ -516,7 +641,7 @@
     // foot of this function — a let would be in the temporal dead zone.
     var skipArmed = false;
 
-    frame({ segs: P.tag ? 3 : 2, tight: true, back: () => go('intent') });
+    frame({ segs: P.tag ? 3 : 2, of: 3, tight: true, back: () => go('intent') });
 
     function eyebrow() {
       if (P.tag) return 'Filed';

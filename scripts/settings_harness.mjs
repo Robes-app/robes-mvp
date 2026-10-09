@@ -517,6 +517,11 @@ console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, t
   await d.ctx.close();
   const e = await open(vp, 'empty', { path: '?page=twin&from=email' });
   ok(await e.p.locator('#pg-twin').isVisible() && !/from=|page=/.test(e.p.url()), '?page=twin&from=email (the look_waiting mail) lands on the twin with the params stripped');
+  // T3: from home's door card with the style still to come, the model's CTA names the next step and goes straight there
+  await e.p.click('#mv-shape-rows [data-axis="skin"][data-v="0"]'); await e.p.waitForTimeout(1300);
+  ok((await txt(e.p, '#mv-build')).toLowerCase() === 'find my style' && await e.p.locator('#mv-home').isVisible(), 'the first run: the model filed → the CTA reads Find my style, Back to home under it (T3)');   // .mv-build is CSS-uppercased
+  await e.p.click('#mv-build'); await e.p.waitForTimeout(400);
+  ok(await e.p.locator('#sh-wrap').isVisible() && (await e.p.evaluate(() => document.getElementById('sh-wrap').classList.contains('walking'))) && (await txt(e.p, '#sh-walk-title')) === 'Style type', 'Find my style opens the walk in place');
   await e.ctx.close();
   const f = await open(vp, 'empty', { hash: '#account' });
   ok(await f.p.locator('#tab-account').isVisible(), '#account opens the Account tab');
@@ -547,7 +552,7 @@ console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, t
   ok(a.errs.length + b.errs.length + c.errs.length + d.errs.length + e.errs.length + f.errs.length + g.errs.length === 0, 'no page errors across the doors');
 }
 
-console.log('\n\x1b[1m== the walk — five cards after the first result (?walk=1) ==\x1b[0m');
+console.log('\n\x1b[1m== the walk — four cards (?walk=1), full screens on the phone ==\x1b[0m');
 for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
   const { ctx, p, errs, upd } = await open(vp, 'empty', { path: '?walk=1' });
   await p.waitForTimeout(400);
@@ -556,8 +561,12 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok((await txt(p, '#sh-title')) === 'Style type' && await p.locator('#sh-body .sh-deck-card').count() === 1 && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Minimal' && (await txt(p, '#sh-deck-card .k')).toLowerCase() === '1 of 10' && await p.locator('#sh-body [data-type]').count() === 1, label + ': card 1 is the DECK — one type at a time, Minimal first, 1 of 10');
   ok((await p.locator('#sh-deck-card .sh-deck-tag').allInnerTexts()).join() === 'The Row,Phoebe Philo,Lemaire,COS,Jil Sander' && await p.locator('#sh-deck-card img').count() === 0 && await p.locator('#sh-body .sh-deck-under').count() === 1, label + ': its houses as brand tags, no stills, the next card peeking beneath');
   ok((await p.locator('#sh-deck-card [data-v]').allInnerTexts()).map(t => t.trim().toLowerCase()).join('|') === '← not me|very me →' && (await txt(p, '#sh-body .sh-deck-soft button')) === 'Sometimes' && await p.locator('#sh-deck-plenty').count() === 0, label + ': Not me · Very me on the card, Sometimes small beneath, no plenty door yet');
-  ok(await p.locator('#sh-walk').isVisible() && await p.locator('#sh-walk-segs span.on').count() === 1 && await p.locator('#sh-walk-skip').isVisible() && (await p.locator('#sh-walk-go').textContent()).trim() === 'Continue' && await p.locator('#sh-done').isHidden(), label + ': the five-segment rule, Skip, Continue — no Done link');
-  ok((await p.locator('#sh-walk-go').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgb(32, 32, 33)' && (await p.locator('#sh-body button, #sh-walk button').evaluateAll(bs => bs.filter(b => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' && b.getClientRects().length).length)) === 1, label + ': Continue is the one ink');
+  ok(await p.locator('#sh-walk').isVisible() && await p.locator('#sh-walk-segs span').count() === 4 && await p.locator('#sh-walk-segs span.on').count() === 1 && await p.locator('#sh-walk-skip').isVisible() && (await p.locator('#sh-walk-go').textContent()).trim() === 'Continue' && await p.locator('#sh-done').isHidden(), label + ': the four-segment rule, Skip, Continue — no Done link');
+  ok((await p.locator('#sh-walk-go').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgb(255, 255, 255)' && (await p.locator('#sh-body button, #sh-walk button').evaluateAll(bs => bs.filter(b => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' && b.getClientRects().length).length)) === 0, label + ': Continue is a hairline pill — no ink on the walk (G2)');
+  // G3: the walk's header row — ← · the card's title · Later; full screen on the phone
+  const head = await p.evaluate(() => { const h = document.getElementById('sh-walkhead'); const sh = document.getElementById('sh'); const r = sh.getBoundingClientRect(); return { shown: !!h && getComputedStyle(h).display === 'grid', back: h?.querySelector('#sh-walk-back')?.textContent.trim(), title: h?.querySelector('#sh-walk-title')?.textContent.trim(), later: h?.querySelector('#sh-walk-later')?.textContent.trim(), sheetTitleHidden: getComputedStyle(document.getElementById('sh-title')).display === 'none', radius: getComputedStyle(sh).borderTopLeftRadius, top: Math.round(r.top), h: Math.round(r.height), vh: window.innerHeight, scrim: getComputedStyle(document.getElementById('sh-wrap')).backgroundColor }; });
+  ok(head.shown && head.back === '←' && head.title === 'Style type' && head.later === 'Later' && head.sheetTitleHidden, label + ': the header row — ←, the card’s title, Later — the sheet’s own title standing down: ' + JSON.stringify(head));
+  if (vp.width < 768) ok(head.top === 0 && head.h === head.vh && head.radius === '0px' && head.scrim === 'rgb(250, 248, 245)', label + ': a full screen on the phone — no sheet, no scrim, no rounding: ' + JSON.stringify(head));
   ok((await ev()).some(e => /^walk_begun/.test(e)), label + ': walk_begun');
   // Very me by the button, Sometimes by its door, Not me by a drag past 100px
   await p.click('#sh-deck-card [data-v="very"]'); await p.waitForTimeout(400);
@@ -578,7 +587,10 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(await p.locator('#sh-deck-plenty').count() === 1 && (await txt(p, '#sh-deck-plenty')) === 'That’s plenty →', label + ': three verdicts open the plenty door');
   ok(await p.locator('#sh-body .sh-pill.on').count() === 1 && (await txt(p, '#sh-body .sh-pill.on')) === 'Minimal', label + ': the kept types read back under the deck');
   await p.click('#sh-walk-go'); await p.waitForTimeout(300);
-  ok((await txt(p, '#sh-title')) === 'Brands' && await p.locator('#sh-walk-segs span').count() === 5 && await p.locator('#sh-walk-segs span.on').count() === 2, label + ': card 2 — Brands on its own, two of five segments lit');
+  ok((await txt(p, '#sh-walk-title')) === 'Brands' && await p.locator('#sh-walk-segs span').count() === 4 && await p.locator('#sh-walk-segs span.on').count() === 2, label + ': card 2 — Brands on its own, two of four segments lit');
+  await p.click('#sh-walk-back'); await p.waitForTimeout(300);
+  ok((await txt(p, '#sh-walk-title')) === 'Style type' && await p.locator('#sh-walk-segs span.on').count() === 1, label + ': ← steps back a card');
+  await p.click('#sh-walk-go'); await p.waitForTimeout(300);
   ok((await ev()).some(e => /^walk_card \{"n":1,"outcome":"answered"\}/.test(e)), label + ': card 1 logged as answered');
   ok(await p.locator('#walk-tabs').count() === 0 && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18 && (await p.locator('#sh-body .sh-pill:not(.on)').first().innerText()).trim() === 'The Row' && await p.locator('#sh-body .sh-more-note').count() === 0, label + ': no tabs, 18 pills, the picked type’s houses leading, no pool count');
   await p.click('#sh-body .sh-pill[data-name="The Row"]'); await p.waitForTimeout(250);
@@ -590,15 +602,12 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await p.click('#wall-suggest .sh-pill[data-name="COS"]'); await p.waitForTimeout(250);
   ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Phoebe Philo,Lemaire,COS' && (await p.locator('#wall-suggest .sh-pill').allInnerTexts()).join() === 'Jil Sander', label + ': a suggested name keeps like any other and the row follows');
   await p.click('#sh-walk-go'); await p.waitForTimeout(300);
-  ok((await txt(p, '#sh-title')) === 'Icons' && await p.locator('#sh-walk-segs span.on').count() === 3 && /Clean-girl minimal/.test(await txt(p, '#sh-body')), label + ': card 3 — Icons on its own card, carrying the tags');
+  ok((await txt(p, '#sh-walk-title')) === 'Icons' && await p.locator('#sh-walk-segs span.on').count() === 3 && /Clean-girl minimal/.test(await txt(p, '#sh-body')), label + ': card 3 — Icons on its own card, carrying the tags');
   await p.click('#sh-body .sh-pill[data-name="Hailey Bieber"]'); await p.waitForTimeout(250);
   ok((await upd('u.style_icons')).style_icons.join() === 'Hailey Bieber', label + ': an icon kept from the walk');
   await p.click('#sh-walk-go'); await p.waitForTimeout(300);
-  ok((await txt(p, '#sh-title')) === 'Investment level' && await p.locator('#sh-walk-skip').isHidden() && await p.locator('#sh-walk-go').isDisabled(), label + ': card 4 — the one must: no Skip, Continue cream until picked');
-  await p.click('#sh-body [data-level="Under €500"]'); await p.waitForTimeout(250);
-  ok(!(await p.locator('#sh-walk-go').isDisabled()) && (await upd('u.annual_spend')).annual_spend === 'Under €500', label + ': a level picked turns Continue ink and writes');
-  await p.click('#sh-walk-go'); await p.waitForTimeout(300);
-  ok((await txt(p, '#sh-title')) === 'Musts and hard nos' && (await p.locator('#sh-walk-go').textContent()).trim() === 'Done' && await p.locator('#sh-body [data-chip]').count() === 8 && await p.locator('#sh-walk-segs span.on').count() === 5, label + ': card 5 — eight chips, Done as the ink, every segment lit');
+  ok((await txt(p, '#sh-walk-title')) === 'Musts and hard nos' && (await p.locator('#sh-walk-go').textContent()).trim() === 'Done' && await p.locator('#sh-body [data-chip]').count() === 8 && await p.locator('#sh-walk-segs span.on').count() === 4 && await p.locator('#sh-walk-skip').isVisible(), label + ': card 4 — the musts: eight chips, Done, every segment lit, Skip still there (no investment card, no must — R1)');
+  ok(await p.locator('#sh-body [data-level]').count() === 0 && !(await p.evaluate(() => window.__updates.some(u => u.annual_spend))), label + ': the investment level never asked on the walk');
   ok((await p.locator('#sh-body [data-list="avoids"]').evaluateAll(es => es.map(e => e.dataset.chip))).join() === 'Heels,Polo necks,Metals,Sheer,Prints', label + ': the Never chips read bare — Heels, Polo necks, Metals, Sheer, Prints');
   const rows = await p.locator('#sh-body .sh-k').evaluateAll(es => es.map(e => e.textContent.trim()));
   ok(/^Always/.test(rows[0]) && /^Never/.test(rows[1]), label + ': Always above Never');
@@ -609,9 +618,11 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids[0].text === 'Heels' && await p.locator('#sh-body [data-chip].on').count() === 2, label + ': Heels files as a hard no; both chips warm');
   await p.click('#sh-body [data-chip="Heels"]'); await p.waitForTimeout(250);
   ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids.length === 0, label + ': a second tap strikes it');
-  await p.click('#sh-walk-go');
-  await p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
-  ok(/\/dashboard$/.test(p.url()) && (await p.evaluate(() => sessionStorage.getItem('rb_walk_done'))) === '1', label + ': Done lands on home with the walk’s handoff');
+  await p.click('#sh-walk-go'); await p.waitForTimeout(500);
+  ok(await p.locator('#pg-twin').isVisible() && await p.locator('#sh-wrap').isHidden() && /Filed under Style DNA\./.test(await txt(p, '#sp-toast')) && (await p.evaluate(() => sessionStorage.getItem('rb_walk_done'))) === null && !/\/dashboard/.test(p.url()), label + ': Done with the twin still to come continues to the twin page under the toast "Filed under Style DNA." (S1)');
+  // the twin done next → the model CTA reads the next step, Build a look, with Back to home beneath (T3)
+  await p.click('#mv-shape-rows [data-axis="skin"][data-v="0"]'); await p.waitForTimeout(1300);
+  ok(await p.locator('#mv-build').isVisible() && (await txt(p, '#mv-build')).toLowerCase() === 'build a look' && await p.locator('#mv-home').isVisible() && (await txt(p, '#mv-home')) === 'Back to home', label + ': the model filed with the style done — the CTA reads Build a look, Back to home beneath');
   ok(errs.length === 0, label + ': no page errors: ' + errs.join(' | '));
   await ctx.close();
 }
@@ -620,7 +631,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   const { ctx, p, errs } = await open({ width: 1280, height: 900 }, 'empty', { path: '?walk=1' });
   await p.waitForTimeout(400);
   await p.click('#sh-walk-skip'); await p.waitForTimeout(250);
-  ok((await txt(p, '#sh-title')) === 'Brands' && (await p.evaluate(() => window.__events.some(e => e.event_type === 'walk_card' && e.metadata.n === 1 && e.metadata.outcome === 'skipped'))), 'Skip moves on and logs the card as skipped');
+  ok((await txt(p, '#sh-walk-title')) === 'Brands' && (await p.evaluate(() => window.__events.some(e => e.event_type === 'walk_card' && e.metadata.n === 1 && e.metadata.outcome === 'skipped'))), 'Skip moves on and logs the card as skipped');
   await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   ok(await p.locator('#sh-wrap').isHidden() && await p.locator('#pg-root').isVisible() && (await p.evaluate(() => window.__events.some(e => e.event_type === 'walk_later' && e.metadata.n === 2))), 'Escape leaves the walk on Settings and logs walk_later with the card');
   ok((await p.evaluate(() => sessionStorage.getItem('rb_walk_done'))) === null, 'no handoff without Done');
@@ -632,6 +643,28 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await p.keyboard.press('Escape'); await p.waitForTimeout(250);
   await p.click('#dna-type'); await p.waitForTimeout(300);
   ok(await p.locator('#sh-body [data-type]').count() === 10 && await p.locator('#sh-body .sh-deck-card').count() === 0, 'Settings keeps the ten as a multi-select sheet, no deck');
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+{
+  // S2: the deck's end state — her types already on file open the deck
+  // on what is left; the kept rows are the control (tap to move a type
+  // between Very you and Sometimes), the sub says so, the ten can run again.
+  const { ctx, p, errs, upd } = await open({ width: 390, height: 844 }, 'empty', { path: '?walk=1', row: { style_dna: { style_archetypes: ['Minimal', 'Bohemian', 'Classic', 'Romantic', 'Sculptural', 'Utility', 'Heritage', 'Eclectic'], style_archetypes_soft: ['Off-duty', 'Avant-garde'] } } });
+  await p.waitForTimeout(400);
+  const end = await p.evaluate(() => ({ card: !!document.querySelector('#sh-deck-card'), line: document.querySelector('#sh-body .sh-empty')?.textContent.trim(), sub: document.getElementById('sh-sub')?.textContent.trim(), very: Array.from(document.querySelectorAll('#sh-body .sh-pill.on')).map(b => b.textContent.trim()), soft: Array.from(document.querySelectorAll('#sh-body .sh-pill:not(.on)')).map(b => b.textContent.trim()), again: document.getElementById('sh-deck-again')?.textContent.trim() }));
+  ok(!end.card && /^Every type has an answer\./.test(end.line || '') && end.sub === 'Tap a type to move it between Very you and Sometimes.' && end.very.length === 8 && end.soft.join() === 'Off-duty,Avant-garde' && end.again === 'Go through the ten again →', 'every type decided → the end state, honest (never "That’s the ten" over what she set before), the rows as the control: ' + JSON.stringify(end));
+  await p.click('#sh-body .sh-pill[data-move="Minimal"]'); await p.waitForTimeout(300);
+  const mv = await upd('u.style_dna && u.style_dna.style_archetypes_soft');
+  ok(mv.style_dna.style_archetypes.length === 7 && mv.style_dna.style_archetypes_soft.join() === 'Off-duty,Avant-garde,Minimal' && await p.locator('#sh-body .sh-pill:not(.on)[data-move="Minimal"]').count() === 1, 'a tap on a Very-you type moves it to Sometimes and writes');
+  await p.click('#sh-body .sh-pill[data-move="Off-duty"]'); await p.waitForTimeout(300);
+  ok((await upd('u.style_dna && u.style_dna.style_archetypes.includes("Off-duty")')).style_dna.style_archetypes.includes('Off-duty'), 'a tap on a Sometimes type moves it to Very you');
+  await p.click('#sh-deck-again'); await p.waitForTimeout(300);
+  ok(await p.locator('#sh-deck-card').count() === 1 && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Minimal' && (await txt(p, '#sh-deck-card .k')).toLowerCase() === '1 of 10', 'Go through the ten again opens the deck on all ten');
+  // Later returns to HOME (G3) — what she answered stays
+  await p.click('#sh-walk-later');
+  await p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
+  ok(/\/dashboard$/.test(p.url()), 'Later lands on home (G3)');   // the stub dashboard holds no __events — the walk_later write precedes the navigation
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
   await ctx.close();
 }

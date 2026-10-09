@@ -319,13 +319,32 @@
         if (obIntent) sessionStorage.removeItem('rb_onboard_intent');
         var walkDone = !!sessionStorage.getItem('rb_walk_done');
         if (walkDone) sessionStorage.removeItem('rb_walk_done');
-        if (obIntent === 'style') {
-          window.location.replace('/settings?walk=1');
-        } else if (obIntent === 'twin') {
+        var obPrompt = sessionStorage.getItem('rb_onboard_prompt');
+        if (obPrompt) sessionStorage.removeItem('rb_onboard_prompt');
+        // First Run v2 (2026-10-09): Find my style lands HOME — the door card
+        // leads with Style DNA (B5); the twin page is a home step, never a
+        // landing. Dress me today's words ride the handoff and go through
+        // home's own box the moment it stands: Robes composes the look here.
+        if (obIntent === 'twin') {
           window.location.replace('/settings?page=twin');
-        } else if (obIntent === 'dress' || walkDone) {
+        } else if (obIntent === 'dress' && obPrompt) {
+          var obTries = 0;
+          var obSend = function() {
+            obTries++;
+            var ready = !!document.getElementById('rb-hb') && window._rbHbOn && window._rbHbOn() && typeof window.__rbHbOpen === 'function' && typeof window.__rbLpSend === 'function';
+            if (!ready) { if (obTries < 30) setTimeout(obSend, 250); return; }
+            try {
+              window.__rbHbOpen({ text: obPrompt });
+              setTimeout(function() {
+                try { window.__rbLpSend(); _waShowToast('Robes is composing your look.'); } catch (e) {}
+              }, 120);
+            } catch (e) {}
+          };
+          setTimeout(obSend, 1700);
+        } else if (walkDone) {
           setTimeout(function() {
-            if (walkDone) _rbWalkLine();
+            _rbWalkLine();
+            try { _waShowToast('Filed under Style DNA.'); } catch (e) {}
             try { if (window._rbHbOn && window._rbHbOn() && typeof window.__rbHbOpen === 'function') { window.__rbHbOpen(); return; } } catch (e) {}
             try { if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt(); } catch (e) {}
             var ta0 = document.getElementById('cb-ta');
@@ -334,7 +353,7 @@
         } else if (obIntent === 'catalogue') {
           setTimeout(function() { try { if (typeof _wtrkOpenAdd === 'function') _wtrkOpenAdd(); } catch (e) {} }, 1700);
         }
-        if (obIntent) _rbTrack('onboarding_landed', { intent: obIntent });
+        if (obIntent) _rbTrack('onboarding_landed', { intent: obIntent, prompt: !!obPrompt });
       } catch (e) { /* storage blocked — home as it is */ }
 
       // Time-based greeting
@@ -377,6 +396,9 @@
       // Built from window.__rbCtx once geolocation + forecast land; stays
       // hidden until at least day + one of city/temp is known.
       const mWxEl = document.getElementById('dash-wx-m');
+      // H7 (First Run redlines, 2026-10-09): the context line sits ABOVE the
+      // greeting — "Friday · Dublin · 14°C" — with no cloud emoji.
+      try { const g = document.getElementById('dash-greet'); if (mWxEl && g && g.parentNode === mWxEl.parentNode) mWxEl.parentNode.insertBefore(mWxEl, g); } catch (_) {}
       function _rbSyncMobileWx(code) {
         if (!mWxEl) return;
         const day = DAYS[new Date().getDay()];
@@ -385,13 +407,13 @@
         const parts = [day, city, temp].filter(Boolean);
         if (parts.length < 2) { mWxEl.classList.remove('on'); return; }
         mWxEl.textContent = '';
-        const icon = (code !== undefined && WX_ICONS[code]) || '';
-        if (icon) { const s = document.createElement('span'); s.className = 'wx'; s.textContent = icon; mWxEl.appendChild(s); }
         parts.forEach((p, i) => {
-          if (i > 0 || icon) { const d = document.createElement('span'); d.className = 'dot'; mWxEl.appendChild(d); }
+          if (i > 0) { const d = document.createElement('span'); d.className = 'dot'; mWxEl.appendChild(d); }
           const s = document.createElement('span'); s.textContent = p; mWxEl.appendChild(s);
         });
         mWxEl.classList.add('on');
+        // the look door names the day's temperature — repaint it as the forecast lands
+        try { if (typeof _rbGtkySync === 'function' && document.getElementById('rb-gtky')) _rbGtkySync(); } catch (_) {}
       }
 
       function layerHint(tmin, tmax, code) {
@@ -2185,6 +2207,18 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // The question card (cut C, 2026-10-09) takes the invitation's slot
         // once it has retired — the two never stand together.
         const twin = document.getElementById('rb-twin-card');
+        // Getting to know you (2026-10-09): the styled card (when the piece
+        // flow left one), the door card + list, then the box under "Or ask
+        // Robes" — and nothing else on the page.
+        const gtky = document.getElementById('rb-gtky');
+        if (gtky) {
+          const seqG = [styled, gtky, hb && hb.parentNode === dash ? hb : null, conc].filter(Boolean);
+          seqG.forEach((el, i) => {
+            const prev = i === 0 ? mast : seqG[i - 1];
+            if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
+          });
+          return;
+        }
         // FTU simplification (2026-08-18): while the quiet index rows carry
         // home, the modules they demote live INSIDE the rows and are never
         // resequenced at dash level. Zero looks (W01/O1) → styled card +
@@ -2366,7 +2400,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // 2026-09-25: the band is the wardrobe tracker alone now, so it no
         // longer retires once she has made a daily look and a travel edit —
         // only at the ladder's last rung.
-        const show = !document.getElementById('rb-styled') && _rbHomeMode !== 'look' && n < _WA_TARGET;
+        const show = !document.getElementById('rb-styled') && _rbHomeMode !== 'look' && _rbHomeMode !== 'gtky' && n < _WA_TARGET;
         svc.style.display = show ? '' : 'none';
         if (show) {
           _rbConciergeSync(n);
@@ -17431,9 +17465,12 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
             // The home model door (slice 2) stands or retires on the id —
             // then takes its slot in the sequence.
             if (document.getElementById('dash') && typeof _rbModelDoorSync === 'function') {
-              if (typeof _rbNotesDoorSync === 'function') _rbNotesDoorSync();
-              _rbModelDoorSync();
-              if (typeof _rbFtueOrder === 'function') _rbFtueOrder((_waItems || []).length);
+              if (typeof _lkHomeSync === 'function') _lkHomeSync();   // the door card, the notes door, the model door — one decision
+              else {
+                if (typeof _rbNotesDoorSync === 'function') _rbNotesDoorSync();
+                _rbModelDoorSync();
+                if (typeof _rbFtueOrder === 'function') _rbFtueOrder((_waItems || []).length);
+              }
             }
             // A day editing its saved look dresses her model too.
             try {
@@ -20689,7 +20726,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // the card, the dashed Style-notes door and nothing else. The
         // prompt and the rows return the moment the card collapses (See the
         // full looks tapped, or a returning session): the zero-lead posture.
-        if (conc) conc.style.display = mode === 'zero' ? 'none' : '';
+        // (and under the styled card on the first run — See the full looks
+        // keeps the one ink; the box, which carries no ink, still stands)
+        if (conc) conc.style.display = (mode === 'zero' || (mode === 'gtky' && document.getElementById('rb-styled'))) ? 'none' : '';
         // The first-look posture carries NO rows (Annie, 2026-09-18 — the
         // home cut: fourteen doors on a page with one look). Build your
         // own goes (the prompt and the Lookbook's composer cover it); the
@@ -20698,7 +20737,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // greeting + next line, the prompt + its three pills, Your looks,
         // the model door, the Inspiration row. Zero (the styled card as
         // hero) carries no rows either since 2026-09-25.
-        if (!mode || mode === 'look' || mode === 'zero') {
+        if (!mode || mode === 'look' || mode === 'zero' || mode === 'gtky') {
           if (el) {
             // Hand the demoted modules back to the dash flow before the
             // rows go — _rbFtueOrder re-sequences them as cards.
@@ -20845,7 +20884,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       function _rbFtuRevealPrompt() {
         // Zero hides the prompt behind the styled card (2026-09-25) — a
         // deliberate arming brings it back.
-        if (_rbHomeMode === 'zero') {
+        if (_rbHomeMode === 'zero' || _rbHomeMode === 'gtky') {
           const conc = document.querySelector('#dash .concierge');
           if (conc) conc.style.display = '';
           return;
@@ -20874,7 +20913,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // The week ahead waits behind the first look (the look posture) and
         // behind the three looks (zero: the setup screen holds nothing but
         // the styled card and the Style-notes door).
-        rail.style.display = ((_rbHomeMode === 'look' && !_rbLookRailPlanned) || _rbHomeMode === 'zero') ? 'none' : '';
+        rail.style.display = ((_rbHomeMode === 'look' && !_rbLookRailPlanned) || _rbHomeMode === 'zero' || _rbHomeMode === 'gtky') ? 'none' : '';
       }
       function _rbFtuWeekAuto(slots) {
         _rbLookRailSync(slots);
@@ -20988,6 +21027,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       }
       function _rbNextLine() {
         if (_rbHomeMode === 'zero') return { key: 'styled' };
+        if (_rbHomeMode === 'gtky') return null;   // the door card IS the next step; the greeting stays one line (H7)
         // The draft (phase 1): a thing SHE started outranks a thing Robes
         // noticed — unless the home composer is on screen holding it.
         const parked = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
@@ -21270,6 +21310,189 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         line.innerHTML = 'Read. <em>Ask Robes for a look.</em>';
         hb.insertBefore(line, row);
       }
+      // ── GETTING TO KNOW YOU (First Run v2 + redlines, 2026-10-09) ──
+      // The landing page does the onboarding: while the Lookbook holds at
+      // most her first look and any of the three steps — the twin (two
+      // photographs), her style (the walk), the first look — is still to
+      // come, home is ONE door card carrying the next step and its action,
+      // then a short list of what follows, then the box under "Or ask
+      // Robes". Nothing else stands (the rows, the rail, the band, the
+      // notes door, the question cards, the model door, the next line).
+      // The order follows the door she picked in onboarding: Find my style
+      // leads with Style DNA; everything else leads with the twin. Once
+      // every step is done the module retires for good and the standard
+      // postures take over. No denominators, no counts, never a gate.
+      var _rbGtkyShown = '';
+      var _rbGtkyToasted = false;
+      function _rbGtkyDna() {
+        const prof = window.__robes_profile || {};
+        return (prof.style_dna && typeof prof.style_dna === 'object') ? prof.style_dna : {};
+      }
+      function _rbGtkyIntent() { const i = _rbGtkyDna().intent; return typeof i === 'string' ? i : null; }
+      function _rbGtkyOrder() { return _rbGtkyIntent() === 'style' ? ['style', 'photos', 'look'] : ['photos', 'style', 'look']; }
+      function _rbGtkyDone(k) {
+        const dna = _rbGtkyDna();
+        const n = a => Array.isArray(a) ? a.length : 0;
+        if (k === 'photos') return !!(_lkModel && typeof _lkModel === 'object') || !!dna.color_harmony || !!dna.silhouette_proportions;
+        if (k === 'style') {
+          const prof = window.__robes_profile || {};
+          return !!(n(dna.style_archetypes) || n(dna.style_archetypes_soft) || n(prof.style_icons) || n(dna.brands));
+        }
+        if (k === 'look') {
+          if ((_lkLooks || []).some(l => l && !l._draft)) return true;
+          if ((_lkSugg || []).length) return true;
+          try { if (typeof _lkDraftList === 'function' && _lkDraftList().length) return true; } catch (_) {}
+          try { if ((typeof snLoad === 'function' ? snLoad() : []).some(i => i && (i.type === 'key-piece' || i.type === 'daily-look' || i.type === 'travel-edit' || i.type === 'look'))) return true; } catch (_) {}
+          return false;
+        }
+        return false;
+      }
+      function _rbGtkyNext() { return _rbGtkyOrder().find(k => !_rbGtkyDone(k)) || null; }
+      // The module stands only in the first-run postures (nothing saved, or
+      // her first look alone) — a standing account with many looks keeps
+      // its home; the model door and the next line carry the rest there.
+      function _rbGtkyWants() {
+        if (!_waUid() || !_lkLoaded) return false;
+        if (_lkModel === undefined) { _lkModelEnsure(); return false; }   // not asked yet — never guess
+        let zero = false, firstLook = false;
+        try {
+          zero = _lkHomeZero();
+          let others = 0;
+          try { others = (typeof snLoad === 'function' ? snLoad() : []).filter(i => i && (i.type === 'look' || i.type === 'daily-look' || i.type === 'travel-edit')).length; } catch (_) { others = 0; }
+          firstLook = !zero && (_lkLooks || []).filter(l => l && !l._draft).length === 1 && !others;
+        } catch (_) { return false; }
+        if (!zero && !firstLook) return false;
+        return !!_rbGtkyNext();
+      }
+      function _rbGtkyCss() {
+        if (document.getElementById('rb-gtky-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-gtky-style';
+        st.textContent =
+          '#rb-gtky{margin:0 0 30px}' +
+          // H2 — one door card: white, a hairline, the card radius, a soft shadow; never shrinks
+          '.rb-gtky-door{background:#fff;border:1px solid var(--rule,rgba(32,32,33,0.08));border-radius:var(--rad-card,14px);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 6px 20px rgba(32,32,33,.05);flex:none}' +
+          '.rb-gtky-slots{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 16px 0}' +
+          '.rb-gtky-slots .sl{aspect-ratio:4/5;border:1.5px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad,10px);display:flex;align-items:flex-end;justify-content:center;padding:12px}' +
+          '.rb-gtky-slots .sl span{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-weight:300;font-size:17px;line-height:1;color:var(--ink-soft,#55524E)}' +
+          '.rb-gtky-model{margin:16px 16px 0;height:190px;border-radius:var(--rad,10px);background:var(--cream-200,#EDE9E2) center 20%/cover no-repeat}' +
+          '.rb-gtky-body{padding:18px 20px 20px;display:flex;flex-direction:column;align-items:flex-start}' +
+          '.rb-gtky-body .ey{font-size:9px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--sage,#7E7C5A)}' +
+          '.rb-gtky-body h3{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:24px;line-height:1.2;margin:12px 0 0;color:var(--ink,#202021);text-wrap:pretty}' +
+          '.rb-gtky-body h3 em{font-style:italic}' +
+          '.rb-gtky-body p{font-size:13px;line-height:1.6;color:var(--ink-soft,#55524E);margin:8px 0 0;text-wrap:pretty}' +
+          '.rb-gtky-cta{margin-top:18px;background:#fff;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));color:var(--ink,#202021);border-radius:100px;padding:14px 24px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;font-family:inherit}' +
+          '.rb-gtky-cta:hover{border-color:var(--ink,#202021)}' +
+          // H4 — the list: the remaining steps, a marker each, no counts
+          '.rb-gtky-list{display:flex;flex-direction:column;margin-top:30px}' +
+          '.rb-gtky-head{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#8E7077);padding-bottom:10px;border-bottom:1px solid var(--rule,rgba(32,32,33,0.08))}' +
+          '.rb-gtky-row{display:flex;align-items:center;gap:14px;min-height:62px;width:100%;border:0;border-bottom:1px solid var(--rule,rgba(32,32,33,0.08));background:none;padding:0;cursor:pointer;text-align:left;font-family:inherit}' +
+          '.rb-gtky-row .mk{width:24px;height:24px;flex:none;border-radius:50%;border:1px dashed var(--cream-400,#D8CFBE);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink,#202021)}' +
+          '.rb-gtky-row[data-state="next"] .mk{border-style:solid;border-color:var(--ink,#202021)}' +
+          '.rb-gtky-row[data-state="done"] .mk{border-style:solid;border-color:#C9BCA6;background:#F3EFE6}' +
+          '.rb-gtky-row .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}' +
+          '.rb-gtky-row .t{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:18px;line-height:1.2;color:var(--ink,#202021)}' +
+          '.rb-gtky-row[data-state="done"] .t{color:var(--ink-soft,#55524E)}' +
+          '.rb-gtky-row .l{font-size:12px;color:var(--ink-soft,#55524E)}' +
+          '.rb-gtky-row .ch{font-size:18px;font-weight:300;line-height:1;color:var(--ink-faint,#9C9891)}' +
+          // H8 — the prompt sits under the card and the list, named
+          '.rb-gtky-askey{font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft,#55524E);margin:0 0 12px}' +
+          // H7 — the greeting is one line while the module stands: the next line (the italic sub) stands down
+          'body.rb-gtky .dash-echo{display:none}' +
+          '@media(min-width:768px){.rb-gtky-door{max-width:620px}.rb-gtky-list{max-width:620px}}';
+        document.head.appendChild(st);
+      }
+      function _rbGtkyDoor(next) {
+        const intent = _rbGtkyIntent();
+        const piece = intent === 'piece';
+        const rc = window.__rbCtx || {};
+        const wd = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
+        const temp = (rc.tempC != null && !isNaN(rc.tempC)) ? ', ' + Math.round(rc.tempC) + '°' : '';
+        const hasModel = !!(_lkModel && typeof _lkModel === 'object');
+        if (next === 'photos') return { ey: 'Next · Your digital twin', t1: 'Two photographs,', t2: 'one model of you.', line: 'A close-up and a full length. Robes builds a model that looks like you and dresses it.', cta: 'Add photographs', slots: true };
+        if (next === 'style') return { ey: 'Next · Style DNA', t1: 'Now,', t2: 'what feels like you.', line: 'Tap the styles you wear. A minute, no more.', cta: 'Find my style' };
+        if (piece) return { ey: 'Ready · A key piece', t1: 'One piece,', t2: 'three ways to wear it.', line: hasModel ? 'Choose a piece you love and Robes styles it on your model.' : 'Choose a piece you love and Robes styles it three ways.', cta: 'Style a key piece' };
+        return { ey: 'Ready · Today', t1: _waEsc(wd) + temp + '.', t2: 'Robes has a look in mind.', line: hasModel ? 'Composed on your model, for the weather and your plans.' : 'Composed for the weather and your plans.', cta: 'Dress me today' };
+      }
+      function _rbGtkyPath(k) {
+        const piece = _rbGtkyIntent() === 'piece';
+        return k === 'photos' ? ['Your digital twin', 'Two photographs, one model', 'A model of you, built']
+          : k === 'style' ? ['Your style', 'The styles that feel like you', 'Filed under Style DNA']
+          : [piece ? 'Your key piece' : 'Your first look', piece ? 'One piece, three ways' : 'Dressed for today', 'Saved to your lookbook'];
+      }
+      function _rbGtkySync() {
+        const dash = document.getElementById('dash');
+        let el = document.getElementById('rb-gtky');
+        if (!dash) return;
+        const want = _rbGtkyWants();
+        document.body.classList.toggle('rb-gtky', want);
+        if (!want) { if (el) el.remove(); return; }
+        _rbGtkyCss();
+        const next = _rbGtkyNext();
+        const order = _rbGtkyOrder();
+        const d = _rbGtkyDoor(next);
+        // her model, when one exists and a look has been drawn on it
+        const hero = (!d.slots && typeof _lkHeroUrl === 'function') ? (((_lkLooks || []).map(l => l && _pdHttp(l.render_url)).find(Boolean)) || null) : null;
+        const rows = order.filter(k => k !== next).map(k => {
+          const done = _rbGtkyDone(k), path = _rbGtkyPath(k);
+          return '<button type="button" class="rb-gtky-row" data-step="' + k + '" data-state="' + (done ? 'done' : 'later') + '" onclick="window.__rbGtkyGo(\'' + k + '\',\'row\')">' +
+            '<span class="mk">' + (done ? '✓' : '') + '</span>' +
+            '<span class="tx"><span class="t">' + _waEsc(path[0]) + '</span><span class="l">' + _waEsc(done ? path[2] : path[1]) + '</span></span>' +
+            '<span class="ch" aria-hidden="true">›</span></button>';
+        }).join('');
+        const html = '<div class="rb-gtky-door" id="rb-gtky-door" data-next="' + next + '">' +
+          (d.slots ? '<div class="rb-gtky-slots"><div class="sl"><span>Close-up</span></div><div class="sl"><span>Full length</span></div></div>' : '') +
+          (hero ? '<div class="rb-gtky-model" style="background-image:url(\'' + _waEsc(hero) + '\')"></div>' : '') +
+          '<div class="rb-gtky-body"><span class="ey">' + d.ey + '</span>' +
+          '<h3>' + d.t1 + ' <em>' + d.t2 + '</em></h3><p>' + d.line + '</p>' +
+          '<button type="button" class="rb-gtky-cta" onclick="window.__rbGtkyGo(\'' + next + '\',\'door\')">' + d.cta + '</button></div></div>' +
+          (rows ? '<div class="rb-gtky-list" id="rb-gtky-list"><div class="rb-gtky-head">Getting to know you</div>' + rows + '</div>' : '');
+        if (!el) {
+          el = document.createElement('section');
+          el.id = 'rb-gtky';
+          const styled = document.getElementById('rb-styled');
+          const mast = dash.querySelector('.dash-mast');
+          const after = (styled && styled.parentNode === dash) ? styled : mast;
+          if (after && after.nextSibling) dash.insertBefore(el, after.nextSibling); else dash.appendChild(el);
+        }
+        if (el.getAttribute('data-html') !== html) { el.innerHTML = html; el.setAttribute('data-html', html); }
+        el.setAttribute('data-next', next);
+        if (_rbGtkyShown !== next) { _rbGtkyShown = next; _rbTrack('gtky_shown', { next, order: order.join(','), intent: _rbGtkyIntent() }); }
+      }
+      window._rbGtkySync = _rbGtkySync;
+      // the harnesses' window on the decision
+      window.__rbGtkyState = function() {
+        return { wants: _rbGtkyWants(), next: _rbGtkyNext(), order: _rbGtkyOrder(), intent: _rbGtkyIntent(),
+          done: { photos: _rbGtkyDone('photos'), style: _rbGtkyDone('style'), look: _rbGtkyDone('look') },
+          model: _lkModel === undefined ? 'unasked' : (_lkModel ? _lkModel.id : null), loaded: !!_lkLoaded, zero: (function() { try { return _lkHomeZero(); } catch (e) { return 'err'; } })() };
+      };
+      // The "Or ask Robes" eyebrow rides home's box while the module stands.
+      function _rbGtkyAskSync() {
+        const hb = document.getElementById('rb-hb');
+        let ey = document.getElementById('rb-gtky-askey');
+        const want = !!document.getElementById('rb-gtky') && !!hb;
+        if (!want) { if (ey) ey.remove(); return; }
+        if (!ey) { ey = document.createElement('div'); ey.id = 'rb-gtky-askey'; ey.className = 'rb-gtky-askey'; ey.textContent = 'Or ask Robes'; }
+        // the walk's landing line (Read. Ask Robes for a look.) sits between the eyebrow and the row
+        const row = document.getElementById('rb-walk-line') || document.getElementById('rb-hb-row');
+        if (row && ey.nextSibling !== row) hb.insertBefore(ey, row);
+      }
+      window.__rbGtkyGo = function(step, from) {
+        _rbTrack('gtky_tapped', { step, from: from || 'door', intent: _rbGtkyIntent() });
+        if (step === 'photos') { window.location.assign('/settings?page=twin'); return; }
+        if (step === 'style') { window.location.assign('/settings?walk=1'); return; }
+        if (!window.__rbHbOpen) return;
+        if (_rbGtkyIntent() === 'piece') {
+          // the piece first: her wardrobe when it holds anything, else the
+          // box's + (a photograph, an upload)
+          if ((_waItems || []).length) { window.__rbHbOpen({ pick: 'wardrobe' }); return; }
+          window.__rbHbOpen();
+          setTimeout(() => { try { if (window.__rbLpPlus) window.__rbLpPlus(); } catch (_) {} }, 80);
+          return;
+        }
+        window.__rbHbOpen();
+      };
+
       // ── THE QUESTION CARDS (cut C of the first-run plan, 2026-10-09) ──
       // One card a visit, from then on: once the walk's invitation has
       // retired, home asks ONE question in the Robes-noticed register (the
@@ -21318,12 +21541,16 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       }
       function _rbTwinKind() {
         if (!_waUid()) return null;
+        if (_rbHomeMode === 'gtky') return null;   // the Getting-to-know-you card leads the first run — never two cards
+        if (!_waLoaded) return null;   // the loved card reads the wardrobe — a kind picked before it lands pins the day's record on a guess
         if (document.getElementById('rb-styled')) return null;   // one goal at a time: the styled card holds the screen
         if (_lkModel === undefined) { _lkModelEnsure(); return null; }   // not asked yet — never guess
         if (!_rbNotesBegun() || _rbNotesDoorWants()) return null;   // the walk's invitation leads until a card is answered
         const today = _rbTwinToday();
         if (today) return (!today.done && _rbTwinKindWants(today.kind)) ? today.kind : null;   // the day's card, else nothing more today
-        return ['facts', 'loved', 'noticed'].find(_rbTwinKindWants) || null;
+        // the facts card is retired from home (redline H1, R2: height, size,
+        // shoes and age are collected in Settings only, never asked here)
+        return ['loved', 'noticed'].find(_rbTwinKindWants) || null;
       }
       // One merge-PATCH of style_dna — the profile copy first (the next
       // generation reads it before the PATCH lands), the row after.
@@ -21563,6 +21790,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       function _rbModelDoorWants() {
         if (_lkModel === undefined) { _lkModelEnsure(); return false; }   // not asked yet — never guess
         if (_lkModel !== null) return false;
+        if (_rbHomeMode === 'gtky') return false;   // the door card carries the twin on the first run
         if (_rbNotesDoorWants()) return false;   // the Style-notes door stands — never both
         if (_rbTwinKind()) return false;   // a question card stands (cut C) — never two at once; the door is the fourth card
         if (!(_lkLooks || []).some(l => l && !l._draft)) return false;
@@ -21619,12 +21847,16 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // _waSyncCounts call — a bare .length here is the documented
         // hoisted-var boot trap, so it reads defensively.)
         const firstLook = !zero && (_lkLooks || []).length === 1 && !others;
-        _rbFirstLookCard(firstLook);
+        // Getting to know you (2026-10-09) leads the first run: while any of
+        // the three steps is still to come, home is the door card, the list
+        // and the box — the other postures wait behind it.
+        const gtky = _rbGtkyWants();
+        _rbFirstLookCard(firstLook && !gtky);
         // Zero looks splits on the styled card: with it, the card is the
         // hero and the prompt waits behind its row ('zero'); without it the
         // page read bare, so the prompt leads ('zero-lead' — Annie's beta
         // pass, 2026-08-18).
-        _rbFtuRows(zero
+        _rbFtuRows(gtky ? 'gtky' : zero
           ? (document.getElementById('rb-styled') ? 'zero' : 'zero-lead')
           : (firstLook ? 'look' : null));
         // The learning card is merged into the concierge (2a) — the
@@ -21636,7 +21868,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _rbNotesDoorSync();
         _rbTwinSync();
         _rbModelDoorSync();
+        _rbGtkySync();
         if (typeof _rbHbSync === 'function') _rbHbSync();
+        _rbGtkyAskSync();
         if (typeof _rbFtueOrder === 'function') _rbFtueOrder(_waItems.length);
         _rbNextPaint();
       }
@@ -28741,7 +28975,7 @@ body>*:not(#tv-result-page){display:none !important}
         // "Your looks" card carry home, the Lookbook row stands down — the
         // card IS the Lookbook's presence, and a second grid of the same
         // content is exactly the clutter the pass removes.
-        if (document.getElementById('rb-ftu-rows') || document.getElementById('rb-firstlook')) {
+        if (document.getElementById('rb-ftu-rows') || document.getElementById('rb-firstlook') || _rbHomeMode === 'gtky') {
           el.innerHTML = '';
           el.style.display = 'none';
           return;
@@ -28808,7 +29042,7 @@ body>*:not(#tv-result-page){display:none !important}
         // the hero — the card IS that key piece, and two copies of it on
         // one screen is the clutter the pass removes.
         // (zero carries no rows since 2026-09-25 — the mode is the guard)
-        if (_rbHomeMode === 'zero' && document.getElementById('rb-styled')) {
+        if ((_rbHomeMode === 'zero' && document.getElementById('rb-styled')) || _rbHomeMode === 'gtky') {
           el.innerHTML = '';
           el.style.display = 'none';
           return;
@@ -33582,7 +33816,10 @@ body.rb-hb-on #dash .concierge{display:none!important}
           el.innerHTML = '<div id="rb-today-slot"></div><div class="rb-hb-row" id="rb-hb-row"><span id="rb-hb-fieldslot" style="display:contents"></span></div>';
           _rbTrack('home_box_shown', {});
         }
-        if (mast.nextSibling !== el) dash.insertBefore(el, mast.nextSibling);
+        // under the Getting-to-know-you card and list while they stand (H8)
+        const gtkyEl = document.getElementById('rb-gtky');
+        const hbAfter = (gtkyEl && gtkyEl.parentNode === dash) ? gtkyEl : mast;
+        if (hbAfter.nextSibling !== el) dash.insertBefore(el, hbAfter.nextSibling);
         // The + lives INSIDE the box now (2026-10-05): Take a picture /
         // Upload a photo / From wardrobe, then the piece's two modes. The
         // card's own .hp-add-wrap stays in the hidden card (its Add a look
@@ -33777,6 +34014,8 @@ body.rb-hb-on #dash .concierge{display:none!important}
         _rbHbDraftMode();
         try { s._hbSig = _rbHbSig(); } catch (_) {}
         try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
+        // the first look is a step on the first run — the door card moves on
+        try { if (typeof _rbGtkySync === 'function' && document.getElementById('rb-gtky')) _lkHomeSync(); } catch (_) {}
         _rbTrack('home_box_draft_landed', { surface: s.surface, pieces: _lkUsed().length, proposed: _lkShop.length, dated: !!(_lkDay && _lkDay.date) });
       }
       window.__rbHbOpenDraft = function() {
@@ -33903,6 +34142,12 @@ body.rb-hb-on #dash .concierge{display:none!important}
       window.__rbHbOpen = function(o) {
         o = o || {};
         document.getElementById('cb-addmenu')?.classList.remove('open');
+        // H8: before the twin exists the box says so, once a session — a
+        // line, never a gate (the look still composes without her model).
+        if (_rbHomeMode === 'gtky' && !o.text && !_rbGtkyToasted && typeof _rbGtkyDone === 'function' && !_rbGtkyDone('photos')) {
+          _rbGtkyToasted = true;
+          _waShowToast('Robes dresses you on your model. Two photographs first.');
+        }
         const date = (o.date && /^\d{4}-\d{2}-\d{2}$/.test(o.date)) ? o.date : null;
         let lkName = null;
         if (_cbLookId) { const lk = _lkFind(_cbLookId); lkName = lk ? (lk.name || 'Your look') : null; }
@@ -34220,6 +34465,8 @@ body.rb-hb-on #dash .concierge{display:none!important}
             // The three looks are SUGGESTED rows too (look states, 2026-10-06)
             // — the card is their first showing, the Suggested tab their home.
             if (typeof _lkSuggFromStyle === 'function') _lkSuggFromStyle(data, { setId: cardSaveId, pieceId: typeof _lkSuggAnchorFromPrompt === 'function' ? _lkSuggAnchorFromPrompt(prompt) : null });
+            // the key piece IS her first look on the first run — home re-decides
+            if (typeof window._lkHomeSync === 'function') { try { window._lkHomeSync(); } catch (_) {} }
           }
           const open = document.getElementById('rb-styled-open');
           if (open) open.onclick = function() {
