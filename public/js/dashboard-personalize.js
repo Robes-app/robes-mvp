@@ -21443,7 +21443,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           '.rb-tc-pills .rb-pill{margin:0;padding:7px 11px;font-size:10px;background:#fff}' +
           '.rb-tc-pills .rb-pill.on{background:#F3EFE6;border-color:#C9BCA6}' +
           // the loved pieces: her photographs, the wardrobe's own star on each
-          '.rb-tc-tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:14px}' +
+          '.rb-tc-tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:14px;max-width:760px}' +
           '.rb-tc-tile{position:relative;display:block;width:100%;padding:0;border:1px solid var(--rule,#E7E0CF);background:#fff;border-radius:var(--rad-sm,8px);overflow:hidden;cursor:pointer;text-align:left;font-family:inherit}' +
           '.rb-tc-tile .ph{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;background:var(--cream-200,#EFE9DC)}' +
           '.rb-tc-tile .nm{display:block;padding:7px 8px 8px;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:13px;line-height:1.2;color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
