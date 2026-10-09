@@ -248,6 +248,30 @@
     .sh-walk-go:disabled { background: var(--cream-200); border-color: var(--cream-200); color: var(--ink-faint); cursor: default; }
     #sh-wrap.walking .sh-done { display: none; }
     @media (max-width: 767px) { .sh-walk { padding: 12px 20px calc(18px + env(safe-area-inset-bottom)); } }
+    /* the deck (cut B): one type at a time, the look deck's gesture */
+    .sh-deck { padding-top: 8px; }
+    .sh-deck-stack { position: relative; }
+    .sh-deck-under { position: absolute; left: 12px; right: 12px; top: 12px; bottom: -10px; background: #fff; border: 1px solid var(--rule); border-radius: var(--rad-card); }
+    .sh-deck-card { position: relative; background: #fff; border: 1px solid var(--rule-mid); border-radius: var(--rad-card); padding: 22px 22px 20px; min-height: 240px; display: flex; flex-direction: column; touch-action: pan-y; user-select: none; overflow: hidden; cursor: grab; outline: none; }
+    .sh-deck-card:focus-visible { border-color: var(--ink); }
+    .sh-deck-card .k { font: 400 9.5px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint); }
+    .sh-deck-card .n { font: 400 32px/1.08 'Cormorant', Georgia, serif; color: var(--ink); margin-top: 12px; }
+    .sh-deck-card .d { font: 300 14px/1.5 'Inter'; color: var(--ink-soft); margin-top: 8px; text-wrap: pretty; }
+    .sh-deck-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+    .sh-deck-tag { font: 400 11px/1 'Inter'; letter-spacing: 0.04em; padding: 7px 11px; border: 1px solid var(--cream-400); border-radius: 100px; color: var(--ink-soft); }
+    .sh-deck-verbs { display: flex; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 20px; }
+    .sh-deck-verbs button { height: 40px; padding: 0 18px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; }
+    .sh-deck-verbs button:hover { border-color: var(--ink); }
+    .sh-deck-card .stamp { position: absolute; top: 18px; font: 500 10px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; padding: 8px 12px; border-radius: 100px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+    .sh-deck-card .stamp.keep { right: 18px; background: #F3EFE6; border: 1px solid #C9BCA6; color: var(--ink); }
+    .sh-deck-card .stamp.no { left: 18px; border: 1px solid var(--cream-400); color: var(--ink-soft); background: #fff; }
+    .sh-deck-card.fly { transition: transform .24s ease, opacity .24s ease; }
+    @media (prefers-reduced-motion: reduce) { .sh-deck-card.fly { transition: none; } }
+    .sh-deck-soft, .sh-deck-plenty { text-align: center; margin-top: 16px; }
+    .sh-deck-plenty { margin-top: 22px; }
+    .sh-deck-link { background: none; border: 0; padding: 4px 0; font: 300 13px/1 'Inter'; color: var(--ink-soft); cursor: pointer; text-decoration: underline; text-decoration-color: var(--cream-400); text-underline-offset: 3px; }
+    .sh-deck-link:hover { color: var(--ink); text-decoration-color: var(--ink); }
+    .sh-deck-end .sh-k:first-of-type { margin-top: 18px; }
     @media (max-width: 767px) {
       #sh-wrap { align-items: flex-end; padding: 0; }
       #sh { max-width: none; max-height: calc(92dvh - env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; animation: shUp 0.3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
@@ -790,7 +814,8 @@
       icons: [],   // profiles.style_icons — the people (brands split off into styleDna.brands)
       brands: [],
       iconTags: {},
-      types: [],   // style_dna.style_archetypes
+      types: [],   // style_dna.style_archetypes — her "very me"
+      typesSoft: [],   // style_dna.style_archetypes_soft — her "sometimes" (the deck, cut B)
       investment: null,
       facts: {},   // style_dna.facts = {height_cm, size_uk, shoe_uk, age_band}
       heroes: null,   // starred wardrobe pieces, fetched once
@@ -1849,7 +1874,7 @@
     function dnaPaint() {
       const b = chBrief();
       const v = (id, text, none) => { const el = document.getElementById(id); el.textContent = text; el.className = 'v' + (none ? ' none' : ''); };
-      v('dna-type-v', st.types.length ? st.types.join(', ') : 'Not yet', !st.types.length);
+      v('dna-type-v', st.types.length || st.typesSoft.length ? [st.types.join(', '), st.typesSoft.length ? 'sometimes ' + st.typesSoft.join(', ') : ''].filter(Boolean).join(' · ') : 'Not yet', !st.types.length && !st.typesSoft.length);
       v('dna-brands-v', st.brands.length ? (st.brands.length <= 3 ? st.brands.join(', ') : st.brands.length + ' brands') : 'Not yet', !st.brands.length);
       v('dna-icons-v', st.icons.length ? (st.icons.length <= 2 ? st.icons.join(', ') : st.icons.length + ' icons') : 'Not yet', !st.icons.length);
       const hn = st.heroes ? st.heroes.length : null;
@@ -1867,10 +1892,98 @@
         wire: body => body.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', () => {
           const n = b.dataset.type;
           st.types = st.types.includes(n) ? st.types.filter(x => x !== n) : st.types.concat([n]);
-          saveDna({ style_archetypes: st.types.slice() });
+          st.typesSoft = st.typesSoft.filter(x => x !== n);
+          saveDna({ style_archetypes: st.types.slice(), style_archetypes_soft: st.typesSoft.slice() });
           snTrack('style_type_set', { n: st.types.length });
           shRepaint(); dnaPaint();
         })),
+      });
+    }
+
+    // The deck (cut B, 2026-10-09): the walk's first card is one type at a
+    // time — the name, its line, its houses as brand tags (no stills) — with
+    // the look deck's gesture: right keeps (Very me), left passes (Not me),
+    // the warm ✓ and the hairline ✕ stamps, Sometimes as the small door
+    // beneath. The verdicts write style_archetypes / _soft exactly as the
+    // retired chapter did. Settings' own Style type sheet stays the
+    // multi-select — the deck exists only on the walk.
+    const DECK_COMMIT = 100;   // px — the look deck's threshold
+    const deck = { order: [], at: 0, verdicts: 0, passed: [] };
+    function deckOpen() {
+      const decided = n => st.types.includes(n) || st.typesSoft.includes(n) || deck.passed.includes(n);
+      deck.order = ARCHETYPES.filter(a => !decided(a.name)).map(a => a.name);
+      deck.at = 0; deck.verdicts = 0;
+    }
+    function deckVerdict(name, v) {
+      st.types = st.types.filter(x => x !== name);
+      st.typesSoft = st.typesSoft.filter(x => x !== name);
+      deck.passed = deck.passed.filter(x => x !== name);
+      if (v === 'very') st.types.push(name);
+      else if (v === 'soft') st.typesSoft.push(name);
+      else deck.passed.push(name);
+      if (v !== 'no') saveDna({ style_archetypes: st.types.slice(), style_archetypes_soft: st.typesSoft.slice() });
+      snTrack('archetype_reacted', { name, verdict: v });
+      snTrack('style_type_set', { n: st.types.length });
+      deck.at++; deck.verdicts++;
+      shRepaint(); dnaPaint();
+    }
+    function cfgDeck() {
+      deckOpen();
+      return ({
+        kind: 'deck', title: 'Style type', sub: 'Swipe right for very you, left for not you. Robes reads the register.',
+        body: () => {
+          const name = deck.order[deck.at];
+          const warm = st.types.length ? '<div class="sh-k">Very you</div><div class="sh-pills">' + st.types.map(n => '<span class="sh-pill on">' + esc(n) + '</span>').join('') + '</div>' : '';
+          const soft = st.typesSoft.length ? '<div class="sh-k">Sometimes</div><div class="sh-pills">' + st.typesSoft.map(n => '<span class="sh-pill">' + esc(n) + '</span>').join('') + '</div>' : '';
+          if (!name) return '<div class="sh-deck-end"><div class="sh-empty">' + (deck.verdicts ? 'That’s the ten.' : 'Every type has an answer.') + ' Change any of them later under Style DNA.</div>' + warm + soft + '</div>';
+          const a = ARCHETYPES.find(x => x.name === name);
+          const next = deck.order[deck.at + 1];
+          const tags = (BRAND_SEED[name] || []).map(b => '<span class="sh-deck-tag">' + esc(b) + '</span>').join('');
+          return '<div class="sh-deck"><div class="sh-deck-stack">' + (next ? '<div class="sh-deck-under" aria-hidden="true"></div>' : '') +
+            '<div class="sh-deck-card" id="sh-deck-card" tabindex="0" data-type="' + esc(name) + '" aria-label="' + esc(name) + ' — swipe right for very you, left for not you">' +
+            '<span class="stamp no">✕ Not me</span><span class="stamp keep">✓ Very me</span>' +
+            '<div class="k">' + (ARCHETYPES.findIndex(x => x.name === name) + 1) + ' of ' + ARCHETYPES.length + '</div><div class="n">' + esc(name) + '</div><div class="d">' + esc(a.desc) + '</div>' +
+            (tags ? '<div class="sh-deck-tags">' + tags + '</div>' : '') +
+            '<div class="sh-deck-verbs"><button type="button" data-v="no">← Not me</button><button type="button" data-v="very">Very me →</button></div></div></div>' +
+            '<div class="sh-deck-soft"><button type="button" class="sh-deck-link" data-v="soft">Sometimes</button></div>' +
+            (sh.cfg && typeof sh.cfg.walk === 'number' && deck.verdicts >= 3 ? '<div class="sh-deck-plenty"><button type="button" class="sh-deck-link" id="sh-deck-plenty">That’s plenty →</button></div>' : '') +
+            warm + soft + '</div>';
+        },
+        wire: body => {
+          const card = body.querySelector('#sh-deck-card');
+          const plenty = body.querySelector('#sh-deck-plenty'); if (plenty) plenty.addEventListener('click', () => walkNext(false));
+          if (!card) return;
+          const name = card.dataset.type;
+          let done = false;
+          const decide = v => {
+            if (done) return; done = true;
+            const dir = v === 'very' ? 1 : v === 'no' ? -1 : 0;
+            card.classList.add('fly');
+            card.style.transform = dir ? 'translateX(' + (dir * 120) + '%) rotate(' + (dir * 4) + 'deg)' : 'translateY(24px)';
+            card.style.opacity = '0';
+            setTimeout(() => deckVerdict(name, v), 220);
+          };
+          body.querySelectorAll('[data-v]').forEach(bt => bt.addEventListener('click', () => decide(bt.dataset.v)));
+          // the drag: sideways only, the stamp fades in, past 100px it commits
+          let x0 = null, dx = 0;
+          card.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; x0 = e.clientX; dx = 0; card.setPointerCapture(e.pointerId); card.classList.remove('fly'); });
+          card.addEventListener('pointermove', e => {
+            if (x0 == null) return;
+            dx = e.clientX - x0;
+            card.style.transform = 'translateX(' + dx + 'px) rotate(' + (dx * 0.04) + 'deg)';
+            card.querySelector('.stamp.keep').style.opacity = String(Math.min(1, Math.max(0, dx / DECK_COMMIT)));
+            card.querySelector('.stamp.no').style.opacity = String(Math.min(1, Math.max(0, -dx / DECK_COMMIT)));
+          });
+          const release = () => {
+            if (x0 == null) return;
+            x0 = null;
+            if (Math.abs(dx) >= DECK_COMMIT) { decide(dx > 0 ? 'very' : 'no'); return; }
+            card.classList.add('fly'); card.style.transform = ''; card.querySelectorAll('.stamp').forEach(s => { s.style.opacity = '0'; });
+          };
+          card.addEventListener('pointerup', release); card.addEventListener('pointercancel', release);
+          card.addEventListener('dragstart', e => e.preventDefault());
+          card.addEventListener('keydown', e => { if (e.key === 'ArrowRight') { e.preventDefault(); decide('very'); } else if (e.key === 'ArrowLeft') { e.preventDefault(); decide('no'); } });
+        },
       });
     }
     // the wall shows a short set at a time, never all 70 (Annie, 8 Oct):
@@ -1887,6 +2000,21 @@
       st.types.forEach(t => (seed[t] || []).forEach(push));
       (kind === 'brands' ? BRAND_POOL : ICON_POOL.map(x => x[0])).forEach(push);
       return out;
+    }
+    // Robes suggests (cut B): a client rule, never a model call — the kept
+    // names' types (the seed inverted) rank the unkept pool; the row shows
+    // the top six once she has kept three, and follows every keep after.
+    const SUGGEST_AT = 3, SUGGEST_N = 6;
+    function seedTypes(kind, n) { const seed = kind === 'brands' ? BRAND_SEED : ICON_SEED; return Object.keys(seed).filter(t => seed[t].some(x => norm(x) === norm(n))); }
+    function wallSuggest(kind) {
+      const mine = wallList(kind);
+      if (mine.length < SUGGEST_AT) return [];
+      const score = {};
+      mine.forEach(n => seedTypes(kind, n).forEach(t => { score[t] = (score[t] || 0) + 1; }));
+      if (!Object.keys(score).length) return [];
+      return wallPool(kind).filter(n => !wallHas(kind, n))
+        .map(n => ({ n, s: seedTypes(kind, n).reduce((a, t) => a + (score[t] || 0), 0) }))
+        .filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, SUGGEST_N).map(x => x.n);
     }
     function iconTag(n) { const hit = ICON_POOL.find(x => norm(x[0]) === norm(n)); return hit ? hit[1] : (st.iconTags[n] || ''); }
     function wallList(kind) { return kind === 'brands' ? st.brands : st.icons; }
@@ -1915,12 +2043,14 @@
         body: () => {
           const q = norm(wall.q);
           const mine = wallList(kind);
-          const pool = wallPool(kind).filter(n => !wallHas(kind, n));
+          const suggest = q ? [] : wallSuggest(kind);
+          const pool = wallPool(kind).filter(n => !wallHas(kind, n) && !suggest.includes(n));
           const matches = q ? pool.filter(n => norm(n).includes(q)).slice(0, 12) : pool.slice(0, WALL_N);
           const exact = q && (wallPool(kind).some(n => norm(n) === q) || wallHas(kind, wall.q.trim()));
           const pill = n => pillHtml(n, wallHas(kind, n), 'data-name="' + esc(n) + '"', !brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '');
           return '<div class="sh-search"><span class="q">⌕</span><input id="wall-q" type="text" placeholder="' + (brands ? 'Search brands' : 'Search or type a name') + '" autocomplete="off" value="' + esc(wall.q) + '">' + (wall.q ? '<button type="button" class="clr" id="wall-clr" aria-label="Clear">×</button>' : '') + '</div>' +
             (mine.length ? '<div class="sh-k">Your selections <span class="h">' + mine.length + ' kept</span></div><div class="sh-pills">' + mine.map(n => '<button type="button" class="sh-pill on" data-name="' + esc(n) + '">' + esc(n) + (!brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '') + '<span class="x">×</span></button>').join('') + '</div>' : '') +
+            (suggest.length ? '<div class="sh-k sage">Robes suggests <span class="h">' + (brands ? 'Houses' : 'Names') + ' that share a world with what you tapped</span></div><div class="sh-pills" id="wall-suggest">' + suggest.map(n => pillHtml(n, false, 'data-name="' + esc(n) + '" data-suggest="1"', !brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '')).join('') + '</div>' : '') +
             '<div class="sh-k">' + (q ? 'Matches' : brands ? 'Popular among stylists' : 'Often chosen') + (q ? '' : '<span class="h">Tap a name to keep it</span>') + '</div>' +
             (matches.length ? '<div class="sh-pills">' + matches.map(pill).join('') + '</div>' : '<div class="sh-empty">' + (q ? 'Nothing in the pool by that name.' : 'Everything here is yours already.') + '</div>') +
             (q && !exact ? '<div style="margin-top:12px"><button type="button" class="sh-pill" id="wall-add">+ Add “' + esc(wall.q.trim()) + '”</button></div>' : '');
@@ -2001,7 +2131,7 @@
        box open. Every card is a Settings sheet body already, so nothing
        here writes anywhere new. */
     const WALK_TITLES = [
-      ['Style type', 'Pick as many as feel like you. Robes reads the register.'],
+      ['Style type', 'Swipe right for very you, left for not you. Robes reads the register.'],
       ['Brands', 'Whose clothes do you reach for? Tap three.'],
       ['Icons', 'Whose style runs close to yours? Tap three.'],
       ['Investment level', 'One tap, the only must. Robes proposes inside it, whatever you admire.'],
@@ -2009,10 +2139,10 @@
     ];
     const WALK_N = WALK_TITLES.length;
     const walk = { on: false, at: 0, answered: {}, snap: null, switching: false };
-    function walkSnap() { const b = chBrief(); return { types: st.types.length, brands: st.brands.length, icons: st.icons.length, invest: st.investment || '', lines: b.avoids.length + b.rules.length }; }
+    function walkSnap() { const b = chBrief(); return { verdicts: deck.verdicts, brands: st.brands.length, icons: st.icons.length, invest: st.investment || '', lines: b.avoids.length + b.rules.length }; }
     function walkAnswered(i) {
       const a = walkSnap(), b = walk.snap || a;
-      return i === 0 ? a.types !== b.types : i === 1 ? a.brands !== b.brands : i === 2 ? a.icons !== b.icons : i === 3 ? !!a.invest : a.lines !== b.lines;
+      return i === 0 ? a.verdicts !== b.verdicts : i === 1 ? a.brands !== b.brands : i === 2 ? a.icons !== b.icons : i === 3 ? !!a.invest : a.lines !== b.lines;
     }
     function cfgMusts() {
       return {
@@ -2028,7 +2158,7 @@
     }
     function walkShow(i) {
       walk.at = i;
-      const base = i === 0 ? cfgTypes() : i === 1 ? cfgWall('brands') : i === 2 ? cfgWall('icons') : i === 3 ? cfgInvest() : cfgMusts();
+      const base = i === 0 ? cfgDeck() : i === 1 ? cfgWall('brands') : i === 2 ? cfgWall('icons') : i === 3 ? cfgInvest() : cfgMusts();
       const cfg = Object.assign({}, base, { walk: i, title: WALK_TITLES[i][0], sub: WALK_TITLES[i][1], onClose: () => { if (base.onClose) base.onClose(); walkLeft(); } });
       walk.switching = true;
       shOpen(cfg);
@@ -2246,6 +2376,7 @@
         st.notify = (profile.notification_prefs && typeof profile.notification_prefs === 'object') ? profile.notification_prefs : null;
         const dna = st.styleDna || {};
         st.types = Array.isArray(dna.style_archetypes) ? dna.style_archetypes.filter(x => typeof x === 'string') : [];
+        st.typesSoft = Array.isArray(dna.style_archetypes_soft) ? dna.style_archetypes_soft.filter(x => typeof x === 'string' && !st.types.includes(x)) : [];
         st.facts = dna.facts && typeof dna.facts === 'object' ? Object.assign({}, dna.facts) : {};
         st.iconTags = dna.icon_tags && typeof dna.icon_tags === 'object' ? dna.icon_tags : {};
         // Brands split off the icons once (the old pool was one mixed list).

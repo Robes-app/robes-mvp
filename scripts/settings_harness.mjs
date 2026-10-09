@@ -553,17 +553,42 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await p.waitForTimeout(400);
   const ev = () => p.evaluate(() => window.__events.map(e => e.event_type + ' ' + JSON.stringify(e.metadata)));
   ok(await p.locator('#sh-wrap').isVisible() && !/walk=/.test(p.url()) && (await p.evaluate(() => document.getElementById('sh-wrap').classList.contains('walking'))), label + ': ?walk=1 opens the walk on the sheet, the param stripped');
-  ok((await txt(p, '#sh-title')) === 'Style type' && await p.locator('#sh-body [data-type]').count() === 10, label + ': card 1 is the style type — the ten, pick as many');
+  ok((await txt(p, '#sh-title')) === 'Style type' && await p.locator('#sh-body .sh-deck-card').count() === 1 && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Minimal' && (await txt(p, '#sh-deck-card .k')).toLowerCase() === '1 of 10' && await p.locator('#sh-body [data-type]').count() === 1, label + ': card 1 is the DECK — one type at a time, Minimal first, 1 of 10');
+  ok((await p.locator('#sh-deck-card .sh-deck-tag').allInnerTexts()).join() === 'The Row,Phoebe Philo,Lemaire,COS,Jil Sander' && await p.locator('#sh-deck-card img').count() === 0 && await p.locator('#sh-body .sh-deck-under').count() === 1, label + ': its houses as brand tags, no stills, the next card peeking beneath');
+  ok((await p.locator('#sh-deck-card [data-v]').allInnerTexts()).map(t => t.trim().toLowerCase()).join('|') === '← not me|very me →' && (await txt(p, '#sh-body .sh-deck-soft button')) === 'Sometimes' && await p.locator('#sh-deck-plenty').count() === 0, label + ': Not me · Very me on the card, Sometimes small beneath, no plenty door yet');
   ok(await p.locator('#sh-walk').isVisible() && await p.locator('#sh-walk-segs span.on').count() === 1 && await p.locator('#sh-walk-skip').isVisible() && (await p.locator('#sh-walk-go').textContent()).trim() === 'Continue' && await p.locator('#sh-done').isHidden(), label + ': the five-segment rule, Skip, Continue — no Done link');
   ok((await p.locator('#sh-walk-go').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgb(32, 32, 33)' && (await p.locator('#sh-body button, #sh-walk button').evaluateAll(bs => bs.filter(b => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' && b.getClientRects().length).length)) === 1, label + ': Continue is the one ink');
   ok((await ev()).some(e => /^walk_begun/.test(e)), label + ': walk_begun');
-  await p.click('#sh-body [data-type="Minimal"]'); await p.waitForTimeout(200);
+  // Very me by the button, Sometimes by its door, Not me by a drag past 100px
+  await p.click('#sh-deck-card [data-v="very"]'); await p.waitForTimeout(400);
+  const d1 = await upd('u.style_dna && u.style_dna.style_archetypes');
+  ok(d1.style_dna.style_archetypes.join() === 'Minimal' && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Bohemian', label + ': Very me writes style_archetypes and the next type steps up');
+  ok((await ev()).some(e => /^archetype_reacted \{"name":"Minimal","verdict":"very"\}/.test(e)), label + ': archetype_reacted');
+  await p.click('#sh-body .sh-deck-soft button'); await p.waitForTimeout(400);
+  const d2 = await upd('u.style_dna && u.style_dna.style_archetypes_soft && u.style_dna.style_archetypes_soft.length');
+  ok(d2.style_dna.style_archetypes_soft.join() === 'Bohemian' && d2.style_dna.style_archetypes.join() === 'Minimal' && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Classic', label + ': Sometimes writes _soft and keeps very me as it was');
+  const writesBefore = await p.evaluate(() => window.__updates.length);
+  const box = await p.locator('#sh-deck-card').boundingBox();
+  await p.mouse.move(box.x + box.width / 2, box.y + 40); await p.mouse.down();
+  await p.mouse.move(box.x + box.width / 2 - 60, box.y + 40, { steps: 6 });
+  const midStamp = await p.locator('#sh-deck-card .stamp.no').evaluate(el => parseFloat(el.style.opacity || '0'));
+  await p.mouse.move(box.x + box.width / 2 - 140, box.y + 40, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(400);
+  ok(midStamp > 0.4 && midStamp < 0.8 && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Romantic', label + ': a drag left fades the ✕ stamp in and past 100px passes the type');
+  ok((await p.evaluate(() => window.__updates.length)) === writesBefore, label + ': Not me writes nothing');
+  ok(await p.locator('#sh-deck-plenty').count() === 1 && (await txt(p, '#sh-deck-plenty')) === 'That’s plenty →', label + ': three verdicts open the plenty door');
+  ok(await p.locator('#sh-body .sh-pill.on').count() === 1 && (await txt(p, '#sh-body .sh-pill.on')) === 'Minimal', label + ': the kept types read back under the deck');
   await p.click('#sh-walk-go'); await p.waitForTimeout(300);
   ok((await txt(p, '#sh-title')) === 'Brands' && await p.locator('#sh-walk-segs span').count() === 5 && await p.locator('#sh-walk-segs span.on').count() === 2, label + ': card 2 — Brands on its own, two of five segments lit');
   ok((await ev()).some(e => /^walk_card \{"n":1,"outcome":"answered"\}/.test(e)), label + ': card 1 logged as answered');
   ok(await p.locator('#walk-tabs').count() === 0 && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18 && (await p.locator('#sh-body .sh-pill:not(.on)').first().innerText()).trim() === 'The Row' && await p.locator('#sh-body .sh-more-note').count() === 0, label + ': no tabs, 18 pills, the picked type’s houses leading, no pool count');
   await p.click('#sh-body .sh-pill[data-name="The Row"]'); await p.waitForTimeout(250);
-  ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row' && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18, label + ': a tap keeps a brand and the next name steps in');
+  ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row' && await p.locator('#sh-body .sh-pill:not(.on)').count() === 18 && await p.locator('#wall-suggest').count() === 0, label + ': a tap keeps a brand and the next name steps in — no suggestion under three');
+  await p.click('#sh-body .sh-pill[data-name="Phoebe Philo"]'); await p.waitForTimeout(200);
+  await p.click('#sh-body .sh-pill[data-name="Lemaire"]'); await p.waitForTimeout(250);
+  const sug = await p.locator('#wall-suggest .sh-pill').allInnerTexts();
+  ok(sug.map(t => t.trim()).join() === 'COS,Jil Sander' && /^Robes suggests/i.test((await p.locator('#sh-body .sh-k.sage').first().textContent()).trim()) && await p.locator('#sh-body .sh-pills:not(#wall-suggest) .sh-pill[data-name="COS"]').count() === 0, label + ': the third keep opens Robes suggests — the Minimal houses she has not kept, lifted out of the pool');
+  await p.click('#wall-suggest .sh-pill[data-name="COS"]'); await p.waitForTimeout(250);
+  ok((await upd('u.style_dna && u.style_dna.brands')).style_dna.brands.join() === 'The Row,Phoebe Philo,Lemaire,COS' && (await p.locator('#wall-suggest .sh-pill').allInnerTexts()).join() === 'Jil Sander', label + ': a suggested name keeps like any other and the row follows');
   await p.click('#sh-walk-go'); await p.waitForTimeout(300);
   ok((await txt(p, '#sh-title')) === 'Icons' && await p.locator('#sh-walk-segs span.on').count() === 3 && /Clean-girl minimal/.test(await txt(p, '#sh-body')), label + ': card 3 — Icons on its own card, carrying the tags');
   await p.click('#sh-body .sh-pill[data-name="Hailey Bieber"]'); await p.waitForTimeout(250);
@@ -603,6 +628,10 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   await p.click('#card-dna'); await p.waitForTimeout(300);
   await p.click('#dna-avoids'); await p.waitForTimeout(300);
   ok(await p.locator('#sh-body [data-chip]').count() === 5 && /^Never/.test((await p.locator('#sh-body .sh-k').first().textContent()).trim()), 'Hard nos in Settings carries the Never chips');
+  // Settings' own Style type sheet is still the multi-select — the deck lives on the walk alone
+  await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+  await p.click('#dna-type'); await p.waitForTimeout(300);
+  ok(await p.locator('#sh-body [data-type]').count() === 10 && await p.locator('#sh-body .sh-deck-card').count() === 0, 'Settings keeps the ten as a multi-select sheet, no deck');
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
   await ctx.close();
 }
