@@ -659,6 +659,18 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   check('onboarding deck · back from the deck lands home: the twin next, and the suggested looks STAND on home under the card — no ticked "saved to your lookbook" row (tenth pass)',
     h.mode === 'gtky' && h.sn === false && h.next === 'photos' && h.insp >= 1 && h.inspTitle === 'Suggested' && h.rowsList.indexOf('look:done') < 0 && JSON.stringify(h.order) === JSON.stringify(['rb-gtky', 'rb-insp-row']), JSON.stringify(h));
+  // One suggestion saved: the home reads as an engaged user's — Saved looks,
+  // then Suggested — under the card (tenth pass, Annie).
+  await page.evaluate(() => { const c = document.querySelector('#rb-insp-row .rb-sn-card'); const m = c && /__lkSuggOpen\('([^']+)'/.exec(c.getAttribute('onclick') || ''); if (m) window.__lkSuggSave(m[1]); });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.__rbNavGo('home')); await page.waitForTimeout(900);
+  const h2 = await page.evaluate(() => ({
+    mode: document.getElementById('dash').getAttribute('data-home'),
+    order: Array.from(document.getElementById('dash').children).filter((e) => e.style.display !== 'none' && e.innerHTML.trim()).map((e) => e.id).filter((id) => ['rb-gtky', 'rb-sn', 'rb-insp-row'].includes(id)),
+    snEy: document.querySelector('#rb-sn .rb-sec-ey')?.textContent,
+  }));
+  check('onboarding deck · a saved look joins: Saved looks then Suggested under the card — the engaged home\'s order',
+    h2.mode === 'gtky' && h2.snEy === 'Saved looks' && JSON.stringify(h2.order) === JSON.stringify(['rb-gtky', 'rb-sn', 'rb-insp-row']), JSON.stringify(h2));
 
   // The Worn Three Ways page survives for the SET's entry (__snOpenItem on
   // a key-piece row): the same landing, no guide band, card 01 filled, no

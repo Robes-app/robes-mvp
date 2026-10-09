@@ -13,7 +13,7 @@ Renamed from `claude/beta-deployment-setup-wdvxb6` (2026-07-12); this is the bra
 
 ### 2026-10-09 (tenth pass) — First Run home shows her looks; the walls rank, no Robes suggests (Annie)
 In `dashboard-personalize.js`, `settings.html`, and the ftue + settings harnesses. Verified: `ftue_harness` **294/294**, `settings_harness` **481/481**, `nav_chrome_smoke` 72/72, `inspiration_smoke` 55/55.
-- **The Getting-to-know-you home shows the looks she made.** `_rbRenderInspRow` and `_rbRenderStyleNotes` no longer stand down in gtky mode. The Suggested row still yields while `#rb-styled` holds the screen. `_rbFtueOrder`'s gtky sequence is `[hb, styled, gtky, rb-insp-row, rb-sn, conc]`.
+- **The Getting-to-know-you home shows the looks she made.** `_rbRenderInspRow` and `_rbRenderStyleNotes` no longer stand down in gtky mode. The Suggested row still yields while `#rb-styled` holds the screen. `_rbFtueOrder`'s gtky sequence is `[hb, styled, gtky, rb-sn, rb-insp-row, conc]` — Saved looks then Suggested, the engaged home's own order (Annie: the rows must read exactly as they do for an engaged user).
 - **The done look row is dropped from the list while either row is on screen.** It used to read "Your first look · Saved to your lookbook" and open the prompt. A done look step that still shows (a draft only) opens the Suggested tab or the Lookbook (`__rbGtkyGo`), never the prompt again. `_lkSuggRepaint` re-runs `_lkHomeSync` in gtky mode so the list follows the rows.
 - **Brands / Icons: the "Robes suggests" row is gone.** `wallSuggest`, `SUGGEST_AT` and `SUGGEST_N` were deleted. `wallRanked(kind)` orders the one pool instead:
   - Each picked style type scores +2.

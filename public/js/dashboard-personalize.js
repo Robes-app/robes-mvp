@@ -2216,11 +2216,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // nothing else on the page.
         const gtky = document.getElementById('rb-gtky');
         if (gtky) {
-          // Her looks stand on home under the card (tenth pass): the
-          // Suggested row, then her saved looks.
+          // Her looks stand on home under the card in the engaged home's
+          // own order (tenth pass, Annie): Saved looks, then Suggested.
           const insG = document.getElementById('rb-insp-row');
           const snG = document.getElementById('rb-sn');
-          const seqG = [hb && hb.parentNode === dash ? hb : null, styled, gtky, insG, snG, conc].filter(Boolean);
+          const seqG = [hb && hb.parentNode === dash ? hb : null, styled, gtky, snG, insG, conc].filter(Boolean);
           seqG.forEach((el, i) => {
             const prev = i === 0 ? mast : seqG[i - 1];
             if (prev.nextSibling !== el) dash.insertBefore(el, prev.nextSibling);
