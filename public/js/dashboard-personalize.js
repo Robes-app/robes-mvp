@@ -21199,8 +21199,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         if (!el) {
           el = document.createElement('section');
           el.id = 'rb-notes-door';
-          el.innerHTML = '<div class="l"><div class="ey">Your digital twin</div><h3>Four taps, and Robes <em>knows you.</em></h3>' +
-            '<div class="sub">Your type, the houses you reach for, what you spend, and what Robes must and must never do.</div></div>' +
+          el.innerHTML = '<div class="l"><div class="ey">Your digital twin</div><h3>Five taps, and Robes <em>knows you.</em></h3>' +
+            '<div class="sub">Your type, the houses you reach for, the people you dress like, what you spend, and what Robes must and must never do.</div></div>' +
             '<div class="r"><button type="button" class="rb-pill" onclick="window.__rbNotesGo()">Begin</button>' +
             '<button type="button" class="rb-walk-later" onclick="window.__rbNotesLater()">Later</button></div>';
           const mast = dash.querySelector('.dash-mast');

@@ -247,10 +247,6 @@
     .sh-walk-go { background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 34px; font: 400 11px/1 'Inter'; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
     .sh-walk-go:disabled { background: var(--cream-200); border-color: var(--cream-200); color: var(--ink-faint); cursor: default; }
     #sh-wrap.walking .sh-done { display: none; }
-    .sh-tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--cream-100); border: 1px solid var(--rule); border-radius: 100px; padding: 3px; margin: 6px 0 2px; }
-    .sh-tabs button { border: 1px solid transparent; background: none; border-radius: 100px; padding: 9px; font: 500 10px/1 'Inter'; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; }
-    .sh-tabs button.on { background: #F3EFE6; border-color: #C9BCA6; color: var(--ink); }
-    .sh-more-note { font: italic 300 13px/1.4 'Cormorant', Georgia, serif; color: var(--ink-faint); margin-top: 10px; }
     @media (max-width: 767px) { .sh-walk { padding: 12px 20px calc(18px + env(safe-area-inset-bottom)); } }
     @media (max-width: 767px) {
       #sh-wrap { align-items: flex-end; padding: 0; }
@@ -289,8 +285,9 @@
     .sh-opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; padding: 14px 18px; border-radius: var(--rad); border: 1px solid var(--cream-300); background: #fff; cursor: pointer; text-align: left; font-family: inherit; color: var(--ink); }
     .sh-opt:hover { border-color: var(--cream-400); }
     .sh-opt.on { border-color: #C9BCA6; background: #F3EFE6; }
-    .sh-opt .n { font: 400 18px/1.15 'Cormorant', Georgia, serif; }
-    .sh-opt .d { font: 300 12px/1.4 'Inter'; color: var(--ink-soft); margin-top: 3px; }
+    .sh-opt > span:first-child { display: block; min-width: 0; flex: 1; }
+    .sh-opt .n { display: block; font: 400 18px/1.15 'Cormorant', Georgia, serif; }
+    .sh-opt .d { display: block; font: 300 12px/1.4 'Inter'; color: var(--ink-soft); margin-top: 4px; }
     .sh-opt .r { font: 400 15px/1 'Cormorant', Georgia, serif; color: var(--ink-soft); white-space: nowrap; }
     .sh-opt .ck { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--cream-400); display: inline-flex; align-items: center; justify-content: center; font: 500 10px/1 'Inter'; color: var(--ink); flex: none; }
     .sh-opt.on .ck { background: #fff; border-color: #C9BCA6; }
@@ -605,7 +602,7 @@
       <div class="sh-head"><div><div class="sh-title" id="sh-title"></div><div class="sh-sub" id="sh-sub"></div></div><button type="button" class="sh-done" id="sh-done">Done</button></div>
       <div class="sh-body" id="sh-body"></div>
       <div class="sh-walk" id="sh-walk" hidden>
-        <div class="sh-walk-segs" id="sh-walk-segs" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <div class="sh-walk-segs" id="sh-walk-segs" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
         <div class="sh-walk-row"><button type="button" class="sh-walk-skip" id="sh-walk-skip">Skip</button><button type="button" class="sh-walk-go" id="sh-walk-go">Continue</button></div>
       </div>
     </div>
@@ -1532,7 +1529,7 @@
     // word sheets): a tap files the line at once with the chip as its
     // prompt; a second tap strikes it. Head covered is a MUST, so it files
     // as a rule Robes keeps on every look, never as a no (Annie, 8 Oct).
-    const MUST_CHIPS = { rules: ['Head covered', 'Covered arms', 'Covered legs'], avoids: ['No heels', 'No polo necks', 'No metal', 'Nothing sheer', 'No prints'] };
+    const MUST_CHIPS = { rules: ['Head covered', 'Covered arms', 'Covered legs'], avoids: ['Heels', 'Polo necks', 'Metals', 'Sheer', 'Prints'] };
     function chipRowsHtml(list) {
       const b = chBrief();
       const has = t => b[list].some(x => x.text.toLowerCase() === t.toLowerCase());
@@ -1920,14 +1917,12 @@
           const mine = wallList(kind);
           const pool = wallPool(kind).filter(n => !wallHas(kind, n));
           const matches = q ? pool.filter(n => norm(n).includes(q)).slice(0, 12) : pool.slice(0, WALL_N);
-          const rest = q ? 0 : Math.max(0, pool.length - WALL_N);
           const exact = q && (wallPool(kind).some(n => norm(n) === q) || wallHas(kind, wall.q.trim()));
           const pill = n => pillHtml(n, wallHas(kind, n), 'data-name="' + esc(n) + '"', !brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '');
           return '<div class="sh-search"><span class="q">⌕</span><input id="wall-q" type="text" placeholder="' + (brands ? 'Search brands' : 'Search or type a name') + '" autocomplete="off" value="' + esc(wall.q) + '">' + (wall.q ? '<button type="button" class="clr" id="wall-clr" aria-label="Clear">×</button>' : '') + '</div>' +
             (mine.length ? '<div class="sh-k">Your selections <span class="h">' + mine.length + ' kept</span></div><div class="sh-pills">' + mine.map(n => '<button type="button" class="sh-pill on" data-name="' + esc(n) + '">' + esc(n) + (!brands && iconTag(n) ? '<span class="tag">· ' + esc(iconTag(n)) + '</span>' : '') + '<span class="x">×</span></button>').join('') + '</div>' : '') +
             '<div class="sh-k">' + (q ? 'Matches' : brands ? 'Popular among stylists' : 'Often chosen') + (q ? '' : '<span class="h">Tap a name to keep it</span>') + '</div>' +
             (matches.length ? '<div class="sh-pills">' + matches.map(pill).join('') + '</div>' : '<div class="sh-empty">' + (q ? 'Nothing in the pool by that name.' : 'Everything here is yours already.') + '</div>') +
-            (rest ? '<div class="sh-more-note">' + rest + ' more in the pool. Keep one and the next steps in, or search for a name.</div>' : '') +
             (q && !exact ? '<div style="margin-top:12px"><button type="button" class="sh-pill" id="wall-add">+ Add “' + esc(wall.q.trim()) + '”</button></div>' : '');
         },
         wire: body => {
@@ -1999,35 +1994,25 @@
         },
       });
     }
-    /* ══ THE WALK · four cards after the first result (2026-10-08) ══════
-       The first-run door into the twin: ?walk=1 opens the type, the two
-       walls, the investment level and the musts as one run on this sheet,
+    /* ══ THE WALK · five cards after the first result (2026-10-08, five since 9 Oct) ══
+       The first-run door into the twin: ?walk=1 opens the type, the brands,
+       the icons, the investment level and the musts as one run on this sheet,
        Skip on every card but the one must, Done landing on home with the
        box open. Every card is a Settings sheet body already, so nothing
        here writes anywhere new. */
     const WALK_TITLES = [
       ['Style type', 'Pick as many as feel like you. Robes reads the register.'],
-      ['Brands and icons', 'Whose clothes do you reach for, and whose style runs close to yours? Tap three of either.'],
+      ['Brands', 'Whose clothes do you reach for? Tap three.'],
+      ['Icons', 'Whose style runs close to yours? Tap three.'],
       ['Investment level', 'One tap, the only must. Robes proposes inside it, whatever you admire.'],
       ['Musts and hard nos', 'Anything Robes should always do, or never? Tap a chip and it is filed.'],
     ];
-    const walk = { on: false, at: 0, answered: {}, wallKind: 'brands', snap: null, switching: false };
+    const WALK_N = WALK_TITLES.length;
+    const walk = { on: false, at: 0, answered: {}, snap: null, switching: false };
     function walkSnap() { const b = chBrief(); return { types: st.types.length, brands: st.brands.length, icons: st.icons.length, invest: st.investment || '', lines: b.avoids.length + b.rules.length }; }
     function walkAnswered(i) {
       const a = walkSnap(), b = walk.snap || a;
-      return i === 0 ? a.types !== b.types : i === 1 ? (a.brands !== b.brands || a.icons !== b.icons) : i === 2 ? !!a.invest : a.lines !== b.lines;
-    }
-    function cfgWalkWall() {
-      const base = () => cfgWall(walk.wallKind);
-      return {
-        kind: 'walk-wall',
-        body: () => '<div class="sh-tabs" id="walk-tabs"><button type="button" data-kind="brands"' + (walk.wallKind === 'brands' ? ' class="on"' : '') + '>Brands</button><button type="button" data-kind="icons"' + (walk.wallKind === 'icons' ? ' class="on"' : '') + '>Icons</button></div>' + base().body(),
-        wire: body => {
-          body.querySelectorAll('#walk-tabs button').forEach(b => b.addEventListener('click', () => { walk.wallKind = b.dataset.kind; wall.q = ''; shRepaint(); }));
-          base().wire(body);
-        },
-        onClose: () => { wall.q = ''; },
-      };
+      return i === 0 ? a.types !== b.types : i === 1 ? a.brands !== b.brands : i === 2 ? a.icons !== b.icons : i === 3 ? !!a.invest : a.lines !== b.lines;
     }
     function cfgMusts() {
       return {
@@ -2037,13 +2022,13 @@
       };
     }
     function walkStart() {
-      walk.on = true; walk.at = 0; walk.answered = {}; walk.wallKind = 'brands';
+      walk.on = true; walk.at = 0; walk.answered = {};
       snTrack('walk_begun', {});
       walkShow(0);
     }
     function walkShow(i) {
       walk.at = i;
-      const base = i === 0 ? cfgTypes() : i === 1 ? cfgWalkWall() : i === 2 ? cfgInvest() : cfgMusts();
+      const base = i === 0 ? cfgTypes() : i === 1 ? cfgWall('brands') : i === 2 ? cfgWall('icons') : i === 3 ? cfgInvest() : cfgMusts();
       const cfg = Object.assign({}, base, { walk: i, title: WALK_TITLES[i][0], sub: WALK_TITLES[i][1], onClose: () => { if (base.onClose) base.onClose(); walkLeft(); } });
       walk.switching = true;
       shOpen(cfg);
@@ -2060,9 +2045,9 @@
       const i = sh.cfg.walk;
       document.querySelectorAll('#sh-walk-segs span').forEach((s, k) => s.classList.toggle('on', k <= i));
       const skip = document.getElementById('sh-walk-skip'), go = document.getElementById('sh-walk-go');
-      skip.hidden = i === 2;   // the investment level is the one must
-      go.textContent = i === 3 ? 'Done' : 'Continue';
-      go.disabled = i === 2 && !st.investment;
+      skip.hidden = i === 3;   // the investment level is the one must
+      go.textContent = i === WALK_N - 1 ? 'Done' : 'Continue';
+      go.disabled = i === 3 && !st.investment;
     }
     function walkNext(skip) {
       if (!walk.on) return;
@@ -2070,7 +2055,7 @@
       const answered = !skip && walkAnswered(i);
       walk.answered[i] = answered;
       snTrack('walk_card', { n: i + 1, outcome: skip ? 'skipped' : (answered ? 'answered' : 'passed') });
-      if (i < 3) { walkShow(i + 1); return; }
+      if (i < WALK_N - 1) { walkShow(i + 1); return; }
       walkDone();
     }
     function walkDone() {
