@@ -151,6 +151,9 @@ async function boot(browser, { width = 1280, path = '/dashboard' } = {}) {
       onboarded_at: '2026-07-01', gender_identity: 'woman',
     };
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
+    // The trip is hidden for the MVP (2026-10-10): the trip page's chrome
+    // pins run on the frozen module (?trip=on).
+    localStorage.setItem('rb_trip', 'on');
   });
   const errs = [];
   page.on('pageerror', (e) => errs.push(String(e)));
