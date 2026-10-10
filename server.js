@@ -63,6 +63,11 @@ function logAI(event) {
 const SUPA_URL = process.env.SUPABASE_URL || 'https://ayowpaknssulsqqvwpqx.supabase.co';
 const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const APP_ENV = (process.env.PUBLIC_URL || '').includes('www.byrobes.com') ? 'production' : 'beta';
+// MVP launch (2026-10-10): the trip is hidden until it relaunches — shared
+// travel edits read as not found and the mail ignores trip days. The trip's
+// own endpoints stay mounted (the client's ?trip=on still reaches them).
+// TRIP_ENABLED=1 on a service brings both back.
+const TRIP_HIDDEN = process.env.TRIP_ENABLED !== '1';
 const genCtx = new AsyncLocalStorage();
 
 app.use('/api', (req, res, next) => {
@@ -178,6 +183,7 @@ const notifier = createNotifier({
   secret: process.env.NOTIFY_SECRET || process.env.RESEND_API_KEY || '',
   env: APP_ENV,
   resendUrl: process.env.RESEND_API_URL || 'https://api.resend.com/emails',
+  hideTravel: TRIP_HIDDEN,
 });
 /* ── the inbound-receipt door + the product-page reader (2026-09-22) ──
    Her Robes address is <inbox_address>@INBOX_DOMAIN (profiles.inbox_address,
@@ -2980,7 +2986,9 @@ app.get('/board/:shareId', rateLimit({ windowMs: 60_000, max: 40 }), async (req,
     );
     const rows = r.ok ? await r.json() : [];
     const row = Array.isArray(rows) && rows.length ? rows[0] : null;
-    if (!row) return notFound();
+    // The trip is hidden (MVP, 2026-10-10): a shared travel edit reads as
+    // not shared any more until the trip relaunches (TRIP_ENABLED=1).
+    if (!row || (TRIP_HIDDEN && row.type === 'travel-edit')) return notFound();
     const payload = publicSharePayload(row);
     const pageUrl = `${process.env.PUBLIC_URL || 'https://www.byrobes.com'}/board/${shareId}`;
     const ogImage = payload.images[0] || '';

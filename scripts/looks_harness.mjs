@@ -102,7 +102,7 @@ const SEED_WEARS = [
 // Every write the module makes is captured so the harness can assert on the
 // payloads — that a wear is INSERTed and undone by DELETE (never updated), and
 // that a promotion writes a new look rather than mutating the old one.
-async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null, pics = 0, avatar = null, init = null, pre = null } = {}) {
+async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null, pics = 0, avatar = null, init = null, pre = null, trip = true } = {}) {
   WARDROBE_PICS = pics;
   const ctx = await browser.newContext({ viewport: { width, height: 1200 } });
   const page = await ctx.newPage();
@@ -182,14 +182,18 @@ async function boot(browser, { width = 1280, looksTable = true, seed = true, dro
   await page.route('**nominatim**', (r) => r.abort());
   await page.route('**open-meteo**', (r) => r.abort());
 
-  await page.addInitScript(() => {
+  // The trip is hidden for the MVP (2026-10-10). Sections that walk the
+  // trip's own doors run on the frozen module (?trip=on); the trip-hidden
+  // section boots with trip: false.
+  await page.addInitScript((trip) => {
     window.__TEST_PROFILE = {
       first_name: 'Annie', last_name: '', mobile: '', style_icons: [], budget: null,
       wardrobe_description: '', style_dna: {}, wardrobe_items_count: 10,
       onboarded_at: '2026-07-01', gender_identity: 'woman',
     };
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
-  });
+    if (trip) localStorage.setItem('rb_trip', 'on'); else localStorage.removeItem('rb_trip');
+  }, trip);
 
   // A section that needs storage seeded or routes armed BEFORE the boot
   // (the model-build landing reads sessionStorage at boot; the render kick

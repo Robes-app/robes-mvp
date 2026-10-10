@@ -100,6 +100,7 @@ export function createNotifier(cfg) {
   const {
     supaUrl, serviceKey, resendKey, from = 'Robes <hello@byrobes.com>', publicUrl = 'https://www.byrobes.com',
     secret, env = 'beta', resendUrl = 'https://api.resend.com/emails', fetchFn = globalThis.fetch, log = console,
+    hideTravel = false,
   } = cfg;
   const on = !!(resendKey && serviceKey && secret);
 
@@ -300,7 +301,9 @@ export function createNotifier(cfg) {
       const events = groupBy(eventsR.ok ? (eventsR.json || []) : [], 'user_id');
       const wardrobe = groupBy(wardrobeR.ok ? (wardrobeR.json || []) : [], 'user_id');
       const kps = groupBy(kpR.ok ? (kpR.json || []) : [], 'user_id');
-      const pds = groupBy(pdR.ok ? (pdR.json || []) : [], 'user_id');
+      // The trip is hidden (MVP, 2026-10-10): a trip day is neither a day
+      // she planned (the morning cue) nor a reason to stay quiet (week_empty).
+      const pds = groupBy((pdR.ok ? (pdR.json || []) : []).filter((r) => !hideTravel || r.source_type !== 'travel'), 'user_id');
       const looksBy = groupBy(looks, 'user_id');
 
       for (const u of users) {

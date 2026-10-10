@@ -14,6 +14,24 @@
       // flipping this to false restores everything. Declared at the very top
       // so every early code path (deep links) reads the real value.
       var _RB_MB_HIDDEN = true;
+      // MVP launch (2026-10-10): the trip (the travel edit — its page, its
+      // intake, its capsule, every door to it) is hidden until it relaunches
+      // with a marketing push. Its own module stays in the file, frozen;
+      // look creation and scheduling carry NO trip branches any more, so the
+      // relaunch reconnects the trip onto suggested → saved → a day rather
+      // than flipping this back (see CLAUDE.md, the relaunch checklist).
+      // `?trip=on` shows the frozen module on this device (capsule and
+      // packing checks only — it is not a preview of the relaunch);
+      // `?trip=off` clears it.
+      var _RB_TRIP_HIDDEN = (function() {
+        try {
+          const q = new URLSearchParams(location.search).get('trip');
+          if (q === 'on') localStorage.setItem('rb_trip', 'on');
+          else if (q === 'off') localStorage.removeItem('rb_trip');
+          return localStorage.getItem('rb_trip') !== 'on';
+        } catch (e) { return true; }
+      })();
+      window._rbTripHidden = function() { return _RB_TRIP_HIDDEN; };
       const _rbStyleIcons = () => {
         const ic = (window.__robes_profile || {}).style_icons;
         return Array.isArray(ic) && ic.length ? ic : [];
@@ -2454,7 +2472,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             const ex = ['Style my ' + named[0].label.toLowerCase() + ' three ways'];
             if (named.length > 1) ex.push('An outfit around my ' + named[1].label.toLowerCase() + ' for the weekend');
             ex.push('What should I wear to dinner in the city tonight?');
-            ex.push('Help me pack for a weekend away');
+            ex.push(_RB_TRIP_HIDDEN ? 'Something easy for Sunday lunch' : 'Help me pack for a weekend away');
             window.__rbPromptExamples = ex;
           }
         } catch (_) {}
@@ -7371,6 +7389,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       function _pdSync(sourceType, sourceId, blob) {
         try {
           if (_pdDown || !sourceId || !_waUid() || !_waToken()) return;
+          if (sourceType === 'travel' && _RB_TRIP_HIDDEN) return;   // the trip is hidden (MVP)
           clearTimeout(_pdTimers[sourceId]);
           _pdTimers[sourceId] = setTimeout(() => {
             try {
@@ -7449,9 +7468,17 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         return it ? { title: it.title || null, type: it.type || null } : { title: null, type: null };
       }
       function _pdCacheKey() { const u = _waUid(); return u ? 'robes_planned_days__' + u : null; }
+      // The trip is hidden (MVP, 2026-10-10): its rows stay in the table,
+      // untouched, but no surface reads them — the rail, the strip, Coming
+      // up, the Diary (list, month, Trips), the day page, the peek and the
+      // ?d= deep link all read through these two (Coming up filters its
+      // own query). Nothing writes them either (_pdSync stands down).
+      function _pdTripRows(rows) {
+        return _RB_TRIP_HIDDEN && Array.isArray(rows) ? rows.filter(r => r && r.source_type !== 'travel') : rows;
+      }
       function _pdCacheRead() {
         const k = _pdCacheKey(); if (!k) return [];
-        try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (_) { return []; }
+        try { return _pdTripRows(JSON.parse(localStorage.getItem(k) || '[]')); } catch (_) { return []; }
       }
       function _pdCacheWrite(rows) {
         const k = _pdCacheKey(); if (!k) return;
@@ -7461,7 +7488,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const rows = await _waFetch('GET', 'planned_days?user_id=eq.' + _waUid()
           + '&day_date=gte.' + fromISO + '&day_date=lte.' + toISO
           + '&order=day_date.asc&select=*');
-        return Array.isArray(rows) ? rows : [];
+        return Array.isArray(rows) ? _pdTripRows(rows) : [];
       }
       function _pdDateList(fromISO, toISO) {
         const out = [];
@@ -7778,6 +7805,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       window.__snOpenItem = function(id) {
         const item = snLoad().find(i => i.id === id);
         if (!item) return;
+        // The trip is hidden (MVP): a travel edit opens nothing — a stale
+        // link or a deep link lands where she already is.
+        if (item.type === 'travel-edit' && _RB_TRIP_HIDDEN) return;
         // Close the pages an item can be opened from
         document.getElementById('sn-page').style.display = 'none';
         if (window._rbNavOrigin === 'home' || !window._rbNavOrigin) {
@@ -13852,7 +13882,6 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       // yet a looks row) resolves like a look while it stands — it never
       // enters _lkLooks, the cache or the cloud.
       function _lkFind(id) {
-        if (_lkTripDraft && String(_lkTripDraft.id) === String(id)) return _lkTripDraft;
         return _lkLooks.find(l => String(l.id) === String(id)) || _lkSugg.find(l => String(l.id) === String(id)) || null;
       }
       function _lkSuggFind(id) { return _lkSugg.find(l => String(l.id) === String(id)) || null; }
@@ -15770,7 +15799,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // bridge, a delete that emptied it. Guarding here rather than at
         // each caller is what makes it a rule instead of a path.
         // The Suggested tab is a grid at any count (F6 is its empty state).
-        if (!any && !onSugg && _lkView !== 'new' && _lkView !== 'deck' && !_lkTripDraft) {
+        if (!any && !onSugg && _lkView !== 'new' && _lkView !== 'deck') {
           // Arm it — but a draft in progress is HERS: the home module and
           // this page render one shared draft, so landing here (e.g. via
           // __snOpen, which resets the view to 'grid') must never wipe it.
@@ -15831,7 +15860,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // F7: the empty composer under the tab row — the Saved tab with no
         // saved looks while suggestions (or drafts) stand: the composer is
         // still the one door, the tabs still reach the other kind.
-        const tabsOverComposer = !any && !onSugg && _lkView === 'new' && (suggAll.length + draftRows.length) > 0 && !_lkKpHost && !_lkTripDraft && !document.querySelector('.rb-lkh-composer');
+        const tabsOverComposer = !any && !onSugg && _lkView === 'new' && (suggAll.length + draftRows.length) > 0  && !_lkKpHost && !document.querySelector('.rb-lkh-composer');
         const showBar = (!detail && (any || onSugg || suggAll.length > 0 || draftsShown > 0)) || tabsOverComposer;
         bar.style.display = showBar ? 'block' : 'none';
         if (allHead) allHead.style.display = showBar && !tabsOverComposer && !onSugg && any && _lkRefineOpen ? 'none' : 'none';
@@ -16663,9 +16692,10 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       var _LK_ARROW = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" aria-hidden="true"><path d="M2 6h8M7 3l3 3-3 3"></path></svg>';
       // The door she came through — {label, go}. Null = the Lookbook grid.
       var _lkFrom = null;
-      // The day the composer is filing to (2026-09-15, rule 04): {date,
-      // trip:{di}|null}. Set by the picker's Create a new look and by a
-      // day look Robes styles; null from the Lookbook or a piece page.
+      // The day the composer carries (2026-09-15; since 2026-10-10 an offer
+      // on Save, never a filing): {date}. Set by the picker's Create a new
+      // look and by a day look Robes styles; null from the Lookbook or a
+      // piece page.
       var _lkDay = null;
       // Phase 3: a LOOSE draft from the home field remembers the day her
       // words named (the classifier's date, else today) — never attached,
@@ -16680,11 +16710,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // the DOM, as with the home module. Cleared by every composer reset;
       // a kp draft dies with its page.
       var _lkKpHost = false;
-      // The trip a saved look was opened FROM (Annie, 2026-09-09: an imported
-      // look on a trip is the SAME look — its own page, no changes aside from
-      // being pinned to a day, whose pieces can then be packed). {li, di}
-      // against window.__lastTvData while the trip's data is still live.
-      var _lkTrip = null;
       // The controls that sit ON the image: the diary bottom-left, the
       // camera bottom-right. The camera is an ICON and names itself on
       // hover ("Add your photograph") — its always-on label ran across the
@@ -16703,38 +16728,23 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         }
         return diary || right ? '<div class="rb-lk-imgacts">' + diary + right + '</div>' : '';
       }
-      // Where the look lives (editing): the lookbook always, the diary days
-      // it is pinned to, the travel edits carrying it. Each is a door; the
+      // Where the look lives (editing): the lookbook always and the diary
+      // days it is pinned to (the travel edits left with the trip — MVP,
+      // 2026-10-10). Each is a door; the
       // dashed row puts it on another day. Moving it OUT of the lookbook
       // (a day-only look) has no data home yet — flagged, not built.
       function _lkLivesHtml(l) {
         const today = _pdLocalISO();
         const pins = _lkPins(l.id).filter(d => d >= today);
-        let trips = [];
-        try {
-          trips = (typeof snLoad === 'function' ? snLoad() : []).filter(i => i && i.type === 'travel-edit' && i.tvData
-            && (i.tvData.looks || []).some(x => x && x.imported && String(x.lookId) === String(l.id)));
-        } catch (_) { trips = []; }
         const row = (cls, b, i, mark, onclick) =>
           '<' + (onclick ? 'button type="button"' : 'div') + ' class="rb-lk-live' + cls + '"' + (onclick ? ' onclick="' + onclick + '"' : '') + '>' +
             '<span class="l"><b>' + b + '</b>' + (i ? '<i>' + i + '</i>' : '') + '</span>' +
             '<span class="m">' + mark + '</span></' + (onclick ? 'button' : 'div') + '>';
-        if (l._draft) {
-          const t = _lkTripCtx(l);
-          const tripTitle = t ? String(t.data.headline || (t.data.destination ? 'A trip to ' + t.data.destination : 'A trip')).replace(/\.$/, '') : '';
-          return '<div class="rb-lk-lives">' +
-            '<div class="lh"><span class="lab">Where it lives</span><span class="sub">save it and it keeps its wears</span></div>' +
-            '<div class="rows">' +
-              row('', 'The lookbook', 'Joins it the moment you save', '', '') +
-              (t ? row(' on', 'A travel edit · ' + _waEsc(tripTitle), 'Packs with the trip', '✓', 'window.__lkBackDoor()') : '') +
-            '</div></div>';
-        }
         return '<div class="rb-lk-lives">' +
           '<div class="lh"><span class="lab">Where it lives</span><span class="sub">every door keeps its wears</span></div>' +
           '<div class="rows">' +
             row(' door', 'The lookbook', 'Findable by name, tags and wears', '›', 'window.__lkLivesLookbook()') +
             pins.map(d => row(' on', 'A day · ' + _waEsc(_lkFmtLong(d)), 'Sits in the diary', '✓', 'window.__lkSeeDay(\'' + d + '\')')).join('') +
-            trips.map(t => row(' on', 'A travel edit · ' + _waEsc(String(t.title || (t.tvData && t.tvData.destination) || 'A trip')), 'Packs with the trip', '✓', 'window.__snOpenItem(' + Number(t.id) + ')')).join('') +
             row(' add', '+ Put it in the diary', '', '', 'window.__lkDiaryOpen()') +
           '</div></div>';
       }
@@ -16910,14 +16920,11 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // Reading, or editing — never both (1c). Editing is the composer's
         // frame; while changes stand the rack stays editable and the change
         // bar is the way out.
-        // A trip draft (a Robes-styled trip look) ONLY ever edits — save
-        // or discard are its two ways out (Annie, 2026-09-09).
-        const draft = !!l._draft;
         // SUGGESTED (F8): the look reads — a read-only rack, Edit and Save
         // to lookbook on the bar, the feedback row at the foot; no wears,
         // no diary, no camera, no tags, no delete (✕ lives on the tile).
-        const sugg = !draft && l.status === 'suggested';
-        const editing = !sugg && (_lkEditMode || dirty > 0 || draft);
+        const sugg = l.status === 'suggested';
+        const editing = !sugg && (_lkEditMode || dirty > 0);
         const n = _lkWearCount(l);
         const cpw = _lkCpw(l);
         const today = _pdLocalISO();
@@ -17027,18 +17034,18 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // nowhere else (the pinned bar carries no facts any more).
         const pieceN = items.length + props.length;
         const anchorNm = _lkAnchorName(l);
-        const metaBits = draft ? [] : sugg ? [_lkN(pieceN, 'piece')] : [pieceN ? _lkN(pieceN, 'piece') : (dPhoto ? 'Photograph · not yet filed' : 'No pieces yet'), n ? _lkN(n, 'wear') : 'not yet worn'];
-        if (!draft && !sugg && lastW) metaBits.push('last worn ' + _lkFmt(lastW));
+        const metaBits = sugg ? [_lkN(pieceN, 'piece')] : [pieceN ? _lkN(pieceN, 'piece') : (dPhoto ? 'Photograph · not yet filed' : 'No pieces yet'), n ? _lkN(n, 'wear') : 'not yet worn'];
+        if (!sugg && lastW) metaBits.push('last worn ' + _lkFmt(lastW));
         // A saved look keeps what it was built around (F10/F13): "around
         // your rust dress" after the wear line.
-        if (!draft && !sugg && anchorNm) metaBits.push('around your ' + anchorNm);
+        if (!sugg && anchorNm) metaBits.push('around your ' + anchorNm);
         if (lkSet.meta) metaBits.push(lkSet.meta);
         // The meta line NAMES the first pinned day, so the strip below must
         // not say it again (Annie, 2026-09-21 — the same duplicate the trip
         // strip lost on 2026-09-10, in its general form). The clause is the
         // door too: "pinned for Tuesday 22 Sep" opens that day, which is the
         // one thing the strip carried that the meta could not.
-        const metaPin = (!draft && !sugg && !lkSet.meta && pins.length) ? pins[0] : null;
+        const metaPin = (!sugg && !lkSet.meta && pins.length) ? pins[0] : null;
         // "· Robes named it" is GONE (Annie, 2026-09-21) — the name is hers
         // to change from the pencil beside it; who offered it is not a fact
         // the page needs to carry. `prov` still italicises the title and
@@ -17046,8 +17053,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // The pencil is GONE (Look_Creation_Handoff 5a/5c, 2026-10-05):
         // renaming lives in edit mode, where the title itself is the tap
         // target (dashed = tap to rename); the eyebrow reads Editing.
-        const eyebrowText = draft ? 'Draft look · Robes styled it for the trip'
-          : sugg ? ('Suggested · ' + (anchorNm ? 'around your ' + _waEsc(anchorNm) : 'from your prompt'))
+        const eyebrowText = sugg ? ('Suggested · ' + (anchorNm ? 'around your ' + _waEsc(anchorNm) : 'from your prompt'))
           : (editing ? 'Editing' : 'Saved look');
         const titleInput = _lkTitleEditing
           ? '<input id="rb-lk-title" class="rb-tb-title-in rb-lk-title-in' + (prov ? ' prov' : '') + '" value="' + _waEsc(title) + '"' +
@@ -17073,7 +17079,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // The "Nothing on it yet" notice is GONE (handoff 6d): it said
         // there was nothing to wear, untrue for a look with a photograph;
         // the dashed door in the rack carries the ask.
-        if (draft || sugg || (ownedNone && !props.length)) {
+        if (sugg || (ownedNone && !props.length)) {
           // No wishlist / empty panels on a draft or a suggestion — the rack says it all.
         } else if (ownedNone) {
           h += '<div class="rb-lk-panel">' +
@@ -17095,26 +17101,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
             '<button type="button" class="x" title="Dismiss" aria-label="Dismiss this reminder" onclick="window.__lkStripHide(\'' + d + '\')">×</button>' +
             '</span></div>').join('');
         }
-        // Opened from a trip: the strip survives ONLY for a look that is
-        // packed but not yet on a day — it carries the one door that puts
-        // it on one. A PINNED look already prints its day in the title
-        // block's meta line ("pinned for Sat 5 Sep, Watching golf"), and
-        // the sage strip beneath said it a second time (Annie,
-        // 2026-09-10: get rid of the duplicate).
-        const trip = editing ? null : _lkTripCtx(l);
-        if (trip && trip.di == null) {
-          const dest = trip.data.destination || 'the trip';
-          const dayTitle = trip.di != null ? ((trip.data.dayTitles || {})[trip.di] || '') : '';
-          const iso = trip.di != null && trip.data.dateFrom ? _pdAddISO(trip.data.dateFrom, trip.di) : null;
-          const when = trip.di != null ? (iso ? _lkFmtLong(iso) : 'Day ' + (trip.di + 1)) : '';
-          void dayTitle; void when;
-          h += '<div class="rb-lk-pinstrip rb-lk-tripstrip"><span>' +
-            'Packed for ' + _waEsc(dest) + ' — not yet on a day.' +
-            '</span><span class="acts">' +
-            '<button type="button" onclick="window.__tvPinSheet(' + trip.li + ')">Pin to a day →</button>' +
-            '</span></div>';
-        }
-
         // The Rack — the same rack rows every console uses. A saved build's
         // proposals hang as full rack cards (the shared _rbcRow). Only with
         // nothing owned AND nothing proposed does the rack say so honestly
@@ -17127,7 +17113,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const propEmpties = props.map((row, i) => ({
           role: row.role,
           html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row),
-            editing && !draft
+            editing
               ? { swap: '__lkDPropSwap', save: '__lkPropSave', open: '__lkPropOpen', remove: '__lkDPropRemove' }
               : { readOnly: true, open: '__lkPropOpen' },
             lpDraft0 ? { was: lpDraft0.was, styled: lpDraft0.styled, back: lpDraft0.back } : null),
@@ -17146,29 +17132,17 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           // or Discard (changes stand) · Update look, a faint hairline until
           // something changes, the one ink fill after. Every edit lands on
           // the DRAFT and paints live; the SAVED look waits for Update.
-          // A trip draft keeps its own bar (Discard · Save this look).
           const rackCfg = { trail: true, filledOnly: true, noStrips: true, onSwap: '__lkDSwap', onRemove: '__lkDRemove', onRoleDrop: '__lkDRoleDrop', onPiece: '__lkPieceOpen' };
-          const line = draft
-            ? (dirty
-                ? ((_lkDraft && _lkDraft.refined) ? 'Adjusted — “' + _lkDraft.refined + '”. Not yet saved — save it and the trip wears it as it stands here.'
-                  : (dirty === 1 ? 'One change' : dirty + ' changes') + ' to this look, not yet saved. Save it and the trip wears it as it stands here.')
-                : 'Not in your Lookbook yet. Save it and it keeps its wears; discard and the trip keeps the look as Robes styled it.')
-            : '';
           const editRows = items.length || propEmpties.length
             ? _rbRackRolesHtml(items, rackCfg, propEmpties)
             : _lkRackDoorHtml({ items: [], addFn: '__lkDAddOpen', robes: false });
-          h += '<div class="rb-lk-held rb-lk-editing"><div class="rb-lk-con"><div>' + lookPanel + (draft ? lpField : '') + '</div><div>' +
+          h += '<div class="rb-lk-held rb-lk-editing"><div class="rb-lk-con"><div>' + lookPanel + '</div><div>' +
             '<div class="rb-lk-sec rb-lk-rackhead"><span>The rack · ' + _lkN(pieceN, 'piece') + '</span></div>' +
             '<div class="rbc-rack">' + editRows + '</div>' +
             (items.length || propEmpties.length ? '<button class="rbc-addpiece" onclick="window.__lkDAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece</button>' : '') +
             _lkLivesHtml(l) +
             '</div></div>' +
-            (draft
-              ? '<div class="rb-lk-editbar rb-lk-draftbar"><span>' + line + '</span><span class="acts">' +
-                  '<button type="button" class="q" onclick="window.__lkTripDraftDiscard()">Discard</button>' +
-                  '<button type="button" class="p" onclick="window.__lkTripDraftSave()">Save this look</button>' +
-                '</span></div>'
-              : '<div class="rb-lk-draftbar rb-lk-editpin">' +
+            ('<div class="rb-lk-draftbar rb-lk-editpin">' +
                   (dirty || (lpDraft && lpDraft.was && Object.keys(lpDraft.was).length)
                     ? '<button type="button" class="rb-lk-quiet rb-lk-discard" onclick="window.__lkDraftDiscard()">Discard</button>'
                     : '<button type="button" class="rb-lk-quiet rb-lk-discard rb-lk-done" onclick="window.__lkDraftDiscard()">Done</button>') +
@@ -17190,21 +17164,14 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // The rack READS: each row carries the piece's own wear count where
         // the flick cluster and Swap sit once she asks to edit. The wear
         // count is INFORMATION, not an action — its own class.
-        // From a trip, every owned row also carries the case's Pack toggle
-        // (the trip's own write path) — the pieces of a pinned look are
-        // what she packs.
         // The wear count sits UNDER the title as small sans meta (Annie,
         // 2026-10-06 third pass — in the trail column it pushed long names
         // onto two lines): "Bag · Texture" above the name, "0 wears" below.
-        const rackItems = items.map(it => {
-          const ci = (trip && it.owned) ? _lkTripCi(trip.data, it.pieceId) : -1;
-          const cap = ci >= 0 ? trip.data.capsule[ci] : null;
-          return Object.assign({}, it, {
-            count: { cur: 0, len: 1 },
-            subHtml: it.subHtml || '',
-            thirdHtml: cap ? '<button type="button" class="rbc-act rb-lk-packbtn' + (cap.packed ? ' on' : '') + '" onclick="window.__lkTripPack(' + ci + ')">' + (cap.packed ? _rbcCheckSvg + ' Packed' : 'Pack') + '</button>' : '',
-          });
-        });
+        const rackItems = items.map(it => Object.assign({}, it, {
+          count: { cur: 0, len: 1 },
+          subHtml: it.subHtml || '',
+          thirdHtml: '',
+        }));
         // The rack READS (handoff 5b): rows carry the piece's wear count
         // and › alone — no ↻ at rest, so a swap always goes through edit
         // mode. The swap zone and the head's Edit & resave are gone: the
@@ -17212,7 +17179,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // dashed door (6d) — "Add the pieces you wore", which opens edit
         // mode; a photograph-only look reads "Photograph · not yet filed".
         h += '<div class="rb-lk-sec rb-lk-rackhead rb-lk-rackhead-read"><span>The rack · ' + _lkN(pieceN, 'piece') + '</span><span style="flex:1"></span>' +
-          (trip && !rackEmpty ? '<button type="button" class="rb-lk-sort rb-lk-editbtn rb-lk-packall" onclick="window.__lkTripPackAll()">Pack this look</button>' : '') +
           '</div>' +
           '<div class="rbc-rack">' +
           (rackEmpty
@@ -17227,7 +17193,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // The bar carries NO facts (Annie, 2026-10-06 third pass — the title's
         // meta said them already): Edit look alone, aligned right.
         // F8's bar: Edit (hairline) · Save to lookbook (the page's one ink).
-        const pinBar = draft ? '' : sugg
+        const pinBar = sugg
           ? '<div class="rb-lk-draftbar rb-lk-pinbar rb-lk-suggbar">' +
               '<button type="button" class="rb-pill rb-lk-editlook rb-lk-suggedit" onclick="window.__lkSuggEdit(\'' + _waEsc(String(l.id)) + '\')">Edit</button>' +
               '<button type="button" class="rb-lk-save rb-lk-suggsave" onclick="window.__lkSuggSave(\'' + _waEsc(String(l.id)) + '\')">Save to lookbook</button>' +
@@ -18074,7 +18040,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           home: !!document.querySelector('.rb-lkh-composer'), kp: kp || undefined,
           shop: _lkShop, shopImgs: _lkShopImgs, note: _lkBuildNote, palette: _lkBuildPalette,
           built: !!_lkBuilt, aspirational: !!_lkAspirational, gaps: _lkBuildGaps, mine: !!_lkBuildMine,
-          day: _lkDay ? { date: _lkDay.date || null, trip: _lkDay.trip || null } : null,
+          day: _lkDay ? { date: _lkDay.date || null } : null,
           dateHint: _lkDateHint || null,
           src, was: _lkDraftWas, styled: _lkDraftStyled,
         };
@@ -18177,7 +18143,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _lkAspirational = !!d.aspirational;
         _lkBuildGaps = Array.isArray(d.gaps) ? d.gaps : [];
         _lkBuildMine = !!d.mine;
-        if (d.day && (d.day.date || d.day.trip)) _lkDay = { date: d.day.date || null, trip: d.day.trip || null };
+        if (d.day && d.day.date) _lkDay = { date: d.day.date };
         _lkDateHint = (!_lkDay && d.dateHint) ? d.dateHint : null;
         _lkBuildSeq++;
         // Try another re-runs the ask the draft came from — a closure cannot
@@ -18473,7 +18439,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // 2026-10-09): ‹ Lookbook looped back to this same composer and the
         // dock stood down under it — no way out. Its band reads ‹ Home under
         // its own key ('lkroot', never 'look'), so _rbNavSync keeps the dock.
-        const lkRoot = !home && !kp && !_lkDay && !_lkTripDraft && (_lkLooks.length + _lkShelfItems().length) === 0;
+        const lkRoot = !home && !kp && !_lkDay && (_lkLooks.length + _lkShelfItems().length) === 0;
         const retKey = lkRoot ? 'lkroot' : 'look';
         if (lkRoot) _rbRetReg('lkroot', { back: function() { window.__rbNavGo('home'); } });
         else if (!home && !kp) _rbRetReg('look', { back: function() { if (_lkDay) window.__lkDayBack(); else window.__lkBack(); } });
@@ -18489,7 +18455,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // draft, whatever door it came through (the kp builder's strip
         // reads the same). "Draft · not saved yet" folded into the eyebrow.
         const mastHtml = (home || kp) ? ''
-          : _rbRetHtml({ key: retKey, label: lkRoot ? 'Home' : _lkDay ? (_lkDay.date ? _lkFmtDay(_lkDay.date) : 'Travel edit') : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast rb-lk-draftmast"><div class="rb-lk-drafty">' + ((_lkDraftSrc && _lkDraftSrc.kind === 'suggested') ? 'Draft · from Robes’ suggestion' : 'Draft look') + '</div>' + titleHtml + '</div>';
+          : _rbRetHtml({ key: retKey, label: lkRoot ? 'Home' : (_lkDay && _lkDay.date) ? _lkFmtDay(_lkDay.date) : 'Lookbook' }) + '<div class="rb-lk-mast rb-lk-newmast rb-lk-draftmast"><div class="rb-lk-drafty">' + ((_lkDraftSrc && _lkDraftSrc.kind === 'suggested') ? 'Draft · from Robes’ suggestion' : 'Draft look') + '</div>' + titleHtml + '</div>';
 
         // The Rack — the formula strips name themselves, so no second
         // header sits above them (the masthead already names the look).
@@ -18608,7 +18574,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // defaults to the date). Supersedes the name gate.
         const hasAny = nPlaced > 0 || _lkShop.length > 0 || !!(_lkPhoto && _lkPhoto.url);
         const saveBtn = (label) => '<button type="button" class="rb-lk-save' + (hasAny ? '' : ' unnamed') + '" onclick="window.__lkSaveAsk()"' +
-            (canSave && hasAny ? '' : ' disabled') + '>' + ((_lkDay && _lkDay.trip) ? 'Save to the trip' : label) + '</button>';
+            (canSave && hasAny ? '' : ' disabled') + '>' + label + '</button>';
         // Home's composer keeps its save row (note · Save · foot · door).
         // Everywhere else the row holds only the quiet doors — Save and
         // Discard moved to the draft footer (design 4d, below).
@@ -18711,185 +18677,11 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         if (window.__rbCloseResultOverlays) window.__rbCloseResultOverlays();
         window.__lkOpen(id, savedId ? { from: { label: 'Travel edit', go: function() { window.__snOpenItem && window.__snOpenItem(savedId); } } } : null);
       };
-      // A look row on a trip that carries a SAVED look opens the look's own
-      // page (Annie, 2026-09-09) — back reads "Travel edit", the trip's pin
-      // strip and the pack toggles are the only additions. Returns false
-      // when the saved look no longer resolves (the trip's own look page
-      // then serves).
-      // A look Robes styled for the trip has no saved entity, so it opens
-      // as a DRAFT in the same frame Edit & resave uses (Annie, 2026-09-09:
-      // one look entity, never the trip's own page) — Save mints the looks
-      // row and links the trip look to it, Discard hands her back to the
-      // trip untouched. The draft lives here alone until she decides.
-      var _lkTripDraft = null;
-      // The return pill names the trip by its own title (never a section).
-      function _lkTripDoor() {
-        const savedId = _tvActiveSaveId;
-        const data = window.__lastTvData || {};
-        const label = data.headline || ('A trip to ' + (data.destination || 'somewhere lovely') + '.');
-        return savedId
-          ? { label, go: function() { window.__snOpenItem && window.__snOpenItem(savedId); } }
-          : { label, go: function() { window.__rbDiaryOpen && window.__rbDiaryOpen(); } };
-      }
-      function _lkTripDraftFrom(data, li, di) {
-        const tl = data.looks[li];
-        const entries = (tl.formula || []).length || !(tl.pieces || []).length
-          ? _tvLookEntries(li, di)
-          : (tl.pieces || []).map(p => ({ it: { name: p.name, category: p.category, wardrobe_match: p.id != null ? { id: p.id, image_url: p.image } : null }, f: null, ci: -1 }));
-        const pieces = [], props = [];
-        entries.forEach(x => {
-          const wm = x.it && x.it.wardrobe_match;
-          const wi = wm && _waItems.find(w => String(w.id) === String(wm.id));
-          if (wi) {
-            if (pieces.some(p => String(p.id) === String(wi.id))) return;
-            pieces.push({ id: wi.id, slot: null, position: pieces.length, role: _rbRoleNorm(x.f && x.f.role) || null });
-            return;
-          }
-          if (!x.it || !x.it.name) return;
-          // An unowned capsule piece rides the draft as a PROPOSAL — the
-          // same card a saved Robes build hangs — and lands on the look
-          // as one when she saves (migration 19).
-          props.push({
-            role: _rbRoleNorm(x.f && x.f.role) || 'The Canvas',
-            chip: _dlSlot(x.it).l,
-            cats: [x.it.category || 'Other'],
-            opts: [{ name: x.it.name, brand: x.it.brand || '', retailer_hint: x.it.retailer_hint || '', price_point: x.it.price_point || '', how: (x.f && x.f.note) || '' }],
-            oi: 0, img_oi: 0, saved: false,
-            image_url: _pdHttp(_tvImgOf(x.it)) || null,
-            _ci: x.ci,
-          });
-        });
-        const t = _rbTagsParse(tl.look_tags);
-        const l = {
-          id: 'draft:trip:' + li, _draft: true,
-          name: String(tl.title || tl.occasion || '').replace(/\.$/, '').trim() || _lkOfferName(pieces.map(p => p.id), tl.occasion || data.destination),
-          name_provisional: true,
-          note: tl.how || '',
-          photo_url: null, render_url: null, render_key: null,
-          proposals: props.length ? props : null,
-          tags: null, climate_band: null, climate_source: 'derived',
-          source: 'travel', origin_look_id: null,
-          created_at: new Date().toISOString(),
-          pieces, wears: [],
-        };
-        if (t && (t.climate || (t.wear || []).length || (t.vibe || []).length)) {
-          l.climate_band = t.climate || 'year_round';
-          l._tags = { wear: (t.wear || []).slice(), vibe: (t.vibe || []).slice() };
-          l.tags = _rbTagsFlat(t);
-        }
-        return l;
-      }
-      // A look row on a trip: a SAVED look opens its own page (back reads
-      // "Travel edit", the trip's pin strip and the pack toggles are the
-      // only additions); a Robes-styled look opens as a draft in the
-      // editor. Returns false only when the trip data is missing.
-      window.__lkFromTripLook = function(li, di) {
-        const data = window.__lastTvData;
-        const l = data && data.looks && data.looks[li];
-        if (!l) return false;
-        _tvSelDayI = null; _tvSelLookI = null; _tvDayLookIdx = 0;
-        if (window.__rbCloseResultOverlays) window.__rbCloseResultOverlays();
-        const trip = { li: li, di: di == null ? null : di };
-        if (l.imported && l.lookId && _lkFind(l.lookId)) {
-          const sibs = (data.looks || []).filter(x => x && x.imported && x.lookId && _lkFind(x.lookId)).map(x => String(x.lookId));
-          window.__lkOpen(l.lookId, { from: _lkTripDoor(), trip, siblings: sibs, suffix: 'on this trip', meta: _lkTripMeta(data, trip.di) });
-          return true;
-        }
-        const d = _lkTripDraftFrom(data, li, trip.di);
-        _lkTripDraft = d;
-        window.__lkOpen(d.id, { from: _lkTripDoor(), trip });
-        _rbTrack('look_draft_opened', { source: 'travel' });
-        return true;
-      };
-      function _lkTripCtx(l) {
-        const data = window.__lastTvData;
-        if (!_lkTrip || !data || !l) return null;
-        const tl = (data.looks || [])[_lkTrip.li];
-        if (!tl) return null;
-        if (!(l._draft && String(l.id) === 'draft:trip:' + _lkTrip.li) && String(tl.lookId) !== String(l.id)) return null;
-        return { data, l: tl, li: _lkTrip.li, di: _lkTrip.di };
-      }
-      // Save the draft: the looks row is minted from what stands on the
-      // rack, the trip look becomes an import of it (imported + lookId —
-      // the exact rule a saved look packed onto a trip follows), its
-      // formula re-pointed at the case so packing stays truthful, and the
-      // page lands on the saved look with the trip's strip and Pack toggles.
-      window.__lkTripDraftSave = function() {
-        const l = _lkFind(_lkActive);
-        if (!l || !l._draft) return;
-        const t = _lkTripCtx(l);
-        const pieces = _lkDraftPieces(l).map((p, i) => ({ id: p.id, slot: p.slot || null, position: i, role: p.role || null }));
-        const ids = pieces.map(p => p.id);
-        const props = (_lkDraft && String(_lkDraft.lookId) === String(l.id) && Array.isArray(_lkDraft.proposals))
-          ? _lkDraft.proposals : (Array.isArray(l.proposals) ? l.proposals : []);
-        if (!ids.length && !props.length) { _waShowToast('Add a piece and this look is yours to keep'); return; }
-        const name = String((_lkTitleDraft != null ? _lkTitleDraft : l.name) || '').trim() || l.name;
-        const slots = {}, roles = {};
-        pieces.forEach(p => { slots[p.id] = p.slot; roles[p.id] = p.role; });
-        const nl = _lkCreate({
-          pieces: ids, name, name_provisional: !!l.name_provisional && _lkTitleDraft == null,
-          source: 'travel',
-          note: l.note || undefined,
-          proposals: props.length ? props.map(p => { const c = Object.assign({}, p, { saved: true }); delete c._ci; return c; }) : null,
-          tags: l.tags || null,
-          lookTags: _lkTagsOf(l),
-          slots, roles,
-        });
-        if (t) {
-          const tl = t.l, data = t.data;
-          const was = _tvLookEntries(t.li, t.di);
-          const byPiece = {};
-          was.forEach(x => { const wm = x.it && x.it.wardrobe_match; if (wm && x.f) byPiece[String(wm.id)] = x; });
-          const formula = pieces.map(p => {
-            const wi = _waItems.find(w => String(w.id) === String(p.id));
-            const prev = byPiece[String(p.id)];
-            const ci = wi ? _tvCapsuleIndexFor(wi) : (prev ? prev.ci : -1);
-            return ci >= 0 ? { role: p.role || (prev && prev.f.role) || 'The Canvas', item_index: ci, note: (prev && prev.f.note) || '' } : null;
-          }).filter(Boolean).concat(props.filter(p => Number.isInteger(p._ci) && p._ci >= 0 && data.capsule[p._ci])
-            .map(p => ({ role: p.role || 'The Canvas', item_index: p._ci, note: (p.opts[0] || {}).how || '' })));
-          tl.imported = true; tl.lookId = nl.id;
-          tl.title = nl.name; tl.how = nl.note || tl.how || '';
-          tl.formula = formula;
-          tl.overrides = {}; tl.slotOverrides = {}; tl.dayAdds = {}; tl.dayDrops = {};
-          tl.pieces = ids.map(id => {
-            const wi = _waItems.find(w => String(w.id) === String(id));
-            return wi ? { id: wi.id, name: wi.label, image: wi.image_url || null, category: wi.category || '' } : null;
-          }).filter(Boolean);
-          // Unowned pieces go to the wishlist, as every keep does
-          props.forEach(p => {
-            const it = Number.isInteger(p._ci) ? data.capsule[p._ci] : null;
-            if (it && !it.wishlisted && typeof _wlSaveFromItem === 'function') {
-              _wlSaveFromItem(it, { silent: true, imageUrl: _pdItemThumb(it, data.generatedImages) });
-            }
-          });
-          _tvPatchSaved();
-        }
-        const trip = _lkTrip;
-        const from = _lkFrom;
-        _lkTripDraft = null; _lkDraft = null; _lkEditMode = false; _lkTitleDraft = null;
-        _rbTrack('look_saved_from_trip', { pieces: ids.length, unowned: props.length });
-        _waShowToast(nl.name + ' saved to your Lookbook ✓');
-        window.__lkOpen(nl.id, { from: from || _lkTripDoor(), trip });
-      };
-      window.__lkTripDraftDiscard = function() {
-        _lkTripDraft = null; _lkDraft = null; _lkEditMode = false; _lkTitleDraft = null;
-        window.__lkBackDoor();
-      };
-      function _lkTripCi(data, pieceId) {
-        return (data.capsule || []).findIndex(c => c.wardrobe_match && String(c.wardrobe_match.id) === String(pieceId));
-      }
-      // Pack from the look page — the trip's own write paths, then a repaint
-      window.__lkTripPack = function(ci) {
-        if (!_lkTripCtx(_lkFind(_lkActive))) return;
-        window.__tvPackToggle(ci);
-        _lkPaint();
-      };
-      window.__lkTripPackAll = function() {
-        const t = _lkTripCtx(_lkFind(_lkActive));
-        if (!t) return;
-        window.__tvPackLook(t.li, t.di);
-        _lkPaint();
-      };
+      // The trip's own entries into the look entity (__lkFromTripLook, the
+      // trip draft in the look editor, the Pack toggles on a look page) were
+      // removed with the trip (MVP, 2026-10-10): look creation and
+      // scheduling carry no trip branches. The relaunch reconnects the trip
+      // onto suggested → saved → a day (CLAUDE.md, the relaunch checklist).
       // Back climbs to the door she came through; with none recorded, the
       // Lookbook grid.
       // The set a look was opened from (nav architecture 2026-09-10):
@@ -18899,14 +18691,11 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       window.__lkBackDoor = function() {
         const f = _lkFrom;
         _lkFrom = null;
-        _lkTripDraft = null;
         if (f && typeof f.go === 'function') { f.go(); return; }
         window.__lkBack();
       };
       window.__lkOpen = function(id, opts) {
-        if (_lkTripDraft && String(_lkTripDraft.id) !== String(id)) _lkTripDraft = null;
         _lkFrom = (opts && opts.from && opts.from.label) ? opts.from : null;
-        _lkTrip = (opts && opts.trip && opts.trip.li != null) ? opts.trip : null;
         // Meta alone is enough to hold the set: a trip look's "pinned for
         // Sat 1 Aug" is the ONE place that fact prints now (the sage strip
         // that repeated it is gone — Annie, 2026-09-10), so a trip of one
@@ -18936,40 +18725,19 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       window.__lkLivesLookbook = function() { window.__lkBack(); };
       window.__lkBack = function() {
         _lkSet = null;
-        _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null; _lkEditMode = false; _lkDraft = null; _lkTripDraft = null;
+        _lkView = 'grid'; _lkActive = null; _lkActNote = null; _lkDone = null; _lkEditMode = false; _lkDraft = null;
         _lkPaint();
       };
       // ‹ › in the return band: the next look in the set the detail was
       // opened from (the grid's order, a trip's looks, a piece's looks).
-      // On a trip the next look keeps its trip context (the strip + the
-      // Pack toggles) — its own li, its first pinned day.
       window.__lkStep = function(dir) {
         const set = _lkSet || {};
         const sibs = (set.siblings && set.siblings.length ? set.siblings : _lkSorted().map(x => String(x.id))).map(String);
         const at = sibs.indexOf(String(_lkActive));
         const next = sibs[at + dir];
         if (next == null) return;
-        const opts = { from: _lkFrom, siblings: sibs, suffix: set.suffix, meta: '' };
-        const data = window.__lastTvData;
-        if (_lkTrip && data && data.looks) {
-          const li = data.looks.findIndex(x => x && String(x.lookId) === String(next));
-          if (li > -1) {
-            const tl = data.looks[li];
-            const di = tl.pins && tl.pins.length ? Math.min.apply(null, tl.pins) : null;
-            opts.trip = { li, di };
-            opts.meta = _lkTripMeta(data, di);
-          }
-        }
-        window.__lkOpen(next, opts);
+        window.__lkOpen(next, { from: _lkFrom, siblings: sibs, suffix: set.suffix, meta: '' });
       };
-      // "pinned for Sat 1 Aug, Dinner out" — the trip's pin as a plain meta
-      // line on the look page (design 08: the pin prints, no notice).
-      function _lkTripMeta(data, di) {
-        if (!data || di == null || !data.dateFrom) return '';
-        const iso = _pdAddISO(data.dateFrom, di);
-        const t = (data.dayTitles || {})[di] || '';
-        return 'pinned for ' + _lkFmtLong(iso) + (t ? ', ' + t : '');
-      }
       // Role re-cast on a saved look — presentational like a rename, so it
       // applies silently (no promotion gate: composition is untouched).
       window.__lkDRoleDrop = function(idx, role) {
@@ -19506,8 +19274,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           _lkPatch(l.id, { styling: st });
         }
         if (draft.note) { l.note = draft.note; _lkPatch(l.id, { note: l.note }); }
-        const tctx = _lkTripCtx(l);
-        if (tctx && !l._draft && draft.refined) _lkTripRelink(tctx, l, draft.proposals || []);
         _lkDraft = null;
         _lkEditMode = false;
         // A toast, never a standing banner (Annie, 2026-09-08).
@@ -19625,6 +19391,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // closes the Diary underneath when it renders (__tvRenderResult).
       window.__lkNewHoliday = function() {
         document.getElementById('rb-lk-newmenu')?.remove();
+        if (_RB_TRIP_HIDDEN) return;   // the trip is hidden (MVP)
         if (window.__tvOpen) window.__tvOpen({});
       };
 
@@ -19654,8 +19421,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       }
       // opts.day (ISO) attaches a day: the return band reads the date, the
       // filing chip says where it lands, Save reads "Save to {weekday}",
-      // and the saved look lands on that day. opts.trip = {di} files into
-      // a trip instead. opts.tags pre-fills the tag row (her Refine picks).
+      // and the saved look offers that day. opts.tags pre-fills the tag row
+      // (her Refine picks).
       // opts.then runs once the composer is open — callers that chain a
       // build or a placed piece pass it, since a standing draft interposes
       // the let-it-go confirm first (phase 1).
@@ -19668,7 +19435,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         }
         _lkShelfOpen();
         _lkResetComposer();
-        if (opts.day || opts.trip) _lkDay = { date: opts.day || null, trip: opts.trip || null };
+        if (opts.day) _lkDay = { date: opts.day };
         if (opts.tags) _lkNewTags = opts.tags;
         _lkPaint();
         _rbTrack('look_compose_opened', { day: !!_lkDay });
@@ -19678,13 +19445,11 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       function _lkDayWeekday(iso) {
         return iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' }) : '';
       }
-      // ‹ {date}: the draft is let go, and she lands where the day was —
-      // the trip page, or the day page.
+      // ‹ {date}: the draft is let go, and she lands on the day page.
       window.__lkDayBack = function() {
         const day = _lkDay;
         _lkResetComposer();
         _lkView = 'grid'; _lkActive = null;
-        if (day && day.trip) { window.__snClose && window.__snClose(); return; }
         if (day && day.date && window.__rbDayOpen) { window.__rbDayOpen(day.date, { from: 'diary' }); return; }
         if (window.__rbDiaryOpen) window.__rbDiaryOpen(); else _lkPaint();
       };
@@ -20359,13 +20124,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         });
         return out.map((e, i) => Object.assign({ i }, e));
       }
-      // On a trip the pool is the case alone — never the wardrobe.
-      function _lkLpPoolCapsule(t) {
-        return { kind: 'capsule', items: (t.data.capsule || []).map((c, ci) => ({
-          ci, id: c.wardrobe_match ? String(c.wardrobe_match.id) : null, label: c.name, category: c.category || '', color: (c.wardrobe_match && c.wardrobe_match.color) || '',
-          brand: c.brand || '', retailer_hint: c.retailer_hint || '', price_point: c.price_point || '', packed: !!c.packed,
-        })) };
-      }
       function _lkLpApplyLook(l, j, sent, words) {
         const rack = (sent && sent.rack) || [], pool = sent && sent.pool;
         const d = _lkLpDraftArm(l);
@@ -20441,17 +20199,16 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       function _lkLpOpenLook() {
         const l = _lkFind(_lkActive);
         if (!l) return;
-        const t = _lkTripCtx(l);
         const nm = String((_lkTitleDraft != null ? _lkTitleDraft : l.name) || '').trim() || 'Saved look';
         const d = _lkLpDraftArm(l);
         const nPieces = d.pieces.length + d.proposals.length;
         let lastWords = '';
         _rbLookPrompt({
-          mode: 'look', surface: t ? 'trip' : 'saved', title: nm, name: nm, lookId: l.id,
-          meta: t ? ('Trip to ' + (t.data.destination || 'the trip') + (t.di != null && typeof _tvDayShort === 'function' ? ' · ' + _tvDayShort(t.di) : '')) : (l._draft ? 'Draft · not saved yet' : 'Saved look · ' + _lkN(nPieces, 'piece')),
+          mode: 'look', surface: 'saved', title: nm, name: nm, lookId: l.id,
+          meta: 'Saved look · ' + _lkN(nPieces, 'piece'),
           rack: () => _lkLpRackLook(l),
-          pool: t ? () => _lkLpPoolCapsule(t) : _rbLpPoolWardrobe,
-          context: () => _rbLpContext(t ? { trip: t.data.destination, weather: t.data.weather && (t.data.weather.temp || t.data.weather.summary) ? [t.data.weather.temp, t.data.weather.condition || t.data.weather.summary].filter(Boolean).join(', ') : undefined, occasion: t.l && t.l.occasion } : {}),
+          pool: _rbLpPoolWardrobe,
+          context: () => _rbLpContext(),
           apply: (j, sent) => _lkLpApplyLook(l, j, sent, lastWords),
           onRule: _rbBriefRulePush,
           changed: () => Object.keys((d.was) || {}).length,
@@ -20594,28 +20351,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // Update on a refined imported look re-points the trip's formula at
       // the case (owned pieces through _tvCapsuleIndexFor, proposals through
       // the capsule index they came with) so packing stays truthful.
-      function _lkTripRelink(t, l, propsWithCi) {
-        const tl = t.l, data = t.data;
-        const was = _tvLookEntries(t.li, t.di);
-        const byPiece = {};
-        was.forEach(x => { const wm = x.it && x.it.wardrobe_match; if (wm && x.f) byPiece[String(wm.id)] = x; });
-        const formula = (l.pieces || []).map(p => {
-          const wi = _waItems.find(w => String(w.id) === String(p.id));
-          const prev = byPiece[String(p.id)];
-          const ci = wi ? _tvCapsuleIndexFor(wi) : (prev ? prev.ci : -1);
-          return ci >= 0 ? { role: p.role || (prev && prev.f.role) || 'The Canvas', item_index: ci, note: (prev && prev.f.note) || '' } : null;
-        }).filter(Boolean).concat((propsWithCi || []).filter(p => Number.isInteger(p._ci) && p._ci >= 0 && (data.capsule || [])[p._ci])
-          .map(p => ({ role: p.role || 'The Canvas', item_index: p._ci, note: ((p.opts || [])[0] || {}).how || '' })));
-        if (!formula.length) return;
-        tl.formula = formula;
-        tl.overrides = {}; tl.slotOverrides = {}; tl.dayAdds = {}; tl.dayDrops = {};
-        tl.title = l.name; tl.how = l.note || tl.how || '';
-        tl.pieces = (l.pieces || []).map(p => {
-          const wi = _waItems.find(w => String(w.id) === String(p.id));
-          return wi ? { id: wi.id, name: wi.label, image: wi.image_url || null, category: wi.category || '' } : null;
-        }).filter(Boolean);
-        _tvPatchSaved();
-      }
       // Nothing is saved until she saves — and then everything is: the look,
       // plus any proposed piece she hasn't already kept, into the wishlist.
       // (A Look can only HOLD pieces she owns — look_pieces references
@@ -22086,7 +21821,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _lkResetComposer();
         if (keepId) _lkDraftId = keepId;
         _lkKpHost = kpHost;
-        if (o.day) _lkDay = { date: o.day, trip: null };
+        if (o.day) _lkDay = { date: o.day };
         if (!o.day && o.dateHint) _lkDateHint = o.dateHint;
         _lkBuilt = true; _lkBuilding = false; _lkBuildSeq++;
         _lkDraftSrc = { kind: o.kind || 'daily', eyebrow: String(o.eyebrow || '').trim(), again: typeof o.again === 'function' ? o.again : null,
@@ -22539,11 +22274,12 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // A look reaches a day only once it is saved (2026-10-10, Annie):
         // a draft that carries a diary date files NOTHING on save — the
         // date becomes the offer, the sheet rising with that day marked.
-        // A trip day is the one exception (trips are their own container).
-        let day = _lkDay; _lkDay = null; _lkDraftSrc = null;
+        // No exceptions: the trip's own filing left with the trip (MVP,
+        // 2026-10-10).
+        const day = _lkDay; _lkDay = null; _lkDraftSrc = null;
         let dateHint = _lkDateHint; _lkDateHint = null;
         let hintFrom = null;
-        if (day && !day.trip) { if (day.date && !dateHint) { dateHint = day.date; hintFrom = day.date; } day = null; }
+        if (day && day.date && !dateHint) { dateHint = day.date; hintFrom = day.date; }
         // A draft hosted on the key piece page (2026-09-16) lands there —
         // the host reads Filed, the look one tap away; the Lookbook grid
         // repaints underneath as ever.
@@ -22552,30 +22288,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // (Annie, 2026-07-30: the confirmation page read as a broken landing).
         _lkView = 'grid';
         _lkActive = null;
-        if (day) {
-          // Rule 04 (2026-09-15): a look made for a day is filed to the day
-          // ON SAVE — the one write. A trip day imports it through the
-          // trip's own path; a diary day pins it (carrying the day's name).
-          // Then she lands on the day page, the look on its card.
-          if (day.trip) {
-            window.__snClose && window.__snClose();
-            setTimeout(() => { if (window.__tvAddSavedLookPick) window.__tvAddSavedLookPick(l.id, Number.isInteger(day.trip.di) ? day.trip.di : null); }, 80);
-            _rbTrack('look_saved_to_trip', {});
-            return;
-          }
-          if (typeof _lkPin === 'function' && day.date) {
-            const title = _pdDayTitle(_dyPgRows(day.date));
-            _lkPin(l.id, day.date, title || undefined);
-          }
-          _waShowToast(l.name + ' · filed to ' + _lkDayWeekday(day.date) + ' ✓');
-          _rbTrack('look_saved_to_day', {});
-          _waV2Sync();
-          if (then) then(l);
-          if (stay) return l;
-          if (window.__rbDayOpen) window.__rbDayOpen(day.date, { from: 'diary' });
-          else if (window.__rbDiaryOpen) window.__rbDiaryOpen();
-          return;
-        }
         _lkPaint();
         _waV2Sync();
         if (then) then(l);
@@ -25236,6 +24948,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // 2026-08-10; the step-2 build page is gone).
       window.__tvOpen = function(opts) {
         document.getElementById('tv-brief-modal')?.remove();
+        // The trip is hidden (MVP): every door to the intake is a no-op —
+        // the belt behind removing the doors themselves.
+        if (_RB_TRIP_HIDDEN) return;
         const serif = "'Cormorant',Georgia,serif";
         const iso = d => d.toISOString().slice(0, 10);
         const rawBrief = (opts && opts.brief) || '';
@@ -25939,7 +25654,8 @@ body>*:not(#tv-result-page){display:none !important}
         _tvStageRepaint();
       };
       window.__tvLookTap = function(li) {
-        if (window.__lkFromTripLook && window.__lkFromTripLook(li, null)) return;
+        // The trip is frozen (MVP, 2026-10-10): its looks open on its own
+        // stage — the look entity carries no trip branches any more.
         window.__tvSelectLook(li);
       };
       window.__tvSelectDay = function(di) {
@@ -26028,11 +25744,6 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPaintPackProgress();
         const day = (_tvDayInfo(di).date || _tvDayInfo(di).dow).replace(/,/g, '');
         _waShowToast('“' + (l.title || l.occasion || 'The look') + '” ' + (was ? 'unpinned from ' : 'pinned to ') + day);
-        if (_lkTrip && _lkTrip.li === li && _lkView === 'detail' && typeof _lkPaint === 'function') {
-          _lkTrip.di = was ? ((l.pins || []).length ? (l.pins || []).slice().sort((a, b) => a - b)[0] : null) : di;
-          _lkPaint();
-          return;
-        }
         try {
           const row = document.querySelectorAll('#tv-weekstrip .tvw-card')[di];
           if (row && row.scrollIntoView) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -26106,7 +25817,6 @@ body>*:not(#tv-result-page){display:none !important}
       };
       // A look row in the Travel diary opens THAT look's rack, day-scoped
       window.__tvDayLookOpen = function(di, li) {
-        if (window.__lkFromTripLook && window.__lkFromTripLook(li, di)) return;
         const data = window.__lastTvData || {};
         _tvSelDayI = di;
         _tvSelLookI = null;
@@ -26379,13 +26089,8 @@ body>*:not(#tv-result-page){display:none !important}
       window.__tvDayPick = function(di) {
         const data = window.__lastTvData;
         if (!data) return;
-        // The Add-a-look picker is the one modal behind every + (2026-09-15):
-        // the trip day rides it with the day attached — a saved look imports
-        // whole, Create a new look opens the composer filing to this trip.
-        if (window.__mvWear && data.dateFrom) {
-          window.__mvWear(_pdAddISO(data.dateFrom, di), { trip: { di } });
-          return;
-        }
+        // The trip is frozen (MVP, 2026-10-10): it keeps its own sheet — the
+        // shared Add-a-look picker carries no trip mode any more.
         document.getElementById('tv-daypick-modal')?.remove();
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         const info = _tvDayInfo(di);
@@ -26440,7 +26145,6 @@ body>*:not(#tv-result-page){display:none !important}
       window.__tvLookMenu = function() {
         const data = window.__lastTvData;
         if (!data) return;
-        if (window.__mvWear) { window.__mvWear(null, { trip: { di: null } }); return; }
         document.getElementById('tv-lookmenu-modal')?.remove();
         const closeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         const optCss = 'display:block;width:100%;text-align:left;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad);background:#fff;padding:13px 15px;cursor:pointer;font-family:inherit;margin-bottom:9px';
@@ -26532,7 +26236,7 @@ body>*:not(#tv-result-page){display:none !important}
         _tvPatchSaved();
         _rbTrack('travel_look_added', { from: 'lookbook', pinned: Number.isInteger(pinTo) });
         _waShowToast('“' + (lk.name || 'Your look') + '” joined the trip — its pieces are in the capsule');
-        if (window.__lkFromTripLook) window.__lkFromTripLook(li, Number.isInteger(pinTo) ? pinTo : null);
+        if (Number.isInteger(pinTo)) window.__tvDayLookOpen(pinTo, li); else window.__tvSelectLook(li);
       };
 
       // An imported look (packed whole from her saved Looks) is read-only —
@@ -27121,6 +26825,7 @@ body>*:not(#tv-result-page){display:none !important}
       }
 
       window.__tvRenderResult = function(data, opts) {
+        if (_RB_TRIP_HIDDEN) return;   // the trip is hidden (MVP)
         if (!data) {
           _waShowToast('Could not build this trip — please try again');
           return;
@@ -29541,6 +29246,8 @@ body>*:not(#tv-result-page){display:none !important}
 
       function _cbSetIntent(intent) {
         _cbHideClarify();
+        // The trip is hidden (MVP): a travel scaffold arms nothing.
+        if (intent === 'travel' && _RB_TRIP_HIDDEN) return;
         // FTU rows: arming the prompt must unfurl the Style-something row
         // first, or the scaffold lands in a closed drawer.
         if (typeof _rbFtuRevealPrompt === 'function') _rbFtuRevealPrompt();
@@ -29782,7 +29489,10 @@ body>*:not(#tv-result-page){display:none !important}
           /\b(outfit|look) for\b/.test(t) || /\bwear (to|for)\b/.test(t) ||
           /\b(today|tonight|tomorrow|this (morning|afternoon|evening|weekend))\b/.test(t) ||
           /\b(brunch|dinner|lunch|meeting|wedding|date night|office|workday|interview|party|drinks|gallery|school run)\b/.test(t);
-        const travel = /\b(pack(ing)?|suitcase|luggage|trip|travel(ling|ing)?|holiday|vacation|getaway|city break|honeymoon|weekend away|nights? in)\b/.test(t);
+        const tripWords = /\b(pack(ing)?|suitcase|luggage|trip|travel(ling|ing)?|holiday|vacation|getaway|city break|honeymoon|weekend away|nights? in)\b/.test(t);
+        // The trip is hidden (MVP): a trip-shaped ask is an ask for looks.
+        const travel = !_RB_TRIP_HIDDEN && tripWords;
+        if (_RB_TRIP_HIDDEN && tripWords && !piece) return 'dress-me';
         // Week-span prompts ("plan my work week") have no track since the
         // weekly artifact was retired (2026-08-08) — they fall through to
         // null → the clarifying loop, never a blind render. Day-chip
@@ -29812,10 +29522,10 @@ body>*:not(#tv-result-page){display:none !important}
         row.id = 'cb-clarify';
         row.style.cssText = 'margin:12px 0 0;padding:16px 18px;background:#fff;border:0.5px solid rgba(32,32,33,0.12);border-radius:var(--rad)';
         row.innerHTML = `
-          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — a look for your day, a trip packed, or one piece three ways?</div>
+          <div style="font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#6E6A64;margin-bottom:10px">Lovely — a look for your day${_RB_TRIP_HIDDEN ? ',' : ', a trip packed,'} or one piece three ways?</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button data-intent="dress-me" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">An outfit for my day</button>
-            <button data-intent="travel" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Pack for a trip</button>
+            <button data-intent="travel" ${_RB_TRIP_HIDDEN ? 'hidden ' : ''}style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Pack for a trip</button>
             <button data-intent="style" style="padding:8px 16px;border:1px solid rgba(32,32,33,0.18);border-radius:40px;background:#FAF8F5;font-size:12px;cursor:pointer;color:#202021;font-family:inherit">Style one piece 3 ways</button>
           </div>`;
         anchor.parentNode.insertBefore(row, anchor.nextSibling);
@@ -29830,6 +29540,8 @@ body>*:not(#tv-result-page){display:none !important}
       // "dress this day" — Stage 3 replaces this with the real scope state).
       var _cbAnchorDate = null;
       function _cbResolve(intent, prompt) {
+        // The trip is hidden (MVP): every prompt makes suggested looks.
+        if (intent === 'travel' && _RB_TRIP_HIDDEN) intent = 'dress-me';
         _rbTrack('prompt_submitted', { track: intent || '', has_photo: !!_cbPhotoData, length: (prompt || '').length });
         if (intent === 'travel') {
           // The Travel Edit needs a structured brief (destination + dates) —
@@ -29959,7 +29671,7 @@ body>*:not(#tv-result-page){display:none !important}
         // "Add a travel edit" joins it (Annie, 2026-09-08): the where/when/
         // vibe intake from the prompt's own door — the trip files itself
         // into the Diary on those dates.
-        if (addMenu && !document.getElementById('cb-addopt-tv')) {
+        if (addMenu && !_RB_TRIP_HIDDEN && !document.getElementById('cb-addopt-tv')) {
           const tvOpt = document.createElement('button');
           tvOpt.id = 'cb-addopt-tv';
           tvOpt.className = 'hp-addopt';
@@ -31257,7 +30969,7 @@ body>*:not(#tv-result-page){display:none !important}
             .then(rows => {
               // Same-plan supersession (F4/D-08): a rescheduled plan's
               // stale twin must not win the Coming-up slot.
-              rows = Array.isArray(rows) ? _pdSupersede(rows) : rows;
+              rows = Array.isArray(rows) ? _pdSupersede(_pdTripRows(rows)) : rows;
               // Belt: only what lies BEYOND the strip (the query says so;
               // a stubbed read may not honour it).
               const beyond = _pdAddISO(_railToday, _rbDayCardOn() ? 6 : 5);
@@ -31916,6 +31628,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           if (ev) { ev.stopPropagation(); ev.preventDefault(); }
           document.getElementById('rb-dy-addmenu')?.remove();
           date = date || _pdLocalISO();
+          // The trip is hidden (MVP): a look is the only thing the + adds, so
+          // it opens the picker straight away — never a menu of one.
+          if (_RB_TRIP_HIDDEN) { window.__mvWear && window.__mvWear(date); return; }
           const n = (typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)) ? _lkLooks.length : 0;
           const pop = document.createElement('div');
           pop.id = 'rb-dy-addmenu';
@@ -32418,7 +32133,10 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             // The design's empty state — nothing planned in the window.
             // "Plan a trip" is the one commitment on the screen; the
             // days still follow beneath.
-            html += `<div class="dy-empty"><h3>Nothing planned<br><em>yet.</em></h3><p>Name a day, or pack for somewhere. The diary keeps the dates; the lookbook keeps the looks.</p><button type="button" class="dy-empty-cta" onclick="window.__lkNewHoliday()">Plan a trip</button></div>`;
+            // The trip is hidden (MVP): no button — the days below are the doors.
+            html += _RB_TRIP_HIDDEN
+              ? `<div class="dy-empty"><h3>Nothing planned<br><em>yet.</em></h3><p>Name a day below and add a look. The diary keeps the dates; the lookbook keeps the looks.</p></div>`
+              : `<div class="dy-empty"><h3>Nothing planned<br><em>yet.</em></h3><p>Name a day, or pack for somewhere. The diary keeps the dates; the lookbook keeps the looks.</p><button type="button" class="dy-empty-cta" onclick="window.__lkNewHoliday()">Plan a trip</button></div>`;
           }
           const dates = _pdDateList(win.from, win.to);
           const done = {};
@@ -32564,8 +32282,8 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // a "Refine · N" pill with removable chips when on). Tiles print the
         // look's moment and last worn. Filtered to nothing is one door: the
         // composer, the picker's only ink fill; her tags carry in.
-        // opts.trip = {di} addresses a trip day (di null = the trip's
-        // unpinned pool): picks import through the trip's own path.
+        // (The trip's mode — its make-doors, its own looks as tiles, picks
+        // importing into the trip — left with the trip, MVP 2026-10-10.)
         var _mvPk = null;
         var _MV_PK_CSS = `
 #rb-mv-wear .pk{background:#FAF8F5;border:1px solid var(--rule,#E3DDD2);border-radius:14px;width:100%;max-width:560px;max-height:86vh;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;box-shadow:0 18px 40px rgba(32,32,33,.12);font-family:inherit;color:var(--ink,#202021)}
@@ -32658,10 +32376,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const host = document.getElementById('rb-mv-wear');
           if (!c || !host) return;
           const looksAll = (typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)) ? _lkLooks : [];
-          const trip = c.trip;
-          // In a trip, a look already in the trip is not offered again.
-          const tvData = trip ? window.__lastTvData : null;
-          const pool = trip && tvData ? looksAll.filter(lk => !(tvData.looks || []).some(l => l.imported && String(l.lookId) === String(lk.id))) : looksAll;
+          const pool = looksAll;
           const sel = _mvPkSelected();
           const on = sel.length || String(c.q || '').trim();
           let list = pool.filter(_mvPkMatches);
@@ -32670,12 +32385,8 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           if (c.sortDesc) { const worn = list.filter(l => ts(l)), never = list.filter(l => !ts(l)); list = worn.concat(never); }
           const lt = window._rbLookTile;
           const esc = _waEsc;
-          const dateLbl = c.date ? _mvPkDateLabel(c.date) : (trip ? 'this trip' : '');
+          const dateLbl = c.date ? _mvPkDateLabel(c.date) : '';
           const title = c.title || 'What to wear?';
-          const doorRobes = trip
-            ? `window.__mvPkRobesTrip()`
-            : `window.__mvRobes('${c.date}')`;
-          const doorNew = `window.__mvPkNew()`;
           const labelOf = (axis, v) => esc(_rbTagLabel(axis, v));
           const chipsHtml = sel.map(x => `<button type="button" class="pk-tagx" onclick="window.__mvPkPick('${x.axis}','${esc(x.v)}')">${labelOf(x.axis, x.v)} ×</button>`).join('');
           const sentence = (() => {
@@ -32709,38 +32420,22 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             const had = onDay.indexOf(id) > -1, on = picks.indexOf(id) > -1;
             return `<button type="button" class="pk-tile${on ? ' on' : ''}${had ? ' had' : ''}" data-look="${esc(id)}" onclick="window.__mvPkToggleLook('${esc(id)}')"${had ? ' aria-disabled="true"' : ''}>${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: _lkHeroUrl(l) || undefined, alt: l.name || 'Saved look' })}<span class="pk-tick" aria-hidden="true">${on ? '✓' : ''}</span><div class="t">${esc(l.name || 'A look')}</div><div class="m">${had ? 'Already on this day' : tileMeta(l)}</div></button>`;
           };
-          // Outside a trip the day takes SAVED looks only (2026-10-10, Annie):
+          // The day takes SAVED looks only (2026-10-10, Annie):
           // no make-doors here — a new look starts from the sparkle — and
           // the looks still waiting in Suggested are named, one tap away.
-          const suggN = trip ? 0 : (_lkSugg || []).filter(x => x.status === 'suggested').length;
+          const suggN = (_lkSugg || []).filter(x => x.status === 'suggested').length;
           const suggHtml = suggN ? `<button type="button" class="pk-sugg" onclick="window.__mvPkSugg()"><span>${esc(_mvPkNumWord(suggN) + (suggN === 1 ? ' look waits' : ' looks wait'))} in Suggested — save one first</span><span class="ar">›</span></button>` : '';
           const gridHtml = list.length
             ? `<div class="pk-grid">${list.slice(0, 80).map(tileHtml).join('')}</div>`
             : (pool.length
-              ? (trip
-                ? `<div class="pk-none"><h4>Nothing tagged ${esc(sel.map(x => String(_rbTagLabel(x.axis, x.v)).toLowerCase()).join(' and ') || 'that')}.</h4><p>The composer starts one from the pieces you own.</p><button type="button" class="pk-ink" onclick="${doorNew}">Open the composer</button></div>`
-                : `<div class="pk-none"><h4>Nothing tagged ${esc(sel.map(x => String(_rbTagLabel(x.axis, x.v)).toLowerCase()).join(' and ') || 'that')}.</h4><p>Clear the filters to see every saved look.</p><button type="button" class="pk-ink" onclick="window.__mvPkClear()">Clear all</button></div>`)
-              : (trip
-                ? `<div class="pk-none"><h4>Nothing in the Lookbook <em>yet.</em></h4><p>The composer starts one from the pieces you own.</p><button type="button" class="pk-ink" onclick="${doorNew}">Open the composer</button></div>`
-                : `<div class="pk-none"><h4>Nothing saved <em>yet.</em></h4><p>${suggN ? 'Save one of your suggested looks and it can go on this day.' : 'Ask Robes for a look from the sparkle, save the one you like, and it can go on this day.'}</p>${suggN ? '<button type="button" class="pk-ink" onclick="window.__mvPkSugg()">See Suggested</button>' : ''}</div>`));
-          // A trip day also offers the trip's OWN looks not yet on it —
-          // the old sheet's "Or one of this trip's looks", as tiles.
-          let tripOwn = '';
-          if (trip && tvData && Number.isInteger(trip.di)) {
-            const rows = (tvData.looks || []).map((l, li) => ({ l, li })).filter(x => (x.l.pins || []).indexOf(trip.di) === -1);
-            if (rows.length) tripOwn = `<div class="pk-bar" style="margin-top:18px"><span class="k">This trip's looks</span><span class="n">${esc(_lkN(rows.length, 'look'))}</span></div>
-              <div class="pk-grid" style="padding-bottom:6px">${rows.map(x => `<button type="button" class="pk-tile pk-triptile" onclick="window.__tvDayPickApply(${x.li},${trip.di})"><div class="t">${esc(x.l.title || x.l.occasion || 'The look')}</div><div class="m">${esc(x.l.occasion || 'in this trip')}</div></button>`).join('')}</div>`;
-          }
+              ? `<div class="pk-none"><h4>Nothing tagged ${esc(sel.map(x => String(_rbTagLabel(x.axis, x.v)).toLowerCase()).join(' and ') || 'that')}.</h4><p>Clear the filters to see every saved look.</p><button type="button" class="pk-ink" onclick="window.__mvPkClear()">Clear all</button></div>`
+              : `<div class="pk-none"><h4>Nothing saved <em>yet.</em></h4><p>${suggN ? 'Save one of your suggested looks and it can go on this day.' : 'Ask Robes for a look from the sparkle, save the one you like, and it can go on this day.'}</p>${suggN ? '<button type="button" class="pk-ink" onclick="window.__mvPkSugg()">See Suggested</button>' : ''}</div>`);
           const footHtml = picks.length
             ? `<button type="button" class="pk-cta" onclick="window.__mvPkAdd()">Add ${esc(_lkN(picks.length, 'look'))}</button>`
             : `<div class="pk-hint">Tap looks to add one or several</div>`;
           host.innerHTML = `<div class="pk" role="dialog" aria-modal="true"><div class="pk-body">
             <div class="pk-head"><span class="pk-ey">Add a look${dateLbl ? ' · ' + esc(dateLbl) : ''}</span><button type="button" class="pk-x" onclick="window.__mvPkClose()" aria-label="Close">×</button></div>
             <h3 class="pk-h" id="rb-mv-wear-ttl">${esc(title)}${c.target ? `<button type="button" class="pen" onclick="window.__mvWearRename()" title="Rename the day" aria-label="Rename the day">${_DC_PEN_SVG}</button>` : ''}</h3>
-            ${trip ? `<div class="pk-doors">
-              <button type="button" class="pk-door" onclick="${doorRobes}"><p class="l"><i>✦</i>Robes styles one</p><p class="s">${c.title ? 'dressed for “' + esc(c.title) + '”' : 'a fresh look for this day'}</p></button>
-              <button type="button" class="pk-door" onclick="${doorNew}"><p class="l"><i class="q">✎</i>Create a new look</p><p class="s">opens the composer</p></button>
-            </div>` : ''}
             ${(pool.length || !suggN) ? suggHtml : ''}
             <div class="pk-bar"><span class="k">Your looks</span><span class="n">${esc(_lkN(pool.length, 'look'))}</span>
               <button type="button" class="pk-pill" onclick="window.__mvPkSort()">${c.sortDesc ? 'Last worn ↓' : 'First worn ↑'}</button>
@@ -32749,8 +32444,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             ${(!c.open && sel.length) ? `<div class="pk-chips">${chipsHtml}</div><p class="pk-sent">${esc(sentence)}</p>` : ''}
             ${refineHtml}
             ${gridHtml}
-            ${tripOwn}
-          </div><div class="pk-foot">${(list.length || (trip && tripOwn)) ? footHtml : ''}</div></div>`;
+          </div><div class="pk-foot">${list.length ? footHtml : ''}</div></div>`;
           if (c.open && c.focusSearch) {
             c.focusSearch = false;
             const q = document.getElementById('rb-mv-pk-q');
@@ -32761,7 +32455,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           opts = opts || {};
           document.getElementById('rb-mv-wear')?.remove();
           _mvPkCss();
-          const trip = opts.trip || null;
           // The day's own name heads the panel when it has one — and the
           // rename affordance reaches here too (Annie 2026-08-14).
           // Rows in hand: the Diary's month when it is open, else the rail
@@ -32769,13 +32462,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const hereAll = date ? ((_mvRows || []).some(r => r.day_date === date) ? (_mvRows || []).filter(r => r.day_date === date) : _dyPgRows(date)) : [];
           let dayTitle = date ? _pdDayTitle(hereAll) : '';
           let renameT = hereAll.length ? (_rbDayRenameTarget(hereAll) || hereAll.find(r => r.source_type === 'day') || null) : null;
-          if (trip && window.__lastTvData && Number.isInteger(trip.di)) {
-            dayTitle = String((window.__lastTvData.dayTitles || {})[trip.di] || '');
-            renameT = null;
-          }
           // The saved looks already on this date — shown, never offered twice
-          const onDay = (!trip && date) ? hereAll.filter(r => r.source_type === 'look').map(r => String(r.source_id)) : [];
-          _mvPk = { date: date || null, trip, title: dayTitle, target: renameT, q: '', refine: { climate: [], wear: [], vibe: [] }, open: false, sortDesc: true, picks: [], onDay };
+          const onDay = date ? hereAll.filter(r => r.source_type === 'look').map(r => String(r.source_id)) : [];
+          _mvPk = { date: date || null, title: dayTitle, target: renameT, q: '', refine: { climate: [], wear: [], vibe: [] }, open: false, sortDesc: true, picks: [], onDay };
           _mvWearCtx = { date, target: renameT, title: dayTitle };
           const modal = document.createElement('div');
           modal.id = 'rb-mv-wear';
@@ -32783,7 +32472,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           modal.onclick = function(e) { if (e.target === modal) window.__mvPkClose(); };
           document.body.appendChild(modal);
           _mvPkPaint();
-          _rbTrack('look_picker_opened', { trip: !!trip });
+          _rbTrack('look_picker_opened', {});
         };
         window.__mvPkClose = function() { document.getElementById('rb-mv-wear')?.remove(); _mvPk = null; };
         window.__mvPkToggle = function() { if (!_mvPk) return; _mvPk.open = !_mvPk.open; _mvPk.focusSearch = _mvPk.open; _mvPkPaint(); };
@@ -32810,8 +32499,8 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           window.__mvPkClose();
           if (!c || !window.__lkNew) return;
           const tags = _mvPkSelectedTags(c);
-          _rbTrack('look_picker_compose', { trip: !!c.trip });
-          window.__lkNew({ day: c.date, trip: c.trip, tags });
+          _rbTrack('look_picker_compose', {});
+          window.__lkNew({ day: c.date, tags });
         };
         function _mvPkSelectedTags(c) {
           const r = c.refine;
@@ -32822,13 +32511,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           window.__mvPkClose();
           _rbTrack('look_picker_suggested', {});
           if (window.__rbInspOpen) window.__rbInspOpen();
-        };
-        window.__mvPkRobesTrip = function() {
-          const c = _mvPk;
-          window.__mvPkClose();
-          if (!c || !c.trip || !window.__tvStyleLooks) return;
-          const di = c.trip.di;
-          window.__tvStyleLooks(Number.isInteger(di) ? { pinTo: di, preset: c.title ? [c.title] : [] } : {});
         };
         // The day page's own Robes door (2026-09-29): the day's name is the
         // brief, exactly as the picker's door hands it over.
@@ -32847,7 +32529,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // overlay → /api/daily → the composer with the day on it, Save to
         // {weekday}). Nothing is filed until she names and saves — the
         // design's auto-filed look was the part held, and stays held.
-        // A trip day keeps its own door (__mvPkRobesTrip → the trip).
         // Slice C (2026-09-30): the sheet is the shared ask component
         // (_rbAsk) — this door only names its chips and composes its brief.
         // The look prompt, off a look (phase 2): "A new look" with the date
@@ -32912,7 +32593,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         window.__mvPkAdd = function() {
           const c = _mvPk;
           if (!c || !c.picks.length) return;
-          _mvPkCommit(c.date, c.picks.slice(), c.trip);
+          _mvPkCommit(c.date, c.picks.slice());
         };
         function _mvPkDayWord(date) {
           const t = _pdLocalISO();
@@ -32920,14 +32601,8 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           if (date === _pdAddISO(t, 1)) return 'tomorrow';
           return new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
         }
-        function _mvPkCommit(date, ids, trip) {
+        function _mvPkCommit(date, ids) {
           window.__mvPkClose();
-          if (trip) {
-            // A trip look imports whole and pins to the day (the trip's
-            // own apply, unchanged); di null = the trip's unpinned pool.
-            if (window.__tvAddSavedLookPick) ids.forEach(id => window.__tvAddSavedLookPick(id, Number.isInteger(trip.di) ? trip.di : null));
-            return;
-          }
           if (typeof _lkFind !== 'function' || typeof _lkPin !== 'function') return;
           const title = (_mvWearCtx && _mvWearCtx.date === date && _mvWearCtx.title) || undefined;
           const done = [];
@@ -32950,7 +32625,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // One look, straight in — the programmatic path (harnesses, and
         // any surface that already knows which look).
         window.__mvWearPick = function(date, id) {
-          _mvPkCommit(date, [String(id)], _mvPk && _mvPk.trip);
+          _mvPkCommit(date, [String(id)]);
         };
         // The +N reveal (spec §11.1): a small popover listing the bands
         // the two lanes couldn't hold — each row opens its artifact.
@@ -33231,7 +32906,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             } },
           // The unfurl IS the trip intake — where / when / vibe, on the
           // prompt box, with nothing read from a prompt she hasn't typed.
-          { label: 'Plan a trip', act: () => {
+          !_RB_TRIP_HIDDEN && { label: 'Plan a trip', act: () => {
               _ikTrack('pill', 'travel');
               fresh();
               // A photo or an attached look always routes to the style
@@ -33255,7 +32930,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             } },
         ];
         host.innerHTML = '';
-        pills.forEach(p => {
+        pills.filter(Boolean).forEach(p => {
           const b = document.createElement('button');
           b.className = 'rb-schip';
           b.textContent = p.label;
@@ -33321,8 +32996,10 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const ms = Date.now() - t0;
           _rbTrack('prompt_submitted', { intent: seed.intent, scope: _ikScope.kind, source: 'typed', latency_ms: ms, ok: true });
           const conf = seed.confidence >= 0.6 && seed.intent !== 'unclear';
-          if (!conf) { _ikOpen('clarify', { prompt }); return; }
-          if (seed.intent === 'daily') {
+          // The trip is hidden (MVP): every prompt makes suggested looks —
+          // no trip intake, and no question with one answer left in it.
+          if (_RB_TRIP_HIDDEN || !conf || seed.intent === 'daily') {
+            if (!_RB_TRIP_HIDDEN && !conf) { _ikOpen('clarify', { prompt }); return; }
             _ikClose();
             _ikClearPrompt();
             // A throw here used to vanish inside the promise chain — the
@@ -33335,6 +33012,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         }).catch(() => {
           if (seq !== _ikSeq) return;
           _rbTrack('prompt_submitted', { intent: 'error', scope: _ikScope.kind, source: 'typed', latency_ms: Date.now() - t0, ok: false });
+          if (_RB_TRIP_HIDDEN) { _ikClose(); _ikClearPrompt(); window.__rbPromptLook(prompt); return; }
           _ikOpen('clarify', { prompt, failed: true });
         });
       }
@@ -33369,7 +33047,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         const m = _pdWinner(rows.filter(r => (r.slot || 'day') === 'day'));
         const item = m ? snLoad().find(x => String(x.id) === String(m.source_id)) : null;
         const evening = _ikEveningIntent(text);
-        if (!m || m.source_type === 'daily' || !item) {
+        if (!m || m.source_type === 'daily' || !item || _RB_TRIP_HIDDEN) {
           void evening;
           window.__rbPromptLookFor(text, date);
           return;
@@ -33522,7 +33200,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           host.innerHTML = `<p class="ik-said">${_ikSaid()}</p>
             <div class="ik-clar">
               <button onclick="window._ikClarify('daily')">One outfit, one day</button>
-              <button onclick="window._ikClarify('travel')">Pack for a trip</button>
+              ${_RB_TRIP_HIDDEN ? '' : `<button onclick="window._ikClarify('travel')">Pack for a trip</button>`}
               <button class="ik-cancel" onclick="window._ikCancel()">Cancel</button>
             </div>`;
           return;
@@ -33615,7 +33293,7 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       // planned_days or the lookbook until commit)
       window._ikClarify = function(kind) {
         const p = _ikState ? _ikState.prompt : '';
-        if (kind === 'daily') { _ikClose(); _ikClearPrompt(); window.__rbPromptLook(p || 'An outfit for today'); return; }
+        if (kind === 'daily' || (kind === 'travel' && _RB_TRIP_HIDDEN)) { _ikClose(); _ikClearPrompt(); window.__rbPromptLook(p || 'An outfit for today'); return; }
         _ikOpen(kind, { prompt: p });
       };
       window._ikCat = function(c) { if (_ikState) { _ikState.cat = c; _ikPaint(); } };
@@ -34199,12 +33877,11 @@ body.rb-hb-on #dash .concierge{display:none!important}
       window.__rbHbSave = function() {
         if (!_rbHbEnsureDraftLoaded()) return;
         if (!String(_lkNewTitleDraft || '').trim()) { const d = _rbHbDraft(); _lkNewTitleDraft = (d && d.name) || 'A new look'; _lkNewTitleTouched = false; }
-        const day = _lkDay && _lkDay.trip && _lkDay.date ? _lkDay.date : null;
-        const hint = _lkDateHint || (_lkDay && !_lkDay.trip && _lkDay.date) || null;
+        const hint = _lkDateHint || (_lkDay && _lkDay.date) || null;
         window.__lkSaveAsk({ stay: true, then: function(l) {
           if (!l) return;
-          _rbHbStage = day ? { step: 'dated', lookId: l.id, date: day, hint: null } : { step: 'saved', lookId: l.id, date: null, hint };
-          _rbTrack('home_box_saved', { dated: !!day, hint: !!hint });
+          _rbHbStage = { step: 'saved', lookId: l.id, date: null, hint };
+          _rbTrack('home_box_saved', { dated: false, hint: !!hint });
           const s = _rbLp;
           if (s && typeof s.resultHtml === 'function') { _rbHbDraftMode(); try { s._hbSig = _rbHbSig(); } catch (_) {} _rbLpSync(true); }
           try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
@@ -34277,13 +33954,20 @@ body.rb-hb-on #dash .concierge{display:none!important}
         if (s.hbPending) {
           const first = s.hbPending;
           if (/^\s*(a |the )?(day|today|tomorrow|outfit|look)\b/i.test(prompt)) { s.hbPending = null; track('daily', { from_ask: true }); return _rbHbRoute(first, null, s); }
-          if (/^\s*(a |the )?(trip|travel|holiday|pack)/i.test(prompt)) { s.hbPending = null; track('travel', { from_ask: true }); return { go: () => { _cbReset(); window.__tvOpen({ brief: first }); } }; }
+          if (!_RB_TRIP_HIDDEN && /^\s*(a |the )?(trip|travel|holiday|pack)/i.test(prompt)) { s.hbPending = null; track('travel', { from_ask: true }); return { go: () => { _cbReset(); window.__tvOpen({ brief: first }); } }; }
           if (/^\s*(a |the )?(piece|key piece|item)\b/i.test(prompt)) { s.hbPending = null; track('style', { from_ask: true }); return { go: () => { _cbReset(); _cbStyleSubmit(first, null, { intent: 'style' }); } }; }
           prompt = first + ' — ' + prompt;
         }
         return _ikClassify(prompt).then(seed => {
           const conf = seed && seed.confidence >= 0.6 && seed.intent !== 'unclear';
           if (conf && seed.intent === 'daily') { track('daily'); return _rbHbRoute(prompt, seed, s); }
+          // The trip is hidden (MVP): a trip-shaped ask is an ask for looks,
+          // undated — a trip's first day (and her home weather) would read
+          // as the wrong answer, so the deck takes no day from it.
+          if (conf && seed.intent === 'travel' && _RB_TRIP_HIDDEN) {
+            track('daily', { defaulted: true, read: 'travel' });
+            return _rbHbRoute(prompt, Object.assign({}, seed, { date_start: null, date_end: null }), s);
+          }
           if (conf && seed.intent === 'travel') {
             track('travel');
             // The intake, prefilled from the classifier — never a place

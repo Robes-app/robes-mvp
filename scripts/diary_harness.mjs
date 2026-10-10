@@ -78,7 +78,7 @@ function check(name, ok, detail) {
   else { fail++; console.log('FAIL  ' + name + (detail ? '  → ' + String(detail).slice(0, 300) : '')); }
 }
 
-async function boot(browser, { width = 1280, seed = true, mode = null } = {}) {
+async function boot(browser, { width = 1280, seed = true, mode = null, trip = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height: 1100 } });
   const page = await ctx.newPage();
   const writes = [];
@@ -100,7 +100,11 @@ async function boot(browser, { width = 1280, seed = true, mode = null } = {}) {
   await page.route('**nominatim**', (r) => r.abort());
   await page.route('**open-meteo**', (r) => r.abort());
   await page.route('**res.cloudinary.com/**', (r) => r.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="#E3DDD0"/></svg>' }));
-  await page.addInitScript(({ seed, T0, T2, TRIP_ID, DL_ID, DL_PAST, mode }) => {
+  // The trip is hidden for the MVP (2026-10-10). Every section here that
+  // pins how a trip displays runs on the frozen module (?trip=on); the
+  // trip-hidden section near the foot boots with trip: false.
+  await page.addInitScript(({ seed, T0, T2, TRIP_ID, DL_ID, DL_PAST, mode, trip }) => {
+    if (trip) localStorage.setItem('rb_trip', 'on'); else localStorage.removeItem('rb_trip');
     window.__TEST_PROFILE = { first_name: 'Annie', last_name: '', mobile: '', style_icons: [], budget: null, wardrobe_description: '', style_dna: {}, wardrobe_items_count: 6, onboarded_at: '2026-07-01', gender_identity: 'woman' };
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
     if (mode) localStorage.setItem('rb_diary_mode', mode); else localStorage.removeItem('rb_diary_mode');
@@ -114,7 +118,7 @@ async function boot(browser, { width = 1280, seed = true, mode = null } = {}) {
       const past = { id: DL_PAST, type: 'daily-look', title: 'The black one', subtitle: 'Daily look', img: null, dlData: { headline: 'The black one', occasion_label: 'The black one', steps: [], anchor_date: null, worn: true } };
       localStorage.setItem('robes_style_notes__u-test', JSON.stringify([trip, daily, past]));
     }
-  }, { seed, T0, T2, TRIP_ID, DL_ID, DL_PAST, mode });
+  }, { seed, T0, T2, TRIP_ID, DL_ID, DL_PAST, mode, trip });
   const errs = [];
   page.on('pageerror', (e) => errs.push(String(e)));
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
@@ -651,6 +655,68 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('dated ask · saving a kept look opens the diary sheet on that day (the offer, not a filing)',
     dated.sheet && dated.sheetTxt.indexOf(dated.expectDay) > -1, dated.sheetTxt.slice(0, 160));
   check('day page · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5 · The trip is hidden (MVP, 2026-10-10): the same seed, no ?trip=on —
+// her trip rows stay in the table but nothing shows them, and no door
+// opens the trip.
+{
+  const { ctx, page, errs } = await boot(browser, { trip: false });
+  await page.waitForTimeout(800);
+  const h = await page.evaluate(async ({ T0, T1, T2, TRIP_ID }) => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const q = (sel) => document.querySelector(sel);
+    const out = {};
+    out.hidden = window._rbTripHidden && window._rbTripHidden();
+    out.promptTv = !!q('#cb-addopt-tv');
+    window.__rbNavGo('diary'); await wait(900);
+    out.tripBlock = !!q('#sn-cal .dy-trip');
+    out.tripText = /Golf Club Dinner|Pub Casual|Lahinch/.test(q('#sn-cal')?.textContent || '');
+    out.tripDaysBare = [T0, T1, T2].map((d) => { const r = q('#sn-cal .dy-r[data-date="' + d + '"]'); return r ? r.querySelector('.dy-r-t')?.classList.contains('none') : null; });
+    // the Diary's + is the look picker straight away — never a menu of one
+    q('#sn-cal .rb-mv-add')?.click(); await wait(300);
+    out.addMenu = !!q('#rb-dy-addmenu');
+    out.addPicker = !!q('#rb-mv-wear');
+    window.__mvPkClose && window.__mvPkClose();
+    window.__dySetMode('month'); await wait(900);
+    out.monthTrips = !!q('#sn-cal .rb-mv-trips');
+    out.monthBand = !!q('#sn-cal .dc-trip');
+    window.__dySetMode('list'); await wait(500);
+    // the trip's day page carries no trip line and no trip look
+    window.__rbDayOpen(T0, { from: 'diary' }); await wait(700);
+    out.dayTrip = !!q('.dyp-trip');
+    out.dayTripText = /Golf Club Dinner|Lahinch/.test(q('#dl-result-page')?.textContent || '');
+    // every door to the trip is shut
+    window.__snOpenItem(TRIP_ID); await wait(400);
+    const tv = q('#tv-result-page');
+    out.tvShown = !!tv && getComputedStyle(tv).display !== 'none';
+    window.__tvOpen && window.__tvOpen({}); await wait(200);
+    window.__lkNewHoliday && window.__lkNewHoliday(); await wait(200);
+    out.intake = !!q('#tv-brief-modal');
+    return out;
+  }, { T0, T1, T2, TRIP_ID });
+  check('trip hidden · the flag is on by default and the prompt\'s + carries no "Add a travel edit"', h.hidden === true && h.promptTv === false, JSON.stringify([h.hidden, h.promptTv]));
+  check('trip hidden · the list shows no trip block and no trip look; the trip\'s dates are bare days', !h.tripBlock && !h.tripText && h.tripDaysBare.every((b) => b === true), JSON.stringify(h));
+  check('trip hidden · the Diary\'s + opens the look picker straight away (no menu of one)', !h.addMenu && h.addPicker, JSON.stringify([h.addMenu, h.addPicker]));
+  check('trip hidden · the month shows no trip band and no Trips list', !h.monthTrips && !h.monthBand, JSON.stringify([h.monthTrips, h.monthBand]));
+  check('trip hidden · the trip\'s day page carries no trip line and no trip look', !h.dayTrip && !h.dayTripText, JSON.stringify([h.dayTrip, h.dayTripText]));
+  check('trip hidden · a saved trip, the intake and the Diary\'s travel door all open nothing', !h.tvShown && !h.intake, JSON.stringify([h.tvShown, h.intake]));
+  check('trip hidden · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  const { ctx, page, errs } = await boot(browser, { seed: false, trip: false });
+  await page.evaluate(() => window.__rbNavGo('diary'));
+  await page.waitForTimeout(900);
+  const e = await page.evaluate(() => ({
+    had: !!document.querySelector('#sn-cal .dy-empty'),
+    cta: !!document.querySelector('#sn-cal .dy-empty-cta'),
+    p: document.querySelector('#sn-cal .dy-empty p')?.textContent || '',
+  }));
+  check('trip hidden · the empty Diary has no Plan a trip button — the days below are the doors', e.had && !e.cta && !/pack/i.test(e.p), JSON.stringify(e));
+  check('trip hidden · empty: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

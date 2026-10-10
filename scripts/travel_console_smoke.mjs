@@ -130,6 +130,9 @@ await page.route('**open-meteo**', (r) => r.abort());
 await page.addInitScript(() => {
   window.__TEST_PROFILE = { first_name: 'Annie', style_icons: [], style_dna: {}, wardrobe_items_count: 5, onboarded_at: '2026-07-01', gender_identity: 'woman' };
   Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
+  // The trip is hidden for the MVP (2026-10-10): this smoke drives the
+  // FROZEN trip module through the ?trip=on device override.
+  localStorage.setItem('rb_trip', 'on');
 });
 
 await page.goto(BASE + '/dashboard', { waitUntil: 'networkidle' });
@@ -211,28 +214,15 @@ await page.waitForTimeout(150);
 ok(await page.evaluate(() => getComputedStyle(document.getElementById('tv-look-page')).display === 'none'), 'back closes the look page');
 ok(await page.locator('#tv-stage .rbc-hbtn', { hasText: 'Pin to days' }).count() === 0, 'no duplicated Pin-to-days CTA anywhere');
 
-// the imported look's row opens the SAVED look's own page (Annie,
-// 2026-09-09: the same look, no changes aside from being pinned to a day,
-// whose pieces can then be packed)
+// The frozen trip (MVP, 2026-10-10): the look entity carries no trip
+// branch any more — a look row opens the trip's own look page, never the
+// Lookbook's, and the look module's trip doors are gone.
 await page.evaluate(() => window.__tvDayLookOpen(1, 2));
-await page.waitForTimeout(400);
-// The return pill names the trip by its own title (nav architecture 2026-09-10)
-ok(await page.locator('#sn-page').isVisible() && await page.locator('#sn-page .rb-ret-pill').count() === 1 && /A long weekend in Lahinch/i.test(await page.locator('#sn-page .rb-ret-pill .lab').innerText()), 'the saved look opens its own page, the return pill naming the trip');
-ok(!(await page.locator('#tv-result-page').isVisible()), 'the trip stands down beneath it');
-// The pin prints ONCE, on the title block's meta line — the sage strip
-// beneath it said the same thing a second time (Annie, 2026-09-10).
-ok(/pinned for Saturday 1 Aug/i.test(await page.locator('#sn-page .rb-tb-meta').innerText()) && await page.locator('#sn-page .rb-lk-tripstrip').count() === 0, 'the pin reads on the meta line, and the duplicate sage strip is gone');
-ok(await page.locator('#sn-page .rb-lk-packbtn').count() === 2 && await page.locator('#sn-page .rb-lk-packall').count() === 1, 'every owned row carries the case’s Pack toggle, the head Pack this look');
-ok(await page.locator('#sn-page .rb-lk-pinbar .rb-lk-editlook', { hasText: 'Edit look' }).count() === 1 && await page.locator('#sn-page .rbc-wears').count() === 0, 'the look page is otherwise the Lookbook’s: the pinned Edit look bar, no wear counts on the rack (fix 13)');
-const packCi = await page.evaluate(() => window.__lastTvData.capsule.findIndex(c => c.wardrobe_match && c.wardrobe_match.id === 'w1'));
-await page.evaluate((ci) => window.__lkTripPack(ci), packCi);
-await page.waitForTimeout(200);
-ok(await page.evaluate((ci) => !!window.__lastTvData.capsule[ci].packed, packCi) && await page.locator('#sn-page .rb-lk-packbtn.on').count() === 1, 'Pack on the look page packs the case');
-await page.evaluate((ci) => window.__lkTripPack(ci), packCi);
-await page.evaluate(() => window.__lkBackDoor());
-await page.waitForTimeout(400);
-ok(await page.locator('#tv-result-page').isVisible() && !(await page.locator('#tv-look-page').isVisible()), 'back lands on the trip with no look page open');
-ok((await page.locator('#tv-mp-n').innerText()) === '0', 'the pack count reads the case as she left it');
+await page.waitForTimeout(300);
+ok(await page.locator('#tv-look-page').isVisible() && !(await page.locator('#sn-page').isVisible()), 'frozen trip: an imported look row opens the trip’s own look page, not the Lookbook’s');
+ok(await page.evaluate(() => typeof window.__lkFromTripLook === 'undefined' && typeof window.__lkTripPack === 'undefined' && typeof window.__lkTripDraftSave === 'undefined'), 'frozen trip: the look entity carries no trip doors (no saved look from a trip, no Pack on a look page, no trip draft)');
+await page.evaluate(() => window.__tvStageClose());
+await page.waitForTimeout(150);
 
 // selected programmatically the imported look still draws the trip's
 // console — the SAME interactive console, pieces resolved into real
@@ -266,74 +256,12 @@ await page.waitForTimeout(150);
 ok((await page.locator('#tv-stage .rbc-rackhead').innerText()).includes('Tide-line morning'), 'walking swaps to the second look');
 ok((await page.locator('#tv-weekstrip .tvw-lk.on').innerText()).includes('Tide-line morning'), 'the diary row follows the stage');
 
-// ── 3b. A Robes-styled look opens as a DRAFT in the look editor ──
-// (Annie, 2026-09-09: one look entity — the same frame as Edit & resave,
-// Save or Discard its two ways out; the trip's own look page is never
-// reached from a tap). An unowned capsule piece rides as a proposal.
-await page.evaluate(() => { window.__lastTvData.looks[0].formula.push({ role: 'The Texture', item_index: 5, note: 'Over everything when it rains' }); });
+// ── 3b. A Robes-styled look opens on the trip's own look page (frozen) ──
 await page.evaluate(() => window.__tvDayLookOpen(0, 0));
-await page.waitForTimeout(500);
-ok(await page.locator('#sn-page').isVisible() && !(await page.locator('#tv-result-page').isVisible()) && !(await page.locator('#tv-look-page').isVisible()), 'a Robes-styled look row opens the Lookbook’s editor, not a trip page');
-ok(await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && /draft look/i.test(await page.locator('#sn-page .rb-lk-eyebrow').innerText()), 'it opens EDITING, as a draft');
-ok((await page.locator('#sn-page #rb-lk-title').innerText()).includes('Coast after dark') && /A long weekend in Lahinch/i.test(await page.locator('#sn-page .rb-ret-pill .lab').innerText()), 'the draft carries the look’s name, the return pill naming the trip');
-ok(await page.locator('#sn-page .rbc-rack .rbc-row:not(.rbc-rghost)').count() === 4 && await page.locator('#sn-page .rb-lk-prop').count() === 1, 'the rack holds the day’s pieces — the unowned capsule piece as a proposal card');
-ok(await page.locator('#sn-page .rb-lk-draftbar button.q', { hasText: 'Discard' }).count() === 1 && await page.locator('#sn-page .rb-lk-draftbar button.p', { hasText: 'Save this look' }).count() === 1, 'the change bar offers Discard and Save this look');
-ok(/Not in your Lookbook yet/.test(await page.locator('#sn-page .rb-lk-draftbar').innerText()), 'the bar says it is not saved yet');
-ok(await page.locator('#sn-page .rb-lk-editbar button', { hasText: 'Save as a new look' }).count() === 0 && await page.locator('#sn-page .rb-lk-editfoot').count() === 0 && await page.locator('#sn-page .rb-lk-editbtn', { hasText: 'Edit & resave' }).count() === 0, 'no Save-as-new, no Delete, no Edit & resave on a draft');
-const lives = page.locator('#sn-page .rb-lk-lives .rb-lk-live');
-ok(await lives.count() === 2 && !(await lives.nth(0).evaluate(e => e.classList.contains('on'))) && /Joins it the moment you save/.test(await lives.nth(0).innerText()), 'Where it lives: the lookbook, once she saves');
-ok(await lives.nth(1).evaluate(e => e.classList.contains('on')) && /travel edit/i.test(await lives.nth(1).innerText()) && /Packs with the trip/.test(await lives.nth(1).innerText()), 'Where it lives: the travel edit, packed with it');
-// ── 3c. The look prompt on the trip draft (phase 2) — held to the case ──
-// The field sits under the look; her words go to /api/look/ask with the
-// CASE as the pool (never the wardrobe); a swap lands on the draft's rack
-// from the case; the blob is untouched until Save.
-const askPosts = [];
-await page.route('**/api/look/ask', (r) => {
-  let b = null; try { b = r.request().postDataJSON(); } catch (_) {}
-  askPosts.push(b);
-  const t = String(b?.text || '').toLowerCase();
-  const rack = b?.rack || [], pool = b?.pool?.items || [];
-  const rowOf = (re) => rack.findIndex((x) => re.test(String(x.name || '').toLowerCase()));
-  const poolOf = (re) => pool.findIndex((x) => re.test(String(x.label || '').toLowerCase()));
-  let out = { intent: 'clarify', reply: 'Say which piece and Robes will do it.', swaps: [], back: [], styled: [], draft: '', rule: '' };
-  if (/slides for the sandals/.test(t)) out = { ...out, intent: 'swap', reply: 'Done. The flat leather sandals are on the look, from your case.', swaps: [{ i: rowOf(/slides/), to: { pool_index: poolOf(/sandals/) } }] };
-  else if (/raincoat/.test(t)) out = { ...out, intent: 'draft', reply: 'Nothing in the case is a raincoat — the storm shell is the nearest. Robes would wear it over the shirt; it’s written below.', draft: 'Wear the storm shell jacket over the shirt' };
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(out) });
-});
-ok(await page.locator('#sn-page .rb-lk-held .rb-lp-field').count() === 1 && await page.locator('#sn-page .rb-lk-askdoor').count() === 0, 'the draft’s editing page carries the look prompt field under the look — no Adjust-with-words pill on the head');
-await page.locator('#sn-page .rb-lk-held .rb-lp-field').click();
-await page.waitForTimeout(250);
-ok(await page.locator('#rb-lp').count() === 1 && /Coast after dark/i.test((await page.locator('#rb-lp .rb-lp').getAttribute('aria-label')) || '') && await page.locator('#rb-lp .ttl, #rb-lp .meta, #rb-lp .rs-chip').count() === 0, 'the inline box names the look (its aria-label) — no title, no meta line, no chips (2026-10-01)');
-await page.evaluate(async () => {
-  window.__rbLpText('swap the slides for the sandals');
-  const ta = document.getElementById('rb-lp-in'); ta.value = 'swap the slides for the sandals';
-  ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-  await new Promise((r) => setTimeout(r, 900));
-});
-const caseN = await page.evaluate(() => window.__lastTvData.capsule.length);   // the case as it stands (an earlier section adopted a piece into it)
-const a0 = askPosts[0] || {};
-ok(askPosts.length === 1 && a0.surface === 'trip' && a0.pool?.kind === 'capsule' && a0.pool.items.length === caseN && a0.pool.items.every((c, i) => c.ci === i) && a0.rack?.length === 4 && a0.rack.some((x) => /slides/i.test(x.name)), 'the words go to /api/look/ask with the CASE as the pool (each piece carrying its capsule index), the look as it stands as the rack');
-const rackNow = await page.locator('#sn-page .rbc-rack .rbc-name').allInnerTexts();
-ok(rackNow.includes('Flat leather sandals') && !rackNow.includes('Tan leather slides') && await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && await page.locator('#sn-page .rb-lk-prop').count() === 1, 'the sandals land on the draft’s rack from the case — still a draft, the shell still a proposal');
-ok(JSON.stringify(await page.locator('#sn-page .rb-lp-was').allInnerTexts()) === JSON.stringify(['Swapped in · was the tan leather slides']) && /swap the slides for the sandals/.test(await page.locator('#sn-page .rb-lk-draftbar').innerText()), 'the row says what it was; the bar names her words');
-await page.evaluate(async () => {
-  window.__rbLpText('a raincoat');
-  const ta = document.getElementById('rb-lp-in'); ta.value = 'a raincoat';
-  ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-  await new Promise((r) => setTimeout(r, 900));
-});
-const rackAfter = await page.locator('#sn-page .rbc-rack .rbc-name').allInnerTexts();
-ok(askPosts.length === 2 && JSON.stringify(rackAfter) === JSON.stringify(rackNow) && (await page.locator('#rb-lp-in').inputValue()) === 'Wear the storm shell jacket over the shirt' && await page.locator('#rb-lp-in.drafted').count() === 1, 'an ask the case cannot answer changes NOTHING — Robes’ wording lands in her field, drafted, nothing new comes in');
-ok(await page.evaluate(() => window.__lastTvData.looks[0].title === 'Coast after dark' && window.__lastTvData.looks[0].formula.length === 4 && window.__lastTvData.looks[0].formula.some((f) => f.item_index === 4)), 'the trip blob is untouched by the adjustment — nothing written until Save');
-await page.keyboard.press('Escape');
-await page.waitForTimeout(200);
-ok(await page.locator('#rb-lp').count() === 0, 'Escape closes the box');
-await page.evaluate(() => window.__lkTripDraftDiscard());
-await page.waitForTimeout(500);
-ok(await page.locator('#tv-result-page').isVisible() && !(await page.locator('#sn-page').isVisible()) && !(await page.locator('#tv-look-page').isVisible()), 'Discard hands her back to the trip, nothing open');
-// (the trip reopens from its SAVED row — the unsaved formula entry pushed
-// above never persisted, so the look reads exactly as Robes styled it)
-ok(await page.evaluate(() => !window.__lastTvData.looks[0].imported && !window.__lastTvData.looks[0].lookId && window.__lastTvData.looks[0].formula.length === 3), 'Discard writes nothing — the trip keeps the look as Robes styled it');
+await page.waitForTimeout(300);
+ok(await page.locator('#tv-look-page').isVisible() && !(await page.locator('#sn-page').isVisible()) && (await page.locator('#tv-look-head .tvl-title').innerText()).includes('Coast after dark'), 'frozen trip: a Robes-styled look row opens the trip’s own look page — no draft in the look editor');
+await page.evaluate(() => window.__tvStageClose());
+await page.waitForTimeout(150);
 
 // ── 4. Scoped flick from the day console (selected programmatically) ──
 await page.evaluate(() => window.__tvSelectDay(0));
@@ -419,13 +347,11 @@ ok((await day3Card.innerText()).includes('Drive · dinner out'), 'the day card s
 ok(await day3Card.locator('.tvw-pin').count() === 1, 'the named day keeps its one Add-a-look door');
 await page.evaluate(() => window.__tvDayPick(3));
 await page.waitForTimeout(150);
-ok(await page.locator('#rb-mv-wear .pk').count() === 1, 'the + Look door opens the Add-a-look picker (2026-09-15)');
-const pickTxt = await page.locator('#rb-mv-wear').innerText();
-ok(/Robes styles one/.test(pickTxt) && /Create a new look/.test(pickTxt) && /Your looks/i.test(pickTxt) && /this trip.s looks/i.test(pickTxt),
-  'the picker offers Robes, the composer, her saved looks and this trip\'s looks');
-ok(await page.locator('#rb-mv-wear .pk-triptile').count() >= 1, 'this trip\'s unpinned looks render as tiles');
+ok(await page.locator('#tv-daypick-modal').count() === 1 && await page.locator('#rb-mv-wear').count() === 0, 'frozen trip: + Look opens the trip’s own sheet — the shared Add-a-look picker has no trip mode');
+const pickTxt = await page.locator('#tv-daypick-modal').innerText();
+ok(/From your lookbook/.test(pickTxt) && /Robes styles one/.test(pickTxt) && /this trip.s looks/i.test(pickTxt), 'the sheet offers her lookbook, Robes and this trip’s looks');
 await page.evaluate(() => window.__tvDayPickApply(1, 3));
-ok(await page.locator('#rb-mv-wear').count() === 0, 'picking closes the picker');
+ok(await page.locator('#tv-daypick-modal').count() === 0, 'picking closes the sheet');
 await page.waitForTimeout(200);
 ok(await page.evaluate(() => window.__lastTvData.looks[1].pins.indexOf(3) !== -1), 'picking a trip look pins it to the day');
 ok(await page.locator('#tv-stage .rbc-panel').count() === 1, 'the day console opens on the freshly pinned day');
@@ -492,42 +418,6 @@ ok(await page.evaluate(() => window.__lastTvData.looks[3].pins.indexOf(1) !== -1
 ok(await page.locator('#rb-lkdy').count() === 0, 'the sheet closes on the pin');
 ok(!(await page.locator('#tv-look-page').isVisible()) && (await page.locator('#tv-weekstrip .tvw-card').nth(1).innerText()).includes(await page.evaluate(() => window.__lastTvData.looks[3].title)), 'nothing opens — the day’s diary row takes the look');
 
-// ── 7b. Saving the draft mints the look and links the trip to it ──
-// (section 6 re-rendered the trip unsaved; a real trip always has its
-// lookbook row, which is what the back door and the patch address)
-await page.evaluate(() => window.__tvRenderResult(window.__lastTvData));
-await page.waitForTimeout(300);
-await page.evaluate(() => window.__tvLookTap(1));
-await page.waitForTimeout(500);
-ok(await page.locator('#sn-page .rb-lk-page.editing').count() === 1 && /draft look/i.test(await page.locator('#sn-page .rb-lk-eyebrow').innerText()), 'the unscheduled card opens the draft editor too');
-const draftRows = await page.locator('#sn-page .rbc-rack .rbc-row:not(.rbc-rghost)').count();
-await page.evaluate(() => window.__lkDRemove(0));
-await page.waitForTimeout(200);
-ok(await page.locator('#sn-page .rbc-rack .rbc-row:not(.rbc-rghost)').count() === draftRows - 1 && /One change to this look, not yet saved/.test(await page.locator('#sn-page .rb-lk-draftbar').innerText()), 'an edit on the draft paints live and the bar counts it');
-await page.evaluate(() => window.__lkTitleEdit());
-await page.waitForTimeout(100);
-await page.evaluate(() => window.__lkTitleCommit('Tide-line, again'));
-await page.waitForTimeout(150);
-ok((await page.locator('#sn-page #rb-lk-title').innerText()).includes('Tide-line, again'), 'the draft renames in place');
-await page.evaluate(() => window.__lkTripDraftSave());
-await page.waitForTimeout(700);
-ok(await page.locator('#sn-page').isVisible() && await page.locator('#sn-page .rb-lk-page.editing').count() === 0 && /^saved look/i.test((await page.locator('#sn-page .rb-lk-eyebrow').innerText()).trim()), 'Save lands on the SAVED look’s reading page');
-ok(/Packed for Lahinch — not yet on a day/.test(await page.locator('#sn-page .rb-lk-tripstrip').innerText()), 'the trip strip reads it as packed, not yet on a day');
-ok(await page.locator('#sn-page .rb-lk-packbtn').count() === draftRows - 1 && await page.locator('#sn-page .rb-lk-packall').count() === 1 && await page.locator('#sn-page .rb-lk-pinbar .rb-lk-editlook', { hasText: 'Edit look' }).count() === 1, 'the saved page carries the Pack toggles, Pack this look and the pinned Edit look');
-const linked = await page.evaluate(() => { const l = window.__lastTvData.looks[1]; return { imported: !!l.imported, lookId: l.lookId, title: l.title, formula: l.formula.length, pieces: (l.pieces || []).length }; });
-ok(linked.imported && !!linked.lookId && linked.title === 'Tide-line, again', 'the trip look is now an import of the saved look, carrying its name');
-ok(linked.formula === draftRows - 1 && linked.pieces === draftRows - 1, 'the trip’s formula follows the saved composition');
-await page.evaluate(() => window.__lkBackDoor());
-await page.waitForTimeout(500);
-await page.evaluate(() => { const b = document.querySelector('#tv-looks-more button'); if (b && /Show all/i.test(b.innerText)) b.click(); });
-await page.waitForTimeout(150);
-ok(await page.locator('#tv-result-page').isVisible() && await page.locator('#tv-looksrow .tvm-lookcard', { hasText: 'Tide-line, again' }).count() === 1, 'back on the trip, the card wears the saved name');
-await page.evaluate(() => window.__tvLookTap(1));
-await page.waitForTimeout(500);
-ok(await page.locator('#sn-page .rb-lk-page.editing').count() === 0 && await page.locator('#sn-page .rb-lk-tripstrip').count() === 1, 'reopened, it is the saved look’s page — never a draft again');
-await page.evaluate(() => window.__lkBackDoor());
-await page.waitForTimeout(400);
-
 // ── 8. Empty canvas trip ──
 await page.evaluate((fx) => window.__tvRenderResult(fx), EMPTY_TRIP);
 await page.waitForTimeout(250);
@@ -557,15 +447,11 @@ ok((await page.locator('#tv-mastmeta').innerText()).includes('Paula’s Ibiza'),
 // read the pin, the Diary read a bare day.
 await page.evaluate(() => window.__tvAddSavedLookPick('lk-9', null));
 await page.waitForTimeout(700);
-ok(!(await page.locator('#tv-look-page').isVisible()) && await page.locator('#tv-stage .rbc-board').count() === 0,
-  'a packed saved look never lands on the trip’s own stage');
-ok(await page.locator('#sn-page').isVisible() && /^saved look/i.test((await page.locator('#sn-page .rb-lk-eyebrow').innerText()).trim())
-  && (await page.locator('#sn-page #rb-lk-title').innerText()).includes('The Thursday one'),
-  'it opens as the saved look’s own page');
-ok(await page.locator('#sn-page .rb-lk-tripstrip').count() === 1 && await page.locator('.tvm-lksrc').count() === 0,
-  'the trip strip carries the context — no "Saved in your Lookbook" line anywhere');
-await page.evaluate(() => window.__lkBackDoor());
-await page.waitForTimeout(500);
+const packedSt = await page.evaluate(() => ({ tvLook: getComputedStyle(document.getElementById('tv-look-page')).display !== 'none', sn: getComputedStyle(document.getElementById('sn-page')).display !== 'none', tv: getComputedStyle(document.getElementById('tv-result-page')).display !== 'none' }));
+ok(packedSt.tvLook && !packedSt.sn && packedSt.tv,
+  'frozen trip: a packed saved look opens on the trip’s own stage — the look page carries no trip context any more ' + JSON.stringify(packedSt));
+await page.evaluate(() => window.__tvStageClose());
+await page.waitForTimeout(300);
 pdWrites.length = 0;
 await page.evaluate(() => window.__tvPinToggle(0, 2));
 await page.waitForTimeout(1400);
@@ -600,6 +486,9 @@ await mPage.route('**open-meteo**', (r) => r.abort());
 await mPage.addInitScript(() => {
   window.__TEST_PROFILE = { first_name: 'Annie', style_icons: [], style_dna: {}, wardrobe_items_count: 5, onboarded_at: '2026-07-01', gender_identity: 'woman' };
   Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
+  // The trip is hidden for the MVP (2026-10-10): this smoke drives the
+  // FROZEN trip module through the ?trip=on device override.
+  localStorage.setItem('rb_trip', 'on');
 });
 await mPage.goto(BASE + '/dashboard', { waitUntil: 'networkidle' });
 await mPage.waitForFunction(() => typeof window.__tvRenderResult === 'function', null, { timeout: 15000 });
