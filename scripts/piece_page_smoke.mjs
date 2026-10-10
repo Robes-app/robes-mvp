@@ -348,12 +348,12 @@ const SHOT = process.env.SHOT_DIR || '';
   const { ctx, page, errs } = await boot(browser);
   await page.evaluate(() => window.__dlSubmit('an outfit for a coffee run'));
   await page.waitForTimeout(1500);
-  // The day is carried by the return band and by Save ("Save to Monday") —
-  // the "✓ Filing to …" chip is gone (Annie, 2026-09-21).
-  check('daily · the fresh look opens in the composer with the day attached, not the daily console',
+  // The day is carried by the return band; Save is plain — it OFFERS the
+  // day once saved, never files to it (2026-10-10).
+  check('daily · the fresh look opens in the composer, not the daily console; Save is plain',
     await page.locator('#sn-page .rb-lk-composer').isVisible() && !(await page.locator('#dl-result-page').isVisible())
     && await page.locator('#sn-page .rb-lk-daychip').count() === 0
-    && /^save to /i.test(await page.locator('#sn-page .rb-lk-save').innerText()));
+    && /^save/i.test(await page.locator('#sn-page .rb-lk-save').innerText()) && !/^save to /i.test(await page.locator('#sn-page .rb-lk-save').innerText()));
   const dlNames = page.locator('#sn-page .rbc-rack .rbc-namebtn');
   // Handoff 4d: a proposal opens its own page too (Not yours yet)
   check('daily · every row is a door — owned pieces and proposals alike (4 of 4)', await dlNames.count() === 4);
