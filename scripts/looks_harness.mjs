@@ -2740,13 +2740,15 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       dbg: { rows: cal0.querySelectorAll('.dy-row').length, invites: cal0.querySelectorAll('.dy-invite').length, cards: cal0.querySelectorAll('.dy-card').length, trips: cal0.querySelectorAll('.dy-trip').length, tadd: cal0.querySelectorAll('.dy-tadd').length, mode: localStorage.getItem('rb_diary_mode'), head: (cal0.textContent || '').replace(/\s+/g, ' ').slice(0, 160) },
       cellWired: !!cell || isMonthTail,
       hadModal: !!modal, tiles,
-      asks: /What to wear\?/.test(head) && /Robes styles one/.test(head) && /Create a new look/.test(head),
+      // choose only (2026-10-10): no make-doors on a diary day's picker —
+      // a new look starts from the sparkle and reaches the day once saved
+      asks: /What to wear\?/.test(head) && !/Robes styles one/.test(head) && !/Create a new look/.test(head),
       modalGone: !document.getElementById('rb-mv-wear'),
       today: iso, target: niso,
     };
   });
   check('IA · empty future days are wired to the wear-a-look door', wear.cellWired === true, JSON.stringify(wear));
-  check('IA · the door lists her looks under the two make-doors, never creates',
+  check('IA · the door lists her saved looks alone — no make-doors, never creates',
     wear.hadModal && wear.tiles === 2 && wear.asks, JSON.stringify(wear));
   await page.waitForTimeout(1200); // the planned_days write is debounced
   const calPin = writes.find((w) => w.method === 'POST' && /^planned_days/.test(w.url) &&
@@ -2830,7 +2832,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await ctx.close();
 }
 
-// Zero looks: the picker creates nothing — its one door is the composer, filing to the day.
+// Zero looks: the picker creates nothing (2026-10-10, choose only) — it
+// says nothing is saved yet and points to the sparkle; with suggestions
+// waiting it names them and leads to Suggested.
 {
   const { ctx, page, errs } = await boot(browser, { seed: false });
   await page.evaluate(() => window.__rbNavGo('calendar'));
@@ -2840,19 +2844,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const t = new Date(Date.now() + 86400000);
     window.__mvWear(t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()));
     const modal = document.getElementById('rb-mv-wear');
-    const btn = modal && modal.querySelector('.pk-none .pk-ink[onclick*="__mvPkNew"]');
-    const copy = modal ? /Nothing in the Lookbook/.test(modal.textContent) && /Open the composer/.test(btn ? btn.textContent : '') : false;
-    if (btn) btn.click();
-    return { hadDoor: !!btn, copy };
+    return { modal: !!modal, none: /Nothing saved/.test(modal ? modal.textContent : ''), sparkle: /sparkle/.test(modal ? modal.textContent : ''),
+      makeDoors: modal ? modal.querySelectorAll('.pk-door, .pk-ink[onclick*="__mvPkNew"]').length : -1 };
   });
-  await page.waitForTimeout(700);
-  const landed = await page.evaluate(() => ({
-    composer: !!document.getElementById('rb-lk-newtitle'),
-    calOff: !document.getElementById('sn-page').classList.contains('rb-cal-on'),
-  }));
-  check('IA zero-looks · the picker is honest — Nothing in the Lookbook yet + Open the composer',
-    door.hadDoor && door.copy, JSON.stringify(door));
-  check('IA zero-looks · the door lands in the composer', landed.composer && landed.calOff, JSON.stringify(landed));
+  check('IA zero-looks · the picker is honest and creates nothing — Nothing saved yet, the sparkle named, no composer door',
+    door.modal && door.none && door.sparkle && door.makeDoors === 0, JSON.stringify(door));
   check('IA zero-looks · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -3600,8 +3596,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     /Ease with polish/.test(dressed.note) && dressed.tags, JSON.stringify([dressed.note, dressed.tags]));
   check('rule 04 · the photograph door is the pill on the canvas — never "Replace the photo" on a look with none',
     dressed.photoDoor === 'Add your photograph' && !dressed.replaceDoor, JSON.stringify([dressed.photoDoor, dressed.replaceDoor]));
-  check('rule 04 · the day is the context — the return band reads it and Save names the weekday, with no filing chip repeating it; every piece hangs on the rack',
-    dressed.dayChip === 0 && /^Save to /.test(dressed.save)
+  check('rule 04 · the day is the context — the return band reads it; Save is plain (it OFFERS the day after saving, never files to it); every piece hangs on the rack',
+    dressed.dayChip === 0 && /^Save/.test(dressed.save) && !/^Save to /.test(dressed.save)
       && ['Cream silk shirt', 'Barrel-leg jeans', 'Flat leather sandals', 'Woven straw tote'].every((n) => dressed.rack.includes(n)),
     JSON.stringify([dressed.dayChip, dressed.save, dressed.rack]));
   check('rule 04 · nothing is written until she saves',

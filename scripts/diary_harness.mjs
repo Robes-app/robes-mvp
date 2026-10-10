@@ -268,8 +268,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       return r;
     }, d0);
     const dayWrite = writes.slice(namedBefore).find((w) => w.method === 'POST' && /^planned_days/.test(w.url) && Array.isArray(w.body) && w.body[0]?.source_type === 'day');
-    check('day page · an empty day opens on its three doors (Robes styles one · Create a new look · Choose from your looks), no dashed add card',
-      named.open && JSON.stringify(named.doors) === JSON.stringify(['Robes styles one', 'Create a new look', 'Choose from your looks']) && !named.add && !named.none, JSON.stringify(named));
+    check('day page · an empty day opens on ONE door — Choose from your looks (a look reaches a day only once saved; the sparkle makes new ones), no dashed add card',
+      named.open && JSON.stringify(named.doors) === JSON.stringify(['Choose from your looks']) && !named.add && !named.none, JSON.stringify(named));
     check('list · naming a bare day on its page keeps the name — the row reads it back, nothing sent to the prompt',
       named.inp && named.title === 'Dinner with mum' && named.prompt === '' && named.diaryOpen && named.rowTitle === 'Dinner with mum' && named.rowBare === false
         && named.bareLeft === expBare.length - 1, JSON.stringify(named));
@@ -587,65 +587,69 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('day page · a trip day reads the DESTINATION\'s weather as one line', tc.wx === 'Lahinch, Ireland · passing showers · 13–19°C', tc.wx);
   check('day page · a month cell opens the day directly — no peek; the return pill names the month',
     mc.cell && mc.peek === false && mc.visible && mc.grid && mc.title === 'Golf Club Event' && /^[A-Z][a-z]+ \d{4}$/.test(mc.back || ''), JSON.stringify(mc));
-  // The empty day's other two doors: the composer takes the day (Save to
-  // {weekday}); Robes styles one opens the BRIEF sheet (2026-09-29) — the
-  // date, "What's on?" chips, her name for the day as the words — and the
-  // CTA hands the brief to the standing route: __dlSubmit with the date →
-  // /api/daily → the composer with the day attached. Nothing is filed.
-  const dailyPosts = [];
-  await page.route('**/api/daily', (r) => {
-    try { dailyPosts.push(r.request().postDataJSON()); } catch (_) { dailyPosts.push(null); }
-    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ headline: 'A dinner look.', occasion_label: 'Dinner out', stylist_summary: 'Ease.', look_tags: { climate: 'year_round', wear_for: ['evening'], vibe: ['chic'] },
-      steps: [{ title: 'The Canvas', items: [{ name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w0', label: 'Cream silk shirt', image_url: null, color: '' } }, { name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w1', label: 'Barrel-leg jeans', image_url: null, color: '' } }] }] }) });
+  // A new look for a day is a SUGGESTION first (2026-10-10, Annie): the
+  // sparkle on the date opens the box, her words go to /api/style with the
+  // day and THAT day's forecast, Robes says the weather back on the thread,
+  // and the three looks land on the deck "For {day}". Nothing is drafted
+  // onto the date and nothing is written; saving a kept look offers the day.
+  const stylePosts = [], dailyPosts = [];
+  await page.route('**/api/daily', (r) => { try { dailyPosts.push(r.request().postDataJSON()); } catch (_) { dailyPosts.push(null); } return r.fulfill({ status: 500, body: '{}' }); });
+  await page.route('**/api/style', (r) => {
+    try { stylePosts.push(r.request().postDataJSON()); } catch (_) { stylePosts.push(null); }
+    const way = (t) => ({ eyebrow: 'Dinner', title: t, outfit: 'Ease.', details: '', accessories: '', pieces: [
+      { name: 'Cream silk shirt', category: 'Tops', color: 'cream', color_hex: '#EDE6D6', role: 'The Canvas', wardrobe_index: -1, brand: 'COS', retailer_hint: 'COS', price_point: '€89' },
+      { name: 'Black wide trousers', category: 'Bottoms', color: 'black', color_hex: '#202021', role: 'The Anchor', wardrobe_index: -1, brand: 'Arket', retailer_hint: 'Arket', price_point: '€99' }] });
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ways: [way('Supper Club'), way('Town Linen'), way('Late Table')], generatedImages: [], fallback: false }) });
   });
-  const doors = await page.evaluate(async (d) => {
+  const dated = await page.evaluate(async (d) => {
     window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' };
+    window.__rbWxForDate = () => Promise.resolve({ city: 'Dublin', tempRange: '14°C – 22°C', condition: 'Clear skies', hint: 'Light layers work today', tmin: 14, tmax: 22, code: 0 });
     window.__rbNavGo('diary'); await new Promise((r) => setTimeout(r, 600));
     document.querySelector('#sn-cal .dy-r[data-date="' + d + '"]')?.click();
     await new Promise((r) => setTimeout(r, 700));
-    window.__rbDayNameEdit(); await new Promise((r) => setTimeout(r, 100));
-    const inp = document.getElementById('dyp-name-in');
-    if (inp) { inp.value = 'Lunch out'; inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }
-    await new Promise((r) => setTimeout(r, 700));
     const pg = document.getElementById('dl-result-page');
-    const r = { doors: pg?.querySelectorAll('.dyp-door').length };
-    pg?.querySelectorAll('.dyp-door')[1]?.click();
-    await new Promise((r2) => setTimeout(r2, 900));
-    const sn = document.getElementById('sn-page');
-    r.composer = !!sn && sn.style.display !== 'none' && !!sn.querySelector('.rb-lk-composer');
-    r.save = (sn?.textContent || '').match(/Save to [A-Z][a-z]+day/)?.[0] || null;
-    // back to the day, then the Robes door → the sheet
-    window.__rbDayOpen(d, { from: 'diary' }); await new Promise((r2) => setTimeout(r2, 600));
-    document.querySelector('#dl-result-page .dyp-door')?.click();
+    const r = { doors: Array.from(pg?.querySelectorAll('.dyp-door .l') || []).map((x) => x.textContent) };
+    window.__mvRobesFor(d);
     await new Promise((r2) => setTimeout(r2, 400));
-    const rs = document.getElementById('rb-lp');
-    r.sheet = !!rs;
-    // Inline since 2026-10-01: no .ttl / .meta — the box's aria-label names
-    // it and the dated door's placeholder carries the date.
-    r.title = rs?.querySelector('.rb-lp')?.getAttribute('aria-label') || null;
-    r.meta = rs?.querySelector('#rb-lp-in')?.placeholder || null;
-    r.chips = rs?.querySelectorAll('.rs-chip, .rb-lp-chip').length ?? null;   // no chips in the box — ever
-    r.input = rs?.querySelector('#rb-lp-in')?.value;
-    r.dayStill = document.getElementById('dl-result-page')?.style.display !== 'none';
-    r.ink = Array.from(rs?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
-    // her words replace the prefill; Enter sends
+    r.box = !!document.getElementById('rb-lp');
+    const rin = document.getElementById('rb-lp-in');
     window.__rbLpText('Dinner out with Mary in town');
-    const rin = document.getElementById('rb-lp-in'); rin.value = 'Dinner out with Mary in town';
-    rin.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await new Promise((r2) => setTimeout(r2, 2600));
-    r.sheetGone = !document.getElementById('rb-lp');
-    const sn2 = document.getElementById('sn-page');
-    r.composer2 = !!sn2 && sn2.style.display !== 'none' && !!sn2.querySelector('.rb-lk-composer');
-    r.save2 = (sn2?.textContent || '').match(/Save to [A-Z][a-z]+day/)?.[0] || null;
-    r.back2 = sn2?.querySelector('.rb-ret .rb-ret-pill .lab')?.textContent || null;
-    r.backWord = new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short' }) + ' ' + Number(d.slice(8, 10));
+    if (rin) { rin.value = 'Dinner out with Mary in town'; rin.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }
+    await new Promise((r2) => setTimeout(r2, 700));
+    r.said = Array.from(document.querySelectorAll('#rb-lp-thread *')).map((x) => x.textContent).find((t) => /going to be/.test(t)) || null;
+    await new Promise((r2) => setTimeout(r2, 3200));
+    const deck = document.querySelector('.rb-lk-deck');
+    r.deck = !!deck;
+    r.deckEy = deck?.querySelector('.rb-tb-ey, .rb-lk-decktb [class*="ey"]')?.textContent || deck?.textContent.slice(0, 80);
+    r.composer = !!document.querySelector('#sn-page .rb-lk-composer');
+    r.suggested = (JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]') || []).filter((x) => x.status === 'suggested').map((x) => x.id);
+    r.expectDay = new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+    // keep one, save it: the diary sheet rises on that day — nothing filed yet
+    if (r.suggested[0]) { window.__lkSuggSave(r.suggested[0]); await new Promise((r2) => setTimeout(r2, 500)); }
+    const sh = document.getElementById('rb-lkdy');
+    r.sheet = !!sh; r.sheetTxt = sh?.textContent || '';
+    window.__lkDiaryClose && window.__lkDiaryClose();
+    // the day's picker names the two still waiting in Suggested
+    window.__mvWear(d); await new Promise((r2) => setTimeout(r2, 200));
+    const pk = document.getElementById('rb-mv-wear');
+    r.pkSugg = pk?.querySelector('.pk-sugg')?.textContent || null;
+    r.pkDoors = pk ? pk.querySelectorAll('.pk-door').length : -1;
+    window.__mvPkClose && window.__mvPkClose();
     return r;
   }, expBare[2]);
-  check('day page · Create a new look opens the composer with the day attached (Save to {weekday})', doors.doors === 3 && doors.composer && !!doors.save, JSON.stringify(doors));
-  check('day page · Robes styles one opens the look prompt box OVER the day in its new-look mode: named “A new look”, the field reading “A new look for…”, NO chips, her name for the day prefilled in the one field, the send arrow lit by it (the one ink)',
-    doors.sheet && doors.dayStill && doors.title === 'A new look' && doors.meta === 'A new look for…' && doors.chips === 0 && doors.input === 'Lunch out' && doors.ink === 1, JSON.stringify(doors));
-  check('day page · Enter hands her words to /api/daily with the date, and lands in the composer with the day attached (Save to {weekday}, ‹ the day) — nothing written',
-    doors.sheetGone && dailyPosts.length === 1 && dailyPosts[0]?.prompt === 'Dinner out with Mary in town' && doors.composer2 && !!doors.save2 && doors.back2 && doors.back2.indexOf(doors.backWord) === 0 && !writes.some((w) => /planned_days|lookbook_items|looks\b/.test(w.url) && w.method === 'POST' && JSON.stringify(w.body).includes('Dinner out')), JSON.stringify([doors, dailyPosts[0]?.prompt, dailyPosts[0]?.anchorDate]));
+  const sp = stylePosts[0] || {};
+  check('day page · the empty day still carries only "Choose from your looks"', JSON.stringify(dated.doors) === JSON.stringify(['Choose from your looks']), JSON.stringify(dated.doors));
+  check('dated ask · Robes says the day\'s weather back on the thread before the looks ("It’s going to be sunny and 22° …, so the looks keep it light.")',
+    dated.box && /^It’s going to be sunny and 22° .+, so the looks keep it light\.$/.test(dated.said || ''), dated.said);
+  check('dated ask · /api/style (dress-me) carries the day and ITS forecast — never /api/daily',
+    stylePosts.length === 1 && sp.intent === 'dress-me' && sp.prompt === 'Dinner out with Mary in town' && sp.context && sp.context.date === expBare[2] && /22/.test(sp.context.tempRange) && /Clear/.test(sp.context.condition) && !!sp.context.dayLabel && dailyPosts.length === 0, JSON.stringify([sp.intent, sp.context, dailyPosts.length]));
+  check('dated ask · the three looks land on the deck "For {day}" as suggested rows — no composer draft, nothing pinned',
+    dated.deck && /For /.test(dated.deckEy || '') && !dated.composer && dated.suggested.length === 3
+      && !writes.some((w) => /planned_days/.test(w.url) && w.method === 'POST' && JSON.stringify(w.body).includes('Dinner out')), JSON.stringify(dated));
+  check('picker · choose only: no make-doors, and the looks still in Suggested are named ("Two looks wait in Suggested — save one first")',
+    dated.pkDoors === 0 && /^Two looks wait in Suggested — save one first/.test(dated.pkSugg || ''), JSON.stringify([dated.pkDoors, dated.pkSugg]));
+  check('dated ask · saving a kept look opens the diary sheet on that day (the offer, not a filing)',
+    dated.sheet && dated.sheetTxt.indexOf(dated.expectDay) > -1, dated.sheetTxt.slice(0, 160));
   check('day page · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }

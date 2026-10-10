@@ -1634,16 +1634,23 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   const typing = await page.evaluate(() => ({ ink: document.getElementById('rb-lp-send').classList.contains('ink') }));
   // A prompted look (2026-10-09): three ways on the keep-or-pass deck — the
   // key piece's own format — never the composer draft.
+  // The classifier heard tomorrow: Robes says tomorrow's weather back on
+  // the thread first (2026-10-10), then the deck is styled for that day.
+  await page.evaluate(() => { window.__rbWxForDate = () => Promise.resolve({ city: 'Dublin', tempRange: '6°C – 9°C', condition: 'Rain', hint: '', tmin: 6, tmax: 9, code: 63 }); });
   await page.locator('#rb-lp-in').press('Enter');
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(700);
+  const said = await page.evaluate(() => Array.from(document.querySelectorAll('#rb-lp-thread > div')).map((x) => x.textContent).find((t) => /going to be/.test(t)) || null);
+  await page.waitForTimeout(3000);
   const dk = await page.evaluate(() => ({ sn: document.getElementById('sn-page')?.style.display === 'block', deck: !!document.querySelector('#rb-lk-body .rb-lk-deck'),
     ey: document.querySelector('#rb-lk-body .rb-lk-decktb .rb-tb-ey')?.textContent || '', top: document.querySelector('#rb-lk-body .rb-deck-card.top .rb-deck-t')?.textContent || '',
     band: document.querySelector('#rb-lk-body .rb-ret .lab')?.textContent, composer: !!document.querySelector('.rb-lk-composer'), mosaicTiles: document.querySelectorAll('#rb-lk-body .rb-lk-draftbar').length,
     sugg: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').filter((r) => r.status === 'suggested').length,
     park: !!localStorage.getItem('rb_lk_draft__u-test'), model: document.querySelector('#rb-lk-body .rb-deck-model')?.textContent || '' }));
-  check('home field · route 1 · a day ask → the classifier → /api/style (dress-me, her words, her model id asked for) → the keep-or-pass deck: three suggested looks, "From your prompt", ‹ Home — no /api/daily, no composer draft, nothing parked',
+  check('home field · route 1 · a day ask → the classifier → /api/style (dress-me, her words, her model id asked for) → the keep-or-pass deck: three suggested looks, "For {the day}", ‹ Home — no /api/daily, no composer draft, nothing parked',
     typing.ink && posts.intent.length === 1 && posts.intent[0].prompt === 'Dinner with Mary tomorrow' && posts.daily.length === 0 && posts.style.length === 1 && posts.style[0].intent === 'dress-me' && posts.style[0].prompt === 'Dinner with Mary tomorrow'
-      && dk.sn && dk.deck && /from your prompt/i.test(dk.ey) && dk.top === 'One' && dk.band === 'Home' && !dk.composer && dk.mosaicTiles === 0 && dk.sugg === 3 && !dk.park, JSON.stringify([typing, posts.style.length, posts.daily.length, dk]));
+      && dk.sn && dk.deck && /^for /i.test(dk.ey) && dk.top === 'One' && dk.band === 'Home' && !dk.composer && dk.mosaicTiles === 0 && dk.sugg === 3 && !dk.park, JSON.stringify([typing, posts.style.length, posts.daily.length, dk]));
+  check('home field · route 1 · a day her words name: Robes says that day\'s weather back on the thread ("It’s going to be raining and 9° tomorrow, so …") and the ask carries the day and its forecast',
+    /^It’s going to be raining and 9° tomorrow, so every look holds up to it/.test(said || '') && posts.style[0] && posts.style[0].context && posts.style[0].context.date === HB_TOMORROW && /9/.test(posts.style[0].context.tempRange) && !!posts.style[0].context.dayLabel, JSON.stringify([said, posts.style[0] && posts.style[0].context]));
   check('home field · route 1 · no model on file: the deck says a Robes model wears them, with the door to build hers',
     /A Robes model wears these for now\.\s*Build your model/.test(dk.model), dk.model);
   // The undated draft's Save → week flow still stands for a draft parked
@@ -1709,19 +1716,24 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await ctx.close();
 }
 // A Diary-dated door (the rail's scope, Style today) opens the box ON the
-// date: the words land attached, and Save files to the day — no sheet.
+// date: the words go to the deck styled for that day (2026-10-10).
 {
   const { ctx, page, errs, posts } = await boot(browser, 6, 1280, { looks: true, pics: 6, prompt: 'box' });
   await page.evaluate((iso) => window._ikScopeDay(iso), HB_TOMORROW); await page.waitForTimeout(200);
   const m = await page.evaluate(() => ({ box: !!document.querySelector('#rb-lp.rb-lp-dock'), scrim: !!document.querySelector('.rb-lp-scrim'), ph: document.getElementById('rb-lp-in')?.placeholder, chip: document.getElementById('rb-scopechip')?.className || '' }));
   check('home field · a dated door opens the box docked ON the date (reading the day, no shade, no chip under the flag)', m.box && !m.scrim && /^Dress \w{3} \d{1,2} \w{3}…$/.test(m.ph || '') && !/on/.test(m.chip), JSON.stringify(m));
+  // (2026-10-10) A dated door no longer drafts onto the date: the words go
+  // to the deck styled for that day — Robes says its weather back first —
+  // and nothing reaches the day until a kept look is saved.
+  await page.evaluate(() => { window.__rbWxForDate = () => Promise.resolve({ city: 'Dublin', tempRange: '15°C – 21°C', condition: 'Clear skies', hint: '', tmin: 15, tmax: 21, code: 0 }); });
   await page.evaluate(() => window.__rbLpText('The office, then drinks'));
-  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2600);
-  const dd = await page.evaluate(() => ({ row: document.querySelector('#rb-lp .rb-lpd-row .nm')?.textContent, ey: document.querySelector('#rb-lp .rb-lpd-row .ey')?.textContent, save: document.querySelector('#rb-lp .rb-lpd-save')?.textContent.trim(), sn: document.getElementById('sn-page')?.style.display === 'block' }));
-  check('home field · dated · the words go straight to the day (no classifier) and the draft lands in the box carrying the day',
-    posts.intent.length === 0 && posts.daily.length === 1 && posts.daily[0].prompt === 'The office, then drinks' && !dd.sn && dd.row === 'Soft office armour' && /^Draft look · \w{3} \d{1,2} \w{3}$/.test(dd.ey || '') && dd.save === 'Save look', JSON.stringify([posts.intent.length, dd]));
-  const s2 = await page.evaluate(async () => { document.querySelector('#rb-lp .rb-lpd-save').click(); await new Promise((r) => setTimeout(r, 900)); return { sheet: !!document.getElementById('rb-lkdy'), done: document.querySelector('#rb-lp .rb-lpd-done')?.textContent.replace(/\s+/g, ' ').trim(), days: document.querySelectorAll('#rb-lp .rb-lpd-days button').length, looks: JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]').length }; });
-  check('home field · dated · Save files to the day in the box — the confirmation line, no week to pick, no sheet', !s2.sheet && /^✓ In your diary for \w{3} \d{1,2} \w{3}\.\s*Change$/.test(s2.done || '') && s2.days === 0 && s2.looks === 3, JSON.stringify(s2));
+  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(700);
+  const said = await page.evaluate(() => Array.from(document.querySelectorAll('#rb-lp-thread > div')).map((x) => x.textContent).find((t) => /going to be/.test(t)) || null);
+  await page.waitForTimeout(3000);
+  const dd = await page.evaluate(() => ({ deck: !!document.querySelector('#rb-lk-body .rb-lk-deck'), ey: document.querySelector('#rb-lk-body .rb-lk-decktb .rb-tb-ey')?.textContent || '', composer: !!document.querySelector('.rb-lk-composer'), park: !!localStorage.getItem('rb_lk_draft__u-test') }));
+  check('home field · dated · the words go straight to the day (no classifier): Robes says its weather back, then three ways on the deck "For {the day}" — no /api/daily, no draft',
+    posts.intent.length === 0 && posts.daily.length === 0 && posts.style.length === 1 && posts.style[0].intent === 'dress-me' && posts.style[0].context && posts.style[0].context.date === HB_TOMORROW
+      && /^It’s going to be sunny and 21° tomorrow, so the looks keep it light\.$/.test(said || '') && dd.deck && /^for /i.test(dd.ey) && !dd.composer && !dd.park, JSON.stringify([posts.intent.length, posts.daily.length, said, dd]));
   check('home field · dated · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }

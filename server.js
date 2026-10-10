@@ -646,9 +646,12 @@ ${fallbackRule}
 
 ${wearerRule}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closetBlock : ''}${closetDirective ? '\n' + closetDirective : ''}${refineWay != null ? '\n\n' + refBlock : ''}`;
 
+  // A dated ask (2026-10-10): the looks are for THAT day — its own
+  // forecast rides in place of today's, and the day is named.
+  const rtDay = daily && rtContext && rtContext.dayLabel ? String(rtContext.dayLabel).slice(0, 40) : '';
   const rtLine = daily && rtContext && (rtContext.city || rtContext.tempRange)
-    ? `Real-time context: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. Dress the user for exactly this weather and place.`
-    : '';
+    ? `${rtDay ? 'She is dressing for ' + rtDay + '. Forecast for that day' : 'Real-time context'}: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. Dress the user for exactly this weather and place.`
+    : rtDay ? `She is dressing for ${rtDay}${rtContext.month ? ' (' + String(rtContext.month).slice(0, 20) + ')' : ''}. No forecast reaches that far — dress for the season and the place.` : '';
 
   const curTitle = current && current.title ? String(current.title).slice(0, 80) : '';
   const curEyebrow = current && current.eyebrow ? String(current.eyebrow).slice(0, 60) : '';
@@ -658,7 +661,7 @@ ${wearerRule}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closet
 
 Re-write ONE of the three looks — "${curTitle || 'the look'}"${curEyebrow ? ' (' + curEyebrow + ')' : ''} — as her adjustment asks (THE LOOK AS IT STANDS and HER ADJUSTMENT are in the system notes). Return exactly ONE way in "ways": the re-written look, complete, with its own eyebrow, title, prose and itemised pieces.${others.length ? ' It must stay distinct from the other two looks, which are unchanged: ' + others.map(o => '"' + o + '"').join(' and ') + '.' : ''}`
     : daily
-    ? `${rtLine ? rtLine + '\n\n' : ''}The user's brief for today: "${prompt}".
+    ? `${rtLine ? rtLine + '\n\n' : ''}The user's brief for ${rtDay || 'today'}: "${prompt}".
 
 Dress them for this day three ways. Make each outfit genuinely distinct — different moods and registers of the same day. Each look must be complete from anchor to exclamation point, and every piece weather-appropriate.`
     : `${piece} ${context} ${linkCtx}

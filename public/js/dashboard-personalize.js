@@ -460,6 +460,7 @@
                 tempRange: (!isNaN(tmin) && !isNaN(tmax)) ? tmin + '°C – ' + tmax + '°C' : '',
                 condition: (code !== undefined && WX_TEXT[code]) || '',
                 hint: layerHint(tmin, tmax, code),
+                tmin, tmax, code,
               };
               return (out.city || out.tempRange) ? out : null;
             });
@@ -1661,6 +1662,14 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             return;
           }
           s.reading = false; s.readingText = null;
+          if (r && typeof r.go === 'function' && r.say) {
+            // A dated ask: Robes says the day back (its weather, what it
+            // means for the looks) on the thread, then the looks begin.
+            s.thread.push({ who: 'robes', text: r.say });
+            _rbLpSync(true);
+            await new Promise(res => setTimeout(res, 1800));
+            if (_rbLp !== s) { try { r.go(); } catch (e) { console.error('[Robes] home box route', e); } return; }
+          }
           if (r && typeof r.go === 'function') {
             s.thread = [];   // the ask is answered — nothing to hold
             if (s.persist) { _rbLpSync(true); } else window.__rbLpClose();
@@ -14457,7 +14466,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           title: data.fallback ? 'Balmain waistcoat' : (pieceWords || String(prompt || '').trim() || 'Your piece'),
           subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
           img: persistable.find(Boolean) || data.photoUrl || null,
-          kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: dressMe ? 'dress-me' : 'style', context: dressMe ? (o.context || null) : null, genId: data.genId || null, suggested: true },
+          kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: dressMe ? 'dress-me' : 'style', context: dressMe ? (o.context || null) : null, dateHint: (dressMe && o.date) || null, genId: data.genId || null, suggested: true },
         });
         window.__lastKpData = data;
         _kpActiveSaveId = setId;
@@ -14746,6 +14755,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '<div class="rb-deck-info"><div class="rb-deck-t">' + _waEsc(wi ? ('Your ' + nm) : 'Robes is composing') + '</div><div class="rb-deck-m" id="rb-deck-line">' + _waEsc(lines[d.lineI % lines.length]) + '</div></div>' +
         '</div>';
       }
+      function _lkDeckDay() {
+        return _lkDeck ? _lkSuggDateHint({ set_id: _lkDeck.setId }) : null;
+      }
       function _lkDeckHtml() {
         const d = _lkDeck;
         if (!d) return '';
@@ -14765,7 +14777,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const waiting = _lkDeckWaiting();
         const curId = d.order[d.at] || null;
         const cur = curId ? _lkDeckRow(curId) : null;
-        const tb = _rbTitleHtml({ cls: 'rb-lk-decktb', eyebrow: anchored ? 'Around your ' + _waEsc(nm) : 'From your prompt',
+        const dayFor = anchored ? null : _lkDeckDay();
+        const tb = _rbTitleHtml({ cls: 'rb-lk-decktb', eyebrow: anchored ? 'Around your ' + _waEsc(nm) : dayFor ? 'For ' + _waEsc(_lkFmtDay(dayFor)) : 'From your prompt',
           titleHtml: anchored ? 'Your ' + _waEsc(nm) + ', <em>three ways.</em>' : 'Your ask, <em>three ways.</em>',
           metaHtml: (cur || waiting.length) ? modelLine : '' });
         const total = d.order.length + waiting.length;
@@ -14790,7 +14803,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const thumbs = n ? '<div class="rb-deck-thumbs">' + kept.map(r => { const p = _lkHeroUrl(r); return '<button type="button" class="rb-deck-thumb" onclick="window.__lkDeckOpenLook(\'' + _waEsc(String(r.id)) + '\')" aria-label="' + _waEsc('Open ' + (r.name || 'this look')) + '">' + _ltMosaicHtml(p ? [] : _ltCells(_lkPieceIds(r)), { photo: p || null, alt: r.name || '' }) + '</button>'; }).join('') + '</div>' : '';
           stage = '<div class="rb-deck-end">' +
             '<div class="t">' + (_LK_DECK_WORDS[n] || String(n)) + ' kept.</div>' +
-            '<div class="s">' + (n ? 'They wait in Suggested until you save them.' : (anchored ? 'Style it three ways again from the piece page.' : 'Ask Robes again from the prompt box.')) + '</div>' +
+            '<div class="s">' + (n ? (dayFor ? 'They wait in Suggested. Save one and ' + _waEsc(_lkDayWeekday(dayFor)) + ' is one tap away.' : 'They wait in Suggested until you save them.') : (anchored ? 'Style it three ways again from the piece page.' : 'Ask Robes again from the prompt box.')) + '</div>' +
             thumbs +
             (n ? '<button type="button" class="rb-lk-save rb-deck-see" onclick="window.__lkDeckSee()">See Suggested</button>' : '') +
             '<button type="button" class="rb-deck-backlink" onclick="window.__lkDeckBack()">' + (anchored ? 'Back to the ' + _waEsc(nm) : 'Back home') + '</button>' +
@@ -16100,12 +16113,27 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       };
       // F8 → F10: one tap. The row crosses into the Lookbook with its id,
       // the page reopens as a saved look under "Saved to your lookbook".
+      // The day a dated ask named (the set carries it): saving one of its
+      // looks offers that day — never files to it by itself. A day gone by
+      // offers nothing.
+      function _lkSuggDateHint(l) {
+        if (!l || l.set_id == null) return null;
+        let set = null;
+        try { set = snLoad().find(x => String(x.id) === String(l.set_id)); } catch (_) { set = null; }
+        const iso = set && set.kpData && set.kpData.dateHint;
+        return (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) && iso >= _pdLocalISO()) ? iso : null;
+      }
       window.__lkSuggSave = function(id) {
+        const hint = _lkSuggDateHint(_lkSuggFind(id));
         const l = _lkSuggToSaved(id);
         if (!l) return;
         _lkGuideUse();
         window.__lkOpen(l.id, { from: { label: 'Lookbook', go: function() { window.__lkGo(); } } });
         _waShowToast('Saved to your lookbook');
+        if (hint && window.__lkDiaryOpen) {
+          setTimeout(() => { try { window.__lkDiaryOpen(hint); } catch (_) {} }, 60);
+          _rbTrack('look_saved_then_dated', { hint, from: 'suggested' });
+        }
         _waV2Sync();
         _rbTrack('look_saved_from_suggested', { pieces: (l.pieces || []).length, proposed: (l.proposals || []).length });
       };
@@ -16128,6 +16156,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _lkNewTitleTouched = !l.name_provisional && !!String(l.name || '').trim();
         if (_lkFrameOf(l)) { _lkPhoto = { url: _lkFrameOf(l), frame: true }; _lkPhoto.baseKey = _lkfComposerKey(); }
         else if (_pdHttp(l.photo_url)) _lkPhoto = { url: l.photo_url, frame: true };
+        _lkDateHint = _lkSuggDateHint(l);
         _lkView = 'new'; _lkActive = null;
         _lkPaint();
         if (_lkShop.length && _lkShop.some((r, i) => !_lkShopImgs[i])) _lkShopImages(true);
@@ -18579,7 +18608,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // defaults to the date). Supersedes the name gate.
         const hasAny = nPlaced > 0 || _lkShop.length > 0 || !!(_lkPhoto && _lkPhoto.url);
         const saveBtn = (label) => '<button type="button" class="rb-lk-save' + (hasAny ? '' : ' unnamed') + '" onclick="window.__lkSaveAsk()"' +
-            (canSave && hasAny ? '' : ' disabled') + '>' + (_lkDay ? 'Save to ' + _waEsc(_lkDay.date ? _lkDayWeekday(_lkDay.date) : 'the trip') : label) + '</button>';
+            (canSave && hasAny ? '' : ' disabled') + '>' + ((_lkDay && _lkDay.trip) ? 'Save to the trip' : label) + '</button>';
         // Home's composer keeps its save row (note · Save · foot · door).
         // Everywhere else the row holds only the quiet doors — Save and
         // Discard moved to the draft footer (design 4d, below).
@@ -22507,8 +22536,14 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _lkShop = []; _lkBuildGaps = []; _lkBuildMine = false;
         _lkBuildFrame = null; _lkBuildNote = null; _lkBuildPalette = []; _lkBuildSeq++;
         _lkShopImgs = []; if (_lkShopTimer) { clearInterval(_lkShopTimer); _lkShopTimer = null; }
-        const day = _lkDay; _lkDay = null; _lkDraftSrc = null;
-        const dateHint = _lkDateHint; _lkDateHint = null;
+        // A look reaches a day only once it is saved (2026-10-10, Annie):
+        // a draft that carries a diary date files NOTHING on save — the
+        // date becomes the offer, the sheet rising with that day marked.
+        // A trip day is the one exception (trips are their own container).
+        let day = _lkDay; _lkDay = null; _lkDraftSrc = null;
+        let dateHint = _lkDateHint; _lkDateHint = null;
+        let hintFrom = null;
+        if (day && !day.trip) { if (day.date && !dateHint) { dateHint = day.date; hintFrom = day.date; } day = null; }
         // A draft hosted on the key piece page (2026-09-16) lands there —
         // the host reads Filed, the look one tap away; the Lookbook grid
         // repaints underneath as ever.
@@ -22553,7 +22588,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // look's own page with the day her words named preselected.
         // Closing the sheet leaves the look dated nothing.
         if (dateHint && window.__lkOpen && window.__lkDiaryOpen) {
-          window.__lkOpen(l.id, { from: { label: 'Home', go: function() { window.__rbNavGo && window.__rbNavGo('home'); } } });
+          window.__lkOpen(l.id, { from: hintFrom && window.__rbDayOpen
+            ? { label: _lkFmtDay(hintFrom), go: function() { window.__rbDayOpen(hintFrom, { from: 'diary' }); } }
+            : { label: 'Home', go: function() { window.__rbNavGo && window.__rbNavGo('home'); } } });
           setTimeout(() => { try { window.__lkDiaryOpen(dateHint); } catch (_) {} }, 60);
           _rbTrack('look_saved_then_dated', { hint: dateHint });
           _waShowToast(l.name + ' saved to Looks ✓');
@@ -22925,7 +22962,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         if (!data) return;
         const typed = ((document.getElementById('dl-eve-act') || {}).value || '').trim();
         if (!typed) { const el = document.getElementById('dl-eve-act'); if (el) el.focus(); return; }
-        window.__dlSubmit(typed, { anchorDate: data.anchor_date, slot: oi === 1 ? 'evening' : undefined });
+        // A new look for a day is a suggestion first (2026-10-10): the deck,
+        // styled for the day's weather; saving one offers the day.
+        window.__rbPromptLookFor(typed, data.anchor_date);
       };
       window.__dlFlip = function(fi, dir) {
         const it = window.__dlCurrentItems && window.__dlCurrentItems[fi];
@@ -24355,13 +24394,12 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const wxHtml = (wx && date >= today) ? `<div class="dyp-wx dlm-wx">${_waEsc(wxLine)}</div>${wx.hint ? `<div class="dyp-wxtip">${_waEsc(wx.hint)}</div>` : ''}` : '';
         const tripHtml = tvIt ? `<button type="button" class="dyp-trip dlm-lksrc" onclick="window._rbOpenMoment(window._dyPgTrip())"><span>Part of <em>${_waEsc(tvIt.title || 'a travel edit')}</em></span><span class="r">Travel edit ›</span></button>` : '';
         // With looks on the day the dashed card adds another; an empty day
-        // carries the picker's three doors right on the page (the design's
-        // empty state — one tap fewer than opening the sheet to find them).
+        // carries ONE door — choose from your saved looks (2026-10-10, Annie:
+        // a look reaches a day only once it is saved; a new look starts
+        // from the sparkle, which carries the day).
         const add = n
           ? `<button type="button" class="dyp-add" onclick="window.__mvWear('${date}')"><span class="dyp-add-plus">+</span><span class="dyp-add-l">Add a look</span><span class="dyp-add-s">another moment in the day</span></button>`
           : `<div class="dyp-doors">` +
-              `<button type="button" class="dyp-door" onclick="window.__mvRobesFor('${date}')"><span class="ic robes">✦</span><span class="b"><span class="l">Robes styles one</span><span class="s">a fresh look for this day</span></span><span class="ar">›</span></button>` +
-              `<button type="button" class="dyp-door" onclick="window.__lkNew&&window.__lkNew({day:'${date}'})"><span class="ic">${_RB_PENCIL_SVG}</span><span class="b"><span class="l">Create a new look</span><span class="s">opens the composer</span></span><span class="ar">›</span></button>` +
               `<button type="button" class="dyp-door" onclick="window.__mvWear('${date}')"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 5h16v14H4zM12 5v14"></path></svg></span><span class="b"><span class="l">Choose from your looks</span><span class="s">pick one or several</span></span><span class="ar">›</span></button>` +
             `</div>`;
         window.rbSetCrumb && window.rbSetCrumb([{ label: 'Diary' }]);
@@ -29590,17 +29628,30 @@ body>*:not(#tv-result-page){display:none !important}
         }, 8000);
         // Daily Look track carries the real-time context captured by _rbWeather
         // (asked for lazily — see the deferred location note in _rbWeather)
+        if (deck && meta && meta.say) { const m0 = document.getElementById('kp-load-msg'); if (m0) m0.textContent = meta.say; }
         if (daily && window.__rbWeatherAsk && !(window.__rbCtx && window.__rbCtx.city)) {
           try { await Promise.race([window.__rbWeatherAsk(), new Promise(r => setTimeout(r, 6000))]); } catch (e) {}
         }
         const rc = window.__rbCtx || {};
-        const context = daily ? {
+        // A dated ask (another day than today) carries THAT day's forecast
+        // and its name; no forecast that far out sends the day alone.
+        const askDate = daily && meta && meta.date && meta.date !== _pdLocalISO() ? meta.date : null;
+        const wx = askDate ? (meta.wx || null) : null;
+        const context = !daily ? null : askDate ? {
+          city: (wx && wx.city) || rc.city || '',
+          month: new Date(askDate + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long' }),
+          tempRange: (wx && wx.tempRange) || '',
+          condition: (wx && wx.condition) || '',
+          hint: (wx && wx.hint) || '',
+          dayLabel: new Date(askDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }),
+          date: askDate,
+        } : {
           city: rc.city || '',
           month: new Date().toLocaleDateString('en-GB', { month: 'long' }),
           tempRange: rc.tempRange || (rc.tempC != null ? rc.tempC + '°C' : ''),
           condition: rc.condition || '',
           hint: rc.hint || '',
-        } : null;
+        };
         const guard = _rbOverlayGuard(overlay);
         const genId = _rbGenId();
         try {
@@ -29633,7 +29684,7 @@ body>*:not(#tv-result-page){display:none !important}
           // Look states (2026-10-06): the three ways land as three
           // suggested looks on the Lookbook's Suggested tab; the Worn
           // Three Ways page keeps the dress-me variant and old entries.
-          if (typeof _lkSuggLand === 'function' && _lkSuggLand(data, prompt, { intent, deck, context, pieceId: meta && meta.pieceId })) return;
+          if (typeof _lkSuggLand === 'function' && _lkSuggLand(data, prompt, { intent, deck, context, pieceId: meta && meta.pieceId, date: (meta && meta.date) || null })) return;
           window.__kpRenderResult(data, prompt, { intent, context });
         } catch (err) {
           guard.done();
@@ -29651,9 +29702,59 @@ body>*:not(#tv-result-page){display:none !important}
       // look photographed on her model, or on a Robes model until she
       // builds hers. A dated ask (a Diary day, the rail) still builds in
       // the composer, where the day is attached.
-      window.__rbPromptLook = function(prompt) {
+      // A day she names rides with the ask (2026-10-10, Annie): the looks
+      // are styled for THAT day's forecast, the deck reads it, and saving
+      // a kept look offers that day. Nothing files to the day by itself.
+      window.__rbPromptLook = function(prompt, o) {
+        o = o || {};
         const p = String(prompt || '').trim() || 'An outfit for today';
-        _cbStyleSubmit(p, null, { intent: 'dress-me', deck: true });
+        const date = _rbAskDate(o.date);
+        _cbStyleSubmit(p, null, { intent: 'dress-me', deck: true, date, wx: o.wx || null, say: o.say || null });
+      };
+      // A date worth carrying: today or later, a real ISO day.
+      function _rbAskDate(iso) {
+        if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return null;
+        return String(iso) >= _pdLocalISO() ? String(iso) : null;
+      }
+      function _rbAskWhen(iso) {
+        const today = _pdLocalISO();
+        const off = Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000);
+        const wd = new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+        if (off <= 0) return 'today';
+        if (off === 1) return 'tomorrow';
+        if (off <= 6) return 'on ' + wd;
+        if (off <= 13) return 'next ' + wd;
+        return 'on ' + _lkFmtDay(iso);
+      }
+      // The line Robes says back before styling a dated ask — the weather
+      // that day and what it means for the looks.
+      function _rbAskWeatherLine(iso, wx) {
+        const when = _rbAskWhen(iso);
+        if (!wx || (wx.tmax == null && !wx.condition)) return 'No forecast reaches ' + (when === 'today' || when === 'tomorrow' ? when : _lkFmtDay(iso)) + ' yet, so the looks are styled for the season.';
+        const c = Number(wx.code), tmax = Number(wx.tmax);
+        const has = isFinite(tmax);
+        let word, cons;
+        if ([71, 73, 75, 77, 85, 86].indexOf(c) >= 0) { word = 'snowing'; cons = 'the looks are built for the cold — boots and a proper coat'; }
+        else if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82) || c >= 95) { word = 'raining'; cons = 'every look holds up to it — shoes that can take the wet, a layer on top'; }
+        else if (has && tmax >= 25) { word = 'hot'; cons = 'the looks stay light and breathable'; }
+        else if (has && tmax <= 10) { word = 'cold'; cons = 'the looks are layered up'; }
+        else if (c === 0 || c === 1) { word = 'sunny'; cons = 'the looks keep it light'; }
+        else if (has && tmax <= 15) { word = 'cool'; cons = 'each look carries a layer'; }
+        else { word = 'mild'; cons = 'one light layer covers it'; }
+        return 'It’s going to be ' + word + (has ? ' and ' + tmax + '°' : '') + ' ' + when + ', so ' + cons + '.';
+      }
+      // {date, wx, say} for a dated ask — the forecast asked once, capped
+      // so a slow forecast never holds the looks.
+      function _rbAskForDate(iso) {
+        const date = _rbAskDate(iso);
+        if (!date) return Promise.resolve(null);
+        const get = (typeof window.__rbWxForDate === 'function') ? window.__rbWxForDate(date) : Promise.resolve(null);
+        return Promise.race([get, new Promise(r => setTimeout(() => r(null), 5000))])
+          .catch(() => null)
+          .then(wx => ({ date, wx: wx || null, say: _rbAskWeatherLine(date, wx || null) }));
+      }
+      window.__rbPromptLookFor = function(prompt, iso) {
+        return _rbAskForDate(iso).then(a => window.__rbPromptLook(prompt, a || {}));
       };
 
       // ── Post-add fork modal — REMOVED 2026-08-21 (Mary's user testing:
@@ -29746,7 +29847,7 @@ body>*:not(#tv-result-page){display:none !important}
           }
           const anchorDate = _cbAnchorDate;
           _cbReset();
-          if (anchorDate) window.__dlSubmit(prompt, { anchorDate }); else window.__rbPromptLook(prompt);
+          if (anchorDate) window.__rbPromptLookFor(prompt, anchorDate); else window.__rbPromptLook(prompt);
           return;
         }
         if (intent === 'style') {
@@ -32492,6 +32593,9 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
 #rb-mv-wear .pk-door .l i{font-style:normal;color:var(--rose,#8E6A7C)}
 #rb-mv-wear .pk-door .l i.q{color:var(--ink-faint,#9A958E)}
 #rb-mv-wear .pk-door .s{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:13px;color:var(--ink-soft,#4A4744);margin:6px 0 0 24px}
+#rb-mv-wear .pk-sugg{display:flex;align-items:center;justify-content:space-between;gap:12px;width:calc(100% - 48px);margin:18px 24px 0;background:#fff;border:1px solid var(--rule,#E3DDD2);border-radius:8px;padding:12px 15px;text-align:left;cursor:pointer;font:400 13px/1.4 var(--font-sans,Inter,sans-serif);color:var(--ink-soft,#4A4744);box-sizing:border-box}
+#rb-mv-wear .pk-sugg:hover{border-color:rgba(32,32,33,.4)}
+#rb-mv-wear .pk-sugg .ar{color:var(--ink-faint,#9A958E)}
 #rb-mv-wear .pk-bar{margin:24px 24px 0;border-bottom:1px solid var(--rule,#E3DDD2);padding-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #rb-mv-wear .pk-bar .k{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint,#9A958E)}
 #rb-mv-wear .pk-bar .n{font-family:'Cormorant',Georgia,serif;font-style:italic;font-weight:300;font-size:13px;color:var(--ink-faint,#9A958E);flex:1}
@@ -32605,11 +32709,20 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
             const had = onDay.indexOf(id) > -1, on = picks.indexOf(id) > -1;
             return `<button type="button" class="pk-tile${on ? ' on' : ''}${had ? ' had' : ''}" data-look="${esc(id)}" onclick="window.__mvPkToggleLook('${esc(id)}')"${had ? ' aria-disabled="true"' : ''}>${lt.mosaic(lt.cells(_lkPieceIds(l)), { photo: _lkHeroUrl(l) || undefined, alt: l.name || 'Saved look' })}<span class="pk-tick" aria-hidden="true">${on ? '✓' : ''}</span><div class="t">${esc(l.name || 'A look')}</div><div class="m">${had ? 'Already on this day' : tileMeta(l)}</div></button>`;
           };
+          // Outside a trip the day takes SAVED looks only (2026-10-10, Annie):
+          // no make-doors here — a new look starts from the sparkle — and
+          // the looks still waiting in Suggested are named, one tap away.
+          const suggN = trip ? 0 : (_lkSugg || []).filter(x => x.status === 'suggested').length;
+          const suggHtml = suggN ? `<button type="button" class="pk-sugg" onclick="window.__mvPkSugg()"><span>${esc(_mvPkNumWord(suggN) + (suggN === 1 ? ' look waits' : ' looks wait'))} in Suggested — save one first</span><span class="ar">›</span></button>` : '';
           const gridHtml = list.length
             ? `<div class="pk-grid">${list.slice(0, 80).map(tileHtml).join('')}</div>`
             : (pool.length
-              ? `<div class="pk-none"><h4>Nothing tagged ${esc(sel.map(x => String(_rbTagLabel(x.axis, x.v)).toLowerCase()).join(' and ') || 'that')}.</h4><p>The composer starts one from the pieces you own${c.date ? ', and files it to ' + esc(new Date(c.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' })) + ' on save' : ''}.</p><button type="button" class="pk-ink" onclick="${doorNew}">Open the composer</button></div>`
-              : `<div class="pk-none"><h4>Nothing in the Lookbook <em>yet.</em></h4><p>The composer starts one from the pieces you own${c.date ? ', and files it to ' + esc(new Date(c.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' })) + ' on save' : ''}.</p><button type="button" class="pk-ink" onclick="${doorNew}">Open the composer</button></div>`);
+              ? (trip
+                ? `<div class="pk-none"><h4>Nothing tagged ${esc(sel.map(x => String(_rbTagLabel(x.axis, x.v)).toLowerCase()).join(' and ') || 'that')}.</h4><p>The composer starts one from the pieces you own.</p><button type="button" class="pk-ink" onclick="${doorNew}">Open the composer</button></div>`
+                : `<div class="pk-none"><h4>Nothing tagged ${esc(sel.map(x => String(_rbTagLabel(x.axis, x.v)).toLowerCase()).join(' and ') || 'that')}.</h4><p>Clear the filters to see every saved look.</p><button type="button" class="pk-ink" onclick="window.__mvPkClear()">Clear all</button></div>`)
+              : (trip
+                ? `<div class="pk-none"><h4>Nothing in the Lookbook <em>yet.</em></h4><p>The composer starts one from the pieces you own.</p><button type="button" class="pk-ink" onclick="${doorNew}">Open the composer</button></div>`
+                : `<div class="pk-none"><h4>Nothing saved <em>yet.</em></h4><p>${suggN ? 'Save one of your suggested looks and it can go on this day.' : 'Ask Robes for a look from the sparkle, save the one you like, and it can go on this day.'}</p>${suggN ? '<button type="button" class="pk-ink" onclick="window.__mvPkSugg()">See Suggested</button>' : ''}</div>`));
           // A trip day also offers the trip's OWN looks not yet on it —
           // the old sheet's "Or one of this trip's looks", as tiles.
           let tripOwn = '';
@@ -32624,10 +32737,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           host.innerHTML = `<div class="pk" role="dialog" aria-modal="true"><div class="pk-body">
             <div class="pk-head"><span class="pk-ey">Add a look${dateLbl ? ' · ' + esc(dateLbl) : ''}</span><button type="button" class="pk-x" onclick="window.__mvPkClose()" aria-label="Close">×</button></div>
             <h3 class="pk-h" id="rb-mv-wear-ttl">${esc(title)}${c.target ? `<button type="button" class="pen" onclick="window.__mvWearRename()" title="Rename the day" aria-label="Rename the day">${_DC_PEN_SVG}</button>` : ''}</h3>
-            <div class="pk-doors">
+            ${trip ? `<div class="pk-doors">
               <button type="button" class="pk-door" onclick="${doorRobes}"><p class="l"><i>✦</i>Robes styles one</p><p class="s">${c.title ? 'dressed for “' + esc(c.title) + '”' : 'a fresh look for this day'}</p></button>
               <button type="button" class="pk-door" onclick="${doorNew}"><p class="l"><i class="q">✎</i>Create a new look</p><p class="s">opens the composer</p></button>
-            </div>
+            </div>` : ''}
+            ${(pool.length || !suggN) ? suggHtml : ''}
             <div class="pk-bar"><span class="k">Your looks</span><span class="n">${esc(_lkN(pool.length, 'look'))}</span>
               <button type="button" class="pk-pill" onclick="window.__mvPkSort()">${c.sortDesc ? 'Last worn ↓' : 'First worn ↑'}</button>
               <button type="button" class="pk-pill${(c.open || on) ? ' on' : ''}" onclick="window.__mvPkToggle()">Refine${sel.length ? ' · ' + sel.length : ''}</button>
@@ -32704,6 +32818,11 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           if (!r.climate.length && !r.wear.length && !r.vibe.length) return null;
           return { climate: r.climate[0] || '', wear: r.wear.slice(), vibe: r.vibe.slice() };
         }
+        window.__mvPkSugg = function() {
+          window.__mvPkClose();
+          _rbTrack('look_picker_suggested', {});
+          if (window.__rbInspOpen) window.__rbInspOpen();
+        };
         window.__mvPkRobesTrip = function() {
           const c = _mvPk;
           window.__mvPkClose();
@@ -32737,22 +32856,13 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         // day attached. Her name for the day prefills the field. The chips
         // retired with the sheet (no chips anywhere in the box).
         window.__mvRsClose = function() { window.__rbLpClose(); };
+        // (2026-10-10) The same box as the sparkle, on the date: her words
+        // become three suggested looks styled for that day's weather —
+        // never a draft filed to the day.
         window.__mvRobes = function(date) {
           document.getElementById('rb-mv-wear')?.remove(); _mvPk = null;
           const title = String((_mvWearCtx && _mvWearCtx.date === date && _mvWearCtx.title) || '').trim();
-          const rc = window.__rbCtx || {};
-          const wx = date === _pdLocalISO() ? [rc.tempRange, rc.condition].filter(Boolean).join(', ') : '';
-          _rbLookPrompt({
-            mode: 'new', surface: 'diary', title: 'A new look', name: 'A new look',
-            meta: _mvPkDateLabel(date) + (wx ? ' · ' + wx : ''),
-            text: title,
-            onNew: function(text) {
-              _rbTrack('day_robes_brief', { date, chip: null, typed: true });
-              if (!window.__dlSubmit) return;
-              try { window.__dlSubmit(text, { anchorDate: date }); }
-              catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
-            },
-          });
+          if (window.__rbHbOpen) window.__rbHbOpen({ date, text: title });
           _rbTrack('day_robes_door', { date, named: !!title });
         };
         // Rename in the picker: the headline swaps to an input in place;
@@ -33260,7 +33370,8 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         const item = m ? snLoad().find(x => String(x.id) === String(m.source_id)) : null;
         const evening = _ikEveningIntent(text);
         if (!m || m.source_type === 'daily' || !item) {
-          window.__dlSubmit(text, { anchorDate: date, slot: evening ? 'evening' : undefined });
+          void evening;
+          window.__rbPromptLookFor(text, date);
           return;
         }
         // The day belongs to a trip: open it AT that day — travel is
@@ -34088,8 +34199,8 @@ body.rb-hb-on #dash .concierge{display:none!important}
       window.__rbHbSave = function() {
         if (!_rbHbEnsureDraftLoaded()) return;
         if (!String(_lkNewTitleDraft || '').trim()) { const d = _rbHbDraft(); _lkNewTitleDraft = (d && d.name) || 'A new look'; _lkNewTitleTouched = false; }
-        const hint = _lkDateHint || null;
-        const day = _lkDay && _lkDay.date ? _lkDay.date : null;
+        const day = _lkDay && _lkDay.trip && _lkDay.date ? _lkDay.date : null;
+        const hint = _lkDateHint || (_lkDay && !_lkDay.trip && _lkDay.date) || null;
         window.__lkSaveAsk({ stay: true, then: function(l) {
           if (!l) return;
           _rbHbStage = day ? { step: 'dated', lookId: l.id, date: day, hint: null } : { step: 'saved', lookId: l.id, date: null, hint };
@@ -34114,13 +34225,15 @@ body.rb-hb-on #dash .concierge{display:none!important}
         st.step = 'saved';
         _rbLpSync(true);
       };
-      // The route her words take: a dated door lands ON the day (the draft
-      // built IN the box); an undated ask is a NEW look — three ways on the
-      // keep-or-pass deck (2026-10-09), the key piece's own format.
+      // The route her words take: every ask is a NEW look — three ways on
+      // the keep-or-pass deck (2026-10-09). A day she names, or the dated
+      // door she came through, rides with it (2026-10-10, Annie): Robes
+      // says that day's weather back, the looks are styled for it, and
+      // saving one offers the day. Nothing is drafted onto a date.
       function _rbHbRoute(prompt, seed, s) {
-        const date = s.hbDate || null;
+        const date = _rbAskDate(s.hbDate || (seed && seed.date_start) || null);
         if (!date) return { go: () => { _cbReset(); window.__rbPromptLook(prompt); } };
-        return { build: () => window.__dlSubmit(prompt, { anchorDate: date, quiet: true }) };
+        return _rbAskForDate(date).then(a => ({ say: a ? a.say : null, go: () => { _cbReset(); window.__rbPromptLook(prompt, a || { date }); } }));
       }
       function _rbHbAsk(text, s) {
         const t0 = Date.now();
