@@ -368,13 +368,15 @@ const titleTop = (page) => page.evaluate(() => {
   check('trip · the bare ← Diary arrow is gone; ‹ July 2026 names the month the trip lives in; eyebrow The travel edit, ONE pen after the name (Edit details), destination + dates + weather on one line',
     !!tb && tb.label === 'July 2026' && tt.ey === 'The travel edit' && tt.title === 'A trip to Lahinch.' && tt.pen === 'Edit details' && tt.pens === 1 && !tt.arrow && tt.facts && JSON.stringify(await lit(page)) === '["diary"]', JSON.stringify([tb, tt]));
   check('trip · a look row on the Travel diary is the door to the look', tt.doors === 1);
+  // The frozen trip (MVP, 2026-10-10): the look entity carries no trip
+  // branch — a look row opens the trip's own look page over the trip, never
+  // the Lookbook's look page with Pack toggles.
   await page.locator('#tv-weekstrip .tvw-lk').first().click(); await page.waitForTimeout(700);
-  const lb = await band(page);
-  const lm = await page.evaluate(() => ({ meta: document.querySelector('#rb-lk-body .rb-lk-mast .rb-tb-meta')?.textContent, notice: /Open the travel edit/.test(document.getElementById('rb-lk-body')?.textContent || ''), pack: document.querySelectorAll('#rb-lk-body .rb-lk-packbtn').length }));
-  check('trip › look · opens as a screen: ‹ A trip to Lahinch. + "1 of 1 on this trip" prints nothing (a set of one), the pin is a plain meta line, no notice repeats the route, the Pack toggles stay, Diary still lit',
-    !!lb && lb.label === 'A trip to Lahinch.' && /pinned for Sat(urday)? 1 Aug, Dinner out/.test(lm.meta || '') && !lm.notice && lm.pack === 2 && JSON.stringify(await lit(page)) === '["diary"]', JSON.stringify([lb, lm]));
-  await page.locator('#sn-page .rb-ret-pill').click(); await page.waitForTimeout(700);
-  check('trip › look · ‹ returns to the trip', await page.locator('#tv-result-page').isVisible() && !(await page.locator('#sn-page').isVisible()) && (await band(page))?.label === 'July 2026');
+  const lm = await page.evaluate(() => ({ tvLook: getComputedStyle(document.getElementById('tv-look-page')).display !== 'none', sn: getComputedStyle(document.getElementById('sn-page')).display !== 'none', pack: document.querySelectorAll('.rb-lk-packbtn').length }));
+  check('trip › look · frozen: opens on the trip’s own look page — no Lookbook look page, no Pack toggles; Diary still lit',
+    lm.tvLook && !lm.sn && lm.pack === 0 && JSON.stringify(await lit(page)) === '["diary"]', JSON.stringify(lm));
+  await page.evaluate(() => window.__tvStageClose()); await page.waitForTimeout(300);
+  check('trip › look · back returns to the trip', await page.locator('#tv-result-page').isVisible() && !(await page.locator('#tv-look-page').isVisible()) && (await band(page))?.label === 'July 2026');
 
   await page.evaluate((r) => window.__kpRenderResult(r, 'Style my black dress for a ball', { intent: 'style' }), STYLE_RESP); await page.waitForTimeout(900);
   const kb = await band(page);
