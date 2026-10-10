@@ -1556,8 +1556,10 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     const modeOk = posture === 'standard' ? h.mode === 'standard' : h.mode === posture;
     check(`home field · ${posture} · ${flag} · no page errors`, errs.length === 0, errs.join(' | ').slice(0, 200));
     if (flag === 'card') {
-      check(`home field · ${posture} · card · the prompt card and its three pills stand, no field`,
-        modeOk && h.conc === true && h.pills === 3 && h.hb === false && h.bodyOn === false, JSON.stringify(h));
+      // Two pills since the trip was hidden (MVP, 2026-10-10): Style today ·
+      // Style a piece — Plan a trip left with the trip.
+      check(`home field · ${posture} · card · the prompt card and its two pills stand (no Plan a trip), no field`,
+        modeOk && h.conc === true && h.pills === 2 && h.hb === false && h.bodyOn === false, JSON.stringify(h));
     } else {
       check(`home field · ${posture} · ${flag} · the card and the pills stand down; ONE box under the greeting — inline in the row, no sheet — reads "A new look for…", in flow on the web`,
         modeOk && h.conc === false && h.pills === 0 && h.hb === true && h.fields === 1 && h.inline && h.label === 'A new look for…'
@@ -1695,9 +1697,14 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
   await page.evaluate(() => window.__rbLpText('Four days in Lisbon from tomorrow'));
   await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1200);
-  const tv = await page.evaluate(() => ({ box: !!document.getElementById('rb-lp'), modal: !!document.getElementById('tv-brief-modal'), dest: document.getElementById('tv-dest')?.value }));
-  check('home field · route 2 · a trip → the travel intake, prefilled from the classifier (Lisbon)', posts.intent.length === 1 && tv.modal && tv.dest === 'Lisbon', JSON.stringify(tv));
-  await page.evaluate(() => document.getElementById('tv-brief-modal')?.remove());
+  // The trip is hidden (MVP, 2026-10-10): a trip-shaped ask makes
+  // suggested looks — the deck, UNDATED (a trip's first day with her home
+  // weather would read as the wrong answer), never the travel intake.
+  const tv = await page.evaluate(() => ({ modal: !!document.getElementById('tv-brief-modal'), deck: !!document.querySelector('#rb-lk-body .rb-lk-deck'), deckEy: document.querySelector('#rb-lk-body .rb-lk-deck .ey, #rb-lk-body .rb-lk-deck [class*="ey"]')?.textContent || '' }));
+  const s0 = posts.style[0] || {};
+  check('home field · route 2 · a trip → suggested looks on the deck, undated — never the travel intake',
+    posts.intent.length === 1 && !tv.modal && tv.deck && posts.style.length === 1 && s0.intent === 'dress-me' && s0.prompt === 'Four days in Lisbon from tomorrow' && !(s0.context && s0.context.date) && !/For /.test(tv.deckEy), JSON.stringify([tv, s0.intent, s0.context]));
+  await page.evaluate(() => { window.__rbNavGo('home'); }); await page.waitForTimeout(400);
   // Unclear → the box never questions her: it DEFAULTS to a new look —
   // three ways on the deck (2026-10-09).
   await page.route('**/api/intent', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ intent: 'unclear', confidence: 0.3 }) }));
@@ -1706,7 +1713,7 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(2200);
   const u = await page.evaluate(() => ({ deck: !!document.querySelector('#rb-lk-body .rb-lk-deck'), composer: !!document.querySelector('.rb-lk-composer') }));
   check('home field · unclear → no question: a NEW look by default — three ways on the deck',
-    u.deck && !u.composer && posts.daily.length === 0 && posts.style.length === 1 && posts.style[0].intent === 'dress-me' && posts.style[0].prompt === 'Something for Saturday', JSON.stringify([u, posts.style.map((x) => x && x.prompt)]));
+    u.deck && !u.composer && posts.daily.length === 0 && posts.style.length === 2 && posts.style[1].intent === 'dress-me' && posts.style[1].prompt === 'Something for Saturday', JSON.stringify([u, posts.style.map((x) => x && x.prompt)]));
   // A completed ask never holds its thread — the next open is clean.
   await page.evaluate(() => { window.__rbNavGo('home'); }); await page.waitForTimeout(400);
   await page.evaluate(() => window.__rbHbOpen()); await page.waitForTimeout(150);
