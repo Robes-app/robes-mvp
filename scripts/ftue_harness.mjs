@@ -975,15 +975,18 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// The next line (four-session funnel brief, slice 1.1 · 2026-09-18): the
-// masthead echo becomes ONE derived sentence with a text door — never a
-// filled button. Rules in order: model (none on file, ≥1 look) → finish (a
-// look borrows ≥2 pieces, <5 photographed) → week (nothing planned ahead)
-// → the standing question.
+// The next line is RETIRED (Annie, 2026-10-10): the sub under the greeting
+// reads the standing question in every state that used to rotate a line —
+// no model, a borrowing look, an empty week, under the rung, at the rung.
+// The FTUE sections and the sparkle carry the guidance now.
 // ─────────────────────────────────────────────────────────────────────────
 {
-  // Two saved looks, no model on file → the model rule. (looks:false so the
-  // boot's init script does not re-seed the looks on the reload below.)
+  const readEcho = (page) => page.evaluate(() => {
+    const echo = document.querySelector('.dash-echo');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: !!echo?.querySelector('.rb-echo-door') };
+  });
+  const standing = (e) => e.text === 'What are you dressing for today?' && !e.door;
+  // No model on file, two saved looks (the old model rule).
   const { ctx, page, errs } = await boot(browser, 4, 1280, { looks: false });
   await page.evaluate(() => {
     localStorage.setItem('rb_looks__u-test', JSON.stringify([
@@ -996,28 +999,12 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
-  const read = () => page.evaluate(() => {
-    const echo = document.querySelector('.dash-echo');
-    const mast = document.querySelector('.dash-mast');
-    return {
-      text: echo?.textContent.replace(/\s+/g, ' ').trim(),
-      name: echo?.querySelector('.rb-echo-name')?.textContent,
-      door: echo?.querySelector('.rb-echo-door')?.textContent,
-      doorInk: echo?.querySelector('.rb-echo-door') ? getComputedStyle(echo.querySelector('.rb-echo-door')).backgroundColor : null,
-      mastFills: Array.from(mast?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
-    };
-  });
-  const a = await read();
-  check('next line · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('next line · no model + a look → "Build your model and she’ll wear …", a text door, no ink in the masthead',
-    a.name === 'A look' && /^Build your model and she’ll wear A look\./.test(a.text) && a.door === 'Build your model →'
-      && a.doorInk !== 'rgb(32, 32, 33)' && a.mastFills === 0, JSON.stringify(a));
-
-  // A model on file (the pre-migration-20 local prefs make an id) and a
-  // look that borrows two pieces at three photographed → the finish rule.
+  const a = await readEcho(page);
+  check('next line · retired: no model + looks → the standing question, no door', standing(a), JSON.stringify(a));
+  // A model + a look borrowing two pieces (the old finish rule).
   await page.evaluate(() => {
     localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
-    localStorage.setItem('rb_test_dna', JSON.stringify({ style_archetypes: ['Minimal'] }));   // the first run done — else the door card leads (2026-10-09)
+    localStorage.setItem('rb_test_dna', JSON.stringify({ style_archetypes: ['Minimal'] }));
     localStorage.setItem('rb_looks__u-test', JSON.stringify([
       { id: 'lk-b', name: 'The Thursday one', name_provisional: false, note: '', photo_url: null, tags: null, source: 'robes',
         origin_look_id: null, created_at: '2026-09-10T10:00:00.000Z',
@@ -1029,175 +1016,14 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
-  const b = await read();
-  check('next line · a model + a look borrowing two pieces → the finish rule, "Swap pieces"',
-    b.name === 'The Thursday one' && /borrows 2 pieces\. Photograph yours and swap them in\./.test(b.text) && b.door === 'Swap pieces →',
-    JSON.stringify(b));
-  // Its door (slice 4) opens the add flow BRIEFED for the look — its name
-  // over step 1, a chip per borrowed piece — not the look itself.
-  const opened = await page.evaluate(async () => {
-    document.querySelector('.dash-echo .rb-echo-door')?.click();
-    await new Promise((r) => setTimeout(r, 700));
-    const step = document.querySelector('#wa-modal .fm-step');
-    return { modal: !!document.querySelector('#wa-modal.open'),
-      h: step?.querySelector('.fm-h')?.textContent.trim() || '',
-      chips: Array.from(step?.querySelectorAll('.rb-wf-gap') || []).map((c) => c.textContent) };
-  });
-  check('next line · the finish door opens the add flow briefed for the look ("Make The Thursday one yours." · a jacket · loafers)',
-    opened.modal && opened.h === 'Make The Thursday one yours.' && opened.chips.join('·') === 'a jacket·loafers', JSON.stringify(opened));
-  await page.evaluate(() => window.WA && WA.close());
-  await ctx.close();
-}
-{
-  // A model on file, two owned-only looks (one a saved Robes build), six
-  // photographed pieces, nothing in the diary → the week rule, whose door
-  // opens the Diary. (five / robes stand down: at the rung with a build
-  // already saved.)
-  const { ctx, page, errs } = await boot(browser, 6, 1280, { looks: false, pics: 6 });
-  await page.evaluate(() => {
-    localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
-    localStorage.setItem('rb_looks__u-test', JSON.stringify([
-      { id: 'lk-w1', name: 'A look', name_provisional: false, note: '', photo_url: null, tags: null, source: 'manual',
-        origin_look_id: null, created_at: '2026-08-05T10:00:00.000Z',
-        pieces: [{ id: 'w0', slot: 'Top', position: 0, role: null }, { id: 'w1', slot: 'Bottom', position: 1, role: null }], wears: [] },
-      { id: 'lk-w2', name: 'Robes built this', name_provisional: true, note: '', photo_url: null, tags: null, source: 'robes-build',
-        origin_look_id: null, created_at: '2026-08-04T10:00:00.000Z',
-        pieces: [{ id: 'w2', slot: 'Top', position: 0, role: null }, { id: 'w3', slot: 'Bottom', position: 1, role: null }], wears: [] }]));
-  });
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const c = await page.evaluate(() => {
-    const echo = document.querySelector('.dash-echo');
-    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent };
-  });
-  check('next line · no page errors (week)', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('next line · a model, looks, nothing planned → the week rule, "Open the diary"',
-    /^Nothing planned this week\. Name a day and Robes dresses it\./.test(c.text) && c.door === 'Open the diary →', JSON.stringify(c));
-  const diary = await page.evaluate(async () => {
-    document.querySelector('.dash-echo .rb-echo-door')?.click();
-    await new Promise((r) => setTimeout(r, 700));
-    const sn = document.getElementById('sn-page');
-    return { open: !!sn && sn.style.display !== 'none', cal: !!sn?.classList.contains('rb-cal-on') };
-  });
-  check('next line · the week door opens the Diary', diary.open === true && diary.cal === true, JSON.stringify(diary));
-  // The brief rule (docs/style-memory-brief.md, slice A): five photographed
-  // pieces, three worn days, nothing kept in her words → "Read them";
-  // a kept line retires it and the week rule returns.
-  await page.evaluate(() => {
-    const looks = JSON.parse(localStorage.getItem('rb_looks__u-test'));
-    looks[0].wears = [
-      { id: 'we1', worn_on: '2026-09-01', piece_ids: ['w0', 'w1'], source: 'looks', source_id: null },
-      { id: 'we2', worn_on: '2026-09-08', piece_ids: ['w0', 'w1'], source: 'looks', source_id: null },
-      { id: 'we3', worn_on: '2026-09-15', piece_ids: ['w0', 'w1'], source: 'looks', source_id: null }];
-    localStorage.setItem('rb_looks__u-test', JSON.stringify(looks));
-  });
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const br = await page.evaluate(() => {
-    const echo = document.querySelector('.dash-echo');
-    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent, key: window.__rbNextDoorKey };
-  });
-  check('next line · at the rung with three worn days and nothing in her words → the brief rule, "Read them"',
-    /^Robes has noticed a few things about how you dress\./.test(br.text) && br.door === 'Read them →', JSON.stringify(br));
-  await page.evaluate(() => localStorage.setItem('rb_test_dna', JSON.stringify({ brief: { loves: [{ text: 'A sharp shoulder', source: 'typed' }], source: 'edited' } })));
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const br2 = await page.evaluate(() => document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim());
-  check('next line · a kept line in her brief retires the rule; the week rule returns', /^Nothing planned this week\./.test(br2 || ''), br2);
-  // The memory consolidates (slice B): twenty entries since the brief was
-  // last read → "noticed more" with its own door; a read stamps them consumed.
-  const mem = (n, readAt) => ({ brief: { loves: [{ text: 'A sharp shoulder', source: 'typed' }] }, memory: { v: 1, read_at: readAt || null, entries: Array.from({ length: n }, (_, i) => ({ t: '2026-09-2' + (i % 9) + 'T10:00:00Z', k: 'wear', look: 'x' + i })) } });
-  await page.evaluate((d) => localStorage.setItem('rb_test_dna', JSON.stringify(d)), mem(19));
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const br3 = await page.evaluate(() => document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim());
-  check('next line · nineteen entries in the memory → not yet (the week rule)', /^Nothing planned this week\./.test(br3 || ''), br3);
-  await page.evaluate((d) => localStorage.setItem('rb_test_dna', JSON.stringify(d)), mem(20));
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const br4 = await page.evaluate(() => {
-    const echo = document.querySelector('.dash-echo');
-    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent };
-  });
-  check('next line · twenty entries since the last read → "Robes has noticed more about how you dress." · Read it', /^Robes has noticed more about how you dress\./.test(br4.text || '') && br4.door === 'Read it →', JSON.stringify(br4));
-  await page.evaluate((d) => localStorage.setItem('rb_test_dna', JSON.stringify(d)), mem(20, '2026-09-30T00:00:00Z'));
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const br5 = await page.evaluate(() => document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim());
-  check('next line · a read stamps the memory consumed; the rule stands down', /^Nothing planned this week\./.test(br5 || ''), br5);
+  const b = await readEcho(page);
+  check('next line · retired: a model + a borrowing look → the standing question, no door', standing(b), JSON.stringify(b));
+  check('next line · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await page.evaluate(() => localStorage.removeItem('rb_test_dna'));
   await ctx.close();
 }
 {
-  // Slice 3.1 (2026-09-21): below the rung, a model and looks that borrow
-  // nothing → the five rule counts the distance and its door opens the add
-  // flow. Three of four pieces photographed → "Two more pieces".
-  const { ctx, page, errs } = await boot(browser, 4, 1280, { pics: 3 });
-  await page.evaluate(() => {
-    localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
-  });
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const f = await page.evaluate(() => {
-    const echo = document.querySelector('.dash-echo');
-    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent };
-  });
-  check('next line · no page errors (five)', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('next line · under five photographed pieces → the five rule counts the distance, "Add pieces"',
-    /^Two more pieces and Robes builds a look from yours alone\./.test(f.text) && f.door === 'Add pieces →', JSON.stringify(f));
-  const add = await page.evaluate(async () => {
-    document.querySelector('.dash-echo .rb-echo-door')?.click();
-    await new Promise((r) => setTimeout(r, 700));
-    const m = document.getElementById('wa-modal');
-    return { open: !!m && getComputedStyle(m).display !== 'none', step1: /Add your pieces/i.test(m?.textContent || '') };
-  });
-  check('next line · the five door opens the add flow', add.open === true && add.step1 === true, JSON.stringify(add));
-  await ctx.close();
-}
-{
-  // At the rung with no Robes build saved yet → the robes rule; its door
-  // opens the composer and Robes fills the rack (nothing saved).
-  const { ctx, page, errs } = await boot(browser, 6, 1280, { pics: 5 });
-  await page.route('**/api/alternates', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ alternates: [{ name: 'A found piece', brand: 'Robes', retailer_hint: 'Net-a-Porter', price_point: '€90', how: 'Worn open.' }, { name: 'Another', brand: 'Robes', retailer_hint: 'ASOS', price_point: '€40', how: 'Tucked.' }] }) }));
-  await page.route('**/api/lookbuild/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: null, note: 'A quiet build.', look_tags: null, palette: [] }) }));
-  await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
-  await page.evaluate(() => {
-    localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
-  });
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const r = await page.evaluate(() => {
-    const echo = document.querySelector('.dash-echo');
-    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), door: echo?.querySelector('.rb-echo-door')?.textContent };
-  });
-  check('next line · no page errors (robes)', errs.length === 0, errs.join(' | ').slice(0, 200));
-  check('next line · five photographed pieces and no build saved → the robes rule, "Let Robes build one"',
-    /^Five pieces filed\. Robes can build from yours now\./.test(r.text) && r.door === 'Let Robes build one →', JSON.stringify(r));
-  const built = await page.evaluate(async () => {
-    const writes0 = performance.getEntriesByType('resource').length;
-    document.querySelector('.dash-echo .rb-echo-door')?.click();
-    await new Promise((r) => setTimeout(r, 2200));
-    const sn = document.getElementById('sn-page');
-    const comp = document.querySelector('#rb-lk-body .rb-lk-composer');
-    return {
-      open: !!sn && getComputedStyle(sn).display !== 'none',
-      composer: !!comp,
-      built: !!document.querySelector('#rb-lk-body .rb-lk-saverow.built'),
-      pieces: document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name').length,
-      tryAnother: !!Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-quiet')).find((b) => /Try another/.test(b.textContent)),
-      door: !!document.querySelector('#rb-lk-body .rb-lk-robesdoor'),
-      _w: writes0,
-    };
-  });
-  check('next line · the robes door opens the composer with the rack filled by Robes, nothing saved, no second door',
-    built.open && built.composer && built.built && built.pieces >= 2 && built.tryAnother && !built.door, JSON.stringify(built));
-  await ctx.close();
-}
-
-// The robes line is a first-time offer (2026-10-01 — it read "Five pieces
-// filed" on an account with fifty): it counts the pieces it sees, and it
-// stands down once the ladder is done. The nav avatar carries HER initial.
-{
+  // Five photographed pieces, a model, nothing planned (the old robes / week rules).
   const { ctx, page, errs } = await boot(browser, 7, 1280, { pics: 7 });
   await page.evaluate(() => {
     localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 }));
@@ -1205,20 +1031,10 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2600);
-  const r7 = await page.evaluate(() => ({ text: document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim(), avatar: document.getElementById('avatar')?.textContent.trim(), greet: document.getElementById('dash-greet')?.textContent.trim() }));
-  check('next line · seven photographed pieces → the robes line counts seven, never "Five"', /^Seven pieces filed\. Robes can build from yours now\./.test(r7.text || ''), JSON.stringify(r7));
-  check('nav · the avatar circle carries her initial (Sinead → S), not the bundle’s A', r7.avatar === 'S' && /Sinead/.test(r7.greet || ''), JSON.stringify(r7));
-  check('next line · no page errors (robes · seven)', errs.length === 0, errs.join(' | ').slice(0, 200));
-  await ctx.close();
-}
-{
-  const { ctx, page, errs } = await boot(browser, 16, 1280, { pics: 16 });
-  await page.evaluate(() => { localStorage.setItem('rb_model__u-test', JSON.stringify({ skin: 3, hair: 1, nudges: {}, kept: true, gender: 'woman', v: 2 })); });
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2600);
-  const r16 = await page.evaluate(() => ({ text: document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim(), door: document.querySelector('.dash-echo .rb-echo-door')?.textContent }));
-  check('next line · past the ladder (sixteen filed) the robes line stands down', !!r16.text && !/pieces filed\. Robes can build/.test(r16.text) && r16.door !== 'Let Robes build one →', JSON.stringify(r16));
-  check('next line · no page errors (robes · sixteen)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  const e = await page.evaluate(() => ({ text: document.querySelector('.dash-echo')?.textContent.replace(/\s+/g, ' ').trim(), door: !!document.querySelector('.dash-echo .rb-echo-door'), avatar: document.getElementById('avatar')?.textContent.trim(), greet: document.getElementById('dash-greet')?.textContent.trim() }));
+  check('next line · retired: at the rung with nothing planned → the standing question, no door', e.text === 'What are you dressing for today?' && !e.door, JSON.stringify(e));
+  check('nav · the avatar circle carries her initial (Sinead → S), not the bundle’s A', e.avatar === 'S' && /Sinead/.test(e.greet || ''), JSON.stringify(e));
+  check('next line · no page errors (rung)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
 
@@ -1482,26 +1298,8 @@ for (const prefs of [{ nudges: true }, null]) {
       doorInk: echo?.querySelector('.rb-echo-door') ? getComputedStyle(echo.querySelector('.rb-echo-door')).backgroundColor : null };
   });
   const d = await readNext();
-  check('draft line · a parked draft leads the next line — her look\'s name, “is waiting, unsaved.”, Open it as a text door',
-    /is waiting, unsaved\./.test(d.text || '') && d.name === 'The Friday one' && /^Open it/.test(d.door || '') && d.doorInk !== 'rgb(32, 32, 33)', JSON.stringify(d));
-  const opened = await page.evaluate(async () => {
-    document.querySelector('.dash-echo .rb-echo-door')?.click();
-    await new Promise((r) => setTimeout(r, 800));
-    return { page: document.getElementById('sn-page')?.style.display !== 'none', composer: !!document.querySelector('#rb-lk-body .rb-lk-composer'), title: document.getElementById('rb-lk-newtitle')?.value,
-      rows: document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length };
-  });
-  check('draft line · Open it lands on the composer holding the draft', opened.page && opened.composer && opened.title === 'The Friday one' && opened.rows === 2, JSON.stringify(opened));
-  const gone = await page.evaluate(async () => {
-    window.__lkComposerDiscard();
-    await new Promise((r) => setTimeout(r, 150));
-    document.getElementById('rb-del-yes')?.click();
-    await new Promise((r) => setTimeout(r, 500));
-    window.__rbNavGo('home');
-    await new Promise((r) => setTimeout(r, 400));
-    const echo = document.querySelector('.dash-echo');
-    return { park: localStorage.getItem('rb_lk_draft__u-test'), text: echo?.textContent.replace(/\s+/g, ' ').trim() };
-  });
-  check('draft line · once the draft is let go the line yields to the next rule', gone.park == null && !/is waiting, unsaved/.test(gone.text || ''), JSON.stringify(gone));
+  check('draft line · retired (2026-10-10): a parked draft no longer takes the echo — the standing question, no door',
+    d.text === 'What are you dressing for today?' && !d.door, JSON.stringify(d));
   check('draft line · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1796,13 +1594,9 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
   await page.goto(page.url().replace(/\/settings\?page=twin$/, '/dashboard'), { waitUntil: 'networkidle' }); await page.waitForTimeout(1200);
   await page.evaluate(() => sessionStorage.setItem('rb_walk_done', '1'));
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
-  const wd = await page.evaluate(() => ({ line: document.getElementById('rb-walk-line')?.textContent.replace(/\s+/g, ' ').trim(), before: document.getElementById('rb-walk-line')?.nextElementSibling?.id, focused: document.activeElement?.id, handoff: sessionStorage.getItem('rb_walk_done') }));
-  check('intent fork · the walk’s Done lands on home with the box focused under “Read. Ask Robes for a look.”',
-    wd.line === 'Read. Ask Robes for a look.' && wd.before === 'rb-hb-row' && wd.focused === 'rb-lp-in' && wd.handoff === null, JSON.stringify(wd));
-  await page.evaluate(() => window.__rbLpText('Dinner on Friday'));
-  await page.locator('#rb-lp-in').press('Enter'); await page.waitForTimeout(1500);
-  const asked = await page.evaluate(() => ({ line: !!document.getElementById('rb-walk-line') }));
-  check('intent fork · the first ask after the walk takes the line with it', asked.line === false, JSON.stringify(asked));
+  const wd = await page.evaluate(() => ({ line: !!document.getElementById('rb-walk-line'), focused: document.activeElement?.id, handoff: sessionStorage.getItem('rb_walk_done') }));
+  check('intent fork · the walk’s Done lands on home with the box focused — no “Read. Ask Robes for a look.” line (retired 2026-10-10)',
+    wd.line === false && wd.focused === 'rb-lp-in' && wd.handoff === null, JSON.stringify(wd));
   check('intent fork · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -2011,48 +1805,19 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     overflow: document.documentElement.scrollWidth > window.innerWidth,
   });
 
-  // The facts card is RETIRED from home (First Run redlines H1 / R2, 2026-10-09:
-  // height, size, shoes and age are collected in Settings only). The loved
-  // card leads; Not now puts it off for the day and the model door takes the slot.
+  // The facts card is RETIRED from home (First Run redlines H1 / R2, 2026-10-09)
+  // and so is the loved card (Annie, 2026-10-10: home never asks her to star
+  // pieces). With nothing pending, no card — the model door takes the slot.
   {
-    const { ctx, page, errs, patches, events } = await twinBoot();
+    const { ctx, page, errs, events } = await twinBoot();
     const a = await page.evaluate(twinRead);
-    check('twin cards · no facts card on home — the loved card leads with the facts unset', a.kind === 'loved' && a.rows === 0 && a.tiles === 6, JSON.stringify(a));
-    check('twin cards · never ink, never beside the model door or the invitation, after the prompt', a.ink === 0 && !a.door && !a.notes && a.prev === 'concierge', JSON.stringify([a.ink, a.door, a.notes, a.prev]));
-    check('twin cards · the day’s record and twin_card_shown {kind}', a.record && a.record.date === TW_TODAY && a.record.kind === 'loved' && a.record.done === false && events.includes('twin_card_shown'), JSON.stringify([a.record, events]));
-    await page.click('#rb-twin-card [data-v="later"]'); await page.waitForTimeout(600);
-    const l = await page.evaluate(twinRead);
-    check('twin cards · Not now closes it for the day, writes nothing to the twin, and the model door stands in its slot', l.kind === null && l.record.done === true && l.door && !patches.some((p) => p.style_dna) && events.includes('twin_card_later'), JSON.stringify([l.kind, l.record, l.door, patches]));
-    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
-    const l2 = await page.evaluate(twinRead);
-    check('twin cards · never the same card twice in a day: a reload shows no card, the door stays', l2.kind === null && l2.door, JSON.stringify([l2.kind, l2.door]));
-    check('twin cards · loved first · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    check('twin cards · no facts card and no loved (star) card on home — nothing pending, no card, the model door stands', a.kind === null && a.tiles === 0 && a.door && !events.includes('twin_card_shown'), JSON.stringify([a.kind, a.tiles, a.door, events]));
     await ctx.close();
-  }
-  // A new day: yesterday's record is spent and the card returns.
-  {
-    const { ctx, page, errs } = await twinBoot({ record: { date: TW_YDAY, kind: 'loved', done: true } });
-    const a = await page.evaluate(twinRead);
-    check('twin cards · yesterday’s record is spent — the loved card returns', a.kind === 'loved', JSON.stringify(a.record));
-    check('twin cards · new day · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-    await ctx.close();
-  }
-  // The loved pieces: the facts set, fewer than three stars → her six most worn, the wardrobe's own star.
-  {
-    const { ctx, page, errs, wpatches, events } = await twinBoot({ dna: { facts: { size_uk: 10 } } });
-    const a = await page.evaluate(twinRead);
-    check('twin cards · the loved card: six photographed pieces, the most worn first, nothing starred, Done cream',
-      a.kind === 'loved' && /^Star three pieces you love\.$/.test(a.t) && a.tiles === 6 && a.on === 0 && a.count === 'Tap a piece to star it' && JSON.stringify(a.verbs) === JSON.stringify(['Not now', 'Done → (off)']), JSON.stringify(a));
-    await page.click('#rb-twin-card [data-star="w0"]'); await page.waitForTimeout(600);
-    const s1 = await page.evaluate(twinRead);
-    check('twin cards · a star is the wardrobe’s star: hero_position PATCHed, the tile warm, “1 of 3 starred”, Done live',
-      s1.on === 1 && s1.count === '1 of 3 starred' && s1.verbs[1] === 'Done →' && wpatches.length === 1 && /id=eq\.w0/.test(wpatches[0].url) && wpatches[0].body.hero_position === 1 && events.includes('twin_card_answered'), JSON.stringify([s1.on, s1.count, s1.verbs, wpatches]));
-    await page.click('#rb-twin-card [data-star="w1"]'); await page.waitForTimeout(500);
-    await page.click('#rb-twin-card [data-star="w2"]'); await page.waitForTimeout(900);
-    const s3 = await page.evaluate(twinRead);
-    check('twin cards · the third star answers the card — it leaves, the day is marked, the model door takes the slot', s3.kind === null && s3.record.kind === 'loved' && s3.record.done === true && s3.door && wpatches.length === 3, JSON.stringify([s3.kind, s3.record, s3.door, wpatches.length]));
-    check('twin cards · loved · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
-    await ctx.close();
+    const r = await twinBoot({ record: { date: TW_TODAY, kind: 'loved', done: false } });
+    const ra = await r.page.evaluate(twinRead);
+    check('twin cards · today’s record naming the loved card never resurrects it', ra.kind === null && ra.tiles === 0, JSON.stringify([ra.kind, ra.record]));
+    check('twin cards · no star card · no page errors', errs.length === 0 && r.errs.length === 0, errs.concat(r.errs).join(' | ').slice(0, 200));
+    await r.ctx.close();
   }
   // The Robes-noticed line: the facts set, three stars on → the pending line, Settings' own swipe card.
   const pending = { list: 'loves', text: 'A sharp shoulder, every time.', because: 'From 6 pieces filed', at: '2026-10-08T09:00:00.000Z' };
@@ -2089,11 +1854,11 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     check('twin cards · strike · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
     await ctx.close();
   }
-  // The order and the gates: the loved pieces outrank a pending line; nothing until the walk has begun; the first run outranks every card.
+  // The gates: with stars short and a line pending, the noticed card shows (never a star card); nothing until the walk has begun; the first run outranks every card.
   {
     const { ctx, page, errs } = await twinBoot({ dna: { brief: { pending: [pending] } } });
     const o = await page.evaluate(twinRead);
-    check('twin cards · loved first: with three stars short and a line pending, the loved card is the one shown (never the facts)', o.kind === 'loved', JSON.stringify(o.kind));
+    check('twin cards · three stars short with a line pending → the noticed card, never the star card', o.kind === 'noticed' && o.tiles === 0, JSON.stringify(o.kind));
     await page.evaluate(() => { localStorage.setItem('rb_test_icons', '[]'); localStorage.setItem('rb_test_dna', '{}'); });
     await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(3200);
     const g = await page.evaluate(twinRead);
@@ -2106,15 +1871,14 @@ for (const posture of ['zero-lead', 'look', 'standard']) {
     check('twin cards · gates · no page errors', errs.length === 0 && z.errs.length === 0, errs.concat(z.errs).join(' | ').slice(0, 200));
     await z.ctx.close();
   }
-  // 390: the card fits, the rows wrap, the tiles run three across.
+  // 390: the noticed card fits the viewport.
   {
-    const { ctx, page, errs } = await twinBoot({ width: 390 });
+    const { ctx, page, errs } = await twinBoot({ width: 390, dna: { brief: { pending: [pending] } } });
     const m = await page.evaluate(twinRead);
-    const { ctx: c2, page: p2, errs: e2 } = await twinBoot({ width: 390, dna: { facts: { size_uk: 10 } } });
-    const m2 = await p2.evaluate(() => ({ overflow: document.documentElement.scrollWidth > window.innerWidth, cols: getComputedStyle(document.querySelector('#rb-twin-card .rb-tc-tiles')).gridTemplateColumns.split(' ').length, w: document.getElementById('rb-twin-card').getBoundingClientRect().width }));
-    check('twin cards · 390: the loved card fits the viewport, its tiles run three across', m.kind === 'loved' && !m.overflow && !m2.overflow && m2.cols === 3 && m2.w <= 390, JSON.stringify([m.kind, m.overflow, m2]));
-    check('twin cards · 390 · no page errors', errs.length === 0 && e2.length === 0, errs.concat(e2).join(' | ').slice(0, 200));
-    await ctx.close(); await c2.close();
+    const w = await page.evaluate(() => document.getElementById('rb-twin-card')?.getBoundingClientRect().width || 0);
+    check('twin cards · 390: the noticed card fits the viewport', m.kind === 'noticed' && !m.overflow && w <= 390, JSON.stringify([m.kind, m.overflow, w]));
+    check('twin cards · 390 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+    await ctx.close();
   }
   // The investment-vs-memory read: four priced pieces over her level ride styleDna.spend into the next ask.
   {

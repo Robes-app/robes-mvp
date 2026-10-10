@@ -14831,8 +14831,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const n = kept.length;
           const thumbs = n ? '<div class="rb-deck-thumbs">' + kept.map(r => { const p = _lkHeroUrl(r); return '<button type="button" class="rb-deck-thumb" onclick="window.__lkDeckOpenLook(\'' + _waEsc(String(r.id)) + '\')" aria-label="' + _waEsc('Open ' + (r.name || 'this look')) + '">' + _ltMosaicHtml(p ? [] : _ltCells(_lkPieceIds(r)), { photo: p || null, alt: r.name || '' }) + '</button>'; }).join('') + '</div>' : '';
           stage = '<div class="rb-deck-end">' +
-            '<div class="t">' + (_LK_DECK_WORDS[n] || String(n)) + ' kept.</div>' +
-            '<div class="s">' + (n ? (dayFor ? 'They wait in Suggested. Save one and ' + _waEsc(_lkDayWeekday(dayFor)) + ' is one tap away.' : 'They wait in Suggested until you save them.') : (anchored ? 'Style it three ways again from the piece page.' : 'Ask Robes again from the prompt box.')) + '</div>' +
+            // One line, no sub (Annie, 2026-10-10): the title block above
+            // already reads "Your ask, three ways."
+            '<div class="t">' + (n ? (_LK_DECK_WORDS[n] || String(n)) + ' suggested ' + (n === 1 ? 'look' : 'looks') : 'No suggested looks') + ' kept.</div>' +
             thumbs +
             (n ? '<button type="button" class="rb-lk-save rb-deck-see" onclick="window.__lkDeckSee()">See Suggested</button>' : '') +
             '<button type="button" class="rb-deck-backlink" onclick="window.__lkDeckBack()">' + (anchored ? 'Back to the ' + _waEsc(nm) : 'Back home') + '</button>' +
@@ -15717,7 +15718,7 @@ body.rb-lk-push #rb-dock{display:none}
 .rb-deck-dots i{display:block;width:6px;height:6px;border-radius:50%;border:1px solid var(--rule-mid);background:#fff;transition:background .25s,border-color .25s}
 .rb-deck-dots i.on{background:var(--ink);border-color:var(--ink)}
 .rb-deck-end{max-width:340px;margin:40px auto 0;text-align:center}
-.rb-deck-end .t{font:300 34px/1.1 var(--font-serif);color:var(--ink)}
+.rb-deck-end .t{font:300 30px/1.15 var(--font-serif);color:var(--ink)}
 .rb-deck-end .s{font:400 13px/1.6 var(--font-sans);color:var(--ink-soft);margin-top:10px}
 .rb-deck-thumbs{display:flex;justify-content:center;gap:10px;margin-top:22px}
 .rb-deck-thumb{position:relative;width:72px;height:92px;padding:0;border:1px solid var(--rule);border-radius:var(--rad-sm,8px);overflow:hidden;background:var(--cream-100);cursor:pointer}
@@ -17447,6 +17448,56 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           '<span style="font-family:var(--font-serif);font-size:26px;font-weight:300;color:var(--ink-faint)">' +
           _waEsc((a.name || row.chip || '?').charAt(0).toUpperCase()) + '</span></div>';
       }
+      // A proposal on a look minted from /api/style (a suggestion, or a look
+      // saved from one) arrives with no photograph — the generator itemises
+      // the pieces but only shoots the frame of the whole look (Annie,
+      // 2026-10-10: "no product images are loading on the rack"). Robes
+      // shoots each one's still-life the first time the look opens — the
+      // composer's own job (/api/lookbuild/images, four per call) — and
+      // keeps it on the row, so it is shot once. A look never opened (one
+      // she passed on the deck) costs nothing.
+      var _lkPropStillsTried = {};
+      function _lkPropStills(l) {
+        if (!l || l._draft || !Array.isArray(l.proposals) || !l.proposals.length) return;
+        const need = [];
+        l.proposals.forEach((row, i) => {
+          const oi = row.oi || 0;
+          const a = (row.opts || [])[oi] || {};
+          const has = (row.img_oi == null || row.img_oi === oi) && _pdHttp(row.image_url);
+          if (!has && a.name) need.push({ i, oi, name: String(a.name), piece: { name: String(a.name), brand: a.brand || '', category: (row.cats || [])[0] || row.chip || '' } });
+        });
+        if (!need.length) return;
+        const key = String(l.id) + '|' + need.map(n => n.name).join('|');
+        if (_lkPropStillsTried[key]) return;
+        _lkPropStillsTried[key] = true;
+        const land = (n, url) => {
+          const cur = _lkFind(l.id);
+          const row = cur && Array.isArray(cur.proposals) ? cur.proposals[n.i] : null;
+          if (!row || (row.oi || 0) !== n.oi || String(((row.opts || [])[n.oi] || {}).name || '') !== n.name) return;
+          const props = cur.proposals.slice();
+          props[n.i] = Object.assign({}, row, { image_url: url, img_oi: n.oi });
+          _lkPatch(cur.id, { proposals: props });
+          if (_lkView === 'detail' && String(_lkActive) === String(cur.id) && !_lkEditMode && !_lkTitleEditing) _lkPaint();
+        };
+        for (let c = 0; c < need.length; c += 4) {
+          const chunk = need.slice(c, c + 4);
+          fetch('/api/lookbuild/images', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pieces: chunk.map(n => n.piece) }),
+          }).then(r => r.ok ? r.json() : null).then(j => {
+            if (!j || !j.jobId) return;
+            const t0 = Date.now(), got = {};
+            const tick = () => {
+              fetch('/api/images/' + j.jobId).then(r => r.ok ? r.json() : null).then(job => {
+                if (!job) return;
+                (job.images || []).forEach((u, k) => { if (u && !got[k] && chunk[k] && _pdHttp(u)) { got[k] = true; land(chunk[k], u); } });
+                if (!job.done && Date.now() - t0 < 300000) setTimeout(tick, 4000);
+              }).catch(() => { if (Date.now() - t0 < 300000) setTimeout(tick, 6000); });
+            };
+            setTimeout(tick, 4000);
+          }).catch(() => {});
+        }
+      }
       function _lkBuildEmpties() {
         const out = [];
         _lkShop.forEach((row, i) => {
@@ -18718,6 +18769,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // puts "Creating her frame…" on the first frame.
         _avRenderKick(_lkFind(id));
         _lkPaint();
+        try { _lkPropStills(_lkFind(id)); } catch (_) {}
         _rbTrack('look_opened', {});
       };
       // "The lookbook" in Where it lives is an entry point (Look_Screen_
@@ -20824,7 +20876,11 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       }
       function _rbNextLine() {
         if (_rbHomeMode === 'zero') return { key: 'styled' };
-        if (_rbHomeMode === 'gtky') return null;   // the door card IS the next step; the sub reads the standing question
+        // RETIRED (Annie, 2026-10-10): the sub under the greeting reads the
+        // standing question, always — the rotating next lines are gone. The
+        // FTUE sections and the sparkle guide her from here. The rules
+        // below are kept, unreached, for one release.
+        return null;
         // The draft (phase 1): a thing SHE started outranks a thing Robes
         // noticed — unless the home composer is on screen holding it.
         const parked = (typeof _lkDraftParked === 'function') ? _lkDraftParked() : null;
@@ -21091,6 +21147,10 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // the first prompt sent after it.
       var _rbWalkAskArm = false;
       function _rbWalkLine(tries) {
+        // RETIRED (Annie, 2026-10-10): no "Read. Ask Robes for a look." line
+        // on home — the sparkle prompt carries the ask. A stale line goes.
+        const stale = document.getElementById('rb-walk-line'); if (stale) stale.remove();
+        return;
         const hb = document.getElementById('rb-hb');
         const row = hb && document.getElementById('rb-hb-row');
         if (!row) { if ((tries || 0) < 12) setTimeout(() => _rbWalkLine((tries || 0) + 1), 300); return; }
@@ -21335,7 +21395,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // observation. The model is the fourth, and the model door draws it.
       function _rbTwinKindWants(kind) {
         if (kind === 'facts') return !_rbTwinFactsSet();
-        if (kind === 'loved') return !!_waLoaded && _waHeroAll().length < _RB_TWIN_LOVED_AT && _rbTwinLovedPool().length >= _RB_TWIN_LOVED_AT;
+        // The loved card is retired from home (Annie, 2026-10-10): home never
+        // asks her to star pieces — the star lives on the wardrobe's cards.
+        if (kind === 'loved') return false;
         if (kind === 'noticed') return !!_rbTwinPending();
         return false;
       }
@@ -21350,7 +21412,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         if (today) return (!today.done && _rbTwinKindWants(today.kind)) ? today.kind : null;   // the day's card, else nothing more today
         // the facts card is retired from home (redline H1, R2: height, size,
         // shoes and age are collected in Settings only, never asked here)
-        return ['loved', 'noticed'].find(_rbTwinKindWants) || null;
+        return ['noticed'].find(_rbTwinKindWants) || null;
       }
       // One merge-PATCH of style_dna — the profile copy first (the next
       // generation reads it before the PATCH lands), the row after.
@@ -29298,6 +29360,18 @@ body>*:not(#tv-result-page){display:none !important}
         _cbClearPhoto();
       }
 
+      // The generation overlay's lines sit inside the page's gutter — the
+      // say line ("It's going to be raining and 13° today, so…") ran edge to
+      // edge on a phone (Annie, 2026-10-10). One rule for every path that
+      // builds #kp-loading-overlay.
+      (function() {
+        if (document.getElementById('rb-kpload-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-kpload-style';
+        st.textContent = '#kp-loading-overlay{padding:0 28px;box-sizing:border-box}' +
+          '#kp-loading-overlay #kp-load-msg{max-width:440px;text-align:center;line-height:1.6}';
+        document.head.appendChild(st);
+      })();
       // Reusable inline style overlay — shared between chip 'style', 'dress-me', and KP card
       async function _cbStyleSubmit(prompt, photoData, meta) {
         const intent = (meta && meta.intent) || 'style';

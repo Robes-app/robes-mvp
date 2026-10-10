@@ -259,8 +259,8 @@ check('F14·1 · back from F8 resumes the deck on the same card', (await deckRea
 await page.locator('.rb-deck-btn.keep').click();
 await page.waitForTimeout(500);
 const done = await deckRead();
-check('F14·3 · all three seen: "Three kept." / "They wait in Suggested until you save them.", the kept looks as thumbnails, See Suggested the one ink, "Back to the shorts" beneath',
-  /done/.test(done.cls || '') && done.end.t === 'Three kept.' && done.end.s === 'They wait in Suggested until you save them.' && done.end.thumbs === 3 && done.end.see === 'See Suggested' && done.end.back === 'Back to the shorts' && JSON.stringify(done.inks) === JSON.stringify(['See Suggested']), JSON.stringify(done));
+check('F14·3 · all three seen: "Three suggested looks kept." and no sub line (2026-10-10), the kept looks as thumbnails, See Suggested the one ink, "Back to the shorts" beneath',
+  /done/.test(done.cls || '') && done.end.t === 'Three suggested looks kept.' && done.end.s == null && done.end.thumbs === 3 && done.end.see === 'See Suggested' && done.end.back === 'Back to the shorts' && JSON.stringify(done.inks) === JSON.stringify(['See Suggested']), JSON.stringify(done));
 const seenKey = await page.evaluate(() => localStorage.getItem('rb_lk_deck_seen__u-test'));
 check('F14·0 · the gesture is taught once — the seen flag is set for the next run', seenKey === '1');
 await page.locator('.rb-deck-see').click();
@@ -298,6 +298,11 @@ await page.waitForTimeout(400);
 // the live feedback row at the foot; thumbs down + Send removes the look.
 const idOf = async (title) => page.evaluate((t) => Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg]')).find((e) => e.querySelector('.lt-title')?.textContent === t)?.dataset.sugg, title);
 const urbane = await idOf('Urbane Weekend');
+// The rack's stills (2026-10-10): a proposal minted from /api/style has no
+// photograph — the first open of the look shoots one per piece.
+const stillPosts = [];
+await page.route('**/api/lookbuild/images', (r) => { stillPosts.push(JSON.parse(r.request().postData() || '{}')); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'ps1', imageCount: 4 }) }); });
+await page.route('**/api/images/ps1', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: ['https://res.cloudinary.com/demo/still1.jpg', 'https://res.cloudinary.com/demo/still2.jpg', 'https://res.cloudinary.com/demo/still3.jpg', 'https://res.cloudinary.com/demo/still4.jpg'], done: true }) }));
 await page.locator(`#rb-lk-grid [data-sugg="${urbane}"] .lt-card`).click();
 await page.waitForTimeout(500);
 const f8 = await page.evaluate(() => ({
@@ -315,6 +320,10 @@ check('F8 · the rack READS — four rows in the fifth pass\'s anatomy (Category
   f8.rows === 4 && f8.eyes.length === 4 && f8.eyes.some((e) => /^Bottoms · Umbro$/.test(e)) && f8.swaps === 0 && f8.hearts === 0 && f8.more === 4 && f8.acts === 0 && !f8.tags && !f8.worn && !f8.foot, JSON.stringify(f8));
 check('F8 · the bar is Edit (hairline) · Save to lookbook (the page\'s one ink); the live "How was this look?" row sits at the foot',
   JSON.stringify(f8.bar) === JSON.stringify(['Edit', 'Save to lookbook']) && JSON.stringify(f8.inks) === JSON.stringify(['Save to lookbook']) && f8.fb === 'How was this look?', JSON.stringify([f8.bar, f8.inks, f8.fb]));
+await page.waitForTimeout(4800);
+const stills = await page.evaluate(() => ({ imgs: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-row img')).map((i) => i.getAttribute('src')).filter((u) => /still\d/.test(u || '')).length }));
+const propN = (stillPosts[0] && stillPosts[0].pieces || []).length;
+check('F8 · the rack\'s proposals get their stills on the first open — one /api/lookbuild/images call, each still lands on its row', stillPosts.length === 1 && propN > 0 && stills.imgs === propN, JSON.stringify([stillPosts, stills]));
 await page.locator('#sg-fb-dn').click();
 await page.waitForTimeout(250);
 const fbLine = await page.evaluate(() => ({ ph: document.getElementById('sg-fb-text')?.placeholder, send: document.querySelector('#sg-fb .rb-fb-send')?.textContent, ink: getComputedStyle(document.querySelector('#sg-fb .rb-fb-send')).backgroundColor }));
