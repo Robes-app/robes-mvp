@@ -659,6 +659,23 @@ for (const n of [0, 1, 3, 5, 10, 15, 16]) {
   });
   check('onboarding deck · back from the deck lands home: the twin next, and the suggested looks STAND on home under the card — no ticked "saved to your lookbook" row (tenth pass)',
     h.mode === 'gtky' && h.sn === false && h.next === 'photos' && h.insp >= 1 && h.inspTitle === 'Suggested' && h.rowsList.indexOf('look:done') < 0 && JSON.stringify(h.order) === JSON.stringify(['rb-gtky', 'rb-insp-row']), JSON.stringify(h));
+  // A tap on a home Suggested card opens THAT look (F8) — never the empty
+  // saved-look composer the zero-saved Lookbook arms (Annie, 2026-10-11).
+  // A reload first: the deck leaves the Lookbook on its Suggested tab, and
+  // the bug lives on a fresh session, where the tab reads Saved.
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.querySelectorAll('#rb-insp-row .rb-sn-card').length > 0, null, { timeout: 15000 }).catch(() => {});
+  const firstTitle = await page.evaluate(() => document.querySelector('#rb-insp-row .rb-sn-card .rb-sn-title, #rb-insp-row .rb-sn-card [class*="title"]')?.textContent?.trim());
+  await page.locator('#rb-insp-row .rb-sn-card').first().click(); await page.waitForTimeout(700);
+  const f8 = await page.evaluate(() => ({
+    sugg: !!document.querySelector('#rb-lk-body .rb-lk-suggbar'),
+    composer: !!document.querySelector('#rb-lk-body .rb-lk-composer:not(.rb-lk-held)') || !!document.querySelector('#rb-lk-body #rb-lk-newtitle'),
+    title: document.querySelector('#rb-lk-body #rb-lk-title, #rb-lk-body .rb-tb-title')?.textContent?.trim(),
+    back: document.querySelector('.rb-ret .rb-ret-back, #sn-back-label, .rb-ret')?.textContent?.trim(),
+  }));
+  check('home Suggested · a tap on the first card opens that suggested look, never the empty composer',
+    f8.sugg && !f8.composer && (!firstTitle || f8.title === firstTitle), JSON.stringify({ f8, firstTitle }));
+  await page.evaluate(() => window.__rbNavGo('home')); await page.waitForTimeout(800);
   // One suggestion saved: the home reads as an engaged user's — Saved looks,
   // then Suggested — under the card (tenth pass, Annie).
   await page.evaluate(() => { const c = document.querySelector('#rb-insp-row .rb-sn-card'); const m = c && /__lkSuggOpen\('([^']+)'/.exec(c.getAttribute('onclick') || ''); if (m) window.__lkSuggSave(m[1]); });

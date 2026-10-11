@@ -15800,7 +15800,10 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // bridge, a delete that emptied it. Guarding here rather than at
         // each caller is what makes it a rule instead of a path.
         // The Suggested tab is a grid at any count (F6 is its empty state).
-        if (!any && !onSugg && _lkView !== 'new' && _lkView !== 'deck') {
+        // A look opened by id (a suggested look from home's row, with no
+        // saved looks yet) is the page — never armed over (Annie, 2026-10-11).
+        const openLook = _lkView === 'detail' && _lkActive != null && !!_lkFind(_lkActive);
+        if (!any && !onSugg && !openLook && _lkView !== 'new' && _lkView !== 'deck') {
           // Arm it — but a draft in progress is HERS: the home module and
           // this page render one shared draft, so landing here (e.g. via
           // __snOpen, which resets the view to 'grid') must never wipe it.
@@ -16127,6 +16130,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           return;
         }
         const sibs = _lkSugg.filter(x => x.status === 'suggested').map(x => String(x.id));
+        // The Lookbook it opens over is the Suggested tab — the shelf's own
+        // paint on the way in must never arm the empty composer.
+        _lkTab = 'suggested';
         window.__lkOpen(id, { from: { label: 'Suggested', go: function() { _lkTab = 'suggested'; window.__lkGo(); } }, siblings: sibs });
       };
       // F8 → F9: Edit makes the suggestion a DRAFT (it leaves Suggested and
