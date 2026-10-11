@@ -440,8 +440,10 @@ const titleTop = (page) => page.evaluate(() => {
   });
   const h = await page.evaluate(() => { const row = document.querySelector('#rb-hb .rb-hb-row'); const r = row.getBoundingClientRect(); return { pos: getComputedStyle(row).position, inView: r.top >= 0 && r.bottom <= window.innerHeight, label: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, inline: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), conc: getComputedStyle(document.querySelector('#dash .concierge')).display, overflow: document.documentElement.scrollWidth <= window.innerWidth + 1, plus: !!document.querySelector('#rb-hb #rb-lp-plus') && !document.querySelector('#rb-hb .hp-add') }; });
   const s0 = await slotRead();
-  check('mobile home · the box sits IN FLOW under the greeting with its + (no dock), inline in the row, the card hidden, no overflow; the slot is the bare sparkle while the row is on screen',
-    h.pos === 'static' && h.inView && h.inline && h.label === 'A new look for…' && h.conc === 'none' && h.overflow && h.plus && s0.on && s0.bare && !s0.wordsVis && s0.gap === 12, JSON.stringify([h, s0]));
+  // H2 (the modular home, 2026-10-11): the floating sparkle is HIDDEN while
+  // the box is on screen — it would duplicate the field.
+  check('mobile home · the box sits IN FLOW under the greeting with its + (no dock), inline in the row, the card hidden, no overflow; the slot is hidden while the row is on screen',
+    h.pos === 'static' && h.inView && h.inline && h.label === 'A new look for…' && h.conc === 'none' && h.overflow && h.plus && !s0.on, JSON.stringify([h, s0]));
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-home-top.png' });
   await page.evaluate(() => window.scrollTo(0, 900)); await page.waitForTimeout(120);
   const s1 = await slotRead();
@@ -456,7 +458,7 @@ const titleTop = (page) => page.evaluate(() => {
   check('mobile home · the pill brings the row back into view and focuses the box IN PLACE — no sheet, no shade, the menu stays', o.inline && o.noSheet && o.focused === 'rb-lp-in' && o.dockStays && o.rowOn && o.focusCls, JSON.stringify(o));
   await page.evaluate(() => document.getElementById('rb-lp-in')?.blur()); await page.waitForTimeout(400);
   const c = await slotRead();
-  check('mobile home · leaving the field keeps the box in the row (it is the field) and the slot stands as the bare sparkle, no dot (nothing was said)', c.on && c.bare && !c.held && (await page.evaluate(() => !!document.querySelector('#rb-hb #rb-lp') && document.getElementById('rb-dock').getBoundingClientRect().top < window.innerHeight)), JSON.stringify(c));
+  check('mobile home · leaving the field keeps the box in the row (it is the field) and the slot stays hidden (the row is on screen)', !c.on && (await page.evaluate(() => !!document.querySelector('#rb-hb #rb-lp') && document.getElementById('rb-dock').getBoundingClientRect().top < window.innerHeight)), JSON.stringify(c));
   // The grids: the sparkle alone, never words over tiles.
   await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(700);
   const g1 = await slotRead();
@@ -529,9 +531,12 @@ const titleTop = (page) => page.evaluate(() => {
   await page.evaluate(() => window.__dlSubmit('A polished everyday Dublin look', { loose: true, quiet: true }));
   await page.waitForTimeout(1600);
   const hd = await page.evaluate(() => ({ ph: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, row: !!document.querySelector('#rb-hb #rb-lp .rb-lpd-row'), mode: window._rbLp && window._rbLp.mode }));
-  const sl0 = await page.evaluate(() => { const b = document.querySelector('#rb-lp-slot .rb-lps'); return { on: !!b && getComputedStyle(document.getElementById('rb-lp-slot')).display !== 'none', bare: !!b && b.classList.contains('bare'), label: b && b.getAttribute('aria-label') }; });
-  check('mobile home + draft · the field works on the draft (“Change this draft…”, the row beneath); the slot stands as the bare sparkle named “A new look”',
-    hd.ph === 'Change this draft…' && hd.row && sl0.on && sl0.bare && sl0.label === 'A new look', JSON.stringify([hd, sl0]));
+  const slRead = () => page.evaluate(() => { const b = document.querySelector('#rb-lp-slot .rb-lps'); return { on: !!b && getComputedStyle(document.getElementById('rb-lp-slot')).display !== 'none', bare: !!b && b.classList.contains('bare'), label: b && b.getAttribute('aria-label') }; });
+  const sl0 = await slRead();
+  await page.evaluate(() => window.scrollTo(0, 900)); await page.waitForTimeout(900);
+  const sl1 = await slRead();
+  check('mobile home + draft · the field works on the draft (“Change this draft…”, the row beneath); the slot hides while the row is on screen and reads “A new look” once scrolled past',
+    hd.ph === 'Change this draft…' && hd.row && !sl0.on && sl1.on && !sl1.bare && sl1.label === 'A new look', JSON.stringify([hd, sl0, sl1]));
   if (SHOT) await page.screenshot({ path: SHOT + 'draft-home.png' });
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(500);
   const fresh = await page.evaluate(() => { const w = document.getElementById('rb-lp'); return { dock: !!w && w.classList.contains('rb-lp-dock'), inHome: !!document.querySelector('#rb-hb #rb-lp'), ph: document.getElementById('rb-lp-in')?.placeholder, rows: document.querySelectorAll('#rb-lp .rb-lpd-row').length, name: w && w.querySelector('.rb-lp')?.getAttribute('aria-label'), focused: document.activeElement?.id, standIn: !!document.querySelector('#rb-hb-fieldslot .rb-lp-field') }; });

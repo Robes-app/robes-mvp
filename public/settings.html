@@ -2258,6 +2258,8 @@
     function walkDone() {
       const n = Object.keys(walk.answered).filter(k => walk.answered[k]).length;
       snTrack('walk_done', { answered: n });
+      // the walk's Done confirms her Style DNA for home's O1 (2026-10-11)
+      saveDna({ confirmed_at: new Date().toISOString() });
       walk.on = false;
       shClose(true);
       walkFootPaint();
