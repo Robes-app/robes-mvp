@@ -1554,8 +1554,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // a draft under the field, a tap that opened the draft read as
         // confusing). While the field works on a draft, the slot opens a
         // fresh docked box instead of focusing it.
-        if (rowOn) return null;   // the box is on screen — the sparkle would duplicate it (H2)
-        return { key: 'home', words: _RB_LP_COPY.doorNew, go: () => {
+        // The box is on screen — the sparkle would duplicate it (H2), so
+        // the slot stands down (hidden) but the ctx still names home: the
+        // persistent box ensures itself off this key (_rbHbOnTop).
+        return { key: 'home', hidden: rowOn, words: _RB_LP_COPY.doorNew, go: () => {
           const onDraft = !!(_rbLp && _rbLp.persist && _rbLp.mode === 'look');
           if (window.__rbHbOpen) window.__rbHbOpen(onDraft ? { fresh: true } : {});
         } };
@@ -1566,7 +1568,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // Home's own box lives IN the row (persistent, inline) — make sure
         // it stands whenever home is the page on top.
         if (ctx && ctx.key === 'home' && !_rbLpOpening && typeof _rbHbBoxEnsure === 'function') { try { _rbHbBoxEnsure(); } catch (_) {} }
-        if (!ctx) { if (el) el.classList.remove('on'); _rbLpsLast = ''; return; }
+        if (!ctx || ctx.hidden) { if (el) el.classList.remove('on'); _rbLpsLast = ''; return; }
         if (!el) {
           _rbLpCss();
           el = document.createElement('div'); el.id = 'rb-lp-slot';
