@@ -478,6 +478,28 @@ const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath
   await ctx.close();
 }
 {
+  // A matched piece on the composer reads as HER row (Annie, live pass 2): her photograph, her brand, her name — never the crop
+  const { ctx, page, errs } = await boot(browser);
+  const READ_C = [
+    { label: 'Cream silk shirt', category: 'Tops', category_l2: 'Shirts & blouses', category_l3: '', color: 'Cream', brand: '', notes: '', item_dna: DNA('Cream silk shirt', 'Alabaster'), price: null, currency: null, size: null, box: { x: 0.3, y: 0.1, w: 0.4, h: 0.3 }, wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: 'https://res.cloudinary.com/demo/w-top1.jpg', color: 'Cream' }, match_confidence: 0.9 },
+    READ[1],
+  ];
+  await page.route('**/api/wardrobe/pieces', async (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ noItemDetected: false, pieces: READ_C }) }));
+  await page.evaluate(() => window.__lkGo && window.__lkGo());
+  await page.waitForTimeout(700);
+  const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click('#rb-lk-startphoto')]);
+  await fc.setFiles({ name: 'outfit.png', mimeType: 'image/png', buffer: PNG_OK });
+  await page.waitForSelector('.rb-lkr-card', { timeout: 8000 });
+  await page.waitForTimeout(500);
+  const mc = await page.evaluate(() => { const c = document.querySelector('.rb-lkr-card[data-i="0"]'); const n = document.querySelector('.rb-lkr-card[data-i="1"]'); return {
+    own: c?.querySelector('.rb-lkr-th img')?.getAttribute('src'), ownAttr: !!c?.querySelector('img[data-lkrown]'), eye: c?.querySelector('.rb-lkr-eye')?.textContent.trim(), name: c?.querySelector('.rb-lkr-name')?.textContent, ctx: c?.querySelector('.rb-lkr-ctx')?.textContent.trim(), ask: c?.querySelector('.rb-lkr-ask i')?.textContent,
+    newCrop: !!n?.querySelector('img[data-lkrcrop]'), newName: n?.querySelector('.rb-lkr-name')?.textContent,
+  }; });
+  check('3.4 · a matched piece reads as HER row — her photograph, Tops · Studio, her name, "its own photo"; a new piece keeps its crop', mc.ownAttr && /w-top1\.jpg$/.test(mc.own || '') && mc.eye === 'Tops · StudioCheck' && mc.name === 'Cream silk shirt' && /Looks like the cream silk shirt · its own photo/i.test(mc.ctx || '') && mc.ask === 'Your cream silk shirt?' && mc.newCrop && mc.newName === 'Black leggings', JSON.stringify(mc));
+  check('no page errors (look · matched row)', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
   // 390: the composer with the read on screen fits the phone
   const { ctx, page, errs } = await boot(browser, { width: 390 });
   await page.evaluate(() => window.__lkGo && window.__lkGo());

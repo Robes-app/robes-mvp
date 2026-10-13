@@ -22043,19 +22043,24 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       }
       // What the rack draws for the read: the pending cards (a question
       // and two answers each) and the new pieces as rows of their own.
+      // A matched piece reads as HER row — its own photograph, its brand,
+      // its name (the wardrobe's multi-piece card does the same); the crop
+      // only stands in for a row with no photograph.
       function _lkReadCardHtml(pc) {
-        const t = pc.tag;
-        const sheet = (t.category_l2 && _WA_L2_SHEET[t.category_l2]) || _WA_LEGACY_TO_SHEET[t.category] || t.category || 'Other';
+        const own = pc.match ? (_waItems.find(w => String(w.id) === String(pc.match.id)) || pc.match) : null;
+        const t = own ? { label: own.label, brand: own.brand, category: own.category, category_l2: own.category_l2 } : pc.tag;
+        const sheet = own ? (_waSheetCatOf(own) || own.category || 'Other') : ((t.category_l2 && _WA_L2_SHEET[t.category_l2]) || _WA_LEGACY_TO_SHEET[t.category] || t.category || 'Other');
         const brand = String(t.brand || '').trim();
         const q = pc.match ? 'Your ' + _waEsc(_rbSdShort(pc.match.label).toLowerCase()) + '?' : 'Not in your rack. New?';
+        const thumb = own && _pdHttp(own.image_url) ? '<img alt="" src="' + _waEsc(own.image_url) + '" data-lkrown="1">' : '<img alt="" data-lkrcrop="' + pc.i + '">';
         return '<div class="rb-lkr-card" data-i="' + pc.i + '">' +
           '<span class="rb-lkr-num">' + (pc.i + 1) + '</span>' +
           '<div class="rb-lkr-main">' +
-            '<span class="rb-lkr-th"><img alt="" data-lkrcrop="' + pc.i + '"></span>' +
+            '<span class="rb-lkr-th">' + thumb + '</span>' +
             '<div class="rb-lkr-txt">' +
               '<div class="rb-lkr-eye">' + _waEsc(sheet) + (brand ? ' · <b>' + _waEsc(brand) + '</b>' : '') + '<i class="rb-lkr-chip' + (pc.match ? ' check' : '') + '">' + (pc.match ? 'Check' : 'New') + '</i></div>' +
               '<div class="rb-lkr-name">' + _waEsc(_rbNameNoBrand(t.label, brand) || 'A piece') + '</div>' +
-              '<div class="rb-lkr-ctx">' + (pc.match ? 'Looks like ' + _waEsc(_rbLpThe(_rbSdShort(pc.match.label))) : 'Robes files it on save') + '</div>' +
+              '<div class="rb-lkr-ctx">' + (pc.match ? 'Looks like ' + _waEsc(_rbLpThe(_rbSdShort(pc.match.label))) + (own && _pdHttp(own.image_url) ? ' · its own photo' : '') : 'Robes files it on save') + '</div>' +
             '</div>' +
             '<button type="button" class="rbc-tr rbc-swap" onclick="window.__lkReadFind(' + pc.i + ')" title="Find it in your wardrobe" aria-label="Find it in your wardrobe">' + _rbcSwapSvg + '</button>' +
           '</div>' +
