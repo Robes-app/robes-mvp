@@ -123,6 +123,13 @@ async function boot(browser, tagBody, opts = {}) {
       if (req.method() === 'PATCH') {
         const body = JSON.parse(req.postData() || '{}');
         inboxPatches.push({ url: req.url(), body });
+        // inboxPatch 'strict' = the live table lags migration 23's later
+        // columns (PGRST204 names the column); 'down' = every PATCH fails
+        if (opts.inboxPatch === 'down') return r.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' });
+        if (opts.inboxPatch === 'strict') {
+          const missing = ['filed_to', 'decided_at'].find((k) => k in body);
+          if (missing) return r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST204', message: "Could not find the '" + missing + "' column of 'wardrobe_inbox' in the schema cache" }) });
+        }
         const id = (req.url().match(/id=eq\.([^&]+)/) || [])[1];
         inboxRows = inboxRows.map((r) => (String(r.id) === String(id) ? { ...r, ...body } : r));
         return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
@@ -670,12 +677,13 @@ const browser = await chromium.launch(
       sn: !!sn && getComputedStyle(sn).display !== 'none',
       title: !!sn && sn.textContent.includes('A Parisian Night Out'),
       props: look?.proposals?.length, pieces: look?.pieces?.length,
-      door: sn?.querySelector('.rb-lk-filldoor')?.textContent || null,
+      door: sn?.querySelector('.rb-lk-pinbar .rb-lk-editlook')?.textContent.trim() || null,
     };
   });
   check('brief · the second blazer matched nothing open and filed normally (two inserts, the shoes still borrowed)', supaPosts.length === 2 && end.props === 1 && end.pieces === 2, JSON.stringify(end));
-  // The batch door on the look is the swap zone's Swap pill since 2026-09-21.
-  check('brief · the batch done, the modal closes and the look she dressed opens, its swap zone offering Swap', end.modal === false && end.sn && end.title && end.door === 'Swap', JSON.stringify(end));
+  // The swap zone is off the look page (Look_Creation_Handoff 5a, 2026-10-05):
+  // the look opens on its pinned Edit look bar; a proposal's › is its door.
+  check('brief · the batch done, the modal closes and the look she dressed opens on its pinned Edit look bar', end.modal === false && end.sn && end.title && end.door === 'Edit look', JSON.stringify(end));
   // WA.close clears the brief like the batch queue.
   await page.evaluate(() => { window.__rbFillOpen('lk-fill', 'rack'); });
   await page.waitForTimeout(400);
@@ -761,14 +769,14 @@ const browser = await chromium.launch(
     tabs: Array.from(document.querySelectorAll('#wg-filters .wg-tab')).map((t) => t.dataset.cat),
     trail: !!document.getElementById('rb-wg-trail'),
     count: document.querySelector('.rb-wg-trailcount')?.textContent || '',
-    add: document.getElementById('rb-add-pill')?.textContent || '',
+    add: document.getElementById('rb-add-pill')?.getAttribute('aria-label') || '',
     refine: !!document.getElementById('rb-refine-pill'),
     pack: !!document.querySelector('.wg-pack-pill'),
     fab: !!document.getElementById('rb-wa-fab'),
     starOpacity: (() => { const s = document.querySelector('.rb-star'); return s ? getComputedStyle(s).opacity : ''; })(),
   }));
   check('browse · sheet-L1 tabs + trail row with count', base.tabs.includes('Knitwear') && base.trail && base.count === '3 pieces', base.count);
-  check('browse · Add piece + Refine live in the trail', /Add piece/.test(base.add) && base.refine, base.add);
+  check('browse · the + (Add a piece) and Filter stand in the header', /Add a piece/.test(base.add) && base.refine, base.add);
   check('browse · Pack-a-trip pill and FAB retired', !base.pack && !base.fab);
   check('browse · star always visible on cards', base.starOpacity === '1', base.starOpacity);
 
@@ -1107,6 +1115,40 @@ const browser = await chromium.launch(
   await ctx.close();
 }
 {
+  // The receipt leaves the queue whatever its status write did (Annie,
+  // 2026-10-01: "forwarded receipts stays stuck on the wardrobe screen"):
+  // a live table lagging a column of migration 23 400s the PATCH, and
+  // _waLoad's refetch then painted the same receipt straight back.
+  for (const mode of ['strict', 'down']) {
+    const { ctx, page, errs, supaPosts, inboxPatches } = await boot(browser, TAG, { rows: ROWS, inbox: INBOX, inboxAddress: 'annie-4f2k', inboxPatch: mode });
+    await page.evaluate(() => window.App && App.showWardrobe());
+    await page.waitForTimeout(700);
+    await page.click('#rb-wg-inbox .rb-wg-inbox-go');
+    await page.waitForTimeout(500);
+    await page.click('.rb-wf-rcpt[data-id="rc-1"]');
+    await page.waitForTimeout(300);
+    await page.click('#rb-wf-file');
+    await page.waitForTimeout(1800);
+    const f = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), h: document.querySelector('#wa-modal .fm-h')?.textContent || '', notice: document.getElementById('rb-wg-inbox')?.querySelector('.h')?.textContent || '', noticeS: document.getElementById('rb-wg-inbox')?.querySelector('.s')?.textContent || '' }));
+    if (mode === 'strict') {
+      const bodies = inboxPatches.filter((p) => /rc-1/.test(p.url)).map((p) => Object.keys(p.body).sort().join(','));
+      check('receipts · a PATCH refused for a column the table lacks is retried without it, down to one that lands',
+        bodies.length === 3 && bodies[0] === 'decided_at,filed_ids,filed_to,status' && bodies[1] === 'decided_at,filed_ids,status' && bodies[2] === 'filed_ids,status', JSON.stringify(bodies));
+    } else {
+      check('receipts · a PATCH that never lands is given up after one try, the pieces already filed', inboxPatches.filter((p) => /rc-1/.test(p.url)).length === 1 && supaPosts.length === 2, JSON.stringify(inboxPatches));
+    }
+    check('receipts (' + mode + ') · the filed receipt leaves the queue and the refetch never brings it back — the strip counts down to the one left',
+      f.open && f.h === '1 piece read' && f.notice === 'Robes read one receipt' && f.noticeS === '1 piece waiting', JSON.stringify(f));
+    // the second receipt — "Nothing to keep" — clears the strip for good too
+    await page.click('#rb-wf-chosen .rb-wf-back');
+    await page.waitForTimeout(800);
+    const d = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), notice: !!document.getElementById('rb-wg-inbox') }));
+    check('receipts (' + mode + ') · the last receipt dismissed takes the strip down and it stays down', !d.open && !d.notice, JSON.stringify(d));
+    check('no page errors (receipts · ' + mode + ')', errs.length === 0, errs.join(' | ').slice(0, 240));
+    await ctx.close();
+  }
+}
+{
   // The quiet way back: pieces filed from a receipt stay findable under Refine → Added from · Receipts.
   const RECEIPT_ROW = { id: 'row-r', user_id: 'u-test', label: 'Pink velour tracksuit top', category: 'Tops', category_l2: 'Sweatshirts & hoodies', category_l3: 'Zip-up hoodie', color: 'Blush', brand: 'Zara', notes: '', image_url: null, times_worn: 0, item_dna: { source: { kind: 'receipt', retailer: 'Zara', order_ref: '1', inbox_id: 'rc-9' } }, seasons: [], occasions: [], season_band: 'year_round', season_source: 'inferred', hero_position: null, created_at: '2026-09-22' };
   const { ctx, page, errs } = await boot(browser, TAG, { rows: ROWS.concat([RECEIPT_ROW]) });
@@ -1135,8 +1177,8 @@ const browser = await chromium.launch(
   await page.waitForTimeout(500);
   await page.evaluate(() => window.__waSetView('wishlist'));
   await page.waitForTimeout(400);
-  const w0 = await page.evaluate(() => ({ pill: document.getElementById('rb-add-pill')?.textContent, soon: !!document.querySelector('.rb-soon-tag'), modal: !!document.getElementById('rb-wl-modal'), notice: !!document.getElementById('rb-wg-inbox'), empty: document.querySelector('.rb-wl-empty')?.textContent || '' }));
-  check('wishlist · the empty state offers Save a piece + a live Paste a link (no Coming soon), no bespoke modal, no receipt notice on this view', w0.pill === '+ Save a piece' && !w0.soon && !w0.modal && !w0.notice && /Paste a link/.test(w0.empty), JSON.stringify(w0));
+  const w0 = await page.evaluate(() => ({ pill: document.getElementById('rb-add-pill')?.getAttribute('aria-label'), soon: !!document.querySelector('.rb-soon-tag'), modal: !!document.getElementById('rb-wl-modal'), notice: !!document.getElementById('rb-wg-inbox'), empty: document.querySelector('.rb-wl-empty')?.textContent || '' }));
+  check('wishlist · the empty state offers Save a piece + a live Paste a link (no Coming soon), no bespoke modal, no receipt notice on this view', w0.pill === 'Save a piece' && !w0.soon && !w0.modal && !w0.notice && /Paste a link/.test(w0.empty), JSON.stringify(w0));
   await page.click('#rb-add-pill');
   await page.waitForTimeout(400);
   const w1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', sub: document.querySelector('#wa-modal .fm-step > p')?.textContent || '', ways: Array.from(document.querySelectorAll('.rb-wf-way')).map((b) => b.dataset.way), photoSub: document.querySelector('.rb-wf-way[data-way="photo"] .rb-wf-way-s')?.textContent || '' }));
@@ -1166,8 +1208,10 @@ const browser = await chromium.launch(
   check('wishlist · the save is a wishlist_items row: label, Instagram provenance, price 245 EUR, size, the taxonomy pair, the hosted photo — and nothing reached wardrobe_items',
     wlPosts.length === 1 && supaPosts.length === 0 && wp.label === 'Cream wool blazer' && wp.source_type === 'instagram' && wp.source_label === 'Saved from Instagram' && wp.price === 245 && wp.currency === 'EUR' && wp.size === 'M' && wp.image_url === 'https://res.cloudinary.com/robes/test.jpg' && wp.category === 'Outerwear' && 'category_l2' in wp && !('season_band' in wp) && !('notes' in wp) && 'note' in wp,
     JSON.stringify(wp));
-  const w5 = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), view: document.getElementById('rb-wl-grid')?.style.display, card: document.querySelector('#rb-wl-grid .wg-metar')?.textContent || '' }));
-  check('wishlist · the modal closes, the wishlist repaints with the piece (price with its currency, the size)', !w5.open && w5.view === 'grid' && w5.card === 'Zara · €245 · Size M', JSON.stringify(w5));
+  const w5 = await page.evaluate(() => ({ open: !!document.querySelector('#wa-modal.open'), view: document.getElementById('rb-wl-grid')?.style.display, card: document.querySelector('#rb-wl-grid .rb-wr-eye')?.textContent || '', stat: document.querySelector('#rb-wl-grid .rb-wr-stat')?.textContent || '' }));
+  // The wishlist draws the rack card (Wardrobe_List, 2026-10-06): Category ·
+  // Brand on the eyebrow, the price and "Not yours yet" on the status line.
+  check('wishlist · the modal closes, the wishlist repaints with the piece (Category · Brand, the price with its currency)', !w5.open && w5.view === 'grid' && w5.card === 'Outerwear · Zara' && w5.stat === '€245 · Not yours yet', JSON.stringify(w5));
 
   // A link, saved to the wishlist: provenance A link + the page URL kept.
   await page.evaluate(() => window.__wlSoonLink());

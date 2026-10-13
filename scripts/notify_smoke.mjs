@@ -168,9 +168,9 @@ await new Promise((r) => setTimeout(r, 200));   // the event insert is fire-and-
 check('tick 1 · email_sent events landed with kind + ref', db.events.filter((e) => e.event_type === 'email_sent').length === 6 && db.events.every((e) => e.metadata.kind && e.metadata.ref));
 
 const fresh = byUser('aaaaaaaa-0000-4000-8000-000000000001')[0];
-check('looks_ready · subject, the piece capitalised, three frames, the Inspiration deep link with ?open + from=email',
+check('looks_ready · subject, the piece capitalised, three frames, the Lookbook deep link with ?open + from=email (key pieces live there since 2026-10-05)',
   fresh && fresh.subject === 'Your three looks are ready.' && /Acid green cropped jumper/.test(fresh.html) && (fresh.html.match(/img\.test\/k\d\.jpg/g) || []).length === 3
-    && /https:\/\/beta\.byrobes\.com\/inspiration\?open=1758400000000&amp;from=email/.test(fresh.html) && /\/inspiration\?open=1758400000000&from=email/.test(fresh.text),
+    && /https:\/\/beta\.byrobes\.com\/lookbook\?open=1758400000000&amp;from=email/.test(fresh.html) && /\/lookbook\?open=1758400000000&from=email/.test(fresh.text),
   fresh && fresh.subject);
 check('looks_ready · List-Unsubscribe headers + a signed unsub link naming the looks_ready pref',
   fresh && /^<https:\/\/beta\.byrobes\.com\/api\/notify\/unsub\?t=aaaaaaaa-0000-4000-8000-000000000001\.looks_ready\.[0-9a-f]{40}>$/.test(fresh.headers['List-Unsubscribe'])
@@ -178,7 +178,7 @@ check('looks_ready · List-Unsubscribe headers + a signed unsub link naming the 
 check('looks_ready · plain-text alternative always', fresh && typeof fresh.text === 'string' && /worn three ways/.test(fresh.text));
 const bea = byUser('aaaaaaaa-0000-4000-8000-000000000002')[0];
 check('look_waiting · "She’d wear it.", the look named, her photograph as the frame, the model deep link',
-  bea && bea.subject === 'She’d wear it.' && /A Parisian night out/.test(bea.html) && /img\.test\/look-b\.jpg/.test(bea.html) && /\/stylenotes\?from=email/.test(bea.html), bea && bea.subject);
+  bea && bea.subject === 'She’d wear it.' && /A Parisian night out/.test(bea.html) && /img\.test\/look-b\.jpg/.test(bea.html) && /\/settings\?page=twin&amp;from=email/.test(bea.html), bea && bea.subject);
 check('look_waiting · unsub link flips the nudges pref, not looks_ready', bea && /\.nudges\.[0-9a-f]{40}>$/.test(bea.headers['List-Unsubscribe']));
 const fay = byUser('aaaaaaaa-0000-4000-8000-000000000006')[0];
 check('five · the composer deep link with the Robes build armed', fay && fay.subject === 'Robes can build from yours now.' && /\/lookbook\?new=1&amp;robes=1&amp;from=email/.test(fay.html));
@@ -258,6 +258,14 @@ try {
   check('server · a bad token 400s without touching anything', bad.status === 400);
   const oneClick = await fetch(BASE + '/api/notify/unsub?t=' + encodeURIComponent(notifier.unsubToken('aaaaaaaa-0000-4000-8000-000000000006', 'nudges')), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'List-Unsubscribe=One-Click' });
   check('server · one-click POST unsubscribes too', oneClick.status === 200 && db.profiles[5].notification_prefs.nudges === false);
+  // Route-mount pins: every generation route the page harnesses STUB must
+  // actually exist on the real server. The brief shipped inside an
+  // unclosed /* header (2026-09-30) — node --check passed, the stubbed
+  // harness passed, and the live page got a 404 ("couldn't read").
+  for (const route of ['/api/stylenotes/brief', '/api/lookbuild/note', '/api/alternates', '/api/intent', '/api/daily', '/api/style', '/api/look/refine', '/api/look/ask']) {
+    const r = await fetch(BASE + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    check('server · ' + route + ' is mounted (never a 404)', r.status !== 404, String(r.status));
+  }
   const tickR = await (await fetch(BASE + '/api/notify/tick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ now: '2026-09-23T06:30:00Z' }) })).json();
   check('server · the debug tick door runs a tick at the given instant', tickR && Array.isArray(tickR.sent) && !tickR.error, JSON.stringify(tickR).slice(0, 200));
 } catch (e) {

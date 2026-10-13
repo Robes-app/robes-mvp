@@ -374,6 +374,19 @@
         : fbRows.length ? '<ul class="tl">' + fbRows.map(f =>
             '<li><span class="t">' + fmtDT(f.created_at) + '</span><span>' + ratingGlyph(f.rating) + ' <span class="chip">' + esc(f.track || '—') + '</span> ' + esc(f.note || '') + '</span></li>').join('') + '</ul>'
         : '<div class="empty">No feedback yet.</div>') + '</div></div>';
+    // the memory (style_dna.memory — what she told Robes through the app)
+    const memRows = (dna.memory && Array.isArray(dna.memory.entries)) ? dna.memory.entries : [];
+    const memLine = (e) => {
+      if (e.k === 'verdict') return '<span class="chip">' + (e.v === 1 ? '👍' : e.v === 0 ? '👎' : '·') + ' verdict</span> ' + esc(e.on || '') + (e.text ? ' <span class="m">“' + esc(e.text) + '”</span>' : '');
+      if (e.k === 'swap') return '<span class="chip">swap</span> ' + esc(e.out || 'a piece') + ' → ' + esc(e.in || '') + (e.cat ? ' <span class="m dim">' + esc(e.cat) + '</span>' : '') + (e.surface ? ' <span class="m dim">· ' + esc(e.surface) + '</span>' : '');
+      if (e.k === 'wear') return '<span class="chip">wear</span> ' + esc(e.look || 'a look') + (e.pieces ? ' <span class="m dim">· ' + e.pieces + ' pieces</span>' : '');
+      if (e.k === 'strike') return '<span class="chip">strike</span> <span class="m">' + esc(e.text || '') + '</span>';
+      return '<span class="chip">' + esc(e.k || '?') + '</span> ' + esc(e.text || '');
+    };
+    html += '<div class="sec"><div class="sec-h"><h2>Memory</h2><span class="cnt">' + memRows.length + (dna.memory && dna.memory.read_at ? ' · read ' + fmtDate(dna.memory.read_at) : '') + '</span></div><div class="card">' +
+      (memRows.length ? '<ul class="tl">' + memRows.map((e, i) =>
+          '<li' + xtra(i, ACT_SHOW) + '><span class="t">' + fmtDT(e.t) + '</span><span>' + memLine(e) + '</span></li>').join('') + '</ul>' + moreRow(memRows.length, ACT_SHOW, 'entries')
+        : '<div class="empty">Nothing told Robes yet — verdicts, swaps, wears and struck lines land here.</div>') + '</div></div>';
     // events
     const evRows = events.data || [];
     html += '<div class="sec"><div class="sec-h"><h2>Activity</h2><span class="cnt">last ' + evRows.length + (env !== 'all' ? ' · ' + esc(env) : '') + '</span></div><div class="card">' +

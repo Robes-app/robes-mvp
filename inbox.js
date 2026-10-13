@@ -85,7 +85,7 @@ export const VISION_SCHEMA = {
   required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'editorial_color_name', 'brand', 'ai_generated_notes'],
 };
 
-const PIECE_RULES = `"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans")
+const PIECE_RULES = `"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans") — never the brand; the brand goes in "brand" alone ("Ballet sneakers", not "Miu Miu ballet sneakers")
 "category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
 "category_l2" and "category_l3": file the piece in the Robes taxonomy below. Each line reads Category › Subcategory: item types. Pick the ONE line whose subcategory fits best, copy the subcategory name EXACTLY into category_l2, then copy the best-fitting item type from that line EXACTLY into category_l3. If no item type on the line fits, set category_l3 to "". If no subcategory fits at all, set both to "".
 TAXONOMY:

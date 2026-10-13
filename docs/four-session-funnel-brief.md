@@ -44,7 +44,7 @@ The review found that Session 1 is built, Sessions 2–4 are mostly built but un
 | 4 | Gap-led batch: the add flow takes a brief | 2–3 | no | M | 1 |
 | 5 | Plan the week walk + the four-looks arrival | 4 | no | M | 1 |
 | 6 | The re-engagement channel (email, sequence, morning cue) | all | **migration 22** | L | 1 (events), 2–5 (deep-link targets) |
-| 7 | Onboarding re-sequence | 1 | no | S | founder call first |
+| 7 | Onboarding re-sequence — **rebuilt 2026-09-25 as the onboarding split + the Style notes chapters** | 1 | no | S | founder call first |
 
 Slices 2–5 are independent of each other and can run in parallel sessions. Slice 6 is mostly server-side and can start any time after 1; its deep links land better once 2–5 exist. Slice 7 waits on a founder decision (see Open decisions).
 
@@ -295,6 +295,9 @@ Templates: one shared HTML shell (cream ground, Cormorant heading via a web-safe
 
 ## Slice 7 · Onboarding re-sequence (founder call first)
 
+> **Superseded 2026-09-25 (Annie, after user testing — design `Onboarding_Flow.dc.html`, review `docs/onboarding-split-review-2026-09-25.md`)**: the Style step leaves onboarding entirely. Onboarding is splash → name (cream, no Back) → the first piece read live on one page (photograph or a shop link) → **Composing** (the wait as anticipation, the lines ticking the real look titles) → home. Archetypes + icons + the model are the **Style notes chapters** on `/stylenotes?begin=1`, opened from the dashed "Next · Style notes" door on first-run home; the archetype answer is a tri-state (`style_archetypes` = very me, `style_archetypes_soft` = sometimes) and, for the first time, **read by `styleDnaPromptBlock`** — before this the archetypes steered nothing. First-run home holds the styled card (See the full looks full-width, ink) and the notes door alone; the prompt and rows return when the card collapses. The notes door and the model door never render together. Option A below is history.
+
+
 > **As built (2026-09-21, Annie: "jump straight to slice 7 now running option A"; slices 5 and 6 held)**: Option A. `STEPS = ['keypiece', 'style']` — Step 01 · Wardrobe, Step 02 · Style. **7.1 was built as specified and reverted the same day** (Annie: "bring back the original, Splash, Intro, Name — then continue with option A"): then, later the same day, **the intro screen itself was cut** (Annie: "get rid of screen AN INTRODUCTION … go straight from splash to Name") — the splash lands on the name stage for everyone, prefilled when a name is on file; there is no intro and no promise screen. The intro's promise ("One piece. Three ways to wear it.") went with the intro. The Style step's title reads "While Robes composes your three looks — where does your style sit?" only when a piece was filed (a double skip on the piece lands on the plain question — nothing is composing); the prefire still fires the moment the piece files, before Style. The filed piece's CTA reads Continue (Style is next); the last step's reads Continue to your dashboard and gives its writes a capped beat before navigating. Back from step 01 returns to the name stage. The Cut ledger row falls back to "—". `onboarding_harness` rewritten: 145/145 at both breakpoints.
 
 **Why**: the spark sits five screens deep (splash → intro → name → Style → piece). The August audit's 1.1 (three dark screens) is still open; the Style step (1 Sep) added a taste question before any value.
@@ -356,7 +359,14 @@ All strings in one place, in the Robes register (no "AI", declarative, warm; loa
 | Mail · morning | {Weekday} · {day title} / *{Look}* / Open the day · Wore it? The day page takes it. |
 | Unsub page | Done — Robes won't email you about this. |
 | Intro promise | One piece. Three ways to wear it. |
-| Style step (Option A) | While Robes composes your three looks — where does your style sit? |
+| ~~Style step (Option A)~~ | ~~While Robes composes your three looks — where does your style sit?~~ (the step is gone, 2026-09-25) |
+| Composing (1e) | Composing *three looks, {Name}.* · {look title} ✓ / dressing… · Every look borrows the rest until you photograph your own. |
+| Piece page CTA | Style it three ways → |
+| Notes door (home) | NEXT · STYLE NOTES · Let Robes *get to know you.* · **Begin** |
+| Chapters intro | Let Robes *get to know you.* · Three short chapters. React to what you see, and every look after this is dressed with you in mind. · Begin / Later |
+| Chapter 01 | Does this *feel like you?* · Not me · Sometimes · Very me |
+| Chapter 02 | Whose taste *runs close to yours?* · Popular among stylists · Tap the ones you love · Keep “{x}” as typed |
+| Summary | {Name}, *on paper.* · Robes reads these every time it dresses you. · Create a look → · Done for now |
 
 Voice checks applied: every mail repeats only what she gave Robes (her piece, her look, her day name); no line names a gap before naming what she owns; no scarcity, no "you need"; the morning cue never fetches weather it can't stand over.
 
@@ -364,12 +374,12 @@ Voice checks applied: every mail repeats only what she gave Robes (her piece, he
 
 ## Open decisions (before a session starts)
 
-1. **Slice 7's order** — ~~Option A (Style fills the imagery wait) or B (Style moves to the model page). A is recommended~~ **Decided: A, built 2026-09-21.** Both undo the 1 Sep archetype-first placement, which was a deliberate design.
+1. **Slice 7's order** — ~~Option A (Style fills the imagery wait) or B (Style moves to the model page). A is recommended~~ ~~**Decided: A, built 2026-09-21.**~~ **Re-decided 2026-09-25 (user testing): the Style step leaves onboarding for the Style notes chapters** — see the slice 7 note. Both undo the 1 Sep archetype-first placement, which was a deliberate design.
 2. **The model door's form** — the slim white band (specified) versus a fourth concierge card. The band is recommended: the band's grid is three cards and its retire condition is unrelated to the model.
 3. **Progression's owner** (3.3) — the meter retires at 15 pieces regardless of the band. Default to yes.
 4. **Consent scope** (6.3) — one tap on the styled card covers the looks-ready mail AND the four nudges (stated in the sub-line), the morning cue is a separate opt-in in Account details. Confirm this reading of GDPR is acceptable for the beta; the privacy page is updated either way.
 5. **`EMAIL_FROM` and the Resend domain** — `hello@byrobes.com` needs SPF/DKIM on the domain before slice 6 can send from beta.
-6. **The model page's head line** (2.3) — keep "Two photographs. One model." or lead by hand when nothing is read.
+6. **The model page's head line** (2.3) — ~~keep "Two photographs. One model." or lead by hand when nothing is read.~~ **Decided 2026-09-25: keep it** (design 3f shows the model page unchanged as chapter 03).
 7. **The START HERE band** (1.3) — retired in slice 1 as recommended on 18 Sep; strike 1.3 if it should stay.
 
 ---

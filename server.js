@@ -6,7 +6,7 @@ import { createHash, randomBytes } from 'crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
-import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock } from './style_dna.js';
+import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock, SEASONS } from './style_dna.js';
 import { TAXONOMY_GROUPS, resolveTaxonomy, taxonomyPromptBlock, tagDefaultRows, WEAR_SEEDS } from './wardrobe_taxonomy.js';
 import { createNotifier } from './notify.js';
 import { createInbox } from './inbox.js';
@@ -63,6 +63,11 @@ function logAI(event) {
 const SUPA_URL = process.env.SUPABASE_URL || 'https://ayowpaknssulsqqvwpqx.supabase.co';
 const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const APP_ENV = (process.env.PUBLIC_URL || '').includes('www.byrobes.com') ? 'production' : 'beta';
+// MVP launch (2026-10-10): the trip is hidden until it relaunches — shared
+// travel edits read as not found and the mail ignores trip days. The trip's
+// own endpoints stay mounted (the client's ?trip=on still reaches them).
+// TRIP_ENABLED=1 on a service brings both back.
+const TRIP_HIDDEN = process.env.TRIP_ENABLED !== '1';
 const genCtx = new AsyncLocalStorage();
 
 app.use('/api', (req, res, next) => {
@@ -178,6 +183,7 @@ const notifier = createNotifier({
   secret: process.env.NOTIFY_SECRET || process.env.RESEND_API_KEY || '',
   env: APP_ENV,
   resendUrl: process.env.RESEND_API_URL || 'https://api.resend.com/emails',
+  hideTravel: TRIP_HIDDEN,
 });
 /* ── the inbound-receipt door + the product-page reader (2026-09-22) ──
    Her Robes address is <inbox_address>@INBOX_DOMAIN (profiles.inbox_address,
@@ -512,21 +518,84 @@ const STYLE_SCHEMA = {
           details:     { type: 'string' },
           accessories: { type: 'string' },
           tags:        { type: 'array', items: { type: 'string' } },
+          // The look itemised (Worn_Three_Ways native design, 2026-09-28):
+          // the result page reads each way piece by piece BEFORE a build —
+          // the swatch pill ("4 pieces · 1 yours") and the piece sheet
+          // both read this. wardrobe_index points at the numbered closet
+          // block for a piece she owns; -1 for one she would find.
+          pieces: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name:           { type: 'string' },
+                category:       { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Swimwear', 'Other'] },
+                color:          { type: 'string' },
+                color_hex:      { type: 'string' },
+                role:           { type: 'string', enum: ['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'] },
+                wardrobe_index: { type: 'integer' },
+                brand:          { type: 'string' },
+                retailer_hint:  { type: 'string' },
+                price_point:    { type: 'string' },
+              },
+              required: ['name', 'category', 'color', 'color_hex', 'role', 'wardrobe_index'],
+            },
+          },
         },
-        required: ['eyebrow', 'title', 'outfit', 'details', 'accessories', 'tags'],
+        required: ['eyebrow', 'title', 'outfit', 'details', 'accessories', 'tags', 'pieces'],
       },
     },
   },
   required: ['fallback', 'wearer', 'ways'],
 };
 
+// The itemised pieces of a styled way, made safe for the client: a valid
+// hex, a known role, at most six, and the closet index resolved into the
+// same wardrobe_match shape /api/daily hands back (id/label/image_url/
+// color) so the page can show her own photograph on a piece she owns.
+function normStylePieces(way, closetItems) {
+  const rows = Array.isArray(way && way.pieces) ? way.pieces : [];
+  const roles = ['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'];
+  const out = [];
+  rows.forEach(p => {
+    if (!p || typeof p !== 'object' || !String(p.name || '').trim()) return;
+    const idx = Number.isInteger(p.wardrobe_index) ? p.wardrobe_index : -1;
+    const owned = idx >= 0 && idx < closetItems.length ? closetItems[idx] : null;
+    const hex = /^#[0-9A-Fa-f]{6}$/.test(String(p.color_hex || '')) ? String(p.color_hex) : null;
+    const role = roles.find(r => r.toLowerCase() === String(p.role || '').toLowerCase()) || null;
+    out.push({
+      name: String(p.name).trim().slice(0, 80),
+      category: String(p.category || 'Other'),
+      color: String(p.color || '').slice(0, 40),
+      color_hex: hex,
+      role,
+      brand: owned ? String(owned.brand || '') : String(p.brand || '').slice(0, 60),
+      retailer_hint: owned ? '' : String(p.retailer_hint || '').slice(0, 60),
+      price_point: owned ? '' : String(p.price_point || '').slice(0, 20),
+      wardrobe_match: owned ? {
+        id: owned.id != null ? owned.id : null,
+        label: String(owned.label || ''),
+        image_url: owned.image_url || null,
+        color: String(owned.color || ''),
+      } : null,
+    });
+  });
+  return out.slice(0, 6);
+}
+
 app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext, gender } = req.body;
+  const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext, gender, refine, wayIndex, current } = req.body;
   const g = normGender(gender);
 
   if (!photo && !link && !prompt) {
     return res.status(400).json({ error: 'Provide at least a photo, link, or prompt.' });
   }
+  // Refine ONE way (slice C): her words re-write the way at `wayIndex`;
+  // the other two are untouched on the client. The answer is a single way
+  // (the schema's array holds one) and ONE frame, written to the job at
+  // the way's own slot so the standing poller lands it on the right card.
+  const refBlock = refineBlock(refine, current);
+  const refineWay = refBlock && Number.isInteger(wayIndex) && wayIndex >= 0 && wayIndex <= 2 ? wayIndex : null;
 
   const daily = intent === 'dress-me';
   const who = name ? `The user's name is ${name}.` : '';
@@ -536,9 +605,11 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
   const dnaBlock = styleDnaPromptBlock(styleDna, Number(wardrobeCount) || 0, styleIcons);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
+  // Numbered, so a way's `pieces[].wardrobe_index` can point at the exact
+  // owned piece it uses (the client resolves it back to the row).
   const closetBlock = closetItems.length
-    ? `THE USER'S DIGITISED WARDROBE (${closetItems.length} pieces): ${closetItems.map(i =>
-        `${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
+    ? `THE USER'S DIGITISED WARDROBE (${closetItems.length} pieces, numbered from 0): ${closetItems.map((i, n) =>
+        `[${n}] ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
       ).join('; ')}.`
     : '';
   const closetDirective = closetItems.length >= 15
@@ -549,7 +620,9 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
 
   const formulaBlock = `Every look follows the four-tier layer formula: 1) THE ANCHOR — the weather/agenda hero piece; 2) THE CANVAS — premium supporting basics; 3) THE TEXTURE — one depth-adding element; 4) THE EXCLAMATION POINT — the accessories, footwear and hardware that inject identity. Never give generic output like "jeans and a top" — name exact cuts, fabrications and styling techniques (e.g. "French-tuck a heavyweight silk button-down into high-waisted, wide-leg wool trousers").
 
-STYLING SANITY CHECK: every styling move must be something a respected stylist would actually shoot on the street — honour the key piece's natural register. Sporty and athletic pieces stay in an elevated-casual register: never belt knitwear or cardigans over athletic shorts, never force waist-cinching or hourglass tricks onto a sporty silhouette, never layer formal tailoring over gym wear. Any silhouette or body-architecture rules below govern WHAT pieces you select — they are never a licence to contort HOW a piece is worn. If a styling trick needs explaining to look intentional, drop it: effortless always beats clever.`;
+STYLING SANITY CHECK: every styling move must be something a respected stylist would actually shoot on the street — honour the key piece's natural register. Sporty and athletic pieces stay in an elevated-casual register: never belt knitwear or cardigans over athletic shorts, never force waist-cinching or hourglass tricks onto a sporty silhouette, never layer formal tailoring over gym wear. Any silhouette or body-architecture rules below govern WHAT pieces you select — they are never a licence to contort HOW a piece is worn. If a styling trick needs explaining to look intentional, drop it: effortless always beats clever.
+
+THE PIECES: alongside the prose, itemise every look in "pieces" — three to six entries, each one garment, shoe, bag or accessory the prose names, in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each, from those four; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt", "Tan leather loafers"); "category" one of Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other; "color" a plain colour word and "color_hex" one representative hex for it. "wardrobe_index" is the number of the owned piece from the wardrobe list above when the piece IS that piece (use its exact label as the name), else -1. Only a piece she would have to find carries "brand", "retailer_hint" and "price_point" (a realistic EUR figure like "€89"); leave them empty on an owned piece.`;
 
   const brief = daily
     ? `The user is dressing for a real day, happening now. You build three complete, wearable outfits for that day — each a distinct mood or register, all appropriate to the occasion and the real-time weather context provided.`
@@ -577,14 +650,24 @@ ${formulaBlock}
 
 ${fallbackRule}
 
-${wearerRule}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closetBlock : ''}${closetDirective ? '\n' + closetDirective : ''}`;
+${wearerRule}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closetBlock : ''}${closetDirective ? '\n' + closetDirective : ''}${refineWay != null ? '\n\n' + refBlock : ''}`;
 
+  // A dated ask (2026-10-10): the looks are for THAT day — its own
+  // forecast rides in place of today's, and the day is named.
+  const rtDay = daily && rtContext && rtContext.dayLabel ? String(rtContext.dayLabel).slice(0, 40) : '';
   const rtLine = daily && rtContext && (rtContext.city || rtContext.tempRange)
-    ? `Real-time context: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. Dress the user for exactly this weather and place.`
-    : '';
+    ? `${rtDay ? 'She is dressing for ' + rtDay + '. Forecast for that day' : 'Real-time context'}: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. Dress the user for exactly this weather and place.`
+    : rtDay ? `She is dressing for ${rtDay}${rtContext.month ? ' (' + String(rtContext.month).slice(0, 20) + ')' : ''}. No forecast reaches that far — dress for the season and the place.` : '';
 
-  const userText = daily
-    ? `${rtLine ? rtLine + '\n\n' : ''}The user's brief for today: "${prompt}".
+  const curTitle = current && current.title ? String(current.title).slice(0, 80) : '';
+  const curEyebrow = current && current.eyebrow ? String(current.eyebrow).slice(0, 60) : '';
+  const others = (current && Array.isArray(current.others) ? current.others : []).filter(Boolean).map(o => String(o).slice(0, 80)).slice(0, 2);
+  const userText = refineWay != null
+    ? `${piece} ${context} ${linkCtx}
+
+Re-write ONE of the three looks — "${curTitle || 'the look'}"${curEyebrow ? ' (' + curEyebrow + ')' : ''} — as her adjustment asks (THE LOOK AS IT STANDS and HER ADJUSTMENT are in the system notes). Return exactly ONE way in "ways": the re-written look, complete, with its own eyebrow, title, prose and itemised pieces.${others.length ? ' It must stay distinct from the other two looks, which are unchanged: ' + others.map(o => '"' + o + '"').join(' and ') + '.' : ''}`
+    : daily
+    ? `${rtLine ? rtLine + '\n\n' : ''}The user's brief for ${rtDay || 'today'}: "${prompt}".
 
 Dress them for this day three ways. Make each outfit genuinely distinct — different moods and registers of the same day. Each look must be complete from anchor to exclamation point, and every piece weather-appropriate.`
     : `${piece} ${context} ${linkCtx}
@@ -624,7 +707,9 @@ Style this key piece three ways. Make each look genuinely distinct — different
           responseMimeType: 'application/json',
           responseSchema: STYLE_SCHEMA,
           thinkingConfig: { thinkingBudget: 0 },
-          maxOutputTokens: 2000,
+          // The itemised pieces ride the same call (2026-09-28) — room for
+          // three ways × up to six rows on top of the prose.
+          maxOutputTokens: 3400,
         },
       })),
       photoMatch ? cloudinaryUpload(photoMatch[2], photoMatch[1]) : Promise.resolve(null),
@@ -633,13 +718,19 @@ Style this key piece three ways. Make each look genuinely distinct — different
     const textMs = Date.now() - t0;
     const parsed = deEscDeep(JSON.parse(textResponse.text));
     const fallback = parsed.fallback === true;
-    const ways = parsed.ways;
-    logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback });
+    let ways = (Array.isArray(parsed.ways) ? parsed.ways : []).map(w => Object.assign({}, w, { pieces: normStylePieces(w, closetItems) }));
+    if (refineWay != null) {
+      if (!ways.length) throw new Error('empty refine');
+      ways = ways.slice(0, 1);
+    }
+    logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback, refine: refineWay != null ? refineWay : undefined });
 
     // Create image job and respond immediately — images generate in background
     const jobId = randomBytes(6).toString('hex');
     imageJobs.set(jobId, { images: [null, null, null], done: false, created: Date.now() });
-    res.json({ ways, jobId, photoUrl, fallback });
+    res.json(refineWay != null
+      ? { way: ways[0], wayIndex: refineWay, ways, jobId, photoUrl, fallback }
+      : { ways, jobId, photoUrl, fallback });
 
     // Background image generation — never blocks the client
     const t1 = Date.now();
@@ -661,10 +752,12 @@ Style this key piece three ways. Make each look genuinely distinct — different
       // wearer gates the catalog: a menswear brief on a woman's profile
       // (or vice versa) falls through to the generic model.
       const avatarRef = await avatarRefForUser(req.body.avatarId, req.body.userId, wearer);
-      const results = ways.map(() => null);
-      for (let i = 0; i < ways.length; i++) {
-        if (i > 0) await new Promise(r => setTimeout(r, 3000));
-        const w = ways[i];
+      const results = [null, null, null];
+      for (let k = 0; k < ways.length; k++) {
+        if (k > 0) await new Promise(r => setTimeout(r, 3000));
+        // A refined way's one frame lands at the way's own slot.
+        const i = refineWay != null ? refineWay : k;
+        const w = ways[k];
         const imgParts = [];
         if (avatarRef) imgParts.push({ inlineData: { mimeType: avatarRef.mimeType, data: avatarRef.data } });
         if (!fallback && photoMatch) {
@@ -851,6 +944,38 @@ const PANEL_NOTE_RULE = `PANEL NOTE: 30 words maximum, one or two sentences. Des
 
 const WEEK_SUMMARY_RULE = `WEEK SUMMARY: 40 words maximum. Describes the week's register, weather and shape only — it covers up to seven days and still should not inventory them. Names no specific garment, so it can't go stale after she later swaps or restyles a day.`;
 
+// ── Refine — her words against the look on screen (style memory slice C,
+// 2026-09-30). ONE block shared by /api/daily, /api/travel/looks, /api/style
+// and /api/look/refine, appended at the END of the system prompt so "her
+// brief and her recent verdicts above" is literally true. `current` is the
+// client's snapshot of what is on screen: {pieces: [{name, category, owned,
+// keep}]} — owned pieces are hers, KEEP pieces are anchored. The words are
+// capped at 240 characters, trimmed server-side; an empty adjustment renders
+// nothing, so a caller that passes none gets the standing generator byte
+// for byte.
+const REFINE_MAX = 240;
+function refineText(v) { return String(v || '').replace(/\s+/g, ' ').trim().slice(0, REFINE_MAX); }
+function refineCurrent(current) {
+  const pieces = (current && Array.isArray(current.pieces) ? current.pieces : [])
+    .filter(p => p && p.name)
+    .slice(0, 12)
+    .map(p => ({ name: String(p.name).slice(0, 80), category: String(p.category || '').slice(0, 24), owned: !!p.owned, keep: !!p.keep }));
+  return { pieces };
+}
+function refineBlock(text, current) {
+  const t = refineText(text);
+  if (!t) return '';
+  const cur = refineCurrent(current);
+  const list = cur.pieces.length
+    ? cur.pieces.map(p => `- ${p.name}${p.category ? ' [' + p.category + ']' : ''}${p.keep ? ' — KEEP' : p.owned ? ' (hers)' : ''}`).join('\n')
+    : '- (nothing on screen yet)';
+  return `THE LOOK AS IT STANDS (a piece marked "hers" is one she owns; a piece marked KEEP is anchored):
+${list}
+
+HER ADJUSTMENT, IN HER WORDS: "${t}".
+Change only what the adjustment asks for. Every KEEP piece stays exactly as it is. An owned piece stays unless the adjustment names it or makes it impossible. Read the adjustment against her brief and her recent verdicts above — "more me" means the brief.`;
+}
+
 const DAILY_SCHEMA = {
   type: 'object',
   properties: {
@@ -909,12 +1034,14 @@ app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
   // noImages: composition-only — the caller already has imagery for this
   // look (e.g. building a Look entity from a styled key piece reuses the
   // kp result's frames), so no image job is started and no jobId returned.
-  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, locked, gender, vibes, noImages } = req.body;
+  const { prompt, name, styleDna, styleIcons, wardrobeItems, context: rtContext, locked, gender, vibes, noImages, refine, current } = req.body;
   const g = normGender(gender);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   const n = closetItems.length;
   const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
+  // Her adjustment (slice C): the look on screen + her words, appended last.
+  const refBlock = refineBlock(refine, current);
 
   // Anchored pieces (restyle flow) — items the user has locked into the
   // look. They must survive a restyle untouched; everything else re-mixes.
@@ -977,11 +1104,13 @@ ${vibeVocabLine(vibes)}
 
 ${BANNED_CONSTRUCTIONS_RULE}
 
-${closetBlock}`;
+${closetBlock}${refBlock ? '\n\n' + refBlock : ''}`;
 
   const userText = `${rtLine ? rtLine + '\n\n' : ''}The user's brief for today: "${(prompt || '').trim() || 'A regular day — no fixed plans.'}"
 
-Dress her for this exact day, start to finish, through the four architectural steps.`;
+${refBlock
+    ? 'She already has a look for this (THE LOOK AS IT STANDS, in the system notes). Adjust it as her words ask — do not start again from scratch — and return the whole look, adjusted, through the four architectural steps.'
+    : 'Dress her for this exact day, start to finish, through the four architectural steps.'}`;
 
   async function withRetry(fn, attempts = 3) {
     for (let i = 0; i < attempts; i++) {
@@ -1031,7 +1160,7 @@ Dress her for this exact day, start to finish, through the four architectural st
     });
     if (!flat.length) throw new Error('empty daily look');
     const dailyOwnedCount = flat.filter(f => f.item.wardrobe_match).length;
-    logAI({ feature: 'daily', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: flat.length, owned: dailyOwnedCount, fallback: parsed.fallback === true });
+    logAI({ feature: 'daily', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: flat.length, owned: dailyOwnedCount, fallback: parsed.fallback === true, refine: !!refBlock });
     // Composition (addendum to Tranche 2 Build 2): logAI only reaches
     // Railway's console, not the queryable generation_log table — the
     // owned-vs-total gate the original Build 2 brief asked for was
@@ -1282,6 +1411,287 @@ ${otherItems.length ? `THE REST OF THIS LOOK (do not suggest these): ${otherItem
 });
 
 /* ── look-builder stylist note (empty-state parity, 2026-08-13) ──────── */
+// ── a saved look, adjusted in her words (style memory slice C, 2026-09-30) ──
+// Composition only, no image job: the composer's canvas re-renders her model
+// and the still-life job is /api/lookbuild/images as ever. Takes the saved
+// look's pieces (owned + proposals), the closet, the brief/memory via
+// styleDna and her words; answers the daily shape's steps + a fresh panel
+// note. The `userId` in the body is attribution only.
+const LOOK_REFINE_SCHEMA = {
+  type: 'object',
+  properties: {
+    headline: { type: 'string' },
+    stylist_summary: { type: 'string' },
+    palette: { type: 'array', items: { type: 'string' } },
+    look_tags: LOOK_TAGS_SCHEMA,
+    steps: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', enum: DAILY_STEP_TITLES },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Other'] },
+                brand: { type: 'string' },
+                how: { type: 'string' },
+                wardrobe_index: { type: 'integer' },
+                retailer_hint: { type: 'string' },
+                price_point: { type: 'string' },
+              },
+              required: ['name', 'category', 'brand', 'how', 'wardrobe_index', 'retailer_hint', 'price_point'],
+            },
+          },
+        },
+        required: ['title', 'items'],
+      },
+    },
+  },
+  required: ['headline', 'stylist_summary', 'palette', 'look_tags', 'steps'],
+};
+
+app.post('/api/look/refine', rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) => {
+  const { lookName, pieces, refine, name, styleDna, styleIcons, wardrobeItems, gender, vibes, context: rtContext } = req.body;
+  const g = normGender(gender);
+  const words = refineText(refine);
+  const cur = refineCurrent({ pieces });
+  if (!words) return res.status(400).json({ error: 'Say what to change.' });
+  if (!cur.pieces.length) return res.status(400).json({ error: 'Nothing on the look to adjust.' });
+
+  const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
+  const n = closetItems.length;
+  const dnaBlock = styleDnaPromptBlock(styleDna, n, styleIcons);
+  const closetBlock = n
+    ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by index):\n${closetItems.map((i, idx) =>
+        `${idx}: ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${i.brand ? ', ' + i.brand : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}${heroMark(i)}`
+      ).join('\n')}`
+    : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';
+  const rtLine = rtContext && (rtContext.city || rtContext.tempRange)
+    ? `REAL-TIME CONTEXT: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}.`
+    : '';
+
+  const systemInstruction = `You are Robes' head stylist — elite, editorial, precise. ${name ? `The user's name is ${name}. ` : ''}${genderDirective(g)} She has a SAVED look and wants it adjusted in her own words — never a new look from scratch. Return the whole look, adjusted, as exactly four steps in this order: "The Anchor" (1 item), "The Canvas" (1–2), "The Texture" (1), "The Accents" (2).
+
+FIELD RULES:
+- "headline": the look's name, unchanged unless the adjustment changes what the look IS — then a short serif-worthy name, sentence case, no full stop. Max 6 words.
+- "stylist_summary" is this look's PANEL NOTE. ${PANEL_NOTE_RULE}
+- "palette": exactly 3 hex colours drawn from the look, ordered neutral to accent.
+- Each item: "name" is the piece itself; "brand" is ONE real brand suited to its register (for owned pieces, the owned brand or "").
+- "how" is this item's ROW NOTE. ${ROW_NOTE_RULE}
+- Owned pieces: set "wardrobe_index" to the wardrobe list index, use the exact owned label as the name, and set retailer_hint and price_point to "". New pieces: "wardrobe_index": -1 with a real "retailer_hint" and a realistic EUR "price_point".
+${LOOK_TAGS_RULE}
+${vibeVocabLine(vibes)}${dnaBlock ? '\n\n' + dnaBlock : ''}
+
+${BANNED_CONSTRUCTIONS_RULE}
+
+${closetBlock}
+
+${refineBlock(words, cur)}`;
+
+  const userText = `${rtLine ? rtLine + '\n\n' : ''}The saved look is "${String(lookName || '').slice(0, 80) || 'this look'}". Adjust it as her words ask and return it whole.`;
+
+  try {
+    const t0 = Date.now();
+    const r = await Promise.race([
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: userText }] }],
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: LOOK_REFINE_SCHEMA,
+          thinkingConfig: { thinkingBudget: 0 },
+          maxOutputTokens: 1400,
+        },
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 60000)),
+    ]);
+    const parsed = deEscDeep(JSON.parse(r.text));
+    let steps = Array.isArray(parsed.steps)
+      ? parsed.steps.filter(s => s && DAILY_STEP_TITLES.includes(s.title) && Array.isArray(s.items) && s.items.length)
+      : [];
+    steps.sort((a, b) => DAILY_STEP_TITLES.indexOf(a.title) - DAILY_STEP_TITLES.indexOf(b.title));
+    let count = 0;
+    steps.forEach(s => {
+      s.items = s.items.slice(0, 2).map(it => {
+        const wi = Number.isInteger(it.wardrobe_index) && it.wardrobe_index >= 0 ? closetItems[it.wardrobe_index] : null;
+        it.wardrobe_match = wi ? { id: wi.id, label: wi.label, image_url: wi.image_url || null, color: wi.color || '' } : null;
+        it.name = String(it.name || '').slice(0, 120);
+        it.how = String(it.how || '').slice(0, 160);
+        it.alternates = [];
+        count++;
+        return it;
+      });
+    });
+    if (!count) throw new Error('empty refine');
+    logAI({ feature: 'look-refine', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: count, owned: steps.reduce((t, s) => t + s.items.filter(i => i.wardrobe_match).length, 0) });
+    res.json({
+      headline: String(parsed.headline || '').slice(0, 80),
+      stylist_summary: String(parsed.stylist_summary || '').slice(0, 400),
+      palette: Array.isArray(parsed.palette) ? parsed.palette.slice(0, 3) : [],
+      look_tags: normLookTags(parsed.look_tags),
+      steps,
+      itemCount: count,
+    });
+  } catch (err) {
+    logAI({ feature: 'look-refine', stage: 'text', success: false, reason: err.message });
+    console.error('[look/refine] Gemini error:', err.message);
+    res.status(err.message === 'timeout' ? 504 : 500).json({ error: 'refine_failed', reason: String(err.message || '').slice(0, 200) });
+  }
+});
+
+// ── The look prompt (docs/look-prompt-brief.md, phase 2 · 2026-10-01) ─────
+// ONE endpoint behind the box on every look: her words, the rack as it
+// stands and the pool the surface may draw from go in; an EDIT comes back —
+// never a new look. The intent order is the beta feedback corpus sorted
+// (put back → standing rule → how it's worn → a clear swap → two readings →
+// vague); a vague ask never changes the look, it comes back as Robes'
+// wording of named swaps for her to edit or press Enter on. A held pool
+// (a trip's case) never proposes a new piece. Mode 'new' never reaches
+// here — a new look is the generators' job.
+const ASK_INTENTS = ['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none'];
+const ASK_SCHEMA = {
+  type: 'object',
+  properties: {
+    intent: { type: 'string', enum: ASK_INTENTS },
+    reply: { type: 'string' },
+    swaps: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          i: { type: 'integer' },
+          pool_index: { type: 'integer' },
+          name: { type: 'string' },
+          brand: { type: 'string' },
+          retailer_hint: { type: 'string' },
+          price_point: { type: 'string' },
+          category: { type: 'string', enum: ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Shoes', 'Bags', 'Accessories', 'Other'] },
+        },
+        required: ['i', 'pool_index', 'name', 'brand', 'retailer_hint', 'price_point', 'category'],
+      },
+    },
+    back: { type: 'array', items: { type: 'integer' } },
+    styled: { type: 'array', items: { type: 'object', properties: { i: { type: 'integer' }, note: { type: 'string' } }, required: ['i', 'note'] } },
+    draft: { type: 'string' },
+    rule: { type: 'string' },
+  },
+  required: ['intent', 'reply', 'swaps', 'back', 'styled', 'draft', 'rule'],
+};
+const ASK_RACK_MAX = 14, ASK_POOL_MAX = 80, ASK_THREAD_MAX = 6;
+function askRack(rack) {
+  return (Array.isArray(rack) ? rack : []).slice(0, ASK_RACK_MAX).map((r, i) => ({
+    i, name: String(r && r.name || '').slice(0, 80), category: String(r && r.category || '').slice(0, 24),
+    owned: !!(r && r.owned), keep: !!(r && r.keep),
+    was: r && r.was ? String(r.was).slice(0, 80) : '', styled: r && r.styled ? String(r.styled).slice(0, 100) : '',
+  })).filter(r => r.name);
+}
+function askPool(pool) {
+  const kind = pool && pool.kind === 'capsule' ? 'capsule' : 'wardrobe';
+  const items = (pool && Array.isArray(pool.items) ? pool.items : []).slice(0, ASK_POOL_MAX).map((p, idx) => ({
+    idx, label: String(p && p.label || '').slice(0, 80), category: String(p && p.category || '').slice(0, 24),
+    color: String(p && p.color || '').slice(0, 30), brand: String(p && p.brand || '').slice(0, 40), owned: !!(p && p.id),
+  })).filter(p => p.label);
+  return { kind, items };
+}
+app.post('/api/look/ask', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
+  const { surface, name, rack, pool, thread, text, context: ctx, styleDna, styleIcons, gender } = req.body;
+  const g = normGender(gender);
+  const words = refineText(text);
+  const rows = askRack(rack);
+  const pl = askPool(pool);
+  if (!words) return res.status(400).json({ error: 'Say what to change.' });
+  if (!rows.length) return res.status(400).json({ error: 'Nothing on the look to change.' });
+  const held = pl.kind === 'capsule';
+  const turns = (Array.isArray(thread) ? thread : []).slice(-ASK_THREAD_MAX)
+    .map(t => t && t.text ? `${t.who === 'her' ? 'SHE SAID' : 'ROBES SAID'}: ${String(t.text).slice(0, 240)}` : '').filter(Boolean);
+  const dnaBlock = styleDnaPromptBlock(styleDna, pl.kind === 'wardrobe' ? pl.items.length : 0, styleIcons);
+  const rackBlock = rows.map(r => `[${r.i}] ${r.name}${r.category ? ' [' + r.category + ']' : ''}${r.keep ? ' — KEEP (anchored, never changes)' : r.owned ? ' (hers)' : ' (a piece Robes proposed, not hers yet)'}${r.was ? ` — just changed; was: ${r.was}` : ''}${r.styled ? ` — worn: ${r.styled}` : ''}`).join('\n');
+  const poolBlock = pl.items.length
+    ? pl.items.map(p => `[${p.idx}] ${p.label}${p.category ? ' [' + p.category + ']' : ''}${p.color ? ', ' + p.color : ''}${p.brand ? ', ' + p.brand : ''}${held && !p.owned ? ' (in the case, not hers)' : ''}`).join('\n')
+    : '(nothing)';
+  const ctxLines = [];
+  if (ctx && typeof ctx === 'object') {
+    if (ctx.day) ctxLines.push(`The day: ${String(ctx.day).slice(0, 40)}.`);
+    if (ctx.weather) ctxLines.push(`The weather: ${String(ctx.weather).slice(0, 60)}.`);
+    if (ctx.occasion) ctxLines.push(`What it is for: ${String(ctx.occasion).slice(0, 80)}.`);
+    if (ctx.trip) ctxLines.push(`The trip: ${String(ctx.trip).slice(0, 60)}.`);
+  }
+  const systemInstruction = `You are Robes — a stylist editing ONE look she already has, in her own words. ${genderDirective(g)} You answer in sentences, as Robes, in the third person ("Robes would change both"). Never "I", never "AI", never "assistant". Name pieces as she would ("the grey merino", "the wide-leg trouser", "her black pointed flats") — never role names. No exclamation marks. One or two sentences. Lead an applied change with "Done." then what is on the look now. Never flatter her, never judge her. ${BANNED_CONSTRUCTIONS_RULE}
+
+THE LOOK AS IT STANDS (indexed; "hers" = a piece she owns; KEEP = anchored, it never changes; "worn:" = how it is styled):
+${rackBlock}
+
+THE POOL SHE CAN SWAP FROM (indexed by pool_index)${held ? ' — THIS IS THE CASE SHE PACKED. ONLY these pieces may go on the look; never propose a piece outside it. If nothing in the case fits, say so plainly, offer the nearest piece in the case as a draft, and change nothing.' : ' — her wardrobe. Prefer a piece she owns whenever one fits; otherwise propose ONE new piece with a real brand, a retailer and a realistic EUR price (pool_index -1).'}:
+${poolBlock}
+${ctxLines.length ? '\nCONTEXT:\n' + ctxLines.join('\n') + '\n' : ''}${turns.length ? '\nEARLIER IN THIS EXCHANGE (newest last):\n' + turns.join('\n') + '\n' : ''}
+READ HER WORDS IN THIS ORDER — the first that matches decides the intent:
+1. PUT BACK ("back", "undo", "as it was", "put the X back"): intent "back". "back" lists the indexes of the rows she names among those marked "just changed"; names none → an EMPTY list means every changed row. Reply: "Done. The {piece} is back on the look." Nothing changed on the look → intent "none", reply that nothing has changed yet so there is nothing to put back.
+2. A STANDING RULE ("remember", "don't like", "never", "always", "from now on", "in future"): intent "rule". "rule" is the rule in a few words, in the second person as she would write it in her own style notes ("No grey", "A sock with cropped trousers, always"). Nothing changes on the look. Reply: note it is filed ("Noted. Robes will keep grey out from now on."), and if the rule touches a piece on the look now, offer the fix as "draft" (a concrete swap sentence she can press Enter on), naming it in the reply.
+3. HOW IT'S WORN ("tuck", "untucked", "sock", "roll", "sleeve", "cuff", "under the", "over the", "open", "belted", "knotted"): intent "styled". "styled" holds {i, note} per piece — a short styling note ("tucked at the front", "worn over the jeans"). Same pieces. Reply: "Done." then how it is worn now.
+4. A CLEAR SWAP (a piece named to change, and what for — "for / with / to / instead", or a plain "not the loafers", "lose the scarf", "add a jacket"): intent "swap". One entry per change: "i" the row, "pool_index" a pool piece that fits, else -1 with a real "name", "brand", "retailer_hint", "price_point" (EUR, like "€120") and "category". A piece she names to REMOVE with nothing in its place: swap it for the plainest pool piece that fits, or if none, for a new simple piece — never leave a hole. A piece to ADD: swap the weakest non-KEEP row of that category, or if the look has no row of it, reply that Robes would need a slot and write the add as a draft. Reply: "Done. {piece(s)} on the look now. Say if you want anything back." — then one short reason at most.
+5. TWO READINGS (an "or" with no piece Robes can resolve, or two things that cannot both be true): intent "clarify". One plain question. Nothing changes.
+6. ANYTHING VAGUE ("too dressy", "restyle the whole day", "more me", "not casual enough", "too warm", "doesn't match", "boring", "something fun"): intent "draft". NOTHING changes. Decide which pieces make it feel that way and what Robes would swap them for (from the pool first), say so in the reply in one sentence, then write the change as "draft": one plain sentence naming each swap explicitly ("Change the wide-leg trouser for the dark straight jean, and the grey merino for the camel cardigan"). Read "me" against her brief and her recent verdicts above. On a trip the draft names case pieces only.
+A KEEP row is never changed, never put in a draft. Never invent a piece in the pool. Unused fields: "swaps" [], "back" [], "styled" [], "draft" "", "rule" "".
+${dnaBlock ? '\n' + dnaBlock : ''}`;
+  const userText = `The look is "${String(name || '').slice(0, 80) || 'this look'}"${surface ? ` (on the ${String(surface).slice(0, 20)})` : ''}. She says: "${words}"`;
+  try {
+    const t0 = Date.now();
+    const r = await Promise.race([
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: userText }] }],
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: ASK_SCHEMA,
+          temperature: 0.2,
+          thinkingConfig: { thinkingBudget: 0 },
+          maxOutputTokens: 900,
+        },
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 40000)),
+    ]);
+    const parsed = deEscDeep(JSON.parse(r.text));
+    const intent = ASK_INTENTS.includes(parsed.intent) ? parsed.intent : 'clarify';
+    const byI = {}; rows.forEach(x => { byI[x.i] = x; });
+    let swaps = (Array.isArray(parsed.swaps) ? parsed.swaps : []).map(s => {
+      const row = byI[s && s.i];
+      if (!row || row.keep) return null;
+      const pi = Number.isInteger(s.pool_index) ? s.pool_index : -1;
+      if (pi >= 0 && pi < pl.items.length) return { i: row.i, to: { pool_index: pi } };
+      if (held) return null;   // the case alone — a new piece never enters a trip look here
+      const nm = String(s.name || '').trim().slice(0, 120);
+      if (!nm) return null;
+      return { i: row.i, to: { name: nm, brand: String(s.brand || '').slice(0, 60), retailer_hint: String(s.retailer_hint || '').slice(0, 60), price_point: String(s.price_point || '').slice(0, 20), category: s.category || row.category || 'Other' } };
+    }).filter(Boolean);
+    const seen = new Set(); swaps = swaps.filter(s => seen.has(s.i) ? false : (seen.add(s.i), true));
+    const back = (Array.isArray(parsed.back) ? parsed.back : []).filter(i => Number.isInteger(i) && byI[i]);
+    const styled = (Array.isArray(parsed.styled) ? parsed.styled : []).map(s => s && byI[s.i] && s.note ? { i: s.i, note: String(s.note).trim().slice(0, 120) } : null).filter(Boolean);
+    const out = {
+      intent,
+      reply: String(parsed.reply || '').replace(/\s+/g, ' ').trim().slice(0, 400),
+      swaps: intent === 'swap' || intent === 'rule' ? swaps : [],
+      back: intent === 'back' ? back : [],
+      styled: intent === 'styled' || intent === 'swap' ? styled : [],
+      draft: intent === 'draft' || intent === 'rule' || intent === 'clarify' ? String(parsed.draft || '').replace(/\s+/g, ' ').trim().slice(0, 240) : '',
+      rule: intent === 'rule' ? String(parsed.rule || '').replace(/\s+/g, ' ').trim().slice(0, 160) : '',
+    };
+    // A rule never changes the look on its own — its fix rides as a draft.
+    if (intent === 'rule') out.swaps = [];
+    logAI({ feature: 'look-ask', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, intent, swaps: out.swaps.length, back: out.back.length, styled: out.styled.length, held });
+    res.json(out);
+  } catch (err) {
+    logAI({ feature: 'look-ask', stage: 'text', success: false, reason: err.message });
+    console.error('[look/ask] Gemini error:', err.message);
+    res.status(err.message === 'timeout' ? 504 : 500).json({ error: 'ask_failed', reason: String(err.message || '').slice(0, 200) });
+  }
+});
+
 // The client-side Robes build picks pieces deterministically (the fifth-pass
 // decision stands: no LLM decides the pieces), but the assembled look was
 // arriving mute — no panel note, no tags — where the prompt-built daily look
@@ -1351,6 +1761,176 @@ ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
     logAI({ feature: 'lookbuild', stage: 'note', success: false, reason: err.message });
     console.error('[lookbuild/note] Gemini error:', err.message);
     res.status(500).json({ error: err.message || 'Note failed' });
+  }
+});
+
+// ── the brief, drafted (In your words — the fourth Style notes chapter, 2026-09-30) ──
+// Xue's steps 2 + 3 as one call: read the evidence through the eight
+// lenses, find the patterns, and hand back LINES SHE CAN KEEP OR STRIKE —
+// never a line without evidence, never a conclusion about her stated as a
+// fact. Every input is client-compiled from her own profile row, wardrobe
+// and looks (the userId in the body is attribution only — never a key to
+// read another user's rows). The standing brief rides in as `current`
+// and only NEW lines come back: an edited line is hers, never redrafted.
+const BRIEF_LINE = { type: 'object', properties: { text: { type: 'string' }, because: { type: 'string' } }, required: ['text', 'because'] };
+const BRIEF_SCHEMA = {
+  type: 'object',
+  properties: {
+    loves:  { type: 'array', items: BRIEF_LINE },
+    avoids: { type: 'array', items: BRIEF_LINE },
+    rules:  { type: 'array', items: BRIEF_LINE },
+    notes:  { type: 'string' },
+    colours: { type: 'object', properties: { loved: { type: 'array', items: { type: 'string' } }, rejected: { type: 'array', items: { type: 'string' } } } },
+  },
+  required: ['loves', 'avoids', 'rules', 'notes'],
+};
+const BRIEF_LENSES = `THE LENSES (read every piece and every wear through these before you write a line): LINE — vertical, diagonal, interrupted; where the eye travels and where it stalls. PROPORTION — what carries the weight; deliberate or accidental. SILHOUETTE — sculpted, columnar, dropped, slouched; waist defined, displaced or absent. COLOUR — what recedes, what advances; the level of contrast she reaches for. TEXTURE — matte or shine, smooth or dimensional, one register or layered. MOVEMENT — pieces with life or pieces that sit dead on the frame. TENSION — structure against fluidity, hard against soft. VIBE — intentional, playful, polished, or given up at 8am.`;
+function briefStr(v, n) { return typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, n) : ''; }
+function briefLinesOf(a, max) {
+  return (Array.isArray(a) ? a : [])
+    .map(x => (x && typeof x === 'object') ? { text: briefStr(x.text, 160), because: briefStr(x.because, 200) } : { text: briefStr(x, 160), because: '' })
+    .filter(x => x.text).slice(0, max);
+}
+// A season she chose by hand (Settings › Your photographs › Colouring,
+// redline P4): the catalog render for that season, no model call — the
+// catalog is deterministic and the values the photograph gave (undertone,
+// contrast, the extracted hexes) ride along unchanged. The answer has the
+// analyse route's shape so the page lands it the same way.
+app.post('/api/stylenotes/season', rateLimit({ windowMs: 60_000, max: 30 }), (req, res) => {
+  const { season, current } = req.body || {};
+  if (!SEASONS[season]) return res.status(400).json({ error: 'unknown_season' });
+  const c = current && typeof current === 'object' ? current : {};
+  const ev = c.extracted_values && typeof c.extracted_values === 'object' ? c.extracted_values : {};
+  const { render, dna } = buildColorHarmony({
+    season, undertone: c.verified_undertone, contrast: c.calculated_contrast,
+    skin_tone_hex: ev.skin_tone_hex, hair_color_hex: ev.hair_color_hex, eye_color_hex: ev.eye_color_hex,
+    season_reasoning: 'Chosen by hand in Settings.',
+  });
+  dna.classification.source = 'chosen';
+  if (c.classification && c.classification.primitive_season) {
+    dna.classification.primitive_season = c.classification.primitive_season;
+    dna.classification.agreement = c.classification.primitive_season === season;
+  }
+  res.json({ ...render, style_dna: dna, chosen: true });
+});
+
+app.post('/api/stylenotes/brief', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
+  const { styleDna, styleIcons, gender, name, current, wardrobe, looks, memory } = req.body || {};
+  const g = normGender(gender);
+  const pieces = (Array.isArray(wardrobe) ? wardrobe : []).slice(0, 80).map(w => w && typeof w === 'object' ? w : {}).filter(w => briefStr(w.label, 120));
+  const lookList = (Array.isArray(looks) ? looks : []).slice(0, 30).map(l => l && typeof l === 'object' ? l : {}).filter(l => briefStr(l.name, 80));
+  const mem = (Array.isArray(memory) ? memory : []).slice(0, 40).map(m => briefStr(m, 220)).filter(Boolean);
+  const cur = current && typeof current === 'object' ? current : {};
+  const curLines = ['loves', 'avoids', 'rules'].flatMap(k => briefLinesOf(cur[k], 12).map(x => x.text));
+  const wearsN = lookList.reduce((n, l) => n + (Number(l.wears) || 0), 0);
+  const thin = pieces.length < 3 && wearsN === 0 && mem.length === 0;
+  const dnaBlock = styleDnaPromptBlock(styleDna, pieces.length, styleIcons);
+
+  const pieceLine = w => {
+    const fit = Array.isArray(w.fit) ? w.fit.filter(x => typeof x === 'string').slice(0, 4).join('/') : '';
+    const bits = [
+      briefStr(w.category, 30), briefStr(w.color, 30), briefStr(w.brand, 40),
+      fit, Number(w.times_worn) > 0 ? `worn ${Number(w.times_worn)}×` : 'never worn',
+      w.hero ? 'HERO' : '', w.sentiment ? `sentiment: ${briefStr(w.sentiment, 20)}` : '',
+      w.fit_confidence ? `fit: ${briefStr(w.fit_confidence, 20)}` : '',
+      Array.isArray(w.occasions) && w.occasions.length ? `for: ${w.occasions.slice(0, 4).map(o => briefStr(o, 20)).join('/')}` : '',
+      briefStr(w.notes, 140) ? `her note: "${briefStr(w.notes, 140)}"` : '',
+    ].filter(Boolean);
+    return `- ${briefStr(w.label, 120)} (${bits.join(', ')})`;
+  };
+  const lookLine = l => `- "${briefStr(l.name, 80)}": ${(Array.isArray(l.pieces) ? l.pieces : []).slice(0, 8).map(x => briefStr(x, 60)).filter(Boolean).join(', ') || 'no pieces'}${Number(l.wears) > 0 ? ` — worn ${Number(l.wears)}×` : ' — not yet worn'}`;
+
+  const systemInstruction = `You are Robes' head stylist, and an editor with nothing to sell. ${genderDirective(g)} You are drafting ${name ? name + '’s' : 'her'} PERSONAL STYLE BRIEF from evidence — what she owns, what she wears, what she has said — so that she can keep, strike or edit each line. The brief is HERS: you draft, she decides.
+${BRIEF_LENSES}
+WHAT TO RETURN:
+- "loves": what works on her — 1 to 6 lines. "avoids": what does not — 0 to 5 lines. "rules": hard rules she seems to live by or should — 0 to 4 lines ("No more button-ups — six is plenty", "Loafers only with a cropped trouser"). Each line ≤ 14 words, written in the SECOND PERSON as an observation she can accept or strike ("You reach for a defined waist"), never a command.
+- Every line carries "because": the evidence in ONE clause of at most 20 words, naming her actual pieces or wears ("your three most-worn tops all have an open neckline"). A line you cannot trace to evidence is not written.
+- "notes": 30–60 words, second person, the one paragraph that says how she dresses well — the pattern under the lines. Warm, direct, no flattery. Empty string when the evidence is thin.
+- "colours": "loved" = colours her most-worn pieces share (plain colour words, ≤ 4); "rejected" = colours she owns but never wears, only when the pattern is clear (≤ 3). Empty arrays otherwise.
+- The uncomfortable finding is the useful one: if what she wears most contradicts what she claims to like, say so plainly and kindly. Most-worn beats most-owned; a piece she marked irreplaceable or a hero outranks one she never wears.
+- Never restate a line already in her brief (listed below) — return only what is NEW. Never mention "AI", "data", "analysis" or "algorithm". Never comment on her body — only on the clothes.
+${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}`;
+
+  const userText = [
+    thin ? 'EVIDENCE IS THIN — she has filed almost nothing yet. Draft from her style type and icons alone, at most two "loves" lines and no rules, and say so in "because".' : '',
+    pieces.length ? `HER WARDROBE (${pieces.length} pieces):\n${pieces.map(pieceLine).join('\n')}` : 'HER WARDROBE: nothing filed yet.',
+    lookList.length ? `HER LOOKS:\n${lookList.map(lookLine).join('\n')}` : '',
+    mem.length ? `WHAT SHE HAS TOLD ROBES (newest first):\n${mem.map(m => '- ' + m).join('\n')}` : '',
+    curLines.length ? `ALREADY IN HER BRIEF (never repeat these):\n${curLines.map(m => '- ' + m).join('\n')}` : '',
+    'Find the patterns. What actually works, what fails, and why. Draft the lines.',
+  ].filter(Boolean).join('\n\n');
+
+  // A 73-piece wardrobe writes every line the schema allows, each with an
+  // evidence clause — 1600 tokens cut the JSON mid-object and the parse
+  // threw (the analyse endpoint's truncation class). The budget now fits a
+  // full read; a cut answer (MAX_TOKENS, or a parse failure) is retried
+  // ONCE on a compact evidence set — heroes and the most-worn pieces —
+  // rather than surfacing as "couldn't read". Every attempt races 75s.
+  const compactUser = () => {
+    const ranked = pieces.slice().sort((a, b) => (b.hero ? 1 : 0) - (a.hero ? 1 : 0) || (Number(b.times_worn) || 0) - (Number(a.times_worn) || 0)).slice(0, 36);
+    return [
+      `HER WARDROBE (${ranked.length} of ${pieces.length} pieces — her heroes and most-worn):\n${ranked.map(pieceLine).join('\n')}`,
+      lookList.length ? `HER LOOKS:\n${lookList.slice(0, 15).map(lookLine).join('\n')}` : '',
+      mem.length ? `WHAT SHE HAS TOLD ROBES (newest first):\n${mem.slice(0, 20).map(m => '- ' + m).join('\n')}` : '',
+      curLines.length ? `ALREADY IN HER BRIEF (never repeat these):\n${curLines.map(m => '- ' + m).join('\n')}` : '',
+      'Find the patterns. What actually works, what fails, and why. Draft the lines — keep every "because" short.',
+    ].filter(Boolean).join('\n\n');
+  };
+  const attempt = (text, budget) => Promise.race([
+    ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text }] }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: BRIEF_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
+        maxOutputTokens: budget,
+      },
+    }),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 75_000)),
+  ]);
+  const readAttempt = async (text, budget) => {
+    const r = await attempt(text, budget);
+    const finishReason = r.candidates?.[0]?.finishReason;
+    const raw = String(r.text || '');
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error('[stylenotes/brief] JSON parse failed —', { finishReason, textLength: raw.length, tail: raw.slice(-120) });
+      throw new Error('truncated_response:' + (finishReason || 'unknown'));
+    }
+  };
+
+  try {
+    const t0 = Date.now();
+    let raw;
+    try {
+      raw = await readAttempt(userText, 3200);
+    } catch (e1) {
+      if (!/truncated_response|timeout/.test(String(e1 && e1.message))) throw e1;
+      console.warn('[stylenotes/brief] first read failed (' + e1.message + ') — retrying on the compact evidence set');
+      raw = await readAttempt(compactUser(), 4000);
+    }
+    const parsed = deEscDeep(raw);
+    const seen = new Set(curLines.map(x => x.toLowerCase()));
+    const fresh = a => a.filter(x => { const k = x.text.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+    const colour = a => (Array.isArray(a) ? a : []).map(x => briefStr(x, 24)).filter(Boolean).slice(0, 4);
+    const out = {
+      loves: fresh(briefLinesOf(parsed.loves, 6)),
+      avoids: fresh(briefLinesOf(parsed.avoids, 5)),
+      rules: fresh(briefLinesOf(parsed.rules, 4)),
+      notes: briefStr(parsed.notes, 600),
+      colours: { loved: colour(parsed.colours && parsed.colours.loved), rejected: colour(parsed.colours && parsed.colours.rejected).slice(0, 3) },
+      thin,
+      read_from: { pieces: pieces.length, looks: lookList.length, wears: wearsN, memory: mem.length },
+    };
+    logAI({ feature: 'stylenotes', stage: 'brief', model: 'gemini-2.5-flash', ms: Date.now() - t0, pieces: pieces.length, lines: out.loves.length + out.avoids.length + out.rules.length });
+    res.json(out);
+  } catch (err) {
+    logAI({ feature: 'stylenotes', stage: 'brief', success: false, reason: err.message, pieces: pieces.length });
+    console.error('[stylenotes/brief] Gemini error:', err.message);
+    res.status(err.message === 'timeout' ? 504 : 500).json({ error: 'brief_failed', reason: String(err.message || '').slice(0, 200) });
   }
 });
 
@@ -1463,7 +2043,11 @@ function heroMark(i) {
 }
 function heroDirective(closetItems) {
   if (!closetItems.some(i => i && i.hero === true)) return '';
-  return `HERO PIECES: the wardrobe items marked ★ HERO are her Hero Rack — the pieces she reaches for first, the spine of her wardrobe. Whenever a hero piece genuinely suits the occasion AND the season/climate in play, PRIORITISE it over any other comparable owned piece and let it lead the look. The bracket names the season band each hero belongs to — Spring/Summer, Autumn/Winter, or Year-round. Its priority only applies when the look's season or climate matches that band (Year-round always matches); never force an off-season hero into a look.`;
+  // A hero is a SIGNATURE, not a default (2026-10-08, Liberty's repeat-
+  // dressing complaint: five stars read as a loop). At most one per look,
+  // rotated across looks and days; the memory's recent wears say which one
+  // has just been worn.
+  return `HERO PIECES: the wardrobe items marked ★ HERO are the pieces she loves — her signatures. A hero is a signature, never a default: build AT MOST ONE hero into a look, as the piece the look is built around, and never put two heroes side by side. Rotate them: when the look's occasion and season fit, prefer the hero the recent wears above do NOT show, and never build two looks in a row around the same hero. The bracket names the season band each hero belongs to — Spring/Summer, Autumn/Winter, or Year-round; a hero only ever leads a look whose season or climate matches that band (Year-round always matches), and an off-season hero is never forced in. A look with no hero in it is a fine look.`;
 }
 
 /* ── travel edit (PRD: AI-Powered Capsule Packing & Lookbook,
@@ -2074,9 +2658,13 @@ const TRAVEL_MORE_SCHEMA = {
 };
 
 app.post('/api/travel/looks', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { destination, brief, vibe, occasions, weather, name, styleDna, styleIcons, capsule, gender } = req.body;
+  const { destination, brief, vibe, occasions, weather, name, styleDna, styleIcons, capsule, gender, refine, current, held } = req.body;
   const g = normGender(gender);
   const capIn = (Array.isArray(capsule) ? capsule : []).filter(c => c && c.name).slice(0, 24);
+  // Her adjustment on ONE look (slice C): held to the case — a refined
+  // trip look never introduces a gap piece.
+  const refBlock = refineBlock(refine, current);
+  const heldToCase = !!held || !!refBlock;
   const occList = (Array.isArray(occasions) ? occasions : [])
     .filter(o => typeof o === 'string' && o.trim())
     .map(o => o.trim().slice(0, 60))
@@ -2103,16 +2691,20 @@ ${capList}
 RULES:
 1. Style ONE look per occasion she names, in order — flat and day-agnostic (she pins looks to days herself; never mention a specific day): ${occList.map(o => `"${o}"`).join(', ')}. Each look's "occasion" is her label verbatim; "title" is a NAME for the look — 2–4 words in Title Case, never a sentence, never a trailing full stop ("Golden Hour", "Harbour Dinner" — NOT "Effortless exploration ensemble."); "how" is that look's PANEL NOTE. ${PANEL_NOTE_RULE}
 2. RE-MIX FIRST. Build every formula ONLY from the capsule via "item_index" and the 4-step formula: "The Anchor" ×1, "The Canvas" ×1–2, "The Texture" ×1, "The Exclamation Point" ×1–2 (3 entries minimum for swim/undone moments). Each entry's "note" is that piece's ROW NOTE. ${ROW_NOTE_RULE} ${LOOK_TAGS_RULE.replace(/^- /, 'Each look\'s ')}
-3. Set "new_item_needed": true ONLY if an occasion genuinely cannot be dressed from the capsule (e.g. a formal wedding with nothing remotely formal packed). Then give "new_item" — one real gap piece with retailer_hint, a realistic EUR price_point and a "bridge" clause (what it connects + looks it unlocks) — and reference it in the formulas as item_index ${capIn.length}. Otherwise "new_item_needed": false.
+3. ${heldToCase
+    ? 'She dresses from the case and nothing else: "new_item_needed" is always false and no formula references an item beyond the capsule.'
+    : `Set "new_item_needed": true ONLY if an occasion genuinely cannot be dressed from the capsule (e.g. a formal wedding with nothing remotely formal packed). Then give "new_item" — one real gap piece with retailer_hint, a realistic EUR price_point and a "bridge" clause (what it connects + looks it unlocks) — and reference it in the formulas as item_index ${capIn.length}. Otherwise "new_item_needed": false.`}
 
 ${BANNED_CONSTRUCTIONS_RULE}${dnaBlock ? '\n\n' + dnaBlock : ''}
-${wxLine}`;
+${wxLine}${refBlock ? '\n\n' + refBlock : ''}`;
 
   try {
     const t0 = Date.now();
     const r = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: `Style ${occList.length} look${occList.length > 1 ? 's' : ''} from the packed capsule: ${occList.join(', ')}.` }] }],
+      contents: [{ role: 'user', parts: [{ text: refBlock
+        ? `Re-style the look "${occList[0]}" from the packed capsule as her adjustment asks (THE LOOK AS IT STANDS and HER ADJUSTMENT are in the system notes). Return that one look, whole and adjusted.`
+        : `Style ${occList.length} look${occList.length > 1 ? 's' : ''} from the packed capsule: ${occList.join(', ')}.` }] }],
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
@@ -2123,7 +2715,7 @@ ${wxLine}`;
     });
     const parsed = deEscDeep(JSON.parse(r.text));
 
-    let newItem = parsed.new_item_needed === true && parsed.new_item && parsed.new_item.name
+    let newItem = !heldToCase && parsed.new_item_needed === true && parsed.new_item && parsed.new_item.name
       ? { ...parsed.new_item, tier: TRAVEL_TIERS.includes(parsed.new_item.tier) ? parsed.new_item.tier : TRAVEL_TIERS[1], wardrobe_index: -1 }
       : null;
     const maxIdx = capIn.length - 1 + (newItem ? 1 : 0);
@@ -2144,7 +2736,7 @@ ${wxLine}`;
     // A suggested gap piece that no formula actually uses is dropped
     if (newItem && !looks.some(l => l.formula.some(f => f.item_index === capIn.length))) newItem = null;
 
-    logAI({ feature: 'travel-looks', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, occasions: occList.length, looks: looks.length, newItem: !!newItem });
+    logAI({ feature: 'travel-looks', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, occasions: occList.length, looks: looks.length, newItem: !!newItem, refine: !!refBlock });
     res.json({ looks, new_item: newItem });
   } catch (err) {
     logAI({ feature: 'travel-looks', stage: 'text', success: false, reason: err.message });
@@ -2394,7 +2986,9 @@ app.get('/board/:shareId', rateLimit({ windowMs: 60_000, max: 40 }), async (req,
     );
     const rows = r.ok ? await r.json() : [];
     const row = Array.isArray(rows) && rows.length ? rows[0] : null;
-    if (!row) return notFound();
+    // The trip is hidden (MVP, 2026-10-10): a shared travel edit reads as
+    // not shared any more until the trip relaunches (TRIP_ENABLED=1).
+    if (!row || (TRIP_HIDDEN && row.type === 'travel-edit')) return notFound();
     const payload = publicSharePayload(row);
     const pageUrl = `${process.env.PUBLIC_URL || 'https://www.byrobes.com'}/board/${shareId}`;
     const ogImage = payload.images[0] || '';
@@ -2421,8 +3015,39 @@ app.get('/board/:shareId', rateLimit({ windowMs: 60_000, max: 40 }), async (req,
   }
 });
 
+// Settings — the digital twin (2026-10-07): Style Profile | Account behind
+// the avatar. /stylenotes was the page it replaced; every old door
+// (?chapter=brief, ?begin=1, ?from=email, #taste, #silhouette) lands here —
+// the query rides the redirect, the hash never reaches the server, so the
+// page maps the legacy hashes itself.
+app.get('/settings', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'settings.html'));
+});
 app.get('/stylenotes', (req, res) => {
-  res.sendFile(join(__dirname, 'public', 'stylenotes.html'));
+  const q = req.originalUrl.indexOf('?') >= 0 ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+  res.redirect(301, '/settings' + q);
+});
+
+// Delete the account — her own JWT names the user, the service key does the
+// delete (auth.users cascades to profiles, wardrobe_items, looks, the lot).
+app.post('/api/account/delete', rateLimit({ windowMs: 60_000, max: 5 }), async (req, res) => {
+  if (!SUPA_SERVICE_KEY) return res.status(503).json({ error: 'not_available' });
+  const auth = String(req.headers.authorization || '');
+  const jwt = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (!jwt) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    const who = await fetch(`${SUPA_URL}/auth/v1/user`, { headers: { apikey: SUPA_SERVICE_KEY, Authorization: 'Bearer ' + jwt } });
+    if (!who.ok) return res.status(401).json({ error: 'unauthorized' });
+    const u = await who.json();
+    if (!u || !u.id) return res.status(401).json({ error: 'unauthorized' });
+    const del = await fetch(`${SUPA_URL}/auth/v1/admin/users/${encodeURIComponent(u.id)}`, { method: 'DELETE', headers: { apikey: SUPA_SERVICE_KEY, Authorization: 'Bearer ' + SUPA_SERVICE_KEY } });
+    if (!del.ok) { console.error('[account/delete] auth admin refused:', del.status); return res.status(502).json({ error: 'delete_failed' }); }
+    console.log('[account/delete] removed', u.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[account/delete]', err.message);
+    res.status(500).json({ error: 'delete_failed' });
+  }
 });
 
 app.get('/onboarding', (req, res) => {
@@ -2502,7 +3127,7 @@ app.post('/api/wardrobe/analyse', async (req, res) => {
 IMPORTANT: If no clothing item, garment, or accessory is clearly visible (e.g. the photo shows a face, a room, a screenshot, or unidentifiable content), set "no_item_detected": true and return all other fields as empty strings or empty arrays.
 
 If a clothing item IS present, set "no_item_detected": false and fill every field:
-"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans")
+"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans") — never the brand; the brand goes in "brand" alone ("Ballet sneakers", not "Miu Miu ballet sneakers")
 "category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
 "formality": how dressed up the piece is — casual (jeans, tees, trainers), smart (tailoring, a silk shirt, a loafer), formal (cocktail dress, a tuxedo blazer, an evening shoe), black_tie (a gown, a dinner suit). Judge the GARMENT, not how it happens to be styled in the photo.
 "category_l2" and "category_l3": file the piece in the Robes taxonomy below. Each line reads Category › Subcategory: item types. Pick the ONE line whose subcategory fits best, copy the subcategory name EXACTLY into category_l2, then copy the best-fitting item type from that line EXACTLY into category_l3. If no item type on the line fits, set category_l3 to "". If no subcategory fits at all, set both to "".
@@ -2872,7 +3497,7 @@ app.post('/api/stylenotes/tryon', rateLimit({ windowMs: 60_000, max: 6 }), async
 /* ── avatar render — looks photographed on her model ─────────────────
    Phase 2 of the avatar work (docs/avatar-render-proposal.md §3.4).
    The avatar catalog's attribute space mirrors the client mapper in
-   stylenotes.html (MV_SKINS/MV_HAIRS/figure keys) — keep the two in sync.
+   settings.html (MV_SKINS/MV_HAIRS/figure keys) — keep the two in sync.
    Cells generate LAZILY: the first render that needs a cell generates its
    reference image once, uploads to Cloudinary, and stores it in
    avatar_cells (service key; in-process cache when the table/key is
@@ -3089,9 +3714,16 @@ app.post('/api/avatar/cell', rateLimit({ windowMs: 60_000, max: 20 }), async (re
 // The look composer renders her on every rack change (debounced client-side,
 // cached by render key), so the window is wider than the save-only days and a
 // single piece is a legitimate ask — she wears it over her base layer.
+// FRAME MODE (2026-10-07, the suggested-look flow): `frameUrl` — Robes'
+// own frame of the look (a kp way's editorial photograph, Cloudinary-hosted)
+// — rides as IMAGE 1 in place of the avatar cell, and the ask is to keep the
+// SAME model, setting, light and framing and change only the garments. A
+// suggested look edited (shoes, a jacket) stays the picture it was: her
+// avatar never replaces the model Robes photographed. No avatarId needed.
 app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (req, res) => {
-  const { avatarId, pieces } = req.body;
-  if (!parseAvatarId(avatarId)) return res.status(400).json({ error: 'bad avatarId' });
+  const { avatarId, pieces, frameUrl, gender } = req.body;
+  const frameMode = typeof frameUrl === 'string' && /^https:\/\/res\.cloudinary\.com\//.test(frameUrl);
+  if (!frameMode && !parseAvatarId(avatarId)) return res.status(400).json({ error: 'bad avatarId' });
   if (!Array.isArray(pieces) || pieces.length < 1 || pieces.length > 12) {
     return res.status(400).json({ error: 'pieces must hold 1–12 entries' });
   }
@@ -3101,6 +3733,8 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
     color: String(p && p.color || '').slice(0, 40),
     brand: String(p && p.brand || '').slice(0, 60),
     image_url: typeof (p && p.image_url) === 'string' ? p.image_url : null,
+    // How the piece is worn (the look prompt, phase 2): "tucked at the front".
+    styled: String(p && p.styled || '').replace(/\s+/g, ' ').trim().slice(0, 120),
   })).filter(p => p.name);
   if (clean.length < 1) return res.status(400).json({ error: 'pieces must be named' });
 
@@ -3112,10 +3746,16 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
   (async () => {
     const finish = () => { const job = imageJobs.get(jobId); if (job) job.done = true; };
     try {
-      const cellUrl = await avatarCellEnsure(avatarId);
-      if (!cellUrl) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'no_cell' }); return finish(); }
-      const avatar = await fetchCloudinaryB64(cellUrl);
-      if (!avatar) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'cell_fetch_failed' }); return finish(); }
+      let avatar = null;
+      if (frameMode) {
+        avatar = await fetchCloudinaryB64(frameUrl);
+        if (!avatar) { logAI({ feature: 'avatar_render', frame: true, success: false, reason: 'frame_fetch_failed' }); return finish(); }
+      } else {
+        const cellUrl = await avatarCellEnsure(avatarId);
+        if (!cellUrl) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'no_cell' }); return finish(); }
+        avatar = await fetchCloudinaryB64(cellUrl);
+        if (!avatar) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'cell_fetch_failed' }); return finish(); }
+      }
 
       // Garment references: up to 9 photographed pieces ride as images
       // (1 avatar + 9 garments stays well inside the 14-reference budget);
@@ -3130,17 +3770,21 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
         if (ref) {
           imgN += 1;
           parts.push({ inlineData: { mimeType: ref.mimeType, data: ref.data } });
-          lines.push(`- IMAGE ${imgN}: the ${p.name}${detail ? ' (' + detail + ')' : ''} — reproduce this exact garment faithfully: its true colour, cut, fabric and details.`);
+          lines.push(`- IMAGE ${imgN}: the ${p.name}${detail ? ' (' + detail + ')' : ''} — reproduce this exact garment faithfully: its true colour, cut, fabric and details.${p.styled ? ' Worn: ' + p.styled + '.' : ''}`);
         } else {
-          lines.push(`- the ${p.name}${detail ? ' (' + detail + ')' : ''}.`);
+          lines.push(`- the ${p.name}${detail ? ' (' + detail + ')' : ''}.${p.styled ? ' Worn: ' + p.styled + '.' : ''}`);
         }
       }
-      const cellMan = parseAvatarId(avatarId).gender === 'man';
-      const prompt =
-        `Create one photorealistic editorial photograph. IMAGE 1 is the model. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ` +
-        `Dress ${cellMan ? 'him' : 'her'} in ${clean.length > 1 ? 'this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials' : 'this piece, worn over the plain fitted base layer from IMAGE 1 — nothing substituted, nothing extra'}:\n` +
-        lines.join('\n') + '\n' +
-        `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO} Generate the single photograph now.`;
+      const cellMan = frameMode ? normGender(gender) === 'man' : parseAvatarId(avatarId).gender === 'man';
+      const prompt = frameMode
+        ? `Create one photorealistic editorial photograph. IMAGE 1 is an existing photograph of this look. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure — a faithful likeness of IMAGE 1. Keep the SAME location, backdrop, light, time of day, pose and framing as IMAGE 1: this is the same photograph with the clothes changed, never a new scene. ` +
+          `Re-dress ${cellMan ? 'him' : 'her'} in this complete outfit — every listed piece worn together, nothing from the outfit in IMAGE 1 kept unless it is listed here, nothing extra beyond simple essentials:\n` +
+          lines.join('\n') + '\n' +
+          `${FULL_BODY_FRAME} No text overlays, no collage, one single image. Generate the single photograph now.`
+        : `Create one photorealistic editorial photograph. IMAGE 1 is the model. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ` +
+          `Dress ${cellMan ? 'him' : 'her'} in ${clean.length > 1 ? 'this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials' : 'this piece, worn over the plain fitted base layer from IMAGE 1 — nothing substituted, nothing extra'}:\n` +
+          lines.join('\n') + '\n' +
+          `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO} Generate the single photograph now.`;
       parts.push({ text: prompt });
 
       // Three attempts with widening backoff — a demand spike returns text
@@ -3178,7 +3822,7 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
       if (url) {
         const job = imageJobs.get(jobId);
         if (job) job.images[0] = url;
-        logAI({ feature: 'avatar_render', avatarId, pieces: clean.length, refs: imgN - 1, success: true, ms: Date.now() - t0 });
+        logAI({ feature: 'avatar_render', avatarId: frameMode ? null : avatarId, frame: frameMode || undefined, pieces: clean.length, refs: imgN - 1, success: true, ms: Date.now() - t0 });
       }
     } catch (err) {
       logAI({ feature: 'avatar_render', avatarId, success: false, reason: err.message });

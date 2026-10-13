@@ -264,8 +264,8 @@ const SHOT = process.env.SHOT_DIR || '';
   check('look · the row opens the piece page from the look', await pg.isVisible());
   check('look · the return pill names the look', (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'The Thursday one');
   check('look · the position reads 1 of 4 in this look', /1 of 4 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()));
-  check('look · the meta line carries category · worn', /Tops · worn eight times/i.test(t2));
-  check('look · the star sits on the object here too (identical whichever route reached it)', await page.locator('.rb-tb-trow .rb-pc-star').count() === 1);
+  check('look · the meta line carries category · brand · worn', /Tops · Arket · worn eight times/i.test(t2), t2.slice(0, 160));
+  check('look · no star and no pencil from a look — the preview, not the record (handoff 4c)', await page.locator('.rb-tb-trow .rb-pc-star').count() === 0 && await page.locator('.rb-tb-trow .rb-pc-pencil').count() === 0);
   check('look · no wear ledger on the preview', await page.locator('.rb-pc-rule').count() === 0 && await page.locator('.rb-pc-wear').count() === 0);
   // The card wears the Look panel's dress — compared against the held card
   // underneath (since 2026-09-08 the look page's panel merges into the
@@ -312,22 +312,33 @@ const SHOT = process.env.SHOT_DIR || '';
     !(await pg.isVisible()) && await page.locator('#sn-page .rb-lk-composer').count() === 1
     && (await page.locator('#sn-page .rb-lk-composer').innerText()).includes('Cream silk shirt'));
 
-  // Style it three ways — prefilled modal in Inspiration
+  // Style it three ways — the prompt box with the piece on its card and
+  // the mode already ticked (the fold, 2026-10-05): a note is optional,
+  // Send runs it.
   await page.evaluate(() => window.__rbPieceOpen('w-top1', { from: 'wardrobe' }));
   await page.waitForTimeout(300);
   await page.locator('.rb-pc-stylebtn').click();
   await page.waitForTimeout(200);
   await page.locator('#rb-popmenu .card button', { hasText: 'Style it three ways' }).click();
   await page.waitForTimeout(600);
-  const mt = await page.locator('#rb-inst-wrap').innerText();
-  check('style · lands in Inspiration with the modal open', await page.locator('#rb-insp-page').isVisible() && await page.locator('#rb-inst-wrap').count() === 1);
-  check('style · the piece arrives attached', await page.locator('#rb-inst-piece').count() === 1 && /Your key piece/i.test(mt) && mt.includes('Cream silk shirt'));
-  check('style · the hint says Robes already knows it', /Robes already knows the shirt/.test(mt), mt.slice(0, 300));
-  check('style · the prompt asks for the occasion', (await page.locator('#rb-inst-ta').getAttribute('placeholder') || '').startsWith('The occasion'));
-  await page.locator('.rb-inst-cta').click();
+  const mt = await page.evaluate(() => ({ dock: !!document.querySelector('#rb-lp.rb-lp-dock'), scrim: !!document.getElementById('rb-lp-scrim'), card: document.getElementById('rb-lp-piece')?.textContent.replace(/\s+/g, ' ').trim() || '',
+    mode: document.querySelector('#rb-lp-piece .mode.on .t')?.textContent, ph: document.getElementById('rb-lp-in')?.placeholder, ink: document.getElementById('rb-lp-send')?.classList.contains('ink'), noPage: !document.getElementById('rb-insp-page') }));
+  check('style · the box opens docked over a dimmed screen with the piece on its card, no Inspiration page', mt.dock && mt.scrim && mt.noPage && /Cream silk shirt/.test(mt.card) && /Tops · in your wardrobe/.test(mt.card), JSON.stringify(mt));
+  check('style · Style it three ways is already ticked and the arrow is ink', mt.mode === 'Style it three ways' && mt.ink, JSON.stringify(mt));
+  check('style · the note is optional — "Where to? Optional"', mt.ph === 'Where to? Optional', String(mt.ph));
+  await page.evaluate(() => window.__rbLpSend());
   await page.waitForTimeout(900);
   check('style · a bare submit runs with Robes\' own words', api.style.length === 1 && /^Style my Cream silk shirt three ways/.test(api.style[0]?.prompt || ''), JSON.stringify(api.style[0]?.prompt));
-  check('style · the result lands on the kp page', await page.locator('#kp-result-page').isVisible());
+  // Keep or pass (F14, 2026-10-07): the result lands on the deck inside the
+  // Lookbook — three suggested looks around the shirt, one card at a time
+  // (no job here, so all three are live at once), never the kp page.
+  const landed = await page.evaluate(() => ({ kp: document.getElementById('kp-result-page')?.style.display || 'none', sn: document.getElementById('sn-page')?.style.display, deck: document.querySelector('#rb-lk-body .rb-lk-deck')?.className,
+    band: document.querySelector('#rb-lk-body .rb-ret-pill .lab')?.textContent, ey: document.querySelector('.rb-lk-decktb .rb-tb-ey')?.textContent, top: document.querySelector('.rb-deck-card.top .rb-deck-t')?.textContent, under: document.querySelectorAll('.rb-deck-card.under').length, dots: document.querySelectorAll('.rb-deck-dots i').length }));
+  check('style · the result lands on the keep-or-pass deck — ‹ Cream silk shirt, "Around your cream silk shirt", the first way on top with two behind, three dots, no kp page',
+    landed.kp === 'none' && landed.sn === 'block' && /live/.test(landed.deck || '') && landed.band === 'Cream silk shirt' && landed.ey === 'Around your cream silk shirt' && landed.top === 'Way One' && landed.under === 2 && landed.dots === 3, JSON.stringify(landed));
+  await page.evaluate(() => window.__lkDeckBack());
+  await page.waitForTimeout(400);
+  check('style · the deck\'s back pill returns to the piece page', await page.evaluate(() => document.getElementById('rb-piece-page')?.style.display !== 'none' && !document.querySelector('.rb-lk-deck')));
   check('no page errors (wardrobe + look doors)', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }
@@ -337,20 +348,21 @@ const SHOT = process.env.SHOT_DIR || '';
   const { ctx, page, errs } = await boot(browser);
   await page.evaluate(() => window.__dlSubmit('an outfit for a coffee run'));
   await page.waitForTimeout(1500);
-  // The day is carried by the return band and by Save ("Save to Monday") —
-  // the "✓ Filing to …" chip is gone (Annie, 2026-09-21).
-  check('daily · the fresh look opens in the composer with the day attached, not the daily console',
+  // The day is carried by the return band; Save is plain — it OFFERS the
+  // day once saved, never files to it (2026-10-10).
+  check('daily · the fresh look opens in the composer, not the daily console; Save is plain',
     await page.locator('#sn-page .rb-lk-composer').isVisible() && !(await page.locator('#dl-result-page').isVisible())
     && await page.locator('#sn-page .rb-lk-daychip').count() === 0
-    && /^save to /i.test(await page.locator('#sn-page .rb-lk-save').innerText()));
+    && /^save/i.test(await page.locator('#sn-page .rb-lk-save').innerText()) && !/^save to /i.test(await page.locator('#sn-page .rb-lk-save').innerText()));
   const dlNames = page.locator('#sn-page .rbc-rack .rbc-namebtn');
-  check('daily · only owned rows are doors (2 of 4)', await dlNames.count() === 2);
+  // Handoff 4d: a proposal opens its own page too (Not yours yet)
+  check('daily · every row is a door — owned pieces and proposals alike (4 of 4)', await dlNames.count() === 4);
   await dlNames.first().click();
   await page.waitForTimeout(400);
   const pg = page.locator('#rb-piece-page');
   const t = (await pg.innerText()).replace(/\n/g, ' ');
   check('daily · opens from the draft with its name as the way back', await pg.isVisible() && (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'Coffee run, elevated');
-  check('daily · the position walks the two owned pieces', /2 of 2 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()) && t.includes('Barrel-leg jeans'), t.slice(0, 200));
+  check('daily · the position walks every row of the draft, proposals included (handoff 4d)', /2 of 4 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()) && t.includes('Barrel-leg jeans'), t.slice(0, 200));
   check('daily · the rail holds SAVED looks only — the unsaved draft is not in it', /In 1 look/i.test(t) && !t.includes('Coffee run, elevated.'), t.slice(0, 300));
   await page.locator('#rb-piece-page .rb-ret-pill').click();
   await page.waitForTimeout(300);
@@ -426,6 +438,104 @@ const SHOT = process.env.SHOT_DIR || '';
   check('deep link · the nav pill opens the wardrobe it belongs to, and the wordmark returns', !(await pg.isVisible()) && await page.locator('.wardrobe-panel').evaluate((e) => e.classList.contains('visible'))
     && await page.locator('#nav-wordmark').isVisible() && !(await page.locator('#rb-backpill').isVisible()));
   check('no page errors (deep link + mobile)', errs.length === 0, errs.join(' | '));
+  await ctx.close();
+}
+
+// ── 5 · The wardrobe list (Wardrobe_List, 2026-10-06) — the rack card as the
+// wardrobe's row, the grid | list toggle, Filter on the count row, swipe →
+// the ask → Undo (nothing deleted) / the hold (deleted after five seconds),
+// the wishlist row with Bought.
+{
+  const { ctx, page, errs, writes } = await boot(browser, { width: 390 });
+  await page.evaluate(() => { try { localStorage.removeItem('rb_wa_layout'); } catch (e) {} });
+  await page.evaluate(() => window.__rbNavGo('wardrobe'));
+  await page.waitForTimeout(600);
+  const a = await page.evaluate(() => {
+    const row = [...document.querySelectorAll('#wg-grid .rb-wr-row')].find((r) => r.textContent.includes('Cream silk shirt'));
+    const face = row?.querySelector('.rb-wr-face');
+    const th = row?.querySelector('.rb-wr-th')?.getBoundingClientRect();
+    const cs = face ? getComputedStyle(face) : null;
+    return {
+      list: document.getElementById('wg-grid').classList.contains('rb-wr-list'),
+      rows: document.querySelectorAll('#wg-grid .rb-wr-row').length,
+      eye: row?.querySelector('.rb-wr-eye')?.textContent, stat: row?.querySelector('.rb-wr-stat')?.textContent,
+      th: th ? [Math.round(th.width), Math.round(th.height)] : null,
+      name: row ? getComputedStyle(row.querySelector('.rb-wr-name')).fontSize : '',
+      pad: cs ? cs.padding : '', star: !!row?.querySelector('.rb-wr-star'), chev: !!row?.querySelector('.rb-wr-chev'),
+      neverWarm: (() => { const r2 = [...document.querySelectorAll('#wg-grid .rb-wr-row')].find((r) => r.textContent.includes('Barrel-leg jeans')); return r2?.querySelector('.rb-wr-stat')?.className.includes('warm') && r2?.querySelector('.rb-wr-stat')?.textContent === 'Never worn'; })(),
+      filter: !!document.querySelector('#rb-wg-trail #rb-refine-pill') && /Filter/.test(document.getElementById('rb-refine-pill').textContent),
+      refineInHead: !!document.querySelector('.wg-header #rb-refine-pill'),
+      toggle: !!document.querySelector('#rb-wg-trail .rb-wr-vt button.on[data-v="list"]'),
+      addRow: !!document.querySelector('#wg-grid .rb-add-card.rb-wr-addrow'),
+    };
+  });
+  check('list · the phone opens on the list: one rack card per piece', a.list && a.rows === 8, JSON.stringify(a));
+  check('list · the row is the rack card: Category · Brand, 18pt serif name, 52 × 64 photograph, 14/10/14/12', a.eye === 'Tops · Arket' && a.name === '18px' && JSON.stringify(a.th) === '[52,64]' && a.pad === '14px 10px 14px 12px', JSON.stringify(a));
+  check('list · the status line: Worn 8×, and Never worn in rose', a.stat === 'Worn 8×' && a.neverWarm, a.stat);
+  check('list · the star circle and › close the row; the list ends on the dashed + Add a piece', a.star && a.chev && a.addRow);
+  check('list · Filter (Refine, renamed) sits on the count row beside the grid | list toggle, off the masthead', a.filter && !a.refineInHead && a.toggle);
+  await page.click('#rb-refine-pill'); await page.waitForTimeout(250);
+  check('list · Filter opens the same drawer, headed Filter', await page.locator('#rb-refine').isVisible() && /^Filter/.test(await page.locator('#rb-refine .rb-ref-mhead').innerText()));
+  await page.evaluate(() => window.__waRefToggle()); await page.waitForTimeout(200);
+  // A star on a row is warm, never ink
+  await page.locator('#wg-grid .rb-wr-row:has-text("Gold hoops") .rb-wr-star').click(); await page.waitForTimeout(300);
+  const starBg = await page.evaluate(() => getComputedStyle(document.querySelector('#wg-grid .rb-wr-row .rb-wr-star.on')).backgroundColor);
+  check('list · a starred piece leads the list and its circle is warm (#F3EFE6), never black', starBg === 'rgb(243, 239, 230)' && (await page.locator('#wg-grid .rb-wr-row').first().innerText()).includes('Gold hoops'), starBg);
+  // Tap the row → the piece
+  await page.locator('#wg-grid .rb-wr-row:has-text("Linen shorts") .rb-wr-name').click(); await page.waitForTimeout(400);
+  check('list · the whole row opens the piece', await page.locator('#rb-piece-page').isVisible() && (await page.locator('#rb-piece-page').innerText()).includes('Linen shorts'));
+  await page.evaluate(() => window.__rbNavGo('wardrobe')); await page.waitForTimeout(400);
+  // Swipe a row open
+  const swipe = async (txt, dist, host = '#wg-grid') => {
+    const b = await page.locator(host + ' .rb-wr-row:has-text("' + txt + '") .rb-wr-face').boundingBox();
+    await page.mouse.move(b.x + b.width - 30, b.y + 30); await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(b.x + b.width - 30 - i * dist / 10, b.y + 30);
+    await page.mouse.up(); await page.waitForTimeout(400);
+  };
+  await swipe('Ribbed white tank', 80);
+  const open = await page.evaluate(() => { const r = [...document.querySelectorAll('#wg-grid .rb-wr-row')].find((x) => x.textContent.includes('Ribbed white tank')); return { sw: r.classList.contains('sw'), tx: r.querySelector('.rb-wr-face').style.transform, rm: getComputedStyle(r.querySelector('.rb-wr-rmbtn')).visibility }; });
+  check('swipe · a short drag rests the row open at 88 over Remove', open.sw && open.tx === 'translateX(-88px)' && open.rm === 'visible', JSON.stringify(open));
+  check('swipe · the drag never opened the piece', !(await page.locator('#rb-piece-page').isVisible()));
+  await page.locator('#wg-grid .rb-wr-row.sw .rb-wr-rmbtn').click(); await page.waitForTimeout(250);
+  const cf = await page.evaluate(() => ({ on: !!document.getElementById('rb-wr-confirm'), t: document.querySelector('#rb-wr-confirm .t')?.textContent, n: document.querySelector('#rb-wr-confirm .n')?.textContent, go: getComputedStyle(document.getElementById('rb-wr-cf-go')).backgroundColor }));
+  check('ask · Remove asks once: "Remove from your wardrobe?", the piece named, the ink Remove the one commitment', cf.on && cf.t === 'Remove from your wardrobe?' && cf.n === 'Ribbed white tank' && cf.go === 'rgb(32, 32, 33)', JSON.stringify(cf));
+  await page.locator('#rb-wr-confirm .keep').click(); await page.waitForTimeout(400);
+  check('ask · Keep it closes the sheet and snaps the row back', !(await page.locator('#rb-wr-confirm').count()) && await page.evaluate(() => !document.querySelector('#wg-grid .rb-wr-row.sw')));
+  // A long drag asks straight away; remove → Undo
+  await swipe('Ribbed white tank', 200);
+  check('swipe · a long drag asks straight away', await page.locator('#rb-wr-confirm').count() === 1);
+  const before = writes.filter((w) => w.method === 'DELETE').length;
+  await page.click('#rb-wr-cf-go'); await page.waitForTimeout(300);
+  const u = await page.evaluate(() => ({ rows: document.querySelectorAll('#wg-grid .rb-wr-row').length, gone: ![...document.querySelectorAll('#wg-grid .rb-wr-row')].some((r) => r.textContent.includes('Ribbed white tank')), toast: document.querySelector('#rb-wr-undo .m')?.textContent, count: document.querySelector('.rb-wg-trailcount')?.textContent }));
+  check('remove · the row leaves at once, the count follows, and an Undo pill holds', u.gone && u.rows === 7 && u.toast === 'Ribbed white tank removed from your wardrobe' && u.count === '7 pieces', JSON.stringify(u));
+  await page.locator('#rb-wr-undo button').click(); await page.waitForTimeout(300);
+  check('remove · Undo puts it back and nothing was deleted', (await page.locator('#wg-grid .rb-wr-row').count()) === 8 && writes.filter((w) => w.method === 'DELETE').length === before);
+  await page.waitForTimeout(5200);
+  check('remove · an undone remove never deletes later', writes.filter((w) => w.method === 'DELETE').length === before);
+  await swipe('Tan leather slides', 200);
+  await page.click('#rb-wr-cf-go'); await page.waitForTimeout(5600);
+  const del = writes.filter((w) => w.method === 'DELETE').slice(before);
+  check('remove · held five seconds, then the row is deleted', del.length === 1 && /wardrobe_items\?id=eq\.w-sho2/.test(del[0].url) && !(await page.locator('#rb-wr-undo').count()), JSON.stringify(del));
+  // Grid
+  await page.locator('#rb-wg-trail .rb-wr-vt button[data-v="grid"]').click(); await page.waitForTimeout(300);
+  const g = await page.evaluate(() => {
+    const t = document.querySelector('#wg-grid .rb-wr-tile');
+    return { grid: document.getElementById('wg-grid').classList.contains('rb-wr-grid'), tiles: document.querySelectorAll('#wg-grid .rb-wr-tile').length, star: !!t?.querySelector('.rb-wr-photo .rb-wr-star'), three: !!(t?.querySelector('.rb-wr-eye') && t.querySelector('.rb-wr-name') && t.querySelector('.rb-wr-stat')), cols: getComputedStyle(document.getElementById('wg-grid')).gridTemplateColumns.split(' ').length, kept: localStorage.getItem('rb_wa_layout') };
+  });
+  // (the stub re-serves all eight once the delete lands — it is not stateful)
+  check('grid · two columns of tiles, the same three lines under each, the star on the photograph; the pick is remembered', g.grid && g.tiles >= 7 && g.star && g.three && g.cols === 2 && g.kept === 'grid', JSON.stringify(g));
+  check('grid · no horizontal overflow', await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+  // Wishlist
+  await page.locator('#rb-wg-trail .rb-wr-vt button[data-v="list"]').click(); await page.waitForTimeout(200);
+  await page.evaluate(() => window.__waSetView('wishlist')); await page.waitForTimeout(400);
+  const w = await page.evaluate(() => { const r = document.querySelector('#rb-wl-grid .rb-wr-row'); return { eye: r?.querySelector('.rb-wr-eye')?.textContent, stat: r?.querySelector('.rb-wr-stat')?.textContent, warm: r?.querySelector('.rb-wr-stat')?.classList.contains('warm'), bought: r?.querySelector('.rb-wr-bought')?.textContent, star: !!r?.querySelector('.rb-wr-star'), count: document.querySelector('.rb-wg-trailcount')?.textContent, filter: document.getElementById('rb-refine-pill')?.style.display }; });
+  check('wishlist · the same card: Category · Brand, "€690 · Not yours yet" in rose, Bought where the star sits; the count reads "1 wishlisted", Filter stays (Header Audit Round 2, R5)',
+    w.eye === 'Outerwear · Toteme' && w.stat === '€690 · Not yours yet' && w.warm && w.bought === 'Bought' && !w.star && w.count === '1 wishlisted' && w.filter !== 'none', JSON.stringify(w));
+  await swipe('Camel wool coat', 200, '#rb-wl-grid');
+  check('wishlist · the ask reads "Remove from your wishlist?"', (await page.locator('#rb-wr-confirm .t').innerText()) === 'Remove from your wishlist?');
+  await page.locator('#rb-wr-confirm .keep').click();
+  if (SHOT) await page.screenshot({ path: SHOT + '/wardrobe-list.png' });
+  check('no page errors (the wardrobe list)', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }
 

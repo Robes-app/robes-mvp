@@ -100,6 +100,7 @@ export function createNotifier(cfg) {
   const {
     supaUrl, serviceKey, resendKey, from = 'Robes <hello@byrobes.com>', publicUrl = 'https://www.byrobes.com',
     secret, env = 'beta', resendUrl = 'https://api.resend.com/emails', fetchFn = globalThis.fetch, log = console,
+    hideTravel = false,
   } = cfg;
   const on = !!(resendKey && serviceKey && secret);
 
@@ -300,7 +301,9 @@ export function createNotifier(cfg) {
       const events = groupBy(eventsR.ok ? (eventsR.json || []) : [], 'user_id');
       const wardrobe = groupBy(wardrobeR.ok ? (wardrobeR.json || []) : [], 'user_id');
       const kps = groupBy(kpR.ok ? (kpR.json || []) : [], 'user_id');
-      const pds = groupBy(pdR.ok ? (pdR.json || []) : [], 'user_id');
+      // The trip is hidden (MVP, 2026-10-10): a trip day is neither a day
+      // she planned (the morning cue) nor a reason to stay quiet (week_empty).
+      const pds = groupBy((pdR.ok ? (pdR.json || []) : []).filter((r) => !hideTravel || r.source_type !== 'travel'), 'user_id');
       const looksBy = groupBy(looks, 'user_id');
 
       for (const u of users) {
@@ -326,13 +329,13 @@ export function createNotifier(cfg) {
             m = { kind: 'looks_ready', ref: kp.id, subject: 'Your three looks are ready.', heading: 'Your three looks are ready.',
               bodyHtml: `<strong>${esc(piece)}</strong>, worn three ways. Pick one and Robes builds it around what’s yours.`,
               bodyText: `${piece}, worn three ways. Pick one and Robes builds it around what’s yours.`,
-              images: frames.slice(0, 3), cta: { label: 'See the looks', url: link(`/inspiration?open=${encodeURIComponent(kp.id)}`) } };
+              images: frames.slice(0, 3), cta: { label: 'See the looks', url: link(`/lookbook?open=${encodeURIComponent(kp.id)}`) } };
           } else if (nudges && age >= DAY && u.avatarKnown && u.avatarId == null && myLooks.length && !ev.some((e) => e.event_type === 'model_filed') && !has('look_waiting')) {
             const l = myLooks[0];
             m = { kind: 'look_waiting', ref: l.id, subject: 'She’d wear it.', heading: 'She’d wear it.',
               bodyHtml: `<em>${esc(l.name)}</em> is in your Lookbook. Build your model once and she wears every look you keep.`,
               bodyText: `${l.name} is in your Lookbook. Build your model once and she wears every look you keep.`,
-              images: [lookFrame(l)], cta: { label: 'Build your model', url: link('/stylenotes') } };
+              images: [lookFrame(l)], cta: { label: 'Build your model', url: link('/settings?page=twin') } };
           } else if (nudges && age >= 3 * DAY && pics.length < 5 && !has('borrowing')) {
             const l = myLooks.find((x) => Array.isArray(x.proposals) && x.proposals.length >= 2);
             if (l) {

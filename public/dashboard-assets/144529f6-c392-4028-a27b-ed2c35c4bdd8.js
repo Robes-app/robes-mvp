@@ -122,7 +122,7 @@ const Dash = (function () {
   const PROMPT_EXAMPLES = [
     'What should I wear to dinner in the city tonight?',
     'Style my Balmain waistcoat for the office',
-    'Help me pack for Ibiza',
+    'Something easy for Sunday lunch',
   ];
   /* The personalize layer can swap in wardrobe-fed examples once her
      pieces load (window.__rbPromptExamples) — read lazily each cycle so

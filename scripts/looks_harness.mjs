@@ -102,7 +102,7 @@ const SEED_WEARS = [
 // Every write the module makes is captured so the harness can assert on the
 // payloads — that a wear is INSERTed and undone by DELETE (never updated), and
 // that a promotion writes a new look rather than mutating the old one.
-async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null, pics = 0, avatar = null, init = null, pre = null } = {}) {
+async function boot(browser, { width = 1280, looksTable = true, seed = true, dropCat = null, pics = 0, avatar = null, init = null, pre = null, trip = true } = {}) {
   WARDROBE_PICS = pics;
   const ctx = await browser.newContext({ viewport: { width, height: 1200 } });
   const page = await ctx.newPage();
@@ -182,14 +182,18 @@ async function boot(browser, { width = 1280, looksTable = true, seed = true, dro
   await page.route('**nominatim**', (r) => r.abort());
   await page.route('**open-meteo**', (r) => r.abort());
 
-  await page.addInitScript(() => {
+  // The trip is hidden for the MVP (2026-10-10). Sections that walk the
+  // trip's own doors run on the frozen module (?trip=on); the trip-hidden
+  // section boots with trip: false.
+  await page.addInitScript((trip) => {
     window.__TEST_PROFILE = {
       first_name: 'Annie', last_name: '', mobile: '', style_icons: [], budget: null,
       wardrobe_description: '', style_dna: {}, wardrobe_items_count: 10,
       onboarded_at: '2026-07-01', gender_identity: 'woman',
     };
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
-  });
+    if (trip) localStorage.setItem('rb_trip', 'on'); else localStorage.removeItem('rb_trip');
+  }, trip);
 
   // A section that needs storage seeded or routes armed BEFORE the boot
   // (the model-build landing reads sessionStorage at boot; the render kick
@@ -301,14 +305,21 @@ const browser = await chromium.launch(
       mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-mos.n3 i').length,
       sortLabel: document.querySelector('.rb-lk-sort span')?.textContent,
       sortArrow: document.querySelector('.rb-lk-sort b')?.textContent,
-      eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-ey')).map((e) => e.textContent),
+      lkTabs: Array.from(document.querySelectorAll('#rb-lk-bar .rb-lk-tab')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')),
+      eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-tag')).map((e) => e.textContent),
+      // The kind is an eyebrow IN THE PAD, above the name (Annie,
+      // 2026-10-05) — never a label over the photo.
+      tagInPad: Array.from(document.querySelectorAll('#rb-lk-grid .lt-card')).every((c) => {
+        const t = c.querySelector('.lt-tag');
+        return !!t && t.parentElement.classList.contains('lt-info') && t.nextElementSibling?.classList.contains('lt-title') && getComputedStyle(t).position === 'static';
+      }),
       cardDress: document.querySelectorAll('#rb-lk-grid .lt-card').length,
       path: location.pathname,
     };
   });
-  check('shelf · the Diary is a nav tab (Lookbook · Diary · Wardrobe · Inspiration), no in-page segment; the Lookbook opens lit',
-    s.seg === false && s.tabs.join(',') === 'Lookbook,Diary,Wardrobe,Inspiration'
-      && s.dock.join(',') === 'home,lookbook,diary,wardrobe,inspiration'
+  check('shelf · the Diary is a nav tab (Lookbook · Diary · Wardrobe — Inspiration folded into the Lookbook 2026-10-05), no in-page segment; the Lookbook opens lit',
+    s.seg === false && s.tabs.join(',') === 'Lookbook,Diary,Wardrobe'
+      && s.dock.join(',') === 'home,lookbook,diary,wardrobe'
       && s.tnLookbookOn === true && s.tnDiaryOn === false,
     JSON.stringify(s.seg));
   check('shelf · the type shelves are retired (one looks view)', s.shelves === false);
@@ -319,9 +330,13 @@ const browser = await chromium.launch(
     s.wrapVisible && s.itemGridHidden, JSON.stringify([s.wrapVisible, s.itemGridHidden]));
   check('tab · deep-linkable path', s.path === '/lookbook', s.path);
   check('grid · every look card carries the Wear verb', s.wearBtns === 2, String(s.wearBtns));
-  check('grid · cards carry the type eyebrow in the shared card dress',
-    s.eyebrows.every((e) => e === 'Look') && s.eyebrows.length === 2 && s.cardDress === 2,
+  // Look states (2026-10-06): a SAVED tile carries no eyebrow — the frame
+  // and the wear line say what it is; only a draft and a suggestion do.
+  check('grid · saved cards carry NO eyebrow in the shared card dress (look states, 2026-10-06)',
+    s.eyebrows.length === 0 && s.cardDress === 2,
     JSON.stringify([s.eyebrows, s.cardDress]));
+  check('shelf · the Lookbook masthead is Saved | Suggested with Saved lit',
+    s.lkTabs && JSON.stringify(s.lkTabs) === JSON.stringify(['Saved*', 'Suggested']), JSON.stringify(s.lkTabs));
   check('grid · one tile per look', s.tiles === 2, String(s.tiles));
   check('grid · a New look add card mirrors the pieces grid',
     s.addCard === true && /New look/.test(s.addCardText || ''), JSON.stringify([s.addCard, s.addCardText]));
@@ -329,7 +344,9 @@ const browser = await chromium.launch(
   check('grid · a 3-piece look subdivides whole (n3: one spanning, two stacked)',
     s.mosaicCells === 3, String(s.mosaicCells));
   check('grid · provisional title renders provisional', s.provisional.length === 1 && s.provisional[0] === 'The tank one', JSON.stringify(s.provisional));
-  check('sort · defaults to Last worn ↓', s.sortLabel === 'Last worn' && s.sortArrow === '↓', `${s.sortLabel} ${s.sortArrow}`);
+  // The sort control hides under four looks (look states, 2026-10-06 —
+  // never inert); the order is still Last worn, newest first.
+  check('sort · the control hides under four looks; the default order is Last worn', s.sortLabel === undefined && s.sortArrow === undefined, `${s.sortLabel} ${s.sortArrow}`);
   check('sort · worn look leads descending', s.titles[0] === 'The Thursday one', JSON.stringify(s.titles));
 
   const asc = await page.evaluate(() => {
@@ -340,7 +357,7 @@ const browser = await chromium.launch(
       titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
     };
   });
-  check('sort · toggles to First worn ↑', asc.label === 'First worn' && asc.arrow === '↑', `${asc.label} ${asc.arrow}`);
+  check('sort · __lkSort still flips the order for the keyboard (First worn)', asc.label === undefined, `${asc.label} ${asc.arrow}`);
   check('sort · never-worn leads ascending', asc.titles[0] === 'The tank one', JSON.stringify(asc.titles));
 
   // Tile metadata is hover-only on the pointer surfaces (title-only decision)
@@ -381,7 +398,7 @@ const browser = await chromium.launch(
     const chip = drawer && drawer.querySelector('.rb-lkref-chip[data-val="occasion"]');
     if (chip) chip.click();
     const shown = document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length;
-    const none = /No looks carry those tags/.test(document.getElementById('rb-lk-grid').textContent);
+    const none = /Nothing in this edit/.test(document.getElementById('rb-lk-grid').textContent);
     window.__lkRefineClear();
     const restored = document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length;
     window.__lkRefineToggle();
@@ -391,14 +408,14 @@ const browser = await chromium.launch(
     const newBtn = !!(barEl && barEl.querySelector('.rb-lk-new'));
     return { newBtn, axes, shown, none, restored, inertBefore, liveAfter };
   });
-  check('bar · + New look is a pill on the masthead line (nav architecture 2026-09-10)', bar.newBtn === true);
-  check('bar · sort and Refine are inert below four looks and come live at four',
-    bar.inertBefore === true && bar.liveAfter === true, JSON.stringify([bar.inertBefore, bar.liveAfter]));
+  check('bar · + (the circle) is the creation door on the masthead line', bar.newBtn === true);
+  check('bar · sort and Filter hide below four looks and render at four (look states, 2026-10-06)',
+    bar.inertBefore === undefined && bar.liveAfter === true, JSON.stringify([bar.inertBefore, bar.liveAfter]));
   // ADR-002 §7: Light is deleted, and Vibe only renders once she has one —
   // the axis is her vocabulary, so an empty one is nothing to show.
   // The axis reads "Season", matching the wardrobe's own filter — one
   // vocabulary means one word for it. The column stays climate_band.
-  check('bar · Refine opens the three axes — Season, Wear it for, Vibe',
+  check('bar · Filter opens the three live axes — Season, Wear it for, Vibe (no Show row: the tabs hold the kinds, 2026-10-06)',
     JSON.stringify(bar.axes) === JSON.stringify(['Season', 'Wear it for', 'Vibe']), JSON.stringify(bar.axes));
   // restored === 4: the two fixture looks plus the two padding artifacts,
   // which share the stream's card class
@@ -438,7 +455,7 @@ const browser = await chromium.launch(
     window.__lkGo();
     return { noRow, cardVibe, axes, label, shown, restored };
   });
-  check('vibe · no standing row — Vibe is a Refine axis under Season and Wear it for',
+  check('vibe · no standing row — Vibe is a Filter axis under Season and Wear it for (no Show row, 2026-10-06)',
     vibeRef.noRow === true
       && JSON.stringify(vibeRef.axes) === JSON.stringify(['Season', 'Wear it for', 'Vibe']),
     JSON.stringify([vibeRef.noRow, vibeRef.axes]));
@@ -536,7 +553,7 @@ const browser = await chromium.launch(
   check('detail · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('detail · no sub-sub-nav back line', d.back === false);
   check('detail · the return band names the Lookbook and walks its set (n of N)',
-    !!d.ret && d.ret.label === 'Lookbook' && /^\d of 2$/.test(d.ret.pos || '') && d.ret.h === 48, JSON.stringify(d.ret));
+    !!d.ret && d.ret.label === 'Lookbook' && !d.ret.pos && d.ret.h === 48, JSON.stringify(d.ret));
   check('detail · grid yields to the detail', d.gridHidden === true);
   const tabBack = await page.evaluate(() => {
     document.getElementById('rb-tn-lookbook').click();
@@ -592,10 +609,24 @@ const browser = await chromium.launch(
     };
   });
   check('detail · the name leads the page (masthead above the console)', layout.mastFirst && layout.titleInMast, JSON.stringify(layout));
-  check('detail · rename is the pencil, not a standing input', layout.pencil === true);
-  check('detail · the card list is The Rack, and offers Edit & resave',
-    /^The rack · 4 pieces/.test(layout.rackLabel || '') && /Edit & resave/.test(layout.rackLabel || ''),
-    String(layout.rackLabel));
+  // Look_Creation_Handoff 5a (2026-10-05): the pencil is gone — renaming
+  // lives in edit mode; the edit door is the PINNED bar's hairline pill.
+  check('detail · no pencil beside the title (renaming lives in edit mode)', layout.pencil === false);
+  check('detail · the card list is The Rack, with no edit door on its head',
+    /^The rack · 4 pieces$/.test((layout.rackLabel || '').trim()), String(layout.rackLabel));
+  const pinbar = await page.evaluate(() => {
+    const bar = document.querySelector('.rb-lk-held .rb-lk-pinbar');
+    const btn = bar?.querySelector('.rb-lk-editlook');
+    return { bar: !!bar, meta: bar?.querySelector('.rb-lk-pinmeta')?.textContent, btn: btn?.textContent.trim(),
+      ink: btn ? getComputedStyle(btn).backgroundColor === 'rgb(32, 32, 33)' : null, last: !!bar && bar === bar.parentElement.lastElementChild,
+      titleMeta: document.querySelector('#rb-lk-body .rb-tb-meta')?.textContent, right: btn ? Math.round(bar.getBoundingClientRect().right - btn.getBoundingClientRect().right) : null, barW: bar ? Math.round(bar.getBoundingClientRect().width) : null };
+  });
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-reading-1280.png', fullPage: true }).catch(() => {});
+  if (process.env.SHOT_DIR) { await page.evaluate(() => document.querySelector('.rbc-rack')?.scrollIntoView({ block: 'start' })); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOT_DIR + '/look-reading-1280-rack.png' }).catch(() => {}); await page.evaluate(() => { const sc = document.getElementById('sn-page'); if (sc) sc.scrollTop = 0; }); }
+  // Third pass (2026-10-06): the facts live under the title ONCE — the bar
+  // carries Edit look alone, aligned right.
+  check('detail · the pinned bar carries Edit look alone (a hairline pill, right-aligned, no ink at rest) — the facts read once, under the title',
+    pinbar.bar && pinbar.meta === undefined && /^4 pieces · 2 wears/.test(pinbar.titleMeta || '') && pinbar.btn === 'Edit look' && pinbar.ink === false && pinbar.last && pinbar.right !== null && pinbar.right < pinbar.barW / 3, JSON.stringify(pinbar));
   check('detail · the rack ends and the wear log STANDS ALONE — its own card below the held one, never inside the rack\'s column',
     layout.wornBelowRack === true && layout.wornStandsAlone === true, JSON.stringify(layout));
   const renamed = await page.evaluate(async () => {
@@ -640,11 +671,19 @@ const browser = await chromium.launch(
   check('detail · the inline swap strip is gone', d.inlineStrip === false);
   const editMode = await page.evaluate(() => {
     const wearsBefore = Array.from(document.querySelectorAll('.rbc-rack .rbc-wears')).map((e) => e.textContent.trim());
+    const anat = Array.from(document.querySelectorAll('.rbc-rack .rbc-trailrow')).map((r) => ({
+      eye: r.querySelector('.rbc-eye')?.textContent.trim(), brand: r.querySelector('.rbc-eye .b')?.textContent.trim() || '',
+      name: r.querySelector('.rbc-name')?.textContent.trim(), ctx: r.querySelector('.rbc-ctx')?.textContent.trim() || '' }));
     window.__lkEditToggle();
     const out = {
-      wearsBefore,
+      wearsBefore, anat,
       flicks: document.querySelectorAll('.rbc-rack .rbc-arrow').length,
-      swaps: Array.from(document.querySelectorAll('.rbc-rack .rbc-act')).filter((b) => /Swap/.test(b.textContent)).length,
+      swaps: document.querySelectorAll('.rbc-rack .rbc-swap').length,
+      chevrons: document.querySelectorAll('.rbc-rack .rbc-more').length,
+      xs: document.querySelectorAll('.rbc-rack .rbc-rm').length,
+      pin: Array.from(document.querySelectorAll('.rb-lk-editpin button:not(.rb-lp-field)')).map((x) => x.textContent.trim()),
+      updateFaint: (() => { const b = document.querySelector('.rb-lk-editpin .rb-lk-update'); return !!b && b.classList.contains('faint') && getComputedStyle(b).backgroundColor !== 'rgb(32, 32, 33)'; })(),
+      titleTap: !!document.querySelector('#rb-lk-title .rb-lk-title-tap'),
       // Editing is the composer's frame (Robes_Create_Edit_Look_IA):
       // eyebrow, the held card, where it lives, the change bar.
       eyebrow: document.querySelector('.rb-lk-eyebrow')?.textContent,
@@ -660,22 +699,27 @@ const browser = await chromium.launch(
     window.__lkEditToggle();
     return out;
   });
-  check('detail · reading, each row carries its piece\'s wear count',
-    editMode.wearsBefore.length === 4 && /wear/.test(editMode.wearsBefore[0] || ''), JSON.stringify(editMode.wearsBefore));
-  check('detail · Edit & resave brings the flick cluster and Swap back',
-    editMode.flicks === 8 && editMode.swaps === 4, JSON.stringify([editMode.flicks, editMode.swaps]));
-  // No "Lookbook / Editing" crumb (Annie, 2026-09-08: it read as a bug) —
-  // the eyebrow stays Saved look; the held card and the change bar say edit.
-  check('editing · opens in the held card, the eyebrow still Saved look',
-    editMode.eyebrow === 'Saved look' && editMode.frame === true, JSON.stringify([editMode.eyebrow, editMode.frame]));
-  check('editing · the change bar stands from the first second and says nothing has changed yet',
-    /^No changes yet/.test(editMode.bar) && editMode.acts.join(' | ') === 'Discard | Update this look', JSON.stringify([editMode.bar.slice(0, 60), editMode.acts]));
+  check('detail · fix 13: no wear count on a look\'s rack rows', editMode.wearsBefore.length === 0, JSON.stringify(editMode.wearsBefore));
+  check('detail · fix 13: line 1 is the plural category (· Brand in rose when known), line 2 the name, line 3 the role',
+    editMode.anat.length === 4 && editMode.anat.every((a) => /^(Tops|Bottoms|Shoes|Bags|Outerwear|Knitwear|Accessories|Jewellery|Dresses & jumpsuits|Other)( · .+)?$/.test(a.eye || '')
+      && /^(Canvas|Anchor|Texture|Exclamation)$/.test(a.ctx) && (!a.brand || !(a.name || '').toLowerCase().includes(a.brand.replace(/^· /, '').toLowerCase()))),
+    JSON.stringify(editMode.anat));
+  // Handoff 5c: the same rows as the draft — ↻ and › on every row, no
+  // steppers, no ✕ (swipe removes); the eyebrow reads Editing and the
+  // title is the tap target; the pinned bar reads Done · Update look,
+  // Update a faint hairline until something changes.
+  check('detail · Edit look brings ↻ and › to every row — no steppers, no ✕',
+    editMode.flicks === 0 && editMode.swaps === 4 && editMode.chevrons === 4 && editMode.xs === 0, JSON.stringify([editMode.flicks, editMode.swaps, editMode.chevrons, editMode.xs]));
+  check('editing · opens in the held card, the eyebrow reads Editing, the title tappable',
+    editMode.eyebrow === 'Editing' && editMode.frame === true && editMode.titleTap === true, JSON.stringify([editMode.eyebrow, editMode.frame, editMode.titleTap]));
+  check('editing · the pinned bar reads Done · Update look, Update faint until something changes',
+    editMode.pin.join(' | ') === 'Done | Update look' && editMode.updateFaint === true, JSON.stringify([editMode.pin, editMode.updateFaint]));
   check('editing · where it lives leads with the lookbook and offers the diary',
     editMode.lives[0] === 'The lookbook' && editMode.lives.includes('+ Put it in the diary'), JSON.stringify(editMode.lives));
   check('editing · drops what belongs to the look page: no image controls, no wear record',
     editMode.noImgActs === 0 && editMode.noWorn === true, JSON.stringify([editMode.noImgActs, editMode.noWorn]));
-  check('editing · every filled role carries its +, and + Add a piece closes the rack',
-    editMode.stripAdds >= 1 && editMode.addPiece === true, JSON.stringify([editMode.stripAdds, editMode.addPiece]));
+  check('editing · no + on the strips; + Add a piece closes the rack',
+    editMode.stripAdds === 0 && editMode.addPiece === true, JSON.stringify([editMode.stripAdds, editMode.addPiece]));
   check('detail · The Look is the standing 4:5 board',
     d.lookv2 && d.boardTiles === 4 && d.boardN === '4', JSON.stringify([d.lookv2, d.boardTiles, d.boardN]));
   check('detail · the panel head reads The look — the count lives on the rack alone', d.headLabel === 'The look', d.headLabel);
@@ -689,24 +733,30 @@ const browser = await chromium.launch(
     d.wearLines.some((x) => x === 'Worn as saved') && d.wearLines.some((x) => /instead of the/.test(x)),
     JSON.stringify(d.wearLines));
 
-  // Formula strips + look tags (Look Template spec A3 + F, 2026-08-07)
+  // Formula roles + look tags (Look Template spec A3 + F, 2026-08-07;
+  // Annie 2026-10-06: the strips are GONE from the look surfaces — each
+  // row is a card whose eyebrow reads "Slot · Role", rows keep the
+  // formula's order, and the whole card opens the piece).
   const specA3F = await page.evaluate(() => {
     const strips = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip span')).map((s) => s.textContent);
+    const rows = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row'));
+    const eyes = rows.map((r) => r.querySelector('.rbc-ctx .role')?.textContent.trim() || '');
     const tagsRow = document.querySelector('.rb-lk-con .rbc-tags');
     return {
-      strips,
-      stripsLeadRows: (() => {
-        const rack = document.querySelector('.rb-lk-con .rbc-rack');
-        return rack && rack.firstElementChild && rack.firstElementChild.classList.contains('rbc-rolestrip');
-      })(),
+      strips, eyes,
+      cards: rows.filter((r) => r.classList.contains('rbc-tap') && r.getAttribute('role') === 'button').length,
+      rows: rows.length,
+      vslotHidden: rows.every((r) => { const v = r.querySelector('.rbc-vp .vslot'); return !v || getComputedStyle(v).display === 'none'; }),
       tagsRow: !!tagsRow,
       tagsEmptyInvite: tagsRow ? /Untagged|Tags/.test(tagsRow.textContent) : false,
     };
   });
-  check('roles · the rack groups under hairline formula strips', specA3F.strips.length >= 2 && specA3F.stripsLeadRows, JSON.stringify(specA3F.strips));
+  check('roles · no strips on the look page — every row is a tappable card whose line 3 reads the role',
+    specA3F.strips.length === 0 && specA3F.rows === 4 && specA3F.cards === 4 && specA3F.vslotHidden
+      && specA3F.eyes.every((e) => /^(Canvas|Anchor|Texture|Exclamation)$/.test(e)), JSON.stringify(specA3F));
   check('roles · display order is Canvas before Anchor before finishers',
-    specA3F.strips.indexOf('The Canvas') === 0
-      && specA3F.strips.indexOf('The Anchor') === 1, JSON.stringify(specA3F.strips));
+    specA3F.eyes.findIndex((e) => /Canvas$/.test(e)) === 0
+      && specA3F.eyes.findIndex((e) => /Anchor$/.test(e)) === 1, JSON.stringify(specA3F.eyes));
   check('tags · The Look carries the quiet tag row', specA3F.tagsRow === true);
   check('tags · untagged is an invitation, never a form', specA3F.tagsEmptyInvite === true);
 
@@ -775,18 +825,17 @@ const browser = await chromium.launch(
     const wraps = document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-dragrow[draggable="true"]');
     const name0 = document.querySelector('.rb-lk-con .rbc-rack .rbc-dragrow[data-roledrag="0"] .rbc-name')?.textContent;
     window.__lkDRoleDrop(0, 'The Exclamation Point');
-    const rack = document.querySelector('.rb-lk-con .rbc-rack');
-    const names = [];
-    let inGroup = false;
-    Array.from(rack.children).forEach((el) => {
-      if (el.classList.contains('rbc-rolestrip')) inGroup = el.textContent.trim() === 'The Exclamation Point';
-      else if (inGroup) { const n = el.querySelector('.rbc-name'); if (n) names.push(n.textContent); }
-    });
-    return { draggable: wraps.length, name0, names };
+    const rows = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row'));
+    const names = rows.filter((r) => /Exclamation$/.test(r.querySelector('.rbc-ctx .role')?.textContent.trim() || ''))
+      .map((r) => r.querySelector('.rbc-name')?.textContent);
+    // Order inside a group is stable (by index), so the re-cast shirt
+    // sits with the finishers but ahead of the tote that was already one.
+    const first = rows[0]?.querySelector('.rbc-ctx .role')?.textContent.trim();
+    return { draggable: wraps.length, name0, names, first };
   });
   check('roles · every rack row is draggable', cast.draggable === 4, String(cast.draggable));
-  check('roles · a drop re-casts the piece under the target strip',
-    !!cast.name0 && cast.names.includes(cast.name0), JSON.stringify(cast));
+  check('roles · a drop re-casts the piece: line 3 reads the new role and it leaves the canvas',
+    !!cast.name0 && cast.names.includes(cast.name0) && !/Canvas$/.test(cast.first || ''), JSON.stringify(cast));
   await page.waitForTimeout(400);
   const roleWrite = writes.filter((w) => w.method === 'POST' && /^look_pieces/.test(w.url)).pop();
   const roleRows = roleWrite && (Array.isArray(roleWrite.body) ? roleWrite.body : [roleWrite.body]);
@@ -851,14 +900,38 @@ const browser = await chromium.launch(
     window.__lkDSwap(3);   // the tote
     const modal = document.getElementById('lkd-swap-modal');
     return {
-      open: !!modal,
+      open: !!modal && !!modal.querySelector('.rb-sd'),
+      title: modal?.querySelector('.rb-sd-t')?.textContent,
       candidate: /Raffia basket bag/.test(modal?.textContent || ''),
-      snap: /Snap mine/.test(modal?.textContent || ''),
+      chipOn: modal?.querySelector('.rb-sd-chip.on')?.textContent.trim(),
+      snapFirst: modal?.querySelector('.rb-sd-row .rb-sd-tile')?.classList.contains('snap'),
+      cur: modal?.querySelector('.rb-sd-tile.cur .nm')?.textContent,
+      go: modal?.querySelector('.rb-sd-go')?.disabled,
+      dimmed: !!document.querySelector('#lkd-swap-modal.rb-swap-wrap'),
     };
   });
-  check('swap · opens the SAME modal the consoles use', swap.open === true);
-  check('swap · her wardrobe by category, plus Snap mine',
-    swap.candidate === true && swap.snap === true, JSON.stringify(swap));
+  // Handoff 4b: ↻ opens the DRAWER — her wardrobe only, the taxonomy
+  // chips open on the piece's own category, Snap the first tile, the
+  // current piece ticked, the look undimmed behind it.
+  check('swap · ↻ opens the drawer, titled for the piece, undimmed', swap.open === true && /^Swap the woven straw tote/.test(swap.title || '') && swap.dimmed === false, JSON.stringify(swap));
+  check('swap · her wardrobe by category — the Bags chip on, Snap first, the tote ticked, the commit withheld',
+    swap.candidate === true && /Bags/.test(swap.chipOn || '') && swap.snapFirst === true && swap.cur === 'Woven straw tote' && swap.go === true, JSON.stringify(swap));
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-swap-drawer-1280.png' }).catch(() => {});
+  // A tap PREVIEWS on the draft; Close puts the original back.
+  const previewed = await page.evaluate(async () => {
+    window.__rbSdPick('w-bag2');
+    await new Promise((r) => setTimeout(r, 100));
+    const names = () => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((x) => x.textContent);
+    const during = names();
+    const go = document.querySelector('#lkd-swap-modal .rb-sd-go');
+    const goTxt = go?.textContent, goOn = go && !go.disabled;
+    window.__rbSdClose();
+    await new Promise((r) => setTimeout(r, 100));
+    return { during, goTxt, goOn, after: names(), gone: !document.getElementById('lkd-swap-modal') };
+  });
+  check('swap · a tap previews the pick on the rack and arms "Swap in …"; Close puts the original back',
+    previewed.during.includes('Raffia basket bag') && previewed.goOn === true && /^Swap in the raffia basket bag$/i.test(previewed.goTxt || '')
+      && previewed.after.includes('Woven straw tote') && !previewed.after.includes('Raffia basket bag') && previewed.gone, JSON.stringify(previewed));
 
   // Edits land LIVE on the view (Annie's beta pass 2026-08-17) — the swap
   // shows immediately on the mosaic and the rack, the saved look is
@@ -866,12 +939,15 @@ const browser = await chromium.launch(
   // ways out: discard, update, or save as a new look (D2's question).
   const liveEdit = await page.evaluate(() => {
     window.__lkEditToggle();
-    window.__lkDSwapApply(3, 'w-bag2');
-    const bar = document.querySelector('.rb-lk-editbar');
+    window.__lkDSwapApply('w-bag1', 'w-bag2');
+    const bar = document.querySelector('.rb-lk-editpin');
+    const row = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row')).find((r) => /Raffia basket bag/.test(r.textContent));
     return {
-      bar: (bar?.textContent || '').replace(/\s+/g, ' '),
-      acts: Array.from(bar?.querySelectorAll('button') || []).map((x) => x.textContent),
+      acts: Array.from(bar?.querySelectorAll('button:not(.rb-lp-field)') || []).map((x) => x.textContent.trim()),
+      updateInk: (() => { const b = bar?.querySelector('.rb-lk-update'); return !!b && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)'; })(),
       pieces: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((x) => x.textContent),
+      warm: !!row && row.classList.contains('changed') && getComputedStyle(row).backgroundColor === 'rgb(243, 239, 230)',
+      was: row?.querySelector('.rb-lp-was')?.textContent,
       boardN: document.querySelectorAll('.rb-lk-con .rbc-board .rbc-tile').length,
       modalGone: !document.getElementById('lkd-swap-modal'),
     };
@@ -880,11 +956,13 @@ const browser = await chromium.launch(
     liveEdit.pieces.includes('Raffia basket bag') && !liveEdit.pieces.includes('Woven straw tote')
       && liveEdit.modalGone,
     JSON.stringify(liveEdit.pieces));
-  check('live edit · one quiet strip says the wears stand until she updates',
-    /One change to this look/.test(liveEdit.bar) && /2 wears stay with it/.test(liveEdit.bar),
-    liveEdit.bar.slice(0, 140));
-  check('live edit · the change bar offers Discard / Save as a new look / Update this look',
-    liveEdit.acts.join(' | ') === 'Discard | Save as a new look | Update this look', JSON.stringify(liveEdit.acts));
+  // Handoff 5d: the changed row turns warm and names what it replaced;
+  // Update look becomes the one ink fill and Done becomes Discard.
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-editing-warm-1280.png', fullPage: true }).catch(() => {});
+  check('live edit · the changed row turns warm and names what it replaced',
+    liveEdit.warm === true && liveEdit.was === 'Swapped in · was the woven straw tote', JSON.stringify([liveEdit.warm, liveEdit.was]));
+  check('live edit · the pinned bar reads Discard · Update look, Update the one ink fill',
+    liveEdit.acts.join(' | ') === 'Discard | Update look' && liveEdit.updateInk === true, JSON.stringify([liveEdit.acts, liveEdit.updateInk]));
   await page.waitForTimeout(400);
   check('live edit · the saved look is untouched while the strip stands',
     !writes.some((w) => w.method === 'DELETE' && /look_pieces\?look_id=eq\.lk-1/.test(w.url)),
@@ -934,7 +1012,7 @@ const browser = await chromium.launch(
   const upd = await page.evaluate(() => {
     window.__lkOpen('lk-1');
     window.__lkEditToggle();
-    window.__lkDSwapApply(2, 'w-sho2');
+    window.__lkDSwapApply('w-sho1', 'w-sho2');
     window.__lkResave();
     return {
       note: document.getElementById('toast-msg')?.textContent,
@@ -942,7 +1020,7 @@ const browser = await chromium.launch(
       wears: document.querySelector('.rb-lk-worn .rb-lk-rule .val')?.textContent,
       pieces: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent),
       firstWearSnapshot: document.querySelector('.rb-lk-wear .pc')?.textContent,
-      barGone: !document.querySelector('.rb-lk-editbar'),
+      barGone: !document.querySelector('.rb-lk-editpin'),
     };
   });
   check('update · keeps the look — a toast says Updated, no banner stands',
@@ -958,10 +1036,10 @@ const browser = await chromium.launch(
     const names = () => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent);
     window.__lkDFlip(2, 1);
     const after = names();
-    const bar = !!document.querySelector('.rb-lk-editbar');
+    const bar = !!document.querySelector('.rb-lk-editpin .rb-lk-update:not(.faint)');
     window.__lkDraftDiscard();
     const restored = names();
-    const barGone = !document.querySelector('.rb-lk-editbar');
+    const barGone = !document.querySelector('.rb-lk-editpin');
     return { after, bar, restored, barGone };
   });
   check('flick · lands live on the view, with the strip standing',
@@ -1115,6 +1193,12 @@ const browser = await chromium.launch(
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       saveUnnamed: document.querySelector('.rb-lk-save')?.classList.contains('unnamed'),
       saveNote: document.getElementById('rb-lk-namegate')?.textContent,
+      // Design 4d (2026-10-02): the draft footer — Discard · Save on a bar
+      saveInBar: !!document.querySelector('.rb-lk-composer > .rb-lk-draftbar .rb-lk-save'),
+      barDiscard: document.querySelector('.rb-lk-draftbar .rb-lk-discard')?.textContent ?? null,
+      barInk: (() => { const b = document.querySelector('.rb-lk-draftbar .rb-lk-save'); return !!b && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)'; })(),
+      drafty: document.querySelector('.rb-lk-newmast .rb-lk-drafty')?.textContent,
+      titleCentred: (() => { const t = document.getElementById('rb-lk-newtitle'); return !!t && getComputedStyle(t).textAlign === 'center'; })(),
       // The model on the canvas (2026-09-03): her photograph, in the base
       // layer, from the first second
       stage: !!document.querySelector('.rb-lk-con .rb-lkm-stage'),
@@ -1144,18 +1228,21 @@ const browser = await chromium.launch(
   // A fresh session has rendered no console — the composer must inject the
   // shared stylesheet itself, and the styles must actually apply.
   const css = await page.evaluate(() => {
-    // The empty composer holds no rows any more — the strips are the
-    // styled markup to probe.
-    const strip = document.querySelector('.rbc-rolestrip');
-    const ey = strip?.querySelector('span');
+    // The empty composer holds ONE door (handoff 4·0): the guided card.
+    const g = document.querySelector('.rb-lk-con .rb-lk-guide');
     return {
       sheet: !!document.getElementById('rbc-style'),
-      stripIsFlex: strip ? getComputedStyle(strip).display === 'flex' : false,
-      eyCaps: ey ? getComputedStyle(ey).textTransform === 'uppercase' : false,
+      guide: !!g, dashed: g ? getComputedStyle(g).borderTopStyle === 'dashed' : false,
+      head: g?.querySelector('.gh')?.textContent, def: g?.querySelector('.gd')?.textContent, ex: g?.querySelector('.gx')?.textContent,
+      acts: Array.from(g?.querySelectorAll('.ga button') || []).map((b) => b.textContent.trim()),
+      quiet: Array.from(g?.querySelectorAll('.gq button') || []).map((b) => b.textContent.trim()),
+      strips: document.querySelectorAll('.rb-lk-con .rbc-rolestrip').length,
     };
   });
-  check('composer · shared console stylesheet is injected without a console render',
-    css.sheet && css.stripIsFlex && css.eyCaps, JSON.stringify(css));
+  check('composer · shared console stylesheet is injected without a console render', css.sheet, JSON.stringify(css));
+  check('composer · the empty rack is ONE door — the guided dashed card: Start with the canvas, its definition and example, + Canvas / + Any piece, Skip the guide; no strips',
+    css.guide && css.dashed && css.head === 'Start with the canvas' && /proportion and tone/.test(css.def || '') && /A tee, jeans, a knit/.test(css.ex || '')
+      && JSON.stringify(css.acts) === JSON.stringify(['+ Canvas', '+ Any piece']) && css.quiet.includes('Skip the guide') && css.strips === 0, JSON.stringify(css));
   check('composer · the standing console scale: 480px look column',
     /^480px/.test(c0.cols) && c0.lookv2, c0.cols + ' lookv2=' + c0.lookv2);
   check('composer · the look panel is the shared rbc-panel', c0.panel === true);
@@ -1165,28 +1252,31 @@ const browser = await chromium.launch(
   // ALWAYS closes the rack (regression fixed 2026-08-12 — it used to wait
   // until all four roles were inked, taking the door away from the empty
   // look that most needs it).
-  check('composer · no slot-bound empty rows; four role rows carry the way in',
-    c0.emptyRows === 0 && c0.ghostAdds === 4, JSON.stringify([c0.emptyRows, c0.ghostAdds]));
-  check('composer · the generic + Add a piece always closes the rack', c0.addPiece === true);
-  // The whole dashed row is the hit area, not just the pill (~52px)
+  check('composer · no slot-bound empty rows, no ghosted definition rows — the guide is the one door',
+    c0.emptyRows === 0 && c0.ghostAdds === 0, JSON.stringify([c0.emptyRows, c0.ghostAdds]));
+  check('composer · the bare rack carries no second + Add a piece beneath the door', c0.addPiece === false);
+  // "+ Any piece" opens the chooser with no role preset; both targets 40px+
   const hit = await page.evaluate(() => {
-    const row = document.querySelector('.rb-lk-con .rbc-rghost');
-    const r = row?.getBoundingClientRect();
-    // Tap the ROW's own padding, well clear of the pill
-    row?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    const opened = !!document.getElementById('rb-lkadd-sheet');
+    const b = Array.from(document.querySelectorAll('.rb-lk-con .rb-lk-guide .ga button')).find((x) => /Any piece/.test(x.textContent));
+    const r = b?.getBoundingClientRect();
+    b?.click();
+    const sheet = document.getElementById('rb-lkadd-sheet');
+    const opened = !!sheet, eyebrow = sheet?.querySelector('p')?.textContent || '';
     window.__lkAddClose && window.__lkAddClose();
-    return { h: r ? Math.round(r.height) : 0, tap: row?.classList.contains('tap'), opened };
+    return { h: r ? Math.round(r.height) : 0, opened, eyebrow };
   });
-  check('composer · the whole slot row is the tap target, 52px+',
-    hit.tap === true && hit.h >= 52 && hit.opened === true, JSON.stringify(hit));
+  check('composer · + Any piece opens the chooser with no role preset, a 40px target',
+    hit.h >= 40 && hit.opened === true && !/The Canvas/.test(hit.eyebrow), JSON.stringify(hit));
   // Save stands on screen and LIVE from the first second — the name is
-  // the one gate (2026-09-03; the two-piece floor is gone). The pill reads
-  // cream until the look is named, and the note beside it says why.
-  check('composer · Save stands on screen, live, cream until the look is named',
-    c0.saveShown === true && c0.saveDisabled === false && c0.saveUnnamed === true
-      && c0.saveNote === 'Name your look and it is yours to keep.',
-    JSON.stringify([c0.saveShown, c0.saveDisabled, c0.saveUnnamed, c0.saveNote]));
+  // the one gate (2026-09-03; the two-piece floor is gone). Design 4d
+  // (2026-10-02): Save is INK on the draft footer beside a quiet Discard
+  // (an empty draft has none to discard); no "Filed under" note anywhere —
+  // the gate answers at the click. The header reads DRAFT LOOK over the
+  // centred name.
+  check('composer · Save stands on screen, withheld (cream, no ink) until a piece or a photograph, on the draft footer; no name-gate note; DRAFT LOOK over the centred name',
+    c0.saveShown === true && c0.saveDisabled === true && c0.saveInBar === true && c0.barInk === false && c0.barDiscard === null
+      && !c0.saveNote && c0.drafty === 'Draft look' && c0.titleCentred === true,
+    JSON.stringify([c0.saveShown, c0.saveDisabled, c0.saveInBar, c0.barInk, c0.barDiscard, c0.saveNote, c0.drafty, c0.titleCentred]));
   check('composer · the whole composer sits in ONE card, the name leading it from outside',
     c0.card === true && c0.titleOutside === true, JSON.stringify([c0.card, c0.titleOutside]));
   // The "Or let Robes create your look" door is gone (2026-09-03) — the
@@ -1205,28 +1295,26 @@ const browser = await chromium.launch(
   check('composer · the photograph door is an icon on the canvas, named on hover, nothing beneath',
     c0.photoDoor === 'Add your photograph' && c0.photoDoorIcon === true && c0.photoRow === false,
     JSON.stringify([c0.photoDoor, c0.photoDoorIcon, c0.photoRow]));
-  // B1 amendment (2026-08-07): the empty state teaches the formula — every
-  // empty row sits under a GHOSTED strip forecast from its slot. Education
-  // only: the forecast never binds what she adds where.
-  const ghosts = await page.evaluate(() => {
-    const strips = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip'));
-    const notes = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolenote')).map((n) => n.textContent);
+  // Look_Creation_Handoff 4·0 (2026-10-05): the empty draft is ONE door —
+  // the guide card for her first ten drafts — never four ghosted strips.
+  const guide = await page.evaluate(() => {
+    const g = document.querySelector('.rb-lk-con .rb-lk-guide');
     return {
-      labels: strips.map((s) => s.textContent.trim()),
-      allGhost: strips.length > 0 && strips.every((s) => s.classList.contains('ghost')),
-      notes,
+      strips: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip').length,
+      doors: document.querySelectorAll('.rb-lk-con .rb-lk-guide').length,
+      h: g?.querySelector('.gh')?.textContent.trim(), d: g?.querySelector('.gd')?.textContent.trim(), ex: g?.querySelector('.gx')?.textContent.trim(),
+      acts: Array.from(g?.querySelectorAll('.ga button') || []).map((b) => b.textContent.trim()),
+      quiet: Array.from(g?.querySelectorAll('.gq button') || []).map((b) => b.textContent.trim()),
+      trailingAdd: !!document.querySelector('.rb-lk-con .rbc-addpiece'),
     };
   });
-  check('composer · empty rows sit under ghosted formula strips',
-    JSON.stringify(ghosts.labels) === JSON.stringify(['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'])
-      && ghosts.allGhost, JSON.stringify(ghosts.labels));
-  check('composer · each awaiting role carries its education line',
-    ghosts.notes.length === 4
-      && /Elevated basics balancing proportion and tone/.test(ghosts.notes[0])
-      && /hero piece setting the look/.test(ghosts.notes[1])
-      && /tactile layer/.test(ghosts.notes[2])
-      && /signature finish/.test(ghosts.notes[3]),
-    JSON.stringify(ghosts.notes));
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/composer-empty-guide-1280.png', fullPage: true }).catch(() => {});
+  check('composer · the empty draft is ONE guided door — no ghosted strips, no trailing + Add a piece',
+    guide.strips === 0 && guide.doors === 1 && guide.trailingAdd === false, JSON.stringify(guide));
+  check('composer · the guide reads Start with the canvas, its line and its examples, with + Canvas / + Any piece and Skip the guide',
+    guide.h === 'Start with the canvas' && /proportion and tone/.test(guide.d || '') && /A tee, jeans, a knit/.test(guide.ex || '')
+      && JSON.stringify(guide.acts) === JSON.stringify(['+ Canvas', '+ Any piece']) && guide.quiet.includes('Skip the guide'),
+    JSON.stringify(guide));
   // No second header above the strips — the formula strips name themselves
   // and the masthead names the look (FTUE pass 2026-08-12).
   check('composer · no rack header above the formula strips', c0.rackEyebrow === undefined, c0.rackEyebrow);
@@ -1294,10 +1382,22 @@ const browser = await chromium.launch(
     window.__rbLkStill = { stillOpen, stillChips };
     return {
       name: row?.querySelector('.rbc-name')?.textContent,
-      owned: /In your wardrobe/.test(row?.querySelector('.rbc-sub')?.textContent || ''),
+      // Fix 13: her own piece prints no status — the eyebrow is its plural
+      // category, line 3 the role, and nothing says "Not yours yet".
+      owned: !!row && /^Tops( · |$)/.test(row.querySelector('.rbc-eye')?.textContent.trim() || '') && !/Not yours yet/.test(row.textContent),
+      // Look_Screen_Redline 06: "✓ In your wardrobe" is true on every row
+      // of a look — it never prints; only the exception does.
+      ownedHidden: (() => { const o = row?.querySelector('.rbc-sub .owned'); return !o || getComputedStyle(o).display === 'none'; })(),
+      cardRad: row ? getComputedStyle(row).borderTopLeftRadius : null,
+      cardBorder: row ? getComputedStyle(row).borderTopWidth : null,
+      nameFs: row ? getComputedStyle(row.querySelector('.rbc-name')).fontSize : null,
+      thumbW: row ? Math.round(row.querySelector('.rbc-vp').getBoundingClientRect().width) : null,
       flick: row?.querySelectorAll('.rbc-arrow').length,
-      swap: !!Array.from(row?.querySelectorAll('.rbc-act') || []).find((b) => /Swap/.test(b.textContent)),
+      swap: !!row?.querySelector('.rbc-trail .rbc-swap'),
+      more: !!row?.querySelector('.rbc-trail .rbc-more'),
+      trH: row ? Math.round(row.querySelector('.rbc-trail .rbc-swap')?.getBoundingClientRect().height || 0) : 0,
       x: !!row?.querySelector('.rbc-rm'),
+      addPiece: !!document.querySelector('.rb-lk-con .rbc-addpiece'),
       img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
       busy: document.querySelector('.rb-lk-con .rb-lkm-busy')?.textContent,
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
@@ -1315,38 +1415,45 @@ const browser = await chromium.launch(
   }));
   check('composer · a filled row is the shared rack card',
     one.name === 'Cream silk shirt' && one.owned === true, `${one.name}/${one.owned}`);
-  check('composer · the education line gives way once its role is cast',
-    one.roleNotes === 3, String(one.roleNotes));
-  check('composer · the card carries the flick cluster', one.flick === 2, String(one.flick));
-  check('composer · the card carries Swap', one.swap === true);
-  check('composer · the card carries the corner ✕', one.x === true);
+  // Look_Screen_Redline 04–07 (2026-10-06): 52px thumb, 18px serif name,
+  // 12px radius on a 1px hairline, the owned tick never printed.
+  check('composer · the card is the redline\'s: 52px thumb, 18px name, radius 12 on a 1px hairline, "In your wardrobe" never printed',
+    one.ownedHidden === true && one.cardRad === '12px' && one.cardBorder === '1px' && one.nameFs === '18px' && one.thumbW === 52,
+    JSON.stringify([one.ownedHidden, one.cardRad, one.cardBorder, one.nameFs, one.thumbW]));
+  // Handoff 4a: a row carries ↻ and › at its right edge — no steppers,
+  // no Swap pill, no corner ✕ (swipe removes); the door is now the
+  // trailing + Add a piece, no definition rows.
+  check('composer · no education rows once a piece hangs — the trailing + Add a piece is the door',
+    one.roleNotes === 0 && one.addPiece === true, JSON.stringify([one.roleNotes, one.addPiece]));
+  check('composer · the row carries no flick cluster', one.flick === 0, String(one.flick));
+  check('composer · the row carries ↻ (swap) and › (the piece), 40px each', one.swap === true && one.more === true && one.trH >= 40, JSON.stringify([one.swap, one.more, one.trH]));
+  check('composer · the row carries no corner ✕', one.x === false);
   check('composer · a pick keeps her photograph up and says the next one is coming',
     one.img === 'https://img.test/cell.jpg' && one.busy === 'Dressing her…', JSON.stringify([one.img, one.busy]));
   check('composer · one render per settled composition, for the piece on the rack',
     JSON.stringify(renders) === JSON.stringify([['Cream silk shirt']]) && oneLanded.img === 'https://img.test/render-1.jpg' && oneLanded.busy === false,
     JSON.stringify([renders, oneLanded]));
-  check('composer · one piece: Save is live, still cream until named',
-    one.saveDisabled === false && one.saveUnnamed === true, JSON.stringify([one.saveDisabled, one.saveUnnamed]));
+  // Handoff 4·0: the first piece makes Save live and INK — the name is
+  // optional (it defaults to the date).
+  check('composer · one piece: Save comes live and ink, the name optional',
+    one.saveDisabled === false && one.saveUnnamed === false, JSON.stringify([one.saveDisabled, one.saveUnnamed]));
   const still = await page.evaluate(() => ({ gone: window.__rbLkSheetGone, ...window.__rbLkStill }));
   check('composer · picking a piece closes the sheet into the rack', still.gone === true);
   check('composer · with a piece placed, Still-open leads the chooser',
     still.stillOpen === true && JSON.stringify(still.stillChips) === JSON.stringify(['Bottom', 'Shoe', 'Bag']),
     JSON.stringify(still));
-  // The strip inks in as the role is cast (B1), and a drag re-casts freely
+  // The role prints on the row's eyebrow (2026-10-06 — no strips on the
+  // composer), and a drag re-casts freely: the eyebrow follows.
   const inked = await page.evaluate(() => {
-    const stripOf = (label) => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip'))
-      .find((s) => s.textContent.trim() === label);
-    const before = { canvas: stripOf('The Canvas')?.classList.contains('ghost') };
+    const eye = () => document.querySelector('.rb-lk-con .rbc-rack .rbc-row .rbc-ctx .role')?.textContent.trim();
+    const before = eye();
     window.__lkCRoleDrop(0, 'The Anchor');
-    const after = {
-      canvasGhost: stripOf('The Canvas')?.classList.contains('ghost'),
-      anchorGhost: stripOf('The Anchor')?.classList.contains('ghost'),
-    };
+    const after = eye();
     window.__lkCRoleDrop(0, 'The Canvas');
-    return { beforeCanvasGhost: before.canvas, ...after };
+    return { before, after, strips: document.querySelectorAll('.rb-lk-con .rbc-rolestrip').length, restored: eye() };
   });
-  check('composer · a landed piece inks its strip; a drag re-casts it freely',
-    inked.beforeCanvasGhost === false && inked.canvasGhost === true && inked.anchorGhost === false,
+  check('composer · a landed piece prints its role on line 3; a re-cast rewrites it; no strips',
+    /^Canvas$/.test(inked.before || '') && /^Anchor$/.test(inked.after || '') && inked.strips === 0 && /^Canvas$/.test(inked.restored || ''),
     JSON.stringify(inked));
 
   // The flick cycles same-category pieces
@@ -1363,30 +1470,32 @@ const browser = await chromium.launch(
     window.__lkCSwap(0);
     const modal = document.getElementById('lk-swap-modal');
     return {
-      open: !!modal,
-      head: modal?.querySelector('p')?.textContent,
+      open: !!modal && !!modal.querySelector('.rb-sd'),
+      head: modal?.querySelector('.rb-sd-t')?.textContent,
       wardrobe: /From your wardrobe/.test(modal?.textContent || ''),
-      snap: /Snap mine/.test(modal?.textContent || ''),
+      snap: /^Snap /.test(modal?.querySelector('.rb-sd-tile.snap .nm')?.textContent || ''),
+      chipOn: modal?.querySelector('.rb-sd-chip.on')?.textContent.trim(),
     };
   });
-  check('composer · Swap opens the shared swap modal', swap.open === true);
-  check('composer · the modal offers her wardrobe and Snap mine',
-    swap.wardrobe === true && swap.snap === true, JSON.stringify(swap));
-  const swapped = await page.evaluate(() => {
-    window.__lkCSwapApply(0, 'w-top2');
+  check('composer · ↻ opens the swap drawer', swap.open === true && /^Swap the cream silk shirt/.test(swap.head || ''), JSON.stringify(swap));
+  check('composer · the drawer offers her wardrobe on the piece\'s category, Snap the first tile',
+    swap.wardrobe === true && swap.snap === true && /Tops/.test(swap.chipOn || ''), JSON.stringify(swap));
+  const swapped = await page.evaluate(async () => {
+    window.__rbSdPick('w-top2');
+    await new Promise((r) => setTimeout(r, 60));
+    window.__rbSdGo();
     return {
       modalGone: !document.getElementById('lk-swap-modal'),
       name: document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent,
     };
   });
-  check('composer · the swap applies and closes the modal',
+  check('composer · "Swap in …" commits the pick and closes the drawer',
     swapped.modalGone && swapped.name === 'Ribbed white tank', JSON.stringify(swapped));
 
-  // ✕ removes the row; the slot returns to the chooser's Still-open list
-  // (no placeholder rows since the A2 amendment — slots never sit in the
-  // rack empty, and never forecast a role)
+  // Swipe (programmatically, the row's remove) takes the piece out; the
+  // slot returns to the chooser's Still-open list (no placeholder rows)
   const xed = await page.evaluate(() => {
-    document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-rm').click();
+    window.__lkCRemove(0);
     window.__lkAddOpen();
     const sheet = document.getElementById('rb-lkadd-sheet');
     const stillOpen = /Still open in this look/i.test(sheet?.textContent || '');
@@ -1397,34 +1506,26 @@ const browser = await chromium.launch(
       stillOpen,
     };
   });
-  check('composer · ✕ removes the row; the slot returns to the chooser, never a bound placeholder',
+  check('composer · a removed row returns its slot to the chooser, never a bound placeholder',
     xed.empties === 0 && xed.filled === 0 && xed.stillOpen === false, JSON.stringify(xed));
 
-  // A role row's + Add pre-casts that role on the pick — a TOP added
-  // through The Anchor's row anchors (nothing dictates what goes where).
+  // The guide's "+ Canvas" pre-casts the role on the pick (nothing
+  // dictates what goes where — the role picker on the piece page recasts).
   const armed = await page.evaluate(() => {
-    const row = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rghost'))
-      .find((r) => r.previousElementSibling?.textContent.trim() === 'The Anchor');
-    row.querySelector('.rbc-act').click();
+    const b = Array.from(document.querySelectorAll('.rb-lk-con .rb-lk-guide .ga button')).find((x) => /^\+ Canvas$/.test(x.textContent.trim()));
+    b.click();
     const eyebrow = document.querySelector('#rb-lkadd-sheet p')?.textContent || '';
     document.querySelector('[data-lkadd-cat="Tops"]').click();
     Array.from(document.querySelectorAll('#rb-lkadd-sheet .rb-lk-opt'))
-      .find((b) => b.querySelector('span')?.textContent === 'Cream silk shirt').click();
-    const rack = document.querySelector('.rb-lk-con .rbc-rack');
-    const names = [];
-    let inGroup = false;
-    Array.from(rack.children).forEach((el) => {
-      if (el.classList.contains('rbc-rolestrip')) inGroup = el.textContent.trim() === 'The Anchor';
-      else if (inGroup && !el.classList.contains('rbc-rghost')) {
-        const n = el.querySelector('.rbc-name');
-        if (n) names.push(n.textContent);
-      }
-    });
+      .find((b2) => b2.querySelector('span')?.textContent === 'Cream silk shirt').click();
+    const names = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-row'))
+      .filter((r) => /^Canvas$/.test(r.querySelector('.rbc-ctx .role')?.textContent.trim() || ''))
+      .map((r) => r.querySelector('.rbc-name')?.textContent);
     window.__lkNew();   // reset roles + rows for the sections below
     return { eyebrow, names };
   });
-  check('composer · a role row\'s + Add pre-casts the role — a top can anchor',
-    /The Anchor/.test(armed.eyebrow) && armed.names.includes('Cream silk shirt'), JSON.stringify(armed));
+  check('composer · the guide\'s + Canvas pre-casts the role on the pick',
+    /The Canvas/.test(armed.eyebrow) && armed.names.includes('Cream silk shirt'), JSON.stringify(armed));
 
   const two = await page.evaluate(() => {
     window.__lkRowPick('r1', 'w-top1');
@@ -1433,6 +1534,7 @@ const browser = await chromium.launch(
       saveShown: !!document.querySelector('.rb-lk-save'),
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
       gate: !!document.getElementById('rb-lk-namegate'),
+      discard: document.querySelector('.rb-lk-draftbar .rb-lk-discard')?.textContent,
       img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
       head: document.querySelector('.rb-lk-con .rb-lkm-panel .lab')?.textContent,
     };
@@ -1449,22 +1551,14 @@ const browser = await chromium.launch(
   // RULE 02 — pieces are not enough. The name is still the gate, but it
   // answers at the CLICK (2026-08-20): Save is live, an unnamed save
   // refuses out loud (focus + toast) and writes nothing.
-  check('composer · two pieces are not enough — the name gates at the click',
-    two.saveShown === true && two.saveDisabled === false && two.gate === true,
-    JSON.stringify([two.saveShown, two.saveDisabled, two.gate]));
-  check('composer · naming it inks Save in place, without losing the caret',
-    two.namedLive === true && two.namedNote === 'Filed under Terrace mornings.' && two.unnamedAgain === true,
+  check('composer · two pieces: Save is live (no note on the page; Discard joins Save once something hangs)',
+    two.saveShown === true && two.saveDisabled === false && two.gate === false && two.discard === 'Discard',
+    JSON.stringify([two.saveShown, two.saveDisabled, two.gate, two.discard]));
+  // The name is optional (handoff 4·0): typing never changes the button,
+  // and emptying it never takes the ink away.
+  check('composer · naming it never repaints; Save stays ink, named or not',
+    two.namedLive === true && two.namedNote === undefined && two.unnamedAgain === false,
     JSON.stringify([two.namedLive, two.namedNote, two.unnamedAgain]));
-  const refusal = await page.evaluate(async () => {
-    window.__lkSaveAsk();
-    await new Promise((r) => setTimeout(r, 400));
-    return {
-      stillComposing: !!document.getElementById('rb-lk-newtitle'),
-      looksCount: (window.__TEST_LOOKS_WRITES || 0),
-    };
-  });
-  check('composer · an unnamed save writes nothing and stays on the composer',
-    refusal.stillComposing === true, JSON.stringify(refusal));
   // Two picks in one beat → ONE render, for both pieces; the last frame
   // stayed up meanwhile.
   await page.waitForTimeout(2600);
@@ -1559,7 +1653,7 @@ const browser = await chromium.launch(
       head: document.querySelector('.rb-lk-editing .rbc-lhead .lab')?.textContent,
       rackHead: document.querySelector('.rb-lk-editing .rb-lk-rackhead span')?.textContent,
     };
-    window.__lkDSwapApply(2, 'w-sho2');
+    window.__lkDSwapApply('w-sho1', 'w-sho2');
     await new Promise((r) => setTimeout(r, 2600));
     out.img = document.querySelector('.rb-lk-editing .rb-lkm-img')?.getAttribute('src');
     window.__lkResave();
@@ -1580,22 +1674,30 @@ const browser = await chromium.launch(
 
   // An unnamed look never reaches the grid (rule 02): Save declines and
   // puts the caret where the answer goes.
+  // Handoff 4·0 (2026-10-05): the name is OPTIONAL — an unnamed look
+  // saves under today's date, provisional (italic) until she renames it.
   const offered = await page.evaluate(() => {
     window.__lkNew();
     window.__lkRowPick('r1', 'w-top2');
     window.__lkRowPick('r2', 'w-bot2');
+    const sv = document.querySelector('.rb-lk-draftbar .rb-lk-save');
+    const live = !!sv && !sv.disabled && getComputedStyle(sv).backgroundColor === 'rgb(32, 32, 33)';
     const start = document.querySelectorAll('#rb-lk-grid .lt-title').length;
     window.__lkSave();
-    const before = document.querySelectorAll('#rb-lk-grid .lt-title').length;
-    const grew = before > start;
-    const focused = document.activeElement && document.activeElement.id;
+    const titles = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title'));
+    const grew = titles.length === start + 1;
+    const dated = titles.find((t) => /^(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day \d{1,2} [A-Z][a-z]{2}$/.test(t.textContent.trim()));
+    window.__lkNew();
+    window.__lkRowPick('r1', 'w-top2');
+    window.__lkRowPick('r2', 'w-bot2');
     window.__lkNewTitleInput('The tank one');
     window.__lkSave();
     const tile = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).find((t) => t.textContent === 'The tank one');
-    return { grew, focused, onGrid: !!tile, prov: tile ? tile.classList.contains('prov') : null };
+    return { live, grew, dated: dated ? dated.textContent.trim() : null, datedProv: dated ? dated.classList.contains('prov') : null, onGrid: !!tile, prov: tile ? tile.classList.contains('prov') : null };
   });
-  check('composer · an unnamed look does not save — it asks for the name',
-    offered.grew === false && offered.focused === 'rb-lk-newtitle', JSON.stringify(offered));
+  check('composer · Save comes live and ink with the first piece', offered.live === true, JSON.stringify(offered));
+  check('composer · an unnamed look saves under today\'s date, provisional',
+    offered.grew === true && !!offered.dated && offered.datedProv === true, JSON.stringify(offered));
   check('composer · named, it lands on the grid as HER name, not a provisional one',
     offered.onGrid === true && offered.prov === false, JSON.stringify(offered));
   await page.waitForTimeout(400);
@@ -1696,7 +1798,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     robes: document.querySelector('.rbc-lhead .robes')?.textContent,
     rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
     shop: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-name')).map((n) => n.textContent),
-    shopActs: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-act')).map((b2) => b2.textContent.trim()),
+    shopActs: Array.from(document.querySelectorAll('.rb-lk-prop .rbc-trail button')).map((b2) => b2.getAttribute('aria-label')),
     flicks: document.querySelectorAll('.rbc-rack .rbc-arrow').length,
     removes: document.querySelectorAll('.rbc-rack .rbc-rm').length,
     title: document.getElementById('rb-lk-newtitle')?.value,
@@ -1709,16 +1811,17 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     fabrics: document.querySelectorAll('.rbc-fabrics .fab').length,
     slotEye: document.querySelector('.rb-lk-prop .vslot')?.textContent,
     hownote: document.querySelector('.rb-lk-prop .rbc-hownote')?.textContent,
-    swapIcon: !!document.querySelector('.rb-lk-prop .rbc-acts button svg'),
-    saveCls: !!document.querySelector('.rb-lk-prop .rbc-act.save'),
+    swapIcon: !!document.querySelector('.rb-lk-prop .rbc-swap svg'),
+    saveCls: !!document.querySelector('.rb-lk-prop .rbc-wish'),
   }));
   check('build · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('build · her own pieces hang in the rack, attributed to Robes',
-    b.rows.length === 3 && b.robes === 'Robes', JSON.stringify([b.rows, b.robes]));
+  check('build · her own pieces hang in the rack, the head crediting "Composed by Robes"',
+    b.rows.length === 3 && b.robes === 'Composed by Robes', JSON.stringify([b.rows, b.robes]));
   check('build · one shop suggestion covers the slot her wardrobe cannot',
     b.shop.length === 1 && b.shop[0] === 'Cropped Bouclé Jacket', JSON.stringify(b.shop));
-  check('build · a proposal carries only Swap and Save',
-    JSON.stringify(b.shopActs) === JSON.stringify(['Swap', 'Save']), JSON.stringify(b.shopActs));
+  // Handoff 4a: a proposal row's trail is ♡ (wishlist) · ↻ (swap) · › (its page).
+  check('build · a proposal carries ♡ · ↻ · ›',
+    JSON.stringify(b.shopActs) === JSON.stringify(['Save to wishlist', 'Swap this piece', 'Open this piece']), JSON.stringify(b.shopActs));
   // No image carousel until the look is saved — it belongs to the saved card
   check('build · no carousel and no remove on an unsaved build',
     b.flicks === 0 && b.removes === 0, JSON.stringify([b.flicks, b.removes]));
@@ -1733,13 +1836,13 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     b.tags.length >= 1 && b.fabrics >= 1, JSON.stringify([b.tags, b.fabrics]));
   check('build · a proposal is the shared rack row — slot label on the frame, row note beneath',
     /Jacket/.test(b.slotEye || '') && !!b.hownote, JSON.stringify([b.slotEye, b.hownote]));
-  check('build · the proposal carries the same Swap (icon) and Save components as every rack card',
+  check('build · the proposal carries the same ↻ (icon) and ♡ as every trail row',
     b.swapIcon === true && b.saveCls === true, JSON.stringify([b.swapIcon, b.saveCls]));
   // The door names what it does (2026-09-16): a build with no photograph
   // on it cannot offer to REPLACE one.
   check('build · the photo door reads Add your photograph while the look has none',
     b.photo === 'Add your photograph', b.photo);
-  check('build · Save leads; Try another and Wear it today follow',
+  check('build · Save leads on the footer with Discard; Try another and Wear it today are the quiet doors under the rack',
     b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today']),
     JSON.stringify([b.saveDisabled, b.foot]));
   check('build · nothing is written until she saves',
@@ -1762,9 +1865,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const kept = await page.evaluate(async () => {
     window.__lkShopSave(0);
     await new Promise((r) => setTimeout(r, 400));
-    return { label: document.querySelector('.rb-lk-prop .rbc-act.done')?.textContent };
+    const w = document.querySelector('.rb-lk-prop .rbc-wish');
+    return { on: !!w && w.classList.contains('on'), label: w?.getAttribute('aria-label'), lead: document.querySelector('.rb-lk-prop .rbc-sub .wl')?.textContent };
   });
-  check('build · Save keeps the proposal, and says so', /Saved/.test(kept.label || ''), kept.label);
+  check('build · ♡ keeps the proposal — the heart turns warm and Wishlist leads the provenance', kept.on === true && kept.label === 'On your wishlist' && kept.lead === 'Wishlist', JSON.stringify(kept));
   await page.waitForTimeout(400);
   check('build · a kept proposal lands in the wishlist',
     writes.some((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)),
@@ -1897,7 +2001,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
       board: document.querySelectorAll('.rbc-board .rbc-tile').length,
       head: document.querySelector('.rbc-lhead .lab')?.textContent,
-      propActs: Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-act')).map((x) => x.textContent.trim()),
+      propActs: Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-trail button')).map((x) => x.getAttribute('aria-label')),
+      propLeads: Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-sub .wl')).map((x) => x.textContent),
       arrows: document.querySelectorAll('.rbc-rack .rb-lk-prop .rbc-arrow').length,
       quote: document.querySelector('.rbc-quote')?.textContent,
     };
@@ -1907,9 +2012,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('nothing owned · the saved look reopens WHOLE — mosaic and rack cards, like the composer',
     det.props === 4 && det.board === 4 && det.head === 'The look · 0 yours, 4 to find',
     JSON.stringify([det.props, det.board, det.head]));
-  check('nothing owned · saved proposals keep Swap, and read as already kept to the wishlist',
-    det.propActs.filter((x) => x === 'Swap').length === 4 && det.propActs.filter((x) => /Saved/.test(x)).length === 4,
-    JSON.stringify(det.propActs));
+  // Handoff 5b: at rest a proposal row reads — Wishlist · brand · price
+  // and › alone; ↻ and ♡ arrive with Edit look.
+  check('nothing owned · saved proposals read at rest — › alone, Wishlist leading the provenance',
+    det.propActs.length === 4 && det.propActs.every((x) => x === 'Open this piece') && det.propLeads.length === 4,
+    JSON.stringify([det.propActs, det.propLeads]));
   check('nothing owned · no wear record with nothing to wear', det.stats === 0, JSON.stringify(det.stats));
   // Superseded 2026-08-17: a proposal is never flicked into another
   // suggestion — the cluster is reserved for pieces she owns; Swap stays.
@@ -1923,38 +2030,51 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // the moment the look becomes hers: proposal off the rack, piece onto
   // look_pieces, the wear verbs return.
   const swapM = await page.evaluate(async () => {
-    const btn = Array.from(document.querySelectorAll('.rbc-rack .rb-lk-prop button.rbc-act')).find((x) => /Swap/.test(x.textContent));
+    window.__lkEditToggle();
+    await new Promise((r) => setTimeout(r, 150));
+    const btn = document.querySelector('.rbc-rack .rb-lk-prop .rbc-swap');
     btn?.click();
     await new Promise((r) => setTimeout(r, 250));
     const m = document.getElementById('rb-lkprop-swap');
     return {
-      open: !!m,
+      open: !!m && !!m.querySelector('.rb-sd'),
       wardrobe: /From your wardrobe/.test(m?.textContent || ''),
-      snap: /Snap mine/.test(m?.textContent || ''),
-      // Audit 6.2 (2026-08-19): the affiliate coming-soon dead end is
-      // replaced by a real Save-to-wishlist in the shared modal.
-      affiliate: /Save to wishlist/.test(m?.textContent || ''),
+      snap: /^Snap /.test(m?.querySelector('.rb-sd-tile.snap .nm')?.textContent || ''),
+      tiles: m?.querySelectorAll('.rb-sd-tile:not(.snap)').length,
     };
   });
-  check('nothing owned · Swap on a saved proposal opens the swap modal, daily-style',
-    swapM.open === true && swapM.wardrobe === true && swapM.snap === true && swapM.affiliate === true,
+  check('nothing owned · ↻ on a saved proposal (editing) opens the drawer — her wardrobe, Snap first',
+    swapM.open === true && swapM.wardrobe === true && swapM.snap === true && swapM.tiles >= 1,
     JSON.stringify(swapM));
   const adopted = await page.evaluate(async () => {
-    const card = document.querySelector('#rb-lkprop-swap [onclick*="__lkPropSwapApply"]');
-    card?.click();
+    const tile = document.querySelector('#rb-lkprop-swap .rb-sd-tile:not(.snap):not(.inlook)');
+    tile?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const preview = {
+      props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
+      ownedRows: document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length,
+      warm: document.querySelectorAll('.rbc-rack .rbc-row.changed').length,
+    };
+    window.__rbSdGo();
+    await new Promise((r) => setTimeout(r, 200));
+    window.__lkResave();
     await new Promise((r) => setTimeout(r, 600));
     return {
-      picked: !!card,
+      picked: !!tile, preview,
       props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
       ownedRows: document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length,
       acts: document.querySelectorAll('.rb-lk-diarybtn').length,
       modalGone: !document.getElementById('rb-lkprop-swap'),
     };
   });
-  check('nothing owned · picking an owned piece moves it ONTO the look — proposal off, wear verbs back',
-    adopted.picked === true && adopted.props === 3 && adopted.ownedRows === 1
-      && adopted.acts === 1 && adopted.modalGone === true,
+  check('nothing owned · a tap previews her piece in the proposal\'s place (warm row); Swap in + Update move it ONTO the look — proposal off, wear verbs back',
+    adopted.picked === true && adopted.preview.props === 3 && adopted.preview.ownedRows === 1 && adopted.preview.warm === 1
+      && adopted.props === 3 && adopted.ownedRows === 1 && adopted.acts === 1 && adopted.modalGone === true,
     JSON.stringify(adopted));
+  const propMem = writes.filter((w) => w.method === 'PATCH' && /^profiles\?/.test(w.url) && w.body?.style_dna?.memory).pop();
+  check('nothing owned · the adoption lands on the memory as a swap (out → her piece, with the category)',
+    propMem?.body?.style_dna?.memory?.entries?.[0]?.k === 'swap' && !!propMem.body.style_dna.memory.entries[0].out && !!propMem.body.style_dna.memory.entries[0].in && propMem.body.style_dna.memory.entries[0].surface === 'look-proposal',
+    JSON.stringify(propMem && propMem.body.style_dna.memory.entries[0]));
   check('nothing owned · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -1982,7 +2102,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     rows: Array.from(document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
     shop: document.querySelectorAll('.rb-lk-prop').length,
     chips: Array.from(document.querySelectorAll('.rb-lk-prop .rb-lk-shopph span')).map((c) => c.textContent),
-    prov: document.querySelector('.rb-lk-prop .rbc-sub')?.textContent,
+    prov: (document.querySelector('.rb-lk-prop .rbc-eye .b')?.textContent || '') + ' | ' + (document.querySelector('.rb-lk-prop .rbc-ctx')?.textContent || ''),
     title: document.getElementById('rb-lk-newtitle')?.value,
     foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
   }));
@@ -1991,7 +2111,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     JSON.stringify([a.rows, a.shop, a.head]));
   check('aspirational · each proposal is a full piece card with its category chip and provenance',
     JSON.stringify(a.chips) === JSON.stringify(['Trousers', 'Jacket', 'Shoes'])
-      && /Sézane|Toteme/.test(a.prov || ''), JSON.stringify([a.chips, a.prov]));
+      && /· (Sézane|Toteme)/.test(a.prov || '') && /Not yours yet/.test(a.prov || ''), JSON.stringify([a.chips, a.prov]));
   check('aspirational · the title comes from her icons, not the pieces',
     a.title === 'Margot Robbie meets Chanel.', a.title);
   check('aspirational · Wear it today is withheld; the exit is Build from mine only',
@@ -2012,6 +2132,42 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     JSON.stringify(mine));
   check('aspirational · …and Wear it today returns with it',
     JSON.stringify(mine.foot) === JSON.stringify(['Try another', 'Wear it today']), JSON.stringify(mine.foot));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 6a · The empty Lookbook is a ROOT (2026-10-09): its band reads ‹ Home and
+// goes home; the dock stays (it used to read ‹ Lookbook, loop to itself and
+// hide the dock — a dead end).
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs } = await boot(browser, { seed: false, width: 390 });
+  await page.evaluate(() => { const b = document.querySelector('#rb-dock-lookbook'); if (b) b.click(); else window.__lkGo(); });
+  await page.waitForTimeout(800);
+  const r = await page.evaluate(() => {
+    const band = document.querySelector('#rb-lk-wrap .rb-ret');
+    const dock = document.getElementById('rb-dock');
+    const bar = document.querySelector('#rb-lk-wrap .rb-lk-draftbar');
+    return {
+      composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
+      key: band && band.getAttribute('data-rbret'),
+      pill: document.getElementById('rb-backpill-label')?.textContent,
+      push: document.body.classList.contains('rb-lk-push'),
+      dock: dock ? getComputedStyle(dock).display : null,
+      barAboveDock: bar && dock ? bar.getBoundingClientRect().bottom <= dock.getBoundingClientRect().top + 2 : null, bb: bar && [bar.getBoundingClientRect().top, bar.getBoundingClientRect().bottom, getComputedStyle(bar).bottom, getComputedStyle(bar).position], db: dock && [dock.getBoundingClientRect().top, dock.getBoundingClientRect().bottom],
+    };
+  });
+  check('empty root · the band reads ‹ Home (key lkroot), the dock stays, the bar rides above it',
+    r.composer && r.key === 'lkroot' && r.pill === 'Home' && !r.push && r.dock === 'block' && r.barAboveDock === true, JSON.stringify(r));
+  await page.evaluate(() => window.__rbNavBack());
+  await page.waitForTimeout(700);
+  const h = await page.evaluate(() => ({
+    sn: document.getElementById('sn-page')?.style.display,
+    path: location.pathname,
+    homeLit: document.getElementById('rb-dock-home')?.classList.contains('active'),
+  }));
+  check('empty root · back lands home', h.sn === 'none' && h.homeLit === true, JSON.stringify(h));
+  check('empty root · no page errors', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }
 
@@ -2061,8 +2217,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('empty · no in-page segment; the Diary tab opens the Diary at zero looks and the Lookbook tab returns to the composer',
     cold.seg === false && diary.calOn === true && diary.eyebrow === 'Diary' && diary.diaryLit === true
       && diary.calOff === true && diary.eyebrowBack === 'Lookbook' && diary.stillComposer === true, JSON.stringify(diary));
-  // A key piece alone does NOT fill the Lookbook — it lives on Inspiration
-  // (IA refinement 2026-08-10). The one door holds.
+  // A key piece alone IS Lookbook content (the fold, 2026-10-05): the grid
+  // with its one tile, tagged on the photo, the key-piece door after it —
+  // never the empty-Lookbook composer.
   await page.evaluate(() => {
     localStorage.setItem('robes_style_notes__u-test',
       JSON.stringify([{ id: 1754630000000, type: 'key-piece', title: 'A piece', subtitle: 'Worn three ways', img: null }]));
@@ -2072,9 +2229,16 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const kpOnly = await page.evaluate(() => ({
     composer: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
     waysShown: (() => { const el = document.getElementById('sn-empty'); return !!el && el.style.display !== 'none'; })(),
+    kpTile: document.querySelectorAll('#rb-lk-grid .lt-kp').length,
+    tabs: document.getElementById('rb-lk-bar')?.style.display === 'block' && Array.from(document.querySelectorAll('#rb-lk-bar .rb-lk-tab')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')),
+    sugg: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').length,
   }));
-  check('empty · a key piece alone leaves the Lookbook on its one door (it lives on Inspiration)',
-    kpOnly.composer === true && kpOnly.waysShown === false, JSON.stringify(kpOnly));
+  // Look states (2026-10-06): a key piece is a GROUPING — its entry
+  // becomes suggested rows (no ways itemised → none here), never a tile
+  // in the Saved grid; with no saved look the composer stands under the
+  // tab row (F7).
+  check('empty · a key piece alone is no tile in the Saved grid — the composer stands under the tab row (look states, 2026-10-06)',
+    kpOnly.composer === true && kpOnly.waysShown === false && kpOnly.kpTile === 0, JSON.stringify(kpOnly));
   // A daily look is a DAY (Look Rules 1a) — it lives in the Diary and is
   // reached from a day cell, never from the Lookbook. The Lookbook holds
   // saved looks only, so an account with nothing but days still meets the
@@ -2101,7 +2265,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.waitForTimeout(300);
   const e = await page.evaluate(() => ({
     itemCards: document.querySelectorAll('#rb-lk-grid .lt-card').length,
-    eyebrow: document.querySelector('#rb-lk-grid .lt-ey')?.textContent,
+    eyebrow: document.querySelector('#rb-lk-grid .lt-tag')?.textContent,
     meta: document.querySelector('#rb-lk-grid .lt-meta')?.textContent,
     addCard: !!document.querySelector('#rb-lk-grid .rb-add-card'),
     moduleEmpty: !!document.querySelector('.rb-lk-empty'),
@@ -2109,23 +2273,23 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     stat: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
     // No travel strip on the Lookbook (Diary IA phase 2, 2026-09-08)
     holGone: !document.getElementById('rb-lk-hol') && !document.querySelector('.rb-lk-holcard'),
-    newLook: Array.from(document.querySelectorAll('#rb-lk-bar .rb-mast-acts button')).map((b) => b.textContent),
+    newLook: Array.from(document.querySelectorAll('#rb-lk-bar .rb-hdr-add, #rb-lk-bar .rb-mast-acts button')).map((b) => b.textContent),
   }));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   check('empty · a legacy look item still fills the shelf',
     e.itemCards === 1 && e.addCard === true, JSON.stringify(e));
-  check('empty · it draws in the one card language — eyebrow Look',
-    e.eyebrow === 'Look', JSON.stringify([e.eyebrow, e.meta]));
+  check('empty · it draws in the one card language — no eyebrow on a saved tile',
+    e.eyebrow === undefined, JSON.stringify([e.eyebrow, e.meta]));
   check('empty · no module empty state once anything exists', e.moduleEmpty === false);
   // Superseded 2026-08-12: sort and Refine RENDER at every count and sit
   // inert below four looks, rather than appearing from nowhere.
-  check('empty · sort and Refine render inert below four looks; the stat counts looks alone',
-    JSON.stringify(e.sorts) === JSON.stringify([true, true]) && e.stat === '1 look',
+  check('empty · sort and Filter hide below four looks; the count line counts looks alone',
+    JSON.stringify(e.sorts) === JSON.stringify([]) && e.stat === '1 look',
     JSON.stringify([e.sorts, e.stat]));
   // One masthead line (nav architecture 2026-09-10): ALL LOOKS · count,
   // then sort / Refine / + New look as hairline pills on the same line.
-  check('empty · no travel strip on the Lookbook — trips live in the Diary; the masthead line carries sort, Refine and + New look',
-    e.holGone === true && JSON.stringify(e.newLook) === JSON.stringify(['Last worn↓', 'Refine', '+ New look']),
+  check('empty · no travel strip on the Lookbook — trips live in the Diary; the masthead carries the + alone under four looks',
+    e.holGone === true && JSON.stringify(e.newLook) === JSON.stringify(['+']),
     JSON.stringify([e.holGone, e.newLook]));
   // FTUE wording on the composer's one alternative door — she has no looks
   // yet, so Robes offers to build the FIRST one (2026-08-12).
@@ -2137,8 +2301,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
     };
   });
-  check('empty · the first-time composer carries no Robes door, and Save is live',
-    ftue.door === undefined && ftue.card === true && ftue.saveDisabled === false,
+  check('empty · the first-time composer carries no Robes door; Save is withheld until a piece or a photograph',
+    ftue.door === undefined && ftue.card === true && ftue.saveDisabled === true,
     JSON.stringify(ftue));
   await ctx.close();
 }
@@ -2177,7 +2341,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     };
   });
   check('390px · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
-  check('390px · one-up grid, matching the item shelves', m.cols === 1, String(m.cols));
+  check('390px · two-up grid — looks and key pieces side by side (the mixed-grid design, 2026-10-05)', m.cols === 2, String(m.cols));
   check('390px · metadata is printed where there is no hover', m.metaVisible === true);
   check('390px · no horizontal overflow on the grid', m.overflow === true);
 
@@ -2189,11 +2353,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const det = document.querySelector('.rb-lk-con');
     const ey = document.querySelector('.rbc-rackhead .ey');
     const vslot = document.querySelector('.rbc-vp .vslot');
-    const mslot = document.querySelector('.rbc-mslot');
+    const mslot = document.querySelector('.rbc-trailrow .rbc-eye');
     const badge = document.querySelector('.rbc-share-m');
     const action = document.querySelector('.rbc-action');
-    const arrow = document.querySelector('.rbc-arrow');
-    const act = document.querySelector('.rbc-acts .rbc-act');
+    const arrow = document.querySelector('.rbc-trail .rbc-swap');
+    const act = document.querySelector('.rbc-trail .rbc-more');
     return {
       stacked: det ? getComputedStyle(det).gridTemplateColumns.split(' ').length === 1 : false,
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
@@ -2210,12 +2374,14 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       actH: act ? Math.round(act.getBoundingClientRect().height) : 0,
     };
   });
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-editing-390.png', fullPage: true }).catch(() => {});
+  if (process.env.SHOT_DIR) { await page.evaluate(() => document.querySelector('.rb-lk-lives')?.scrollIntoView({ block: 'end' })); await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOT_DIR + '/look-editing-390-foot.png' }).catch(() => {}); await page.evaluate(() => { const sc = document.getElementById('sn-page'); if (sc) sc.scrollTop = 0; window.scrollTo(0, 0); }); }
   check('390px · detail stacks', md.stacked === true);
   check('390px · the wear door survives — the diary on the image', md.actions === 1, String(md.actions));
   check('390px · no horizontal overflow on the detail', md.overflow === true && md.conFits === true, JSON.stringify([md.overflow, md.conFits]));
   // Spec E · mobile parity
   check('390px E · one header — the rack\'s duplicate eyebrow folds away', md.rackEyHidden === true);
-  check('390px E · slot and status share the row eyebrow',
+  check('390px E · the row eyebrow carries slot · role; the thumb\'s slot pill is gone',
     md.vslotHidden === true && md.mslotShown === true, JSON.stringify([md.vslotHidden, md.mslotShown]));
   // The Look detail carries no Share (Wear/Pin/Pack are its actions), so
   // the badge contract is probed on a synthetic console fragment — the
@@ -2234,16 +2400,17 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   });
   check('390px E · Share compresses to a badge on the mosaic, footer stays free',
     share.badgeShown === true && share.actionHidden === true && share.detailBadge === false, JSON.stringify(share));
-  check('390px E · every action survives at 44px touch height',
-    md.arrowH >= 44 && md.actH >= 44, JSON.stringify([md.arrowH, md.actH]));
+  // Handoff 4a: the row's three targets are 40pt circles (↻ ♡ ›).
+  check('390px E · every row action survives at 40px touch height',
+    md.arrowH >= 40 && md.actH >= 40, JSON.stringify([md.arrowH, md.actH]));
 
   const mc = await page.evaluate(() => {
     window.__lkNew();
     window.__lkApplyNew('w-top1');   // the empty composer holds no rows now — measure a filled one
     const n = document.querySelector('.rb-lk-con');
     window.__lkApplyNew('w-bot1');   // two pieces: Save comes live
-    const save = document.querySelector('.rb-lk-save');
-    const row = document.querySelector('.rb-lk-saverow');
+    const save = document.querySelector('.rb-lk-draftbar .rb-lk-save');
+    const row = document.querySelector('.rb-lk-draftbar');
     const card = document.querySelector('.rb-lk-composer');
     return {
       stacked: n ? getComputedStyle(n).gridTemplateColumns.split(' ').length === 1 : false,
@@ -2257,20 +2424,23 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       inCard: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
       titleOutside: !document.querySelector('.rb-lk-composer #rb-lk-newtitle')
         && !!document.querySelector('.rb-lk-newmast #rb-lk-newtitle'),
-      // Save stacks full width over the Robes door, and clears 44px
-      saveStacks: !!row && getComputedStyle(row).flexDirection === 'column',
-      saveFull: !!save && !!card
-        && Math.abs(save.getBoundingClientRect().width - (card.getBoundingClientRect().width - 32)) < 3,
+      // Design 4d: the draft footer is FIXED above the dock on the phone —
+      // Discard left, Save right, Save clearing 44px
+      saveStacks: !!row && getComputedStyle(row).position === 'fixed' && Math.round(row.getBoundingClientRect().width) === window.innerWidth,
+      saveFull: !!save && !!row && save.getBoundingClientRect().right > row.getBoundingClientRect().right - 60
+        && (row.querySelector('.rb-lk-discard')?.getBoundingClientRect().left || 0) < save.getBoundingClientRect().left,
       saveH: save ? Math.round(save.getBoundingClientRect().height) : 0,
       door: document.querySelector('.rb-lk-robesdoor')?.textContent,
     };
   });
   check('390px · composer stacks the card above the rack', mc.stacked === true);
   check('390px · rack rows run full width (no cramped shelf)', mc.rowsFullWidth === true);
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/composer-390.png', fullPage: true }).catch(() => {});
+  if (process.env.SHOT_DIR) { await page.evaluate(() => document.querySelector('.rbc-rack')?.scrollIntoView({ block: 'start' })); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOT_DIR + '/composer-390-rack.png' }).catch(() => {}); }
   check('390px · no horizontal overflow on the composer', mc.overflow === true);
   check('390px · the composer is one card, the name leading it from outside',
     mc.inCard === true && mc.titleOutside === true, JSON.stringify([mc.inCard, mc.titleOutside]));
-  check('390px · Save runs full width at 44px+, no Robes door beneath it',
+  check('390px · the draft footer is fixed at the foot — Discard left, Save (44px+) right, no Robes door beneath it',
     mc.saveStacks === true && mc.saveFull === true && mc.saveH >= 44 && mc.door === undefined,
     JSON.stringify([mc.saveStacks, mc.saveFull, mc.saveH, mc.door]));
   // Save is the last thing on the page and the dock is fixed over it —
@@ -2282,7 +2452,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     if (sc) sc.scrollTop = sc.scrollHeight;
     window.scrollTo(0, document.body.scrollHeight);
     await new Promise((r) => setTimeout(r, 200));
-    const save = document.querySelector('.rb-lk-save')?.getBoundingClientRect();
+    const save = document.querySelector('.rb-lk-draftbar .rb-lk-save')?.getBoundingClientRect();
     const dock = document.getElementById('rb-dock');
     const d = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
     return { saveBottom: save ? Math.round(save.bottom) : null, dockTop: d ? Math.round(d.top) : null };
@@ -2338,12 +2508,13 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       { id: 1754640000000, type: 'daily-look', title: 'A Dublin day', subtitle: 'Daily look · Wednesday', img: null },
       { id: 1754640000001, type: 'travel-edit', title: 'Ibiza holiday edit', subtitle: 'Travel edit · Ibiza', img: null,
         tvData: { capsule: Array(12).fill({}), looks: Array(6).fill({}), dateFrom: '2026-08-07', tripDays: 8 } },
-      { id: 1754640000002, type: 'key-piece', title: 'Umbro shorts', subtitle: 'Worn three ways', img: null },
+      { id: 1754640000002, type: 'key-piece', title: 'Umbro shorts', subtitle: 'Worn three ways', img: null,
+        kpData: { ways: [{ title: 'One', outfit: '', details: '', accessories: '' }, { title: 'Two', outfit: '', details: '', accessories: '' }, { title: 'Three', outfit: '', details: '', accessories: '' }], generatedImages: [], fallback: false, photoUrl: null } },
     ]));
     window.__lkGo();
     return {
       cards: document.querySelectorAll('#rb-lk-grid .lt-card').length,
-      eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-ey')).map((e) => e.textContent).sort(),
+      eyebrows: Array.from(document.querySelectorAll('#rb-lk-grid .lt-tag')).map((e) => e.textContent).sort(),
       itemCard: Array.from(document.querySelectorAll('#rb-lk-grid .lt-card')).some((c) => /A Dublin day/.test(c.textContent)),
       kpInStream: /Umbro shorts/.test(document.getElementById('rb-lk-grid')?.textContent || ''),
       holGone: !document.getElementById('rb-lk-hol') && !document.querySelector('.rb-lk-holcard'),
@@ -2351,34 +2522,38 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       newLook: /\+ New look/.test(document.getElementById('rb-lk-bar')?.textContent || '') && !/▾/.test(document.getElementById('rb-lk-bar')?.textContent || ''),
       stat: document.querySelector('#rb-lk-bar .rb-mast-n')?.textContent,
       allRow: (() => {
-        const row = document.querySelector('#rb-lk-bar .rb-mast');
+        const row = document.querySelector('#rb-lk-bar .rb-hdr2');
         return {
-          label: row?.querySelector('.rb-mast-lab')?.textContent,
+          tabs: Array.from(row?.querySelectorAll('.rb-lk-tab') || []).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')),
           sortHere: !!row?.querySelector('.rb-lk-sort'),
-          oneLine: !!row && Math.abs(row.querySelector('.rb-mast-lab').getBoundingClientRect().top - row.querySelector('.rb-lk-new').getBoundingClientRect().top) < 30,
+          oneLine: !!row && Math.abs(row.querySelector('.rb-lk-seg').getBoundingClientRect().top - row.querySelector('.rb-lk-new').getBoundingClientRect().top) < 30,
           noEyebrowRow: getComputedStyle(document.getElementById('sn-headrow')).display === 'none',
           inkFills: Array.from(row?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
         };
       })(),
+      suggN: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').filter((x) => x.status === 'suggested').length,
     };
   });
-  // The Lookbook holds SAVED LOOKS ONLY (Look Rules 1a): her two fixture
-  // looks, in one card language. The daily look is a day and lives in the
-  // Diary; the key piece lives on Inspiration; the travel edit rides its
-  // own pinned strip.
-  check('IA · the stream holds saved looks only, in one card language',
-    uni.cards === 2 && uni.itemCard === false && JSON.stringify(uni.eyebrows) === JSON.stringify(['Look', 'Look']),
+  // The Lookbook holds SAVED LOOKS and KEY PIECES (Look Rules 1a + the
+  // fold, 2026-10-05): her two fixture looks and the key piece, in one card
+  // language, each tagged on its photo. The daily look is a day and lives
+  // in the Diary; the travel edit lives there too.
+  // Look states (2026-10-06): the Saved tab holds SAVED LOOKS alone, no
+  // eyebrows; the key piece entry backfills into suggested rows (one per
+  // way) that live on the Suggested tab.
+  check('IA · the Saved stream holds saved looks alone, in one card language, no eyebrow',
+    uni.cards === 2 && uni.itemCard === false && JSON.stringify(uni.eyebrows) === JSON.stringify([]),
     JSON.stringify(uni));
-  check('IA · a key piece never enters the Lookbook stream', uni.kpInStream === false);
+  check('IA · a key piece stays out of the Saved stream — its ways are suggested rows (look states, 2026-10-06)', uni.kpInStream === false && uni.suggN === 3, JSON.stringify([uni.kpInStream, uni.suggN]));
   // Trips left the Lookbook for the Diary (Diary IA phase 2, 2026-09-08):
   // no pinned strip, no travel count in the stat, no split menu — the one
   // creation door on the Lookbook is + New look.
   check('IA · no travel strip and no trip in the stream — trips live in the Diary',
     uni.holGone === true && uni.tripInStream === false, JSON.stringify([uni.holGone, uni.tripInStream]));
-  check('IA · + New look is the one creation door (no split)', uni.newLook === true);
-  check('IA · ONE masthead line — ALL LOOKS · count, sort / Refine / + New look beside it, no eyebrow stacked above, nothing filled ink',
-    uni.stat === '2 looks' && uni.allRow.label === 'All looks'
-      && uni.allRow.sortHere === true && uni.allRow.oneLine === true && uni.allRow.noEyebrowRow === true && uni.allRow.inkFills === 0,
+  check('IA · + (the circle) is the one creation door (no split, no "+ New look" pill)', uni.newLook === false);
+  check('IA · ONE masthead — Saved | Suggested, "2 looks" beneath, the + beside it on the same line, no eyebrow stacked above, nothing filled ink',
+    uni.stat === '2 looks' && JSON.stringify(uni.allRow.tabs) === JSON.stringify(['Saved*', 'Suggested'])
+      && uni.allRow.sortHere === false && uni.allRow.oneLine === true && uni.allRow.noEyebrowRow === true && uni.allRow.inkFills === 0,
     JSON.stringify([uni.stat, uni.allRow]));
   // The Diary's + menu offers the two things a diary holds: a look for a
   // day and a travel edit. The intake opens OVER the Diary, and the trip
@@ -2536,9 +2711,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('IA · the Diary opens at /diary under its own eyebrow',
     cal.calShown && cal.calClass && cal.path === '/diary' && /\d{4}/.test(cal.monthTitle) && cal.eyebrow === 'Diary',
     JSON.stringify(cal));
-  check('IA · the Diary tab lights (desktop + dock), the Lookbook does not; no legacy Calendar tab; Inspiration stands',
+  check('IA · the Diary tab lights (desktop + dock), the Lookbook does not; no legacy Calendar tab; no Inspiration tab (folded into the Lookbook 2026-10-05)',
     cal.tnDiaryOn === true && cal.dockDiaryOn === true && cal.tnLookbook === false && cal.tnCalGone === true
-      && cal.tnInsp === true && cal.dockInsp === true,
+      && cal.tnInsp === false && cal.dockInsp === false,
     JSON.stringify([cal.tnDiaryOn, cal.dockDiaryOn, cal.tnLookbook, cal.tnCalGone, cal.tnInsp, cal.dockInsp]));
   check('IA · the looks view yields under the Diary', cal.wrapHidden === true);
 
@@ -2559,7 +2734,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const niso = nxt.getFullYear() + '-' + p(nxt.getMonth() + 1) + '-' + p(nxt.getDate());
     window.__mvWear(niso);
     const modal = document.getElementById('rb-mv-wear');
-    const tiles = modal ? modal.querySelectorAll('.pk-tile[onclick*="__mvWearPick"]').length : 0;
+    // multi-select (2026-09-29): a tile ticks, the foot commits
+    const tiles = modal ? modal.querySelectorAll('.pk-tile[onclick*="__mvPkToggleLook"]').length : 0;
     const head = modal ? modal.textContent : '';
     window.__mvWearPick(niso, 'lk-1');
     await new Promise((r) => setTimeout(r, 200));
@@ -2568,13 +2744,15 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       dbg: { rows: cal0.querySelectorAll('.dy-row').length, invites: cal0.querySelectorAll('.dy-invite').length, cards: cal0.querySelectorAll('.dy-card').length, trips: cal0.querySelectorAll('.dy-trip').length, tadd: cal0.querySelectorAll('.dy-tadd').length, mode: localStorage.getItem('rb_diary_mode'), head: (cal0.textContent || '').replace(/\s+/g, ' ').slice(0, 160) },
       cellWired: !!cell || isMonthTail,
       hadModal: !!modal, tiles,
-      asks: /What to wear\?/.test(head) && /Robes styles one/.test(head) && /Create a new look/.test(head),
+      // choose only (2026-10-10): no make-doors on a diary day's picker —
+      // a new look starts from the sparkle and reaches the day once saved
+      asks: /What to wear\?/.test(head) && !/Robes styles one/.test(head) && !/Create a new look/.test(head),
       modalGone: !document.getElementById('rb-mv-wear'),
       today: iso, target: niso,
     };
   });
   check('IA · empty future days are wired to the wear-a-look door', wear.cellWired === true, JSON.stringify(wear));
-  check('IA · the door lists her looks under the two make-doors, never creates',
+  check('IA · the door lists her saved looks alone — no make-doors, never creates',
     wear.hadModal && wear.tiles === 2 && wear.asks, JSON.stringify(wear));
   await page.waitForTimeout(1200); // the planned_days write is debounced
   const calPin = writes.find((w) => w.method === 'POST' && /^planned_days/.test(w.url) &&
@@ -2605,45 +2783,62 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('IA · the bridge closes the form and lands on the looks shelf',
     bridged.modalClosed && bridged.wrapShown, JSON.stringify(bridged));
 
-  // Inspiration — the undated shelf. The key piece seeded above lives
-  // there; the card is the door (no Restyle pill since 2026-09-17).
+  // Inspiration folded into the Lookbook (2026-10-05): the legacy dest
+  // lands on the Lookbook with Show = Key pieces; the key piece seeded
+  // above is a tile there, and the tile is the door (no Restyle pill).
   await page.evaluate(() => window.__rbNavGo('inspiration'));
   await page.waitForTimeout(500);
   const insp = await page.evaluate(() => ({
-    open: document.getElementById('rb-insp-page')?.style.display === 'block',
+    open: document.getElementById('sn-page')?.style.display === 'block', noPage: !document.getElementById('rb-insp-page'),
     path: location.pathname,
-    tnActive: document.getElementById('rb-tn-inspiration')?.classList.contains('active'),
-    lookbookOff: !document.getElementById('rb-tn-lookbook')?.classList.contains('active'),
-    cards: document.querySelectorAll('#rb-in-grid .rb-in-card').length,
-    title: document.querySelector('#rb-in-grid .rb-in-title')?.textContent,
-    sub: document.querySelector('#rb-in-grid .rb-in-sub')?.textContent,
-    saveAsLook: /Save as look/i.test(document.getElementById('rb-in-grid')?.textContent || ''),
+    tnActive: document.getElementById('rb-tn-lookbook')?.classList.contains('active'),
+    tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent, stat: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent,
+    cards: document.querySelectorAll('#rb-lk-grid [data-sugg]').length, looks: document.querySelectorAll('#rb-lk-grid .rb-lk-tile:not(.lt-sugg)').length,
+    titles: Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-title')).map((e) => e.textContent).sort(),
+    eyebrows: Array.from(new Set(Array.from(document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-ey')).map((e) => e.textContent))),
+    sub: document.querySelector('#rb-lk-grid [data-sugg] .lt-meta')?.textContent,
+    marks: document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-mark.quote').length, btns: document.querySelectorAll('#rb-lk-grid [data-sugg] .lt-sugbtn').length,
+    acts: document.querySelectorAll('#rb-lk-bar .rb-mast-acts button').length,
+    saveAsLook: /Save as look/i.test(document.getElementById('rb-lk-grid')?.textContent || ''),
   }));
-  check('IA · Inspiration is its own destination holding the key pieces',
-    insp.open && insp.path === '/inspiration' && insp.tnActive === true && insp.lookbookOff === true
-      && insp.cards === 1 && insp.title === 'Umbro shorts' && /Styled three ways by Robes/.test(insp.sub || ''),
+  // Look states (2026-10-06): the legacy dest is the Suggested tab — the
+  // key piece's three ways as three suggested tiles (prompt looks, since
+  // no wardrobe piece matches the entry's title), ✕ and ↻ on each, no
+  // controls, looks held back.
+  check('IA · Inspiration is the Suggested tab: Lookbook lit at /lookbook, the key piece as three suggested tiles with ✕ and ↻, looks held back, no controls',
+    insp.open && insp.noPage && insp.path === '/lookbook' && insp.tnActive === true && insp.tab === 'Suggested' && insp.stat === '3 suggested'
+      && insp.cards === 3 && insp.looks === 0 && JSON.stringify(insp.titles) === JSON.stringify(['One', 'Three', 'Two']) && JSON.stringify(insp.eyebrows) === JSON.stringify(['Suggested'])
+      && insp.sub === 'From your prompt' && insp.marks === 3 && insp.btns === 6 && insp.acts === 0,
     JSON.stringify(insp));
   check('IA · no Save-as-look yet (deferred — Annie 2026-08-10)', insp.saveAsLook === false);
-  // The card carries no Restyle pill (Annie, 2026-09-17: it served no
-  // purpose) — the card itself is the door to the three ways.
+  // The tile carries no Restyle pill (Annie, 2026-09-17: it served no
+  // purpose) — the tile itself is the door to the three ways.
   const opened = await page.evaluate(async () => {
-    const noPill = !document.querySelector('#rb-in-grid .rb-in-act') && !/Restyle/.test(document.getElementById('rb-in-grid')?.textContent || '');
-    document.querySelector('#rb-in-grid .rb-in-card').click();
+    const noPill = !document.querySelector('#rb-lk-grid .rb-in-act') && !/Restyle/.test(document.getElementById('rb-lk-grid')?.textContent || '');
+    document.querySelector('#rb-lk-grid [data-sugg] .lt-card').click();
     await new Promise((r) => setTimeout(r, 600));
-    // (the fixture row carries no kpData, so the three ways themselves do
-    // not render here — the door closing Inspiration is the pin)
     return {
       noPill,
-      inspClosed: document.getElementById('rb-insp-page').style.display === 'none',
+      kpOpen: document.getElementById('kp-result-page')?.style.display === 'block',
+      page: !!document.querySelector('#rb-lk-body .rb-lk-page'),
+      band: document.querySelector('#rb-lk-body .rb-ret-pill .lab')?.textContent,
+      ey: document.querySelector('#rb-lk-body .rb-lk-eyebrow')?.textContent,
+      bar: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-suggbar button')).map((b) => b.textContent),
     };
   });
-  check('IA · no Restyle pill; the card is the door out to the three ways',
-    opened.noPill && opened.inspClosed, JSON.stringify(opened));
+  // The tile opens the SUGGESTED look page (F8) — never the Worn Three
+  // Ways page — with ‹ Suggested, Edit · Save to lookbook.
+  check('IA · no Restyle pill; the tile opens the suggested look page (‹ Suggested, Edit · Save to lookbook), never the kp page',
+    opened.noPill && !opened.kpOpen && opened.page && opened.band === 'Suggested' && opened.ey === 'Suggested · from your prompt' && JSON.stringify(opened.bar) === JSON.stringify(['Edit', 'Save to lookbook']), JSON.stringify(opened));
+  await page.evaluate(() => { window.__lkBackDoor && window.__lkBackDoor(); });
+  await page.evaluate(() => { window.__lkRefineClear && window.__lkRefineClear(); });
   check('IA · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 
-// Zero looks: the picker creates nothing — its one door is the composer, filing to the day.
+// Zero looks: the picker creates nothing (2026-10-10, choose only) — it
+// says nothing is saved yet and points to the sparkle; with suggestions
+// waiting it names them and leads to Suggested.
 {
   const { ctx, page, errs } = await boot(browser, { seed: false });
   await page.evaluate(() => window.__rbNavGo('calendar'));
@@ -2653,19 +2848,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const t = new Date(Date.now() + 86400000);
     window.__mvWear(t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()));
     const modal = document.getElementById('rb-mv-wear');
-    const btn = modal && modal.querySelector('.pk-none .pk-ink[onclick*="__mvPkNew"]');
-    const copy = modal ? /Nothing in the Lookbook/.test(modal.textContent) && /Open the composer/.test(btn ? btn.textContent : '') : false;
-    if (btn) btn.click();
-    return { hadDoor: !!btn, copy };
+    return { modal: !!modal, none: /Nothing saved/.test(modal ? modal.textContent : ''), sparkle: /sparkle/.test(modal ? modal.textContent : ''),
+      makeDoors: modal ? modal.querySelectorAll('.pk-door, .pk-ink[onclick*="__mvPkNew"]').length : -1 };
   });
-  await page.waitForTimeout(700);
-  const landed = await page.evaluate(() => ({
-    composer: !!document.getElementById('rb-lk-newtitle'),
-    calOff: !document.getElementById('sn-page').classList.contains('rb-cal-on'),
-  }));
-  check('IA zero-looks · the picker is honest — Nothing in the Lookbook yet + Open the composer',
-    door.hadDoor && door.copy, JSON.stringify(door));
-  check('IA zero-looks · the door lands in the composer', landed.composer && landed.calOff, JSON.stringify(landed));
+  check('IA zero-looks · the picker is honest and creates nothing — Nothing saved yet, the sparkle named, no composer door',
+    door.modal && door.none && door.sparkle && door.makeDoors === 0, JSON.stringify(door));
   check('IA zero-looks · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -2822,6 +3009,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       keep: !!document.querySelector('#dl-result-page .rbc-action.keep'),
       panelHead: document.querySelector('#dl-result-page .rbc-lhead .lab')?.textContent,
       restyle: Array.from(document.querySelectorAll('#dl-result-page .rbc-hbtn')).map((x) => x.textContent).join('|'),
+      lpField: !!document.querySelector('#dl-result-page .dl-lpfield'),
     };
   });
   await page.waitForTimeout(1000);
@@ -2833,7 +3021,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     loose.eyebrow === 'Your look' && loose.title === 'Built around the linen shirt.'
       && loose.wearing === false && loose.offer === false && loose.dayPencil === false
       && loose.cta === 'Save this look' && loose.keep === true
-      && loose.panelHead === 'The look' && /Restyle it/.test(loose.restyle),
+      && loose.panelHead === 'The look' && !/Restyle/.test(loose.restyle || '') && loose.lpField === true,
     JSON.stringify(loose));
   // Both suggestions carry stored AI alternates. The shirt has owned peers
   // (her tops) so it flicks — through HER tops only, the alternate never
@@ -2946,7 +3134,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     return out;
   });
   check('saved view · an untouched day holds the saved look as it reads on its page',
-    savedView.saved === true && savedView.arrows === 0 && savedView.swaps === 0 && savedView.wears === 4
+    savedView.saved === true && savedView.arrows === 0 && savedView.swaps === 0 && savedView.wears === 0
       && savedView.head === 'The look' && savedView.pieceDoors === 4,
     JSON.stringify(savedView));
   // (The weather pill reads the live forecast, absent under the stub.)
@@ -3165,7 +3353,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   }, iso);
   const d1 = await readDay();
   check('day page · opening a day lands on its page: the date, "Name the day", Looks filed today + the count',
-    d1.visible && /^[A-Z][a-z]+day \d+ [A-Z]/.test(d1.eyebrow || '') && d1.title === 'Name the day' && d1.titleIsDoor && !d1.pen
+    d1.visible && /^[A-Z][a-z]+day \d+ [A-Z]/.test(d1.eyebrow || '') && d1.title === 'Name the day' && d1.titleIsDoor && d1.pen /* the pencil stands unnamed too (2026-09-29) */
       && d1.sec === 'Looks filed today' && d1.stat === '1 look · 4 pieces filed' && d1.console === false,
     JSON.stringify(d1));
   check('day page · the day carries a door back to where she came from (Home from the rail; Diary from the Diary)',
@@ -3236,11 +3424,12 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       pinStrip: document.querySelectorAll('#rb-lk-wrap .rb-lk-pinstrip').length,
       // The head's own type register, so the lighter Edit & resave can't
       // silently go back to the uppercase pill (Annie, 2026-09-21).
+      // Handoff 5a (2026-10-05): the edit door is the pinned bar's hairline pill.
       editBtn: (function () {
-        const b = document.querySelector('#rb-lk-wrap .rb-lk-rackhead-read .rb-lk-editbtn');
+        const b = document.querySelector('#rb-lk-wrap .rb-lk-pinbar .rb-lk-editlook');
         if (!b) return null;
         const c = getComputedStyle(b);
-        return { t: b.textContent.trim(), tt: c.textTransform, fw: c.fontWeight, fs: c.fontSize };
+        return { t: b.textContent.trim(), ink: c.backgroundColor === 'rgb(32, 32, 33)' };
       })(),
     };
   });
@@ -3251,10 +3440,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     /^‹?\s*[A-Z][a-z]{2} \d+ [A-Z][a-z]{2}$/.test(look.back || ''), look.back);
   check('day page · no pinned-for banner on the day she came through — the band\'s ‹ date IS that strip\'s one door',
     look.pinStrip === 0, JSON.stringify([look.pinStrip]));
-  check('day page · Edit & resave is the head\'s quiet sentence-case link, never the uppercase pill',
-    !!look.editBtn && look.editBtn.t === 'Edit & resave' && look.editBtn.tt === 'none'
-      && Number(look.editBtn.fw) <= 400 && parseFloat(look.editBtn.fs) <= 12,
-    JSON.stringify(look.editBtn));
+  check('day page · Edit look is the pinned bar\'s hairline pill, never ink',
+    !!look.editBtn && look.editBtn.t === 'Edit look' && look.editBtn.ink === false, JSON.stringify(look.editBtn));
   if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/day-look.png' }).catch(() => {});
   await page.evaluate(async () => {
     document.querySelector('#rb-lk-wrap .rb-ret-pill').click();
@@ -3413,8 +3600,8 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     /Ease with polish/.test(dressed.note) && dressed.tags, JSON.stringify([dressed.note, dressed.tags]));
   check('rule 04 · the photograph door is the pill on the canvas — never "Replace the photo" on a look with none',
     dressed.photoDoor === 'Add your photograph' && !dressed.replaceDoor, JSON.stringify([dressed.photoDoor, dressed.replaceDoor]));
-  check('rule 04 · the day is the context — the return band reads it and Save names the weekday, with no filing chip repeating it; every piece hangs on the rack',
-    dressed.dayChip === 0 && /^Save to /.test(dressed.save)
+  check('rule 04 · the day is the context — the return band reads it; Save is plain (it OFFERS the day after saving, never files to it); every piece hangs on the rack',
+    dressed.dayChip === 0 && /^Save/.test(dressed.save) && !/^Save to /.test(dressed.save)
       && ['Cream silk shirt', 'Barrel-leg jeans', 'Flat leather sandals', 'Woven straw tote'].every((n) => dressed.rack.includes(n)),
     JSON.stringify([dressed.dayChip, dressed.save, dressed.rack]));
   check('rule 04 · nothing is written until she saves',
@@ -3426,6 +3613,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // how _avRenderKick has rendered a saved build since 2026-08-25.
   await page.evaluate(async () => {
     window.__dlSubmit('Style me for the office');
+    // The school-run draft stands — a fresh generation asks first (phase 1).
+    await new Promise((r) => setTimeout(r, 300));
+    document.getElementById('rb-del-yes')?.click();
     await new Promise((r) => setTimeout(r, 2800));
   });
   const gapped = await page.evaluate(() => {
@@ -3542,9 +3732,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.waitForTimeout(1200);
   const fall = await page.evaluate(() => {
     const sn = document.getElementById('sn-page');
-    return { snOpen: !!sn && getComputedStyle(sn).display !== 'none', promptFocused: document.activeElement?.id === 'cb-ta' };
+    return { snOpen: !!sn && getComputedStyle(sn).display !== 'none', box: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), ph: document.getElementById('rb-lp-in')?.placeholder, focused: document.activeElement?.id };
   });
-  check('model-build landing · no undressed look → the prompt leads, focused', !fall.snOpen && fall.promptFocused && errs.length === 0, JSON.stringify([fall, errs.slice(0, 1)]));
+  // The home box is the prompt now (inline in the row since 2026-10-01):
+  // the landing focuses it in place, in new mode.
+  check('model-build landing · no undressed look → the home box (inline, "A new look for…") takes the focus', !fall.snOpen && fall.box && fall.ph === 'A new look for…' && fall.focused === 'rb-lp-in' && errs.length === 0, JSON.stringify([fall, errs.slice(0, 1)]));
   await ctx.close();
 }
 
@@ -3601,18 +3793,19 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       on: seg?.querySelector('button.on')?.textContent.trim() || null,
       note: con?.querySelector('.rb-lk-viewrow .note')?.textContent.trim() ?? null,
       creating: /creating her frame/i.test(con?.textContent || ''),
-      proposals: con ? Array.from(con.querySelectorAll('.rbc-act')).filter((b) => /Swap/.test(b.textContent)).length : -1,
+      proposals: con ? con.querySelectorAll('.rbc-row .rbc-vp.dashed').length : -1,
     };
   });
   const a = await read();
-  check('camera · a proposals look with a Robes frame and a model opens on Model, her frame coming, the diary bottom-left',
-    a.title === 'A Parisian Night Out' && a.diary && a.switcher && a.on === 'Model' && a.creating && a.proposals === 3, JSON.stringify(a));
-  check('camera · …and the CAMERA is there — Add your photograph (it was missing on every proposals look)',
-    a.camera === 'Add your photograph', JSON.stringify(a));
-  await page.evaluate(() => window.__lkDetailPhotoView('photo'));
-  await page.waitForTimeout(300);
-  const b = await read();
-  check('camera · on the You view a Robes frame offers Replace — her photograph takes its place', b.on === 'You' && b.camera === 'Replace your photograph', JSON.stringify(b));
+  // 2026-10-07: Robes' frame of the whole look HOLDS — it leads the page,
+  // her model is never rendered over it (no "Creating her frame…"), and
+  // there is no You / Model switch: the frame is the look's picture.
+  check('camera · a proposals look with a Robes frame and a model opens ON THE FRAME — no Model view, no render asked, the diary bottom-left',
+    a.title === 'A Parisian Night Out' && a.diary && !a.switcher && !a.creating && a.proposals === 3, JSON.stringify(a));
+  check('camera · …and the CAMERA is there — Replace: her own photograph may take the frame\'s place',
+    a.camera === 'Replace your photograph', JSON.stringify(a));
+  const b = await page.evaluate(() => ({ frame: document.querySelector('#rb-lk-body .rb-lkm-photo img')?.getAttribute('src') }));
+  check('camera · the frame is the picture on the page', b.frame === 'https://img.test/frame-paris.jpg', JSON.stringify(b));
   // Her upload: the camera opens the picker (a dynamically created input,
   // so the file chooser is the seam), the upload lands photo_url and
   // source 'manual', and the page reads the photograph as hers.
@@ -3653,23 +3846,21 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // door beside each proposal.
   const g = await page.evaluate(() => {
     const head = document.querySelector('#rb-lk-body .rb-lk-rackhead');
-    const zone = document.querySelector('#rb-lk-body .rb-lk-swapzone');
-    const rack = document.querySelector('#rb-lk-body .rbc-rack');
     return {
-      door: zone?.querySelector('.rb-lk-filldoor')?.textContent || null,
-      doorInHead: !!head?.querySelector('.rb-lk-filldoor'),
-      zoneTitle: zone?.querySelector('b')?.textContent || null,
-      zoneSub: zone?.querySelector('span')?.textContent || null,
-      zoneBeforeRack: !!(zone && rack) && !!(zone.compareDocumentPosition(rack) & Node.DOCUMENT_POSITION_FOLLOWING),
-      edit: !!head?.querySelector('.rb-lk-editbtn:not(.rb-lk-filldoor)'),
-      rowSwaps: Array.from(document.querySelectorAll('#rb-lk-body .rbc-act')).filter((b) => /Swap/.test(b.textContent)).length,
+      zone: !!document.querySelector('#rb-lk-body .rb-lk-swapzone'),
+      headBtns: head ? head.querySelectorAll('button').length : -1,
+      rowSwaps: document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-swap').length,
+      propDoors: document.querySelectorAll('#rb-lk-body .rb-lk-prop .rbc-more').length,
+      pinbar: document.querySelector('#rb-lk-body .rb-lk-pinbar .rb-lk-editlook')?.textContent.trim(),
     };
   });
-  check('fill door · a look borrowing two pieces gets its own swap zone between the head and the rack — "Two aren\'t yours yet" + Swap; the head keeps Edit & resave alone, the row Swaps still there',
-    g.door === 'Swap' && g.doorInHead === false && g.zoneTitle === 'Two aren’t yours yet'
-    && /Swap them for something you own/.test(g.zoneSub || '') && g.zoneBeforeRack && g.edit && g.rowSwaps === 2,
-    JSON.stringify(g));
-  await page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-filldoor').click());
+  // Handoff 5b: at rest the rack reads — no swap zone, no head button, no
+  // ↻; each borrowed row's › opens its page (Wishlist / Snap mine); the
+  // pinned bar is the one edit door. The batch fill door survives off the
+  // page (the next line, the deep link) — driven programmatically here.
+  check('fill door · at rest the look carries no swap zone and no row ↻ — the proposals\' › and the pinned Edit look are the doors',
+    g.zone === false && g.headBtns === 0 && g.rowSwaps === 0 && g.propDoors === 2 && g.pinbar === 'Edit look', JSON.stringify(g));
+  await page.evaluate(() => window.__rbFillOpen('lk-nophoto', 'rack'));
   await page.waitForTimeout(500);
   const h = await page.evaluate(() => {
     const step = document.querySelector('#wa-modal .fm-step');
@@ -3700,9 +3891,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const { ctx, page, errs } = await boot(browser, { pics: 4, seed: false });
   const under = await page.evaluate(() => {
     window.__lkNew();
-    return { composer: !!document.querySelector('.rb-lk-composer'), door: document.querySelector('.rb-lk-robesdoor')?.textContent ?? null };
+    return { composer: !!document.querySelector('.rb-lk-composer'), door: Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent))?.textContent ?? null };
   });
-  check('robes door · four photographed pieces → no door in the composer', under.composer && under.door === null, JSON.stringify(under));
+  check('robes door · four photographed pieces → no "Let Robes dress her" on the guide', under.composer && under.door === null, JSON.stringify(under));
   check('robes door · no page errors (under)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -3720,27 +3911,29 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   });
   const at = await page.evaluate(() => {
     window.__lkNew();
-    const d = document.querySelector('.rb-lk-robesdoor');
+    const d = Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent));
     return {
       door: d?.textContent ?? null,
-      pill: !!d && d.classList.contains('rb-pill') && getComputedStyle(d).backgroundColor !== 'rgb(32, 32, 33)',
-      inSaveRow: !!d && !!d.closest('.rb-lk-saverow'),
+      quiet: !!d && getComputedStyle(d).backgroundColor !== 'rgb(32, 32, 33)',
+      inGuide: !!d && !!d.closest('.rb-lk-guide'),
       inks: Array.from(document.querySelectorAll('.rb-lk-composer button, .rb-lk-saverow button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
     };
   });
-  check('robes door · five photographed pieces + a model → the pill beside Save, "Robes dresses her from what you’ve filed", hairline',
-    at.door === 'Robes dresses her from what you’ve filed' && at.pill && at.inSaveRow, JSON.stringify(at));
+  // Handoff 4·0: "Let Robes dress her" rides the guide's card — the rack
+  // has one door; the pill beside Save is gone from the Lookbook composer.
+  check('robes door · five photographed pieces + a model → "Let Robes dress her" on the guide, a quiet link',
+    at.door === 'Let Robes dress her' && at.quiet && at.inGuide, JSON.stringify(at));
   const built = await page.evaluate(async () => {
-    document.querySelector('.rb-lk-robesdoor').click();
+    Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent)).click();
     await new Promise((r) => setTimeout(r, 2200));
     return {
       built: !!document.querySelector('.rb-lk-saverow.built'),
       pieces: document.querySelectorAll('.rbc-rack .rbc-name').length,
-      door: !!document.querySelector('.rb-lk-robesdoor'),
+      door: !!document.querySelector('.rb-lk-guide'),
       name: document.getElementById('rb-lk-newtitle')?.value || '',
     };
   });
-  check('robes door · the tap fills the same rack (a build stands, the door retires)', built.built && built.pieces >= 2 && !built.door, JSON.stringify(built));
+  check('robes door · the tap fills the same rack (a build stands, the guide retires)', built.built && built.pieces >= 2 && !built.door, JSON.stringify(built));
   check('robes door · nothing written until she saves', !writes.some((w) => w.method === 'POST' && /^looks\b/.test(w.url)), JSON.stringify(writes.filter((w) => /^looks\b/.test(w.url)).length));
   await page.evaluate(async () => {
     const inp = document.getElementById('rb-lk-newtitle');
@@ -3756,9 +3949,870 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
 {
   // No model on file → the door's other wording.
   const { ctx, page, errs } = await boot(browser, { pics: 5, seed: false, pre: async (page) => { await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })); } });
-  const nm = await page.evaluate(() => { window.__lkNew(); return document.querySelector('.rb-lk-robesdoor')?.textContent ?? null; });
-  check('robes door · no model → "Robes builds one from what you’ve filed"', nm === 'Robes builds one from what you’ve filed', String(nm));
+  const nm = await page.evaluate(() => { window.__lkNew(); return Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent))?.textContent ?? null; });
+  check('robes door · no model → the guide still reads "Let Robes dress her"', nm === 'Let Robes dress her', String(nm));
   check('robes door · no page errors (no model)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// A look saved from her photograph with only a name (Annie, 2026-09-25):
+// the rack is empty, and Edit & resave must still stand — plus the empty
+// line's own door — so she can hang the pieces she wore afterwards.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs, writes } = await boot(browser, {
+    pics: 6, seed: false,
+    init: () => {
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-photo', name: 'Rose garden', name_provisional: false, note: '', photo_url: 'https://img.test/hers-garden.jpg',
+          render_url: null, render_key: null, source: 'manual', origin_look_id: null, created_at: '2026-09-20T10:00:00.000Z',
+          proposals: [], pieces: [], wears: [] }]));
+    },
+    pre: async (page) => {
+      await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  await page.evaluate(() => window.__lkOpen('lk-photo'));
+  await page.waitForTimeout(700);
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-photo-only-1280.png', fullPage: true }).catch(() => {});
+  const r0 = await page.evaluate(() => {
+    const door = document.querySelector('#rb-lk-body .rb-lk-emptydoor');
+    return {
+      pin: document.querySelector('#rb-lk-body .rb-lk-pinbar .rb-lk-editlook')?.textContent.trim(),
+      meta: document.querySelector('#rb-lk-body .rb-lk-pinmeta')?.textContent,
+      titleMeta: document.querySelector('#rb-lk-body .rb-tb-meta')?.textContent,
+      notice: !!document.querySelector('#rb-lk-body .rb-lk-panel'),
+      head: door?.querySelector('.gh')?.textContent, sub: door?.querySelector('.gd')?.textContent,
+      doorBtn: door?.querySelector('.rb-pill')?.textContent.trim(),
+      hangs: /Nothing hangs here yet/.test(document.querySelector('#rb-lk-body')?.textContent || ''),
+    };
+  });
+  // Handoff 6d: the pinned pill reads "+ Add pieces" while the rack is
+  // empty, the meta "Photograph · not yet filed", the dashed door under the
+  // photograph repeats it; no "Nothing on it yet" notice, no duplicate link.
+  check('photo-only look · the pinned pill reads + Add pieces, the meta Photograph · not yet filed, no notice',
+    r0.pin === '+ Add pieces' && r0.meta === undefined && /^Photograph · not yet filed/.test(r0.titleMeta || '') && r0.notice === false, JSON.stringify(r0));
+  check('photo-only look · the dashed door reads Add the pieces you wore, and the duplicate line is gone',
+    r0.head === 'Add the pieces you wore' && r0.sub === 'Photograph · not yet filed' && r0.doorBtn === '+ Add pieces' && r0.hangs === false, JSON.stringify(r0));
+  await page.evaluate(() => document.querySelector('#rb-lk-body .rb-lk-emptydoor .rb-pill').click());
+  await page.waitForTimeout(400);
+  const r1 = await page.evaluate(() => ({
+    editing: !!document.querySelector('#rb-lk-body .rb-lk-editing'),
+    add: !!document.querySelector('#rb-lk-body [onclick*="__lkDAddOpen"]'),
+  }));
+  check('photo-only look · the door opens the editor with + Add a piece', r1.editing && r1.add, JSON.stringify(r1));
+  await page.evaluate(() => {
+    window.__lkDAddPiece('w-top1');
+  });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => { window.__lkResave(); });
+  await page.waitForTimeout(900);
+  const r2 = await page.evaluate(() => {
+    const l = JSON.parse(localStorage.getItem('rb_looks__u-test') || '[]').find((x) => x.id === 'lk-photo');
+    return { pieces: l ? l.pieces.length : -1, photo: l && l.photo_url };
+  });
+  const lp = writes.filter((w) => /^look_pieces\b/.test(w.url) && w.method === 'POST');
+  check('photo-only look · Update hangs the piece and keeps her photograph',
+    r2.pieces === 1 && r2.photo === 'https://img.test/hers-garden.jpg' && lp.length > 0, JSON.stringify([r2, lp.length]));
+  check('photo-only look · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// The memory (docs/style-memory-brief.md, slice B · 2026-09-30): a verdict,
+// a swap, a wear and an undo each land on profiles.style_dna.memory — the
+// SAME jsonb every generation ships — newest first, capped at 60. Nothing
+// is read server-side by userId; the next POST simply carries it.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const { ctx, page, errs, writes } = await boot(browser, {
+    pics: 5, seed: true, avatar: 'w-s5-h2-hg',
+    pre: async (page) => {
+      await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+      await page.route('**/api/avatar/render', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rj-mem' }) }));
+      await page.route('**/api/images/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [], done: false }) }));
+      await page.route('**/api/alternates', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ alternates: [{ name: 'A found piece', brand: 'Robes', retailer_hint: 'Net-a-Porter', price_point: '€90', how: 'Worn open.' }, { name: 'Another', brand: 'Robes', retailer_hint: 'ASOS', price_point: '€40', how: 'Tucked.' }] }) }));
+      await page.route('**/api/lookbuild/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: null, note: 'A quiet build.', look_tags: null, palette: [] }) }));
+      await page.route('**/api/feedback', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+      await page.route('**/api/look/ask', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ intent: 'none', reply: 'Noted.', swaps: [], back: [], styled: [], draft: '', rule: '' }) }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  const memWrites = () => writes.filter((w) => w.method === 'PATCH' && /^profiles\?/.test(w.url) && w.body && w.body.style_dna && w.body.style_dna.memory);
+  const lastMem = () => (memWrites().pop() || {}).body?.style_dna?.memory?.entries || null;
+  // A wear on a saved look → one wear entry; the undo takes it out again.
+  await openLooks(page);
+  await page.evaluate(async () => { window.__lkOpen('lk-1'); await new Promise((r) => setTimeout(r, 300)); window.__lkWearToday(); await new Promise((r) => setTimeout(r, 400)); });
+  const m1 = lastMem();
+  check('memory · a wear lands as the newest entry, naming the look',
+    Array.isArray(m1) && m1[0]?.k === 'wear' && m1[0].look === 'The Thursday one' && m1[0].lookId === 'lk-1' && typeof m1[0].t === 'string' && m1[0].pieces >= 1,
+    JSON.stringify(m1 && m1[0]));
+  check('memory · the wear rides the profile the next generation reads',
+    await page.evaluate(() => (window.__robes_profile.style_dna.memory.entries[0] || {}).k) === 'wear');
+  await page.evaluate(async () => { window.__lkUndoToday(); await new Promise((r) => setTimeout(r, 400)); });
+  const m2 = lastMem();
+  check('memory · undoing the wear takes it out of the memory — the ledger stays clean',
+    Array.isArray(m2) && !m2.some((e) => e.k === 'wear' && e.lookId === 'lk-1'), JSON.stringify(m2));
+  // A verdict on a Robes build → her words, what it was about.
+  const before = memWrites().length;
+  const v = await page.evaluate(async () => {
+    window.__lkNew();
+    await new Promise((r) => setTimeout(r, 200));
+    window.__lkRobesBuild({ door: 'composer' });
+    await new Promise((r) => setTimeout(r, 2200));
+    const inp = document.getElementById('rb-lk-newtitle');
+    // The thumbs line is gone from the composer (2026-10-01): a verdict is a
+    // line in the look's box, and it lands in the memory as what she said.
+    const block = document.getElementById('lk-fb');
+    window.__lkLpOpen('composer');
+    await new Promise((r) => setTimeout(r, 200));
+    window.__rbLpText('too polished for a Tuesday');
+    document.getElementById('rb-lp-in')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await new Promise((r) => setTimeout(r, 900));
+    const out = { block: !!block, title: inp?.value || '', box: !!document.getElementById('rb-lp') };
+    window.__rbLpClose();
+    return out;
+  });
+  const m3 = lastMem();
+  check('memory · a verdict typed into the composer’s box lands with her words and what it was about (no thumbs line on the composer)',
+    !v.block && v.box && memWrites().length > before && m3?.[0]?.k === 'ask' && m3[0].text === 'too polished for a Tuesday' && m3[0].on === v.title && m3[0].surface === 'composer',
+    JSON.stringify([v, m3 && m3[0]]));
+  // A swap in the composer → out / in / category on the memory AND the event.
+  const sw = await page.evaluate(async () => {
+    window.__lkNew();
+    window.__lkRowPick('r1', 'w-top1');
+    await new Promise((r) => setTimeout(r, 200));
+    const row = document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent;
+    window.__lkCSwapApply('r1', 'w-top2');
+    await new Promise((r) => setTimeout(r, 400));
+    return { before: row, after: document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent };
+  });
+  const m4 = lastMem();
+  const ev = writes.filter((w) => w.method === 'POST' && /^events\b/.test(w.url) && w.body?.event_type === 'piece_swapped').pop();
+  check('memory · a composer swap lands as out → in with the category',
+    m4?.[0]?.k === 'swap' && m4[0].out === sw.before && m4[0].in === sw.after && m4[0].in === 'Ribbed white tank' && !!m4[0].cat && m4[0].surface === 'look-compose',
+    JSON.stringify([sw, m4 && m4[0]]));
+  check('memory · the piece_swapped event carries the same out / in / cat',
+    !!ev && ev.body?.metadata?.out === sw.before && ev.body?.metadata?.in === sw.after && !!ev.body?.metadata?.cat, JSON.stringify(ev && ev.body && ev.body.metadata));
+  // The cap: sixty stand, the sixty-first pushes the oldest out.
+  const cap = await page.evaluate(async () => {
+    window.__robes_profile.style_dna.memory.entries = Array.from({ length: 60 }, (_, i) => ({ t: '2026-01-01T00:00:00Z', k: 'wear', look: 'old ' + i, lookId: 'x' + i }));
+    await window.__rbMemoryPush({ k: 'verdict', v: 1, on: 'the newest' });
+    const e = window.__robes_profile.style_dna.memory.entries;
+    return { n: e.length, first: e[0].on, lastOld: e[e.length - 1].look };
+  });
+  check('memory · capped at sixty, newest first, the oldest dropped', cap.n === 60 && cap.first === 'the newest' && cap.lastOld === 'old 58', JSON.stringify(cap));
+  check('memory · every generation POST would carry it (styleDna no longer gates on a photo analysis)',
+    await page.evaluate(() => { const d = window.__robes_profile.style_dna; return !d.color_harmony && !d.silhouette_proportions && !!d.memory; }));
+  check('memory · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 13 · THE LOOK PROMPT (look prompt brief, phase 2 · 2026-10-01) — one box
+// on every look: the look's name and one meta line, no chips, one field.
+// Her words change the look behind it on Enter through ONE endpoint
+// (/api/look/ask) that returns an EDIT; a vague ask comes back as Robes'
+// wording in her field; "put it back" reverses; a rule files to her brief;
+// the thread is dropped on close; nothing is written until she saves.
+// ─────────────────────────────────────────────────────────────────────────
+// The endpoint, stubbed: answers by her words, resolving names against the
+// rack and the pool the client sent — exactly what the live route does.
+const askStub = (askPosts) => (r) => {
+  let b = null; try { b = r.request().postDataJSON(); } catch (_) {}
+  askPosts.push(b);
+  const t = String(b?.text || '').toLowerCase();
+  const rack = b?.rack || [], pool = b?.pool?.items || [];
+  const rowOf = (re) => rack.findIndex((x) => re.test(String(x.name || '').toLowerCase()));
+  const poolOf = (re) => pool.findIndex((x) => re.test(String(x.label || '').toLowerCase()));
+  const base = { intent: 'clarify', reply: 'Do you mean the shoes, or the whole look? Say which and Robes will do it.', swaps: [], back: [], styled: [], draft: '', rule: '' };
+  let out = base;
+  if (/sandals for the slides/.test(t)) out = { ...base, intent: 'swap', reply: 'Done. Your tan leather slides are on the look. Say if you want anything back.', swaps: [{ i: rowOf(/sandals/), to: { pool_index: poolOf(/slides/) } }] };
+  else if (/silk shirt for the ribbed white tank/.test(t)) out = { ...base, intent: 'swap', reply: 'Done. The ribbed white tank is on the look. Say if you want anything back.', swaps: [{ i: rowOf(/silk shirt/), to: { pool_index: poolOf(/ribbed white tank/) } }] };
+  else if (/jeans for a black trouser/.test(t)) out = { ...base, intent: 'swap', reply: 'Done. A black tailored trouser is on the look. Say if you want anything back.', swaps: [{ i: rowOf(/jeans/), to: { name: 'Black tailored trouser', brand: 'COS', retailer_hint: 'COS', price_point: '€120', category: 'Bottoms' } }] };
+  else if (/too dressy/.test(t)) out = { ...base, intent: 'draft', reply: 'It’s the silk shirt making it feel that way. Robes would change it. It’s written below; edit it, or press Enter.', draft: 'Change the cream silk shirt for the ribbed white tank' };
+  else if (/tuck/.test(t)) out = { ...base, intent: 'styled', reply: 'Done. The tank is tucked at the front so the waist shows.', styled: [{ i: rowOf(/tank/) >= 0 ? rowOf(/tank/) : rowOf(/shirt/), note: 'tucked at the front' }] };
+  else if (/remember|don.t like grey/.test(t)) out = { ...base, intent: 'rule', reply: 'Noted. Robes will keep grey out from now on.', rule: 'No grey' };
+  else if (/everything back|all back/.test(t)) out = { ...base, intent: 'back', reply: 'Done. The look is back as it was.', back: [] };
+  else if (/sandals back/.test(t)) out = { ...base, intent: 'back', reply: 'Done. The flat leather sandals are back on the look.', back: [rowOf(/slides/)] };
+  else if (/raincoat/.test(t)) out = { ...base, intent: 'draft', reply: 'There’s no raincoat in the case. The nearest is the linen shirt from the case. Change it for that?', draft: 'Change the sandals for the linen shirt' };
+  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(out) });
+};
+const lpRead = () => {
+  const a = document.getElementById('rb-lp');
+  const ink = (root) => Array.from(root?.querySelectorAll('button') || []).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length;
+  return {
+    open: !!a, title: a?.querySelector('.ttl')?.textContent, meta: a?.querySelector('.meta')?.textContent, dock: !!a?.classList.contains('rb-lp-dock'), inline: !!a?.classList.contains('rb-lp-in'), scrim: !!a?.querySelector('.rb-lp-scrim'), name: a?.querySelector('.rb-lp')?.getAttribute('aria-label'),
+    chips: a ? a.querySelectorAll('.rs-chip, .rb-lp-chip').length : 0,
+    thread: Array.from(a?.querySelectorAll('#rb-lp-thread > div') || []).map((d) => d.className + ':' + d.textContent.trim()),
+    value: a?.querySelector('#rb-lp-in')?.value, drafted: !!a?.querySelector('#rb-lp-in.drafted'), ph: a?.querySelector('#rb-lp-in')?.getAttribute('placeholder'),
+    helper: a?.querySelector('#rb-lp-helper')?.textContent, sendInk: !!a?.querySelector('#rb-lp-send.ink'), ink: ink(a), z: a && getComputedStyle(a).zIndex,
+    disabled: !!a?.querySelector('#rb-lp-in:disabled'),
+  };
+};
+const lpSend = async (text, wait) => {
+  const ta = document.getElementById('rb-lp-in');
+  if (!ta) return null;
+  ta.value = text; ta.dispatchEvent(new Event('input'));
+  const mid = { sendInk: !!document.querySelector('#rb-lp-send.ink') };
+  ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await new Promise((r) => setTimeout(r, wait || 700));
+  return mid;
+};
+{
+  // 13a · the composer: a Robes build. The field under Save, the box's
+  // anatomy, a clear swap, a vague ask, the draft sent unedited, how it's
+  // worn, a rule, put back one and all, the thread dropped on close.
+  const { ctx, page, errs, writes } = await boot(browser, { seed: false, pics: 6, init: 'window.__lpRead = ' + lpRead.toString() + '; window.__lpSend = ' + lpSend.toString() + ';' });
+  await page.route('**/api/alternates', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ALTS) }));
+  await routeBuildNote(page);
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  await page.route('**/api/lookbuild/images', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'aj1' }) }));
+  await page.route('**/api/images/aj*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [null], done: true }) }));
+  const askPosts = [];
+  await page.route('**/api/look/ask', askStub(askPosts));
+  await openLooks(page);
+  await page.evaluate(() => { window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' }; window.__lkRobesBuild(); });
+  await page.waitForTimeout(2800);
+  const door = await page.evaluate(() => {
+    const con = document.querySelector('#rb-lk-body');
+    const f = con?.querySelector('.rb-lp-field');
+    return { field: !!f, label: f?.querySelector('.ph')?.textContent, afterSave: !!f && !!f.closest('.rb-lk-draftbar') && !!f.nextElementSibling?.classList.contains('rb-lk-save'),
+      old: con?.querySelectorAll('.rb-lk-askdoor').length, foot: Array.from(con?.querySelectorAll('.rb-lk-buildfoot button') || []).map((x) => x.textContent),
+      rows: Array.from(con?.querySelectorAll('.rbc-rack .rbc-name') || []).map((n) => n.textContent) };
+  });
+  check('box · the door is a pill-shaped field on the draft footer, before Save, reading “Change this look…” — Adjust with words is gone from the foot',
+    door.field && door.label === 'Change this look…' && door.afterSave && door.old === 0 && !door.foot.includes('Adjust with words') && door.rows.includes('Flat leather sandals'), JSON.stringify(door));
+  const opened = await page.evaluate(async () => {
+    document.querySelector('#rb-lk-body .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    return window.__lpRead();
+  });
+  // Inline since 2026-10-01: no sheet, no shade, no second title — the box
+  // docks where the field sat, one field reading the page's verb.
+  check('box · the box opens DOCKED where the field sat — no shade, no title, no opener, no chips, an empty field reading “Change this look…”, a hairline send, no ink inside it',
+    opened.open && opened.dock && !opened.scrim && !opened.title && !opened.meta && opened.chips === 0 && opened.thread.length === 0
+      && opened.value === '' && !opened.sendInk && opened.ink === 0 && opened.ph === 'Change this look…' && opened.name === 'The shirt one', JSON.stringify(opened));
+  const wb = writes.length;
+  const sw = await page.evaluate(async () => {
+    const mid = await window.__lpSend('swap the sandals for the slides', 900);
+    const out = window.__lpRead(); out.midInk = mid.sendInk;
+    const con = document.querySelector('#rb-lk-body');
+    out.rows = Array.from(con.querySelectorAll('.rbc-rack .rbc-name')).map((n) => n.textContent);
+    out.was = Array.from(con.querySelectorAll('.rb-lp-was')).map((n) => n.textContent);
+    out.door = con.querySelector('.rb-lp-field .ph')?.textContent;
+    out.park = ((d) => (d && d.v === 3) ? (d.drafts[0] || null) : d)(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null'));
+    return out;
+  });
+  const a0 = askPosts[0] || {};
+  check('box · typing turns the send ink; Enter sends her words with the rack (owned marked, the proposal not), the wardrobe as the pool, and the context',
+    sw.midInk && askPosts.length === 1 && a0.mode === 'look' && a0.surface === 'composer' && a0.text === 'swap the sandals for the slides'
+      && Array.isArray(a0.rack) && a0.rack.filter((x) => x.owned).length === 3 && a0.rack.some((x) => !x.owned) && a0.pool?.kind === 'wardrobe' && a0.pool.items.length === 10 && a0.rack.every((x) => x.keep === false),
+    JSON.stringify([sw.midInk, askPosts.length, a0.mode, a0.surface, a0.text, a0.rack, a0.pool?.kind, a0.pool?.items?.length]));
+  check('box · a clear swap changes the look behind on Enter — the slides on the rack, the sandals gone, the row reading “Swapped in · was the flat leather sandals” — and the thread carries her turn and Robes’ Done',
+    sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals') && JSON.stringify(sw.was) === JSON.stringify(['Swapped in · was the flat leather sandals'])
+      && sw.thread.length === 2 && /^her:swap the sandals/.test(sw.thread[0]) && /^robes:Done\./.test(sw.thread[1]) && sw.value === '' && !sw.drafted, JSON.stringify(sw));
+  check('box · the door and the placeholder flip to “Anything else, or put something back…”; the park carries `was`',
+    sw.door === 'Anything else, or put something back…' && sw.ph === 'Anything else, or put something back…' && sw.park && Object.keys(sw.park.was || {}).length === 1, JSON.stringify([sw.door, sw.ph, sw.park && sw.park.was]));
+  const vague = await page.evaluate(async () => {
+    await window.__lpSend('too dressy for walking', 900);
+    const out = window.__lpRead();
+    out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent);
+    return out;
+  });
+  check('box · a vague ask changes NOTHING — Robes says what it would change and writes the swap into her field with the warm border',
+    vague.rows.includes('Cream silk shirt') && vague.rows.includes('Tan leather slides') && vague.value === 'Change the cream silk shirt for the ribbed white tank' && vague.drafted
+      && /^robes:It’s the silk shirt/.test(vague.thread[vague.thread.length - 1]), JSON.stringify(vague));
+  const fromDraft = await page.evaluate(async () => {
+    const ta = document.getElementById('rb-lp-in');
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await new Promise((r) => setTimeout(r, 900));
+    const out = window.__lpRead();
+    out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent);
+    out.was = Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-was')).map((n) => n.textContent);
+    return out;
+  });
+  check('box · Enter on the draft unedited applies exactly the swap it names — the tank in, the shirt out and marked',
+    askPosts.length === 3 && askPosts[2].text === 'Change the cream silk shirt for the ribbed white tank' && fromDraft.rows.includes('Ribbed white tank') && !fromDraft.rows.includes('Cream silk shirt')
+      && fromDraft.was.includes('Swapped in · was the cream silk shirt') && !fromDraft.drafted && fromDraft.value === '', JSON.stringify(fromDraft));
+  const styled = await page.evaluate(async () => {
+    await window.__lpSend('tuck the tank in', 900);
+    return { styled: Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-styled')).map((n) => n.textContent), rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent).length, park: ((d) => (d && d.v === 3) ? (d.drafts[0] || null) : d)(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null')) };
+  });
+  check('box · how it’s worn: the same pieces, the note on the row, the park carrying `styled`',
+    JSON.stringify(styled.styled) === JSON.stringify(['tucked at the front']) && styled.rows === 4 && styled.park && Object.keys(styled.park.styled || {}).length === 1, JSON.stringify([styled.styled, styled.rows, styled.park && styled.park.styled]));
+  const rule = await page.evaluate(async () => {
+    await window.__lpSend('remember that I don’t like grey', 900);
+    const out = window.__lpRead();
+    out.rules = ((((window.__robes_profile || {}).style_dna || {}).brief || {}).rules || []).map((r) => r.text + '|' + r.source);
+    out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent).length;
+    return out;
+  });
+  const ruleWrite = writes.slice(wb).find((w) => w.method === 'PATCH' && /^profiles/.test(w.url) && JSON.stringify(w.body).includes('No grey'));
+  check('box · a standing rule is filed to her brief (source typed) with the quiet line, the look untouched',
+    JSON.stringify(rule.rules) === JSON.stringify(['No grey|typed']) && !!ruleWrite && rule.thread.some((t) => /^filed:Filed to your style notes/.test(t)) && rule.rows === 4, JSON.stringify([rule.rules, !!ruleWrite, rule.thread.slice(-2)]));
+  const back1 = await page.evaluate(async () => {
+    await window.__lpSend('put the sandals back', 900);
+    return { rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent), was: Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-was')).map((n) => n.textContent) };
+  });
+  check('box · “put the sandals back” reverts that row alone — the sandals return, the tank stays changed',
+    back1.rows.includes('Flat leather sandals') && !back1.rows.includes('Tan leather slides') && back1.rows.includes('Ribbed white tank') && JSON.stringify(back1.was) === JSON.stringify(['Swapped in · was the cream silk shirt', 'Back in · from the prompt']), JSON.stringify(back1));
+  const backAll = await page.evaluate(async () => {
+    await window.__lpSend('put everything back', 900);
+    const out = window.__lpRead();
+    out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent);
+    out.was = Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-was')).map((n) => n.textContent);
+    return out;
+  });
+  // Handoff 5e: a put-back row reads “Back in · from the prompt” — the
+  // door still reads Change this look… because nothing stands changed.
+  check('box · with no piece named every change goes back; the rows read Back in · from the prompt; the door reads “Change this look…” again',
+    backAll.rows.includes('Cream silk shirt') && !backAll.rows.includes('Ribbed white tank') && backAll.was.length === 2 && backAll.was.every((t) => t === 'Back in · from the prompt') && backAll.ph === 'Change this look…', JSON.stringify(backAll));
+  // The closed-state rule (2026-10-01): a thread closed MID-WAY is held
+  // and comes back on the next open; left there without a new line, it
+  // is let go — the open after THAT shows the opener alone.
+  const closed = await page.evaluate(async () => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await new Promise((r) => setTimeout(r, 150));
+    const gone = !document.getElementById('rb-lp');
+    document.querySelector('#rb-lk-body .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const held = window.__lpRead().thread.length;
+    window.__rbLpClose();
+    await new Promise((r) => setTimeout(r, 100));
+    document.querySelector('#rb-lk-body .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const out = window.__lpRead(); out.gone = gone; out.held = held;
+    out.door = document.querySelector('#rb-lk-body .rb-lp-field .ph')?.textContent;
+    return out;
+  });
+  check('box · Escape closes it; the thread comes back once on reopen, and a reopen she leaves unanswered lets it go — the field stands alone after that',
+    closed.gone && closed.held > 1 && closed.open && closed.thread.length === 0 && closed.door === 'Change this look…', JSON.stringify(closed));
+  check('box · nothing is written by any of it — no look, no row; the brief write and the events are the only PATCHes',
+    !writes.slice(wb).some((w) => w.method === 'POST' && /^(looks|look_pieces|lookbook_items|planned_days)/.test(w.url)), JSON.stringify(writes.slice(wb).map((w) => w.method + ' ' + w.url)));
+  check('box · composer: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // 13b · the saved look: the field under the card in reading mode, no
+  // Adjust door on the head; a swap opens the look EDITING with the change
+  // bar; Discard hands it back; a tuck + Update commits looks.styling.
+  const { ctx, page, errs, writes } = await boot(browser, { pics: 4, init: 'window.__lpRead = ' + lpRead.toString() + '; window.__lpSend = ' + lpSend.toString() + ';' });
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  const askPosts = [];
+  await page.route('**/api/look/ask', askStub(askPosts));
+  await openLooks(page);
+  await page.evaluate(() => window.__lkOpen('lk-1'));
+  await page.waitForTimeout(600);
+  const door = await page.evaluate(() => {
+    const pg = document.querySelector('#sn-page');
+    const head = pg.querySelector('.rb-lk-rackhead-read');
+    return { heads: Array.from(head?.querySelectorAll('button') || []).map((b) => b.textContent.trim()), field: !!pg.querySelector('.rb-lk-held .rb-lp-field'), label: pg.querySelector('.rb-lk-held .rb-lp-field .ph')?.textContent, editing: !!pg.querySelector('.rb-lk-page.editing') };
+  });
+  check('box · saved look: the field sits under the card; the rack head carries nothing (the pinned bar is the edit door)', door.field && door.label === 'Change this look…' && door.heads.length === 0 && !door.editing, JSON.stringify(door));
+  const wb = writes.length;
+  const sw = await page.evaluate(async () => {
+    document.querySelector('#sn-page .rb-lk-held .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const o = window.__lpRead();
+    await window.__lpSend('swap the sandals for the slides', 900);
+    const pg = document.querySelector('#sn-page');
+    return { title: o.title, meta: o.meta, editing: !!pg.querySelector('.rb-lk-page.editing'), rows: Array.from(pg.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
+      was: Array.from(pg.querySelectorAll('.rb-lp-was')).map((n) => n.textContent), warm: pg.querySelectorAll('.rbc-rack .rbc-row.changed').length, acts: Array.from(pg.querySelectorAll('.rb-lk-editpin button:not(.rb-lp-field)')).map((b) => b.textContent.trim()) };
+  });
+  const a0 = askPosts[0] || {};
+  // Handoff 5e: the prompt edits the same draft — the change shows on the
+  // rack straight away as a warm row naming what it replaced, and the
+  // pinned bar reads Discard · Update look; the prompt never commits.
+  check('box · the box names the saved look; a swap opens it EDITING — the slides on the rack as a warm row naming the sandals, the pinned bar Discard · Update look',
+    a0.name === 'The Thursday one' && a0.surface === 'saved' && a0.rack?.length === 4 && sw.editing && sw.rows.includes('Tan leather slides') && !sw.rows.includes('Flat leather sandals')
+      && JSON.stringify(sw.was) === JSON.stringify(['Swapped in · was the flat leather sandals']) && sw.warm === 1 && sw.acts.join(' | ') === 'Discard | Update look', JSON.stringify(sw));
+  const rowWrites = () => writes.slice(wb).filter((w) => !/^events/.test(w.url) && !/^profiles/.test(w.url));
+  check('box · nothing is written by the swap itself', rowWrites().length === 0, JSON.stringify(rowWrites().map((w) => w.method + ' ' + w.url)));
+  const disc = await page.evaluate(async () => {
+    window.__rbLpClose();
+    window.__lkDraftDiscard();
+    await new Promise((r) => setTimeout(r, 300));
+    const pg = document.querySelector('#sn-page');
+    return { editing: !!pg.querySelector('.rb-lk-page.editing'), rows: Array.from(pg.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent), was: pg.querySelectorAll('.rb-lp-was').length };
+  });
+  check('box · Discard hands the saved look back untouched', !disc.editing && disc.rows.length === 4 && disc.rows.includes('Flat leather sandals') && disc.was === 0 && rowWrites().length === 0, JSON.stringify(disc));
+  const upd = await page.evaluate(async () => {
+    document.querySelector('#sn-page .rb-lk-held .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    await window.__lpSend('tuck the shirt in', 900);
+    const pg = document.querySelector('#sn-page');
+    const out = { styledNote: Array.from(pg.querySelectorAll('.rb-lp-styled')).map((n) => n.textContent), editing: !!pg.querySelector('.rb-lk-page.editing') };
+    window.__rbLpClose();
+    window.__lkResave();
+    await new Promise((r) => setTimeout(r, 900));
+    out.after = Array.from(document.querySelectorAll('#sn-page .rb-lp-styled')).map((n) => n.textContent);
+    out.editingAfter = !!document.querySelector('#sn-page .rb-lk-page.editing');
+    return out;
+  });
+  const stPatch = writes.slice(wb).find((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && w.body && w.body.styling);
+  check('box · how it’s worn on a saved look: the note on the row while editing, and Update commits looks.styling by piece id — the note stays on the saved rack',
+    JSON.stringify(upd.styledNote) === JSON.stringify(['tucked at the front']) && upd.editing && !!stPatch && stPatch.body.styling['w-top1'] === 'tucked at the front' && !upd.editingAfter && JSON.stringify(upd.after) === JSON.stringify(['tucked at the front']),
+    JSON.stringify([upd, stPatch && stPatch.body]));
+  check('box · saved look: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // 13c · the day console: the field replaces ↻ Restyle; her words change
+  // this day's pieces in place; put back restores.
+  const { ctx, page, errs } = await boot(browser, { pics: 4, init: 'window.__lpRead = ' + lpRead.toString() + '; window.__lpSend = ' + lpSend.toString() + ';' });
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  const askPosts = [];
+  await page.route('**/api/look/ask', askStub(askPosts));
+  const day = await page.evaluate(async () => {
+    window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' };
+    const data = {
+      _dlLoose: true, headline: 'Built around the linen shirt.', occasion_label: '', stylist_summary: 'The shirt leads.',
+      steps: [
+        { title: 'The Canvas', items: [{ name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: null, color: '' } }] },
+        { title: 'The Anchor', items: [{ name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w-bot1', label: 'Barrel-leg jeans', image_url: null, color: '' } }] },
+        { title: 'The Exclamation Point', items: [{ name: 'Flat leather sandals', category: 'Shoes', wardrobe_match: { id: 'w-sho1', label: 'Flat leather sandals', image_url: null, color: '' } }] },
+      ],
+    };
+    window.__dlRenderResult(data, 'A look built around my linen shirt');
+    await new Promise((r) => setTimeout(r, 500));
+    const pg = document.getElementById('dl-result-page');
+    const out = { field: !!pg.querySelector('.rbc-panel + .rb-lp-field, .dl-lpfield'), restyle: Array.from(pg.querySelectorAll('.rbc-hbtn')).map((b) => b.textContent).join('|') };
+    pg.querySelector('.dl-lpfield')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const o = window.__lpRead(); out.title = o.title; out.meta = o.meta;
+    await window.__lpSend('swap the sandals for the slides', 900);
+    out.items = (window.__dlCurrentItems || []).map((it) => it.name);
+    out.was = Array.from(pg.querySelectorAll('.rb-lp-was')).map((n) => n.textContent);
+    await window.__lpSend('put the sandals back', 900);
+    out.items2 = (window.__dlCurrentItems || []).map((it) => it.name);
+    out.was2 = pg.querySelectorAll('.rb-lp-was').length;
+    return out;
+  });
+  const a0 = askPosts[0] || {};
+  check('box · the day console: the field under the look replaces ↻ Restyle; the box names the look; a swap lands on this day’s pieces and put back restores them',
+    day.field && !/Restyle/.test(day.restyle) && a0.name === 'Built around the linen shirt' && a0.surface === 'look' && a0.rack?.length === 3
+      && day.items.includes('Tan leather slides') && JSON.stringify(day.was) === JSON.stringify(['Just changed · was Flat leather sandals']) && day.items2.includes('Flat leather sandals') && day.was2 === 0, JSON.stringify([day, a0.surface, a0.rack?.length]));
+  check('box · day console: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+{
+  // 13d · her model wears the change (Annie, 2026-10-01: "instead of
+  // rendering change on avatar, it turned to the mosaic"): a saved look
+  // that keeps its wishlisted proposals and already has a render must
+  // open EDITING on the canvas — the render leads, the next frame is asked
+  // for the swapped composition WITH the proposal — never the board. And
+  // the field floats above the navigation (the design), hidden under the
+  // open box, with the page padded so nothing hides beneath it.
+  const renders = [];
+  const { ctx, page, errs } = await boot(browser, {
+    avatar: 'w-s5-h2-hg', pics: 6, seed: false,
+    init: 'window.__lpRead = ' + lpRead.toString() + '; window.__lpSend = ' + lpSend.toString() + ';' + (() => {
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-kept', name: 'The kept one', name_provisional: false, note: 'Silk over denim.', photo_url: null,
+          render_url: 'https://img.test/render-kept.jpg', render_key: 'w-s5-h2-hg|w-bot1,w-sho1,w-top1|p:Camel leather clutch', source: 'daily', origin_look_id: null, created_at: '2026-09-02T10:00:00.000Z',
+          proposals: [{ role: 'The Exclamation Point', chip: 'Bag', cats: ['Bags'], opts: [{ name: 'Camel leather clutch', brand: 'Robes' }], oi: 0, saved: true, image_url: 'https://img.test/still-bag.jpg' }],
+          pieces: [{ id: 'w-top1', slot: 'Top', position: 0, role: null }, { id: 'w-bot1', slot: 'Bottom', position: 1, role: null }, { id: 'w-sho1', slot: 'Shoe', position: 2, role: null }], wears: [] }]));
+    }).toString().replace(/^\(\) => \{|\}$/g, ''),
+    pre: async (page) => {
+      await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+      await page.route('**/api/avatar/render', (r) => {
+        renders.push(r.request().postDataJSON().pieces.map((x) => x.name));
+        r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rk' + renders.length }) });
+      });
+      await page.route('**/api/images/rk*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: ['https://img.test/render-next.jpg'], done: true }) }));
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  const askPosts = [];
+  await page.route('**/api/look/ask', askStub(askPosts));
+  await openLooks(page);
+  await page.evaluate(() => window.__lkOpen('lk-kept'));
+  await page.waitForTimeout(700);
+  const rd = await page.evaluate(() => {
+    const pg = document.querySelector('#sn-page');
+    const f = pg.querySelector('.rb-lk-held .rb-lp-field');
+    const cs = f && getComputedStyle(f);
+    return { render: pg.querySelector('.rb-lkm-canvas img.rb-lkm-img')?.getAttribute('src'), board: !!pg.querySelector('.rbc-board'),
+      dock: !!(f && f.classList.contains('rb-lp-dock')), pos: cs && cs.position, vis: cs && cs.visibility, bottom: f && Math.round(window.innerHeight - f.getBoundingClientRect().bottom),
+      pad: parseInt(getComputedStyle(document.getElementById('rb-lk-wrap')).paddingBottom, 10) };
+  });
+  check('box · the saved look opens on its render; the field is a fixed dock floating 24px off the foot on the web, and the page is padded under it',
+    rd.render === 'https://img.test/render-kept.jpg' && !rd.board && rd.dock && rd.pos === 'fixed' && rd.vis === 'visible' && rd.bottom === 24 && rd.pad >= 120, JSON.stringify(rd));
+  const rBefore = renders.length;
+  const ed = await page.evaluate(async () => {
+    document.querySelector('#sn-page .rb-lk-held .rb-lp-field')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const f = document.querySelector('#sn-page .rb-lk-held .rb-lp-field');
+    const hidden = getComputedStyle(f).visibility === 'hidden';
+    await window.__lpSend('swap the sandals for the slides', 900);
+    await new Promise((r) => setTimeout(r, 2200));
+    const pg = document.querySelector('#sn-page');
+    const st = pg.querySelector('.rb-lkm-stage');
+    return { hidden, editing: !!pg.querySelector('.rb-lk-page.editing'), stage: !!st, ids: st && st.getAttribute('data-ids'), pn: st && st.getAttribute('data-pn'),
+      board: !!pg.querySelector('.rbc-board'), head: pg.querySelector('.rbc-lhead .lab')?.textContent,
+      rows: Array.from(pg.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent), props: pg.querySelectorAll('.rb-lk-prop').length };
+  });
+  check('box · the dock hides under the open box; a swap through it keeps her MODEL on the canvas — the stage holds the slides and the proposal, no board',
+    ed.hidden && ed.editing && ed.stage && !ed.board && String(ed.ids).split(',').includes('w-sho2') && !String(ed.ids).includes('w-sho1') && /Camel leather clutch/.test(ed.pn || '')
+      && ed.rows.includes('Tan leather slides') && ed.props === 1 && /1 to find/.test(ed.head || ''), JSON.stringify(ed));
+  check('box · …and the next frame is asked for the swapped composition WITH the proposal, once',
+    renders.length === rBefore + 1 && renders[renders.length - 1].includes('Tan leather slides') && renders[renders.length - 1].includes('Camel leather clutch') && !renders[renders.length - 1].includes('Flat leather sandals'), JSON.stringify(renders.slice(rBefore)));
+  if (process.env.RB_SHOTS) {
+    await page.evaluate(() => window.__rbLpClose());
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: process.env.RB_SHOTS + '/lp-dock-1280.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: process.env.RB_SHOTS + '/lp-dock-390.png' });
+  }
+  check('box · canvas + dock: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 13z · ROBES' FRAME HOLDS (Annie, 2026-10-07 — the suggested-look flow):
+// a suggestion's photograph — the model in her setting — is the look's
+// picture through suggested → draft → saved. The look page leads with it
+// (no You / Model switch, no avatar render), Editing re-draws THE FRAME
+// through the server's frame mode (frameUrl, no avatarId), Update keeps
+// the re-drawn frame as photo_url and never writes a render; the note
+// under the image is three sentences at most; no colour dots on a look.
+// ─────────────────────────────────────────────────────────────────────────
+{
+  const FRAME = 'https://res.cloudinary.com/demo/image/upload/frame-sugg.jpg';
+  const FRAME2 = 'https://res.cloudinary.com/demo/image/upload/frame-sugg-2.jpg';
+  const renders = [];
+  const { ctx, page, errs, writes } = await boot(browser, {
+    avatar: 'w-s5-h2-hg', pics: 6, seed: false,
+    init: () => {
+      localStorage.setItem('rb_looks__u-test', JSON.stringify([
+        { id: 'lk-sugg', name: 'Garden party', name_provisional: true,
+          note: 'The silk shirt leads. The jeans keep it easy. The sandals finish it. A fourth sentence that should not print. Nor a fifth one, however good.',
+          photo_url: 'https://res.cloudinary.com/demo/image/upload/frame-sugg.jpg', render_url: null, render_key: null, source: 'robes', origin_look_id: null, status: 'saved', anchor_piece_id: 'w-top1', set_id: 's1', set_index: 0,
+          created_at: '2026-10-06T10:00:00.000Z', proposals: null,
+          pieces: [{ id: 'w-top1', slot: 'Top', position: 0, role: 'The Canvas' }, { id: 'w-bot1', slot: 'Bottom', position: 1, role: 'The Canvas' }, { id: 'w-sho1', slot: 'Shoe', position: 2, role: 'The Exclamation Point' }], wears: [] }]));
+    },
+    pre: async (page) => {
+      await page.route('**/api/avatar/cell', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/cell.jpg' }) }));
+      await page.route('**/api/avatar/render', (r) => { try { renders.push(r.request().postDataJSON()); } catch (_) { renders.push(null); } r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'fj1' }) }); });
+      await page.route('**/api/images/fj1', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [FRAME2], done: true }) }));
+      await page.route('**res.cloudinary.com/**', (r) => r.abort());
+      await page.route('**img.test/**', (r) => r.abort());
+    },
+  });
+  await page.evaluate(() => window.__lkOpen('lk-sugg'));
+  await page.waitForTimeout(900);
+  const read = () => page.evaluate(() => {
+    const con = document.querySelector('#rb-lk-body .rb-lk-con');
+    const quote = con?.querySelector('.rbc-quote')?.textContent.trim() || '';
+    return {
+      photo: con?.querySelector('.rb-lkm-photo img')?.getAttribute('src') || null,
+      stage: con?.querySelector('.rb-lkf-stage') ? { src: con.querySelector('.rb-lkf-stage .rb-lkm-img')?.getAttribute('src'), busy: con.querySelector('.rb-lkf-stage').classList.contains('busy'), chip: con.querySelector('.rb-lkf-stage .rb-lkm-busy')?.textContent || null } : null,
+      avatarStage: !!con?.querySelector('.rb-lkm-stage:not(.rb-lkf-stage)'),
+      switcher: !!con?.querySelector('.rb-lk-viewrow .rb-lkm-seg'),
+      creating: /creating her frame/i.test(con?.textContent || ''),
+      dots: con ? con.querySelectorAll('.rbc-palette span').length : -1,
+      quote, sentences: (quote.match(/[.!?](\s|$)/g) || []).length,
+      editing: !!document.querySelector('#rb-lk-body .rb-lk-page.editing'),
+      rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent),
+    };
+  });
+  const a = await read();
+  check('frame · the saved suggested look opens ON ITS FRAME — no You / Model switch, no avatar render asked, no colour dots',
+    a.photo === FRAME && !a.switcher && !a.creating && !a.avatarStage && a.dots === 0 && renders.length === 0, JSON.stringify(a));
+  check('frame · the note under the image is capped at three sentences', a.sentences === 3 && /^The silk shirt leads\. The jeans keep it easy\. The sandals finish it\.$/.test(a.quote), JSON.stringify([a.sentences, a.quote]));
+  await page.evaluate(() => window.__lkEditToggle());
+  await page.waitForTimeout(400);
+  const e = await read();
+  check('frame · Editing keeps the frame on the canvas (the frame stage, not her model) and asks for nothing while the composition stands',
+    e.editing && e.stage && e.stage.src === FRAME && !e.stage.busy && !e.avatarStage && renders.length === 0, JSON.stringify(e));
+  await page.evaluate(() => window.__lkDSwapApply('w-sho1', 'w-sho2'));
+  await page.waitForTimeout(300);
+  const mid = await read();
+  check('frame · a swap re-draws THE FRAME: the stage says “Changing the look…” over the frame she had',
+    mid.stage && mid.stage.busy && mid.stage.chip === 'Changing the look…' && mid.stage.src === FRAME && mid.rows.includes('Tan leather slides'), JSON.stringify(mid));
+  await page.waitForTimeout(2600);
+  const landed = await read();
+  const r0 = renders[0] || {};
+  check('frame · ONE render, in frame mode — frameUrl is the frame, no avatarId, the slides among the pieces',
+    renders.length === 1 && r0.frameUrl === FRAME && r0.avatarId === undefined && Array.isArray(r0.pieces) && r0.pieces.some((p) => p.name === 'Tan leather slides') && !r0.pieces.some((p) => p.name === 'Flat leather sandals'),
+    JSON.stringify(r0));
+  check('frame · the re-drawn frame lands on the canvas, the chip goes', landed.stage && landed.stage.src === FRAME2 && !landed.stage.busy, JSON.stringify(landed.stage));
+  const wb = writes.length;
+  await page.evaluate(() => window.__lkResave());
+  await page.waitForTimeout(600);
+  const after = await read();
+  const patches = writes.slice(wb).filter((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && /lk-sugg/.test(w.url)).map((w) => w.body);
+  check('frame · Update keeps the re-drawn frame as the photograph — photo_url patched, render_url never',
+    patches.some((b) => b && b.photo_url === FRAME2) && !patches.some((b) => b && b.render_url) && after.photo === FRAME2 && !after.editing && !after.switcher && renders.length === 1,
+    JSON.stringify({ patches, after: { photo: after.photo, editing: after.editing } }));
+  // The composer path (F9): Edit on a suggested row loads the frame onto
+  // the composer's canvas — the frame stage, never her model.
+  const sugg = await page.evaluate(async () => {
+    const l = JSON.parse(localStorage.getItem('rb_looks__u-test'))[0];
+    localStorage.setItem('rb_looks__u-test_sugg', JSON.stringify([Object.assign({}, l, { id: 'lk-sugg2', status: 'suggested', set_index: 1, photo_url: 'https://res.cloudinary.com/demo/image/upload/frame-sugg.jpg', name: 'City dinner' })]));
+    return true;
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2600);
+  const comp = await page.evaluate(async () => {
+    window.__lkSuggEdit('lk-sugg2');
+    await new Promise((r) => setTimeout(r, 700));
+    const c = document.querySelector('#rb-lk-body .rb-lk-composer');
+    return {
+      open: !!c, stage: c?.querySelector('.rb-lkf-stage .rb-lkm-img')?.getAttribute('src') || null, busy: !!c?.querySelector('.rb-lkf-stage.busy'),
+      avatarStage: !!c?.querySelector('.rb-lkm-stage:not(.rb-lkf-stage)'), dots: c ? c.querySelectorAll('.rbc-palette span').length : -1,
+      replaceDoor: Array.from(c?.querySelectorAll('.rb-lk-quiet') || []).some((b) => /Replace the photo/.test(b.textContent)),
+      title: document.getElementById('rb-lk-newtitle')?.value,
+    };
+  });
+  check('frame · Edit on a suggestion loads the composer ON THE FRAME — the frame stage, no model, no dots, no “Replace the photo” door',
+    sugg && comp.open && comp.stage === FRAME && !comp.busy && !comp.avatarStage && comp.dots === 0 && !comp.replaceDoor && comp.title === 'City dinner', JSON.stringify(comp));
+  check('frame · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 14 · THE DRAFT (look prompt brief, phase 1 · 2026-10-01) — one standing
+// draft per user, parked in localStorage on every composer mutation. It
+// survives a navigation and a reload, is named by the home next line and
+// the Lookbook's draft tile, is let go only on Save, Discard or the
+// confirm a new look interposes, and nothing is written until she saves.
+// ─────────────────────────────────────────────────────────────────────────
+const DRAFT_KEY = 'rb_lk_draft__u-test';
+const dailyStub = (headline) => (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+  headline, occasion_label: 'Date night',
+  stylist_summary: 'The silk shirt leads; the coat does the finishing.',
+  look_tags: { climate: 'cold', wear_for: ['evening'], vibe: ['chic'] },
+  steps: [
+    { title: 'The Canvas', items: [
+      { name: 'Cream silk shirt', category: 'Tops', wardrobe_match: { id: 'w-top1', label: 'Cream silk shirt', image_url: null, color: '' } },
+      { name: 'Barrel-leg jeans', category: 'Bottoms', wardrobe_match: { id: 'w-bot1', label: 'Barrel-leg jeans', image_url: null, color: '' } }] },
+    { title: 'The Texture', items: [{ name: 'Camel wool coat', category: 'Outerwear', brand: 'Toteme', retailer_hint: 'Toteme', price_point: '€890' }] },
+    { title: 'The Exclamation Point', items: [{ name: 'Flat leather sandals', category: 'Shoes', wardrobe_match: { id: 'w-sho1', label: 'Flat leather sandals', image_url: null, color: '' } }] },
+  ],
+}) });
+const composerRead = () => ({
+  open: document.getElementById('sn-page')?.style.display !== 'none' && !!document.querySelector('#rb-lk-body .rb-lk-composer'),
+  rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name')).map((n) => n.textContent),
+  shop: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-prop .rbc-name')).map((n) => n.textContent),
+  title: document.getElementById('rb-lk-newtitle')?.value,
+  meta: document.querySelector('.rb-lk-newmast .rb-lk-drafty')?.textContent,
+  discard: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-draftbar button:not(.rb-lp-field)')).map((x) => x.textContent),
+  foot: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-buildfoot button')).map((x) => x.textContent),
+  park: ((d) => (d && d.v === 3) ? (d.drafts[0] || null) : d)(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null')),
+  parks: ((d) => (d && d.v === 3) ? d.drafts.map((x) => ({ id: x.id, name: x.name, prompt: x.src?.prompt })) : (d ? [{ id: d.id, name: d.name, prompt: d.src?.prompt }] : []))(JSON.parse(localStorage.getItem('rb_lk_draft__u-test') || 'null')),
+  tiles: document.querySelectorAll('#rb-lk-inprog .rb-lk-drafttile').length,
+  modal: document.querySelector('#rb-del-modal p')?.textContent || null,
+});
+{
+  // 14a · a prompted draft survives: the park, the masthead, home's next
+  // line and its door, a reload, the Lookbook tile, Try another on the
+  // same draft without a confirm.
+  const { ctx, page, errs, writes } = await boot(browser, { pics: 4, init: 'window.__cr = ' + composerRead.toString() + ';' });
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  await page.route('**/api/lookbuild/images', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'dj1' }) }));
+  await page.route('**/api/images/dj*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: ['https://res.cloudinary.com/demo/image/upload/coat.jpg'], done: true }) }));
+  const dailyPosts = [];
+  await page.route('**/api/daily', (r) => { try { dailyPosts.push(r.request().postDataJSON()); } catch (_) { dailyPosts.push(null); } dailyStub('Date night.')(r); });
+  await page.evaluate(() => { window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' }; });
+  await page.evaluate(() => window.__dlSubmit('A chic outfit for a date night', { loose: true }));
+  await page.waitForTimeout(2600);
+  const a = await page.evaluate(composerRead);
+  check('draft · a prompted look lands on the composer as a draft and parks itself — rows, the proposal, the name, the ask it came from',
+    a.open && a.rows.length === 3 && JSON.stringify(a.shop) === JSON.stringify(['Camel wool coat']) && a.title === 'Date night'
+      && a.park && a.park.v === 2 && !!a.park.id && a.park.name === 'Date night' && (a.park.rows || []).filter((r) => r.piece).length === 3
+      && Array.isArray(a.park.shop) && a.park.shop.length === 1 && a.park.src?.kind === 'daily' && a.park.src?.prompt === 'A chic outfit for a date night'
+      && a.park.src?.opts?.sameDraft === true && a.park.built === true,
+    JSON.stringify({ open: a.open, rows: a.rows, shop: a.shop, title: a.title, park: a.park && { id: a.park.id, name: a.park.name, src: a.park.src, built: a.park.built } }));
+  check('draft · the header reads DRAFT LOOK, the footer Discard · Save, and Try another stays the quiet door (design 4d)',
+    a.meta === 'Draft look' && a.foot.includes('Try another') && JSON.stringify(a.discard) === JSON.stringify(['Discard', 'Save']), JSON.stringify([a.meta, a.foot, a.discard]));
+  check('draft · nothing is written by the draft', !writes.some((w) => w.method === 'POST' && /^(looks|lookbook_items|planned_days)/.test(w.url)), JSON.stringify(writes.map((w) => w.method + ' ' + w.url)));
+  // Home: the next line names the draft, first.
+  const h = await page.evaluate(async () => {
+    window.__rbNavGo('home');
+    await new Promise((r) => setTimeout(r, 500));
+    const echo = document.querySelector('.dash-echo');
+    const row = document.querySelector('#rb-hb #rb-lp .rb-lpd-row');
+    return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), row: !!row, ey: row?.querySelector('.ey')?.textContent, name: row?.querySelector('.nm')?.textContent, meta: row?.querySelector('.m')?.textContent,
+      save: document.querySelector('#rb-hb #rb-lp .rb-lpd-save')?.textContent.trim(), ph: document.querySelector('#rb-hb #rb-lp-in')?.placeholder };
+  });
+  // Inline since 2026-10-01: home's box carries the draft beneath its field
+  // (the row, Save look, the field working on the draft); the next line
+  // moves on while the box shows it.
+  check('draft · home\'s box carries the draft under the field — “Draft look · not saved yet”, its name and pieces, Save look, the field reading “Change this draft…” — and the next line moves on',
+    h.row && h.ey === 'Draft look · not saved yet' && h.name === 'Date night' && /^4 pieces · 3 yours$/.test(h.meta || '') && h.save === 'Save look' && h.ph === 'Change this draft…' && !/is waiting, unsaved/.test(h.text || ''), JSON.stringify(h));
+  const back = await page.evaluate(async () => {
+    document.querySelector('#rb-hb #rb-lp .rb-lpd-row')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    return window.__cr();
+  });
+  check('draft · Open it lands on the composer with the draft whole', back.open && back.rows.length === 3 && JSON.stringify(back.shop) === JSON.stringify(['Camel wool coat']) && back.title === 'Date night', JSON.stringify({ open: back.open, rows: back.rows, shop: back.shop, title: back.title }));
+  // A reload: the park outlives the page.
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2800);
+  const r1 = await page.evaluate(() => {
+    const row = document.querySelector('#rb-hb #rb-lp .rb-lpd-row');
+    return { name: row?.querySelector('.nm')?.textContent, ey: row?.querySelector('.ey')?.textContent, park: !!localStorage.getItem('rb_lk_draft__u-test') };
+  });
+  check('draft · a reload keeps the draft — the box still carries it', r1.park && r1.name === 'Date night' && r1.ey === 'Draft look · not saved yet', JSON.stringify(r1));
+  await openLooks(page);
+  const tile = await page.evaluate(() => {
+    const t = document.getElementById('rb-lk-drafttile');
+    const first = document.querySelector('#rb-lk-inprog .rb-lk-inprog-row > *');
+    return { there: !!t, leads: first === t, name: t?.querySelector('.lt-title')?.textContent, ey: t?.querySelector('.lt-tag')?.textContent, hint: t?.querySelector('.lt-meta')?.textContent, dashed: t ? getComputedStyle(t).borderTopStyle : null, mosaic: !!t?.querySelector('.rb-lk-mos'), lookCards: document.querySelectorAll('#rb-lk-grid .lt-card').length,
+      count: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent };
+  });
+  // Look states (2026-10-06): the draft leads the Saved tab in the In
+  // progress rail — a dashed tile with the eyebrow Draft, the name, "Not
+  // saved · started today"; the count line says "2 looks · 1 in progress".
+  check('draft · the In progress rail leads the Saved tab with a dashed Draft tile — eyebrow Draft, the name, “Not saved · started today”, the pieces as a mosaic; the looks beneath',
+    tile.there && tile.leads && tile.name === 'Date night' && tile.ey === 'Draft' && tile.hint === 'Not saved · started today' && tile.dashed === 'dashed' && tile.mosaic && tile.lookCards === 2 && tile.count === '2 looks · 1 in progress', JSON.stringify(tile));
+  const fromTile = await page.evaluate(async () => {
+    document.getElementById('rb-lk-drafttile')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    return window.__cr();
+  });
+  check('draft · the tile opens the composer with the draft where she left it, after a reload', fromTile.open && fromTile.rows.length === 3 && JSON.stringify(fromTile.shop) === JSON.stringify(['Camel wool coat']) && fromTile.title === 'Date night' && fromTile.meta === 'Draft look',
+    JSON.stringify({ open: fromTile.open, rows: fromTile.rows, shop: fromTile.shop, title: fromTile.title }));
+  const n0 = dailyPosts.length;
+  const again = await page.evaluate(async () => {
+    window.__lkTryAnother();
+    await new Promise((r) => setTimeout(r, 1800));
+    return window.__cr();
+  });
+  check('draft · Try another after a reload re-runs the SAME ask on the same draft — one more /api/daily, no confirm',
+    dailyPosts.length === n0 + 1 && dailyPosts[n0]?.prompt === 'A chic outfit for a date night' && again.modal == null && again.open && again.rows.length === 3,
+    JSON.stringify({ n: dailyPosts.length - n0, prompt: dailyPosts[n0]?.prompt, modal: again.modal }));
+  // 14b · UP TO FIVE drafts (Annie, 2026-10-07 — phase 1 held one): a new
+  // look parks the standing draft and lands at once; the drafts wait in
+  // In progress; Discard drops only the one on the composer; the SIXTH
+  // asks once, naming the oldest, and yes lets that one go.
+  const new1 = await page.evaluate(async () => {
+    const ret = window.__lkNew();
+    await new Promise((r) => setTimeout(r, 400));
+    const out = window.__cr(); out.ret = ret;
+    return out;
+  });
+  check('draft · + New look over a standing draft asks nothing — the draft is parked, an empty composer opens',
+    new1.ret === true && new1.modal == null && new1.open && new1.rows.length === 0 && new1.shop.length === 0 && !new1.title && new1.meta === 'Draft look'
+      && new1.parks.length === 1 && new1.parks[0].name === 'Date night',
+    JSON.stringify({ ret: new1.ret, modal: new1.modal, rows: new1.rows, parks: new1.parks }));
+  const n1 = dailyPosts.length;
+  const gen1 = await page.evaluate(async () => {
+    window.__dlSubmit('A park day', { loose: true });
+    await new Promise((r) => setTimeout(r, 2200));
+    return window.__cr();
+  });
+  check('draft · a fresh generation with a draft standing asks nothing and parks beside it — two drafts, the new one first',
+    dailyPosts.length === n1 + 1 && gen1.modal == null && gen1.parks.length === 2 && gen1.parks[0].prompt === 'A park day' && gen1.parks[1].name === 'Date night',
+    JSON.stringify({ n: dailyPosts.length - n1, modal: gen1.modal, parks: gen1.parks }));
+  const gen2 = await page.evaluate(async () => {
+    window.__dlSubmit('Something else entirely', { loose: true });
+    await new Promise((r) => setTimeout(r, 2200));
+    return window.__cr();
+  });
+  check('draft · a third generation lands and parks under its own id — three drafts, none lost',
+    gen2.modal == null && dailyPosts.length === n1 + 2 && gen2.parks.length === 3 && gen2.parks[0].prompt === 'Something else entirely'
+      && new Set(gen2.parks.map((x) => x.id)).size === 3,
+    JSON.stringify({ modal: gen2.modal, parks: gen2.parks }));
+  const disc = await page.evaluate(async () => {
+    Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-discard')).find((b) => b.textContent === 'Discard')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const ask = document.querySelector('#rb-del-modal p')?.textContent;
+    document.getElementById('rb-del-yes')?.click();
+    await new Promise((r) => setTimeout(r, 600));
+    const out = window.__cr(); out.ask = ask;
+    out.grid = document.getElementById('rb-lk-grid')?.style.display;
+    return out;
+  });
+  check('draft · Discard asks, then drops ONLY the draft on the composer — the other two keep their tiles',
+    /Let this draft go\?/.test(disc.ask || '') && disc.parks.length === 2 && !disc.parks.some((x) => x.prompt === 'Something else entirely') && disc.grid === 'grid' && disc.tiles === 2,
+    JSON.stringify({ ask: disc.ask, parks: disc.parks, tiles: disc.tiles }));
+  const five = await page.evaluate(async () => {
+    for (const p of ['Third', 'Fourth', 'Fifth']) { window.__dlSubmit(p, { loose: true }); await new Promise((r) => setTimeout(r, 1500)); }
+    await new Promise((r) => setTimeout(r, 800));
+    return window.__cr();
+  });
+  check('draft · five drafts stand without a question', five.modal == null && five.parks.length === 5 && five.tiles === 0 && five.parks[0].prompt === 'Fifth', JSON.stringify({ modal: five.modal, parks: five.parks }));
+  const sixth = await page.evaluate(async () => {
+    window.__dlSubmit('Sixth', { loose: true });
+    await new Promise((r) => setTimeout(r, 300));
+    const out = window.__cr();
+    out.sub = document.querySelector('#rb-del-modal p + p')?.textContent || null;
+    document.getElementById('rb-del-cancel')?.click();
+    await new Promise((r) => setTimeout(r, 300));
+    out.after = window.__cr();
+    return out;
+  });
+  check('draft · the SIXTH asks once — “Five drafts are waiting.”, naming the oldest; Cancel keeps all five',
+    /Five drafts are waiting\./.test(sixth.modal || '') && /Date night/.test(sixth.sub || '') && sixth.after.modal == null && sixth.after.parks.length === 5 && sixth.after.parks.some((x) => x.prompt === 'A chic outfit for a date night'),
+    JSON.stringify({ modal: sixth.modal, sub: sixth.sub, parks: sixth.after.parks }));
+  const n6 = dailyPosts.length;
+  const yes6 = await page.evaluate(async () => {
+    window.__dlSubmit('Sixth', { loose: true });
+    await new Promise((r) => setTimeout(r, 300));
+    document.getElementById('rb-del-yes')?.click();
+    await new Promise((r) => setTimeout(r, 2200));
+    return window.__cr();
+  });
+  check('draft · Let it go drops the OLDEST and the sixth lands — still five, the newest first, Date night gone',
+    dailyPosts.length === n6 + 1 && yes6.parks.length === 5 && yes6.parks[0].prompt === 'Sixth' && !yes6.parks.some((x) => x.prompt === 'A chic outfit for a date night') && yes6.parks[4].prompt === 'A park day',
+    JSON.stringify({ n: dailyPosts.length - n6, parks: yes6.parks }));
+  // 14c · Save drops ITS park: the draft is a look now; the others stand.
+  const wb = writes.length;
+  const saved = await page.evaluate(async () => {
+    const before = window.__cr().parks[0];
+    window.__lkSaveAsk();
+    await new Promise((r) => setTimeout(r, 250));
+    document.getElementById('rb-lksave-yes')?.click();
+    await new Promise((r) => setTimeout(r, 900));
+    const out = window.__cr(); out.before = before; out.cards = document.querySelectorAll('#rb-lk-grid .lt-card').length;
+    return out;
+  });
+  check('draft · Save turns the draft into a look and drops its park — four tiles stay, the look on the grid',
+    saved.before?.prompt === 'Sixth' && saved.parks.length === 4 && !saved.parks.some((x) => x.id === saved.before.id) && saved.tiles === 4 && saved.cards === 3 && writes.slice(wb).some((w) => w.method === 'POST' && /^looks/.test(w.url)),
+    JSON.stringify({ before: saved.before, parks: saved.parks, tiles: saved.tiles, cards: saved.cards }));
+  check('draft · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // 14d · the park's full shape round-trips (`was` / `styled` ride it for
+  // phase 2), and an empty Lookbook arms the composer ON the parked draft.
+  const seededPark = {
+    v: 2, id: 'dseed', at: '2026-10-01T09:00:00.000Z',
+    rows: [{ key: 'r1', slot: 'Top', piece: 'w-top1' }, { key: 'r2', slot: 'Bottom', piece: 'w-bot1' }, { key: 'r3', slot: 'Shoe', piece: null }, { key: 'r4', slot: 'Bag', piece: null }],
+    seq: 4, name: 'Seeded draft', tags: null, roles: {}, photo: null, home: false,
+    shop: [], shopImgs: [], note: null, palette: [], built: false, aspirational: false, gaps: [], mine: false, day: null, src: null,
+    was: { 1: { id: 'w-bot2', name: 'Linen shorts' } }, styled: { 0: 'tucked at the front' },
+  };
+  const { ctx, page, errs } = await boot(browser, { seed: false, pics: 4, init: 'window.__cr = ' + composerRead.toString() + ';' + ((p) => `localStorage.setItem('rb_lk_draft__u-test', ${JSON.stringify(JSON.stringify(p))});`)(seededPark) });
+  await page.route('**res.cloudinary.com/**', (r) => r.abort());
+  await openLooks(page);
+  await page.waitForTimeout(900);
+  const rt = await page.evaluate(composerRead);
+  check('draft · an empty Lookbook arms the composer on the parked draft itself — its pieces and name on the rack',
+    rt.open && JSON.stringify(rt.rows) === JSON.stringify(['Cream silk shirt', 'Barrel-leg jeans']) && rt.title === 'Seeded draft' && rt.meta === 'Draft look', JSON.stringify({ open: rt.open, rows: rt.rows, title: rt.title }));
+  check('draft · the re-park keeps the id and carries `was` and `styled` through untouched',
+    rt.park && rt.park.id === 'dseed' && JSON.stringify(rt.park.was) === JSON.stringify(seededPark.was) && JSON.stringify(rt.park.styled) === JSON.stringify(seededPark.styled),
+    JSON.stringify(rt.park && { id: rt.park.id, was: rt.park.was, styled: rt.park.styled }));
+  // Emptying the draft herself lets it go — a fresh composer never
+  // touches a park it did not come from.
+  const emptied = await page.evaluate(async () => {
+    window.__lkNewTitleInput('');
+    window.__lkCRemove(0);
+    await new Promise((r) => setTimeout(r, 250));
+    window.__lkCRemove(0);
+    await new Promise((r) => setTimeout(r, 900));
+    return { rows: window.__cr().rows, park: localStorage.getItem('rb_lk_draft__u-test') };
+  });
+  check('draft · emptying the draft by hand lets it go', emptied.rows.length === 0 && emptied.park == null, JSON.stringify(emptied));
+  check('draft · seeded park: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

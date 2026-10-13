@@ -1,9 +1,10 @@
 // Diary harness — boots the real dashboard with Supabase + REST stubbed and
-// walks the Diary as its own destination (Diary IA, 2026-09-08): the list
-// view (default) fed by planned_days rows — invitations for the week ahead,
-// the day card, the trip block with its header (title · dates · weather)
-// and inline-named days, the quiet past — the List | Month toggle, the +
-// menu, naming a bare day into the prompt, the empty state, and 390px.
+// walks the Diary as its own destination (Diary IA, 2026-09-08; the native
+// list, 2026-09-29): the list view (default) fed by planned_days rows — one
+// SUMMARY row per day grouped by week, the trip as its own block (title ·
+// dates · weather), every row opening the day page — the List | Month
+// toggle, the + menu, naming and dressing a day ON ITS PAGE (the picker's
+// multi-select, the three doors of an empty day), the empty state, 390px.
 // Run manually: npm i --no-save playwright && node scripts/diary_harness.mjs
 // Set CHROME_PATH when playwright's bundled browser build isn't installed.
 import { chromium } from 'playwright';
@@ -77,7 +78,7 @@ function check(name, ok, detail) {
   else { fail++; console.log('FAIL  ' + name + (detail ? '  → ' + String(detail).slice(0, 300) : '')); }
 }
 
-async function boot(browser, { width = 1280, seed = true, mode = null } = {}) {
+async function boot(browser, { width = 1280, seed = true, mode = null, trip = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height: 1100 } });
   const page = await ctx.newPage();
   const writes = [];
@@ -99,7 +100,11 @@ async function boot(browser, { width = 1280, seed = true, mode = null } = {}) {
   await page.route('**nominatim**', (r) => r.abort());
   await page.route('**open-meteo**', (r) => r.abort());
   await page.route('**res.cloudinary.com/**', (r) => r.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="#E3DDD0"/></svg>' }));
-  await page.addInitScript(({ seed, T0, T2, TRIP_ID, DL_ID, DL_PAST, mode }) => {
+  // The trip is hidden for the MVP (2026-10-10). Every section here that
+  // pins how a trip displays runs on the frozen module (?trip=on); the
+  // trip-hidden section near the foot boots with trip: false.
+  await page.addInitScript(({ seed, T0, T2, TRIP_ID, DL_ID, DL_PAST, mode, trip }) => {
+    if (trip) localStorage.setItem('rb_trip', 'on'); else localStorage.removeItem('rb_trip');
     window.__TEST_PROFILE = { first_name: 'Annie', last_name: '', mobile: '', style_icons: [], budget: null, wardrobe_description: '', style_dna: {}, wardrobe_items_count: 6, onboarded_at: '2026-07-01', gender_identity: 'woman' };
     Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
     if (mode) localStorage.setItem('rb_diary_mode', mode); else localStorage.removeItem('rb_diary_mode');
@@ -113,7 +118,7 @@ async function boot(browser, { width = 1280, seed = true, mode = null } = {}) {
       const past = { id: DL_PAST, type: 'daily-look', title: 'The black one', subtitle: 'Daily look', img: null, dlData: { headline: 'The black one', occasion_label: 'The black one', steps: [], anchor_date: null, worn: true } };
       localStorage.setItem('robes_style_notes__u-test', JSON.stringify([trip, daily, past]));
     }
-  }, { seed, T0, T2, TRIP_ID, DL_ID, DL_PAST, mode });
+  }, { seed, T0, T2, TRIP_ID, DL_ID, DL_PAST, mode, trip });
   const errs = [];
   page.on('pageerror', (e) => errs.push(String(e)));
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'networkidle' });
@@ -124,13 +129,16 @@ async function boot(browser, { width = 1280, seed = true, mode = null } = {}) {
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
 
 // The list is a ROLLING WINDOW — today and the thirty days after it, month
-// boundaries irrelevant (Annie, 2026-09-10). Every empty day in it invites;
-// the days something already holds (the daily look, the trip) do not.
+// boundaries irrelevant (Annie, 2026-09-10). Every day in it is a row; the
+// bare ones read "Name the day" (the native list, 2026-09-29 — naming and
+// adding happen on the day page).
 const WIN_DAYS = 30;
 const held = new Set(PD.map((r) => r.day_date));
 const winDates = Array.from({ length: WIN_DAYS + 1 }, (_, i) => addD(i));
-const expInvites = winDates.filter((d) => !held.has(d));
+const expBare = winDates.filter((d) => !held.has(d));
 const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
+const mondayOf = (iso) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoOf(d); };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ─────────────────────────────────────────────────────────────────────────
 // 1 · The list, seeded (1280)
@@ -142,6 +150,11 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     const q = (sel, root) => (root || document).querySelector(sel);
     const qa = (sel, root) => Array.from((root || document).querySelectorAll(sel));
     const trip = q('#sn-cal .dy-trip');
+    const row = (r) => ({
+      date: r.dataset.date, l: q('.dy-r-l', r)?.textContent, lNow: q('.dy-r-l', r)?.classList.contains('now'), n: q('.dy-r-n', r)?.textContent,
+      title: q('.dy-r-t', r)?.textContent, bare: q('.dy-r-t', r)?.classList.contains('none'), meta: q('.dy-r-m', r)?.textContent || null,
+      thumbs: qa('.dy-r-th .dy-th', r).length, ar: !!q('.dy-r-ar', r), opens: /__dyOpenDay/.test(r.getAttribute('onclick') || '') && r.getAttribute('role') === 'button',
+    });
     return {
       path: location.pathname,
       eyebrow: q('#sn-eyebrow')?.textContent,
@@ -150,26 +163,21 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
       grid: !!q('#sn-cal .rb-mv-cal'),
       segOn: qa('#sn-cal .rb-mv-seg button').map((b) => b.classList.contains('on')),
       nav: qa('#sn-cal .rb-mv-nav > button[aria-label]').map((b) => b.getAttribute('aria-label')),
-      addBesideEyebrow: !!q('#sn-headrow #sn-headact .rb-mv-add'),
-      segInActs: (() => { const sg = q('#sn-cal .rb-mv-nav .rb-mv-seg'), nx = q('#sn-cal .rb-mv-nav .rb-mv-add'); if (!sg || !nx) return false; const a = sg.getBoundingClientRect(), b = nx.getBoundingClientRect(); return Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)) < 4; })(),
-      noChevrons: !q('#sn-cal .dy-trip-h svg:last-child path[d^="M4.8"]') && !q('#sn-cal .dy-tail svg'),
-      whiteCards: (() => { const c = q('#sn-cal .dy-block'); return !!c && getComputedStyle(c).backgroundColor === 'rgb(255, 255, 255)'; })(),
-      blockRows: qa('#sn-cal .dy-block').map((b) => qa('.dy-tday', b).length),
-      hoverLift: (() => { const c = q('#sn-cal .dy-block .dy-tday'); return !!c && /background/.test(getComputedStyle(c).transition || ''); })(),
-      lookArrows: qa('#sn-cal .dy-look').every((l) => !!q('.dy-look-ar', l)),
+      segInActs: (() => { const sg = q('#sn-cal .rb-hdr-r1 .rb-mv-seg'), nx = q('#sn-cal .rb-hdr-r1 .rb-mv-add'); if (!sg || !nx) return false; const a = sg.getBoundingClientRect(), b = nx.getBoundingClientRect(); return Math.abs(a.top - b.top) < 2 && Math.round(a.width) === 213 && Math.round(a.height) === 36 && Math.round(b.height) === 36; })(),
+      whiteBlocks: qa('#sn-cal .dy-wk').every((c) => getComputedStyle(c).backgroundColor === 'rgb(255, 255, 255)'),
+      hoverLift: (() => { const c = q('#sn-cal .dy-r'); return !!c && /background/.test(getComputedStyle(c).transition || ''); })(),
       title: q('#sn-cal .rb-mv-title')?.textContent,
       count: q('#sn-cal .rb-mast-n')?.textContent,
-      invites: qa('#sn-cal .dy-invite').map((el) => el.closest('[data-date]').dataset.date),
-      invitePh: q('#sn-cal .dy-inv-in input')?.placeholder,
-      past: qa('#sn-cal .dy-block .dy-tday.past').map((el) => ({ date: el.dataset.date, name: q('.dy-past-n', el)?.textContent, meta: q('.dy-past-m', el)?.textContent, worn: !!q('.dy-worn', el) })),
-      card: (() => { const c = qa('#sn-cal .dy-block .dy-tday').find((d) => q('.dy-look', d) && !d.classList.contains('past')); if (!c) return null; return { date: c.dataset.date, title: q('.dy-tday-t', c)?.textContent, meta: q('.dy-tday-m', c)?.textContent, g: qa('.dy-g span', c).map((x) => x.textContent).join('|'), looks: qa('.dy-look', c).map((l) => q('.dy-look-n', l).textContent + ' · ' + q('.dy-look-m', l).textContent.trim()), add: q('.dy-dadd', c)?.title }; })(),
+      rows: qa('#sn-cal .dy-r').map(row),
+      weeks: qa('#sn-cal .dy-list > .dy-wk').map((w) => ({ label: q('.dy-wk-h', w)?.textContent, week: w.dataset.week, dates: qa('.dy-r', w).map((r) => r.dataset.date) })),
       trip: trip ? {
-        title: q('.dy-trip-h h3', trip)?.textContent, range: q('.dy-trip-d', trip)?.textContent,
-        wx: q('.dy-trip-wx span', trip)?.textContent, wxEm: q('.dy-trip-wx em', trip)?.textContent,
-        days: qa('.dy-tday', trip).map((d) => ({ date: d.dataset.date, g: qa('.dy-g span', d).map((x) => x.textContent).join('|'), title: q('.dy-tday-t', d)?.textContent, meta: q('.dy-tday-m', d)?.textContent, looks: qa('.dy-look .dy-look-n', d).map((x) => x.textContent), add: q('.dy-dadd', d)?.title || null })),
+        title: q('.dy-trip-hd h3', trip)?.textContent, range: q('.dy-trip-d', trip)?.textContent,
+        meta: q('.dy-trip-hd-m', trip)?.textContent, em: q('.dy-trip-hd-m em', trip)?.textContent,
+        opens: /__snOpenItem/.test(q('.dy-trip-hd', trip)?.getAttribute('onclick') || ''),
+        days: qa('.dy-r', trip).map(row),
       } : null,
-      tail: q('#sn-cal .dy-tail p')?.textContent, tailBtn: q('#sn-cal .dy-tail button')?.textContent,
-      order: qa('#sn-cal .dy-list > .dy-block > .dy-tday, #sn-cal .dy-list > .dy-triprow').map((r) => r.dataset.date || ('trip:' + r.dataset.trip)),
+      order: qa('#sn-cal .dy-list .dy-wk').map((b) => b.classList.contains('dy-trip') ? 'trip:' + b.closest('[data-trip]')?.dataset.trip : b.dataset.week),
+      oldDoors: qa('#sn-cal .dy-inv-in, #sn-cal .dy-pen, #sn-cal .dy-dadd, #sn-cal .dy-look, #sn-cal .dy-tail').length,
       cap: !!q('#sn-cal .rb-mv-cap'),
     };
   });
@@ -178,221 +186,182 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     s.path === '/diary' && s.eyebrow === 'Diary' && s.diaryLit === true && s.list === true && s.grid === false && s.cap === false
       && JSON.stringify(s.segOn) === JSON.stringify([true, false]), JSON.stringify([s.path, s.eyebrow, s.diaryLit, s.list, s.grid, s.segOn]));
   check('list · the header names the window, and the List | Month toggle sits on the line with + (Annie 2026-09-10)',
-    // One masthead line: the window in caps + the count on the left, then
-    // the toggle and the + together as one action cluster on the right.
-    // ‹ › page MONTHS — the list scrolls, so they are not on it.
-    s.title === 'The next ' + WIN_DAYS + ' days' && JSON.stringify(s.nav) === JSON.stringify(['Add']) && s.segInActs, JSON.stringify([s.title, s.nav, s.segInActs]));
-  // The count reads what the window actually holds — dISO() returns epoch
-  // millis, so the old string-vs-number compare always read "nothing filed
-  // yet" however full it was (fixed 2026-09-10).
-  check('list · the count names the days the window holds',
-    /^\d+ days? filed$/.test(s.count || ''), s.count);
-  check('list · EVERY empty day in the next 30 invites, not just the week ahead ("Name the day" + the + door)',
-    JSON.stringify(s.invites) === JSON.stringify(expInvites) && s.invites.length > 7 && s.invitePh === 'Name the day', JSON.stringify([s.invites.length, expInvites.length, s.invitePh]));
-  check('list · the window starts at today — the past lives on Month, not the list',
-    s.past.length === 0 && s.invites[0] === TODAY && !s.order.includes(PAST), JSON.stringify([s.past, s.invites[0], TODAY]));
+    s.title === 'The next ' + WIN_DAYS + ' days' && JSON.stringify(s.nav) === JSON.stringify([]) && s.segInActs, JSON.stringify([s.title, s.nav, s.segInActs]));
+  check('list · the eyebrow stands alone — no count (Header Audit Round 2, R6)', s.count === undefined && /^the next 30 days$/i.test(s.title || ''), String(s.count) + ' / ' + s.title);
+  // The native row (2026-09-29): weekday + numeral, her title or the faint
+  // "Name the day", "N looks · N pieces" only when looks exist, the chevron
+  // — and the whole row opens the day.
+  const bareRows = s.rows.filter((r) => r.bare);
+  check('list · EVERY day in the next 30 is a row; an empty one reads "Name the day", faint, with no count',
+    JSON.stringify(bareRows.map((r) => r.date)) === JSON.stringify(expBare) && bareRows.every((r) => r.title === 'Name the day' && r.meta === null && r.thumbs === 0),
+    JSON.stringify([bareRows.length, expBare.length, bareRows[0]]));
+  check('list · the window starts at today — Today in rose on the first row; the past lives on Month',
+    s.rows[0]?.date === TODAY && s.rows[0]?.l === 'Today' && s.rows[0]?.lNow === true && !s.rows.some((r) => r.date === PAST) && s.rows.slice(1).every((r) => /^[A-Z][a-z]{2}$/.test(r.l || '') && !r.lNow),
+    JSON.stringify([s.rows[0], s.rows.length]));
+  check('list · every row opens the day and carries the chevron; naming, the + and the look rows are the day page\'s now',
+    s.rows.length > 7 && s.rows.every((r) => r.opens && r.ar) && s.oldDoors === 0, JSON.stringify([s.rows.length, s.rows.filter((r) => !r.opens || !r.ar).length, s.oldDoors]));
   if (inWin(TOM)) {
-    // The Travel diary's own row (Annie 2026-09-10): the gutter inside the
-    // block, her title in italic, the look row, the dashed add slot — a
-    // diary day and a trip day read identically. No "N looks filed": the
-    // rows are the count (Annie, 2026-09-10 — "it's noise").
-    check('list · a dressed day is the Travel diary\'s row: gutter, italic title, no count, the look, the + on the title line',
-      s.card && s.card.date === TOM && s.card.title === 'Golf Club Event' && s.card.meta == null
-        && /^[A-Z][a-z]{2}\|\d+\|[A-Z][a-z]{2}$/.test(s.card.g)
-        && JSON.stringify(s.card.looks) === JSON.stringify(['Daytime Nine · 3 pieces']) && /Add a look/i.test(s.card.add || ''), JSON.stringify(s.card));
+    const r = s.rows.find((x) => x.date === TOM);
+    check('list · a dressed day is a summary row: weekday, numeral, its thumb, the day\'s title, "N looks · N pieces"',
+      r && /^[A-Z][a-z]{2}$/.test(r.l) && r.n === String(+TOM.slice(8, 10)) && r.thumbs === 1 && r.title === 'Golf Club Event' && !r.bare && r.meta === '1 look · 3 pieces', JSON.stringify(r));
   }
+  check('list · days group by WEEK: "Rest of this week" first, then the week\'s dates; every row in a block shares its Monday',
+    s.weeks.length > 2 && /^(Rest of this|This) week$/.test(s.weeks[0].label || '')
+      && s.weeks.slice(1).every((w) => /^\d+( [A-Z][a-z]{2})?(–\d+| – \d+)? ?[A-Z][a-z]{2}$/.test(w.label || '') && !/Sept/.test(w.label))
+      && s.weeks.every((w) => w.dates.every((d) => mondayOf(d) === w.week)),
+    JSON.stringify(s.weeks.map((w) => [w.label, w.dates.length])));
   if (inWin(T0)) {
     const tripDays = [T0, T1, T2].filter(inWin);
-    check('list · a trip is a block: title, dates, destination · temp · condition',
+    check('list · a trip is a block: its head names it — title, dates, destination · temp · condition — and opens the travel edit',
       s.trip && s.trip.title === 'A trip to Lahinch.' && /^\d+(–\d+)? [A-Z][a-z]{2}/.test(s.trip.range || '') && !/Sept/.test(s.trip.range || '')
-        && /^Lahinch, Ireland · 13–19°C · passing showers$/.test(s.trip.wx || '') && s.trip.wxEm === 'passing showers', JSON.stringify(s.trip));
-    check('list · the trip\'s days sit inside it: weekday / numeral / month gutter, her title in italic, the look, the + on every day',
+        && /^Lahinch, Ireland · 13–19°C · passing showers$/.test(s.trip.meta || '') && s.trip.em === 'passing showers' && s.trip.opens, JSON.stringify(s.trip));
+    check('list · the trip\'s days are the same rows: her title, the look\'s thumb and count; an undressed day reads its title alone; each opens the day',
       s.trip && JSON.stringify(s.trip.days.map((d) => d.date)) === JSON.stringify(tripDays)
-        && s.trip.days[0].title === 'Travel and Dinner' && JSON.stringify(s.trip.days[0].looks) === JSON.stringify(['Golf Club Dinner'])
-        && /^[A-Z][a-z]{2}\|\d+\|[A-Z][a-z]{2}$/.test(s.trip.days[0].g) && !/Sept/.test(s.trip.days[0].g)
-        && s.trip.days[0].meta == null && /Add a look/i.test(s.trip.days[0].add || '')
-        && (tripDays.length < 3 || (s.trip.days[2].title === 'Travel home' && s.trip.days[2].looks.length === 0 && /Add the first look/i.test(s.trip.days[2].add || ''))),
+        && s.trip.days[0].title === 'Travel and Dinner' && s.trip.days[0].meta === '1 look · 2 pieces' && s.trip.days[0].thumbs === 1 && !s.trip.days[0].bare
+        && s.trip.days.every((d) => d.opens && d.ar)
+        && (tripDays.length < 3 || (s.trip.days[2].title === 'Travel home' && s.trip.days[2].meta === null && s.trip.days[2].thumbs === 0 && !s.trip.days[2].bare)),
       JSON.stringify(s.trip && s.trip.days));
-    check('list · one row per date in order; the trip holds its dates (no invitations inside it)',
-      s.order.indexOf('trip:' + TRIP_ID) >= 0 && !s.invites.some((d) => tripDays.includes(d)) && s.order.slice().every((v, i, a) => i === 0 || v.startsWith('trip:') || a[i - 1].startsWith('trip:') || v > a[i - 1]),
-      JSON.stringify(s.order));
+    check('list · one row per date in order; the trip holds its dates as its own block between the weeks',
+      s.order.indexOf('trip:' + TRIP_ID) >= 0 && !bareRows.some((r) => tripDays.includes(r.date))
+        && s.rows.every((r, i, a) => i === 0 || r.date > a[i - 1].date) && s.rows.length === winDates.length,
+      JSON.stringify([s.order, s.rows.length, winDates.length]));
   }
-  check('list · no chevrons on the list; the block is white on a hairline (the platform register)', s.noChevrons && s.whiteCards, JSON.stringify([s.noChevrons, s.whiteCards]));
-  // The convergence itself: consecutive days ride ONE bordered block, the
-  // rows highlight on hover, and every look row carries the → that says it
-  // opens — the trip page's Travel diary, on the Diary (Annie 2026-09-10).
-  // The WHOLE row is the door (Annie, 2026-09-10 — the look rows were the
-  // only way into a day): a tap on the row's body opens the day page, while
-  // the pencil, the add slot and the name input keep their own jobs.
+  check('list · the blocks are white on a hairline and the rows lift on hover (the platform register)', s.whiteBlocks && s.hoverLift, JSON.stringify([s.whiteBlocks, s.hoverLift]));
+  // The row IS the door: a tap on its body opens the day page.
   const rowTap = await page.evaluate(async (TOM) => {
-    const row = document.querySelector('#sn-cal .dy-tday[data-date="' + TOM + '"]');
-    const r = { tappable: !!row && row.getAttribute('role') === 'button' && /__dyOpenDay/.test(row.getAttribute('onclick') || '') };
-    row?.querySelector('.dy-tday-b')?.click();
+    const row = document.querySelector('#sn-cal .dy-r[data-date="' + TOM + '"]');
+    row?.querySelector('.dy-r-b')?.click();
     await new Promise((x) => setTimeout(x, 700));
     const pg = document.getElementById('dl-result-page');
-    r.day = !!pg && pg.style.display !== 'none' && !!pg.querySelector('.dyp-grid');
-    r.title = pg?.querySelector('.dlm-title')?.textContent.trim();
+    const r = { day: !!pg && pg.style.display !== 'none' && !!pg.querySelector('.dyp-grid'), title: pg?.querySelector('.dlm-title')?.textContent.trim(), back: pg?.querySelector('.rb-ret-pill .lab')?.textContent.trim() };
     window.__rbNavGo('diary');
     await new Promise((x) => setTimeout(x, 700));
-    // the pencil renames in place rather than opening the day
-    document.querySelector('#sn-cal .dy-tday[data-date="' + TOM + '"] .dy-pen')?.click();
-    await new Promise((x) => setTimeout(x, 200));
-    r.pencil = !!document.getElementById('dy-name-in') && document.getElementById('dl-result-page')?.style.display === 'none';
-    document.getElementById('dy-name-in')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    await new Promise((x) => setTimeout(x, 200));
+    r.listBack = !!document.querySelector('#sn-cal .dy-list');
     return r;
   }, TOM);
-  check('list · the whole day row opens the day; the pencil still renames in place',
-    rowTap.tappable && rowTap.day && rowTap.title === 'Golf Club Event' && rowTap.pencil, JSON.stringify(rowTap));
-  check('list · consecutive days ride ONE block, rows lift on hover, look rows carry the arrow',
-    s.blockRows.length > 0 && s.blockRows.some((n) => n > 1) && s.hoverLift === true && s.lookArrows === true,
-    JSON.stringify([s.blockRows, s.hoverLift, s.lookArrows]));
-  check('list · the tail closes the window and hands her to Month for anything beyond it',
-    s.tail === "That's the next " + WIN_DAYS + ' days.' && s.tailBtn === 'Month view', JSON.stringify([s.tail, s.tailBtn]));
+  check('list · the whole row opens the day page; the return pill names the month; Diary brings the list back',
+    rowTap.day && rowTap.title === 'Golf Club Event' && /^[A-Z][a-z]+ \d{4}$/.test(rowTap.back || '') && rowTap.listBack, JSON.stringify(rowTap));
 
-  // Inline naming — trip day (writes tvData.dayTitles through the one path)
-  if (inWin(T0)) {
-    const named = await page.evaluate(async () => {
-      const day = document.querySelector('#sn-cal .dy-trip .dy-tday');
-      day.querySelector('.dy-tday-t').click();
-      await new Promise((r) => setTimeout(r, 120));
-      const inp = document.getElementById('dy-name-in');
-      if (!inp) return { inp: false };
-      inp.value = 'Arrival supper';
-      inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      await new Promise((r) => setTimeout(r, 300));
-      const items = JSON.parse(localStorage.getItem('robes_style_notes__u-test') || '[]');
-      const trip = items.find((i) => i.type === 'travel-edit');
-      return { inp: true, stored: trip && trip.tvData.dayTitles[0], shown: document.querySelector('#sn-cal .dy-trip .dy-tday .dy-tday-t')?.textContent, inputGone: !document.getElementById('dy-name-in') };
-    });
-    check('list · a trip day renames inline, writing the trip\'s own day title',
-      named.inp && named.stored === 'Arrival supper' && named.shown === 'Arrival supper' && named.inputGone, JSON.stringify(named));
-  }
-  if (inWin(TOM)) {
-    const renamed = await page.evaluate(async () => {
-      document.querySelector('#sn-cal .dy-block .dy-tday .dy-pen').click();
-      await new Promise((r) => setTimeout(r, 120));
-      const inp = document.getElementById('dy-name-in');
-      if (!inp) return { inp: false };
-      inp.value = 'Club day';
-      inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      await new Promise((r) => setTimeout(r, 300));
-      const items = JSON.parse(localStorage.getItem('robes_style_notes__u-test') || '[]');
-      const dl = items.find((i) => i.type === 'daily-look' && i.title === 'Golf Club Event');
-      return { inp: true, stored: dl && dl.dlData.occasion_label, shown: document.querySelector('#sn-cal .dy-block .dy-tday .dy-tday-t')?.textContent };
-    });
-    check('list · a day card renames inline through the day\'s occasion (the one rename path)',
-      renamed.inp && renamed.stored === 'Club day' && renamed.shown === 'Club day', JSON.stringify(renamed));
-    // + Add a look opens the shared picker for THAT date
-    const add = await page.evaluate(async (TOM) => {
-      document.querySelector('#sn-cal .dy-block .dy-tday .dy-tady-h .dy-dadd, #sn-cal .dy-block .dy-tday .dy-dadd').click();
-      await new Promise((r) => setTimeout(r, 200));
-      const m = document.getElementById('rb-mv-wear');
-      const t = m ? m.textContent : '';
-      m?.remove();
-      const long = new Date(TOM + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
-      return { had: !!m, dated: t.indexOf(long) >= 0 || t.indexOf(String(+TOM.slice(8, 10))) >= 0, robes: /Robes styles one/.test(t) };
-    }, TOM);
-    check('list · + Add a look opens the shared add-a-look picker for that date',
-      add.had && add.dated && add.robes, JSON.stringify(add));
-  }
-  // The trip's undressed day: Add opens the trip on that day
-  if (inWin(T2)) {
-    const opened = await page.evaluate(async () => {
-      const btn = document.querySelector('#sn-cal .dy-trip .dy-tday .dy-dadd');
-      btn.click();
-      await new Promise((r) => setTimeout(r, 900));
-      const tv = document.getElementById('tv-result-page');
-      const r = { tvOpen: !!tv && tv.style.display !== 'none', diaryLit: document.getElementById('rb-tn-diary')?.classList.contains('active'), snHidden: document.getElementById('sn-page')?.style.display === 'none' };
-      window.__tvGoBack();
-      await new Promise((r2) => setTimeout(r2, 500));
-      r.backList = !!document.querySelector('#sn-cal .dy-list');
-      return r;
-    });
-    check('list · "+ Add" on a trip day opens the trip (Diary lit), and back returns to the list',
-      opened.tvOpen && opened.diaryLit === true && opened.snHidden && opened.backList, JSON.stringify(opened));
-  }
-  // The + on an invitation is a dated menu
-  if (expInvites.length) {
-    const menu = await page.evaluate(async (d) => {
-      const row = document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-inv-add');
-      row.click();
-      await new Promise((r) => setTimeout(r, 100));
-      const m = document.getElementById('rb-dy-addmenu');
-      const opts = m ? Array.from(m.querySelectorAll('.card button .t')).map((b) => b.textContent) : [];
-      const lookBtn = m && m.querySelector('.card button');
-      lookBtn && lookBtn.click();
-      await new Promise((r) => setTimeout(r, 200));
-      const w = document.getElementById('rb-mv-wear');
-      const t = w ? w.textContent : '';
-      w?.remove();
-      return { opts, picker: !!w, dated: t.indexOf(String(+d.slice(8, 10))) >= 0 };
-    }, expInvites[0]);
-    check('list · the invitation\'s + offers Add a look / Add a travel edit, dated to that day',
-      JSON.stringify(menu.opts) === JSON.stringify(['Add a look', 'Add a travel edit']) && menu.picker && menu.dated, JSON.stringify(menu));
-    // Naming a bare day KEEPS the name in place (Annie, 2026-09-08): a 'day'
-    // row is written, the invitation becomes a named card, and the look she
-    // adds afterwards inherits the name.
+  // Naming a bare day happens ON ITS PAGE now (the native list): the row
+  // opens the day, the title names it, the name has its data home (a 'day'
+  // row of its own source), and the list reads it back on return.
+  if (expBare.length) {
+    const d0 = expBare[0];
     const namedBefore = writes.length;
     const named = await page.evaluate(async (d) => {
-      const inp = document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-inv-in input');
+      document.querySelector('#sn-cal .dy-r[data-date="' + d + '"]')?.click();
+      await new Promise((r) => setTimeout(r, 700));
+      const pg = document.getElementById('dl-result-page');
+      const r = { open: !!pg && pg.style.display !== 'none', doors: Array.from(pg?.querySelectorAll('.dyp-door .l') || []).map((x) => x.textContent), add: !!pg?.querySelector('.dyp-add'), none: !!pg?.querySelector('.dyp-none') };
+      window.__rbDayNameEdit();
+      await new Promise((r2) => setTimeout(r2, 100));
+      const inp = document.getElementById('dyp-name-in');
+      if (!inp) return { ...r, inp: false };
       inp.value = 'Dinner with mum';
       inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      await new Promise((r) => setTimeout(r, 900));
-      const row = document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"]');
-      return {
-        diaryOpen: document.getElementById('sn-page')?.style.display === 'block',
-        card: !!row?.querySelector('.dy-tday-b'),
-        title: row?.querySelector('.dy-tday-t')?.textContent,
-        pen: !!row?.querySelector('.dy-pen'),
-        looks: row?.querySelectorAll('.dy-look').length,
-        add: row?.querySelector('.dy-dadd')?.title,
-        invitesLeft: document.querySelectorAll('#sn-cal .dy-invite').length,
-        prompt: document.getElementById('cb-ta')?.value || '',
-      };
-    }, expInvites[0]);
+      await new Promise((r2) => setTimeout(r2, 900));
+      r.inp = true;
+      r.title = pg.querySelector('.dlm-title')?.textContent.trim();
+      r.prompt = document.getElementById('cb-ta')?.value || '';
+      window.__rbDayBack();
+      await new Promise((r2) => setTimeout(r2, 800));
+      const row = document.querySelector('#sn-cal .dy-r[data-date="' + d + '"]');
+      r.diaryOpen = document.getElementById('sn-page')?.style.display === 'block';
+      r.rowTitle = row?.querySelector('.dy-r-t')?.textContent; r.rowBare = row?.querySelector('.dy-r-t')?.classList.contains('none');
+      r.bareLeft = document.querySelectorAll('#sn-cal .dy-r-t.none').length;
+      return r;
+    }, d0);
     const dayWrite = writes.slice(namedBefore).find((w) => w.method === 'POST' && /^planned_days/.test(w.url) && Array.isArray(w.body) && w.body[0]?.source_type === 'day');
-    check('list · naming a bare day keeps the name in place — a named card with + Add a look, the Diary still open, nothing sent to the prompt',
-      named.diaryOpen && named.card && named.title === 'Dinner with mum' && named.pen && named.looks === 0 && /Add the first look/i.test(named.add || '')
-        && named.invitesLeft === expInvites.length - 1 && named.prompt === '', JSON.stringify(named));
+    check('day page · an empty day opens on ONE door — Choose from your looks (a look reaches a day only once saved; the sparkle makes new ones), no dashed add card',
+      named.open && JSON.stringify(named.doors) === JSON.stringify(['Choose from your looks']) && !named.add && !named.none, JSON.stringify(named));
+    check('list · naming a bare day on its page keeps the name — the row reads it back, nothing sent to the prompt',
+      named.inp && named.title === 'Dinner with mum' && named.prompt === '' && named.diaryOpen && named.rowTitle === 'Dinner with mum' && named.rowBare === false
+        && named.bareLeft === expBare.length - 1, JSON.stringify(named));
     check('list · the name has a data home: one planned_days row of its own source (day:<date>)',
-      !!dayWrite && dayWrite.body[0].source_id === 'day:' + expInvites[0] && dayWrite.body[0].day_date === expInvites[0]
+      !!dayWrite && dayWrite.body[0].source_id === 'day:' + d0 && dayWrite.body[0].day_date === d0
         && dayWrite.body[0].activity === 'Dinner with mum' && dayWrite.body[0].status === 'planned', JSON.stringify(dayWrite?.body?.[0] || null));
-    // Renaming the named day in place rewrites the same row; emptying it removes the day
-    const renamedDay = await page.evaluate(async (d) => {
-      const row = document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"]');
-      row?.querySelector('.dy-pen')?.click();
-      await new Promise((r) => setTimeout(r, 120));
-      const inp = document.getElementById('dy-name-in');
-      if (!inp) return { inp: false };
-      inp.value = 'Supper with mum';
-      inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      await new Promise((r) => setTimeout(r, 300));
-      return { inp: true, shown: document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-tday-t')?.textContent };
-    }, expInvites[0]);
-    check('list · a named day renames in place through the one rename path', renamedDay.inp && renamedDay.shown === 'Supper with mum', JSON.stringify(renamedDay));
-  }
-    // The look she adds to the named day inherits the name
+    // Choose from your looks → the picker, headed by her name; the pinned
+    // look carries it as the day's title.
     const pinBefore = writes.length;
     const inherit = await page.evaluate(async (d) => {
-      document.querySelector('#sn-cal .dy-tday[data-date="' + d + '"] .dy-dadd').click();
-      await new Promise((r) => setTimeout(r, 200));
+      document.querySelector('#sn-cal .dy-r[data-date="' + d + '"]')?.click();
+      await new Promise((r) => setTimeout(r, 700));
+      document.querySelector('#dl-result-page .dyp-door:last-child')?.click();
+      await new Promise((r) => setTimeout(r, 300));
       const m = document.getElementById('rb-mv-wear');
       const head = m?.querySelector('#rb-mv-wear-ttl')?.textContent || '';
+      const hint = m?.querySelector('.pk-hint')?.textContent || '';
       window.__mvWearPick(d, 'lk-1');
       await new Promise((r) => setTimeout(r, 1200));
-      return { head, modalGone: !document.getElementById('rb-mv-wear') };
-    }, expInvites[0]);
+      const pg = document.getElementById('dl-result-page');
+      const r = { head, hint, modalGone: !document.getElementById('rb-mv-wear'), cards: pg?.querySelectorAll('.dyp-card').length, add: pg?.querySelector('.dyp-add-s')?.textContent };
+      window.__rbDayBack();
+      await new Promise((r2) => setTimeout(r2, 800));
+      const row = document.querySelector('#sn-cal .dy-r[data-date="' + d + '"]');
+      r.row = { title: row?.querySelector('.dy-r-t')?.textContent, meta: row?.querySelector('.dy-r-m')?.textContent, thumbs: row?.querySelectorAll('.dy-th').length };
+      return r;
+    }, d0);
     const pin = writes.slice(pinBefore).find((w) => w.method === 'POST' && /^planned_days/.test(w.url) && Array.isArray(w.body) && w.body[0]?.source_type === 'look');
-    check('list · the picker is headed by her name, and the pinned look carries it as the day\'s title',
-      /Supper with mum/.test(inherit.head) && inherit.modalGone && !!pin && pin.body[0].day_date === expInvites[0] && pin.body[0].activity === 'Supper with mum',
+    check('day page · Choose from your looks opens the picker headed by her name ("Tap looks to add one or several"); the pinned look carries the name',
+      /Dinner with mum/.test(inherit.head) && /Tap looks to add one or several/.test(inherit.hint) && inherit.modalGone && !!pin && pin.body[0].day_date === d0 && pin.body[0].activity === 'Dinner with mum'
+        && inherit.cards === 1 && inherit.add === 'another moment in the day',
       JSON.stringify([inherit, pin?.body?.[0] || null]));
+    check('list · the dressed day reads back: her title, the look\'s thumb, "1 look · 3 pieces"',
+      inherit.row.title === 'Dinner with mum' && inherit.row.meta === '1 look · 3 pieces' && inherit.row.thumbs === 1, JSON.stringify(inherit.row));
+    // The picker's multi-select (2026-09-29): tap two, the foot adds both;
+    // a look already on the day is shown but not offered again.
+    const d1 = expBare[1];
+    const multiBefore = writes.length;
+    const multi = await page.evaluate(async ({ d, d0 }) => {
+      window.__mvWear(d);
+      await new Promise((r) => setTimeout(r, 200));
+      const m = document.getElementById('rb-mv-wear');
+      const tiles = Array.from(m?.querySelectorAll('.pk-tile') || []);
+      const r = { tiles: tiles.length, hint0: m?.querySelector('.pk-hint')?.textContent, cta0: m?.querySelector('.pk-cta')?.textContent || null };
+      tiles[0]?.click(); await new Promise((x) => setTimeout(x, 120));
+      r.cta1 = m?.querySelector('.pk-cta')?.textContent;
+      r.ticked1 = m?.querySelectorAll('.pk-tile.on').length;
+      tiles[1]?.click(); await new Promise((x) => setTimeout(x, 120));
+      r.cta2 = m?.querySelector('.pk-cta')?.textContent;
+      // the first tile again withdraws it
+      m?.querySelector('.pk-tile.on')?.click(); await new Promise((x) => setTimeout(x, 120));
+      r.cta1b = m?.querySelector('.pk-cta')?.textContent;
+      m?.querySelectorAll('.pk-tile:not(.on)').forEach((t) => t.click()); await new Promise((x) => setTimeout(x, 120));
+      r.cta2b = m?.querySelector('.pk-cta')?.textContent;
+      m?.querySelector('.pk-cta')?.click();
+      await new Promise((x) => setTimeout(x, 1400));
+      r.gone = !document.getElementById('rb-mv-wear');
+      const row = document.querySelector('#sn-cal .dy-r[data-date="' + d + '"]');
+      r.row = { title: row?.querySelector('.dy-r-t')?.textContent, meta: row?.querySelector('.dy-r-m')?.textContent, thumbs: row?.querySelectorAll('.dy-th').length };
+      // already on the day — the first named day wears lk-1
+      window.__mvWear(d0);
+      await new Promise((x) => setTimeout(x, 200));
+      const m2 = document.getElementById('rb-mv-wear');
+      const had = m2?.querySelector('.pk-tile.had');
+      r.had = m2?.querySelectorAll('.pk-tile.had').length; r.hadMeta = had?.querySelector('.m')?.textContent;
+      had?.click(); await new Promise((x) => setTimeout(x, 120));
+      r.hadTicked = m2?.querySelectorAll('.pk-tile.on').length; r.hadCta = m2?.querySelector('.pk-cta')?.textContent || null;
+      window.__mvPkClose();
+      return r;
+    }, { d: d1, d0 });
+    const pins = writes.slice(multiBefore).filter((w) => w.method === 'POST' && /^planned_days/.test(w.url) && Array.isArray(w.body) && w.body[0]?.source_type === 'look' && w.body.some((r) => r.day_date === d1));
+    check('picker · tap ticks a look, the foot counts them ("Add 1 look" → "Add 2 looks"), a second tap withdraws one, and Add pins them all',
+      multi.tiles === 2 && /Tap looks to add one or several/.test(multi.hint0 || '') && multi.cta0 === null && multi.cta1 === 'Add 1 look' && multi.ticked1 === 1
+        && multi.cta2 === 'Add 2 looks' && multi.cta1b === 'Add 1 look' && multi.cta2b === 'Add 2 looks' && multi.gone
+        && pins.length === 2 && multi.row.title === '2 looks' && /^2 looks · \d+ pieces$/.test(multi.row.meta || '') && multi.row.thumbs === 2,
+      JSON.stringify([multi, pins.length]));
+    check('picker · a look already on the day reads "Already on this day", dimmed, and a tap on it ticks nothing',
+      multi.had === 1 && multi.hadMeta === 'Already on this day' && multi.hadTicked === 0 && multi.hadCta === null, JSON.stringify([multi.had, multi.hadMeta, multi.hadTicked, multi.hadCta]));
+  }
   // The prompt's + menu offers the travel edit too (home)
   const promptMenu = await page.evaluate(async () => {
     window.__rbNavGo('home');
     await new Promise((r) => setTimeout(r, 400));
     const opt = document.getElementById('cb-addopt-tv');
-    const labels = Array.from(document.querySelectorAll('#cb-addmenu .hp-addopt')).map((b) => (b.querySelector('span span') || b).textContent.trim());
+    // :scope — the menu rides inside the home field's row now (the box is
+    // the default), so a bare 'span span' matched the row's OUTER span
+    // through an ancestor and read both lines as one.
+    const labels = Array.from(document.querySelectorAll('#cb-addmenu .hp-addopt')).map((b) => (b.querySelector(':scope > span > span') || b).textContent.trim());
     opt && opt.click();
     await new Promise((r) => setTimeout(r, 200));
     const modal = document.getElementById('tv-brief-modal');
@@ -406,16 +375,17 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
   await page.evaluate(() => window.__rbNavGo('diary'));
   await page.waitForTimeout(500);
   // Month is one toggle away, remembered per device
-  await page.evaluate(() => window.__rbNavGo('diary'));
-  await page.waitForTimeout(500);
+  const tripInMonth = T0.slice(0, 7) === TODAY.slice(0, 7) || T2.slice(0, 7) === TODAY.slice(0, 7);
   const month = await page.evaluate(async () => {
     window.__dySetMode('month');
     await new Promise((r) => setTimeout(r, 150));
     const r = {
       grid: !!document.querySelector('#sn-cal .rb-mv-cal'), list: !!document.querySelector('#sn-cal .dy-list'),
-      cap: document.querySelector('#sn-cal .rb-mv-cap')?.textContent, segOn: Array.from(document.querySelectorAll('#sn-cal .rb-mv-seg button')).map((b) => b.classList.contains('on')),
+      cap: document.querySelector('#sn-cal .rb-mv-cap')?.textContent || null, segOn: Array.from(document.querySelectorAll('#sn-cal .rb-mv-seg button')).map((b) => b.classList.contains('on')),
       nav: Array.from(document.querySelectorAll('#sn-cal .rb-mv-nav > button[aria-label]')).map((b) => b.getAttribute('aria-label')),
       title: document.querySelector('#sn-cal .rb-mv-title')?.textContent,
+      trips: Array.from(document.querySelectorAll('#sn-cal .rb-mv-trip')).map((t) => ({ t: t.querySelector('.t')?.textContent, m: t.querySelector('.m')?.textContent, opens: /__mvBand/.test(t.getAttribute('onclick') || '') })),
+      dots: Array.from(document.querySelectorAll('#sn-cal .dc-dots')).map((d) => d.querySelectorAll('i').length + ':' + d.querySelectorAll('i.fut').length),
       stored: localStorage.getItem('rb_diary_mode'),
     };
     window.__rbNavGo('lookbook'); await new Promise((r2) => setTimeout(r2, 300));
@@ -425,13 +395,22 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     r.backToList = !!document.querySelector('#sn-cal .dy-list');
     return r;
   });
-  check('list · Month is one toggle away, captioned, and remembered per device',
-    month.grid && !month.list && month.cap === 'Month reads the shape of it. List is where you plan.' && JSON.stringify(month.segOn) === JSON.stringify([false, true])
+  check('list · Month is one toggle away and remembered per device',
+    month.grid && !month.list && JSON.stringify(month.segOn) === JSON.stringify([false, true])
       && month.stored === 'month' && month.stillMonth && month.backToList, JSON.stringify(month));
+  // Beneath the grid: the month's trips as a list (2026-09-29) — else the caption
+  check('month · the trips in the month list under the grid (start-date tile, name, range · days · looks) and open the travel edit; a month with none keeps the caption',
+    tripInMonth
+      ? (month.trips.length === 1 && month.trips[0].t === 'A trip to Lahinch.' && /^\d+(–\d+)? [A-Z][a-z]{2} · 3 days · 2 looks$/.test(month.trips[0].m || '') && month.trips[0].opens && month.cap === null)
+      : (month.trips.length === 0 && month.cap === 'Month reads the shape of it. List is where you plan.'),
+    JSON.stringify([tripInMonth, month.trips, month.cap]));
+  // The dot rule the home strip shares: one per look (three at most), rose up to today, ink ahead
+  check('month · a filed day carries one dot per look — rose up to today, ink for a day still ahead',
+    month.dots.length >= 2 && month.dots.some((d) => /^\d:0$/.test(d)) && (!tripInMonth || month.dots.some((d) => /^(\d):\1$/.test(d))), JSON.stringify([tripInMonth, month.dots]));   // the ahead-dot only when a fixture day still ahead falls in this month (the fixture runs 2 days out — a month end moves it out of the grid)
   // ‹ › are the MONTH's (Annie, 2026-09-10): the list scrolls a rolling
   // window, so paging only exists where it means something.
   check('month · the month names itself and ‹ › page it — the pair the list does not carry',
-    JSON.stringify(month.nav) === JSON.stringify(['Previous month', 'Next month', 'Add']) && /^[A-Z][a-z]+ \d{4}$/.test(month.title || ''),
+    JSON.stringify(month.nav) === JSON.stringify(['Previous month', 'Next month']) && /^[A-Z][a-z]+ \d{4}$/.test(month.title || ''),
     JSON.stringify([month.nav, month.title]));
   check('list · no page errors after the walk', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
@@ -447,7 +426,7 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     const em = document.querySelector('#sn-cal .dy-empty');
     const r = {
       had: !!em, h: em?.querySelector('h3')?.textContent, p: em?.querySelector('p')?.textContent, cta: em?.querySelector('.dy-empty-cta')?.textContent,
-      invites: document.querySelectorAll('#sn-cal .dy-invite').length,
+      rows: document.querySelectorAll('#sn-cal .dy-r').length, bare: document.querySelectorAll('#sn-cal .dy-r-t.none').length,
       darkFills: Array.from(document.querySelectorAll('#sn-cal button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
     };
     em?.querySelector('.dy-empty-cta')?.click();
@@ -457,12 +436,12 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     document.getElementById('tv-brief-modal')?.remove();
     return r;
   });
-  const expEmptyInvites = winDates.length;
+  const expEmptyRows = winDates.length;
   check('empty · the design\'s empty state: "Nothing planned yet.", the line, Plan a trip',
     e.had && /Nothing planned/.test(e.h || '') && /yet\./.test(e.h || '') && /The diary keeps the dates; the lookbook keeps the looks\./.test(e.p || '') && e.cta === 'Plan a trip', JSON.stringify(e));
   check('empty · Plan a trip is the ONE dark fill and opens the travel intake over the Diary',
     e.darkFills === 1 /* the CTA alone — the List | Month toggle is a view, warm-selected (nav architecture 2026-09-10) */ && e.intake && e.diaryStill, JSON.stringify(e));
-  check('empty · the window\'s invitations still follow beneath — all thirty-one of them', e.invites === expEmptyInvites, JSON.stringify([e.invites, expEmptyInvites]));
+  check('empty · the window\'s days still follow beneath — all thirty-one of them, each "Name the day"', e.rows === expEmptyRows && e.bare === expEmptyRows, JSON.stringify([e.rows, e.bare, expEmptyRows]));
   check('empty · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -475,33 +454,37 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
   await page.waitForTimeout(900);
   const m = await page.evaluate(() => {
     const sn = document.getElementById('sn-page');
-    const inv = document.querySelector('#sn-cal .dy-invite');
+    const row = document.querySelector('#sn-cal .dy-r');
     const trip = document.querySelector('#sn-cal .dy-trip');
+    const seg = document.querySelector('#sn-cal .rb-mv-seg'), add = document.querySelector('#sn-cal .rb-mv-add');
     return {
       list: !!document.querySelector('#sn-cal .dy-list'),
       noOverflow: sn.scrollWidth <= sn.clientWidth + 1,
-      inviteFits: inv ? inv.getBoundingClientRect().right <= 390 : true,
+      rowFits: row ? row.getBoundingClientRect().right <= 390 && row.getBoundingClientRect().height >= 44 : false,
       tripFits: trip ? trip.getBoundingClientRect().right <= 390 : true,
       dock: document.getElementById('rb-dock-diary')?.classList.contains('active'),
-      addTap: (() => { const b = document.querySelector('#sn-cal .dy-inv-add'); return b ? b.getBoundingClientRect().width >= 44 : true; })(),
+      // the design's phone head: the toggle as a full track beside a 40px +, the window's name beneath
+      // Header Audit Round 2: the track is fixed at 213×36 and the + is 36, same top
+      segTrack: seg && add ? Math.round(seg.getBoundingClientRect().width) === 213 && Math.round(add.getBoundingClientRect().width) === 36 && Math.abs(seg.getBoundingClientRect().top - add.getBoundingClientRect().top) < 2 : false,
+      titleBelow: (() => { const t = document.querySelector('#sn-cal .rb-mv-title'); return !!t && !!seg && t.getBoundingClientRect().top > seg.getBoundingClientRect().bottom; })(),
     };
   });
-  check('390px · the list renders one column wide with no horizontal overflow; the dock lights Diary',
-    m.list && m.noOverflow && m.inviteFits && m.tripFits && m.dock === true && m.addTap, JSON.stringify(m));
+  check('390px · the list renders one column wide with no horizontal overflow, rows at 44px; the dock lights Diary',
+    m.list && m.noOverflow && m.rowFits && m.tripFits && m.dock === true, JSON.stringify(m));
+  check('390px · the head is the design\'s: the List | Month track with the +, the window\'s name as an eyebrow beneath', m.segTrack && m.titleBelow, JSON.stringify(m));
   check('390px · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 
 // ─────────────────────────────────────────────────────────────────────────
 // 4 · The day page (Annie, 2026-09-09) — a diary day opens on its own page:
-// the date, its name, every look on it as a card. The card's title on the
-// list is the door; the past row too.
+// the date, its name, every look on it as a card. The list row is the door.
 {
-  const { ctx, page, errs } = await boot(browser);
+  const { ctx, page, errs, writes } = await boot(browser);
   await page.evaluate(() => window.__rbNavGo('diary'));
   await page.waitForTimeout(900);
   const d = await page.evaluate(async (TOM) => {
-    document.querySelector('#sn-cal .dy-tday[data-date="' + TOM + '"] .dy-tday-t').click();
+    document.querySelector('#sn-cal .dy-r[data-date="' + TOM + '"]').click();
     await new Promise((r) => setTimeout(r, 700));
     const pg = document.getElementById('dl-result-page');
     const q = (s) => pg && pg.querySelector(s);
@@ -511,16 +494,17 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
       eyebrow: q('.dlm-eyebrow')?.textContent, title: q('.dlm-title')?.textContent.trim(),
       sec: q('.dyp-sec-l')?.textContent, stat: q('.dyp-sec-r')?.textContent,
       cards: Array.from(pg ? pg.querySelectorAll('.dyp-card') : []).map((c) => (c.querySelector('.dyp-ey > span:first-child')?.textContent + ' · ' + c.querySelector('.dyp-name')?.textContent + ' · ' + c.querySelector('.dyp-n')?.textContent)),
-      add: !!q('.dyp-add'),
+      add: !!q('.dyp-add'), doors: pg ? pg.querySelectorAll('.dyp-door').length : -1,
       diaryLit: document.getElementById('rb-tn-diary')?.classList.contains('active'),
     };
   }, TOM);
-  check('day page · the card\'s title opens the day: its name, the date, Looks planned, its look as a card, + Add a look, the Diary still lit',
+  check('day page · the row opens the day: its name, the date, Looks planned, its look as a card, + Add a look (no doors once a look exists), the Diary still lit',
     d.diaryHidden && d.visible && d.title === 'Golf Club Event' && /^[A-Z][a-z]+day \d+ [A-Z]/.test(d.eyebrow || '') && d.sec === 'Looks planned'
-      && d.stat === '1 look · 3 pieces filed' && JSON.stringify(d.cards) === JSON.stringify(['Look 1 · Daytime Nine · 3 pieces']) && d.add && d.diaryLit,
+      && d.stat === '1 look · 3 pieces filed' && JSON.stringify(d.cards) === JSON.stringify(['Look 1 · Daytime Nine · 3 pieces']) && d.add && d.doors === 0 && d.diaryLit,
     JSON.stringify(d));
   // The past is Month's now — the list starts at today (Annie, 2026-09-10),
-  // so a filed past day is opened from its month cell.
+  // so a filed past day is opened from its month cell. A past day carries
+  // no forecast (nothing left to dress for).
   const p = await page.evaluate(async (PAST) => {
     window.__rbNavGo('diary');
     await new Promise((r) => setTimeout(r, 700));
@@ -533,27 +517,24 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     await new Promise((r) => setTimeout(r, 700));
     const pg = document.getElementById('dl-result-page');
     const q = (s) => pg && pg.querySelector(s);
-    const r = { cell: !!cell, visible: !!pg && pg.style.display !== 'none', title: q('.dlm-title')?.textContent.trim(), sec: q('.dyp-sec-l')?.textContent, worn: q('.dyp-card .dyp-worn')?.textContent, cards: pg ? pg.querySelectorAll('.dyp-card').length : 0 };
+    const r = { cell: !!cell, visible: !!pg && pg.style.display !== 'none', title: q('.dlm-title')?.textContent.trim(), sec: q('.dyp-sec-l')?.textContent, worn: q('.dyp-card .dyp-worn')?.textContent, cards: pg ? pg.querySelectorAll('.dyp-card').length : 0, wx: !!q('.dyp-wx') };
     window.__dySetMode('list');
     return r;
   }, PAST);
-  check('day page · a past day opens from its month cell: Looks filed, the look carries Worn',
-    p.cell && p.visible && p.title === 'The black one' && p.sec === 'Looks filed' && /Worn/.test(p.worn || '') && p.cards === 1, JSON.stringify(p));
-  // The look row on the list opens the DAY too (the look is reached from the
-  // day page — Annie, 2026-09-09), with the door back reading Diary
+  check('day page · a past day opens from its month cell: Looks filed, the look carries Worn, no forecast',
+    p.cell && p.visible && p.title === 'The black one' && p.sec === 'Looks filed' && /Worn/.test(p.worn || '') && p.cards === 1 && !p.wx, JSON.stringify(p));
   const lr = await page.evaluate(async (TOM) => {
     window.__rbNavGo('diary');
     await new Promise((r) => setTimeout(r, 700));
-    const row = document.querySelector('#sn-cal .dy-tday[data-date="' + TOM + '"] .dy-look');
-    const meta = row?.querySelector('.dy-look-m')?.textContent.replace(/\s+/g, ' ').trim();
-    row?.click();
+    const row = document.querySelector('#sn-cal .dy-r[data-date="' + TOM + '"]');
+    row?.querySelector('.dy-r-th')?.click();
     await new Promise((r) => setTimeout(r, 700));
     const pg = document.getElementById('dl-result-page');
-    return { meta, visible: !!pg && pg.style.display !== 'none', grid: !!pg?.querySelector('.dyp-grid'), title: pg?.querySelector('.dlm-title')?.textContent.trim(), back: pg?.querySelector('.rb-ret-pill .lab')?.textContent.trim(), diaryHidden: document.getElementById('sn-page')?.style.display === 'none' };
+    return { visible: !!pg && pg.style.display !== 'none', grid: !!pg?.querySelector('.dyp-grid'), title: pg?.querySelector('.dlm-title')?.textContent.trim(), back: pg?.querySelector('.rb-ret-pill .lab')?.textContent.trim(), diaryHidden: document.getElementById('sn-page')?.style.display === 'none' };
   }, TOM);
   // The return pill names the month the day lives in (nav architecture 2026-09-10)
-  check('day page · a look row on the list opens the DAY (no moment label on the row); the return pill names the month',
-    lr.visible && lr.grid && lr.title === 'Golf Club Event' && /^[A-Z][a-z]+ \d{4}$/.test(lr.back || '') && !/Day ·|Evening ·|Morning ·/.test(lr.meta || '') && lr.diaryHidden, JSON.stringify(lr));
+  check('day page · the row\'s thumb opens the DAY too (the look is reached from the day page); the return pill names the month',
+    lr.visible && lr.grid && lr.title === 'Golf Club Event' && /^[A-Z][a-z]+ \d{4}$/.test(lr.back || '') && lr.diaryHidden, JSON.stringify(lr));
   const bk = await page.evaluate(async () => {
     document.querySelector('#dl-result-page .rb-ret-pill').click();
     await new Promise((r) => setTimeout(r, 700));
@@ -572,14 +553,17 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
     return { cell: true, peek: !!document.getElementById('rb-dpk'), visible: !!pg && pg.style.display !== 'none', grid: !!pg?.querySelector('.dyp-grid'), title: pg?.querySelector('.dlm-title')?.textContent.trim(), back: pg?.querySelector('.rb-ret-pill .lab')?.textContent.trim() };
   }, TOM);
   // A TRIP day is still a day (Annie, 2026-09-10): its month cell lands on
-  // the day page carrying the trip's looks + the line out to the travel
+  // the day page carrying the trip's looks + the button out to the travel
   // edit, never the trip's own console with the look in edit mode.
   const tc = await page.evaluate(async (T0) => {
     window.__rbNavGo('diary');
     await new Promise((r) => setTimeout(r, 700));
     window.__dySetMode('month');
     await new Promise((r) => setTimeout(r, 500));
-    const cell = document.querySelector('#sn-cal [onclick*="__mvCell(\'' + T0 + '\')"]');
+    // the trip may sit in next month (a month boundary is not a bug)
+    const selT = '#sn-cal [onclick*="__mvCell(\'' + T0 + '\')"]';
+    if (!document.querySelector(selT)) { window.__mvNav(1); await new Promise((r) => setTimeout(r, 700)); }
+    const cell = document.querySelector(selT);
     cell?.click();
     await new Promise((r) => setTimeout(r, 800));
     const pg = document.getElementById('dl-result-page');
@@ -590,23 +574,149 @@ const inWin = (d) => d >= TODAY && d <= addD(WIN_DAYS);
       tvClosed: document.getElementById('tv-result-page')?.style.display !== 'block',
       title: q('.dlm-title')?.textContent.trim(),
       cards: Array.from(pg ? pg.querySelectorAll('.dyp-card') : []).map((c) => q('.dyp-name', c) ? c.querySelector('.dyp-name').textContent : ''),
-      tripLine: q('.dlm-lksrc')?.textContent.replace(/\s+/g, ' ').trim(),
+      tripLine: q('.dyp-trip')?.textContent.replace(/\s+/g, ' ').trim(), tripOpens: /_rbOpenMoment/.test(q('.dyp-trip')?.getAttribute('onclick') || ''),
       x: pg ? pg.querySelectorAll('.dyp-card .dyp-x').length : -1,
-      wx: q('.dlm-wx')?.textContent.replace(/\s+/g, ' ').trim(),
+      wx: q('.dyp-wx')?.textContent.replace(/\s+/g, ' ').trim(),
     };
     window.__dySetMode('list');
     return r;
   }, T0);
-  check('day page · a TRIP day opens the day page — its looks as cards, the trip named, no ✕ on a packed look',
+  check('day page · a TRIP day opens the day page — its looks as cards, "Part of {trip} · Travel edit ›" as the door, no ✕ on a packed look',
     tc.cell && tc.day && tc.tvClosed && tc.title === 'Travel and Dinner'
-      && JSON.stringify(tc.cards) === JSON.stringify(['Golf Club Dinner']) && /Open the travel edit/.test(tc.tripLine || '') && tc.x === 0,
+      && JSON.stringify(tc.cards) === JSON.stringify(['Golf Club Dinner']) && /^Part of A trip to Lahinch\.\s*Travel edit ›$/.test(tc.tripLine || '') && tc.tripOpens && tc.x === 0,
     JSON.stringify(tc));
-  // The trip's own forecast is the day's weather there — a day holding one
-  // pinned look filed none of its own, and the header read broken.
-  check('day page · a trip day reads the DESTINATION\'s weather', /Lahinch, Ireland/.test(tc.wx || '') && /13–19°C/.test(tc.wx || ''), tc.wx);
+  // The trip's own forecast is the day's weather there, as one plain line —
+  // a day holding one pinned look filed none of its own, and the header
+  // read broken.
+  check('day page · a trip day reads the DESTINATION\'s weather as one line', tc.wx === 'Lahinch, Ireland · passing showers · 13–19°C', tc.wx);
   check('day page · a month cell opens the day directly — no peek; the return pill names the month',
     mc.cell && mc.peek === false && mc.visible && mc.grid && mc.title === 'Golf Club Event' && /^[A-Z][a-z]+ \d{4}$/.test(mc.back || ''), JSON.stringify(mc));
+  // A new look for a day is a SUGGESTION first (2026-10-10, Annie): the
+  // sparkle on the date opens the box, her words go to /api/style with the
+  // day and THAT day's forecast, Robes says the weather back on the thread,
+  // and the three looks land on the deck "For {day}". Nothing is drafted
+  // onto the date and nothing is written; saving a kept look offers the day.
+  const stylePosts = [], dailyPosts = [];
+  await page.route('**/api/daily', (r) => { try { dailyPosts.push(r.request().postDataJSON()); } catch (_) { dailyPosts.push(null); } return r.fulfill({ status: 500, body: '{}' }); });
+  await page.route('**/api/style', (r) => {
+    try { stylePosts.push(r.request().postDataJSON()); } catch (_) { stylePosts.push(null); }
+    const way = (t) => ({ eyebrow: 'Dinner', title: t, outfit: 'Ease.', details: '', accessories: '', pieces: [
+      { name: 'Cream silk shirt', category: 'Tops', color: 'cream', color_hex: '#EDE6D6', role: 'The Canvas', wardrobe_index: -1, brand: 'COS', retailer_hint: 'COS', price_point: '€89' },
+      { name: 'Black wide trousers', category: 'Bottoms', color: 'black', color_hex: '#202021', role: 'The Anchor', wardrobe_index: -1, brand: 'Arket', retailer_hint: 'Arket', price_point: '€99' }] });
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ways: [way('Supper Club'), way('Town Linen'), way('Late Table')], generatedImages: [], fallback: false }) });
+  });
+  const dated = await page.evaluate(async (d) => {
+    window.__rbCtx = { city: 'Dublin', tempRange: '12–16°C', condition: 'cloudy', hint: 'A light layer' };
+    window.__rbWxForDate = () => Promise.resolve({ city: 'Dublin', tempRange: '14°C – 22°C', condition: 'Clear skies', hint: 'Light layers work today', tmin: 14, tmax: 22, code: 0 });
+    window.__rbNavGo('diary'); await new Promise((r) => setTimeout(r, 600));
+    document.querySelector('#sn-cal .dy-r[data-date="' + d + '"]')?.click();
+    await new Promise((r) => setTimeout(r, 700));
+    const pg = document.getElementById('dl-result-page');
+    const r = { doors: Array.from(pg?.querySelectorAll('.dyp-door .l') || []).map((x) => x.textContent) };
+    window.__mvRobesFor(d);
+    await new Promise((r2) => setTimeout(r2, 400));
+    r.box = !!document.getElementById('rb-lp');
+    const rin = document.getElementById('rb-lp-in');
+    window.__rbLpText('Dinner out with Mary in town');
+    if (rin) { rin.value = 'Dinner out with Mary in town'; rin.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }
+    await new Promise((r2) => setTimeout(r2, 700));
+    r.said = Array.from(document.querySelectorAll('#rb-lp-thread *')).map((x) => x.textContent).find((t) => /going to be/.test(t)) || null;
+    await new Promise((r2) => setTimeout(r2, 3200));
+    const deck = document.querySelector('.rb-lk-deck');
+    r.deck = !!deck;
+    r.deckEy = deck?.querySelector('.rb-tb-ey, .rb-lk-decktb [class*="ey"]')?.textContent || deck?.textContent.slice(0, 80);
+    r.composer = !!document.querySelector('#sn-page .rb-lk-composer');
+    r.suggested = (JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]') || []).filter((x) => x.status === 'suggested').map((x) => x.id);
+    r.expectDay = new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+    // keep one, save it: the diary sheet rises on that day — nothing filed yet
+    if (r.suggested[0]) { window.__lkSuggSave(r.suggested[0]); await new Promise((r2) => setTimeout(r2, 500)); }
+    const sh = document.getElementById('rb-lkdy');
+    r.sheet = !!sh; r.sheetTxt = sh?.textContent || '';
+    window.__lkDiaryClose && window.__lkDiaryClose();
+    // the day's picker names the two still waiting in Suggested
+    window.__mvWear(d); await new Promise((r2) => setTimeout(r2, 200));
+    const pk = document.getElementById('rb-mv-wear');
+    r.pkSugg = pk?.querySelector('.pk-sugg')?.textContent || null;
+    r.pkDoors = pk ? pk.querySelectorAll('.pk-door').length : -1;
+    window.__mvPkClose && window.__mvPkClose();
+    return r;
+  }, expBare[2]);
+  const sp = stylePosts[0] || {};
+  check('day page · the empty day still carries only "Choose from your looks"', JSON.stringify(dated.doors) === JSON.stringify(['Choose from your looks']), JSON.stringify(dated.doors));
+  check('dated ask · Robes says the day\'s weather back on the thread before the looks ("It’s going to be sunny and 22° …, so the looks keep it light.")',
+    dated.box && /^It’s going to be sunny and 22° .+, so the looks keep it light\.$/.test(dated.said || ''), dated.said);
+  check('dated ask · /api/style (dress-me) carries the day and ITS forecast — never /api/daily',
+    stylePosts.length === 1 && sp.intent === 'dress-me' && sp.prompt === 'Dinner out with Mary in town' && sp.context && sp.context.date === expBare[2] && /22/.test(sp.context.tempRange) && /Clear/.test(sp.context.condition) && !!sp.context.dayLabel && dailyPosts.length === 0, JSON.stringify([sp.intent, sp.context, dailyPosts.length]));
+  check('dated ask · the three looks land on the deck "For {day}" as suggested rows — no composer draft, nothing pinned',
+    dated.deck && /For /.test(dated.deckEy || '') && !dated.composer && dated.suggested.length === 3
+      && !writes.some((w) => /planned_days/.test(w.url) && w.method === 'POST' && JSON.stringify(w.body).includes('Dinner out')), JSON.stringify(dated));
+  check('picker · choose only: no make-doors, and the looks still in Suggested are named ("Two looks wait in Suggested — save one first")',
+    dated.pkDoors === 0 && /^Two looks wait in Suggested — save one first/.test(dated.pkSugg || ''), JSON.stringify([dated.pkDoors, dated.pkSugg]));
+  check('dated ask · saving a kept look opens the diary sheet on that day (the offer, not a filing)',
+    dated.sheet && dated.sheetTxt.indexOf(dated.expectDay) > -1, dated.sheetTxt.slice(0, 160));
   check('day page · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5 · The trip is hidden (MVP, 2026-10-10): the same seed, no ?trip=on —
+// her trip rows stay in the table but nothing shows them, and no door
+// opens the trip.
+{
+  const { ctx, page, errs } = await boot(browser, { trip: false });
+  await page.waitForTimeout(800);
+  const h = await page.evaluate(async ({ T0, T1, T2, TRIP_ID }) => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const q = (sel) => document.querySelector(sel);
+    const out = {};
+    out.hidden = window._rbTripHidden && window._rbTripHidden();
+    out.promptTv = !!q('#cb-addopt-tv');
+    window.__rbNavGo('diary'); await wait(900);
+    out.tripBlock = !!q('#sn-cal .dy-trip');
+    out.tripText = /Golf Club Dinner|Pub Casual|Lahinch/.test(q('#sn-cal')?.textContent || '');
+    out.tripDaysBare = [T0, T1, T2].map((d) => { const r = q('#sn-cal .dy-r[data-date="' + d + '"]'); return r ? r.querySelector('.dy-r-t')?.classList.contains('none') : null; });
+    // the Diary's + is the look picker straight away — never a menu of one
+    q('#sn-cal .rb-mv-add')?.click(); await wait(300);
+    out.addMenu = !!q('#rb-dy-addmenu');
+    out.addPicker = !!q('#rb-mv-wear');
+    window.__mvPkClose && window.__mvPkClose();
+    window.__dySetMode('month'); await wait(900);
+    out.monthTrips = !!q('#sn-cal .rb-mv-trips');
+    out.monthBand = !!q('#sn-cal .dc-trip');
+    window.__dySetMode('list'); await wait(500);
+    // the trip's day page carries no trip line and no trip look
+    window.__rbDayOpen(T0, { from: 'diary' }); await wait(700);
+    out.dayTrip = !!q('.dyp-trip');
+    out.dayTripText = /Golf Club Dinner|Lahinch/.test(q('#dl-result-page')?.textContent || '');
+    // every door to the trip is shut
+    window.__snOpenItem(TRIP_ID); await wait(400);
+    const tv = q('#tv-result-page');
+    out.tvShown = !!tv && getComputedStyle(tv).display !== 'none';
+    window.__tvOpen && window.__tvOpen({}); await wait(200);
+    window.__lkNewHoliday && window.__lkNewHoliday(); await wait(200);
+    out.intake = !!q('#tv-brief-modal');
+    return out;
+  }, { T0, T1, T2, TRIP_ID });
+  check('trip hidden · the flag is on by default and the prompt\'s + carries no "Add a travel edit"', h.hidden === true && h.promptTv === false, JSON.stringify([h.hidden, h.promptTv]));
+  check('trip hidden · the list shows no trip block and no trip look; the trip\'s dates are bare days', !h.tripBlock && !h.tripText && h.tripDaysBare.every((b) => b === true), JSON.stringify(h));
+  check('trip hidden · the Diary\'s + opens the look picker straight away (no menu of one)', !h.addMenu && h.addPicker, JSON.stringify([h.addMenu, h.addPicker]));
+  check('trip hidden · the month shows no trip band and no Trips list', !h.monthTrips && !h.monthBand, JSON.stringify([h.monthTrips, h.monthBand]));
+  check('trip hidden · the trip\'s day page carries no trip line and no trip look', !h.dayTrip && !h.dayTripText, JSON.stringify([h.dayTrip, h.dayTripText]));
+  check('trip hidden · a saved trip, the intake and the Diary\'s travel door all open nothing', !h.tvShown && !h.intake, JSON.stringify([h.tvShown, h.intake]));
+  check('trip hidden · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  const { ctx, page, errs } = await boot(browser, { seed: false, trip: false });
+  await page.evaluate(() => window.__rbNavGo('diary'));
+  await page.waitForTimeout(900);
+  const e = await page.evaluate(() => ({
+    had: !!document.querySelector('#sn-cal .dy-empty'),
+    cta: !!document.querySelector('#sn-cal .dy-empty-cta'),
+    p: document.querySelector('#sn-cal .dy-empty p')?.textContent || '',
+  }));
+  check('trip hidden · the empty Diary has no Plan a trip button — the days below are the doors', e.had && !e.cta && !/pack/i.test(e.p), JSON.stringify(e));
+  check('trip hidden · empty: no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 

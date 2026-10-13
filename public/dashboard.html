@@ -17,7 +17,7 @@
 <script>window.__resources = {"w_courtside-hero": "/dashboard-assets/4414a012-2ae1-4631-8951-6000bfc851e2.png", "w_london-street": "/dashboard-assets/75450684-fe4c-4115-9014-74d6adaed868.png", "w_tennis-whites-flatlay": "/dashboard-assets/fffd5113-a5a7-4ea2-b10f-ef160e4bf44b.png", "w_oncourt-tank": "/dashboard-assets/d46f5942-73c0-444f-8cb4-a5b47f6c57b1.png", "w_clay-linen": "/dashboard-assets/2c6a8e6c-e7cc-45bd-b6a5-0fac08ef35e3.png", "w_tan-tote": "/dashboard-assets/9bbf5dca-4f7e-4560-844d-ca9eea7d848b.png", "w_silk-scarf": "/dashboard-assets/5c3905a3-6f63-4d7e-bcd6-ac745fe9078d.png", "w_watch-necklace": "/dashboard-assets/bcf6fac9-7b2a-46cc-98bc-a7a1c8030978.png", "w_court-sneakers": "/dashboard-assets/438d42a1-60ab-463a-9c6e-1f1c80280cfa.png", "un_1490481651871-ab68de25d43d": "/dashboard-assets/a43a95f2-124e-4c17-8535-b324f8b4abc7.jpg", "un_1485462537746-965f33f7f6a7": "/dashboard-assets/b43f598a-8808-4571-b759-3128c32e6b90.jpg", "un_1485968579580-b6d095142e6e": "/dashboard-assets/d31eff53-e99e-4221-a468-b98888f899e5.jpg", "un_1469334031218-e382a71b716b": "/dashboard-assets/f990b3b1-bdd5-410d-b726-e442b4dda901.jpg", "un_1483985988355-763728e1935b": "/dashboard-assets/d584b335-7755-47f7-86a5-e84744071581.jpg", "un_1515886657613-9f3515b0c78f": "/dashboard-assets/c948ccbb-9d1f-4d6b-8c6a-d3dab2b7ab48.jpg", "un_1496747611176-843222e1e57c": "/dashboard-assets/ec0085cd-a73a-4468-aed8-2ac5f07f9902.jpg", "un_1492707892479-7bc8d5a4ee93": "/dashboard-assets/52563542-49d7-4263-ab74-aabc6e789c0d.jpg", "un_1485231183945-fffde7cc051e": "/dashboard-assets/8ac6eacc-4192-41c1-b7ee-935ea6ef7328.jpg", "un_1539109136881-3be0616acf4b": "/dashboard-assets/c3fdb573-3728-4813-a2c1-f1b1976279cb.jpg", "un_1502716119720-b23a93e5fe1b": "/dashboard-assets/d1584686-3dd4-4a1f-bcd3-3221140df723.jpg"};</script>
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <script src="/js/posthog.js"></script>
 <title>Robes — Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1159,7 +1159,7 @@ body{font-family:var(--font-sans);background:var(--cream);color:var(--ink);
 .wg-pill.active,.wg-pill:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
 /* Mobile: the pills read cluttered when wrapped — one horizontal scroll row */
 @media(max-width:767px){
-  .wardrobe-panel{padding:24px var(--s6) 48px}
+  .wardrobe-panel{padding:32px var(--s6) 48px}
   .wg-filters{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
     scrollbar-width:none;padding:2px 0 8px}
   .wg-filters::-webkit-scrollbar{display:none}
@@ -1899,7 +1899,6 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
       <button class="rb-tn-link" id="rb-tn-lookbook" onclick="window.__rbNavGo&&window.__rbNavGo('lookbook')">Lookbook</button>
       <button class="rb-tn-link" id="rb-tn-diary" onclick="window.__rbNavGo&&window.__rbNavGo('diary')">Diary</button>
       <button class="rb-tn-link" id="rb-tn-wardrobe" onclick="window.__rbNavGo&&window.__rbNavGo('wardrobe')">Wardrobe</button>
-      <button class="rb-tn-link" id="rb-tn-inspiration" onclick="window.__rbNavGo&&window.__rbNavGo('inspiration')">Inspiration</button>
     </div>
   </div>
   <div class="nav-r">
@@ -1929,7 +1928,8 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
 </nav>
 
 <!-- ══ MOBILE DOCK — anchored destinations (nav architecture 2026-07; Diary
-     tab 2026-09-08 — Home stays, five tabs tightened to fit) ══ -->
+     tab 2026-09-08 — Home stays; Inspiration folded into the Lookbook
+     2026-10-05, four tabs) ══ -->
 <div id="rb-dock" aria-label="Primary">
   <div id="rb-dock-in">
     <button class="rb-dock-tab" id="rb-dock-home" onclick="window.__rbNavGo&&window.__rbNavGo('home')">
@@ -1947,10 +1947,6 @@ textarea.wa-input{resize:none;min-height:74px;line-height:1.55}
     <button class="rb-dock-tab" id="rb-dock-wardrobe" onclick="window.__rbNavGo&&window.__rbNavGo('wardrobe')">
       <svg viewBox="0 0 24 24"><path d="M12 4.2a1.9 1.9 0 1 0 1.4 3.2"></path><path d="M12 7.6 3.6 14.2a1.4 1.4 0 0 0 .9 2.5h15a1.4 1.4 0 0 0 .9-2.5L12 7.6z"></path></svg>
       Wardrobe<span class="bar"></span>
-    </button>
-    <button class="rb-dock-tab" id="rb-dock-inspiration" onclick="window.__rbNavGo&&window.__rbNavGo('inspiration')">
-      <svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"></path></svg>
-      Inspiration<span class="bar"></span>
     </button>
   </div>
 </div>
