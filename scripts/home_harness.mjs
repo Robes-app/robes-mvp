@@ -119,11 +119,16 @@ const read = (page) => page.evaluate(() => {
   check('stage 1 · O1 Style DNA is the expanded card', s.next === 'O1' && s.ey === 'Next · Style DNA' && s.h3 === 'Your style, in brief.', JSON.stringify([s.next, s.ey, s.h3]));
   check('stage 1 · the order is masthead → the box → O1 → G1 (nothing else on the page)', JSON.stringify(s.order) === JSON.stringify(['dash-mast', 'rb-hb', 'rb-onb-card', 'rb-onb-list']), JSON.stringify(s.order));
   check('stage 1 · G1 holds the other three steps, all open, no counts', JSON.stringify(s.rows) === JSON.stringify(['O2:later:Two photographs', 'O3:later:One piece filed', 'O4:later:From your own pieces']) && s.listHead === 'Getting to know you', JSON.stringify(s.rows));
-  check('stage 1 · the three rows read + Add; the CTA and Later stand', s.cta.join() === 'Find my style' && s.later, JSON.stringify(s.cta));
-  const o1 = await page.evaluate(() => Array.from(document.querySelectorAll('#rb-onb-card .rb-ob-row')).map((r) => r.querySelector('.k').textContent + '=' + r.querySelector('.chips').textContent.trim()));
-  check('stage 1 · Brands / Icons / Styles rows', JSON.stringify(o1) === JSON.stringify(['Brands=+ Add', 'Icons=+ Add', 'Styles=+ Add']), JSON.stringify(o1));
+  check('stage 1 · the empty O1 is one door: Log your style notes, Later quiet beneath', s.cta.join() === 'Log your style notes' && s.later, JSON.stringify(s.cta));
+  const o1 = await page.evaluate(() => { const b = document.querySelector('#rb-onb-card .rb-ob-cta'); const card = document.querySelector('#rb-onb-card .rb-ob-body'); return { rows: document.querySelectorAll('#rb-onb-card .rb-ob-row').length, full: b && card ? Math.round(b.getBoundingClientRect().width) >= Math.round(card.getBoundingClientRect().width) - 41 : false, buttons: document.querySelectorAll('#rb-onb-card button').length }; });
+  check('stage 1 · no empty + Add rows; the CTA runs the card width; two buttons in all', o1.rows === 0 && o1.full && o1.buttons === 2, JSON.stringify(o1));
   check('stage 1 · the retired modules are gone: #wtrk, the band, the door card, the question cards, the model door', !s.wtrk && !s.svc && s.gone.length === 0, JSON.stringify([s.wtrk, s.svc, s.gone]));
-  check('stage 1 · no black CTA on home', s.ink.length === 0, JSON.stringify(s.ink));
+  check('stage 1 · the O1 CTA is the one ink fill on home', JSON.stringify(s.ink) === JSON.stringify(['rb-ob-cta rb-ob-one']), JSON.stringify(s.ink));
+  // the CTA walks into Settings
+  await page.route('**/settings?walk=1', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<html></html>' }));
+  await Promise.all([page.waitForURL('**/settings?walk=1', { waitUntil: 'commit' }), tap(page, '#rb-onb-card .rb-ob-one')]);
+  check('stage 1 · Log your style notes → /settings?walk=1', /\/settings\?walk=1$/.test(page.url()), page.url());
+  await page.goBack({ waitUntil: 'commit' }); await page.waitForSelector('#rb-onb-card .rb-ob', { timeout: 15000 });
   check('stage 1 · the greeting and the standing question', /^Good (morning|afternoon|evening), Annie\.$/.test(s.greet) && s.echo === 'What are you dressing for today?', JSON.stringify([s.greet, s.echo]));
   check('stage 1 · the box reads A new look for… while onboarding', s.ph === 'A new look for…', s.ph);
   check('stage 1 · the floating sparkle is hidden while the box is on screen', !s.slot, String(s.slot));
@@ -139,6 +144,14 @@ const read = (page) => page.evaluate(() => {
   const s3 = await read(page);
   check('stage 1 · tapping an open row expands that module for the session', s3.next === 'O4' && s3.rows.some((r) => r.indexOf('O2:later') === 0), JSON.stringify([s3.next, s3.rows]));
   const ev = await page.evaluate(() => (window.__rbTestEvents || []));
+  await ctx.close();
+}
+// ── Stage 1 · one row noted: the rows carry her chips, the CTA finishes ──
+{
+  const { ctx, page, errs } = await boot(browser, { n: 1, pics: 1, dna: { brands: ['The Row'] } });
+  const s = await read(page);
+  const o1 = await page.evaluate(() => Array.from(document.querySelectorAll('#rb-onb-card .rb-ob-row')).map((r) => r.querySelector('.k').textContent + '=' + r.querySelector('.chips').textContent.trim()));
+  check('stage 1 · part-filled O1 keeps the rows with her chips + Finish my style', s.next === 'O1' && JSON.stringify(o1) === JSON.stringify(['Brands=The Row', 'Icons=+ Add', 'Styles=+ Add']) && s.cta.join() === 'Finish my style', JSON.stringify([s.next, o1, s.cta, errs.slice(0, 1)]));
   await ctx.close();
 }
 // ── Stage 2 · style noted (two rows), no model → O2 ──

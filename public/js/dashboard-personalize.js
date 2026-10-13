@@ -20544,6 +20544,10 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           '.rb-ob-cta:hover{border-color:var(--ink,#202021)}' +
           '.rb-ob-later{border:0;background:none;padding:0;cursor:pointer;font-family:inherit;font-size:12px;color:var(--ink-faint,#9C9891);text-decoration:underline;text-decoration-color:var(--cream-400,#D8CFBE);text-underline-offset:3px}' +
           '.rb-ob-later:hover{color:var(--ink,#202021)}' +
+          // O1 empty: the one door — full width, the card's single ink fill
+          '.rb-ob-cta.rb-ob-one{width:100%;margin-top:20px;padding:16px 24px;background:var(--ink,#202021);border-color:var(--ink,#202021);color:#fff}' +
+          '.rb-ob-cta.rb-ob-one:hover{background:#000;border-color:#000}' +
+          '.rb-ob-o1e .rb-ob-later{align-self:center;margin-top:14px}' +
           // O1: three rows of chips
           '.rb-ob-rows{width:100%;margin-top:16px;border-top:1px solid var(--rule,#E7E0CF)}' +
           '.rb-ob-row{display:flex;align-items:center;gap:14px;min-height:52px;padding:8px 0;border-bottom:1px solid var(--rule,#E7E0CF);width:100%;background:none;border-left:0;border-right:0;border-top:0;cursor:pointer;text-align:left;font-family:inherit}' +
@@ -20629,6 +20633,12 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           return '<button type="button" class="rb-ob-row" onclick="window.__rbHomeGo(\'O1\',\'' + k + '\')"><span class="k">' + label + '</span><span class="chips">' + (chips || '<span class="add">+ Add</span>') + '</span></button>';
         };
         const any = ['brands', 'icons', 'styles'].some(k => st.rows[k].length);
+        // Nothing filed yet: ONE door. Three empty "+ Add" rows, a CTA and
+        // Later read as four ways in to the same walk (Annie, 13 Oct).
+        if (!any) return '<div class="rb-ob rb-ob-o1e" data-module="O1"><div class="rb-ob-body"><span class="ey">Next · Style DNA</span>' +
+          '<h3>Your style, <em>in brief.</em></h3><p>A few brands, an icon, the styles that feel like you. Every look Robes builds starts there.</p>' +
+          '<button type="button" class="rb-ob-cta rb-ob-one" onclick="window.__rbHomeGo(\'O1\')">Log your style notes</button>' +
+          '<button type="button" class="rb-ob-later" onclick="window.__rbHomeLater(\'O1\')">Later</button></div></div>';
         return '<div class="rb-ob" data-module="O1"><div class="rb-ob-body"><span class="ey">Next · Style DNA</span>' +
           '<h3>Your style, <em>in brief.</em></h3><p>A brand, an icon, a style. Robes dresses you from there.</p>' +
           '<div class="rb-ob-rows">' + row('brands', 'Brands') + row('icons', 'Icons') + row('styles', 'Styles') + '</div>' +
