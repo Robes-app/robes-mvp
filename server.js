@@ -492,10 +492,10 @@ const normGender = (g) => (g === 'man' || g === 'unspecified') ? g : 'woman';
 
 function genderDirective(gender) {
   if (gender === 'man')
-    return 'The user identifies as a man. Every piece, look and recommendation must be menswear — male cuts, sizing and styling codes, menswear brands and male style references throughout. Never suggest womenswear. Where these instructions use "she"/"her" generically, they refer to this male client — read them as "he"/"him".';
+    return 'The user is a man (from his profile): every piece, look and reference is menswear — male cuts, sizing, styling codes and brands, never womenswear. Where these notes say "she"/"her", read "he"/"him".';
   if (gender === 'unspecified')
-    return 'The user has not said how they identify. Use your best judgement from their words, their pieces and their wardrobe to decide whose clothing to recommend; when nothing points a direction, keep pieces and styling gender-neutral. Where these instructions use "she"/"her" generically, they simply refer to this client.';
-  return 'Unless the brief clearly indicates a male wearer, style for a woman.';
+    return 'The user has not said how they identify: judge whose clothing to propose from their words and their pieces; when nothing points a direction, keep pieces and styling gender-neutral. "She"/"her" in these notes simply means this client.';
+  return 'The user is a woman (from her profile): every piece and look is womenswear.';
 }
 
 // Image-prompt fragments — who stands in the editorial frame.
@@ -506,6 +506,9 @@ const STYLE_SCHEMA = {
   type: 'object',
   properties: {
     fallback: { type: 'boolean' },
+    // Only read when her profile has not said who she is ('unspecified'):
+    // a woman's or a man's profile decides the wearer server-side
+    // (2026-10-13 — the model used to be asked to guess on every call).
     wearer: { type: 'string', enum: ['woman', 'man'] },
     ways: {
       type: 'array',
@@ -551,7 +554,7 @@ const STYLE_SCHEMA = {
       },
     },
   },
-  required: ['fallback', 'wearer', 'ways'],
+  required: ['fallback', 'ways'],
 };
 
 // The itemised pieces of a styled way, made safe for the client: a valid
@@ -603,61 +606,59 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
   const refineWay = refBlock && Number.isInteger(wayIndex) && wayIndex >= 0 && wayIndex <= 2 ? wayIndex : null;
 
   const daily = intent === 'dress-me';
-  const who = name ? `The user's name is ${name}.` : '';
-  const piece = pieceName ? `The key piece is described as: "${pieceName}".` : '';
-  const context = prompt ? `Additional context from the user: "${prompt}".` : '';
-  const linkCtx = link ? `The user provided a product link for reference: ${link}.` : '';
+  const who = name ? `Her name is ${name}.` : '';
+  const piece = pieceName ? `The key piece: "${pieceName}".` : '';
+  const context = prompt ? `Her words: "${prompt}".` : '';
+  const linkCtx = link ? `A product link for reference: ${link}.` : '';
   const dnaBlock = styleDnaPromptBlock(styleDna, Number(wardrobeCount) || 0, styleIcons);
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   // Numbered, so a way's `pieces[].wardrobe_index` can point at the exact
   // owned piece it uses (the client resolves it back to the row).
   const closetBlock = closetItems.length
-    ? `THE USER'S DIGITISED WARDROBE (${closetItems.length} pieces, numbered from 0): ${closetItems.map((i, n) =>
+    ? `HER WARDROBE (${closetItems.length} pieces, numbered from 0): ${closetItems.map((i, n) =>
         `[${n}] ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
       ).join('; ')}.`
     : '';
   const closetDirective = closetItems.length >= 15
-    ? 'Build each outfit primarily from the digitised wardrobe above — reference owned pieces by their exact labels, and add new pieces only where the closet has a true gap or for the Exclamation Point.'
+    ? 'Build primarily from her wardrobe, naming owned pieces by their exact labels; add a new piece only for a true gap or the Exclamation Point.'
     : closetItems.length > 0
-      ? 'The user already owns the pieces listed above. Wherever an owned piece genuinely serves the look, use it and refer to it by its exact label — an owned piece always beats a hypothetical one. Fill only the true gaps with new, editorially-matched pieces. Never reach for something she would have to buy when a relevant piece is already in the list.'
+      ? 'Wherever an owned piece serves the look, use it by its exact label — owned always beats hypothetical. Fill only true gaps with new pieces.'
       : '';
 
-  const formulaBlock = `Every look follows the four-tier layer formula: 1) THE ANCHOR — the weather/agenda hero piece; 2) THE CANVAS — premium supporting basics; 3) THE TEXTURE — one depth-adding element; 4) THE EXCLAMATION POINT — the accessories, footwear and hardware that inject identity. Never give generic output like "jeans and a top" — name exact cuts, fabrications and styling techniques (e.g. "French-tuck a heavyweight silk button-down into high-waisted, wide-leg wool trousers").
+  // The prompt is one block, tightened for cost (2026-10-13): the rules
+  // are the same — the four-tier formula, the sanity check, the itemised
+  // pieces and the garment-free scene line — said once, without examples
+  // the schema already enforces.
+  const formulaBlock = `THE FORMULA — every look layers 1) THE ANCHOR, the hero piece for the weather and agenda; 2) THE CANVAS, premium supporting basics; 3) THE TEXTURE, one depth-adding element; 4) THE EXCLAMATION POINT, the footwear, bag and hardware that inject identity. Name exact cuts, fabrications and how a piece is worn — never "jeans and a top".
 
-STYLING SANITY CHECK: every styling move must be something a respected stylist would actually shoot on the street — honour the key piece's natural register. Sporty and athletic pieces stay in an elevated-casual register: never belt knitwear or cardigans over athletic shorts, never force waist-cinching or hourglass tricks onto a sporty silhouette, never layer formal tailoring over gym wear. Any silhouette or body-architecture rules below govern WHAT pieces you select — they are never a licence to contort HOW a piece is worn. If a styling trick needs explaining to look intentional, drop it: effortless always beats clever.
+SANITY CHECK — every styling move is one a respected stylist would shoot on the street, in the key piece's natural register: sporty pieces stay elevated-casual (no belted knitwear over athletic shorts, no waist-cinching tricks on a sporty silhouette, no tailoring over gym wear). Silhouette rules decide WHAT you select, never how a piece is contorted. A trick that needs explaining is dropped.
 
-THE PIECES ARE THE LOOK: itemise every look in "pieces" — three to six entries, each one garment, shoe, bag or accessory, the COMPLETE outfit from head to toe (a top, a bottom or a dress, shoes, then the layer and the accessories that finish it), in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each, from those four; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt", "Tan leather loafers"); "category" one of Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other; "color" a plain colour word and "color_hex" one representative hex for it. "wardrobe_index" is the number of the owned piece from the wardrobe list above when the piece IS that piece (use its exact label as the name), else -1. Only a piece she would have to find carries "brand", "retailer_hint" and "price_point" (a realistic EUR figure like "€89"); leave them empty on an owned piece.
+THE PIECES ARE THE LOOK — "pieces" is the complete outfit head to toe, three to six entries in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt"); "color" a plain word, "color_hex" one hex. "wardrobe_index" is the owned piece's number from her wardrobe (its exact label as the name), else -1. Only a piece she must find carries "brand", "retailer_hint" and "price_point" (EUR, "€89"); leave them empty on an owned piece.
 
-THE SCENE is one sentence, thirty words at most: the occasion, the setting, the mood, and how the pieces are worn (tucked, open, sleeves pushed, collar up). It names NO garment, shoe, bag or accessory — not even by type — because the pieces list carries them and the two must never disagree. "A late dinner in the Marais, the top tucked and the jacket worn open, understated and unhurried." is the register; "Paired with a pencil skirt and loafers" is forbidden.`;
+THE SCENE — one sentence under thirty words: the occasion, the setting, the mood, how the pieces are worn (tucked, open, sleeves pushed). It names no garment, shoe, bag or accessory, not even by type — the pieces list carries them and the two must never disagree. "A late dinner in the Marais, the top tucked and the jacket worn open, understated and unhurried." is the register; "paired with a pencil skirt and loafers" is forbidden.`;
 
   const brief = daily
-    ? `The user is dressing for a real day, happening now. You build three complete, wearable outfits for that day — each a distinct mood or register, all appropriate to the occasion and the real-time weather context provided.`
-    : `When given a key fashion piece, you create three distinct, wearable looks around it — each with a clear occasion and mood. Your descriptions are specific: you name real item types, describe drape and texture, and explain why each pairing works.`;
+    ? `She is dressing for a real day. Build three complete, wearable outfits for it — each a distinct mood or register, all right for the occasion and the forecast given.`
+    : `Given a key piece, build three distinct, wearable looks around it — each with a clear occasion and mood, specific about drape, texture and why each pairing works.`;
 
   const fallbackRule = daily
-    ? `IMPORTANT: Set "fallback": true ONLY if the input is gibberish or random characters. A plain occasion, agenda or mood (e.g. "brunch", "a day of meetings") is a valid daily brief — set "fallback": false and dress the user for it.`
-    : `IMPORTANT: You must set "fallback": true if ANY of these apply — the input is gibberish or random characters; no specific clothing item, garment, or accessory can be identified; the request is too vague to style (e.g. just a colour, a single generic word, or a non-fashion concept). When fallback is true, style a ${FALLBACK_PIECE} instead. Only set "fallback": false when a real, nameable fashion piece is clearly present.`;
+    ? `"fallback" is true only for gibberish; a plain occasion, agenda or mood is a valid brief.`
+    : `"fallback" is true when the input is gibberish, names no identifiable garment or accessory, or is too vague to style (a lone colour, a generic word, a non-fashion idea) — then style a ${FALLBACK_PIECE} instead. Otherwise false.`;
 
-  const wearerRule = g === 'man'
-    ? `Set "wearer" to "man" — the user is a man and every look is styled for him.`
-    : g === 'unspecified'
-      ? `Set "wearer" to your best judgement of who the looks are styled for, based only on the user's words and the piece itself.`
-      : `Set "wearer" to who the looks are styled for: "woman" unless the user's words clearly state the wearer is male — the piece itself being menswear or unisex (sportswear, an oversized jacket, boyfriend jeans) NEVER makes the wearer male.`;
+  // Who the looks are for comes off her profile (the Facts — Settings'
+  // Gender row). The model is asked only when the profile is silent.
+  const wearerRule = g === 'unspecified'
+    ? `Set "wearer" ("woman" or "man") to your judgement of who the looks are for, from her words and the piece alone.`
+    : '';
 
-  const genderBlock = g === 'woman'
-    ? 'Your user is a stylish, fashion-forward woman — unless the input clearly indicates a male wearer, style all looks for a woman.'
-    : genderDirective(g);
-
-  const systemInstruction = `You are an expert fashion stylist known for elegant, directional styling advice. Your tone is warm, precise, and editorial — like a trusted stylist who truly understands clothes. ${genderBlock} ${who}
+  const systemInstruction = `You are Robes' head stylist — elegant, directional, precise; warm, editorial copy. ${genderDirective(g)} ${who}
 
 ${brief}
 
 ${formulaBlock}
 
-${fallbackRule}
-
-${wearerRule}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closetBlock : ''}${closetDirective ? '\n' + closetDirective : ''}${refineWay != null ? '\n\n' + refBlock : ''}`;
+${fallbackRule}${wearerRule ? ' ' + wearerRule : ''}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closetBlock : ''}${closetDirective ? '\n' + closetDirective : ''}${refineWay != null ? '\n\n' + refBlock : ''}`;
 
   // A dated ask (2026-10-10): the looks are for THAT day — its own
   // forecast rides in place of today's, and the day is named.
@@ -672,14 +673,14 @@ ${wearerRule}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closet
   const userText = refineWay != null
     ? `${piece} ${context} ${linkCtx}
 
-Re-write ONE of the three looks — "${curTitle || 'the look'}"${curEyebrow ? ' (' + curEyebrow + ')' : ''} — as her adjustment asks (THE LOOK AS IT STANDS and HER ADJUSTMENT are in the system notes). Return exactly ONE way in "ways": the re-written look, complete, with its own eyebrow, title, scene line and itemised pieces.${others.length ? ' It must stay distinct from the other two looks, which are unchanged: ' + others.map(o => '"' + o + '"').join(' and ') + '.' : ''}`
+Re-write ONE of the three looks — "${curTitle || 'the look'}"${curEyebrow ? ' (' + curEyebrow + ')' : ''} — as her adjustment asks (THE LOOK AS IT STANDS and HER ADJUSTMENT are in the system notes). Return exactly ONE way in "ways": the re-written look, complete, with its own eyebrow, title, scene and pieces.${others.length ? ' It stays distinct from the other two, unchanged: ' + others.map(o => '"' + o + '"').join(' and ') + '.' : ''}`
     : daily
-    ? `${rtLine ? rtLine + '\n\n' : ''}The user's brief for ${rtDay || 'today'}: "${prompt}".
+    ? `${rtLine ? rtLine + '\n\n' : ''}Her brief for ${rtDay || 'today'}: "${prompt}".
 
-Dress them for this day three ways. Make each outfit genuinely distinct — different moods and registers of the same day. Each look must be complete from anchor to exclamation point, and every piece weather-appropriate.`
+Dress her for this day three ways — distinct moods and registers of the same day, each complete from anchor to exclamation point, every piece right for the weather.`
     : `${piece} ${context} ${linkCtx}
 
-Style this key piece three ways. Make each look genuinely distinct — different occasions, moods, and dressing codes. Be specific about how the piece is worn and what surrounds it. Each look should feel complete and real.`;
+Style this key piece three ways — distinct occasions, moods and dressing codes, specific about how the piece is worn and what surrounds it.`;
 
   let photoMatch = null;
   const textParts = [];
@@ -744,10 +745,10 @@ Style this key piece three ways. Make each look genuinely distinct — different
 
     // Background image generation — never blocks the client
     const t1 = Date.now();
-    // 'man' setting always wins; otherwise the model's wearer judgement
-    // stands (for 'unspecified' that judgement IS the routing decision, so
+    // Her profile decides the wearer; the model's judgement stands only
+    // for 'unspecified' (there that judgement IS the routing decision, so
     // the frames match the looks it wrote).
-    const wearer = g === 'man' ? 'man' : parsed.wearer === 'man' ? 'man' : 'woman';
+    const wearer = g === 'unspecified' ? (parsed.wearer === 'man' ? 'man' : 'woman') : g;
     const iconLine = styleIconsImageLine(styleIcons);
     const briefLine = !fallback && prompt ? `The user's brief: "${String(prompt).slice(0, 200)}". ` : '';
     // Strictly ONE generation in flight at a time — the daily/travel/

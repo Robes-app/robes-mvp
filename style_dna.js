@@ -686,7 +686,7 @@ export function factsLines(f) {
   const age = typeof f.age_band === 'string' && f.age_band.trim() ? f.age_band.trim().slice(0, 20) : '';
   if (age) parts.push(`age ${age}`);
   if (!parts.length) return [];
-  return [`THE FACTS she gave — size, never weight: ${parts.join(', ')}. Propose what fits these and size every piece to them; never estimate them from a photograph.`];
+  return [`THE FACTS she gave — size, never weight: ${parts.join(', ')}. Size every piece to these; never estimate them from a photograph.`];
 }
 
 // The client's spend read: {n, total, median, verdict} — numbers only, or nothing.
@@ -731,23 +731,20 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   // Her style type steers taste the way the icons do — a register, never a
   // constraint on colour or line.
   if (arch.length || soft.length) {
-    lines.push(`STYLE TYPE — the user placed their own style${arch.length ? ': ' + arch.join(', ') : ''}${soft.length ? (arch.length ? '; sometimes ' : ': sometimes ') + soft.join(', ') : ''}.`);
-    lines.push('Every look should sit in this register: the types named first lead, a "sometimes" type is a mood to reach for on occasion, never the default. Like the style icons, this steers taste; it never overrides the colour or silhouette rules below.');
+    lines.push(`STYLE TYPE — her own placing${arch.length ? ': ' + arch.join(', ') : ''}${soft.length ? (arch.length ? '; sometimes ' : ': sometimes ') + soft.join(', ') : ''}. Every look sits in this register — the first types lead, a "sometimes" type is an occasional mood. Taste, never an override of the colour or silhouette rules below.`);
   }
   // Style icons are the user's declared taste — they steer the aesthetic of
   // every downstream recommendation, layered over the photo-verified DNA.
   if (icons.length) {
     const named = icons.map(i => { const t = typeof tags[i] === 'string' && tags[i].trim() ? tags[i].trim().slice(0, 40) : ''; return t ? `${i} (${t})` : i; });
-    lines.push(`STYLE ICONS — the user named these as their taste references: ${named.join(', ')}.`);
-    lines.push('Follow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.');
+    lines.push(`STYLE ICONS — her taste references: ${named.join(', ')}. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.`);
   }
   // The houses she reaches for, the ceiling she set, the facts she gave.
   if (brands.length) {
-    lines.push(`BRANDS she reaches for: ${brands.join(', ')}.`);
-    lines.push('When a piece has to be found, look to these houses and their register first — a proposal should read as something she would have chosen herself.');
+    lines.push(`BRANDS she reaches for: ${brands.join(', ')}. A piece that has to be found comes from these houses and their register first.`);
   }
   if (investment) {
-    lines.push(`INVESTMENT LEVEL — she spends ${investment} a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph.`);
+    lines.push(`INVESTMENT LEVEL — she spends ${investment} a year on clothes: never a piece above what that level buys, however well it would photograph.`);
     // The investment-vs-memory line (cut C, 2026-10-09): the client compiles
     // `spend` at send time from the EUR prices on what she filed this year
     // (never written to the profile); only "above" earns a line — a partial

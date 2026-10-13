@@ -28653,6 +28653,48 @@ body>*:not(#tv-result-page){display:none !important}
         if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return null;
         return String(iso) >= _pdLocalISO() ? String(iso) : null;
       }
+      // A day read out of her words — deterministic, where /api/intent used
+      // to spend a model call for it (2026-10-13; the trip is hidden, so a
+      // track is never in question and the classifier's one surviving job
+      // was this date). Today/tonight, tomorrow, a weekday (the coming one;
+      // "next friday" the one after), the weekend (Saturday), next week
+      // (Monday), or a date ("17 Oct", "October 17th", 2026-10-17). Null
+      // for anything it cannot place — never a guess.
+      function _rbAskDateFrom(text) {
+        const t = ' ' + String(text || '').toLowerCase().replace(/[^\w\s'’/-]/g, ' ').replace(/\s+/g, ' ') + ' ';
+        const today = _pdLocalISO();
+        const dow = new Date(today + 'T00:00:00').getDay();
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        let m;
+        if ((m = t.match(/\b(\d{4}-\d{2}-\d{2})\b/))) return _rbAskDate(m[1]);
+        if ((m = t.match(/\b(?:(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*|(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?)\b/))) {
+          const d = Number(m[1] || m[4]), mo = months.indexOf(m[2] || m[3]);
+          if (d >= 1 && d <= 31 && mo >= 0) {
+            const y = Number(today.slice(0, 4));
+            // This year's date; one already gone reads as next year's only
+            // when that is within six months ("2 Jan" in October), never a
+            // day she most likely meant as past ("1 Oct" on the 13th).
+            const iso = yr => yr + '-' + String(mo + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+            const next = _rbAskDate(iso(y + 1));
+            const near = next && (Date.parse(next + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000 <= 183;
+            return _rbAskDate(iso(y)) || (near ? next : null);
+          }
+        }
+        if (/\b(today|tonight|this (morning|afternoon|evening))\b/.test(t)) return today;
+        if (/\btomorrow\b/.test(t)) return _pdAddISO(today, 1);
+        if ((m = t.match(/\b(next )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/))) {
+          return _pdAddISO(today, (days.indexOf(m[2]) - dow + 7) % 7 + (m[1] ? 7 : 0));
+        }
+        if ((m = t.match(/\b(this|the|next|at the|for the|on the) weekend\b/))) {
+          const sat = (6 - dow + 7) % 7;
+          const off = dow === 0 ? 0 : sat;
+          return _pdAddISO(today, off + (m[1] === 'next' && off === 0 ? 7 : 0));
+        }
+        if (/\bnext week\b/.test(t)) return _pdAddISO(today, (1 - dow + 7) % 7 || 7);
+        return null;
+      }
+      window._rbAskDateFrom = _rbAskDateFrom;
       function _rbAskWhen(iso) {
         const today = _pdLocalISO();
         const off = Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000);
@@ -32001,8 +32043,10 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
       // One field that generates, scopes and restyles. Flag ON by default
       // (2026-07-24): _cbSubmit routes through _ikSubmit — deterministic
       // scope fast-paths first (no model call), then the /api/intent
-      // classifier, then the unfurl intake that reads the request back
-      // before anything is committed. An abandoned intake writes nothing.
+      // classifier and the unfurl intake ONLY while the trip is live
+      // (hidden since 2026-10-10: every prompt is a new look, and the date
+      // is read from her words without a model — 2026-10-13). An abandoned
+      // intake writes nothing.
       // ?diary=off is the per-device kill switch (everything below goes
       // inert and the concierge behaves exactly as before); ?diary=on
       // clears it.
@@ -32309,9 +32353,20 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           try { window.__rbPromptLook(prompt); } catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
           return;
         }
-        // Model call — open the reading state immediately, resolve into
-        // ready (or clarify); a failure is never a dead end and never
-        // loses the prompt.
+        // The trip is hidden (MVP): every prompt makes suggested looks, so
+        // no track is in question and the classifier is not asked
+        // (2026-10-13). A day in her words still rides with the ask.
+        if (_RB_TRIP_HIDDEN) {
+          const read = _rbAskDateFrom(prompt);
+          _ikTrack('typed', 'daily', read ? { dated: true, read: 'words' } : {});
+          _ikClearPrompt();
+          try { if (read) window.__rbPromptLookFor(prompt, read); else window.__rbPromptLook(prompt); }
+          catch (e) { _waShowToast('Robes couldn’t start that look — please try again.'); }
+          return;
+        }
+        // Model call (the trip on) — open the reading state immediately,
+        // resolve into ready (or clarify); a failure is never a dead end and
+        // never loses the prompt.
         _ikOpenReading(prompt);
         const seq = _ikSeq;
         _ikClassify(prompt).then(seed => {
@@ -32319,10 +32374,8 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
           const ms = Date.now() - t0;
           _rbTrack('prompt_submitted', { intent: seed.intent, scope: _ikScope.kind, source: 'typed', latency_ms: ms, ok: true });
           const conf = seed.confidence >= 0.6 && seed.intent !== 'unclear';
-          // The trip is hidden (MVP): every prompt makes suggested looks —
-          // no trip intake, and no question with one answer left in it.
-          if (_RB_TRIP_HIDDEN || !conf || seed.intent === 'daily') {
-            if (!_RB_TRIP_HIDDEN && !conf) { _ikOpen('clarify', { prompt }); return; }
+          if (!conf) { _ikOpen('clarify', { prompt }); return; }
+          if (seed.intent === 'daily') {
             _ikClose();
             _ikClearPrompt();
             // A throw here used to vanish inside the promise chain — the
@@ -32335,7 +32388,6 @@ button.rb-mv-morebtn:hover{color:var(--ink,#202021)}
         }).catch(() => {
           if (seq !== _ikSeq) return;
           _rbTrack('prompt_submitted', { intent: 'error', scope: _ikScope.kind, source: 'typed', latency_ms: Date.now() - t0, ok: false });
-          if (_RB_TRIP_HIDDEN) { _ikClose(); _ikClearPrompt(); window.__rbPromptLook(prompt); return; }
           _ikOpen('clarify', { prompt, failed: true });
         });
       }
@@ -33275,16 +33327,18 @@ body.rb-hb-on #dash .concierge{display:none!important}
           if (/^\s*(a |the )?(piece|key piece|item)\b/i.test(prompt)) { s.hbPending = null; track('style', { from_ask: true }); return { go: () => { _cbReset(); _cbStyleSubmit(first, null, { intent: 'style' }); } }; }
           prompt = first + ' — ' + prompt;
         }
+        // The trip is hidden (MVP): every ask makes suggested looks, so a
+        // model call to pick a track answers nothing (2026-10-13 — the
+        // /api/intent round trip is gone from this path). The one thing it
+        // still gave the box, a day read out of her words, is deterministic.
+        if (_RB_TRIP_HIDDEN) {
+          const read = _rbAskDateFrom(prompt);
+          track('daily', read ? { dated: true, read: 'words' } : {});
+          return _rbHbRoute(prompt, read ? { date_start: read } : null, s);
+        }
         return _ikClassify(prompt).then(seed => {
           const conf = seed && seed.confidence >= 0.6 && seed.intent !== 'unclear';
           if (conf && seed.intent === 'daily') { track('daily'); return _rbHbRoute(prompt, seed, s); }
-          // The trip is hidden (MVP): a trip-shaped ask is an ask for looks,
-          // undated — a trip's first day (and her home weather) would read
-          // as the wrong answer, so the deck takes no day from it.
-          if (conf && seed.intent === 'travel' && _RB_TRIP_HIDDEN) {
-            track('daily', { defaulted: true, read: 'travel' });
-            return _rbHbRoute(prompt, Object.assign({}, seed, { date_start: null, date_end: null }), s);
-          }
           if (conf && seed.intent === 'travel') {
             track('travel');
             // The intake, prefilled from the classifier — never a place
