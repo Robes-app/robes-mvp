@@ -557,13 +557,11 @@ export function buildSilhouette(x) {
 // The brief (style_dna.brief): {loves[], avoids[], rules[], notes, colours:{loved[], rejected[]}}
 // — each list entry a string, or {text, source} where source ∈ drafted|edited|typed.
 const BRIEF_LINE_MAX = 160;
-const BRIEF_LIST_MAX = 8;
 export function briefList(a) {
   if (!Array.isArray(a)) return [];
   return a.map(x => (x && typeof x === 'object') ? x.text : x)
     .filter(t => typeof t === 'string' && t.trim())
-    .map(t => t.trim().replace(/\s+/g, ' ').slice(0, BRIEF_LINE_MAX))
-    .slice(0, BRIEF_LIST_MAX);
+    .map(t => t.trim().replace(/\s+/g, ' ').slice(0, BRIEF_LINE_MAX));
 }
 export function briefIsEmpty(b) {
   if (!b || typeof b !== 'object') return true;

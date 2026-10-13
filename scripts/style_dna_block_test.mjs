@@ -37,7 +37,7 @@ ok(noDna.indexOf('HER STYLE BRIEF') === 0 && /rejected these colours[^\n]*camel/
 ok(styleDnaPromptBlock({ brief: { loves: [], avoids: [], notes: '   ' } }, 0, []) === '', 'an empty brief on an empty profile renders nothing');
 ok(!/HER STYLE BRIEF/.test(styleDnaPromptBlock({ brief: { loves: [] }, style_archetypes: ['Minimal'] }, 0, [])), 'an empty brief beside a style type renders no brief block');
 ok(briefIsEmpty(null) && briefIsEmpty({}) && !briefIsEmpty({ rules: ['x'] }), 'briefIsEmpty reads every list');
-ok(briefList(Array.from({ length: 12 }, (_, i) => 'line ' + i)).length === 8, 'lists cap at eight lines');
+ok(briefList(Array.from({ length: 12 }, (_, i) => 'line ' + i)).length === 12, 'lists carry every line — no cap (Annie, 13 Oct)');
 ok(briefList(['a'.repeat(400)])[0].length === 160, 'a line caps at 160 characters');
 const legacy = styleDnaPromptBlock({ color_harmony: dnaFull.color_harmony }, 3, []);
 ok(/STYLE DNA/.test(legacy) && !/HER STYLE BRIEF/.test(legacy), 'a profile with no brief key is byte-for-byte the old block shape');

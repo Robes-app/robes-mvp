@@ -15320,9 +15320,11 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-tilewrap{position:relative}
 .rb-lk-rmx{position:absolute;top:10px;right:10px;z-index:2;width:28px;height:28px;border-radius:50%;border:none;background:rgba(32,32,33,0.55);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;padding:0}
 .rb-lk-tilewrap:hover .rb-lk-rmx{opacity:1}
-.rb-lk-wearx{position:absolute;top:10px;right:44px;z-index:2;border:none;border-radius:100px;background:rgba(32,32,33,0.55);backdrop-filter:blur(4px);color:#fff;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:7px 12px;cursor:pointer;opacity:0;transition:opacity .15s}
-.rb-lk-tilewrap:hover .rb-lk-wearx{opacity:1}
-@media(hover:none){.rb-lk-rmx{opacity:1}.rb-lk-wearx{opacity:1}}
+.rb-lk-cardcal{position:absolute;left:10px;bottom:10px;z-index:2;width:36px;height:36px;border-radius:50%;border:none;background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;box-shadow:0 2px 10px rgba(32,32,33,0.10);transition:background .15s}
+.rb-lk-cardcal:hover{background:var(--cream-100)}
+.rb-lk-cardcal svg{width:16px;height:16px;flex:none}
+.rb-lk-cardcal::after{content:'';position:absolute;inset:-4px}
+@media(hover:none){.rb-lk-rmx{opacity:1}}
 .rb-lk-con{display:grid;grid-template-columns:480px minmax(0,1fr);gap:34px;align-items:start}
 @media(max-width:1080px){.rb-lk-con{grid-template-columns:minmax(0,1fr);gap:24px}.rb-lk-con>div{min-width:0}.rb-lk-con>div:first-child{max-width:480px}}
 .rbc-row.rb-lk-rempty{border-style:dashed;background:transparent}
@@ -16208,13 +16210,15 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           // legitimate state and says so (E2), never hidden.
           meta: (n ? _lkN(n, 'wear') : 'Not yet worn') + ' · ' + _lkN(_lkPieceIds(l).length, 'piece') +
             (n ? ' · last ' + _lkFmt(last) : '') + (_lkAnchorName(l) ? ' · around your ' + _lkAnchorName(l) : ''),
-        }, { body: "window.__lkCardOpen('" + l.id + "')", extraClass: 'lt-card' }) +
+        }, { body: "window.__lkCardOpen('" + l.id + "')", extraClass: 'lt-card' })
+          // The calendar sits ON the image, bottom-left — the saved look's own
+          // diary button (Annie, 13 Oct): it schedules a day or logs a wear
+          // through the same diary sheet, without leaving the grid. It
+          // replaces the card's old "Wear" pill.
+          .replace('</div><div class="lt-info">', '<button type="button" class="rb-lk-cardcal" onclick="window.__lkCardDiary(\'' + _waEsc(String(l.id)) + '\', event)" title="Put this look in the diary" aria-label="Put this look in the diary">' + _LK_DIARY_SVG + '</button></div><div class="lt-info">') +
         '<button class="rb-lk-rmx" onclick="window.__lkDeleteAsk(\'' + l.id + '\', event)" title="Delete this look" aria-label="Delete this look">' +
           '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
         '</button>' +
-        // "Wear" on every look card (IA rule 02: the one scheduling verb,
-        // today or a future day — the date is the only difference)
-        '<button class="rb-lk-wearx" onclick="window.__lkWearAsk(\'' + l.id + '\', event)" title="Wear it — today or on a day">Wear</button>' +
         '</div>';
       }
       // A saved daily look in the same card — its generated image where a
@@ -18734,16 +18738,26 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           _lkDiaryPaint();
         });
       }
-      window.__lkDiaryOpen = function(preset) {
-        const l = _lkFind(_lkActive);
+      // The look the sheet acts on: the one it was opened for (a Lookbook
+      // card's calendar), else the look page on screen.
+      function _lkDyLook() { return _lkFind((_lkDy && _lkDy.id) || _lkActive); }
+      // Opened from the grid — no look page on screen to show the result,
+      // so the sheet's outcome is said in a toast.
+      function _lkDyOffPage(l) { return !(_lkView === 'detail' && String(_lkActive) === String(l.id)); }
+      window.__lkCardDiary = function(id, ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        window.__lkDiaryOpen(null, id);
+      };
+      window.__lkDiaryOpen = function(preset, id) {
+        const l = _lkFind(id || _lkActive);
         if (!l) return;
         const today = _pdLocalISO();
         // A preset day (the home field's Save, phase 3) opens the sheet on it.
         const d0 = (typeof preset === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(preset)) ? preset : today;
-        _lkDy = { ym: d0.slice(0, 7), picked: d0, rows: [] };
+        _lkDy = { ym: d0.slice(0, 7), picked: d0, rows: [], id: l.id };
         _lkDiaryPaint();
         _lkDyMonthRows();
-        _rbTrack('look_diary_opened', {});
+        _rbTrack('look_diary_opened', { from: id ? 'card' : 'look' });
       };
       window.__lkDiaryClose = function() {
         _lkDy = null;
@@ -18764,28 +18778,35 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _lkDiaryPaint();
       };
       window.__lkDiaryGo = function() {
-        const l = _lkFind(_lkActive);
+        const l = _lkDyLook();
         if (!l || !_lkDy) return;
+        const off = _lkDyOffPage(l);
         const d = _lkDy.picked, today = _pdLocalISO();
         window.__lkDiaryClose();
         if (d < today) {
           const w = _lkAddWear(l, { date: d, source: 'retro' });
           _waShowToast(w ? 'Recorded — worn ' + _lkFmt(d) : 'Already recorded for ' + _lkFmt(d));
         } else {
-          if (_lkPins(l.id).indexOf(d) > -1) { window.__lkSeeDay(d); return; }
+          if (_lkPins(l.id).indexOf(d) > -1) { window.__lkSeeDay(d, l.id); return; }
           _lkPin(l.id, d);
-          // No second confirmation — the pinned reminder strip appearing IS
-          // the confirmation (C1), and it stays as long as the pin does.
+          // On the look page the pinned reminder strip IS the confirmation
+          // (C1); from a Lookbook card there is no strip, so a toast says it.
+          if (off) _waShowToast('“' + (l.name || 'This look') + '” is in your diary for ' + _lkFmt(d));
           _lkDone = null;
         }
         _lkPaint();
       };
       window.__lkDiaryWoreToday = function() {
+        const l = _lkDyLook();
         window.__lkDiaryClose();
-        window.__lkWearToday();
+        if (!l) return;
+        if (!_lkDyOffPage(l)) { window.__lkWearToday(); return; }
+        const w = _lkAddWear(l, { source: 'looks' });
+        _waShowToast(w ? 'Worn today ✓' : 'Already recorded for today');
+        _lkPaint();
       };
       function _lkDiaryPaint() {
-        const l = _lkFind(_lkActive);
+        const l = _lkDyLook();
         if (!l || !_lkDy) return;
         const today = _pdLocalISO();
         const ym = _lkDy.ym, picked = _lkDy.picked;
@@ -18877,8 +18898,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           _rbTrack('look_deleted', { wears: nW });
         });
       };
-      window.__lkSeeDay = function(iso) {
-        const l = _lkFind(_lkActive);
+      window.__lkSeeDay = function(iso, id) {
+        const l = _lkFind(id || _lkActive);
         if (!l || !iso) return;
         window.__rbDayPeek && window.__rbDayPeek(iso, [{
           source_type: 'look', source_id: l.id, day_index: 0, slot: 'day',
@@ -20895,8 +20916,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const at = new Date().toISOString();
         if (v === 'keep') {
           if (x.list === 'notes') b.notes = x.full || x.text;
-          else if (x.list === 'colours') { b.colours.loved = b.colours.loved.concat(x.loved || []).slice(0, 8); b.colours.rejected = b.colours.rejected.concat(x.rejected || []).slice(0, 8); }
-          else if (Array.isArray(b[x.list])) b[x.list] = b[x.list].concat([{ text: String(x.text).slice(0, 160), source: 'drafted', at }]).slice(-8);
+          else if (x.list === 'colours') { b.colours.loved = b.colours.loved.concat(x.loved || []); b.colours.rejected = b.colours.rejected.concat(x.rejected || []); }
+          else if (Array.isArray(b[x.list])) b[x.list] = b[x.list].concat([{ text: String(x.text).slice(0, 160), source: 'drafted', at }]);
         } else {
           b.struck = [String(x.text).slice(0, 160)].concat(b.struck).slice(0, 30);
         }

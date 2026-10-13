@@ -300,6 +300,7 @@ const browser = await chromium.launch(
       addCardText: document.querySelector('#rb-lk-grid .rb-add-card')?.textContent,
       rmx: document.querySelectorAll('#rb-lk-grid .rb-lk-rmx').length,
       wearBtns: document.querySelectorAll('#rb-lk-grid .rb-lk-wearx').length,
+      calBtns: document.querySelectorAll('#rb-lk-grid .rb-lk-mos > .rb-lk-cardcal').length,
       titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
       provisional: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title.prov')).map((t) => t.textContent),
       mosaicCells: document.querySelectorAll('#rb-lk-grid .rb-lk-mos.n3 i').length,
@@ -329,7 +330,7 @@ const browser = await chromium.launch(
   check('tab · looks surface shown, the item grid stands down',
     s.wrapVisible && s.itemGridHidden, JSON.stringify([s.wrapVisible, s.itemGridHidden]));
   check('tab · deep-linkable path', s.path === '/lookbook', s.path);
-  check('grid · every look card carries the Wear verb', s.wearBtns === 2, String(s.wearBtns));
+  check('grid · every look card carries the calendar on its image, no Wear pill', s.calBtns === 2 && s.wearBtns === 0, JSON.stringify([s.calBtns, s.wearBtns]));
   // Look states (2026-10-06): a SAVED tile carries no eyebrow — the frame
   // and the wear line say what it is; only a draft and a suggestion do.
   check('grid · saved cards carry NO eyebrow in the shared card dress (look states, 2026-10-06)',
@@ -2486,18 +2487,28 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     legacy.snOpen && legacy.wrapShown && legacy.wardrobeClosed && legacy.path === '/lookbook',
     JSON.stringify(legacy));
 
-  // Wear on the card opens the detail with the day question armed.
+  // The card's calendar opens the diary sheet over the grid — no look page.
   const cardWear = await page.evaluate(() => {
-    const w = document.querySelector('.rb-lk-tilewrap .rb-lk-wearx');
+    const w = document.querySelector('.rb-lk-tilewrap .rb-lk-cardcal');
     if (w) w.click();
     return {
       had: !!w,
       sheet: document.querySelector('#rb-lkdy .who .ey')?.textContent,
+      name: document.querySelector('#rb-lkdy .who .nm')?.textContent,
       detail: !!document.querySelector('.rb-lk-page'),
     };
   });
-  check('IA · a card\'s Wear opens the detail with the diary sheet up',
-    cardWear.had && cardWear.detail && cardWear.sheet === 'Put in the diary', JSON.stringify(cardWear));
+  check('IA · a card\'s calendar opens the diary sheet over the grid',
+    cardWear.had && !cardWear.detail && cardWear.sheet === 'Put in the diary' && !!cardWear.name, JSON.stringify(cardWear));
+  // A future day pins from the grid, and says so (no strip to confirm it there).
+  const cardPin = await page.evaluate(async () => {
+    const t = new Date(); t.setDate(t.getDate() + 2);
+    const iso = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+    window.__lkDiaryPick(iso); window.__lkDiaryGo();
+    await new Promise(r => setTimeout(r, 300));
+    return { sheetGone: !document.getElementById('rb-lkdy'), detail: !!document.querySelector('.rb-lk-page'), toast: document.body.textContent.includes('is in your diary for') };
+  });
+  check('IA · the card\'s sheet pins a day without leaving the grid', cardPin.sheetGone && !cardPin.detail && cardPin.toast, JSON.stringify(cardPin));
   await page.evaluate(() => window.__lkDiaryClose && window.__lkDiaryClose());
 
   // The unified stream (cohesion pass): a saved daily look joins the looks
@@ -2755,11 +2766,13 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('IA · the door lists her saved looks alone — no make-doors, never creates',
     wear.hadModal && wear.tiles === 2 && wear.asks, JSON.stringify(wear));
   await page.waitForTimeout(1200); // the planned_days write is debounced
-  const calPin = writes.find((w) => w.method === 'POST' && /^planned_days/.test(w.url) &&
-    Array.isArray(w.body) && w.body[0]?.source_type === 'look');
+  // Match the row for THIS day — the card-calendar section above pinned
+  // lk-1 to another date first, so the look's rebuild carries both.
+  const calPinRow = writes.filter((w) => w.method === 'POST' && /^planned_days/.test(w.url) && Array.isArray(w.body))
+    .flatMap((w) => w.body).find((r) => r?.source_type === 'look' && r?.day_date === wear.target);
   check('IA · picking a look pins it to the day (planned_days, source_type look)',
-    !!calPin && calPin.body[0]?.source_id === 'lk-1' && calPin.body[0]?.day_date === wear.target,
-    JSON.stringify(calPin?.body?.[0] || null));
+    !!calPinRow && calPinRow.source_id === 'lk-1',
+    JSON.stringify(calPinRow || null));
 
   // Bridges, not duplicates: a piece's edit form links into the Lookbook.
   await page.evaluate(() => window.__wtrkEdit && window.__wtrkEdit('w-top1'));
