@@ -638,7 +638,7 @@ function memoryLines(m) {
   return [
     'WHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):',
     ...out.slice(0, MEMORY_LINES_MAX),
-    'A piece she has swapped out twice is not proposed again unless she names it; a move she called "not quite" is not repeated in another colour.',
+    'A piece she has swapped out twice is not proposed again unless she names it; a move she called "not quite" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.',
   ];
 }
 // user_overrides merged with the brief's colours — the brief is the door

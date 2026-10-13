@@ -4247,13 +4247,15 @@ const lpSend = async (text, wait) => {
   const rule = await page.evaluate(async () => {
     await window.__lpSend('remember that I don’t like grey', 900);
     const out = window.__lpRead();
-    out.rules = ((((window.__robes_profile || {}).style_dna || {}).brief || {}).rules || []).map((r) => r.text + '|' + r.source);
+    const brief = (((window.__robes_profile || {}).style_dna || {}).brief || {});
+    out.rules = (brief.rules || []).map((r) => r.text + '|' + r.source);
+    out.pending = (brief.pending || []).map((r) => r.list + '|' + r.text + '|' + r.because);
     out.rows = Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent).length;
     return out;
   });
   const ruleWrite = writes.slice(wb).find((w) => w.method === 'PATCH' && /^profiles/.test(w.url) && JSON.stringify(w.body).includes('No grey'));
-  check('box · a standing rule is filed to her brief (source typed) with the quiet line, the look untouched',
-    JSON.stringify(rule.rules) === JSON.stringify(['No grey|typed']) && !!ruleWrite && rule.thread.some((t) => /^filed:Filed to your style notes/.test(t)) && rule.rows === 4, JSON.stringify([rule.rules, !!ruleWrite, rule.thread.slice(-2)]));
+  check('box · a standing rule WAITS as a Robes-noticed line (never a filed rule) with the quiet line, the look untouched',
+    rule.rules.length === 0 && rule.pending.length === 1 && /^rules\|No grey\|You said it on “/.test(rule.pending[0]) && !!ruleWrite && rule.thread.some((t) => /^filed:Waiting under Robes noticed/.test(t)) && rule.rows === 4, JSON.stringify([rule.rules, rule.pending, !!ruleWrite, rule.thread.slice(-2)]));
   const back1 = await page.evaluate(async () => {
     await window.__lpSend('put the sandals back', 900);
     return { rows: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((n) => n.textContent), was: Array.from(document.querySelectorAll('#rb-lk-body .rb-lp-was')).map((n) => n.textContent) };

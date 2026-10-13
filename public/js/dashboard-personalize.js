@@ -1781,8 +1781,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         s.thread.push({ who: 'robes', text: (j.intent === 'back' && !applied) ? _RB_LP_COPY.doneNone : reply });
         if (j.rule && typeof s.onRule === 'function') {
           let filed = false;
-          try { filed = !!s.onRule(String(j.rule)); } catch (e) { console.error('[Robes] look prompt rule', e); }
-          if (filed) { s.thread.push({ who: 'filed', text: 'Filed to your style notes.' }); _rbTrack('look_prompt_rule_filed', { rule_text: String(j.rule).slice(0, 160) }); }
+          try { filed = !!s.onRule(String(j.rule), String(s.name || s.title || '')); } catch (e) { console.error('[Robes] look prompt rule', e); }
+          if (filed) { s.thread.push({ who: 'filed', text: 'Waiting under Robes noticed — keep it there and it becomes a rule.' }); _rbTrack('look_prompt_rule_filed', { rule_text: String(j.rule).slice(0, 160) }); }
         }
         if (j.draft && String(j.draft).trim()) { s.text = String(j.draft).trim().slice(0, 240); s.draftText = s.text; s.draft = true; }
         // The placeholder follows what STANDS changed — a put-back that
@@ -1823,27 +1823,37 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (st) h += '<div class="rbc-hownote rb-lp-styled">' + _waEsc(st) + '</div>';
         return h;
       }
-      // A standing rule she typed ("remember that I don't like grey") files
-      // straight to her brief's rules — her own words need no confirm
-      // (source 'typed', slice A's data); the next generation reads it.
-      function _rbBriefRulePush(text) {
+      // A rule she states in the look prompt ("I don't wear double denim")
+      // is said about ONE look, on one day — it enters her brief only once
+      // she keeps it (Annie, 2026-10-13: a rule is never in the brief unless
+      // she wrote it under Your rules or accepted it as a Robes observation;
+      // a verdict on a look filed itself as a standing rule and quietly
+      // refused the double-denim look she asked for next). So it lands as a
+      // PENDING observation (`brief.pending`, list 'rules', the look it was
+      // said on as its evidence): Settings' Robes noticed card and home's
+      // Robes noticed line offer Keep / Not me, and Keep is what files it.
+      // Nothing reaches a generation until then.
+      function _rbBriefRulePush(text, on) {
         const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 160);
         if (!t || !_waUid() || !_waToken()) return false;
         const prof = window.__robes_profile || (window.__robes_profile = {});
         const dna = Object.assign({}, prof.style_dna && typeof prof.style_dna === 'object' ? prof.style_dna : {});
-        const brief = Object.assign({ loves: [], avoids: [], rules: [], notes: '', colours: { loved: [], rejected: [] }, struck: [], source: 'drafted' }, dna.brief && typeof dna.brief === 'object' ? dna.brief : {});
-        const rules = Array.isArray(brief.rules) ? brief.rules.slice() : [];
-        const txt = r => String((r && typeof r === 'object') ? r.text : r || '').trim().toLowerCase();
-        if (rules.some(r => txt(r) === t.toLowerCase())) return true;
-        rules.push({ text: t, source: 'typed', at: new Date().toISOString() });
-        brief.rules = rules.slice(-8);
-        brief.source = 'edited';
-        brief.updated_at = new Date().toISOString();
+        const brief = Object.assign({ loves: [], avoids: [], rules: [], notes: '', colours: { loved: [], rejected: [] }, struck: [], pending: [], source: 'drafted' }, dna.brief && typeof dna.brief === 'object' ? dna.brief : {});
+        const norm = r => String((r && typeof r === 'object') ? r.text : r || '').trim().toLowerCase();
+        const low = t.toLowerCase();
+        const rules = Array.isArray(brief.rules) ? brief.rules : [];
+        const pending = Array.isArray(brief.pending) ? brief.pending.slice() : [];
+        const struck = Array.isArray(brief.struck) ? brief.struck : [];
+        // Already a rule, already waiting, or struck before — nothing to add.
+        if (rules.some(r => norm(r) === low) || pending.some(r => norm(r) === low) || struck.some(r => norm(r) === low)) return true;
+        const where = String(on || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+        pending.push({ list: 'rules', text: t, because: where ? 'You said it on “' + where + '”' : 'You said it on a look', at: new Date().toISOString(), from: 'prompt' });
+        brief.pending = pending.slice(-12);
         dna.brief = brief;
         prof.style_dna = dna;
         _waFetch('PATCH', 'profiles?id=eq.' + _waUid(), { style_dna: dna })
-          .catch(e => console.warn('[robes] brief rule write failed:', String(e && e.message || e).slice(0, 120)));
-        _rbTrack('brief_line', { verb: 'add', list: 'rules', source: 'prompt' });
+          .catch(e => console.warn('[robes] brief pending write failed:', String(e && e.message || e).slice(0, 120)));
+        _rbTrack('brief_line', { verb: 'pending', list: 'rules', source: 'prompt' });
         return true;
       }
       window._rbBriefRulePush = _rbBriefRulePush;
@@ -20276,7 +20286,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // brief.
         try { _rbFbCloud('key-piece', _kpActiveSaveId, null, (cur.title ? cur.title + ' — ' : '') + text); } catch (_) {}
         let filed = false;
-        if (j && j.rule) { try { filed = !!_rbBriefRulePush(String(j.rule)); } catch (_) {} }
+        if (j && j.rule) { try { filed = !!_rbBriefRulePush(String(j.rule), String(cur.title || '')); } catch (_) {} }
         _rbTrack('kp_way_noted', { way: String(i), filed });
         return { reply: filed ? (String(j.reply || '').trim() || 'Noted.') : 'Noted — the next ones will lean that way. Want this one changed too?', filed };
       }
