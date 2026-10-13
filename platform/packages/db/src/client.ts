@@ -1,6 +1,7 @@
 import { CamelCasePlugin, Kysely, PostgresDialect } from 'kysely';
 import pg from 'pg';
 import type { DB } from './database.types';
+import { tlsFor } from './tls';
 
 export type Db = Kysely<DB>;
 
@@ -12,7 +13,7 @@ export interface DbOptions {
 
 export function createDb(opts: DbOptions): Db {
   const pool = new pg.Pool({
-    connectionString: opts.connectionString,
+    ...tlsFor(opts.connectionString),
     max: opts.max ?? 5,
     application_name: opts.applicationName ?? 'robes',
     idleTimeoutMillis: 10_000,

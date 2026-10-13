@@ -471,6 +471,9 @@ importers:
       '@robes/copy':
         specifier: workspace:*
         version: link:../copy
+      '@robes/db':
+        specifier: workspace:*
+        version: link:../db
       '@robes/mailer':
         specifier: workspace:*
         version: link:../mailer

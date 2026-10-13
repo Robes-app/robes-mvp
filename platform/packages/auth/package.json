@@ -13,6 +13,7 @@
   "dependencies": {
     "@better-auth/expo": "1.7.5",
     "@robes/copy": "workspace:*",
+    "@robes/db": "workspace:*",
     "@robes/mailer": "workspace:*",
     "better-auth": "1.7.5",
     "kysely": "0.29.6",

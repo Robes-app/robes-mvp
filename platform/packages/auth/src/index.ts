@@ -1,4 +1,5 @@
 import { expo } from '@better-auth/expo';
+import { tlsFor } from '@robes/db/tls';
 import type { Mailer } from '@robes/mailer';
 import { betterAuth } from 'better-auth';
 import { emailOTP } from 'better-auth/plugins';
@@ -60,7 +61,8 @@ const TABLES = {
 
 export function createAuth(config: AuthConfig) {
   const pool = new pg.Pool({
-    connectionString: config.databaseUrl,
+    // Same TLS rules as the app's own pool (Supabase root CA, full verification).
+    ...tlsFor(config.databaseUrl),
     max: 3,
     application_name: 'robes-auth',
   });
