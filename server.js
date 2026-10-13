@@ -565,21 +565,24 @@ function normStylePieces(way, closetItems) {
   const rows = Array.isArray(way && way.pieces) ? way.pieces : [];
   const roles = ['The Canvas', 'The Anchor', 'The Texture', 'The Exclamation Point'];
   const out = [];
+  // The model occasionally writes a stray newline into a field ("\n€380");
+  // every text field is collapsed to single spaces before it is kept.
+  const txt = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
   rows.forEach(p => {
-    if (!p || typeof p !== 'object' || !String(p.name || '').trim()) return;
+    if (!p || typeof p !== 'object' || !txt(p.name, 80)) return;
     const idx = Number.isInteger(p.wardrobe_index) ? p.wardrobe_index : -1;
     const owned = idx >= 0 && idx < closetItems.length ? closetItems[idx] : null;
     const hex = /^#[0-9A-Fa-f]{6}$/.test(String(p.color_hex || '')) ? String(p.color_hex) : null;
     const role = roles.find(r => r.toLowerCase() === String(p.role || '').toLowerCase()) || null;
     out.push({
-      name: String(p.name).trim().slice(0, 80),
-      category: String(p.category || 'Other'),
-      color: String(p.color || '').slice(0, 40),
+      name: txt(p.name, 80),
+      category: txt(p.category, 40) || 'Other',
+      color: txt(p.color, 40),
       color_hex: hex,
       role,
-      brand: owned ? String(owned.brand || '') : String(p.brand || '').slice(0, 60),
-      retailer_hint: owned ? '' : String(p.retailer_hint || '').slice(0, 60),
-      price_point: owned ? '' : String(p.price_point || '').slice(0, 20),
+      brand: owned ? txt(owned.brand, 60) : txt(p.brand, 60),
+      retailer_hint: owned ? '' : txt(p.retailer_hint, 60),
+      price_point: owned ? '' : txt(p.price_point, 20),
       wardrobe_match: owned ? {
         id: owned.id != null ? owned.id : null,
         label: String(owned.label || ''),
@@ -588,7 +591,21 @@ function normStylePieces(way, closetItems) {
       } : null,
     });
   });
-  return out.slice(0, 6);
+  // ONE PIECE PER SLOT. A look that itemises two pairs of shoes (or two
+  // bags, two bottoms, two dresses) is worn with both in the frame — the
+  // image prompt says "every listed piece worn together". The prompt now
+  // forbids it; this is the belt: in each single-piece category the owned
+  // piece is kept over a proposal, else the first listed, and the rest go.
+  const singles = ['Shoes', 'Bags', 'Bottoms', 'Dresses'];
+  const drop = [];
+  singles.forEach(cat => {
+    const inCat = out.filter(x => x.category === cat);
+    if (inCat.length < 2) return;
+    const keep = inCat.find(x => x.wardrobe_match) || inCat[0];
+    inCat.forEach(x => { if (x !== keep) drop.push(x); });
+  });
+  const deduped = drop.length ? out.filter(x => !drop.includes(x)) : out;
+  return deduped.slice(0, 6);
 }
 
 app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
@@ -634,7 +651,7 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
 
 SANITY CHECK — every styling move is one a respected stylist would shoot on the street, in the key piece's natural register: sporty pieces stay elevated-casual (no belted knitwear over athletic shorts, no waist-cinching tricks on a sporty silhouette, no tailoring over gym wear). Silhouette rules decide WHAT you select, never how a piece is contorted. A trick that needs explaining is dropped.
 
-THE PIECES ARE THE LOOK — "pieces" is the complete outfit head to toe, three to six entries in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt"); "color" a plain word, "color_hex" one hex. "wardrobe_index" is the owned piece's number from her wardrobe (its exact label as the name), else -1. Only a piece she must find carries "brand", "retailer_hint" and "price_point" (EUR, "€89"); leave them empty on an owned piece.
+THE PIECES ARE THE LOOK — "pieces" is the complete outfit head to toe, three to six entries in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt"); "color" a plain word, "color_hex" one hex. "wardrobe_index" is the owned piece's number from her wardrobe (its exact label as the name), else -1. Only a piece she must find carries "brand", "retailer_hint" and "price_point" (EUR, "€89"); leave them empty on an owned piece. ONE PIECE PER SLOT: exactly one pair of shoes, at most one bag, one bottom or one dress, one top under a layer — a look never lists two of the same kind (never two pairs of shoes, never a second bottom). Choosing between an owned piece and one to buy, the owned piece is the one listed.
 
 THE SCENE — one sentence under thirty words: the occasion, the setting, the mood, how the pieces are worn (tucked, open, sleeves pushed). It names no garment, shoe, bag or accessory, not even by type — the pieces list carries them and the two must never disagree. "A late dinner in the Marais, the top tucked and the jacket worn open, understated and unhurried." is the register; "paired with a pencil skirt and loafers" is forbidden.`;
 
