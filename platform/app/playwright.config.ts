@@ -16,6 +16,8 @@ export default defineConfig({
       UNSUB_HMAC_KEY: E2E_UNSUB_KEY,
       // Specs assert the offline fake's outputs; never spend on real Gemini from a dev key.
       GEMINI_API_KEY: '',
+      // A LAN media host (for phones) would be upgraded to https by the production CSP; tests stay local.
+      MEDIA_S3_ENDPOINT: 'http://localhost:59000',
       // Dev-only SEC-40 escape hatch so inbox.spec can import from its local fixture page.
       ALLOW_PRIVATE_FETCH: '1',
       // Dummy key: consent.spec intercepts the PostHog host and proves nothing loads before consent.

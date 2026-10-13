@@ -6,6 +6,8 @@ import {
   buildUser,
   FALLBACK_PIECE,
   FEATURE,
+  MAX_OUTPUT_TOKENS,
+  normalisePieces,
   Output,
 } from '@robes/ai/prompts/style-piece';
 import { GenerateLookInput } from '@robes/contracts';
@@ -80,7 +82,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
             ? { images: [{ mimeType: 'image/jpeg' as const, data: piecePhoto }] }
             : {}),
           schema: Output,
-          maxOutputTokens: 2000,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
           signal: ctx.signal,
         });
       } catch (err) {
@@ -93,7 +95,12 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       }
       await record(ctx, text.usage, 'ok');
 
-      const { fallback, wearer, ways } = text.data;
+      const { fallback, wearer } = text.data;
+      // Itemised pieces, made safe and resolved to her own pieces (legacy normStylePieces).
+      const ways = text.data.ways.map((w) => ({
+        ...w,
+        pieces: normalisePieces(w.pieces, styleCtx.closet),
+      }));
       const pieceLabel = fallback
         ? FALLBACK_PIECE
         : anchor.type === 'piece'

@@ -83,6 +83,11 @@ export const LEGACY_CATALOG: Record<string, ReadonlyArray<readonly [string, stri
     ['proposals', 'jsonb'],
     ['render_url', 'text'],
     ['render_key', 'text'],
+    ['styling', 'jsonb'],
+    ['status', 'text'],
+    ['anchor_piece_id', 'uuid'],
+    ['set_id', 'text'],
+    ['set_index', 'smallint'],
   ],
   'public.notifications': [
     ['id', 'uuid'],

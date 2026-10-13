@@ -48,6 +48,7 @@ const way = (n: number) => ({
   details: `Details ${n}`,
   accessories: `Accessories ${n}`,
   tags: [],
+  pieces: [],
 });
 
 export function idea(overrides: Partial<Idea> = {}): Idea {

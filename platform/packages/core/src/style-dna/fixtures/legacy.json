@@ -15597,6 +15597,499 @@
         []
       ],
       "output": "STYLE DNA — verified styling constraints for this user:\nBody architecture: Hourglass. Best dress silhouettes: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Best necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling maxims: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nSYSTEM DIRECTIVE: The user has a mature digital closet (20 items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above."
+    },
+    {
+      "args": [
+        {
+          "brief": {
+            "loves": [
+              "Long coats",
+              {
+                "text": "  wide   trousers ",
+                "source": "edited"
+              },
+              "",
+              7
+            ],
+            "avoids": ["Crop tops"],
+            "rules": [
+              {
+                "text": "Flat shoes on weekdays",
+                "source": "typed"
+              }
+            ],
+            "notes": "I dress for  a long commute.",
+            "colours": {
+              "loved": ["navy", "Camel"],
+              "rejected": ["Mustard"]
+            }
+          },
+          "memory": {
+            "entries": [
+              {
+                "k": "verdict",
+                "v": 1,
+                "on": "Gallery opening",
+                "text": "Exactly me"
+              },
+              {
+                "k": "verdict",
+                "v": 0,
+                "look": "Brunch",
+                "text": ""
+              },
+              {
+                "k": "strike",
+                "text": "Loves florals"
+              },
+              {
+                "k": "ask",
+                "text": "Make it warmer",
+                "on": "Office look"
+              },
+              {
+                "k": "swap",
+                "out": "Heels",
+                "in": "loafers",
+                "cat": "Shoes"
+              },
+              {
+                "k": "swap",
+                "out": "Pumps",
+                "in": "trainers",
+                "cat": "shoes"
+              },
+              {
+                "k": "swap",
+                "out": "Mules",
+                "cat": "Shoes"
+              },
+              {
+                "k": "swap",
+                "out": "Blazer",
+                "in": "cardigan",
+                "cat": "Outerwear"
+              },
+              {
+                "k": "wear",
+                "look": "Weekend navy",
+                "pieces": 4
+              },
+              {
+                "k": "nonsense",
+                "text": "ignored"
+              }
+            ]
+          }
+        },
+        0,
+        []
+      ],
+      "output": "HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nNever: Crop tops.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nStruck from her brief (Robes had it wrong): \"Loves florals\".\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): navy, Camel.\nThe user has personally rejected these colours — never style them in: Mustard."
+    },
+    {
+      "args": [
+        {
+          "style_archetypes": ["Minimalist", "Classic"],
+          "style_archetypes_soft": ["Classic", "Bohemian"]
+        },
+        0,
+        []
+      ],
+      "output": "STYLE TYPE — the user placed their own style: Minimalist, Classic; sometimes Bohemian.\nEvery look should sit in this register: the types named first lead, a \"sometimes\" type is a mood to reach for on occasion, never the default. Like the style icons, this steers taste; it never overrides the colour or silhouette rules below."
+    },
+    {
+      "args": [
+        {
+          "style_archetypes_soft": ["Romantic"]
+        },
+        0,
+        ["Zendaya"]
+      ],
+      "output": "STYLE TYPE — the user placed their own style: sometimes Romantic.\nEvery look should sit in this register: the types named first lead, a \"sometimes\" type is a mood to reach for on occasion, never the default. Like the style icons, this steers taste; it never overrides the colour or silhouette rules below.\nSTYLE ICONS — the user named these as their taste references: Zendaya.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon."
+    },
+    {
+      "args": [
+        {
+          "icon_tags": {
+            "Jane Birkin": " ease "
+          },
+          "brands": ["Toteme", "COS"]
+        },
+        2,
+        ["Jane Birkin", "Kate Moss"]
+      ],
+      "output": "STYLE ICONS — the user named these as their taste references: Jane Birkin (ease), Kate Moss.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.\nBRANDS she reaches for: Toteme, COS.\nWhen a piece has to be found, look to these houses and their register first — a proposal should read as something she would have chosen herself."
+    },
+    {
+      "args": [
+        {
+          "investment": "€2,000–€5,000",
+          "spend": {
+            "n": 6,
+            "total": 4200,
+            "median": 520,
+            "verdict": "above"
+          }
+        },
+        0,
+        []
+      ],
+      "output": "INVESTMENT LEVEL — she spends €2,000–€5,000 a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph.\nWHAT SHE ACTUALLY BUYS — the 6 priced pieces she filed this year come to €4,200, a typical one €520: above the level she set. The level she set still rules what Robes proposes — never raise the ceiling to match her receipts — but read her prices as taste: a piece that has to be found should sit at her level and read like the pricier ones she already owns, never as a cheaper copy of them."
+    },
+    {
+      "args": [
+        {
+          "investment": "€500",
+          "spend": {
+            "n": 2,
+            "total": 100,
+            "median": 50,
+            "verdict": "above"
+          }
+        },
+        0,
+        []
+      ],
+      "output": "INVESTMENT LEVEL — she spends €500 a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph."
+    },
+    {
+      "args": [
+        {
+          "facts": {
+            "height_cm": 168.4,
+            "size_uk": 10,
+            "shoe_uk": 6,
+            "age_band": "35–44"
+          }
+        },
+        0,
+        []
+      ],
+      "output": "THE FACTS she gave — size, never weight: height 168 cm, dress size UK 10 (EU 38), shoes UK 6, age 35–44. Propose what fits these and size every piece to them; never estimate them from a photograph."
+    },
+    {
+      "args": [
+        {
+          "facts": {
+            "height_cm": 90,
+            "size_uk": 50
+          }
+        },
+        0,
+        []
+      ],
+      "output": ""
+    },
+    {
+      "args": [
+        {
+          "color_harmony": {
+            "archetype_name": "Soft Autumn",
+            "verified_undertone": "Warm",
+            "calculated_contrast": "Low",
+            "refinement_needed": false,
+            "classification": {
+              "source": "primitive_mapping",
+              "primitive_season": "Soft Autumn",
+              "agreement": true,
+              "reasoning": null
+            },
+            "extracted_values": {
+              "skin_tone_hex": "#C8A080",
+              "hair_color_hex": null,
+              "eye_color_hex": null
+            },
+            "eighteen_shade_matrix": {
+              "row_1_warm_mutes": [
+                "#DCC8AC",
+                "#C8A982",
+                "#C2925A",
+                "#B5774A",
+                "#9C5638",
+                "#8A8048"
+              ],
+              "row_2_earth_greens": [
+                "#7E8E6E",
+                "#5A6E50",
+                "#3E5E48",
+                "#2E6A66",
+                "#2C5E66",
+                "#355A66"
+              ],
+              "row_3_deep_velvets": [
+                "#2E3A52",
+                "#3A3450",
+                "#4E3A50",
+                "#5E3340",
+                "#7A3A42",
+                "#9A5A4E"
+              ]
+            },
+            "functional_sub_palettes": {
+              "best_neutrals": ["Cream", "Oat", "Wheat", "Taupe", "Olive grey", "Cocoa"],
+              "primary_stars": ["Sage", "Olive", "Teal", "Rust"],
+              "secondary_accents": ["Muted coral", "Camel", "Warm taupe", "Soft navy"],
+              "avoid_list": [
+                "Bright white",
+                "Icy pink",
+                "Cool lavender",
+                "Bright blue",
+                "Fuchsia",
+                "Cool grey",
+                "Jet black"
+              ]
+            },
+            "metals_rules": {
+              "finish_type": "Brushed / Matte",
+              "approved_metals": ["Gold", "Bronze", "Rose gold"],
+              "prohibited_metals": ["High-shine Silver", "Chrome", "Platinum"]
+            },
+            "stylist_voice": "Inspired by nature's shifting light—rich, muted, and beautifully grounded. Your palette relies on sophisticated, organic mid-tones like sage, mauve, and oatmeal. Robes uses this to curate an incredibly cohesive, low-contrast wardrobe."
+          },
+          "silhouette_proportions": {
+            "body_type": "Hourglass",
+            "fallback_applied": false,
+            "classification": {
+              "source": "ratio_thresholds",
+              "ratio_body_type": "Hourglass",
+              "agreement": true,
+              "reasoning": null
+            },
+            "geometric_ratios": {
+              "shoulder_to_waist": 1.3,
+              "hip_to_waist": 1.3,
+              "shoulder_to_hip": 1
+            },
+            "visual_traits": [
+              "Balanced shoulders & hips",
+              "Defined waist",
+              "Proportional curves",
+              "Strong lower body"
+            ],
+            "architectural_rules": {
+              "dress_silhouettes": [
+                "True wrap dress",
+                "Tailored fit & flare",
+                "Belted midi",
+                "Contoured column"
+              ],
+              "necklines": [
+                "Deep surplice V",
+                "Sculpted scoop",
+                "Architectural square",
+                "Collared V"
+              ],
+              "styling_maxims": [
+                "Always anchor outfits at the true waist.",
+                "Keep upper and lower body volumes perfectly mirrored.",
+                "Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool.",
+                "Use the skin break technique at the wrists or ankles to lighten visual weight."
+              ]
+            }
+          },
+          "brief": {
+            "loves": [
+              "Long coats",
+              {
+                "text": "  wide   trousers ",
+                "source": "edited"
+              },
+              "",
+              7
+            ],
+            "avoids": ["Crop tops"],
+            "rules": [
+              {
+                "text": "Flat shoes on weekdays",
+                "source": "typed"
+              }
+            ],
+            "notes": "I dress for  a long commute.",
+            "colours": {
+              "loved": ["navy", "Camel"],
+              "rejected": ["Mustard"]
+            }
+          },
+          "memory": {
+            "entries": [
+              {
+                "k": "verdict",
+                "v": 1,
+                "on": "Gallery opening",
+                "text": "Exactly me"
+              },
+              {
+                "k": "verdict",
+                "v": 0,
+                "look": "Brunch",
+                "text": ""
+              },
+              {
+                "k": "strike",
+                "text": "Loves florals"
+              },
+              {
+                "k": "ask",
+                "text": "Make it warmer",
+                "on": "Office look"
+              },
+              {
+                "k": "swap",
+                "out": "Heels",
+                "in": "loafers",
+                "cat": "Shoes"
+              },
+              {
+                "k": "swap",
+                "out": "Pumps",
+                "in": "trainers",
+                "cat": "shoes"
+              },
+              {
+                "k": "swap",
+                "out": "Mules",
+                "cat": "Shoes"
+              },
+              {
+                "k": "swap",
+                "out": "Blazer",
+                "in": "cardigan",
+                "cat": "Outerwear"
+              },
+              {
+                "k": "wear",
+                "look": "Weekend navy",
+                "pieces": 4
+              },
+              {
+                "k": "nonsense",
+                "text": "ignored"
+              }
+            ]
+          },
+          "style_archetypes": ["Minimalist"],
+          "brands": ["Khaite"],
+          "investment": "€1,000",
+          "facts": {
+            "size_uk": 12
+          },
+          "user_overrides": {
+            "loved_colors": ["NAVY", "Olive"]
+          }
+        },
+        16,
+        ["Phoebe Philo"]
+      ],
+      "output": "HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nNever: Crop tops.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nStruck from her brief (Robes had it wrong): \"Loves florals\".\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour.\nSTYLE TYPE — the user placed their own style: Minimalist.\nEvery look should sit in this register: the types named first lead, a \"sometimes\" type is a mood to reach for on occasion, never the default. Like the style icons, this steers taste; it never overrides the colour or silhouette rules below.\nSTYLE ICONS — the user named these as their taste references: Phoebe Philo.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.\nBRANDS she reaches for: Khaite.\nWhen a piece has to be found, look to these houses and their register first — a proposal should read as something she would have chosen herself.\nINVESTMENT LEVEL — she spends €1,000 a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph.\nTHE FACTS she gave — size, never weight: dress size UK 12 (EU 40). Propose what fits these and size every piece to them; never estimate them from a photograph.\nSTYLE DNA — verified styling constraints for this user:\nColour archetype: Soft Autumn (undertone Warm, contrast Low).\nFoundation neutrals: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nStar colours: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nNever style them in: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals: Gold, Bronze, Rose gold (Brushed / Matte); never High-shine Silver, Chrome, Platinum.\nBody architecture: Hourglass. Best dress silhouettes: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Best necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling maxims: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): NAVY, Olive, Camel.\nThe user has personally rejected these colours — never style them in: Mustard.\nSYSTEM DIRECTIVE: The user has a mature digital closet (16 items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above."
+    },
+    {
+      "args": [
+        {
+          "brief": {
+            "colours": {
+              "loved": ["Sage"]
+            }
+          }
+        },
+        0,
+        ["Icon"]
+      ],
+      "output": "STYLE ICONS — the user named these as their taste references: Icon.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): Sage."
     }
-  ]
+  ],
+  "helpers": {
+    "briefList": [
+      {
+        "input": [
+          "Long coats",
+          {
+            "text": "  wide   trousers ",
+            "source": "edited"
+          },
+          "",
+          7
+        ],
+        "output": ["Long coats", "wide trousers"]
+      },
+      {
+        "input": "nope",
+        "output": []
+      },
+      {
+        "input": [
+          {
+            "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        ],
+        "output": [
+          "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ]
+      }
+    ],
+    "briefIsEmpty": [
+      {
+        "input": null,
+        "output": true
+      },
+      {
+        "input": {},
+        "output": true
+      },
+      {
+        "input": {
+          "notes": "  "
+        },
+        "output": true
+      },
+      {
+        "input": {
+          "loves": [
+            "Long coats",
+            {
+              "text": "  wide   trousers ",
+              "source": "edited"
+            },
+            "",
+            7
+          ],
+          "avoids": ["Crop tops"],
+          "rules": [
+            {
+              "text": "Flat shoes on weekdays",
+              "source": "typed"
+            }
+          ],
+          "notes": "I dress for  a long commute.",
+          "colours": {
+            "loved": ["navy", "Camel"],
+            "rejected": ["Mustard"]
+          }
+        },
+        "output": false
+      }
+    ],
+    "factsLines": [
+      {
+        "input": {
+          "height_cm": "170"
+        },
+        "output": [
+          "THE FACTS she gave — size, never weight: height 170 cm. Propose what fits these and size every piece to them; never estimate them from a photograph."
+        ]
+      },
+      {
+        "input": null,
+        "output": []
+      },
+      {
+        "input": {
+          "age_band": " 25–34 "
+        },
+        "output": [
+          "THE FACTS she gave — size, never weight: age 25–34. Propose what fits these and size every piece to them; never estimate them from a photograph."
+        ]
+      }
+    ]
+  }
 }

@@ -141,11 +141,11 @@ function stateDirective(n: number): string {
 // Closet labels are her words: they sit in the system turn by index, as legacy did, but capped.
 const clip = (s: string | null | undefined, n: number) => (s ?? '').slice(0, n);
 
-export function buildSystem(ctx: DailyContext): string {
+export function buildSystem(ctx: DailyContext, heroDirective = HERO_DIRECTIVE): string {
   const closet = ctx.closet.slice(0, 60);
   const n = closet.length;
   const who = ctx.firstName ? `The user's name is ${ctx.firstName.slice(0, 60)}. ` : '';
-  const hero = closet.some((p) => p.hero) ? HERO_DIRECTIVE : '';
+  const hero = closet.some((p) => p.hero) ? heroDirective : '';
   const locked = closet
     .map((p, idx) => ({ p, idx }))
     .filter(({ p }) => ctx.lockedPieceIds?.includes(p.id))

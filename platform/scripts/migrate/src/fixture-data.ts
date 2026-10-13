@@ -14,6 +14,8 @@ export const W = {
 export const L = {
   office: 'bbbbbbbb-0000-4000-8000-000000000001',
   weekend: 'bbbbbbbb-0000-4000-8000-000000000002',
+  suggested: 'bbbbbbbb-0000-4000-8000-000000000003',
+  draft: 'bbbbbbbb-0000-4000-8000-000000000004',
 };
 export const LB = {
   keyPiece: 1720000000001,
@@ -145,11 +147,19 @@ insert into public.looks (id, user_id, name, name_provisional, tags, note, photo
    '${CDN}/office-render.jpg', '2026-08-01'),
   ('${L.weekend}', '${NIALL}', 'Weekend', true, null, null, null, 'something-else', 'year_round', null, '2026-08-02');
 
+-- Legacy migrations 24/25: styling notes on a saved look; suggested/draft looks are not carried.
+update public.looks set styling = ${json({ [W.jeans]: 'cuffed once' })} where id = '${L.office}';
+insert into public.looks (id, user_id, name, tags, source, render_url, status, anchor_piece_id, set_id, set_index, created_at) values
+  ('${L.suggested}', '${NIALL}', 'Suggested', '{Holiday}', 'generated', '${CDN}/suggested-render.jpg', 'suggested',
+   '${W.coat}', '${LB.keyPiece}', 0, '2026-08-03'),
+  ('${L.draft}', '${NIALL}', 'Draft', null, 'manual', null, 'draft', null, null, null, '2026-08-04');
+
 insert into public.look_pieces (look_id, wardrobe_item_id, slot, position, role) values
   ('${L.office}', '${W.jeans}', 'bottom', 0, 'anchor'),
   ('${L.office}', '${W.coat}', 'outer', 1, 'bogus-role'),
   ('${L.weekend}', '${W.shirt}', null, null, null),
-  ('${L.weekend}', '${W.loafers}', null, 1, null);
+  ('${L.weekend}', '${W.loafers}', null, 1, null),
+  ('${L.draft}', '${W.shirt}', null, 0, null);
 
 insert into public.wears (id, look_id, user_id, worn_on, piece_ids, source, source_id) values
   ('dddddddd-0000-4000-8000-000000000001', '${L.office}', '${NIALL}', '2026-09-01', '{${W.jeans},${W.coat}}', 'looks', null),

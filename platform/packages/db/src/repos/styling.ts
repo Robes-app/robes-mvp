@@ -10,13 +10,13 @@ export function stylingRepo(db: Db) {
     async context(userId: UserId) {
       const profile = await db
         .selectFrom('profiles')
-        .select(['firstName', 'genderIdentity', 'styleIcons'])
+        .select(['firstName', 'genderIdentity', 'styleIcons', 'styleArchetypes'])
         .where('id', '=', userId)
         .executeTakeFirst();
       const closet = await db
         .selectFrom('wardrobeItems as w')
         .leftJoin('wardrobeItemStats as s', 's.wardrobeItemId', 'w.id')
-        .select(['w.label', 'w.category', 'w.color', 's.timesWorn'])
+        .select(['w.id', 'w.label', 'w.category', 'w.color', 'w.brand', 's.timesWorn'])
         .where('w.userId', '=', userId)
         .where('w.deletedAt', 'is', null)
         .where('w.status', '=', 'ready')
@@ -41,15 +41,19 @@ export function stylingRepo(db: Db) {
           color_harmony: dna?.colorHarmony ?? null,
           silhouette_proportions: dna?.silhouetteProportions ?? null,
           user_overrides: dna?.userOverrides ?? {},
+          // Her "very me" style types; the prompt block reads them as a register (legacy 2026-09-25).
+          style_archetypes: profile?.styleArchetypes ?? [],
         },
         wardrobeCount: Number(count?.n ?? 0),
         firstName: profile?.firstName ?? null,
         gender: (profile?.genderIdentity ?? 'woman') as 'woman' | 'man' | 'unspecified',
         styleIcons: profile?.styleIcons ?? [],
         closet: closet.map((c) => ({
+          id: c.id,
           label: c.label,
           category: c.category,
           color: c.color,
+          brand: c.brand,
           timesWorn: c.timesWorn ?? 0,
         })),
       };

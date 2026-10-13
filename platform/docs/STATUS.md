@@ -61,6 +61,30 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 - M8 monetisation.
 - Legacy migration tooling: see `migration.md` (rehearsed locally against a fixture, not the real legacy DB).
 
+## Legacy sync 2026-10-13
+
+Legacy `2aef362..origin/beta` (the 2026-10-01 → 10-10 beta work) reviewed against the platform.
+
+**Ported:** the style DNA prompt block (fixtures regenerated from legacy `style_dna.js`; platform feeds
+`style_archetypes` only, since the other inputs aren't stored yet); `style-piece` v2 (itemised pieces per
+way, owned pieces resolved to `pieceId`); `daily`/`travel` v2 (one hero per look, rotated);
+`wardrobe-analyse`/`receipt-read` v2 (the label never carries the brand); legacy migrations 24/25 in
+`scripts/migrate` (saved looks only, see `migration.md`).
+
+**Already equivalent:** the trip-hidden mail rule (notify only reads look-backed plan days), account delete
+(SEC-80). **Legacy-only:** `/settings` redirects, email link paths, the `TRIP_HIDDEN` board-share rule, docs.
+
+**New in legacy, not built here** (rough effort):
+- Refine in her own words on daily/style/travel looks (`refineBlock`, `/api/look/refine`), M.
+- The look prompt: `/api/look/ask` with ASK intents over a draft look, plus per-piece `styled` notes
+  (`looks.styling`) that ride into the avatar render, L.
+- Look states (Suggested → Draft → Saved, `anchor_piece_id`/`set_id`), the keep-or-pass deck and the
+  modular home, L.
+- Style memory (verdicts, swaps, wears, strikes, asks) feeding the DNA block, M–L.
+- Her brief, brands, investment and facts in Settings (`/api/stylenotes/brief`, `/season`), M.
+- Avatar frame mode (re-dress Robes' own frame of a suggested look), S once look states exist.
+- Travel looks re-styled from the case (`held`, refine), M; the platform has no trip looks yet.
+
 ## Flakes to watch
 
 - `wardrobe-ui` wishlist Undo under heavy parallel load (seen once, not reproduced).
