@@ -2,6 +2,9 @@
 // data-model.md §5). Every statement is insert … on conflict do nothing with legacy ids kept or
 // derived deterministically (pg_temp.legacy_uuid), so a second run inserts nothing.
 
+// Only saved looks are carried: suggested/draft rows (legacy migration 25) have no platform state yet.
+export const SAVED_LOOKS = `(select * from legacy.looks where coalesce(status, 'saved') = 'saved')`;
+
 export const UUID_RE = `'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'`;
 
 // Session helpers; pg_temp functions vanish with the connection.
@@ -124,7 +127,7 @@ select w.user_id, 'wear_for', trim(o), trim(o) in ('Everyday','Work','Evening','
 from legacy.wardrobe_items w, unnest(coalesce(w.occasions, '{}'::text[])) o
 union all
 select l.user_id, 'wear_for', trim(o), trim(o) in ('Everyday','Work','Evening','Occasion','Travel','Active'), l.created_at
-from legacy.looks l, unnest(coalesce(l.tags, '{}'::text[])) o`;
+from ${SAVED_LOOKS} l, unnest(coalesce(l.tags, '{}'::text[])) o`;
 
 export const WARDROBE_SQL = `
 insert into app.tags (user_id, kind, label, is_seed, created_at)
@@ -207,8 +210,8 @@ on conflict (id) do nothing;
 `;
 
 export const LOOKS_SQL = `
-${assetsFrom(`select user_id, photo_url as url, created_at from legacy.looks`, 'look_photo')}
-${assetsFrom(`select user_id, render_url as url, created_at from legacy.looks`, 'render')}
+${assetsFrom(`select user_id, photo_url as url, created_at from ${SAVED_LOOKS}`, 'look_photo')}
+${assetsFrom(`select user_id, render_url as url, created_at from ${SAVED_LOOKS}`, 'render')}
 
 insert into app.looks (id, user_id, name, name_provisional, note, photo_asset_id, source, climate_band,
   climate_source, proposals, render_asset_id, render_key, created_at, updated_at)
@@ -222,7 +225,7 @@ select l.id, l.user_id,
   case when jsonb_typeof(l.proposals) = 'array' then l.proposals end,
   ${asset('l.user_id', 'l.render_url')},
   l.render_key, coalesce(l.created_at, now()), coalesce(l.updated_at, l.created_at, now())
-from legacy.looks l
+from ${SAVED_LOOKS} l
 join app.users u on u.id = l.user_id
 on conflict (id) do nothing;
 
@@ -251,7 +254,7 @@ from (
   from legacy.tag_looks tl join legacy.tags lt on lt.id = tl.tag_id
   union all
   select ll.id, ll.user_id, 'wear_for', trim(o), 'inferred'
-  from legacy.looks ll, unnest(coalesce(ll.tags, '{}'::text[])) o
+  from ${SAVED_LOOKS} ll, unnest(coalesce(ll.tags, '{}'::text[])) o
 ) s
 join app.looks l on l.id = s.look_id and l.user_id = s.user_id
 join app.tags t on t.user_id = l.user_id and t.kind = s.kind and t.slug = private.tag_slug(trim(s.label))

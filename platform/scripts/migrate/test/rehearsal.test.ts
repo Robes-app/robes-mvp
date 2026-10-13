@@ -3,7 +3,7 @@ import { assertMigration } from '../src/assert';
 import { LEGACY_CATALOG } from '../src/catalog';
 import { databaseUrl, dropDatabase, recreateDatabase, withClient } from '../src/db';
 import { extract, legacyTableName } from '../src/extract';
-import { NIALL, SHARE_TOKEN } from '../src/fixture-data';
+import { L, NIALL, SHARE_TOKEN } from '../src/fixture-data';
 import { legacyUuid } from '../src/ids';
 import { buildLegacyFixture } from '../src/legacy-fixture';
 import { planRehost } from '../src/rehost';
@@ -71,6 +71,25 @@ describe('legacy → platform rehearsal (docs/migration.md §3)', () => {
       daily_look: { rows: 1, invalid: 0 },
     });
     expect(first.report.warnings.some((w) => w.includes('is_admin'))).toBe(true);
+    expect(first.report.warnings).toContain(
+      '2 suggested/draft looks not carried (only saved looks are)',
+    );
+    expect(first.report.warnings).toContain('1 saved looks have styling notes (not carried)');
+  });
+
+  it('carries saved looks only, and no tags or renders from unsaved ones', async () => {
+    const looks = await one<{ ids: string[] }>(
+      'select array_agg(id::text order by id) as ids from app.looks where user_id = $1',
+      [NIALL],
+    );
+    expect(looks.ids).toEqual([L.office, L.weekend]);
+    const leaks = await one<{ tags: number; assets: number; pieces: number }>(
+      `select (select count(*)::int from app.tags where user_id = $1 and label = 'Holiday') as tags,
+              (select count(*)::int from app.assets where legacy_url like '%suggested-render%') as assets,
+              (select count(*)::int from app.look_pieces where look_id = $2) as pieces`,
+      [NIALL, L.draft],
+    );
+    expect(leaks).toEqual({ tags: 0, assets: 0, pieces: 0 });
   });
 
   it('keeps ids, maps prefs to the contract keys, and holds values to the target checks', async () => {
