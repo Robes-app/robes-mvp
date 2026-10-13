@@ -10,7 +10,7 @@ export function stylingRepo(db: Db) {
     async context(userId: UserId) {
       const profile = await db
         .selectFrom('profiles')
-        .select(['firstName', 'genderIdentity', 'styleIcons'])
+        .select(['firstName', 'genderIdentity', 'styleIcons', 'styleArchetypes'])
         .where('id', '=', userId)
         .executeTakeFirst();
       const closet = await db
@@ -41,6 +41,8 @@ export function stylingRepo(db: Db) {
           color_harmony: dna?.colorHarmony ?? null,
           silhouette_proportions: dna?.silhouetteProportions ?? null,
           user_overrides: dna?.userOverrides ?? {},
+          // Her "very me" style types; the prompt block reads them as a register (legacy 2026-09-25).
+          style_archetypes: profile?.styleArchetypes ?? [],
         },
         wardrobeCount: Number(count?.n ?? 0),
         firstName: profile?.firstName ?? null,

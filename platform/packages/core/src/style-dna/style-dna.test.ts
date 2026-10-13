@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import legacy from './fixtures/legacy.json' with { type: 'json' };
 import {
   BODIES,
+  briefIsEmpty,
+  briefList,
   buildColorHarmony,
   buildSilhouette,
   classifyBody,
   classifySeason,
+  factsLines,
   SEASONS,
   styleDnaPromptBlock,
 } from './index';
@@ -32,6 +35,15 @@ describe('style DNA matches legacy', () => {
   it.each(legacy.prompts)('styleDnaPromptBlock %#', ({ args, output }) => {
     const [dna, count, icons] = args as [unknown, number, unknown];
     expect(styleDnaPromptBlock(dna, count, icons)).toBe(output);
+  });
+
+  it('brief and facts helpers', () => {
+    for (const { input, output } of legacy.helpers.briefList)
+      expect(briefList(input)).toEqual(output);
+    for (const { input, output } of legacy.helpers.briefIsEmpty)
+      expect(briefIsEmpty(input)).toBe(output);
+    for (const { input, output } of legacy.helpers.factsLines)
+      expect(factsLines(input)).toEqual(output);
   });
 });
 
@@ -66,5 +78,23 @@ describe('style DNA hardening', () => {
     expect(block).toContain('Colour archetype: Soft Autumn');
     expect(block).not.toContain('Foundation neutrals');
     expect(block).toContain('Best necklines: .');
+  });
+});
+
+describe('style DNA hardening (2026-10-13 fields)', () => {
+  it('drops malformed brief, memory and facts instead of throwing', () => {
+    const block = styleDnaPromptBlock(
+      {
+        brief: 'nope',
+        memory: { entries: 'nope' },
+        facts: [],
+        spend: 'x',
+        investment: 3,
+        brands: 'Toteme',
+      },
+      0,
+      [],
+    );
+    expect(block).toBe('');
   });
 });
