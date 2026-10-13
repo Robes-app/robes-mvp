@@ -138,14 +138,19 @@ export function shortlistIndexes(ctx: TravelContext): number[] {
   return ctx.shortlistIds.map((id) => closet.findIndex((p) => p.id === id)).filter((i) => i >= 0);
 }
 
-export function buildSystem(ctx: TravelContext, trip: TripBrief, correctiveNote?: string): string {
+export function buildSystem(
+  ctx: TravelContext,
+  trip: TripBrief,
+  correctiveNote?: string,
+  heroDirective = HERO_DIRECTIVE,
+): string {
   const closet = ctx.closet.slice(0, 60);
   const n = closet.length;
   const short = shortlistIndexes(ctx);
   const p = tripParams(trip, short.length);
   const who = ctx.firstName ? `The user's name is ${ctx.firstName.slice(0, 60)}. ` : '';
   const dna = styleDnaPromptBlock(ctx.styleDna, n, ctx.styleIcons);
-  const hero = closet.some((c) => c.hero) ? HERO_DIRECTIVE : '';
+  const hero = closet.some((c) => c.hero) ? heroDirective : '';
   const state = short.length ? '' : stateDirective(n);
   const closetBlock = n
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by wardrobe_index):\n${closet
