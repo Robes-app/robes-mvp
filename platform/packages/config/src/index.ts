@@ -203,12 +203,13 @@ export const appServerEnv = z
     // Cloudflare Turnstile on the public waitlist (SEC-60); optional in dev only.
     TURNSTILE_SECRET_KEY: optionalSecret,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
-    AWS_REGION: z
+    // The API user's keys (CDK IdentityStack). ROBES_-prefixed: Vercel reserves the AWS_* names.
+    ROBES_AWS_REGION: z
       .string()
       .regex(/^[a-z]{2}-[a-z]+-\d$/)
       .optional(),
-    AWS_ACCESS_KEY_ID: optionalSecret,
-    AWS_SECRET_ACCESS_KEY: optionalSecret,
+    ROBES_AWS_ACCESS_KEY_ID: optionalSecret,
+    ROBES_AWS_SECRET_ACCESS_KEY: optionalSecret,
     MIN_APP_VERSION: z
       .string()
       .regex(/^\d+(\.\d+)*$/)
@@ -246,7 +247,11 @@ export const appServerEnv = z
       });
     }
     if (deployed) {
-      for (const key of ['AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'] as const) {
+      for (const key of [
+        'ROBES_AWS_REGION',
+        'ROBES_AWS_ACCESS_KEY_ID',
+        'ROBES_AWS_SECRET_ACCESS_KEY',
+      ] as const) {
         if (!env[key])
           ctx.addIssue({ code: 'custom', path: [key], message: 'required outside dev' });
       }
@@ -314,30 +319,49 @@ export const appServerEnv = z
       }
     }
   })
-  .transform((env) => ({
-    ...env,
-    mail:
-      env.APP_ENV === 'dev'
-        ? { transport: 'smtp' as const, url: env.SMTP_URL ?? '', from: env.MAIL_FROM }
-        : {
-            transport: 'ses' as const,
-            region: env.AWS_REGION ?? '',
-            from: env.MAIL_FROM,
-            configurationSet: env.SES_CONFIGURATION_SET,
-          },
-    authTrustedOrigins: [
-      new URL(env.BETTER_AUTH_URL).origin,
-      ...(env.AUTH_TRUSTED_ORIGINS?.split(',')
-        .map((o) => o.trim())
-        .filter(Boolean) ?? []),
-    ],
-    media: mediaConfig(env),
-    observability: observabilityConfig(env),
-    turnstile:
-      env.TURNSTILE_SECRET_KEY && env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
-        ? { siteKey: env.NEXT_PUBLIC_TURNSTILE_SITE_KEY, secretKey: env.TURNSTILE_SECRET_KEY }
-        : null,
-  }));
+  .transform((env) => {
+    const aws =
+      env.ROBES_AWS_ACCESS_KEY_ID && env.ROBES_AWS_SECRET_ACCESS_KEY
+        ? {
+            region: env.ROBES_AWS_REGION ?? 'eu-west-1',
+            credentials: {
+              accessKeyId: env.ROBES_AWS_ACCESS_KEY_ID,
+              secretAccessKey: env.ROBES_AWS_SECRET_ACCESS_KEY,
+            },
+          }
+        : null;
+    const media = mediaConfig(env);
+    return {
+      ...env,
+      // Every AWS client in the API (SES, S3, SQS) uses these explicitly; null in dev.
+      aws,
+      mail:
+        env.APP_ENV === 'dev'
+          ? { transport: 'smtp' as const, url: env.SMTP_URL ?? '', from: env.MAIL_FROM }
+          : {
+              transport: 'ses' as const,
+              region: env.ROBES_AWS_REGION ?? '',
+              from: env.MAIL_FROM,
+              configurationSet: env.SES_CONFIGURATION_SET,
+              credentials: aws?.credentials,
+            },
+      authTrustedOrigins: [
+        new URL(env.BETTER_AUTH_URL).origin,
+        ...(env.AUTH_TRUSTED_ORIGINS?.split(',')
+          .map((o) => o.trim())
+          .filter(Boolean) ?? []),
+      ],
+      media: {
+        ...media,
+        s3: { ...media.s3, credentials: media.s3.credentials ?? aws?.credentials },
+      },
+      observability: observabilityConfig(env),
+      turnstile:
+        env.TURNSTILE_SECRET_KEY && env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+          ? { siteKey: env.NEXT_PUBLIC_TURNSTILE_SITE_KEY, secretKey: env.TURNSTILE_SECRET_KEY }
+          : null,
+    };
+  });
 
 export type AppServerEnv = z.infer<typeof appServerEnv>;
 

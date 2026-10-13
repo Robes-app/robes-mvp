@@ -115,7 +115,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | §3; private key sensitive |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | §3; secret sensitive |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | token sensitive |
-| `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `eu-west-1`; keys of `robes-<env>-api` from Secrets Manager (step 8); secret key sensitive |
+| `ROBES_AWS_REGION`, `ROBES_AWS_ACCESS_KEY_ID`, `ROBES_AWS_SECRET_ACCESS_KEY` | `eu-west-1`; keys of `robes-<env>-api` from Secrets Manager (step 8); secret key sensitive. `ROBES_`-prefixed because Vercel reserves `AWS_*` names; the API passes them to its SES, S3 and SQS clients explicitly |
 | `JOBS_INTERACTIVE_QUEUE_URL`, `JOBS_BATCH_QUEUE_URL`, `FETCH_QUEUE_URL` | Queues stack. Without `FETCH_QUEUE_URL` deployed link imports return `disabled` (the API never fetches user URLs itself) |
 | `MEDIA_BUCKET`, `MEDIA_S3_REGION` | `robes-<env>-media`, `eu-west-1`. Uploads are presigned with the `AWS_ROLE_ARN` role; never set `MEDIA_S3_ACCESS_KEY_ID`/`MEDIA_S3_SECRET_ACCESS_KEY` outside dev (config refuses them) |
 | `MEDIA_PUBLIC_ORIGIN` | CloudFront origin, e.g. `https://media.byrobes.com` (https required). Added to CSP `img-src`/`connect-src`; the bucket's regional S3 origin is added to `connect-src` for browser PUTs |
@@ -141,7 +141,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
    aws secretsmanager get-secret-value --secret-id robes-<env>/api/aws-access-key \
      --query SecretString --output text | jq -r .secretAccessKey | pbcopy
    ```
-   Set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (Sensitive) and `AWS_REGION=eu-west-1` for the environment, clear the clipboard, and redeploy. The user can only enqueue jobs, PUT/GET `uploads/*`, send SES mail from the stage domain and read the CloudFront signing key; denied calls page `robes-<env>-alerts` (EventBridge rule on CloudTrail, which needs the org trail from §4 step 2). Rotate every 90 days (`key-rotation.md`).
+   Set `ROBES_AWS_ACCESS_KEY_ID`, `ROBES_AWS_SECRET_ACCESS_KEY` (Sensitive) and `ROBES_AWS_REGION=eu-west-1` for the environment, clear the clipboard, and redeploy. The user can only enqueue jobs, PUT/GET `uploads/*`, send SES mail from the stage domain and read the CloudFront signing key; denied calls page `robes-<env>-alerts` (EventBridge rule on CloudTrail, which needs the org trail from §4 step 2). Rotate every 90 days (`key-rotation.md`).
 
 Local dev (`app/.env.example`) uses MinIO instead: `MEDIA_S3_ENDPOINT=http://localhost:59000` plus the MinIO root credentials, no CloudFront variables (images are presigned MinIO GETs). `pnpm media:setup` creates the buckets.
 

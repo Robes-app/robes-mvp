@@ -10,13 +10,13 @@ import {
 } from '@robes/jobs';
 import { after } from 'next/server';
 import { repos } from './db';
-import { env } from './env';
+import { env, sqsClient } from './env';
 import { logger } from './logger';
 
 // SQS when configured; otherwise run in this process after the response (dev, or staging with
 // JOBS_TRANSPORT_INLINE). The inline runner is loaded lazily so deployed builds never touch it.
 const transport: JobTransport = env.JOBS_INTERACTIVE_QUEUE_URL
-  ? createSqsTransport({ queueUrl: env.JOBS_INTERACTIVE_QUEUE_URL })
+  ? createSqsTransport({ queueUrl: env.JOBS_INTERACTIVE_QUEUE_URL, client: sqsClient() })
   : createInlineTransport({
       run: async (jobId) => (await import('./inline-worker')).runInline(jobId),
       schedule: after,

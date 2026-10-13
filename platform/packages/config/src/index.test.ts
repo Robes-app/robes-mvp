@@ -14,9 +14,9 @@ const base = {
   INBOUND_MAIL_DOMAIN: 'in.staging.mail.byrobes.com',
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'turnstile-site',
   BETTER_AUTH_URL: 'https://staging.byrobes.com',
-  AWS_REGION: 'eu-west-1',
-  AWS_ACCESS_KEY_ID: 'AKIAEXAMPLE',
-  AWS_SECRET_ACCESS_KEY: 'secret-value',
+  ROBES_AWS_REGION: 'eu-west-1',
+  ROBES_AWS_ACCESS_KEY_ID: 'AKIAEXAMPLE',
+  ROBES_AWS_SECRET_ACCESS_KEY: 'secret-value',
   JOBS_INTERACTIVE_QUEUE_URL:
     'https://sqs.eu-west-1.amazonaws.com/123456789012/robes-staging-jobs-interactive',
   UPSTASH_REDIS_REST_URL: 'https://example.upstash.io',
@@ -39,8 +39,8 @@ function devEnv(overrides: Record<string, string | undefined> = {}) {
   const {
     UPSTASH_REDIS_REST_URL: _u,
     UPSTASH_REDIS_REST_TOKEN: _t,
-    AWS_ACCESS_KEY_ID: _ak,
-    AWS_SECRET_ACCESS_KEY: _as,
+    ROBES_AWS_ACCESS_KEY_ID: _ak,
+    ROBES_AWS_SECRET_ACCESS_KEY: _as,
     JOBS_INTERACTIVE_QUEUE_URL: _q,
     MEDIA_PUBLIC_ORIGIN: _o,
     MEDIA_CLOUDFRONT_KEY_PAIR_ID: _k,
@@ -87,8 +87,8 @@ describe('parseEnv(appServerEnv)', () => {
   });
 
   it('requires SES credentials outside dev and sends via SES there; Upstash is optional but paired', () => {
-    const { AWS_ACCESS_KEY_ID: _k, ...rest } = base;
-    expect(() => parseEnv(appServerEnv, rest)).toThrow(/AWS_ACCESS_KEY_ID/);
+    const { ROBES_AWS_ACCESS_KEY_ID: _k, ...rest } = base;
+    expect(() => parseEnv(appServerEnv, rest)).toThrow(/ROBES_AWS_ACCESS_KEY_ID/);
     const { UPSTASH_REDIS_REST_URL: _u, UPSTASH_REDIS_REST_TOKEN: _t, ...noRedis } = base;
     expect(() => parseEnv(appServerEnv, noRedis)).not.toThrow();
     const { UPSTASH_REDIS_REST_TOKEN: _only, ...halfRedis } = base;
@@ -159,7 +159,8 @@ describe('media env', () => {
       bucket: 'robes-staging-media',
       region: 'eu-west-1',
       endpoint: undefined,
-      credentials: undefined,
+      // The API user's keys: Vercel has no instance role.
+      credentials: { accessKeyId: 'AKIAEXAMPLE', secretAccessKey: 'secret-value' },
     });
     expect(media.deliveryOrigin).toBe('https://media.staging.byrobes.com');
     expect(media.uploadOrigin).toBe('https://robes-staging-media.s3.eu-west-1.amazonaws.com');
@@ -360,5 +361,13 @@ describe('parseEnv(workerEnv)', () => {
 
   it('treats empty values as unset', () => {
     expect(parseEnv(appServerEnv, { ...base, GEMINI_API_KEY: '' }).GEMINI_API_KEY).toBeUndefined();
+  });
+
+  it('hands the API user keys to every AWS client (SES, S3) when deployed', () => {
+    const env = parseEnv(appServerEnv, base);
+    const credentials = { accessKeyId: 'AKIAEXAMPLE', secretAccessKey: 'secret-value' };
+    expect(env.aws).toEqual({ region: 'eu-west-1', credentials });
+    expect(env.mail).toMatchObject({ transport: 'ses', credentials });
+    expect(env.media.s3.credentials).toEqual(credentials);
   });
 });

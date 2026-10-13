@@ -17,7 +17,14 @@ export interface Mailer {
 // SES in deployed environments (ADR-021); SMTP to the local mail catcher in dev.
 export type MailerConfig =
   | { transport: 'smtp'; url: string; from: string }
-  | { transport: 'ses'; region: string; from: string; configurationSet?: string | undefined }
+  | {
+      transport: 'ses';
+      region: string;
+      from: string;
+      configurationSet?: string | undefined;
+      // Explicit keys (the Vercel API); omitted in Lambda, which uses its role.
+      credentials?: { accessKeyId: string; secretAccessKey: string } | undefined;
+    }
   | { transport: 'memory'; from: string };
 
 // Test double that records mail instead of sending it.
@@ -42,8 +49,16 @@ function createSmtpMailer(url: string, from: string): Mailer {
 
 // Credentials come from the standard AWS chain (env access keys on Vercel, the role in Lambda).
 export function createSesMailer(
-  config: { region: string; from: string; configurationSet?: string | undefined },
-  client: Pick<SESv2Client, 'send'> = new SESv2Client({ region: config.region }),
+  config: {
+    region: string;
+    from: string;
+    configurationSet?: string | undefined;
+    credentials?: { accessKeyId: string; secretAccessKey: string } | undefined;
+  },
+  client: Pick<SESv2Client, 'send'> = new SESv2Client({
+    region: config.region,
+    ...(config.credentials ? { credentials: config.credentials } : {}),
+  }),
 ): Mailer {
   return {
     async send(email) {
