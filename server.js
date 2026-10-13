@@ -3164,6 +3164,66 @@ const ANALYSE_SCHEMA = {
   required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'formality', 'price', 'currency', 'size', 'ai_generated_notes'],
 };
 
+// The per-piece field rules, shared by the single read (/api/wardrobe/analyse)
+// and the multi-piece read (/api/wardrobe/pieces, 2026-10-13) — one text, so
+// the two can never drift on how a label, a colour or a size is read.
+const ANALYSE_FIELD_RULES = () => `"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans") — never the brand; the brand goes in "brand" alone ("Ballet sneakers", not "Miu Miu ballet sneakers")
+"category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
+"formality": how dressed up the piece is — casual (jeans, tees, trainers), smart (tailoring, a silk shirt, a loafer), formal (cocktail dress, a tuxedo blazer, an evening shoe), black_tie (a gown, a dinner suit). Judge the GARMENT, not how it happens to be styled in the photo.
+"category_l2" and "category_l3": file the piece in the Robes taxonomy below. Each line reads Category › Subcategory: item types. Pick the ONE line whose subcategory fits best, copy the subcategory name EXACTLY into category_l2, then copy the best-fitting item type from that line EXACTLY into category_l3. If no item type on the line fits, set category_l3 to "". If no subcategory fits at all, set both to "".
+TAXONOMY:
+${taxonomyPromptBlock()}
+"color": pick ONE from this list only —
+  Foundations: White, Cream, Navy, Charcoal, Black, Espresso
+  Dimension Builders: Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush
+  Exclamation Points: Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid
+  Multi-pattern: Print
+"primary_color_hex": hex code of the dominant color (e.g. "#D2B48C")
+"editorial_color_name": evocative color name (e.g. "Warm Caramel", "Washed Slate")
+"brand": brand if visible, else ""
+"silhouette_fit": array of 2-4 short descriptors (e.g. ["Blazer", "Single-breasted", "Relaxed"])
+"price": ONLY if a price is legibly printed in the photo (a swing tag, a receipt), digits only, else ""
+"currency": the ISO code of that printed price (EUR, GBP, USD…), else ""
+"size": ONLY if a size is legibly printed in the photo (a care label, a swing tag — "S", "38", "UK 10"), else ""
+"ai_generated_notes": one editorial sentence under 15 words`;
+
+// One analysed piece → the response shape every consumer reads (the add
+// flow, the quiet file, the receipt review, the look read). The taxonomy
+// pair is validated against the tree, and a valid pair DECIDES the legacy
+// category (the deterministic fold) so the two can never disagree.
+function analysedPiece(parsed) {
+  parsed = parsed || {};
+  const tax = resolveTaxonomy(parsed.category_l2, parsed.category_l3);
+  const item_dna = {
+    display: {
+      title: parsed.label || '',
+      editorial_color_name: parsed.editorial_color_name || '',
+      primary_color_hex: parsed.primary_color_hex || '',
+      brand_raw: parsed.brand || '',
+    },
+    structural_dna: {
+      silhouette_fit: Array.isArray(parsed.silhouette_fit) ? parsed.silhouette_fit : [],
+    },
+    formality: ['casual', 'smart', 'formal', 'black_tie'].includes(parsed.formality) ? parsed.formality : '',
+    llm_styling_context: {},
+    ai_generated_notes: parsed.ai_generated_notes || '',
+  };
+  return {
+    label: String(parsed.label || '').trim().slice(0, 120),
+    category: tax ? tax.category : (parsed.category || 'Other'),
+    category_l2: tax ? tax.category_l2 : null,
+    category_l3: tax ? tax.category_l3 : null,
+    color: parsed.color || '',
+    brand: parsed.brand || '',
+    price: (() => { const n = parseFloat(String(parsed.price || '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; })(),
+    currency: String(parsed.currency || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || null,
+    size: String(parsed.size || '').trim().slice(0, 40) || null,
+    notes: parsed.ai_generated_notes || '',
+    item_dna,
+  };
+}
+const EMPTY_PIECE = () => ({ label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } });
+
 // The full taxonomy tree for the client's Category / Subcategory / Item type
 // selects — served rather than duplicated client-side so wardrobe_taxonomy.js
 // stays the single source of truth.
@@ -3192,25 +3252,7 @@ app.post('/api/wardrobe/analyse', async (req, res) => {
 IMPORTANT: If no clothing item, garment, or accessory is clearly visible (e.g. the photo shows a face, a room, a screenshot, or unidentifiable content), set "no_item_detected": true and return all other fields as empty strings or empty arrays.
 
 If a clothing item IS present, set "no_item_detected": false and fill every field:
-"label": concise item name (e.g. "Camel wool coat", "Grey straight-leg jeans") — never the brand; the brand goes in "brand" alone ("Ballet sneakers", not "Miu Miu ballet sneakers")
-"category": one of — Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other
-"formality": how dressed up the piece is — casual (jeans, tees, trainers), smart (tailoring, a silk shirt, a loafer), formal (cocktail dress, a tuxedo blazer, an evening shoe), black_tie (a gown, a dinner suit). Judge the GARMENT, not how it happens to be styled in the photo.
-"category_l2" and "category_l3": file the piece in the Robes taxonomy below. Each line reads Category › Subcategory: item types. Pick the ONE line whose subcategory fits best, copy the subcategory name EXACTLY into category_l2, then copy the best-fitting item type from that line EXACTLY into category_l3. If no item type on the line fits, set category_l3 to "". If no subcategory fits at all, set both to "".
-TAXONOMY:
-${taxonomyPromptBlock()}
-"color": pick ONE from this list only —
-  Foundations: White, Cream, Navy, Charcoal, Black, Espresso
-  Dimension Builders: Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush
-  Exclamation Points: Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid
-  Multi-pattern: Print
-"primary_color_hex": hex code of the dominant color (e.g. "#D2B48C")
-"editorial_color_name": evocative color name (e.g. "Warm Caramel", "Washed Slate")
-"brand": brand if visible, else ""
-"silhouette_fit": array of 2-4 short descriptors (e.g. ["Blazer", "Single-breasted", "Relaxed"])
-"price": ONLY if a price is legibly printed in the photo (a swing tag, a receipt), digits only, else ""
-"currency": the ISO code of that printed price (EUR, GBP, USD…), else ""
-"size": ONLY if a size is legibly printed in the photo (a care label, a swing tag — "S", "38", "UK 10"), else ""
-"ai_generated_notes": one editorial sentence under 15 words` }
+${ANALYSE_FIELD_RULES()}` }
         ]
       }],
       config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 760, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
@@ -3221,51 +3263,112 @@ ${taxonomyPromptBlock()}
     logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, no_item_detected: parsed.no_item_detected, success: true });
 
     if (parsed.no_item_detected) {
-      return res.json({ noItemDetected: true, label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } });
+      return res.json(Object.assign({ noItemDetected: true }, EMPTY_PIECE()));
     }
 
-    // 3-level taxonomy: validate the emitted (l2, l3) pair against the tree.
-    // A valid pair also DECIDES the legacy category (the deterministic fold in
-    // wardrobe_taxonomy.js) so `category` and `category_l2` can never disagree
-    // on a surface that filters both; an invalid pair degrades to the model's
-    // own single-level category with null L2/L3 — the pre-migration shape.
-    const tax = resolveTaxonomy(parsed.category_l2, parsed.category_l3);
-
-    const item_dna = {
-      display: {
-        title: parsed.label || '',
-        editorial_color_name: parsed.editorial_color_name || '',
-        primary_color_hex: parsed.primary_color_hex || '',
-        brand_raw: parsed.brand || '',
-      },
-      structural_dna: {
-        silhouette_fit: Array.isArray(parsed.silhouette_fit) ? parsed.silhouette_fit : [],
-      },
-      // Top-level sibling, not inside structural_dna: formality is a property
-      // of the garment's register, not its cut, and the styling prompts read
-      // it on its own. '' when the model gave nothing usable.
-      formality: ['casual', 'smart', 'formal', 'black_tie'].includes(parsed.formality) ? parsed.formality : '',
-      llm_styling_context: {},
-      ai_generated_notes: parsed.ai_generated_notes || '',
-    };
-
-    res.json({
-      label: parsed.label || '',
-      category: tax ? tax.category : (parsed.category || 'Other'),
-      category_l2: tax ? tax.category_l2 : null,
-      category_l3: tax ? tax.category_l3 : null,
-      color: parsed.color || '',
-      brand: parsed.brand || '',
-      price: (() => { const n = parseFloat(String(parsed.price || '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; })(),
-      currency: String(parsed.currency || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || null,
-      size: String(parsed.size || '').trim().slice(0, 40) || null,
-      notes: parsed.ai_generated_notes || '',
-      item_dna,
-    });
+    res.json(analysedPiece(parsed));
   } catch (err) {
     logAI({ feature: 'wardrobe_analyse', ms: Date.now() - t0, success: false, reason: err.message });
     console.error('[analyse] Gemini error:', err.message);
-    res.json({ analysisFailed: true, label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } });
+    res.json(Object.assign({ analysisFailed: true }, EMPTY_PIECE()));
+  }
+});
+
+
+// ── Several pieces from ONE photograph (2026-10-13) ───────────────────────
+// Use case 2b (a look from a photo: every garment, shoe, bag and accessory
+// she is wearing, each matched against her rack) and use case 3 (several
+// pieces to the wardrobe from one photo, each filed on its own). The same
+// field rules as the single read, one entry per piece, a normalised box
+// per piece so the client can pin a numbered tag on the photo and cut the
+// piece's own crop, and a wardrobe match read against the numbered list
+// the client sends — never a guess at a piece it was not given.
+const PIECE_BOX_SCHEMA = { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' }, w: { type: 'number' }, h: { type: 'number' } }, required: ['x', 'y', 'w', 'h'] };
+const PIECES_SCHEMA = {
+  type: 'object',
+  properties: {
+    no_item_detected: { type: 'boolean' },
+    pieces: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: Object.assign({}, (({ no_item_detected, ...rest }) => rest)(ANALYSE_SCHEMA.properties), {
+          box: PIECE_BOX_SCHEMA,
+          wardrobe_index: { type: 'integer' },
+          match_confidence: { type: 'number' },
+        }),
+        required: ANALYSE_SCHEMA.required.filter(k => k !== 'no_item_detected').concat(['box', 'wardrobe_index', 'match_confidence']),
+      },
+    },
+  },
+  required: ['no_item_detected', 'pieces'],
+};
+const PIECES_MAX = 8;
+function clamp01(v) { const n = Number(v); return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0; }
+app.post('/api/wardrobe/pieces', rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) => {
+  const { data, mimeType } = req.body || {};
+  if (!data || !mimeType) return res.status(400).json({ error: 'Missing data or mimeType' });
+  const wardrobe = (Array.isArray(req.body.wardrobeItems) ? req.body.wardrobeItems : [])
+    .filter(w => w && w.label).slice(0, 80)
+    .map(w => ({ id: w.id, label: String(w.label).slice(0, 80), category: String(w.category || '').slice(0, 40), color: String(w.color || '').slice(0, 30), brand: String(w.brand || '').slice(0, 40), image_url: typeof w.image_url === 'string' ? w.image_url : null }));
+  const closet = wardrobe.length
+    ? 'HER WARDROBE, numbered — the pieces she already owns:\n' + wardrobe.map((w, i) => `[${i}] ${w.label}${w.category ? ' · ' + w.category : ''}${w.color ? ' · ' + w.color : ''}${w.brand ? ' · ' + w.brand : ''}`).join('\n') +
+      '\nFor each piece in the photo, "wardrobe_index" is the number of the owned piece it very likely IS — same kind of garment, same colour, a brand that agrees when one shows — else -1. "match_confidence" is how sure you are, 0 to 1. Never match a piece to a different kind of garment or a different colour.'
+    : 'She has no pieces filed yet: "wardrobe_index" is -1 and "match_confidence" 0 for every piece.';
+  const t0 = Date.now();
+  try {
+    const call = ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType, data } },
+          { text: `You are a fashion intelligence engine for a luxury wardrobe app. Find EVERY distinct clothing piece in this photo — each garment, each pair of shoes, each bag, each accessory — whether worn together on one person, laid flat, or hung side by side. One entry per physical piece: a pair of shoes is one piece, a two-piece set is two pieces. Ignore the person, the room and anything that is not a piece she could file in a wardrobe. At most ${PIECES_MAX} pieces, the most prominent first. A photo of ONE piece returns one entry.
+
+IMPORTANT: If no clothing item, garment, or accessory is clearly visible (e.g. the photo shows a face, a room, a screenshot, or unidentifiable content), set "no_item_detected": true and return an empty "pieces" array.
+
+For each piece fill every field:
+${ANALYSE_FIELD_RULES()}
+"box": where THIS piece sits in the photo, as fractions of the image's width and height — "x" and "y" the top-left corner, "w" and "h" the size, all between 0 and 1. Tight around the piece, not the whole figure.
+
+${closet}` }
+        ]
+      }],
+      config: { responseMimeType: 'application/json', responseSchema: PIECES_SCHEMA, maxOutputTokens: 4200, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+    });
+    const result = await Promise.race([call, new Promise((_, rej) => setTimeout(() => rej(new Error('pieces_timeout')), 70_000))]);
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const parsed = deEscDeep(JSON.parse(text));
+    const seen = new Set();
+    const pieces = (parsed.no_item_detected ? [] : (Array.isArray(parsed.pieces) ? parsed.pieces : []))
+      .map(raw => {
+        const p = analysedPiece(raw);
+        if (!p.label) return null;
+        const key = (p.label + '|' + p.category).toLowerCase();
+        if (seen.has(key)) return null;
+        seen.add(key);
+        const bx = raw && raw.box && typeof raw.box === 'object' ? raw.box : {};
+        let x = clamp01(bx.x), y = clamp01(bx.y), w = clamp01(bx.w), h = clamp01(bx.h);
+        if (x + w > 1) w = 1 - x;
+        if (y + h > 1) h = 1 - y;
+        // A box the model could not place reads as the whole frame — the
+        // crop is then the photo itself, which is honest.
+        if (w < 0.02 || h < 0.02) { x = 0; y = 0; w = 1; h = 1; }
+        const wi = Number.isInteger(raw.wardrobe_index) ? raw.wardrobe_index : -1;
+        const m = wi >= 0 && wi < wardrobe.length ? wardrobe[wi] : null;
+        p.box = { x, y, w, h };
+        p.wardrobe_match = m ? { id: m.id, label: m.label, image_url: m.image_url, color: m.color } : null;
+        p.match_confidence = m ? clamp01(raw.match_confidence) : 0;
+        return p;
+      })
+      .filter(Boolean)
+      .slice(0, PIECES_MAX);
+    logAI({ feature: 'wardrobe_pieces', ms: Date.now() - t0, pieces: pieces.length, matched: pieces.filter(p => p.wardrobe_match).length, success: true });
+    res.json({ noItemDetected: !!parsed.no_item_detected || !pieces.length, pieces });
+  } catch (err) {
+    logAI({ feature: 'wardrobe_pieces', ms: Date.now() - t0, success: false, reason: err.message });
+    console.error('[pieces] Gemini error:', err.message);
+    res.json({ analysisFailed: true, pieces: [] });
   }
 });
 

@@ -164,6 +164,14 @@ async function boot(browser, tagBody, opts = {}) {
     await new Promise((res) => setTimeout(res, 600));
     return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tagBody) });
   });
+  // The multi-piece read (2026-10-13) runs first on every photo; one piece
+  // lands on the confirm screen exactly as the single read did. opts.pieces
+  // answers several; the default answers the one tag.
+  await page.route('**/api/wardrobe/pieces', async (r) => {
+    await new Promise((res) => setTimeout(res, 300));
+    const pieces = opts.pieces || [Object.assign({ box: { x: 0, y: 0, w: 1, h: 1 }, wardrobe_match: null, match_confidence: 0 }, tagBody)];
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ noItemDetected: !pieces.length, pieces }) });
+  });
   await page.route('**/api/wardrobe/read-url', async (r) => {
     urlReads.push(JSON.parse(r.request().postData() || '{}'));
     await new Promise((res) => setTimeout(res, 300));
