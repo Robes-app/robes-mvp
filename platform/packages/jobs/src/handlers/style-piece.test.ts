@@ -52,6 +52,37 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fakeOutput('
 }
 
 describe('key_piece handler (style a piece)', () => {
+  it('stores each way itemised, resolving a piece she owns by its closet number (v2)', async () => {
+    const owned = {
+      id: PIECE,
+      label: 'Camel coat',
+      category: 'Outerwear',
+      color: 'Camel',
+      brand: 'Max Mara',
+      timesWorn: 1,
+    };
+    const output = fakeOutput('Camel coat');
+    const first = output.ways[0];
+    if (first?.pieces[1]) first.pieces[1] = { ...first.pieces[1], wardrobe_index: 0 };
+    const { run, styling } = setup(createFakeProvider({ 'looks.style_piece': () => output }));
+    styling.context.mockResolvedValueOnce({
+      firstName: 'Niall',
+      gender: 'woman',
+      styleIcons: [],
+      closet: [owned] as never,
+      styleDna: {},
+      wardrobeCount: 1,
+    });
+    await run();
+    const data = (styling.createIdea.mock.calls[0] as unknown[] | undefined)?.[1] as {
+      data: {
+        ways: { pieces: { pieceId: string | null; brand: string; colorHex: string | null }[] }[];
+      };
+    };
+    expect(data.data.ways[0]?.pieces[1]).toMatchObject({ pieceId: PIECE, brand: 'Max Mara' });
+    expect(data.data.ways[0]?.pieces[0]).toMatchObject({ pieceId: null, colorHex: '#F2EADB' });
+  });
+
   it('writes the looks first, then only the hero frame; the others wait until she asks', async () => {
     const { run, styling, storage, onGenerated, writeStage } = setup();
     await expect(run()).resolves.toEqual({

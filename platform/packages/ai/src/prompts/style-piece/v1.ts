@@ -28,6 +28,9 @@ export const Output = z.object({
 export type Output = z.infer<typeof Output>;
 
 export interface ClosetPiece {
+  // Present from v2: lets an itemised piece point back at the exact owned piece.
+  id?: string;
+  brand?: string | null;
   label: string;
   category: string | null;
   color: string | null;
@@ -48,11 +51,11 @@ const FORMULA = `Every look follows the four-tier layer formula: 1) THE ANCHOR �
 
 STYLING SANITY CHECK: every styling move must be something a respected stylist would actually shoot on the street — honour the key piece's natural register. Sporty and athletic pieces stay in an elevated-casual register: never belt knitwear or cardigans over athletic shorts, never force waist-cinching or hourglass tricks onto a sporty silhouette, never layer formal tailoring over gym wear. If a styling trick needs explaining to look intentional, drop it: effortless always beats clever.`;
 
-const BRIEF = `When given a key fashion piece, you create three distinct, wearable looks around it — each with a clear occasion and mood. Your descriptions are specific: you name real item types, describe drape and texture, and explain why each pairing works.`;
+export const BRIEF = `When given a key fashion piece, you create three distinct, wearable looks around it — each with a clear occasion and mood. Your descriptions are specific: you name real item types, describe drape and texture, and explain why each pairing works.`;
 
-const FALLBACK_RULE = `IMPORTANT: You must set "fallback": true if ANY of these apply — the input is gibberish or random characters; no specific clothing item, garment, or accessory can be identified; the request is too vague to style (e.g. just a colour, a single generic word, or a non-fashion concept). When fallback is true, style a ${FALLBACK_PIECE} instead. Only set "fallback": false when a real, nameable fashion piece is clearly present.`;
+export const FALLBACK_RULE = `IMPORTANT: You must set "fallback": true if ANY of these apply — the input is gibberish or random characters; no specific clothing item, garment, or accessory can be identified; the request is too vague to style (e.g. just a colour, a single generic word, or a non-fashion concept). When fallback is true, style a ${FALLBACK_PIECE} instead. Only set "fallback": false when a real, nameable fashion piece is clearly present.`;
 
-function genderBlock(g: Gender): string {
+export function genderBlock(g: Gender): string {
   if (g === 'man') {
     return 'The user identifies as a man. Every piece, look and recommendation must be menswear — male cuts, sizing and styling codes, menswear brands and male style references throughout. Never suggest womenswear. Where these instructions use "she"/"her" generically, they refer to this male client — read them as "he"/"him".';
   }
@@ -62,7 +65,7 @@ function genderBlock(g: Gender): string {
   return 'Your user is a stylish, fashion-forward woman — unless the input clearly indicates a male wearer, style all looks for a woman.';
 }
 
-function wearerRule(g: Gender): string {
+export function wearerRule(g: Gender): string {
   if (g === 'man')
     return 'Set "wearer" to "man" — the user is a man and every look is styled for him.';
   if (g === 'unspecified') {

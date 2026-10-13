@@ -16,7 +16,7 @@ export function stylingRepo(db: Db) {
       const closet = await db
         .selectFrom('wardrobeItems as w')
         .leftJoin('wardrobeItemStats as s', 's.wardrobeItemId', 'w.id')
-        .select(['w.label', 'w.category', 'w.color', 's.timesWorn'])
+        .select(['w.id', 'w.label', 'w.category', 'w.color', 'w.brand', 's.timesWorn'])
         .where('w.userId', '=', userId)
         .where('w.deletedAt', 'is', null)
         .where('w.status', '=', 'ready')
@@ -49,9 +49,11 @@ export function stylingRepo(db: Db) {
         gender: (profile?.genderIdentity ?? 'woman') as 'woman' | 'man' | 'unspecified',
         styleIcons: profile?.styleIcons ?? [],
         closet: closet.map((c) => ({
+          id: c.id,
           label: c.label,
           category: c.category,
           color: c.color,
+          brand: c.brand,
           timesWorn: c.timesWorn ?? 0,
         })),
       };

@@ -14,6 +14,20 @@ export const GenerateLookInput = z.object({
 });
 export type GenerateLookInput = z.infer<typeof GenerateLookInput>;
 
+// One piece of a styled way (style-piece v2): what she'd wear, and her own piece when she owns it.
+export const IdeaPiece = z.object({
+  name: z.string(),
+  category: z.string(),
+  color: z.string(),
+  colorHex: z.string().nullable(),
+  role: z.string().nullable(),
+  brand: z.string(),
+  retailerHint: z.string(),
+  pricePoint: z.string(),
+  pieceId: z.uuid().nullable(),
+});
+export type IdeaPiece = z.infer<typeof IdeaPiece>;
+
 export const IdeaWay = z.object({
   eyebrow: z.string(),
   title: z.string(),
@@ -21,6 +35,8 @@ export const IdeaWay = z.object({
   details: z.string(),
   accessories: z.string(),
   tags: z.array(z.string()),
+  // Ideas from before v2 have none.
+  pieces: z.array(IdeaPiece).default([]),
 });
 export type IdeaWay = z.infer<typeof IdeaWay>;
 

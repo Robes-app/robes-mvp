@@ -7,7 +7,11 @@ import {
   type NormalItem,
   type NormalLook,
 } from '@robes/ai/prompts/daily';
-import { buildImagePrompt, FEATURE as STYLE_FEATURE, Way } from '@robes/ai/prompts/style-piece';
+import {
+  buildImagePrompt,
+  ImageWay,
+  FEATURE as STYLE_FEATURE,
+} from '@robes/ai/prompts/style-piece';
 import { LookRenderInput } from '@robes/contracts';
 import { cellKey, parseCellId } from '@robes/core/avatar';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
@@ -39,7 +43,7 @@ const StoredIdea = z.object({
   ]),
   fallback: z.boolean(),
   wearer: z.enum(['woman', 'man']),
-  ways: z.array(Way),
+  ways: z.array(ImageWay),
 });
 const StoredDaily = z.object({
   look: z.object({
