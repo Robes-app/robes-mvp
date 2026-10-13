@@ -43,7 +43,9 @@ window.supabase = {
 
 const STYLE_RESP = {
   ways: [
-    { eyebrow: 'Sporty cool', title: 'Urbane Weekend', outfit: 'Umbro shorts, a white ribbed tank, and a camel overshirt worn open.', details: 'Half-tuck the tank.', accessories: 'Flat leather slides, tortoise sunglasses, one gold hoop.',
+    // Way 0 is the live shape since 2026-10-13: one scene line that names no
+    // garment, and the pieces as the look. Ways 1 and 2 keep the legacy prose.
+    { eyebrow: 'Sporty cool', title: 'Urbane Weekend', scene: 'A slow Saturday in the city, the tank half-tucked and the layer worn open, easy and unhurried.',
       pieces: [
         { name: 'White ribbed tank', category: 'Tops', color: 'white', color_hex: '#F1EEE7', role: 'The Canvas', wardrobe_match: null, brand: 'COS', retailer_hint: 'COS', price_point: '€45' },
         { name: 'Umbro shorts', category: 'Bottoms', color: 'navy', color_hex: '#2F3748', role: 'The Anchor', wardrobe_match: { id: 'w-kp', label: 'Umbro shorts', image_url: 'https://res.cloudinary.com/demo/piece.jpg', color: 'Navy' }, brand: '', retailer_hint: '', price_point: '' },
@@ -313,8 +315,10 @@ const f8 = await page.evaluate(() => ({
   bar: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-suggbar button')).map((b) => b.textContent), fb: document.querySelector('#rb-lk-body .rb-fb-title')?.textContent,
   worn: !!document.querySelector('#rb-lk-body .rb-lk-worn'), foot: !!document.querySelector('#rb-lk-body .rb-lk-foot'), acts: document.querySelectorAll('#rb-lk-body .rb-lk-imgacts button').length, tags: !!document.querySelector('#rb-lk-body .rbc-tags'),
   credit: /Composed by Robes/.test(document.querySelector('#rb-lk-body .rbc-panel')?.textContent || ''),
+  note: document.querySelector('#rb-lk-body .rbc-quote')?.textContent?.trim(),
   inks: Array.from(document.querySelectorAll('#rb-lk-body button')).filter((b) => b.getBoundingClientRect().height > 20 && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()),
 }));
+check('F8 · the note under the frame is the way\'s one scene line, verbatim — never a paragraph naming garments the rack lacks (2026-10-13)', f8.note === 'A slow Saturday in the city, the tank half-tucked and the layer worn open, easy and unhurried.', JSON.stringify(f8.note));
 check('F8 · ‹ Suggested, eyebrow "Suggested · around your shorts", the title, "4 pieces", Composed by Robes', f8.band === 'Suggested' && f8.ey === 'Suggested · around your shorts' && f8.title === 'Urbane Weekend' && f8.meta === '4 pieces' && f8.credit, JSON.stringify(f8));
 check('F8 · the rack READS — four rows in the fifth pass\'s anatomy (Category · Brand), › alone: no ↻, no ♥; no camera, no diary, no tags, no wear record, no delete',
   f8.rows === 4 && f8.eyes.length === 4 && f8.eyes.some((e) => /^Bottoms · Umbro$/.test(e)) && f8.swaps === 0 && f8.hearts === 0 && f8.more === 4 && f8.acts === 0 && !f8.tags && !f8.worn && !f8.foot, JSON.stringify(f8));

@@ -514,9 +514,14 @@ const STYLE_SCHEMA = {
         properties: {
           eyebrow:     { type: 'string' },
           title:       { type: 'string' },
-          outfit:      { type: 'string' },
-          details:     { type: 'string' },
-          accessories: { type: 'string' },
+          // ONE sentence — the occasion, the setting, the mood, how the
+          // pieces are worn — and never a garment's name (2026-10-13). The
+          // three-paragraph prose (outfit / details / accessories) is gone:
+          // it named garments the itemised rack did not hold, and the frame
+          // was drawn from it, so the picture and the rack disagreed. The
+          // pieces list is the look; the scene line is its atmosphere, and
+          // it is the note under the frame.
+          scene:       { type: 'string' },
           tags:        { type: 'array', items: { type: 'string' } },
           // The look itemised (Worn_Three_Ways native design, 2026-09-28):
           // the result page reads each way piece by piece BEFORE a build —
@@ -542,7 +547,7 @@ const STYLE_SCHEMA = {
             },
           },
         },
-        required: ['eyebrow', 'title', 'outfit', 'details', 'accessories', 'tags', 'pieces'],
+        required: ['eyebrow', 'title', 'scene', 'tags', 'pieces'],
       },
     },
   },
@@ -622,7 +627,9 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
 
 STYLING SANITY CHECK: every styling move must be something a respected stylist would actually shoot on the street — honour the key piece's natural register. Sporty and athletic pieces stay in an elevated-casual register: never belt knitwear or cardigans over athletic shorts, never force waist-cinching or hourglass tricks onto a sporty silhouette, never layer formal tailoring over gym wear. Any silhouette or body-architecture rules below govern WHAT pieces you select — they are never a licence to contort HOW a piece is worn. If a styling trick needs explaining to look intentional, drop it: effortless always beats clever.
 
-THE PIECES: alongside the prose, itemise every look in "pieces" — three to six entries, each one garment, shoe, bag or accessory the prose names, in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each, from those four; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt", "Tan leather loafers"); "category" one of Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other; "color" a plain colour word and "color_hex" one representative hex for it. "wardrobe_index" is the number of the owned piece from the wardrobe list above when the piece IS that piece (use its exact label as the name), else -1. Only a piece she would have to find carries "brand", "retailer_hint" and "price_point" (a realistic EUR figure like "€89"); leave them empty on an owned piece.`;
+THE PIECES ARE THE LOOK: itemise every look in "pieces" — three to six entries, each one garment, shoe, bag or accessory, the COMPLETE outfit from head to toe (a top, a bottom or a dress, shoes, then the layer and the accessories that finish it), in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each, from those four; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt", "Tan leather loafers"); "category" one of Tops, Bottoms, Dresses, Outerwear, Shoes, Bags, Accessories, Swimwear, Other; "color" a plain colour word and "color_hex" one representative hex for it. "wardrobe_index" is the number of the owned piece from the wardrobe list above when the piece IS that piece (use its exact label as the name), else -1. Only a piece she would have to find carries "brand", "retailer_hint" and "price_point" (a realistic EUR figure like "€89"); leave them empty on an owned piece.
+
+THE SCENE is one sentence, thirty words at most: the occasion, the setting, the mood, and how the pieces are worn (tucked, open, sleeves pushed, collar up). It names NO garment, shoe, bag or accessory — not even by type — because the pieces list carries them and the two must never disagree. "A late dinner in the Marais, the top tucked and the jacket worn open, understated and unhurried." is the register; "Paired with a pencil skirt and loafers" is forbidden.`;
 
   const brief = daily
     ? `The user is dressing for a real day, happening now. You build three complete, wearable outfits for that day — each a distinct mood or register, all appropriate to the occasion and the real-time weather context provided.`
@@ -665,7 +672,7 @@ ${wearerRule}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closet
   const userText = refineWay != null
     ? `${piece} ${context} ${linkCtx}
 
-Re-write ONE of the three looks — "${curTitle || 'the look'}"${curEyebrow ? ' (' + curEyebrow + ')' : ''} — as her adjustment asks (THE LOOK AS IT STANDS and HER ADJUSTMENT are in the system notes). Return exactly ONE way in "ways": the re-written look, complete, with its own eyebrow, title, prose and itemised pieces.${others.length ? ' It must stay distinct from the other two looks, which are unchanged: ' + others.map(o => '"' + o + '"').join(' and ') + '.' : ''}`
+Re-write ONE of the three looks — "${curTitle || 'the look'}"${curEyebrow ? ' (' + curEyebrow + ')' : ''} — as her adjustment asks (THE LOOK AS IT STANDS and HER ADJUSTMENT are in the system notes). Return exactly ONE way in "ways": the re-written look, complete, with its own eyebrow, title, scene line and itemised pieces.${others.length ? ' It must stay distinct from the other two looks, which are unchanged: ' + others.map(o => '"' + o + '"').join(' and ') + '.' : ''}`
     : daily
     ? `${rtLine ? rtLine + '\n\n' : ''}The user's brief for ${rtDay || 'today'}: "${prompt}".
 
@@ -708,7 +715,7 @@ Style this key piece three ways. Make each look genuinely distinct — different
           responseSchema: STYLE_SCHEMA,
           thinkingConfig: { thinkingBudget: 0 },
           // The itemised pieces ride the same call (2026-09-28) — room for
-          // three ways × up to six rows on top of the prose.
+          // three ways × up to six rows beside the one scene line.
           maxOutputTokens: 3400,
         },
       })),
@@ -718,7 +725,10 @@ Style this key piece three ways. Make each look genuinely distinct — different
     const textMs = Date.now() - t0;
     const parsed = deEscDeep(JSON.parse(textResponse.text));
     const fallback = parsed.fallback === true;
-    let ways = (Array.isArray(parsed.ways) ? parsed.ways : []).map(w => Object.assign({}, w, { pieces: normStylePieces(w, closetItems) }));
+    let ways = (Array.isArray(parsed.ways) ? parsed.ways : []).map(w => Object.assign({}, w, {
+      pieces: normStylePieces(w, closetItems),
+      scene: String(w.scene || w.outfit || '').trim().slice(0, 240),
+    }));
     if (refineWay != null) {
       if (!ways.length) throw new Error('empty refine');
       ways = ways.slice(0, 1);
@@ -752,6 +762,21 @@ Style this key piece three ways. Make each look genuinely distinct — different
       // wearer gates the catalog: a menswear brief on a woman's profile
       // (or vice versa) falls through to the generic model.
       const avatarRef = await avatarRefForUser(req.body.avatarId, req.body.userId, wearer);
+      // Her own pieces ride the frame as reference photographs (2026-10-13,
+      // Liberty: "it logs it accurately but when it suggests an outfit the
+      // item looks different"). The frame used to be drawn from the prose
+      // alone, so every owned piece but the key piece reached the image
+      // model as words — and words about a black coat draw any black coat.
+      // The pieces list is now the authoritative content of the frame,
+      // each photographed piece a numbered IMAGE the model must reproduce
+      // (the /api/avatar/render manifest), and the scene line is the
+      // atmosphere. One fetch per photograph across the three ways.
+      const refCache = new Map();
+      const pieceRef = async (url) => {
+        if (!url) return null;
+        if (!refCache.has(url)) refCache.set(url, await fetchCloudinaryB64(url));
+        return refCache.get(url);
+      };
       const results = [null, null, null];
       for (let k = 0; k < ways.length; k++) {
         if (k > 0) await new Promise(r => setTimeout(r, 3000));
@@ -759,19 +784,41 @@ Style this key piece three ways. Make each look genuinely distinct — different
         const i = refineWay != null ? refineWay : k;
         const w = ways[k];
         const imgParts = [];
-        if (avatarRef) imgParts.push({ inlineData: { mimeType: avatarRef.mimeType, data: avatarRef.data } });
+        let imgN = 0;
+        if (avatarRef) { imgParts.push({ inlineData: { mimeType: avatarRef.mimeType, data: avatarRef.data } }); imgN += 1; }
+        const avatarLine = avatarRef ? AVATAR_IDENTITY : '';
+        let photoLine = '';
         if (!fallback && photoMatch) {
           imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
+          imgN += 1;
+          photoLine = `IMAGE ${imgN} shows the key piece only — reproduce the piece faithfully, but compose an entirely new scene; never copy that photo's framing, background or crop. `;
         }
-        const pieceLabel = fallback ? FALLBACK_PIECE : (pieceName || 'the clothing item');
-        const pieceLine = daily && !fallback ? '' : `The key piece is ${pieceLabel}. `;
-        const photoLine = !fallback && photoMatch
-          ? (avatarRef
-            ? 'The SECOND image shows the key piece only — reproduce the piece faithfully, but compose an entirely new scene; never copy that photo\'s framing, background or crop. '
-            : 'The attached photo shows the key piece only — reproduce the piece faithfully, but compose an entirely new scene; never copy the photo\'s framing, background or crop. ')
-          : '';
+        // The rack, piece by piece: a photographed piece she owns is an
+        // IMAGE reference (the cell + the key piece + six pieces stays
+        // well inside the model's reference budget); the rest are named
+        // from their rack row. A way the model failed to itemise falls
+        // back to the scene line alone.
+        const pieces = Array.isArray(w.pieces) ? w.pieces : [];
+        const lines = [];
+        for (const p of pieces) {
+          const detail = [p.color, p.category].filter(Boolean).join(' ') + (p.brand ? ' by ' + p.brand : '');
+          const ref = p.wardrobe_match && imgN < 10 ? await pieceRef(p.wardrobe_match.image_url) : null;
+          if (ref) {
+            imgParts.push({ inlineData: { mimeType: ref.mimeType, data: ref.data } });
+            imgN += 1;
+            lines.push(`- IMAGE ${imgN}: the ${p.name}${detail ? ' (' + detail + ')' : ''} — reproduce this exact garment faithfully: its true colour, cut, fabric and details.`);
+          } else {
+            lines.push(`- the ${p.name}${detail ? ' (' + detail + ')' : ''}.`);
+          }
+        }
+        const scene = String(w.scene || '').trim().replace(/\.$/, '');
+        const outfitBlock = lines.length
+          ? `The ${wearer} wears this complete outfit — every listed piece worn together, nothing substituted, nothing added beyond simple essentials:\n${lines.join('\n')}\n`
+          : `The ${wearer} wears the complete outfit: ${scene}. `;
+        const sceneLine = lines.length && scene ? `The scene: ${scene}. ` : '';
+        const pieceLine = !lines.length && (fallback || !daily) ? `The key piece is ${fallback ? FALLBACK_PIECE : (pieceName || 'the clothing item')}. ` : '';
         imgParts.push({
-          text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one ${wearer}, alone, one scene, no collage, no split panels, no side-by-side images. ${avatarRef ? AVATAR_IDENTITY : ''}${FULL_BODY_FRAME} ${pieceLine}${photoLine}${briefLine}${iconLine}Look: "${w.title}" — ${w.eyebrow}. The ${wearer} wears the complete outfit: ${String(w.outfit || '').trim().replace(/\.$/, '')}. Soft natural light, luxury campaign aesthetic.`,
+          text: `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one ${wearer}, alone, one scene, no collage, no split panels, no side-by-side images. ${avatarLine}${FULL_BODY_FRAME} ${pieceLine}${photoLine}${briefLine}${iconLine}Look: "${w.title}" — ${w.eyebrow}. ${outfitBlock}${sceneLine}Soft natural light, luxury campaign aesthetic.`,
         });
 
         const makeCall = attempt => ai.models.generateContent({
@@ -2950,7 +2997,7 @@ function publicSharePayload(row) {
     (Array.isArray(kp.generatedImages) ? kp.generatedImages : []).forEach(addImg);
     addImg(kp.photoUrl);
     (Array.isArray(kp.ways) ? kp.ways : []).forEach(w => w && addPiece(w.title, w.eyebrow, ''));
-    if (kp.ways && kp.ways[0] && typeof kp.ways[0].outfit === 'string') editorial = kp.ways[0].outfit;
+    if (kp.ways && kp.ways[0]) editorial = String(kp.ways[0].scene || kp.ways[0].outfit || '');
   }
 
   return {

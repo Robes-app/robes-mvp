@@ -528,7 +528,7 @@
       body += '<div class="vw-grid ways">' + ways.map((w, i) =>
         '<div class="vw-it way"><div class="im">' + (http(gen[i]) ? '<img loading="lazy" src="' + esc(gen[i]) + '">' : '<span style="font-size:12px">no frame landed</span>') + '</div>' +
         '<div class="tx">' + (w.eyebrow ? '<div class="ey">' + esc(w.eyebrow) + '</div>' : '') + '<h4>' + esc(w.title || 'Look ' + (i + 1)) + '</h4>' +
-        (w.outfit ? '<p>' + esc(w.outfit) + '</p>' : '') + (w.details ? '<p>' + esc(w.details) + '</p>' : '') + (w.accessories ? '<p><span class="ey" style="display:block">Accessories</span>' + esc(w.accessories) + '</p>' : '') +
+        (w.scene || w.outfit ? '<p>' + esc(w.scene || w.outfit) + '</p>' : '') + (w.details ? '<p>' + esc(w.details) + '</p>' : '') + (w.accessories ? '<p><span class="ey" style="display:block">Accessories</span>' + esc(w.accessories) + '</p>' : '') +
         '</div></div>').join('') + '</div>';
       if (!ways.length) body += '<div class="empty">No looks stored on this entry.</div>';
     } else if (type === 'daily-look') {

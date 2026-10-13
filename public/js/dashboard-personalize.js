@@ -9883,9 +9883,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const rows = pieces.length
           ? '<div class="kp-prows">' + pieces.map(_kpPieceRowHtml).join('') + '</div>'
           : '<div class="kp-prose">' +
-              '<div><div class="lab">The outfit</div><p>' + _waEsc(w.outfit || '') + '</p></div>' +
-              '<div><div class="lab">Key details</div><p>' + _waEsc(w.details || '') + '</p></div>' +
-              '<div><div class="lab">Accessories</div><p>' + _waEsc(w.accessories || '') + '</p></div></div>';
+              '<div><div class="lab">The outfit</div><p>' + _waEsc(w.outfit || w.scene || '') + '</p></div>' +
+              (w.details ? '<div><div class="lab">Key details</div><p>' + _waEsc(w.details) + '</p></div>' : '') +
+              (w.accessories ? '<div><div class="lab">Accessories</div><p>' + _waEsc(w.accessories) + '</p></div>' : '') + '</div>';
         const built = _kpBuiltLookId(i) != null;
         _kpSheetOpen('kp-sheet',
           '<div class="ey">' + _waEsc(w.eyebrow || '') + '</div>' +
@@ -10050,9 +10050,16 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         }, 8000);
         const guard = _rbOverlayGuard(overlay);
         const genId = _rbGenId();
-        const brief = ['Build this exact look for me, piece by piece: ' + (w.outfit || w.title || '')]
-          .concat(w.accessories ? ['Accessories: ' + w.accessories] : [])
-          .concat(w.details ? ['Key styling detail: ' + w.details] : [])
+        // The pieces ARE the look (2026-10-13): an itemised way briefs the
+        // daily engine by its rack, hers marked; the prose only ever
+        // describes a way saved before the pieces existed.
+        const wPieces = Array.isArray(w.pieces) ? w.pieces.filter(p => p && p.name) : [];
+        const brief = (wPieces.length
+          ? ['Build this exact look for me, piece by piece: ' + wPieces.map(p => p.name + (p.wardrobe_match ? ' (mine)' : p.brand ? ' (' + p.brand + ')' : '')).join(', ') + '.']
+              .concat(w.scene ? [String(w.scene)] : [])
+          : ['Build this exact look for me, piece by piece: ' + (w.outfit || w.scene || w.title || '')]
+              .concat(w.accessories ? ['Accessories: ' + w.accessories] : [])
+              .concat(w.details ? ['Key styling detail: ' + w.details] : []))
           .concat(['The mood: ' + [w.eyebrow, w.title].filter(Boolean).join(' — ') + '.'])
           .join(' ');
         try {
@@ -14257,9 +14264,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // The anchor is hers by definition — on the rack whether or not the
         // model matched it by index.
         if (o.anchor && owned.indexOf(String(o.anchor)) < 0 && _waItems.some(x => String(x.id) === String(o.anchor))) owned.unshift(String(o.anchor));
-        // Two or three sentences under the frame, never the three-paragraph
-        // prose (that stays on the set's record for the mail and the admin).
-        const note = _lkNoteShort([w.outfit, w.details, w.accessories].map(x => String(x || '').trim()).filter(Boolean).join(' '), 3);
+        // The scene line is the note under the frame (2026-10-13: one
+        // sentence that names no garment, so it can never contradict the
+        // rack); a set saved before it carries its prose, capped as before.
+        const note = _lkNoteShort([w.scene, w.outfit, w.details, w.accessories].map(x => String(x || '').trim()).filter(Boolean).join(' '), 3);
         return {
           name: String(w.title || '').replace(/\.$/, '').trim() || 'A look',
           note: note || '', photo_url: o.photo || null, source: 'robes',
