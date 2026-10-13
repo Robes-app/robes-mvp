@@ -4037,12 +4037,47 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         function _waMpSrcSync() {
           const mp = _waMp; if (!mp) return;
           const ph = document.getElementById('rb-mp-photo');
-          if (ph && !ph.src) ph.src = mp.photo;
+          if (ph && !ph.src) { ph.src = mp.photo; ph.addEventListener('load', _waMpTagNudge); }
+          _waMpTagNudge();
           document.querySelectorAll('img[data-mpcrop]').forEach(function(im) {
             const pc = mp.pieces[Number(im.getAttribute('data-mpcrop'))];
             const src = pc && (pc.crop || mp.photo);
             if (src && im.src !== src) im.src = src;
           });
+        }
+        // The tags sit at their boxes' centres — and on a portrait photo in a
+        // wide frame the centres pile up (Annie's live read: six tags, three
+        // on top of each other). Each tag is nudged clear of the ones placed
+        // before it, down first then up, and held inside the photo.
+        function _waMpTagNudge() {
+          const fit = document.querySelector('#wa-modal .rb-mp-fit'); if (!fit) return;
+          const W = fit.clientWidth, H = fit.clientHeight; if (!W || !H) return;
+          const tags = Array.prototype.slice.call(fit.querySelectorAll('.rb-mp-tag'))
+            .sort(function(a, b) { return parseFloat(a.getAttribute('data-cy')) - parseFloat(b.getAttribute('data-cy')); });
+          const placed = [];
+          const hits = function(r) { return placed.some(function(q) { return Math.abs(q.cx - r.cx) < (q.w + r.w) / 2 + 4 && Math.abs(q.cy - r.cy) < (q.h + r.h) / 2 + 4; }); };
+          tags.forEach(function(t) {
+            const w = t.offsetWidth, h = t.offsetHeight; if (!w || !h) return;
+            const cx = Math.min(W - w / 2 - 2, Math.max(w / 2 + 2, parseFloat(t.getAttribute('data-cx')) / 100 * W));
+            const cy = Math.min(H - h / 2 - 2, Math.max(h / 2 + 2, parseFloat(t.getAttribute('data-cy')) / 100 * H));
+            const r = { cx: cx, cy: cy, w: w, h: h };
+            let dir = 1, k = 1;
+            while (hits(r) && k <= 8) {
+              r.cy = cy + dir * k * (h + 6);
+              if (r.cy > H - h / 2 - 2 || r.cy < h / 2 + 2) { if (dir === 1) { dir = -1; k = 1; r.cy = cy; continue; } r.cy = cy; break; }
+              k++;
+            }
+            t.style.left = r.cx + 'px'; t.style.top = r.cy + 'px';
+            placed.push(r);
+          });
+        }
+        // A piece Robes matched — or she pointed at — reads as HER row: its
+        // own photograph, its brand and category, its name. The crop only
+        // ever stands in for a row with no photograph.
+        function _waMpOwnRow(pc) {
+          if (!pc.dup || pc.state === 'add') return null;
+          const list = _waTarget === 'wishlist' ? (_wlItems || []) : _waItems;
+          return list.find(function(w) { return String(w.id) === String(pc.dup.id); }) || pc.dup;
         }
         function _waMpPaint() {
           const step = document.querySelector('#wa-modal .fm-step');
@@ -4061,27 +4096,30 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px">Every piece answered. The tags are gone from the photo.</p>';
           const tags = pend.map(function(pc) {
             const cx = (pc.box.x + pc.box.w / 2) * 100, cy = (pc.box.y + pc.box.h / 2) * 100;
-            return '<span class="rb-mp-tag" style="left:' + cx.toFixed(1) + '%;top:' + cy.toFixed(1) + '%"><b>' + (pc.i + 1) + '</b>' + _sawEsc(_rbPieceWord(pc.tag)) + '</span>';
+            return '<span class="rb-mp-tag" data-cx="' + cx.toFixed(1) + '" data-cy="' + cy.toFixed(1) + '" style="left:' + cx.toFixed(1) + '%;top:' + cy.toFixed(1) + '%"><b>' + (pc.i + 1) + '</b>' + _sawEsc(_rbPieceWord(pc.tag)) + '</span>';
           }).join('');
           const cards = mp.pieces.map(function(pc) {
-            const t = pc.edits || pc.tag;
-            const sheet = (t.category_l2 && _WA_L2_SHEET[t.category_l2]) || _WA_LEGACY_TO_SHEET[t.category] || t.category || 'Other';
+            const own = _waMpOwnRow(pc);
+            const t = own ? { label: own.label, brand: own.brand, color: own.color, category: own.category, category_l2: own.category_l2 } : (pc.edits || pc.tag);
+            const sheet = own ? (_waSheetCatOf(own) || own.category || 'Other') : ((t.category_l2 && _WA_L2_SHEET[t.category_l2]) || _WA_LEGACY_TO_SHEET[t.category] || t.category || 'Other');
             const brand = String(t.brand || '').trim();
+            const thumb = own && _pdHttp(own.image_url) ? '<img alt="" src="' + _sawEsc(own.image_url) + '" data-mpown="1">' : '<img alt="" data-mpcrop="' + pc.i + '">';
             const chip = pc.state === 'pending' ? (pc.dup ? '<i class="rb-mp-chip check">Check</i>' : '<i class="rb-mp-chip">New</i>') : '';
             let status;
             if (pc.state === 'add') status = '<span class="rb-mp-st on">' + _rbcCheckSvg + ' To ' + (toWl ? 'save' : 'add') + '</span>';
             else if (pc.state === 'skip') status = '<span class="rb-mp-st">Skipped</span>';
             else if (pc.state === 'owned') status = '<span class="rb-mp-st">Already yours' + (pc.dup && !_pdHttp(pc.dup.image_url) ? ' · photo added' : '') + '</span>';
-            else status = '<span class="rb-mp-st">' + _sawEsc(pc.dup ? 'Looks like yours' : (t.color || '')) + '</span>';
+            else status = '<span class="rb-mp-st">' + _sawEsc(pc.dup ? 'Looks like yours' + (own && _pdHttp(own.image_url) ? ' · its own photo' : '') : (t.color || '')) + '</span>';
             const ask = pc.state !== 'pending' ? '' :
               '<div class="rb-mp-ask"><i>' + (pc.dup ? 'Already yours?' : (toWl ? 'Save this one?' : 'Add this one?')) + '</i><span>' +
                 '<button type="button" class="rb-pill sm" onclick="window.__waMpAnswer(' + pc.i + ',\'yes\')">Yes</button>' +
                 '<button type="button" class="rb-pill sm" onclick="window.__waMpAnswer(' + pc.i + ',\'no\')">' + (pc.dup ? 'No, ' + (toWl ? 'save it' : 'add it') : 'Skip') + '</button>' +
+                (pc.dup ? '' : '<button type="button" class="rb-mp-link" onclick="window.__waMpMine(' + pc.i + ')">Already mine ›</button>') +
               '</span></div>';
             return '<div class="rb-mp-card ' + pc.state + '" data-i="' + pc.i + '">' +
               (pc.state === 'pending' ? '<span class="rb-mp-num">' + (pc.i + 1) + '</span>' : '') +
               '<button type="button" class="rb-mp-row" onclick="window.__waMpOpen(' + pc.i + ')">' +
-                '<span class="rb-mp-th"><img alt="" data-mpcrop="' + pc.i + '"></span>' +
+                '<span class="rb-mp-th">' + thumb + '</span>' +
                 '<span class="rb-mp-txt"><span class="rb-mp-eye">' + _sawEsc(sheet) + ' · ' + (brand ? '<b>' + _sawEsc(brand) + '</b>' : 'Unlabelled') + chip + '</span>' +
                 '<span class="rb-mp-name">' + _sawEsc(_rbNameNoBrand(t.label, brand) || 'A piece') + '</span>' + status + '</span>' +
                 '<span class="rb-mp-ar" aria-hidden="true">›</span></button>' + ask + '</div>';
@@ -4100,16 +4138,47 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         }
         window.__waMpAnswer = function(i, ans) {
           const mp = _waMp; const pc = mp && mp.pieces[i]; if (!pc || pc.state !== 'pending') return;
+          const wasDup = !!pc.dup;
           if (pc.dup) pc.state = ans === 'yes' ? 'owned' : 'add';
           else pc.state = ans === 'yes' ? 'add' : 'skip';
-          _rbTrack('piece_answered', { surface: 'wardrobe', state: pc.state, dup: !!pc.dup });
+          _rbTrack('piece_answered', { surface: 'wardrobe', state: pc.state, dup: wasDup });
+          // "No, add it" on a likely duplicate is a piece Robes read wrong —
+          // the editor opens at once so she can fill in what it missed.
+          if (wasDup && ans === 'no') { window.__waMpOpen(i); return; }
           _waMpPaint();
+        };
+        // "Already mine" on a piece Robes did not recognise: she points at
+        // the row it is (the wardrobe picker, her categories), and the card
+        // reads as that row — a photo-less row takes the crop at filing.
+        window.__waMpMine = function(i) {
+          const mp = _waMp; const pc = mp && mp.pieces[i]; if (!pc || pc.state !== 'pending') return;
+          const toWl = _waTarget === 'wishlist';
+          if (!window.__cbWardrobePick) return;
+          window.__cbWardrobePick({
+            source: toWl ? 'wishlist' : 'wardrobe',
+            onPick: function(it) {
+              if (_waMp !== mp || !it) return;
+              pc.dup = { id: it.id, label: it.label, image_url: it.image_url || null, color: it.color || '' };
+              pc.picked = true; pc.state = 'owned';
+              _rbTrack('piece_answered', { surface: 'wardrobe', state: 'owned', dup: false, picked: true });
+              _waMpPaint();
+            },
+          });
         };
         // › — the single-piece screen, scoped to this piece (4.2): its
         // crop, its tags, the 01–04 rows, Edit the details. "Add this
         // piece" confirms it and returns.
         window.__waMpOpen = function(i) {
           const mp = _waMp; const pc = mp && mp.pieces[i]; if (!pc) return;
+          // A piece that is hers opens as its SAVED record — the piece page
+          // over the modal, never the new-piece editor; back lands here.
+          if (pc.dup && pc.state !== 'add' && _waTarget !== 'wishlist' && window.__rbPieceOpen) {
+            const wa = document.getElementById('wa-modal');
+            if (wa) wa.style.visibility = 'hidden';
+            const ok = window.__rbPieceOpen(pc.dup.id, { from: 'wardrobe', quiet: true, onBack: function() { if (wa) wa.style.visibility = ''; _waMpTagNudge(); } });
+            if (!ok && wa) wa.style.visibility = '';
+            return;
+          }
           _waMpOpenIdx = i;
           const tag = Object.assign({}, pc.tag);
           _runStep3(pc.crop || mp.photo, tag, 'multi');
@@ -4336,7 +4405,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             '.rb-mp-ar{font-size:18px;color:var(--ink-faint);padding:0 4px}',
             '.rb-mp-ask{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 12px;border-top:1px solid var(--rule,#E7E0CF)}',
             '.rb-mp-ask i{font-family:var(--font-serif,Georgia,serif);font-style:italic;font-weight:300;font-size:14px;color:var(--ink-soft)}',
-            '.rb-mp-ask span{display:flex;gap:8px;flex:none}',
+            '.rb-mp-ask span{display:flex;gap:8px;flex:none;flex-wrap:wrap;justify-content:flex-end;align-items:center}',
+            '.rb-mp-link{background:none;border:0;padding:0 4px;font:inherit;font-size:11px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:34px}',
+            '.rb-mp-link:hover{color:var(--ink)}',
             '.rb-mp-ask .rb-pill{min-height:34px;padding:0 14px;color:var(--ink);border-color:rgba(32,32,33,0.28);font-size:11px;letter-spacing:.02em;text-transform:none}',
             '.rb-mp .rb-wf-cta{margin-top:18px}',
             '.rb-mp .rb-wf-cta[disabled]{background:var(--cream-400,#D8CFC0);opacity:1;cursor:default}',
@@ -8503,6 +8574,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           lookName: ctx.lookName || (reopening && reopening.lookName) || null,
           lookSurface: ctx.lookSurface || (reopening && from === 'look' ? reopening.lookSurface : null) || null,
           siblings: sibs,
+          onBack: ctx.onBack || (reopening && reopening.onBack) || null,
           prevPath: reopening ? reopening.prevPath
             : (window.location.pathname.indexOf('/piece/') === 0 ? null : window.location.pathname),
         };
@@ -8528,6 +8600,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         window.__rbPieceHide();
         _pcCtx = null;
         if (!ctx) return;
+        // A page opened over a modal (the multi-piece read) hands back to it.
+        if (ctx.onBack) { try { ctx.onBack(); } catch (_) {} if (typeof window._rbNavSync === 'function') window._rbNavSync(); return; }
         if (ctx.from === 'look' || ctx.from === 'day') {
           if (ctx.prevPath && window._rbNav) _rbNav(ctx.prevPath);
           // Back lands on the look scrolled to this piece's row (handoff 4c).
@@ -8563,7 +8637,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         const at = sibs.indexOf(String(_pcCtx.id));
         const next = sibs[at + dir];
         if (next == null) return;
-        window.__rbPieceOpen(next, { from: _pcCtx.from, lookName: _pcCtx.lookName, lookSurface: _pcCtx.lookSurface, siblings: sibs });
+        window.__rbPieceOpen(next, { from: _pcCtx.from, lookName: _pcCtx.lookName, lookSurface: _pcCtx.lookSurface, siblings: sibs, onBack: _pcCtx.onBack, quiet: !!_pcCtx.onBack });
       };
       // The look-context verbs (Look_Creation_Handoff 4c/4d). Each resolves
       // the look live through _lkPieceLookCtx, so a role cast or a removal
@@ -15907,7 +15981,9 @@ button.rb-lk-live{cursor:pointer}
 .rb-lkr-ctx{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 .rb-lkr-ask{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 12px;border-top:1px solid var(--rule)}
 .rb-lkr-ask i{font-family:var(--font-serif);font-style:italic;font-weight:300;font-size:14px;color:var(--ink-soft)}
-.rb-lkr-ask span{display:flex;gap:8px;flex:none}
+.rb-lkr-ask span{display:flex;gap:8px;flex:none;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.rb-lkr-out{background:none;border:0;padding:0 4px;font:inherit;font-size:11px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:34px}
+.rb-lkr-out:hover{color:var(--ink)}
 .rb-lkr-ask .rb-pill{min-height:34px;padding:0 14px;color:var(--ink);border-color:rgba(32,32,33,0.28);font-size:11px;letter-spacing:.02em;text-transform:none}
 .rbc-row.rb-lkr-newrow .rbc-eye::after{content:'New';display:inline-block;margin-left:8px;padding:2px 7px;border-radius:100px;background:#F3EFE6;border:1px solid #C9BCA6;font-size:8.5px;letter-spacing:.14em;color:var(--ink);vertical-align:1px}
 .rb-lkr-none{display:block;width:100%;min-height:40px;margin-top:12px;color:var(--ink);border-color:rgba(32,32,33,0.28)}
@@ -21919,9 +21995,13 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _rbTrack('piece_answered', { surface: 'look', state: 'new', matched: !!pc.match });
         _lkPaint();
       };
+      // Leave it out: a piece in the photo that is not part of the look
+      // (a child's bag she was holding) — never on the rack, never filed.
       window.__lkReadDrop = function(i) {
         const pc = _lkRead && _lkRead.pieces[i]; if (!pc) return;
+        const was = pc.state;
         pc.state = 'skip';
+        _rbTrack('piece_answered', { surface: 'look', state: 'skip', was });
         _lkPaint();
       };
       // No, find it: her pieces in that category — and the one answer the
@@ -21982,6 +22062,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           '<div class="rb-lkr-ask"><i>' + q + '</i><span>' +
             '<button type="button" class="rb-pill sm" onclick="window.__lkReadYes(' + pc.i + ')">Yes</button>' +
             '<button type="button" class="rb-pill sm" onclick="window.__lkReadFind(' + pc.i + ')">No, find it</button>' +
+            '<button type="button" class="rb-lkr-out" onclick="window.__lkReadDrop(' + pc.i + ')">Leave it out</button>' +
           '</span></div></div>';
       }
       function _lkReadRowItems() {

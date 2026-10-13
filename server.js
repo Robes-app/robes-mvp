@@ -3304,6 +3304,27 @@ const PIECES_SCHEMA = {
   required: ['no_item_detected', 'pieces'],
 };
 const PIECES_MAX = 8;
+// A pair is one piece: a second Shoes entry naming the same kind of shoe
+// (the label's last word — sandals, trainers, mules) is the other foot
+// read as a second pair, however the model coloured it (Annie's live
+// read, 2026-10-13: gold heeled sandals + silver heeled sandals, one
+// pair). The first, more prominent entry stays and takes the union of
+// the two boxes; a match on either survives.
+function collapsePairs(pieces) {
+  const out = [];
+  for (const p of pieces) {
+    const kind = String(p.label || '').trim().toLowerCase().split(/\s+/).slice(-1)[0];
+    const twin = p.category === 'Shoes' && kind ? out.find(q => q.category === 'Shoes' && String(q.label || '').trim().toLowerCase().split(/\s+/).slice(-1)[0] === kind) : null;
+    if (!twin) { out.push(p); continue; }
+    if (twin.box && p.box) {
+      const x = Math.min(twin.box.x, p.box.x), y = Math.min(twin.box.y, p.box.y);
+      const x2 = Math.max(twin.box.x + twin.box.w, p.box.x + p.box.w), y2 = Math.max(twin.box.y + twin.box.h, p.box.y + p.box.h);
+      twin.box = { x, y, w: x2 - x, h: y2 - y };
+    }
+    if (!twin.wardrobe_match && p.wardrobe_match) { twin.wardrobe_match = p.wardrobe_match; twin.match_confidence = p.match_confidence; }
+  }
+  return out;
+}
 function clamp01(v) { const n = Number(v); return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0; }
 app.post('/api/wardrobe/pieces', rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) => {
   const { data, mimeType } = req.body || {};
@@ -3313,7 +3334,7 @@ app.post('/api/wardrobe/pieces', rateLimit({ windowMs: 60_000, max: 20 }), async
     .map(w => ({ id: w.id, label: String(w.label).slice(0, 80), category: String(w.category || '').slice(0, 40), color: String(w.color || '').slice(0, 30), brand: String(w.brand || '').slice(0, 40), image_url: typeof w.image_url === 'string' ? w.image_url : null }));
   const closet = wardrobe.length
     ? 'HER WARDROBE, numbered — the pieces she already owns:\n' + wardrobe.map((w, i) => `[${i}] ${w.label}${w.category ? ' · ' + w.category : ''}${w.color ? ' · ' + w.color : ''}${w.brand ? ' · ' + w.brand : ''}`).join('\n') +
-      '\nFor each piece in the photo, "wardrobe_index" is the number of the owned piece it very likely IS — same kind of garment, same colour, a brand that agrees when one shows — else -1. "match_confidence" is how sure you are, 0 to 1. Never match a piece to a different kind of garment or a different colour.'
+      '\nFor each piece in the photo, "wardrobe_index" is the number of the owned piece it very likely IS — same kind of garment, same colour, a brand that agrees when one shows — else -1. "match_confidence" is how sure you are, 0 to 1. Never match a piece to a different kind of garment or a different colour. Shoes, bags, sunglasses and jewellery match on their kind and colour alone — a brand rarely shows on them in a photo, so when she owns one piece of that kind in that colour, that is the match, with a confidence of 0.6 or more.'
     : 'She has no pieces filed yet: "wardrobe_index" is -1 and "match_confidence" 0 for every piece.';
   const t0 = Date.now();
   try {
@@ -3323,7 +3344,7 @@ app.post('/api/wardrobe/pieces', rateLimit({ windowMs: 60_000, max: 20 }), async
         role: 'user',
         parts: [
           { inlineData: { mimeType, data } },
-          { text: `You are a fashion intelligence engine for a luxury wardrobe app. Find EVERY distinct clothing piece in this photo — each garment, each pair of shoes, each bag, each accessory — whether worn together on one person, laid flat, or hung side by side. One entry per physical piece: a pair of shoes is one piece, a two-piece set is two pieces. Ignore the person, the room and anything that is not a piece she could file in a wardrobe. At most ${PIECES_MAX} pieces, the most prominent first. A photo of ONE piece returns one entry.
+          { text: `You are a fashion intelligence engine for a luxury wardrobe app. Find EVERY distinct clothing piece in this photo — each garment, each pair of shoes, each bag, each accessory — whether worn together on one person, laid flat, or hung side by side. One entry per physical piece, and each physical piece EXACTLY ONCE: a pair of shoes is ONE piece (never the left shoe and the right shoe as two, never two entries for one pair under two colours), a pair of earrings one piece, a two-piece set two pieces, one bracelet one entry. Ignore the person, the room and anything that is not a piece she could file in a wardrobe. At most ${PIECES_MAX} pieces, the most prominent first. A photo of ONE piece returns one entry.
 
 IMPORTANT: If no clothing item, garment, or accessory is clearly visible (e.g. the photo shows a face, a room, a screenshot, or unidentifiable content), set "no_item_detected": true and return an empty "pieces" array.
 
@@ -3361,10 +3382,10 @@ ${closet}` }
         p.match_confidence = m ? clamp01(raw.match_confidence) : 0;
         return p;
       })
-      .filter(Boolean)
-      .slice(0, PIECES_MAX);
-    logAI({ feature: 'wardrobe_pieces', ms: Date.now() - t0, pieces: pieces.length, matched: pieces.filter(p => p.wardrobe_match).length, success: true });
-    res.json({ noItemDetected: !!parsed.no_item_detected || !pieces.length, pieces });
+      .filter(Boolean);
+    const collapsed = collapsePairs(pieces).slice(0, PIECES_MAX);
+    logAI({ feature: 'wardrobe_pieces', ms: Date.now() - t0, pieces: collapsed.length, matched: collapsed.filter(p => p.wardrobe_match).length, success: true });
+    res.json({ noItemDetected: !!parsed.no_item_detected || !collapsed.length, pieces: collapsed });
   } catch (err) {
     logAI({ feature: 'wardrobe_pieces', ms: Date.now() - t0, success: false, reason: err.message });
     console.error('[pieces] Gemini error:', err.message);

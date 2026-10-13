@@ -238,7 +238,9 @@ const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath
   await page.click('.rb-mp-card[data-i="0"] .rb-mp-ask .rb-pill:nth-child(2)');
   await page.click('.rb-mp-card[data-i="1"] .rb-mp-ask .rb-pill:nth-child(2)');
   await page.click('.rb-mp-card[data-i="2"] .rb-mp-ask .rb-pill:nth-child(2)');
-  await page.waitForTimeout(200);
+  await page.waitForSelector('#rb-saw-panel', { timeout: 4000 }); // No, add it → the editor at once (Annie, live pass)
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(250);
   const s = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', sts: Array.from(document.querySelectorAll('.rb-mp-st')).map((x) => x.textContent.trim()), cta: document.getElementById('wa-saw-cta')?.textContent, off: document.getElementById('wa-saw-cta')?.disabled }));
   check('4.1 · Skip skips; "No, add it" on a duplicate adds it; "One to add." and the CTA counts one', /^One to add\./.test(s.h) && /Skipped/.test(s.sts[0]) && /Skipped/.test(s.sts[1]) && /To add/i.test(s.sts[2]) && s.cta === 'Add 1 piece to wardrobe →' && s.off === false, JSON.stringify(s));
   await page.evaluate(() => window.WA && WA.close());
@@ -273,6 +275,93 @@ const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath
   const m = await page.evaluate(() => ({ over: document.documentElement.scrollWidth > window.innerWidth + 1, cards: document.querySelectorAll('.rb-mp-card').length, w: document.querySelector('.rb-mp-card')?.getBoundingClientRect().width }));
   check('390 · the pieces screen fits the phone', !m.over && m.cards === 3 && m.w > 280, JSON.stringify(m));
   check('no page errors (wardrobe · 390)', errs.length === 0, errs.join(' | ').slice(0, 240));
+  await ctx.close();
+}
+{
+  // Annie's live pass (2026-10-13): a matched piece reads as HER row and
+  // opens its saved page; "No, add it" goes straight into the editor;
+  // "Already mine" points at a row Robes missed; tags never pile up.
+  const { ctx, page, errs, writes } = await boot(browser);
+  const READ_B = [
+    { ...READ[0], box: { x: 0.3, y: 0.2, w: 0.4, h: 0.3 } },
+    { label: 'Tan leather sandals', category: 'Shoes', category_l2: 'Sandals', category_l3: '', color: 'Tan', brand: '', notes: '', item_dna: DNA('Tan leather sandals', 'Tan'), price: null, currency: null, size: null, box: { x: 0.32, y: 0.22, w: 0.36, h: 0.3 }, wardrobe_match: { id: 'w-sho1', label: 'Flat leather sandals', image_url: 'https://res.cloudinary.com/demo/w-sho1.jpg', color: 'Camel' }, match_confidence: 0.9 },
+    { label: 'Black round sunglasses', category: 'Accessories', category_l2: 'Sunglasses', category_l3: '', color: 'Black', brand: '', notes: '', item_dna: DNA('Black round sunglasses', 'Ink'), price: null, currency: null, size: null, box: { x: 0.4, y: 0.05, w: 0.2, h: 0.08 }, wardrobe_match: null, match_confidence: 0 },
+  ];
+  await page.route('**/api/wardrobe/pieces', async (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ noItemDetected: false, pieces: READ_B }) }));
+  // A real-sized photograph (a screenshot of the page), so the fitted frame has height and the tags have something to pile up on.
+  const PNG_BIG = await page.screenshot({ clip: { x: 0, y: 0, width: 240, height: 360 } });
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  await page.setInputFiles('#wa-rb-file', { name: 'outfit.png', mimeType: 'image/png', buffer: PNG_BIG });
+  await page.waitForSelector('.rb-mp-cards', { timeout: 8000 });
+  await page.waitForTimeout(700);
+  const h1 = await page.evaluate(() => {
+    const fit = document.querySelector('#wa-modal .rb-mp-fit').getBoundingClientRect();
+    const rects = Array.from(document.querySelectorAll('.rb-mp-tag')).map((t) => t.getBoundingClientRect());
+    let overlap = false;
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) overlap = true;
+    }
+    const inside = rects.every((r) => r.left >= fit.left - 1 && r.right <= fit.right + 1 && r.top >= fit.top - 1 && r.bottom <= fit.bottom + 1);
+    const dup = document.querySelector('.rb-mp-card[data-i="1"]');
+    return {
+      tags: rects.length, overlap, inside, fitH: Math.round(fit.height),
+      dupThumb: dup?.querySelector('.rb-mp-th img')?.getAttribute('src'), dupOwn: !!dup?.querySelector('img[data-mpown]'),
+      dupEye: dup?.querySelector('.rb-mp-eye')?.textContent.trim(), dupName: dup?.querySelector('.rb-mp-name')?.textContent, dupSt: dup?.querySelector('.rb-mp-st')?.textContent.trim(),
+      newLinks: Array.from(document.querySelectorAll('.rb-mp-card .rb-mp-link')).map((b) => b.closest('.rb-mp-card').getAttribute('data-i') + ':' + b.textContent),
+    };
+  });
+  check('4.1 · two tags whose boxes share a centre never pile up: nudged clear, held inside the photo', h1.tags === 3 && h1.fitH > 100 && !h1.overlap && h1.inside, JSON.stringify(h1));
+  check('4.1 · a matched piece reads as HER row — its own photograph, Shoes · Studio, its name, "Looks like yours · its own photo"', h1.dupOwn && /w-sho1\.jpg$/.test(h1.dupThumb || '') && h1.dupEye === 'Shoes · StudioCheck' && h1.dupName === 'Flat leather sandals' && h1.dupSt === 'Looks like yours · its own photo', JSON.stringify(h1));
+  check('4.1 · a new piece carries "Already mine ›"; a matched one does not', h1.newLinks.join('|') === '0:Already mine ›|2:Already mine ›', JSON.stringify(h1.newLinks));
+
+  // › on the matched piece → its SAVED page over the modal, back lands here
+  const pathBefore = await page.evaluate(() => location.pathname);
+  await page.click('.rb-mp-card[data-i="1"] .rb-mp-row');
+  await page.waitForTimeout(400);
+  const pk = await page.evaluate(() => ({
+    page: getComputedStyle(document.getElementById('rb-piece-page') || document.body).display, title: document.getElementById('rb-pc-title')?.textContent,
+    modalHidden: getComputedStyle(document.getElementById('wa-modal')).visibility, editor: !!document.querySelector('#rb-saw-panel'), path: location.pathname,
+  }));
+  check('4.2 · › on a piece that is hers opens its saved page (the record, not the editor) over the modal; the address stays', pk.page === 'block' && pk.title === 'Flat leather sandals' && pk.modalHidden === 'hidden' && !pk.editor && pk.path === pathBefore, JSON.stringify(pk));
+  await page.evaluate(() => window.__rbPieceClose());
+  await page.waitForTimeout(300);
+  const bk = await page.evaluate(() => ({ page: getComputedStyle(document.getElementById('rb-piece-page')).display, modal: getComputedStyle(document.getElementById('wa-modal')).visibility, cards: document.querySelectorAll('.rb-mp-card').length, pend: document.querySelectorAll('.rb-mp-ask').length }));
+  check('4.2 · back from the saved page lands on the list, every question still open', bk.page === 'none' && bk.modal === 'visible' && bk.cards === 3 && bk.pend === 3, JSON.stringify(bk));
+
+  // "No, add it" on the matched piece → the editor at once, scoped to the read
+  await page.click('.rb-mp-card[data-i="1"] .rb-mp-ask .rb-pill:nth-child(2)');
+  await page.waitForSelector('#rb-saw-panel', { timeout: 4000 });
+  const na = await page.evaluate(() => ({ crumb: document.querySelector('.rb-mp-crumb')?.textContent || '', banner: document.querySelector('.rb-saw-banner')?.textContent, cta: document.getElementById('wa-saw-cta')?.textContent }));
+  check('4.2 · "No, add it" opens the editor straight away, scoped to piece 2 and the read (Tan leather sandals), "Add this piece"', /Piece 2/.test(na.crumb) && na.banner === 'Tan leather sandals' && na.cta === 'Add this piece', JSON.stringify(na));
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(250);
+  const na2 = await page.evaluate(() => { const c = document.querySelector('.rb-mp-card[data-i="1"]'); return { back: !!document.querySelector('.rb-mp-cards'), name: c?.querySelector('.rb-mp-name')?.textContent, own: !!c?.querySelector('img[data-mpown]'), cls: c?.className }; });
+  check('4.2 · confirmed, the card reads the read — its crop, its name — marked to add', na2.back && na2.name === 'Tan leather sandals' && !na2.own && /\badd\b/.test(na2.cls), JSON.stringify(na2));
+
+  // "Already mine" on the sunglasses Robes did not recognise → the wardrobe picker → her row
+  await page.click('.rb-mp-card[data-i="2"] .rb-mp-link');
+  await page.waitForSelector('#cb-wa-pick', { timeout: 4000 });
+  const pkr = await page.evaluate(() => ({ tiles: document.querySelectorAll('#cb-wa-pick .cb-pick-tile').length, cats: Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-cat, #cb-wa-pick [data-cat]')).length }));
+  check('4.1 · "Already mine ›" opens the wardrobe picker with her pieces', pkr.tiles === 4, JSON.stringify(pkr));
+  await page.evaluate(() => window.__cbPickApply('wardrobe', 'w-top1'));
+  await page.waitForTimeout(250);
+  const mn = await page.evaluate(() => { const c = document.querySelector('.rb-mp-card[data-i="2"]'); return {
+    picker: !!document.getElementById('cb-wa-pick'), cls: c?.className, name: c?.querySelector('.rb-mp-name')?.textContent, eye: c?.querySelector('.rb-mp-eye')?.textContent.trim(),
+    own: c?.querySelector('img[data-mpown]')?.getAttribute('src'), st: c?.querySelector('.rb-mp-st')?.textContent.trim(), h: document.querySelector('#wa-modal .fm-h')?.textContent || '',
+  }; });
+  check('4.1 · the pick makes the card HER row — Already yours, its photo, Tops · Studio — and the head counts it', !mn.picker && /\bowned\b/.test(mn.cls) && mn.name === 'Cream silk shirt' && mn.eye === 'Tops · Studio' && /w-top1\.jpg$/.test(mn.own || '') && /^Already yours$/.test(mn.st) && /^Here’s what Robes saw\./.test(mn.h), JSON.stringify(mn));
+  await page.click('.rb-mp-card[data-i="0"] .rb-mp-ask .rb-pill:nth-child(2)');
+  await page.waitForTimeout(200);
+  const hd = await page.evaluate(() => document.querySelector('#wa-modal .fm-h')?.textContent || '');
+  check('4.3 · every piece answered: "One to add, one already yours." — the row she pointed at counts as hers', /^One to add, one already yours\./.test(hd), hd);
+  await page.click('#wa-saw-cta');
+  await page.waitForSelector('#rb-mp-done', { timeout: 8000 });
+  const posts = writes.filter((w) => w.method === 'POST' && /^wardrobe_items\b/.test(w.url)).map((w) => w.body);
+  const patches = writes.filter((w) => w.method === 'PATCH' && /^wardrobe_items\b/.test(w.url));
+  check('4.4 · the sandals file as the read; the shirt she pointed at, with its own photo, is written nowhere', posts.length === 1 && posts[0].label === 'Tan leather sandals' && posts[0].category === 'Shoes' && patches.length === 0, JSON.stringify([posts.map((p) => p.label), patches.length]));
+  check('no page errors (wardrobe · live-pass fixes)', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
 
@@ -399,6 +488,13 @@ const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath
   await page.waitForTimeout(400);
   const m = await page.evaluate(() => ({ over: document.documentElement.scrollWidth > window.innerWidth + 1, cards: document.querySelectorAll('.rb-lkr-card').length, starts: getComputedStyle(document.querySelector('.rb-lk-starts') || document.body).gridTemplateColumns }));
   check('390 · the read fits the phone (no horizontal overflow, three cards)', !m.over && m.cards === 3, JSON.stringify(m));
+  // Leave it out (Annie's green kids' bag): a piece in the photo that is not part of the look — gone, never on the rack, never filed
+  const outs = await page.evaluate(() => Array.from(document.querySelectorAll('.rb-lkr-card .rb-lkr-out')).map((b) => b.textContent));
+  check('3.4 · every card carries a third answer, "Leave it out"', outs.length === 3 && outs.every((t) => t === 'Leave it out'), JSON.stringify(outs));
+  await page.click('.rb-lkr-card[data-i="0"] .rb-lkr-out');
+  await page.waitForTimeout(250);
+  const lo = await page.evaluate(() => ({ cards: document.querySelectorAll('.rb-lkr-card').length, dots: document.querySelectorAll('.rb-lkr-dot').length, rows: document.querySelectorAll('.rb-lk-composer .rbc-trailrow').length, gate: document.getElementById('rb-lk-readgate')?.textContent, over: document.documentElement.scrollWidth > window.innerWidth + 1 }));
+  check('3.4 · Leave it out: the card and its dot go, nothing lands on the rack, two left to confirm', lo.cards === 2 && lo.dots === 2 && lo.rows === 0 && /2 pieces to confirm/.test(lo.gate || '') && !lo.over, JSON.stringify(lo));
   await page.screenshot({ path: '/tmp/claude-0/-home-user-robes-mvp/d822deef-bebb-5a67-9ae8-71afb427c720/scratchpad/look-read-390.png', fullPage: false });
   check('no page errors (look · 390)', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
