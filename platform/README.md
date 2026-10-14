@@ -1,146 +1,96 @@
 # Robes Platform
 
-**Start here:** [`docs/STATUS.md`](docs/STATUS.md): what is built, how to run it, what is pending.
+This folder holds the new Robes codebase: a Next.js web app and a native iOS/Android app (Expo). Both run on one shared API, one design system and one data model.
 
-The next-generation Robes: a secure, scalable platform with a Next.js web app and an Expo (iOS/Android) app sharing one API, one design system and one data model. It is built here, beside the legacy app, which keeps serving www.byrobes.com and beta.byrobes.com until cutover. Nothing in `platform/` imports from or edits the legacy app.
+It is the same product as the Robes app in the root of this repo: same screens, same flows, same style DNA and prompts. It is rebuilt on foundations that can grow with a team and a user base, and that work properly on a phone. The root app is left as it is. It keeps serving www.byrobes.com and beta.byrobes.com until we choose to switch over, and nothing in `platform/` imports from it or changes it.
 
-**Start here:** `docs/SPEC.md` → `docs/plans/README.md` → the current milestone plan. Agents: read `CLAUDE.md` in this folder.
+**Where to read next:**
+- [`docs/STATUS.md`](docs/STATUS.md): what is built, what runs where, what is still to do.
+- [`docs/DEVELOPING.md`](docs/DEVELOPING.md): engineering guide (commands, architecture, recipes).
+- [`CLAUDE.md`](CLAUDE.md): the rules every change must follow.
 
-## Layout
+## Why a new codebase
 
-| Folder | What |
-|---|---|
-| `app/` | Next.js 16 web app + `/api/v1` route handlers (Vercel) |
-| `mobile/` | Expo SDK 57 app (EAS), Expo Router in `src/app` |
-| `supabase/` | Migrations, pgTAP tests, local config |
-| `packages/config` | Validated environment (`parseEnv`, `appServerEnv`) |
-| `packages/tokens` | Design tokens → generated Tailwind v4 (web) and Uniwind (native) CSS, with a WCAG contrast gate |
-| `packages/ui` | Web primitives (`@robes/ui`: Button, Field, Dialog/Sheet, Toast, Image…) on the tokens, with Storybook and axe tests |
-| `packages/contracts` | zod schemas shared by server and clients, plus the `/api/v1` route map (`src/routes.ts`) |
-| `packages/api-client` | Typed client generated from the route map: `call()`, error mapping, automatic `Idempotency-Key`, TanStack Query hooks (`./react`), typed SSE (`./sse`) |
-| `packages/api` | `route()` wrapper: auth (Supabase JWT via JWKS), validation, body limits, rate limits, safe errors |
-| `packages/jobs` | Job runtime: transports (inline/SQS), `runJob()` lease + handler registry, outbox sweep |
-| `packages/media` | Media key layout, S3 storage (MinIO locally), CloudFront/local signed delivery, sharp rendition pipeline (`processUpload`) |
-| `workers/` | Lambda handlers (`src/handlers/*.ts`, one per queue) wrapping `@robes/jobs` and `@robes/media` |
-| `infra/` | AWS CDK app (`@robes/infra`): stages `Staging`/`Production` from `infra/config/*.ts`, one file per stack in `src/stacks/`, assertion tests in `test/`. Runbooks: `docs/runbooks/` |
-| `docs/` | Spec, requirements, reference and plans |
+The root app proved the product. It is one Express server (`server.js`, ~4,200 lines) plus hand-written HTML pages (`public/dashboard.html` alone is ~2,700 lines), calling Gemini, Supabase and Cloudinary directly. That was the right way to find the product, but it is hard to grow:
 
-Internal packages are "just-in-time" TypeScript: `exports` point at `src/*.ts` and are compiled by the consumer (Next, Metro, Vitest). The exception is `@robes/tokens`, which has a build step that writes `dist/*.css`.
+| | Root app today | New platform |
+|---|---|---|
+| **Phones** | Mobile web only | A real iOS/Android app (Expo) on the same API, plus a responsive web app |
+| **Code structure** | One server file and page-sized HTML | Small packages (API, DB, AI, jobs, media, UI) that a team can own and test separately |
+| **Slow AI work** | Runs inside the web request | Background jobs (AWS SQS + Lambda) with live progress, retries, quotas and a spend limit |
+| **Photos** | Uploaded to Cloudinary as base64 through the server | Private by default; resized to AVIF/WebP, EXIF/GPS stripped, delivered through signed CloudFront URLs |
+| **Data safety** | Pages query Supabase tables directly from the browser | Private Postgres behind the API. Every query is scoped to the signed-in user, with a test proving one user can't read another's data |
+| **Sign-in** | Supabase email + password (and Google) | Passwordless email codes (plus Apple/Google when configured), with server-side sessions |
+| **Quality gates** | Manual testing | Lint, typecheck, unit, database and browser (Playwright) tests on every change; Maestro flows for the app |
+| **Infrastructure** | Hand-configured | AWS defined in code (CDK) with separate staging and production |
 
-## Getting started
+## Same product: what has been carried over
 
-Prerequisites: Node 24 (`.nvmrc`), Docker running (for local Supabase). For mobile: Expo Go on a phone, or an iOS simulator (Xcode) / Android emulator. Mobile runs entirely through Expo (see `mobile/README.md`).
+The prompts, the style DNA engine and the product rules were ported from the root app and are checked against it. For example, the style DNA test fixtures are generated from the root `style_dna.js`. Screen by screen:
+
+| Root app | Web (`app/`) | Phone (`mobile/`) |
+|---|---|---|
+| Sign up, onboarding | `/auth/sign-in`, `/onboarding` | sign-in, onboarding |
+| Dashboard / Today, daily looks | `/`, `/today/style`, `/today/looks/[id]` | Today, today/style, today/look |
+| Wardrobe, add pieces, inbox | `/wardrobe`, `/wardrobe/add`, `/wardrobe/inbox`, `/wardrobe/link`, `/wardrobe/wishlist`, `/piece/[id]` | wardrobe, add, wardrobe/link, piece |
+| Style a piece, look builder, lookbook | `/looks`, `/looks/style`, `/looks/new`, `/looks/ideas`, `/look/[id]` | looks, looks/style, looks/new, idea, look |
+| Plan, travel | `/plan`, `/trip/new`, `/trip/[id]` | plan, trip/new, trip |
+| Board / shared look | `/share/[token]` | share links open the web page |
+| Settings, account, privacy | `/you`, `/you/style`, `/you/model`, `/you/notifications`, `/you/privacy`, `/you/account` | you, style, model, notifications, privacy, account, delete, receipts |
+| Forwarded receipts | Inbox, from SES inbound email | receipts |
+| Emails (looks ready, nudges, unsubscribe) | notify worker + `/unsubscribe` | push notifications |
+| Waitlist | `/waitlist/confirm` | — |
+| Admin | `/admin` (users, costs, flags, audit) | — |
+
+**Not carried over yet.** The root app is still moving, and these features landed there after the port (details and rough sizes in [`docs/STATUS.md`](docs/STATUS.md) → Legacy sync):
+- Refining a look in her own words.
+- The look prompt (asking about a draft look) and per-piece styling notes.
+- Look states (Suggested → Draft → Saved), the keep-or-pass deck and the modular home.
+- Style memory, and her brief, brands and facts in Settings.
+- Travel looks re-styled from the case.
+- The latest beta work (several pieces from one photograph, one piece per slot on suggested looks, prompt cost trims), merged into this branch but not yet ported.
+
+Bringing these across is the next block of work. Until then, the root app stays the source of truth for product behaviour.
+
+## What is in this pull request
+
+Only additions; nothing in the root app changes.
+- **`platform/`:** the web app, mobile app, API, workers, infrastructure, migrations and docs.
+- **`.github/workflows/platform-*.yml` and `.github/actions/platform-*`:** CI for the new code.
+  - It runs only on pull requests that touch `platform/`.
+  - The staging deploy runs only on pushes to a `platform` branch.
+  - The production deploy is manual.
+  - Existing workflows are untouched.
+
+Fixes made while standing up staging:
+- **Database TLS:** connections to the Supabase-hosted database are verified against Supabase's root certificate (`packages/db/src/tls.ts`). Without it the deployed app refused every database call.
+- **AWS keys on Vercel:** one IAM key pair, named `ROBES_AWS_*` because Vercel reserves `AWS_*`. It is passed explicitly to email (SES), storage (S3) and queues (SQS).
+- **Vercel build:** pinned pnpm 11 so Vercel builds the platform workspace, not the root app.
+- **Rate limits:** stored in Postgres, so Upstash/Redis isn't needed.
+- **Optional services:** Sentry, PostHog and Turnstile are only required in production.
+- **App variants:** separate dev, staging and production builds (`com.byrobes.app.dev`, `.staging` and `com.byrobes.app`), so test builds never take the App Store id.
+- **Local email:** Mailpit catches every email locally, sign-in codes included.
+
+## Running it locally
+
+You need Node 24 and Docker. Everything runs on your machine (Postgres, S3-compatible storage, a mail catcher), and without a `GEMINI_API_KEY` the AI is a deterministic fake, so it works offline.
 
 ```bash
 cd platform
-corepack enable            # provides the pinned pnpm (11.27.1)
-pnpm bootstrap             # install, build tokens, create app/.env.local
-pnpm db:start              # local Supabase on :54321 (API), :54322 (DB), :54323 (Studio)
-pnpm dev:web               # http://localhost:3300
-pnpm dev:mobile            # expo start → press i (iOS sim) / a (Android) / scan QR in Expo Go
+corepack enable
+pnpm bootstrap      # install, start services, migrate, create buckets, write app/.env.local
+pnpm dev:web        # http://localhost:3300 — sign in with any email
+pnpm dev:mobile     # Expo: press i for the iOS simulator, or scan the QR code with Expo Go
 ```
 
-Check it's working: `http://localhost:3300` shows the Robes headline on cream, and `http://localhost:3300/api/v1/health` returns `{"ok":true}`. On the simulator, toggle dark mode (Cmd+Shift+A) to see the ink theme.
+Sign-in codes arrive in Mailpit at http://localhost:58025. Before pushing, run `pnpm verify` (lint, typecheck, unit and database tests). See [`docs/DEVELOPING.md`](docs/DEVELOPING.md) for phones on your network, admin access and troubleshooting.
 
-## Everyday commands (from `platform/`)
+## Environments
 
-| Command | Does |
-|---|---|
-| `pnpm verify` | Everything CI's checks job runs locally except the build: lint, typecheck, unit tests, pgTAP |
-| `pnpm lint` / `pnpm format` | Biome check / fix |
-| `pnpm typecheck` | `tsc` across every package (Turbo) |
-| `pnpm test` | Vitest (packages, app) + Jest (mobile) |
-| `pnpm receipt:ingest <abs path .eml> --to <address>` | Forwarded-receipt path without SES: stores the mail in MinIO `inbound/` and runs the inbound worker's pipeline (address from You › Forward receipts) |
-| `pnpm --filter @robes/app test:e2e` | Builds the app and runs Playwright against `next start` on :3310 (`E2E_PORT` to change) |
-| `pnpm maintenance` | Runs the maintenance worker once locally: retention + outbox sweep (swept jobs run in-process) |
-| `pnpm batch:tick -- --now=<ISO> [--user=<id>]` | One overnight Today run: selects people at local 04:00 (active this week), submits their daily looks as a batch (the fake answers at once without `GEMINI_API_KEY`), applies results and renders anchors locally |
-| `pnpm dev:ios` / `pnpm dev:android` | Expo straight to a simulator/emulator |
-| `pnpm --filter @robes/mobile expo:doctor` | Expo SDK/dependency health check |
-| `pnpm db:reset` | Recreate the local DB from `supabase/migrations` |
-| `pnpm db:test` | pgTAP tests in `supabase/tests/database` |
-| `pnpm --filter @robes/tokens build` | Regenerate token CSS after editing `packages/tokens/src/tokens.ts` |
-| `pnpm --filter @robes/ui storybook` | Storybook for the web primitives (light/dark toolbar); `build-storybook` for a static build |
-| `pnpm --filter @robes/infra test` | CDK assertion tests (both stages, stub handlers, no AWS needed) |
-| `pnpm --filter @robes/infra synth` | `cdk synth` of both stages with stub worker handlers, offline |
-| `pnpm --filter @robes/infra cdk diff -c stage=staging` | Diff against the staging account (needs AWS credentials; see `docs/runbooks/environments.md`) |
+| | Web + API | Database | AWS (jobs, email, media) | Mobile build |
+|---|---|---|---|---|
+| Local | `pnpm dev:web` | Postgres in Docker | Fakes: MinIO, Mailpit, in-process jobs | `com.byrobes.app.dev` via Expo |
+| Staging | Vercel `codu/robes-app` → https://robes-app-two.vercel.app (`staging.byrobes.com` once DNS is added) | Supabase (EU) | Sandbox account, eu-west-1, `Staging/*` stacks | `com.byrobes.app.staging` via EAS → TestFlight |
+| Production | Not set up yet | — | `Production/*` stacks (not deployed) | `com.byrobes.app` |
 
-## How the pieces fit
-
-**Tokens.** `packages/tokens/src/tokens.ts` is the only place colours, fonts and radii are defined. `tokens.test.ts` fails if any declared foreground/background pair drops below its WCAG ratio, in light or dark mode. Fix the palette, never the threshold. The build writes `theme.css` (a Tailwind `@theme` shared by both platforms) plus `web.css` and `native.css` (per-platform light/dark values), so `bg-surface text-ink` means the same thing on web and native.
-
-**UI primitives.** Web screens use `@robes/ui` rather than raw elements: one `primary` Button per screen (a second mounted primary logs a dev error; dialogs and sheets are their own scope), `IconButton` needs a `label`, `Heading` has no size below 18px, and all chrome copy comes from `@robes/copy`. `packages/ui/test/no-raw-colours.test.ts` fails `pnpm test` on hex literals, colour functions or `bg-[#…]`-style values anywhere in `app/`, `mobile/` or `packages/ui*`.
-
-**API routes.** Every handler under `app/src/app/api/v1/**/route.ts` is built with `route()` from `app/src/server/route.ts`:
-
-```ts
-export const POST = route({
-  auth: 'user',                       // 'public' | 'user' | 'admin'
-  input: CreateThingInput,            // zod, from @robes/contracts
-  output: Thing,
-  rateLimit: { key: 'things.create', limit: 20, windowSeconds: 60 },
-  handler: async ({ input, user }) => createThing(user.id, input),
-});
-```
-
-The identity comes from the verified JWT (`user.id`), never from the body. `route-manifest.test.ts` fails if any route skips `route()`, or is public without being allow-listed there and in `docs/api.md` §3.
-
-**Jobs.** Anything slow or paid is a job. The route calls `startJob()` (`app/src/server/jobs.ts`): quota and the `generation_jobs` insert commit together (idempotent on `Idempotency-Key`), then the job id is sent to SQS (`JOBS_INTERACTIVE_QUEUE_URL`) or, in dev, run in-process after the response via `after()`; the route returns `202 { jobId }` even if sending fails, because the maintenance worker's sweep re-sends stale jobs. `runJob()` claims the row with a lease (duplicate deliveries are no-ops), runs the handler for its `kind` with a time budget and cancellation signal, writes stages (`text`, `images`) onto the row, and finishes it with a short error code, never provider text. Clients follow `GET /api/v1/jobs/:id/events` (SSE): a full snapshot on connect and on every change, so a refresh or reconnect resumes (`useJob()` in `app/src/lib/use-job.ts`). Try it at `/dev/jobs` in dev.
-
-**Security headers.** `app/src/proxy.ts` sets a per-request nonce CSP (built by `server/security-headers.ts`), and `next.config.ts` adds the static headers. The root layout awaits `connection()`, so every page renders dynamically and Next can stamp the nonce. A statically prerendered page would have its scripts blocked. The e2e suite asserts that no page logs a CSP violation.
-
-**Media.** Photos never pass through the API (SEC-20). `POST /api/v1/uploads` creates a `pending` row in `app.assets` (charging the `upload.image` quota in the same transaction) and returns a presigned PUT for `uploads/{userId}/{assetId}/original`, signed for that exact key, content type and length and valid for 5 minutes. The client PUTs the file straight to the bucket, then calls `POST /api/v1/uploads/:id/complete`. In AWS the S3 `ObjectCreated` event runs `RenditionFn`, a thin wrapper around `processUpload()` from `@robes/media/process`: it checks magic bytes and limits, strips EXIF/GPS, applies orientation, writes a 2048 px `master.jpg` plus 320/640/1080/1600 AVIF and WebP renditions (never upscaled) and a blurhash under `media/{userId}/{assetId}/`, then marks the asset `ready` or `failed`. Re-delivery is safe because only `pending` assets are processed. Locally there's no S3 event, so `complete` runs the same `processUpload()` in-process after the response (`after()` from `next/server`); deployed, `complete` only checks the object exists. Delivery is always signed (SEC-21): `GET /api/v1/assets/:id` returns URLs signed for the caller (CloudFront canned policy with an expiry that stays the same all day, so image caches stay warm), and `POST /api/v1/media/session` sets CloudFront cookies scoped to `/media/{userId}/*` for web. Locally, presigned MinIO GETs stand in for CloudFront. `pnpm media:setup` creates the private local buckets (`robes-dev-media`, `robes-test-media`) and `/dev/upload` (dev only, signed in) exercises the whole flow. **HEIC:** sharp's prebuilt libvips decodes AVIF but has no HEVC decoder, so HEIC uploads are marked `failed` with `heic_unsupported`. Native clients convert to JPEG on the device before uploading. Server-side HEIC needs a custom libvips build with libde265 in `RenditionFn`. The Lambda bundles sharp for linux-arm64 at the version pinned in `packages/media/package.json` (`infra/src/lib/native-modules.ts`), so there's no layer to publish.
-
-**Database.** Schema changes are migrations only (`pnpm supabase migration new <name>`), never the Studio SQL editor. Every public table has RLS enabled, `(select auth.uid())` policies, an `ownership:` table comment, column-level grants for user-writable tables and a pgTAP test. `000_meta.test.sql` enforces the first three for every table automatically.
-
-## Observability and consent
-
-Both tools are **off unless configured**, so local dev and CI send nothing anywhere. Outside dev, `packages/config` requires `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` and `NEXT_PUBLIC_POSTHOG_KEY`.
-
-**Sentry (errors, traces).** Add to `app/.env.local` and restart:
-
-```bash
-SENTRY_DSN=https://<key>@o<org>.ingest.de.sentry.io/<project>          # server + edge (src/instrumentation.ts)
-NEXT_PUBLIC_SENTRY_DSN=https://<key>@o<org>.ingest.de.sentry.io/<project>  # browser (src/instrumentation-client.ts), inlined at build
-SENTRY_TRACES_SAMPLE_RATE=1        # default 0.1
-```
-
-Release is `SENTRY_RELEASE` or `VERCEL_GIT_COMMIT_SHA`; environment is `SENTRY_ENVIRONMENT` or `APP_ENV`. `next.config.ts` wraps the build with `withSentryConfig` only when `SENTRY_AUTH_TOKEN` is set (CI source-map upload; also `SENTRY_ORG`, `SENTRY_PROJECT`). Route handlers report unexpected 500s through `RouteDeps.captureError` (expected `ApiError`s are not reported). Workers wrap every Lambda handler with `withSentry()` (`workers/src/sentry.ts`, `@sentry/aws-serverless`) when their `SENTRY_DSN` is set; CDK doesn't pass it yet. Mobile has no Sentry yet: `@sentry/react-native` needs a dev build, not Expo Go (ADR 018), so it lands with M7.
-
-**What is scrubbed (SEC-83).** `sendDefaultPii` is off. Every event, transaction and breadcrumb goes through `scrubEvent`/`scrubBreadcrumb` from `@robes/logger/scrub` (the same key list as the pino logger, and importable from client code): email addresses are removed from any string; `extra`, `tags` and non-SDK `contexts` lose values under keys such as `email`, `name`, `prompt`, `text`, `note`, `token`, `cookie`, `url` and `body`; requests keep only method, URL without its query string and a few safe headers (no cookies, auth or forwarded IPs, no body); `user` is reduced to its id; breadcrumb URLs lose their query strings.
-
-**PostHog (product analytics, EU).** Set `NEXT_PUBLIC_POSTHOG_KEY` (host defaults to `https://eu.i.posthog.com`). The key is read on the server and passed to the browser at runtime, and the CSP gains the ingest and assets origins only when a key is set. Nothing loads until the signed-in user answers the consent banner with **Allow** (SEC-84). Then the bundled `posthog-js` (no CDN scripts, no autocapture) starts, identified by user id only. Session replay stays off unless the user also grants `replay` in `/you/privacy`. Replay masks every input, all text and all images and video. Withdrawing consent opts out and resets PostHog, and so does sign-out. Events come from the typed catalogue in `@robes/analytics` (ids, counts and enums only), and unknown events or props are dropped. Server-side events (`@robes/analytics/server`) are keyed by user id and sent only if that user has consented. Consents are append-only rows in `app.consents` (`GET/POST /api/v1/me/consents`); the latest answer per kind wins.
-
-Personal data we store and who processes it: `docs/data-inventory.md`.
-
-## Recipes
-
-- **New shared package:** copy `packages/contracts` (package.json with `exports: ./src/index.ts`, a one-line `tsconfig.json` extending `../../tsconfig.base.json`, `test`/`typecheck` scripts). Use `catalog:` for shared dependency versions (`pnpm-workspace.yaml`). If the app imports it, add it to `transpilePackages` in `app/next.config.ts`. React-using packages declare `react` as a **peer** dependency, because web and native run different React minors.
-- **New API route:** add the schemas to `@robes/contracts`, add one entry to `routes` in `packages/contracts/src/routes.ts` (method, path, auth, params/input/output, `idempotent: true` for creating POSTs), create `route.ts` with `route()` using the same schemas, and write a unit test for the handler logic. The manifest test picks the route up automatically; `route-contract.test.ts` fails until the map entry and the handler agree. Clients then call it with `api.call('<key>', …)` or `useApi`/`useApiMutation` from `@robes/api-client/react`.
-- **New table:** `pnpm supabase migration new <name>`, write the table plus RLS, grants and ownership comment, add `supabase/tests/database/NNN_<name>.test.sql`, then `pnpm db:reset && pnpm db:test`.
-- **Native dependency:** `cd mobile && pnpm exec expo install <pkg>` (picks the SDK-compatible version), then `pnpm expo:doctor`. Prefer packages that run in Expo Go (ADR 018).
-
-## Admin
-
-`/admin` (users, job health, costs, flags, audit log) is for `app.admin_users` role `admin` only; anyone else gets a 404 page and `403` from `/api/v1/admin/*`. Every admin read of user data, and every flag change, writes an `app.audit_log` row with the admin's id and IP, and the admin repository re-checks the role itself before each read. To make yourself an admin locally, sign in once, then run `pnpm --filter @robes/db admin:grant you@example.com` (optional second argument: `support` or `analyst`, which are staff roles with no admin access yet). The script refuses non-local databases unless `--remote` is passed; granting in a deployed environment should be a deliberate, reviewed run. Flag changes reach the instance that made them at once and other instances within the 30-second flag cache.
-
-## Legacy migration (rehearsal)
-
-`pnpm migrate:rehearse` builds a local legacy database from the legacy `supabase/*.sql` with fixture rows, migrates it into a fresh local `robes_migrate` and runs the assertions (exit 1 on any failure). The steps also run one at a time (`migrate:fixture`, `migrate:target`, `migrate:extract`, `migrate:transform`, `migrate:assert`, `migrate:rehost -- --dry-run`, `migrate:reverse-delta -- --since=<ISO>`). Point `LEGACY_DATABASE_URL` at a read-only copy of legacy to rehearse on real data; the target is always local. Details and mapping decisions: `docs/migration.md` §3.
-
-## Mobile sign-in (local)
-
-`mobile/.env` sets `EXPO_PUBLIC_API_URL` (default `http://localhost:3300`, fine for the iOS simulator; use your LAN IP for a phone or the Android emulator). On a physical phone, also set `MEDIA_S3_ENDPOINT=http://<your-ip>:59000` in `app/.env.local` and restart `pnpm dev:web`: upload and image URLs are presigned against that host, and `localhost` on the phone is the phone. Run `pnpm dev:web` and `pnpm dev:mobile`, sign in with any email, then read the code in Mailpit (http://localhost:58025). The session is stored in the device keychain via SecureStore. End-to-end: `pnpm --filter @robes/mobile e2e` runs the Maestro flows (`mobile/e2e`) against a booted simulator (install Maestro 2.10: see `mobile/README.md`).
-
-## Troubleshooting
-
-- **`ERR_PNPM_IGNORED_BUILDS`**: pnpm 11 only runs install scripts for packages listed under `allowBuilds` in `pnpm-workspace.yaml`.
-- **Freshly published package refused**: pnpm's `minimumReleaseAge` supply-chain policy. Wait it out, or add a reviewed exact version to `minimumReleaseAgeExclude`.
-- **Mobile `className` type errors**: `mobile/src/uniwind-types.d.ts` is generated by Metro. Run `pnpm dev:mobile` once after adding themes.
-- **Styles missing on web**: rebuild tokens (`pnpm --filter @robes/tokens build`). `pnpm dev`/`build` do this automatically through Turbo's `^build`.
-- **Ports** (fixed so they don't collide with other local projects): web/API 3300, Playwright 3310 (override with `E2E_PORT`), Postgres 55432, MinIO 59000/59001, Mailpit SMTP 51025 + inbox http://localhost:58025, Metro 8081 (Expo offers another port if it's busy).
-- **Expo Go shows "Failed to parse manifest JSON"**: open the LAN URL (`exp://<your-ip>:<port>`), not `127.0.0.1` — `expo start` prints it.
-- **Uploads fail locally with a network error**: MinIO isn't up or the bucket is missing. Run `pnpm services:up && pnpm media:setup`, and check `MEDIA_*` in `app/.env.local` against `app/.env.example`.
-
-## CI
-
-`.github/workflows/platform-ci.yml` runs on PRs touching `platform/**`. It has four jobs: checks (lint, typecheck, unit, expo-doctor, build), database (Postgres service + dbmate + DB tests + generated-types drift check), e2e (Playwright with Postgres + Mailpit) and secrets (gitleaks over the change's commits). A `cdk-diff` job runs the infra assertion tests and an offline `cdk synth`; the checks job also runs `pnpm audit --prod --audit-level high`. Deploys: `platform-deploy-staging.yml` (push to `platform`) and `platform-deploy-prod.yml` (manual, `production` environment approval), both via GitHub OIDC; setup in `docs/runbooks/environments.md`.
+How to set up and operate each environment: [`docs/runbooks/environments.md`](docs/runbooks/environments.md).

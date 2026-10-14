@@ -5,7 +5,7 @@ import { declineConsent, isolateClientIp, seriousViolations, signIn, uniqueEmail
 
 const PLATFORM = fileURLToPath(new URL('../..', import.meta.url));
 
-// The documented way to make someone an admin locally (README → Admin).
+// The documented way to make someone an admin locally (docs/DEVELOPING.md → Admin).
 function grantAdmin(email: string): void {
   execFileSync('pnpm', ['--filter', '@robes/db', 'admin:grant', email], {
     cwd: PLATFORM,

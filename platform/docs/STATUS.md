@@ -8,7 +8,7 @@ decisions live in `plans/`, `SPEC.md` (ADRs) and `CLAUDE.md` (rules); this page 
 ```bash
 pnpm bootstrap            # deps, docker services (Postgres, MinIO, Mailpit), migrations, buckets
 pnpm dev:web              # http://localhost:3300 — sign in with any email; codes land in Mailpit (http://localhost:58025)
-pnpm dev:mobile           # Expo Go; see README → Mobile for simulators and phones
+pnpm dev:mobile           # Expo Go; see docs/DEVELOPING.md → Mobile sign-in
 pnpm verify               # lint + typecheck + unit + DB suites (what every commit passes)
 pnpm --filter @robes/app test:e2e   # Playwright against `next start`
 pnpm notify               # one email tick → Mailpit
