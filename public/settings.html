@@ -1427,11 +1427,11 @@
       return m ? m[0].trim() : cutWords(s, 160);
     }
     function chSaveBrief(b) {
-      const clean = a => a.slice(0, 8).map(x => Object.assign({ text: cutWords(x.text, 160), source: x.source }, x.from ? { from: cutWords(x.from, 160) } : {}, x.at ? { at: x.at } : {}, x.prompt ? { prompt: x.prompt } : {}));
+      const clean = a => a.map(x => Object.assign({ text: cutWords(x.text, 160), source: x.source }, x.from ? { from: cutWords(x.from, 160) } : {}, x.at ? { at: x.at } : {}, x.prompt ? { prompt: x.prompt } : {}));
       const brief = {
         loves: clean(b.loves), avoids: clean(b.avoids), rules: clean(b.rules),
         notes: cutWords((b.notes || '').trim(), 600),
-        colours: { loved: b.colours.loved.slice(0, 8), rejected: b.colours.rejected.slice(0, 8) },
+        colours: { loved: b.colours.loved.slice(), rejected: b.colours.rejected.slice() },
         struck: b.struck.slice(0, 30),
         pending: b.pending.slice(0, 12).map(x => Object.assign({ list: x.list, text: cutWords(x.text, 160), because: cutWords(x.because || '', 200), at: x.at || new Date().toISOString(), loved: x.loved, rejected: x.rejected }, x.full ? { full: cutWords(x.full, 600) } : {})),
         read_at: b.read_at || '',
