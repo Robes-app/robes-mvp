@@ -56,6 +56,8 @@ export interface ReadPieceRow {
   size: string | null;
   itemDna: Record<string, unknown>;
   imageAssetId: string | null;
+  // Set when she chose it on the single-piece screen.
+  seasonBand?: SeasonBand | undefined;
 }
 
 export interface ListPiecesQuery {
@@ -161,6 +163,7 @@ export function wardrobeRepo(db: Db) {
                 acquiredVia: 'photo',
                 sourceAssetId,
                 sourceIndex: p.sourceIndex,
+                ...(p.seasonBand ? { seasonBand: p.seasonBand, seasonSource: 'user' } : {}),
               };
             }),
           )

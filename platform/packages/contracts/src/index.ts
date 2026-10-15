@@ -7,6 +7,7 @@ export * from './looks';
 export * from './me';
 export * from './media';
 export * from './notify';
+export * from './photo-reads';
 export * from './plan';
 export * from './routes';
 export * from './shares';

@@ -64,6 +64,13 @@ import {
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
 import { JoinWaitlistInput, Ok, OneClickUnsubInput, UnsubParams } from './notify';
 import {
+  FileReadInput,
+  FileReadOutput,
+  LookFromPhotoInput,
+  PhotoReadParams,
+  StartPhotoReadInput,
+} from './photo-reads';
+import {
   GetPlanInput,
   PinLookInput,
   PinnedEntries,
@@ -308,6 +315,32 @@ export const routes = {
     auth: 'user',
     input: BatchPiecesInput,
     output: BatchPiecesOutput,
+  },
+  // Several pieces from one photograph: the read is a job; its id addresses the answers.
+  'photoReads.start': {
+    method: 'POST',
+    path: '/wardrobe/photo-reads',
+    auth: 'user',
+    input: StartPhotoReadInput,
+    output: StartJobOutput,
+    idempotent: true,
+  },
+  // Naturally idempotent: each piece of a read files once.
+  'photoReads.file': {
+    method: 'POST',
+    path: '/wardrobe/photo-reads/:id/file',
+    auth: 'user',
+    params: PhotoReadParams,
+    input: FileReadInput,
+    output: FileReadOutput,
+  },
+  'photoReads.look': {
+    method: 'POST',
+    path: '/wardrobe/photo-reads/:id/look',
+    auth: 'user',
+    params: PhotoReadParams,
+    input: LookFromPhotoInput,
+    output: Look,
   },
   'wishlist.list': {
     method: 'GET',
