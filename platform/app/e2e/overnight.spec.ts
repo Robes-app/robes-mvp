@@ -46,8 +46,9 @@ test('the look Robes makes overnight is waiting on Today in the morning', async 
   expect(look.steps.length).toBeGreaterThan(0);
 
   await page.goto('/');
-  const card = page.getByRole('region', { name: 'Your look for today' });
-  await expect(card).toBeVisible();
-  await card.getByRole('link', { name: 'Open it →' }).click();
+  // The modular home carries it among the alerts (H1), under the masthead.
+  const alerts = page.getByTestId('home-alerts');
+  await expect(alerts.getByText('Your look for today')).toBeVisible();
+  await alerts.getByRole('link', { name: 'Open it ›' }).click();
   await expect(page).toHaveURL(new RegExp(`/today/looks/${t.overnight.id}$`));
 });
