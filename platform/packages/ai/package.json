@@ -1,0 +1,32 @@
+{
+  "name": "@robes/ai",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./prompts/wardrobe-analyse": "./src/prompts/wardrobe-analyse/v2.ts",
+    "./prompts/style-piece": "./src/prompts/style-piece/v3.ts",
+    "./prompts/style-analyse": "./src/prompts/style-analyse/v1.ts",
+    "./prompts/daily": "./src/prompts/daily/v2.ts",
+    "./prompts/travel": "./src/prompts/travel/v2.ts",
+    "./prompts/receipt-read": "./src/prompts/receipt-read/v2.ts",
+    "./prompts/avatar": "./src/prompts/avatar/v2.ts",
+    "./prompts/style-brief": "./src/prompts/style-brief/v1.ts",
+    "./prompts/wardrobe-pieces": "./src/prompts/wardrobe-pieces/v1.ts",
+    "./prompts/style-piece/v2": "./src/prompts/style-piece/v2.ts",
+    "./prompts/look-ask": "./src/prompts/look-ask/v1.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@google/genai": "2.24.0",
+    "@robes/core": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

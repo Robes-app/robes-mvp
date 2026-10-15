@@ -1,0 +1,63 @@
+name: platform-deploy-staging
+
+# Needs the GitHub environment `staging` with the vars/secrets listed in
+# platform/docs/runbooks/environments.md §5.
+on:
+  push:
+    branches: [platform]
+    paths: ['platform/**', '.github/workflows/platform-deploy-*.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: platform-deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+defaults:
+  run:
+    working-directory: platform
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      ROBES_STAGING_AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      ROBES_STAGING_CF_PUBLIC_KEY: ${{ vars.CLOUDFRONT_PUBLIC_KEY }}
+      ROBES_STAGING_MEDIA_DOMAIN: ${{ vars.MEDIA_DOMAIN }}
+      ROBES_STAGING_MEDIA_CERT_ARN: ${{ vars.MEDIA_CERT_ARN }}
+      ROBES_STAGING_ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+      ROBES_STAGING_BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
+      ROBES_STAGING_BUDGETS: ${{ vars.BUDGETS }}
+      ROBES_STAGING_GENERATE_RESERVED_CONCURRENCY: ${{ vars.GENERATE_RESERVED_CONCURRENCY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/platform-setup
+      - run: pnpm --filter @robes/infra test
+
+      # Migration role URL (owns the schema), never the runtime robes_app URL (ADR-020).
+      - name: db migrate
+        env:
+          DATABASE_ADMIN_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+        run: pnpm db:migrate
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-west-1
+          role-session-name: robes-deploy-staging-${{ github.run_id }}
+
+      - name: cdk deploy (Staging)
+        working-directory: platform/infra
+        # A script, not `pnpm exec`: exec puts a relative .bin on PATH and esbuild bundling breaks.
+        # Stacks live inside the Staging Stage, so select them by path; --all only sees top-level stacks.
+        run: pnpm cdk deploy 'Staging/*' -c stage=staging --require-approval never --ci
+
+      - name: smoke
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          curl -fsS --retry 10 --retry-delay 15 --retry-all-errors "$APP_URL/api/v1/health" | tee /dev/stderr | grep -q '"ok":true'

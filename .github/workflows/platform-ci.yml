@@ -1,0 +1,119 @@
+name: platform-ci
+
+on:
+  pull_request:
+    paths: ['platform/**', '.github/workflows/platform-*.yml']
+  push:
+    branches: [platform]
+    paths: ['platform/**', '.github/workflows/platform-*.yml']
+
+concurrency:
+  group: platform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: platform
+
+env:
+  APP_ENV: dev
+  # Same URLs as local dev: CI Postgres is published on 55432 like docker-compose.
+  DATABASE_URL: postgres://robes_app:robes_app_local@127.0.0.1:55432/robes
+  BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+  UNSUB_HMAC_KEY: ci-only-unsub-key-not-used-anywhere-else-0123456789
+  BETTER_AUTH_URL: http://localhost:3100
+  SMTP_URL: smtp://127.0.0.1:51025
+  MEDIA_BUCKET: robes-dev-media
+  MEDIA_S3_ENDPOINT: http://localhost:59000
+  MEDIA_S3_ACCESS_KEY_ID: robes
+  MEDIA_S3_SECRET_ACCESS_KEY: robes-local-secret
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/platform-setup
+      - run: pnpm audit --prod --audit-level high
+      - run: pnpm lint
+      - run: pnpm --filter @robes/tokens build
+      - run: pnpm typecheck
+      - run: pnpm test
+      # Offline: check against the installed SDK's bundled versions, not Expo's latest patches
+      # (those can be hours old, younger than pnpm's minimumReleaseAge; Renovate brings them later).
+      - run: pnpm --filter @robes/mobile expo:doctor
+        env:
+          EXPO_OFFLINE: '1'
+      - run: pnpm --filter @robes/app build
+
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: robes }
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/platform-setup
+      - run: psql postgres://postgres:postgres@127.0.0.1:55432/robes -f db/docker-init/01-local.sql
+      - run: pnpm db:reset
+      - uses: ./.github/actions/platform-minio
+      - run: pnpm db:test
+      - name: generated types match the schema
+        run: pnpm db:types && pnpm exec biome format --write packages/db/src && git diff --exit-code -- packages/db/src/database.types.ts
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: robes }
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 3s --health-retries 30
+      mailpit:
+        image: axllent/mailpit:v1.27
+        ports: ['51025:1025', '58025:8025']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/platform-setup
+      - run: psql postgres://postgres:postgres@127.0.0.1:55432/robes -f db/docker-init/01-local.sql
+      - run: pnpm db:reset
+      - uses: ./.github/actions/platform-minio
+      - run: pnpm --filter @robes/tokens build
+      - run: pnpm --filter @robes/app exec playwright install --with-deps chromium
+      - run: pnpm --filter @robes/app test:e2e
+        env: { NODE_ENV: production }
+
+  # Offline: assertion tests + synth with stub handlers. A live `cdk diff` needs a read-only
+  # role in the staging account (runbooks/environments.md); add it once that exists.
+  cdk-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/platform-setup
+      - run: pnpm --filter @robes/infra test
+      - run: pnpm --filter @robes/infra synth
+
+  secrets:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: . } }
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      # Scan only this change's commits; legacy history is triaged separately.
+      - name: gitleaks
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            RANGE="-1 $HEAD"
+          else
+            RANGE="$BASE..$HEAD"
+          fi
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 \
+            git /repo --no-banner --redact --gitleaks-ignore-path /repo/platform/.gitleaksignore --log-opts="$RANGE"

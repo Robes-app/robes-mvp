@@ -1,0 +1,13 @@
+name: platform-minio
+description: Local S3 (MinIO, same image as platform/docker-compose.yml) on :59000 with the dev and test buckets.
+runs:
+  using: composite
+  steps:
+    # Service containers can't pass `server /data`, so MinIO runs as a step.
+    - shell: bash
+      working-directory: platform
+      run: |
+        docker run -d --name minio -p 59000:9000 -e MINIO_ROOT_USER=robes -e MINIO_ROOT_PASSWORD=robes-local-secret \
+          cgr.dev/chainguard/minio@sha256:2136d593beacf4461187035eca949fe49abd589d5079735025c711ca58fee0c8 server /data
+        for i in $(seq 1 30); do curl -sf http://127.0.0.1:59000/minio/health/live && break; sleep 1; done
+        pnpm media:setup

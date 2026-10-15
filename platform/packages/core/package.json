@@ -1,0 +1,34 @@
+{
+  "name": "@robes/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./taxonomy": "./src/taxonomy/index.ts",
+    "./wardrobe": "./src/wardrobe/index.ts",
+    "./quotas": "./src/quotas/index.ts",
+    "./flags": "./src/flags/index.ts",
+    "./jobs": "./src/jobs/index.ts",
+    "./budget": "./src/budget/index.ts",
+    "./consents": "./src/consents/index.ts",
+    "./style-dna": "./src/style-dna/index.ts",
+    "./next-step": "./src/next-step/index.ts",
+    "./calendar": "./src/calendar/index.ts",
+    "./trips": "./src/trips/index.ts",
+    "./avatar": "./src/avatar/index.ts",
+    "./looks": "./src/looks/index.ts",
+    "./photo-pieces": "./src/photo-pieces/index.ts",
+    "./home": "./src/home/index.ts",
+    "./fence": "./src/fence/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "gen:sql": "tsx scripts/gen-reference-sql.ts"
+  },
+  "devDependencies": {
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

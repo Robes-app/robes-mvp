@@ -1,0 +1,30 @@
+{
+  "name": "@robes/migrate",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test:db": "vitest run",
+    "fixture": "tsx src/cli/fixture.ts",
+    "target": "tsx src/cli/target.ts",
+    "extract": "tsx src/cli/extract.ts",
+    "transform": "tsx src/cli/transform.ts",
+    "assert": "tsx src/cli/assert.ts",
+    "rehost": "tsx src/cli/rehost.ts",
+    "reverse-delta": "tsx src/cli/reverse-delta.ts",
+    "rehearse": "tsx src/cli/rehearse.ts"
+  },
+  "dependencies": {
+    "@robes/contracts": "workspace:*",
+    "@robes/media": "workspace:*",
+    "pg": "8.23.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "@types/pg": "8.23.1",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

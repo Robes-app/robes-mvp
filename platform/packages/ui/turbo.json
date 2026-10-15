@@ -1,0 +1,16 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/app/**/*.{ts,tsx,js,jsx,mjs,cjs,css}",
+        "$TURBO_ROOT$/mobile/**/*.{ts,tsx,js,jsx,mjs,cjs,css}",
+        "$TURBO_ROOT$/packages/ui*/**/*.{ts,tsx,js,jsx,mjs,cjs,css}",
+        "!$TURBO_ROOT$/**/node_modules/**",
+        "!$TURBO_ROOT$/**/.next/**"
+      ]
+    }
+  }
+}

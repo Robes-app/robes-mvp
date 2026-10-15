@@ -1,0 +1,67 @@
+# A bought wish becomes a piece → the composer makes a look from it → wear it on a day → Plan.
+appId: host.exp.Exponent
+---
+# Leave the You stack for the tabs.
+- tapOn: 'Back'
+- tapOn:
+    id: 'wardrobe-tab'
+- tapOn: 'Wishlist'
+- tapOn:
+    below: 'A piece you want'
+- inputText: 'Silk scarf'
+- tapOn: 'Add to wishlist'
+- extendedWaitUntil:
+    visible: 'I bought this'
+    timeout: 10000
+- tapOn: 'I bought this'
+- extendedWaitUntil:
+    visible: 'Silk scarf is in your wardrobe now.'
+    timeout: 10000
+# The toast sits over the tab bar until it times out.
+- extendedWaitUntil:
+    notVisible: 'Silk scarf is in your wardrobe now.'
+    timeout: 20000
+- tapOn:
+    id: 'create-tab'
+- extendedWaitUntil:
+    visible: 'Photograph pieces'
+    timeout: 10000
+- scrollUntilVisible:
+    element: 'New look'
+- tapOn: 'New look'
+- extendedWaitUntil:
+    visible: 'Choose the pieces'
+    timeout: 10000
+- tapOn: 'Silk scarf'
+- tapOn: 'Save look'
+# Robes suggests a name until she names it.
+- extendedWaitUntil:
+    visible: 'Silk scarf, styled'
+    timeout: 10000
+- assertVisible: 'Robes’ suggested name'
+- scrollUntilVisible:
+    element: 'Wear on a day'
+- tapOn: 'Wear on a day'
+- extendedWaitUntil:
+    visible: 'Which day?'
+    timeout: 5000
+# The first choice is today; the next is tomorrow, labelled like "Fri 2 Oct" ("Fri, 2 Oct" on Hermes).
+- tapOn:
+    text: '(Mon|Tue|Wed|Thu|Fri|Sat|Sun),? \d{1,2} \w{3}'
+    index: 0
+- extendedWaitUntil:
+    visible: 'On your plan.'
+    timeout: 10000
+- extendedWaitUntil:
+    notVisible: 'On your plan.'
+    timeout: 20000
+- tapOn: 'Back'
+- extendedWaitUntil:
+    visible:
+      id: 'plan-tab'
+    timeout: 10000
+- tapOn:
+    id: 'plan-tab'
+- extendedWaitUntil:
+    visible: 'Silk scarf, styled'
+    timeout: 10000

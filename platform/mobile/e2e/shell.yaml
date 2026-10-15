@@ -1,0 +1,37 @@
+# Signed in on Today: every tab, the Create modal and You are reachable (sign-out is in sign-in.yaml).
+appId: host.exp.Exponent
+---
+- tapOn:
+    id: 'wardrobe-tab'
+- extendedWaitUntil:
+    visible: 'Your wardrobe starts here.'
+    timeout: 10000
+- tapOn:
+    id: 'looks-tab'
+- extendedWaitUntil:
+    visible: 'Your ideas land here.'
+    timeout: 10000
+- tapOn:
+    id: 'plan-tab'
+- extendedWaitUntil:
+    visible: 'Your days live here.'
+    timeout: 10000
+- tapOn:
+    id: 'create-tab'
+- extendedWaitUntil:
+    visible: 'Photograph pieces'
+    timeout: 10000
+- assertVisible: 'Paste a link'
+- tapOn: 'Close'
+- tapOn:
+    id: 'today-tab'
+- assertVisible: '.*, Niall\.'
+# Expo Go's floating Tools button sits over the avatar, so You is opened by deep link here;
+# the avatar → You path is covered by __tests__/shell.test.tsx.
+- openLink: ${EXPO_URL}/--/you
+- extendedWaitUntil:
+    visible: 'Notifications'
+    timeout: 10000
+- tapOn: 'Notifications'
+- assertVisible: 'Gentle nudges to add pieces'
+- tapOn: 'Back'

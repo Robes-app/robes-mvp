@@ -1,0 +1,15 @@
+name: platform-setup
+description: Node 24 + pnpm from platform/package.json, dependencies installed
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+      with: { package_json_file: platform/package.json }
+    - uses: actions/setup-node@v5
+      with:
+        node-version-file: platform/.nvmrc
+        cache: pnpm
+        cache-dependency-path: platform/pnpm-lock.yaml
+    - run: pnpm install --frozen-lockfile
+      shell: bash
+      working-directory: platform
