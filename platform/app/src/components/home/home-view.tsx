@@ -17,6 +17,8 @@ import { HomeBox } from './home-box';
 import { StepCard, StepMap } from './home-steps';
 import { HomeWeek } from './home-week';
 
+const WEATHER_STALE_MS = 30 * 60_000;
+
 const isRunning = (t: Today | undefined) =>
   t?.tray.some((j) => !isTerminalJobStatus(j.status)) ?? false;
 
@@ -46,7 +48,11 @@ export function HomeView({ initial }: { initial: Today }) {
     initialData: initial,
     refetchInterval: (q) => (isRunning(q.state.data) ? 2_000 : false),
   });
-  const weather = useApi('today.weather');
+  // The day's forecast changes slowly: no refetch on every focus or mount.
+  const weather = useApi('today.weather', undefined, {
+    staleTime: WEATHER_STALE_MS,
+    refetchOnWindowFocus: false,
+  });
   const [force, setForce] = useState<HomeStep | null>(null);
   const [dressDate, setDressDate] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
