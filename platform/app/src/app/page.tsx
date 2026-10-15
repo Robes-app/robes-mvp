@@ -11,16 +11,31 @@ import { env } from '@/server/env';
 import { currentProfile, displayName } from '@/server/session';
 import { loadToday } from '@/server/today';
 
-export const metadata: Metadata = {
-  title: marketing.metaTitle,
-  description: marketing.metaDescription,
-  openGraph: {
+export function generateMetadata(): Metadata {
+  return {
+    metadataBase: new URL(env.BETTER_AUTH_URL),
     title: marketing.metaTitle,
     description: marketing.metaDescription,
-    type: 'website',
-  },
-  twitter: { card: 'summary', title: marketing.metaTitle, description: marketing.metaDescription },
-};
+    openGraph: {
+      title: marketing.ogTitle,
+      description: marketing.ogDescription,
+      type: 'website',
+      url: '/',
+    },
+    twitter: { card: 'summary', title: marketing.ogTitle, description: marketing.ogDescription },
+  };
+}
+
+// Structured data for search (legacy landing head, main 05d9093); a data block, never executed.
+const JSON_LD = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: marketing.eyebrow,
+  operatingSystem: 'Web, iOS, Android',
+  applicationCategory: 'LifestyleApplication',
+  offers: { '@type': 'Offer', price: '0.00', priceCurrency: 'USD' },
+  description: marketing.metaDescription,
+}).replace(/</g, '\\u003c');
 
 // Signed out: the marketing page. Signed in: Today, inside the app shell.
 export default async function Home() {
@@ -29,6 +44,7 @@ export default async function Home() {
   if (!profile) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-4 px-6">
+        <script type="application/ld+json">{JSON_LD}</script>
         <Eyebrow>{marketing.eyebrow}</Eyebrow>
         <Heading level={1} size="2xl">
           {marketing.title}
