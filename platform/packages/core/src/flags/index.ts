@@ -13,6 +13,25 @@ export const FEATURE_FLAGS = {
 export const ADDED_FEATURE_FLAGS = {
   // 20261015400000_trips_flag: hidden for the MVP launch, as on legacy beta (2eacfb4).
   trips: { enabled: false, description: 'Trips (travel edit) and every door to them' },
+  // 20261016500000_paid_route_flags: kill switches for paid routes that had none, seeded on.
+  'style.brief': {
+    enabled: true,
+    description:
+      'Robes reads her wardrobe for her Style DNA brief (POST /me/dna/read, style_brief job)',
+  },
+  'style.analyse': {
+    enabled: true,
+    description: 'Colour and silhouette reads of her photos (POST /me/style/analyse)',
+  },
+  'imports.link': {
+    enabled: true,
+    description: 'Paste a shop link to import a piece (POST /imports/link)',
+  },
+  'model.portraits': {
+    enabled: true,
+    description:
+      'Draw a new model portrait when her picks need one (avatar_cell job; picks still save when off)',
+  },
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS | keyof typeof ADDED_FEATURE_FLAGS;

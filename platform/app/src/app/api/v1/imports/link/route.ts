@@ -6,6 +6,7 @@ import { route } from '@/server/route';
 // Paste a link: the isolated fetcher reads the page and the product lands in her Inbox (SEC-40).
 export const POST = route({
   auth: 'user',
+  flag: 'imports.link',
   input: ImportLinkInput,
   output: StartJobOutput,
   status: 202,

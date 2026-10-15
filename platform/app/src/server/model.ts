@@ -13,6 +13,7 @@ import {
 import type { UserId } from '@robes/db';
 import { z } from 'zod';
 import { repos } from './db';
+import { isFlagEnabled } from './flags';
 import { startJob } from './jobs';
 import { logger } from './logger';
 import { mediaDelivery } from './media';
@@ -65,6 +66,8 @@ export async function loadModel(userId: UserId): Promise<Model> {
 // Draws the portrait for a cell nobody has drawn yet (shared catalog; one image quota for her).
 async function ensureCell(userId: UserId, req: Request, cellId: string): Promise<void> {
   const key = cellKey(cellId);
+  // Kill switch for the paid draw only; her picks still save and the portrait waits.
+  if (!(await isFlagEnabled('model.portraits'))) return;
   if (!(await repos.avatarCells.claim(key))) return;
   try {
     if (await repos.capacity.isExhausted(['gemini-image'])) throw new ApiError('capacity');

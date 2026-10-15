@@ -6,6 +6,7 @@ import { startBriefRead } from '@/server/twin';
 // Robes reads her wardrobe for the brief; what it noticed lands on GET /me/dna as observations.
 export const POST = route({
   auth: 'user',
+  flag: 'style.brief',
   input: EmptyInput,
   output: StartJobOutput,
   status: 202,
