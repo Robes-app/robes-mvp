@@ -59,4 +59,28 @@ describe('style profile repos', () => {
     expect(row.userOverrides).toEqual({ loved_colors: ['Navy'], rejected_colors: ['Mustard'] });
     expect((await styleProfile.get(ann))?.userOverrides).toEqual({});
   });
+
+  it('changes the season only on her own colour read', async () => {
+    expect(
+      await styleProfile.chooseSeason(bea, {
+        season: 'True Autumn',
+        undertone: 'Warm',
+        contrast: 'Low',
+        dna: { archetype_name: 'True Autumn' },
+        render: { season: 'True Autumn' },
+      }),
+    ).toBeUndefined();
+    const row = await styleProfile.chooseSeason(ann, {
+      season: 'True Autumn',
+      undertone: 'Warm',
+      contrast: 'Low',
+      dna: { archetype_name: 'True Autumn' },
+      render: { season: 'True Autumn' },
+    });
+    expect(row).toMatchObject({ season: 'True Autumn', colourRender: { season: 'True Autumn' } });
+    expect((await styleProfile.colourDna(ann))?.colorHarmony).toEqual({
+      archetype_name: 'True Autumn',
+    });
+    expect(await styleProfile.colourDna(bea)).toMatchObject({ colorHarmony: null });
+  });
 });
