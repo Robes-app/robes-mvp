@@ -18,11 +18,15 @@ export interface NextStepState {
 export type NextStep = {
   rule: NextStepRule;
   remaining?: number;
+  // `build`: how many photographed pieces she has, so the line never reads "Five" at fifty.
+  count?: number;
   lookName?: string;
   presence?: 'woman' | 'man' | 'unspecified';
 } | null;
 
 export const PIECES_TO_BUILD = 5;
+// The top of the 5/10/15 ladder: the first-build offer and the wardrobe tracker retire here.
+export const PIECES_LADDER_TOP = 15;
 
 export function nextStep(s: NextStepState): NextStep {
   if (s.readyPieces === 0 && s.looks === 0) return { rule: 'start' };
@@ -33,7 +37,10 @@ export function nextStep(s: NextStepState): NextStep {
   if (s.looks > 0 && s.readyPieces < PIECES_TO_BUILD) {
     return { rule: 'five', remaining: PIECES_TO_BUILD - s.readyPieces };
   }
-  if (s.readyPieces >= PIECES_TO_BUILD && s.looks === 0) return { rule: 'build' };
+  // A first-time offer (legacy b3de655): it stands down at the top of the ladder.
+  if (s.readyPieces >= PIECES_TO_BUILD && s.readyPieces < PIECES_LADDER_TOP && s.looks === 0) {
+    return { rule: 'build', count: s.readyPieces };
+  }
   if (s.todayPinnedUnworn) return { rule: 'wear' };
   if (s.looks > 0 && !s.weekPlanned) return { rule: 'week' };
   return null;

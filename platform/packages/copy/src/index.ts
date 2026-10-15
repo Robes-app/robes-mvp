@@ -1,6 +1,30 @@
 // Every user-facing string lives here (SPEC principle 6); voice rules: brand-and-design.md §1.
 // Keys are stable ids; values are en-GB. Use curly apostrophes (’) and no exclamation marks.
 
+const COUNT_WORDS = [
+  'No',
+  'One',
+  'Two',
+  'Three',
+  'Four',
+  'Five',
+  'Six',
+  'Seven',
+  'Eight',
+  'Nine',
+  'Ten',
+  'Eleven',
+  'Twelve',
+  'Thirteen',
+  'Fourteen',
+  'Fifteen',
+] as const;
+
+// Sentence-leading counts read as words up to fifteen ("Seven pieces filed."), digits after.
+export function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
+
 export const errors = {
   unauthenticated: 'Please sign in again.',
   forbidden: 'That isn’t available on your account.',
@@ -76,7 +100,10 @@ export const today = {
         `${n === 1 ? 'One more piece' : `${n} more pieces`} and Robes builds a look from yours alone.`,
       door: 'Add pieces',
     },
-    build: { text: 'Five pieces filed. Build a look from what you own.', door: 'Build a look' },
+    build: {
+      text: (n: number): string => `${countWord(n)} pieces filed. Build a look from what you own.`,
+      door: 'Build a look',
+    },
     wear: {
       text: 'Today is dressed. Open the look when you’ve worn it.',
       door: 'Open today’s look',
@@ -150,6 +177,7 @@ export function nextLine(
   step: {
     rule: 'start' | 'model' | 'five' | 'build' | 'wear' | 'week';
     remaining?: number;
+    count?: number;
     lookName?: string;
     presence?: 'woman' | 'man' | 'unspecified';
   } | null,
@@ -170,7 +198,10 @@ export function nextLine(
         door: { label: n.five.door, target: 'addPieces' },
       };
     case 'build':
-      return { text: n.build.text, door: { label: n.build.door, target: 'newLook' } };
+      return {
+        text: n.build.text(step.count ?? 5),
+        door: { label: n.build.door, target: 'newLook' },
+      };
     case 'wear':
       return { text: n.wear.text, door: { label: n.wear.door, target: 'todayLook' } };
     case 'week':
@@ -183,9 +214,12 @@ export const marketing = {
   title: 'Your wardrobe, styled.',
   subtitle: 'One piece. Three ways to wear it.',
   signIn: 'Sign in',
-  metaTitle: 'Robes · Your wardrobe, styled.',
+  metaTitle: 'Robes — Your Personal Stylist & Wardrobe Intelligence App',
   metaDescription:
-    'Photograph what you own. Robes dresses each piece three ways, plans the week and remembers what you wore.',
+    'Robes is your personal stylist. Edit what you own, rotate underused pieces, and discover key wardrobe pieces to complete a look.',
+  ogTitle: 'Robes — Your Personal Stylist & Wardrobe App',
+  ogDescription:
+    'A web-first wardrobe intelligence platform. Style the wardrobe you already own and curate personalized looks from a single prompt.',
   waitlist: {
     title: 'Join the waitlist.',
     body: 'Robes is opening slowly. Leave your email and we’ll let you in.',
@@ -196,6 +230,9 @@ export const marketing = {
     // The same answer whether or not the address was already listed (no enumeration).
     done: 'Check your email to confirm your place.',
     failed: 'Robes couldn’t add you just now. Try again in a moment.',
+    emailMissing: 'Please enter your email to join',
+    emailInvalid: 'Please enter a valid email address',
+    hint: '✦ Join today and style a key piece three ways — a small taste of Robes while you wait.',
     confirmEyebrow: 'Waitlist',
     confirmTitle: 'Confirm your place?',
     confirm: 'Confirm',

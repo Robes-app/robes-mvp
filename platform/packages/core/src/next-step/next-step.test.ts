@@ -17,8 +17,15 @@ describe('nextStep (legacy _rbNextLine order)', () => {
   });
 
   it('offers a first build at five pieces and no looks', () => {
-    expect(nextStep(s({ readyPieces: 5 }))).toEqual({ rule: 'build' });
+    expect(nextStep(s({ readyPieces: 5 }))).toEqual({ rule: 'build', count: 5 });
+    expect(nextStep(s({ readyPieces: 7 }))).toEqual({ rule: 'build', count: 7 });
     expect(nextStep(s({ readyPieces: 2 }))).toBeNull();
+  });
+
+  it('stands the first-build offer down at the top of the ladder (legacy b3de655)', () => {
+    expect(nextStep(s({ readyPieces: 14 }))).toEqual({ rule: 'build', count: 14 });
+    expect(nextStep(s({ readyPieces: 15 }))).toBeNull();
+    expect(nextStep(s({ readyPieces: 50 }))).toBeNull();
   });
 
   it('then asks her to wear today, then to plan the week, first match wins', () => {
