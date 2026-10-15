@@ -183,6 +183,7 @@ function SwipeRow({
       >
         {copy.swipeRemove}
       </button>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: a gesture layer; the Remove button and the row's links are the keyboard and screen-reader paths. */}
       <div
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
