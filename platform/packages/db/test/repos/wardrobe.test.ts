@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { HeroRackFull } from '../../src/errors';
 import type { UserId } from '../../src/ids';
 import { createRepositories } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
@@ -156,6 +157,28 @@ describe('wardrobe repo', () => {
     }
     expect(await wardrobe.nextHeroPosition(user)).toBeNull();
     expect(await wardrobe.nextHeroPosition(bea)).not.toBeNull();
+
+    // A star with the rack full writes nothing, not even the other fields of the edit.
+    const late = await wardrobe.create(user, { label: 'Late' });
+    await expect(
+      wardrobe.edit(user, late.id, { label: 'Renamed', brand: 'COS' }, { star: true }),
+    ).rejects.toBeInstanceOf(HeroRackFull);
+    expect(await wardrobe.get(user, late.id)).toMatchObject({
+      label: 'Late',
+      brand: null,
+      heroPosition: null,
+    });
+    // Off the rack and a field together, then the free place goes to the next star.
+    expect(await wardrobe.edit(user, a.id, { label: 'A2' }, { star: false })).toMatchObject({
+      label: 'A2',
+      heroPosition: null,
+    });
+    expect(await wardrobe.edit(user, late.id, { label: 'Renamed' }, { star: true })).toMatchObject({
+      label: 'Renamed',
+      heroPosition: 1,
+    });
+    expect(await wardrobe.edit(bea, late.id, { label: 'Stolen' }, { star: false })).toBeUndefined();
+    expect((await wardrobe.get(user, late.id))?.label).toBe('Renamed');
     await deleteTestUsers(db, user);
   });
 });

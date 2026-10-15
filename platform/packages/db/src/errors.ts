@@ -17,3 +17,10 @@ export class BriefListFull extends Error {
     super('brief_list_full');
   }
 }
+
+// The Hero Rack holds ten (legacy __waHeroToggle); a star with all ten taken writes nothing (409).
+export class HeroRackFull extends Error {
+  constructor() {
+    super('hero_rack_full');
+  }
+}

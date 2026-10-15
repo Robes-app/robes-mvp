@@ -1,6 +1,6 @@
 import { ApiError } from '@robes/api';
 import { Deleted, EmptyInput, Piece, PieceParams, UpdatePieceInput } from '@robes/contracts';
-import { verifiedUserId } from '@robes/db';
+import { HeroRackFull, verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
 import { route } from '@/server/route';
 import { loadPiece } from '@/server/wardrobe';
@@ -22,15 +22,16 @@ export const PATCH = route({
   handler: async ({ user, input, params }) => {
     const userId = verifiedUserId(user.id);
     const { heroPosition, hero, ...fields } = input;
-    const updated = await repos.wardrobe.update(userId, params.id, fields);
-    if (!updated) throw new ApiError('not_found');
-    if (heroPosition !== undefined) await repos.wardrobe.setHero(userId, params.id, heroPosition);
-    if (hero === false) await repos.wardrobe.setHero(userId, params.id, null);
-    if (hero === true && updated.heroPosition === null) {
-      const position = await repos.wardrobe.nextHeroPosition(userId);
-      // The Hero Rack holds ten; the client says so (legacy __waHeroToggle).
-      if (position === null) throw new ApiError('conflict');
-      await repos.wardrobe.setHero(userId, params.id, position);
+    try {
+      const updated = await repos.wardrobe.edit(userId, params.id, fields, {
+        position: heroPosition,
+        star: hero,
+      });
+      if (!updated) throw new ApiError('not_found');
+    } catch (err) {
+      // The Hero Rack holds ten; nothing was written and the client says so (legacy __waHeroToggle).
+      if (err instanceof HeroRackFull) throw new ApiError('conflict');
+      throw err;
     }
     return loadPiece(userId, params.id);
   },
