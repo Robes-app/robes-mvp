@@ -2922,3 +2922,13 @@ Tick an item when the rebuilt surface matches the legacy behaviour described in 
 - [ ] Every URL in §1 resolves (including aliases and deep-link params); client-only states get real routes
 - [ ] No durable state in localStorage / sessionStorage (§4)
 - [ ] Copy rules: 3-letter months, her words verbatim, sentence-case verbs, deletes always confirm, no failed image replaced by her upload (placeholder instead)
+
+## Legacy sync 2026-10-16: the modular home, the first run and the first seven days
+
+Ported from `origin/beta` (0478e63 → f044b35, 1ebfc72, 465aa5e/c7d3ea5/2fba066) into the platform way:
+
+- **The resolver** lives in `@robes/core/home` (`resolveHome`): O1 Style DNA (two of brands · icons · styles; the platform has no Settings walk, so no `confirmed_at`), O2 the twin (a model or a colour/line read), O3 five photographed pieces, O4 a saved look from hers; activated = O3 ∧ O4. Later is stored server-side (`profiles.home_snoozes`, `POST /me/home/later`), so it holds on every device rather than per device. `GET /today` carries `home` (state, O1 rows, O3/O4 pieces, H1 receipts and Robes noticed, H4 Saved then Suggested) and each week day's first look; `GET /today/weather` fills the masthead line.
+- **Differences by design:** the slow-path "Your piece, styled" card is the deck's own dressing state; O4's Build the look opens the composer with her pick (no Robes build-from-hers job exists yet); O3's Snap opens the batch add; H1's receipt strip has no photographs (inbox rows keep no product images); the generation tray stays at the foot while it holds jobs; a trip-shaped ask opens a new trip when the `trips` flag is on.
+- **Onboarding:** splash → name → the first piece photographed and read into the five-row ledger (two-tap Skip) → Composing → the deck, with its way back home. The shop-link door on the first piece is not ported: platform link imports land in the Inbox for review, not straight in the wardrobe.
+- **The first seven days (notify):** `first_piece`, `pick_one`, `week_one`, `week_empty` retuned as plan_a_day (+5d, the morning-line footer), the 08:00–20:00 send window, `NOTIFY_REPLY_TO` (every mail then says replies reach Annie); push-only model nudge (day 2), batch nudge (day 4) and Wore it? (19:00); looks_ready and the morning cue stop mailing once she has push; native asks for push after her first saved look.
+- **Not built, by the brief's own scope:** Annie's invite (`docs/emails/invite.html`) and day-7 feedback emails are sent by hand from annie@byrobes.com (Gmail), never by the platform; the admin cohort tab (brief delta 8); `borrowing`.
