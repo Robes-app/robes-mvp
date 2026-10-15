@@ -30,7 +30,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 
 **SEC-01 — Every non-public API route requires a verified user.**
 - Enforced by: `packages/api` `route()` wrapper; default is `auth: 'user'`. Public routes must opt out explicitly with `auth: 'public'` and are listed in `docs/api.md#public-routes`.
-- Verification: Supabase JWT verified server-side with the project's asymmetric signing keys (JWKS) — never decode-only, never trust `userId` from the body/query. `req.user.id` is the only source of identity.
+- Verification: the Better Auth session (httpOnly cookie on web, SecureStore token on native) is resolved server-side on every request — never trust `userId` from the body/query. `user.id` is the only source of identity. (Originally specified as Supabase JWT/JWKS; superseded by ADR-020.)
 - Test: `packages/api/test/auth.test.ts` enumerates the route manifest and asserts every non-public route returns `401` without a token and with an expired/forged token.
 
 **SEC-02 — Per-user, per-feature quotas enforced before any paid call.**
@@ -51,7 +51,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 
 ### Data access and RLS (closes C1, H1, A2, A3 findings)
 
-> **ADR-019 changes the enforcement of SEC-10..15** from Postgres RLS to the API: client roles have no database access at all, and ownership is enforced by `@robes/db` repositories with cross-user tests. The intent of each requirement stands. Tests: `supabase/tests/database/000_meta.test.sql` (no client access, no public tables) + repository cross-user tests. Rules: `platform/CLAUDE.md` "Data access and security".
+> **ADR-019 changes the enforcement of SEC-10..15** from Postgres RLS to the API: client roles have no database access at all, and ownership is enforced by `@robes/db` repositories with cross-user tests. The intent of each requirement stands. Tests: `packages/db/test/schema/meta.test.ts` (no client access, no public tables) + repository cross-user tests. The SEC-10..15 bodies below keep their original RLS wording for the record. Rules: `platform/CLAUDE.md` "Data access and security".
 
 **SEC-10 — Ownership model: user-writable vs server-owned tables.**
 - User-writable columns are granted explicitly with column-level `GRANT UPDATE (...)`; everything else is server-owned and written only by the API (service role) or workers.
@@ -180,12 +180,6 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 | Session never refreshed (signup-flow) | SEC-52 |
 | Lookbook sync resurrects deletes | Data model: server-authoritative + soft delete (see `data-model.md`) |
 
-## 4. Security review checklist (copy into PR template)
+## 4. Security review checklist
 
-- [ ] New route declares `auth`, `input` schema, `quota`/`rateLimit` if it spends money.
-- [ ] New table: RLS enabled, policies with `(select auth.uid())`, column grants, pgTAP test.
-- [ ] No service-role usage outside `packages/api/src/server-only` and workers.
-- [ ] No new third-party origin without CSP update and sub-processor list update.
-- [ ] No user data in logs; prompts only via `generation_log`.
-- [ ] Outbound URL fetch only through the fetcher.
-- [ ] Deletion/export cover any new user data.
+The current checklist, kept in step with the code, is in [`api-security.md`](api-security.md) → "Before you merge". It replaces the original RLS/pgTAP list (ADR-019/020 moved enforcement from Postgres RLS to `UserId`-scoped repositories with cross-user tests).
