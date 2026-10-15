@@ -1,4 +1,4 @@
-import { shell } from '@robes/copy';
+import { photoPieces, shell } from '@robes/copy';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
 import { MIN_TOUCH, Text, useColor, useToast } from '@robes/ui-native';
@@ -13,6 +13,7 @@ type Option = { label: string; icon: IconName } & ({ add: AddSource } | { href: 
 const OPTIONS: Option[] = [
   { label: shell.create.photograph, icon: 'camera', add: 'camera' },
   { label: shell.create.cameraRoll, icon: 'image', add: 'library' },
+  { label: photoPieces.door.title, icon: 'camera', href: '/wardrobe/pieces' },
   { label: shell.create.stylePiece, icon: 'looks', href: '/looks/style' },
   { label: shell.create.link, icon: 'link', href: '/wardrobe/link' },
   { label: shell.create.receipt, icon: 'mail', href: '/soon' },

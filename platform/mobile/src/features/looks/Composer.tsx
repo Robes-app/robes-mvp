@@ -1,6 +1,6 @@
 import { queryKeys, useApiMutation } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
-import { looks as copy, errors, ui } from '@robes/copy';
+import { looks as copy, errors, photoPieces, ui } from '@robes/copy';
 import {
   Button,
   CardSkeleton,
@@ -78,6 +78,10 @@ export function Composer() {
   return (
     <ScrollView contentContainerClassName="gap-6 px-6 pb-12">
       <Heading>{copy.composer.eyebrow}</Heading>
+      {/* A look from a photo (legacy use case 2b): the second start beside the rack. */}
+      <Button variant="secondary" icon="camera" onPress={() => router.push('/looks/photo')}>
+        {photoPieces.look.start.title}
+      </Button>
       <View className="gap-3">
         <Eyebrow>{copy.composer.pick}</Eyebrow>
         <View className="flex-row flex-wrap gap-3">
