@@ -90,7 +90,7 @@ Sign-in codes arrive in Mailpit at http://localhost:58025. Before pushing, run `
 | | Web + API | Database | AWS (jobs, email, media) | Mobile build |
 |---|---|---|---|---|
 | Local | `pnpm dev:web` | Postgres in Docker | Fakes: MinIO, Mailpit, in-process jobs | `com.byrobes.app.dev` via Expo |
-| Staging | Vercel `codu/robes-app` → https://robes-app-two.vercel.app (`staging.byrobes.com` once DNS is added) | Supabase (EU) | Sandbox account, eu-west-1, `Staging/*` stacks | `com.byrobes.app.staging` via EAS → TestFlight |
+| Staging | Vercel `codu/robes-app` production → https://staging.byrobes.com (also robes-app-two.vercel.app) | Supabase (EU) | Sandbox account, eu-west-1, `Staging/*` stacks | `com.byrobes.app.staging` via EAS → TestFlight |
 | Production | Not set up yet | — | `Production/*` stacks (not deployed) | `com.byrobes.app` |
 
 How to set up and operate each environment: [`docs/runbooks/environments.md`](docs/runbooks/environments.md).

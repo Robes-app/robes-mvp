@@ -18,7 +18,7 @@
       "env": {
         "APP_VARIANT": "staging",
         "EXPO_PUBLIC_APP_ENV": "staging",
-        "EXPO_PUBLIC_API_URL": "https://robes-app-two.vercel.app"
+        "EXPO_PUBLIC_API_URL": "https://staging.byrobes.com"
       }
     },
     "production": {
