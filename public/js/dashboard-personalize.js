@@ -1084,7 +1084,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (!s || !host) return;
         // The NEW-look box carries the + (a piece by photo or from the
         // wardrobe — 2026-10-05); a look's box keeps the sparkle.
-        const plus = s.mode === 'new'
+        // noPlus: the empty draft's ✦ (2026-10-15) — words only; the draft's
+        // own bar already holds the photo and the pieces.
+        const plus = (s.mode === 'new' && !s.noPlus)
           ? '<button type="button" class="plus" id="rb-lp-plus" onclick="window.__rbLpPlus(event)" aria-label="Add a piece" aria-haspopup="true"><span>+</span></button>' +
             '<input type="file" id="rb-lp-cam" accept="image/*" capture="environment" hidden onchange="window.__rbLpFile(event)">' +
             '<input type="file" id="rb-lp-file" accept="image/*" hidden onchange="window.__rbLpFile(event)">'
@@ -1097,7 +1099,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             '<textarea id="rb-lp-in" rows="1" maxlength="240" oninput="window.__rbLpText(this.value)" onkeydown="window.__rbLpKey(event)" onfocus="window.__rbLpFocus(true)" onblur="window.__rbLpFocus(false)"></textarea>' +
             '<button type="button" class="send" id="rb-lp-send" onclick="window.__rbLpSend()" aria-label="Send">→</button></div>' +
           '<div class="rb-lpd" id="rb-lp-result"></div></div>' +
-          (s.mode === 'new' ? '<div class="rb-lp-plusmenu" id="rb-lp-plusmenu">' +
+          ((s.mode === 'new' && !s.noPlus) ? '<div class="rb-lp-plusmenu" id="rb-lp-plusmenu">' +
               '<button type="button" onclick="window.__rbLpAdd(\'camera\')"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-2h6l2 2h3v11H4zM12 16.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path></svg><span>Take a picture<span class="s">Lay the piece flat, in good light.</span></span></button>' +
               '<button type="button" onclick="window.__rbLpAdd(\'upload\')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>Upload a photo</span></button>' +
               '<button type="button" onclick="window.__rbLpAdd(\'wardrobe\')"><svg viewBox="0 0 24 24"><path d="M12 7a2 2 0 1 1 2-2M12 7v2L3 16h18l-9-7"></path></svg><span>From wardrobe</span></button>' +
@@ -15958,6 +15960,29 @@ button.rb-lk-live{cursor:pointer}
 .rb-lk-start .gd{margin-top:6px;font-size:12.5px;line-height:1.55;color:var(--ink-soft)}
 .rb-lk-start .ga{display:flex;justify-content:center;margin-top:16px}
 .rb-lk-start .ga .rb-pill{min-height:40px;padding:0 18px;color:var(--ink);border-color:rgba(32,32,33,0.28)}
+/* ── The empty draft (Draft_Look_Redesign, 2026-10-15): the model alone,
+   centred, over one bar — the ✦ and two starts; Start from a photo is the
+   one ink. Hotspots sit on the model; the badge rides the generic model. */
+.rb-lk-blank .rb-lk-con{grid-template-columns:minmax(0,1fr);max-width:440px;margin:0 auto}
+.rb-lk-blank .rb-lk-con>div:nth-child(2){display:none}
+.rb-lk-startbar{justify-content:space-between}
+.rb-lk-startbar .rb-lk-starts2{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;min-width:0}
+.rb-lk-startbar .rb-lk-onebyone{min-height:48px;padding:0 20px;color:var(--ink);border-color:rgba(32,32,33,0.28)}
+.rb-lk-photostart{height:48px;padding:0 26px;border:none;border-radius:100px;background:var(--ink);color:#FAF8F5;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:opacity .15s;flex:none}
+.rb-lk-photostart:hover{opacity:.85}
+.rb-lk-spark{flex:none;width:48px;height:48px;border-radius:50%;background:#fff;border:1px solid var(--rule-mid);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.rb-lk-spark:hover{border-color:rgba(32,32,33,0.28)}
+.rb-lkm-hots{position:absolute;inset:0;z-index:3;pointer-events:none}
+.rb-lkm-hot{pointer-events:auto;position:absolute;left:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 14px 0 10px;border-radius:100px;background:rgba(250,248,245,.94);border:1px solid rgba(32,32,33,0.16);box-shadow:0 2px 10px rgba(32,32,33,0.12);font-family:inherit;font-size:11.5px;letter-spacing:.02em;color:var(--ink);cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .15s,border-color .15s}
+.rb-lkm-hot::after{content:'';position:absolute;inset:-5px -4px}
+.rb-lkm-hot .m{width:18px;height:18px;border-radius:50%;border:1px dashed rgba(32,32,33,0.4);display:inline-flex;align-items:center;justify-content:center;font-size:12px;line-height:1}
+.rb-lkm-hot:hover{background:#fff;border-color:rgba(32,32,33,0.3)}
+.rb-lkm-hot.on{background:#F3EFE6;border-color:#C9BCA6}
+.rb-lkm-hot.on .m{border:none;background:var(--ink);color:#FAF8F5;font-size:10px}
+.rb-lkm-badge{position:absolute;top:10px;right:10px;z-index:4;display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding:7px 12px;border-radius:12px;background:rgba(250,248,245,.92);border:1px solid rgba(32,32,33,0.12);font-family:inherit;cursor:pointer;text-align:right;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.rb-lkm-badge .t{font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lkm-badge .u{font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--ink)}
+.rb-lkm-badge:hover .u{color:var(--rose)}
 .rb-lkr-wait{padding:6px 0 12px}
 .rb-lkr-ey{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
 .rb-lkr-h{font-family:var(--font-serif);font-weight:300;font-size:24px;line-height:1.22;color:var(--ink);margin-top:8px}
@@ -16100,6 +16125,13 @@ button.rb-lk-live{cursor:pointer}
    viewport meta carries viewport-fit=cover, which dashboard.html now does). */
 .rb-lk-draftbar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-radius:0;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .rb-lk-draftbar .rb-lk-save{width:auto;min-height:48px;order:0;flex:none}
+/* The empty draft's bar on a phone: Start from a photo runs the width,
+   the ✦ and Add pieces one by one share the row beneath. */
+.rb-lk-startbar{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px}
+.rb-lk-startbar .rb-lk-starts2{display:contents}
+.rb-lk-startbar .rb-lk-photostart{grid-column:1/-1;order:-1;width:100%;height:48px}
+.rb-lk-startbar .rb-lk-spark{width:44px;height:44px}
+.rb-lk-startbar .rb-lk-onebyone{min-height:44px;justify-content:center;width:100%}
 /* The scroll end clears the bar (72), the sparkle (54) and its two 16px gaps. */
 #rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))!important}
 /* The empty Lookbook's composer keeps the dock (a root) — its bar rides above it. */
@@ -18004,6 +18036,20 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         if (g === 'woman') return { she: 'she', her: 'her', shell: 'she’ll' };
         return { she: 'they', her: 'them', shell: 'they’ll' };
       }
+      // The generic editorial model (Draft_Look_Redesign, 2026-10-15): with
+      // no model of her own on file the composer still dresses a model from
+      // the first second — a Robes catalog cell, never a detour to build hers
+      // first. Her own model takes over the moment one is on file: render
+      // keys carry the avatar id, so a look saved on the generic model
+      // re-renders on hers the next time it opens (_avRenderKick).
+      function _lkGenericId() { return (_rbGender() === 'man' ? 'm' : 'w') + '-s4-h1-nt'; }
+      // The model the composer's canvas dresses: hers, else the generic one
+      // once we know she has none (undefined = not asked yet).
+      function _lkmModel() {
+        if (_lkModel) return _lkModel;
+        if (_lkModel === null) return { id: _lkGenericId(), man: _rbGender() === 'man', generic: true };
+        return null;
+      }
       var _lkmCell = {};        // avatarId → cell url (her in the base layer), or false when it failed
       var _lkmCellBusy = {};    // avatarId → true while the cell is being fetched/created
       var _lkmCellFail = {};    // avatarId → when the last cell fetch failed (retried after a cooldown)
@@ -18024,7 +18070,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const pk = _lkmPKey(props);
         // How a piece is worn is part of the composition (phase 2): a tuck
         // re-renders once, like a swap.
-        return (_lkModel ? _lkModel.id : '') + '|' + ids.map(String).sort().join(',') + (pk ? '|p:' + pk : '') + _lkmStyledSig(_lkLpStyledById(ids));
+        const m = _lkmModel();
+        return (m ? m.id : '') + '|' + ids.map(String).sort().join(',') + (pk ? '|p:' + pk : '') + _lkmStyledSig(_lkLpStyledById(ids));
       }
       // One reader of a proposal row, whatever holds it — the composer's
       // _lkShop (stills in _lkShopImgs) or a saved look's looks.proposals
@@ -18079,7 +18126,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         })();
       }
       function _lkmCellFetch() {
-        const id = _lkModel && _lkModel.id;
+        const m = _lkmModel();
+        const id = m && m.id;
         if (!id || _lkmCell[id] !== undefined || _lkmCellBusy[id]) return;
         _lkmCellBusy[id] = true;
         const done = url => { _lkmCell[id] = url || false; if (!url) _lkmCellFail[id] = Date.now(); delete _lkmCellBusy[id]; _lkmPaintStage(); };
@@ -18097,10 +18145,10 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const finish = url => { _lkmRenders[key] = url || false; if (_lkmBusy === key) _lkmBusy = null; _lkmPaintStage(); };
         fetch('/api/avatar/render', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ avatarId: _lkModel.id, pieces: garments, userId: _waUid(), genId: _rbGenId(), gender: _rbGender() }),
+          body: JSON.stringify({ avatarId: (_lkmModel() || {}).id, pieces: garments, userId: _waUid(), genId: _rbGenId(), gender: _rbGender() }),
         }).then(r => r.ok ? r.json() : null).then(function(out) {
           if (!out || !out.jobId) return finish(null);
-          _rbTrack('avatar_render', { pieces: garments.length, surface: 'composer' });
+          _rbTrack('avatar_render', { pieces: garments.length, surface: 'composer', generic: !_lkModel });
           _lkmPoll(out.jobId, finish);
         }).catch(() => finish(null));
       }
@@ -18108,20 +18156,21 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // a photograph is still coming.
       function _lkmStageState(ids, props) {
         const pro = _lkModelPro();
-        const cell = _lkModel ? _lkmCell[_lkModel.id] : undefined;
+        const mm = _lkmModel();
+        const cell = mm ? _lkmCell[mm.id] : undefined;
         const key = _lkmKey(ids, props);
         const target = (ids.length || (props && props.length)) ? _lkmRenders[key] : cell;
         const url = target || _lkmShown || cell || null;
         if (url) _lkmShown = url;
         // false = tried and failed: the previous photograph stands, no chip
-        const busy = !!_lkModel && !target && target !== false;
-        return { url, busy, label: (ids.length || (props && props.length)) ? 'Dressing ' + pro.her + '…' : 'Creating your model…', key };
+        const busy = !!mm && !target && target !== false;
+        return { url, busy, label: (ids.length || (props && props.length)) ? 'Dressing ' + (mm && mm.generic ? 'the model' : pro.her) + '…' : (mm && mm.generic ? 'The model is on the way…' : 'Creating your model…'), key };
       }
       // Schedule whatever this composition still needs — the cell at once,
       // a render after a beat of quiet (flicking through options asks for
       // one render, not one per flick). Never paints synchronously.
       function _lkmSync(ids, props) {
-        if (!_lkModel) return;
+        if (!_lkmModel()) return;
         const pKey = _lkmPKey(props);
         // Deferred a tick so the stage is in the DOM, then only for a stage
         // that is actually on screen — the Lookbook paints its composer
@@ -18131,8 +18180,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           const el = Array.prototype.slice.call(document.querySelectorAll('.rb-lkm-stage:not(.rb-lkf-stage)')).find(function(x) {
             return String(x.getAttribute('data-ids') || '') === ids.join(',') && String(x.getAttribute('data-pn') || '') === pKey;
           });
-          if (!el || !el.getClientRects().length || !_lkModel) return;
-          const id = _lkModel.id;
+          const mm = _lkmModel();
+          if (!el || !el.getClientRects().length || !mm) return;
+          const id = mm.id;
           if (_lkmCell[id] === false && Date.now() - (_lkmCellFail[id] || 0) > 30000) _lkmCell[id] = undefined;
           if (_lkmCell[id] === undefined) _lkmCellFetch();
           const total = ids.length + (props ? props.length : 0);
@@ -18192,12 +18242,13 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // model on file — the invitation to build one.
       function _lkModelPanelHtml(o) {
         _lkModelEnsure();
-        const pro = _lkModelPro();
-        // o.saved: a saved look's panel — the composer's photograph and the
-        // build-your-model prompt belong to the composer alone.
+        // o.saved: a saved look's panel — the composer's photograph belongs
+        // to the composer alone.
         const photo = !o.saved && _lkPhoto && _lkPhoto.url;
-        const showPhoto = !!photo && (_lkShowPhoto || _lkModel === null);
-        const noModel = !o.saved && _lkModel === null && !showPhoto;
+        // No model of her own is no longer a detour (Draft_Look_Redesign,
+        // 2026-10-15): the generic editorial model stands in, so the
+        // photograph only leads when she chose it.
+        const showPhoto = !!photo && _lkShowPhoto;
         let inner;
         if (showPhoto && _lkRead) {
           // The read photograph sits whole in the frame (never cropped) so
@@ -18211,27 +18262,19 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
             '<div class="cap">Your photograph</div>' +
             '<button type="button" class="rb-lkm-replace" onclick="window.__lkPhotoToggle()" title="Replace photograph" aria-label="Replace photograph">' + _LKM_REFRESH_SVG + '</button>' +
             '</div>';
-        } else if (noModel) {
-          inner = '<div class="rb-lkm-prompt">' +
-            '<div class="rb-lkm-outline"><span></span></div>' +
-            '<div class="rb-lkm-ey">No model yet</div>' +
-            '<div class="rb-lkm-h">Build ' + pro.her + ' once, and ' + pro.shell + '&nbsp;<i>model all your looks.</i></div>' +
-            '<button type="button" class="rb-lkm-build" onclick="window.__lkBuildModel()">Build your model</button>' +
-            '<button type="button" class="rb-lkm-orphoto" onclick="window.__lkPhotoToggle()">Or start from your own photograph</button>' +
-            '</div>';
         } else {
           const ids = (o.items || []).map(wi => String(wi.id));
           inner = _lkmStageHtml(ids, o.props);
           _lkmSync(ids, o.props);
         }
         // o.canvasExtraHtml: controls that sit ON the canvas (the composer's
-        // photograph pill, the saved look's diary icon). The no-model prompt
-        // already carries its own photograph door, so nothing stacks on it.
+        // photograph pill, the hotspots and the model badge, the saved
+        // look's diary icon).
         // o.quoteHtml: the stylist note, in the saved look's own register —
         // it sits under the canvas exactly as the render branch prints it.
         return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
           '<span class="lab">' + o.headLabel + '</span>' + _lkCreditSpan(o.robesLabel === undefined ? 'Robes' : o.robesLabel) + '</div>' +
-          '<div class="rb-lkm-canvas' + (noModel ? ' prompt' : '') + (showPhoto ? ' photo' : '') + '">' + inner + (noModel ? '' : (o.canvasExtraHtml || '')) + '</div>' +
+          '<div class="rb-lkm-canvas' + (showPhoto ? ' photo' : '') + '">' + inner + (o.canvasExtraHtml || '') + '</div>' +
           (o.quoteHtml ? '<div class="rbc-quote">' + o.quoteHtml + '</div>' : '') +
           (o.tailHtml || '') +
           '</div>';
@@ -18372,7 +18415,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           // Model stays FAINT until a piece is on the rack — there is
           // nothing to dress her in yet (Look_Creation_Handoff 6a).
           const bare = !_lkUsed().length && !_lkShop.length;
-          const on = bare || _lkShowPhoto || _lkModel === null;
+          const on = bare || _lkShowPhoto;
           left = '<div class="rb-lkm-seg" role="group" aria-label="Canvas view">' +
             '<button type="button"' + (on ? ' class="on"' : '') + ' onclick="window.__lkPhotoView(\'photo\')">You</button>' +
             '<button type="button"' + (on ? '' : ' class="on"') + (bare ? ' disabled title="Add a piece and your model wears it"' : '') + ' onclick="window.__lkPhotoView(\'model\')">Model</button></div>';
@@ -18719,13 +18762,135 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         else _lkRepaint();
       };
       window.__lkPhotoView = function(which) {
-        const toPhoto = which === 'photo';
-        // The Model side with nothing built opens the builder.
-        if (!toPhoto && _lkModel === null) { window.__lkBuildModel(); return; }
-        _lkShowPhoto = toPhoto;
+        // The Model side always has a model now — hers, or the generic one.
+        _lkShowPhoto = which === 'photo';
         _lkRepaint();
       };
 
+      // ── The empty draft, for an early account (Draft_Look_Redesign,
+      // 2026-10-15) ────────────────────────────────────────────────────
+      // Before a piece is on the look the draft is the model and ONE bar
+      // with two starts: Start from a photo (her, in the finished look —
+      // Robes reads out every piece; the one ink) or Add pieces one by one,
+      // and the ✦ for styling in words. The five CTAs and two cards that
+      // stood here (the guide, the photo card, the no-model prompt) are
+      // gone. Three hotspots on the model — + Top, + Bottom, + Shoes — open
+      // the wardrobe sheet on that category; a filled slot reads warm with
+      // a ✓. The first piece hands over to the rack flow as before.
+      var _LK_HOTSPOTS = [
+        { k: 'top', label: 'Top', title: 'Add a top', cats: ['Tops', 'Knitwear', 'Dresses & jumpsuits'], open: 'Tops', y: 31 },
+        { k: 'bottom', label: 'Bottom', title: 'Add a bottom', cats: ['Bottoms', 'Dresses & jumpsuits'], open: 'Bottoms', y: 58 },
+        { k: 'shoes', label: 'Shoes', title: 'Add shoes', cats: ['Shoes'], open: 'Shoes', y: 86 },
+      ];
+      // The sheet always offers these, filed or not; every other category
+      // she has filed joins them.
+      var _LK_CORE_CATS = ['Tops', 'Bottoms', 'Shoes'];
+      function _lkHotspotPiece(h) {
+        return _lkUsed().map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean)
+          .find(wi => h.cats.indexOf(_waSheetCatOf(wi)) > -1) || null;
+      }
+      function _lkHotspotsHtml() {
+        return '<div class="rb-lkm-hots">' + _LK_HOTSPOTS.map(h => {
+          const on = !!_lkHotspotPiece(h);
+          return '<button type="button" class="rb-lkm-hot' + (on ? ' on' : '') + '" style="top:' + h.y + '%" data-hot="' + h.k + '"' +
+            ' aria-label="' + _waEsc(on ? h.label + ', on the look — change it' : h.title) + '" onclick="window.__lkHotspot(\'' + h.k + '\')">' +
+            '<span class="m" aria-hidden="true">' + (on ? '✓' : '+') + '</span>' + _waEsc(h.label) + '</button>';
+        }).join('') + '</div>';
+      }
+      // The model's badge: only on the generic model — her own carries none.
+      function _lkModelBadgeHtml() {
+        if (_lkModel !== null) return '';
+        return '<button type="button" class="rb-lkm-badge" onclick="window.__lkTwinBadge()" aria-label="Robes’ model. Make it you">' +
+          '<span class="t">Robes’ model</span><span class="u">Make it you →</span></button>';
+      }
+      // Everything that sits ON the composer's model canvas.
+      function _lkCanvasChromeHtml(o) {
+        const photo = !!(_lkPhoto && _lkPhoto.url);
+        const onPhoto = photo && _lkShowPhoto;
+        if (onPhoto) return '';
+        return (o.hots ? _lkHotspotsHtml() : '') + _lkModelBadgeHtml() +
+          (photo || o.blank ? '' : _lkImgActsHtml({ camera: 'add', fn: '__lkPhotoToggle' }));
+      }
+      window.__lkTwinBadge = function() {
+        _rbTrack('model_door_tapped', { from: 'draft_badge' });
+        window.__lkBuildModel();
+      };
+      window.__lkHotspot = function(k) {
+        const h = _LK_HOTSPOTS.find(x => x.k === k);
+        if (!h) return;
+        _rbTrack('look_hotspot_tapped', { slot: k, filled: !!_lkHotspotPiece(h), pieces: _waItems.length });
+        _lkSlotPicker(h);
+      };
+      window.__lkAddPieces = function() {
+        _rbTrack('look_start', { way: 'pieces', pieces: _waItems.length });
+        _lkSlotPicker(null);
+      };
+      window.__lkStartPhoto = function() {
+        _rbTrack('look_start', { way: 'photo', pieces: _waItems.length });
+        window.__lkPhotoRead();
+      };
+      // The wardrobe sheet for a slot (or for any piece): every core
+      // category even when empty, every category she has filed, opened on
+      // the tapped slot's category. An empty category is one door — the
+      // photograph files straight into the slot.
+      function _lkSlotPicker(h) {
+        const used = _lkUsed().map(String);
+        const held = c => _waItems.some(w => _waSheetCatOf(w) === c && used.indexOf(String(w.id)) < 0);
+        const first = _LK_CORE_CATS.find(held) || _WA_SHEET_CATS.find(held) || 'Tops';
+        window.__cbWardrobePick({
+          title: h ? h.title : 'Add a piece',
+          sub: h ? 'From your wardrobe.' : 'One at a time, from your wardrobe.',
+          coreCats: _LK_CORE_CATS, cat: h ? h.open : first, exclude: used,
+          onPick: it => _lkHotspotLand(h, it.id),
+          onSnap: cat => _lkHotspotSnap(h, cat),
+        });
+      }
+      function _lkHotspotLand(h, id) {
+        const wi = _waItems.find(w => String(w.id) === String(id));
+        if (!wi) return;
+        if (_lkUsed().map(String).indexOf(String(id)) > -1) { _lkPaint(); return; }
+        // A filled slot swaps: the piece holding it gives up its place.
+        const cur = h ? _lkHotspotPiece(h) : null;
+        const row = cur && h.cats.indexOf(_waSheetCatOf(wi)) > -1 ? _lkRows.find(r => String(r.piece) === String(cur.id)) : null;
+        if (row) {
+          window.__lkRowPick(row.key, wi.id);
+          _waShowToast(wi.label + ' is on the look');
+          return;
+        }
+        window.__lkApplyNew(wi.id);
+      }
+      // Photograph one piece and file it straight into the slot: the add
+      // flow's camera on a phone, the file picker on the web.
+      function _lkHotspotSnap(h, cat) {
+        _rbTrack('look_slot_snap', { slot: h ? h.k : null, cat: cat || null, pieces: _waItems.length });
+        _waEditId = null;
+        _waAfterAdd = newId => _lkHotspotLand(h, newId);
+        if (window.WA && WA.open) WA.open();
+        const phone = window.matchMedia && window.matchMedia('(max-width:767px)').matches;
+        let tries = 0;
+        const poke = () => {
+          const inp = document.getElementById(phone ? 'wa-rb-cam' : 'wa-rb-file') || document.getElementById('wa-rb-file');
+          if (inp) { inp.click(); return; }
+          if (++tries < 8) setTimeout(poke, 120);
+        };
+        setTimeout(poke, 220);
+      }
+      // The ✦ on the empty draft: style it in words. Robes builds the look
+      // into THIS draft (the composer's own prompted path), never the deck.
+      window.__lkSparkOpen = function() {
+        if (_lkBuilding) return;
+        _rbTrack('look_start', { way: 'words', pieces: _waItems.length });
+        _rbLookPrompt({
+          mode: 'new', surface: 'composer-new', noPlus: true,
+          title: String(_lkNewTitleDraft || '').trim() || 'A new look',
+          meta: 'Draft · not saved yet' + (_lkDay && _lkDay.date ? ' · ' + _lkFmtDay(_lkDay.date) : ''),
+          placeholder: 'Tell Robes the look you’re after…',
+          onNew: function(text) {
+            window.__dlSubmit(text, _lkDay && _lkDay.date ? { anchorDate: _lkDay.date, sameDraft: true } : { loose: true, sameDraft: true });
+          },
+        });
+      };
+      var _LK_SPARK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.9 6.1 6.1 1.9-6.1 1.9L12 18.5l-1.9-6.1L4 10.5l6.1-1.9z"/><path d="M19 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>';
       function _lkNewHtml(opts) {
         const home = !!(opts && opts.home);
         // Every composer paint parks the draft (phase 1) — a mutation
@@ -18745,6 +18910,10 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         try { document.body.classList.add('rb-lookv2'); } catch (_) {}
         const used = _lkUsed();
         const nPlaced = used.length;
+        // The empty draft (2026-10-15): nothing on it yet — the model and
+        // the start bar, no rack and no Save.
+        const blank = !home && !kp && !_lkBuilt && !_lkBuilding && !_lkRead && !nPlaced && !_lkShop.length &&
+          !(_lkPhoto && (_lkPhoto.url || _lkPhoto.pending));
         // RULE 02 — the look gets a NAME, and the name is the ONE gate on
         // Save (2026-09-03: the two-piece floor is gone — a look is hers to
         // keep the moment it is named, however many pieces stand on the
@@ -18768,7 +18937,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // has proposed pieces she doesn't own yet.
         const readNewN = _lkReadNew().length;
         const readPendN = _lkReadPending().length;
-        const headLabel = (_lkRead && _lkRead.status === 'reading') ? 'The look · Reading'
+        const headLabel = blank ? 'The look'
+          : (_lkRead && _lkRead.status === 'reading') ? 'The look · Reading'
           : _lkBuilt && _lkShop.length
           ? 'The look · ' + nPlaced + ' yours, ' + _lkShop.length + ' to find'
           : 'The look · ' + _lkN(nPlaced + readNewN, 'piece');
@@ -18789,7 +18959,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           lookHtml = _lkModelPanelHtml({
             headLabel, robesLabel,
             items: used.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
-            canvasExtraHtml: (_lkPhoto && _lkPhoto.url) ? '' : _lkImgActsHtml({ camera: 'add', fn: '__lkPhotoToggle' }),
+            canvasExtraHtml: _lkCanvasChromeHtml({ blank, hots: !_lkRead }),
           });
         } else if (_lkPhoto && _lkPhoto.url && _lkPhoto.frame && !_lkBuilding) {
           // ROBES' FRAME on the canvas (2026-10-07): a suggestion she is
@@ -18863,7 +19033,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           // keeps the board for good.
           const modelIds = used.map(String);
           const modelProps = _lkShopGarments();
-          lkOnModel = !!_lkModel && modelIds.length + modelProps.length > 0
+          lkOnModel = !!_lkmModel() && modelIds.length + modelProps.length > 0
             && modelIds.length + modelProps.length <= 12;
           if (lkOnModel) {
             _lkEnsureCss();
@@ -18875,7 +19045,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
               items: modelIds.map(id => _waItems.find(w => String(w.id) === String(id))).filter(Boolean),
               props: modelProps,
               quoteHtml: note ? _waEsc(note) : '',
-              canvasExtraHtml: _lkImgActsHtml({ camera: 'add', fn: '__lkPhotoToggle' }),
+              canvasExtraHtml: _lkModelBadgeHtml() + _lkImgActsHtml({ camera: 'add', fn: '__lkPhotoToggle' }),
             });
           } else {
             const board = items.concat(_lkShopBoardItems(items.length));
@@ -18971,12 +19141,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // force-expands, or it would hide on the small screen.
         const lastTwo = _RB_ROLES.slice(2);
         const homeOpen = !home || _lkHomeMoreOn || items.some(it => lastTwo.indexOf(_rbRoleOf(it)) > -1);
-        // No model yet: a hairline notice keeps the rack open — the prompt
-        // on the canvas never blocks the thing she came to do.
-        const modelNotice = (!home && !_lkBuilt && _lkModel === null && !(_lkPhoto && _lkPhoto.url))
-          ? '<div class="rb-lkm-notice"><span class="dot"></span>Add pieces now if you like. They stay on the rack, and your model wears them the moment ' + _lkModelPro().she + ' exists.</div>'
-          : '';
-        let rackHtml = (home ? '<div class="rb-lkh-name">' + titleHtml + '</div>' : '') + modelNotice +
+        // (No "your model wears them the moment she exists" notice — the
+        // generic model wears them now, 2026-10-15.)
+        let rackHtml = (home ? '<div class="rb-lkh-name">' + titleHtml + '</div>' : '') +
           '<div class="rbc-rack' + (home && !homeOpen ? ' rb-lkh-collapsed' : '') + '">';
         // Every empty slot on home opens the camera and comes back with the
         // piece hung in the slot it was opened from — cataloguing is a
@@ -19018,10 +19185,9 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           // card per piece found.
           rackHtml += _lkReadRackHtml();
         } else if (rackBare) {
-          // The empty rack's two equal starts (use case 2b, design 3.1):
-          // the rack (the guide's role leads when it stands) or a photo —
-          // supersedes the one dashed door of Look_Creation_Handoff 4·0.
-          rackHtml += _lkStartsHtml(items);
+          // The empty draft's starts live in its bar (2026-10-15 — supersedes
+          // the two start cards of design 3.1); a photograph kept with
+          // nothing read leaves the rack to its + Add a piece.
         } else {
           rackHtml += _rbRackRolesHtml(items, rowCfg, empties) + (_lkRead ? _lkReadRackHtml() : '');
         }
@@ -19029,7 +19195,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // (regression fixed 2026-08-12). A look is never capped at four
         // pieces. The bare rack's door above already carries it.
         rackHtml += '</div>' +
-          (home || (rackBare && !(_lkRead && _lkRead.status === 'done'))
+          (home || blank || (rackBare && _lkRead && _lkRead.status !== 'done')
             ? ''
             : '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece' + ((_lkRead && _lkPhoto && _lkPhoto.url) ? ', or tap the photo' : '') + '</button>');
 
@@ -19125,7 +19291,17 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // card's foot on the web, fixed above the dock on the phone — the
         // same on the Lookbook composer and the kp builder. The name still
         // gates at the click (__lkSaveAsk); no "Filed under" note.
-        const bar = (!home && !_lkBuilding)
+        // The empty draft's bar: the ✦, then the two starts — Add pieces
+        // one by one (hairline) and Start from a photo (the one ink). No
+        // Save before there is something to keep.
+        const startBar = '<div class="rb-lk-draftbar rb-lk-startbar">' +
+            '<button type="button" class="rb-lk-spark" onclick="window.__lkSparkOpen()" aria-label="Style it in words" title="Style it in words">' + _LK_SPARK_SVG + '</button>' +
+            '<span class="rb-lk-starts2">' +
+              '<button type="button" class="rb-pill rb-lk-onebyone" id="rb-lk-onebyone" onclick="window.__lkAddPieces()">Add pieces one by one</button>' +
+              '<button type="button" class="rb-lk-photostart" id="rb-lk-startphoto" onclick="window.__lkStartPhoto()">Start from a photo</button>' +
+            '</span>' +
+          '</div>';
+        const bar = blank ? startBar : (!home && !_lkBuilding)
           ? '<div class="rb-lk-draftbar">' +
               (!_lkDraftEmptyNow() ? '<button type="button" class="rb-lk-quiet rb-lk-discard" onclick="window.__lkComposerDiscard()">Discard</button>' : '<span></span>') +
               lpField +
@@ -19134,7 +19310,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
             '</div>'
           : '';
         if (_lkRead) setTimeout(_lkReadSrcSync, 0);
-        return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + (kp ? ' rb-lk-kpcomposer' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' class="rb-lk-stretch" style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>' + bar + '</div>';
+        return mastHtml + '<div class="rb-lk-composer' + (home ? ' rb-lkh-composer' : '') + (kp ? ' rb-lk-kpcomposer' : '') + (blank ? ' rb-lk-blank' : '') + '"><div class="rb-lk-con"><div' + (stretchLeft ? ' class="rb-lk-stretch" style="align-self:stretch;display:flex;flex-direction:column"' : '') + '>' + lookHtml + photoRow + '</div><div>' + rackHtml + '</div></div>' + bar + '</div>';
       }
       function _lkRowOptions(r) {
         const def = _LK_SLOTS[r.slot] || _LK_SLOTS.Accessory;
@@ -22107,19 +22283,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           return '<span class="rb-lkr-dot" style="left:' + cx.toFixed(1) + '%;top:' + cy.toFixed(1) + '%">' + (pc.i + 1) + '</span>';
         }).join('');
       }
-      // The empty look's two equal starts (design 3.1): the rack — the
-      // standing guide card of Look_Creation_Handoff 4·0, unchanged — and,
-      // beside it, a photo. Neither is ink; Save is the commitment.
-      function _lkStartsHtml(items) {
-        return '<div class="rb-lk-starts">' +
-          _lkRackDoorHtml({ items, addFn: '__lkAddOpen' }) +
-          '<div class="rb-lk-start">' +
-            '<div class="gh">Start with a photo</div>' +
-            '<div class="gd">Robes reads every piece in it, and asks about each.</div>' +
-            '<div class="ga"><button type="button" class="rb-pill" id="rb-lk-startphoto" onclick="window.__lkPhotoRead()">' +
-              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" style="margin-right:7px;vertical-align:-2px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Add a photo</button></div>' +
-          '</div></div>';
-      }
       // Adds or replaces — never removes: once an image of her in this look
       // exists it is the record, and the model is a second view of it.
       // On a NEW look (use case 2b) the photograph is READ: Robes finds the
@@ -22289,7 +22452,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           // (same key as _avRenderKick, proposals included) — Save never
           // renders her twice.
           const onFrame = !!(_lkPhoto && _lkPhoto.frame && _pdHttp(_lkPhoto.url));
-          const canvasKey = (_lkModel && !onFrame) ? _lkmKey(used.map(String), _lkShopGarments()) : null;
+          const canvasKey = (_lkmModel() && !onFrame) ? _lkmKey(used.map(String), _lkShopGarments()) : null;
           const canvasUrl = canvasKey ? _pdHttp(_lkmRenders[canvasKey]) : null;
           // A frame draft (2026-10-07): the frame re-drawn for what stands
           // on the rack is the photograph — landed, or adopted when it lands.
@@ -29120,16 +29283,24 @@ body>*:not(#tv-result-page){display:none !important}
       // 'wardrobe' | 'wishlist'; segments: true renders the Wardrobe |
       // Wishlist switch in the header; onPick(item, source) replaces the
       // prompt apply (the key piece modal uses it — one picker, two doors).
+      // The draft look's slot sheet (2026-10-15) adds: title / sub (the
+      // header), coreCats (categories offered even when empty — no All
+      // chip then), cat (the chip it opens on), exclude (ids already on the
+      // look) and onSnap(cat) — an empty category's one door, which
+      // photographs a piece and files it straight to the slot.
+      var _CB_PICK_NOUN = { 'Tops': 'a top', 'Knitwear': 'a knit', 'Bottoms': 'a bottom', 'Dresses & jumpsuits': 'a dress', 'Outerwear': 'a coat', 'Tailoring & suiting': 'a tailored piece', 'Shoes': 'a pair of shoes', 'Bags': 'a bag', 'Accessories': 'an accessory', 'Jewellery': 'a piece of jewellery', 'Swim & beach': 'a swim piece' };
       var _cbPickOpts = null;
       var _cbPickCat = 'All';   // the sheet's category chip (All, then every sheet category she holds)
       window.__cbWardrobePick = function(opts) {
         opts = opts || {};
         _cbPickOpts = (opts.onPick || opts.onClose) ? opts : null;
-        if (!opts._keepCat) _cbPickCat = 'All';
+        if (!opts._keepCat) _cbPickCat = opts.cat || 'All';
         const source = opts.source === 'wishlist' ? 'wishlist' : 'wardrobe';
-        const all = source === 'wishlist' ? _wlItems : _waItems;
+        const ex = (opts.exclude || []).map(String);
+        const all = (source === 'wishlist' ? _wlItems : _waItems).filter(it => ex.indexOf(String(it.id)) < 0);
+        const filedN = (source === 'wishlist' ? _wlItems : _waItems).length;
         document.getElementById('cb-wa-pick')?.remove();
-        if (!all.length && !opts.segments) {
+        if (!all.length && !opts.segments && !opts.onSnap) {
           _waShowToast(source === 'wishlist' ? 'Nothing on your wishlist yet' : 'Nothing catalogued yet — add a piece to your wardrobe first');
           if (opts.onClose) opts.onClose();
           return;
@@ -29137,9 +29308,15 @@ body>*:not(#tv-result-page){display:none !important}
         // The sheet filters by category (the design's All / Tops / Bottoms):
         // All, then every sheet category her pieces actually hold.
         const catOf = it => (typeof _waSheetCatOf === 'function' ? _waSheetCatOf(it) : (it.category || 'Other'));
-        const cats = ['All'];
+        let cats = ['All'];
         all.forEach(it => { const c = catOf(it); if (c && cats.indexOf(c) < 0) cats.push(c); });
-        if (cats.indexOf(_cbPickCat) < 0) _cbPickCat = 'All';
+        if (opts.coreCats) {
+          // Every core category, filed or not, then every one she holds —
+          // in the sheet's own order.
+          const want = opts.coreCats.concat(cats.slice(1));
+          cats = _WA_SHEET_CATS.concat(['Other']).filter(c => want.indexOf(c) > -1);
+          if (cats.indexOf(_cbPickCat) < 0) _cbPickCat = cats[0];
+        } else if (cats.indexOf(_cbPickCat) < 0) _cbPickCat = 'All';
         const items = _cbPickCat === 'All' ? all : all.filter(it => catOf(it) === _cbPickCat);
         const modal = document.createElement('div');
         modal.id = 'cb-wa-pick';
@@ -29152,9 +29329,15 @@ body>*:not(#tv-result-page){display:none !important}
           : `window.__cbWardrobeApply('${_waEsc(String(wi.id))}')`;
         const seg = (k, label) => `<button type="button" class="cb-pick-seg${k === source ? ' on' : ''}" onclick="window.__cbPickSwitch('${k}')">${label}</button>`;
         const segs = opts.segments ? `<div class="cb-pick-segs">${seg('wardrobe', 'Wardrobe')}${seg('wishlist', 'Wishlist')}</div>` : '';
-        const chips = cats.length > 1 ? `<div class="cb-pick-cats">${cats.map(c => `<button type="button" class="cb-pick-cat${c === _cbPickCat ? ' on' : ''}" onclick="window.__cbPickCat('${_waEsc(c)}')">${_waEsc(c)}</button>`).join('')}</div>` : '';
+        const chips = (cats.length > 1 || opts.coreCats) ? `<div class="cb-pick-cats">${cats.map(c => `<button type="button" class="cb-pick-cat${c === _cbPickCat ? ' on' : ''}" onclick="window.__cbPickCat('${_waEsc(c)}')">${_waEsc(c)}</button>`).join('')}</div>` : '';
+        const noun = _CB_PICK_NOUN[_cbPickCat] || 'a piece';
         const empty = !items.length
-          ? `<p class="cb-pick-empty">${source === 'wishlist' ? 'Nothing on your wishlist yet.' : 'Nothing filed here yet.'}</p>`
+          ? (opts.onSnap && source === 'wardrobe'
+            // One door: a headline, one line, one action.
+            ? `<div class="cb-pick-door"><div class="h">${filedN ? 'No ' + _waEsc(String(_cbPickCat).toLowerCase()) + ' filed yet.' : 'Your wardrobe starts here.'}</div>` +
+              `<div class="d">Photograph ${_waEsc(noun)} and Robes files it to your wardrobe, then puts it on the look.</div>` +
+              `<button type="button" class="cb-pick-snap" onclick="window.__cbPickSnap()">Photograph ${_waEsc(noun)}</button></div>`
+            : `<p class="cb-pick-empty">${source === 'wishlist' ? 'Nothing on your wishlist yet.' : 'Nothing filed here yet.'}</p>`)
           : '';
         const tiles = empty + items.slice(0, 90).map(wi => `
           <button type="button" class="cb-pick-tile" onclick="${pick(wi)}">
@@ -29167,7 +29350,7 @@ body>*:not(#tv-result-page){display:none !important}
           <div class="cb-pick-card" role="dialog" aria-label="${source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'}">
             <div class="cb-pick-grab"><span></span></div>
             <div class="cb-pick-head">
-              <div><div class="cb-pick-title">${source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'}</div><div class="cb-pick-sub">Pick the piece to start from.</div></div>
+              <div><div class="cb-pick-title">${_waEsc(opts.title || (source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'))}</div><div class="cb-pick-sub">${_waEsc(opts.sub || 'Pick the piece to start from.')}</div></div>
               <button type="button" class="cb-pick-x" onclick="window.__cbPickClose()" aria-label="Close">×</button>
             </div>
             ${segs}${chips}
@@ -29197,6 +29380,11 @@ body>*:not(#tv-result-page){display:none !important}
             '.cb-pick-tile .mono{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:22px;color:#C8B8A2}' +
             '.cb-pick-tile .nm{display:block;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:14px;line-height:1.15;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
             '.cb-pick-empty{grid-column:1/-1;margin:20px 0;text-align:center;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-size:15px;color:var(--ink-faint,#9A958E)}' +
+            '.cb-pick-door{grid-column:1/-1;margin:14px 0 6px;padding:30px 22px;border:1.5px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad,12px);background:var(--cream-100,#F7F4EE);text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}' +
+            '.cb-pick-door .h{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:24px;line-height:1.15;color:var(--ink,#202021)}' +
+            '.cb-pick-door .d{max-width:300px;font-size:12.5px;line-height:1.55;color:var(--ink-soft,#55524E)}' +
+            '.cb-pick-snap{margin-top:10px;min-height:44px;padding:0 22px;border:none;border-radius:100px;background:var(--ink,#202021);color:#FAF8F5;font-family:inherit;font-size:10.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer}' +
+            '.cb-pick-snap:hover{opacity:.85}' +
             '@media(max-width:767px){.cb-pick-wrap{align-items:flex-end;padding:0}.cb-pick-card{max-width:none;max-height:86vh;height:660px;border-radius:18px 18px 0 0;box-shadow:0 -8px 30px rgba(32,32,33,.1)}.cb-pick-grab{display:block}.cb-pick-head{padding-top:12px}.cb-pick-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}';
           document.head.appendChild(st);
         }
@@ -29210,6 +29398,12 @@ body>*:not(#tv-result-page){display:none !important}
       // The segment buttons re-open the picker on the other source with
       // the SAME options (and callback); a tile hands the item to it and closes.
       window.__cbPickSwitch = function(k) { window.__cbWardrobePick(Object.assign({ segments: true }, _cbPickOpts || {}, { source: k, _keepCat: true })); };
+      window.__cbPickSnap = function() {
+        const o = _cbPickOpts, cat = _cbPickCat;
+        document.getElementById('cb-wa-pick')?.remove();
+        _cbPickOpts = null;
+        if (o && o.onSnap) o.onSnap(cat);
+      };
       window.__cbPickApply = function(source, id) {
         const items = source === 'wishlist' ? _wlItems : _waItems;
         const it = items.find(w => String(w.id) === String(id));

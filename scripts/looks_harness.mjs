@@ -1228,60 +1228,101 @@ const browser = await chromium.launch(
   check('composer · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   // A fresh session has rendered no console — the composer must inject the
   // shared stylesheet itself, and the styles must actually apply.
+  // Draft_Look_Redesign (2026-10-15): the EMPTY draft is the model and one
+  // bar with two starts — no guide card, no start cards, no Save yet.
   const css = await page.evaluate(() => {
-    // The empty composer holds ONE door (handoff 4·0): the guided card.
-    const g = document.querySelector('.rb-lk-con .rb-lk-guide');
+    const comp = document.querySelector('.rb-lk-composer');
+    const con = document.querySelector('.rb-lk-con');
+    const bar = document.querySelector('.rb-lk-composer > .rb-lk-startbar');
+    const ink = (b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)';
+    const photo = document.getElementById('rb-lk-startphoto');
     return {
       sheet: !!document.getElementById('rbc-style'),
-      guide: !!g, dashed: g ? getComputedStyle(g).borderTopStyle === 'dashed' : false,
-      head: g?.querySelector('.gh')?.textContent, def: g?.querySelector('.gd')?.textContent, ex: g?.querySelector('.gx')?.textContent,
-      acts: Array.from(g?.querySelectorAll('.ga button') || []).map((b) => b.textContent.trim()),
-      quiet: Array.from(g?.querySelectorAll('.gq button') || []).map((b) => b.textContent.trim()),
+      blank: !!comp && comp.classList.contains('rb-lk-blank'),
+      guide: document.querySelectorAll('.rb-lk-guide, .rb-lk-starts, .rb-lkm-prompt, .rb-lkm-notice').length,
+      rackShown: (() => { const r = con && con.children[1]; return !!r && getComputedStyle(r).display !== 'none'; })(),
+      oneCol: con ? getComputedStyle(con).gridTemplateColumns.split(' ').length === 1 : false,
+      conW: con ? Math.round(con.getBoundingClientRect().width) : 0,
+      bar: !!bar, spark: !!bar?.querySelector('.rb-lk-spark'),
+      oneByOne: document.getElementById('rb-lk-onebyone')?.textContent.trim(),
+      photo: photo?.textContent.trim(), photoInk: !!photo && ink(photo), photoH: photo ? Math.round(photo.getBoundingClientRect().height) : 0,
+      inks: Array.from(document.querySelectorAll('.rb-lk-composer button')).filter((b) => b.getClientRects().length && ink(b)).length,
+      save: document.querySelectorAll('.rb-lk-composer .rb-lk-save').length,
+      hots: Array.from(document.querySelectorAll('.rb-lkm-canvas .rb-lkm-hot')).map((h) => h.textContent.trim()),
+      hotsOn: document.querySelectorAll('.rb-lkm-canvas .rb-lkm-hot.on').length,
+      badge: !!document.querySelector('.rb-lkm-badge'),
+      photoPill: !!document.querySelector('.rb-lk-con .rb-lkm-canvas .rb-lk-photobtn'),
       strips: document.querySelectorAll('.rb-lk-con .rbc-rolestrip').length,
     };
   });
   check('composer · shared console stylesheet is injected without a console render', css.sheet, JSON.stringify(css));
-  check('composer · the empty rack is ONE door — the guided dashed card: Start with the canvas, its definition and example, + Canvas / + Any piece, Skip the guide; no strips',
-    css.guide && css.dashed && css.head === 'Start with the canvas' && /proportion and tone/.test(css.def || '') && /A tee, jeans, a knit/.test(css.ex || '')
-      && JSON.stringify(css.acts) === JSON.stringify(['+ Canvas', '+ Any piece']) && css.quiet.includes('Skip the guide') && css.strips === 0, JSON.stringify(css));
-  check('composer · the standing console scale: 480px look column',
-    /^480px/.test(c0.cols) && c0.lookv2, c0.cols + ' lookv2=' + c0.lookv2);
+  check('composer · the empty draft is the model alone — no guide, no start cards, no no-model prompt, the rack column stands down',
+    css.blank && css.guide === 0 && css.rackShown === false && css.oneCol && css.conW <= 441 && css.strips === 0, JSON.stringify(css));
+  check('composer · one bar with two starts: ✦ · Add pieces one by one · Start from a photo (the one ink); no Save before a piece',
+    css.bar && css.spark && css.oneByOne === 'Add pieces one by one' && css.photo === 'Start from a photo' && css.photoInk
+      && css.inks === 1 && css.photoH >= 44 && css.save === 0, JSON.stringify(css));
+  check('composer · + Top, + Bottom, + Shoes sit on the model, none filled; her own model carries no badge; no photograph pill on the empty draft',
+    JSON.stringify(css.hots) === JSON.stringify(['+Top', '+Bottom', '+Shoes']) && css.hotsOn === 0 && css.badge === false && css.photoPill === false,
+    JSON.stringify(css));
   check('composer · the look panel is the shared rbc-panel', c0.panel === true);
-  // A2/B1 amendments (2026-08-07): NO slot-bound empty rows — a slot must
-  // never forecast a role. The rack IS the formula: each awaiting role is
-  // a dashed definition row with its own + Add. The trailing generic CTA
-  // ALWAYS closes the rack (regression fixed 2026-08-12 — it used to wait
-  // until all four roles were inked, taking the door away from the empty
-  // look that most needs it).
-  check('composer · no slot-bound empty rows, no ghosted definition rows — the guide is the one door',
+  check('composer · no slot-bound empty rows, no ghosted definition rows',
     c0.emptyRows === 0 && c0.ghostAdds === 0, JSON.stringify([c0.emptyRows, c0.ghostAdds]));
-  check('composer · the bare rack carries no second + Add a piece beneath the door', c0.addPiece === false);
-  // "+ Any piece" opens the chooser with no role preset; both targets 40px+
-  const hit = await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('.rb-lk-con .rb-lk-guide .ga button')).find((x) => /Any piece/.test(x.textContent));
-    const r = b?.getBoundingClientRect();
-    b?.click();
-    const sheet = document.getElementById('rb-lkadd-sheet');
-    const opened = !!sheet, eyebrow = sheet?.querySelector('p')?.textContent || '';
-    window.__lkAddClose && window.__lkAddClose();
-    return { h: r ? Math.round(r.height) : 0, opened, eyebrow };
+  check('composer · the bare draft carries no + Add a piece — the bar holds the starts', c0.addPiece === false);
+  // Add pieces one by one → the wardrobe sheet: every core category (and
+  // every one she has filed), opened on the first she holds.
+  const one1 = await page.evaluate(() => {
+    document.getElementById('rb-lk-onebyone').click();
+    const m = document.getElementById('cb-wa-pick');
+    const chips = Array.from(m?.querySelectorAll('.cb-pick-cat') || []).map((c) => c.textContent.trim());
+    const r = { open: !!m, title: m?.querySelector('.cb-pick-title')?.textContent, chips, on: m?.querySelector('.cb-pick-cat.on')?.textContent };
+    window.__cbPickClose && window.__cbPickClose();
+    return r;
   });
-  check('composer · + Any piece opens the chooser with no role preset, a 40px target',
-    hit.h >= 40 && hit.opened === true && !/The Canvas/.test(hit.eyebrow), JSON.stringify(hit));
-  // Save stands on screen and LIVE from the first second — the name is
-  // the one gate (2026-09-03; the two-piece floor is gone). Design 4d
-  // (2026-10-02): Save is INK on the draft footer beside a quiet Discard
-  // (an empty draft has none to discard); no "Filed under" note anywhere —
-  // the gate answers at the click. The header reads DRAFT LOOK over the
-  // centred name.
-  check('composer · Save stands on screen, withheld (cream, no ink) until a piece or a photograph, on the draft footer; no name-gate note; DRAFT LOOK over the centred name',
-    c0.saveShown === true && c0.saveDisabled === true && c0.saveInBar === true && c0.barInk === false && c0.barDiscard === null
-      && !c0.saveNote && c0.drafty === 'Draft look' && c0.titleCentred === true,
-    JSON.stringify([c0.saveShown, c0.saveDisabled, c0.saveInBar, c0.barInk, c0.barDiscard, c0.saveNote, c0.drafty, c0.titleCentred]));
+  check('composer · Add pieces one by one opens the wardrobe sheet: Tops / Bottoms / Shoes and every filed category, no All, on Tops',
+    one1.open && one1.title === 'Add a piece' && one1.chips[0] === 'Tops' && one1.chips.includes('Bottoms') && one1.chips.includes('Shoes')
+      && one1.chips.includes('Bags') && one1.chips.includes('Dresses & jumpsuits') && !one1.chips.includes('All') && one1.on === 'Tops', JSON.stringify(one1));
+  // A hotspot opens the sheet on ITS category; a pick lands on the look and
+  // the slot turns warm with a ✓; tapping it again swaps the piece.
+  const hot = await page.evaluate(() => {
+    document.querySelector('.rb-lkm-hot[data-hot="bottom"]').click();
+    const m = document.getElementById('cb-wa-pick');
+    const title = m?.querySelector('.cb-pick-title')?.textContent;
+    const on = m?.querySelector('.cb-pick-cat.on')?.textContent;
+    const names = Array.from(m?.querySelectorAll('.cb-pick-tile .nm') || []).map((n) => n.textContent);
+    Array.from(m.querySelectorAll('.cb-pick-tile')).find((t) => t.querySelector('.nm')?.textContent === 'Linen shorts').click();
+    const after = {
+      blank: document.querySelector('.rb-lk-composer')?.classList.contains('rb-lk-blank'),
+      rows: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent),
+      bottomOn: document.querySelector('.rb-lkm-hot[data-hot="bottom"]')?.classList.contains('on'),
+      bottomMark: document.querySelector('.rb-lkm-hot[data-hot="bottom"] .m')?.textContent,
+      save: !!document.querySelector('.rb-lk-draftbar .rb-lk-save'),
+      start: !!document.querySelector('.rb-lk-startbar'),
+      addPiece: !!document.querySelector('.rb-lk-con .rbc-addpiece'),
+    };
+    document.querySelector('.rb-lkm-hot[data-hot="bottom"]').click();
+    const m2 = document.getElementById('cb-wa-pick');
+    const names2 = Array.from(m2?.querySelectorAll('.cb-pick-tile .nm') || []).map((n) => n.textContent);
+    Array.from(m2.querySelectorAll('.cb-pick-tile')).find((t) => t.querySelector('.nm')?.textContent === 'Barrel-leg jeans').click();
+    const swapped = Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent);
+    return { title, on, names, after, names2, swapped };
+  });
+  check('composer · + Bottom opens "Add a bottom" on Bottoms, her bottoms only',
+    hot.title === 'Add a bottom' && hot.on === 'Bottoms' && hot.names.includes('Linen shorts') && !hot.names.includes('Cream silk shirt'), JSON.stringify(hot));
+  check('composer · the first piece hands over to the rack flow: the row, + Add a piece, Discard / Save — and the slot reads warm ✓',
+    hot.after.blank === false && JSON.stringify(hot.after.rows) === JSON.stringify(['Linen shorts']) && hot.after.bottomOn && hot.after.bottomMark === '✓'
+      && hot.after.save && !hot.after.start && hot.after.addPiece, JSON.stringify(hot.after));
+  check('composer · a filled slot swaps: the sheet hides what is on the look, the pick takes its place',
+    !hot.names2.includes('Linen shorts') && JSON.stringify(hot.swapped) === JSON.stringify(['Barrel-leg jeans']), JSON.stringify([hot.names2, hot.swapped]));
+  const cols1 = await page.evaluate(() => getComputedStyle(document.querySelector('.rb-lk-con')).gridTemplateColumns);
+  check('composer · with a piece on, the standing console scale: 480px look column',
+    /^480px/.test(cols1) && c0.lookv2, cols1 + ' lookv2=' + c0.lookv2);
+  // Back to the empty draft for the sections below.
+  await page.evaluate(() => window.__lkCRemove(0));
+  await page.waitForTimeout(200);
   check('composer · the whole composer sits in ONE card, the name leading it from outside',
     c0.card === true && c0.titleOutside === true, JSON.stringify([c0.card, c0.titleOutside]));
-  // The "Or let Robes create your look" door is gone (2026-09-03) — the
-  // home prompt box is where Robes builds.
+  check('composer · DRAFT LOOK over the centred name; no name-gate note',
+    !c0.saveNote && c0.drafty === 'Draft look' && c0.titleCentred === true, JSON.stringify([c0.saveNote, c0.drafty, c0.titleCentred]));
   check('composer · no "Or let Robes create your look" door beside Save',
     c0.robesDoor === undefined, String(c0.robesDoor));
   // Her REAL model stands on the canvas from the first second — the
@@ -1289,33 +1330,7 @@ const browser = await chromium.launch(
   check('composer · her photographed model stands on the canvas from the first second',
     c0.stage === true && c0.img === 'https://img.test/cell.jpg' && c0.busy === false,
     JSON.stringify([c0.stage, c0.img, c0.busy]));
-  // The photograph door sits ON the canvas while the look is new
-  // (Robes_Create_Edit_Look_IA); nothing sits under it until one exists.
-  // It is an ICON, named on hover (Annie, 2026-09-21) — the always-on label
-  // ran across the model and over the "Dressing her…" chip.
-  check('composer · the photograph door is an icon on the canvas, named on hover, nothing beneath',
-    c0.photoDoor === 'Add your photograph' && c0.photoDoorIcon === true && c0.photoRow === false,
-    JSON.stringify([c0.photoDoor, c0.photoDoorIcon, c0.photoRow]));
-  // Look_Creation_Handoff 4·0 (2026-10-05): the empty draft is ONE door —
-  // the guide card for her first ten drafts — never four ghosted strips.
-  const guide = await page.evaluate(() => {
-    const g = document.querySelector('.rb-lk-con .rb-lk-guide');
-    return {
-      strips: document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-rolestrip').length,
-      doors: document.querySelectorAll('.rb-lk-con .rb-lk-guide').length,
-      h: g?.querySelector('.gh')?.textContent.trim(), d: g?.querySelector('.gd')?.textContent.trim(), ex: g?.querySelector('.gx')?.textContent.trim(),
-      acts: Array.from(g?.querySelectorAll('.ga button') || []).map((b) => b.textContent.trim()),
-      quiet: Array.from(g?.querySelectorAll('.gq button') || []).map((b) => b.textContent.trim()),
-      trailingAdd: !!document.querySelector('.rb-lk-con .rbc-addpiece'),
-    };
-  });
-  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/composer-empty-guide-1280.png', fullPage: true }).catch(() => {});
-  check('composer · the empty draft is ONE guided door — no ghosted strips, no trailing + Add a piece',
-    guide.strips === 0 && guide.doors === 1 && guide.trailingAdd === false, JSON.stringify(guide));
-  check('composer · the guide reads Start with the canvas, its line and its examples, with + Canvas / + Any piece and Skip the guide',
-    guide.h === 'Start with the canvas' && /proportion and tone/.test(guide.d || '') && /A tee, jeans, a knit/.test(guide.ex || '')
-      && JSON.stringify(guide.acts) === JSON.stringify(['+ Canvas', '+ Any piece']) && guide.quiet.includes('Skip the guide'),
-    JSON.stringify(guide));
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/composer-empty-1280.png', fullPage: true }).catch(() => {});
   // No second header above the strips — the formula strips name themselves
   // and the masthead names the look (FTUE pass 2026-08-12).
   check('composer · no rack header above the formula strips', c0.rackEyebrow === undefined, c0.rackEyebrow);
@@ -1513,8 +1528,7 @@ const browser = await chromium.launch(
   // The guide's "+ Canvas" pre-casts the role on the pick (nothing
   // dictates what goes where — the role picker on the piece page recasts).
   const armed = await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('.rb-lk-con .rb-lk-guide .ga button')).find((x) => /^\+ Canvas$/.test(x.textContent.trim()));
-    b.click();
+    window.__lkAddOpen('The Canvas');
     const eyebrow = document.querySelector('#rb-lkadd-sheet p')?.textContent || '';
     document.querySelector('[data-lkadd-cat="Tops"]').click();
     Array.from(document.querySelectorAll('#rb-lkadd-sheet .rb-lk-opt'))
@@ -1525,7 +1539,7 @@ const browser = await chromium.launch(
     window.__lkNew();   // reset roles + rows for the sections below
     return { eyebrow, names };
   });
-  check('composer · the guide\'s + Canvas pre-casts the role on the pick',
+  check('composer · a role-armed chooser pre-casts the role on the pick',
     /The Canvas/.test(armed.eyebrow) && armed.names.includes('Cream silk shirt'), JSON.stringify(armed));
 
   const two = await page.evaluate(() => {
@@ -1806,10 +1820,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     note: document.querySelector('.rb-lk-namenote')?.textContent,
     foot: Array.from(document.querySelectorAll('.rb-lk-buildfoot button')).map((x) => x.textContent),
     saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
-    photo: Array.from(document.querySelectorAll('.rb-lk-quiet')).map((x) => x.textContent)[0],
+    photo: document.querySelector('.rb-lk-con .rb-lkm-canvas .rb-lk-photobtn span')?.textContent.trim(),
     quote: document.querySelector('.rbc-quote')?.textContent,
     tags: Array.from(document.querySelectorAll('.rbc-tags .tg')).map((t) => t.textContent),
-    fabrics: document.querySelectorAll('.rbc-fabrics .fab').length,
+    onModel: !!document.querySelector('.rb-lk-con .rb-lkm-stage') && !document.querySelector('.rb-lk-con .rbc-board'),
+    badge: !!document.querySelector('.rb-lk-con .rb-lkm-badge'),
     slotEye: document.querySelector('.rb-lk-prop .vslot')?.textContent,
     hownote: document.querySelector('.rb-lk-prop .rbc-hownote')?.textContent,
     swapIcon: !!document.querySelector('.rb-lk-prop .rbc-swap svg'),
@@ -1833,15 +1848,17 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     !!b.title && !/Yours to change/.test(b.note || ''), JSON.stringify([b.title, b.note]));
   check('build · the stylist note reads on the panel',
     b.quote === BUILD_NOTE.note, JSON.stringify(b.quote));
-  check('build · the look arrives filed — tags on the row, texture under the mosaic',
-    b.tags.length >= 1 && b.fabrics >= 1, JSON.stringify([b.tags, b.fabrics]));
+  // Draft_Look_Redesign (2026-10-15): with no model on file the generic
+  // model wears the build — no mosaic board — and carries its badge.
+  check('build · the look arrives filed — tags on the row, worn by the generic model (badge on), no board',
+    b.tags.length >= 1 && b.onModel && b.badge, JSON.stringify([b.tags, b.onModel, b.badge]));
   check('build · a proposal is the shared rack row — slot label on the frame, row note beneath',
     /Jacket/.test(b.slotEye || '') && !!b.hownote, JSON.stringify([b.slotEye, b.hownote]));
   check('build · the proposal carries the same ↻ (icon) and ♡ as every trail row',
     b.swapIcon === true && b.saveCls === true, JSON.stringify([b.swapIcon, b.saveCls]));
   // The door names what it does (2026-09-16): a build with no photograph
   // on it cannot offer to REPLACE one.
-  check('build · the photo door reads Add your photograph while the look has none',
+  check('build · the photo door is the canvas pill, Add your photograph, while the look has none',
     b.photo === 'Add your photograph', b.photo);
   check('build · Save leads on the footer with Discard; Try another and Wear it today are the quiet doors under the rack',
     b.saveDisabled === false && JSON.stringify(b.foot) === JSON.stringify(['Try another', 'Wear it today']),
@@ -1902,10 +1919,11 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.waitForTimeout(2800);
   const pending = await page.evaluate(() => ({
     placeholders: document.querySelectorAll('.rb-lk-prop .rb-lk-shopph').length,
-    boardTiles: document.querySelectorAll('.rbc-board .rbc-tile').length,
+    worn: (document.querySelector('.rb-lk-con .rb-lkm-stage')?.getAttribute('data-pn') || '').split('~').filter(Boolean).length,
+    owned: (document.querySelector('.rb-lk-con .rb-lkm-stage')?.getAttribute('data-ids') || '').split(',').filter(Boolean).length,
   }));
-  check('imagery · the look board carries the proposals, not just what she owns',
-    pending.boardTiles === 4, JSON.stringify(pending));
+  check('imagery · the model wears the proposals, not just what she owns',
+    pending.worn === 3 && pending.owned === 1, JSON.stringify(pending));
   check('imagery · a proposal waits behind a labelled block, never a blank',
     pending.placeholders > 0, JSON.stringify(pending));
   check('imagery · Robes is asked for a still-life of every proposal',
@@ -1914,11 +1932,10 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.waitForTimeout(5000);
   const landed = await page.evaluate(() => ({
     thumbs: document.querySelectorAll('.rb-lk-prop .rbc-vp img').length,
-    boardImgs: document.querySelectorAll('.rbc-board .rbc-tile img').length,
     placeholders: document.querySelectorAll('.rb-lk-shopph').length,
   }));
-  check('imagery · the frames land in the rack thumbs and on the board',
-    landed.thumbs === 3 && landed.boardImgs >= 3 && landed.placeholders === 0,
+  check('imagery · the frames land in the rack thumbs',
+    landed.thumbs === 3 && landed.placeholders === 0,
     JSON.stringify(landed));
   check('imagery · no page errors', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
@@ -1944,17 +1961,14 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.waitForTimeout(7000);
   const z = await page.evaluate(() => ({
     placeholder: /once you start/.test(document.getElementById('rb-lk-body')?.textContent || ''),
-    board: document.querySelectorAll('.rbc-board .rbc-tile').length,
-    boardImgs: document.querySelectorAll('.rbc-board .rbc-tile img').length,
+    worn: (document.querySelector('.rb-lk-con .rb-lkm-stage')?.getAttribute('data-pn') || '').split('~').filter(Boolean).length,
     head: document.querySelector('.rbc-lhead .lab')?.textContent,
-    yours: document.querySelector('.rbc-yours')?.textContent,
     saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
   }));
-  check('nothing owned · the look still draws — never the "once you start" state',
-    z.placeholder === false && z.board === 4 && z.boardImgs === 4, JSON.stringify(z));
-  check('nothing owned · the head and the ownership line count the whole look',
-    z.head === 'The look · 0 yours, 4 to find' && /0.of.4 from your wardrobe/.test(z.yours || ''),
-    JSON.stringify([z.head, z.yours]));
+  check('nothing owned · the look still draws — the generic model wears all four, never the "once you start" state',
+    z.placeholder === false && z.worn === 4, JSON.stringify(z));
+  check('nothing owned · the head counts the whole look',
+    z.head === 'The look · 0 yours, 4 to find', JSON.stringify(z.head));
   check('nothing owned · Save is open', z.saveDisabled === false);
 
   const ask = await page.evaluate(async () => {
@@ -2299,11 +2313,12 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     return {
       door: document.querySelector('.rb-lk-robesdoor')?.textContent,
       card: !!document.querySelector('.rb-lk-composer > .rb-lk-con'),
-      saveDisabled: document.querySelector('.rb-lk-save')?.disabled,
+      save: !!document.querySelector('.rb-lk-save'),
+      bar: !!document.querySelector('.rb-lk-startbar'),
     };
   });
-  check('empty · the first-time composer carries no Robes door; Save is withheld until a piece or a photograph',
-    ftue.door === undefined && ftue.card === true && ftue.saveDisabled === true,
+  check('empty · the first-time composer carries no Robes door and no Save — the start bar until a piece',
+    ftue.door === undefined && ftue.card === true && ftue.save === false && ftue.bar === true,
     JSON.stringify(ftue));
   await ctx.close();
 }
@@ -3904,9 +3919,9 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   const { ctx, page, errs } = await boot(browser, { pics: 4, seed: false });
   const under = await page.evaluate(() => {
     window.__lkNew();
-    return { composer: !!document.querySelector('.rb-lk-composer'), door: Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent))?.textContent ?? null };
+    return { composer: !!document.querySelector('.rb-lk-composer'), door: Array.from(document.querySelectorAll('.rb-lk-composer button:not(.rb-lkm-badge)')).find((b) => /Robes/.test(b.textContent))?.textContent ?? null };
   });
-  check('robes door · four photographed pieces → no "Let Robes dress her" on the guide', under.composer && under.door === null, JSON.stringify(under));
+  check('robes door · four photographed pieces → no Robes door on the empty draft', under.composer && under.door === null, JSON.stringify(under));
   check('robes door · no page errors (under)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -3922,31 +3937,26 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       await page.route('**img.test/**', (r) => r.abort());
     },
   });
+  // Draft_Look_Redesign (2026-10-15): the empty draft is the model and the
+  // start bar — the guide's "Let Robes dress her" went with the guide. The
+  // build itself still runs (its own doors call it) and still fills the
+  // same rack, nothing saved.
   const at = await page.evaluate(() => {
     window.__lkNew();
-    const d = Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent));
-    return {
-      door: d?.textContent ?? null,
-      quiet: !!d && getComputedStyle(d).backgroundColor !== 'rgb(32, 32, 33)',
-      inGuide: !!d && !!d.closest('.rb-lk-guide'),
-      inks: Array.from(document.querySelectorAll('.rb-lk-composer button, .rb-lk-saverow button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
-    };
+    return { door: Array.from(document.querySelectorAll('.rb-lk-composer button:not(.rb-lkm-badge)')).find((b) => /Robes/.test(b.textContent))?.textContent ?? null, bar: !!document.querySelector('.rb-lk-startbar') };
   });
-  // Handoff 4·0: "Let Robes dress her" rides the guide's card — the rack
-  // has one door; the pill beside Save is gone from the Lookbook composer.
-  check('robes door · five photographed pieces + a model → "Let Robes dress her" on the guide, a quiet link',
-    at.door === 'Let Robes dress her' && at.quiet && at.inGuide, JSON.stringify(at));
+  check('robes door · five photographed pieces + a model → the empty draft holds the start bar, no Robes door', at.door === null && at.bar, JSON.stringify(at));
   const built = await page.evaluate(async () => {
-    Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent)).click();
+    window.__lkRobesBuild({ door: 'composer' });
     await new Promise((r) => setTimeout(r, 2200));
     return {
       built: !!document.querySelector('.rb-lk-saverow.built'),
       pieces: document.querySelectorAll('.rbc-rack .rbc-name').length,
-      door: !!document.querySelector('.rb-lk-guide'),
+      bar: !!document.querySelector('.rb-lk-startbar'),
       name: document.getElementById('rb-lk-newtitle')?.value || '',
     };
   });
-  check('robes door · the tap fills the same rack (a build stands, the guide retires)', built.built && built.pieces >= 2 && !built.door, JSON.stringify(built));
+  check('robes door · a build fills the same rack (the start bar hands over)', built.built && built.pieces >= 2 && !built.bar, JSON.stringify(built));
   check('robes door · nothing written until she saves', !writes.some((w) => w.method === 'POST' && /^looks\b/.test(w.url)), JSON.stringify(writes.filter((w) => /^looks\b/.test(w.url)).length));
   await page.evaluate(async () => {
     const inp = document.getElementById('rb-lk-newtitle');
@@ -3960,11 +3970,56 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await ctx.close();
 }
 {
-  // No model on file → the door's other wording.
-  const { ctx, page, errs } = await boot(browser, { pics: 5, seed: false, pre: async (page) => { await page.route('**/api/avatar/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })); } });
-  const nm = await page.evaluate(() => { window.__lkNew(); return Array.from(document.querySelectorAll('.rb-lk-guide .gq button')).find((b) => /Robes/.test(b.textContent))?.textContent ?? null; });
-  check('robes door · no model → the guide still reads "Let Robes dress her"', nm === 'Let Robes dress her', String(nm));
-  check('robes door · no page errors (no model)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  // Day 0 (Draft_Look_Redesign, 2026-10-15): no model on file → no detour.
+  // A generic editorial model stands on the canvas, its badge opens the
+  // twin; a piece dresses the generic model, and the frame saves with the
+  // look (re-rendered on hers once she has one).
+  const cells = [], renders = [];
+  const { ctx, page, errs, writes } = await boot(browser, { pics: 2, seed: false, pre: async (page) => {
+    await page.route('**/api/avatar/cell', (r) => { cells.push(r.request().postDataJSON().avatarId); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ url: 'https://img.test/generic.jpg' }) }); });
+    await page.route('**/api/avatar/render', (r) => { renders.push(r.request().postDataJSON()); r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobId: 'rj-g' }) }); });
+    await page.route('**/api/images/rj-g', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: ['https://img.test/generic-render.jpg'], done: true }) }));
+    await page.route('**/settings**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>settings</body></html>' }));
+    await page.route('**img.test/**', (r) => r.abort());
+  } });
+  await page.evaluate(() => window.__lkNew());
+  await page.waitForTimeout(600);
+  const g0 = await page.evaluate(() => ({
+    prompt: !!document.querySelector('.rb-lkm-prompt, .rb-lkm-build, .rb-lkm-notice'),
+    badge: document.querySelector('.rb-lkm-badge')?.textContent.replace(/\s+/g, ' ').trim(),
+    img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'),
+    hots: document.querySelectorAll('.rb-lkm-hot').length,
+    bar: !!document.querySelector('.rb-lk-startbar'),
+  }));
+  check('day 0 · no model → no "Build your model" detour; the generic model stands on the canvas with its badge',
+    !g0.prompt && /Robes’ model/.test(g0.badge || '') && /Make it you/.test(g0.badge || '') && g0.img === 'https://img.test/generic.jpg' && g0.hots === 3 && g0.bar,
+    JSON.stringify(g0));
+  check('day 0 · the canvas asks for the generic catalog cell', cells.length >= 1 && cells.every((c) => c === 'w-s4-h1-nt'), JSON.stringify(cells));
+  // A piece dresses the generic model.
+  await page.evaluate(() => {
+    document.querySelector('.rb-lkm-hot[data-hot="top"]').click();
+    document.querySelector('#cb-wa-pick .cb-pick-tile').click();
+  });
+  await page.waitForTimeout(2600);
+  const g1 = await page.evaluate(() => ({ img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'), badge: !!document.querySelector('.rb-lkm-badge'), topOn: document.querySelector('.rb-lkm-hot[data-hot="top"]')?.classList.contains('on') }));
+  check('day 0 · a piece dresses the generic model (one render, the generic id), the badge stays',
+    renders.length === 1 && renders[0].avatarId === 'w-s4-h1-nt' && g1.img === 'https://img.test/generic-render.jpg' && g1.badge && g1.topOn, JSON.stringify([renders.map((r) => r.avatarId), g1]));
+  await page.evaluate(async () => {
+    const inp = document.getElementById('rb-lk-newtitle');
+    inp.value = 'Day zero'; inp.dispatchEvent(new Event('input', { bubbles: true }));
+    window.__lkSave();
+    await new Promise((r) => setTimeout(r, 900));
+  });
+  const lw = writes.filter((w) => /^looks\b/.test(w.url)).map((w) => w.body || {}).find((b) => b.render_url);
+  check('day 0 · Save keeps the generic frame on the look (no second render)',
+    !!lw && lw.render_url === 'https://img.test/generic-render.jpg' && /^w-s4-h1-nt\|/.test(lw.render_key || '') && renders.length === 1,
+    JSON.stringify([lw && lw.render_url, lw && lw.render_key, renders.length]));
+  // The badge is the twin's door.
+  await page.evaluate(() => window.__lkNew());
+  await page.waitForTimeout(300);
+  await Promise.all([page.waitForURL(/\/settings/, { timeout: 5000 }).catch(() => {}), page.click('.rb-lkm-badge')]);
+  check('day 0 · the badge opens the twin', /\/settings#twin/.test(page.url()), page.url());
+  check('day 0 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
 

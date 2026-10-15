@@ -372,13 +372,18 @@ const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath
   const { ctx, page, errs, writes } = await boot(browser);
   await page.evaluate(() => window.__lkGo && window.__lkGo());
   await page.waitForTimeout(700);
+  // Draft_Look_Redesign (2026-10-15): the empty look is the model and one
+  // bar — ✦ · Add pieces one by one · Start from a photo (the one ink); no
+  // start cards, no Save before something is on it.
   const s0 = await page.evaluate(() => ({
-    guide: document.querySelector('.rb-lk-starts .rb-lk-guide .gd')?.textContent || '', guideAct: document.querySelector('.rb-lk-starts .rb-lk-guide .ga button')?.textContent.trim(),
-    photo: document.querySelector('.rb-lk-starts .rb-lk-start .gh')?.textContent, sub: document.querySelector('.rb-lk-starts .rb-lk-start .gd')?.textContent, pill: document.getElementById('rb-lk-startphoto')?.textContent.trim(),
-    doors: document.querySelectorAll('.rb-lk-con .rb-lk-guide').length, save: document.querySelector('.rb-lk-draftbar .rb-lk-save')?.disabled,
-    ink: Array.from(document.querySelectorAll('.rb-lk-starts button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
+    cards: document.querySelectorAll('.rb-lk-starts, .rb-lk-start, .rb-lk-guide').length,
+    pill: document.getElementById('rb-lk-startphoto')?.textContent.trim(),
+    one: document.getElementById('rb-lk-onebyone')?.textContent.trim(),
+    spark: !!document.querySelector('.rb-lk-startbar .rb-lk-spark'),
+    save: !!document.querySelector('.rb-lk-draftbar .rb-lk-save'),
+    ink: Array.from(document.querySelectorAll('.rb-lk-startbar button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.id),
   }));
-  check('3.1 · the empty look offers two equal starts — the rack (the standing guide card) and a photo — neither ink, Save withheld', /Start anywhere/.test(s0.guide) && s0.guideAct === '+ Add a piece' && s0.photo === 'Start with a photo' && /Robes reads every piece in it/.test(s0.sub || '') && s0.pill === 'Add a photo' && s0.doors === 1 && s0.save === true && s0.ink === 0, JSON.stringify(s0));
+  check('3.1 · the empty look offers one bar with two starts — Add pieces one by one and Start from a photo (the one ink), the ✦; no Save yet', s0.cards === 0 && s0.pill === 'Start from a photo' && s0.one === 'Add pieces one by one' && s0.spark && s0.save === false && JSON.stringify(s0.ink) === '["rb-lk-startphoto"]', JSON.stringify(s0));
 
   const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click('#rb-lk-startphoto')]);
   await fc.setFiles({ name: 'outfit.png', mimeType: 'image/png', buffer: PNG_OK });
