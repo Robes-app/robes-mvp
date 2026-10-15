@@ -15965,24 +15965,42 @@ button.rb-lk-live{cursor:pointer}
    one ink. Hotspots sit on the model; the badge rides the generic model. */
 .rb-lk-blank .rb-lk-con{grid-template-columns:minmax(0,1fr);max-width:440px;margin:0 auto}
 .rb-lk-blank .rb-lk-con>div:nth-child(2){display:none}
-.rb-lk-startbar{justify-content:space-between}
-.rb-lk-startbar .rb-lk-starts2{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;min-width:0}
-.rb-lk-startbar .rb-lk-onebyone{min-height:48px;padding:0 20px;color:var(--ink);border-color:rgba(32,32,33,0.28)}
-.rb-lk-photostart{height:48px;padding:0 26px;border:none;border-radius:100px;background:var(--ink);color:#FAF8F5;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:opacity .15s;flex:none}
+.rb-lk-draftbar.rb-lk-startbar{justify-content:center;gap:12px}
+.rb-lk-startbar .rb-lk-starts2{display:inline-flex;align-items:center;gap:4px;padding:4px;border-radius:100px;background:#fff;border:1px solid var(--rule);box-shadow:0 6px 22px -8px rgba(32,32,33,.22);min-width:0}
+.rb-lk-photostart,.rb-lk-onebyone{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:100px;font-family:inherit;font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;cursor:pointer;transition:opacity .15s,border-color .15s;min-width:0}
+.rb-lk-photostart{border:none;background:var(--ink);color:#FAF8F5}
 .rb-lk-photostart:hover{opacity:.85}
-.rb-lk-spark{flex:none;width:48px;height:48px;border-radius:50%;background:#fff;border:1px solid var(--rule-mid);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.rb-lk-onebyone{background:#fff;border:1px solid var(--rule-mid);color:var(--ink)}
+.rb-lk-onebyone:hover{border-color:rgba(32,32,33,0.3)}
+.rb-lk-photostart span,.rb-lk-onebyone span{overflow:hidden;text-overflow:ellipsis}
+.rb-lk-photostart svg,.rb-lk-onebyone svg{flex:none}
+.rb-lk-spark{flex:none;width:52px;height:52px;border-radius:50%;background:#fff;border:1px solid var(--rule);box-shadow:0 6px 22px -8px rgba(32,32,33,.22);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .rb-lk-spark:hover{border-color:rgba(32,32,33,0.28)}
 .rb-lkm-hots{position:absolute;inset:0;z-index:3;pointer-events:none}
-.rb-lkm-hot{pointer-events:auto;position:absolute;left:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 14px 0 10px;border-radius:100px;background:rgba(250,248,245,.94);border:1px solid rgba(32,32,33,0.16);box-shadow:0 2px 10px rgba(32,32,33,0.12);font-family:inherit;font-size:11.5px;letter-spacing:.02em;color:var(--ink);cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .15s,border-color .15s}
-.rb-lkm-hot::after{content:'';position:absolute;inset:-5px -4px}
-.rb-lkm-hot .m{width:18px;height:18px;border-radius:50%;border:1px dashed rgba(32,32,33,0.4);display:inline-flex;align-items:center;justify-content:center;font-size:12px;line-height:1}
-.rb-lkm-hot:hover{background:#fff;border-color:rgba(32,32,33,0.3)}
+.rb-lkm-hot{pointer-events:auto;position:absolute;left:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:5px;min-height:28px;padding:0 12px;border-radius:100px;background:rgba(250,248,245,.72);border:1px solid rgba(255,255,255,.55);box-shadow:0 1px 6px rgba(32,32,33,0.10);font-family:inherit;font-size:11px;letter-spacing:.01em;color:var(--ink);cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background .15s}
+.rb-lkm-hot::after{content:'';position:absolute;inset:-8px -6px}
+.rb-lkm-hot .m{font-size:12px;line-height:1}
+.rb-lkm-hot:hover{background:rgba(250,248,245,.95)}
 .rb-lkm-hot.on{background:#F3EFE6;border-color:#C9BCA6}
-.rb-lkm-hot.on .m{border:none;background:var(--ink);color:#FAF8F5;font-size:10px}
-.rb-lkm-badge{position:absolute;top:10px;right:10px;z-index:4;display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding:7px 12px;border-radius:12px;background:rgba(250,248,245,.92);border:1px solid rgba(32,32,33,0.12);font-family:inherit;cursor:pointer;text-align:right;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.rb-lkm-badge .t{font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint)}
-.rb-lkm-badge .u{font-family:var(--font-serif);font-style:italic;font-size:14px;color:var(--ink)}
-.rb-lkm-badge:hover .u{color:var(--rose)}
+.rb-lkm-hot.on .m{font-size:11px}
+.rb-lkm-badge{position:absolute;top:12px;right:12px;z-index:4;display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:100px;background:rgba(250,248,245,.82);border:1px solid rgba(255,255,255,.6);box-shadow:0 1px 6px rgba(32,32,33,0.10);font-family:inherit;font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.rb-lkm-badge .dot{width:6px;height:6px;border-radius:50%;background:#B5AE9F}
+.rb-lkm-badge .ch{font-size:13px;letter-spacing:0;margin-left:2px;color:var(--ink-faint)}
+.rb-lkm-badge:hover{background:#fff;color:var(--ink)}
+/* The twin drawer (design 1a): a centred card on the web, a bottom sheet
+   on the phone. */
+.rb-lk-twin-wrap{position:fixed;inset:0;z-index:960;background:rgba(32,32,33,.28);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+.rb-lk-twin{width:100%;max-width:440px;box-sizing:border-box;background:var(--cream,#FAF8F5);border-radius:20px;padding:26px 26px 22px;box-shadow:0 24px 60px -12px rgba(32,32,33,.28);display:flex;flex-direction:column;gap:10px}
+.rb-lk-twin .grab{display:none;padding:0 0 6px}.rb-lk-twin .grab span{display:block;width:36px;height:4px;border-radius:3px;background:var(--cream-400,#D8CFBE);margin:0 auto}
+.rb-lk-twin .ey{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
+.rb-lk-twin .h{font-family:var(--font-serif);font-weight:300;font-size:32px;line-height:1.1;color:var(--ink)}
+.rb-lk-twin .h i{font-style:italic}
+.rb-lk-twin .d{font-size:13px;line-height:1.6;color:var(--ink-soft)}
+.rb-lk-twin .go{margin-top:10px;height:50px;border:none;border-radius:100px;background:var(--ink);color:#FAF8F5;font-family:inherit;font-size:10.5px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+.rb-lk-twin .go:hover{opacity:.85}
+.rb-lk-twin .keep{align-self:center;background:none;border:none;padding:8px 4px 2px;font-family:inherit;font-size:12px;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.rb-lk-twin .keep:hover{color:var(--ink)}
+@media(max-width:767px){.rb-lk-twin-wrap{align-items:flex-end;padding:0}.rb-lk-twin{max-width:none;border-radius:18px 18px 0 0;padding:12px 22px calc(22px + env(safe-area-inset-bottom,0px))}.rb-lk-twin .grab{display:block}}
 .rb-lkr-wait{padding:6px 0 12px}
 .rb-lkr-ey{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--rose)}
 .rb-lkr-h{font-family:var(--font-serif);font-weight:300;font-size:24px;line-height:1.22;color:var(--ink);margin-top:8px}
@@ -16125,13 +16143,13 @@ button.rb-lk-live{cursor:pointer}
    viewport meta carries viewport-fit=cover, which dashboard.html now does). */
 .rb-lk-draftbar{position:fixed;left:0;right:0;bottom:0;z-index:47;margin:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-radius:0;background:rgba(250,248,245,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .rb-lk-draftbar .rb-lk-save{width:auto;min-height:48px;order:0;flex:none}
-/* The empty draft's bar on a phone: Start from a photo runs the width,
-   the ✦ and Add pieces one by one share the row beneath. */
-.rb-lk-startbar{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px}
-.rb-lk-startbar .rb-lk-starts2{display:contents}
-.rb-lk-startbar .rb-lk-photostart{grid-column:1/-1;order:-1;width:100%;height:48px}
-.rb-lk-startbar .rb-lk-spark{width:44px;height:44px}
-.rb-lk-startbar .rb-lk-onebyone{min-height:44px;justify-content:center;width:100%}
+/* The empty draft's bar on a phone (design 1b): the two starts side by
+   side in one floating pill, the ✦ beside it — no bar behind them. */
+.rb-lk-draftbar.rb-lk-startbar{display:flex;align-items:center;justify-content:center;gap:10px;background:transparent;border-top:none;backdrop-filter:none;-webkit-backdrop-filter:none;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+.rb-lk-startbar .rb-lk-starts2{flex:0 1 auto}
+.rb-lk-photostart,.rb-lk-onebyone{height:42px;padding:0 13px;gap:7px;font-size:9px;letter-spacing:.12em}
+.rb-lk-startbar .rb-lk-spark{width:48px;height:48px}
+@media(max-width:359px){.rb-lk-photostart svg,.rb-lk-onebyone svg{display:none}}
 /* The scroll end clears the bar (72), the sparkle (54) and its two 16px gaps. */
 #rb-lk-wrap:has(.rb-lk-draftbar){padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))!important}
 /* The empty Lookbook's composer keeps the dock (a root) — its bar rides above it. */
@@ -18797,11 +18815,12 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
             '<span class="m" aria-hidden="true">' + (on ? '✓' : '+') + '</span>' + _waEsc(h.label) + '</button>';
         }).join('') + '</div>';
       }
-      // The model's badge: only on the generic model — her own carries none.
+      // The model's tag: only on the generic model — her own carries none.
+      // A tap opens the twin drawer (design 1a), never a navigation.
       function _lkModelBadgeHtml() {
         if (_lkModel !== null) return '';
-        return '<button type="button" class="rb-lkm-badge" onclick="window.__lkTwinBadge()" aria-label="Robes’ model. Make it you">' +
-          '<span class="t">Robes’ model</span><span class="u">Make it you →</span></button>';
+        return '<button type="button" class="rb-lkm-badge" onclick="window.__lkTwinBadge()" aria-label="Generic model — see every look on you">' +
+          '<span class="dot" aria-hidden="true"></span>Generic model<span class="ch" aria-hidden="true">›</span></button>';
       }
       // Everything that sits ON the composer's model canvas.
       function _lkCanvasChromeHtml(o) {
@@ -18811,8 +18830,37 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         return (o.hots ? _lkHotspotsHtml() : '') + _lkModelBadgeHtml() +
           (photo || o.blank ? '' : _lkImgActsHtml({ camera: 'add', fn: '__lkPhotoToggle' }));
       }
+      // The twin drawer (design 1a): a bottom sheet on the phone, a centred
+      // card on the web, over the draft — Upload digital twin (the one ink;
+      // the draft is parked for the trip), or keep styling on the generic
+      // model (closes it, nothing changes).
       window.__lkTwinBadge = function() {
         _rbTrack('model_door_tapped', { from: 'draft_badge' });
+        document.getElementById('rb-lk-twinsheet')?.remove();
+        const pro = _lkModelPro();
+        const w = document.createElement('div');
+        w.id = 'rb-lk-twinsheet';
+        w.className = 'rb-lk-twin-wrap';
+        w.onclick = function(e) { if (e.target === w) window.__lkTwinClose(); };
+        w.innerHTML = '<div class="rb-lk-twin" role="dialog" aria-label="Your digital twin">' +
+          '<div class="grab"><span></span></div>' +
+          '<div class="ey">Generic model</div>' +
+          '<div class="h">See every look <i>on you.</i></div>' +
+          '<div class="d">Two photos — a close-up, and full length in good light. Robes builds your digital twin, and dresses ' + _waEsc(pro.her) + ' in every look.</div>' +
+          '<button type="button" class="go" id="rb-lk-twingo" onclick="window.__lkTwinGo()">Upload digital twin</button>' +
+          '<button type="button" class="keep" onclick="window.__lkTwinClose()">Keep styling on the generic model</button>' +
+          '</div>';
+        document.body.appendChild(w);
+        document.addEventListener('keydown', _lkTwinEsc);
+      };
+      function _lkTwinEsc(e) { if (e.key === 'Escape') window.__lkTwinClose(); }
+      window.__lkTwinClose = function() {
+        document.getElementById('rb-lk-twinsheet')?.remove();
+        document.removeEventListener('keydown', _lkTwinEsc);
+      };
+      window.__lkTwinGo = function() {
+        window.__lkTwinClose();
+        _rbTrack('model_door_tapped', { from: 'twin_drawer' });
         window.__lkBuildModel();
       };
       window.__lkHotspot = function(k) {
@@ -18839,7 +18887,6 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const first = _LK_CORE_CATS.find(held) || _WA_SHEET_CATS.find(held) || 'Tops';
         window.__cbWardrobePick({
           title: h ? h.title : 'Add a piece',
-          sub: h ? 'From your wardrobe.' : 'One at a time, from your wardrobe.',
           coreCats: _LK_CORE_CATS, cat: h ? h.open : first, exclude: used,
           onPick: it => _lkHotspotLand(h, it.id),
           onSnap: cat => _lkHotspotSnap(h, cat),
@@ -18890,6 +18937,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           },
         });
       };
+      var _LK_CAM_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+      var _LK_PLUS_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
       var _LK_SPARK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.9 6.1 6.1 1.9-6.1 1.9L12 18.5l-1.9-6.1L4 10.5l6.1-1.9z"/><path d="M19 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>';
       function _lkNewHtml(opts) {
         const home = !!(opts && opts.home);
@@ -18937,8 +18986,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // has proposed pieces she doesn't own yet.
         const readNewN = _lkReadNew().length;
         const readPendN = _lkReadPending().length;
-        const headLabel = blank ? 'The look'
-          : (_lkRead && _lkRead.status === 'reading') ? 'The look · Reading'
+        const headLabel = (_lkRead && _lkRead.status === 'reading') ? 'The look · Reading'
           : _lkBuilt && _lkShop.length
           ? 'The look · ' + nPlaced + ' yours, ' + _lkShop.length + ' to find'
           : 'The look · ' + _lkN(nPlaced + readNewN, 'piece');
@@ -19197,7 +19245,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         rackHtml += '</div>' +
           (home || blank || (rackBare && _lkRead && _lkRead.status !== 'done')
             ? ''
-            : '<button class="rbc-addpiece" onclick="window.__lkAddOpen()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece' + ((_lkRead && _lkPhoto && _lkPhoto.url) ? ', or tap the photo' : '') + '</button>');
+            : '<button class="rbc-addpiece" onclick="window.' + (home ? '__lkAddOpen' : '__lkAddPieces') + '()"><span style="font-size:16px;line-height:1;margin-top:-1px">+</span> Add a piece' + ((_lkRead && _lkPhoto && _lkPhoto.url) ? ', or tap the photo' : '') + '</button>');
 
         // Save closes the look out into the Lookbook. The "Or let Robes
         // create your look" door is GONE (2026-09-03) — the home prompt box
@@ -19294,12 +19342,14 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // The empty draft's bar: the ✦, then the two starts — Add pieces
         // one by one (hairline) and Start from a photo (the one ink). No
         // Save before there is something to keep.
+        // Design 1a/1b: the two starts side by side in one pill, icons on
+        // both, the ✦ beside it.
         const startBar = '<div class="rb-lk-draftbar rb-lk-startbar">' +
-            '<button type="button" class="rb-lk-spark" onclick="window.__lkSparkOpen()" aria-label="Style it in words" title="Style it in words">' + _LK_SPARK_SVG + '</button>' +
             '<span class="rb-lk-starts2">' +
-              '<button type="button" class="rb-pill rb-lk-onebyone" id="rb-lk-onebyone" onclick="window.__lkAddPieces()">Add pieces one by one</button>' +
-              '<button type="button" class="rb-lk-photostart" id="rb-lk-startphoto" onclick="window.__lkStartPhoto()">Start from a photo</button>' +
+              '<button type="button" class="rb-lk-photostart" id="rb-lk-startphoto" onclick="window.__lkStartPhoto()">' + _LK_CAM_SVG + '<span>Start from a photo</span></button>' +
+              '<button type="button" class="rb-lk-onebyone" id="rb-lk-onebyone" onclick="window.__lkAddPieces()">' + _LK_PLUS_SVG + '<span>Add pieces</span></button>' +
             '</span>' +
+            '<button type="button" class="rb-lk-spark" onclick="window.__lkSparkOpen()" aria-label="Style it in words" title="Style it in words">' + _LK_SPARK_SVG + '</button>' +
           '</div>';
         const bar = blank ? startBar : (!home && !_lkBuilding)
           ? '<div class="rb-lk-draftbar">' +
@@ -29334,9 +29384,9 @@ body>*:not(#tv-result-page){display:none !important}
         const empty = !items.length
           ? (opts.onSnap && source === 'wardrobe'
             // One door: a headline, one line, one action.
-            ? `<div class="cb-pick-door"><div class="h">${filedN ? 'No ' + _waEsc(String(_cbPickCat).toLowerCase()) + ' filed yet.' : 'Your wardrobe starts here.'}</div>` +
-              `<div class="d">Photograph ${_waEsc(noun)} and Robes files it to your wardrobe, then puts it on the look.</div>` +
-              `<button type="button" class="cb-pick-snap" onclick="window.__cbPickSnap()">Photograph ${_waEsc(noun)}</button></div>`
+            ? `<div class="cb-pick-door"><div class="h">No ${_waEsc(String(_cbPickCat).toLowerCase())} yet.</div>` +
+              `<div class="d">Photograph one to add it to your wardrobe</div>` +
+              `<button type="button" class="cb-pick-snap" onclick="window.__cbPickSnap()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Photograph ${_waEsc(noun)}</button></div>`
             : `<p class="cb-pick-empty">${source === 'wishlist' ? 'Nothing on your wishlist yet.' : 'Nothing filed here yet.'}</p>`)
           : '';
         const tiles = empty + items.slice(0, 90).map(wi => `
@@ -29350,7 +29400,7 @@ body>*:not(#tv-result-page){display:none !important}
           <div class="cb-pick-card" role="dialog" aria-label="${source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'}">
             <div class="cb-pick-grab"><span></span></div>
             <div class="cb-pick-head">
-              <div><div class="cb-pick-title">${_waEsc(opts.title || (source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'))}</div><div class="cb-pick-sub">${_waEsc(opts.sub || 'Pick the piece to start from.')}</div></div>
+              <div>${opts.title ? `<div class="cb-pick-ey">${source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'}</div>` : ''}<div class="cb-pick-title">${_waEsc(opts.title || (source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'))}</div>${(opts.sub || !opts.title) ? `<div class="cb-pick-sub">${_waEsc(opts.sub || 'Pick the piece to start from.')}</div>` : ''}</div>
               <button type="button" class="cb-pick-x" onclick="window.__cbPickClose()" aria-label="Close">×</button>
             </div>
             ${segs}${chips}
@@ -29380,10 +29430,11 @@ body>*:not(#tv-result-page){display:none !important}
             '.cb-pick-tile .mono{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-size:22px;color:#C8B8A2}' +
             '.cb-pick-tile .nm{display:block;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:14px;line-height:1.15;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
             '.cb-pick-empty{grid-column:1/-1;margin:20px 0;text-align:center;font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-style:italic;font-size:15px;color:var(--ink-faint,#9A958E)}' +
-            '.cb-pick-door{grid-column:1/-1;margin:14px 0 6px;padding:30px 22px;border:1.5px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad,12px);background:var(--cream-100,#F7F4EE);text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}' +
+            '.cb-pick-ey{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--rose,#A26769);margin-bottom:6px}' +
+            '.cb-pick-door{grid-column:1/-1;margin:6px 0;padding:34px 22px 30px;border:1px dashed var(--cream-400,#D8CFBE);border-radius:var(--rad,12px);background:transparent;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}' +
             '.cb-pick-door .h{font-family:var(--font-serif,\'Cormorant\',Georgia,serif);font-weight:400;font-size:24px;line-height:1.15;color:var(--ink,#202021)}' +
             '.cb-pick-door .d{max-width:300px;font-size:12.5px;line-height:1.55;color:var(--ink-soft,#55524E)}' +
-            '.cb-pick-snap{margin-top:10px;min-height:44px;padding:0 22px;border:none;border-radius:100px;background:var(--ink,#202021);color:#FAF8F5;font-family:inherit;font-size:10.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer}' +
+            '.cb-pick-snap{margin-top:8px;display:inline-flex;align-items:center;gap:9px;min-height:44px;padding:0 22px;border:none;border-radius:100px;background:var(--ink,#202021);color:#FAF8F5;font-family:inherit;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;cursor:pointer}' +
             '.cb-pick-snap:hover{opacity:.85}' +
             '@media(max-width:767px){.cb-pick-wrap{align-items:flex-end;padding:0}.cb-pick-card{max-width:none;max-height:86vh;height:660px;border-radius:18px 18px 0 0;box-shadow:0 -8px 30px rgba(32,32,33,.1)}.cb-pick-grab{display:block}.cb-pick-head{padding-top:12px}.cb-pick-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}';
           document.head.appendChild(st);

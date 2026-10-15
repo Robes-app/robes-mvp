@@ -383,7 +383,7 @@ const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath
     save: !!document.querySelector('.rb-lk-draftbar .rb-lk-save'),
     ink: Array.from(document.querySelectorAll('.rb-lk-startbar button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.id),
   }));
-  check('3.1 · the empty look offers one bar with two starts — Add pieces one by one and Start from a photo (the one ink), the ✦; no Save yet', s0.cards === 0 && s0.pill === 'Start from a photo' && s0.one === 'Add pieces one by one' && s0.spark && s0.save === false && JSON.stringify(s0.ink) === '["rb-lk-startphoto"]', JSON.stringify(s0));
+  check('3.1 · the empty look offers one bar with two starts — Add pieces and Start from a photo (the one ink), the ✦; no Save yet', s0.cards === 0 && s0.pill === 'Start from a photo' && s0.one === 'Add pieces' && s0.spark && s0.save === false && JSON.stringify(s0.ink) === '["rb-lk-startphoto"]', JSON.stringify(s0));
 
   const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click('#rb-lk-startphoto')]);
   await fc.setFiles({ name: 'outfit.png', mimeType: 'image/png', buffer: PNG_OK });
