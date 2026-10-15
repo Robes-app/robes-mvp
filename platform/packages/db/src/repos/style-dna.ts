@@ -564,6 +564,8 @@ export function styleBriefRepo(db: Db) {
               .as('wears'),
           ])
           .where('l.userId', '=', userId)
+          // Her looks only: suggested and draft looks are Robes' proposals, not her evidence.
+          .where('l.status', '=', 'saved')
           .where('l.deletedAt', 'is', null)
           .orderBy('l.createdAt', 'desc')
           .limit(30)

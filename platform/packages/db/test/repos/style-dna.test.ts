@@ -233,6 +233,14 @@ describe('style DNA repos', () => {
   it('compiles the read’s evidence from her rows alone', async () => {
     await repos.wardrobe.create(ann, { label: 'Camel coat' });
     await repos.wardrobe.create(bea, { label: 'Bea coat' });
+    // Robes' suggestions and her drafts are not her looks: never evidence for the brief.
+    await db
+      .insertInto('looks')
+      .values([
+        { userId: ann, name: 'Suggested by Robes', status: 'suggested' },
+        { userId: ann, name: 'Her draft', status: 'draft' },
+      ])
+      .execute();
     const ev = await styleBrief.evidence(ann);
     expect(ev.wardrobe.map((w) => w.label)).toEqual(['Camel coat']);
     expect(ev.looks.map((l) => [l.name, l.wears])).toEqual([['Office armour', 1]]);
