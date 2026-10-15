@@ -66,4 +66,26 @@ describe('data export (SEC-81)', () => {
     expect(json).not.toMatch(/"token":"[^"]*session/i);
     expect(Object.keys(doc)).not.toContain('sessions');
   });
+
+  it('includes her brief, its paragraph and read time, and her memory (SEC-81)', async () => {
+    await repos.styleDna.addLine(ann, 'loves', 'Ann loves navy');
+    await repos.styleDna.addLine(bea, 'loves', 'Bea loves red');
+    await repos.styleMemory.record(ann, { kind: 'ask', body: 'Ann asked for flats' });
+    await repos.styleMemory.record(bea, { kind: 'ask', body: 'Bea asked for heels' });
+    await db
+      .insertInto('styleProfiles')
+      .values({ userId: ann, briefNotes: 'Ann notes', briefReadAt: new Date() })
+      .onConflict((oc) =>
+        oc.column('userId').doUpdateSet({ briefNotes: 'Ann notes', briefReadAt: new Date() }),
+      )
+      .execute();
+    const doc = await dataExport.collect(ann);
+    expect(doc.styleBriefLines.map((l) => l.text)).toEqual(['Ann loves navy']);
+    expect(doc.styleMemory.map((m) => m.body)).toEqual(['Ann asked for flats']);
+    expect(doc.styleProfile?.briefNotes).toBe('Ann notes');
+    expect(doc.styleProfile?.briefReadAt).toBeInstanceOf(Date);
+    const json = JSON.stringify(doc);
+    expect(json).not.toContain('Bea loves red');
+    expect(json).not.toContain('Bea asked for heels');
+  });
 });

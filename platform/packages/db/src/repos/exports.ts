@@ -120,6 +120,8 @@ export function dataExportRepo(db: Db) {
         ideas,
         shares,
         assets,
+        styleBriefLines,
+        styleMemory,
       ] = await Promise.all([
         db
           .selectFrom('users')
@@ -137,6 +139,8 @@ export function dataExportRepo(db: Db) {
             'colourRender',
             'silhouetteRender',
             'userOverrides',
+            'briefNotes',
+            'briefReadAt',
             'updatedAt',
           ])
           .where('userId', '=', userId)
@@ -238,6 +242,42 @@ export function dataExportRepo(db: Db) {
           .where('userId', '=', userId)
           .orderBy('createdAt')
           .execute(),
+        db
+          .selectFrom('styleBriefLines')
+          .select([
+            'list',
+            'state',
+            'text',
+            'fullText',
+            'because',
+            'source',
+            'origin',
+            'chip',
+            'loved',
+            'rejected',
+            'keptAt',
+            'createdAt',
+          ])
+          .where('userId', '=', userId)
+          .orderBy('createdAt')
+          .execute(),
+        db
+          .selectFrom('styleMemory')
+          .select([
+            'kind',
+            'surface',
+            'subject',
+            'body',
+            'verdict',
+            'pieceOut',
+            'pieceIn',
+            'category',
+            'lookId',
+            'createdAt',
+          ])
+          .where('userId', '=', userId)
+          .orderBy('createdAt')
+          .execute(),
       ]);
       return {
         user,
@@ -253,6 +293,8 @@ export function dataExportRepo(db: Db) {
         ideas,
         shares,
         assets,
+        styleBriefLines,
+        styleMemory,
       };
     },
   };
