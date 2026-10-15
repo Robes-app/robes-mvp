@@ -19,9 +19,11 @@ function setup(
         name: 'Office',
         renderKey: opts.renderKey ?? 'k1',
         renderStatus: 'pending',
+        styling: { 'piece-coat': 'worn open' },
       },
       pieces: opts.pieces ?? [
         {
+          id: 'piece-coat',
           label: 'Camel coat',
           category: 'Outerwear',
           color: 'Camel',
@@ -102,5 +104,13 @@ describe('look_render on her model', () => {
     await expect(run()).rejects.toEqual(new JobError('model_not_ready'));
     expect(model.failRender).toHaveBeenCalledWith(USER, LOOK, 'k1');
     expect(generateImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('look_render on her model: how a piece is worn', () => {
+  it('rides the garment line', async () => {
+    const { run, generateImage } = setup();
+    await run();
+    expect(generateImage.mock.calls[0]?.[0].prompt).toContain('Worn: worn open.');
   });
 });

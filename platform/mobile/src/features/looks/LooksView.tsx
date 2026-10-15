@@ -1,6 +1,14 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy, nav, ui } from '@robes/copy';
-import { CardSkeleton, EmptyState, IconButton, SegmentedControl, Text } from '@robes/ui-native';
+import { type LookSort, SORT_FROM, SORTS, sortLooks } from '@robes/core/looks';
+import {
+  CardSkeleton,
+  Chip,
+  EmptyState,
+  IconButton,
+  SegmentedControl,
+  Text,
+} from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
@@ -26,8 +34,11 @@ export function LooksView() {
   const suggested = useLooksByStatus('suggested', { refetch: true });
   const restyle = useRestyle();
   const letGo = useLetGo();
+  const [sort, setSort] = useState<LookSort>('newest');
   const current = tab === 'saved' ? saved : suggested;
-  const items = current.data?.items ?? [];
+  const raw = current.data?.items ?? [];
+  const sortable = tab === 'saved' && raw.length >= SORT_FROM;
+  const items = sortable ? sortLooks(raw, sort) : raw;
   const draftItems = drafts.data?.items ?? [];
   const count =
     tab === 'saved'
@@ -56,6 +67,15 @@ export function LooksView() {
         <Text size="small" tone="muted" testID="looks-count">
           {count}
         </Text>
+      ) : null}
+      {sortable ? (
+        <View className="flex-row gap-2" accessibilityLabel={copy.sort.label}>
+          {SORTS.map((s) => (
+            <Chip key={s} selected={sort === s} onPress={() => setSort(s)}>
+              {copy.sort[s]}
+            </Chip>
+          ))}
+        </View>
       ) : null}
       {tab === 'saved' && draftItems.length ? (
         <View className="gap-2">

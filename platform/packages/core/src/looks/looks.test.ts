@@ -20,6 +20,7 @@ import {
   type RackState,
   rackSignature,
   rowNote,
+  sortLooks,
   startedLabel,
   theName,
 } from './index';
@@ -232,5 +233,28 @@ describe('a draft’s started line', () => {
     expect(startedLabel('2026-10-15T09:00:00Z', '2026-10-15', 'UTC')).toBe('today');
     expect(startedLabel('2026-10-13T09:00:00Z', '2026-10-15', 'UTC')).toBe('Tuesday');
     expect(startedLabel('2026-10-01T09:00:00Z', '2026-10-15', 'UTC')).toBe('1 Oct');
+  });
+});
+
+describe('the Saved tab’s sort', () => {
+  const a = { name: 'Brunch', createdAt: '2026-10-01T00:00:00Z', lastWornOn: '2026-10-10' };
+  const b = { name: 'Archive', createdAt: '2026-10-05T00:00:00Z', lastWornOn: null };
+  const c = { name: 'Cocktails', createdAt: '2026-10-03T00:00:00Z', lastWornOn: '2026-10-12' };
+  it('sorts newest, last worn and by name', () => {
+    expect(sortLooks([a, b, c], 'newest').map((l) => l.name)).toEqual([
+      'Archive',
+      'Cocktails',
+      'Brunch',
+    ]);
+    expect(sortLooks([a, b, c], 'lastWorn').map((l) => l.name)).toEqual([
+      'Cocktails',
+      'Brunch',
+      'Archive',
+    ]);
+    expect(sortLooks([a, b, c], 'name').map((l) => l.name)).toEqual([
+      'Archive',
+      'Brunch',
+      'Cocktails',
+    ]);
   });
 });

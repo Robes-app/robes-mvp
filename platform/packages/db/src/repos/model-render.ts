@@ -8,7 +8,7 @@ export function modelRenderRepo(db: Db) {
     async look(userId: UserId, lookId: string) {
       const look = await db
         .selectFrom('looks')
-        .select(['id', 'name', 'renderKey', 'renderStatus'])
+        .select(['id', 'name', 'renderKey', 'renderStatus', 'styling'])
         .where('userId', '=', userId)
         .where('id', '=', lookId)
         .where('deletedAt', 'is', null)
@@ -23,6 +23,7 @@ export function modelRenderRepo(db: Db) {
           j.onRef('a.id', '=', 'w.imageAssetId').onRef('a.userId', '=', 'w.userId'),
         )
         .select([
+          'w.id',
           'w.label',
           'w.category',
           'w.color',

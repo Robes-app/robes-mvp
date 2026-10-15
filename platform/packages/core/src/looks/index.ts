@@ -413,3 +413,24 @@ export function startedLabel(createdAt: string, today: string, timeZone?: string
   if (off < 7) return fmt({ weekday: 'long' });
   return fmt({ day: 'numeric', month: 'short' });
 }
+
+// The Saved tab's sort (legacy __lkSortMenu): newest first, last worn first, or by name. Sort
+// shows from four looks (never inert).
+export const SORTS = ['newest', 'lastWorn', 'name'] as const;
+export type LookSort = (typeof SORTS)[number];
+export const SORT_FROM = 4;
+export function sortLooks<T extends { name: string; createdAt: string; lastWornOn: string | null }>(
+  looks: readonly T[],
+  by: LookSort,
+): T[] {
+  const list = [...looks];
+  if (by === 'name') return list.sort((a, b) => a.name.localeCompare(b.name, 'en-GB'));
+  if (by === 'lastWorn') {
+    return list.sort(
+      (a, b) =>
+        (b.lastWornOn ?? '').localeCompare(a.lastWornOn ?? '') ||
+        b.createdAt.localeCompare(a.createdAt),
+    );
+  }
+  return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}

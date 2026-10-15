@@ -199,6 +199,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           data: cellImage,
         },
       ];
+    const lookStyling = StoredStyling.parse(found.look.styling ?? {});
     const pieces = [];
     for (const p of found.pieces) {
       let photo: Uint8Array | null = null;
@@ -216,6 +217,8 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         color: p.color,
         brand: p.brand,
         hasImage: Boolean(photo),
+        // How it is worn rides the garment line: a tuck renders as a tuck (legacy 2026-10-01).
+        styled: lookStyling[p.id] ?? null,
       });
     }
     if (pieces.length === 0) {

@@ -50,6 +50,11 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
   });
   await renderWithApi(<Composer pieceId={PIECE_ID} />);
   await waitFor(() => expect(alert).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: lookbook.rack.addPiece }).props.accessibilityState.busy,
+    ).toBe(false),
+  );
   const [title, body, buttons] = alert.mock.calls[0] as [
     string,
     string,

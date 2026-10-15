@@ -115,8 +115,12 @@ export async function renderOnModel(
   if (cell?.status !== 'ready') throw new ApiError('conflict');
   const pieces = await repos.looks.piecesFor(userId, [lookId]);
   if (pieces.length === 0) throw new ApiError('invalid_input');
+  // How each piece is worn is part of what the render shows, so a changed note re-renders once.
+  const notes = look.styling && typeof look.styling === 'object' ? look.styling : {};
   const rack = createHash('sha256')
-    .update(pieces.map((p) => p.id).join(','))
+    .update(
+      pieces.map((p) => `${p.id}~${(notes as Record<string, unknown>)[p.id] ?? ''}`).join(','),
+    )
     .digest('base64url')
     .slice(0, 22);
   const renderKey = `${cellKey(row.filedCellId)}:${rack}`;

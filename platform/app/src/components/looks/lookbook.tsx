@@ -1,9 +1,11 @@
 'use client';
 
 import { lookbook as copy } from '@robes/copy';
-import { buttonClasses, CardSkeleton, EmptyState, SegmentedControl, Text } from '@robes/ui';
+import { type LookSort, SORT_FROM, SORTS, sortLooks } from '@robes/core/looks';
+import { buttonClasses, CardSkeleton, EmptyState, Pill, SegmentedControl, Text } from '@robes/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { useLetGo, useLooksByStatus, useRestyle } from '@/lib/look-states';
 import { NewLookBox } from './look-prompt-box';
@@ -25,8 +27,11 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const suggested = useLooksByStatus('suggested');
   const restyle = useRestyle();
   const letGo = useLetGo();
+  const [sort, setSort] = useState<LookSort>('newest');
   const current = tab === 'saved' ? saved : suggested;
-  const items = current.data?.items ?? [];
+  const raw = current.data?.items ?? [];
+  const sortable = tab === 'saved' && raw.length >= SORT_FROM;
+  const items = sortable ? sortLooks(raw, sort) : raw;
   const draftItems = drafts.data?.items ?? [];
   const count =
     tab === 'saved'
@@ -54,11 +59,25 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           </Link>
         ) : null}
       </div>
-      {count ? (
-        <Text size="small" tone="muted" data-testid="looks-count">
-          {count}
-        </Text>
-      ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {count ? (
+          <Text size="small" tone="muted" data-testid="looks-count">
+            {count}
+          </Text>
+        ) : (
+          <span />
+        )}
+        {sortable ? (
+          <fieldset className="flex items-center gap-2">
+            <legend className="sr-only">{copy.sort.label}</legend>
+            {SORTS.map((s) => (
+              <Pill key={s} selected={sort === s} onClick={() => setSort(s)}>
+                {copy.sort[s]}
+              </Pill>
+            ))}
+          </fieldset>
+        ) : null}
+      </div>
       {tab === 'saved' && draftItems.length ? (
         <section aria-labelledby="in-progress" className="flex flex-col gap-2">
           <Text id="in-progress" size="caption" tone="muted" className="uppercase tracking-wider">
