@@ -30,9 +30,10 @@ appId: host.exp.Exponent
 - inputText: 'Niall'
 - tapOn: 'Continue'
 - extendedWaitUntil:
-    visible: 'Tell Robes about a piece you love.'
+    visible: 'Add your first piece.'
     timeout: 15000
 - tapOn: 'Skip for now'
+- tapOn: 'Skip anyway — Robes styles only what you add'
 - extendedWaitUntil:
     visible: '.*, Niall\.'
     timeout: 15000

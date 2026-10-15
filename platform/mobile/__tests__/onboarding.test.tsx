@@ -1,57 +1,134 @@
 import { queryKeys } from '@robes/api-client/react';
 import type { Me } from '@robes/contracts';
-import { onboarding } from '@robes/copy';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { firstRun as copy, home } from '@robes/copy';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as ImagePicker from 'expo-image-picker';
 import NameScreen from '../src/app/onboarding/index';
 import FirstPiece from '../src/app/onboarding/piece';
-import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
+import { ME, mockFetch, renderWithApi } from './support/api';
+import { ASSET_ID, JOB_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  launchImageLibraryAsync: jest.fn(async () => ({
+    canceled: false,
+    assets: [{ uri: 'file:///tmp/coat.jpg', mimeType: 'image/jpeg', fileSize: 2048 }],
+  })),
+  launchCameraAsync: jest.fn(),
+}));
 
-const JOB = '22222222-2222-4222-8222-222222222222';
+const SET_ID = '77777777-7777-4777-8777-777777777777';
+const snap = (id: string, kind: string, output: object) => ({
+  id,
+  kind,
+  status: 'succeeded',
+  stage: 'done',
+  output,
+  error: null,
+  cancelRequested: false,
+  createdAt: '2026-10-01T08:00:00.000Z',
+  updatedAt: '2026-10-01T08:00:01.000Z',
+  finishedAt: '2026-10-01T08:00:01.000Z',
+});
+const READ_JOB = '99999999-9999-4999-8999-999999999999';
 
-beforeEach(() => jest.clearAllMocks());
-
-test('screen 1 saves the name and moves to the first piece without finishing onboarding', async () => {
-  const calls = mockFetch({ 'PATCH /me': { ...ME, onboarded: false } });
-  await renderWithApi(<NameScreen />);
-  await fireEvent.changeText(screen.getByLabelText(onboarding.firstNameLabel), 'Niall');
-  await fireEvent.press(screen.getByRole('button', { name: onboarding.continue }));
-  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/piece'));
-  expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual(['PATCH /api/v1/me']);
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.useRealTimers();
 });
 
-test('screen 2 styles the described piece, completes onboarding and opens the result', async () => {
+test('the splash hands to the name, which saves and moves to the first piece', async () => {
   const calls = mockFetch({
-    'POST /looks/generate': { jobId: JOB, status: 'queued' },
+    'GET /me': { ...ME, firstName: null, onboarded: false },
+    'PATCH /me': ME,
+  });
+  await renderWithApi(<NameScreen />);
+  await fireEvent.press(screen.getByTestId('splash'));
+  expect(screen.getByText(copy.name.notes)).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText(copy.name.label), 'Niall Maher');
+  await fireEvent.press(screen.getByRole('button', { name: copy.name.continue }));
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/piece'));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ firstName: 'Niall' });
+});
+
+test('the first piece is photographed, read into the ledger, styled three ways onto the deck', async () => {
+  const filed = piece({ label: 'Camel wool coat', brand: 'Toteme', color: 'camel' });
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET file:///tmp/coat.jpg': {},
+    'POST /uploads': {
+      assetId: ASSET_ID,
+      upload: {
+        method: 'PUT',
+        url: 'http://minio.test/u',
+        headers: {},
+        expiresAt: '2026-10-01T00:00:00.000Z',
+      },
+    },
+    'PUT /u': {},
+    [`POST /uploads/${ASSET_ID}/complete`]: {
+      id: ASSET_ID,
+      kind: 'wardrobe',
+      status: 'pending',
+      width: null,
+      height: null,
+      blurhash: null,
+      master: null,
+      renditions: [],
+    },
+    'POST /wardrobe/items/batch': {
+      pieces: [piece({ status: 'reading' })],
+      jobs: [{ pieceId: PIECE_ID, jobId: READ_JOB }],
+    },
+    [`GET /jobs/${READ_JOB}`]: snap(READ_JOB, 'wardrobe_analyse', {}),
+    [`GET /wardrobe/items/${PIECE_ID}`]: filed,
+    'POST /looks/generate': { jobId: JOB_ID, status: 'queued' },
     'POST /me/onboarding/complete': { onboardedAt: new Date().toISOString() },
+    [`GET /jobs/${JOB_ID}`]: snap(JOB_ID, 'key_piece', { setId: SET_ID }),
+    [`GET /looks/sets/${SET_ID}`]: {
+      id: SET_ID,
+      mode: 'piece',
+      prompt: null,
+      anchor: null,
+      dateHint: null,
+      jobId: JOB_ID,
+      looks: [look({ status: 'suggested', name: 'Gallery Sunday' })],
+    },
   });
   await renderWithApi(<FirstPiece />);
-  await fireEvent.changeText(screen.getByLabelText(onboarding.pieceLabel), 'white linen shirt');
-  await fireEvent.press(screen.getByRole('button', { name: onboarding.pieceStart }));
-  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/looks/job/${JOB}`));
-  const generate = calls.find((c) => c.path.endsWith('/looks/generate'));
-  expect(generate?.body).toEqual({ anchor: { type: 'text', text: 'white linen shirt' } });
-  expect(generate?.headers['idempotency-key']).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: copy.piece.add }));
+  await fireEvent.press(await screen.findByRole('button', { name: home.plus.upload }));
+  expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled();
+  const style = await screen.findByRole('button', { name: copy.piece.style }, { timeout: 8_000 });
+  expect(screen.getByText('Toteme')).toBeTruthy();
+  await fireEvent.press(style);
+  expect(await screen.findByTestId('composing')).toBeTruthy();
+  expect(await screen.findByText('Gallery Sunday')).toBeTruthy();
+  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/looks/job/${JOB_ID}`), {
+    timeout: 8_000,
+  });
+  expect(calls.find((c) => c.path.endsWith('/looks/generate'))?.body).toEqual({
+    anchor: { type: 'piece', pieceId: PIECE_ID },
+  });
   expect(calls.some((c) => c.path.endsWith('/me/onboarding/complete'))).toBe(true);
-});
+}, 20_000);
 
-test('screen 2 can be skipped, and a quota error stays on the screen', async () => {
+test('Skip takes two taps, then home with the cache already onboarded', async () => {
   mockFetch({
-    'POST /looks/generate': errorReply(429, 'quota_exceeded'),
-    'POST /me/onboarding/complete': { onboardedAt: new Date().toISOString() },
     'GET /me': ME,
+    'POST /me/onboarding/complete': { onboardedAt: new Date().toISOString() },
   });
   const { queryClient } = await renderWithApi(<FirstPiece />);
-  await fireEvent.changeText(screen.getByLabelText(onboarding.pieceLabel), 'a coat');
-  await fireEvent.press(screen.getByRole('button', { name: onboarding.pieceStart }));
-  expect(await screen.findByText('You’ve reached today’s limit for this.')).toBeTruthy();
-  expect(mockRouter.replace).not.toHaveBeenCalled();
   queryClient.setQueryData(queryKeys.call('me.get'), { ...ME, onboarded: false });
-  await fireEvent.press(screen.getByRole('button', { name: onboarding.skip }));
+  await fireEvent.press(screen.getByRole('button', { name: copy.piece.skip }));
+  expect(mockRouter.replace).not.toHaveBeenCalled();
+  await act(async () => {
+    await fireEvent.press(screen.getByRole('button', { name: copy.piece.skipAnyway }));
+  });
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/'));
-  // The tabs gate reads this cache on arrival; it must already say onboarded.
   expect(queryClient.getQueryData<Me>(queryKeys.call('me.get'))?.onboarded).toBe(true);
 });
