@@ -29,6 +29,7 @@ import { publicSharesRepo, sharesRepo } from './shares';
 import { styleBriefRepo, styleDnaRepo, styleMemoryRepo } from './style-dna';
 import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
+import { noticedRepo, suggestedLooksRepo } from './suggested';
 import { tripsRepo } from './trips';
 import { usageRepo } from './usage';
 import { waitlistRepo } from './waitlist';
@@ -54,6 +55,8 @@ export function createRepositories(db: Db) {
     inbox: inboxRepo(db),
     inboxAddress: inboxAddressRepo(db),
     looks: looksRepo(db),
+    // Robes-noticed lines from the look prompt; keeping one into her brief is the memory's.
+    noticed: noticedRepo(db),
     model: modelRepo(db),
     jobs: jobsRepo(db),
     // API rate-limit counters (SEC-33); keyed by route + user or IP, no user rows.
@@ -99,6 +102,8 @@ export function createSystemRepositories(db: Db) {
     styleBrief: styleBriefRepo(db),
     frames: framesRepo(db),
     styling: stylingRepo(db),
+    suggested: suggestedLooksRepo(db),
+    noticed: noticedRepo(db),
   };
 }
 
@@ -111,7 +116,13 @@ export type { FramedType, StoredFrame, StoredFrameStatus } from './frames';
 export { heldItems, type InboxAction, type InboxItem } from './inbox';
 export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
-export { type LookFields, type LookPieceInput, LookPiecesNotFound, type LookRole } from './looks';
+export {
+  DraftsFull,
+  type LookFields,
+  type LookPieceInput,
+  LookPiecesNotFound,
+  type LookRole,
+} from './looks';
 export type { StoredModelPicks } from './model';
 export { OVERNIGHT_LEASE_HOURS, OVERNIGHT_LOCAL_HOUR, overnightKey } from './overnight';
 export { encodeCursor, type Page } from './paging';
@@ -133,6 +144,7 @@ export {
   type TastePatch,
 } from './style-dna';
 export type { StyleOverrides } from './style-profile';
+export type { SuggestedSpec } from './suggested';
 export type { TripLookToPin } from './trips';
 export type { ListPiecesQuery, PieceFields } from './wardrobe';
 export type { WishFields } from './wishlist';

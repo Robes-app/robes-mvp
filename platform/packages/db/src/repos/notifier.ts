@@ -82,6 +82,7 @@ export function notifierRepo(db: Db) {
             sql<string>`(array_agg(name order by created_at desc))[1]`.as('newestName'),
           ])
           .where('userId', 'in', ids)
+          .where('status', '=', 'saved')
           .where('deletedAt', 'is', null)
           .groupBy('userId')
           .execute(),

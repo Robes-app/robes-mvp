@@ -69,11 +69,13 @@ export function planRepo(db: Db) {
       opts: { slot: PlanSlot; activity?: string | null | undefined },
     ) {
       return db.transaction().execute(async (trx) => {
+        // Only a saved look reaches a day (legacy 2026-10-10): a suggestion or a draft is saved first.
         const look = await trx
           .selectFrom('looks')
           .select(['id'])
           .where('userId', '=', userId)
           .where('id', '=', lookId)
+          .where('status', '=', 'saved')
           .where('deletedAt', 'is', null)
           .executeTakeFirst();
         if (!look) return undefined;

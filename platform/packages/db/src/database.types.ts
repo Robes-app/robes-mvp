@@ -290,10 +290,15 @@ export interface LookPieces {
 }
 
 export interface Looks {
+  anchorPieceId: string | null;
   climateBand: Generated<string>;
   climateSource: Generated<string>;
   createdAt: Generated<Timestamp>;
+  dateHint: Timestamp | null;
   deletedAt: Timestamp | null;
+  edits: Json | null;
+  frameAssetId: string | null;
+  frameKey: string | null;
   id: Generated<string>;
   name: string;
   nameProvisional: Generated<boolean>;
@@ -306,7 +311,24 @@ export interface Looks {
   renderJobId: string | null;
   renderKey: string | null;
   renderStatus: string | null;
+  setId: string | null;
+  setIndex: number | null;
   source: Generated<string>;
+  status: Generated<string>;
+  styling: Json | null;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
+}
+
+export interface NoticedLines {
+  because: string | null;
+  createdAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+  id: Generated<string>;
+  list: Generated<string>;
+  lookId: string | null;
+  source: Generated<string>;
+  text: string;
   updatedAt: Generated<Timestamp>;
   userId: string;
 }
@@ -698,6 +720,7 @@ export interface DB {
   inboxAddresses: InboxAddresses;
   lookPieces: LookPieces;
   looks: Looks;
+  noticedLines: NoticedLines;
   notifications: Notifications;
   plannedDays: PlannedDays;
   plans: Plans;

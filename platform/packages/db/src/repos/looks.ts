@@ -1,3 +1,4 @@
+import { type LookStatus, MAX_DRAFTS } from '@robes/core/looks';
 import { sql, type Transaction } from 'kysely';
 import type { Db } from '../client';
 import type { DB } from '../database.types';
@@ -15,9 +16,21 @@ const LOOK_COLUMNS = [
   'climateBand',
   'renderAssetId',
   'renderStatus',
+  'status',
+  'anchorPieceId',
+  'setId',
+  'setIndex',
+  'frameAssetId',
+  'frameKey',
+  'proposals',
+  'styling',
+  'edits',
   'createdAt',
   'updatedAt',
 ] as const;
+// A calendar day: read as text so no timezone can move it (CLAUDE.md rule 23).
+const DATE_HINT = sql<string | null>`date_hint::text`.as('dateHint');
+const LOOK_SELECT = [...LOOK_COLUMNS, DATE_HINT] as const;
 
 export type LookRole = 'canvas' | 'anchor' | 'texture' | 'exclamation';
 export interface LookPieceInput {
@@ -31,6 +44,11 @@ export interface LookFields {
   name?: string | undefined;
   note?: string | null | undefined;
   climateBand?: 'spring_summer' | 'autumn_winter' | 'year_round' | undefined;
+  // The pieces Robes proposes (not hers yet), how each row is worn, and a draft's working notes.
+  proposals?: readonly Record<string, unknown>[] | null | undefined;
+  styling?: Record<string, string> | null | undefined;
+  edits?: Record<string, unknown> | null | undefined;
+  dateHint?: string | null | undefined;
 }
 
 export class LookPiecesNotFound extends Error {
@@ -38,6 +56,17 @@ export class LookPiecesNotFound extends Error {
     super('look references pieces the user does not own');
   }
 }
+
+// A sixth draft while five wait: she lets the oldest go, or keeps them.
+export class DraftsFull extends Error {
+  constructor() {
+    super('drafts_full');
+  }
+}
+
+const json = (v: unknown) => (v == null ? null : JSON.stringify(v));
+const emptyToNull = (v: Record<string, unknown> | readonly unknown[] | null | undefined) =>
+  v == null || (Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0) ? null : v;
 
 // Wear dates are calendar days: read as text so no timezone can move them.
 const wornOnText = sql<string>`worn_on::text`;
@@ -84,31 +113,75 @@ export function looksRepo(db: Db) {
       .execute();
   }
 
+  async function assertOwned(trx: Transaction<DB>, userId: UserId, ids: readonly string[]) {
+    const owned = await trx
+      .selectFrom('wardrobeItems')
+      .select('id')
+      .where('userId', '=', userId)
+      .where('id', 'in', [...ids])
+      .where('deletedAt', 'is', null)
+      .execute();
+    if (owned.length !== new Set(ids).size) throw new LookPiecesNotFound();
+  }
+
+  async function makeDraftRoom(trx: Transaction<DB>, userId: UserId, letGoOldest: boolean) {
+    const drafts = await trx
+      .selectFrom('looks')
+      .select('id')
+      .where('userId', '=', userId)
+      .where('status', '=', 'draft')
+      .where('deletedAt', 'is', null)
+      .orderBy('createdAt')
+      .forUpdate()
+      .execute();
+    if (drafts.length < MAX_DRAFTS) return;
+    if (!letGoOldest) throw new DraftsFull();
+    const extra = drafts.slice(0, drafts.length - MAX_DRAFTS + 1).map((d) => d.id);
+    await trx
+      .updateTable('looks')
+      .set({ deletedAt: sql`now()` })
+      .where('userId', '=', userId)
+      .where('id', 'in', extra)
+      .execute();
+  }
+
   return {
-    async list(userId: UserId, q: { limit: number; cursor?: string | undefined }) {
+    // One state at a time (saved by default): suggestions and drafts never reach saved readers.
+    async list(
+      userId: UserId,
+      q: {
+        limit: number;
+        cursor?: string | undefined;
+        status?: LookStatus | undefined;
+        anchorPieceId?: string | undefined;
+      },
+    ) {
       let query = active()
-        .select(LOOK_COLUMNS)
+        .select(LOOK_SELECT)
         .where('userId', '=', userId)
+        .where('status', '=', q.status ?? 'saved')
         .orderBy(createdMs, 'desc')
         .orderBy('id', 'desc')
         .limit(q.limit + 1);
       const after = afterCursor(q.cursor);
       if (after) query = query.where(after);
+      if (q.anchorPieceId) query = query.where('anchorPieceId', '=', q.anchorPieceId);
       return toPage(await query.execute(), q.limit);
     },
 
     get(userId: UserId, id: string) {
       return active()
-        .select(LOOK_COLUMNS)
+        .select(LOOK_SELECT)
         .where('userId', '=', userId)
         .where('id', '=', id)
         .executeTakeFirst();
     },
 
-    async count(userId: UserId): Promise<number> {
+    async count(userId: UserId, status: LookStatus = 'saved'): Promise<number> {
       const row = await active()
         .select((eb) => eb.fn.countAll<string>().as('n'))
         .where('userId', '=', userId)
+        .where('status', '=', status)
         .executeTakeFirst();
       return Number(row?.n ?? 0);
     },
@@ -179,9 +252,20 @@ export function looksRepo(db: Db) {
     getMany(userId: UserId, ids: readonly string[]) {
       if (ids.length === 0) return Promise.resolve([]);
       return active()
-        .select(LOOK_COLUMNS)
+        .select(LOOK_SELECT)
         .where('userId', '=', userId)
         .where('id', 'in', [...ids])
+        .execute();
+    },
+
+    // A generation's looks (the keep-or-pass deck), in the order Robes wrote them.
+    listSet(userId: UserId, setId: string) {
+      return active()
+        .select(LOOK_SELECT)
+        .where('userId', '=', userId)
+        .where('setId', '=', setId)
+        .orderBy('setIndex')
+        .orderBy('createdAt')
         .execute();
     },
 
@@ -228,9 +312,18 @@ export function looksRepo(db: Db) {
         source?: 'manual' | 'variant' | 'generated' | 'today';
         originLookId?: string | null;
         renderAssetId?: string | null;
+        // A draft is hers, unsaved; at most MAX_DRAFTS wait (letGoOldest makes room).
+        status?: 'saved' | 'draft';
+        letGoOldest?: boolean;
+        anchorPieceId?: string | null;
+        frameAssetId?: string | null;
+        frameKey?: string | null;
       },
     ) {
       return db.transaction().execute(async (trx) => {
+        const status = look.status ?? 'saved';
+        if (status === 'draft') await makeDraftRoom(trx, userId, look.letGoOldest === true);
+        if (look.anchorPieceId) await assertOwned(trx, userId, [look.anchorPieceId]);
         const row = await trx
           .insertInto('looks')
           .values({
@@ -243,20 +336,33 @@ export function looksRepo(db: Db) {
             source: look.source ?? 'manual',
             originLookId: look.originLookId ?? null,
             renderAssetId: look.renderAssetId ?? null,
+            status,
+            proposals: json(emptyToNull(look.proposals ?? null)),
+            styling: json(emptyToNull(look.styling ?? null)),
+            edits: status === 'saved' ? null : json(emptyToNull(look.edits ?? null)),
+            dateHint: look.dateHint ?? null,
+            anchorPieceId: look.anchorPieceId ?? null,
+            frameAssetId: look.frameAssetId ?? null,
+            frameKey: look.frameKey ?? null,
           })
-          .returning(LOOK_COLUMNS)
+          .returning(LOOK_SELECT)
           .executeTakeFirstOrThrow();
         await writePieces(trx, userId, row.id, look.pieces);
         return row;
       });
     },
 
-    // Edits in place ("Update"); pieces, when given, replace the whole set atomically.
+    // Edits in place ("Update"); pieces, when given, replace the whole set atomically. A suggestion
+    // becomes a draft the moment she changes its rack; a saved look never carries working notes.
     async update(
       userId: UserId,
       id: string,
       fields: LookFields & { pieces?: readonly LookPieceInput[] | undefined },
     ) {
+      const rackChanged =
+        fields.pieces !== undefined ||
+        fields.proposals !== undefined ||
+        fields.styling !== undefined;
       return db.transaction().execute(async (trx) => {
         const row = await trx
           .updateTable('looks')
@@ -266,12 +372,25 @@ export function looksRepo(db: Db) {
             ...(fields.climateBand !== undefined
               ? { climateBand: fields.climateBand, climateSource: 'user' }
               : {}),
+            ...(fields.proposals !== undefined
+              ? { proposals: json(emptyToNull(fields.proposals)) }
+              : {}),
+            ...(fields.styling !== undefined ? { styling: json(emptyToNull(fields.styling)) } : {}),
+            ...(fields.dateHint !== undefined ? { dateHint: fields.dateHint } : {}),
+            ...(fields.edits !== undefined
+              ? {
+                  edits: sql`case when status = 'saved' then null else ${json(emptyToNull(fields.edits))}::jsonb end`,
+                }
+              : {}),
+            ...(rackChanged
+              ? { status: sql`case when status = 'suggested' then 'draft' else status end` }
+              : {}),
             updatedAt: sql`now()`,
           })
           .where('userId', '=', userId)
           .where('id', '=', id)
           .where('deletedAt', 'is', null)
-          .returning(LOOK_COLUMNS)
+          .returning(LOOK_SELECT)
           .executeTakeFirst();
         if (!row) return undefined;
         if (fields.pieces) await writePieces(trx, userId, id, fields.pieces);
@@ -297,8 +416,38 @@ export function looksRepo(db: Db) {
         .where('userId', '=', userId)
         .where('id', '=', id)
         .where('deletedAt', 'is not', null)
-        .returning(LOOK_COLUMNS)
+        .returning(LOOK_SELECT)
         .executeTakeFirst();
+    },
+
+    // Suggested or draft → saved (one tap from a suggestion, or the draft's Save). Saved never goes
+    // back; saving a saved look changes nothing.
+    save(userId: UserId, id: string, opts: { name?: string | undefined } = {}) {
+      return db
+        .updateTable('looks')
+        .set({
+          status: 'saved',
+          edits: null,
+          ...(opts.name !== undefined ? { name: opts.name, nameProvisional: false } : {}),
+          updatedAt: sql`now()`,
+        })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('deletedAt', 'is', null)
+        .returning(LOOK_SELECT)
+        .executeTakeFirst();
+    },
+
+    // A rack piece's facts for the look prompt, only hers (SEC-16: ids in, labels from here).
+    piecesById(userId: UserId, ids: readonly string[]) {
+      if (ids.length === 0) return Promise.resolve([]);
+      return db
+        .selectFrom('wardrobeItems')
+        .select(['id', 'label', 'category', 'color', 'brand'])
+        .where('userId', '=', userId)
+        .where('id', 'in', [...ids])
+        .where('deletedAt', 'is', null)
+        .execute();
     },
 
     // Wears are immutable facts: one per look per day; a repeat returns the existing one.
@@ -309,6 +458,7 @@ export function looksRepo(db: Db) {
           .select('id')
           .where('userId', '=', userId)
           .where('id', '=', lookId)
+          .where('status', '=', 'saved')
           .where('deletedAt', 'is', null)
           .executeTakeFirst();
         if (!look) return undefined;

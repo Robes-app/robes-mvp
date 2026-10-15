@@ -85,4 +85,47 @@ describe('looks and planning schema', () => {
       await q('select private.run_maintenance()');
       expect(await q('select id from app.looks where id = $1', [LOOK])).toEqual([]);
     }));
+
+  it('holds look states: a known status, working notes off saved looks, her own anchor', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await expectPgError(q, '23514', "update app.looks set status = 'kept' where id = $1", [LOOK]);
+      await expectPgError(
+        q,
+        '23514',
+        `update app.looks set edits = '{"a":{"back":true}}' where id = $1`,
+        [LOOK],
+      );
+      await q(
+        `update app.looks set status = 'draft', edits = '{"a":{"back":true}}', anchor_piece_id = $2 where id = $1`,
+        [LOOK, ITEM_A],
+      );
+      await expectPgError(q, '23503', 'update app.looks set anchor_piece_id = $2 where id = $1', [
+        LOOK,
+        ITEM_B,
+      ]);
+      await expectPgError(q, '23514', "update app.looks set styling = '[]' where id = $1", [LOOK]);
+      await expectPgError(q, '23514', 'update app.looks set set_index = 3 where id = $1', [LOOK]);
+    }));
+
+  it('keeps noticed lines to their owner and one per wording', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q("insert into app.noticed_lines (user_id, text, look_id) values ($1, 'No grey', $2)", [
+        USER_A,
+        LOOK,
+      ]);
+      await expectPgError(
+        q,
+        '23505',
+        "insert into app.noticed_lines (user_id, text) values ($1, 'no grey')",
+        [USER_A],
+      );
+      await expectPgError(
+        q,
+        '23503',
+        "insert into app.noticed_lines (user_id, text, look_id) values ($1, 'Mine', $2)",
+        [USER_B, LOOK],
+      );
+    }));
 });

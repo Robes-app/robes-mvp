@@ -15,6 +15,7 @@ export const JOB_KINDS = [
   'link_import',
   'cutout',
   'style_brief',
+  'look_ask',
 ] as const;
 export type JobKind = (typeof JOB_KINDS)[number];
 

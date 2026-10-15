@@ -1,0 +1,216 @@
+import { describe, expect, it } from 'vitest';
+import {
+  type AskEdit,
+  anchorName,
+  applyAsk,
+  askDateFrom,
+  askWhen,
+  changedKeys,
+  deckReduce,
+  deckTop,
+  emptyDeck,
+  forecastWord,
+  isProposalKey,
+  nameNoBrand,
+  newProposalKey,
+  noteShort,
+  orderRack,
+  type RackRow,
+  type RackState,
+  rackSignature,
+  rowNote,
+  theName,
+} from './index';
+
+const row = (key: string, name: string, role: RackRow['role'] = null): RackRow => ({
+  key,
+  pieceId: key,
+  name,
+  category: 'Tops',
+  brand: null,
+  role,
+  proposal: null,
+});
+
+describe('copy helpers (legacy parity)', () => {
+  it('caps a note at three sentences', () => {
+    expect(noteShort('One. Two! Three? Four. Five.')).toBe('One. Two! Three?');
+    expect(noteShort('  A late dinner,\n\n the jacket open  ')).toBe(
+      'A late dinner, the jacket open',
+    );
+    expect(noteShort(null)).toBe('');
+  });
+
+  it('drops the brand from a name, never emptying it', () => {
+    expect(nameNoBrand('Miu Miu ballet sneakers', 'Miu Miu')).toBe('Ballet sneakers');
+    expect(nameNoBrand('Jumper by Wimbledon', 'Wimbledon')).toBe('Jumper');
+    expect(nameNoBrand('Wimbledon jumper', 'Wimbledon')).toBe('Jumper');
+    expect(nameNoBrand('Ganni', 'Ganni')).toBe('Ganni');
+    expect(nameNoBrand('Silk shirt', null)).toBe('Silk shirt');
+  });
+
+  it('names a piece in a sentence', () => {
+    expect(theName('Camel wool shacket')).toBe('the camel wool shacket');
+    expect(theName('her black flats')).toBe('her black flats');
+    expect(anchorName('Ganni rust slip dress', 'Ganni')).toBe('rust slip dress');
+  });
+});
+
+describe('the rack', () => {
+  it('orders rows by the formula, stable inside a role', () => {
+    const rows = [
+      row('a', 'Bag', 'exclamation'),
+      row('b', 'Coat', 'anchor'),
+      row('c', 'Tee', 'canvas'),
+      row('d', 'Jeans', 'canvas'),
+      row('e', 'Scarf', null),
+    ];
+    expect(orderRack(rows).map((r) => r.key)).toEqual(['c', 'd', 'b', 'a', 'e']);
+  });
+
+  it('mints proposal keys the server accepts', () => {
+    const key = newProposalKey();
+    expect(isProposalKey(key)).toBe(true);
+    expect(isProposalKey('11111111-1111-4111-8111-111111111111')).toBe(false);
+  });
+
+  const base: RackState = {
+    rows: [row('tee', 'Cream tee', 'canvas'), row('jeans', 'White wide-leg trouser', 'anchor')],
+    edits: {},
+    styling: {},
+  };
+
+  it('swaps a row for her piece and remembers the original', () => {
+    const edit: AskEdit = {
+      swaps: [
+        {
+          key: 'jeans',
+          to: { pieceId: 'dark', name: 'Dark straight jean', category: 'Bottoms', brand: null },
+        },
+      ],
+      back: [],
+      styled: [],
+    };
+    const next = applyAsk(base, edit);
+    expect(next.rows.map((r) => r.key)).toEqual(['tee', 'dark']);
+    expect(next.rows[1]?.role).toBe('anchor');
+    expect(rowNote(next, 'dark')).toEqual({ kind: 'was', name: 'White wide-leg trouser' });
+    expect(changedKeys(next)).toEqual(['dark']);
+  });
+
+  it('a second change on a row keeps the first original; back restores it', () => {
+    let s = applyAsk(base, {
+      swaps: [
+        {
+          key: 'jeans',
+          to: { pieceId: 'dark', name: 'Dark jean', category: 'Bottoms', brand: null },
+        },
+      ],
+      back: [],
+      styled: [],
+    });
+    s = applyAsk(
+      s,
+      {
+        swaps: [
+          {
+            key: 'dark',
+            to: {
+              proposal: {
+                name: 'Black cigarette trouser',
+                category: 'Bottoms',
+                color: 'black',
+                brand: 'Toteme',
+                retailerHint: 'toteme.com',
+                pricePoint: '€290',
+              },
+            },
+          },
+        ],
+        back: [],
+        styled: [],
+      },
+      () => 'p-abcd1234',
+    );
+    expect(s.rows[1]).toMatchObject({ key: 'p-abcd1234', pieceId: null, role: 'anchor' });
+    expect(s.rows[1]?.proposal).toMatchObject({ brand: 'Toteme', wishlisted: false });
+    expect(rowNote(s, 'p-abcd1234')).toEqual({ kind: 'was', name: 'White wide-leg trouser' });
+
+    const back = applyAsk(s, { swaps: [], back: [], backAll: true, styled: [] });
+    expect(back.rows.map((r) => r.key)).toEqual(['tee', 'jeans']);
+    expect(rowNote(back, 'jeans')).toEqual({ kind: 'back' });
+    expect(changedKeys(back)).toEqual([]);
+  });
+
+  it('never puts the same piece on twice, and keeps styling per row', () => {
+    const s = applyAsk(base, {
+      swaps: [
+        { key: 'jeans', to: { pieceId: 'tee', name: 'Cream tee', category: 'Tops', brand: null } },
+      ],
+      back: [],
+      styled: [
+        { key: 'tee', note: 'tucked at the front' },
+        { key: 'nope', note: 'x' },
+      ],
+    });
+    expect(s.rows.map((r) => r.key)).toEqual(['tee', 'jeans']);
+    expect(s.styling).toEqual({ tee: 'tucked at the front' });
+    expect(rackSignature(s)).toBe('jeans;tee~tucked at the front');
+  });
+});
+
+describe('a day read out of her words', () => {
+  // 2026-10-15 is a Thursday.
+  const today = '2026-10-15';
+  it.each([
+    ['dinner tonight', '2026-10-15'],
+    ['what to wear tomorrow', '2026-10-16'],
+    ['Style me for dinner on saturday night', '2026-10-17'],
+    ['thursday lunch', '2026-10-15'],
+    ['next friday', '2026-10-23'],
+    ['the weekend', '2026-10-17'],
+    ['next week', '2026-10-19'],
+    ['17 Oct', '2026-10-17'],
+    ['October 30th', '2026-10-30'],
+    ['2 jan', '2027-01-02'],
+    ['2026-11-01', '2026-11-01'],
+  ])('%s → %s', (text, iso) => expect(askDateFrom(text, today)).toBe(iso));
+
+  it('places nothing it cannot read, and never a day gone by', () => {
+    expect(askDateFrom('something chic', today)).toBeNull();
+    expect(askDateFrom('sat brunch', today)).toBeNull();
+    expect(askDateFrom('1 Oct', today)).toBeNull();
+    expect(askDateFrom('2026-10-01', today)).toBeNull();
+  });
+
+  it('says when, and reads the forecast', () => {
+    expect(askWhen('2026-10-16', today)).toEqual({ kind: 'tomorrow' });
+    expect(askWhen('2026-10-17', today)).toEqual({ kind: 'weekday', weekday: 6 });
+    expect(askWhen('2026-10-23', today)).toEqual({ kind: 'next', weekday: 5 });
+    expect(askWhen('2026-11-30', today)).toEqual({ kind: 'date', iso: '2026-11-30' });
+    expect(forecastWord({ code: 61, tmax: 14 })).toBe('raining');
+    expect(forecastWord({ code: 0, tmax: 27 })).toBe('hot');
+    expect(forecastWord({ code: 3, tmax: 8 })).toBe('cold');
+    expect(forecastWord({ code: 1, tmax: 19 })).toBe('sunny');
+    expect(forecastWord({ code: 3, tmax: 14 })).toBe('cool');
+    expect(forecastWord({ code: 3, tmax: 18 })).toBe('mild');
+  });
+});
+
+describe('keep or pass', () => {
+  it('lands looks behind the top card, keeps, passes and undoes a pass', () => {
+    let d = deckReduce(emptyDeck(), { type: 'land', ids: ['a'] });
+    d = deckReduce(d, { type: 'land', ids: ['a', 'b', 'c'] });
+    expect(d.order).toEqual(['a', 'b', 'c']);
+    d = deckReduce(d, { type: 'keep', id: 'a' });
+    d = deckReduce(d, { type: 'pass', id: 'b' });
+    expect(deckTop(d)).toBe('c');
+    d = deckReduce(d, { type: 'undo', id: 'b' });
+    expect(deckTop(d)).toBe('b');
+    expect(d.passed).toEqual([]);
+    expect(deckReduce(d, { type: 'keep', id: 'c' })).toBe(d);
+    d = deckReduce(deckReduce(d, { type: 'keep', id: 'b' }), { type: 'keep', id: 'c' });
+    expect(d.kept).toEqual(['a', 'b', 'c']);
+    expect(deckTop(d)).toBeNull();
+  });
+});

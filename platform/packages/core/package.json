@@ -14,7 +14,8 @@
     "./next-step": "./src/next-step/index.ts",
     "./calendar": "./src/calendar/index.ts",
     "./trips": "./src/trips/index.ts",
-    "./avatar": "./src/avatar/index.ts"
+    "./avatar": "./src/avatar/index.ts",
+    "./looks": "./src/looks/index.ts"
   },
   "scripts": {
     "test": "vitest run",
