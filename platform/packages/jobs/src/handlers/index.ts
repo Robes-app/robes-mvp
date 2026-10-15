@@ -10,12 +10,14 @@ import { createStyleBriefHandler, type StyleBriefDeps } from './style-brief';
 import { createStylePieceHandler, type StylePieceDeps } from './style-piece';
 import { createTravelHandler, type TravelDeps } from './travel';
 import { createWardrobeAnalyseHandler, type WardrobeAnalyseDeps } from './wardrobe-analyse';
+import { createWardrobePiecesHandler, type WardrobePiecesDeps } from './wardrobe-pieces';
 
 export interface HandlerDeps {
   linkImport?: LinkImportDeps;
   fake?: { stepMs?: number };
   // Present when the runtime has AI + media wiring (workers, the dev inline transport).
   wardrobeAnalyse?: WardrobeAnalyseDeps;
+  wardrobePieces?: WardrobePiecesDeps;
   stylePiece?: StylePieceDeps;
   daily?: DailyDeps;
   styleAnalyse?: StyleAnalyseDeps;
@@ -33,6 +35,9 @@ export function createHandlers(opts: HandlerDeps = {}): JobHandlers {
     ...(opts.linkImport ? { link_import: createLinkImportHandler(opts.linkImport) } : {}),
     ...(opts.wardrobeAnalyse
       ? { wardrobe_analyse: createWardrobeAnalyseHandler(opts.wardrobeAnalyse) }
+      : {}),
+    ...(opts.wardrobePieces
+      ? { wardrobe_pieces: createWardrobePiecesHandler(opts.wardrobePieces) }
       : {}),
     ...(opts.stylePiece ? { key_piece: createStylePieceHandler(opts.stylePiece) } : {}),
     ...(opts.daily ? { daily: createDailyHandler(opts.daily) } : {}),

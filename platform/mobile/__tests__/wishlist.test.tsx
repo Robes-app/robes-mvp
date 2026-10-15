@@ -50,7 +50,9 @@ test('"I bought this" promotes the wish into the wardrobe', async () => {
     [`POST /wishlist/items/${WISH_ID}/promote`]: piece({ label: 'Black leather loafers' }),
   });
   await renderWithApi(<WishlistView />);
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.wishlist.bought }));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: wardrobe.card.boughtLabel('Black leather loafers') }),
+  );
   expect(
     await screen.findByText(wardrobe.wishlist.boughtToast('Black leather loafers')),
   ).toBeTruthy();
@@ -73,4 +75,31 @@ test('removing a wish hides it at once and Undo restores it', async () => {
     await fireEvent.press(screen.getByRole('button', { name: wardrobe.undo }));
   });
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/restore'))).toBe(true));
+});
+
+test('a wish reads as the rack card: Category · Brand, its price and "Not yours yet"', async () => {
+  mockFetch({
+    'GET /wishlist/items': {
+      items: [
+        wish,
+        {
+          ...wish,
+          id: '12121212-1212-4212-8212-121212121212',
+          label: 'Silk scarf',
+          category: 'Accessories',
+          brand: null,
+          price: 27.95,
+          currency: 'EUR',
+        },
+      ],
+      nextCursor: null,
+    },
+  });
+  await renderWithApi(<WishlistView />);
+  expect(await screen.findByText('2 wishlisted')).toBeTruthy();
+  expect(screen.getByText('€27.95 · Not yours yet')).toBeTruthy();
+  expect(screen.getByText(' · Toteme')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Shoes' }));
+  expect(await screen.findByText('1 wishlisted')).toBeTruthy();
+  expect(screen.queryByText('Silk scarf')).toBeNull();
 });

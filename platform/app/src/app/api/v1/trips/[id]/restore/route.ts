@@ -6,6 +6,7 @@ import { route } from '@/server/route';
 
 export const POST = route({
   auth: 'user',
+  flag: 'trips',
   input: EmptyInput,
   params: TripParams,
   output: Deleted,

@@ -134,6 +134,14 @@ async function createWorkerContext(): Promise<WorkerContext> {
       ? {
           linkImport,
           wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger: system.ledger },
+          // Crops land as uploads, so the S3 event renders them.
+          wardrobePieces: {
+            ai,
+            storage,
+            reads: system.photoReads,
+            ledger: system.ledger,
+            ...(onGenerated ? { onGenerated } : {}),
+          },
           stylePiece: {
             ai,
             storage,
@@ -215,6 +223,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
         appUrl: env.APP_URL,
         unsubSecret,
         logger,
+        tripsOn: () => createRepositories(db).flags.isEnabled('trips'),
         push: {
           sender: createExpoPushSender({ accessToken: await resolveExpoToken(env) }),
           tokens: system.pushDelivery,

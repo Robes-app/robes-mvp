@@ -701,6 +701,9 @@ importers:
       '@robes/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@robes/core':
+        specifier: workspace:*
+        version: link:../core
       blurhash:
         specifier: 2.0.5
         version: 2.0.5

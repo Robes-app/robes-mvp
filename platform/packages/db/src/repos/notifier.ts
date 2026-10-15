@@ -22,7 +22,12 @@ export function notifierRepo(db: Db) {
       return q.execute();
     },
 
-    async state(userIds: readonly string[], plan: { from: string; to: string }) {
+    // `hideTravel`: while trips are hidden, a trip-placed look is no planned day (legacy hideTravel).
+    async state(
+      userIds: readonly string[],
+      plan: { from: string; to: string },
+      opts: { hideTravel?: boolean } = {},
+    ) {
       if (userIds.length === 0) {
         return {
           ledger: [],
@@ -103,6 +108,7 @@ export function notifierRepo(db: Db) {
           .where('l.deletedAt', 'is', null)
           .where('d.dayDate', '>=', sql<Date>`${plan.from}::date`)
           .where('d.dayDate', '<=', sql<Date>`${plan.to}::date`)
+          .$if(opts.hideTravel === true, (q) => q.where('l.source', '<>', 'travel'))
           .execute(),
         // Overnight Today looks (M5 task 3) in the same date window, for the morning cue.
         db

@@ -61,7 +61,7 @@ type LookRow = NonNullable<Awaited<ReturnType<typeof repos.looks.get>>>;
 export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> {
   const ids = rows.map((r) => r.id);
   const renderIds = rows.flatMap((r) => {
-    const id = r.frameAssetId ?? r.renderAssetId;
+    const id = r.frameAssetId ?? r.renderAssetId ?? r.photoAssetId;
     return id ? [id] : [];
   });
   const anchorIds = [...new Set(rows.flatMap((r) => (r.anchorPieceId ? [r.anchorPieceId] : [])))];
@@ -97,7 +97,7 @@ export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> 
   return rows.map((row) => {
     const proposals = proposalsOf(row.proposals);
     const anchor = row.anchorPieceId ? anchors.get(row.anchorPieceId) : undefined;
-    const imageId = row.frameAssetId ?? row.renderAssetId;
+    const imageId = row.frameAssetId ?? row.renderAssetId ?? row.photoAssetId;
     const frameRender = row.renderKey?.startsWith('frame:') ?? false;
     return Look.parse({
       id: row.id,
@@ -108,6 +108,7 @@ export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> 
       source: row.source,
       originLookId: row.originLookId,
       climateBand: row.climateBand,
+      // Robes' frame, else the render on her model, else her own photograph (a look from a photo).
       image: (imageId && images.get(imageId)) || null,
       frame: row.frameAssetId !== null,
       framePending: frameRender && row.renderStatus === 'pending',

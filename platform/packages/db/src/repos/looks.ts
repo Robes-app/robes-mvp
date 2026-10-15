@@ -26,6 +26,7 @@ const LOOK_COLUMNS = [
   'proposals',
   'styling',
   'edits',
+  'photoAssetId',
   'createdAt',
   'updatedAt',
 ] as const;
@@ -319,6 +320,7 @@ export function looksRepo(db: Db) {
         anchorPieceId?: string | null;
         frameAssetId?: string | null;
         frameKey?: string | null;
+        photoAssetId?: string | null;
       },
     ) {
       return db.transaction().execute(async (trx) => {
@@ -345,6 +347,7 @@ export function looksRepo(db: Db) {
             anchorPieceId: look.anchorPieceId ?? null,
             frameAssetId: look.frameAssetId ?? null,
             frameKey: look.frameKey ?? null,
+            photoAssetId: look.photoAssetId ?? null,
           })
           .returning(LOOK_SELECT)
           .executeTakeFirstOrThrow();

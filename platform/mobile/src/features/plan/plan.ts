@@ -17,6 +17,11 @@ export function usePlan() {
   return useApi('plan.get', { input: { days: PLAN_DAYS } });
 }
 
+// One day (the day page): the same read, from that date.
+export function usePlanDay(date: string) {
+  return useApi('plan.get', { input: { from: date, days: 1 } });
+}
+
 // "Thu 1 Oct" for a calendar date; dates are calendar text, so format them in UTC.
 export function dayLabel(date: string, today?: string): string {
   if (date === today) return copy.today;

@@ -7,15 +7,17 @@ export interface IconProps {
   color: string;
   // Decorative by default; pass a label when the icon is the only content of a control.
   label?: string;
+  // Solid shapes for an "on" state (a starred piece, a chosen thumb).
+  filled?: boolean;
 }
 
-export function Icon({ name, size = 24, color, label }: IconProps) {
+export function Icon({ name, size = 24, color, label, filled = false }: IconProps) {
   return (
     <Svg
       viewBox={ICON_VIEWBOX}
       width={size}
       height={size}
-      fill="none"
+      fill={filled ? color : 'none'}
       stroke={color}
       strokeWidth={ICON_STROKE_WIDTH}
       strokeLinecap="round"

@@ -1,6 +1,7 @@
 import { JOB_KINDS, JOB_STAGES, JOB_STATUSES } from '@robes/core/jobs';
 import { z } from 'zod';
 import { IdeaWay, LookAskResult } from './looks';
+import { ReadPiece } from './photo-reads';
 
 export const JobStatus = z.enum(JOB_STATUSES);
 export const JobStage = z.enum(JOB_STAGES);
@@ -33,6 +34,9 @@ export const JobOutput = z.object({
   label: z.string().optional(),
   category: z.string().optional(),
   noItemDetected: z.boolean().optional(),
+  // wardrobe_pieces: the photo read and every piece found in it
+  assetId: z.uuid().optional(),
+  readPieces: z.array(ReadPiece).optional(),
   // daily
   dailyLookId: z.uuid().optional(),
   // travel

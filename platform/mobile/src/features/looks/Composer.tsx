@@ -1,7 +1,7 @@
 import { ApiClientError } from '@robes/api-client';
 import { useApiClient } from '@robes/api-client/react';
 import type { CreateLookInput, Piece } from '@robes/contracts';
-import { lookbook as copy, errors } from '@robes/copy';
+import { lookbook as copy, errors, photoPieces } from '@robes/copy';
 import { Button, Eyebrow, Field, Text, useToast } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -83,6 +83,10 @@ export function Composer({ pieceId }: { pieceId?: string }) {
           maxLength={120}
         />
       </View>
+      {/* A look from a photo (legacy use case 2b): the second start beside the rack. */}
+      <Button variant="secondary" icon="camera" onPress={() => router.push('/looks/photo')}>
+        {photoPieces.look.start.title}
+      </Button>
       <View className="gap-1 rounded-soft border border-dashed border-border-control p-4">
         <Text>{copy.guide.title}</Text>
         <Text size="small" tone="muted">

@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./taxonomy": "./src/taxonomy/index.ts",
+    "./wardrobe": "./src/wardrobe/index.ts",
     "./quotas": "./src/quotas/index.ts",
     "./flags": "./src/flags/index.ts",
     "./jobs": "./src/jobs/index.ts",
@@ -15,7 +16,8 @@
     "./calendar": "./src/calendar/index.ts",
     "./trips": "./src/trips/index.ts",
     "./avatar": "./src/avatar/index.ts",
-    "./looks": "./src/looks/index.ts"
+    "./looks": "./src/looks/index.ts",
+    "./photo-pieces": "./src/photo-pieces/index.ts"
   },
   "scripts": {
     "test": "vitest run",

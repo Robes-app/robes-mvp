@@ -3,6 +3,30 @@ import { lookbook } from './lookbook';
 // Every user-facing string lives here (SPEC principle 6); voice rules: brand-and-design.md §1.
 // Keys are stable ids; values are en-GB. Use curly apostrophes (’) and no exclamation marks.
 
+const COUNT_WORDS = [
+  'No',
+  'One',
+  'Two',
+  'Three',
+  'Four',
+  'Five',
+  'Six',
+  'Seven',
+  'Eight',
+  'Nine',
+  'Ten',
+  'Eleven',
+  'Twelve',
+  'Thirteen',
+  'Fourteen',
+  'Fifteen',
+] as const;
+
+// Sentence-leading counts read as words up to fifteen ("Seven pieces filed."), digits after.
+export function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
+
 export const errors = {
   unauthenticated: 'Please sign in again.',
   forbidden: 'That isn’t available on your account.',
@@ -78,7 +102,10 @@ export const today = {
         `${n === 1 ? 'One more piece' : `${n} more pieces`} and Robes builds a look from yours alone.`,
       door: 'Add pieces',
     },
-    build: { text: 'Five pieces filed. Build a look from what you own.', door: 'Build a look' },
+    build: {
+      text: (n: number): string => `${countWord(n)} pieces filed. Build a look from what you own.`,
+      door: 'Build a look',
+    },
     wear: {
       text: 'Today is dressed. Open the look when you’ve worn it.',
       door: 'Open today’s look',
@@ -152,6 +179,7 @@ export function nextLine(
   step: {
     rule: 'start' | 'model' | 'five' | 'build' | 'wear' | 'week';
     remaining?: number;
+    count?: number;
     lookName?: string;
     presence?: 'woman' | 'man' | 'unspecified';
   } | null,
@@ -172,7 +200,10 @@ export function nextLine(
         door: { label: n.five.door, target: 'addPieces' },
       };
     case 'build':
-      return { text: n.build.text, door: { label: n.build.door, target: 'newLook' } };
+      return {
+        text: n.build.text(step.count ?? 5),
+        door: { label: n.build.door, target: 'newLook' },
+      };
     case 'wear':
       return { text: n.wear.text, door: { label: n.wear.door, target: 'todayLook' } };
     case 'week':
@@ -185,9 +216,12 @@ export const marketing = {
   title: 'Your wardrobe, styled.',
   subtitle: 'One piece. Three ways to wear it.',
   signIn: 'Sign in',
-  metaTitle: 'Robes · Your wardrobe, styled.',
+  metaTitle: 'Robes — Your Personal Stylist & Wardrobe Intelligence App',
   metaDescription:
-    'Photograph what you own. Robes dresses each piece three ways, plans the week and remembers what you wore.',
+    'Robes is your personal stylist. Edit what you own, rotate underused pieces, and discover key wardrobe pieces to complete a look.',
+  ogTitle: 'Robes — Your Personal Stylist & Wardrobe App',
+  ogDescription:
+    'A web-first wardrobe intelligence platform. Style the wardrobe you already own and curate personalized looks from a single prompt.',
   waitlist: {
     title: 'Join the waitlist.',
     body: 'Robes is opening slowly. Leave your email and we’ll let you in.',
@@ -198,6 +232,9 @@ export const marketing = {
     // The same answer whether or not the address was already listed (no enumeration).
     done: 'Check your email to confirm your place.',
     failed: 'Robes couldn’t add you just now. Try again in a moment.',
+    emailMissing: 'Please enter your email to join',
+    emailInvalid: 'Please enter a valid email address',
+    hint: '✦ Join today and style a key piece three ways — a small taste of Robes while you wait.',
     confirmEyebrow: 'Waitlist',
     confirmTitle: 'Confirm your place?',
     confirm: 'Confirm',
@@ -312,6 +349,51 @@ export const wardrobe = {
     removed: 'Removed from your wishlist.',
     remove: (label: string): string => `Remove ${label}`,
   },
+  // The one header (legacy a268ef0/809b13e): track + circle, category tabs, the 32pt count row.
+  header: {
+    addPiece: 'Add a piece',
+    savePiece: 'Save a piece',
+    categories: 'Categories',
+    all: 'All',
+    count: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+    wishCount: (n: number): string => `${n} wishlisted`,
+    filter: 'Filter',
+    layout: 'Layout',
+    grid: 'Grid',
+    list: 'List',
+  },
+  // The piece card (legacy b4b051a): eyebrow, serif name, status line, the star or Bought.
+  card: {
+    worn: (n: number): string => `Worn ${n}×`,
+    neverWorn: 'Never worn',
+    notYours: (price: string | null): string =>
+      price ? `${price} · Not yours yet` : 'Not yours yet',
+    star: (label: string): string => `Feature ${label} in your Hero Rack`,
+    unstar: (label: string): string => `Remove ${label} from your Hero Rack`,
+    starred: 'Saved to your Hero Rack.',
+    unstarred: 'Removed from your Hero Rack.',
+    heroFull: 'The Hero Rack holds ten. Remove one first.',
+    bought: 'Bought',
+    boughtLabel: (label: string): string => `I bought ${label}`,
+    swipeRemove: 'Remove',
+    addRow: 'Add a piece',
+    addHint: 'Photograph · Receipt · Link',
+    noPhoto: 'Photograph it',
+  },
+  filter: {
+    title: 'Filter',
+    season: 'Season',
+    seasons: {
+      spring_summer: 'Spring and summer',
+      autumn_winter: 'Autumn and winter',
+      year_round: 'All year',
+    },
+    show: (n: number): string => (n === 1 ? 'Show 1 piece' : `Show ${n} pieces`),
+    clear: 'Clear',
+    nothing: 'Nothing in your wardrobe here.',
+    wishNothing: 'Nothing on your wishlist here.',
+    showEverything: 'Show everything',
+  },
   edit: 'Edit',
   addFailed: 'Robes couldn’t add those photos. Try again in a moment.',
   photosDenied: 'Allow Robes to see your photos in Settings to add pieces.',
@@ -370,7 +452,9 @@ export const ui = {
   close: 'Close',
   dismiss: 'Dismiss',
   undo: 'Undo',
-  notifications: 'Notifications ({hotkey})',
+  notifications: 'Notifications',
+  // Radix fills {hotkey} in the viewport label only; the provider label is announced verbatim.
+  notificationsRegion: 'Notifications ({hotkey})',
   imagesReady: (done: number, total: number): string => `${done} of ${total} images ready`,
   progress: {
     reading: 'Reading your pieces…',
@@ -705,6 +789,62 @@ export const plan = {
   nextMonth: 'Next month',
   moreLooks: (n: number): string => `+${n} more`,
   tripBadge: 'Trip',
+  trips: 'Trips this month',
+  tripLine: (range: string, days: number): string =>
+    `${range} · ${days === 1 ? '1 day' : `${days} days`}`,
+  // The one header and the summary list (legacy ff87e89 + 809b13e).
+  header: {
+    add: 'Add a look',
+    window: (days: number): string => `The next ${days} days`,
+  },
+  list: {
+    thisWeek: 'This week',
+    restOfWeek: 'Rest of this week',
+    nameTheDay: 'Name the day',
+    looks: (n: number): string => (n === 1 ? '1 look' : `${n} looks`),
+    pieces: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+    open: (day: string): string => `Open ${day}`,
+  },
+  // The day page: the one door every day opens (legacy ff87e89).
+  day: {
+    back: (label: string): string => label,
+    rename: 'Rename the day',
+    name: 'Name the day',
+    nameLabel: 'The day’s name',
+    planned: 'Looks planned',
+    filed: 'Looks filed',
+    filedToday: 'Looks filed today',
+    stat: (looks: number, pieces: number): string =>
+      `${looks === 1 ? '1 look' : `${looks} looks`}${pieces ? ` · ${pieces === 1 ? '1 piece' : `${pieces} pieces`} filed` : ''}`,
+    lookEyebrow: (n: number): string => `Look ${n}`,
+    remove: (name: string): string => `Take ${name} off the day`,
+    addAnother: 'Add a look',
+    addAnotherHint: 'another moment in the day',
+    choose: 'Choose from your looks',
+    chooseHint: 'pick one or several',
+  },
+  // The Add-a-look picker: saved looks, one or several at once.
+  picker: {
+    eyebrow: (day: string): string => `Add a look · ${day}`,
+    title: 'What to wear?',
+    yourLooks: 'Your looks',
+    hint: 'Tap looks to add one or several',
+    add: (n: number): string => (n === 1 ? 'Add 1 look' : `Add ${n} looks`),
+    already: 'Already on this day',
+    neverWorn: 'Never worn',
+    lastWorn: (date: string): string => `Last worn ${date}`,
+    added: (n: number, day: string): string =>
+      n === 1 ? `Added to ${day}.` : `${n} looks added to ${day}.`,
+    emptyTitle: 'Nothing saved yet.',
+    emptyBody: 'Save a look you like and it can go on this day.',
+    toLooks: 'Go to Looks',
+  },
+  week: {
+    title: 'The week ahead',
+    plan: 'Plan',
+    day: (label: string, looks: number): string =>
+      looks === 0 ? `${label}, free` : `${label}, ${looks === 1 ? 'one look' : `${looks} looks`}`,
+  },
 } as const;
 
 // Public share page and the share action.
@@ -1145,9 +1285,143 @@ export const twin = {
 
 export { lookbook } from './lookbook';
 
+// Several pieces from one photograph (legacy 2026-10-13): the wardrobe add (use case 3) and a
+// look from a photo (use case 2b). One confirm pattern: a question and two answers per piece.
+const WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+const word = (n: number): string => WORDS[n - 1] ?? String(n);
+const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+const piecesWord = (n: number): string => (n === 1 ? 'piece' : 'pieces');
+
+export const photoPieces = {
+  door: {
+    title: 'Several pieces in one photo',
+    body: 'Robes finds every piece in it and asks about each.',
+    choose: 'Choose a photo',
+  },
+  reading: {
+    title: 'Reading your photo…',
+    body: 'One moment — Robes is finding the pieces.',
+  },
+  failed: 'Robes couldn’t read the pieces in that photo. Try again in a moment.',
+  none: 'Robes couldn’t see a piece in that photo.',
+  photoAlt: 'Your photo',
+  tag: (n: number, label: string): string => `Piece ${n}: ${label}`,
+  cards: 'Pieces in your photo',
+  saw: {
+    title: 'Here’s what Robes saw.',
+    body: (n: number): string =>
+      `${cap(word(n))} ${piecesWord(n)} in your photo. Confirm the ones to add; each is filed on its own.`,
+  },
+  answered: {
+    title: (toAdd: number, owned: number): string =>
+      `${toAdd ? `${cap(word(toAdd))} to add` : 'Nothing to add'}${owned ? `, ${word(owned)} already yours.` : '.'}`,
+    body: 'Every piece answered. The tags are gone from the photo.',
+  },
+  unlabelled: 'Unlabelled',
+  chip: { new: 'New', check: 'Check' },
+  ask: {
+    add: 'Add this one?',
+    yours: 'Already yours?',
+    yes: 'Yes',
+    skip: 'Skip',
+    addIt: 'No, add it',
+    mine: 'Already mine ›',
+  },
+  status: {
+    toAdd: 'To add',
+    skipped: 'Skipped',
+    owned: 'Already yours',
+    ownedPhoto: 'Already yours · photo added',
+    looksLikeYours: 'Looks like yours',
+    ownPhoto: ' · its own photo',
+  },
+  open: (n: number): string => `Open piece ${n}`,
+  cta: {
+    waiting: 'Add to wardrobe →',
+    add: (n: number): string => `Add ${n} ${piecesWord(n)} to wardrobe →`,
+    keepPhoto: 'Keep the photo →',
+    nothing: 'Nothing to add',
+    filing: 'Filing…',
+  },
+  fileFailed: 'Something went wrong filing those. Try again.',
+  piece: {
+    back: '‹ All pieces',
+    crumb: (n: number): string => `Piece ${n}`,
+    confirm: 'Add this piece',
+    nameFirst: 'Give the piece a name first — even “black leggings” will do.',
+  },
+  picker: {
+    title: 'Which piece is it?',
+    sub: 'From your wardrobe',
+    close: 'Close',
+  },
+  filed: {
+    title: (n: number): string =>
+      n ? `${cap(word(n))} ${piecesWord(n)}, filed.` : 'Nothing new to file.',
+    body: (n: number): string =>
+      n
+        ? 'Each one lives on its own in your wardrobe, cut from the same photo.'
+        : 'Every piece in the photo was already yours.',
+    tile: (category: string): string => `${category} · Just filed`,
+    owned: (label: string, added: boolean): string =>
+      `Your ${label.toLowerCase()} ${added ? 'kept the new photo.' : 'kept its own photo.'}`,
+    back: 'Back to wardrobe →',
+  },
+  look: {
+    start: {
+      title: 'Start with a photo',
+      body: 'Robes reads every piece in it, and asks about each.',
+      action: 'Add a photo',
+    },
+    reading: {
+      eyebrow: 'One moment',
+      title: 'Robes is finding the pieces.',
+      aside: 'The top, for a start.',
+    },
+    eyebrow: 'The look',
+    title: 'A look from a photo.',
+    head: (n: number): string => `The look · ${n} ${piecesWord(n)}`,
+    askMatch: (label: string): string => `Your ${label.toLowerCase()}?`,
+    askNew: 'Not in your rack. New?',
+    yes: 'Yes',
+    find: 'No, find it',
+    leaveOut: 'Leave it out',
+    ctxNew: 'Robes files it on save',
+    ctxMatch: (label: string): string => `Looks like the ${label.toLowerCase()}`,
+    newRow: 'New · filed on save',
+    remove: (label: string): string => `Take ${label} off the look`,
+    gate: (n: number): string =>
+      n === 1 ? 'One piece to confirm before you save.' : `${n} pieces to confirm before you save.`,
+    wearToday: 'Wearing it today, log it worn',
+    findTitle: (label: string): string => `Find the ${label.toLowerCase()}`,
+    findNone: 'None of these — it’s new',
+    findEmpty: 'Pick the piece it is',
+    findGo: (label: string): string => `It’s the ${label.toLowerCase()}`,
+    readFailed: 'Robes couldn’t read the pieces — the photo is kept, add them from your wardrobe.',
+    empty: 'Robes couldn’t see a piece in that photo — it is kept as the record.',
+    save: 'Save look',
+    saving: 'Filing the pieces…',
+    saveFailed: 'Robes couldn’t save that look. Try again.',
+  },
+} as const;
+
+// The key-piece result, "Worn three ways" (legacy 7dfc96c, the native design).
+export const keyPiece = {
+  eyebrowYours: 'Key piece · yours',
+  eyebrow: 'Key piece',
+  pill: (pieces: number, yours: number): string =>
+    `${pieces === 1 ? '1 piece' : `${pieces} pieces`}${yours ? ` · ${yours} yours` : ''}`,
+  open: (title: string): string => `See ${title} piece by piece`,
+  sheetLine: 'piece by piece.',
+  inWardrobe: '✓ In your wardrobe',
+  way: (n: number, total: number): string => `Look ${n} of ${total}`,
+  saved: 'Saved',
+} as const;
+
 export const copy = {
   lookbook,
   wardrobe,
+  photoPieces,
   errors,
   auth,
   emails,
@@ -1168,4 +1442,5 @@ export const copy = {
   share,
   notify,
   admin,
+  keyPiece,
 } as const;

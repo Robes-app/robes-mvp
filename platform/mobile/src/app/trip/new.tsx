@@ -1,10 +1,13 @@
 import { StackScreen } from '@/components/StackScreen';
 import { TripStart } from '@/features/trips/TripStart';
+import { FeatureGate } from '@/lib/features';
 
 export default function NewTripRoute() {
   return (
-    <StackScreen>
-      <TripStart />
-    </StackScreen>
+    <FeatureGate flag="trips">
+      <StackScreen>
+        <TripStart />
+      </StackScreen>
+    </FeatureGate>
   );
 }

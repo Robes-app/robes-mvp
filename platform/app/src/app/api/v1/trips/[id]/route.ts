@@ -7,6 +7,7 @@ import { loadTrip } from '@/server/trips';
 
 export const GET = route({
   auth: 'user',
+  flag: 'trips',
   input: EmptyInput,
   params: TripParams,
   output: Trip,
@@ -16,6 +17,7 @@ export const GET = route({
 // Soft delete; the client offers Undo via /restore (UX-15).
 export const DELETE = route({
   auth: 'user',
+  flag: 'trips',
   input: EmptyInput,
   params: TripParams,
   output: Deleted,

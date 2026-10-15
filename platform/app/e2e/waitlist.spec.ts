@@ -38,3 +38,34 @@ test('a forged confirmation link does nothing', async ({ page }) => {
   await page.goto('/waitlist/confirm?t=00000000-0000-4000-8000-000000000000.forged');
   await expect(page.getByText('This link doesn’t work any more.', { exact: false })).toBeVisible();
 });
+
+test('the waitlist asks for an email before it sends anything', async ({ page }) => {
+  let posted = false;
+  page.on('request', (r) => {
+    if (r.url().includes('/api/v1/public/waitlist')) posted = true;
+  });
+  await page.goto('/');
+  await expect(
+    page.getByText('Join today and style a key piece three ways', { exact: false }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Join' }).click();
+  await expect(page.getByText('Please enter your email to join', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Email')).toBeFocused();
+  await page.getByLabel('Email').fill('not-an-email');
+  await page.getByRole('button', { name: 'Join' }).click();
+  await expect(page.getByText('Please enter a valid email address', { exact: true })).toBeVisible();
+  expect(posted).toBe(false);
+});
+
+test('the landing page carries its search and sharing metadata', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle('Robes — Your Personal Stylist & Wardrobe Intelligence App');
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    'content',
+    /^https?:\/\/.+/,
+  );
+  const ld = JSON.parse(
+    (await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}',
+  );
+  expect(ld).toMatchObject({ '@type': 'SoftwareApplication', name: 'Robes' });
+});

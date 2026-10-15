@@ -53,6 +53,19 @@ export const ICONS = {
   undo: ['M9 14 4 9l5-5', 'M4 9h10a6 6 0 0 1 0 12h-3'],
   more: ['M6 12h.01M12 12h.01M18 12h.01'],
   alert: ['M12 3 2.5 20h19L12 3z', 'M12 10v4M12 17h.01'],
+  star: ['M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z'],
+  filter: ['M4 7h16M7 12h10M10 17h4'],
+  grid: ['M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'],
+  list: ['M4 6h16M4 12h16M4 18h16'],
+  pencil: ['M4 20h4L19 9l-4-4L4 16v4z', 'M13.5 6.5l4 4'],
+  thumbsUp: [
+    'M7 11v9H4v-9h3z',
+    'M7 11l4-7a2 2 0 0 1 2 2.5L12.5 10H18a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7',
+  ],
+  thumbsDown: [
+    'M7 13V4H4v9h3z',
+    'M7 13l4 7a2 2 0 0 0 2-2.5L12.5 14H18a2 2 0 0 0 2-2.3l-1.2-6A2 2 0 0 0 16.8 4H7',
+  ],
   // The look surfaces: ♡ a proposal to the wishlist, ↻ swap or re-style, the prompt's send arrow.
   heart: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
   swap: ['M20 12a8 8 0 1 1-2.35-5.65', 'M20 4v5h-5'],

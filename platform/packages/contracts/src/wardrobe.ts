@@ -42,6 +42,8 @@ export const Piece = z.object({
   currency: z.string().nullable(),
   size: z.string().nullable(),
   image: PieceImage.nullable(),
+  // Times worn (the status line: "Worn 6×" / "Never worn"); defaulted across version skew.
+  wearCount: z.number().int().min(0).default(0),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -58,7 +60,12 @@ export const ListPiecesInput = z.object({
 });
 export type ListPiecesInput = z.infer<typeof ListPiecesInput>;
 
-export const PiecePage = z.object({ items: z.array(Piece), nextCursor: z.string().nullable() });
+export const PiecePage = z.object({
+  items: z.array(Piece),
+  nextCursor: z.string().nullable(),
+  // Every piece matching the same filters (the count row), not just this page.
+  total: z.number().int().min(0).default(0),
+});
 export type PiecePage = z.infer<typeof PiecePage>;
 
 const editable = {
@@ -84,7 +91,12 @@ export const CreatePieceInput = z.object(editable).partial().extend({
 export type CreatePieceInput = z.infer<typeof CreatePieceInput>;
 
 export const UpdatePieceInput = z
-  .object({ ...editable, heroPosition: z.number().int().min(1).max(10).nullable() })
+  .object({
+    ...editable,
+    heroPosition: z.number().int().min(1).max(10).nullable(),
+    // The star: on takes the Hero Rack's first free place (409 when all ten are taken).
+    hero: z.boolean(),
+  })
   .partial();
 export type UpdatePieceInput = z.infer<typeof UpdatePieceInput>;
 
@@ -156,3 +168,10 @@ export type CreateWishInput = z.infer<typeof CreateWishInput>;
 
 export const UpdateWishInput = z.object(wishEditable).partial();
 export type UpdateWishInput = z.infer<typeof UpdateWishInput>;
+
+// The wardrobe's category tabs: how many pieces she has in each.
+export const WardrobeSummary = z.object({
+  total: z.number().int().min(0),
+  categories: z.array(z.object({ category: LEGACY_CATEGORY, count: z.number().int().min(1) })),
+});
+export type WardrobeSummary = z.infer<typeof WardrobeSummary>;

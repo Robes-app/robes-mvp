@@ -6,6 +6,7 @@ export { createFakeHandler } from './handlers/fake';
 export { LinkImportInput } from './handlers/link-import';
 export { StyleAnalyseInput } from './handlers/style-analyse';
 export { StylePieceInput } from './handlers/style-piece';
+export type { StoredReadPiece } from './handlers/wardrobe-pieces';
 export {
   checkUrl,
   FetchRefused,

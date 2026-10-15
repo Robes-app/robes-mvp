@@ -56,12 +56,15 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await page.getByRole('button', { name: 'Add to Plan' }).click();
   await expect(page.getByText('Added to Plan.', { exact: true })).toBeVisible();
 
+  // The plan lists summary rows; the row opens the day page, where the day is named and edited.
   await page.goto('/plan');
-  const day = page.getByRole('listitem', { name: 'Tomorrow' });
-  await expect(day.getByRole('link', { name: 'Camel coat, styled' })).toBeVisible();
+  await page.getByRole('link', { name: /Camel coat, styled$/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/plan/${tomorrow}$`));
   expect(await seriousViolations(page)).toEqual([]);
-  await day.getByLabel(/^What’s on/).fill('Gallery opening');
-  await day.getByLabel(/^What’s on/).press('Enter');
+  await page.getByRole('button', { name: 'Rename the day' }).click();
+  await page.getByLabel('The day’s name').fill('Gallery opening');
+  await page.getByLabel('The day’s name').press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: 'Gallery opening' })).toBeVisible();
   await expect
     .poll(async () => {
       const plan = await (await page.request.get(`/api/v1/plan?from=${tomorrow}&days=1`)).json();
@@ -69,10 +72,10 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     })
     .toBe('Gallery opening');
 
-  await day.getByRole('button', { name: 'Take Camel coat, styled off this day' }).click();
-  await expect(day.getByRole('link', { name: 'Camel coat, styled' })).toBeHidden();
+  await page.getByRole('button', { name: 'Take Camel coat, styled off the day' }).click();
+  await expect(page.getByRole('link', { name: /Camel coat, styled/ })).toBeHidden();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(day.getByRole('link', { name: 'Camel coat, styled' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Camel coat, styled/ })).toBeVisible();
 
   await page.goto('/looks');
   await expect(page.getByRole('link', { name: 'Camel coat, styled' })).toBeVisible();

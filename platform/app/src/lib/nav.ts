@@ -1,3 +1,4 @@
+import type { Features } from '@robes/contracts';
 import { lookbook, nav, shell, wardrobe, you } from '@robes/copy';
 import type { IconName } from '@robes/icons/web';
 
@@ -58,6 +59,11 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
     keywords: 'travel pack',
   },
 ];
+
+// Flagged doors leave the sheet and ⌘K while their feature is off (trips: legacy 2eacfb4).
+export function createItems(features: Features): readonly CreateItem[] {
+  return CREATE_ITEMS.filter((i) => i.id !== 'trip' || features.trips);
+}
 
 export const SOON_TITLES: Record<SoonSlug, string> = {
   receipt: shell.create.receipt,

@@ -13,10 +13,14 @@ import * as styleBrief from '@robes/ai/prompts/style-brief';
 import * as stylePiece from '@robes/ai/prompts/style-piece';
 import * as travel from '@robes/ai/prompts/travel';
 import * as wardrobeAnalyse from '@robes/ai/prompts/wardrobe-analyse';
+import * as wardrobePieces from '@robes/ai/prompts/wardrobe-pieces';
 
 // Every prompt module's offline fixture, so dev without a Gemini key runs every job end to end.
 const FAKE_FIXTURES: Record<string, FakeFixture> = {
   [wardrobeAnalyse.FEATURE]: () => wardrobeAnalyse.fakeOutput(),
+  // The trainers match the first shoes in her numbered closet.
+  [wardrobePieces.FEATURE]: (req) =>
+    wardrobePieces.fakeOutput(wardrobePieces.closetCategoriesIn(req.user)),
   // Owned pieces by index when the prompt lists a closet (counts the numbered closet lines).
   [daily.FEATURE]: (req) => daily.fakeOutput((req.system.match(/^\d+: /gm) ?? []).length),
   // Plans are the system prompt's "- label" lines under HER PLANS; the closet is indexed lines.

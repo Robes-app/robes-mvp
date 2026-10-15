@@ -42,6 +42,24 @@ export interface PieceFields {
   size?: string | null;
 }
 
+export interface ReadPieceRow {
+  sourceIndex: number;
+  label: string;
+  category: string;
+  categoryL2: string | null;
+  categoryL3: string | null;
+  color: string | null;
+  brand: string | null;
+  notes: string | null;
+  price: number | null;
+  currency: string | null;
+  size: string | null;
+  itemDna: Record<string, unknown>;
+  imageAssetId: string | null;
+  // Set when she chose it on the single-piece screen.
+  seasonBand?: SeasonBand | undefined;
+}
+
 export interface ListPiecesQuery {
   limit: number;
   // Opaque cursor from the previous page: `${createdAt ISO}|${id}`.
@@ -117,6 +135,74 @@ export function wardrobeRepo(db: Db) {
         .executeTakeFirstOrThrow();
     },
 
+    // Pieces filed from a photo read: one per (photo, piece index), so a retried filing returns
+    // the pieces already made instead of filing them twice.
+    async createFromRead(userId: UserId, sourceAssetId: string, pieces: readonly ReadPieceRow[]) {
+      if (pieces.length === 0) return [];
+      return db.transaction().execute(async (trx) => {
+        await trx
+          .insertInto('wardrobeItems')
+          .values(
+            pieces.map((p): Insertable<WardrobeItems> => {
+              const tax = p.categoryL2 ? resolveTaxonomy(p.categoryL2, p.categoryL3) : null;
+              return {
+                userId,
+                label: p.label,
+                category: tax?.category ?? p.category,
+                categoryL2: tax?.categoryL2 ?? null,
+                categoryL3: tax?.categoryL3 ?? null,
+                color: p.color,
+                brand: p.brand,
+                notes: p.notes,
+                price: p.price,
+                currency: p.currency,
+                size: p.size,
+                itemDna: JSON.stringify(p.itemDna),
+                imageAssetId: p.imageAssetId,
+                status: 'ready',
+                acquiredVia: 'photo',
+                sourceAssetId,
+                sourceIndex: p.sourceIndex,
+                ...(p.seasonBand ? { seasonBand: p.seasonBand, seasonSource: 'user' } : {}),
+              };
+            }),
+          )
+          .onConflict((oc) =>
+            oc
+              .columns(['userId', 'sourceAssetId', 'sourceIndex'])
+              .where('sourceAssetId', 'is not', null)
+              .where('deletedAt', 'is', null)
+              .doNothing(),
+          )
+          .execute();
+        return trx
+          .selectFrom('wardrobeItems')
+          .select([...PIECE_COLUMNS, 'sourceIndex'])
+          .where('userId', '=', userId)
+          .where('sourceAssetId', '=', sourceAssetId)
+          .where(
+            'sourceIndex',
+            'in',
+            pieces.map((p) => p.sourceIndex),
+          )
+          .where('deletedAt', 'is', null)
+          .execute();
+      });
+    },
+
+    // A piece she owns, photographed for the first time, takes the crop; one with a photo keeps it.
+    async adoptPhoto(userId: UserId, id: string, assetId: string): Promise<boolean> {
+      const res = await db
+        .updateTable('wardrobeItems')
+        .set({ imageAssetId: assetId })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('imageAssetId', 'is', null)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
+    },
+
     async update(userId: UserId, id: string, fields: PieceFields) {
       const values = withTaxonomy(fields);
       if (Object.keys(values).length === 0) return this.get(userId, id);
@@ -175,6 +261,18 @@ export function wardrobeRepo(db: Db) {
       });
     },
 
+    // The Hero Rack's first free position (1–10), or null when all ten are taken.
+    async nextHeroPosition(userId: UserId): Promise<number | null> {
+      const taken = await active()
+        .select('heroPosition')
+        .where('userId', '=', userId)
+        .where('heroPosition', 'is not', null)
+        .execute();
+      const used = new Set(taken.map((r) => r.heroPosition));
+      for (let p = 1; p <= 10; p++) if (!used.has(p)) return p;
+      return null;
+    },
+
     // Batch idempotency: pieces already made from these photos.
     byImageAssets(userId: UserId, assetIds: readonly string[]) {
       if (assetIds.length === 0) return Promise.resolve([]);
@@ -201,6 +299,39 @@ export function wardrobeRepo(db: Db) {
         .where('userId', '=', userId)
         .executeTakeFirst();
       return Number(row?.n ?? 0);
+    },
+
+    // The wardrobe's count row: every piece matching the same filters as `list`.
+    async countMatching(userId: UserId, q: Omit<ListPiecesQuery, 'limit' | 'cursor'>) {
+      let query = active()
+        .select((eb) => eb.fn.countAll<string>().as('n'))
+        .where('userId', '=', userId);
+      if (q.category) query = query.where('category', '=', q.category);
+      if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
+      if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
+      const row = await query.executeTakeFirst();
+      return Number(row?.n ?? 0);
+    },
+
+    // The category tabs: how many pieces she has in each category.
+    async categoryCounts(userId: UserId): Promise<{ category: string; count: number }[]> {
+      const rows = await active()
+        .select(['category', (eb) => eb.fn.countAll<string>().as('n')])
+        .where('userId', '=', userId)
+        .groupBy('category')
+        .execute();
+      return rows.map((r) => ({ category: r.category, count: Number(r.n) }));
+    },
+
+    // Times each piece was worn (a wear records the pieces of the look that day).
+    async wearCounts(userId: UserId, pieceIds: readonly string[]): Promise<Map<string, number>> {
+      if (pieceIds.length === 0) return new Map();
+      const rows = await sql<{ pieceId: string; n: string }>`
+        select p.id as piece_id, count(*) as n
+        from app.wears w cross join lateral unnest(w.piece_ids) as p(id)
+        where w.user_id = ${userId} and p.id = any(${sql.val([...pieceIds])}::uuid[])
+        group by p.id`.execute(db);
+      return new Map(rows.rows.map((r) => [r.pieceId, Number(r.n)]));
     },
   };
 }

@@ -10,6 +10,7 @@ import Plan from '../src/app/(tabs)/plan';
 import Wardrobe from '../src/app/(tabs)/wardrobe';
 import Create from '../src/app/create';
 import Soon from '../src/app/soon';
+import NewTrip from '../src/app/trip/new';
 import YouIndex from '../src/app/you/index';
 import { ME, mockFetch, newQueryClient } from './support/api';
 import { Providers } from './support/providers';
@@ -25,7 +26,7 @@ jest.mock('../src/lib/auth-client', () => ({
 
 // RNTL 14 renders asynchronously: renderRouter returns the render promise with the router
 // helpers attached, so await it before asserting.
-async function app() {
+async function app(initialUrl = '/') {
   const queryClient = newQueryClient();
   const router = renderRouter(
     {
@@ -47,11 +48,12 @@ async function app() {
       '(tabs)/plan': Plan,
       create: Create,
       soon: Soon,
+      'trip/new': NewTrip,
       'you/index': YouIndex,
       'sign-in': () => <Text>sign-in screen</Text>,
       'onboarding/index': () => <Text>onboarding screen</Text>,
     },
-    { initialUrl: '/' },
+    { initialUrl },
   );
   await router;
   // Returning the thenable itself from an async function would unwrap it.
@@ -60,6 +62,7 @@ async function app() {
 
 const ROUTES = {
   'GET /me': ME,
+  'GET /me/features': { trips: false },
   'GET /today': {
     date: '2026-10-01',
     hour: 9,
@@ -123,4 +126,28 @@ test('the avatar opens You', async () => {
   await fireEvent.press(screen.getByRole('radio', { name: twin.tabs.account }));
   expect(screen.getByRole('button', { name: you.account.title })).toBeTruthy();
   expect(screen.getByText(you.deletion.title)).toBeTruthy();
+});
+
+test('trips are hidden by default: no Create door, and a deep link lands on Today', async () => {
+  mockSession = { data: { user: { id: ME.id } }, isPending: false };
+  mockFetch(ROUTES);
+  const router = await app();
+  await screen.findByText(/, Niall\.$/);
+  await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
+  await waitFor(() => expect(router.getPathname()).toBe('/create'));
+  await screen.findByText(shell.create.photograph);
+  expect(screen.queryByText(shell.create.planTrip)).toBeNull();
+
+  const deep = await app('/trip/new');
+  await waitFor(() => expect(deep.getPathname()).toBe('/'));
+});
+
+test('with trips on, Create offers Plan a trip', async () => {
+  mockSession = { data: { user: { id: ME.id } }, isPending: false };
+  mockFetch({ ...ROUTES, 'GET /me/features': { trips: true } });
+  const router = await app();
+  await screen.findByText(/, Niall\.$/);
+  await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
+  await waitFor(() => expect(router.getPathname()).toBe('/create'));
+  expect(await screen.findByText(shell.create.planTrip)).toBeTruthy();
 });

@@ -1,18 +1,28 @@
 'use client';
 
+import type { Features } from '@robes/contracts';
 import { marketing, nav, shell } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
 import { Avatar, type Command, CommandBar, IconButton, Sheet, useCommandHotkey } from '@robes/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
-import { activeRoot, CREATE_ITEMS, GO_TO_ITEMS, NAV_ITEMS } from '@/lib/nav';
+import { activeRoot, createItems, GO_TO_ITEMS, NAV_ITEMS } from '@/lib/nav';
+import { FeaturesProvider } from '../features';
 
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // Signed-in chrome: top nav ≥768, tab bar below, Create sheet and ⌘K everywhere (IA §3.2).
-export function AppShell({ name, children }: { name: string; children: ReactNode }) {
+export function AppShell({
+  name,
+  features,
+  children,
+}: {
+  name: string;
+  features: Features;
+  children: ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
@@ -20,6 +30,7 @@ export function AppShell({ name, children }: { name: string; children: ReactNode
   const toggleCommand = useCallback(() => setCommandOpen((o) => !o), []);
   useCommandHotkey(toggleCommand);
   const current = activeRoot(pathname);
+  const create = useMemo(() => createItems(features), [features]);
 
   const commands = useMemo<Command[]>(
     () => [
@@ -29,7 +40,7 @@ export function AppShell({ name, children }: { name: string; children: ReactNode
         group: shell.command.groupGo,
         onSelect: () => router.push(i.href),
       })),
-      ...CREATE_ITEMS.map((i) => ({
+      ...create.map((i) => ({
         id: `create:${i.id}`,
         label: i.label,
         group: shell.command.groupCreate,
@@ -37,7 +48,7 @@ export function AppShell({ name, children }: { name: string; children: ReactNode
         onSelect: () => router.push(i.href),
       })),
     ],
-    [router],
+    [router, create],
   );
 
   return (
@@ -101,7 +112,7 @@ export function AppShell({ name, children }: { name: string; children: ReactNode
       </header>
 
       <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-28 md:pb-16">
-        {children}
+        <FeaturesProvider value={features}>{children}</FeaturesProvider>
       </main>
 
       <nav
@@ -130,7 +141,7 @@ export function AppShell({ name, children }: { name: string; children: ReactNode
 
       <Sheet title={shell.create.title} open={createOpen} onOpenChange={setCreateOpen}>
         <ul className="flex flex-col">
-          {CREATE_ITEMS.map((item) => (
+          {create.map((item) => (
             <li key={item.id}>
               <Link
                 href={item.href}

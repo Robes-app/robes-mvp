@@ -1,20 +1,12 @@
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
-import { CLI_ENV } from './env';
-import { declineConsent, isolateClientIp, seriousViolations, signIn, uniqueEmail } from './helpers';
-
-const PLATFORM = fileURLToPath(new URL('../..', import.meta.url));
-
-// The documented way to make someone an admin locally (docs/DEVELOPING.md → Admin).
-function grantAdmin(email: string): void {
-  execFileSync('pnpm', ['--filter', '@robes/db', 'admin:grant', email], {
-    cwd: PLATFORM,
-    stdio: 'pipe',
-    // The e2e server's database, not app/.env.local's (ROBES_DB_NAME worktrees).
-    env: CLI_ENV,
-  });
-}
+import {
+  declineConsent,
+  grantAdmin,
+  isolateClientIp,
+  seriousViolations,
+  signIn,
+  uniqueEmail,
+} from './helpers';
 
 const ADMIN_API: [string, string][] = [
   ['GET', '/api/v1/admin/users'],

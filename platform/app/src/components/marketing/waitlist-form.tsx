@@ -1,13 +1,23 @@
 'use client';
 
 import { marketing } from '@robes/copy';
-import { Button, Field, Heading, Text } from '@robes/ui';
+import { Button, Field, Heading, Text, useToast } from '@robes/ui';
 import Script from 'next/script';
 import { type FormEvent, useState } from 'react';
 import { api } from '@/lib/api';
 
 const copy = marketing.waitlist;
 const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+
+const EMAIL_SHAPE = /.+@.+\..+/;
+
+// Legacy landing (main 98ffb4b): a missing or malformed address is a toast, not a silent no.
+export function emailProblem(value: string): string | null {
+  const email = value.trim();
+  if (!email) return copy.emailMissing;
+  if (!EMAIL_SHAPE.test(email)) return copy.emailInvalid;
+  return null;
+}
 
 function utmFromUrl(): Record<string, string> {
   const params = new URLSearchParams(window.location.search);
@@ -18,11 +28,18 @@ function utmFromUrl(): Record<string, string> {
 
 // SEC-60 waitlist: Turnstile when configured; the same thank-you whatever the server knows.
 export function WaitlistForm({ siteKey, nonce }: { siteKey: string | null; nonce: string | null }) {
+  const toast = useToast();
   const [state, setState] = useState<'idle' | 'sending' | 'done' | 'failed'>('idle');
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const problem = emailProblem(String(form.get('email') ?? ''));
+    if (problem) {
+      toast({ message: problem });
+      event.currentTarget.querySelector<HTMLInputElement>('input[name="email"]')?.focus();
+      return;
+    }
     setState('sending');
     try {
       await api.call('public.waitlist.join', {
@@ -47,7 +64,7 @@ export function WaitlistForm({ siteKey, nonce }: { siteKey: string | null; nonce
         {copy.title}
       </Heading>
       <Text tone="muted">{copy.body}</Text>
-      <form onSubmit={onSubmit} className="flex flex-col gap-3">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-3">
         <Field label={copy.emailLabel} name="email" type="email" autoComplete="email" required />
         <Field label={copy.nameLabel} name="name" autoComplete="given-name" maxLength={120} />
         {siteKey ? (
@@ -70,6 +87,9 @@ export function WaitlistForm({ siteKey, nonce }: { siteKey: string | null; nonce
           {state === 'sending' ? copy.submitting : copy.submit}
         </Button>
       </form>
+      <Text size="small" tone="muted" className="max-w-md">
+        {copy.hint}
+      </Text>
     </section>
   );
 }
