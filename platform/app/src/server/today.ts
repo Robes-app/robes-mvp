@@ -4,6 +4,7 @@ import { Today } from '@robes/contracts';
 import { nextStep } from '@robes/core/next-step';
 import type { UserId } from '@robes/db';
 import { repos } from './db';
+import { isFlagEnabled } from './flags';
 import { toJobSnapshot } from './jobs';
 import { toIdeas } from './looks';
 import { loadPlan, todayIn } from './plan';
@@ -25,6 +26,7 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
   const profile = await repos.profiles.get(userId);
   if (!profile) throw new ApiError('not_found');
   const date = todayIn(profile.timezone, now);
+  const tripsOn = await isFlagEnabled('trips');
   const [plan, readyPieces, looks, worn, jobs, ideaRows, inboxCount, overnight, hasModel, newest] =
     await Promise.all([
       loadPlan(userId, date, 7),
@@ -36,7 +38,7 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
         'daily',
         'look_render',
         'stylenotes_analyse',
-        'travel',
+        ...(tripsOn ? (['travel'] as const) : []),
       ]),
       repos.ideas.list(userId, 3),
       repos.inbox.countHeld(userId),

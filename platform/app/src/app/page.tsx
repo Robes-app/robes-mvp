@@ -8,6 +8,7 @@ import { WaitlistForm } from '@/components/marketing/waitlist-form';
 import { AppShell } from '@/components/shell/app-shell';
 import { TodayView } from '@/components/today/today-view';
 import { env } from '@/server/env';
+import { clientFeatures } from '@/server/flags';
 import { currentProfile, displayName } from '@/server/session';
 import { loadToday } from '@/server/today';
 
@@ -69,7 +70,7 @@ export default async function Home() {
   if (!profile.onboardedAt) redirect('/onboarding');
 
   return (
-    <AppShell name={displayName(profile)}>
+    <AppShell name={displayName(profile)} features={await clientFeatures()}>
       <TodayView initial={await loadToday(profile.userId)} />
     </AppShell>
   );

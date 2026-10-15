@@ -1,4 +1,5 @@
 import 'server-only';
+import type { Features } from '@robes/contracts';
 import type { FeatureFlag } from '@robes/core';
 import { repos } from './db';
 
@@ -17,4 +18,9 @@ export async function isFlagEnabled(key: string): Promise<boolean> {
 // After an admin toggle, so this instance doesn't serve the old value for the rest of the TTL.
 export function invalidateFlag(key: string): void {
   cache.delete(key);
+}
+
+// What GET /me/features answers; server pages read it directly.
+export async function clientFeatures(): Promise<Features> {
+  return { trips: await isFlagEnabled('trips') };
 }

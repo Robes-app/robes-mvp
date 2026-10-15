@@ -82,6 +82,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 |---|---|---|
 | `GET /me` | client REST `profiles` | profile + style summary + entitlements + flags |
 | `PATCH /me` | client REST PATCH `profiles` | only user-writable fields |
+| `GET /me/features` | `_RB_TRIP_HIDDEN`, `?trip=on` | the flagged doors clients show (`trips`); flags stay server-side |
 | `POST /me/onboarding/complete` | client writes `onboarded_at` | server sets |
 | `GET/PATCH /me/preferences` | notification_prefs, avatar_prefs, localStorage state | incl. `user_ui_state` |
 | `POST /me/push-tokens`, `DELETE /me/push-tokens/:id` | — | native |

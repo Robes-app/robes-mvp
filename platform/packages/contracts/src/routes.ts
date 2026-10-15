@@ -50,6 +50,7 @@ import {
   DataExportStatus,
   DeletionRequest,
   DeletionStatus,
+  Features,
   Me,
   Model,
   OnboardingComplete,
@@ -142,6 +143,13 @@ export const routes = {
   },
   'me.get': { method: 'GET', path: '/me', auth: 'user', input: EmptyInput, output: Me },
   'me.update': { method: 'PATCH', path: '/me', auth: 'user', input: UpdateMeInput, output: Me },
+  'me.features': {
+    method: 'GET',
+    path: '/me/features',
+    auth: 'user',
+    input: EmptyInput,
+    output: Features,
+  },
   'me.onboarding.complete': {
     method: 'POST',
     path: '/me/onboarding/complete',

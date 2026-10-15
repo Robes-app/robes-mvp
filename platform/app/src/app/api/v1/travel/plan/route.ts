@@ -6,6 +6,7 @@ import { planTrip } from '@/server/trips';
 // Plan a trip: starts the travel job; progress streams from /jobs/:id/events.
 export const POST = route({
   auth: 'user',
+  flag: 'trips',
   input: PlanTripInput,
   output: StartJobOutput,
   status: 202,

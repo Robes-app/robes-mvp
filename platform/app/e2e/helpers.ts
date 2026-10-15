@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { type BrowserContext, expect, type Page } from '@playwright/test';
 import { latestCodeFor } from './mailpit';
 
@@ -70,4 +72,14 @@ export async function declineConsent(page: Page): Promise<void> {
     .getByRole('button', { name: 'Don’t allow' })
     .click();
   await expect(page.getByRole('region', { name: 'Help shape Robes.' })).toHaveCount(0);
+}
+
+const PLATFORM = fileURLToPath(new URL('../..', import.meta.url));
+
+// The documented way to make someone an admin locally (docs/DEVELOPING.md → Admin).
+export function grantAdmin(email: string): void {
+  execFileSync('pnpm', ['--filter', '@robes/db', 'admin:grant', email], {
+    cwd: PLATFORM,
+    stdio: 'pipe',
+  });
 }

@@ -47,7 +47,6 @@ test('every shell route renders its heading', async ({ page }) => {
     ['/you/style', 'Your colours and shape'],
     ['/you/model', 'Your model.'],
     ['/looks/new', 'Pick the pieces.'],
-    ['/trip/new', 'Where to?'],
     ['/legal/terms', 'Terms'],
   ];
   for (const [path, heading] of routes) {
@@ -71,7 +70,12 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Create' }).click();
   const sheet = page.getByRole('dialog', { name: 'Create' });
-  await expect(sheet.getByRole('link')).toHaveText([
+  await expect(sheet.getByRole('link').first()).toBeVisible();
+  // trips.spec flips the trips flag mid-run and pins its door itself.
+  const options = (await sheet.getByRole('link').allTextContents()).filter(
+    (t) => t !== 'Plan a trip',
+  );
+  expect(options).toEqual([
     'Photograph pieces',
     'From camera roll',
     'Style a piece',
@@ -79,7 +83,6 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
     'Forward a receipt',
     'New look',
     'Ask Robes',
-    'Plan a trip',
   ]);
   await sheet.getByRole('link', { name: 'Forward a receipt' }).click();
   await expect(page.getByRole('heading', { name: 'On its way.' })).toBeVisible();

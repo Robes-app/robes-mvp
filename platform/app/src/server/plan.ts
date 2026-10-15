@@ -2,6 +2,7 @@ import 'server-only';
 import { type Plan, PlanEntry } from '@robes/contracts';
 import type { UserId } from '@robes/db';
 import { repos } from './db';
+import { isFlagEnabled } from './flags';
 import { toLooks } from './looks-entity';
 
 type EntryRow = NonNullable<Awaited<ReturnType<typeof repos.plan.get>>>;
@@ -44,9 +45,18 @@ export async function toEntries(userId: UserId, rows: EntryRow[]): Promise<PlanE
   });
 }
 
+// While trips are hidden their placed looks stay in the database but off every plan read (2eacfb4).
+export function withoutTripLooks(entries: PlanEntry[], tripsOn: boolean): PlanEntry[] {
+  return tripsOn ? entries : entries.filter((e) => e.look.source !== 'travel');
+}
+
 export async function loadPlan(userId: UserId, from: string, days: number): Promise<Plan> {
   const to = addDays(from, days - 1);
-  const entries = await toEntries(userId, await repos.plan.range(userId, from, to));
+  const [rows, tripsOn] = await Promise.all([
+    repos.plan.range(userId, from, to),
+    isFlagEnabled('trips'),
+  ]);
+  const entries = withoutTripLooks(await toEntries(userId, rows), tripsOn);
   return {
     from,
     to,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeRoot, CREATE_ITEMS, GO_TO_ITEMS, NAV_ITEMS, SOON_SLUGS } from './nav';
+import { activeRoot, CREATE_ITEMS, createItems, GO_TO_ITEMS, NAV_ITEMS, SOON_SLUGS } from './nav';
 
 describe('nav', () => {
   it('has the four roots in IA order', () => {
@@ -16,6 +16,11 @@ describe('nav', () => {
   it('has unique command ids and destinations', () => {
     expect(new Set(CREATE_ITEMS.map((i) => i.id)).size).toBe(CREATE_ITEMS.length);
     expect(new Set(GO_TO_ITEMS.map((i) => i.href)).size).toBe(GO_TO_ITEMS.length);
+  });
+
+  it('drops the trip door while trips are hidden', () => {
+    expect(createItems({ trips: false }).map((i) => i.id)).not.toContain('trip');
+    expect(createItems({ trips: true }).map((i) => i.id)).toContain('trip');
   });
 
   it('marks the owning root for nested pages', () => {

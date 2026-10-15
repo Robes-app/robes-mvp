@@ -26,6 +26,10 @@ export const Me = z.object({
 });
 export type Me = z.infer<typeof Me>;
 
+// Which flagged doors her clients show (GET /me/features); flags themselves stay server-side.
+export const Features = z.object({ trips: z.boolean() });
+export type Features = z.infer<typeof Features>;
+
 export const UpdateMeInput = z
   .object({
     firstName: name.min(1),
