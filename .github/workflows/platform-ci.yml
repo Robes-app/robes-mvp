@@ -39,7 +39,11 @@ jobs:
       - run: pnpm --filter @robes/tokens build
       - run: pnpm typecheck
       - run: pnpm test
+      # Offline: check against the installed SDK's bundled versions, not Expo's latest patches
+      # (those can be hours old, younger than pnpm's minimumReleaseAge; Renovate brings them later).
       - run: pnpm --filter @robes/mobile expo:doctor
+        env:
+          EXPO_OFFLINE: '1'
       - run: pnpm --filter @robes/app build
 
   database:
