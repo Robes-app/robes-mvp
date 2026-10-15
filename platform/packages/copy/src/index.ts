@@ -785,6 +785,9 @@ export const plan = {
   nextMonth: 'Next month',
   moreLooks: (n: number): string => `+${n} more`,
   tripBadge: 'Trip',
+  trips: 'Trips this month',
+  tripLine: (range: string, days: number): string =>
+    `${range} · ${days === 1 ? '1 day' : `${days} days`}`,
   // The one header and the summary list (legacy ff87e89 + 809b13e).
   header: {
     add: 'Add a look',

@@ -63,3 +63,20 @@ describe('day planning', () => {
     ).toBeNull();
   });
 });
+
+describe('trip bands', () => {
+  it('runs a trip through its cells, rounding only its ends and heading each week', async () => {
+    const { tripBands } = await import('./index');
+    const grid = monthGrid('2026-10');
+    const bands = tripBands(
+      [{ id: 't1', destination: 'Lisbon', dateFrom: '2026-10-10', dateTo: '2026-10-13' }],
+      grid.cells,
+    );
+    expect([...bands.keys()]).toEqual(['2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13']);
+    expect(bands.get('2026-10-10')).toMatchObject({ first: true, last: false, head: true });
+    // 12 Oct is a Monday: the run continues on a new week row, headed again.
+    expect(bands.get('2026-10-12')).toMatchObject({ first: false, head: true });
+    expect(bands.get('2026-10-11')?.head).toBe(false);
+    expect(bands.get('2026-10-13')).toMatchObject({ last: true, range: '10–13 Oct' });
+  });
+});

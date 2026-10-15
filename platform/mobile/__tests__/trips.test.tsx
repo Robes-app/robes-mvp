@@ -164,6 +164,18 @@ test('the plan switches to a month and a day opens its page', async () => {
       };
     });
   mockFetch({
+    'GET /me/features': { trips: true },
+    'GET /trips': {
+      items: [
+        {
+          id: TRIP_ID,
+          destination: 'Lisbon',
+          dateFrom: '2026-10-14',
+          dateTo: '2026-10-16',
+          tripLabel: 'LISBON · OCTOBER',
+        },
+      ],
+    },
     'GET /plan': (_init: RequestInit, url: string) => {
       const u = new URL(url);
       const from = u.searchParams.get('from') ?? '2026-10-01';
@@ -181,4 +193,8 @@ test('the plan switches to a month and a day opens its page', async () => {
   const day = await screen.findByRole('button', { name: /, one look$/ });
   await fireEvent.press(day);
   expect(mockRouter.push).toHaveBeenCalledWith(expect.stringMatching(/^\/day\/\d{4}-\d{2}-15$/));
+  // With trips on, the month lists its trips under the grid (ff87e89) and draws their band.
+  const lisbon = await screen.findByRole('button', { name: /^Lisbon, 14–16 Oct · 3 days$/ });
+  await fireEvent.press(lisbon);
+  expect(mockRouter.push).toHaveBeenCalledWith(`/trip/${TRIP_ID}`);
 });

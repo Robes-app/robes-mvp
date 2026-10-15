@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { activeRoot, createItems, GO_TO_ITEMS, NAV_ITEMS } from '@/lib/nav';
+import { FeaturesProvider } from '../features';
 
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
@@ -111,7 +112,7 @@ export function AppShell({
       </header>
 
       <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-28 md:pb-16">
-        {children}
+        <FeaturesProvider value={features}>{children}</FeaturesProvider>
       </main>
 
       <nav

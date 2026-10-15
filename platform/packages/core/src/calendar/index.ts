@@ -127,3 +127,37 @@ export function daySummary(
     pieces: entries.reduce((n, e) => n + e.look.pieces.length, 0),
   };
 }
+
+export interface TripBand {
+  id: string;
+  title: string;
+  range: string;
+  // The run's outer ends round; the band bridges the gutters everywhere else.
+  first: boolean;
+  last: boolean;
+  // The first cell of the run in its week row: where the web writes the name and range.
+  head: boolean;
+}
+
+// The month's trip band lives in the cells (legacy 6ce2b0a/11337c3): one lane, the first trip wins.
+export function tripBands(
+  trips: ReadonlyArray<{ id: string; destination: string; dateFrom: string; dateTo: string }>,
+  cells: ReadonlyArray<string | null>,
+): Map<string, TripBand> {
+  const bands = new Map<string, TripBand>();
+  cells.forEach((date, i) => {
+    if (!date || bands.has(date)) return;
+    const trip = trips.find((t) => t.dateFrom <= date && date <= t.dateTo);
+    if (!trip) return;
+    const prev = i % 7 === 0 ? null : cells[i - 1];
+    bands.set(date, {
+      id: trip.id,
+      title: trip.destination,
+      range: rangeLabel(trip.dateFrom, trip.dateTo),
+      first: date === trip.dateFrom,
+      last: date === trip.dateTo,
+      head: date === trip.dateFrom || !prev || bands.get(prev)?.id !== trip.id,
+    });
+  });
+  return bands;
+}
