@@ -4,7 +4,7 @@ import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { uploadPhoto } from './upload';
 import { useJob } from './use-job';
 
@@ -24,6 +24,11 @@ export function usePhotoFiling(): {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const [filing, setFiling] = useState<Filing>({ phase: 'idle' });
+  // Each photograph is one attempt; a late answer for a photo she removed or replaced is dropped.
+  const attempt = useRef(0);
+  const settle = useCallback((n: number, next: Filing) => {
+    if (n === attempt.current) setFiling(next);
+  }, []);
   const jobId = filing.phase === 'reading' ? (filing.jobId ?? null) : null;
   const { job, connection } = useJob(jobId);
 
@@ -32,21 +37,25 @@ export function usePhotoFiling(): {
     const done = (job && isTerminalJobStatus(job.status)) || connection === 'unavailable';
     if (!done) return;
     const { preview, pieceId } = filing;
+    const n = attempt.current;
     void api
       .call('wardrobe.get', { params: { id: pieceId } })
       .then((piece) => {
         void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
-        setFiling(
+        settle(
+          n,
           piece.status === 'ready'
             ? { phase: 'filed', preview, piece }
             : { phase: piece.status === 'failed' ? 'none' : 'failed', preview },
         );
       })
-      .catch(() => setFiling({ phase: 'failed', preview }));
-  }, [api, queryClient, filing, job, connection]);
+      .catch(() => settle(n, { phase: 'failed', preview }));
+  }, [api, queryClient, filing, job, connection, settle]);
 
   const file = useCallback(
     async (photo: File) => {
+      attempt.current += 1;
+      const n = attempt.current;
       const preview = URL.createObjectURL(photo);
       setFiling({ phase: 'uploading', preview });
       try {
@@ -56,17 +65,27 @@ export function usePhotoFiling(): {
         const piece = batch.pieces[0];
         if (!piece) throw new Error('no_piece');
         if (piece.status === 'ready' || !made) {
-          setFiling({ phase: 'filed', preview, piece });
+          settle(n, { phase: 'filed', preview, piece });
           return;
         }
-        setFiling({ phase: 'reading', preview, pieceId: made.pieceId, jobId: made.jobId });
+        settle(n, { phase: 'reading', preview, pieceId: made.pieceId, jobId: made.jobId });
       } catch {
-        setFiling({ phase: 'failed', preview });
+        settle(n, { phase: 'failed', preview });
       }
     },
-    [api],
+    [api, settle],
   );
 
-  const reset = useCallback(() => setFiling({ phase: 'idle' }), []);
+  // Object URLs are revoked once the preview they back is gone.
+  const preview = filing.phase === 'idle' ? null : filing.preview;
+  useEffect(() => {
+    if (!preview) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [preview]);
+
+  const reset = useCallback(() => {
+    attempt.current += 1;
+    setFiling({ phase: 'idle' });
+  }, []);
   return { filing, file, reset };
 }

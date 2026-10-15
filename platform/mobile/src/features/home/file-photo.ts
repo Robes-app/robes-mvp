@@ -2,7 +2,7 @@ import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isTerminal } from '@/features/looks/ideas';
 import { PICKER_OPTIONS, type PickedPhoto, uploadPhoto } from '@/features/wardrobe/add-pieces';
 
@@ -40,6 +40,11 @@ export function usePhotoFiling(): {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const [filing, setFiling] = useState<Filing>({ phase: 'idle' });
+  // Each photograph is one attempt; a late answer for a photo she removed or replaced is dropped.
+  const attempt = useRef(0);
+  const settle = useCallback((n: number, next: Filing) => {
+    if (n === attempt.current) setFiling(next);
+  }, []);
   const jobId = filing.phase === 'reading' ? (filing.jobId ?? '') : '';
   const job = useApi(
     'jobs.get',
@@ -54,21 +59,25 @@ export function usePhotoFiling(): {
   useEffect(() => {
     if (filing.phase !== 'reading' || !filing.pieceId || !done) return;
     const { preview, pieceId } = filing;
+    const n = attempt.current;
     void api
       .call('wardrobe.get', { params: { id: pieceId } })
       .then((piece) => {
         void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
-        setFiling(
+        settle(
+          n,
           piece.status === 'ready'
             ? { phase: 'filed', preview, piece }
             : { phase: piece.status === 'failed' ? 'none' : 'failed', preview },
         );
       })
-      .catch(() => setFiling({ phase: 'failed', preview }));
-  }, [api, queryClient, filing, done]);
+      .catch(() => settle(n, { phase: 'failed', preview }));
+  }, [api, queryClient, filing, done, settle]);
 
   const file = useCallback(
     async (photo: PickedPhoto) => {
+      attempt.current += 1;
+      const n = attempt.current;
       const preview = photo.uri;
       setFiling({ phase: 'uploading', preview });
       try {
@@ -78,16 +87,19 @@ export function usePhotoFiling(): {
         const made = batch.jobs[0];
         if (!piece) throw new Error('no_piece');
         if (piece.status === 'ready' || !made) {
-          setFiling({ phase: 'filed', preview, piece });
+          settle(n, { phase: 'filed', preview, piece });
           return;
         }
-        setFiling({ phase: 'reading', preview, pieceId: made.pieceId, jobId: made.jobId });
+        settle(n, { phase: 'reading', preview, pieceId: made.pieceId, jobId: made.jobId });
       } catch {
-        setFiling({ phase: 'failed', preview });
+        settle(n, { phase: 'failed', preview });
       }
     },
-    [api],
+    [api, settle],
   );
-  const reset = useCallback(() => setFiling({ phase: 'idle' }), []);
+  const reset = useCallback(() => {
+    attempt.current += 1;
+    setFiling({ phase: 'idle' });
+  }, []);
   return { filing, file, reset };
 }
