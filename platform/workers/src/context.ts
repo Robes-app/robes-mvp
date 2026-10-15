@@ -192,6 +192,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
         appUrl: env.APP_URL,
         unsubSecret,
         logger,
+        tripsOn: () => createRepositories(db).flags.isEnabled('trips'),
         push: {
           sender: createExpoPushSender({ accessToken: await resolveExpoToken(env) }),
           tokens: system.pushDelivery,

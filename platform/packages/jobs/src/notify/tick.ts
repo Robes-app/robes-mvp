@@ -17,6 +17,8 @@ export interface NotifyDeps {
   pageSize?: number;
   // Optional second channel: Expo push to her active devices (PUSH_KINDS only).
   push?: { sender: PushSender; tokens: SystemRepositories['pushDelivery'] } | undefined;
+  // The trips flag; without it trips count as hidden (the launch default, legacy 2eacfb4).
+  tripsOn?: (() => Promise<boolean>) | undefined;
 }
 
 export function composeEmail(
@@ -131,6 +133,7 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
   // Wide enough for every timezone's "today" plus the week ahead.
   const utcToday = now.toISOString().slice(0, 10);
   const window = { from: addDays(utcToday, -1), to: addDays(utcToday, 9) };
+  const hideTravel = !((await deps.tripsOn?.()) ?? false);
   let afterId: string | undefined;
   for (;;) {
     const page = await deps.notifier.recipients({ afterId, limit: pageSize });
@@ -139,6 +142,7 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
     const raw = await deps.notifier.state(
       page.map((u) => u.id),
       window,
+      { hideTravel },
     );
     const ledger = groupBy(raw.ledger);
     const ideas = new Map(raw.ideas.map((i) => [i.userId, i]));
