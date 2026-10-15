@@ -924,8 +924,129 @@ export const trips = {
   },
 } as const;
 
+// Several pieces from one photograph (legacy 2026-10-13): the wardrobe add (use case 3) and a
+// look from a photo (use case 2b). One confirm pattern: a question and two answers per piece.
+const WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+const word = (n: number): string => WORDS[n - 1] ?? String(n);
+const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+const piecesWord = (n: number): string => (n === 1 ? 'piece' : 'pieces');
+
+export const photoPieces = {
+  door: {
+    title: 'Several pieces in one photo',
+    body: 'Robes finds every piece in it and asks about each.',
+    choose: 'Choose a photo',
+  },
+  reading: {
+    title: 'Reading your photo…',
+    body: 'One moment — Robes is finding the pieces.',
+  },
+  failed: 'Robes couldn’t read the pieces in that photo. Try again in a moment.',
+  none: 'Robes couldn’t see a piece in that photo.',
+  photoAlt: 'Your photo',
+  tag: (n: number, label: string): string => `Piece ${n}: ${label}`,
+  cards: 'Pieces in your photo',
+  saw: {
+    title: 'Here’s what Robes saw.',
+    body: (n: number): string =>
+      `${cap(word(n))} ${piecesWord(n)} in your photo. Confirm the ones to add; each is filed on its own.`,
+  },
+  answered: {
+    title: (toAdd: number, owned: number): string =>
+      `${toAdd ? `${cap(word(toAdd))} to add` : 'Nothing to add'}${owned ? `, ${word(owned)} already yours.` : '.'}`,
+    body: 'Every piece answered. The tags are gone from the photo.',
+  },
+  unlabelled: 'Unlabelled',
+  chip: { new: 'New', check: 'Check' },
+  ask: {
+    add: 'Add this one?',
+    yours: 'Already yours?',
+    yes: 'Yes',
+    skip: 'Skip',
+    addIt: 'No, add it',
+    mine: 'Already mine ›',
+  },
+  status: {
+    toAdd: 'To add',
+    skipped: 'Skipped',
+    owned: 'Already yours',
+    ownedPhoto: 'Already yours · photo added',
+    looksLikeYours: 'Looks like yours',
+    ownPhoto: ' · its own photo',
+  },
+  open: (n: number): string => `Open piece ${n}`,
+  cta: {
+    waiting: 'Add to wardrobe →',
+    add: (n: number): string => `Add ${n} ${piecesWord(n)} to wardrobe →`,
+    keepPhoto: 'Keep the photo →',
+    nothing: 'Nothing to add',
+    filing: 'Filing…',
+  },
+  fileFailed: 'Something went wrong filing those. Try again.',
+  piece: {
+    back: '‹ All pieces',
+    crumb: (n: number): string => `Piece ${n}`,
+    confirm: 'Add this piece',
+    nameFirst: 'Give the piece a name first — even “black leggings” will do.',
+  },
+  picker: {
+    title: 'Which piece is it?',
+    sub: 'From your wardrobe',
+    close: 'Close',
+  },
+  filed: {
+    title: (n: number): string =>
+      n ? `${cap(word(n))} ${piecesWord(n)}, filed.` : 'Nothing new to file.',
+    body: (n: number): string =>
+      n
+        ? 'Each one lives on its own in your wardrobe, cut from the same photo.'
+        : 'Every piece in the photo was already yours.',
+    tile: (category: string): string => `${category} · Just filed`,
+    owned: (label: string, added: boolean): string =>
+      `Your ${label.toLowerCase()} ${added ? 'kept the new photo.' : 'kept its own photo.'}`,
+    back: 'Back to wardrobe →',
+  },
+  look: {
+    start: {
+      title: 'Start with a photo',
+      body: 'Robes reads every piece in it, and asks about each.',
+      action: 'Add a photo',
+    },
+    reading: {
+      eyebrow: 'One moment',
+      title: 'Robes is finding the pieces.',
+      aside: 'The top, for a start.',
+    },
+    eyebrow: 'The look',
+    title: 'A look from a photo.',
+    head: (n: number): string => `The look · ${n} ${piecesWord(n)}`,
+    askMatch: (label: string): string => `Your ${label.toLowerCase()}?`,
+    askNew: 'Not in your rack. New?',
+    yes: 'Yes',
+    find: 'No, find it',
+    leaveOut: 'Leave it out',
+    ctxNew: 'Robes files it on save',
+    ctxMatch: (label: string): string => `Looks like the ${label.toLowerCase()}`,
+    newRow: 'New · filed on save',
+    remove: (label: string): string => `Take ${label} off the look`,
+    gate: (n: number): string =>
+      n === 1 ? 'One piece to confirm before you save.' : `${n} pieces to confirm before you save.`,
+    wearToday: 'Wearing it today, log it worn',
+    findTitle: (label: string): string => `Find the ${label.toLowerCase()}`,
+    findNone: 'None of these — it’s new',
+    findEmpty: 'Pick the piece it is',
+    findGo: (label: string): string => `It’s the ${label.toLowerCase()}`,
+    readFailed: 'Robes couldn’t read the pieces — the photo is kept, add them from your wardrobe.',
+    empty: 'Robes couldn’t see a piece in that photo — it is kept as the record.',
+    save: 'Save look',
+    saving: 'Filing the pieces…',
+    saveFailed: 'Robes couldn’t save that look. Try again.',
+  },
+} as const;
+
 export const copy = {
   wardrobe,
+  photoPieces,
   errors,
   auth,
   emails,

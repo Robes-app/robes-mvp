@@ -103,3 +103,26 @@ describe('photo pieces', () => {
     }
   });
 });
+
+describe('the confirm pattern', () => {
+  it('asks "Already yours?" only for a likely duplicate', async () => {
+    const { likelyDuplicate, answerCard, wardrobeSummary } = await import('./index');
+    const id = '00000000-0000-4000-8000-000000000001';
+    expect(likelyDuplicate({ pieceId: id, confidence: 0.5 })).toBe(id);
+    expect(likelyDuplicate({ pieceId: id, confidence: 0.49 })).toBeNull();
+    expect(likelyDuplicate(null)).toBeNull();
+    expect(answerCard(id, 'yes')).toEqual({ state: 'owned', pieceId: id });
+    expect(answerCard(id, 'no')).toEqual({ state: 'add' });
+    expect(answerCard(null, 'yes')).toEqual({ state: 'add' });
+    expect(answerCard(null, 'no')).toEqual({ state: 'skip' });
+    expect(
+      wardrobeSummary([
+        { state: 'add' },
+        { state: 'owned', pieceId: id },
+        { state: 'pending' },
+        { state: 'skip' },
+        { state: 'add' },
+      ]),
+    ).toEqual({ pending: 1, toAdd: 2, owned: 1, skipped: 1 });
+  });
+});

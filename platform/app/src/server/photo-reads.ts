@@ -50,7 +50,7 @@ export async function startPhotoRead(
 // A finished read of hers; anything else (another kind, still reading, someone else's) is 404/409.
 export async function loadRead(userId: UserId, jobId: string): Promise<StoredRead> {
   const job = await repos.jobs.getForUser(userId, jobId);
-  if (!job || job.kind !== 'wardrobe_pieces') throw new ApiError('not_found');
+  if (job?.kind !== 'wardrobe_pieces') throw new ApiError('not_found');
   if (job.status !== 'succeeded' && job.status !== 'partial') throw new ApiError('conflict');
   const read = StoredRead.safeParse(job.output);
   if (!read.success) throw new ApiError('conflict');

@@ -161,3 +161,50 @@ export function nudgeTags(tags: readonly TagRect[], width: number, height: numbe
   }
   return out;
 }
+
+// The one confirm pattern, as client state (both clients share it).
+export type WardrobeCardState<E = unknown> =
+  | { state: 'pending' }
+  | { state: 'add'; edits?: E }
+  | { state: 'skip' }
+  | { state: 'owned'; pieceId: string };
+
+export interface ReadMatch {
+  pieceId: string;
+  confidence: number;
+}
+
+// A likely duplicate asks "Already yours?"; anything less is read as a new piece.
+export function likelyDuplicate(match: ReadMatch | null): string | null {
+  return match && match.confidence >= MATCH_THRESHOLD ? match.pieceId : null;
+}
+
+export function wardrobeSummary(states: ReadonlyArray<WardrobeCardState<unknown>>): {
+  pending: number;
+  toAdd: number;
+  owned: number;
+  skipped: number;
+} {
+  const count = (s: WardrobeCardState<unknown>['state']) =>
+    states.filter((x) => x.state === s).length;
+  return {
+    pending: count('pending'),
+    toAdd: count('add'),
+    owned: count('owned'),
+    skipped: count('skip'),
+  };
+}
+
+// Yes / the second answer on a card: a duplicate is hers or added anyway; a new piece is added
+// or skipped.
+export function answerCard<E>(dupId: string | null, answer: 'yes' | 'no'): WardrobeCardState<E> {
+  if (dupId) return answer === 'yes' ? { state: 'owned', pieceId: dupId } : { state: 'add' };
+  return answer === 'yes' ? { state: 'add' } : { state: 'skip' };
+}
+
+// A look from a photo: a piece is pending, hers (matched or found), new (filed on save) or left out.
+export type LookCardState =
+  | { state: 'pending' }
+  | { state: 'owned'; pieceId: string }
+  | { state: 'new' }
+  | { state: 'skip' };
