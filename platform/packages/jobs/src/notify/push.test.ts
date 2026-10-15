@@ -53,6 +53,17 @@ describe('Expo push sender', () => {
       body: expect.stringMatching(/^Camel coat/),
       data: { url: 'robes://looks/ideas/i1' },
     });
+    // A suggested-look set opens its keep-or-pass deck.
+    expect(
+      composePush({
+        kind: 'looks_ready',
+        ref: 's1',
+        pref: 'looksReady',
+        ideaId: 's1',
+        piece: 'camel coat',
+        set: true,
+      }).data,
+    ).toEqual({ url: 'robes://looks/deck/s1' });
     const morning = composePush({
       kind: 'morning',
       ref: '2026-09-24',

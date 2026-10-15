@@ -4,6 +4,8 @@ This folder holds the new Robes codebase: a Next.js web app and a native iOS/And
 
 It is the same product as the Robes app in the root of this repo: same screens, same flows, same style DNA and prompts. It is rebuilt on foundations that can grow with a team and a user base, and that work properly on a phone. The root app is left as it is. It keeps serving www.byrobes.com and beta.byrobes.com until we choose to switch over, and nothing in `platform/` imports from it or changes it.
 
+**Founder or new to the code?** Start with [`docs/HANDOVER.md`](docs/HANDOVER.md). Anyone changing the API: [`docs/api-security.md`](docs/api-security.md).
+
 **Where to read next:**
 - [`docs/STATUS.md`](docs/STATUS.md): what is built, what runs where, what is still to do.
 - [`docs/DEVELOPING.md`](docs/DEVELOPING.md): engineering guide (commands, architecture, recipes).

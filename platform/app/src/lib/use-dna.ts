@@ -1,5 +1,6 @@
 'use client';
 
+import { isApiClientError } from '@robes/api-client';
 import { queryKeys, useApiMutation } from '@robes/api-client/react';
 import type { StyleDna } from '@robes/contracts';
 import { twin } from '@robes/copy';
@@ -12,13 +13,17 @@ import { useJob } from './use-job';
 
 const DNA_KEY = queryKeys.call('me.dna.get');
 
+// A 409 on a line write means the list is full (BRIEF_KEPT_MAX).
+const dnaErrorCopy = (err: unknown): string =>
+  isApiClientError(err) && err.code === 'conflict' ? twin.words.full : errorCopy(err);
+
 // Every Style DNA write answers with the whole Style DNA; it replaces the cache at once.
 export function useDnaMutations() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const opts = {
     onSuccess: (data: StyleDna) => queryClient.setQueryData(DNA_KEY, data),
-    onError: (err: unknown) => toast({ message: errorCopy(err) }),
+    onError: (err: unknown) => toast({ message: dnaErrorCopy(err) }),
   };
   return {
     update: useApiMutation('me.dna.update', opts),

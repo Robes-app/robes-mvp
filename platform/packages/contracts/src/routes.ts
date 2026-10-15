@@ -6,6 +6,8 @@ import {
   AdminFlagParams,
   AdminFlags,
   AdminHealth,
+  AdminMetrics,
+  AdminMetricsInput,
   AdminUserDetail,
   AdminUserPage,
   AdminUserParams,
@@ -886,6 +888,13 @@ export const routes = {
     auth: 'admin',
     input: AdminCostsInput,
     output: AdminCosts,
+  },
+  'admin.metrics': {
+    method: 'GET',
+    path: '/admin/metrics',
+    auth: 'admin',
+    input: AdminMetricsInput,
+    output: AdminMetrics,
   },
   'admin.flags.list': {
     method: 'GET',

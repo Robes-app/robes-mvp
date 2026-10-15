@@ -17,6 +17,8 @@ export interface CreateJobInput {
   quota?: QuotaCost | QuotaCost[] | undefined;
   priority?: number;
   traceId?: string;
+  // At most one queued or running job of this kind per person: a second start returns it.
+  singleFlight?: boolean;
 }
 
 const JOB_COLUMNS = [
@@ -52,6 +54,20 @@ export function jobsRepo(db: Db) {
             .executeTakeFirst();
           if (existing) return { job: existing, replayed: true };
         }
+        if (job.singleFlight) {
+          // Serialises her starts, so two at once can't both miss the one in flight.
+          await trx.selectFrom('users').select('id').where('id', '=', userId).forUpdate().execute();
+          const inFlight = await trx
+            .selectFrom('generationJobs')
+            .select(JOB_COLUMNS)
+            .where('userId', '=', userId)
+            .where('kind', '=', job.kind)
+            .where('status', 'in', ['queued', 'running'])
+            .orderBy('createdAt', 'desc')
+            .limit(1)
+            .executeTakeFirst();
+          if (inFlight) return { job: inFlight, replayed: true };
+        }
         for (const q of [job.quota ?? []].flat()) {
           await usage.consume(userId, q.metric, q.cost, { executor: trx });
         }
@@ -81,6 +97,10 @@ export function jobsRepo(db: Db) {
           .where('kind', 'in', [...kinds])
           // Overnight looks wait hours in their batch; Today shows them as a card, not the tray.
           .where(sql<boolean>`coalesce(input->>'overnight', 'false') <> 'true'`)
+          // A look's frame or its render on her model shows on the look itself, never the tray.
+          .where(
+            sql<boolean>`not (kind = 'look_render' and coalesce(input->>'target', '') in ('frame', 'look'))`,
+          )
           .where((eb) =>
             eb.or([
               eb('status', 'in', ['queued', 'running']),
@@ -91,6 +111,18 @@ export function jobsRepo(db: Db) {
           .limit(limit)
           .execute()
       );
+    },
+
+    // Her newest job of one kind, whatever its state (a start's in-flight and back-off checks).
+    latest(userId: UserId, kind: JobKind) {
+      return db
+        .selectFrom('generationJobs')
+        .select(JOB_COLUMNS)
+        .where('userId', '=', userId)
+        .where('kind', '=', kind)
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .executeTakeFirst();
     },
 
     getForUser(userId: UserId, jobId: string) {

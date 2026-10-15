@@ -9,9 +9,16 @@ This folder is the rebuild of Robes as a secure, scalable platform: Next.js web 
 2. Open the plan for the current milestone. If only a brief exists in `docs/plans/roadmap.md`, expand it with `superpowers:writing-plans` into `docs/plans/<date>-m<N>-<name>.md` first.
 3. Execute with `superpowers:executing-plans` (or `subagent-driven-development` for independent tasks). Commit after each task.
 
+## Working with the owner
+The founder isn't an engineer: they may run you from this folder and ask in plain words (`docs/HANDOVER.md`).
+- Explain what you'll do and what changed in plain language; run the commands yourself.
+- Work on a branch and open a PR into `beta`; never push to `main`/`beta`, deploy production, change Vercel/AWS/Supabase settings or rotate secrets unless explicitly asked.
+- If a request would break a rule in `docs/api-security.md`, say so plainly and offer the safe way to get the same result. Never disable or skip a test to get green.
+
 ## Non-negotiable rules (see `docs/security.md`)
+- **Before changing any route, repository, migration, auth, upload or job code, read `docs/api-security.md` and finish with its checklist.**
 - Every API route is built with `route()` from `@robes/api`, declares `auth`, a zod `input` and `output`, and `rateLimit`/`quota` if it spends money. Public routes must be in the route-manifest allow-list **and** `docs/api.md` §3.
-- Identity comes only from the verified JWT (`user.id`). Never read a user id, wardrobe, style DNA or entitlement from a request body — load it from the database.
+- Identity comes only from the Better Auth session (`user.id`). Never read a user id, wardrobe, style DNA or entitlement from a request body — load it from the database.
 - Anything slower than ~3 s or that calls a paid model is a job (`generation_jobs` + queue). No in-process state (Maps, timers) in the web tier.
 - **The API is the only path to app data (ADR-019/020).** See "Data access and security" below — read it before touching `db/`, `packages/db`, `packages/auth` or a route.
 - No `dangerouslySetInnerHTML`, no third-party script CDNs, no raw colours (use tokens), no hard-coded user-facing strings (use `@robes/copy`).

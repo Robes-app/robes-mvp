@@ -68,6 +68,7 @@ describe('admin reads (SEC-11)', () => {
         NotAdmin,
       );
       await expect(adminReads.auditLog(as(actor), { limit: 5 })).rejects.toBeInstanceOf(NotAdmin);
+      await expect(adminReads.metrics(as(actor), 7)).rejects.toBeInstanceOf(NotAdmin);
       expect(await auditsBy(actor)).toEqual([]);
     }
   });
@@ -148,5 +149,109 @@ describe('admin reads (SEC-11)', () => {
     expect(page.items.length).toBeGreaterThan(0);
     expect(page.items.every((a) => a.subjectUserId === target)).toBe(true);
     expect(page.items[0]?.actorEmail).toContain('@test.dev');
+  });
+
+  it('aggregates the operating metrics, counts only, and audits the read', async () => {
+    const before = await adminReads.metrics(as(admin), 7);
+    expect(before.daily).toHaveLength(7);
+    expect(before.daily.at(-1)?.day).toBe(new Date().toISOString().slice(0, 10));
+
+    const newbie = await createTestUser(db, 'Nia New');
+    try {
+      await repos.wardrobe.create(newbie, { label: 'Secret silk shirt' });
+      await db
+        .insertInto('looks')
+        .values([{ userId: newbie, name: 'Hidden look', status: 'saved', source: 'manual' }])
+        .execute();
+      const set = await db
+        .insertInto('artifacts')
+        .values({ userId: newbie, type: 'idea', title: 'Set' })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto('looks')
+        .values([
+          { userId: newbie, name: 'Kept', status: 'saved', setId: set.id, source: 'generated' },
+          {
+            userId: newbie,
+            name: 'Passed',
+            status: 'suggested',
+            setId: set.id,
+            deletedAt: new Date(),
+          },
+          { userId: newbie, name: 'Waiting', status: 'suggested', setId: set.id },
+        ])
+        .execute();
+      const started = new Date(Date.now() - 2000);
+      const [ask, frame] = await db
+        .insertInto('generationJobs')
+        .values([
+          { userId: newbie, kind: 'look_ask', status: 'failed', error: 'ai_timeout' },
+          {
+            userId: newbie,
+            kind: 'look_render',
+            input: JSON.stringify({ target: 'frame' }),
+            status: 'succeeded',
+            startedAt: started,
+            finishedAt: new Date(),
+          },
+          { userId: newbie, kind: 'style_brief', status: 'queued' },
+        ])
+        .returning('id')
+        .execute();
+      await db
+        .insertInto('generationCalls')
+        .values({
+          userId: newbie,
+          jobId: frame?.id ?? null,
+          feature: 'looks.frame',
+          model: 'img',
+          status: 'ok',
+          costMicros: 5000,
+        })
+        .execute();
+      expect(ask).toBeDefined();
+      await db
+        .insertInto('notifications')
+        .values({ userId: newbie, kind: 'looks_ready', ref: 'r1', channel: 'email' })
+        .execute();
+
+      const after = await adminReads.metrics(as(admin), 7);
+      const today = (m: typeof after) => m.daily.at(-1);
+      expect((today(after)?.signups ?? 0) - (today(before)?.signups ?? 0)).toBe(1);
+      expect((today(after)?.active ?? 0) - (today(before)?.active ?? 0)).toBeGreaterThanOrEqual(1);
+      expect(after.funnel.signedUp - before.funnel.signedUp).toBe(1);
+      expect(after.funnel.firstPiece - before.funnel.firstPiece).toBe(1);
+      expect(after.funnel.firstSavedLook - before.funnel.firstSavedLook).toBe(1);
+      const src = (m: typeof after, s: string) =>
+        m.looksBySource.find((r) => r.source === s)?.n ?? 0;
+      expect(src(after, 'manual') - src(before, 'manual')).toBe(1);
+      expect(after.deck.kept - before.deck.kept).toBe(1);
+      expect(after.deck.passed - before.deck.passed).toBe(1);
+      expect(after.deck.waiting - before.deck.waiting).toBe(1);
+      const kind = (m: typeof after, k: string) => m.jobs.find((r) => r.kind === k);
+      expect((kind(after, 'look_ask')?.failed ?? 0) - (kind(before, 'look_ask')?.failed ?? 0)).toBe(
+        1,
+      );
+      const f = kind(after, 'look_render:frame');
+      expect((f?.succeeded ?? 0) - (kind(before, 'look_render:frame')?.succeeded ?? 0)).toBe(1);
+      expect((f?.costMicros ?? 0) - (kind(before, 'look_render:frame')?.costMicros ?? 0)).toBe(
+        5000,
+      );
+      expect(f?.p50Ms).toBeGreaterThan(0);
+      expect(after.queue.queued - before.queue.queued).toBe(1);
+      expect(after.email.sent - before.email.sent).toBe(1);
+
+      const json = JSON.stringify(after);
+      expect(json).not.toContain('Secret silk shirt');
+      expect(json).not.toContain('Hidden look');
+      expect(json).not.toContain('@test.dev');
+      expect((await auditsBy(admin)).at(-1)).toMatchObject({
+        action: 'admin.metrics.read',
+        detail: { days: 7 },
+      });
+    } finally {
+      await deleteTestUsers(db, newbie);
+    }
   });
 });

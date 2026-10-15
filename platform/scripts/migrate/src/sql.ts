@@ -17,6 +17,13 @@ returns uuid language sql immutable as $$
     || substr('89ab', (('x' || substr(h, 17, 1))::bit(4)::int % 4) + 1, 1) || substr(h, 18))::uuid
   from (select md5('robes-legacy:' || p_kind || ':' || p_owner::text || ':' || p_key) as h) x
 $$;
+-- A legacy date that looks right but isn't one (2026-13-40…) is null, never an aborted run.
+create or replace function pg_temp.to_ts(p text) returns timestamptz language plpgsql stable as $$
+begin
+  return p::timestamptz;
+exception when others then
+  return null;
+end $$;
 create or replace function pg_temp.is_http(p_url text) returns boolean language sql immutable as $$
   select coalesce(p_url ~ '^https?://' and char_length(p_url) <= 2048, false)
 $$;
@@ -149,7 +156,7 @@ where jsonb_typeof(p.style_dna -> 'brief') = 'object'
 on conflict (user_id) do nothing;
 update app.style_profiles t set
   brief_notes = nullif(left(trim(b.b ->> 'notes'), 600), ''),
-  brief_read_at = case when (b.b ->> 'read_at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then (b.b ->> 'read_at')::timestamptz end,
+  brief_read_at = case when (b.b ->> 'read_at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then pg_temp.to_ts(b.b ->> 'read_at') end,
   user_overrides = t.user_overrides || jsonb_build_object(
     'loved_colors', (select coalesce(jsonb_agg(distinct c), '[]'::jsonb) from (
       select jsonb_array_elements_text(coalesce(t.user_overrides -> 'loved_colors', '[]'::jsonb)) c
@@ -169,8 +176,8 @@ select p.id, l.list, 'kept', left(trim(coalesce(e.v ->> 'text', e.v #>> '{}')), 
     when jsonb_typeof(e.v) = 'string' then 'typed' else 'drafted' end,
   case when e.v ->> 'source' = 'typed' or jsonb_typeof(e.v) = 'string' then 'her' else 'read' end,
   nullif(left(e.v ->> 'prompt', 60), ''),
-  coalesce(case when (e.v ->> 'at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then (e.v ->> 'at')::timestamptz end, p.created_at, now()),
-  coalesce(case when (e.v ->> 'at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then (e.v ->> 'at')::timestamptz end, p.created_at, now())
+  coalesce(case when (e.v ->> 'at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then pg_temp.to_ts(e.v ->> 'at') end, p.created_at, now()),
+  coalesce(case when (e.v ->> 'at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then pg_temp.to_ts(e.v ->> 'at') end, p.created_at, now())
   + make_interval(secs => e.i / 1000.0)
 from legacy.profiles p join app.users u on u.id = p.id,
   unnest(array['loves', 'avoids', 'rules']) l(list),
@@ -186,7 +193,7 @@ select p.id, e.v ->> 'list', 'pending', left(trim(e.v ->> 'text'), 160), nullif(
     then e.v -> 'loved' else '[]'::jsonb end) c limit 6), '{}'),
   coalesce(array(select left(c, 60) from jsonb_array_elements_text(case when jsonb_typeof(e.v -> 'rejected') = 'array'
     then e.v -> 'rejected' else '[]'::jsonb end) c limit 6), '{}'),
-  coalesce(case when (e.v ->> 'at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then (e.v ->> 'at')::timestamptz end, now())
+  coalesce(case when (e.v ->> 'at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then pg_temp.to_ts(e.v ->> 'at') end, now())
   + make_interval(secs => e.i / 1000.0)
 from legacy.profiles p join app.users u on u.id = p.id,
   lateral jsonb_array_elements(case when jsonb_typeof(p.style_dna -> 'brief' -> 'pending') = 'array'
@@ -210,16 +217,19 @@ select p.id, e.v ->> 'k', nullif(left(e.v ->> 'surface', 40), ''),
   nullif(left(coalesce(e.v ->> 'on', e.v ->> 'look'), 120), ''), nullif(left(e.v ->> 'text', 240), ''),
   case when e.v ->> 'k' = 'verdict' then case when e.v ->> 'v' = '1' then 1 else 0 end end,
   nullif(left(e.v ->> 'out', 120), ''), nullif(left(e.v ->> 'in', 120), ''), nullif(left(e.v ->> 'cat', 40), ''),
-  coalesce(case when (e.v ->> 't') ~ '^\\d{4}-\\d{2}-\\d{2}' then (e.v ->> 't')::timestamptz end, now())
+  coalesce(case when (e.v ->> 't') ~ '^\\d{4}-\\d{2}-\\d{2}' then pg_temp.to_ts(e.v ->> 't') end, p.created_at, now())
 from legacy.profiles p join app.users u on u.id = p.id,
   lateral jsonb_array_elements(case when jsonb_typeof(p.style_dna -> 'memory' -> 'entries') = 'array'
     then p.style_dna -> 'memory' -> 'entries' else '[]'::jsonb end) e(v)
 where e.v ->> 'k' in ('verdict', 'swap', 'strike', 'ask')
-  and (e.v ->> 'k' <> 'swap' or coalesce(e.v ->> 'out', e.v ->> 'in') is not null)
-  and (e.v ->> 'k' not in ('strike', 'ask') or nullif(e.v ->> 'text', '') is not null)
-  -- Re-runs insert nothing: legacy entries carry no id, so a twin is one at the same moment.
+  -- Filtered on the values stored, so an empty "out" with no "in" is skipped, not a check failure.
+  and (e.v ->> 'k' <> 'swap'
+    or coalesce(nullif(left(e.v ->> 'out', 120), ''), nullif(left(e.v ->> 'in', 120), '')) is not null)
+  and (e.v ->> 'k' not in ('strike', 'ask') or nullif(left(e.v ->> 'text', 240), '') is not null)
+  -- Re-runs insert nothing: legacy entries carry no id, so a twin is one at the same moment (a
+  -- missing or malformed time falls back to her profile's, never now()).
   and not exists (select 1 from app.style_memory m where m.user_id = p.id and m.kind = e.v ->> 'k'
-    and m.created_at = coalesce(case when (e.v ->> 't') ~ '^\\d{4}-\\d{2}-\\d{2}' then (e.v ->> 't')::timestamptz end, now())
+    and m.created_at = coalesce(case when (e.v ->> 't') ~ '^\\d{4}-\\d{2}-\\d{2}' then pg_temp.to_ts(e.v ->> 't') end, p.created_at, now())
     and m.body is not distinct from nullif(left(e.v ->> 'text', 240), '')
     and m.piece_out is not distinct from nullif(left(e.v ->> 'out', 120), ''));
 `;

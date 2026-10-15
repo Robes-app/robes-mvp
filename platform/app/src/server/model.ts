@@ -13,6 +13,7 @@ import {
 import type { UserId } from '@robes/db';
 import { z } from 'zod';
 import { repos } from './db';
+import { isFlagEnabled } from './flags';
 import { startJob } from './jobs';
 import { logger } from './logger';
 import { mediaDelivery } from './media';
@@ -65,6 +66,8 @@ export async function loadModel(userId: UserId): Promise<Model> {
 // Draws the portrait for a cell nobody has drawn yet (shared catalog; one image quota for her).
 async function ensureCell(userId: UserId, req: Request, cellId: string): Promise<void> {
   const key = cellKey(cellId);
+  // Kill switch for the paid draw only; her picks still save and the portrait waits.
+  if (!(await isFlagEnabled('model.portraits'))) return;
   if (!(await repos.avatarCells.claim(key))) return;
   try {
     if (await repos.capacity.isExhausted(['gemini-image'])) throw new ApiError('capacity');
@@ -106,9 +109,10 @@ export async function renderOnModel(
 ): Promise<StartJobOutput> {
   const state = await repos.looks.renderState(userId, lookId);
   if (!state) throw new ApiError('not_found');
-  // Robes' frame is the look's picture; her model never replaces it (legacy 2026-10-07).
+  // Only a saved look renders on her model; Robes' frame is a look's picture and her model never
+  // replaces it (legacy 2026-10-07).
   const look = await repos.looks.get(userId, lookId);
-  if (!look || look.frameAssetId) throw new ApiError('conflict');
+  if (!look || look.status !== 'saved' || look.frameAssetId) throw new ApiError('conflict');
   const row = await repos.model.get(userId);
   if (!row?.filedCellId) throw new ApiError('conflict');
   const cell = await repos.avatarCells.get(cellKey(row.filedCellId));

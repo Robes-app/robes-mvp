@@ -15353,7 +15353,7 @@
     },
     {
       "args": [{}, 3, ["Phoebe Philo", "  ", 7, "The Row"]],
-      "output": "STYLE ICONS — the user named these as their taste references: Phoebe Philo, The Row.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon."
+      "output": "STYLE ICONS — her taste references: Phoebe Philo, The Row. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon."
     },
     {
       "args": [
@@ -15546,7 +15546,7 @@
         7,
         ["Jane Birkin"]
       ],
-      "output": "STYLE ICONS — the user named these as their taste references: Jane Birkin.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.\nSTYLE DNA — verified styling constraints for this user:\nColour archetype: Soft Autumn (undertone Warm, contrast Low).\nFoundation neutrals: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nStar colours: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nNever style them in: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals: Gold, Bronze, Rose gold (Brushed / Matte); never High-shine Silver, Chrome, Platinum.\nBody architecture: Hourglass. Best dress silhouettes: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Best necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling maxims: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): Navy.\nThe user has personally rejected these colours — never style them in: Mustard.\nExact measurements supplied by the user — trust these over any photo estimate: waist: 70cm.\nSYSTEM DIRECTIVE: The user is building their digital closet (7/15 items). Lead with fashion-house execution matching the colour and silhouette rules above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations."
+      "output": "STYLE ICONS — her taste references: Jane Birkin. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.\nSTYLE DNA — verified styling constraints for this user:\nColour archetype: Soft Autumn (undertone Warm, contrast Low).\nFoundation neutrals: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nStar colours: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nNever style them in: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals: Gold, Bronze, Rose gold (Brushed / Matte); never High-shine Silver, Chrome, Platinum.\nBody architecture: Hourglass. Best dress silhouettes: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Best necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling maxims: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): Navy.\nThe user has personally rejected these colours — never style them in: Mustard.\nExact measurements supplied by the user — trust these over any photo estimate: waist: 70cm.\nSYSTEM DIRECTIVE: The user is building their digital closet (7/15 items). Lead with fashion-house execution matching the colour and silhouette rules above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations."
     },
     {
       "args": [
@@ -15685,7 +15685,7 @@
         0,
         []
       ],
-      "output": "HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nNever: Crop tops.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nStruck from her brief (Robes had it wrong): \"Loves florals\".\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): navy, Camel.\nThe user has personally rejected these colours — never style them in: Mustard."
+      "output": "HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nNever: Crop tops.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nStruck from her brief (Robes had it wrong): \"Loves florals\".\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): navy, Camel.\nThe user has personally rejected these colours — never style them in: Mustard."
     },
     {
       "args": [
@@ -15696,7 +15696,7 @@
         0,
         []
       ],
-      "output": "STYLE TYPE — the user placed their own style: Minimalist, Classic; sometimes Bohemian.\nEvery look should sit in this register: the types named first lead, a \"sometimes\" type is a mood to reach for on occasion, never the default. Like the style icons, this steers taste; it never overrides the colour or silhouette rules below."
+      "output": "STYLE TYPE — her own placing: Minimalist, Classic; sometimes Bohemian. Every look sits in this register — the first types lead, a \"sometimes\" type is an occasional mood. Taste, never an override of the colour or silhouette rules below."
     },
     {
       "args": [
@@ -15706,7 +15706,7 @@
         0,
         ["Zendaya"]
       ],
-      "output": "STYLE TYPE — the user placed their own style: sometimes Romantic.\nEvery look should sit in this register: the types named first lead, a \"sometimes\" type is a mood to reach for on occasion, never the default. Like the style icons, this steers taste; it never overrides the colour or silhouette rules below.\nSTYLE ICONS — the user named these as their taste references: Zendaya.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon."
+      "output": "STYLE TYPE — her own placing: sometimes Romantic. Every look sits in this register — the first types lead, a \"sometimes\" type is an occasional mood. Taste, never an override of the colour or silhouette rules below.\nSTYLE ICONS — her taste references: Zendaya. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon."
     },
     {
       "args": [
@@ -15719,7 +15719,7 @@
         2,
         ["Jane Birkin", "Kate Moss"]
       ],
-      "output": "STYLE ICONS — the user named these as their taste references: Jane Birkin (ease), Kate Moss.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.\nBRANDS she reaches for: Toteme, COS.\nWhen a piece has to be found, look to these houses and their register first — a proposal should read as something she would have chosen herself."
+      "output": "STYLE ICONS — her taste references: Jane Birkin (ease), Kate Moss. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.\nBRANDS she reaches for: Toteme, COS. A piece that has to be found comes from these houses and their register first."
     },
     {
       "args": [
@@ -15735,7 +15735,7 @@
         0,
         []
       ],
-      "output": "INVESTMENT LEVEL — she spends €2,000–€5,000 a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph.\nWHAT SHE ACTUALLY BUYS — the 6 priced pieces she filed this year come to €4,200, a typical one €520: above the level she set. The level she set still rules what Robes proposes — never raise the ceiling to match her receipts — but read her prices as taste: a piece that has to be found should sit at her level and read like the pricier ones she already owns, never as a cheaper copy of them."
+      "output": "INVESTMENT LEVEL — she spends €2,000–€5,000 a year on clothes: never a piece above what that level buys, however well it would photograph.\nWHAT SHE ACTUALLY BUYS — the 6 priced pieces she filed this year come to €4,200, a typical one €520: above the level she set. The level she set still rules what Robes proposes — never raise the ceiling to match her receipts — but read her prices as taste: a piece that has to be found should sit at her level and read like the pricier ones she already owns, never as a cheaper copy of them."
     },
     {
       "args": [
@@ -15751,7 +15751,7 @@
         0,
         []
       ],
-      "output": "INVESTMENT LEVEL — she spends €500 a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph."
+      "output": "INVESTMENT LEVEL — she spends €500 a year on clothes: never a piece above what that level buys, however well it would photograph."
     },
     {
       "args": [
@@ -15766,7 +15766,7 @@
         0,
         []
       ],
-      "output": "THE FACTS she gave — size, never weight: height 168 cm, dress size UK 10 (EU 38), shoes UK 6, age 35–44. Propose what fits these and size every piece to them; never estimate them from a photograph."
+      "output": "THE FACTS she gave — size, never weight: height 168 cm, dress size UK 10 (EU 38), shoes UK 6, age 35–44. Size every piece to these; never estimate them from a photograph."
     },
     {
       "args": [
@@ -15981,7 +15981,7 @@
         16,
         ["Phoebe Philo"]
       ],
-      "output": "HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nNever: Crop tops.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nStruck from her brief (Robes had it wrong): \"Loves florals\".\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour.\nSTYLE TYPE — the user placed their own style: Minimalist.\nEvery look should sit in this register: the types named first lead, a \"sometimes\" type is a mood to reach for on occasion, never the default. Like the style icons, this steers taste; it never overrides the colour or silhouette rules below.\nSTYLE ICONS — the user named these as their taste references: Phoebe Philo.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.\nBRANDS she reaches for: Khaite.\nWhen a piece has to be found, look to these houses and their register first — a proposal should read as something she would have chosen herself.\nINVESTMENT LEVEL — she spends €1,000 a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph.\nTHE FACTS she gave — size, never weight: dress size UK 12 (EU 40). Propose what fits these and size every piece to them; never estimate them from a photograph.\nSTYLE DNA — verified styling constraints for this user:\nColour archetype: Soft Autumn (undertone Warm, contrast Low).\nFoundation neutrals: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nStar colours: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nNever style them in: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals: Gold, Bronze, Rose gold (Brushed / Matte); never High-shine Silver, Chrome, Platinum.\nBody architecture: Hourglass. Best dress silhouettes: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Best necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling maxims: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): NAVY, Olive, Camel.\nThe user has personally rejected these colours — never style them in: Mustard.\nSYSTEM DIRECTIVE: The user has a mature digital closet (16 items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above."
+      "output": "HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nNever: Crop tops.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nStruck from her brief (Robes had it wrong): \"Loves florals\".\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.\nSTYLE TYPE — her own placing: Minimalist. Every look sits in this register — the first types lead, a \"sometimes\" type is an occasional mood. Taste, never an override of the colour or silhouette rules below.\nSTYLE ICONS — her taste references: Phoebe Philo. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.\nBRANDS she reaches for: Khaite. A piece that has to be found comes from these houses and their register first.\nINVESTMENT LEVEL — she spends €1,000 a year on clothes: never a piece above what that level buys, however well it would photograph.\nTHE FACTS she gave — size, never weight: dress size UK 12 (EU 40). Size every piece to these; never estimate them from a photograph.\nSTYLE DNA — verified styling constraints for this user:\nColour archetype: Soft Autumn (undertone Warm, contrast Low).\nFoundation neutrals: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nStar colours: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nNever style them in: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals: Gold, Bronze, Rose gold (Brushed / Matte); never High-shine Silver, Chrome, Platinum.\nBody architecture: Hourglass. Best dress silhouettes: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Best necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling maxims: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): NAVY, Olive, Camel.\nThe user has personally rejected these colours — never style them in: Mustard.\nSYSTEM DIRECTIVE: The user has a mature digital closet (16 items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above."
     },
     {
       "args": [
@@ -15995,7 +15995,7 @@
         0,
         ["Icon"]
       ],
-      "output": "STYLE ICONS — the user named these as their taste references: Icon.\nFollow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): Sage."
+      "output": "STYLE ICONS — her taste references: Icon. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): Sage."
     }
   ],
   "helpers": {
@@ -16075,7 +16075,7 @@
           "height_cm": "170"
         },
         "output": [
-          "THE FACTS she gave — size, never weight: height 170 cm. Propose what fits these and size every piece to them; never estimate them from a photograph."
+          "THE FACTS she gave — size, never weight: height 170 cm. Size every piece to these; never estimate them from a photograph."
         ]
       },
       {
@@ -16087,7 +16087,7 @@
           "age_band": " 25–34 "
         },
         "output": [
-          "THE FACTS she gave — size, never weight: age 25–34. Propose what fits these and size every piece to them; never estimate them from a photograph."
+          "THE FACTS she gave — size, never weight: age 25–34. Size every piece to these; never estimate them from a photograph."
         ]
       }
     ]

@@ -6,6 +6,7 @@ import { analyseStyle } from '@/server/style-profile';
 // Colour (headshot) or silhouette (full-length) read; the result lands on GET /me/style.
 export const POST = route({
   auth: 'user',
+  flag: 'style.analyse',
   input: AnalyseStyleInput,
   output: StartJobOutput,
   status: 202,

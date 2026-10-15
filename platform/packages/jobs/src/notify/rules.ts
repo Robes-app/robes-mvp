@@ -40,7 +40,14 @@ export interface NotifyState {
   // Looks Robes made overnight, by her local date (M5 task 3).
   overnight?: { id: string; date: string; headline: string }[];
   // Her newest idea from the last 48 h, with how many frames rendered.
-  latestIdea: { id: string; title: string; readyFrames: number; createdAt: Date } | null;
+  // `set`: a suggested-look set (look states); its link is the keep-or-pass deck.
+  latestIdea: {
+    id: string;
+    title: string;
+    readyFrames: number;
+    createdAt: Date;
+    set?: boolean;
+  } | null;
   readyPieces: number;
   fifthPieceAt: Date | null;
   looks: number;
@@ -56,12 +63,19 @@ export interface NotifyState {
 }
 
 export type Planned =
-  | { kind: 'looks_ready'; ref: string; pref: UnsubPref; ideaId: string; piece: string }
+  | {
+      kind: 'looks_ready';
+      ref: string;
+      pref: UnsubPref;
+      ideaId: string;
+      piece: string;
+      set?: boolean;
+    }
   | { kind: 'look_waiting'; ref: string; pref: UnsubPref; look: string }
   | { kind: 'five'; ref: string; pref: UnsubPref }
   | { kind: 'week_empty'; ref: string; pref: UnsubPref }
   | { kind: 'first_piece'; ref: string; pref: UnsubPref }
-  | { kind: 'pick_one'; ref: string; pref: UnsubPref; piece: string }
+  | { kind: 'pick_one'; ref: string; pref: UnsubPref; piece: string; set?: boolean }
   | {
       kind: 'week_one';
       ref: string;
@@ -181,6 +195,7 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
         pref: 'looksReady',
         ideaId: idea.id,
         piece: idea.title,
+        ...(idea.set ? { set: true } : {}),
       };
     }
     // Day 0: signed up four hours ago and filed nothing — transactional, like looks_ready.
@@ -202,7 +217,13 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
       state.looks === 0 &&
       !has('pick_one', idea.id)
     ) {
-      return { kind: 'pick_one', ref: idea.id, pref: 'nudges', piece: idea.title };
+      return {
+        kind: 'pick_one',
+        ref: idea.id,
+        pref: 'nudges',
+        piece: idea.title,
+        ...(idea.set ? { set: true } : {}),
+      };
     }
     // Legacy look_waiting: a day in, a saved look, and no model to wear it — once, ever.
     if (

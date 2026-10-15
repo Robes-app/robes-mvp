@@ -18,7 +18,8 @@
     "./avatar": "./src/avatar/index.ts",
     "./looks": "./src/looks/index.ts",
     "./photo-pieces": "./src/photo-pieces/index.ts",
-    "./home": "./src/home/index.ts"
+    "./home": "./src/home/index.ts",
+    "./fence": "./src/fence/index.ts"
   },
   "scripts": {
     "test": "vitest run",

@@ -108,6 +108,7 @@ describe('legacy → platform rehearsal (docs/migration.md §3)', () => {
       { list: 'avoids', state: 'kept', text: 'Heels', source: 'typed', chip: 'Heels' },
       { list: 'loves', state: 'kept', text: 'A defined waist', source: 'drafted', chip: null },
       { list: 'loves', state: 'kept', text: 'One sharp shoe', source: 'typed', chip: null },
+      { list: 'loves', state: 'kept', text: 'Clean lines', source: 'drafted', chip: null },
       { list: 'rules', state: 'pending', text: 'No double denim', source: 'drafted', chip: null },
       { list: 'avoids', state: 'struck', text: 'You avoid colour', source: 'drafted', chip: null },
     ]);
@@ -134,6 +135,7 @@ describe('legacy → platform rehearsal (docs/migration.md §3)', () => {
         ).rows,
     );
     expect(memory).toEqual([
+      { kind: 'ask', subject: null, body: 'Something warmer', verdict: null, piece_out: null },
       { kind: 'verdict', subject: 'Harbour Dinner', body: 'too safe', verdict: 0, piece_out: null },
       { kind: 'swap', subject: null, body: null, verdict: null, piece_out: 'Tan loafers' },
       { kind: 'strike', subject: null, body: 'You avoid colour', verdict: null, piece_out: null },
@@ -204,7 +206,8 @@ describe('legacy → platform rehearsal (docs/migration.md §3)', () => {
   });
 
   it('exports only what was created on the platform after cutover', async () => {
-    const cutover = new Date();
+    // The database's clock, not this process's: Docker's can trail the host's by a few ms.
+    const { now: cutover } = await one<{ now: Date }>('select clock_timestamp() as now');
     await withClient(targetUrl, (c) =>
       c.query(
         `insert into app.wardrobe_items (user_id, label) values ($1, 'Bought after cutover')`,

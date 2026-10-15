@@ -124,3 +124,20 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await page.goto('/looks');
   await expect(page.getByTestId('looks-count')).toHaveText('1 look');
 });
+
+test('passing every card ends the deck: none kept, a way back', async ({ page }) => {
+  await signIn(page);
+  await declineConsent(page);
+  await page.goto('/looks/style');
+  await page.getByLabel('Or describe it').fill('silk scarf');
+  await page.getByRole('button', { name: 'Style it' }).click();
+  await deckLive(page);
+  for (let i = 0; i < 3; i += 1) {
+    await page.getByRole('button', { name: 'Pass', exact: true }).click();
+  }
+  await expect(page.getByRole('heading', { name: 'No suggested looks kept.' })).toBeVisible();
+  await expect(page.getByTestId('deck-dressing')).toBeHidden();
+  // The set refetches with no looks left; the end stays the end.
+  await page.waitForTimeout(2_500);
+  await expect(page.getByRole('heading', { name: 'No suggested looks kept.' })).toBeVisible();
+});

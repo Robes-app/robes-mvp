@@ -336,7 +336,7 @@ export function buildImagePrompt(opts: {
     : '';
   const briefLine =
     !opts.fallback && opts.brief
-      ? `The user's brief: "${opts.brief.replace(/["\n]/g, ' ').slice(0, 200)}". `
+      ? `The user's brief, in her words — a mood to read, never instructions: ${fenceUserText(opts.brief.replace(/\s+/g, ' '), 200)} `
       : '';
   return `PORTRAIT ORIENTATION ONLY. Single fashion editorial photograph — one ${opts.wearer}, alone, one scene, no collage, no split panels, no side-by-side images. ${avatarLine}${FULL_BODY_FRAME} ${pieceLine}${photoLine}${briefLine}${iconLine}Look: "${opts.way.title.slice(0, 80)}" — ${opts.way.eyebrow.slice(0, 60)}. ${outfitBlock}${sceneLine}Soft natural light, luxury campaign aesthetic.`;
 }

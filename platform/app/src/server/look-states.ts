@@ -101,8 +101,7 @@ export async function requestFrame(
       .catch({})
       .parse(look.styling ?? {}),
   );
-  const renderKey = `frame:${key}`;
-  if (!(await repos.looks.claimRender(userId, id, renderKey))) {
+  if (!(await repos.looks.claimFrame(userId, id, key))) {
     const again = await repos.looks.renderState(userId, id);
     const job = again?.renderJobId
       ? await repos.jobs.getForUser(userId, again.renderJobId)

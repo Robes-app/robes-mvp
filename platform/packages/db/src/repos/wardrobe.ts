@@ -1,7 +1,8 @@
 import { resolveTaxonomy, type SeasonBand } from '@robes/core';
-import { type Insertable, sql, type Updateable } from 'kysely';
+import { type Insertable, type Kysely, sql, type Transaction, type Updateable } from 'kysely';
 import type { Db } from '../client';
-import type { WardrobeItems } from '../database.types';
+import type { DB, WardrobeItems } from '../database.types';
+import { HeroRackFull } from '../errors';
 import type { UserId } from '../ids';
 import { afterCursor, createdMs, toPage } from './paging';
 
@@ -67,6 +68,38 @@ export interface ListPiecesQuery {
   category?: string | undefined;
   categoryL2?: string | undefined;
   seasonBand?: SeasonBand | undefined;
+}
+
+export const HERO_RACK_SIZE = 10;
+
+// What a piece edit does to the Hero Rack: an explicit place, a star on (first free place) or off.
+export interface HeroChange {
+  position?: number | null | undefined;
+  star?: boolean | undefined;
+}
+
+// Places a piece at a rack position (1..10) or takes it off (null), shifting nobody silently.
+async function placeHero(
+  q: Kysely<DB> | Transaction<DB>,
+  userId: UserId,
+  id: string,
+  position: number | null,
+): Promise<void> {
+  if (position !== null) {
+    await q
+      .updateTable('wardrobeItems')
+      .set({ heroPosition: null })
+      .where('userId', '=', userId)
+      .where('heroPosition', '=', position)
+      .execute();
+  }
+  await q
+    .updateTable('wardrobeItems')
+    .set({ heroPosition: position })
+    .where('userId', '=', userId)
+    .where('id', '=', id)
+    .where('deletedAt', 'is', null)
+    .execute();
 }
 
 // The taxonomy decides the legacy category so category and L2 can never disagree.
@@ -242,22 +275,64 @@ export function wardrobeRepo(db: Db) {
     // Places a piece in the top ten (1..10) or removes it (null), shifting nobody silently.
     async setHero(userId: UserId, id: string, position: number | null) {
       return db.transaction().execute(async (trx) => {
-        if (position !== null) {
-          await trx
-            .updateTable('wardrobeItems')
-            .set({ heroPosition: null })
-            .where('userId', '=', userId)
-            .where('heroPosition', '=', position)
-            .execute();
-        }
+        await placeHero(trx, userId, id, position);
         return trx
-          .updateTable('wardrobeItems')
-          .set({ heroPosition: position })
+          .selectFrom('wardrobeItems')
+          .select(PIECE_COLUMNS)
           .where('userId', '=', userId)
           .where('id', '=', id)
           .where('deletedAt', 'is', null)
-          .returning(PIECE_COLUMNS)
           .executeTakeFirst();
+      });
+    },
+
+    // Her edit and its rack change in one transaction: a full rack (HeroRackFull) writes nothing.
+    async edit(userId: UserId, id: string, fields: PieceFields, hero: HeroChange = {}) {
+      return db.transaction().execute(async (trx) => {
+        const current = await trx
+          .selectFrom('wardrobeItems')
+          .select(['id', 'heroPosition'])
+          .where('userId', '=', userId)
+          .where('id', '=', id)
+          .where('deletedAt', 'is', null)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!current) return undefined;
+        let position = hero.position;
+        if (position === undefined && hero.star === false) position = null;
+        if (position === undefined && hero.star === true && current.heroPosition === null) {
+          // Locks her rack so two stars at once can't take the same place.
+          const taken = await trx
+            .selectFrom('wardrobeItems')
+            .select('heroPosition')
+            .where('userId', '=', userId)
+            .where('deletedAt', 'is', null)
+            .where('heroPosition', 'is not', null)
+            .forUpdate()
+            .execute();
+          const used = new Set(taken.map((r) => r.heroPosition));
+          position = null;
+          for (let p = 1; p <= HERO_RACK_SIZE && position === null; p++) {
+            if (!used.has(p)) position = p;
+          }
+          if (position === null) throw new HeroRackFull();
+        }
+        const values = withTaxonomy(fields);
+        if (Object.keys(values).length > 0) {
+          await trx
+            .updateTable('wardrobeItems')
+            .set(values)
+            .where('userId', '=', userId)
+            .where('id', '=', id)
+            .execute();
+        }
+        if (position !== undefined) await placeHero(trx, userId, id, position);
+        return trx
+          .selectFrom('wardrobeItems')
+          .select(PIECE_COLUMNS)
+          .where('userId', '=', userId)
+          .where('id', '=', id)
+          .executeTakeFirstOrThrow();
       });
     },
 
@@ -269,7 +344,7 @@ export function wardrobeRepo(db: Db) {
         .where('heroPosition', 'is not', null)
         .execute();
       const used = new Set(taken.map((r) => r.heroPosition));
-      for (let p = 1; p <= 10; p++) if (!used.has(p)) return p;
+      for (let p = 1; p <= HERO_RACK_SIZE; p++) if (!used.has(p)) return p;
       return null;
     },
 

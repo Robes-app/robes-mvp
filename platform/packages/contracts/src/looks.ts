@@ -234,6 +234,8 @@ export const UpdateLookInput = z
     climateBand: SeasonBand,
     pieces: z.array(LookPieceInput).max(50),
     ...rackFields,
+    // Editing a suggestion makes it a draft: at five drafts, she lets the oldest go.
+    letGoOldest: z.boolean(),
   })
   .partial();
 export type UpdateLookInput = z.infer<typeof UpdateLookInput>;

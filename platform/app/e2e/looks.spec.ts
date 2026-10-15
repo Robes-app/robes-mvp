@@ -79,10 +79,21 @@ test('styling a piece mints three suggestions; one is saved as is, one edited in
     ).status(),
   ).toBe(404);
 
+  // The first frame belongs to the styling job: asking for it hands back that job, never a second
+  // draw (and never a second charge).
+  const hero = await (await api.post(`/api/v1/looks/${first.id}/frame`)).json();
+  expect(hero.jobId).toBe(jobId);
+  // A look's frame is never a Today tray job.
+  const trayRenders = async () =>
+    (await (await api.get('/api/v1/today')).json()).tray.filter(
+      (j: { kind: string }) => j.kind === 'look_render',
+    ).length;
+
   // The second look's frame is drawn when she reaches it; asking again spends nothing.
   const frame = await api.post(`/api/v1/looks/${second.id}/frame`);
   expect(frame.status()).toBe(202);
   const again = await (await api.post(`/api/v1/looks/${second.id}/frame`)).json();
+  expect(await trayRenders()).toBe(0);
   expect(again.jobId).toBe((await frame.json()).jobId);
   await expect
     .poll(async () => (await (await api.get(`/api/v1/looks/${second.id}`)).json()).frame, {
@@ -240,4 +251,38 @@ test('the look prompt returns an edit; a rule waits as a noticed line; five draf
   });
   expect(letGo.status()).toBe(201);
   expect((await api.get(`/api/v1/looks/${look.id}`)).status()).toBe(404);
+
+  // Editing a suggestion makes a draft, within the five too; Undo of a let-go draft as well.
+  const set = await (
+    await api.get(
+      `/api/v1/looks/sets/${
+        (
+          await settle(
+            page,
+            (
+              await (
+                await api.post('/api/v1/looks/prompt', {
+                  data: { prompt: 'Lunch with my sister' },
+                  headers: key(),
+                })
+              ).json()
+            ).jobId,
+          )
+        ).output.setId
+      }`,
+    )
+  ).json();
+  const sugg = set.looks[0];
+  const edit = await api.patch(`/api/v1/looks/${sugg.id}`, { data: { proposals: [] } });
+  expect(edit.status()).toBe(409);
+  expect((await edit.json()).error.details).toEqual({ reason: 'drafts_full' });
+  expect((await (await api.get(`/api/v1/looks/${sugg.id}`)).json()).status).toBe('suggested');
+  const edited = await api.patch(`/api/v1/looks/${sugg.id}`, {
+    data: { proposals: [], letGoOldest: true },
+  });
+  expect((await edited.json()).status).toBe('draft');
+  const drafts = await (await api.get('/api/v1/looks?status=draft')).json();
+  expect(drafts.items).toHaveLength(5);
+  const restoreGone = await api.post(`/api/v1/looks/${look.id}/restore`);
+  expect(restoreGone.status()).toBe(409);
 });

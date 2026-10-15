@@ -99,6 +99,54 @@ export const AdminCosts = z.object({
 });
 export type AdminCosts = z.infer<typeof AdminCosts>;
 
+// Operating metrics (aggregates only): the window is today and the days - 1 before it, UTC.
+export const AdminMetricsInput = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(7),
+});
+
+const bySource = z.array(z.object({ source: z.string(), n: count }));
+export const AdminMetrics = z.object({
+  days: z.number().int(),
+  daily: z.array(z.object({ day: z.iso.date(), signups: count, active: count })),
+  funnel: z.object({
+    signedUp: count,
+    firstPiece: count,
+    firstSavedLook: count,
+    returned: count,
+  }),
+  piecesBySource: bySource,
+  looksBySource: bySource,
+  deck: z.object({ kept: count, edited: count, passed: count, waiting: count }),
+  jobs: z.array(
+    z.object({
+      kind: z.string(),
+      total: count,
+      succeeded: count,
+      failed: count,
+      cancelled: count,
+      p50Ms: z.number().nullable(),
+      p95Ms: z.number().nullable(),
+      costMicros: count,
+    }),
+  ),
+  queue: z.object({
+    queued: count,
+    running: count,
+    oldestQueuedSeconds: z.number().nullable(),
+    staleQueued: count,
+    expiredLeases: count,
+  }),
+  email: z.object({
+    sent: count,
+    failed: count,
+    suppressed: count,
+    bounces: count,
+    complaints: count,
+    unsubscribes: count,
+  }),
+});
+export type AdminMetrics = z.infer<typeof AdminMetrics>;
+
 export const AdminFlag = z.object({
   key: z.string(),
   enabled: z.boolean(),
