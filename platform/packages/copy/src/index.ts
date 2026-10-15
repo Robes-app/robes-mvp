@@ -1,3 +1,4 @@
+import { firstRun, home } from './home';
 import { lookbook } from './lookbook';
 
 // Every user-facing string lives here (SPEC principle 6); voice rules: brand-and-design.md §1.
@@ -1283,6 +1284,7 @@ export const twin = {
   },
 } as const;
 
+export { firstRun, home } from './home';
 export { lookbook } from './lookbook';
 
 // Several pieces from one photograph (legacy 2026-10-13): the wardrobe add (use case 3) and a
@@ -1419,6 +1421,8 @@ export const keyPiece = {
 } as const;
 
 export const copy = {
+  home,
+  firstRun,
   lookbook,
   wardrobe,
   photoPieces,

@@ -90,9 +90,12 @@ import {
   DailyItemParams,
   DailyLook,
   DailyLookParams,
+  HomeLater,
+  HomeLaterInput,
   SaveDailyLookInput,
   Today,
   TodayGenerateInput,
+  TodayWeather,
 } from './today';
 import { PinnedTrip, PlanTripInput, Trip, TripList, TripParams } from './travel';
 import {
@@ -177,6 +180,14 @@ export const routes = {
     auth: 'user',
     input: EmptyInput,
     output: OnboardingComplete,
+  },
+  // Later on a home step: it stands down for a day.
+  'me.home.later': {
+    method: 'POST',
+    path: '/me/home/later',
+    auth: 'user',
+    input: HomeLaterInput,
+    output: HomeLater,
   },
   'me.deletion.get': {
     method: 'GET',
@@ -685,6 +696,13 @@ export const routes = {
     output: LookSet,
   },
   'today.get': { method: 'GET', path: '/today', auth: 'user', input: EmptyInput, output: Today },
+  'today.weather': {
+    method: 'GET',
+    path: '/today/weather',
+    auth: 'user',
+    input: EmptyInput,
+    output: TodayWeather,
+  },
   'today.generate': {
     method: 'POST',
     path: '/today/generate',

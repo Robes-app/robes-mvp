@@ -1,6 +1,7 @@
+import { HOME_STEPS } from '@robes/core/home';
 import { z } from 'zod';
 import { JobSnapshot } from './jobs';
-import { FrameStatus, Idea } from './looks';
+import { FrameStatus, Idea, Look } from './looks';
 import { PlanEntry } from './plan';
 import { Piece, PieceImage } from './wardrobe';
 
@@ -16,6 +17,58 @@ export const NextStep = z
   .nullable();
 export type NextStep = z.infer<typeof NextStep>;
 
+export const HomeStep = z.enum(HOME_STEPS);
+export type HomeStep = z.infer<typeof HomeStep>;
+
+export const HomePiece = z.object({
+  id: z.uuid(),
+  label: z.string(),
+  brand: z.string().nullable(),
+  image: PieceImage.nullable(),
+});
+export type HomePiece = z.infer<typeof HomePiece>;
+
+// The modular home (legacy 0478e63): her state for the resolver plus what each module paints.
+export const Home = z.object({
+  state: z.object({
+    styleConfirmed: z.boolean(),
+    twinOnFile: z.boolean(),
+    pics: z.number().int().min(0),
+    ownLookSaved: z.boolean(),
+    snoozed: z.partialRecord(HomeStep, z.iso.datetime()),
+  }),
+  // O1's rows: her chips, three at most.
+  rows: z.object({
+    brands: z.array(z.string()).max(3),
+    icons: z.array(z.string()).max(3),
+    styles: z.array(z.string()).max(3),
+  }),
+  // O3: the last four photographed pieces. O4: three to build the first look around.
+  recent: z.array(HomePiece).max(4),
+  candidates: z.array(HomePiece).max(3),
+  // H1: held receipts, and one line Robes noticed (after three saved looks).
+  receipts: z
+    .object({
+      receipts: z.number().int().min(1),
+      pieces: z.number().int().min(0),
+      retailer: z.string().nullable(),
+    })
+    .nullable(),
+  noticed: z.object({ id: z.uuid(), text: z.string() }).nullable(),
+  // H4: Saved looks then Suggested, four each, whenever they have data.
+  saved: z.array(Look).max(4),
+  suggested: z.array(Look).max(4),
+});
+export type Home = z.infer<typeof Home>;
+
+// H3's day card: the first look on the day.
+export const WeekLook = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  image: PieceImage.nullable(),
+  worn: z.boolean(),
+});
+
 export const Today = z.object({
   // Her calendar date (her timezone) and local hour, for the greeting.
   date: z.iso.date(),
@@ -25,7 +78,15 @@ export const Today = z.object({
   // Looks pinned to today; `worn` once she's recorded wearing it.
   today: z.array(z.object({ entry: PlanEntry, worn: z.boolean() })),
   // The next seven days (today first) with how many looks each holds.
-  week: z.array(z.object({ date: z.iso.date(), looks: z.number().int().min(0) })).length(7),
+  week: z
+    .array(
+      z.object({
+        date: z.iso.date(),
+        looks: z.number().int().min(0),
+        first: WeekLook.nullable().default(null),
+      }),
+    )
+    .length(7),
   // Generation tray: running jobs and ones that finished in the last 15 minutes.
   tray: z.array(JobSnapshot),
   ideas: z.array(Idea),
@@ -33,8 +94,18 @@ export const Today = z.object({
   inboxCount: z.number().int().min(0),
   // The look Robes made for her date overnight (M5 task 3); opens the daily look page.
   overnight: z.object({ id: z.uuid(), title: z.string(), headline: z.string() }).nullable(),
+  home: Home,
 });
 export type Today = z.infer<typeof Today>;
+
+export const HomeLaterInput = z.object({ step: HomeStep });
+export const HomeLater = z.object({ snoozed: Home.shape.state.shape.snoozed });
+
+// The masthead's weather line: her home city today (Open-Meteo); null without a city.
+export const TodayWeather = z
+  .object({ city: z.string().nullable(), tempRange: z.string(), condition: z.string() })
+  .nullable();
+export type TodayWeather = z.infer<typeof TodayWeather>;
 
 // Style it for today (M5 task 2, legacy /api/daily): her brief is the only free text.
 export const TodayGenerateInput = z.object({

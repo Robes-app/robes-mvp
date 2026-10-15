@@ -5,6 +5,7 @@ import { nextStep } from '@robes/core/next-step';
 import type { UserId } from '@robes/db';
 import { repos } from './db';
 import { isFlagEnabled } from './flags';
+import { loadHome } from './home';
 import { toJobSnapshot } from './jobs';
 import { toIdeas } from './looks';
 import { loadPlan, todayIn } from './plan';
@@ -68,12 +69,27 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
           : 'woman',
     }),
     today: todayEntries,
-    week: plan.days.map((d) => ({ date: d.date, looks: d.entries.length })),
+    week: plan.days.map((d) => {
+      const first = d.entries.find((e) => e.slot === 'day') ?? d.entries[0];
+      return {
+        date: d.date,
+        looks: d.entries.length,
+        first: first
+          ? {
+              id: first.look.id,
+              name: first.activity ?? first.look.name,
+              image: first.look.image ?? first.look.pieces[0]?.piece.image ?? null,
+              worn: d.date === date && worn.includes(first.look.id),
+            }
+          : null,
+      };
+    }),
     tray: jobs.map(toJobSnapshot),
     ideas: await toIdeas(userId, ideaRows),
     inboxCount,
     overnight: overnight
       ? { id: overnight.id, title: overnight.title, headline: overnight.subtitle }
       : null,
+    home: await loadHome(userId, profile, looks),
   });
 }
