@@ -129,3 +129,11 @@ export function greetingName(firstName: string | null | undefined): string | nul
   const n = firstName?.trim();
   return n && !n.includes('@') ? n : null;
 }
+
+// A trip-shaped ask (legacy 1ebfc72): while trips are hidden it makes suggested looks, UNDATED (a
+// trip's first day in her home weather would read as the wrong answer), never a trip.
+const TRIP_ASK =
+  /\b(trip|holiday|getaway|city break|packing|pack for|travell?ing)\b|\b(\d+|two|three|four|five|six|seven|eight|nine|ten|a few)\s+(days|nights)\s+(in|at|away)\b|\bweekend (in|away)\b/i;
+export function isTripAsk(text: string): boolean {
+  return TRIP_ASK.test(text);
+}

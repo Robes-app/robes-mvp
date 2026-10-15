@@ -3,6 +3,7 @@ import {
   firstLookCandidates,
   greetingName,
   type HomeState,
+  isTripAsk,
   mapRows,
   noticedLine,
   ownLook,
@@ -116,5 +117,13 @@ describe('module helpers', () => {
     expect(greetingName('annie@byrobes.com')).toBeNull();
     expect(greetingName(' Annie ')).toBe('Annie');
     expect(greetingName(null)).toBeNull();
+  });
+
+  it('a trip-shaped ask is read as one', () => {
+    expect(isTripAsk('Four days in Lisbon from tomorrow')).toBe(true);
+    expect(isTripAsk('A weekend away in the Cotswolds')).toBe(true);
+    expect(isTripAsk('Packing for Rome')).toBe(true);
+    expect(isTripAsk('Dinner on Friday')).toBe(false);
+    expect(isTripAsk('Something for the weekend')).toBe(false);
   });
 });

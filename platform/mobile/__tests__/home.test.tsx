@@ -93,6 +93,7 @@ test('activated: the strip selects a day; Dress {weekday} puts the box on the da
   const calls = mockFetch({
     'GET /today': todayWith(activated),
     'GET /today/weather': null,
+    'GET /me/features': { trips: false },
     'POST /looks/prompt': { jobId: JOB_ID, status: 'queued' },
   });
   await renderWithApi(<HomeView />);
@@ -149,4 +150,37 @@ test('H1 carries the receipts and Robes noticed; H4 Saved then Suggested open th
   await fireEvent.press(screen.getByRole('link', { name: 'Garden party' }));
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);
   expect(screen.getByText(todayCopy.greeting('Niall', 8))).toBeTruthy();
+});
+
+test('a trip-shaped ask while trips are hidden lands on the deck undated', async () => {
+  const calls = mockFetch({
+    'GET /today': todayWith(),
+    'GET /today/weather': null,
+    'GET /me/features': { trips: false },
+    'POST /looks/prompt': { jobId: JOB_ID, status: 'queued' },
+  });
+  await renderWithApi(<HomeView />);
+  const box = await screen.findByLabelText(lookbook.prompt.doorNew);
+  await fireEvent.changeText(box, 'Four days in Lisbon from tomorrow');
+  await fireEvent(box, 'submitEditing');
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/looks/job/${JOB_ID}`));
+  expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
+    prompt: 'Four days in Lisbon from tomorrow',
+  });
+});
+
+test('with trips on, a trip-shaped ask opens a trip', async () => {
+  mockFetch({
+    'GET /today': todayWith(),
+    'GET /today/weather': null,
+    'GET /me/features': { trips: true },
+  });
+  await renderWithApi(<HomeView />);
+  await waitFor(() => expect(screen.getByLabelText(lookbook.prompt.doorNew)).toBeTruthy());
+  const box = screen.getByLabelText(lookbook.prompt.doorNew);
+  await waitFor(async () => {
+    await fireEvent.changeText(box, 'A weekend away in Kinsale');
+    await fireEvent(box, 'submitEditing');
+    expect(mockRouter.push).toHaveBeenCalledWith('/trip/new');
+  });
 });

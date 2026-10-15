@@ -1,6 +1,7 @@
 import { useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { home as copy, lookbook } from '@robes/copy';
+import { isTripAsk } from '@robes/core/home';
 import { ASK_MAX_CHARS, askDateFrom } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import { IconButton, Image, Sheet, Text, useColor } from '@robes/ui-native';
@@ -11,6 +12,7 @@ import { SwapSheet } from '@/features/looks/SwapSheet';
 import { localDate } from '@/features/looks/saved-looks';
 import { dayLabel } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
+import { useFeatures } from '@/lib/features';
 import { renditionUri } from '@/lib/images';
 import { type PhotoSource, pickOne, usePhotoFiling } from './file-photo';
 
@@ -26,6 +28,7 @@ export const HomeBox = forwardRef<
 >(function HomeBox({ placeholder, date, onDateClear, hasPieces }, ref) {
   const router = useRouter();
   const api = useApiClient();
+  const { features } = useFeatures();
   const input = useRef<TextInput>(null);
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
@@ -100,7 +103,12 @@ export const HomeBox = forwardRef<
       return;
     }
     if (words.length < 2) return;
-    const day = date ?? askDateFrom(words, localDate());
+    const trip = !date && isTripAsk(words);
+    if (trip && features.trips) {
+      router.push('/trip/new');
+      return;
+    }
+    const day = date ?? (trip ? null : askDateFrom(words, localDate()));
     setBusy(true);
     try {
       const { jobId } = await api.call('looks.prompt', {

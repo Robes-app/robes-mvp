@@ -3,11 +3,13 @@
 import { useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { home as copy, lookbook } from '@robes/copy';
+import { isTripAsk } from '@robes/core/home';
 import { ASK_MAX_CHARS, askDateFrom } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { IconButton, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
+import { useFeatures } from '@/components/features';
 import { SwapSheet } from '@/components/looks/swap-sheet';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { formatDay, localToday } from '@/lib/dates';
@@ -35,6 +37,7 @@ export function HomeBox({
 }) {
   const router = useRouter();
   const api = useApiClient();
+  const features = useFeatures();
   const id = useId();
   const field = useRef<HTMLTextAreaElement>(null);
   const camera = useRef<HTMLInputElement>(null);
@@ -103,7 +106,12 @@ export function HomeBox({
       return;
     }
     if (words.length < 2) return;
-    const day = date ?? askDateFrom(words, localToday());
+    const trip = !date && isTripAsk(words);
+    if (trip && features.trips) {
+      router.push('/trip/new');
+      return;
+    }
+    const day = date ?? (trip ? null : askDateFrom(words, localToday()));
     setBusy(lookbook.prompt.busyRead);
     try {
       const { jobId } = await api.call('looks.prompt', {
