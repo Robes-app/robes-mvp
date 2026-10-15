@@ -1,4 +1,4 @@
-import { verifiedUserId } from '@robes/db';
+import { BriefListFull, verifiedUserId } from '@robes/db';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
@@ -7,7 +7,8 @@ const repos = {
     get: vi.fn(),
     updateTaste: vi.fn(async () => {}),
     setFacts: vi.fn(async () => {}),
-    keepPending: vi.fn(async () => false),
+    addLine: vi.fn(async (): Promise<boolean> => true),
+    keepPending: vi.fn(async (): Promise<boolean> => false),
     dismissPending: vi.fn(async () => true),
     removeLine: vi.fn(async () => false),
   },
@@ -131,6 +132,20 @@ describe('Style DNA server', () => {
       code: 'not_found',
     });
     await expect(twin.removeBriefLine(USER, LINE)).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('answers a full list with a 409 brief_list_full, from typing or keeping', async () => {
+    repos.styleDna.addLine.mockRejectedValueOnce(new BriefListFull('rules'));
+    await expect(
+      twin.addBriefLine(USER, { list: 'rules', text: 'One too many' }),
+    ).rejects.toMatchObject({
+      code: 'conflict',
+      extra: { details: { reason: 'brief_list_full' } },
+    });
+    repos.styleDna.keepPending.mockRejectedValueOnce(new BriefListFull('loves'));
+    await expect(twin.answerObservation(USER, LINE, 'keep')).rejects.toMatchObject({
+      code: 'conflict',
+    });
   });
 
   it('starts the read as a paid job carrying no input', async () => {

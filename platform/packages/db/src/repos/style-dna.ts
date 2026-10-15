@@ -1,6 +1,8 @@
+import { BRIEF_KEPT_MAX } from '@robes/core/style-dna';
 import { type Kysely, sql, type Transaction } from 'kysely';
 import type { Db } from '../client';
 import type { DB } from '../database.types';
+import { BriefListFull } from '../errors';
 import type { UserId } from '../ids';
 
 // Her Style DNA (legacy Settings 2026-10-07): taste, the facts and the brief in her words.
@@ -141,6 +143,19 @@ async function ensureStyleProfile(q: Q, userId: UserId): Promise<void> {
     .execute();
 }
 
+// Serialised per person (row lock on her user), so two adds can't both take the last place.
+async function assertRoom(trx: Transaction<DB>, userId: UserId, list: BriefList): Promise<void> {
+  await trx.selectFrom('users').select('id').where('id', '=', userId).forUpdate().execute();
+  const row = await trx
+    .selectFrom('styleBriefLines')
+    .select((eb) => eb.fn.countAll<string>().as('n'))
+    .where('userId', '=', userId)
+    .where('list', '=', list)
+    .where('state', '=', 'kept')
+    .executeTakeFirst();
+  if (Number(row?.n ?? 0) >= BRIEF_KEPT_MAX) throw new BriefListFull(list);
+}
+
 // Adds a pending line unless the text already stands, waits or was struck; oldest beyond 12 go.
 async function addPending(
   q: Q,
@@ -266,32 +281,45 @@ export function styleDnaRepo(db: Db) {
       await db.updateTable('profiles').set(values).where('id', '=', userId).execute();
     },
 
-    // A line of her own; typing a line Robes was waiting on keeps it. False when it already stands.
+    // A line of her own; typing a line Robes was waiting on keeps it. False when it already stands;
+    // BriefListFull when the list holds BRIEF_KEPT_MAX kept lines.
     async addLine(userId: UserId, list: BriefList, text: string, chip?: string): Promise<boolean> {
       const t = clean(text, 160);
       if (!t) return false;
-      const res = await db
-        .insertInto('styleBriefLines')
-        .values({
-          userId,
-          list,
-          state: 'kept',
-          text: t,
-          source: 'typed',
-          origin: 'her',
-          chip: chip ? clean(chip, 60) : null,
-          keptAt: sql`now()`,
-          createdAt: sql`clock_timestamp()`,
-        })
-        .onConflict((oc) =>
-          oc
-            .expression(sql`user_id, list, lower(text)`)
-            .where(sql<boolean>`state <> 'struck'`)
-            .doUpdateSet({ state: 'kept', keptAt: sql`now()`, source: 'typed', origin: 'her' })
-            .where('styleBriefLines.state', '=', 'pending'),
-        )
-        .executeTakeFirst();
-      return Number(res.numInsertedOrUpdatedRows ?? 0) > 0;
+      return db.transaction().execute(async (trx) => {
+        const standing = await trx
+          .selectFrom('styleBriefLines')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('list', '=', list)
+          .where('state', '=', 'kept')
+          .where(sql`lower(text)`, '=', t.toLowerCase())
+          .executeTakeFirst();
+        if (standing) return false;
+        await assertRoom(trx, userId, list);
+        const res = await trx
+          .insertInto('styleBriefLines')
+          .values({
+            userId,
+            list,
+            state: 'kept',
+            text: t,
+            source: 'typed',
+            origin: 'her',
+            chip: chip ? clean(chip, 60) : null,
+            keptAt: sql`now()`,
+            createdAt: sql`clock_timestamp()`,
+          })
+          .onConflict((oc) =>
+            oc
+              .expression(sql`user_id, list, lower(text)`)
+              .where(sql<boolean>`state <> 'struck'`)
+              .doUpdateSet({ state: 'kept', keptAt: sql`now()`, source: 'typed', origin: 'her' })
+              .where('styleBriefLines.state', '=', 'pending'),
+          )
+          .executeTakeFirst();
+        return Number(res.numInsertedOrUpdatedRows ?? 0) > 0;
+      });
     },
 
     // × on a kept line: a line Robes drafted is struck (and remembered); her own simply goes.
@@ -314,7 +342,8 @@ export function styleDnaRepo(db: Db) {
       });
     },
 
-    // Keep: a line joins its list; the paragraph and the colours file on her style profile.
+    // Keep: a line joins its list (BriefListFull when it is full); the paragraph and the colours
+    // file on her style profile.
     async keepPending(userId: UserId, id: string): Promise<boolean> {
       return db.transaction().execute(async (trx) => {
         const line = await trx
@@ -351,6 +380,7 @@ export function styleDnaRepo(db: Db) {
           await trx.deleteFrom('styleBriefLines').where('id', '=', line.id).execute();
           return true;
         }
+        await assertRoom(trx, userId, line.list as BriefList);
         await trx
           .updateTable('styleBriefLines')
           .set({ state: 'kept', keptAt: sql`now()`, source: 'drafted' })

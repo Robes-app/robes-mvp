@@ -1,3 +1,4 @@
+import { isApiClientError } from '@robes/api-client';
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { StyleDna } from '@robes/contracts';
 import { twin } from '@robes/copy';
@@ -14,7 +15,12 @@ export function useDnaMutations() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const set = (data: StyleDna) => queryClient.setQueryData(DNA_KEY, data);
-  const onError = (err: unknown) => toast.show({ message: errorMessage(err) });
+  // A 409 on a line write means the list is full (BRIEF_KEPT_MAX).
+  const onError = (err: unknown) =>
+    toast.show({
+      message:
+        isApiClientError(err) && err.code === 'conflict' ? twin.words.full : errorMessage(err),
+    });
   return {
     update: useApiMutation('me.dna.update', { onSuccess: set, onError }),
     addLine: useApiMutation('me.dna.lines.add', { onSuccess: set, onError }),

@@ -1,4 +1,6 @@
+import { BRIEF_KEPT_MAX } from '@robes/core/style-dna';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { BriefListFull } from '../../src/errors';
 import type { UserId } from '../../src/ids';
 import { createRepositories, createSystemRepositories } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
@@ -134,6 +136,41 @@ describe('style DNA repos', () => {
     expect(await repos.styleDna.addLine(ann, 'rules', 'No double denim')).toBe(true);
     expect((await lines(ann)).find((l) => l.text === 'No double denim')?.state).toBe('kept');
     expect((await lines(bea)).length).toBe(0);
+  });
+
+  it('caps kept lines per list at BRIEF_KEPT_MAX, for typed and kept lines alike', async () => {
+    const cal = await createTestUser(db, 'Cal Cap');
+    try {
+      await db
+        .insertInto('styleBriefLines')
+        .values(
+          Array.from({ length: BRIEF_KEPT_MAX }, (_, i) => ({
+            userId: cal,
+            list: 'rules',
+            state: 'kept',
+            text: `Rule ${i}`,
+            keptAt: new Date(),
+          })),
+        )
+        .execute();
+      // A line already standing is still a no-op, not a full list.
+      expect(await repos.styleDna.addLine(cal, 'rules', 'rule 3')).toBe(false);
+      await expect(repos.styleDna.addLine(cal, 'rules', 'One too many')).rejects.toBeInstanceOf(
+        BriefListFull,
+      );
+      expect(await repos.styleDna.notice(cal, { list: 'rules', text: 'Waiting rule' })).toBe(true);
+      const waiting = (await lines(cal)).find((l) => l.text === 'Waiting rule');
+      await expect(repos.styleDna.keepPending(cal, waiting?.id ?? '')).rejects.toBeInstanceOf(
+        BriefListFull,
+      );
+      expect((await lines(cal)).filter((l) => l.state === 'kept')).toHaveLength(BRIEF_KEPT_MAX);
+      // Other lists, and other people, have their own room.
+      expect(await repos.styleDna.addLine(cal, 'loves', 'Navy')).toBe(true);
+      expect(await repos.styleDna.addLine(bea, 'rules', 'One too many')).toBe(true);
+      await db.deleteFrom('styleBriefLines').where('userId', '=', bea).execute();
+    } finally {
+      await deleteTestUsers(db, cal);
+    }
   });
 
   it('records her memory, reads her wears with it and never another user’s look', async () => {

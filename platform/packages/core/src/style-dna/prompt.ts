@@ -16,8 +16,11 @@ const strs = (v: unknown): string[] =>
     .slice(0, 10);
 
 // ── Her brief (style_dna.brief): {loves[], avoids[], rules[], notes, colours:{loved[], rejected[]}};
-// each list entry a string or {text, source}. Every kept line reaches a prompt (legacy 2026-10-13).
+// each list entry a string or {text, source}. All kept lines show to her (legacy 2026-10-13); the
+// server caps a list at BRIEF_KEPT_MAX and a prompt reads the newest BRIEF_PROMPT_MAX of each.
 const BRIEF_LINE_MAX = 160;
+export const BRIEF_KEPT_MAX = 50;
+export const BRIEF_PROMPT_MAX = 30;
 
 export function briefList(a: unknown): string[] {
   if (!Array.isArray(a)) return [];
@@ -41,9 +44,9 @@ export function briefIsEmpty(b: unknown): boolean {
 function styleBriefLines(b: unknown): string[] {
   const brief = obj(b);
   if (!brief || briefIsEmpty(brief)) return [];
-  const loves = briefList(brief.loves);
-  const avoids = briefList(brief.avoids);
-  const rules = briefList(brief.rules);
+  const loves = briefList(brief.loves).slice(-BRIEF_PROMPT_MAX);
+  const avoids = briefList(brief.avoids).slice(-BRIEF_PROMPT_MAX);
+  const rules = briefList(brief.rules).slice(-BRIEF_PROMPT_MAX);
   const notes =
     typeof brief.notes === 'string' ? brief.notes.trim().replace(/\s+/g, ' ').slice(0, 600) : '';
   const out = [

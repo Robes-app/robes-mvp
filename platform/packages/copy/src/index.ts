@@ -1239,6 +1239,8 @@ export const twin = {
     keep: 'Keep',
     filed: '✓ Filed · Robes reads it from here on',
     from: (text: string): string => `from “${text}”`,
+    // 409 brief_list_full: the server keeps at most BRIEF_KEPT_MAX lines per list.
+    full: 'This list is full. Strike a line to make room for a new one.',
   },
   observations: {
     title: 'Robes Observations',

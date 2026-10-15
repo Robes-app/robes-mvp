@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import legacy from './fixtures/legacy.json' with { type: 'json' };
 import {
   BODIES,
+  BRIEF_PROMPT_MAX,
   briefIsEmpty,
   briefList,
   buildColorHarmony,
@@ -96,5 +97,15 @@ describe('style DNA hardening (2026-10-13 fields)', () => {
       [],
     );
     expect(block).toBe('');
+  });
+});
+
+describe('style DNA prompt bounds', () => {
+  it('reads the newest BRIEF_PROMPT_MAX kept lines of each list', () => {
+    const loves = Array.from({ length: BRIEF_PROMPT_MAX + 5 }, (_, i) => `Line ${i}`);
+    const block = styleDnaPromptBlock({ brief: { loves } }, 0, []);
+    expect(block).not.toMatch(/Line 4\b/);
+    expect(block).toMatch(/Line 5\b/);
+    expect(block).toContain(`Line ${BRIEF_PROMPT_MAX + 4}`);
   });
 });

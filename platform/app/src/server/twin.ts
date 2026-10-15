@@ -12,7 +12,7 @@ import {
   type UpdateStyleDnaInput,
 } from '@robes/contracts';
 import { chooseSeason, iconTag, type SeasonName } from '@robes/core/style-dna';
-import type { UserId } from '@robes/db';
+import { BriefListFull, type UserId } from '@robes/db';
 import { z } from 'zod';
 import { toImage } from './asset-urls';
 import { repos } from './db';
@@ -121,8 +121,20 @@ export async function updateStyleDna(
   return loadStyleDna(userId);
 }
 
+// A full list (BRIEF_KEPT_MAX kept lines) is a 409 the clients name as brief_list_full.
+async function withRoom<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (err) {
+    if (err instanceof BriefListFull) {
+      throw new ApiError('conflict', { details: { reason: 'brief_list_full' } });
+    }
+    throw err;
+  }
+}
+
 export async function addBriefLine(userId: UserId, input: AddBriefLineInput): Promise<StyleDna> {
-  await repos.styleDna.addLine(userId, input.list, input.text, input.chip);
+  await withRoom(() => repos.styleDna.addLine(userId, input.list, input.text, input.chip));
   return loadStyleDna(userId);
 }
 
@@ -138,7 +150,7 @@ export async function answerObservation(
 ): Promise<StyleDna> {
   const done =
     answer === 'keep'
-      ? await repos.styleDna.keepPending(userId, id)
+      ? await withRoom(() => repos.styleDna.keepPending(userId, id))
       : await repos.styleDna.dismissPending(userId, id);
   if (!done) throw new ApiError('not_found');
   return loadStyleDna(userId);
