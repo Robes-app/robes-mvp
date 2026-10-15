@@ -39,7 +39,7 @@ export function LookScreen({ id }: { id: string }) {
   if (query.isError || !query.data) return <EmptyState title={errorMessage(query.error)} />;
   const look = query.data;
   if (look.status === 'saved') return <LookDetail id={id} />;
-  return <WorkingLook key={look.status} look={look} />;
+  return <WorkingLook look={look} />;
 }
 
 function eyebrowOf(look: Look): string {

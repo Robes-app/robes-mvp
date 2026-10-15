@@ -45,7 +45,7 @@ export function LookView({ id }: { id: string }) {
   if (!query.data) return <LookSkeleton />;
   // One look, three states (docs/look-states-brief.md): suggested and draft are hers to work on.
   if (query.data.status !== 'saved')
-    return <WorkingLook key={query.data.status} look={query.data} />;
+    return <WorkingLook look={query.data} />;
   return <LookBody look={query.data} />;
 }
 
