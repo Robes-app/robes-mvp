@@ -112,7 +112,9 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Styling engines (all Jobs)
 | New | Legacy |
 |---|---|
-| `POST /looks/generate` (key-piece styling) | `/api/style` |
+| `POST /looks/generate` (key-piece styling) · `POST /looks/prompt` (a new look in her words: three suggested looks, dated when her words name a day) · `POST /looks/:id/restyle` (↻ one suggestion) | `/api/style` (dress-me intent, `refine` + `wayIndex`) |
+| `POST /looks/:id/ask` (the look prompt; the edit is the job's output) | `/api/look/ask` (supersedes `/api/look/refine`) |
+| `POST /looks/:id/frame` (Robes' frame for the rack as it stands: first open, or re-dressed after an edit) | `/api/avatar/render` frame mode |
 | `POST /today/generate` (daily look; also produced by overnight batch) | `/api/daily` |
 | `POST /travel/plan` · `POST /travel/:id/looks` · `POST /travel/:id/days/:day/restyle` | `/api/travel`, `/api/travel/looks` |
 | `POST /moodboards/generate` (**deferred**: moodboards are flagged off in legacy, `_RB_MB_HIDDEN`; build only if product revives them) | `/api/moodboard` |
@@ -126,7 +128,8 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Looks, artifacts, planning
 | New | Legacy |
 |---|---|
-| `GET/POST/PATCH/DELETE /looks[...]` · `PUT /looks/:id/pieces` | client REST `looks`, `look_pieces` |
+| `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` (suggested/draft → saved) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
+| `GET /looks/noticed` · `DELETE /looks/noticed/:id` | `style_dna.brief.pending` lines `from:'prompt'` |
 | `POST /looks/:id/wears` · `DELETE /wears/:id` | client REST `wears` |
 | `GET /artifacts?type=` · `GET /artifacts/:id` · `PATCH /artifacts/:id` (title, packed/pins state) · `DELETE` (soft) | client REST `lookbook_items` + localStorage merge |
 | `GET /plan?from=&to=` · `PUT /plan/days/:date` | client REST `planned_days` + client sweeps |

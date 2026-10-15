@@ -1,11 +1,32 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { isolateClientIp, signIn } from './helpers';
 
-// Style a piece → key_piece job → idea with three looks and rendered frames, on the local stack
-// with the offline AI fake when GEMINI_API_KEY is unset.
+// Style a piece / dress a day → key_piece job → three SUGGESTED looks (look states), on the local
+// stack with the offline AI fake when GEMINI_API_KEY is unset.
 test.beforeEach(async ({ context }) => isolateClientIp(context));
 
-test('styling a piece produces an idea she can save and delete', async ({ page }) => {
+const key = () => ({ 'idempotency-key': crypto.randomUUID() });
+
+async function settle(
+  page: Page,
+  jobId: string,
+): Promise<{ status: string; output: Record<string, unknown> }> {
+  let snap = { status: 'queued', output: {} };
+  await expect
+    .poll(
+      async () => {
+        snap = await (await page.request.get(`/api/v1/jobs/${jobId}`)).json();
+        return snap.status;
+      },
+      { timeout: 30_000 },
+    )
+    .toMatch(/succeeded|partial|failed/);
+  return snap;
+}
+
+test('styling a piece mints three suggestions; one is saved as is, one edited into a draft', async ({
+  page,
+}) => {
   await signIn(page);
   const api = page.request;
   const piece = await (
@@ -14,89 +35,208 @@ test('styling a piece produces an idea she can save and delete', async ({ page }
 
   const started = await api.post('/api/v1/looks/generate', {
     data: { anchor: { type: 'piece', pieceId: piece.id }, occasion: 'Dinner' },
-    headers: { 'idempotency-key': crypto.randomUUID() },
+    headers: key(),
   });
   expect(started.status()).toBe(202);
   const { jobId } = await started.json();
+  const job = await settle(page, jobId);
+  expect(job.status).toBe('succeeded');
+  const setId = job.output.setId as string;
 
+  // The deck: the set's looks, all suggested, around her piece, the first one framed.
+  const setUrl = `/api/v1/looks/sets/${setId}`;
+  const set = await (await api.get(setUrl)).json();
+  expect(set).toMatchObject({ mode: 'piece', anchor: { id: piece.id }, jobId });
+  expect(set.looks).toHaveLength(3);
+  for (const look of set.looks) {
+    expect(look).toMatchObject({ status: 'suggested', anchor: { id: piece.id }, setId });
+    expect(look.pieces.map((p: { piece: { id: string } }) => p.piece.id)).toContain(piece.id);
+    expect(look.proposals.length).toBeGreaterThan(0);
+    expect(look.note).not.toBeNull();
+  }
   await expect
-    .poll(async () => (await (await api.get(`/api/v1/jobs/${jobId}`)).json()).status, {
+    .poll(
+      async () => (await (await api.get(setUrl)).json()).looks[0].image?.renditions.length ?? 0,
+      {
+        timeout: 30_000,
+      },
+    )
+    .toBeGreaterThan(0);
+  expect(set.looks[0].frame).toBe(true);
+
+  // Suggestions never reach saved readers.
+  expect((await (await api.get('/api/v1/looks')).json()).items).toEqual([]);
+  const suggested = await (await api.get('/api/v1/looks?status=suggested')).json();
+  expect(suggested.items).toHaveLength(3);
+  const around = await (
+    await api.get(`/api/v1/looks?status=suggested&anchorPieceId=${piece.id}`)
+  ).json();
+  expect(around.items).toHaveLength(3);
+  const [first, second, third] = set.looks;
+  expect(
+    (
+      await api.post(`/api/v1/looks/${first.id}/wears`, { data: { wornOn: '2026-10-15' } })
+    ).status(),
+  ).toBe(404);
+
+  // The second look's frame is drawn when she reaches it; asking again spends nothing.
+  const frame = await api.post(`/api/v1/looks/${second.id}/frame`);
+  expect(frame.status()).toBe(202);
+  const again = await (await api.post(`/api/v1/looks/${second.id}/frame`)).json();
+  expect(again.jobId).toBe((await frame.json()).jobId);
+  await expect
+    .poll(async () => (await (await api.get(`/api/v1/looks/${second.id}`)).json()).frame, {
       timeout: 30_000,
     })
-    .toBe('succeeded');
+    .toBe(true);
 
-  const { items } = await (await api.get('/api/v1/looks/ideas')).json();
-  const idea = items.find((i: { jobId: string }) => i.jobId === jobId);
-  expect(idea).toMatchObject({ anchor: { type: 'piece', pieceId: piece.id }, savedAt: null });
-  expect(idea.ways).toHaveLength(3);
+  // Save to lookbook, as is.
+  const saved = await (await api.post(`/api/v1/looks/${first.id}/save`, { data: {} })).json();
+  expect(saved).toMatchObject({
+    id: first.id,
+    status: 'saved',
+    frame: true,
+    composedByRobes: true,
+  });
+  expect(
+    (await (await api.get('/api/v1/looks')).json()).items.map((l: { id: string }) => l.id),
+  ).toEqual([first.id]);
 
-  // Only the hero renders up front (UX-09); it lands after the job (S3 event in AWS,
-  // in-process here). The other two wait until she asks.
-  const ideaUrl = `/api/v1/looks/ideas/${idea.id}`;
-  const statuses = async () =>
-    (await (await api.get(ideaUrl)).json()).frames.map((f: { status: string }) => f.status);
-  await expect.poll(statuses, { timeout: 30_000 }).toEqual(['ready', 'deferred', 'deferred']);
-  const ready = await (await api.get(ideaUrl)).json();
-  expect(ready.frames[0].image.renditions.length).toBeGreaterThan(0);
+  // Edit: changing the rack makes it a draft; how a piece is worn rides along.
+  const edited = await (
+    await api.patch(`/api/v1/looks/${second.id}`, {
+      data: {
+        proposals: second.proposals.slice(1),
+        styling: { [piece.id]: 'worn open' },
+        edits: { [piece.id]: { back: true } },
+      },
+    })
+  ).json();
+  expect(edited).toMatchObject({ status: 'draft', styling: { [piece.id]: 'worn open' } });
+  const drafts = await (await api.get('/api/v1/looks?status=draft')).json();
+  expect(drafts.items.map((l: { id: string }) => l.id)).toEqual([second.id]);
 
-  // "Show this look" renders one frame; asking again returns the same job, spending nothing.
-  const render = await api.post(`${ideaUrl}/frames/1`);
-  expect(render.status()).toBe(202);
-  const { jobId: renderJob } = await render.json();
-  const again = await (await api.post(`${ideaUrl}/frames/1`)).json();
-  expect(again.jobId).toBe(renderJob);
-  await expect.poll(statuses, { timeout: 30_000 }).toEqual(['ready', 'ready', 'deferred']);
-  expect((await (await api.post(`${ideaUrl}/frames/1`)).json()).jobId).toBe(renderJob);
-  expect((await api.post(`${ideaUrl}/frames/3`)).status()).toBe(400);
+  // ↻ re-writes a suggestion in place; a draft can't be re-rolled.
+  const restyle = await api.post(`/api/v1/looks/${third.id}/restyle`, { headers: key() });
+  expect(restyle.status()).toBe(202);
+  expect((await settle(page, (await restyle.json()).jobId)).status).toBe('succeeded');
+  const rewritten = await (await api.get(`/api/v1/looks/${third.id}`)).json();
+  expect(rewritten).toMatchObject({ status: 'suggested', setIndex: 2 });
+  expect((await api.post(`/api/v1/looks/${second.id}/restyle`, { headers: key() })).status()).toBe(
+    409,
+  );
 
-  // One way becomes a real Look with its frame as the render and the piece as its anchor.
-  const asLook = await api.post(`${ideaUrl}/looks`, { data: { wayIdx: 1 } });
-  expect(asLook.status()).toBe(201);
-  const look = await asLook.json();
-  expect(look).toMatchObject({ source: 'generated', name: idea.ways[1].title });
-  expect(look.image.renditions.length).toBeGreaterThan(0);
-  expect(look.pieces.map((p: { piece: { id: string } }) => p.piece.id)).toEqual([piece.id]);
-
-  const saved = await (await api.post(`${ideaUrl}/save`)).json();
-  expect(saved.savedAt).not.toBeNull();
-  expect(saved.expiresAt).toBeNull();
-
-  expect((await api.delete(ideaUrl)).ok()).toBe(true);
-  expect((await api.get(ideaUrl)).status()).toBe(404);
+  // Pass on a suggestion: it goes, with Undo.
+  expect((await api.delete(`/api/v1/looks/${third.id}`)).ok()).toBe(true);
+  expect((await api.post(`/api/v1/looks/${third.id}/restore`)).ok()).toBe(true);
 });
 
-test('a piece described in words can be styled; others cannot see the idea', async ({
-  page,
-  browser,
-}) => {
+test('a prompted ask makes a dated set; others can see none of it', async ({ page, browser }) => {
   await signIn(page);
-  const started = await page.request.post('/api/v1/looks/generate', {
-    data: { anchor: { type: 'text', text: 'white linen shirt' } },
+  const api = page.request;
+  const date = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+  const started = await api.post('/api/v1/looks/prompt', {
+    data: { prompt: 'Dinner with friends, chic and easy', date },
+    headers: key(),
   });
   expect(started.status()).toBe(202);
-  const { jobId } = await started.json();
-  await expect
-    .poll(async () => (await (await page.request.get(`/api/v1/jobs/${jobId}`)).json()).status, {
-      timeout: 30_000,
-    })
-    .toMatch(/succeeded|partial/);
-  const { items } = await (await page.request.get('/api/v1/looks/ideas')).json();
-  const idea = items.find((i: { jobId: string }) => i.jobId === jobId);
-  expect(idea.anchor).toEqual({ type: 'text', label: 'white linen shirt' });
+  const job = await settle(page, (await started.json()).jobId);
+  const set = await (await api.get(`/api/v1/looks/sets/${job.output.setId}`)).json();
+  expect(set).toMatchObject({
+    mode: 'prompt',
+    prompt: 'Dinner with friends, chic and easy',
+    dateHint: date,
+    anchor: null,
+  });
+  expect(set.looks.every((l: { dateHint: string }) => l.dateHint === date)).toBe(true);
 
   const other = await browser.newContext();
   await isolateClientIp(other);
   const otherPage = await other.newPage();
   await signIn(otherPage);
-  const url = `/api/v1/looks/ideas/${idea.id}`;
-  expect((await otherPage.request.get(url)).status()).toBe(404);
-  expect((await otherPage.request.post(`${url}/save`)).status()).toBe(404);
-  expect((await otherPage.request.delete(url)).status()).toBe(404);
-  expect((await otherPage.request.post(`${url}/frames/1`)).status()).toBe(404);
+  const id = set.looks[0].id;
+  expect((await otherPage.request.get(`/api/v1/looks/sets/${set.id}`)).status()).toBe(404);
+  expect((await otherPage.request.get(`/api/v1/looks/${id}`)).status()).toBe(404);
+  expect((await otherPage.request.post(`/api/v1/looks/${id}/save`, { data: {} })).status()).toBe(
+    404,
+  );
+  expect((await otherPage.request.post(`/api/v1/looks/${id}/restyle`)).status()).toBe(404);
+  expect((await otherPage.request.post(`/api/v1/looks/${id}/frame`)).status()).toBe(404);
+  const ask = await otherPage.request.post(`/api/v1/looks/${id}/ask`, {
+    data: {
+      surface: 'suggested',
+      text: 'tuck it',
+      rack: [
+        {
+          key: crypto.randomUUID(),
+          pieceId: null,
+          proposal: { name: 'Tee', category: 'Tops', brand: '' },
+        },
+      ],
+    },
+  });
+  expect(ask.status()).toBe(404);
   // Styling someone else's piece is indistinguishable from a missing one.
   const theirs = await otherPage.request.post('/api/v1/looks/generate', {
     data: { anchor: { type: 'piece', pieceId: crypto.randomUUID() } },
   });
   expect(theirs.status()).toBe(404);
   await other.close();
+});
+
+test('the look prompt returns an edit; a rule waits as a noticed line; five drafts at most', async ({
+  page,
+}) => {
+  await signIn(page);
+  const api = page.request;
+  const trouser = await (
+    await api.post('/api/v1/wardrobe/items', { data: { label: 'White wide-leg trouser' } })
+  ).json();
+  const jean = await (
+    await api.post('/api/v1/wardrobe/items', { data: { label: 'Dark straight jean' } })
+  ).json();
+  const draft = await api.post('/api/v1/looks', {
+    data: { status: 'draft', pieces: [{ pieceId: trouser.id }] },
+  });
+  expect(draft.status()).toBe(201);
+  const look = await draft.json();
+  expect(look).toMatchObject({ status: 'draft', nameProvisional: true });
+
+  const ask = async (text: string) => {
+    const res = await api.post(`/api/v1/looks/${look.id}/ask`, {
+      data: {
+        surface: 'draft',
+        text,
+        rack: [{ key: trouser.id, pieceId: trouser.id, proposal: null }],
+      },
+      headers: key(),
+    });
+    expect(res.status()).toBe(202);
+    const job = await settle(page, (await res.json()).jobId);
+    return job.output.ask as Record<string, unknown>;
+  };
+  expect(await ask('swap the trouser for the dark straight jean')).toMatchObject({
+    intent: 'swap',
+    swaps: [{ key: trouser.id, to: { pieceId: jean.id, name: 'Dark straight jean' } }],
+  });
+  expect(await ask("I don't wear double denim")).toMatchObject({ intent: 'rule', noticed: true });
+  const noticed = await (await api.get('/api/v1/looks/noticed')).json();
+  expect(noticed.items[0]).toMatchObject({ text: 'No double denim', lookId: look.id });
+  expect((await api.delete(`/api/v1/looks/noticed/${noticed.items[0].id}`)).ok()).toBe(true);
+  // A rule never filed itself, and the look never changed.
+  expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).pieces).toHaveLength(1);
+
+  for (let i = 0; i < 4; i += 1) {
+    expect(
+      (await api.post('/api/v1/looks', { data: { status: 'draft', pieces: [] } })).status(),
+    ).toBe(201);
+  }
+  const sixth = await api.post('/api/v1/looks', { data: { status: 'draft', pieces: [] } });
+  expect(sixth.status()).toBe(409);
+  expect((await sixth.json()).error.details).toEqual({ reason: 'drafts_full' });
+  const letGo = await api.post('/api/v1/looks', {
+    data: { status: 'draft', pieces: [], letGoOldest: true },
+  });
+  expect(letGo.status()).toBe(201);
+  expect((await api.get(`/api/v1/looks/${look.id}`)).status()).toBe(404);
 });

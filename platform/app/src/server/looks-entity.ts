@@ -1,24 +1,47 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
-import { Look, LookRole } from '@robes/contracts';
+import { Edits, Look, LookRole, LookStatus, Proposal, Styling } from '@robes/contracts';
 import { looks as copy } from '@robes/copy';
 import { LookPiecesNotFound, type UserId } from '@robes/db';
+import { z } from 'zod';
 import { toImage } from './asset-urls';
 import { repos } from './db';
 import { mediaDelivery } from './media';
 import { toPieces } from './wardrobe';
 
+const Proposals = z.array(z.unknown()).catch([]);
+// Stored rows are read leniently: a malformed one drops rather than failing the whole look.
+function proposalsOf(raw: unknown): Proposal[] {
+  return Proposals.parse(raw ?? []).flatMap((p) => {
+    const parsed = Proposal.safeParse(p);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+const ROBES_SOURCES = new Set(['generated', 'today', 'travel']);
+
 type LookRow = NonNullable<Awaited<ReturnType<typeof repos.looks.get>>>;
 
 export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> {
   const ids = rows.map((r) => r.id);
-  const renderIds = rows.flatMap((r) => (r.renderAssetId ? [r.renderAssetId] : []));
-  const [pieceRows, stats, renders] = await Promise.all([
+  const renderIds = rows.flatMap((r) => {
+    const id = r.frameAssetId ?? r.renderAssetId;
+    return id ? [id] : [];
+  });
+  const anchorIds = [...new Set(rows.flatMap((r) => (r.anchorPieceId ? [r.anchorPieceId] : [])))];
+  const [pieceRows, stats, renders, anchorRows] = await Promise.all([
     repos.looks.piecesFor(userId, ids),
     repos.looks.wearStats(userId, ids),
     repos.assets.getManyForUser(userId, renderIds),
+    Promise.all(anchorIds.map((id) => repos.wardrobe.get(userId, id))),
   ]);
-  const pieces = await toPieces(userId, pieceRows);
+  const [pieces, anchorPieces] = await Promise.all([
+    toPieces(userId, pieceRows),
+    toPieces(
+      userId,
+      anchorRows.filter((r): r is NonNullable<typeof r> => r !== undefined),
+    ),
+  ]);
+  const anchors = new Map(anchorPieces.map((p) => [p.id, p]));
   const byLook = new Map<string, Look['pieces']>();
   pieceRows.forEach((row, i) => {
     const piece = pieces[i];
@@ -34,24 +57,42 @@ export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> 
       renders.map(async (a) => [a.id, await toImage(mediaDelivery, userId, a)] as const),
     ),
   );
-  return rows.map((row) =>
-    Look.parse({
+  return rows.map((row) => {
+    const proposals = proposalsOf(row.proposals);
+    const anchor = row.anchorPieceId ? anchors.get(row.anchorPieceId) : undefined;
+    const imageId = row.frameAssetId ?? row.renderAssetId;
+    const frameRender = row.renderKey?.startsWith('frame:') ?? false;
+    return Look.parse({
       id: row.id,
+      status: LookStatus.parse(row.status),
       name: row.name,
       nameProvisional: row.nameProvisional,
       note: row.note,
       source: row.source,
       originLookId: row.originLookId,
       climateBand: row.climateBand,
-      image: (row.renderAssetId && images.get(row.renderAssetId)) || null,
-      onModel: row.renderStatus ?? null,
+      image: (imageId && images.get(imageId)) || null,
+      frame: row.frameAssetId !== null,
+      framePending: frameRender && row.renderStatus === 'pending',
+      composedByRobes: ROBES_SOURCES.has(row.source) || proposals.length > 0,
+      // A frame look never renders on her model (legacy 2026-10-07).
+      onModel: frameRender ? null : (row.renderStatus ?? null),
       pieces: byLook.get(row.id) ?? [],
+      proposals,
+      styling: Styling.catch({}).parse(row.styling ?? {}),
+      edits: Edits.catch({}).parse(row.edits ?? {}),
+      anchor: anchor
+        ? { id: anchor.id, label: anchor.label, brand: anchor.brand, image: anchor.image }
+        : null,
+      setId: row.setId,
+      setIndex: row.setIndex,
+      dateHint: row.dateHint,
       timesWorn: Number(wears.get(row.id)?.timesWorn ?? 0),
       lastWornOn: wears.get(row.id)?.lastWornOn ?? null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-    }),
-  );
+    });
+  });
 }
 
 export async function toLook(userId: UserId, row: LookRow | undefined): Promise<Look> {

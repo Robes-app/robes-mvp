@@ -26,6 +26,19 @@ export function ideasRepo(db: Db) {
       .where(sql<boolean>`not (data ? 'set')`);
 
   return {
+    // A suggested-look set's record (the deck reads its mode, words and day).
+    getSet(userId: UserId, id: string) {
+      return db
+        .selectFrom('artifacts')
+        .select(['id', 'title', 'data', 'generationJobId'])
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('type', '=', 'idea')
+        .where('deletedAt', 'is', null)
+        .where(sql<boolean>`data ? 'set'`)
+        .executeTakeFirst();
+    },
+
     get(userId: UserId, id: string) {
       return active()
         .select(IDEA_COLUMNS)

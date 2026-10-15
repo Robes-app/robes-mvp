@@ -16,6 +16,7 @@ const LOOK_COLUMNS = [
   'climateBand',
   'renderAssetId',
   'renderStatus',
+  'renderKey',
   'status',
   'anchorPieceId',
   'setId',

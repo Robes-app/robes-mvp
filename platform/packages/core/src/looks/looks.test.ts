@@ -10,6 +10,7 @@ import {
   deckTop,
   emptyDeck,
   forecastWord,
+  frameKey,
   isProposalKey,
   nameNoBrand,
   newProposalKey,
@@ -212,5 +213,15 @@ describe('keep or pass', () => {
     d = deckReduce(deckReduce(d, { type: 'keep', id: 'b' }), { type: 'keep', id: 'c' });
     expect(d.kept).toEqual(['a', 'b', 'c']);
     expect(deckTop(d)).toBeNull();
+  });
+});
+
+describe('the frame key', () => {
+  it('is order-free and changes with the rack or how a piece is worn', () => {
+    const a = frameKey(['x', 'y'], [{ name: 'Mules', brand: 'Toteme' }], {});
+    expect(frameKey(['y', 'x'], [{ name: 'Mules', brand: 'Toteme' }], {})).toBe(a);
+    expect(frameKey(['x'], [{ name: 'Mules', brand: 'Toteme' }], {})).not.toBe(a);
+    expect(frameKey(['x', 'y'], [{ name: 'Mules', brand: 'Toteme' }], { x: 'tucked' })).not.toBe(a);
+    expect(a).toMatch(/^[0-9a-z]{14}$/);
   });
 });

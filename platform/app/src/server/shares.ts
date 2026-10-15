@@ -50,7 +50,8 @@ export function shareUrl(token: string): string {
 // Snapshot at share time: later edits to the look don't change what the link shows.
 export async function shareLook(userId: UserId, lookId: string): Promise<Share> {
   const look = await repos.looks.get(userId, lookId);
-  if (!look) throw new ApiError('not_found');
+  // Only a look she kept is shared; a suggestion or a draft is saved first.
+  if (!look || look.status !== 'saved') throw new ApiError('not_found');
   const [pieces, profile] = await Promise.all([
     repos.looks.piecesFor(userId, [look.id]),
     repos.profiles.get(userId),

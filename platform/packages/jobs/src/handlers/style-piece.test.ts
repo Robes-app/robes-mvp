@@ -166,12 +166,11 @@ describe('key_piece handler (suggested looks)', () => {
     // Only the first frame now; the anchor's photo rides it.
     expect(generateImage).toHaveBeenCalledTimes(1);
     expect(generateImage.mock.calls[0]?.[0].references).toHaveLength(1);
-    expect(suggested.setFirstFrame).toHaveBeenCalledWith(
-      USER,
-      SET,
-      0,
-      '44444444-4444-4444-8444-444444444440',
-    );
+    expect(suggested.setFirstFrame).toHaveBeenCalledWith(USER, SET, 0, {
+      assetId: '44444444-4444-4444-8444-444444444440',
+      frameKey: expect.stringMatching(/^[0-9a-z]{14}$/),
+      jobId: JOB,
+    });
   });
 
   it('resolves her own pieces by closet number into the rack, as references for the frame', async () => {
@@ -235,7 +234,7 @@ describe('key_piece handler (suggested looks)', () => {
       LOOK,
       expect.objectContaining({ name: 'Quiet confidence', setIndex: 1 }),
     );
-    expect(suggested.setFirstFrame).toHaveBeenCalledWith(USER, SET, 1, expect.any(String));
+    expect(suggested.setFirstFrame).toHaveBeenCalledWith(USER, SET, 1, expect.any(Object));
     suggested.look.mockResolvedValueOnce(undefined as never);
     await expect(run({ mode: 'restyle', lookId: LOOK })).rejects.toMatchObject({
       code: 'not_found',

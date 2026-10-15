@@ -373,3 +373,28 @@ export function deckReduce(state: DeckState, action: DeckAction): DeckState {
 export function deckTop(state: DeckState): string | null {
   return state.order[state.at] ?? null;
 }
+
+// ── Robes' frame ────────────────────────────────────────────────────────────
+// Which rack a frame shows (her pieces, the proposals, how each is worn), order-free: a frame is
+// re-drawn only when this changes. FNV-1a, so it runs the same on the server and in the apps.
+function fnv(s: string, seed: number): string {
+  let h = seed >>> 0;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36).padStart(7, '0');
+}
+
+export function frameKey(
+  pieceIds: readonly string[],
+  proposals: readonly { name: string; brand?: string | null }[],
+  styling: Readonly<Record<string, string>>,
+): string {
+  const parts = [
+    ...pieceIds.map((id) => `${id}~${styling[id] ?? ''}`),
+    ...proposals.map((p) => `${p.name}|${p.brand ?? ''}`),
+  ].sort();
+  const s = parts.join(';');
+  return `${fnv(s, 0x811c9dc5)}${fnv(s, 0x01000193)}`;
+}

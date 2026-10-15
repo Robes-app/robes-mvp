@@ -194,11 +194,23 @@ export function suggestedLooksRepo(db: Db) {
       return { look, pieces, siblings };
     },
 
-    // The frame a generation drew for a set's look; never over a frame she already has.
-    async setFirstFrame(userId: UserId, setId: string, setIndex: number, assetId: string) {
+    // The frame a generation drew for a set's look, stamped with the rack it shows; never over a
+    // frame the look already has.
+    async setFirstFrame(
+      userId: UserId,
+      setId: string,
+      setIndex: number,
+      frame: { assetId: string; frameKey: string; jobId: string },
+    ) {
       await db
         .updateTable('looks')
-        .set({ frameAssetId: assetId })
+        .set({
+          frameAssetId: frame.assetId,
+          frameKey: frame.frameKey,
+          renderKey: `frame:${frame.frameKey}`,
+          renderStatus: 'ready',
+          renderJobId: frame.jobId,
+        })
         .where('userId', '=', userId)
         .where('setId', '=', setId)
         .where('setIndex', '=', setIndex)

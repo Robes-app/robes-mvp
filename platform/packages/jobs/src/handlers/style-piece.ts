@@ -15,7 +15,7 @@ import {
   sceneOf,
 } from '@robes/ai/prompts/style-piece';
 import { KeyPieceJobInput } from '@robes/contracts';
-import { askDate, type LookRole, newProposalKey, noteShort } from '@robes/core/looks';
+import { askDate, frameKey, type LookRole, newProposalKey, noteShort } from '@robes/core/looks';
 import type { SuggestedSpec, SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -87,6 +87,14 @@ function localToday(now: Date, timezone: string): string {
 
 const fmt = (iso: string, o: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat('en-GB', { ...o, timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
+
+// The rack a set's frame shows, as the API computes it from the stored look.
+const specKey = (spec: SuggestedSpec) =>
+  frameKey(
+    spec.pieces.map((p) => p.pieceId),
+    spec.proposals.map((p) => ({ name: String(p.name ?? ''), brand: String(p.brand ?? '') })),
+    {},
+  );
 
 // A suggested look from one way (legacy _lkSuggSpec): her pieces with their roles, the anchor
 // always on the rack, the rest proposals; the scene line is the note under the frame.
@@ -241,6 +249,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       way: { title: string; eyebrow: string; scene: string };
       rack: FrameRackPiece[];
       styleIcons: string[];
+      spec: SuggestedSpec;
     },
   ): Promise<boolean> {
     await deps.styling.trackImage({
@@ -258,7 +267,11 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         model,
         capability: 'image.hero',
       });
-      await deps.suggested?.setFirstFrame(ctx.userId, o.setId, o.setIndex, assetId);
+      await deps.suggested?.setFirstFrame(ctx.userId, o.setId, o.setIndex, {
+        assetId,
+        frameKey: specKey(o.spec),
+        jobId: ctx.jobId,
+      });
       await deps.styling.trackImage({
         jobId: ctx.jobId,
         userId: ctx.userId,
@@ -376,6 +389,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           way,
           rack: rackOf(way.pieces, styleCtx.closet),
           styleIcons: styleCtx.styleIcons,
+          spec,
         });
         return { status: 'succeeded' };
       }
@@ -448,20 +462,16 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           promptVersion: 3,
         },
       });
-      const lookIds = deps.suggested
-        ? await deps.suggested.mintSet(
-            ctx.userId,
-            setId,
-            ways.map((w, i) =>
-              specFromWay(w, i, { anchorPieceId: fallback ? null : anchorPieceId, dateHint }),
-            ),
-          )
-        : [];
+      const specs = ways.map((w, i) =>
+        specFromWay(w, i, { anchorPieceId: fallback ? null : anchorPieceId, dateHint }),
+      );
+      const lookIds = deps.suggested ? await deps.suggested.mintSet(ctx.userId, setId, specs) : [];
       await ctx.writeStage('text', { ideaId: setId, setId, lookIds, fallback, wearer, ways });
 
       // Only the first frame is drawn now; the others when she reaches them (UX-09).
       const [hero] = ways;
-      if (!hero) return { status: 'partial', artifactId: setId };
+      const [heroSpec] = specs;
+      if (!hero || !heroSpec) return { status: 'partial', artifactId: setId };
       const landed = await frame(ctx, {
         setId,
         setIndex: 0,
@@ -474,6 +484,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         way: hero,
         rack: rackOf(hero.pieces, styleCtx.closet),
         styleIcons: styleCtx.styleIcons,
+        spec: heroSpec,
       });
       return { status: landed ? 'succeeded' : 'partial', artifactId: setId };
     },

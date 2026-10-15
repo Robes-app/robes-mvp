@@ -1,9 +1,19 @@
 import { ApiError } from '@robes/api';
-import { Look, LookParams, LookRole, SeasonBand, UpdateLookInput } from '@robes/contracts';
+import {
+  Look,
+  LookParams,
+  LookRole,
+  Proposal,
+  SeasonBand,
+  Styling,
+  UpdateLookInput,
+} from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
 import { toLook, withOwnedPieces } from '@/server/looks-entity';
 import { route } from '@/server/route';
+
+const Proposals = Proposal.array().catch([]);
 
 // "Save as new" (UX-28): a copy of the look with her edits applied, linked to its origin.
 export const POST = route({
@@ -16,7 +26,7 @@ export const POST = route({
   handler: async ({ user, input, params }) => {
     const userId = verifiedUserId(user.id);
     const origin = await repos.looks.get(userId, params.id);
-    if (!origin) throw new ApiError('not_found');
+    if (!origin || origin.status !== 'saved') throw new ApiError('not_found');
     const pieces =
       input.pieces ??
       (await repos.looks.piecesFor(userId, [origin.id])).map((p) => ({
@@ -33,6 +43,8 @@ export const POST = route({
         pieces,
         source: 'variant',
         originLookId: origin.id,
+        proposals: input.proposals ?? Proposals.parse(origin.proposals ?? []),
+        styling: input.styling ?? Styling.catch({}).parse(origin.styling ?? {}),
       }),
     );
     return toLook(userId, row);
