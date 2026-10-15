@@ -1,10 +1,11 @@
-import { consent, you } from '@robes/copy';
+import { consent, twin, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { DeleteAccount } from '../src/features/you/DeleteAccount';
 import { Notifications } from '../src/features/you/Notifications';
 import { Privacy } from '../src/features/you/Privacy';
 import { YouMenu } from '../src/features/you/YouMenu';
 import { ME, mockFetch, renderWithApi } from './support/api';
+import { styleDna } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 const mockSignOut = jest.fn(async () => ({}));
@@ -16,10 +17,16 @@ jest.mock('../src/lib/auth-client', () => ({
 
 beforeEach(() => jest.clearAllMocks());
 
-test('You lists every area and signing out clears the session and cache', async () => {
-  mockFetch({ 'GET /me': ME });
+test('You opens on Style Profile; Account lists every area and signs out', async () => {
+  mockFetch({ 'GET /me': ME, 'GET /me/dna': styleDna() });
   const { queryClient } = await renderWithApi(<YouMenu />);
   expect(await screen.findByText(ME.email)).toBeTruthy();
+  for (const label of [twin.cards.twin, twin.cards.dna, twin.cards.observations]) {
+    expect(screen.getByRole('button', { name: label })).toBeTruthy();
+  }
+  await fireEvent.press(screen.getByRole('button', { name: twin.cards.observations }));
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/observations');
+  await fireEvent.press(screen.getByRole('radio', { name: twin.tabs.account }));
   for (const label of [
     you.account.title,
     you.notifications.title,
@@ -88,4 +95,27 @@ test('deleting the account needs DELETE typed, then signs out', async () => {
   await fireEvent.press(screen.getByRole('button', { name: you.deletion.confirm }));
   await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ confirm: 'DELETE' });
+});
+
+test('the Robes noticed card keeps the first waiting line', async () => {
+  const id = '88888888-8888-4888-8888-888888888888';
+  const line = {
+    id,
+    list: 'rules',
+    text: 'No double denim',
+    because: 'You said it on “Saturday”',
+    origin: 'prompt',
+  };
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /me/dna': styleDna({ observations: [line as never] }),
+    [`POST /me/dna/observations/${id}/keep`]: styleDna(),
+  });
+  await renderWithApi(<YouMenu />);
+  expect(await screen.findByText('No double denim')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: twin.noticed.keep }));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/keep'))).toBe(true),
+  );
+  expect(await screen.findByText(twin.noticed.kept)).toBeTruthy();
 });

@@ -1,4 +1,4 @@
-import type { Idea, Look, Piece } from '@robes/contracts';
+import type { Idea, Look, Piece, StyleDna } from '@robes/contracts';
 
 export const PIECE_ID = '33333333-3333-4333-8333-333333333333';
 export const ASSET_ID = '44444444-4444-4444-8444-444444444444';
@@ -88,6 +88,27 @@ export function look(overrides: Partial<Look> = {}): Look {
     lastWornOn: '2026-09-01',
     createdAt: NOW,
     updatedAt: NOW,
+    ...overrides,
+  };
+}
+
+export const LINE_ID = '77777777-7777-4777-8777-777777777777';
+export const NOTICE_ID = '88888888-8888-4888-8888-888888888888';
+
+// You › Style DNA as the API returns it; nothing answered unless overridden.
+export function styleDna(overrides: Partial<StyleDna> = {}): StyleDna {
+  return {
+    types: [],
+    brands: [],
+    icons: [],
+    investment: null,
+    facts: { heightCm: null, sizeUk: null, shoeUk: null, ageBand: null },
+    gender: 'woman',
+    pieces: [],
+    brief: { loves: [], avoids: [], rules: [], notes: '', colours: { loved: [], rejected: [] } },
+    observations: [],
+    readAt: NOW,
+    readDue: false,
     ...overrides,
   };
 }

@@ -1,11 +1,11 @@
-import { you } from '@robes/copy';
+import { twin } from '@robes/copy';
 import { StackScreen } from '@/components/StackScreen';
-import { Style } from '@/features/you/Style';
+import { StyleDna } from '@/features/you/StyleDna';
 
-export default function StyleScreen() {
+export default function StyleDnaScreen() {
   return (
-    <StackScreen title={you.style.title}>
-      <Style />
+    <StackScreen title={twin.dnaPage.title}>
+      <StyleDna />
     </StackScreen>
   );
 }
