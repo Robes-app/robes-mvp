@@ -130,7 +130,7 @@ const read = (page) => page.evaluate(() => {
   check('stage 1 · Log your style notes → /settings?walk=1', /\/settings\?walk=1$/.test(page.url()), page.url());
   await page.goBack({ waitUntil: 'commit' }); await page.waitForSelector('#rb-onb-card .rb-ob', { timeout: 15000 });
   check('stage 1 · the greeting and the standing question', /^Good (morning|afternoon|evening), Annie\.$/.test(s.greet) && s.echo === 'What are you dressing for today?', JSON.stringify([s.greet, s.echo]));
-  check('stage 1 · the box reads A new look for… while onboarding', s.ph === 'A new look for…', s.ph);
+  check('stage 1 · the box reads “Where to, and how should it feel?” (HomePrompt 2026-10-15)', s.ph === 'Where to, and how should it feel?', s.ph);
   check('stage 1 · the floating sparkle is hidden while the box is on screen', !s.slot, String(s.slot));
   check('stage 1 · one column at 640 on the desktop', s.dashW <= 640 + 160 + 2 && s.dashW >= 640, String(s.dashW));
   // Later snoozes O1 for the day → O2 leads, O1 joins the map as open
@@ -212,7 +212,7 @@ const read = (page) => page.evaluate(() => {
   const s = await read(page);
   check('stage 5 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 300));
   check('stage 5 · activated: the daily layout — masthead, the box, the week, the looks; no card, no map', s.mode === 'activated' && s.stage === '5' && JSON.stringify(s.order) === JSON.stringify(['dash-mast', 'rb-hb', 'rb-rail', 'rb-sn']), JSON.stringify([s.mode, s.stage, s.order]));
-  check('stage 5 · the placeholder reads the contextual line', s.ph === 'Tell Robes where you’re going, or the look you’re after…', s.ph);
+  check('stage 5 · the placeholder reads the same line once activated', s.ph === 'Where to, and how should it feel?', s.ph);
   const r = await page.evaluate(() => ({ cells: document.querySelectorAll('#rb-rail .rb-wk').length, sel: document.querySelector('#rb-rail .rb-wk.is-sel')?.dataset.date, today: document.querySelector('#rb-rail .rb-wk.is-today .rb-wk-l')?.textContent,
     card: (() => { const c = document.querySelector('#rb-rail-day .rb-dayc'); return c ? [c.dataset.state, c.querySelector('.ey')?.textContent, c.querySelector('.nm')?.textContent, c.querySelector('.ar')?.textContent] : null; })(),
     underStrip: (() => { const row = document.querySelector('#rb-rail .rb-rail-row'); return !!row && row.nextElementSibling?.id === 'rb-rail-day'; })(),

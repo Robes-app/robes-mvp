@@ -443,7 +443,7 @@ const titleTop = (page) => page.evaluate(() => {
   // H2 (the modular home, 2026-10-11): the floating sparkle is HIDDEN while
   // the box is on screen — it would duplicate the field.
   check('mobile home · the box sits IN FLOW under the greeting with its + (no dock), inline in the row, the card hidden, no overflow; the slot is hidden while the row is on screen',
-    h.pos === 'static' && h.inView && h.inline && (h.label === 'A new look for…' || h.label === 'Tell Robes where you’re going, or the look you’re after…') && h.conc === 'none' && h.overflow && h.plus && !s0.on, JSON.stringify([h, s0]));
+    h.pos === 'static' && h.inView && h.inline && h.label === 'Where to, and how should it feel?' && h.conc === 'none' && h.overflow && h.plus && !s0.on, JSON.stringify([h, s0]));
   if (SHOT) await page.screenshot({ path: SHOT + 'slot-home-top.png' });
   await page.evaluate(() => window.scrollTo(0, 900)); await page.waitForTimeout(120);
   const s1 = await slotRead();
@@ -540,8 +540,8 @@ const titleTop = (page) => page.evaluate(() => {
   if (SHOT) await page.screenshot({ path: SHOT + 'draft-home.png' });
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(500);
   const fresh = await page.evaluate(() => { const w = document.getElementById('rb-lp'); return { dock: !!w && w.classList.contains('rb-lp-dock'), inHome: !!document.querySelector('#rb-hb #rb-lp'), ph: document.getElementById('rb-lp-in')?.placeholder, rows: document.querySelectorAll('#rb-lp .rb-lpd-row').length, name: w && w.querySelector('.rb-lp')?.getAttribute('aria-label'), focused: document.activeElement?.id, standIn: !!document.querySelector('#rb-hb-fieldslot .rb-lp-field') }; });
-  check('mobile home + draft · the sparkle opens a FRESH docked box — “A new look for…”, no draft row, the home field a stand-in beneath it',
-    fresh.dock && !fresh.inHome && fresh.ph === 'A new look for…' && fresh.rows === 0 && fresh.name === 'A new look' && fresh.focused === 'rb-lp-in' && fresh.standIn, JSON.stringify(fresh));
+  check('mobile home + draft · the sparkle opens a FRESH docked box — “Where to, and how should it feel?”, no draft row, the home field a stand-in beneath it',
+    fresh.dock && !fresh.inHome && fresh.ph === 'Where to, and how should it feel?' && fresh.rows === 0 && fresh.name === 'A new look' && fresh.focused === 'rb-lp-in' && fresh.standIn, JSON.stringify(fresh));
   if (SHOT) await page.screenshot({ path: SHOT + 'draft-home-fresh.png' });
   await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(600);
   const back = await page.evaluate(() => ({ inline: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), ph: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, row: !!document.querySelector('#rb-hb #rb-lp .rb-lpd-row') }));
@@ -552,7 +552,7 @@ const titleTop = (page) => page.evaluate(() => {
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(500);
   const lkb = await page.evaluate(() => { const w = document.getElementById('rb-lp'); return { dock: !!w && w.classList.contains('rb-lp-dock'), ph: document.getElementById('rb-lp-in')?.placeholder, rows: document.querySelectorAll('#rb-lp .rb-lpd-row').length, name: w && w.querySelector('.rb-lp')?.getAttribute('aria-label'), onLookbook: document.getElementById('sn-page')?.style.display === 'block' }; });
   check('mobile Lookbook + draft · the grid holds the draft tile and the bare sparkle; the sparkle opens a NEW-look box over the grid (“A new look for…”, no draft row) — never home’s draft',
-    lk0.grid && lk0.tile && lk0.slot && lkb.dock && lkb.ph === 'A new look for…' && lkb.rows === 0 && lkb.name === 'A new look' && lkb.onLookbook, JSON.stringify([lk0, lkb]));
+    lk0.grid && lk0.tile && lk0.slot && lkb.dock && lkb.ph === 'Where to, and how should it feel?' && lkb.rows === 0 && lkb.name === 'A new look' && lkb.onLookbook, JSON.stringify([lk0, lkb]));
   if (SHOT) await page.screenshot({ path: SHOT + 'draft-lookbook-fresh.png' });
   await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(400);
   // The draft page (design 4d): the tile opens it.

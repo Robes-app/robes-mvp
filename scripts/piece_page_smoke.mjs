@@ -10,6 +10,9 @@
 // "Style it three ways" became the hairline "Style this piece ▾" pill under
 // the card, opening Build a look / Style it three ways. ≤767px the nav bar
 // carries the pill + position and the in-page band hides.
+// WardrobeItem (2026-10-15): the dropdown is gone — the ✦ at the foot
+// opens the prompt OVER the page with the piece attached ("Style this shirt
+// for…"); the + beside it adds photos (references); Send is three looks.
 // Run manually: npm i --no-save playwright && node scripts/piece_page_smoke.mjs
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
@@ -203,16 +206,9 @@ const SHOT = process.env.SHOT_DIR || '';
   check('wardrobe · no view-all link below three wears', await page.locator('.rb-pc-link').count() === 0);
   check('wardrobe · wears counted before the diary are named, not hidden', /5 wears counted before Robes kept the dates/.test(t), t.slice(0, 500));
   check('wardrobe · In N looks rail names the saved look — and only saved looks', /In 1 look/i.test(t) && t.includes('The Thursday one') && /Worn 23 Jul/.test(t) && !t.includes('Coffee with Mum.'));
-  check('wardrobe · "Style this piece ▾" is a hairline pill under the card — no ink banner, no build tile',
-    await page.locator('.rb-pc-media .rb-pc-stylebtn').count() === 1 && await page.locator('.rb-pc-cta').count() === 0 && await page.locator('.rb-pc-build').count() === 0
-    && await page.locator('.rb-pc-stylebtn').evaluate((e) => { const c = getComputedStyle(e); return c.backgroundColor === 'rgb(255, 255, 255)' && c.borderRadius === '100px' && c.fontSize === '11px'; }));
-  await page.locator('.rb-pc-stylebtn').click();
-  await page.waitForTimeout(200);
-  check('wardrobe · the pill opens the choice: Build a look / Style it three ways', await page.locator('#rb-popmenu .card button').count() === 2
-    && /Build a look/.test(await page.locator('#rb-popmenu').innerText()) && /Style it three ways/.test(await page.locator('#rb-popmenu').innerText()));
-  await page.mouse.click(5, 300);
-  await page.waitForTimeout(150);
-  check('wardrobe · the menu dismisses on a tap outside', await page.locator('#rb-popmenu').count() === 0);
+  check('wardrobe · no "Style this piece ▾" dropdown, no ink banner, no build tile — the ✦ floats at the foot, a white circle',
+    await page.locator('.rb-pc-stylebtn').count() === 0 && await page.locator('.rb-pc-cta').count() === 0 && await page.locator('.rb-pc-build').count() === 0
+    && await page.locator('#rb-pc-spark').evaluate((e) => { const c = getComputedStyle(e); return c.position === 'fixed' && c.backgroundColor === 'rgb(255, 255, 255)' && c.borderRadius === '50%' && c.width === '56px'; }));
   check('wardrobe · nothing on the screen is filled ink', await page.evaluate(() => [...document.querySelectorAll('#rb-piece-page button')].every((b) => getComputedStyle(b).backgroundColor !== 'rgb(32, 32, 33)')));
   check('wardrobe · the nav lights Wardrobe', await page.locator('#rb-tn-wardrobe').evaluate((e) => e.classList.contains('active')));
   if (SHOT) await page.screenshot({ path: SHOT + '/piece-wardrobe.png', fullPage: false });
@@ -303,32 +299,46 @@ const SHOT = process.env.SHOT_DIR || '';
   await page.waitForTimeout(300);
   check('record link · the page reopens as the wardrobe\'s record', (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'Wardrobe' && await page.locator('.rb-pc-rule').count() === 1);
 
-  // Build a look (from the pill's menu) lands in the composer with the piece on the rack
-  await page.locator('.rb-pc-stylebtn').click();
+  // The ✦ — the prompt opens OVER the piece page with the piece inside it
+  // (WardrobeItem 2026-10-15), the page staying put until she sends.
+  await page.locator('#rb-pc-spark').click();
+  await page.waitForTimeout(500);
+  const mt = await page.evaluate(() => ({ dock: !!document.querySelector('#rb-lp.rb-lp-dock'), fade: !!document.querySelector('#rb-lp-scrim.fade'), card: document.getElementById('rb-lp-piece')?.textContent.replace(/\s+/g, ' ').trim() || '',
+    inside: !!document.querySelector('#rb-lp .rb-lp.haspiece #rb-lp-piece'), modes: document.querySelectorAll('#rb-lp .mode').length, menu: !!document.getElementById('rb-lp-plusmenu'),
+    ph: document.getElementById('rb-lp-in')?.placeholder, ink: document.getElementById('rb-lp-send')?.classList.contains('ink'), page: document.getElementById('rb-piece-page')?.style.display !== 'none',
+    spark: document.getElementById('rb-pc-spark') ? getComputedStyle(document.getElementById('rb-pc-spark')).display : 'gone' }));
+  check('✦ · the box opens docked over a soft fade with the piece INSIDE it (Cream silk shirt, Tops · in your wardrobe), the page still under it, the ✦ stood down',
+    mt.dock && mt.fade && mt.inside && mt.page && /Cream silk shirt/.test(mt.card) && /Tops · in your wardrobe/.test(mt.card) && mt.spark === 'none', JSON.stringify(mt));
+  check('✦ · no modes and no menu — "Style this shirt for…", the arrow ready', mt.modes === 0 && !mt.menu && mt.ph === 'Style this shirt for…' && mt.ink, JSON.stringify(mt));
+  // The + is the photo picker: a photo sits beside the piece, × takes it away.
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4nGP8z8DwnwEKGBkYAB1IA/wSCV0LAAAAAElFTkSuQmCC', 'base64');
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#rb-lp-plus').click()]);
+  await chooser.setFiles({ name: 'me.png', mimeType: 'image/png', buffer: png });
+  await page.waitForTimeout(500);
+  check('✦ · + opens the photo picker; the photo sits beside the piece', await page.locator('#rb-lp .rb-lp-ref img').count() === 1 && await page.locator('#rb-lp-piece').count() === 1);
+  // Remove every attachment and the box folds back to one line.
+  await page.locator('#rb-lp .rb-lp-ref .rm').click();
+  await page.locator('#rb-lp-piece .rm').click();
+  await page.waitForTimeout(250);
+  const folded = await page.evaluate(() => ({ has: document.querySelector('#rb-lp .rb-lp')?.classList.contains('haspiece'), ph: document.getElementById('rb-lp-in')?.placeholder, box: !!document.getElementById('rb-lp'), radius: getComputedStyle(document.querySelector('#rb-lp .rb-lp')).borderTopLeftRadius }));
+  check('✦ · remove every attachment and it folds back to one line — "Where to? Optional"', folded.box && !folded.has && folded.ph === 'Where to? Optional' && folded.radius === '100px', JSON.stringify(folded));
+  await page.evaluate(() => window.__rbLpClose());
   await page.waitForTimeout(200);
-  await page.locator('#rb-popmenu .card button', { hasText: 'Build a look' }).click();
-  await page.waitForTimeout(700);
-  check('build · the composer opens with the piece already on the rack',
-    !(await pg.isVisible()) && await page.locator('#sn-page .rb-lk-composer').count() === 1
-    && (await page.locator('#sn-page .rb-lk-composer').innerText()).includes('Cream silk shirt'));
 
-  // Style it three ways — the prompt box with the piece on its card and
-  // the mode already ticked (the fold, 2026-10-05): a note is optional,
-  // Send runs it.
+  // Send: three looks, the photo she added riding as a reference.
   await page.evaluate(() => window.__rbPieceOpen('w-top1', { from: 'wardrobe' }));
   await page.waitForTimeout(300);
-  await page.locator('.rb-pc-stylebtn').click();
-  await page.waitForTimeout(200);
-  await page.locator('#rb-popmenu .card button', { hasText: 'Style it three ways' }).click();
-  await page.waitForTimeout(600);
-  const mt = await page.evaluate(() => ({ dock: !!document.querySelector('#rb-lp.rb-lp-dock'), scrim: !!document.getElementById('rb-lp-scrim'), card: document.getElementById('rb-lp-piece')?.textContent.replace(/\s+/g, ' ').trim() || '',
-    mode: document.querySelector('#rb-lp-piece .mode.on .t')?.textContent, ph: document.getElementById('rb-lp-in')?.placeholder, ink: document.getElementById('rb-lp-send')?.classList.contains('ink'), noPage: !document.getElementById('rb-insp-page') }));
-  check('style · the box opens docked over a dimmed screen with the piece on its card, no Inspiration page', mt.dock && mt.scrim && mt.noPage && /Cream silk shirt/.test(mt.card) && /Tops · in your wardrobe/.test(mt.card), JSON.stringify(mt));
-  check('style · Style it three ways is already ticked and the arrow is ink', mt.mode === 'Style it three ways' && mt.ink, JSON.stringify(mt));
-  check('style · the note is optional — "Where to? Optional"', mt.ph === 'Where to? Optional', String(mt.ph));
+  await page.locator('#rb-pc-spark').click();
+  await page.waitForTimeout(400);
+  const [ch2] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#rb-lp-plus').click()]);
+  await ch2.setFiles({ name: 'me.png', mimeType: 'image/png', buffer: png });
+  await page.waitForTimeout(500);
+  await page.fill('#rb-lp-in', 'for a gallery opening');
   await page.evaluate(() => window.__rbLpSend());
   await page.waitForTimeout(900);
-  check('style · a bare submit runs with Robes\' own words', api.style.length === 1 && /^Style my Cream silk shirt three ways/.test(api.style[0]?.prompt || ''), JSON.stringify(api.style[0]?.prompt));
+  check('✦ · Send styles it three ways — her words finish the sentence, the photo rides as a reference, the piece page steps aside',
+    api.style.length === 1 && /^Style my Cream silk shirt three ways( \(worn \d+ times?\))? for a gallery opening$/.test(api.style[0]?.prompt || '') && Array.isArray(api.style[0]?.references) && api.style[0].references.length === 1
+      && /^data:image/.test(api.style[0].references[0] || '') && await page.evaluate(() => document.getElementById('rb-piece-page')?.style.display === 'none'), JSON.stringify(api.style[0] && { p: api.style[0].prompt, r: (api.style[0].references || []).length }));
   // Keep or pass (F14, 2026-10-07): the result lands on the deck inside the
   // Lookbook — three suggested looks around the shirt, one card at a time
   // (no job here, so all three are live at once), never the kp page.

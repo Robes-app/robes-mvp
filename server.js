@@ -609,7 +609,7 @@ function normStylePieces(way, closetItems) {
 }
 
 app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext, gender, refine, wayIndex, current } = req.body;
+  const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext, gender, refine, wayIndex, current, references } = req.body;
   const g = normGender(gender);
 
   if (!photo && !link && !prompt) {
@@ -707,6 +707,15 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
     if (photoMatch) {
       textParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
     }
+  }
+  // Photos she added beside the piece (the piece page's +, 2026-10-15):
+  // how she wears it, a place, a mood — read as context, never as the key
+  // piece. Up to three; the text model only (the frames keep their refs).
+  const refParts = (Array.isArray(references) ? references : []).slice(0, 3)
+    .map(r => typeof r === 'string' ? r.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i) : null).filter(Boolean);
+  if (refParts.length) {
+    textParts.push({ text: `The next ${refParts.length === 1 ? 'image is a reference' : refParts.length + ' images are references'} she added beside the key piece — how she wears it, a place, a mood. Read ${refParts.length === 1 ? 'it' : 'them'} as context for the looks, never as the key piece itself.` });
+    refParts.forEach(m => textParts.push({ inlineData: { mimeType: m[1], data: m[2] } }));
   }
   textParts.push({ text: userText });
 

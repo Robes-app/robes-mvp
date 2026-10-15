@@ -3870,7 +3870,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   });
   // The home box is the prompt now (inline in the row since 2026-10-01):
   // the landing focuses it in place, in new mode.
-  check('model-build landing · no undressed look → the home box (inline, "A new look for…") takes the focus', !fall.snOpen && fall.box && fall.ph === 'A new look for…' && fall.focused === 'rb-lp-in' && errs.length === 0, JSON.stringify([fall, errs.slice(0, 1)]));
+  check('model-build landing · no undressed look → the home box (inline, "A new look for…") takes the focus', !fall.snOpen && fall.box && fall.ph === 'Where to, and how should it feel?' && fall.focused === 'rb-lp-in' && errs.length === 0, JSON.stringify([fall, errs.slice(0, 1)]));
   await ctx.close();
 }
 
