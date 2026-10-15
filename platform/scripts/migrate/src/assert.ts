@@ -2,7 +2,7 @@ import { DAILY_STEPS, IdeaWay } from '@robes/contracts';
 import { z } from 'zod';
 import { withClient } from './db';
 import { LEGACY_TYPE_MAP } from './lookbook';
-import { SAVED_LOOKS } from './sql';
+import { CARRIED_LOOKS, SAVED_LOOKS } from './sql';
 
 export interface AssertReport {
   ok: boolean;
@@ -23,9 +23,9 @@ with expected as (
   select 'users' as domain, id as user_id, 1 as n from legacy.auth_users where nullif(trim(email), '') is not null
   union all select 'wardrobe_items', user_id, count(*) from legacy.wardrobe_items group by user_id
   union all select 'wishlist_items', user_id, count(*) from legacy.wishlist_items group by user_id
-  union all select 'looks', user_id, count(*) from ${SAVED_LOOKS} l group by user_id
+  union all select 'looks', user_id, count(*) from ${CARRIED_LOOKS} l group by user_id
   union all select 'look_pieces', l.user_id, count(*) from legacy.look_pieces lp
-    join ${SAVED_LOOKS} l on l.id = lp.look_id
+    join ${CARRIED_LOOKS} l on l.id = lp.look_id
     join legacy.wardrobe_items w on w.id = lp.wardrobe_item_id and w.user_id = l.user_id group by l.user_id
   union all select 'wears', w.user_id, count(*) from legacy.wears w
     join ${SAVED_LOOKS} l on l.id = w.look_id and l.user_id = w.user_id group by w.user_id
@@ -177,17 +177,14 @@ export async function assertMigration(targetUrl: string): Promise<AssertReport> 
       report.warnings.push(
         `${n} pieces have legacy times_worn above their recorded wears (count not carried)`,
       );
-    // Look states and styling notes (legacy migrations 24/25) have no platform home yet.
-    const states = await c.query<{ unsaved: number; styled: number }>(
-      `select count(*) filter (where coalesce(status, 'saved') <> 'saved')::int as unsaved,
-              count(*) filter (where coalesce(status, 'saved') = 'saved'
-                and jsonb_typeof(styling) = 'object' and styling <> '{}'::jsonb)::int as styled
-       from legacy.looks`,
+    // Legacy key-piece sets aren't the platform's set records: suggested looks keep their anchor
+    // but leave the deck (no ↻ re-roll); their rows stand in Suggested.
+    const sets = await c.query<{ n: number }>(
+      `select count(*)::int as n from legacy.looks where coalesce(status, 'saved') = 'suggested' and set_id is not null`,
     );
-    const { unsaved = 0, styled = 0 } = states.rows[0] ?? {};
-    if (unsaved > 0)
-      report.warnings.push(`${unsaved} suggested/draft looks not carried (only saved looks are)`);
-    if (styled > 0) report.warnings.push(`${styled} saved looks have styling notes (not carried)`);
+    const n2 = sets.rows[0]?.n ?? 0;
+    if (n2 > 0)
+      report.warnings.push(`${n2} suggested looks carried without their legacy set (no ↻)`);
   });
   report.ok = report.failures.length === 0;
   return report;

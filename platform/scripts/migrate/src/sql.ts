@@ -2,8 +2,10 @@
 // data-model.md §5). Every statement is insert … on conflict do nothing with legacy ids kept or
 // derived deterministically (pg_temp.legacy_uuid), so a second run inserts nothing.
 
-// Only saved looks are carried: suggested/draft rows (legacy migration 25) have no platform state yet.
+// Looks in every state are carried (legacy migration 25 → app.looks.status); only saved looks take
+// tags, renders, wears and days.
 export const SAVED_LOOKS = `(select * from legacy.looks where coalesce(status, 'saved') = 'saved')`;
+export const CARRIED_LOOKS = `(select * from legacy.looks where coalesce(status, 'saved') in ('saved', 'suggested', 'draft'))`;
 
 export const UUID_RE = `'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'`;
 
@@ -315,22 +317,41 @@ on conflict (id) do nothing;
 `;
 
 export const LOOKS_SQL = `
-${assetsFrom(`select user_id, photo_url as url, created_at from ${SAVED_LOOKS}`, 'look_photo')}
+${assetsFrom(`select user_id, photo_url as url, created_at from ${CARRIED_LOOKS}`, 'look_photo')}
 ${assetsFrom(`select user_id, render_url as url, created_at from ${SAVED_LOOKS}`, 'render')}
 
+-- Robes-composed sources keep their provenance (Composed by Robes); a look whose photograph is Robes'
+-- frame of the whole look (a suggestion, or source robes / proposals on the row, never a hand
+-- build) keeps it as the frame — her model never replaces it (legacy _lkFrameOf, 2026-10-07).
+-- How each piece is worn (migration 24) is carried by her piece ids.
 insert into app.looks (id, user_id, name, name_provisional, note, photo_asset_id, source, climate_band,
-  climate_source, proposals, render_asset_id, render_key, created_at, updated_at)
+  climate_source, proposals, render_asset_id, render_key, status, anchor_piece_id, frame_asset_id,
+  styling, created_at, updated_at)
 select l.id, l.user_id,
   left(coalesce(nullif(trim(l.name), ''), 'Look'), 120),
   coalesce(l.name_provisional, true), left(l.note, 2000),
   ${asset('l.user_id', 'l.photo_url')},
-  case when l.source in ('wear','manual','variant','generated','today','travel') then l.source else 'manual' end,
+  case when l.source in ('wear','manual','variant','generated','today','travel') then l.source
+    when l.source in ('robes','robes-build') then 'generated'
+    when l.source = 'daily' then 'today'
+    else 'manual' end,
   case when l.climate_band in ('spring_summer','autumn_winter','year_round') then l.climate_band else 'year_round' end,
   case when l.climate_source in ('derived','user') then l.climate_source else 'derived' end,
   case when jsonb_typeof(l.proposals) = 'array' then l.proposals end,
-  ${asset('l.user_id', 'l.render_url')},
-  l.render_key, coalesce(l.created_at, now()), coalesce(l.updated_at, l.created_at, now())
-from ${SAVED_LOOKS} l
+  case when coalesce(l.status, 'saved') = 'saved' then ${asset('l.user_id', 'l.render_url')} end,
+  case when coalesce(l.status, 'saved') = 'saved' then l.render_key end,
+  coalesce(l.status, 'saved'),
+  (select w.id from app.wardrobe_items w
+    where w.user_id = l.user_id and l.anchor_piece_id is not null and w.id = l.anchor_piece_id),
+  case when l.photo_url is not null and coalesce(l.source, '') not in ('manual', 'robes-build', 'wear')
+    and (coalesce(l.status, 'saved') <> 'saved' or l.source = 'robes'
+      or (jsonb_typeof(l.proposals) = 'array' and jsonb_array_length(l.proposals) > 0))
+    then ${asset('l.user_id', 'l.photo_url')} end,
+  (select jsonb_object_agg(k, left(v, 120)) from jsonb_each_text(
+      case when jsonb_typeof(l.styling) = 'object' then l.styling else '{}'::jsonb end) e(k, v)
+    where k ~ ${UUID_RE} and nullif(trim(v), '') is not null),
+  coalesce(l.created_at, now()), coalesce(l.updated_at, l.created_at, now())
+from ${CARRIED_LOOKS} l
 join app.users u on u.id = l.user_id
 on conflict (id) do nothing;
 
@@ -361,7 +382,7 @@ from (
   select ll.id, ll.user_id, 'wear_for', trim(o), 'inferred'
   from ${SAVED_LOOKS} ll, unnest(coalesce(ll.tags, '{}'::text[])) o
 ) s
-join app.looks l on l.id = s.look_id and l.user_id = s.user_id
+join app.looks l on l.id = s.look_id and l.user_id = s.user_id and l.status = 'saved'
 join app.tags t on t.user_id = l.user_id and t.kind = s.kind and t.slug = private.tag_slug(trim(s.label))
 order by t.id, l.id, (s.source = 'user') desc
 on conflict do nothing;
@@ -395,7 +416,7 @@ select d.id, d.user_id, d.day_date,
   coalesce(d.created_at, now()), coalesce(d.updated_at, d.created_at, now())
 from legacy.planned_days d
 join app.users u on u.id = d.user_id
-left join app.looks l on d.source_type = 'look' and l.user_id = d.user_id
+left join app.looks l on d.source_type = 'look' and l.user_id = d.user_id and l.status = 'saved'
   and l.id = case when d.source_id ~ ${UUID_RE} then d.source_id::uuid end
 left join app.artifacts a on d.source_type <> 'look' and a.user_id = d.user_id
   and a.legacy_id = case when d.source_id ~ '^[0-9]{1,18}$' then d.source_id::bigint end

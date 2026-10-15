@@ -3,7 +3,7 @@ import { assertMigration } from '../src/assert';
 import { LEGACY_CATALOG } from '../src/catalog';
 import { databaseUrl, dropDatabase, recreateDatabase, withClient } from '../src/db';
 import { extract, legacyTableName } from '../src/extract';
-import { L, NIALL, SHARE_TOKEN } from '../src/fixture-data';
+import { L, NIALL, SHARE_TOKEN, W } from '../src/fixture-data';
 import { legacyUuid } from '../src/ids';
 import { buildLegacyFixture } from '../src/legacy-fixture';
 import { planRehost } from '../src/rehost';
@@ -74,9 +74,8 @@ describe('legacy → platform rehearsal (docs/migration.md §3)', () => {
     });
     expect(first.report.warnings.some((w) => w.includes('is_admin'))).toBe(true);
     expect(first.report.warnings).toContain(
-      '2 suggested/draft looks not carried (only saved looks are)',
+      '1 suggested looks carried without their legacy set (no ↻)',
     );
-    expect(first.report.warnings).toContain('1 saved looks have styling notes (not carried)');
   });
 
   it('carries her twin, her brief and the memory she told Robes', async () => {
@@ -141,19 +140,30 @@ describe('legacy → platform rehearsal (docs/migration.md §3)', () => {
     ]);
   });
 
-  it('carries saved looks only, and no tags or renders from unsaved ones', async () => {
-    const looks = await one<{ ids: string[] }>(
-      'select array_agg(id::text order by id) as ids from app.looks where user_id = $1',
+  it('carries looks in every state; only saved ones take tags, renders and days', async () => {
+    const looks = await one<{ rows: { id: string; status: string; anchor: string | null }[] }>(
+      `select json_agg(json_build_object('id', id, 'status', status, 'anchor', anchor_piece_id)
+         order by id) as rows from app.looks where user_id = $1`,
       [NIALL],
     );
-    expect(looks.ids).toEqual([L.office, L.weekend]);
+    expect(looks.rows).toEqual([
+      { id: L.office, status: 'saved', anchor: null },
+      { id: L.weekend, status: 'saved', anchor: null },
+      { id: L.suggested, status: 'suggested', anchor: W.coat },
+      { id: L.draft, status: 'draft', anchor: null },
+    ]);
+    // How each piece is worn rides by her piece id (migration 24).
+    const office = await one<{ styling: unknown }>('select styling from app.looks where id = $1', [
+      L.office,
+    ]);
+    expect(office.styling).toEqual({ [W.jeans]: 'cuffed once' });
     const leaks = await one<{ tags: number; assets: number; pieces: number }>(
       `select (select count(*)::int from app.tags where user_id = $1 and label = 'Holiday') as tags,
               (select count(*)::int from app.assets where legacy_url like '%suggested-render%') as assets,
               (select count(*)::int from app.look_pieces where look_id = $2) as pieces`,
       [NIALL, L.draft],
     );
-    expect(leaks).toEqual({ tags: 0, assets: 0, pieces: 0 });
+    expect(leaks).toEqual({ tags: 0, assets: 0, pieces: 1 });
   });
 
   it('keeps ids, maps prefs to the contract keys, and holds values to the target checks', async () => {

@@ -179,7 +179,7 @@ insert into public.looks (id, user_id, name, name_provisional, tags, note, photo
    '${CDN}/office-render.jpg', '2026-08-01'),
   ('${L.weekend}', '${NIALL}', 'Weekend', true, null, null, null, 'something-else', 'year_round', null, '2026-08-02');
 
--- Legacy migrations 24/25: styling notes on a saved look; suggested/draft looks are not carried.
+-- Legacy migrations 24/25: styling notes on a saved look; a suggested and a draft look (all carried).
 update public.looks set styling = ${json({ [W.jeans]: 'cuffed once' })} where id = '${L.office}';
 insert into public.looks (id, user_id, name, tags, source, render_url, status, anchor_piece_id, set_id, set_index, created_at) values
   ('${L.suggested}', '${NIALL}', 'Suggested', '{Holiday}', 'generated', '${CDN}/suggested-render.jpg', 'suggested',
