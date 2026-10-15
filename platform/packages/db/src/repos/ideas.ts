@@ -17,8 +17,13 @@ const IDEA_COLUMNS = [
 
 // Looks › Ideas: Robes' output she hasn't saved yet (and saved ideas).
 export function ideasRepo(db: Db) {
+  // A suggested-look set is a generation record, not an idea she browses.
   const active = () =>
-    db.selectFrom('artifacts').where('type', '=', 'idea').where('deletedAt', 'is', null);
+    db
+      .selectFrom('artifacts')
+      .where('type', '=', 'idea')
+      .where('deletedAt', 'is', null)
+      .where(sql<boolean>`not (data ? 'set')`);
 
   return {
     get(userId: UserId, id: string) {

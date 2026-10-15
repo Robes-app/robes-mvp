@@ -8,6 +8,7 @@ import {
 } from '@robes/db';
 import {
   createAnchorRenderer,
+  createDayForecast,
   createExpoPushSender,
   createHandlers,
   createInlineTransport,
@@ -133,15 +134,31 @@ async function createWorkerContext(): Promise<WorkerContext> {
       ? {
           linkImport,
           wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger: system.ledger },
-          stylePiece: { ai, storage, styling: system.styling, ledger: system.ledger },
+          stylePiece: {
+            ai,
+            storage,
+            styling: system.styling,
+            suggested: system.suggested,
+            cells: system.modelRender,
+            forecast: createDayForecast(),
+            ledger: system.ledger,
+          },
           lookRender: {
             ai,
             storage,
             styling: system.styling,
             frames: system.frames,
             model: system.modelRender,
+            suggested: system.suggested,
             ledger: system.ledger,
             ...(onGenerated ? { onGenerated } : {}),
+          },
+          lookAsk: {
+            ai,
+            styling: system.styling,
+            suggested: system.suggested,
+            noticed: system.noticed,
+            ledger: system.ledger,
           },
           avatarCell: { ai, storage, cells: system.avatarCells, ledger: system.ledger },
           styleAnalyse: { ai, storage, profiles: system.styleAnalysis, ledger: system.ledger },

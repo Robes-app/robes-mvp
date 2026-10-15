@@ -1,6 +1,6 @@
 import { AiError, createFakeProvider } from '@robes/ai';
 import { fakeOutput as dailyFake, normalise } from '@robes/ai/prompts/daily';
-import { fakeOutput } from '@robes/ai/prompts/style-piece';
+import { fakeOutput } from '@robes/ai/prompts/style-piece/v2';
 import { verifiedUserId } from '@robes/db';
 import { describe, expect, it, vi } from 'vitest';
 import { createLookRenderHandler } from './look-render';

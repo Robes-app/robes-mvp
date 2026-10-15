@@ -46,7 +46,15 @@ export function stylingRepo(db: Db) {
       const closet = await db
         .selectFrom('wardrobeItems as w')
         .leftJoin('wardrobeItemStats as s', 's.wardrobeItemId', 'w.id')
-        .select(['w.id', 'w.label', 'w.category', 'w.color', 'w.brand', 's.timesWorn'])
+        .select([
+          'w.id',
+          'w.label',
+          'w.category',
+          'w.color',
+          'w.brand',
+          'w.imageAssetId',
+          's.timesWorn',
+        ])
         .where('w.userId', '=', userId)
         .where('w.deletedAt', 'is', null)
         .where('w.status', '=', 'ready')
@@ -116,9 +124,51 @@ export function stylingRepo(db: Db) {
           category: c.category,
           color: c.color,
           brand: c.brand,
+          imageAssetId: c.imageAssetId,
           timesWorn: c.timesWorn ?? 0,
         })),
       };
+    },
+
+    // Her filed model, if she has one: every suggested frame is shot on it (legacy 2026-10-09).
+    async modelCellId(userId: UserId): Promise<string | null> {
+      const row = await db
+        .selectFrom('avatars')
+        .select('avatarId')
+        .where('userId', '=', userId)
+        .executeTakeFirst();
+      return row?.avatarId ?? null;
+    },
+
+    // A generation's record (the set): kept while any of its suggested looks stands.
+    async createSet(
+      userId: UserId,
+      set: { jobId: string; title: string; subtitle: string; data: Record<string, unknown> },
+    ): Promise<string> {
+      const row = await db
+        .insertInto('artifacts')
+        .values({
+          userId,
+          type: 'idea',
+          title: set.title.slice(0, 160),
+          subtitle: set.subtitle.slice(0, 240),
+          data: JSON.stringify(set.data),
+          generationJobId: set.jobId,
+          expiresAt: null,
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      return row.id;
+    },
+
+    getSet(userId: UserId, setId: string) {
+      return db
+        .selectFrom('artifacts')
+        .select(['id', 'title', 'data', 'generationJobId'])
+        .where('userId', '=', userId)
+        .where('id', '=', setId)
+        .where('type', '=', 'idea')
+        .executeTakeFirst();
     },
 
     // The daily styler's view of her: closet by index with ids, heroes and season bands, plus

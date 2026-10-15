@@ -86,7 +86,7 @@ describe('job contracts', async () => {
     const parsed = JobSnapshot.parse({ ...snapshot, kind: 'key_piece', status: 'partial', output });
     expect(parsed.output).toEqual({
       ...output,
-      ways: output.ways.map((w) => ({ ...w, pieces: [] })),
+      ways: output.ways.map((w) => ({ ...w, scene: '', pieces: [] })),
     });
   });
 

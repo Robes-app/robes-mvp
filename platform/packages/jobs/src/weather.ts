@@ -89,6 +89,58 @@ export function createWeather(fetchFn: Fetch = fetch as unknown as Fetch) {
 }
 export type WeatherFor = ReturnType<typeof createWeather>;
 
+export interface DayForecast {
+  city: string | null;
+  tempRange: string;
+  condition: string;
+  tmax: number;
+  code: number | null;
+}
+
+// One day's forecast (a dated ask, legacy __rbWxForDate): null past the forecast's reach or on
+// any failure, so the looks are styled for the season instead.
+export function createDayForecast(fetchFn: Fetch = fetch as unknown as Fetch) {
+  const get = async (url: string) => {
+    const res = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error('weather request failed');
+    return res.json();
+  };
+  return async function forecastFor(place: {
+    city: string | null;
+    lat: number | null;
+    lon: number | null;
+    date: string;
+  }): Promise<DayForecast | null> {
+    try {
+      let coords =
+        place.lat !== null && place.lon !== null ? { lat: place.lat, lon: place.lon } : null;
+      if (!coords && place.city) {
+        coords = parseGeocode(
+          await get(`${GEOCODE}?name=${encodeURIComponent(place.city)}&count=1`),
+        );
+      }
+      if (!coords) return null;
+      const json = await get(
+        `${FORECAST}?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&start_date=${place.date}&end_date=${place.date}`,
+      );
+      const f = parseForecast(json);
+      const d = (json as { daily?: Record<string, unknown[]> })?.daily;
+      const max = d?.temperature_2m_max?.[0];
+      const code = d?.weather_code?.[0];
+      if (!f || typeof max !== 'number') return null;
+      return {
+        city: place.city,
+        ...f,
+        tmax: Math.round(max),
+        code: typeof code === 'number' ? code : null,
+      };
+    } catch {
+      return null;
+    }
+  };
+}
+export type DayForecastFor = ReturnType<typeof createDayForecast>;
+
 const ARCHIVE = 'https://archive-api.open-meteo.com/v1/archive';
 
 // A window of daily readings → min/max and the most frequent condition (legacy fetchTripWeather).

@@ -1,6 +1,6 @@
 import { JOB_KINDS, JOB_STAGES, JOB_STATUSES } from '@robes/core/jobs';
 import { z } from 'zod';
-import { IdeaWay } from './looks';
+import { IdeaWay, LookAskResult } from './looks';
 
 export const JobStatus = z.enum(JOB_STATUSES);
 export const JobStage = z.enum(JOB_STAGES);
@@ -23,6 +23,11 @@ export const JobOutput = z.object({
   fallback: z.boolean().optional(),
   wearer: z.enum(['woman', 'man']).optional(),
   ways: z.array(IdeaWay).optional(),
+  // The suggested looks a key_piece job minted (the keep-or-pass deck), or the one ↻ re-wrote.
+  setId: z.uuid().optional(),
+  lookIds: z.array(z.uuid()).optional(),
+  // look_ask: the edit her words came back as.
+  ask: LookAskResult.optional(),
   // wardrobe_analyse
   pieceId: z.uuid().optional(),
   label: z.string().optional(),

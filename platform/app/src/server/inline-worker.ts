@@ -1,6 +1,7 @@
 import 'server-only';
 import { createSystemRepositories } from '@robes/db';
 import {
+  createDayForecast,
   createHandlers,
   createJobAi,
   createTripWeather,
@@ -36,6 +37,9 @@ const handlers = createHandlers({
     ai,
     storage: mediaStorage,
     styling: system.styling,
+    suggested: system.suggested,
+    cells: system.modelRender,
+    forecast: createDayForecast(),
     ledger: system.ledger,
     // Stand-in for the S3 event → RenditionFn, as for uploads.
     onGenerated: renderLocally,
@@ -46,8 +50,16 @@ const handlers = createHandlers({
     styling: system.styling,
     frames: system.frames,
     model: system.modelRender,
+    suggested: system.suggested,
     ledger: system.ledger,
     onGenerated: renderLocally,
+  },
+  lookAsk: {
+    ai,
+    styling: system.styling,
+    suggested: system.suggested,
+    noticed: system.noticed,
+    ledger: system.ledger,
   },
   avatarCell: { ai, storage: mediaStorage, cells: system.avatarCells, ledger: system.ledger },
   daily: {

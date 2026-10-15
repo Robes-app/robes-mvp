@@ -1,5 +1,11 @@
 import { AiError, type AiProvider, type ImageCapability } from '@robes/ai';
-import { buildRenderPrompt, MAX_PIECE_REFERENCES, RENDER_FEATURE } from '@robes/ai/prompts/avatar';
+import {
+  buildFrameRenderPrompt,
+  buildRenderPrompt,
+  FRAME_FEATURE,
+  MAX_PIECE_REFERENCES,
+  RENDER_FEATURE,
+} from '@robes/ai/prompts/avatar';
 import {
   buildAnchorPrompt,
   buildStillLifePrompt,
@@ -7,11 +13,8 @@ import {
   type NormalItem,
   type NormalLook,
 } from '@robes/ai/prompts/daily';
-import {
-  buildImagePrompt,
-  ImageWay,
-  FEATURE as STYLE_FEATURE,
-} from '@robes/ai/prompts/style-piece';
+import { FEATURE as STYLE_FEATURE } from '@robes/ai/prompts/style-piece';
+import { buildImagePrompt as buildIdeaImagePrompt } from '@robes/ai/prompts/style-piece/v2';
 import { LookRenderInput } from '@robes/contracts';
 import { cellKey, parseCellId } from '@robes/core/avatar';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
@@ -19,14 +22,18 @@ import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
+import { drawSuggestedFrame, type FrameRackPiece, modelReference } from './look-frame';
+import { StoredSet } from './style-piece';
 
 export interface LookRenderDeps {
   ai: AiProvider;
   storage: Pick<MediaStorage, 'getObject' | 'putObject'>;
   styling: Pick<
     SystemRepositories['styling'],
-    'context' | 'dailyContext' | 'anchorPiece' | 'createGeneratedAsset'
+    'context' | 'dailyContext' | 'anchorPiece' | 'createGeneratedAsset' | 'getSet' | 'modelCellId'
   >;
+  // Robes' frame of a suggested look (look states); absent where the runtime doesn't draw them.
+  suggested?: Pick<SystemRepositories['suggested'], 'look' | 'setFrame' | 'failFrame'>;
   frames: Pick<SystemRepositories['frames'], 'get' | 'set'>;
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
   // "See it on me": her look on her model. Absent where the runtime doesn't render on models.
@@ -43,8 +50,31 @@ const StoredIdea = z.object({
   ]),
   fallback: z.boolean(),
   wearer: z.enum(['woman', 'man']),
-  ways: z.array(ImageWay),
+  // v3 sets carry a scene line where earlier ideas carried prose.
+  ways: z.array(
+    z.object({
+      eyebrow: z.string(),
+      title: z.string(),
+      scene: z.string().default(''),
+      outfit: z.string().default(''),
+      details: z.string().default(''),
+      accessories: z.string().default(''),
+      tags: z.array(z.string()).default([]),
+    }),
+  ),
 });
+const StoredProposals = z
+  .array(
+    z.looseObject({
+      name: z.string(),
+      category: z.string().default(''),
+      color: z.string().default(''),
+      brand: z.string().default(''),
+      key: z.string().default(''),
+    }),
+  )
+  .catch([]);
+const StoredStyling = z.record(z.string(), z.string()).catch({});
 const StoredDaily = z.object({
   look: z.object({
     occasionLabel: z.string(),
@@ -94,12 +124,12 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       idx,
       feature: `${STYLE_FEATURE}.image`,
       capability: idx === 0 ? 'image.hero' : 'image.secondary',
-      prompt: buildImagePrompt({
+      prompt: buildIdeaImagePrompt({
         wearer,
         pieceLabel: anchor.label,
         hasPiecePhoto: Boolean(photo),
         styleIcons,
-        way,
+        way: { ...way, outfit: way.outfit || way.scene },
       }),
       ...(photo ? { references: [{ mimeType: 'image/jpeg' as const, data: photo }] } : {}),
     };
@@ -232,6 +262,150 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
     }
   }
 
+  // Robes' frame of a look for the rack as it stands: re-dressed in place when the look has one
+  // (frame mode — her model never replaces it), drawn fresh for a suggestion that has none yet.
+  async function renderFrame(
+    ctx: Parameters<JobHandler['run']>[0],
+    lookId: string,
+    frameKey: string,
+  ) {
+    const suggested = deps.suggested;
+    if (!suggested) throw new JobError('unsupported');
+    const found = await suggested.look(ctx.userId, lookId);
+    if (!found) throw new JobError('not_found');
+    if (found.look.renderKey !== `frame:${frameKey}`) throw new JobError('superseded');
+    const styleCtx = await deps.styling.context(ctx.userId);
+    const styling = StoredStyling.parse(found.look.styling ?? {});
+    const proposals = StoredProposals.parse(found.look.proposals ?? []);
+    const rack: (FrameRackPiece & { styled: string | null })[] = [
+      ...found.pieces.map((p) => ({
+        name: p.label,
+        category: p.category ?? '',
+        color: p.color ?? '',
+        brand: p.brand ?? '',
+        imageAssetId: p.assetStatus === 'ready' ? p.imageAssetId : null,
+        styled: styling[p.id] ?? null,
+      })),
+      ...proposals.map((p) => ({
+        name: p.name,
+        category: p.category,
+        color: p.color,
+        brand: p.brand,
+        imageAssetId: null,
+        styled: styling[p.key] ?? null,
+      })),
+    ];
+    if (rack.length === 0) {
+      await suggested.failFrame(ctx.userId, lookId, frameKey);
+      throw new JobError('empty_look');
+    }
+    const fail = async (err: unknown): Promise<never> => {
+      await suggested.failFrame(ctx.userId, lookId, frameKey);
+      if (ctx.signal.aborted || (err instanceof AiError && err.code === 'cancelled')) throw err;
+      throw new JobError(err instanceof AiError ? `ai_${err.code}` : 'render_failed');
+    };
+    let assetId: string;
+    if (found.look.frameAssetId) {
+      const frame = await deps.storage
+        .getObject(mediaKeys.master(ctx.userId, found.look.frameAssetId))
+        .catch(() => null);
+      if (!frame) return fail(new Error('frame_missing'));
+      const references: { mimeType: 'image/jpeg'; data: Uint8Array }[] = [
+        { mimeType: 'image/jpeg', data: frame },
+      ];
+      const pieces = [];
+      for (const p of rack) {
+        let photo: Uint8Array | null = null;
+        if (p.imageAssetId && references.length <= MAX_PIECE_REFERENCES) {
+          photo = await deps.storage
+            .getObject(mediaKeys.master(ctx.userId, p.imageAssetId))
+            .catch(() => null);
+        }
+        if (photo) references.push({ mimeType: 'image/jpeg', data: photo });
+        pieces.push({ ...p, hasImage: Boolean(photo) });
+      }
+      const gender = styleCtx.gender === 'man' ? 'man' : 'woman';
+      try {
+        const { image, usage } = await deps.ai.generateImage({
+          feature: FRAME_FEATURE,
+          capability: 'image.hero',
+          prompt: buildFrameRenderPrompt(gender, pieces),
+          references,
+          aspectRatio: '4:5',
+          signal: ctx.signal,
+        });
+        await deps.ledger.record({
+          ...usage,
+          jobId: ctx.jobId,
+          userId: ctx.userId,
+          feature: FRAME_FEATURE,
+          status: 'ok',
+        });
+        assetId = await deps.styling.createGeneratedAsset(ctx.userId);
+        const key = mediaKeys.original(ctx.userId, assetId);
+        await deps.storage.putObject(key, image.data, { contentType: image.mimeType });
+        await deps.onGenerated?.(key);
+      } catch (err) {
+        if (err instanceof AiError && err.usage) {
+          await deps.ledger.record({
+            ...err.usage,
+            jobId: ctx.jobId,
+            userId: ctx.userId,
+            feature: FRAME_FEATURE,
+            status: err.code === 'timeout' ? 'timeout' : 'error',
+          });
+        }
+        return fail(err);
+      }
+    } else {
+      const set = found.look.setId
+        ? StoredSet.safeParse((await deps.styling.getSet(ctx.userId, found.look.setId))?.data)
+        : null;
+      const way = set?.success ? set.data.ways[found.look.setIndex ?? 0] : undefined;
+      const anchor =
+        set?.success && set.data.anchor.type === 'piece'
+          ? await deps.styling.anchorPiece(ctx.userId, set.data.anchor.pieceId)
+          : undefined;
+      const piecePhoto = anchor?.imageAssetId
+        ? await deps.storage
+            .getObject(mediaKeys.master(ctx.userId, anchor.imageAssetId))
+            .catch(() => null)
+        : null;
+      const frameDeps = {
+        ai: deps.ai,
+        storage: deps.storage,
+        styling: deps.styling,
+        ...(deps.model ? { cells: deps.model } : {}),
+        ledger: deps.ledger,
+        ...(deps.onGenerated ? { onGenerated: deps.onGenerated } : {}),
+      };
+      try {
+        assetId = await drawSuggestedFrame(frameDeps, ctx, {
+          wearer: set?.success ? set.data.wearer : styleCtx.gender === 'man' ? 'man' : 'woman',
+          mode: set?.success && set.data.mode === 'prompt' ? 'dress-me' : 'piece',
+          fallback: set?.success ? set.data.fallback : false,
+          pieceLabel: anchor?.label ?? null,
+          piecePhoto,
+          model: await modelReference(frameDeps, ctx.userId),
+          styleIcons: styleCtx.styleIcons,
+          brief: set?.success ? set.data.prompt : null,
+          way: {
+            title: found.look.name,
+            eyebrow: way?.eyebrow ?? '',
+            scene: way?.scene || found.look.name,
+          },
+          rack,
+          capability: (found.look.setIndex ?? 0) === 0 ? 'image.hero' : 'image.secondary',
+        });
+      } catch (err) {
+        return fail(err);
+      }
+    }
+    await suggested.setFrame(ctx.userId, lookId, frameKey, assetId);
+    await ctx.writeStage('images', { images: [{ idx: 0, status: 'ready', assetId }] });
+    return { status: 'succeeded' as const };
+  }
+
   return {
     budgetMs: 90_000,
     async run(ctx) {
@@ -241,6 +415,10 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       if (input.target === 'look') {
         await ctx.writeStage('text', { lookId: input.lookId });
         return renderLook(ctx, input.lookId, input.renderKey);
+      }
+      if (input.target === 'frame') {
+        await ctx.writeStage('text', { lookId: input.lookId });
+        return renderFrame(ctx, input.lookId, input.frameKey);
       }
       // Written first so the Today tray can link the job to what it renders.
       await ctx.writeStage(

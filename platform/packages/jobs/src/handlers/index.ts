@@ -3,6 +3,7 @@ import { type AvatarCellDeps, createAvatarCellHandler } from './avatar-cell';
 import { createDailyHandler, type DailyDeps } from './daily';
 import { createFakeHandler } from './fake';
 import { createLinkImportHandler, type LinkImportDeps } from './link-import';
+import { createLookAskHandler, type LookAskDeps } from './look-ask';
 import { createLookRenderHandler, type LookRenderDeps } from './look-render';
 import { createStyleAnalyseHandler, type StyleAnalyseDeps } from './style-analyse';
 import { createStyleBriefHandler, type StyleBriefDeps } from './style-brief';
@@ -20,6 +21,7 @@ export interface HandlerDeps {
   styleAnalyse?: StyleAnalyseDeps;
   styleBrief?: StyleBriefDeps;
   lookRender?: LookRenderDeps;
+  lookAsk?: LookAskDeps;
   travel?: TravelDeps;
   avatarCell?: AvatarCellDeps;
 }
@@ -35,6 +37,7 @@ export function createHandlers(opts: HandlerDeps = {}): JobHandlers {
     ...(opts.stylePiece ? { key_piece: createStylePieceHandler(opts.stylePiece) } : {}),
     ...(opts.daily ? { daily: createDailyHandler(opts.daily) } : {}),
     ...(opts.lookRender ? { look_render: createLookRenderHandler(opts.lookRender) } : {}),
+    ...(opts.lookAsk ? { look_ask: createLookAskHandler(opts.lookAsk) } : {}),
     ...(opts.travel ? { travel: createTravelHandler(opts.travel) } : {}),
     ...(opts.avatarCell ? { avatar_cell: createAvatarCellHandler(opts.avatarCell) } : {}),
     ...(opts.styleAnalyse

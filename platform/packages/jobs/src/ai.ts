@@ -6,6 +6,7 @@ import {
   type FakeFixture,
 } from '@robes/ai';
 import * as daily from '@robes/ai/prompts/daily';
+import * as lookAsk from '@robes/ai/prompts/look-ask';
 import * as receiptRead from '@robes/ai/prompts/receipt-read';
 import * as styleAnalyse from '@robes/ai/prompts/style-analyse';
 import * as styleBrief from '@robes/ai/prompts/style-brief';
@@ -32,8 +33,17 @@ const FAKE_FIXTURES: Record<string, FakeFixture> = {
   [styleAnalyse.COLOUR_FEATURE]: () => styleAnalyse.fakeColour(),
   [styleAnalyse.SILHOUETTE_FEATURE]: () => styleAnalyse.fakeSilhouette(),
   [styleBrief.FEATURE]: () => styleBrief.fakeOutput(),
+  // The piece or her words from the user turn; owned pieces from the numbered closet.
   [stylePiece.FEATURE]: (req) =>
-    stylePiece.fakeOutput(/described as: <user_input>\n(.*)\n/.exec(req.user)?.[1] ?? 'Your piece'),
+    stylePiece.fakeOutput({
+      label:
+        /(?:The key piece: |in her words: )<user_input>\n(.*)\n/.exec(req.user)?.[1] ??
+        'Your piece',
+      closetSize: (/HER WARDROBE[^\n]*/.exec(req.system)?.[0].match(/\[\d+\] /g) ?? []).length,
+      refine: req.user.includes('HER ADJUSTMENT'),
+      dressMe: req.system.includes('She is dressing for a real day'),
+    }),
+  [lookAsk.FEATURE]: (req) => lookAsk.fakeOutput(req.system, req.user),
 };
 
 export function createJobAi(opts: {
