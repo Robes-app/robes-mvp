@@ -94,7 +94,7 @@ export const HomeBox = forwardRef<
         });
         setText('');
         clear();
-        router.push(`/looks/job/${jobId}`);
+        router.push({ pathname: '/looks/job/[jobId]', params: { jobId, from: 'home' } });
       } catch (err) {
         setError(errorMessage(err));
       } finally {
@@ -116,7 +116,7 @@ export const HomeBox = forwardRef<
       });
       setText('');
       onDateClear();
-      router.push(`/looks/job/${jobId}`);
+      router.push({ pathname: '/looks/job/[jobId]', params: { jobId, from: 'home' } });
     } catch (err) {
       setError(errorMessage(err));
     } finally {

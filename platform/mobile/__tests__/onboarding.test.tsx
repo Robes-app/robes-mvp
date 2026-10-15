@@ -5,7 +5,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import NameScreen from '../src/app/onboarding/index';
 import FirstPiece from '../src/app/onboarding/piece';
-import { ME, mockFetch, renderWithApi } from './support/api';
+import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, JOB_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
@@ -55,7 +55,8 @@ test('the splash hands to the name, which saves and moves to the first piece', a
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ firstName: 'Niall' });
 });
 
-test('the first piece is photographed, read into the ledger, styled three ways onto the deck', async () => {
+test('the first piece is photographed, read into the ledger, styled three ways onto the deck; a retry reuses the job', async () => {
+  let completes = 0;
   const filed = piece({ label: 'Camel wool coat', brand: 'Toteme', color: 'camel' });
   const calls = mockFetch({
     'GET /me': ME,
@@ -87,7 +88,9 @@ test('the first piece is photographed, read into the ledger, styled three ways o
     [`GET /jobs/${READ_JOB}`]: snap(READ_JOB, 'wardrobe_analyse', {}),
     [`GET /wardrobe/items/${PIECE_ID}`]: filed,
     'POST /looks/generate': { jobId: JOB_ID, status: 'queued' },
-    'POST /me/onboarding/complete': { onboardedAt: new Date().toISOString() },
+    // The first finish fails: the retry must not mint a second generation.
+    'POST /me/onboarding/complete': () =>
+      ++completes === 1 ? errorReply(500, 'internal') : { onboardedAt: new Date().toISOString() },
     [`GET /jobs/${JOB_ID}`]: snap(JOB_ID, 'key_piece', { setId: SET_ID }),
     [`GET /looks/sets/${SET_ID}`]: {
       id: SET_ID,
@@ -106,11 +109,20 @@ test('the first piece is photographed, read into the ledger, styled three ways o
   const style = await screen.findByRole('button', { name: copy.piece.style }, { timeout: 8_000 });
   expect(screen.getByText('Toteme')).toBeTruthy();
   await fireEvent.press(style);
+  await fireEvent.press(await screen.findByRole('button', { name: copy.piece.style }));
   expect(await screen.findByTestId('composing')).toBeTruthy();
+  expect(calls.filter((c) => c.path.endsWith('/looks/generate'))).toHaveLength(1);
   expect(await screen.findByText('Gallery Sunday')).toBeTruthy();
-  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/looks/job/${JOB_ID}`), {
-    timeout: 8_000,
-  });
+  await waitFor(
+    () =>
+      expect(mockRouter.replace).toHaveBeenCalledWith({
+        pathname: '/looks/job/[jobId]',
+        params: { jobId: JOB_ID, from: 'home' },
+      }),
+    {
+      timeout: 8_000,
+    },
+  );
   expect(calls.find((c) => c.path.endsWith('/looks/generate'))?.body).toEqual({
     anchor: { type: 'piece', pieceId: PIECE_ID },
   });

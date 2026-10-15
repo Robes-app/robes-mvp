@@ -9,6 +9,7 @@ import Looks from '../src/app/(tabs)/looks';
 import Plan from '../src/app/(tabs)/plan';
 import Wardrobe from '../src/app/(tabs)/wardrobe';
 import Create from '../src/app/create';
+import OnboardingLayout from '../src/app/onboarding/_layout';
 import Soon from '../src/app/soon';
 import NewTrip from '../src/app/trip/new';
 import YouIndex from '../src/app/you/index';
@@ -51,6 +52,7 @@ async function app(initialUrl = '/') {
       'trip/new': NewTrip,
       'you/index': YouIndex,
       'sign-in': () => <Text>sign-in screen</Text>,
+      'onboarding/_layout': OnboardingLayout,
       'onboarding/index': () => <Text>onboarding screen</Text>,
     },
     { initialUrl },
@@ -110,6 +112,14 @@ test('signed in but not onboarded goes to onboarding', async () => {
   const router = await app();
   expect(await screen.findByText('onboarding screen')).toBeTruthy();
   expect(router.getPathname()).toBe('/onboarding');
+});
+
+test('an onboarded person who lands on onboarding goes home', async () => {
+  mockSession = { data: { user: { id: ME.id } }, isPending: false };
+  mockFetch(ROUTES);
+  const router = await app('/onboarding');
+  expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
+  expect(router.getPathname()).toBe('/');
 });
 
 test('tabs in IA order; [+] opens Create; unbuilt options land on the shared screen', async () => {

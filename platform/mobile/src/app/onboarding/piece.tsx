@@ -14,7 +14,7 @@ import {
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
@@ -41,6 +41,7 @@ export default function FirstPiece() {
   const [leaving, setLeaving] = useState<'style' | 'skip' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const styled = useRef<{ pieceId: string; jobId: string } | null>(null);
   const piece = filing.phase === 'filed' ? filing.piece : null;
   const reading = filing.phase === 'uploading' || filing.phase === 'reading';
 
@@ -69,11 +70,15 @@ export default function FirstPiece() {
     setLeaving('style');
     setError(null);
     try {
-      const job = await api.call('looks.generate', {
-        input: { anchor: { type: 'piece', pieceId: p.id } },
-      });
+      // A retry after a failed finish reuses the job: never a second generation (or quota).
+      const kept = styled.current?.pieceId === p.id ? styled.current.jobId : null;
+      const id =
+        kept ??
+        (await api.call('looks.generate', { input: { anchor: { type: 'piece', pieceId: p.id } } }))
+          .jobId;
+      styled.current = { pieceId: p.id, jobId: id };
       await finish();
-      setJobId(job.jobId);
+      setJobId(id);
     } catch (err) {
       setError(errorMessage(err));
       setLeaving(null);
@@ -293,7 +298,10 @@ function Compose({ jobId, name }: { jobId: string; name: string | null }) {
   useEffect(() => {
     if (!landed) return;
     const t = setTimeout(
-      () => (ticked >= 3 ? router.replace(`/looks/job/${jobId}`) : setTicked((n) => n + 1)),
+      () =>
+        ticked >= 3
+          ? router.replace({ pathname: '/looks/job/[jobId]', params: { jobId, from: 'home' } })
+          : setTicked((n) => n + 1),
       LINE_MS,
     );
     return () => clearTimeout(t);

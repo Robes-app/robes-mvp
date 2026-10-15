@@ -10,10 +10,13 @@ export function StackScreen({
   title,
   children,
   close = false,
+  home = false,
 }: {
   title?: string;
   children: ReactNode;
   close?: boolean;
+  // Back always lands home (a screen reached from onboarding has nothing worth going back to).
+  home?: boolean;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -24,7 +27,7 @@ export function StackScreen({
         <IconButton
           icon={close ? 'close' : 'back'}
           label={close ? ui.close : ui.back}
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          onPress={() => (!home && router.canGoBack() ? router.back() : router.replace('/'))}
         />
         {title ? <Heading size="sm">{title}</Heading> : null}
       </View>

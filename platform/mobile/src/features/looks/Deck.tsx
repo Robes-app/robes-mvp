@@ -175,7 +175,16 @@ function Card({
 
 // Keep or pass (legacy F14): one card at a time; a pass waits behind "Passed · Undo"; a keep
 // leaves the look waiting in Suggested until she saves it.
-export function Deck({ setId, prompt }: { setId: string; prompt?: string | null }) {
+// `home`: opened from home or onboarding, so back lands home (never back into onboarding).
+export function Deck({
+  setId,
+  prompt,
+  home = false,
+}: {
+  setId: string;
+  prompt?: string | null;
+  home?: boolean;
+}) {
   const router = useRouter();
   const api = useApiClient();
   const toast = useToast();
@@ -299,7 +308,7 @@ export function Deck({ setId, prompt }: { setId: string; prompt?: string | null 
             ) : null}
             <Button
               variant="quiet"
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+              onPress={() => (home || !router.canGoBack() ? router.replace('/') : router.back())}
             >
               {around ? copy.deck.backTo(around) : copy.deck.backHome}
             </Button>
@@ -337,7 +346,7 @@ export function Deck({ setId, prompt }: { setId: string; prompt?: string | null 
 }
 
 // After a styling job: the deck, dressing until the looks land.
-export function JobDeck({ jobId }: { jobId: string }) {
+export function JobDeck({ jobId, home = false }: { jobId: string; home?: boolean }) {
   const job = useApi(
     'jobs.get',
     { params: { id: jobId } },
@@ -348,7 +357,7 @@ export function JobDeck({ jobId }: { jobId: string }) {
   );
   const setId = job.data?.output.setId;
   // Looks minted before the job failed (a frame that ran out of time) still make the deck.
-  if (setId) return <Deck setId={setId} />;
+  if (setId) return <Deck setId={setId} home={home} />;
   if (job.isError) return <EmptyState title={errorMessage(job.error)} />;
   if (job.data?.status === 'failed' || job.data?.status === 'cancelled') {
     return <EmptyState title={copy.deck.failed} body={jobs.status.failed} />;
