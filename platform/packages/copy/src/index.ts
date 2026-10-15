@@ -1,3 +1,5 @@
+import { lookbook } from './lookbook';
+
 // Every user-facing string lives here (SPEC principle 6); voice rules: brand-and-design.md §1.
 // Keys are stable ids; values are en-GB. Use curly apostrophes (’) and no exclamation marks.
 
@@ -1141,7 +1143,10 @@ export const twin = {
   },
 } as const;
 
+export { lookbook } from './lookbook';
+
 export const copy = {
+  lookbook,
   wardrobe,
   errors,
   auth,

@@ -8,6 +8,7 @@ export * from './me';
 export * from './media';
 export * from './notify';
 export * from './plan';
+export * from './rack';
 export * from './routes';
 export * from './shares';
 export * from './today';

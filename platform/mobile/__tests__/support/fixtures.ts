@@ -49,6 +49,7 @@ const way = (n: number) => ({
   accessories: `Accessories ${n}`,
   tags: [],
   pieces: [],
+  scene: '',
 });
 
 export function idea(overrides: Partial<Idea> = {}): Idea {
@@ -76,6 +77,7 @@ export function idea(overrides: Partial<Idea> = {}): Idea {
 export function look(overrides: Partial<Look> = {}): Look {
   return {
     id: LOOK_ID,
+    status: 'saved',
     name: 'Weekend navy',
     nameProvisional: false,
     note: null,
@@ -83,7 +85,17 @@ export function look(overrides: Partial<Look> = {}): Look {
     originLookId: null,
     climateBand: 'year_round',
     image: null,
+    frame: false,
+    framePending: false,
+    composedByRobes: false,
     pieces: [{ piece: piece(), slot: null, role: null }],
+    proposals: [],
+    styling: {},
+    edits: {},
+    anchor: null,
+    setId: null,
+    setIndex: null,
+    dateHint: null,
     timesWorn: 2,
     lastWornOn: '2026-09-01',
     createdAt: NOW,

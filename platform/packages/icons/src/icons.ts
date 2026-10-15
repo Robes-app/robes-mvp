@@ -53,6 +53,10 @@ export const ICONS = {
   undo: ['M9 14 4 9l5-5', 'M4 9h10a6 6 0 0 1 0 12h-3'],
   more: ['M6 12h.01M12 12h.01M18 12h.01'],
   alert: ['M12 3 2.5 20h19L12 3z', 'M12 10v4M12 17h.01'],
+  // The look surfaces: ♡ a proposal to the wishlist, ↻ swap or re-style, the prompt's send arrow.
+  heart: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
+  swap: ['M20 12a8 8 0 1 1-2.35-5.65', 'M20 4v5h-5'],
+  send: ['M12 19V5', 'M6 11l6-6 6 6'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

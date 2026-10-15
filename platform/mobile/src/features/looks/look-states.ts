@@ -1,0 +1,183 @@
+import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
+import type {
+  JobSnapshot,
+  Look,
+  LookAskInput,
+  LookAskResult,
+  LookPage,
+  LookSet,
+  LookStatus,
+} from '@robes/contracts';
+import { lookbook as copy, errors, ui } from '@robes/copy';
+import { useToast } from '@robes/ui-native';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { isTerminal, JOB_REFRESH_MS } from './ideas';
+
+const LIMIT = 60;
+
+export function useLooksByStatus(status: LookStatus, opts: { refetch?: boolean } = {}) {
+  return useApi(
+    'looks.list',
+    { input: { limit: LIMIT, status } },
+    {
+      // A suggestion's frame lands after its job; keep looking while one is coming.
+      refetchInterval: (q) =>
+        opts.refetch && q.state.data?.items.some((l) => l.framePending) ? JOB_REFRESH_MS : false,
+    },
+  );
+}
+
+export function useInvalidateLooks() {
+  const queryClient = useQueryClient();
+  return (look?: Look) => {
+    if (look) {
+      queryClient.setQueryData(queryKeys.call('looks.get', { params: { id: look.id } }), look);
+    }
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.sets.get') });
+  };
+}
+
+function withoutLook(old: unknown, id: string): unknown {
+  const page = old as LookPage | undefined;
+  return page?.items ? { ...page, items: page.items.filter((l) => l.id !== id) } : old;
+}
+
+// ✕ / pass / Discard: the look goes at once, behind "Removed · Undo" (legacy 6 s hold).
+export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => void) {
+  const api = useApiClient();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const refresh = useInvalidateLooks();
+  return (id: string) => {
+    queryClient.setQueriesData({ queryKey: queryKeys.route('looks.list') }, (old) =>
+      withoutLook(old, id),
+    );
+    void api
+      .call('looks.delete', { params: { id } })
+      .then(() =>
+        toast.show({
+          message: label,
+          action: {
+            label: ui.undo,
+            onPress: () =>
+              void api
+                .call('looks.restore', { params: { id } })
+                .then((look) => {
+                  refresh(look);
+                  onUndo?.(id);
+                })
+                .catch(() => toast.show({ message: errors.internal })),
+          },
+        }),
+      )
+      .catch(() => {
+        refresh();
+        toast.show({ message: errors.internal });
+      });
+  };
+}
+
+export function useSaveLook(onSaved?: (look: Look) => void) {
+  const toast = useToast();
+  const refresh = useInvalidateLooks();
+  return useApiMutation('looks.save', {
+    onSuccess: (look) => {
+      refresh(look);
+      onSaved?.(look);
+    },
+    onError: () => toast.show({ message: errors.internal }),
+  });
+}
+
+// Follows a job to its end by polling the row (native has no SSE yet); calls back once.
+export function useJobResult(
+  jobId: string | null,
+  onDone: (job: JobSnapshot) => void,
+): JobSnapshot | undefined {
+  const job = useApi(
+    'jobs.get',
+    { params: { id: jobId ?? '' } },
+    {
+      enabled: jobId !== null,
+      refetchInterval: (q) => (isTerminal(q.state.data) ? false : JOB_REFRESH_MS),
+    },
+  );
+  const handled = useRef<string | null>(null);
+  const data = jobId && job.data?.id === jobId ? job.data : undefined;
+  useEffect(() => {
+    if (data && isTerminal(data) && handled.current !== data.id) {
+      handled.current = data.id;
+      onDone(data);
+    }
+  }, [data, onDone]);
+  return data;
+}
+
+// ↻ on a suggestion: the look re-writes in place; the tile shows it changing meanwhile.
+export function useRestyle() {
+  const toast = useToast();
+  const refresh = useInvalidateLooks();
+  const [busy, setBusy] = useState<{ lookId: string; jobId: string } | null>(null);
+  const start = useApiMutation('looks.restyle', {
+    onSuccess: ({ jobId }, { params }) => setBusy({ lookId: params.id, jobId }),
+    onError: () => toast.show({ message: copy.swapFailed }),
+  });
+  useJobResult(busy?.jobId ?? null, (job) => {
+    setBusy(null);
+    refresh();
+    if (job.status === 'failed' || job.status === 'cancelled')
+      toast.show({ message: copy.swapFailed });
+  });
+  return {
+    restyle: (id: string) => start.mutate({ params: { id } }),
+    busyId: busy?.lookId ?? (start.isPending ? (start.variables?.params.id ?? null) : null),
+  };
+}
+
+// Robes' frame for the rack as it stands; the look refreshes until it lands.
+export function useRequestFrame() {
+  const api = useApiClient();
+  const refresh = useInvalidateLooks();
+  return (id: string) =>
+    void api
+      .call('looks.frame', { params: { id } })
+      .then(() => refresh())
+      .catch(() => undefined);
+}
+
+// The deck's set: refreshed while its job runs or a frame is on its way.
+export function useLookSet(setId: string) {
+  return useApi(
+    'looks.sets.get',
+    { params: { id: setId } },
+    {
+      refetchInterval: (q) =>
+        q.state.data?.looks.some((l) => l.framePending) || (q.state.data?.looks.length ?? 0) === 0
+          ? JOB_REFRESH_MS
+          : false,
+    },
+  );
+}
+
+export type SetLook = LookSet['looks'][number];
+
+// The look prompt: one ask in flight; the edit comes back as the job's output.
+export function useLookAsk(lookId: string, onAnswer: (result: LookAskResult) => void) {
+  const toast = useToast();
+  const [jobId, setJobId] = useState<string | null>(null);
+  const start = useApiMutation('looks.ask', {
+    onSuccess: ({ jobId: id }) => setJobId(id),
+    onError: () => toast.show({ message: copy.prompt.failed }),
+  });
+  useJobResult(jobId, (job) => {
+    setJobId(null);
+    if (job.status === 'succeeded' && job.output.ask) onAnswer(job.output.ask);
+    else toast.show({ message: copy.prompt.failed });
+  });
+  return {
+    send: (input: LookAskInput) => start.mutate({ params: { id: lookId }, input }),
+    reading: start.isPending || jobId !== null,
+  };
+}
