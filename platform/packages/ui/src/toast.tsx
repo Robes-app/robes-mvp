@@ -91,6 +91,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         </RadixToast.Root>
       ))}
       <RadixToast.Viewport
+        label={ui.notificationsRegion}
         className={cn(
           'fixed inset-x-0 bottom-0 z-50 mx-auto flex w-full max-w-md flex-col gap-2 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] outline-none',
           focusRing,

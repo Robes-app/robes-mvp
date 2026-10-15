@@ -1,5 +1,5 @@
 import { ui } from '@robes/copy';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seriousViolations } from '../test/axe';
@@ -47,6 +47,16 @@ describe('Toast', () => {
     await user.click(screen.getByRole('button', { name: ui.undo }));
     expect(onAction).toHaveBeenCalledOnce();
     expect(screen.queryByText('Piece removed.')).toBeNull();
+  });
+
+  it('never announces the raw {hotkey} placeholder', async () => {
+    const user = setup({ message: 'Piece removed.' });
+    await user.click(screen.getByRole('button', { name: 'Remove' }));
+    // Radix writes the screen-reader announcement (label + message) on the next frame.
+    await waitFor(() =>
+      expect(document.body.textContent).toMatch(/Notifications\S*\s+Piece removed\./),
+    );
+    expect(document.body.textContent).not.toContain('{hotkey}');
   });
 
   it('reaches the action from the keyboard', async () => {

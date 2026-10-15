@@ -450,7 +450,9 @@ export const ui = {
   close: 'Close',
   dismiss: 'Dismiss',
   undo: 'Undo',
-  notifications: 'Notifications ({hotkey})',
+  notifications: 'Notifications',
+  // Radix fills {hotkey} in the viewport label only; the provider label is announced verbatim.
+  notificationsRegion: 'Notifications ({hotkey})',
   imagesReady: (done: number, total: number): string => `${done} of ${total} images ready`,
   progress: {
     reading: 'Reading your pieces…',
