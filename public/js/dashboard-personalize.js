@@ -11768,7 +11768,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       const _rbcChevL = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
       const _rbcChevR = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
       const _rbcLockSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-      const _rbcSwapSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>`;
+      // The swap glyph is the image's own circular arrows (_LKM_REFRESH_SVG's paths) — one mark for "change this" on a piece and on a photograph.
+      const _rbcSwapSvg = `<svg width="13" height="12" viewBox="0 0 13 12" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="M1.4 5.2a4.8 4.8 0 0 1 8.3-2.3l1.5 1.5"/><path d="M11.6 6.8a4.8 4.8 0 0 1-8.3 2.3L1.8 7.6"/><path d="M11.2.9v3.5H7.7M1.8 11.1V7.6h3.5"/></svg>`;
       const _rbcCheckSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
       // A leaked JSON escape rendered verbatim ("\\u20ac110", "Pol\\u00e8ne"
