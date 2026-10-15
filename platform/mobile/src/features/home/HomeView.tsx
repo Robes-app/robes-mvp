@@ -33,6 +33,8 @@ import { renditionUri } from '@/lib/images';
 import { HomeBox, type HomeBoxHandle } from './HomeBox';
 import { StepCard, StepMap } from './HomeSteps';
 
+const WEATHER_STALE_MS = 30 * 60_000;
+
 const isRunning = (t: Today | undefined) => t?.tray.some((j) => !isTerminal(j)) ?? false;
 
 const weekdayLong = (date: string) =>
@@ -48,7 +50,11 @@ export function HomeView() {
   const query = useApi('today.get', undefined, {
     refetchInterval: (q) => (isRunning(q.state.data) ? 2_000 : false),
   });
-  const weather = useApi('today.weather');
+  // The day's forecast changes slowly: no refetch on every focus or mount.
+  const weather = useApi('today.weather', undefined, {
+    staleTime: WEATHER_STALE_MS,
+    refetchOnWindowFocus: false,
+  });
   const [force, setForce] = useState<HomeStep | null>(null);
   const [dressDate, setDressDate] = useState<string | null>(null);
   const box = useRef<HomeBoxHandle>(null);

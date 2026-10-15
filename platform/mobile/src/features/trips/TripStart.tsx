@@ -12,10 +12,10 @@ const copy = trips.create;
 const MAX_KEY_PIECES = 8;
 
 // Plan a trip: where, when (YYYY-MM-DD), her plans, and the pieces she must pack.
-export function TripStart() {
+export function TripStart({ initialOccasions = '' }: { initialOccasions?: string } = {}) {
   const [dates, setDates] = useState(() => defaultTripDates(localDate()));
   const [destination, setDestination] = useState('');
-  const [occasions, setOccasions] = useState('');
+  const [occasions, setOccasions] = useState(initialOccasions);
   const [keyPieces, setKeyPieces] = useState<string[]>([]);
   const pieces = useApi('wardrobe.list', { input: { limit: 60 } });
   const start = useStartTrip();

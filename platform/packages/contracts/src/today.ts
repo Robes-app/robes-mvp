@@ -74,7 +74,8 @@ export const Today = z.object({
   date: z.iso.date(),
   hour: z.number().int().min(0).max(23),
   firstName: z.string().nullable(),
-  nextStep: NextStep,
+  // Retired with the modular home (legacy b1808b0); kept optional for older clients.
+  nextStep: NextStep.optional(),
   // Looks pinned to today; `worn` once she's recorded wearing it.
   today: z.array(z.object({ entry: PlanEntry, worn: z.boolean() })),
   // The next seven days (today first) with how many looks each holds.

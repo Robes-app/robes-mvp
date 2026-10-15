@@ -15,6 +15,16 @@ export const SEQUENCE_KINDS = [
   'week_empty',
 ] as const;
 export type NotifyKind = (typeof SEQUENCE_KINDS)[number] | 'morning' | 'wore_it';
+// Sent at most once per person, ever: read against her whole ledger, not the 30-day window
+// (the ledger's unique key is permanent, so a re-pick would only collide and burn the day).
+export const ONCE_KINDS = [
+  'first_piece',
+  'look_waiting',
+  'model_nudge',
+  'five',
+  'batch_nudge',
+  'week_one',
+] as const;
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -25,6 +35,14 @@ export const WORE_IT_HOUR = 19;
 // Sequence mails land 08:00–20:00 her time; outside it they wait for the next tick inside it.
 export const SEND_WINDOW = { from: 8, until: 20 } as const;
 export const PIECES_TO_BUILD = 5;
+// The first seven days (7-day brief): each message has a window of account age, so an older or
+// migrated account is never swept in on the first tick.
+export const FIRST_WEEK = {
+  first_piece: { from: 4 * HOUR, until: 2 * DAY },
+  model_nudge: { from: 2 * DAY, until: 5 * DAY },
+  batch_nudge: { from: 4 * DAY, until: 7 * DAY },
+  week_one: { from: 6 * DAY, until: 9 * DAY },
+} as const;
 const DEFAULT_TZ = 'Europe/Dublin';
 
 export interface Recipient {
@@ -58,6 +76,8 @@ export interface NotifyState {
   plan: { date: string; lookName: string; activity: string | null; slot: string; worn?: boolean }[];
   // She has filed a piece or styled one, ever (first_piece waits for neither).
   started?: boolean;
+  // ONCE_KINDS she has ever been sent, on any channel.
+  onceSent?: readonly string[];
   // Push reaches at least one of her devices (push-only moments need it).
   hasPush?: boolean;
 }
@@ -163,11 +183,17 @@ export function weekOneNext(state: NotifyState, today: string): WeekOneNext {
   return 'done';
 }
 
-// At most one sequence message per local day (email or push), first matching rule wins, inside
-// her 08:00–20:00; the morning cue and Wore it? are separate moments.
-export function decide(user: Recipient, state: NotifyState, now: Date): Planned[] {
+// At most one sequence message per local day (email or push), inside her 08:00–20:00: the
+// eligible ones in priority order (the tick sends the first it can claim); the morning cue and
+// Wore it? are separate moments.
+export function plan(
+  user: Recipient,
+  state: NotifyState,
+  now: Date,
+): { sequence: Planned[]; moments: Planned[] } {
   const local = localParts(now, user.timezone);
   const has = (kind: string, ref?: string) =>
+    ((ONCE_KINDS as readonly string[]).includes(kind) && (state.onceSent ?? []).includes(kind)) ||
     state.ledger.some((r) => r.kind === kind && (ref === undefined || r.ref === ref));
   const sentToday = state.ledger.some(
     (r) =>
@@ -178,146 +204,142 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
   const out: Planned[] = [];
   const t = now.getTime();
   const age = t - user.createdAt.getTime();
+  const within = (k: keyof typeof FIRST_WEEK) =>
+    age >= FIRST_WEEK[k].from && age < FIRST_WEEK[k].until;
   const idea = state.latestIdea;
 
-  const sequence = (): Planned | null => {
-    if (
-      idea &&
-      // The hero frame renders up front; the other two only when she asks (UX-09).
-      idea.readyFrames >= 1 &&
-      t - idea.createdAt.getTime() <= LOOKS_READY_WINDOW_MS &&
-      user.prefs.looksReady &&
-      !has('looks_ready', idea.id)
-    ) {
-      return {
-        kind: 'looks_ready',
-        ref: idea.id,
-        pref: 'looksReady',
-        ideaId: idea.id,
-        piece: idea.title,
-        ...(idea.set ? { set: true } : {}),
-      };
-    }
-    // Day 0: signed up four hours ago and filed nothing — transactional, like looks_ready.
-    if (
-      user.prefs.looksReady &&
-      state.started === false &&
-      age >= 4 * HOUR &&
-      !has('first_piece')
-    ) {
-      return { kind: 'first_piece', ref: 'first', pref: 'looksReady' };
-    }
-    // Day 1: she saw the three ways a day ago and kept nothing.
-    if (
-      user.prefs.nudges &&
-      idea &&
-      idea.readyFrames >= 1 &&
-      t - idea.createdAt.getTime() >= DAY &&
-      t - idea.createdAt.getTime() <= LOOKS_READY_WINDOW_MS &&
-      state.looks === 0 &&
-      !has('pick_one', idea.id)
-    ) {
-      return {
-        kind: 'pick_one',
-        ref: idea.id,
-        pref: 'nudges',
-        piece: idea.title,
-        ...(idea.set ? { set: true } : {}),
-      };
-    }
-    // Legacy look_waiting: a day in, a saved look, and no model to wear it — once, ever.
-    if (
-      user.prefs.nudges &&
-      age >= DAY &&
-      state.hasModel === false &&
-      state.newestLook &&
-      !has('look_waiting')
-    ) {
-      return {
-        kind: 'look_waiting',
-        ref: state.newestLook.id,
-        pref: 'nudges',
-        look: state.newestLook.name,
-      };
-    }
-    // Day 2 (push): the model nudge.
-    if (
-      user.prefs.nudges &&
-      state.hasPush &&
-      age >= 2 * DAY &&
-      state.hasModel === false &&
-      state.newestLook &&
-      !has('model_nudge')
-    ) {
-      return {
-        kind: 'model_nudge',
-        ref: 'model',
-        pref: 'nudges',
-        channel: 'push',
-        look: state.newestLook.name,
-      };
-    }
-    if (
-      user.prefs.nudges &&
-      state.readyPieces >= PIECES_TO_BUILD &&
-      state.fifthPieceAt &&
-      t - state.fifthPieceAt.getTime() >= DAY &&
-      !has('five')
-    ) {
-      return { kind: 'five', ref: 'five', pref: 'nudges' };
-    }
-    // Day 4 (push): the batch nudge while fewer than five are filed.
-    if (
-      user.prefs.nudges &&
-      state.hasPush &&
-      age >= 4 * DAY &&
-      state.readyPieces < PIECES_TO_BUILD &&
-      !has('batch_nudge')
-    ) {
-      return {
-        kind: 'batch_nudge',
-        ref: 'batch',
-        pref: 'nudges',
-        channel: 'push',
-        remaining: PIECES_TO_BUILD - state.readyPieces,
-      };
-    }
-    // Day 6: her week on paper, once.
-    if (user.prefs.nudges && age >= 6 * DAY && age < 14 * DAY && !has('week_one')) {
-      const dressed = state.plan.find((p) => p.date >= local.date);
-      return {
-        kind: 'week_one',
-        ref: 'week1',
-        pref: 'nudges',
-        counts: {
-          pieces: state.readyPieces,
-          looks: state.looks,
-          model: state.hasModel === true,
-          dressed: dressed ? weekdayOf(dressed.date) : null,
-        },
-        next: weekOneNext(state, local.date),
-        date: local.date,
-      };
-    }
-    // Day 5 on (plan_a_day): nothing planned this week.
-    if (user.prefs.nudges && age >= 5 * DAY && state.looks > 0) {
-      const week = isoWeek(local.date);
-      const weekEnd = addDays(local.date, 7);
-      const ahead = state.plan.some((p) => p.date >= local.date && p.date <= weekEnd);
-      const last = state.ledger
-        .filter((r) => r.kind === 'week_empty')
-        .reduce((max, r) => Math.max(max, r.sentAt.getTime()), 0);
-      if (!ahead && !has('week_empty', week) && t - last >= 14 * DAY) {
-        return { kind: 'week_empty', ref: week, pref: 'nudges' };
-      }
-    }
-    return null;
-  };
-
-  if (!sentToday && inWindow) {
-    const next = sequence();
-    if (next) out.push(next);
+  const candidates: Planned[] = [];
+  if (
+    idea &&
+    // The hero frame renders up front; the other two only when she asks (UX-09).
+    idea.readyFrames >= 1 &&
+    t - idea.createdAt.getTime() <= LOOKS_READY_WINDOW_MS &&
+    user.prefs.looksReady &&
+    !has('looks_ready', idea.id)
+  ) {
+    candidates.push({
+      kind: 'looks_ready',
+      ref: idea.id,
+      pref: 'looksReady',
+      ideaId: idea.id,
+      piece: idea.title,
+      ...(idea.set ? { set: true } : {}),
+    });
   }
+  // Day 0: four hours in and nothing filed or styled (a nudge, filed under nudges).
+  if (
+    user.prefs.nudges &&
+    state.started === false &&
+    within('first_piece') &&
+    !has('first_piece')
+  ) {
+    candidates.push({ kind: 'first_piece', ref: 'first', pref: 'nudges' });
+  }
+  // Day 1: she saw the three ways a day ago and kept nothing.
+  if (
+    user.prefs.nudges &&
+    idea &&
+    idea.readyFrames >= 1 &&
+    t - idea.createdAt.getTime() >= DAY &&
+    t - idea.createdAt.getTime() <= LOOKS_READY_WINDOW_MS &&
+    state.looks === 0 &&
+    !has('pick_one', idea.id)
+  ) {
+    candidates.push({
+      kind: 'pick_one',
+      ref: idea.id,
+      pref: 'nudges',
+      piece: idea.title,
+      ...(idea.set ? { set: true } : {}),
+    });
+  }
+  // Legacy look_waiting: a day in, a saved look, and no model to wear it — once, ever.
+  if (
+    user.prefs.nudges &&
+    age >= DAY &&
+    state.hasModel === false &&
+    state.newestLook &&
+    !has('look_waiting')
+  ) {
+    candidates.push({
+      kind: 'look_waiting',
+      ref: state.newestLook.id,
+      pref: 'nudges',
+      look: state.newestLook.name,
+    });
+  }
+  // Day 2 (push): the model nudge.
+  if (
+    user.prefs.nudges &&
+    state.hasPush &&
+    within('model_nudge') &&
+    state.hasModel === false &&
+    state.newestLook &&
+    !has('model_nudge')
+  ) {
+    candidates.push({
+      kind: 'model_nudge',
+      ref: 'model',
+      pref: 'nudges',
+      channel: 'push',
+      look: state.newestLook.name,
+    });
+  }
+  if (
+    user.prefs.nudges &&
+    state.readyPieces >= PIECES_TO_BUILD &&
+    state.fifthPieceAt &&
+    t - state.fifthPieceAt.getTime() >= DAY &&
+    !has('five')
+  ) {
+    candidates.push({ kind: 'five', ref: 'five', pref: 'nudges' });
+  }
+  // Day 4 (push): the batch nudge while fewer than five are filed.
+  if (
+    user.prefs.nudges &&
+    state.hasPush &&
+    within('batch_nudge') &&
+    state.readyPieces < PIECES_TO_BUILD &&
+    !has('batch_nudge')
+  ) {
+    candidates.push({
+      kind: 'batch_nudge',
+      ref: 'batch',
+      pref: 'nudges',
+      channel: 'push',
+      remaining: PIECES_TO_BUILD - state.readyPieces,
+    });
+  }
+  // Day 6: her week on paper, once.
+  if (user.prefs.nudges && within('week_one') && !has('week_one')) {
+    const dressed = state.plan.find((p) => p.date >= local.date);
+    candidates.push({
+      kind: 'week_one',
+      ref: 'week1',
+      pref: 'nudges',
+      counts: {
+        pieces: state.readyPieces,
+        looks: state.looks,
+        model: state.hasModel === true,
+        dressed: dressed ? weekdayOf(dressed.date) : null,
+      },
+      next: weekOneNext(state, local.date),
+      date: local.date,
+    });
+  }
+  // Day 5 on (plan_a_day): nothing planned this week.
+  if (user.prefs.nudges && age >= 5 * DAY && state.looks > 0) {
+    const week = isoWeek(local.date);
+    const weekEnd = addDays(local.date, 7);
+    const ahead = state.plan.some((p) => p.date >= local.date && p.date <= weekEnd);
+    const last = state.ledger
+      .filter((r) => r.kind === 'week_empty')
+      .reduce((max, r) => Math.max(max, r.sentAt.getTime()), 0);
+    if (!ahead && !has('week_empty', week) && t - last >= 14 * DAY) {
+      candidates.push({ kind: 'week_empty', ref: week, pref: 'nudges' });
+    }
+  }
+  const sequence = !sentToday && inWindow ? candidates : [];
 
   const today = state.plan.filter((p) => p.date === local.date);
   const first = today.find((p) => p.slot === 'day') ?? today[0];
@@ -365,5 +387,11 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
       weekday: local.weekday,
     });
   }
-  return out;
+  return { sequence, moments: out };
+}
+
+// The day's message as the rules rank it, then the moments.
+export function decide(user: Recipient, state: NotifyState, now: Date): Planned[] {
+  const { sequence, moments } = plan(user, state, now);
+  return [...sequence.slice(0, 1), ...moments];
 }

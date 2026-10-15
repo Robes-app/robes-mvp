@@ -5,7 +5,14 @@ import { renderEmail, signUnsub } from '@robes/emails';
 import type { Email, Mailer } from '@robes/mailer';
 import type { JobLogger } from '../logger';
 import { composePush, PUSH_KINDS, type PushSender } from './push';
-import { addDays, decide, type NotifyState, type Planned, type Recipient } from './rules';
+import {
+  addDays,
+  type NotifyState,
+  ONCE_KINDS,
+  type Planned,
+  plan as planMessages,
+  type Recipient,
+} from './rules';
 
 export interface NotifyDeps {
   notifier: SystemRepositories['notifier'];
@@ -156,28 +163,30 @@ const groupBy = <T extends { userId: string }>(rows: readonly T[]) => {
   return map;
 };
 
+type Outcome = 'sent' | 'skipped' | 'failed';
+
 async function sendPush(
   deps: NotifyDeps,
   push: NonNullable<NotifyDeps['push']>,
   userId: string,
   mail: Planned,
   devices: readonly { expoToken: string }[],
-): Promise<number> {
-  if (!(await deps.notifier.claim(userId, mail.kind, mail.ref, 'push'))) return 0;
+): Promise<Outcome> {
+  if (!(await deps.notifier.claim(userId, mail.kind, mail.ref, 'push'))) return 'skipped';
   const content = composePush(mail);
   try {
     const { deadTokens } = await push.sender.send(
       devices.map((d) => ({ ...content, to: d.expoToken })),
     );
     await push.tokens.revokeTokens(deadTokens);
-    return 1;
+    return 'sent';
   } catch (err) {
     await deps.notifier.release(userId, mail.kind, mail.ref, 'push');
     deps.logger.warn(
       { kind: mail.kind, reason: err instanceof Error ? err.message : 'unknown' },
       'notify_push_failed',
     );
-    return 0;
+    return 'failed';
   }
 }
 
@@ -197,7 +206,7 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
     const raw = await deps.notifier.state(
       page.map((u) => u.id),
       window,
-      { hideTravel },
+      { hideTravel, onceKinds: ONCE_KINDS },
     );
     const ledger = groupBy(raw.ledger);
     const ideas = new Map(raw.ideas.map((i) => [i.userId, i]));
@@ -208,6 +217,9 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
     );
     const withModel = new Set(raw.models.map((m) => m.userId));
     const started = new Set(raw.started.map((r) => r.userId));
+    const onceByUser = new Map<string, string[]>();
+    for (const r of raw.onceSent)
+      onceByUser.set(r.userId, [...(onceByUser.get(r.userId) ?? []), r.kind]);
     const plan = groupBy(raw.plan);
     const overnightByUser = groupBy(raw.overnight);
     const devicesByUser = groupBy(
@@ -243,35 +255,45 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
         plan: plan.get(row.id) ?? [],
         overnight: overnightByUser.get(row.id) ?? [],
         started: started.has(row.id),
+        onceSent: onceByUser.get(row.id) ?? [],
         hasPush: (devicesByUser.get(row.id) ?? []).length > 0,
       };
       const devices = devicesByUser.get(user.id) ?? [];
-      for (const mail of decide(user, state, now)) {
+      const deliver = async (mail: Planned): Promise<Outcome> => {
         if ('channel' in mail) {
-          if (deps.push && devices.length > 0) {
-            out.pushed += await sendPush(deps, deps.push, user.id, mail, devices);
-          }
-          continue;
+          if (!deps.push || devices.length === 0) return 'skipped';
+          const r = await sendPush(deps, deps.push, user.id, mail, devices);
+          if (r === 'sent') out.pushed++;
+          return r;
         }
         // A kind that moved to push stops sending as email once she has push on.
-        const pushOnly = deps.push !== undefined && PUSH_KINDS.has(mail.kind) && devices.length > 0;
-        if (!pushOnly && (await deps.notifier.claim(user.id, mail.kind, mail.ref))) {
-          try {
-            await deps.mailer.send(composeEmail(deps, user, mail));
-            out.sent++;
-          } catch (err) {
-            await deps.notifier.release(user.id, mail.kind, mail.ref);
-            out.failed++;
-            deps.logger.warn(
-              { kind: mail.kind, reason: err instanceof Error ? err.message : 'unknown' },
-              'notify_send_failed',
-            );
-          }
+        if (deps.push !== undefined && PUSH_KINDS.has(mail.kind) && devices.length > 0) {
+          const r = await sendPush(deps, deps.push, user.id, mail, devices);
+          if (r === 'sent') out.pushed++;
+          return r;
         }
-        if (pushOnly && deps.push) {
-          out.pushed += await sendPush(deps, deps.push, user.id, mail, devices);
+        if (!(await deps.notifier.claim(user.id, mail.kind, mail.ref))) return 'skipped';
+        try {
+          await deps.mailer.send(composeEmail(deps, user, mail));
+          out.sent++;
+          return 'sent';
+        } catch (err) {
+          await deps.notifier.release(user.id, mail.kind, mail.ref);
+          out.failed++;
+          deps.logger.warn(
+            { kind: mail.kind, reason: err instanceof Error ? err.message : 'unknown' },
+            'notify_send_failed',
+          );
+          return 'failed';
         }
+      };
+      const { sequence, moments } = planMessages(user, state, now);
+      // The day's one message: the first the ledger lets through; a claim that collides (sent
+      // before) never burns the day.
+      for (const mail of sequence) {
+        if ((await deliver(mail)) !== 'skipped') break;
       }
+      for (const mail of moments) await deliver(mail);
     }
     if (page.length < pageSize) break;
   }

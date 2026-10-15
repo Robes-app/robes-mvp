@@ -13,6 +13,7 @@ jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null
 beforeEach(() => jest.clearAllMocks());
 
 const DATE = '2026-10-01';
+const DECK = { pathname: '/looks/job/[jobId]', params: { jobId: JOB_ID, from: 'home' } };
 const week = Array.from({ length: 7 }, (_, i) => ({
   date: `2026-10-0${i + 1}`,
   looks: i === 0 ? 1 : 0,
@@ -105,7 +106,7 @@ test('activated: the strip selects a day; Dress {weekday} puts the box on the da
   const box = await screen.findByLabelText(copy.doorDay(dayLabel('2026-10-03')));
   await fireEvent.changeText(box, 'Dinner with friends');
   await fireEvent(box, 'submitEditing');
-  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/looks/job/${JOB_ID}`));
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(DECK));
   expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
     prompt: 'Dinner with friends',
     date: '2026-10-03',
@@ -163,7 +164,7 @@ test('a trip-shaped ask while trips are hidden lands on the deck undated', async
   const box = await screen.findByLabelText(lookbook.prompt.doorNew);
   await fireEvent.changeText(box, 'Four days in Lisbon from tomorrow');
   await fireEvent(box, 'submitEditing');
-  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/looks/job/${JOB_ID}`));
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(DECK));
   expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
     prompt: 'Four days in Lisbon from tomorrow',
   });
@@ -181,6 +182,9 @@ test('with trips on, a trip-shaped ask opens a trip', async () => {
   await waitFor(async () => {
     await fireEvent.changeText(box, 'A weekend away in Kinsale');
     await fireEvent(box, 'submitEditing');
-    expect(mockRouter.push).toHaveBeenCalledWith('/trip/new');
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/trip/new',
+      params: { brief: 'A weekend away in Kinsale' },
+    });
   });
 });

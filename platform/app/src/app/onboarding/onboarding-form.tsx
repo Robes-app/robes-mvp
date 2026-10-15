@@ -5,7 +5,15 @@ import type { Piece } from '@robes/contracts';
 import { firstRun as copy, onboarding } from '@robes/copy';
 import { Button, Eyebrow, Field, Heading, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
-import { type DragEvent, type FormEvent, type ReactNode, useEffect, useId, useState } from 'react';
+import {
+  type DragEvent,
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 import { usePhotoFiling } from '@/lib/file-photo';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 import { useJob } from '@/lib/use-job';
@@ -73,6 +81,7 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
+  const styled = useRef<{ pieceId: string; jobId: string } | null>(null);
 
   useEffect(() => {
     if (stage !== 'splash') return;
@@ -131,11 +140,18 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
           router.refresh();
         }}
         onStyle={async (piece) => {
-          const job = await api.call('looks.generate', {
-            input: { anchor: { type: 'piece', pieceId: piece.id } },
-          });
+          // A retry after a failed finish reuses the job: never a second generation (or quota).
+          const kept = styled.current?.pieceId === piece.id ? styled.current.jobId : null;
+          const jobId =
+            kept ??
+            (
+              await api.call('looks.generate', {
+                input: { anchor: { type: 'piece', pieceId: piece.id } },
+              })
+            ).jobId;
+          styled.current = { pieceId: piece.id, jobId };
           await complete();
-          setJobId(job.jobId);
+          setJobId(jobId);
           setStage('compose');
         }}
       />

@@ -94,7 +94,7 @@ export const HomeBox = forwardRef<
         });
         setText('');
         clear();
-        router.push(`/looks/job/${jobId}`);
+        router.push({ pathname: '/looks/job/[jobId]', params: { jobId, from: 'home' } });
       } catch (err) {
         setError(errorMessage(err));
       } finally {
@@ -105,7 +105,7 @@ export const HomeBox = forwardRef<
     if (words.length < 2) return;
     const trip = !date && isTripAsk(words);
     if (trip && features.trips) {
-      router.push('/trip/new');
+      router.push({ pathname: '/trip/new', params: { brief: words } });
       return;
     }
     const day = date ?? (trip ? null : askDateFrom(words, localDate()));
@@ -116,7 +116,7 @@ export const HomeBox = forwardRef<
       });
       setText('');
       onDateClear();
-      router.push(`/looks/job/${jobId}`);
+      router.push({ pathname: '/looks/job/[jobId]', params: { jobId, from: 'home' } });
     } catch (err) {
       setError(errorMessage(err));
     } finally {

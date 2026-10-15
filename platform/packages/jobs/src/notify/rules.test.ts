@@ -4,6 +4,7 @@ import {
   isoWeek,
   localParts,
   type NotifyState,
+  plan,
   type Recipient,
   weekOneNext,
 } from './rules';
@@ -177,8 +178,15 @@ describe('the first seven days (legacy 7-day brief)', () => {
     expect(decide(joined(5), state({ started: false }), MID)[0]).toMatchObject({
       kind: 'first_piece',
       ref: 'first',
-      pref: 'looksReady',
+      pref: 'nudges',
     });
+    // A nudge: the nudges preference, and only inside her first two days.
+    const off = user({
+      createdAt: new Date(MID.getTime() - 5 * 3_600_000),
+      prefs: { ...user().prefs, nudges: false },
+    });
+    expect(decide(off, state({ started: false }), MID)).toEqual([]);
+    expect(decide(joined(24 * 30), state({ started: false }), MID)).toEqual([]);
     expect(decide(joined(3), state({ started: false }), MID)).toEqual([]);
     expect(decide(joined(5), state({ started: true }), MID)).toEqual([]);
     // Unknown never mails.
@@ -250,5 +258,43 @@ describe('the first seven days (legacy 7-day brief)', () => {
     expect(decide(off, state({ plan }), evening)).toEqual([]);
     const worn = [{ ...plan[0], worn: true }] as NotifyState['plan'];
     expect(decide(off, state({ plan: worn, hasPush: true }), evening)).toEqual([]);
+  });
+
+  it('one-time kinds read her whole ledger, not the 30-day window', () => {
+    const five = state({ readyPieces: 5, fifthPieceAt: new Date(MID.getTime() - 40 * DAY) });
+    expect(decide(user(), five, MID)[0]?.kind).toBe('five');
+    expect(decide(user(), { ...five, onceSent: ['five'] }, MID)).toEqual([]);
+    const waiting = state({
+      looks: 1,
+      hasModel: false,
+      newestLook: { id: 'l9', name: 'A newer look' },
+      onceSent: ['look_waiting'],
+      plan: [{ date: '2026-09-25', lookName: 'x', activity: null, slot: 'day' }],
+    });
+    expect(decide(user(), waiting, MID)).toEqual([]);
+  });
+
+  it('an old or migrated account is never swept into the first week', () => {
+    const old = user({ createdAt: new Date(MID.getTime() - 400 * DAY) });
+    const s = state({
+      started: false,
+      hasPush: true,
+      looks: 1,
+      hasModel: false,
+      newestLook: { id: 'l1', name: 'Office' },
+      onceSent: ['look_waiting'],
+      plan: [{ date: '2026-09-25', lookName: 'x', activity: null, slot: 'day' }],
+    });
+    expect(decide(old, s, MID)).toEqual([]);
+  });
+
+  it('plan() ranks every eligible message so a collision falls through to the next', () => {
+    const s = state({
+      started: false,
+      readyPieces: 5,
+      fifthPieceAt: new Date(MID.getTime() - 2 * DAY),
+    });
+    const { sequence } = plan(joined(5), s, MID);
+    expect(sequence.map((m) => m.kind)).toEqual(['first_piece', 'five']);
   });
 });
