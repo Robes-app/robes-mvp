@@ -24,7 +24,11 @@ export function composePush(mail: Planned): Omit<PushMessage, 'to'> {
       return {
         title: copy.looksReady.subject,
         body: copy.looksReady.body(mail.piece.charAt(0).toUpperCase() + mail.piece.slice(1)),
-        data: { url: `robes://looks/ideas/${mail.ideaId}` },
+        data: {
+          url: mail.set
+            ? `robes://looks/deck/${mail.ideaId}`
+            : `robes://looks/ideas/${mail.ideaId}`,
+        },
       };
     case 'morning':
       return {

@@ -37,7 +37,10 @@ export function composeEmail(
           subject: copy.looksReady.subject,
           // Sentence start, as legacy: "Navy blazer, worn three ways."
           body: copy.looksReady.body(mail.piece.charAt(0).toUpperCase() + mail.piece.slice(1)),
-          cta: { label: copy.looksReady.cta, url: link(`/looks/ideas/${mail.ideaId}`) },
+          cta: {
+            label: copy.looksReady.cta,
+            url: link(mail.set ? `/looks/deck/${mail.ideaId}` : `/looks/ideas/${mail.ideaId}`),
+          },
         };
       case 'look_waiting':
         return {
@@ -176,6 +179,7 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
               title: idea.title,
               readyFrames: idea.readyFrames,
               createdAt: idea.createdAt,
+              set: idea.isSet,
             }
           : null,
         readyPieces: pieces.get(row.id)?.ready ?? 0,

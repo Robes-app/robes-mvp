@@ -10,7 +10,7 @@ import {
   Text,
 } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
@@ -29,6 +29,10 @@ export function LooksView() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState<Tab>(params.tab === 'suggested' ? 'suggested' : 'saved');
+  // A door that names a tab (the deck's See Suggested) switches it even while Looks is mounted.
+  useEffect(() => {
+    if (params.tab === 'suggested' || params.tab === 'saved') setTab(params.tab);
+  }, [params.tab]);
   const saved = useLooksByStatus('saved');
   const drafts = useLooksByStatus('draft');
   const suggested = useLooksByStatus('suggested', { refetch: true });

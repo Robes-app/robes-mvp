@@ -62,11 +62,12 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fake() })) {
     modelCellId: vi.fn(async () => null),
   };
   const suggested = {
-    mintSet: vi.fn(async (_u: string, _s: string, specs: unknown[]) =>
+    mintSet: vi.fn(async (_u: string, _s: string, specs: unknown[], _claim?: unknown) =>
       specs.map((_, i) => `l${i}`),
     ),
     rewrite: vi.fn(async () => true),
-    setFirstFrame: vi.fn(async () => {}),
+    setFrame: vi.fn(async () => true),
+    failFrame: vi.fn(async () => {}),
     look: vi.fn(async () => ({
       look: {
         id: LOOK,
@@ -166,11 +167,19 @@ describe('key_piece handler (suggested looks)', () => {
     // Only the first frame now; the anchor's photo rides it.
     expect(generateImage).toHaveBeenCalledTimes(1);
     expect(generateImage.mock.calls[0]?.[0].references).toHaveLength(1);
-    expect(suggested.setFirstFrame).toHaveBeenCalledWith(USER, SET, 0, {
-      assetId: '44444444-4444-4444-8444-444444444440',
+    // The hero's frame is claimed with the mint (before the set is exposed), then lands by key.
+    const claim = suggested.mintSet.mock.calls[0]?.[3] as { frameKey: string } | undefined;
+    expect(claim).toEqual({
+      setIndex: 0,
       frameKey: expect.stringMatching(/^[0-9a-z]{14}$/),
       jobId: JOB,
     });
+    expect(suggested.setFrame).toHaveBeenCalledWith(
+      USER,
+      'l0',
+      claim?.frameKey,
+      '44444444-4444-4444-8444-444444444440',
+    );
   });
 
   it('resolves her own pieces by closet number into the rack, as references for the frame', async () => {
@@ -233,8 +242,14 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       LOOK,
       expect.objectContaining({ name: 'Quiet confidence', setIndex: 1 }),
+      { frameKey: expect.stringMatching(/^[0-9a-z]{14}$/), jobId: JOB },
     );
-    expect(suggested.setFirstFrame).toHaveBeenCalledWith(USER, SET, 1, expect.any(Object));
+    expect(suggested.setFrame).toHaveBeenCalledWith(
+      USER,
+      LOOK,
+      expect.any(String),
+      expect.any(String),
+    );
     suggested.look.mockResolvedValueOnce(undefined as never);
     await expect(run({ mode: 'restyle', lookId: LOOK })).rejects.toMatchObject({
       code: 'not_found',
@@ -247,7 +262,9 @@ describe('key_piece handler (suggested looks)', () => {
     const { run, suggested } = setup(ai);
     await expect(run()).resolves.toMatchObject({ status: 'partial' });
     expect(suggested.mintSet).toHaveBeenCalled();
-    expect(suggested.setFirstFrame).not.toHaveBeenCalled();
+    expect(suggested.setFrame).not.toHaveBeenCalled();
+    // The claim goes back, so she can ask for the frame again.
+    expect(suggested.failFrame).toHaveBeenCalledWith(USER, 'l0', expect.any(String));
     await expect(run({ anchor: { type: 'text', text: 'x' } })).rejects.toMatchObject({
       code: 'invalid_input',
     });

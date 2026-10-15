@@ -9,13 +9,19 @@ import {
   pieceRow,
   rackFromLook,
   rackUpdate,
+  type UpdateLookInput,
 } from '@robes/contracts';
 import { errors } from '@robes/copy';
 import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
 import { useMemo, useState } from 'react';
+import type { z } from 'zod';
 import type { RowMark } from '@/components/looks/rack-row';
-import { useRefreshLooks as useInvalidateLooks, useRequestFrame } from './look-states';
+import {
+  isDraftsFull,
+  useRefreshLooks as useInvalidateLooks,
+  useRequestFrame,
+} from './look-states';
 
 // One look's rack while she works on it. A suggestion or a draft writes through on every change
 // (a suggestion becomes a draft as it does); a saved look edits in place until Update. A look
@@ -44,8 +50,24 @@ export function useLookEditor(look: Look) {
       refresh(updated);
       reframe(updated);
     },
-    onError: () => toast({ message: errors.internal }),
+    onError: (err, args) => {
+      if (!isDraftsFull(err)) {
+        toast({ message: errors.internal });
+        return;
+      }
+      // Editing a suggestion makes a sixth draft: ask before the oldest goes (legacy confirm).
+      void api
+        .call('looks.list', { input: { limit: 60, status: 'draft' } })
+        .catch(() => null)
+        .then((drafts) =>
+          setFull({ input: args.input ?? {}, oldest: drafts?.items.at(-1)?.name ?? null }),
+        );
+    },
   });
+  const [full, setFull] = useState<{
+    input: z.input<typeof UpdateLookInput>;
+    oldest: string | null;
+  } | null>(null);
 
   const change = (next: RackState) => {
     setRack(next);
@@ -64,6 +86,17 @@ export function useLookEditor(look: Look) {
   };
 
   return {
+    // Five drafts wait: the page asks; letGo retries with the oldest let go, keep undoes the edit.
+    full,
+    letGo: () => {
+      if (!full) return;
+      setFull(null);
+      write.mutate({ params: { id: look.id }, input: { ...full.input, letGoOldest: true } });
+    },
+    keep: () => {
+      setFull(null);
+      setRack(rackFromLook(look));
+    },
     rack,
     editing,
     dirty,

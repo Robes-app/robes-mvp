@@ -2,6 +2,7 @@ import { ApiError } from '@robes/api';
 import { Deleted, EmptyInput, Look, LookParams, UpdateLookInput } from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
+import { draftsFull } from '@/server/look-states';
 import { toLook, withOwnedPieces } from '@/server/looks-entity';
 import { route } from '@/server/route';
 
@@ -24,7 +25,10 @@ export const PATCH = route({
   rateLimit: { key: 'looks.update', limit: 120, windowSeconds: 60 },
   handler: async ({ user, input, params }) => {
     const userId = verifiedUserId(user.id);
-    const row = await withOwnedPieces(() => repos.looks.update(userId, params.id, input));
+    // Editing a suggestion makes it a draft, within the five (409 drafts_full, then letGoOldest).
+    const row = await draftsFull(() =>
+      withOwnedPieces(() => repos.looks.update(userId, params.id, input)),
+    );
     return toLook(userId, row);
   },
 });

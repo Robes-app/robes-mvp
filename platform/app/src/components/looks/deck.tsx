@@ -3,6 +3,7 @@
 import { useApi, useApiClient } from '@robes/api-client/react';
 import type { LookSet } from '@robes/contracts';
 import { lookbook as copy, jobs, wardrobe } from '@robes/copy';
+import { isTerminalJobStatus } from '@robes/core/jobs';
 import { anchorName, deckReduce, deckTop, emptyDeck } from '@robes/core/looks';
 import {
   Button,
@@ -26,6 +27,7 @@ import { useJob } from '@/lib/use-job';
 import { LookImage } from './look-image';
 
 const COMMIT_PX = 100;
+const JOB_POLL_MS = 1500;
 type SetLook = LookSet['looks'][number];
 
 function DeckTitle({ set }: { set: LookSet | undefined }) {
@@ -187,8 +189,29 @@ export function Deck({ setId }: { setId: string }) {
   const toast = useToast();
   const refresh = useRefreshLooks();
   const requestFrame = useRequestFrame();
-  const { data: set, isError, error } = useLookSet(setId);
   const [deck, dispatch] = useReducer(deckReduce, undefined, emptyDeck);
+  // The job that writes the set: until it ends, an empty set is still being composed.
+  const [jobId, setJobId] = useState<string | null>(null);
+  const job = useApi(
+    'jobs.get',
+    { params: { id: jobId ?? '' } },
+    {
+      enabled: jobId !== null,
+      refetchInterval: (q) =>
+        q.state.data && isTerminalJobStatus(q.state.data.status) ? false : JOB_POLL_MS,
+    },
+  );
+  const jobDone = job.data ? isTerminalJobStatus(job.data.status) : false;
+  const {
+    data: set,
+    isError,
+    error,
+  } = useLookSet(setId, {
+    waiting: !jobDone && deck.order.length === 0,
+  });
+  useEffect(() => {
+    if (set?.jobId) setJobId(set.jobId);
+  }, [set?.jobId]);
   const looks = set?.looks ?? [];
   const ids = looks.map((l) => l.id).join(',');
   useEffect(() => {
@@ -242,12 +265,15 @@ export function Deck({ setId }: { setId: string }) {
     );
   }
   const around = set?.anchor ? anchorName(set.anchor.label, set.anchor.brand) : '';
-  const done = deck.order.length > 0 && !top;
+  // Done once she has decided every card (all passed included), or the job ended with none.
+  const done =
+    !top && (deck.order.length > 0 || (set !== undefined && jobDone && looks.length === 0));
+  const composing = !set || (looks.length === 0 && !done);
   const kept = deck.kept.map((id) => looks.find((l) => l.id === id)).filter((l) => l !== undefined);
   return (
     <div className="flex flex-col gap-8" data-testid="deck">
       <DeckTitle set={set} />
-      {!set || looks.length === 0 ? (
+      {composing ? (
         <Dressing {...(set ? { set } : {})} />
       ) : done ? (
         <section className="flex flex-col items-center gap-5 text-center" data-testid="deck-done">
@@ -317,6 +343,8 @@ export function Deck({ setId }: { setId: string }) {
 export function JobDeck({ jobId }: { jobId: string }) {
   const { job, connection } = useJob(jobId);
   const setId = job?.output.setId;
+  // Looks minted before the job failed (a frame that ran out of time) still make the deck.
+  if (setId) return <Deck setId={setId} />;
   if (job?.status === 'failed' || job?.status === 'cancelled' || connection === 'unavailable') {
     return (
       <Text role="alert" tone="danger">

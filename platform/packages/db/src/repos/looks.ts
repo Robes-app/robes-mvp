@@ -17,6 +17,7 @@ const LOOK_COLUMNS = [
   'renderAssetId',
   'renderStatus',
   'renderKey',
+  'renderClaimedAt',
   'status',
   'anchorPieceId',
   'setId',
@@ -179,6 +180,16 @@ export function looksRepo(db: Db) {
         .executeTakeFirst();
     },
 
+    // The look already saved from one photograph (a retry of "save the look" finds it).
+    byPhoto(userId: UserId, photoAssetId: string) {
+      return active()
+        .select(LOOK_SELECT)
+        .where('userId', '=', userId)
+        .where('photoAssetId', '=', photoAssetId)
+        .orderBy('createdAt')
+        .executeTakeFirst();
+    },
+
     async count(userId: UserId, status: LookStatus = 'saved'): Promise<number> {
       const row = await active()
         .select((eb) => eb.fn.countAll<string>().as('n'))
@@ -223,6 +234,28 @@ export function looksRepo(db: Db) {
           sql<boolean>`not coalesce(
             (render_status = 'ready' and render_key = ${renderKey})
             or (render_status = 'pending' and render_claimed_at > now() - interval '10 minutes'),
+            false
+          )`,
+        )
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
+    },
+
+    // Robes' frame for one rack: true when this call should draw it. Unlike a render on her model,
+    // a newer rack takes over a claim still drawing an older one, so the latest rack always wins
+    // (the older job stands down: it no longer matches render_key when it lands).
+    async claimFrame(userId: UserId, id: string, frameKey: string): Promise<boolean> {
+      const renderKey = `frame:${frameKey}`;
+      const res = await db
+        .updateTable('looks')
+        .set({ renderStatus: 'pending', renderKey, renderJobId: null, renderClaimedAt: sql`now()` })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('deletedAt', 'is', null)
+        .where(
+          sql<boolean>`not coalesce(
+            render_key = ${renderKey} and (render_status = 'ready'
+              or (render_status = 'pending' and render_claimed_at > now() - interval '10 minutes')),
             false
           )`,
         )
@@ -361,13 +394,30 @@ export function looksRepo(db: Db) {
     async update(
       userId: UserId,
       id: string,
-      fields: LookFields & { pieces?: readonly LookPieceInput[] | undefined },
+      fields: LookFields & {
+        pieces?: readonly LookPieceInput[] | undefined;
+        letGoOldest?: boolean | undefined;
+      },
     ) {
       const rackChanged =
         fields.pieces !== undefined ||
         fields.proposals !== undefined ||
         fields.styling !== undefined;
       return db.transaction().execute(async (trx) => {
+        // A suggestion becoming a draft counts against the five drafts like a new one.
+        if (rackChanged) {
+          const cur = await trx
+            .selectFrom('looks')
+            .select('status')
+            .where('userId', '=', userId)
+            .where('id', '=', id)
+            .where('deletedAt', 'is', null)
+            .forUpdate()
+            .executeTakeFirst();
+          if (cur?.status === 'suggested') {
+            await makeDraftRoom(trx, userId, fields.letGoOldest === true);
+          }
+        }
         const row = await trx
           .updateTable('looks')
           .set({
@@ -413,15 +463,27 @@ export function looksRepo(db: Db) {
       return res.numUpdatedRows > 0n;
     },
 
-    restore(userId: UserId, id: string) {
-      return db
-        .updateTable('looks')
-        .set({ deletedAt: null })
-        .where('userId', '=', userId)
-        .where('id', '=', id)
-        .where('deletedAt', 'is not', null)
-        .returning(LOOK_SELECT)
-        .executeTakeFirst();
+    // Undo. A draft coming back counts against the five like a new one.
+    restore(userId: UserId, id: string, opts: { letGoOldest?: boolean } = {}) {
+      return db.transaction().execute(async (trx) => {
+        const gone = await trx
+          .selectFrom('looks')
+          .select('status')
+          .where('userId', '=', userId)
+          .where('id', '=', id)
+          .where('deletedAt', 'is not', null)
+          .executeTakeFirst();
+        if (!gone) return undefined;
+        if (gone.status === 'draft') await makeDraftRoom(trx, userId, opts.letGoOldest === true);
+        return trx
+          .updateTable('looks')
+          .set({ deletedAt: null })
+          .where('userId', '=', userId)
+          .where('id', '=', id)
+          .where('deletedAt', 'is not', null)
+          .returning(LOOK_SELECT)
+          .executeTakeFirst();
+      });
     },
 
     // Suggested or draft → saved (one tap from a suggestion, or the draft's Save). Saved never goes
