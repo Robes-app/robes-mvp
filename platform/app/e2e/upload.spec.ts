@@ -21,6 +21,7 @@ async function signIn(page: Page): Promise<void> {
   await page.getByLabel('First name').fill('Niall');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Skip for now' }).click();
+  await page.getByRole('button', { name: 'Skip anyway — Robes styles only what you add' }).click();
   await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
 }
 

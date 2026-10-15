@@ -181,7 +181,8 @@ function Card({
 
 // Keep or pass (legacy F14): one card at a time; a pass waits behind "Passed · Undo"; a keep
 // leaves the look waiting in Suggested until she saves it.
-export function Deck({ setId }: { setId: string }) {
+// `home`: opened from home (the box, or onboarding's first piece), so back lands home.
+export function Deck({ setId, home = false }: { setId: string; home?: boolean }) {
   const router = useRouter();
   const api = useApiClient();
   const toast = useToast();
@@ -275,9 +276,15 @@ export function Deck({ setId }: { setId: string }) {
                 {copy.deck.see}
               </Link>
             ) : null}
-            <Button variant="quiet" onClick={() => router.back()}>
-              {around ? copy.deck.backTo(around) : copy.deck.backHome}
-            </Button>
+            {home ? (
+              <Link href="/" className={buttonClasses({ variant: 'quiet' })}>
+                {copy.deck.backHome}
+              </Link>
+            ) : (
+              <Button variant="quiet" onClick={() => router.back()}>
+                {around ? copy.deck.backTo(around) : copy.deck.backHome}
+              </Button>
+            )}
           </div>
         </section>
       ) : top ? (
@@ -314,7 +321,7 @@ export function Deck({ setId }: { setId: string }) {
 }
 
 // After a styling job: the deck, dressing until the looks land.
-export function JobDeck({ jobId }: { jobId: string }) {
+export function JobDeck({ jobId, home = false }: { jobId: string; home?: boolean }) {
   const { job, connection } = useJob(jobId);
   const setId = job?.output.setId;
   if (job?.status === 'failed' || job?.status === 'cancelled' || connection === 'unavailable') {
@@ -332,7 +339,7 @@ export function JobDeck({ jobId }: { jobId: string }) {
       </div>
     );
   }
-  return <Deck setId={setId} />;
+  return <Deck setId={setId} home={home} />;
 }
 
 export function DeckSkeleton() {

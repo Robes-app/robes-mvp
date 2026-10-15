@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { WaitlistForm } from '@/components/marketing/waitlist-form';
 import { AppShell } from '@/components/shell/app-shell';
-import { TodayView } from '@/components/today/today-view';
+import { HomeView } from '@/components/home/home-view';
 import { env } from '@/server/env';
 import { clientFeatures } from '@/server/flags';
 import { currentProfile, displayName } from '@/server/session';
@@ -71,7 +71,7 @@ export default async function Home() {
 
   return (
     <AppShell name={displayName(profile)} features={await clientFeatures()}>
-      <TodayView initial={await loadToday(profile.userId)} />
+      <HomeView initial={await loadToday(profile.userId)} />
     </AppShell>
   );
 }

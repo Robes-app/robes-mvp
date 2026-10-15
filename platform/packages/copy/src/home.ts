@@ -77,7 +77,10 @@ export const home = {
     empty: 'Your wardrobe starts here.',
     filed: (n: number): string => `${Word(n)} ${pieces(n)} filed.`,
     rest: 'The rest in one go.',
-    snap: { title: 'Snap several at once', line: 'A rail, a pile, a drawer. Robes files each piece.' },
+    snap: {
+      title: 'Snap several at once',
+      line: 'A rail, a pile, a drawer. Robes files each piece.',
+    },
     receipt: {
       title: 'Forward a receipt',
       line: 'Send an order email and Robes files what you bought.',

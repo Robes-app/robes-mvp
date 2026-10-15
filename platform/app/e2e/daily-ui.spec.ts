@@ -9,8 +9,7 @@ test('Style it for today: from Today to four steps, then named into a Look', asy
   for (const label of ['Camel coat', 'Cream knit']) {
     await page.request.post('/api/v1/wardrobe/items', { data: { label } });
   }
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Style it for today' }).click();
+  await page.goto('/today/style');
   await expect(page.getByRole('heading', { level: 1, name: 'What’s today?' })).toBeVisible();
   expect(await seriousViolations(page), '/today/style').toEqual([]);
   await page.getByLabel('What’s on (optional)').fill('Studio day, then dinner');

@@ -38,7 +38,11 @@ describe('home reads', () => {
 
   it('counts only her photographed, ready pieces, newest first', async () => {
     await wardrobe.create(ann, { label: 'No photo' });
-    await wardrobe.create(ann, { label: 'Reading', imageAssetId: await photo(ann), status: 'reading' });
+    await wardrobe.create(ann, {
+      label: 'Reading',
+      imageAssetId: await photo(ann),
+      status: 'reading',
+    });
     const a = await wardrobe.create(ann, { label: 'Coat', imageAssetId: await photo(ann) });
     const b = await wardrobe.create(ann, { label: 'Boots', imageAssetId: await photo(ann) });
     await wardrobe.create(bea, { label: 'Hers', imageAssetId: await photo(bea) });

@@ -15,7 +15,7 @@ async function deckLive(page: Page): Promise<void> {
 test('onboarding’s first piece lands on the deck: keep, pass with Undo, then See Suggested', async ({
   page,
 }) => {
-  await signIn(page, uniqueEmail('e2e-onb'), 'Niall', 'white linen shirt');
+  await signIn(page, uniqueEmail('e2e-onb'), 'Niall', true);
   await declineConsent(page);
   await expect(page.getByText('From your prompt').or(page.getByText(/^Around your/))).toBeVisible({
     timeout: 30_000,

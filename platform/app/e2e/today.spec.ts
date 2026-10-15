@@ -56,31 +56,27 @@ test('the tray shows a styling job while it runs and just after', async ({ page 
   expect(today.tray.map((j: { id: string }) => j.id)).toContain(jobId);
 });
 
-test('the Today screen shows the next step, the week and her looks for today', async ({ page }) => {
+test('home: the greeting, the week once activated, and her look for today on the day card', async ({
+  page,
+}) => {
   await signIn(page);
   await declineConsent(page);
   await page.goto('/');
-  await expect(page.getByText('Add a piece and Robes will dress it three ways.')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Add pieces →' })).toHaveAttribute(
-    'href',
-    '/wardrobe/add',
-  );
-  await expect(page.getByRole('link', { name: 'Style a piece' })).toBeVisible();
-  const week = page.getByRole('region', { name: 'The week ahead' });
-  await expect(week.getByRole('listitem')).toHaveCount(7);
+  await expect(page.getByText('What are you dressing for today?')).toBeVisible();
+  // Not activated yet: no week, the box reads "A new look for…".
+  await expect(page.getByTestId('home-week')).toHaveCount(0);
 
   const api = page.request;
   const look = await (
     await api.post('/api/v1/looks', { data: { name: 'Office', pieces: [] } })
   ).json();
-  const { date } = await (await api.get('/api/v1/today')).json();
+  const { date, home } = await (await api.get('/api/v1/today')).json();
+  expect(home.state).toMatchObject({ pics: 0, ownLookSaved: false, styleConfirmed: false });
   await api.post(`/api/v1/plan/looks/${look.id}/days`, { data: { dates: [date] } });
-  await page.reload();
-  await expect(page.getByRole('region', { name: 'Today' }).getByText('Office')).toBeVisible();
-  await expect(week.getByRole('link', { name: 'Today, one look' })).toBeVisible();
-  // Every cell opens the day page, with its door back to Today.
-  await week.getByRole('link', { name: 'Today, one look' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Office' })).toBeVisible();
-  await page.getByRole('link', { name: 'Today' }).first().click();
-  await expect(page).toHaveURL(/\/$/);
+  const today = await (await api.get('/api/v1/today')).json();
+  expect(today.week[0]).toMatchObject({
+    date,
+    looks: 1,
+    first: { id: look.id, name: 'Office', worn: false },
+  });
 });

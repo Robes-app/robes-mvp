@@ -49,9 +49,9 @@ describe('resolveHome (legacy home_harness stages)', () => {
   it('stages 2–4 follow the steps in order', () => {
     expect(resolveHome({ ...base, styleConfirmed: true }).stage).toBe(2);
     expect(resolveHome({ ...base, styleConfirmed: true, twinOnFile: true }).next).toBe('O3');
-    expect(
-      resolveHome({ ...base, styleConfirmed: true, twinOnFile: true, pics: 5 }),
-    ).toMatchObject({ next: 'O4', stage: 4 });
+    expect(resolveHome({ ...base, styleConfirmed: true, twinOnFile: true, pics: 5 })).toMatchObject(
+      { next: 'O4', stage: 4 },
+    );
   });
 
   it('activated = five photographed pieces and a look from hers; the week and the looks', () => {
@@ -59,7 +59,13 @@ describe('resolveHome (legacy home_harness stages)', () => {
     expect(r).toMatchObject({ activated: true, next: null, stage: 5 });
     expect(r.modules).toEqual(['H0', 'H1', 'H2', 'H3', 'H4', 'G1']);
     expect(mapRows(r)).toEqual(['O1']);
-    const all = resolveHome({ ...base, pics: 9, ownLookSaved: true, styleConfirmed: true, twinOnFile: true });
+    const all = resolveHome({
+      ...base,
+      pics: 9,
+      ownLookSaved: true,
+      styleConfirmed: true,
+      twinOnFile: true,
+    });
     expect(all.modules).toEqual(['H0', 'H1', 'H2', 'H3', 'H4']);
     expect(mapRows(all)).toEqual([]);
   });

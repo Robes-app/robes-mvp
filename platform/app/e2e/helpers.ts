@@ -14,13 +14,15 @@ export function uniqueEmail(tag = 'e2e'): string {
   return `${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.dev`;
 }
 
-// Signs up a fresh user with an emailed code and completes onboarding (skipping the first piece);
-// lands on Today.
+export const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
+
+// Signs up a fresh user with an emailed code and completes onboarding: splash → name → the first
+// piece (skipped with the two-tap Skip, or photographed and styled onto the deck); lands home.
 export async function signIn(
   page: Page,
   email = uniqueEmail(),
   firstName = 'Niall',
-  firstPiece?: string,
+  firstPiece = false,
 ): Promise<string> {
   await page.goto('/auth/sign-in');
   await page.getByLabel('Email').fill(email);
@@ -34,12 +36,13 @@ export async function signIn(
   await page.getByLabel('First name').fill(firstName);
   await page.getByRole('button', { name: 'Continue' }).click();
   if (firstPiece) {
-    await page.getByLabel('Describe it').fill(firstPiece);
-    await page.getByRole('button', { name: 'Style it' }).click();
-    await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}$/);
+    await page.getByLabel('Add photo').setInputFiles(PHOTO);
+    await page.getByRole('button', { name: 'Style it three ways →' }).click({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/, { timeout: 30_000 });
     return email;
   }
   await page.getByRole('button', { name: 'Skip for now' }).click();
+  await page.getByRole('button', { name: 'Skip anyway — Robes styles only what you add' }).click();
   await expect(page.getByRole('heading', { name: new RegExp(`, ${firstName}\\.$`) })).toBeVisible();
   return email;
 }
