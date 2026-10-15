@@ -140,6 +140,8 @@ export interface SessionUser {
 
 // Resolves the signed-in user for a request (cookie on web, Expo header on native).
 export async function sessionUser(auth: Auth, headers: Headers): Promise<SessionUser | null> {
+  // Web and native both send the session cookie; without one, skip Better Auth's database round trip.
+  if (!headers.get('cookie')?.includes('session_token')) return null;
   const session = await auth.api.getSession({ headers });
   if (!session) return null;
   return { id: session.user.id, email: session.user.email, name: session.user.name };
