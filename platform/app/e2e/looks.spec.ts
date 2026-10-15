@@ -220,9 +220,10 @@ test('the look prompt returns an edit; a rule waits as a noticed line; five draf
     swaps: [{ key: trouser.id, to: { pieceId: jean.id, name: 'Dark straight jean' } }],
   });
   expect(await ask("I don't wear double denim")).toMatchObject({ intent: 'rule', noticed: true });
-  const noticed = await (await api.get('/api/v1/looks/noticed')).json();
-  expect(noticed.items[0]).toMatchObject({ text: 'No double denim', lookId: look.id });
-  expect((await api.delete(`/api/v1/looks/noticed/${noticed.items[0].id}`)).ok()).toBe(true);
+  // It waits under Robes noticed for her Keep or Not me; it is not one of her rules yet.
+  const dna = await (await api.get('/api/v1/me/dna')).json();
+  expect(dna.observations.map((o: { text: string }) => o.text)).toContain('No double denim');
+  expect(dna.brief.rules.map((r: { text: string }) => r.text)).not.toContain('No double denim');
   // A rule never filed itself, and the look never changed.
   expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).pieces).toHaveLength(1);
 

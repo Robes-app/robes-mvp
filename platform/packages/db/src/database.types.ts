@@ -320,19 +320,6 @@ export interface Looks {
   userId: string;
 }
 
-export interface NoticedLines {
-  because: string | null;
-  createdAt: Generated<Timestamp>;
-  deletedAt: Timestamp | null;
-  id: Generated<string>;
-  list: Generated<string>;
-  lookId: string | null;
-  source: Generated<string>;
-  text: string;
-  updatedAt: Generated<Timestamp>;
-  userId: string;
-}
-
 export interface Notifications {
   channel: Generated<string>;
   id: Generated<string>;
@@ -720,7 +707,6 @@ export interface DB {
   inboxAddresses: InboxAddresses;
   lookPieces: LookPieces;
   looks: Looks;
-  noticedLines: NoticedLines;
   notifications: Notifications;
   plannedDays: PlannedDays;
   plans: Plans;

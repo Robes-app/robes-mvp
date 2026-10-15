@@ -41,27 +41,5 @@ alter table app.generation_jobs add constraint generation_jobs_kind_check
     'avatar_cell', 'wardrobe_analyse', 'stylenotes_analyse', 'receipt_read', 'alternates',
     'lookbuild_note', 'link_import', 'cutout', 'style_brief', 'look_ask'));
 
--- A rule she says in a look's prompt waits here as a Robes-noticed line (legacy 2026-10-13): it
--- becomes a rule only when she keeps it, never filed by itself.
-create table app.noticed_lines (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references app.users (id) on delete cascade,
-  list text not null default 'rules' check (list in ('rules')),
-  text text not null check (char_length(text) between 1 and 160),
-  because text check (char_length(because) <= 200),
-  source text not null default 'prompt' check (source in ('prompt')),
-  look_id uuid,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz,
-  unique (id, user_id),
-  foreign key (look_id, user_id) references app.looks (id, user_id) on delete set null (look_id)
-);
-select private.track_updates('app.noticed_lines');
-create unique index noticed_lines_text_idx on app.noticed_lines (user_id, list, lower(text))
-  where deleted_at is null;
-create index noticed_lines_user_idx on app.noticed_lines (user_id, created_at desc)
-  where deleted_at is null;
-
 -- migrate:down
 -- Forward-only: fix mistakes with a new migration.

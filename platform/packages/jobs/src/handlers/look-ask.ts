@@ -17,7 +17,8 @@ export interface LookAskDeps {
   ai: AiProvider;
   styling: Pick<SystemRepositories['styling'], 'context'>;
   suggested: Pick<SystemRepositories['suggested'], 'look'>;
-  noticed: Pick<SystemRepositories['noticed'], 'add'>;
+  // Her brief and memory belong to the style memory; the prompt only notices and remembers.
+  lookPrompt: Pick<SystemRepositories['lookPrompt'], 'notice' | 'remember'>;
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
 }
 
@@ -168,12 +169,21 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
         rule: answer.rule,
         noticed: false,
       };
+      // Every line she sends is a verdict on the look: it lands in her memory (legacy k:'ask').
+      await deps.lookPrompt.remember(ctx.userId, {
+        kind: 'ask',
+        surface: input.surface,
+        subject: found.look.name.slice(0, 120),
+        body: input.text.slice(0, 240),
+        lookId: input.lookId,
+      });
       // Her rule waits under Robes noticed; it is a rule only once she keeps it (legacy 2026-10-13).
       if (answer.intent === 'rule' && answer.rule) {
-        result.noticed = await deps.noticed.add(ctx.userId, {
+        result.noticed = await deps.lookPrompt.notice(ctx.userId, {
+          list: 'rules',
           text: answer.rule,
           because: `You said it on “${found.look.name.slice(0, 120)}”`,
-          lookId: input.lookId,
+          origin: 'prompt',
         });
       }
       await ctx.writeStage('text', { ask: result });

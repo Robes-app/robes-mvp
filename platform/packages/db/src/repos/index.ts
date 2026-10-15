@@ -29,7 +29,7 @@ import { publicSharesRepo, sharesRepo } from './shares';
 import { styleBriefRepo, styleDnaRepo, styleMemoryRepo } from './style-dna';
 import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
-import { noticedRepo, suggestedLooksRepo } from './suggested';
+import { suggestedLooksRepo } from './suggested';
 import { tripsRepo } from './trips';
 import { usageRepo } from './usage';
 import { waitlistRepo } from './waitlist';
@@ -55,8 +55,6 @@ export function createRepositories(db: Db) {
     inbox: inboxRepo(db),
     inboxAddress: inboxAddressRepo(db),
     looks: looksRepo(db),
-    // Robes-noticed lines from the look prompt; keeping one into her brief is the memory's.
-    noticed: noticedRepo(db),
     model: modelRepo(db),
     jobs: jobsRepo(db),
     // API rate-limit counters (SEC-33); keyed by route + user or IP, no user rows.
@@ -103,7 +101,12 @@ export function createSystemRepositories(db: Db) {
     frames: framesRepo(db),
     styling: stylingRepo(db),
     suggested: suggestedLooksRepo(db),
-    noticed: noticedRepo(db),
+    // The look prompt's narrow door into her brief and memory (owned by the style memory): a rule
+    // she says waits as a Robes-noticed line; each ask is a memory entry.
+    lookPrompt: {
+      notice: styleDnaRepo(db).notice,
+      remember: styleMemoryRepo(db).record,
+    },
   };
 }
 

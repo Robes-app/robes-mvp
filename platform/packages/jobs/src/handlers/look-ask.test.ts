@@ -13,7 +13,7 @@ const NOT_HERS = '44444444-4444-4444-8444-444444444444';
 function setup() {
   const ai = createFakeProvider({ [FEATURE]: (req) => fakeOutput(req.system, req.user) });
   const generateJson = vi.spyOn(ai, 'generateJson');
-  const noticed = { add: vi.fn(async () => true) };
+  const lookPrompt = { notice: vi.fn(async () => true), remember: vi.fn(async () => {}) };
   const ledger = { record: vi.fn(async () => {}) };
   const closet = [
     {
@@ -50,7 +50,7 @@ function setup() {
         id === LOOK ? { look: { name: 'Harbour dinner' }, pieces: [], siblings: [] } : undefined,
       ),
     } as never,
-    noticed,
+    lookPrompt,
     ledger,
   });
   const writeStage = vi.fn(async () => {});
@@ -80,7 +80,7 @@ function setup() {
     });
   const answer = () =>
     (writeStage.mock.calls.at(-1) as unknown as [string, { ask: unknown }])[1].ask;
-  return { run, answer, generateJson, noticed, ledger };
+  return { run, answer, generateJson, lookPrompt, ledger };
 }
 
 describe('look_ask handler (the look prompt)', () => {
@@ -108,7 +108,7 @@ describe('look_ask handler (the look prompt)', () => {
   });
 
   it('a rule waits as a Robes-noticed line, never changing the look', async () => {
-    const { run, answer, noticed } = setup();
+    const { run, answer, lookPrompt } = setup();
     await run("I don't wear double denim");
     expect(answer()).toMatchObject({
       intent: 'rule',
@@ -116,9 +116,18 @@ describe('look_ask handler (the look prompt)', () => {
       swaps: [],
       noticed: true,
     });
-    expect(noticed.add).toHaveBeenCalledWith(USER, {
+    expect(lookPrompt.notice).toHaveBeenCalledWith(USER, {
+      list: 'rules',
       text: 'No double denim',
       because: 'You said it on “Harbour dinner”',
+      origin: 'prompt',
+    });
+    // Every line lands in her memory as an ask about this look.
+    expect(lookPrompt.remember).toHaveBeenCalledWith(USER, {
+      kind: 'ask',
+      surface: 'draft',
+      subject: 'Harbour dinner',
+      body: "I don't wear double denim",
       lookId: LOOK,
     });
   });

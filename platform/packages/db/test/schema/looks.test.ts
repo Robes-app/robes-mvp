@@ -107,25 +107,4 @@ describe('looks and planning schema', () => {
       await expectPgError(q, '23514', "update app.looks set styling = '[]' where id = $1", [LOOK]);
       await expectPgError(q, '23514', 'update app.looks set set_index = 3 where id = $1', [LOOK]);
     }));
-
-  it('keeps noticed lines to their owner and one per wording', () =>
-    inTx(async (q) => {
-      await setup(q);
-      await q("insert into app.noticed_lines (user_id, text, look_id) values ($1, 'No grey', $2)", [
-        USER_A,
-        LOOK,
-      ]);
-      await expectPgError(
-        q,
-        '23505',
-        "insert into app.noticed_lines (user_id, text) values ($1, 'no grey')",
-        [USER_A],
-      );
-      await expectPgError(
-        q,
-        '23503',
-        "insert into app.noticed_lines (user_id, text, look_id) values ($1, 'Mine', $2)",
-        [USER_B, LOOK],
-      );
-    }));
 });

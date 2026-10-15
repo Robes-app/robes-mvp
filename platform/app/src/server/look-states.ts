@@ -165,16 +165,3 @@ export async function loadSet(userId: UserId, setId: string): Promise<LookSet> {
     looks,
   });
 }
-
-export async function listNoticed(userId: UserId) {
-  const rows = await repos.noticed.list(userId);
-  return {
-    items: rows.map((r) => ({
-      id: r.id,
-      text: r.text,
-      because: r.because,
-      lookId: r.lookId,
-      createdAt: r.createdAt.toISOString(),
-    })),
-  };
-}

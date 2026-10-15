@@ -339,17 +339,6 @@ export const LookAskResult = z.object({
 });
 export type LookAskResult = z.infer<typeof LookAskResult>;
 
-// Rules she said in a look's prompt, waiting to be kept.
-export const NoticedLine = z.object({
-  id: z.uuid(),
-  text: z.string(),
-  because: z.string().nullable(),
-  lookId: z.uuid().nullable(),
-  createdAt: z.iso.datetime(),
-});
-export const NoticedList = z.object({ items: z.array(NoticedLine) });
-export const NoticedParams = z.object({ id: z.uuid() });
-
 // key_piece job input: a piece, her words for a day, or ↻ on one suggested look.
 export const KeyPieceJobInput = z.union([
   GenerateLookInput,

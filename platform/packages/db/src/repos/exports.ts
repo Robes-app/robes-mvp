@@ -120,7 +120,6 @@ export function dataExportRepo(db: Db) {
         ideas,
         shares,
         assets,
-        noticed,
       ] = await Promise.all([
         db
           .selectFrom('users')
@@ -239,12 +238,6 @@ export function dataExportRepo(db: Db) {
           .where('userId', '=', userId)
           .orderBy('createdAt')
           .execute(),
-        db
-          .selectFrom('noticedLines')
-          .select(['id', 'list', 'text', 'because', 'lookId', 'createdAt', 'deletedAt'])
-          .where('userId', '=', userId)
-          .orderBy('createdAt')
-          .execute(),
       ]);
       return {
         user,
@@ -260,7 +253,6 @@ export function dataExportRepo(db: Db) {
         ideas,
         shares,
         assets,
-        noticed,
       };
     },
   };

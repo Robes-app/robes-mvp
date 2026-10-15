@@ -1,6 +1,4 @@
-import { randomUUID } from 'node:crypto';
 import { MAX_DRAFTS } from '@robes/core/looks';
-import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { UserId } from '../../src/ids';
 import {
@@ -12,7 +10,7 @@ import {
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
-const { looks, wardrobe, plan, noticed } = createRepositories(db);
+const { looks, wardrobe, plan } = createRepositories(db);
 const system = createSystemRepositories(db);
 let ann: UserId;
 let bea: UserId;
@@ -276,48 +274,5 @@ describe('drafts', () => {
     expect(await looks.update(bea, look.id, { proposals: [] })).toBeUndefined();
     const cleared = await looks.update(ann, look.id, { proposals: [] });
     expect(cleared?.proposals).toBeNull();
-  });
-});
-
-describe('noticed lines', () => {
-  it('waits deduped and capped, and stays hers', async () => {
-    const look = (await looks.list(ann, { limit: 1 })).items[0];
-    expect(
-      await noticed.add(ann, { text: 'No double denim', because: 'You said it', lookId: null }),
-    ).toBe(true);
-    expect(
-      await noticed.add(ann, {
-        text: 'no  double denim ',
-        because: null,
-        lookId: look?.id ?? null,
-      }),
-    ).toBe(false);
-    // A look id that isn't hers is dropped, never linked.
-    expect(
-      await noticed.add(bea, { text: 'No grey', because: null, lookId: look?.id ?? null }),
-    ).toBe(true);
-    const beas = await noticed.list(bea);
-    expect(beas.map((l) => [l.text, l.lookId])).toEqual([['No grey', null]]);
-    for (let i = 0; i < 13; i += 1) {
-      await noticed.add(ann, {
-        text: `Rule ${i} ${randomUUID().slice(0, 4)}`,
-        because: null,
-        lookId: null,
-      });
-    }
-    const lines = await noticed.list(ann);
-    expect(lines).toHaveLength(12);
-    expect(lines.map((l) => l.text)).not.toContain('No double denim');
-    const first = lines[0];
-    if (!first) throw new Error('no line');
-    expect(await noticed.remove(bea, first.id)).toBe(false);
-    expect(await noticed.remove(ann, first.id)).toBe(true);
-    const left = await db
-      .selectFrom('noticedLines')
-      .select(sql<number>`count(*)::int`.as('n'))
-      .where('userId', '=', ann)
-      .where('deletedAt', 'is', null)
-      .executeTakeFirstOrThrow();
-    expect(left.n).toBe(11);
   });
 });

@@ -129,7 +129,6 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | New | Legacy |
 |---|---|
 | `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` (suggested/draft → saved) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
-| `GET /looks/noticed` · `DELETE /looks/noticed/:id` | `style_dna.brief.pending` lines `from:'prompt'` |
 | `POST /looks/:id/wears` · `DELETE /wears/:id` | client REST `wears` |
 | `GET /artifacts?type=` · `GET /artifacts/:id` · `PATCH /artifacts/:id` (title, packed/pins state) · `DELETE` (soft) | client REST `lookbook_items` + localStorage merge |
 | `GET /plan?from=&to=` · `PUT /plan/days/:date` | client REST `planned_days` + client sweeps |

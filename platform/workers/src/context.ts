@@ -157,7 +157,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
             ai,
             styling: system.styling,
             suggested: system.suggested,
-            noticed: system.noticed,
+            lookPrompt: system.lookPrompt,
             ledger: system.ledger,
           },
           avatarCell: { ai, storage, cells: system.avatarCells, ledger: system.ledger },
