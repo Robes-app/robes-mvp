@@ -90,23 +90,24 @@ describe('cross-user isolation', () => {
     ]);
   });
 
-  it('suggested.look, setFirstFrame and failFrame are scoped to the owner', async () => {
+  it('suggested.look, setFrame and failFrame are scoped to the owner', async () => {
     expect(await system.suggested.look(bea, lookId)).toBeUndefined();
     expect((await system.suggested.look(ann, lookId))?.look.id).toBe(lookId);
 
-    const beaAsset = await system.styling.createGeneratedAsset(bea);
-    await system.suggested.setFirstFrame(bea, setId, 0, {
-      assetId: beaAsset,
-      frameKey: 'k1',
-      jobId: (await createJob(bea)).id,
-    });
     const frame = () =>
       db
         .selectFrom('looks')
         .select(['frameAssetId', 'renderStatus', 'renderKey'])
         .where('id', '=', lookId)
         .executeTakeFirstOrThrow();
-    expect(await frame()).toMatchObject({ frameAssetId: null });
+    await db
+      .updateTable('looks')
+      .set({ renderKey: 'frame:k1', renderStatus: 'pending' })
+      .where('id', '=', lookId)
+      .execute();
+    const beaAsset = await system.styling.createGeneratedAsset(bea);
+    expect(await system.suggested.setFrame(bea, lookId, 'k1', beaAsset)).toBe(false);
+    expect(await frame()).toMatchObject({ frameAssetId: null, renderStatus: 'pending' });
 
     await db
       .updateTable('looks')
