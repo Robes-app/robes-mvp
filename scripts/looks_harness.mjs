@@ -2132,28 +2132,33 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     const btn = document.querySelector('.rbc-rack .rb-lk-prop .rbc-swap');
     btn?.click();
     await new Promise((r) => setTimeout(r, 250));
-    const m = document.getElementById('rb-lkprop-swap');
+    const m = document.getElementById('cb-wa-pick');
     return {
-      open: !!m && !!m.querySelector('.rb-sd'),
-      wardrobe: /From your wardrobe/.test(m?.textContent || ''),
-      snap: /^Snap /.test(m?.querySelector('.rb-sd-tile.snap .nm')?.textContent || ''),
-      tiles: m?.querySelectorAll('.rb-sd-tile:not(.snap)').length,
+      open: !!m && m.classList.contains('swap'),
+      ey: m?.querySelector('.cb-pick-ey')?.textContent,
+      title: m?.querySelector('.cb-pick-title')?.textContent,
+      photoFirst: !!m?.querySelector('#cb-pick-grid > .cb-pick-tile:first-child.cb-pick-photo'),
+      tiles: m?.querySelectorAll('.cb-pick-tile:not(.cb-pick-photo)').length,
+      cur: m?.querySelectorAll('.cb-pick-tile.cur').length,
+      robes: /Or from Robes|More from Robes/.test(m?.textContent || ''),
+      legacy: !!document.getElementById('rb-lkprop-swap'),
     };
   });
-  check('nothing owned · ↻ on a saved proposal (editing) opens the drawer — her wardrobe, Snap first',
-    swapM.open === true && swapM.wardrobe === true && swapM.snap === true && swapM.tiles >= 1,
+  check('nothing owned · ↻ on a saved proposal (editing) opens the look\'s wardrobe sheet in swap mode — Photograph one first, her pieces, no Robes alternates, no legacy drawer',
+    swapM.open === true && swapM.ey === 'Swap from your wardrobe' && /^Swap the /.test(swapM.title || '') && swapM.photoFirst === true
+      && swapM.tiles >= 1 && swapM.cur === 0 && swapM.robes === false && swapM.legacy === false,
     JSON.stringify(swapM));
   const adopted = await page.evaluate(async () => {
-    const tile = document.querySelector('#rb-lkprop-swap .rb-sd-tile:not(.snap):not(.inlook)');
+    const tile = document.querySelector('#cb-wa-pick .cb-pick-tile:not(.cb-pick-photo)');
     tile?.click();
     await new Promise((r) => setTimeout(r, 200));
     const preview = {
       props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
       ownedRows: document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length,
       warm: document.querySelectorAll('.rbc-rack .rbc-row.changed').length,
+      sheetGone: !document.getElementById('cb-wa-pick'),
+      undo: /swapped in/.test(document.getElementById('rb-pick-undo')?.textContent || ''),
     };
-    window.__rbSdGo();
-    await new Promise((r) => setTimeout(r, 200));
     window.__lkResave();
     await new Promise((r) => setTimeout(r, 600));
     return {
@@ -2161,12 +2166,12 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
       props: document.querySelectorAll('.rbc-rack .rb-lk-prop').length,
       ownedRows: document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length,
       acts: document.querySelectorAll('.rb-lk-diarybtn').length,
-      modalGone: !document.getElementById('rb-lkprop-swap'),
     };
   });
-  check('nothing owned · a tap previews her piece in the proposal\'s place (warm row); Swap in + Update move it ONTO the look — proposal off, wear verbs back',
+  check('nothing owned · one tap swaps her piece into the proposal\'s place (warm row, Undo pill); Update moves it ONTO the look — proposal off, wear verbs back',
     adopted.picked === true && adopted.preview.props === 3 && adopted.preview.ownedRows === 1 && adopted.preview.warm === 1
-      && adopted.props === 3 && adopted.ownedRows === 1 && adopted.acts === 1 && adopted.modalGone === true,
+      && adopted.preview.sheetGone === true && adopted.preview.undo === true
+      && adopted.props === 3 && adopted.ownedRows === 1 && adopted.acts === 1,
     JSON.stringify(adopted));
   const propMem = writes.filter((w) => w.method === 'PATCH' && /^profiles\?/.test(w.url) && w.body?.style_dna?.memory).pop();
   check('nothing owned · the adoption lands on the memory as a swap (out → her piece, with the category)',
@@ -2214,6 +2219,25 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   check('aspirational · Wear it today is withheld; the exit is Build from mine only',
     JSON.stringify(a.foot) === JSON.stringify(['Try another', 'Build from mine only']),
     JSON.stringify(a.foot));
+  const cswap = await page.evaluate(async () => {
+    document.querySelector('.rb-lk-prop .rbc-swap')?.click();
+    await new Promise((r) => setTimeout(r, 250));
+    const m = document.getElementById('cb-wa-pick');
+    const sheet = { open: !!m && m.classList.contains('swap'), title: m?.querySelector('.cb-pick-title')?.textContent,
+      robes: /Or from Robes|More from Robes/.test(m?.textContent || ''), legacy: !!document.getElementById('rb-kpshop-swap'),
+      tiles: m?.querySelectorAll('.cb-pick-tile:not(.cb-pick-photo)').length };
+    m?.querySelector('.cb-pick-tile:not(.cb-pick-photo)')?.click();
+    await new Promise((r) => setTimeout(r, 250));
+    const after = { shop: document.querySelectorAll('.rb-lk-prop').length, own: document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length,
+      undo: !!document.querySelector('#rb-pick-undo button') };
+    document.querySelector('#rb-pick-undo button')?.click();
+    await new Promise((r) => setTimeout(r, 250));
+    return { sheet, after, undone: { shop: document.querySelectorAll('.rb-lk-prop').length, own: document.querySelectorAll('.rbc-rack .rbc-row:not(.rb-lk-prop) .rbc-name').length } };
+  });
+  check('aspirational · Swap on a proposal opens the one wardrobe sheet (no Robes alternates, no legacy drawer); a tap swaps her piece in, Undo puts the proposal back',
+    cswap.sheet.open === true && /^Swap /.test(cswap.sheet.title || '') && cswap.sheet.robes === false && cswap.sheet.legacy === false && cswap.sheet.tiles >= 1
+      && cswap.after.shop === 2 && cswap.after.own === 2 && cswap.after.undo === true && cswap.undone.shop === 3 && cswap.undone.own === 1,
+    JSON.stringify(cswap));
   const mine = await page.evaluate(async () => {
     window.__lkBuildMineOnly();
     await new Promise((r) => setTimeout(r, 2000));

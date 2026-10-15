@@ -426,18 +426,20 @@ const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath
 
   // No, find it → her tops, "None of these — it's new"
   await page.click('.rb-lkr-card[data-i="0"] .rb-lkr-ask .rb-pill:nth-child(2)');
-  await page.waitForSelector('#lk-read-drawer', { timeout: 3000 });
-  const dr = await page.evaluate(() => ({
-    title: document.querySelector('#lk-read-drawer .rb-sd-t')?.textContent, chip: document.querySelector('#lk-read-drawer .rb-sd-chip.on')?.textContent.trim(),
-    tiles: Array.from(document.querySelectorAll('#lk-read-drawer .rb-sd-tile:not(.snap) .nm')).map((n) => n.textContent), none: document.querySelector('#lk-read-drawer .rb-lkr-none')?.textContent,
-    go: document.querySelector('#lk-read-drawer .rb-sd-go')?.textContent, goOff: document.querySelector('#lk-read-drawer .rb-sd-go')?.disabled,
-  }));
-  check('3.4 · No, find it → her pieces in that category, Snap first, "None of these — it’s new", the commit reads "Pick the piece it is"', /Find the cream long-sleeve t-shirt/i.test(dr.title || '') && dr.chip === 'Tops' && dr.tiles.join('|') === 'Cream silk shirt' && /None of these — it’s new/.test(dr.none || '') && dr.go === 'Pick the piece it is' && dr.goOff === true, JSON.stringify(dr));
-  await page.click('#lk-read-drawer .rb-sd-tile:not(.snap)');
-  await page.waitForTimeout(150);
-  const dr2 = await page.evaluate(() => document.querySelector('#lk-read-drawer .rb-sd-go')?.textContent);
-  check('3.4 · a tile picked: "It’s the cream silk shirt"', dr2 === 'It’s the cream silk shirt', String(dr2));
-  await page.click('#lk-read-drawer .rb-sd-go');
+  await page.waitForSelector('#cb-wa-pick', { timeout: 3000 });
+  const dr = await page.evaluate(() => {
+    const m = document.getElementById('cb-wa-pick');
+    return {
+      ey: m?.querySelector('.cb-pick-ey')?.textContent, title: m?.querySelector('.cb-pick-title')?.textContent,
+      chip: m?.querySelector('.cb-pick-cat.on')?.textContent.trim(),
+      tiles: Array.from(m?.querySelectorAll('.cb-pick-tile:not(.cb-pick-photo) .nm') || []).map((n) => n.textContent),
+      photo: m?.querySelector('.cb-pick-photo .nm')?.textContent, none: m?.querySelector('.cb-pick-alt')?.textContent,
+      thumb: /^url\("data:image/.test(m?.querySelector('.cb-pick-sw .th')?.style.backgroundImage || '') || /^url\(/.test(m?.querySelector('.cb-pick-sw .th')?.style.backgroundImage || ''),
+      legacy: !!document.getElementById('lk-read-drawer'),
+    };
+  });
+  check('3.4 · No, find it → the same wardrobe sheet: "Find the …" with the crop in the head, opened on Tops, Photograph one first, "None of these — it’s new"', /Find the cream long-sleeve t-shirt/i.test(dr.title || '') && dr.ey === 'From your wardrobe' && /^✓ Tops/.test(dr.chip || '') && dr.tiles.join('|') === 'Cream silk shirt' && dr.photo === 'Files straight in' && /None of these — it’s new/.test(dr.none || '') && dr.thumb === true && dr.legacy === false, JSON.stringify(dr));
+  await page.click('#cb-wa-pick .cb-pick-tile:not(.cb-pick-photo)');
   await page.waitForTimeout(300);
   const r3 = await page.evaluate(() => ({
     rows: Array.from(document.querySelectorAll('.rb-lk-composer .rbc-trailrow .rbc-name')).map((n) => n.textContent), dots: document.querySelectorAll('.rb-lkr-dot').length, cards: document.querySelectorAll('.rb-lkr-card').length,

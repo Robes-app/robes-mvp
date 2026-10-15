@@ -20433,17 +20433,19 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         if (!row) return;
         const name = _lkPropName(row);
         const snap = JSON.stringify(d);
-        _lkEditMode = true;
         _lkPropSwapIdx = i;
-        _rbSwapDrawer({
-          id: 'rb-lkprop-swap', surface: 'saved-proposal',
-          title: 'Swap ' + _rbLpThe(_rbSdShort(name)), sub: 'From your wardrobe',
-          cat: _WA_LEGACY_TO_SHEET[(row.cats || [])[0]] || (row.cats || [])[0] || 'Other', currentId: null,
-          inLookIds: d.pieces.map(p => String(p.id)),
-          preview: id => { window.__lkDPropSwapPick(i, id); },
-          revert: () => { _lkDraft = JSON.parse(snap); _lkEditMode = true; _lkPaint(); },
-          commit: id => { const wi = _waItems.find(w => String(w.id) === String(id)); if (wi) _waShowToast(wi.label + ' takes its place ✓'); },
-          snap: () => window.__lkPropSnap(i),
+        const still = (row.img_oi == null || row.img_oi === (row.oi || 0)) ? row.image_url : null;
+        window.__cbWardrobePick({
+          swap: { item: { id: null, label: name, image_url: still, category: (row.cats || [])[0] || '' },
+            cat: _WA_LEGACY_TO_SHEET[(row.cats || [])[0]] || (row.cats || [])[0] || 'Other' },
+          title: 'Swap ' + _rbLpThe(_rbSdShort(name)),
+          cat: _WA_LEGACY_TO_SHEET[(row.cats || [])[0]] || (row.cats || [])[0] || 'All',
+          exclude: d.pieces.map(p => String(p.id)),
+          onPick: it => {
+            if (!window.__lkDPropSwapPick(i, it.id)) return;
+            _rbUndoPill(_rbSdShort(it.label) + ' swapped in', () => { _lkDraft = JSON.parse(snap); _lkEditMode = true; _lkPaint(); });
+          },
+          onSnap: () => window.__lkPropSnap(i),
         });
       };
       window.__lkPropSwap = window.__lkDPropSwap;
@@ -20588,25 +20590,20 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const name = _lkPropName(row);
         const snap = { rows: JSON.parse(JSON.stringify(_lkRows)), shop: JSON.parse(JSON.stringify(_lkShop)), imgs: _lkShopImgs.slice(), roles: Object.assign({}, _lkNewRoles), was: JSON.parse(JSON.stringify(_lkDraftWas)) };
         _kpShopSwapIdx = i;
-        const alts = (row.opts || []).map((o, n) => {
-          const on = n === (row.oi || 0);
-          return '<button type="button" class="kp-alt' + (on ? ' on' : '') + '" onclick="window.__kpShopAlt(' + i + ',' + n + ')">' +
-            '<div class="sw">' + (on ? '<span class="tick">✓</span>' : '') + '</div>' +
-            '<div class="k">' + _waEsc([_rbDeEsc(o.brand || o.retailer_hint || ''), _rbcPrice(o.price_point || '')].filter(Boolean).join(' ')) + '</div>' +
-            '<div class="n">' + _waEsc(o.name || '') + '</div></button>';
-        }).join('');
-        const altsHtml = '<div class="kp-alts-h">Or from Robes</div><div class="kp-alts">' + alts + '</div>' +
-          '<button type="button" class="kp-alts-more" onclick="window.__kpShopMore(' + i + ')">More from Robes</button>';
-        _rbSwapDrawer({
-          id: 'rb-kpshop-swap', surface: _lkKpHost ? 'kp-build' : 'composer-proposal',
-          title: 'Swap ' + _rbLpThe(_rbSdShort(name)), sub: 'From your wardrobe',
-          cat: _WA_LEGACY_TO_SHEET[(row.cats || [])[0]] || (row.cats || [])[0] || 'Other', currentId: null,
-          inLookIds: _lkUsed().map(String),
-          preview: id => { window.__kpShopSwapApply(i, id, true); },
-          revert: () => { _lkRows = snap.rows; _lkShop = snap.shop; _lkShopImgs = snap.imgs; _lkNewRoles = snap.roles; _lkDraftWas = snap.was; _lkPaint(); },
-          commit: id => { const wi = _waItems.find(w => String(w.id) === String(id)); if (wi) _waShowToast(wi.label + ' takes its place ✓'); _rbTrack('piece_swapped', { surface: _lkKpHost ? 'kp-build' : 'look-compose', item: String(id), out: name, in: wi ? wi.label : '', cat: (wi && wi.category) || '' }); if (wi) _rbMemorySwap(_lkKpHost ? 'kp-build' : 'look-compose', name, wi.label, wi.category); },
-          snap: () => window.__kpShopSnap(i),
-          altsHtml,
+        const surf = _lkKpHost ? 'kp-build' : 'look-compose';
+        window.__cbWardrobePick({
+          swap: { item: { id: null, label: name, image_url: _lkShopImgs[i] || null, category: (row.cats || [])[0] || '' },
+            cat: _WA_LEGACY_TO_SHEET[(row.cats || [])[0]] || (row.cats || [])[0] || 'Other' },
+          title: 'Swap ' + _rbLpThe(_rbSdShort(name)),
+          cat: _WA_LEGACY_TO_SHEET[(row.cats || [])[0]] || (row.cats || [])[0] || 'All',
+          exclude: _lkUsed().map(String),
+          onPick: it => {
+            window.__kpShopSwapApply(i, it.id, true);
+            _rbTrack('piece_swapped', { surface: surf, item: String(it.id), out: name, in: it.label, cat: it.category || '' });
+            _rbMemorySwap(surf, name, it.label, it.category);
+            _rbUndoPill(_rbSdShort(it.label) + ' swapped in', () => { _lkRows = snap.rows; _lkShop = snap.shop; _lkShopImgs = snap.imgs; _lkNewRoles = snap.roles; _lkDraftWas = snap.was; _lkPaint(); });
+          },
+          onSnap: () => window.__kpShopSnap(i),
         });
       };
       window.__kpShopSwap = window.__lkShopSwapOpen;
@@ -22255,15 +22252,15 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const pc = _lkRead && _lkRead.pieces[i]; if (!pc) return;
         const t = pc.tag;
         const cat = (t.category_l2 && _WA_L2_SHEET[t.category_l2]) || _WA_LEGACY_TO_SHEET[t.category] || t.category || 'Other';
-        _rbSwapDrawer({
-          id: 'lk-read-drawer', surface: 'look-read',
-          title: 'Find ' + _rbLpThe(_rbSdShort(t.label || 'the piece')), sub: 'From your wardrobe',
-          cat, currentId: pc.match ? pc.match.id : null, inLookIds: _lkUsed().map(String),
-          preview: () => {}, revert: () => {},
-          goLabel: wi => 'It’s ' + _rbLpThe(_rbSdShort(wi.label)), goEmpty: 'Pick the piece it is',
-          commit: id => _lkReadConfirm(i, id),
-          snap: () => { _waEditId = null; _waAfterAdd = (newId) => _lkReadConfirm(i, newId); if (window.WA && WA.open) WA.open(); },
-          altsHtml: '<button type="button" class="rb-pill rb-lkr-none" onclick="window.__rbSdClose(true);window.__lkReadNew(' + i + ')">None of these — it’s new</button>',
+        window.__cbWardrobePick({
+          swap: { item: { id: null, label: t.label || 'the piece', image_url: _pdHttp(pc.hosted) ? pc.hosted : (pc.crop || null), category: t.category || '' }, cat },
+          eyebrow: 'From your wardrobe',
+          title: 'Find ' + _rbLpThe(_rbSdShort(t.label || 'the piece')),
+          cat, exclude: _lkUsed().map(String),
+          snapCaption: 'Files straight in',
+          alt: { label: 'None of these — it’s new', onTap: () => window.__lkReadNew(i) },
+          onPick: it => _lkReadConfirm(i, it.id),
+          onSnap: () => { _waEditId = null; _waAfterAdd = (newId) => _lkReadConfirm(i, newId); if (window.WA && WA.open) WA.open(); },
         });
       };
       // The new pieces file to the wardrobe, each with its own crop, then
@@ -29380,7 +29377,9 @@ body>*:not(#tv-result-page){display:none !important}
         const ex = (opts.exclude || []).map(String);
         const pool = source === 'wishlist' ? _wlItems : _waItems;
         let all = pool.filter(it => ex.indexOf(String(it.id)) < 0);
-        if (swap && !all.some(it => String(it.id) === String(swap.id))) all = [swap].concat(all);
+        // A proposal (or a piece read from a photograph) is not a wardrobe
+        // row — it heads the sheet, it never sits in the grid.
+        if (swap && swap.id != null && !all.some(it => String(it.id) === String(swap.id))) all = [swap].concat(all);
         document.getElementById('cb-wa-pick')?.remove();
         if (!all.length && !opts.segments && !opts.onSnap) {
           _waShowToast(source === 'wishlist' ? 'Nothing on your wishlist yet' : 'Nothing catalogued yet — add a piece to your wardrobe first');
@@ -29398,7 +29397,7 @@ body>*:not(#tv-result-page){display:none !important}
           cats = look ? ['All'].concat(inOrder) : inOrder;
           if (cats.indexOf(_cbPickCat) < 0) _cbPickCat = cats[0];
         } else if (cats.indexOf(_cbPickCat) < 0) _cbPickCat = 'All';
-        _cbPickS = { opts, source, look, swap, all, cats, catOf };
+        _cbPickS = { opts, source, look, swap, all, cats, catOf, own: swap ? ((opts.swap && opts.swap.cat) || catOf(swap)) : null };
         const modal = document.createElement('div');
         modal.id = 'cb-wa-pick';
         modal.className = 'cb-pick-wrap' + (look ? ' look' : '') + (swap ? ' swap' : '');
@@ -29412,7 +29411,7 @@ body>*:not(#tv-result-page){display:none !important}
           ? `<label class="cb-pick-q"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>` +
             `<input id="cb-pick-q" type="search" autocomplete="off" placeholder="Search your wardrobe" aria-label="Search your wardrobe" value="${_waEsc(_cbPickQ)}" oninput="window.__cbPickSearch(this.value)"></label>`
           : '';
-        const eyebrow = swap ? 'Swap from your wardrobe' : (source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe');
+        const eyebrow = opts.eyebrow || (swap ? 'Swap from your wardrobe' : (source === 'wishlist' ? 'From your wishlist' : 'From your wardrobe'));
         let head;
         if (swap) {
           const url = _pdHttp(swap.image_url);
@@ -29429,18 +29428,24 @@ body>*:not(#tv-result-page){display:none !important}
           <div class="cb-pick-card" role="dialog" aria-label="${_waEsc(opts.title || eyebrow)}">
             <div class="cb-pick-grab"><span></span></div>
             ${head}
-            ${segs}${search}${showChips ? '<div class="cb-pick-cats" id="cb-pick-cats"></div>' : ''}
+            ${segs}${search}${showChips ? '<div class="cb-pick-cats" id="cb-pick-cats"></div>' : ''}${opts.alt && opts.alt.label ? `<div class="cb-pick-altrow"><button type="button" class="cb-pick-alt" onclick="window.__cbPickAlt()">${_waEsc(opts.alt.label)}</button></div>` : ''}
             <div class="cb-pick-scroll"><div class="cb-pick-grid" id="cb-pick-grid"></div></div>
           </div>`;
         _cbPickCss();
         document.body.appendChild(modal);
+        // A crop read off her photograph is a data URL — it reaches the
+        // thumb through the DOM, never through the markup.
+        if (swap && !_pdHttp(swap.image_url) && /^data:image\//.test(String(swap.image_url || ''))) {
+          const th = modal.querySelector('.cb-pick-sw .th');
+          if (th) { th.textContent = ''; th.style.backgroundImage = 'url("' + swap.image_url + '")'; }
+        }
         _cbPickPaint();
       };
       // The chips and the grid repaint in place — the search field is never
       // rebuilt, so the caret stays where she is typing.
       function _cbPickPaint() {
         const s = _cbPickS; if (!s) return;
-        const { opts, source, look, swap, all, cats, catOf } = s;
+        const { opts, source, look, swap, all, cats, catOf, own } = s;
         const q = String(_cbPickQ || '').trim().toLowerCase();
         const chipsEl = document.getElementById('cb-pick-cats');
         if (chipsEl) {
@@ -29457,7 +29462,7 @@ body>*:not(#tv-result-page){display:none !important}
         const pick = wi => opts.onPick
           ? `window.__cbPickApply('${source}','${_waEsc(String(wi.id))}')`
           : `window.__cbWardrobeApply('${_waEsc(String(wi.id))}')`;
-        const curId = swap ? String(swap.id) : null;
+        const curId = swap && swap.id != null ? String(swap.id) : null;
         const tile = wi => {
           const cur = curId && String(wi.id) === curId;
           return `<button type="button" class="cb-pick-tile${cur ? ' cur' : ''}" data-id="${_waEsc(String(wi.id))}" onclick="${cur ? 'window.__cbPickClose()' : pick(wi)}">` +
@@ -29471,7 +29476,7 @@ body>*:not(#tv-result-page){display:none !important}
         const snapOk = look && typeof opts.onSnap === 'function';
         const photo = snapOk
           ? `<button type="button" class="cb-pick-tile cb-pick-photo" onclick="window.__cbPickSnap()"><span class="im">${_CB_PICK_CAM}<span class="l">Photograph one</span></span>` +
-            `<span class="nm">${swap ? 'Swaps straight in' : 'Files straight in'}</span></button>`
+            `<span class="nm">${opts.snapCaption || (swap ? 'Swaps straight in' : 'Files straight in')}</span></button>`
           : '';
         let html;
         if (!items.length && !q) {
@@ -29487,7 +29492,6 @@ body>*:not(#tv-result-page){display:none !important}
         } else if (swap && !q && _cbPickCat === 'All') {
           // 3b: closest first (the piece's own category), then a row per
           // category in the sheet's order.
-          const own = catOf(swap);
           const order = [own].concat(cats.slice(1).filter(c => c !== own));
           html = photo + order.map((c, i) => {
             const g = items.filter(it => catOf(it) === c);
@@ -29521,6 +29525,13 @@ body>*:not(#tv-result-page){display:none !important}
         document.getElementById('cb-wa-pick')?.remove();
         _cbPickOpts = null; _cbPickS = null;
         if (o && o.onSnap) o.onSnap(cat);
+      };
+      // The sheet's one other answer (the read's "None of these — it's new").
+      window.__cbPickAlt = function() {
+        const o = _cbPickOpts;
+        document.getElementById('cb-wa-pick')?.remove();
+        _cbPickOpts = null; _cbPickS = null;
+        if (o && o.alt && o.alt.onTap) o.alt.onTap();
       };
       window.__cbPickApply = function(source, id) {
         const items = source === 'wishlist' ? _wlItems : _waItems;
@@ -29557,6 +29568,9 @@ body>*:not(#tv-result-page){display:none !important}
           '.cb-pick-cat{flex:none;height:34px;padding:0 14px;border-radius:100px;background:#fff;border:1px solid var(--rule-mid,#CFC7B9);font-family:inherit;font-size:12px;color:var(--ink,#202021);cursor:pointer;white-space:nowrap}' +
           '.cb-pick-cat .n{color:var(--ink-faint,#9A958E);margin-left:2px}' +
           '.cb-pick-cat.on{background:#F3EFE6;border-color:#C9BCA6}' +
+          '.cb-pick-altrow{padding:12px 20px 0;flex:none}' +
+          '.cb-pick-alt{height:36px;padding:0 16px;border-radius:100px;background:transparent;border:1px solid var(--rule-mid,#CFC7B9);font-family:inherit;font-size:12px;color:var(--ink-soft,#55524E);cursor:pointer}' +
+          '.cb-pick-alt:hover{border-color:var(--ink,#202021);color:var(--ink,#202021)}' +
           '.cb-pick-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px 20px 24px}' +
           '.cb-pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px 10px}' +
           '.cb-pick-tile{background:none;border:0;padding:0;cursor:pointer;text-align:left;font-family:inherit;min-width:0;color:var(--ink,#202021)}' +
