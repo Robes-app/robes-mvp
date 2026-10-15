@@ -12,6 +12,7 @@ const repos = createRepositories(db);
 const system = createSystemRepositories(db);
 const logger: JobLogger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 const SECRET = 'test-unsub-secret';
+const DAY_MS = 86_400_000;
 let ann: UserId;
 let bea: UserId;
 let annEmail: string;
@@ -163,11 +164,15 @@ describe('notify tick (legacy notify.js sequence)', () => {
   it('first_piece: four hours in with nothing filed, once, replies reaching Annie', async () => {
     const eve = await createTestUser(db, 'Eve Notify');
     await repos.profiles.completeOnboarding(eve);
+    await repos.profiles.mergeNotificationPrefs(eve, { nudges: true });
     const joined = new Date(NOW.getTime() - 5 * 3_600_000);
     await db.updateTable('users').set({ createdAt: joined }).where('id', '=', eve).execute();
     const { mailer } = await tick(undefined, { replyTo: 'annie@byrobes.com' });
     const [mail] = to(mailer.sent, `${eve}@test.dev`);
     expect(mail?.subject).toBe('One piece is enough.');
+    const oneClick = new URL(mail?.headers?.['List-Unsubscribe']?.slice(1, -1) ?? '');
+    const token = decodeURIComponent(oneClick.pathname.split('/').at(-1) ?? '');
+    expect(verifyUnsub(SECRET, token)).toEqual({ userId: eve, pref: 'nudges' });
     expect(mail?.text).toContain('https://app.test/wardrobe/add?from=email');
     expect(mail?.replyTo).toBe('annie@byrobes.com');
     expect(mail?.text).toContain('Reply to this email — it reaches Annie');
@@ -202,5 +207,38 @@ describe('notify tick (legacy notify.js sequence)', () => {
     expect(mail?.text).toContain('Three more pieces and Robes builds from yours alone.');
     expect(mail?.text).toContain('https://app.test/wardrobe/add?from=email');
     await deleteTestUsers(db, gil);
+  });
+
+  it('a once-ever kind sent long ago never burns the day: the next message goes', async () => {
+    const hal = await createTestUser(db, 'Hal Notify');
+    await repos.profiles.completeOnboarding(hal);
+    await repos.profiles.mergeNotificationPrefs(hal, { nudges: true });
+    await db
+      .updateTable('users')
+      .set({ createdAt: new Date(NOW.getTime() - 90 * DAY_MS) })
+      .where('id', '=', hal)
+      .execute();
+    for (const label of ['a', 'b', 'c', 'd', 'e']) await repos.wardrobe.create(hal, { label });
+    await db
+      .updateTable('wardrobeItems')
+      .set({ createdAt: new Date(NOW.getTime() - 60 * DAY_MS) })
+      .where('userId', '=', hal)
+      .execute();
+    // five went out two months ago (outside the 30-day window); a saved look now waits for a model.
+    await system.notifier.claim(hal, 'five', 'five');
+    await db
+      .updateTable('notifications')
+      .set({ sentAt: new Date(NOW.getTime() - 60 * DAY_MS) })
+      .where('userId', '=', hal)
+      .execute();
+    const coat = (await repos.wardrobe.create(hal, { label: 'Camel coat' })).id;
+    await repos.looks.create(hal, {
+      name: 'Office',
+      nameProvisional: false,
+      pieces: [{ pieceId: coat }],
+    });
+    const [mail] = to((await tick()).mailer.sent, `${hal}@test.dev`);
+    expect(mail?.subject).toBe('She’d wear it.');
+    await deleteTestUsers(db, hal);
   });
 });

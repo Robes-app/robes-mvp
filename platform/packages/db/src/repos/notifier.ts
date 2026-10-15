@@ -26,7 +26,7 @@ export function notifierRepo(db: Db) {
     async state(
       userIds: readonly string[],
       plan: { from: string; to: string },
-      opts: { hideTravel?: boolean } = {},
+      opts: { hideTravel?: boolean; onceKinds?: readonly string[] } = {},
     ) {
       if (userIds.length === 0) {
         return {
@@ -38,10 +38,11 @@ export function notifierRepo(db: Db) {
           overnight: [],
           models: [],
           started: [],
+          onceSent: [],
         };
       }
       const ids = [...userIds];
-      const [ledger, ideas, pieces, looks, planRows, overnight, models, started] =
+      const [ledger, ideas, pieces, looks, planRows, overnight, models, started, onceSent] =
         await Promise.all([
           db
             .selectFrom('notifications')
@@ -146,8 +147,16 @@ export function notifierRepo(db: Db) {
                 .where('type', '=', 'idea'),
             )
             .execute(),
+          // Once-ever kinds she has been sent, whenever: the ledger window above is 30 days.
+          db
+            .selectFrom('notifications')
+            .select(['userId', 'kind'])
+            .distinct()
+            .where('userId', 'in', ids)
+            .where('kind', 'in', [...(opts.onceKinds ?? ['-'])])
+            .execute(),
         ]);
-      return { ledger, ideas, pieces, looks, plan: planRows, overnight, models, started };
+      return { ledger, ideas, pieces, looks, plan: planRows, overnight, models, started, onceSent };
     },
 
     // One person's address and prefs for a transactional mail; nothing when she can't be mailed.
