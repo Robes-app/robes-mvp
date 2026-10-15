@@ -184,6 +184,15 @@ export const lookbook = {
     newLabel: 'A new look',
     failed: 'Robes couldn’t read that just now. Try again.',
   },
+  // F8: a verdict on a suggestion lands in her memory; "not quite" lets it go.
+  verdict: {
+    title: 'How was this look?',
+    up: 'More like this',
+    down: 'Not quite',
+    ask: 'What would have made it better?',
+    send: 'Send',
+    noted: 'Noted — the next ones will lean that way.',
+  },
   pieceRail: 'Robes suggested',
   // The piece page's two ways in (legacy piece card modes).
   startLook: 'Start a look with it',

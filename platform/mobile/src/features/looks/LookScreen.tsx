@@ -20,6 +20,7 @@ import { JOB_REFRESH_MS } from './ideas';
 import { LookDetail } from './LookDetail';
 import { LookPicture, useSavedToast } from './LookPicture';
 import { LookPromptBox } from './LookPromptBox';
+import { LookVerdict } from './LookVerdict';
 import { useLookEditor } from './look-editor';
 import { useInvalidateLooks, useLetGo, useSaveLook } from './look-states';
 import { RackRowCard } from './RackRow';
@@ -145,6 +146,15 @@ function WorkingLook({ look }: { look: Look }) {
             onAnswer={(result) => {
               editor.answer(result);
               if (suggested) refresh();
+            }}
+          />
+        ) : null}
+        {suggested ? (
+          <LookVerdict
+            look={look}
+            onLetGo={() => {
+              letGo(look.id);
+              router.back();
             }}
           />
         ) : null}

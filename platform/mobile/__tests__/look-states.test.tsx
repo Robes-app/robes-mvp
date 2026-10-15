@@ -285,3 +285,32 @@ test('keep or pass: a pass waits behind Undo; the end counts what she kept', asy
   expect(mockRouter.replace).toHaveBeenCalledWith('/looks?tab=suggested');
   expect(calls.some((c) => c.path.endsWith(`/${SECOND}/restore`))).toBe(true);
 });
+
+test('a verdict on a suggestion lands in her memory; Not quite lets the look go', async () => {
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: suggestion(),
+    'POST /me/memory': { ok: true },
+    [`DELETE /looks/${LOOK_ID}`]: { ok: true },
+    'GET /looks': byStatus({}),
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.verdict.up }));
+  expect(await screen.findByText(lookbook.verdict.noted)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.verdict.down }));
+  await fireEvent.changeText(screen.getByLabelText(lookbook.verdict.ask), 'Too formal for me');
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.verdict.send }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
+  expect(calls.filter((c) => c.path.endsWith('/me/memory')).map((c) => c.body)).toEqual([
+    { kind: 'verdict', verdict: 1, surface: 'suggested', subject: 'Garden party', lookId: LOOK_ID },
+    {
+      kind: 'verdict',
+      verdict: 0,
+      body: 'Too formal for me',
+      surface: 'suggested',
+      subject: 'Garden party',
+      lookId: LOOK_ID,
+    },
+  ]);
+  expect(mockRouter.back).toHaveBeenCalled();
+});

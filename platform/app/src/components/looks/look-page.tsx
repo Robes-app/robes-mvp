@@ -13,6 +13,7 @@ import { useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRequestFrame, useSaveLook } from '@/lib/look-states';
 import { LookImage } from './look-image';
 import { LookPromptBox } from './look-prompt-box';
+import { LookVerdict } from './look-verdict';
 import { RackRowCard } from './rack-row';
 import { SwapSheet } from './swap-sheet';
 
@@ -210,16 +211,25 @@ export function WorkingLook({ look }: { look: Look }) {
           />
         ) : null}
         {suggested ? (
-          <Button
-            variant="quiet"
-            className="self-start"
-            onClick={() => {
-              letGo(look.id);
-              router.push('/looks?tab=suggested');
-            }}
-          >
-            {copy.bar.notForYou}
-          </Button>
+          <>
+            <LookVerdict
+              look={look}
+              onLetGo={() => {
+                letGo(look.id);
+                router.push('/looks?tab=suggested');
+              }}
+            />
+            <Button
+              variant="quiet"
+              className="self-start"
+              onClick={() => {
+                letGo(look.id);
+                router.push('/looks?tab=suggested');
+              }}
+            >
+              {copy.bar.notForYou}
+            </Button>
+          </>
         ) : null}
       </div>
       <div

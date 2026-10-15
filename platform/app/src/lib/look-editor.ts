@@ -78,7 +78,23 @@ export function useLookEditor(look: Look) {
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
-    swap: (key: string, piece: Piece) =>
+    swap: (key: string, piece: Piece) => {
+      const out = rack.rows.find((r) => r.key === key);
+      // A swap is something she told Robes: it lands in her memory (style memory slice B).
+      if (out) {
+        void api
+          .call('me.memory.record', {
+            input: {
+              kind: 'swap',
+              pieceOut: out.name.slice(0, 120),
+              pieceIn: piece.label.slice(0, 120),
+              category: piece.category,
+              surface: look.status,
+              lookId: look.id,
+            },
+          })
+          .catch(() => undefined);
+      }
       change(
         applyAsk(rack, {
           swaps: [
@@ -95,7 +111,8 @@ export function useLookEditor(look: Look) {
           back: [],
           styled: [],
         }),
-      ),
+      );
+    },
     add: (piece: Piece) => change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] }),
     remove: (key: string) => {
       const { [key]: _gone, ...edits } = rack.edits;
