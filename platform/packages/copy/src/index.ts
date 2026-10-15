@@ -881,10 +881,66 @@ export const notify = {
     body: 'Five pieces filed. Open the composer and build a look from what you own.',
     cta: 'Build a look',
   },
+  // plan_a_day (7-day brief, day 5): week_empty retuned.
   weekEmpty: {
     subject: 'Nothing planned this week.',
-    body: 'Pin a look to a day and the week is dressed.',
+    body: 'Name a day and Robes dresses it — tomorrow, Thursday, the dinner you’ve been thinking about. The plan keeps the week.',
     cta: 'Open the plan',
+    footer:
+      'Want a line each morning on the days you’ve planned? Turn it on in You › Notifications.',
+  },
+  // The first seven days (legacy docs/beta-onboarding-7day-brief.md).
+  firstPiece: {
+    subject: 'One piece is enough.',
+    body: 'Your wardrobe starts with one piece you love — a photograph, or a link from a shop. Robes reads it and shows you three ways to wear it.',
+    cta: 'Add your first piece',
+  },
+  pickOne: {
+    subject: 'Which one would you wear?',
+    body: (piece: string): string =>
+      `${piece}, worn three ways — they’re waiting in your Lookbook. Pick one and Robes builds it around what’s yours.`,
+    cta: 'See the three',
+  },
+  weekOne: {
+    subject: 'Your week, on paper.',
+    pieces: (n: number): string => `${countWord(n)} ${n === 1 ? 'piece' : 'pieces'} filed.`,
+    looks: (n: number): string => `${countWord(n)} ${n === 1 ? 'look' : 'looks'} kept.`,
+    model: 'Your model on file.',
+    dressed: (weekday: string): string => `${weekday} dressed.`,
+    next: {
+      model: {
+        line: 'Build your model and she wears every look you keep.',
+        cta: 'Build your model',
+      },
+      five: {
+        line: (n: number): string =>
+          `${countWord(n)} more ${n === 1 ? 'piece' : 'pieces'} and Robes builds from yours alone.`,
+        cta: 'Add pieces',
+      },
+      plan: { line: 'Name a day and Robes dresses it.', cta: 'Open the plan' },
+      wear: { line: 'Today is dressed. Tap the day when you’ve worn it.', cta: 'Open today' },
+      done: {
+        line: 'Nothing left to set up — the plan keeps the week from here.',
+        cta: 'Open Robes',
+      },
+    },
+  },
+  // Every Robes mail closes on this when replies reach a person (7-day brief delta 1).
+  replyLine: 'Reply to this email — it reaches Annie, who reads every one.',
+  // Push-only moments (7-day brief, phase 2): short enough for a lock screen.
+  push: {
+    modelNudge: {
+      title: 'She’d wear it.',
+      body: (look: string): string => `Build your model and she wears ${look}.`,
+    },
+    batchNudge: {
+      title: (n: number): string => `${countWord(n)} more ${n === 1 ? 'piece' : 'pieces'}.`,
+      body: 'Then Robes builds a look from yours alone.',
+    },
+    woreIt: {
+      title: 'Wore it?',
+      body: (weekday: string): string => `Tap ${weekday} and Robes remembers.`,
+    },
   },
   morning: {
     subject: (weekday: string, title: string): string => `${weekday} · ${title}`,

@@ -1,14 +1,30 @@
 import type { UnsubPref } from '@robes/emails';
 
-// The email sequence from legacy notify.js, as pure rules over one person's state.
-// Not ported yet: `borrowing` (needs look proposals).
-export const SEQUENCE_KINDS = ['looks_ready', 'look_waiting', 'five', 'week_empty'] as const;
-export type NotifyKind = (typeof SEQUENCE_KINDS)[number] | 'morning';
+// The email sequence from legacy notify.js plus the first seven days (legacy
+// docs/beta-onboarding-7day-brief.md), as pure rules over one person's state. At most one
+// sequence message a day across email and push. Not ported yet: `borrowing`.
+export const SEQUENCE_KINDS = [
+  'looks_ready',
+  'first_piece',
+  'pick_one',
+  'look_waiting',
+  'model_nudge',
+  'five',
+  'batch_nudge',
+  'week_one',
+  'week_empty',
+] as const;
+export type NotifyKind = (typeof SEQUENCE_KINDS)[number] | 'morning' | 'wore_it';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 export const LOOKS_READY_WINDOW_MS = 48 * HOUR;
 export const MORNING_HOUR = 7;
+// The evening ask on a dressed day (legacy home's Wore it? after 19:00).
+export const WORE_IT_HOUR = 19;
+// Sequence mails land 08:00–20:00 her time; outside it they wait for the next tick inside it.
+export const SEND_WINDOW = { from: 8, until: 20 } as const;
+export const PIECES_TO_BUILD = 5;
 const DEFAULT_TZ = 'Europe/Dublin';
 
 export interface Recipient {
@@ -31,8 +47,12 @@ export interface NotifyState {
   // Whether she has filed a model (undefined: unknown, so the model nudge never fires).
   hasModel?: boolean;
   newestLook?: { id: string; name: string } | null;
-  // Looks pinned from today (her date) for the next week.
-  plan: { date: string; lookName: string; activity: string | null; slot: string }[];
+  // Looks pinned from today (her date) for the next week; `worn` once she logged that day.
+  plan: { date: string; lookName: string; activity: string | null; slot: string; worn?: boolean }[];
+  // She has filed a piece or styled one, ever (first_piece waits for neither).
+  started?: boolean;
+  // Push reaches at least one of her devices (push-only moments need it).
+  hasPush?: boolean;
 }
 
 export type Planned =
@@ -40,6 +60,26 @@ export type Planned =
   | { kind: 'look_waiting'; ref: string; pref: UnsubPref; look: string }
   | { kind: 'five'; ref: string; pref: UnsubPref }
   | { kind: 'week_empty'; ref: string; pref: UnsubPref }
+  | { kind: 'first_piece'; ref: string; pref: UnsubPref }
+  | { kind: 'pick_one'; ref: string; pref: UnsubPref; piece: string }
+  | {
+      kind: 'week_one';
+      ref: string;
+      pref: UnsubPref;
+      counts: { pieces: number; looks: number; model: boolean; dressed: string | null };
+      next: WeekOneNext;
+      date: string;
+    }
+  | { kind: 'model_nudge'; ref: string; pref: UnsubPref; channel: 'push'; look: string }
+  | { kind: 'batch_nudge'; ref: string; pref: UnsubPref; channel: 'push'; remaining: number }
+  | {
+      kind: 'wore_it';
+      ref: string;
+      pref: UnsubPref;
+      channel: 'push';
+      date: string;
+      weekday: string;
+    }
   | {
       kind: 'morning';
       ref: string;
@@ -51,6 +91,9 @@ export type Planned =
       // Set when the cue opens the overnight look rather than a planned day.
       dailyLookId?: string;
     };
+
+// week_one's one CTA: the first tier she has not reached (the home's order).
+export type WeekOneNext = 'model' | 'five' | 'plan' | 'wear' | 'done';
 
 // Her calendar reading of an instant; an unknown zone falls back rather than throwing.
 export function localParts(now: Date, timezone: string) {
@@ -94,7 +137,20 @@ export function isoWeek(date: string): string {
   return `${year}-W${String(week).padStart(2, '0')}`;
 }
 
-// At most one sequence email per local day, first matching rule wins; the morning cue is separate.
+const weekdayOf = (date: string) =>
+  new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+
+export function weekOneNext(state: NotifyState, today: string): WeekOneNext {
+  if (state.hasModel === false && state.looks > 0) return 'model';
+  if (state.readyPieces < PIECES_TO_BUILD) return 'five';
+  const ahead = state.plan.filter((p) => p.date >= today);
+  if (ahead.length === 0) return 'plan';
+  if (ahead.some((p) => p.date === today && !p.worn)) return 'wear';
+  return 'done';
+}
+
+// At most one sequence message per local day (email or push), first matching rule wins, inside
+// her 08:00–20:00; the morning cue and Wore it? are separate moments.
 export function decide(user: Recipient, state: NotifyState, now: Date): Planned[] {
   const local = localParts(now, user.timezone);
   const has = (kind: string, ref?: string) =>
@@ -104,11 +160,13 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
       (SEQUENCE_KINDS as readonly string[]).includes(r.kind) &&
       localParts(r.sentAt, user.timezone).date === local.date,
   );
+  const inWindow = local.hour >= SEND_WINDOW.from && local.hour < SEND_WINDOW.until;
   const out: Planned[] = [];
   const t = now.getTime();
+  const age = t - user.createdAt.getTime();
+  const idea = state.latestIdea;
 
-  if (!sentToday) {
-    const idea = state.latestIdea;
+  const sequence = (): Planned | null => {
     if (
       idea &&
       // The hero frame renders up front; the other two only when she asks (UX-09).
@@ -117,36 +175,111 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
       user.prefs.looksReady &&
       !has('looks_ready', idea.id)
     ) {
-      out.push({
+      return {
         kind: 'looks_ready',
         ref: idea.id,
         pref: 'looksReady',
         ideaId: idea.id,
         piece: idea.title,
-      });
-    } else if (
-      // Legacy look_waiting: a day in, a saved look, and no model to wear it — once, ever.
+      };
+    }
+    // Day 0: signed up four hours ago and filed nothing — transactional, like looks_ready.
+    if (
+      user.prefs.looksReady &&
+      state.started === false &&
+      age >= 4 * HOUR &&
+      !has('first_piece')
+    ) {
+      return { kind: 'first_piece', ref: 'first', pref: 'looksReady' };
+    }
+    // Day 1: she saw the three ways a day ago and kept nothing.
+    if (
       user.prefs.nudges &&
-      t - user.createdAt.getTime() >= DAY &&
+      idea &&
+      idea.readyFrames >= 1 &&
+      t - idea.createdAt.getTime() >= DAY &&
+      t - idea.createdAt.getTime() <= LOOKS_READY_WINDOW_MS &&
+      state.looks === 0 &&
+      !has('pick_one', idea.id)
+    ) {
+      return { kind: 'pick_one', ref: idea.id, pref: 'nudges', piece: idea.title };
+    }
+    // Legacy look_waiting: a day in, a saved look, and no model to wear it — once, ever.
+    if (
+      user.prefs.nudges &&
+      age >= DAY &&
       state.hasModel === false &&
       state.newestLook &&
       !has('look_waiting')
     ) {
-      out.push({
+      return {
         kind: 'look_waiting',
         ref: state.newestLook.id,
         pref: 'nudges',
         look: state.newestLook.name,
-      });
-    } else if (
+      };
+    }
+    // Day 2 (push): the model nudge.
+    if (
       user.prefs.nudges &&
-      state.readyPieces >= 5 &&
+      state.hasPush &&
+      age >= 2 * DAY &&
+      state.hasModel === false &&
+      state.newestLook &&
+      !has('model_nudge')
+    ) {
+      return {
+        kind: 'model_nudge',
+        ref: 'model',
+        pref: 'nudges',
+        channel: 'push',
+        look: state.newestLook.name,
+      };
+    }
+    if (
+      user.prefs.nudges &&
+      state.readyPieces >= PIECES_TO_BUILD &&
       state.fifthPieceAt &&
       t - state.fifthPieceAt.getTime() >= DAY &&
       !has('five')
     ) {
-      out.push({ kind: 'five', ref: 'five', pref: 'nudges' });
-    } else if (user.prefs.nudges && t - user.createdAt.getTime() >= 7 * DAY && state.looks > 0) {
+      return { kind: 'five', ref: 'five', pref: 'nudges' };
+    }
+    // Day 4 (push): the batch nudge while fewer than five are filed.
+    if (
+      user.prefs.nudges &&
+      state.hasPush &&
+      age >= 4 * DAY &&
+      state.readyPieces < PIECES_TO_BUILD &&
+      !has('batch_nudge')
+    ) {
+      return {
+        kind: 'batch_nudge',
+        ref: 'batch',
+        pref: 'nudges',
+        channel: 'push',
+        remaining: PIECES_TO_BUILD - state.readyPieces,
+      };
+    }
+    // Day 6: her week on paper, once.
+    if (user.prefs.nudges && age >= 6 * DAY && age < 14 * DAY && !has('week_one')) {
+      const dressed = state.plan.find((p) => p.date >= local.date);
+      return {
+        kind: 'week_one',
+        ref: 'week1',
+        pref: 'nudges',
+        counts: {
+          pieces: state.readyPieces,
+          looks: state.looks,
+          model: state.hasModel === true,
+          dressed: dressed ? weekdayOf(dressed.date) : null,
+        },
+        next: weekOneNext(state, local.date),
+        date: local.date,
+      };
+    }
+    // Day 5 on (plan_a_day): nothing planned this week.
+    if (user.prefs.nudges && age >= 5 * DAY && state.looks > 0) {
       const week = isoWeek(local.date);
       const weekEnd = addDays(local.date, 7);
       const ahead = state.plan.some((p) => p.date >= local.date && p.date <= weekEnd);
@@ -154,14 +287,20 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
         .filter((r) => r.kind === 'week_empty')
         .reduce((max, r) => Math.max(max, r.sentAt.getTime()), 0);
       if (!ahead && !has('week_empty', week) && t - last >= 14 * DAY) {
-        out.push({ kind: 'week_empty', ref: week, pref: 'nudges' });
+        return { kind: 'week_empty', ref: week, pref: 'nudges' };
       }
     }
+    return null;
+  };
+
+  if (!sentToday && inWindow) {
+    const next = sequence();
+    if (next) out.push(next);
   }
 
+  const today = state.plan.filter((p) => p.date === local.date);
+  const first = today.find((p) => p.slot === 'day') ?? today[0];
   if (user.prefs.morningCue && local.hour === MORNING_HOUR && !has('morning', local.date)) {
-    const today = state.plan.filter((p) => p.date === local.date);
-    const first = today.find((p) => p.slot === 'day') ?? today[0];
     const overnight = state.overnight?.find((o) => o.date === local.date);
     if (first) {
       out.push({
@@ -186,6 +325,24 @@ export function decide(user: Recipient, state: NotifyState, now: Date): Planned[
         dailyLookId: overnight.id,
       });
     }
+  }
+  // 19:00 on a dressed day not yet worn (push only).
+  if (
+    user.prefs.morningCue &&
+    state.hasPush &&
+    local.hour === WORE_IT_HOUR &&
+    first &&
+    !today.some((p) => p.worn) &&
+    !has('wore_it', local.date)
+  ) {
+    out.push({
+      kind: 'wore_it',
+      ref: local.date,
+      pref: 'morningCue',
+      channel: 'push',
+      date: local.date,
+      weekday: local.weekday,
+    });
   }
   return out;
 }

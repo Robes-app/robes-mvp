@@ -32,14 +32,22 @@ async function withIdea(user: UserId): Promise<string> {
   });
 }
 
-const tick = (mailer = createMemoryMailer()) =>
-  notifyTick({
-    notifier: system.notifier,
-    mailer,
-    appUrl: 'https://app.test',
-    unsubSecret: SECRET,
-    logger,
-  }).then((out) => ({ out, mailer }));
+// Late morning in Dublin today: inside the sequence's 08:00–20:00 whenever the suite runs.
+const real = new Date();
+const NOW = new Date(Date.UTC(real.getUTCFullYear(), real.getUTCMonth(), real.getUTCDate(), 11));
+
+const tick = (mailer = createMemoryMailer(), extra: { replyTo?: string } = {}) =>
+  notifyTick(
+    {
+      notifier: system.notifier,
+      mailer,
+      appUrl: 'https://app.test',
+      unsubSecret: SECRET,
+      logger,
+      ...extra,
+    },
+    NOW,
+  ).then((out) => ({ out, mailer }));
 
 const to = (sent: Email[], email: string) => sent.filter((m) => m.to === email);
 
@@ -91,19 +99,22 @@ describe('notify tick (legacy notify.js sequence)', () => {
         if (m.to === `${other}@test.dev`) throw new Error('smtp down');
       }),
     };
-    await notifyTick({
-      notifier: system.notifier,
-      mailer: failing,
-      appUrl: 'https://app.test',
-      unsubSecret: SECRET,
-      logger,
-    });
+    await notifyTick(
+      {
+        notifier: system.notifier,
+        mailer: failing,
+        appUrl: 'https://app.test',
+        unsubSecret: SECRET,
+        logger,
+      },
+      NOW,
+    );
     const { mailer } = await tick();
     expect(to(mailer.sent, `${other}@test.dev`)).toHaveLength(1);
     await deleteTestUsers(db, other);
   });
 
-  it('also pushes looks_ready to her devices, once, and drops dead devices', async () => {
+  it('pushes looks_ready to her devices instead of mailing it, once, and drops dead devices', async () => {
     const dan = await createTestUser(db, 'Dan Notify');
     await repos.profiles.completeOnboarding(dan);
     const live = `ExponentPushToken[${crypto.randomUUID()}]`;
@@ -119,16 +130,22 @@ describe('notify tick (legacy notify.js sequence)', () => {
         return { deadTokens: [dead] };
       },
     };
+    const mailer = createMemoryMailer();
     const run = () =>
-      notifyTick({
-        notifier: system.notifier,
-        mailer: createMemoryMailer(),
-        appUrl: 'https://app.test',
-        unsubSecret: SECRET,
-        logger,
-        push: { sender, tokens: system.pushDelivery },
-      });
+      notifyTick(
+        {
+          notifier: system.notifier,
+          mailer,
+          appUrl: 'https://app.test',
+          unsubSecret: SECRET,
+          logger,
+          push: { sender, tokens: system.pushDelivery },
+        },
+        NOW,
+      );
     await run();
+    // A kind that moved to push stops sending as email once she has push on (7-day brief).
+    expect(to(mailer.sent, `${dan}@test.dev`)).toEqual([]);
     const mine = memory.sent.filter((m) => m.to === live || m.to === dead);
     expect(mine.map((m) => m.to).sort()).toEqual([live, dead].sort());
     expect(mine[0]).toMatchObject({
@@ -141,5 +158,49 @@ describe('notify tick (legacy notify.js sequence)', () => {
     await run();
     expect(memory.sent.slice(before).filter((m) => m.to === live)).toEqual([]);
     await deleteTestUsers(db, dan);
+  });
+
+  it('first_piece: four hours in with nothing filed, once, replies reaching Annie', async () => {
+    const eve = await createTestUser(db, 'Eve Notify');
+    await repos.profiles.completeOnboarding(eve);
+    const joined = new Date(NOW.getTime() - 5 * 3_600_000);
+    await db.updateTable('users').set({ createdAt: joined }).where('id', '=', eve).execute();
+    const { mailer } = await tick(undefined, { replyTo: 'annie@byrobes.com' });
+    const [mail] = to(mailer.sent, `${eve}@test.dev`);
+    expect(mail?.subject).toBe('One piece is enough.');
+    expect(mail?.text).toContain('https://app.test/wardrobe/add?from=email');
+    expect(mail?.replyTo).toBe('annie@byrobes.com');
+    expect(mail?.text).toContain('Reply to this email — it reaches Annie');
+    expect(to((await tick()).mailer.sent, `${eve}@test.dev`)).toEqual([]);
+    // A piece filed means nothing to ask for.
+    const fay = await createTestUser(db, 'Fay Notify');
+    await repos.profiles.completeOnboarding(fay);
+    await db.updateTable('users').set({ createdAt: joined }).where('id', '=', fay).execute();
+    await repos.wardrobe.create(fay, { label: 'Camel coat' });
+    expect(to((await tick()).mailer.sent, `${fay}@test.dev`)).toEqual([]);
+    await deleteTestUsers(db, eve, fay);
+  });
+
+  it('week_one on day six: her week on paper, by the first tier she has not reached', async () => {
+    const gil = await createTestUser(db, 'Gil Notify');
+    await repos.profiles.completeOnboarding(gil);
+    await repos.profiles.mergeNotificationPrefs(gil, { nudges: true });
+    const joined = new Date(NOW.getTime() - (6 * 24 + 1) * 3_600_000);
+    await db.updateTable('users').set({ createdAt: joined }).where('id', '=', gil).execute();
+    for (const label of ['Camel coat', 'Cream knit']) await repos.wardrobe.create(gil, { label });
+    // week_empty went on day five.
+    await system.notifier.claim(gil, 'week_empty', 'w');
+    await db
+      .updateTable('notifications')
+      .set({ sentAt: new Date(NOW.getTime() - 26 * 3_600_000) })
+      .where('userId', '=', gil)
+      .execute();
+    const { mailer } = await tick();
+    const [mail] = to(mailer.sent, `${gil}@test.dev`);
+    expect(mail?.subject).toBe('Your week, on paper.');
+    expect(mail?.text).toContain('Two pieces filed. No looks kept.');
+    expect(mail?.text).toContain('Three more pieces and Robes builds from yours alone.');
+    expect(mail?.text).toContain('https://app.test/wardrobe/add?from=email');
+    await deleteTestUsers(db, gil);
   });
 });

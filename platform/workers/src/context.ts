@@ -222,6 +222,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
         mailer: workerMailer(env),
         appUrl: env.APP_URL,
         unsubSecret,
+        replyTo: env.NOTIFY_REPLY_TO,
         logger,
         tripsOn: () => createRepositories(db).flags.isEnabled('trips'),
         push: {

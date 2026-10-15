@@ -380,6 +380,8 @@ export const workerEnv = z
     // notifyFn: links, sender, and the unsubscribe signing key (ARN in AWS, plain in dev).
     APP_URL: z.url().optional(),
     MAIL_FROM: z.string().min(3).default('Robes <hello@byrobes.com>'),
+    // Replies to the sequence mails (7-day brief delta 1); unset, replies go to MAIL_FROM.
+    NOTIFY_REPLY_TO: z.email().optional(),
     SES_CONFIGURATION_SET: optionalSecret,
     SMTP_URL: z.url().optional(),
     UNSUB_HMAC_KEY: z.string().min(32).optional(),

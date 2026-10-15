@@ -12,6 +12,8 @@ import { lookbook as copy, errors, ui } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { api as appApi } from '@/lib/api';
+import { askForPushOnce } from '@/lib/push';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
 
 const LIMIT = 60;
@@ -86,6 +88,8 @@ export function useSaveLook(onSaved?: (look: Look) => void) {
     onSuccess: (look) => {
       refresh(look);
       onSaved?.(look);
+      // Push is asked for after her first saved look, never on launch (7-day brief).
+      void askForPushOnce(appApi).catch(() => undefined);
     },
     onError: () => toast.show({ message: errors.internal }),
   });

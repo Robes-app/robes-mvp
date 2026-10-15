@@ -8,6 +8,8 @@ export interface Email {
   html?: string;
   // e.g. List-Unsubscribe / List-Unsubscribe-Post (RFC 8058).
   headers?: Record<string, string>;
+  // Where a reply goes when it isn't the sender (the 7-day brief: replies reach Annie).
+  replyTo?: string;
 }
 
 export interface Mailer {
@@ -67,6 +69,7 @@ export function createSesMailer(
           new SendEmailCommand({
             FromEmailAddress: config.from,
             Destination: { ToAddresses: [email.to] },
+            ...(email.replyTo ? { ReplyToAddresses: [email.replyTo] } : {}),
             ConfigurationSetName: config.configurationSet,
             Content: {
               Simple: {

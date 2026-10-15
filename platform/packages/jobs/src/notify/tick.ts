@@ -13,6 +13,8 @@ export interface NotifyDeps {
   // Public app origin for links, e.g. https://app.byrobes.com.
   appUrl: string;
   unsubSecret: string;
+  // Where replies go (7-day brief delta 1: annie@byrobes.com); every mail then says so.
+  replyTo?: string | undefined;
   logger: JobLogger;
   pageSize?: number;
   // Optional second channel: Expo push to her active devices (PUSH_KINDS only).
@@ -21,10 +23,38 @@ export interface NotifyDeps {
   tripsOn?: (() => Promise<boolean>) | undefined;
 }
 
+type EmailKind = Exclude<Planned, { channel: 'push' }>;
+
+function weekOneContent(mail: Extract<Planned, { kind: 'week_one' }>, link: (p: string) => string) {
+  const c = copy.weekOne;
+  const facts = [
+    c.pieces(mail.counts.pieces),
+    c.looks(mail.counts.looks),
+    ...(mail.counts.model ? [c.model] : []),
+    ...(mail.counts.dressed ? [c.dressed(mail.counts.dressed)] : []),
+  ].join(' ');
+  const next = {
+    model: { line: c.next.model.line, cta: c.next.model.cta, path: '/you/model' },
+    five: {
+      line: c.next.five.line(Math.max(1, 5 - mail.counts.pieces)),
+      cta: c.next.five.cta,
+      path: '/wardrobe/add',
+    },
+    plan: { line: c.next.plan.line, cta: c.next.plan.cta, path: '/plan' },
+    wear: { line: c.next.wear.line, cta: c.next.wear.cta, path: `/plan/${mail.date}` },
+    done: { line: c.next.done.line, cta: c.next.done.cta, path: '/' },
+  }[mail.next];
+  return {
+    subject: c.subject,
+    body: `${facts}\n\n${next.line}`,
+    cta: { label: next.cta, url: link(next.path) },
+  };
+}
+
 export function composeEmail(
-  deps: Pick<NotifyDeps, 'appUrl' | 'unsubSecret'>,
+  deps: Pick<NotifyDeps, 'appUrl' | 'unsubSecret' | 'replyTo'>,
   user: Pick<Recipient, 'id' | 'email'>,
-  mail: Planned,
+  mail: EmailKind,
 ): Email {
   const link = (path: string) => new URL(`${path}?from=email`, deps.appUrl).toString();
   const token = signUnsub(deps.unsubSecret, user.id, mail.pref);
@@ -56,7 +86,22 @@ export function composeEmail(
           subject: copy.weekEmpty.subject,
           body: copy.weekEmpty.body,
           cta: { label: copy.weekEmpty.cta, url: link('/plan') },
+          footer: copy.weekEmpty.footer,
         };
+      case 'first_piece':
+        return {
+          subject: copy.firstPiece.subject,
+          body: copy.firstPiece.body,
+          cta: { label: copy.firstPiece.cta, url: link('/wardrobe/add') },
+        };
+      case 'pick_one':
+        return {
+          subject: copy.pickOne.subject,
+          body: copy.pickOne.body(mail.piece.charAt(0).toUpperCase() + mail.piece.slice(1)),
+          cta: { label: copy.pickOne.cta, url: link('/looks?tab=suggested') },
+        };
+      case 'week_one':
+        return weekOneContent(mail, link);
       case 'morning':
         return {
           subject: copy.morning.subject(mail.weekday, mail.title),
@@ -71,11 +116,14 @@ export function composeEmail(
         };
     }
   })();
+  const footer: string[] = [];
+  if ('footer' in content && content.footer) footer.push(content.footer);
+  if (deps.replyTo) footer.push(copy.replyLine);
   const { html, text } = renderEmail({
     heading: content.subject,
     body: content.body,
     cta: content.cta,
-    ...('footer' in content ? { footer: content.footer } : {}),
+    ...(footer.length ? { footer: footer.join('\n\n') } : {}),
     notice: copy.notice,
     unsubUrl: unsubPage,
     unsubLabel: copy.unsubLabel,
@@ -87,6 +135,7 @@ export function composeEmail(
     subject: content.subject,
     html,
     text,
+    ...(deps.replyTo ? { replyTo: deps.replyTo } : {}),
     // RFC 8058 one-click: mail clients POST here without opening a page.
     headers: {
       'List-Unsubscribe': `<${oneClick.toString()}>`,
@@ -152,6 +201,7 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
       raw.looks.map((l) => [l.userId, { id: l.newestId, name: l.newestName }]),
     );
     const withModel = new Set(raw.models.map((m) => m.userId));
+    const started = new Set(raw.started.map((r) => r.userId));
     const plan = groupBy(raw.plan);
     const overnightByUser = groupBy(raw.overnight);
     const devicesByUser = groupBy(
@@ -185,9 +235,20 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
         newestLook: newest.get(row.id) ?? null,
         plan: plan.get(row.id) ?? [],
         overnight: overnightByUser.get(row.id) ?? [],
+        started: started.has(row.id),
+        hasPush: (devicesByUser.get(row.id) ?? []).length > 0,
       };
+      const devices = devicesByUser.get(user.id) ?? [];
       for (const mail of decide(user, state, now)) {
-        if (await deps.notifier.claim(user.id, mail.kind, mail.ref)) {
+        if ('channel' in mail) {
+          if (deps.push && devices.length > 0) {
+            out.pushed += await sendPush(deps, deps.push, user.id, mail, devices);
+          }
+          continue;
+        }
+        // A kind that moved to push stops sending as email once she has push on.
+        const pushOnly = deps.push !== undefined && PUSH_KINDS.has(mail.kind) && devices.length > 0;
+        if (!pushOnly && (await deps.notifier.claim(user.id, mail.kind, mail.ref))) {
           try {
             await deps.mailer.send(composeEmail(deps, user, mail));
             out.sent++;
@@ -200,8 +261,7 @@ export async function notifyTick(deps: NotifyDeps, now = new Date()) {
             );
           }
         }
-        const devices = devicesByUser.get(user.id) ?? [];
-        if (deps.push && PUSH_KINDS.has(mail.kind) && devices.length > 0) {
+        if (pushOnly && deps.push) {
           out.pushed += await sendPush(deps, deps.push, user.id, mail, devices);
         }
       }

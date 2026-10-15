@@ -3,6 +3,7 @@ import type { Planned } from './rules';
 
 // Push rides alongside email for the kinds worth a buzz; email and push dedupe independently
 // (ledger channel 'push'). Rules stay in rules.ts.
+// A kind that moves to push stops sending as email for anyone with push on (7-day brief).
 export const PUSH_KINDS = new Set<Planned['kind']>(['looks_ready', 'morning']);
 
 export interface PushMessage {
@@ -35,6 +36,24 @@ export function composePush(mail: Planned): Omit<PushMessage, 'to'> {
         data: {
           url: mail.dailyLookId ? `robes://today/looks/${mail.dailyLookId}` : 'robes://plan',
         },
+      };
+    case 'model_nudge':
+      return {
+        title: copy.push.modelNudge.title,
+        body: copy.push.modelNudge.body(mail.look),
+        data: { url: 'robes://you/model' },
+      };
+    case 'batch_nudge':
+      return {
+        title: copy.push.batchNudge.title(mail.remaining),
+        body: copy.push.batchNudge.body,
+        data: { url: 'robes://wardrobe' },
+      };
+    case 'wore_it':
+      return {
+        title: copy.push.woreIt.title,
+        body: copy.push.woreIt.body(mail.weekday),
+        data: { url: `robes://day/${mail.date}` },
       };
     default:
       return { title: '', body: '', data: { url: 'robes://' } };
