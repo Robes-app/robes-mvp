@@ -899,40 +899,64 @@ const browser = await chromium.launch(
 
   const swap = await page.evaluate(() => {
     window.__lkDSwap(3);   // the tote
-    const modal = document.getElementById('lkd-swap-modal');
+    const m = document.getElementById('cb-wa-pick');
     return {
-      open: !!modal && !!modal.querySelector('.rb-sd'),
-      title: modal?.querySelector('.rb-sd-t')?.textContent,
-      candidate: /Raffia basket bag/.test(modal?.textContent || ''),
-      chipOn: modal?.querySelector('.rb-sd-chip.on')?.textContent.trim(),
-      snapFirst: modal?.querySelector('.rb-sd-row .rb-sd-tile')?.classList.contains('snap'),
-      cur: modal?.querySelector('.rb-sd-tile.cur .nm')?.textContent,
-      go: modal?.querySelector('.rb-sd-go')?.disabled,
-      dimmed: !!document.querySelector('#lkd-swap-modal.rb-swap-wrap'),
+      open: !!m && m.classList.contains('swap'), old: !!document.getElementById('lkd-swap-modal'),
+      ey: m?.querySelector('.cb-pick-ey')?.textContent,
+      title: m?.querySelector('.cb-pick-title')?.textContent,
+      thumb: !!m?.querySelector('.cb-pick-sw .th'),
+      close: m?.querySelector('.cb-pick-close')?.textContent,
+      chipOn: m?.querySelector('.cb-pick-cat.on')?.textContent.trim(),
+      chips: Array.from(m?.querySelectorAll('.cb-pick-cat') || []).map((c) => c.textContent.replace(/\s+/g, ' ').trim()),
+      candidate: /Raffia basket bag/.test(m?.textContent || ''),
+      photoFirst: m?.querySelector('.cb-pick-grid > .cb-pick-tile')?.classList.contains('cb-pick-photo'),
+      photoCap: m?.querySelector('.cb-pick-photo .nm')?.textContent,
+      cur: m?.querySelector('.cb-pick-tile.cur .nm')?.textContent,
+      inl: m?.querySelector('.cb-pick-tile.cur .inl')?.textContent,
+      search: !!m?.querySelector('#cb-pick-q'),
     };
   });
-  // Handoff 4b: ↻ opens the DRAWER — her wardrobe only, the taxonomy
-  // chips open on the piece's own category, Snap the first tile, the
-  // current piece ticked, the look undimmed behind it.
-  check('swap · ↻ opens the drawer, titled for the piece, undimmed', swap.open === true && /^Swap the woven straw tote/.test(swap.title || '') && swap.dimmed === false, JSON.stringify(swap));
-  check('swap · her wardrobe by category — the Bags chip on, Snap first, the tote ticked, the commit withheld',
-    swap.candidate === true && /Bags/.test(swap.chipOn || '') && swap.snapFirst === true && swap.cur === 'Woven straw tote' && swap.go === true, JSON.stringify(swap));
-  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-swap-drawer-1280.png' }).catch(() => {});
-  // A tap PREVIEWS on the draft; Close puts the original back.
-  const previewed = await page.evaluate(async () => {
-    window.__rbSdPick('w-bag2');
-    await new Promise((r) => setTimeout(r, 100));
-    const names = () => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((x) => x.textContent);
-    const during = names();
-    const go = document.querySelector('#lkd-swap-modal .rb-sd-go');
-    const goTxt = go?.textContent, goOn = go && !go.disabled;
-    window.__rbSdClose();
-    await new Promise((r) => setTimeout(r, 100));
-    return { during, goTxt, goOn, after: names(), gone: !document.getElementById('lkd-swap-modal') };
+  // 4a: ↻ opens the look's wardrobe sheet in swap mode — never the legacy
+  // drawer — on the piece's own category, counts on the chips, the piece
+  // she has on marked In the look, Photograph one first.
+  check('swap · ↻ opens the wardrobe sheet in swap mode: "Swap from your wardrobe", the thumb, "Swap the woven straw tote", Close',
+    swap.open && !swap.old && swap.ey === 'Swap from your wardrobe' && swap.thumb && /^Swap the woven straw tote/.test(swap.title || '') && swap.close === 'Close', JSON.stringify(swap));
+  check('swap · on the piece\'s category with counts (✓ Bags 2, All first), the tote "✓ In the look", Photograph one first — "Swaps straight in", the search',
+    /^✓ Bags 2$/.test(swap.chipOn || '') && /^All \d+$/.test(swap.chips[0] || '') && swap.candidate && swap.cur === 'Woven straw tote' && /In the look/.test(swap.inl || '')
+      && swap.photoFirst && swap.photoCap === 'Swaps straight in' && swap.search, JSON.stringify(swap));
+  if (process.env.SHOT_DIR) await page.screenshot({ path: process.env.SHOT_DIR + '/look-swap-sheet-1280.png' }).catch(() => {});
+  if (process.env.SHOT_DIR) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: process.env.SHOT_DIR + '/look-swap-sheet-390.png' }).catch(() => {});
+    await page.evaluate(() => window.__cbPickCat('All'));
+    await page.screenshot({ path: process.env.SHOT_DIR + '/look-swap-all-390.png' }).catch(() => {});
+    await page.evaluate(() => window.__cbPickCat('Bags'));
+    await page.setViewportSize({ width: 1280, height: 1200 });
+  }
+  // The All view (3b): closest first, then a row per category.
+  const allView = await page.evaluate(() => {
+    window.__cbPickCat('All');
+    return Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-grp')).map((g) => g.textContent);
   });
-  check('swap · a tap previews the pick on the rack and arms "Swap in …"; Close puts the original back',
-    previewed.during.includes('Raffia basket bag') && previewed.goOn === true && /^Swap in the raffia basket bag$/i.test(previewed.goTxt || '')
-      && previewed.after.includes('Woven straw tote') && !previewed.after.includes('Raffia basket bag') && previewed.gone, JSON.stringify(previewed));
+  check('swap · All is closest first (Bags), then a row per category', /^Closest · Bags$/.test(allView[0] || '') && allView.length >= 3, JSON.stringify(allView));
+  // One tap swaps, with Undo.
+  const previewed = await page.evaluate(async () => {
+    const names = () => Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((x) => x.textContent);
+    Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-tile')).find((t) => t.querySelector('.nm')?.textContent === 'Raffia basket bag').click();
+    await new Promise((r) => setTimeout(r, 100));
+    const during = names();
+    const undo = document.getElementById('rb-pick-undo');
+    const undoTxt = undo?.textContent;
+    const gone = !document.getElementById('cb-wa-pick');
+    const editing = !!document.querySelector('.rb-lk-editpin');
+    undo?.querySelector('button').click();
+    await new Promise((r) => setTimeout(r, 100));
+    return { during, undoTxt, gone, editing, after: names(), undoGone: !document.getElementById('rb-pick-undo') };
+  });
+  check('swap · one tap swaps the piece in (the editor stands) behind an Undo pill; Undo puts the tote back',
+    previewed.during.includes('Raffia basket bag') && !previewed.during.includes('Woven straw tote') && previewed.gone && previewed.editing && /swapped in.*Undo/i.test(previewed.undoTxt || '')
+      && previewed.after.includes('Woven straw tote') && !previewed.after.includes('Raffia basket bag') && previewed.undoGone, JSON.stringify(previewed));
 
   // Edits land LIVE on the view (Annie's beta pass 2026-08-17) — the swap
   // shows immediately on the mosaic and the rack, the saved look is
@@ -1274,13 +1298,36 @@ const browser = await chromium.launch(
     document.getElementById('rb-lk-onebyone').click();
     const m = document.getElementById('cb-wa-pick');
     const chips = Array.from(m?.querySelectorAll('.cb-pick-cat') || []).map((c) => c.textContent.trim());
-    const r = { open: !!m, title: m?.querySelector('.cb-pick-title')?.textContent, chips, on: m?.querySelector('.cb-pick-cat.on')?.textContent };
+    const first = m?.querySelector('.cb-pick-grid > .cb-pick-tile');
+    const r = { open: !!m, title: m?.querySelector('.cb-pick-title')?.textContent, chips, on: m?.querySelector('.cb-pick-cat.on')?.textContent,
+      search: !!m?.querySelector('#cb-pick-q'), searchAbove: !!m?.querySelector('.cb-pick-q + .cb-pick-cats'),
+      photoFirst: !!first && first.classList.contains('cb-pick-photo'), photoL: first?.querySelector('.im .l')?.textContent, photoCap: first?.querySelector('.nm')?.textContent };
+    // All shows every filed piece in one grid.
+    window.__cbPickCat('All');
+    r.allN = m.querySelectorAll('.cb-pick-tile:not(.cb-pick-photo)').length;
+    r.allOn = m.querySelector('.cb-pick-cat.on')?.textContent;
+    // Search looks across the whole wardrobe and deselects the chips.
+    const q = document.getElementById('cb-pick-q');
+    q.value = 'jeans'; q.dispatchEvent(new Event('input', { bubbles: true }));
+    r.qNames = Array.from(m.querySelectorAll('.cb-pick-tile:not(.cb-pick-photo) .nm')).map((n) => n.textContent);
+    r.qOn = m.querySelectorAll('.cb-pick-cat.on').length;
+    r.qFocus = document.getElementById('cb-pick-q') === q;
+    // A chip clears the search.
+    window.__cbPickCat('Bottoms');
+    r.chipQ = document.getElementById('cb-pick-q')?.value;
+    q.value = 'zzzz'; q.dispatchEvent(new Event('input', { bubbles: true }));
+    r.none = m.querySelector('.cb-pick-empty')?.textContent;
     window.__cbPickClose && window.__cbPickClose();
     return r;
   });
-  check('composer · Add pieces opens the wardrobe sheet: Tops / Bottoms / Shoes and every filed category, no All, on Tops',
-    one1.open && one1.title === 'Add a piece' && one1.chips[0] === 'Tops' && one1.chips.includes('Bottoms') && one1.chips.includes('Shoes')
-      && one1.chips.includes('Bags') && one1.chips.includes('Dresses & jumpsuits') && !one1.chips.includes('All') && one1.on === 'Tops', JSON.stringify(one1));
+  check('composer · Add pieces opens the wardrobe sheet: All, then Tops / Bottoms / Shoes and every filed category, on Tops',
+    one1.open && one1.title === 'Add a piece' && one1.chips[0] === 'All' && one1.chips[1] === 'Tops' && one1.chips.includes('Bottoms') && one1.chips.includes('Shoes')
+      && one1.chips.includes('Bags') && one1.chips.includes('Dresses & jumpsuits') && one1.on === 'Tops', JSON.stringify(one1));
+  check('picker · the search sits above the chips; Photograph one is the grid\'s first tile, "Files straight in" under it',
+    one1.search && one1.searchAbove && one1.photoFirst && /Photograph one/i.test(one1.photoL || '') && one1.photoCap === 'Files straight in', JSON.stringify(one1));
+  check('picker · All shows every filed piece; search looks across the wardrobe and deselects the chips; a chip clears the search',
+    one1.allN >= 6 && one1.allOn === 'All' && one1.qNames.length === 1 && one1.qNames[0] === 'Barrel-leg jeans' && one1.qOn === 0 && one1.qFocus
+      && one1.chipQ === '' && /Nothing in your wardrobe matches/.test(one1.none || ''), JSON.stringify(one1));
   // A hotspot opens the sheet on ITS category; a pick lands on the look and
   // the slot turns warm with a ✓; tapping it again swaps the piece.
   const hot = await page.evaluate(() => {
@@ -1324,11 +1371,33 @@ const browser = await chromium.launch(
     hot.after.addSheet.sheet && !hot.after.addSheet.old && hot.after.addSheet.ey === 'From your wardrobe' && hot.after.addSheet.title === 'Add a piece', JSON.stringify(hot.after.addSheet));
   check('composer · a filled slot swaps: the sheet hides what is on the look, the pick takes its place',
     !hot.names2.includes('Linen shorts') && JSON.stringify(hot.swapped) === JSON.stringify(['Barrel-leg jeans']), JSON.stringify([hot.names2, hot.swapped]));
+  const routed = await page.evaluate(() => {
+    document.querySelector('.rb-lkm-hot[data-hot="bottom"]').click();
+    window.__cbPickCat('All');
+    const m = document.getElementById('cb-wa-pick');
+    Array.from(m.querySelectorAll('.cb-pick-tile')).find((t) => t.querySelector('.nm')?.textContent === 'Cream silk shirt').click();
+    return { rows: Array.from(document.querySelectorAll('.rb-lk-con .rbc-rack .rbc-name')).map((n) => n.textContent).sort(),
+      topOn: document.querySelector('.rb-lkm-hot[data-hot="top"]')?.classList.contains('on'), botOn: document.querySelector('.rb-lkm-hot[data-hot="bottom"]')?.classList.contains('on') };
+  });
+  if (process.env.SHOT_DIR) {
+    await page.evaluate(() => document.querySelector('.rb-lkm-hot[data-hot="top"]').click());
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: process.env.SHOT_DIR + '/pick-add-1280.png' }).catch(() => {});
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: process.env.SHOT_DIR + '/pick-add-390.png' }).catch(() => {});
+    await page.evaluate(() => { const q = document.getElementById('cb-pick-q'); q.value = 'linen'; q.dispatchEvent(new Event('input', { bubbles: true })); });
+    await page.screenshot({ path: process.env.SHOT_DIR + '/pick-search-390.png' }).catch(() => {});
+    await page.evaluate(() => window.__cbPickClose());
+    await page.setViewportSize({ width: 1280, height: 1200 });
+  }
+  check('picker · a top picked from All on + Bottom lands in its own slot (Top), the bottom stays',
+    JSON.stringify(routed.rows) === JSON.stringify(['Barrel-leg jeans', 'Cream silk shirt']) && routed.topOn && routed.botOn, JSON.stringify(routed));
   const cols1 = await page.evaluate(() => getComputedStyle(document.querySelector('.rb-lk-con')).gridTemplateColumns);
   check('composer · with a piece on, the standing console scale: 480px look column',
     /^480px/.test(cols1) && c0.lookv2, cols1 + ' lookv2=' + c0.lookv2);
   // Back to the empty draft for the sections below.
-  await page.evaluate(() => window.__lkCRemove(0));
+  await page.evaluate(() => { window.__lkCRemove(0); window.__lkCRemove(0); });
   await page.waitForTimeout(200);
   check('composer · the whole composer sits in ONE card, the name leading it from outside',
     c0.card === true && c0.titleOutside === true, JSON.stringify([c0.card, c0.titleOutside]));
@@ -1345,8 +1414,8 @@ const browser = await chromium.launch(
   // No second header above the strips — the formula strips name themselves
   // and the masthead names the look (FTUE pass 2026-08-12).
   check('composer · no rack header above the formula strips', c0.rackEyebrow === undefined, c0.rackEyebrow);
-  check('composer · the name field is a placeholder, "Name your Look"',
-    c0.titleValue === '' && c0.titlePlaceholder === 'Name your Look',
+  check('composer · the name field is a placeholder, "Untitled Look"',
+    c0.titleValue === '' && c0.titlePlaceholder === 'Untitled Look',
     JSON.stringify([c0.titleValue, c0.titlePlaceholder]));
   check('composer · no "Named by you" subtext', c0.namedByYou === false);
   // The canvas keeps the standing 4:5 frame (the model's stage), never a
@@ -1495,29 +1564,31 @@ const browser = await chromium.launch(
   // Swap opens the SAME modal the consoles use
   const swap = await page.evaluate(() => {
     window.__lkCSwap(0);
-    const modal = document.getElementById('lk-swap-modal');
+    const m = document.getElementById('cb-wa-pick');
     return {
-      open: !!modal && !!modal.querySelector('.rb-sd'),
-      head: modal?.querySelector('.rb-sd-t')?.textContent,
-      wardrobe: /From your wardrobe/.test(modal?.textContent || ''),
-      snap: /^Snap /.test(modal?.querySelector('.rb-sd-tile.snap .nm')?.textContent || ''),
-      chipOn: modal?.querySelector('.rb-sd-chip.on')?.textContent.trim(),
+      open: !!m && m.classList.contains('swap'), old: !!document.getElementById('lk-swap-modal'),
+      head: m?.querySelector('.cb-pick-title')?.textContent,
+      ey: m?.querySelector('.cb-pick-ey')?.textContent,
+      photo: m?.querySelector('.cb-pick-photo .nm')?.textContent,
+      chipOn: m?.querySelector('.cb-pick-cat.on')?.textContent.trim(),
     };
   });
-  check('composer · ↻ opens the swap drawer', swap.open === true && /^Swap the cream silk shirt/.test(swap.head || ''), JSON.stringify(swap));
-  check('composer · the drawer offers her wardrobe on the piece\'s category, Snap the first tile',
-    swap.wardrobe === true && swap.snap === true && /Tops/.test(swap.chipOn || ''), JSON.stringify(swap));
+  check('composer · ↻ opens the wardrobe sheet in swap mode, not the legacy drawer', swap.open === true && !swap.old && /^Swap the cream silk shirt/.test(swap.head || ''), JSON.stringify(swap));
+  check('composer · the sheet offers her wardrobe on the piece\'s category, Photograph one first',
+    swap.ey === 'Swap from your wardrobe' && swap.photo === 'Swaps straight in' && /Tops/.test(swap.chipOn || ''), JSON.stringify(swap));
   const swapped = await page.evaluate(async () => {
-    window.__rbSdPick('w-top2');
+    Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-tile')).find((t) => t.dataset.id === 'w-top2').click();
     await new Promise((r) => setTimeout(r, 60));
-    window.__rbSdGo();
-    return {
-      modalGone: !document.getElementById('lk-swap-modal'),
+    const r = {
+      modalGone: !document.getElementById('cb-wa-pick'),
+      undo: !!document.getElementById('rb-pick-undo'),
       name: document.querySelector('.rbc-row:not(.rb-lk-rempty) .rbc-name')?.textContent,
     };
+    document.getElementById('rb-pick-undo')?.remove();
+    return r;
   });
-  check('composer · "Swap in …" commits the pick and closes the drawer',
-    swapped.modalGone && swapped.name === 'Ribbed white tank', JSON.stringify(swapped));
+  check('composer · one tap swaps the pick in and closes the sheet, Undo offered',
+    swapped.modalGone && swapped.undo && swapped.name === 'Ribbed white tank', JSON.stringify(swapped));
 
   // Swipe (programmatically, the row's remove) takes the piece out; the
   // slot returns to the chooser's Still-open list (no placeholder rows)
@@ -2218,7 +2289,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     seg: !!document.getElementById('sn-viewseg'),
   }));
   check('empty · ONE DOOR — the empty Lookbook IS the composer, no ways-to-fill shelf',
-    cold.composer === true && cold.title === 'Name your first look'
+    cold.composer === true && cold.title === 'Untitled Look'
       && cold.waysShown === false && cold.waysCards === 0, JSON.stringify(cold));
   check('empty · nothing competes with it — no travel strip (gone for good), All-looks header, sort or refine',
     cold.barHidden && cold.holGone && cold.allHeadHidden && cold.sort === false,
@@ -4022,7 +4093,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   // A piece dresses the generic model.
   await page.evaluate(() => {
     document.querySelector('.rb-lkm-hot[data-hot="top"]').click();
-    document.querySelector('#cb-wa-pick .cb-pick-tile').click();
+    document.querySelector('#cb-wa-pick .cb-pick-tile:not(.cb-pick-photo)').click();
   });
   await page.waitForTimeout(2600);
   const g1 = await page.evaluate(() => ({ img: document.querySelector('.rb-lk-con .rb-lkm-img')?.getAttribute('src'), badge: !!document.querySelector('.rb-lkm-badge'), topOn: document.querySelector('.rb-lkm-hot[data-hot="top"]')?.classList.contains('on') }));
