@@ -15,7 +15,7 @@ export default async function NewLookPage({
   return (
     <div className="flex flex-col gap-4">
       <BackLink href="/looks" label={looks.title} />
-      <PageHeader eyebrow={lookbook.eyebrow.draft} title={lookbook.guide.title} />
+      <PageHeader eyebrow={lookbook.eyebrow.draft} title={lookbook.newLook} />
       <Composer {...(pieceId ? { pieceId } : {})} />
     </div>
   );

@@ -104,7 +104,7 @@ export function LookPromptBox({
         </View>
       ) : null}
       <View
-        className={`flex-row items-end gap-2 rounded-soft border px-3 py-2 ${drafted ? 'border-border-control bg-surface-sunk' : 'border-hairline bg-surface'}`}
+        className={`flex-row items-end gap-2 rounded-soft border px-3 py-2 ${drafted ? 'border-border-control bg-bg' : 'border-hairline bg-surface'}`}
       >
         <Pressable
           accessibilityRole="button"

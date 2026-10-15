@@ -70,7 +70,6 @@ export function Composer({ pieceId }: { pieceId?: string }) {
         placeholder={copy.name.placeholder}
         value={name}
         maxLength={120}
-        hint={copy.name.unnamed}
         onChange={(e) => setName(e.target.value)}
       />
       <div className="flex flex-col gap-1 rounded-soft border border-dashed border-border-control p-5">

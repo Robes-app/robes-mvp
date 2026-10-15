@@ -22,12 +22,16 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     .getByRole('link', { name: 'New look' })
     .click();
   await expect(page).toHaveURL(/\/looks\/new$/);
-  const save = page.getByRole('button', { name: 'Save look' });
-  await expect(save).toBeDisabled();
-  await page.getByRole('button', { name: 'Include Camel coat' }).click();
-  await page.getByRole('button', { name: 'Include Straight jeans' }).click();
-  await expect(page.getByText('2 pieces')).toBeVisible();
-  await save.click();
+  // The first piece makes it a draft; the second joins its rack; Save keeps it.
+  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Camel coat' }).click();
+  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
+  await expect(page.getByText('Draft look')).toBeVisible();
+  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Straight jeans' }).click();
+  await expect(page.getByText('2 pieces', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Saved to your lookbook', { exact: true })).toBeVisible();
 
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Camel coat, styled' })).toBeVisible();

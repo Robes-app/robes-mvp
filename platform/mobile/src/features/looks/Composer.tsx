@@ -81,7 +81,6 @@ export function Composer({ pieceId }: { pieceId?: string }) {
           value={name}
           onChangeText={setName}
           maxLength={120}
-          hint={copy.name.unnamed}
         />
       </View>
       <View className="gap-1 rounded-soft border border-dashed border-border-control p-4">

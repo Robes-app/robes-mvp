@@ -84,7 +84,6 @@ export const lookbook = {
   name: {
     label: 'Name this look',
     placeholder: 'Untitled',
-    unnamed: 'Unnamed, it saves as today’s date.',
   },
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,

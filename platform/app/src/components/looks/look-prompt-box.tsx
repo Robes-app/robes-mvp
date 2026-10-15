@@ -45,7 +45,7 @@ function Field({
   };
   return (
     <div
-      className={`flex items-end gap-2 rounded-soft border px-3 py-2 ${drafted ? 'border-border-control bg-surface-sunk' : 'border-hairline bg-surface'}`}
+      className={`flex items-end gap-2 rounded-soft border px-3 py-2 ${drafted ? 'border-border-control bg-bg' : 'border-hairline bg-surface'}`}
       data-drafted={drafted || undefined}
     >
       <span className="py-2 text-ink-muted" aria-hidden>

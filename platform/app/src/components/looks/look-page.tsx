@@ -185,7 +185,6 @@ export function WorkingLook({ look }: { look: Look }) {
               placeholder={look.name || copy.name.placeholder}
               value={name}
               maxLength={120}
-              hint={copy.name.unnamed}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => {
                 if (typed) editor.rename(typed);

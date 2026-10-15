@@ -47,7 +47,7 @@ test('every shell route renders its heading', async ({ page }) => {
     ['/you/style', 'Style DNA'],
     ['/you/model', 'Your Digital Twin'],
     ['/you/observations', 'Robes Observations'],
-    ['/looks/new', 'Pick the pieces.'],
+    ['/looks/new', 'New look'],
     ['/trip/new', 'Where to?'],
     ['/legal/terms', 'Terms'],
   ];

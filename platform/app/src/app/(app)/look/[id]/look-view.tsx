@@ -251,16 +251,15 @@ function LookName({
   }
   return (
     <header className="flex flex-col gap-2">
-      <Eyebrow>
-        {editingLook
-          ? lookbook.eyebrow.editing
-          : look.nameProvisional
-            ? copy.suggested
-            : lookbook.eyebrow.saved}
-      </Eyebrow>
+      <Eyebrow>{editingLook ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}</Eyebrow>
       <Heading level={1} size="xl">
         {look.name}
       </Heading>
+      {look.nameProvisional ? (
+        <Text size="small" tone="muted">
+          {copy.suggested}
+        </Text>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {look.nameProvisional ? (
           <Button variant="quiet" loading={update.isPending} onClick={() => save(look.name)}>
