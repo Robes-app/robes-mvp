@@ -47,7 +47,7 @@ function cardLines({
       <h3 className="mt-1 line-clamp-2 font-display text-lg leading-tight font-normal text-ink">
         {href ? (
           // The whole card opens the piece (a stretched link; the actions sit above it).
-          <Link href={href} className={`after:absolute after:inset-0 ${focus}`}>
+          <Link href={href} draggable={false} className={`after:absolute after:inset-0 ${focus}`}>
             {name}
           </Link>
         ) : (
@@ -191,6 +191,8 @@ function SwipeRow({
           drag.current = null;
           setDx(0);
         }}
+        // A link's native drag would cancel the swipe's pointer events.
+        onDragStart={(e) => e.preventDefault()}
         onClickCapture={(e) => {
           // A drag never opens the piece.
           if (swallow.current) {

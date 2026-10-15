@@ -40,7 +40,16 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   // The list is the rack card; its row swipes (or tabs) to Remove.
   await page.getByRole('radio', { name: 'List', exact: true }).click();
   await expect(pieces.getByText('Outerwear', { exact: false })).toBeVisible();
-  await pieces.getByRole('button', { name: 'Remove Camel wool coat', exact: true }).click();
+  // A drag to the left past the threshold lets it go (legacy swipe, with a mouse here).
+  const row = pieces.getByRole('heading', { name: 'Camel wool coat' });
+  const box = await row.boundingBox();
+  if (!box) throw new Error('no row');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  for (const dx of [20, 60, 120, 200]) {
+    await page.mouse.move(box.x + box.width / 2 - dx, box.y + box.height / 2);
+  }
+  await page.mouse.up();
   await expect(pieces).toHaveCount(0);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(
@@ -65,7 +74,9 @@ test('a wish becomes a piece when she buys it, and removal can be undone', async
   await expect(wishes.getByText('Not yours yet').first()).toBeVisible();
   await page.getByRole('radio', { name: 'List', exact: true }).click();
 
-  await wishes.getByRole('button', { name: 'Remove Silk scarf' }).click();
+  // Keyboard: tabbing to Remove slides the row open; Enter lets it go.
+  await wishes.getByRole('button', { name: 'Remove Silk scarf' }).focus();
+  await page.keyboard.press('Enter');
   await expect(wishes.getByText('Silk scarf')).toHaveCount(0);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(wishes.getByText('Silk scarf')).toBeVisible();

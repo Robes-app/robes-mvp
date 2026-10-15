@@ -2,39 +2,24 @@
 
 import { useApi } from '@robes/api-client/react';
 import { plan } from '@robes/copy';
-import { monthGrid, monthLabel, shiftMonth } from '@robes/core/calendar';
-import { Heading, IconButton, Skeleton, Text } from '@robes/ui';
+import { longDate, monthGrid, monthLabel } from '@robes/core/calendar';
+import { Skeleton, Text } from '@robes/ui';
 import Link from 'next/link';
-import { useState } from 'react';
+import { DayDots } from '@/components/plan/day-dots';
 import { errorCopy } from '@/lib/error-copy';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const focus =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Month view (M5 task 4): the whole month as a grid, looks named in their days.
-export function PlanMonth({ today }: { today: string }) {
-  const [month, setMonth] = useState(today.slice(0, 7));
+// Month view: a numeral and one dot per look in each cell; every cell opens its day.
+export function PlanMonth({ today, month }: { today: string; month: string }) {
   const grid = monthGrid(month);
   const query = useApi('plan.get', { input: { from: grid.from, days: grid.days } });
-  const byDate = new Map(query.data?.days.map((d) => [d.date, d.entries]) ?? []);
-  const label = monthLabel(month);
+  const byDate = new Map(query.data?.days.map((d) => [d.date, d.entries.length]) ?? []);
 
   return (
-    <section aria-label={label} className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <IconButton
-          icon="back"
-          label={plan.prevMonth}
-          onClick={() => setMonth(shiftMonth(month, -1))}
-        />
-        <Heading level={2} size="md">
-          {label}
-        </Heading>
-        <IconButton
-          icon="forward"
-          label={plan.nextMonth}
-          onClick={() => setMonth(shiftMonth(month, 1))}
-        />
-      </div>
+    <section aria-label={monthLabel(month)} className="flex flex-col gap-3">
       {query.isError ? (
         <Text role="alert" tone="danger">
           {errorCopy(query.error)}
@@ -52,38 +37,28 @@ export function PlanMonth({ today }: { today: string }) {
       <ol aria-busy={!query.data} className="grid grid-cols-7 gap-1">
         {grid.cells.map((date, i) => {
           // biome-ignore lint/suspicious/noArrayIndexKey: padding cells are fixed grid positions
-          if (!date) return <li key={`pad-${i}`} aria-hidden className="min-h-20" />;
-          const entries = byDate.get(date) ?? [];
+          if (!date) return <li key={`pad-${i}`} aria-hidden className="min-h-16" />;
+          const looks = byDate.get(date) ?? 0;
           const isToday = date === today;
           return (
-            <li
-              key={date}
-              aria-label={date}
-              className={`flex min-h-20 flex-col gap-1 rounded-crisp border p-1 ${isToday ? 'border-ink' : 'border-hairline'}`}
-            >
-              <Text size="caption" tone={isToday ? undefined : 'muted'}>
-                {Number(date.slice(8))}
-              </Text>
-              {!query.data ? (
-                <Skeleton shape="text" className="h-3" />
-              ) : (
-                <>
-                  {entries.slice(0, 2).map((e) => (
-                    <Link
-                      key={e.id}
-                      href={`/look/${e.look.id}`}
-                      className="truncate text-xs text-ink underline-offset-2 hover:underline"
-                    >
-                      {e.look.name}
-                    </Link>
-                  ))}
-                  {entries.length > 2 ? (
-                    <Text size="caption" tone="muted">
-                      {plan.moreLooks(entries.length - 2)}
-                    </Text>
-                  ) : null}
-                </>
-              )}
+            <li key={date}>
+              <Link
+                href={`/plan/${date}`}
+                aria-label={plan.week.day(longDate(date), looks)}
+                aria-current={isToday ? 'date' : undefined}
+                className={`flex min-h-16 flex-col items-center gap-1.5 rounded-crisp border bg-bg pt-2 hover:border-border-control ${
+                  isToday ? 'border-ink' : 'border-hairline'
+                } ${focus}`}
+              >
+                <span className="font-display text-lg leading-none text-ink">
+                  {Number(date.slice(8))}
+                </span>
+                {!query.data ? (
+                  <Skeleton shape="text" className="h-1.5 w-6" />
+                ) : (
+                  <DayDots looks={looks} past={date <= today} />
+                )}
+              </Link>
             </li>
           );
         })}

@@ -1,12 +1,14 @@
 import { useApi } from '@robes/api-client/react';
 import type { Today } from '@robes/contracts';
-import { today as copy, looks, type NextDoorTarget, nextLine } from '@robes/copy';
-import { Button, Heading, Image, PrimaryScope, Text } from '@robes/ui-native';
+import { today as copy, looks, type NextDoorTarget, nextLine, plan } from '@robes/copy';
+import { weekdayShort } from '@robes/core/calendar';
+import { Button, fonts, Heading, Image, PrimaryScope, Text } from '@robes/ui-native';
 import { type Href, useRouter } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { isTerminal } from '../looks/ideas';
+import { DayDots } from '../plan/DayDots';
 import { dayLabel } from '../plan/plan';
 
 const isRunning = (t: Today | undefined) => t?.tray.some((j) => !isTerminal(j)) ?? false;
@@ -135,22 +137,37 @@ export function TodayView() {
 
       {data ? (
         <View className="gap-3">
-          <Heading size="md">{copy.week}</Heading>
+          <View className="flex-row items-baseline justify-between">
+            <Heading size="md">{plan.week.title}</Heading>
+            <Pressable accessibilityRole="link" onPress={() => router.push('/plan')} hitSlop={12}>
+              <Text className="underline">{`${plan.week.plan} ›`}</Text>
+            </Pressable>
+          </View>
+          {/* The week strip (legacy ff87e89): today → +6, every cell opens its day page. */}
           <View className="flex-row gap-1">
             {data.week.map((d) => {
-              const label = dayLabel(d.date, data.date);
+              const isToday = d.date === data.date;
               return (
                 <Pressable
                   key={d.date}
-                  accessibilityRole="link"
-                  accessibilityLabel={copy.weekDay(label, d.looks)}
-                  onPress={() => router.push('/plan')}
-                  className="flex-1 items-center gap-1 rounded-crisp border border-hairline py-2"
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.weekDay(dayLabel(d.date, data.date), d.looks)}
+                  onPress={() => router.push(`/day/${d.date}`)}
+                  testID={`week-day-${d.date}`}
+                  className={`min-h-[72px] flex-1 items-center justify-center gap-1.5 rounded-crisp border py-2 ${
+                    isToday ? 'border-hairline bg-bg' : 'border-transparent'
+                  }`}
                 >
-                  <Text className="text-xs">{label.split(' ')[0]}</Text>
-                  <Text className="text-xs">
-                    {d.looks > 0 ? '●'.repeat(Math.min(d.looks, 3)) : '·'}
+                  <Text
+                    className={`text-[9px] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
+                    style={{ fontFamily: fonts.sans, letterSpacing: 1.4 }}
+                  >
+                    {isToday ? plan.today : weekdayShort(d.date)}
                   </Text>
+                  <Text className="text-2xl text-ink" style={{ fontFamily: fonts.displayRegular }}>
+                    {Number(d.date.slice(8))}
+                  </Text>
+                  <DayDots looks={d.looks} past={isToday} />
                 </Pressable>
               );
             })}

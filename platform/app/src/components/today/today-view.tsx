@@ -2,12 +2,14 @@
 
 import { useApi } from '@robes/api-client/react';
 import type { Today } from '@robes/contracts';
-import { today as copy, looks, nav } from '@robes/copy';
+import { today as copy, looks, nav, plan } from '@robes/copy';
+import { weekdayShort } from '@robes/core/calendar';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { buttonClasses, Eyebrow, Heading, Text } from '@robes/ui';
 import Link from 'next/link';
 import { IdeaFrame } from '@/components/looks/idea-frame';
 import { LookImage } from '@/components/looks/look-image';
+import { DayDots } from '@/components/plan/day-dots';
 import { dayLabel } from '@/lib/dates';
 import { nextStepCopy } from './next-step';
 
@@ -107,23 +109,37 @@ export function TodayView({ initial }: { initial: Today }) {
       ) : null}
 
       <section aria-labelledby="week" className="flex flex-col gap-3">
-        <Heading id="week" level={2} size="md">
-          {copy.week}
-        </Heading>
-        <ol className="grid grid-cols-7 gap-1">
+        <div className="flex items-baseline justify-between">
+          <Heading id="week" level={2} size="md">
+            {plan.week.title}
+          </Heading>
+          <Link href="/plan" className="font-sans text-sm underline underline-offset-4">
+            {plan.week.plan} ›
+          </Link>
+        </div>
+        {/* The week strip (legacy ff87e89): today → +6, every cell opens its day page. */}
+        <ol className="grid grid-cols-7 gap-1.5">
           {data.week.map((d) => {
-            const label = dayLabel(d.date, data.date);
+            const isToday = d.date === data.date;
             return (
               <li key={d.date}>
                 <Link
-                  href="/plan"
-                  aria-label={copy.weekDay(label, d.looks)}
-                  className="flex flex-col items-center gap-1 rounded-crisp border border-hairline px-1 py-2 text-center"
+                  href={`/plan/${d.date}?from=today`}
+                  aria-label={copy.weekDay(dayLabel(d.date, data.date), d.looks)}
+                  aria-current={isToday ? 'date' : undefined}
+                  className={`flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-crisp border px-1 py-2 text-center ${
+                    isToday ? 'border-hairline bg-bg' : 'border-transparent'
+                  } focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring`}
                 >
-                  <Text size="caption">{label}</Text>
-                  <span aria-hidden className="text-sm">
-                    {d.looks > 0 ? '●'.repeat(Math.min(d.looks, 3)) : '·'}
+                  <span
+                    className={`font-sans text-[9px] tracking-[0.18em] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
+                  >
+                    {isToday ? plan.today : weekdayShort(d.date)}
                   </span>
+                  <span className="font-display text-2xl leading-none text-ink">
+                    {Number(d.date.slice(8))}
+                  </span>
+                  <DayDots looks={d.looks} past={isToday} />
                 </Link>
               </li>
             );

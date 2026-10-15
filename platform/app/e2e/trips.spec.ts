@@ -47,12 +47,20 @@ test.describe('with trips on', () => {
   test.afterAll(async ({ browser }) => setTrips(browser, false));
 
   test('plan a trip, see its three days, pin it and find it on the plan', async ({ page }) => {
+    test.setTimeout(120_000);
     await signIn(page);
     await declineConsent(page);
     const api = page.request;
     await api.post('/api/v1/wardrobe/items', { data: { label: 'Linen shirt' } });
 
-    await page.goto('/trip/new');
+    expect(await (await api.get('/api/v1/me/features')).json()).toEqual({ trips: true });
+    // Pages hold their own flag cache (≤30 s, docs/DEVELOPING.md → Admin), so the page may lag.
+    await expect
+      .poll(async () => (await page.goto('/trip/new'))?.status(), {
+        timeout: 45_000,
+        intervals: [2_000],
+      })
+      .toBe(200);
     expect(await seriousViolations(page)).toEqual([]);
     await page.getByLabel('Destination').fill('Lisbon');
     await page.getByLabel('Your plans (one per line, optional)').fill('Beach day\nDinner\nMarket');
@@ -76,7 +84,6 @@ test.describe('with trips on', () => {
 
     await page.goto('/plan');
     await expect(page.getByRole('link', { name: 'Golden Hour' }).first()).toBeVisible();
-    await expect(page.getByText('Trip').first()).toBeVisible();
     await page.getByRole('radio', { name: 'Month' }).click();
     await expect(page.getByRole('button', { name: 'Next month' })).toBeVisible();
     expect(await seriousViolations(page)).toEqual([]);

@@ -785,6 +785,59 @@ export const plan = {
   nextMonth: 'Next month',
   moreLooks: (n: number): string => `+${n} more`,
   tripBadge: 'Trip',
+  // The one header and the summary list (legacy ff87e89 + 809b13e).
+  header: {
+    add: 'Add a look',
+    window: (days: number): string => `The next ${days} days`,
+  },
+  list: {
+    thisWeek: 'This week',
+    restOfWeek: 'Rest of this week',
+    nameTheDay: 'Name the day',
+    looks: (n: number): string => (n === 1 ? '1 look' : `${n} looks`),
+    pieces: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+    open: (day: string): string => `Open ${day}`,
+  },
+  // The day page: the one door every day opens (legacy ff87e89).
+  day: {
+    back: (label: string): string => label,
+    rename: 'Rename the day',
+    name: 'Name the day',
+    nameLabel: 'The day’s name',
+    planned: 'Looks planned',
+    filed: 'Looks filed',
+    filedToday: 'Looks filed today',
+    stat: (looks: number, pieces: number): string =>
+      `${looks === 1 ? '1 look' : `${looks} looks`}${pieces ? ` · ${pieces === 1 ? '1 piece' : `${pieces} pieces`} filed` : ''}`,
+    lookEyebrow: (n: number): string => `Look ${n}`,
+    remove: (name: string): string => `Take ${name} off the day`,
+    addAnother: 'Add a look',
+    addAnotherHint: 'another moment in the day',
+    choose: 'Choose from your looks',
+    chooseHint: 'pick one or several',
+  },
+  // The Add-a-look picker: saved looks, one or several at once.
+  picker: {
+    eyebrow: (day: string): string => `Add a look · ${day}`,
+    title: 'What to wear?',
+    yourLooks: 'Your looks',
+    hint: 'Tap looks to add one or several',
+    add: (n: number): string => (n === 1 ? 'Add 1 look' : `Add ${n} looks`),
+    already: 'Already on this day',
+    neverWorn: 'Never worn',
+    lastWorn: (date: string): string => `Last worn ${date}`,
+    added: (n: number, day: string): string =>
+      n === 1 ? `Added to ${day}.` : `${n} looks added to ${day}.`,
+    emptyTitle: 'Nothing saved yet.',
+    emptyBody: 'Save a look you like and it can go on this day.',
+    toLooks: 'Go to Looks',
+  },
+  week: {
+    title: 'The week ahead',
+    plan: 'Plan',
+    day: (label: string, looks: number): string =>
+      looks === 0 ? `${label}, free` : `${label}, ${looks === 1 ? 'one look' : `${looks} looks`}`,
+  },
 } as const;
 
 // Public share page and the share action.

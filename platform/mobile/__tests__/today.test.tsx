@@ -49,12 +49,16 @@ test('greets her by her hour and sends the next step’s door to today’s look'
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);
 });
 
-test('shows today’s looks and a seven-day strip that opens the plan', async () => {
+test('shows today’s looks and a seven-day strip whose every cell opens its day', async () => {
   mockFetch({ 'GET /today': todayWith() });
   await renderWithApi(<TodayView />);
   expect(await screen.findByRole('link', { name: 'Board meeting' })).toBeTruthy();
-  const today = screen.getByRole('link', { name: copy.weekDay('Today', 1) });
-  await fireEvent.press(today);
+  await fireEvent.press(screen.getByRole('button', { name: copy.weekDay('Today', 1) }));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/day/${DATE}`);
+  // An empty day opens too: the day page is where it gets dressed.
+  await fireEvent.press(screen.getByTestId('week-day-2026-10-03'));
+  expect(mockRouter.push).toHaveBeenCalledWith('/day/2026-10-03');
+  await fireEvent.press(screen.getByRole('link', { name: 'Plan ›' }));
   expect(mockRouter.push).toHaveBeenCalledWith('/plan');
 });
 

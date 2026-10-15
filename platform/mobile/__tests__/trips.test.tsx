@@ -141,7 +141,7 @@ test('the job screen hands over to the trip once it exists', async () => {
   expect(await screen.findByText('Three days in Lisbon, packed once.')).toBeTruthy();
 });
 
-test('the plan switches to a month and a day opens its look', async () => {
+test('the plan switches to a month and a day opens its page', async () => {
   const days = (from: string, n: number, entryOn?: string) =>
     Array.from({ length: n }, (_, i) => {
       const d = new Date(`${from}T00:00:00Z`);
@@ -174,11 +174,11 @@ test('the plan switches to a month and a day opens its look', async () => {
     },
   });
   await renderWithApi(<PlanView />);
-  expect(await screen.findByText(plan.tripBadge)).toBeTruthy();
+  expect(await screen.findByText(look().name)).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: plan.view.month }));
   const month = await screen.findByTestId('plan-month');
   expect(month).toBeTruthy();
-  const day = await screen.findByRole('link', { name: new RegExp(`-15: ${look().name}`) });
+  const day = await screen.findByRole('button', { name: /, one look$/ });
   await fireEvent.press(day);
-  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);
+  expect(mockRouter.push).toHaveBeenCalledWith(expect.stringMatching(/^\/day\/\d{4}-\d{2}-15$/));
 });
