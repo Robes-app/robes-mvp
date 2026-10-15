@@ -1059,6 +1059,19 @@ export const trips = {
   },
 } as const;
 
+// The key-piece result, "Worn three ways" (legacy 7dfc96c, the native design).
+export const keyPiece = {
+  eyebrowYours: 'Key piece · yours',
+  eyebrow: 'Key piece',
+  pill: (pieces: number, yours: number): string =>
+    `${pieces === 1 ? '1 piece' : `${pieces} pieces`}${yours ? ` · ${yours} yours` : ''}`,
+  open: (title: string): string => `See ${title} piece by piece`,
+  sheetLine: 'piece by piece.',
+  inWardrobe: '✓ In your wardrobe',
+  way: (n: number, total: number): string => `Look ${n} of ${total}`,
+  saved: 'Saved',
+} as const;
+
 export const copy = {
   wardrobe,
   errors,
@@ -1080,4 +1093,5 @@ export const copy = {
   share,
   notify,
   admin,
+  keyPiece,
 } as const;
