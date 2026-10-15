@@ -4,10 +4,12 @@ import {
   AdminCosts,
   AdminFlag,
   AdminHealth,
+  AdminMetrics,
   AdminUserDetail,
   AdminUserPage,
   AuditPage,
 } from '@robes/contracts';
+import { JOB_KINDS } from '@robes/core/jobs';
 import { type AdminActor, NotAdmin } from '@robes/db';
 import { repos } from './db';
 import { invalidateFlag } from './flags';
@@ -92,6 +94,32 @@ export async function costs(actor: AdminActor, days: number): Promise<AdminCosts
       exhausted: Number(b.costMicros) >= Number(b.limitMicros),
     })),
   });
+}
+
+// Every kind gets a row, so a new or idle kind (style_brief, look_ask, frames…) shows as zero.
+const METRIC_KINDS = [
+  ...JOB_KINDS.filter((k) => k !== 'fake' && k !== 'look_render'),
+  'look_render:frame',
+  'look_render:look',
+];
+
+export async function metrics(actor: AdminActor, days: number): Promise<AdminMetrics> {
+  const m = await guarded(() => repos.adminReads.metrics(actor, days));
+  const seen = new Set(m.jobs.map((j) => j.kind));
+  const idle = METRIC_KINDS.filter((k) => !seen.has(k)).map((kind) => ({
+    kind,
+    total: 0,
+    succeeded: 0,
+    failed: 0,
+    cancelled: 0,
+    p50Ms: null,
+    p95Ms: null,
+    costMicros: 0,
+  }));
+  const jobs = [...m.jobs, ...idle].sort(
+    (a, b) => b.total - a.total || a.kind.localeCompare(b.kind),
+  );
+  return AdminMetrics.parse({ days, ...m, jobs });
 }
 
 const toFlag = (f: Awaited<ReturnType<Reads['flags']>>[number]): AdminFlag =>

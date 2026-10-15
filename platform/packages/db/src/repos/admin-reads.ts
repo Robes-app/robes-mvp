@@ -3,6 +3,7 @@ import { sql } from 'kysely';
 import type { Db } from '../client';
 import { NotAdmin } from '../errors';
 import type { UserId } from '../ids';
+import { collectMetrics } from './admin-metrics';
 import { afterCursor, toPage } from './paging';
 
 // Who is reading, from where: every admin read of user data leaves an audit row (SEC-11).
@@ -252,6 +253,14 @@ export function adminReadsRepo(db: Db) {
       ]);
       await audit(actor, 'admin.costs.read', { detail: { days } });
       return { daily, spenders, budget };
+    },
+
+    // Operating metrics over the last `days` (aggregates only, no one's content).
+    async metrics(actor: AdminActor, days: number) {
+      await authorise(actor);
+      const m = await collectMetrics(db, days);
+      await audit(actor, 'admin.metrics.read', { detail: { days } });
+      return m;
     },
 
     async flags(actor: AdminActor) {

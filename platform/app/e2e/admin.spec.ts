@@ -13,11 +13,19 @@ const ADMIN_API: [string, string][] = [
   ['GET', '/api/v1/admin/users/00000000-0000-4000-8000-000000000000'],
   ['GET', '/api/v1/admin/health'],
   ['GET', '/api/v1/admin/costs'],
+  ['GET', '/api/v1/admin/metrics'],
   ['GET', '/api/v1/admin/flags'],
   ['PATCH', '/api/v1/admin/flags/uploads'],
   ['GET', '/api/v1/admin/audit'],
 ];
-const ADMIN_PAGES = ['/admin', '/admin/users', '/admin/costs', '/admin/flags', '/admin/audit'];
+const ADMIN_PAGES = [
+  '/admin',
+  '/admin/users',
+  '/admin/metrics',
+  '/admin/costs',
+  '/admin/flags',
+  '/admin/audit',
+];
 
 async function call(page: Page, method: string, url: string): Promise<number> {
   const res = await page.request.fetch(url, {
@@ -64,7 +72,7 @@ test('an admin reads users, and every read is audited', async ({ page, browser }
   );
 
   expect(await seriousViolations(page)).toEqual([]);
-  for (const url of ['/admin', '/admin/users', '/admin/costs', '/admin/flags', '/admin/audit']) {
+  for (const url of ADMIN_PAGES) {
     await page.goto(url);
     expect(await seriousViolations(page), url).toEqual([]);
   }
@@ -110,4 +118,40 @@ test('an admin flips a flag from the page, and the change is audited', async ({ 
   } finally {
     await page.request.patch(`/api/v1/admin/flags/${key}`, { data: { enabled: before } });
   }
+});
+
+test('an admin reads the metrics page: counts only, and the read is audited', async ({ page }) => {
+  const email = await signIn(page, uniqueEmail('admin'), 'Ada');
+  grantAdmin(email);
+  await declineConsent(page);
+
+  await page.goto('/admin');
+  await page.getByRole('link', { name: 'Metrics' }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Metrics, last 7 days.' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('table', { name: 'Activation, of those who signed up in the window' }),
+  ).toBeVisible();
+  const jobs = page.getByRole('table', { name: 'Jobs by kind' });
+  for (const kind of ['style_brief', 'look_ask', 'wardrobe_pieces', 'look_render:frame']) {
+    await expect(jobs.getByRole('cell', { name: kind, exact: true })).toBeVisible();
+  }
+  await page.getByRole('link', { name: '30 days' }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Metrics, last 30 days.' }),
+  ).toBeVisible();
+  expect(await seriousViolations(page)).toEqual([]);
+
+  const res = await page.request.get('/api/v1/admin/metrics?days=30');
+  expect(res.status()).toBe(200);
+  const body = await res.json();
+  expect(body.days).toBe(30);
+  expect(body.daily).toHaveLength(30);
+  expect(body.funnel.signedUp).toBeGreaterThanOrEqual(1);
+  expect(JSON.stringify(body)).not.toContain('@');
+  const audit = await (await page.request.get('/api/v1/admin/audit')).json();
+  expect(audit.items).toContainEqual(
+    expect.objectContaining({ action: 'admin.metrics.read', actorEmail: email }),
+  );
 });

@@ -9,6 +9,7 @@ export const metadata: Metadata = { title: 'Admin · Robes', robots: { index: fa
 const LINKS = [
   ['/admin', copy.nav.overview],
   ['/admin/users', copy.nav.users],
+  ['/admin/metrics', copy.nav.metrics],
   ['/admin/costs', copy.nav.costs],
   ['/admin/flags', copy.nav.flags],
   ['/admin/audit', copy.nav.audit],

@@ -155,4 +155,4 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Admin (`auth: 'admin'`, every call writes `audit_log`)
 | New | Legacy |
 |---|---|
-| `GET /admin/users` · `GET /admin/users/:id` · `GET /admin/generations` · `GET /admin/costs` · `PATCH /admin/flags/:key` · `POST /admin/users/:id/entitlements` | `admin.html` direct REST under `is_admin()` policies, `admin_user_overview` RPC |
+| `GET /admin/users` · `GET /admin/users/:id` · `GET /admin/generations` · `GET /admin/costs` · `GET /admin/metrics` (new: aggregates only) · `PATCH /admin/flags/:key` · `POST /admin/users/:id/entitlements` | `admin.html` direct REST under `is_admin()` policies, `admin_user_overview` RPC |
