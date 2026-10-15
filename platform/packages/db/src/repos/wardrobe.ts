@@ -42,6 +42,24 @@ export interface PieceFields {
   size?: string | null;
 }
 
+export interface ReadPieceRow {
+  sourceIndex: number;
+  label: string;
+  category: string;
+  categoryL2: string | null;
+  categoryL3: string | null;
+  color: string | null;
+  brand: string | null;
+  notes: string | null;
+  price: number | null;
+  currency: string | null;
+  size: string | null;
+  itemDna: Record<string, unknown>;
+  imageAssetId: string | null;
+  // Set when she chose it on the single-piece screen.
+  seasonBand?: SeasonBand | undefined;
+}
+
 export interface ListPiecesQuery {
   limit: number;
   // Opaque cursor from the previous page: `${createdAt ISO}|${id}`.
@@ -115,6 +133,74 @@ export function wardrobeRepo(db: Db) {
         .values(values)
         .returning(PIECE_COLUMNS)
         .executeTakeFirstOrThrow();
+    },
+
+    // Pieces filed from a photo read: one per (photo, piece index), so a retried filing returns
+    // the pieces already made instead of filing them twice.
+    async createFromRead(userId: UserId, sourceAssetId: string, pieces: readonly ReadPieceRow[]) {
+      if (pieces.length === 0) return [];
+      return db.transaction().execute(async (trx) => {
+        await trx
+          .insertInto('wardrobeItems')
+          .values(
+            pieces.map((p): Insertable<WardrobeItems> => {
+              const tax = p.categoryL2 ? resolveTaxonomy(p.categoryL2, p.categoryL3) : null;
+              return {
+                userId,
+                label: p.label,
+                category: tax?.category ?? p.category,
+                categoryL2: tax?.categoryL2 ?? null,
+                categoryL3: tax?.categoryL3 ?? null,
+                color: p.color,
+                brand: p.brand,
+                notes: p.notes,
+                price: p.price,
+                currency: p.currency,
+                size: p.size,
+                itemDna: JSON.stringify(p.itemDna),
+                imageAssetId: p.imageAssetId,
+                status: 'ready',
+                acquiredVia: 'photo',
+                sourceAssetId,
+                sourceIndex: p.sourceIndex,
+                ...(p.seasonBand ? { seasonBand: p.seasonBand, seasonSource: 'user' } : {}),
+              };
+            }),
+          )
+          .onConflict((oc) =>
+            oc
+              .columns(['userId', 'sourceAssetId', 'sourceIndex'])
+              .where('sourceAssetId', 'is not', null)
+              .where('deletedAt', 'is', null)
+              .doNothing(),
+          )
+          .execute();
+        return trx
+          .selectFrom('wardrobeItems')
+          .select([...PIECE_COLUMNS, 'sourceIndex'])
+          .where('userId', '=', userId)
+          .where('sourceAssetId', '=', sourceAssetId)
+          .where(
+            'sourceIndex',
+            'in',
+            pieces.map((p) => p.sourceIndex),
+          )
+          .where('deletedAt', 'is', null)
+          .execute();
+      });
+    },
+
+    // A piece she owns, photographed for the first time, takes the crop; one with a photo keeps it.
+    async adoptPhoto(userId: UserId, id: string, assetId: string): Promise<boolean> {
+      const res = await db
+        .updateTable('wardrobeItems')
+        .set({ imageAssetId: assetId })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('imageAssetId', 'is', null)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
     },
 
     async update(userId: UserId, id: string, fields: PieceFields) {

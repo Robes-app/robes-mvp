@@ -1,4 +1,5 @@
 import type { UsageMetric } from '@robes/core';
+import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
 import { usageRepo } from './usage';
@@ -70,6 +71,30 @@ export function assetsRepo(db: Db) {
         .execute();
     },
 
+    // Crops cut from a photo read that no piece took (skipped, or her piece kept its photo).
+    async discardCrops(userId: UserId, sourceAssetId: string, assetIds: readonly string[]) {
+      if (assetIds.length === 0) return 0;
+      const res = await db
+        .updateTable('assets')
+        .set({ status: 'deleted', deletedAt: sql`now()` })
+        .where('userId', '=', userId)
+        .where('sourceAssetId', '=', sourceAssetId)
+        .where('id', 'in', [...assetIds])
+        .where('deletedAt', 'is', null)
+        .where(({ not, exists, selectFrom }) =>
+          not(
+            exists(
+              selectFrom('wardrobeItems as w')
+                .select('w.id')
+                .whereRef('w.imageAssetId', '=', 'assets.id')
+                .where('w.userId', '=', userId),
+            ),
+          ),
+        )
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows);
+    },
+
     getForUser(userId: UserId, assetId: string) {
       return db
         .selectFrom('assets')
@@ -88,7 +113,7 @@ export function assetProcessingRepo(db: Db) {
     get(assetId: string) {
       return db
         .selectFrom('assets')
-        .select(['id', 'userId', 'kind', 'status', 'contentType', 'bucketKey'])
+        .select(['id', 'userId', 'kind', 'status', 'contentType', 'bucketKey', 'crop'])
         .where('id', '=', assetId)
         .executeTakeFirst();
     },

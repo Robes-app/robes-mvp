@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -61,6 +62,8 @@ export interface MediaStorage {
     opts: { contentType: string; cacheControl?: string },
   ): Promise<void>;
   deleteObject(key: string): Promise<void>;
+  // Server-side copy inside the bucket; the bytes never pass through the caller.
+  copyObject(from: string, to: string): Promise<void>;
   // A short-lived GET that downloads as `filename` (data exports; SEC-81).
   presignDownload(key: string, opts: { filename: string; expiresIn: number }): Promise<string>;
   // Deletes every object under the prefix (account deletion); returns how many went.
@@ -127,6 +130,12 @@ export function createMediaStorage({ client, bucket }: MediaBucket): MediaStorag
 
     async deleteObject(key) {
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    },
+
+    async copyObject(from, to) {
+      await client.send(
+        new CopyObjectCommand({ Bucket: bucket, Key: to, CopySource: `${bucket}/${from}` }),
+      );
     },
 
     async presignDownload(key, { filename, expiresIn }) {

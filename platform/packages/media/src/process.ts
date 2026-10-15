@@ -1,11 +1,12 @@
 import { MAX_UPLOAD_BYTES } from '@robes/contracts';
+import type { PieceBox } from '@robes/core/photo-pieces';
 import { detectImageFormat } from './detect';
 import { mediaKeys, parseOriginalKey } from './keys';
 import type { RenditionManifest } from './manifest';
-import { RejectedImage, type RejectReason, renderImage } from './render';
+import { cropImage, RejectedImage, type RejectReason, renderImage } from './render';
 import type { MediaStorage } from './storage';
 
-export { IMAGE_LIMITS, RejectedImage, type RejectReason, renderImage } from './render';
+export { cropImage, IMAGE_LIMITS, RejectedImage, type RejectReason, renderImage } from './render';
 
 const CONTENT_TYPES = { avif: 'image/avif', webp: 'image/webp' } as const;
 // Keys are immutable per asset, so caches may keep them for good.
@@ -13,7 +14,9 @@ const CACHE_CONTROL = 'private, max-age=31536000, immutable';
 
 // Structurally matches `createSystemRepositories(db).assets`.
 export interface AssetStore {
-  get(assetId: string): Promise<{ userId: string | null; status: string } | undefined>;
+  get(
+    assetId: string,
+  ): Promise<{ userId: string | null; status: string; crop?: unknown } | undefined>;
   markReady(
     assetId: string,
     meta: {
@@ -39,6 +42,14 @@ export type ProcessResult =
       status: 'skipped';
       reason: 'not_an_upload' | 'unknown_asset' | 'owner_mismatch' | 'not_pending' | 'missing';
     };
+
+function asCrop(value: unknown): PieceBox | null {
+  if (!value || typeof value !== 'object') return null;
+  const { x, y, w, h } = value as Record<string, unknown>;
+  return [x, y, w, h].every((n) => typeof n === 'number' && Number.isFinite(n))
+    ? { x: x as number, y: y as number, w: w as number, h: h as number }
+    : null;
+}
 
 // Safe to re-run for the same key: outputs are deterministic and only pending assets are processed.
 // Storage/DB errors propagate so the invoker retries; bad images are marked failed.
@@ -66,7 +77,10 @@ export async function processUpload(deps: ProcessUploadDeps, key: string): Promi
 
   let rendered: Awaited<ReturnType<typeof renderImage>>;
   try {
-    rendered = await renderImage(original, format);
+    const crop = asCrop(asset.crop);
+    rendered = crop
+      ? await renderImage(await cropImage(original, crop), 'jpeg')
+      : await renderImage(original, format);
   } catch (err) {
     if (err instanceof RejectedImage) return fail(err.reason);
     throw err;

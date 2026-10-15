@@ -25,6 +25,13 @@ const handlers = createHandlers({
     fetchLink: (url) => fetchLink(url, { allowPrivate: env.ALLOW_PRIVATE_FETCH !== undefined }),
   },
   wardrobeAnalyse: { ai, storage: mediaStorage, pieces: system.pieces, ledger: system.ledger },
+  wardrobePieces: {
+    ai,
+    storage: mediaStorage,
+    reads: system.photoReads,
+    ledger: system.ledger,
+    onGenerated: renderLocally,
+  },
   styleAnalyse: {
     ai,
     storage: mediaStorage,

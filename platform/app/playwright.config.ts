@@ -1,9 +1,12 @@
 import { defineConfig } from '@playwright/test';
-import { E2E_UNSUB_KEY } from './e2e/env';
+import { E2E_DATABASE_URL, E2E_MEDIA_ENDPOINT, E2E_UNSUB_KEY } from './e2e/env';
 
 // Configurable so parallel checkouts can run e2e side by side.
 const port = Number(process.env.E2E_PORT ?? 3310);
 const baseURL = `http://localhost:${port}`;
+// CLIs the specs spawn without CLI_ENV (admin:grant) inherit this, so they use the server's
+// database rather than app/.env.local's.
+process.env.DATABASE_URL = E2E_DATABASE_URL;
 
 export default defineConfig({
   testDir: './e2e',
@@ -11,13 +14,12 @@ export default defineConfig({
   use: { baseURL },
   webServer: {
     env: {
-      DATABASE_URL: `postgres://robes_app:robes_app_local@127.0.0.1:55432/${process.env.ROBES_DB_NAME ?? 'robes'}`,
+      DATABASE_URL: E2E_DATABASE_URL,
       BETTER_AUTH_URL: baseURL,
       UNSUB_HMAC_KEY: E2E_UNSUB_KEY,
       // Specs assert the offline fake's outputs; never spend on real Gemini from a dev key.
       GEMINI_API_KEY: '',
-      // A LAN media host (for phones) would be upgraded to https by the production CSP; tests stay local.
-      MEDIA_S3_ENDPOINT: 'http://localhost:59000',
+      MEDIA_S3_ENDPOINT: E2E_MEDIA_ENDPOINT,
       // Dev-only SEC-40 escape hatch so inbox.spec can import from its local fixture page.
       ALLOW_PRIVATE_FETCH: '1',
       // Dummy key: consent.spec intercepts the PostHog host and proves nothing loads before consent.

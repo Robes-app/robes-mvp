@@ -15,6 +15,7 @@ const LOOK_COLUMNS = [
   'climateBand',
   'renderAssetId',
   'renderStatus',
+  'photoAssetId',
   'createdAt',
   'updatedAt',
 ] as const;
@@ -228,6 +229,7 @@ export function looksRepo(db: Db) {
         source?: 'manual' | 'variant' | 'generated' | 'today';
         originLookId?: string | null;
         renderAssetId?: string | null;
+        photoAssetId?: string | null;
       },
     ) {
       return db.transaction().execute(async (trx) => {
@@ -243,6 +245,7 @@ export function looksRepo(db: Db) {
             source: look.source ?? 'manual',
             originLookId: look.originLookId ?? null,
             renderAssetId: look.renderAssetId ?? null,
+            photoAssetId: look.photoAssetId ?? null,
           })
           .returning(LOOK_COLUMNS)
           .executeTakeFirstOrThrow();

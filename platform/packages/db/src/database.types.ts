@@ -83,6 +83,7 @@ export interface Assets {
   bytes: number | null;
   contentType: string | null;
   createdAt: Generated<Timestamp>;
+  crop: Json | null;
   deletedAt: Timestamp | null;
   error: string | null;
   hasCutout: Generated<boolean>;
@@ -93,6 +94,7 @@ export interface Assets {
   provider: Generated<string>;
   renditions: Generated<Json>;
   sensitive: Generated<boolean>;
+  sourceAssetId: string | null;
   status: Generated<string>;
   updatedAt: Generated<Timestamp>;
   userId: string | null;
@@ -605,6 +607,8 @@ export interface WardrobeItems {
   seasonSource: Generated<string>;
   sentiment: string | null;
   size: string | null;
+  sourceAssetId: string | null;
+  sourceIndex: number | null;
   status: Generated<string>;
   updatedAt: Generated<Timestamp>;
   userId: string;

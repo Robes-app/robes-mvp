@@ -20,6 +20,7 @@ import { modelRepo } from './model';
 import { modelRenderRepo } from './model-render';
 import { notifierRepo } from './notifier';
 import { overnightRepo } from './overnight';
+import { photoReadRepo } from './photo-reads';
 import { pieceAnalysisRepo } from './piece-analysis';
 import { planRepo } from './plan';
 import { profilesRepo } from './profiles';
@@ -95,6 +96,8 @@ export function createSystemRepositories(db: Db) {
     overnight: overnightRepo(db),
     pushDelivery: pushDeliveryRepo(db),
     pieces: pieceAnalysisRepo(db),
+    // wardrobe_pieces: her photo, her closet and the crops cut from it.
+    photoReads: photoReadRepo(db),
     styleAnalysis: styleAnalysisRepo(db),
     styleBrief: styleBriefRepo(db),
     frames: framesRepo(db),
@@ -134,6 +137,6 @@ export {
 } from './style-dna';
 export type { StyleOverrides } from './style-profile';
 export type { TripLookToPin } from './trips';
-export type { ListPiecesQuery, PieceFields } from './wardrobe';
+export type { ListPiecesQuery, PieceFields, ReadPieceRow } from './wardrobe';
 export type { WishFields } from './wishlist';
 export { mintInboxAddress };
