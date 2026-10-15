@@ -1037,7 +1037,7 @@ export const admin = {
       failRate: 'Failure rate',
       p50: 'p50',
       p95: 'p95',
-      spend: 'AI spend',
+      spend: 'Model spend',
       measure: 'Measure',
       value: 'Value',
     },
