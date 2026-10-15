@@ -71,8 +71,7 @@ describe('detectImageFormat', () => {
   });
 });
 
-// AVIF encodes at four widths are CPU-bound; 2-vCPU CI runners need well over vitest's 5s default.
-describe('processUpload', { timeout: 30_000 }, () => {
+describe('processUpload', () => {
   it('writes a 2048 master and avif+webp renditions with no EXIF or GPS', async () => {
     const h = harness();
     const input = await jpegWithGps();
