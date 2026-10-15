@@ -24,9 +24,7 @@ describe('looks.style_piece v1', () => {
   it('injects style icons and the stored style DNA like legacy /api/style', () => {
     const { dna } = buildColorHarmony({ undertone: 'Warm', contrast: 'Low', chroma: 'Low' });
     const system = buildSystem({ ...ctx, styleDna: { color_harmony: dna }, wardrobeCount: 3 });
-    expect(system).toContain(
-      'STYLE ICONS — the user named these as their taste references: Phoebe Philo.',
-    );
+    expect(system).toContain('STYLE ICONS — her taste references: Phoebe Philo.');
     expect(system).toContain('Colour archetype: Soft Autumn');
     expect(system).toContain('building their digital closet (3/15 items)');
   });
