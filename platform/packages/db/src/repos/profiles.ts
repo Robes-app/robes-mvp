@@ -61,6 +61,19 @@ export function profilesRepo(db: Db) {
         .execute();
     },
 
+    // Later on a home step: it stands down for a day (merged so two taps both stick).
+    async snoozeHome(userId: UserId, step: string, at: Date): Promise<Record<string, string>> {
+      const row = await db
+        .updateTable('profiles')
+        .set({
+          homeSnoozes: sql`home_snoozes || jsonb_build_object(${step}::text, ${at.toISOString()}::text)`,
+        })
+        .where('id', '=', userId)
+        .returning('homeSnoozes')
+        .executeTakeFirst();
+      return (row?.homeSnoozes ?? {}) as Record<string, string>;
+    },
+
     async completeOnboarding(userId: UserId): Promise<Date | null> {
       const row = await db
         .updateTable('profiles')

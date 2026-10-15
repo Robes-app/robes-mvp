@@ -284,6 +284,24 @@ export function wardrobeRepo(db: Db) {
     },
 
     // Pieces Robes has finished reading (the ladder counts these, not ones still "reading").
+    // Pieces with a photograph (the home's wardrobe step), newest first, with the count.
+    async photographed(userId: UserId, limit = 60) {
+      const base = active()
+        .where('userId', '=', userId)
+        .where('status', '=', 'ready')
+        .where('imageAssetId', 'is not', null);
+      const [rows, total] = await Promise.all([
+        base
+          .select(['id', 'label', 'brand', 'imageAssetId', 'heroPosition', 'createdAt'])
+          .orderBy(createdMs, 'desc')
+          .orderBy('id', 'desc')
+          .limit(limit)
+          .execute(),
+        base.select((eb) => eb.fn.countAll<string>().as('n')).executeTakeFirst(),
+      ]);
+      return { rows, total: Number(total?.n ?? 0) };
+    },
+
     async countReady(userId: UserId): Promise<number> {
       const row = await active()
         .select((eb) => eb.fn.countAll<string>().as('n'))

@@ -378,6 +378,7 @@ export interface Profiles {
   homeCity: string | null;
   homeLat: Numeric | null;
   homeLon: Numeric | null;
+  homeSnoozes: Generated<Json>;
   id: string;
   instagramHandle: string | null;
   investmentLevel: string | null;

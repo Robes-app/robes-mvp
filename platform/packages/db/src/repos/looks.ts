@@ -188,6 +188,33 @@ export function looksRepo(db: Db) {
       return Number(row?.n ?? 0);
     },
 
+    // A saved look from HERS (the home's first-look step): a Robes build, or her pieces and
+    // nothing proposed.
+    async hasOwnLook(userId: UserId): Promise<boolean> {
+      const row = await active()
+        .select('id')
+        .where('userId', '=', userId)
+        .where('status', '=', 'saved')
+        .where((eb) =>
+          eb.or([
+            eb('source', '=', 'robes-build'),
+            eb.and([
+              eb('proposals', 'is', null),
+              eb.exists(
+                eb
+                  .selectFrom('lookPieces as lp')
+                  .select('lp.lookId')
+                  .whereRef('lp.lookId', '=', 'looks.id')
+                  .where('lp.userId', '=', userId),
+              ),
+            ]),
+          ]),
+        )
+        .limit(1)
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
     // Rendered on her model: where it stands, for the look page and idempotent asks.
     renderState(userId: UserId, id: string) {
       return active()
