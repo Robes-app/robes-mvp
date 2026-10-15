@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
-import { wardrobe as copy, ui } from '@robes/copy';
+import { wardrobe as copy, lookbook, ui } from '@robes/copy';
 import {
   Button,
   EmptyState,
@@ -15,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { SuggestedRail } from '@/features/looks/SuggestedRail';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { READING_REFRESH_MS, useDeletePiece } from './pieces';
@@ -168,6 +169,7 @@ export function PieceDetail({ id }: { id: string }) {
               <Detail label={copy.piece.size} value={piece.size} />
               <Detail label={copy.piece.notes} value={piece.notes} />
             </View>
+            <SuggestedRail pieceId={piece.id} />
             <View className="gap-3 pt-2">
               <Button
                 icon="looks"
@@ -177,6 +179,15 @@ export function PieceDetail({ id }: { id: string }) {
                 }
               >
                 {copy.piece.stylePiece}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={reading}
+                onPress={() =>
+                  router.push({ pathname: '/looks/new', params: { pieceId: piece.id } })
+                }
+              >
+                {lookbook.startLook}
               </Button>
               <Button variant="secondary" onPress={() => setEditing(true)}>
                 {copy.edit}

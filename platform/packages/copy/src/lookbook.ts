@@ -186,4 +186,7 @@ export const lookbook = {
     failed: 'Robes couldn’t read that just now. Try again.',
   },
   pieceRail: 'Robes suggested',
+  // The piece page's two ways in (legacy piece card modes).
+  startLook: 'Start a look with it',
+  suggestThree: 'Robes suggests three',
 } as const;

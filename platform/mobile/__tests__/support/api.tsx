@@ -71,8 +71,10 @@ class ErrorReply {
   ) {}
 }
 
-export function errorReply(status: number, code: string): ErrorReply {
-  return new ErrorReply(status, { error: { code, message: code, requestId: 'req-test' } });
+export function errorReply(status: number, code: string, details?: unknown): ErrorReply {
+  return new ErrorReply(status, {
+    error: { code, message: code, requestId: 'req-test', ...(details ? { details } : {}) },
+  });
 }
 
 export function newQueryClient(): QueryClient {

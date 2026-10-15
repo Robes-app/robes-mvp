@@ -20,6 +20,7 @@ import {
   type RackState,
   rackSignature,
   rowNote,
+  startedLabel,
   theName,
 } from './index';
 
@@ -223,5 +224,13 @@ describe('the frame key', () => {
     expect(frameKey(['x'], [{ name: 'Mules', brand: 'Toteme' }], {})).not.toBe(a);
     expect(frameKey(['x', 'y'], [{ name: 'Mules', brand: 'Toteme' }], { x: 'tucked' })).not.toBe(a);
     expect(a).toMatch(/^[0-9a-z]{14}$/);
+  });
+});
+
+describe('a draft’s started line', () => {
+  it('reads today, a weekday, or the date', () => {
+    expect(startedLabel('2026-10-15T09:00:00Z', '2026-10-15', 'UTC')).toBe('today');
+    expect(startedLabel('2026-10-13T09:00:00Z', '2026-10-15', 'UTC')).toBe('Tuesday');
+    expect(startedLabel('2026-10-01T09:00:00Z', '2026-10-15', 'UTC')).toBe('1 Oct');
   });
 });

@@ -398,3 +398,18 @@ export function frameKey(
   const s = parts.join(';');
   return `${fnv(s, 0x811c9dc5)}${fnv(s, 0x01000193)}`;
 }
+
+// "started Tuesday" on a draft tile: today, a weekday this week, else the date.
+export function startedLabel(createdAt: string, today: string, timeZone?: string): string {
+  const fmt = (o: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat('en-GB', { ...o, ...(timeZone ? { timeZone } : {}) }).format(
+      new Date(createdAt),
+    );
+  const day = new Intl.DateTimeFormat('en-CA', timeZone ? { timeZone } : {}).format(
+    new Date(createdAt),
+  );
+  const off = daysBetween(day, today);
+  if (off <= 0) return 'today';
+  if (off < 7) return fmt({ weekday: 'long' });
+  return fmt({ day: 'numeric', month: 'short' });
+}

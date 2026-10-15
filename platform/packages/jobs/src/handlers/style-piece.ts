@@ -466,7 +466,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         specFromWay(w, i, { anchorPieceId: fallback ? null : anchorPieceId, dateHint }),
       );
       const lookIds = deps.suggested ? await deps.suggested.mintSet(ctx.userId, setId, specs) : [];
-      await ctx.writeStage('text', { ideaId: setId, setId, lookIds, fallback, wearer, ways });
+      await ctx.writeStage('text', { setId, lookIds, fallback, wearer, ways });
 
       // Only the first frame is drawn now; the others when she reaches them (UX-09).
       const [hero] = ways;

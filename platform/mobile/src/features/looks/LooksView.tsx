@@ -1,133 +1,136 @@
-import type { Idea, Look } from '@robes/contracts';
-import { looks as copy, nav, shell, ui } from '@robes/copy';
-import { Card, CardSkeleton, EmptyState, Image, SegmentedControl, Text } from '@robes/ui-native';
-import { useRouter } from 'expo-router';
+import type { Look } from '@robes/contracts';
+import { lookbook as copy, nav, ui } from '@robes/copy';
+import { CardSkeleton, EmptyState, IconButton, SegmentedControl, Text } from '@robes/ui-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
-import { useIdeas } from './ideas';
-import { useSavedLooks } from './saved-looks';
+import { DraftTile, SavedTile, SuggestedTile } from './LookTiles';
+import { useLetGo, useLooksByStatus, useRestyle } from './look-states';
+import { NewLookBox } from './NewLookBox';
 
-type Segment = 'saved' | 'ideas';
-const SEGMENTS = [
-  { value: 'saved', label: shell.segments.saved },
-  { value: 'ideas', label: shell.segments.ideas },
+type Tab = 'saved' | 'suggested';
+const TABS = [
+  { value: 'saved', label: copy.tabs.saved },
+  { value: 'suggested', label: copy.tabs.suggested },
 ] as const;
 
-const DAY_MS = 86_400_000;
-
-type Entry = { kind: 'look'; look: Look } | { kind: 'idea'; idea: Idea };
-
-function LookCard({ look, onPress }: { look: Look; onPress: () => void }) {
-  const first = look.pieces.find((p) => p.piece.image)?.piece.image;
-  const uri = renditionUri(first, 180);
-  return (
-    <Card onPress={onPress} accessibilityLabel={look.name} className="flex-1">
-      {uri ? <Image source={uri} alt="" blurhash={first?.blurhash} recyclingKey={look.id} /> : null}
-      <View className="gap-1 p-2">
-        <Text size="small" numberOfLines={1}>
-          {look.name}
-        </Text>
-        <Text size="caption" tone="muted">
-          {copy.look.worn(look.timesWorn)}
-        </Text>
-      </View>
-    </Card>
-  );
-}
-
-function IdeaCard({ idea, onPress }: { idea: Idea; onPress: () => void }) {
-  const hero = idea.frames.find((f) => f.status === 'ready');
-  const uri = renditionUri(hero?.image, 180);
-  const days = idea.expiresAt
-    ? Math.max(1, Math.ceil((Date.parse(idea.expiresAt) - Date.now()) / DAY_MS))
-    : null;
-  return (
-    <Card onPress={onPress} accessibilityLabel={idea.title} className="flex-1">
-      {uri ? (
-        <Image source={uri} alt="" blurhash={hero?.image?.blurhash} recyclingKey={idea.id} />
-      ) : null}
-      <View className="gap-1 p-2">
-        <Text size="small" numberOfLines={1}>
-          {idea.title}
-        </Text>
-        {days !== null && idea.savedAt === null ? (
-          <Text size="caption" tone="muted">
-            {copy.ideas.expires(days)}
-          </Text>
-        ) : null}
-      </View>
-    </Card>
-  );
-}
-
+// The Lookbook (legacy F2–F7): Saved | Suggested; drafts lead Saved as an In progress rail.
 export function LooksView() {
   const router = useRouter();
-  const [segment, setSegment] = useState<Segment>('ideas');
-  const { data, isPending, isError, error, refetch, isRefetching } = useIdeas();
-  const saved = useSavedLooks();
-  const ideas: Entry[] = (data?.items ?? [])
-    .filter((i) => (segment === 'saved') === (i.savedAt !== null))
-    .map((idea) => ({ kind: 'idea', idea }));
-  // Saved: her built looks first, then ideas she kept.
-  const items: Entry[] =
-    segment === 'saved'
-      ? [...(saved.data?.items ?? []).map((look): Entry => ({ kind: 'look', look })), ...ideas]
-      : ideas;
-  const empty =
-    segment === 'ideas'
-      ? {
-          title: copy.ideas.empty.title,
-          body: copy.ideas.empty.body,
-          action: { label: copy.ideas.empty.action, onPress: () => router.push('/looks/style') },
-        }
-      : { title: copy.saved.empty.title, body: copy.saved.empty.body };
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<Tab>(params.tab === 'suggested' ? 'suggested' : 'saved');
+  const saved = useLooksByStatus('saved');
+  const drafts = useLooksByStatus('draft');
+  const suggested = useLooksByStatus('suggested', { refetch: true });
+  const restyle = useRestyle();
+  const letGo = useLetGo();
+  const current = tab === 'saved' ? saved : suggested;
+  const items = current.data?.items ?? [];
+  const draftItems = drafts.data?.items ?? [];
+  const count =
+    tab === 'saved'
+      ? [
+          items.length ? copy.count.looks(items.length) : null,
+          draftItems.length ? copy.count.inProgress(draftItems.length) : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : items.length
+        ? copy.count.suggested(items.length)
+        : '';
+  const open = (look: Look) => router.push(`/look/${look.id}`);
+
+  const header = (
+    <View className="gap-4 pb-3">
+      <View className="flex-row items-center justify-between gap-3">
+        <View className="flex-1">
+          <SegmentedControl label={copy.title} options={TABS} value={tab} onChange={setTab} />
+        </View>
+        {tab === 'saved' ? (
+          <IconButton icon="plus" label={copy.newLook} onPress={() => router.push('/looks/new')} />
+        ) : null}
+      </View>
+      {count ? (
+        <Text size="small" tone="muted" testID="looks-count">
+          {count}
+        </Text>
+      ) : null}
+      {tab === 'saved' && draftItems.length ? (
+        <View className="gap-2">
+          <Text size="caption" tone="muted">
+            {copy.inProgress}
+          </Text>
+          <FlatList
+            horizontal
+            data={draftItems}
+            keyExtractor={(l) => l.id}
+            contentContainerClassName="gap-3"
+            renderItem={({ item }) => <DraftTile look={item} onPress={() => open(item)} />}
+          />
+        </View>
+      ) : null}
+    </View>
+  );
 
   return (
     <TabScreen title={nav.looks}>
-      <View className="px-6 pb-3">
-        <SegmentedControl
-          label={copy.title}
-          options={SEGMENTS}
-          value={segment}
-          onChange={setSegment}
-        />
-      </View>
-      {isPending ? (
+      {current.isPending ? (
         <View className="flex-row gap-3 px-6">
           <CardSkeleton className="flex-1" />
           <CardSkeleton className="flex-1" />
         </View>
-      ) : isError ? (
+      ) : current.isError ? (
         <EmptyState
-          title={errorMessage(error)}
-          action={{ label: ui.retry, onPress: () => void refetch() }}
+          title={errorMessage(current.error)}
+          action={{ label: ui.retry, onPress: () => void current.refetch() }}
         />
       ) : (
         <FlatList
           data={items}
-          keyExtractor={(e) => (e.kind === 'look' ? e.look.id : e.idea.id)}
+          keyExtractor={(l) => l.id}
           numColumns={2}
           columnWrapperClassName="gap-3"
           contentContainerClassName="gap-3 px-6 pb-8"
+          ListHeaderComponent={header}
           renderItem={({ item }) => (
             <View className="flex-1">
-              {item.kind === 'look' ? (
-                <LookCard look={item.look} onPress={() => router.push(`/look/${item.look.id}`)} />
+              {tab === 'saved' ? (
+                <SavedTile look={item} onPress={() => open(item)} />
               ) : (
-                <IdeaCard idea={item.idea} onPress={() => router.push(`/idea/${item.idea.id}`)} />
+                <SuggestedTile
+                  look={item}
+                  onPress={() => open(item)}
+                  onRemove={() => letGo(item.id)}
+                  onSwap={() => restyle.restyle(item.id)}
+                  swapping={restyle.busyId === item.id}
+                />
               )}
             </View>
           )}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={() => void Promise.all([refetch(), saved.refetch()])}
+              refreshing={current.isRefetching}
+              onRefresh={() => void Promise.all([current.refetch(), drafts.refetch()])}
             />
           }
-          ListEmptyComponent={<EmptyState {...empty} />}
+          ListEmptyComponent={
+            tab === 'saved' ? (
+              draftItems.length ? null : (
+                <EmptyState
+                  title={copy.savedEmpty.title}
+                  body={copy.savedEmpty.body}
+                  action={{ label: copy.newLook, onPress: () => router.push('/looks/new') }}
+                />
+              )
+            ) : (
+              <View className="gap-4">
+                <EmptyState title={copy.suggestedEmpty.title} body={copy.suggestedEmpty.body} />
+                <NewLookBox />
+              </View>
+            )
+          }
         />
       )}
     </TabScreen>

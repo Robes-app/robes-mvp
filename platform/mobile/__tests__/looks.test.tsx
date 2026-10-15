@@ -2,10 +2,9 @@ import { looks, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { IdeaScreen, JobIdeaScreen } from '../src/features/looks/IdeaScreens';
 import { LookDetail } from '../src/features/looks/LookDetail';
-import { LooksView } from '../src/features/looks/LooksView';
 import { StylePiece } from '../src/features/looks/StylePiece';
 import { localDate } from '../src/features/looks/saved-looks';
-import { ME, mockFetch, renderWithApi } from './support/api';
+import { mockFetch, renderWithApi } from './support/api';
 import { IDEA_ID, idea, JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
@@ -89,33 +88,6 @@ test('an idea can be saved, and removing it goes back', async () => {
   await fireEvent.press(screen.getByRole('button', { name: looks.result.remove }));
   await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
   expect(calls.some((c) => c.method === 'DELETE')).toBe(true);
-});
-
-test('Looks splits ideas from saved ones; Saved also lists her built looks', async () => {
-  mockFetch({
-    'GET /me': ME,
-    'GET /looks': { items: [look()], nextCursor: null },
-    'GET /looks/ideas': {
-      items: [
-        idea({ title: 'Unsaved idea' }),
-        idea({
-          id: '88888888-8888-4888-8888-888888888888',
-          title: 'Kept look',
-          savedAt: '2026-09-24T10:05:00.000Z',
-          expiresAt: null,
-        }),
-      ],
-    },
-  });
-  await renderWithApi(<LooksView />);
-  expect(await screen.findByText('Unsaved idea')).toBeTruthy();
-  expect(screen.queryByText('Kept look')).toBeNull();
-  await fireEvent.press(screen.getByRole('radio', { name: 'Saved' }));
-  expect(await screen.findByText('Kept look')).toBeTruthy();
-  expect(screen.getByText('Weekend navy')).toBeTruthy();
-  expect(screen.queryByText('Unsaved idea')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Weekend navy' }));
-  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);
 });
 
 test('a saved look can be worn today (her local date) and removed with Undo', async () => {
