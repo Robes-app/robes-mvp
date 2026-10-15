@@ -147,7 +147,7 @@ function memoryLines(m: unknown): string[] {
   return [
     'WHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):',
     fenced(out.slice(0, MEMORY_LINES_MAX).join('\n')),
-    'A piece she has swapped out twice is not proposed again unless she names it; a move she called "not quite" is not repeated in another colour.',
+    'A piece she has swapped out twice is not proposed again unless she names it; a move she called "not quite" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.',
   ];
 }
 
@@ -215,7 +215,7 @@ export function factsLines(f: unknown): string[] {
   if (age) parts.push(`age ${age}`);
   if (!parts.length) return [];
   return [
-    `THE FACTS she gave — size, never weight: ${parts.join(', ')}. Propose what fits these and size every piece to them; never estimate them from a photograph.`,
+    `THE FACTS she gave — size, never weight: ${parts.join(', ')}. Size every piece to these; never estimate them from a photograph.`,
   ];
 }
 
@@ -282,9 +282,8 @@ export function styleDnaPromptBlock(
     const sometimes = soft.length
       ? `${arch.length ? '; sometimes ' : ': sometimes '}${soft.join(', ')}`
       : '';
-    lines.push(`STYLE TYPE — the user placed their own style${typed}${sometimes}.`);
     lines.push(
-      'Every look should sit in this register: the types named first lead, a "sometimes" type is a mood to reach for on occasion, never the default. Like the style icons, this steers taste; it never overrides the colour or silhouette rules below.',
+      `STYLE TYPE — her own placing${typed}${sometimes}. Every look sits in this register — the first types lead, a "sometimes" type is an occasional mood. Taste, never an override of the colour or silhouette rules below.`,
     );
   }
   // Style icons are her declared taste, layered over the photo-verified DNA.
@@ -295,21 +294,17 @@ export function styleDnaPromptBlock(
       return t ? `${i} (${t})` : i;
     });
     lines.push(
-      `STYLE ICONS — the user named these as their taste references: ${fenced(named.join(', '))}.`,
-    );
-    lines.push(
-      'Follow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.',
+      `STYLE ICONS — her taste references: ${fenced(named.join(', '))}. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.`,
     );
   }
   if (brands.length) {
-    lines.push(`BRANDS she reaches for: ${fenced(brands.join(', '))}.`);
     lines.push(
-      'When a piece has to be found, look to these houses and their register first — a proposal should read as something she would have chosen herself.',
+      `BRANDS she reaches for: ${fenced(brands.join(', '))}. A piece that has to be found comes from these houses and their register first.`,
     );
   }
   if (investment) {
     lines.push(
-      `INVESTMENT LEVEL — she spends ${investment} a year on clothes. Propose inside it, whatever she admires: never a piece above what that level buys, however well it would photograph.`,
+      `INVESTMENT LEVEL — she spends ${investment} a year on clothes: never a piece above what that level buys, however well it would photograph.`,
     );
     // Only "above" earns a line: a partial year can prove she buys above her level, never below.
     const spend = spendRead(dna.spend);

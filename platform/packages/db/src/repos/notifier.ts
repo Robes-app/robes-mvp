@@ -48,23 +48,29 @@ export function notifierRepo(db: Db) {
           .where('sentAt', '>', sql<Date>`now() - interval '30 days'`)
           .execute(),
         db
-          .selectFrom('artifacts')
-          .distinctOn('userId')
+          .selectFrom('artifacts as ar')
+          .distinctOn('ar.userId')
           .select([
-            'userId',
-            'id',
-            'title',
-            'createdAt',
-            sql<number>`(select count(*)::int from jsonb_array_elements(coalesce(data->'images', '[]'::jsonb)) f where f->>'status' = 'ready')`.as(
-              'readyFrames',
-            ),
+            'ar.userId',
+            'ar.id',
+            'ar.title',
+            'ar.createdAt',
+            // A suggested-look set (look states) keeps its frames on its looks, not in data.images.
+            sql<boolean>`ar.data ? 'set'`.as('isSet'),
+            sql<number>`case when ar.data ? 'set' then (
+              select count(*)::int from app.looks l
+              join app.assets a on a.id = l.frame_asset_id and a.user_id = l.user_id
+              where l.user_id = ar.user_id and l.set_id = ar.id and l.deleted_at is null
+                and a.status = 'ready')
+            else (select count(*)::int from jsonb_array_elements(coalesce(ar.data->'images', '[]'::jsonb)) f
+              where f->>'status' = 'ready') end`.as('readyFrames'),
           ])
-          .where('userId', 'in', ids)
-          .where('type', '=', 'idea')
-          .where('deletedAt', 'is', null)
-          .where('createdAt', '>', sql<Date>`now() - interval '48 hours'`)
-          .orderBy('userId')
-          .orderBy('createdAt', 'desc')
+          .where('ar.userId', 'in', ids)
+          .where('ar.type', '=', 'idea')
+          .where('ar.deletedAt', 'is', null)
+          .where('ar.createdAt', '>', sql<Date>`now() - interval '48 hours'`)
+          .orderBy('ar.userId')
+          .orderBy('ar.createdAt', 'desc')
           .execute(),
         db
           .selectFrom('wardrobeItems')

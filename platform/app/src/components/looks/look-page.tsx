@@ -4,7 +4,7 @@ import { queryKeys, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { anchorName, noteShort } from '@robes/core/looks';
-import { Button, Eyebrow, Field, Heading, Text, useToast } from '@robes/ui';
+import { Button, Dialog, Eyebrow, Field, Heading, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -232,6 +232,24 @@ export function WorkingLook({ look }: { look: Look }) {
           </>
         ) : null}
       </div>
+      <Dialog
+        open={editor.full !== null}
+        onOpenChange={(o) => {
+          if (!o) editor.keep();
+        }}
+        title={copy.drafts.fullTitle}
+        description={copy.drafts.fullBody(editor.full?.oldest ?? copy.draftTile.untitled)}
+        footer={
+          <>
+            <Button variant="quiet" onClick={editor.keep}>
+              {copy.drafts.keep}
+            </Button>
+            <Button variant="primary" onClick={editor.letGo}>
+              {copy.drafts.letGo}
+            </Button>
+          </>
+        }
+      />
       <div
         className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-bg px-4 py-3 md:sticky md:col-span-2 md:rounded-soft md:border"
         data-testid="look-bar"

@@ -1,14 +1,16 @@
 import type { Look, LookSet } from '@robes/contracts';
 import { lookbook, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { Deck } from '../src/features/looks/Deck';
+import { Alert } from 'react-native';
+import { Deck, JobDeck } from '../src/features/looks/Deck';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { LooksView } from '../src/features/looks/LooksView';
 import { NewLookBox } from '../src/features/looks/NewLookBox';
 import { localDate } from '../src/features/looks/saved-looks';
-import { ME, mockFetch, renderWithApi } from './support/api';
+import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
-import { mockRouter } from './support/router';
+import { Providers } from './support/providers';
+import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -313,4 +315,119 @@ test('a verdict on a suggestion lands in her memory; Not quite lets the look go'
     },
   ]);
   expect(mockRouter.back).toHaveBeenCalled();
+});
+
+test('passing every card ends the deck (no endless dressing), and nothing polls after', async () => {
+  const passed = new Set<string>();
+  const looks = [suggestion(), suggestion({ id: SECOND, name: 'City dinner', setIndex: 1 })];
+  const set = (): LookSet => ({
+    id: SET_ID,
+    mode: 'piece',
+    prompt: null,
+    anchor,
+    dateHint: null,
+    jobId: JOB_ID,
+    looks: looks.filter((l) => !passed.has(l.id)),
+  });
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /me/model': { filed: false },
+    [`GET /looks/sets/${SET_ID}`]: () => set(),
+    [`GET /jobs/${JOB_ID}`]: job({ setId: SET_ID }),
+    [`DELETE /looks/${LOOK_ID}`]: () => {
+      passed.add(LOOK_ID);
+      return { ok: true };
+    },
+    [`DELETE /looks/${SECOND}`]: () => {
+      passed.add(SECOND);
+      return { ok: true };
+    },
+    'GET /looks': byStatus({}),
+  });
+  await renderWithApi(<Deck setId={SET_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.deck.pass }));
+  await screen.findByText('City dinner');
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.pass }));
+  expect(await screen.findByText(lookbook.deck.kept(0))).toBeTruthy();
+  expect(screen.queryByTestId('deck-dressing')).toBeNull();
+  const sets = calls.filter((c) => c.path.endsWith(`/sets/${SET_ID}`)).length;
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 1700));
+  });
+  expect(calls.filter((c) => c.path.endsWith(`/sets/${SET_ID}`)).length).toBeLessThanOrEqual(
+    sets + 1,
+  );
+  expect(screen.getByText(lookbook.deck.kept(0))).toBeTruthy();
+});
+
+test('a styling job that failed after its looks were written still opens the deck', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /me/model': { filed: false },
+    [`GET /jobs/${JOB_ID}`]: { ...job({ setId: SET_ID }, 'failed'), error: 'timeout' },
+    [`GET /looks/sets/${SET_ID}`]: {
+      id: SET_ID,
+      mode: 'piece',
+      prompt: null,
+      anchor,
+      dateHint: null,
+      jobId: JOB_ID,
+      looks: [suggestion()],
+    },
+  });
+  await renderWithApi(<JobDeck jobId={JOB_ID} />);
+  expect(await screen.findByText('Garden party')).toBeTruthy();
+  expect(screen.queryByText(lookbook.deck.failed)).toBeNull();
+});
+
+test('a door naming the Suggested tab switches it while Looks is mounted', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /looks': byStatus({ saved: [look()], suggested: [suggestion()] }),
+  });
+  const view = await renderWithApi(<LooksView />);
+  expect(await screen.findByText('Weekend navy')).toBeTruthy();
+  mockParams.tab = 'suggested';
+  await view.rerender(
+    <Providers queryClient={view.queryClient}>
+      <LooksView />
+    </Providers>,
+  );
+  expect(await screen.findByText('Garden party')).toBeTruthy();
+  delete mockParams.tab;
+});
+
+test('editing a suggestion at five drafts asks, then lets the oldest go', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  let patches = 0;
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: suggestion(),
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => {
+      patches += 1;
+      return patches === 1
+        ? errorReply(409, 'conflict', { reason: 'drafts_full' })
+        : { ...suggestion(), status: 'draft', ...JSON.parse(String(init.body)), proposals: [] };
+    },
+    'GET /looks': byStatus({ draft: [look({ name: 'Oldest draft', status: 'draft' })] }),
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.edit }));
+  await waitFor(() => expect(alert).toHaveBeenCalled());
+  const [title, body, buttons] = alert.mock.calls[0] as [
+    string,
+    string,
+    { text: string; onPress?: () => void }[],
+  ];
+  expect([title, body]).toEqual([
+    lookbook.drafts.fullTitle,
+    lookbook.drafts.fullBody('Oldest draft'),
+  ]);
+  await act(async () => buttons.find((b) => b.text === lookbook.drafts.letGo)?.onPress?.());
+  await waitFor(() => expect(patches).toBe(2));
+  const sent = calls
+    .filter((c) => c.method === 'PATCH')
+    .map((c) => c.body as Record<string, unknown>);
+  expect(sent[0]?.letGoOldest).toBeUndefined();
+  expect(sent[1]?.letGoOldest).toBe(true);
 });

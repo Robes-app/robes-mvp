@@ -1,6 +1,7 @@
 import { useApi, useApiClient } from '@robes/api-client/react';
 import type { LookSet } from '@robes/contracts';
 import { lookbook as copy, errors, jobs, ui } from '@robes/copy';
+import { isTerminalJobStatus } from '@robes/core/jobs';
 import { anchorName, deckReduce, deckTop, emptyDeck } from '@robes/core/looks';
 import {
   Button,
@@ -25,6 +26,7 @@ import { isTerminal, JOB_REFRESH_MS } from './ideas';
 import { type SetLook, useInvalidateLooks, useLookSet, useRequestFrame } from './look-states';
 
 const COMMIT_PX = 100;
+const JOB_POLL_MS = 1500;
 
 function DeckTitle({ set }: { set: LookSet | undefined }) {
   const { data: model } = useApi('me.model.get');
@@ -179,8 +181,29 @@ export function Deck({ setId, prompt }: { setId: string; prompt?: string | null 
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const requestFrame = useRequestFrame();
-  const { data: set, isError, error } = useLookSet(setId);
   const [deck, dispatch] = useReducer(deckReduce, undefined, emptyDeck);
+  // The job that writes the set: until it ends, an empty set is still being composed.
+  const [jobId, setJobId] = useState<string | null>(null);
+  const job = useApi(
+    'jobs.get',
+    { params: { id: jobId ?? '' } },
+    {
+      enabled: jobId !== null,
+      refetchInterval: (q) =>
+        q.state.data && isTerminalJobStatus(q.state.data.status) ? false : JOB_POLL_MS,
+    },
+  );
+  const jobDone = job.data ? isTerminalJobStatus(job.data.status) : false;
+  const {
+    data: set,
+    isError,
+    error,
+  } = useLookSet(setId, {
+    waiting: !jobDone && deck.order.length === 0,
+  });
+  useEffect(() => {
+    if (set?.jobId) setJobId(set.jobId);
+  }, [set?.jobId]);
   const looks = set?.looks ?? [];
   const ids = looks.map((l) => l.id).join(',');
   useEffect(() => {
@@ -229,12 +252,15 @@ export function Deck({ setId, prompt }: { setId: string; prompt?: string | null 
 
   if (isError) return <EmptyState title={errorMessage(error)} />;
   const around = set?.anchor ? anchorName(set.anchor.label, set.anchor.brand) : '';
-  const done = deck.order.length > 0 && !top;
+  // Done once she has decided every card (all passed included), or the job ended with none.
+  const done =
+    !top && (deck.order.length > 0 || (set !== undefined && jobDone && looks.length === 0));
+  const composing = !set || (looks.length === 0 && !done);
   const kept = deck.kept.map((id) => looks.find((l) => l.id === id)).filter((l) => l !== undefined);
   return (
     <ScrollView contentContainerClassName="gap-6 px-6 pb-12" testID="deck">
       <DeckTitle set={set} />
-      {!set || looks.length === 0 ? (
+      {composing ? (
         <Dressing {...(set ? { set } : {})} prompt={prompt ?? null} />
       ) : done ? (
         <View className="items-center gap-4" testID="deck-done">
@@ -321,17 +347,16 @@ export function JobDeck({ jobId }: { jobId: string }) {
     },
   );
   const setId = job.data?.output.setId;
+  // Looks minted before the job failed (a frame that ran out of time) still make the deck.
+  if (setId) return <Deck setId={setId} />;
   if (job.isError) return <EmptyState title={errorMessage(job.error)} />;
   if (job.data?.status === 'failed' || job.data?.status === 'cancelled') {
     return <EmptyState title={copy.deck.failed} body={jobs.status.failed} />;
   }
-  if (!setId) {
-    return (
-      <ScrollView contentContainerClassName="gap-6 px-6 pb-12">
-        <DeckTitle set={undefined} />
-        <Dressing />
-      </ScrollView>
-    );
-  }
-  return <Deck setId={setId} />;
+  return (
+    <ScrollView contentContainerClassName="gap-6 px-6 pb-12">
+      <DeckTitle set={undefined} />
+      <Dressing />
+    </ScrollView>
+  );
 }

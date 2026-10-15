@@ -74,16 +74,42 @@ way, owned pieces resolved to `pieceId`); `daily`/`travel` v2 (one hero per look
 **Already equivalent:** the trip-hidden mail rule (notify only reads look-backed plan days), account delete
 (SEC-80). **Legacy-only:** `/settings` redirects, email link paths, the `TRIP_HIDDEN` board-share rule, docs.
 
-**New in legacy, not built here** (rough effort):
-- Refine in her own words on daily/style/travel looks (`refineBlock`, `/api/look/refine`), M.
-- The look prompt: `/api/look/ask` with ASK intents over a draft look, plus per-piece `styled` notes
-  (`looks.styling`) that ride into the avatar render, L.
-- Look states (Suggested → Draft → Saved, `anchor_piece_id`/`set_id`), the keep-or-pass deck and the
-  modular home, L.
-- Style memory (verdicts, swaps, wears, strikes, asks) feeding the DNA block, M–L.
-- Her brief, brands, investment and facts in Settings (`/api/stylenotes/brief`, `/season`), M.
-- Avatar frame mode (re-dress Robes' own frame of a suggested look), S once look states exist.
+**New in legacy, not built here** (rough effort; ~~struck~~ = built since, see 2026-10-15):
+- Refine in her own words on daily/travel looks and a saved look (`/api/look/refine`), M. (↻ on a suggested
+  look is built: `style-piece` v3 refine.)
+- ~~The look prompt: `/api/look/ask` with ASK intents over a draft look, plus per-piece `styled` notes~~ —
+  built (`look-ask` v1 job; `styled` rides the avatar v2 render).
+- ~~Look states (Suggested → Draft → Saved, `anchor_piece_id`/`set_id`), the keep-or-pass deck~~ — built
+  (`server/look-states.ts`, `components/looks/deck.tsx`). Still not built: the modular home (O1–O4 resolver), L.
+- ~~Style memory (verdicts, swaps, wears, strikes, asks) feeding the DNA block~~ — built (`style-dna` repo memory).
+- ~~Her brief, brands, investment and facts in Settings~~ — built (`style-brief` job, You › Style, `/me/style/season`).
+- ~~Avatar frame mode (re-dress Robes' own frame of a suggested look)~~ — built (`look-frame` job).
 - Travel looks re-styled from the case (`held`, refine), M; the platform has no trip looks yet.
+
+## Legacy sync 2026-10-15
+
+Legacy `origin/beta` commits after the 10-13 sync (`61f1cf0` → `fc66bcd`, 13–15 Oct) reviewed against the
+platform. Most of it had already landed through the `port/looks` and `port/photos` branches.
+
+**Ported:** the style DNA prompt block (legacy `37ad2e9` cost pass: each section's explanatory second
+sentence folded into one line; `1284303`: the memory closes on "Her brief today outranks all of this").
+Fixtures regenerated from legacy `style_dna.js`; prompt versions unchanged (the block is shared context,
+as in the 10-13 sync).
+
+**Already equivalent:** `style-piece` v3 already carries the scene line + her pieces as numbered frame
+references (`61f1cf0`), one piece per slot and whitespace-collapsed fields (`19f5ad8`), gender from the
+profile and the tightened brief (`37ad2e9`), and `askDateFrom` for a day read from her words (the platform
+never had the intent classifier); `look-ask` v1 words a rule in her voice and parks it under Robes noticed
+(`1284303`); brief lists were already uncapped (`76187f0`); several pieces from one photograph
+(`2975850`, `05fe85a`, `d3df950`) — `wardrobe-pieces` v1 incl. pairs collapsed and the kind-and-colour
+match rule, the add-flow and look-from-photo screens with Already mine / Leave it out and matched pieces
+reading as her row; the swap glyph is already the one circular-arrows icon (`fc66bcd`).
+
+**Legacy-only:** home's empty Style DNA card as one "Log your style notes" door (`f044b35`) — the
+platform has no modular home yet; harness and CLAUDE.md edits.
+
+**New in legacy, not built here** (rough effort):
+- The saved look's calendar on a Lookbook card (schedule a day or log a wear from the grid, `76187f0`), S.
 
 ## Flakes to watch
 

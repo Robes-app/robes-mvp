@@ -1,5 +1,6 @@
 'use client';
 
+import { isApiClientError } from '@robes/api-client';
 import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
 import type {
   JobSnapshot,
@@ -78,7 +79,9 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
                   refresh(look);
                   onUndo?.(id);
                 })
-                .catch((err) => toast({ message: errorCopy(err) })),
+                .catch((err) =>
+                  toast({ message: isDraftsFull(err) ? copy.drafts.fullTitle : errorCopy(err) }),
+                ),
           },
         }),
       )
@@ -150,13 +153,16 @@ export function useRequestFrame() {
       .catch(() => undefined);
 }
 
-export function useLookSet(setId: string) {
+// The deck's set: refreshed while a frame is on its way, or while its looks are still being
+// written (`waiting`: an empty set whose job hasn't finished — never once everything is passed).
+export function useLookSet(setId: string, opts: { waiting: boolean } = { waiting: true }) {
   return useApi(
     'looks.sets.get',
     { params: { id: setId } },
     {
       refetchInterval: (q) =>
-        q.state.data?.looks.some((l) => l.framePending) || (q.state.data?.looks.length ?? 0) === 0
+        q.state.data?.looks.some((l) => l.framePending) ||
+        (opts.waiting && (q.state.data?.looks.length ?? 0) === 0)
           ? FRAME_REFRESH_MS
           : false,
     },
@@ -180,4 +186,13 @@ export function useLookAsk(lookId: string, onAnswer: (result: LookAskResult) => 
     send: (input: LookAskInput) => start.mutate({ params: { id: lookId }, input }),
     reading: start.isPending || jobId !== null,
   };
+}
+
+// Five drafts wait: the server answers 409 drafts_full; she lets the oldest go, or keeps them.
+export function isDraftsFull(err: unknown): boolean {
+  return (
+    isApiClientError(err) &&
+    err.code === 'conflict' &&
+    (err.details as { reason?: string } | undefined)?.reason === 'drafts_full'
+  );
 }

@@ -31,7 +31,7 @@ export interface StylePieceDeps {
   // Look states: the suggested looks a generation mints (absent where a runtime doesn't mint).
   suggested?: Pick<
     SystemRepositories['suggested'],
-    'mintSet' | 'rewrite' | 'look' | 'setFirstFrame'
+    'mintSet' | 'rewrite' | 'look' | 'setFrame' | 'failFrame'
   >;
   cells?: Pick<SystemRepositories['modelRender'], 'cell'>;
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
@@ -238,7 +238,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
   async function frame(
     ctx: Parameters<JobHandler['run']>[0],
     o: {
-      setId: string;
+      lookId: string;
       setIndex: number;
       wearer: 'woman' | 'man';
       mode: Mode;
@@ -262,16 +262,14 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     });
     try {
       const model = await modelReference(frameDeps(), ctx.userId);
+      const { spec: _spec, lookId: _lookId, ...draw } = o;
       const assetId = await drawSuggestedFrame(frameDeps(), ctx, {
-        ...o,
+        ...draw,
         model,
         capability: 'image.hero',
       });
-      await deps.suggested?.setFirstFrame(ctx.userId, o.setId, o.setIndex, {
-        assetId,
-        frameKey: specKey(o.spec),
-        jobId: ctx.jobId,
-      });
+      // Lands only while the look still wants this rack (she may have changed it meanwhile).
+      await deps.suggested?.setFrame(ctx.userId, o.lookId, specKey(o.spec), assetId);
       await deps.styling.trackImage({
         jobId: ctx.jobId,
         userId: ctx.userId,
@@ -283,6 +281,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       await ctx.writeStage('images', { images: [{ idx: o.setIndex, status: 'ready', assetId }] });
       return true;
     } catch (err) {
+      // The claim goes back either way, so she can ask for the frame again.
+      await deps.suggested?.failFrame(ctx.userId, o.lookId, specKey(o.spec)).catch(() => undefined);
       if (ctx.signal.aborted) throw err;
       await deps.styling.trackImage({
         jobId: ctx.jobId,
@@ -373,12 +373,17 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           anchorPieceId: anchorPiece?.id ?? null,
           dateHint: found.look.dateHint,
         });
-        if (!(await deps.suggested.rewrite(ctx.userId, input.lookId, spec))) {
+        if (
+          !(await deps.suggested.rewrite(ctx.userId, input.lookId, spec, {
+            frameKey: specKey(spec),
+            jobId: ctx.jobId,
+          }))
+        ) {
           throw new JobError('not_found');
         }
         await ctx.writeStage('text', { setId: found.look.setId, lookIds: [input.lookId] });
         await frame(ctx, {
-          setId: found.look.setId,
+          lookId: input.lookId,
           setIndex: found.look.setIndex ?? 0,
           wearer: set.data.wearer,
           mode,
@@ -465,15 +470,24 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       const specs = ways.map((w, i) =>
         specFromWay(w, i, { anchorPieceId: fallback ? null : anchorPieceId, dateHint }),
       );
-      const lookIds = deps.suggested ? await deps.suggested.mintSet(ctx.userId, setId, specs) : [];
+      // The hero's frame is claimed with the mint, before the set is exposed (no second draw).
+      const [heroSpec] = specs;
+      const lookIds = deps.suggested
+        ? await deps.suggested.mintSet(
+            ctx.userId,
+            setId,
+            specs,
+            heroSpec ? { setIndex: 0, frameKey: specKey(heroSpec), jobId: ctx.jobId } : undefined,
+          )
+        : [];
       await ctx.writeStage('text', { setId, lookIds, fallback, wearer, ways });
 
       // Only the first frame is drawn now; the others when she reaches them (UX-09).
       const [hero] = ways;
-      const [heroSpec] = specs;
-      if (!hero || !heroSpec) return { status: 'partial', artifactId: setId };
+      const [heroId] = lookIds;
+      if (!hero || !heroSpec || !heroId) return { status: 'partial', artifactId: setId };
       const landed = await frame(ctx, {
-        setId,
+        lookId: heroId,
         setIndex: 0,
         wearer,
         mode,

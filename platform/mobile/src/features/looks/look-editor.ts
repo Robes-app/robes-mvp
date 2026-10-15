@@ -8,11 +8,12 @@ import {
   rackFromLook,
   rackUpdate,
 } from '@robes/contracts';
-import { errors } from '@robes/copy';
+import { errors, lookbook } from '@robes/copy';
 import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui-native';
 import { useMemo, useState } from 'react';
-import { useInvalidateLooks, useRequestFrame } from './look-states';
+import { Alert } from 'react-native';
+import { isDraftsFull, useInvalidateLooks, useRequestFrame } from './look-states';
 import type { RowMark } from './RackRow';
 
 // One look's rack while she works on it. A suggestion or a draft writes through on every change
@@ -42,7 +43,35 @@ export function useLookEditor(look: Look) {
       refresh(updated);
       reframe(updated);
     },
-    onError: () => toast.show({ message: errors.internal }),
+    onError: (err, args) => {
+      if (!isDraftsFull(err)) {
+        toast.show({ message: errors.internal });
+        return;
+      }
+      // Editing a suggestion makes a sixth draft: ask before the oldest goes (legacy confirm).
+      void api
+        .call('looks.list', { input: { limit: 60, status: 'draft' } })
+        .catch(() => null)
+        .then((drafts) =>
+          Alert.alert(
+            lookbook.drafts.fullTitle,
+            lookbook.drafts.fullBody(drafts?.items.at(-1)?.name ?? lookbook.draftTile.untitled),
+            [
+              {
+                text: lookbook.drafts.keep,
+                style: 'cancel',
+                onPress: () => setRack(rackFromLook(look)),
+              },
+              {
+                text: lookbook.drafts.letGo,
+                style: 'destructive',
+                onPress: () =>
+                  write.mutate({ ...args, input: { ...args.input, letGoOldest: true } }),
+              },
+            ],
+          ),
+        );
+    },
   });
 
   const change = (next: RackState) => {

@@ -154,6 +154,13 @@ export async function lookFromRead(
   input: LookFromPhotoInput,
 ): Promise<Look> {
   const read = await loadRead(userId, jobId);
+  // One look per photograph: a retry or a second tap returns the look already saved (its wear
+  // is one per day either way), and files nothing twice.
+  const existing = await repos.looks.byPhoto(userId, read.assetId);
+  if (existing) {
+    if (input.wornOn) await repos.looks.wear(userId, existing.id, input.wornOn);
+    return toLook(userId, existing);
+  }
   const pairs = answered<LookAnswer>(read, input.answers);
   const owned = pairs.flatMap(({ piece, answer }) =>
     answer.state === 'owned' ? [{ piece, pieceId: answer.pieceId }] : [],

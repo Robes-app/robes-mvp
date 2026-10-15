@@ -69,7 +69,14 @@ export function suggestedLooksRepo(db: Db) {
   return {
     // A generation's three looks, minted together as suggestions (legacy _lkSuggLand). A piece she
     // no longer owns drops out; the anchor stays only while it is hers.
-    async mintSet(userId: UserId, setId: string, specs: readonly SuggestedSpec[]) {
+    // `claim` marks the look whose frame this job draws as already drawing, before any client sees
+    // the set, so nobody asks for that frame a second time.
+    async mintSet(
+      userId: UserId,
+      setId: string,
+      specs: readonly SuggestedSpec[],
+      claim?: { setIndex: number; frameKey: string; jobId: string },
+    ) {
       return db.transaction().execute(async (trx) => {
         const anchors = await ownedOnly(
           trx,
@@ -93,6 +100,14 @@ export function suggestedLooksRepo(db: Db) {
                 spec.anchorPieceId && anchors.has(spec.anchorPieceId) ? spec.anchorPieceId : null,
               dateHint: spec.dateHint,
               proposals: spec.proposals.length ? JSON.stringify(spec.proposals) : null,
+              ...(claim && claim.setIndex === spec.setIndex
+                ? {
+                    renderKey: `frame:${claim.frameKey}`,
+                    renderStatus: 'pending',
+                    renderJobId: claim.jobId,
+                    renderClaimedAt: sql`now()`,
+                  }
+                : {}),
             })
             .returning('id')
             .executeTakeFirstOrThrow();
@@ -104,10 +119,12 @@ export function suggestedLooksRepo(db: Db) {
     },
 
     // ↻ on a suggestion: the same row re-written in place (the frame comes again).
+    // The frame it draws next is claimed in the same write (see mintSet).
     async rewrite(
       userId: UserId,
       lookId: string,
       spec: Pick<SuggestedSpec, 'name' | 'note' | 'pieces' | 'proposals'>,
+      claim: { frameKey: string; jobId: string },
     ): Promise<boolean> {
       return db.transaction().execute(async (trx) => {
         const res = await trx
@@ -120,9 +137,10 @@ export function suggestedLooksRepo(db: Db) {
             styling: null,
             frameAssetId: null,
             frameKey: null,
-            renderStatus: null,
-            renderKey: null,
-            renderJobId: null,
+            renderStatus: 'pending',
+            renderKey: `frame:${claim.frameKey}`,
+            renderJobId: claim.jobId,
+            renderClaimedAt: sql`now()`,
             updatedAt: sql`now()`,
           })
           .where('userId', '=', userId)
@@ -192,31 +210,6 @@ export function suggestedLooksRepo(db: Db) {
             .execute()
         : [];
       return { look, pieces, siblings };
-    },
-
-    // The frame a generation drew for a set's look, stamped with the rack it shows; never over a
-    // frame the look already has.
-    async setFirstFrame(
-      userId: UserId,
-      setId: string,
-      setIndex: number,
-      frame: { assetId: string; frameKey: string; jobId: string },
-    ) {
-      await db
-        .updateTable('looks')
-        .set({
-          frameAssetId: frame.assetId,
-          frameKey: frame.frameKey,
-          renderKey: `frame:${frame.frameKey}`,
-          renderStatus: 'ready',
-          renderJobId: frame.jobId,
-        })
-        .where('userId', '=', userId)
-        .where('setId', '=', setId)
-        .where('setIndex', '=', setIndex)
-        .where('frameAssetId', 'is', null)
-        .where('deletedAt', 'is', null)
-        .execute();
     },
 
     // Lands a drawn frame only if the look still wants the rack it was drawn for.

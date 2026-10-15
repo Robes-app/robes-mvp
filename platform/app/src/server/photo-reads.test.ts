@@ -15,7 +15,11 @@ const repos = {
     createFromRead: vi.fn(),
     adoptPhoto: vi.fn(async () => false),
   },
-  looks: { create: vi.fn(async () => ({ id: 'look-1' })), wear: vi.fn(async () => ({})) },
+  looks: {
+    create: vi.fn(async () => ({ id: 'look-1' })),
+    wear: vi.fn(async () => ({})),
+    byPhoto: vi.fn(async (): Promise<{ id: string } | undefined> => undefined),
+  },
 };
 const startJob = vi.fn(async () => ({ jobId: 'job', status: 'queued' }));
 vi.mock('./db', () => ({ repos }));
@@ -219,5 +223,17 @@ describe('photo reads', () => {
       expect.objectContaining({ name: 'Suggested', nameProvisional: true }),
     );
     expect(repos.looks.wear).not.toHaveBeenCalled();
+  });
+
+  it('saves one look per photograph: a retry returns it and files nothing twice', async () => {
+    repos.looks.byPhoto.mockResolvedValueOnce({ id: 'look-1' });
+    const look = await lookFromRead(USER, JOB, {
+      answers: [{ index: 0, state: 'skip' }],
+      wornOn: '2026-10-15',
+    });
+    expect(look).toEqual({ id: 'look-1' });
+    expect(repos.looks.create).not.toHaveBeenCalled();
+    expect(repos.wardrobe.createFromRead).not.toHaveBeenCalled();
+    expect(repos.looks.wear).toHaveBeenCalledWith(USER, 'look-1', '2026-10-15');
   });
 });

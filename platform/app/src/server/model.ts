@@ -109,9 +109,10 @@ export async function renderOnModel(
 ): Promise<StartJobOutput> {
   const state = await repos.looks.renderState(userId, lookId);
   if (!state) throw new ApiError('not_found');
-  // Robes' frame is the look's picture; her model never replaces it (legacy 2026-10-07).
+  // Only a saved look renders on her model; Robes' frame is a look's picture and her model never
+  // replaces it (legacy 2026-10-07).
   const look = await repos.looks.get(userId, lookId);
-  if (!look || look.frameAssetId) throw new ApiError('conflict');
+  if (!look || look.status !== 'saved' || look.frameAssetId) throw new ApiError('conflict');
   const row = await repos.model.get(userId);
   if (!row?.filedCellId) throw new ApiError('conflict');
   const cell = await repos.avatarCells.get(cellKey(row.filedCellId));
