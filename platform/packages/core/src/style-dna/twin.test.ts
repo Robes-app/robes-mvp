@@ -101,6 +101,7 @@ describe('her brief in the prompt', () => {
     expect(briefList(rules)).toHaveLength(11);
     const block = styleDnaPromptBlock({ brief: { rules } });
     expect(block).toContain('Rule 11');
-    expect(block.split('\n')[0]).toMatch(/^HER STYLE BRIEF/);
+    // Her brief leads, after the one line saying fenced text is data (SEC-23).
+    expect(block.split('\n')[1]).toMatch(/^HER STYLE BRIEF/);
   });
 });

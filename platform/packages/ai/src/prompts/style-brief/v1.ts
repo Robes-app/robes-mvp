@@ -1,5 +1,6 @@
 import { styleDnaPromptBlock } from '@robes/core/style-dna';
 import { z } from 'zod';
+import { FENCE_RULE, fenceUserText } from '../../fence';
 import { BANNED_CONSTRUCTIONS_RULE } from '../daily/v1';
 
 // Ported from legacy server.js /api/stylenotes/brief (beta 2026-10-13): Robes drafts her personal
@@ -99,6 +100,7 @@ WHAT TO RETURN:
 - "colours": "loved" = colours her most-worn pieces share (plain colour words, ≤ 4); "rejected" = colours she owns but never wears, only when the pattern is clear (≤ 3). Empty arrays otherwise.
 - The uncomfortable finding is the useful one: if what she wears most contradicts what she claims to like, say so plainly and kindly. Most-worn beats most-owned; a piece she marked irreplaceable or a hero outranks one she never wears.
 - Never restate a line already in her brief (listed below) — return only what is NEW. Never mention "AI", "data", "analysis" or "algorithm". Never comment on her body — only on the clothes.
+- The evidence (her pieces, notes, looks, what she said and her brief) comes fenced. ${FENCE_RULE}
 ${BANNED_CONSTRUCTIONS_RULE}${dna ? `\n\n${dna}` : ''}`;
 }
 
@@ -148,6 +150,9 @@ export function memoryLine(e: MemoryLine): string {
   }
 }
 
+// Each evidence block rides fenced (SEC-23); 80 pieces at ~400 chars fit well inside the cap.
+const fenced = (lines: string[]): string => fenceUserText(lines.join('\n'), 40_000);
+
 // The user turn; `compact` is the retry on a cut answer: heroes and the 36 most-worn, 15 looks.
 export function buildUser(ctx: BriefContext, compact = false): string {
   const thin = isThin(ctx);
@@ -166,16 +171,16 @@ export function buildUser(ctx: BriefContext, compact = false): string {
   const wardrobe = !ctx.wardrobe.length
     ? 'HER WARDROBE: nothing filed yet.'
     : compact
-      ? `HER WARDROBE (${pieces.length} of ${ctx.wardrobe.length} pieces — her heroes and most-worn):\n${pieces.map(pieceLine).join('\n')}`
-      : `HER WARDROBE (${pieces.length} pieces):\n${pieces.map(pieceLine).join('\n')}`;
+      ? `HER WARDROBE (${pieces.length} of ${ctx.wardrobe.length} pieces — her heroes and most-worn):\n${fenced(pieces.map(pieceLine))}`
+      : `HER WARDROBE (${pieces.length} pieces):\n${fenced(pieces.map(pieceLine))}`;
   return [
     thin && !compact
       ? 'EVIDENCE IS THIN — she has filed almost nothing yet. Draft from her style type and icons alone, at most two "loves" lines and no rules, and say so in "because".'
       : '',
     wardrobe,
-    looks.length ? `HER LOOKS:\n${looks.map(lookLine).join('\n')}` : '',
-    mem.length ? `WHAT SHE HAS TOLD ROBES (newest first):\n${mem.join('\n')}` : '',
-    current.length ? `ALREADY IN HER BRIEF (never repeat these):\n${current.join('\n')}` : '',
+    looks.length ? `HER LOOKS:\n${fenced(looks.map(lookLine))}` : '',
+    mem.length ? `WHAT SHE HAS TOLD ROBES (newest first):\n${fenced(mem)}` : '',
+    current.length ? `ALREADY IN HER BRIEF (never repeat these):\n${fenced(current)}` : '',
     compact
       ? 'Find the patterns. What actually works, what fails, and why. Draft the lines — keep every "because" short.'
       : 'Find the patterns. What actually works, what fails, and why. Draft the lines.',

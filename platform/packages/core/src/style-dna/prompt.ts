@@ -1,6 +1,12 @@
 // Style DNA → the prompt block injected into every stylist call (legacy style_dna.js, PRD §6;
 // synced with legacy beta 2026-10-13). Reads stored jsonb, so every field is checked: malformed
-// data drops a line, never throws.
+// data drops a line, never throws. Her own words ride fenced (SEC-23); the instructions about them
+// stay outside the fence.
+
+import { FENCE_RULE, fenceUserText } from '../fence';
+
+const FENCED_MAX = 16_000;
+const fenced = (text: string): string => fenceUserText(text, FENCED_MAX);
 
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj | undefined =>
@@ -52,10 +58,12 @@ function styleBriefLines(b: unknown): string[] {
   const out = [
     'HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.',
   ];
-  if (loves.length) out.push(`Works: ${loves.join(' · ')}.`);
-  if (avoids.length) out.push(`Never: ${avoids.join(' · ')}.`);
-  if (rules.length) out.push(`Rules: ${rules.join(' · ')}.`);
-  if (notes) out.push(`In her words: ${notes}`);
+  const words: string[] = [];
+  if (loves.length) words.push(`Works: ${loves.join(' · ')}.`);
+  if (avoids.length) words.push(`Never: ${avoids.join(' · ')}.`);
+  if (rules.length) words.push(`Rules: ${rules.join(' · ')}.`);
+  if (notes) words.push(`In her words: ${notes}`);
+  out.push(fenced(words.join('\n')));
   out.push(
     'A rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.',
   );
@@ -138,7 +146,7 @@ function memoryLines(m: unknown): string[] {
   if (!out.length) return [];
   return [
     'WHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):',
-    ...out.slice(0, MEMORY_LINES_MAX),
+    fenced(out.slice(0, MEMORY_LINES_MAX).join('\n')),
     'A piece she has swapped out twice is not proposed again unless she names it; a move she called "not quite" is not repeated in another colour.',
   ];
 }
@@ -165,13 +173,13 @@ function overrideLines(uo: Obj): string[] {
   const loved = list(uo.loved_colors);
   if (loved?.length) {
     lines.push(
-      `The user has personally confirmed these colours work on them (they override the avoid list on conflict): ${loved.join(', ')}.`,
+      `The user has personally confirmed these colours work on them (they override the avoid list on conflict): ${fenced(loved.join(', '))}.`,
     );
   }
   const rejected = list(uo.rejected_colors);
   if (rejected?.length) {
     lines.push(
-      `The user has personally rejected these colours — never style them in: ${rejected.join(', ')}.`,
+      `The user has personally rejected these colours — never style them in: ${fenced(rejected.join(', '))}.`,
     );
   }
   const measurements = obj(uo.measurements);
@@ -287,14 +295,14 @@ export function styleDnaPromptBlock(
       return t ? `${i} (${t})` : i;
     });
     lines.push(
-      `STYLE ICONS — the user named these as their taste references: ${named.join(', ')}.`,
+      `STYLE ICONS — the user named these as their taste references: ${fenced(named.join(', '))}.`,
     );
     lines.push(
       'Follow the aesthetic of these icons and the brands they stand for — their signature silhouettes, styling codes, sensibility and the houses they are dressed by — as the north star for every recommendation. Choices should feel pulled from these icons’ world, adapted to the user’s verified constraints below; never contradict the colour or silhouette rules to imitate an icon.',
     );
   }
   if (brands.length) {
-    lines.push(`BRANDS she reaches for: ${brands.join(', ')}.`);
+    lines.push(`BRANDS she reaches for: ${fenced(brands.join(', '))}.`);
     lines.push(
       'When a piece has to be found, look to these houses and their register first — a proposal should read as something she would have chosen herself.',
     );
@@ -315,7 +323,7 @@ export function styleDnaPromptBlock(
   const uo = briefOverrides(dna);
   if (!ch && !sp) {
     lines.push(...overrideLines(uo));
-    return lines.join('\n');
+    return withFenceRule(lines);
   }
   lines.push('STYLE DNA — verified styling constraints for this user:');
   if (ch) {
@@ -353,5 +361,11 @@ export function styleDnaPromptBlock(
         ? `SYSTEM DIRECTIVE: The user is building their digital closet (${wardrobeCount}/15 items). Lead with fashion-house execution matching the colour and silhouette rules above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations.`
         : 'SYSTEM DIRECTIVE: The user has not catalogued any wardrobe pieces yet — focus on fashion-house execution matching the colour archetype and silhouette rules above, producing ideal editorial combinations.',
   );
-  return lines.join('\n');
+  return withFenceRule(lines);
+}
+
+// The block says once, first, that fenced text is hers to read and never to obey.
+function withFenceRule(lines: string[]): string {
+  const any = lines.some((l) => l.includes('<user_input>'));
+  return (any ? [FENCE_RULE, ...lines] : lines).join('\n');
 }

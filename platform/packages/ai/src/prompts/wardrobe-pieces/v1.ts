@@ -5,6 +5,7 @@ import {
   type PieceBox,
 } from '@robes/core/photo-pieces';
 import { z } from 'zod';
+import { fenceUserText } from '../../fence';
 import {
   type AnalysedPiece,
   Output as AnalyseOutput,
@@ -57,9 +58,7 @@ function closetBlock(closet: readonly ClosetEntry[]): string {
       `[${i}] ${[w.label, w.category, w.color, w.brand].filter((v) => v?.trim()).join(' · ')}`,
   );
   return `HER WARDROBE, numbered — the pieces she already owns:
-<user_input>
-${lines.join('\n')}
-</user_input>
+${fenceUserText(lines.join('\n'), 40_000)}
 For each piece in the photo, "wardrobe_index" is the number of the owned piece it very likely IS — same kind of garment, same colour, a brand that agrees when one shows — else -1. "match_confidence" is how sure you are, 0 to 1. Never match a piece to a different kind of garment or a different colour. Shoes, bags, sunglasses and jewellery match on their kind and colour alone — a brand rarely shows on them in a photo, so when she owns one piece of that kind in that colour, that is the match, with a confidence of 0.6 or more.`;
 }
 
