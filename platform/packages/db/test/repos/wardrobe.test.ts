@@ -4,7 +4,7 @@ import { createRepositories } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
-const { wardrobe } = createRepositories(db);
+const { wardrobe, looks } = createRepositories(db);
 let ann: UserId;
 let bea: UserId;
 
@@ -89,6 +89,73 @@ describe('wardrobe repo', () => {
     await wardrobe.create(user, { label: 'Reading', status: 'reading' });
     expect(await wardrobe.countReady(user)).toBe(1);
     expect(await wardrobe.count(user)).toBe(2);
+    await deleteTestUsers(db, user);
+  });
+
+  it('counts the pieces a filter matches and the pieces in each category', async () => {
+    const user = await createTestUser(db);
+    await wardrobe.create(user, { label: 'Jeans', categoryL2: 'jeans' });
+    await wardrobe.create(user, {
+      label: 'Skirt',
+      categoryL2: 'skirts',
+      seasonBand: 'spring_summer',
+    });
+    await wardrobe.create(user, { label: 'Coat', categoryL2: 'coats' });
+    expect(await wardrobe.countMatching(user, {})).toBe(3);
+    expect(await wardrobe.countMatching(user, { category: 'Bottoms' })).toBe(2);
+    expect(await wardrobe.countMatching(user, { seasonBand: 'spring_summer' })).toBe(1);
+    expect(await wardrobe.countMatching(bea, { category: 'Bottoms' })).toBe(0);
+    const counts = await wardrobe.categoryCounts(user);
+    expect(counts).toEqual(
+      expect.arrayContaining([
+        { category: 'Bottoms', count: 2 },
+        { category: 'Outerwear', count: 1 },
+      ]),
+    );
+    expect(await wardrobe.categoryCounts(bea)).not.toContainEqual({
+      category: 'Outerwear',
+      count: 1,
+    });
+    await deleteTestUsers(db, user);
+  });
+
+  it('counts the times each of her pieces was worn, never another person’s wears', async () => {
+    const user = await createTestUser(db);
+    const shirt = await wardrobe.create(user, { label: 'Shirt' });
+    const jeans = await wardrobe.create(user, { label: 'Jeans' });
+    const look = await looks.create(user, {
+      name: 'Errands',
+      nameProvisional: false,
+      pieces: [{ pieceId: shirt.id }, { pieceId: jeans.id }],
+    });
+    const other = await looks.create(user, {
+      name: 'Office',
+      nameProvisional: false,
+      pieces: [{ pieceId: shirt.id }],
+    });
+    await looks.wear(user, look.id, '2026-10-01');
+    await looks.wear(user, look.id, '2026-10-02');
+    await looks.wear(user, other.id, '2026-10-03');
+    const counts = await wardrobe.wearCounts(user, [shirt.id, jeans.id]);
+    expect(counts.get(shirt.id)).toBe(3);
+    expect(counts.get(jeans.id)).toBe(2);
+    expect((await wardrobe.wearCounts(bea, [shirt.id])).size).toBe(0);
+    expect((await wardrobe.wearCounts(user, [])).size).toBe(0);
+    await deleteTestUsers(db, user);
+  });
+
+  it('finds the first free Hero Rack position', async () => {
+    const user = await createTestUser(db);
+    expect(await wardrobe.nextHeroPosition(user)).toBe(1);
+    const a = await wardrobe.create(user, { label: 'A' });
+    await wardrobe.setHero(user, a.id, 1);
+    expect(await wardrobe.nextHeroPosition(user)).toBe(2);
+    for (let p = 2; p <= 10; p++) {
+      const piece = await wardrobe.create(user, { label: `P${p}` });
+      await wardrobe.setHero(user, piece.id, p);
+    }
+    expect(await wardrobe.nextHeroPosition(user)).toBeNull();
+    expect(await wardrobe.nextHeroPosition(bea)).not.toBeNull();
     await deleteTestUsers(db, user);
   });
 });

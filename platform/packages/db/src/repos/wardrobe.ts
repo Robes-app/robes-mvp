@@ -261,6 +261,18 @@ export function wardrobeRepo(db: Db) {
       });
     },
 
+    // The Hero Rack's first free position (1–10), or null when all ten are taken.
+    async nextHeroPosition(userId: UserId): Promise<number | null> {
+      const taken = await active()
+        .select('heroPosition')
+        .where('userId', '=', userId)
+        .where('heroPosition', 'is not', null)
+        .execute();
+      const used = new Set(taken.map((r) => r.heroPosition));
+      for (let p = 1; p <= 10; p++) if (!used.has(p)) return p;
+      return null;
+    },
+
     // Batch idempotency: pieces already made from these photos.
     byImageAssets(userId: UserId, assetIds: readonly string[]) {
       if (assetIds.length === 0) return Promise.resolve([]);
@@ -287,6 +299,39 @@ export function wardrobeRepo(db: Db) {
         .where('userId', '=', userId)
         .executeTakeFirst();
       return Number(row?.n ?? 0);
+    },
+
+    // The wardrobe's count row: every piece matching the same filters as `list`.
+    async countMatching(userId: UserId, q: Omit<ListPiecesQuery, 'limit' | 'cursor'>) {
+      let query = active()
+        .select((eb) => eb.fn.countAll<string>().as('n'))
+        .where('userId', '=', userId);
+      if (q.category) query = query.where('category', '=', q.category);
+      if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
+      if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
+      const row = await query.executeTakeFirst();
+      return Number(row?.n ?? 0);
+    },
+
+    // The category tabs: how many pieces she has in each category.
+    async categoryCounts(userId: UserId): Promise<{ category: string; count: number }[]> {
+      const rows = await active()
+        .select(['category', (eb) => eb.fn.countAll<string>().as('n')])
+        .where('userId', '=', userId)
+        .groupBy('category')
+        .execute();
+      return rows.map((r) => ({ category: r.category, count: Number(r.n) }));
+    },
+
+    // Times each piece was worn (a wear records the pieces of the look that day).
+    async wearCounts(userId: UserId, pieceIds: readonly string[]): Promise<Map<string, number>> {
+      if (pieceIds.length === 0) return new Map();
+      const rows = await sql<{ pieceId: string; n: string }>`
+        select p.id as piece_id, count(*) as n
+        from app.wears w cross join lateral unnest(w.piece_ids) as p(id)
+        where w.user_id = ${userId} and p.id = any(${sql.val([...pieceIds])}::uuid[])
+        group by p.id`.execute(db);
+      return new Map(rows.rows.map((r) => [r.pieceId, Number(r.n)]));
     },
   };
 }

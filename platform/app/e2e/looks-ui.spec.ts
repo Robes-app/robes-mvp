@@ -32,6 +32,17 @@ test('style a piece from Looks, then save it', async ({ page }) => {
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}$/);
   await expectThreeWays(page, 'navy blazer');
   expect(await seriousViolations(page), 'idea with deferred frames').toEqual([]);
+  // Worn three ways (legacy 7dfc96c): a described piece reads "Key piece"; a card opens its sheet.
+  await expect(page.getByText('Key piece', { exact: true })).toBeVisible();
+  await page
+    .getByRole('button', { name: /^See .+ piece by piece$/ })
+    .first()
+    .click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet.getByText(/piece by piece\.$/)).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Save this look' })).toBeVisible();
+  await sheet.getByRole('button', { name: 'Close' }).click();
+  await expect(sheet).toBeHidden();
 
   // "Show this look" pictures one more look on demand, following its job without a reload.
   await page

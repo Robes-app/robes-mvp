@@ -12,8 +12,12 @@ export const GET = route({
   rateLimit: { key: 'wardrobe.list', limit: 240, windowSeconds: 60 },
   handler: async ({ user, input }) => {
     const userId = verifiedUserId(user.id);
-    const page = await repos.wardrobe.list(userId, input);
-    return { items: await toPieces(userId, page.items), nextCursor: page.nextCursor };
+    const { limit: _limit, cursor: _cursor, ...filters } = input;
+    const [page, total] = await Promise.all([
+      repos.wardrobe.list(userId, input),
+      repos.wardrobe.countMatching(userId, filters),
+    ]);
+    return { items: await toPieces(userId, page.items), nextCursor: page.nextCursor, total };
   },
 });
 

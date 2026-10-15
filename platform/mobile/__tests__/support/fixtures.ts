@@ -24,6 +24,7 @@ export function piece(overrides: Partial<Piece> = {}): Piece {
     price: null,
     currency: null,
     size: null,
+    wearCount: 0,
     image: {
       assetId: ASSET_ID,
       status: 'ready',

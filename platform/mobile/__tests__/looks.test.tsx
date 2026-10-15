@@ -1,4 +1,4 @@
-import { looks, ui } from '@robes/copy';
+import { keyPiece, looks, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { IdeaScreen, JobIdeaScreen } from '../src/features/looks/IdeaScreens';
 import { LookDetail } from '../src/features/looks/LookDetail';
@@ -161,9 +161,10 @@ test('one of the three ways can be kept as a look, which then opens', async () =
   });
   await renderWithApi(<IdeaScreen id={IDEA_ID} />);
   await screen.findByText('Look 2');
-  const buttons = screen.getAllByRole('button', { name: looks.saveWay });
-  expect(buttons).toHaveLength(3);
-  await fireEvent.press(buttons[1] as never);
+  // The pager carries ONE action row, for the card in the middle; the dots move it.
+  expect(screen.getAllByRole('button', { name: looks.saveWay })).toHaveLength(1);
+  await fireEvent.press(screen.getByRole('button', { name: keyPiece.way(2, 3) }));
+  await fireEvent.press(screen.getByRole('button', { name: looks.saveWay }));
   await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`));
   expect(calls.find((c) => c.path.endsWith('/looks') && c.method === 'POST')?.body).toEqual({
     wayIdx: 1,
@@ -195,4 +196,48 @@ test('the looks beyond the first are pictured when she asks', async () => {
   await waitFor(() =>
     expect(screen.queryAllByRole('button', { name: looks.result.showLook })).toHaveLength(1),
   );
+});
+
+test('a card opens its sheet piece by piece, her own pieces marked', async () => {
+  const withPieces = idea({
+    anchor: { type: 'piece', pieceId: PIECE_ID, label: 'Camel wool coat' },
+  });
+  const first = withPieces.ways[0];
+  if (first) {
+    first.pieces = [
+      {
+        name: 'Camel wool coat',
+        category: 'Outerwear',
+        color: 'camel',
+        colorHex: null,
+        role: 'anchor',
+        brand: '',
+        retailerHint: '',
+        pricePoint: '',
+        pieceId: PIECE_ID,
+      },
+      {
+        name: 'Black loafers',
+        category: 'Shoes',
+        color: 'black',
+        colorHex: null,
+        role: 'canvas',
+        brand: 'COS',
+        retailerHint: '',
+        pricePoint: '€89',
+        pieceId: null,
+      },
+    ];
+  }
+  mockFetch({
+    [`GET /looks/ideas/${IDEA_ID}`]: withPieces,
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+  });
+  await renderWithApi(<IdeaScreen id={IDEA_ID} />);
+  expect(await screen.findByText(keyPiece.eyebrowYours)).toBeTruthy();
+  expect(screen.getByText(keyPiece.pill(2, 1))).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: keyPiece.open('Look 1') }));
+  expect(await screen.findByText(keyPiece.inWardrobe)).toBeTruthy();
+  expect(screen.getByText('Shoes · COS €89')).toBeTruthy();
+  expect(screen.getByText('Black loafers')).toBeTruthy();
 });

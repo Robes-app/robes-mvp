@@ -1,4 +1,7 @@
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { type BrowserContext, expect, type Page } from '@playwright/test';
+import { E2E_DATABASE_URL } from './env';
 import { latestCodeFor } from './mailpit';
 
 // OTP requests are rate limited per IP (3/min), so each test looks like its own client.
@@ -70,4 +73,16 @@ export async function declineConsent(page: Page): Promise<void> {
     .getByRole('button', { name: 'Don’t allow' })
     .click();
   await expect(page.getByRole('region', { name: 'Help shape Robes.' })).toHaveCount(0);
+}
+
+const PLATFORM = fileURLToPath(new URL('../..', import.meta.url));
+
+// The documented way to make someone an admin locally (docs/DEVELOPING.md → Admin), against the
+// e2e server's database (app/.env.local may name another one).
+export function grantAdmin(email: string): void {
+  execFileSync('pnpm', ['--filter', '@robes/db', 'admin:grant', email], {
+    cwd: PLATFORM,
+    stdio: 'pipe',
+    env: { ...process.env, DATABASE_URL: E2E_DATABASE_URL },
+  });
 }

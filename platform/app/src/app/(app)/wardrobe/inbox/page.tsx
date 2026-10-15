@@ -1,14 +1,15 @@
 import { wardrobe } from '@robes/copy';
-import { PageHeader } from '@/components/page-header';
 import { Inbox } from '@/components/wardrobe/inbox';
-import { WardrobeSegments } from '@/components/wardrobe/wardrobe-segments';
+import { AddCircle, WardrobeHeader } from '@/components/wardrobe/wardrobe-header';
 
 export default function InboxPage() {
   return (
-    <>
-      <PageHeader title={wardrobe.title} />
-      <WardrobeSegments current="/wardrobe/inbox" />
+    <div className="flex flex-col gap-6">
+      <WardrobeHeader
+        current="/wardrobe/inbox"
+        add={<AddCircle href="/wardrobe/add" label={wardrobe.header.addPiece} />}
+      />
       <Inbox />
-    </>
+    </div>
   );
 }

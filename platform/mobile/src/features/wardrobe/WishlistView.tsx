@@ -1,17 +1,25 @@
+import type { Wish } from '@robes/contracts';
 import { wardrobe as copy, ui } from '@robes/copy';
-import { Button, EmptyState, Field, IconButton, Image, PrimaryScope, Text } from '@robes/ui-native';
-import { useState } from 'react';
+import { countByCategory, formatPrice, rankCategories } from '@robes/core/wardrobe';
+import { Button, EmptyState, Field, PrimaryScope, Text } from '@robes/ui-native';
+import { useEffect, useState } from 'react';
 import { FlatList, Keyboard, RefreshControl, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
+import { useWardrobeLayout } from './layout';
+import { BoughtButton, CardRow, type CardStatus, CardTile } from './PieceCard';
+import { CategoryTabs, CountRow } from './WardrobeHeader';
 import { useAddWish, usePromoteWish, useRemoveWish, useWishes } from './wishlist';
+
+function wishStatus(wish: Wish): CardStatus {
+  return { text: copy.card.notYours(formatPrice(wish.price, wish.currency)), warm: true };
+}
 
 function AddWish() {
   const [label, setLabel] = useState('');
   const add = useAddWish();
   return (
     <PrimaryScope>
-      <View className="gap-3 pb-4">
+      <View className="gap-3 px-6 pt-5">
         <Field
           label={copy.wishlist.addLabel}
           placeholder={copy.wishlist.addPlaceholder}
@@ -43,11 +51,20 @@ function AddWish() {
   );
 }
 
-export function WishlistView() {
+// Wardrobe › Wishlist: the same tabs, count row and card as the pieces (legacy 809b13e R5).
+export function WishlistView({ adding = false }: { adding?: boolean }) {
   const { wishes, isPending, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage } =
     useWishes();
   const promote = usePromoteWish();
   const remove = useRemoveWish();
+  const [layout, setLayout] = useWardrobeLayout();
+  const [category, setCategory] = useState<string | null>(null);
+  // Once the form shows it stays while she keeps adding.
+  const wantsForm = adding || (!isPending && wishes.length === 0);
+  const [formOpen, setFormOpen] = useState(wantsForm);
+  useEffect(() => {
+    if (wantsForm) setFormOpen(true);
+  }, [wantsForm]);
   if (isError) {
     return (
       <EmptyState
@@ -56,55 +73,73 @@ export function WishlistView() {
       />
     );
   }
+  const visible = category ? wishes.filter((w) => w.category === category) : wishes;
+  const grid = layout === 'grid';
+  const showForm = wantsForm || formOpen;
   return (
-    <FlatList
-      testID="wishlist"
-      data={wishes}
-      keyExtractor={(w) => w.id}
-      contentContainerClassName="px-6 pb-8"
-      keyboardShouldPersistTaps="handled"
-      ListHeaderComponent={<AddWish />}
-      onEndReachedThreshold={0.5}
-      onEndReached={() => (hasNextPage ? void fetchNextPage() : undefined)}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
-      renderItem={({ item }) => {
-        const uri = renditionUri(item.image, 64);
-        return (
-          <View className="flex-row items-center gap-3 border-b border-hairline py-3">
-            {uri ? (
-              <View style={{ width: 56 }}>
-                <Image source={uri} alt="" blurhash={item.image?.blurhash} />
-              </View>
-            ) : null}
-            <View className="flex-1 gap-1">
-              <Text numberOfLines={2}>{item.label}</Text>
-              {item.brand ? (
-                <Text size="caption" tone="muted">
-                  {item.brand}
-                </Text>
-              ) : null}
-            </View>
-            <Button
-              variant="secondary"
-              loading={promote.isPending && promote.variables?.params.id === item.id}
-              onPress={() => promote.mutate({ params: { id: item.id } })}
-            >
-              {copy.wishlist.bought}
-            </Button>
-            <IconButton
-              icon="trash"
-              label={copy.wishlist.remove(item.label)}
-              tone="ink-muted"
-              onPress={() => remove.mutate({ params: { id: item.id } })}
+    <View className="flex-1">
+      {showForm ? <AddWish /> : null}
+      {wishes.length > 0 ? (
+        <>
+          <CategoryTabs
+            categories={rankCategories(countByCategory(wishes))}
+            value={category}
+            onChange={setCategory}
+          />
+          <CountRow
+            count={copy.header.wishCount(visible.length)}
+            layout={layout}
+            onLayout={setLayout}
+          />
+        </>
+      ) : null}
+      <FlatList
+        testID="wishlist"
+        key={layout}
+        data={visible}
+        keyExtractor={(w) => w.id}
+        numColumns={grid ? 2 : 1}
+        {...(grid ? { columnWrapperClassName: 'gap-3' } : {})}
+        contentContainerClassName={grid ? 'gap-5 px-6 pb-8' : 'gap-2 px-6 pb-8'}
+        keyboardShouldPersistTaps="handled"
+        onEndReachedThreshold={0.5}
+        onEndReached={() => (hasNextPage ? void fetchNextPage() : undefined)}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
+        }
+        renderItem={({ item }) => {
+          const action = (
+            <BoughtButton
+              label={item.label}
+              busy={promote.isPending && promote.variables?.params.id === item.id}
+              onBought={() => promote.mutate({ params: { id: item.id } })}
             />
-          </View>
-        );
-      }}
-      ListEmptyComponent={
-        isPending ? null : (
-          <EmptyState title={copy.wishlistEmpty.title} body={copy.wishlistEmpty.body} />
-        )
-      }
-    />
+          );
+          return grid ? (
+            <CardTile piece={item} status={wishStatus(item)} action={action} />
+          ) : (
+            <CardRow
+              piece={item}
+              status={wishStatus(item)}
+              action={action}
+              removeLabel={copy.wishlist.remove(item.label)}
+              onRemove={() => remove.mutate({ params: { id: item.id } })}
+            />
+          );
+        }}
+        ListEmptyComponent={
+          isPending ? null : wishes.length === 0 ? (
+            <EmptyState title={copy.wishlistEmpty.title} body={copy.wishlistEmpty.body} />
+          ) : (
+            <View className="items-start gap-3 py-6">
+              <Text tone="muted">{copy.filter.wishNothing}</Text>
+              <Button variant="quiet" onPress={() => setCategory(null)}>
+                {copy.filter.showEverything}
+              </Button>
+            </View>
+          )
+        }
+      />
+    </View>
   );
 }

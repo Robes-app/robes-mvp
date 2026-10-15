@@ -49,3 +49,19 @@ describe('schema meta (ADR-019/020)', () => {
       expect(missing).toEqual([]);
     }));
 });
+
+describe('feature flags', () => {
+  it('seeds every flag in @robes/core with its launch default', () =>
+    inTx(async (q) => {
+      const { FEATURE_FLAGS, ADDED_FEATURE_FLAGS } = await import('@robes/core/flags');
+      const rows = await q<{ key: string; enabled: boolean }>(
+        'select key, enabled from app.feature_flags',
+      );
+      const seeded = Object.fromEntries(rows.map((r) => [r.key, r.enabled]));
+      for (const [key, flag] of Object.entries({ ...FEATURE_FLAGS, ...ADDED_FEATURE_FLAGS })) {
+        expect(seeded[key], key).toBe(flag.enabled);
+      }
+      // Trips stay hidden until they relaunch (legacy beta 2eacfb4).
+      expect(seeded.trips).toBe(false);
+    }));
+});

@@ -50,6 +50,7 @@ import {
   DataExportStatus,
   DeletionRequest,
   DeletionStatus,
+  Features,
   Me,
   Model,
   OnboardingComplete,
@@ -110,6 +111,7 @@ import {
   PieceParams,
   UpdatePieceInput,
   UpdateWishInput,
+  WardrobeSummary,
   Wish,
   WishPage,
   WishParams,
@@ -157,6 +159,13 @@ export const routes = {
   },
   'me.get': { method: 'GET', path: '/me', auth: 'user', input: EmptyInput, output: Me },
   'me.update': { method: 'PATCH', path: '/me', auth: 'user', input: UpdateMeInput, output: Me },
+  'me.features': {
+    method: 'GET',
+    path: '/me/features',
+    auth: 'user',
+    input: EmptyInput,
+    output: Features,
+  },
   'me.onboarding.complete': {
     method: 'POST',
     path: '/me/onboarding/complete',
@@ -348,6 +357,13 @@ export const routes = {
     auth: 'user',
     input: ListPiecesInput,
     output: PiecePage,
+  },
+  'wardrobe.summary': {
+    method: 'GET',
+    path: '/wardrobe/summary',
+    auth: 'user',
+    input: EmptyInput,
+    output: WardrobeSummary,
   },
   'wardrobe.create': {
     method: 'POST',

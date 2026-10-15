@@ -38,3 +38,13 @@ describe('copy voice', () => {
     expect(offenders, rule).toEqual([]);
   });
 });
+
+describe('next line counts', () => {
+  it('names the pieces she has filed, never "Five" at fifty (legacy b3de655)', async () => {
+    const { nextLine } = await import('./index');
+    expect(nextLine({ rule: 'build', count: 7 }).text).toBe(
+      'Seven pieces filed. Build a look from what you own.',
+    );
+    expect(nextLine({ rule: 'build', count: 16 }).text).toMatch(/^16 pieces filed/);
+  });
+});

@@ -66,8 +66,8 @@ test('the Today screen shows the next step, the week and her looks for today', a
     '/wardrobe/add',
   );
   await expect(page.getByRole('link', { name: 'Style a piece' })).toBeVisible();
-  const week = page.getByRole('region', { name: 'This week' });
-  await expect(week.getByRole('link')).toHaveCount(7);
+  const week = page.getByRole('region', { name: 'The week ahead' });
+  await expect(week.getByRole('listitem')).toHaveCount(7);
 
   const api = page.request;
   const look = await (
@@ -78,4 +78,9 @@ test('the Today screen shows the next step, the week and her looks for today', a
   await page.reload();
   await expect(page.getByRole('region', { name: 'Today' }).getByText('Office')).toBeVisible();
   await expect(week.getByRole('link', { name: 'Today, one look' })).toBeVisible();
+  // Every cell opens the day page, with its door back to Today.
+  await week.getByRole('link', { name: 'Today, one look' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Office' })).toBeVisible();
+  await page.getByRole('link', { name: 'Today' }).first().click();
+  await expect(page).toHaveURL(/\/$/);
 });

@@ -1,17 +1,12 @@
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
-import { declineConsent, isolateClientIp, seriousViolations, signIn, uniqueEmail } from './helpers';
-
-const PLATFORM = fileURLToPath(new URL('../..', import.meta.url));
-
-// The documented way to make someone an admin locally (docs/DEVELOPING.md → Admin).
-function grantAdmin(email: string): void {
-  execFileSync('pnpm', ['--filter', '@robes/db', 'admin:grant', email], {
-    cwd: PLATFORM,
-    stdio: 'pipe',
-  });
-}
+import {
+  declineConsent,
+  grantAdmin,
+  isolateClientIp,
+  seriousViolations,
+  signIn,
+  uniqueEmail,
+} from './helpers';
 
 const ADMIN_API: [string, string][] = [
   ['GET', '/api/v1/admin/users'],

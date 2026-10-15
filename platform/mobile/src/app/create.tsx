@@ -6,8 +6,12 @@ import { type Href, useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { StackScreen } from '@/components/StackScreen';
 import { type AddSource, useAddPieces } from '@/features/wardrobe/add-pieces';
+import { useFeatures } from '@/lib/features';
 
-type Option = { label: string; icon: IconName } & ({ add: AddSource } | { href: Href });
+type Option = { label: string; icon: IconName; trips?: true } & (
+  | { add: AddSource }
+  | { href: Href }
+);
 
 // IA §3.2 Create sheet; options not built yet lead to the shared "On its way" screen.
 const OPTIONS: Option[] = [
@@ -19,7 +23,7 @@ const OPTIONS: Option[] = [
   { label: shell.create.receipt, icon: 'mail', href: '/soon' },
   { label: shell.create.newLook, icon: 'plus', href: '/looks/new' },
   { label: shell.create.askRobes, icon: 'ask', href: '/soon' },
-  { label: shell.create.planTrip, icon: 'trip', href: '/trip/new' },
+  { label: shell.create.planTrip, icon: 'trip', href: '/trip/new', trips: true },
 ];
 
 export default function Create() {
@@ -27,6 +31,8 @@ export default function Create() {
   const toast = useToast();
   const ink = useColor('ink');
   const { add, busy } = useAddPieces();
+  const { features } = useFeatures();
+  const options = OPTIONS.filter((o) => !o.trips || features.trips);
 
   async function choose(option: Option) {
     if ('href' in option) {
@@ -45,7 +51,7 @@ export default function Create() {
   return (
     <StackScreen title={shell.create.title} close>
       <ScrollView contentContainerClassName="px-6 pb-8">
-        {OPTIONS.map((option) => (
+        {options.map((option) => (
           <Pressable
             key={option.label}
             accessibilityRole="button"
