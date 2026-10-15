@@ -12,7 +12,10 @@ type LookRow = NonNullable<Awaited<ReturnType<typeof repos.looks.get>>>;
 
 export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> {
   const ids = rows.map((r) => r.id);
-  const renderIds = rows.flatMap((r) => (r.renderAssetId ? [r.renderAssetId] : []));
+  const renderIds = rows.flatMap((r) => {
+    const id = r.renderAssetId ?? r.photoAssetId;
+    return id ? [id] : [];
+  });
   const [pieceRows, stats, renders] = await Promise.all([
     repos.looks.piecesFor(userId, ids),
     repos.looks.wearStats(userId, ids),
@@ -43,7 +46,8 @@ export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> 
       source: row.source,
       originLookId: row.originLookId,
       climateBand: row.climateBand,
-      image: (row.renderAssetId && images.get(row.renderAssetId)) || null,
+      // Robes' render, else her own photograph of the look (a look from a photo).
+      image: images.get(row.renderAssetId ?? row.photoAssetId ?? '') ?? null,
       onModel: row.renderStatus ?? null,
       pieces: byLook.get(row.id) ?? [],
       timesWorn: Number(wears.get(row.id)?.timesWorn ?? 0),

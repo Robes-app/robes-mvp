@@ -1,3 +1,4 @@
+import { cropPixels, type PieceBox } from '@robes/core/photo-pieces';
 import { encode } from 'blurhash';
 import sharp from 'sharp';
 import type { ImageFormat } from './detect';
@@ -89,5 +90,19 @@ export async function renderImage(input: Uint8Array, format: ImageFormat): Promi
     if (err instanceof RejectedImage) throw err;
     // Prebuilt libvips has no HEVC decoder; HEIC needs a custom build (README → Media).
     throw new RejectedImage(format === 'heic' ? 'heic_unsupported' : 'decode_failed');
+  }
+}
+
+// A piece's own crop out of a photo (several pieces from one photograph); the box is fractions of
+// the upright image, padded by cropPixels.
+export async function cropImage(input: Uint8Array, box: PieceBox): Promise<Buffer> {
+  try {
+    const upright = await decode(input).autoOrient().toBuffer({ resolveWithObject: true });
+    return await sharp(upright.data)
+      .extract(cropPixels(box, upright.info.width, upright.info.height))
+      .jpeg({ quality: 90 })
+      .toBuffer();
+  } catch {
+    throw new RejectedImage('decode_failed');
   }
 }

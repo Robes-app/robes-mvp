@@ -133,6 +133,14 @@ async function createWorkerContext(): Promise<WorkerContext> {
       ? {
           linkImport,
           wardrobeAnalyse: { ai, storage, pieces: system.pieces, ledger: system.ledger },
+          // Crops land as uploads, so the S3 event renders them.
+          wardrobePieces: {
+            ai,
+            storage,
+            reads: system.photoReads,
+            ledger: system.ledger,
+            ...(onGenerated ? { onGenerated } : {}),
+          },
           stylePiece: { ai, storage, styling: system.styling, ledger: system.ledger },
           lookRender: {
             ai,

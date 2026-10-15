@@ -26,7 +26,10 @@ const jpegWithGps = (): Promise<Buffer> =>
 
 function harness(status = 'pending') {
   const objects = new Map<string, Uint8Array>();
-  const rows = new Map<string, { userId: string | null; status: string; error?: string }>();
+  const rows = new Map<
+    string,
+    { userId: string | null; status: string; error?: string; crop?: unknown }
+  >();
   const ready = new Map<string, Parameters<AssetStore['markReady']>[1]>();
   let puts = 0;
   const assets: AssetStore = {
@@ -46,9 +49,9 @@ function harness(status = 'pending') {
       objects.set(key, body);
     },
   };
-  async function upload(bytes: Uint8Array, owner = USER) {
+  async function upload(bytes: Uint8Array, owner = USER, crop?: unknown) {
     const assetId = crypto.randomUUID();
-    rows.set(assetId, { userId: owner, status });
+    rows.set(assetId, { userId: owner, status, crop });
     const key = mediaKeys.original(USER, assetId);
     objects.set(key, bytes);
     return { assetId, key };
@@ -100,6 +103,14 @@ describe('processUpload', () => {
         expect(out.exif).toBeUndefined();
       }
     }
+  });
+
+  it('cuts a crop asset out of its photo before rendering (padded, never under 28%)', async () => {
+    const h = harness();
+    const photo = await solid(1000, 800).jpeg().toBuffer();
+    const { assetId, key } = await h.upload(photo, USER, { x: 0.5, y: 0.5, w: 0.2, h: 0.25 });
+    expect(await processUpload(h.deps, key)).toMatchObject({ status: 'ready', assetId });
+    expect(h.ready.get(assetId)).toMatchObject({ width: 360, height: 328 });
   });
 
   it('applies EXIF orientation', async () => {
