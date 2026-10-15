@@ -21,7 +21,7 @@
     "@robes/contracts": "workspace:*",
     "@robes/core": "workspace:*",
     "blurhash": "2.0.5",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "zod": "catalog:"
   },
   "devDependencies": {

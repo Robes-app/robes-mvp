@@ -28,3 +28,15 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - '@upstash/ratelimit@2.2.0'
+
+# Patched floors for vulnerable transitive deps (pnpm audit, 2026-10-15).
+overrides:
+  shell-quote@>=1.8.4 <1.11.0: '>=1.11.0'
+  source-map-js@>=1.0.0 <1.2.2: '>=1.2.2'
+  sharp@<0.35.5: '>=0.35.5'
+
+auditConfig:
+  # No patched release yet; both run only in the Expo CLI / Metro dev toolchain, never in the app or API.
+  ignoreGhsas:
+    - GHSA-86w9-cpqp-85rv # node-forge via @expo/code-signing-certificates
+    - GHSA-vfj7-8cjw-p6xm # braces via metro-file-map > micromatch
