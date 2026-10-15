@@ -105,7 +105,7 @@ export const HomeBox = forwardRef<
     if (words.length < 2) return;
     const trip = !date && isTripAsk(words);
     if (trip && features.trips) {
-      router.push('/trip/new');
+      router.push({ pathname: '/trip/new', params: { brief: words } });
       return;
     }
     const day = date ?? (trip ? null : askDateFrom(words, localDate()));

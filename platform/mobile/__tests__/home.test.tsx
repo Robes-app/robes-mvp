@@ -182,6 +182,9 @@ test('with trips on, a trip-shaped ask opens a trip', async () => {
   await waitFor(async () => {
     await fireEvent.changeText(box, 'A weekend away in Kinsale');
     await fireEvent(box, 'submitEditing');
-    expect(mockRouter.push).toHaveBeenCalledWith('/trip/new');
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/trip/new',
+      params: { brief: 'A weekend away in Kinsale' },
+    });
   });
 });

@@ -108,7 +108,7 @@ export function HomeBox({
     if (words.length < 2) return;
     const trip = !date && isTripAsk(words);
     if (trip && features.trips) {
-      router.push('/trip/new');
+      router.push(`/trip/new?brief=${encodeURIComponent(words)}`);
       return;
     }
     const day = date ?? (trip ? null : askDateFrom(words, localToday()));

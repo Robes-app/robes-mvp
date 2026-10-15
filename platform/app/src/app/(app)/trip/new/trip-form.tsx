@@ -12,12 +12,12 @@ import { errorCopy } from '@/lib/error-copy';
 const copy = trips.create;
 const MAX_KEY_PIECES = 8;
 
-export function TripForm() {
+export function TripForm({ initialBrief = '' }: { initialBrief?: string }) {
   const router = useRouter();
   const [dates, setDates] = useState(() => defaultTripDates(localToday()));
   const [destination, setDestination] = useState('');
   const [occasions, setOccasions] = useState('');
-  const [brief, setBrief] = useState('');
+  const [brief, setBrief] = useState(initialBrief);
   const [keyPieces, setKeyPieces] = useState<string[]>([]);
   const pieces = useApi('wardrobe.list', { input: { limit: 60 } });
   const start = useApiMutation('travel.plan', {

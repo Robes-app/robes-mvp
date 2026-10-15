@@ -19,10 +19,8 @@ test('she builds her model, Today stops asking, and a look is rendered on her', 
 
   const fresh = await (await api.get('/api/v1/me/model')).json();
   expect(fresh).toMatchObject({ filed: false, source: 'hand', cellId: 'w-s3-h1-nt' });
-  expect((await (await api.get('/api/v1/today')).json()).nextStep).toMatchObject({
-    rule: 'model',
-    lookName: 'Gallery opening',
-  });
+  // Home's twin step is open until a model is filed.
+  expect((await (await api.get('/api/v1/today')).json()).home.state.twinOnFile).toBe(false);
   // No model yet: asking to see the look on her is a conflict, not a spend.
   expect((await api.post(`/api/v1/looks/${look.id}/render`)).status()).toBe(409);
 
@@ -37,7 +35,7 @@ test('she builds her model, Today stops asking, and a look is rendered on her', 
     .toBe('ready');
   const { cell } = await (await api.get('/api/v1/me/model')).json();
   expect((await fetch(cell.imageUrl)).status).toBe(200);
-  expect((await (await api.get('/api/v1/today')).json()).nextStep?.rule).not.toBe('model');
+  expect((await (await api.get('/api/v1/today')).json()).home.state.twinOnFile).toBe(true);
 
   const started = await api.post(`/api/v1/looks/${look.id}/render`);
   expect(started.status()).toBe(202);
