@@ -60,7 +60,10 @@ test('the waitlist asks for an email before it sends anything', async ({ page })
 test('the landing page carries its search and sharing metadata', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle('Robes — Your Personal Stylist & Wardrobe Intelligence App');
-  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', /\/$/);
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    'content',
+    /^https?:\/\/.+/,
+  );
   const ld = JSON.parse(
     (await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}',
   );

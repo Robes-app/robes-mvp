@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test';
-import { E2E_UNSUB_KEY } from './e2e/env';
+import { E2E_DATABASE_URL, E2E_UNSUB_KEY } from './e2e/env';
 
 // Configurable so parallel checkouts can run e2e side by side.
 const port = Number(process.env.E2E_PORT ?? 3310);
@@ -11,7 +11,7 @@ export default defineConfig({
   use: { baseURL },
   webServer: {
     env: {
-      DATABASE_URL: `postgres://robes_app:robes_app_local@127.0.0.1:55432/${process.env.ROBES_DB_NAME ?? 'robes'}`,
+      DATABASE_URL: E2E_DATABASE_URL,
       BETTER_AUTH_URL: baseURL,
       UNSUB_HMAC_KEY: E2E_UNSUB_KEY,
       // Specs assert the offline fake's outputs; never spend on real Gemini from a dev key.

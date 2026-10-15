@@ -33,12 +33,12 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await expect(page.getByText('1 piece', { exact: true })).toBeVisible();
   await expect(pieces.getByText('Never worn')).toBeVisible();
   await pieces.getByRole('button', { name: 'Feature Camel wool coat in your Hero Rack' }).click();
-  await expect(page.getByText('Saved to your Hero Rack.')).toBeVisible();
+  await expect(page.getByText('Saved to your Hero Rack.').first()).toBeVisible();
   await expect(
     pieces.getByRole('button', { name: 'Remove Camel wool coat from your Hero Rack' }),
   ).toHaveAttribute('aria-pressed', 'true');
   // The list is the rack card; its row swipes (or tabs) to Remove.
-  await page.getByRole('radio', { name: 'List' }).click();
+  await page.getByRole('radio', { name: 'List', exact: true }).click();
   await expect(pieces.getByText('Outerwear', { exact: false })).toBeVisible();
   await pieces.getByRole('button', { name: 'Remove Camel wool coat', exact: true }).click();
   await expect(pieces).toHaveCount(0);
@@ -63,7 +63,7 @@ test('a wish becomes a piece when she buys it, and removal can be undone', async
   const wishes = page.getByRole('list', { name: 'Wishlist' });
   await expect(page.getByText('2 wishlisted')).toBeVisible();
   await expect(wishes.getByText('Not yours yet').first()).toBeVisible();
-  await page.getByRole('radio', { name: 'List' }).click();
+  await page.getByRole('radio', { name: 'List', exact: true }).click();
 
   await wishes.getByRole('button', { name: 'Remove Silk scarf' }).click();
   await expect(wishes.getByText('Silk scarf')).toHaveCount(0);
