@@ -115,6 +115,111 @@ insert into app.avatars (user_id, avatar_id)
 select p.id, p.avatar_id from legacy.profiles p join app.users u on u.id = p.id
 where nullif(trim(p.avatar_id), '') is not null
 on conflict (user_id) do nothing;
+
+-- Her digital twin and brief (legacy Settings + style memory, profiles.style_dna): the brands, the
+-- one investment level, the facts, her brief's lines and the memory she told Robes. Anything
+-- outside the target's ranges is dropped, never clamped.
+update app.profiles t set
+  style_brands = coalesce(array(
+    select left(trim(x), 80) from jsonb_array_elements_text(
+      case when jsonb_typeof(p.style_dna -> 'brands') = 'array' then p.style_dna -> 'brands' else '[]'::jsonb end
+    ) x where trim(x) <> '' limit 40), '{}'),
+  investment_level = case coalesce(p.style_dna ->> 'investment', p.annual_spend)
+    when 'Under €500' then 'under_500' when '€500–1,500' then '500_1500'
+    when '€1,500–5,000' then '1500_5000' when '€5,000+' then '5000_plus'
+    else case when p.budget ilike '%luxury%' then '5000_plus' when p.budget ilike '%designer%' then '1500_5000'
+      when p.budget ilike '%contemporary%' then '500_1500' when p.budget ilike '%everyday%' then 'under_500' end end,
+  height_cm = case when (f.f ->> 'height_cm') ~ '^[0-9]+$' and (f.f ->> 'height_cm')::int between 140 and 210
+    then (f.f ->> 'height_cm')::int end,
+  size_uk = case when (f.f ->> 'size_uk') ~ '^[0-9]+$' and (f.f ->> 'size_uk')::int between 4 and 16
+    and (f.f ->> 'size_uk')::int % 2 = 0 then (f.f ->> 'size_uk')::int end,
+  shoe_uk = case when (f.f ->> 'shoe_uk') ~ '^[0-9]+(\\.[05])?$' and (f.f ->> 'shoe_uk')::numeric between 2 and 8
+    then (f.f ->> 'shoe_uk')::numeric end,
+  age_band = case f.f ->> 'age_band' when 'Under 25' then 'under_25' when '25–34' then '25_34'
+    when '35–44' then '35_44' when '45–54' then '45_54' when '55–64' then '55_64' when '65+' then '65_plus' end
+from legacy.profiles p,
+  lateral (select case when jsonb_typeof(p.style_dna -> 'facts') = 'object' then p.style_dna -> 'facts' else '{}'::jsonb end as f) f
+where t.id = p.id and p.style_dna is not null;
+
+-- The brief's paragraph and colours ride her style profile (the colours as her overrides).
+insert into app.style_profiles (user_id) select p.id from legacy.profiles p join app.users u on u.id = p.id
+where jsonb_typeof(p.style_dna -> 'brief') = 'object'
+on conflict (user_id) do nothing;
+update app.style_profiles t set
+  brief_notes = nullif(left(trim(b.b ->> 'notes'), 600), ''),
+  brief_read_at = case when (b.b ->> 'read_at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then (b.b ->> 'read_at')::timestamptz end,
+  user_overrides = t.user_overrides || jsonb_build_object(
+    'loved_colors', (select coalesce(jsonb_agg(distinct c), '[]'::jsonb) from (
+      select jsonb_array_elements_text(coalesce(t.user_overrides -> 'loved_colors', '[]'::jsonb)) c
+      union select jsonb_array_elements_text(case when jsonb_typeof(b.b -> 'colours' -> 'loved') = 'array'
+        then b.b -> 'colours' -> 'loved' else '[]'::jsonb end)) x),
+    'rejected_colors', (select coalesce(jsonb_agg(distinct c), '[]'::jsonb) from (
+      select jsonb_array_elements_text(coalesce(t.user_overrides -> 'rejected_colors', '[]'::jsonb)) c
+      union select jsonb_array_elements_text(case when jsonb_typeof(b.b -> 'colours' -> 'rejected') = 'array'
+        then b.b -> 'colours' -> 'rejected' else '[]'::jsonb end)) x))
+from legacy.profiles p, lateral (select p.style_dna -> 'brief' as b) b
+where t.user_id = p.id and jsonb_typeof(b.b) = 'object';
+
+-- Kept lines (a string, or {text, source, at, prompt}), what waits, and what she struck.
+insert into app.style_brief_lines (user_id, list, state, text, source, origin, chip, kept_at, created_at)
+select p.id, l.list, 'kept', left(trim(coalesce(e.v ->> 'text', e.v #>> '{}')), 160),
+  case when e.v ->> 'source' in ('drafted', 'edited', 'typed') then e.v ->> 'source'
+    when jsonb_typeof(e.v) = 'string' then 'typed' else 'drafted' end,
+  case when e.v ->> 'source' = 'typed' or jsonb_typeof(e.v) = 'string' then 'her' else 'read' end,
+  nullif(left(e.v ->> 'prompt', 60), ''),
+  coalesce(case when (e.v ->> 'at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then (e.v ->> 'at')::timestamptz end, p.created_at, now()),
+  coalesce(case when (e.v ->> 'at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then (e.v ->> 'at')::timestamptz end, p.created_at, now())
+  + make_interval(secs => e.i / 1000.0)
+from legacy.profiles p join app.users u on u.id = p.id,
+  unnest(array['loves', 'avoids', 'rules']) l(list),
+  lateral jsonb_array_elements(case when jsonb_typeof(p.style_dna -> 'brief' -> l.list) = 'array'
+    then p.style_dna -> 'brief' -> l.list else '[]'::jsonb end) with ordinality e(v, i)
+where trim(coalesce(e.v ->> 'text', e.v #>> '{}', '')) <> ''
+on conflict do nothing;
+
+insert into app.style_brief_lines (user_id, list, state, text, full_text, because, origin, loved, rejected, created_at)
+select p.id, e.v ->> 'list', 'pending', left(trim(e.v ->> 'text'), 160), nullif(left(e.v ->> 'full', 600), ''),
+  nullif(left(e.v ->> 'because', 200), ''), case when e.v ->> 'from' = 'prompt' then 'prompt' else 'read' end,
+  coalesce(array(select left(c, 60) from jsonb_array_elements_text(case when jsonb_typeof(e.v -> 'loved') = 'array'
+    then e.v -> 'loved' else '[]'::jsonb end) c limit 6), '{}'),
+  coalesce(array(select left(c, 60) from jsonb_array_elements_text(case when jsonb_typeof(e.v -> 'rejected') = 'array'
+    then e.v -> 'rejected' else '[]'::jsonb end) c limit 6), '{}'),
+  coalesce(case when (e.v ->> 'at') ~ '^\\d{4}-\\d{2}-\\d{2}T' then (e.v ->> 'at')::timestamptz end, now())
+  + make_interval(secs => e.i / 1000.0)
+from legacy.profiles p join app.users u on u.id = p.id,
+  lateral jsonb_array_elements(case when jsonb_typeof(p.style_dna -> 'brief' -> 'pending') = 'array'
+    then p.style_dna -> 'brief' -> 'pending' else '[]'::jsonb end) with ordinality e(v, i)
+where e.v ->> 'list' in ('loves', 'avoids', 'rules', 'notes', 'colours') and trim(coalesce(e.v ->> 'text', '')) <> ''
+  and e.i <= 12
+on conflict do nothing;
+
+insert into app.style_brief_lines (user_id, list, state, text, source, created_at)
+select p.id, 'avoids', 'struck', left(trim(e.v), 160), 'drafted', now() - make_interval(secs => e.i)
+from legacy.profiles p join app.users u on u.id = p.id,
+  lateral jsonb_array_elements_text(case when jsonb_typeof(p.style_dna -> 'brief' -> 'struck') = 'array'
+    then p.style_dna -> 'brief' -> 'struck' else '[]'::jsonb end) with ordinality e(v, i)
+where trim(e.v) <> '' and e.i <= 30
+  and not exists (select 1 from app.style_brief_lines x where x.user_id = p.id and x.state = 'struck'
+    and lower(x.text) = lower(left(trim(e.v), 160)));
+
+-- The memory she told Robes (wears are already rows of app.wears).
+insert into app.style_memory (user_id, kind, surface, subject, body, verdict, piece_out, piece_in, category, created_at)
+select p.id, e.v ->> 'k', nullif(left(e.v ->> 'surface', 40), ''),
+  nullif(left(coalesce(e.v ->> 'on', e.v ->> 'look'), 120), ''), nullif(left(e.v ->> 'text', 240), ''),
+  case when e.v ->> 'k' = 'verdict' then case when e.v ->> 'v' = '1' then 1 else 0 end end,
+  nullif(left(e.v ->> 'out', 120), ''), nullif(left(e.v ->> 'in', 120), ''), nullif(left(e.v ->> 'cat', 40), ''),
+  coalesce(case when (e.v ->> 't') ~ '^\\d{4}-\\d{2}-\\d{2}' then (e.v ->> 't')::timestamptz end, now())
+from legacy.profiles p join app.users u on u.id = p.id,
+  lateral jsonb_array_elements(case when jsonb_typeof(p.style_dna -> 'memory' -> 'entries') = 'array'
+    then p.style_dna -> 'memory' -> 'entries' else '[]'::jsonb end) e(v)
+where e.v ->> 'k' in ('verdict', 'swap', 'strike', 'ask')
+  and (e.v ->> 'k' <> 'swap' or coalesce(e.v ->> 'out', e.v ->> 'in') is not null)
+  and (e.v ->> 'k' not in ('strike', 'ask') or nullif(e.v ->> 'text', '') is not null)
+  -- Re-runs insert nothing: legacy entries carry no id, so a twin is one at the same moment.
+  and not exists (select 1 from app.style_memory m where m.user_id = p.id and m.kind = e.v ->> 'k'
+    and m.created_at = coalesce(case when (e.v ->> 't') ~ '^\\d{4}-\\d{2}-\\d{2}' then (e.v ->> 't')::timestamptz end, now())
+    and m.body is not distinct from nullif(left(e.v ->> 'text', 240), '')
+    and m.piece_out is not distinct from nullif(left(e.v ->> 'out', 120), ''));
 `;
 
 // Tags first (legacy ids aren't kept: the unique key is the slug), so the pieces' default-tag
