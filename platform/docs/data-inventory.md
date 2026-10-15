@@ -33,7 +33,7 @@ Schema source of truth: `db/migrations`. Retention jobs: `private.run_maintenanc
 | `app.wears` | Dates worn, pieces, notes | Wear diary (immutable) | Life of account | Postgres host |
 | `app.planned_days`, `app.artifacts` | Planned dates, activities, headlines, generated outfits and trips | Plan and Today | Life of account; unsaved ideas expire, then soft-deleted rows are purged after 30 days | Postgres host |
 | `app.shares` | Snapshot of a shared look or board | Public share links | Until revoked or expired; legacy tokens expire 180 days after cutover | Postgres host; CloudFront (`shared/` snapshots) |
-| `app.generation_jobs`, `app.generation_assets` | Job input (ids and intent only, SEC-16), outputs, trace id | Run generation jobs | Life of account | Postgres host; AWS SQS + Lambda; Gemini |
+| `app.generation_jobs`, `app.generation_assets` | Job input (ids and intent only, SEC-16 — the intent may be her words: a prompt look, the look prompt's line and the exchange while its box was open), outputs (the look prompt's reply), trace id | Run generation jobs | Life of account | Postgres host; AWS SQS + Lambda; Gemini |
 | `app.generation_calls` | `prompt` and `response` text, model, tokens, latency, cost | Debugging and cost control (access-controlled; never logged, SEC-83) | Prompt/response cleared after 30 days; rows deleted after 13 months | Postgres host; Gemini (sent the prompt) |
 | `app.generation_cache` | Cached outputs keyed by input hash | Avoid paying twice | Until `expires_at` | Postgres host |
 | `app.entitlements`, `app.usage_counters` | Plan, billing reference, usage counts | Quotas and plans | Life of account | Postgres host |
