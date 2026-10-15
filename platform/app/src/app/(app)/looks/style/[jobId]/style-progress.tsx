@@ -1,30 +1,9 @@
 'use client';
 
-import { jobs } from '@robes/copy';
-import { Progress, Text } from '@robes/ui';
-import { IdeaSkeleton, IdeaView } from '@/components/looks/idea-view';
-import { jobProgressStage } from '@/lib/looks';
-import { useJob } from '@/lib/use-job';
+import { JobDeck } from '@/components/looks/deck';
 
-// Streams the key_piece job (UX-02): the idea exists once the text stage lands (its id rides on
-// the job output), then the frames fill in on the idea page.
+// A styling job lands on the keep-or-pass deck (legacy 2026-10-07/09): dressing while the looks
+// compose, then one card at a time.
 export function StyleProgress({ jobId }: { jobId: string }) {
-  const { job, connection } = useJob(jobId);
-  const ideaId = job?.output.ideaId;
-  if (ideaId) return <IdeaView ideaId={ideaId} />;
-  const failed =
-    job?.status === 'failed' || job?.status === 'cancelled' || connection === 'unavailable';
-  if (failed) {
-    return (
-      <Text role="alert" tone="danger">
-        {jobs.status.failed}
-      </Text>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-8">
-      <Progress stage={jobProgressStage(job)} />
-      <IdeaSkeleton />
-    </div>
-  );
+  return <JobDeck jobId={jobId} />;
 }

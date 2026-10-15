@@ -8,16 +8,17 @@ import {
   useUndoableMutation,
 } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { looks, wardrobe } from '@robes/copy';
+import { lookbook, looks, wardrobe } from '@robes/copy';
+import { noteShort } from '@robes/core/looks';
 import { Button, Eyebrow, Field, Heading, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { LookImage } from '@/components/looks/look-image';
-import { PieceImage } from '@/components/wardrobe/piece-image';
+import { LookPicture, SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
+import { useLookEditor } from '@/lib/look-editor';
 import { withoutId } from '@/lib/wardrobe';
 import { SeeOnMe } from './see-on-me';
 import { ShareLook } from './share-look';
@@ -29,7 +30,10 @@ export function LookView({ id }: { id: string }) {
   const query = useApi(
     'looks.get',
     { params: { id } },
-    { refetchInterval: (q) => (q.state.data?.onModel === 'pending' ? 3_000 : false) },
+    {
+      refetchInterval: (q) =>
+        q.state.data?.onModel === 'pending' || q.state.data?.framePending ? 3_000 : false,
+    },
   );
   if (query.isError) {
     return (
@@ -39,6 +43,9 @@ export function LookView({ id }: { id: string }) {
     );
   }
   if (!query.data) return <LookSkeleton />;
+  // One look, three states (docs/look-states-brief.md): suggested and draft are hers to work on.
+  if (query.data.status !== 'saved')
+    return <WorkingLook key={query.data.status} look={query.data} />;
   return <LookBody look={query.data} />;
 }
 
@@ -116,6 +123,7 @@ function useLookActions(look: Look) {
 function LookBody({ look }: { look: Look }) {
   const router = useRouter();
   const actions = useLookActions(look);
+  const editor = useLookEditor(look);
   const [day, setDay] = useState('');
 
   const onPin = (e: FormEvent) => {
@@ -126,80 +134,75 @@ function LookBody({ look }: { look: Look }) {
 
   return (
     <article className="grid gap-8 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
+      {look.frame ? (
+        <LookPicture look={look} />
+      ) : (
+        <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
+      )}
       <div className="flex flex-col gap-6">
-        <LookName look={look} update={actions.update} />
+        <LookName look={look} update={actions.update} editing={editor.editing} />
+        <Text size="small" tone="muted">
+          {savedMeta(look, editor.rack.rows.length)}
+        </Text>
         {look.note ? (
           <section aria-labelledby="look-note" className="flex flex-col gap-2">
             <Heading level={2} size="sm" id="look-note">
               {copy.note}
             </Heading>
-            <Text className="whitespace-pre-line">{look.note}</Text>
+            <Text>{noteShort(look.note)}</Text>
           </section>
         ) : null}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="primary"
-            loading={actions.wear.isPending}
-            onClick={() =>
-              actions.wear.mutate({ params: { id: look.id }, input: { wornOn: localToday() } })
-            }
-          >
-            {copy.wearToday}
-          </Button>
-          <Button
-            variant="secondary"
-            loading={actions.variant.isPending}
-            onClick={() => actions.variant.mutate({ params: { id: look.id }, input: {} })}
-          >
-            {copy.saveAsNew}
-          </Button>
-          <Button
-            variant="quiet"
-            onClick={() => {
-              actions.remove.mutate({ params: { id: look.id } });
-              router.push('/looks');
-            }}
-          >
-            {copy.remove}
-          </Button>
-        </div>
-        <SeeOnMe look={look} />
-        <ShareLook lookId={look.id} />
-        <form onSubmit={onPin} className="flex flex-wrap items-end gap-2">
-          <Field
-            type="date"
-            label={copy.wearOnDay}
-            value={day}
-            min={localToday()}
-            onChange={(e) => setDay(e.target.value)}
-          />
-          <Button type="submit" variant="secondary" disabled={!day} loading={actions.pin.isPending}>
-            {copy.addToPlan}
-          </Button>
-        </form>
-        <section aria-labelledby="look-pieces" className="flex flex-col gap-3">
-          <Heading level={2} size="sm" id="look-pieces">
-            {copy.pieces}
-          </Heading>
-          {look.pieces.length === 0 ? (
-            <Text tone="muted">{copy.noPieces}</Text>
-          ) : (
-            <ul className="grid grid-cols-3 gap-3">
-              {look.pieces.map(({ piece }) => (
-                <li key={piece.id}>
-                  <Link
-                    href={`/piece/${piece.id}`}
-                    className="flex flex-col gap-1 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                  >
-                    <PieceImage piece={piece} sizes="(min-width: 768px) 15vw, 33vw" />
-                    <Text size="small">{piece.label}</Text>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <SavedRack look={look} editor={editor} />
+        {editor.editing ? null : (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="primary"
+                loading={actions.wear.isPending}
+                onClick={() =>
+                  actions.wear.mutate({ params: { id: look.id }, input: { wornOn: localToday() } })
+                }
+              >
+                {copy.wearToday}
+              </Button>
+              <Button
+                variant="secondary"
+                loading={actions.variant.isPending}
+                onClick={() => actions.variant.mutate({ params: { id: look.id }, input: {} })}
+              >
+                {copy.saveAsNew}
+              </Button>
+              <Button
+                variant="quiet"
+                onClick={() => {
+                  actions.remove.mutate({ params: { id: look.id } });
+                  router.push('/looks');
+                }}
+              >
+                {copy.remove}
+              </Button>
+            </div>
+            {look.frame ? null : <SeeOnMe look={look} />}
+            <ShareLook lookId={look.id} />
+            <form onSubmit={onPin} className="flex flex-wrap items-end gap-2">
+              <Field
+                type="date"
+                label={copy.wearOnDay}
+                value={day}
+                min={localToday()}
+                onChange={(e) => setDay(e.target.value)}
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={!day}
+                loading={actions.pin.isPending}
+              >
+                {copy.addToPlan}
+              </Button>
+            </form>
+          </>
+        )}
       </div>
     </article>
   );
@@ -208,9 +211,11 @@ function LookBody({ look }: { look: Look }) {
 function LookName({
   look,
   update,
+  editing: editingLook,
 }: {
   look: Look;
   update: ReturnType<typeof useLookActions>['update'];
+  editing: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(look.name);
@@ -246,7 +251,13 @@ function LookName({
   }
   return (
     <header className="flex flex-col gap-2">
-      <Eyebrow>{look.nameProvisional ? copy.suggested : copy.eyebrow}</Eyebrow>
+      <Eyebrow>
+        {editingLook
+          ? lookbook.eyebrow.editing
+          : look.nameProvisional
+            ? copy.suggested
+            : lookbook.eyebrow.saved}
+      </Eyebrow>
       <Heading level={1} size="xl">
         {look.name}
       </Heading>

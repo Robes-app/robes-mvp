@@ -1,23 +1,17 @@
-import { looks, shell } from '@robes/copy';
-import { buttonClasses } from '@robes/ui';
-import Link from 'next/link';
-import { LookGrid } from '@/components/looks/look-grid';
-import { LooksSegments } from '@/components/looks/looks-segments';
+import { looks } from '@robes/copy';
+import { Lookbook } from '@/components/looks/lookbook';
 import { PageHeader } from '@/components/page-header';
 
-export default function LooksPage() {
+export default async function LooksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
+  const { tab } = await searchParams;
   return (
     <>
-      <PageHeader
-        title={looks.title}
-        actions={
-          <Link href="/looks/style" className={buttonClasses({ variant: 'secondary' })}>
-            {shell.create.stylePiece}
-          </Link>
-        }
-      />
-      <LooksSegments current="/looks" />
-      <LookGrid />
+      <PageHeader title={looks.title} />
+      <Lookbook tab={tab === 'suggested' ? 'suggested' : 'saved'} />
     </>
   );
 }

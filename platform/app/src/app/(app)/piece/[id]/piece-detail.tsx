@@ -2,11 +2,13 @@
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
-import { wardrobe } from '@robes/copy';
-import { Button, Chip, Field, Heading, Skeleton, Text, TextArea } from '@robes/ui';
+import { lookbook, wardrobe } from '@robes/copy';
+import { Button, buttonClasses, Chip, Field, Heading, Skeleton, Text, TextArea } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
+import { SuggestedRail } from '@/components/looks/suggested-rail';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { errorCopy } from '@/lib/error-copy';
@@ -124,6 +126,14 @@ export function PieceDetail({ id }: { id: string }) {
           >
             {copy.stylePiece}
           </Button>
+          {piece.status === 'ready' ? (
+            <Link
+              href={`/looks/new?pieceId=${id}`}
+              className={buttonClasses({ variant: 'secondary' })}
+            >
+              {lookbook.startLook}
+            </Link>
+          ) : null}
           <Button
             variant="quiet"
             onClick={() => {
@@ -139,6 +149,7 @@ export function PieceDetail({ id }: { id: string }) {
             {errorCopy(style.error)}
           </Text>
         ) : null}
+        <SuggestedRail pieceId={id} />
         {draft ? (
           <form onSubmit={submit} className="flex flex-col gap-4">
             <Field

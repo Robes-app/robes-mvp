@@ -1,4 +1,4 @@
-import { nav, shell, wardrobe, you } from '@robes/copy';
+import { lookbook, nav, shell, wardrobe, you } from '@robes/copy';
 import type { IconName } from '@robes/icons/web';
 
 export interface NavItem {
@@ -69,7 +69,7 @@ export const GO_TO_ITEMS: readonly NavItem[] = [
   ...NAV_ITEMS,
   { href: '/wardrobe/wishlist', label: wardrobe.segments.wishlist, icon: 'wardrobe' },
   { href: '/wardrobe/inbox', label: wardrobe.segments.inbox, icon: 'mail' },
-  { href: '/looks/ideas', label: shell.segments.ideas, icon: 'looks' },
+  { href: '/looks?tab=suggested', label: lookbook.tabs.suggested, icon: 'looks' },
   { href: '/you', label: you.title, icon: 'user' },
   { href: '/you/account', label: you.account.title, icon: 'user' },
   { href: '/you/notifications', label: you.notifications.title, icon: 'user' },

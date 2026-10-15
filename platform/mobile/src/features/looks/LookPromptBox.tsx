@@ -3,11 +3,11 @@ import { lookbook as copy } from '@robes/copy';
 import { ASK_MAX_CHARS, ASK_THREAD_MAX, type RackState } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import { IconButton, Text, useColor } from '@robes/ui-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { useLookAsk } from './look-states';
 
-type Line = { who: 'her' | 'robes' | 'filed'; text: string };
+type Line = { id: number; who: 'her' | 'robes' | 'filed'; text: string };
 
 // The look prompt (legacy _rbLookPrompt, inline design 4b/4d): one field on every look. Her
 // words change the look behind it; a vague ask comes back as Robes' wording written into her
@@ -35,13 +35,18 @@ export function LookPromptBox({
   const [text, setText] = useState('');
   const [drafted, setDrafted] = useState(false);
   const [thread, setThread] = useState<Line[]>([]);
+  const lineId = useRef(0);
+  const line = (who: Line['who'], text: string): Line => {
+    lineId.current += 1;
+    return { id: lineId.current, who, text };
+  };
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
   const ask = useLookAsk(lookId, (result) => {
     setThread((t) => [
       ...t,
-      { who: 'robes', text: result.reply || copy.prompt.doneNone },
-      ...(result.noticed ? [{ who: 'filed' as const, text: copy.prompt.noticed }] : []),
+      line('robes', result.reply || copy.prompt.doneNone),
+      ...(result.noticed ? [line('filed', copy.prompt.noticed)] : []),
     ]);
     if (result.draft) {
       setText(result.draft);
@@ -59,8 +64,9 @@ export function LookPromptBox({
     if (!words || ask.reading || rack.rows.length === 0) return;
     const history = thread
       .filter((l): l is Line & { who: 'her' | 'robes' } => l.who !== 'filed')
+      .map(({ who, text }) => ({ who, text }))
       .slice(-ASK_THREAD_MAX);
-    setThread((t) => [...t, { who: 'her', text: words }]);
+    setThread((t) => [...t, line('her', words)]);
     setText('');
     setDrafted(false);
     setOpen(true);
@@ -70,25 +76,23 @@ export function LookPromptBox({
     <View accessibilityLabel={copy.prompt.label(name)} className="gap-2" testID="look-prompt">
       {open && thread.length ? (
         <View className="gap-2 px-1">
-          {thread.map((line, i) =>
-            line.who === 'her' ? (
+          {thread.map((entry) =>
+            entry.who === 'her' ? (
               <Text
-                // biome-ignore lint/suspicious/noArrayIndexKey: the thread only ever grows
-                key={i}
+                key={entry.id}
                 size="small"
                 tone="muted"
                 className="self-end border-l border-hairline pl-3"
               >
-                {line.text}
+                {entry.text}
               </Text>
             ) : (
               <Text
-                // biome-ignore lint/suspicious/noArrayIndexKey: the thread only ever grows
-                key={i}
-                size={line.who === 'filed' ? 'caption' : 'body'}
-                tone={line.who === 'filed' ? 'muted' : 'ink'}
+                key={entry.id}
+                size={entry.who === 'filed' ? 'caption' : 'body'}
+                tone={entry.who === 'filed' ? 'muted' : 'ink'}
               >
-                {line.text}
+                {entry.text}
               </Text>
             ),
           )}

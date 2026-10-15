@@ -1,118 +1,125 @@
 'use client';
 
-import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import { looks, wardrobe } from '@robes/copy';
-import { Button, buttonClasses, CardSkeleton, EmptyState, Field, Text, useToast } from '@robes/ui';
-import { useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
+import { isApiClientError } from '@robes/api-client';
+import { useApiClient } from '@robes/api-client/react';
+import type { CreateLookInput, Piece } from '@robes/contracts';
+import { lookbook as copy } from '@robes/copy';
+import { Button, Dialog, Field, Text, useToast } from '@robes/ui';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
-import { PieceImage } from '@/components/wardrobe/piece-image';
+import { useEffect, useRef, useState } from 'react';
+import { SwapSheet } from '@/components/looks/swap-sheet';
 import { errorCopy } from '@/lib/error-copy';
+import { useRefreshLooks } from '@/lib/look-states';
 
-const copy = looks.composer;
+const draftsFull = (err: unknown): boolean =>
+  isApiClientError(err) &&
+  err.code === 'conflict' &&
+  (err.details as { reason?: string } | undefined)?.reason === 'drafts_full';
 
-// New look: pick pieces in wear order, optionally name it (else Robes suggests one).
-export function Composer() {
+// A new look (legacy 4d, the guide): nothing is a row until the first piece lands; then it is a
+// draft that waits in In progress. Five drafts wait at most — a sixth asks to let the oldest go.
+export function Composer({ pieceId }: { pieceId?: string }) {
   const router = useRouter();
+  const api = useApiClient();
   const toast = useToast();
-  const queryClient = useQueryClient();
-  const pieces = useApi('wardrobe.list', { input: { limit: 100 } });
-  const [selected, setSelected] = useState<string[]>([]);
+  const refresh = useRefreshLooks();
+  const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
-  const create = useApiMutation('looks.create', {
-    onSuccess: (look) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
+  const [busy, setBusy] = useState(false);
+  const [full, setFull] = useState<{ input: CreateLookInput; oldest: string } | null>(null);
+
+  const create = async (input: CreateLookInput) => {
+    setBusy(true);
+    try {
+      const look = await api.call('looks.create', { input });
+      refresh(look);
       router.push(`/look/${look.id}`);
-    },
-    onError: (err) => toast({ message: errorCopy(err) }),
+    } catch (err) {
+      if (!draftsFull(err)) {
+        toast({ message: errorCopy(err) });
+        return;
+      }
+      const drafts = await api
+        .call('looks.list', { input: { limit: 60, status: 'draft' } })
+        .catch(() => null);
+      setFull({ input, oldest: drafts?.items.at(-1)?.name ?? copy.draftTile.untitled });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const start = (piece: Piece) =>
+    void create({
+      status: 'draft',
+      pieces: [{ pieceId: piece.id }],
+      ...(name.trim() ? { name: name.trim() } : {}),
+    });
+
+  // "Start a look with it" from a piece: the draft opens with that piece on the rack.
+  const started = useRef(false);
+  useEffect(() => {
+    if (pieceId && !started.current) {
+      started.current = true;
+      void create({ status: 'draft', pieces: [{ pieceId }], anchorPieceId: pieceId });
+    }
   });
 
-  const toggle = (id: string) =>
-    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    create.mutate({
-      input: {
-        pieces: selected.map((pieceId) => ({ pieceId })),
-        ...(name.trim() ? { name: name.trim() } : {}),
-      },
-    });
-  };
-
-  if (pieces.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(pieces.error)}
+  return (
+    <div className="flex flex-col gap-6">
+      <Field
+        label={copy.name.label}
+        placeholder={copy.name.placeholder}
+        value={name}
+        maxLength={120}
+        hint={copy.name.unnamed}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <div className="flex flex-col gap-1 rounded-soft border border-dashed border-border-control p-5">
+        <Text className="font-display text-xl">{copy.guide.title}</Text>
+        <Text size="small" tone="muted">
+          {copy.guide.body}
+        </Text>
+        <Text size="small" tone="faint">
+          {copy.guide.hint}
+        </Text>
+      </div>
+      <Text size="small" tone="muted">
+        {copy.guide.after}
       </Text>
-    );
-  }
-  if (!pieces.data) {
-    return (
-      <ul aria-busy className="grid grid-cols-3 gap-3 md:grid-cols-5">
-        {['a', 'b', 'c'].map((k) => (
-          <li key={k}>
-            <CardSkeleton />
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  const ready = pieces.data.items.filter((p) => p.status === 'ready');
-  if (ready.length === 0) {
-    return (
-      <EmptyState
-        title={copy.empty}
-        action={
-          <Link href="/wardrobe/add" className={buttonClasses({ variant: 'primary' })}>
-            {wardrobe.addPieces}
-          </Link>
+      <Button variant="secondary" loading={busy} onClick={() => setAdding(true)}>
+        {copy.rack.addPiece}
+      </Button>
+      <SwapSheet
+        open={adding}
+        swapping={null}
+        onRack={[]}
+        onClose={() => setAdding(false)}
+        onPick={start}
+      />
+      <Dialog
+        open={full !== null}
+        onOpenChange={(o) => {
+          if (!o) setFull(null);
+        }}
+        title={copy.drafts.fullTitle}
+        description={full ? copy.drafts.fullBody(full.oldest) : undefined}
+        footer={
+          <>
+            <Button variant="quiet" onClick={() => setFull(null)}>
+              {copy.drafts.keep}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                const input = full?.input;
+                setFull(null);
+                if (input) void create({ ...input, letGoOldest: true });
+              }}
+            >
+              {copy.drafts.letGo}
+            </Button>
+          </>
         }
       />
-    );
-  }
-  return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-6">
-      <ul aria-label={wardrobe.segments.pieces} className="grid grid-cols-3 gap-3 md:grid-cols-5">
-        {ready.map((piece) => {
-          const on = selected.includes(piece.id);
-          return (
-            <li key={piece.id}>
-              <button
-                type="button"
-                aria-pressed={on}
-                aria-label={copy.togglePiece(piece.label)}
-                onClick={() => toggle(piece.id)}
-                className={`flex w-full flex-col gap-1 rounded-crisp p-1 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-focus-ring ${on ? 'outline-2 outline-ink' : ''}`}
-              >
-                <PieceImage piece={piece} sizes="(min-width: 768px) 20vw, 33vw" />
-                <Text size="small">{piece.label}</Text>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="flex flex-wrap items-end gap-3">
-        <Field
-          label={copy.nameLabel}
-          placeholder={copy.namePlaceholder}
-          value={name}
-          maxLength={120}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Text size="small" tone="muted" aria-live="polite">
-          {copy.selected(selected.length)}
-        </Text>
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={selected.length === 0}
-          loading={create.isPending}
-        >
-          {copy.create}
-        </Button>
-      </div>
-    </form>
+    </div>
   );
 }
