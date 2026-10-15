@@ -49,11 +49,11 @@ test('the waitlist asks for an email before it sends anything', async ({ page })
     page.getByText('Join today and style a key piece three ways', { exact: false }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Join' }).click();
-  await expect(page.getByText('Please enter your email to join')).toBeVisible();
+  await expect(page.getByText('Please enter your email to join', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Email')).toBeFocused();
   await page.getByLabel('Email').fill('not-an-email');
   await page.getByRole('button', { name: 'Join' }).click();
-  await expect(page.getByText('Please enter a valid email address')).toBeVisible();
+  await expect(page.getByText('Please enter a valid email address', { exact: true })).toBeVisible();
   expect(posted).toBe(false);
 });
 
