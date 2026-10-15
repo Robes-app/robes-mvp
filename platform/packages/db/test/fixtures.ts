@@ -4,7 +4,7 @@ import { type UserId, verifiedUserId } from '../src/ids';
 
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgres://robes_app:robes_app_local@127.0.0.1:55432/robes_test';
+  `postgres://robes_app:robes_app_local@127.0.0.1:55432/${process.env.ROBES_DB_NAME ?? 'robes'}_test`;
 
 export function createTestDb(): Db {
   return createDb({ connectionString: TEST_DATABASE_URL, max: 4, applicationName: 'robes-test' });

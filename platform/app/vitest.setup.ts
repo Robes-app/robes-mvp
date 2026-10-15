@@ -3,7 +3,9 @@ import { vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 Object.assign(process.env, {
   APP_ENV: 'dev',
-  DATABASE_URL: 'postgres://robes_app:robes_app_local@127.0.0.1:55432/robes_test',
+  DATABASE_URL:
+    process.env.TEST_DATABASE_URL ??
+    `postgres://robes_app:robes_app_local@127.0.0.1:55432/${process.env.ROBES_DB_NAME ?? 'robes'}_test`,
   BETTER_AUTH_SECRET: 'test-secret-at-least-thirty-two-characters-long',
   UNSUB_HMAC_KEY: 'test-unsub-key-at-least-thirty-two-characters',
   BETTER_AUTH_URL: 'http://localhost:3000',

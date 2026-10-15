@@ -20,5 +20,5 @@
       "cache": false
     }
   },
-  "globalPassThroughEnv": ["DATABASE_URL", "DATABASE_ADMIN_URL", "TEST_DATABASE_URL", "CI"]
+  "globalPassThroughEnv": ["ROBES_DB_NAME", "DATABASE_URL", "DATABASE_ADMIN_URL", "TEST_DATABASE_URL", "CI"]
 }

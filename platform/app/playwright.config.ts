@@ -11,7 +11,7 @@ export default defineConfig({
   use: { baseURL },
   webServer: {
     env: {
-      DATABASE_URL: 'postgres://robes_app:robes_app_local@127.0.0.1:55432/robes',
+      DATABASE_URL: `postgres://robes_app:robes_app_local@127.0.0.1:55432/${process.env.ROBES_DB_NAME ?? 'robes'}`,
       BETTER_AUTH_URL: baseURL,
       UNSUB_HMAC_KEY: E2E_UNSUB_KEY,
       // Specs assert the offline fake's outputs; never spend on real Gemini from a dev key.

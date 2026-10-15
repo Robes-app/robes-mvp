@@ -6,7 +6,7 @@ import { createAuth, sessionUser } from '../src/index';
 
 const DATABASE_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgres://robes_app:robes_app_local@127.0.0.1:55432/robes_test';
+  `postgres://robes_app:robes_app_local@127.0.0.1:55432/${process.env.ROBES_DB_NAME ?? 'robes'}_test`;
 const BASE = 'http://localhost:3000';
 
 const mailer = createMemoryMailer();

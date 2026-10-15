@@ -3,7 +3,7 @@ import { afterAll, expect } from 'vitest';
 
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgres://robes_app:robes_app_local@127.0.0.1:55432/robes_test';
+  `postgres://robes_app:robes_app_local@127.0.0.1:55432/${process.env.ROBES_DB_NAME ?? 'robes'}_test`;
 
 const pool = new pg.Pool({ connectionString: TEST_DATABASE_URL, max: 4 });
 afterAll(() => pool.end());
