@@ -126,7 +126,7 @@ Personal data we store and who processes it: `docs/data-inventory.md`.
 
 ## Legacy migration (rehearsal)
 
-`pnpm migrate:rehearse` builds a local legacy database from the legacy `supabase/*.sql` with fixture rows, migrates it into a fresh local `robes_migrate` and runs the assertions (exit 1 on any failure). The steps also run one at a time (`migrate:fixture`, `migrate:target`, `migrate:extract`, `migrate:transform`, `migrate:assert`, `migrate:rehost -- --dry-run`, `migrate:reverse-delta -- --since=<ISO>`). Point `LEGACY_DATABASE_URL` at a read-only copy of legacy to rehearse on real data; the target is always local. Details and mapping decisions: `docs/migration.md` §3.
+`pnpm migrate:rehearse` builds a local legacy database from the legacy `supabase/*.sql` with fixture rows, migrates it into a fresh local `robes_migrate` (`<ROBES_DB_NAME>_migrate` when set) and runs the assertions (exit 1 on any failure). The steps also run one at a time (`migrate:fixture`, `migrate:target`, `migrate:extract`, `migrate:transform`, `migrate:assert`, `migrate:rehost -- --dry-run`, `migrate:reverse-delta -- --since=<ISO>`). Point `LEGACY_DATABASE_URL` at a read-only copy of legacy to rehearse on real data; the target is always local. Details and mapping decisions: `docs/migration.md` §3.
 
 ## Mobile sign-in (local)
 

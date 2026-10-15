@@ -116,6 +116,8 @@ update public.profiles set
       loves: [
         { text: 'A defined waist', source: 'drafted', at: '2026-09-30T10:00:00Z' },
         'One sharp shoe',
+        // Shaped like a date, but not one: kept with her profile's time, never an aborted run.
+        { text: 'Clean lines', source: 'drafted', at: '2026-13-40T10:00:00Z' },
       ],
       avoids: [{ text: 'Heels', source: 'typed', prompt: 'Heels' }],
       rules: [],
@@ -138,6 +140,9 @@ update public.profiles set
         { t: '2026-09-27', k: 'swap', out: 'Tan loafers', in: 'Black flats', cat: 'Shoes' },
         { t: '2026-09-26', k: 'wear', look: 'The Thursday one', pieces: 4 },
         { t: '2026-09-25', k: 'strike', text: 'You avoid colour' },
+        // An empty swap is skipped (it would break the swap check); a malformed time falls back.
+        { t: '2026-09-24', k: 'swap', out: '', cat: 'Shoes' },
+        { t: '2026-13-40T99:00:00Z', k: 'ask', text: 'Something warmer' },
       ],
       v: 1,
     },

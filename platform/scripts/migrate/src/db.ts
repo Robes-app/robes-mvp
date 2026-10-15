@@ -56,9 +56,10 @@ export function dropDatabase(name: string): Promise<void> {
   return onServer(name, (db) => [`drop database if exists ${db} with (force)`]);
 }
 
-// The legacy source and the rehearsal target; both default to local databases.
-export const LEGACY_FIXTURE_DB = 'robes_legacy_fixture';
-export const REHEARSAL_TARGET_DB = 'robes_migrate';
+// The legacy source and the rehearsal target; both local, namespaced by ROBES_DB_NAME for worktrees.
+const NS = process.env.ROBES_DB_NAME ?? 'robes';
+export const LEGACY_FIXTURE_DB = `${NS}_legacy_fixture`;
+export const REHEARSAL_TARGET_DB = `${NS}_migrate`;
 
 export function legacyUrl(): string {
   return process.env.LEGACY_DATABASE_URL ?? databaseUrl(LEGACY_FIXTURE_DB);
