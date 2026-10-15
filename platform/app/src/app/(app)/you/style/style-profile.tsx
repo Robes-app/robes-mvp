@@ -15,27 +15,16 @@ import { Swatches } from './swatches';
 const copy = you.style;
 type Kind = 'colour' | 'silhouette';
 
-export function StyleProfileView() {
-  const query = useApi('me.style.get');
-  if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
-  }
-  if (!query.data) return <Skeleton className="h-64" />;
-  return (
-    <div className="flex flex-col gap-8">
-      <AnalyseCard kind="colour" profile={query.data} />
-      <AnalyseCard kind="silhouette" profile={query.data} />
-      <Overrides profile={query.data} />
-    </div>
-  );
-}
-
 // Upload the right photo, run the analysis job, and show the result when it lands.
-function AnalyseCard({ kind, profile }: { kind: Kind; profile: StyleProfile }) {
+export function AnalyseCard({
+  kind,
+  profile,
+  compact = false,
+}: {
+  kind: Kind;
+  profile: StyleProfile;
+  compact?: boolean;
+}) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const [jobId, setJobId] = useState<string | null>(null);
@@ -87,8 +76,10 @@ function AnalyseCard({ kind, profile }: { kind: Kind; profile: StyleProfile }) {
       <Heading level={2} size="md" id={`${inputId}-title`}>
         {title}
       </Heading>
-      {colour && profile.colour ? <ColourResult colour={profile.colour} /> : null}
-      {!colour && profile.silhouette ? <SilhouetteResult silhouette={profile.silhouette} /> : null}
+      {!compact && colour && profile.colour ? <ColourResult colour={profile.colour} /> : null}
+      {!compact && !colour && profile.silhouette ? (
+        <SilhouetteResult silhouette={profile.silhouette} />
+      ) : null}
       {busy ? (
         <div className="flex flex-col gap-2" aria-live="polite">
           <Progress stage="reading" />
@@ -125,7 +116,7 @@ function AnalyseCard({ kind, profile }: { kind: Kind; profile: StyleProfile }) {
   );
 }
 
-function ColourResult({ colour }: { colour: NonNullable<StyleProfile['colour']> }) {
+export function ColourResult({ colour }: { colour: NonNullable<StyleProfile['colour']> }) {
   return (
     <Card as="article" title={colour.season} meta={colour.summary} className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 pt-2">
@@ -147,7 +138,11 @@ function ColourResult({ colour }: { colour: NonNullable<StyleProfile['colour']> 
   );
 }
 
-function SilhouetteResult({ silhouette }: { silhouette: NonNullable<StyleProfile['silhouette']> }) {
+export function SilhouetteResult({
+  silhouette,
+}: {
+  silhouette: NonNullable<StyleProfile['silhouette']>;
+}) {
   return (
     <Card as="article" title={silhouette.body_type} meta={silhouette.summary}>
       <dl className="flex flex-col gap-3 pt-2">
@@ -177,7 +172,7 @@ const splitColours = (v: string): string[] =>
     .slice(0, 30);
 
 // Her corrections outrank the photo read in every styling prompt.
-function Overrides({ profile }: { profile: StyleProfile }) {
+export function Overrides({ profile }: { profile: StyleProfile }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [loved, setLoved] = useState(profile.overrides.lovedColors.join(', '));
