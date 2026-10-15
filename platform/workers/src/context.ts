@@ -145,6 +145,12 @@ async function createWorkerContext(): Promise<WorkerContext> {
           },
           avatarCell: { ai, storage, cells: system.avatarCells, ledger: system.ledger },
           styleAnalyse: { ai, storage, profiles: system.styleAnalysis, ledger: system.ledger },
+          styleBrief: {
+            ai,
+            brief: system.styleBrief,
+            styling: system.styling,
+            ledger: system.ledger,
+          },
           // Frames land as uploads, so the S3 event renders them (no onGenerated).
           daily: {
             ai,

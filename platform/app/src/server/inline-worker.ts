@@ -31,6 +31,7 @@ const handlers = createHandlers({
     profiles: system.styleAnalysis,
     ledger: system.ledger,
   },
+  styleBrief: { ai, brief: system.styleBrief, styling: system.styling, ledger: system.ledger },
   stylePiece: {
     ai,
     storage: mediaStorage,

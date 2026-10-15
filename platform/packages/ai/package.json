@@ -10,7 +10,8 @@
     "./prompts/daily": "./src/prompts/daily/v2.ts",
     "./prompts/travel": "./src/prompts/travel/v2.ts",
     "./prompts/receipt-read": "./src/prompts/receipt-read/v2.ts",
-    "./prompts/avatar": "./src/prompts/avatar/v1.ts"
+    "./prompts/avatar": "./src/prompts/avatar/v1.ts",
+    "./prompts/style-brief": "./src/prompts/style-brief/v1.ts"
   },
   "scripts": {
     "test": "vitest run",

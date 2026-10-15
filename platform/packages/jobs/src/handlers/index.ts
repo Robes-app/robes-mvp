@@ -5,6 +5,7 @@ import { createFakeHandler } from './fake';
 import { createLinkImportHandler, type LinkImportDeps } from './link-import';
 import { createLookRenderHandler, type LookRenderDeps } from './look-render';
 import { createStyleAnalyseHandler, type StyleAnalyseDeps } from './style-analyse';
+import { createStyleBriefHandler, type StyleBriefDeps } from './style-brief';
 import { createStylePieceHandler, type StylePieceDeps } from './style-piece';
 import { createTravelHandler, type TravelDeps } from './travel';
 import { createWardrobeAnalyseHandler, type WardrobeAnalyseDeps } from './wardrobe-analyse';
@@ -17,6 +18,7 @@ export interface HandlerDeps {
   stylePiece?: StylePieceDeps;
   daily?: DailyDeps;
   styleAnalyse?: StyleAnalyseDeps;
+  styleBrief?: StyleBriefDeps;
   lookRender?: LookRenderDeps;
   travel?: TravelDeps;
   avatarCell?: AvatarCellDeps;
@@ -38,5 +40,6 @@ export function createHandlers(opts: HandlerDeps = {}): JobHandlers {
     ...(opts.styleAnalyse
       ? { stylenotes_analyse: createStyleAnalyseHandler(opts.styleAnalyse) }
       : {}),
+    ...(opts.styleBrief ? { style_brief: createStyleBriefHandler(opts.styleBrief) } : {}),
   };
 }

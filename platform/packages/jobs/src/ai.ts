@@ -8,6 +8,7 @@ import {
 import * as daily from '@robes/ai/prompts/daily';
 import * as receiptRead from '@robes/ai/prompts/receipt-read';
 import * as styleAnalyse from '@robes/ai/prompts/style-analyse';
+import * as styleBrief from '@robes/ai/prompts/style-brief';
 import * as stylePiece from '@robes/ai/prompts/style-piece';
 import * as travel from '@robes/ai/prompts/travel';
 import * as wardrobeAnalyse from '@robes/ai/prompts/wardrobe-analyse';
@@ -30,6 +31,7 @@ const FAKE_FIXTURES: Record<string, FakeFixture> = {
   [receiptRead.FEATURE]: () => receiptRead.fakeOutput(),
   [styleAnalyse.COLOUR_FEATURE]: () => styleAnalyse.fakeColour(),
   [styleAnalyse.SILHOUETTE_FEATURE]: () => styleAnalyse.fakeSilhouette(),
+  [styleBrief.FEATURE]: () => styleBrief.fakeOutput(),
   [stylePiece.FEATURE]: (req) =>
     stylePiece.fakeOutput(/described as: <user_input>\n(.*)\n/.exec(req.user)?.[1] ?? 'Your piece'),
 };
