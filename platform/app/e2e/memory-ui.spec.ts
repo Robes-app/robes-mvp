@@ -17,7 +17,7 @@ test('Robes reads her wardrobe; she keeps a line, strikes one and they stay that
   });
   expect(await seriousViolations(page)).toEqual([]);
   await noticed.getByRole('button', { name: 'Keep →' }).click();
-  await expect(page.getByText('Kept. Filed under Style DNA.')).toBeVisible();
+  await expect(page.getByText('Kept. Filed under Style DNA.', { exact: true })).toBeVisible();
   await expect(noticed.getByText('One thing that disrupts the line')).toBeVisible();
 
   await page.getByRole('link', { name: 'Robes Observations' }).click();
