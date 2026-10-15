@@ -11,7 +11,12 @@ import { mediaDelivery } from './media';
 type PieceRow = NonNullable<Awaited<ReturnType<typeof repos.wardrobe.get>>>;
 type AssetRow = Awaited<ReturnType<typeof repos.assets.getManyForUser>>[number];
 
-async function toPiece(userId: UserId, row: PieceRow, asset: AssetRow | undefined): Promise<Piece> {
+async function toPiece(
+  userId: UserId,
+  row: PieceRow,
+  asset: AssetRow | undefined,
+  wearCount: number,
+): Promise<Piece> {
   const image = asset ? await toImage(mediaDelivery, userId, asset) : null;
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
   return Piece.parse({
@@ -30,6 +35,7 @@ async function toPiece(userId: UserId, row: PieceRow, asset: AssetRow | undefine
     currency: row.currency,
     size: row.size,
     image,
+    wearCount,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   });
@@ -37,11 +43,23 @@ async function toPiece(userId: UserId, row: PieceRow, asset: AssetRow | undefine
 
 export async function toPieces(userId: UserId, rows: PieceRow[]): Promise<Piece[]> {
   const assetIds = rows.flatMap((r) => (r.imageAssetId ? [r.imageAssetId] : []));
-  const assets = new Map(
-    (await repos.assets.getManyForUser(userId, assetIds)).map((a) => [a.id, a]),
-  );
+  const [assetRows, wears] = await Promise.all([
+    repos.assets.getManyForUser(userId, assetIds),
+    repos.wardrobe.wearCounts(
+      userId,
+      rows.map((r) => r.id),
+    ),
+  ]);
+  const assets = new Map(assetRows.map((a) => [a.id, a]));
   return Promise.all(
-    rows.map((r) => toPiece(userId, r, r.imageAssetId ? assets.get(r.imageAssetId) : undefined)),
+    rows.map((r) =>
+      toPiece(
+        userId,
+        r,
+        r.imageAssetId ? assets.get(r.imageAssetId) : undefined,
+        wears.get(r.id) ?? 0,
+      ),
+    ),
   );
 }
 

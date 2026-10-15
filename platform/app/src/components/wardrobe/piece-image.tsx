@@ -7,17 +7,19 @@ export function PieceImage({
   piece,
   sizes,
   priority = false,
+  className,
 }: {
-  piece: Piece;
+  piece: Pick<Piece, 'label' | 'image'> & { status?: Piece['status'] };
   sizes: string;
   priority?: boolean;
+  className?: string;
 }) {
   const sources = piece.image ? imageSources(piece.image.renditions) : null;
   if (!sources) {
     return piece.status === 'reading' ? (
-      <Skeleton className="aspect-[4/5]" />
+      <Skeleton className={`aspect-[4/5] ${className ?? ''}`} />
     ) : (
-      <div aria-hidden className="aspect-[4/5] bg-surface-sunk" />
+      <div aria-hidden className={`aspect-[4/5] bg-surface-sunk ${className ?? ''}`} />
     );
   }
   return (
@@ -29,6 +31,7 @@ export function PieceImage({
       aspect="4:5"
       blurhash={piece.image?.blurhash ?? null}
       priority={priority}
+      {...(className ? { frameClassName: className } : {})}
     />
   );
 }

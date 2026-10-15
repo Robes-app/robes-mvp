@@ -103,6 +103,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 |---|---|
 | `GET /wardrobe/items` · `POST` · `PATCH /:id` · `DELETE /:id` (soft, undoable) · `POST /:id/restore` | client REST `wardrobe_items` |
 | `POST /wardrobe/items/batch` (N uploaded assets → N draft items + analyse jobs) | — (new: batch capture) |
+| `GET /wardrobe/summary` (piece counts per category, for the tabs) | — |
 | `POST /wardrobe/analyse` Job | `/api/wardrobe/analyse` |
 | `POST /wardrobe/import-link` Job (fetch worker) | `/api/wardrobe/read-url` |
 | `GET /wardrobe/taxonomy` | `/api/wardrobe/taxonomy` |

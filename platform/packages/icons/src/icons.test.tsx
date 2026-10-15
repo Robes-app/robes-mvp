@@ -24,3 +24,10 @@ describe('icons', () => {
     expect(labelled).toContain('stroke="currentColor"');
   });
 });
+
+describe('filled icons', () => {
+  it('fill with the current colour only when asked', () => {
+    expect(renderToStaticMarkup(<Icon name="star" filled />)).toContain('fill="currentColor"');
+    expect(renderToStaticMarkup(<Icon name="star" />)).toContain('fill="none"');
+  });
+});

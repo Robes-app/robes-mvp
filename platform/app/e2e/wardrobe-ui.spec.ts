@@ -29,7 +29,18 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Wardrobe' }).first().click();
-  await pieces.getByRole('button', { name: 'Remove Camel wool coat' }).click();
+  // The web opens on the grid; the count row counts and the star files it to the Hero Rack.
+  await expect(page.getByText('1 piece', { exact: true })).toBeVisible();
+  await expect(pieces.getByText('Never worn')).toBeVisible();
+  await pieces.getByRole('button', { name: 'Feature Camel wool coat in your Hero Rack' }).click();
+  await expect(page.getByText('Saved to your Hero Rack.')).toBeVisible();
+  await expect(
+    pieces.getByRole('button', { name: 'Remove Camel wool coat from your Hero Rack' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  // The list is the rack card; its row swipes (or tabs) to Remove.
+  await page.getByRole('radio', { name: 'List' }).click();
+  await expect(pieces.getByText('Outerwear', { exact: false })).toBeVisible();
+  await pieces.getByRole('button', { name: 'Remove Camel wool coat', exact: true }).click();
   await expect(pieces).toHaveCount(0);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(
@@ -50,6 +61,9 @@ test('a wish becomes a piece when she buys it, and removal can be undone', async
     await expect(page.getByRole('list', { name: 'Wishlist' }).getByText(label)).toBeVisible();
   }
   const wishes = page.getByRole('list', { name: 'Wishlist' });
+  await expect(page.getByText('2 wishlisted')).toBeVisible();
+  await expect(wishes.getByText('Not yours yet').first()).toBeVisible();
+  await page.getByRole('radio', { name: 'List' }).click();
 
   await wishes.getByRole('button', { name: 'Remove Silk scarf' }).click();
   await expect(wishes.getByText('Silk scarf')).toHaveCount(0);
@@ -59,7 +73,7 @@ test('a wish becomes a piece when she buys it, and removal can be undone', async
   await wishes
     .getByRole('listitem')
     .filter({ hasText: 'Black leather loafers' })
-    .getByRole('button', { name: 'I bought this' })
+    .getByRole('button', { name: 'I bought Black leather loafers' })
     .click();
   await expect(page.getByText('Black leather loafers is in your wardrobe now.')).toBeVisible();
   await expect(wishes.getByText('Black leather loafers')).toHaveCount(0);

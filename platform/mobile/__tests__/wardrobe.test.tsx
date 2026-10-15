@@ -2,7 +2,7 @@ import { wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { PieceDetail } from '../src/features/wardrobe/PieceDetail';
 import { WardrobeView } from '../src/features/wardrobe/WardrobeView';
-import { ME, mockFetch, renderWithApi } from './support/api';
+import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
@@ -82,4 +82,123 @@ test('removing a piece goes back and offers Undo, which restores it', async () =
     await fireEvent.press(screen.getByRole('button', { name: wardrobe.undo }));
   });
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/restore'))).toBe(true));
+});
+
+const SCARF_ID = '77777777-7777-4777-8777-777777777777';
+
+test('the list is the rack card: eyebrow, status line, the star, and the count row', async () => {
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/summary': {
+      total: 2,
+      categories: [
+        { category: 'Outerwear', count: 1 },
+        { category: 'Accessories', count: 1 },
+      ],
+    },
+    'GET /wardrobe/items': (_: RequestInit, url: string) =>
+      url.includes('category=Accessories')
+        ? {
+            items: [
+              piece({
+                id: SCARF_ID,
+                label: 'Silk scarf',
+                category: 'Accessories',
+                categoryL2: null,
+              }),
+            ],
+            nextCursor: null,
+            total: 1,
+          }
+        : {
+            items: [
+              piece({ brand: 'Toteme', wearCount: 6 }),
+              piece({
+                id: SCARF_ID,
+                label: 'Silk scarf',
+                category: 'Accessories',
+                categoryL2: null,
+              }),
+            ],
+            nextCursor: null,
+            total: 2,
+          },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ brand: 'Toteme', heroPosition: 1 }),
+  });
+  await renderWithApi(<WardrobeView />);
+  expect(await screen.findByText('2 pieces')).toBeTruthy();
+  expect(screen.getByText('Worn 6×')).toBeTruthy();
+  expect(screen.getByText(wardrobe.card.neverWorn)).toBeTruthy();
+  expect(screen.getByText(' · Toteme')).toBeTruthy();
+
+  await fireEvent.press(
+    screen.getByRole('button', { name: wardrobe.card.star('Camel wool coat') }),
+  );
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ hero: true });
+  expect(await screen.findByText(wardrobe.card.starred)).toBeTruthy();
+
+  await fireEvent.press(await screen.findByRole('button', { name: 'Accessories' }));
+  expect(await screen.findByText('1 piece')).toBeTruthy();
+  expect(calls.some((c) => c.url.includes('category=Accessories'))).toBe(true);
+});
+
+test('a full Hero Rack says so', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null, total: 1 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: errorReply(409, 'conflict'),
+  });
+  await renderWithApi(<WardrobeView />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: wardrobe.card.star('Camel wool coat') }),
+  );
+  expect(await screen.findByText(wardrobe.card.heroFull)).toBeTruthy();
+});
+
+test('grid | list switches the layout; the list swipes (or acts) to remove with Undo', async () => {
+  let gone = false;
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/items': () =>
+      gone
+        ? { items: [], nextCursor: null, total: 0 }
+        : { items: [piece()], nextCursor: null, total: 1 },
+    [`DELETE /wardrobe/items/${PIECE_ID}`]: () => {
+      gone = true;
+      return { ok: true };
+    },
+  });
+  await renderWithApi(<WardrobeView />);
+  // The phone opens on the list, where a row carries Remove.
+  const removeLabel = wardrobe.removePiece('Camel wool coat');
+  expect(await screen.findByRole('button', { name: removeLabel })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.grid }));
+  expect(screen.queryByRole('button', { name: removeLabel })).toBeNull();
+  await fireEvent.press(screen.getByRole('radio', { name: wardrobe.header.list }));
+  await fireEvent(screen.getByRole('button', { name: removeLabel }), 'press');
+  expect(await screen.findByText(wardrobe.deleted)).toBeTruthy();
+  await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
+  expect(screen.queryByText('Camel wool coat')).toBeNull();
+  expect(await screen.findByText(wardrobe.empty.title)).toBeTruthy();
+});
+
+test('Filter counts the season before she applies it', async () => {
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/items': (_: RequestInit, url: string) =>
+      url.includes('seasonBand=spring_summer')
+        ? { items: [], nextCursor: null, total: 0 }
+        : { items: [piece()], nextCursor: null, total: 1 },
+  });
+  await renderWithApi(<WardrobeView />);
+  await fireEvent.press(await screen.findByTestId('wardrobe-filter'));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: wardrobe.filter.seasons.spring_summer }),
+  );
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.filter.show(0) }));
+  expect(await screen.findByText(wardrobe.filter.nothing)).toBeTruthy();
+  expect(calls.some((c) => c.url.includes('seasonBand=spring_summer'))).toBe(true);
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.filter.showEverything }));
+  expect(await screen.findByText('Camel wool coat')).toBeTruthy();
 });

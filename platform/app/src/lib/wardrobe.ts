@@ -2,6 +2,7 @@ import type { Piece, PiecePage } from '@robes/contracts';
 
 interface ListPage {
   items: { id: string }[];
+  total?: number;
 }
 
 interface InfinitePages {
@@ -20,10 +21,15 @@ function isPage(value: unknown): value is ListPage {
 // Optimistic removal across every cached list (pieces, wishes), paged or plain.
 export function withoutId(id: string) {
   return (old: unknown): unknown => {
-    const drop = (page: ListPage): ListPage => ({
-      ...page,
-      items: page.items.filter((p) => p.id !== id),
-    });
+    const drop = (page: ListPage): ListPage => {
+      const items = page.items.filter((p) => p.id !== id);
+      if (typeof page.total !== 'number') return { ...page, items };
+      // The count row follows the removal at once (the server's total is per query, every page).
+      const removed = (old as InfinitePages).pages
+        ? (old as InfinitePages).pages.some((p) => p.items.some((i) => i.id === id))
+        : items.length !== page.items.length;
+      return { ...page, items, total: removed ? Math.max(0, page.total - 1) : page.total };
+    };
     if (isInfinite(old)) return { ...old, pages: old.pages.map(drop) };
     if (isPage(old)) return drop(old);
     return old;
@@ -36,4 +42,17 @@ export function anyReading(pages: readonly PiecePage[] | undefined): boolean {
 
 export function pieceIsReading(piece: Piece | undefined): boolean {
   return piece?.status === 'reading';
+}
+
+// Optimistic edit of one piece across every cached list (the star).
+export function withPatch(id: string, patch: Partial<Piece>) {
+  return (old: unknown): unknown => {
+    const edit = (page: ListPage): ListPage => ({
+      ...page,
+      items: page.items.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    });
+    if (isInfinite(old)) return { ...old, pages: old.pages.map(edit) };
+    if (isPage(old)) return edit(old);
+    return old;
+  };
 }

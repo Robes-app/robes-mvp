@@ -96,6 +96,7 @@ import {
   PieceParams,
   UpdatePieceInput,
   UpdateWishInput,
+  WardrobeSummary,
   Wish,
   WishPage,
   WishParams,
@@ -269,6 +270,13 @@ export const routes = {
     auth: 'user',
     input: ListPiecesInput,
     output: PiecePage,
+  },
+  'wardrobe.summary': {
+    method: 'GET',
+    path: '/wardrobe/summary',
+    auth: 'user',
+    input: EmptyInput,
+    output: WardrobeSummary,
   },
   'wardrobe.create': {
     method: 'POST',

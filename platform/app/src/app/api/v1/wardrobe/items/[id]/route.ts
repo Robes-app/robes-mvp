@@ -21,10 +21,17 @@ export const PATCH = route({
   rateLimit: { key: 'wardrobe.update', limit: 120, windowSeconds: 60 },
   handler: async ({ user, input, params }) => {
     const userId = verifiedUserId(user.id);
-    const { heroPosition, ...fields } = input;
+    const { heroPosition, hero, ...fields } = input;
     const updated = await repos.wardrobe.update(userId, params.id, fields);
     if (!updated) throw new ApiError('not_found');
     if (heroPosition !== undefined) await repos.wardrobe.setHero(userId, params.id, heroPosition);
+    if (hero === false) await repos.wardrobe.setHero(userId, params.id, null);
+    if (hero === true && updated.heroPosition === null) {
+      const position = await repos.wardrobe.nextHeroPosition(userId);
+      // The Hero Rack holds ten; the client says so (legacy __waHeroToggle).
+      if (position === null) throw new ApiError('conflict');
+      await repos.wardrobe.setHero(userId, params.id, position);
+    }
     return loadPiece(userId, params.id);
   },
 });

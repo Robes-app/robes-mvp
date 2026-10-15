@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./taxonomy": "./src/taxonomy/index.ts",
+    "./wardrobe": "./src/wardrobe/index.ts",
     "./quotas": "./src/quotas/index.ts",
     "./flags": "./src/flags/index.ts",
     "./jobs": "./src/jobs/index.ts",
