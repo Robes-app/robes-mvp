@@ -1,10 +1,10 @@
-import { you } from '@robes/copy';
+import { twin } from '@robes/copy';
 import { StackScreen } from '@/components/StackScreen';
 import { Model } from '@/features/you/Model';
 
 export default function ModelScreen() {
   return (
-    <StackScreen title={you.model.link}>
+    <StackScreen title={twin.twinPage.title}>
       <Model />
     </StackScreen>
   );

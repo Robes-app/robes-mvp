@@ -32,7 +32,7 @@ test('account name edits show across the shell', async ({ page }) => {
 test('deleting the account needs the typed word, then signs her out', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
-  await page.goto('/you');
+  await page.goto('/you?tab=account');
   await page.getByRole('button', { name: 'Delete account' }).click();
   const dialog = page.getByRole('dialog', { name: 'Delete account' });
   const confirm = dialog.getByRole('button', { name: 'Delete my account' });

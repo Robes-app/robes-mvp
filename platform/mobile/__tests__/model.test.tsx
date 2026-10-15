@@ -1,10 +1,10 @@
-import { you } from '@robes/copy';
+import { twin, you } from '@robes/copy';
 import { HAIR_SWATCHES, SKIN_SWATCHES } from '@robes/core/avatar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
 import { Model } from '../src/features/you/Model';
 import { mockFetch, renderWithApi } from './support/api';
-import { LOOK_ID, look } from './support/fixtures';
+import { LOOK_ID, look, styleDna } from './support/fixtures';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -12,6 +12,13 @@ jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null
 beforeEach(() => jest.clearAllMocks());
 
 const copy = you.model;
+const noStyle = {
+  colour: null,
+  silhouette: null,
+  overrides: { lovedColors: [], rejectedColors: [], measurements: {} },
+  updatedAt: null,
+};
+const TWIN = { 'GET /me/style': noStyle, 'GET /me/dna': styleDna() };
 const model = (over: object = {}) => ({
   filed: false,
   presence: 'woman',
@@ -29,6 +36,7 @@ const model = (over: object = {}) => ({
 
 test('she builds her model by hand and each pick re-files it', async () => {
   const calls = mockFetch({
+    ...TWIN,
     'GET /me/model': model(),
     'PATCH /me/model': (init: RequestInit) =>
       model({ filed: true, ...JSON.parse(String(init.body)) }),
@@ -42,11 +50,11 @@ test('she builds her model by hand and each pick re-files it', async () => {
   await waitFor(() =>
     expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).toEqual({ skin: 7 }),
   );
-  expect(await screen.findByText(copy.subtitle)).toBeTruthy();
 });
 
 test('says so while her portrait is being drawn', async () => {
   mockFetch({
+    ...TWIN,
     'GET /me/model': model({ filed: true, cell: { status: 'pending', imageUrl: null } }),
   });
   await renderWithApi(<Model />);
@@ -79,4 +87,74 @@ test('without a model the look points her to build one', async () => {
   mockFetch({ [`GET /looks/${LOOK_ID}`]: look(), 'GET /me/model': model() });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
   expect(await screen.findByRole('button', { name: copy.build })).toBeTruthy();
+});
+
+test('the facts: size steps from UK 10, gender goes to her model', async () => {
+  const calls = mockFetch({
+    ...TWIN,
+    'GET /me/model': model({ filed: true }),
+    'PATCH /me/dna': (init: RequestInit) =>
+      styleDna({ facts: { ...styleDna().facts, ...JSON.parse(String(init.body)).facts } }),
+    'PATCH /me/model': (init: RequestInit) =>
+      model({ filed: true, ...JSON.parse(String(init.body)) }),
+    'GET /today': {},
+  });
+  await renderWithApi(<Model />);
+  await fireEvent.press(await screen.findByRole('button', { name: twin.facts.title }));
+  await fireEvent.press(
+    screen.getAllByRole('button', { name: `+ ${twin.facts.more}` })[1] as never,
+  );
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/dna'))?.body).toEqual({
+      facts: { sizeUk: 10 },
+    }),
+  );
+  await fireEvent.press(screen.getByRole('button', { name: twin.facts.genderOptions.man }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/model'))?.body).toEqual({
+      presence: 'man',
+    }),
+  );
+});
+
+test('a read colouring offers the seasons next door; a pick changes it', async () => {
+  const colourRead = {
+    season: 'Soft Autumn',
+    undertone: 'Warm',
+    contrast: 'Low, blended',
+    summary: 'Warm and dusty.',
+    undertone_note: '',
+    palette: [],
+    neutrals: [],
+    best_colours: [],
+    avoid_colours: [],
+    avoid_note: '',
+    proof_best: '',
+    proof_less: '',
+    seen_on_you: [],
+    metals: [],
+    metals_note: '',
+  };
+  const calls = mockFetch({
+    ...TWIN,
+    'GET /me/style': { ...noStyle, colour: colourRead },
+    'GET /me/model': model({ filed: true, reads: { colour: true, silhouette: false } }),
+    'PUT /me/style/season': (init: RequestInit) => ({
+      ...noStyle,
+      colour: { ...colourRead, season: JSON.parse(String(init.body)).season },
+    }),
+  });
+  await renderWithApi(<Model />);
+  await fireEvent.press(
+    await screen.findByRole('button', {
+      name: `${twin.twinPage.colouring}, Soft Autumn · Warm · Low, blended`,
+    }),
+  );
+  expect(screen.getByRole('button', { name: 'True Autumn' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Soft Summer' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Light Spring' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'True Autumn' }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ season: 'True Autumn' }),
+  );
 });

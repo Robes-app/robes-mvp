@@ -83,6 +83,14 @@ import {
 } from './today';
 import { PinnedTrip, PlanTripInput, Trip, TripList, TripParams } from './travel';
 import {
+  AddBriefLineInput,
+  BriefLineParams,
+  ChooseSeasonInput,
+  RecordMemoryInput,
+  StyleDna,
+  UpdateStyleDnaInput,
+} from './twin';
+import {
   BatchPiecesInput,
   BatchPiecesOutput,
   CreatePieceInput,
@@ -209,6 +217,78 @@ export const routes = {
     auth: 'user',
     input: StyleOverrides,
     output: StyleProfile,
+  },
+  // A season she chose by hand: that season's catalog read, no model call (legacy 2026-10-08).
+  'me.style.season': {
+    method: 'PUT',
+    path: '/me/style/season',
+    auth: 'user',
+    input: ChooseSeasonInput,
+    output: StyleProfile,
+  },
+  // You › Style Profile: Style DNA, the facts and the brief in her words.
+  'me.dna.get': {
+    method: 'GET',
+    path: '/me/dna',
+    auth: 'user',
+    input: EmptyInput,
+    output: StyleDna,
+  },
+  'me.dna.update': {
+    method: 'PATCH',
+    path: '/me/dna',
+    auth: 'user',
+    input: UpdateStyleDnaInput,
+    output: StyleDna,
+  },
+  // Naturally idempotent: a line that already stands is not added twice.
+  'me.dna.lines.add': {
+    method: 'POST',
+    path: '/me/dna/lines',
+    auth: 'user',
+    input: AddBriefLineInput,
+    output: StyleDna,
+  },
+  'me.dna.lines.remove': {
+    method: 'DELETE',
+    path: '/me/dna/lines/:id',
+    auth: 'user',
+    params: BriefLineParams,
+    input: EmptyInput,
+    output: StyleDna,
+  },
+  'me.dna.observations.keep': {
+    method: 'POST',
+    path: '/me/dna/observations/:id/keep',
+    auth: 'user',
+    params: BriefLineParams,
+    input: EmptyInput,
+    output: StyleDna,
+  },
+  'me.dna.observations.dismiss': {
+    method: 'POST',
+    path: '/me/dna/observations/:id/dismiss',
+    auth: 'user',
+    params: BriefLineParams,
+    input: EmptyInput,
+    output: StyleDna,
+  },
+  // Robes reads her wardrobe for the brief (a job); what it noticed lands as observations.
+  'me.dna.read': {
+    method: 'POST',
+    path: '/me/dna/read',
+    auth: 'user',
+    input: EmptyInput,
+    output: StartJobOutput,
+    idempotent: true,
+  },
+  // A verdict, a swap or an ask from another surface joins the memory every prompt reads.
+  'me.memory.record': {
+    method: 'POST',
+    path: '/me/memory',
+    auth: 'user',
+    input: RecordMemoryInput,
+    output: Ok,
   },
   'me.exports.get': {
     method: 'GET',

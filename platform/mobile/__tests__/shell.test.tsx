@@ -1,4 +1,4 @@
-import { nav, shell, you } from '@robes/copy';
+import { nav, shell, twin, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { Text } from 'react-native';
@@ -119,6 +119,8 @@ test('the avatar opens You', async () => {
   await screen.findByText(/, Niall\.$/);
   await fireEvent.press(screen.getByTestId('open-you'));
   await waitFor(() => expect(router.getPathname()).toBe('/you'));
-  expect(screen.getByText(you.account.title)).toBeTruthy();
+  expect(screen.getByText(twin.cards.twin)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('radio', { name: twin.tabs.account }));
+  expect(screen.getByRole('button', { name: you.account.title })).toBeTruthy();
   expect(screen.getByText(you.deletion.title)).toBeTruthy();
 });

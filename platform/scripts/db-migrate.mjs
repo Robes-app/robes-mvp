@@ -4,7 +4,9 @@ import { adminServerUrl, dbmate, isLocal } from './lib/dbmate.mjs';
 // locally both the dev and the test database move together, so DB tests never see an old schema.
 const urls = process.env.DATABASE_ADMIN_URL
   ? [process.env.DATABASE_ADMIN_URL]
-  : [process.env.ROBES_DB_NAME ?? 'robes'].flatMap((base) => [base, `${base}_test`]).map((name) => `${adminServerUrl()}/${name}`);
+  : [process.env.ROBES_DB_NAME ?? 'robes']
+      .flatMap((base) => [base, `${base}_test`])
+      .map((name) => `${adminServerUrl()}/${name}`);
 for (const url of urls) {
   dbmate(isLocal(url) && !url.includes('sslmode') ? `${url}?sslmode=disable` : url, 'up');
 }

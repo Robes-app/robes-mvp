@@ -16,17 +16,15 @@ const strs = (v: unknown): string[] =>
     .slice(0, 10);
 
 // ── Her brief (style_dna.brief): {loves[], avoids[], rules[], notes, colours:{loved[], rejected[]}};
-// each list entry a string or {text, source}.
+// each list entry a string or {text, source}. Every kept line reaches a prompt (legacy 2026-10-13).
 const BRIEF_LINE_MAX = 160;
-const BRIEF_LIST_MAX = 8;
 
 export function briefList(a: unknown): string[] {
   if (!Array.isArray(a)) return [];
   return a
     .map((x) => (x && typeof x === 'object' ? (x as Obj).text : x))
     .filter((t): t is string => typeof t === 'string' && t.trim() !== '')
-    .map((t) => t.trim().replace(/\s+/g, ' ').slice(0, BRIEF_LINE_MAX))
-    .slice(0, BRIEF_LIST_MAX);
+    .map((t) => t.trim().replace(/\s+/g, ' ').slice(0, BRIEF_LINE_MAX));
 }
 
 export function briefIsEmpty(b: unknown): boolean {

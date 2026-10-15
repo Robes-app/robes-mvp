@@ -355,6 +355,7 @@ export interface PlatformBudget {
 }
 
 export interface Profiles {
+  ageBand: string | null;
   annualSpend: string | null;
   avatarPrefs: Json | null;
   budget: string | null;
@@ -362,18 +363,23 @@ export interface Profiles {
   currency: Generated<string>;
   firstName: string | null;
   genderIdentity: Generated<string>;
+  heightCm: number | null;
   homeCity: string | null;
   homeLat: Numeric | null;
   homeLon: Numeric | null;
   id: string;
   instagramHandle: string | null;
+  investmentLevel: string | null;
   lastName: string | null;
   locale: Generated<string>;
   mobile: string | null;
   notificationPrefs: Generated<Json>;
   onboardedAt: Timestamp | null;
+  shoeUk: Numeric | null;
+  sizeUk: number | null;
   splurgeCategories: Generated<string[]>;
   styleArchetypes: Generated<string[]>;
+  styleBrands: Generated<string[]>;
   styleIcons: Generated<string[]>;
   timezone: Generated<string>;
   updatedAt: Generated<Timestamp>;
@@ -429,8 +435,43 @@ export interface Shares {
   viewCount: Generated<number>;
 }
 
+export interface StyleBriefLines {
+  because: string | null;
+  chip: string | null;
+  createdAt: Generated<Timestamp>;
+  fullText: string | null;
+  id: Generated<string>;
+  keptAt: Timestamp | null;
+  list: string;
+  loved: Generated<string[]>;
+  origin: Generated<string>;
+  rejected: Generated<string[]>;
+  source: Generated<string>;
+  state: string;
+  text: string;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
+}
+
+export interface StyleMemory {
+  body: string | null;
+  category: string | null;
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  kind: string;
+  lookId: string | null;
+  pieceIn: string | null;
+  pieceOut: string | null;
+  subject: string | null;
+  surface: string | null;
+  userId: string;
+  verdict: number | null;
+}
+
 export interface StyleProfiles {
   bodyType: string | null;
+  briefNotes: string | null;
+  briefReadAt: Timestamp | null;
   colorHarmony: Json | null;
   colourRender: Json | null;
   contrast: string | null;
@@ -667,6 +708,8 @@ export interface DB {
   rateLimits: RateLimits;
   sessions: Sessions;
   shares: Shares;
+  styleBriefLines: StyleBriefLines;
+  styleMemory: StyleMemory;
   styleProfiles: StyleProfiles;
   tagLooks: TagLooks;
   tagPieces: TagPieces;

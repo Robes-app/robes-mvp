@@ -46,6 +46,34 @@ export function styleProfileRepo(db: Db) {
         .returning(PROFILE_COLUMNS)
         .executeTakeFirstOrThrow();
     },
+
+    colourDna(userId: UserId) {
+      return db
+        .selectFrom('styleProfiles')
+        .select('colorHarmony')
+        .where('userId', '=', userId)
+        .executeTakeFirst();
+    },
+
+    // A season she chose by hand replaces the read's render; the photograph stays hers.
+    async chooseSeason(
+      userId: UserId,
+      v: { season: string; undertone: string; contrast: string; dna: unknown; render: unknown },
+    ) {
+      return db
+        .updateTable('styleProfiles')
+        .set({
+          season: v.season,
+          undertone: v.undertone,
+          contrast: v.contrast,
+          colorHarmony: JSON.stringify(v.dna),
+          colourRender: JSON.stringify(v.render),
+        })
+        .where('userId', '=', userId)
+        .where('colorHarmony', 'is not', null)
+        .returning(PROFILE_COLUMNS)
+        .executeTakeFirst();
+    },
   };
 }
 

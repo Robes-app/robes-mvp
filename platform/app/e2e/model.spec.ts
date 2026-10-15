@@ -79,8 +79,8 @@ test('You › Your model: build by hand and pick a skin tone', async ({ page }) 
   await signIn(page);
   await declineConsent(page);
   await page.goto('/you');
-  await page.getByRole('link', { name: 'Your model' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Your model.' })).toBeVisible();
+  await page.getByRole('link', { name: 'Your Digital Twin' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Your Digital Twin' })).toBeVisible();
   await page.getByRole('button', { name: 'Build your model' }).click();
   await page.getByRole('button', { name: 'Porcelain' }).click();
   await expect(page.getByRole('button', { name: 'Porcelain' })).toHaveAttribute(

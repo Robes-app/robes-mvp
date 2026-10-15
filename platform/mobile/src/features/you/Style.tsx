@@ -1,11 +1,9 @@
-import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { StyleProfile } from '@robes/contracts';
-import { errors, ui, you } from '@robes/copy';
+import { ui, you } from '@robes/copy';
 import {
   Button,
   Card,
-  CardSkeleton,
-  EmptyState,
   Eyebrow,
   Field,
   Heading,
@@ -17,10 +15,9 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { isTerminal, JOB_REFRESH_MS } from '@/features/looks/ideas';
 import { PICKER_OPTIONS, uploadPhoto } from '@/features/wardrobe/add-pieces';
-import { errorMessage } from '@/lib/errors';
 
 const copy = you.style;
 type Kind = 'colour' | 'silhouette';
@@ -130,7 +127,7 @@ function useAnalyse(kind: Kind) {
   return { start, busy, reading: jobId !== null, noSubject };
 }
 
-function AnalysisCard({ kind, profile }: { kind: Kind; profile: StyleProfile }) {
+export function AnalysisCard({ kind, profile }: { kind: Kind; profile: StyleProfile }) {
   const text = copy[kind];
   const { start, busy, reading, noSubject } = useAnalyse(kind);
   const has = kind === 'colour' ? profile.colour : profile.silhouette;
@@ -156,7 +153,7 @@ function AnalysisCard({ kind, profile }: { kind: Kind; profile: StyleProfile }) 
   );
 }
 
-function ColourList({
+export function ColourList({
   label,
   colours,
   onChange,
@@ -199,34 +196,5 @@ function ColourList({
         </Button>
       </View>
     </View>
-  );
-}
-
-// You › Style: her colouring and shape from photos, and the colours she's corrected by hand.
-export function Style() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  const { data: profile, isPending, isError, error } = useApi('me.style.get');
-  const overrides = useApiMutation('me.style.overrides', {
-    onSuccess: (next) => queryClient.setQueryData(queryKeys.call('me.style.get'), next),
-    onError: () => toast.show({ message: errors.internal }),
-  });
-  if (isPending) return <CardSkeleton className="mx-6" />;
-  if (isError || !profile) return <EmptyState title={errorMessage(error)} />;
-  return (
-    <ScrollView contentContainerClassName="gap-6 px-6 pb-12">
-      <AnalysisCard kind="colour" profile={profile} />
-      <AnalysisCard kind="silhouette" profile={profile} />
-      <ColourList
-        label={copy.loved}
-        colours={profile.overrides.lovedColors}
-        onChange={(lovedColors) => overrides.mutate({ input: { lovedColors } })}
-      />
-      <ColourList
-        label={copy.rejected}
-        colours={profile.overrides.rejectedColors}
-        onChange={(rejectedColors) => overrides.mutate({ input: { rejectedColors } })}
-      />
-    </ScrollView>
   );
 }

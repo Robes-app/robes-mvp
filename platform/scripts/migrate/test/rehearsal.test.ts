@@ -12,8 +12,10 @@ import { recreateTarget } from '../src/target';
 import { transform } from '../src/transform';
 
 // Own databases, so a test run never clobbers a manual rehearsal (robes_legacy_fixture/robes_migrate).
-const LEGACY = 'robes_legacy_fixture_test';
-const TARGET = 'robes_migrate_test';
+// ROBES_DB_NAME namespaces them like the dev/test databases, for parallel worktrees.
+const NS = process.env.ROBES_DB_NAME ? `${process.env.ROBES_DB_NAME}_` : 'robes_';
+const LEGACY = `${NS}legacy_fixture_test`;
+const TARGET = `${NS}migrate_test`;
 const legacyUrl = databaseUrl(LEGACY);
 let targetUrl: string;
 
@@ -75,6 +77,68 @@ describe('legacy → platform rehearsal (docs/migration.md §3)', () => {
       '2 suggested/draft looks not carried (only saved looks are)',
     );
     expect(first.report.warnings).toContain('1 saved looks have styling notes (not carried)');
+  });
+
+  it('carries her twin, her brief and the memory she told Robes', async () => {
+    expect(
+      await one(
+        `select style_brands, investment_level, height_cm, size_uk, shoe_uk::float8 as shoe_uk, age_band
+         from app.profiles where id = $1`,
+        [NIALL],
+      ),
+    ).toEqual({
+      style_brands: ['The Row', 'COS'],
+      investment_level: '500_1500',
+      height_cm: 168,
+      size_uk: 10,
+      shoe_uk: 5.5,
+      age_band: '45_54',
+    });
+    const lines = await withClient(
+      targetUrl,
+      async (c) =>
+        (
+          await c.query(
+            `select list, state, text, source, chip from app.style_brief_lines where user_id = $1
+           order by state, list, created_at`,
+            [NIALL],
+          )
+        ).rows,
+    );
+    expect(lines).toEqual([
+      { list: 'avoids', state: 'kept', text: 'Heels', source: 'typed', chip: 'Heels' },
+      { list: 'loves', state: 'kept', text: 'A defined waist', source: 'drafted', chip: null },
+      { list: 'loves', state: 'kept', text: 'One sharp shoe', source: 'typed', chip: null },
+      { list: 'rules', state: 'pending', text: 'No double denim', source: 'drafted', chip: null },
+      { list: 'avoids', state: 'struck', text: 'You avoid colour', source: 'drafted', chip: null },
+    ]);
+    expect(
+      await one(`select brief_notes, user_overrides from app.style_profiles where user_id = $1`, [
+        NIALL,
+      ]),
+    ).toMatchObject({
+      brief_notes: 'You dress well when the structure is already there.',
+      user_overrides: {
+        loved_colors: expect.arrayContaining(['Navy', 'burgundy']),
+        rejected_colors: ['camel'],
+      },
+    });
+    const memory = await withClient(
+      targetUrl,
+      async (c) =>
+        (
+          await c.query(
+            `select kind, subject, body, verdict, piece_out from app.style_memory where user_id = $1
+           order by created_at desc`,
+            [NIALL],
+          )
+        ).rows,
+    );
+    expect(memory).toEqual([
+      { kind: 'verdict', subject: 'Harbour Dinner', body: 'too safe', verdict: 0, piece_out: null },
+      { kind: 'swap', subject: null, body: null, verdict: null, piece_out: 'Tan loafers' },
+      { kind: 'strike', subject: null, body: 'You avoid colour', verdict: null, piece_out: null },
+    ]);
   });
 
   it('carries saved looks only, and no tags or renders from unsaved ones', async () => {

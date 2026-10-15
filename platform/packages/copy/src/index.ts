@@ -924,6 +924,223 @@ export const trips = {
   },
 } as const;
 
+// You › Style Profile: the digital twin, Style DNA and Robes observations (legacy Settings,
+// 2026-10-07/08). Robes reads, she confirms; never "AI", "profile", "questionnaire" or "body type".
+const linesCount = (n: number): string => (n === 0 ? 'Not yet' : n === 1 ? '1 line' : `${n} lines`);
+const joinAnd = (a: readonly string[]): string =>
+  a.length <= 1 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`;
+export const twin = {
+  tabs: { label: 'You', style: 'Style Profile', account: 'Account' },
+  cards: {
+    twin: 'Your Digital Twin',
+    dna: 'Style DNA',
+    observations: 'Robes Observations',
+  },
+  noticed: {
+    eyebrow: 'Robes noticed',
+    keep: 'Keep →',
+    notMe: '← Not me',
+    kept: 'Kept. Filed under Style DNA.',
+  },
+  twinPage: {
+    title: 'Your Digital Twin',
+    readSection: 'Read from your photographs',
+    colouring: 'Colouring',
+    bodyShape: 'Body shape',
+    bodyShapeRead: 'Read from the full-length',
+    adjust: 'Adjust by hand',
+    adjustSub: 'Skin, hair, the line and the frame',
+    adjustSheetSub: 'Robes read these from your photographs. Nudge anything that looks off.',
+    photographs: 'Your photographs',
+    photographsSub: 'What Robes read from each, and the readings you can nudge.',
+    closeUp: 'Close-up',
+    fullLength: 'Full length',
+    closeUpGuide: 'Soft daylight, facing a window. No filters.',
+    fullLengthGuide: 'Head to toe, fitted clothes. A mirror is fine.',
+    addColour: 'Add a close-up and Robes reads your colouring.',
+    addLine: 'Add a full-length and Robes reads your line.',
+    lineRead: 'Read from your full-length.',
+    anotherSeason: 'Another season',
+    seasonFailed: 'Robes couldn’t change the reading just now.',
+    lineAndFrame: (line: string, frame: string): string =>
+      line && frame
+        ? `${line} line, ${String(frame).toLowerCase()} frame`
+        : line
+          ? `${line} line`
+          : frame
+            ? `${frame} frame`
+            : '',
+  },
+  facts: {
+    title: 'The facts',
+    sub: 'Size, never weight. Robes uses these to propose what fits.',
+    height: 'Height',
+    size: 'Size',
+    shoes: 'Shoes',
+    age: 'Age',
+    gender: 'Gender',
+    add: 'Add',
+    less: 'Less',
+    more: 'More',
+    cm: 'cm',
+    ftIn: 'ft / in',
+    clear: 'Clear the facts',
+    genderOptions: { woman: 'Woman', man: 'Man', unspecified: 'Prefer not to say' },
+    unspecified: '—',
+    heightValue: (cm: number): string => `${cm} cm`,
+    ukValue: (uk: number | string): string => `UK ${uk}`,
+    euValue: (eu: number | string): string => `EU ${eu}`,
+  },
+  dnaPage: {
+    title: 'Style DNA',
+    sub: 'What you love, and the lines you dress by.',
+    taste: 'Your taste',
+    words: 'In your words',
+    styleType: 'Style type',
+    brands: 'Brands',
+    icons: 'Icons',
+    pieces: 'Pieces you love',
+    investment: 'Investment level',
+    loves: 'What works on you',
+    avoids: 'Hard nos',
+    rules: 'Your rules',
+    notYet: 'Not yet',
+    pickOne: 'Pick one',
+    noneStarred: 'None starred',
+    sometimes: (types: string): string => `sometimes ${types}`,
+    brandsCount: (n: number): string => `${n} brands`,
+    iconsCount: (n: number): string => `${n} icons`,
+    piecesCount: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+    linesCount,
+  },
+  types: {
+    title: 'Style type',
+    sub: 'Pick as many as feel like you.',
+    desc: {
+      Minimal: 'Clean lines, few decisions, nothing loud.',
+      Bohemian: 'Loose shapes, print and texture worn together.',
+      Classic: 'Tailoring, good shoes, nothing that dates.',
+      Romantic: 'Soft volume, lace, colour that flatters.',
+      Sculptural: 'Architectural cuts. The volume is the point.',
+      Utility: 'Workwear roots, pockets, honest hardware.',
+      Heritage: 'Collars, knits, a little of the old school.',
+      Eclectic: 'Nothing matches. It works anyway.',
+      'Off-duty': 'Technical fabric, worn like it is not.',
+      'Avant-garde': 'Asymmetry, black, the unfamiliar shape.',
+    } as Record<string, string>,
+  },
+  wall: {
+    brandsTitle: 'Brands',
+    brandsSub: 'Select 3+ brands you like. This informs your Style DNA.',
+    iconsTitle: 'Icons',
+    iconsSub: 'Whose style runs close to yours? Robes reads the register, not the wardrobe.',
+    searchBrands: 'Search brands',
+    searchIcons: 'Search or type a name',
+    clear: 'Clear',
+    selections: 'Your selections',
+    keptCount: (n: number): string => `${n} kept`,
+    matches: 'Matches',
+    popular: 'Popular among stylists',
+    often: 'Often chosen',
+    tapToKeep: 'Tap a name to keep it',
+    noMatch: 'Nothing in the pool by that name.',
+    allYours: 'Everything here is yours already.',
+    add: (name: string): string => `+ Add “${name}”`,
+    remove: (name: string): string => `Remove ${name}`,
+  },
+  pieces: {
+    title: 'The pieces you love',
+    sub: 'Robes reads what they share. It never dresses you in the same one two days running.',
+    empty: 'Nothing starred yet. The star on a piece in your wardrobe marks it as one you love.',
+    starMore: 'Star more from your wardrobe',
+  },
+  investment: {
+    title: 'Investment level',
+    sub: 'How much you spend a year. Robes proposes inside it, whatever you admire.',
+    notes: {
+      under_500: 'Occasional picks',
+      '500_1500': 'Regular wardrobe updates',
+      '1500_5000': 'Considered investment',
+      '5000_plus': 'Fashion is a priority',
+    } as Record<string, string>,
+  },
+  words: {
+    loves: {
+      title: 'What works on you',
+      sub: 'Lines Robes dresses toward, every time.',
+      another: 'Another that works',
+      empty: 'Nothing kept so far. Keep a line Robes noticed, or write your own.',
+    },
+    avoids: {
+      title: 'Hard nos',
+      sub: 'Robes never proposes these, whatever the occasion.',
+      another: 'Another no',
+      empty: 'No hard nos so far. Tap a chip, or write whatever Robes should never do.',
+      yours: 'Your nos',
+    },
+    rules: {
+      title: 'Your rules',
+      sub: 'The lines you dress by.',
+      another: 'Another rule',
+      empty: 'No rules so far. The lines you dress by, in your words.',
+      yours: 'Your rules',
+    },
+    always: 'Always',
+    alwaysHint: 'Robes keeps these on every look',
+    never: 'Never',
+    neverHint: 'whatever the occasion',
+    own: 'Your own',
+    first: 'A line of your own',
+    strike: (text: string): string => `Strike “${text}”`,
+    suggests: 'Robes suggests',
+    suggestsHint: 'From what you’ve never kept',
+    keep: 'Keep',
+    filed: '✓ Filed · Robes reads it from here on',
+    from: (text: string): string => `from “${text}”`,
+  },
+  observations: {
+    title: 'Robes Observations',
+    sub: 'Read from what you wear. Keep a line and it joins your Style DNA.',
+    since: 'Since your last visit',
+    reading: 'Robes is reading your wardrobe…',
+    failed: 'Robes couldn’t read your wardrobe just now — try again in a moment.',
+    empty: 'Nothing new. Robes keeps reading.',
+    keptBefore: 'Kept before',
+    keep: 'Keep',
+    notMe: 'Not me',
+    list: {
+      loves: 'Works',
+      avoids: 'Never',
+      rules: 'Rule',
+      notes: 'How you dress well',
+      colours: 'Colour',
+    } as Record<string, string>,
+    keptIn: (month: string): string => `Kept in ${month}`,
+    // Written by the read onto each line it drafts (stored with the line).
+    evidence: (pieces: number, looks: number): string =>
+      pieces && looks
+        ? `From ${pieces} pieces and ${looks} ${looks === 1 ? 'look' : 'looks'}`
+        : pieces
+          ? `From ${pieces} ${pieces === 1 ? 'piece' : 'pieces'} filed`
+          : looks
+            ? `From ${looks} ${looks === 1 ? 'look' : 'looks'}`
+            : 'From your style type and icons',
+    colourLine: (lovedIn: readonly string[], rejectedIn: readonly string[]): string => {
+      const loved = Array.isArray(lovedIn) ? lovedIn : [];
+      const rejected = Array.isArray(rejectedIn) ? rejectedIn : [];
+      const rej = joinAnd(rejected);
+      return [
+        loved.length ? `You reach for ${joinAnd(loved)}.` : '',
+        rejected.length
+          ? `${rej.charAt(0).toUpperCase()}${rej.slice(1)} ${rejected.length > 1 ? 'stay' : 'stays'} on the rail.`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+    },
+  },
+} as const;
+
 export const copy = {
   wardrobe,
   errors,
@@ -940,6 +1157,7 @@ export const copy = {
   shell,
   looks,
   you,
+  twin,
   plan,
   trips,
   share,

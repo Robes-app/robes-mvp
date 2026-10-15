@@ -63,7 +63,7 @@ test('a regenerated or turned-off address stops accepting mail', async ({ page }
 test('You shows the address with copy, new address and turn off', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
-  await page.goto('/you');
+  await page.goto('/you?tab=account');
   const section = page.getByRole('region', { name: 'Forward receipts' });
   const address = section.getByTestId('inbox-address');
   await expect(address).toHaveText(/@in\.robes\.local$/);

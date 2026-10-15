@@ -109,6 +109,38 @@ update public.profiles set
     silhouette_proportions: { body_type: 'Pear' },
     user_overrides: { loved_colors: ['Navy'] },
     style_archetypes: ['Minimalist', 'Classic'],
+    brands: ['The Row', 'COS'],
+    investment: '€500–1,500',
+    facts: { height_cm: 168, size_uk: 10, shoe_uk: 5.5, age_band: '45–54', weight: 60 },
+    brief: {
+      loves: [
+        { text: 'A defined waist', source: 'drafted', at: '2026-09-30T10:00:00Z' },
+        'One sharp shoe',
+      ],
+      avoids: [{ text: 'Heels', source: 'typed', prompt: 'Heels' }],
+      rules: [],
+      notes: 'You dress well when the structure is already there.',
+      colours: { loved: ['burgundy'], rejected: ['camel'] },
+      struck: ['You avoid colour'],
+      pending: [
+        {
+          list: 'rules',
+          text: 'No double denim',
+          because: 'You said it on “Saturday”',
+          from: 'prompt',
+        },
+      ],
+      read_at: '2026-10-01T09:00:00Z',
+    },
+    memory: {
+      entries: [
+        { t: '2026-09-28', k: 'verdict', v: 0, on: 'Harbour Dinner', text: 'too safe' },
+        { t: '2026-09-27', k: 'swap', out: 'Tan loafers', in: 'Black flats', cat: 'Shoes' },
+        { t: '2026-09-26', k: 'wear', look: 'The Thursday one', pieces: 4 },
+        { t: '2026-09-25', k: 'strike', text: 'You avoid colour' },
+      ],
+      v: 1,
+    },
   })},
   onboarded_at = '2026-07-01', instagram_handle = 'niall.maher',
   notification_prefs = ${json({ looks_ready: true, morning: false, nudges: true, receipts: false, timezone: 'Australia/Sydney' })},
