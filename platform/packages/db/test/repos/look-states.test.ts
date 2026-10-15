@@ -10,7 +10,8 @@ import {
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
-const { looks, wardrobe, plan } = createRepositories(db);
+const CLAIM = { frameKey: 'k2', jobId: '00000000-0000-4000-8000-000000000000' };
+const { looks, wardrobe, plan, jobs } = createRepositories(db);
 const system = createSystemRepositories(db);
 let ann: UserId;
 let bea: UserId;
@@ -190,13 +191,21 @@ describe('suggested looks (look states)', () => {
       pieces: [{ pieceId: bag, role: 'exclamation' as const }],
       proposals: [proposal],
     };
-    expect(await system.suggested.rewrite(bea, id, spec)).toBe(false);
-    expect(await system.suggested.rewrite(ann, id, spec)).toBe(true);
+    expect(await system.suggested.rewrite(bea, id, spec, CLAIM)).toBe(false);
+    expect(await system.suggested.rewrite(ann, id, spec, CLAIM)).toBe(true);
     const row = await looks.get(ann, id);
-    expect(row).toMatchObject({ name: 'After', note: 'Rewritten.', frameAssetId: null });
+    // Its next frame is claimed in the same write: nobody else asks for it meanwhile.
+    expect(row).toMatchObject({
+      name: 'After',
+      note: 'Rewritten.',
+      frameAssetId: null,
+      renderKey: 'frame:k2',
+      renderStatus: 'pending',
+    });
+    expect(await looks.claimFrame(ann, id, 'k2')).toBe(false);
     expect((await looks.piecesFor(ann, [id])).map((p) => p.label)).toEqual(['Woven tote']);
     await looks.save(ann, id);
-    expect(await system.suggested.rewrite(ann, id, spec)).toBe(false);
+    expect(await system.suggested.rewrite(ann, id, spec, CLAIM)).toBe(false);
     const read = await system.suggested.look(ann, id);
     expect(read?.pieces.map((p) => p.label)).toEqual(['Woven tote']);
     expect(await system.suggested.look(bea, id)).toBeUndefined();
@@ -220,15 +229,103 @@ describe('suggested looks (look states)', () => {
       .values({ userId: ann, kind: 'generated', contentType: 'image/png', provider: 's3' })
       .returning('id')
       .executeTakeFirstOrThrow();
-    expect(await looks.claimRender(ann, id, 'frame:k1')).toBe(true);
+    expect(await looks.claimFrame(ann, id, 'k0')).toBe(true);
+    // A newer rack takes over a claim still drawing an older one; the older frame can't land.
+    expect(await looks.claimFrame(ann, id, 'k1')).toBe(true);
+    expect(await looks.claimFrame(ann, id, 'k1')).toBe(false);
     expect(await system.suggested.setFrame(ann, id, 'k0', asset.id)).toBe(false);
     expect(await system.suggested.setFrame(bea, id, 'k1', asset.id)).toBe(false);
     expect(await system.suggested.setFrame(ann, id, 'k1', asset.id)).toBe(true);
     expect(await looks.get(ann, id)).toMatchObject({ frameAssetId: asset.id, frameKey: 'k1' });
+    expect(await looks.claimFrame(ann, id, 'k1')).toBe(false);
+    expect(await looks.claimFrame(bea, id, 'k3')).toBe(false);
+  });
+
+  it('claims the frame its own job draws when the set is minted', async () => {
+    const jobId = (
+      await db
+        .insertInto('generationJobs')
+        .values({ userId: ann, kind: 'key_piece' })
+        .returning('id')
+        .executeTakeFirstOrThrow()
+    ).id;
+    const spec = (setIndex: number) => ({
+      setIndex,
+      name: `Way ${setIndex}`,
+      note: null,
+      pieces: [{ pieceId: dress, role: 'anchor' as const }],
+      proposals: [],
+      anchorPieceId: dress,
+      dateHint: null,
+    });
+    const [hero, second] = await system.suggested.mintSet(
+      ann,
+      await newSet(ann),
+      [spec(0), spec(1)],
+      {
+        setIndex: 0,
+        frameKey: 'hero',
+        jobId,
+      },
+    );
+    expect(await looks.get(ann, hero ?? '')).toMatchObject({
+      renderKey: 'frame:hero',
+      renderStatus: 'pending',
+    });
+    expect((await looks.renderState(ann, hero ?? ''))?.renderJobId).toBe(jobId);
+    expect(await looks.get(ann, second ?? '')).toMatchObject({ renderKey: null });
+    // A client asking for the hero meanwhile is handed the job already drawing it.
+    expect(await looks.claimFrame(ann, hero ?? '', 'hero')).toBe(false);
   });
 });
 
 describe('drafts', () => {
+  it('editing a suggestion, or restoring a draft, counts against the five', async () => {
+    const owner = await createTestUser(db);
+    const shoe = (await wardrobe.create(owner, { label: 'Loafer' })).id;
+    for (let i = 0; i < MAX_DRAFTS; i += 1) {
+      await looks.create(owner, {
+        name: `D${i}`,
+        nameProvisional: true,
+        pieces: [],
+        status: 'draft',
+      });
+    }
+    const [sugg] = await system.suggested.mintSet(owner, await newSet(owner), [
+      {
+        setIndex: 0,
+        name: 'S',
+        note: null,
+        pieces: [{ pieceId: shoe, role: null }],
+        proposals: [],
+        anchorPieceId: null,
+        dateHint: null,
+      },
+    ]);
+    if (!sugg) throw new Error('no look');
+    // A note doesn't make a draft; a rack change does, within the cap.
+    expect(await looks.update(owner, sugg, { note: 'x' })).toMatchObject({ status: 'suggested' });
+    await expect(looks.update(owner, sugg, { pieces: [] })).rejects.toBeInstanceOf(DraftsFull);
+    expect(await looks.get(owner, sugg)).toMatchObject({ status: 'suggested' });
+    expect(await looks.update(owner, sugg, { pieces: [], letGoOldest: true })).toMatchObject({
+      status: 'draft',
+    });
+    expect(await looks.count(owner, 'draft')).toBe(MAX_DRAFTS);
+    // The draft let go can't come back over the cap.
+    const gone = await db
+      .selectFrom('looks')
+      .select('id')
+      .where('userId', '=', owner)
+      .where('deletedAt', 'is not', null)
+      .executeTakeFirstOrThrow();
+    await expect(looks.restore(owner, gone.id)).rejects.toBeInstanceOf(DraftsFull);
+    expect(await looks.restore(owner, gone.id, { letGoOldest: true })).toMatchObject({
+      id: gone.id,
+    });
+    expect(await looks.count(owner, 'draft')).toBe(MAX_DRAFTS);
+    await deleteTestUsers(db, owner);
+  });
+
   it('holds up to five, then lets the oldest go only when she says so', async () => {
     const owner = await createTestUser(db);
     const shoe = (await wardrobe.create(owner, { label: 'Loafer' })).id;
@@ -274,5 +371,67 @@ describe('drafts', () => {
     expect(await looks.update(bea, look.id, { proposals: [] })).toBeUndefined();
     const cleared = await looks.update(ann, look.id, { proposals: [] });
     expect(cleared?.proposals).toBeNull();
+  });
+});
+
+describe('the Today tray', () => {
+  it('leaves out a look’s frame and its render on her model', async () => {
+    const owner = await createTestUser(db);
+    const add = (kind: 'key_piece' | 'look_render', input: Record<string, unknown>) =>
+      db
+        .insertInto('generationJobs')
+        .values({ userId: owner, kind, input: JSON.stringify(input) })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+    const set = await add('key_piece', { mode: 'prompt', prompt: 'dinner' });
+    const idea = await add('look_render', { target: 'idea', ideaId: setId, idx: 1 });
+    await add('look_render', { target: 'frame', lookId: setId, frameKey: 'k' });
+    await add('look_render', { target: 'look', lookId: setId, renderKey: 'k' });
+    const tray = await jobs.recent(owner, ['key_piece', 'look_render']);
+    expect(tray.map((j) => j.id).sort()).toEqual([set.id, idea.id].sort());
+    await deleteTestUsers(db, owner);
+  });
+});
+
+describe('looks ready (the notifier)', () => {
+  it('counts a set’s ready frames from its looks', async () => {
+    const owner = await createTestUser(db);
+    const shoe = (await wardrobe.create(owner, { label: 'Loafer' })).id;
+    const set = await db
+      .insertInto('artifacts')
+      .values({ userId: owner, type: 'idea', title: 'Dinner', data: JSON.stringify({ set: true }) })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const [hero] = await system.suggested.mintSet(owner, set.id, [
+      {
+        setIndex: 0,
+        name: 'One',
+        note: null,
+        pieces: [{ pieceId: shoe, role: null }],
+        proposals: [],
+        anchorPieceId: null,
+        dateHint: null,
+      },
+    ]);
+    const state = () => system.notifier.state([owner], { from: '2026-10-15', to: '2026-10-21' });
+    expect((await state()).ideas[0]).toMatchObject({ id: set.id, isSet: true, readyFrames: 0 });
+    const asset = await db
+      .insertInto('assets')
+      .values({
+        userId: owner,
+        kind: 'generated',
+        contentType: 'image/png',
+        provider: 's3',
+        status: 'ready',
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await db
+      .updateTable('looks')
+      .set({ frameAssetId: asset.id })
+      .where('id', '=', hero ?? '')
+      .execute();
+    expect((await state()).ideas[0]).toMatchObject({ readyFrames: 1 });
+    await deleteTestUsers(db, owner);
   });
 });

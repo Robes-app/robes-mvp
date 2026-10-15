@@ -58,11 +58,13 @@ const ROBES_SOURCES = new Set(['generated', 'today', 'travel']);
 
 type LookRow = NonNullable<Awaited<ReturnType<typeof repos.looks.get>>>;
 
-export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> {
+const CLAIM_MS = 10 * 60_000;
+
+export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now()): Promise<Look[]> {
   const ids = rows.map((r) => r.id);
   const renderIds = rows.flatMap((r) => {
-    const id = r.frameAssetId ?? r.renderAssetId ?? r.photoAssetId;
-    return id ? [id] : [];
+    const ids = [r.frameAssetId, r.renderAssetId, r.photoAssetId];
+    return ids.filter((id): id is string => id !== null);
   });
   const anchorIds = [...new Set(rows.flatMap((r) => (r.anchorPieceId ? [r.anchorPieceId] : [])))];
   const [pieceRows, stats, renders, anchorRows] = await Promise.all([
@@ -97,8 +99,22 @@ export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> 
   return rows.map((row) => {
     const proposals = proposalsOf(row.proposals);
     const anchor = row.anchorPieceId ? anchors.get(row.anchorPieceId) : undefined;
-    const imageId = row.frameAssetId ?? row.renderAssetId ?? row.photoAssetId;
+    // Robes' frame, else the render on her model, else her own photograph (a look from a photo);
+    // a picture whose renditions failed gives way to the next.
+    const image =
+      [row.frameAssetId, row.renderAssetId, row.photoAssetId]
+        .map((id) => (id ? images.get(id) : undefined))
+        .find((img) => img !== undefined && img.status !== 'failed') ?? null;
     const frameRender = row.renderKey?.startsWith('frame:') ?? false;
+    // A frame is still coming while a job draws it (a claim younger than 10 minutes) or while its
+    // renditions are made: in AWS they run later, from the S3 event, after the row says ready.
+    const drawing =
+      frameRender &&
+      row.renderStatus === 'pending' &&
+      row.renderClaimedAt !== null &&
+      now - row.renderClaimedAt.getTime() < CLAIM_MS;
+    const framePending =
+      drawing || (row.frameAssetId ? images.get(row.frameAssetId)?.status === 'pending' : false);
     return Look.parse({
       id: row.id,
       status: LookStatus.parse(row.status),
@@ -108,10 +124,9 @@ export async function toLooks(userId: UserId, rows: LookRow[]): Promise<Look[]> 
       source: row.source,
       originLookId: row.originLookId,
       climateBand: row.climateBand,
-      // Robes' frame, else the render on her model, else her own photograph (a look from a photo).
-      image: (imageId && images.get(imageId)) || null,
+      image,
       frame: row.frameAssetId !== null,
-      framePending: frameRender && row.renderStatus === 'pending',
+      framePending,
       composedByRobes: ROBES_SOURCES.has(row.source) || proposals.length > 0,
       // A frame look never renders on her model (legacy 2026-10-07).
       onModel: frameRender ? null : (row.renderStatus ?? null),

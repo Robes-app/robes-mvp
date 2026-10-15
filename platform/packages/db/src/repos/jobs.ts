@@ -81,6 +81,10 @@ export function jobsRepo(db: Db) {
           .where('kind', 'in', [...kinds])
           // Overnight looks wait hours in their batch; Today shows them as a card, not the tray.
           .where(sql<boolean>`coalesce(input->>'overnight', 'false') <> 'true'`)
+          // A look's frame or its render on her model shows on the look itself, never the tray.
+          .where(
+            sql<boolean>`not (kind = 'look_render' and coalesce(input->>'target', '') in ('frame', 'look'))`,
+          )
           .where((eb) =>
             eb.or([
               eb('status', 'in', ['queued', 'running']),
