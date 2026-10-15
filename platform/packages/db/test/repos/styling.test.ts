@@ -33,6 +33,12 @@ describe('styling + ideas', () => {
       silhouette_proportions: null,
       user_overrides: {},
       style_archetypes: [],
+      brief: { loves: [], avoids: [], rules: [], notes: '' },
+      memory: { entries: [] },
+      brands: [],
+      investment: '',
+      facts: { height_cm: null, size_uk: null, shoe_uk: null, age_band: '' },
+      icon_tags: {},
     });
     await db
       .insertInto('styleProfiles')

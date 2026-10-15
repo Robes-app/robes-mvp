@@ -1,8 +1,27 @@
+import { ageBandLabel, iconTag, investmentLabel } from '@robes/core/style-dna';
 import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
+import { type MemoryEntry, styleMemoryRepo } from './style-dna';
 
 const IDEA_TTL = sql<Date>`now() + interval '30 days'`;
+
+// A memory row in the shape the prompt block reads (legacy style_dna.memory entries).
+function legacyEntry(e: MemoryEntry): Record<string, unknown> {
+  const t = e.at.toISOString();
+  if (e.kind === 'wear') return { t, k: 'wear', look: e.subject, pieces: e.pieces };
+  return {
+    t,
+    k: e.kind,
+    v: e.verdict ?? undefined,
+    on: e.subject ?? undefined,
+    surface: e.surface ?? undefined,
+    text: e.body ?? undefined,
+    out: e.pieceOut ?? undefined,
+    in: e.pieceIn ?? undefined,
+    cat: e.category ?? undefined,
+  };
+}
 
 // Worker-side access for styling jobs; everything is scoped by the job owner's id (SEC-16).
 export function stylingRepo(db: Db) {
@@ -10,7 +29,18 @@ export function stylingRepo(db: Db) {
     async context(userId: UserId) {
       const profile = await db
         .selectFrom('profiles')
-        .select(['firstName', 'genderIdentity', 'styleIcons', 'styleArchetypes'])
+        .select([
+          'firstName',
+          'genderIdentity',
+          'styleIcons',
+          'styleArchetypes',
+          'styleBrands',
+          'investmentLevel',
+          'heightCm',
+          'sizeUk',
+          sql<number | null>`shoe_uk::float8`.as('shoeUk'),
+          'ageBand',
+        ])
         .where('id', '=', userId)
         .executeTakeFirst();
       const closet = await db
@@ -26,9 +56,24 @@ export function stylingRepo(db: Db) {
         .execute();
       const dna = await db
         .selectFrom('styleProfiles')
-        .select(['colorHarmony', 'silhouetteProportions', 'userOverrides'])
+        .select(['colorHarmony', 'silhouetteProportions', 'userOverrides', 'briefNotes'])
         .where('userId', '=', userId)
         .executeTakeFirst();
+      const [kept, memory] = await Promise.all([
+        db
+          .selectFrom('styleBriefLines')
+          .select(['list', 'text'])
+          .where('userId', '=', userId)
+          .where('state', '=', 'kept')
+          .orderBy('createdAt', 'asc')
+          .execute(),
+        styleMemoryRepo(db).recent(userId, 60),
+      ]);
+      const listOf = (name: string) => kept.filter((l) => l.list === name).map((l) => l.text);
+      const icons = profile?.styleIcons ?? [];
+      const iconTags = Object.fromEntries(
+        icons.map((i) => [i, iconTag(i)]).filter(([, t]) => t),
+      ) as Record<string, string>;
       const count = await db
         .selectFrom('wardrobeItems')
         .select((eb) => eb.fn.countAll<string>().as('n'))
@@ -43,6 +88,23 @@ export function stylingRepo(db: Db) {
           user_overrides: dna?.userOverrides ?? {},
           // Her "very me" style types; the prompt block reads them as a register (legacy 2026-09-25).
           style_archetypes: profile?.styleArchetypes ?? [],
+          // Her brief, the memory and Style DNA (legacy 2026-09-30 / 10-07), in the block's shape.
+          brief: {
+            loves: listOf('loves'),
+            avoids: listOf('avoids'),
+            rules: listOf('rules'),
+            notes: dna?.briefNotes ?? '',
+          },
+          memory: { entries: memory.map(legacyEntry) },
+          brands: profile?.styleBrands ?? [],
+          investment: investmentLabel(profile?.investmentLevel),
+          facts: {
+            height_cm: profile?.heightCm ?? null,
+            size_uk: profile?.sizeUk ?? null,
+            shoe_uk: profile?.shoeUk ?? null,
+            age_band: ageBandLabel(profile?.ageBand),
+          },
+          icon_tags: iconTags,
         },
         wardrobeCount: Number(count?.n ?? 0),
         firstName: profile?.firstName ?? null,
