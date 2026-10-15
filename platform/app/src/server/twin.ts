@@ -4,6 +4,7 @@ import {
   type AddBriefLineInput,
   type BriefLine,
   type ChooseSeasonInput,
+  JobStatus,
   type Observation,
   type RecordMemoryInput,
   type StartJobOutput,
@@ -21,17 +22,32 @@ import { mediaDelivery } from './media';
 import { toStyleProfile } from './style-profile';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+// A read that failed isn't retried on every visit (each spends quota): the next waits this long.
+export const READ_BACKOFF_MS = 6 * 60 * 60 * 1000;
 const Colours = z.array(z.string()).catch([]).default([]);
 
 type Snapshot = Awaited<ReturnType<typeof repos.styleDna.get>>;
 
-// Robes reads on its own once, and again when the last read is a week old and nothing waits.
-export function readDue(readAt: Date | null, waiting: number, now = Date.now()): boolean {
+// Robes reads on its own once, and again when the last read is a week old and nothing waits; a
+// read that failed backs off for READ_BACKOFF_MS.
+export function readDue(
+  readAt: Date | null,
+  waiting: number,
+  now = Date.now(),
+  failedAt: Date | null = null,
+): boolean {
   if (waiting > 0) return false;
+  if (failedAt && now - failedAt.getTime() < READ_BACKOFF_MS) return false;
   return readAt === null || now - readAt.getTime() > WEEK_MS;
 }
 
-async function toStyleDna(userId: UserId, snap: Snapshot): Promise<StyleDna> {
+type LastRead = Awaited<ReturnType<typeof repos.jobs.latest>>;
+const failedAt = (last: LastRead): Date | null =>
+  last?.status === 'failed' ? (last.finishedAt ?? last.updatedAt) : null;
+const inFlight = (last: LastRead): boolean =>
+  last?.status === 'queued' || last?.status === 'running';
+
+async function toStyleDna(userId: UserId, snap: Snapshot, last: LastRead): Promise<StyleDna> {
   const { profile, style, lines, heroes } = snap;
   const overrides = (style?.userOverrides ?? {}) as Record<string, unknown>;
   const kept = (list: BriefLine['list']): BriefLine[] =>
@@ -96,12 +112,17 @@ async function toStyleDna(userId: UserId, snap: Snapshot): Promise<StyleDna> {
     },
     observations,
     readAt: readAt?.toISOString() ?? null,
-    readDue: readDue(readAt, observations.length),
+    // A read in flight stays due, so a fresh mount follows it (the start returns the same job).
+    readDue: readDue(readAt, observations.length, Date.now(), failedAt(last)),
   });
 }
 
 export async function loadStyleDna(userId: UserId): Promise<StyleDna> {
-  return toStyleDna(userId, await repos.styleDna.get(userId));
+  const [snap, last] = await Promise.all([
+    repos.styleDna.get(userId),
+    repos.jobs.latest(userId, 'style_brief'),
+  ]);
+  return toStyleDna(userId, snap, last);
 }
 
 export async function updateStyleDna(
@@ -156,12 +177,24 @@ export async function answerObservation(
   return loadStyleDna(userId);
 }
 
+// Idempotent: a read in flight is returned, not started again; a read that isn't due (or failed
+// within READ_BACKOFF_MS) is a 409, so repeat visits never spend quota.
 export async function startBriefRead(userId: UserId, req: Request): Promise<StartJobOutput> {
+  const [snap, last] = await Promise.all([
+    repos.styleDna.get(userId),
+    repos.jobs.latest(userId, 'style_brief'),
+  ]);
+  if (last && inFlight(last)) return { jobId: last.id, status: JobStatus.parse(last.status) };
+  const waiting = snap.lines.filter((l) => l.state === 'pending').length;
+  if (!readDue(snap.style?.briefReadAt ?? null, waiting, Date.now(), failedAt(last))) {
+    throw new ApiError('conflict');
+  }
   if (await repos.capacity.isExhausted(['gemini-flash-lite'])) throw new ApiError('capacity');
   return startJob(userId, req, {
     kind: 'style_brief',
     input: {},
     quota: { metric: 'generation.text', cost: 1 },
+    singleFlight: true,
   });
 }
 

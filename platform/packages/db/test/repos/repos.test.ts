@@ -112,6 +112,29 @@ describe('jobs', () => {
     expect(await repos.jobs.requestCancel(alice, job.id)).toBe(true);
   });
 
+  it('single-flight starts return the job in flight, even when they race', async () => {
+    const carol = await createTestUser(db, 'Carol Flight');
+    try {
+      const start = () =>
+        repos.jobs.create(carol, { kind: 'style_brief', input: {}, singleFlight: true });
+      const [a, b] = await Promise.all([start(), start()]);
+      expect(a.job.id).toBe(b.job.id);
+      expect([a.replayed, b.replayed].sort()).toEqual([false, true]);
+      expect((await repos.jobs.latest(carol, 'style_brief'))?.id).toBe(a.job.id);
+      expect(await repos.jobs.latest(bob, 'style_brief')).toBeUndefined();
+      await db
+        .updateTable('generationJobs')
+        .set({ status: 'failed' })
+        .where('id', '=', a.job.id)
+        .execute();
+      const next = await start();
+      expect(next.replayed).toBe(false);
+      expect(next.job.id).not.toBe(a.job.id);
+    } finally {
+      await deleteTestUsers(db, carol);
+    }
+  });
+
   it('replays an idempotency key instead of creating twice', async () => {
     const key = crypto.randomUUID();
     const a = await repos.jobs.create(alice, { kind: 'fake', input: {}, idempotencyKey: key });

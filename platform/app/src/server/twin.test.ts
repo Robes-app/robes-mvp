@@ -16,6 +16,13 @@ const repos = {
   styleProfile: { colourDna: vi.fn(), chooseSeason: vi.fn() },
   assets: { getManyForUser: vi.fn(async () => []) },
   capacity: { isExhausted: vi.fn(async () => false) },
+  jobs: {
+    latest: vi.fn(
+      async (): Promise<
+        { id: string; status: string; finishedAt: Date | null; updatedAt: Date } | undefined
+      > => undefined,
+    ),
+  },
 };
 vi.mock('./db', () => ({ repos }));
 vi.mock('./media', () => ({ mediaDelivery: { url: async (k: string) => `https://cdn/${k}` } }));
@@ -83,7 +90,10 @@ const snapshot = (over: { readAt?: Date | null; pending?: boolean } = {}) => ({
   heroes: [],
 });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  repos.jobs.latest.mockResolvedValue(undefined);
+});
 
 describe('Style DNA server', () => {
   it('reads once, then a week after the last read, never while a line waits', () => {
@@ -92,6 +102,8 @@ describe('Style DNA server', () => {
     expect(twin.readDue(at, 0, now + 6 * 86_400_000)).toBe(false);
     expect(twin.readDue(at, 0, now + 8 * 86_400_000)).toBe(true);
     expect(twin.readDue(null, 1, now)).toBe(false);
+    expect(twin.readDue(null, 0, now, new Date(now - 60_000))).toBe(false);
+    expect(twin.readDue(null, 0, now, new Date(now - twin.READ_BACKOFF_MS - 1))).toBe(true);
   });
 
   it('shapes her Style DNA from the rows, tags icons from the pool', async () => {
@@ -148,16 +160,60 @@ describe('Style DNA server', () => {
     });
   });
 
-  it('starts the read as a paid job carrying no input', async () => {
+  it('starts the read as a paid single-flight job carrying no input', async () => {
+    repos.styleDna.get.mockResolvedValue(snapshot({ readAt: null }));
     const req = new Request('http://x');
     await twin.startBriefRead(USER, req);
     expect(startJob).toHaveBeenCalledWith(USER, req, {
       kind: 'style_brief',
       input: {},
       quota: { metric: 'generation.text', cost: 1 },
+      singleFlight: true,
     });
     repos.capacity.isExhausted.mockResolvedValueOnce(true);
     await expect(twin.startBriefRead(USER, req)).rejects.toMatchObject({ code: 'capacity' });
+  });
+
+  it('returns the read in flight instead of starting another', async () => {
+    repos.styleDna.get.mockResolvedValue(snapshot({ readAt: null }));
+    repos.jobs.latest.mockResolvedValue({
+      id: 'running-job',
+      status: 'running',
+      finishedAt: null,
+      updatedAt: new Date(),
+    });
+    expect(await twin.startBriefRead(USER, new Request('http://x'))).toEqual({
+      jobId: 'running-job',
+      status: 'running',
+    });
+    expect(startJob).not.toHaveBeenCalled();
+    expect((await twin.loadStyleDna(USER)).readDue).toBe(true);
+  });
+
+  it('backs off after a failed read, and never reads when not due', async () => {
+    repos.styleDna.get.mockResolvedValue(snapshot({ readAt: null }));
+    const failed = (ago: number) => ({
+      id: 'failed-job',
+      status: 'failed',
+      finishedAt: new Date(Date.now() - ago),
+      updatedAt: new Date(Date.now() - ago),
+    });
+    repos.jobs.latest.mockResolvedValue(failed(60_000));
+    expect((await twin.loadStyleDna(USER)).readDue).toBe(false);
+    await expect(twin.startBriefRead(USER, new Request('http://x'))).rejects.toMatchObject({
+      code: 'conflict',
+    });
+    expect(startJob).not.toHaveBeenCalled();
+    repos.jobs.latest.mockResolvedValue(failed(twin.READ_BACKOFF_MS + 60_000));
+    expect((await twin.loadStyleDna(USER)).readDue).toBe(true);
+    await twin.startBriefRead(USER, new Request('http://x'));
+    expect(startJob).toHaveBeenCalledTimes(1);
+
+    repos.jobs.latest.mockResolvedValue(undefined);
+    repos.styleDna.get.mockResolvedValue(snapshot({ readAt: new Date() }));
+    await expect(twin.startBriefRead(USER, new Request('http://x'))).rejects.toMatchObject({
+      code: 'conflict',
+    });
   });
 
   it('changes the season only on a colour read she has', async () => {

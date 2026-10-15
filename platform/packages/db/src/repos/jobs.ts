@@ -17,6 +17,8 @@ export interface CreateJobInput {
   quota?: QuotaCost | QuotaCost[] | undefined;
   priority?: number;
   traceId?: string;
+  // At most one queued or running job of this kind per person: a second start returns it.
+  singleFlight?: boolean;
 }
 
 const JOB_COLUMNS = [
@@ -51,6 +53,20 @@ export function jobsRepo(db: Db) {
             .where('idempotencyKey', '=', job.idempotencyKey)
             .executeTakeFirst();
           if (existing) return { job: existing, replayed: true };
+        }
+        if (job.singleFlight) {
+          // Serialises her starts, so two at once can't both miss the one in flight.
+          await trx.selectFrom('users').select('id').where('id', '=', userId).forUpdate().execute();
+          const inFlight = await trx
+            .selectFrom('generationJobs')
+            .select(JOB_COLUMNS)
+            .where('userId', '=', userId)
+            .where('kind', '=', job.kind)
+            .where('status', 'in', ['queued', 'running'])
+            .orderBy('createdAt', 'desc')
+            .limit(1)
+            .executeTakeFirst();
+          if (inFlight) return { job: inFlight, replayed: true };
         }
         for (const q of [job.quota ?? []].flat()) {
           await usage.consume(userId, q.metric, q.cost, { executor: trx });
@@ -91,6 +107,18 @@ export function jobsRepo(db: Db) {
           .limit(limit)
           .execute()
       );
+    },
+
+    // Her newest job of one kind, whatever its state (a start's in-flight and back-off checks).
+    latest(userId: UserId, kind: JobKind) {
+      return db
+        .selectFrom('generationJobs')
+        .select(JOB_COLUMNS)
+        .where('userId', '=', userId)
+        .where('kind', '=', kind)
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .executeTakeFirst();
     },
 
     getForUser(userId: UserId, jobId: string) {
