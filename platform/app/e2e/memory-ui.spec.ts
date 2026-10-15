@@ -37,15 +37,10 @@ test('Robes reads her wardrobe; she keeps a line, strikes one and they stay that
   );
   expect(dna.readDue).toBe(false);
 
-  // A struck line never comes back from another read.
+  // Not due again for a week: another read is refused, so a revisit never spends quota. (A struck
+  // line never coming back from a later read is covered by the style-dna repository test.)
   const again = await page.request.post('/api/v1/me/dna/read');
-  expect(again.status()).toBe(202);
-  const { jobId } = await again.json();
-  await expect
-    .poll(async () => (await (await page.request.get(`/api/v1/jobs/${jobId}`)).json()).status, {
-      timeout: 30_000,
-    })
-    .toBe('succeeded');
+  expect(again.status()).toBe(409);
   const after = await (await page.request.get('/api/v1/me/dna')).json();
   const texts = after.observations.map((o: { text: string }) => o.text);
   expect(texts).not.toContain('Anything that reads polite');
