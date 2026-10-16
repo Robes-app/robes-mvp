@@ -1,0 +1,52 @@
+import { Icon } from '@robes/icons/web';
+import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
+import { cn, focusRing } from './cn';
+
+const base =
+  'inline-flex min-h-11 items-center gap-1.5 rounded-pill border px-4 font-sans text-sm motion-safe:transition-colors motion-safe:duration-150';
+
+export interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-pressed'> {
+  selected?: boolean;
+}
+
+// Selected = outline + ink text, never a black fill (brand-and-design.md §4.4).
+export function Pill({
+  selected = false,
+  type = 'button',
+  className,
+  children,
+  ...rest
+}: PillProps) {
+  return (
+    <button
+      {...rest}
+      type={type}
+      aria-pressed={selected}
+      className={cn(
+        base,
+        selected
+          ? 'border-ink bg-surface text-ink'
+          : 'border-border-control text-ink-muted hover:border-ink hover:text-ink',
+        'disabled:border-hairline disabled:text-ink-faint',
+        focusRing,
+        className,
+      )}
+    >
+      {selected ? <Icon name="check" size={16} /> : null}
+      {children}
+    </button>
+  );
+}
+
+// A static label with the pill anatomy; use Pill when it toggles.
+export function Chip({ className, ...rest }: HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span
+      {...rest}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-pill border border-hairline bg-surface px-3 py-1 font-sans text-xs text-ink-muted',
+        className,
+      )}
+    />
+  );
+}

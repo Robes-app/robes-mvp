@@ -1,0 +1,35 @@
+From: Niall Maher <niall@test.dev>
+To: abcdefghij0123456789@in.robes.local
+Subject: Fwd: Your Sézane order SZ-100200
+Message-ID: <fixture-1@test.dev>
+Date: Thu, 24 Sep 2026 09:00:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="MIX"
+
+--MIX
+Content-Type: multipart/alternative; boundary="ALT"
+
+--ALT
+Content-Type: text/plain; charset=utf-8
+
+Your order SZ-100200. Camel wool coat, size M, 340 EUR.
+
+--ALT
+Content-Type: text/html; charset=utf-8
+
+<html><head><style>.x{color:red}</style><script>alert(1)</script></head><body>
+<p>Thank you for your order <b>SZ-100200</b></p>
+<img src="https://track.example.com/open.gif" width="1" height="1">
+<table><tr><td><img src="https://cdn.example.com/coat.jpg" alt="Camel wool coat"></td><td>Camel wool coat</td><td>M</td><td>&euro;340.00</td></tr></table>
+</body></html>
+
+--ALT--
+
+--MIX
+Content-Type: application/pdf; name="invoice.pdf"
+Content-Disposition: attachment; filename="invoice.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQK
+
+--MIX--

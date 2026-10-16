@@ -1,0 +1,30 @@
+{
+  "name": "@robes/jobs",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:db": "vitest run --config vitest.db.config.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "3.1138.0",
+    "@robes/ai": "workspace:*",
+    "@robes/contracts": "workspace:*",
+    "@robes/copy": "workspace:*",
+    "@robes/core": "workspace:*",
+    "@robes/db": "workspace:*",
+    "@robes/emails": "workspace:*",
+    "@robes/mailer": "workspace:*",
+    "@robes/media": "workspace:*",
+    "postal-mime": "3.0.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

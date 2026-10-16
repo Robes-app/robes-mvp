@@ -1,0 +1,53 @@
+{
+  "name": "robes-platform",
+  "private": true,
+  "packageManager": "pnpm@11.27.1",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "bootstrap": "pnpm install && pnpm services:up && pnpm db:reset && pnpm media:setup && pnpm --filter @robes/tokens build && node scripts/init-env.mjs",
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@robes/app",
+    "dev:mobile": "pnpm --filter @robes/mobile start",
+    "setup:mobile": "pnpm install && pnpm --filter @robes/tokens build",
+    "dev:mobile:staging": "EXPO_PUBLIC_API_URL=https://staging.byrobes.com EXPO_PUBLIC_APP_ENV=staging pnpm --filter @robes/mobile start",
+    "dev:mobile:staging:tunnel": "EXPO_PUBLIC_API_URL=https://staging.byrobes.com EXPO_PUBLIC_APP_ENV=staging pnpm --filter @robes/mobile start --tunnel",
+    "dev:ios": "pnpm --filter @robes/mobile ios",
+    "dev:android": "pnpm --filter @robes/mobile android",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm db:test",
+    "services:up": "docker compose up -d --wait",
+    "services:down": "docker compose down",
+    "media:setup": "pnpm --filter @robes/media setup:local",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "db:new": "dbmate --migrations-dir db/migrations new",
+    "db:reset": "node scripts/db-reset.mjs",
+    "db:types": "pnpm --filter @robes/db gen:types",
+    "db:test": "turbo run test:db --concurrency=1",
+    "maintenance": "pnpm --filter @robes/workers maintenance",
+    "notify": "pnpm --filter @robes/workers notify",
+    "migrate:fixture": "pnpm --filter @robes/migrate fixture",
+    "migrate:target": "pnpm --filter @robes/migrate target",
+    "migrate:extract": "pnpm --filter @robes/migrate extract",
+    "migrate:transform": "pnpm --filter @robes/migrate transform",
+    "migrate:assert": "pnpm --filter @robes/migrate assert",
+    "migrate:rehost": "pnpm --filter @robes/migrate rehost",
+    "migrate:reverse-delta": "pnpm --filter @robes/migrate reverse-delta",
+    "migrate:rehearse": "pnpm --filter @robes/migrate rehearse",
+    "batch:tick": "pnpm --filter @robes/workers batch:tick",
+    "receipt:ingest": "pnpm --filter @robes/workers receipt:ingest"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "24.13.6",
+    "dbmate": "2.36.0",
+    "turbo": "2.11.3",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,2 @@
+# The Supabase CLI's published default key for local instances (127.0.0.1), not a secret; removed since.
+d2c917320a4223efc800397b4bf777716a2f2ab8:platform/app/.env.example:generic-api-key:5

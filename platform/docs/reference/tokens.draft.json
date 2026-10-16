@@ -1,0 +1,449 @@
+{
+  "$description": "Robes design tokens — DRAFT, extracted 2026-09-24 from the live beta (platform branch). W3C Design Tokens style ($value/$type). Canonical values come from public/css/tokens.css + public/specimen.html; de facto values from shipped CSS (see brand-and-design.md). Entries with $extensions.robes.status = 'proposed' do not exist in the product today.",
+  "color": {
+    "palette": {
+      "cream": {
+        "50":  { "$value": "#FAF8F5", "$type": "color", "$description": "--cream · page ground" },
+        "100": { "$value": "#F5F0E8", "$type": "color", "$description": "--cream-100 · panel fills, chips, segmented track" },
+        "200": { "$value": "#EFE9DC", "$type": "color", "$description": "--cream-200 · image placeholders, disabled fill" },
+        "300": { "$value": "#E7E0CF", "$type": "color", "$description": "--cream-300 · opaque borders" },
+        "400": { "$value": "#D8CFC0", "$type": "color", "$description": "--cream-400 · dashed invitations" },
+        "500": { "$value": "#C4B8A4", "$type": "color", "$description": "--cream-500 (onboarding) · meter ticks" }
+      },
+      "ink": {
+        "DEFAULT": { "$value": "#202021", "$type": "color", "$description": "--ink · primary text, filled CTA, dark ground" },
+        "soft":    { "$value": "#6E6A64", "$type": "color", "$description": "--ink-soft · secondary text" },
+        "faint":   { "$value": "#7E6F50", "$type": "color", "$description": "--ink-faint · eyebrows, meta, hints" },
+        "2":       { "$value": "#2E2E2F", "$type": "color", "$description": "--ink-2 · primary button hover" }
+      },
+      "taupe":  { "$value": "#A89880", "$type": "color", "$description": "--on-dark-2 · muted text ON DARK ONLY (fails on cream at 2.65:1)" },
+      "white":  { "$value": "#FFFFFF", "$type": "color" },
+      "rose": {
+        "DEFAULT": { "$value": "#8E7077", "$type": "color", "$description": "brand accent — large labels/icons only (4.18:1 on cream)" },
+        "text":    { "$value": "#7A5C63", "$type": "color", "$description": "small-text rose, 5.6:1 on cream", "$extensions": { "robes": { "status": "proposed" } } },
+        "light":   { "$value": "#B8969D", "$type": "color", "$description": "rose on dark, 6.1:1 on ink", "$extensions": { "robes": { "status": "proposed" } } }
+      },
+      "sage": {
+        "DEFAULT": { "$value": "#7E7C5A", "$type": "color", "$description": "weeks, worn, progress, Yours — large labels/icons only (4.03:1)" },
+        "base":    { "$value": "#E3E1CC", "$type": "color", "$description": "sage wash base (sage-bg/-mid are this at .40/.72)" },
+        "text":    { "$value": "#5E5C3F", "$type": "color", "$description": "small-text sage, 6.4:1 on cream", "$extensions": { "robes": { "status": "proposed" } } },
+        "light":   { "$value": "#A9A67E", "$type": "color", "$description": "sage on dark, 6.5:1 on ink", "$extensions": { "robes": { "status": "proposed" } } }
+      },
+      "mauve": { "$value": "#D4C8C4", "$type": "color", "$description": "decorative only — trips, pinned, day-scope" },
+      "blush": { "$value": "#E8D5D2", "$type": "color", "$description": "--muted · landing radial washes" },
+      "green": {
+        "600": { "$value": "#4A7C59", "$type": "color", "$description": "owned / in-your-wardrobe tag" },
+        "800": { "$value": "#2E5C28", "$type": "color", "$description": "form success text" },
+        "50":  { "$value": "#F0F5EF", "$type": "color" },
+        "200": { "$value": "#C2D8BE", "$type": "color" },
+        "300": { "$value": "#8FBF9A", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } }
+      },
+      "red": {
+        "700": { "$value": "#8B3A30", "$type": "color", "$description": "form/save error text" },
+        "50":  { "$value": "#FDF0EE", "$type": "color" },
+        "200": { "$value": "#E8C8C2", "$type": "color" },
+        "300": { "$value": "#D9A0A0", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } }
+      },
+      "amber": {
+        "700": { "$value": "#8B6A2E", "$type": "color", "$description": "replaces admin #B07E36 (3.57:1)", "$extensions": { "robes": { "status": "proposed" } } },
+        "50":  { "$value": "#FBF6EE", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } },
+        "300": { "$value": "#D6B06A", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } }
+      },
+      "night": {
+        "900": { "$value": "#202021", "$type": "color", "$description": "dark canvas = brand ink" },
+        "800": { "$value": "#2A2A2B", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } },
+        "750": { "$value": "#2F2E2D", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } },
+        "700": { "$value": "#383634", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } },
+        "fg-soft": { "$value": "#B5ACA0", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } }
+      }
+    },
+    "light": {
+      "bg": {
+        "canvas":  { "$value": "{color.palette.cream.50}", "$type": "color" },
+        "surface": { "$value": "{color.palette.white}", "$type": "color", "$description": "cards, inputs, pills — white on cream" },
+        "subtle":  { "$value": "{color.palette.cream.100}", "$type": "color" },
+        "muted":   { "$value": "{color.palette.cream.200}", "$type": "color", "$description": "image placeholder" },
+        "inverse": { "$value": "{color.palette.ink.DEFAULT}", "$type": "color" },
+        "frosted": { "$value": "rgba(250,248,245,0.90)", "$type": "color", "$description": "sticky nav, with blur 16px" },
+        "glass":   { "$value": "rgba(255,255,255,0.70)", "$type": "color", "$description": "mobile dock, with blur 22px" },
+        "hover":   { "$value": "rgba(32,32,33,0.04)", "$type": "color", "$description": "menu item hover" }
+      },
+      "text": {
+        "primary":     { "$value": "{color.palette.ink.DEFAULT}", "$type": "color", "$description": "15.36:1 on cream" },
+        "secondary":   { "$value": "{color.palette.ink.soft}", "$type": "color", "$description": "5.07:1 on cream" },
+        "tertiary":    { "$value": "{color.palette.ink.faint}", "$type": "color", "$description": "4.63:1 on cream; 4.33 on cream-100 (fails) — use secondary on tinted panels" },
+        "placeholder": { "$value": "#75706A", "$type": "color", "$description": "proposed; today rgba(32,32,33,.32) = 1.98:1", "$extensions": { "robes": { "status": "proposed", "current": "rgba(32,32,33,0.32)" } } },
+        "inverse":     { "$value": "{color.palette.cream.50}", "$type": "color" },
+        "inverseMuted":{ "$value": "{color.palette.taupe}", "$type": "color", "$description": "5.79:1 on ink" },
+        "accent":      { "$value": "{color.palette.rose.text}", "$type": "color", "$description": "small rose text (eyebrows, links)" },
+        "accentAlt":   { "$value": "{color.palette.sage.text}", "$type": "color", "$description": "small sage text" }
+      },
+      "border": {
+        "subtle":        { "$value": "rgba(32,32,33,0.075)", "$type": "color", "$description": "--rule · hairline dividers" },
+        "default":       { "$value": "rgba(32,32,33,0.12)", "$type": "color", "$description": "--rule-mid · card/input hairline" },
+        "hover":         { "$value": "rgba(32,32,33,0.22)", "$type": "color" },
+        "strong":        { "$value": "rgba(32,32,33,0.28)", "$type": "color", "$description": "outline-primary button; recommended resting border for inputs" },
+        "opaque":        { "$value": "{color.palette.cream.300}", "$type": "color" },
+        "opaqueStrong":  { "$value": "{color.palette.cream.400}", "$type": "color" },
+        "dashed":        { "$value": "{color.palette.cream.400}", "$type": "color", "$description": "invitation / not-yours-yet (1.5px dashed)" },
+        "selected":      { "$value": "{color.palette.ink.DEFAULT}", "$type": "color", "$description": "ink borders mean selected" },
+        "focusAccent":   { "$value": "rgba(142,112,119,0.45)", "$type": "color", "$description": "prompt focus-within" }
+      },
+      "action": {
+        "primary":        { "$value": "{color.palette.ink.DEFAULT}", "$type": "color", "$description": "black fill = the one real commitment on the screen" },
+        "primaryHover":   { "$value": "{color.palette.ink.2}", "$type": "color" },
+        "onPrimary":      { "$value": "{color.palette.cream.50}", "$type": "color" },
+        "secondary":      { "$value": "{color.palette.white}", "$type": "color" },
+        "onSecondary":    { "$value": "{color.palette.ink.soft}", "$type": "color" },
+        "send":           { "$value": "{color.palette.rose.DEFAULT}", "$type": "color", "$description": "rose circular send (icon only)" },
+        "disabled":       { "$value": "{color.palette.cream.200}", "$type": "color" },
+        "onDisabled":     { "$value": "{color.palette.ink.faint}", "$type": "color" }
+      },
+      "accent": {
+        "rose":       { "$value": "{color.palette.rose.DEFAULT}", "$type": "color" },
+        "roseSubtle": { "$value": "rgba(212,200,196,0.26)", "$type": "color", "$description": "--rose-bg" },
+        "roseMuted":  { "$value": "rgba(212,200,196,0.60)", "$type": "color", "$description": "--rose-mid" },
+        "roseTint":   { "$value": "rgba(142,112,119,0.07)", "$type": "color" },
+        "sage":       { "$value": "{color.palette.sage.DEFAULT}", "$type": "color" },
+        "sageSubtle": { "$value": "rgba(227,225,204,0.40)", "$type": "color", "$description": "--sage-bg" },
+        "sageMuted":  { "$value": "rgba(227,225,204,0.72)", "$type": "color", "$description": "--sage-mid" },
+        "sageBorder": { "$value": "rgba(126,124,90,0.45)", "$type": "color" },
+        "mauve":      { "$value": "{color.palette.mauve}", "$type": "color" }
+      },
+      "status": {
+        "success":       { "$value": "{color.palette.green.600}", "$type": "color", "$description": "4.86:1 on white" },
+        "successBg":     { "$value": "rgba(74,124,89,0.08)", "$type": "color" },
+        "successStrong": { "$value": "{color.palette.green.800}", "$type": "color" },
+        "successSurface":{ "$value": "{color.palette.green.50}", "$type": "color" },
+        "successBorder": { "$value": "{color.palette.green.200}", "$type": "color" },
+        "error":         { "$value": "{color.palette.red.700}", "$type": "color", "$description": "6.87:1 on its surface" },
+        "errorSurface":  { "$value": "{color.palette.red.50}", "$type": "color" },
+        "errorBorder":   { "$value": "{color.palette.red.200}", "$type": "color" },
+        "warning":       { "$value": "{color.palette.amber.700}", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } },
+        "warningSurface":{ "$value": "{color.palette.amber.50}", "$type": "color", "$extensions": { "robes": { "status": "proposed" } } }
+      },
+      "overlay": {
+        "modal":     { "$value": "rgba(32,32,33,0.34)", "$type": "color", "$description": "with blur(7px) saturate(1.04)" },
+        "sheet":     { "$value": "rgba(32,32,33,0.42)", "$type": "color" },
+        "loading":   { "$value": "rgba(250,248,245,0.92)", "$type": "color", "$description": "full-screen compose overlay, blur 6px" },
+        "imageChip": { "$value": "rgba(32,32,33,0.55)", "$type": "color", "$description": "Wear pill on photos, blur 4px" },
+        "imageBadge":{ "$value": "rgba(32,32,33,0.78)", "$type": "color" },
+        "frostChip": { "$value": "rgba(250,248,245,0.92)", "$type": "color", "$description": "worn/today chips on photos, blur 6px" }
+      }
+    },
+    "dark": {
+      "$description": "PROPOSED — no dark mode ships today. Grounded in onboarding .dk shell, landing .on-dark aliases, manifest theme #202021 and the app icon.",
+      "bg": {
+        "canvas":  { "$value": "{color.palette.night.900}", "$type": "color" },
+        "surface": { "$value": "{color.palette.night.800}", "$type": "color" },
+        "subtle":  { "$value": "{color.palette.night.750}", "$type": "color" },
+        "muted":   { "$value": "{color.palette.night.700}", "$type": "color" },
+        "inverse": { "$value": "{color.palette.cream.50}", "$type": "color" },
+        "frosted": { "$value": "rgba(32,32,33,0.78)", "$type": "color", "$description": "landing .nav.on-dark" },
+        "glass":   { "$value": "rgba(42,42,43,0.72)", "$type": "color" },
+        "hover":   { "$value": "rgba(250,248,245,0.05)", "$type": "color" }
+      },
+      "text": {
+        "primary":     { "$value": "{color.palette.cream.50}", "$type": "color", "$description": "15.36:1 on canvas" },
+        "secondary":   { "$value": "{color.palette.night.fg-soft}", "$type": "color", "$description": "7.27:1" },
+        "tertiary":    { "$value": "{color.palette.taupe}", "$type": "color", "$description": "5.79:1 (existing --on-dark-2)" },
+        "placeholder": { "$value": "rgba(250,248,245,0.50)", "$type": "color", "$description": "4.85:1" },
+        "inverse":     { "$value": "{color.palette.ink.DEFAULT}", "$type": "color" },
+        "inverseMuted":{ "$value": "{color.palette.ink.soft}", "$type": "color" },
+        "accent":      { "$value": "{color.palette.rose.light}", "$type": "color" },
+        "accentAlt":   { "$value": "{color.palette.sage.light}", "$type": "color" }
+      },
+      "border": {
+        "subtle":       { "$value": "rgba(250,248,245,0.08)", "$type": "color" },
+        "default":      { "$value": "rgba(250,248,245,0.12)", "$type": "color", "$description": "existing --border-on-dark" },
+        "hover":        { "$value": "rgba(250,248,245,0.22)", "$type": "color" },
+        "strong":       { "$value": "rgba(250,248,245,0.28)", "$type": "color" },
+        "opaque":       { "$value": "#3A3836", "$type": "color" },
+        "opaqueStrong": { "$value": "#4A4744", "$type": "color" },
+        "dashed":       { "$value": "rgba(250,248,245,0.22)", "$type": "color" },
+        "selected":     { "$value": "{color.palette.cream.50}", "$type": "color" },
+        "focusAccent":  { "$value": "rgba(184,150,157,0.55)", "$type": "color" }
+      },
+      "action": {
+        "primary":      { "$value": "{color.palette.cream.50}", "$type": "color", "$description": "landing .btn-light" },
+        "primaryHover": { "$value": "#EDE7DC", "$type": "color" },
+        "onPrimary":    { "$value": "{color.palette.ink.DEFAULT}", "$type": "color" },
+        "secondary":    { "$value": "transparent", "$type": "color", "$description": ".btn-outline-light" },
+        "onSecondary":  { "$value": "{color.palette.cream.50}", "$type": "color" },
+        "send":         { "$value": "{color.palette.rose.light}", "$type": "color" },
+        "disabled":     { "$value": "{color.palette.night.700}", "$type": "color" },
+        "onDisabled":   { "$value": "{color.palette.taupe}", "$type": "color" }
+      },
+      "accent": {
+        "rose":       { "$value": "{color.palette.rose.light}", "$type": "color" },
+        "roseSubtle": { "$value": "rgba(212,200,196,0.10)", "$type": "color" },
+        "roseMuted":  { "$value": "rgba(212,200,196,0.20)", "$type": "color" },
+        "roseTint":   { "$value": "rgba(184,150,157,0.10)", "$type": "color" },
+        "sage":       { "$value": "{color.palette.sage.light}", "$type": "color" },
+        "sageSubtle": { "$value": "rgba(227,225,204,0.08)", "$type": "color" },
+        "sageMuted":  { "$value": "rgba(227,225,204,0.18)", "$type": "color" },
+        "sageBorder": { "$value": "rgba(169,166,126,0.50)", "$type": "color" },
+        "mauve":      { "$value": "{color.palette.mauve}", "$type": "color" }
+      },
+      "status": {
+        "success":       { "$value": "{color.palette.green.300}", "$type": "color", "$description": "7.82:1" },
+        "successBg":     { "$value": "rgba(143,191,154,0.12)", "$type": "color" },
+        "error":         { "$value": "{color.palette.red.300}", "$type": "color", "$description": "7.35:1" },
+        "errorSurface":  { "$value": "rgba(217,160,160,0.10)", "$type": "color" },
+        "warning":       { "$value": "{color.palette.amber.300}", "$type": "color", "$description": "7.97:1" },
+        "warningSurface":{ "$value": "rgba(214,176,106,0.10)", "$type": "color" }
+      },
+      "overlay": {
+        "modal":     { "$value": "rgba(0,0,0,0.55)", "$type": "color" },
+        "sheet":     { "$value": "rgba(0,0,0,0.60)", "$type": "color" },
+        "loading":   { "$value": "rgba(32,32,33,0.92)", "$type": "color" },
+        "imageChip": { "$value": "rgba(32,32,33,0.62)", "$type": "color" },
+        "imageBadge":{ "$value": "rgba(32,32,33,0.80)", "$type": "color" },
+        "frostChip": { "$value": "rgba(32,32,33,0.80)", "$type": "color" }
+      }
+    }
+  },
+  "font": {
+    "family": {
+      "serif": { "$value": ["Cormorant", "Georgia", "serif"], "$type": "fontFamily", "$description": "Cormorant display cut (NOT Cormorant Garamond), ratified 2026-07-27. SIL OFL 1.1." },
+      "sans":  { "$value": ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"], "$type": "fontFamily", "$description": "SIL OFL 1.1" },
+      "mono":  { "$value": ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"], "$type": "fontFamily" }
+    },
+    "native": {
+      "$description": "Expo: per-weight family names from @expo-google-fonts/cormorant + /inter",
+      "serif-light":         { "$value": "Cormorant_300Light", "$type": "fontFamily" },
+      "serif-regular":       { "$value": "Cormorant_400Regular", "$type": "fontFamily" },
+      "serif-medium":        { "$value": "Cormorant_500Medium", "$type": "fontFamily" },
+      "serif-light-italic":  { "$value": "Cormorant_300Light_Italic", "$type": "fontFamily" },
+      "serif-italic":        { "$value": "Cormorant_400Regular_Italic", "$type": "fontFamily" },
+      "sans-light":          { "$value": "Inter_300Light", "$type": "fontFamily" },
+      "sans-regular":        { "$value": "Inter_400Regular", "$type": "fontFamily" },
+      "sans-medium":         { "$value": "Inter_500Medium", "$type": "fontFamily" },
+      "sans-semibold":       { "$value": "Inter_600SemiBold", "$type": "fontFamily", "$description": "not loaded on web today (600 is faux-bolded); needed for 9px CTA caps" }
+    },
+    "weight": {
+      "light":    { "$value": 300, "$type": "fontWeight", "$description": "serif display default; sans body default" },
+      "regular":  { "$value": 400, "$type": "fontWeight" },
+      "medium":   { "$value": 500, "$type": "fontWeight", "$description": "labels, eyebrows, emphasis" },
+      "semibold": { "$value": 600, "$type": "fontWeight", "$description": "micro caps CTA only" }
+    },
+    "size": {
+      "$description": "px. Sans sizes 9–16, serif sizes 17+. Serif floor 17px; sans floor 9px (uppercase+tracked only).",
+      "micro":   { "$value": "9px",  "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1,    "absorbs": ["8.5px", "9.5px"] } } },
+      "2xs":     { "$value": "10px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.2,  "absorbs": ["10.5px"] } } },
+      "xs":      { "$value": "11px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.4,  "absorbs": ["11.5px"] } } },
+      "sm":      { "$value": "12px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.5,  "absorbs": ["12.5px"] } } },
+      "base":    { "$value": "13px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.6,  "absorbs": ["13.5px"] } } },
+      "md":      { "$value": "14px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.7 } } },
+      "lg":      { "$value": "15px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.7 } } },
+      "xl":      { "$value": "16px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.6,  "note": "inputs on mobile (no focus zoom)" } } },
+      "serif-sm":  { "$value": "17px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.3,  "note": "serif floor; wordmark" } } },
+      "serif-md":  { "$value": "19px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.25, "absorbs": ["18px", "20px"] } } },
+      "serif-lg":  { "$value": "22px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.15, "note": "card title", "absorbs": ["21px", "23px"] } } },
+      "serif-xl":  { "$value": "26px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.1,  "absorbs": ["24px", "25px", "27px", "28px"] } } },
+      "serif-2xl": { "$value": "30px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.15, "absorbs": ["31px", "32px", "33px"] } } },
+      "display-sm":{ "$value": "40px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.08, "fluid": "clamp(33px,4.4vw,48px)" } } },
+      "display-md":{ "$value": "52px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.05 } } },
+      "display-lg":{ "$value": "62px", "$type": "dimension", "$extensions": { "robes": { "lineHeight": 1.0,  "fluid": "clamp(40px,6vw,62px)", "mobile": "34px" } } }
+    },
+    "lineHeight": {
+      "none":    { "$value": 1,    "$type": "number" },
+      "tight":   { "$value": 1.05, "$type": "number" },
+      "snug":    { "$value": 1.15, "$type": "number" },
+      "title":   { "$value": 1.25, "$type": "number" },
+      "normal":  { "$value": 1.5,  "$type": "number" },
+      "relaxed": { "$value": 1.6,  "$type": "number" },
+      "loose":   { "$value": 1.7,  "$type": "number" },
+      "prose":   { "$value": 1.85, "$type": "number" }
+    },
+    "letterSpacing": {
+      "tighter":      { "$value": "-0.014em", "$type": "dimension" },
+      "tight":        { "$value": "-0.01em", "$type": "dimension", "$description": "display serif" },
+      "normal":       { "$value": "0em",     "$type": "dimension" },
+      "wide":         { "$value": "0.01em",  "$type": "dimension" },
+      "wider":        { "$value": "0.04em",  "$type": "dimension", "$description": "dock labels, sentence-case small buttons" },
+      "caps-sm":      { "$value": "0.08em",  "$type": "dimension" },
+      "caps":         { "$value": "0.14em",  "$type": "dimension", "$description": "CTA small caps" },
+      "caps-md":      { "$value": "0.16em",  "$type": "dimension" },
+      "caps-lg":      { "$value": "0.18em",  "$type": "dimension" },
+      "eyebrow":      { "$value": "0.2em",   "$type": "dimension", "$description": "canonical eyebrow (most frequent value)" },
+      "eyebrow-wide": { "$value": "0.24em",  "$type": "dimension", "$description": "section eyebrows" },
+      "mark-sm":      { "$value": "0.28em",  "$type": "dimension", "$description": "wordmark in dialog rail / email" },
+      "mark":         { "$value": "0.34em",  "$type": "dimension", "$description": "nav wordmark" },
+      "mark-xl":      { "$value": "0.42em",  "$type": "dimension", "$description": "splash wordmark" }
+    }
+  },
+  "typography": {
+    "$description": "Composite text styles (de facto).",
+    "display":    { "$type": "typography", "$value": { "fontFamily": "{font.family.serif}", "fontWeight": 300, "fontSize": "{font.size.display-lg}", "lineHeight": 1.0,  "letterSpacing": "{font.letterSpacing.tight}" } },
+    "headline":   { "$type": "typography", "$value": { "fontFamily": "{font.family.serif}", "fontWeight": 300, "fontSize": "{font.size.serif-2xl}", "lineHeight": 1.15, "letterSpacing": "0em" } },
+    "title":      { "$type": "typography", "$value": { "fontFamily": "{font.family.serif}", "fontWeight": 400, "fontSize": "{font.size.serif-lg}", "lineHeight": 1.15, "letterSpacing": "0em" } },
+    "titleItalic":{ "$type": "typography", "$value": { "fontFamily": "{font.family.serif}", "fontWeight": 400, "fontStyle": "italic", "fontSize": "{font.size.serif-md}", "lineHeight": 1.25, "letterSpacing": "0em" } },
+    "hint":       { "$type": "typography", "$value": { "fontFamily": "{font.family.serif}", "fontWeight": 300, "fontStyle": "italic", "fontSize": "{font.size.serif-sm}", "lineHeight": 1.3, "letterSpacing": "0em" } },
+    "wordmark":   { "$type": "typography", "$value": { "fontFamily": "{font.family.serif}", "fontWeight": 400, "fontSize": "{font.size.serif-sm}", "lineHeight": 1, "letterSpacing": "{font.letterSpacing.mark}", "textTransform": "uppercase" } },
+    "body":       { "$type": "typography", "$value": { "fontFamily": "{font.family.sans}", "fontWeight": 300, "fontSize": "{font.size.md}", "lineHeight": 1.7, "letterSpacing": "0em" } },
+    "bodySm":     { "$type": "typography", "$value": { "fontFamily": "{font.family.sans}", "fontWeight": 300, "fontSize": "{font.size.base}", "lineHeight": 1.6, "letterSpacing": "0em" } },
+    "ui":         { "$type": "typography", "$value": { "fontFamily": "{font.family.sans}", "fontWeight": 400, "fontSize": "{font.size.sm}", "lineHeight": 1.3, "letterSpacing": "0em" } },
+    "caption":    { "$type": "typography", "$value": { "fontFamily": "{font.family.sans}", "fontWeight": 400, "fontSize": "{font.size.xs}", "lineHeight": 1.4, "letterSpacing": "{font.letterSpacing.wide}" } },
+    "buttonCaps": { "$type": "typography", "$value": { "fontFamily": "{font.family.sans}", "fontWeight": 500, "fontSize": "{font.size.xs}", "lineHeight": 1, "letterSpacing": "{font.letterSpacing.caps-md}", "textTransform": "uppercase" } },
+    "eyebrow":    { "$type": "typography", "$value": { "fontFamily": "{font.family.sans}", "fontWeight": 500, "fontSize": "{font.size.2xs}", "lineHeight": 1.2, "letterSpacing": "{font.letterSpacing.eyebrow}", "textTransform": "uppercase" } },
+    "microCaps":  { "$type": "typography", "$value": { "fontFamily": "{font.family.sans}", "fontWeight": 600, "fontSize": "{font.size.micro}", "lineHeight": 1, "letterSpacing": "{font.letterSpacing.caps}", "textTransform": "uppercase" } }
+  },
+  "spacing": {
+    "$description": "4px base with 2px half-steps; keys follow Tailwind's numeric scale (key × 4px).",
+    "0":   { "$value": "0px",  "$type": "dimension" },
+    "px":  { "$value": "1px",  "$type": "dimension" },
+    "0.5": { "$value": "2px",  "$type": "dimension" },
+    "1":   { "$value": "4px",  "$type": "dimension" },
+    "1.5": { "$value": "6px",  "$type": "dimension" },
+    "2":   { "$value": "8px",  "$type": "dimension" },
+    "2.5": { "$value": "10px", "$type": "dimension" },
+    "3":   { "$value": "12px", "$type": "dimension" },
+    "3.5": { "$value": "14px", "$type": "dimension" },
+    "4":   { "$value": "16px", "$type": "dimension" },
+    "4.5": { "$value": "18px", "$type": "dimension" },
+    "5":   { "$value": "20px", "$type": "dimension" },
+    "5.5": { "$value": "22px", "$type": "dimension" },
+    "6":   { "$value": "24px", "$type": "dimension" },
+    "7":   { "$value": "28px", "$type": "dimension" },
+    "8":   { "$value": "32px", "$type": "dimension" },
+    "9":   { "$value": "36px", "$type": "dimension" },
+    "10":  { "$value": "40px", "$type": "dimension" },
+    "11":  { "$value": "44px", "$type": "dimension", "$description": "min touch target" },
+    "12":  { "$value": "48px", "$type": "dimension" },
+    "14":  { "$value": "56px", "$type": "dimension" },
+    "16":  { "$value": "64px", "$type": "dimension" },
+    "20":  { "$value": "80px", "$type": "dimension" },
+    "24":  { "$value": "96px", "$type": "dimension" }
+  },
+  "layout": {
+    "shell":     { "$value": "1440px", "$type": "dimension" },
+    "navHeight": { "$value": "64px",   "$type": "dimension" },
+    "gutter": {
+      "$description": "--s6, responsive",
+      "base": { "$value": "24px", "$type": "dimension", "$description": "<768" },
+      "md":   { "$value": "40px", "$type": "dimension", "$description": "768–1023" },
+      "lg":   { "$value": "64px", "$type": "dimension", "$description": "1024–1199" },
+      "xl":   { "$value": "80px", "$type": "dimension", "$description": ">=1200" }
+    },
+    "measure": {
+      "prompt":   { "$value": "760px", "$type": "dimension" },
+      "headline": { "$value": "620px", "$type": "dimension" },
+      "prose":    { "$value": "720px", "$type": "dimension" },
+      "dialog":   { "$value": "620px", "$type": "dimension" },
+      "dialogSm": { "$value": "460px", "$type": "dimension" },
+      "sheet":    { "$value": "540px", "$type": "dimension" },
+      "email":    { "$value": "520px", "$type": "dimension" }
+    },
+    "minTouch": { "$value": "44px", "$type": "dimension" }
+  },
+  "radius": {
+    "none":   { "$value": "0px",    "$type": "dimension" },
+    "hair":   { "$value": "2px",    "$type": "dimension", "$description": "sharp/editorial: DayCard, form message" },
+    "xs":     { "$value": "4px",    "$type": "dimension", "$description": "sharp/editorial: look card (3px today), dialog CTA, dialog tiles" },
+    "dialog": { "$value": "6px",    "$type": "dimension" },
+    "sm":     { "$value": "8px",    "$type": "dimension", "$description": "--rad-sm: inputs, menu items, thumbs" },
+    "md":     { "$value": "12px",   "$type": "dimension", "$description": "--rad: panels, image wraps, menus" },
+    "card":   { "$value": "14px",   "$type": "dimension", "$description": "--rad-card: concierge box" },
+    "lg":     { "$value": "18px",   "$type": "dimension", "$description": "--rad-lg: sheets (top), trip tiles" },
+    "dock":   { "$value": "24px",   "$type": "dimension" },
+    "pill":   { "$value": "9999px", "$type": "dimension", "$description": "all pills/buttons/chips/toasts (100px today)" },
+    "full":   { "$value": "50%",    "$type": "dimension" }
+  },
+  "borderWidth": {
+    "hairline": { "$value": "0.5px", "$type": "dimension", "$description": "native: StyleSheet.hairlineWidth" },
+    "default":  { "$value": "1px",   "$type": "dimension" },
+    "dashed":   { "$value": "1.5px", "$type": "dimension" },
+    "accent":   { "$value": "2px",   "$type": "dimension", "$description": "quote rule, focus outline, dock active bar" }
+  },
+  "shadow": {
+    "$description": "Floating elements only — cards never carry a shadow.",
+    "xs":      { "$type": "shadow", "$value": { "offsetX": "0px", "offsetY": "1px",  "blur": "3px",   "spread": "0px",   "color": "rgba(32,32,33,0.08)" } },
+    "sm":      { "$type": "shadow", "$value": { "offsetX": "0px", "offsetY": "2px",  "blur": "10px",  "spread": "0px",   "color": "rgba(32,32,33,0.10)" } },
+    "menu":    { "$type": "shadow", "$value": { "offsetX": "0px", "offsetY": "18px", "blur": "48px",  "spread": "-18px", "color": "rgba(32,32,33,0.28)" } },
+    "popover": { "$type": "shadow", "$value": { "offsetX": "0px", "offsetY": "24px", "blur": "60px",  "spread": "-12px", "color": "rgba(32,32,33,0.28)" } },
+    "toast":   { "$type": "shadow", "$value": { "offsetX": "0px", "offsetY": "16px", "blur": "40px",  "spread": "-12px", "color": "rgba(32,32,33,0.40)" } },
+    "dialog":  { "$type": "shadow", "$value": { "offsetX": "0px", "offsetY": "50px", "blur": "120px", "spread": "-40px", "color": "rgba(32,32,33,0.55)" } },
+    "drawer":  { "$type": "shadow", "$value": { "offsetX": "-18px", "offsetY": "0px", "blur": "50px", "spread": "0px",   "color": "rgba(32,32,33,0.08)" } },
+    "ringAccent": { "$type": "shadow", "$value": { "offsetX": "0px", "offsetY": "0px", "blur": "0px", "spread": "4px", "color": "rgba(142,112,119,0.06)" } },
+    "ringToday":  { "$type": "shadow", "$value": { "offsetX": "0px", "offsetY": "0px", "blur": "0px", "spread": "2px", "color": "rgba(227,225,204,0.72)" } }
+  },
+  "blur": {
+    "chip":  { "$value": "6px",  "$type": "dimension" },
+    "modal": { "$value": "7px",  "$type": "dimension" },
+    "nav":   { "$value": "16px", "$type": "dimension" },
+    "dock":  { "$value": "22px", "$type": "dimension" }
+  },
+  "opacity": {
+    "hover":  { "$value": 0.86, "$type": "number", "$description": "primary button hover" },
+    "link":   { "$value": 0.7,  "$type": "number" },
+    "mark":   { "$value": 0.62, "$type": "number", "$description": "wordmark hover" },
+    "grain":  { "$value": 0.045, "$type": "number", "$description": "SVG fractal-noise texture over cream" }
+  },
+  "zIndex": {
+    "raised":   { "$value": 2,    "$type": "number" },
+    "dropdown": { "$value": 40,   "$type": "number" },
+    "dock":     { "$value": 48,   "$type": "number" },
+    "nav":      { "$value": 50,   "$type": "number" },
+    "menu":     { "$value": 60,   "$type": "number" },
+    "sheet":    { "$value": 200,  "$type": "number" },
+    "modal":    { "$value": 300,  "$type": "number" },
+    "toast":    { "$value": 400,  "$type": "number", "$description": "proposed: above modal (today 300 dashboard / 600 landing)" },
+    "overlay":  { "$value": 900,  "$type": "number", "$description": "full-screen compose overlay" },
+    "stacked":  { "$value": 950,  "$type": "number", "$description": "micro-modals opened over overlays (930–990 today)" },
+    "critical": { "$value": 1000, "$type": "number" }
+  },
+  "breakpoint": {
+    "$description": "min-width for Tailwind; current CSS is desktop-first max-width at (value - 1).",
+    "xs":  { "$value": "360px",  "$type": "dimension" },
+    "sm":  { "$value": "520px",  "$type": "dimension" },
+    "md":  { "$value": "768px",  "$type": "dimension", "$description": "mobile shell ends — top bar replaces dock" },
+    "lg":  { "$value": "1024px", "$type": "dimension" },
+    "xl":  { "$value": "1200px", "$type": "dimension" },
+    "2xl": { "$value": "1440px", "$type": "dimension", "$description": "= shell" }
+  },
+  "motion": {
+    "easing": {
+      "standard":   { "$value": [0.4, 0, 0.2, 1],   "$type": "cubicBezier", "$description": "--ease — everything moves on this curve" },
+      "decelerate": { "$value": [0.22, 0.7, 0.2, 1], "$type": "cubicBezier", "$description": "sheets / slide-ins (Diary)" },
+      "expoOut":    { "$value": [0.22, 1, 0.36, 1],  "$type": "cubicBezier" },
+      "linear":     { "$value": [0, 0, 1, 1],        "$type": "cubicBezier", "$description": "spinners, sheen" }
+    },
+    "duration": {
+      "instant":    { "$value": "140ms", "$type": "duration" },
+      "fast":       { "$value": "150ms", "$type": "duration", "$description": "hover colour/border (default)" },
+      "base":       { "$value": "200ms", "$type": "duration" },
+      "moderate":   { "$value": "280ms", "$type": "duration", "$description": "sheet, toast (250–300)" },
+      "slow":       { "$value": "450ms", "$type": "duration", "$description": "backdrop fade, image zoom (400–500)" },
+      "slower":     { "$value": "550ms", "$type": "duration", "$description": "dialog rise" },
+      "deliberate": { "$value": "800ms", "$type": "duration", "$description": "splash / fade-up (700–800)" }
+    },
+    "loop": {
+      "spinner":      { "$value": "800ms",  "$type": "duration" },
+      "pulse":        { "$value": "1400ms", "$type": "duration" },
+      "placeholder":  { "$value": "1800ms", "$type": "duration", "$description": "opacity 1 ↔ .55" },
+      "loadBar":      { "$value": "2500ms", "$type": "duration" },
+      "twinkle":      { "$value": "2800ms", "$type": "duration" }
+    },
+    "distance": {
+      "hoverLift":   { "$value": "-1px",  "$type": "dimension" },
+      "arrowNudge":  { "$value": "3px",   "$type": "dimension" },
+      "fadeUp":      { "$value": "12px",  "$type": "dimension" },
+      "dialogRise":  { "$value": "20px",  "$type": "dimension", "$description": "+ scale .985" },
+      "sheetRise":   { "$value": "36px",  "$type": "dimension" },
+      "toastRise":   { "$value": "80px",  "$type": "dimension" },
+      "imageZoom":   { "$value": 1.03,    "$type": "number", "$description": "1.025–1.04 on hover" }
+    }
+  },
+  "aspectRatio": {
+    "portrait": { "$value": "3/4",  "$type": "string", "$description": "canonical default — pieces, key-piece looks, day cards" },
+    "hero":     { "$value": "4/5",  "$type": "string", "$description": "look hero, composer canvas, rails" },
+    "square":   { "$value": "1/1",  "$type": "string", "$description": "look-card mosaic zone, piece photo, rack tiles" },
+    "board":    { "$value": "16/11","$type": "string", "$description": "moodboard mix (P0-hidden)" }
+  },
+  "icon": {
+    "size":   { "sm": { "$value": "13px", "$type": "dimension" }, "md": { "$value": "15px", "$type": "dimension" }, "lg": { "$value": "20px", "$type": "dimension" } },
+    "stroke": { "default": { "$value": 1.6, "$type": "number" }, "large": { "$value": 1.4, "$type": "number" }, "small": { "$value": 2.2, "$type": "number" } },
+    "$description": "24-unit viewBox, fill none, currentColor, round caps/joins — Lucide-compatible"
+  }
+}
