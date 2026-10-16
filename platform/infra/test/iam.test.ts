@@ -27,7 +27,9 @@ describe.each(['staging', 'production'] as const)('%s IAM', (stageName) => {
     const [st] = ses;
     expect(list(st?.Action).sort()).toEqual(['ses:SendEmail', 'ses:SendRawEmail']);
     const arns = list(st?.Resource).map((r) => JSON.stringify(r));
-    expect(arns).toHaveLength(2);
+    const sandbox = s.stage.config.email.sandbox === true;
+    expect(arns).toHaveLength(sandbox ? 3 : 2);
+    expect(arns.some((a) => a.includes(':identity/*'))).toBe(sandbox);
     expect(arns.some((a) => a.includes(`:identity/${s.stage.config.email.domain}`))).toBe(true);
     expect(arns.some((a) => a.includes(`:configuration-set/${prefix}-email`))).toBe(true);
     expect(JSON.stringify(st?.Condition)).toContain(`*@${s.stage.config.email.domain}`);

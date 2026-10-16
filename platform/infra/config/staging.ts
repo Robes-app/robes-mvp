@@ -18,6 +18,7 @@ export const staging: StageConfig = {
   email: {
     domain: 'staging.mail.byrobes.com',
     fromAddress: 'Robes <hello@staging.mail.byrobes.com>',
+    sandbox: true,
   },
   api: { accessKeys: [{ serial: 1, status: 'Active' }] },
   media: {
