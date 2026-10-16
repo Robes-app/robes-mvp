@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Platform dependency policy (SEC-74). Renovate reads config from the repo root only; the root renovate.json should extend this file (see docs/runbooks/environments.md).",
+  "extends": ["config:recommended", ":dependencyDashboard", "helpers:pinGitHubActionDigests"],
+  "includePaths": ["platform/**", ".github/workflows/platform-*.yml"],
+  "rangeStrategy": "pin",
+  "timezone": "Europe/Dublin",
+  "schedule": ["before 7am on monday"],
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies", "platform"],
+  "lockFileMaintenance": { "enabled": true, "schedule": ["before 7am on monday"] },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"],
+    "minimumReleaseAge": null
+  },
+  "packageRules": [
+    {
+      "description": "One weekly PR for all non-major updates",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "platform minor and patch",
+      "groupSlug": "platform-minor-patch"
+    },
+    {
+      "description": "AWS CDK library and CLI move together",
+      "matchPackageNames": ["aws-cdk", "aws-cdk-lib", "constructs"],
+      "groupName": "aws cdk"
+    },
+    {
+      "description": "Expo-managed: versions come from `expo install --fix` during an SDK upgrade, never from Renovate",
+      "matchFileNames": ["platform/mobile/package.json"],
+      "enabled": false
+    },
+    {
+      "description": "Surface new Expo SDKs only; the upgrade itself is `pnpm exec expo install expo@^<sdk> --fix` (docs/mobile.md)",
+      "matchFileNames": ["platform/mobile/package.json"],
+      "matchPackageNames": ["expo"],
+      "matchUpdateTypes": ["major"],
+      "enabled": true,
+      "groupName": "expo sdk",
+      "prBodyNotes": [
+        "Do not merge as-is: run `cd platform/mobile && pnpm exec expo install expo@<version> --fix && pnpm expo:doctor` on this branch."
+      ]
+    }
+  ]
+}

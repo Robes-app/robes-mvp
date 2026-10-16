@@ -1,0 +1,32 @@
+{
+  "name": "@robes/icons",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/icons.ts",
+    "./web": "./src/web.tsx",
+    "./native": "./src/native.tsx"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "react": "^19.2",
+    "react-native-svg": ">=15"
+  },
+  "peerDependenciesMeta": {
+    "react-native-svg": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.3.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native-svg": "15.15.4",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

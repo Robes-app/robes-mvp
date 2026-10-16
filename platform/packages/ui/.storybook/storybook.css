@@ -1,0 +1,12 @@
+@import "tailwindcss";
+@import "@robes/tokens/theme.css";
+@import "@robes/tokens/web.css";
+@import "../src/styles.css";
+
+@source "../src";
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}

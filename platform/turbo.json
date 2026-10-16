@@ -1,0 +1,30 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "test:db": {
+      "cache": false
+    }
+  },
+  "globalPassThroughEnv": [
+    "ROBES_DB_NAME",
+    "DATABASE_URL",
+    "DATABASE_ADMIN_URL",
+    "TEST_DATABASE_URL",
+    "CI"
+  ]
+}

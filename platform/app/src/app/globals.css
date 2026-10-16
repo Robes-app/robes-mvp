@@ -1,0 +1,18 @@
+@import "tailwindcss";
+@import "@robes/tokens/theme.css";
+@import "@robes/tokens/web.css";
+@import "@robes/ui/styles.css";
+
+@source "../../../packages/ui/src";
+@source not "../../../packages/ui/src/**/*.{test,stories}.tsx";
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}

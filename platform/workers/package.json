@@ -1,0 +1,29 @@
+{
+  "name": "@robes/workers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "maintenance": "tsx --env-file-if-exists=../app/.env.local src/cli/maintenance.ts",
+    "notify": "tsx --env-file-if-exists=../app/.env.local src/cli/notify.ts",
+    "batch:tick": "tsx --env-file-if-exists=../app/.env.local src/cli/batch-tick.ts",
+    "receipt:ingest": "tsx --env-file-if-exists=../app/.env.local src/cli/receipt-ingest.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "3.1138.0",
+    "@aws-sdk/client-sqs": "3.1138.0",
+    "@robes/config": "workspace:*",
+    "@robes/db": "workspace:*",
+    "@robes/jobs": "workspace:*",
+    "@robes/logger": "workspace:*",
+    "@robes/mailer": "workspace:*",
+    "@robes/media": "workspace:*",
+    "@sentry/aws-serverless": "10.75.2"
+  },
+  "devDependencies": {
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

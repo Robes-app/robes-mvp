@@ -1,0 +1,92 @@
+import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
+import type { Idea, IdeaList, JobSnapshot } from '@robes/contracts';
+import { useQueryClient } from '@tanstack/react-query';
+
+// No SSE on native yet (the stream needs the session cookie header); the job row is the durable
+// truth, so polling it is correct, just less instant.
+export const JOB_REFRESH_MS = 1500;
+const IDEAS_LIMIT = 60;
+
+const TERMINAL = new Set<JobSnapshot['status']>(['succeeded', 'partial', 'failed', 'cancelled']);
+export const isTerminal = (job: JobSnapshot | undefined): boolean =>
+  job !== undefined && TERMINAL.has(job.status);
+
+export const framesSettled = (idea: Idea | undefined): boolean =>
+  idea !== undefined && idea.frames.length > 0 && idea.frames.every((f) => f.status !== 'pending');
+
+export function useIdeas(
+  refetchInterval: number | false | ((data: IdeaList | undefined) => number | false) = false,
+) {
+  return useApi(
+    'looks.ideas.list',
+    { input: { limit: IDEAS_LIMIT } },
+    {
+      refetchInterval:
+        typeof refetchInterval === 'function'
+          ? (q) => refetchInterval(q.state.data)
+          : refetchInterval,
+    },
+  );
+}
+
+// The idea a styling job produced: the job names it after its text stage (`output.ideaId`),
+// then its frames fill in after the images stage.
+export function useJobIdea(jobId: string) {
+  const job = useApi(
+    'jobs.get',
+    { params: { id: jobId } },
+    { refetchInterval: (q) => (isTerminal(q.state.data) ? false : JOB_REFRESH_MS) },
+  );
+  const failed = job.data?.status === 'failed' || job.data?.status === 'cancelled';
+  const ideaId = job.data?.output.ideaId;
+  const done = (idea: Idea | undefined): boolean =>
+    failed || (isTerminal(job.data) && framesSettled(idea));
+  const query = useApi(
+    'looks.ideas.get',
+    { params: { id: ideaId ?? '' } },
+    {
+      enabled: ideaId !== undefined,
+      refetchInterval: (q) => (done(q.state.data) ? false : JOB_REFRESH_MS),
+    },
+  );
+  const idea = ideaId ? query.data : undefined;
+  return { job, idea, waiting: !done(idea), failed };
+}
+
+export function useSaveIdea() {
+  const queryClient = useQueryClient();
+  return useApiMutation('looks.ideas.save', {
+    onSuccess: async (idea) => {
+      queryClient.setQueryData(
+        queryKeys.call('looks.ideas.get', { params: { id: idea.id } }),
+        idea,
+      );
+      await queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.ideas.list') });
+    },
+  });
+}
+
+export function useRemoveIdea(onRemoved: () => void) {
+  const queryClient = useQueryClient();
+  return useApiMutation('looks.ideas.delete', {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.ideas.list') });
+      onRemoved();
+    },
+  });
+}
+
+// One of the three ways kept as a Look; keeping it also saves the idea.
+export function useSaveWay(onSaved: (lookId: string) => void) {
+  const queryClient = useQueryClient();
+  return useApiMutation('looks.ideas.saveWay', {
+    onSuccess: async (look) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.ideas.list') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.ideas.get') }),
+      ]);
+      onSaved(look.id);
+    },
+  });
+}

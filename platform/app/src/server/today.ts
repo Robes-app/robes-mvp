@@ -1,0 +1,78 @@
+import 'server-only';
+import { ApiError } from '@robes/api';
+import { Today } from '@robes/contracts';
+import type { UserId } from '@robes/db';
+import { repos } from './db';
+import { isFlagEnabled } from './flags';
+import { loadHome } from './home';
+import { toJobSnapshot } from './jobs';
+import { toIdeas } from './looks';
+import { loadPlan, todayIn } from './plan';
+
+function hourIn(timezone: string, now: Date): number {
+  return (
+    Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: timezone,
+        hour: '2-digit',
+        hourCycle: 'h23',
+      }).format(now),
+    ) % 24
+  );
+}
+
+// One read for the home screen (the modular home retired the next-step line, legacy b1808b0); every derivation happens here, never on the client (UX-14).
+export async function loadToday(userId: UserId, now = new Date()): Promise<Today> {
+  const profile = await repos.profiles.get(userId);
+  if (!profile) throw new ApiError('not_found');
+  const date = todayIn(profile.timezone, now);
+  const tripsOn = await isFlagEnabled('trips');
+  const [plan, looks, worn, jobs, ideaRows, inboxCount, overnight] = await Promise.all([
+    loadPlan(userId, date, 7),
+    repos.looks.count(userId),
+    repos.looks.wornOn(userId, date),
+    repos.jobs.recent(userId, [
+      'key_piece',
+      'daily',
+      'look_render',
+      'stylenotes_analyse',
+      ...(tripsOn ? (['travel'] as const) : []),
+    ]),
+    repos.ideas.list(userId, 3),
+    repos.inbox.countHeld(userId),
+    repos.dailyLooks.overnightFor(userId, date),
+  ]);
+  const todayEntries = (plan.days[0]?.entries ?? []).map((entry) => ({
+    entry,
+    worn: worn.includes(entry.look.id),
+  }));
+  // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
+  return Today.parse({
+    date,
+    hour: hourIn(profile.timezone, now),
+    firstName: profile.firstName,
+    today: todayEntries,
+    week: plan.days.map((d) => {
+      const first = d.entries.find((e) => e.slot === 'day') ?? d.entries[0];
+      return {
+        date: d.date,
+        looks: d.entries.length,
+        first: first
+          ? {
+              id: first.look.id,
+              name: first.activity ?? first.look.name,
+              image: first.look.image ?? first.look.pieces[0]?.piece.image ?? null,
+              worn: d.date === date && worn.includes(first.look.id),
+            }
+          : null,
+      };
+    }),
+    tray: jobs.map(toJobSnapshot),
+    ideas: await toIdeas(userId, ideaRows),
+    inboxCount,
+    overnight: overnight
+      ? { id: overnight.id, title: overnight.title, headline: overnight.subtitle }
+      : null,
+    home: await loadHome(userId, profile, looks),
+  });
+}
