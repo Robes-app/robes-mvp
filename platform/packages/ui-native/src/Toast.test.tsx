@@ -3,9 +3,6 @@ import { AccessibilityInfo, Pressable, Text } from 'react-native';
 import { TOAST_MIN_DURATION } from './scale';
 import { type ToastOptions, ToastProvider, useToast } from './Toast';
 
-// The first render pays the cold transform; under a full parallel `pnpm verify` that alone neared 5 s.
-jest.setTimeout(20_000);
-
 function Trigger({ options }: { options: ToastOptions }) {
   const toast = useToast();
   return (

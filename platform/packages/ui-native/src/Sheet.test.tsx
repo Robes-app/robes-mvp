@@ -3,9 +3,6 @@ import { useState } from 'react';
 import { AccessibilityInfo, Pressable, Text } from 'react-native';
 import { Sheet } from './Sheet';
 
-// The first render pays the cold transform; under a full parallel `pnpm verify` that alone neared 5 s.
-jest.setTimeout(20_000);
-
 function Harness() {
   const [open, setOpen] = useState(false);
   return (
