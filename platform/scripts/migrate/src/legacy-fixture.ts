@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type pg from 'pg';
 import { withClient } from './db';
@@ -35,6 +35,11 @@ export const LEGACY_SQL_ORDER = [
 ] as const;
 
 const LEGACY_DIR = fileURLToPath(new URL('../../../../supabase/', import.meta.url));
+
+// The legacy app's schema sits beside platform/ only on branches that carry it (beta, not main).
+export function legacySchemaPresent(): boolean {
+  return existsSync(`${LEGACY_DIR}schema.sql`);
+}
 
 // Just enough of Supabase for the legacy DDL to apply on plain Postgres.
 const SUPABASE_STUBS = `
