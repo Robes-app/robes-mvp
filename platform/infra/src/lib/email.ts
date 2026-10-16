@@ -10,12 +10,17 @@ export function configurationSetName(config: StageConfig): string {
 }
 
 // Literal ARNs (not cross-stack refs) so senders don't couple to EmailStack's outputs.
+// In the SES sandbox the recipient's verified identity is authorised too; FromAddress still pins the sender.
 export function sesSendStatement(scope: Construct, config: StageConfig): iam.PolicyStatement {
   const stack = Stack.of(scope);
+  const recipients = config.email.sandbox
+    ? [stack.formatArn({ service: 'ses', resource: 'identity', resourceName: '*' })]
+    : [];
   return new iam.PolicyStatement({
     actions: SES_SEND_ACTIONS,
     resources: [
       stack.formatArn({ service: 'ses', resource: 'identity', resourceName: config.email.domain }),
+      ...recipients,
       stack.formatArn({
         service: 'ses',
         resource: 'configuration-set',

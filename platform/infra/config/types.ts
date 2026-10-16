@@ -23,6 +23,8 @@ export interface StageConfig {
     domain: string;
     /** Default `MAIL_FROM` for the app and notify worker. */
     fromAddress: string;
+    /** SES account still in the sandbox: SES also authorises each verified recipient identity. */
+    sandbox?: boolean;
   };
   api: {
     /** IAM access keys for the Vercel API user (ADR-021); the last entry is current. */
