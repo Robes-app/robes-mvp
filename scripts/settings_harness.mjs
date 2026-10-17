@@ -13,11 +13,13 @@
  * opened on the tapped section, Done a text link, no scrollbar); the Style
  * DNA page's sheets (the ten types multi-select, the brand + icon walls with
  * search and "+ Add", the four investment rows, the three word lists, no
- * new-from-Robes door); the observations (the draft lands as pending —
- * notes as one sentence with the paragraph behind it, colours as a
- * lower-case sentence, every source line naming the evidence — Keep a
- * hairline pill, Not me a link, Kept before dated, no Read again); the
- * swipe card on the tab; the Account tab (label + value rows, name, email,
+ * new-from-Robes door); the observations (titled Observations; the
+ * wardrobe read PAUSED behind OBS_WARDROBE_READ — /api/stylenotes/brief is
+ * never posted from the tab, the page or the doors — pending lines seeded
+ * on the profile still render and take the two verbs, That's right a
+ * hairline pill, Not quite a link, Kept before dated, no Read again, the
+ * new empty line); the swipe card on the tab with the same two verbs; the
+ * high street in the brand pool; the Account tab (label + value rows, name, email,
  * password, notifications, delete); the legacy doors; the one-time brands
  * split + investment mapping; 390 and 1280.
  *
@@ -67,6 +69,15 @@ const DRAFT = {
   notes: 'You dress best when one line runs uninterrupted from shoulder to shoe. Long over lean, one colour, a single hardware note — that is when the pieces you own most read as yours.',
   colours: { loved: ['Black', 'Taupe'], rejected: ['Red'] }, thin: false,
 };
+// The shape the dashboard writes into brief.pending (a verdict, a swap pattern, a typed rule) — the draft's
+// five-line result, seeded on the profile, since the wardrobe read itself is paused.
+const PENDING = [
+  { list: 'loves', text: 'You reach for a defined waist', because: 'your two most-worn tops sit at the natural waist', at: '2026-10-16T10:00:00Z' },
+  { list: 'avoids', text: 'Anything that reads polite', because: 'the pieces you never wear are the safest ones', at: '2026-10-16T10:00:00Z' },
+  { list: 'rules', text: 'Loafers only with a cropped trouser', because: 'every wear of the loafers was with the cropped wool', at: '2026-10-16T10:00:00Z' },
+  { list: 'notes', text: 'You dress best when one line runs uninterrupted from shoulder to shoe.', full: DRAFT.notes, because: 'From 2 pieces filed', at: '2026-10-16T10:00:00Z' },
+  { list: 'colours', text: 'You reach for black and taupe. Red stays on the rail.', because: 'From 2 pieces filed', at: '2026-10-16T10:00:00Z', loved: ['black', 'taupe'], rejected: ['red'] },
+];
 const WARDROBE = [
   { id: 'w1', label: 'Black wool blazer', category: 'Outerwear', brand: 'Totême', times_worn: 11, hero_position: 1, image_url: 'https://res.cloudinary.com/x/image/upload/w1.jpg' },
   { id: 'w2', label: 'Ivory silk shirt', category: 'Tops', brand: '', times_worn: 6 },
@@ -157,9 +168,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(segOn === 'rgb(243, 239, 230) rgb(201, 188, 166)', 'selected is warm — #F3EFE6 on a #C9BCA6 hairline (G5): ' + segOn);
     ok(await p.locator('#tab-style').isVisible() && await p.locator('#tab-account').isHidden(), 'Style Profile is the tab on open');
     ok(await p.locator('#tab-style .sp-card').count() === 3, 'three cards: the twin, Style DNA, observations');
-    ok((await p.locator('#tab-style .sp-card').allInnerTexts()).map(t => t.replace(/\s*›\s*$/, '').trim()).join(' | ') === 'Your digital twin | Style DNA | Robes observations', 'each card prints its title only (G4 · L5)');
+    ok((await p.locator('#tab-style .sp-card').allInnerTexts()).map(t => t.replace(/\s*›\s*$/, '').trim()).join(' | ') === 'Your digital twin | Style DNA | Observations', 'each card prints its title only (G4 · L5) — the third reads Observations (17 Oct)');
     ok(await p.locator('#tab-style .sp-card .k, #tab-style .sp-card .s, #tab-style .sp-card .st').count() === 0, 'no number, no description, no meta line on a card');
-    ok(briefPosts.length === 1, 'the Style Profile tab reads her wardrobe once (never read before)');
+    ok(briefPosts.length === 0, 'the Style Profile tab never posts the wardrobe read — OBS_WARDROBE_READ is off (17 Oct)');
     ok(await p.locator('#sp-notice').count() === 0, 'no "Robes noticed" card with nothing pending');
     ok(await p.locator('#sh-wrap').isHidden(), 'no sheet open');
     // the account tab
@@ -359,6 +370,15 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(await p.locator('#sh-body .sh-pill[data-name="Chopova Lowena"]').count() === 1, 'search finds Liberty’s names in the pool');
     await p.fill('#sh-body #wall-q', 'Chopova Lowena'); await p.waitForTimeout(250);
     ok(await p.locator('#sh-body #wall-add').count() === 0, 'an exact match offers no + Add');
+    // the high street is in the pool (17 Oct)
+    await p.fill('#sh-body #wall-q', 'Marks'); await p.waitForTimeout(250);
+    ok(await p.locator('#sh-body .sh-pill[data-name="Marks & Spencer"]').count() === 1, 'Marks & Spencer is in the brand pool');
+    await p.fill('#sh-body #wall-q', 'Penneys'); await p.waitForTimeout(250);
+    ok(await p.locator('#sh-body .sh-pill[data-name="Penneys"]').count() === 1 && await p.locator('#sh-body #wall-add').count() === 0, 'Penneys too — an exact match, no + Add');
+    const street = ['Marks & Spencer', 'Zara', 'COS', 'Arket', '& Other Stories', 'Uniqlo', 'Mango', 'H&M', 'Dunnes Stores', 'Penneys'];
+    const missing = [];
+    for (const n of street) { await p.fill('#sh-body #wall-q', n); await p.waitForTimeout(120); if (await p.locator('#sh-body .sh-pill[data-name="' + n + '"]').count() !== 1) missing.push(n); }
+    ok(missing.length === 0, 'all ten high-street names answer a search: missing ' + missing.join(', '));
     await p.fill('#sh-body #wall-q', 'Marfa Stance'); await p.waitForTimeout(250);
     ok(await p.locator('#sh-body #wall-add').count() === 1 && /Add “Marfa Stance”/.test(await txt(p, '#sh-body #wall-add')), 'a name not in the pool offers + Add');
     await p.click('#sh-body #wall-add'); await p.waitForTimeout(250);
@@ -402,25 +422,24 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await ctx.close();
   }
 
-  console.log(`\n\x1b[1m== ${label} · the observations — a draft lands pending, Keep files under Style DNA ==\x1b[0m`);
+  console.log(`\n\x1b[1m== ${label} · the observations — pending lines from her feedback, the wardrobe read paused ==\x1b[0m`);
   {
-    const { ctx, p, errs, briefPosts, upd } = await open(vp, 'full', { draft: DRAFT });
+    // The lines land in brief.pending from the dashboard (a verdict, a swap pattern, a typed rule) —
+    // never from a wardrobe read on this page. Five seeded in the shape the draft used to write.
+    const { ctx, p, errs, briefPosts, upd } = await open(vp, 'full', { draft: DRAFT, row: { style_dna: { brief: { pending: PENDING } } } });
     await p.waitForTimeout(500);
-    ok(briefPosts.length === 1 && briefPosts[0].wardrobe.length === 2 && briefPosts[0].styleIcons.join() === 'Jane Birkin', 'the root reads her wardrobe once, her rows as the evidence');
-    const d = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.pending');
-    ok(d && d.style_dna.brief.pending.length === 5 && d.style_dna.brief.read_at && d.style_dna.memory.read_at, 'the draft lands as five pending lines, read_at stamped on the brief and the memory');
-    const pend = d.style_dna.brief.pending;
-    ok(pend[3].list === 'notes' && pend[3].text === 'You dress best when one line runs uninterrupted from shoulder to shoe.' && /^You dress best.*read as yours\.$/.test(pend[3].full), 'the notes land as ONE sentence, the paragraph riding behind it — never a character cut (L2)');
-    ok(pend[3].because === 'From 2 pieces filed' && pend[4].because === 'From 2 pieces filed', 'the source line names the evidence, never a label (L3 · O4): ' + pend[3].because);
-    ok(pend[4].text === 'You reach for black and taupe. Red stays on the rail.' && pend[4].loved.join() === 'black,taupe', 'the colours read as a lower-case sentence joined with and (O3): ' + pend[4].text);
-    ok(await p.locator('#sp-notice').isVisible() && /You reach for a defined waist/.test(await txt(p, '#sp-notice .t')), 'the "Robes noticed" card carries the first line');
+    ok(briefPosts.length === 0, 'the root posts no wardrobe read (OBS_WARDROBE_READ is off)');
+    ok(await p.locator('#sp-notice').isVisible() && /You reach for a defined waist/.test(await txt(p, '#sp-notice .t')), 'the "Robes noticed" card carries the first pending line');
+    ok((await txt(p, '#sp-notice .k')).toLowerCase() === 'robes noticed', 'its eyebrow still reads Robes noticed — the register of a notice');
     ok((await p.locator('#sp-notice .t').evaluate(el => getComputedStyle(el).webkitLineClamp)) === '3', 'the card’s line clamps at three lines with an ellipsis (L2)');
-    ok((await p.locator('#sp-notice .verbs button').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === '← not me | keep →', 'the alert keeps its labelled actions (L4)');
+    ok((await p.locator('#sp-notice .verbs button').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === '← not quite | that’s right →', 'the card’s verbs are Not quite / That’s right — never Keep / Not me (17 Oct)');
+    ok((await p.locator('#sp-notice .stamp').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === '✕ not quite | ✓ that’s right', 'the stamps read the same two verbs');
+    ok(!/\bkeep\b|not me/i.test(await txt(p, '#sp-notice')), 'nothing on the card says Keep or Not me');
     ok(await p.locator('#tab-style .sp-card .st').count() === 0, 'the cards carry no state lines (G4)');
-    // Keep on the card
+    // That’s right on the card
     await p.click('#sp-notice [data-v="keep"]'); await p.waitForTimeout(500);
     const k = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.loves.length');
-    ok(k && k.style_dna.brief.loves[0].text === 'You reach for a defined waist' && k.style_dna.brief.loves[0].source === 'drafted' && k.style_dna.brief.pending.length === 4, 'Keep files the line under Works and takes it off pending');
+    ok(k && k.style_dna.brief.loves[0].text === 'You reach for a defined waist' && k.style_dna.brief.loves[0].source === 'drafted' && k.style_dna.brief.pending.length === 4, 'That’s right files the line under Works and takes it off pending');
     ok(/^\d{4}-\d{2}-\d{2}T/.test(k.style_dna.brief.loves[0].at || ''), 'a kept line carries the date it was kept (O7)');
     ok(/Kept\. Filed under Style DNA\./.test(await txt(p, '#sp-toast')), 'the toast: Kept. Filed under Style DNA.');
     ok(/Anything that reads polite/.test(await txt(p, '#sp-notice .t')), 'the next line takes the card');
@@ -429,29 +448,45 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.mouse.move(box.x + 60, box.y + 40); await p.mouse.down(); await p.mouse.move(box.x + 100, box.y + 40); await p.mouse.move(box.x + 180, box.y + 40); await p.mouse.up();
     await p.waitForTimeout(500);
     const k2 = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.avoids.length');
-    ok(k2 && k2.style_dna.brief.avoids[0].text === 'Anything that reads polite' && k2.style_dna.brief.pending.length === 3, 'a drag to the right keeps the next line');
+    ok(k2 && k2.style_dna.brief.avoids[0].text === 'Anything that reads polite' && k2.style_dna.brief.pending.length === 3, 'a drag to the right agrees with the next line');
     // the page
     await p.click('#card-obs'); await p.waitForTimeout(400);
-    ok(await p.locator('#pg-obs').isVisible() && await p.locator('#obs-body .ob').count() === 3, 'the observations page lists the three still pending');
-    ok((await txt(p, '#sp-hdr-title')) === 'Robes Observations' && /Read from what you wear/.test(await txt(p, '#pg-obs .sp-pagesub')), 'titled Robes Observations in the header row, the sub below (D1)');
+    ok(await p.locator('#pg-obs').isVisible() && await p.locator('#obs-body .ob').count() === 3, 'the Observations page lists the three still pending');
+    ok(briefPosts.length === 0, 'opening the page posts no wardrobe read either');
+    ok((await txt(p, '#sp-hdr-title')) === 'Observations' && /From what you keep and change on your looks/.test(await txt(p, '#pg-obs .sp-pagesub')) && !/read from/i.test(await txt(p, '#pg-obs .sp-pagesub')), 'titled Observations in the header row (never Robes Observations), the sub below naming her feedback, not a read');
     ok((await p.locator('#obs-body .ob .k').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === 'rule | how you dress well | colour', 'each card keeps its category eyebrow (O2)');
-    ok((await p.locator('#obs-body .ob .verbs .keep').first().evaluate(el => { const s = getComputedStyle(el); return s.borderTopStyle === 'solid' && s.fontSize === '12px' && s.paddingTop === '10px' && s.paddingLeft === '16px'; })) && (await p.locator('#obs-body .ob .verbs .no').first().evaluate(el => getComputedStyle(el).borderTopStyle === 'none')), 'in the list Keep is a hairline pill, Not me a text link beside it (O5)');
+    ok((await p.locator('#obs-body .ob .verbs').allInnerTexts()).map(t => t.replace(/\s+/g, ' ').trim().toLowerCase()).every(t => t === 'that’s right not quite'), 'in the list the verbs read That’s right · Not quite on every line');
+    ok((await p.locator('#obs-body .ob .verbs .keep').first().evaluate(el => { const s = getComputedStyle(el); return s.borderTopStyle === 'solid' && s.fontSize === '12px' && s.paddingTop === '10px' && s.paddingLeft === '16px'; })) && (await p.locator('#obs-body .ob .verbs .no').first().evaluate(el => getComputedStyle(el).borderTopStyle === 'none')), 'That’s right is a hairline pill, Not quite a text link beside it (O5)');
     ok((await p.locator('#obs-body .ob .t').first().evaluate(el => getComputedStyle(el).webkitLineClamp)) === '3', 'an observation clamps at three lines (L2)');
     ok(/kept before/i.test(await txt(p, '#obs-body')) && /You reach for a defined waist/.test(await txt(p, '#obs-body')) && /Kept in [A-Z][a-z]+/.test(await p.locator('#obs-body .ln .when').first().innerText()), 'Kept before lists what she kept, dated at the right — "Kept in March" (O7)');
     await p.click('#obs-body [data-no="0"]'); await p.waitForTimeout(400);
     const s = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.struck.length');
-    ok(s && s.style_dna.brief.struck[0] === 'Loafers only with a cropped trouser' && s.style_dna.memory.entries[0].k === 'strike', 'Not me strikes the line and the memory records it');
+    ok(s && s.style_dna.brief.struck[0] === 'Loafers only with a cropped trouser' && s.style_dna.memory.entries[0].k === 'strike', 'Not quite strikes the line and the memory records it');
     await p.click('#obs-body [data-keep="0"]'); await p.waitForTimeout(400);
     const nts = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.notes');
-    ok(nts && /^You dress best.*read as yours\.$/.test(nts.style_dna.brief.notes), 'keeping the notes line files the WHOLE paragraph behind its sentence');
+    ok(nts && /^You dress best.*read as yours\.$/.test(nts.style_dna.brief.notes), 'agreeing with the notes line files the WHOLE paragraph behind its sentence');
     await p.click('#obs-body [data-keep="0"]'); await p.waitForTimeout(400);
     const c = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.loved.length');
-    ok(c && c.style_dna.brief.colours.loved.join() === 'black,taupe' && c.style_dna.brief.colours.rejected.join() === 'red' && c.style_dna.brief.pending.length === 0, 'keeping the colour line lands the colours');
-    ok(/Nothing new\. Robes keeps reading\./.test(await txt(p, '#obs-body')) && await p.locator('#obs-again').count() === 0, 'empty: one italic line, no Read again (O6)');
+    ok(c && c.style_dna.brief.colours.loved.join() === 'black,taupe' && c.style_dna.brief.colours.rejected.join() === 'red' && c.style_dna.brief.pending.length === 0, 'agreeing with the colour line lands the colours');
+    ok(/Nothing yet\. Robes notes what you keep and change on your looks\./.test(await txt(p, '#obs-body')) && !/keeps reading/.test(await txt(p, '#obs-body')) && await p.locator('#obs-again').count() === 0, 'empty: the new one line — no read implied, no Read again (O6)');
+    ok(briefPosts.length === 0, 'and an empty queue still asks the wardrobe for nothing');
+    // the Hard nos sheet's pills take the same verb
     await p.evaluate(() => { location.hash = '#dna'; }); await p.waitForTimeout(300);
     ok(await p.locator('#dna-noticed').count() === 0, 'Style DNA carries no Noticed door (D4)');
     ok((await txt(p, '#dna-loves-v')) === '1 line' && (await txt(p, '#dna-avoids-v')) === '1 line', 'the word rows count what she kept');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  console.log(`\n\x1b[1m== ${label} · the Hard nos sheet — a pending no offers That’s right ==\x1b[0m`);
+  {
+    const { ctx, p, errs, briefPosts } = await open(vp, 'empty', { hash: '#dna', row: { style_dna: { brief: { pending: [PENDING[1]] } } } });
+    await p.click('#dna-avoids'); await p.waitForTimeout(300);
+    ok(/robes suggests/i.test(await txt(p, '#sh-body')) && /Anything that reads polite/.test(await txt(p, '#sh-body')), 'Robes suggests lists the pending no');
+    ok((await p.locator('#sh-body .sh-pill[data-keep]').allInnerTexts()).map(t => t.trim().toLowerCase()).join() === 'that’s right', 'its pill reads That’s right, never Keep');
+    await p.click('#sh-body .sh-pill[data-keep]'); await p.waitForTimeout(300);
+    ok(/Anything that reads polite/.test(await txt(p, '#sh-body')) && await p.locator('#sh-body .sh-pill[data-keep]').count() === 0, 'a tap files it under Your nos');
+    ok(briefPosts.length === 0 && errs.length === 0, 'no wardrobe read, no page errors: ' + errs.join(' | '));
     await ctx.close();
   }
 
@@ -510,7 +545,7 @@ console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, t
   const c = await open(vp, 'empty', { path: '?chapter=brief', draft: DRAFT });
   await c.p.waitForTimeout(400);
   ok(await c.p.locator('#pg-obs').isVisible() && !/chapter=/.test(c.p.url()) && c.p.url().endsWith('#observations'), '?chapter=brief (the next line’s door) lands on the observations, the param stripped');
-  ok(c.briefPosts.length === 1 && await c.p.locator('#obs-body .ob').count() === 5, 'and reads her wardrobe into pending lines');
+  ok(c.briefPosts.length === 0 && await c.p.locator('#obs-body .ob').count() === 0 && /Nothing yet\. Robes notes what you keep and change on your looks\./.test(await txt(c.p, '#obs-body')), 'and asks the wardrobe for nothing — the new empty line stands (OBS_WARDROBE_READ off)');
   await c.ctx.close();
   const d = await open(vp, 'empty', { path: '?begin=1' });
   ok(await d.p.locator('#pg-root').isVisible() && await d.p.locator('#tab-style').isVisible() && !/begin=/.test(d.p.url()), '?begin=1 (home’s dashed door) lands on Style Profile, the param stripped');
@@ -534,11 +569,11 @@ console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, t
   await f.p.waitForURL('**/dashboard', { timeout: 5000 }).catch(() => {});
   ok(/\/dashboard$/.test(f.p.url()), 'and from the root it takes her Home');
   await f.ctx.close();
-  // a kept line never comes back: the auto-read posts it as the never-repeat list
+  // a stale read_at no longer re-runs the read: the wardrobe read is paused
   const g = await open(vp, 'empty', { draft: DRAFT, row: { style_dna: { brief: { loves: [{ text: 'You reach for a defined waist', source: 'drafted', at: '2026-03-02T10:00:00Z' }], read_at: '2026-01-01T00:00:00Z' } } } });
   await g.p.waitForTimeout(500);
-  ok(g.briefPosts.length === 1 && g.briefPosts[0].current.loves.join() === 'You reach for a defined waist', 'a stale read runs itself and posts the kept lines as the never-repeat list');
-  ok((await g.upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.pending')).style_dna.brief.pending.every(x => x.text !== 'You reach for a defined waist'), 'and a line already kept never returns');
+  ok(g.briefPosts.length === 0, 'a stale read_at runs no read — nothing posted (OBS_WARDROBE_READ off)');
+  ok((await g.upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.pending')) === null, 'and nothing lands on pending');
   await g.p.click('#card-obs'); await g.p.waitForTimeout(300);
   ok(/Kept in March/.test(await g.p.locator('#obs-body .ln .when').first().innerText()), 'Kept before names the month a line was kept');
   await g.ctx.close();
@@ -559,7 +594,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   const ev = () => p.evaluate(() => window.__events.map(e => e.event_type + ' ' + JSON.stringify(e.metadata)));
   ok(await p.locator('#sh-wrap').isVisible() && !/walk=/.test(p.url()) && (await p.evaluate(() => document.getElementById('sh-wrap').classList.contains('walking'))), label + ': ?walk=1 opens the walk on the sheet, the param stripped');
   ok((await txt(p, '#sh-title')) === 'Style type' && await p.locator('#sh-body .sh-deck-card').count() === 1 && (await p.locator('#sh-deck-card').getAttribute('data-type')) === 'Minimal' && (await txt(p, '#sh-deck-card .k')).toLowerCase() === '1 of 10' && await p.locator('#sh-body [data-type]').count() === 1, label + ': card 1 is the DECK — one type at a time, Minimal first, 1 of 10');
-  ok((await p.locator('#sh-deck-card .sh-deck-tag').allInnerTexts()).join() === 'The Row,Phoebe Philo,Lemaire,COS,Jil Sander' && await p.locator('#sh-deck-card img').count() === 0 && await p.locator('#sh-body .sh-deck-under').count() === 1, label + ': its houses as brand tags, no stills, the next card peeking beneath');
+  ok((await p.locator('#sh-deck-card .sh-deck-tag').allInnerTexts()).join() === 'The Row,Phoebe Philo,Lemaire,COS,Jil Sander,Arket,Uniqlo' && await p.locator('#sh-deck-card img').count() === 0 && await p.locator('#sh-body .sh-deck-under').count() === 1, label + ': its houses as brand tags, no stills, the next card peeking beneath');
   ok((await p.locator('#sh-deck-card [data-v]').allInnerTexts()).map(t => t.trim().toLowerCase()).join('|') === '← not me|very me →' && (await txt(p, '#sh-body .sh-deck-soft button')) === 'Sometimes' && await p.locator('#sh-deck-plenty').count() === 0, label + ': Not me · Very me on the card, Sometimes small beneath, no plenty door yet');
   ok(await p.locator('#sh-walk').isVisible() && await p.locator('#sh-walk-segs span').count() === 4 && await p.locator('#sh-walk-segs span.on').count() === 1 && await p.locator('#sh-walk-skip').isVisible() && (await p.locator('#sh-walk-go').textContent()).trim() === 'Continue' && await p.locator('#sh-done').isHidden(), label + ': the four-segment rule, Skip, Continue — no Done link');
   ok((await p.locator('#sh-walk-go').evaluate(el => getComputedStyle(el).backgroundColor)) === 'rgb(255, 255, 255)' && (await p.locator('#sh-body button, #sh-walk button').evaluateAll(bs => bs.filter(b => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)' && b.getClientRects().length).length)) === 0, label + ': Continue is a hairline pill — no ink on the walk (G2)');

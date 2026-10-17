@@ -501,7 +501,7 @@
         <div id="sp-notice-host"></div>
         <button type="button" class="sp-card" id="card-twin"><span class="t">Your digital twin <span class="chev">›</span></span></button>
         <button type="button" class="sp-card" id="card-dna"><span class="t">Style DNA <span class="chev">›</span></span></button>
-        <button type="button" class="sp-card" id="card-obs"><span class="t">Robes observations <span class="chev">›</span></span></button>
+        <button type="button" class="sp-card" id="card-obs"><span class="t">Observations <span class="chev">›</span></span></button>
       </div>
 
       <div class="sp-tab" id="tab-account" hidden>
@@ -634,9 +634,9 @@
       </div>
     </section>
 
-    <!-- ══ 03 · ROBES OBSERVATIONS ══ -->
+    <!-- ══ 03 · OBSERVATIONS ══ -->
     <section class="sp-page sp-col" id="pg-obs" hidden>
-      <p class="sp-pagesub">Read from what you wear. Keep a line and it joins your Style DNA.</p>
+      <p class="sp-pagesub">From what you keep and change on your looks. Agree with a line and it joins your Style DNA.</p>
       <div id="obs-body"></div>
     </section>
 
@@ -775,13 +775,15 @@
       // Liberty's list (2026-10-07) — the existing names stay, these join them.
       'Adidas', 'Nike', 'H&M', 'Zara', 'Uniqlo', 'Louis Vuitton', 'Ralph Lauren', 'CAMILLA AND MARC',
       'Carven', 'Chopova Lowena', 'Julie Kegels', 'Kallmeyer', 'LABRUM London', 'Matières Fécales',
+      // The high street (2026-10-17) — the names already in the pool (COS, Arket, Zara, Uniqlo, H&M) stay where they are.
+      'Marks & Spencer', '& Other Stories', 'Mango', 'Dunnes Stores', 'Penneys',
     ];
     const BRAND_SEED = {
-      Minimal: ['The Row', 'Phoebe Philo', 'Lemaire', 'COS', 'Jil Sander'], Bohemian: ['Dôen', 'Chloé', 'Ulla Johnson', 'Zimmermann'],
-      Classic: ['Max Mara', 'Ralph Lauren', 'Joseph', 'Loro Piana'], Romantic: ['Simone Rocha', 'Zimmermann', 'Dôen'],
+      Minimal: ['The Row', 'Phoebe Philo', 'Lemaire', 'COS', 'Jil Sander', 'Arket', 'Uniqlo'], Bohemian: ['Dôen', 'Chloé', 'Ulla Johnson', 'Zimmermann'],
+      Classic: ['Max Mara', 'Ralph Lauren', 'Joseph', 'Loro Piana', 'Marks & Spencer', 'Zara', 'Mango', 'Dunnes Stores'], Romantic: ['Simone Rocha', 'Zimmermann', 'Dôen', '& Other Stories'],
       Sculptural: ['Totême', 'Khaite', 'Alaïa', 'Jil Sander'], Utility: ['Arket', 'Carhartt', 'Nike', 'Adidas'],
       Heritage: ['Loro Piana', 'Brunello Cucinelli', 'Ralph Lauren'], Eclectic: ['Miu Miu', 'Marni', 'Chopova Lowena', 'Dries Van Noten'],
-      'Off-duty': ['Auralee', 'Nike', 'Adidas', 'Uniqlo'], 'Avant-garde': ['Rick Owens', 'Comme des Garçons', 'Yohji Yamamoto', 'Maison Margiela'],
+      'Off-duty': ['Auralee', 'Nike', 'Adidas', 'Uniqlo', 'H&M', 'Penneys'], 'Avant-garde': ['Rick Owens', 'Comme des Garçons', 'Yohji Yamamoto', 'Maison Margiela'],
     };
     // The icon wall — each name carries the one tag Robes reads as a register.
     const ICON_POOL = [
@@ -1491,6 +1493,14 @@
     // The read: Robes drafts from her rows; the lines land as PENDING on the
     // brief (so a visit never re-reads what she has not yet answered), each
     // kept or struck from the Observations page or the card on the tab.
+    // The wardrobe read is PAUSED (the founder's MVP rule, 17 Oct 2026): a
+    // statement comes only from direct feedback — a thumbs verdict, a swap
+    // pattern, a typed or struck rule — which lands in brief.pending from the
+    // dashboard. A line inferred from the wardrobe alone ("you don't wear
+    // denim caps" because a cap was never worn) is not one. While false,
+    // obsEnsure never posts /api/stylenotes/brief; obsDraft and the endpoint
+    // stay whole for when it flips back.
+    const OBS_WARDROBE_READ = false;
     const ob = { loading: false, err: '', everRead: false };
     async function obsDraft() {
       if (ob.loading || !st.uid) return;
@@ -1552,6 +1562,7 @@
     }
     // Auto-read: once, and again when the last read is a week old and nothing waits.
     function obsEnsure() {
+      if (!OBS_WARDROBE_READ) return;
       const b = chBrief();
       if (b.pending.length || ob.loading || ob.everRead) return;
       const age = b.read_at ? Date.now() - Date.parse(b.read_at) : Infinity;
@@ -1666,7 +1677,7 @@
       const home = (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') ? 'Lookbook' : 'Home';
       lab.textContent = page === 'root' ? home : 'Settings';
       document.getElementById('sn-back').setAttribute('aria-label', 'Back to ' + lab.textContent);
-      document.getElementById('sp-hdr-title').textContent = { root: 'Settings', twin: 'Your Digital Twin', dna: 'Style DNA', obs: 'Robes Observations' }[page] || 'Settings';
+      document.getElementById('sp-hdr-title').textContent = { root: 'Settings', twin: 'Your Digital Twin', dna: 'Style DNA', obs: 'Observations' }[page] || 'Settings';
       window.scrollTo(0, 0);
       snTrack('settings_page', { page, tab: page === 'root' ? sp.tab : undefined });
     }
@@ -1760,9 +1771,9 @@
       if (!x || sp.page !== 'root') { host.innerHTML = ''; return; }
       if (host.dataset.text === x.text && host.firstElementChild) return;   // the same card stands — never redraw under a drag
       host.dataset.text = x.text;
-      host.innerHTML = '<div class="sp-notice" id="sp-notice"><span class="stamp no">✕ Not me</span><span class="stamp keep">✓ Keep</span>' +
+      host.innerHTML = '<div class="sp-notice" id="sp-notice"><span class="stamp no">✕ Not quite</span><span class="stamp keep">✓ That’s right</span>' +
         '<div class="k">Robes noticed</div><div class="t">' + esc(x.text) + '</div>' + (x.because ? '<div class="b">' + esc(x.because) + '</div>' : '') +
-        '<div class="verbs"><button type="button" data-v="no">← Not me</button><button type="button" data-v="keep">Keep →</button></div></div>';
+        '<div class="verbs"><button type="button" data-v="no">← Not quite</button><button type="button" data-v="keep">That’s right →</button></div></div>';
       const card = document.getElementById('sp-notice');
       const decide = (v) => {
         card.classList.add('fly');
@@ -2169,9 +2180,9 @@
           const rows = b[list];
           const sugg = list === 'avoids' ? b.pending.filter(p => p.list === 'avoids') : [];
           return (list !== 'loves' ? chipRowsHtml(list) + '<div class="sh-k">' + (list === 'avoids' ? 'Your nos' : 'Your rules') + '</div>' : '') +
-            (rows.length ? rows.map((x, i) => '<div class="ln"><span class="t' + (x.source === 'typed' ? ' typed' : '') + '">' + esc(x.text) + (x.from ? '<span class="from">from “' + esc(x.from) + '”</span>' : '') + '</span><button type="button" class="x" data-strike="' + i + '" aria-label="Strike">×</button></div>').join('') : '<div class="sh-empty">' + (list === 'loves' ? 'Nothing kept yet. Keep a line Robes noticed, or write your own.' : list === 'avoids' ? 'No hard nos yet. Tap a chip, or write whatever Robes should never do.' : 'No rules yet. The lines you dress by, in your words.') + '</div>') +
+            (rows.length ? rows.map((x, i) => '<div class="ln"><span class="t' + (x.source === 'typed' ? ' typed' : '') + '">' + esc(x.text) + (x.from ? '<span class="from">from “' + esc(x.from) + '”</span>' : '') + '</span><button type="button" class="x" data-strike="' + i + '" aria-label="Strike">×</button></div>').join('') : '<div class="sh-empty">' + (list === 'loves' ? 'Nothing kept yet. Agree with a line under Observations, or write your own.' : list === 'avoids' ? 'No hard nos yet. Tap a chip, or write whatever Robes should never do.' : 'No rules yet. The lines you dress by, in your words.') + '</div>') +
             '<div class="ln-add"><span class="plus">+</span><input id="words-in" type="text" placeholder="' + esc(rows.length ? another : 'A line of your own') + '" maxlength="160" autocomplete="off"></div>' +
-            (sugg.length ? '<div class="sh-k sage">Robes suggests <span class="h">From what you’ve never kept</span></div>' + sugg.map(p => '<div class="ln"><span class="t">' + esc(p.text) + (p.because ? '<span class="from">' + esc(p.because) + '</span>' : '') + '</span><button type="button" class="sh-pill" data-keep="' + esc(p.text) + '" style="height:32px;padding:0 14px">Keep</button></div>').join('') : '') +
+            (sugg.length ? '<div class="sh-k sage">Robes suggests <span class="h">From what you’ve never kept</span></div>' + sugg.map(p => '<div class="ln"><span class="t">' + esc(p.text) + (p.because ? '<span class="from">' + esc(p.because) + '</span>' : '') + '</span><button type="button" class="sh-pill" data-keep="' + esc(p.text) + '" style="height:32px;padding:0 14px">That’s right</button></div>').join('') : '') +
             (rows.length ? '<div class="sh-filed">✓ Filed · Robes reads it from here on</div>' : '');
         },
         wire: body => {
@@ -2307,9 +2318,9 @@
       let html = '<div class="sp-gk">Since your last visit</div>';
       if (ob.loading) html += '<div class="ob-wait"><i></i>Robes is reading your wardrobe…</div>';
       else if (ob.err) html += '<div class="sh-empty">' + esc(ob.err) + '</div>';
-      else if (b.pending.length) html += '<div class="ob-list">' + b.pending.map((p, i) => '<div class="ob"><span class="k">' + esc(LIST_LABEL[p.list] || 'Noticed') + '</span><span class="t">' + esc(p.text) + '</span>' + (p.because ? '<span class="b">' + esc(p.because) + '</span>' : '') + '<div class="verbs"><button type="button" class="keep" data-keep="' + i + '">Keep</button><button type="button" class="no" data-no="' + i + '">Not me</button></div></div>').join('') + '</div>';
-      else html += '<div class="sh-empty">Nothing new. Robes keeps reading.</div>';
-      // Robes reads continuously — no manual re-run (O6). Kept lines carry the month they were kept (O7).
+      else if (b.pending.length) html += '<div class="ob-list">' + b.pending.map((p, i) => '<div class="ob"><span class="k">' + esc(LIST_LABEL[p.list] || 'Noticed') + '</span><span class="t">' + esc(p.text) + '</span>' + (p.because ? '<span class="b">' + esc(p.because) + '</span>' : '') + '<div class="verbs"><button type="button" class="keep" data-keep="' + i + '">That’s right</button><button type="button" class="no" data-no="' + i + '">Not quite</button></div></div>').join('') + '</div>';
+      else html += '<div class="sh-empty">Nothing yet. Robes notes what you keep and change on your looks.</div>';
+      // No manual re-run (O6) — and no wardrobe read at all while OBS_WARDROBE_READ is false. Kept lines carry the month they were kept (O7).
       const keptWhen = x => { const t = x.at ? Date.parse(x.at) : NaN; if (isNaN(t)) return ''; const d = new Date(t), now = new Date(); return 'Kept in ' + MON_LONG[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : ''); };
       const kept = [].concat(b.loves.map(x => Object.assign({ list: 'loves' }, x)), b.avoids.map(x => Object.assign({ list: 'avoids' }, x)), b.rules.map(x => Object.assign({ list: 'rules' }, x))).filter(x => x.source !== 'typed');
       if (kept.length) html += '<div class="sp-gk" style="margin-top:30px">Kept before</div><div class="sp-group" style="padding:4px 18px">' + kept.map(x => '<div class="ln"><span class="t">' + esc(x.text) + '<span class="from">' + esc(LIST_LABEL[x.list]) + (x.from ? ' · from “' + esc(x.from) + '”' : '') + '</span></span>' + (keptWhen(x) ? '<span class="when">' + esc(keptWhen(x)) + '</span>' : '') + '</div>').join('') + '</div>';
