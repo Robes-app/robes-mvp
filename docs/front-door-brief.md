@@ -1,6 +1,6 @@
 # The front door · first run and the core loop
 
-**Date**: 2026-10-17 · **Branch**: `beta` · **Status**: plan for design and engineering, from the Annie × Felix session of 16 Oct; nothing built yet
+**Date**: 2026-10-17 · **Branch**: `beta` · **Status**: plan for design and engineering, from the Annie × Felix session of 16 Oct; the five decisions in §7 taken by Annie on 17 Oct; nothing built yet
 **Source**: the 16 Oct transcript (Gemini notes, 1h44) · the live code on `beta` at `0359f8a` · **Published copy**: https://claude.ai/artifact/JCZ8fBNy3qpA12MANHUY3M
 **Companion briefs**: `docs/look-states-brief.md` (one look, three states), `docs/digital-twin-brief.md` (Style DNA + the model), `docs/four-session-funnel-brief.md` (the four sessions), `docs/beta-ftue-ux-audit-2026-08-19.md`
 
@@ -171,13 +171,13 @@ Four phases, each shippable alone, each covered by the harness that already pins
 | 0.1 | **Swap on the suggested look without Edit.** F8's proposal rows get ↻ (and her rows ↻) opening `__cbWardrobePick` in swap mode on the piece's category, Photograph one first. The first change flips the row to `draft` under the hood (`_lkSuggToDraft` + the apply) and the page stays put; the bar reads Discard · Save. | `_lkDetailHtml` (the `readOnly: true` branch ~17724), `__lkDPropSwap` / `__lkDSwapApply`, `__lkSuggEdit`. | `looks_harness`: the F8 section gains swap-without-Edit, Undo, status flip, Save. |
 | 0.2 | **Save opens the calendar.** `__lkSuggSave` and `__lkSave` open the existing diary sheet every time, as it is: the month, any day one tap, *I wore this today*. No new chip row (Annie, 17 Oct). Closing the sheet is the "not yet"; a dated ask preselects its day as now. | `__lkSuggSave` (~16759), `__lkSave` (~22724), `__lkDiaryOpen` (~19656). | `looks_harness`, `inspiration_smoke`: Save → the sheet; Not yet writes nothing. |
 | 0.3 | **The week strip from the first saved look.** H3 gates on any saved look, not on activation; a fresh account with one look sees Dress today and the look. | `_rbHomeResolve` (modules), `_rbRail`. | `home_harness`: stage 2 with one look renders the strip. |
-| 0.4 | **Three generic models on the three ways.** With no twin, `/api/style` shoots each way on a different catalog cell spanning the skin range (via `avatarCellEnsure`, cached once ever), so the frames, the composer's generic cell and the badge agree. The deck's text line becomes the badge. | `server.js` `/api/style` image loop + `avatarRefForUser`; `_lkDeckHtml` model line (~15305). | `inspiration_smoke` pins three distinct `avatarId`s on the frames; eyeball the first live set. |
+| 0.4 | **Three generic models on the three ways.** With no twin, `/api/style` shoots each way on a different catalog cell spanning the skin range, the same three cells for every account (via `avatarCellEnsure`, cached once ever), so the frames, the composer's generic cell and the badge agree. The deck's text line becomes the badge. | `server.js` `/api/style` image loop + `avatarRefForUser`; `_lkDeckHtml` model line (~15305). | `inspiration_smoke` pins three distinct `avatarId`s on the frames; eyeball the first live set. |
 | 0.5 | **The scanner while a look generates.** Everywhere a look is being made (the overlay before the deck, the deck's dressing card, a suggested card whose frame is still coming) the piece or the look is scanned: a line sweeping it top to bottom and back, with one evolving line beneath, *Generating a look* → the dressing lines → *On a Robes model for now*. The card never falls back to the piece or the prompt at rest. A frame that fails says so on its card and offers *Try the frames again*, never a blank. | The onboarding scan line (`.kp-scan`) and the add flow's reveal, lifted into one shared loading primitive; `_cbStyleSubmit`'s overlay (~2057), `_lkDeckDressHtml`, `_lkSuggFrame`, the Suggested tile's busy chip. | `inspiration_smoke`: the scanner on the overlay and the dressing card, never the bare piece. |
-| 0.6 | **Observations.** Eyebrow and card read *Observations*. Verbs *That's right* · *Not quite* on Settings and the home line. **MVP source rule**: pending lines come only from direct feedback (thumbs, a swap pattern, a typed or struck rule); the wardrobe-read draft (`obsEnsure` → `/api/stylenotes/brief`) is paused behind a flag until Annie decides (§7). | `settings.html` (`obsEnsure`, `sp-notice`), `_rbTwinNoticed`, `_rbHomeAlerts`. | `settings_harness`, `home_harness`. |
+| 0.6 | **Observations.** Eyebrow and card read *Observations*. Verbs *That's right* · *Not quite* on Settings and the home line. **MVP source rule**: pending lines come only from direct feedback (thumbs, a swap pattern, a typed or struck rule); the wardrobe-read draft (`obsEnsure` → `/api/stylenotes/brief`) is paused behind a flag (decided, §7). | `settings.html` (`obsEnsure`, `sp-notice`), `_rbTwinNoticed`, `_rbHomeAlerts`. | `settings_harness`, `home_harness`. |
 | 0.7 | **The outfit photo in onboarding.** The piece page runs `/api/wardrobe/pieces` first; more than one piece → *Robes sees three pieces. Which one first?* with the crops as tiles; the pick files and styles, the rest file quietly on landing (`rb_onboard_rest`). No more bug-out. | `onboarding.html` `catalogue()`, `_rbOnboardHandoff`. | `onboarding_harness`: a two-piece stub → the pick → one `/api/style`. |
 | 0.8 | **Paste a link leaves onboarding.** The door stays in the add flow. | `onboarding.html` `#kp-linkopen`, `#kp-linkform`. | `onboarding_harness`: the link section becomes an absence pin. |
 | 0.9 | **Style type imagery.** Run `railway run node scripts/gen_archetype_tiles.mjs`, commit `public/images/archetypes/manifest.json`. The settings deck already covers each tile with its frame. | Ops + one commit. | Eyeball the deck. |
-| 0.10 | **The pool includes the high street.** Brands and icons gain the names the workshop missed (M&S, Zara, COS, Arket, & Other Stories, Uniqlo, Mango, H&M, Dunnes, Penneys; Liberty proposes the icons). Ranking stays by her picks (`wallRanked`), never by price. | `settings.html` `BRAND_POOL` / `ICON_POOL` / `BRAND_SEED`. | `settings_harness` (the Brands pins use The Row; unchanged). |
+| 0.10 | **The pool includes the high street.** Brands gain the ten names the workshop missed (M&S, Zara, COS, Arket, & Other Stories, Uniqlo, Mango, H&M, Dunnes, Penneys — decided); icons follow Liberty's list when it lands. Ranking stays by her picks (`wallRanked`), never by price. | `settings.html` `BRAND_POOL` / `ICON_POOL` / `BRAND_SEED`. | `settings_harness` (the Brands pins use The Row; unchanged). |
 
 ### Phase 1 · The start board and the meter (design → Felix → build)
 
@@ -231,13 +231,13 @@ Read weekly in `/admin` and PostHog. A step under its target is the next design 
 
 ---
 
-## 7 · Decisions for Annie
+## 7 · Decisions, taken 17 Oct (Annie)
 
-1. **The piece step leaves onboarding and becomes the board's lead tile** (1.1). The recommendation here. The alternative keeps the piece page in the flow with a visible *Not now* to the board; it keeps the guaranteed wow for the one who can photograph, and asks the other three to pass a screen they can't use.
-2. **Pause the wardrobe-read observations for MVP** (0.6), per Felix: statements from what she did, never from what she didn't. The read stays behind a flag; it returns when wears are logged widely enough to be evidence.
-3. **The box sits below the board for a fresh account** (§3.4), leading once the board folds.
-4. **The three generic models**: three cells across the skin range, the same three for everyone, or rotated per account. Same three is simpler to explain and to cache.
-5. **The high-street names** for the brand and icon pools: Liberty's list, or the ten above.
+1. **Agreed.** The piece step leaves onboarding and becomes the board's lead tile (1.1). Onboarding is splash → name → home.
+2. **Agreed.** The wardrobe-read observations pause for MVP behind a flag (0.6): statements from what she did, never from what she didn't. The read returns when logged wears are evidence.
+3. **Agreed.** The box sits below the board for a fresh account (§3.4), leading once the board folds.
+4. **The same three generic cells for everyone** (0.4), across the skin range; simpler to explain and cached once ever.
+5. **The ten high-street names in 0.10** join the brand pool now; Liberty's icon list follows when it lands.
 
 Out of this brief, flagged: men and positioning (the generic model and the defaults touch it; the decision is the workshop's), styling quality (odd shoes), brand logos.
 
