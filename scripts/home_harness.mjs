@@ -194,6 +194,9 @@ const read = (page) => page.evaluate(() => {
   check('stage 4 · three candidates, the hero first and pre-selected, then the least worn', JSON.stringify(o4.picks) === JSON.stringify(['w2*', 'w0', 'w1']), JSON.stringify(o4.picks));
   check('stage 4 · Build the look + All pieces ›', o4.cta === 'Build the look' && o4.all === 'All pieces ›', JSON.stringify(o4));
   check('stage 4 · the Saved looks row renders beneath (it has data)', s.sn && s.order.indexOf('rb-sn') > s.order.indexOf('rb-onb-list'), JSON.stringify(s.order));
+  check('stage 4 · the week strip stands from the FIRST saved look (Phase 0 · 0.3) — under the box, before the card', s.rail && s.order.indexOf('rb-rail') > s.order.indexOf('rb-hb') && s.order.indexOf('rb-rail') < s.order.indexOf('rb-onb-card'), JSON.stringify([s.rail, s.order]));
+  const wk = await page.evaluate(() => ({ cells: document.querySelectorAll('#rb-rail .rb-wk').length, card: document.querySelector('#rb-rail-day .rb-dayc')?.dataset.state }));
+  check('stage 4 · seven cells and today\'s dashed Dress today card', wk.cells === 7 && wk.card === 'empty', JSON.stringify(wk));
   await tap(page, '#rb-onb-card .rb-ob-pick[data-pick="w1"]'); await page.waitForTimeout(150);
   const pk = await page.evaluate(() => Array.from(document.querySelectorAll('#rb-onb-card .rb-ob-pick.on')).map((b) => b.dataset.pick));
   check('stage 4 · a tap moves the pick', pk.join() === 'w1', pk.join());
@@ -255,7 +258,7 @@ const read = (page) => page.evaluate(() => {
   check('H1 · no page errors', errs.length === 0, errs.join(' | ').slice(0, 300));
   check('H1 · the receipt leads, the observation second; alerts sit after the masthead', s.alerts.length === 2 && s.alerts[0] === 'receipt:From your Zara receipt:Ten pieces read, ready to check.' && s.alerts[1].indexOf('observation:Robes noticed:') === 0 && s.order[1] === 'rb-alerts', JSON.stringify([s.alerts, s.order]));
   const ob = await page.evaluate(() => ({ line: document.querySelector('#rb-alerts .rb-al[data-kind="observation"] .t').textContent, acts: Array.from(document.querySelectorAll('#rb-alerts .rb-al[data-kind="observation"] .acts button')).map((b) => b.textContent), mosaic: document.querySelectorAll('#rb-alerts .rb-al[data-kind="receipt"] .th i').length, more: document.querySelector('#rb-alerts .rb-al[data-kind="receipt"] .th .n')?.textContent }));
-  check('H1 · the observation is one short line (≤ 40) with Keep › and Not me as text', ob.line.length <= 41 && ob.line.endsWith('…') && ob.acts.join() === 'Keep ›,Not me', JSON.stringify(ob));
+  check('H1 · the observation is one short line (≤ 40) with That’s right › and Not quite as text (Phase 0 · 0.6)', ob.line.length <= 41 && ob.line.endsWith('…') && ob.acts.join() === 'That’s right ›,Not quite', JSON.stringify(ob));
   check('H1 · the receipt mosaic: the pieces with photographs + a +N tile', ob.mosaic === 2 && ob.more === '+8', JSON.stringify(ob));
   await tap(page, '#rb-alerts .rb-al[data-kind="observation"] .acts button:first-child'); await page.waitForTimeout(400);
   const kept = await page.evaluate(() => ({ alerts: document.querySelectorAll('#rb-alerts .rb-al').length, rec: JSON.parse(localStorage.getItem('rb_twin_card__u-test') || 'null'), loves: (window.__robes_profile.style_dna.brief.loves || []).map((x) => x.text) }));

@@ -1698,17 +1698,31 @@ const browser = await chromium.launch(
   await page.evaluate(() => { window.__lkRowPick('r4', 'w-bag1'); });
   await page.waitForTimeout(2600);
   const beforeSave = renders.length;
-  const saved = await page.evaluate(() => {
+  const pdBefore = writes.filter((w) => /^planned_days/.test(w.url)).length;
+  const saved = await page.evaluate(async () => {
     window.__lkNewTitleInput('Terrace mornings');
     window.__lkSave();
-    return {
-      gridShown: document.getElementById('rb-lk-grid')?.style.display !== 'none',
-      titles: Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent),
-      toast: (document.getElementById('toast-msg') || document.getElementById('toast'))?.textContent,
+    const toast = (document.getElementById('toast-msg') || document.getElementById('toast'))?.textContent;
+    await new Promise((r) => setTimeout(r, 220));
+    const out = {
+      page: !!document.querySelector('.rb-lk-page'),
+      pageTitle: document.querySelector('.rb-lk-page .rb-tb-title')?.textContent.trim(),
+      sheet: document.querySelector('#rb-lkdy .who .ey')?.textContent,
+      sheetName: document.querySelector('#rb-lkdy .who .nm')?.textContent,
+      toast,
     };
+    // closing the calendar is the "not yet"
+    window.__lkDiaryClose && window.__lkDiaryClose();
+    out.sheetGone = !document.getElementById('rb-lkdy');
+    window.__lkGo && window.__lkGo();
+    out.gridShown = document.getElementById('rb-lk-grid')?.style.display !== 'none';
+    out.titles = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).map((t) => t.textContent);
+    return out;
   });
-  check('composer · save lands back on the grid, no interstitial',
-    saved.gridShown && saved.titles.includes('Terrace mornings'), JSON.stringify([saved.gridShown, saved.titles]));
+  check('composer · Save lands on the look with the calendar open (Phase 0 · 0.2)',
+    saved.page && saved.pageTitle === 'Terrace mornings' && saved.sheet === 'Put in the diary' && saved.sheetName === 'Terrace mornings', JSON.stringify([saved.page, saved.pageTitle, saved.sheet, saved.sheetName]));
+  check('composer · closing the calendar dates nothing; the grid holds the look',
+    saved.sheetGone && saved.gridShown && saved.titles.includes('Terrace mornings') && writes.filter((w) => /^planned_days/.test(w.url)).length === pdBefore, JSON.stringify([saved.sheetGone, saved.gridShown, saved.titles]));
   check('composer · the confirmation is a quiet toast',
     /Terrace mornings saved to Looks/.test(saved.toast || ''), saved.toast);
   check('composer · the grid grows', saved.titles.length === 3, JSON.stringify(saved.titles));
@@ -1773,7 +1787,8 @@ const browser = await chromium.launch(
   // puts the caret where the answer goes.
   // Handoff 4·0 (2026-10-05): the name is OPTIONAL — an unnamed look
   // saves under today's date, provisional (italic) until she renames it.
-  const offered = await page.evaluate(() => {
+  const offered = await page.evaluate(async () => {
+    const settle = async () => { await new Promise((r) => setTimeout(r, 220)); window.__lkDiaryClose && window.__lkDiaryClose(); window.__lkGo(); };
     window.__lkNew();
     window.__lkRowPick('r1', 'w-top2');
     window.__lkRowPick('r2', 'w-bot2');
@@ -1781,6 +1796,7 @@ const browser = await chromium.launch(
     const live = !!sv && !sv.disabled && getComputedStyle(sv).backgroundColor === 'rgb(32, 32, 33)';
     const start = document.querySelectorAll('#rb-lk-grid .lt-title').length;
     window.__lkSave();
+    await settle();
     const titles = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title'));
     const grew = titles.length === start + 1;
     const dated = titles.find((t) => /^(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day \d{1,2} [A-Z][a-z]{2}$/.test(t.textContent.trim()));
@@ -1789,6 +1805,7 @@ const browser = await chromium.launch(
     window.__lkRowPick('r2', 'w-bot2');
     window.__lkNewTitleInput('The tank one');
     window.__lkSave();
+    await settle();
     const tile = Array.from(document.querySelectorAll('#rb-lk-grid .lt-title')).find((t) => t.textContent === 'The tank one');
     return { live, grew, dated: dated ? dated.textContent.trim() : null, datedProv: dated ? dated.classList.contains('prov') : null, onGrid: !!tile, prov: tile ? tile.classList.contains('prov') : null };
   });
@@ -2063,7 +2080,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     ask.open === true && /aren.t yours yet/.test(ask.text) && /Wishlist/.test(ask.text), ask.text.slice(0, 120));
 
   const done = await page.evaluate(async () => {
-    document.getElementById('rb-lksave-yes').click();
+    document.getElementById('rb-lksave-yes').click(); setTimeout(() => { window.__lkDiaryClose && window.__lkDiaryClose(); window.__lkGo && window.__lkGo(); }, 220);
     await new Promise((r) => setTimeout(r, 800));
     return {
       grid: document.querySelectorAll('#rb-lk-grid .lt-card').length,
@@ -2440,7 +2457,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     window.__lkRowPick('r1', 'w-top1');
     window.__lkRowPick('r3', 'w-sho1');
     window.__lkNewTitleInput('Terrace mornings');   // rule 02 holds here too
-    window.__lkSave();
+    window.__lkSave(); setTimeout(() => { window.__lkDiaryClose && window.__lkDiaryClose(); window.__lkGo && window.__lkGo(); }, 220);
     return { tiles: document.querySelectorAll('#rb-lk-grid .rb-lk-tile').length };
   });
   check('degrade · no page errors when the tables are missing', errs.length === 0, errs.join(' | ').slice(0, 240));
@@ -3776,7 +3793,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     await new Promise((r) => setTimeout(r, 4600));   // the stills poller's first tick
     window.__lkSaveAsk();
     await new Promise((r) => setTimeout(r, 250));
-    document.getElementById('rb-lksave-yes')?.click();
+    document.getElementById('rb-lksave-yes')?.click(); setTimeout(() => { window.__lkDiaryClose && window.__lkDiaryClose(); window.__lkGo && window.__lkGo(); }, 220);
     await new Promise((r) => setTimeout(r, 900));
   });
   const wl = writes.filter((w) => w.method === 'POST' && /^wishlist_items/.test(w.url)).map((w) => w.body);
@@ -4067,7 +4084,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.evaluate(async () => {
     const inp = document.getElementById('rb-lk-newtitle');
     inp.value = 'Built by Robes'; inp.dispatchEvent(new Event('input', { bubbles: true }));
-    window.__lkSave();
+    window.__lkSave(); setTimeout(() => { window.__lkDiaryClose && window.__lkDiaryClose(); window.__lkGo && window.__lkGo(); }, 220);
     await new Promise((r) => setTimeout(r, 900));
   });
   const post = writes.find((w) => w.method === 'POST' && /^looks\b/.test(w.url));
@@ -4126,7 +4143,7 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
   await page.evaluate(async () => {
     const inp = document.getElementById('rb-lk-newtitle');
     inp.value = 'Day zero'; inp.dispatchEvent(new Event('input', { bubbles: true }));
-    window.__lkSave();
+    window.__lkSave(); setTimeout(() => { window.__lkDiaryClose && window.__lkDiaryClose(); window.__lkGo && window.__lkGo(); }, 220);
     await new Promise((r) => setTimeout(r, 900));
   });
   const lw = writes.filter((w) => /^looks\b/.test(w.url)).map((w) => w.body || {}).find((b) => b.render_url);
@@ -4967,7 +4984,7 @@ const composerRead = () => ({
     const before = window.__cr().parks[0];
     window.__lkSaveAsk();
     await new Promise((r) => setTimeout(r, 250));
-    document.getElementById('rb-lksave-yes')?.click();
+    document.getElementById('rb-lksave-yes')?.click(); setTimeout(() => { window.__lkDiaryClose && window.__lkDiaryClose(); window.__lkGo && window.__lkGo(); }, 220);
     await new Promise((r) => setTimeout(r, 900));
     const out = window.__cr(); out.before = before; out.cards = document.querySelectorAll('#rb-lk-grid .lt-card').length;
     return out;

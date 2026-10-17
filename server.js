@@ -789,6 +789,24 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
       // wearer gates the catalog: a menswear brief on a woman's profile
       // (or vice versa) falls through to the generic model.
       const avatarRef = await avatarRefForUser(req.body.avatarId, req.body.userId, wearer);
+      // No twin on file (Phase 0 · 0.4, 2026-10-17, aligned with e9f6b4b):
+      // the three ways are shot on the GENERIC catalog cells — the same
+      // three for every account, across the skin range, the composer's own
+      // generic cell leading — so the frames, the draft canvas and the
+      // "Generic model ›" badge agree on who she is looking at. The identity
+      // lock is the same text as for her twin: the cell's plain base layer
+      // and studio backdrop are ignored, the scene the look names (a Stripe
+      // office, a Saturday market) is where the model stands. Cells are
+      // generated lazily, once ever, one at a time, right before the way
+      // that wears them; a cell that fails leaves that way on the
+      // prompt-described model, never a blank.
+      const genericCells = avatarRef ? null : genericCellsFor(wearer);
+      const genericRef = async k => {
+        if (!genericCells) return null;
+        const id = genericCells[k % genericCells.length];
+        try { const url = await avatarCellEnsure(id); return url ? await fetchCloudinaryB64(url) : null; }
+        catch (e) { logAI({ feature: 'style', stage: 'generic_cell', id, success: false, reason: e.message }); return null; }
+      };
       // Her own pieces ride the frame as reference photographs (2026-10-13,
       // Liberty: "it logs it accurately but when it suggests an outfit the
       // item looks different"). The frame used to be drawn from the prose
@@ -812,8 +830,9 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
         const w = ways[k];
         const imgParts = [];
         let imgN = 0;
-        if (avatarRef) { imgParts.push({ inlineData: { mimeType: avatarRef.mimeType, data: avatarRef.data } }); imgN += 1; }
-        const avatarLine = avatarRef ? AVATAR_IDENTITY : '';
+        const modelRef = avatarRef || await genericRef(k);
+        if (modelRef) { imgParts.push({ inlineData: { mimeType: modelRef.mimeType, data: modelRef.data } }); imgN += 1; }
+        const avatarLine = modelRef ? AVATAR_IDENTITY : '';
         let photoLine = '';
         if (!fallback && photoMatch) {
           imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
@@ -3729,6 +3748,15 @@ const AVATAR_NUDGE_WORDS = { ll: 'soft, curved lines', lr: 'long, straight lines
 
 // Cell id prefix: 'w' woman / 'm' man ('unspecified' rides the woman catalog,
 // mirroring today's render-surface behaviour). Legacy ids are all 'w-…'.
+// The generic models (Phase 0 · 0.4): three catalog cells across the skin
+// range, the same three for every account (Annie, 17 Oct). The first is
+// the client's own generic cell (_lkGenericId), so the draft canvas and
+// the first of the three ways show the same woman.
+const GENERIC_CELLS = {
+  woman: ['w-s4-h1-nt', 'w-s1-h0-nt', 'w-s7-h3-nt'],
+  man: ['m-s4-h1-nt', 'm-s1-h0-nt', 'm-s7-h3-nt'],
+};
+function genericCellsFor(gender) { return GENERIC_CELLS[gender === 'man' ? 'man' : 'woman']; }
 function parseAvatarId(id) {
   const m = /^([wm])-s([0-7])-h([0-4])-(hg|pe|re|it|ap|nt)((?:-(?:ll|lr|fl|fr))*)$/.exec(String(id || ''));
   if (!m) return null;

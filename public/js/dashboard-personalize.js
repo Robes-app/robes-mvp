@@ -15118,8 +15118,8 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
       // first time ever it also teaches the gesture. The looks she keeps
       // wait in Suggested until she saves them; a passed look is gone.
       var _lkDeck = null;
-      var _LK_DECK_LINES = ['Dressing it three ways', 'Looking at the hem', 'Choosing the shoes', 'Finding a layer', 'Weighing the bag', 'Setting the colour'];
-      var _LK_DECK_LINES_PROMPT = ['Reading your words', 'Choosing the pieces', 'Setting the tone', 'Finding the shoes', 'Weighing a layer'];
+      var _LK_DECK_LINES = ['Generating a look', 'Looking at the hem', 'Choosing the shoes', 'Finding a layer', 'Weighing the bag', 'Setting the colour'];
+      var _LK_DECK_LINES_PROMPT = ['Generating a look', 'Reading your words', 'Choosing the pieces', 'Setting the tone', 'Finding the shoes', 'Weighing a layer'];
       var _LK_DECK_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
       function _lkDeckSeenKey() { const u = _waUid(); return u ? 'rb_lk_deck_seen__' + u : null; }
       function _lkDeckSetRows(setId) {
@@ -15266,7 +15266,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
         const id = _waEsc(String(l.id));
         return '<div class="rb-deck-card' + (o.top ? ' top' : ' under u' + o.depth) + '" data-deck="' + id + '"' + (o.top ? ' role="button" tabindex="0" aria-label="' + _waEsc('Open ' + (l.name || 'this look')) + '"' : ' aria-hidden="true"') + '>' +
           '<div class="rb-deck-im">' + _ltMosaicHtml(photo ? [] : _ltCells(_lkPieceIds(l)), { photo: photo || null, alt: l.name || 'A look' }) +
-            (o.top ? '<span class="rb-deck-stamp keep" aria-hidden="true">✓ Keep</span><span class="rb-deck-stamp pass" aria-hidden="true">✕ Pass</span>' : '') + '</div>' +
+            (o.top ? '<span class="rb-deck-stamp keep" aria-hidden="true">✓ Keep</span><span class="rb-deck-stamp pass" aria-hidden="true">✕ Pass</span>' + _lkModelBadgeHtml({ from: 'deck_badge', stop: true }) : '') + '</div>' +
           '<div class="rb-deck-info"><div class="rb-deck-t">' + _waEsc(l.name || 'A look') + '</div><div class="rb-deck-m">' + _waEsc(_lkN(n, 'piece')) + '</div></div>' +
         '</div>';
       }
@@ -15279,8 +15279,8 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
         const im = photo
           ? '<img src="' + _waEsc(photo) + '" alt="">'
           : '<div class="rb-deck-quote"><span class="q">“</span>' + (d.prompt ? '<span class="w">' + _waEsc(d.prompt.slice(0, 90)) + '</span>' : '') + '</div>';
-        return '<div class="rb-deck-card top dress" aria-live="polite">' +
-          '<div class="rb-deck-im">' + im + '</div>' +
+        return '<div class="rb-deck-card top dress scanning" aria-live="polite">' +
+          '<div class="rb-deck-im">' + im + _rbScanHtml() + '</div>' +
           '<div class="rb-deck-info"><div class="rb-deck-t">' + _waEsc(wi ? ('Your ' + nm) : 'Robes is composing') + '</div><div class="rb-deck-m" id="rb-deck-line">' + _waEsc(lines[d.lineI % lines.length]) + '</div></div>' +
         '</div>';
       }
@@ -15302,7 +15302,8 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
         // build hers. Asked, never guessed: nothing until the id answers.
         let modelLine = '';
         if (_lkModel === undefined) { try { _lkModelEnsure(); } catch (_) {} }
-        else if (_lkModel === null) modelLine = '<span class="rb-deck-model">A Robes model wears these for now. <button type="button" onclick="window.__rbModelGo(\'deck\')">Build your model</button></span>';
+        // No twin: the card's "Generic model ›" tag carries the door (Phase 0 · 0.4).
+        else if (_lkModel === null) modelLine = '';
         else modelLine = '<span class="rb-deck-model">Each look, shot on your model.</span>';
         const waiting = _lkDeckWaiting();
         const curId = d.order[d.at] || null;
@@ -16695,7 +16696,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // their place whatever the pad beneath says.
         const tile = _ltTile({ eyebrow: 'Suggested', title: l.name, cells: photo ? [] : _ltCells(_lkPieceIds(l)), photo, meta },
             { body: "window.__lkSuggOpen('" + id + "')", extraClass: 'lt-card lt-sugg' })
-          .replace('</div><div class="lt-info">', mark + (busy ? '<span class="lt-chip">Creating her frame…</span>' : '') + '</div><div class="lt-info">');
+          .replace('</div><div class="lt-info">', mark + (busy ? _rbScanHtml() + '<span class="lt-chip">Generating a look…</span>' : '') + '</div><div class="lt-info">');
         return '<div class="rb-lk-tilewrap rb-lk-sugwrap' + (busy ? ' busy' : '') + '" data-sugg="' + id + '">' + tile +
           '<div class="lt-sugacts">' +
             '<button type="button" class="lt-sugbtn lt-swap" onclick="window.__lkSuggSwap(\'' + id + '\',event)" aria-label="Swap this look" title="Swap this look"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg></button>' +
@@ -16763,9 +16764,12 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         _lkGuideUse();
         window.__lkOpen(l.id, { from: { label: 'Lookbook', go: function() { window.__lkGo(); } } });
         _waShowToast('Saved to your lookbook');
-        if (hint && window.__lkDiaryOpen) {
-          setTimeout(() => { try { window.__lkDiaryOpen(hint); } catch (_) {} }, 60);
-          _rbTrack('look_saved_then_dated', { hint, from: 'suggested' });
+        // Save opens the calendar (Phase 0 · 0.2, Annie 17 Oct): the
+        // existing diary sheet, every time — the day the ask named
+        // preselected when there was one; closing it is the "not yet".
+        if (window.__lkDiaryOpen) {
+          setTimeout(() => { try { window.__lkDiaryOpen(hint || null); } catch (_) {} }, 60);
+          _rbTrack('look_saved_then_dated', { hint: hint || null, from: 'suggested' });
         }
         _waV2Sync();
         _rbTrack('look_saved_from_suggested', { pieces: (l.pieces || []).length, proposed: (l.proposals || []).length });
@@ -17369,9 +17373,41 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // this look is in flight (slice 2, 2026-09-18 — the day page's chip,
       // on the look page). The landing frame repaints it away.
       function _lkFrameBusyHtml(l) {
-        if (!l || !_lkModel || !_avBusy[l.id]) return '';
-        return '<span class="rb-lk-framebusy">Creating ' + _waEsc(_lkModelPro().her) + ' frame…</span>';
+        if (!l) return '';
+        // A suggested look whose frame is still coming (Phase 0 · 0.5):
+        // the scanner over the mosaic, never the bare pieces at rest.
+        if (l.status === 'suggested' && _lkSuggBusy[l.id] && !_pdHttp(l.photo_url)) return _rbScanHtml() + '<span class="rb-lk-framebusy">Generating a look…</span>';
+        if (!_lkModel || !_avBusy[l.id]) return '';
+        return _rbScanHtml() + '<span class="rb-lk-framebusy">Creating ' + _waEsc(_lkModelPro().her) + ' frame…</span>';
       }
+      // The scanner (Phase 0 · 0.5, Annie 17 Oct): while a look is being
+      // made the piece or the look is SCANNED — a rose line sweeping it top
+      // to bottom and back (the onboarding piece page's read) — so a card
+      // never reads as the piece or the prompt at rest. One primitive for
+      // the overlay before the deck, the deck's dressing card, a suggested
+      // tile whose frame is coming, and the look page's busy frame.
+      function _rbScanCss() {
+        if (document.getElementById('rb-scan-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-scan-style';
+        st.textContent =
+          '.rb-scan{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;border-radius:inherit}' +
+          '.rb-scan i{position:absolute;left:0;right:0;top:0;height:2px;background:var(--rose,#A4767A);box-shadow:0 0 14px 4px rgba(142,112,119,.35);animation:rbScan 1.6s ease-in-out infinite alternate}' +
+          '@keyframes rbScan{0%{top:0}100%{top:calc(100% - 2px)}}' +
+          '.rb-scanframe{position:relative;width:min(200px,54vw);aspect-ratio:4/5;border-radius:14px;overflow:hidden;background:var(--cream-100,#F7F4EE);box-shadow:0 10px 30px rgba(32,32,33,.08)}' +
+          '.rb-scanframe img{width:100%;height:100%;object-fit:cover;display:block}' +
+          '.rb-scanframe .q{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;text-align:center;font-family:var(--font-serif,Cormorant,Georgia,serif);font-style:italic;font-size:19px;line-height:1.3;color:var(--ink-soft,#55524E)}' +
+          '@media (prefers-reduced-motion:reduce){.rb-scan i{animation:none;top:50%}}';
+        document.head.appendChild(st);
+      }
+      function _rbScanHtml() { _rbScanCss(); return '<span class="rb-scan" aria-hidden="true"><i></i></span>'; }
+      // The scanned subject: the photograph, or her words on a card.
+      function _rbScanFrameHtml(img, words) {
+        _rbScanCss();
+        const inner = img ? '<img src="' + _waEsc(img) + '" alt="">' : '<div class="q">“' + _waEsc(String(words || '').slice(0, 90)) + '”</div>';
+        return '<div class="rb-scanframe" id="rb-scanframe">' + inner + _rbScanHtml() + '</div>';
+      }
+      var _RB_SCAN_LINES = ['Generating a look', 'Choosing the shoes', 'Finding a layer', 'Setting the colour', 'On a Robes model for now'];
       // The look head's right slot (Annie, 2026-10-06 third pass: a bare
       // "Robes" was unclear): "Composed by Robes" when Robes composed it —
       // a prompt, a key piece, a day, a trip, or a build carrying proposals —
@@ -17407,7 +17443,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           return '<div class="rbc-panel rb-lkm-panel"><div class="rbc-lhead">' +
             '<span class="lab">' + (props.length ? 'The look · ' + ids.length + ' yours, ' + props.length + ' to find' : headLabel) + '</span>' + credit + '</div>' +
             (o.occHtml || '') +
-            '<div class="rb-lkm-canvas photo"><div class="rb-lkm-photo"><img src="' + _waEsc(o.dPhoto) + '" alt="' + (o.dFrame ? '' : 'Your photograph of ') + _waEsc(l.name) + '"></div>' + acts + shareBadge + '</div>' +
+            '<div class="rb-lkm-canvas photo"><div class="rb-lkm-photo"><img src="' + _waEsc(o.dPhoto) + '" alt="' + (o.dFrame ? '' : 'Your photograph of ') + _waEsc(l.name) + '"></div>' + acts + shareBadge + (o.dFrame ? _lkModelBadgeHtml({ from: 'look_badge' }) : '') + '</div>' +
             noteHtml +
             tail + actionHtml +
             '</div>';
@@ -17721,7 +17757,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           html: _lkPropRowHtml(row, i, _lkPropDetailFrame(row),
             editing
               ? { swap: '__lkDPropSwap', save: '__lkPropSave', open: '__lkPropOpen', remove: '__lkDPropRemove' }
-              : { readOnly: true, open: '__lkPropOpen' },
+              : sugg ? { swap: '__lkSgPropSwap', open: '__lkPropOpen' } : { readOnly: true, open: '__lkPropOpen' },
             lpDraft0 ? { was: lpDraft0.was, styled: lpDraft0.styled, back: lpDraft0.back } : null),
         }));
         const rackEmpty = ownedNone && !props.length;
@@ -17779,11 +17815,16 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           thirdHtml: '',
         }));
         // The rack READS (handoff 5b): rows carry the piece's wear count
-        // and › alone — no ↻ at rest, so a swap always goes through edit
-        // mode. The swap zone and the head's Edit & resave are gone: the
-        // pinned bar below is the one edit door. An EMPTY rack is the
-        // dashed door (6d) — "Add the pieces you wore", which opens edit
+        // and › alone — no ↻ at rest on a SAVED look, so a swap goes through
+        // edit mode there. The swap zone and the head's Edit & resave are
+        // gone: the pinned bar below is the one edit door. An EMPTY rack is
+        // the dashed door (6d) — "Add the pieces you wore", which opens edit
         // mode; a photograph-only look reads "Photograph · not yet filed".
+        // A SUGGESTED look is the exception (Phase 0 · 0.1, Annie 17 Oct):
+        // its rows carry ↻ at rest — the wardrobe sheet in swap mode,
+        // Photograph one first — and the swap lands on the row in place,
+        // behind Undo. "I own white sneakers" is one tap, never Edit →
+        // Swap → Photograph.
         h += '<div class="rb-lk-sec rb-lk-rackhead rb-lk-rackhead-read"><span>The rack · ' + _lkN(pieceN, 'piece') + '</span><span style="flex:1"></span>' +
           '</div>' +
           '<div class="rbc-rack">' +
@@ -17791,7 +17832,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
             ? '<div class="rb-lk-guide plain rb-lk-emptydoor"><div class="gh">Add the pieces you wore</div>' +
                 '<div class="gd">' + (dPhoto ? 'Photograph · not yet filed' : 'Nothing hangs here yet') + '</div>' +
                 '<div class="ga"><button type="button" class="rb-pill" onclick="window.__lkEditToggle()">+ Add pieces</button></div></div>'
-            : _rbRackRolesHtml(rackItems, { trail: true, filledOnly: true, noStrips: true, onRoleDrop: '__lkDRoleDrop', onPiece: '__lkPieceOpen' }, propEmpties)) +
+            : _rbRackRolesHtml(rackItems, Object.assign({ trail: true, filledOnly: true, noStrips: true, onRoleDrop: '__lkDRoleDrop', onPiece: '__lkPieceOpen' }, sugg ? { onSwap: '__lkSgSwap' } : {}), propEmpties)) +
           '</div>';
         // The PINNED bar (handoff 5a): the facts + Edit look as a hairline
         // pill, visible at every scroll position — no ink fill at rest.
@@ -18925,9 +18966,15 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       }
       // The model's tag: only on the generic model — her own carries none.
       // A tap opens the twin drawer (design 1a), never a navigation.
-      function _lkModelBadgeHtml() {
+      // o.from names the surface for the event; o.stop keeps the tap off a
+      // parent that drags or opens (the deck card) — Phase 0 · 0.4: every
+      // look with no twin on file carries the tag, into the same drawer.
+      function _lkModelBadgeHtml(o) {
         if (_lkModel !== null) return '';
-        return '<button type="button" class="rb-lkm-badge" onclick="window.__lkTwinBadge()" aria-label="Generic model — see every look on you">' +
+        o = o || {};
+        const from = _waEsc(o.from || 'draft_badge');
+        const stop = o.stop ? ' onpointerdown="event.stopPropagation()" onpointerup="event.stopPropagation()"' : '';
+        return '<button type="button" class="rb-lkm-badge"' + stop + ' onclick="event.stopPropagation();window.__lkTwinBadge(\'' + from + '\')" aria-label="Generic model — see every look on you">' +
           '<span class="dot" aria-hidden="true"></span>Generic model<span class="ch" aria-hidden="true">›</span></button>';
       }
       // Everything that sits ON the composer's model canvas.
@@ -18942,8 +18989,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // card on the web, over the draft — Upload digital twin (the one ink;
       // the draft is parked for the trip), or keep styling on the generic
       // model (closes it, nothing changes).
-      window.__lkTwinBadge = function() {
-        _rbTrack('model_door_tapped', { from: 'draft_badge' });
+      window.__lkTwinBadge = function(from) {
+        _rbTrack('model_door_tapped', { from: from || 'draft_badge' });
         document.getElementById('rb-lk-twinsheet')?.remove();
         const pro = _lkModelPro();
         const w = document.createElement('div');
@@ -20557,6 +20604,94 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         });
       };
       window.__lkPropSwap = window.__lkDPropSwap;
+      // ── Phase 0 · 0.1 (2026-10-17): swap on the SUGGESTED look, in place ──
+      // F8's rows carry ↻ at rest. Her piece (the sheet, or one she
+      // photographs there) takes the row's place on the suggested row
+      // itself — status unchanged, the frame re-drawn for the new
+      // composition through the frame path, the change behind the Undo
+      // pill. No Edit, no draft, no Update. Save is still the one way into
+      // the Lookbook.
+      function _lkSgSnapshot(l) { return JSON.stringify({ pieces: (l.pieces || []).map(p => ({ id: p.id, slot: p.slot || null, role: p.role || null })), proposals: l.proposals || null }); }
+      function _lkSgRestore(l, snap) {
+        const s = JSON.parse(snap);
+        l.proposals = s.proposals;
+        _lkPatch(l.id, { proposals: s.proposals }, false);
+        _lkCommitPieces(l, s.pieces);
+        _lkSuggCacheWrite();
+        _lkPaint();
+      }
+      function _lkSgSnap(after) {
+        _waEditId = null;
+        _waAfterAdd = after;
+        if (window.WA && WA.open) WA.open();
+        let tries = 0;
+        const poke = () => {
+          const inp = document.getElementById('wa-rb-file');
+          if (inp) { inp.click(); return; }
+          if (++tries < 8) setTimeout(poke, 120);
+        };
+        setTimeout(poke, 220);
+      }
+      function _lkSgSwapApply(l, fromId, toId) {
+        const wi = _waItems.find(w => String(w.id) === String(toId));
+        if (!l || !wi) return;
+        if ((l.pieces || []).some(p => String(p.id) === String(toId))) { _waShowToast('Already in this look'); return; }
+        const before = _lkSgSnapshot(l);
+        const prev = _waItems.find(w => String(w.id) === String(fromId));
+        const pieces = (l.pieces || []).map(p => String(p.id) === String(fromId) ? { id: wi.id, slot: p.slot || null, role: p.role || null } : p);
+        _lkCommitPieces(l, pieces);
+        _lkSuggCacheWrite();
+        _lkPaint();
+        _rbTrack('piece_swapped', { surface: 'suggested', item: String(toId), out: prev ? prev.label : '', in: wi.label, cat: wi.category || '' });
+        if (prev) _rbMemorySwap('suggested', prev.label, wi.label, wi.category);
+        _rbUndoPill(_rbSdShort(wi.label) + ' swapped in', () => _lkSgRestore(l, before));
+      }
+      window.__lkSgSwap = function(idx) {
+        const l = _lkFind(_lkActive);
+        if (!l || l.status !== 'suggested') return;
+        const p = (l.pieces || [])[idx];
+        const wi = p && _waItems.find(w => String(w.id) === String(p.id));
+        if (!wi) return;
+        const orig = String(wi.id);
+        _rbTrack('swap_drawer_opened', { surface: 'suggested', cat: _waSheetCatOf(wi) || wi.category });
+        window.__cbWardrobePick({
+          swap: { item: wi }, title: 'Swap ' + _rbLpThe(_rbSdShort(wi.label)),
+          cat: _waSheetCatOf(wi) || 'All', exclude: (l.pieces || []).map(q => String(q.id)).filter(x => x !== orig),
+          onPick: it => { if (String(it.id) === orig) return; _lkSgSwapApply(l, orig, it.id); },
+          onSnap: () => _lkSgSnap(newId => _lkSgSwapApply(l, orig, newId)),
+        });
+      };
+      function _lkSgPropApply(l, i, wid) {
+        const wi = _waItems.find(w => String(w.id) === String(wid));
+        if (!l || !wi || !Array.isArray(l.proposals) || !l.proposals[i]) return;
+        const before = _lkSgSnapshot(l);
+        const out = _lkPropName(l.proposals[i]);
+        if (!_lkPropAdopt(l, i, wi)) return;
+        _lkCommitPieces(l, l.pieces);
+        _lkSuggCacheWrite();
+        _lkPaint();
+        _rbTrack('piece_swapped', { surface: 'suggested-proposal', out, in: wi.label, cat: wi.category || '' });
+        _rbMemorySwap('suggested-proposal', out, wi.label, wi.category);
+        _rbUndoPill(_rbSdShort(wi.label) + ' swapped in', () => _lkSgRestore(l, before));
+      }
+      window.__lkSgPropSwap = function(i) {
+        const l = _lkFind(_lkActive);
+        if (!l || l.status !== 'suggested') return;
+        const row = (l.proposals || [])[i];
+        if (!row) return;
+        const name = _lkPropName(row);
+        const still = (row.img_oi == null || row.img_oi === (row.oi || 0)) ? row.image_url : null;
+        const cat0 = (row.cats || [])[0] || '';
+        _rbTrack('swap_drawer_opened', { surface: 'suggested-proposal', cat: cat0 });
+        window.__cbWardrobePick({
+          swap: { item: { id: null, label: name, image_url: still, category: cat0 }, cat: _WA_LEGACY_TO_SHEET[cat0] || cat0 || 'Other' },
+          title: 'Swap ' + _rbLpThe(_rbSdShort(name)),
+          cat: _WA_LEGACY_TO_SHEET[cat0] || cat0 || 'All',
+          exclude: (l.pieces || []).map(p => String(p.id)),
+          onPick: it => _lkSgPropApply(l, i, it.id),
+          onSnap: () => _lkSgSnap(newId => _lkSgPropApply(l, i, newId)),
+        });
+      };
       // The ONE adoption path: her piece takes the proposal's slot (and
       // its role), the proposal comes off the rack, the composition
       // persists. The per-row Swap (one gap, one piece) and slice 4's
@@ -21395,6 +21530,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           twinOnFile: !!(_lkModel && typeof _lkModel === 'object') || !!dna.color_harmony || !!dna.silhouette_proportions,
           pics: _rbHomePics().length,
           ownLookSaved: _rbHomeOwnLook(),
+          anyLook: !!(_lkLoaded && (_lkLooks || []).some(l => l && !l._draft)),
           snoozed: _rbHomeSnoozed(),
           rows,
         };
@@ -21415,6 +21551,10 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const modules = ['H0', 'H1', 'H2'];
         if (!activated) {
           if (styled) modules.push('STYLED');
+          // The week stands from the FIRST saved look (Phase 0 · 0.3, Annie
+          // 17 Oct) — a look reaches a day here, so the day has to be on
+          // the screen the moment there is a look to put on it.
+          if (st.anyLook) modules.push('H3');
           if (next) modules.push(next);
           modules.push('G1', 'H4');
         } else {
@@ -21684,7 +21824,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           let line = String(pending.text || '').trim();
           if (line.length > 40) line = line.slice(0, 40).replace(/\s+\S*$/, '') + '…';
           out.push({ kind: 'observation', ey: 'Robes noticed', line: _waEsc(line), thumb: '<span class="th one">✦</span>',
-            acts: '<button type="button" onclick="window.__rbHomeAlert(\'keep\')">Keep ›</button><button type="button" class="quiet" onclick="window.__rbHomeAlert(\'no\')">Not me</button>' });
+            acts: '<button type="button" onclick="window.__rbHomeAlert(\'keep\')">That’s right ›</button><button type="button" class="quiet" onclick="window.__rbHomeAlert(\'no\')">Not quite</button>' });
         }
         return out;
       }
@@ -21761,10 +21901,12 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const listHtml = ready && r.modules.indexOf('G1') > -1 ? _rbHomeListHtml(r, st) : '';
         if (listHtml) { if (!list) list = _rbHomeSection('rb-onb-list'); if (list.getAttribute('data-html') !== listHtml) { list.innerHTML = listHtml; list.setAttribute('data-html', listHtml); } _rbHomeView('G1'); }
         else if (list) list.remove();
-        // H3: the week stands on the activated home alone
+        // H3: the week stands once a look is saved (and on the activated home)
+        const railOn = r.modules.indexOf('H3') > -1;
+        window._rbHomeWeekOn = railOn;
         const rail = document.getElementById('rb-rail');
-        if (rail) rail.style.display = r.activated ? '' : 'none';
-        if (r.activated) _rbHomeView('H3');
+        if (rail) rail.style.display = railOn ? '' : 'none';
+        if (railOn) _rbHomeView('H3');
         // H4
         if (typeof _rbRenderStyleNotes === 'function') _rbRenderStyleNotes();
         if (typeof _rbRenderInspRow === 'function') _rbRenderInspRow();
@@ -22717,12 +22859,16 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         // is filed first, then the Put-in-the-Diary sheet rises on the
         // look's own page with the day her words named preselected.
         // Closing the sheet leaves the look dated nothing.
-        if (dateHint && window.__lkOpen && window.__lkDiaryOpen) {
+        // Save opens the calendar (Phase 0 · 0.2, Annie 17 Oct): EVERY save
+        // lands on the look's own page with the diary sheet rising on it —
+        // the day her words named preselected when there was one, nothing
+        // preselected otherwise; closing it is the "not yet".
+        if (window.__lkOpen && window.__lkDiaryOpen) {
           window.__lkOpen(l.id, { from: hintFrom && window.__rbDayOpen
             ? { label: _lkFmtDay(hintFrom), go: function() { window.__rbDayOpen(hintFrom, { from: 'diary' }); } }
-            : { label: 'Home', go: function() { window.__rbNavGo && window.__rbNavGo('home'); } } });
-          setTimeout(() => { try { window.__lkDiaryOpen(dateHint); } catch (_) {} }, 60);
-          _rbTrack('look_saved_then_dated', { hint: dateHint });
+            : { label: 'Lookbook', go: function() { window.__lkGo(); } } });
+          setTimeout(() => { try { window.__lkDiaryOpen(dateHint || null); } catch (_) {} }, 60);
+          _rbTrack('look_saved_then_dated', { hint: dateHint || null });
           _waShowToast(l.name + ' saved to Looks ✓');
           return l;
         }
@@ -29917,14 +30063,26 @@ body>*:not(#tv-result-page){display:none !important}
           : daily
           ? 'One prompt.<br><em>Dressed for anything.</em>'
           : 'Styling your piece<br><em>three ways…</em>';
+        // The scanner (Phase 0 · 0.5): the piece's photograph — or her
+        // words on a card — under the title, a rose line sweeping it, one
+        // evolving line beneath. Never the bare spinner line alone.
+        try {
+          document.getElementById('rb-scanframe')?.remove();
+          const scanImg = photoData || (meta && meta.pieceImage) || null;
+          const scanWords = !scanImg ? prompt : null;
+          if (scanImg || scanWords) loadTitle?.insertAdjacentHTML('afterend', _rbScanFrameHtml(scanImg, scanWords));
+        } catch (_) {}
         overlay.style.display = 'flex';
-        const msgs = ['Generating editorial looks', 'Composing outfits…', 'Creating images…', 'Almost ready…'];
+        const msgs = _RB_SCAN_LINES.slice();
+        if (_lkModel) msgs.pop();   // "On a Robes model for now" is the no-twin line
         let mi = 0;
+        const msgEl0 = document.getElementById('kp-load-msg');
+        if (msgEl0) msgEl0.textContent = msgs[0];
         const msgInterval = setInterval(() => {
-          mi = Math.min(mi + 1, msgs.length - 1);
+          mi = (mi + 1) % msgs.length;
           const el = document.getElementById('kp-load-msg');
           if (el) el.textContent = msgs[mi];
-        }, 8000);
+        }, 2200);
         // Daily Look track carries the real-time context captured by _rbWeather
         // (asked for lazily — see the deferred location note in _rbWeather)
         if (deck && meta && meta.say) { const m0 = document.getElementById('kp-load-msg'); if (m0) m0.textContent = meta.say; }
@@ -31404,7 +31562,8 @@ body>*:not(#tv-result-page){display:none !important}
             // conc.nextSibling would land it).
             conc.parentNode.insertBefore(el, conc.nextSibling);
             // the resolver decides whether the week stands (the activated home)
-            el.style.display = (window._rbHomeActivated === true) ? '' : 'none';
+            // The week stands once a look is saved (Phase 0 · 0.3) — _lkHomeSync decides.
+            el.style.display = (window._rbHomeWeekOn === true) ? '' : 'none';
           }
           return true;
         }

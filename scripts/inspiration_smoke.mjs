@@ -87,7 +87,11 @@ await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
   }
   const u = req.url();
   // One filed piece — the piece the box's wardrobe sheet picks.
-  if (u.includes('wardrobe_items')) return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 'w-kp', user_id: 'u-test', label: 'Umbro shorts', category: 'Bottoms', color: 'Navy', brand: 'Umbro', image_url: 'https://res.cloudinary.com/demo/piece.jpg', times_worn: 3, created_at: '2026-09-01T10:00:00Z', item_dna: {} }]) });
+  if (u.includes('wardrobe_items')) return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
+    { id: 'w-kp', user_id: 'u-test', label: 'Umbro shorts', category: 'Bottoms', color: 'Navy', brand: 'Umbro', image_url: 'https://res.cloudinary.com/demo/piece.jpg', times_worn: 3, created_at: '2026-09-01T10:00:00Z', item_dna: {} },
+    // a second Bottoms piece, older — the swap on the suggested look (Phase 0 · 0.1) offers it for the shorts
+    { id: 'w-b2', user_id: 'u-test', label: 'Black jeans', category: 'Bottoms', color: 'Black', brand: '', image_url: 'https://res.cloudinary.com/demo/jeans.jpg', times_worn: 1, created_at: '2026-08-01T10:00:00Z', item_dna: {} },
+  ]) });
   return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
 });
 await page.route('**nominatim**', (r) => r.abort());
@@ -149,7 +153,7 @@ const opened = await page.evaluate(() => ({ dock: !!document.querySelector('#rb-
   chips: Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-cat')).map((b) => b.textContent + (b.classList.contains('on') ? '*' : '')), tiles: document.querySelectorAll('#cb-wa-pick .cb-pick-tile').length }));
 check('the door opens the box docked over a dimmed screen — the + inside the field, "Where to, and how should it feel?" — with the wardrobe sheet already open (its title, its line, All + her categories, her pieces)',
   opened.dock && opened.scrim && opened.plus && opened.ph === 'Where to, and how should it feel?' && opened.sheet && opened.title === 'From your wardrobe' && opened.sub === 'Pick the piece to start from.'
-    && JSON.stringify(opened.chips) === JSON.stringify(['All*', 'Bottoms']) && opened.tiles === 1, JSON.stringify(opened));
+    && JSON.stringify(opened.chips) === JSON.stringify(['All*', 'Bottoms']) && opened.tiles === 2, JSON.stringify(opened));
 
 // 2 · A pick lands INSIDE the box above her words (HomePrompt, 2026-10-15):
 // the piece card, no modes, the line asking where it is going, the arrow
@@ -177,6 +181,8 @@ await page.fill('#rb-lp-in', 'for the weekend');
 await page.evaluate(() => window.__rbLpSend());
 await page.waitForTimeout(400);
 check('the box closes on send and the styling overlay stands in', !(await page.locator('#rb-lp').count()) && await page.locator('#kp-loading-overlay').isVisible());
+const scanOv = await page.evaluate(() => ({ frame: !!document.querySelector('#kp-loading-overlay #rb-scanframe'), line: !!document.querySelector('#kp-loading-overlay #rb-scanframe .rb-scan i'), msg: document.getElementById('kp-load-msg')?.textContent }));
+check('the overlay is the SCANNER (Phase 0 · 0.5): the piece on a card with the sweeping line, "Generating a look" beneath — never the bare spinner line', scanOv.frame && scanOv.line && scanOv.msg === 'Generating a look', JSON.stringify(scanOv));
 await page.waitForTimeout(1200);
 check('one /api/style call, the brief led by the piece with its wear count and her words finishing the sentence', styleCalls === 1 && stylePost && stylePost.prompt === 'Style my Umbro shorts three ways (worn 3 times) for the weekend' && stylePost.intent === 'style', JSON.stringify(stylePost && stylePost.prompt));
 await page.unroute('**/api/style', styleCapture);
@@ -191,6 +197,8 @@ const deckRead = () => page.evaluate(() => ({
   line: document.getElementById('rb-deck-line')?.textContent, teach: document.querySelector('.rb-deck-teach')?.textContent, arrows: document.querySelectorAll('.rb-deck-arrow').length,
   top: document.querySelector('.rb-deck-card.top .rb-deck-t')?.textContent, topM: document.querySelector('.rb-deck-card.top .rb-deck-m')?.textContent, topPhoto: document.querySelector('.rb-deck-card.top .lt-photo')?.getAttribute('src'),
   dress: !!document.querySelector('.rb-deck-card.top.dress'), under: document.querySelectorAll('.rb-deck-card.under').length,
+  scan: !!document.querySelector('.rb-deck-card.top.dress .rb-deck-im .rb-scan i'), badge: document.querySelector('.rb-deck-card.top:not(.dress) .rb-lkm-badge')?.textContent.replace(/\s+/g, ' ').trim() || null,
+  modelLine: document.querySelector('.rb-deck-model')?.textContent || null,
   dots: Array.from(document.querySelectorAll('.rb-deck-dots i')).map((i) => (i.classList.contains('on') ? 1 : 0)),
   btns: Array.from(document.querySelectorAll('.rb-deck-btn')).map((b) => b.getAttribute('aria-label') + ':' + getComputedStyle(b).backgroundColor),
   bar: document.getElementById('rb-lk-bar')?.style.display, grid: document.getElementById('rb-lk-grid')?.style.display,
@@ -201,12 +209,14 @@ const deckRead = () => page.evaluate(() => ({
 const land = await deckRead();
 check('F14·0 · the send lands on the DECK inside the Lookbook — never the kp page, never the grid — ‹ Shorts, "Around your shorts", "Your shorts, three ways.", no masthead, no grid',
   land.sn === 'block' && land.kp === 'none' && /dressing/.test(land.cls || '') && land.band === 'Shorts' && land.ey === 'Around your shorts' && land.title === 'Your shorts, three ways.' && land.bar === 'none' && land.grid === 'none', JSON.stringify(land));
+check('F14·0 · the dressing card is SCANNED (Phase 0 · 0.5) — the line sweeps her piece while the frames compose; no "Build your model" text line (the tag on the card carries it)', land.scan && land.modelLine == null, JSON.stringify([land.scan, land.modelLine]));
 check('F14·0 · her piece is the top card while the frames compose — "Your shorts" over the changing line, three empty dots, the gesture taught the first time (hairline arrows, no ink anywhere)',
-  land.dress && land.top === 'Your shorts' && land.line === 'Dressing it three ways' && land.teach === 'Swipe left to pass, right to keep.' && land.arrows === 2 && JSON.stringify(land.dots) === '[0,0,0]' && land.btns.length === 0 && land.inks.length === 0, JSON.stringify(land));
+  land.dress && land.top === 'Your shorts' && land.line === 'Generating a look' && land.teach === 'Swipe left to pass, right to keep.' && land.arrows === 2 && JSON.stringify(land.dots) === '[0,0,0]' && land.btns.length === 0 && land.inks.length === 0, JSON.stringify(land));
 await page.waitForTimeout(6500);
 const live = await deckRead();
 check('F14·1 · the first ready look replaces the card as its frame lands (the job delivers way 1 first), the other two join behind it once the job settles: one deck, "Urbane Weekend · 4 pieces" on top, two under, the first dot on',
   j1Polls >= 2 && /live/.test(live.cls || '') && live.top === 'Urbane Weekend' && live.topM === '4 pieces' && live.topPhoto === 'https://res.cloudinary.com/demo/way1.jpg' && live.under === 2 && JSON.stringify(live.dots) === '[1,0,0]' && !live.line && !live.teach, JSON.stringify(live));
+check('F14·1 · the live card wears "Generic model ›" (Phase 0 · 0.4) — no twin on file, the tag into the twin drawer', /^Generic model/.test(live.badge || ''), JSON.stringify(live.badge));
 check('F14·1 · ✕ hairline, ✓ the one ink fill on the screen', JSON.stringify(live.btns) === JSON.stringify(['Pass:rgb(255, 255, 255)', 'Keep:rgb(32, 32, 33)']) && JSON.stringify(live.inks) === JSON.stringify(['Keep']), JSON.stringify([live.btns, live.inks]));
 const framePatch = writes.find((w) => w.method === 'PATCH' && /^looks\?/.test(w.url) && w.body && w.body.photo_url === 'https://res.cloudinary.com/demo/way1.jpg');
 check('the landed frame is PATCHed onto its row', !!framePatch);
@@ -310,13 +320,47 @@ const f8 = await page.evaluate(() => ({
   bar: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-suggbar button')).map((b) => b.textContent), fb: document.querySelector('#rb-lk-body .rb-fb-title')?.textContent,
   worn: !!document.querySelector('#rb-lk-body .rb-lk-worn'), foot: !!document.querySelector('#rb-lk-body .rb-lk-foot'), acts: document.querySelectorAll('#rb-lk-body .rb-lk-imgacts button').length, tags: !!document.querySelector('#rb-lk-body .rbc-tags'),
   credit: /Composed by Robes/.test(document.querySelector('#rb-lk-body .rbc-panel')?.textContent || ''),
+  badge: document.querySelector('#rb-lk-body .rb-lkm-canvas .rb-lkm-badge')?.textContent.replace(/\s+/g, ' ').trim() || null,
+  names: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((e) => e.textContent.trim()),
   note: document.querySelector('#rb-lk-body .rbc-quote')?.textContent?.trim(),
   inks: Array.from(document.querySelectorAll('#rb-lk-body button')).filter((b) => b.getBoundingClientRect().height > 20 && getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').map((b) => b.textContent.trim()),
 }));
 check('F8 · the note under the frame is the way\'s one scene line, verbatim — never a paragraph naming garments the rack lacks (2026-10-13)', f8.note === 'A slow Saturday in the city, the tank half-tucked and the layer worn open, easy and unhurried.', JSON.stringify(f8.note));
 check('F8 · ‹ Suggested, eyebrow "Suggested · around your shorts", the title, "4 pieces", Composed by Robes', f8.band === 'Suggested' && f8.ey === 'Suggested · around your shorts' && f8.title === 'Urbane Weekend' && f8.meta === '4 pieces' && f8.credit, JSON.stringify(f8));
-check('F8 · the rack READS — four rows in the fifth pass\'s anatomy (Category · Brand), › alone: no ↻, no ♥; no camera, no diary, no tags, no wear record, no delete',
-  f8.rows === 4 && f8.eyes.length === 4 && f8.eyes.some((e) => /^Bottoms · Umbro$/.test(e)) && f8.swaps === 0 && f8.hearts === 0 && f8.more === 4 && f8.acts === 0 && !f8.tags && !f8.worn && !f8.foot, JSON.stringify(f8));
+check('F8 · the rack READS — four rows in the fifth pass\'s anatomy (Category · Brand), ↻ and › on every row (Phase 0 · 0.1), no ♥; no camera, no diary, no tags, no wear record, no delete',
+  f8.rows === 4 && f8.eyes.length === 4 && f8.eyes.some((e) => /^Bottoms · Umbro$/.test(e)) && f8.swaps === 4 && f8.hearts === 0 && f8.more === 4 && f8.acts === 0 && !f8.tags && !f8.worn && !f8.foot, JSON.stringify(f8));
+check('F8 · the frame wears "Generic model ›" too (Phase 0 · 0.4)', /^Generic model/.test(f8.badge || ''), JSON.stringify(f8.badge));
+// ↻ on her row (the shorts): the wardrobe sheet in swap mode, one tap swaps
+// the jeans in ON THE SUGGESTED ROW — no Edit, no draft, status unchanged,
+// behind Undo (Phase 0 · 0.1).
+const shortsIdx = await page.evaluate(() => (JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').find((x) => x.name === 'Urbane Weekend')?.pieces || []).findIndex((p) => String(p.id) === 'w-kp'));
+const wbSw = writes.length;
+const sgSheet = await page.evaluate((i) => {
+  window.__lkSgSwap(i);
+  const m = document.getElementById('cb-wa-pick');
+  return { open: !!m, ey: m?.querySelector('.cb-pick-ey')?.textContent, title: m?.querySelector('.cb-pick-title')?.textContent, tiles: Array.from(m?.querySelectorAll('.cb-pick-tile:not(.cb-pick-photo) .cb-pick-name, .cb-pick-tile:not(.cb-pick-photo)') || []).map((t) => t.textContent.trim()).filter(Boolean), photo: !!m?.querySelector('.cb-pick-photo') };
+}, shortsIdx);
+check('F8 · ↻ on her row opens the wardrobe sheet in swap mode — "Swap the shorts", Photograph one first, the jeans offered', sgSheet.open && sgSheet.ey === 'Swap from your wardrobe' && /^Swap the/.test(sgSheet.title || '') && sgSheet.photo && sgSheet.tiles.some((t) => /Black jeans/.test(t)), JSON.stringify(sgSheet));
+await page.evaluate(() => { const t = Array.from(document.querySelectorAll('#cb-wa-pick .cb-pick-tile:not(.cb-pick-photo)')).find((x) => /Black jeans/.test(x.textContent)); t.click(); });
+await page.waitForTimeout(500);
+const sgDone = await page.evaluate(() => ({
+  sheet: !!document.getElementById('cb-wa-pick'), names: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((e) => e.textContent.trim()),
+  ey: document.querySelector('#rb-lk-body .rb-lk-eyebrow')?.textContent, bar: Array.from(document.querySelectorAll('#rb-lk-body .rb-lk-suggbar button')).map((b) => b.textContent),
+  editing: !!document.querySelector('#rb-lk-body .rb-lk-editing'), undo: document.getElementById('rb-pick-undo')?.textContent || '',
+  status: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').find((x) => x.name === 'Urbane Weekend')?.status,
+  pieces: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').find((x) => x.name === 'Urbane Weekend')?.pieces.map((p) => p.id),
+}));
+check('F8 · one tap swaps the jeans in ON THE SUGGESTED ROW — no Edit, no draft; the row still reads Suggested with Edit · Save to lookbook, the swap persisted, Undo offered',
+  !sgDone.sheet && sgDone.names.includes('Black jeans') && !sgDone.names.includes('Shorts') && !sgDone.editing && /^Suggested/.test(sgDone.ey || '') && JSON.stringify(sgDone.bar) === JSON.stringify(['Edit', 'Save to lookbook'])
+    && sgDone.status === 'suggested' && JSON.stringify(sgDone.pieces) === JSON.stringify(['w-b2']) && /Undo/.test(sgDone.undo), JSON.stringify(sgDone));
+check('F8 · the swap is recorded as piece_swapped on the suggested surface', writes.slice(wbSw).some((w) => /^events/.test(w.url) && w.body && w.body.event_type === 'piece_swapped' && w.body.metadata && w.body.metadata.surface === 'suggested'), JSON.stringify(writes.slice(wbSw).filter((w) => /^events/.test(w.url)).map((w) => w.body && w.body.event_type)));
+await page.evaluate(() => document.querySelector('#rb-pick-undo button').click());
+await page.waitForTimeout(400);
+const sgUndo = await page.evaluate(() => ({ names: Array.from(document.querySelectorAll('#rb-lk-body .rbc-rack .rbc-name')).map((e) => e.textContent.trim()), pieces: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').find((x) => x.name === 'Urbane Weekend')?.pieces.map((p) => p.id), status: JSON.parse(localStorage.getItem('rb_looks__u-test_sugg') || '[]').find((x) => x.name === 'Urbane Weekend')?.status }));
+check('F8 · Undo puts the shorts back on the suggested row', sgUndo.names.includes('Shorts') && !sgUndo.names.includes('Black jeans') && JSON.stringify(sgUndo.pieces) === JSON.stringify(['w-kp']) && sgUndo.status === 'suggested', JSON.stringify(sgUndo));
+// ↻ on a proposal opens the same sheet on the proposal's category.
+const sgProp = await page.evaluate(() => { window.__lkSgPropSwap(0); const m = document.getElementById('cb-wa-pick'); const r = { open: !!m, ey: m?.querySelector('.cb-pick-ey')?.textContent, title: m?.querySelector('.cb-pick-title')?.textContent, photo: !!m?.querySelector('.cb-pick-photo') }; if (window.__cbPickClose) window.__cbPickClose(); return r; });
+check('F8 · ↻ on a proposal opens the same sheet ("Swap the …", Photograph one swaps a new piece straight in)', sgProp.open && sgProp.ey === 'Swap from your wardrobe' && /^Swap the/.test(sgProp.title || '') && sgProp.photo, JSON.stringify(sgProp));
 check('F8 · the bar is Edit (hairline) · Save to lookbook (the page\'s one ink); the live "How was this look?" row sits at the foot',
   JSON.stringify(f8.bar) === JSON.stringify(['Edit', 'Save to lookbook']) && JSON.stringify(f8.inks) === JSON.stringify(['Save to lookbook']) && f8.fb === 'How was this look?', JSON.stringify([f8.bar, f8.inks, f8.fb]));
 await page.waitForTimeout(4800);
@@ -357,6 +401,11 @@ await page.evaluate(() => window.__lkSaveAsk());
 await page.waitForTimeout(250);
 await page.locator('#rb-lksave-yes').click();
 await page.waitForTimeout(900);
+// Save opens the calendar (Phase 0 · 0.2): the look's page with the diary
+// sheet on it; closing it dates nothing and the grid holds the look.
+const landed = await page.evaluate(() => { const o = { page: !!document.querySelector('.rb-lk-page'), sheet: document.querySelector('#rb-lkdy .who .ey')?.textContent, name: document.querySelector('#rb-lkdy .who .nm')?.textContent }; window.__lkDiaryClose && window.__lkDiaryClose(); o.gone = !document.getElementById('rb-lkdy'); window.__lkGo(); return o; });
+check('F9 · Save lands on the look with the calendar open (Phase 0 · 0.2); closing it is the not-yet', landed.page && landed.sheet === 'Put in the diary' && landed.name === 'Urbane Weekend' && landed.gone, JSON.stringify(landed));
+await page.waitForTimeout(200);
 const saved = await page.evaluate(() => ({
   grid: document.getElementById('rb-lk-grid')?.style.display, tab: document.querySelector('#rb-lk-bar .rb-lk-tab.on')?.textContent, count: document.querySelector('#rb-lk-bar .rb-lk-countline')?.textContent,
   card: document.querySelector('#rb-lk-grid .lt-card .lt-title')?.textContent, meta: document.querySelector('#rb-lk-grid .lt-card .lt-meta')?.textContent, ey: document.querySelector('#rb-lk-grid .lt-card .lt-tag')?.textContent,
@@ -378,7 +427,7 @@ await page.waitForTimeout(1200);
 const sw = await page.evaluate((id) => { const e = document.querySelector('#rb-lk-grid [data-sugg="' + id + '"]'); return { t: e?.querySelector('.lt-title')?.textContent, m: e?.querySelector('.lt-meta')?.textContent, chip: e?.querySelector('.lt-chip')?.textContent, tiles: document.querySelectorAll('#rb-lk-grid [data-sugg]').length }; }, coffee);
 const rb = refineBodies[refineBodies.length - 1];
 check('↻ · the row re-writes in place through /api/style refine (wayIndex = its slot, the set\'s other look named, the same key piece) — a new name, the chip while its frame comes, still two tiles',
-  sw.t === 'Coffee Run, after dark' && sw.m === 'Around your shorts' && sw.chip === 'Creating her frame…' && sw.tiles === 2
+  sw.t === 'Coffee Run, after dark' && sw.m === 'Around your shorts' && sw.chip === 'Generating a look…' && sw.tiles === 2
     && rb && rb.wayIndex === 1 && /same key piece/.test(rb.refine || '') && JSON.stringify(rb.current.others) === JSON.stringify(['Park Hangout']) && rb.current.title === 'Coffee Run',
   JSON.stringify([sw, rb && { wayIndex: rb.wayIndex, others: rb.current && rb.current.others, refine: rb.refine }]));
 await page.waitForTimeout(3200);
