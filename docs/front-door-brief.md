@@ -125,7 +125,7 @@ Felix's principles from the call, as checks a mock can be held to.
 4. **Home · activated.** The meter gone. The standing home.
 5. **The deck end state.** "Two kept." → thumbnails → **Save one, and pick a day to wear it** (the save and the wear in one breath).
 6. **The suggested look (F8) with the swap on the rack.** Each proposal row: ↻ and *Have one like it? Photograph it*. Her rows: ↻ alone. The bar: Save to lookbook, and Discard once anything changed. No Edit.
-7. **After Save.** The diary sheet opens itself: *Saved. When will you wear it?* Today · Tomorrow · Pick a day · Not yet.
+7. **After Save.** The existing diary sheet opens itself over the saved look: the month, any day one tap, *I wore this today*. Nothing new to design; the frame shows the sheet arriving on Save.
 8. **The three ways, loading: the scanner.** The piece (or her words) on the card with a rose line sweeping it top to bottom and back, the way the onboarding piece page reads a photograph. Under it one evolving line: *Generating a look* → *Choosing the shoes* → *Finding a layer* → *Setting the colour*, then *On a Robes model for now.* Three dots fill as frames land. The card never reads as the piece at rest.
 9. **The style deck with imagery.** One type per card, two stills, very me / sometimes / not me.
 10. **Observations.** Eyebrow *Observations*. Each line with its evidence and two verbs: *That's right* · *Not quite*.
@@ -144,15 +144,15 @@ Robes voice: declarative, warm, no "AI", no lock language, no denominators. Ever
 | Deck, loading | Generating a look · Choosing the shoes · Finding a layer · Setting the colour, over the scan line, then *On a Robes model for now.* |
 | Deck, done | Two kept. **Save one, and pick a day to wear it.** |
 | F8, a proposal row | ↻ · *Have one like it? Photograph it* |
-| After Save | Saved. **When will you wear it?** Today · Tomorrow · Pick a day · Not yet |
+| After Save | The calendar opens. Its own copy stands; the toast reads **Saved to your lookbook**. |
 | Week strip, first look | Dress today · a dashed card, the saved look one tap away |
 | Observations, verbs | That's right · Not quite |
 | Generic model badge | Generic model · make it you › |
 
 ### 4.3 What each tap leads to (Felix's "think through every path")
 
-- **Photograph a piece** → the ledger read → Composing → the deck → tap a card → F8 → swap or save → the diary ask → home with the meter and the Suggested row.
-- **Snap what you're wearing** → "Robes sees three pieces" → confirm each (Yes · Skip · Already mine) → filed → *A look for today from these?* → the deck with one way, or the composer on the pieces → save → the diary ask.
+- **Photograph a piece** → the ledger read → Composing → the deck → tap a card → F8 → swap or save → the calendar → home with the meter and the Suggested row.
+- **Snap what you're wearing** → "Robes sees three pieces" → confirm each (Yes · Skip · Already mine) → filed → *A look for today from these?* → the deck with one way, or the composer on the pieces → save → the calendar.
 - **Tap what feels like you** → the image deck (ten cards, swipe) → brands (a wall that includes the high street) → icons → *Dress me for today →* → the deck (three ways on a Robes model, from her DNA and the weather) → F8.
 - **Build your digital twin** → two photographs → the model files itself → *Build a look* lands on the newest look dressed, or on the board if there is none.
 - **A done tile** → its page (the wardrobe, the Lookbook's Suggested tab, Style DNA, the twin).
@@ -169,7 +169,7 @@ Four phases, each shippable alone, each covered by the harness that already pins
 | # | Change | Where | Test |
 |---|---|---|---|
 | 0.1 | **Swap on the suggested look without Edit.** F8's proposal rows get ↻ (and her rows ↻) opening `__cbWardrobePick` in swap mode on the piece's category, Photograph one first. The first change flips the row to `draft` under the hood (`_lkSuggToDraft` + the apply) and the page stays put; the bar reads Discard · Save. | `_lkDetailHtml` (the `readOnly: true` branch ~17724), `__lkDPropSwap` / `__lkDSwapApply`, `__lkSuggEdit`. | `looks_harness`: the F8 section gains swap-without-Edit, Undo, status flip, Save. |
-| 0.2 | **Save asks for the day.** `__lkSuggSave` and `__lkSave` open the diary sheet every time, titled *Saved. When will you wear it?*, with Today · Tomorrow · Pick a day · Not yet; a dated ask preselects its day as now. | `__lkSuggSave` (~16759), `__lkSave` (~22724), `__lkDiaryOpen` (~19656). | `looks_harness`, `inspiration_smoke`: Save → the sheet; Not yet writes nothing. |
+| 0.2 | **Save opens the calendar.** `__lkSuggSave` and `__lkSave` open the existing diary sheet every time, as it is: the month, any day one tap, *I wore this today*. No new chip row (Annie, 17 Oct). Closing the sheet is the "not yet"; a dated ask preselects its day as now. | `__lkSuggSave` (~16759), `__lkSave` (~22724), `__lkDiaryOpen` (~19656). | `looks_harness`, `inspiration_smoke`: Save → the sheet; Not yet writes nothing. |
 | 0.3 | **The week strip from the first saved look.** H3 gates on any saved look, not on activation; a fresh account with one look sees Dress today and the look. | `_rbHomeResolve` (modules), `_rbRail`. | `home_harness`: stage 2 with one look renders the strip. |
 | 0.4 | **Three generic models on the three ways.** With no twin, `/api/style` shoots each way on a different catalog cell spanning the skin range (via `avatarCellEnsure`, cached once ever), so the frames, the composer's generic cell and the badge agree. The deck's text line becomes the badge. | `server.js` `/api/style` image loop + `avatarRefForUser`; `_lkDeckHtml` model line (~15305). | `inspiration_smoke` pins three distinct `avatarId`s on the frames; eyeball the first live set. |
 | 0.5 | **The scanner while a look generates.** Everywhere a look is being made (the overlay before the deck, the deck's dressing card, a suggested card whose frame is still coming) the piece or the look is scanned: a line sweeping it top to bottom and back, with one evolving line beneath, *Generating a look* → the dressing lines → *On a Robes model for now*. The card never falls back to the piece or the prompt at rest. A frame that fails says so on its card and offers *Try the frames again*, never a blank. | The onboarding scan line (`.kp-scan`) and the add flow's reveal, lifted into one shared loading primitive; `_cbStyleSubmit`'s overlay (~2057), `_lkDeckDressHtml`, `_lkSuggFrame`, the Suggested tile's busy chip. | `inspiration_smoke`: the scanner on the overlay and the dressing card, never the bare piece. |
@@ -193,7 +193,7 @@ Four phases, each shippable alone, each covered by the harness that already pins
 
 | # | Change | Where |
 |---|---|---|
-| 2.1 | The deck end state: *Save one, and pick a day to wear it* → the first kept look's Save → the diary ask. | `_lkDeckHtml` end branch (~15337). |
+| 2.1 | The deck end state: *Save one, and pick a day to wear it* → the first kept look's Save → the calendar opens. | `_lkDeckHtml` end branch (~15337). |
 | 2.2 | The filed screen of the add flow grows **Style it three ways →** (→ `_cbStyleSubmit` with the piece), so a piece added anywhere ends on the deck. Then 1.3's piece door moves to the add flow and the onboarding piece page retires. | `_runStep3` / `_showFiled`. |
 | 2.3 | Home's Suggested row cards carry Save; Saved cards keep the calendar. | `_rbRenderInspRow`, `_lkKpCard`. |
 | 2.4 | The model badge on the deck card (generic only) → the twin drawer. | `_lkDeckCardHtml`, `__lkTwinBadge`. |
@@ -208,7 +208,7 @@ Four phases, each shippable alone, each covered by the harness that already pins
 
 ### Phase 4 · The platform port
 
-`platform/docs/STATUS.md` has `/today` with next-step rules and no proposals, alternates or swap in a daily draft. Port in this order: the resolver's `fresh` stage and the board as data (`resolveHome` is pure), the diary ask on save, the generic cells on frames. The swap on a suggested look waits on proposals landing in the platform model. Nothing in Phases 0–3 should be designed in a way the native app cannot render: tiles, a row of marks, a sheet.
+`platform/docs/STATUS.md` has `/today` with next-step rules and no proposals, alternates or swap in a daily draft. Port in this order: the resolver's `fresh` stage and the board as data (`resolveHome` is pure), the calendar on save, the generic cells on frames. The swap on a suggested look waits on proposals landing in the platform model. Nothing in Phases 0–3 should be designed in a way the native app cannot render: tiles, a row of marks, a sheet.
 
 ---
 
@@ -224,7 +224,7 @@ The events exist. Build the funnel in PostHog before Phase 1 ships, so the board
 | Kept one | `deck_done {kept > 0}` | ≥ 60% of decks |
 | Made it hers | `piece_swapped {surface:'suggested'}` (new surface value) | ≥ 25% of kept looks |
 | Saved | `look_saved_from_suggested` | ≥ 40% of decks |
-| Picked a day | `wear_ask_answered {answer}` (new) + `look_pinned` | ≥ 50% of saves answer Today, Tomorrow or a day |
+| Picked a day | `look_pinned` within the save's calendar (add `from:'save'`) | ≥ 50% of saves pick a day |
 | Came back for a second piece | `wardrobe_added` within 7 days | ≥ 50% of saves |
 
 Read weekly in `/admin` and PostHog. A step under its target is the next design session's subject; the number decides, not the next idea.
