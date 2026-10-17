@@ -14,10 +14,14 @@
  * filed and opens the composing screen, never a second /api/style call (the
  * prefire fires the moment the piece files — pinned by counting /api/style);
  * the composing screen ticks the REAL titles and lands on /dashboard with
- * the flag and the handoff written; a shop link files the piece the way a
- * photograph does; there is no Style step anywhere in the flow. The intent
- * fork and the Dress-me-today page (First Run v2) were reverted 2026-10-11:
- * the name goes straight to the piece, and home does the rest.
+ * the flag and the handoff written; the photograph is the ONLY way in (the
+ * shop-link door left onboarding 2026-10-17 — pinned absent); a photograph
+ * of several pieces lands as numbered tags + a tile per piece, the one she
+ * taps files as the key piece on its own crop while the others file
+ * quietly, and one piece or a failed multi read falls back to the single
+ * read; there is no Style step anywhere in the flow. The intent fork and
+ * the Dress-me-today page (First Run v2) were reverted 2026-10-11: the
+ * name goes straight to the piece, and home does the rest.
  */
 import { chromium } from 'playwright';
 import http from 'http';
@@ -37,7 +41,6 @@ const srv = http.createServer((q, r) => {
   // assert sessionStorage after navigating there, and a bare 404 gives
   // Chrome's error page an opaque origin that denies the read.
   if (u === '/dashboard' || u === '/settings') { r.writeHead(200, { 'Content-Type': 'text/html' }); return r.end('<!doctype html><title>stub</title>'); }
-  if (u === '/piece.png') { r.writeHead(200, { 'Content-Type': 'image/png' }); return r.end(PNG); }
   const f = u === '/onboarding' ? path.join(ROOT, 'onboarding.html') : path.join(ROOT, u);
   if (fs.existsSync(f) && fs.statSync(f).isFile()) { r.writeHead(200); return r.end(fs.readFileSync(f)); }
   r.writeHead(404); r.end('');
@@ -51,14 +54,24 @@ const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH 
 const WAYS = { ways: [{ title: 'Brunch in Bloom' }, { title: 'Cocktails & Culture' }, { title: 'Gallery Hopping' }], jobId: 'x', generatedImages: [] };
 
 // analyse: 'ok' | 'noitem' | 'nocut'  ·  name: a first name on the profile
-// row (prefills the name stage), or null (the field opens empty). Lands on
-// the name stage; `toPiece()` walks it onto the piece page.
-async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', styleDelay = 300 } = {}) {
+// row (prefills the name stage), or null (the field opens empty)  ·  multi:
+// what /api/wardrobe/pieces answers — 'fail' (the degrade, the single read
+// carries every section that does not say otherwise), 'one' (one piece —
+// still the single read), 'two' (two pieces, boxes top and bottom). Lands
+// on the name stage; `toPiece()` walks it onto the piece page.
+const TWO_PIECES = [
+  { label: 'White poplin shirt', category: 'Tops', color: 'White', brand: 'COS', box: { x: 0.2, y: 0.05, w: 0.6, h: 0.4 },
+    item_dna: { display: { editorial_color_name: 'Chalk' }, structural_dna: { silhouette_fit: ['Relaxed'] } }, wardrobe_match: null, match_confidence: 0 },
+  { label: 'Pink barrel-leg jeans', category: 'Bottoms', color: 'Pale pink', brand: 'FRAME', box: { x: 0.2, y: 0.5, w: 0.6, h: 0.45 },
+    item_dna: { display: { editorial_color_name: 'Pale pink' }, structural_dna: { silhouette_fit: ['Barrel-leg'] } }, wardrobe_match: null, match_confidence: 0 },
+];
+async function open(vp, analyse = 'ok', name = 'Annie', { multi = 'fail', styleDelay = 300 } = {}) {
   const ctx = await browser.newContext({ viewport: vp });
   const p = await ctx.newPage();
   const errs = [];
   const styleCalls = [];
   const inserts = [], events = [], updates = [];
+  const analyses = [], pieceReads = [], readUrls = [];
   p.on('pageerror', e => errs.push(String(e)));
   await p.exposeFunction('__rbInsert', (t, row) => { if (t === 'events') events.push(row); else inserts.push(row); });
   await p.exposeFunction('__rbUpdate', patch => { updates.push(patch); });
@@ -78,6 +91,7 @@ async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', style
   // Real latency matters: with an instant analyse the noItemDetected path
   // clears the photo before the attached state can be observed at all.
   await p.route('**/api/wardrobe/analyse', async route => {
+    analyses.push(route.request().postDataJSON());
     await new Promise(r => setTimeout(r, 800));
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(
       analyse === 'noitem' ? { noItemDetected: true } : {
@@ -85,19 +99,21 @@ async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', style
         item_dna: { display: { editorial_color_name: 'Bone' }, structural_dna: { silhouette_fit: analyse === 'nocut' ? [] : ['Relaxed'] } },
       }) });
   });
-  await p.route('**/api/wardrobe/read-url', async route => {
-    await new Promise(r => setTimeout(r, 500));
-    if (linkMode === 'unreachable') return route.fulfill({ status: 422, contentType: 'application/json', body: '{"error":"unreachable"}' });
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-      label: 'Pink barrel-leg jeans', category: 'Bottoms', color: 'Pale pink', brand: 'FRAME', price: 340, currency: 'GBP',
-      image_url: linkMode === 'dead' ? 'http://localhost:' + PORT + '/missing.jpg' : linkMode === 'noimage' ? null : 'http://localhost:' + PORT + '/piece.png',
-      item_dna: { display: { editorial_color_name: 'Pale pink' }, structural_dna: { silhouette_fit: ['Barrel-leg'] }, source: { kind: 'url', url: 'https://shop.example/jeans', site: 'shop.example' } },
-    }) });
+  // the multi read runs FIRST on every photograph — its degrade is what the
+  // single-read sections ride (the add never dies on the new door)
+  await p.route('**/api/wardrobe/pieces', async route => {
+    pieceReads.push(route.request().postDataJSON());
+    await new Promise(r => setTimeout(r, 400));
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(
+      multi === 'two' ? { noItemDetected: false, pieces: TWO_PIECES }
+      : multi === 'one' ? { noItemDetected: false, pieces: [TWO_PIECES[0]] }
+      : { analysisFailed: true, pieces: [] }) });
   });
+  // the shop-link reader must never be asked from here any more
+  await p.route('**/api/wardrobe/read-url', route => { readUrls.push(1); route.fulfill({ status: 404, body: '' }); });
   const uploads = [];
   await p.route('**/api/wardrobe/upload', r => {
     uploads.push(r.request().postDataJSON());
-    if (linkMode === 'dead') return r.fulfill({ status: 502, contentType: 'application/json', body: '{"error":"upload_failed"}' });
     r.fulfill({ status: 200, contentType: 'application/json', body: '{"url":"http://localhost:' + PORT + '/piece.png"}' });
   });
   await p.route('**/api/style', async r => {
@@ -109,7 +125,7 @@ async function open(vp, analyse = 'ok', name = 'Annie', { linkMode = 'ok', style
   await p.goto(`http://localhost:${PORT}/onboarding`);
   await p.waitForTimeout(900);
   await p.click('body'); await p.waitForTimeout(450);          // splash → name
-  return { ctx, p, errs, styleCalls, inserts, uploads, events, updates };
+  return { ctx, p, errs, styleCalls, inserts, uploads, events, updates, analyses, pieceReads, readUrls };
 }
 // name → the piece (no fork between them since 2026-10-11)
 async function toPiece(p, typeName) {
@@ -123,7 +139,7 @@ const waitFiled = p => p.waitForSelector('#ob-next', { timeout: 9000 }).then(() 
 
 for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
   console.log(`\n\x1b[1m== ${label} · splash → name (1b) ==\x1b[0m`);
-  const { ctx, p, errs, styleCalls, inserts, events, updates } = await open(vp);
+  const { ctx, p, errs, styleCalls, inserts, events, updates, analyses, pieceReads, readUrls } = await open(vp);
   ok(await p.locator('.dk').count() === 0 && /call you/.test(await title(p)), 'the splash lands on the cream name screen — no intro, no dark stage');
   ok((await p.locator('.ob-eyebrow').innerText()).trim().toLowerCase() === 'hello', 'eyebrow reads Hello');
   ok(await p.locator('#ob-name-input').count() === 1, 'the name stage stands for everyone');
@@ -147,7 +163,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(!(await p.locator('#ob-back').isHidden()), 'Back stands on the piece');
   const wellStyle = await p.locator('#kp-well').evaluate(el => getComputedStyle(el).borderTopStyle);
   ok(wellStyle === 'dashed' && (await p.locator('.kp-label').innerText()) === 'Your key piece', 'the well is dashed and reads Your key piece');
-  ok(await p.locator('#kp-add').count() === 1 && /paste a link from a shop/.test(await p.locator('#kp-linkopen').innerText()), 'Add photo and the shop-link door in the well');
+  ok(await p.locator('#kp-add').count() === 1, 'Add photo in the well');
+  ok(await p.locator('#kp-linkopen, #kp-linkform, .kp-linkdoor, .kp-linkin').count() === 0 && !/paste a link/i.test(await p.locator('#ob-body').innerText()), 'NO shop-link door — the photograph is the only way in');
   ok(await ledger(p).count() === 5 && (await ledger(p).allInnerTexts()).every(t => t === 'Awaiting'), 'five ledger rows, all Awaiting');
   ok(await p.locator('#ob-next').count() === 0, 'no CTA before the piece is filed');
   const skip = p.locator('#ob-skip');
@@ -172,6 +189,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
   ok(await p.locator('.ob-footer a, .ob-footer .ob-skip').count() === 0, 'no Edit-the-details link, no skip under the CTA');
   ok(styleCalls.length === 1 && styleCalls[0].prompt === 'Cream blazer', 'the prefire fired the moment the piece filed');
   ok(inserts.length === 1 && inserts[0].label === 'Cream blazer' && /piece\.png$/.test(inserts[0].image_url || ''), 'the wardrobe row landed with its photograph');
+  ok(pieceReads.length === 1 && Array.isArray(pieceReads[0].wardrobeItems) && pieceReads[0].wardrobeItems.length === 0 && pieceReads[0].data === analyses[0].data, 'the multi read ran FIRST on the same photograph, with an empty wardrobe list');
+  ok(analyses.length === 1, 'a failed multi read falls back to the single read — once');
+  ok(readUrls.length === 0, 'nothing asks the shop-link reader');
   // Back lands on the name, forward again keeps the piece.
   await p.click('#ob-back'); await p.waitForTimeout(350);
   ok(await p.locator('#ob-name-input').count() === 1 && (await p.inputValue('#ob-name-input')) === 'Annie', 'Back from the piece returns to the name');
@@ -253,65 +273,92 @@ console.log('\n\x1b[1m== the Cut row with nothing read ==\x1b[0m');
   await ctx.close();
 }
 
-// A shop link files the piece the way a photograph does: the page's
-// photograph in the well, the read in the ledger, the row with its image,
-// the prefire carrying the photograph as a data URL.
-console.log('\n\x1b[1m== paste a link from a shop ==\x1b[0m');
-{
-  const { ctx, p, errs, styleCalls, inserts } = await open({ width: 390, height: 844 });
+// Several pieces in one photograph: the multi read lands two pieces as
+// numbered tags on the photo + a tile per piece; the one she taps files as
+// the key piece ON ITS OWN CROP (the hosted crop as the row's image, the
+// prefire on the crop, the handoff naming it); the other piece files
+// quietly as a wardrobe row; the page then continues as the single path.
+for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
+  console.log(`\n\x1b[1m== ${label} · several pieces in one photograph ==\x1b[0m`);
+  const { ctx, p, errs, styleCalls, inserts, uploads, events, analyses, pieceReads } = await open(vp, 'ok', 'Annie', { multi: 'two' });
   await toPiece(p);
-  await p.click('#kp-linkopen'); await p.waitForTimeout(150);
-  ok(await p.locator('#kp-link').count() === 1 && await p.locator('#kp-linkback').count() === 1, 'the link field opens in the well, with a way back to the photograph');
-  ok(await p.locator('#ob-skip').isVisible(), 'skip still stands — nothing answered yet');
-  await p.fill('#kp-link', 'not a link'); await p.click('#kp-linkgo'); await p.waitForTimeout(150);
-  ok(/full address/.test(await p.locator('#kp-err').innerText()), 'a bad address is named inline, nothing sent');
-  await p.fill('#kp-link', 'https://shop.example/jeans'); await p.click('#kp-linkgo'); await p.waitForTimeout(200);
-  ok(await p.locator('#ob-wait').count() === 1 && await p.locator('.kp-scan').count() === 1, 'reading the page: the scan line and the wait line');
-  ok(await waitFiled(p), 'the page files as a piece');
+  await p.setInputFiles('#kp-file', TMP); await p.waitForTimeout(250);
+  ok((await p.locator('#kp-eyebrow').textContent()).trim() === 'Reading' && await p.locator('#ob-skip').count() === 0, 'reading, the skip gone');
+  await p.waitForSelector('.kp-pick', { timeout: 6000 }).catch(() => {});
+  ok(pieceReads.length === 1 && analyses.length === 0, 'the multi read answered two pieces — the single read never ran');
+  ok((await p.locator('#kp-eyebrow').textContent()).trim() === 'Robes sees two pieces', 'the eyebrow reads Robes sees two pieces');
+  ok(await p.locator('.kp-pick').count() === 2, 'one tile per piece');
+  const tagTxt = await p.locator('#kp-tags .kp-tag.n').allTextContents();
+  ok(tagTxt.length === 2 && tagTxt[0].startsWith('1') && tagTxt[1].startsWith('2'), 'two numbered tags on the photograph, got ' + JSON.stringify(tagTxt));
+  const t1 = await p.locator('#kp-tags .kp-tag.n').nth(0).boundingBox(), t2 = await p.locator('#kp-tags .kp-tag.n').nth(1).boundingBox();
+  ok(t1 && t2 && t1.y < t2.y && !(Math.abs(t1.y - t2.y) < t1.height && Math.abs(t1.x - t2.x) < t1.width), 'the tags sit at their boxes — the top piece above the bottom one, never piled');
+  ok((await p.locator('#kp-picks-q').innerText()).trim() === 'Which one first?', 'the line reads Which one first?');
+  const tl = await p.locator('.kp-pick-l').allInnerTexts(), tm = await p.locator('.kp-pick-m').allInnerTexts();
+  ok(tl[0] === 'White poplin shirt' && tl[1] === 'Pink barrel-leg jeans', 'the tiles carry the labels, got ' + JSON.stringify(tl));
+  ok(tm.map(x => x.toLowerCase()) .join('|') === 'tops · cos|bottoms · frame', 'and Category · Brand, got ' + JSON.stringify(tm));
+  await p.waitForFunction(() => Array.from(document.querySelectorAll('img[data-kpcrop]')).every(im => /^data:image\/jpeg/.test(im.getAttribute('src') || '')), null, { timeout: 4000 }).catch(() => {});
+  ok(await p.evaluate(() => Array.from(document.querySelectorAll('img[data-kpcrop]')).every(im => /^data:image\/jpeg/.test(im.getAttribute('src') || ''))), 'each tile carries its own crop (a JPEG, set through the DOM)');
+  ok(await p.locator('#ob-skip').count() === 0 && await p.locator('#ob-next').count() === 0, 'no skip and no CTA while she picks');
+  ok((await ledger(p).allInnerTexts()).every(t => t === 'Awaiting'), 'the ledger still awaits');
+  ok(await segsOn(p) === 2, 'two of three segments — nothing filed yet');
+  ok(await p.locator('#kp-retake').count() === 1, 'Retake rides the photo');
+  ok(styleCalls.length === 0 && inserts.length === 0, 'nothing filed, nothing prefired before the pick');
+  ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'no horizontal overflow');
+  // the SECOND tile is the key piece
+  await p.locator('.kp-pick').nth(1).click();
+  ok(await waitFiled(p), 'the tapped piece files and the CTA appears');
+  ok(await p.locator('.kp-pick').count() === 0 && await p.locator('#kp-picks-q').count() === 0, 'the tiles leave with the pick');
+  ok((await p.locator('#kp-eyebrow').textContent()).trim() === 'Filed' && await segsOn(p) === 3, 'Filed, three segments lit');
   const vals = await ledger(p).allInnerTexts();
-  ok(vals[0] === 'Pink barrel-leg jeans' && vals[2] === 'FRAME' && vals[4] === 'Barrel-leg', 'the ledger holds the page read, got ' + JSON.stringify(vals));
-  ok(/piece\.png/.test(await p.locator('.kp-img img').getAttribute('src') || ''), 'the page’s photograph fills the well');
-  ok(inserts.length === 1 && /piece\.png$/.test(inserts[0].image_url || '') && inserts[0].item_dna && inserts[0].item_dna.source && inserts[0].item_dna.source.kind === 'url', 'the row carries the hosted image and its source');
-  ok(styleCalls.length === 1 && styleCalls[0].prompt === 'Pink barrel-leg jeans' && /^data:image/.test(styleCalls[0].photo || ''), 'the prefire carries the photograph as a data URL');
-  ok((await p.locator('#ob-next').textContent()).trim() === 'Style it three ways →', 'the CTA stands');
-  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
-  await ctx.close();
-}
-{
-  const { ctx, p, errs } = await open({ width: 1280, height: 900 }, 'ok', 'Annie', { linkMode: 'unreachable' });
-  await toPiece(p);
-  await p.click('#kp-linkopen'); await p.fill('#kp-link', 'https://shop.example/jeans'); await p.click('#kp-linkgo');
-  await p.waitForTimeout(900);
-  ok(/wouldn’t open for Robes/.test(await p.locator('#kp-err').innerText()), 'a shop that shuts the door is named, the field kept');
-  ok(await p.locator('#kp-link').count() === 1 && (await p.inputValue('#kp-link')) === 'https://shop.example/jeans', 'her link stays in the field');
-  ok(await p.locator('#ob-skip').isVisible(), 'skip returns with nothing filed');
-  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
-  await ctx.close();
-}
-// A retailer photograph the reader could not host: the well asks the
-// upload door to re-host it (a server-side fetch, never hot-link blocked)
-// and, when even that fails and the browser cannot load it, settles on a
-// monogram — never the Add-photo empty state on a piece already filed.
-{
-  const { ctx, p, errs, inserts, uploads } = await open({ width: 1280, height: 900 }, 'ok', 'Annie', { linkMode: 'dead' });
-  await toPiece(p);
-  await p.click('#kp-linkopen'); await p.fill('#kp-link', 'https://shop.example/jeans'); await p.click('#kp-linkgo');
-  ok(await waitFiled(p), 'the page files as a piece');
+  ok(JSON.stringify(vals) === JSON.stringify(['Pink barrel-leg jeans', 'Bottoms', 'FRAME', 'Pale pink', 'Barrel-leg']), 'the ledger reads the PICKED piece, got ' + JSON.stringify(vals));
+  ok((await p.locator('.kp-banner').innerText()).trim() === 'Pink barrel-leg jeans', 'the banner names it');
+  ok(/^data:image\/jpeg/.test(await p.locator('#kp-wellimg').getAttribute('src') || ''), 'the well now holds the piece’s crop');
+  ok(await p.locator('.kp-tag').count() === 4 && await p.locator('.kp-tag.n').count() === 0, 'the read’s four tags pop on the crop — the numbered tags are gone');
+  ok(styleCalls.length === 1 && styleCalls[0].prompt === 'Pink barrel-leg jeans' && /^data:image\/jpeg/.test(styleCalls[0].photo || ''), 'ONE prefire, for the picked piece, its photo the crop');
   await p.waitForTimeout(600);
-  ok(uploads.some(u => u && u.url === 'http://localhost:' + PORT + '/missing.jpg'), 'an unhosted retailer image is sent to the upload door to re-host');
-  ok(await p.locator('#kp-well .kp-mono').count() === 1 && (await p.locator('#kp-well .kp-mono').textContent()) === 'P', 'a picture that will not load settles on the monogram');
-  ok(await p.locator('#kp-add').count() === 0 && await p.locator('.kp-banner').count() === 1, 'never the Add-photo state on a filed piece — the banner stands');
-  ok(inserts.length === 1 && /missing\.jpg$/.test(inserts[0].image_url || ''), 'the row keeps the retailer link (the copy failed)');
+  const picked = inserts.find(r => r.label === 'Pink barrel-leg jeans'), other = inserts.find(r => r.label === 'White poplin shirt');
+  ok(inserts.length === 2 && !!picked && !!other, 'two wardrobe rows: the key piece and the other piece, got ' + JSON.stringify(inserts.map(r => r.label)));
+  ok(picked && /piece\.png$/.test(picked.image_url || '') && !(picked.item_dna && picked.item_dna.source), 'the key piece files exactly as the single path does — the hosted crop as its photograph, no source stamp');
+  ok(other && /piece\.png$/.test(other.image_url || '') && other.item_dna && other.item_dna.source && other.item_dna.source.kind === 'photo_multi' && other.category === 'Tops', 'the other piece carries its hosted crop and item_dna.source photo_multi');
+  ok(uploads.length >= 3 && uploads.slice(1).every(u => u && u.mimeType === 'image/jpeg' && u.data), 'the crops host through the upload door');
+  const added = events.filter(e => e.event_type === 'wardrobe_added').map(e => e.metadata.source);
+  ok(added.includes('onboarding') && added.includes('onboarding_multi'), 'wardrobe_added fires for both — onboarding and onboarding_multi, got ' + JSON.stringify(added));
+  ok(events.some(e => e.event_type === 'pieces_read' && e.metadata.n === 2), 'pieces_read {n: 2} fires');
+  ok((await p.locator('#ob-next').textContent()).trim() === 'Style it three ways →', 'the CTA reads Style it three ways →');
+  const hand = await p.evaluate(() => sessionStorage.getItem('rb_onboard_piece'));
+  ok(!!hand && /Pink barrel-leg jeans/.test(hand) && /"photo":"data:image\/jpeg/.test(hand), 'the handoff names the picked piece and carries the crop');
+  await p.click('#ob-next'); await p.waitForTimeout(300);
+  ok(await p.locator('.ob-compose').count() === 1 && /^data:image\/jpeg/.test(await p.locator('.ob-compose-thumb img').getAttribute('src') || ''), 'Composing opens on the crop');
+  ok(styleCalls.length === 1, 'the CTA never fires a second /api/style');
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
   await ctx.close();
 }
+// Retake clears the multi state.
 {
-  const { ctx, p, errs, uploads } = await open({ width: 1280, height: 900 }, 'ok', 'Annie', { linkMode: 'noimage' });
+  const { ctx, p, errs, inserts, styleCalls } = await open({ width: 1280, height: 900 }, 'ok', 'Annie', { multi: 'two' });
   await toPiece(p);
-  await p.click('#kp-linkopen'); await p.fill('#kp-link', 'https://shop.example/jeans'); await p.click('#kp-linkgo');
-  ok(await waitFiled(p), 'a page with no photograph still files');
-  ok(await p.locator('#kp-well .kp-mono').count() === 1 && await p.locator('#kp-add').count() === 0, 'no photograph → the monogram holds the well');
-  ok(uploads.length === 0, 'nothing to re-host');
+  await p.setInputFiles('#kp-file', TMP);
+  await p.waitForSelector('.kp-pick', { timeout: 6000 }).catch(() => {});
+  ok(await p.locator('.kp-pick').count() === 2, 'two tiles stand');
+  await p.click('#kp-retake'); await p.waitForTimeout(200);
+  ok(await p.locator('.kp-pick').count() === 0 && await p.locator('.kp-tag').count() === 0 && await p.locator('#kp-add').count() === 1, 'Retake empties the well, the tiles and the tags go');
+  ok((await p.locator('#kp-eyebrow').textContent()).trim() === 'Annie’s wardrobe', 'the eyebrow is her wardrobe again');
+  ok(await p.locator('#ob-skip').isVisible() && (await p.locator('#ob-skip').innerText()).trim() === 'Skip for now', 'the skip returns, disarmed');
+  ok(inserts.length === 0 && styleCalls.length === 0, 'nothing was filed or prefired');
+  ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+  await ctx.close();
+}
+// One piece in the multi read → the single read, exactly as before.
+console.log('\n\x1b[1m== one piece → the single read ==\x1b[0m');
+{
+  const { ctx, p, errs, inserts, styleCalls, analyses, pieceReads } = await open({ width: 1280, height: 900 }, 'ok', 'Annie', { multi: 'one' });
+  await toPiece(p);
+  await p.setInputFiles('#kp-file', TMP);
+  ok(await waitFiled(p), 'the piece files');
+  ok(pieceReads.length === 1 && analyses.length === 1, 'the multi read answered one piece → the single read ran');
+  ok(await p.locator('.kp-pick').count() === 0, 'no tiles for one piece');
+  ok((await ledger(p).allInnerTexts())[0] === 'Cream blazer' && inserts.length === 1 && inserts[0].label === 'Cream blazer', 'the single read is what filed');
+  ok(styleCalls.length === 1 && styleCalls[0].prompt === 'Cream blazer', 'one prefire, the single read’s piece');
   ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
   await ctx.close();
 }

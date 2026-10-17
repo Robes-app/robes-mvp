@@ -130,19 +130,8 @@
       transition: border-color .2s var(--ease-default);
     }
     .kp-pill:hover { border-color: var(--foreground); }
-    .kp-linkdoor { background: none; border: none; cursor: pointer; padding: 0; font-weight: 300; font-size: 12px; line-height: 1.4; color: var(--ink-soft); }
-    .kp-linkdoor:hover { color: var(--foreground); text-decoration: underline; }
-    /* the link mode lives IN the well — same frame, a field instead of a photo */
-    .kp-linkrow { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 10px; }
-    .kp-linkin {
-      width: 100%; height: 46px; border: 1px solid var(--cream-400); border-radius: 100px; background: #fff;
-      padding: 0 18px; font-family: var(--font-sans); font-weight: 300; font-size: 14px; color: var(--foreground); outline: none;
-    }
-    .kp-linkin:focus { border-color: var(--foreground); }
-    .kp-linkin::placeholder { color: var(--cream-500); }
     .kp-img { position: absolute; inset: 0; display: flex; justify-content: center; }
     .kp-img img { height: 100%; width: 100%; object-fit: contain; }
-    .kp-mono { align-self: center; font-family: var(--font-serif); font-weight: 300; font-size: 96px; line-height: 1; color: var(--cream-500); }
     .kp-scan {
       position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 4;
       background: var(--rose); box-shadow: 0 0 14px 4px rgba(142,112,119,0.35);
@@ -159,6 +148,26 @@
       opacity: 0; animation: rbPop .45s var(--ease-default) both;
     }
     .kp-tag::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--rose); flex: none; }
+    /* several pieces in one photograph: a numbered tag at each piece's centre — tappable, it picks */
+    .kp-tags.pick { pointer-events: auto; }
+    .kp-tag.n { padding: 4px 10px 4px 4px; gap: 7px; cursor: pointer; max-width: 46%; }
+    .kp-tag.n::before { display: none; }
+    .kp-tag.n b { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 100px; border: 1px dashed var(--rose); font-size: 10px; font-weight: 500; color: var(--foreground); flex: none; }
+    .kp-picks-q { margin: 0; font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 19px; line-height: 1.2; color: var(--foreground); }
+    .kp-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+    .kp-pick {
+      display: flex; flex-direction: column; gap: 8px; padding: 8px 8px 12px; text-align: left; cursor: pointer;
+      background: #fff; border: 1px solid var(--cream-400); border-radius: var(--rad); color: var(--foreground); font-family: var(--font-sans);
+      transition: border-color .2s var(--ease-default), transform .2s var(--ease-default);
+    }
+    .kp-pick:hover { border-color: var(--foreground); }
+    .kp-pick:active { transform: scale(.98); }
+    .kp-pick-img { position: relative; aspect-ratio: 3 / 4; border-radius: calc(var(--rad) - 4px); background: #F1F0EE; overflow: hidden; display: flex; }
+    .kp-pick-img img { width: 100%; height: 100%; object-fit: cover; }
+    .kp-pick-img img:not([src]) { visibility: hidden; }
+    .kp-pick-n { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 100px; background: rgba(255,255,255,0.94); border: 1px dashed var(--rose); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; }
+    .kp-pick-l { font-family: var(--font-serif); font-weight: 400; font-size: 15px; line-height: 1.15; }
+    .kp-pick-m { font-weight: 400; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--rose); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .kp-retake {
       position: absolute; top: 10px; right: 10px; z-index: 5; cursor: pointer;
       background: rgba(255,255,255,0.94); border: 1px solid var(--rule-mid); border-radius: 100px;
@@ -170,11 +179,6 @@
       display: flex; align-items: center; justify-content: center; padding: 0 14px;
       font-family: var(--font-serif); font-weight: 400; font-size: 17px; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       opacity: 0; animation: rbPop .45s var(--ease-default) both;
-    }
-    .kp-reading {
-      position: absolute; inset: 0; z-index: 2; display: flex; align-items: flex-end; justify-content: center; padding: 18px;
-      font-family: var(--font-serif); font-style: italic; font-weight: 300; font-size: 15px; color: var(--ink-faint);
-      pointer-events: none;
     }
     .kp-err { font-weight: 300; font-size: 12.5px; line-height: 1.55; color: #8B3A30; margin: -6px 0 0; display: none; }
     .kp-err.on { display: block; }
@@ -250,7 +254,7 @@
     savedName: '',
     icons: [],             // read from the profile for the prefire only — never asked here
     styleDna: {},
-    piece: { img: '', data: '', mimeType: '', busy: false, tag: null, url: '', saved: false, savePromise: null, err: '', link: false, linkOpen: false },
+    piece: { img: '', data: '', mimeType: '', busy: false, tag: null, url: '', saved: false, savePromise: null, err: '', multi: null },
     pieceStyled: false,
     stylePromise: null,
     doneMarked: false,
@@ -452,20 +456,26 @@
   const KP_READ = ['The piece', 'Category', 'Brand', 'Colour', 'Cut'];
 
   /* ── The first piece, read live, one page (1c) ──────────────────── */
-  // The photo (or a shop link) lands in the well, a scan line passes over
-  // it, each tag pops onto the image as its ledger row fills — Awaiting →
-  // Reading… → the value — then the filed banner names the piece and the
-  // one CTA appears. The same pattern as filing a piece anywhere else in
-  // the app; the mechanics beneath (analyse + upload in parallel, one
-  // retry, the row insert, the prefire, the handoff) are unchanged.
-  const LINK_ERRS = {
-    bad_url: 'That doesn’t look like a link — paste the full address, starting https://',
-    unreachable: 'That page wouldn’t open for Robes. Some shops close the door to anything but a browser.',
-    not_a_page: 'That link isn’t a page Robes can read.',
-    no_item: 'Robes couldn’t find one piece on that page — a product page works best.',
-    read_failed: 'Robes couldn’t read that page just now — try again in a moment.',
-    off: 'Reading links isn’t switched on here yet — add a photograph instead.',
-  };
+  // The photo lands in the well, a scan line passes over it, each tag pops
+  // onto the image as its ledger row fills — Awaiting → Reading… → the
+  // value — then the filed banner names the piece and the one CTA appears.
+  // The same pattern as filing a piece anywhere else in the app; the
+  // mechanics beneath (the read + upload in parallel, one retry, the row
+  // insert, the prefire, the handoff) are unchanged. The photograph is the
+  // only way in (the shop-link door left onboarding, 2026-10-17).
+  //
+  // Several pieces in one photograph (2026-10-17): the multi read runs
+  // FIRST (POST /api/wardrobe/pieces — the dashboard's add flow's door);
+  // two or more pieces land as numbered tags on the photo and a tile per
+  // piece beneath it, and the one she taps is read as the key piece
+  // exactly as the single path reads it (its own crop hosted as the row's
+  // photograph, the prefire on the crop) while the others file quietly as
+  // wardrobe rows. One piece, or a failed multi read, falls back to the
+  // single read — the add never dies on the new door.
+  const KP_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+  // the numbered tags are placed in pixels over the contained picture — a
+  // resize re-places them (the painter hands the placer over per paint)
+  window.addEventListener('resize', () => { if (window.__kpPlace) window.__kpPlace(); });
   function renderKeyPiece(i) {
     const P = st.piece;
     // var, not let: paint() calls syncSkip() before the skip wiring at the
@@ -477,6 +487,7 @@
     function eyebrow() {
       if (P.tag) return 'Filed';
       if (P.busy) return 'Reading';
+      if (P.multi && P.multi.picked == null) return 'Robes sees ' + (KP_WORDS[P.multi.pieces.length - 1] || P.multi.pieces.length) + ' pieces';
       const n = firstName();
       return n ? esc(n) + '’s wardrobe' : 'Your wardrobe';
     }
@@ -570,39 +581,43 @@
       const body = document.getElementById('ob-body');
       if (!body) return;
       const filed = !!P.tag && !P.revealing && !P.busy;
+      const picking = !!P.multi && P.multi.picked == null && !P.tag && !P.busy;
       document.querySelectorAll('.ob-seg')[2].classList.toggle('on', !!P.tag);
       const hasImg = !!(P.img || P.url) || !!P.tag;
       const src = P.renderable === false ? (P.url || P.img) : (P.img || P.url);
-      const mono = (P.tag && P.tag.label ? P.tag.label : 'R').trim().charAt(0).toUpperCase();
+      // the multi state's tags: one per piece at its box's centre (fractions
+      // of the IMAGE — placeKpTags maps them onto the contained picture)
+      const pickTags = picking ? P.multi.pieces.map((pc, k) => {
+        const cx = (pc.box.x + pc.box.w / 2) * 100, cy = (pc.box.y + pc.box.h / 2) * 100;
+        return `<span class="kp-tag n" data-k="${k}" data-cx="${cx.toFixed(1)}" data-cy="${cy.toFixed(1)}" style="left:${cx.toFixed(1)}%;top:${cy.toFixed(1)}%"><b>${k + 1}</b>${esc(pieceWord(pc.tag))}</span>`;
+      }).join('') : '';
       const wellInner = hasImg
-        ? `<div class="kp-img">${src && !P.imgDead
-              ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer" onerror="window.__kpImgErr && window.__kpImgErr()">`
-              : `<span class="kp-mono">${esc(mono)}</span>`}</div>
+        ? `<div class="kp-img">${src ? `<img src="${esc(src)}" alt="" id="kp-wellimg">` : ''}</div>
            ${P.busy ? '<div class="kp-scan"></div>' : ''}
-           <div class="kp-tags" id="kp-tags"></div>
+           <div class="kp-tags${picking ? ' pick' : ''}" id="kp-tags">${pickTags}</div>
            ${!P.busy ? '<button type="button" class="kp-retake" id="kp-retake">↻ Retake</button>' : ''}
            ${filed && P.tag.label ? `<div class="kp-banner">${esc(P.tag.label)}</div>` : ''}`
-        : P.busy
-          ? `<div class="kp-scan"></div><div class="kp-reading">Reading the page…</div>`
-          : P.linkOpen
-            ? `<div class="kp-empty"><form class="kp-linkrow" id="kp-linkform">
-                 <input class="kp-linkin" id="kp-link" type="text" inputmode="url" placeholder="https://…" autocomplete="off" value="${esc(P.linkVal || '')}">
-                 <button type="submit" class="kp-pill" id="kp-linkgo">Read the page</button>
-                 <button type="button" class="kp-linkdoor" id="kp-linkback">← A photograph instead</button>
-               </form></div>`
-            : `<div class="kp-empty">
-                 <span class="kp-label">Your key piece</span>
-                 <button type="button" class="kp-pill" id="kp-add">Add photo</button>
-                 <button type="button" class="kp-linkdoor" id="kp-linkopen">or paste a link from a shop</button>
-               </div>`;
+        : `<div class="kp-empty">
+             <span class="kp-label">Your key piece</span>
+             <button type="button" class="kp-pill" id="kp-add">Add photo</button>
+           </div>`;
+      const picksHtml = picking ? `
+        <p class="kp-picks-q" id="kp-picks-q">Which one first?</p>
+        <div class="kp-picks" id="kp-picks">${P.multi.pieces.map((pc, k) => `
+          <button type="button" class="kp-pick" data-k="${k}">
+            <span class="kp-pick-img"><img alt="" data-kpcrop="${k}"><span class="kp-pick-n">${k + 1}</span></span>
+            <span class="kp-pick-l">${esc(pc.tag.label || 'A piece')}</span>
+            <span class="kp-pick-m">${esc([pc.tag.category || 'Other', pc.tag.brand || ''].filter(Boolean).join(' · '))}</span>
+          </button>`).join('')}</div>` : '';
       const vals = rowVals();
       body.innerHTML = `
         <div class="ob-head">
           <span class="ob-eyebrow" id="kp-eyebrow">${eyebrow()}</span>
           <h1 class="ob-title sm">Add your <em>first piece.</em></h1>
         </div>
-        <div class="kp-well${hasImg || P.busy || P.linkOpen ? '' : ' empty'}" id="kp-well">${wellInner}</div>
+        <div class="kp-well${hasImg || P.busy ? '' : ' empty'}" id="kp-well">${wellInner}</div>
         <p class="kp-err${P.err ? ' on' : ''}" id="kp-err">${esc(P.err)}</p>
+        ${picksHtml}
         <div class="kp-ledger">${KP_READ.map((r, idx) => `
           <div class="kp-row">
             <span class="kp-num">${String(idx + 1).padStart(2, '0')}</span>
@@ -611,13 +626,14 @@
           </div>`).join('')}</div>
         <input type="file" accept="image/*" class="cap-file" id="kp-file">`;
       const foot = document.getElementById('ob-footer');
+      // a photograph attached is an answer — the skip never stands beside it,
+      // not while it is read and not while she picks the piece to start from
       foot.innerHTML = filed
         ? `<button class="ob-cta pop" id="ob-next">Style it three ways →</button>`
         : P.busy || P.revealing
           ? `<span class="ob-wait" id="ob-wait">Robes is reading your piece…</span>`
-          : `<button class="ob-skip" id="ob-skip">Skip for now</button>`;
+          : picking ? '' : `<button class="ob-skip" id="ob-skip">Skip for now</button>`;
 
-      window.__kpImgErr = () => { if (P.imgDead) return; P.imgDead = true; swapWellImage(); };
       const fileInput = document.getElementById('kp-file');
       const pick = () => fileInput.click();
       const addBtn = document.getElementById('kp-add');
@@ -630,18 +646,20 @@
         // latch is released and the handoff is cleared, so the next piece
         // composes ITS looks (Kelli's retake, 2026-10-01: the second
         // piece's name over the first piece's three looks).
-        P.img = ''; P.data = ''; P.url = ''; P.err = ''; P.tag = null; P.renderable = true; P.link = false; P.imgDead = false;
+        P.img = ''; P.data = ''; P.url = ''; P.err = ''; P.tag = null; P.renderable = true; P.multi = null;
         P.saved = false; P.savePromise = null;
         st.stylePrefired = false; st.stylePromise = null; st.styleSeq = (st.styleSeq || 0) + 1; st.pieceStyled = false;
         try { sessionStorage.removeItem('rb_onboard_styled'); sessionStorage.removeItem('rb_onboard_piece'); } catch (e) {}
         paint(); pick();
       };
-      const linkOpen = document.getElementById('kp-linkopen');
-      if (linkOpen) linkOpen.onclick = () => { P.linkOpen = true; P.err = ''; paint(); setTimeout(() => { const el = document.getElementById('kp-link'); if (el) el.focus(); }, 60); };
-      const linkBack = document.getElementById('kp-linkback');
-      if (linkBack) linkBack.onclick = () => { P.linkOpen = false; P.err = ''; paint(); };
-      const linkForm = document.getElementById('kp-linkform');
-      if (linkForm) linkForm.onsubmit = e => { e.preventDefault(); readLink(document.getElementById('kp-link').value); };
+      window.__kpPlace = picking ? placeKpTags : null;
+      if (picking) {
+        document.querySelectorAll('#kp-picks .kp-pick, #kp-tags .kp-tag.n').forEach(el => { el.onclick = () => pickPiece(Number(el.getAttribute('data-k'))); });
+        syncCrops();
+        const wellImg = document.getElementById('kp-wellimg');
+        if (wellImg) { wellImg.addEventListener('load', placeKpTags); if (wellImg.complete) placeKpTags(); }
+        requestAnimationFrame(placeKpTags);
+      }
       fileInput.onchange = () => { handleFile(fileInput.files[0]); fileInput.value = ''; };
       wireDrop(document.getElementById('kp-well'), handleFile);
       if (filed) popTagsStatic();
@@ -670,90 +688,213 @@
       P.data = payload.data;
       P.mimeType = payload.mimeType;
       P.renderable = payload.renderable !== false;
-      P.imgDead = false;
       P.url = '';
       P.err = '';
-      P.link = false; P.linkOpen = false;
+      P.multi = null;
       if (st.stage === i) paint();
       catalogue();
     }
 
-    // "or paste a link from a shop": the retailer page read into the same
-    // shape as a photograph (POST /api/wardrobe/read-url — the dashboard's
-    // Paste-a-link door). The page's photograph becomes the piece's, and
-    // rides the prefire the way an upload would.
-    async function readLink(raw) {
-      if (P.busy) return;
-      const url = (raw || '').trim();
-      P.linkVal = url;
-      if (!/^https?:\/\/\S+\.\S+/i.test(url)) { P.err = LINK_ERRS.bad_url; paint(); return; }
-      P.err = ''; P.busy = true; P.link = true;
-      paint();
-      let out = null, status = 0;
+    // ── Several pieces, one photograph ──────────────────────────────
+    // The multi read (the dashboard add flow's door): one entry per piece
+    // with a box per piece. A fresh account owns nothing, so the wardrobe
+    // list goes up empty and wardrobe_match is never read here.
+    async function readPieces() {
       try {
         const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), 45000);
-        const r = await fetch('/api/wardrobe/read-url', {
+        const timer = setTimeout(() => ctl.abort(), 70000);
+        const r = await fetch('/api/wardrobe/pieces', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, userId: st.uid || undefined }), signal: ctl.signal,
+          body: JSON.stringify({ data: P.data, mimeType: P.mimeType, userId: st.uid || undefined, wardrobeItems: [] }),
+          signal: ctl.signal,
         });
         clearTimeout(timer);
-        status = r.status;
-        out = await r.json().catch(() => null);
-      } catch (e) { out = null; }
-      P.busy = false;
-      if (!out || out.error || !out.label) {
-        const key = (out && out.error) || (status === 404 ? 'off' : 'read_failed');
-        P.err = LINK_ERRS[key] || LINK_ERRS.read_failed;
-        P.linkOpen = true;
-        if (st.stage === i) paint();
-        return;
-      }
-      P.url = out.image_url || '';
-      P.img = '';
-      P.data = '';
-      P.renderable = true;
-      P.imgDead = false;
-      P.linkOpen = false;
-      file(out);
-      hostLinkImage(out);
+        if (!r.ok) return { failed: true, pieces: [] };
+        const j = await r.json();
+        if (!j || j.analysisFailed || !Array.isArray(j.pieces)) return { failed: true, pieces: [] };
+        return { failed: false, pieces: j.pieces.filter(x => x && x.label) };
+      } catch (e) { return { failed: true, pieces: [] }; }
     }
 
-    // The reader hosts the page's photograph on Cloudinary when it can; a
-    // retailer link it had to leave in place is tried once more through the
-    // upload door (server-side fetch — the browser's own request can be
-    // refused by a Referer check). Best effort: the label already filed.
-    function hostLinkImage(out) {
-      const u = out && out.image_url;
-      if (!u || /res\.cloudinary\.com/.test(u)) return;
-      fetch('/api/wardrobe/upload', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: u }),
-      }).then(r => r.ok ? r.json() : null).then(up => {
-        if (!up || !up.url || P.url !== u) return;
-        P.url = up.url; P.imgDead = false;
-        swapWellImage();
-        writeHandoff();
-        // the filed row carried the retailer's link — point it at the copy
-        Promise.resolve(P.savePromise).then(ok => {
-          if (!ok || !st.uid) return;
+    // The piece's own crop out of the photograph, from the read's box —
+    // padded 8%, never under 28% of the frame on a side, ≤900px JPEG (the
+    // dashboard's crop, verbatim).
+    function cropDataUrl(dataUrl, box, pad) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = function () {
           try {
-            const q = sbClient.from('wardrobe_items');
-            if (q && q.update) q.update({ image_url: up.url }).eq('user_id', st.uid).eq('image_url', u).then(() => {}, () => {});
-          } catch (_) { /* best effort */ }
-        }).catch(() => {});
-      }).catch(() => {});
+            const W = img.naturalWidth, H = img.naturalHeight;
+            const b = box || { x: 0, y: 0, w: 1, h: 1 };
+            const pd = pad == null ? 0.08 : pad;
+            let x = (b.x - pd) * W, y = (b.y - pd) * H, w = (b.w + 2 * pd) * W, h = (b.h + 2 * pd) * H;
+            const minW = W * 0.28, minH = H * 0.28;
+            if (w < minW) { x -= (minW - w) / 2; w = minW; }
+            if (h < minH) { y -= (minH - h) / 2; h = minH; }
+            x = Math.max(0, Math.min(W - 1, x)); y = Math.max(0, Math.min(H - 1, y));
+            w = Math.max(1, Math.min(W - x, w)); h = Math.max(1, Math.min(H - y, h));
+            const scale = Math.min(1, 900 / Math.max(w, h));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(w * scale)); c.height = Math.max(1, Math.round(h * scale));
+            c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, c.width, c.height);
+            resolve(c.toDataURL('image/jpeg', 0.86));
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+      });
     }
 
-    // Swaps only the picture inside the well — never a full paint, which
-    // would take the popping tags out from under the ledger reveal.
-    function swapWellImage() {
-      const box = document.querySelector('#kp-well .kp-img');
-      if (!box || st.stage !== i) return;
-      const src = P.renderable === false ? (P.url || P.img) : (P.img || P.url);
-      const mono = (P.tag && P.tag.label ? P.tag.label : 'R').trim().charAt(0).toUpperCase();
-      box.innerHTML = src && !P.imgDead
-        ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer" onerror="window.__kpImgErr && window.__kpImgErr()">`
-        : `<span class="kp-mono">${esc(mono)}</span>`;
+    async function hostDataUrl(dataUrl) {
+      const m = String(dataUrl || '').match(/^data:([^;]+);base64,(.+)$/);
+      if (!m) return null;
+      try {
+        const r = await fetch('/api/wardrobe/upload', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: m[2], mimeType: m[1] }),
+        });
+        const j = r.ok ? await r.json() : null;
+        return j && /^https?:\/\//.test(j.url || '') ? j.url : null;
+      } catch (e) { return null; }
+    }
+
+    // The word a numbered tag carries: the item type, else the label's last word.
+    function pieceWord(tag) {
+      const w = String(tag.category_l3 || tag.category_l2 || '').trim() || String(tag.label || 'piece').trim().split(/\s+/).slice(-1)[0];
+      return w.length > 18 ? String(tag.label || 'piece').trim().split(/\s+/).slice(-1)[0] : w;
+    }
+
+    // Two or more pieces read: the state on the page — the photograph in
+    // the well with a numbered tag per piece, a tile per piece beneath it.
+    // The crops are drawn after the paint and land on the tiles through the
+    // DOM (a data URL never rides the markup).
+    function showPieces(pieces) {
+      const m = { pieces: pieces.map((tag, k) => ({ k, tag, box: tag.box || { x: 0, y: 0, w: 1, h: 1 }, crop: null, hosted: null })), picked: null };
+      P.multi = m;
+      P.busy = false;
+      if (st.stage === i) paint();
+      obTrack('pieces_read', { surface: 'onboarding', n: m.pieces.length });
+      m.pieces.forEach(pc => {
+        cropDataUrl(P.img, pc.box).then(c => {
+          if (P.multi !== m || !c) return;
+          pc.crop = c;
+          syncCrops();
+        });
+      });
+    }
+
+    function syncCrops() {
+      const m = P.multi; if (!m) return;
+      document.querySelectorAll('img[data-kpcrop]').forEach(im => {
+        const pc = m.pieces[Number(im.getAttribute('data-kpcrop'))];
+        const src = pc && (pc.crop || P.img);
+        if (src && im.getAttribute('src') !== src) im.src = src;
+      });
+    }
+
+    // The tags sit at their boxes' centres ON THE PICTURE — the well shows
+    // the photograph contained, so the box fractions are mapped onto the
+    // rendered picture, and each tag is nudged clear of the ones placed
+    // before it (down, then up) and held inside the well.
+    function placeKpTags() {
+      const well = document.getElementById('kp-well');
+      const img = document.getElementById('kp-wellimg');
+      const tags = Array.from(document.querySelectorAll('#kp-tags .kp-tag.n'));
+      if (!well || !img || !tags.length) return;
+      const WW = well.clientWidth, WH = well.clientHeight;
+      const nw = img.naturalWidth || WW, nh = img.naturalHeight || WH;
+      if (!WW || !WH || !nw || !nh) return;
+      const sc = Math.min(WW / nw, WH / nh);
+      const rw = nw * sc, rh = nh * sc, rx = (WW - rw) / 2, ry = (WH - rh) / 2;
+      const placed = [];
+      const hits = r => placed.some(q => Math.abs(q.cx - r.cx) < (q.w + r.w) / 2 + 4 && Math.abs(q.cy - r.cy) < (q.h + r.h) / 2 + 4);
+      tags.slice().sort((a, b) => parseFloat(a.getAttribute('data-cy')) - parseFloat(b.getAttribute('data-cy'))).forEach(t => {
+        const w = t.offsetWidth, h = t.offsetHeight; if (!w || !h) return;
+        const cx0 = rx + parseFloat(t.getAttribute('data-cx')) / 100 * rw;
+        const cy0 = ry + parseFloat(t.getAttribute('data-cy')) / 100 * rh;
+        const cx = Math.min(WW - w / 2 - 2, Math.max(w / 2 + 2, cx0));
+        const cy = Math.min(WH - h / 2 - 2, Math.max(h / 2 + 2, cy0));
+        const r = { cx, cy, w, h };
+        let dir = 1, k = 1;
+        while (hits(r) && k <= 8) {
+          r.cy = cy + dir * k * (h + 6);
+          if (r.cy > WH - h / 2 - 2 || r.cy < h / 2 + 2) { if (dir === 1) { dir = -1; k = 1; r.cy = cy; continue; } r.cy = cy; break; }
+          k++;
+        }
+        t.style.left = (r.cx - w / 2) + 'px'; t.style.top = (r.cy - h / 2) + 'px';
+        placed.push(r);
+      });
+    }
+
+    // The piece she taps is the key piece: its crop becomes the photograph
+    // (the well, the row's image once hosted, the prefire, the handoff) and
+    // it files exactly as a single read does; the others file quietly.
+    async function pickPiece(k) {
+      const m = P.multi;
+      if (!m || m.picked != null || P.busy || P.tag) return;
+      const pc = m.pieces[k]; if (!pc) return;
+      m.picked = k;
+      P.busy = true;
+      if (st.stage === i) paint();
+      const crop = pc.crop || (await cropDataUrl(P.img, pc.box)) || P.img;
+      pc.crop = crop;
+      if (P.multi !== m) return resumeAfterAbort();   // a new photograph under the pick
+      const hosted = await hostDataUrl(crop);
+      if (P.multi !== m) return resumeAfterAbort();
+      pc.hosted = hosted;
+      P.img = crop;
+      const mm = String(crop).match(/^data:([^;]+);base64,(.+)$/);
+      if (mm) { P.mimeType = mm[1]; P.data = mm[2]; P.renderable = true; }
+      P.url = hosted || '';
+      P.busy = false;
+      obTrack('piece_picked', { surface: 'onboarding', n: m.pieces.length, k });
+      file(pc.tag);
+      fileOthers(m);
+    }
+
+    // The other pieces in the photograph land as wardrobe rows, each on its
+    // own crop — no confirm per piece here (that is the dashboard's job).
+    function fileOthers(m) {
+      m.pieces.forEach((pc, k) => {
+        if (k === m.picked) return;
+        Promise.resolve(pc.crop || cropDataUrl(P.img, pc.box)).then(async crop => {
+          if (P.multi !== m) return;
+          const hosted = crop ? await hostDataUrl(crop) : null;
+          if (P.multi !== m || !st.uid) return;
+          const dna = (pc.tag.item_dna && typeof pc.tag.item_dna === 'object') ? JSON.parse(JSON.stringify(pc.tag.item_dna)) : {};
+          dna.source = { kind: 'photo_multi' };
+          const row = {
+            user_id: st.uid,
+            label: pc.tag.label,
+            category: pc.tag.category || 'Other',
+            category_l2: pc.tag.category_l2 || null,
+            category_l3: pc.tag.category_l3 || null,
+            color: pc.tag.color || null,
+            brand: pc.tag.brand || null,
+            notes: pc.tag.notes || null,
+            image_url: hosted || null,
+            item_dna: dna,
+          };
+          insertRow(row, 'onboarding_multi', m.pieces.length, k + 1).catch(() => false);
+        }).catch(() => {});
+      });
+    }
+
+    // One wardrobe_items row, the taxonomy columns stripped on a PGRST204
+    // (migration 15 not run) — the single path's write, shared.
+    function insertRow(row, src, batchN, batchI) {
+      const done = () => { obTrack('wardrobe_added', { source: src, category: row.category || '', batch_n: batchN || 1, batch_i: batchI || 1 }); return true; };
+      return sbClient.from('wardrobe_items').insert(row).then(({ error }) => {
+        if (error && /category_l|column/i.test(error.message || '')) {
+          delete row.category_l2;
+          delete row.category_l3;
+          return sbClient.from('wardrobe_items').insert(row).then(({ error: e2 }) => {
+            if (e2) { console.warn('Wardrobe save failed:', e2.message); return false; }
+            return done();
+          });
+        }
+        if (error) { console.warn('Wardrobe save failed:', error.message); return false; }
+        return done();
+      });
     }
 
     async function catalogue() {
@@ -768,13 +909,22 @@
         body: JSON.stringify({ data: P.data, mimeType: P.mimeType, userId: st.uid || undefined }),
       }).then(r => r.ok ? r.json() : null).catch(() => null);
 
-      let [tag, up] = await Promise.all([
-        analyse(),
-        fetch('/api/wardrobe/upload', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: P.data, mimeType: P.mimeType }),
-        }).then(r => r.ok ? r.json() : null).catch(() => null),
-      ]);
+      // the whole photograph hosts while it is read — the single path's row
+      // takes that copy; a multi pick hosts its own crop instead
+      const photo = P.img;
+      const upP = fetch('/api/wardrobe/upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: P.data, mimeType: P.mimeType }),
+      }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+      // the multi read first: two or more pieces → she picks; one, none or
+      // a failed read → the single read, exactly as before
+      const multi = await readPieces();
+      if (P.img !== photo || P.tag) return resumeAfterAbort(); // a new photograph under the read
+      if (!multi.failed && multi.pieces.length >= 2) { showPieces(multi.pieces); return; }
+
+      let [tag, up] = await Promise.all([analyse(), upP]);
+      if (P.img !== photo || P.tag) return resumeAfterAbort();
       if (!tag || tag.analysisFailed || (!tag.noItemDetected && !tag.label)) {
         await new Promise(r => setTimeout(r, 1500));
         tag = (await analyse()) || tag;
@@ -797,6 +947,14 @@
       file(tag);
     }
 
+    // A photograph dropped onto the well while one was being read (or
+    // picked from) wins: the stale read stands down and the new one starts.
+    function resumeAfterAbort() {
+      P.busy = false;
+      if (P.img && P.data && !P.tag) catalogue();
+      else if (st.stage === i) paint();
+    }
+
     // The piece is read: file it (the row insert in the background), fire
     // the prefire and the handoff NOW, then play the reveal.
     function file(tag) {
@@ -813,24 +971,7 @@
         image_url: P.url || null,
         item_dna: tag.item_dna || {},
       };
-      const src = P.link ? 'onboarding_link' : 'onboarding';
-      P.savePromise = sbClient.from('wardrobe_items').insert(row).then(({ error }) => {
-        if (error && /category_l|column/i.test(error.message || '')) {
-          // Migration 15 not run — retry without the taxonomy columns.
-          delete row.category_l2;
-          delete row.category_l3;
-          return sbClient.from('wardrobe_items').insert(row).then(({ error: e2 }) => {
-            if (e2) { console.warn('Wardrobe save failed:', e2.message); return false; }
-            P.saved = true;
-            obTrack('wardrobe_added', { source: src, category: row.category || '', batch_n: 1, batch_i: 1 });
-            return true;
-          });
-        }
-        if (error) { console.warn('Wardrobe save failed:', error.message); return false; }
-        P.saved = true;
-        obTrack('wardrobe_added', { source: src, category: row.category || '', batch_n: 1, batch_i: 1 });
-        return true;
-      }).catch(() => false);
+      P.savePromise = insertRow(row, 'onboarding').then(okk => { if (okk) P.saved = true; return okk; }).catch(() => false);
 
       if (st.stage !== i) return;
       obTrack('onboarding_step', { step: 'piece', outcome: 'answered' });
@@ -866,13 +1007,9 @@
       }
     }
 
-    // A hosted photograph (the link path) rides the prefire as a data URL,
-    // the way the dashboard's wardrobe pick does — a fetch that fails
-    // leaves the prefire on the label alone.
+    // The photograph rides the prefire as a data URL (a multi pick's crop).
     function pieceDataUrl() {
-      if (P.img) return Promise.resolve(P.img);
-      if (!P.url) return Promise.resolve(null);
-      return fetch(P.url).then(r => r.blob()).then(fileToPayload).then(p => p.dataUrl).catch(() => null);
+      return Promise.resolve(P.img || null);
     }
 
     // Fire the "style key piece" pipeline the moment the piece is filed —
