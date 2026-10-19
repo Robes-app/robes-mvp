@@ -649,19 +649,38 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
     : '';
   // What Robes has already made for her (2026-10-19, Jayden's repeat): the
   // last sets, so a second ask is a second answer, never the first again.
-  const shownBlock = recentBlock(recent);
+  const shownBlock = recentBlock(recent, bal);
+  // Her answer frames the whole brief, said FIRST — the wardrobe list and
+  // the taste blocks beneath are read in its light; the closet directive
+  // restates it after the list so recency agrees with primacy.
+  const balanceLead = closetItems.length && (bal || balNote) ? balanceDirective(bal, balNote) : '';
 
   // The prompt is one block, tightened for cost (2026-10-13): the rules
   // are the same — the four-tier formula, the sanity check, the itemised
   // pieces and the garment-free scene line — said once, without examples
   // the schema already enforces.
+  // The owned-first clauses follow her answer on where the pieces come
+  // from (2026-10-19, Annie's live test: "Suggest new pieces" came back
+  // all hers — "the owned piece is the one listed", "each way leads with a
+  // different owned piece" and "never by inventing pieces" all stood above
+  // the one line that said new, and won).
+  const wantsNew = bal === 'new';
+  const selectRule = wantsNew
+    ? 'Her brief, and her answer that NEW pieces are welcome, decide WHAT you select'
+    : 'Her brief and what she owns decide WHAT you select';
+  const pickRule = wantsNew
+    ? 'Choosing between an owned piece and one to find, the new piece is the one listed unless hers is plainly the right one.'
+    : 'Choosing between an owned piece and one to buy, the owned piece is the one listed.';
+  const threeWays = wantsNew
+    ? 'THREE WAYS, THREE LOOKS — no two ways share the same Anchor, and every Anchor is a NEW piece she has yet to find, three different pieces from three different houses; the three differ in register (one easier, one sharper, one unexpected), never three colourways of one idea, never three ways of dressing the same owned pieces.'
+    : 'THREE WAYS, THREE LOOKS — no two ways share the same Anchor; where her wardrobe holds three candidates, each way leads with a different owned piece; the three differ in register (one easier, one sharper, one unexpected), never three colourways of one idea. A small wardrobe is varied by combination, by how a piece is worn and by the scene — never by inventing pieces she did not ask for.';
   const formulaBlock = `THE FORMULA — every look layers 1) THE ANCHOR, the hero piece for the weather and agenda; 2) THE CANVAS, premium supporting basics; 3) THE TEXTURE, one depth-adding element; 4) THE EXCLAMATION POINT, the footwear, bag and hardware that inject identity. Name exact cuts, fabrications and how a piece is worn — never "jeans and a top".
 
-SANITY CHECK — every styling move is one a respected stylist would shoot on the street, in the key piece's natural register: sporty pieces stay elevated-casual (no belted knitwear over athletic shorts, no waist-cinching tricks on a sporty silhouette, no tailoring over gym wear). Her brief and what she owns decide WHAT you select; the colour and line notes only tilt a choice between pieces that both fit, and never dictate how a piece is contorted. A trick that needs explaining is dropped.
+SANITY CHECK — every styling move is one a respected stylist would shoot on the street, in the key piece's natural register: sporty pieces stay elevated-casual (no belted knitwear over athletic shorts, no waist-cinching tricks on a sporty silhouette, no tailoring over gym wear). ${selectRule}; the colour and line notes only tilt a choice between pieces that both fit, and never dictate how a piece is contorted. A trick that needs explaining is dropped.
 
-THE PIECES ARE THE LOOK — "pieces" is the complete outfit head to toe, three to six entries in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt"); "color" a plain word, "color_hex" one hex. "wardrobe_index" is the owned piece's number from her wardrobe (its exact label as the name), else -1. Only a piece she must find carries "brand", "retailer_hint" and "price_point" (EUR, "€89"); leave them empty on an owned piece. ONE PIECE PER SLOT: exactly one pair of shoes, at most one bag, one bottom or one dress, one top under a layer — a look never lists two of the same kind (never two pairs of shoes, never a second bottom). Choosing between an owned piece and one to buy, the owned piece is the one listed.
+THE PIECES ARE THE LOOK — "pieces" is the complete outfit head to toe, three to six entries in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt"); "color" a plain word, "color_hex" one hex. "wardrobe_index" is the owned piece's number from her wardrobe (its exact label as the name), else -1. Only a piece she must find carries "brand", "retailer_hint" and "price_point" (EUR, "€89"); leave them empty on an owned piece. ONE PIECE PER SLOT: exactly one pair of shoes, at most one bag, one bottom or one dress, one top under a layer — a look never lists two of the same kind (never two pairs of shoes, never a second bottom). ${pickRule}
 
-THREE WAYS, THREE LOOKS — no two ways share the same Anchor; where her wardrobe holds three candidates, each way leads with a different owned piece; the three differ in register (one easier, one sharper, one unexpected), never three colourways of one idea. A small wardrobe is varied by combination, by how a piece is worn and by the scene — never by inventing pieces she did not ask for.
+${threeWays}
 
 THE SCENE — one sentence under thirty words: the occasion, the setting, the mood, how the pieces are worn (tucked, open, sleeves pushed). It names no garment, shoe, bag or accessory, not even by type — the pieces list carries them and the two must never disagree. "A late dinner in the Marais, the top tucked and the jacket worn open, understated and unhurried." is the register; "paired with a pencil skirt and loafers" is forbidden.`;
 
@@ -681,7 +700,7 @@ THE SCENE — one sentence under thirty words: the occasion, the setting, the mo
 
   const systemInstruction = `You are Robes' head stylist — elegant, directional, precise; warm, editorial copy. ${genderDirective(g)} ${who}
 
-${brief}
+${brief}${balanceLead ? '\n\n' + balanceLead : ''}
 
 ${formulaBlock}
 
@@ -770,7 +789,10 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
       if (!ways.length) throw new Error('empty refine');
       ways = ways.slice(0, 1);
     }
-    logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback, refine: refineWay != null ? refineWay : undefined, balance: bal || (balNote ? 'words' : undefined), shown: shownBlock ? (Array.isArray(recent && recent.sets) ? recent.sets.length : 1) : undefined });
+    // owned/new per way — the read that shows whether her balance answer
+    // was honoured (Annie's live test, 2026-10-19: "new" came back all hers).
+    const mixLine = ways.map(w => { const ps = Array.isArray(w.pieces) ? w.pieces : []; const own = ps.filter(p => p && p.wardrobe_match).length; return own + '/' + ps.length; }).join(' ');
+    logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback, refine: refineWay != null ? refineWay : undefined, balance: bal || (balNote ? 'words' : undefined), owned_of_total: mixLine || undefined, shown: shownBlock ? (Array.isArray(recent && recent.sets) ? recent.sets.length : 1) : undefined });
 
     // Create image job and respond immediately — images generate in background
     const jobId = randomBytes(6).toString('hex');
@@ -1064,15 +1086,15 @@ function normBalance(v) { v = String(v || '').toLowerCase().trim(); return BALAN
 function balanceDirective(bal, note) {
   const lines = [];
   if (bal === 'owned') lines.push('WHERE THE PIECES COME FROM — all hers: every look is built entirely from her wardrobe, each piece by its exact label. A new piece appears only where a slot cannot be filled from what she owns at all, and then one, named as the gap it fills. A small wardrobe is varied by combination, by how a piece is worn and by the scene, never by inventing pieces.');
-  else if (bal === 'mix') lines.push('WHERE THE PIECES COME FROM — a mix: her pieces wherever they serve the look, by exact label, and new pieces for the gaps. When an owned piece and one to buy would both fit, the owned piece is the one listed.');
-  else if (bal === 'new') lines.push('WHERE THE PIECES COME FROM — new pieces welcome: her wardrobe is context for her taste, not the brief. Propose new pieces freely, in her register and her brief; use an owned piece only where it is plainly the right one, by its exact label.');
+  else if (bal === 'mix') lines.push('WHERE THE PIECES COME FROM — a mix: her pieces wherever they serve the look, by exact label, and new pieces for the gaps — every look holds BOTH, at least one piece of hers and at least one she has yet to find. When an owned piece and one to buy would both fit, the owned piece is the one listed.');
+  else if (bal === 'new') lines.push('WHERE THE PIECES COME FROM — she asked for NEW pieces. Her wardrobe is context for her taste, never the brief: in EVERY look the Anchor and at least one more piece are pieces she has yet to find (wardrobe_index -1, with brand, retailer and price, from her houses and their register), and the Exclamation Point is new where it can be; an owned piece fills a slot only where it is plainly the right one, by its exact label, and never more than half the look. A look built from her wardrobe alone is the wrong answer to this ask.');
   if (note) lines.push(`${bal ? 'And in her own words' : 'WHERE THE PIECES COME FROM — in her own words'}: "${note}". Follow that.`);
   return lines.join(' ');
 }
 // What Robes has already made for her — the last sets (newest first), so
 // a second ask never returns the first answer again. recent: {sets: [{
 // prompt, ways: [{title, pieces: [names]}]}]}, capped hard.
-function recentBlock(recent) {
+function recentBlock(recent, bal) {
   const sets = (recent && Array.isArray(recent.sets) ? recent.sets : []).filter(Boolean).slice(0, 6);
   const rows = [];
   sets.forEach(st => {
@@ -1086,7 +1108,10 @@ function recentBlock(recent) {
     });
   });
   if (!rows.length) return '';
-  return `ALREADY SHOWN — the looks Robes has already made for her, newest first. They exist; never return one again, and never the same set of pieces under a new name. Each new look leads with a different owned piece where the wardrobe allows; where it does not, the same piece is paired differently, worn differently, in a different scene — and the scene line says what is new.
+  const lead = bal === 'new'
+    ? 'Each new look leads with a NEW piece she has yet to find — never an owned piece these looks already led with.'
+    : 'Each new look leads with a different owned piece where the wardrobe allows; where it does not, the same piece is paired differently, worn differently, in a different scene — and the scene line says what is new.';
+  return `ALREADY SHOWN — the looks Robes has already made for her, newest first. They exist; never return one again, and never the same set of pieces under a new name. ${lead}
 ${rows.slice(0, 18).join('\n')}`;
 }
 const REFINE_MAX = 240;
