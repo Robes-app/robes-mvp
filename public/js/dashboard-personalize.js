@@ -1062,7 +1062,6 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       }
       var _RB_LP_COPY = {
         doorLook: 'Change this look…', doorNew: 'A new look for…', doorHome: 'Tell Robes where you’re going, or the look you’re after…', doorAfter: 'Anything else, or put something back…',
-        phDraft: 'Change this draft…',
         busyBuild: 'Building a draft from your wardrobe…', busyChange: 'Changing the look…', busyNote: 'Noting it…', busyRead: 'Reading it…',
         doneNone: 'Nothing has changed yet, so there’s nothing to put back.',
         phPiece: 'Where to? Optional',
@@ -34757,34 +34756,19 @@ body.rb-hb-on #dash .concierge{display:none!important}
         if (d && _lkDraftId !== d.id) _lkDraftLoad(d);
         return !!_rbHbDraft();
       }
-      // While a draft stands under the field, the field works ON the draft
-      // ("Change this draft…" — the composer's own edit loop); once it is
-      // saved, or gone, the field asks for a new look again.
+      // The field is ALWAYS the new-look ask (Annie, 2026-10-19: the draft
+      // taking the home prompt over — "Change this draft…", the row and
+      // Save look beneath the field — read as jarring and is not needed:
+      // every ask is three ways on the deck since 2026-10-09, and a parked
+      // draft is reached from the Lookbook's In progress rail). The draft
+      // loop the box used to run (mode 'look' over _lkLpRackComposer) and
+      // its saved → dated week stage are retired here; the helpers beneath
+      // survive unreached.
       function _rbHbDraftMode() {
         const s = _rbLp; if (!s || (s.surface !== 'home' && s.surface !== 'day')) return;
-        // A DOCKED box (a grid's sparkle, a dated door, the home slot over
-        // a standing draft) is the new-look ask — it works on a draft only
-        // once it has built one itself (Annie, 2026-10-02: the Lookbook's
-        // sparkle opening home's "Change this draft…" read as a detour).
-        let d = (s.persist || s.hbBuilt) && (!_rbHbStage || !_rbHbStage.lookId) ? _rbHbDraft() : null;
-        // A dated box works only on a draft made FOR that day — the standing
-        // draft elsewhere is not this day's.
-        if (d && s.hbDate && d.day !== s.hbDate) d = null;
-        if (d) {
-          s.mode = 'look'; s.name = d.name || 'This look'; s.placeholder = _RB_LP_COPY.phDraft;
-          s.rack = () => { _rbHbEnsureDraftLoaded(); return _lkLpRackComposer(); };
-          s.pool = _rbLpPoolWardrobe;
-          s.context = () => _rbLpContext({ date: d.day || undefined, occasion: _lkDraftSrc && _lkDraftSrc.src ? _lkDraftSrc.src.prompt : null });
-          s.apply = (j, sent) => { _rbHbEnsureDraftLoaded(); const n = _lkLpApplyComposer(j, sent); try { _lkDraftPark(); } catch (_) {} return n; };
-          s.onRule = _rbBriefRulePush;
-          s.changed = () => Object.keys(_lkDraftWas).length;
-          s.afterApply = () => {};
-          try { s.applied = s.changed() || 0; } catch (_) {}
-        } else {
-          s.mode = 'new'; s.name = 'A new look'; s.placeholder = s.hbDate ? ('Dress ' + _lkFmtDay(s.hbDate) + '…') : null;
-          s.rack = s.pool = s.apply = s.changed = s.afterApply = null;
-          s.applied = 0;
-        }
+        s.mode = 'new'; s.name = 'A new look'; s.placeholder = s.hbDate ? ('Dress ' + _lkFmtDay(s.hbDate) + '…') : null;
+        s.rack = s.pool = s.apply = s.changed = s.afterApply = null;
+        s.applied = 0;
       }
       // Home's own box: in the row, persistent, never focused on its own.
       // Only while home is the page on top and no other box holds the
@@ -34793,11 +34777,9 @@ body.rb-hb-on #dash .concierge{display:none!important}
       // stands; a change re-reads the box's mode and repaints the tail
       // without touching what she is typing.
       function _rbHbSig() {
-        const st = _rbHbStage;
-        if (st && st.lookId) return 'saved:' + st.lookId + ':' + st.step + ':' + (st.date || '');
-        let d = _rbHbDraft();
-        if (d && _rbLp && _rbLp.hbDate && d.day !== _rbLp.hbDate) d = null;
-        return d ? 'draft:' + d.id + ':' + d.name + ':' + d.ids.join(',') + ':' + d.props + ':' + d.stills.length + ':' + (d.day || '') : 'none';
+        // Nothing stands under the field any more (2026-10-19) — one
+        // signature, so the sync never repaints the tail.
+        return 'none';
       }
       function _rbHbBoxSync(s) {
         if (!s || s.reading) return;
@@ -34853,33 +34835,15 @@ body.rb-hb-on #dash .concierge{display:none!important}
       }
       function _rbHbResultHtml(s) {
         if (s.building) return '<div class="rb-lpd-busy">' + _waEsc(_RB_LP_COPY.busyBuild) + '</div>';
-        // A docked box shows only what it built itself — never the row of a
-        // draft standing elsewhere.
-        if (!s.persist && !s.hbBuilt) return '';
-        const st = _rbHbStage;
-        if (st && st.lookId) {
-          const l = _lkFind(st.lookId);
-          if (!l) { _rbHbStage = null; }
-          else {
-            const row = _rbHbRowHtml({ ey: 'Saved to your lookbook', name: l.name, ids: _lkPieceIds(l), props: Array.isArray(l.proposals) ? l.proposals.length : 0,
-              stills: (l.proposals || []).map(r => r.image_url), onclick: 'window.__rbHbOpenLook()' });
-            if (st.step === 'dated' && st.date) {
-              return row + '<div class="rb-lpd-done"><span>✓ In your diary for ' + _waEsc(_rbHbDayLabel(st.date)) + '.</span><button type="button" class="ch" onclick="window.__rbHbRePick()">Change</button></div>';
-            }
-            return row + _rbHbDaysHtml(st);
-          }
-        }
-        const d = _rbHbDraft();
-        if (!d || (s.hbDate && d.day !== s.hbDate)) return '';
-        return _rbHbRowHtml({ ey: 'Draft look · ' + (d.day ? _lkFmtDay(d.day) : 'not saved yet'), name: d.name, ids: d.ids, props: d.props, stills: d.stills, onclick: 'window.__rbHbOpenDraft()' }) +
-          '<button type="button" class="rb-lpd-save" onclick="window.__rbHbSave()">Save look</button>';
+        // No draft row, no Save look, no saved → dated week under the field
+        // (2026-10-19) — the box is the new-look field and nothing else.
+        return '';
       }
-      // The draft landed under the field: the field turns to it.
+      // A draft landed from the box (the quiet build path — unreached since
+      // every ask goes to the deck): the field stays the new-look ask.
       function _rbHbBuilt(s) {
         _rbHbStage = null;
         s.hbBuilt = true;
-        _rbHbDraftMode();
-        try { s._hbSig = _rbHbSig(); } catch (_) {}
         try { if (typeof _rbNextPaint === 'function') _rbNextPaint(); } catch (_) {}
         // a draft counts for nothing on home until it is saved — no re-resolve
         _rbTrack('home_box_draft_landed', { surface: s.surface, pieces: _lkUsed().length, proposed: _lkShop.length, dated: !!(_lkDay && _lkDay.date) });
@@ -35028,8 +34992,8 @@ body.rb-hb-on #dash .concierge{display:none!important}
         let s = null;
         if (home) { s = _rbHbBoxEnsure(); if (s) s.hbDate = null; else home = false; }
         if (!s) {
-          // Docked, and the new-look ask only: it never inherits the
-          // standing draft (_rbHbDraftMode reads s.hbBuilt).
+          // Docked, and the new-look ask only (no box inherits a standing
+          // draft since 2026-10-19).
           _rbLookPrompt({ mode: 'new', surface: o.surface || (date ? 'day' : 'home'), name: 'A new look', hbDate: date,
             refPhotos: !!o.refPhotos, fade: !!o.fade, key: o.key || undefined,
             onAsk: _rbHbAsk, onBuilt: _rbHbBuilt, resultHtml: _rbHbResultHtml });

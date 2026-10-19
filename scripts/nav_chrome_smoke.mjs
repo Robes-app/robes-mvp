@@ -535,17 +535,22 @@ const titleTop = (page) => page.evaluate(() => {
   const sl0 = await slRead();
   await page.evaluate(() => window.scrollTo(0, 900)); await page.waitForTimeout(900);
   const sl1 = await slRead();
-  check('mobile home + draft · the field works on the draft (“Change this draft…”, the row beneath); the slot hides while the row is on screen and reads “A new look for…” once scrolled past',
-    hd.ph === 'Change this draft…' && hd.row && !sl0.on && sl1.on && !sl1.bare && sl1.label === 'A new look for…', JSON.stringify([hd, sl0, sl1]));
+  // 2026-10-19: the draft never takes the field over — home's box stays
+  // the new-look ask with nothing beneath it; the slot still hides while
+  // the row is on screen and reads “A new look for…” once scrolled past.
+  check('mobile home + draft · the field stays the new-look ask (“Where to, and how should it feel?”, no row beneath); the slot hides while the row is on screen and reads “A new look for…” once scrolled past',
+    hd.ph === 'Where to, and how should it feel?' && !hd.row && !sl0.on && sl1.on && !sl1.bare && sl1.label === 'A new look for…', JSON.stringify([hd, sl0, sl1]));
   if (SHOT) await page.screenshot({ path: SHOT + 'draft-home.png' });
   await page.evaluate(() => window.__rbLpSlotTap()); await page.waitForTimeout(500);
   const fresh = await page.evaluate(() => { const w = document.getElementById('rb-lp'); return { dock: !!w && w.classList.contains('rb-lp-dock'), inHome: !!document.querySelector('#rb-hb #rb-lp'), ph: document.getElementById('rb-lp-in')?.placeholder, rows: document.querySelectorAll('#rb-lp .rb-lpd-row').length, name: w && w.querySelector('.rb-lp')?.getAttribute('aria-label'), focused: document.activeElement?.id, standIn: !!document.querySelector('#rb-hb-fieldslot .rb-lp-field') }; });
-  check('mobile home + draft · the sparkle opens a FRESH docked box — “Where to, and how should it feel?”, no draft row, the home field a stand-in beneath it',
-    fresh.dock && !fresh.inHome && fresh.ph === 'Where to, and how should it feel?' && fresh.rows === 0 && fresh.name === 'A new look' && fresh.focused === 'rb-lp-in' && fresh.standIn, JSON.stringify(fresh));
+  // Home's field IS the new-look ask now, so the slot focuses it in place
+  // (the fresh docked box was only ever the way past the draft mode).
+  check('mobile home + draft · the sparkle focuses home’s own field in place — the new-look ask, no draft row, no second box',
+    !fresh.dock && fresh.inHome && fresh.ph === 'Where to, and how should it feel?' && fresh.rows === 0 && fresh.name === 'A new look' && fresh.focused === 'rb-lp-in', JSON.stringify(fresh));
   if (SHOT) await page.screenshot({ path: SHOT + 'draft-home-fresh.png' });
   await page.evaluate(() => window.__rbLpClose()); await page.waitForTimeout(600);
   const back = await page.evaluate(() => ({ inline: !!document.querySelector('#rb-hb #rb-lp.rb-lp-in'), ph: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, row: !!document.querySelector('#rb-hb #rb-lp .rb-lpd-row') }));
-  check('mobile home + draft · closing the fresh box hands the row back to home’s field, the draft still under it', back.inline && back.ph === 'Change this draft…' && back.row, JSON.stringify(back));
+  check('mobile home + draft · a close leaves home’s field inline, still the new-look ask with nothing under it', back.inline && back.ph === 'Where to, and how should it feel?' && !back.row, JSON.stringify(back));
   // The Lookbook's sparkle: a new look, never home's draft.
   await page.evaluate(() => window.__rbNavGo('lookbook')); await page.waitForTimeout(700);
   const lk0 = await page.evaluate(() => ({ grid: document.getElementById('sn-page')?.style.display === 'block', tile: !!document.getElementById('rb-lk-drafttile'), slot: !!document.querySelector('#rb-lp-slot .rb-lps.bare') }));

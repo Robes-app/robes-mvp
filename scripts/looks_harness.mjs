@@ -4856,25 +4856,19 @@ const composerRead = () => ({
     return { text: echo?.textContent.replace(/\s+/g, ' ').trim(), row: !!row, ey: row?.querySelector('.ey')?.textContent, name: row?.querySelector('.nm')?.textContent, meta: row?.querySelector('.m')?.textContent,
       save: document.querySelector('#rb-hb #rb-lp .rb-lpd-save')?.textContent.trim(), ph: document.querySelector('#rb-hb #rb-lp-in')?.placeholder };
   });
-  // Inline since 2026-10-01: home's box carries the draft beneath its field
-  // (the row, Save look, the field working on the draft); the next line
-  // moves on while the box shows it.
-  check('draft · home\'s box carries the draft under the field — “Draft look · not saved yet”, its name and pieces, Save look, the field reading “Change this draft…” — and the next line moves on',
-    h.row && h.ey === 'Draft look · not saved yet' && h.name === 'Date night' && /^4 pieces · 3 yours$/.test(h.meta || '') && h.save === 'Save look' && h.ph === 'Change this draft…' && !/is waiting, unsaved/.test(h.text || ''), JSON.stringify(h));
-  const back = await page.evaluate(async () => {
-    document.querySelector('#rb-hb #rb-lp .rb-lpd-row')?.click();
-    await new Promise((r) => setTimeout(r, 700));
-    return window.__cr();
-  });
-  check('draft · Open it lands on the composer with the draft whole', back.open && back.rows.length === 3 && JSON.stringify(back.shop) === JSON.stringify(['Camel wool coat']) && back.title === 'Date night', JSON.stringify({ open: back.open, rows: back.rows, shop: back.shop, title: back.title }));
+  // Since 2026-10-19 (Annie: the takeover read as jarring) home's box is
+  // ALWAYS the new-look field — no draft row, no Save look, no "Change this
+  // draft…"; the Lookbook's In progress rail is the way back to the draft.
+  check('draft · home\'s box stays the new-look field — no draft row, no Save look, “Where to, and how should it feel?” — while the draft waits on the Lookbook',
+    !h.row && !h.save && h.ph === 'Where to, and how should it feel?', JSON.stringify(h));
   // A reload: the park outlives the page.
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(2800);
   const r1 = await page.evaluate(() => {
     const row = document.querySelector('#rb-hb #rb-lp .rb-lpd-row');
-    return { name: row?.querySelector('.nm')?.textContent, ey: row?.querySelector('.ey')?.textContent, park: !!localStorage.getItem('rb_lk_draft__u-test') };
+    return { row: !!row, ph: document.querySelector('#rb-hb #rb-lp-in')?.placeholder, park: !!localStorage.getItem('rb_lk_draft__u-test') };
   });
-  check('draft · a reload keeps the draft — the box still carries it', r1.park && r1.name === 'Date night' && r1.ey === 'Draft look · not saved yet', JSON.stringify(r1));
+  check('draft · a reload keeps the park, and the box still reads as the new-look field', r1.park && !r1.row && r1.ph === 'Where to, and how should it feel?', JSON.stringify(r1));
   await openLooks(page);
   const tile = await page.evaluate(() => {
     const t = document.getElementById('rb-lk-drafttile');
