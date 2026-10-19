@@ -338,7 +338,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     const { ctx, p, errs, upd } = await open(vp, 'empty', { hash: '#dna', row: { style_icons: ['The Row', 'Jane Birkin'], budget: 'Everyday, Designer' } });
     ok(await p.locator('#pg-dna').isVisible(), '#dna opens Style DNA');
     ok((await txt(p, '#sp-hdr-title')) === 'Style DNA' && (await txt(p, '#pg-dna .sp-pagesub')) === 'What you love, and the lines you dress by.', 'titled Style DNA in the header row, the masthead now the 12px sub (D1)');
-    ok(await p.locator('#pg-dna .sp-group').count() === 2 && await p.locator('#pg-dna .sp-row .chev').count() === 8, 'grouped rows in white cards with chevrons stay (D2)');
+    ok(await p.locator('#pg-dna .sp-group').count() === 2 && await p.locator('#pg-dna .sp-row .chev').count() === 9, 'grouped rows in white cards with chevrons stay (D2) — nine rows with Your colours (19 Oct)');
     // the one-time reconcile: brands split off the icons, the tiers mapped to a level
     const once = await upd('u.style_icons');
     ok(once && once.style_icons.join() === 'Jane Birkin' && once.style_dna.brands.join() === 'The Row' && once.style_dna.investment === '€1,500–5,000' && once.annual_spend === '€1,500–5,000', 'ONE write splits the brands off the icons and maps the highest tier to a level: ' + JSON.stringify(once));
@@ -417,6 +417,22 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids.length === 0 && (await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.struck.length === 0, '× strikes a typed line without recording it as struck (it was hers, not Robes’)');
     await p.click('#sh-done'); await p.waitForTimeout(200);
     ok((await txt(p, '#dna-avoids-v')) === 'Not yet', 'Hard nos reads as a count on the row (D3)');
+    // Your colours (19 Oct): hers to set, loved and never, amended at any time
+    ok((await txt(p, '#dna-colours-v')) === 'Not yet', 'Your colours reads Not yet before she picks');
+    await p.click('#dna-colours'); await p.waitForTimeout(300);
+    ok(/^your colours$/i.test(await txt(p, '#sh-title')) && /outrank what Robes read from your photographs/i.test(await txt(p, '#sh-sub')), 'the sheet says her colours outrank the photograph read');
+    ok(await p.locator('#sh-body .sh-pill[data-side="loved"]').count() >= 20 && await p.locator('#sh-body .sh-pill[data-side="rejected"]').count() >= 20, 'two pools — the colours she reaches for, and never');
+    await p.click('#sh-body .sh-pill[data-side="loved"][data-colour="Camel"]'); await p.waitForTimeout(250);
+    const col = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.loved.length');
+    ok(col && col.style_dna.brief.colours.loved.join() === 'Camel' && col.style_dna.brief.source === 'edited', 'a tap files Camel under her loved colours');
+    await p.click('#sh-body .sh-pill[data-side="rejected"][data-colour="Camel"]'); await p.waitForTimeout(250);
+    const col2 = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.rejected.length');
+    ok(col2 && col2.style_dna.brief.colours.rejected.join() === 'Camel' && col2.style_dna.brief.colours.loved.length === 0, 'the same colour under Never moves it — a colour is never on both lists');
+    await p.fill('#sh-body [data-colour-in="loved"]', 'burnt orange'); await p.press('#sh-body [data-colour-in="loved"]', 'Enter'); await p.waitForTimeout(250);
+    const col3 = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.loved.length');
+    ok(col3 && col3.style_dna.brief.colours.loved.join() === 'Burnt orange' && await p.locator('#sh-body .sh-pill.on[data-colour="Burnt orange"]').count() === 1, 'a colour of her own files capitalised and joins the pool as a kept pill');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
+    ok((await txt(p, '#dna-colours-v')) === 'Burnt orange · never camel', 'the row reads her colours back');
     ok(await p.locator('#dna-noticed').count() === 0, 'no "new from Robes" door on Style DNA (D4)');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
@@ -430,9 +446,9 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     await p.waitForTimeout(500);
     ok(briefPosts.length === 0, 'the root posts no wardrobe read (OBS_WARDROBE_READ is off)');
     ok(await p.locator('#sp-notice').isVisible() && /You reach for a defined waist/.test(await txt(p, '#sp-notice .t')), 'the "Robes noticed" card carries the first pending line');
-    ok((await txt(p, '#sp-notice .k')).toLowerCase() === 'robes noticed', 'its eyebrow still reads Robes noticed — the register of a notice');
+    ok((await txt(p, '#sp-notice .k')).toLowerCase() === 'observations', 'its eyebrow reads Observations (19 Oct)');
     ok((await p.locator('#sp-notice .t').evaluate(el => getComputedStyle(el).webkitLineClamp)) === '3', 'the card’s line clamps at three lines with an ellipsis (L2)');
-    ok((await p.locator('#sp-notice .verbs button').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === '← not quite | that’s right →', 'the card’s verbs are Not quite / That’s right — never Keep / Not me (17 Oct)');
+    ok((await p.locator('#sp-notice .verbs button').evaluateAll(bs => bs.map(b => b.getAttribute('aria-label').toLowerCase() + ':' + b.querySelectorAll('svg').length + ':' + getComputedStyle(b).borderRadius))).join(' | ') === 'not quite:1:50% | that’s right:1:50%', 'the card’s verbs are two thumb circles — down Not quite, up That’s right (19 Oct), never Keep / Not me');
     ok((await p.locator('#sp-notice .stamp').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === '✕ not quite | ✓ that’s right', 'the stamps read the same two verbs');
     ok(!/\bkeep\b|not me/i.test(await txt(p, '#sp-notice')), 'nothing on the card says Keep or Not me');
     ok(await p.locator('#tab-style .sp-card .st').count() === 0, 'the cards carry no state lines (G4)');
@@ -455,8 +471,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(briefPosts.length === 0, 'opening the page posts no wardrobe read either');
     ok((await txt(p, '#sp-hdr-title')) === 'Observations' && /From what you keep and change on your looks/.test(await txt(p, '#pg-obs .sp-pagesub')) && !/read from/i.test(await txt(p, '#pg-obs .sp-pagesub')), 'titled Observations in the header row (never Robes Observations), the sub below naming her feedback, not a read');
     ok((await p.locator('#obs-body .ob .k').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === 'rule | how you dress well | colour', 'each card keeps its category eyebrow (O2)');
-    ok((await p.locator('#obs-body .ob .verbs').allInnerTexts()).map(t => t.replace(/\s+/g, ' ').trim().toLowerCase()).every(t => t === 'that’s right not quite'), 'in the list the verbs read That’s right · Not quite on every line');
-    ok((await p.locator('#obs-body .ob .verbs .keep').first().evaluate(el => { const s = getComputedStyle(el); return s.borderTopStyle === 'solid' && s.fontSize === '12px' && s.paddingTop === '10px' && s.paddingLeft === '16px'; })) && (await p.locator('#obs-body .ob .verbs .no').first().evaluate(el => getComputedStyle(el).borderTopStyle === 'none')), 'That’s right is a hairline pill, Not quite a text link beside it (O5)');
+    ok((await p.locator('#obs-body .ob .verbs').evaluateAll(vs => vs.map(v => Array.from(v.querySelectorAll('button')).map(b => b.getAttribute('aria-label').toLowerCase()).join(' ')))).every(t => t === 'that’s right not quite'), 'in the list every line carries the thumbs — up That’s right, down Not quite (19 Oct)');
+    ok((await p.locator('#obs-body .ob .verbs .keep').first().evaluate(el => { const s = getComputedStyle(el); return s.borderTopStyle === 'solid' && s.width === '40px' && s.height === '40px' && !!el.querySelector('svg'); })) && (await p.locator('#obs-body .ob .verbs .no').first().evaluate(el => { const s = getComputedStyle(el); return s.borderTopStyle === 'solid' && s.width === '40px' && !!el.querySelector('svg'); })), 'both thumbs are 40px hairline circles holding a glyph, never a word (19 Oct)');
     ok((await p.locator('#obs-body .ob .t').first().evaluate(el => getComputedStyle(el).webkitLineClamp)) === '3', 'an observation clamps at three lines (L2)');
     ok(/kept before/i.test(await txt(p, '#obs-body')) && /You reach for a defined waist/.test(await txt(p, '#obs-body')) && /Kept in [A-Z][a-z]+/.test(await p.locator('#obs-body .ln .when').first().innerText()), 'Kept before lists what she kept, dated at the right — "Kept in March" (O7)');
     await p.click('#obs-body [data-no="0"]'); await p.waitForTimeout(400);
@@ -576,6 +592,12 @@ console.log('\n\x1b[1m== the doors — legacy hashes, the home card, the mail, t
   ok((await g.upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.pending')) === null, 'and nothing lands on pending');
   await g.p.click('#card-obs'); await g.p.waitForTimeout(300);
   ok(/Kept in March/.test(await g.p.locator('#obs-body .ln .when').first().innerText()), 'Kept before names the month a line was kept');
+  // the × on a kept observation (19 Oct): her call is final — a dated line comes off her Style DNA and is struck
+  ok(await g.p.locator('#obs-body .ln [data-unkeep]').count() === 1, 'every kept observation carries a × to remove it');
+  await g.p.click('#obs-body .ln [data-unkeep]'); await g.p.waitForTimeout(400);
+  const un = await g.upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.struck && u.style_dna.brief.struck.length');
+  ok(un && un.style_dna.brief.loves.length === 0 && un.style_dna.brief.struck[0] === 'You reach for a defined waist' && un.style_dna.memory.entries[0].k === 'strike', '× takes the line off Works, strikes it (never drafted again) and the memory records it');
+  ok(!/kept before/i.test(await txt(g.p, '#obs-body')) && /Removed from your Style DNA/.test(await txt(g.p, '#sp-toast')), 'Kept before stands down with nothing kept; the toast says it');
   await g.ctx.close();
   // the forward action: Build a look → the dashboard with the flags set
   const h = await open(vp, 'colour', { hash: '#twin' });

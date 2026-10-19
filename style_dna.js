@@ -557,24 +557,43 @@ export function buildSilhouette(x) {
 // The brief (style_dna.brief): {loves[], avoids[], rules[], notes, colours:{loved[], rejected[]}}
 // — each list entry a string, or {text, source} where source ∈ drafted|edited|typed.
 const BRIEF_LINE_MAX = 160;
+// A line with no letters ("6" — a stray count from the walk's + Your own)
+// is not a line; the same line twice ("You do not wear combat boots" kept
+// from two observations) is one line.
 export function briefList(a) {
   if (!Array.isArray(a)) return [];
+  const seen = new Set();
   return a.map(x => (x && typeof x === 'object') ? x.text : x)
-    .filter(t => typeof t === 'string' && t.trim())
-    .map(t => t.trim().replace(/\s+/g, ' ').slice(0, BRIEF_LINE_MAX));
+    .filter(t => typeof t === 'string' && /[a-z]/i.test(t))
+    .map(t => t.trim().replace(/\s+/g, ' ').slice(0, BRIEF_LINE_MAX))
+    .filter(t => { const k = t.toLowerCase().replace(/[.\s]+$/, ''); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 export function briefIsEmpty(b) {
   if (!b || typeof b !== 'object') return true;
   return !briefList(b.loves).length && !briefList(b.avoids).length && !briefList(b.rules).length
     && !(typeof b.notes === 'string' && b.notes.trim());
 }
+// The hierarchy (Annie, 19 Oct — the prompt feedback): her hard nos are
+// absolute and come first; her brief (what works, her rules, her words)
+// outranks everything a photograph produced; her taste (type, icons)
+// leads; colour and line are guidance. Nothing an observation drafted
+// reaches here until she confirmed it — brief.pending is never rendered.
+function hardNoLines(b, rejectedColours) {
+  const avoids = briefList(b && b.avoids);
+  const cols = Array.isArray(rejectedColours) ? rejectedColours : [];
+  if (!avoids.length && !cols.length) return [];
+  const out = ['HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never "worth trying".'];
+  if (avoids.length) out.push(`Never: ${avoids.join(' · ')}.`);
+  if (cols.length) out.push(`Never in these colours — she has ruled them out herself: ${cols.join(', ')}.`);
+  return out;
+}
 function styleBriefLines(b) {
   if (briefIsEmpty(b)) return [];
-  const loves = briefList(b.loves), avoids = briefList(b.avoids), rules = briefList(b.rules);
+  const loves = briefList(b.loves), rules = briefList(b.rules);
   const notes = typeof b.notes === 'string' ? b.notes.trim().replace(/\s+/g, ' ').slice(0, 600) : '';
-  const out = ['HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.'];
+  if (!loves.length && !rules.length && !notes) return [];
+  const out = ['HER STYLE BRIEF — in her own words, confirmed by her. These lines outrank every note read from a photograph below; a look that breaks one is wrong however well it photographs.'];
   if (loves.length) out.push(`Works: ${loves.join(' · ')}.`);
-  if (avoids.length) out.push(`Never: ${avoids.join(' · ')}.`);
   if (rules.length) out.push(`Rules: ${rules.join(' · ')}.`);
   if (notes) out.push(`In her words: ${notes}`);
   out.push('A rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.');
@@ -602,12 +621,15 @@ export function memoryEntries(m) {
 function memoryLines(m) {
   const all = memoryEntries(m);
   if (!all.length) return [];
-  const verdicts = all.filter(e => e.k === 'verdict' || e.k === 'strike' || e.k === 'ask');
+  // A struck observation does not exist — it never reaches the prompt (it
+  // used to read "Robes had it wrong: X", which told the model the opposite
+  // of X; her call is final, not a hint). The strike stays on the memory
+  // for the drafter's never-repeat list.
+  const verdicts = all.filter(e => e.k === 'verdict' || e.k === 'ask');
   const swaps = all.filter(e => e.k === 'swap' && !e.folded);
   const wears = all.filter(e => e.k === 'wear');
   const out = [];
   verdicts.forEach(e => {
-    if (e.k === 'strike') { const t = memStr(e.text, 160); if (t) out.push(`Struck from her brief (Robes had it wrong): "${t}".`); return; }
     // What she asked of a look in the box (the look prompt) — her words, verbatim.
     if (e.k === 'ask') { const t = memStr(e.text, 200), on = memStr(e.on, 90); if (t) out.push(`Asked${on ? ` — ${on}` : ''}: "${t}".`); return; }
     const on = memStr(e.on, 90) || memStr(e.look, 90);
@@ -632,10 +654,13 @@ function memoryLines(m) {
     const l = memStr(e.look, 90);
     if (l) out.push(`Wore "${l}"${e.pieces ? ` (${e.pieces} pieces)` : ''} — a look she reaches for.`);
   });
-  if (!out.length) return [];
+  // The same ask twice ("Button up the jacket" sent again) is one line.
+  const seenL = new Set();
+  const uniq = out.filter(l => { const k = l.toLowerCase(); if (seenL.has(k)) return false; seenL.add(k); return true; });
+  if (!uniq.length) return [];
   return [
     'WHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):',
-    ...out.slice(0, MEMORY_LINES_MAX),
+    ...uniq.slice(0, MEMORY_LINES_MAX),
     'A piece she has swapped out twice is not proposed again unless she names it; a move she called "not quite" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.',
   ];
 }
@@ -656,13 +681,12 @@ function briefOverrides(dna) {
   uo.rejected_colors = merge(uo.rejected_colors, c.rejected);
   return uo;
 }
+// Her loved colours ride beside the colouring read and outrank it; her
+// rejected colours are hard nos and render in that block instead.
 function overrideLines(uo) {
   const lines = [];
   if (Array.isArray(uo.loved_colors) && uo.loved_colors.length) {
-    lines.push(`The user has personally confirmed these colours work on them (they override the avoid list on conflict): ${uo.loved_colors.join(', ')}.`);
-  }
-  if (Array.isArray(uo.rejected_colors) && uo.rejected_colors.length) {
-    lines.push(`The user has personally rejected these colours — never style them in: ${uo.rejected_colors.join(', ')}.`);
+    lines.push(`HER COLOURS — the ones she has told Robes work on her: ${uo.loved_colors.join(', ')}. These outrank the colouring read: a colour she named is right whatever the archetype says.`);
   }
   if (uo.measurements && typeof uo.measurements === 'object') {
     const m = Object.entries(uo.measurements).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ');
@@ -716,12 +740,17 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   const investment = typeof dna.investment === 'string' && dna.investment.trim() ? dna.investment.trim().slice(0, 40) : '';
   const factLines = factsLines(dna.facts);
   const tags = dna.icon_tags && typeof dna.icon_tags === 'object' ? dna.icon_tags : {};
-  if (!ch && !sp && !icons.length && !arch.length && !soft.length && !briefLines.length && !memLines.length && !brands.length && !investment && !factLines.length) return '';
+  const uo0 = briefOverrides(dna);
+  if (!ch && !sp && !icons.length && !arch.length && !soft.length && !briefLines.length && !memLines.length && !brands.length && !investment && !factLines.length && !hardNoLines(dna.brief, uo0.rejected_colors).length && !uo0.loved_colors.length) return '';
   const lines = [];
+  // Her hard nos FIRST — the one absolute block (her typed nos, the
+  // observations she confirmed as nos, the colours she ruled out).
+  const uo = briefOverrides(dna);
+  const noLines = hardNoLines(dna.brief, uo.rejected_colors);
+  if (noLines.length) lines.push(...noLines);
   // Her brief, in her own words (the In-your-words chapter, 2026-09-30):
-  // rendered FIRST and said to outrank every rule beneath it — a line she
-  // wrote or kept beats a rule a photograph produced. Empty when she has
-  // kept nothing yet.
+  // second, and said to outrank every note a photograph produced. Empty
+  // when she has kept nothing yet.
   if (briefLines.length) lines.push(...briefLines);
   // What she told Robes lately (the memory, slice B): beneath her brief,
   // above every rule a photograph produced.
@@ -729,13 +758,13 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   // Her style type steers taste the way the icons do — a register, never a
   // constraint on colour or line.
   if (arch.length || soft.length) {
-    lines.push(`STYLE TYPE — her own placing${arch.length ? ': ' + arch.join(', ') : ''}${soft.length ? (arch.length ? '; sometimes ' : ': sometimes ') + soft.join(', ') : ''}. Every look sits in this register — the first types lead, a "sometimes" type is an occasional mood. Taste, never an override of the colour or silhouette rules below.`);
+    lines.push(`STYLE TYPE — her own placing${arch.length ? ': ' + arch.join(', ') : ''}${soft.length ? (arch.length ? '; sometimes ' : ': sometimes ') + soft.join(', ') : ''}. Every look sits in this register — the first types lead, a "sometimes" type is an occasional mood. Her taste leads: where a colour or line note below pulls against it, her taste wins.`);
   }
   // Style icons are the user's declared taste — they steer the aesthetic of
   // every downstream recommendation, layered over the photo-verified DNA.
   if (icons.length) {
     const named = icons.map(i => { const t = typeof tags[i] === 'string' && tags[i].trim() ? tags[i].trim().slice(0, 40) : ''; return t ? `${i} (${t})` : i; });
-    lines.push(`STYLE ICONS — her taste references: ${named.join(', ')}. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.`);
+    lines.push(`STYLE ICONS — her taste references: ${named.join(', ')}. Their silhouettes, styling codes and houses are the north star for every choice, inside her hard nos and her brief above; the colour and line notes below are guidance to adapt an icon's register to her, never a reason to abandon it.`);
   }
   // The houses she reaches for, the ceiling she set, the facts she gave.
   if (brands.length) {
@@ -755,31 +784,33 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   if (factLines.length) lines.push(...factLines);
   // Colours she confirmed or refused on the brief ride the same override
   // slots the DNA engine has always honoured.
-  const uo = briefOverrides(dna);
   if (!ch && !sp) {
     lines.push(...overrideLines(uo));
     return lines.join('\n');
   }
-  lines.push('STYLE DNA — verified styling constraints for this user:');
+  // The photograph reads are GUIDANCE (Annie, 19 Oct): the analysis is not
+  // reliable enough to outrank what she has said or what she owns and
+  // wears. Never "never" here — that word belongs to her hard nos.
+  lines.push('STYLE DNA — read from her photographs. Guidance, not law: it tilts a choice between two pieces that both satisfy her brief, and yields to anything she has said above and to the pieces she owns and wears.');
   if (ch) {
     const sub = ch.functional_sub_palettes || {};
-    lines.push(`Colour archetype: ${ch.archetype_name} (undertone ${ch.verified_undertone}, contrast ${ch.calculated_contrast}).`);
-    if (sub.best_neutrals) lines.push(`Foundation neutrals: ${sub.best_neutrals.join(', ')}.`);
-    if (sub.primary_stars) lines.push(`Star colours: ${sub.primary_stars.join(', ')}. Accents: ${(sub.secondary_accents || []).join(', ')}.`);
-    if (sub.avoid_list) lines.push(`Never style them in: ${sub.avoid_list.join(', ')}.`);
-    if (ch.metals_rules) lines.push(`Metals: ${(ch.metals_rules.approved_metals || []).join(', ')} (${ch.metals_rules.finish_type}); never ${(ch.metals_rules.prohibited_metals || []).join(', ')}.`);
+    lines.push(`Colouring read: ${ch.archetype_name} (undertone ${ch.verified_undertone}, contrast ${ch.calculated_contrast}).`);
+    if (sub.best_neutrals) lines.push(`Neutrals that tend to flatter: ${sub.best_neutrals.join(', ')}.`);
+    if (sub.primary_stars) lines.push(`Colours that tend to flatter: ${sub.primary_stars.join(', ')}. Accents: ${(sub.secondary_accents || []).join(', ')}.`);
+    if (sub.avoid_list) lines.push(`Colours that tend to fight her colouring — lean away from them when proposing a NEW piece, but a piece she owns or asks for in one is hers to wear: ${sub.avoid_list.join(', ')}.`);
+    if (ch.metals_rules) lines.push(`Metals that tend to suit her: ${(ch.metals_rules.approved_metals || []).join(', ')} (${ch.metals_rules.finish_type}); ${(ch.metals_rules.prohibited_metals || []).join(', ')} less so.`);
   }
   if (sp) {
     const ar = sp.architectural_rules || {};
-    lines.push(`Body architecture: ${sp.body_type}. Best dress silhouettes: ${(ar.dress_silhouettes || []).join(', ')}. Best necklines: ${(ar.necklines || []).join(', ')}.`);
-    if (ar.styling_maxims) lines.push(`Styling maxims: ${ar.styling_maxims.join(' ')}`);
+    lines.push(`Line read, from one photograph — a tilt, never a rule: ${sp.body_type}. Dress silhouettes that tend to suit it: ${(ar.dress_silhouettes || []).join(', ')}. Necklines: ${(ar.necklines || []).join(', ')}.`);
+    if (ar.styling_maxims) lines.push(`Styling leanings — apply one only where it agrees with her brief and with how she already dresses; drop any that fights a line she wrote or a piece she reaches for: ${ar.styling_maxims.join(' ')}`);
   }
-  // User corrections always outrank the photo-derived profile.
+  // Her colours always outrank the photo-derived read.
   lines.push(...overrideLines(uo));
   lines.push(wardrobeCount >= 15
-    ? `SYSTEM DIRECTIVE: The user has a mature digital closet (${wardrobeCount} items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above.`
+    ? `SYSTEM DIRECTIVE: The user has a mature digital closet (${wardrobeCount} items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that sit inside her brief and her taste; the colour and line notes above guide the choice between them.`
     : wardrobeCount > 0
-      ? `SYSTEM DIRECTIVE: The user is building their digital closet (${wardrobeCount}/15 items). Lead with fashion-house execution matching the colour and silhouette rules above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations.`
-      : 'SYSTEM DIRECTIVE: The user has not catalogued any wardrobe pieces yet — focus on fashion-house execution matching the colour archetype and silhouette rules above, producing ideal editorial combinations.');
+      ? `SYSTEM DIRECTIVE: The user is building their digital closet (${wardrobeCount}/15 items). Lead with fashion-house execution in her register, guided by the colour and line notes above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations.`
+      : 'SYSTEM DIRECTIVE: The user has not catalogued any wardrobe pieces yet — focus on fashion-house execution in her register, guided by the colour and line notes above, producing ideal editorial combinations.');
   return lines.join('\n');
 }

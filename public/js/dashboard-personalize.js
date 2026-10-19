@@ -21651,6 +21651,11 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           '.rb-al .acts{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px}' +
           '.rb-al .acts button{border:0;background:none;padding:0;cursor:pointer;font-family:inherit;font-size:12px;color:var(--ink,#202021)}' +
           '.rb-al .acts button.quiet{color:var(--ink-faint,#9C9891)}' +
+          '.rb-al[data-kind=observation] .acts{flex-direction:row;align-items:center;gap:8px}' +
+          '.rb-al .acts button.thumb{width:36px;height:36px;border:1px solid var(--cream-400,#D9D1C0);border-radius:50%;background:#fff;display:inline-flex;align-items:center;justify-content:center;color:var(--ink,#202021)}' +
+          '.rb-al .acts button.thumb svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}' +
+          '.rb-al .acts button.thumb.dn{color:var(--ink-soft,#55524E)}' +
+          '.rb-al .acts button.thumb:hover{border-color:var(--ink,#202021)}' +
           '@media(max-width:560px){.rb-ob-picks{gap:8px}.rb-ob-row .k{width:52px}}';
         document.head.appendChild(st);
       }
@@ -21823,8 +21828,14 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
           if (!today) _rbTwinMark('noticed', false);
           let line = String(pending.text || '').trim();
           if (line.length > 40) line = line.slice(0, 40).replace(/\s+\S*$/, '') + '…';
-          out.push({ kind: 'observation', ey: 'Robes noticed', line: _waEsc(line), thumb: '<span class="th one">✦</span>',
-            acts: '<button type="button" onclick="window.__rbHomeAlert(\'keep\')">That’s right ›</button><button type="button" class="quiet" onclick="window.__rbHomeAlert(\'no\')">Not quite</button>' });
+          // Observations (Annie, 19 Oct): the eyebrow reads Observations and
+          // the verbs are thumbs — up confirms the line into her Style DNA,
+          // down strikes it. Nothing reaches a prompt until she confirms it.
+          const th = (up) => up
+            ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v12"></path><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path></svg>'
+            : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 14V2"></path><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"></path></svg>';
+          out.push({ kind: 'observation', ey: 'Observations', line: _waEsc(line), thumb: '<span class="th one">✦</span>',
+            acts: '<button type="button" class="thumb" aria-label="That’s right" title="That’s right" onclick="window.__rbHomeAlert(\'keep\')">' + th(true) + '</button><button type="button" class="thumb dn" aria-label="Not quite" title="Not quite" onclick="window.__rbHomeAlert(\'no\')">' + th(false) + '</button>' });
         }
         return out;
       }

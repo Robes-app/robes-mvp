@@ -94,6 +94,10 @@
     .sp-notice .verbs { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
     .sp-notice .verbs button { height: 40px; padding: 0 18px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; font: 500 10px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); cursor: pointer; }
     .sp-notice .verbs button:hover { border-color: var(--ink); }
+    .sp-notice .verbs { justify-content: flex-end; gap: 8px; }
+    .sp-notice .verbs button.thumb, .ob .verbs button.thumb { width: 40px; height: 40px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); }
+    .sp-notice .verbs button.thumb svg, .ob .verbs button.thumb svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .sp-notice .verbs button.thumb.dn, .ob .verbs button.thumb.dn { color: var(--ink-soft); }
     .sp-notice .stamp { position: absolute; top: 18px; font: 500 10px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; padding: 8px 12px; border-radius: 100px; opacity: 0; transition: opacity .15s; pointer-events: none; }
     .sp-notice .stamp.keep { right: 18px; background: #F3EFE6; border: 1px solid #C9BCA6; color: var(--ink); }
     .sp-notice .stamp.no { left: 18px; border: 1px solid var(--cream-400); color: var(--ink-soft); background: #fff; }
@@ -385,8 +389,9 @@
     .ob .verbs { display: flex; align-items: center; gap: 18px; margin-top: 6px; }
     .ob .verbs .keep { border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; padding: 10px 16px; font: 400 12px/1 'Inter'; color: var(--ink); cursor: pointer; }
     .ob .verbs .keep:hover { border-color: var(--ink); }
-    .ob .verbs .no { background: none; border: 0; padding: 0; font: 400 12px/1 'Inter'; color: var(--ink-soft); cursor: pointer; text-decoration: underline; text-decoration-color: var(--cream-400); text-underline-offset: 3px; }
-    .ob .verbs .no:hover { color: var(--ink); }
+    .ob .verbs { gap: 8px; justify-content: flex-end; }
+    .ob .verbs .no { border: 1px solid var(--cream-400); background: #fff; cursor: pointer; }
+    .ob .verbs .no:hover, .ob .verbs .keep:hover { border-color: var(--ink); }
     .ln .when { font: 400 11px/1.4 'Inter'; color: var(--ink-faint); white-space: nowrap; flex: none; }
     .ob-list { display: flex; flex-direction: column; gap: 10px; }
     .ob-wait { display: flex; align-items: center; gap: 12px; font: italic 300 16px/1.4 'Cormorant', Georgia, serif; color: var(--ink-soft); padding: 8px 0; }
@@ -625,6 +630,7 @@
         <button type="button" class="sp-row" id="dna-icons"><span class="l"><span class="n">Icons</span></span><span class="v" id="dna-icons-v"></span><span class="chev">›</span></button>
         <button type="button" class="sp-row" id="dna-pieces"><span class="l"><span class="n">Pieces you love</span></span><span class="v" id="dna-pieces-v"></span><span class="chev">›</span></button>
         <button type="button" class="sp-row" id="dna-invest"><span class="l"><span class="n">Investment level</span></span><span class="v" id="dna-invest-v"></span><span class="chev">›</span></button>
+        <button type="button" class="sp-row" id="dna-colours"><span class="l"><span class="n">Your colours</span></span><span class="v" id="dna-colours-v"></span><span class="chev">›</span></button>
       </div>
       <div class="sp-gk">In your words</div>
       <div class="sp-group">
@@ -1763,6 +1769,8 @@
       if (st.gender) n++;   // gender always has an answer on file (default woman — asked again on the sheet)
       return n;
     }
+    const OBS_THUMB_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v12"></path><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path></svg>';
+    const OBS_THUMB_DN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 14V2"></path><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"></path></svg>';
     function spPaintRoot() {
       const b = chBrief();
       // the "Robes noticed" card — the first pending line, swiped or tapped
@@ -1771,9 +1779,12 @@
       if (!x || sp.page !== 'root') { host.innerHTML = ''; return; }
       if (host.dataset.text === x.text && host.firstElementChild) return;   // the same card stands — never redraw under a drag
       host.dataset.text = x.text;
+      // Observations (Annie, 19 Oct): the eyebrow reads Observations and the
+      // verbs are the thumbs — up confirms it into her Style DNA, down
+      // strikes it. Her call is final; nothing reaches a prompt before it.
       host.innerHTML = '<div class="sp-notice" id="sp-notice"><span class="stamp no">✕ Not quite</span><span class="stamp keep">✓ That’s right</span>' +
-        '<div class="k">Robes noticed</div><div class="t">' + esc(x.text) + '</div>' + (x.because ? '<div class="b">' + esc(x.because) + '</div>' : '') +
-        '<div class="verbs"><button type="button" data-v="no">← Not quite</button><button type="button" data-v="keep">That’s right →</button></div></div>';
+        '<div class="k">Observations</div><div class="t">' + esc(x.text) + '</div>' + (x.because ? '<div class="b">' + esc(x.because) + '</div>' : '') +
+        '<div class="verbs"><button type="button" class="thumb dn" data-v="no" aria-label="Not quite" title="Not quite">' + OBS_THUMB_DN + '</button><button type="button" class="thumb up" data-v="keep" aria-label="That’s right" title="That’s right">' + OBS_THUMB_UP + '</button></div></div>';
       const card = document.getElementById('sp-notice');
       const decide = (v) => {
         card.classList.add('fly');
@@ -1945,6 +1956,8 @@
       const hn = st.heroes ? st.heroes.length : null;
       v('dna-pieces-v', hn == null ? '' : hn ? hn + (hn === 1 ? ' piece' : ' pieces') : 'None starred', hn === 0);
       v('dna-invest-v', st.investment || 'Pick one', !st.investment);
+      const cl = b.colours.loved.length, cr = b.colours.rejected.length;
+      v('dna-colours-v', cl || cr ? [cl ? b.colours.loved.slice(0, 3).map(cap1).join(', ') + (cl > 3 ? ' +' + (cl - 3) : '') : '', cr ? 'never ' + b.colours.rejected.slice(0, 2).map(c => c.toLowerCase()).join(', ') + (cr > 2 ? ' +' + (cr - 2) : '') : ''].filter(Boolean).join(' · ') : 'Not yet', !cl && !cr);
       v('dna-loves-v', linesCount(b.loves.length), !b.loves.length);
       v('dna-avoids-v', linesCount(b.avoids.length), !b.avoids.length);
       v('dna-rules-v', linesCount(b.rules.length), !b.rules.length);
@@ -2309,6 +2322,45 @@
     document.getElementById('dna-loves').addEventListener('click', () => shWords('loves'));
     document.getElementById('dna-avoids').addEventListener('click', () => shWords('avoids'));
     document.getElementById('dna-rules').addEventListener('click', () => shWords('rules'));
+    document.getElementById('dna-colours').addEventListener('click', shColours);
+
+    /* ══ Your colours (Annie, 19 Oct — the prompt feedback): the colours she
+       reaches for and the ones she rules out, hers to set and amend at any
+       time. They ride brief.colours — a loved colour outranks the colouring
+       read in every prompt, a rejected one is a hard no. ══ */
+    const COLOUR_POOL = ['White', 'Cream', 'Navy', 'Charcoal', 'Black', 'Espresso', 'Camel', 'Taupe', 'Olive', 'Aubergine', 'Forest', 'Bordeaux', 'Blush', 'Ochre', 'Magenta', 'Cobalt', 'Emerald', 'Vermillion', 'Acid', 'Grey', 'Brown', 'Red', 'Pink', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Silver', 'Gold'];
+    function cap1(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+    function coloursSet(side, name, on) {
+      const b = chBrief(); const v = cap1(String(name || '').trim().replace(/\s+/g, ' ').slice(0, 30)); if (!v) return;
+      const other = side === 'loved' ? 'rejected' : 'loved';
+      const has = a => a.some(x => x.toLowerCase() === v.toLowerCase());
+      b.colours[side] = b.colours[side].filter(x => x.toLowerCase() !== v.toLowerCase());
+      if (on) { b.colours[side].push(v); b.colours[other] = b.colours[other].filter(x => x.toLowerCase() !== v.toLowerCase()); }
+      b.source = 'edited';
+      chSaveBrief(b); snTrack('brief_colour', { side, on: !!on, own: !COLOUR_POOL.some(c => c.toLowerCase() === v.toLowerCase()) });
+    }
+    function shColours() {
+      shOpen({
+        kind: 'colours', title: 'Your colours', sub: 'The colours you reach for, and the ones you never wear. Yours to change at any time — they outrank what Robes read from your photographs.',
+        body: () => {
+          const b = chBrief();
+          const row = (side, label, hint) => {
+            const mine = b.colours[side];
+            const has = n => mine.some(x => x.toLowerCase() === n.toLowerCase());
+            const own = mine.filter(n => !COLOUR_POOL.some(c => c.toLowerCase() === n.toLowerCase()));
+            return '<div class="sh-k">' + label + ' <span class="h">' + hint + '</span></div><div class="sh-pills">' +
+              COLOUR_POOL.concat(own).map(n => '<button type="button" class="sh-pill' + (has(n) ? ' on' : '') + '" data-colour="' + esc(n) + '" data-side="' + side + '">' + (has(n) ? '<span>✓</span>' : '') + esc(n) + '</button>').join('') +
+              '</div><div class="ln-add"><span class="plus">+</span><input type="text" data-colour-in="' + side + '" placeholder="A colour of your own" maxlength="30" autocomplete="off"></div>';
+          };
+          return row('loved', 'Colours you reach for', 'Robes dresses toward these') + row('rejected', 'Never', 'Robes never proposes a piece in these') +
+            (b.colours.loved.length || b.colours.rejected.length ? '<div class="sh-filed">✓ Filed · Robes reads it from here on</div>' : '');
+        },
+        wire: body => {
+          body.querySelectorAll('[data-colour]').forEach(bt => bt.addEventListener('click', () => { coloursSet(bt.dataset.side, bt.dataset.colour, !bt.classList.contains('on')); shRepaint(); dnaPaint(); }));
+          body.querySelectorAll('[data-colour-in]').forEach(inp => inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); const side = inp.dataset.colourIn; if (inp.value.trim()) { coloursSet(side, inp.value, true); shRepaint(); dnaPaint(); const i2 = body.querySelector('[data-colour-in="' + side + '"]'); if (i2) i2.focus(); } } }));
+        },
+      });
+    }
 
     /* ══ 03 · OBSERVATIONS ══ */
     const LIST_LABEL = { loves: 'Works', avoids: 'Never', rules: 'Rule', notes: 'How you dress well', colours: 'Colour' };
@@ -2318,15 +2370,19 @@
       let html = '<div class="sp-gk">Since your last visit</div>';
       if (ob.loading) html += '<div class="ob-wait"><i></i>Robes is reading your wardrobe…</div>';
       else if (ob.err) html += '<div class="sh-empty">' + esc(ob.err) + '</div>';
-      else if (b.pending.length) html += '<div class="ob-list">' + b.pending.map((p, i) => '<div class="ob"><span class="k">' + esc(LIST_LABEL[p.list] || 'Noticed') + '</span><span class="t">' + esc(p.text) + '</span>' + (p.because ? '<span class="b">' + esc(p.because) + '</span>' : '') + '<div class="verbs"><button type="button" class="keep" data-keep="' + i + '">That’s right</button><button type="button" class="no" data-no="' + i + '">Not quite</button></div></div>').join('') + '</div>';
+      else if (b.pending.length) html += '<div class="ob-list">' + b.pending.map((p, i) => '<div class="ob"><span class="k">' + esc(LIST_LABEL[p.list] || 'Noticed') + '</span><span class="t">' + esc(p.text) + '</span>' + (p.because ? '<span class="b">' + esc(p.because) + '</span>' : '') + '<div class="verbs"><button type="button" class="thumb up keep" data-keep="' + i + '" aria-label="That’s right" title="That’s right">' + OBS_THUMB_UP + '</button><button type="button" class="thumb dn no" data-no="' + i + '" aria-label="Not quite" title="Not quite">' + OBS_THUMB_DN + '</button></div></div>').join('') + '</div>';
       else html += '<div class="sh-empty">Nothing yet. Robes notes what you keep and change on your looks.</div>';
       // No manual re-run (O6) — and no wardrobe read at all while OBS_WARDROBE_READ is false. Kept lines carry the month they were kept (O7).
       const keptWhen = x => { const t = x.at ? Date.parse(x.at) : NaN; if (isNaN(t)) return ''; const d = new Date(t), now = new Date(); return 'Kept in ' + MON_LONG[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : ''); };
-      const kept = [].concat(b.loves.map(x => Object.assign({ list: 'loves' }, x)), b.avoids.map(x => Object.assign({ list: 'avoids' }, x)), b.rules.map(x => Object.assign({ list: 'rules' }, x))).filter(x => x.source !== 'typed');
-      if (kept.length) html += '<div class="sp-gk" style="margin-top:30px">Kept before</div><div class="sp-group" style="padding:4px 18px">' + kept.map(x => '<div class="ln"><span class="t">' + esc(x.text) + '<span class="from">' + esc(LIST_LABEL[x.list]) + (x.from ? ' · from “' + esc(x.from) + '”' : '') + '</span></span>' + (keptWhen(x) ? '<span class="when">' + esc(keptWhen(x)) + '</span>' : '') + '</div>').join('') + '</div>';
+      // Kept before carries the index into its own list so the × can take a
+      // dated observation back off her Style DNA (Annie, 19 Oct: she has
+      // the final say, and an observation can go stale).
+      const kept = [].concat(b.loves.map((x, i) => Object.assign({ list: 'loves', i }, x)), b.avoids.map((x, i) => Object.assign({ list: 'avoids', i }, x)), b.rules.map((x, i) => Object.assign({ list: 'rules', i }, x))).filter(x => x.source !== 'typed');
+      if (kept.length) html += '<div class="sp-gk" style="margin-top:30px">Kept before</div><div class="sp-group" style="padding:4px 18px">' + kept.map(x => '<div class="ln"><span class="t">' + esc(x.text) + '<span class="from">' + esc(LIST_LABEL[x.list]) + (x.from ? ' · from “' + esc(x.from) + '”' : '') + '</span></span>' + (keptWhen(x) ? '<span class="when">' + esc(keptWhen(x)) + '</span>' : '') + '<button type="button" class="x" data-unkeep="' + x.list + ':' + x.i + '" aria-label="Remove this observation" title="Remove">×</button></div>').join('') + '</div>';
       host.innerHTML = html;
       host.querySelectorAll('[data-keep]').forEach(bt => bt.addEventListener('click', () => obsKeep(Number(bt.dataset.keep))));
       host.querySelectorAll('[data-no]').forEach(bt => bt.addEventListener('click', () => obsNotMe(Number(bt.dataset.no))));
+      host.querySelectorAll('[data-unkeep]').forEach(bt => bt.addEventListener('click', () => { const [list, i] = bt.dataset.unkeep.split(':'); wordsStrike(list, Number(i)); toast('Removed from your Style DNA.'); obsPaintAll(); }));
     }
     function obsPaintAll() { obsPaint(); dnaPaint(); spPaintRoot(); shRepaintIf('words-avoids'); }
 
