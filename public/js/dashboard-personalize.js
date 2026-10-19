@@ -935,6 +935,11 @@
 .rb-lp .robes{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-weight:400;font-size:17px;line-height:1.3;color:var(--ink,#202021);text-wrap:pretty}
 .rb-lp .filed{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:14px;color:var(--ink-faint,#9A958E)}
 .rb-lp .reading{font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;line-height:1.3;color:var(--ink-soft,#55524E)}
+.rb-lp .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:-2px}
+.rb-lp .chips .chip{font-family:inherit;font-size:12px;font-weight:400;letter-spacing:.01em;color:var(--ink,#202021);background:#fff;border:0.5px solid var(--rule-mid,#CFC7B9);border-radius:100px;padding:7px 14px;line-height:1;cursor:pointer;transition:background .15s ease,border-color .15s ease}
+.rb-lp .chips .chip:hover{border-color:var(--ink,#202021)}
+.rb-lp .chips .chip.on{background:#F3EFE6;border-color:#C9BCA6}
+.rb-lp .chips .chip[disabled]{opacity:.45;cursor:default}
 .rb-lp .fieldrow{display:flex;align-items:center;gap:10px;min-height:46px;padding:5px 5px 5px 14px;box-sizing:border-box}
 .rb-lp .fieldrow .sp{flex:none;width:20px;height:20px;display:block;color:var(--ink,#202021)}
 .rb-lp textarea{flex:1;min-width:0;resize:none;border:0;outline:none;background:transparent;margin:0;padding:0;font-family:var(--font-serif,'Cormorant',Georgia,serif);font-style:italic;font-weight:400;font-size:16px;line-height:1.3;color:var(--ink,#202021);max-height:84px;overflow-y:auto}
@@ -1064,7 +1069,60 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // The new-look ask, every box (HomePrompt 2026-10-15): where she is
         // going and how it should feel — the two things a look needs.
         phNew: 'Where to, and how should it feel?',
+        // The one question on a new look (2026-10-19, Annie's design): where
+        // the pieces come from — three chips, or her own words.
+        askBalance: 'Where should the pieces in your look come from?',
+        phBalance: 'Or say it your way',
       };
+      var _RB_BALANCE_CHIPS = [{ v: 'owned', l: 'All mine' }, { v: 'mix', l: 'A mix' }, { v: 'new', l: 'Suggest new pieces' }];
+      // Her typed answer to the question, read for one of the three; words
+      // that name none ride to the server verbatim.
+      function _rbLpBalanceRead(text) {
+        const t = String(text || '').trim();
+        const low = t.toLowerCase();
+        if (/\b(all|only|just|everything|entirely)\b.*\b(mine|my|own|wardrobe|closet|have)\b|\b(mine|my wardrobe|my own|what i own|what i have)\b.*\b(only|alone)\b|^\s*(all )?mine\s*$|^\s*(from )?my (wardrobe|closet|own)\s*$|\bnothing new\b|\bno new\b/.test(low)) return { balance: 'owned', note: null };
+        if (/\b(new|shop|buy|suggest|fresh|something different)\b/.test(low) && !/\b(no|nothing|not|don'?t)\b.{0,14}\b(new|shop|buy)\b/.test(low)) return { balance: 'new', note: null };
+        if (/\b(a |the )?mix\b|\bboth\b|\bmostly mine\b|\bsome new\b|\bbalance\b/.test(low)) return { balance: 'mix', note: null };
+        return { balance: null, note: t.slice(0, 160) };
+      }
+      // The question is asked once per new look, only while she has filed
+      // anything — nothing filed, nothing to ask — and never on a look she
+      // is pinning from the + menu.
+      function _rbLpBalanceWants(s) {
+        if (!s || s.mode !== 'new' || s.balance || s.balanceAsk) return false;
+        if (typeof s.onAsk !== 'function' && !_rbLpAttached(s)) return false;
+        if (!(Array.isArray(_waItems) && _waItems.length)) return false;
+        if (typeof _cbLookId !== 'undefined' && _cbLookId) return false;
+        return true;
+      }
+      // The line her ask reads as while the question stands: her words, or
+      // the piece she attached with her words after it.
+      function _rbLpBalanceEcho(s, text) {
+        if (!_rbLpAttached(s)) return text;
+        const pc = s.piece;
+        const n = _rbLpPieceNoun(pc && pc.filed ? pc.name : '');
+        const lead = 'Style ' + (pc ? ((n.plural ? 'these ' : 'this ') + n.word) : 'this piece');
+        return text ? _rbLpJoinNote(lead, text) : lead;
+      }
+      window.__rbLpBalance = function(v, ev) {
+        if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+        const s = _rbLp; if (!s || !s.balanceAsk || s.reading) return;
+        const chip = _RB_BALANCE_CHIPS.find(c => c.v === v); if (!chip) return;
+        _rbTrack('balance_answered', { surface: s.surface, balance: v, source: 'chip' });
+        _rbLpBalanceGo(s, { balance: v, note: null });
+      };
+      // The answer lands; the ask she held goes on its way with it.
+      function _rbLpBalanceGo(s, ans) {
+        const held = s.balanceAsk;
+        s.balanceAsk = null; s.placeholder = null;
+        s.balance = ans.balance || 'mix'; s.balanceNote = ans.note || null;
+        // The question's chips mark the pick, then the thread moves on.
+        s.thread.forEach(t => { if (t.chips) t.picked = ans.balance || null; });
+        s.text = held ? held.text : '';
+        s.balanceEchoed = true;
+        _rbLpSync(true);
+        return window.__rbLpSend();
+      }
       // The word a piece goes by in the prompt: the last word of its name
       // ("Light wash wide-leg jeans" → these jeans, "Acid green cropped
       // jumper" → this jumper); anything unreadable is "this piece".
@@ -1100,6 +1158,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         s.thread.forEach(t => {
           if (t.who === 'her') h += '<div class="her">' + _waEsc(t.text) + '</div>';
           else if (t.who === 'filed') h += '<div class="filed">' + _waEsc(t.text) + '</div>';
+          else if (t.chips) h += '<div class="robes">' + _waEsc(t.text) + '</div><div class="chips" role="group" aria-label="' + _waEsc(t.text) + '">' +
+            t.chips.map(c => '<button type="button" class="chip' + (t.picked === c.v ? ' on' : '') + '" onclick="window.__rbLpBalance(\'' + c.v + '\',event)"' + (t.picked && t.picked !== c.v ? ' disabled' : '') + '>' + _waEsc(c.l) + '</button>').join('') + '</div>';
           else h += '<div class="robes">' + _waEsc(t.text) + '</div>';
         });
         // The busy line reads in the thread — unless the build's own line
@@ -1108,6 +1168,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         return h;
       }
       function _rbLpPlaceholder(s) {
+        if (s.balanceAsk) return _RB_LP_COPY.phBalance;   // the question stands — "Or say it your way"
         if (s.piece) return _rbLpPiecePh(s.piece);
         if ((s.refs && s.refs.length) || s.refPhotos) return _RB_LP_COPY.phPiece;
         if (s.placeholder) return s.placeholder;
@@ -1508,7 +1569,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           if (_rbLp !== s) return;
           s.reading = false; s.readingText = null;
         }
-        _rbTrack('prompt_submitted', { intent: 'style', scope: 'none', source: s.surface === 'piece' ? 'piece_page' : 'box', ok: true, piece: !!pc, filed: !!(pc && pc.filed), note: !!note, photos: refs.length });
+        _rbTrack('prompt_submitted', { intent: 'style', scope: 'none', source: s.surface === 'piece' ? 'piece_page' : 'box', ok: true, piece: !!pc, filed: !!(pc && pc.filed), note: !!note, photos: refs.length, balance: s.balance || null });
+        const balance = s.balance || null, balanceNote = s.balanceNote || null;
+        s.balance = null; s.balanceNote = null; s.balanceEchoed = false;
         // No piece, only photos: the first photo is the piece.
         const photo = pc ? _cbPhotoData : refs[0];
         const references = pc ? refs : refs.slice(1);
@@ -1521,7 +1584,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // (the deck's back returns to the piece).
         if (fromPiecePage && window.__rbPieceLeave) window.__rbPieceLeave();
         const lead = (pc && pc.filed) ? ('Style my ' + String(pc.name || 'piece').trim() + ' three ways' + (pc.worn ? ' (worn ' + pc.worn + ' time' + (pc.worn === 1 ? '' : 's') + ')' : '')) : 'Style this piece three ways';
-        _cbStyleSubmit(_rbLpJoinNote(lead, note), photo, { intent: 'style', pieceId: pc && pc.filed && pc.id != null ? pc.id : null, references });
+        _cbStyleSubmit(_rbLpJoinNote(lead, note), photo, { intent: 'style', pieceId: pc && pc.filed && pc.id != null ? pc.id : null, references, balance, balanceNote });
       }
       window.__rbLpText = function(v) {
         const s = _rbLp; if (!s) return;
@@ -1598,7 +1661,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // reopened and then left without adding a line is let go.
         const herN = s && Array.isArray(s.thread) ? s.thread.filter(t => t.who === 'her').length : 0;
         if (s && !s.reading && s.key && herN && (!s.restored || herN > s.herAtOpen)) {
-          _rbLpHeld = { key: s.key, thread: s.thread.slice(), pending: s.hbPending, placeholder: s.placeholder || null, at: Date.now() };
+          _rbLpHeld = { key: s.key, thread: s.thread.slice(), pending: s.hbPending, placeholder: s.placeholder || null, at: Date.now(),
+            balanceAsk: s.balanceAsk && !_rbLpAttached(s) ? { text: s.balanceAsk.text } : null };
+          if (!_rbLpHeld.balanceAsk && s.balanceAsk) { _rbLpHeld.thread = _rbLpHeld.thread.filter(t => !t.chips); _rbLpHeld.placeholder = null; }
         } else if (s && s.key && _rbLpHeld && _rbLpHeld.key === s.key) _rbLpHeld = null;
         _rbLp = null;
         if (typeof _rbLpSlotSync === 'function') _rbLpSlotSync();
@@ -1637,6 +1702,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (_rbLpHeld && key && _rbLpHeld.key === key) {
           _rbLp.thread = _rbLpHeld.thread.slice();
           if (_rbLpHeld.pending !== undefined) _rbLp.hbPending = _rbLpHeld.pending;
+          if (_rbLpHeld.balanceAsk) _rbLp.balanceAsk = _rbLpHeld.balanceAsk;
           if (!_rbLp.placeholder && _rbLpHeld.placeholder) _rbLp.placeholder = _rbLpHeld.placeholder;
           _rbLp.restored = true; _rbLp.herAtOpen = _rbLp.thread.filter(t => t.who === 'her').length;
           _rbLpHeld = null;
@@ -1806,12 +1872,37 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       }
       window.__rbLpSend = async function() {
         const s = _rbLp; if (!s || s.reading) return;
+        const refocus = () => { try { const ta = document.getElementById('rb-lp-in'); if (ta && (s.focused || document.activeElement === ta || document.activeElement === document.body)) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {} };
+        // Her typed answer to "Where should the pieces come from?" — one of
+        // the three, or her own words carried as they are.
+        if (s.balanceAsk) {
+          const ans = String(s.text || '').trim();
+          if (!ans) { refocus(); return; }
+          const read = _rbLpBalanceRead(ans);
+          s.thread.push({ who: 'her', text: ans });
+          _rbTrack('balance_answered', { surface: s.surface, balance: read.balance || 'words', source: 'typed' });
+          await _rbLpBalanceGo(s, read);
+          return;
+        }
+        // The one question on a new look (2026-10-19): once she has filed
+        // anything, Robes asks where the pieces should come from before the
+        // looks begin — chips, or her own words. Nothing filed, no question.
+        if (_rbLpBalanceWants(s) && (_rbLpAttached(s) || String(s.text || '').trim())) {
+          const text0 = String(s.text || '').trim().slice(0, 240);
+          s.balanceAsk = { text: text0 };
+          s.thread.push({ who: 'her', text: _rbLpBalanceEcho(s, text0) });
+          s.thread.push({ who: 'robes', text: _RB_LP_COPY.askBalance, chips: _RB_BALANCE_CHIPS });
+          s.text = ''; s.draft = false; s.draftText = null; s.placeholder = _RB_LP_COPY.phBalance;
+          _rbTrack('balance_asked', { surface: s.surface, piece: _rbLpAttached(s) });
+          _rbLpSync(true);
+          refocus();
+          return;
+        }
         if (_rbLpAttached(s)) { await _rbLpSendPiece(s); return; }
         const text = String(s.text || '').trim().slice(0, 240);
         if (!text) { try { document.getElementById('rb-lp-in')?.focus(); } catch (_) {} return; }
         const fromDraft = !!s.draft && text === s.draftText;
         s.turns = (s.turns || 0) + 1;
-        const refocus = () => { try { const ta = document.getElementById('rb-lp-in'); if (ta && (s.focused || document.activeElement === ta || document.activeElement === document.body)) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } } catch (_) {} };
         // mode 'new' with onAsk (the home field): the box holds — her line
         // lands on the thread, Robes reads it, and the answer is a REPLY
         // (the thread continues), a GO (the box closes, the route runs —
@@ -1820,7 +1911,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // the field). Never a dead end: a failed read answers in words.
         if (s.mode === 'new' && typeof s.onAsk === 'function') {
           _rbTrack('look_prompt_sent', { surface: s.surface, intent: 'new', chars: text.length, from_draft: false });
-          s.thread.push({ who: 'her', text });
+          if (!s.balanceEchoed) s.thread.push({ who: 'her', text });
+          s.balanceEchoed = false;
           s.text = ''; s.draft = false; s.draftText = null; s.reading = true; s.readingText = _RB_LP_COPY.busyRead;
           _rbLpSync(true);
           let r = null;
@@ -1849,6 +1941,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           }
           if (r && typeof r.go === 'function') {
             s.thread = [];   // the ask is answered — nothing to hold
+            s.balance = null; s.balanceNote = null;
             if (s.persist) { _rbLpSync(true); } else window.__rbLpClose();
             try { r.go(); } catch (e) { console.error('[Robes] home box route', e); _waShowToast('Robes couldn’t start that look — please try again.'); }
             return;
@@ -2074,6 +2167,20 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       }
       function _rbAskWardrobe() {
         return _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, season_band: _waItemBand(i) }));
+      }
+      // What Robes has already made for her (2026-10-19): the last sets of
+      // three, newest first, each way as its title and the pieces it used —
+      // so a second ask never returns the first answer again.
+      function _rbRecentSets(n) {
+        n = n || 4;   // four sets, twelve rows at most — a token budget, not a memory
+        let rows = [];
+        try { rows = (typeof snLoad === 'function' ? snLoad() : []).filter(x => x && x.type === 'key-piece' && x.kpData && Array.isArray(x.kpData.ways) && x.kpData.ways.length); } catch (_) { rows = []; }
+        rows.sort((a, b) => Number(b.id) - Number(a.id));
+        const sets = rows.slice(0, n).map(x => ({
+          prompt: String(x.title || '').slice(0, 80),
+          ways: x.kpData.ways.slice(0, 3).map(w => ({ title: String((w && w.title) || '').slice(0, 60), pieces: (Array.isArray(w && w.pieces) ? w.pieces : []).map(p => String((p && p.name) || '').trim()).filter(Boolean).slice(0, 6) })),
+        })).filter(st => st.ways.some(w => w.title || w.pieces.length));
+        return sets.length ? { sets } : undefined;
       }
       // Her timezone, written once when empty — the morning cue compares
       // against HER clock, and the server has no other way to learn it.
@@ -14992,7 +15099,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
           title: data.fallback ? 'Balmain waistcoat' : (pieceWords || String(prompt || '').trim() || 'Your piece'),
           subtitle: 'Worn three ways · ' + new Date().toLocaleDateString('en-GB', { weekday: 'long' }),
           img: persistable.find(Boolean) || data.photoUrl || null,
-          kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: dressMe ? 'dress-me' : 'style', context: dressMe ? (o.context || null) : null, dateHint: (dressMe && o.date) || null, genId: data.genId || null, suggested: true },
+          kpData: { ways: data.ways, fallback: data.fallback, photoUrl: data.photoUrl, generatedImages: persistable, intent: dressMe ? 'dress-me' : 'style', context: dressMe ? (o.context || null) : null, dateHint: (dressMe && o.date) || null, genId: data.genId || null, suggested: true, balance: o.balance || null, balanceNote: o.balanceNote || null },
         });
         window.__lastKpData = data;
         _kpActiveSaveId = setId;
@@ -15034,6 +15141,8 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
             context: fromPrompt ? (set.kpData.context || null) : undefined, avatarId: (_lkModel && _lkModel.id) || undefined,
             refine: 'A different look entirely — change the whole direction, not one piece' + (anchor ? ', built around the same key piece' : '') + (others.length ? ', unlike the other looks' : '') + '.',
             wayIndex: Number.isInteger(l.set_index) ? Math.max(0, Math.min(2, l.set_index)) : 0, current: cur,
+            balance: (set && set.kpData && set.kpData.balance) || undefined, balanceNote: (set && set.kpData && set.kpData.balanceNote) || undefined,
+            recent: _rbRecentSets(),
             styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
             wardrobeCount: _waItems.length, wardrobeItems: _rbAskWardrobe(), userId: _waUid() || undefined, genId }) });
           if (!res.ok) throw new Error(await res.text());
@@ -30135,9 +30244,15 @@ body>*:not(#tv-result-page){display:none !important}
               genId,
               styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
               wardrobeCount: _waItems.length,
-              wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand || '', image_url: i.image_url || null, times_worn: i.times_worn })),
+              wardrobeItems: _rbAskWardrobe(),
               intent,
               context,
+              // Where the pieces come from — her answer in the box (2026-10-19);
+              // and what she has already been shown, so a second ask is a
+              // second answer.
+              balance: (meta && meta.balance) || undefined,
+              balanceNote: (meta && meta.balanceNote) || undefined,
+              recent: _rbRecentSets(),
               // Her model wears every frame when she has one (the server
               // also reads the profile; this covers a model kept on the
               // device before the column existed).
@@ -30153,7 +30268,7 @@ body>*:not(#tv-result-page){display:none !important}
           // Look states (2026-10-06): the three ways land as three
           // suggested looks on the Lookbook's Suggested tab; the Worn
           // Three Ways page keeps the dress-me variant and old entries.
-          if (typeof _lkSuggLand === 'function' && _lkSuggLand(data, prompt, { intent, deck, context, pieceId: meta && meta.pieceId, date: (meta && meta.date) || null })) return;
+          if (typeof _lkSuggLand === 'function' && _lkSuggLand(data, prompt, { intent, deck, context, pieceId: meta && meta.pieceId, date: (meta && meta.date) || null, balance: (meta && meta.balance) || null, balanceNote: (meta && meta.balanceNote) || null })) return;
           window.__kpRenderResult(data, prompt, { intent, context });
         } catch (err) {
           guard.done();
@@ -30178,7 +30293,7 @@ body>*:not(#tv-result-page){display:none !important}
         o = o || {};
         const p = String(prompt || '').trim() || 'An outfit for today';
         const date = _rbAskDate(o.date);
-        _cbStyleSubmit(p, null, { intent: 'dress-me', deck: true, date, wx: o.wx || null, say: o.say || null });
+        _cbStyleSubmit(p, null, { intent: 'dress-me', deck: true, date, wx: o.wx || null, say: o.say || null, balance: o.balance || null, balanceNote: o.balanceNote || null });
       };
       // A date worth carrying: today or later, a real ISO day.
       function _rbAskDate(iso) {
@@ -34814,8 +34929,9 @@ body.rb-hb-on #dash .concierge{display:none!important}
       // saving one offers the day. Nothing is drafted onto a date.
       function _rbHbRoute(prompt, seed, s) {
         const date = _rbAskDate(s.hbDate || (seed && seed.date_start) || null);
-        if (!date) return { go: () => { _cbReset(); window.__rbPromptLook(prompt); } };
-        return _rbAskForDate(date).then(a => ({ say: a ? a.say : null, go: () => { _cbReset(); window.__rbPromptLook(prompt, a || { date }); } }));
+        const bal = { balance: s.balance || null, balanceNote: s.balanceNote || null };
+        if (!date) return { go: () => { _cbReset(); window.__rbPromptLook(prompt, bal); } };
+        return _rbAskForDate(date).then(a => ({ say: a ? a.say : null, go: () => { _cbReset(); window.__rbPromptLook(prompt, Object.assign({}, a || { date }, bal)); } }));
       }
       function _rbHbAsk(text, s) {
         const t0 = Date.now();
@@ -34823,8 +34939,9 @@ body.rb-hb-on #dash .concierge{display:none!important}
         // The scaffolds' [brackets] run with their defaults (the prompt's
         // own rule) — the box takes the scaffold as her first line to edit.
         if (/\[[^\]]*\]/.test(prompt)) prompt = prompt.replace(/\[([^\]]*)\]/g, '$1').replace(/\s{2,}/g, ' ').trim();
+        const bal = { balance: s.balance || null, balanceNote: s.balanceNote || null };
         const track = (intent, extra) => {
-          _rbTrack('prompt_submitted', Object.assign({ intent, scope: s.hbDate ? 'day' : 'none', source: 'box', ok: true, latency_ms: Date.now() - t0 }, extra || {}));
+          _rbTrack('prompt_submitted', Object.assign({ intent, scope: s.hbDate ? 'day' : 'none', source: 'box', ok: true, latency_ms: Date.now() - t0, balance: s.balance || null }, extra || {}));
           // the first ask after the walk's Done — the walk's own measure
           if (_rbWalkAskArm) { _rbWalkAskArm = false; _rbTrack('walk_asked', { intent }); const wl = document.getElementById('rb-walk-line'); if (wl) wl.remove(); }
         };
@@ -34842,13 +34959,13 @@ body.rb-hb-on #dash .concierge{display:none!important}
         if (_cbPhotoData) {
           const photo = _cbPhotoData;
           track('style', { has_photo: true });
-          return { go: () => { _cbReset(); _cbStyleSubmit(prompt, photo, { intent: 'style' }); } };
+          return { go: () => { _cbReset(); _cbStyleSubmit(prompt, photo, Object.assign({ intent: 'style' }, bal)); } };
         }
         // A named piece in her words is the piece track too (the card's
         // detector) — "Style my cream blazer three ways".
         if (typeof _cbDetectIntent === 'function' && _cbDetectIntent(prompt, false) === 'style') {
           track('style');
-          return { go: () => { _cbReset(); _cbStyleSubmit(prompt, null, { intent: 'style' }); } };
+          return { go: () => { _cbReset(); _cbStyleSubmit(prompt, null, Object.assign({ intent: 'style' }, bal)); } };
         }
         // A dated door (the rail, the Diary, Style today): the words land
         // ON the day, no classifier — a Diary-dated draft skips the sheet.
@@ -34860,7 +34977,7 @@ body.rb-hb-on #dash .concierge{display:none!important}
           const first = s.hbPending;
           if (/^\s*(a |the )?(day|today|tomorrow|outfit|look)\b/i.test(prompt)) { s.hbPending = null; track('daily', { from_ask: true }); return _rbHbRoute(first, null, s); }
           if (!_RB_TRIP_HIDDEN && /^\s*(a |the )?(trip|travel|holiday|pack)/i.test(prompt)) { s.hbPending = null; track('travel', { from_ask: true }); return { go: () => { _cbReset(); window.__tvOpen({ brief: first }); } }; }
-          if (/^\s*(a |the )?(piece|key piece|item)\b/i.test(prompt)) { s.hbPending = null; track('style', { from_ask: true }); return { go: () => { _cbReset(); _cbStyleSubmit(first, null, { intent: 'style' }); } }; }
+          if (/^\s*(a |the )?(piece|key piece|item)\b/i.test(prompt)) { s.hbPending = null; track('style', { from_ask: true }); return { go: () => { _cbReset(); _cbStyleSubmit(first, null, Object.assign({ intent: 'style' }, bal)); } }; }
           prompt = first + ' — ' + prompt;
         }
         // The trip is hidden (MVP): every ask makes suggested looks, so a

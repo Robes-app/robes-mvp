@@ -106,5 +106,11 @@ ok(styleDnaPromptBlock({ facts: { height_cm: 'tall', size_uk: 99 } }, 0, []) ===
 ok(/dress size UK 12 \(EU 40\)/.test(styleDnaPromptBlock({ facts: { size_uk: 12 } }, 0, [])), 'a lone fact still renders');
 ok(/THE FACTS/.test(styleDnaPromptBlock({ facts: { size_uk: 12 }, color_harmony: dnaFull.color_harmony }, 3, [])), 'the facts ride beside a photograph read too');
 
+// Where the pieces come from (2026-10-19): her answer in the box turns the
+// count-derived SYSTEM DIRECTIVE into a deferral to that answer.
+const balanced = styleDnaPromptBlock({ color_harmony: dnaFull.color_harmony }, 6, [], { balance: 'owned' });
+ok(/SYSTEM DIRECTIVE: She has said where the pieces of this look should come from/.test(balanced) && !/building their digital closet/.test(balanced), 'a balance answer replaces the count-derived directive');
+ok(/building their digital closet \(6\/15 items\)/.test(styleDnaPromptBlock({ color_harmony: dnaFull.color_harmony }, 6, [])), 'no answer keeps the count-derived directive');
+
 console.log(`\n\x1b[1m${passes} passed, ${fails} failed\x1b[0m`);
 process.exit(fails ? 1 : 0);

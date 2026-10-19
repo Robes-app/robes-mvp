@@ -720,7 +720,11 @@ function spendRead(sp) {
 }
 function euro(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
-export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []) {
+// opts.balance (2026-10-19): where she said the pieces should come from on
+// this ask ('owned' | 'mix' | 'new' | 'words') — the SYSTEM DIRECTIVE then
+// defers to her answer (rendered beside the wardrobe by the route) instead
+// of deciding the posture from the piece count.
+export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = [], opts = {}) {
   const icons = Array.isArray(styleIcons) ? styleIcons.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 12) : [];
   const dna = styleDna && typeof styleDna === 'object' ? styleDna : {};
   const ch = dna.color_harmony;
@@ -807,7 +811,9 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   }
   // Her colours always outrank the photo-derived read.
   lines.push(...overrideLines(uo));
-  lines.push(wardrobeCount >= 15
+  lines.push(opts && opts.balance
+    ? 'SYSTEM DIRECTIVE: She has said where the pieces of this look should come from — her wardrobe, a mix, or new pieces (WHERE THE PIECES COME FROM, beside her wardrobe). Follow that answer, in her register, guided by the colour and line notes above.'
+    : wardrobeCount >= 15
     ? `SYSTEM DIRECTIVE: The user has a mature digital closet (${wardrobeCount} items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that sit inside her brief and her taste; the colour and line notes above guide the choice between them.`
     : wardrobeCount > 0
       ? `SYSTEM DIRECTIVE: The user is building their digital closet (${wardrobeCount}/15 items). Lead with fashion-house execution in her register, guided by the colour and line notes above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations.`

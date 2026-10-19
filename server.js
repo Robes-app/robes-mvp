@@ -609,8 +609,13 @@ function normStylePieces(way, closetItems) {
 }
 
 app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res) => {
-  const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext, gender, refine, wayIndex, current, references } = req.body;
+  const { photo, link, prompt, name, pieceName, styleDna, styleIcons, wardrobeCount, wardrobeItems, intent, context: rtContext, gender, refine, wayIndex, current, references, balance, balanceNote, recent } = req.body;
   const g = normGender(gender);
+  // Where the pieces come from (2026-10-19, Annie): her answer in the box —
+  // all hers / a mix / new pieces welcome — or her own words. It replaces
+  // the posture the piece count used to decide on its own.
+  const bal = normBalance(balance);
+  const balNote = String(balanceNote || '').replace(/\s+/g, ' ').trim().slice(0, 160);
 
   if (!photo && !link && !prompt) {
     return res.status(400).json({ error: 'Provide at least a photo, link, or prompt.' });
@@ -627,21 +632,24 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
   const piece = pieceName ? `The key piece: "${pieceName}".` : '';
   const context = prompt ? `Her words: "${prompt}".` : '';
   const linkCtx = link ? `A product link for reference: ${link}.` : '';
-  const dnaBlock = styleDnaPromptBlock(styleDna, Number(wardrobeCount) || 0, styleIcons);
+  const dnaBlock = styleDnaPromptBlock(styleDna, Number(wardrobeCount) || 0, styleIcons, { balance: bal || (balNote ? 'words' : null) });
 
   const closetItems = Array.isArray(wardrobeItems) ? wardrobeItems.slice(0, 60) : [];
   // Numbered, so a way's `pieces[].wardrobe_index` can point at the exact
   // owned piece it uses (the client resolves it back to the row).
   const closetBlock = closetItems.length
     ? `HER WARDROBE (${closetItems.length} pieces, numbered from 0): ${closetItems.map((i, n) =>
-        `[${n}] ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}`
-      ).join('; ')}.`
+        `[${n}] ${i.label}${i.category ? ' [' + i.category + ']' : ''}${i.color ? ', ' + i.color : ''}${Number(i.times_worn) > 0 ? `, worn ${i.times_worn}×` : ''}${heroMark(i)}`
+      ).join('; ')}.${heroDirective(closetItems) ? ' ' + heroDirective(closetItems) : ''}`
     : '';
-  const closetDirective = closetItems.length >= 15
-    ? 'Build primarily from her wardrobe, naming owned pieces by their exact labels; add a new piece only for a true gap or the Exclamation Point.'
-    : closetItems.length > 0
-      ? 'Wherever an owned piece serves the look, use it by its exact label — owned always beats hypothetical. Fill only true gaps with new pieces.'
-      : '';
+  const closetDirective = closetItems.length
+    ? (balanceDirective(bal, balNote) || (closetItems.length >= 15
+      ? 'Build primarily from her wardrobe, naming owned pieces by their exact labels; add a new piece only for a true gap or the Exclamation Point.'
+      : 'Wherever an owned piece serves the look, use it by its exact label — owned always beats hypothetical. Fill only true gaps with new pieces.'))
+    : '';
+  // What Robes has already made for her (2026-10-19, Jayden's repeat): the
+  // last sets, so a second ask is a second answer, never the first again.
+  const shownBlock = recentBlock(recent);
 
   // The prompt is one block, tightened for cost (2026-10-13): the rules
   // are the same — the four-tier formula, the sanity check, the itemised
@@ -652,6 +660,8 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
 SANITY CHECK — every styling move is one a respected stylist would shoot on the street, in the key piece's natural register: sporty pieces stay elevated-casual (no belted knitwear over athletic shorts, no waist-cinching tricks on a sporty silhouette, no tailoring over gym wear). Her brief and what she owns decide WHAT you select; the colour and line notes only tilt a choice between pieces that both fit, and never dictate how a piece is contorted. A trick that needs explaining is dropped.
 
 THE PIECES ARE THE LOOK — "pieces" is the complete outfit head to toe, three to six entries in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt"); "color" a plain word, "color_hex" one hex. "wardrobe_index" is the owned piece's number from her wardrobe (its exact label as the name), else -1. Only a piece she must find carries "brand", "retailer_hint" and "price_point" (EUR, "€89"); leave them empty on an owned piece. ONE PIECE PER SLOT: exactly one pair of shoes, at most one bag, one bottom or one dress, one top under a layer — a look never lists two of the same kind (never two pairs of shoes, never a second bottom). Choosing between an owned piece and one to buy, the owned piece is the one listed.
+
+THREE WAYS, THREE LOOKS — no two ways share the same Anchor; where her wardrobe holds three candidates, each way leads with a different owned piece; the three differ in register (one easier, one sharper, one unexpected), never three colourways of one idea. A small wardrobe is varied by combination, by how a piece is worn and by the scene — never by inventing pieces she did not ask for.
 
 THE SCENE — one sentence under thirty words: the occasion, the setting, the mood, how the pieces are worn (tucked, open, sleeves pushed). It names no garment, shoe, bag or accessory, not even by type — the pieces list carries them and the two must never disagree. "A late dinner in the Marais, the top tucked and the jacket worn open, understated and unhurried." is the register; "paired with a pencil skirt and loafers" is forbidden.`;
 
@@ -675,7 +685,7 @@ ${brief}
 
 ${formulaBlock}
 
-${fallbackRule}${wearerRule ? ' ' + wearerRule : ''}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closetBlock : ''}${closetDirective ? '\n' + closetDirective : ''}${refineWay != null ? '\n\n' + refBlock : ''}`;
+${fallbackRule}${wearerRule ? ' ' + wearerRule : ''}${dnaBlock ? '\n\n' + dnaBlock : ''}${closetBlock ? '\n\n' + closetBlock : ''}${closetDirective ? '\n' + closetDirective : ''}${shownBlock ? '\n\n' + shownBlock : ''}${refineWay != null ? '\n\n' + refBlock : ''}`;
 
   // A dated ask (2026-10-10): the looks are for THAT day — its own
   // forecast rides in place of today's, and the day is named.
@@ -760,7 +770,7 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
       if (!ways.length) throw new Error('empty refine');
       ways = ways.slice(0, 1);
     }
-    logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback, refine: refineWay != null ? refineWay : undefined });
+    logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback, refine: refineWay != null ? refineWay : undefined, balance: bal || (balNote ? 'words' : undefined), shown: shownBlock ? (Array.isArray(recent && recent.sets) ? recent.sets.length : 1) : undefined });
 
     // Create image job and respond immediately — images generate in background
     const jobId = randomBytes(6).toString('hex');
@@ -1046,6 +1056,39 @@ const WEEK_SUMMARY_RULE = `WEEK SUMMARY: 40 words maximum. Describes the week's 
 // capped at 240 characters, trimmed server-side; an empty adjustment renders
 // nothing, so a caller that passes none gets the standing generator byte
 // for byte.
+// Where the pieces come from (2026-10-19): her answer to the box's one
+// question on a new look. 'owned' | 'mix' | 'new', or nothing — then the
+// piece count decides as before. Her own words ride as balanceNote.
+const BALANCES = ['owned', 'mix', 'new'];
+function normBalance(v) { v = String(v || '').toLowerCase().trim(); return BALANCES.includes(v) ? v : null; }
+function balanceDirective(bal, note) {
+  const lines = [];
+  if (bal === 'owned') lines.push('WHERE THE PIECES COME FROM — all hers: every look is built entirely from her wardrobe, each piece by its exact label. A new piece appears only where a slot cannot be filled from what she owns at all, and then one, named as the gap it fills. A small wardrobe is varied by combination, by how a piece is worn and by the scene, never by inventing pieces.');
+  else if (bal === 'mix') lines.push('WHERE THE PIECES COME FROM — a mix: her pieces wherever they serve the look, by exact label, and new pieces for the gaps. When an owned piece and one to buy would both fit, the owned piece is the one listed.');
+  else if (bal === 'new') lines.push('WHERE THE PIECES COME FROM — new pieces welcome: her wardrobe is context for her taste, not the brief. Propose new pieces freely, in her register and her brief; use an owned piece only where it is plainly the right one, by its exact label.');
+  if (note) lines.push(`${bal ? 'And in her own words' : 'WHERE THE PIECES COME FROM — in her own words'}: "${note}". Follow that.`);
+  return lines.join(' ');
+}
+// What Robes has already made for her — the last sets (newest first), so
+// a second ask never returns the first answer again. recent: {sets: [{
+// prompt, ways: [{title, pieces: [names]}]}]}, capped hard.
+function recentBlock(recent) {
+  const sets = (recent && Array.isArray(recent.sets) ? recent.sets : []).filter(Boolean).slice(0, 6);
+  const rows = [];
+  sets.forEach(st => {
+    const ask = String(st.prompt || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    (Array.isArray(st.ways) ? st.ways : []).slice(0, 3).forEach(w => {
+      if (!w) return;
+      const title = String(w.title || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      const pieces = (Array.isArray(w.pieces) ? w.pieces : []).map(p => String(p || '').replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean).slice(0, 6);
+      if (!title && !pieces.length) return;
+      rows.push(`- ${title ? '"' + title + '"' : 'A look'}${pieces.length ? ': ' + pieces.join(', ') : ''}${ask ? ' (asked: "' + ask + '")' : ''}`);
+    });
+  });
+  if (!rows.length) return '';
+  return `ALREADY SHOWN — the looks Robes has already made for her, newest first. They exist; never return one again, and never the same set of pieces under a new name. Each new look leads with a different owned piece where the wardrobe allows; where it does not, the same piece is paired differently, worn differently, in a different scene — and the scene line says what is new.
+${rows.slice(0, 18).join('\n')}`;
+}
 const REFINE_MAX = 240;
 function refineText(v) { return String(v || '').replace(/\s+/g, ' ').trim().slice(0, REFINE_MAX); }
 function refineCurrent(current) {
@@ -2117,7 +2160,7 @@ Leave any unknown string field as an empty string.`;
 });
 
 // Hero Rack: the client marks starred pieces with hero: true and the piece's
-// season band. The closet lines carry a ★ HERO mark and this directive makes
+// season band. The closet lines carry a ★ loved mark and this directive makes
 // them the first-choice owned pieces wherever occasion + season fit.
 //
 // ADR-002: reads `season_band` (one of three), falling back to the legacy
@@ -2132,15 +2175,15 @@ function heroMark(i) {
     || (Array.isArray(i.seasons) && i.seasons.length
       ? i.seasons.filter(s => typeof s === 'string' && s).slice(0, 5).join('/')
       : 'Year-round');
-  return `, ★ HERO (${band})`;
+  return `, ★ loved (${band})`;
 }
 function heroDirective(closetItems) {
   if (!closetItems.some(i => i && i.hero === true)) return '';
-  // A hero is a SIGNATURE, not a default (2026-10-08, Liberty's repeat-
-  // dressing complaint: five stars read as a loop). At most one per look,
-  // rotated across looks and days; the memory's recent wears say which one
-  // has just been worn.
-  return `HERO PIECES: the wardrobe items marked ★ HERO are the pieces she loves — her signatures. A hero is a signature, never a default: build AT MOST ONE hero into a look, as the piece the look is built around, and never put two heroes side by side. Rotate them: when the look's occasion and season fit, prefer the hero the recent wears above do NOT show, and never build two looks in a row around the same hero. The bracket names the season band each hero belongs to — Spring/Summer, Autumn/Winter, or Year-round; a hero only ever leads a look whose season or climate matches that band (Year-round always matches), and an off-season hero is never forced in. A look with no hero in it is a fine look.`;
+  // Her starred pieces are a TASTE signal, not a default (2026-10-19,
+  // Annie — supersedes the "build around at most one hero" rule): they say
+  // what she loves, and that steers every choice; a starred piece earns
+  // its place in a look like any other.
+  return `THE PIECES SHE LOVES: the wardrobe items marked ★ are the pieces she has starred — what she loves most. Read their cut, colour, fabric and register as the clearest signal of her taste, and let that taste steer every piece you choose or propose, owned or new. A starred piece is never a default to build a look around and never a reason to repeat a look: it earns its place like any other piece, when the occasion and the season fit, and a look without one is a fine look.`;
 }
 
 /* ── travel edit (PRD: AI-Powered Capsule Packing & Lookbook,

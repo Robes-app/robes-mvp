@@ -335,7 +335,12 @@ const SHOT = process.env.SHOT_DIR || '';
   await page.waitForTimeout(500);
   await page.fill('#rb-lp-in', 'for a gallery opening');
   await page.evaluate(() => window.__rbLpSend());
+  await page.waitForTimeout(300);
+  const askPp = await page.evaluate(() => ({ chips: Array.from(document.querySelectorAll('#rb-lp .chips .chip')).map((b) => b.textContent), ph: document.getElementById('rb-lp-in')?.placeholder, page: document.getElementById('rb-piece-page')?.style.display !== 'none' }));
+  check('✦ · the box asks where the pieces should come from before the looks begin, the piece page still under it', askPp.chips.length === 3 && askPp.ph === 'Or say it your way' && askPp.page, JSON.stringify(askPp));
+  await page.evaluate(() => window.__rbLpBalance('new'));
   await page.waitForTimeout(900);
+  check('✦ · "Suggest new pieces" rides as balance: "new"', api.style.length === 1 && api.style[0].balance === 'new', JSON.stringify(api.style[0] && api.style[0].balance));
   check('✦ · Send styles it three ways — her words finish the sentence, the photo rides as a reference, the piece page steps aside',
     api.style.length === 1 && /^Style my Cream silk shirt three ways( \(worn \d+ times?\))? for a gallery opening$/.test(api.style[0]?.prompt || '') && Array.isArray(api.style[0]?.references) && api.style[0].references.length === 1
       && /^data:image/.test(api.style[0].references[0] || '') && await page.evaluate(() => document.getElementById('rb-piece-page')?.style.display === 'none'), JSON.stringify(api.style[0] && { p: api.style[0].prompt, r: (api.style[0].references || []).length }));

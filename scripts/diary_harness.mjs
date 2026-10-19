@@ -619,6 +619,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const rin = document.getElementById('rb-lp-in');
     window.__rbLpText('Dinner out with Mary in town');
     if (rin) { rin.value = 'Dinner out with Mary in town'; rin.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }
+    await new Promise((r2) => setTimeout(r2, 300));
+    // The one question on a new look (2026-10-19): where the pieces come
+    // from — asked before the weather line, answered with a chip.
+    r.ask = { q: document.querySelector('#rb-lp .thread .robes')?.textContent || null, chips: document.querySelectorAll('#rb-lp .chips .chip').length, ph: rin ? rin.placeholder : null };
+    window.__rbLpBalance('mix');
     await new Promise((r2) => setTimeout(r2, 700));
     r.said = Array.from(document.querySelectorAll('#rb-lp-thread *')).map((x) => x.textContent).find((t) => /going to be/.test(t)) || null;
     await new Promise((r2) => setTimeout(r2, 3200));
@@ -645,6 +650,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('day page · the empty day still carries only "Choose from your looks"', JSON.stringify(dated.doors) === JSON.stringify(['Choose from your looks']), JSON.stringify(dated.doors));
   check('dated ask · Robes says the day\'s weather back on the thread before the looks ("It’s going to be sunny and 22° …, so the looks keep it light.")',
     dated.box && /^It’s going to be sunny and 22° .+, so the looks keep it light\.$/.test(dated.said || ''), dated.said);
+  check('dated ask · the box asks where the pieces should come from first — the question, three chips, "Or say it your way" — and the chip rides the call as balance',
+    dated.ask && dated.ask.q === 'Where should the pieces in your look come from?' && dated.ask.chips === 3 && dated.ask.ph === 'Or say it your way' && sp.balance === 'mix', JSON.stringify([dated.ask, sp.balance]));
   check('dated ask · /api/style (dress-me) carries the day and ITS forecast — never /api/daily',
     stylePosts.length === 1 && sp.intent === 'dress-me' && sp.prompt === 'Dinner out with Mary in town' && sp.context && sp.context.date === expBare[2] && /22/.test(sp.context.tempRange) && /Clear/.test(sp.context.condition) && !!sp.context.dayLabel && dailyPosts.length === 0, JSON.stringify([sp.intent, sp.context, dailyPosts.length]));
   check('dated ask · the three looks land on the deck "For {day}" as suggested rows — no composer draft, nothing pinned',

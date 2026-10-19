@@ -179,12 +179,25 @@ let j1Polls = 0;
 await page.route('**/api/images/j1', (r) => { j1Polls++; r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: ['https://res.cloudinary.com/demo/way1.jpg', null, null], done: j1Polls > 1 }) }); });
 await page.fill('#rb-lp-in', 'for the weekend');
 await page.evaluate(() => window.__rbLpSend());
+await page.waitForTimeout(300);
+// The one question on a new look (2026-10-19): with pieces filed, Robes
+// asks where the pieces should come from — her ask on the thread, the
+// question in serif, three chips, the field reading "Or say it your way".
+const askQ = await page.evaluate(() => ({
+  box: !!document.getElementById('rb-lp'), overlay: !!document.getElementById('kp-loading-overlay') && document.getElementById('kp-loading-overlay').style.display !== 'none',
+  her: Array.from(document.querySelectorAll('#rb-lp .her')).map((e) => e.textContent), q: document.querySelector('#rb-lp .thread .robes')?.textContent,
+  chips: Array.from(document.querySelectorAll('#rb-lp .chips .chip')).map((b) => b.textContent), ph: document.getElementById('rb-lp-in')?.placeholder, calls: 0 }));
+check('send · the box holds and asks "Where should the pieces in your look come from?" — her ask echoed with the piece, three chips (All mine · A mix · Suggest new pieces), "Or say it your way", no call yet',
+  askQ.box && !askQ.overlay && askQ.her.length === 1 && askQ.her[0] === 'Style these shorts for the weekend' && askQ.q === 'Where should the pieces in your look come from?'
+    && askQ.chips.join('|') === 'All mine|A mix|Suggest new pieces' && askQ.ph === 'Or say it your way' && styleCalls === 0, JSON.stringify(askQ));
+await page.evaluate(() => window.__rbLpBalance('owned'));
 await page.waitForTimeout(400);
 check('the box closes on send and the styling overlay stands in', !(await page.locator('#rb-lp').count()) && await page.locator('#kp-loading-overlay').isVisible());
 const scanOv = await page.evaluate(() => ({ frame: !!document.querySelector('#kp-loading-overlay #rb-scanframe'), line: !!document.querySelector('#kp-loading-overlay #rb-scanframe .rb-scan i'), msg: document.getElementById('kp-load-msg')?.textContent }));
 check('the overlay is the SCANNER (Phase 0 · 0.5): the piece on a card with the sweeping line, "Generating a look" beneath — never the bare spinner line', scanOv.frame && scanOv.line && scanOv.msg === 'Generating a look', JSON.stringify(scanOv));
 await page.waitForTimeout(1200);
 check('one /api/style call, the brief led by the piece with its wear count and her words finishing the sentence', styleCalls === 1 && stylePost && stylePost.prompt === 'Style my Umbro shorts three ways (worn 3 times) for the weekend' && stylePost.intent === 'style', JSON.stringify(stylePost && stylePost.prompt));
+check('the chip rides the call as balance: "owned"; the wardrobe carries each piece\'s loved mark and band', stylePost && stylePost.balance === 'owned' && stylePost.balanceNote === undefined && Array.isArray(stylePost.wardrobeItems) && stylePost.wardrobeItems.every((w) => 'season_band' in w), JSON.stringify(stylePost && { b: stylePost.balance, n: stylePost.balanceNote, w: stylePost.wardrobeItems && stylePost.wardrobeItems[0] }));
 await page.unroute('**/api/style', styleCapture);
 // Keep or pass (F14, 2026-10-07): a fresh set lands on the DECK, not the
 // grid — while the frames compose her piece is the top card with a line
@@ -579,9 +592,14 @@ check('the suggested journey · no page errors', errs.length === 0, errs.join(' 
   // No modes: Send is three looks, always (HomePrompt 2026-10-15).
   await p2.fill('#rb-lp-in', 'a gallery opening');
   await p2.evaluate(() => window.__rbLpSend());
+  await p2.waitForTimeout(300);
+  const askP = await p2.evaluate(() => ({ her: document.querySelector('#rb-lp .her')?.textContent, chips: document.querySelectorAll('#rb-lp .chips .chip').length, piece: !!document.querySelector('#rb-lp-piece .nm'), ph: document.getElementById('rb-lp-in')?.placeholder }));
+  check('+ menu · the question stands with the piece still attached — her ask reads "Style this shirt. A gallery opening"', askP.her === 'Style this shirt. A gallery opening' && askP.chips === 3 && askP.piece && askP.ph === 'Or say it your way', JSON.stringify(askP));
+  await p2.evaluate(() => window.__rbLpBalance('mix'));
   await p2.waitForTimeout(900);
   check('+ menu · Send styles the piece three ways — one /api/style call, the brief led by the piece, her words after it, the box gone',
     stylePrompts.length === 1 && /^Style my Cream silk shirt three ways( \(worn \d+ times?\))?\. A gallery opening$/.test(stylePrompts[0] && stylePrompts[0].prompt || '') && !(await p2.locator('#rb-lp').count()), JSON.stringify(stylePrompts[0] && stylePrompts[0].prompt));
+  check('+ menu · "A mix" rides as balance: "mix"', stylePrompts[0] && stylePrompts[0].balance === 'mix', JSON.stringify(stylePrompts[0] && stylePrompts[0].balance));
   await p2.evaluate(() => { window.__lkTab && window.__lkTab('saved'); });
 
   // A NEW upload files quietly behind the card and the card takes its name.
@@ -610,9 +628,15 @@ check('the suggested journey · no page errors', errs.length === 0, errs.join(' 
       && rows[0].body.image_url === 'https://res.cloudinary.com/demo/up.jpg' && rows[0].body.brand === 'Chanel', JSON.stringify({ filed, rows: rows.map((r) => r.body) }));
   await p2.fill('#rb-lp-in', 'dinner, a little glamour');
   await p2.evaluate(() => window.__rbLpSend());
+  await p2.waitForTimeout(300);
+  // Her own words answer the question: read for one of the three, else
+  // carried verbatim.
+  await p2.fill('#rb-lp-in', 'just my own pieces please');
+  await p2.evaluate(() => window.__rbLpSend());
   await p2.waitForTimeout(700);
   check('scan · the brief leads with the filed piece, her note after it, and carries the photo',
     stylePrompts.length === 2 && stylePrompts[1].prompt === 'Style my Red tweed jacket three ways. Dinner, a little glamour' && /^data:image/.test(stylePrompts[1].photo || ''), JSON.stringify(stylePrompts[1] && stylePrompts[1].prompt));
+  check('scan · a typed answer is read — "just my own pieces please" rides as balance: "owned", no note', stylePrompts[1] && stylePrompts[1].balance === 'owned' && stylePrompts[1].balanceNote === undefined, JSON.stringify(stylePrompts[1] && { b: stylePrompts[1].balance, n: stylePrompts[1].balanceNote }));
 
   // A face or a room files nothing, and says so — the looks still run.
   analyseMode = 'none';
