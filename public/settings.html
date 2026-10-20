@@ -157,14 +157,20 @@
       .tw-grid { grid-template-columns: 430px minmax(0, 1fr); gap: 48px; align-items: start; }
       .tw-stage { position: sticky; top: calc(var(--sp-hdr) + 24px); height: calc(100vh - var(--sp-hdr) - 48px); min-height: 520px; max-height: 760px; }
     }
-    .tw-stage { position: relative; height: 480px; background: #F5F0E9; border: 1px solid var(--cream-300); border-radius: var(--rad-card); overflow: hidden; }
-    @media (max-width: 767px) { .tw-stage { height: 420px; margin: 0 calc(-1 * var(--s6)); border-radius: 0; border-left: 0; border-right: 0; } }
+    .tw-stage { position: relative; height: 480px; background: var(--cream-200); border: 1px solid var(--cream-300); border-radius: var(--rad-card); overflow: hidden; }
+    /* the hero (twin redline 2): full-bleed 440 on the phone, flush under the header — no intro band above it */
+    @media (max-width: 767px) { .tw-stage { height: 440px; margin: -24px calc(-1 * var(--s6)) 0; border-radius: 0; border: 0; } }
     .tw-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .tw-stage::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: linear-gradient(to top, rgba(245,240,233,0.94), rgba(245,240,233,0)); z-index: 2; pointer-events: none; }
+    .tw-stage::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: linear-gradient(to top, var(--cream), rgba(250,248,245,0)); z-index: 2; pointer-events: none; }
     .mv-fig-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 34px; text-align: center; font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 16px; line-height: 1.6; color: #B0A798; z-index: 3; }
-    .mv2-stagehead { position: absolute; left: 22px; right: 22px; bottom: 20px; display: none; flex-direction: column; gap: 6px; z-index: 3; }
+    .mv2-stagehead { position: absolute; left: 20px; right: 20px; bottom: 18px; display: none; flex-direction: column; gap: 6px; z-index: 3; }
     .mv2-ey { font: 400 10px/1 'Inter'; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rose, #8E6A7C); }
-    .mv-caption { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 18px; line-height: 1.45; color: #4F4A44; }
+    .mv-caption { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 20px; line-height: 1.35; color: #4F4A44; }
+    /* the two doors (twin redline 4): 76 tall, Cormorant 21 over Inter 12.5 */
+    #tw-read .sp-row { min-height: 76px; padding: 14px 18px; }
+    #tw-read .sp-row .l { gap: 5px; }
+    #tw-read .sp-row .n { font-size: 21px; line-height: 1.15; }
+    #tw-read .sp-row .d { font-size: 12.5px; color: var(--ink-soft); }
     .tw-main { gap: 22px; }
     .tw-sec .sp-gk { margin-top: 0; }
     @keyframes mvFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -187,11 +193,15 @@
     .photo-slot.busy { pointer-events: none; }
     .photo-slot.busy .slot-hint { color: var(--ink-faint); border-color: transparent; animation: rb-pulse 1.4s ease-in-out infinite; }
     .slot-scrim { position: absolute; inset: 0; background: rgba(243,239,230,0.82); display: flex; align-items: center; justify-content: center; }
-    .slot-replace { position: absolute; right: 10px; bottom: 10px; width: 30px; height: 30px; border-radius: 50%; background: rgba(250,248,245,0.92); border: 1px solid var(--cream-300); display: flex; align-items: center; justify-content: center; color: var(--ink); }
+    .slot-replace { position: absolute; left: 6px; bottom: 6px; width: 32px; height: 32px; border-radius: 50%; background: var(--cream); border: 1px solid var(--cream-400); display: flex; align-items: center; justify-content: center; color: var(--ink); }
     .slot-replace svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .slot-err { font: 300 12px/1.5 'Inter'; color: #8B3A30; display: none; }
     .slot-err.on { display: block; }
-    .tw-slotlab { font: 400 9.5px/1 'Inter'; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
+    .tw-slots { grid-template-columns: minmax(0, 1fr); }
+    .tw-slots .tw-slot { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .tw-slots .photo-slot { width: 112px; height: 150px; aspect-ratio: auto; border-radius: 8px; }
+    .tw-slot-copy { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding-top: 2px; }
+    .tw-slot-help { font: 300 12.5px/1.5 'Inter'; color: var(--ink-soft); margin: 0; text-wrap: pretty; }
     .mv-guide { font: 300 12px/1.55 'Inter'; color: #8A8378; margin: 0; }
     .mv2-likread { font: 300 12px/1.5 'Inter'; color: var(--ink-soft); margin: 0; }
 
@@ -200,62 +210,69 @@
     .mvr { display: flex; align-items: center; gap: 16px; border-bottom: 1px solid rgba(225,218,203,0.6); padding: 14px 0; }
     .mvr:last-child { border-bottom: 0; }
     .mvr-k { flex: none; width: 92px; font: 400 10.5px/1.4 'Inter'; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8378; }
-    .mvr-opts { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+    .mvr-opts { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
     .mvr-pill { border-radius: 100px; padding: 10px 16px; cursor: pointer; font: 400 12px/1 'Inter'; color: var(--ink); background: #FFFFFF; border: 1px solid var(--cream-300); }
     .mvr-pill.on { background: #F3EFE6; border-color: #C9BCA6; }
     .mvr-pill .ck { margin-right: 7px; font-size: 11px; }
     .mvr-dot { width: 28px; height: 28px; border-radius: 100px; cursor: pointer; padding: 0; border: 1px solid rgba(32,32,33,0.14); }
-    .mvr-dot.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--cream), 0 0 0 3px var(--ink); }
-    .mvr-cur { font: 400 12px/1 'Inter'; color: #6E675E; margin-left: 6px; }
+    .mvr-dot.on { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+    .mvr-cur { font: 400 12.5px/1 'Inter'; color: var(--ink-soft); margin-left: 6px; }
     @media (max-width: 767px) { .mvr { flex-wrap: wrap; gap: 10px 14px; } .mvr-k { width: 100%; } }
     /* the twin (20 Oct): the figure from the facts, the three scales, the two fact strips */
     .mv-photo.stale { opacity: .45; }
     .tw-facts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
-    .tw-prop { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 10px; }
-    .tw-fig { width: 120px; height: 200px; display: block; background: #F5F0E9; border: 1px solid var(--cream-300); border-radius: var(--rad); }
+    .tw-kh { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .tw-kh .sub-k { margin: 0; }
+    .tw-edit { background: none; border: 0; padding: 4px 0; font: 400 11px/1 'Inter'; color: var(--ink-faint); cursor: pointer; }
+    .tw-edit:hover { color: var(--ink); }
+    .tw-prop { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; align-items: center; background: var(--cream-100); border-radius: 12px; padding: 12px; }
+    .tw-fig { width: 150px; height: 250px; display: block; }
+    .tw-ptab { min-width: 0; }
+    .tw-plab { font: 400 9px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 4px; }
     .tw-frows { display: flex; flex-direction: column; }
-    .tw-frow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--rule); }
-    .tw-frow .k { font: 400 9.5px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); }
-    .tw-frow .v { font: 400 16px/1.1 'Cormorant', Georgia, serif; color: var(--ink); }
+    .tw-frow { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--rule); }
+    .tw-frow:last-child { border-bottom: 0; }
+    .tw-frow .k { font: 300 11.5px/1.2 'Inter'; color: var(--ink-soft); }
+    .tw-frow .v { font: 400 16px/1.1 'Cormorant', Georgia, serif; color: var(--ink); white-space: nowrap; }
     .tw-frow .v.add { font-style: italic; font-weight: 300; color: var(--ink-faint); }
-    .tw-frows .mv-door { margin-top: 12px; }
-    .tw-scale { padding: 12px 0; border-bottom: 1px solid rgba(225,218,203,0.6); }
-    .tw-scale:last-child { border-bottom: 0; }
-    .tw-sc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 8px; }
-    .tw-sc-head .k { font: 400 10.5px/1.4 'Inter'; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8378; }
-    .tw-sc-head .s { font: italic 300 13px/1.3 'Cormorant', Georgia, serif; color: var(--ink-soft); text-align: right; }
-    .tw-sc-row { display: grid; grid-template-columns: 62px minmax(0, 1fr) 62px; align-items: center; gap: 8px; }
-    .tw-sc-row .e { font: 400 10px/1 'Inter'; letter-spacing: 0.06em; color: var(--ink-faint); }
-    .tw-sc-row .e.r { text-align: right; }
-    .tw-stops { display: flex; justify-content: space-between; align-items: center; position: relative; padding: 0 6px; }
-    .tw-stops::before { content: ''; position: absolute; left: 10px; right: 10px; top: 50%; height: 1px; background: var(--cream-400); }
-    .tw-stop { position: relative; z-index: 1; width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer; background: var(--cream-400); border: 1px solid transparent; font: 400 11px/1 'Inter'; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 5px var(--cream); }
-    .tw-stop:not(.on) { width: 9px; height: 9px; }
-    .tw-stop.mid:not(.on) { width: 12px; height: 12px; background: #fff; border-color: var(--cream-400); }
+    .tw-sels { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    .tw-sel { height: 36px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 100px; border: 1px solid var(--cream-400); background: #fff; font: 400 12.5px/1 'Inter'; color: var(--ink); cursor: pointer; }
+    .tw-sel:hover { border-color: var(--ink); }
+    .tw-sel.empty { border-style: dashed; color: var(--ink-faint); }
+    .tw-sel svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; color: var(--ink-faint); }
+    .tw-strip { display: block; width: 100%; margin-top: 10px; padding: 0; text-align: left; font-family: inherit; color: var(--ink); background: #fff; border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; cursor: pointer; }
+    .tw-strip:hover { border-color: var(--rule-mid); }
+    .tw-scale { padding: 14px 0 12px; }
+    .tw-scale + .tw-scale { border-top: 1px solid var(--rule); }
+    .tw-sc-k { font: 400 19px/1.2 'Cormorant', Georgia, serif; color: var(--ink); margin-bottom: 10px; }
+    .tw-stops { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: 3px; background: var(--cream-100); border: 1px solid var(--cream-300); border-radius: 100px; }
+    .tw-stop { height: 38px; border-radius: 100px; padding: 0; cursor: pointer; background: transparent; border: 1px solid transparent; display: flex; align-items: center; justify-content: center; }
+    .tw-stop:hover { background: rgba(255,255,255,0.6); }
     .tw-stop.on { background: #F3EFE6; border-color: #C9BCA6; }
+    .tw-stop.on::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
+    .tw-sc-ends { display: flex; justify-content: space-between; padding: 7px 12px 0; font: 400 11px/1 'Inter'; color: var(--ink-faint); }
+    .tw-sc-foot { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--rule); }
+    .tw-reset { background: none; border: 0; padding: 0; font: 400 12px/1 'Inter'; color: var(--ink-soft); text-decoration: underline; text-decoration-color: var(--cream-400); text-underline-offset: 3px; cursor: pointer; }
+    .tw-reset:hover { color: var(--ink); text-decoration-color: var(--ink); }
     .fx-cups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .fx-cups .sh-pill { padding: 7px 10px; font-size: 11px; }
-    @media (max-width: 767px) { .tw-prop { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; } .tw-fig { width: 96px; height: 160px; } .tw-sc-row { grid-template-columns: 52px minmax(0, 1fr) 52px; } }
+    @media (max-width: 359px) { .tw-prop { grid-template-columns: 120px minmax(0, 1fr); } .tw-fig { width: 120px; height: 200px; } }
 
-    /* the facts — ONE strip of five with hairline dividers (T5); the card is the door */
-    .tw-factscard { display: block; width: 100%; padding: 0; text-align: left; font-family: inherit; color: var(--ink); cursor: pointer; }
-    .tw-factscard:hover { border-color: var(--rule-mid); }
+    /* the facts — ONE strip of five with hairline dividers; it lives on Body shape now (redline 6 · 22) */
     .tw-facts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .tw-facts .c { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 14px 12px; border-left: 1px solid var(--rule); }
     .tw-facts .c:first-child { border-left: 0; }
     .tw-facts .c .k { font: 400 9px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tw-facts .c .v { font: 400 17px/1.15 'Cormorant', Georgia, serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tw-facts .c .v.add { font-style: italic; font-weight: 300; color: var(--ink-faint); }
-    @media (max-width: 767px) { .tw-facts .c { padding: 12px 8px; gap: 5px; } .tw-facts .c .v { font-size: 15px; } .tw-facts .c .k { font-size: 8px; letter-spacing: 0.12em; } }
+    .tw-strip .tw-facts .c { padding: 12px 8px; gap: 5px; }
+    .tw-strip .tw-facts .c .v { font-size: 15px; }
+    .tw-strip .tw-facts .c .k { font-size: 8px; letter-spacing: 0.12em; }
 
-    /* the closing CTA — Build a look as the screen's one ink fill, the italic line under it (T6) */
-    .mv2-foot { margin-top: 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-    .mv-build { flex: none; white-space: nowrap; background: var(--ink); color: var(--cream); border: 1px solid var(--ink); border-radius: 100px; padding: 15px 34px; font: 400 11px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; }
+    /* the foot — the italic status line alone; no CTA on the twin (redline 7) */
+    .mv2-foot { margin-top: 4px; }
     .mv-status { font-family: 'Cormorant', Georgia, serif; font-style: italic; font-size: 15px; line-height: 1.5; color: #8A8378; }
-    .mv-home { font: 300 13px/1 'Inter'; color: var(--ink-soft); text-decoration: none; padding: 4px 0; }
-    .mv-home:hover { color: var(--ink); }
-    .mv-home[hidden] { display: none; }
-    @media (max-width: 767px) { .mv2-foot { align-items: stretch; text-align: center; gap: 12px; } .mv-build { width: 100%; } }
+    @media (max-width: 767px) { .mv2-foot { text-align: center; } }
 
     /* ── sheets — a bottom sheet with a grab bar on the phone, a centred card on the web ── */
     #sh-wrap { position: fixed; inset: 0; z-index: 400; background: rgba(32,32,33,0.22); display: flex; align-items: center; justify-content: center; padding: 24px; animation: mvFadeIn 0.2s ease both; }
@@ -343,6 +360,29 @@
     .sh-filed { font: 400 10px/1 'Inter'; letter-spacing: 0.16em; text-transform: uppercase; color: var(--sage); margin-top: 14px; }
     .sh-empty { font: italic 300 15px/1.5 'Cormorant', Georgia, serif; color: var(--ink-faint); padding: 6px 0; }
 
+    /* ── full screens (twin redline 8 · 18): Colouring and Body shape are pages,
+       not sheets — a 56px header (← · the title in Cormorant 22 · nothing right),
+       each section a white card. The facts drawer and the colour notes still
+       open over them as sheets. ── */
+    #sub-wrap { position: fixed; inset: 0; z-index: 380; background: var(--cream); overflow-y: auto; -webkit-overflow-scrolling: touch; animation: spPageIn .3s cubic-bezier(0.22, 0.7, 0.2, 1) both; }
+    #sub-wrap[hidden] { display: none; }
+    @media (prefers-reduced-motion: reduce) { #sub-wrap { animation: none; } }
+    .sub-head { position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; height: 56px; padding: 0 calc(max((100% - var(--shell)) / 2, 0px) + var(--s6)); background: rgba(250,248,245,0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--cream-300); }
+    .sub-back { width: 44px; height: 44px; margin-left: -10px; display: inline-flex; align-items: center; justify-content: center; background: none; border: 0; padding: 0; font: 300 24px/1 'Inter'; color: var(--ink); cursor: pointer; }
+    .sub-title { margin: 0; text-align: center; font: 400 22px/1.2 'Cormorant', Georgia, serif; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sub-body { max-width: 560px; margin: 0 auto; padding: 20px 20px calc(48px + env(safe-area-inset-bottom)); }
+    .sub-card { background: #fff; border: 1px solid var(--rule); border-radius: 14px; padding: 20px; }
+    .sub-card + .sub-card { margin-top: 20px; }
+    .sub-k { font: 400 9.5px/1 'Inter'; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 14px; }
+    .sub-note { font: 300 12.5px/1.5 'Inter'; color: var(--ink-soft); margin: -4px 0 10px; text-wrap: pretty; }
+    .sub-body .sh-opts .sh-opt { min-height: 60px; border-radius: 12px; }
+    .sub-body .sh-opts .sh-opt .n { font-size: 22px; font-weight: 400; font-style: normal; color: var(--ink); }
+    .sub-body .sh-opts .sh-opt.on.open { border-radius: 12px 12px 0 0; }
+    .sub-body .sh-opt-in { border-radius: 0 0 12px 12px; }
+    .sub-body .tw-sum { font: italic 300 17px/1.45 'Cormorant', Georgia, serif; color: var(--ink-faint); margin: 10px 0 0; }
+    .sub-body .mvr:first-child { padding-top: 4px; }
+    .sub-body .mvr:last-child { padding-bottom: 0; }
+
     /* pills — chosen is warm, never black */
     .sh-pills { display: flex; flex-wrap: wrap; gap: 8px; }
     .sh-pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; padding: 10px 14px; font: 400 12.5px/1 'Inter'; color: var(--ink); cursor: pointer; text-align: left; }
@@ -376,9 +416,7 @@
     .sh-opts .sh-opt.on.open { border-radius: var(--rad) var(--rad) 0 0; }
     .sh-opt-in .mv-sw-row { margin-top: 12px; }
     .sh-opt-in .sh-note { margin-top: 10px; }
-    .sh-opt.sh-more { border-style: dashed; background: transparent; }
-    .sh-opt.sh-more .n { font-style: italic; font-weight: 300; color: var(--ink-soft); }
-    .sh-opt.sh-more .ck { border: 0; }
+    .sh-opt.sh-more .ck { border: 0; font: 300 18px/1 'Inter'; color: var(--ink-faint); }
 
     /* the facts sheet */
     .fx-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
@@ -566,7 +604,6 @@
 
     <!-- ══ 01 · YOUR DIGITAL TWIN ══ -->
     <section class="sp-page" id="pg-twin" hidden>
-      <p class="sp-pagesub" id="tw-sub">One close-up reads your colouring. Your facts draw your line, and you can nudge it by hand.</p>
       <div class="tw-grid" style="max-width:1100px;margin:0 auto">
         <aside class="tw-stage" id="mv-figframe">
           <svg viewBox="0 0 150 250" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
@@ -590,14 +627,16 @@
           <div id="tw-slotscard" hidden>
             <div class="tw-slots" id="tw-slots">
               <div class="tw-slot">
-                <span class="tw-slotlab">Close-up</span>
                 <button class="photo-slot" id="headshot-slot" aria-label="Add your close-up photo" type="button">
-                  <span class="slot-empty"><span class="slot-title">Close-up</span><span class="slot-hint" id="headshot-hint">Add photo</span></span>
+                  <span class="slot-empty"><span class="slot-hint" id="headshot-hint">Add photo</span></span>
                 </button>
                 <input type="file" id="headshot-file" accept="image/*" hidden>
-                <p class="mv-guide" id="st1-guide">Soft daylight, facing a window. No filters.</p>
-                <p class="mv2-likread" id="st1-readline" hidden></p>
-                <p class="slot-err" id="headshot-err"></p>
+                <div class="tw-slot-copy">
+                  <p class="tw-slot-help">Robes reads your season, skin and hair from this.</p>
+                  <p class="mv-guide" id="st1-guide">Soft daylight, facing a window. No filters.</p>
+                  <p class="mv2-likread" id="st1-readline" hidden></p>
+                  <p class="slot-err" id="headshot-err"></p>
+                </div>
               </div>
             </div>
           </div>
@@ -611,16 +650,8 @@
             </div>
           </div>
 
-          <!-- the facts: two strips under their eyebrow; the sentence lives in the sheet -->
-          <div class="tw-sec">
-            <div class="sp-gk">The facts</div>
-            <button type="button" class="sp-group tw-factscard" id="tw-facts" aria-label="The facts"><div id="tw-facts-cells"></div></button>
-          </div>
-
           <div class="mv2-foot">
-            <button class="mv-build" id="mv-build" hidden>Build a look</button>
             <div class="mv-status" id="mv-status"></div>
-            <a class="mv-home" id="mv-home" href="/dashboard" hidden>Back to home</a>
           </div>
         </div>
       </div>
@@ -665,6 +696,13 @@
         <div class="sh-walk-segs" id="sh-walk-segs" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
         <div class="sh-walk-row"><button type="button" class="sh-walk-skip" id="sh-walk-skip">Skip</button><button type="button" class="sh-walk-go" id="sh-walk-go">Continue</button></div>
       </div>
+    </div>
+  </div>
+  <!-- the full-screen pages: Colouring · Body shape -->
+  <div id="sub-wrap" hidden>
+    <div id="sub" role="dialog" aria-modal="true" aria-labelledby="sub-title">
+      <header class="sub-head"><button type="button" class="sub-back" id="sub-back" aria-label="Back to Your Digital Twin">←</button><h2 class="sub-title" id="sub-title"></h2><span aria-hidden="true"></span></header>
+      <div class="sub-body" id="sub-body"></div>
     </div>
   </div>
   <div class="sp-toast" id="sp-toast" aria-live="polite"></div>
@@ -1050,19 +1088,6 @@
     function twAnyFact() { const f = st.facts || {}; return !!(f.height_cm || f.size_uk || f.bust_band || f.bust_cm || f.waist_cm); }
     function twWord(k, v, l, r) { return v === 0 ? 'As she is' : (Math.abs(v) === 2 ? 'much ' : '') + (v < 0 ? l : r).toLowerCase(); }
     function twScaleLabel(k, label) { return (k === 'bust' && mvMan()) ? 'Chest' : label; }
-    // "Fuller bust, narrower hips." — the sliders as one phrase, or the facts alone.
-    function twPhrase() {
-      const P = mvP();
-      const parts = TW_SCALES.filter(([k]) => twEff(k) !== 0).map(([k, label, l, r]) => twWord(k, twEff(k), l, r).replace(/^As she is$/, '') + ' ' + twScaleLabel(k, label).toLowerCase());
-      return parts.length ? parts.join(', ').replace(/^./, c => c.toUpperCase()) + '.' : 'As ' + P.she + ' is, from your facts.';
-    }
-    // The one read line under the figure — what the facts say, never what she is.
-    function twReadLine() {
-      const s = twSeed();
-      if (s.diff == null) return 'Add bust and waist, and Robes reads your line from them.';
-      const w = s.bust < 0 ? 'a smaller bust, a straighter line' : s.bust === 0 ? 'bust and waist close in line' : s.bust === 1 ? 'a fuller bust, a defined waist' : 'a full bust, a markedly defined waist';
-      return (mvMan() ? 'Chest ' : 'Bust ') + s.diff + ' cm over the waist: ' + (mvMan() ? w.replace(/bust/g, 'chest') : w) + '.';
-    }
     // The parametric figure (design 3C): drawn live from height, size, bust,
     // waist and the sliders — the instant feedback while the photograph
     // regenerates. viewBox 150 × 250.
@@ -1086,7 +1111,7 @@
       const f2 = p => p[0].toFixed(1) + ',' + p[1].toFixed(1);
       const left = mir(outer).reverse();
       const d = 'M' + f2(outer[0]) + cr(outer) + ' L' + f2(ankR) + ' L' + f2(crotch) + ' L' + f2(mir([ankR])[0]) + ' L' + f2(left[0]) + cr(left) + ' Z';
-      return { d, headY: top + 13 * u, headRx: 8.5, headRy: 11 * u };
+      return { d, headY: top + 13 * u, headRx: 8.5, headRy: 11 * u, guides: { bust: top + 60 * u, waist: top + 90 * u, hips: top + 116 * u }, ground: Math.min(249, top + 201 * u) };
     }
     function twFigSvg(cls) {
       const g = twFig(), skin = MV_SKINS[mvSkinIdx()], hair = MV_HAIRS[mvHairIdx()];
@@ -1094,6 +1119,18 @@
         '<ellipse cx="75" cy="' + (g.headY - 4).toFixed(1) + '" rx="12" ry="' + (g.headRy + 3).toFixed(1) + '" fill="' + hair + '"></ellipse>' +
         '<ellipse cx="75" cy="' + g.headY.toFixed(1) + '" rx="' + g.headRx + '" ry="' + g.headRy.toFixed(1) + '" fill="' + skin + '"></ellipse>' +
         '<path d="' + g.d + '" fill="#C9BCA6"></path></svg>';
+    }
+    // Body shape's figure (redline 20): a line drawing — white fill, a 0.9
+    // ink-soft stroke, dashed guides at bust · waist · hips and a ground
+    // line — so a nudge on a scale visibly moves the line.
+    function twFigLineSvg() {
+      const g = twFig();
+      const guide = y => '<line x1="18" x2="132" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="#D8CFC0" stroke-width="0.7" stroke-dasharray="2.5 2.5"></line>';
+      return '<svg class="tw-fig" viewBox="0 0 150 250" aria-hidden="true">' +
+        guide(g.guides.bust) + guide(g.guides.waist) + guide(g.guides.hips) +
+        '<line x1="34" x2="116" y1="' + g.ground.toFixed(1) + '" y2="' + g.ground.toFixed(1) + '" stroke="#6E6A64" stroke-width="0.7"></line>' +
+        '<path d="' + g.d + '" fill="#fff" stroke="#6E6A64" stroke-width="0.9" stroke-linejoin="round"></path>' +
+        '<ellipse cx="75" cy="' + g.headY.toFixed(1) + '" rx="' + g.headRx + '" ry="' + g.headRy.toFixed(1) + '" fill="#fff" stroke="#6E6A64" stroke-width="0.9"></ellipse></svg>';
     }
     // What the twin is drawn from — the server hashes the same shape.
     function twInputs() {
@@ -1127,24 +1164,12 @@
       document.getElementById('tw-colour-v').textContent = hasColor ? st.colour.season : '';
       document.getElementById('tw-colour-v').className = 'v';
       document.getElementById('tw-colour-d').textContent = hasColor ? [st.colour.undertone, st.colour.contrast].filter(Boolean).join(' · ') : 'One close-up reads your season.';
+      // Body shape (redline 5): the facts ARE the sub line — "170 cm · UK 12 · 36C" — and the right side is the › alone
       const f = st.facts || {};
       const bodyV = [factHeight(f.height_cm), factSize(f.size_uk), factBust(f)].filter(Boolean).join(' · ');
-      document.getElementById('tw-line-v').textContent = bodyV;
-      document.getElementById('tw-line-v').className = 'v';
-      document.getElementById('tw-line-d').textContent = hasFacts ? (twAdjusted() ? 'From your facts, nudged by hand' : 'From your facts') : 'Set your line by hand.';
+      document.getElementById('tw-line-v').textContent = '';
+      document.getElementById('tw-line-d').textContent = bodyV || 'Set your line by hand.';
       if (typeof shRepaintIf === 'function') { shRepaintIf('photos'); shRepaintIf('body'); }
-      document.getElementById('mv-build').hidden = !any;
-      // T3 (First Run redlines, 2026-10-09): on the first run the model's
-      // CTA names the NEXT step — Find my style, the walk — and goes
-      // straight there; a Back to home link sits under it. A look's own
-      // return (Back to your look) outranks it.
-      if (!(mvReturnTo === 'lookbook' || mvReturnTo === 'home' || mvReturnTo === 'inspiration')) {
-        const nextStyle = sp.firstRun && !spStyleDone();
-        document.getElementById('mv-build').textContent = nextStyle ? 'Find my style' : 'Build a look';
-        document.getElementById('mv-build').dataset.next = nextStyle ? 'style' : 'look';
-        const home = document.getElementById('mv-home');
-        if (home) home.hidden = !(sp.firstRun && any);
-      }
       const note = document.getElementById('mv-status');
       let txt;
       if (hasPhoto && hasFacts) txt = 'Read from your close-up and your facts. ' + P.Shes + ' as close as ' + P.she + ' gets.';
@@ -1156,7 +1181,6 @@
 
       mvStagePaint(any);
       if (typeof spPaintRoot === 'function') spPaintRoot();
-      if (typeof twPaintFacts === 'function') twPaintFacts();
     }
 
     /* the by-hand rows — skin and hair, overrides on what the close-up
@@ -1247,18 +1271,13 @@
     } catch (e) {}
     try { mvReturnTo = sessionStorage.getItem('rb_model_return'); mvDraftParked = !!sessionStorage.getItem('rb_lk_draft'); } catch (e) {}
     if (mvReturnTo === 'home' && !mvDraftParked) mvReturnTo = null;
-    if (mvReturnTo === 'lookbook' || mvReturnTo === 'home' || mvReturnTo === 'inspiration') document.getElementById('mv-build').textContent = 'Back to your look';
-    document.getElementById('mv-build').addEventListener('click', () => {
-      if (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') { window.location.href = '/lookbook'; return; }
-      if (mvReturnTo === 'home') { window.location.href = '/dashboard'; return; }
-      // the first run keeps moving: the model done, the next step is her style
-      if (document.getElementById('mv-build').dataset.next === 'style') { snTrack('twin_next', { to: 'style' }); spShow('root'); walkStart(); return; }
-      try {
-        sessionStorage.setItem('rb_model_build', '1');
-        if (st.model && st.model.kept) sessionStorage.setItem('rb_model_open_look', '1');
-      } catch (e) {}
-      window.location.href = '/dashboard';
-    });
+    // The twin carries no CTA (Digital Twin redline 7, 20 Oct). A look's
+    // "Build your model" door still comes back: sent here with a draft
+    // parked, the header's ← on the twin reads "your look" and returns there.
+    const mvLookReturn = () => mvReturnTo === 'lookbook' || mvReturnTo === 'home' || mvReturnTo === 'inspiration';
+    function mvGoLook() {
+      window.location.href = (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') ? '/lookbook' : '/dashboard';
+    }
 
     /* the twin on the stage — her photograph, redrawn when the inputs
        settle (a sheet closing, a close-up landing, the boot), never per
@@ -1718,7 +1737,7 @@
       // the one header row: ← (Home from the root, Settings from a page) · the page's title
       const lab = document.getElementById('sn-back-label');
       const home = (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') ? 'Lookbook' : 'Home';
-      lab.textContent = page === 'root' ? home : 'Settings';
+      lab.textContent = page === 'root' ? home : (page === 'twin' && mvLookReturn()) ? 'your look' : 'Settings';
       document.getElementById('sn-back').setAttribute('aria-label', 'Back to ' + lab.textContent);
       document.getElementById('sp-hdr-title').textContent = { root: 'Settings', twin: 'Your Digital Twin', dna: 'Style DNA', obs: 'Observations' }[page] || 'Settings';
       window.scrollTo(0, 0);
@@ -1748,6 +1767,7 @@
     window.addEventListener('hashchange', spRoute);
     document.querySelectorAll('#sp-seg button').forEach(b => b.addEventListener('click', () => spGo('root', b.dataset.tab)));
     document.getElementById('sn-back').addEventListener('click', () => {
+      if (sp.page === 'twin' && mvLookReturn()) { mvGoLook(); return; }
       if (sp.page !== 'root') { spGo('root'); return; }
       window.location.href = (mvReturnTo === 'lookbook' || mvReturnTo === 'inspiration') ? '/lookbook' : '/dashboard';
     });
@@ -1778,7 +1798,45 @@
       body.scrollTop = top;
       if (typeof walkFootPaint === 'function') walkFootPaint();
     }
-    function shRepaintIf(kind) { if (sh.open && sh.cfg && sh.cfg.kind === kind) shRepaint(); }
+    function shRepaintIf(kind) {
+      if (sh.open && sh.cfg && sh.cfg.kind === kind) shRepaint();
+      if (sub.open && sub.cfg && sub.cfg.kind === kind) subRepaint();
+    }
+    /* ── the full-screen pages (Colouring · Body shape) — the sheet's cfg
+       shape, its own layer under the sheets so the facts drawer opens over it ── */
+    var sub = { open: false, cfg: null };   // var: renderModel's repaint hook can read it before this line runs
+    function subOpen(cfg) {
+      if (sub.open) subClose(true);
+      sub.open = true; sub.cfg = cfg;
+      document.getElementById('sub-title').textContent = cfg.title || '';
+      const wrap = document.getElementById('sub-wrap');
+      wrap.hidden = false;
+      subRepaint();
+      wrap.scrollTop = 0;
+      document.getElementById('sub-back').focus({ preventScroll: true });
+      snTrack('settings_sheet', { kind: cfg.kind });
+    }
+    function subRepaint() {
+      if (!sub.open || !sub.cfg) return;
+      const wrap = document.getElementById('sub-wrap'), body = document.getElementById('sub-body');
+      const top = wrap.scrollTop;
+      if (sub.cfg.before) sub.cfg.before(body);
+      body.innerHTML = sub.cfg.body();
+      if (sub.cfg.wire) sub.cfg.wire(body);
+      wrap.scrollTop = top;
+    }
+    function subClose(silent) {
+      if (!sub.open) return;
+      if (sh.open) shClose(true);
+      const cfg = sub.cfg;
+      sub.open = false; sub.cfg = null;
+      if (cfg && cfg.before) cfg.before(document.getElementById('sub-body'));
+      if (cfg && cfg.onClose) cfg.onClose();
+      document.getElementById('sub-wrap').hidden = true;
+      document.getElementById('sub-body').innerHTML = '';
+      if (!silent) paintAll();
+    }
+    document.getElementById('sub-back').addEventListener('click', () => subClose());
     function shClose(silent) {
       if (!sh.open) return;
       const cfg = sh.cfg;
@@ -1794,6 +1852,7 @@
       if (e.key !== 'Escape') return;
       if (!document.getElementById('mv-notes-wrap').hidden) mvNotesClose();
       else if (sh.open) shClose();
+      else if (sub.open) subClose();
     });
     const pillHtml = (label, on, data, extra) => '<button type="button" class="sh-pill' + (on ? ' on' : '') + '" ' + data + '>' + (on ? '<span>✓</span>' : '') + esc(label) + (extra || '') + '</button>';
     const n2w = n => ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][n] || String(n);
@@ -1856,12 +1915,20 @@
     }
     let waistUnit = 'cm';
     function factWaist(f) { f = f || {}; return f.waist_cm ? (waistUnit === 'cm' ? f.waist_cm + ' cm' : Math.round(f.waist_cm / 2.54) + ' in') : ''; }
-    function twPaintFacts() {
+    // The facts live on Body shape alone (redline 6 · 22) — a change in the
+    // drawer repaints that page underneath it.
+    function twPaintFacts() { if (sub) shRepaintIf('body'); }
+    function twFactsStripHtml() {
       const f = st.facts || {};
       const cell = (k, v) => '<div class="c"><span class="k">' + k + '</span><span class="v' + (v ? '' : ' add') + '">' + (v ? esc(v) : 'Add') + '</span></div>';
-      document.getElementById('tw-facts-cells').innerHTML =
-        '<div class="tw-facts two">' + cell('Age', f.age_band || '') + cell('Gender', factGender()) + '</div>' +
-        '<div class="tw-facts">' + cell('Height', factHeight(f.height_cm)) + cell('Size', factSize(f.size_uk)) + cell((mvMan() ? 'Chest' : 'Bust'), factBust(f)) + cell('Waist', factWaist(f)) + cell('Shoes', factShoe(f.shoe_uk)) + '</div>';
+      return '<div class="tw-facts">' + cell('Height', factHeight(f.height_cm)) + cell('Size', factSize(f.size_uk)) + cell((mvMan() ? 'Chest' : 'Bust'), factBust(f)) + cell('Waist', factWaist(f)) + cell('Shoes', factShoe(f.shoe_uk)) + '</div>';
+    }
+    // "{axes} — {one sentence}." — one dash, never two (redline 15)
+    function twSeasonSummary(c) {
+      const axes = [c.undertone, c.contrast].filter(Boolean).join(' · ');
+      let sum = String(c.summary || '').trim().replace(/\s*[—–]\s*/g, ', ').replace(/[.\s]+$/, '');
+      if (sum) sum += '.';
+      return axes && sum ? axes + ' — ' + sum : (axes || sum);
     }
 
     // The season picker (P4) — the twelve seasons on the wheel; the read one
@@ -1899,14 +1966,15 @@
       }
       ph.busy = ''; shRepaintIf('photos');
     }
-    // The Colouring sheet (design 3B): the close-up slot moves INTO it (its
-    // listeners travel with it), then Your season — the picker, the strip,
-    // the notes door — then Skin and hair as overrides on what the close-up
-    // shows. Kind 'photos' so every repaint hook on the read still lands.
+    // Colouring (design 3B): a full screen, three white cards — Your
+    // close-up (the slot node moves INTO it, its listeners travelling with
+    // it: the photograph 112 × 150 beside its copy), Your season (the
+    // picker, the strip, the notes door), Skin and hair (overrides on what
+    // the close-up shows). Kind 'photos' so every repaint hook still lands.
+    const SEL_CHEV = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"></path></svg>';
     function shColouring() {
-      const P = mvP();
-      shOpen({
-        kind: 'photos', title: 'Colouring', sub: 'Your close-up reads your season, skin and hair.',
+      subOpen({
+        kind: 'photos', title: 'Colouring',
         before: body => { const s = document.getElementById('tw-slots'); if (s && body.contains(s)) document.getElementById('tw-slotscard').appendChild(s); },
         body: () => {
           const c = st.colour;
@@ -1914,60 +1982,64 @@
             const on = s === c.season, busy = ph.busy === s;
             return '<button type="button" class="sh-opt' + (on ? ' on open' : '') + (busy ? ' busy' : '') + '" data-season="' + esc(s) + '"><span class="n">' + esc(s) + '</span><span class="ck">' + (on ? '✓' : busy ? '…' : '') + '</span></button>' +
               (on ? '<div class="sh-opt-in"><div class="mv-sw-row">' + (c.palette || []).slice(0, 9).map(h => '<div style="background:' + hex(h) + ';"></div>').join('') + '</div>' +
-                '<p class="sh-note">' + esc([c.undertone, c.contrast].filter(Boolean).join(' · ')) + (c.summary ? ' — ' + esc(c.summary) : '') + '</p><button type="button" class="mv-door" id="sh-door-colour">Full colour notes →</button></div>' : '');
+                '<p class="tw-sum">' + esc(twSeasonSummary(c)) + '</p><button type="button" class="mv-door" id="sh-door-colour">Full colour notes →</button></div>' : '');
           }).join('') : '';
-          return '<div class="sh-k" id="sh-sec-photo">Your close-up</div><div id="sh-slots-host"></div>' +
-            '<p class="sh-note" style="margin-top:8px">Robes reads your season, skin and hair from this' + (st.headshotUrl ? ', and draws your model from it.' : '.') + '</p>' +
-            '<div class="sh-k" id="sh-sec-colour">Your season</div>' +
+          return '<section class="sub-card"><div class="sub-k" id="sh-sec-photo">Your close-up</div><div id="sh-slots-host"></div></section>' +
+            '<section class="sub-card"><div class="sub-k" id="sh-sec-colour">Your season</div>' +
             (c ? '<div class="sh-opts">' + rows + (ph.more ? '' : '<button type="button" class="sh-opt sh-more" id="sh-season-more"><span class="n">Another season</span><span class="ck">›</span></button>') + '</div>'
-               : '<p class="sh-note">Add a close-up and Robes reads your season.</p>') +
-            '<div class="sh-k" id="sh-sec-skin">Skin and hair</div>' +
-            '<p class="sh-note" style="margin-top:0">' + (st.headshotUrl ? 'Read from your close-up. Nudge either if it looks off.' : 'Or choose them by hand until a close-up reads.') + '</p>' +
-            '<div id="sh-shape-colour" style="margin-top:8px">' + mvShapeRowsHtml(['skin', 'hair']) + '</div>';
+               : '<p class="sub-note" style="margin:0">Add a close-up and Robes reads your season.</p>') + '</section>' +
+            '<section class="sub-card"><div class="sub-k" id="sh-sec-skin">Skin and hair</div>' +
+            '<p class="sub-note">' + (st.headshotUrl ? 'Read from your close-up. Nudge either if it looks off.' : 'Or choose them by hand until a close-up reads.') + '</p>' +
+            '<div id="sh-shape-colour">' + mvShapeRowsHtml(['skin', 'hair']) + '</div></section>';
         },
         wire: body => {
           const host = body.querySelector('#sh-slots-host'); const s = document.getElementById('tw-slots');
           if (host && s) host.appendChild(s);
           body.querySelector('#sh-shape-colour').addEventListener('click', mvShapeRowPick);
           body.querySelectorAll('[data-season]').forEach(b => b.addEventListener('click', () => seasonChoose(b.dataset.season)));
-          const more = body.querySelector('#sh-season-more'); if (more) more.addEventListener('click', () => { ph.more = true; shRepaint(); });
+          const more = body.querySelector('#sh-season-more'); if (more) more.addEventListener('click', () => { ph.more = true; subRepaint(); });
           const dc = body.querySelector('#sh-door-colour'); if (dc) dc.addEventListener('click', () => mvNotesOpen('colour'));
         },
         onClose: () => { ph.more = false; const s = document.getElementById('tw-slots'); const card = document.getElementById('tw-slotscard'); if (s && card && !card.contains(s)) card.appendChild(s); mvTwinSync(); },
       });
     }
-    // The Body shape sheet (design 3C): her proportions — the parametric
-    // figure drawn live from the facts beside the facts themselves — the one
-    // read line, then Adjust by hand: three five-stop scales. "Back to your
-    // facts" hands every axis back. Nothing here names a shape.
+    // Body shape (design 3C): a full screen. Your line — the figure drawn
+    // live from the facts in its panel beside her proportions, the Gender and
+    // Age selects and the five facts (the only home for the facts; each opens
+    // the drawer) — then Adjust by hand: three five-cell scales, one marker a
+    // row. "Back to your facts" appears once a scale is moved. Nothing here
+    // names a shape.
     function shBody() {
-      const P = mvP();
-      shOpen({
-        kind: 'body', title: 'Body shape', sub: 'Your line, from your facts. Nudge it by hand.',
+      const openFacts = () => shFacts({ back: 'body' });
+      subOpen({
+        kind: 'body', title: 'Body shape',
         body: () => {
-          const f = st.facts || {};
+          const P = mvP(), f = st.facts || {};
           const fr = (k, v) => '<div class="tw-frow"><span class="k">' + k + '</span><span class="v' + (v ? '' : ' add') + '">' + (v ? esc(v) : 'Add') + '</span></div>';
+          const sel = (key, v, ph) => '<button type="button" class="tw-sel' + (v ? '' : ' empty') + '" data-fx="' + key + '">' + esc(v || ph) + SEL_CHEV + '</button>';
+          const g = st.gender ? factGender() : '';
           const scales = TW_SCALES.map(([k, label, l, r]) => {
-            const cur = twEff(k), byHand = Number.isInteger(twAdj()[k]);
-            const stops = [-2, -1, 0, 1, 2].map(v => '<button type="button" class="tw-stop' + (cur === v ? ' on' : '') + (v === 0 ? ' mid' : '') + '" data-axis="adj" data-k="' + k + '" data-v="' + v + '" aria-label="' + esc(twScaleLabel(k, label) + ': ' + (v === 0 ? 'As ' + P.she + ' is' : twWord(k, v, l, r))) + '">' + (cur === v ? '✓' : '') + '</button>').join('');
-            const now = twWord(k, cur, l, r).replace(/^As she is$/, 'As ' + P.she + ' is');
-            return '<div class="tw-scale"><div class="tw-sc-head"><span class="k">' + twScaleLabel(k, label) + '</span><span class="s">' + esc(now.charAt(0).toUpperCase() + now.slice(1)) + ' · ' + (byHand ? 'by hand' : 'your facts') + '</span></div>' +
-              '<div class="tw-sc-row"><span class="e">' + l + '</span><div class="tw-stops">' + stops + '</div><span class="e r">' + r + '</span></div></div>';
+            const cur = twEff(k);
+            const stops = [-2, -1, 0, 1, 2].map(v => '<button type="button" class="tw-stop' + (cur === v ? ' on' : '') + '" data-axis="adj" data-k="' + k + '" data-v="' + v + '" aria-pressed="' + (cur === v ? 'true' : 'false') + '" aria-label="' + esc(twScaleLabel(k, label) + ': ' + (v === 0 ? 'As ' + P.she + ' is' : twWord(k, v, l, r))) + '"></button>').join('');
+            return '<div class="tw-scale"><div class="tw-sc-k">' + twScaleLabel(k, label) + '</div>' +
+              '<div class="tw-stops" role="group" aria-label="' + esc(twScaleLabel(k, label)) + '">' + stops + '</div><div class="tw-sc-ends"><span>' + l + '</span><span>' + r + '</span></div></div>';
           }).join('');
-          return '<div class="sh-k">' + P.her.charAt(0).toUpperCase() + P.her.slice(1) + ' proportions</div>' +
-            '<div class="tw-prop">' + twFigSvg('tw-fig') + '<div class="tw-frows">' + fr('Height', factHeight(f.height_cm)) + fr(mvMan() ? 'Chest' : 'Bust', factBust(f)) + fr('Waist', factWaist(f)) + fr('Size', factSize(f.size_uk)) +
-            '<button type="button" class="mv-door" id="tw-facts-edit">Edit the facts →</button></div></div>' +
-            '<p class="sh-note" id="tw-readline">' + esc(twReadLine()) + '</p>' +
-            '<div class="sh-k">Adjust by hand</div><div id="tw-scales">' + scales + '</div>' +
-            '<p class="sh-note" id="tw-phrase">' + esc(twPhrase()) + '</p>' +
-            (twAdjusted() ? '<button type="button" class="mv-door" id="tw-adj-reset">Back to your facts</button>' : '');
+          return '<section class="sub-card"><div class="tw-kh"><span class="sub-k">Your line</span><button type="button" class="tw-edit" id="tw-facts-edit">Edit →</button></div>' +
+            '<div class="tw-prop">' + twFigLineSvg() + '<div class="tw-ptab"><div class="tw-plab">' + P.her.charAt(0).toUpperCase() + P.her.slice(1) + ' proportions</div><div class="tw-frows">' +
+              fr('Height', factHeight(f.height_cm)) + fr(mvMan() ? 'Chest' : 'Bust', factBust(f)) + fr('Waist', factWaist(f)) + fr('Size', factSize(f.size_uk)) + '</div></div></div>' +
+            '<div class="tw-sels">' + sel('gender', g, 'Gender') + sel('age', f.age_band || '', 'Age') + '</div>' +
+            '<button type="button" class="tw-strip" id="tw-facts-strip" aria-label="The facts">' + twFactsStripHtml() + '</button></section>' +
+            '<section class="sub-card"><div class="sub-k">Adjust by hand</div><div id="tw-scales">' + scales + '</div>' +
+            (twAdjusted() ? '<div class="tw-sc-foot"><button type="button" class="tw-reset" id="tw-adj-reset">Back to your facts</button></div>' : '') + '</section>';
         },
         wire: body => {
           body.querySelector('#tw-scales').addEventListener('click', mvShapeRowPick);
-          body.querySelector('#tw-facts-edit').addEventListener('click', () => { sh.switching = true; shFacts({ back: 'body' }); sh.switching = false; });
+          body.querySelector('#tw-facts-edit').addEventListener('click', openFacts);
+          body.querySelector('#tw-facts-strip').addEventListener('click', openFacts);
+          body.querySelectorAll('[data-fx]').forEach(b => b.addEventListener('click', openFacts));
           const rs = body.querySelector('#tw-adj-reset'); if (rs) rs.addEventListener('click', () => { st.model.adj = {}; st.model.touched = true; mvFile(); snTrack('twin_adj_reset', {}); });
         },
-        onClose: () => { if (!sh.switching) mvTwinSync(); },
+        onClose: () => mvTwinSync(),
       });
     }
     function factsCount() {
@@ -2033,10 +2105,9 @@
           body.querySelectorAll('[data-axis="presence"]').forEach(b => b.addEventListener('click', () => { factSetGender(b.dataset.v); shRepaint(); }));
           const clr = body.querySelector('#fx-clear'); if (clr) clr.addEventListener('click', () => { st.facts = {}; factsSave(); twPaintFacts(); shRepaint(); });
         },
-        onClose: () => { renderModel(); if (opts.back === 'body') setTimeout(shBody, 0); else mvTwinSync(); },
+        onClose: () => { renderModel(); if (opts.back !== 'body') mvTwinSync(); },
       });
     }
-    document.getElementById('tw-facts').addEventListener('click', () => shFacts());
     document.getElementById('tw-row-colour').addEventListener('click', shColouring);
     document.getElementById('tw-row-line').addEventListener('click', shBody);
 
