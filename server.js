@@ -820,7 +820,7 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
       // cell generates here and must never delay the text response. The
       // wearer gates the catalog: a menswear brief on a woman's profile
       // (or vice versa) falls through to the generic model.
-      const avatarRef = await avatarRefForUser(req.body.avatarId, req.body.userId, wearer);
+      const model = await modelRefsForUser(req.body, wearer);
       // No twin on file (Phase 0 · 0.4, 2026-10-17, aligned with e9f6b4b):
       // the three ways are shot on the GENERIC catalog cells — the same
       // three for every account, across the skin range, the composer's own
@@ -832,7 +832,7 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
       // generated lazily, once ever, one at a time, right before the way
       // that wears them; a cell that fails leaves that way on the
       // prompt-described model, never a blank.
-      const genericCells = avatarRef ? null : genericCellsFor(wearer);
+      const genericCells = model ? null : genericCellsFor(wearer);
       const genericRef = async k => {
         if (!genericCells) return null;
         const id = genericCells[k % genericCells.length];
@@ -862,9 +862,12 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
         const w = ways[k];
         const imgParts = [];
         let imgN = 0;
-        const modelRef = avatarRef || await genericRef(k);
-        if (modelRef) { imgParts.push({ inlineData: { mimeType: modelRef.mimeType, data: modelRef.data } }); imgN += 1; }
-        const avatarLine = modelRef ? AVATAR_IDENTITY : '';
+        // Her twin rides as two references (the twin, then the close-up)
+        // with its figure line; a generic cell as one.
+        const gen = model ? null : await genericRef(k);
+        const mparts = model ? modelParts(model) : (gen ? [{ inlineData: { mimeType: gen.mimeType, data: gen.data } }] : []);
+        mparts.forEach(p => imgParts.push(p)); imgN += mparts.length;
+        const avatarLine = model ? modelIdentityLine(model, wearer) : (gen ? AVATAR_IDENTITY : '');
         let photoLine = '';
         if (!fallback && photoMatch) {
           imgParts.push({ inlineData: { mimeType: photoMatch[1], data: photoMatch[2] } });
@@ -1365,16 +1368,16 @@ ${refBlock
     (async () => {
       // The anchor's full-look frame wears the kept model when one exists —
       // still-lifes stay garment-only (no figure to condition).
-      const avatarRef = await avatarRefForUser(req.body.avatarId, req.body.userId, g);
+      const model = await modelRefsForUser(req.body, g);
       for (let i = 0; i < flat.length; i++) {
         if (i > 0) await new Promise(r => setTimeout(r, 3000));
         const { stepTitle, item } = flat[i];
         const anchorFrame = stepTitle === 'The Anchor';
         const imgPrompt = anchorFrame
-          ? `PORTRAIT ORIENTATION ONLY. Single editorial fashion photograph — one ${wearerNoun(g)}, alone, one scene, no collage, no split panels, no text overlays. ${avatarRef ? AVATAR_IDENTITY : ''}${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}${wearerWears(g)} the complete outfit: ${allNames}. The ${item.name} leads the frame. ${scene ? `Setting: ${scene}. ` : ''}Soft natural light, luxury campaign aesthetic.`
+          ? `PORTRAIT ORIENTATION ONLY. Single editorial fashion photograph — one ${wearerNoun(g)}, alone, one scene, no collage, no split panels, no text overlays. ${modelIdentityLine(model, g)}${FULL_BODY_FRAME} ${styleIconsImageLine(styleIcons)}${wearerWears(g)} the complete outfit: ${allNames}. The ${item.name} leads the frame. ${scene ? `Setting: ${scene}. ` : ''}Soft natural light, luxury campaign aesthetic.`
           : `Editorial still-life photograph of a single ${item.name}${item.brand ? ' by ' + item.brand : ''} — ${item.description || ''}. The garment styled alone on a neutral cream-linen surface, soft daylight, quiet luxury catalogue aesthetic. No model, no text, no collage, one item only.`;
-        const imgParts = anchorFrame && avatarRef
-          ? [{ inlineData: { mimeType: avatarRef.mimeType, data: avatarRef.data } }, { text: imgPrompt }]
+        const imgParts = anchorFrame && model
+          ? modelParts(model).concat([{ text: imgPrompt }])
           : [{ text: imgPrompt }];
         try {
           const r = await Promise.race([
@@ -3979,6 +3982,235 @@ async function avatarRefForUser(avatarId, userId, gender) {
 // Gender-neutral on purpose — the reference image itself carries the identity.
 const AVATAR_IDENTITY = 'The FIRST image is the model. Keep the SAME person: identical face, hair, skin tone and figure; a faithful likeness of the first image. Ignore the first image\'s plain base layer and studio backdrop entirely — dress the model in the look described and place them in a real setting that suits the occasion. ';
 
+/* ── the twin — her face from one close-up, her line from the facts ──
+   (docs/digital-twin-model-brief.md, 2026-10-20). ONE reference image per
+   account, generated from her close-up as IMAGE 1 plus a text descriptor
+   of her body derived from the facts (height, size, bust, waist, age)
+   and three sliders (shoulders · bust · hips, −2…+2). Reference images
+   carry a face and not proportions (Google's own guidance), so the face
+   comes from the photograph and the line from words. Every render then
+   carries TWO references of her — the twin (body, hair, overall identity)
+   and the close-up (the face at full resolution) — plus one short figure
+   line. The shared catalog cells survive for the generic models and for
+   accounts with no twin. The twin lives on her own profile row
+   (twin_url / twin_key, migration 26); the server never writes it — the
+   client does, under own-row RLS. */
+const TWIN_STYLE = 'v1';   // bump to invalidate every twin — the key carries it
+const TWIN_DEFAULTS = { gender: 'woman', size_uk: 10, age: 35 };
+// An age band resolves to its youngest year (Annie, 20 Oct): 25, 35, 45…
+const TWIN_AGE_BANDS = { 'Under 25': 22, '25–34': 25, '35–44': 35, '45–54': 45, '55–64': 55, '65+': 65 };
+const TWIN_CUPS = ['AA', 'A', 'B', 'C', 'D', 'DD', 'E', 'F', 'G+'];
+const isCloudinaryUrl = (u) => typeof u === 'string' && /^https:\/\/res\.cloudinary\.com\//.test(u);
+const twinNum = (v, min, max) => { const n = Number(v); return Number.isFinite(n) && n >= min && n <= max ? n : null; };
+const twinStop = (v) => { if (v == null || v === '') return null; const n = Number(v); return Number.isInteger(n) && n >= -2 && n <= 2 ? n : null; };
+// Normalise what the client sends (or what the profile holds) into the one shape the key and the descriptor read.
+function twinInputs(src) {
+  const s = src && typeof src === 'object' ? src : {};
+  const f = s.facts && typeof s.facts === 'object' ? s.facts : {};
+  const a = s.adj && typeof s.adj === 'object' ? s.adj : {};
+  const g = normGender(s.gender);
+  return {
+    gender: g === 'unspecified' ? 'woman' : g,
+    facts: {
+      height_cm: twinNum(f.height_cm, 120, 230),
+      size_uk: twinNum(f.size_uk, 2, 30),
+      bust_band: twinNum(f.bust_band, 26, 50),
+      bust_cup: TWIN_CUPS.includes(f.bust_cup) ? f.bust_cup : null,
+      bust_cm: twinNum(f.bust_cm, 60, 160),
+      waist_cm: twinNum(f.waist_cm, 45, 150),
+      age_band: TWIN_AGE_BANDS[f.age_band] ? f.age_band : null,
+    },
+    adj: { shoulders: twinStop(a.shoulders), bust: twinStop(a.bust), hips: twinStop(a.hips) },
+    skin: Number.isInteger(s.skin) && s.skin >= 0 && s.skin <= 7 ? s.skin : 3,
+    hair: Number.isInteger(s.hair) && s.hair >= 0 && s.hair <= 4 ? s.hair : 1,
+    skinSet: !!s.skinSet, hairSet: !!s.hairSet,
+    headshotUrl: isCloudinaryUrl(s.headshotUrl) ? s.headshotUrl : null,
+  };
+}
+function twinKey(inp) {
+  return createHash('sha256').update(JSON.stringify([TWIN_STYLE, inp.gender, inp.facts, inp.adj, inp.skin, inp.hair, inp.skinSet, inp.hairSet, inp.headshotUrl])).digest('hex').slice(0, 16);
+}
+function twinBustCm(f) {
+  if (f.bust_cm) return f.bust_cm;
+  if (f.bust_band && f.bust_cup) return Math.round(f.bust_band * 2.54 + (TWIN_CUPS.indexOf(f.bust_cup) + 0.5) * 2.54);
+  return null;
+}
+// The sliders' effective stops: hers where set, else seeded from the facts
+// (bust from the bust−waist difference, the design's rule; the rest 0).
+function twinEff(inp) {
+  const b = twinBustCm(inp.facts), w = inp.facts.waist_cm;
+  const diff = b && w ? b - w : null;
+  const seedBust = diff == null ? 0 : diff < 10 ? -1 : diff < 18 ? 0 : diff < 26 ? 1 : 2;
+  return {
+    shoulders: inp.adj.shoulders ?? 0,
+    bust: inp.adj.bust ?? seedBust,
+    hips: inp.adj.hips ?? 0,
+    waistDiff: diff,
+  };
+}
+// Prompt-side vocabulary only — never consumer copy. Size and proportion
+// words, never a weight.
+function twinFigureLine(inp) {
+  const man = inp.gender === 'man';
+  const e = twinEff(inp), f = inp.facts, size = f.size_uk || TWIN_DEFAULTS.size_uk;
+  const parts = [];
+  const frame = size <= 6 ? 'a slight, slender' : size <= 10 ? 'a slim' : size <= 14 ? 'an average' : size <= 18 ? 'a fuller' : 'a full, generous';
+  let lead = `${frame} ${man ? 'build' : 'frame'}`;
+  if (f.height_cm && f.height_cm <= 158) lead = 'petite, ' + lead;
+  if (f.height_cm && f.height_cm >= (man ? 186 : 175)) lead = 'tall and long-limbed, ' + lead;
+  parts.push(lead);
+  const bust = man
+    ? { '-2': 'a narrow chest', '-1': 'a lean chest', '1': 'a broad chest', '2': 'a very broad, deep chest' }
+    : { '-2': 'a very small bust', '-1': 'a small bust', '1': 'a full bust', '2': 'a very full bust' };
+  if (bust[String(e.bust)]) parts.push(bust[String(e.bust)]);
+  const sh = { '-2': 'narrow shoulders, clearly narrower than the hips', '-1': 'slightly narrow shoulders', '1': 'shoulders a little broader than the hips', '2': 'broad shoulders, clearly broader than the hips' };
+  if (sh[String(e.shoulders)]) parts.push(sh[String(e.shoulders)]);
+  const hp = { '-2': 'narrow, straight hips', '-1': 'slim hips', '1': 'full hips, fuller than the shoulders', '2': 'very full, rounded hips' };
+  if (hp[String(e.hips)]) parts.push(hp[String(e.hips)]);
+  if (e.waistDiff != null) parts.push(e.waistDiff >= 18 ? 'a clearly defined waist' : e.waistDiff >= 10 ? 'a gently defined waist' : 'a straight line through the waist');
+  return parts.join(', ') + '.';
+}
+function twinAge(inp) { return TWIN_AGE_BANDS[inp.facts.age_band] || TWIN_DEFAULTS.age; }
+// The whole descriptor the twin is generated from. With a close-up the
+// face, skin and hair come from the photograph (an override names the
+// tone to follow instead); without one, the catalog words stand in.
+function twinDescriptor(inp) {
+  const man = inp.gender === 'man';
+  const She = man ? 'He' : 'She', her = man ? 'his' : 'her';
+  const age = `${She} is ${twinAge(inp)} years old — keep ${her} exactly that age, never younger, never older.`;
+  const skinWord = AVATAR_SKIN_WORDS[inp.skin], hairWord = AVATAR_HAIR_WORDS[inp.hair];
+  let look;
+  if (inp.headshotUrl) {
+    const skin = inp.skinSet ? `${her.charAt(0).toUpperCase() + her.slice(1)} skin tone is ${skinWord} (follow this over the photograph's lighting).` : `${her.charAt(0).toUpperCase() + her.slice(1)} skin tone exactly as in the photograph.`;
+    const hair = inp.hairSet ? `${her.charAt(0).toUpperCase() + her.slice(1)} hair is ${hairWord}, in the photograph's own texture and length${man ? '' : ', worn down'}.` : `${her.charAt(0).toUpperCase() + her.slice(1)} hair exactly as in the photograph — its colour, texture and length${man ? '' : ', worn down'}.`;
+    look = `IMAGE 1 is a photograph of this exact person. Reproduce ${her} face exactly — the bone structure, eyes, eyebrows, nose, mouth and expression lines as photographed. Do not idealise, do not retouch, do not change ${her} features. ${skin} ${hair}`;
+  } else {
+    look = `${She} has ${skinWord} skin and ${man ? 'short ' + hairWord + ' hair' : 'long ' + hairWord + ' hair worn down'}.`;
+  }
+  return `${look} ${age} ${She} has ${twinFigureLine(inp)}`;
+}
+const TWIN_BASE_LAYER = {
+  man: 'He wears a minimal fitted base layer in one soft neutral tone close to his skin — a plain fitted crew-neck T-shirt and plain fitted knee-length shorts — barefoot, no accessories, no jewellery, no logos, no patterns.',
+  woman: 'She wears a minimal seamless base layer in one soft neutral tone close to her skin — a fitted scoop-neck stretch tank top and matching fitted mid-thigh shorts, like a seamless shapewear set — barefoot, no accessories, no jewellery, no logos, no patterns.',
+};
+async function twinGenerate(inp, key) {
+  const man = inp.gender === 'man';
+  const face = inp.headshotUrl ? await fetchCloudinaryB64(inp.headshotUrl) : null;
+  if (inp.headshotUrl && !face) logAI({ feature: 'avatar_twin', key, success: false, reason: 'headshot_fetch_failed' });
+  const useFace = !!face;
+  const desc = twinDescriptor({ ...inp, headshotUrl: useFace ? inp.headshotUrl : null });
+  const prompt = `Full-length editorial fashion photograph of one ${man ? 'man' : 'woman'}, alone — a recurring model, and this is ${man ? 'his' : 'her'} reference portrait. ${desc} ${TWIN_BASE_LAYER[man ? 'man' : 'woman']} Standing relaxed, facing the camera directly, arms at ${man ? 'his' : 'her'} sides, calm expression. ${FULL_BODY_FRAME} ${AVATAR_STUDIO}`;
+  const parts = useFace ? [{ inlineData: { mimeType: face.mimeType, data: face.data } }, { text: prompt }] : [{ text: prompt }];
+  // 2K for the twin: the face is a small region of a full-length frame and
+  // every later render copies from it. The size parameter is tried first
+  // and dropped on an SDK/API objection, never the generation with it.
+  const configs = [
+    { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: '4:5', imageSize: '2K' } },
+    { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio: '4:5' } },
+  ];
+  let ci = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, attempt === 1 ? 8000 : 20000));
+    try {
+      const r = await Promise.race([
+        ai.models.generateContent({ model: 'gemini-3.1-flash-image', contents: [{ role: 'user', parts }], config: configs[ci] }),
+        new Promise(resolve => setTimeout(() => resolve(null), 60000)),
+      ]);
+      const part = r?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (!part?.inlineData) {
+        const said = r?.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+        logAI({ feature: 'avatar_twin', key, attempt, success: false, reason: r ? 'no_inline_data' : 'timeout_60s', said: said ? String(said).slice(0, 200) : undefined });
+        continue;
+      }
+      const url = await cloudinaryUpload(part.inlineData.data, part.inlineData.mimeType);
+      if (!url) { logAI({ feature: 'avatar_twin', key, attempt, success: false, reason: 'cloudinary_failed' }); continue; }
+      logAI({ feature: 'avatar_twin', key, success: true, face: useFace, size: ci === 0 ? '2K' : '1K' });
+      return url;
+    } catch (err) {
+      logAI({ feature: 'avatar_twin', key, attempt, success: false, reason: err.message });
+      if (ci === 0 && /image_?size|imageConfig|image_config|unknown|invalid/i.test(String(err.message || ''))) { ci = 1; attempt -= 1; }
+    }
+  }
+  return null;
+}
+// Resolve the model for any generation surface — the twin when she has
+// one (two references: the twin, then the close-up), else the legacy
+// catalog cell (one reference), else null → the generic model. The client
+// hands the twin over on the body (`twin: {url, face, key, gender, facts,
+// adj}`); the profile is read with the service key when it does not.
+// `gender` is the look's wearer: a menswear brief never renders on a
+// woman's twin and vice versa.
+async function modelRefsForUser(body, gender) {
+  const b = body || {};
+  const want = (gender === 'man' || gender === 'woman') ? gender : 'woman';
+  let twinUrl = null, faceUrl = null, inp = null;
+  const hint = b.twin && typeof b.twin === 'object' ? b.twin : null;
+  if (hint && isCloudinaryUrl(hint.url)) {
+    twinUrl = hint.url; faceUrl = isCloudinaryUrl(hint.face) ? hint.face : null;
+    inp = twinInputs({ gender: hint.gender, facts: hint.facts || (b.styleDna && b.styleDna.facts), adj: hint.adj });
+  } else if (SUPA_SERVICE_KEY && /^[0-9a-f][0-9a-f-]{10,}$/i.test(String(b.userId || ''))) {
+    try {
+      const r = await fetch(`${SUPA_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(b.userId)}&select=twin_url,headshot_url,avatar_prefs,style_dna,gender_identity`, {
+        headers: { apikey: SUPA_SERVICE_KEY, Authorization: 'Bearer ' + SUPA_SERVICE_KEY },
+      });
+      if (r.ok) {
+        const row = (await r.json())[0];
+        if (row && isCloudinaryUrl(row.twin_url)) {
+          twinUrl = row.twin_url; faceUrl = isCloudinaryUrl(row.headshot_url) ? row.headshot_url : null;
+          const prefs = row.avatar_prefs && typeof row.avatar_prefs === 'object' ? row.avatar_prefs : {};
+          inp = twinInputs({ gender: prefs.gender || row.gender_identity, facts: row.style_dna && row.style_dna.facts, adj: prefs.adj });
+        }
+      }
+    } catch (e) { /* the catalog or the generic model stands */ }
+  }
+  if (twinUrl && inp.gender === want) {
+    const twin = await fetchCloudinaryB64(twinUrl);
+    if (twin) {
+      const face = faceUrl ? await fetchCloudinaryB64(faceUrl) : null;
+      return { refs: face ? [twin, face] : [twin], figure: twinFigureLine(inp), twin: true };
+    }
+  }
+  const legacy = await avatarRefForUser(b.avatarId, b.userId, gender);
+  return legacy ? { refs: [legacy], figure: '', twin: false } : null;
+}
+// The identity text for a resolved model: IMAGE 1 is the model; with the
+// close-up riding as IMAGE 2 the face is matched to it; the figure line
+// restates her proportions, which a reference image alone does not carry.
+function modelIdentityLine(m, gender) {
+  if (!m) return '';
+  const man = gender === 'man';
+  let s = AVATAR_IDENTITY;
+  if (m.refs.length > 1) s += `IMAGE 2 is a close-up photograph of the same person: match the face to IMAGE 2 exactly — the same features, the same skin, the same hair. `;
+  if (m.figure) s += `${man ? 'His' : 'Her'} figure, as IMAGE 1 shows it: ${m.figure} `;
+  return s;
+}
+const modelParts = (m) => (m ? m.refs.map(r => ({ inlineData: { mimeType: r.mimeType, data: r.data } })) : []);
+
+/* POST /api/avatar/twin — {gender, facts, adj, skin, hair, skinSet, hairSet,
+   headshotUrl, current: {url, key}} → {url, key} when the twin on file
+   already answers to these inputs, else {jobId, key} while it generates
+   (poll GET /api/images/:jobId). The client writes twin_url/twin_key on its
+   own row when the frame lands. */
+app.post('/api/avatar/twin', rateLimit({ windowMs: 60_000, max: 8 }), async (req, res) => {
+  const inp = twinInputs(req.body);
+  const key = twinKey(inp);
+  const cur = req.body && req.body.current && typeof req.body.current === 'object' ? req.body.current : null;
+  if (cur && cur.key === key && isCloudinaryUrl(cur.url)) return res.json({ url: cur.url, key });
+  const jobId = randomBytes(6).toString('hex');
+  imageJobs.set(jobId, { images: [null], done: false, created: Date.now() });
+  res.json({ jobId, key });
+  (async () => {
+    try {
+      const url = await twinGenerate(inp, key);
+      const job = imageJobs.get(jobId);
+      if (job) { if (url) job.images[0] = url; job.done = true; }
+    } catch (err) {
+      logAI({ feature: 'avatar_twin', key, success: false, reason: err.message });
+      const job = imageJobs.get(jobId); if (job) job.done = true;
+    }
+  })();
+});
+
 /* The model page shows the cell itself (2026-09-01 — no more abstract
    figure): POST {avatarId} → {url} when the cell already exists, else
    {jobId} while it generates lazily (poll the standard GET /api/images/:jobId).
@@ -4017,7 +4249,10 @@ app.post('/api/avatar/cell', rateLimit({ windowMs: 60_000, max: 20 }), async (re
 app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (req, res) => {
   const { avatarId, pieces, frameUrl, gender } = req.body;
   const frameMode = typeof frameUrl === 'string' && /^https:\/\/res\.cloudinary\.com\//.test(frameUrl);
-  if (!frameMode && !parseAvatarId(avatarId)) return res.status(400).json({ error: 'bad avatarId' });
+  // 'tw-<key>' is her twin (resolved through modelRefsForUser); a catalog
+  // id is the legacy cell.
+  const twinMode = !frameMode && /^tw-[0-9a-f]{8,32}$/.test(String(avatarId || ''));
+  if (!frameMode && !twinMode && !parseAvatarId(avatarId)) return res.status(400).json({ error: 'bad avatarId' });
   if (!Array.isArray(pieces) || pieces.length < 1 || pieces.length > 12) {
     return res.status(400).json({ error: 'pieces must hold 1–12 entries' });
   }
@@ -4040,23 +4275,29 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
   (async () => {
     const finish = () => { const job = imageJobs.get(jobId); if (job) job.done = true; };
     try {
-      let avatar = null;
+      let model = null;   // { refs, figure } — the twin or the cell as references
       if (frameMode) {
-        avatar = await fetchCloudinaryB64(frameUrl);
+        const avatar = await fetchCloudinaryB64(frameUrl);
         if (!avatar) { logAI({ feature: 'avatar_render', frame: true, success: false, reason: 'frame_fetch_failed' }); return finish(); }
+        model = { refs: [avatar], figure: '', twin: false };
+      } else if (twinMode) {
+        model = await modelRefsForUser(req.body, gender);
+        if (!model || !model.twin) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'no_twin' }); return finish(); }
       } else {
         const cellUrl = await avatarCellEnsure(avatarId);
         if (!cellUrl) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'no_cell' }); return finish(); }
-        avatar = await fetchCloudinaryB64(cellUrl);
+        const avatar = await fetchCloudinaryB64(cellUrl);
         if (!avatar) { logAI({ feature: 'avatar_render', avatarId, success: false, reason: 'cell_fetch_failed' }); return finish(); }
+        model = { refs: [avatar], figure: '', twin: false };
       }
 
       // Garment references: up to 9 photographed pieces ride as images
-      // (1 avatar + 9 garments stays well inside the 14-reference budget);
-      // the rest are described in text.
-      const parts = [{ inlineData: { mimeType: avatar.mimeType, data: avatar.data } }];
+      // (1 avatar + 9 garments stays well inside the 14-reference budget;
+      // a twin with its close-up takes two, so 8 garments); the rest are
+      // described in text.
+      const parts = modelParts(model);
       const lines = [];
-      let imgN = 1;
+      let imgN = parts.length;
       for (const p of clean) {
         const detail = [p.color, p.category].filter(Boolean).join(' ') + (p.brand ? ' by ' + p.brand : '');
         let ref = null;
@@ -4069,13 +4310,17 @@ app.post('/api/avatar/render', rateLimit({ windowMs: 60_000, max: 12 }), async (
           lines.push(`- the ${p.name}${detail ? ' (' + detail + ')' : ''}.${p.styled ? ' Worn: ' + p.styled + '.' : ''}`);
         }
       }
-      const cellMan = frameMode ? normGender(gender) === 'man' : parseAvatarId(avatarId).gender === 'man';
+      const cellMan = (frameMode || twinMode) ? normGender(gender) === 'man' : parseAvatarId(avatarId).gender === 'man';
+      const twinLine = model.twin
+        ? (model.refs.length > 1 ? `IMAGE 2 is a close-up photograph of the same person: match the face to IMAGE 2 exactly — the same features, the same skin, the same hair. ` : '') +
+          (model.figure ? `${cellMan ? 'His' : 'Her'} figure, as IMAGE 1 shows it: ${model.figure} ` : '')
+        : '';
       const prompt = frameMode
         ? `Create one photorealistic editorial photograph. IMAGE 1 is an existing photograph of this look. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure — a faithful likeness of IMAGE 1. Keep the SAME location, backdrop, light, time of day, pose and framing as IMAGE 1: this is the same photograph with the clothes changed, never a new scene. ` +
           `Re-dress ${cellMan ? 'him' : 'her'} in this complete outfit — every listed piece worn together, nothing from the outfit in IMAGE 1 kept unless it is listed here, nothing extra beyond simple essentials:\n` +
           lines.join('\n') + '\n' +
           `${FULL_BODY_FRAME} No text overlays, no collage, one single image. Generate the single photograph now.`
-        : `Create one photorealistic editorial photograph. IMAGE 1 is the model. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ` +
+        : `Create one photorealistic editorial photograph. IMAGE 1 is the model. Keep the SAME ${cellMan ? 'man' : 'woman'}: identical face, hair, skin tone and figure; a faithful likeness of IMAGE 1. ${twinLine}` +
           `Dress ${cellMan ? 'him' : 'her'} in ${clean.length > 1 ? 'this complete outfit — every listed piece worn together, nothing substituted, nothing extra beyond simple essentials' : 'this piece, worn over the plain fitted base layer from IMAGE 1 — nothing substituted, nothing extra'}:\n` +
           lines.join('\n') + '\n' +
           `Standing naturally, facing the camera. ${FULL_BODY_FRAME} ${AVATAR_STUDIO} Generate the single photograph now.`;

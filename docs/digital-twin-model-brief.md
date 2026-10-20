@@ -100,3 +100,15 @@ Unchanged in shape. One twin generation per settled change (~10¢ at 2K), one re
 4. `/privacy` paragraph and the share line.
 
 Harnesses: `settings_harness` rewritten for 3C and the hero; `style_dna_block_test` for the two new facts lines; `avatar_client_smoke` for `render_key` on `twin_key`.
+
+## As built (20 Oct, same day — Annie: "lets push ahead")
+
+Annie's calls before the build: boards are not shared in the beta, so no share line; `/privacy` gets the paragraph; an age band resolves to its **youngest** year (25, 35, 45…; Under 25 → 22); an unfilled model is **a woman, size 10, 35**.
+
+- **Server**: `twinInputs` / `twinKey` / `twinFigureLine` / `twinDescriptor` / `twinGenerate` and **`POST /api/avatar/twin`** beside the avatar block; `modelRefsForUser(body, gender)` is the one resolver every surface reads (`/api/style`, `/api/daily`, `/api/avatar/render` — a `tw-<key>` handle resolves her twin; the client hands the twin over on the body as `twin: {url, face, key, gender, facts, adj}`, the profile read with the service key is the fallback); `modelIdentityLine` carries the IMAGE 2 face line and the figure line. The twin is asked at 2K; an SDK objection to `imageSize` drops the parameter and retries. `TWIN_STYLE` bumps invalidate every twin through the key.
+- **Migration 26** `supabase/twin_migration.sql` — `profiles.twin_url` / `twin_key`. The server never writes them; the twin page does (own-row RLS), and strips them on PGRST204 until the migration runs.
+- **Twin page** (`settings.html`): the empty state is the ghost + two doors; the full-length slot, the by-hand card and the Adjust-by-hand row are gone; the close-up slot lives inside the **Colouring** sheet (season picker + Full colour notes unchanged, skin and hair as overrides); the **Body shape** sheet draws the parametric figure from the facts beside Height · Bust · Waist · Size, prints the one read line and the three five-stop scales, "Back to your facts" clears them; the facts drawer gains Bust (bra band + cup, or cm) and Waist (cm / in). The twin redraws on a sheet's close, a close-up landing and the boot (which answers at once when nothing changed). A legacy full-length read seeds the bust/hip/shoulder stops once.
+- **Client** (`dashboard-personalize.js`): the model handle is `tw-<twin_key>` when a twin is on file (`_avFetchId` selects the twin columns, falls back to `avatar_id` alone pre-migration), `render_key` keys on it, the composer canvas uses the twin image as its cell, every generation body carries `twin: _avTwinHint()`.
+- **Facts in the prompt**: `factsLines` prints bust (as a bra size, else the tape) and waist.
+- **Verified**: `settings_harness` 589/589, `avatar_client_smoke` 12/12, `style_dna_block_test` 58/58, `home_harness` 58/58, `looks_harness` 493/493, `notify_smoke` 46/46.
+- **Not built**: the harness run against the live model (the keys live on Railway) — the first live close-up on beta is the proof; the "Try again" line on a refused close-up is a toast, not a card.

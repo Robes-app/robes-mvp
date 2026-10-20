@@ -85,7 +85,9 @@ await page.route('**ayowpaknssulsqqvwpqx.supabase.co/**', (r) => {
   if (m !== 'GET') return r.fulfill({ status: 201, contentType: 'application/json', body: '[]' });
   let body = '[]';
   if (u.includes('wardrobe_items')) body = JSON.stringify(wardrobe());
-  else if (u.includes('select=avatar_id')) body = JSON.stringify([{ avatar_id: 'w-s2-h0-hg' }]);
+  // the twin (2026-10-20): the profile carries twin_url/twin_key beside the
+  // legacy catalog id — the twin wins, the id is the fallback
+  else if (u.includes('select=avatar_id')) body = JSON.stringify([{ avatar_id: 'w-s2-h0-hg', twin_url: 'https://res.cloudinary.com/demo/image/upload/twin.jpg', twin_key: 'abc123def4567890', headshot_url: 'https://res.cloudinary.com/demo/image/upload/head.jpg', avatar_prefs: { skin: 2, hair: 0, adj: { hips: 1 }, gender: 'woman', kept: true, v: 3 }, gender_identity: 'woman' }]);
   else if (u.includes('/looks')) body = JSON.stringify(SEED_LOOKS);
   else if (u.includes('look_pieces')) body = JSON.stringify(SEED_PIECES);
   return r.fulfill({ status: 200, contentType: 'application/json', body });
@@ -120,7 +122,8 @@ await page.waitForTimeout(800);
 
 ok(renderPosts.length === 1, 'opening the look kicks ONE render', 'got ' + renderPosts.length);
 const post = renderPosts[0] || {};
-ok(post.avatarId === 'w-s2-h0-hg', 'the POST carries her avatar_id', String(post.avatarId));
+ok(post.avatarId === 'tw-abc123def4567890', 'the POST carries her twin as the model handle', String(post.avatarId));
+ok(post.twin && post.twin.url === 'https://res.cloudinary.com/demo/image/upload/twin.jpg' && post.twin.face === 'https://res.cloudinary.com/demo/image/upload/head.jpg' && post.twin.key === 'abc123def4567890' && post.twin.gender === 'woman' && post.twin.adj && post.twin.adj.hips === 1, 'and the twin itself — its image, the close-up as the face, the sliders — so the server needs no service key to find her', JSON.stringify(post.twin || {}));
 ok(Array.isArray(post.pieces) && post.pieces.length === 4, 'three owned pieces + the proposal resolve', JSON.stringify(post.pieces || []).slice(0, 160));
 ok(post.pieces && post.pieces.some(g => g.name === 'Taupe suede jacket' && /prop1\.jpg/.test(g.image_url || '')), 'the proposal rides with its generated still');
 ok(post.pieces && post.pieces[0] && /res\.cloudinary\.com/.test(post.pieces[0].image_url || ''), 'garment photos ride along');
@@ -132,9 +135,9 @@ const l = await page.evaluate(() => {
   return arr.find(x => x.id === 'lk-1') || null;
 });
 ok(l && l.render_url === 'https://res.cloudinary.com/demo/image/upload/render1.jpg', 'the render patches onto the look', l && l.render_url);
-ok(l && l.render_key === 'w-s2-h0-hg|w-bot1,w-sho1,w-top1|p:Taupe suede jacket', 'render_key = avatar | pieces | proposals', l && l.render_key);
+ok(l && l.render_key === 'tw-abc123def4567890|w-bot1,w-sho1,w-top1|p:Taupe suede jacket', 'render_key = twin | pieces | proposals — a redrawn twin re-renders a look on its next open', l && l.render_key);
 const patched = patches.find(p => p.render_url);
-ok(!!patched && patched.render_key === 'w-s2-h0-hg|w-bot1,w-sho1,w-top1|p:Taupe suede jacket', 'the cloud PATCH carries render_url + render_key');
+ok(!!patched && patched.render_key === 'tw-abc123def4567890|w-bot1,w-sho1,w-top1|p:Taupe suede jacket', 'the cloud PATCH carries render_url + render_key');
 const hero = await page.evaluate(() => {
   const img = document.querySelector('#rb-lk-body img');
   return img ? img.getAttribute('src') : null;

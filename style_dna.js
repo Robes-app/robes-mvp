@@ -704,6 +704,13 @@ export function factsLines(f) {
   const h = Number(f.height_cm), s = Number(f.size_uk), sh = Number(f.shoe_uk);
   if (h >= 120 && h <= 230) parts.push(`height ${Math.round(h)} cm`);
   if (s >= 2 && s <= 30) parts.push(`dress size UK ${s} (EU ${s + 28})`);
+  // Bust and waist (the digital twin, 2026-10-20): a bra size as given, or
+  // the tape in cm; a measurement, never a weight.
+  const band = Number(f.bust_band), bcm = Number(f.bust_cm), w = Number(f.waist_cm);
+  const cup = typeof f.bust_cup === 'string' && /^[A-G]{1,2}\+?$/.test(f.bust_cup) ? f.bust_cup : '';
+  if (band >= 26 && band <= 50 && cup) parts.push(`bust ${Math.round(band)}${cup}`);
+  else if (bcm >= 60 && bcm <= 160) parts.push(`bust ${Math.round(bcm)} cm`);
+  if (w >= 45 && w <= 150) parts.push(`waist ${Math.round(w)} cm`);
   if (sh >= 1 && sh <= 14) parts.push(`shoes UK ${sh}`);
   const age = typeof f.age_band === 'string' && f.age_band.trim() ? f.age_band.trim().slice(0, 20) : '';
   if (age) parts.push(`age ${age}`);

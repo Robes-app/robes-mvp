@@ -104,6 +104,10 @@ ok(!/WHAT SHE ACTUALLY BUYS/.test(styleDnaPromptBlock({ brands: ['Zara'], spend:
 ok(!/STYLE DNA/.test(dnaPage), 'no DNA header without a photograph read');
 ok(styleDnaPromptBlock({ facts: { height_cm: 'tall', size_uk: 99 } }, 0, []) === '', 'facts out of range render nothing');
 ok(/dress size UK 12 \(EU 40\)/.test(styleDnaPromptBlock({ facts: { size_uk: 12 } }, 0, [])), 'a lone fact still renders');
+// bust and waist (the digital twin, 2026-10-20): a bra size as given, else the tape; a measurement, never a weight
+ok(/height 168 cm, dress size UK 10 \(EU 38\), bust 34C, waist 71 cm, shoes UK 5/.test(styleDnaPromptBlock({ facts: { height_cm: 168, size_uk: 10, bust_band: 34, bust_cup: 'C', waist_cm: 71, shoe_uk: 5 } }, 0, [])), 'bust as a bra size and the waist in cm ride THE FACTS, between the size and the shoes');
+ok(/bust 89 cm, waist 74 cm/.test(styleDnaPromptBlock({ facts: { bust_cm: 89, waist_cm: 74 } }, 0, [])) && !/bust 3/.test(styleDnaPromptBlock({ facts: { bust_cm: 89, bust_band: 34 } }, 0, [])), 'the tape prints when no cup is given; a band without a cup prints nothing');
+ok(!/weight/i.test(styleDnaPromptBlock({ facts: { bust_cm: 89, waist_cm: 74, weight: 60 } }, 0, [])) || /never weight/.test(styleDnaPromptBlock({ facts: { bust_cm: 89, waist_cm: 74, weight: 60 } }, 0, [])), 'a weight on the facts never prints');
 ok(/THE FACTS/.test(styleDnaPromptBlock({ facts: { size_uk: 12 }, color_harmony: dnaFull.color_harmony }, 3, [])), 'the facts ride beside a photograph read too');
 
 // Where the pieces come from (2026-10-19): her answer in the box turns the

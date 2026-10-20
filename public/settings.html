@@ -208,6 +208,34 @@
     .mvr-dot.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--cream), 0 0 0 3px var(--ink); }
     .mvr-cur { font: 400 12px/1 'Inter'; color: #6E675E; margin-left: 6px; }
     @media (max-width: 767px) { .mvr { flex-wrap: wrap; gap: 10px 14px; } .mvr-k { width: 100%; } }
+    /* the twin (20 Oct): the figure from the facts, the three scales, the two fact strips */
+    .mv-photo.stale { opacity: .45; }
+    .tw-facts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
+    .tw-prop { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 10px; }
+    .tw-fig { width: 120px; height: 200px; display: block; background: #F5F0E9; border: 1px solid var(--cream-300); border-radius: var(--rad); }
+    .tw-frows { display: flex; flex-direction: column; }
+    .tw-frow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--rule); }
+    .tw-frow .k { font: 400 9.5px/1 'Inter'; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); }
+    .tw-frow .v { font: 400 16px/1.1 'Cormorant', Georgia, serif; color: var(--ink); }
+    .tw-frow .v.add { font-style: italic; font-weight: 300; color: var(--ink-faint); }
+    .tw-frows .mv-door { margin-top: 12px; }
+    .tw-scale { padding: 12px 0; border-bottom: 1px solid rgba(225,218,203,0.6); }
+    .tw-scale:last-child { border-bottom: 0; }
+    .tw-sc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+    .tw-sc-head .k { font: 400 10.5px/1.4 'Inter'; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8378; }
+    .tw-sc-head .s { font: italic 300 13px/1.3 'Cormorant', Georgia, serif; color: var(--ink-soft); text-align: right; }
+    .tw-sc-row { display: grid; grid-template-columns: 62px minmax(0, 1fr) 62px; align-items: center; gap: 8px; }
+    .tw-sc-row .e { font: 400 10px/1 'Inter'; letter-spacing: 0.06em; color: var(--ink-faint); }
+    .tw-sc-row .e.r { text-align: right; }
+    .tw-stops { display: flex; justify-content: space-between; align-items: center; position: relative; padding: 0 6px; }
+    .tw-stops::before { content: ''; position: absolute; left: 10px; right: 10px; top: 50%; height: 1px; background: var(--cream-400); }
+    .tw-stop { position: relative; z-index: 1; width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer; background: var(--cream-400); border: 1px solid transparent; font: 400 11px/1 'Inter'; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 5px var(--cream); }
+    .tw-stop:not(.on) { width: 9px; height: 9px; }
+    .tw-stop.mid:not(.on) { width: 12px; height: 12px; background: #fff; border-color: var(--cream-400); }
+    .tw-stop.on { background: #F3EFE6; border-color: #C9BCA6; }
+    .fx-cups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .fx-cups .sh-pill { padding: 7px 10px; font-size: 11px; }
+    @media (max-width: 767px) { .tw-prop { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; } .tw-fig { width: 96px; height: 160px; } .tw-sc-row { grid-template-columns: 52px minmax(0, 1fr) 52px; } }
 
     /* the facts — ONE strip of five with hairline dividers (T5); the card is the door */
     .tw-factscard { display: block; width: 100%; padding: 0; text-align: left; font-family: inherit; color: var(--ink); cursor: pointer; }
@@ -538,35 +566,29 @@
 
     <!-- ══ 01 · YOUR DIGITAL TWIN ══ -->
     <section class="sp-page" id="pg-twin" hidden>
-      <p class="sp-pagesub" id="tw-sub">Two photographs read your colouring and your line. Five facts size what Robes proposes.</p>
+      <p class="sp-pagesub" id="tw-sub">One close-up reads your colouring. Your facts draw your line, and you can nudge it by hand.</p>
       <div class="tw-grid" style="max-width:1100px;margin:0 auto">
         <aside class="tw-stage" id="mv-figframe">
-          <svg viewBox="0 0 200 250" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+          <svg viewBox="0 0 150 250" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
             <defs>
               <radialGradient id="mv-glow" cx="50%" cy="28%" r="62%">
                 <stop offset="0%" stop-color="rgba(243,210,215,0.24)"></stop>
                 <stop offset="100%" stop-color="rgba(243,210,215,0)"></stop>
               </radialGradient>
             </defs>
-            <rect x="0" y="0" width="200" height="250" fill="url(#mv-glow)"></rect>
-            <g id="mv-fig" opacity="0.22">
-              <ellipse id="mv-hair" cx="100" cy="38" rx="24" ry="17" fill="#D6CFC2"></ellipse>
-              <ellipse id="mv-head" cx="100" cy="46" rx="18" ry="21" fill="#E3DED4"></ellipse>
-              <polygon id="mv-dress" points="" fill="#E3DED4"></polygon>
-              <rect id="mv-legs" x="87" y="196" width="26" height="54" fill="#E3DED4" opacity="0.9"></rect>
-            </g>
+            <rect x="0" y="0" width="150" height="250" fill="url(#mv-glow)"></rect>
+            <g id="mv-fig" opacity="0.22"></g>
           </svg>
-          <div class="mv-fig-empty" id="mv-fig-empty">Your model starts the moment your first photograph reads.</div>
+          <div class="mv-fig-empty" id="mv-fig-empty">Your model starts here. Add a close-up, or set your line from your facts.</div>
           <div class="mv2-stagehead" id="mv-stagehead">
             <div class="mv-caption" id="mv-caption"></div>
           </div>
         </aside>
 
         <div class="tw-main">
-          <!-- the empty state: the two slots in place, the by-hand rows open -->
-          <div class="sp-card static" id="tw-slotscard">
-            <span class="k">Two photographs</span>
-            <div class="tw-slots" id="tw-slots" style="margin-top:14px">
+          <!-- the close-up slot's home: it lives inside the Colouring sheet and returns here, off screen -->
+          <div id="tw-slotscard" hidden>
+            <div class="tw-slots" id="tw-slots">
               <div class="tw-slot">
                 <span class="tw-slotlab">Close-up</span>
                 <button class="photo-slot" id="headshot-slot" aria-label="Add your close-up photo" type="button">
@@ -577,38 +599,22 @@
                 <p class="mv2-likread" id="st1-readline" hidden></p>
                 <p class="slot-err" id="headshot-err"></p>
               </div>
-              <div class="tw-slot">
-                <span class="tw-slotlab">Full length</span>
-                <button class="photo-slot" id="full-slot" aria-label="Add your full-length photo" type="button">
-                  <span class="slot-empty"><span class="slot-title">Full length</span><span class="slot-hint" id="full-hint">Add photo</span></span>
-                </button>
-                <input type="file" id="full-file" accept="image/*" hidden>
-                <p class="mv-guide" id="st2-guide">Head to toe, fitted clothes. A mirror is fine.</p>
-                <p class="mv2-likread" id="st2-readline" hidden></p>
-                <p class="slot-err" id="full-err"></p>
-              </div>
             </div>
           </div>
-          <div class="sp-card static" id="mv-shape">
-            <span class="k" id="mv-shape-ey">Or shape her by hand</span>
-            <span class="s" id="mv-shape-note">She changes as you choose.</span>
-            <div id="mv-shape-rows" style="margin-top:6px"></div>
-          </div>
 
-          <!-- the read state: three rows under a section eyebrow, the sheet behind them -->
-          <div class="tw-sec" id="tw-read" hidden>
-            <div class="sp-gk">Read from your photographs</div>
+          <!-- the two doors: Colouring (the close-up, the season, skin and hair) · Body shape (the facts, the figure, the scales) -->
+          <div class="tw-sec" id="tw-read">
+            <div class="sp-gk">Read from your photograph and facts</div>
             <div class="sp-group">
               <button type="button" class="sp-row" id="tw-row-colour"><span class="l"><span class="n">Colouring</span><span class="d" id="tw-colour-d"></span></span><span class="v" id="tw-colour-v"></span><span class="chev">›</span></button>
               <button type="button" class="sp-row" id="tw-row-line"><span class="l"><span class="n">Body shape</span><span class="d" id="tw-line-d"></span></span><span class="v" id="tw-line-v"></span><span class="chev">›</span></button>
-              <button type="button" class="sp-row" id="mv-adjust"><span class="l"><span class="n">Adjust by hand</span><span class="d">Skin, hair, the line and the frame</span></span><span class="chev">›</span></button>
             </div>
           </div>
 
-          <!-- the facts: one strip of five under its eyebrow; the sentence lives in the sheet -->
+          <!-- the facts: two strips under their eyebrow; the sentence lives in the sheet -->
           <div class="tw-sec">
             <div class="sp-gk">The facts</div>
-            <button type="button" class="sp-group tw-factscard" id="tw-facts" aria-label="The facts"><div class="tw-facts" id="tw-facts-cells"></div></button>
+            <button type="button" class="sp-group tw-factscard" id="tw-facts" aria-label="The facts"><div id="tw-facts-cells"></div></button>
           </div>
 
           <div class="mv2-foot">
@@ -811,7 +817,14 @@
     const FACT_AGES = ['Under 25', '25–34', '35–44', '45–54', '55–64', '65+'];
     const FACT_HEIGHT = [140, 210], FACT_SIZE = [4, 16], FACT_SHOE = [2, 8];
 
-    /* ── The model: catalog attribute space (design 2026-08-25) ────── */
+    /* ── The model: her face from one close-up, her line from the facts ──
+       (docs/digital-twin-model-brief.md, 2026-10-20). The catalog matrix is
+       gone from this page: the twin is ONE reference image per account,
+       generated server-side (POST /api/avatar/twin) from the close-up plus
+       her facts and three sliders, and persisted on her own row
+       (twin_url / twin_key, migration 26). Skin and hair are overrides on
+       what the photograph shows; the catalog id survives as the fallback
+       handle for an account with no twin yet. */
     const MV_SKINS = ['#3B2A22','#5A3B2A','#7A5238','#95664A','#B78A63','#D0A47F','#E3BE9C','#F0D6BE'];
     const MV_HAIRS = ['#1B1614','#3A2A20','#6B4A2E','#A9793F','#CBAE87'];
     const MV_SKIN_NAMES = ['Espresso','Mahogany','Chestnut','Golden','Honey','Sand','Peach','Porcelain'];
@@ -819,23 +832,12 @@
     // Gender — the fifth fact (labelled Gender on screen, decision 2026-10-07).
     // Values match profiles.gender_identity; asked, never inferred.
     const MV_PRESENCE = [['woman','Woman'],['man','Man'],['unspecified','Prefer not to say']];
-    const MV_NUDGES = [
-      { key: 'line',  left: 'Softer', right: 'Straighter' },
-      { key: 'frame', left: 'Fuller', right: 'Narrower' },
-    ];
-    const MV_FIGS = {
-      'Hourglass':         { key: 'hg', clip: [[20,0],[80,0],[100,62],[84,100],[16,100],[0,62]] },
-      'Pear / Triangle':   { key: 'pe', clip: [[26,0],[74,0],[100,100],[0,100]] },
-      'Pear':              { key: 'pe', clip: [[26,0],[74,0],[100,100],[0,100]] },
-      'Rectangle':         { key: 're', clip: [[14,0],[86,0],[92,100],[8,100]] },
-      'Inverted Triangle': { key: 'it', clip: [[2,0],[98,0],[76,100],[24,100]] },
-      'Apple / Round':     { key: 'ap', clip: [[18,0],[82,0],[98,52],[86,100],[14,100],[2,52]] },
-      'Apple':             { key: 'ap', clip: [[18,0],[82,0],[98,52],[86,100],[14,100],[2,52]] },
-    };
-    const MV_FIG_NEUTRAL = { key: 'nt', clip: [[12,0],[88,0],[100,100],[0,100]] };
-    const MV_CLIP_SOFT     = [[18,0],[82,0],[98,58],[84,100],[16,100],[2,58]];
-    const MV_CLIP_STRAIGHT = [[14,0],[86,0],[90,100],[10,100]];
-
+    // The three scales (design 3C): five stops each, 0 = "As she is" (her facts).
+    const TW_SCALES = [['shoulders', 'Shoulders', 'Narrower', 'Broader'], ['bust', 'Bust', 'Smaller', 'Fuller'], ['hips', 'Hips', 'Narrower', 'Fuller']];
+    const TW_CUPS = ['AA', 'A', 'B', 'C', 'D', 'DD', 'E', 'F', 'G+'];
+    // A legacy full-length read seeds the sliders ONCE, so nobody's line
+    // regresses the day the full-length ask leaves the page.
+    const TW_LEGACY_SEED = { 'Hourglass': { bust: 1 }, 'Pear / Triangle': { hips: 1 }, 'Pear': { hips: 1 }, 'Rectangle': {}, 'Inverted Triangle': { shoulders: 1, hips: -1 }, 'Apple / Round': { bust: 1 }, 'Apple': { bust: 1 } };
     const st = {
       uid: null,
       email: '',
@@ -855,7 +857,8 @@
       headshotUrl: null,
       fullLengthUrl: null,
       gender: 'woman',   // profiles.gender_identity, normalised at load
-      model: { skin: null, hair: null, nudges: {}, kept: false, gender: null, touched: false },
+      model: { skin: null, hair: null, adj: null, kept: false, gender: null, touched: false },   // adj null = not yet seeded (the boot seeds it once)
+      twin: { url: null, key: null },   // profiles.twin_url / twin_key — her reference image
     };
 
     function esc(s) {
@@ -958,13 +961,11 @@
     }
 
     /* ── the line read ───────────────────────────────────────────── */
+    // A legacy line read (the full-length ask left the page on 20 Oct) still
+    // fills its drawer sections; nothing on the page opens them any more.
     function renderSil() {
       const a = st.sil;
-      const guide = document.getElementById('st2-guide');
-      const readline = document.getElementById('st2-readline');
-      if (!a) { readline.hidden = true; guide.hidden = false; renderModel(); return; }
-      guide.hidden = true; readline.hidden = false;
-      readline.textContent = readLine(a);
+      if (!a) { renderModel(); return; }
       document.getElementById('trait-grid').innerHTML = (a.traits || []).slice(0, 4).map(t => '<div class="trait-row"><span class="dot"></span><span class="trait-label">' + esc(t) + '</span></div>').join('');
       const dg = document.getElementById('dress-grid');
       dg.style.gridTemplateColumns = 'repeat(auto-fill,minmax(250px,1fr))';
@@ -1016,10 +1017,6 @@
       const ev = st.styleDna && st.styleDna.color_harmony && st.styleDna.color_harmony.extracted_values;
       return nearestIdx(ev && ev.hair_color_hex, MV_HAIRS, 1);
     }
-    function mvFig() {
-      const bt = (st.sil && st.sil.body_type) || (st.styleDna && st.styleDna.silhouette_proportions && st.styleDna.silhouette_proportions.body_type);
-      return (bt && MV_FIGS[bt]) || MV_FIG_NEUTRAL;
-    }
     function mvGender() {
       const g = st.model.gender || st.gender;
       return (g === 'man' || g === 'unspecified') ? g : 'woman';
@@ -1028,86 +1025,114 @@
     const mvP = () => mvMan()
       ? { She: 'He', she: 'he', her: 'his', him: 'him', hers: 'his', Shes: 'He’s' }
       : { She: 'She', she: 'she', her: 'her', him: 'her', hers: 'hers', Shes: 'She’s' };
-    function mvModelId() {
-      const n = st.model.nudges || {};
-      let id = (mvMan() ? 'm' : 'w') + '-s' + mvSkinIdx() + '-h' + mvHairIdx() + '-' + mvFig().key;
-      if (n.line) id += '-l' + n.line.toLowerCase();
-      if (n.frame) id += '-f' + n.frame.toLowerCase();
-      return id;
-    }
+    // The legacy catalog handle — the fallback every render surface keeps
+    // for an account with no twin on file yet (no figure axis any more).
+    function mvModelId() { return (mvMan() ? 'm' : 'w') + '-s' + mvSkinIdx() + '-h' + mvHairIdx() + '-nt'; }
     function mvChosen() { return !!(st.model.touched || st.model.kept || st.model.skin != null || st.model.hair != null || st.model.gender); }
-    function mvReadAny() { return !!(st.colour || st.sil); }
-    function mvNudgeWords() {
-      const n = st.model.nudges || {};
-      const w = [];
-      if (n.line) w.push(n.line === 'L' ? 'Softer' : 'Straighter');
-      if (n.frame) w.push(n.frame === 'L' ? 'Fuller' : 'Narrower');
-      return w;
+    function mvReadAny() { return !!st.colour; }
+
+    /* the line, from the facts — size, never weight */
+    function twBustCm() {
+      const f = st.facts || {};
+      if (f.bust_mode === 'cm' && f.bust_cm) return f.bust_cm;
+      if (f.bust_mode !== 'cm' && f.bust_band && f.bust_cup) return Math.round(f.bust_band * 2.54 + (TW_CUPS.indexOf(f.bust_cup) + 0.5) * 2.54);
+      if (f.bust_cm) return f.bust_cm;
+      return null;
     }
-    // Robes says what it read, never what she is (T4 · P5): the Body shape
-    // value is the line and the frame as set — "Softer line, narrower frame" —
-    // or nothing until one is.
-    function mvLinePhrase() {
-      const n = st.model.nudges || {};
-      const w = [];
-      if (n.line) w.push((n.line === 'L' ? 'softer' : 'straighter') + ' line');
-      if (n.frame) w.push((n.frame === 'L' ? 'fuller' : 'narrower') + ' frame');
-      if (!w.length) return '';
-      const s = w.join(', ');
-      return s.charAt(0).toUpperCase() + s.slice(1);
+    function twSeed() {
+      const b = twBustCm(), w = (st.facts || {}).waist_cm;
+      const diff = b && w ? b - w : null;
+      return { shoulders: 0, hips: 0, bust: diff == null ? 0 : diff < 10 ? -1 : diff < 18 ? 0 : diff < 26 ? 1 : 2, diff };
     }
+    const twAdj = () => (st.model.adj && typeof st.model.adj === 'object') ? st.model.adj : {};
+    function twEff(k) { const a = twAdj()[k]; return Number.isInteger(a) ? a : twSeed()[k]; }
+    const twAdjusted = () => TW_SCALES.some(([k]) => Number.isInteger(twAdj()[k]));
+    function twAnyFact() { const f = st.facts || {}; return !!(f.height_cm || f.size_uk || f.bust_band || f.bust_cm || f.waist_cm); }
+    function twWord(k, v, l, r) { return v === 0 ? 'As she is' : (Math.abs(v) === 2 ? 'much ' : '') + (v < 0 ? l : r).toLowerCase(); }
+    function twScaleLabel(k, label) { return (k === 'bust' && mvMan()) ? 'Chest' : label; }
+    // "Fuller bust, narrower hips." — the sliders as one phrase, or the facts alone.
+    function twPhrase() {
+      const P = mvP();
+      const parts = TW_SCALES.filter(([k]) => twEff(k) !== 0).map(([k, label, l, r]) => twWord(k, twEff(k), l, r).replace(/^As she is$/, '') + ' ' + twScaleLabel(k, label).toLowerCase());
+      return parts.length ? parts.join(', ').replace(/^./, c => c.toUpperCase()) + '.' : 'As ' + P.she + ' is, from your facts.';
+    }
+    // The one read line under the figure — what the facts say, never what she is.
+    function twReadLine() {
+      const s = twSeed();
+      if (s.diff == null) return 'Add bust and waist, and Robes reads your line from them.';
+      const w = s.bust < 0 ? 'a smaller bust, a straighter line' : s.bust === 0 ? 'bust and waist close in line' : s.bust === 1 ? 'a fuller bust, a defined waist' : 'a full bust, a markedly defined waist';
+      return (mvMan() ? 'Chest ' : 'Bust ') + s.diff + ' cm over the waist: ' + (mvMan() ? w.replace(/bust/g, 'chest') : w) + '.';
+    }
+    // The parametric figure (design 3C): drawn live from height, size, bust,
+    // waist and the sliders — the instant feedback while the photograph
+    // regenerates. viewBox 150 × 250.
+    function twFig() {
+      const f = st.facts || {};
+      const seed = twSeed(), eff = k => twEff(k);
+      const sf = 1 + ((f.size_uk || 10) - 10) * 0.035;
+      const H = Math.min(236, 214 * (f.height_cm || 165) / 165);
+      const top = 246 - H, u = H / 200;
+      const bustCm = twBustCm();
+      const ws = 25 * sf + eff('shoulders') * 3;
+      const wbBase = bustCm ? 24 * bustCm / 88 : 24 * sf;
+      const wb = wbBase + (eff('bust') - seed.bust) * 2.6 + (bustCm ? 0 : eff('bust') * 2.6);
+      const ww = f.waist_cm ? 18 * f.waist_cm / 70 : 18 * sf;
+      const wh = 26 * sf + eff('hips') * 3.2;
+      const P = (x, y) => [75 + x, top + y * u];
+      const outer = [[5, 26], [ws - 5, 33], [ws, 40], [wb, 60], [wb - 1.5, 70], [ww, 90], [wh, 116], [wh - 3, 136], [10, 168], [6, 197]].map(([x, y]) => P(x, y));
+      const cr = pts => { let d = ''; for (let i = 0; i < pts.length - 1; i++) { const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2; const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6]; d += ' C' + c1[0].toFixed(1) + ',' + c1[1].toFixed(1) + ' ' + c2[0].toFixed(1) + ',' + c2[1].toFixed(1) + ' ' + p2[0].toFixed(1) + ',' + p2[1].toFixed(1); } return d; };
+      const mir = pts => pts.map(([x, y]) => [150 - x, y]);
+      const ankR = P(1.5, 199), crotch = P(0.6, 128);
+      const f2 = p => p[0].toFixed(1) + ',' + p[1].toFixed(1);
+      const left = mir(outer).reverse();
+      const d = 'M' + f2(outer[0]) + cr(outer) + ' L' + f2(ankR) + ' L' + f2(crotch) + ' L' + f2(mir([ankR])[0]) + ' L' + f2(left[0]) + cr(left) + ' Z';
+      return { d, headY: top + 13 * u, headRx: 8.5, headRy: 11 * u };
+    }
+    function twFigSvg(cls) {
+      const g = twFig(), skin = MV_SKINS[mvSkinIdx()], hair = MV_HAIRS[mvHairIdx()];
+      return '<svg class="' + (cls || 'tw-fig') + '" viewBox="0 0 150 250" aria-hidden="true">' +
+        '<ellipse cx="75" cy="' + (g.headY - 4).toFixed(1) + '" rx="12" ry="' + (g.headRy + 3).toFixed(1) + '" fill="' + hair + '"></ellipse>' +
+        '<ellipse cx="75" cy="' + g.headY.toFixed(1) + '" rx="' + g.headRx + '" ry="' + g.headRy.toFixed(1) + '" fill="' + skin + '"></ellipse>' +
+        '<path d="' + g.d + '" fill="#C9BCA6"></path></svg>';
+    }
+    // What the twin is drawn from — the server hashes the same shape.
+    function twInputs() {
+      const f = st.facts || {};
+      return {
+        gender: mvMan() ? 'man' : 'woman',
+        facts: { height_cm: f.height_cm || null, size_uk: f.size_uk || null, bust_band: f.bust_mode === 'cm' ? null : (f.bust_band || null), bust_cup: f.bust_mode === 'cm' ? null : (f.bust_cup || null), bust_cm: f.bust_mode === 'cm' ? (f.bust_cm || null) : null, waist_cm: f.waist_cm || null, age_band: f.age_band || null },
+        adj: { shoulders: Number.isInteger(twAdj().shoulders) ? twAdj().shoulders : null, bust: Number.isInteger(twAdj().bust) ? twAdj().bust : null, hips: Number.isInteger(twAdj().hips) ? twAdj().hips : null },
+        skin: mvSkinIdx(), hair: mvHairIdx(), skinSet: st.model.skin != null, hairSet: st.model.hair != null,
+        headshotUrl: (typeof st.headshotUrl === 'string' && /^https:\/\/res\.cloudinary\.com\//.test(st.headshotUrl)) ? st.headshotUrl : null,
+      };
+    }
+    const mvAny = () => !!st.headshotUrl || twAnyFact() || mvChosen();
 
     function renderModel() {
-      const hasColor = !!st.colour, hasLine = !!st.sil;
-      const readAny = hasColor || hasLine;
-      const any = readAny || mvChosen();
-      const kept = !!st.model.kept;
-      const n = st.model.nudges || {};
+      const hasColor = !!st.colour, hasPhoto = !!st.headshotUrl, hasFacts = twAnyFact();
+      const any = mvAny();
       const P = mvP();
 
+      // the stage: the ghost until anything exists, then the parametric
+      // figure as the underlay and the twin's photograph over it
       const fig = document.getElementById('mv-fig');
       fig.setAttribute('opacity', any ? '1' : '0.22');
+      fig.innerHTML = any ? twFigSvg('mv-figsvg').replace(/^<svg[^>]*>|<\/svg>$/g, '') : '<ellipse cx="75" cy="38" rx="14" ry="11" fill="#D6CFC2"></ellipse><ellipse cx="75" cy="46" rx="11" ry="14" fill="#E3DED4"></ellipse><path d="M62 70 L88 70 L96 196 L54 196 Z" fill="#E3DED4"></path>';
       document.getElementById('mv-fig-empty').style.display = any ? 'none' : 'flex';
-      const skin = any ? MV_SKINS[mvSkinIdx()] : '#E3DED4';
-      const hair = any ? MV_HAIRS[mvHairIdx()] : '#D6CFC2';
-      document.getElementById('mv-hair').setAttribute('fill', hair);
-      document.getElementById('mv-head').setAttribute('fill', skin);
-      document.getElementById('mv-dress').setAttribute('fill', any ? '#A9987F' : '#E3DED4');
-      const legs = document.getElementById('mv-legs');
-      legs.setAttribute('fill', skin);
-      let clip = hasLine ? mvFig().clip : MV_FIG_NEUTRAL.clip;
-      if (n.line === 'L') clip = MV_CLIP_SOFT;
-      if (n.line === 'R') clip = MV_CLIP_STRAIGHT;
-      let W = 66;
-      if (n.frame === 'L') W = 76;
-      if (n.frame === 'R') W = 58;
-      const x0 = 100 - W / 2, y0 = 70, H = 126;
-      document.getElementById('mv-dress').setAttribute('points', clip.map(([px, py]) => (x0 + px / 100 * W).toFixed(1) + ',' + (y0 + py / 100 * H).toFixed(1)).join(' '));
-      legs.setAttribute('x', String(100 - 13));
-
       const shead = document.getElementById('mv-stagehead');
       shead.style.display = any ? 'flex' : 'none';
       document.getElementById('mv-caption').textContent = MV_SKIN_NAMES[mvSkinIdx()] + ' · ' + MV_HAIR_NAMES[mvHairIdx()] + ' hair';
 
-      // the empty state (slots + the by-hand rows in place) vs the read card
-      document.getElementById('tw-slotscard').hidden = readAny;
-      document.getElementById('mv-shape').hidden = readAny;
-      document.getElementById('tw-read').hidden = !readAny;
-      if (!readAny) {
-        document.getElementById('mv-shape-ey').textContent = 'Or shape ' + P.him + ' by hand';
-        document.getElementById('mv-shape-note').textContent = P.She + ' changes as you choose.';
-        document.getElementById('mv-shape-rows').innerHTML = mvShapeRowsHtml();
-      } else {
-        document.getElementById('mv-shape-rows').innerHTML = '';
-        document.getElementById('tw-colour-v').textContent = hasColor ? st.colour.season : 'Not read yet';
-        document.getElementById('tw-colour-v').className = 'v' + (hasColor ? '' : ' none');
-        document.getElementById('tw-colour-d').textContent = hasColor ? [st.colour.undertone, st.colour.contrast].filter(Boolean).join(' · ') : 'Add a close-up and Robes reads it';
-        const phrase = mvLinePhrase();
-        document.getElementById('tw-line-v').textContent = phrase;
-        document.getElementById('tw-line-v').className = 'v';
-        document.getElementById('tw-line-d').textContent = hasLine ? 'Read from the full-length' : phrase ? 'Set by hand' : 'Add a full-length and Robes reads it';
-      }
-      if (typeof shRepaintIf === 'function') { shRepaintIf('photos'); shRepaintIf('adjust'); }
+      // the two rows — Colouring and Body shape — say what Robes read, never what she is
+      document.getElementById('tw-colour-v').textContent = hasColor ? st.colour.season : '';
+      document.getElementById('tw-colour-v').className = 'v';
+      document.getElementById('tw-colour-d').textContent = hasColor ? [st.colour.undertone, st.colour.contrast].filter(Boolean).join(' · ') : 'One close-up reads your season.';
+      const f = st.facts || {};
+      const bodyV = [factHeight(f.height_cm), factSize(f.size_uk), factBust(f)].filter(Boolean).join(' · ');
+      document.getElementById('tw-line-v').textContent = bodyV;
+      document.getElementById('tw-line-v').className = 'v';
+      document.getElementById('tw-line-d').textContent = hasFacts ? (twAdjusted() ? 'From your facts, nudged by hand' : 'From your facts') : 'Set your line by hand.';
+      if (typeof shRepaintIf === 'function') { shRepaintIf('photos'); shRepaintIf('body'); }
       document.getElementById('mv-build').hidden = !any;
       // T3 (First Run redlines, 2026-10-09): on the first run the model's
       // CTA names the NEXT step — Find my style, the walk — and goes
@@ -1122,30 +1147,29 @@
       }
       const note = document.getElementById('mv-status');
       let txt;
-      if (hasColor && hasLine) txt = 'Two photographs read. ' + P.Shes + ' as close as ' + P.she + ' gets.';
-      else if (readAny) txt = 'One more photograph and ' + P.she + ' settles.';
-      else if (any) txt = 'Add a photograph whenever you like — ' + P.she + ' updates.';
-      else txt = 'Nothing yet. Add a photograph, or shape the model by hand.';
+      if (hasPhoto && hasFacts) txt = 'Read from your close-up and your facts. ' + P.Shes + ' as close as ' + P.she + ' gets.';
+      else if (hasPhoto) txt = 'Read from your close-up. Add your facts and Robes draws ' + P.her + ' line.';
+      else if (hasFacts) txt = 'Drawn from your facts. Add a close-up and ' + P.she + ' takes your face.';
+      else if (any) txt = 'Shaped by hand. A close-up or your facts, whenever you like — ' + P.she + ' updates.';
+      else txt = 'Nothing yet. Add a close-up, or set your line from your facts.';
       note.textContent = txt;
 
-      mvPhotoSync(any);
+      mvStagePaint(any);
       if (typeof spPaintRoot === 'function') spPaintRoot();
       if (typeof twPaintFacts === 'function') twPaintFacts();
     }
 
-    /* the by-hand rows — skin, hair, the line, the frame. Gender lives in
-       The facts (the fifth fact). The tap is always the preview: every pick
-       repaints the stage live and auto-files. */
-    const MV_NUDGE_LABELS = { line: 'The line', frame: 'The frame' };
+    /* the by-hand rows — skin and hair, overrides on what the close-up
+       shows ("Read from your close-up. Nudge either if it looks off."). The
+       tap is always the preview: every pick repaints the stage and files. */
     function mvShapeRowsHtml(axes) {
       const want = k => !axes || axes.includes(k);
-      const skin = mvSkinIdx(), hairI = mvHairIdx(), nn = st.model.nudges || {};
+      const skin = mvSkinIdx(), hairI = mvHairIdx();
       const row = (k, inner) => '<div class="mvr"><div class="mvr-k">' + k + '</div><div class="mvr-opts">' + inner + '</div></div>';
       const hairName = MV_HAIR_NAMES[hairI].charAt(0).toUpperCase() + MV_HAIR_NAMES[hairI].slice(1);
       return (
         (want('skin') ? row('Skin', MV_SKINS.map((c, i) => '<button type="button" class="mvr-dot' + (i === skin ? ' on' : '') + '" data-axis="skin" data-v="' + i + '" style="background:' + c + ';" aria-label="Skin tone ' + (i + 1) + '"></button>').join('') + '<span class="mvr-cur">' + MV_SKIN_NAMES[skin] + '</span>') : '') +
-        (want('hair') ? row('Hair', MV_HAIRS.map((c, i) => '<button type="button" class="mvr-dot' + (i === hairI ? ' on' : '') + '" data-axis="hair" data-v="' + i + '" style="background:' + c + ';" aria-label="Hair colour ' + (i + 1) + '"></button>').join('') + '<span class="mvr-cur">' + hairName + '</span>') : '') +
-        MV_NUDGES.filter(nd => want(nd.key)).map(nd => row(MV_NUDGE_LABELS[nd.key], ['L', 'R'].map((v, i) => { const on = nn[nd.key] === v; return '<button type="button" class="mvr-pill' + (on ? ' on' : '') + '" data-axis="' + nd.key + '" data-v="' + v + '">' + (on ? '<span class="ck">✓</span>' : '') + (i === 0 ? nd.left : nd.right) + '</button>'; }).join(''))).join(''));
+        (want('hair') ? row('Hair', MV_HAIRS.map((c, i) => '<button type="button" class="mvr-dot' + (i === hairI ? ' on' : '') + '" data-axis="hair" data-v="' + i + '" style="background:' + c + ';" aria-label="Hair colour ' + (i + 1) + '"></button>').join('') + '<span class="mvr-cur">' + hairName + '</span>') : ''));
     }
     function mvShapeRowPick(e) {
       const b = e.target.closest('button'); if (!b || !b.dataset.axis) return;
@@ -1153,16 +1177,16 @@
       if (axis === 'presence') { factSetGender(v); return; }
       if (axis === 'skin') st.model.skin = Number(v);
       else if (axis === 'hair') st.model.hair = Number(v);
-      else {
-        const nn = st.model.nudges || {};
-        nn[axis] = nn[axis] === v ? null : v;   // second tap clears the nudge
-        if (!nn[axis]) delete nn[axis];
-        st.model.nudges = nn;
-      }
+      else if (axis === 'adj') {
+        const a = Object.assign({}, twAdj());
+        const k = b.dataset.k, n = Number(v);
+        a[k] = a[k] === n ? null : n;   // a second tap on the chosen stop hands the axis back to the facts
+        if (a[k] == null) delete a[k];
+        st.model.adj = a;
+      } else return;
       st.model.touched = true;
       mvFile();
     }
-    document.getElementById('mv-shape-rows').addEventListener('click', mvShapeRowPick);
     // Gender writes gender_identity at once — identity, not styling — and
     // re-files a kept model under the new catalog.
     function factSetGender(v) {
@@ -1175,11 +1199,12 @@
     }
 
     /* persistence — localStorage is the instant cache, the cloud write
-       degrades silently until migration 20 runs. */
+       degrades silently until migration 20 (the prefs) / 26 (the twin) run. */
     const MV_LS = () => st.uid ? 'rb_model__' + st.uid : null;
-    let _mvAvatarCols = true;
+    const TW_LS = () => st.uid ? 'rb_twin__' + st.uid : null;
+    let _mvAvatarCols = true, _mvTwinCols = true;
     async function mvPersist() {
-      const prefs = { skin: mvSkinIdx(), hair: mvHairIdx(), nudges: st.model.nudges || {}, kept: !!st.model.kept, gender: st.model.gender || null, v: 2 };
+      const prefs = { skin: st.model.skin, hair: st.model.hair, adj: twAdj(), kept: !!st.model.kept, gender: st.model.gender || null, v: 3 };
       try { const k = MV_LS(); if (k) localStorage.setItem(k, JSON.stringify(prefs)); } catch (e) {}
       if (!st.uid || !_mvAvatarCols) return;
       const { error } = await sbClient.from('profiles').update({ avatar_id: mvModelId(), avatar_prefs: prefs }).eq('id', st.uid);
@@ -1188,6 +1213,15 @@
         console.warn('avatar columns missing (run supabase/avatar_migration.sql) — model kept locally only');
       } else if (error) console.error('Model save failed:', error.message);
     }
+    async function mvPersistTwin() {
+      try { const k = TW_LS(); if (k) localStorage.setItem(k, JSON.stringify(st.twin)); } catch (e) {}
+      if (!st.uid || !_mvTwinCols) return;
+      const { error } = await sbClient.from('profiles').update({ twin_url: st.twin.url || null, twin_key: st.twin.key || null }).eq('id', st.uid);
+      if (error && /twin_url|twin_key/.test(error.message || '')) {
+        _mvTwinCols = false;
+        console.warn('twin columns missing (run supabase/twin_migration.sql) — the twin is kept locally only');
+      } else if (error) console.error('Twin save failed:', error.message);
+    }
     // Auto-file: every change files the model — the ✓ line flashes as the
     // affirmation, never a button. model_filed fires ONCE per model.
     function mvFile() {
@@ -1195,9 +1229,8 @@
       st.model.kept = true;
       mvPersist();
       renderModel();
-      if (firstFiling) snTrack('model_filed', { by: (st.colour || st.sil) ? 'photo' : 'hand', gender: st.model.gender || st.gender || null });
+      if (firstFiling) snTrack('model_filed', { by: st.headshotUrl ? 'photo' : 'hand', gender: st.model.gender || st.gender || null });
     }
-
     // Build a look — back to the homepage prompt with the model on file. Sent
     // here by a look's "Build your model" door (rb_model_return): the draft is
     // parked and the dashboard restores it, so the pill reads Back to your look.
@@ -1227,61 +1260,76 @@
       window.location.href = '/dashboard';
     });
 
-    /* the photographed model — the actual catalog cell on the stage */
-    let _mvPhotoSeq = 0, _mvPhotoTimer = null, _mvPhotoShown = null, _mvPhotoPoll = null;
-    function mvPhotoBusy(on) {
+    /* the twin on the stage — her photograph, redrawn when the inputs
+       settle (a sheet closing, a close-up landing, the boot), never per
+       tap. The server answers {url, key} at once when the twin on file
+       already answers to these inputs, else {jobId, key} while it draws;
+       the frame lands here and is written onto her row. */
+    let _mvTwinSig = null, _mvTwinSeq = 0, _mvTwinTimer = null, _mvTwinPoll = null, _mvTwinBusy = false, _mvTwinFailAt = 0;
+    function mvTwinBusy(on) {
       const frame = document.getElementById('mv-figframe');
       let chip = frame.querySelector('.mv-photo-busy');
-      if (on && !chip) { chip = document.createElement('span'); chip.className = 'mv-photo-busy'; chip.textContent = 'Creating your model…'; frame.appendChild(chip); }
+      if (on && !chip) { chip = document.createElement('span'); chip.className = 'mv-photo-busy'; chip.textContent = 'Drawing your model…'; frame.appendChild(chip); }
       else if (!on && chip) chip.remove();
+      const img = frame.querySelector('.mv-photo'); if (img) img.classList.toggle('stale', !!on);
+      _mvTwinBusy = !!on;
     }
-    function mvPhotoClear() {
-      _mvPhotoSeq++; clearTimeout(_mvPhotoTimer); clearInterval(_mvPhotoPoll); _mvPhotoShown = null;
-      const img = document.getElementById('mv-figframe').querySelector('.mv-photo');
-      if (img) img.remove();
-      mvPhotoBusy(false);
+    function mvStagePaint(any) {
+      const frame = document.getElementById('mv-figframe');
+      let img = frame.querySelector('.mv-photo');
+      const url = any && st.twin && st.twin.url;
+      if (!url) { if (img) img.remove(); return; }
+      if (!img) { img = document.createElement('img'); img.className = 'mv-photo'; img.alt = 'Your model'; img.onerror = () => { img.remove(); }; frame.appendChild(img); }
+      if (img.getAttribute('src') !== url) img.setAttribute('src', url);
+      img.classList.toggle('stale', _mvTwinBusy);
     }
-    function mvPhotoSync(any) {
-      if (!any) { mvPhotoClear(); return; }
-      const id = mvModelId();
-      if (id === _mvPhotoShown) return;
-      clearTimeout(_mvPhotoTimer);
-      _mvPhotoTimer = setTimeout(() => mvPhotoFetch(id), _mvPhotoShown || _mvPhotoSeq ? 900 : 0);
+    function mvTwinSync(now) {
+      if (!mvAny()) { _mvTwinSig = null; return; }
+      const inp = twInputs(); const sig = JSON.stringify(inp);
+      if (sig === _mvTwinSig) return;
+      if (Date.now() - _mvTwinFailAt < 60000) return;   // a failed draw rests a minute before the next ask
+      clearTimeout(_mvTwinTimer);
+      _mvTwinTimer = setTimeout(() => mvTwinFetch(inp, sig), now ? 0 : 400);
     }
-    async function mvPhotoFetch(id) {
-      const seq = ++_mvPhotoSeq;
-      clearInterval(_mvPhotoPoll);
-      mvPhotoBusy(true);
-      const land = url => {
-        if (seq !== _mvPhotoSeq) return;
-        _mvPhotoShown = id;
-        const frame = document.getElementById('mv-figframe');
-        let img = frame.querySelector('.mv-photo');
-        if (!img) { img = document.createElement('img'); img.className = 'mv-photo'; img.alt = 'Your model'; img.onerror = () => { img.remove(); _mvPhotoShown = null; }; frame.appendChild(img); }
-        img.src = url;
-        mvPhotoBusy(false);
+    async function mvTwinFetch(inp, sig) {
+      const seq = ++_mvTwinSeq;
+      clearInterval(_mvTwinPoll);
+      const land = (url, key) => {
+        if (seq !== _mvTwinSeq) return;
+        _mvTwinSig = sig;
+        const changed = !st.twin || st.twin.url !== url || st.twin.key !== key;
+        st.twin = { url, key };
+        mvTwinBusy(false);
+        mvStagePaint(mvAny());
+        if (changed) { mvPersistTwin(); snTrack('twin_drawn', { face: !!inp.headshotUrl, facts: !!(inp.facts.height_cm || inp.facts.size_uk || inp.facts.bust_band || inp.facts.bust_cm || inp.facts.waist_cm), adjusted: Object.values(inp.adj).some(v => v != null) }); }
+      };
+      const fail = () => {
+        if (seq !== _mvTwinSeq) return;
+        mvTwinBusy(false); _mvTwinFailAt = Date.now();
+        toast(inp.headshotUrl ? 'Robes couldn’t draw your model from this close-up. Try one in daylight, facing the camera.' : 'Robes couldn’t draw your model just now.');
       };
       try {
-        const r = await fetch('/api/avatar/cell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatarId: id }) });
+        const r = await fetch('/api/avatar/twin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({}, inp, { current: st.twin || null, userId: st.uid || undefined })) });
         const out = r.ok ? await r.json() : null;
-        if (seq !== _mvPhotoSeq) return;
-        if (out && out.url) return land(out.url);
+        if (seq !== _mvTwinSeq) return;
+        if (out && out.url && out.key) return land(out.url, out.key);
         if (out && out.jobId) {
+          mvTwinBusy(true);
           const t0 = Date.now();
-          _mvPhotoPoll = setInterval(async () => {
-            if (seq !== _mvPhotoSeq) { clearInterval(_mvPhotoPoll); return; }
-            if (Date.now() - t0 > 180000) { clearInterval(_mvPhotoPoll); mvPhotoBusy(false); return; }
+          _mvTwinPoll = setInterval(async () => {
+            if (seq !== _mvTwinSeq) { clearInterval(_mvTwinPoll); return; }
+            if (Date.now() - t0 > 240000) { clearInterval(_mvTwinPoll); fail(); return; }
             try {
               const jr = await fetch('/api/images/' + out.jobId);
               const job = jr.ok ? await jr.json() : null;
-              if (seq !== _mvPhotoSeq) { clearInterval(_mvPhotoPoll); return; }
+              if (seq !== _mvTwinSeq) { clearInterval(_mvTwinPoll); return; }
               const url = job && job.images && job.images[0];
-              if (typeof url === 'string' && url.indexOf('http') === 0) { clearInterval(_mvPhotoPoll); land(url); }
-              else if (!job || job.done) { clearInterval(_mvPhotoPoll); mvPhotoBusy(false); }
+              if (typeof url === 'string' && url.indexOf('http') === 0) { clearInterval(_mvTwinPoll); land(url, out.key); }
+              else if (!job || job.done) { clearInterval(_mvTwinPoll); fail(); }
             } catch (e) {}
           }, 3500);
-        } else mvPhotoBusy(false);
-      } catch (e) { if (seq === _mvPhotoSeq) mvPhotoBusy(false); }
+        } else fail();
+      } catch (e) { fail(); }
     }
 
     /* ── the photograph slots + the analyse pipeline ─────────────── */
@@ -1358,35 +1406,25 @@
             fetch('/api/wardrobe/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
               body: JSON.stringify({ data: payload.data, mimeType: payload.mimeType }) }).then(r => r.json()).catch(() => ({})),
           ]);
-          if (cfg.kind === 'colour' ? analysis.no_face_detected : analysis.no_person_detected) { slotError(cfg.errId, cfg.rejectMsg); return; }
+          if (analysis.no_face_detected) { slotError(cfg.errId, cfg.rejectMsg); return; }
           const url = upload.url || null;
           const { style_dna: dnaFragment, ...render } = analysis;
           render.read_at = new Date().toISOString();
           const patch = {};
-          if (cfg.kind === 'colour') {
-            st.colour = render;
-            if (url) st.headshotUrl = url;
-            if (dnaFragment) st.styleDna = { ...st.styleDna, color_harmony: dnaFragment };
-            patch.colour_analysis = render; patch.style_dna = st.styleDna;
-            patch.season = dnaFragment ? dnaFragment.archetype_name : render.season;
-            patch.undertone = dnaFragment ? dnaFragment.verified_undertone : render.undertone;
-            patch.contrast = dnaFragment ? dnaFragment.calculated_contrast : render.contrast;
-            if (url) patch.headshot_url = url;
-            renderSlot(cfg.slotId, st.headshotUrl);
-            renderColour(); renderSil();
-          } else {
-            st.sil = render;
-            if (url) st.fullLengthUrl = url;
-            if (dnaFragment) st.styleDna = { ...st.styleDna, silhouette_proportions: dnaFragment };
-            patch.silhouette_analysis = render; patch.style_dna = st.styleDna;
-            patch.body_type = render.body_type;
-            if (url) patch.full_length_url = url;
-            renderSlot(cfg.slotId, st.fullLengthUrl);
-            renderSil();
-          }
+          st.colour = render;
+          if (url) st.headshotUrl = url;
+          if (dnaFragment) st.styleDna = { ...st.styleDna, color_harmony: dnaFragment };
+          patch.colour_analysis = render; patch.style_dna = st.styleDna;
+          patch.season = dnaFragment ? dnaFragment.archetype_name : render.season;
+          patch.undertone = dnaFragment ? dnaFragment.verified_undertone : render.undertone;
+          patch.contrast = dnaFragment ? dnaFragment.calculated_contrast : render.contrast;
+          if (url) patch.headshot_url = url;
+          renderSlot(cfg.slotId, st.headshotUrl);
+          renderColour();
           save(patch);
           mvFile();   // a fresh read auto-files — the model always tracks it
           if (typeof shRepaintIf === 'function') shRepaintIf('photos');
+          mvTwinSync(true);   // a new close-up is a new face — the twin redraws
         } catch (err) {
           console.error('Analysis failed:', err.message);
           slotError(cfg.errId, err.name === 'AbortError' ? 'That took longer than it should — try the photo again.' : 'Robes couldn’t read that photo just now — try again in a moment.');
@@ -1398,7 +1436,6 @@
       }
     }
     wireSlot({ kind: 'colour', slotId: 'headshot-slot', fileId: 'headshot-file', hintId: 'headshot-hint', errId: 'headshot-err', busyMsg: 'Reading your colouring…', rejectMsg: 'Robes couldn’t find a face in that photo — try a clearer close-up.' });
-    wireSlot({ kind: 'silhouette', slotId: 'full-slot', fileId: 'full-file', hintId: 'full-hint', errId: 'full-err', busyMsg: 'Reading your line…', rejectMsg: 'Robes couldn’t read a full-length figure — try a head-to-toe photo.' });
 
     /* ── the brief — her words, and what Robes noticed ───────────────
        Shape: style_dna.brief = {loves[], avoids[], rules[], notes, colours:{loved,rejected},
@@ -1763,12 +1800,6 @@
     const linesCount = n => n === 0 ? 'Not yet' : n === 1 ? '1 line' : n + ' lines';
 
     /* ══ ROOT · the swipe card (the cards themselves print their title only, G4) ══ */
-    function factsCount() {
-      const f = st.facts || {};
-      let n = ['height_cm', 'size_uk', 'shoe_uk', 'age_band'].filter(k => f[k] != null && f[k] !== '').length;
-      if (st.gender) n++;   // gender always has an answer on file (default woman — asked again on the sheet)
-      return n;
-    }
     const OBS_THUMB_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v12"></path><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path></svg>';
     const OBS_THUMB_DN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 14V2"></path><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"></path></svg>';
     function spPaintRoot() {
@@ -1818,50 +1849,27 @@
     function factSize(uk) { return uk ? 'UK ' + uk : ''; }
     function factShoe(uk) { return uk ? 'UK ' + (Number.isInteger(uk) ? uk : uk.toFixed(1)) : ''; }
     function factGender() { const g = mvGender(); return g === 'man' ? 'Man' : g === 'woman' ? 'Woman' : '—'; }
+    function factBust(f) {
+      f = f || {};
+      if (f.bust_mode === 'cm') return f.bust_cm ? f.bust_cm + ' cm' : '';
+      return f.bust_band ? f.bust_band + (f.bust_cup || '') : (f.bust_cm ? f.bust_cm + ' cm' : '');
+    }
+    let waistUnit = 'cm';
+    function factWaist(f) { f = f || {}; return f.waist_cm ? (waistUnit === 'cm' ? f.waist_cm + ' cm' : Math.round(f.waist_cm / 2.54) + ' in') : ''; }
     function twPaintFacts() {
       const f = st.facts || {};
       const cell = (k, v) => '<div class="c"><span class="k">' + k + '</span><span class="v' + (v ? '' : ' add') + '">' + (v ? esc(v) : 'Add') + '</span></div>';
-      document.getElementById('tw-facts-cells').innerHTML = cell('Height', factHeight(f.height_cm)) + cell('Size', factSize(f.size_uk)) + cell('Shoes', factShoe(f.shoe_uk)) + cell('Age', f.age_band || '') + cell('Gender', factGender());
+      document.getElementById('tw-facts-cells').innerHTML =
+        '<div class="tw-facts two">' + cell('Age', f.age_band || '') + cell('Gender', factGender()) + '</div>' +
+        '<div class="tw-facts">' + cell('Height', factHeight(f.height_cm)) + cell('Size', factSize(f.size_uk)) + cell((mvMan() ? 'Chest' : 'Bust'), factBust(f)) + cell('Waist', factWaist(f)) + cell('Shoes', factShoe(f.shoe_uk)) + '</div>';
     }
-    function factsSave() { saveDna({ facts: Object.assign({}, st.facts) }); snTrack('facts_set', { n: factsCount() }); }
-    function factStep(k, dir) {
-      const f = st.facts;
-      if (k === 'height_cm') { const v = f.height_cm || 168; f.height_cm = Math.min(FACT_HEIGHT[1], Math.max(FACT_HEIGHT[0], v + dir)); }
-      if (k === 'size_uk') { const v = f.size_uk || 10; f.size_uk = Math.min(FACT_SIZE[1], Math.max(FACT_SIZE[0], v + dir * 2)); }
-      if (k === 'shoe_uk') { const v = f.shoe_uk || 5; f.shoe_uk = Math.min(FACT_SHOE[1], Math.max(FACT_SHOE[0], Math.round((v + dir * 0.5) * 2) / 2)); }
-      factsSave(); twPaintFacts(); shRepaintIf('facts');
-    }
-    let factUnit = 'cm';
-    function ftIn(cm) { const inches = Math.round(cm / 2.54); return Math.floor(inches / 12) + '′' + (inches % 12) + '″'; }
-    function shFacts() {
-      shOpen({
-        kind: 'facts', title: 'The facts', sub: 'Size, never weight. Robes uses these to propose what fits.',
-        body: () => {
-          const f = st.facts || {};
-          const step = (k, v, sub) => '<div class="fx-step"><button type="button" data-step="' + k + '" data-dir="-1" aria-label="Less">−</button><span class="v' + (v ? '' : ' none') + '">' + (v || 'Add') + '</span><button type="button" data-step="' + k + '" data-dir="1" aria-label="More">+</button></div>' + (sub ? '<span class="fx-sub">' + esc(sub) + '</span>' : '');
-          return '<div class="fx-row"><span class="fx-k">Height</span><div class="fx-side">' + step('height_cm', f.height_cm ? (factUnit === 'cm' ? f.height_cm + ' cm' : ftIn(f.height_cm)) : '') +
-              '<div class="fx-unit"><button type="button" data-unit="cm"' + (factUnit === 'cm' ? ' class="on"' : '') + '>cm</button><button type="button" data-unit="ft"' + (factUnit === 'ft' ? ' class="on"' : '') + '>ft / in</button></div></div></div>' +
-            '<div class="fx-row"><span class="fx-k">Size</span><div class="fx-side">' + step('size_uk', f.size_uk ? 'UK ' + f.size_uk : '', f.size_uk ? 'EU ' + (f.size_uk + 28) : '') + '</div></div>' +
-            '<div class="fx-row"><span class="fx-k">Shoes</span><div class="fx-side">' + step('shoe_uk', f.shoe_uk ? 'UK ' + (Number.isInteger(f.shoe_uk) ? f.shoe_uk : f.shoe_uk.toFixed(1)) : '', f.shoe_uk ? 'EU ' + Math.round(f.shoe_uk + 33) : '') + '</div></div>' +
-            '<div class="fx-row"><span class="fx-k">Age</span><div class="sh-pills">' + FACT_AGES.map(a => pillHtml(a, f.age_band === a, 'data-age="' + esc(a) + '"')).join('') + '</div></div>' +
-            '<div class="fx-row"><span class="fx-k">Gender</span><div class="sh-pills">' + MV_PRESENCE.map(([v, l]) => pillHtml(l, mvGender() === v, 'data-axis="presence" data-v="' + v + '"')).join('') + '</div></div>' +
-            ((f.height_cm || f.size_uk || f.shoe_uk || f.age_band) ? '<div style="margin-top:14px"><button type="button" class="fx-clear" id="fx-clear">Clear the facts</button></div>' : '');
-        },
-        wire: body => {
-          body.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => factStep(b.dataset.step, Number(b.dataset.dir))));
-          body.querySelectorAll('[data-unit]').forEach(b => b.addEventListener('click', () => { factUnit = b.dataset.unit; shRepaint(); }));
-          body.querySelectorAll('[data-age]').forEach(b => b.addEventListener('click', () => { st.facts.age_band = st.facts.age_band === b.dataset.age ? null : b.dataset.age; if (!st.facts.age_band) delete st.facts.age_band; factsSave(); twPaintFacts(); shRepaint(); }));
-          body.querySelectorAll('[data-axis="presence"]').forEach(b => b.addEventListener('click', () => { factSetGender(b.dataset.v); shRepaint(); }));
-          const clr = body.querySelector('#fx-clear'); if (clr) clr.addEventListener('click', () => { st.facts = {}; factsSave(); twPaintFacts(); shRepaint(); });
-        },
-      });
-    }
-    document.getElementById('tw-facts').addEventListener('click', shFacts);
 
     // The season picker (P4) — the twelve seasons on the wheel; the read one
     // leads, its two neighbours follow (a misread usually lands next door),
     // "Another season" opens the rest. A pick asks the server for THAT
     // season's catalog render (no model call) and lands it exactly as a read.
+    // UNCHANGED by the twin work (20 Oct): the seasons keep their options
+    // and the Full colour notes drawer is the same drawer.
     const SEASON_WHEEL = ['Light Spring', 'Warm Spring', 'Clear Spring', 'Clear Winter', 'True Winter', 'Dark Winter', 'Dark Autumn', 'True Autumn', 'Soft Autumn', 'Soft Summer', 'True Summer', 'Light Summer'];
     const ph = { more: false, busy: '' };
     function seasonRows() {
@@ -1891,60 +1899,146 @@
       }
       ph.busy = ''; shRepaintIf('photos');
     }
-    // The "Your photographs" sheet (P1 · P2 · P6) — the two slots move INTO
-    // it (their listeners travel with them); then Colouring — the season
-    // picker, skin and hair — and Body shape — the line and the frame — so
-    // each control sits with the reading it nudges. Opened from a row, it
-    // lands on that row's section.
-    function shPhotos(section) {
+    // The Colouring sheet (design 3B): the close-up slot moves INTO it (its
+    // listeners travel with it), then Your season — the picker, the strip,
+    // the notes door — then Skin and hair as overrides on what the close-up
+    // shows. Kind 'photos' so every repaint hook on the read still lands.
+    function shColouring() {
+      const P = mvP();
       shOpen({
-        kind: 'photos', title: 'Your photographs', sub: 'What Robes read from each, and the readings you can nudge.',
+        kind: 'photos', title: 'Colouring', sub: 'Your close-up reads your season, skin and hair.',
         before: body => { const s = document.getElementById('tw-slots'); if (s && body.contains(s)) document.getElementById('tw-slotscard').appendChild(s); },
         body: () => {
-          const c = st.colour, l = st.sil;
+          const c = st.colour;
           const rows = c ? seasonRows().map(s => {
             const on = s === c.season, busy = ph.busy === s;
             return '<button type="button" class="sh-opt' + (on ? ' on open' : '') + (busy ? ' busy' : '') + '" data-season="' + esc(s) + '"><span class="n">' + esc(s) + '</span><span class="ck">' + (on ? '✓' : busy ? '…' : '') + '</span></button>' +
               (on ? '<div class="sh-opt-in"><div class="mv-sw-row">' + (c.palette || []).slice(0, 9).map(h => '<div style="background:' + hex(h) + ';"></div>').join('') + '</div>' +
                 '<p class="sh-note">' + esc([c.undertone, c.contrast].filter(Boolean).join(' · ')) + (c.summary ? ' — ' + esc(c.summary) : '') + '</p><button type="button" class="mv-door" id="sh-door-colour">Full colour notes →</button></div>' : '');
           }).join('') : '';
-          return '<div id="sh-slots-host"></div>' +
-            '<div class="sh-k" id="sh-sec-colour">Colouring</div>' +
+          return '<div class="sh-k" id="sh-sec-photo">Your close-up</div><div id="sh-slots-host"></div>' +
+            '<p class="sh-note" style="margin-top:8px">Robes reads your season, skin and hair from this' + (st.headshotUrl ? ', and draws your model from it.' : '.') + '</p>' +
+            '<div class="sh-k" id="sh-sec-colour">Your season</div>' +
             (c ? '<div class="sh-opts">' + rows + (ph.more ? '' : '<button type="button" class="sh-opt sh-more" id="sh-season-more"><span class="n">Another season</span><span class="ck">›</span></button>') + '</div>'
-               : '<p class="sh-note">Add a close-up and Robes reads your colouring.</p>') +
-            '<div id="sh-shape-colour" style="margin-top:8px">' + mvShapeRowsHtml(['skin', 'hair']) + '</div>' +
-            '<div class="sh-k" id="sh-sec-line">Body shape</div>' +
-            '<p class="sh-note" style="margin-top:0">' + (l ? 'Read from your full-length.' : 'Add a full-length and Robes reads your line.') + (l ? ' <button type="button" class="mv-door" id="sh-door-line">Full line notes →</button>' : '') + '</p>' +
-            '<div id="sh-shape-line" style="margin-top:8px">' + mvShapeRowsHtml(['line', 'frame']) + '</div>';
+               : '<p class="sh-note">Add a close-up and Robes reads your season.</p>') +
+            '<div class="sh-k" id="sh-sec-skin">Skin and hair</div>' +
+            '<p class="sh-note" style="margin-top:0">' + (st.headshotUrl ? 'Read from your close-up. Nudge either if it looks off.' : 'Or choose them by hand until a close-up reads.') + '</p>' +
+            '<div id="sh-shape-colour" style="margin-top:8px">' + mvShapeRowsHtml(['skin', 'hair']) + '</div>';
         },
         wire: body => {
           const host = body.querySelector('#sh-slots-host'); const s = document.getElementById('tw-slots');
           if (host && s) host.appendChild(s);
           body.querySelector('#sh-shape-colour').addEventListener('click', mvShapeRowPick);
-          body.querySelector('#sh-shape-line').addEventListener('click', mvShapeRowPick);
           body.querySelectorAll('[data-season]').forEach(b => b.addEventListener('click', () => seasonChoose(b.dataset.season)));
           const more = body.querySelector('#sh-season-more'); if (more) more.addEventListener('click', () => { ph.more = true; shRepaint(); });
           const dc = body.querySelector('#sh-door-colour'); if (dc) dc.addEventListener('click', () => mvNotesOpen('colour'));
-          const dl = body.querySelector('#sh-door-line'); if (dl) dl.addEventListener('click', () => mvNotesOpen('line'));
         },
-        onClose: () => { ph.more = false; const s = document.getElementById('tw-slots'); const card = document.getElementById('tw-slotscard'); if (s && card && !card.contains(s)) card.appendChild(s); },
+        onClose: () => { ph.more = false; const s = document.getElementById('tw-slots'); const card = document.getElementById('tw-slotscard'); if (s && card && !card.contains(s)) card.appendChild(s); mvTwinSync(); },
       });
-      if (section) {
-        const body = document.getElementById('sh-body'), el = body.querySelector('#sh-sec-' + section);
-        if (el) body.scrollTop = Math.max(0, el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 6);
-      }
     }
-    function shAdjust() {
+    // The Body shape sheet (design 3C): her proportions — the parametric
+    // figure drawn live from the facts beside the facts themselves — the one
+    // read line, then Adjust by hand: three five-stop scales. "Back to your
+    // facts" hands every axis back. Nothing here names a shape.
+    function shBody() {
       const P = mvP();
       shOpen({
-        kind: 'adjust', title: 'Adjust by hand', sub: 'Robes read these from your photographs. Nudge anything that looks off.',
-        body: () => '<div id="sh-shape-rows">' + mvShapeRowsHtml() + '</div><p class="sh-note" style="margin-top:16px">Nothing to save — ' + P.she + ' updates as you choose.</p>',
-        wire: body => body.querySelector('#sh-shape-rows').addEventListener('click', mvShapeRowPick),
+        kind: 'body', title: 'Body shape', sub: 'Your line, from your facts. Nudge it by hand.',
+        body: () => {
+          const f = st.facts || {};
+          const fr = (k, v) => '<div class="tw-frow"><span class="k">' + k + '</span><span class="v' + (v ? '' : ' add') + '">' + (v ? esc(v) : 'Add') + '</span></div>';
+          const scales = TW_SCALES.map(([k, label, l, r]) => {
+            const cur = twEff(k), byHand = Number.isInteger(twAdj()[k]);
+            const stops = [-2, -1, 0, 1, 2].map(v => '<button type="button" class="tw-stop' + (cur === v ? ' on' : '') + (v === 0 ? ' mid' : '') + '" data-axis="adj" data-k="' + k + '" data-v="' + v + '" aria-label="' + esc(twScaleLabel(k, label) + ': ' + (v === 0 ? 'As ' + P.she + ' is' : twWord(k, v, l, r))) + '">' + (cur === v ? '✓' : '') + '</button>').join('');
+            const now = twWord(k, cur, l, r).replace(/^As she is$/, 'As ' + P.she + ' is');
+            return '<div class="tw-scale"><div class="tw-sc-head"><span class="k">' + twScaleLabel(k, label) + '</span><span class="s">' + esc(now.charAt(0).toUpperCase() + now.slice(1)) + ' · ' + (byHand ? 'by hand' : 'your facts') + '</span></div>' +
+              '<div class="tw-sc-row"><span class="e">' + l + '</span><div class="tw-stops">' + stops + '</div><span class="e r">' + r + '</span></div></div>';
+          }).join('');
+          return '<div class="sh-k">' + P.her.charAt(0).toUpperCase() + P.her.slice(1) + ' proportions</div>' +
+            '<div class="tw-prop">' + twFigSvg('tw-fig') + '<div class="tw-frows">' + fr('Height', factHeight(f.height_cm)) + fr(mvMan() ? 'Chest' : 'Bust', factBust(f)) + fr('Waist', factWaist(f)) + fr('Size', factSize(f.size_uk)) +
+            '<button type="button" class="mv-door" id="tw-facts-edit">Edit the facts →</button></div></div>' +
+            '<p class="sh-note" id="tw-readline">' + esc(twReadLine()) + '</p>' +
+            '<div class="sh-k">Adjust by hand</div><div id="tw-scales">' + scales + '</div>' +
+            '<p class="sh-note" id="tw-phrase">' + esc(twPhrase()) + '</p>' +
+            (twAdjusted() ? '<button type="button" class="mv-door" id="tw-adj-reset">Back to your facts</button>' : '');
+        },
+        wire: body => {
+          body.querySelector('#tw-scales').addEventListener('click', mvShapeRowPick);
+          body.querySelector('#tw-facts-edit').addEventListener('click', () => { sh.switching = true; shFacts({ back: 'body' }); sh.switching = false; });
+          const rs = body.querySelector('#tw-adj-reset'); if (rs) rs.addEventListener('click', () => { st.model.adj = {}; st.model.touched = true; mvFile(); snTrack('twin_adj_reset', {}); });
+        },
+        onClose: () => { if (!sh.switching) mvTwinSync(); },
       });
     }
-    document.getElementById('tw-row-colour').addEventListener('click', () => shPhotos('colour'));
-    document.getElementById('tw-row-line').addEventListener('click', () => shPhotos('line'));
-    document.getElementById('mv-adjust').addEventListener('click', shAdjust);
+    function factsCount() {
+      const f = st.facts || {};
+      let n = ['height_cm', 'size_uk', 'shoe_uk', 'age_band', 'waist_cm'].filter(k => f[k] != null && f[k] !== '').length;
+      if (factBust(f)) n++;
+      if (st.gender) n++;   // gender always has an answer on file (default woman — asked again on the sheet)
+      return n;
+    }
+    function factsSave() { saveDna({ facts: Object.assign({}, st.facts) }); snTrack('facts_set', { n: factsCount() }); }
+    const FACT_BAND = [28, 46], FACT_BUST_CM = [70, 140], FACT_WAIST = [50, 130];
+    function factStep(k, dir) {
+      const f = st.facts;
+      if (k === 'height_cm') { const v = f.height_cm || 168; f.height_cm = Math.min(FACT_HEIGHT[1], Math.max(FACT_HEIGHT[0], v + dir)); }
+      if (k === 'size_uk') { const v = f.size_uk || 10; f.size_uk = Math.min(FACT_SIZE[1], Math.max(FACT_SIZE[0], v + dir * 2)); }
+      if (k === 'shoe_uk') { const v = f.shoe_uk || 5; f.shoe_uk = Math.min(FACT_SHOE[1], Math.max(FACT_SHOE[0], Math.round((v + dir * 0.5) * 2) / 2)); }
+      if (k === 'bust_band') { const v = f.bust_band || 34; f.bust_band = Math.min(FACT_BAND[1], Math.max(FACT_BAND[0], v + dir * 2)); f.bust_mode = 'bra'; }
+      if (k === 'bust_cm') { const v = f.bust_cm || 88; f.bust_cm = Math.min(FACT_BUST_CM[1], Math.max(FACT_BUST_CM[0], v + dir)); f.bust_mode = 'cm'; }
+      if (k === 'waist_cm') {
+        const v = f.waist_cm || 70;
+        const next = waistUnit === 'in' ? Math.round((Math.round(v / 2.54) + dir) * 2.54) : v + dir;
+        f.waist_cm = Math.min(FACT_WAIST[1], Math.max(FACT_WAIST[0], next));
+      }
+      factsSave(); twPaintFacts(); shRepaintIf('facts');
+    }
+    let factUnit = 'cm';
+    function ftIn(cm) { const inches = Math.round(cm / 2.54); return Math.floor(inches / 12) + '′' + (inches % 12) + '″'; }
+    // The facts sheet: Height · Size · Shoes · Bust (a bra size, or the tape)
+    // · Waist · Age · Gender. Opened from the Body shape sheet it goes back
+    // there on Done (opts.back); from the strip it stands alone.
+    function shFacts(opts) {
+      opts = opts || {};
+      shOpen({
+        kind: 'facts', title: 'The facts', sub: 'Size, never weight. Robes uses these to propose what fits.',
+        body: () => {
+          const f = st.facts || {};
+          const step = (k, v, sub) => '<div class="fx-step"><button type="button" data-step="' + k + '" data-dir="-1" aria-label="Less">−</button><span class="v' + (v ? '' : ' none') + '">' + (v || 'Add') + '</span><button type="button" data-step="' + k + '" data-dir="1" aria-label="More">+</button></div>' + (sub ? '<span class="fx-sub">' + esc(sub) + '</span>' : '');
+          const bra = f.bust_mode !== 'cm';
+          const bustLabel = mvMan() ? 'Chest' : 'Bust';
+          return '<div class="fx-row"><span class="fx-k">Height</span><div class="fx-side">' + step('height_cm', f.height_cm ? (factUnit === 'cm' ? f.height_cm + ' cm' : ftIn(f.height_cm)) : '') +
+              '<div class="fx-unit"><button type="button" data-unit="cm"' + (factUnit === 'cm' ? ' class="on"' : '') + '>cm</button><button type="button" data-unit="ft"' + (factUnit === 'ft' ? ' class="on"' : '') + '>ft / in</button></div></div></div>' +
+            '<div class="fx-row"><span class="fx-k">Size</span><div class="fx-side">' + step('size_uk', f.size_uk ? 'UK ' + f.size_uk : '', f.size_uk ? 'EU ' + (f.size_uk + 28) : '') + '</div></div>' +
+            '<div class="fx-row"><span class="fx-k">Shoes</span><div class="fx-side">' + step('shoe_uk', f.shoe_uk ? 'UK ' + (Number.isInteger(f.shoe_uk) ? f.shoe_uk : f.shoe_uk.toFixed(1)) : '', f.shoe_uk ? 'EU ' + Math.round(f.shoe_uk + 33) : '') + '</div></div>' +
+            '<div class="fx-row"><span class="fx-k">' + bustLabel + '</span><div class="fx-side">' +
+              (bra && !mvMan()
+                ? step('bust_band', f.bust_band ? String(f.bust_band) : '') + '<div class="fx-cups">' + TW_CUPS.map(c => pillHtml(c, f.bust_cup === c, 'data-cup="' + c + '"')).join('') + '</div>'
+                : step('bust_cm', f.bust_cm ? f.bust_cm + ' cm' : '')) +
+              (mvMan() ? '' : '<div class="fx-unit"><button type="button" data-bust="bra"' + (bra ? ' class="on"' : '') + '>bra</button><button type="button" data-bust="cm"' + (bra ? '' : ' class="on"') + '>cm</button></div>') + '</div></div>' +
+            '<div class="fx-row"><span class="fx-k">Waist</span><div class="fx-side">' + step('waist_cm', factWaist(f)) +
+              '<div class="fx-unit"><button type="button" data-waist="cm"' + (waistUnit === 'cm' ? ' class="on"' : '') + '>cm</button><button type="button" data-waist="in"' + (waistUnit === 'in' ? ' class="on"' : '') + '>in</button></div></div></div>' +
+            '<p class="sh-note" style="margin-top:-4px">A soft tape over a thin layer. ' + (mvMan() ? 'Chest' : 'Bust') + ' at the fullest point, waist at the narrowest.</p>' +
+            '<div class="fx-row"><span class="fx-k">Age</span><div class="sh-pills">' + FACT_AGES.map(a => pillHtml(a, f.age_band === a, 'data-age="' + esc(a) + '"')).join('') + '</div></div>' +
+            '<div class="fx-row"><span class="fx-k">Gender</span><div class="sh-pills">' + MV_PRESENCE.map(([v, l]) => pillHtml(l, mvGender() === v, 'data-axis="presence" data-v="' + v + '"')).join('') + '</div></div>' +
+            ((f.height_cm || f.size_uk || f.shoe_uk || f.age_band || f.bust_band || f.bust_cm || f.waist_cm) ? '<div style="margin-top:14px"><button type="button" class="fx-clear" id="fx-clear">Clear the facts</button></div>' : '');
+        },
+        wire: body => {
+          body.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => factStep(b.dataset.step, Number(b.dataset.dir))));
+          body.querySelectorAll('[data-unit]').forEach(b => b.addEventListener('click', () => { factUnit = b.dataset.unit; shRepaint(); }));
+          body.querySelectorAll('[data-bust]').forEach(b => b.addEventListener('click', () => { st.facts.bust_mode = b.dataset.bust; factsSave(); twPaintFacts(); shRepaint(); }));
+          body.querySelectorAll('[data-waist]').forEach(b => b.addEventListener('click', () => { waistUnit = b.dataset.waist; shRepaint(); }));
+          body.querySelectorAll('[data-cup]').forEach(b => b.addEventListener('click', () => { st.facts.bust_cup = st.facts.bust_cup === b.dataset.cup ? null : b.dataset.cup; if (!st.facts.bust_cup) delete st.facts.bust_cup; else if (!st.facts.bust_band) st.facts.bust_band = 34; st.facts.bust_mode = 'bra'; factsSave(); twPaintFacts(); shRepaint(); }));
+          body.querySelectorAll('[data-age]').forEach(b => b.addEventListener('click', () => { st.facts.age_band = st.facts.age_band === b.dataset.age ? null : b.dataset.age; if (!st.facts.age_band) delete st.facts.age_band; factsSave(); twPaintFacts(); shRepaint(); }));
+          body.querySelectorAll('[data-axis="presence"]').forEach(b => b.addEventListener('click', () => { factSetGender(b.dataset.v); shRepaint(); }));
+          const clr = body.querySelector('#fx-clear'); if (clr) clr.addEventListener('click', () => { st.facts = {}; factsSave(); twPaintFacts(); shRepaint(); });
+        },
+        onClose: () => { renderModel(); if (opts.back === 'body') setTimeout(shBody, 0); else mvTwinSync(); },
+      });
+    }
+    document.getElementById('tw-facts').addEventListener('click', () => shFacts());
+    document.getElementById('tw-row-colour').addEventListener('click', shColouring);
+    document.getElementById('tw-row-line').addEventListener('click', shBody);
 
     /* ══ 02 · STYLE DNA ══ */
     function dnaPaint() {
@@ -2502,7 +2596,6 @@
     function renderAll() {
       renderColour(); renderSil();
       renderSlot('headshot-slot', st.headshotUrl);
-      renderSlot('full-slot', st.fullLengthUrl);
       renderModel();
       paintAll();
     }
@@ -2550,15 +2643,24 @@
         if (prefs) {
           st.model = {
             skin: Number.isInteger(prefs.skin) ? prefs.skin : null, hair: Number.isInteger(prefs.hair) ? prefs.hair : null,
-            nudges: prefs.nudges && typeof prefs.nudges === 'object' ? prefs.nudges : {}, kept: !!prefs.kept,
+            adj: prefs.adj && typeof prefs.adj === 'object' ? prefs.adj : null, kept: !!prefs.kept,
             gender: (prefs.gender === 'man' || prefs.gender === 'woman' || prefs.gender === 'unspecified') ? prefs.gender : null,
             touched: !!(prefs.kept || Number.isInteger(prefs.skin) || Number.isInteger(prefs.hair) || prefs.gender),
           };
         }
+        // A legacy full-length read seeds the sliders ONCE (v2 prefs carry no
+        // adj): her line as it was read stands until she nudges it.
+        if (!st.model.adj) {
+          const bt = (st.sil && st.sil.body_type) || (st.styleDna && st.styleDna.silhouette_proportions && st.styleDna.silhouette_proportions.body_type);
+          st.model.adj = Object.assign({}, TW_LEGACY_SEED[bt] || {});
+        }
+        st.twin = { url: typeof profile.twin_url === 'string' && /^https:\/\/res\.cloudinary\.com\//.test(profile.twin_url) ? profile.twin_url : null, key: typeof profile.twin_key === 'string' ? profile.twin_key : null };
+        if (!st.twin.url) { try { const k = TW_LS(); const raw = k && localStorage.getItem(k); const t = raw && JSON.parse(raw); if (t && /^https:\/\/res\.cloudinary\.com\//.test(t.url || '')) st.twin = { url: t.url, key: t.key || null }; } catch (e) {} }
       }
       if (once) save(Object.assign({ style_dna: st.styleDna }, once));
       renderAll();
       if ((st.colour || st.sil || mvChosen()) && !st.model.kept) { st.model.kept = true; mvPersist(); renderModel(); }
+      mvTwinSync(true);   // the twin on file answers at once when nothing changed; a stale one redraws
       dnaLoadHeroes();
       spBoot();
     }

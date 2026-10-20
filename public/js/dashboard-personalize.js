@@ -10777,7 +10777,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
               current: kp.refine && kp.current ? kp.current : undefined,
               prompt: brief,
               name,
-              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(), twin: _avTwinHint(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, season_band: _waItemBand(i) })),
               vibes: _rbVibeVocab(),
               userId: _waUid() || undefined,
@@ -11714,7 +11714,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
             body: JSON.stringify({
               prompt,
               name,
-              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(),
+              styleDna: _rbStyleDna(), styleIcons: _rbStyleIcons(), gender: _rbGender(), twin: _avTwinHint(),
               wardrobeItems: _waItems.map(i => ({ id: i.id, label: i.label, category: i.category, color: i.color, brand: i.brand, image_url: i.image_url, times_worn: i.times_worn, hero: i.hero_position != null || undefined, season_band: _waItemBand(i) })),
               context,
               locked: locked || undefined,
@@ -14780,12 +14780,36 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
           return id;
         } catch (e) { return null; }
       }
+      // Her twin (docs/digital-twin-model-brief.md, 2026-10-20): the model's
+      // handle is 'tw-<twin_key>' when a twin is on file — the reference
+      // image itself rides every render body as `twin` (url, the close-up as
+      // the face, the facts and sliders for the figure line), so the server
+      // never needs the service key to find her. The catalog id survives as
+      // the fallback for an account with no twin yet.
+      var _avTwin = null;   // { url, face, key, gender, adj } or null
+      function _avTwinHint() {
+        if (!_avTwin || !_avTwin.url) return undefined;
+        const dna = _rbStyleDna() || {};
+        return { url: _avTwin.url, face: _avTwin.face || undefined, key: _avTwin.key, gender: _avTwin.gender, facts: dna.facts || undefined, adj: _avTwin.adj || undefined };
+      }
       function _avFetchId(cb) {
         if (_avId !== undefined) { cb(_avId); return; }
         if (!_waUid()) { cb(null); return; }
-        _waFetch('GET', 'profiles?id=eq.' + _waUid() + '&select=avatar_id')
-          .then(rows => { _avId = (rows && rows[0] && rows[0].avatar_id) || _avLocalId(); cb(_avId); })
-          .catch(() => { _avId = _avLocalId(); cb(_avId); });   // column missing pre-migration-20
+        const landRow = row => {
+          const prefs = row && row.avatar_prefs && typeof row.avatar_prefs === 'object' ? row.avatar_prefs : {};
+          if (row && _pdHttp(row.twin_url) && row.twin_key) {
+            _avTwin = { url: row.twin_url, face: _pdHttp(row.headshot_url) || null, key: String(row.twin_key), gender: (prefs.gender === 'man' || prefs.gender === 'woman') ? prefs.gender : (row.gender_identity === 'man' ? 'man' : 'woman'), adj: prefs.adj && typeof prefs.adj === 'object' ? prefs.adj : null };
+            _avId = 'tw-' + _avTwin.key;
+          } else _avId = (row && row.avatar_id) || _avLocalId();
+          cb(_avId);
+        };
+        _waFetch('GET', 'profiles?id=eq.' + _waUid() + '&select=avatar_id,twin_url,twin_key,headshot_url,avatar_prefs,gender_identity')
+          .then(rows => landRow(rows && rows[0]))
+          .catch(() => {   // twin columns missing pre-migration-26 → the catalog id alone
+            _waFetch('GET', 'profiles?id=eq.' + _waUid() + '&select=avatar_id')
+              .then(rows => landRow(rows && rows[0]))
+              .catch(() => { _avId = _avLocalId(); cb(_avId); });   // column missing pre-migration-20
+          });
       }
       function _avRenderKick(l) {
         // ONE piece is enough (slice 2, 2026-09-18): /api/avatar/render
@@ -14824,7 +14848,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
           fetch('/api/avatar/render', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ avatarId, pieces: garments, userId: _waUid(), genId: _rbGenId(), gender: _rbGender() }),
+            body: JSON.stringify({ avatarId, pieces: garments, userId: _waUid(), genId: _rbGenId(), gender: _rbGender(), twin: _avTwinHint() }),
           }).then(r => r.ok ? r.json() : null).then(function(out) {
             if (!out || !out.jobId) { delete _avBusy[l.id]; return; }
             _rbTrack('avatar_render', { pieces: garments.length });
@@ -15137,7 +15161,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
               .concat((l.proposals || []).map(r => { const a = (r.opts || [])[r.oi || 0] || {}; return a.name ? { name: a.name, category: (r.cats || [])[0] || '', owned: false, keep: false } : null; }).filter(Boolean)) };
           const res = await fetch('/api/style', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
             photo: photo || undefined, prompt: promptText, pieceName: anchor ? anchor.label : '', intent: fromPrompt ? 'dress-me' : 'style',
-            context: fromPrompt ? (set.kpData.context || null) : undefined, avatarId: (_lkModel && _lkModel.id) || undefined,
+            context: fromPrompt ? (set.kpData.context || null) : undefined, avatarId: (_lkModel && _lkModel.id) || undefined, twin: _avTwinHint(),
             refine: 'A different look entirely — change the whole direction, not one piece' + (anchor ? ', built around the same key piece' : '') + (others.length ? ', unlike the other looks' : '') + '.',
             wayIndex: Number.isInteger(l.set_index) ? Math.max(0, Math.min(2, l.set_index)) : 0, current: cur,
             balance: (set && set.kpData && set.kpData.balance) || undefined, balanceNote: (set && set.kpData && set.kpData.balanceNote) || undefined,
@@ -18277,6 +18301,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
       // is never replaced by a blank.
       function _lkModelFromId(id) {
         if (!id) return null;
+        if (/^tw-/.test(String(id))) return { id: String(id), man: !!(_avTwin && _avTwin.gender === 'man'), url: (_avTwin && _avTwin.url) || null, twin: true };
         return { id: String(id), man: /^m-/.test(String(id)) };
       }
       function _lkModelEnsure() {
@@ -18404,6 +18429,8 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const m = _lkmModel();
         const id = m && m.id;
         if (!id || _lkmCell[id] !== undefined || _lkmCellBusy[id]) return;
+        // Her twin is its own reference image — no cell to ask for.
+        if (m.url) { _lkmCell[id] = m.url; _lkmPaintStage(); return; }
         _lkmCellBusy[id] = true;
         const done = url => { _lkmCell[id] = url || false; if (!url) _lkmCellFail[id] = Date.now(); delete _lkmCellBusy[id]; _lkmPaintStage(); };
         fetch('/api/avatar/cell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ avatarId: id }) })
@@ -18420,7 +18447,7 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const finish = url => { _lkmRenders[key] = url || false; if (_lkmBusy === key) _lkmBusy = null; _lkmPaintStage(); };
         fetch('/api/avatar/render', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ avatarId: (_lkmModel() || {}).id, pieces: garments, userId: _waUid(), genId: _rbGenId(), gender: _rbGender() }),
+          body: JSON.stringify({ avatarId: (_lkmModel() || {}).id, pieces: garments, userId: _waUid(), genId: _rbGenId(), gender: _rbGender(), twin: _avTwinHint() }),
         }).then(r => r.ok ? r.json() : null).then(function(out) {
           if (!out || !out.jobId) return finish(null);
           _rbTrack('avatar_render', { pieces: garments.length, surface: 'composer', generic: !_lkModel });
@@ -30255,7 +30282,7 @@ body>*:not(#tv-result-page){display:none !important}
               // Her model wears every frame when she has one (the server
               // also reads the profile; this covers a model kept on the
               // device before the column existed).
-              avatarId: (_lkModel && _lkModel.id) || undefined,
+              avatarId: (_lkModel && _lkModel.id) || undefined, twin: _avTwinHint(),
             }),
           });
           guard.done();
