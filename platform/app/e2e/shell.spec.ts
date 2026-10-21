@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
-const ROOTS = ['Today', 'Wardrobe', 'Looks', 'Plan'];
+const ROOTS = ['Today', 'Wardrobe', 'Lookbook', 'Diary'];
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
@@ -18,8 +18,8 @@ test('the four roots match on desktop and phone, and each is reachable', async (
 
   for (const [label, path] of [
     ['Wardrobe', '/wardrobe'],
-    ['Looks', '/looks'],
-    ['Plan', '/plan'],
+    ['Lookbook', '/looks'],
+    ['Diary', '/plan'],
     ['Today', '/'],
   ] as const) {
     await nav.getByRole('link', { name: label }).click();
@@ -36,10 +36,10 @@ test('every shell route renders its heading', async ({ page }) => {
     ['/wardrobe/wishlist', 'Wardrobe'],
     ['/wardrobe/inbox', 'Wardrobe'],
     ['/wardrobe/add', 'Add pieces'],
-    ['/looks', 'Looks'],
-    ['/looks/ideas', 'Looks'],
+    ['/looks', 'Lookbook'],
+    ['/looks/ideas', 'Lookbook'],
     ['/looks/style', 'Which piece?'],
-    ['/plan', 'Plan'],
+    ['/plan', 'Diary'],
     ['/you', 'You'],
     ['/you/account', 'Account'],
     ['/you/notifications', 'Notifications'],

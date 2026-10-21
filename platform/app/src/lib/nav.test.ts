@@ -3,7 +3,7 @@ import { activeRoot, CREATE_ITEMS, createItems, GO_TO_ITEMS, NAV_ITEMS, SOON_SLU
 
 describe('nav', () => {
   it('has the four roots in IA order', () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Today', 'Wardrobe', 'Looks', 'Plan']);
+    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Today', 'Wardrobe', 'Lookbook', 'Diary']);
   });
 
   it('routes every unbuilt Create option to a known placeholder', () => {
