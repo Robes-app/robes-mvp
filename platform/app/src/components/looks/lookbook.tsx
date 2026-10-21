@@ -2,7 +2,15 @@
 
 import { lookbook as copy } from '@robes/copy';
 import { type LookSort, SORT_FROM, SORTS, sortLooks } from '@robes/core/looks';
-import { buttonClasses, CardSkeleton, EmptyState, Pill, SegmentedControl, Text } from '@robes/ui';
+import {
+  buttonClasses,
+  CardSkeleton,
+  EmptyState,
+  ErrorText,
+  Pill,
+  SegmentedControl,
+  Text,
+} from '@robes/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -91,9 +99,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
         </section>
       ) : null}
       {current.isError ? (
-        <Text role="alert" tone="danger">
-          {errorCopy(current.error)}
-        </Text>
+        <ErrorText>{errorCopy(current.error)}</ErrorText>
       ) : !current.data ? (
         <ul aria-busy className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {SKELETONS.map((k) => (

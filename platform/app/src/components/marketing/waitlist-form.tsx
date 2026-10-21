@@ -1,7 +1,7 @@
 'use client';
 
 import { marketing } from '@robes/copy';
-import { Button, Field, Heading, Text, useToast } from '@robes/ui';
+import { Button, ErrorText, Field, Heading, Text, useToast } from '@robes/ui';
 import Script from 'next/script';
 import { type FormEvent, useState } from 'react';
 import { api } from '@/lib/api';
@@ -73,11 +73,7 @@ export function WaitlistForm({ siteKey, nonce }: { siteKey: string | null; nonce
             <div className="cf-turnstile" data-sitekey={siteKey} />
           </>
         ) : null}
-        {state === 'failed' ? (
-          <Text role="alert" tone="danger">
-            {copy.failed}
-          </Text>
-        ) : null}
+        {state === 'failed' ? <ErrorText>{copy.failed}</ErrorText> : null}
         <Button
           type="submit"
           variant="secondary"

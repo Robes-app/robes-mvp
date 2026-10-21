@@ -3,7 +3,7 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import { wardrobe } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
-import { Text } from '@robes/ui';
+import { ErrorText, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type DragEvent, useId, useState } from 'react';
@@ -80,11 +80,7 @@ export function AddPieces() {
       <Text role="status" size="small" tone="muted" className="min-h-5">
         {progress ? wardrobe.uploading(progress.done, progress.total) : ''}
       </Text>
-      {error ? (
-        <Text role="alert" size="small" tone="danger">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </div>
   );
 }

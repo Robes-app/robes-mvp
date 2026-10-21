@@ -10,7 +10,7 @@ import {
   type TripBand,
   tripBands,
 } from '@robes/core/calendar';
-import { Skeleton, Text } from '@robes/ui';
+import { ErrorText, Skeleton, Text } from '@robes/ui';
 import Link from 'next/link';
 import { useFeatures } from '@/components/features';
 import { DayDots } from '@/components/plan/day-dots';
@@ -35,11 +35,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
 
   return (
     <section aria-label={monthLabel(month)} className="flex flex-col gap-3">
-      {query.isError ? (
-        <Text role="alert" tone="danger">
-          {errorCopy(query.error)}
-        </Text>
-      ) : null}
+      {query.isError ? <ErrorText>{errorCopy(query.error)}</ErrorText> : null}
       <div aria-hidden className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((d) => (
           <div key={d} className="text-center">

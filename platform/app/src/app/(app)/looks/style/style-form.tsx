@@ -3,7 +3,7 @@
 import { useApi, useApiMutation } from '@robes/api-client/react';
 import type { GenerateLookInput } from '@robes/contracts';
 import { looks } from '@robes/copy';
-import { Button, Field, Heading, Pill, Skeleton, Text } from '@robes/ui';
+import { Button, ErrorText, Field, Heading, Pill, Skeleton, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
@@ -83,11 +83,7 @@ export function StyleForm() {
         value={occasion}
         onChange={(e) => setOccasion(e.target.value)}
       />
-      {start.isError ? (
-        <Text role="alert" size="small" tone="danger">
-          {errorCopy(start.error)}
-        </Text>
-      ) : null}
+      {start.isError ? <ErrorText>{errorCopy(start.error)}</ErrorText> : null}
       <Button
         variant="primary"
         type="submit"

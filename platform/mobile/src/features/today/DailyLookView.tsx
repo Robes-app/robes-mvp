@@ -2,6 +2,7 @@ import type { DailyItem } from '@robes/contracts';
 import { today } from '@robes/copy';
 import {
   Button,
+  ErrorText,
   Eyebrow,
   Field,
   Heading,
@@ -115,7 +116,7 @@ export function DailyLookView({ id }: { id: string }) {
   if (query.isError) {
     return (
       <View className="px-6 py-6">
-        <Text tone="danger">{errorMessage(query.error)}</Text>
+        <ErrorText>{errorMessage(query.error)}</ErrorText>
       </View>
     );
   }
@@ -163,7 +164,7 @@ export function DailyLookView({ id }: { id: string }) {
         </View>
       ) : null}
       <Field label={copy.nameLabel} value={value} onChangeText={setName} maxLength={120} />
-      {save.isError ? <Text tone="danger">{errorMessage(save.error)}</Text> : null}
+      {save.isError ? <ErrorText>{errorMessage(save.error)}</ErrorText> : null}
       <PrimaryScope>
         <Button
           onPress={() => save.mutate({ params: { id }, input: { name: value.trim() } })}
@@ -185,7 +186,7 @@ export function DailyJobView({ jobId }: { jobId: string }) {
   if (failed || job.isError) {
     return (
       <View className="px-6 py-6">
-        <Text tone="danger">{copy.failed}</Text>
+        <ErrorText>{copy.failed}</ErrorText>
       </View>
     );
   }

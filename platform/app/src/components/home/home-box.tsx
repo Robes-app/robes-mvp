@@ -6,7 +6,7 @@ import { home as copy, lookbook } from '@robes/copy';
 import { isTripAsk } from '@robes/core/home';
 import { ASK_MAX_CHARS, askDateFrom } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { IconButton, Text } from '@robes/ui';
+import { ErrorText, IconButton, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useFeatures } from '@/components/features';
@@ -308,11 +308,7 @@ export function HomeBox({
           {waiting ? copy.plus.filing : busy}
         </Text>
       ) : null}
-      {error ? (
-        <Text size="caption" tone="danger" role="alert">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <ErrorText size="caption">{error}</ErrorText> : null}
       <SwapSheet
         open={picking}
         swapping={null}

@@ -3,7 +3,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Me, NotificationPrefs } from '@robes/contracts';
 import { errors, you } from '@robes/copy';
-import { Skeleton, Switch, Text } from '@robes/ui';
+import { ErrorText, Skeleton, Switch, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 
 const KEYS = ['looksReady', 'morningCue', 'nudges', 'receipts'] as const satisfies ReadonlyArray<
@@ -51,11 +51,7 @@ export function NotificationsForm() {
       <Text role="status" size="small" tone="muted" className="min-h-5">
         {update.isPending ? you.account.saving : update.isSuccess ? you.account.saved : ''}
       </Text>
-      {update.isError ? (
-        <Text role="alert" size="small" tone="danger">
-          {errors.internal}
-        </Text>
-      ) : null}
+      {update.isError ? <ErrorText>{errors.internal}</ErrorText> : null}
     </div>
   );
 }

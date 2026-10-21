@@ -12,6 +12,7 @@ import {
 import { anchorName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import {
+  ErrorText,
   Eyebrow,
   fonts,
   Heading,
@@ -63,7 +64,7 @@ export function HomeView() {
   if (query.isError) {
     return (
       <View className="flex-1 justify-center px-6">
-        <Text tone="danger">{errorMessage(query.error)}</Text>
+        <ErrorText>{errorMessage(query.error)}</ErrorText>
       </View>
     );
   }

@@ -15,6 +15,7 @@ import {
 import { Icon } from '@robes/icons/web';
 import {
   Button,
+  ErrorText,
   Eyebrow,
   Heading,
   Pill,
@@ -184,11 +185,7 @@ export function ModelView() {
   });
 
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   const model = query.data;
   if (!model || !style.data || !dna.data) {

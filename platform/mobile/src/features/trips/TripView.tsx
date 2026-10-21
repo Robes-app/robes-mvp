@@ -3,6 +3,7 @@ import { trips } from '@robes/copy';
 import {
   Button,
   CardSkeleton,
+  ErrorText,
   Eyebrow,
   Heading,
   PrimaryScope,
@@ -101,7 +102,7 @@ export function TripView({ id }: { id: string }) {
   if (query.isError) {
     return (
       <View className="px-6 py-6">
-        <Text tone="danger">{errorMessage(query.error)}</Text>
+        <ErrorText>{errorMessage(query.error)}</ErrorText>
       </View>
     );
   }
@@ -122,7 +123,7 @@ export function TripJobView({ jobId }: { jobId: string }) {
   if (failed || job.isError) {
     return (
       <View className="px-6 py-6">
-        <Text tone="danger">{trips.progress.failed}</Text>
+        <ErrorText>{trips.progress.failed}</ErrorText>
       </View>
     );
   }

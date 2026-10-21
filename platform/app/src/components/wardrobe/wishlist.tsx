@@ -10,7 +10,7 @@ import {
 import type { Wish } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import { countByCategory, formatPrice, rankCategories } from '@robes/core/wardrobe';
-import { Button, CardSkeleton, EmptyState, Field, Text, useToast } from '@robes/ui';
+import { Button, CardSkeleton, EmptyState, ErrorText, Field, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
@@ -133,9 +133,7 @@ export function Wishlist() {
         </>
       ) : null}
       {list.isError ? (
-        <Text role="alert" tone="danger">
-          {errorCopy(list.error)}
-        </Text>
+        <ErrorText>{errorCopy(list.error)}</ErrorText>
       ) : !list.data || !layout ? (
         <div aria-busy className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <CardSkeleton />

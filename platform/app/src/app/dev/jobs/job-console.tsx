@@ -3,7 +3,7 @@
 import { useApiMutation } from '@robes/api-client/react';
 import { jobs as copy } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
-import { Button, Heading, Text } from '@robes/ui';
+import { Button, ErrorText, Heading, Text } from '@robes/ui';
 import { useState } from 'react';
 import { useJob } from '@/lib/use-job';
 
@@ -48,11 +48,7 @@ export function JobConsole({ initialJobId }: { initialJobId: string | null }) {
           </Button>
         ) : null}
       </div>
-      {error ? (
-        <Text role="alert" size="small" tone="danger">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
       {job ? (
         <Text role="status" size="small" tone="muted">
           {connection === 'reconnecting' ? copy.connectionLost : copy.status[job.status]}

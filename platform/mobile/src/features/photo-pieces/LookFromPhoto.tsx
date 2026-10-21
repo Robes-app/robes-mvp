@@ -5,6 +5,7 @@ import { sheetL1For } from '@robes/core';
 import type { LookCardState } from '@robes/core/photo-pieces';
 import {
   Button,
+  ErrorText,
   Eyebrow,
   Field,
   Heading,
@@ -123,10 +124,13 @@ export function LookFromPhoto() {
         <Button variant="secondary" icon="image" onPress={() => void read.start('library')}>
           {shell.create.cameraRoll}
         </Button>
+        {read.status === 'failed' && read.photo ? (
+          <View className="w-40">
+            <Image source={read.photo.uri} alt={photoPieces.photoAlt} aspect="4:5" />
+          </View>
+        ) : null}
         {read.status === 'failed' ? (
-          <Text tone="danger" accessibilityRole="alert">
-            {read.error === photoPieces.failed ? copy.readFailed : read.error}
-          </Text>
+          <ErrorText>{read.error === photoPieces.failed ? copy.readFailed : read.error}</ErrorText>
         ) : null}
       </ScrollView>
     );
@@ -269,11 +273,7 @@ export function LookFromPhoto() {
                 {copy.gate(pending.length)}
               </Text>
             ) : null}
-            {error ? (
-              <Text tone="danger" accessibilityRole="alert">
-                {error}
-              </Text>
-            ) : null}
+            {error ? <ErrorText>{error}</ErrorText> : null}
             <PrimaryScope>
               <Button
                 disabled={pending.length > 0}

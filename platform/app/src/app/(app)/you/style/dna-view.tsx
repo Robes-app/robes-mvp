@@ -14,7 +14,18 @@ import {
   wallRanked,
 } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/web';
-import { Eyebrow, Field, Heading, IconButton, Image, Pill, Sheet, Skeleton, Text } from '@robes/ui';
+import {
+  ErrorText,
+  Eyebrow,
+  Field,
+  Heading,
+  IconButton,
+  Image,
+  Pill,
+  Sheet,
+  Skeleton,
+  Text,
+} from '@robes/ui';
 import Link from 'next/link';
 import { type KeyboardEvent, type ReactNode, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
@@ -53,11 +64,7 @@ export function DnaView() {
   const query = useApi('me.dna.get');
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   const dna = query.data;
   if (!dna) return <Skeleton className="h-96" />;

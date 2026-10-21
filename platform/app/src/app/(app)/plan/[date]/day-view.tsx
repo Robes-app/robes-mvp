@@ -11,7 +11,7 @@ import type { PlanEntry } from '@robes/contracts';
 import { plan, wardrobe } from '@robes/copy';
 import { daySummary, longDate, monthLabel } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
+import { ErrorText, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -130,9 +130,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
       </div>
 
       {query.isError ? (
-        <Text role="alert" tone="danger">
-          {errorCopy(query.error)}
-        </Text>
+        <ErrorText>{errorCopy(query.error)}</ErrorText>
       ) : !query.data ? (
         <div aria-busy className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <Skeleton className="aspect-[4/5]" />

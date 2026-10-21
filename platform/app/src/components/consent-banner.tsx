@@ -1,6 +1,7 @@
 'use client';
 
 import { consent as copy } from '@robes/copy';
+import { ErrorText } from '@robes/ui';
 import { useId, useState } from 'react';
 import { useAnalytics } from './analytics-provider';
 
@@ -34,11 +35,7 @@ export function ConsentBanner() {
           </h2>
           <p className="text-sm text-ink-muted">{copy.bannerBody}</p>
         </div>
-        {failed ? (
-          <p role="alert" className="text-sm text-danger">
-            {copy.failed}
-          </p>
-        ) : null}
+        {failed ? <ErrorText>{copy.failed}</ErrorText> : null}
         <div className="flex gap-3">
           <button type="button" className={choice} disabled={busy} onClick={() => answer(false)}>
             {copy.decline}

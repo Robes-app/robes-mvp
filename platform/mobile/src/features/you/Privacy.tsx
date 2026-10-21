@@ -1,7 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Consents } from '@robes/contracts';
 import { consent as copy } from '@robes/copy';
-import { Text } from '@robes/ui-native';
+import { ErrorText, Text } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Platform, ScrollView } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -42,7 +42,7 @@ export function Privacy() {
         disabled={consents.analytics !== true}
         onChange={(v) => void set({ replay: v })}
       />
-      {update.isError ? <Text tone="danger">{errorMessage(update.error)}</Text> : null}
+      {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
     </ScrollView>
   );
 }

@@ -4,7 +4,17 @@ import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-clie
 import type { StyleProfile } from '@robes/contracts';
 import { you } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
-import { Button, Card, Field, Heading, Progress, Skeleton, Text, useToast } from '@robes/ui';
+import {
+  Button,
+  Card,
+  ErrorText,
+  Field,
+  Heading,
+  Progress,
+  Skeleton,
+  Text,
+  useToast,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
@@ -107,11 +117,7 @@ export function AnalyseCard({
           </label>
         </div>
       )}
-      {error ? (
-        <Text role="alert" tone="danger">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </section>
   );
 }

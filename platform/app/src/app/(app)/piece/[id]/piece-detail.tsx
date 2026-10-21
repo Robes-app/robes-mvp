@@ -3,7 +3,17 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
-import { Button, buttonClasses, Chip, Field, Heading, Skeleton, Text, TextArea } from '@robes/ui';
+import {
+  Button,
+  buttonClasses,
+  Chip,
+  ErrorText,
+  Field,
+  Heading,
+  Skeleton,
+  Text,
+  TextArea,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -60,11 +70,7 @@ export function PieceDetail({ id }: { id: string }) {
   });
 
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!piece) {
     return (
@@ -144,11 +150,7 @@ export function PieceDetail({ id }: { id: string }) {
             {copy.remove}
           </Button>
         </div>
-        {style.isError ? (
-          <Text role="alert" size="small" tone="danger">
-            {errorCopy(style.error)}
-          </Text>
-        ) : null}
+        {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
         <SuggestedRail pieceId={id} />
         {draft ? (
           <form onSubmit={submit} className="flex flex-col gap-4">
@@ -200,11 +202,7 @@ export function PieceDetail({ id }: { id: string }) {
             <Text role="status" size="small" tone="muted" className="min-h-5">
               {saved ? copy.saved : ''}
             </Text>
-            {update.isError ? (
-              <Text role="alert" size="small" tone="danger">
-                {errorCopy(update.error)}
-              </Text>
-            ) : null}
+            {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
           </form>
         ) : null}
       </div>

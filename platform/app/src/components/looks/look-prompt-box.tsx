@@ -5,7 +5,7 @@ import { askRack, type LookAskInput, type LookAskResult } from '@robes/contracts
 import { lookbook as copy } from '@robes/copy';
 import { ASK_MAX_CHARS, ASK_THREAD_MAX, askDateFrom, type RackState } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { IconButton, Text } from '@robes/ui';
+import { ErrorText, IconButton, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useId, useRef, useState } from 'react';
 import { localToday } from '@/lib/dates';
@@ -221,11 +221,7 @@ export function NewLookBox({ date }: { date?: string }) {
         onChange={setText}
         onSend={send}
       />
-      {start.isError ? (
-        <Text size="caption" tone="danger" role="alert">
-          {errorCopy(start.error)}
-        </Text>
-      ) : null}
+      {start.isError ? <ErrorText size="caption">{errorCopy(start.error)}</ErrorText> : null}
     </div>
   );
 }
