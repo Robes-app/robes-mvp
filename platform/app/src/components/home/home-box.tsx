@@ -213,7 +213,7 @@ export function HomeBox({
           ) : null}
         </div>
       ) : null}
-      <div className="relative flex items-end gap-2 rounded-soft border border-hairline bg-surface px-2 py-2">
+      <div className="relative flex items-end gap-2 rounded-[24px] border border-border-control bg-bg px-2 py-1.5">
         <IconButton
           icon="plus"
           label={copy.plus.label}

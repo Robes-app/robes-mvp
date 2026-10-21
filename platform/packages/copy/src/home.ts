@@ -31,8 +31,6 @@ export const home = {
   weather: (city: string | null, tempRange: string, condition: string): string =>
     [city, tempRange, condition].filter(Boolean).join(' · '),
   weatherLabel: 'Today’s weather',
-  // H2: the box reads "A new look for…" while onboarding, the contextual line once activated.
-  doorHome: 'Tell Robes where you’re going, or the look you’re after…',
   doorDay: (day: string): string => `Dress ${day}…`,
   later: 'Later',
   map: {

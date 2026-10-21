@@ -287,7 +287,7 @@ export function StepMap({
           {done ? '✓' : ''}
         </span>
         <span className="flex flex-1 flex-col">
-          <span className="font-sans text-ink">{copy.map.steps[k]}</span>
+          <span className="font-display text-ink text-xl">{copy.map.steps[k]}</span>
           <span className="font-sans text-ink-muted text-sm">{line(k, done)}</span>
         </span>
         <Icon name="forward" size={16} className="text-ink-muted" />

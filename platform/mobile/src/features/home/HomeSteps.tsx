@@ -3,7 +3,17 @@ import { home as copy } from '@robes/copy';
 import { type HomeResolved, type HomeStep, mapRows } from '@robes/core/home';
 import { anchorName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { Button, Em, Eyebrow, Heading, Image, Text, useColor, useToast } from '@robes/ui-native';
+import {
+  Button,
+  Em,
+  Eyebrow,
+  fonts,
+  Heading,
+  Image,
+  Text,
+  useColor,
+  useToast,
+} from '@robes/ui-native';
 import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -275,7 +285,9 @@ export function StepMap({
               {done ? <Text className="text-accent-warm text-xs">✓</Text> : null}
             </View>
             <View className="flex-1">
-              <Text>{copy.map.steps[k]}</Text>
+              <Text className="text-xl" style={{ fontFamily: fonts.displayRegular }}>
+                {copy.map.steps[k]}
+              </Text>
               <Text size="small" tone="muted">
                 {line}
               </Text>
