@@ -98,7 +98,7 @@ test('activated: the strip selects a day; Dress {weekday} puts the box on the da
     'POST /looks/prompt': { jobId: JOB_ID, status: 'queued' },
   });
   await renderWithApi(<HomeView />);
-  expect(await screen.findByLabelText(copy.doorHome)).toBeTruthy();
+  expect(await screen.findByLabelText(lookbook.prompt.doorNew)).toBeTruthy();
   expect(screen.getByRole('link', { name: copy.week.open('Board meeting') })).toBeTruthy();
   await fireEvent.press(screen.getByTestId('week-day-2026-10-03'));
   const dress = await screen.findByRole('button', { name: copy.week.dress('Saturday') });

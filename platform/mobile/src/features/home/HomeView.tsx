@@ -94,14 +94,19 @@ export function HomeView() {
     >
       <PrimaryScope>
         <View className="gap-2">
-          <Heading size="xl">{todayCopy.greeting(greetingName(data.firstName), data.hour)}</Heading>
+          <Heading size="md" numberOfLines={1} adjustsFontSizeToFit>
+            {todayCopy.greeting(greetingName(data.firstName), data.hour)}
+          </Heading>
           <Text tone="faint" italic>
             {copy.echo}
           </Text>
           {weatherLine ? (
             <Text
-              size="small"
+              size="caption"
               tone="muted"
+              weight="medium"
+              className="uppercase"
+              style={{ letterSpacing: 1.6 }}
               accessibilityLabel={`${copy.weatherLabel}: ${weatherLine}`}
             >
               {weatherLine}
@@ -113,7 +118,7 @@ export function HomeView() {
 
         <HomeBox
           ref={box}
-          placeholder={resolved.activated ? copy.doorHome : lookbook.prompt.doorNew}
+          placeholder={lookbook.prompt.doorNew}
           date={dressDate}
           onDateClear={() => setDressDate(null)}
           hasPieces={home.state.pics > 0}

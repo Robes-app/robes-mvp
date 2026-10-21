@@ -169,7 +169,7 @@ export const lookbook = {
   // The look prompt: one box on every look.
   prompt: {
     doorLook: 'Change this look…',
-    doorNew: 'A new look for…',
+    doorNew: 'Where to, and how should it feel?',
     doorAfter: 'Anything else, or put something back…',
     doorDraft: 'Change this draft…',
     busyChange: 'Changing the look…',

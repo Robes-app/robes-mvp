@@ -85,7 +85,7 @@ export function HomeView({ initial }: { initial: Today }) {
       data-stage={resolved.stage}
     >
       <header className="flex flex-col gap-2">
-        <Heading level={1} size="2xl">
+        <Heading level={1} size="lg">
           {todayCopy.greeting(name, data.hour)}
         </Heading>
         <Text italic tone="faint">
@@ -93,9 +93,9 @@ export function HomeView({ initial }: { initial: Today }) {
         </Text>
         {weatherLine ? (
           <Text
-            size="small"
+            size="caption"
             tone="muted"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 font-medium uppercase tracking-[0.16em]"
             aria-label={`${copy.weatherLabel}: ${weatherLine}`}
           >
             <Icon name={/clear|partly/.test(wx?.condition ?? '') ? 'today' : 'cloud'} size={16} />
@@ -108,7 +108,7 @@ export function HomeView({ initial }: { initial: Today }) {
 
       <div ref={boxRef}>
         <HomeBox
-          placeholder={resolved.activated ? copy.doorHome : lookbook.prompt.doorNew}
+          placeholder={lookbook.prompt.doorNew}
           date={dressDate}
           onDateClear={() => setDressDate(null)}
           hasPieces={home.state.pics > 0}

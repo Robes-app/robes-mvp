@@ -9,7 +9,7 @@ import { TextInput, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { localDate } from './saved-looks';
 
-// "A new look for…" (legacy home box, mode new): her words become three suggested looks on the
+// "Where to, and how should it feel?" (legacy home box, mode new): her words become three suggested looks on the
 // keep-or-pass deck, styled for the day they name (read deterministically, never guessed).
 // Exposed for Home and the empty Suggested tab; `date` pins a dated door (a day page).
 export function NewLookBox({ date, autoFocus = false }: { date?: string; autoFocus?: boolean }) {

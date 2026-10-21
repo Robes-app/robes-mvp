@@ -196,7 +196,7 @@ export function LookPromptBox({
   );
 }
 
-// "A new look for…" (legacy home box, mode new): three suggested looks on the deck, styled for
+// "Where to, and how should it feel?" (legacy home box, mode new): three suggested looks on the deck, styled for
 // the day her words name. Exposed for Home and the empty Suggested tab; `date` pins a dated door.
 export function NewLookBox({ date }: { date?: string }) {
   const router = useRouter();
