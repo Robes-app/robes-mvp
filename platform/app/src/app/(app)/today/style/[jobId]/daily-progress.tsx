@@ -1,7 +1,7 @@
 'use client';
 
 import { today } from '@robes/copy';
-import { ErrorText, Progress, Text } from '@robes/ui';
+import { ErrorText, Progress } from '@robes/ui';
 import { DailyLookSkeleton, DailyLookView } from '@/components/today/daily-look-view';
 import { jobProgressStage } from '@/lib/looks';
 import { useJob } from '@/lib/use-job';

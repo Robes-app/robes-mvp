@@ -17,7 +17,11 @@ const createWeather = () => {
   return weatherFor;
 };
 vi.mock('./db', () => ({ repos }));
-vi.mock('./plan', () => ({ todayIn: () => '2026-10-16' }));
+vi.mock('./plan', () => ({
+  todayIn: () => '2026-10-16',
+  addDays: (d: string, n: number) =>
+    new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10),
+}));
 vi.mock('@robes/jobs', () => ({ createWeather }));
 
 const { loadTodayWeather } = await import('./weather');
@@ -37,6 +41,16 @@ describe('today weather', () => {
     expect(weatherFor).toHaveBeenLastCalledWith(
       expect.objectContaining({ city: 'Dublin', date: '2026-10-16' }),
     );
+  });
+
+  it('reads a day page’s own date, and nothing outside the forecast’s reach', async () => {
+    const now = new Date('2026-10-16T09:00:00Z');
+    await loadTodayWeather(ann, now, '2026-10-20');
+    expect(weatherFor).toHaveBeenLastCalledWith(expect.objectContaining({ date: '2026-10-20' }));
+    const calls = weatherFor.mock.calls.length;
+    expect(await loadTodayWeather(ann, now, '2026-10-15')).toBeNull();
+    expect(await loadTodayWeather(ann, now, '2026-11-30')).toBeNull();
+    expect(weatherFor).toHaveBeenCalledTimes(calls);
   });
 
   it('no forecast reads as no line', async () => {

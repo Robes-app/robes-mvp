@@ -2,7 +2,7 @@
 
 import { useApiMutation } from '@robes/api-client/react';
 import { today } from '@robes/copy';
-import { Button, ErrorText, Text, TextArea } from '@robes/ui';
+import { Button, ErrorText, TextArea } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';

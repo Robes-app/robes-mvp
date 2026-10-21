@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { z } from 'zod';
 import { HomeView } from '@/components/home/home-view';
 import { WaitlistForm } from '@/components/marketing/waitlist-form';
 import { AppShell } from '@/components/shell/app-shell';
@@ -39,7 +40,11 @@ const JSON_LD = JSON.stringify({
 }).replace(/</g, '\\u003c');
 
 // Signed out: the marketing page. Signed in: Today, inside the app shell.
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ dress?: string | string[] }>;
+}) {
   const profile = await currentProfile();
 
   if (!profile) {
@@ -71,7 +76,10 @@ export default async function Home() {
 
   return (
     <AppShell name={displayName(profile)} features={await clientFeatures()}>
-      <HomeView initial={await loadToday(profile.userId)} />
+      <HomeView
+        initial={await loadToday(profile.userId)}
+        dress={z.iso.date().safeParse((await searchParams).dress).data ?? null}
+      />
     </AppShell>
   );
 }

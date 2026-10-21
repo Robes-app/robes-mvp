@@ -5,7 +5,7 @@ import type { PlanEntry } from '@robes/contracts';
 import { plan } from '@robes/copy';
 import { daySummary, weekdayShort, weekGroups } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { EmptyState, ErrorText, Skeleton, Text } from '@robes/ui';
+import { EmptyState, ErrorText, Skeleton } from '@robes/ui';
 import Link from 'next/link';
 import { LookImage } from '@/components/looks/look-image';
 import { errorCopy } from '@/lib/error-copy';

@@ -826,6 +826,18 @@ export const plan = {
     addAnotherHint: 'another moment in the day',
     choose: 'Choose from your looks',
     chooseHint: 'pick one or several',
+    dress: 'Dress this day…',
+    weatherLabel: 'The day’s weather',
+    // What the forecast means for the case, in Robes' voice (legacy layer hint).
+    advice: (condition: string, tempRange: string): string => {
+      const high = Number(String(tempRange).match(/(-?\d+)°/)?.[1]);
+      if (/rain|drizzle|thunder/.test(condition)) return 'Bring a shell for the rain.';
+      if (/snow/.test(condition)) return 'Boots, and a warm coat.';
+      if (high <= 10) return 'A proper coat today.';
+      if (high <= 16) return 'Bring one warm layer.';
+      if (high >= 25) return 'Light and breathable.';
+      return 'Easy layers.';
+    },
   },
   // The Add-a-look picker: saved looks, one or several at once.
   picker: {

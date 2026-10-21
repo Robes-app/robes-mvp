@@ -3,7 +3,7 @@
 import { useApi, useApiMutation } from '@robes/api-client/react';
 import type { GenerateLookInput } from '@robes/contracts';
 import { looks } from '@robes/copy';
-import { Button, ErrorText, Field, Heading, Pill, Skeleton, Text } from '@robes/ui';
+import { Button, ErrorText, Field, Heading, Pill, Skeleton } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';

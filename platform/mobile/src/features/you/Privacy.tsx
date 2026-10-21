@@ -1,7 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Consents } from '@robes/contracts';
 import { consent as copy } from '@robes/copy';
-import { ErrorText, Text } from '@robes/ui-native';
+import { ErrorText } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Platform, ScrollView } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
