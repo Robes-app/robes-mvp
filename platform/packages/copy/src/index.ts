@@ -215,6 +215,8 @@ export function nextLine(
 export const marketing = {
   eyebrow: 'Robes',
   title: 'Your wardrobe, styled.',
+  titleLead: 'Your wardrobe,',
+  titleEm: 'styled.',
   subtitle: 'One piece. Three ways to wear it.',
   signIn: 'Sign in',
   metaTitle: 'Robes — Your Personal Stylist & Wardrobe Intelligence App',
@@ -235,7 +237,7 @@ export const marketing = {
     failed: 'Robes couldn’t add you just now. Try again in a moment.',
     emailMissing: 'Please enter your email to join',
     emailInvalid: 'Please enter a valid email address',
-    hint: '✦ Join today and style a key piece three ways — a small taste of Robes while you wait.',
+    hint: 'Join today and style a key piece three ways — a small taste of Robes while you wait.',
     confirmEyebrow: 'Waitlist',
     confirmTitle: 'Confirm your place?',
     confirm: 'Confirm',

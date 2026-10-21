@@ -77,6 +77,7 @@ export default function Onboarding() {
           segs={1}
           footer={
             <Button
+              variant="secondary"
               onPress={submit}
               disabled={name.trim().length === 0}
               loading={busy}
@@ -89,10 +90,14 @@ export default function Onboarding() {
           <View className="gap-2 pt-6">
             <Eyebrow>{copy.name.eyebrow}</Eyebrow>
             <Heading>
-              {copy.name.title} <Em>{copy.name.titleEm}</Em>
+              {copy.name.title}
+              {'\n'}
+              <Em>{copy.name.titleEm}</Em>
             </Heading>
           </View>
           <Field
+            variant="underline"
+            autoFocus
             label={copy.name.label}
             placeholder={copy.name.placeholder}
             autoComplete="given-name"

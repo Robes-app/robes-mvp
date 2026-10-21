@@ -48,12 +48,12 @@ export default async function Home() {
         <script type="application/ld+json">{JSON_LD}</script>
         <Wordmark />
         <Heading level={1} size="2xl">
-          {marketing.title}
+          {marketing.titleLead} <em>{marketing.titleEm}</em>
         </Heading>
         <Text tone="muted">{marketing.subtitle}</Text>
         <Link
           href="/auth/sign-in"
-          className={`${buttonClasses({ variant: 'primary' })} mt-4 self-start`}
+          className={`${buttonClasses({ variant: 'secondary' })} mt-4 self-start`}
         >
           {marketing.signIn}
         </Link>

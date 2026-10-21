@@ -164,7 +164,7 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
         segs={1}
         footer={
           <Button
-            variant="primary"
+            variant="secondary"
             type="submit"
             disabled={!name.trim()}
             loading={busy}
@@ -177,10 +177,14 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
         <div className="flex flex-col gap-2 pt-8">
           <Eyebrow>{copy.name.eyebrow}</Eyebrow>
           <Heading level={1}>
-            {copy.name.title} <em>{copy.name.titleEm}</em>
+            {copy.name.title}
+            <br />
+            <em>{copy.name.titleEm}</em>
           </Heading>
         </div>
         <Field
+          variant="underline"
+          labelHidden
           label={copy.name.label}
           name="firstName"
           autoComplete="given-name"
@@ -338,7 +342,7 @@ function FirstPiece({
         onDragLeave={() => setOver(false)}
         onDrop={onDrop}
         data-testid="first-piece-well"
-        className={`relative flex aspect-[4/5] w-full cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-soft border ${
+        className={`relative flex aspect-[3/4] w-full max-w-[300px] cursor-pointer self-center flex-col items-center justify-center gap-3 overflow-hidden rounded-soft border ${
           preview ? 'border-hairline' : 'border-border-control border-dashed'
         } ${over ? 'bg-surface-sunk' : 'bg-surface'} focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-ring`}
       >
@@ -347,10 +351,10 @@ function FirstPiece({
           <img src={preview} alt="" className="absolute inset-0 size-full object-cover" />
         ) : (
           <>
-            <span className="font-sans text-ink-muted text-xs uppercase tracking-[0.2em]">
+            <span className="font-display text-ink-faint text-xl italic">
               {copy.piece.keyPiece}
             </span>
-            <span className="rounded-pill border border-ink px-5 py-2 font-sans text-sm text-ink">
+            <span className="rounded-pill border border-ink px-5 py-2 font-medium font-sans text-ink text-xs uppercase tracking-[0.16em]">
               {copy.piece.add}
             </span>
           </>
