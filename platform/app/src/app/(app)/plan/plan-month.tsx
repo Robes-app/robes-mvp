@@ -39,7 +39,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
       <div aria-hidden className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((d) => (
           <div key={d} className="text-center">
-            <Text size="caption" tone="muted">
+            <Text size="caption" tone="muted" className="font-medium uppercase tracking-[0.16em]">
               {d}
             </Text>
           </div>
@@ -52,6 +52,12 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
           const looks = byDate.get(date) ?? 0;
           const isToday = date === today;
           const band = bands.get(date);
+          // A printed diary: the past is filed (filled), what's ahead is not hers yet (dashed).
+          const state = band
+            ? 'border-transparent'
+            : date < today
+              ? 'border-transparent bg-surface'
+              : 'border-dashed border-border-control bg-bg';
           return (
             <li key={date} className="relative">
               {band ? <Band band={band} /> : null}
@@ -59,23 +65,29 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                 href={`/plan/${date}`}
                 aria-label={plan.week.day(longDate(date), looks)}
                 aria-current={isToday ? 'date' : undefined}
-                className={`relative flex min-h-16 flex-col items-center gap-1.5 rounded-crisp border pt-2 hover:border-border-control ${
-                  isToday ? 'border-ink' : band ? 'border-transparent' : 'border-hairline'
-                } ${band ? 'md:pt-9' : 'bg-bg'} ${focus}`}
+                className={`relative flex min-h-16 flex-col items-start gap-1.5 rounded-crisp border px-1.5 pt-1.5 pb-1.5 hover:border-ink ${state} ${
+                  band ? 'md:pt-9' : ''
+                } ${focus}`}
               >
-                <span className="font-display text-lg leading-none text-ink">
+                <span className="flex items-center gap-1 font-display text-base text-ink leading-none">
                   {Number(date.slice(8))}
+                  {isToday ? <i aria-hidden className="block size-1 rounded-pill bg-ink" /> : null}
                 </span>
                 {!query.data ? (
                   <Skeleton shape="text" className="h-1.5 w-6" />
                 ) : (
-                  <DayDots looks={looks} past={date <= today} />
+                  <span className="mt-auto">
+                    <DayDots looks={looks} past={date <= today} />
+                  </span>
                 )}
               </Link>
             </li>
           );
         })}
       </ol>
+      <Text size="small" tone="muted" italic className="text-center">
+        {plan.monthCaption}
+      </Text>
       {inMonth.length ? (
         <ul aria-label={plan.trips} className="flex flex-col gap-2 pt-3">
           {inMonth.map((t) => (
