@@ -3,7 +3,7 @@
 import { useApi, useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { firstRun as copy, onboarding } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, Text, Wordmark } from '@robes/ui';
+import { Button, ErrorText, Eyebrow, Field, Heading, Text, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import {
   type DragEvent,
@@ -389,11 +389,7 @@ function FirstPiece({
           {copy.piece.retake}
         </Button>
       ) : null}
-      {message ? (
-        <Text size="small" tone="danger" role="alert">
-          {message}
-        </Text>
-      ) : null}
+      {message ? <ErrorText>{message}</ErrorText> : null}
       <dl
         className="flex flex-col divide-y divide-hairline border-hairline border-y"
         data-testid="ledger"

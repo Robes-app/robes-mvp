@@ -2,6 +2,7 @@ import type { Piece } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import { Image, Skeleton } from '@robes/ui';
 import { imageSources } from '@/lib/image';
+import { localPreview } from '@/lib/local-previews';
 
 export function PieceImage({
   piece,
@@ -15,6 +16,17 @@ export function PieceImage({
   className?: string;
 }) {
   const sources = piece.image ? imageSources(piece.image.renditions) : null;
+  const local = sources ? null : localPreview(piece.image?.assetId);
+  if (local) {
+    return (
+      <Image
+        src={local}
+        alt={wardrobe.photoAlt(piece.label)}
+        aspect="4:5"
+        {...(className ? { frameClassName: className } : {})}
+      />
+    );
+  }
   if (!sources) {
     return piece.status === 'reading' ? (
       <Skeleton className={`aspect-[4/5] ${className ?? ''}`} />

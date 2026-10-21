@@ -5,6 +5,7 @@ import { Icon } from '@robes/icons/native';
 import {
   Button,
   Em,
+  ErrorText,
   Eyebrow,
   Heading,
   Image,
@@ -204,11 +205,7 @@ export default function FirstPiece() {
             </View>
           </Pressable>
         )}
-        {message ? (
-          <Text size="small" tone="danger">
-            {message}
-          </Text>
-        ) : null}
+        {message ? <ErrorText size="small">{message}</ErrorText> : null}
         <View className="border-hairline border-t" testID="ledger">
           {copy.piece.rows.map((row, i) => {
             const value = values && i < revealed ? values[i] : null;

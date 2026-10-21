@@ -2,7 +2,7 @@ import type { PlanEntry } from '@robes/contracts';
 import { plan as copy } from '@robes/copy';
 import { daySummary, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { Eyebrow, fonts, IconButton, Skeleton, Text, useColor } from '@robes/ui-native';
+import { ErrorText, Eyebrow, fonts, IconButton, Skeleton, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
@@ -130,7 +130,7 @@ export function DayView({ date }: { date: string }) {
         </Text>
       </View>
 
-      {query.isError ? <Text tone="danger">{errorMessage(query.error)}</Text> : null}
+      {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
       {query.isPending ? (
         <View className="flex-row gap-3" accessibilityState={{ busy: true }}>
           <Skeleton width="47%" aspectRatio={4 / 5} />

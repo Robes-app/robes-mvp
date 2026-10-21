@@ -4,7 +4,7 @@ import { home as copy, lookbook } from '@robes/copy';
 import { isTripAsk } from '@robes/core/home';
 import { ASK_MAX_CHARS, askDateFrom } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { IconButton, Image, Sheet, Text, useColor } from '@robes/ui-native';
+import { ErrorText, IconButton, Image, Sheet, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
@@ -246,11 +246,7 @@ export const HomeBox = forwardRef<
           {waiting ? copy.plus.filing : lookbook.prompt.busyRead}
         </Text>
       ) : null}
-      {error ? (
-        <Text size="caption" tone="danger">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <ErrorText size="caption">{error}</ErrorText> : null}
       <Sheet open={menu} onClose={() => setMenu(false)} title={copy.plus.label}>
         {(
           [

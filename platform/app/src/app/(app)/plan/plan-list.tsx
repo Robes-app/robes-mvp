@@ -5,7 +5,7 @@ import type { PlanEntry } from '@robes/contracts';
 import { plan } from '@robes/copy';
 import { daySummary, weekdayShort, weekGroups } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { EmptyState, Skeleton, Text } from '@robes/ui';
+import { EmptyState, ErrorText, Skeleton, Text } from '@robes/ui';
 import Link from 'next/link';
 import { LookImage } from '@/components/looks/look-image';
 import { errorCopy } from '@/lib/error-copy';
@@ -19,11 +19,7 @@ const focus =
 export function PlanList({ today }: { today: string }) {
   const query = useApi('plan.get', { input: { from: today, days: PLAN_DAYS } });
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!query.data) return <PlanSkeleton />;
   const any = query.data.days.some((d) => d.entries.length > 0);

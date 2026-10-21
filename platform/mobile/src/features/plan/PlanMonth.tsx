@@ -1,7 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import { plan as copy } from '@robes/copy';
 import { longDate, monthGrid, rangeLabel, tripBands } from '@robes/core/calendar';
-import { fonts, Text } from '@robes/ui-native';
+import { ErrorText, fonts, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
@@ -28,7 +28,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
   );
   return (
     <ScrollView contentContainerClassName="gap-1 px-6 pb-12" testID="plan-month">
-      {query.isError ? <Text tone="danger">{errorMessage(query.error)}</Text> : null}
+      {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
       <View className="mb-1 flex-row" importantForAccessibility="no-hide-descendants">
         {WEEKDAYS.map((d, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: fixed weekday header

@@ -2,7 +2,7 @@
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { wardrobe } from '@robes/copy';
-import { Button, Field, SegmentedControl, Text } from '@robes/ui';
+import { Button, ErrorText, Field, SegmentedControl, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { type FormEvent, useEffect, useState } from 'react';
@@ -69,16 +69,8 @@ export function LinkImport() {
           { value: 'wishlist' as const, label: copy.toWishlist },
         ]}
       />
-      {start.isError ? (
-        <Text role="alert" tone="danger">
-          {errorCopy(start.error)}
-        </Text>
-      ) : null}
-      {status === 'failed' ? (
-        <Text role="alert" tone="danger">
-          {copy.failed}
-        </Text>
-      ) : null}
+      {start.isError ? <ErrorText>{errorCopy(start.error)}</ErrorText> : null}
+      {status === 'failed' ? <ErrorText>{copy.failed}</ErrorText> : null}
       {reading ? <Text role="status">{copy.reading}</Text> : null}
       <Button
         type="submit"

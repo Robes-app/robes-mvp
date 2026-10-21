@@ -10,7 +10,7 @@ import {
 import type { Look } from '@robes/contracts';
 import { lookbook, looks, wardrobe } from '@robes/copy';
 import { noteShort } from '@robes/core/looks';
-import { Button, Eyebrow, Field, Heading, Skeleton, Text, useToast } from '@robes/ui';
+import { Button, ErrorText, Eyebrow, Field, Heading, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
@@ -36,11 +36,7 @@ export function LookView({ id }: { id: string }) {
     },
   );
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!query.data) return <LookSkeleton />;
   // One look, three states (docs/look-states-brief.md): suggested and draft are hers to work on.

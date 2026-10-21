@@ -16,6 +16,7 @@ import {
   Button,
   buttonClasses,
   Dialog,
+  ErrorText,
   Eyebrow,
   Field,
   Heading,
@@ -151,11 +152,7 @@ export function WardrobePieces() {
             }}
           />
         </label>
-        {message ? (
-          <Text role="alert" size="small" tone="danger">
-            {message}
-          </Text>
-        ) : null}
+        {message ? <ErrorText>{message}</ErrorText> : null}
       </div>
     );
   }
@@ -242,11 +239,7 @@ export function WardrobePieces() {
           />
         ))}
       </ul>
-      {fileError ? (
-        <Text role="alert" size="small" tone="danger">
-          {fileError}
-        </Text>
-      ) : null}
+      {fileError ? <ErrorText>{fileError}</ErrorText> : null}
       <Button
         variant="primary"
         block

@@ -32,7 +32,7 @@ type Category = NonNullable<ListPiecesInput['category']>;
 
 function pieceStatus(piece: Piece): CardStatus {
   if (piece.status === 'reading') return { text: copy.reading, warm: false };
-  if (piece.status === 'failed') return { text: copy.noPieceFound, warm: true };
+  if (piece.status === 'failed') return { text: copy.noPieceFound, warm: false, error: true };
   return piece.wearCount > 0
     ? { text: copy.card.worn(piece.wearCount), warm: false }
     : { text: copy.card.neverWorn, warm: true };

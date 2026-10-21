@@ -2,7 +2,7 @@ import { useApiMutation } from '@robes/api-client/react';
 import { lookbook as copy } from '@robes/copy';
 import { ASK_MAX_CHARS, askDateFrom } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { IconButton, Text, useColor } from '@robes/ui-native';
+import { ErrorText, IconButton, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
@@ -59,11 +59,7 @@ export function NewLookBox({ date, autoFocus = false }: { date?: string; autoFoc
           />
         ) : null}
       </View>
-      {start.isError ? (
-        <Text size="caption" tone="danger">
-          {errorMessage(start.error)}
-        </Text>
-      ) : null}
+      {start.isError ? <ErrorText size="caption">{errorMessage(start.error)}</ErrorText> : null}
     </View>
   );
 }

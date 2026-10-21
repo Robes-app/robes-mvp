@@ -9,6 +9,7 @@ import {
   buttonClasses,
   CardSkeleton,
   EmptyState,
+  ErrorText,
   Pill,
   Sheet,
   Text,
@@ -34,7 +35,7 @@ type Category = NonNullable<ListPiecesInput['category']>;
 
 function pieceStatus(piece: Piece): CardStatus {
   if (piece.status === 'reading') return { text: wardrobe.reading, warm: false };
-  if (piece.status === 'failed') return { text: wardrobe.noPieceFound, warm: true };
+  if (piece.status === 'failed') return { text: wardrobe.noPieceFound, warm: false, error: true };
   return piece.wearCount > 0
     ? { text: wardrobe.card.worn(piece.wearCount), warm: false }
     : { text: wardrobe.card.neverWorn, warm: true };
@@ -108,9 +109,7 @@ export function PieceGrid() {
     return (
       <>
         {header}
-        <Text role="alert" tone="danger">
-          {errorCopy(query.error)}
-        </Text>
+        <ErrorText>{errorCopy(query.error)}</ErrorText>
       </>
     );
   }

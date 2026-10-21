@@ -5,6 +5,7 @@ export * from './card';
 export * from './command-bar';
 export * from './dialog';
 export * from './empty-state';
+export * from './error-text';
 export * from './field';
 export * from './icon-button';
 export * from './image';

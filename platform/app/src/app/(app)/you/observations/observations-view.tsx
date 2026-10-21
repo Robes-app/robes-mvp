@@ -3,7 +3,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine } from '@robes/contracts';
 import { twin } from '@robes/copy';
-import { Button, Eyebrow, Progress, Skeleton, Text } from '@robes/ui';
+import { Button, ErrorText, Eyebrow, Progress, Skeleton, Text } from '@robes/ui';
 import { errorCopy } from '@/lib/error-copy';
 import { useBriefRead, useDnaMutations } from '@/lib/use-dna';
 
@@ -21,11 +21,7 @@ export function ObservationsView() {
   const { reading, failed } = useBriefRead(query.data);
   const { keep, dismiss } = useDnaMutations();
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   const dna = query.data;
   if (!dna) return <Skeleton className="h-64" />;

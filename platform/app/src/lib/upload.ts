@@ -1,5 +1,6 @@
 import type { ApiClient } from '@robes/api-client';
 import { type Asset, UploadContentType, type UploadKind } from '@robes/contracts';
+import { rememberPreview } from './local-previews';
 
 export const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
 
@@ -19,5 +20,6 @@ export async function uploadPhoto(
     body: file,
   });
   if (!put.ok) throw new Error('put');
+  rememberPreview(assetId, file);
   return api.call('uploads.complete', { params: { id: assetId } });
 }
