@@ -787,7 +787,7 @@ export const plan = {
     body: 'Open a look and choose Wear on a day.',
     action: 'Go to Lookbook',
   },
-  monthSoon: 'Month view is on its way.',
+  monthCaption: 'Month reads the shape of it. List is where you plan.',
   // Month view (M5 task 4) and trip days.
   view: { label: 'Diary view', list: 'List', month: 'Month' },
   prevMonth: 'Previous month',
