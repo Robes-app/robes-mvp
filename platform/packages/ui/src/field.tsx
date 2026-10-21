@@ -9,13 +9,20 @@ import {
 import { cn } from './cn';
 
 // Controls carry a ≥3:1 boundary (border-control) and inputs render at 16px so iOS doesn't zoom.
+// Focus is quiet: the boundary goes ink and doubles, never a ring that outshouts the screen.
 const control =
-  'w-full rounded-crisp border bg-surface px-4 py-3 font-sans text-base text-ink placeholder:text-ink-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint';
+  'w-full rounded-crisp border bg-bg px-4 py-3 font-sans text-base text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:border-ink focus-visible:ring-1 focus-visible:ring-ink focus-visible:ring-inset disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint';
+
+// The notebook line (onboarding's question): the question is the label, her answer in Cormorant.
+const underline =
+  'w-full border-0 border-b bg-transparent px-0 py-2 font-display text-3xl font-light text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:border-ink focus-visible:shadow-[0_1px_0_0_var(--color-ink)]';
 
 interface FieldShellProps {
   label: string;
   hint?: ReactNode;
   error?: string | null;
+  // Hide the label when the screen's question already names the field.
+  labelHidden?: boolean;
 }
 
 function useFieldIds(id: string | undefined, hint: unknown, error: unknown) {
@@ -29,6 +36,7 @@ function useFieldIds(id: string | undefined, hint: unknown, error: unknown) {
 
 function Shell({
   label,
+  labelHidden = false,
   hint,
   error,
   controlId,
@@ -45,7 +53,10 @@ function Shell({
     <div className="flex flex-col gap-2">
       <label
         htmlFor={controlId}
-        className="font-sans text-xs font-medium uppercase tracking-[0.18em] text-ink-muted"
+        className={cn(
+          'font-sans text-xs font-medium uppercase tracking-[0.18em] text-ink-muted',
+          labelHidden && 'sr-only',
+        )}
       >
         {label}
       </label>
@@ -69,18 +80,33 @@ function Shell({
   );
 }
 
-export interface FieldProps extends InputHTMLAttributes<HTMLInputElement>, FieldShellProps {}
+export interface FieldProps extends InputHTMLAttributes<HTMLInputElement>, FieldShellProps {
+  variant?: 'box' | 'underline';
+}
 
-export function Field({ label, hint, error, id, className, ...input }: FieldProps) {
+export function Field({
+  label,
+  labelHidden,
+  hint,
+  error,
+  id,
+  className,
+  variant = 'box',
+  ...input
+}: FieldProps) {
   const ids = useFieldIds(id, hint, error);
   return (
-    <Shell label={label} hint={hint} error={error} {...ids}>
+    <Shell label={label} labelHidden={labelHidden} hint={hint} error={error} {...ids}>
       <input
         {...input}
         id={ids.controlId}
         aria-invalid={error ? true : undefined}
         aria-describedby={ids.describedBy}
-        className={cn(control, error ? 'border-danger' : 'border-border-control', className)}
+        className={cn(
+          variant === 'underline' ? underline : control,
+          error ? 'border-danger' : 'border-border-control',
+          className,
+        )}
       />
     </Shell>
   );
@@ -90,10 +116,19 @@ export interface TextAreaProps
   extends TextareaHTMLAttributes<HTMLTextAreaElement>,
     FieldShellProps {}
 
-export function TextArea({ label, hint, error, id, className, rows = 4, ...input }: TextAreaProps) {
+export function TextArea({
+  label,
+  labelHidden,
+  hint,
+  error,
+  id,
+  className,
+  rows = 4,
+  ...input
+}: TextAreaProps) {
   const ids = useFieldIds(id, hint, error);
   return (
-    <Shell label={label} hint={hint} error={error} {...ids}>
+    <Shell label={label} labelHidden={labelHidden} hint={hint} error={error} {...ids}>
       <textarea
         {...input}
         id={ids.controlId}
@@ -128,6 +163,7 @@ export interface SelectProps
 // Native select: the platform picker is the most accessible option on every device.
 export function Select({
   label,
+  labelHidden,
   hint,
   error,
   id,
@@ -138,7 +174,7 @@ export function Select({
 }: SelectProps) {
   const ids = useFieldIds(id, hint, error);
   return (
-    <Shell label={label} hint={hint} error={error} {...ids}>
+    <Shell label={label} labelHidden={labelHidden} hint={hint} error={error} {...ids}>
       <div className="relative">
         <select
           {...select}

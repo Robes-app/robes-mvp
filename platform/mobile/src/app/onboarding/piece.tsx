@@ -174,7 +174,9 @@ export default function FirstPiece() {
         </View>
         {preview ? (
           <View className="gap-2">
-            <Image source={preview} alt="" />
+            <View className="w-full max-w-[300px] self-center">
+              <Image source={preview} alt="" aspect="3:4" />
+            </View>
             {filed && piece ? <Text className="text-center text-lg">{piece.label}</Text> : null}
             {!reading ? (
               <Button
@@ -194,14 +196,21 @@ export default function FirstPiece() {
             accessibilityRole="button"
             accessibilityLabel={copy.piece.add}
             onPress={() => setMenu(true)}
-            className="aspect-[4/5] items-center justify-center gap-3 rounded-soft border border-border-control border-dashed bg-surface"
+            className="aspect-[3/4] w-full max-w-[300px] items-center justify-center gap-3 self-center rounded-soft border border-border-control border-dashed bg-surface"
             testID="first-piece-well"
           >
-            <Text size="caption" tone="muted" className="uppercase">
+            <Text tone="faint" italic>
               {copy.piece.keyPiece}
             </Text>
             <View className="rounded-pill border border-ink px-5 py-2">
-              <Text size="small">{copy.piece.add}</Text>
+              <Text
+                size="caption"
+                weight="medium"
+                className="uppercase"
+                style={{ letterSpacing: 1.9 }}
+              >
+                {copy.piece.add}
+              </Text>
             </View>
           </Pressable>
         )}

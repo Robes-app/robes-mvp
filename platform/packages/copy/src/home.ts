@@ -165,7 +165,7 @@ export const firstRun = {
     label: 'First name',
     placeholder: 'Your first name',
     // The first week's notes (7-day brief, decision 1): named before any is sent.
-    notes: 'Robes sends a few notes over your first week. Stop them from any one.',
+    notes: 'Robes sends a few notes in your first week. Each one has a link to stop them.',
     continue: 'Continue',
   },
   piece: {

@@ -236,7 +236,7 @@ function Alerts({
     rows.push(
       <li key="noticed" className="flex items-center gap-3 py-3" data-kind="observation">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk text-ink-muted">
-          ✦
+          <Icon name="looks" size={18} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <Text size="caption" tone="muted" className="uppercase tracking-wider">

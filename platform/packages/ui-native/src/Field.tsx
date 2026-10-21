@@ -11,17 +11,19 @@ export interface FieldProps extends Omit<TextInputProps, 'accessibilityLabel'> {
   error?: string | null;
   hint?: string;
   multiline?: boolean;
+  // The notebook line: the screen's question names the field, her answer is in Cormorant.
+  variant?: 'box' | 'underline';
 }
 
 // Visible 3:1 control border (border-control); errors pair danger text with an icon.
 export const Field = forwardRef<TextInput, FieldProps>(function Field(
-  { label, error, hint, className, style, multiline, ...input },
+  { label, error, hint, className, style, multiline, variant = 'box', ...input },
   ref,
 ) {
   const danger = useColor('danger');
   return (
     <View className="gap-2">
-      <Eyebrow>{label}</Eyebrow>
+      {variant === 'box' ? <Eyebrow>{label}</Eyebrow> : null}
       <TextInput
         ref={ref}
         {...input}
@@ -32,12 +34,20 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
         maxFontSizeMultiplier={maxFontSizeMultiplier.control}
         placeholderTextColorClassName="accent-ink-faint"
         className={cx(
-          'min-h-11 rounded-crisp border bg-surface px-4 py-3 text-base text-ink',
+          variant === 'underline'
+            ? 'min-h-11 border-b py-2 text-3xl text-ink'
+            : 'min-h-11 rounded-crisp border bg-bg px-4 py-3 text-base text-ink',
           error ? 'border-danger' : 'border-border-control',
           multiline && 'min-h-24',
           className,
         )}
-        style={[{ fontFamily: fonts.sans, textAlignVertical: multiline ? 'top' : 'center' }, style]}
+        style={[
+          {
+            fontFamily: variant === 'underline' ? fonts.display : fonts.sans,
+            textAlignVertical: multiline ? 'top' : 'center',
+          },
+          style,
+        ]}
       />
       {error ? (
         <View className="flex-row items-center gap-2">
