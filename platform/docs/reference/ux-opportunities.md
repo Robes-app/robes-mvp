@@ -3,7 +3,7 @@
 *2026-09-24 · Reference for the Next.js (web) + Expo (native) rebuild on Supabase Postgres/Realtime + SQS/Lambda generation workers + Gemini + Cloudinary.*
 *Sources: `CLAUDE.md` on `platform` (the de facto spec, ~1,650 lines of dated deltas), `docs/*.md`, `architecture-decisions.md`, `server.js`, `public/js/dashboard-personalize.js`, and `git log` (645 commits, 159 of them "fix"/"bug").*
 
-This document covers changes that would make the product drastically better to use, not polish. Every pain point cites where it was observed. Every proposal says which part of the new architecture carries it. The product's own design rules still apply and are assumed throughout: one ink fill per screen, no lock/unlock language, no "AI" in consumer copy, wardrobe-first, titles offered not applied, and Look / Wear / Day kept as separate objects.
+This document covers changes that would make the product drastically better to use, not polish. Every pain point cites where it was observed. Every proposal says which part of the new architecture carries it. The product's own design rules still apply and are assumed throughout: text kept to an absolute minimum, native mobile first, no lock/unlock language, no "AI" in consumer copy, wardrobe-first, titles offered not applied, and Look / Wear / Day kept as separate objects.
 
 **Citation keys.** `CL §x` = a CLAUDE.md section or dated delta · `FTUE n.n` = `docs/beta-ftue-ux-audit-2026-08-19.md` finding · `Funnel` = `docs/four-session-funnel-brief.md` · `SysArch` = `docs/system-architecture.md` · `DayCard D-nn` = `docs/daycard-audit.md` · `LookRack` = the two look-rack audits · `LookEntity` = `docs/look-entity-brief.md` · `Avatar` = the avatar brief/proposal · `ADR-00n` = `architecture-decisions.md` · a short hash = a commit.
 
@@ -282,7 +282,7 @@ Section 4 gives the numbers. Enforcement: `size-limit` or Next bundle analysis p
 
 | Destination | What it answers | Contents |
 |---|---|---|
-| **Today** (`/`) | "What am I wearing / doing now?" | Greeting plus **one** next step (slice 1's next line) · **today's look** card (D18) with weather · the **Ask Robes** prompt with its three starters (Style today · Plan a trip · Style a piece) · the **generation tray** (D3) · the week strip (the next 7 days, tap → Plan) · the Inbox count when pieces are waiting · the model door when relevant. Hard cap: one ink fill and ≤7 doors (the 2026-09-18 home-cut rule). |
+| **Today** (`/`) | "What am I wearing / doing now?" | Greeting plus **one** next step (slice 1's next line) · **today's look** card (D18) with weather · the **Ask Robes** prompt with its three starters (Style today · Plan a trip · Style a piece) · the **generation tray** (D3) · the week strip (the next 7 days, tap → Plan) · the Inbox count when pieces are waiting · the model door when relevant. Hard cap: ≤7 doors (the 2026-09-18 home-cut rule). |
 | **Wardrobe** (`/wardrobe`) | "What do I have?" | Segments: **Pieces** · **Wishlist** · **Inbox** (review queue for photos, receipts, links and shares, D7). Refine (category/type, season, wear-it-for, source), hero pieces pinned at the top, stand-ins marked (D9). → `/piece/:id`. |
 | **Looks** (`/looks`) | "What can I wear?" | Segments: **Saved** (the Look entity grid; sort by last worn; Refine by tags/season/vibe) · **Ideas** (Robes' unsaved output: pieces styled three ways, daily proposals, Robes builds; one tap to save; auto-expire after 30 days unless saved). → `/look/:id` (the Look/Rack page: Wear it today · Wear on a day · Pack it · Swap a piece; You/Model views). |
 | **Plan** (`/plan`) | "What's coming?" | The rolling 30-day list (default) and a Month toggle · trips as blocks inside the list · + Name a day / + Plan a trip. → `/day/:date` (a day holds many looks) · `/trip/:id` (facts, weather, travel diary, looks, capsule / packing). |
@@ -427,7 +427,7 @@ Acceptance criteria written to be adopted verbatim.
 25. No user-facing string, date, currency, size or unit is hard-coded in a component. All go through the copy registry and `Intl`.
 
 **Carry-overs from the legacy product (keep these; they were earned in testing)**
-26. One filled (ink) button per screen, marking the single real commitment. Everything else is a hairline pill or a text door.
+26. ~~One filled (ink) button per screen.~~ Retired by the founder 2026-10-21: a screen may carry more than one primary button. In its place: keep text to an absolute minimum, and design for native mobile first.
 27. No lock/unlock language. A threshold is a capability appearing.
 28. A Look is its exact piece set. A Wear is immutable. Changing a look with history asks Update / Save as new. Titles are offered, never applied.
 29. Error copy is product-voiced. Raw server or provider text never reaches the user.

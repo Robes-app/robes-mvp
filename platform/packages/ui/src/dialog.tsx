@@ -3,7 +3,6 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { ui } from '@robes/copy';
 import type { ReactElement, ReactNode } from 'react';
-import { PrimaryScope } from './button';
 import { cn } from './cn';
 import { IconButton } from './icon-button';
 import { Heading, Text } from './text';
@@ -42,26 +41,24 @@ function Frame({
         className={cn('fixed z-50 flex flex-col gap-6 bg-bg text-ink shadow-xl', className)}
         {...(description ? {} : { 'aria-describedby': undefined })}
       >
-        <PrimaryScope>
-          <div className="flex flex-col gap-2 pr-10">
-            <RadixDialog.Title asChild>
-              <Heading level={2} size={titleSize}>
-                {title}
-              </Heading>
-            </RadixDialog.Title>
-            {description ? (
-              <RadixDialog.Description asChild>
-                <Text tone="muted">{description}</Text>
-              </RadixDialog.Description>
-            ) : null}
-          </div>
-          {children}
-          {footer ? <div className="flex flex-col gap-3">{footer}</div> : null}
-          {/* Last in DOM order so opening focuses the content, not the close button. */}
-          <RadixDialog.Close asChild>
-            <IconButton icon="close" label={ui.close} className="absolute top-3 right-3" />
-          </RadixDialog.Close>
-        </PrimaryScope>
+        <div className="flex flex-col gap-2 pr-10">
+          <RadixDialog.Title asChild>
+            <Heading level={2} size={titleSize}>
+              {title}
+            </Heading>
+          </RadixDialog.Title>
+          {description ? (
+            <RadixDialog.Description asChild>
+              <Text tone="muted">{description}</Text>
+            </RadixDialog.Description>
+          ) : null}
+        </div>
+        {children}
+        {footer ? <div className="flex flex-col gap-3">{footer}</div> : null}
+        {/* Last in DOM order so opening focuses the content, not the close button. */}
+        <RadixDialog.Close asChild>
+          <IconButton icon="close" label={ui.close} className="absolute top-3 right-3" />
+        </RadixDialog.Close>
       </RadixDialog.Content>
     </RadixDialog.Portal>
   );

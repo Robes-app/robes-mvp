@@ -11,7 +11,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'One filled (ink) button per screen marks the single real commitment (UX-26). A second mounted primary logs a dev warning.',
+          'Primary is the ink pill, secondary the hairline pill, quiet the text door. A screen may carry more than one primary.',
       },
     },
   },
