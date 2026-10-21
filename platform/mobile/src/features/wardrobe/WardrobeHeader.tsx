@@ -111,8 +111,8 @@ export function CountRow({
   return (
     <View className="mt-5 mb-3 h-8 flex-row items-center justify-between gap-3 px-6">
       <Text
-        className="text-[19px] text-ink-faint italic"
-        style={{ fontFamily: fonts.displayRegular }}
+        className="text-[19px] text-ink-faint"
+        style={{ fontFamily: fonts.displayRegularItalic }}
         accessibilityLiveRegion="polite"
       >
         {count ?? ''}

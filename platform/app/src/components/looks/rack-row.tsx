@@ -79,7 +79,7 @@ export function RackRowCard({
           </Text>
         ) : null}
         {styled ? (
-          <Text size="caption" tone="muted" className="italic">
+          <Text size="caption" tone="muted" italic>
             {styled}
           </Text>
         ) : null}

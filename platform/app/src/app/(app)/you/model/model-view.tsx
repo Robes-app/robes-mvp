@@ -455,7 +455,9 @@ function FactsStrip({
             className={`flex flex-col gap-1 px-3 py-3 ${i ? 'border-l border-hairline' : ''}`}
           >
             <span className="font-sans text-xs text-ink-muted">{k}</span>
-            <span className={`font-sans text-sm ${v ? 'text-ink' : 'text-ink-faint italic'}`}>
+            <span
+              className={`${v ? 'font-sans text-sm text-ink' : 'font-display text-lg text-ink-faint italic'}`}
+            >
               {v || f.add}
             </span>
           </span>
@@ -492,7 +494,7 @@ function Stepper({
             </Button>
             <output
               aria-label={label}
-              className={`min-w-16 text-center font-sans text-base ${value ? 'text-ink' : 'text-ink-faint italic'}`}
+              className={`min-w-16 text-center ${value ? 'font-sans text-base text-ink' : 'font-display text-lg text-ink-faint italic'}`}
             >
               {value || f.add}
             </output>

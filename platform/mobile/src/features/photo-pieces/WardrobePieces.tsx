@@ -397,7 +397,7 @@ function PieceRow({
       </Pressable>
       {state.state === 'pending' ? (
         <View className="flex-row flex-wrap items-center gap-2">
-          <Text size="small" className="mr-auto italic">
+          <Text size="small" italic className="mr-auto">
             {dupId ? copy.ask.yours : copy.ask.add}
           </Text>
           <Pill onPress={() => onAnswer('yes')}>{copy.ask.yes}</Pill>

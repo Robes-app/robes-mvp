@@ -352,7 +352,7 @@ function PieceCard({
       </button>
       {state.state === 'pending' ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Text as="span" size="small" className="mr-auto italic">
+          <Text as="span" size="small" italic className="mr-auto">
             {dupId ? copy.ask.yours : copy.ask.add}
           </Text>
           <Pill onClick={() => onAnswer('yes')}>{copy.ask.yes}</Pill>

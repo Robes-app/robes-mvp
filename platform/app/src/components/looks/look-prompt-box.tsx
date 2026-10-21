@@ -163,7 +163,7 @@ export function LookPromptBox({
             ),
           )}
           {ask.reading ? (
-            <Text size="small" tone="muted" className="italic">
+            <Text size="small" tone="muted" italic>
               {copy.prompt.busyChange}
             </Text>
           ) : null}

@@ -17,10 +17,19 @@ const textSizes = {
   caption: 'text-xs leading-normal',
 } as const;
 
+// The sans never goes italic (brand-and-design.md §3): an italic line is Cormorant, a step up
+// so it never renders below 17px.
+const italicSizes = {
+  body: 'text-xl leading-snug',
+  small: 'text-lg leading-snug',
+  caption: 'text-lg leading-snug',
+} as const;
+
 export interface TextProps extends HTMLAttributes<HTMLElement> {
   as?: 'p' | 'span' | 'div' | 'li';
   size?: keyof typeof textSizes;
   tone?: TextTone;
+  italic?: boolean;
   children?: ReactNode;
 }
 
@@ -28,10 +37,14 @@ export function Text({
   as: Tag = 'p',
   size = 'body',
   tone = 'default',
+  italic = false,
   className,
   ...rest
 }: TextProps) {
-  return <Tag {...rest} className={cn('font-sans', textSizes[size], tones[tone], className)} />;
+  const face = italic
+    ? cn('font-display font-light italic', italicSizes[size])
+    : cn('font-sans', textSizes[size]);
+  return <Tag {...rest} className={cn(face, tones[tone], className)} />;
 }
 
 // Cormorant never renders below 17px (brand-and-design.md §3.1): the smallest step is 18px.

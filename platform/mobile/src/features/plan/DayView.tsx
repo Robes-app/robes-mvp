@@ -91,14 +91,14 @@ export function DayView({ date }: { date: string }) {
               returnKeyType="done"
               onSubmitEditing={commit}
               onBlur={commit}
-              className="min-h-11 flex-1 border-b border-border-control text-3xl text-ink italic"
-              style={{ fontFamily: fonts.displayRegular }}
+              className="min-h-11 flex-1 border-b border-border-control text-3xl text-ink"
+              style={{ fontFamily: fonts.displayRegularItalic }}
             />
           ) : (
             <Text
               accessibilityRole="header"
-              className={`flex-1 text-3xl italic ${s.name ? 'text-ink' : 'text-ink-faint'}`}
-              style={{ fontFamily: fonts.displayRegular }}
+              className={`flex-1 text-3xl ${s.name ? 'text-ink' : 'text-ink-faint'}`}
+              style={{ fontFamily: fonts.displayRegularItalic }}
             >
               {s.name ?? copy.day.name}
             </Text>
@@ -156,7 +156,7 @@ export function DayView({ date }: { date: string }) {
               <Text className="text-lg text-ink" style={{ fontFamily: fonts.displayRegular }}>
                 {entries.length ? copy.day.addAnother : copy.day.choose}
               </Text>
-              <Text size="caption" tone="muted">
+              <Text size="caption" tone="faint" italic>
                 {entries.length ? copy.day.addAnotherHint : copy.day.chooseHint}
               </Text>
             </View>

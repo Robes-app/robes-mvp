@@ -4,6 +4,7 @@ import { firstRun as copy, home, onboarding } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
+  Em,
   Eyebrow,
   Heading,
   Image,
@@ -167,7 +168,7 @@ export default function FirstPiece() {
         <View className="gap-2">
           <Eyebrow>{eyebrow}</Eyebrow>
           <Heading size="md">
-            {copy.piece.title} <Text className="italic">{copy.piece.titleEm}</Text>
+            {copy.piece.title} <Em>{copy.piece.titleEm}</Em>
           </Heading>
         </View>
         {preview ? (
@@ -219,10 +220,8 @@ export default function FirstPiece() {
                 <Text size="caption" tone="faint">
                   {String(i + 1).padStart(2, '0')}
                 </Text>
-                <Text size="small" tone="muted" className="flex-1">
-                  {row}
-                </Text>
-                <Text size="small" tone={value ? 'ink' : 'faint'}>
+                <Eyebrow className="flex-1">{row}</Eyebrow>
+                <Text size="small" tone={value ? 'ink' : 'faint'} italic={!value}>
                   {value ??
                     (reading || (values && i === revealed)
                       ? copy.piece.readingRow
@@ -314,7 +313,7 @@ function Compose({ jobId, name }: { jobId: string; name: string | null }) {
       testID="composing"
     >
       <Heading size="md">
-        {copy.compose.title} <Text className="italic">{copy.compose.titleEm(name)}</Text>
+        {copy.compose.title} <Em>{copy.compose.titleEm(name)}</Em>
       </Heading>
       <View className="border-hairline border-t">
         {copy.compose.lines.map((line, i) => (

@@ -3,7 +3,7 @@ import { home as copy } from '@robes/copy';
 import { type HomeResolved, type HomeStep, mapRows } from '@robes/core/home';
 import { anchorName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { Button, Eyebrow, Heading, Image, Text, useColor, useToast } from '@robes/ui-native';
+import { Button, Em, Eyebrow, Heading, Image, Text, useColor, useToast } from '@robes/ui-native';
 import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -16,7 +16,7 @@ const card = 'gap-4 rounded-soft border border-hairline bg-surface p-5';
 function Title({ title, em }: { title: string; em: string }) {
   return (
     <Heading size="md">
-      {title} <Text className="italic">{em}</Text>
+      {title} <Em>{em}</Em>
     </Heading>
   );
 }
@@ -149,7 +149,7 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
       <Eyebrow>{copy.o3.eyebrow}</Eyebrow>
       <Heading size="md">
         {pics === 0 ? copy.o3.empty : `${copy.o3.filed(pics)} `}
-        {pics === 0 ? null : <Text className="italic">{copy.o3.rest}</Text>}
+        {pics === 0 ? null : <Em>{copy.o3.rest}</Em>}
       </Heading>
       <View className="flex-row gap-2">
         {recent.map((p) => (

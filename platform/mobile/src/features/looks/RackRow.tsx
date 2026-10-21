@@ -87,7 +87,7 @@ export function RackRowCard({
           </Text>
         ) : null}
         {styled ? (
-          <Text size="caption" tone="muted" style={{ fontStyle: 'italic' }}>
+          <Text size="caption" tone="muted" italic>
             {styled}
           </Text>
         ) : null}

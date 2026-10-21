@@ -88,7 +88,7 @@ export function HomeView({ initial }: { initial: Today }) {
         <Heading level={1} size="2xl">
           {todayCopy.greeting(name, data.hour)}
         </Heading>
-        <Text className="font-display text-xl italic" tone="muted">
+        <Text italic tone="faint">
           {copy.echo}
         </Text>
         {weatherLine ? (

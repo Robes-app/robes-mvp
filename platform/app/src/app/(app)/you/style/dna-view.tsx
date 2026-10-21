@@ -460,7 +460,7 @@ function WordsBody({ dna, list }: { dna: StyleDna; list: BriefListName }) {
                 <span className="flex flex-col">
                   <span>{p.text}</span>
                   {p.because ? (
-                    <span className="text-sm text-ink-muted italic">{p.because}</span>
+                    <span className="font-display text-lg text-ink-muted italic">{p.because}</span>
                   ) : null}
                 </span>
                 <Pill onClick={() => keep.mutate({ params: { id: p.id } })}>{twin.words.keep}</Pill>

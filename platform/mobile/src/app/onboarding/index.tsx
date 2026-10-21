@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import { firstRun as copy, onboarding } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, PrimaryScope, Text } from '@robes/ui-native';
+import { Button, Em, Eyebrow, Field, Heading, PrimaryScope, Text } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -80,7 +80,7 @@ export default function Onboarding() {
           <View className="gap-2 pt-6">
             <Eyebrow>{copy.name.eyebrow}</Eyebrow>
             <Heading>
-              {copy.name.title} <Text className="italic">{copy.name.titleEm}</Text>
+              {copy.name.title} <Em>{copy.name.titleEm}</Em>
             </Heading>
           </View>
           <Field

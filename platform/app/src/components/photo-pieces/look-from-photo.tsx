@@ -331,7 +331,7 @@ function ReadCard({
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Text as="span" size="small" className="mr-auto italic">
+        <Text as="span" size="small" italic className="mr-auto">
           {matched ? copy.askMatch(matchLabel) : copy.askNew}
         </Text>
         <Pill onClick={onYes}>{copy.yes}</Pill>

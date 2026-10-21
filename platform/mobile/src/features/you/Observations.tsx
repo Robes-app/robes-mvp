@@ -39,7 +39,7 @@ export function Observations() {
               <Eyebrow>{copy.list[o.list] ?? twin.noticed.eyebrow}</Eyebrow>
               <Text className="font-serif text-xl">{o.text}</Text>
               {o.because ? (
-                <Text size="small" tone="muted" className="italic">
+                <Text size="small" tone="muted" italic>
                   {o.because}
                 </Text>
               ) : null}
@@ -62,7 +62,7 @@ export function Observations() {
             </View>
           ))
         ) : (
-          <Text tone="muted" className="italic">
+          <Text tone="muted" italic>
             {failed ? copy.failed : copy.empty}
           </Text>
         )}
