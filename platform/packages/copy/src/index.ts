@@ -253,8 +253,8 @@ export const marketing = {
 export const nav = {
   today: 'Today',
   wardrobe: 'Wardrobe',
-  looks: 'Looks',
-  plan: 'Plan',
+  looks: 'Lookbook',
+  plan: 'Diary',
   create: 'Create',
   you: 'You',
 } as const;
@@ -503,7 +503,7 @@ export const shell = {
 
 // Looks › Ideas and the Style a piece flow.
 export const looks = {
-  title: 'Looks',
+  title: 'Lookbook',
   stylePiece: {
     eyebrow: 'Style a piece',
     title: 'Which piece?',
@@ -573,8 +573,8 @@ export const looks = {
     woreToday: 'Worn today.',
     wearOnDay: 'Wear on a day',
     dayLabel: 'Day',
-    addToPlan: 'Add to Plan',
-    addedToPlan: 'Added to Plan.',
+    addToPlan: 'Add to Diary',
+    addedToPlan: 'Added to your diary.',
     saveAsNew: 'Save as new',
     savedAsNew: 'Saved as a new look.',
     remove: 'Remove',
@@ -763,9 +763,9 @@ export const you = {
   },
 } as const;
 
-// Plan (M5): the rolling list of days.
+// Diary (M5): the rolling list of days.
 export const plan = {
-  title: 'Plan',
+  title: 'Diary',
   today: 'Today',
   tomorrow: 'Tomorrow',
   emptyDay: 'Free',
@@ -781,11 +781,11 @@ export const plan = {
   empty: {
     title: 'Your days live here.',
     body: 'Open a look and choose Wear on a day.',
-    action: 'Go to Looks',
+    action: 'Go to Lookbook',
   },
   monthSoon: 'Month view is on its way.',
   // Month view (M5 task 4) and trip days.
-  view: { label: 'Plan view', list: 'List', month: 'Month' },
+  view: { label: 'Diary view', list: 'List', month: 'Month' },
   prevMonth: 'Previous month',
   nextMonth: 'Next month',
   moreLooks: (n: number): string => `+${n} more`,
@@ -838,11 +838,11 @@ export const plan = {
       n === 1 ? `Added to ${day}.` : `${n} looks added to ${day}.`,
     emptyTitle: 'Nothing saved yet.',
     emptyBody: 'Save a look you like and it can go on this day.',
-    toLooks: 'Go to Looks',
+    toLooks: 'Go to Lookbook',
   },
   week: {
     title: 'The week ahead',
-    plan: 'Plan',
+    plan: 'Diary',
     day: (label: string, looks: number): string =>
       looks === 0 ? `${label}, free` : `${label}, ${looks === 1 ? 'one look' : `${looks} looks`}`,
   },
