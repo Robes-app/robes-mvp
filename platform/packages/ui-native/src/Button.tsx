@@ -1,7 +1,7 @@
 import { ui } from '@robes/copy';
 import { Icon, type IconName } from '@robes/icons/native';
 import * as Haptics from 'expo-haptics';
-import { createContext, type ReactNode, useContext, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { ActivityIndicator, type GestureResponderEvent, Pressable, Text } from 'react-native';
 import { useColor } from './color';
 import { cx } from './cx';
@@ -9,29 +9,9 @@ import { fonts, MIN_TOUCH, maxFontSizeMultiplier } from './scale';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'quiet';
 
-type Scope = { primaries: number };
-const globalScope: Scope = { primaries: 0 };
-const PrimaryScopeContext = createContext<Scope>(globalScope);
-
-// One filled button per screen (UX-26). Wrap each screen that stays mounted in a stack or tab.
+// Kept so screens that still wrap themselves in it compile; it no longer limits primary buttons.
 export function PrimaryScope({ children }: { children: ReactNode }) {
-  const scope = useRef<Scope>({ primaries: 0 }).current;
-  return <PrimaryScopeContext.Provider value={scope}>{children}</PrimaryScopeContext.Provider>;
-}
-
-export const DOUBLE_PRIMARY_WARNING =
-  '[@robes/ui-native] Two primary Buttons are mounted on one screen. Keep one filled button per screen (UX-26).';
-
-function usePrimaryGuard(active: boolean) {
-  const scope = useContext(PrimaryScopeContext);
-  useEffect(() => {
-    if (!active || !__DEV__) return;
-    scope.primaries += 1;
-    if (scope.primaries > 1) console.warn(DOUBLE_PRIMARY_WARNING);
-    return () => {
-      scope.primaries -= 1;
-    };
-  }, [active, scope]);
+  return <>{children}</>;
 }
 
 const container: Record<ButtonVariant, string> = {
@@ -71,7 +51,6 @@ export function Button({
   className,
   testID,
 }: ButtonProps) {
-  usePrimaryGuard(variant === 'primary');
   const onInk = useColor('bg');
   const ink = useColor(variant === 'quiet' ? 'ink-muted' : 'ink');
   const iconColor = variant === 'primary' ? onInk : ink;

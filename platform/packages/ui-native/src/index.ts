@@ -3,7 +3,6 @@ export {
   Button,
   type ButtonProps,
   type ButtonVariant,
-  DOUBLE_PRIMARY_WARNING,
   IconButton,
   type IconButtonProps,
   PrimaryScope,

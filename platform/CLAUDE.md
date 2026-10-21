@@ -73,7 +73,14 @@ Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vi
 Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + typecheck + test + db:test) · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm services:up` · `pnpm db:reset` · `pnpm db:migrate` · `pnpm db:new <name>` · `pnpm db:types` · `pnpm db:test` · `pnpm maintenance` · `pnpm dev:web` · `pnpm dev:mobile` (Expo; ADR 018) · `pnpm --filter @robes/app test:e2e`. Recipes (new package / route / table): `docs/DEVELOPING.md`.
 
 ## Product rules to respect
-Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Looks · Plan + Create + You (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.
+Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Looks · Plan + Create + You (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. No lock language; titles offered, never applied; Wears are immutable.
+
+**Design principles (founder, 2026-10-21) — these override any older rule in the docs:**
+1. Keep text to an absolute minimum: one line where there would be a paragraph, no explanatory copy, no helper text a control can carry itself, no repeating what the screen already shows.
+2. Design for native mobile first: start at phone width (390pt), primary actions within thumb reach, bottom sheets over modals, touch targets ≥44pt. Web adapts from the phone.
+3. Selected means warm, never black: a `#F3EFE6` fill with a `#C9BCA6` border.
+4. Never show a count as a fraction ("4 / 15").
+- **Retired: "one filled (ink) button per screen" (UX-26).** A screen may carry more than one primary button. Don't reintroduce a guard, warning or test for it.
 
 ## Conventions
 Match surrounding code; single quotes; 2-space indent; no comments unless the why is non-obvious. Tests live next to code (`*.test.ts`) except e2e (`app/e2e`, `mobile/e2e`) and DB tests (`packages/db/test`, need `pnpm services:up`).

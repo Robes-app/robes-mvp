@@ -15,7 +15,7 @@ Inputs:
 1. **One source of truth** for colour, type, spacing, radius, shadow and motion, typed in TypeScript, consumed identically by web (Tailwind v4) and native (Uniwind on Tailwind v4). `bg-surface text-ink rounded-card` means the same thing on both.
 2. **Semantic first.** Components use semantic tokens (`surface`, `ink`, `ink-muted`, `hairline`, `accent-inspire`, `accent-plan`, `danger`), never raw brand values, so light/dark and future re-brands are a token change.
 3. **Accessible by construction.** Every text/background pair used by a component is contrast-tested in CI (WCAG 2.2 AA: 4.5:1 body, 3:1 large text and UI boundaries/focus).
-4. **Brand rules encoded, not remembered.** Copy rules and "one filled button per screen" become lint rules, component APIs and Storybook docs rather than paragraphs in CLAUDE.md.
+4. **Brand rules encoded, not remembered.** Copy rules (minimal text) and native-first sizing (44pt targets) become lint rules, component APIs and Storybook docs rather than paragraphs in CLAUDE.md.
 
 ## 2. Packages
 

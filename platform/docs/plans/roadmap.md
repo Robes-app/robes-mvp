@@ -107,7 +107,7 @@ Notation: `SEC-nn` = `security.md`; `UX-nn` = `reference/ux-opportunities.md` §
 **Inputs:** legacy `/api/daily`, `/api/travel`, `/api/travel/looks`, planned_days logic (`reference/legacy-features.md` §3 client logic to move server-side), weather (Open-Meteo), D18; UX-16.
 
 **Tasks**
-1. Today screen: greeting + one next step (port `_rbNextLine` rules to `packages/core/next-step` with tests), Today's look card with weather, Ask Robes prompt, generation tray, week strip, Inbox count; ≤1 ink fill, ≤7 doors.
+1. Today screen: greeting + one next step (port `_rbNextLine` rules to `packages/core/next-step` with tests), Today's look card with weather, Ask Robes prompt, generation tray, week strip, Inbox count; ≤7 doors.
 2. `POST /today/generate` (Style it for today) → composer draft (nothing saved until named — legacy rule) as a job.
 3. Overnight batch: `SchedulesStack` hourly trigger → users at local 04:00 with activity in last 7 days → Gemini **Batch API** jobs → Today card ready at wake; morning push (native) / email cue (M6) (D18, cost lever 4).
 4. Plan: `/plan` rolling 30-day list + month toggle, `/day/[date]` many looks per day, add-a-look picker, pin/unpin to one or many days, rename day, weather — all server-side via `sync_planned_days` (no client sweeps; UX-14).

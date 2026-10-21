@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
-import { Button, DOUBLE_PRIMARY_WARNING, IconButton, PrimaryScope } from './Button';
+import { Button, IconButton } from './Button';
 
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(async () => {}),
@@ -71,68 +71,6 @@ test('disabled buttons are announced as disabled and ignore presses', async () =
   await fireEvent.press(button);
   expect(onPress).not.toHaveBeenCalled();
 });
-
-describe('one filled button per screen (UX-26)', () => {
-  let warn: jest.SpyInstance;
-  beforeEach(() => {
-    warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-  });
-  afterEach(() => warn.mockRestore());
-
-  test('warns when two primaries mount at once', async () => {
-    await render(
-      <PrimaryScope>
-        <Button onPress={() => {}}>Save this look</Button>
-        <Button onPress={() => {}}>Build this look</Button>
-      </PrimaryScope>,
-    );
-    expect(warn).toHaveBeenCalledWith(DOUBLE_PRIMARY_WARNING);
-  });
-
-  test('stays quiet for one primary plus secondaries', async () => {
-    await render(
-      <PrimaryScope>
-        <Button onPress={() => {}}>Save this look</Button>
-        <Button variant="secondary" onPress={() => {}}>
-          Wear on a day
-        </Button>
-      </PrimaryScope>,
-    );
-    expect(warn).not.toHaveBeenCalled();
-  });
-
-  test('scopes are independent, so screens kept mounted in a stack don’t trip it', async () => {
-    await render(
-      <>
-        <PrimaryScope>
-          <Button onPress={() => {}}>Continue</Button>
-        </PrimaryScope>
-        <PrimaryScope>
-          <Button onPress={() => {}}>Save this look</Button>
-        </PrimaryScope>
-      </>,
-    );
-    expect(warn).not.toHaveBeenCalled();
-  });
-
-  test('unmounting a primary frees the slot', async () => {
-    const { rerender } = await render(
-      <PrimaryScope>
-        <Button onPress={() => {}}>Continue</Button>
-      </PrimaryScope>,
-    );
-    await rerender(
-      <PrimaryScope>
-        <Button variant="secondary" onPress={() => {}}>
-          Continue
-        </Button>
-        <Button onPress={() => {}}>Save this look</Button>
-      </PrimaryScope>,
-    );
-    expect(warn).not.toHaveBeenCalled();
-  });
-});
-
 test('IconButton exposes its required label and a 44pt hit area', async () => {
   const onPress = jest.fn();
   await render(<IconButton icon="close" label="Close" onPress={onPress} />);
