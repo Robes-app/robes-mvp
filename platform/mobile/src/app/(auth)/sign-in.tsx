@@ -1,5 +1,5 @@
 import { auth as copy } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, PrimaryScope, Text } from '@robes/ui-native';
+import { Button, Field, Heading, PrimaryScope, Text, Wordmark } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
@@ -46,7 +46,7 @@ export default function SignIn() {
         {step === 'email' ? (
           <>
             <View className="gap-2">
-              <Eyebrow>{copy.eyebrow}</Eyebrow>
+              <Wordmark />
               <Heading size="xl">{copy.title}</Heading>
               <Text tone="muted">{copy.subtitle}</Text>
             </View>

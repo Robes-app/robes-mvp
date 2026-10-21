@@ -1,3 +1,4 @@
+import { ui } from '@robes/copy';
 import { Text as RNText, type TextProps as RNTextProps, StyleSheet } from 'react-native';
 import { cx } from './cx';
 import { fonts, HEADING_MIN_SIZE, maxFontSizeMultiplier } from './scale';
@@ -88,6 +89,21 @@ export function Heading({
         { fontSize, fontFamily: weight === 'regular' ? fonts.displayRegular : fonts.display },
       ]}
     />
+  );
+}
+
+// ROBES in Cormorant caps, tracked wide: the mark, never typed text.
+export function Wordmark({ className, style, ...rest }: RNTextProps) {
+  return (
+    <RNText
+      accessibilityRole="header"
+      maxFontSizeMultiplier={maxFontSizeMultiplier.heading}
+      {...rest}
+      className={cx('text-xl uppercase text-ink', className)}
+      style={[{ fontFamily: fonts.display, letterSpacing: 6 }, style]}
+    >
+      {ui.wordmark}
+    </RNText>
   );
 }
 

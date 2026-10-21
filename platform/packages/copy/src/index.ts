@@ -449,6 +449,7 @@ export const consent = {
 
 // Shared component chrome (@robes/ui, @robes/ui-native).
 export const ui = {
+  wordmark: 'Robes',
   loading: 'One moment…',
   close: 'Close',
   dismiss: 'Dismiss',
