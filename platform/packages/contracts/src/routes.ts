@@ -98,6 +98,7 @@ import {
   Today,
   TodayGenerateInput,
   TodayWeather,
+  TodayWeatherInput,
 } from './today';
 import { PinnedTrip, PlanTripInput, Trip, TripList, TripParams } from './travel';
 import {
@@ -702,7 +703,7 @@ export const routes = {
     method: 'GET',
     path: '/today/weather',
     auth: 'user',
-    input: EmptyInput,
+    input: TodayWeatherInput,
     output: TodayWeather,
   },
   'today.generate': {

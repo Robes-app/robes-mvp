@@ -24,7 +24,7 @@ import {
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { isTerminal } from '@/features/looks/ideas';
 import { DayDots } from '@/features/plan/DayDots';
@@ -43,7 +43,7 @@ const weekdayLong = (date: string) =>
 
 // The modular home (legacy 0478e63), the same read as the web: H0 · H1 · H2 · the next step and
 // the map while onboarding · the week once activated · Saved then Suggested.
-export function HomeView() {
+export function HomeView({ dress = null }: { dress?: string | null } = {}) {
   const router = useRouter();
   const api = useApiClient();
   const queryClient = useQueryClient();
@@ -57,7 +57,11 @@ export function HomeView() {
     refetchOnWindowFocus: false,
   });
   const [force, setForce] = useState<HomeStep | null>(null);
-  const [dressDate, setDressDate] = useState<string | null>(null);
+  const [dressDate, setDressDate] = useState<string | null>(dress);
+  // The tab stays mounted: a day page's "Dress this day…" arms the box on its date.
+  useEffect(() => {
+    if (dress) setDressDate(dress);
+  }, [dress]);
   const box = useRef<HomeBoxHandle>(null);
   const scroll = useRef<ScrollView>(null);
   const data = query.data;

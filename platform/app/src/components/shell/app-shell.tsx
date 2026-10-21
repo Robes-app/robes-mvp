@@ -1,7 +1,7 @@
 'use client';
 
 import type { Features } from '@robes/contracts';
-import { marketing, nav, shell } from '@robes/copy';
+import { nav, shell } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
 import {
   Avatar,

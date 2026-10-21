@@ -1,5 +1,5 @@
 import { today } from '@robes/copy';
-import { Button, ErrorText, Eyebrow, Field, Heading, PrimaryScope, Text } from '@robes/ui-native';
+import { Button, ErrorText, Eyebrow, Field, Heading, PrimaryScope } from '@robes/ui-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { errorMessage } from '@/lib/errors';

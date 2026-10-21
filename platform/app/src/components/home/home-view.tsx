@@ -37,7 +37,7 @@ function trayHref(job: Today['tray'][number]): string {
 
 // The modular home (legacy 0478e63): H0 masthead · H1 alerts · H2 the box · the next step (O1–O4)
 // and the map (G1) while onboarding · the week (H3) once activated · Saved then Suggested (H4).
-export function HomeView({ initial }: { initial: Today }) {
+export function HomeView({ initial, dress = null }: { initial: Today; dress?: string | null }) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -54,7 +54,8 @@ export function HomeView({ initial }: { initial: Today }) {
     refetchOnWindowFocus: false,
   });
   const [force, setForce] = useState<HomeStep | null>(null);
-  const [dressDate, setDressDate] = useState<string | null>(null);
+  // A day page's "Dress this day…" lands here with the box armed on its date.
+  const [dressDate, setDressDate] = useState<string | null>(dress);
   const boxRef = useRef<HTMLDivElement>(null);
   const home = data.home;
   const resolved = resolveHome(home.state, { force });
