@@ -15,7 +15,7 @@ export function EmptyState({ title, body, action, icon, className }: EmptyStateP
   return (
     <section
       className={cn(
-        'flex flex-col items-center gap-4 rounded-crisp border border-dashed border-hairline px-6 py-12 text-center',
+        'flex flex-col items-center gap-4 rounded-crisp border border-dashed border-border-control px-6 py-12 text-center',
         className,
       )}
     >

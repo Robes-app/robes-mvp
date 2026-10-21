@@ -782,7 +782,8 @@ export const plan = {
   unpin: (name: string): string => `Take ${name} off this day`,
   unpinned: 'Taken off the day.',
   empty: {
-    title: 'Your days live here.',
+    title: 'Nothing planned',
+    titleEm: 'yet.',
     body: 'Open a look and choose Wear on a day.',
     action: 'Go to Lookbook',
   },
@@ -851,7 +852,8 @@ export const plan = {
     lastWorn: (date: string): string => `Last worn ${date}`,
     added: (n: number, day: string): string =>
       n === 1 ? `Added to ${day}.` : `${n} looks added to ${day}.`,
-    emptyTitle: 'Nothing saved yet.',
+    emptyTitle: 'Nothing saved',
+    emptyTitleEm: 'yet.',
     emptyBody: 'Save a look you like and it can go on this day.',
     toLooks: 'Go to Lookbook',
   },

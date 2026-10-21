@@ -60,7 +60,7 @@ export function LookPicker({
   return (
     <Sheet
       title={title || copy.title}
-      description={date ? copy.eyebrow(formatDay(date)) : undefined}
+      eyebrow={date ? copy.eyebrow(formatDay(date)) : undefined}
       open={open}
       onOpenChange={(o) => (o ? undefined : onClose())}
       footer={
@@ -85,7 +85,9 @@ export function LookPicker({
         </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
-          <p className="font-display text-2xl font-light text-ink">{copy.emptyTitle}</p>
+          <p className="font-display text-2xl font-light text-ink">
+            {copy.emptyTitle} <em>{copy.emptyTitleEm}</em>
+          </p>
           <Text tone="muted">{copy.emptyBody}</Text>
           <Link href="/looks" className={buttonClasses({ variant: 'secondary' })}>
             {copy.toLooks}

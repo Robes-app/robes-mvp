@@ -6,11 +6,13 @@ import type { ReactElement, ReactNode } from 'react';
 import { PrimaryScope } from './button';
 import { cn } from './cn';
 import { IconButton } from './icon-button';
-import { Heading, Text } from './text';
+import { Eyebrow, Heading, Text } from './text';
 
 // Reversible actions never get a confirm dialog; they run with an Undo toast (design-system §5).
 export interface DialogProps {
   title: ReactNode;
+  // A small-caps line above the title (e.g. "Add a look · Wed 21 Oct").
+  eyebrow?: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
   // An element that opens the dialog (e.g. a Button); omit when `open` is controlled.
@@ -21,17 +23,18 @@ export interface DialogProps {
   footer?: ReactNode;
 }
 
-const overlay =
-  'fixed inset-0 z-50 bg-ink/35 backdrop-blur-sm motion-safe:data-[state=open]:animate-fade-in';
+// The screen behind dims; it never blurs to mush (beta).
+const overlay = 'fixed inset-0 z-50 bg-ink/35 motion-safe:data-[state=open]:animate-fade-in';
 
 function Frame({
   title,
+  eyebrow,
   description,
   children,
   footer,
   className,
   titleSize,
-}: Pick<DialogProps, 'title' | 'description' | 'children' | 'footer'> & {
+}: Pick<DialogProps, 'title' | 'eyebrow' | 'description' | 'children' | 'footer'> & {
   className: string;
   titleSize: 'lg' | 'md';
 }) {
@@ -44,6 +47,7 @@ function Frame({
       >
         <PrimaryScope>
           <div className="flex flex-col gap-2 pr-10">
+            {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
             <RadixDialog.Title asChild>
               <Heading level={2} size={titleSize}>
                 {title}
@@ -88,11 +92,12 @@ function Root({
   );
 }
 
-export function Dialog({ title, description, children, footer, ...root }: DialogProps) {
+export function Dialog({ title, eyebrow, description, children, footer, ...root }: DialogProps) {
   return (
     <Root {...root}>
       <Frame
         title={title}
+        eyebrow={eyebrow}
         description={description}
         footer={footer}
         titleSize="lg"
@@ -105,11 +110,12 @@ export function Dialog({ title, description, children, footer, ...root }: Dialog
 }
 
 // Bottom sheet: anchored to the bottom edge, soft top corners, capped width on large screens.
-export function Sheet({ title, description, children, footer, ...root }: DialogProps) {
+export function Sheet({ title, eyebrow, description, children, footer, ...root }: DialogProps) {
   return (
     <Root {...root}>
       <Frame
         title={title}
+        eyebrow={eyebrow}
         description={description}
         footer={footer}
         titleSize="md"
