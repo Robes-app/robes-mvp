@@ -107,8 +107,8 @@ export function Button({
       ) : null}
       <Text
         maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        className={cx('text-sm', label[variant])}
-        style={{ fontFamily: fonts.sansMedium }}
+        className={cx(variant === 'quiet' ? 'text-sm' : 'text-xs uppercase', label[variant])}
+        style={{ fontFamily: fonts.sansMedium, letterSpacing: variant === 'quiet' ? 0 : 1.9 }}
       >
         {text}
       </Text>

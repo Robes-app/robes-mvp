@@ -140,8 +140,8 @@ function DayRow({ date, today, entries }: { date: string; today: string; entries
       <View className="flex-1 gap-0.5">
         <Text
           numberOfLines={1}
-          className={`text-lg ${title ? 'text-ink' : 'text-ink-faint italic'}`}
-          style={{ fontFamily: fonts.displayRegular }}
+          className={`text-lg ${title ? 'text-ink' : 'text-ink-faint'}`}
+          style={{ fontFamily: title ? fonts.displayRegular : fonts.displayRegularItalic }}
         >
           {title ?? copy.list.nameTheDay}
         </Text>

@@ -228,7 +228,7 @@ export function LookFromPhoto() {
                 </View>
               </View>
               <View className="flex-row flex-wrap items-center gap-2">
-                <Text size="small" className="mr-auto italic">
+                <Text size="small" italic className="mr-auto">
                   {matched ? copy.askMatch(label) : copy.askNew}
                 </Text>
                 <Pill

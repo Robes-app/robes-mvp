@@ -30,7 +30,7 @@ export {
   maxFontSizeMultiplier,
   TOAST_MIN_DURATION,
 } from './scale';
-export { Eyebrow, Heading, type HeadingProps, Text, type TextProps } from './Text';
+export { Em, Eyebrow, Heading, type HeadingProps, Text, type TextProps } from './Text';
 export {
   Toast,
   type ToastAction,

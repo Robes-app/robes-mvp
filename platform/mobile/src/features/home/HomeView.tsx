@@ -94,11 +94,7 @@ export function HomeView() {
       <PrimaryScope>
         <View className="gap-2">
           <Heading size="xl">{todayCopy.greeting(greetingName(data.firstName), data.hour)}</Heading>
-          <Text
-            tone="muted"
-            className="text-xl italic"
-            style={{ fontFamily: fonts.displayRegular }}
-          >
+          <Text tone="faint" italic>
             {copy.echo}
           </Text>
           {weatherLine ? (

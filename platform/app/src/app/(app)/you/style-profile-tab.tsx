@@ -49,7 +49,7 @@ function NoticedCard({ line }: { line: Observation }) {
       <Eyebrow>{twin.noticed.eyebrow}</Eyebrow>
       <Text className="font-serif text-xl">{line.text}</Text>
       {line.because ? (
-        <Text size="small" tone="muted" className="italic">
+        <Text size="small" tone="muted" italic>
           {line.because}
         </Text>
       ) : null}

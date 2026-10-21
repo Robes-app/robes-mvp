@@ -304,7 +304,7 @@ export function HomeBox({
         />
       </div>
       {busy || waiting ? (
-        <Text size="small" tone="muted" className="italic" role="status">
+        <Text size="small" tone="muted" italic role="status">
           {waiting ? copy.plus.filing : busy}
         </Text>
       ) : null}

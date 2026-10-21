@@ -402,11 +402,19 @@ function FirstPiece({
           const value = values && i < revealed ? values[i] : null;
           return (
             <div key={row} className="flex items-baseline gap-3 py-2">
-              <span className="font-sans text-ink-faint text-xs">
+              <span className="font-sans text-ink-faint text-xs tracking-[0.2em]">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <dt className="flex-1 font-sans text-ink-muted text-sm">{row}</dt>
-              <dd className={`font-sans text-sm ${value ? 'text-ink' : 'text-ink-faint'}`}>
+              <dt className="flex-1 font-medium font-sans text-ink-muted text-xs uppercase tracking-[0.2em]">
+                {row}
+              </dt>
+              <dd
+                className={
+                  value
+                    ? 'font-sans text-ink text-sm'
+                    : 'font-display text-ink-faint text-lg italic'
+                }
+              >
                 {value ??
                   (reading || (values && i === revealed)
                     ? copy.piece.readingRow

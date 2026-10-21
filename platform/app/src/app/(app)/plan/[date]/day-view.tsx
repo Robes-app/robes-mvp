@@ -178,7 +178,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
                 <span className="font-display text-lg text-ink">
                   {entries.length ? copy.addAnother : copy.choose}
                 </span>
-                <span className="font-sans text-xs text-ink-muted">
+                <span className="font-display text-lg text-ink-faint italic">
                   {entries.length ? copy.addAnotherHint : copy.chooseHint}
                 </span>
               </span>
