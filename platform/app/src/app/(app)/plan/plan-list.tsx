@@ -25,7 +25,16 @@ export function PlanList({ today }: { today: string }) {
   const any = query.data.days.some((d) => d.entries.length > 0);
   return (
     <div className="flex flex-col gap-6">
-      {any ? null : <EmptyState title={plan.empty.title} body={plan.empty.body} />}
+      {any ? null : (
+        <EmptyState
+          title={
+            <>
+              {plan.empty.title} <em>{plan.empty.titleEm}</em>
+            </>
+          }
+          body={plan.empty.body}
+        />
+      )}
       {weekGroups(query.data.days, today).map((g) => {
         const label = g.range ?? (g.wholeWeek ? plan.list.thisWeek : plan.list.restOfWeek);
         return (
@@ -56,7 +65,7 @@ function DayRow({ date, today, entries }: { date: string; today: string; entries
     <Link
       href={`/plan/${date}`}
       aria-label={`${plan.list.open(`${label} ${Number(date.slice(8))}`)}${title ? `: ${title}` : ''}`}
-      className={`grid min-h-16 grid-cols-[44px_auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-hairline py-3 hover:bg-surface ${focus}`}
+      className={`grid min-h-16 grid-cols-[44px_auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-hairline py-3 hover:bg-surface ${isToday ? 'border-l-2 border-l-accent-inspire pl-2' : ''} ${focus}`}
     >
       <span className="flex flex-col items-center">
         <span

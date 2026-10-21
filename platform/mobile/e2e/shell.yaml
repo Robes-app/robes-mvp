@@ -14,7 +14,7 @@ appId: host.exp.Exponent
 - tapOn:
     id: 'plan-tab'
 - extendedWaitUntil:
-    visible: 'Your days live here.'
+    visible: 'Nothing planned yet.'
     timeout: 10000
 - tapOn:
     id: 'create-tab'

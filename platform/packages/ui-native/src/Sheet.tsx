@@ -3,12 +3,14 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, PanResponder, Pressable, View } from 'react-native';
 import { cx } from './cx';
 import { useReducedMotion } from './motion';
-import { Heading } from './Text';
+import { Eyebrow, Heading } from './Text';
 
 export interface SheetProps {
   open: boolean;
   onClose: () => void;
   title?: string;
+  // A small-caps line above the title (e.g. "Add a look · Wed 21 Oct").
+  eyebrow?: string;
   children: ReactNode;
   className?: string;
   testID?: string;
@@ -19,7 +21,7 @@ const DISMISS_DRAG = 120;
 const BACKDROP_OPACITY = 0.4;
 
 // Bottom sheet from RN Modal + Animated: Expo Go compatible, no native bottom-sheet module (ADR-018).
-export function Sheet({ open, onClose, title, children, className, testID }: SheetProps) {
+export function Sheet({ open, onClose, title, eyebrow, children, className, testID }: SheetProps) {
   const reduced = useReducedMotion();
   const [visible, setVisible] = useState(open);
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
@@ -95,6 +97,7 @@ export function Sheet({ open, onClose, title, children, className, testID }: She
               <View className="h-1 w-10 rounded-pill bg-border-control" />
             </Pressable>
           </View>
+          {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
           {title ? (
             <Heading size="md" className="mb-4">
               {title}
