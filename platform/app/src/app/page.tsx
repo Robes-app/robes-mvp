@@ -1,5 +1,5 @@
 import { marketing } from '@robes/copy';
-import { buttonClasses, Eyebrow, Heading, Text } from '@robes/ui';
+import { buttonClasses, Heading, Text, Wordmark } from '@robes/ui';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
@@ -46,7 +46,7 @@ export default async function Home() {
     return (
       <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-4 px-6">
         <script type="application/ld+json">{JSON_LD}</script>
-        <Eyebrow>{marketing.eyebrow}</Eyebrow>
+        <Wordmark />
         <Heading level={1} size="2xl">
           {marketing.title}
         </Heading>

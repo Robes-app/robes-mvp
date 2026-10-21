@@ -3,7 +3,15 @@
 import type { Features } from '@robes/contracts';
 import { marketing, nav, shell } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
-import { Avatar, type Command, CommandBar, IconButton, Sheet, useCommandHotkey } from '@robes/ui';
+import {
+  Avatar,
+  type Command,
+  CommandBar,
+  IconButton,
+  Sheet,
+  useCommandHotkey,
+  Wordmark,
+} from '@robes/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
@@ -55,8 +63,8 @@ export function AppShell({
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
-          <Link href="/" className={`font-display text-2xl font-light text-ink ${focus}`}>
-            {marketing.eyebrow}
+          <Link href="/" className={`text-ink ${focus}`}>
+            <Wordmark />
           </Link>
           <nav aria-label={shell.primaryNav} className="ml-6 hidden items-center gap-1 md:flex">
             {NAV_ITEMS.map((item) => (
@@ -64,7 +72,7 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 aria-current={current === item.href ? 'page' : undefined}
-                className={`inline-flex min-h-11 items-center rounded-pill px-4 font-sans text-sm ${
+                className={`inline-flex min-h-11 items-center rounded-pill px-4 font-sans text-xs font-medium uppercase tracking-[0.16em] ${
                   current === item.href
                     ? 'text-ink underline underline-offset-8'
                     : 'text-ink-muted hover:text-ink'
@@ -117,7 +125,7 @@ export function AppShell({
 
       <nav
         aria-label={shell.primaryNav}
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-bg pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
         <ul className="mx-auto grid max-w-md grid-cols-5">
           {NAV_ITEMS.slice(0, 2).map((item) => (
@@ -174,8 +182,8 @@ function TabLink({ item, active }: { item: (typeof NAV_ITEMS)[number]; active: b
       <Link
         href={item.href}
         aria-current={active ? 'page' : undefined}
-        className={`flex min-h-14 flex-col items-center justify-center gap-0.5 font-sans text-xs ${
-          active ? 'text-ink' : 'text-ink-muted'
+        className={`flex min-h-14 flex-col items-center justify-center gap-1 border-t font-sans text-[10px] font-medium uppercase tracking-[0.14em] ${
+          active ? 'border-ink text-ink' : 'border-transparent text-ink-muted'
         } ${focus}`}
       >
         <Icon name={item.icon} size={22} />

@@ -3,7 +3,7 @@
 import { useApi, useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { firstRun as copy, onboarding } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, Text } from '@robes/ui';
+import { Button, Eyebrow, Field, Heading, Text, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import {
   type DragEvent,
@@ -49,7 +49,7 @@ function Frame({
             </Button>
           ) : null}
         </span>
-        <span className="text-center font-display text-xl">{copy.wordmark}</span>
+        <Wordmark className="text-center" />
         <span />
       </header>
       <div
@@ -118,9 +118,9 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
       <button
         type="button"
         onClick={() => setStage('name')}
-        className="flex min-h-dvh w-full items-center justify-center bg-ink font-display text-5xl text-bg"
+        className="flex min-h-dvh w-full items-center justify-center bg-ink text-bg"
       >
-        {copy.wordmark}
+        <Wordmark className="text-5xl" />
       </button>
     );
   }

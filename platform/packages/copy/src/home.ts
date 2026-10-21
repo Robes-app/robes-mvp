@@ -156,7 +156,6 @@ export const home = {
 } as const;
 
 export const firstRun = {
-  wordmark: 'Robes',
   back: '← Back',
   progress: (step: number, of: number): string => `Step ${step} of ${of}`,
   name: {

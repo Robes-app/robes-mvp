@@ -15,3 +15,4 @@ export * from './skeleton';
 export * from './switch';
 export * from './text';
 export * from './toast';
+export * from './wordmark';

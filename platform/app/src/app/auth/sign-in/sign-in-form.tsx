@@ -1,7 +1,7 @@
 'use client';
 
 import { auth as copy } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, Text } from '@robes/ui';
+import { Button, Eyebrow, Field, Heading, Text, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
@@ -102,7 +102,7 @@ export function SignInForm({
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-2">
-        <Eyebrow>{copy.eyebrow}</Eyebrow>
+        <Wordmark />
         <Heading level={1} size="2xl">
           {copy.title}
         </Heading>

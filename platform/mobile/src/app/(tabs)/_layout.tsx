@@ -1,14 +1,14 @@
 import { nav } from '@robes/copy';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
-import { useColor } from '@robes/ui-native';
+import { fonts, useColor } from '@robes/ui-native';
 import { Redirect, Tabs, useRouter } from 'expo-router';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { AnalyticsSetup } from '@/lib/analytics';
 import { useAuthGate } from '@/lib/use-auth-gate';
 import { PushSetup } from '@/lib/use-push';
 
-// Today · Wardrobe · [+] · Looks · Plan — the same names and order as the web nav (UX-11).
+// Today · Wardrobe · [+] · Lookbook · Diary — the same names and order as the web nav (UX-11).
 export default function TabsLayout() {
   const gate = useAuthGate();
   const router = useRouter();
@@ -35,6 +35,13 @@ export default function TabsLayout() {
           tabBarActiveTintColor: ink,
           tabBarInactiveTintColor: muted,
           tabBarStyle: { backgroundColor: bg, borderTopColor: hairline },
+          // The house caps (beta's tab bar): small tracked Inter, uppercased by style.
+          tabBarLabelStyle: {
+            fontFamily: fonts.sansMedium,
+            fontSize: 10,
+            letterSpacing: 1.4,
+            textTransform: 'uppercase',
+          },
         }}
       >
         <Tabs.Screen
