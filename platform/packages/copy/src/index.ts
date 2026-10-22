@@ -626,6 +626,17 @@ export const looks = {
 // You area.
 export const you = {
   title: 'You',
+  // The Account tab's groups and the line under each row (beta's Settings › Account).
+  sections: { profile: 'Profile', notifications: 'Notifications', privacy: 'Privacy & terms' },
+  subs: {
+    account: 'Name, email and home city',
+    notifications: 'Your looks when they’re ready, and the odd note from Robes',
+    receipts: 'Forward an order email and Robes files the pieces',
+    privacy: 'What Robes keeps, and why',
+    terms: 'Plain English',
+  },
+  help: 'Need a hand?',
+  helpEmail: 'hello@byrobes.com',
   account: {
     title: 'Account',
     firstName: 'First name',
@@ -647,7 +658,6 @@ export const you = {
   },
   privacy: 'Privacy',
   legal: {
-    title: 'Legal',
     terms: 'Terms',
     privacyNotice: 'Privacy notice',
   },

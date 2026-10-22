@@ -6,7 +6,7 @@ import { Avatar, Button, Eyebrow, fonts, Heading, SegmentedControl, Text } from 
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Linking, ScrollView, View } from 'react-native';
 import { API_URL } from '@/lib/config';
 import { useSignOut } from '@/lib/use-sign-out';
 import { useBriefRead, useDnaMutations } from './dna';
@@ -106,12 +106,36 @@ function Account() {
   return (
     <View className="gap-6">
       <View>
-        <Row label={copy.account.title} onPress={() => router.push('/you/account')} />
-        <Row label={copy.notifications.title} onPress={() => router.push('/you/notifications')} />
-        <Row label={copy.receipts.title} onPress={() => router.push('/you/receipts')} />
-        <Row label={copy.privacy} onPress={() => router.push('/you/privacy')} />
+        <Eyebrow>{copy.sections.profile}</Eyebrow>
+        <Row
+          label={copy.account.title}
+          sub={copy.subs.account}
+          onPress={() => router.push('/you/account')}
+        />
+      </View>
+      <View>
+        <Eyebrow>{copy.sections.notifications}</Eyebrow>
+        <Row
+          label={copy.notifications.title}
+          sub={copy.subs.notifications}
+          onPress={() => router.push('/you/notifications')}
+        />
+        <Row
+          label={copy.receipts.title}
+          sub={copy.subs.receipts}
+          onPress={() => router.push('/you/receipts')}
+        />
+      </View>
+      <View>
+        <Eyebrow>{copy.sections.privacy}</Eyebrow>
+        <Row
+          label={copy.privacy}
+          sub={copy.subs.privacy}
+          onPress={() => router.push('/you/privacy')}
+        />
         <Row
           label={copy.legal.terms}
+          sub={copy.subs.terms}
           onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.terms)}
         />
         <Row
@@ -122,6 +146,9 @@ function Account() {
       </View>
       <Button variant="secondary" onPress={() => void signOut()}>
         {copy.signOut}
+      </Button>
+      <Button variant="quiet" onPress={() => void Linking.openURL(`mailto:${copy.helpEmail}`)}>
+        {`${copy.help} ${copy.helpEmail}`}
       </Button>
     </View>
   );
