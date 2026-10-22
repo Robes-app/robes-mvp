@@ -3,7 +3,7 @@
 import { useApi, useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { firstRun as copy, onboarding } from '@robes/copy';
-import { Button, ErrorText, Eyebrow, Field, Heading, Text, Wordmark } from '@robes/ui';
+import { Button, ErrorText, Eyebrow, Field, Heading, IconButton, Text, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import {
   type DragEvent,
@@ -44,9 +44,7 @@ function Frame({
       <header className="grid grid-cols-3 items-center">
         <span>
           {onBack ? (
-            <Button variant="quiet" onClick={onBack} className="-ml-2">
-              {copy.back}
-            </Button>
+            <IconButton icon="back" label={copy.backLabel} onClick={onBack} className="-ml-2" />
           ) : null}
         </span>
         <Wordmark className="text-center" />
@@ -328,7 +326,7 @@ function FirstPiece({
       }
     >
       <div className="flex flex-col gap-2">
-        <Eyebrow>{eyebrow}</Eyebrow>
+        <Eyebrow className="text-accent-warm">{eyebrow}</Eyebrow>
         <Heading level={1} size="xl">
           {copy.piece.title} <em>{copy.piece.titleEm}</em>
         </Heading>

@@ -154,7 +154,7 @@ export const home = {
 } as const;
 
 export const firstRun = {
-  back: '← Back',
+  backLabel: 'Back',
   progress: (step: number, of: number): string => `Step ${step} of ${of}`,
   name: {
     eyebrow: 'Hello',

@@ -66,10 +66,16 @@ export function ForwardReceipts() {
             >
               {copy.regenerate}
             </Button>
-            <Button variant="quiet" loading={revoke.isPending} onClick={() => revoke.mutate({})}>
-              {copy.turnOff}
-            </Button>
           </div>
+          {/* Destructive, so on its own line, away from Copy. */}
+          <Button
+            variant="quiet"
+            className="self-start"
+            loading={revoke.isPending}
+            onClick={() => revoke.mutate({})}
+          >
+            {copy.turnOff}
+          </Button>
         </>
       ) : off ? (
         <Button variant="secondary" className="self-start" onClick={() => setOff(false)}>
