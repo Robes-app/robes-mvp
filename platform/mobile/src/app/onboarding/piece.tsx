@@ -167,7 +167,7 @@ export default function FirstPiece() {
         }
       >
         <View className="gap-2">
-          <Eyebrow>{eyebrow}</Eyebrow>
+          <Eyebrow className="text-accent-warm">{eyebrow}</Eyebrow>
           <Heading size="md">
             {copy.piece.title} <Em>{copy.piece.titleEm}</Em>
           </Heading>

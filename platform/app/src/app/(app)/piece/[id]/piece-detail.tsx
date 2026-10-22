@@ -120,10 +120,19 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
             {piece.label}
           </Heading>
           {piece.status === 'ready' ? (
-            <div className="flex flex-wrap gap-2">
-              <Chip>{piece.category}</Chip>
-              {piece.categoryL2 ? <Chip>{piece.categoryL2}</Chip> : null}
-            </div>
+            <>
+              <div className="flex flex-wrap gap-2">
+                <Chip>{piece.category}</Chip>
+                {piece.categoryL2 ? <Chip>{piece.categoryL2}</Chip> : null}
+              </div>
+              <Text
+                size="small"
+                tone={piece.wearCount ? 'muted' : 'default'}
+                className={piece.wearCount ? '' : 'text-accent-warm'}
+              >
+                {piece.wearCount ? wardrobe.card.worn(piece.wearCount) : wardrobe.card.neverWorn}
+              </Text>
+            </>
           ) : null}
           {piece.status === 'reading' ? (
             <Text role="status" tone="muted">
