@@ -1,4 +1,5 @@
 import { twin } from '@robes/copy';
+import { asSentence } from '@robes/core';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Observations } from '../src/features/you/Observations';
 import { StyleDna } from '../src/features/you/StyleDna';
@@ -128,7 +129,7 @@ test('observations: Robes reads when due, then Keep files a line and toasts', as
     }),
   });
   await renderWithApi(<Observations />);
-  expect(await screen.findByText(notice.text, {}, { timeout: 5000 })).toBeTruthy();
+  expect(await screen.findByText(asSentence(notice.text), {}, { timeout: 5000 })).toBeTruthy();
   expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/me/dna/read'))).toBe(true);
   await fireEvent.press(screen.getByRole('button', { name: twin.observations.keep }));
   expect(await screen.findByText(twin.noticed.kept)).toBeTruthy();

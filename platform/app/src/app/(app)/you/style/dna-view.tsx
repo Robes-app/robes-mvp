@@ -3,6 +3,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine, BriefListName, StyleDna } from '@robes/contracts';
 import { twin } from '@robes/copy';
+import { asSentence } from '@robes/core';
 import {
   INVESTMENT_LEVELS,
   iconTag,
@@ -467,7 +468,9 @@ function WordsBody({ dna, list }: { dna: StyleDna; list: BriefListName }) {
                 <span className="flex flex-col">
                   <span>{p.text}</span>
                   {p.because ? (
-                    <span className="font-display text-lg text-ink-muted italic">{p.because}</span>
+                    <span className="font-display text-lg text-ink-muted italic">
+                      {asSentence(p.because)}
+                    </span>
                   ) : null}
                 </span>
                 <Pill onClick={() => keep.mutate({ params: { id: p.id } })}>{twin.words.keep}</Pill>

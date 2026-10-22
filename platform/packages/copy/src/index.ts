@@ -1212,11 +1212,11 @@ const linesCount = (n: number): string => (n === 0 ? 'Not yet' : n === 1 ? '1 li
 const joinAnd = (a: readonly string[]): string =>
   a.length <= 1 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`;
 export const twin = {
-  tabs: { label: 'You', style: 'Style Profile', account: 'Account' },
+  tabs: { label: 'You', style: 'Style profile', account: 'Account' },
   cards: {
-    twin: 'Your Digital Twin',
+    twin: 'Your digital twin',
     dna: 'Style DNA',
-    observations: 'Robes Observations',
+    observations: 'Observations',
   },
   noticed: {
     eyebrow: 'Robes noticed',
@@ -1225,7 +1225,7 @@ export const twin = {
     kept: 'Kept. Filed under Style DNA.',
   },
   twinPage: {
-    title: 'Your Digital Twin',
+    title: 'Your digital twin',
     readSection: 'Read from your photographs',
     colouring: 'Colouring',
     bodyShape: 'Body shape',
@@ -1383,7 +1383,7 @@ export const twin = {
     full: 'This list is full. Strike a line to make room for a new one.',
   },
   observations: {
-    title: 'Robes Observations',
+    title: 'Observations',
     sub: 'Read from what you wear. Keep a line and it joins your Style DNA.',
     since: 'Since your last visit',
     reading: 'Robes is reading your wardrobe…',
