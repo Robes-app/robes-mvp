@@ -1,7 +1,8 @@
 import { useApi } from '@robes/api-client/react';
 import type { Observation } from '@robes/contracts';
 import { you as copy, twin } from '@robes/copy';
-import { Avatar, Button, Eyebrow, Heading, SegmentedControl, Text } from '@robes/ui-native';
+import { asSentence } from '@robes/core';
+import { Avatar, Button, Eyebrow, fonts, Heading, SegmentedControl, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
@@ -71,10 +72,12 @@ function NoticedCard({ line }: { line: Observation }) {
   return (
     <View className="gap-3 rounded-crisp border border-hairline bg-surface p-5" testID="noticed">
       <Eyebrow>{twin.noticed.eyebrow}</Eyebrow>
-      <Text className="font-serif text-xl">{line.text}</Text>
+      <Text className="text-xl" style={{ fontFamily: fonts.display }}>
+        {asSentence(line.text)}
+      </Text>
       {line.because ? (
         <Text size="small" tone="muted" italic>
-          {line.because}
+          {asSentence(line.because)}
         </Text>
       ) : null}
       <View className="flex-row justify-between gap-3">

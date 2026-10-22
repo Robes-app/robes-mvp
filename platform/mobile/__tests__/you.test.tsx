@@ -112,7 +112,7 @@ test('the Robes noticed card keeps the first waiting line', async () => {
     [`POST /me/dna/observations/${id}/keep`]: styleDna(),
   });
   await renderWithApi(<YouMenu />);
-  expect(await screen.findByText('No double denim')).toBeTruthy();
+  expect(await screen.findByText('No double denim.')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: twin.noticed.keep }));
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/keep'))).toBe(true),
