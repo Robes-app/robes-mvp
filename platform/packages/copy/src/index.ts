@@ -345,6 +345,14 @@ export const wardrobe = {
     remove: 'Remove',
     stylePiece: 'Style this piece',
   },
+  // The reveal after one photo (beta's step 3): her photo, then what Robes filed.
+  saw: {
+    title: 'Here’s what Robes saw.',
+    reading: 'Robes is reading your piece…',
+    rows: { piece: 'The piece', category: 'Category', colour: 'Colour', brand: 'Brand' },
+    keep: 'Keep it',
+    adjust: 'Adjust the details below.',
+  },
   wishlist: {
     addLabel: 'A piece you want',
     addPlaceholder: 'Black leather loafers',

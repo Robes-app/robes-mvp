@@ -31,9 +31,11 @@ export function AddPieces() {
         assetIds.push((await uploadPhoto(client, file)).id);
         setProgress({ done: assetIds.length, total: photos.length });
       }
-      await client.call('wardrobe.batch', { input: { assetIds } });
+      const batch = await client.call('wardrobe.batch', { input: { assetIds } });
       await queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
-      router.push('/wardrobe');
+      // One photo gets its reveal; a batch files quietly and reads on the grid.
+      const one = batch.pieces.length === 1 ? batch.pieces[0] : undefined;
+      router.push(one ? `/piece/${one.id}?saw=1` : '/wardrobe');
     } catch (err) {
       setError(errorCopy(err));
       setProgress(null);

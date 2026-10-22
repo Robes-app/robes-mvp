@@ -5,6 +5,7 @@ import {
   Button,
   EmptyState,
   ErrorText,
+  Eyebrow,
   Field,
   Heading,
   Image,
@@ -117,7 +118,7 @@ function EditForm({ piece, onDone }: { piece: Piece; onDone: () => void }) {
   );
 }
 
-export function PieceDetail({ id }: { id: string }) {
+export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const {
@@ -153,6 +154,7 @@ export function PieceDetail({ id }: { id: string }) {
         {uri ? (
           <Image source={uri} alt={copy.photoAlt(piece.label)} blurhash={piece.image?.blurhash} />
         ) : null}
+        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
         {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
         {piece.status === 'ready' ? (
           <Heading size="md">{piece.label}</Heading>
@@ -218,5 +220,42 @@ export function PieceDetail({ id }: { id: string }) {
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+// Beta's reveal: what Robes filed, row by row, once it has read the piece.
+function Saw({ piece }: { piece: Piece }) {
+  const router = useRouter();
+  const rows: [string, string | null][] = [
+    [copy.saw.rows.piece, piece.label],
+    [copy.saw.rows.category, [piece.category, piece.categoryL2].filter(Boolean).join(' · ')],
+    [copy.saw.rows.colour, piece.color],
+    [copy.saw.rows.brand, piece.brand],
+  ];
+  return (
+    <View className="gap-3">
+      <Heading size="md">{copy.saw.title}</Heading>
+      {piece.status === 'ready' ? (
+        <>
+          <View className="border-hairline border-t">
+            {rows.map(([k, v]) => (
+              <View key={k} className="flex-row items-baseline gap-3 border-hairline border-b py-2">
+                <Eyebrow className="flex-1">{k}</Eyebrow>
+                <Text size="small" tone={v ? 'ink' : 'faint'} italic={!v}>
+                  {v || '—'}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <Button variant="secondary" onPress={() => router.replace('/wardrobe')}>
+            {`${copy.saw.keep} →`}
+          </Button>
+        </>
+      ) : (
+        <Text size="small" tone="muted" italic accessibilityLiveRegion="polite">
+          {copy.saw.reading}
+        </Text>
+      )}
+    </View>
   );
 }
