@@ -95,7 +95,12 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
     await page.request.post('/api/v1/wardrobe/items', { data: { label } });
   }
   await page.goto('/looks/new');
-  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  // The draft stands on a figure: a slot per part of her, each opening her wardrobe.
+  await expect(page.getByLabel('Name this look')).toHaveAttribute('placeholder', 'Untitled look');
+  for (const slot of ['+ Top', '+ Bottom', '+ Shoes']) {
+    await expect(page.getByRole('button', { name: slot })).toBeVisible();
+  }
+  await page.getByRole('button', { name: '+ Bottom' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'White wide-leg trouser' }).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Draft look')).toBeVisible();
