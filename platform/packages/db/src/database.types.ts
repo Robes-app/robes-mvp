@@ -162,6 +162,14 @@ export interface DataExportRequests {
   userId: string;
 }
 
+export interface DayNames {
+  createdAt: Generated<Timestamp>;
+  dayDate: Timestamp;
+  name: string;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
+}
+
 export interface EmailSuppressions {
   createdAt: Generated<Timestamp>;
   email: string;
@@ -700,6 +708,7 @@ export interface DB {
   batchSubmissions: BatchSubmissions;
   consents: Consents;
   dataExportRequests: DataExportRequests;
+  dayNames: DayNames;
   emailSuppressions: EmailSuppressions;
   entitlements: Entitlements;
   events: Events;
