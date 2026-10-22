@@ -3,7 +3,18 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
-import { Button, buttonClasses, Chip, Field, Heading, Skeleton, Text, TextArea } from '@robes/ui';
+import { Icon } from '@robes/icons/web';
+import {
+  Button,
+  buttonClasses,
+  Chip,
+  ErrorText,
+  Field,
+  Heading,
+  Skeleton,
+  Text,
+  TextArea,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,7 +23,7 @@ import { SuggestedRail } from '@/components/looks/suggested-rail';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { errorCopy } from '@/lib/error-copy';
-import { pieceIsReading } from '@/lib/wardrobe';
+import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 
 const copy = wardrobe.piece;
 const READING_REFRESH_MS = 2000;
@@ -31,7 +42,7 @@ function toDraft(p: Piece): Draft {
 
 const orNull = (v: string): string | null => (v.trim() ? v.trim() : null);
 
-export function PieceDetail({ id }: { id: string }) {
+export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const query = useApi(
@@ -50,7 +61,7 @@ export function PieceDetail({ id }: { id: string }) {
   const update = useApiMutation('wardrobe.update', {
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.call('wardrobe.get', { params: { id } }), data);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+      void invalidateWardrobe(queryClient);
       setSaved(true);
     },
   });
@@ -60,11 +71,7 @@ export function PieceDetail({ id }: { id: string }) {
   });
 
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!piece) {
     return (
@@ -103,20 +110,38 @@ export function PieceDetail({ id }: { id: string }) {
       <PieceImage piece={piece} sizes="(min-width: 768px) 50vw, 100vw" priority />
       <div className="flex flex-col gap-6">
         <header className="flex flex-col gap-3">
-          <Heading level={1} size="xl">
+          {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
+          <Heading
+            level={1}
+            size="xl"
+            italic={piece.status !== 'ready'}
+            tone={piece.status === 'ready' ? 'default' : 'faint'}
+          >
             {piece.label}
           </Heading>
-          <div className="flex flex-wrap gap-2">
-            <Chip>{piece.category}</Chip>
-            {piece.categoryL2 ? <Chip>{piece.categoryL2}</Chip> : null}
-          </div>
+          {piece.status === 'ready' ? (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <Chip>{piece.category}</Chip>
+                {piece.categoryL2 ? <Chip>{piece.categoryL2}</Chip> : null}
+              </div>
+              <Text
+                size="small"
+                tone={piece.wearCount ? 'muted' : 'default'}
+                className={piece.wearCount ? '' : 'text-accent-warm'}
+              >
+                {piece.wearCount ? wardrobe.card.worn(piece.wearCount) : wardrobe.card.neverWorn}
+              </Text>
+            </>
+          ) : null}
           {piece.status === 'reading' ? (
             <Text role="status" tone="muted">
               {wardrobe.reading}
             </Text>
           ) : null}
-          {piece.status === 'failed' ? <Text tone="muted">{wardrobe.noPieceFound}</Text> : null}
+          {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
         </header>
+        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
         <div className="flex flex-wrap items-center gap-3">
           <Button
             variant="primary"
@@ -134,21 +159,8 @@ export function PieceDetail({ id }: { id: string }) {
               {lookbook.startLook}
             </Link>
           ) : null}
-          <Button
-            variant="quiet"
-            onClick={() => {
-              remove.mutate({ params: { id } });
-              router.push('/wardrobe');
-            }}
-          >
-            {copy.remove}
-          </Button>
         </div>
-        {style.isError ? (
-          <Text role="alert" size="small" tone="danger">
-            {errorCopy(style.error)}
-          </Text>
-        ) : null}
+        {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
         <SuggestedRail pieceId={id} />
         {draft ? (
           <form onSubmit={submit} className="flex flex-col gap-4">
@@ -200,14 +212,71 @@ export function PieceDetail({ id }: { id: string }) {
             <Text role="status" size="small" tone="muted" className="min-h-5">
               {saved ? copy.saved : ''}
             </Text>
-            {update.isError ? (
-              <Text role="alert" size="small" tone="danger">
-                {errorCopy(update.error)}
-              </Text>
-            ) : null}
+            {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
           </form>
         ) : null}
+        {/* Destructive, so away from the primary action; Undo follows in a toast. */}
+        <Button
+          variant="quiet"
+          className="self-start border-hairline border-t pt-4"
+          onClick={() => {
+            remove.mutate({ params: { id } });
+            router.push('/wardrobe');
+          }}
+        >
+          {copy.remove}
+        </Button>
       </div>
     </article>
+  );
+}
+
+// Beta's reveal: what Robes filed, row by row, once it has read the piece; the form below adjusts.
+function Saw({ piece }: { piece: Piece }) {
+  const rows: [string, string | null][] = [
+    [wardrobe.saw.rows.piece, piece.label],
+    [wardrobe.saw.rows.category, [piece.category, piece.categoryL2].filter(Boolean).join(' · ')],
+    [wardrobe.saw.rows.colour, piece.color],
+    [wardrobe.saw.rows.brand, piece.brand],
+  ];
+  return (
+    <section aria-labelledby="saw-title" className="flex flex-col gap-3">
+      <h2 id="saw-title" className="font-display font-light text-3xl text-ink">
+        {wardrobe.saw.title}
+      </h2>
+      {piece.status === 'ready' ? (
+        <>
+          <dl className="flex flex-col divide-y divide-hairline border-hairline border-y">
+            {rows.map(([k, v]) => (
+              <div key={k} className="flex items-baseline gap-3 py-2">
+                <dt className="flex-1 font-medium font-sans text-ink-muted text-xs uppercase tracking-[0.2em]">
+                  {k}
+                </dt>
+                <dd
+                  className={
+                    v ? 'font-sans text-ink text-sm' : 'font-display text-ink-faint text-lg italic'
+                  }
+                >
+                  {v || wardrobe.saw.unread}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/wardrobe" className={buttonClasses({ variant: 'secondary' })}>
+              {wardrobe.saw.keep}
+              <Icon name="forward" size={16} />
+            </Link>
+            <Text size="small" tone="muted" italic>
+              {wardrobe.saw.adjust}
+            </Text>
+          </div>
+        </>
+      ) : (
+        <Text role="status" size="small" tone="muted" italic>
+          {wardrobe.saw.reading}
+        </Text>
+      )}
+    </section>
   );
 }

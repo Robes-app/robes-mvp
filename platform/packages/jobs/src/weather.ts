@@ -74,7 +74,7 @@ export function createWeather(fetchFn: Fetch = fetch as unknown as Fetch) {
       if (coords) {
         const f = parseForecast(
           await get(
-            `${FORECAST}?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=1`,
+            `${FORECAST}?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&start_date=${place.date}&end_date=${place.date}`,
           ),
         );
         if (f) result = { city: place.city, month: place.month, ...f };

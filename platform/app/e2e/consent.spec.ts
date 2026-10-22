@@ -26,9 +26,22 @@ function watchCsp(page: Page): string[] {
 
 const banner = (page: Page) => page.getByRole('region', { name: 'Help shape Robes.' });
 
+// The ask waits for her first real moment: a filed piece (the onboarding photograph).
+async function signInWithPiece(page: Page): Promise<void> {
+  await signIn(page, undefined, 'Niall', true);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
+}
+
+test('the ask never meets her before a piece is filed', async ({ page }) => {
+  await signIn(page);
+  await page.waitForLoadState('networkidle');
+  await expect(banner(page)).toHaveCount(0);
+});
+
 test('declining hides the banner for good and nothing reaches PostHog', async ({ page }) => {
   const hits = await watchPostHog(page);
-  await signIn(page);
+  await signInWithPiece(page);
   await expect(banner(page)).toBeVisible();
   await expect(banner(page).getByRole('button')).toHaveText(['Don’t allow', 'Allow']);
 
@@ -49,7 +62,7 @@ test('declining hides the banner for good and nothing reaches PostHog', async ({
 test('accepting starts PostHog only then, persists, and can be withdrawn', async ({ page }) => {
   const hits = await watchPostHog(page);
   const violations = watchCsp(page);
-  await signIn(page);
+  await signInWithPiece(page);
   // A full load settles to network idle (a client-side navigation doesn't report it reliably).
   await page.reload();
   await expect(banner(page)).toBeVisible();

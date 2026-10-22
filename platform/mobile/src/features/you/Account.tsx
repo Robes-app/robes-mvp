@@ -1,7 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Me } from '@robes/contracts';
 import { you } from '@robes/copy';
-import { Button, Field, PrimaryScope, Text } from '@robes/ui-native';
+import { Button, ErrorText, Field, PrimaryScope, Text } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
@@ -42,7 +42,7 @@ function AccountForm({ me }: { me: Me }) {
         hint={copy.homeCityHint}
       />
       <Field label={copy.email} value={me.email} editable={false} hint={copy.emailHint} />
-      {update.isError ? <Text tone="danger">{errorMessage(update.error)}</Text> : null}
+      {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
       {update.isSuccess ? <Text tone="success">{copy.saved}</Text> : null}
       <PrimaryScope>
         <Button

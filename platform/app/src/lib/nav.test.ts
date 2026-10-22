@@ -3,7 +3,7 @@ import { activeRoot, CREATE_ITEMS, createItems, GO_TO_ITEMS, NAV_ITEMS, SOON_SLU
 
 describe('nav', () => {
   it('has the four roots in IA order', () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Today', 'Wardrobe', 'Looks', 'Plan']);
+    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Today', 'Wardrobe', 'Lookbook', 'Diary']);
   });
 
   it('routes every unbuilt Create option to a known placeholder', () => {
@@ -15,6 +15,9 @@ describe('nav', () => {
 
   it('has unique command ids and destinations', () => {
     expect(new Set(CREATE_ITEMS.map((i) => i.id)).size).toBe(CREATE_ITEMS.length);
+    // Pieces in first, then the stylist; Ask Robes wears the sparkle, never a chat bubble.
+    expect(CREATE_ITEMS.map((i) => i.group)).toEqual([...CREATE_ITEMS.map((i) => i.group)].sort());
+    expect(CREATE_ITEMS.find((i) => i.id === 'ask')?.icon).toBe('looks');
     expect(new Set(GO_TO_ITEMS.map((i) => i.href)).size).toBe(GO_TO_ITEMS.length);
   });
 

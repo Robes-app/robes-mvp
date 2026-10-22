@@ -15,6 +15,14 @@ The founder isn't an engineer: they may run you from this folder and ask in plai
 - Work on a branch and open a PR into `beta`; never push to `main`/`beta`, deploy production, change Vercel/AWS/Supabase settings or rotate secrets unless explicitly asked.
 - If a request would break a rule in `docs/api-security.md`, say so plainly and offer the safe way to get the same result. Never disable or skip a test to get green.
 
+## Quality and security come first
+We hold a high bar for code quality and security on every change, however small. Speed never justifies lowering either.
+- **Secure by default.** Treat every input as untrusted, keep the rules below intact, and when unsure take the safer option and say why.
+- **Fix at the root.** Fix a bug once in the shared component or helper, and check every caller, rather than patching each screen.
+- **Leave it cleaner.** Reuse what exists, match the surrounding code, and delete code you make unused. No dead code or quick hacks without a `shortcut:` comment that names the limit.
+- **Prove it.** Add a test for any new logic. `pnpm lint`, `pnpm typecheck` and `pnpm test` pass before every commit (Node 24). Never skip, loosen or delete a test to get green.
+- **Accessible as built.** Real buttons and links, 44pt targets, 4.5:1 text, a 3:1 boundary on controls. Errors are sentences in danger with their icon (`ErrorText`).
+
 ## Non-negotiable rules (see `docs/security.md`)
 - **Before changing any route, repository, migration, auth, upload or job code, read `docs/api-security.md` and finish with its checklist.**
 - Every API route is built with `route()` from `@robes/api`, declares `auth`, a zod `input` and `output`, and `rateLimit`/`quota` if it spends money. Public routes must be in the route-manifest allow-list **and** `docs/api.md` §3.
@@ -73,7 +81,7 @@ Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vi
 Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + typecheck + test + db:test) · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm services:up` · `pnpm db:reset` · `pnpm db:migrate` · `pnpm db:new <name>` · `pnpm db:types` · `pnpm db:test` · `pnpm maintenance` · `pnpm dev:web` · `pnpm dev:mobile` (Expo; ADR 018) · `pnpm --filter @robes/app test:e2e`. Recipes (new package / route / table): `docs/DEVELOPING.md`.
 
 ## Product rules to respect
-Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Looks · Plan + Create + You (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.
+Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Lookbook · Diary + Create + You (routes stay `/looks`, `/plan`) (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.
 
 ## Conventions
 Match surrounding code; single quotes; 2-space indent; no comments unless the why is non-obvious. Tests live next to code (`*.test.ts`) except e2e (`app/e2e`, `mobile/e2e`) and DB tests (`packages/db/test`, need `pnpm services:up`).

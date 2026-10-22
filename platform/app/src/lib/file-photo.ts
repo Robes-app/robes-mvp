@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { uploadPhoto } from './upload';
 import { useJob } from './use-job';
+import { invalidateWardrobe } from './wardrobe';
 
 export type Filing =
   | { phase: 'idle' }
@@ -41,7 +42,7 @@ export function usePhotoFiling(): {
     void api
       .call('wardrobe.get', { params: { id: pieceId } })
       .then((piece) => {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+        void invalidateWardrobe(queryClient);
         settle(
           n,
           piece.status === 'ready'

@@ -2,10 +2,12 @@ import type { GestureResponderEvent } from 'react-native';
 import { View } from 'react-native';
 import { Button, type ButtonVariant } from './Button';
 import { cx } from './cx';
-import { Heading, Text } from './Text';
+import { Em, Heading, Text } from './Text';
 
 export interface EmptyStateProps {
   title: string;
+  // The italic phrase that closes the title ("Nothing planned <em>yet.</em>").
+  titleEm?: string;
   body?: string;
   action?: {
     label: string;
@@ -17,11 +19,23 @@ export interface EmptyStateProps {
 }
 
 // One action at most; secondary by default so it never competes with the screen's primary.
-export function EmptyState({ title, body, action, className, testID }: EmptyStateProps) {
+export function EmptyState({ title, titleEm, body, action, className, testID }: EmptyStateProps) {
   return (
-    <View testID={testID} className={cx('items-center gap-3 px-6 py-10', className)}>
+    <View
+      testID={testID}
+      className={cx(
+        'items-center gap-3 rounded-crisp border border-border-control border-dashed px-6 py-10',
+        className,
+      )}
+    >
       <Heading size="md" className="text-center">
         {title}
+        {titleEm ? (
+          <>
+            {' '}
+            <Em>{titleEm}</Em>
+          </>
+        ) : null}
       </Heading>
       {body ? (
         <Text tone="muted" className="text-center">

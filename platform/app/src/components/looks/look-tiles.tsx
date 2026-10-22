@@ -49,7 +49,7 @@ export function DraftTile({ look }: { look: Look }) {
         <Text size="caption" tone="muted" className="uppercase tracking-wider">
           {copy.draftTile.eyebrow}
         </Text>
-        <Text size="small" className={`truncate ${look.nameProvisional ? 'italic' : ''}`}>
+        <Text size="small" italic={look.nameProvisional} className="truncate">
           {name}
         </Text>
         <Text size="caption" tone="muted" className="truncate">

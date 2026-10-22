@@ -115,7 +115,9 @@ function DayRow({ date, today, entries }: { date: string; today: string; entries
       accessibilityLabel={`${copy.list.open(`${label} ${Number(date.slice(8))}`)}${title ? `: ${title}` : ''}`}
       onPress={() => router.push(`/day/${date}`)}
       testID={`plan-day-${date}`}
-      className="min-h-16 flex-row items-center gap-3 border-b border-hairline py-3"
+      className={`min-h-16 flex-row items-center gap-3 border-b border-hairline py-3 ${
+        isToday ? 'border-l-2 border-l-accent-inspire pl-2' : ''
+      }`}
     >
       <View className="w-11 items-center">
         <Text
@@ -140,8 +142,8 @@ function DayRow({ date, today, entries }: { date: string; today: string; entries
       <View className="flex-1 gap-0.5">
         <Text
           numberOfLines={1}
-          className={`text-lg ${title ? 'text-ink' : 'text-ink-faint italic'}`}
-          style={{ fontFamily: fonts.displayRegular }}
+          className={`text-lg ${title ? 'text-ink' : 'text-ink-faint'}`}
+          style={{ fontFamily: title ? fonts.displayRegular : fonts.displayRegularItalic }}
         >
           {title ?? copy.list.nameTheDay}
         </Text>
@@ -183,7 +185,9 @@ export function PlanList() {
       contentContainerClassName="gap-6 px-6 pb-12"
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
     >
-      {planned ? null : <EmptyState title={copy.empty.title} body={copy.empty.body} />}
+      {planned ? null : (
+        <EmptyState title={copy.empty.title} titleEm={copy.empty.titleEm} body={copy.empty.body} />
+      )}
       {weekGroups(data.days, data.from).map((g) => (
         <View key={g.monday}>
           <Text

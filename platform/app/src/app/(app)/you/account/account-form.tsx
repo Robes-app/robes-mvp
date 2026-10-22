@@ -2,7 +2,7 @@
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { errors, you } from '@robes/copy';
-import { Button, Field, Skeleton, Text } from '@robes/ui';
+import { Button, ErrorText, Field, Skeleton, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
@@ -96,11 +96,7 @@ export function AccountForm() {
       <Text role="status" size="small" tone="muted" className="min-h-5">
         {saved ? you.account.saved : ''}
       </Text>
-      {update.isError ? (
-        <Text role="alert" size="small" tone="danger">
-          {errors.internal}
-        </Text>
-      ) : null}
+      {update.isError ? <ErrorText>{errors.internal}</ErrorText> : null}
     </form>
   );
 }

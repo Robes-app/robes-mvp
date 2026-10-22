@@ -9,7 +9,7 @@ import {
 } from '@robes/api-client/react';
 import type { Trip } from '@robes/contracts';
 import { trips, wardrobe } from '@robes/copy';
-import { Button, Eyebrow, Heading, Skeleton, Text, useToast } from '@robes/ui';
+import { Button, ErrorText, Eyebrow, Heading, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { PieceImage } from '@/components/wardrobe/piece-image';
@@ -22,11 +22,7 @@ const copy = trips.page;
 export function TripView({ id }: { id: string }) {
   const query = useApi('trips.get', { params: { id } });
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!query.data) return <TripSkeleton />;
   return <TripBody trip={query.data} />;

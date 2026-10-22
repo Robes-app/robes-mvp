@@ -44,7 +44,6 @@ export const errors = {
 } as const;
 
 export const auth = {
-  eyebrow: 'Robes',
   title: 'Sign in.',
   subtitle: 'Your wardrobe, styled.',
   emailLabel: 'Email',
@@ -214,7 +213,8 @@ export function nextLine(
 
 export const marketing = {
   eyebrow: 'Robes',
-  title: 'Your wardrobe, styled.',
+  titleLead: 'Your wardrobe,',
+  titleEm: 'styled.',
   subtitle: 'One piece. Three ways to wear it.',
   signIn: 'Sign in',
   metaTitle: 'Robes — Your Personal Stylist & Wardrobe Intelligence App',
@@ -235,7 +235,7 @@ export const marketing = {
     failed: 'Robes couldn’t add you just now. Try again in a moment.',
     emailMissing: 'Please enter your email to join',
     emailInvalid: 'Please enter a valid email address',
-    hint: '✦ Join today and style a key piece three ways — a small taste of Robes while you wait.',
+    hint: 'Join today and style a key piece three ways — a small taste of Robes while you wait.',
     confirmEyebrow: 'Waitlist',
     confirmTitle: 'Confirm your place?',
     confirm: 'Confirm',
@@ -253,8 +253,8 @@ export const marketing = {
 export const nav = {
   today: 'Today',
   wardrobe: 'Wardrobe',
-  looks: 'Looks',
-  plan: 'Plan',
+  looks: 'Lookbook',
+  plan: 'Diary',
   create: 'Create',
   you: 'You',
 } as const;
@@ -311,9 +311,11 @@ export const wardrobe = {
   choosePhotos: 'Choose photos',
   dropHint: 'Drop photos here, or choose them.',
   uploading: (done: number, total: number): string => `Uploading ${done} of ${total}…`,
+  // Beta's premise: the look is built from her photographs.
   empty: {
-    title: 'Your wardrobe starts here.',
-    body: 'Add a few pieces and Robes will start styling them.',
+    title: 'Every look starts with a photograph.',
+    body: 'Catalogue your wardrobe, or photograph what you’re wearing now.',
+    action: 'Catalogue your wardrobe',
   },
   deleted: 'Piece removed.',
   undo: 'Undo',
@@ -340,6 +342,15 @@ export const wardrobe = {
     saved: 'Saved.',
     remove: 'Remove',
     stylePiece: 'Style this piece',
+  },
+  // The reveal after one photo (beta's step 3): her photo, then what Robes filed.
+  saw: {
+    title: 'Here’s what Robes saw.',
+    reading: 'Robes is reading your piece…',
+    rows: { piece: 'The piece', category: 'Category', colour: 'Colour', brand: 'Brand' },
+    keep: 'Keep it',
+    adjust: 'Adjust the details below.',
+    unread: 'Not seen',
   },
   wishlist: {
     addLabel: 'A piece you want',
@@ -449,6 +460,7 @@ export const consent = {
 
 // Shared component chrome (@robes/ui, @robes/ui-native).
 export const ui = {
+  wordmark: 'Robes',
   loading: 'One moment…',
   close: 'Close',
   dismiss: 'Dismiss',
@@ -473,6 +485,7 @@ export const shell = {
   openYou: 'You',
   create: {
     title: 'Create',
+    groups: { add: 'Add pieces', dress: 'Dress' },
     photograph: 'Photograph pieces',
     cameraRoll: 'From camera roll',
     link: 'Paste a link',
@@ -503,7 +516,7 @@ export const shell = {
 
 // Looks › Ideas and the Style a piece flow.
 export const looks = {
-  title: 'Looks',
+  title: 'Lookbook',
   stylePiece: {
     eyebrow: 'Style a piece',
     title: 'Which piece?',
@@ -573,8 +586,8 @@ export const looks = {
     woreToday: 'Worn today.',
     wearOnDay: 'Wear on a day',
     dayLabel: 'Day',
-    addToPlan: 'Add to Plan',
-    addedToPlan: 'Added to Plan.',
+    addToPlan: 'Add to Diary',
+    addedToPlan: 'Added to your diary.',
     saveAsNew: 'Save as new',
     savedAsNew: 'Saved as a new look.',
     remove: 'Remove',
@@ -621,6 +634,17 @@ export const looks = {
 // You area.
 export const you = {
   title: 'You',
+  // The Account tab's groups and the line under each row (beta's Settings › Account).
+  sections: { profile: 'Profile', notifications: 'Notifications', privacy: 'Privacy & terms' },
+  subs: {
+    account: 'Name, email and home city',
+    notifications: 'Your looks when they’re ready, and the odd note from Robes',
+    receipts: 'Forward an order email and Robes files the pieces',
+    privacy: 'What Robes keeps, and why',
+    terms: 'Plain English',
+  },
+  help: 'Need a hand?',
+  helpEmail: 'hello@byrobes.com',
   account: {
     title: 'Account',
     firstName: 'First name',
@@ -642,7 +666,6 @@ export const you = {
   },
   privacy: 'Privacy',
   legal: {
-    title: 'Legal',
     terms: 'Terms',
     privacyNotice: 'Privacy notice',
   },
@@ -763,9 +786,9 @@ export const you = {
   },
 } as const;
 
-// Plan (M5): the rolling list of days.
+// Diary (M5): the rolling list of days.
 export const plan = {
-  title: 'Plan',
+  title: 'Diary',
   today: 'Today',
   tomorrow: 'Tomorrow',
   emptyDay: 'Free',
@@ -779,13 +802,14 @@ export const plan = {
   unpin: (name: string): string => `Take ${name} off this day`,
   unpinned: 'Taken off the day.',
   empty: {
-    title: 'Your days live here.',
+    title: 'Nothing planned',
+    titleEm: 'yet.',
     body: 'Open a look and choose Wear on a day.',
-    action: 'Go to Looks',
+    action: 'Go to Lookbook',
   },
-  monthSoon: 'Month view is on its way.',
+  monthCaption: 'Month reads the shape of it. List is where you plan.',
   // Month view (M5 task 4) and trip days.
-  view: { label: 'Plan view', list: 'List', month: 'Month' },
+  view: { label: 'Diary view', list: 'List', month: 'Month' },
   prevMonth: 'Previous month',
   nextMonth: 'Next month',
   moreLooks: (n: number): string => `+${n} more`,
@@ -823,6 +847,18 @@ export const plan = {
     addAnotherHint: 'another moment in the day',
     choose: 'Choose from your looks',
     chooseHint: 'pick one or several',
+    dress: 'Dress this day…',
+    weatherLabel: 'The day’s weather',
+    // What the forecast means for the case, in Robes' voice (legacy layer hint).
+    advice: (condition: string, tempRange: string): string => {
+      const high = Number(String(tempRange).match(/(-?\d+)°/)?.[1]);
+      if (/rain|drizzle|thunder/.test(condition)) return 'Bring a shell for the rain.';
+      if (/snow/.test(condition)) return 'Boots, and a warm coat.';
+      if (high <= 10) return 'A proper coat today.';
+      if (high <= 16) return 'Bring one warm layer.';
+      if (high >= 25) return 'Light and breathable.';
+      return 'Easy layers.';
+    },
   },
   // The Add-a-look picker: saved looks, one or several at once.
   picker: {
@@ -836,13 +872,14 @@ export const plan = {
     lastWorn: (date: string): string => `Last worn ${date}`,
     added: (n: number, day: string): string =>
       n === 1 ? `Added to ${day}.` : `${n} looks added to ${day}.`,
-    emptyTitle: 'Nothing saved yet.',
+    emptyTitle: 'Nothing saved',
+    emptyTitleEm: 'yet.',
     emptyBody: 'Save a look you like and it can go on this day.',
-    toLooks: 'Go to Looks',
+    toLooks: 'Go to Lookbook',
   },
   week: {
     title: 'The week ahead',
-    plan: 'Plan',
+    plan: 'Diary',
     day: (label: string, looks: number): string =>
       looks === 0 ? `${label}, free` : `${label}, ${looks === 1 ? 'one look' : `${looks} looks`}`,
   },
@@ -1193,11 +1230,11 @@ const linesCount = (n: number): string => (n === 0 ? 'Not yet' : n === 1 ? '1 li
 const joinAnd = (a: readonly string[]): string =>
   a.length <= 1 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`;
 export const twin = {
-  tabs: { label: 'You', style: 'Style Profile', account: 'Account' },
+  tabs: { label: 'You', style: 'Style profile', account: 'Account' },
   cards: {
-    twin: 'Your Digital Twin',
+    twin: 'Your digital twin',
     dna: 'Style DNA',
-    observations: 'Robes Observations',
+    observations: 'Observations',
   },
   noticed: {
     eyebrow: 'Robes noticed',
@@ -1206,7 +1243,7 @@ export const twin = {
     kept: 'Kept. Filed under Style DNA.',
   },
   twinPage: {
-    title: 'Your Digital Twin',
+    title: 'Your digital twin',
     readSection: 'Read from your photographs',
     colouring: 'Colouring',
     bodyShape: 'Body shape',
@@ -1364,7 +1401,7 @@ export const twin = {
     full: 'This list is full. Strike a line to make room for a new one.',
   },
   observations: {
-    title: 'Robes Observations',
+    title: 'Observations',
     sub: 'Read from what you wear. Keep a line and it joins your Style DNA.',
     since: 'Since your last visit',
     reading: 'Robes is reading your wardrobe…',

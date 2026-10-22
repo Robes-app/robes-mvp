@@ -4,6 +4,7 @@ import { ui, you } from '@robes/copy';
 import {
   Button,
   Card,
+  ErrorText,
   Eyebrow,
   Field,
   Heading,
@@ -135,7 +136,7 @@ export function AnalysisCard({ kind, profile }: { kind: Kind; profile: StyleProf
     <Card className="gap-4 p-5" testID={`style-${kind}`}>
       <Eyebrow>{text.title}</Eyebrow>
       {reading ? <Progress stage={text.reading} /> : null}
-      {noSubject ? <Text tone="danger">{text.noSubject}</Text> : null}
+      {noSubject ? <ErrorText>{text.noSubject}</ErrorText> : null}
       {profile.colour && kind === 'colour' ? <ColourResult colour={profile.colour} /> : null}
       {profile.silhouette && kind === 'silhouette' ? (
         <SilhouetteResult silhouette={profile.silhouette} />

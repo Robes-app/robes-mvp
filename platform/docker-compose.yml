@@ -36,6 +36,10 @@ services:
 
   mailpit:
     image: axllent/mailpit:v1.27
+    # Reverse DNS on each sender's address can stall the SMTP greeting past client timeouts
+    # (seen under OrbStack: 8 s), so sign-in codes never send locally.
+    environment:
+      MP_SMTP_DISABLE_RDNS: 'true'
     ports: ['51025:1025', '58025:8025']
 
 volumes:

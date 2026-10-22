@@ -12,6 +12,7 @@ import {
 import { anchorName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import {
+  ErrorText,
   Eyebrow,
   fonts,
   Heading,
@@ -23,7 +24,7 @@ import {
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { isTerminal } from '@/features/looks/ideas';
 import { DayDots } from '@/features/plan/DayDots';
@@ -42,7 +43,7 @@ const weekdayLong = (date: string) =>
 
 // The modular home (legacy 0478e63), the same read as the web: H0 · H1 · H2 · the next step and
 // the map while onboarding · the week once activated · Saved then Suggested.
-export function HomeView() {
+export function HomeView({ dress = null }: { dress?: string | null } = {}) {
   const router = useRouter();
   const api = useApiClient();
   const queryClient = useQueryClient();
@@ -56,14 +57,18 @@ export function HomeView() {
     refetchOnWindowFocus: false,
   });
   const [force, setForce] = useState<HomeStep | null>(null);
-  const [dressDate, setDressDate] = useState<string | null>(null);
+  const [dressDate, setDressDate] = useState<string | null>(dress);
+  // The tab stays mounted: a day page's "Dress this day…" arms the box on its date.
+  useEffect(() => {
+    if (dress) setDressDate(dress);
+  }, [dress]);
   const box = useRef<HomeBoxHandle>(null);
   const scroll = useRef<ScrollView>(null);
   const data = query.data;
   if (query.isError) {
     return (
       <View className="flex-1 justify-center px-6">
-        <Text tone="danger">{errorMessage(query.error)}</Text>
+        <ErrorText>{errorMessage(query.error)}</ErrorText>
       </View>
     );
   }
@@ -93,18 +98,17 @@ export function HomeView() {
     >
       <PrimaryScope>
         <View className="gap-2">
-          <Heading size="xl">{todayCopy.greeting(greetingName(data.firstName), data.hour)}</Heading>
-          <Text
-            tone="muted"
-            className="text-xl italic"
-            style={{ fontFamily: fonts.displayRegular }}
-          >
+          <Heading size="md">{todayCopy.greeting(greetingName(data.firstName), data.hour)}</Heading>
+          <Text tone="faint" italic>
             {copy.echo}
           </Text>
           {weatherLine ? (
             <Text
-              size="small"
+              size="caption"
               tone="muted"
+              weight="medium"
+              className="uppercase"
+              style={{ letterSpacing: 1.6 }}
               accessibilityLabel={`${copy.weatherLabel}: ${weatherLine}`}
             >
               {weatherLine}
@@ -116,7 +120,7 @@ export function HomeView() {
 
         <HomeBox
           ref={box}
-          placeholder={resolved.activated ? copy.doorHome : lookbook.prompt.doorNew}
+          placeholder={lookbook.prompt.doorNew}
           date={dressDate}
           onDateClear={() => setDressDate(null)}
           hasPieces={home.state.pics > 0}

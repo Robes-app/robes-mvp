@@ -20,8 +20,8 @@ test('Robes reads her wardrobe; she keeps a line, strikes one and they stay that
   await expect(page.getByText('Kept. Filed under Style DNA.', { exact: true })).toBeVisible();
   await expect(noticed.getByText('One thing that disrupts the line')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Robes Observations' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Robes Observations' })).toBeVisible();
+  await page.getByRole('link', { name: 'Observations' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Observations' })).toBeVisible();
   await page.getByRole('button', { name: 'Not me: Anything that reads polite' }).click();
   await expect(page.getByText('Anything that reads polite')).toHaveCount(0);
   const kept = page.getByRole('region', { name: 'Kept before' });

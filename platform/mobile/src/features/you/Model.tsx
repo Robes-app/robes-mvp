@@ -165,7 +165,7 @@ function ValueRow({
 
 type SheetKind = 'photos' | 'adjust' | 'facts';
 
-// You › Your Digital Twin (legacy Settings 01): her model, read from two photographs or shaped by
+// You › Your digital twin (legacy Settings 01): her model, read from two photographs or shaped by
 // hand, and the facts she gives (size, never weight).
 export function Model() {
   const queryClient = useQueryClient();

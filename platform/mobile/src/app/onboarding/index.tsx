@@ -1,6 +1,15 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
-import { firstRun as copy, onboarding } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, PrimaryScope, Text } from '@robes/ui-native';
+import { firstRun as copy, onboarding, ui } from '@robes/copy';
+import {
+  Button,
+  Em,
+  Eyebrow,
+  Field,
+  Heading,
+  PrimaryScope,
+  Text,
+  Wordmark,
+} from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -48,12 +57,12 @@ export default function Onboarding() {
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={copy.wordmark}
+        accessibilityLabel={ui.wordmark}
         onPress={() => setSplash(false)}
         className="flex-1 items-center justify-center bg-ink"
         testID="splash"
       >
-        <Text className="text-5xl text-bg">{copy.wordmark}</Text>
+        <Wordmark className="text-5xl text-bg" />
       </Pressable>
     );
   }
@@ -68,6 +77,7 @@ export default function Onboarding() {
           segs={1}
           footer={
             <Button
+              variant="secondary"
               onPress={submit}
               disabled={name.trim().length === 0}
               loading={busy}
@@ -80,10 +90,14 @@ export default function Onboarding() {
           <View className="gap-2 pt-6">
             <Eyebrow>{copy.name.eyebrow}</Eyebrow>
             <Heading>
-              {copy.name.title} <Text className="italic">{copy.name.titleEm}</Text>
+              {copy.name.title}
+              {'\n'}
+              <Em>{copy.name.titleEm}</Em>
             </Heading>
           </View>
           <Field
+            variant="underline"
+            autoFocus
             label={copy.name.label}
             placeholder={copy.name.placeholder}
             autoComplete="given-name"

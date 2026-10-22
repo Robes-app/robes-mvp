@@ -17,6 +17,17 @@ describe('Text, Heading, Eyebrow', () => {
     expect(small.className).not.toMatch(/text-(xs|sm|base)\b/);
   });
 
+  it('sets an italic line in Cormorant, never the sans, at 17px or more', () => {
+    render(
+      <Text size="small" italic>
+        pick one or several
+      </Text>,
+    );
+    const el = screen.getByText('pick one or several');
+    expect(el).toHaveClass('font-display', 'italic', 'text-lg');
+    expect(el).not.toHaveClass('font-sans');
+  });
+
   it('styles eyebrows as tracked caps and text by tone', () => {
     render(
       <>

@@ -1,5 +1,5 @@
 import { today } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, PrimaryScope, Text } from '@robes/ui-native';
+import { Button, ErrorText, Eyebrow, Field, Heading, PrimaryScope } from '@robes/ui-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { errorMessage } from '@/lib/errors';
@@ -27,7 +27,7 @@ export function DailyStart() {
           maxLength={500}
           multiline
         />
-        {start.isError ? <Text tone="danger">{errorMessage(start.error)}</Text> : null}
+        {start.isError ? <ErrorText>{errorMessage(start.error)}</ErrorText> : null}
         <PrimaryScope>
           <Button
             onPress={() => start.mutate({ input: prompt.trim() ? { prompt: prompt.trim() } : {} })}

@@ -54,7 +54,7 @@ export async function addPieces(api: ApiClient, photos: PickedPhoto[]): Promise<
 
 export type AddSource = 'camera' | 'library';
 export type AddResult =
-  | { status: 'added'; pieces: number }
+  | { status: 'added'; pieces: number; ids: string[] }
   | { status: 'cancelled' }
   | { status: 'denied'; message: string }
   | { status: 'failed'; message: string };
@@ -95,7 +95,7 @@ export function useAddPieces(): { add: (source: AddSource) => Promise<AddResult>
       try {
         const { pieces } = await addPieces(api, photos);
         await queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
-        return { status: 'added', pieces: pieces.length };
+        return { status: 'added', pieces: pieces.length, ids: pieces.map((p) => p.id) };
       } catch {
         return { status: 'failed', message: copy.addFailed };
       } finally {

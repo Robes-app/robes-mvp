@@ -31,8 +31,6 @@ export const home = {
   weather: (city: string | null, tempRange: string, condition: string): string =>
     [city, tempRange, condition].filter(Boolean).join(' · '),
   weatherLabel: 'Today’s weather',
-  // H2: the box reads "A new look for…" while onboarding, the contextual line once activated.
-  doorHome: 'Tell Robes where you’re going, or the look you’re after…',
   doorDay: (day: string): string => `Dress ${day}…`,
   later: 'Later',
   map: {
@@ -156,8 +154,7 @@ export const home = {
 } as const;
 
 export const firstRun = {
-  wordmark: 'Robes',
-  back: '← Back',
+  backLabel: 'Back',
   progress: (step: number, of: number): string => `Step ${step} of ${of}`,
   name: {
     eyebrow: 'Hello',
@@ -166,7 +163,7 @@ export const firstRun = {
     label: 'First name',
     placeholder: 'Your first name',
     // The first week's notes (7-day brief, decision 1): named before any is sent.
-    notes: 'Robes sends a few notes over your first week. Stop them from any one.',
+    notes: 'Robes sends a few notes in your first week. Each one has a link to stop them.',
     continue: 'Continue',
   },
   piece: {

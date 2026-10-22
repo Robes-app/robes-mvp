@@ -11,6 +11,7 @@ export {
 export { Card, type CardProps, CardSkeleton } from './Card';
 export { resolveColor, useColor } from './color';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
+export { ErrorText } from './ErrorText';
 export { Field, type FieldProps } from './Field';
 export { ASPECTS, type Aspect, Image, type ImageProps } from './Image';
 export { useReducedMotion } from './motion';
@@ -30,7 +31,7 @@ export {
   maxFontSizeMultiplier,
   TOAST_MIN_DURATION,
 } from './scale';
-export { Eyebrow, Heading, type HeadingProps, Text, type TextProps } from './Text';
+export { Em, Eyebrow, Heading, type HeadingProps, Text, type TextProps, Wordmark } from './Text';
 export {
   Toast,
   type ToastAction,

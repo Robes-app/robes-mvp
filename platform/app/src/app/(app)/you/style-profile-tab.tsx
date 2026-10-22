@@ -3,6 +3,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Observation } from '@robes/contracts';
 import { twin } from '@robes/copy';
+import { asSentence } from '@robes/core';
 import { Icon } from '@robes/icons/web';
 import { Button, Eyebrow, Text } from '@robes/ui';
 import Link from 'next/link';
@@ -47,10 +48,10 @@ function NoticedCard({ line }: { line: Observation }) {
       className="flex flex-col gap-3 rounded-crisp border border-hairline bg-surface p-5"
     >
       <Eyebrow>{twin.noticed.eyebrow}</Eyebrow>
-      <Text className="font-serif text-xl">{line.text}</Text>
+      <p className="font-display font-light text-ink text-xl">{asSentence(line.text)}</p>
       {line.because ? (
-        <Text size="small" tone="muted" className="italic">
-          {line.because}
+        <Text size="small" tone="muted" italic>
+          {asSentence(line.because)}
         </Text>
       ) : null}
       <div className="flex justify-between gap-3">

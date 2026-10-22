@@ -1,7 +1,7 @@
 'use client';
 
 import { trips } from '@robes/copy';
-import { Heading, Progress, Text } from '@robes/ui';
+import { ErrorText, Heading, Progress } from '@robes/ui';
 import { TripSkeleton, TripView } from '@/components/trips/trip-view';
 import { jobProgressStage } from '@/lib/looks';
 import { useJob } from '@/lib/use-job';
@@ -14,11 +14,7 @@ export function TripProgress({ jobId }: { jobId: string }) {
   const failed =
     job?.status === 'failed' || job?.status === 'cancelled' || connection === 'unavailable';
   if (failed) {
-    return (
-      <Text role="alert" tone="danger">
-        {trips.progress.failed}
-      </Text>
-    );
+    return <ErrorText>{trips.progress.failed}</ErrorText>;
   }
   return (
     <div className="flex flex-col gap-8">

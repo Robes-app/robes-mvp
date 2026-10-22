@@ -1,5 +1,5 @@
 import { firstRun as copy } from '@robes/copy';
-import { Button, Text } from '@robes/ui-native';
+import { IconButton, Wordmark } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,13 +25,9 @@ export function FirstRunFrame({
     >
       <View className="min-h-11 flex-row items-center">
         <View className="flex-1 items-start">
-          {onBack ? (
-            <Button variant="quiet" onPress={onBack}>
-              {copy.back}
-            </Button>
-          ) : null}
+          {onBack ? <IconButton icon="back" label={copy.backLabel} onPress={onBack} /> : null}
         </View>
-        <Text className="text-xl">{copy.wordmark}</Text>
+        <Wordmark />
         <View className="flex-1" />
       </View>
       <View

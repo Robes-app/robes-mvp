@@ -16,6 +16,7 @@ import {
   Button,
   buttonClasses,
   Dialog,
+  ErrorText,
   Eyebrow,
   Field,
   Heading,
@@ -30,6 +31,7 @@ import { PieceImage } from '@/components/wardrobe/piece-image';
 import { errorCopy } from '@/lib/error-copy';
 import { usePhotoRead } from '@/lib/photo-read';
 import { PHOTO_ACCEPT } from '@/lib/upload';
+import { invalidateWardrobe } from '@/lib/wardrobe';
 import { CropThumb, type Natural, PhotoFrame } from './photo-frame';
 
 type CardState = WardrobeCardState<ReadPieceEdits>;
@@ -106,7 +108,7 @@ export function WardrobePieces() {
           ),
         },
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+      await invalidateWardrobe(queryClient);
       setFiled(out);
     } catch (err) {
       setFileError(errorCopy(err));
@@ -151,11 +153,7 @@ export function WardrobePieces() {
             }}
           />
         </label>
-        {message ? (
-          <Text role="alert" size="small" tone="danger">
-            {message}
-          </Text>
-        ) : null}
+        {message ? <ErrorText>{message}</ErrorText> : null}
       </div>
     );
   }
@@ -242,11 +240,7 @@ export function WardrobePieces() {
           />
         ))}
       </ul>
-      {fileError ? (
-        <Text role="alert" size="small" tone="danger">
-          {fileError}
-        </Text>
-      ) : null}
+      {fileError ? <ErrorText>{fileError}</ErrorText> : null}
       <Button
         variant="primary"
         block
@@ -352,7 +346,7 @@ function PieceCard({
       </button>
       {state.state === 'pending' ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Text as="span" size="small" className="mr-auto italic">
+          <Text as="span" size="small" italic className="mr-auto">
             {dupId ? copy.ask.yours : copy.ask.add}
           </Text>
           <Pill onClick={() => onAnswer('yes')}>{copy.ask.yes}</Pill>

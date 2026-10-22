@@ -33,7 +33,7 @@ test('an empty wardrobe invites her to add pieces', async () => {
   mockFetch({ 'GET /me': ME, 'GET /wardrobe/items': { items: [], nextCursor: null } });
   await renderWithApi(<WardrobeView />);
   expect(await screen.findByText(wardrobe.empty.title)).toBeTruthy();
-  expect(screen.getByRole('button', { name: wardrobe.choosePhotos })).toBeTruthy();
+  expect(screen.getByRole('button', { name: wardrobe.empty.action })).toBeTruthy();
 });
 
 test('a reading piece says so and offers no styling yet', async () => {

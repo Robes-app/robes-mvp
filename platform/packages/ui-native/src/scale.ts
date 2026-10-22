@@ -8,10 +8,12 @@ export const maxFontSizeMultiplier = {
 
 // Families loaded by the app with expo-font (@expo-google-fonts/*).
 export const fonts = {
-  sans: 'Inter_400Regular',
+  sans: 'Inter_300Light',
   sansMedium: 'Inter_500Medium',
   display: 'Cormorant_300Light',
   displayRegular: 'Cormorant_400Regular',
+  displayItalic: 'Cormorant_300Light_Italic',
+  displayRegularItalic: 'Cormorant_400Regular_Italic',
 } as const;
 
 export const HEADING_MIN_SIZE = 17;

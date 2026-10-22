@@ -5,7 +5,7 @@ import { askRack, type LookAskInput, type LookAskResult } from '@robes/contracts
 import { lookbook as copy } from '@robes/copy';
 import { ASK_MAX_CHARS, ASK_THREAD_MAX, askDateFrom, type RackState } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { IconButton, Text } from '@robes/ui';
+import { ErrorText, IconButton, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useId, useRef, useState } from 'react';
 import { localToday } from '@/lib/dates';
@@ -163,7 +163,7 @@ export function LookPromptBox({
             ),
           )}
           {ask.reading ? (
-            <Text size="small" tone="muted" className="italic">
+            <Text size="small" tone="muted" italic>
               {copy.prompt.busyChange}
             </Text>
           ) : null}
@@ -196,7 +196,7 @@ export function LookPromptBox({
   );
 }
 
-// "A new look for…" (legacy home box, mode new): three suggested looks on the deck, styled for
+// "Where to, and how should it feel?" (legacy home box, mode new): three suggested looks on the deck, styled for
 // the day her words name. Exposed for Home and the empty Suggested tab; `date` pins a dated door.
 export function NewLookBox({ date }: { date?: string }) {
   const router = useRouter();
@@ -221,11 +221,7 @@ export function NewLookBox({ date }: { date?: string }) {
         onChange={setText}
         onSend={send}
       />
-      {start.isError ? (
-        <Text size="caption" tone="danger" role="alert">
-          {errorCopy(start.error)}
-        </Text>
-      ) : null}
+      {start.isError ? <ErrorText size="caption">{errorCopy(start.error)}</ErrorText> : null}
     </div>
   );
 }
