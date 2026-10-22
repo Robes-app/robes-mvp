@@ -23,7 +23,10 @@ test('a new look is a draft from its first piece, named when she names it, then 
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<Composer />);
-  expect(await screen.findByText(lookbook.guide.title)).toBeTruthy();
+  expect(await screen.findByText(lookbook.guide.body)).toBeTruthy();
+  for (const slot of Object.values(lookbook.figure.slots)) {
+    expect(screen.getByRole('button', { name: slot })).toBeTruthy();
+  }
   await fireEvent.changeText(screen.getByLabelText(lookbook.name.label), 'Gallery');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.rack.addPiece }));
   await fireEvent.press(await screen.findByRole('radio', { name: 'Silk scarf' }));
@@ -76,4 +79,20 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
     anchorPieceId: PIECE_ID,
     letGoOldest: true,
   });
+});
+
+test('a slot opens her wardrobe on its category, and All still widens it', async () => {
+  mockFetch({
+    'GET /wardrobe/items': {
+      items: [piece(), piece({ id: SCARF, label: 'Silk shirt', category: 'Tops' })],
+      nextCursor: null,
+    },
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<Composer />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.slots.top }));
+  expect(await screen.findByRole('radio', { name: 'Silk shirt' })).toBeTruthy();
+  expect(screen.queryByRole('radio', { name: 'Camel wool coat' })).toBeNull();
+  await fireEvent.press(screen.getByText(lookbook.swap.all));
+  expect(await screen.findByRole('radio', { name: 'Camel wool coat' })).toBeTruthy();
 });

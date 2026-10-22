@@ -1,7 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Me, NotificationPrefs } from '@robes/contracts';
 import { you } from '@robes/copy';
-import { Text } from '@robes/ui-native';
+import { ErrorText } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { ScrollView } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -43,7 +43,7 @@ export function Notifications() {
           onChange={(v) => void toggle(key, v)}
         />
       ))}
-      {update.isError ? <Text tone="danger">{errorMessage(update.error)}</Text> : null}
+      {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
     </ScrollView>
   );
 }

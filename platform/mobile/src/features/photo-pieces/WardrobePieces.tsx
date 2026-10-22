@@ -11,6 +11,7 @@ import {
 } from '@robes/core/photo-pieces';
 import {
   Button,
+  ErrorText,
   Eyebrow,
   Field,
   Heading,
@@ -176,11 +177,7 @@ export function WardrobePieces() {
         <Button variant="secondary" icon="image" onPress={() => void read.start('library')}>
           {shell.create.cameraRoll}
         </Button>
-        {message ? (
-          <Text tone="danger" accessibilityRole="alert">
-            {message}
-          </Text>
-        ) : null}
+        {message ? <ErrorText>{message}</ErrorText> : null}
       </ScrollView>
     );
   }
@@ -257,11 +254,7 @@ export function WardrobePieces() {
             />
           ))}
         </View>
-        {fileError ? (
-          <Text tone="danger" accessibilityRole="alert">
-            {fileError}
-          </Text>
-        ) : null}
+        {fileError ? <ErrorText>{fileError}</ErrorText> : null}
         <PrimaryScope>
           <Button
             disabled={sum.pending > 0 || (!sum.toAdd && !sum.owned)}
@@ -397,7 +390,7 @@ function PieceRow({
       </Pressable>
       {state.state === 'pending' ? (
         <View className="flex-row flex-wrap items-center gap-2">
-          <Text size="small" className="mr-auto italic">
+          <Text size="small" italic className="mr-auto">
             {dupId ? copy.ask.yours : copy.ask.add}
           </Text>
           <Pill onPress={() => onAnswer('yes')}>{copy.ask.yes}</Pill>

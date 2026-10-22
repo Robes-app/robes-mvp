@@ -68,7 +68,7 @@ test('the home walks its stages: one door, Later, the map, then the activated we
   // Stage 1: the empty Style DNA card is one door, the one ink on home.
   const door = page.getByRole('link', { name: 'Log your style notes' });
   await expect(door).toHaveAttribute('href', '/you/style');
-  await expect(page.getByPlaceholder('A new look for…')).toBeVisible();
+  await expect(page.getByPlaceholder('Where to, and how should it feel?')).toBeVisible();
   const map = page.getByRole('region', { name: 'Getting to know you' });
   await expect(map.getByRole('listitem')).toHaveText([
     /Your digital twin\s*Two photographs/,
@@ -110,9 +110,7 @@ test('the home walks its stages: one door, Later, the map, then the activated we
   });
   await page.reload();
   await expect(page.getByTestId('home-week')).toBeVisible();
-  await expect(
-    page.getByPlaceholder('Tell Robes where you’re going, or the look you’re after…'),
-  ).toBeVisible();
+  await expect(page.getByPlaceholder('Where to, and how should it feel?')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Getting to know you' })).toHaveCount(0);
   await expect(
     page.getByTestId('home-saved').getByRole('link', { name: 'The mine one' }),
@@ -140,7 +138,7 @@ test('the home box: words become three looks on the deck; a photographed piece s
   await signIn(page);
   await declineConsent(page);
 
-  const box = page.getByPlaceholder('A new look for…');
+  const box = page.getByPlaceholder('Where to, and how should it feel?');
   await box.fill('Something easy for the gallery');
   await box.press('Enter');
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);

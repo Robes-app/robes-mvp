@@ -4,7 +4,7 @@ import { home as copy, lookbook } from '@robes/copy';
 import { isTripAsk } from '@robes/core/home';
 import { ASK_MAX_CHARS, askDateFrom } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
-import { IconButton, Image, Sheet, Text, useColor } from '@robes/ui-native';
+import { ErrorText, fonts, IconButton, Image, Sheet, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
@@ -207,7 +207,7 @@ export const HomeBox = forwardRef<
           ) : null}
         </View>
       ) : null}
-      <View className="flex-row items-end gap-1 rounded-soft border border-hairline bg-surface px-1 py-1">
+      <View className="flex-row items-end gap-1 rounded-[24px] border border-border-control bg-bg px-1 py-1">
         <IconButton
           icon="plus"
           label={copy.plus.label}
@@ -227,8 +227,8 @@ export const HomeBox = forwardRef<
           returnKeyType="send"
           onSubmitEditing={() => void send()}
           editable={!busy}
-          className="flex-1 py-3 text-base"
-          style={{ color: ink, maxHeight: 96 }}
+          className="flex-1 py-3 text-lg"
+          style={{ color: ink, maxHeight: 96, fontFamily: fonts.displayItalic }}
         />
         {date && !attached ? (
           <IconButton icon="close" label={dayLabel(date)} onPress={onDateClear} tone="ink-muted" />
@@ -246,11 +246,7 @@ export const HomeBox = forwardRef<
           {waiting ? copy.plus.filing : lookbook.prompt.busyRead}
         </Text>
       ) : null}
-      {error ? (
-        <Text size="caption" tone="danger">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <ErrorText size="caption">{error}</ErrorText> : null}
       <Sheet open={menu} onClose={() => setMenu(false)} title={copy.plus.label}>
         {(
           [

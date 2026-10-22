@@ -1,4 +1,15 @@
+import { queryKeys } from '@robes/api-client/react';
 import type { Piece, PiecePage } from '@robes/contracts';
+import type { QueryClient } from '@tanstack/react-query';
+
+// A piece filed or changed: the grid and its counts (the summary) both move, so the shell's
+// consent ask and the category tabs see the new piece at once.
+export async function invalidateWardrobe(queryClient: QueryClient): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.summary') }),
+  ]);
+}
 
 interface ListPage {
   items: { id: string }[];

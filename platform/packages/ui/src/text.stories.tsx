@@ -7,7 +7,7 @@ function Specimen() {
     <div className="flex flex-col gap-4">
       <Eyebrow>{marketing.eyebrow}</Eyebrow>
       <Heading level={1} size="2xl">
-        {marketing.title}
+        {marketing.titleLead} <em>{marketing.titleEm}</em>
       </Heading>
       <Heading level={2} size="xl">
         Your piece, <em className="text-ink-muted">worn three ways.</em>

@@ -1,3 +1,4 @@
+import { ui } from '@robes/copy';
 import { Text as RNText, type TextProps as RNTextProps, StyleSheet } from 'react-native';
 import { cx } from './cx';
 import { fonts, HEADING_MIN_SIZE, maxFontSizeMultiplier } from './scale';
@@ -14,16 +15,21 @@ const toneClass: Record<Tone, string> = {
 
 const sizeClass = { body: 'text-base', small: 'text-sm', caption: 'text-xs' } as const;
 
+// The sans never goes italic (brand rule): an italic line is Cormorant, never below 17pt.
+const italicSize = { body: 20, small: 18, caption: 17 } as const;
+
 export interface TextProps extends RNTextProps {
   size?: keyof typeof sizeClass;
   tone?: Tone;
   weight?: 'regular' | 'medium';
+  italic?: boolean;
 }
 
 export function Text({
   size = 'body',
   tone = 'ink',
   weight = 'regular',
+  italic = false,
   className,
   style,
   ...rest
@@ -32,10 +38,20 @@ export function Text({
     <RNText
       maxFontSizeMultiplier={maxFontSizeMultiplier.body}
       {...rest}
-      className={cx(sizeClass[size], toneClass[tone], className)}
-      style={[{ fontFamily: weight === 'medium' ? fonts.sansMedium : fonts.sans }, style]}
+      className={cx(italic ? null : sizeClass[size], toneClass[tone], className)}
+      style={
+        italic
+          ? [style, { fontFamily: fonts.displayItalic, fontSize: italicSize[size] }]
+          : [{ fontFamily: weight === 'medium' ? fonts.sansMedium : fonts.sans }, style]
+      }
     />
   );
+}
+
+// The italic phrase inside a Heading ("call <Em>you?</Em>"): iOS has no synthetic italic for a
+// loaded face, so the italic family is named, never a fontStyle.
+export function Em({ style, ...rest }: RNTextProps) {
+  return <RNText {...rest} style={[style, { fontFamily: fonts.displayItalic }]} />;
 }
 
 const headingSize = {
@@ -73,6 +89,21 @@ export function Heading({
         { fontSize, fontFamily: weight === 'regular' ? fonts.displayRegular : fonts.display },
       ]}
     />
+  );
+}
+
+// ROBES in Cormorant caps, tracked wide: the mark, never typed text.
+export function Wordmark({ className, style, ...rest }: RNTextProps) {
+  return (
+    <RNText
+      accessibilityRole="header"
+      maxFontSizeMultiplier={maxFontSizeMultiplier.heading}
+      {...rest}
+      className={cx('text-xl uppercase text-ink', className)}
+      style={[{ fontFamily: fonts.display, letterSpacing: 6 }, style]}
+    >
+      {ui.wordmark}
+    </RNText>
   );
 }
 

@@ -108,6 +108,9 @@ export const TodayWeather = z
   .nullable();
 export type TodayWeather = z.infer<typeof TodayWeather>;
 
+// A day page asks for its own date; the forecast reaches about two weeks ahead.
+export const TodayWeatherInput = z.object({ date: z.iso.date().optional() });
+
 // Style it for today (M5 task 2, legacy /api/daily): her brief is the only free text.
 export const TodayGenerateInput = z.object({
   prompt: z.string().trim().max(500).optional(),

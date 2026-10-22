@@ -56,11 +56,7 @@ export function DraftTile({ look, onPress }: { look: Look; onPress: () => void }
       <Text size="caption" tone="muted">
         {copy.draftTile.eyebrow}
       </Text>
-      <Text
-        size="small"
-        numberOfLines={1}
-        style={look.nameProvisional ? { fontStyle: 'italic' } : undefined}
-      >
+      <Text size="small" numberOfLines={1} italic={look.nameProvisional}>
         {look.nameProvisional ? copy.draftTile.untitled : look.name}
       </Text>
       <Text size="caption" tone="muted" numberOfLines={1}>

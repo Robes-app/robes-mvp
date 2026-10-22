@@ -10,10 +10,17 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   await page.goto('/wardrobe');
-  await expect(page.getByRole('heading', { name: 'Your wardrobe starts here.' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Every look starts with a photograph.' }),
+  ).toBeVisible();
 
   await page.goto('/wardrobe/add');
   await page.getByLabel(/Choose photos/).setInputFiles(PHOTO);
+  // One photo gets beta's reveal: her photo, then what Robes filed, row by row.
+  await expect(page).toHaveURL(/\/piece\/[0-9a-f-]{36}\?saw=1$/);
+  const saw = page.getByRole('region', { name: 'Here’s what Robes saw.' });
+  await expect(saw.getByText('Camel wool coat')).toBeVisible({ timeout: 30_000 });
+  await saw.getByRole('link', { name: 'Keep it' }).click();
   await expect(page).toHaveURL(/\/wardrobe$/);
   const pieces = page.getByRole('list', { name: 'Pieces' });
   // Read by the offline fake: the piece fills in without a reload.

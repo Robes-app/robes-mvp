@@ -2,7 +2,7 @@
 
 import { useApiMutation } from '@robes/api-client/react';
 import { today } from '@robes/copy';
-import { Button, Text, TextArea } from '@robes/ui';
+import { Button, ErrorText, TextArea } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
@@ -33,11 +33,7 @@ export function DailyForm() {
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
       />
-      {start.isError ? (
-        <Text role="alert" size="small" tone="danger">
-          {errorCopy(start.error)}
-        </Text>
-      ) : null}
+      {start.isError ? <ErrorText>{errorCopy(start.error)}</ErrorText> : null}
       <Button
         variant="primary"
         type="submit"

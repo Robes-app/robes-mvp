@@ -53,8 +53,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   await page.getByLabel('Wear on a day').fill(tomorrow);
-  await page.getByRole('button', { name: 'Add to Plan' }).click();
-  await expect(page.getByText('Added to Plan.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Add to Diary' }).click();
+  await expect(page.getByText('Added to your diary.', { exact: true })).toBeVisible();
 
   // The plan lists summary rows; the row opens the day page, where the day is named and edited.
   await page.goto('/plan');

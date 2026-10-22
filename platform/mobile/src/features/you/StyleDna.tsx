@@ -1,6 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine, BriefListName, StyleDna as Dna } from '@robes/contracts';
 import { twin } from '@robes/copy';
+import { asSentence } from '@robes/core';
 import {
   INVESTMENT_LEVELS,
   iconTag,
@@ -444,7 +445,7 @@ function WordsBody({ dna, list }: { dna: Dna; list: BriefListName }) {
                 <Text>{p.text}</Text>
                 {p.because ? (
                   <Text size="small" tone="muted">
-                    {p.because}
+                    {asSentence(p.because)}
                   </Text>
                 ) : null}
               </View>

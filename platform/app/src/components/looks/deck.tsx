@@ -8,6 +8,7 @@ import { anchorName, deckReduce, deckTop, emptyDeck } from '@robes/core/looks';
 import {
   Button,
   buttonClasses,
+  ErrorText,
   Eyebrow,
   Heading,
   IconButton,
@@ -259,11 +260,7 @@ export function Deck({ setId, home = false }: { setId: string; home?: boolean })
   };
 
   if (isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(error)}</ErrorText>;
   }
   const around = set?.anchor ? anchorName(set.anchor.label, set.anchor.brand) : '';
   // Done once she has decided every card (all passed included), or the job ended with none.
@@ -354,9 +351,9 @@ export function JobDeck({ jobId, home = false }: { jobId: string; home?: boolean
   if (setId) return <Deck setId={setId} />;
   if (job?.status === 'failed' || job?.status === 'cancelled' || connection === 'unavailable') {
     return (
-      <Text role="alert" tone="danger">
+      <ErrorText>
         {copy.deck.failed} {jobs.status.failed}
-      </Text>
+      </ErrorText>
     );
   }
   if (!setId) {

@@ -2,8 +2,9 @@ import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { plan as copy, errors } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { Button, fonts, PrimaryScope, Sheet, Text, useColor, useToast } from '@robes/ui-native';
+import { Button, Em, fonts, PrimaryScope, Sheet, Text, useColor, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { LookThumb } from './LookThumb';
@@ -21,6 +22,7 @@ export function LookPicker({
   onClose: () => void;
 }) {
   const toast = useToast();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const bg = useColor('bg');
   const open = date !== null;
@@ -52,22 +54,32 @@ export function LookPicker({
 
   const items = looks.data?.items ?? [];
   return (
-    <Sheet open={open} onClose={onClose} title={title || copy.picker.title} testID="look-picker">
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={title || copy.picker.title}
+      {...(date ? { eyebrow: copy.picker.eyebrow(dayLabel(date)) } : {})}
+      testID="look-picker"
+    >
       <PrimaryScope>
         <View className="gap-4">
-          {date ? (
-            <Text size="caption" tone="muted">
-              {copy.picker.eyebrow(dayLabel(date))}
-            </Text>
-          ) : null}
           {looks.data && items.length === 0 ? (
             <View className="items-center gap-2 py-6">
               <Text style={{ fontFamily: fonts.display }} className="text-2xl text-ink">
-                {copy.picker.emptyTitle}
+                {copy.picker.emptyTitle} <Em>{copy.picker.emptyTitleEm}</Em>
               </Text>
               <Text tone="muted" className="text-center">
                 {copy.picker.emptyBody}
               </Text>
+              <Button
+                variant="secondary"
+                onPress={() => {
+                  onClose();
+                  router.push('/looks');
+                }}
+              >
+                {copy.picker.toLooks}
+              </Button>
             </View>
           ) : (
             <ScrollView style={{ maxHeight: 420 }}>

@@ -3,7 +3,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { InboxEntry } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
-import { Button, CardSkeleton, EmptyState, Text, useToast } from '@robes/ui';
+import { Button, CardSkeleton, EmptyState, ErrorText, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -72,11 +72,7 @@ function Entry({ entry }: { entry: InboxEntry }) {
           </li>
         ))}
       </ul>
-      {decide.isError ? (
-        <Text role="alert" tone="danger">
-          {errorCopy(decide.error)}
-        </Text>
-      ) : null}
+      {decide.isError ? <ErrorText>{errorCopy(decide.error)}</ErrorText> : null}
       <div className="flex flex-wrap gap-2">
         <Button
           variant="secondary"
@@ -104,11 +100,7 @@ function Entry({ entry }: { entry: InboxEntry }) {
 export function Inbox() {
   const query = useApi('inbox.list');
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!query.data) return <CardSkeleton />;
   if (query.data.items.length === 0) {

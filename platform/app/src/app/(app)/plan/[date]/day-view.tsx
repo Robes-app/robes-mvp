@@ -11,7 +11,7 @@ import type { PlanEntry } from '@robes/contracts';
 import { plan, wardrobe } from '@robes/copy';
 import { daySummary, longDate, monthLabel } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
+import { ErrorText, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -34,6 +34,13 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
   const queryClient = useQueryClient();
   const today = localToday();
   const query = useApi('plan.get', { input: { from: date, days: 1 } });
+  const ahead = date >= today;
+  const weather = useApi(
+    'today.weather',
+    { input: { date } },
+    { enabled: ahead, staleTime: 3_600_000 },
+  );
+  const wx = ahead ? weather.data : null;
   const [picking, setPicking] = useState(false);
   const [naming, setNaming] = useState(false);
   const refresh = () => {
@@ -118,6 +125,16 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
             />
           ) : null}
         </div>
+        {wx ? (
+          <div className="flex flex-col gap-1">
+            <Text size="caption" tone="muted" className="font-medium uppercase tracking-[0.16em]">
+              {[wx.city, wx.condition, wx.tempRange].filter(Boolean).join(' · ')}
+            </Text>
+            <Text size="small" tone="muted" italic>
+              {copy.advice(wx.condition, wx.tempRange)}
+            </Text>
+          </div>
+        ) : null}
       </header>
 
       <div className="flex items-baseline justify-between border-b border-hairline pb-2">
@@ -130,9 +147,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
       </div>
 
       {query.isError ? (
-        <Text role="alert" tone="danger">
-          {errorCopy(query.error)}
-        </Text>
+        <ErrorText>{errorCopy(query.error)}</ErrorText>
       ) : !query.data ? (
         <div aria-busy className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <Skeleton className="aspect-[4/5]" />
@@ -178,7 +193,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
                 <span className="font-display text-lg text-ink">
                   {entries.length ? copy.addAnother : copy.choose}
                 </span>
-                <span className="font-sans text-xs text-ink-muted">
+                <span className="font-display text-lg text-ink-faint italic">
                   {entries.length ? copy.addAnotherHint : copy.chooseHint}
                 </span>
               </span>
@@ -195,6 +210,16 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
           refresh();
         }}
       />
+      {ahead ? (
+        // Beta's floating door: a new look for this day, from the box on Today.
+        <Link
+          href={`/?dress=${date}`}
+          className={`fixed right-4 bottom-24 z-30 inline-flex min-h-11 items-center gap-2 rounded-pill border border-border-control bg-bg px-5 font-display text-ink text-lg italic shadow-sm md:bottom-8 ${focus}`}
+        >
+          <Icon name="looks" size={18} />
+          {copy.dress}
+        </Link>
+      ) : null}
     </article>
   );
 }

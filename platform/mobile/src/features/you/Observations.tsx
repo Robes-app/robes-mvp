@@ -1,7 +1,8 @@
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine } from '@robes/contracts';
 import { twin } from '@robes/copy';
-import { Button, CardSkeleton, EmptyState, Eyebrow, Progress, Text } from '@robes/ui-native';
+import { asSentence } from '@robes/core';
+import { Button, CardSkeleton, EmptyState, Eyebrow, fonts, Progress, Text } from '@robes/ui-native';
 import { ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useBriefRead, useDnaMutations } from './dna';
@@ -37,10 +38,12 @@ export function Observations() {
           dna.observations.map((o) => (
             <View key={o.id} className="gap-2 rounded-crisp border border-hairline bg-surface p-5">
               <Eyebrow>{copy.list[o.list] ?? twin.noticed.eyebrow}</Eyebrow>
-              <Text className="font-serif text-xl">{o.text}</Text>
+              <Text className="text-xl" style={{ fontFamily: fonts.display }}>
+                {asSentence(o.text)}
+              </Text>
               {o.because ? (
-                <Text size="small" tone="muted" className="italic">
-                  {o.because}
+                <Text size="small" tone="muted" italic>
+                  {asSentence(o.because)}
                 </Text>
               ) : null}
               <View className="flex-row items-center gap-4">
@@ -62,7 +65,7 @@ export function Observations() {
             </View>
           ))
         ) : (
-          <Text tone="muted" className="italic">
+          <Text tone="muted" italic>
             {failed ? copy.failed : copy.empty}
           </Text>
         )}

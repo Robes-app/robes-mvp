@@ -3,7 +3,7 @@
 import { useApiClient } from '@robes/api-client/react';
 import type { Asset } from '@robes/contracts';
 import { devUpload as copy } from '@robes/copy';
-import { Button, Field, Heading, Text } from '@robes/ui';
+import { Button, ErrorText, Field, Heading, Text } from '@robes/ui';
 import { type ChangeEvent, useState } from 'react';
 import { uploadPhoto } from '@/lib/upload';
 
@@ -60,11 +60,7 @@ export function UploadForm() {
           <Button onClick={refresh}>{copy.refresh}</Button>
         </div>
       ) : null}
-      {asset?.status === 'failed' ? (
-        <Text role="alert" size="small" tone="danger">
-          {copy.failed}
-        </Text>
-      ) : null}
+      {asset?.status === 'failed' ? <ErrorText>{copy.failed}</ErrorText> : null}
       {asset?.status === 'ready' && largest ? (
         <figure className="flex flex-col gap-2">
           <picture>

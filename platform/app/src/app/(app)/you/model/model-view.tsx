@@ -15,6 +15,7 @@ import {
 import { Icon } from '@robes/icons/web';
 import {
   Button,
+  ErrorText,
   Eyebrow,
   Heading,
   Pill,
@@ -162,7 +163,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 type SheetKind = 'photos-colour' | 'photos-line' | 'adjust' | 'facts';
 
-// You › Your Digital Twin (legacy Settings 01): her model, read from two photographs or shaped by
+// You › Your digital twin (legacy Settings 01): her model, read from two photographs or shaped by
 // hand, and the facts she gives (size, never weight).
 export function ModelView() {
   const queryClient = useQueryClient();
@@ -184,11 +185,7 @@ export function ModelView() {
   });
 
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   const model = query.data;
   if (!model || !style.data || !dna.data) {
@@ -455,7 +452,9 @@ function FactsStrip({
             className={`flex flex-col gap-1 px-3 py-3 ${i ? 'border-l border-hairline' : ''}`}
           >
             <span className="font-sans text-xs text-ink-muted">{k}</span>
-            <span className={`font-sans text-sm ${v ? 'text-ink' : 'text-ink-faint italic'}`}>
+            <span
+              className={`${v ? 'font-sans text-sm text-ink' : 'font-display text-lg text-ink-faint italic'}`}
+            >
               {v || f.add}
             </span>
           </span>
@@ -492,7 +491,7 @@ function Stepper({
             </Button>
             <output
               aria-label={label}
-              className={`min-w-16 text-center font-sans text-base ${value ? 'text-ink' : 'text-ink-faint italic'}`}
+              className={`min-w-16 text-center ${value ? 'font-sans text-base text-ink' : 'font-display text-lg text-ink-faint italic'}`}
             >
               {value || f.add}
             </output>

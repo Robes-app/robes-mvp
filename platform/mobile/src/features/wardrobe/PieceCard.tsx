@@ -20,6 +20,8 @@ export interface CardStatus {
   text: string;
   // "Never worn" and a wish's "Not yours yet" read in the warm rose.
   warm: boolean;
+  // A failed read is an error, not a label: sentence case, in danger, with its icon.
+  error?: boolean;
 }
 
 function Eyebrow({ piece }: { piece: CardPiece }) {
@@ -49,6 +51,17 @@ function Name({ piece }: { piece: CardPiece }) {
 }
 
 function Status({ status }: { status: CardStatus }) {
+  const danger = useColor('danger');
+  if (status.error) {
+    return (
+      <View className="flex-row items-center gap-1.5">
+        <Icon name="alert" size={14} color={danger} />
+        <Text className="text-xs text-danger" style={{ fontFamily: fonts.sans }}>
+          {status.text}
+        </Text>
+      </View>
+    );
+  }
   return (
     <Text
       className={`text-[9px] uppercase ${status.warm ? 'text-accent-warm' : 'text-ink-muted'}`}

@@ -19,9 +19,10 @@ export function buttonClasses({
   block?: boolean;
 } = {}): string {
   return cn(
-    'inline-flex min-h-11 items-center justify-center gap-2 font-sans text-sm font-medium',
+    'inline-flex min-h-11 items-center justify-center gap-2 font-sans font-medium',
     'motion-safe:transition-[opacity,border-color,color] motion-safe:duration-150 disabled:cursor-not-allowed',
-    variant === 'quiet' ? 'px-2' : 'rounded-pill px-6',
+    // The house caps: authored in sentence case, set as small tracked caps (brand-and-design.md §1).
+    variant === 'quiet' ? 'px-2 text-sm' : 'rounded-pill px-6 text-xs uppercase tracking-[0.16em]',
     block && 'w-full',
     variants[variant],
     focusRing,

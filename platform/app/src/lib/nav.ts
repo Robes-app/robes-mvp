@@ -19,15 +19,20 @@ export const NAV_ITEMS: readonly NavItem[] = [
 export const SOON_SLUGS = ['receipt', 'ask'] as const;
 export type SoonSlug = (typeof SOON_SLUGS)[number];
 
+export type CreateGroup = 'add' | 'dress';
+
 export interface CreateItem extends NavItem {
   id: string;
+  group: CreateGroup;
   keywords?: string;
 }
 
-// The Create sheet (IA §3.2). Unbuilt options go to one shared "On its way" page.
+// The Create sheet (IA §3.2), grouped: pieces in, then the stylist (the sparkle, never a chat
+// bubble). Unbuilt options go to one shared "On its way" page.
 export const CREATE_ITEMS: readonly CreateItem[] = [
   {
     id: 'photograph',
+    group: 'add',
     href: '/wardrobe/add',
     label: shell.create.photograph,
     icon: 'camera',
@@ -35,30 +40,41 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
   },
   {
     id: 'camera-roll',
+    group: 'add',
     href: '/wardrobe/add',
     label: shell.create.cameraRoll,
     icon: 'image',
     keywords: 'add photo upload',
   },
+  { id: 'link', group: 'add', href: '/wardrobe/link', label: shell.create.link, icon: 'link' },
+  {
+    id: 'receipt',
+    group: 'add',
+    href: '/soon/receipt',
+    label: shell.create.receipt,
+    icon: 'mail',
+  },
   {
     id: 'style-piece',
+    group: 'dress',
     href: '/looks/style',
     label: shell.create.stylePiece,
     icon: 'looks',
     keywords: 'three ways',
   },
-  { id: 'link', href: '/wardrobe/link', label: shell.create.link, icon: 'link' },
-  { id: 'receipt', href: '/soon/receipt', label: shell.create.receipt, icon: 'mail' },
-  { id: 'new-look', href: '/looks/new', label: shell.create.newLook, icon: 'plus' },
-  { id: 'ask', href: '/soon/ask', label: shell.create.askRobes, icon: 'ask' },
+  { id: 'new-look', group: 'dress', href: '/looks/new', label: shell.create.newLook, icon: 'plus' },
+  { id: 'ask', group: 'dress', href: '/soon/ask', label: shell.create.askRobes, icon: 'looks' },
   {
     id: 'trip',
+    group: 'dress',
     href: '/trip/new',
     label: shell.create.planTrip,
     icon: 'trip',
     keywords: 'travel pack',
   },
 ];
+
+export const CREATE_GROUPS: readonly CreateGroup[] = ['add', 'dress'];
 
 // Flagged doors leave the sheet and ⌘K while their feature is off (trips: legacy 2eacfb4).
 export function createItems(features: Features): readonly CreateItem[] {

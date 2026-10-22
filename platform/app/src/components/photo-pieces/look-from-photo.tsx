@@ -9,10 +9,12 @@ import { Icon } from '@robes/icons/web';
 import {
   Button,
   Dialog,
+  ErrorText,
   Eyebrow,
   Field,
   Heading,
   IconButton,
+  Image,
   Pill,
   Skeleton,
   Text,
@@ -25,6 +27,7 @@ import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { usePhotoRead } from '@/lib/photo-read';
 import { PHOTO_ACCEPT } from '@/lib/upload';
+import { invalidateWardrobe } from '@/lib/wardrobe';
 import { CropThumb, type Natural, PhotoFrame } from './photo-frame';
 
 const copy = photoPieces.look;
@@ -89,7 +92,7 @@ export function LookFromPhoto() {
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') }),
+        invalidateWardrobe(queryClient),
       ]);
       router.push(`/look/${look.id}`);
     } catch (err) {
@@ -128,11 +131,16 @@ export function LookFromPhoto() {
             }}
           />
         </label>
-        {read.status === 'failed' ? (
-          <Text role="alert" size="small" tone="danger">
-            {copy.readFailed}
-          </Text>
+        {read.status === 'failed' && read.photoUrl ? (
+          // The copy says the photo is kept: show it, so she can judge it herself.
+          <Image
+            src={read.photoUrl}
+            alt={photoPieces.photoAlt}
+            aspect="4:5"
+            frameClassName="w-40 rounded-crisp"
+          />
         ) : null}
+        {read.status === 'failed' ? <ErrorText>{copy.readFailed}</ErrorText> : null}
       </div>
     );
   }
@@ -233,11 +241,7 @@ export function LookFromPhoto() {
                 {copy.gate(pending.length)}
               </Text>
             ) : null}
-            {error ? (
-              <Text role="alert" size="small" tone="danger">
-                {error}
-              </Text>
-            ) : null}
+            {error ? <ErrorText>{error}</ErrorText> : null}
             <Button
               type="submit"
               variant="primary"
@@ -331,7 +335,7 @@ function ReadCard({
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Text as="span" size="small" className="mr-auto italic">
+        <Text as="span" size="small" italic className="mr-auto">
           {matched ? copy.askMatch(matchLabel) : copy.askNew}
         </Text>
         <Pill onClick={onYes}>{copy.yes}</Pill>

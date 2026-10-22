@@ -3,6 +3,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine, BriefListName, StyleDna } from '@robes/contracts';
 import { twin } from '@robes/copy';
+import { asSentence } from '@robes/core';
 import {
   INVESTMENT_LEVELS,
   iconTag,
@@ -14,7 +15,18 @@ import {
   wallRanked,
 } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/web';
-import { Eyebrow, Field, Heading, IconButton, Image, Pill, Sheet, Skeleton, Text } from '@robes/ui';
+import {
+  ErrorText,
+  Eyebrow,
+  Field,
+  Heading,
+  IconButton,
+  Image,
+  Pill,
+  Sheet,
+  Skeleton,
+  Text,
+} from '@robes/ui';
 import Link from 'next/link';
 import { type KeyboardEvent, type ReactNode, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
@@ -53,11 +65,7 @@ export function DnaView() {
   const query = useApi('me.dna.get');
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   const dna = query.data;
   if (!dna) return <Skeleton className="h-96" />;
@@ -460,7 +468,9 @@ function WordsBody({ dna, list }: { dna: StyleDna; list: BriefListName }) {
                 <span className="flex flex-col">
                   <span>{p.text}</span>
                   {p.because ? (
-                    <span className="text-sm text-ink-muted italic">{p.because}</span>
+                    <span className="font-display text-lg text-ink-muted italic">
+                      {asSentence(p.because)}
+                    </span>
                   ) : null}
                 </span>
                 <Pill onClick={() => keep.mutate({ params: { id: p.id } })}>{twin.words.keep}</Pill>

@@ -2,7 +2,7 @@
 
 import type { UpdateConsentsInput } from '@robes/contracts';
 import { consent as copy } from '@robes/copy';
-import { Switch } from '@robes/ui';
+import { ErrorText, Switch } from '@robes/ui';
 import { useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 
@@ -43,11 +43,7 @@ export function PrivacyForm() {
       <p role="status" className="min-h-5 text-sm text-ink-muted">
         {status === 'saving' ? copy.saving : status === 'saved' ? copy.saved : ''}
       </p>
-      {status === 'failed' ? (
-        <p role="alert" className="text-sm text-danger">
-          {copy.failed}
-        </p>
-      ) : null}
+      {status === 'failed' ? <ErrorText>{copy.failed}</ErrorText> : null}
     </div>
   );
 }

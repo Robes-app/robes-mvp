@@ -3,7 +3,8 @@
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine } from '@robes/contracts';
 import { twin } from '@robes/copy';
-import { Button, Eyebrow, Progress, Skeleton, Text } from '@robes/ui';
+import { asSentence } from '@robes/core';
+import { Button, ErrorText, Eyebrow, Progress, Skeleton, Text } from '@robes/ui';
 import { errorCopy } from '@/lib/error-copy';
 import { useBriefRead, useDnaMutations } from '@/lib/use-dna';
 
@@ -21,11 +22,7 @@ export function ObservationsView() {
   const { reading, failed } = useBriefRead(query.data);
   const { keep, dismiss } = useDnaMutations();
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   const dna = query.data;
   if (!dna) return <Skeleton className="h-64" />;
@@ -53,10 +50,10 @@ export function ObservationsView() {
                 className="flex flex-col gap-2 rounded-crisp border border-hairline bg-surface p-5"
               >
                 <Eyebrow>{copy.list[o.list] ?? twin.noticed.eyebrow}</Eyebrow>
-                <Text className="font-serif text-xl">{o.text}</Text>
+                <p className="font-display font-light text-ink text-xl">{asSentence(o.text)}</p>
                 {o.because ? (
-                  <Text size="small" tone="muted" className="italic">
-                    {o.because}
+                  <Text size="small" tone="muted" italic>
+                    {asSentence(o.because)}
                   </Text>
                 ) : null}
                 <div className="flex items-center gap-4">
@@ -81,7 +78,7 @@ export function ObservationsView() {
             ))}
           </ul>
         ) : (
-          <Text tone="muted" className="italic">
+          <Text tone="muted" italic>
             {failed ? copy.failed : copy.empty}
           </Text>
         )}

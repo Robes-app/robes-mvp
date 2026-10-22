@@ -3,7 +3,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { DailyItem } from '@robes/contracts';
 import { today } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, Image, Skeleton, Text } from '@robes/ui';
+import { Button, ErrorText, Eyebrow, Field, Heading, Image, Skeleton, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
@@ -136,11 +136,7 @@ export function DailyLookView({ id }: { id: string }) {
   });
 
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   const look = query.data;
   if (!look) return <DailyLookSkeleton />;
@@ -213,11 +209,7 @@ export function DailyLookView({ id }: { id: string }) {
           value={value}
           onChange={(e) => setName(e.target.value)}
         />
-        {save.isError ? (
-          <Text role="alert" size="small" tone="danger">
-            {errorCopy(save.error)}
-          </Text>
-        ) : null}
+        {save.isError ? <ErrorText>{errorCopy(save.error)}</ErrorText> : null}
         <Button
           variant="primary"
           type="submit"

@@ -1,6 +1,6 @@
 import type { InboxEntry } from '@robes/contracts';
 import { wardrobe as copy } from '@robes/copy';
-import { Button, EmptyState, Text } from '@robes/ui-native';
+import { Button, EmptyState, ErrorText, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
@@ -45,7 +45,7 @@ function Entry({ entry }: { entry: InboxEntry }) {
           }
         />
       ))}
-      {decide.isError ? <Text tone="danger">{errorMessage(decide.error)}</Text> : null}
+      {decide.isError ? <ErrorText>{errorMessage(decide.error)}</ErrorText> : null}
       <View className="flex-row flex-wrap gap-2">
         <Button
           variant="secondary"
@@ -74,7 +74,7 @@ export function InboxView() {
   const router = useRouter();
   const query = useInbox();
   if (query.isError) {
-    return <Text tone="danger">{errorMessage(query.error)}</Text>;
+    return <ErrorText>{errorMessage(query.error)}</ErrorText>;
   }
   return (
     <FlatList

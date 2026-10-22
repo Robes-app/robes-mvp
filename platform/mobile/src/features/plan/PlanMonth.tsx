@@ -1,14 +1,22 @@
 import { useApi } from '@robes/api-client/react';
 import { plan as copy } from '@robes/copy';
 import { longDate, monthGrid, rangeLabel, tripBands } from '@robes/core/calendar';
-import { fonts, Text } from '@robes/ui-native';
+import { ErrorText, fonts, Text } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useFeatures } from '@/lib/features';
 import { DayDots } from './DayDots';
 
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const WEEKDAYS = [
+  ['mon', 'M'],
+  ['tue', 'T'],
+  ['wed', 'W'],
+  ['thu', 'T'],
+  ['fri', 'F'],
+  ['sat', 'S'],
+  ['sun', 'S'],
+] as const;
 
 // Month view: a numeral and one dot per look in each cell; every cell opens its day.
 export function PlanMonth({ today, month }: { today: string; month: string }) {
@@ -28,11 +36,17 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
   );
   return (
     <ScrollView contentContainerClassName="gap-1 px-6 pb-12" testID="plan-month">
-      {query.isError ? <Text tone="danger">{errorMessage(query.error)}</Text> : null}
+      {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
       <View className="mb-1 flex-row" importantForAccessibility="no-hide-descendants">
-        {WEEKDAYS.map((d, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: fixed weekday header
-          <Text key={i} tone="muted" className="flex-1 text-center text-xs">
+        {WEEKDAYS.map(([k, d]) => (
+          <Text
+            key={k}
+            tone="muted"
+            size="caption"
+            weight="medium"
+            className="flex-1 text-center uppercase"
+            style={{ letterSpacing: 1.6 }}
+          >
             {d}
           </Text>
         ))}
@@ -45,6 +59,12 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
             if (!date) return <View key={`pad-${r}-${c}`} className="flex-1" />;
             const looks = byDate.get(date) ?? 0;
             const band = bands.get(date);
+            // A printed diary: the past is filed (filled), what's ahead is not hers yet (dashed).
+            const state = band
+              ? 'border-transparent'
+              : date < today
+                ? 'border-transparent bg-surface'
+                : 'border-dashed border-border-control';
             return (
               <Pressable
                 key={date}
@@ -52,9 +72,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                 accessibilityRole="button"
                 accessibilityLabel={copy.week.day(longDate(date), looks)}
                 onPress={() => router.push(`/day/${date}`)}
-                className={`min-h-14 flex-1 items-center gap-1.5 rounded-crisp border pt-1.5 ${
-                  date === today ? 'border-ink' : band ? 'border-transparent' : 'border-hairline'
-                }`}
+                className={`min-h-14 flex-1 items-start gap-1.5 rounded-crisp border px-1 py-1 ${state}`}
               >
                 {/* The phone's trip band is the whole tile, bridging the gutters (11337c3). */}
                 {band ? (
@@ -63,15 +81,23 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                     style={{ left: band.first ? 0 : -2, right: band.last ? 0 : -2 }}
                   />
                 ) : null}
-                <Text className="text-base text-ink" style={{ fontFamily: fonts.displayRegular }}>
-                  {Number(date.slice(8))}
-                </Text>
-                <DayDots looks={looks} past={date <= today} />
+                <View className="flex-row items-center gap-1">
+                  <Text className="text-base text-ink" style={{ fontFamily: fonts.displayRegular }}>
+                    {Number(date.slice(8))}
+                  </Text>
+                  {date === today ? <View className="size-1 rounded-pill bg-ink" /> : null}
+                </View>
+                <View className="mt-auto">
+                  <DayDots looks={looks} past={date <= today} />
+                </View>
               </Pressable>
             );
           })}
         </View>
       ))}
+      <Text size="small" tone="muted" italic className="pt-3 text-center">
+        {copy.monthCaption}
+      </Text>
       {inMonth.length ? (
         <View className="gap-2 pt-4" accessibilityLabel={copy.trips}>
           {inMonth.map((t) => {

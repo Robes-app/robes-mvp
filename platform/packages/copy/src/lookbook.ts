@@ -85,6 +85,12 @@ export const lookbook = {
     label: 'Name this look',
     placeholder: 'Untitled',
   },
+  // The draft stands on a figure (legacy 2026-10-15): a slot per part of her, tapped to dress.
+  figure: {
+    untitled: 'Untitled look',
+    alt: 'Your model, ready to dress',
+    slots: { top: '+ Top', bottom: '+ Bottom', shoes: '+ Shoes' },
+  },
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,
     addPiece: '+ Add a piece',
@@ -105,7 +111,6 @@ export const lookbook = {
     title: 'Start with the canvas',
     body: 'The basics that set proportion and tone.',
     hint: 'A tee, jeans, a knit…',
-    after: 'Start anywhere. Robes notes what each piece does as you add it.',
   },
   swap: {
     title: (piece: string): string => `Swap the ${piece}`,
@@ -169,7 +174,7 @@ export const lookbook = {
   // The look prompt: one box on every look.
   prompt: {
     doorLook: 'Change this look…',
-    doorNew: 'A new look for…',
+    doorNew: 'Where to, and how should it feel?',
     doorAfter: 'Anything else, or put something back…',
     doorDraft: 'Change this draft…',
     busyChange: 'Changing the look…',

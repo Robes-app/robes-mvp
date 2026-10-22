@@ -56,7 +56,7 @@ test('home: the greeting, the week once activated, and her look for today on the
   await declineConsent(page);
   await page.goto('/');
   await expect(page.getByText('What are you dressing for today?')).toBeVisible();
-  // Not activated yet: no week, the box reads "A new look for…".
+  // Not activated yet: no week, the box reads "Where to, and how should it feel?".
   await expect(page.getByTestId('home-week')).toHaveCount(0);
 
   const api = page.request;

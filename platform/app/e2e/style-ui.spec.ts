@@ -12,7 +12,7 @@ test('a close-up reads her colouring; she picks the season next door and correct
   await signIn(page);
   await declineConsent(page);
   await page.goto('/you');
-  await page.getByRole('link', { name: 'Your Digital Twin' }).click();
+  await page.getByRole('link', { name: 'Your digital twin' }).click();
   await expect(page).toHaveURL(/\/you\/model$/);
   expect(await seriousViolations(page)).toEqual([]);
 

@@ -3,12 +3,13 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import { wardrobe } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
-import { Text } from '@robes/ui';
+import { ErrorText, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type DragEvent, useId, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
+import { invalidateWardrobe } from '@/lib/wardrobe';
 
 // Drop or choose several photos → direct uploads → one batch → pieces appear "reading" (UX-17).
 export function AddPieces() {
@@ -31,9 +32,11 @@ export function AddPieces() {
         assetIds.push((await uploadPhoto(client, file)).id);
         setProgress({ done: assetIds.length, total: photos.length });
       }
-      await client.call('wardrobe.batch', { input: { assetIds } });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
-      router.push('/wardrobe');
+      const batch = await client.call('wardrobe.batch', { input: { assetIds } });
+      await invalidateWardrobe(queryClient);
+      // One photo gets its reveal; a batch files quietly and reads on the grid.
+      const one = batch.pieces.length === 1 ? batch.pieces[0] : undefined;
+      router.push(one ? `/piece/${one.id}?saw=1` : '/wardrobe');
     } catch (err) {
       setError(errorCopy(err));
       setProgress(null);
@@ -80,11 +83,7 @@ export function AddPieces() {
       <Text role="status" size="small" tone="muted" className="min-h-5">
         {progress ? wardrobe.uploading(progress.done, progress.total) : ''}
       </Text>
-      {error ? (
-        <Text role="alert" size="small" tone="danger">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
     </div>
   );
 }

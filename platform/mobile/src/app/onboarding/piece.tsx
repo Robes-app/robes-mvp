@@ -4,6 +4,8 @@ import { firstRun as copy, home, onboarding } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
+  Em,
+  ErrorText,
   Eyebrow,
   Heading,
   Image,
@@ -165,14 +167,16 @@ export default function FirstPiece() {
         }
       >
         <View className="gap-2">
-          <Eyebrow>{eyebrow}</Eyebrow>
+          <Eyebrow className="text-accent-warm">{eyebrow}</Eyebrow>
           <Heading size="md">
-            {copy.piece.title} <Text className="italic">{copy.piece.titleEm}</Text>
+            {copy.piece.title} <Em>{copy.piece.titleEm}</Em>
           </Heading>
         </View>
         {preview ? (
           <View className="gap-2">
-            <Image source={preview} alt="" />
+            <View className="w-full max-w-[300px] self-center">
+              <Image source={preview} alt="" aspect="3:4" />
+            </View>
             {filed && piece ? <Text className="text-center text-lg">{piece.label}</Text> : null}
             {!reading ? (
               <Button
@@ -192,22 +196,25 @@ export default function FirstPiece() {
             accessibilityRole="button"
             accessibilityLabel={copy.piece.add}
             onPress={() => setMenu(true)}
-            className="aspect-[4/5] items-center justify-center gap-3 rounded-soft border border-border-control border-dashed bg-surface"
+            className="aspect-[3/4] w-full max-w-[300px] items-center justify-center gap-3 self-center rounded-soft border border-border-control border-dashed bg-surface"
             testID="first-piece-well"
           >
-            <Text size="caption" tone="muted" className="uppercase">
+            <Text tone="faint" italic>
               {copy.piece.keyPiece}
             </Text>
             <View className="rounded-pill border border-ink px-5 py-2">
-              <Text size="small">{copy.piece.add}</Text>
+              <Text
+                size="caption"
+                weight="medium"
+                className="uppercase"
+                style={{ letterSpacing: 1.9 }}
+              >
+                {copy.piece.add}
+              </Text>
             </View>
           </Pressable>
         )}
-        {message ? (
-          <Text size="small" tone="danger">
-            {message}
-          </Text>
-        ) : null}
+        {message ? <ErrorText size="small">{message}</ErrorText> : null}
         <View className="border-hairline border-t" testID="ledger">
           {copy.piece.rows.map((row, i) => {
             const value = values && i < revealed ? values[i] : null;
@@ -219,10 +226,8 @@ export default function FirstPiece() {
                 <Text size="caption" tone="faint">
                   {String(i + 1).padStart(2, '0')}
                 </Text>
-                <Text size="small" tone="muted" className="flex-1">
-                  {row}
-                </Text>
-                <Text size="small" tone={value ? 'ink' : 'faint'}>
+                <Eyebrow className="flex-1">{row}</Eyebrow>
+                <Text size="small" tone={value ? 'ink' : 'faint'} italic={!value}>
                   {value ??
                     (reading || (values && i === revealed)
                       ? copy.piece.readingRow
@@ -314,7 +319,7 @@ function Compose({ jobId, name }: { jobId: string; name: string | null }) {
       testID="composing"
     >
       <Heading size="md">
-        {copy.compose.title} <Text className="italic">{copy.compose.titleEm(name)}</Text>
+        {copy.compose.title} <Em>{copy.compose.titleEm(name)}</Em>
       </Heading>
       <View className="border-hairline border-t">
         {copy.compose.lines.map((line, i) => (

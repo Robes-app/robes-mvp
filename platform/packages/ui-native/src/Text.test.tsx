@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react-native';
 import { maxFontSizeMultiplier } from './scale';
-import { Eyebrow, Heading, Text } from './Text';
+import { Em, Eyebrow, Heading, Text } from './Text';
 
 test('Heading is a header in Cormorant and never below 17pt', async () => {
   await render(
@@ -41,6 +41,24 @@ test('Text uses the Inter family by weight', async () => {
       <Text weight="medium">Medium</Text>
     </>,
   );
-  expect(screen.getByText('Regular')).toHaveStyle({ fontFamily: 'Inter_400Regular' });
+  expect(screen.getByText('Regular')).toHaveStyle({ fontFamily: 'Inter_300Light' });
   expect(screen.getByText('Medium')).toHaveStyle({ fontFamily: 'Inter_500Medium' });
+});
+
+test('an italic line is Cormorant italic, never the sans, and never below 17pt', async () => {
+  await render(
+    <>
+      <Text size="caption" italic>
+        Awaiting
+      </Text>
+      <Heading>
+        What should Robes <Em>call you?</Em>
+      </Heading>
+    </>,
+  );
+  expect(screen.getByText('Awaiting')).toHaveStyle({
+    fontFamily: 'Cormorant_300Light_Italic',
+    fontSize: 17,
+  });
+  expect(screen.getByText('call you?')).toHaveStyle({ fontFamily: 'Cormorant_300Light_Italic' });
 });

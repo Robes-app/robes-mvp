@@ -3,7 +3,7 @@
 import { useApi, useApiMutation } from '@robes/api-client/react';
 import { trips } from '@robes/copy';
 import { defaultTripDates, parseOccasions, tripDatesError } from '@robes/core/trips';
-import { Button, Field, Pill, Text, TextArea } from '@robes/ui';
+import { Button, ErrorText, Field, Pill, Text, TextArea } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { localToday } from '@/lib/dates';
@@ -112,11 +112,7 @@ export function TripForm({ initialBrief = '' }: { initialBrief?: string }) {
           </div>
         </fieldset>
       ) : null}
-      {start.isError ? (
-        <Text role="alert" size="small" tone="danger">
-          {errorCopy(start.error)}
-        </Text>
-      ) : null}
+      {start.isError ? <ErrorText>{errorCopy(start.error)}</ErrorText> : null}
       <Button
         variant="primary"
         type="submit"

@@ -6,7 +6,7 @@ import { home as copy, lookbook } from '@robes/copy';
 import { isTripAsk } from '@robes/core/home';
 import { ASK_MAX_CHARS, askDateFrom } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { IconButton, Text } from '@robes/ui';
+import { ErrorText, IconButton, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useFeatures } from '@/components/features';
@@ -213,7 +213,7 @@ export function HomeBox({
           ) : null}
         </div>
       ) : null}
-      <div className="relative flex items-end gap-2 rounded-soft border border-hairline bg-surface px-2 py-2">
+      <div className="relative flex items-end gap-2 rounded-[24px] border border-border-control bg-bg px-2 py-1.5">
         <IconButton
           icon="plus"
           label={copy.plus.label}
@@ -304,15 +304,11 @@ export function HomeBox({
         />
       </div>
       {busy || waiting ? (
-        <Text size="small" tone="muted" className="italic" role="status">
+        <Text size="small" tone="muted" italic role="status">
           {waiting ? copy.plus.filing : busy}
         </Text>
       ) : null}
-      {error ? (
-        <Text size="caption" tone="danger" role="alert">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <ErrorText size="caption">{error}</ErrorText> : null}
       <SwapSheet
         open={picking}
         swapping={null}

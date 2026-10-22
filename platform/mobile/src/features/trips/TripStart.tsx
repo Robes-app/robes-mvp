@@ -1,7 +1,16 @@
 import { useApi } from '@robes/api-client/react';
 import { trips } from '@robes/copy';
 import { defaultTripDates, parseOccasions, tripDatesError } from '@robes/core/trips';
-import { Button, Eyebrow, Field, Heading, Pill, PrimaryScope, Text } from '@robes/ui-native';
+import {
+  Button,
+  ErrorText,
+  Eyebrow,
+  Field,
+  Heading,
+  Pill,
+  PrimaryScope,
+  Text,
+} from '@robes/ui-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
@@ -91,7 +100,7 @@ export function TripStart({ initialOccasions = '' }: { initialOccasions?: string
             </View>
           </View>
         ) : null}
-        {start.isError ? <Text tone="danger">{errorMessage(start.error)}</Text> : null}
+        {start.isError ? <ErrorText>{errorMessage(start.error)}</ErrorText> : null}
         <PrimaryScope>
           <Button
             disabled={!destination.trim() || Boolean(dateError)}

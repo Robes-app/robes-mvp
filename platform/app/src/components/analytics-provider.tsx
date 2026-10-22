@@ -2,6 +2,7 @@
 
 import { type Analytics, noopAnalytics } from '@robes/analytics';
 import { type BrowserAnalyticsConfig, createBrowserAnalytics } from '@robes/analytics/browser';
+import { useApi } from '@robes/api-client/react';
 import type { Consents, UpdateConsentsInput } from '@robes/contracts';
 import { usePathname } from 'next/navigation';
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
@@ -101,12 +102,16 @@ export function AnalyticsProvider({
     [browser, consents],
   );
 
-  // Not during onboarding, and not on the page that already offers the same choice.
+  // Asked after her first real moment (a piece filed), so the ask has something to stand on;
+  // never during onboarding, nor on the page that already offers the same choice.
+  const unanswered = userId !== null && consents?.analytics === null;
+  const onboarding = pathname.startsWith('/onboarding');
+  const summary = useApi('wardrobe.summary', undefined, {
+    enabled: unanswered && !onboarding,
+    refetchOnMount: 'always',
+  });
   const asking =
-    userId !== null &&
-    consents?.analytics === null &&
-    !pathname.startsWith('/onboarding') &&
-    pathname !== '/you/privacy';
+    unanswered && (summary.data?.total ?? 0) > 0 && !onboarding && pathname !== '/you/privacy';
 
   return (
     <AnalyticsContext value={value}>

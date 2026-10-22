@@ -13,7 +13,7 @@ describe('Button', () => {
     render(<Button onClick={onClick}>Save this look</Button>);
     const button = screen.getByRole('button', { name: 'Save this look' });
     expect(button).toHaveAttribute('type', 'button');
-    expect(button).toHaveClass('min-h-11');
+    expect(button).toHaveClass('min-h-11', 'uppercase');
     await userEvent.click(button);
     expect(onClick).toHaveBeenCalledOnce();
   });

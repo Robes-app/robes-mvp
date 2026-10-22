@@ -69,13 +69,14 @@ export async function seriousViolations(page: Page): Promise<string[]> {
     .map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
 }
 
-// Answers the consent banner so it stops covering the bottom of the page (consent.spec tests it).
+// Answers analytics consent so its ask never covers the page (consent.spec tests the ask itself).
+// The ask waits for her first filed piece, so the answer goes straight to the API.
 export async function declineConsent(page: Page): Promise<void> {
-  await page
-    .getByRole('region', { name: 'Help shape Robes.' })
-    .getByRole('button', { name: 'Don’t allow' })
-    .click();
-  await expect(page.getByRole('region', { name: 'Help shape Robes.' })).toHaveCount(0);
+  const res = await page.request.post('/api/v1/me/consents', {
+    data: { source: 'web', consents: { analytics: false } },
+  });
+  expect(res.ok()).toBe(true);
+  await page.reload();
 }
 
 const PLATFORM = fileURLToPath(new URL('../..', import.meta.url));

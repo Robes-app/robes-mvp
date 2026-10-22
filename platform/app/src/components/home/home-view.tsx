@@ -37,7 +37,7 @@ function trayHref(job: Today['tray'][number]): string {
 
 // The modular home (legacy 0478e63): H0 masthead · H1 alerts · H2 the box · the next step (O1–O4)
 // and the map (G1) while onboarding · the week (H3) once activated · Saved then Suggested (H4).
-export function HomeView({ initial }: { initial: Today }) {
+export function HomeView({ initial, dress = null }: { initial: Today; dress?: string | null }) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -54,7 +54,8 @@ export function HomeView({ initial }: { initial: Today }) {
     refetchOnWindowFocus: false,
   });
   const [force, setForce] = useState<HomeStep | null>(null);
-  const [dressDate, setDressDate] = useState<string | null>(null);
+  // A day page's "Dress this day…" lands here with the box armed on its date.
+  const [dressDate, setDressDate] = useState<string | null>(dress);
   const boxRef = useRef<HTMLDivElement>(null);
   const home = data.home;
   const resolved = resolveHome(home.state, { force });
@@ -85,17 +86,17 @@ export function HomeView({ initial }: { initial: Today }) {
       data-stage={resolved.stage}
     >
       <header className="flex flex-col gap-2">
-        <Heading level={1} size="2xl">
+        <Heading level={1} size="lg">
           {todayCopy.greeting(name, data.hour)}
         </Heading>
-        <Text className="font-display text-xl italic" tone="muted">
+        <Text italic tone="faint">
           {copy.echo}
         </Text>
         {weatherLine ? (
           <Text
-            size="small"
+            size="caption"
             tone="muted"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 font-medium uppercase tracking-[0.16em]"
             aria-label={`${copy.weatherLabel}: ${weatherLine}`}
           >
             <Icon name={/clear|partly/.test(wx?.condition ?? '') ? 'today' : 'cloud'} size={16} />
@@ -108,7 +109,7 @@ export function HomeView({ initial }: { initial: Today }) {
 
       <div ref={boxRef}>
         <HomeBox
-          placeholder={resolved.activated ? copy.doorHome : lookbook.prompt.doorNew}
+          placeholder={lookbook.prompt.doorNew}
           date={dressDate}
           onDateClear={() => setDressDate(null)}
           hasPieces={home.state.pics > 0}
@@ -236,7 +237,7 @@ function Alerts({
     rows.push(
       <li key="noticed" className="flex items-center gap-3 py-3" data-kind="observation">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk text-ink-muted">
-          ✦
+          <Icon name="looks" size={18} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <Text size="caption" tone="muted" className="uppercase tracking-wider">

@@ -4,13 +4,20 @@ import { notFound } from 'next/navigation';
 import { BackLink } from '@/components/back-link';
 import { PieceDetail } from './piece-detail';
 
-export default async function PiecePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PiecePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ saw?: string }>;
+}) {
   const parsed = PieceParams.safeParse(await params);
   if (!parsed.success) notFound();
+  const saw = (await searchParams).saw === '1';
   return (
     <div className="flex flex-col gap-4">
       <BackLink href="/wardrobe" label={wardrobe.piece.back} />
-      <PieceDetail id={parsed.data.id} />
+      <PieceDetail id={parsed.data.id} saw={saw} />
     </div>
   );
 }

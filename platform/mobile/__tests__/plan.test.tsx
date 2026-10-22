@@ -44,7 +44,9 @@ test('days read as today or a short date', () => {
 test('an empty plan explains how to fill it; every day is a row that opens its page', async () => {
   mockFetch({ 'GET /plan': planWith(false) });
   await renderWithApi(<PlanView />);
-  expect(await screen.findByText(plan.empty.title)).toBeTruthy();
+  expect(
+    await screen.findByText(`${plan.empty.title} ${plan.empty.titleEm}`, { exact: false }),
+  ).toBeTruthy();
   expect(screen.getAllByText(plan.list.nameTheDay)).toHaveLength(3);
   // 1 Oct 2026 is a Thursday: the window starts mid-week.
   expect(screen.getByText(plan.list.restOfWeek)).toBeTruthy();

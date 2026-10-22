@@ -1,6 +1,11 @@
 import '../global.css';
-import { Cormorant_300Light, Cormorant_400Regular } from '@expo-google-fonts/cormorant';
-import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
+import {
+  Cormorant_300Light,
+  Cormorant_300Light_Italic,
+  Cormorant_400Regular,
+  Cormorant_400Regular_Italic,
+} from '@expo-google-fonts/cormorant';
+import { Inter_300Light, Inter_500Medium } from '@expo-google-fonts/inter';
 import { ApiClientProvider } from '@robes/api-client/react';
 import { ToastProvider } from '@robes/ui-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,8 +21,10 @@ initSentry();
 export default function RootLayout() {
   const [loaded] = useFonts({
     Cormorant_300Light,
+    Cormorant_300Light_Italic,
     Cormorant_400Regular,
-    Inter_400Regular,
+    Cormorant_400Regular_Italic,
+    Inter_300Light,
     Inter_500Medium,
   });
   const [queryClient] = useState(

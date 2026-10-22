@@ -3,7 +3,7 @@
 import { useApi, useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { firstRun as copy, onboarding } from '@robes/copy';
-import { Button, Eyebrow, Field, Heading, Text } from '@robes/ui';
+import { Button, ErrorText, Eyebrow, Field, Heading, IconButton, Text, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import {
   type DragEvent,
@@ -44,12 +44,10 @@ function Frame({
       <header className="grid grid-cols-3 items-center">
         <span>
           {onBack ? (
-            <Button variant="quiet" onClick={onBack} className="-ml-2">
-              {copy.back}
-            </Button>
+            <IconButton icon="back" label={copy.backLabel} onClick={onBack} className="-ml-2" />
           ) : null}
         </span>
-        <span className="text-center font-display text-xl">{copy.wordmark}</span>
+        <Wordmark className="text-center" />
         <span />
       </header>
       <div
@@ -118,9 +116,9 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
       <button
         type="button"
         onClick={() => setStage('name')}
-        className="flex min-h-dvh w-full items-center justify-center bg-ink font-display text-5xl text-bg"
+        className="flex min-h-dvh w-full items-center justify-center bg-ink text-bg"
       >
-        {copy.wordmark}
+        <Wordmark className="text-5xl" />
       </button>
     );
   }
@@ -164,7 +162,7 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
         segs={1}
         footer={
           <Button
-            variant="primary"
+            variant="secondary"
             type="submit"
             disabled={!name.trim()}
             loading={busy}
@@ -177,10 +175,14 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
         <div className="flex flex-col gap-2 pt-8">
           <Eyebrow>{copy.name.eyebrow}</Eyebrow>
           <Heading level={1}>
-            {copy.name.title} <em>{copy.name.titleEm}</em>
+            {copy.name.title}
+            <br />
+            <em>{copy.name.titleEm}</em>
           </Heading>
         </div>
         <Field
+          variant="underline"
+          labelHidden
           label={copy.name.label}
           name="firstName"
           autoComplete="given-name"
@@ -324,7 +326,7 @@ function FirstPiece({
       }
     >
       <div className="flex flex-col gap-2">
-        <Eyebrow>{eyebrow}</Eyebrow>
+        <Eyebrow className="text-accent-warm">{eyebrow}</Eyebrow>
         <Heading level={1} size="xl">
           {copy.piece.title} <em>{copy.piece.titleEm}</em>
         </Heading>
@@ -338,7 +340,7 @@ function FirstPiece({
         onDragLeave={() => setOver(false)}
         onDrop={onDrop}
         data-testid="first-piece-well"
-        className={`relative flex aspect-[4/5] w-full cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-soft border ${
+        className={`relative flex aspect-[3/4] w-full max-w-[300px] cursor-pointer self-center flex-col items-center justify-center gap-3 overflow-hidden rounded-soft border ${
           preview ? 'border-hairline' : 'border-border-control border-dashed'
         } ${over ? 'bg-surface-sunk' : 'bg-surface'} focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-ring`}
       >
@@ -347,10 +349,10 @@ function FirstPiece({
           <img src={preview} alt="" className="absolute inset-0 size-full object-cover" />
         ) : (
           <>
-            <span className="font-sans text-ink-muted text-xs uppercase tracking-[0.2em]">
+            <span className="font-display text-ink-faint text-xl italic">
               {copy.piece.keyPiece}
             </span>
-            <span className="rounded-pill border border-ink px-5 py-2 font-sans text-sm text-ink">
+            <span className="rounded-pill border border-ink px-5 py-2 font-medium font-sans text-ink text-xs uppercase tracking-[0.16em]">
               {copy.piece.add}
             </span>
           </>
@@ -389,11 +391,7 @@ function FirstPiece({
           {copy.piece.retake}
         </Button>
       ) : null}
-      {message ? (
-        <Text size="small" tone="danger" role="alert">
-          {message}
-        </Text>
-      ) : null}
+      {message ? <ErrorText>{message}</ErrorText> : null}
       <dl
         className="flex flex-col divide-y divide-hairline border-hairline border-y"
         data-testid="ledger"
@@ -402,11 +400,19 @@ function FirstPiece({
           const value = values && i < revealed ? values[i] : null;
           return (
             <div key={row} className="flex items-baseline gap-3 py-2">
-              <span className="font-sans text-ink-faint text-xs">
+              <span className="font-sans text-ink-faint text-xs tracking-[0.2em]">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <dt className="flex-1 font-sans text-ink-muted text-sm">{row}</dt>
-              <dd className={`font-sans text-sm ${value ? 'text-ink' : 'text-ink-faint'}`}>
+              <dt className="flex-1 font-medium font-sans text-ink-muted text-xs uppercase tracking-[0.2em]">
+                {row}
+              </dt>
+              <dd
+                className={
+                  value
+                    ? 'font-sans text-ink text-sm'
+                    : 'font-display text-ink-faint text-lg italic'
+                }
+              >
                 {value ??
                   (reading || (values && i === revealed)
                     ? copy.piece.readingRow

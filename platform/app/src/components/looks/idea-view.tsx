@@ -3,7 +3,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Idea, IdeaWay } from '@robes/contracts';
 import { keyPiece as kp, looks } from '@robes/copy';
-import { Button, Eyebrow, Heading, Sheet, Skeleton, Text, useToast } from '@robes/ui';
+import { Button, ErrorText, Eyebrow, Heading, Sheet, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
@@ -65,11 +65,7 @@ export function IdeaView({ ideaId }: { ideaId: string }) {
   });
 
   if (query.isError) {
-    return (
-      <Text role="alert" tone="danger">
-        {errorCopy(query.error)}
-      </Text>
-    );
+    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   const idea = query.data;
   if (!idea) return <IdeaSkeleton />;

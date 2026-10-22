@@ -1,9 +1,10 @@
 import { marketing } from '@robes/copy';
-import { buttonClasses, Eyebrow, Heading, Text } from '@robes/ui';
+import { buttonClasses, Heading, Text, Wordmark } from '@robes/ui';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { z } from 'zod';
 import { HomeView } from '@/components/home/home-view';
 import { WaitlistForm } from '@/components/marketing/waitlist-form';
 import { AppShell } from '@/components/shell/app-shell';
@@ -39,21 +40,25 @@ const JSON_LD = JSON.stringify({
 }).replace(/</g, '\\u003c');
 
 // Signed out: the marketing page. Signed in: Today, inside the app shell.
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ dress?: string | string[] }>;
+}) {
   const profile = await currentProfile();
 
   if (!profile) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-4 px-6">
         <script type="application/ld+json">{JSON_LD}</script>
-        <Eyebrow>{marketing.eyebrow}</Eyebrow>
+        <Wordmark />
         <Heading level={1} size="2xl">
-          {marketing.title}
+          {marketing.titleLead} <em>{marketing.titleEm}</em>
         </Heading>
         <Text tone="muted">{marketing.subtitle}</Text>
         <Link
           href="/auth/sign-in"
-          className={`${buttonClasses({ variant: 'primary' })} mt-4 self-start`}
+          className={`${buttonClasses({ variant: 'secondary' })} mt-4 self-start`}
         >
           {marketing.signIn}
         </Link>
@@ -71,7 +76,10 @@ export default async function Home() {
 
   return (
     <AppShell name={displayName(profile)} features={await clientFeatures()}>
-      <HomeView initial={await loadToday(profile.userId)} />
+      <HomeView
+        initial={await loadToday(profile.userId)}
+        dress={z.iso.date().safeParse((await searchParams).dress).data ?? null}
+      />
     </AppShell>
   );
 }

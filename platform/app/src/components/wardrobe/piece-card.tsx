@@ -22,6 +22,8 @@ export interface CardStatus {
   text: string;
   // "Never worn" and a wish's "Not yours yet" read in the warm rose.
   warm: boolean;
+  // A failed read is an error, not a label: sentence case, in danger, with its icon.
+  error?: boolean;
 }
 
 // Eyebrow "Category · Brand" (the brand in rose) and the serif name, two lines.
@@ -55,7 +57,12 @@ function cardLines({
         )}
       </h3>
     ),
-    status: (
+    status: status.error ? (
+      <p className="flex items-center gap-1.5 font-sans text-danger text-xs">
+        <Icon name="alert" size={14} className="shrink-0" />
+        {status.text}
+      </p>
+    ) : (
       <p
         className={`font-sans text-[9px] tracking-[0.14em] uppercase ${
           status.warm ? 'text-accent-warm' : 'text-ink-muted'

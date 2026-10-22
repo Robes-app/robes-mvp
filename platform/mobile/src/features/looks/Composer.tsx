@@ -1,11 +1,21 @@
 import { ApiClientError } from '@robes/api-client';
-import { useApiClient } from '@robes/api-client/react';
+import { useApi, useApiClient } from '@robes/api-client/react';
 import type { CreateLookInput, Piece } from '@robes/contracts';
 import { lookbook as copy, errors, photoPieces } from '@robes/copy';
-import { Button, Eyebrow, Field, Text, useToast } from '@robes/ui-native';
+import { Icon } from '@robes/icons/native';
+import {
+  Button,
+  Eyebrow,
+  fonts,
+  Image,
+  Skeleton,
+  Text,
+  useColor,
+  useToast,
+} from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { usePieces } from '@/features/wardrobe/pieces';
 import { useInvalidateLooks } from './look-states';
 import { SwapSheet } from './SwapSheet';
@@ -23,7 +33,11 @@ export function Composer({ pieceId }: { pieceId?: string }) {
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const { pieces } = usePieces();
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<string | null | false>(false);
+  const model = useApi('me.model.get');
+  const ink = useColor('ink');
+  const faint = useColor('ink-faint');
+  const control = useColor('border-control');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -72,43 +86,82 @@ export function Composer({ pieceId }: { pieceId?: string }) {
   });
 
   return (
-    <ScrollView contentContainerClassName="gap-6 px-6 pb-12">
-      <View className="items-center gap-2">
-        <Eyebrow>{copy.eyebrow.draft}</Eyebrow>
-        <Field
-          label={copy.name.label}
-          placeholder={copy.name.placeholder}
-          value={name}
-          onChangeText={setName}
-          maxLength={120}
-        />
+    <View className="flex-1">
+      <ScrollView contentContainerClassName="gap-6 px-6 pb-32">
+        <View className="items-center gap-2">
+          <Eyebrow>{copy.eyebrow.draft}</Eyebrow>
+          {/* The title is the name: tap the italic line and write over it. */}
+          <TextInput
+            accessibilityLabel={copy.name.label}
+            placeholder={copy.figure.untitled}
+            placeholderTextColor={faint}
+            value={name}
+            onChangeText={setName}
+            maxLength={120}
+            className="min-h-11 w-full text-center text-3xl"
+            style={{ color: ink, fontFamily: fonts.displayItalic }}
+          />
+        </View>
+        <View>
+          <View>
+            {model.data?.cell.imageUrl ? (
+              <Image source={model.data.cell.imageUrl} alt={copy.figure.alt} />
+            ) : model.isPending ? (
+              <Skeleton width="100%" aspectRatio={4 / 5} />
+            ) : (
+              <View className="aspect-[4/5] w-full items-center justify-center rounded-soft bg-surface">
+                <Icon name="user" size={160} color={control} />
+              </View>
+            )}
+            {(
+              [
+                ['top', 'Tops', '31%'],
+                ['bottom', 'Bottoms', '58%'],
+                ['shoes', 'Shoes', '86%'],
+              ] as const
+            ).map(([slot, category, top]) => (
+              <View key={slot} className="absolute inset-x-0 items-center" style={{ top }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.figure.slots[slot]}
+                  disabled={busy}
+                  onPress={() => setAdding(category)}
+                  className="min-h-11 -translate-y-1/2 justify-center rounded-pill border border-border-control bg-bg px-4"
+                >
+                  <Text
+                    size="caption"
+                    weight="medium"
+                    className="uppercase"
+                    style={{ letterSpacing: 1.6 }}
+                  >
+                    {copy.figure.slots[slot]}
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+          <Text size="small" tone="muted" italic className="pt-3 text-center">
+            {copy.guide.body}
+          </Text>
+        </View>
+      </ScrollView>
+      {/* The actions float above the tab bar (legacy start bar). */}
+      <View className="absolute inset-x-4 bottom-6 flex-row gap-2 rounded-pill border border-hairline bg-bg p-1.5">
+        <Button icon="camera" className="flex-1" onPress={() => router.push('/looks/photo')}>
+          {photoPieces.look.start.title}
+        </Button>
+        <Button variant="secondary" onPress={() => setAdding(null)} loading={busy}>
+          {copy.rack.addPiece}
+        </Button>
       </View>
-      {/* A look from a photo (legacy use case 2b): the second start beside the rack. */}
-      <Button variant="secondary" icon="camera" onPress={() => router.push('/looks/photo')}>
-        {photoPieces.look.start.title}
-      </Button>
-      <View className="gap-1 rounded-soft border border-dashed border-border-control p-4">
-        <Text>{copy.guide.title}</Text>
-        <Text size="small" tone="muted">
-          {copy.guide.body}
-        </Text>
-        <Text size="small" tone="faint">
-          {copy.guide.hint}
-        </Text>
-      </View>
-      <Text size="small" tone="muted">
-        {copy.guide.after}
-      </Text>
-      <Button variant="secondary" onPress={() => setAdding(true)} loading={busy}>
-        {copy.rack.addPiece}
-      </Button>
       <SwapSheet
-        open={adding}
+        open={adding !== false}
         swapping={null}
+        opensOn={adding || null}
         onRack={[]}
         onClose={() => setAdding(false)}
         onPick={start}
       />
-    </ScrollView>
+    </View>
   );
 }

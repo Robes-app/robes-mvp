@@ -10,6 +10,7 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
+  font-weight: 300;
 }
 
 :focus-visible {

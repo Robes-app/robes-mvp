@@ -48,3 +48,14 @@ describe('next line counts', () => {
     expect(nextLine({ rule: 'build', count: 16 }).text).toMatch(/^16 pieces filed/);
   });
 });
+
+describe('the day’s advice', () => {
+  it('reads the condition first, then the high', async () => {
+    const { plan } = await import('./index');
+    expect(plan.day.advice('light rain', '8–12°C')).toBe('Bring a shell for the rain.');
+    expect(plan.day.advice('clear', '3–9°C')).toBe('A proper coat today.');
+    expect(plan.day.advice('partly cloudy', '10–15°C')).toBe('Bring one warm layer.');
+    expect(plan.day.advice('clear', '18–27°C')).toBe('Light and breathable.');
+    expect(plan.day.advice('overcast', '12–19°C')).toBe('Easy layers.');
+  });
+});

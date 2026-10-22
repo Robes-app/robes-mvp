@@ -32,7 +32,7 @@ type Category = NonNullable<ListPiecesInput['category']>;
 
 function pieceStatus(piece: Piece): CardStatus {
   if (piece.status === 'reading') return { text: copy.reading, warm: false };
-  if (piece.status === 'failed') return { text: copy.noPieceFound, warm: true };
+  if (piece.status === 'failed') return { text: copy.noPieceFound, warm: false, error: true };
   return piece.wearCount > 0
     ? { text: copy.card.worn(piece.wearCount), warm: false }
     : { text: copy.card.neverWorn, warm: true };
@@ -155,7 +155,7 @@ function Pieces() {
         <View className="items-center gap-2 px-6 pt-8">
           <EmptyState title={copy.empty.title} body={copy.empty.body} />
           <Button icon="plus" onPress={addFromLibrary} loading={busy} loadingLabel={ui.loading}>
-            {copy.choosePhotos}
+            {copy.empty.action}
           </Button>
         </View>
       </PrimaryScope>

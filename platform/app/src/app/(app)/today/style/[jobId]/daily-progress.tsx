@@ -1,7 +1,7 @@
 'use client';
 
 import { today } from '@robes/copy';
-import { Progress, Text } from '@robes/ui';
+import { ErrorText, Progress } from '@robes/ui';
 import { DailyLookSkeleton, DailyLookView } from '@/components/today/daily-look-view';
 import { jobProgressStage } from '@/lib/looks';
 import { useJob } from '@/lib/use-job';
@@ -14,11 +14,7 @@ export function DailyProgress({ jobId }: { jobId: string }) {
   const failed =
     job?.status === 'failed' || job?.status === 'cancelled' || connection === 'unavailable';
   if (failed) {
-    return (
-      <Text role="alert" tone="danger">
-        {today.daily.failed}
-      </Text>
-    );
+    return <ErrorText>{today.daily.failed}</ErrorText>;
   }
   return (
     <div className="flex flex-col gap-8">
