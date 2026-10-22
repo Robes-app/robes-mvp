@@ -23,7 +23,10 @@ test('a new look is a draft from its first piece, named when she names it, then 
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<Composer />);
-  expect(await screen.findByText(lookbook.guide.title)).toBeTruthy();
+  expect(await screen.findByText(lookbook.guide.body)).toBeTruthy();
+  for (const slot of Object.values(lookbook.figure.slots)) {
+    expect(screen.getByRole('button', { name: slot })).toBeTruthy();
+  }
   await fireEvent.changeText(screen.getByLabelText(lookbook.name.label), 'Gallery');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.rack.addPiece }));
   await fireEvent.press(await screen.findByRole('radio', { name: 'Silk scarf' }));
