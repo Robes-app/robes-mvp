@@ -10,6 +10,10 @@ import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock, SEASONS } from
 import { TAXONOMY_GROUPS, resolveTaxonomy, taxonomyPromptBlock, tagDefaultRows, WEAR_SEEDS } from './wardrobe_taxonomy.js';
 import { createNotifier } from './notify.js';
 import { createInbox } from './inbox.js';
+import { createRequire } from 'module';
+// The colour and pattern model (2026-10-22) — a .cjs so the same file runs as
+// the browser's /js/colour-model.js; see colour_model.cjs.
+const CM = createRequire(import.meta.url)('./colour_model.cjs');
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -3243,6 +3247,13 @@ const ANALYSE_SCHEMA = {
     category_l2:          { type: 'string' },
     category_l3:          { type: 'string' },
     color:                { type: 'string' },
+    // The colour model (2026-10-22): one shade id from the shared list, any
+    // further shades a two- or multi-colour piece carries, the print, and
+    // whether the read is sure enough to stand without a check.
+    colour_shade:         { type: 'string', enum: CM.shadeIds },
+    colour_extra:         { type: 'array', items: { type: 'string' } },
+    print:                { type: 'string', enum: ['plain'].concat(CM.patternIds) },
+    colour_check:         { type: 'boolean' },
     primary_color_hex:    { type: 'string' },
     editorial_color_name: { type: 'string' },
     brand:                { type: 'string' },
@@ -3260,7 +3271,7 @@ const ANALYSE_SCHEMA = {
     size:                 { type: 'string' },
     ai_generated_notes:   { type: 'string' },
   },
-  required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'formality', 'price', 'currency', 'size', 'ai_generated_notes'],
+  required: ['no_item_detected', 'label', 'category', 'category_l2', 'category_l3', 'color', 'colour_shade', 'colour_extra', 'print', 'colour_check', 'primary_color_hex', 'editorial_color_name', 'brand', 'silhouette_fit', 'formality', 'price', 'currency', 'size', 'ai_generated_notes'],
 };
 
 // The per-piece field rules, shared by the single read (/api/wardrobe/analyse)
@@ -3272,11 +3283,13 @@ const ANALYSE_FIELD_RULES = () => `"label": concise item name (e.g. "Camel wool 
 "category_l2" and "category_l3": file the piece in the Robes taxonomy below. Each line reads Category › Subcategory: item types. Pick the ONE line whose subcategory fits best, copy the subcategory name EXACTLY into category_l2, then copy the best-fitting item type from that line EXACTLY into category_l3. If no item type on the line fits, set category_l3 to "". If no subcategory fits at all, set both to "".
 TAXONOMY:
 ${taxonomyPromptBlock()}
-"color": pick ONE from this list only —
-  Foundations: White, Cream, Navy, Charcoal, Black, Espresso
-  Dimension Builders: Camel, Taupe, Olive, Aubergine, Forest, Bordeaux, Blush
-  Exclamation Points: Ochre, Magenta, Cobalt, Emerald, Vermillion, Acid
-  Multi-pattern: Print
+"colour_shade": the piece's colour as ONE shade id from the SHADES list below — the dominant or ground colour as it would read in life, not under the photo's light. A printed piece takes its ground colour. A piece whose main read is metallic (gold sandals, a silver bag) takes a Metallics shade; a navy jumper with gold buttons is navy. Neon shades sit inside their hue family.
+"colour_extra": further shade ids for a two-colour or multi-colour piece, most prominent first, at most three — a navy and white Breton is colour_shade navy, colour_extra ["optic"]; the gold buttons above may ride here as "gold". [] for a single-colour piece.
+"print": ONE pattern id from the PATTERNS list, or "plain" for a piece with no print. A solid piece is "plain"; a print that fits no pattern is "other".
+"colour_check": true ONLY when the light, a filter or a busy print leaves the colour genuinely uncertain — still give the best shade, never leave it; false otherwise.
+SHADES:
+${CM.promptBlock()}
+"color": the display name of the shade you chose in colour_shade, exactly as listed (e.g. "Soft black", "Navy")
 "primary_color_hex": hex code of the dominant color (e.g. "#D2B48C")
 "editorial_color_name": evocative color name (e.g. "Warm Caramel", "Washed Slate")
 "brand": brand if visible, else ""
@@ -3293,6 +3306,13 @@ ${taxonomyPromptBlock()}
 function analysedPiece(parsed) {
   parsed = parsed || {};
   const tax = resolveTaxonomy(parsed.category_l2, parsed.category_l3);
+  // The colour: the shade id the model chose, else its display name, else
+  // the nearest shade to the hex it read — a piece never files without one
+  // when anything at all was read. `color` keeps the display name so every
+  // closet line and legacy reader still sees a plain word.
+  const sh = CM.resolve({ id: parsed.colour_shade, name: parsed.color, hex: parsed.primary_color_hex });
+  const extra = (Array.isArray(parsed.colour_extra) ? parsed.colour_extra : []).map(x => CM.resolve({ id: x, name: x })).filter(x => x && (!sh || x.id !== sh.id)).map(x => x.id);
+  const prt = CM.pattern(parsed.print);
   const item_dna = {
     display: {
       title: parsed.label || '',
@@ -3307,12 +3327,16 @@ function analysedPiece(parsed) {
     llm_styling_context: {},
     ai_generated_notes: parsed.ai_generated_notes || '',
   };
+  if (parsed.colour_check === true) item_dna.colour_check = true;
   return {
     label: String(parsed.label || '').trim().slice(0, 120),
     category: tax ? tax.category : (parsed.category || 'Other'),
     category_l2: tax ? tax.category_l2 : null,
     category_l3: tax ? tax.category_l3 : null,
-    color: parsed.color || '',
+    color: sh ? sh.name : (parsed.color || ''),
+    colour_shade: sh ? sh.id : null,
+    colour_extra: Array.from(new Set(extra)).slice(0, 3),
+    print: prt && prt.id !== 'plain' ? prt.id : null,
     brand: parsed.brand || '',
     price: (() => { const n = parseFloat(String(parsed.price || '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; })(),
     currency: String(parsed.currency || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || null,
@@ -3321,7 +3345,16 @@ function analysedPiece(parsed) {
     item_dna,
   };
 }
-const EMPTY_PIECE = () => ({ label: '', category: 'Other', category_l2: null, category_l3: null, color: '', brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } });
+const EMPTY_PIECE = () => ({ label: '', category: 'Other', category_l2: null, category_l3: null, color: '', colour_shade: null, colour_extra: [], print: null, brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } });
+
+// The colour model, byte for byte the file the server reads — one source for
+// the browser's swatches, pickers and preference rows (it sets
+// window.RB_COLOURS; the pages load it before their own scripts).
+app.get('/js/colour-model.js', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.type('application/javascript');
+  res.sendFile(join(__dirname, 'colour_model.cjs'));
+});
 
 // The full taxonomy tree for the client's Category / Subcategory / Item type
 // selects — served rather than duplicated client-side so wardrobe_taxonomy.js
@@ -3354,7 +3387,7 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
 ${ANALYSE_FIELD_RULES()}` }
         ]
       }],
-      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 760, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 860, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
     });
 
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
@@ -3454,7 +3487,7 @@ ${ANALYSE_FIELD_RULES()}
 ${closet}` }
         ]
       }],
-      config: { responseMimeType: 'application/json', responseSchema: PIECES_SCHEMA, maxOutputTokens: 4200, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+      config: { responseMimeType: 'application/json', responseSchema: PIECES_SCHEMA, maxOutputTokens: 4600, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
     });
     const result = await Promise.race([call, new Promise((_, rej) => setTimeout(() => rej(new Error('pieces_timeout')), 70_000))]);
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';

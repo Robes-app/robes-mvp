@@ -669,7 +669,32 @@
       // One background rule per colour name — the form's single swatch, the
       // Change popover and the Refine grid all draw the same dot. Unknown
       // names (old rows saved before the palette) get a quiet cream disc.
+      // The colour model (2026-10-22) — /js/colour-model.js sets
+      // window.RB_COLOURS before this script runs; every swatch, picker and
+      // preference row reads it. Null only if the script failed to load, and
+      // every reader degrades to the retired wheel then.
+      function _rbCM() { return window.RB_COLOURS || null; }
+      // The three colour columns for a row (migration 27), from whatever the
+      // caller holds: an analysed tag (shade id + extras + print), a receipt
+      // or wishlist item (a colour name), an edit (a name she picked on the
+      // old wheel). A name that disagrees with the id wins — it is the one
+      // she just changed; an id with no name beside it stands.
+      function _rbColourFields(src) {
+        const M = _rbCM(); src = src || {};
+        if (!M) return {};
+        const hex = src.item_dna && src.item_dna.display && src.item_dna.display.primary_color_hex;
+        const byId = M.resolve({ id: src.colour_shade });
+        const byName = M.resolve({ name: src.color });
+        const shade = byId && (!byName || byName.id === byId.id || !src.color) ? byId : (byName || byId || M.resolve({ hex: hex }));
+        const extra = (Array.isArray(src.colour_extra) ? src.colour_extra : []).map(x => M.resolve({ id: x, name: x })).filter(x => x && (!shade || x.id !== shade.id)).map(x => x.id);
+        const nm = String(src.color || '').trim().toLowerCase();
+        const prt = M.pattern(src.print) || ((nm === 'multi' || nm === 'print') ? M.pattern('other') : null);
+        return { colour_shade: shade ? shade.id : null, colour_extra: Array.from(new Set(extra)).slice(0, 3), print: prt && prt.id !== 'plain' ? prt.id : null };
+      }
       function _waSwatchBg(name) {
+        const M = _rbCM();
+        const sh = M && M.shadeByName(name);
+        if (sh) return M.swatchCss(sh);
         const sw = _ALL_SWATCHES.find(s => s.name === name);
         if (sw && sw.hex) return 'background:' + sw.hex + (sw.hex === '#FFFFFF' ? ';box-shadow:inset 0 0 0 1px #D8CFC0' : '');
         if (name === 'Multi') return 'background:conic-gradient(#FF1493,#FF4500,#E1FD2E,#00A86B,#0047AB,#4B0082,#FF1493)';
@@ -1434,13 +1459,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const row = { user_id: _waUid(), label: tag.label, category: tag.category || 'Other', category_l2: tag.category_l2 || null, category_l3: tag.category_l3 || null,
             color: tag.color || null, brand: tag.brand || null, notes: tag.notes || null, image_url: (up && up.url) || null, item_dna: tag.item_dna || undefined };
           if (!_waTaxCols) { delete row.category_l2; delete row.category_l3; }
-          let saved;
-          try { saved = await _waFetch('POST', 'wardrobe_items', row); }
-          catch (err) {
-            if (!/PGRST204|column/i.test(String(err && err.message || err))) throw err;
-            _waTaxCols = false; delete row.category_l2; delete row.category_l3;
-            saved = await _waFetch('POST', 'wardrobe_items', row);
-          }
+          if (_waCmCols) Object.assign(row, _rbColourFields(tag));
+          const saved = await _waRowWrite(null, row, false);
           let it = Array.isArray(saved) ? saved[0] : saved;
           if (!it || it.id == null) it = Object.assign({ id: null }, row);
           it.times_worn = it.times_worn || 0;
@@ -1523,6 +1543,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           item_dna: dna,
         };
         if (_waTaxCols) { row.category_l2 = tag.category_l2 || null; row.category_l3 = row.category_l2 ? (tag.category_l3 || null) : null; }
+        if (_waCmCols) Object.assign(row, _rbColourFields(tag));
         if (_waV2Cols && tag.price != null && tag.price !== '' && Number.isFinite(Number(tag.price))) row.price = Number(tag.price);
         if (_waV3Cols) { if (tag.size) row.size = String(tag.size).slice(0, 40); if (tag.currency && row.price != null) row.currency = String(tag.currency).slice(0, 3); }
         return row;
@@ -5167,6 +5188,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           window.__waSawBrand = '';
           window.__waSawNotes = '';
           window.__waSawColor = '';
+          window.__waSawShade = '';
+          window.__waSawExtra = [];
+          window.__waSawPrint = '';
           window.__waSawPrice = '';
           window.__waSawSize = '';
           window.__waSawSrc = 'photo';
@@ -5197,6 +5221,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           window.__waSawBrand = it.brand || '';
           window.__waSawNotes = it.notes || '';
           window.__waSawColor = it.color || '';
+          window.__waSawShade = it.colour_shade || '';
+          window.__waSawExtra = Array.isArray(it.colour_extra) ? it.colour_extra.slice() : [];
+          window.__waSawPrint = it.print || '';
           window.__waSawPrice = _waPriceFmt(it.price, it.currency);
           window.__waSawSize = it.size || '';
           window.__waSawItemDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
@@ -5225,7 +5252,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           _setDot(3);
           _photoDataUrl = dataUrl || '';
           const dna = tag.item_dna || {};
-          const initColor = GEMINI_MAP[tag.color] || tag.color || '';
+          const cmSh = _rbCM() && _rbCM().resolve({ id: tag.colour_shade });
+          const initColor = cmSh ? cmSh.name : (GEMINI_MAP[tag.color] || tag.color || '');
+          window.__waSawShade = cmSh ? cmSh.id : '';
+          window.__waSawExtra = Array.isArray(tag.colour_extra) ? tag.colour_extra.slice() : [];
+          window.__waSawPrint = tag.print || '';
           window.__waSawLabel = tag.label || '';
           window.__waSawBrand = tag.brand || '';
           window.__waSawPrice = _waPriceFmt(tag.price, tag.currency);
@@ -5514,6 +5545,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               image_url: imageUrl,
               item_dna:  Object.keys(savedDna).length ? savedDna : undefined,
             };
+            const cmFields = _rbColourFields({ colour_shade: window.__waSawShade, colour_extra: window.__waSawExtra, print: window.__waSawPrint, color: colorName, item_dna: savedDna });
+            if (_waCmCols) Object.assign(payload, cmFields);
 
             // ── The wishlist target (2026-09-22) ─────────────────────────
             // Same form, same reads, a wishlist_items row: provenance from
@@ -5535,6 +5568,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
                 source_url: wlSrc === 'url' ? (window.__waSawSrcUrl || null) : null,
                 item_dna: payload.item_dna || {},
               };
+              if (_wlCmCols) Object.assign(wlPayload, cmFields);
               if (_wlV23Cols) {
                 wlPayload.size = String(window.__waSawSize || '').trim().slice(0, 40) || null;
                 wlPayload.currency = wlPriced.amount != null ? wlPriced.currency : null;
@@ -5748,6 +5782,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       var _waFromChooser = false;          // the add modal was opened through the ways chooser (2026-09-22)
       var _waTarget = 'wardrobe';          // where the add modal files: 'wardrobe' | 'wishlist' (2026-09-22, the same ways in for both)
       var _wlV23Cols = true;               // migration 23 on wishlist_items (size/currency/category_l2/l3)? flipped off on PGRST204
+      var _waCmCols = true, _wlCmCols = true; // migration 27 (colour_shade/colour_extra/print) on each table? flipped off on PGRST204
       // The receipt inbox (2026-09-22): held wardrobe_inbox rows, the
       // migration-23 stand-down flag, her minted address (local part).
       var _wiRows = [], _wiDown = false, _wiAddr = null, _wiLoaded = false;
@@ -5771,6 +5806,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       const _WA_V3_KEYS = ['size', 'currency'];
       const _WA_TAX_KEYS = ['category_l2', 'category_l3'];
       const _WL_V23_KEYS = ['size', 'currency', 'category_l2', 'category_l3'];
+      const _WA_CM_KEYS = ['colour_shade', 'colour_extra', 'print'];
       async function _waRowWrite(editId, payload, hasDet, table) {
         table = table || 'wardrobe_items';
         for (;;) {
@@ -5780,6 +5816,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           } catch (err) {
             const msg = String(err && err.message || err);
             if (table === 'wishlist_items') {
+              if (/PGRST204|column/i.test(msg) && _wlCmCols && /\b(colour_shade|colour_extra|print)\b/.test(msg)) {
+                _wlCmCols = false;
+                _WA_CM_KEYS.forEach(k => delete payload[k]);
+                continue;
+              }
               // The wishlist's one tier: everything migration 23 added there.
               if (/PGRST204|column/i.test(msg) && _wlV23Cols && /\b(size|currency|category_l[23])\b/.test(msg)) {
                 _wlV23Cols = false;
@@ -5789,6 +5830,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               throw err;
             }
             if (/PGRST204|column/i.test(msg)) {
+              if (_waCmCols && /\b(colour_shade|colour_extra|print)\b/.test(msg)) {
+                _waCmCols = false;
+                _WA_CM_KEYS.forEach(k => delete payload[k]);
+                continue;
+              }
               if (_waV3Cols && /\b(size|currency)\b/.test(msg)) {
                 _waV3Cols = false;
                 _WA_V3_KEYS.forEach(k => delete payload[k]);
@@ -5947,6 +5993,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               item_dna: wlDna,
             };
             if (_wlV23Cols) { wlPayload.size = it.size || null; wlPayload.currency = it.currency || null; wlPayload.category_l2 = it.category_l2 || null; wlPayload.category_l3 = wlPayload.category_l2 ? (it.category_l3 || null) : null; }
+            if (_wlCmCols) Object.assign(wlPayload, _rbColourFields(it));
             try {
               const created = await _waRowWrite(null, wlPayload, false, 'wishlist_items');
               const id = Array.isArray(created) && created[0] && created[0].id;
@@ -5971,6 +6018,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             size: it.size || null,
           };
           if (_waTaxCols) { payload.category_l2 = it.category_l2 || null; payload.category_l3 = payload.category_l2 ? (it.category_l3 || null) : null; }
+          if (_waCmCols) Object.assign(payload, _rbColourFields(it));
           if (!_waV2Cols) delete payload.price;
           if (!_waV3Cols) { delete payload.size; delete payload.currency; }
           try {
@@ -13220,6 +13268,9 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
         if (!wi) return null;
         let hex = wi.item_dna && wi.item_dna.display && wi.item_dna.display.primary_color_hex;
         if (hex && /^#[0-9a-fA-F]{3,8}$/.test(String(hex))) return hex;
+        const M = _rbCM();
+        const sh = M && M.resolve({ id: wi.colour_shade, name: wi.color });
+        if (sh) return sh.hex;
         const sw = _ALL_SWATCHES.find(s => s.name.toLowerCase() === String(wi.color || '').toLowerCase());
         return (sw && sw.hex) || null;
       }
@@ -35480,15 +35531,8 @@ body.rb-hb-on #dash .concierge{display:none!important}
               image_url: (up && up.url) || null,
               item_dna: (tag && tag.item_dna) || undefined,
             };
-            try {
-              await _waFetch('POST', 'wardrobe_items', row);
-            } catch (err) {
-              // Migration 15 not run — retry without the taxonomy columns.
-              if (!/PGRST204|column/i.test(String(err && err.message || err))) throw err;
-              delete row.category_l2;
-              delete row.category_l3;
-              await _waFetch('POST', 'wardrobe_items', row);
-            }
+            if (_waCmCols) Object.assign(row, _rbColourFields(tag || {}));
+            await _waRowWrite(null, row, false);
             await _waLoad();
             console.log('[robes] onboarding key piece saved to wardrobe:', label);
           } catch (e) { console.warn('[robes] onboarding wardrobe persist failed:', e); }

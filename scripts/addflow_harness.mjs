@@ -145,9 +145,13 @@ async function boot(browser, tagBody, opts = {}) {
     }
     if (req.url().includes('wardrobe_items')) {
       if (req.method() === 'POST') {
-        supaPosts.push(JSON.parse(req.postData() || '{}'));
+        const body = JSON.parse(req.postData() || '{}');
+        supaPosts.push(body);
+        // cmDown: migration 27 not run — a POST carrying the colour columns
+        // is refused the way PostgREST refuses it (PGRST204 names the column).
+        if (opts.cmDown && 'colour_shade' in body) return r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST204', message: "Could not find the 'colour_shade' column of 'wardrobe_items' in the schema cache" }) });
         return r.fulfill({ status: 201, contentType: 'application/json',
-          body: JSON.stringify([{ id: 'new-1', ...JSON.parse(req.postData() || '{}') }]) });
+          body: JSON.stringify([{ id: 'new-1', ...body }]) });
       }
       if (req.method() === 'PATCH') {
         supaPatches.push({ url: req.url(), body: JSON.parse(req.postData() || '{}') });
@@ -345,6 +349,12 @@ const browser = await chromium.launch(
   check('save · edited label + picked colour persisted', supaPosts[0] && supaPosts[0].label === 'Ivory wool blazer' && supaPosts[0].color === 'Navy',
     supaPosts[0] && `${supaPosts[0].label}|${supaPosts[0].color}`);
   check('save · legacy category carried', supaPosts[0] && supaPosts[0].category === 'Outerwear', supaPosts[0] && supaPosts[0].category);
+  // The colour model (2026-10-22): the three migration-27 columns ride every
+  // save — the Navy she picked on the old wheel resolves to its shade, a
+  // plain piece prints null, no extras.
+  check('save · colour_shade / colour_extra / print ride the payload from the picked colour',
+    supaPosts[0] && supaPosts[0].colour_shade === 'navy' && Array.isArray(supaPosts[0].colour_extra) && supaPosts[0].colour_extra.length === 0 && supaPosts[0].print === null,
+    JSON.stringify(supaPosts[0] && [supaPosts[0].colour_shade, supaPosts[0].colour_extra, supaPosts[0].print]));
   // 2026-09-22: price / size / currency are form fields now and ride every
   // save (null when empty); fit confidence / sentiment / hero stay off.
   check('save · price, size and currency ride the payload (null when empty); the retired columns stay off',
@@ -1110,6 +1120,7 @@ const browser = await chromium.launch(
   check('receipts · File 2 pieces inserts the two ticked rows with their price, size and source, and moves the receipt to filed',
     supaPosts.length === 2 && supaPosts[0].label === 'Leather trainers' && supaPosts[0].price === 340 && supaPosts[0].size === '38' && supaPosts[0].currency === 'GBP' && supaPosts[0].image_url === 'https://res.cloudinary.com/robes/trainers.jpg' && supaPosts[0].item_dna?.source?.kind === 'receipt'
       && supaPosts[1].label === 'Leather tote' && supaPosts[1].category_l2 === 'Everyday bags' && supaPosts[1].image_url === null
+      && supaPosts[0].colour_shade === 'optic' && supaPosts[1].colour_shade === 'camel' && supaPosts[1].print === null
       && inboxPatches.length === 1 && /rc-1/.test(inboxPatches[0].url) && inboxPatches[0].body.status === 'filed' && Array.isArray(inboxPatches[0].body.filed_ids),
     JSON.stringify([supaPosts.map((p) => [p.label, p.price, p.size]), inboxPatches]));
   check('receipts · one receipt left → the modal steps straight into ITS review (no list, no "All receipts" back), the strip counts down to "Robes read one receipt · 1 piece waiting", and nothing toasts',
@@ -1248,7 +1259,7 @@ const browser = await chromium.launch(
   await page.click('#rb-wf-file');
   await page.waitForTimeout(1200);
   const wl3 = wlPosts[2] || {};
-  check('wishlist · Save 1 piece writes the wishlist row from the receipt (From Sézane, 95 EUR) and marks the receipt filed to the wishlist', wlPosts.length === 3 && supaPosts.length === 0 && wl3.source_type === 'receipt' && wl3.source_label === 'From Sézane' && wl3.price === 95 && wl3.currency === 'EUR' && inboxPatches.some((p) => /rc-2/.test(p.url) && p.body.status === 'filed' && p.body.filed_to === 'wishlist'), JSON.stringify([wl3, inboxPatches]));
+  check('wishlist · Save 1 piece writes the wishlist row from the receipt (From Sézane, 95 EUR) and marks the receipt filed to the wishlist', wlPosts.length === 3 && supaPosts.length === 0 && wl3.source_type === 'receipt' && wl3.source_label === 'From Sézane' && wl3.price === 95 && wl3.currency === 'EUR' && wl3.colour_shade === null && wl3.print === 'other' && inboxPatches.some((p) => /rc-2/.test(p.url) && p.body.status === 'filed' && p.body.filed_to === 'wishlist'), JSON.stringify([wl3, inboxPatches]));
   check('no page errors (wishlist)', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -1278,6 +1289,56 @@ const browser = await chromium.launch(
   check('no page errors (deep link · list / none)', a.errs.length === 0 && b.errs.length === 0, a.errs.concat(b.errs).join(' | ').slice(0, 240));
   await a.ctx.close().catch(() => {});
   await b.ctx.close();
+}
+
+// ── The colour model (2026-10-22): a read in the new shape ─────────────
+// The analyse answers a shade id, extras and a print; the summary's dot
+// draws the shade, "Chocolate" is a shade now (never folded to Espresso by
+// the old Gemini map), and an untouched save files the three columns as
+// read. Then migration 27 missing: the ladder strips them and the row lands.
+{
+  const TAG_CM = { ...TAG, label: 'Chocolate wool coat', color: 'Chocolate', colour_shade: 'chocolate', colour_extra: ['gold', 'chocolate', 'nope'], print: 'plain',
+    item_dna: { ...TAG.item_dna, display: { ...TAG.item_dna.display, primary_color_hex: '#4E3024' }, colour_check: true } };
+  const { ctx, page, errs, supaPosts } = await boot(browser, TAG_CM);
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  await page.setInputFiles('#wa-rb-file', { name: 'coat.png', mimeType: 'image/png', buffer: PNG_OK });
+  await page.waitForSelector('#rb-saw-panel', { timeout: 8000 });
+  await page.waitForTimeout(2800);
+  const cm = await page.evaluate(() => ({
+    colour: window.__waSawColor, shade: window.__waSawShade, extra: window.__waSawExtra, print: window.__waSawPrint,
+    dot: (document.querySelector('#rb-saw-read .rb-saw-dot')?.getAttribute('style') || '').replace(/\s/g, ''),
+    model: !!(window.RB_COLOURS && window.RB_COLOURS.SHADES && window.RB_COLOURS.SHADES.length === 74),
+  }));
+  check('colour model · the page carries window.RB_COLOURS (74 shades)', cm.model, String(cm.model));
+  check('colour model · a shade read lands as its display name — Chocolate stays Chocolate', cm.colour === 'Chocolate' && cm.shade === 'chocolate', JSON.stringify(cm));
+  check('colour model · the summary dot draws the shade\'s hex', /#4E3024/i.test(cm.dot), cm.dot);
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1800);
+  const p = supaPosts[0] || {};
+  check('colour model · an untouched save files the shade, the extras (deduped, the shade itself and an unknown id dropped) and no print',
+    supaPosts.length === 1 && p.colour_shade === 'chocolate' && JSON.stringify(p.colour_extra) === '["gold"]' && p.print === null && p.color === 'Chocolate',
+    JSON.stringify([p.colour_shade, p.colour_extra, p.print, p.color]));
+  check('no page errors (colour model)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+{
+  // Migration 27 not run: the first POST is refused naming colour_shade,
+  // the retry lands without the three columns, nothing else is lost.
+  const { ctx, page, errs, supaPosts } = await boot(browser, TAG, { cmDown: true });
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  await page.setInputFiles('#wa-rb-file', { name: 'blazer.png', mimeType: 'image/png', buffer: PNG_OK });
+  await page.waitForSelector('#rb-saw-panel', { timeout: 8000 });
+  await page.waitForTimeout(2800);
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1800);
+  const p = supaPosts[supaPosts.length - 1] || {};
+  check('colour model · PGRST204 on colour_shade → one retry without the three columns, the row lands with its colour name',
+    supaPosts.length === 2 && 'colour_shade' in supaPosts[0] && !('colour_shade' in p) && !('colour_extra' in p) && !('print' in p) && p.color === 'Cream' && p.category_l2 !== undefined,
+    JSON.stringify(supaPosts.map((x) => Object.keys(x).filter((k) => /colour|print|color/.test(k)))));
+  check('no page errors (colour model degrade)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
 }
 
 await browser.close();

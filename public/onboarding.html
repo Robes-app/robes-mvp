@@ -868,6 +868,7 @@
             category: pc.tag.category || 'Other',
             category_l2: pc.tag.category_l2 || null,
             category_l3: pc.tag.category_l3 || null,
+            colour_shade: pc.tag.colour_shade || null, colour_extra: Array.isArray(pc.tag.colour_extra) ? pc.tag.colour_extra : [], print: pc.tag.print || null,
             color: pc.tag.color || null,
             brand: pc.tag.brand || null,
             notes: pc.tag.notes || null,
@@ -884,9 +885,12 @@
     function insertRow(row, src, batchN, batchI) {
       const done = () => { obTrack('wardrobe_added', { source: src, category: row.category || '', batch_n: batchN || 1, batch_i: batchI || 1 }); return true; };
       return sbClient.from('wardrobe_items').insert(row).then(({ error }) => {
-        if (error && /category_l|column/i.test(error.message || '')) {
+        if (error && /category_l|colour_|print|column/i.test(error.message || '')) {
+          // Migration 15 (the taxonomy pair) or 27 (the colour model) not run
+          // — one retry without both, the core row still lands.
           delete row.category_l2;
           delete row.category_l3;
+          delete row.colour_shade; delete row.colour_extra; delete row.print;
           return sbClient.from('wardrobe_items').insert(row).then(({ error: e2 }) => {
             if (e2) { console.warn('Wardrobe save failed:', e2.message); return false; }
             return done();
@@ -965,6 +969,7 @@
         category: tag.category || 'Other',
         category_l2: tag.category_l2 || null,
         category_l3: tag.category_l3 || null,
+        colour_shade: tag.colour_shade || null, colour_extra: Array.isArray(tag.colour_extra) ? tag.colour_extra : [], print: tag.print || null,
         color: tag.color || null,
         brand: tag.brand || null,
         notes: tag.notes || null,
