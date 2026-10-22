@@ -41,7 +41,7 @@ function toDraft(p: Piece): Draft {
 
 const orNull = (v: string): string | null => (v.trim() ? v.trim() : null);
 
-export function PieceDetail({ id }: { id: string }) {
+export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const query = useApi(
@@ -108,6 +108,7 @@ export function PieceDetail({ id }: { id: string }) {
     <article className="grid gap-8 md:grid-cols-2">
       <PieceImage piece={piece} sizes="(min-width: 768px) 50vw, 100vw" priority />
       <div className="flex flex-col gap-6">
+        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
         <header className="flex flex-col gap-3">
           {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
           <Heading
@@ -217,5 +218,54 @@ export function PieceDetail({ id }: { id: string }) {
         </Button>
       </div>
     </article>
+  );
+}
+
+// Beta's reveal: what Robes filed, row by row, once it has read the piece; the form below adjusts.
+function Saw({ piece }: { piece: Piece }) {
+  const rows: [string, string | null][] = [
+    [wardrobe.saw.rows.piece, piece.label],
+    [wardrobe.saw.rows.category, [piece.category, piece.categoryL2].filter(Boolean).join(' · ')],
+    [wardrobe.saw.rows.colour, piece.color],
+    [wardrobe.saw.rows.brand, piece.brand],
+  ];
+  return (
+    <section aria-labelledby="saw-title" className="flex flex-col gap-3">
+      <h2 id="saw-title" className="font-display font-light text-3xl text-ink">
+        {wardrobe.saw.title}
+      </h2>
+      {piece.status === 'ready' ? (
+        <>
+          <dl className="flex flex-col divide-y divide-hairline border-hairline border-y">
+            {rows.map(([k, v]) => (
+              <div key={k} className="flex items-baseline gap-3 py-2">
+                <dt className="flex-1 font-medium font-sans text-ink-muted text-xs uppercase tracking-[0.2em]">
+                  {k}
+                </dt>
+                <dd
+                  className={
+                    v ? 'font-sans text-ink text-sm' : 'font-display text-ink-faint text-lg italic'
+                  }
+                >
+                  {v || '—'}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/wardrobe" className={buttonClasses({ variant: 'secondary' })}>
+              {wardrobe.saw.keep} →
+            </Link>
+            <Text size="small" tone="muted" italic>
+              {wardrobe.saw.adjust}
+            </Text>
+          </div>
+        </>
+      ) : (
+        <Text role="status" size="small" tone="muted" italic>
+          {wardrobe.saw.reading}
+        </Text>
+      )}
+    </section>
   );
 }

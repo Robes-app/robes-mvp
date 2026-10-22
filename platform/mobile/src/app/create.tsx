@@ -44,7 +44,9 @@ export default function Create() {
     const result = await add(option.add);
     if (result.status === 'cancelled') return;
     if (result.status === 'added') {
-      router.replace('/wardrobe');
+      // One photo gets its reveal; a batch files quietly and reads on the grid.
+      const [one, more] = result.ids;
+      router.replace(one && !more ? `/piece/${one}?saw=1` : '/wardrobe');
       return;
     }
     toast.show({ message: result.message });
