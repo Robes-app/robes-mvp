@@ -85,6 +85,12 @@ export const lookbook = {
     label: 'Name this look',
     placeholder: 'Untitled',
   },
+  // The draft stands on a figure (legacy 2026-10-15): a slot per part of her, tapped to dress.
+  figure: {
+    untitled: 'Untitled look',
+    alt: 'Your model, ready to dress',
+    slots: { top: '+ Top', bottom: '+ Bottom', shoes: '+ Shoes' },
+  },
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,
     addPiece: '+ Add a piece',
