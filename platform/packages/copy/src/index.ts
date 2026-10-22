@@ -44,7 +44,6 @@ export const errors = {
 } as const;
 
 export const auth = {
-  eyebrow: 'Robes',
   title: 'Sign in.',
   subtitle: 'Your wardrobe, styled.',
   emailLabel: 'Email',
@@ -214,7 +213,6 @@ export function nextLine(
 
 export const marketing = {
   eyebrow: 'Robes',
-  title: 'Your wardrobe, styled.',
   titleLead: 'Your wardrobe,',
   titleEm: 'styled.',
   subtitle: 'One piece. Three ways to wear it.',
@@ -352,6 +350,7 @@ export const wardrobe = {
     rows: { piece: 'The piece', category: 'Category', colour: 'Colour', brand: 'Brand' },
     keep: 'Keep it',
     adjust: 'Adjust the details below.',
+    unread: 'Not seen',
   },
   wishlist: {
     addLabel: 'A piece you want',

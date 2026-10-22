@@ -105,12 +105,13 @@ export function AnalyticsProvider({
   // Asked after her first real moment (a piece filed), so the ask has something to stand on;
   // never during onboarding, nor on the page that already offers the same choice.
   const unanswered = userId !== null && consents?.analytics === null;
-  const summary = useApi('wardrobe.summary', undefined, { enabled: unanswered });
+  const onboarding = pathname.startsWith('/onboarding');
+  const summary = useApi('wardrobe.summary', undefined, {
+    enabled: unanswered && !onboarding,
+    refetchOnMount: 'always',
+  });
   const asking =
-    unanswered &&
-    (summary.data?.total ?? 0) > 0 &&
-    !pathname.startsWith('/onboarding') &&
-    pathname !== '/you/privacy';
+    unanswered && (summary.data?.total ?? 0) > 0 && !onboarding && pathname !== '/you/privacy';
 
   return (
     <AnalyticsContext value={value}>

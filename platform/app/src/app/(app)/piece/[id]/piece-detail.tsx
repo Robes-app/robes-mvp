@@ -3,6 +3,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
+import { Icon } from '@robes/icons/web';
 import {
   Button,
   buttonClasses,
@@ -22,7 +23,7 @@ import { SuggestedRail } from '@/components/looks/suggested-rail';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { errorCopy } from '@/lib/error-copy';
-import { pieceIsReading } from '@/lib/wardrobe';
+import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 
 const copy = wardrobe.piece;
 const READING_REFRESH_MS = 2000;
@@ -60,7 +61,7 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
   const update = useApiMutation('wardrobe.update', {
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.call('wardrobe.get', { params: { id } }), data);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+      void invalidateWardrobe(queryClient);
       setSaved(true);
     },
   });
@@ -108,7 +109,6 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
     <article className="grid gap-8 md:grid-cols-2">
       <PieceImage piece={piece} sizes="(min-width: 768px) 50vw, 100vw" priority />
       <div className="flex flex-col gap-6">
-        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
         <header className="flex flex-col gap-3">
           {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
           <Heading
@@ -141,6 +141,7 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
           ) : null}
           {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
         </header>
+        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
         <div className="flex flex-wrap items-center gap-3">
           <Button
             variant="primary"
@@ -256,14 +257,15 @@ function Saw({ piece }: { piece: Piece }) {
                     v ? 'font-sans text-ink text-sm' : 'font-display text-ink-faint text-lg italic'
                   }
                 >
-                  {v || '—'}
+                  {v || wardrobe.saw.unread}
                 </dd>
               </div>
             ))}
           </dl>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/wardrobe" className={buttonClasses({ variant: 'secondary' })}>
-              {wardrobe.saw.keep} →
+              {wardrobe.saw.keep}
+              <Icon name="forward" size={16} />
             </Link>
             <Text size="small" tone="muted" italic>
               {wardrobe.saw.adjust}

@@ -154,17 +154,17 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
         {uri ? (
           <Image source={uri} alt={copy.photoAlt(piece.label)} blurhash={piece.image?.blurhash} />
         ) : null}
-        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
         {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
         {piece.status === 'ready' ? (
           <Heading size="md">{piece.label}</Heading>
         ) : (
-          <Text tone="faint" italic>
+          <Text tone="faint" italic accessibilityRole="header">
             {reading ? copy.newPiece : piece.label}
           </Text>
         )}
         {reading ? <Text tone="muted">{copy.reading}</Text> : null}
         {piece.status === 'failed' ? <ErrorText>{copy.noPieceFound}</ErrorText> : null}
+        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
         {editing ? (
           <EditForm piece={piece} onDone={() => setEditing(false)} />
         ) : (
@@ -242,13 +242,13 @@ function Saw({ piece }: { piece: Piece }) {
               <View key={k} className="flex-row items-baseline gap-3 border-hairline border-b py-2">
                 <Eyebrow className="flex-1">{k}</Eyebrow>
                 <Text size="small" tone={v ? 'ink' : 'faint'} italic={!v}>
-                  {v || '—'}
+                  {v || copy.saw.unread}
                 </Text>
               </View>
             ))}
           </View>
           <Button variant="secondary" onPress={() => router.replace('/wardrobe')}>
-            {`${copy.saw.keep} →`}
+            {copy.saw.keep}
           </Button>
         </>
       ) : (

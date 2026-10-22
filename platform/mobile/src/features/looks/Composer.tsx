@@ -103,41 +103,43 @@ export function Composer({ pieceId }: { pieceId?: string }) {
           />
         </View>
         <View>
-          {model.data?.cell.imageUrl ? (
-            <Image source={model.data.cell.imageUrl} alt={copy.figure.alt} />
-          ) : model.isPending ? (
-            <Skeleton width="100%" aspectRatio={4 / 5} />
-          ) : (
-            <View className="aspect-[4/5] w-full items-center justify-center rounded-soft bg-surface">
-              <Icon name="user" size={160} color={control} />
-            </View>
-          )}
-          {(
-            [
-              ['top', 'Tops', '31%'],
-              ['bottom', 'Bottoms', '58%'],
-              ['shoes', 'Shoes', '86%'],
-            ] as const
-          ).map(([slot, category, top]) => (
-            <View key={slot} className="absolute inset-x-0 items-center" style={{ top }}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={copy.figure.slots[slot]}
-                disabled={busy}
-                onPress={() => setAdding(category)}
-                className="min-h-11 -translate-y-1/2 justify-center rounded-pill border border-border-control bg-bg px-4"
-              >
-                <Text
-                  size="caption"
-                  weight="medium"
-                  className="uppercase"
-                  style={{ letterSpacing: 1.6 }}
+          <View>
+            {model.data?.cell.imageUrl ? (
+              <Image source={model.data.cell.imageUrl} alt={copy.figure.alt} />
+            ) : model.isPending ? (
+              <Skeleton width="100%" aspectRatio={4 / 5} />
+            ) : (
+              <View className="aspect-[4/5] w-full items-center justify-center rounded-soft bg-surface">
+                <Icon name="user" size={160} color={control} />
+              </View>
+            )}
+            {(
+              [
+                ['top', 'Tops', '31%'],
+                ['bottom', 'Bottoms', '58%'],
+                ['shoes', 'Shoes', '86%'],
+              ] as const
+            ).map(([slot, category, top]) => (
+              <View key={slot} className="absolute inset-x-0 items-center" style={{ top }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.figure.slots[slot]}
+                  disabled={busy}
+                  onPress={() => setAdding(category)}
+                  className="min-h-11 -translate-y-1/2 justify-center rounded-pill border border-border-control bg-bg px-4"
                 >
-                  {copy.figure.slots[slot]}
-                </Text>
-              </Pressable>
-            </View>
-          ))}
+                  <Text
+                    size="caption"
+                    weight="medium"
+                    className="uppercase"
+                    style={{ letterSpacing: 1.6 }}
+                  >
+                    {copy.figure.slots[slot]}
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
           <Text size="small" tone="muted" italic className="pt-3 text-center">
             {copy.guide.body}
           </Text>

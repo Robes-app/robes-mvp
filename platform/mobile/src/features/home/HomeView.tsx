@@ -98,9 +98,7 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
     >
       <PrimaryScope>
         <View className="gap-2">
-          <Heading size="md" numberOfLines={1} adjustsFontSizeToFit>
-            {todayCopy.greeting(greetingName(data.firstName), data.hour)}
-          </Heading>
+          <Heading size="md">{todayCopy.greeting(greetingName(data.firstName), data.hour)}</Heading>
           <Text tone="faint" italic>
             {copy.echo}
           </Text>

@@ -27,6 +27,7 @@ import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { usePhotoRead } from '@/lib/photo-read';
 import { PHOTO_ACCEPT } from '@/lib/upload';
+import { invalidateWardrobe } from '@/lib/wardrobe';
 import { CropThumb, type Natural, PhotoFrame } from './photo-frame';
 
 const copy = photoPieces.look;
@@ -91,7 +92,7 @@ export function LookFromPhoto() {
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') }),
+        invalidateWardrobe(queryClient),
       ]);
       router.push(`/look/${look.id}`);
     } catch (err) {
