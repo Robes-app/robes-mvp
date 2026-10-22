@@ -34,6 +34,9 @@ overrides:
   shell-quote@>=1.8.4 <1.11.0: '>=1.11.0'
   source-map-js@>=1.0.0 <1.2.2: '>=1.2.2'
   sharp@<0.35.5: '>=0.35.5'
+  # GHSA-cg2g-xh64-v4q7, GHSA-mrv2-3pqr-j5jr (via posthog-js); GHSA-587h-7wmj-h5pm (via vitest).
+  dompurify@<3.4.17: '>=3.4.17'
+  vite@>=8.3.0 <8.3.3: '>=8.3.3'
 
 auditConfig:
   # No patched release yet; both run only in the Expo CLI / Metro dev toolchain, never in the app or API.
