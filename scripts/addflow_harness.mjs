@@ -1,10 +1,11 @@
 // Wardrobe add/edit/refine harness — boots the real dashboard with Supabase
-// + API stubs and asserts the 2026-08-05 redesign: fast add (one confirm
-// screen), progressive disclosure (details / tags-and-notes), custom
-// taxonomy pickers (no native selects), single-swatch colour + popover, the
-// two tag axes, the browse cascade + trail row, the slim Refine panel and
-// the edit modal riding the same form. Supersedes the 2026-07-29 reveal
-// harness (the reveal itself survives: tag pops + 4-row ledger).
+// + API stubs and asserts the piece sheet (Piece_Sheet.dc.html, 2026-10-22):
+// the add flow's confirm screen as the one-page sheet (every field a row,
+// a tap opens that field's sheet, the one ink pill pinned), the colour
+// model's shade / additional colours / print sheets, the category drill,
+// the edit door landing on the piece page whose rows save on pick, the
+// browse cascade + trail row, Refine's 13 colour families, the ways in,
+// receipts and the wishlist on the same anatomy.
 // Run manually: npm i --no-save playwright && node scripts/addflow_harness.mjs
 // Set CHROME_PATH when playwright's bundled browser build isn't installed.
 import { chromium } from 'playwright';
@@ -262,86 +263,77 @@ const browser = await chromium.launch(
   const early = await page.evaluate(() => ({
     tags: document.querySelectorAll('.rb-saw-tag').length,
     banner: document.querySelector('.rb-saw-banner')?.textContent || '',
-    rows: document.querySelectorAll('#rb-saw-read .rb-saw-row').length,
-    reading: Array.from(document.querySelectorAll('#rb-saw-read .rb-saw-val')).filter((v) => v.textContent === 'Reading').length,
+    rows: Array.from(document.querySelectorAll('.rb-ps-row')).map((r) => r.dataset.k),
+    groups: Array.from(document.querySelectorAll('.rb-ps-gt')).map((g) => g.textContent),
     photo: !!document.getElementById('wa-saw-photo')?.src,
-    fields: !!document.getElementById('wa-saw-label'),
+    fields: !!document.getElementById('wa-saw-label') || !!document.querySelector('#wa-modal .fm-step input:not([type=file]):not(#wa-label-in)'),
+    toggles: document.querySelectorAll('.rb-saw-toggle, .rb-saw-read').length,
     cta: document.getElementById('wa-saw-cta')?.textContent || '',
     fit: getComputedStyle(document.getElementById('wa-saw-photo')).objectFit,
+    sub: document.querySelector('#wa-modal .fm-h + p')?.textContent || '',
+    sticky: getComputedStyle(document.querySelector('.rb-ps-foot')).position,
   }));
   check('summary · tag pops on the photo (no fit tags)', early.tags === 3, String(early.tags));
   check('summary · label banner', early.banner === 'Cream wool blazer', early.banner);
-  check('summary · four read-only ledger rows', early.rows === 4, String(early.rows));
-  check('summary · ledger starts as Reading', early.reading === 4, String(early.reading));
-  check('summary · read-only (no form fields on screen)', !early.fields);
-  check('summary · photo contained + CTA present', early.photo && early.fit === 'contain' && /Add to wardrobe/.test(early.cta), early.cta);
+  check('sheet · every field is a row in four groups (Piece_Sheet 02): Name · Category · Brand / Colour · Additional colours · Print / Season · Wear it for / Size · Price · Notes',
+    early.rows.join('|') === 'name|category|brand|colour|extra|print|season|wear|size|price|notes' && early.groups.join('|') === 'The piece|Colour|Wearing|Fit & notes', JSON.stringify([early.rows, early.groups]));
+  check('sheet · no form fields, no toggles, no ledger — the rows read first', !early.fields && early.toggles === 0);
+  check('sheet · "Filed from your photo. Tap anything that isn’t quite right."', /Filed from your photo\. Tap anything that isn’t quite right\./.test(early.sub), early.sub);
+  check('summary · photo contained + the one ink pill pinned (sticky)', early.photo && early.fit === 'contain' && /Add to wardrobe/.test(early.cta) && early.sticky === 'sticky', early.cta + '|' + early.sticky);
 
   await page.waitForTimeout(2600);
   const settled = await page.evaluate(() => ({
-    vals: Array.from(document.querySelectorAll('#rb-saw-read .rb-saw-val')).map((v) => v.textContent.trim()),
-    dot: !!document.querySelector('#rb-saw-read .rb-saw-dot'),
+    vals: ['name', 'category', 'brand', 'colour'].map((k) => document.querySelector('.rb-ps-row[data-k="' + k + '"] .rb-ps-v')?.textContent.trim()),
+    dot: !!document.querySelector('.rb-ps-row[data-k="colour"] .rb-ps-sw'),
+    checks: Array.from(document.querySelectorAll('.rb-ps-row')).filter((r) => r.querySelector('.rb-ps-chk')).map((r) => r.dataset.k),
   }));
-  check('summary · ledger reveals piece/brand/category/colour',
-    JSON.stringify(settled.vals) === JSON.stringify(['Cream wool blazer', 'Zara', 'Outerwear', 'Cream']),
-    JSON.stringify(settled.vals));
-  check('summary · colour row carries its swatch dot', settled.dot);
+  check('sheet · the rows read piece/brand/category/colour', JSON.stringify(settled.vals) === JSON.stringify(['Cream wool blazer', 'Outerwear', 'Zara', 'Cream']), JSON.stringify(settled.vals));
+  check('sheet · the colour row carries its swatch', settled.dot);
+  check('sheet · a read with no subcategory carries one Check — on Category; a confident colour carries none', settled.checks.join('|') === 'category', JSON.stringify(settled.checks));
 
-  await page.click('button.rb-saw-toggle:has-text("Edit the details")');
-  const det = await page.evaluate(() => ({
-    head: !!document.querySelector('.rb-wf-head'),
-    title: document.querySelector('.rb-wf-title')?.textContent || '',
-    label: document.getElementById('wa-saw-label')?.value || '',
-    brand: document.getElementById('wa-saw-brand')?.value || '',
-    catTag: document.getElementById('wa-saw-cat')?.tagName || '',
-    cat: document.querySelector('#wa-saw-cat span')?.textContent || '',
-    colName: document.querySelector('.rb-wf-colname')?.textContent || '',
-    change: !!document.querySelector('.rb-wf-change'),
-    swatchWall: document.querySelectorAll('#wa-modal .rb-wapop-sw').length,
-    fitPills: !!document.getElementById('rb-fit-pills'),
-    hide: Array.from(document.querySelectorAll('button.rb-saw-toggle')).some((b) => /Hide the details/.test(b.textContent)),
-    tagsRow: Array.from(document.querySelectorAll('button.rb-saw-toggle')).some((b) => /Add tags and notes/.test(b.textContent)),
-  }));
-  check('details · compact header replaces the big photo', det.head && det.title === 'Cream wool blazer', det.title);
-  check('details · fields prefilled', det.label === 'Cream wool blazer' && det.brand === 'Zara' && det.cat === 'Outerwear',
-    `${det.label}|${det.brand}|${det.cat}`);
-  check('details · category is a custom picker, not a select', det.catTag === 'BUTTON', det.catTag);
-  check('details · colour is one swatch + Change (no wall)', det.colName === 'Cream' && det.change && det.swatchWall === 0,
-    `${det.colName}|${det.swatchWall}`);
-  check('details · silhouette & fit cut from the flow', !det.fitPills);
-  check('details · Hide-details + tags-and-notes rows', det.hide && det.tagsRow);
-
-  // Colour popover
-  await page.click('.rb-wf-change');
+  // The colour sheet (the colour model): the row opens it on the shade's family
+  await page.click('.rb-ps-row[data-k="colour"]');
+  await page.waitForTimeout(250);
   const pop = await page.evaluate(() => ({
-    open: !!document.getElementById('rb-wa-pop'),
-    sw: document.querySelectorAll('#rb-wa-pop .rb-wapop-sw').length,
+    open: !!document.getElementById('rb-ps-wrap'), title: document.querySelector('#rb-ps-wrap h3')?.textContent,
+    fams: document.querySelectorAll('.rb-ps-fam').length, fam: document.querySelector('.rb-ps-fam.on .n')?.textContent,
+    on: document.querySelector('.rb-ps-shade.on .n')?.textContent, shades: document.querySelectorAll('.rb-ps-shade').length,
+    wall: document.querySelectorAll('.rb-wapop-sw').length, famNames: Array.from(document.querySelectorAll('.rb-ps-fam .n')).map((n) => n.textContent),
   }));
-  check('colour · popover opens with the full palette', pop.open && pop.sw === 21, String(pop.sw));
-  await page.click('#rb-wa-pop .rb-wapop-sw[data-v="Navy"]');
+  check('colour · the row opens the shade sheet on the shade’s family — 13 families, Whites open, Cream ticked, no 21-swatch wall', pop.open && pop.title === 'Colour' && pop.fams === 13 && pop.fam === 'Whites' && pop.on === 'Cream' && pop.shades === 5 && pop.wall === 0, JSON.stringify(pop));
+  check('colour · the families run in the brief’s order, Metallics last, no Neons', pop.famNames[0] === 'Blacks' && pop.famNames[12] === 'Metallics' && !pop.famNames.includes('Neons'), pop.famNames.join('|'));
+  await page.click('.rb-ps-fam:has-text("Blues")');
+  await page.click('.rb-ps-shade[data-shade="navy"]');
+  await page.waitForTimeout(200);
   const picked = await page.evaluate(() => ({
-    closed: !document.getElementById('rb-wa-pop'),
-    name: document.querySelector('.rb-wf-colname')?.textContent || '',
+    closed: !document.getElementById('rb-ps-wrap'),
+    name: document.querySelector('.rb-ps-row[data-k="colour"] .rb-ps-v')?.textContent || '',
+    stash: [window.__waSawColor, window.__waSawShade],
   }));
-  check('colour · pick applies + closes', picked.closed && picked.name === 'Navy', picked.name);
+  check('colour · a pick applies, closes, and writes the shade + its display name', picked.closed && picked.name === 'Navy' && picked.stash.join('|') === 'Navy|navy', JSON.stringify(picked));
 
-  // Edit the name, return to the summary — repaint must carry it
-  await page.fill('#wa-saw-label', 'Ivory wool blazer');
-  await page.click('button.rb-saw-toggle:has-text("Hide the details")');
+  // Rename through the Name sheet — the banner follows
+  await page.click('.rb-ps-row[data-k="name"]');
+  await page.waitForTimeout(200);
+  const nameSheet = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, val: document.getElementById('rb-ps-in')?.value, focused: document.activeElement?.id }));
+  check('text · the Name row opens its sheet, the field prefilled and focused', nameSheet.title === 'Name' && nameSheet.val === 'Cream wool blazer' && nameSheet.focused === 'rb-ps-in', JSON.stringify(nameSheet));
+  await page.fill('#rb-ps-in', 'Ivory wool blazer');
+  await page.press('#rb-ps-in', 'Enter');
+  await page.waitForTimeout(200);
   const back = await page.evaluate(() => ({
     banner: document.querySelector('.rb-saw-banner')?.textContent || '',
-    row0: document.querySelectorAll('#rb-saw-read .rb-saw-val')[0]?.textContent || '',
-    row3: document.querySelectorAll('#rb-saw-read .rb-saw-val')[3]?.textContent.trim() || '',
+    row0: document.querySelector('.rb-ps-row[data-k="name"] .rb-ps-v')?.textContent || '',
+    row3: document.querySelector('.rb-ps-row[data-k="colour"] .rb-ps-v')?.textContent.trim() || '',
+    closed: !document.getElementById('rb-ps-wrap'),
   }));
-  check('summary · edits survive the round trip', back.banner === 'Ivory wool blazer' && back.row0 === 'Ivory wool blazer' && back.row3 === 'Navy',
-    JSON.stringify(back));
-
-  // Ledger row tap opens the editor on that field
-  await page.click('#rb-saw-read .rb-saw-row:nth-child(2)');
-  const rowTap = await page.evaluate(() => ({
-    details: !!document.getElementById('wa-saw-label'),
-    focused: document.activeElement && document.activeElement.id === 'wa-saw-brand',
-  }));
-  check('summary · tapping a row opens the editor on that field', rowTap.details && rowTap.focused, JSON.stringify(rowTap));
+  check('text · Enter saves and closes; the banner and the row carry the rename, the colour pick survives the repaint', back.closed && back.banner === 'Ivory wool blazer' && back.row0 === 'Ivory wool blazer' && back.row3 === 'Navy', JSON.stringify(back));
+  await page.click('.rb-ps-row[data-k="brand"]');
+  await page.waitForTimeout(200);
+  const rowTap = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, val: document.getElementById('rb-ps-in')?.value }));
+  check('sheet · tapping a row opens that field alone', rowTap.title === 'Brand' && rowTap.val === 'Zara', JSON.stringify(rowTap));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  check('sheet · Escape closes the sheet, nothing changed', await page.evaluate(() => !document.getElementById('rb-ps-wrap') && window.__waSawBrand === 'Zara'));
 
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1800);
@@ -387,43 +379,34 @@ const browser = await chromium.launch(
 
   const sumTags = await page.evaluate(() => ({
     tags: Array.from(document.querySelectorAll('.rb-saw-tag')).map((t) => t.textContent),
-    catRow: document.querySelectorAll('#rb-saw-read .rb-saw-val')[2]?.textContent || '',
+    catRow: document.querySelector('.rb-ps-row[data-k="category"] .rb-ps-v')?.textContent || '',
+    check: !!document.querySelector('.rb-ps-row[data-k="category"] .rb-ps-chk'),
   }));
   check('tax · L1/L2/L3 all pop as tags', sumTags.tags.includes('Bottoms') && sumTags.tags.includes('Jeans') && sumTags.tags.includes('Skinny jeans'),
     sumTags.tags.join('|'));
-  check('tax · ledger Category shows the sheet L1', sumTags.catRow === 'Bottoms', sumTags.catRow);
+  check('tax · the Category row reads the item type, no Check on a placed read', sumTags.catRow === 'Skinny jeans' && !sumTags.check, JSON.stringify(sumTags));
 
-  await page.click('button.rb-saw-toggle:has-text("Edit the details")');
-  const pre = await page.evaluate(() => ({
-    cat: document.querySelector('#wa-saw-cat span')?.textContent || '',
-    l2: document.querySelector('#wa-saw-l2 span')?.textContent || '',
-    l3: document.querySelector('#wa-saw-l3 span')?.textContent || '',
-  }));
-  check('tax · cascade fields prefilled from analyse', pre.cat === 'Bottoms' && pre.l2 === 'Jeans' && pre.l3 === 'Skinny jeans',
-    `${pre.cat}|${pre.l2}|${pre.l3}`);
-
-  await page.click('#wa-saw-cat');
-  const catList = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('#rb-wa-pop .rb-wapop-row span:first-child')).map((s) => s.textContent));
-  check('tax · category picker lists the sheet L1s', catList.includes('Knitwear') && catList.includes('Tailoring & suiting') && catList.includes('Jewellery'),
-    catList.join('|').slice(0, 120));
-  await page.click('#rb-wa-pop .rb-wapop-row:has-text("Knitwear")');
-  const reset = await page.evaluate(() => ({
-    l2: document.querySelector('#wa-saw-l2 span')?.textContent || '',
-    l3off: document.getElementById('wa-saw-l3')?.disabled,
-  }));
-  check('tax · L1 change resets the pair, L3 waits on L2', reset.l2 === 'Choose' && reset.l3off === true, JSON.stringify(reset));
-  await page.click('#wa-saw-l2');
-  await page.click('#rb-wa-pop .rb-wapop-row:has-text("Cardigans")');
-  await page.click('#wa-saw-l3');
-  await page.click('#rb-wa-pop .rb-wapop-row:has-text("Cardigan coat / coatigan")');
-  const refiled = await page.evaluate(() => ({
-    l2: document.querySelector('#wa-saw-l2 span')?.textContent || '',
-    l3: document.querySelector('#wa-saw-l3 span')?.textContent || '',
-    meta: document.querySelector('.rb-wf-meta')?.textContent || '',
-  }));
-  check('tax · re-filed through the pickers', refiled.l2 === 'Cardigans' && refiled.l3 === 'Cardigan coat / coatigan', JSON.stringify(refiled));
-  check('tax · header meta tracks the re-filing', /Knitwear/.test(refiled.meta) && /coatigan/.test(refiled.meta), refiled.meta);
+  await page.click('.rb-ps-row[data-k="category"]');
+  await page.waitForTimeout(250);
+  const pre = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, crumb: document.querySelector('.rb-ps-crumb')?.textContent, on: document.querySelector('.rb-ps-opt.on .n')?.textContent, back: !!document.querySelector('.rb-ps-back'), select: document.querySelectorAll('#wa-modal select').length }));
+  check('tax · the Category sheet opens AT the item type (Jeans, under Bottoms), Skinny jeans ticked, back steps up — never a native select', pre.title === 'Jeans' && pre.crumb === 'Bottoms' && pre.on === 'Skinny jeans' && pre.back && pre.select === 0, JSON.stringify(pre));
+  await page.click('.rb-ps-back');
+  await page.waitForTimeout(120);
+  await page.click('.rb-ps-back');
+  await page.waitForTimeout(120);
+  const catList = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, back: !!document.querySelector('.rb-ps-back'), list: Array.from(document.querySelectorAll('#rb-ps-wrap .rb-ps-opt .n')).map((n) => n.textContent) }));
+  check('tax · back twice lands on the sheet L1s', catList.title === 'Category' && !catList.back && catList.list.includes('Knitwear') && catList.list.includes('Tailoring & suiting') && catList.list.includes('Jewellery'),
+    catList.list.join('|').slice(0, 120));
+  await page.click('#rb-ps-wrap .rb-ps-opt:has-text("Knitwear")');
+  await page.waitForTimeout(120);
+  const reset = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, crumb: document.querySelector('.rb-ps-crumb')?.textContent, first: document.querySelector('#rb-ps-wrap .rb-ps-opt .n')?.textContent }));
+  check('tax · an L1 with subcategories drills into them, "Just knitwear" leading', reset.title === 'Knitwear' && reset.crumb === 'Category' && reset.first === 'Just knitwear', JSON.stringify(reset));
+  await page.click('#rb-ps-wrap .rb-ps-opt:has-text("Cardigans")');
+  await page.waitForTimeout(120);
+  await page.click('#rb-ps-wrap .rb-ps-opt:has-text("Cardigan coat / coatigan")');
+  await page.waitForTimeout(200);
+  const refiled = await page.evaluate(() => ({ closed: !document.getElementById('rb-ps-wrap'), row: document.querySelector('.rb-ps-row[data-k="category"] .rb-ps-v')?.textContent, sel: window.__waSawTaxSel }));
+  check('tax · the item type pick closes the sheet and re-files the pair', refiled.closed && refiled.row === 'Cardigan coat / coatigan' && refiled.sel.sheet === 'Knitwear' && refiled.sel.l2 === 'Cardigans', JSON.stringify(refiled));
 
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1800);
@@ -443,55 +426,52 @@ const browser = await chromium.launch(
   await page.setInputFiles('#wa-rb-file', { name: 'blazer.png', mimeType: 'image/png', buffer: PNG_OK });
   await page.waitForSelector('#rb-saw-panel', { timeout: 8000 });
   await page.waitForTimeout(400);
-  await page.click('button.rb-saw-toggle:has-text("Edit the details")');
-  await page.click('button.rb-saw-toggle:has-text("Add tags and notes")');
   const axes = await page.evaluate(() => ({
-    sea: Array.from(document.querySelectorAll('.rb-wf-chip.sea')).map((c) => c.textContent),
-    ctx: Array.from(document.querySelectorAll('.rb-wf-chip.ctx:not(.add)')).map((c) => c.textContent),
-    on: Array.from(document.querySelectorAll('.rb-wf-chip.on')).map((c) => c.textContent),
-    add: !!document.querySelector('.rb-wf-chip.add'),
-    notes: !!document.getElementById('wa-saw-notes'),
-    hide: Array.from(document.querySelectorAll('button.rb-saw-toggle')).some((b) => /Hide tags and notes/.test(b.textContent)),
-    editLink: !!document.querySelector('.rb-wf-headact'),
+    season: document.querySelector('.rb-ps-row[data-k="season"] .rb-ps-v')?.textContent, wear: document.querySelector('.rb-ps-row[data-k="wear"] .rb-ps-v')?.textContent,
+    notes: !!document.querySelector('.rb-ps-row[data-k="notes"]'),
   }));
-  // Three bands, one tap (ADR-002 §1) — picking both bands IS year-round.
-  check('tags · Season is the three-band axis',
-    axes.sea.join('|') === 'Spring/Summer|Autumn/Winter|Year-round', axes.sea.join('|'));
-  // The seven shared seeds, in vocabulary order, from the namespace.
-  check('tags · Wear it for renders the seven shared seeds',
-    axes.ctx.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active|Lounge', axes.ctx.join('|'));
-  // The form PREVIEWS the pre-fill rather than opening blank: an Outerwear
+  // The rows PREVIEW the pre-fill rather than reading blank: an Outerwear
   // piece shows Autumn/Winter + Everyday already filed, hers to correct.
-  // Computed at paint, so it cannot race the taxonomy fetch.
-  check('tags · the form previews what Robes will file',
-    axes.on.join('|') === 'Autumn/Winter|Everyday', axes.on.join('|'));
-  check('tags · custom tag door + notes + hide row + header Edit link', axes.add && axes.notes && axes.hide && axes.editLink);
-
-  await page.click('.rb-wf-chip.sea:has-text("Spring/Summer")');
-  await page.click('.rb-wf-chip.ctx:has-text("Travel")');
-  await page.click('.rb-wf-chip.add');
-  await page.fill('#rb-wf-tagin', 'Skiing');
-  await page.press('#rb-wf-tagin', 'Enter');
-  const tagged = await page.evaluate(() => ({
-    on: Array.from(document.querySelectorAll('.rb-wf-chip.on')).map((c) => c.textContent),
-  }));
-  check('tags · picks + custom tag land selected',
-    tagged.on.includes('Spring/Summer') && tagged.on.includes('Travel') && tagged.on.includes('Skiing'),
-    tagged.on.join('|'));
-  // Single-select: picking a band replaces the previous one rather than
-  // adding to it, so Year-round drops off.
-  check('tags · the band is single-select', !tagged.on.includes('Year-round'), tagged.on.join('|'));
-  // Wear it for is UNCAPPED and may be emptied — 'everyday' is a real tag
-  // now, not a floor the axis snaps back to.
-  await page.click('.rb-wf-chip.ctx:has-text("Travel")');
-  await page.click('.rb-wf-chip.ctx:has-text("Skiing")');
-  await page.click('.rb-wf-chip.ctx:has-text("Everyday")');
-  const emptied = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.rb-wf-chip.ctx.on')).map((c) => c.textContent));
-  check('tags · Wear it for can be emptied, nothing snaps back', emptied.length === 0, emptied.join('|'));
-  await page.click('.rb-wf-chip.ctx:has-text("Travel")');
-  await page.click('.rb-wf-chip.ctx:has-text("Skiing")');
-  await page.fill('#wa-saw-notes', 'Wear with the navy suit.');
+  check('tags · the rows preview what Robes will file (Outerwear → Autumn/Winter + Everyday)', axes.season === 'Autumn/Winter' && axes.wear === 'Everyday' && axes.notes, JSON.stringify(axes));
+  await page.click('.rb-ps-row[data-k="season"]');
+  await page.waitForTimeout(200);
+  const sea = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, opts: Array.from(document.querySelectorAll('#rb-ps-wrap .rb-ps-opt .n')).map((n) => n.textContent), on: document.querySelector('#rb-ps-wrap .rb-ps-opt.on .n')?.textContent }));
+  check('tags · Season is a one-tap list of the three bands', sea.title === 'Season' && sea.opts.join('|') === 'Spring/Summer|Autumn/Winter|Year-round' && sea.on === 'Autumn/Winter', JSON.stringify(sea));
+  await page.click('#rb-ps-wrap .rb-ps-opt:has-text("Spring/Summer")');
+  await page.waitForTimeout(200);
+  await page.click('.rb-ps-row[data-k="wear"]');
+  await page.waitForTimeout(200);
+  const wear = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, done: !!document.querySelector('.rb-ps-done'), x: !!document.querySelector('.rb-ps-x'),
+    chips: Array.from(document.querySelectorAll('.rb-ps-chip:not(.add)')).map((c) => c.textContent.replace(/^✓ /, '')), on: Array.from(document.querySelectorAll('.rb-ps-chip.on')).map((c) => c.textContent.replace(/^✓ /, '')), own: !!document.querySelector('.rb-ps-chip.add') }));
+  check('tags · Wear it for is multi-select, open until Done: the seven shared seeds, Everyday on, + Your own', wear.title === 'Wear it for' && wear.done && !wear.x && wear.chips.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active|Lounge' && wear.on.join('|') === 'Everyday' && wear.own, JSON.stringify(wear));
+  await page.click('.rb-ps-chip:has-text("Travel")');
+  await page.click('.rb-ps-chip.add');
+  await page.fill('#rb-ps-own', 'Skiing');
+  await page.press('#rb-ps-own', 'Enter');
+  await page.waitForTimeout(150);
+  const tagged = await page.evaluate(() => Array.from(document.querySelectorAll('.rb-ps-chip.on')).map((c) => c.textContent.replace(/^✓ /, '')));
+  check('tags · picks + a custom tag land selected', tagged.join('|') === 'Everyday|Travel|Skiing', tagged.join('|'));
+  // Uncapped and emptiable — 'everyday' is a real tag, not a floor.
+  await page.click('.rb-ps-chip:has-text("Travel")');
+  await page.click('.rb-ps-chip:has-text("Skiing")');
+  await page.click('.rb-ps-chip:has-text("Everyday")');
+  await page.click('.rb-ps-done');
+  await page.waitForTimeout(200);
+  const emptied = await page.evaluate(() => ({ closed: !document.getElementById('rb-ps-wrap'), row: document.querySelector('.rb-ps-row[data-k="wear"] .rb-ps-v')?.textContent, season: document.querySelector('.rb-ps-row[data-k="season"] .rb-ps-v')?.textContent }));
+  check('tags · Wear it for can be emptied — Done closes, the row reads Add, nothing snaps back; the band is single-select', emptied.closed && emptied.row === 'Add' && emptied.season === 'Spring/Summer', JSON.stringify(emptied));
+  await page.click('.rb-ps-row[data-k="wear"]');
+  await page.waitForTimeout(150);
+  await page.click('.rb-ps-chip:has-text("Travel")');
+  await page.click('.rb-ps-chip:has-text("Skiing")');
+  await page.click('.rb-ps-done');
+  await page.waitForTimeout(150);
+  await page.click('.rb-ps-row[data-k="notes"]');
+  await page.waitForTimeout(150);
+  await page.fill('#rb-ps-in', 'Wear with the navy suit.');
+  await page.click('.rb-ps-save');
+  await page.waitForTimeout(150);
+  const noted = await page.evaluate(() => ({ note: document.querySelector('.rb-ps-row[data-k="notes"] .rb-ps-note')?.textContent, v: document.querySelector('.rb-ps-row[data-k="notes"] .rb-ps-v')?.textContent, wear: document.querySelector('.rb-ps-row[data-k="wear"] .rb-ps-v')?.textContent }));
+  check('tags · the note reads under its row in the serif, the wear row names both', noted.note === 'Wear with the navy suit.' && noted.v === '' && noted.wear === 'Travel, Skiing', JSON.stringify(noted));
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1800);
   const p = supaPosts[0] || {};
@@ -515,23 +495,27 @@ const browser = await chromium.launch(
   const manual = await page.evaluate(() => ({
     heading: document.querySelector('#wa-modal .fm-h')?.textContent || '',
     slot: !!document.querySelector('.rb-wf-slot'),
-    label: document.getElementById('wa-saw-label')?.value || '',
-    labelPh: document.getElementById('wa-saw-label')?.placeholder || '',
-    cat: document.querySelector('#wa-saw-cat span')?.textContent || '',
-    colName: document.querySelector('.rb-wf-colname')?.textContent || '',
+    name: document.querySelector('.rb-ps-row[data-k="name"] .rb-ps-v')?.textContent, cat: document.querySelector('.rb-ps-row[data-k="category"] .rb-ps-v')?.textContent, colName: document.querySelector('.rb-ps-row[data-k="colour"] .rb-ps-v')?.textContent,
+    fields: !!document.getElementById('wa-saw-label'),
   }));
   check('manual · same anatomy, empty photo slot', /Add a piece/.test(manual.heading) && manual.slot, manual.heading);
-  check('manual · empty fields with placeholders', manual.label === '' && manual.labelPh === 'Name the piece'
-    && manual.cat === 'Choose' && manual.colName === 'Pick a colour', JSON.stringify(manual));
+  check('manual · the empty rows read Add, no form fields', manual.name === 'Add' && manual.cat === 'Add' && manual.colName === 'Add' && !manual.fields, JSON.stringify(manual));
 
-  // name guard fires before an empty save
+  // name guard fires before an empty save — the Name sheet opens
   await page.click('#wa-saw-cta');
-  const guard = await page.evaluate(() => document.getElementById('wa-saw-namehint')?.textContent || '');
-  check('manual · name guard fires', /name/.test(guard), guard);
+  await page.waitForTimeout(200);
+  const guard = await page.evaluate(() => ({ sheet: document.querySelector('#rb-ps-wrap h3')?.textContent || '', toast: document.getElementById('toast-msg')?.textContent || document.getElementById('toast')?.textContent || '' }));
+  check('manual · the name guard opens the Name sheet and says so', guard.sheet === 'Name' && /name/.test(guard.toast), JSON.stringify(guard));
 
-  await page.fill('#wa-saw-label', 'Linen shirt');
-  await page.click('#wa-saw-cat');
-  await page.click('#rb-wa-pop .rb-wapop-row:has-text("Tops")');
+  await page.fill('#rb-ps-in', 'Linen shirt');
+  await page.press('#rb-ps-in', 'Enter');
+  await page.waitForTimeout(150);
+  await page.click('.rb-ps-row[data-k="category"]');
+  await page.waitForTimeout(150);
+  await page.click('#rb-ps-wrap .rb-ps-opt:has-text("Tops")');
+  await page.waitForTimeout(150);
+  await page.click('#rb-ps-wrap .rb-ps-opt:has-text("Just tops")');
+  await page.waitForTimeout(150);
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1800);
   const p = supaPosts[0] || {};
@@ -548,7 +532,11 @@ const browser = await chromium.launch(
   await page.waitForTimeout(500);
   const slotPhoto = await page.evaluate(() => !!document.querySelector('.rb-wf-photo img')?.src);
   check('manual · Add-a-photo slot attaches without a re-scan', slotPhoto);
-  await page.fill('#wa-saw-label', 'Photographed shirt');
+  await page.click('.rb-ps-row[data-k="name"]');
+  await page.waitForTimeout(150);
+  await page.fill('#rb-ps-in', 'Photographed shirt');
+  await page.press('#rb-ps-in', 'Enter');
+  await page.waitForTimeout(150);
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1800);
   const p2 = supaPosts[1] || {};
@@ -569,16 +557,17 @@ const browser = await chromium.launch(
   await page.setInputFiles('#wa-rb-file', { name: 'blur.png', mimeType: 'image/png', buffer: PNG_OK });
   await page.waitForTimeout(1400);
   const u = await page.evaluate(() => ({
-    ledger: !!document.getElementById('rb-saw-read'),
-    editorOpen: !!document.getElementById('wa-saw-label'),
+    panel: !!document.getElementById('rb-saw-panel'),
+    rows: !!document.querySelector('.rb-ps-row[data-k="name"]'),
     sub: document.querySelector('#wa-modal .fm-step p')?.textContent || '',
     photo: !!document.querySelector('.rb-wf-photo img'),
   }));
-  check('unreadable · no summary theatre, editor open', !u.ledger && u.editorOpen);
+  check('unreadable · no reveal theatre, the rows open', !u.panel && u.rows);
   check('unreadable · give-it-a-name copy + photo kept', /couldn’t quite read|couldn't quite read/.test(u.sub) && u.photo, u.sub);
   await page.click('#wa-saw-cta');
-  const guard = await page.evaluate(() => document.getElementById('wa-saw-namehint')?.textContent || '');
-  check('unreadable · name guard fires', /name/.test(guard), guard);
+  await page.waitForTimeout(150);
+  const guard = await page.evaluate(() => document.querySelector('#rb-ps-wrap h3')?.textContent || '');
+  check('unreadable · the name guard opens the Name sheet', guard === 'Name', guard);
   check('no page errors (unreadable)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -716,63 +705,60 @@ const browser = await chromium.launch(
   await ctx.close();
 }
 
-// ── Edit modal rides the same form ─────────────────────────────────────
+// ── The edit door is the piece page (2026-10-22): rows that save on pick ─
 {
   const { ctx, page, errs, supaPatches } = await boot(browser, TAG, { rows: ROWS });
   await page.evaluate(() => window.App && App.showWardrobe());
   await page.waitForTimeout(600);
   await page.evaluate(() => window.__wtrkEdit('row-1'));
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(600);
   const ed = await page.evaluate(() => ({
-    label: document.getElementById('wa-saw-label')?.value || '',
-    brand: document.getElementById('wa-saw-brand')?.value || '',
-    cat: document.querySelector('#wa-saw-cat span')?.textContent || '',
-    l2: document.querySelector('#wa-saw-l2 span')?.textContent || '',
-    l3: document.querySelector('#wa-saw-l3 span')?.textContent || '',
-    colName: document.querySelector('.rb-wf-colname')?.textContent || '',
-    cta: document.getElementById('wa-saw-cta')?.textContent || '',
-    del: !!document.querySelector('.rb-wf-del'),
+    page: getComputedStyle(document.getElementById('rb-piece-page') || document.body).display, modal: !!document.querySelector('#wa-modal.open'),
+    rows: Array.from(document.querySelectorAll('#rb-piece-page .rb-ps-row')).map((r) => r.dataset.k + '=' + r.querySelector('.rb-ps-v').textContent),
+    stats: Array.from(document.querySelectorAll('.rb-pc-stats .k')).map((k) => k.textContent), remove: document.querySelector('.rb-pc-removebtn')?.textContent,
   }));
-  check('edit · same form, prefilled from the row', ed.label === 'Blue skinny jeans' && ed.brand === 'Levi’s'
-    && ed.cat === 'Bottoms' && ed.l2 === 'Jeans' && ed.l3 === 'Skinny jeans' && ed.colName === 'Navy', JSON.stringify(ed));
-  check('edit · Update CTA + delete row', /Update piece/.test(ed.cta) && ed.del, ed.cta);
-
-  await page.click('button.rb-saw-toggle:has-text("Add tags and notes")');
-  const edTags = await page.evaluate(() => ({
-    on: Array.from(document.querySelectorAll('.rb-wf-chip.on')).map((c) => c.textContent),
-    everyday: Array.from(document.querySelectorAll('.rb-wf-chip')).some((c) => c.textContent === 'Everyday'),
-  }));
-  // ADR-002: 'Everyday' is a real seed now, not a displayed-only default,
-  // so a piece tagged Everyday + Travel shows BOTH selected. The band comes
-  // from season_band rather than being derived from the seasons array.
-  check('edit · band and every wear tag prefill from the row',
-    edTags.on.includes('Spring/Summer') && edTags.on.includes('Travel')
-    && edTags.on.includes('Everyday') && !edTags.on.includes('Year-round'),
-    edTags.on.join('|'));
-  await page.click('#wa-saw-cta');
-  await page.waitForTimeout(1500);
-  const patch = supaPatches[0] || {};
-  check('edit · PATCH targets the row', /row-1/.test(patch.url || ''), patch.url);
-  // An untouched edit re-files the band it already had, and still does not
-  // claim she set it — season_source only appears when she taps the chip.
-  // Wear tags never ride the piece payload; they go to the shared namespace.
-  check('edit · band re-filed, provenance not overclaimed, no legacy arrays',
-    patch.body && patch.body.season_band === 'spring_summer'
-      && !('season_source' in patch.body)
-      && !('seasons' in patch.body) && !('occasions' in patch.body),
-    JSON.stringify(patch.body && [patch.body.season_band, patch.body.season_source]));
-  check('edit · price re-filed as the row holds it; the pass-through columns untouched by the PATCH',
-    patch.body && 'price' in patch.body && patch.body.price === null && !('hero_position' in patch.body) && !('sentiment' in patch.body), JSON.stringify(patch.body && [patch.body.price, patch.body.size]));
-
-  // An untagged piece shows both defaults selected — the Refine behaviour
-  // reads back from the piece level.
+  check('edit · the edit door opens the piece PAGE, never the modal: the rows prefilled from the row, the stats strip, Remove from wardrobe at the foot',
+    ed.page === 'block' && !ed.modal && ed.rows.join('|') === 'category=Skinny jeans|brand=Levi’s|colour=Navy|extra=Add|print=Plain|season=Spring/Summer|wear=Everyday, Travel|size=Add|price=Add|notes=Add'
+      && ed.stats.join('|') === 'Worn|Last worn|In looks' && ed.remove === 'Remove from wardrobe', JSON.stringify(ed));
+  // A pick saves at once — one PATCH per field, nothing else on it
+  await page.click('#rb-piece-page .rb-ps-row[data-k="season"]');
+  await page.waitForTimeout(150);
+  await page.click('#rb-ps-wrap .rb-ps-opt:has-text("Autumn/Winter")');
   await page.waitForTimeout(400);
-  await page.evaluate(() => window.__wtrkEdit('row-2'));
-  await page.waitForTimeout(500);
-  await page.click('button.rb-saw-toggle:has-text("Add tags and notes")');
-  const unt = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.rb-wf-chip.on')).map((c) => c.textContent));
-  check('edit · untagged piece shows Year-round + Everyday selected', unt.join('|') === 'Year-round|Everyday', unt.join('|'));
+  const patch = supaPatches[0] || {};
+  check('edit · a Season pick PATCHes the row at once — the band as hers, nothing else on the PATCH', /row-1/.test(patch.url || '') && patch.body && patch.body.season_band === 'autumn_winter' && patch.body.season_source === 'user' && Object.keys(patch.body).length === 2, JSON.stringify(patch));
+  check('edit · the row reads the pick', await page.evaluate(() => document.querySelector('#rb-piece-page .rb-ps-row[data-k="season"] .rb-ps-v')?.textContent) === 'Autumn/Winter');
+  await page.click('#rb-piece-page .rb-ps-row[data-k="colour"]');
+  await page.waitForTimeout(150);
+  const cs = await page.evaluate(() => ({ fam: document.querySelector('.rb-ps-fam.on .n')?.textContent, on: document.querySelector('.rb-ps-shade.on .n')?.textContent }));
+  check('edit · the colour sheet opens on the row’s shade — a legacy wheel name (Navy) resolved through the model into Blues', cs.fam === 'Blues' && cs.on === 'Navy', JSON.stringify(cs));
+  await page.click('.rb-ps-fam:has-text("Greens")');
+  await page.click('.rb-ps-shade[data-shade="olive"]');
+  await page.waitForTimeout(400);
+  const cp = supaPatches[1] || {};
+  check('edit · a shade pick writes the display name, the three model columns and the dna colour — the band it did not touch stays off the PATCH',
+    cp.body && cp.body.color === 'Olive' && cp.body.colour_shade === 'olive' && JSON.stringify(cp.body.colour_extra) === '[]' && cp.body.print === null && cp.body.item_dna?.display?.editorial_color_name === 'Olive' && !('season_band' in cp.body), JSON.stringify(cp.body));
+  await page.click('#rb-piece-page .rb-ps-row[data-k="wear"]');
+  await page.waitForTimeout(150);
+  await page.click('.rb-ps-chip:has-text("Work")');
+  await page.click('.rb-ps-done');
+  await page.waitForTimeout(400);
+  const wearPatch = supaPatches.find((x) => x.body && ('occasions' in x.body || 'wear' in x.body));
+  check('edit · a Wear-it-for pick never rides the piece payload (the tag namespace carries it); the row reads it', !wearPatch && await page.evaluate(() => document.querySelector('#rb-piece-page .rb-ps-row[data-k="wear"] .rb-ps-v')?.textContent) === 'Everyday, Travel, Work');
+  await page.click('#rb-piece-page .rb-ps-row[data-k="price"]');
+  await page.waitForTimeout(150);
+  await page.click('.rb-ps-cur:has-text("GBP")');
+  await page.fill('#rb-ps-in', '120');
+  await page.click('.rb-ps-save');
+  await page.waitForTimeout(400);
+  const pp = supaPatches.find((x) => x.body && 'price' in x.body);
+  check('edit · Price saves as a number + its currency; the pass-through columns never ride a PATCH', pp && pp.body.price === 120 && pp.body.currency === 'GBP' && !('hero_position' in pp.body) && !('sentiment' in pp.body)
+    && await page.evaluate(() => document.querySelector('#rb-piece-page .rb-ps-row[data-k="price"] .rb-ps-v')?.textContent) === '£120', JSON.stringify(pp && pp.body));
+  // An untagged piece reads the defaults
+  await page.evaluate(() => window.__rbPieceOpen('row-2', { from: 'wardrobe' }));
+  await page.waitForTimeout(400);
+  const unt = await page.evaluate(() => ['season', 'wear'].map((k) => document.querySelector('#rb-piece-page .rb-ps-row[data-k="' + k + '"] .rb-ps-v')?.textContent));
+  check('edit · an untagged piece reads Year-round + Everyday', unt.join('|') === 'Year-round|Everyday', unt.join('|'));
   check('no page errors (edit)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -869,6 +855,7 @@ const browser = await chromium.launch(
     labels: Array.from(document.querySelectorAll('#rb-refine .rb-ref-lbl')).map((l) => l.textContent.trim().split('\n')[0]),
     wear: Array.from(document.querySelectorAll('#rb-refine .rb-ref-chip.ctx')).map((c) => c.textContent),
     sw: document.querySelectorAll('#rb-refine .rb-sw').length,
+    fams: Array.from(document.querySelectorAll('#rb-refine .rb-ref-fam .n')).map((n) => n.textContent),
     wheel: !!document.querySelector('#rb-refine .rb-sw-wheel'),
     worn: /Never worn/.test(document.getElementById('rb-refine')?.textContent || ''),
     fits: /Silhouette/.test(document.getElementById('rb-refine')?.textContent || ''),
@@ -879,7 +866,7 @@ const browser = await chromium.launch(
     ref.labels.join('|'));
   check('refine · wear chips = the seven seeds + her own tags',
     ref.wear.join('|') === 'Everyday|Work|Evening|Occasion|Travel|Active|Lounge|Skiing', ref.wear.join('|'));
-  check('refine · full palette, no wheel', ref.sw === 21 && !ref.wheel, String(ref.sw));
+  check('refine · colour is the 13 families, no swatch wall, no wheel', ref.sw === 0 && ref.fams.length === 13 && ref.fams[0] === 'Blacks' && ref.fams[12] === 'Metallics' && !ref.wheel, ref.fams.join('|'));
   check('refine · worn / fits sections gone', !ref.worn && !ref.fits);
   check('refine · Show-N footer', ref.foot);
   // row-1 carries Everyday, row-2 is untagged (= Everyday), row-3 is
@@ -902,13 +889,14 @@ const browser = await chromium.launch(
   check('refine · Everyday pieces pass any wear pick', wearAll === 3, String(wearAll));
   await page.click('#rb-refine .rb-ref-chip.ctx:has-text("Work")');
   await page.waitForTimeout(200);
-  await page.click('#rb-refine .rb-sw[aria-label="Navy"]');
+  await page.click('#rb-refine .rb-ref-fam[data-f="blues"]');
   await page.waitForTimeout(200);
   const refFiltered = await page.evaluate(() => ({
     note: document.querySelector('.rb-ref-note')?.textContent || '',
     grid: document.querySelectorAll('#wg-grid .wg-item:not(.rb-add-card):not(.rb-ghost-card)').length,
+    on: document.querySelector('#rb-refine .rb-ref-fam.on')?.getAttribute('aria-pressed'),
   }));
-  check('refine · colour pick filters + names itself', refFiltered.note === 'Navy selected' && refFiltered.grid === 1, JSON.stringify(refFiltered));
+  check('refine · a family pick filters by the piece’s shade (a legacy Navy reads as Blues) and names itself', refFiltered.note === 'Blues selected' && refFiltered.grid === 1 && refFiltered.on === 'true', JSON.stringify(refFiltered));
   check('no page errors (browse)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -1013,7 +1001,7 @@ const browser = await chromium.launch(
   check('ways · Other ways in returns to the chooser', (await page.evaluate(() => document.querySelectorAll('.rb-wf-way').length)) === 4);
   await page.click('.rb-wf-way[data-way="manual"]');
   await page.waitForTimeout(300);
-  check('ways · Add without a photo opens the empty editor', await page.evaluate(() => /Add a piece/.test(document.querySelector('#wa-modal .fm-h')?.textContent || '') && !!document.querySelector('.rb-wf-slot') && !!document.getElementById('wa-saw-label')));
+  check('ways · Add without a photo opens the empty sheet', await page.evaluate(() => /Add a piece/.test(document.querySelector('#wa-modal .fm-h')?.textContent || '') && !!document.querySelector('.rb-wf-slot') && !!document.querySelector('.rb-ps-row[data-k="name"]')));
 
   // Paste a link → reading → the confirm screen, filled from the page.
   await page.evaluate(() => window.__waWay('choose'));
@@ -1035,20 +1023,20 @@ const browser = await chromium.launch(
     sub: document.querySelector('#wa-modal .fm-step > p')?.textContent || '',
     photo: document.getElementById('wa-saw-photo')?.getAttribute('src') || '',
     retake: document.querySelector('.rb-saw-retake')?.textContent || '',
-    vals: Array.from(document.querySelectorAll('#rb-saw-read .rb-saw-val')).map((v) => v.textContent),
+    vals: ['name', 'category', 'brand', 'colour'].map((k) => document.querySelector('.rb-ps-row[data-k="' + k + '"] .rb-ps-v')?.textContent),
   }));
   check('link · lands on "Here’s what Robes saw." read from the page, the page image on the panel, the retake reading Another link',
     /what Robes/.test(u1.h) && /Read from the page/.test(u1.sub) && u1.photo === URL_PIECE.image_url && u1.retake === '↺ Another link' && urlReads[0]?.url === 'https://shop.example.com/p/1', JSON.stringify(u1));
   await page.waitForTimeout(2200);
-  await page.click('button.rb-saw-toggle:has-text("Edit the details")');
-  await page.waitForTimeout(300);
-  const u2 = await page.evaluate(() => ({ meta: document.querySelector('.rb-wf-meta')?.textContent || '', hint: document.querySelector('.rb-saw-toggle .hint')?.textContent || '' }));
-  check('link · the header meta carries the price and size; the tags hint counts them', /£340/.test(u2.meta) && /Size 38/.test(u2.meta) && /2 set/.test(u2.hint), JSON.stringify(u2));
-  await page.click('button.rb-saw-toggle:has-text("Add tags and notes")');
-  await page.waitForTimeout(300);
-  const u3 = await page.evaluate(() => ({ price: document.getElementById('wa-saw-price')?.value, size: document.getElementById('wa-saw-size')?.value, note: document.querySelector('.rb-wf-price .note')?.textContent || '', order: Array.from(document.querySelectorAll('#wa-modal .rb-wf-lbl')).map((l) => l.textContent) }));
-  check('link · Price and Size sit under Tags, before Notes, prefilled', u3.price === '£340' && u3.size === '38' && /Both optional/.test(u3.note) && u3.order.join('|') === 'Season|Wear it for|Price|Size|Notes', JSON.stringify(u3));
-  await page.fill('#wa-saw-size', 'UK 5');
+  const u2 = await page.evaluate(() => ({ price: document.querySelector('.rb-ps-row[data-k="price"] .rb-ps-v')?.textContent, size: document.querySelector('.rb-ps-row[data-k="size"] .rb-ps-v')?.textContent, order: Array.from(document.querySelectorAll('.rb-ps-row')).map((r) => r.dataset.k).slice(-3) }));
+  check('link · the Price and Size rows carry what the page read, before Notes', u2.price === '£340' && u2.size === '38' && u2.order.join('|') === 'size|price|notes', JSON.stringify(u2));
+  await page.click('.rb-ps-row[data-k="size"]');
+  await page.waitForTimeout(150);
+  const u3 = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, help: document.querySelector('.rb-ps-help')?.textContent || '', val: document.getElementById('rb-ps-in')?.value }));
+  check('link · the Size sheet, prefilled, with the one line of help', u3.title === 'Size' && /Both optional/.test(u3.help) && u3.val === '38', JSON.stringify(u3));
+  await page.fill('#rb-ps-in', 'UK 5');
+  await page.click('.rb-ps-save');
+  await page.waitForTimeout(150);
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1200);
   const post = supaPosts[0] || {};
@@ -1073,11 +1061,11 @@ const browser = await chromium.launch(
   await page.fill('#rb-wf-url', 'https://shop.example.com/p/2');
   await page.click('#rb-wf-urlgo');
   await page.waitForTimeout(900);
-  const n = await page.evaluate(() => ({ label: document.getElementById('wa-saw-label')?.value, head: document.querySelector('.rb-wf-headact')?.textContent || '', thumbEmpty: !!document.querySelector('.rb-wf-thumb.empty'), hide: Array.from(document.querySelectorAll("button.rb-saw-toggle")).some((b) => /Hide the details/.test(b.textContent)), photoIn: !!document.getElementById('rb-wf-photoin'), panel: !!document.getElementById('rb-saw-panel') }));
-  check('link · no page image → the editor, prefilled, "Add a photo" in the head, no reveal panel', n.label === 'Leather trainers' && n.head === 'Add a photo' && n.thumbEmpty && !n.panel && n.photoIn, JSON.stringify(n));
+  const n = await page.evaluate(() => ({ label: document.querySelector('.rb-ps-row[data-k="name"] .rb-ps-v')?.textContent, slot: document.querySelector('.rb-wf-slot')?.textContent.trim() || '', photoIn: !!document.getElementById('rb-wf-photoin'), panel: !!document.getElementById('rb-saw-panel') }));
+  check('link · no page image → the rows prefilled, the dashed Add-a-photo slot in place of the reveal', n.label === 'Leather trainers' && n.slot === 'Add a photo' && !n.panel && n.photoIn, JSON.stringify(n));
   await page.setInputFiles('#rb-wf-photoin', { name: 'p.png', mimeType: 'image/png', buffer: PNG_OK });
   await page.waitForTimeout(500);
-  check('link · Add a photo attaches straight in (no re-scan)', await page.evaluate(() => !!document.querySelector('.rb-wf-thumb img')?.src && !document.querySelector('.rb-wf-thumb.empty')));
+  check('link · Add a photo attaches straight in (no re-scan)', await page.evaluate(() => !!document.querySelector('.rb-wf-photo img')?.src && !document.querySelector('.rb-wf-slot')));
   check('no page errors (link, no image)', errs.length === 0, errs.join(' | ').slice(0, 240));
   await ctx.close();
 }
@@ -1210,17 +1198,25 @@ const browser = await chromium.launch(
   const w2 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', sub: document.querySelector('#wa-modal .fm-step > p')?.textContent || '', cta: document.getElementById('wa-saw-cta')?.textContent || '' }));
   check('wishlist · the scan lands on the same confirm screen, CTA "Save to wishlist →"', /what Robes/.test(w2.h) && /Read from your image/.test(w2.sub) && w2.cta === 'Save to wishlist →', JSON.stringify(w2));
   await page.waitForTimeout(2200);
-  await page.click('button.rb-saw-toggle:has-text("Edit the details")');
-  await page.waitForTimeout(300);
-  const w3 = await page.evaluate(() => ({ srcs: Array.from(document.querySelectorAll('#rb-wf-srcs .rb-wf-chip')).map((c) => c.textContent + (c.classList.contains('on') ? '*' : '')), hint: document.querySelector('.rb-saw-toggle .hint')?.textContent || '' }));
-  check('wishlist · the editor carries "Where did you spot it?" (Screenshot on by default); the tags hint reads price, size, notes', w3.srcs.join('|') === 'Screenshot*|Instagram|Substack|In person|A link' && w3.hint === 'price, size, notes', JSON.stringify(w3));
-  await page.click('#rb-wf-srcs .rb-wf-chip:has-text("Instagram")');
-  await page.click('button.rb-saw-toggle:has-text("Add tags and notes")');
-  await page.waitForTimeout(300);
-  const w4 = await page.evaluate(() => ({ labels: Array.from(document.querySelectorAll('#wa-modal .rb-wf-lbl')).map((l) => l.textContent), sea: document.querySelectorAll('.rb-wf-chip.sea').length }));
-  check('wishlist · tags and notes holds Price / Size / Notes only — no Season, no Wear it for', w4.labels.join('|') === 'Price|Size|Notes' && w4.sea === 0, JSON.stringify(w4));
-  await page.fill('#wa-saw-price', '€245');
-  await page.fill('#wa-saw-size', 'M');
+  const w3 = await page.evaluate(() => ({ rows: Array.from(document.querySelectorAll('.rb-ps-row')).map((r) => r.dataset.k), src: document.querySelector('.rb-ps-row[data-k="src"] .rb-ps-v')?.textContent }));
+  check('wishlist · the rows carry Spotted (Screenshot by default) and Size / Price / Notes — no Season, no Wear it for', w3.rows.join('|') === 'name|category|brand|src|colour|extra|print|size|price|notes' && w3.src === 'Screenshot', JSON.stringify(w3));
+  await page.click('.rb-ps-row[data-k="src"]');
+  await page.waitForTimeout(150);
+  const w3b = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, opts: Array.from(document.querySelectorAll('#rb-ps-wrap .rb-ps-opt .n')).map((n) => n.textContent) }));
+  check('wishlist · the Spotted sheet lists the five sources', w3b.title === 'Where did you spot it?' && w3b.opts.join('|') === 'Screenshot|Instagram|Substack|In person|A link', JSON.stringify(w3b));
+  await page.click('#rb-ps-wrap .rb-ps-opt:has-text("Instagram")');
+  await page.waitForTimeout(150);
+  await page.click('.rb-ps-row[data-k="price"]');
+  await page.waitForTimeout(150);
+  await page.click('.rb-ps-cur:has-text("EUR")');
+  await page.fill('#rb-ps-in', '245');
+  await page.click('.rb-ps-save');
+  await page.waitForTimeout(150);
+  await page.click('.rb-ps-row[data-k="size"]');
+  await page.waitForTimeout(150);
+  await page.fill('#rb-ps-in', 'M');
+  await page.press('#rb-ps-in', 'Enter');
+  await page.waitForTimeout(150);
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1200);
   const wp = wlPosts[0] || {};
@@ -1307,12 +1303,14 @@ const browser = await chromium.launch(
   await page.waitForTimeout(2800);
   const cm = await page.evaluate(() => ({
     colour: window.__waSawColor, shade: window.__waSawShade, extra: window.__waSawExtra, print: window.__waSawPrint,
-    dot: (document.querySelector('#rb-saw-read .rb-saw-dot')?.getAttribute('style') || '').replace(/\s/g, ''),
+    dot: (document.querySelector('.rb-ps-row[data-k="colour"] .rb-ps-sw')?.getAttribute('style') || '').replace(/\s/g, ''),
     model: !!(window.RB_COLOURS && window.RB_COLOURS.SHADES && window.RB_COLOURS.SHADES.length === 74),
+    extra: document.querySelector('.rb-ps-row[data-k="extra"] .rb-ps-v')?.textContent, checks: Array.from(document.querySelectorAll('.rb-ps-row')).filter((r) => r.querySelector('.rb-ps-chk')).map((r) => r.dataset.k),
   }));
+  check('colour model · the Additional colours row reads the extras (Gold), and colour_check marks Colour + Additional colours "Check" (Category too — the read placed no subcategory)', cm.extra === 'Gold' && cm.checks.join('|') === 'category|colour|extra', JSON.stringify([cm.extra, cm.checks]));
   check('colour model · the page carries window.RB_COLOURS (74 shades)', cm.model, String(cm.model));
   check('colour model · a shade read lands as its display name — Chocolate stays Chocolate', cm.colour === 'Chocolate' && cm.shade === 'chocolate', JSON.stringify(cm));
-  check('colour model · the summary dot draws the shade\'s hex', /#4E3024/i.test(cm.dot), cm.dot);
+  check('colour model · the colour row\'s swatch draws the shade\'s hex', /#4E3024/i.test(cm.dot), cm.dot);
   await page.click('#wa-saw-cta');
   await page.waitForTimeout(1800);
   const p = supaPosts[0] || {};

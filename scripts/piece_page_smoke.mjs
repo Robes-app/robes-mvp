@@ -197,9 +197,12 @@ const SHOT = process.env.SHOT_DIR || '';
   check('wardrobe · the photo is shown whole in a 1:1 frame, never a landscape crop', ph.fit === 'contain' && Math.abs(ph.h - ph.w) < 3, JSON.stringify(ph));
   check('wardrobe · the replace icon is the Look photograph\'s glyph', await page.evaluate(() => document.querySelector('#rb-pc-rephoto svg path')?.getAttribute('d')?.startsWith('M1.4 5.2')));
   check('wardrobe · the note reads in italic serif', t.includes('Close-fitting base under the open shirt.'));
-  const tags = await page.locator('.rb-pc-tag').allInnerTexts();
-  check('wardrobe · tags carry the season band and the wear-for defaults', tags.includes('Year-round') && tags.includes('Everyday'), JSON.stringify(tags));
-  check('wardrobe · Worn rule reads the count in words', /Worn\s*eight times/i.test(t), t.slice(0, 400));
+  const rows = await page.evaluate(() => Array.from(document.querySelectorAll('#rb-piece-page .rb-ps-row')).map((r) => r.dataset.k + '=' + r.querySelector('.rb-ps-v').textContent));
+  check('wardrobe · the record is the piece sheet (Piece_Sheet 01): every field a row, the band and the wear-for defaults among them, no tag chips',
+    rows.join('|') === 'category=Tops|brand=Arket|colour=Cream|extra=Add|print=Plain|season=Year-round|wear=Everyday|size=Add|price=€180|notes=' && await page.locator('.rb-pc-tag').count() === 0, JSON.stringify(rows));
+  const stats = await page.evaluate(() => ({ k: Array.from(document.querySelectorAll('.rb-pc-stats .k')).map((k) => k.textContent), v: Array.from(document.querySelectorAll('.rb-pc-stats .v')).map((k) => k.textContent) }));
+  check('wardrobe · the stats strip reads Worn / Last worn / In looks', stats.k.join('|') === 'Worn|Last worn|In looks' && stats.v[0] === 'eight times' && /Aug/.test(stats.v[1]) && stats.v[2] === '1', JSON.stringify(stats));
+  check('wardrobe · Remove from wardrobe is the quiet link at the foot', await page.locator('.rb-pc-removebtn').count() === 1 && await page.locator('.rb-pc-removebtn').evaluate((e) => getComputedStyle(e).backgroundColor === 'rgba(0, 0, 0, 0)'));
   const wearRows = await page.locator('.rb-pc-wear').allInnerTexts();
   check('wardrobe · recent wears list date + look, newest first', wearRows.length === 3 && /Aug/.test(wearRows[0]) && /Jul/.test(wearRows[1]) && wearRows[1].includes('The Thursday one'), JSON.stringify(wearRows));
   check('wardrobe · a worn diary day lists as a wear with its occasion', /Coffee with Mum/.test(wearRows[0]), wearRows[0]);
@@ -213,17 +216,22 @@ const SHOT = process.env.SHOT_DIR || '';
   check('wardrobe · the nav lights Wardrobe', await page.locator('#rb-tn-wardrobe').evaluate((e) => e.classList.contains('active')));
   if (SHOT) await page.screenshot({ path: SHOT + '/piece-wardrobe.png', fullPage: false });
 
-  // The pencil opens the ONE editor
+  // The pencil renames; a row opens its own sheet and saves on pick
   await page.locator('.rb-pc-pencil').click();
-  await page.waitForTimeout(700);
-  const ed = await page.evaluate(() => ({
-    txt: (document.querySelector('#wa-modal .fm-step')?.innerText || '').replace(/\n/g, ' '), label: document.querySelector('#wa-modal input[type=text]')?.value || '' }));
-  ed.open = await page.locator('#wa-modal .fm-step').isVisible();
-  check('editor · the pencil opens the wardrobe edit form, prefilled', ed.open && (ed.txt.includes('Cream silk shirt') || ed.label === 'Cream silk shirt'), JSON.stringify(ed).slice(0, 300));
-  check('editor · Update piece + Remove from wardrobe live on the editor', /Update piece/i.test(ed.txt) && /Remove from wardrobe/i.test(ed.txt), ed.txt.slice(0, 300));
-  await page.evaluate(() => window.WA && WA.close());
   await page.waitForTimeout(300);
-  check('editor · closing returns to the page', await pg.isVisible());
+  const ed = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, val: document.getElementById('rb-ps-in')?.value, modal: !!document.querySelector('#wa-modal.open') }));
+  check('editor · the pencil opens the Name sheet, prefilled — never the modal', ed.title === 'Name' && ed.val === 'Cream silk shirt' && !ed.modal, JSON.stringify(ed));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  check('editor · Escape closes it, the page stays', await pg.isVisible() && await page.locator('#rb-ps-wrap').count() === 0);
+  await page.locator('#rb-piece-page .rb-ps-row[data-k="colour"]').click();
+  await page.waitForTimeout(250);
+  await page.locator('.rb-ps-fam:has-text("Neutrals")').click();
+  await page.locator('.rb-ps-shade[data-shade="camel"]').click();
+  await page.waitForTimeout(500);
+  const colourWrite = writes.find((w) => w.method === 'PATCH' && /wardrobe_items\?id=eq\.w-top1/.test(w.url) && w.body && w.body.colour_shade);
+  check('editor · a shade pick saves at once (PATCH colour + the model columns) and the row reads it', !!colourWrite && colourWrite.body.color === 'Camel' && colourWrite.body.colour_shade === 'camel'
+    && await page.evaluate(() => document.querySelector('#rb-piece-page .rb-ps-row[data-k="colour"] .rb-ps-v')?.textContent) === 'Camel', JSON.stringify(colourWrite && colourWrite.body));
 
   // Replace photo: downscale → upload → PATCH image_url → the page repaints
   await page.setInputFiles('#rb-pc-photoin', { name: 'shirt.png', mimeType: 'image/png',
@@ -297,7 +305,7 @@ const SHOT = process.env.SHOT_DIR || '';
   await page.waitForTimeout(300);
   await page.locator('.rb-pc-link', { hasText: 'See the full record' }).click();
   await page.waitForTimeout(300);
-  check('record link · the page reopens as the wardrobe\'s record', (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'Wardrobe' && await page.locator('.rb-pc-rule').count() === 1);
+  check('record link · the page reopens as the wardrobe\'s record', (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'Wardrobe' && await page.locator('.rb-pc-stats').count() === 1);
 
   // The ✦ — the prompt opens OVER the piece page with the piece inside it
   // (WardrobeItem 2026-10-15), the page staying put until she sends.

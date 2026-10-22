@@ -2912,27 +2912,35 @@ const routeBuildNote = (page) => page.route('**/api/lookbuild/note', (r) =>
     !!calPinRow && calPinRow.source_id === 'lk-1',
     JSON.stringify(calPinRow || null));
 
-  // Bridges, not duplicates: a piece's edit form links into the Lookbook.
+  // Bridges, not duplicates: the edit door is the PIECE PAGE (2026-10-22,
+  // the piece sheet) — its "In N looks" rail is the bridge into the
+  // Lookbook; the old edit modal's "Styled in N looks →" button is gone.
   await page.evaluate(() => window.__wtrkEdit && window.__wtrkEdit('w-top1'));
   await page.waitForTimeout(900);
   const bridge = await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll('#wa-modal button'))
-      .find((b) => /Styled in \d+ looks? →/.test(b.textContent));
-    return { label: btn ? btn.textContent : null, had: !!btn };
-  });
-  check('IA · a piece\'s form shows the Styled-in-N-looks bridge',
-    bridge.had && /Styled in 1 look →/.test(bridge.label || ''), JSON.stringify(bridge));
-  const bridged = await page.evaluate(async () => {
-    Array.from(document.querySelectorAll('#wa-modal button'))
-      .find((b) => /Styled in \d+ looks? →/.test(b.textContent)).click();
-    await new Promise((r) => setTimeout(r, 700));
+    const pg = document.getElementById('rb-piece-page');
+    const sec = Array.from(document.querySelectorAll('#rb-piece-page .rb-pc-sec')).map((e) => e.textContent.trim()).find((t) => /^In \d+ looks?$/.test(t));
     return {
-      modalClosed: !document.getElementById('wa-modal')?.classList.contains('open'),
+      pageOpen: !!pg && getComputedStyle(pg).display !== 'none',
+      modalOpen: !!document.getElementById('wa-modal')?.classList.contains('open'),
+      sec: sec || null,
+      tiles: document.querySelectorAll('#rb-piece-page .rb-pc-rail .rb-lk-tile').length,
+    };
+  });
+  check('IA · the edit door is the piece page, and its In-N-looks rail is the bridge',
+    bridge.pageOpen && !bridge.modalOpen && bridge.sec === 'In 1 look' && bridge.tiles === 1, JSON.stringify(bridge));
+  const bridged = await page.evaluate(async () => {
+    const tile = document.querySelector('#rb-piece-page .rb-pc-rail .rb-lk-tile');
+    if (tile) tile.click();
+    await new Promise((r) => setTimeout(r, 700));
+    const pg = document.getElementById('rb-piece-page');
+    return {
+      pageHidden: !pg || getComputedStyle(pg).display === 'none',
       wrapShown: (() => { const el = document.getElementById('rb-lk-wrap'); return !!el && el.offsetParent !== null; })(),
     };
   });
-  check('IA · the bridge closes the form and lands on the looks shelf',
-    bridged.modalClosed && bridged.wrapShown, JSON.stringify(bridged));
+  check('IA · the bridge leaves the piece page and lands on the looks shelf',
+    bridged.pageHidden && bridged.wrapShown, JSON.stringify(bridged));
 
   // Inspiration folded into the Lookbook (2026-10-05): the legacy dest
   // lands on the Lookbook with Show = Key pieces; the key piece seeded

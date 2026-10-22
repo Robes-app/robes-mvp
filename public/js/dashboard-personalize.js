@@ -3580,13 +3580,419 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         _waRefinePillSync();
       }
 
+      // ═══════════════════════════════════════════════════════════════════
+      // The piece sheet (Piece_Sheet.dc.html, 2026-10-22 — the colour and
+      // pattern model, phase 2). ONE anatomy for a piece in view, add and
+      // edit: every field is a row that reads first, and a tap opens a
+      // sheet for that field alone that saves on pick. No form, no
+      // accordions, no dropdowns. The rows render into two hosts through
+      // an ADAPTER each — the add modal (`_psAdapters.add`, reading and
+      // writing the __waSaw* stash WA.submit files from) and the piece
+      // page (`_psAdapters.view`, reading the wardrobe row and PATCHing it
+      // the moment she picks). Colour, additional colours and print come
+      // from the shared shade list (window.RB_COLOURS).
+      // ═══════════════════════════════════════════════════════════════════
+      var _psS = null;                 // the open field sheet
+      var _psAdapters = {};            // {add, view}
+      const _PS_CSS = [
+        '.rb-ps-grp{margin-top:18px}',
+        '.rb-ps-gt{display:block;padding-left:4px;font:500 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft,#6E6A64);margin-bottom:8px}',
+        '.rb-ps-card{background:#fff;border:1px solid var(--rule,rgba(32,32,33,.075));border-radius:14px;overflow:hidden}',
+        '.rb-ps-row{width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;min-height:52px;justify-content:center;padding:12px 14px 12px 16px;border:0;border-top:1px solid var(--rule,rgba(32,32,33,.075));background:transparent;cursor:pointer;text-align:left;font-family:var(--font-sans,Inter,sans-serif);color:var(--ink,#202021)}',
+        '.rb-ps-row:first-child{border-top:0}',
+        '.rb-ps-row:hover{background:var(--cream-100,#F7F4EE)}',
+        '.rb-ps-rm{display:flex;align-items:center;gap:10px;width:100%}',
+        '.rb-ps-rl{flex:none;font-size:15px;font-weight:400}',
+        '.rb-ps-rv{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:8px}',
+        '.rb-ps-chk{flex:none;display:flex;align-items:center;gap:5px;font-size:12px;color:var(--rose,#8E7077)}',
+        ".rb-ps-chk::before{content:'';width:6px;height:6px;border-radius:50%;border:1px solid var(--rose,#8E7077)}",
+        '.rb-ps-sw{flex:none;width:18px;height:18px;border-radius:50%;box-sizing:border-box}',
+        '.rb-ps-sw.sq{border-radius:5px}',
+        '.rb-ps-v{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;color:var(--ink-soft,#6E6A64)}',
+        '.rb-ps-v.empty{color:var(--ink-faint,#A89880)}',
+        '.rb-ps-chev{flex:none;color:var(--ink-faint,#A89880)}',
+        '.rb-ps-note{font:italic 300 18px/1.4 var(--font-serif,Cormorant,Georgia,serif);color:var(--ink,#202021);padding-right:20px}',
+        // the field sheet — a bottom sheet on the phone, a centred card on the web
+        '.rb-ps-wrap{position:fixed;inset:0;z-index:995;display:flex;flex-direction:column;justify-content:flex-end;font-family:var(--font-sans,Inter,sans-serif);color:var(--ink,#202021)}',
+        '.rb-ps-scrim{position:absolute;inset:0;background:rgba(32,32,33,.32)}',
+        '.rb-ps-sheet{position:relative;background:var(--cream,#FAF8F5);border-radius:18px 18px 0 0;padding:10px 0 calc(28px + env(safe-area-inset-bottom,0px));max-height:86dvh;overflow:auto;box-shadow:0 -1px 0 var(--rule-mid,rgba(32,32,33,.12));scrollbar-width:none}',
+        '.rb-ps-grab{width:36px;height:4px;border-radius:2px;background:var(--cream-400,#D8CFC0);margin:0 auto}',
+        '.rb-ps-hd{display:flex;align-items:center;gap:4px;padding:10px 12px 4px 24px}',
+        '.rb-ps-hd .tt{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}',
+        '.rb-ps-hd h3{margin:0;font:400 26px/1.1 var(--font-serif,Cormorant,Georgia,serif);color:var(--ink,#202021)}',
+        '.rb-ps-crumb{font:500 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#6E6A64)}',
+        '.rb-ps-x,.rb-ps-back{flex:none;width:44px;height:44px;border:0;background:transparent;cursor:pointer;color:var(--ink-faint,#A89880);display:flex;align-items:center;justify-content:center;padding:0}',
+        '.rb-ps-back{margin-left:-14px;color:var(--ink,#202021)}',
+        '.rb-ps-sub{margin:0;padding:0 24px;font-size:13px;color:var(--ink-soft,#6E6A64)}',
+        '.rb-ps-fams{display:flex;gap:6px;overflow-x:auto;padding:10px 24px 16px;scrollbar-width:none}',
+        '.rb-ps-fam{flex:none;width:60px;border:0;background:transparent;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;font-family:inherit}',
+        '.rb-ps-fam .t{display:grid;grid-template-columns:1fr 1fr;gap:1px;width:42px;height:42px;border-radius:10px;overflow:hidden}',
+        '.rb-ps-fam.on .t{box-shadow:0 0 0 2px var(--cream,#FAF8F5),0 0 0 3.5px #C9BCA6}',
+        '.rb-ps-fam .n{font:300 11px/1.2 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021);letter-spacing:.01em}',
+        '.rb-ps-fam.on .n{font-weight:500}',
+        '.rb-ps-rule{height:1px;background:var(--rule-mid,rgba(32,32,33,.12));margin:0 24px}',
+        '.rb-ps-shades{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 8px;padding:20px 24px 0}',
+        '.rb-ps-shade{border:0;background:transparent;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;font-family:inherit}',
+        '.rb-ps-shade .c{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-sizing:border-box}',
+        '.rb-ps-shade.on .c{box-shadow:0 0 0 3px var(--cream,#FAF8F5),0 0 0 4.5px #C9BCA6}',
+        '.rb-ps-shade.on.lt .c{box-shadow:inset 0 0 0 1px rgba(32,32,33,.16),0 0 0 3px var(--cream,#FAF8F5),0 0 0 4.5px #C9BCA6}',
+        '.rb-ps-shade .n{font-size:12px;line-height:1.25;color:var(--ink,#202021);text-align:center}',
+        '.rb-ps-opts{display:flex;flex-direction:column;gap:2px;padding:0 16px}',
+        '.rb-ps-opt{display:flex;align-items:center;gap:14px;min-height:50px;padding:0 12px;border-radius:12px;border:1px solid transparent;background:transparent;cursor:pointer;text-align:left;font:300 15px/1.2 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021)}',
+        '.rb-ps-opt:hover{background:var(--cream-100,#F7F4EE)}',
+        '.rb-ps-opt.on{background:#F3EFE6;border-color:#C9BCA6;font-weight:500}',
+        '.rb-ps-opt .sw{flex:none;width:28px;height:28px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--rule-mid,rgba(32,32,33,.12))}',
+        '.rb-ps-opt .n{flex:1;min-width:0}',
+        '.rb-ps-opt .ck{font-size:13px;color:var(--ink-soft,#6E6A64)}',
+        '.rb-ps-opt .dr{color:var(--ink-faint,#A89880)}',
+        '.rb-ps-opt.muted .n{color:var(--ink-soft,#6E6A64);font-style:italic}',
+        '.rb-ps-chips{display:flex;flex-wrap:wrap;gap:8px;padding:18px 24px 0}',
+        '.rb-ps-chip{display:flex;align-items:center;gap:6px;height:44px;padding:0 18px;border-radius:100px;border:1px solid var(--cream-300,#E7E0CF);background:#fff;font:400 14px/1 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021);cursor:pointer}',
+        '.rb-ps-chip.on{background:#F3EFE6;border-color:#C9BCA6}',
+        '.rb-ps-chip.add{border-style:dashed;border-color:var(--cream-400,#D8CFC0);background:transparent;color:var(--ink-soft,#6E6A64)}',
+        '.rb-ps-chip input{border:0;background:transparent;font:inherit;color:inherit;outline:none;width:120px}',
+        '.rb-ps-txt{padding:12px 24px 0;display:flex;flex-direction:column;gap:10px}',
+        '.rb-ps-in{width:100%;box-sizing:border-box;border:1px solid var(--cream-300,#E7E0CF);border-radius:12px;background:#fff;padding:14px 16px;font:italic 300 19px/1.4 var(--font-serif,Cormorant,Georgia,serif);color:var(--ink,#202021);resize:none;outline:none}',
+        '.rb-ps-in:focus{border-color:#C9BCA6}',
+        '.rb-ps-curs{display:flex;gap:6px}',
+        '.rb-ps-cur{display:flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:100px;border:1px solid var(--cream-300,#E7E0CF);background:#fff;font:400 13px/1 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021);cursor:pointer}',
+        '.rb-ps-cur.on{background:#F3EFE6;border-color:#C9BCA6}',
+        '.rb-ps-cur b{font-weight:400;font-size:15px}',
+        '.rb-ps-help{margin:0;font-size:12px;color:var(--ink-soft,#6E6A64)}',
+        '.rb-ps-save{height:52px;border:0;border-radius:100px;background:var(--ink,#202021);color:var(--cream,#FAF8F5);font:500 12px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.26em;text-transform:uppercase;cursor:pointer;width:100%;margin-top:4px}',
+        '.rb-ps-done{min-height:44px;border:0;background:transparent;font-size:14px;color:var(--ink,#202021);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-family:inherit;padding:0 12px}',
+        '.rb-ps-clear{display:block;margin:18px 24px 0;width:calc(100% - 48px);height:48px;border-radius:100px;border:1px solid var(--cream-400,#D8CFC0);background:transparent;font-size:13px;color:var(--ink,#202021);cursor:pointer;font-family:inherit}',
+        // the add modal's pinned CTA
+        '.rb-ps-foot{position:sticky;bottom:0;z-index:2;background:var(--bg,#FAF8F5);border-top:1px solid var(--rule,rgba(32,32,33,.075));padding:14px 0 8px;margin-top:18px}',
+        '.rb-ps-foot .rb-wf-cta{margin-top:0;height:56px;letter-spacing:.26em;font-size:12px}',
+        '.rb-ps-foot .rb-wf-del{margin-top:6px}',
+        '.rb-ps-sub2{margin:8px 0 0;font-size:14px;line-height:1.5;color:var(--ink-soft,#6E6A64)}',
+        // Refine's colour families
+        '.rb-ref-fams{gap:10px 4px!important}',
+        '.rb-ref-fam{display:flex;flex-direction:column;align-items:center;gap:6px;width:54px;border:0;background:transparent;padding:4px 0;cursor:pointer;font-family:inherit}',
+        '.rb-ref-fam .t{display:grid;grid-template-columns:1fr 1fr;gap:1px;width:36px;height:36px;border-radius:9px;overflow:hidden}',
+        '.rb-ref-fam.on .t{box-shadow:0 0 0 2px var(--cream,#FAF8F5),0 0 0 3.5px #C9BCA6}',
+        '.rb-ref-fam .n{font:300 10.5px/1.2 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021);white-space:nowrap}',
+        '.rb-ref-fam.on .n{font-weight:500}',
+        // the piece page: the stats strip + the remove link
+        '.rb-pc-stats{margin-top:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--rule,rgba(32,32,33,.075));border-bottom:1px solid var(--rule,rgba(32,32,33,.075))}',
+        '.rb-pc-stats>div{padding:12px 0;display:flex;flex-direction:column;gap:6px;min-width:0}',
+        '.rb-pc-stats>div+div{padding-left:14px;border-left:1px solid var(--rule,rgba(32,32,33,.075))}',
+        '.rb-pc-stats .k{font:500 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft,#6E6A64)}',
+        '.rb-pc-stats .v{font:400 14px/1 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+        '.rb-pc-removerow{display:flex;justify-content:center;padding:32px 0 0}',
+        '.rb-pc-removebtn{min-height:44px;border:0;background:transparent;font-size:13px;color:var(--ink-soft,#6E6A64);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-family:inherit}',
+        '.rb-pc-removebtn:hover{color:var(--rose,#8E7077)}',
+        '@media(min-width:768px){.rb-ps-wrap{align-items:center;justify-content:center;padding:24px}.rb-ps-sheet{width:min(440px,100%);border-radius:18px;max-height:min(86vh,720px);box-shadow:0 24px 60px -12px rgba(32,32,33,.28)}.rb-ps-grab{display:none}.rb-ps-shades{grid-template-columns:repeat(4,minmax(0,1fr))}}',
+      ].join('\n');
+      function _psCss() {
+        if (document.getElementById('rb-ps-style')) return;
+        const st = document.createElement('style');
+        st.id = 'rb-ps-style';
+        st.textContent = _PS_CSS;
+        document.head.appendChild(st);
+      }
+      const _PS_CHEV = '<svg class="rb-ps-chev" width="6" height="10" viewBox="0 0 6 10" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M1 1l4 4-4 4"></path></svg>';
+      const _PS_X = '<svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><line x1="2" y1="2" x2="12" y2="12"></line><line x1="12" y1="2" x2="2" y2="12"></line></svg>';
+      const _PS_BACK = '<svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M7 1L1 7l6 6"></path></svg>';
+      const _PS_CURS = [['£', 'GBP'], ['€', 'EUR'], ['$', 'USD']];
+      function _psEsc(s) { return _waEsc(s == null ? '' : String(s)); }
+      function _psShade(id) { const M = _rbCM(); return M && id ? M.shade(id) : null; }
+      function _psSwStyle(s) { const M = _rbCM(); return M ? M.swatchCss(s) : 'background:#EFE9DC'; }
+      // The colour a piece shows: its shade id, else the name it carries
+      // (a wheel name or a shade name), else nothing.
+      function _psResolveShade(id, name) {
+        const M = _rbCM();
+        return M ? M.resolve({ id: id, name: name }) : null;
+      }
+      // Where a piece's colour sits on the 13 families — its shade's family
+      // and every additional colour's (Refine filters on these).
+      function _waItemFamilies(it) {
+        const M = _rbCM();
+        if (!M || !it) return [];
+        const hex = it.item_dna && it.item_dna.display && it.item_dna.display.primary_color_hex;
+        const out = [];
+        const sh = M.resolve({ id: it.colour_shade, name: it.color }) || (hex ? M.resolve({ hex: hex }) : null);
+        if (sh) out.push(sh.family);
+        (Array.isArray(it.colour_extra) ? it.colour_extra : []).forEach(x => { const s = M.resolve({ id: x, name: x }); if (s && out.indexOf(s.family) === -1) out.push(s.family); });
+        return out;
+      }
+
+      // ── The rows ───────────────────────────────────────────────────────
+      // A.get() → {name, brand, sheet, l2, l3, legacy, shade, extra[], print,
+      // band, wear[], size, price (as typed), notes, src}; A.mode 'add' |
+      // 'view'; A.wl (the wishlist, no Wearing group); A.flags() → the
+      // low-confidence marks still standing; A.set(patch) writes.
+      function _psRowsHtml(host) {
+        _psCss();
+        const A = _psAdapters[host];
+        if (!A) return '';
+        const p = A.get();
+        const fl = (A.flags && A.flags()) || {};
+        const M = _rbCM();
+        const sh = _psResolveShade(p.shade, p.color);
+        const ex = (p.extra || []).map(x => _psResolveShade(x, x)).filter(x => x && (!sh || x.id !== sh.id));
+        const pat = M && p.print ? M.pattern(p.print) : null;
+        const row = function(k, label, value, o) {
+          o = o || {};
+          const empty = !value;
+          return '<button type="button" class="rb-ps-row" data-k="' + k + '" onclick="window.__psOpen(\'' + host + '\',\'' + k + '\')">' +
+            '<span class="rb-ps-rm"><span class="rb-ps-rl">' + label + '</span><span class="rb-ps-rv">' +
+            (fl[k] ? '<span class="rb-ps-chk">Check</span>' : '') +
+            (o.sw || '') +
+            '<span class="rb-ps-v' + (empty ? ' empty' : '') + '">' + (empty ? 'Add' : _psEsc(String(value).trim())) + '</span></span>' + _PS_CHEV + '</span>' +
+            (o.note ? '<span class="rb-ps-note">' + _psEsc(o.note) + '</span>' : '') +
+            '</button>';
+        };
+        const sw = s => s ? '<span class="rb-ps-sw" style="' + _psSwStyle(s) + '"></span>' : '';
+        const catVal = p.l3 || p.l2 || p.sheet || '';
+        const wearNames = (p.wear || []).map(w => _tgLabel('wear_for', w)).filter(Boolean);
+        const groups = [];
+        groups.push({ title: 'The piece', rows: [
+          A.mode === 'add' ? row('name', 'Name', p.name) : '',
+          row('category', 'Category', catVal),
+          row('brand', 'Brand', p.brand),
+          A.wl ? row('src', 'Spotted', (_WL_PICK.find(x => x[0] === p.src) || [])[1] || '') : '',
+        ] });
+        groups.push({ title: 'Colour', rows: [
+          row('colour', 'Colour', sh ? sh.name : (p.color || ''), { sw: sw(sh) }),
+          row('extra', 'Additional colours', ex.map(x => x.name).join(', '), { sw: ex.map(sw).join('') }),
+          row('print', 'Print', pat ? pat.name : 'Plain', { sw: '<span class="rb-ps-sw sq" style="' + (M ? M.patternCss(pat) : '') + '"></span>' }),
+        ] });
+        if (!A.wl) groups.push({ title: 'Wearing', rows: [
+          row('season', 'Season', WA_BAND_LABELS[p.band] || WA_BAND_LABELS.year_round),
+          row('wear', 'Wear it for', wearNames.join(', ')),
+        ] });
+        groups.push({ title: 'Fit & notes', rows: [
+          row('size', 'Size', p.size),
+          row('price', 'Price', p.price),
+          row('notes', 'Notes', p.notes ? ' ' : '', p.notes ? { note: p.notes } : {}),
+        ] });
+        return '<div class="rb-ps-groups" data-host="' + host + '">' + groups.map(g =>
+          '<div class="rb-ps-grp"><span class="rb-ps-gt">' + g.title + '</span><div class="rb-ps-card">' + g.rows.join('') + '</div></div>').join('') + '</div>';
+      }
+
+      // ── The sheets ─────────────────────────────────────────────────────
+      window.__psOpen = function(host, kind) {
+        const A = _psAdapters[host];
+        if (!A) return;
+        _psCss();
+        const p = A.get();
+        const M = _rbCM();
+        const S = { host, kind };
+        if (kind === 'colour' || kind === 'extra') {
+          const cur = kind === 'colour' ? _psResolveShade(p.shade, p.color) : null;
+          S.sel = kind === 'extra' ? (p.extra || []).slice() : [];
+          const first = kind === 'extra' ? _psResolveShade(S.sel[0], S.sel[0]) : cur;
+          S.fam = first ? first.family : (M && M.FAMILIES[0] ? M.FAMILIES[0].id : null);
+        } else if (kind === 'category') {
+          const treeOn = !!_waTaxTree;
+          S.cat = p.sheet || ''; S.sub = p.l2 || '';
+          S.level = treeOn ? (p.l2 ? (_waTaxL3s(p.l2).length ? 'type' : 'sub') : (p.sheet && _waTaxL2s(p.sheet).length ? 'sub' : 'cat')) : 'cat';
+        } else if (kind === 'wear') {
+          S.sel = (p.wear || []).slice();
+        } else if (kind === 'price') {
+          const parsed = _waPriceParse(p.price);
+          S.cur = parsed.currency ? ((_PS_CURS.find(c => c[1] === parsed.currency) || [])[0] || '€') : '€';
+          S.draft = parsed.amount != null ? String(parsed.amount) : '';
+        } else if (kind === 'name' || kind === 'brand' || kind === 'size' || kind === 'notes') {
+          S.draft = p[kind] || '';
+        }
+        _psS = S;
+        _psSheetPaint();
+        _rbTrack('piece_sheet_opened', { host, kind });
+      };
+      window.__psClose = function() {
+        _psS = null;
+        const w = document.getElementById('rb-ps-wrap');
+        if (w) w.remove();
+        document.removeEventListener('keydown', _psKey, true);
+      };
+      function _psKey(e) {
+        if (e.key === 'Escape' && _psS) { e.stopPropagation(); window.__psClose(); }
+      }
+      function _psHd(title, o) {
+        o = o || {};
+        return '<div class="rb-ps-hd">' +
+          (o.back ? '<button type="button" class="rb-ps-back" aria-label="Back" onclick="window.__psAct(\'back\')">' + _PS_BACK + '</button>' : '') +
+          '<div class="tt">' + (o.crumb ? '<span class="rb-ps-crumb">' + _psEsc(o.crumb) + '</span>' : '') + '<h3>' + _psEsc(title) + '</h3></div>' +
+          (o.done ? '<button type="button" class="rb-ps-done" onclick="window.__psAct(\'done\')">Done</button>' : '<button type="button" class="rb-ps-x" aria-label="Close" onclick="window.__psClose()">' + _PS_X + '</button>') +
+          '</div>';
+      }
+      function _psOpt(o) {
+        return '<button type="button" class="rb-ps-opt' + (o.on ? ' on' : '') + (o.muted ? ' muted' : '') + '" role="' + (o.role || 'radio') + '" aria-checked="' + (o.on ? 'true' : 'false') + '" onclick="window.__psAct(\'' + o.act + '\',\'' + _psEsc(o.v).replace(/'/g, '\\\'') + '\')">' +
+          (o.sw ? '<span class="sw" style="' + o.sw + '"></span>' : '') +
+          '<span class="n">' + _psEsc(o.name) + '</span>' +
+          '<span class="ck">' + (o.on ? '✓' : '') + '</span>' +
+          (o.drill ? '<svg class="dr" width="6" height="10" viewBox="0 0 6 10" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1 1l4 4-4 4"></path></svg>' : '') +
+          '</button>';
+      }
+      function _psSheetPaint() {
+        const S = _psS; if (!S) return;
+        const A = _psAdapters[S.host]; if (!A) return;
+        const p = A.get();
+        const M = _rbCM();
+        let body = '';
+        if (S.kind === 'colour' || S.kind === 'extra') {
+          const isX = S.kind === 'extra';
+          const fams = M ? M.FAMILIES : [];
+          const fam = fams.find(f => f.id === S.fam) || fams[0];
+          const cur = isX ? null : _psResolveShade(p.shade, p.color);
+          const isOn = s => isX ? S.sel.indexOf(s.id) > -1 : !!(cur && cur.id === s.id);
+          body = _psHd(isX ? 'Additional colours' : 'Colour', { done: isX }) +
+            (isX ? '<p class="rb-ps-sub">Buttons, trims, a second colour in the weave. Tap as many as there are.</p>' : '') +
+            '<div class="rb-ps-fams">' + fams.map(f =>
+              '<button type="button" class="rb-ps-fam' + (fam && f.id === fam.id ? ' on' : '') + '" aria-pressed="' + (fam && f.id === fam.id ? 'true' : 'false') + '" onclick="window.__psAct(\'fam\',\'' + f.id + '\')">' +
+                '<span class="t">' + f.tile.map(t => '<span style="' + _psSwStyle(t) + '"></span>').join('') + '</span>' +
+                '<span class="n">' + _psEsc(f.name) + '</span></button>').join('') + '</div>' +
+            '<div class="rb-ps-rule"></div>' +
+            '<div class="rb-ps-shades" role="' + (isX ? 'group' : 'radiogroup') + '">' + ((fam && fam.shades) || []).map(s => {
+              const on = isOn(s);
+              return '<button type="button" class="rb-ps-shade' + (on ? ' on' : '') + (s.light ? ' lt' : '') + '" data-shade="' + s.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + _psEsc(s.name) + '" onclick="window.__psAct(\'shade\',\'' + s.id + '\')">' +
+                '<span class="c" style="' + _psSwStyle(s) + ';color:' + (s.dark ? '#FAF8F5' : '#202021') + '">' + (on ? '✓' : '') + '</span>' +
+                '<span class="n">' + _psEsc(s.name) + '</span></button>';
+            }).join('') + '</div>' +
+            (isX && S.sel.length ? '<button type="button" class="rb-ps-clear" onclick="window.__psAct(\'clear\')">No additional colours</button>' : '');
+        } else if (S.kind === 'category') {
+          const treeOn = !!_waTaxTree;
+          let title = 'Category', crumb = '', back = false, opts = [];
+          if (!treeOn) {
+            opts = WA_CATS.slice(1).map(c => _psOpt({ name: c, v: c, act: 'legacy', on: (p.legacy || '') === c }));
+          } else if (S.level === 'cat') {
+            opts = _WA_SHEET_CATS.concat(['Other']).map(c => _psOpt({ name: c, v: c, act: 'cat', on: c === p.sheet, drill: _waTaxL2s(c).length > 0 }));
+          } else if (S.level === 'sub') {
+            title = S.cat; crumb = 'Category'; back = true;
+            opts = [_psOpt({ name: 'Just ' + S.cat.toLowerCase(), v: '', act: 'sub', on: S.cat === p.sheet && !p.l2, muted: true })]
+              .concat(_waTaxL2s(S.cat).map(s => _psOpt({ name: s, v: s, act: 'sub', on: S.cat === p.sheet && s === p.l2, drill: _waTaxL3s(s).length > 0 })));
+          } else {
+            title = S.sub; crumb = S.cat; back = true;
+            opts = [_psOpt({ name: 'Just ' + S.sub.toLowerCase(), v: '', act: 'type', on: S.sub === p.l2 && !p.l3, muted: true })]
+              .concat(_waTaxL3s(S.sub).map(t => _psOpt({ name: t, v: t, act: 'type', on: S.sub === p.l2 && t === p.l3 })));
+          }
+          body = _psHd(title, { crumb, back }) + '<div class="rb-ps-opts" role="radiogroup">' + opts.join('') + '</div>';
+        } else if (S.kind === 'season') {
+          body = _psHd('Season') + '<div class="rb-ps-opts" role="radiogroup">' + WA_BANDS.map(b => _psOpt({ name: WA_BAND_LABELS[b], v: b, act: 'band', on: (p.band || 'year_round') === b })).join('') + '</div>';
+        } else if (S.kind === 'print') {
+          const cur = p.print || 'plain';
+          const list = [M ? M.PLAIN : { id: 'plain', name: 'Plain' }].concat(M ? M.PATTERNS : []);
+          body = _psHd('Print') + '<div class="rb-ps-opts" role="radiogroup">' + list.map(x => _psOpt({ name: x.name, v: x.id, act: 'print', on: cur === x.id, sw: M ? M.patternCss(x.id === 'plain' ? null : x) : '' })).join('') + '</div>';
+        } else if (S.kind === 'src') {
+          body = _psHd('Where did you spot it?') + '<div class="rb-ps-opts" role="radiogroup">' + _WL_PICK.map(d => _psOpt({ name: d[1], v: d[0], act: 'src', on: p.src === d[0] })).join('') + '</div>';
+        } else if (S.kind === 'wear') {
+          const all = _tgWearOptions().concat(S.sel.filter(w => _tgWearOptions().indexOf(w) === -1));
+          body = _psHd('Wear it for', { done: true }) + '<p class="rb-ps-sub">Pick as many as fit.</p>' +
+            '<div class="rb-ps-chips">' + all.map(w => {
+              const on = S.sel.indexOf(w) > -1;
+              return '<button type="button" class="rb-ps-chip' + (on ? ' on' : '') + '" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="window.__psAct(\'wear\',\'' + _psEsc(w).replace(/'/g, '\\\'') + '\')">' + (on ? '✓ ' : '') + _psEsc(_tgLabel('wear_for', w)) + '</button>';
+            }).join('') +
+            (S.adding
+              ? '<span class="rb-ps-chip add"><input id="rb-ps-own" placeholder="Type & press Enter" onkeydown="window.__psOwnKey(event,this)" onblur="window.__psOwnKey(event,this)"></span>'
+              : '<button type="button" class="rb-ps-chip add" onclick="window.__psAct(\'own\')">+ Your own</button>') +
+            '</div>';
+        } else {
+          const T = { name: ['Name', 'What you call it'], brand: ['Brand', 'Who made it'], size: ['Size', 'UK 10, M, 38'], price: ['Price', '0'], notes: ['Notes', 'Fit, care, what it goes with'] }[S.kind];
+          const multi = S.kind === 'notes';
+          body = _psHd(T[0]) + '<div class="rb-ps-txt">' +
+            (S.kind === 'price'
+              ? '<div class="rb-ps-curs" role="radiogroup" aria-label="Currency">' + _PS_CURS.map(c => '<button type="button" class="rb-ps-cur' + (S.cur === c[0] ? ' on' : '') + '" role="radio" aria-checked="' + (S.cur === c[0] ? 'true' : 'false') + '" onclick="window.__psAct(\'cur\',\'' + c[0] + '\')"><b>' + c[0] + '</b>' + c[1] + '</button>').join('') + '</div>'
+              : '') +
+            (multi
+              ? '<textarea id="rb-ps-in" class="rb-ps-in" rows="4" placeholder="' + _psEsc(T[1]) + '">' + _psEsc(S.draft) + '</textarea>'
+              : '<input id="rb-ps-in" class="rb-ps-in" type="text" ' + (S.kind === 'price' ? 'inputmode="decimal" ' : '') + 'placeholder="' + _psEsc(T[1]) + '" value="' + _psEsc(S.draft) + '" onkeydown="if(event.key===\'Enter\'){event.preventDefault();window.__psAct(\'save\')}">') +
+            (S.kind === 'size' || S.kind === 'price' ? '<p class="rb-ps-help">Both optional. Robes fills them in when a receipt or a link carries them.</p>' : '') +
+            '<button type="button" class="rb-ps-save" onclick="window.__psAct(\'save\')">Save</button></div>';
+        }
+        let wrap = document.getElementById('rb-ps-wrap');
+        if (!wrap) {
+          wrap = document.createElement('div');
+          wrap.id = 'rb-ps-wrap';
+          wrap.className = 'rb-ps-wrap';
+          wrap.innerHTML = '<div class="rb-ps-scrim" onclick="window.__psClose()"></div><div class="rb-ps-sheet" role="dialog" aria-modal="true"><div class="rb-ps-grab"></div><div class="rb-ps-body"></div></div>';
+          wrap.addEventListener('pointerdown', function(e) { e.stopPropagation(); }, true);
+          document.body.appendChild(wrap);
+          document.addEventListener('keydown', _psKey, true);
+        }
+        wrap.querySelector('.rb-ps-sheet').setAttribute('aria-label', (wrap.querySelector('h3') || {}).textContent || '');
+        wrap.querySelector('.rb-ps-body').innerHTML = body;
+        const inp = document.getElementById('rb-ps-in') || document.getElementById('rb-ps-own');
+        if (inp) { inp.focus(); if (inp.setSelectionRange && inp.type !== 'number') { try { const n = inp.value.length; inp.setSelectionRange(n, n); } catch (_) {} } }
+        if (S.kind === 'colour' || S.kind === 'extra') {
+          const on = wrap.querySelector('.rb-ps-fam.on');
+          if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'auto' }); } catch (_) {} }
+        }
+      }
+      window.__psAct = function(act, v) {
+        const S = _psS; if (!S) return;
+        const A = _psAdapters[S.host]; if (!A) return;
+        const p = A.get();
+        const M = _rbCM();
+        const done = function(patch) { window.__psClose(); if (patch) A.set(patch, S.kind); };
+        if (act === 'fam') { S.fam = v; _psSheetPaint(); return; }
+        if (act === 'shade') {
+          if (S.kind === 'colour') { done({ shade: v }); return; }
+          const i = S.sel.indexOf(v);
+          if (i > -1) S.sel.splice(i, 1); else if (S.sel.length < 3) S.sel.push(v); else { _waShowToast('Three additional colours is plenty'); return; }
+          _psSheetPaint(); return;
+        }
+        if (act === 'clear') { done({ extra: [] }); return; }
+        if (act === 'done') {
+          if (S.kind === 'extra') { done({ extra: S.sel.slice() }); return; }
+          if (S.kind === 'wear') { done({ wear: S.sel.slice() }); return; }
+          window.__psClose(); return;
+        }
+        if (act === 'back') {
+          if (S.level === 'type') S.level = 'sub'; else if (S.level === 'sub') S.level = 'cat';
+          _psSheetPaint(); return;
+        }
+        if (act === 'legacy') { done({ cat: { sheet: _WA_LEGACY_TO_SHEET[v] || v, l2: '', l3: '', legacy: v } }); return; }
+        if (act === 'cat') {
+          if (_waTaxL2s(v).length) { S.cat = v; S.level = 'sub'; _psSheetPaint(); return; }
+          done({ cat: { sheet: v, l2: '', l3: '' } }); return;
+        }
+        if (act === 'sub') {
+          if (v && _waTaxL3s(v).length) { S.sub = v; S.level = 'type'; _psSheetPaint(); return; }
+          done({ cat: { sheet: S.cat, l2: v, l3: '' } }); return;
+        }
+        if (act === 'type') { done({ cat: { sheet: S.cat, l2: S.sub, l3: v } }); return; }
+        if (act === 'band') { done({ band: v }); return; }
+        if (act === 'print') { done({ print: v === 'plain' ? '' : v }); return; }
+        if (act === 'src') { done({ src: v }); return; }
+        if (act === 'wear') {
+          const i = S.sel.indexOf(v);
+          if (i > -1) S.sel.splice(i, 1); else S.sel.push(v);
+          _psSheetPaint(); return;
+        }
+        if (act === 'own') { S.adding = true; _psSheetPaint(); return; }
+        if (act === 'cur') { S.cur = v; const el = document.getElementById('rb-ps-in'); if (el) S.draft = el.value; _psSheetPaint(); return; }
+        if (act === 'save') {
+          const el = document.getElementById('rb-ps-in');
+          const val = el ? String(el.value || '').trim() : String(S.draft || '').trim();
+          if (S.kind === 'price') { done({ price: val ? S.cur + val : '' }); return; }
+          const patch = {}; patch[S.kind] = S.kind === 'size' ? val.slice(0, 40) : val;
+          done(patch); return;
+        }
+      };
+      window.__psOwnKey = function(e, el) {
+        const S = _psS; if (!S || !S.adding) return;
+        if (e.type === 'blur' || e.key === 'Enter') {
+          if (e.key === 'Enter') e.preventDefault();
+          const v = (el.value || '').trim().slice(0, 28);
+          const slug = _rbTagSlug(v);
+          if (slug && S.sel.indexOf(slug) === -1) {
+            S.sel.push(slug);
+            if (!_tgFind('wear_for', slug)) _tgTags.push({ id: null, kind: 'wear_for', label: v, slug, is_seed: false });
+          }
+          S.adding = false;
+          _psSheetPaint();
+        } else if (e.key === 'Escape') { S.adding = false; _psSheetPaint(); }
+      };
+
+      // The edit door (2026-10-22): a wardrobe piece is edited on its own
+      // page — every row there is the editor. The modal's edit branch
+      // (_showEditForm) survives unreached.
       function _waOpenEdit(it) {
-        _waEditId = it.id;
-        if (!window.WA) return;
-        // The patched WA.open's edit branch renders the shared add/edit
-        // form prefilled from the row (redesign 2026-08-05) — nothing to
-        // populate here any more.
-        WA.open();
+        if (!it) return;
+        if (window.__rbPieceOpen) window.__rbPieceOpen(it.id, { from: 'wardrobe' });
       }
 
       // Patch WA.submit — keep all other WA methods untouched
@@ -3691,23 +4097,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           });
         };
 
-        // Colour is a single swatch with a quiet Change affordance — the
-        // palette is a popover, not a wall (design screen 07).
-        window.__waColourPop = function(el) {
-          const grid = _ALL_SWATCHES.map(function(sw) {
-            return '<button type="button" class="rb-wapop-sw' + (window.__waSawColor === sw.name ? ' sel' : '') + '" title="' + _waEsc(sw.name) + '" aria-label="' + _waEsc(sw.name) + '" data-v="' + _waEsc(sw.name) + '" style="' + _waSwatchBg(sw.name) + '"></button>';
-          }).join('');
-          const pop = _waPopShell(el,
-            '<div class="rb-wapop-hd"><span>Pick a colour</span><button type="button" class="rb-wapop-x" onclick="window.__waPopClose()">✕</button></div>' +
-            '<div class="rb-wapop-swgrid">' + grid + '</div>');
-          pop.querySelector('.rb-wapop-swgrid').addEventListener('click', function(e) {
-            const b = e.target.closest('.rb-wapop-sw');
-            if (!b) return;
-            window.__waSawColor = b.dataset.v;
-            _waPopClose();
-            if (window.__waFormRepaint) window.__waFormRepaint();
-          });
-        };
+        // Colour opens the shade sheet (the colour model, 2026-10-22) —
+        // the old 21-swatch popover is gone.
+        window.__waColourPop = function() { window.__psOpen('add', 'colour'); };
 
         function _setDot(n) {
           const dotsWrap = document.querySelector('#wa-modal .fm-dots');
@@ -4408,6 +4800,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           if (pc.edits) {
             const e = pc.edits;
             window.__waSawLabel = e.label; window.__waSawBrand = e.brand; window.__waSawColor = e.color;
+            window.__waSawShade = e.shade || ''; window.__waSawExtra = Array.isArray(e.extra) ? e.extra.slice() : []; window.__waSawPrint = e.print || '';
             window.__waSawCat = e.cat; window.__waSawL2 = e.l2; window.__waSawL3 = e.l3;
             window.__waSawTaxSel = e.taxSel ? Object.assign({}, e.taxSel) : window.__waSawTaxSel;
             window.__waSawNotes = e.notes; window.__waSawPrice = e.price; window.__waSawSize = e.size;
@@ -4423,14 +4816,13 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         window.__waMpConfirm = function() {
           const mp = _waMp; const i = _waMpOpenIdx; const pc = mp && mp.pieces[i]; if (!pc) return;
           if (!(window.__waSawLabel || '').trim()) {
-            if (_waForm && _waForm.view !== 'details') window.__waFormView('details');
-            const nameEl = document.getElementById('wa-saw-label');
-            if (nameEl) { nameEl.style.borderColor = '#B0533B'; nameEl.focus(); }
             _waShowToast('Give the piece a name first — even “black leggings” will do');
+            window.__psOpen('add', 'name');
             return;
           }
           pc.edits = {
             label: window.__waSawLabel || '', brand: window.__waSawBrand || '', color: window.__waSawColor || '',
+            shade: window.__waSawShade || '', extra: Array.isArray(window.__waSawExtra) ? window.__waSawExtra.slice() : [], print: window.__waSawPrint || '',
             cat: window.__waSawCat || '', l2: window.__waSawL2 || '', l3: window.__waSawL3 || '',
             taxSel: window.__waSawTaxSel ? Object.assign({}, window.__waSawTaxSel) : null,
             notes: window.__waSawNotes || '', price: window.__waSawPrice || '', size: window.__waSawSize || '',
@@ -4440,6 +4832,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             category: (window.__waSawTaxSel ? _waTaxLegacy(window.__waSawTaxSel.sheet, window.__waSawTaxSel.l2, window.__waSawTaxSel.l3) : window.__waSawCat) || pc.tag.category,
             category_l2: (window.__waSawTaxSel ? window.__waSawTaxSel.l2 : window.__waSawL2) || null,
             category_l3: (window.__waSawTaxSel ? window.__waSawTaxSel.l3 : window.__waSawL3) || null,
+            colour_shade: window.__waSawShade || null, colour_extra: Array.isArray(window.__waSawExtra) ? window.__waSawExtra.slice() : [], print: window.__waSawPrint || null,
           };
           pc.state = 'add';
           _rbTrack('piece_answered', { surface: 'wardrobe', state: 'add', dup: !!pc.dup, edited: true });
@@ -4457,6 +4850,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const priced = _waPriceParse(e.price);
           const row = _rbPieceRow({
             label: e.label, brand: e.brand, color: e.color, notes: e.notes || null,
+            colour_shade: e.shade || null, colour_extra: Array.isArray(e.extra) ? e.extra : [], print: e.print || null,
             category: e.category, category_l2: e.category_l2, category_l3: e.category_l3,
             price: priced.amount, currency: priced.amount != null ? priced.currency : null, size: e.size,
             item_dna: dna,
@@ -4835,67 +5229,121 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           ];
         }
 
+        // The add modal's adapter onto the piece sheet (phase 2, 2026-10-22):
+        // the rows read the __waSaw* stash WA.submit files from, and a pick
+        // writes it back and repaints. A shade pick also writes the shade's
+        // display name onto __waSawColor, so the legacy `color` column and
+        // the three model columns can never disagree.
+        _psAdapters.add = {
+          get mode() { return _waForm && _waForm.mode === 'edit' ? 'edit' : 'add'; },
+          get wl() { return _waTarget === 'wishlist' && !(_waForm && _waForm.mode === 'edit'); },
+          get() {
+            const s = window.__waSawTaxSel, d = window.__rbWaDetail || {};
+            const M = _rbCM();
+            const byName = M && !window.__waSawShade ? M.shadeByName(window.__waSawColor || '') : null;
+            return {
+              name: window.__waSawLabel || '', brand: window.__waSawBrand || '',
+              sheet: s ? s.sheet : (_WA_LEGACY_TO_SHEET[window.__waSawCat] || window.__waSawCat || ''),
+              l2: s ? s.l2 : (window.__waSawL2 || ''), l3: s ? s.l3 : (window.__waSawL3 || ''),
+              legacy: window.__waSawCat || '',
+              shade: window.__waSawShade || (byName ? byName.id : ''), color: window.__waSawColor || '',
+              extra: Array.isArray(window.__waSawExtra) ? window.__waSawExtra : [],
+              print: window.__waSawPrint || '',
+              band: d.band || 'year_round', wear: Array.isArray(d.wear) ? d.wear : [],
+              size: window.__waSawSize || '', price: window.__waSawPrice || '', notes: window.__waSawNotes || '',
+              src: window.__waSawSrc || 'photo',
+            };
+          },
+          flags() {
+            const f = _waForm;
+            if (!f || !f.flags) return {};
+            const out = {};
+            Object.keys(f.flags).forEach(k => { if (f.flags[k] && !(f.touched && f.touched[k])) out[k] = true; });
+            return out;
+          },
+          set(patch, kind) {
+            const M = _rbCM();
+            if ('name' in patch) window.__waSawLabel = patch.name;
+            if ('brand' in patch) window.__waSawBrand = patch.brand;
+            if (patch.cat) {
+              const s = window.__waSawTaxSel;
+              if (s) { s.sheet = patch.cat.sheet || ''; s.l2 = patch.cat.l2 || ''; s.l3 = patch.cat.l3 || ''; window.__waSawCat = _waTaxLegacy(s.sheet, s.l2, s.l3); window.__waSawL2 = s.l2; window.__waSawL3 = s.l3; }
+              else { window.__waSawCat = patch.cat.legacy || _WA_SHEET_DEFAULT_LEGACY[patch.cat.sheet] || 'Other'; window.__waSawL2 = ''; window.__waSawL3 = ''; }
+            }
+            if ('shade' in patch) {
+              const sh = M && M.shade(patch.shade);
+              window.__waSawShade = sh ? sh.id : '';
+              window.__waSawColor = sh ? sh.name : '';
+              if (sh && Array.isArray(window.__waSawExtra)) window.__waSawExtra = window.__waSawExtra.filter(x => x !== sh.id);
+            }
+            if ('extra' in patch) window.__waSawExtra = (patch.extra || []).filter(x => x !== window.__waSawShade).slice(0, 3);
+            if ('print' in patch) window.__waSawPrint = patch.print || '';
+            if ('band' in patch || 'wear' in patch) {
+              const d = window.__rbWaDetail || (window.__rbWaDetail = _waDetailSeed('', ''));
+              if ('band' in patch) { d.band = patch.band; d.bandTouched = true; }
+              if ('wear' in patch) { d.wear = (patch.wear || []).slice(); d.wearTouched = true; }
+            }
+            if ('size' in patch) window.__waSawSize = patch.size;
+            if ('price' in patch) window.__waSawPrice = patch.price;
+            if ('notes' in patch) window.__waSawNotes = patch.notes;
+            if ('src' in patch) window.__waSawSrc = patch.src;
+            if (_waForm) {
+              _waForm.touched = _waForm.touched || {};
+              if (kind) _waForm.touched[kind] = true;
+              if ('shade' in patch && window.__waSawItemDna && window.__waSawItemDna.colour_check) delete window.__waSawItemDna.colour_check;
+              _waForm.revealed = true;
+              _waFormPaint();
+            }
+          },
+        };
+
+        // The add / edit screen IS the piece sheet (Piece_Sheet 02): the
+        // photo, then every field as a row, the one ink pill pinned.
         function _waFormPaint(focusSel) {
           _waFormCss();
+          _psCss();
           const step = document.querySelector('#wa-modal .fm-step');
           const f = _waForm;
           if (!step || !f) return;
           _waPopClose();
-          const d = window.__rbWaDetail || { seasons: [], wear: [], addingTag: false };
-          const treeOn = !!_waTaxTree;
           const s = window.__waSawTaxSel;
           const label = window.__waSawLabel || '';
           const colour = window.__waSawColor || '';
           const isEdit = f.mode === 'edit';
           const multi = f.multi != null;
+          const wl = _waTarget === 'wishlist' && !isEdit;
           const batch = multi
             ? '<div class="rb-mp-crumb"><button type="button" class="rb-wf-back" onclick="window.__waMpBack()">‹ All pieces</button><span>Piece ' + (f.multi + 1) + '</span></div>'
             : (f.mode === 'add' ? _waBatchTag() + _waBriefHtml() : '');
-
-          function tog(view, text, car, hint) {
-            return '<button type="button" class="rb-saw-toggle" onclick="window.__waFormView(\'' + view + '\')">' +
-              '<span>' + text + '</span>' +
-              (hint ? '<span class="hint">' + hint + '</span>' : '') +
-              '<span class="car">' + car + '</span></button>';
-          }
-          const wlTags = _waTarget === 'wishlist' && f.mode !== 'edit';
-          const nTags = (wlTags ? 0 : (d.band && d.band !== 'year_round' ? 1 : 0) + d.wear.filter(function(w) { return w !== 'everyday'; }).length) +
-            (window.__waSawPrice ? 1 : 0) + (window.__waSawSize ? 1 : 0);
-          const tagsToggle = tog('tags',
-            '<span style="color:var(--ink-faint);margin-right:8px">+</span>Add tags and notes', '',
-            nTags ? nTags + ' set' : (_waTarget === 'wishlist' && !isEdit ? 'price, size, notes' : 'season, wear it for, price, size, notes'));
-          // Bridge, not a duplicate (IA 2026-08-08): the piece links into
-          // the Lookbook where its looks live — the cross-link that
-          // replaced the wardrobe's Looks tab.
-          const styledIn = isEdit && typeof _lkLooks !== 'undefined' && Array.isArray(_lkLooks)
-            ? _lkLooks.filter(function(l) { return _lkPieceIds(l).map(String).indexOf(String(_waEditId)) > -1; }).length
-            : 0;
-          const wl = _waTarget === 'wishlist' && !isEdit;
           const cta = (multi
               ? '<button id="wa-saw-cta" class="rb-wf-cta" onclick="window.__waMpConfirm()">' + (wl ? 'Save this piece' : 'Add this piece') + '</button>'
               : '<button id="wa-saw-cta" class="rb-wf-cta" onclick="window.__waSawSubmit&&window.__waSawSubmit()">' +
               (isEdit ? 'Update piece →' : wl ? 'Save to wishlist →' : 'Add to wardrobe →') + '</button>') +
-            (styledIn ? '<button type="button" class="rb-wf-del" style="color:var(--ink-soft)" onclick="window.__waFormLooks()">Styled in ' + styledIn + ' look' + (styledIn === 1 ? '' : 's') + ' →</button>' : '') +
             (isEdit ? '<button type="button" class="rb-wf-del" onclick="window.__waFormDelete()">Remove from wardrobe</button>' : '');
           const photoIn = (f.mode !== 'add' || (f.src === 'url' && !f.photo))
             ? '<input id="rb-wf-photoin" type="file" accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">'
             : '';
 
-          const compactHead = function(action) {
-            return '<div class="rb-wf-head">' +
-              '<span class="rb-wf-thumb' + (f.photo ? '' : ' empty') + '">' + (f.photo ? '<img id="rb-wf-thumbimg" alt="">' : '') + '</span>' +
-              '<span class="rb-wf-headtxt">' +
-                '<span class="rb-wf-title">' + _sawEsc(label || 'New piece') + '</span>' +
-                '<span class="rb-wf-meta">' + _sawEsc(_waFormMeta()) + '</span>' +
-              '</span>' + action + '</div>';
-          };
-          const photoAct = multi ? '' : '<button type="button" class="rb-wf-headact" onclick="window.__waFormPhoto()">' +
-            (f.photo ? (f.mode === 'add' ? 'Retake' : 'Change photo') : 'Add a photo') + '</button>';
-          const editAct = '<button type="button" class="rb-wf-headact" onclick="window.__waFormView(\'details\')">Edit</button>';
+          // The head: what Robes saw on a readable piece, "Add a piece." by
+          // hand or on a read that found nothing.
+          let head;
+          if (f.mode === 'add' && f.readable) {
+            head = '<h2 class="fm-h" style="margin-bottom:4px;">Here’s what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>' +
+              '<p class="rb-ps-sub2" style="margin:0 0 4px">' + (f.src === 'url' ? 'Read from the page. Tap anything that isn’t quite right.' : (wl ? 'Read from your image. ' : 'Filed from your photo. ') + 'Tap anything that isn’t quite right.') + '</p>';
+          } else if (isEdit) {
+            head = '';
+          } else {
+            const sub = f.mode === 'add' && !f.readable
+              ? '<p class="rb-ps-sub2" style="margin:0 0 4px">Robes couldn’t quite read this one — give it a name and it files all the same.</p>'
+              : '';
+            head = '<h2 class="fm-h" style="margin-bottom:' + (sub ? '4px' : '10px') + ';">' + (wl ? 'Save a piece.' : 'Add a piece.') + '</h2>' + sub;
+          }
 
-          let html = '';
-          if (f.view === 'summary') {
-            // Screen 03 — what Robes saw, read-only. Rows open the editor.
+          // The photo: the reveal (tags popping, the label banner) on a
+          // readable read; a plain frame with Retake / Change photo
+          // otherwise; the dashed slot when there is none.
+          let photo;
+          if (f.photo && f.mode === 'add' && f.readable && !f.attached) {
             const chips = [];
             const sheet = _waFormSheet();
             if (sheet) chips.push(sheet);
@@ -4917,123 +5365,16 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
                 return '<span class="rb-saw-tag" style="' + pos + anim + '">' + _sawEsc(c) + '</span>';
               }).join('') +
               '<span class="rb-saw-banner" style="' + (f.revealed ? 'animation:none;opacity:1;' : 'animation-delay:' + (0.35 + Math.min(chips.length, SAW_SPOTS.length) * 0.4).toFixed(2) + 's;') + '">' + _sawEsc(label) + '</span>';
-            const vals = _waLedgerVals();
-            const ledger = '<ul class="rb-saw-read" id="rb-saw-read">' + LEDGER_LBLS.map(function(l, idx) {
-              return '<li class="rb-saw-row" onclick="window.__waFormView(\'details\',' + idx + ')">' +
-                '<span class="rb-saw-num">' + String(idx + 1).padStart(2, '0') + '</span>' +
-                '<span class="rb-saw-lbl">' + l + '</span>' +
-                '<span class="rb-saw-val' + (f.revealed ? '' : ' is-on') + '">' + (f.revealed ? vals[idx] : 'Reading') + '</span></li>';
-            }).join('') + '</ul>';
-            html = batch +
-              '<h2 class="fm-h" style="margin-bottom:4px;">Here’s what Robes <em style="font-style:italic;color:#9A7060">saw.</em></h2>' +
-              '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 16px;">' + (f.src === 'url' ? 'Read from the page — adjust the details only if something isn’t quite right.' : (wl ? 'Read from your image' : 'Filed from your photo') + ' — adjust the details only if something isn’t quite right.') + '</p>' +
-              '<div class="rb-saw-panel" id="rb-saw-panel"><img id="wa-saw-photo" alt="">' + tagsHtml +
-              (multi ? '' : '<button type="button" class="rb-saw-retake" onclick="window.__waRetake&&window.__waRetake()">' + (f.src === 'url' ? '↺ Another link' : '↺ Retake') + '</button>') + '</div>' +
-              ledger +
-              tog('details', 'Edit the details', '▾') +
-              cta;
-          } else if (f.view === 'details') {
-            // Screens 04/05/11 — the editable fields, core set only.
-            let head;
-            if (isEdit || (f.mode === 'add' && f.readable)) {
-              head = compactHead(photoAct) + (f.mode === 'add' && f.readable && f.photo ? tog('summary', 'Hide the details', '▴') : '');
-            } else {
-              // Manual add / unreadable photo — full headline, empty slot.
-              const sub = f.mode === 'add' && !f.readable
-                ? '<p style="font-size:13px;color:var(--ink-faint);margin:0 0 14px;">Robes couldn’t quite read this one — give it a name and it files all the same.</p>'
-                : '';
-              head = '<h2 class="fm-h" style="margin-bottom:' + (sub ? '4px' : '14px') + ';">' + (wl ? 'Save a piece.' : 'Add a piece.') + '</h2>' + sub +
-                (f.photo
-                  ? '<div class="rb-wf-photo"><img id="rb-wf-photoimg" alt=""><button type="button" class="rb-saw-retake" onclick="window.__waFormPhoto()">↺ Retake</button></div>'
-                  : '<div class="rb-wf-slot"><span class="rb-wf-btn line" onclick="window.__waFormPhoto()">Add a photo</span></div>');
-            }
-            const catVal = treeOn ? (s && s.sheet) || '' : window.__waSawCat || '';
-            const hasL2s = treeOn && s && s.sheet && _waTaxL2s(s.sheet).length > 0;
-            const fields =
-              '<div>' +
-                '<label class="rb-wf-lbl">The piece</label>' +
-                '<input id="wa-saw-label" class="rb-wf-input" placeholder="Name the piece" value="' + _sawEsc(label) + '" oninput="window.__waSawLabel=this.value">' +
-              '</div>' +
-              '<div class="rb-wf-grid2">' +
-                '<div><label class="rb-wf-lbl">Brand</label>' +
-                  '<input id="wa-saw-brand" class="rb-wf-input" placeholder="Start typing…" value="' + _sawEsc(window.__waSawBrand || '') + '" oninput="window.__waSawBrand=this.value"></div>' +
-                '<div><label class="rb-wf-lbl">Category</label>' +
-                  '<button type="button" id="wa-saw-cat" class="rb-wf-field' + (catVal ? '' : ' empty') + '" onclick="window.__waFieldPick(\'cat\',this)"><span>' + _sawEsc(catVal || 'Choose') + '</span><span class="car">▾</span></button></div>' +
-              '</div>' +
-              (hasL2s
-                ? '<div class="rb-wf-grid2">' +
-                  '<div><label class="rb-wf-lbl">Subcategory</label>' +
-                    '<button type="button" id="wa-saw-l2" class="rb-wf-field' + (s.l2 ? '' : ' empty') + '" onclick="window.__waFieldPick(\'l2\',this)"><span>' + _sawEsc(s.l2 || 'Choose') + '</span><span class="car">▾</span></button></div>' +
-                  '<div><label class="rb-wf-lbl">Item type</label>' +
-                    '<button type="button" id="wa-saw-l3" class="rb-wf-field' + (s.l3 ? '' : ' empty') + (s.l2 ? '' : ' off') + '" ' + (s.l2 ? '' : 'disabled ') + 'onclick="window.__waFieldPick(\'l3\',this)"><span>' + _sawEsc(s.l3 || 'Choose') + '</span><span class="car">▾</span></button></div>' +
-                '</div>'
-                : '') +
-              '<div style="margin-top:12px;margin-bottom:14px">' +
-                '<label class="rb-wf-lbl">Colour</label>' +
-                '<div class="rb-wf-colour">' +
-                  '<span class="rb-wf-dot' + (colour ? '' : ' empty') + '" style="' + (colour ? _waSwatchBg(colour) : '') + '"></span>' +
-                  '<span class="rb-wf-colname' + (colour ? '' : ' ph') + '">' + _sawEsc(colour || 'Pick a colour') + '</span>' +
-                  '<button type="button" class="rb-wf-change" onclick="window.__waColourPop(this)">Change</button>' +
-                '</div>' +
-              '</div>' +
-              (wl
-                ? '<div style="margin-bottom:14px"><label class="rb-wf-lbl" style="margin-bottom:10px">Where did you spot it?</label><div class="rb-wf-chips" id="rb-wf-srcs">' +
-                  _WL_PICK.map(function(d) { return '<button type="button" class="rb-wf-chip ctx' + (window.__waSawSrc === d[0] ? ' on' : '') + '" onclick="window.__waSrcPick(\'' + d[0] + '\')">' + d[1] + '</button>'; }).join('') +
-                  '</div></div>'
-                : '');
-            html = batch + head + fields + tagsToggle + cta + photoIn;
+            photo = '<div class="rb-saw-panel" id="rb-saw-panel" style="margin-top:14px"><img id="wa-saw-photo" alt="">' + tagsHtml +
+              (multi ? '' : '<button type="button" class="rb-saw-retake" onclick="window.__waRetake&&window.__waRetake()">' + (f.src === 'url' ? '↺ Another link' : '↺ Retake') + '</button>') + '</div>';
+          } else if (f.photo) {
+            photo = '<div class="rb-wf-photo" style="margin-top:14px"><img id="rb-wf-photoimg" alt="">' +
+              (multi ? '' : '<button type="button" class="rb-saw-retake" onclick="window.__waFormPhoto()">' + (f.mode === 'add' ? '↺ Retake' : '↺ Change photo') + '</button>') + '</div>';
           } else {
-            // f.view === 'tags' — screen 06: two axes held apart, notes last.
-            // The pre-fill preview is computed AT PAINT, not once at init.
-            // Two reasons: the taxonomy fetch is a boot-time round trip, so
-            // seeding at init raced it and the same piece could show either
-            // the real pre-fill or the year_round fallback; and re-deriving
-            // means the preview FOLLOWS a category correction, which is what
-            // the trigger will actually do at save. Stops the moment she
-            // touches either axis — from then on the form is hers. Never on
-            // edit: there the stored row is the truth.
-            if (_waForm.mode !== 'edit' && !d.bandTouched && !d.wearTouched) {
-              const _sel = window.__waSawTaxSel;
-              const _seed = _waDetailSeed(window.__waSawCat || '', (_sel && _sel.l2) || '');
-              d.band = _seed.band; d.wear = _seed.wear;
-            }
-            // Season is ONE tap of three now (ADR-002 §1): picking both
-            // bands IS year-round, so the multi-select collapses.
-            const seaChips = WA_BANDS.map(function(b) {
-              const on = d.band === b;
-              return '<button type="button" class="rb-wf-chip sea' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'band\',\'' + b + '\')">' + _sawEsc(WA_BAND_LABELS[b]) + '</button>';
-            }).join('');
-            // Wear it for draws on the SHARED namespace — the seven seeds
-            // plus every tag she has made anywhere, on a piece or a look.
-            // Uncapped: a cap forces a choice between a functional tag and a
-            // capsule tag, which is the choice that stops capsules forming.
-            const ctxAll = _tgWearOptions()
-              .concat(d.wear.filter(function(w) { return _tgWearOptions().indexOf(w) === -1; }));
-            const ctxChips = ctxAll.map(function(w) {
-              const on = d.wear.indexOf(w) !== -1;
-              return '<button type="button" class="rb-wf-chip ctx' + (on ? ' on' : '') + '" onclick="window.__waTagTog(\'wear\',\'' + _sawEsc(w).replace(/'/g, "\\'") + '\')">' + _sawEsc(_tgLabel('wear_for', w)) + '</button>';
-            }).join('') + (d.addingTag
-              ? '<input id="rb-wf-tagin" class="rb-wf-input" placeholder="Type &amp; press Enter" onkeydown="window.__waTagKey(event,this)" onblur="window.__waTagKey(event,this)" style="width:150px;border-radius:100px;padding:8px 15px;font-size:13px">'
-              : '<button type="button" class="rb-wf-chip ctx add" onclick="window.__waTagStart()">+ tag</button>');
-            // A wishlist piece is not hers yet — no season, no wear-it-for
-            // (the tag namespace links pieces she owns); price, size, notes.
-            html = batch + compactHead(editAct) +
-              tog('details', 'Hide tags and notes', '▴') +
-              (wl ? '' :
-              '<div class="rb-wf-taghd first"><label class="rb-wf-lbl" style="margin-bottom:10px">Season</label><div class="rb-wf-chips">' + seaChips + '</div></div>' +
-              '<div class="rb-wf-taghd"><label class="rb-wf-lbl" style="margin-bottom:10px">Wear it for</label><div class="rb-wf-chips">' + ctxChips + '</div></div>') +
-              // Price and size (2026-09-22): both optional, filled in by a
-              // receipt or a link when they carry them, hers to correct.
-              '<div class="rb-wf-price' + (wl ? '" style="margin-top:0;padding-top:0;border-top:none' : '') + '"><div class="rb-wf-grid2">' +
-                '<div><label class="rb-wf-lbl">Price</label><input id="wa-saw-price" class="rb-wf-input" inputmode="decimal" placeholder="—" value="' + _sawEsc(window.__waSawPrice || '') + '" oninput="window.__waSawPrice=this.value"></div>' +
-                '<div><label class="rb-wf-lbl">Size</label><input id="wa-saw-size" class="rb-wf-input" placeholder="—" value="' + _sawEsc(window.__waSawSize || '') + '" oninput="window.__waSawSize=this.value"></div>' +
-              '</div><p class="note">Both optional. Robes fills them in when a receipt or a link carries them.</p></div>' +
-              '<div class="rb-wf-taghd"><label class="rb-wf-lbl">Notes</label>' +
-                '<textarea id="wa-saw-notes" class="rb-wf-input" placeholder="Fit, fabric, how you like to wear it." style="resize:none;height:72px" oninput="window.__waSawNotes=this.value">' + String(window.__waSawNotes || '').replace(/</g, '&lt;') + '</textarea></div>' +
-              cta + photoIn;
+            photo = '<div class="rb-wf-slot" style="margin-top:14px"><span class="rb-wf-btn line" onclick="window.__waFormPhoto()">Add a photo</span></div>';
           }
 
-          step.innerHTML = html;
+          step.innerHTML = batch + head + photo + _psRowsHtml('add') + '<div class="rb-ps-foot">' + cta + '</div>' + photoIn;
 
           // Hidden dummy #wa-label-in — the bundle's open() focuses it on a
           // 220ms timer (and validate() reads it); our form replaces the
@@ -5051,8 +5392,6 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // Photo srcs set via DOM, never innerHTML — large data URLs truncate.
           const p1 = document.getElementById('wa-saw-photo');
           if (p1 && f.photo) p1.src = f.photo;
-          const p2 = document.getElementById('rb-wf-thumbimg');
-          if (p2 && f.photo) p2.src = f.photo;
           const p3 = document.getElementById('rb-wf-photoimg');
           if (p3 && f.photo) p3.src = f.photo;
 
@@ -5065,28 +5404,16 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               if (!file) return;
               _waFileToDataUrl(file).then(function(url) {
                 _photoDataUrl = url;
-                if (_waForm) { _waForm.photo = url; _waFormPaint(); }
+                if (_waForm) { _waForm.photo = url; _waForm.attached = true; _waFormPaint(); }
               }).catch(function() { _waShowToast('Could not read that image'); });
             });
           }
 
-          // The filing reveal — ledger rows fill one at a time. Bails
-          // silently if the step re-renders (retake, batch advance) mid-play.
-          if (f.view === 'summary' && f.readable && !f.revealed) {
-            const vals = _waLedgerVals();
-            let rc = 0;
-            const revealTick = function() {
-              const spans = document.querySelectorAll('#rb-saw-read .rb-saw-val');
-              if (!spans.length) return;
-              spans.forEach(function(sp, idx) {
-                const done = idx < rc;
-                sp.innerHTML = done ? vals[idx] : 'Reading';
-                sp.className = 'rb-saw-val' + (done ? '' : ' is-on');
-              });
-              if (rc < vals.length) { rc++; setTimeout(revealTick, 420); }
-              else f.revealed = true;
-            };
-            setTimeout(revealTick, 250);
+          // The reveal plays once per piece — a later repaint (a row
+          // changed) paints the tags settled.
+          if (!f.revealed) {
+            const mine = f;
+            setTimeout(function() { if (_waForm === mine) mine.revealed = true; }, 2600);
           }
 
           if (focusSel) {
@@ -5097,10 +5424,13 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         window.__waFormRepaint = function() { if (_waForm) _waFormPaint(); };
         window.__waSrcPick = function(v) { window.__waSawSrc = v; _waFormPaint(); };
 
+        // Compat shim for the three-view form this screen replaced
+        // (2026-10-22): "open the details on the name / brand" opens that
+        // field's sheet; anything else is already on screen.
         window.__waFormView = function(v, focusIdx) {
           if (!_waForm) return;
-          _waForm.view = v;
-          _waFormPaint(focusIdx === 0 ? '#wa-saw-label' : focusIdx === 1 ? '#wa-saw-brand' : null);
+          if (focusIdx === 0) window.__psOpen('add', 'name');
+          else if (focusIdx === 1) window.__psOpen('add', 'brand');
         };
 
         // Two tag axes, held apart: 'seasons' files into wardrobe_items.
@@ -5284,7 +5614,12 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // One of several (use case 3): the screen is scoped to that piece
           // — ‹ All pieces at the top, "Add this piece" confirms and returns.
           if (src === 'multi') { _waForm.multi = _waMpOpenIdx; _waForm.src = 'photo'; }
-          _waFormPaint(readable ? null : '#wa-saw-label');
+          // The Check marks (Piece_Sheet 02): a colour the analyse flagged
+          // as uncertain, a category it could not place — until she touches
+          // the row.
+          _waForm.flags = readable ? { colour: !!dna.colour_check, extra: !!dna.colour_check, category: !(tag.category_l2 || tag.category_l3) } : {};
+          _waForm.touched = {};
+          _waFormPaint();
         }
 
         window.__waSawSubmit = function() {
@@ -5294,25 +5629,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // would leave the CTA stuck on "Saving…" — catch it here instead.
           // The name field lives in the details editor, so open it first.
           if (!(window.__waSawLabel || '').trim()) {
-            if (_waForm && _waForm.view !== 'details') window.__waFormView('details');
-            const nameEl = document.getElementById('wa-saw-label');
-            if (nameEl) {
-              nameEl.style.borderColor = '#B0533B';
-              nameEl.focus();
-              let hint = document.getElementById('wa-saw-namehint');
-              if (!hint) {
-                hint = document.createElement('div');
-                hint.id = 'wa-saw-namehint';
-                hint.style.cssText = 'font-size:12px;color:#B0533B;margin:6px 0 0;';
-                nameEl.parentNode.appendChild(hint);
-              }
-              hint.textContent = 'Give the piece a name first — even “black blazer” will do.';
-              nameEl.addEventListener('input', function clr() {
-                nameEl.style.borderColor = '#D8CEBC';
-                if (hint) hint.textContent = '';
-                nameEl.removeEventListener('input', clr);
-              });
-            }
+            _waShowToast('Give the piece a name first — even “black blazer” will do');
+            window.__psOpen('add', 'name');
             return;
           }
           // Keep the polished review visible and flip its own CTA to "Saving…"
@@ -6402,7 +6720,12 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const b = _waItemBand(it);
           if (b !== 'year_round' && r.seasons.indexOf(b) === -1) return false;
         }
-        if (r.colors.length && r.colors.indexOf(it.color) === -1) return false;
+        // Colour filters by FAMILY (the colour model, 2026-10-22): a piece
+        // matches through its shade or any additional colour.
+        if (r.colors.length) {
+          const fams = _waItemFamilies(it);
+          if (!fams.some(f => r.colors.indexOf(f) !== -1)) return false;
+        }
         // Wear it for filters on the occasions axis with the Year-round
         // posture (founder call 2026-08-05): untagged = Everyday, and an
         // Everyday piece passes any pick — she wears it for anything.
@@ -6598,18 +6921,20 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         }));
         r.wear.forEach(w => { if (wearSet.indexOf(w) === -1) wearSet.push(w); });
         const wearChips = wearSet.map(w => chip('wear', w, r.wear.indexOf(w) !== -1, 'ctx', _tgLabel('wear_for', w))).join('');
-        // Colour: the FULL palette items are saved to (same set as the
-        // add/edit form's popover) + any off-palette colours old rows carry.
-        const ownColors = [];
-        _waItems.forEach(i => { if (i.color && ownColors.indexOf(i.color) === -1) ownColors.push(i.color); });
-        const extraColors = ownColors.filter(c => !_ALL_SWATCHES.some(sw => sw.name === c));
-        const colorHtml = _ALL_SWATCHES.map(function(sw) {
-          const on = r.colors.indexOf(sw.name) !== -1;
-          return '<button class="rb-sw' + (on ? ' on' : '') + '" title="' + _waEsc(sw.name) + '" aria-label="' + _waEsc(sw.name) + '" style="' + _waSwatchBg(sw.name) + '" onclick="window.__waRefTog(\'colors\',\'' + _waEsc(sw.name) + '\')"></button>';
-        }).join('') +
-          extraColors.map(c => chip('colors', c, r.colors.indexOf(c) !== -1)).join('');
+        // Colour: the 13 families of the colour model (Annie, 22 Oct: Refine
+        // filters by the family — a piece matches through its shade or any
+        // additional colour).
+        _psCss();
+        const CMm = _rbCM();
+        const fams = CMm ? CMm.FAMILIES : [];
+        const colorHtml = fams.map(function(f) {
+          const on = r.colors.indexOf(f.id) !== -1;
+          return '<button class="rb-ref-fam' + (on ? ' on' : '') + '" data-f="' + f.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + _waEsc(f.name) + '" onclick="window.__waRefTog(\'colors\',\'' + f.id + '\')">' +
+            '<span class="t">' + f.tile.map(function(t) { return '<span style="' + CMm.swatchCss(t) + '"></span>'; }).join('') + '</span>' +
+            '<span class="n">' + _waEsc(f.name) + '</span></button>';
+        }).join('');
         const colNote = r.colors.length
-          ? '<span class="rb-ref-note">' + _waEsc(r.colors.join(', ')) + ' selected</span>'
+          ? '<span class="rb-ref-note">' + _waEsc(r.colors.map(function(id) { const f = fams.find(function(x) { return x.id === id; }); return f ? f.name : id; }).join(', ')) + ' selected</span>'
           : '';
         const brands = [];
         _waItems.forEach(i => { if (i.brand && brands.indexOf(i.brand) === -1) brands.push(i.brand); });
@@ -6632,7 +6957,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           '<div class="rb-ref-grid' + (brands.length ? '' : ' nobrand') + '">' +
           '<div class="rb-ref-sec sea"><div class="rb-ref-lbl">Season</div><div class="rb-ref-chips">' + seasonChips + '</div></div>' +
           '<div class="rb-ref-sec wear"><div class="rb-ref-lbl">Wear it for</div><div class="rb-ref-chips">' + wearChips + '</div></div>' +
-          '<div class="rb-ref-sec col"><div class="rb-ref-lbl">Colour' + colNote + '</div><div class="rb-ref-chips" style="gap:11px;max-width:300px">' + colorHtml + '</div></div>' +
+          '<div class="rb-ref-sec col"><div class="rb-ref-lbl">Colour' + colNote + '</div><div class="rb-ref-chips rb-ref-fams">' + colorHtml + '</div></div>' +
           (brands.length ? '<div class="rb-ref-sec brand"><div class="rb-ref-lbl">Brand</div><select class="rb-ref-select" onchange="window.__waRefBrand(this)">' + brandOpts + '</select></div>' : '') +
           srcHtml +
           '</div>' +
@@ -8722,13 +9047,26 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
           ? '<button type="button" class="rb-pc-rephoto rb-pc-swapback" title="Swap this piece" aria-label="Swap this piece in the look" onclick="window.__rbPieceSwapBack()">' + _rbcSwapSvg + '</button>'
           : (wish ? '' : '<button type="button" class="rb-pc-rephoto" id="rb-pc-rephoto" title="Replace photo" aria-label="Replace photo" onclick="window.__rbPiecePhoto()">' + (typeof _LKM_REFRESH_SVG === 'string' ? _LKM_REFRESH_SVG : _PC_CAM) + '</button>' +
               '<input type="file" id="rb-pc-photoin" accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onchange="window.__rbPiecePhotoPick(event)">');
+        // The record (the wardrobe door, Piece_Sheet 01): the photograph,
+        // the stats strip, then every field as a row — the rows ARE the
+        // editor, a tap opens the field's sheet and saves on pick. The
+        // other doors keep the preview card (note + tags).
+        const record = !wish && !prop && !fromLook && !fromDay;
+        if (record) _pcViewAdapter(it);
         let media = '<div class="rb-pc-card">' +
           '<div class="rb-pc-photo' + (prop ? ' dashed' : '') + '">' + (img ? '<img src="' + _waEsc(img) + '" alt="' + _waEsc(it.label || '') + '">' : (prop ? '<div class="mono">' + _waEsc(String(it.label || '?').charAt(0).toUpperCase()) + '</div>' : '<div class="ph">' + (wish ? 'No photo' : 'Photo') + '</div>')) +
             imgBtn +
           '</div>' +
-          (note ? '<p class="rb-pc-note">' + _waEsc(note) + '</p>' : '') +
-          (prop ? '' : '<div class="rb-pc-tags">' + (wish ? _pcWishTagsHtml(it) : _pcTagsHtml(it)) + '</div>') +
+          (note && !record ? '<p class="rb-pc-note">' + _waEsc(note) + '</p>' : '') +
+          (prop || record ? '' : '<div class="rb-pc-tags">' + (wish ? _pcWishTagsHtml(it) : _pcTagsHtml(it)) + '</div>') +
           '</div>';
+        if (record) {
+          media += '<div class="rb-pc-stats">' +
+            '<div><span class="k">Worn</span><span class="v">' + _waEsc(worn ? _pcTimes(worn) : 'Not yet') + '</span></div>' +
+            '<div><span class="k">Last worn</span><span class="v">' + _waEsc(wears.length ? _pcFmtDay(wears[0].date).replace(/^\w+ /, '') : '—') + '</span></div>' +
+            '<div><span class="k">In looks</span><span class="v">' + looks.length + '</span></div>' +
+            '</div>' + _psRowsHtml('view');
+        }
         if (prop) {
           // The 3c choices, two hairline equals (handoff 4d): the wishlist
           // (warm once saved) and "I have one · Snap it" — the snap replaces
@@ -8763,7 +9101,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
         // From a look the page is a preview and the company it keeps — the
         // wear ledger belongs to the record (the wardrobe door).
         if (!wish && !fromLook && !fromDay) {
-          rest += '<div class="rb-pc-rule"><span class="lab">Worn</span><div class="line"></div><span class="val">' + _waEsc(_pcTimes(worn)) + '</span></div>';
+          if (wears.length || worn > wears.length) rest += '<div class="rb-pc-sec" style="margin-top:0">Wears</div>';
           if (wears.length) {
             const shown = _pcWearsAll ? wears : wears.slice(0, 3);
             rest += '<div class="rb-pc-wears">' + shown.map(w =>
@@ -8791,6 +9129,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
               sugg.slice().sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))).map(l => _lkSuggCard(l, { mark: false })).join('') + '</div>';
           }
           if (fromLook || fromDay) rest += '<button type="button" class="rb-pc-link" style="margin-top:16px" onclick="window.__rbPieceRecord()">See the full record in your wardrobe →</button>';
+          if (record) rest += '<div class="rb-pc-removerow"><button type="button" class="rb-pc-removebtn" onclick="window.__rbPieceDelete()">Remove from wardrobe</button></div>';
         }
         const spark = (!wish && !prop && !lkc)
           ? '<button type="button" class="rb-pc-spark" id="rb-pc-spark" onclick="window.__rbPieceSpark()" aria-label="Style this piece">' + _RB_LP_SPARK + '</button>' : '';
@@ -8933,12 +9272,115 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
         c.snap(tok);
       };
       window.__rbPieceWearsAll = function() { _pcWearsAll = !_pcWearsAll; window.__rbPieceSync(); };
-      // ONE editor from either door — the wardrobe's edit modal, as is.
+      // The rows are the editor (2026-10-22); the pencil renames.
       window.__rbPieceEdit = function() {
         if (!_pcCtx) return;
         const wi = _waItems.find(w => String(w.id) === String(_pcCtx.id));
-        if (wi) _waOpenEdit(wi);
+        if (!wi) return;
+        _pcViewAdapter(wi);
+        window.__psOpen('view', 'name');
       };
+      // Remove from wardrobe — the quiet link at the foot of the record.
+      window.__rbPieceDelete = function() {
+        if (!_pcCtx) return;
+        const id = _pcCtx.id;
+        const wi = _waItems.find(w => String(w.id) === String(id));
+        if (!wi) return;
+        window._rbConfirmDelete('Remove from your wardrobe?', async function() {
+          try {
+            await _waFetch('DELETE', 'wardrobe_items?id=eq.' + id, undefined);
+            _waItems = _waItems.filter(w => String(w.id) !== String(id));
+            window.__rbPieceClose();
+            await _waLoad();
+            _waShowToast('Piece removed');
+          } catch (e) { _waShowToast('Could not remove piece'); }
+        }, { sub: 'Its wears and photographs go with it. Looks it was filed in keep their other pieces.', yes: 'Remove' });
+      };
+      // The piece page's adapter onto the piece sheet: reads the row, and
+      // a pick PATCHes it the moment she makes it (the ladder strips what
+      // a pending migration lacks), the grid and the page repainting.
+      function _pcViewAdapter(wi) {
+        const id = wi.id;
+        const row = () => _waItems.find(w => String(w.id) === String(id)) || wi;
+        _psAdapters.view = {
+          mode: 'view', wl: false,
+          get() {
+            const it = row();
+            const M = _rbCM();
+            const sh = M ? M.resolve({ id: it.colour_shade, name: it.color }) : null;
+            const nm = String(it.color || '').trim().toLowerCase();
+            return {
+              name: it.label || '', brand: it.brand || '',
+              sheet: _waSheetCatOf(it) || _WA_LEGACY_TO_SHEET[it.category] || '', l2: it.category_l2 || '', l3: it.category_l3 || '', legacy: it.category || '',
+              shade: sh ? sh.id : '', color: it.color || '',
+              extra: Array.isArray(it.colour_extra) ? it.colour_extra : [],
+              print: it.print || ((nm === 'multi' || nm === 'print') ? 'other' : ''),
+              band: _waItemBand(it), wear: (it._wearPick || _tgWearOf(it)).slice(),
+              size: it.size || '', price: _waPriceFmt(it.price, it.currency || (it.price != null ? 'EUR' : null)), notes: it.notes || '', src: '',
+            };
+          },
+          flags() {
+            const it = row();
+            return it.item_dna && it.item_dna.colour_check ? { colour: true, extra: true } : {};
+          },
+          set(patch) {
+            const it = row();
+            const M = _rbCM();
+            const payload = {};
+            let hasDet = false, wearSlugs = null, dnaChanged = false;
+            const dna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
+            if ('name' in patch) { const nm = _rbNameNoBrand(String(patch.name || '').trim(), it.brand); if (nm) payload.label = nm; }
+            if ('brand' in patch) payload.brand = String(patch.brand || '').trim() || null;
+            if (patch.cat) {
+              payload.category = patch.cat.legacy || _waTaxLegacy(patch.cat.sheet, patch.cat.l2, patch.cat.l3);
+              if (_waTaxCols) { payload.category_l2 = patch.cat.l2 || null; payload.category_l3 = patch.cat.l2 ? (patch.cat.l3 || null) : null; }
+            }
+            if ('shade' in patch || 'extra' in patch || 'print' in patch) {
+              const sh = 'shade' in patch ? (M && M.shade(patch.shade)) : (M && M.resolve({ id: it.colour_shade, name: it.color }));
+              const extra = ('extra' in patch ? (patch.extra || []) : (Array.isArray(it.colour_extra) ? it.colour_extra : [])).filter(x => !sh || x !== sh.id).slice(0, 3);
+              const prt = 'print' in patch ? (patch.print || null) : (it.print || null);
+              if ('shade' in patch) {
+                payload.color = sh ? sh.name : null;
+                dna.display = Object.assign({}, dna.display || {}, { editorial_color_name: sh ? sh.name : '' });
+                if (sh) dna.display.primary_color_hex = sh.hex;
+                delete dna.colour_check;
+                dnaChanged = true;
+              }
+              if (_waCmCols) { payload.colour_shade = sh ? sh.id : null; payload.colour_extra = extra; payload.print = prt; }
+              // The page reads these whatever the schema holds.
+              it.colour_shade = sh ? sh.id : null; it.colour_extra = extra; it.print = prt;
+            }
+            if ('band' in patch) { payload.season_band = patch.band; payload.season_source = 'user'; hasDet = true; }
+            if ('wear' in patch) wearSlugs = (patch.wear || []).slice();
+            if ('size' in patch && _waV3Cols) payload.size = String(patch.size || '').trim().slice(0, 40) || null;
+            if ('price' in patch) {
+              const pr = _waPriceParse(patch.price);
+              if (_waV2Cols) payload.price = pr.amount;
+              if (_waV3Cols) payload.currency = pr.amount != null ? pr.currency : null;
+            }
+            if ('notes' in patch) { payload.notes = String(patch.notes || '').trim() || null; dna.ai_generated_notes = payload.notes || ''; dnaChanged = true; }
+            if (dnaChanged) payload.item_dna = dna;
+            Object.assign(it, payload);
+            if (wearSlugs) {
+              // Her pick is the row's truth from here: the page reads it
+              // back whatever the namespace round trip answers.
+              it._wearPick = wearSlugs.slice();
+              it.occasions = wearSlugs.slice();
+              _tgSetLinks('piece', it.id, 'wear_for', wearSlugs, 'user');
+            }
+            _waRender();
+            window.__rbPieceSync();
+            if (Object.keys(payload).length) {
+              _waRowWrite(it.id, payload, hasDet).catch(function(e) {
+                console.warn('[piece] save:', e && e.message || e);
+                _waShowToast('Robes couldn’t save that — try again');
+                _waLoad();
+              });
+            }
+            _rbTrack('piece_edited', { surface: 'piece-page', fields: Object.keys(patch) });
+          },
+        };
+      }
       window.__rbPiecePhoto = function() {
         const inp = document.getElementById('rb-pc-photoin');
         if (inp) inp.click();
