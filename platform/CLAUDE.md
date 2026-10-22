@@ -15,6 +15,14 @@ The founder isn't an engineer: they may run you from this folder and ask in plai
 - Work on a branch and open a PR into `beta`; never push to `main`/`beta`, deploy production, change Vercel/AWS/Supabase settings or rotate secrets unless explicitly asked.
 - If a request would break a rule in `docs/api-security.md`, say so plainly and offer the safe way to get the same result. Never disable or skip a test to get green.
 
+## Quality and security come first
+We hold a high bar for code quality and security on every change, however small. Speed never justifies lowering either.
+- **Secure by default.** Treat every input as untrusted, keep the rules below intact, and when unsure take the safer option and say why.
+- **Fix at the root.** Fix a bug once in the shared component or helper, and check every caller, rather than patching each screen.
+- **Leave it cleaner.** Reuse what exists, match the surrounding code, and delete code you make unused. No dead code or quick hacks without a `shortcut:` comment that names the limit.
+- **Prove it.** Add a test for any new logic. `pnpm lint`, `pnpm typecheck` and `pnpm test` pass before every commit (Node 24). Never skip, loosen or delete a test to get green.
+- **Accessible as built.** Real buttons and links, 44pt targets, 4.5:1 text, a 3:1 boundary on controls. Errors are sentences in danger with their icon (`ErrorText`).
+
 ## Non-negotiable rules (see `docs/security.md`)
 - **Before changing any route, repository, migration, auth, upload or job code, read `docs/api-security.md` and finish with its checklist.**
 - Every API route is built with `route()` from `@robes/api`, declares `auth`, a zod `input` and `output`, and `rateLimit`/`quota` if it spends money. Public routes must be in the route-manifest allow-list **and** `docs/api.md` §3.
