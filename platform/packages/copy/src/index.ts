@@ -478,6 +478,7 @@ export const shell = {
   openYou: 'You',
   create: {
     title: 'Create',
+    groups: { add: 'Add pieces', dress: 'Dress' },
     photograph: 'Photograph pieces',
     cameraRoll: 'From camera roll',
     link: 'Paste a link',

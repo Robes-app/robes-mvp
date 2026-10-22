@@ -7,6 +7,7 @@ import {
   Avatar,
   type Command,
   CommandBar,
+  Eyebrow,
   IconButton,
   Sheet,
   useCommandHotkey,
@@ -15,7 +16,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
-import { activeRoot, createItems, GO_TO_ITEMS, NAV_ITEMS } from '@/lib/nav';
+import { activeRoot, CREATE_GROUPS, createItems, GO_TO_ITEMS, NAV_ITEMS } from '@/lib/nav';
 import { FeaturesProvider } from '../features';
 
 const focus =
@@ -148,20 +149,33 @@ export function AppShell({
       </nav>
 
       <Sheet title={shell.create.title} open={createOpen} onOpenChange={setCreateOpen}>
-        <ul className="flex flex-col">
-          {create.map((item) => (
-            <li key={item.id}>
-              <Link
-                href={item.href}
-                onClick={() => setCreateOpen(false)}
-                className={`flex min-h-12 items-center gap-4 rounded-crisp px-2 font-sans text-base text-ink hover:bg-surface-sunk ${focus}`}
-              >
-                <Icon name={item.icon} size={20} className="text-ink-muted" />
-                {item.label}
-              </Link>
-            </li>
+        <div className="flex flex-col gap-5">
+          {CREATE_GROUPS.map((group) => (
+            <section
+              key={group}
+              aria-labelledby={`create-${group}`}
+              className="flex flex-col gap-1"
+            >
+              <Eyebrow id={`create-${group}`}>{shell.create.groups[group]}</Eyebrow>
+              <ul className="flex flex-col">
+                {create
+                  .filter((item) => item.group === group)
+                  .map((item) => (
+                    <li key={item.id}>
+                      <Link
+                        href={item.href}
+                        onClick={() => setCreateOpen(false)}
+                        className={`flex min-h-12 items-center gap-4 rounded-crisp px-2 font-sans text-base text-ink hover:bg-surface-sunk ${focus}`}
+                      >
+                        <Icon name={item.icon} size={20} className="text-ink-muted" />
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       </Sheet>
 
       <CommandBar
