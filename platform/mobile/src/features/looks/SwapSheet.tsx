@@ -15,9 +15,12 @@ export function SwapSheet({
   onRack,
   onClose,
   onPick,
+  opensOn = null,
 }: {
   open: boolean;
   swapping: { name: string; category: string } | null;
+  // Adding from a figure's slot opens on that category when she has pieces in it.
+  opensOn?: string | null;
   onRack: readonly string[];
   onClose: () => void;
   onPick: (piece: Piece) => void;
@@ -27,11 +30,8 @@ export function SwapSheet({
   const categories = [...new Set(ready.map((p) => p.category))];
   const [category, setCategory] = useState<string | null>(null);
   const [picked, setPicked] = useState<Piece | null>(null);
-  const active =
-    category ??
-    (swapping && categories.includes(swapping.category as Piece['category'])
-      ? swapping.category
-      : null);
+  const preset = swapping?.category ?? opensOn;
+  const active = category ?? (preset && categories.some((c) => c === preset) ? preset : null);
   const shown = active ? ready.filter((p) => p.category === active) : ready;
   const close = () => {
     setPicked(null);
