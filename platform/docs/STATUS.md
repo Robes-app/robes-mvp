@@ -52,6 +52,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 
 ## Known gaps (not built yet)
 
+- **TODO: Sign in with Apple.** Deliberately left out: sign-in stays email only (one-time code) until the app is in TestFlight, so the initial ask isn't widened with more sign-in flows to test. Add it before App Store submission: the App Store requires it once Google sign-in is offered (beta vs staging review, Arrival 01).
 - Receipts: no photo-based re-read of receipt lines (legacy vision pass; would need image fetching); product images kept as metadata only. Activating the SES rule set and the `in.` MX record are ops steps (`runbooks/environments.md` §9).
 - Alternates rail and swapping pieces in a daily draft (secondary frames now render on demand via `look_render`).
 - `borrowing` email and `finish` next-step rule (need look proposals). Your model: no photographed try-on from her own photos (renders use the catalog portrait for her picks, per SEC-22).
