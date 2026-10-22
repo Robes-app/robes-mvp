@@ -4,7 +4,7 @@ appId: host.exp.Exponent
 - tapOn:
     id: 'wardrobe-tab'
 - extendedWaitUntil:
-    visible: 'Your wardrobe starts here.'
+    visible: 'Every look starts with a photograph.'
     timeout: 10000
 - tapOn:
     id: 'looks-tab'

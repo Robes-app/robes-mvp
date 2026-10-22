@@ -4,6 +4,7 @@ import { wardrobe as copy, lookbook, ui } from '@robes/copy';
 import {
   Button,
   EmptyState,
+  ErrorText,
   Field,
   Heading,
   Image,
@@ -152,18 +153,27 @@ export function PieceDetail({ id }: { id: string }) {
         {uri ? (
           <Image source={uri} alt={copy.photoAlt(piece.label)} blurhash={piece.image?.blurhash} />
         ) : null}
-        <Heading size="md">{reading ? copy.newPiece : piece.label}</Heading>
+        {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
+        {piece.status === 'ready' ? (
+          <Heading size="md">{piece.label}</Heading>
+        ) : (
+          <Text tone="faint" italic>
+            {reading ? copy.newPiece : piece.label}
+          </Text>
+        )}
         {reading ? <Text tone="muted">{copy.reading}</Text> : null}
-        {piece.status === 'failed' ? <Text tone="muted">{copy.noPieceFound}</Text> : null}
+        {piece.status === 'failed' ? <ErrorText>{copy.noPieceFound}</ErrorText> : null}
         {editing ? (
           <EditForm piece={piece} onDone={() => setEditing(false)} />
         ) : (
           <PrimaryScope>
             <View>
-              <Detail
-                label={copy.category}
-                value={[piece.category, piece.categoryL2].filter(Boolean).join(' · ')}
-              />
+              {piece.status === 'ready' ? (
+                <Detail
+                  label={copy.category}
+                  value={[piece.category, piece.categoryL2].filter(Boolean).join(' · ')}
+                />
+              ) : null}
               <Detail label={copy.piece.color} value={piece.color} />
               <Detail label={copy.piece.brand} value={piece.brand} />
               <Detail label={copy.piece.size} value={piece.size} />

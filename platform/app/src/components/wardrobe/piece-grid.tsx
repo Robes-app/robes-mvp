@@ -121,18 +121,18 @@ export function PieceGrid() {
 
   if (owned === 0 && !filtered) {
     return (
-      <>
+      <div className="flex flex-col gap-5">
         {header}
         <EmptyState
           title={wardrobe.empty.title}
           body={wardrobe.empty.body}
           action={
             <Link href="/wardrobe/add" className={buttonClasses({ variant: 'primary' })}>
-              {wardrobe.addPieces}
+              {wardrobe.empty.action}
             </Link>
           }
         />
-      </>
+      </div>
     );
   }
 

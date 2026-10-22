@@ -313,9 +313,11 @@ export const wardrobe = {
   choosePhotos: 'Choose photos',
   dropHint: 'Drop photos here, or choose them.',
   uploading: (done: number, total: number): string => `Uploading ${done} of ${total}…`,
+  // Beta's premise: the look is built from her photographs.
   empty: {
-    title: 'Your wardrobe starts here.',
-    body: 'Add a few pieces and Robes will start styling them.',
+    title: 'Every look starts with a photograph.',
+    body: 'Catalogue your wardrobe, or photograph what you’re wearing now.',
+    action: 'Catalogue your wardrobe',
   },
   deleted: 'Piece removed.',
   undo: 'Undo',

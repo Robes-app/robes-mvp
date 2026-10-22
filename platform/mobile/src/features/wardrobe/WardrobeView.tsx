@@ -155,7 +155,7 @@ function Pieces() {
         <View className="items-center gap-2 px-6 pt-8">
           <EmptyState title={copy.empty.title} body={copy.empty.body} />
           <Button icon="plus" onPress={addFromLibrary} loading={busy} loadingLabel={ui.loading}>
-            {copy.choosePhotos}
+            {copy.empty.action}
           </Button>
         </View>
       </PrimaryScope>
