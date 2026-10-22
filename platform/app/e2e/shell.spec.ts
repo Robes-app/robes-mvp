@@ -76,12 +76,14 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
   const options = (await sheet.getByRole('link').allTextContents()).filter(
     (t) => t !== 'Plan a trip',
   );
+  // Two groups: pieces in, then the stylist.
+  await expect(sheet.getByRole('region')).toHaveText([/^Add pieces/, /^Dress/]);
   expect(options).toEqual([
     'Photograph pieces',
     'From camera roll',
-    'Style a piece',
     'Paste a link',
     'Forward a receipt',
+    'Style a piece',
     'New look',
     'Ask Robes',
   ]);
