@@ -80,3 +80,19 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
     letGoOldest: true,
   });
 });
+
+test('a slot opens her wardrobe on its category, and All still widens it', async () => {
+  mockFetch({
+    'GET /wardrobe/items': {
+      items: [piece(), piece({ id: SCARF, label: 'Silk shirt', category: 'Tops' })],
+      nextCursor: null,
+    },
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<Composer />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.slots.top }));
+  expect(await screen.findByRole('radio', { name: 'Silk shirt' })).toBeTruthy();
+  expect(screen.queryByRole('radio', { name: 'Camel wool coat' })).toBeNull();
+  await fireEvent.press(screen.getByText(lookbook.swap.all));
+  expect(await screen.findByRole('radio', { name: 'Camel wool coat' })).toBeTruthy();
+});

@@ -31,14 +31,20 @@ export function SwapSheet({
     (p) => p.status === 'ready' && !onRack.includes(p.id),
   );
   const categories = [...new Set(ready.map((p) => p.category))];
-  const [category, setCategory] = useState<string | null>(null);
+  // undefined: open on the preset; null: she chose All.
+  const [category, setCategory] = useState<string | null | undefined>(undefined);
   const [picked, setPicked] = useState<Piece | null>(null);
   const preset = swapping?.category ?? opensOn;
-  const active = category ?? (preset && categories.some((c) => c === preset) ? preset : null);
+  const active =
+    category !== undefined
+      ? category
+      : preset && categories.some((c) => c === preset)
+        ? preset
+        : null;
   const shown = active ? ready.filter((p) => p.category === active) : ready;
   const close = () => {
     setPicked(null);
-    setCategory(null);
+    setCategory(undefined);
     onClose();
   };
   return (

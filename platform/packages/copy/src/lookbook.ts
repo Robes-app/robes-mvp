@@ -111,7 +111,6 @@ export const lookbook = {
     title: 'Start with the canvas',
     body: 'The basics that set proportion and tone.',
     hint: 'A tee, jeans, a knit…',
-    after: 'Start anywhere. Robes notes what each piece does as you add it.',
   },
   swap: {
     title: (piece: string): string => `Swap the ${piece}`,

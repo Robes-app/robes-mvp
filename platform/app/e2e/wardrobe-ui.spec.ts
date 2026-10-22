@@ -20,7 +20,7 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await expect(page).toHaveURL(/\/piece\/[0-9a-f-]{36}\?saw=1$/);
   const saw = page.getByRole('region', { name: 'Here’s what Robes saw.' });
   await expect(saw.getByText('Camel wool coat')).toBeVisible({ timeout: 30_000 });
-  await saw.getByRole('link', { name: 'Keep it →' }).click();
+  await saw.getByRole('link', { name: 'Keep it' }).click();
   await expect(page).toHaveURL(/\/wardrobe$/);
   const pieces = page.getByRole('list', { name: 'Pieces' });
   // Read by the offline fake: the piece fills in without a reload.

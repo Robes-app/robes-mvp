@@ -31,6 +31,7 @@ import { PieceImage } from '@/components/wardrobe/piece-image';
 import { errorCopy } from '@/lib/error-copy';
 import { usePhotoRead } from '@/lib/photo-read';
 import { PHOTO_ACCEPT } from '@/lib/upload';
+import { invalidateWardrobe } from '@/lib/wardrobe';
 import { CropThumb, type Natural, PhotoFrame } from './photo-frame';
 
 type CardState = WardrobeCardState<ReadPieceEdits>;
@@ -107,7 +108,7 @@ export function WardrobePieces() {
           ),
         },
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+      await invalidateWardrobe(queryClient);
       setFiled(out);
     } catch (err) {
       setFileError(errorCopy(err));

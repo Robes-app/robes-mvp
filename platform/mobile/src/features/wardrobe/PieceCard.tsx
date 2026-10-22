@@ -54,7 +54,7 @@ function Status({ status }: { status: CardStatus }) {
   const danger = useColor('danger');
   if (status.error) {
     return (
-      <View className="flex-row items-center gap-1.5" accessibilityRole="alert">
+      <View className="flex-row items-center gap-1.5">
         <Icon name="alert" size={14} color={danger} />
         <Text className="text-xs text-danger" style={{ fontFamily: fonts.sans }}>
           {status.text}

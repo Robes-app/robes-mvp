@@ -82,43 +82,45 @@ export function Composer({ pieceId }: { pieceId?: string }) {
           />
         </label>
       </header>
-      <figure className="relative">
-        {model.data?.cell.imageUrl ? (
-          // Her model (or Robes' catalog portrait) in the base layer: a signed URL, fixed 4:5.
-          // biome-ignore lint/performance/noImgElement: signed catalog URL, fixed 4:5 frame
-          <img
-            src={model.data.cell.imageUrl}
-            alt={copy.figure.alt}
-            className="aspect-[4/5] w-full rounded-soft object-cover"
-          />
-        ) : model.isPending ? (
-          <Skeleton className="aspect-[4/5] w-full" />
-        ) : (
-          <div
-            aria-hidden
-            className="flex aspect-[4/5] w-full items-center justify-center rounded-soft bg-surface"
-          >
-            <Icon name="user" size={160} className="text-border-control" />
-          </div>
-        )}
-        {(
-          [
-            ['top', 'Tops', '31%'],
-            ['bottom', 'Bottoms', '58%'],
-            ['shoes', 'Shoes', '86%'],
-          ] as const
-        ).map(([slot, category, top]) => (
-          <button
-            key={slot}
-            type="button"
-            disabled={busy}
-            onClick={() => setAdding(category)}
-            style={{ top }}
-            className="absolute left-1/2 min-h-11 -translate-x-1/2 -translate-y-1/2 rounded-pill border border-border-control bg-bg/90 px-4 font-medium font-sans text-ink text-xs uppercase tracking-[0.16em] backdrop-blur hover:border-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-          >
-            {copy.figure.slots[slot]}
-          </button>
-        ))}
+      <figure>
+        <div className="relative">
+          {model.data?.cell.imageUrl ? (
+            // Her model (or Robes' catalog portrait) in the base layer: a signed URL, fixed 4:5.
+            // biome-ignore lint/performance/noImgElement: signed catalog URL, fixed 4:5 frame
+            <img
+              src={model.data.cell.imageUrl}
+              alt={copy.figure.alt}
+              className="aspect-[4/5] w-full rounded-soft object-cover"
+            />
+          ) : model.isPending ? (
+            <Skeleton className="aspect-[4/5] w-full" />
+          ) : (
+            <div
+              aria-hidden
+              className="flex aspect-[4/5] w-full items-center justify-center rounded-soft bg-surface"
+            >
+              <Icon name="user" size={160} className="text-border-control" />
+            </div>
+          )}
+          {(
+            [
+              ['top', 'Tops', '31%'],
+              ['bottom', 'Bottoms', '58%'],
+              ['shoes', 'Shoes', '86%'],
+            ] as const
+          ).map(([slot, category, top]) => (
+            <button
+              key={slot}
+              type="button"
+              disabled={busy}
+              onClick={() => setAdding(category)}
+              style={{ top }}
+              className="absolute left-1/2 min-h-11 -translate-x-1/2 -translate-y-1/2 rounded-pill border border-border-control bg-bg/90 px-4 font-medium font-sans text-ink text-xs uppercase tracking-[0.16em] backdrop-blur hover:border-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+            >
+              {copy.figure.slots[slot]}
+            </button>
+          ))}
+        </div>
         <figcaption className="pt-3 text-center">
           <Text size="small" tone="muted" italic>
             {copy.guide.body}
@@ -126,8 +128,8 @@ export function Composer({ pieceId }: { pieceId?: string }) {
         </figcaption>
       </figure>
       {/* The actions float above the tab bar (legacy start bar). */}
-      <div className="fixed inset-x-0 bottom-20 z-30 flex justify-center px-4 md:bottom-6">
-        <div className="flex gap-2 rounded-pill border border-hairline bg-bg/95 p-1.5 shadow-sm backdrop-blur">
+      <div className="pointer-events-none fixed inset-x-0 bottom-20 z-30 flex justify-center px-4 md:bottom-6">
+        <div className="pointer-events-auto flex gap-2 rounded-pill border border-hairline bg-bg/95 p-1.5 shadow-sm backdrop-blur">
           <Link href="/looks/new/photo" className={buttonClasses({ variant: 'primary' })}>
             <Icon name="camera" size={16} />
             {photoPieces.look.start.title}
