@@ -109,19 +109,27 @@ export function PieceDetail({ id }: { id: string }) {
       <PieceImage piece={piece} sizes="(min-width: 768px) 50vw, 100vw" priority />
       <div className="flex flex-col gap-6">
         <header className="flex flex-col gap-3">
-          <Heading level={1} size="xl">
+          {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
+          <Heading
+            level={1}
+            size="xl"
+            italic={piece.status !== 'ready'}
+            tone={piece.status === 'ready' ? 'default' : 'faint'}
+          >
             {piece.label}
           </Heading>
-          <div className="flex flex-wrap gap-2">
-            <Chip>{piece.category}</Chip>
-            {piece.categoryL2 ? <Chip>{piece.categoryL2}</Chip> : null}
-          </div>
+          {piece.status === 'ready' ? (
+            <div className="flex flex-wrap gap-2">
+              <Chip>{piece.category}</Chip>
+              {piece.categoryL2 ? <Chip>{piece.categoryL2}</Chip> : null}
+            </div>
+          ) : null}
           {piece.status === 'reading' ? (
             <Text role="status" tone="muted">
               {wardrobe.reading}
             </Text>
           ) : null}
-          {piece.status === 'failed' ? <Text tone="muted">{wardrobe.noPieceFound}</Text> : null}
+          {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
         </header>
         <div className="flex flex-wrap items-center gap-3">
           <Button
@@ -140,15 +148,6 @@ export function PieceDetail({ id }: { id: string }) {
               {lookbook.startLook}
             </Link>
           ) : null}
-          <Button
-            variant="quiet"
-            onClick={() => {
-              remove.mutate({ params: { id } });
-              router.push('/wardrobe');
-            }}
-          >
-            {copy.remove}
-          </Button>
         </div>
         {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
         <SuggestedRail pieceId={id} />
@@ -205,6 +204,17 @@ export function PieceDetail({ id }: { id: string }) {
             {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
           </form>
         ) : null}
+        {/* Destructive, so away from the primary action; Undo follows in a toast. */}
+        <Button
+          variant="quiet"
+          className="self-start border-hairline border-t pt-4"
+          onClick={() => {
+            remove.mutate({ params: { id } });
+            router.push('/wardrobe');
+          }}
+        >
+          {copy.remove}
+        </Button>
       </div>
     </article>
   );

@@ -10,7 +10,9 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   await page.goto('/wardrobe');
-  await expect(page.getByRole('heading', { name: 'Your wardrobe starts here.' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Every look starts with a photograph.' }),
+  ).toBeVisible();
 
   await page.goto('/wardrobe/add');
   await page.getByLabel(/Choose photos/).setInputFiles(PHOTO);
