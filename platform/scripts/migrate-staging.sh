@@ -20,7 +20,8 @@ if [ -z "$DB_PASSWORD" ]; then
   echo "No password entered; nothing was changed." >&2
   exit 1
 fi
-# The password can hold characters that break a URL (@, /, #), so encode it.
+# The password can hold characters that break a URL (@, /, #), so encode it. The direct
+# db.<ref>.supabase.co host is IPv6-only; the session pooler (port 5432) works on IPv4 and runs DDL.
 ENC=$(DB_PASSWORD="$DB_PASSWORD" node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')
 ADMIN_URL="postgresql://postgres.${REF}:${ENC}@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require"
 
