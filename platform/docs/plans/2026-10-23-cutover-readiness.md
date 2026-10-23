@@ -91,15 +91,34 @@ list below separates "the behaviour is there" from "it reads as beta does".
       inside it, the "Build your model" CTA the redline **deleted** was re-added, and the italic
       five-state status line and the empty state are missing. The parametric figure underlay is
       absent, so the stage is empty until the first twin lands. L.
-- [ ] **The piece page, the in-app camera and the receipt door** (`bc56305`, the newest legacy
-      commit) were not ported at all. The camera is the headline: beta has an in-app viewfinder
-      with **Single | Several** modes; the platform has a drop zone on web and a one-shot OS
-      camera on native. In progress.
+- [x] **The in-app camera with Single | Several** (`bc56305`) — web over `getUserMedia`, native
+      on `expo-camera` (+ `expo-image-manipulator`, both in Expo Go so no dev build), the mode
+      remembered per device, Several collecting shots into the existing batch, and the OS camera
+      as the fallback on a refused permission.
+- [x] **The piece page leads with its photograph** and carries the Hero Rack star, which until
+      now was reachable from the grid alone. **Change photo is NOT built**: there is no route to
+      replace a piece's asset, and a button that does nothing is worse than its absence — it
+      needs a contract + handler, scoped below.
+- [x] **The receipt door** is its address card (the one action), the three numbered steps and a
+      line naming what is waiting in the Inbox.
+- [ ] **Change photo on a piece**: add `wardrobe.photo` to `packages/contracts/src/routes.ts`
+      plus its handler, then the corner pill on the record door. S–M, needs the api-security
+      checklist.
 - [ ] **Her rejected colours sit outside HER HARD NOS** — deliberate on the platform (soft avoid
       in the palette block) but it contradicts `30d7ea5`'s "her nos are absolute". Needs Annie's
       call, not a code change.
 - [ ] **The balance question is asked on one of four new-look doors** — the home box only. The
       other three fall back to the count-derived posture. S.
+- [ ] **No product events come from either client's components.** Legacy fires `camera_opened`,
+      `camera_filed`, `piece_removed`, `swap_drawer_opened` and dozens more through `_rbTrack`.
+      On the platform, `@robes/analytics` is a closed typed catalogue, the web exposes only
+      consent controls through `useAnalytics()`, and `createNativeAnalytics` in
+      `mobile/src/lib/analytics.tsx` has **no consumer at all** — no provider is mounted in the
+      Expo app. So the in-app camera carries `shortcut:` comments where its two events belong
+      (`mobile/src/features/wardrobe/Camera.tsx`), and the web camera doesn't track them either.
+      Deliberately not fixed in the parity pass: capturing product events from components is an
+      architecture decision across both clients, not a port. Decide before cutover whether the
+      new app needs legacy's event coverage on day one — the admin funnel reads these.
 - [ ] Re-run the parity pass right before cutover (the founder keeps shipping on legacy until then).
 
 Ask the founders to **freeze new legacy features** from the cutover date minus two weeks, or every
