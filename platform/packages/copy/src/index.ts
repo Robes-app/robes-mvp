@@ -452,6 +452,24 @@ export const wardrobe = {
     openInbox: 'Open the Inbox',
     failed: 'Robes couldn’t read that page. Check the link, or add the piece by hand.',
   },
+  // The camera in the app (legacy bc56305): Single files one shot, Several keeps shooting.
+  camera: {
+    open: 'Take a photo',
+    title: 'Camera',
+    close: 'Close the camera',
+    mode: 'How many',
+    single: 'Single',
+    several: 'Several',
+    shutter: 'Take the photo',
+    done: 'Done',
+    taken: (n: number): string => (n === 1 ? '1 photo taken' : `${n} photos taken`),
+    unreachable: 'Robes can’t reach the camera.',
+    useDevice: 'Use the phone’s camera',
+    leave: (n: number): string => (n === 1 ? 'Leave this photo?' : `Leave these ${n} photos?`),
+    leaveBody: 'Done files them.',
+    leaveConfirm: 'Leave them',
+    stay: 'Keep shooting',
+  },
 } as const;
 
 // SEC-84: two equal choices, asked once analytics is unanswered; changeable in You › Privacy.
