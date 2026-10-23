@@ -54,7 +54,8 @@ or the app queries a table or column that does not exist yet.
 1. Open the PR. CI applies every migration to a fresh Postgres and runs the database tests.
 2. **Staging:** `bash scripts/migrate-staging.sh` (from `platform/`). It asks for the staging
    Supabase postgres password, lists what is pending, applies it and never prints the password. The
-   owner runs it, or gives you the go-ahead to ask them to run it with `! bash scripts/migrate-staging.sh`.
+   owner runs it in their own terminal window (not with Claude Code's `!` prefix: that has no
+   keyboard input, so the password prompt would get nothing).
 3. Merge. Vercel deploys `beta`.
 4. **Production:** only through the `platform-deploy-prod` workflow (manual, a reviewer approves).
    It migrates, then deploys. Ask the owner first; never run production migrations from a laptop.
