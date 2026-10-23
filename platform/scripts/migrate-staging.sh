@@ -22,7 +22,7 @@ if [ -z "$DB_PASSWORD" ]; then
 fi
 # The password can hold characters that break a URL (@, /, #), so encode it.
 ENC=$(DB_PASSWORD="$DB_PASSWORD" node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')
-ADMIN_URL="postgresql://postgres:${ENC}@db.${REF}.supabase.co:5432/postgres?sslmode=require"
+ADMIN_URL="postgresql://postgres.${REF}:${ENC}@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require"
 
 echo "Pending before:"
 STATUS=$(pnpm --silent exec dbmate --url "$ADMIN_URL" --migrations-dir db/migrations --no-dump-schema status)
