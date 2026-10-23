@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { GoogleGenAI, JobState, ThinkingLevel } from '@google/genai';
-import { z } from 'zod';
+import type { z } from 'zod';
 import type { FakeFixture } from './fake';
+import { geminiSchema } from './gemini';
 import { MODEL_REGISTRY, type TextCapability, textCostMicros } from './models';
 import type { JsonRequest, Usage } from './provider';
 
@@ -74,7 +75,7 @@ export function createGeminiBatchProvider(
 
     async submit(req) {
       const spec = MODEL_REGISTRY[req.capability];
-      const schema = z.toJSONSchema(req.schema);
+      const schema = geminiSchema(req.schema);
       const job = await batches.create({
         model: spec.model,
         src: req.requests.map((r) => ({
