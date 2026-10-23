@@ -28,6 +28,7 @@ Built as `@robes/migrate` (`platform/scripts/migrate/`, TypeScript run with tsx)
 | `pnpm migrate:transform` | `legacy.*` → `app.*`, one transaction per domain (identity, wardrobe, looks, artifacts, plan, comms). Ids are kept; rows legacy had no uuid for (assets, artifacts) get name-based RFC v3 ids, so everything is `insert … on conflict do nothing` and a second run inserts nothing. |
 | `pnpm migrate:assert` | The gate; exits 1 on any failure: per-user expected vs actual rows per domain (with transform's drop rules applied to the legacy side), orphans, a census of every migrated artifact against the shapes the app reads (`@robes/contracts`), and share-token continuity. Warnings list legacy admins for manual review and pieces whose `times_worn` exceeds their recorded wears. |
 | `pnpm migrate:rehost -- --dry-run` | Lists each `cloudinary_legacy` asset and its target `uploads/{userId}/{assetId}/original` key. |
+| `pnpm migrate:rehost -- --apply --bucket=<media bucket>` | Copies each one (admin AWS creds in env): fetches it from `res.cloudinary.com` only (20 MB cap, 30 s timeout), PUTs it to its upload key, then flips the row to `provider='s3'`; the S3 event (`RenditionFn`) renders it and marks it ready. Re-runnable: failures stay `cloudinary_legacy` for the next run. |
 | `pnpm migrate:reverse-delta -- --since=<ISO> [--out=f.json]` | Rollback export (§5): profiles updated and pieces, looks and artifacts created on the platform since cutover. |
 | `pnpm migrate:rehearse` | Fixture (unless `LEGACY_DATABASE_URL` is set) → fresh target → extract → transform → assert. |
 
@@ -46,19 +47,19 @@ The tests (`scripts/migrate/test`, part of `pnpm db:test`) rehearse the fixture 
 - **Comms:** the notification ledger copies (keeps idempotency; `receipt_held` → `receipt`). Held inbox rows copy whole; decided ones keep only their outcome.
 - **Not migrated:** `events`, `generation_log`, `prompt_history`, `feedback`, `avatar_cells`, the Airtable exports. They are extracted, so they can be added as domains later.
 
-**Needs the real legacy database to verify:** which of migrations 12–23 actually ran and the real JSON heterogeneity (run extract and read its missing-column report, then assert's census); duplicate emails; volumes (extract batches through a cursor, transform is set-based except artifacts, which loop per row); Cloudinary URL shapes. **Not built yet:** the real rehost copy (a maintenance task that PUTs each legacy image to its upload key so `RenditionFn` builds renditions, then flips `provider` to `s3`), the Airtable export, the legacy redirect map, and a public renderer for legacy artifact shares (`/share/[token]` currently renders look snapshots only).
+**Needs the real legacy database to verify:** which of migrations 12–23 actually ran and the real JSON heterogeneity (run extract and read its missing-column report, then assert's census); duplicate emails; volumes (extract batches through a cursor, transform is set-based except artifacts, which loop per row); Cloudinary URL shapes. **Not built yet:** the Airtable export, the legacy redirect map, and a public renderer for legacy artifact shares (`/share/[token]` currently renders look snapshots only).
 
 Rehearse against a copy of legacy on staging until `migrate:assert` is clean twice in a row.
 
 ## 4. Cutover (production), target end of M6
 
 T-7 d: email beta users (what changes, same email but a 6-digit code instead of a password, Google unchanged, lookbook preserved, localStorage-only drafts not migrated).
-Test copy first (any day before T-0): with the legacy app still live, run `extract` → `transform` → `assert` into production and test on the app domain with the founders' own accounts. Before it, disable production's `notify-tick` and `daily-look-batch` schedules (EventBridge Scheduler) so migrated users get no email or overnight looks early; a `cdk deploy` of Prod-Schedules re-enables them. Keep the app domain private until T-0.
+Test copy first (any day before T-0): with the legacy app still live, run `extract` → `transform` → `assert` into production, then `rehost --apply --bucket=robes-prod-media-259887029472` so their photos show, and test on the app domain with the founders' own accounts. Before it, disable production's `notify-tick` and `daily-look-batch` schedules (EventBridge Scheduler) so migrated users get no email or overnight looks early; a `cdk deploy` of Prod-Schedules re-enables them. Keep the app domain private until T-0.
 
 T-0:
 1. Put legacy into read-only mode (feature flag in legacy server: 503 on write routes; banner).
 2. `pnpm migrate:reset --confirm-wipe` (drops the test copy and every account made while testing), then the final `extract` → `transform` → `assert` into production. Re-enable the two paused schedules. Production's schema `app` lives inside the legacy Supabase project (Robes_p0), so source and target are the same database; the tool refuses any non-local target unless `ROBES_MIGRATE_PRODUCTION` names its exact host. Drop the `legacy` copy schema once assert passes.
-3. Start `rehost` (runs in background; loader serves `cloudinary_legacy` until done).
+3. `pnpm migrate:rehost -- --apply --bucket=robes-prod-media-259887029472` (same `ROBES_MIGRATE_PRODUCTION`); re-run until `failed` is empty. The app shows no image for a `cloudinary_legacy` asset, so finish this before DNS.
 4. DNS: `www.byrobes.com` and `beta.byrobes.com` → Vercel (beta redirects to `app.`). Legacy paths: `/look/:id` → share lookup by legacy id (Airtable-backed looks imported into `shares` with `legacy_token`), `/board/:id` → `/share/:id`, `/dashboard` → `/today`, etc. (redirect map generated from `reference/legacy-features.md` route map).
 5. Rotate: legacy Supabase publishable + service keys, Gemini key, Cloudinary keys, Airtable token.
 6. Smoke tests + watch dashboards for 48 h.
