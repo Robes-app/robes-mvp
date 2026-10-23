@@ -17,6 +17,26 @@ export function diaryDays(
   return { days, preset: hint && days.includes(hint) ? hint : null };
 }
 
+// The diary sheet's one rule (legacy `_lkDiaryPaint`): a day gone by records a wear, a day
+// ahead files the look, and the CTA names whichever it is about to do. Shared so the web sheet
+// and the native sheet cannot drift.
+export type DiaryAction = 'put' | 'already' | 'record' | 'recorded';
+export function diaryPick(
+  picked: string,
+  today: string,
+  on: { pinned: boolean; worn: boolean; filed: boolean },
+): { past: boolean; suffix: 'worn' | 'filed' | null; action: DiaryAction } {
+  const past = picked < today;
+  if (past) {
+    return { past, suffix: 'worn', action: on.worn ? 'recorded' : 'record' };
+  }
+  return {
+    past,
+    suffix: on.filed ? 'filed' : null,
+    action: on.pinned ? 'already' : 'put',
+  };
+}
+
 export function monthOf(date: string): string {
   return date.slice(0, 7);
 }

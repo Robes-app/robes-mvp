@@ -4,6 +4,7 @@ import { anchorName, startedLabel } from '@robes/core/looks';
 import { Card, IconButton, Image, Skeleton, Text } from '@robes/ui-native';
 import { Pressable, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
+import { Scanning, scanningLine } from './ScanLine';
 import { localDate } from './saved-looks';
 
 // The look's picture on a tile: Robes' frame or her render, else her first piece.
@@ -84,11 +85,7 @@ export function SuggestedTile({
 }) {
   const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
   const markUri = renditionUri(look.anchor?.image, 36);
-  const busy = swapping
-    ? copy.suggestedTile.restyling
-    : !look.image || look.framePending
-      ? copy.suggestedTile.framing
-      : null;
+  const busy = scanningLine(look, swapping);
   return (
     <Card
       onPress={onPress}
@@ -96,8 +93,9 @@ export function SuggestedTile({
       className="flex-1"
       testID={`suggested-${look.id}`}
     >
-      <View>
+      <View className="overflow-hidden">
         <Picture look={look} />
+        {busy ? <Scanning line={busy} /> : null}
         {showMark && markUri ? (
           <View
             className="absolute bottom-2 left-2 overflow-hidden rounded-crisp border border-hairline bg-bg"
@@ -128,7 +126,7 @@ export function SuggestedTile({
           {look.name}
         </Text>
         <Text size="caption" tone="muted" numberOfLines={1}>
-          {busy ?? (around ? copy.suggestedTile.around(around) : copy.suggestedTile.fromPrompt)}
+          {around ? copy.suggestedTile.around(around) : copy.suggestedTile.fromPrompt}
         </Text>
       </View>
     </Card>

@@ -60,6 +60,29 @@ describe('gemini adapter', () => {
       maxOutputTokens: 500,
     });
     expect(call.config.responseJsonSchema).toMatchObject({ type: 'object' });
+    // Gemini rejects maxItems on arrays of objects; the cap is checked by zod instead.
+    expect(JSON.stringify(call.config.responseJsonSchema)).not.toContain('maxItems');
+  });
+
+  it('still enforces array caps on the answer', async () => {
+    const ai = createGeminiProvider({
+      models: {
+        generateContent: async () => ({
+          text: JSON.stringify({ title: 'x', pieces: Array(7).fill('a') }),
+        }),
+      } as never,
+    });
+    await expect(
+      ai.generateJson({
+        feature: 't',
+        capability: 'text.fast',
+        system: '',
+        user: '',
+        schema: Look,
+        maxOutputTokens: 10,
+        signal: signal(),
+      }),
+    ).rejects.toMatchObject({ code: 'invalid_output' });
   });
 
   it('rejects output that breaks the schema without leaking it', async () => {

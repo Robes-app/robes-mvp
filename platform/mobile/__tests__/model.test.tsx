@@ -5,6 +5,7 @@ import { LookDetail } from '../src/features/looks/LookDetail';
 import { BodyShape } from '../src/features/you/BodyShape';
 import { Colouring } from '../src/features/you/Colouring';
 import { Model } from '../src/features/you/Model';
+import { twinRead } from '../src/features/you/twin';
 import { mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look, styleDna } from './support/fixtures';
 import { mockRouter } from './support/router';
@@ -23,6 +24,7 @@ const noStyle = {
   updatedAt: null,
 };
 const TWIN = { 'GET /me/style': noStyle, 'GET /me/dna': styleDna() };
+const CLOSE_UP = 'https://media.test/media/close-up.jpg';
 const model = (over: object = {}) => ({
   filed: false,
   presence: 'woman',
@@ -55,15 +57,32 @@ test('her model is the hero with two doors; landing asks for the twin once', asy
     'GET /today': {},
   });
   await renderWithApi(<Model />);
-  expect(await screen.findByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
+  // Nothing on file: the stage carries the invitation, not a caption.
+  expect(await screen.findByText(tw.stageEmpty)).toBeTruthy();
+  expect(screen.queryByText(tw.caption('Tan', 'Espresso'))).toBeNull();
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
-  await fireEvent.press(screen.getByRole('button', { name: copy.build }));
-  await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({}));
+  // The redline cut Build your model from the twin: the hero and the two doors are all it carries.
+  expect(screen.queryByRole('button', { name: copy.build })).toBeNull();
+  expect(screen.getByText(tw.status('woman', 'none'))).toBeTruthy();
   await fireEvent.press(
     screen.getByRole('button', { name: `${tw.bodyShape}, ${tw.bodyShapeSub}` }),
   );
   expect(mockRouter.push).toHaveBeenCalledWith('/you/model/body');
   expect(screen.queryByText(twin.facts.title)).toBeNull();
+});
+
+const facts = (over: object = {}) => ({ ...styleDna().facts, ...over });
+
+// The five rungs of the italic line under her model (legacy #mv-status).
+test.each([
+  ['both', model({ closeUpUrl: CLOSE_UP }), facts({ sizeUk: 12 })],
+  ['closeUp', model({ closeUpUrl: CLOSE_UP }), facts()],
+  ['facts', model(), facts({ heightCm: 170 })],
+  ['hand', model({ filed: true, skinSet: true }), facts()],
+  ['none', model(), facts()],
+] as const)('what drew her: %s', (read, data, f) => {
+  expect(twinRead(data as never, f)).toBe(read);
+  expect(tw.status('woman', read)).toMatch(/\S/);
 });
 
 test('says so while her twin is being drawn, and shows the twin over the catalog cell', async () => {
@@ -75,6 +94,7 @@ test('says so while her twin is being drawn, and shows the twin over the catalog
   mockFetch({ ...TWIN, 'GET /me/model': drawing, 'POST /me/model/twin': drawing });
   await renderWithApi(<Model />);
   expect(await screen.findByText(tw.drawing)).toBeTruthy();
+  expect(screen.getByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
 });
 
 test('a look offers See it on me once her model is ready, and asks for the render', async () => {

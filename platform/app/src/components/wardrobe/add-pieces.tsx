@@ -10,6 +10,10 @@ import { type DragEvent, useId, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
 import { invalidateWardrobe } from '@/lib/wardrobe';
+import { CameraDoor } from './camera';
+
+const focusRing =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // Drop or choose several photos → direct uploads → one batch → pieces appear "reading" (UX-17).
 export function AddPieces() {
@@ -80,6 +84,15 @@ export function AddPieces() {
           }}
         />
       </label>
+      {/* The camera is its own door: photographing a piece is the main way in (legacy 1c). */}
+      <CameraDoor
+        onShots={(files) => void add(files)}
+        disabled={busy}
+        className={`flex min-h-11 items-center justify-center gap-2 rounded-crisp border border-hairline px-5 py-3 font-sans text-base text-ink hover:border-ink disabled:text-ink-faint ${focusRing}`}
+      >
+        <Icon name="camera" size={20} className="text-ink-muted" />
+        {wardrobe.camera.open}
+      </CameraDoor>
       <Text role="status" size="small" tone="muted" className="min-h-5">
         {progress ? wardrobe.uploading(progress.done, progress.total) : ''}
       </Text>

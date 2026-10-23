@@ -86,7 +86,7 @@ export const GENDER_DIRECTIVE: Record<Gender, string> = {
   woman: 'Unless the brief clearly indicates a male wearer, style for a woman.',
 };
 
-const SEASON_BAND_LABELS: Record<string, string> = {
+export const SEASON_BAND_LABELS: Record<string, string> = {
   spring_summer: 'Spring/Summer',
   autumn_winter: 'Autumn/Winter',
   year_round: 'Year-round',
@@ -128,6 +128,14 @@ export function heroMark(p: Pick<DailyClosetPiece, 'hero' | 'seasonBand'>): stri
 
 export const HERO_DIRECTIVE = `HERO PIECES: the wardrobe items marked ★ HERO are her Hero Rack — the pieces she reaches for first, the spine of her wardrobe. Whenever a hero piece genuinely suits the occasion AND the season/climate in play, PRIORITISE it over any other comparable owned piece and let it lead the look. The bracket names the season band each hero belongs to — Spring/Summer, Autumn/Winter, or Year-round. Its priority only applies when the look's season or climate matches that band (Year-round always matches); never force an off-season hero into a look.`;
 
+// The mark and the directive are one rule: a directive that names the mark is only true while the
+// closet lines carry it, so a later version replaces both together.
+export interface HeroRule {
+  directive: string;
+  mark: (p: Pick<DailyClosetPiece, 'hero' | 'seasonBand'>) => string;
+}
+export const HERO_RULE: HeroRule = { directive: HERO_DIRECTIVE, mark: heroMark };
+
 function stateDirective(n: number): string {
   if (n === 0) {
     return `WARDROBE STATE: EMPTY. Build a fully aspirational, editorial look — this look doubles as a shopping brief. Every item gets "wardrobe_index": -1 plus a real "retailer_hint" and "price_point".`;
@@ -141,11 +149,11 @@ function stateDirective(n: number): string {
 // Closet labels are her words: they sit in the system turn by index, as legacy did, but capped.
 const clip = (s: string | null | undefined, n: number) => (s ?? '').slice(0, n);
 
-export function buildSystem(ctx: DailyContext, heroDirective = HERO_DIRECTIVE): string {
+export function buildSystem(ctx: DailyContext, heroRule: HeroRule = HERO_RULE): string {
   const closet = ctx.closet.slice(0, 60);
   const n = closet.length;
   const who = ctx.firstName ? `The user's name is ${ctx.firstName.slice(0, 60)}. ` : '';
-  const hero = closet.some((p) => p.hero) ? heroDirective : '';
+  const hero = closet.some((p) => p.hero) ? heroRule.directive : '';
   const locked = closet
     .map((p, idx) => ({ p, idx }))
     .filter(({ p }) => ctx.lockedPieceIds?.includes(p.id))
@@ -162,7 +170,7 @@ export function buildSystem(ctx: DailyContext, heroDirective = HERO_DIRECTIVE): 
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by index):\n${closet
         .map(
           (p, idx) =>
-            `${idx}: ${clip(p.label, 120)}${p.category ? ` [${p.category}]` : ''}${p.color ? `, ${clip(p.color, 60)}` : ''}${p.brand ? `, ${clip(p.brand, 80)}` : ''}${p.timesWorn > 0 ? `, worn ${p.timesWorn}×` : ''}${heroMark(p)}`,
+            `${idx}: ${clip(p.label, 120)}${p.category ? ` [${p.category}]` : ''}${p.color ? `, ${clip(p.color, 60)}` : ''}${p.brand ? `, ${clip(p.brand, 80)}` : ''}${p.timesWorn > 0 ? `, worn ${p.timesWorn}×` : ''}${heroRule.mark(p)}`,
         )
         .join('\n')}`
     : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';

@@ -25,6 +25,7 @@ import { errorCopy } from '@/lib/error-copy';
 import { imageSources } from '@/lib/image';
 import { useLookSet, useRefreshLooks, useRequestFrame } from '@/lib/look-states';
 import { useJob } from '@/lib/use-job';
+import { GenericModelBadge } from './generic-model-badge';
 import { LookImage } from './look-image';
 import { ScanLine } from './scan-line';
 
@@ -47,14 +48,9 @@ function DeckTitle({ set }: { set: LookSet | undefined }) {
         {around ? copy.deck.titleAround(around) : copy.deck.titlePrompt}{' '}
         <em>{copy.deck.titleTail}</em>
       </Heading>
-      {model ? (
+      {model?.filed ? (
         <Text size="small" tone="muted">
-          {model.filed ? copy.deck.modelYours : copy.deck.modelNone}{' '}
-          {model.filed ? null : (
-            <Link href="/you/model" className="underline">
-              {copy.deck.modelBuild}
-            </Link>
-          )}
+          {copy.deck.modelYours}
         </Text>
       ) : null}
     </header>
@@ -62,12 +58,19 @@ function DeckTitle({ set }: { set: LookSet | undefined }) {
 }
 
 // While the looks compose: her piece (or her words) under the scanner, a line that changes every
-// 2.2s; a Robes model wears them until hers exists.
+// 2.2s. Three lists, one per surface (legacy): the deck's own two once the set exists, and before
+// it lands the overlay's, which alone names who wears the looks until her twin is filed.
 function Dressing({ set }: { set?: LookSet }) {
   const [i, setI] = useState(0);
   const { data: model } = useApi('me.model.get');
   const around = set?.anchor ? anchorName(set.anchor.label, set.anchor.brand) : '';
-  const lines = model?.filed ? copy.deck.scan : [...copy.deck.scan, copy.deck.scanGeneric];
+  const lines = set
+    ? set.anchor
+      ? copy.deck.scanPiece
+      : copy.deck.scanPrompt
+    : model?.filed
+      ? copy.deck.scanOverlay
+      : [...copy.deck.scanOverlay, copy.deck.scanGeneric];
   useEffect(() => {
     const t = setInterval(() => setI((n) => n + 1), 2200);
     return () => clearInterval(t);
@@ -166,6 +169,7 @@ function Card({
       <div className="pointer-events-none">
         <LookImage look={look} sizes="384px" />
       </div>
+      <GenericModelBadge stopTap />
       <Text className="mt-2 font-display text-xl">{look.name}</Text>
       <Text size="small" tone="muted">
         {copy.deck.pieces(look.pieces.length + look.proposals.length)}

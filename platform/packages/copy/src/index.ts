@@ -343,6 +343,10 @@ export const wardrobe = {
     saved: 'Saved.',
     remove: 'Remove',
     stylePiece: 'Style this piece',
+    // The record door leads with the photograph (legacy bc56305): the name carries a pencil
+    // and the brand is its own tappable line, empty or not.
+    editName: 'Edit the name',
+    addBrand: 'Add the brand',
   },
   // The colour model on a piece (legacy f3e5b5b): one shade, up to three more, a print.
   colour: {
@@ -451,6 +455,24 @@ export const wardrobe = {
     done: 'It’s waiting in your Inbox.',
     openInbox: 'Open the Inbox',
     failed: 'Robes couldn’t read that page. Check the link, or add the piece by hand.',
+  },
+  // The camera in the app (legacy bc56305): Single files one shot, Several keeps shooting.
+  camera: {
+    open: 'Take a photo',
+    title: 'Camera',
+    close: 'Close the camera',
+    mode: 'How many',
+    single: 'Single',
+    several: 'Several',
+    shutter: 'Take the photo',
+    done: 'Done',
+    taken: (n: number): string => (n === 1 ? '1 photo taken' : `${n} photos taken`),
+    unreachable: 'Robes can’t reach the camera.',
+    useDevice: 'Use the phone’s camera',
+    leave: (n: number): string => (n === 1 ? 'Leave this photo?' : `Leave these ${n} photos?`),
+    leaveBody: 'Done files them.',
+    leaveConfirm: 'Leave them',
+    stay: 'Keep shooting',
   },
 } as const;
 
@@ -719,9 +741,19 @@ export const you = {
       coloursTitle: 'Your colours',
       coloursBody:
         'Love weighs a colour up. Avoid means nothing new in it; what you own is still styled.',
+      // The sheet's own sub and closing note (legacy settings.html shColours/shPrints): her
+      // answers outrank the photographs, and avoid is soft — it never un-styles what she owns.
+      coloursSub:
+        'The colours you love, and the ones you’d rather not buy. Yours to change at any time — they outrank what Robes reads from your photographs.',
+      coloursNote:
+        'Robes won’t suggest new pieces in anything you avoid. What you already own in one is styled like any other.',
       printsTitle: 'Your prints',
+      printsSub: 'The prints you love, and the ones you’d rather not buy.',
+      printsNote: 'Robes won’t suggest new pieces in a print you avoid.',
       states: { avoid: 'Avoid', none: 'No view', love: 'Love' },
       shades: (family: string): string => `${family} shades`,
+      // The family row's quiet meta: only the shades she has set apart from it.
+      shadesSet: (n: number): string => `${n} ${n === 1 ? 'shade' : 'shades'} set`,
       showShades: 'Shades',
       hideShades: 'Hide shades',
       setHere: 'Set here',
@@ -769,6 +801,19 @@ export const you = {
   receipts: {
     title: 'Forward receipts',
     body: 'Forward an order email here and Robes holds the pieces in your Inbox for a yes or no.',
+    // The door's own anatomy (legacy _showMailStep): the eyebrow, the heading, and the address
+    // card as THE one action — tap it to copy. No "Open Mail": a blank mail read wrong.
+    eyebrow: 'Forward a receipt',
+    heading: 'Your own address.',
+    addressLabel: 'Your Robes address',
+    settingUp: 'Setting up your address…',
+    steps: [
+      'Forward the order email.',
+      'Robes reads each piece’s colour, cut, label, price and sizing.',
+      'You review and verify before anything gets filed.',
+    ],
+    waiting: (n: number): string => `${n} ${n === 1 ? 'piece' : 'pieces'} waiting`,
+    review: 'Review them →',
     copy: 'Copy address',
     copied: 'Address copied.',
     copyFailed: (address: string): string => `Copy this address: ${address}`,
@@ -1318,6 +1363,29 @@ export const twin = {
     backToFacts: 'Back to your facts',
     gender: 'Gender',
     age: 'Age',
+    // The one italic line under her model (legacy #mv-status): what Robes drew her from, and what
+    // would take her further. "Nothing yet" is retired from the chrome, so the last rung says drawn.
+    status: (
+      presence: 'woman' | 'man' | 'unspecified',
+      read: 'both' | 'closeUp' | 'facts' | 'hand' | 'none',
+    ): string => {
+      const man = presence === 'man';
+      const they = presence === 'unspecified' ? 'they' : man ? 'he' : 'she';
+      const theyAre = presence === 'unspecified' ? 'They’re' : man ? 'He’s' : 'She’s';
+      const their = presence === 'unspecified' ? 'their' : man ? 'his' : 'her';
+      const s = presence === 'unspecified' ? '' : 's';
+      if (read === 'both')
+        return `Read from your close-up and your facts. ${theyAre} as close as ${they} get${s}.`;
+      if (read === 'closeUp')
+        return `Read from your close-up. Add your facts and Robes draws ${their} line.`;
+      if (read === 'facts')
+        return `Drawn from your facts. Add a close-up and ${they} take${s} your face.`;
+      if (read === 'hand')
+        return `Shaped by hand. A close-up or your facts, whenever you like — ${they} update${s}.`;
+      return 'Nothing drawn yet. Add a close-up, or set your line from your facts.';
+    },
+    // The stage with nothing on it (legacy #mv-fig-empty), over the ghost figure.
+    stageEmpty: 'Your model starts here. Add a close-up, or set your line from your facts.',
   },
   facts: {
     title: 'The facts',
@@ -1528,6 +1596,9 @@ export const photoPieces = {
     body: 'One moment — Robes is finding the pieces.',
   },
   failed: 'Robes couldn’t read the pieces in that photo. Try again in a moment.',
+  // A photo that never finished preparing is not a photo with nothing in it: saying "no
+  // piece" for a stalled upload sends everyone looking at the wrong thing (23 Oct).
+  stalled: 'Robes couldn’t open that photo. Try it again in a moment.',
   none: 'Robes couldn’t see a piece in that photo.',
   photoAlt: 'Your photo',
   tag: (n: number, label: string): string => `Piece ${n}: ${label}`,

@@ -10,21 +10,15 @@ import {
   setPreference,
   shadePreference,
 } from '@robes/core/colour';
-import { Button, SegmentedControl, Text, useToast } from '@robes/ui-native';
+import { Button, PreferenceControl, Text, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { View } from 'react-native';
-import { ShadeSwatch } from '@/features/wardrobe/ColourField';
+import { Pressable, View } from 'react-native';
+import { FamilyTile, ShadeSwatch } from '@/features/wardrobe/ColourField';
 import { errorMessage } from '@/lib/errors';
 
 const copy = you.style.palette;
 const STYLE_KEY = queryKeys.call('me.style.get');
-type State = '-1' | '0' | '1';
-const STATES = [
-  { value: '-1', label: copy.states.avoid },
-  { value: '0', label: copy.states.none },
-  { value: '1', label: copy.states.love },
-] as const satisfies ReadonlyArray<{ value: State; label: string }>;
 
 export function paletteSummary(p: Palette | undefined, kind: 'colours' | 'prints'): string {
   if (!p) return '';
@@ -53,110 +47,131 @@ export function usePalette() {
   return { palette: query.data?.palette, set };
 }
 
-function Control({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: Preference;
-  onChange: (v: Preference) => void;
-}) {
-  return (
-    <SegmentedControl
-      size="sm"
-      label={label}
-      options={STATES}
-      value={String(value) as State}
-      onChange={(v) => onChange(Number(v) as Preference)}
-    />
-  );
-}
+// A row carries her answer: love is the warm fill across the row, avoid fades the tile and name.
+const rowClass = (v: Preference): string =>
+  `border-b border-hairline px-3 ${v === 1 ? 'bg-selected' : ''}`;
+const nameTone = (v: Preference): 'ink' | 'faint' => (v === -1 ? 'faint' : 'ink');
 
-// Your colours (legacy a61f211): families on Avoid · No view · Love, each opening to its shades.
+// Your colours (legacy a61f211): the 13 families on Avoid · No view · Love; a family's tile and
+// name open its shades, which follow it until she sets one.
 export function ColoursBody() {
   const { palette, set } = usePalette();
   const [open, setOpen] = useState<string | null>(null);
   if (!palette) return null;
   return (
     <View className="gap-2">
-      <Text tone="muted">{copy.coloursBody}</Text>
-      {COLOUR_FAMILIES.map((f) => {
-        const fam = palette.fam[f.id] ?? 0;
-        const own = f.shades.some((s) => s.id in palette.shade);
-        return (
-          <View key={f.id} className="gap-3 border-b border-hairline py-3">
-            <View className="flex-row items-center gap-3">
-              <View className="flex-row gap-1">
-                {f.tile.map((s) => (
-                  <ShadeSwatch key={s.id} shade={s} size={18} />
-                ))}
+      <Text tone="muted">{copy.coloursSub}</Text>
+      <View className="mt-1.5">
+        {COLOUR_FAMILIES.map((f) => {
+          const fam = palette.fam[f.id] ?? 0;
+          const own = f.shades.filter((s) => s.id in palette.shade);
+          const shown = open === f.id;
+          return (
+            <View key={f.id} className={rowClass(fam)}>
+              <View className="flex-row items-center gap-3 py-3">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.shades(f.name)}
+                  accessibilityState={{ expanded: shown }}
+                  onPress={() => setOpen(shown ? null : f.id)}
+                  className="flex-1 flex-row items-center gap-4"
+                >
+                  <View className={fam === -1 ? 'opacity-40' : undefined}>
+                    <FamilyTile family={f} />
+                  </View>
+                  <View className="flex-1 gap-[3px]">
+                    <Text tone={nameTone(fam)}>{f.name}</Text>
+                    <Text size="caption" tone="muted">
+                      {own.length ? copy.shadesSet(own.length) : ''}
+                    </Text>
+                  </View>
+                </Pressable>
+                <PreferenceControl
+                  label={f.name}
+                  value={fam}
+                  labels={copy.states}
+                  onChange={(v) => set(setPreference(palette, 'fam', f.id, v))}
+                />
               </View>
-              <Text>{f.name}</Text>
-            </View>
-            <Control
-              label={f.name}
-              value={fam}
-              onChange={(v) => set(setPreference(palette, 'fam', f.id, v))}
-            />
-            <View className="flex-row flex-wrap gap-2">
-              <Button variant="quiet" onPress={() => setOpen(open === f.id ? null : f.id)}>
-                {open === f.id ? copy.hideShades : copy.showShades}
-              </Button>
-              {own ? (
-                <Button variant="quiet" onPress={() => set(matchFamily(palette, f.id))}>
-                  {copy.matchFamily}
-                </Button>
+              {shown ? (
+                <View className="gap-1 pb-3.5 pl-16">
+                  {f.shades.map((s) => (
+                    <View key={s.id} className="min-h-11 flex-row items-center gap-3">
+                      <ShadeSwatch shade={s} size={26} />
+                      <Text size="small" className="flex-1">
+                        {s.name}
+                      </Text>
+                      {/* The family's answer is no setting of its own; anything else is. */}
+                      <PreferenceControl
+                        size="sm"
+                        label={s.name}
+                        follows={f.name}
+                        inherited={fam}
+                        value={s.id in palette.shade ? shadePreference(palette, s.id) : null}
+                        labels={copy.states}
+                        onChange={(v) =>
+                          set(
+                            v === fam
+                              ? setPreference(palette, 'shade', s.id, 0)
+                              : { ...palette, shade: { ...palette.shade, [s.id]: v } },
+                          )
+                        }
+                      />
+                    </View>
+                  ))}
+                  {own.length ? (
+                    <Button
+                      variant="quiet"
+                      className="self-start"
+                      onPress={() => set(matchFamily(palette, f.id))}
+                    >
+                      {copy.matchFamily}
+                    </Button>
+                  ) : null}
+                </View>
               ) : null}
             </View>
-            {open === f.id
-              ? f.shades.map((s) => (
-                  <View key={s.id} className="gap-2 pl-2">
-                    <View className="flex-row items-center gap-3">
-                      <ShadeSwatch shade={s} size={18} />
-                      <Text size="small">{s.name}</Text>
-                      <Text size="caption" tone="muted">
-                        {s.id in palette.shade ? copy.setHere : copy.fromFamily}
-                      </Text>
-                    </View>
-                    {/* The family's answer is no setting; anything else, No view included, is. */}
-                    <Control
-                      label={s.name}
-                      value={shadePreference(palette, s.id)}
-                      onChange={(v) =>
-                        set(
-                          v === fam
-                            ? setPreference(palette, 'shade', s.id, 0)
-                            : { ...palette, shade: { ...palette.shade, [s.id]: v } },
-                        )
-                      }
-                    />
-                  </View>
-                ))
-              : null}
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
+      <Text size="small" tone="muted" className="mt-4">
+        {copy.coloursNote}
+      </Text>
     </View>
   );
 }
 
-// Your prints: the ten prints Robes can act on.
+// Your prints: the ten prints Robes can act on. A pattern is a CSS gradient on the web, which
+// React Native cannot paint, so a print row here is its name and her answer.
 export function PrintsBody() {
   const { palette, set } = usePalette();
   if (!palette) return null;
   return (
     <View className="gap-2">
-      {PATTERNS.filter((p) => p.pref).map((p) => (
-        <View key={p.id} className="gap-2 border-b border-hairline py-3">
-          <Text>{p.name}</Text>
-          <Control
-            label={p.name}
-            value={palette.print[p.id] ?? 0}
-            onChange={(v) => set(setPreference(palette, 'print', p.id, v))}
-          />
-        </View>
-      ))}
+      <Text tone="muted">{copy.printsSub}</Text>
+      <View className="mt-1.5">
+        {PATTERNS.filter((p) => p.pref).map((p) => {
+          const v = palette.print[p.id] ?? 0;
+          return (
+            <View key={p.id} className={rowClass(v)}>
+              <View className="flex-row items-center gap-3 py-3">
+                <Text tone={nameTone(v)} className="flex-1">
+                  {p.name}
+                </Text>
+                <PreferenceControl
+                  label={p.name}
+                  value={v}
+                  labels={copy.states}
+                  onChange={(next) => set(setPreference(palette, 'print', p.id, next))}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+      <Text size="small" tone="muted" className="mt-4">
+        {copy.printsNote}
+      </Text>
     </View>
   );
 }

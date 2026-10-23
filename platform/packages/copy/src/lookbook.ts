@@ -80,11 +80,34 @@ export const lookbook = {
   saved: 'Saved to your lookbook',
   addedToDay: (day: string): string => `In your plan for ${day}.`,
   // Save opens the diary every time (legacy 0.2); closing it is "not yet" and writes nothing.
+  // The diary sheet is beta's month (legacy _lkDiaryPaint): any day is one tap, a day gone by
+  // records it as worn, and the CTA says which of those it is about to do.
   diary: {
     title: 'Put it in the diary',
+    eyebrow: 'Put in the diary',
     notYet: 'Not yet',
     pick: 'Pick a day',
     add: (day: string): string => `Add to ${day}`,
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
+    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    // "Today, Friday 17 October · records it as worn"
+    picked: (long: string, today: boolean, suffix: 'worn' | 'filed' | null): string =>
+      `${today ? 'Today, ' : ''}${long}${
+        suffix === 'worn'
+          ? ' · records it as worn'
+          : suffix === 'filed'
+            ? ' · something already filed'
+            : ''
+      }`,
+    put: 'Put it in the diary',
+    already: 'Already in the diary · Open the day',
+    record: 'Record it as worn',
+    recorded: 'Already worn that day',
+    woreToday: 'I wore this today',
+    woreTodayDone: 'Worn today ✓',
+    recordedOn: (day: string): string => `Recorded — worn ${day}`,
+    inDiaryFor: (look: string, day: string): string => `“${look}” is in your diary for ${day}`,
   },
   discarded: 'Draft let go.',
   name: {
@@ -144,17 +167,47 @@ export const lookbook = {
     titleAround: (piece: string): string => `Your ${piece},`,
     titlePrompt: 'Your ask,',
     titleTail: 'three ways.',
-    modelNone: 'A Robes model wears these for now.',
-    modelBuild: 'Build your model',
+    // No twin: the top card's own badge carries the door, so the deck says nothing here.
     modelYours: 'Each look, shot on your model.',
     composing: 'Robes is composing',
     yourPiece: (piece: string): string => `Your ${piece}`,
-    // The scanner's lines while a look composes (legacy 0.5; "Generating" is banned in chrome).
-    scan: ['Styling a look', 'Choosing the shoes', 'Finding a layer', 'Setting the colour'],
+    // The scanner's lines while a look composes (legacy 0.5). Three lists, one per surface
+    // ("Generating a look" is legacy's first line; chrome says "Styling a look").
+    // Around a piece she handed Robes.
+    scanPiece: [
+      'Styling a look',
+      'Looking at the hem',
+      'Choosing the shoes',
+      'Finding a layer',
+      'Weighing the bag',
+      'Setting the colour',
+    ],
+    // From her words alone.
+    scanPrompt: [
+      'Styling a look',
+      'Reading your words',
+      'Choosing the pieces',
+      'Setting the tone',
+      'Finding the shoes',
+      'Weighing a layer',
+    ],
+    // Before the set lands. Only this one says who wears the looks, and only until her twin is
+    // filed — the deck's own lists never carry it.
+    scanOverlay: ['Styling a look', 'Choosing the shoes', 'Finding a layer', 'Setting the colour'],
     scanGeneric: 'On a Robes model for now',
     // On a suggested look's frame while she has no model; it opens the build-your-model door.
-    genericModel: 'Generic model ›',
-    genericModelLabel: 'Generic model. Build your own model',
+    genericModel: 'Generic model',
+    genericModelLabel: 'Generic model — see every look on you',
+    // The badge's own drawer (legacy design 1a): it opens here, never a navigation. Closing it
+    // changes nothing, so an undecided deck stays where it was.
+    twin: {
+      eyebrow: 'Generic model',
+      title: 'See every look',
+      titleEm: 'on you.',
+      body: 'Two photos — a close-up, and full length in good light. Robes builds your digital twin, and dresses her in every look.',
+      upload: 'Upload digital twin',
+      keep: 'Keep styling on the generic model',
+    },
     teach: 'Swipe left to pass, right to keep.',
     keep: 'Keep',
     pass: 'Pass',

@@ -1,3 +1,4 @@
+import { heroMark } from '../daily/v1';
 import { HERO_DIRECTIVE } from '../daily/v2';
 import { buildSystem as buildSystemV1, type TravelContext, type TripBrief } from './v1';
 
@@ -6,5 +7,5 @@ export * from './v1';
 export const VERSION = 2;
 
 export function buildSystem(ctx: TravelContext, trip: TripBrief, correctiveNote?: string): string {
-  return buildSystemV1(ctx, trip, correctiveNote, HERO_DIRECTIVE);
+  return buildSystemV1(ctx, trip, correctiveNote, { directive: HERO_DIRECTIVE, mark: heroMark });
 }

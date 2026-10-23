@@ -22,6 +22,7 @@ import { Animated, PanResponder, Pressable, ScrollView, View } from 'react-nativ
 import { dayLabel } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { GenericModelBadge } from './GenericModelBadge';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
 import { type SetLook, useInvalidateLooks, useLookSet, useRequestFrame } from './look-states';
 import { ScanLine } from './ScanLine';
@@ -43,9 +44,9 @@ function DeckTitle({ set }: { set: LookSet | undefined }) {
       <Heading className="text-center">
         {`${around ? copy.deck.titleAround(around) : copy.deck.titlePrompt} ${copy.deck.titleTail}`}
       </Heading>
-      {model ? (
+      {model?.filed ? (
         <Text size="caption" tone="muted">
-          {model.filed ? copy.deck.modelYours : copy.deck.modelNone}
+          {copy.deck.modelYours}
         </Text>
       ) : null}
     </View>
@@ -53,12 +54,19 @@ function DeckTitle({ set }: { set: LookSet | undefined }) {
 }
 
 // While the looks compose: her piece (or her words) under the scanner, a line that changes every
-// 2.2s; a Robes model wears them until hers exists.
+// 2.2s. Three lists, one per surface (legacy): the deck's own two once the set exists, and before
+// it lands the overlay's, which alone names who wears the looks until her twin is filed.
 function Dressing({ set, prompt }: { set?: LookSet; prompt?: string | null }) {
   const [i, setI] = useState(0);
   const { data: model } = useApi('me.model.get');
   const around = set?.anchor ? anchorName(set.anchor.label, set.anchor.brand) : '';
-  const lines = model?.filed ? copy.deck.scan : [...copy.deck.scan, copy.deck.scanGeneric];
+  const lines = set
+    ? set.anchor
+      ? copy.deck.scanPiece
+      : copy.deck.scanPrompt
+    : model?.filed
+      ? copy.deck.scanOverlay
+      : [...copy.deck.scanOverlay, copy.deck.scanGeneric];
   useEffect(() => {
     const t = setInterval(() => setI((n) => n + 1), 2200);
     return () => clearInterval(t);
@@ -175,6 +183,8 @@ function Card({
       >
         <Text size="caption" tone="muted">{`✕ ${copy.deck.pass}`}</Text>
       </Animated.View>
+      {/* Last, so it sits over the stamps. Its own Pressable, so a tap never reaches the card. */}
+      <GenericModelBadge />
     </Animated.View>
   );
 }
