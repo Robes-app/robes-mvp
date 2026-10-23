@@ -2,7 +2,8 @@ import { photoPieces, shell } from '@robes/copy';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
 import { Eyebrow, MIN_TOUCH, Text, useColor, useToast } from '@robes/ui-native';
-import { type Href, useRouter } from 'expo-router';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { StackScreen } from '@/components/StackScreen';
 import { type AddSource, useAddPieces } from '@/features/wardrobe/add-pieces';
@@ -35,6 +36,15 @@ export default function Create() {
   const { add, busy } = useAddPieces();
   const { features } = useFeatures();
   const options = OPTIONS.filter((o) => !o.trips || features.trips);
+  // A long press on the + tab lands here with the camera already asked for.
+  const { start } = useLocalSearchParams<{ start?: string }>();
+  const started = useRef(false);
+  useEffect(() => {
+    if (start === 'camera' && !started.current) {
+      started.current = true;
+      void choose(OPTIONS[0] as Option);
+    }
+  });
 
   async function choose(option: Option) {
     if ('href' in option) {
@@ -60,20 +70,35 @@ export default function Create() {
             <Eyebrow>{shell.create.groups[group]}</Eyebrow>
             {options
               .filter((option) => option.group === group)
-              .map((option) => (
-                <Pressable
-                  key={option.label}
-                  accessibilityRole="button"
-                  accessibilityLabel={option.label}
-                  disabled={busy}
-                  onPress={() => choose(option)}
-                  style={{ minHeight: MIN_TOUCH }}
-                  className="flex-row items-center gap-4 border-b border-hairline py-4"
-                >
-                  <Icon name={option.icon} color={ink} />
-                  <Text>{option.label}</Text>
-                </Pressable>
-              ))}
+              .map((option, i) =>
+                // The camera leads, as a large tile: photographing a piece is the main way in.
+                group === 'add' && i === 0 ? (
+                  <Pressable
+                    key={option.label}
+                    accessibilityRole="button"
+                    accessibilityLabel={option.label}
+                    disabled={busy}
+                    onPress={() => choose(option)}
+                    className="mt-2 mb-1 items-center justify-center gap-3 rounded-soft border border-border-control py-8"
+                  >
+                    <Icon name={option.icon} size={32} color={ink} />
+                    <Text>{option.label}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    key={option.label}
+                    accessibilityRole="button"
+                    accessibilityLabel={option.label}
+                    disabled={busy}
+                    onPress={() => choose(option)}
+                    style={{ minHeight: MIN_TOUCH }}
+                    className="flex-row items-center gap-4 border-b border-hairline py-4"
+                  >
+                    <Icon name={option.icon} color={ink} />
+                    <Text>{option.label}</Text>
+                  </Pressable>
+                ),
+              )}
           </View>
         ))}
         {busy ? (

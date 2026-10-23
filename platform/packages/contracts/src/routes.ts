@@ -79,10 +79,13 @@ import {
   StartPhotoReadInput,
 } from './photo-reads';
 import {
+  DayName,
   GetPlanInput,
+  NameDayInput,
   PinLookInput,
   PinnedEntries,
   Plan,
+  PlanDayParams,
   PlanEntry,
   PlanEntryParams,
   UpdatePlanEntryInput,
@@ -813,6 +816,14 @@ export const routes = {
     params: PlanEntryParams,
     input: EmptyInput,
     output: Deleted,
+  },
+  'plan.nameDay': {
+    method: 'PUT',
+    path: '/plan/days/:date/name',
+    auth: 'user',
+    params: PlanDayParams,
+    input: NameDayInput,
+    output: DayName,
   },
   'plan.restore': {
     method: 'POST',

@@ -56,13 +56,19 @@ describe('data export (SEC-81)', () => {
     });
     await repos.looks.wear(ann, look.id, '2026-09-24');
     await repos.plan.pin(ann, look.id, ['2026-10-01'], { slot: 'day' });
+    await repos.plan.nameDay(ann, '2026-10-02', 'Ann’s gallery night');
+    await repos.plan.nameDay(bea, '2026-10-02', 'Bea’s day');
     const doc = await dataExport.collect(ann);
+    expect(doc.dayNames).toEqual([
+      expect.objectContaining({ dayDate: '2026-10-02', name: 'Ann’s gallery night' }),
+    ]);
     expect(doc.user?.email).toBe(`${ann}@test.dev`);
     expect(doc.pieces.map((p) => p.label)).toEqual(['Niall coat']);
     expect(doc.wears[0]?.wornOn).toBe('2026-09-24');
     expect(doc.plan[0]?.dayDate).toBe('2026-10-01');
     const json = JSON.stringify(doc);
     expect(json).not.toContain('Bea coat');
+    expect(json).not.toContain('Bea’s day');
     expect(json).not.toMatch(/"token":"[^"]*session/i);
     expect(Object.keys(doc)).not.toContain('sessions');
   });

@@ -24,9 +24,18 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   await page.getByRole('link', { name: /^Open Today/ }).click();
   await expect(page).toHaveURL(new RegExp(`/plan/${date}$`));
   await expect(page.getByRole('heading', { level: 1, name: 'Name the day' })).toBeVisible();
+  // An empty day takes a name, so she can plan a week before adding outfits; it shows on the list.
+  await page.getByRole('button', { name: 'Name the day' }).click();
+  await page.getByLabel('The day’s name').fill('Gallery opening');
+  await page.getByLabel('The day’s name').press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: 'Gallery opening' })).toBeVisible();
+  await page.goto('/plan');
+  await expect(page.getByRole('link', { name: /^Open Today.*: Gallery opening$/ })).toBeVisible();
+  await page.getByRole('link', { name: /^Open Today/ }).click();
   await page.getByRole('button', { name: /Choose from your looks/ }).click();
 
-  const picker = page.getByRole('dialog', { name: 'What to wear?' });
+  // The picker is headed by the day's name once it has one.
+  const picker = page.getByRole('dialog', { name: 'Gallery opening' });
   await expect(picker.getByText('Tap looks to add one or several')).toBeVisible();
   await picker.getByRole('button', { name: /Office/ }).click();
   await picker.getByRole('button', { name: /Dinner/ }).click();
@@ -49,7 +58,7 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
     timeZone: 'UTC',
   });
   await page.getByRole('link', { name: month, exact: true }).click();
-  await expect(page.getByRole('link', { name: /^Open Today .*: 2 looks$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Open Today .*: Gallery opening$/ })).toBeVisible();
 
   // Month: a cell per day, each opening its page; the header names the month.
   await page.getByRole('radio', { name: 'Month' }).click();

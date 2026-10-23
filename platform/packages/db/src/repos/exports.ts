@@ -117,6 +117,7 @@ export function dataExportRepo(db: Db) {
         lookPieces,
         wears,
         plan,
+        dayNames,
         ideas,
         shares,
         assets,
@@ -201,6 +202,12 @@ export function dataExportRepo(db: Db) {
             'deletedAt',
             sql<string>`day_date::text`.as('dayDate'),
           ])
+          .where('userId', '=', userId)
+          .orderBy('dayDate')
+          .execute(),
+        db
+          .selectFrom('dayNames')
+          .select(['name', 'createdAt', 'updatedAt', sql<string>`day_date::text`.as('dayDate')])
           .where('userId', '=', userId)
           .orderBy('dayDate')
           .execute(),
@@ -290,6 +297,7 @@ export function dataExportRepo(db: Db) {
         lookPieces,
         wears,
         plan,
+        dayNames,
         ideas,
         shares,
         assets,

@@ -61,4 +61,28 @@ describe('plan repo', () => {
     expect(await plan.range(ann, '2026-10-07', '2026-10-07')).toEqual([]);
     await looks.restore(ann, lookId);
   });
+
+  it('names a day with no looks on it, lends the name to looks pinned there, and keeps it hers', async () => {
+    await plan.nameDay(ann, '2026-11-02', 'Gallery opening');
+    expect(await plan.names(ann, '2026-11-01', '2026-11-30')).toEqual([
+      { dayDate: '2026-11-02', name: 'Gallery opening' },
+    ]);
+    expect(await plan.names(bea, '2026-11-01', '2026-11-30')).toEqual([]);
+    await plan.nameDay(bea, '2026-11-02', 'Not hers');
+    expect((await plan.names(ann, '2026-11-02', '2026-11-02'))[0]?.name).toBe('Gallery opening');
+
+    const look = (await looks.create(ann, { name: 'Opening', nameProvisional: false, pieces: [] }))
+      .id;
+    await plan.pin(ann, look, ['2026-11-02'], { slot: 'day' });
+    expect((await plan.range(ann, '2026-11-02', '2026-11-02'))[0]?.activity).toBe(
+      'Gallery opening',
+    );
+
+    await plan.nameDay(ann, '2026-11-02', 'Private view');
+    expect((await plan.range(ann, '2026-11-02', '2026-11-02'))[0]?.activity).toBe('Private view');
+    await plan.nameDay(ann, '2026-11-02', null);
+    expect(await plan.names(ann, '2026-11-01', '2026-11-30')).toEqual([]);
+    expect((await plan.range(ann, '2026-11-02', '2026-11-02'))[0]?.activity).toBeNull();
+    expect((await plan.names(bea, '2026-11-02', '2026-11-02'))[0]?.name).toBe('Not hers');
+  });
 });

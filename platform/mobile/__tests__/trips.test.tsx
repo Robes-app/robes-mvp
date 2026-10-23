@@ -149,6 +149,7 @@ test('the plan switches to a month and a day opens its page', async () => {
       const date = d.toISOString().slice(0, 10);
       return {
         date,
+        name: null,
         entries:
           date === entryOn
             ? [

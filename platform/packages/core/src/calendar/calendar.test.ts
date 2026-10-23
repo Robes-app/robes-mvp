@@ -61,6 +61,11 @@ describe('day planning', () => {
         { activity: null, look: look('B', 1) },
       ]).name,
     ).toBeNull();
+    // Her name for the day leads, with or without looks on it.
+    expect(daySummary([], 'Gallery opening').name).toBe('Gallery opening');
+    expect(daySummary([{ activity: 'Office', look: look('A', 1) }], 'Gallery').name).toBe(
+      'Gallery',
+    );
   });
 });
 
