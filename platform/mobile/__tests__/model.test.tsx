@@ -57,8 +57,8 @@ test('her model is the hero with two doors; landing asks for the twin once', asy
   await renderWithApi(<Model />);
   expect(await screen.findByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
-  await fireEvent.press(screen.getByRole('button', { name: copy.build }));
-  await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({}));
+  // The redline cut Build your model from the twin: the hero and the two doors are all it carries.
+  expect(screen.queryByRole('button', { name: copy.build })).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: `${tw.bodyShape}, ${tw.bodyShapeSub}` }),
   );

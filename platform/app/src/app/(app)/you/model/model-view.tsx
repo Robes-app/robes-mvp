@@ -4,10 +4,10 @@ import { useApi } from '@robes/api-client/react';
 import type { Model } from '@robes/contracts';
 import { twin, you } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
-import { Button, ErrorText, Skeleton, Text } from '@robes/ui';
+import { ErrorText, Skeleton, Text } from '@robes/ui';
 import Link from 'next/link';
 import { errorCopy } from '@/lib/error-copy';
-import { lineSummary, useDrawTwin, useModel, useModelPick } from './twin-parts';
+import { lineSummary, useDrawTwin, useModel } from './twin-parts';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -33,7 +33,6 @@ export function ModelView() {
   const query = useModel();
   const style = useApi('me.style.get');
   const dna = useApi('me.dna.get');
-  const { pick, pending } = useModelPick();
   useDrawTwin('mount');
 
   if (query.isError) return <ErrorText>{errorCopy(query.error)}</ErrorText>;
@@ -46,11 +45,6 @@ export function ModelView() {
   return (
     <div className="flex flex-col gap-8">
       <ModelStage model={model} />
-      {!model.filed ? (
-        <Button variant="primary" className="self-start" loading={pending} onClick={() => pick({})}>
-          {copy.build}
-        </Button>
-      ) : null}
       <nav aria-label={tw.title} className="rounded-soft border border-hairline bg-surface">
         <Door
           href="/you/model/colouring"

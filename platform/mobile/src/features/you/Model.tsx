@@ -2,21 +2,12 @@ import { useApi } from '@robes/api-client/react';
 import type { Model as ModelData } from '@robes/contracts';
 import { twin, you } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
-import {
-  Button,
-  EmptyState,
-  Image,
-  MIN_TOUCH,
-  PrimaryScope,
-  Skeleton,
-  Text,
-  useColor,
-} from '@robes/ui-native';
+import { EmptyState, Image, MIN_TOUCH, Skeleton, Text, useColor } from '@robes/ui-native';
 import { type Href, useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { errorMessage } from '@/lib/errors';
-import { lineSummary, useDrawTwin, useModel, useModelPick } from './twin';
+import { lineSummary, useDrawTwin, useModel } from './twin';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -49,7 +40,6 @@ export function Model() {
   const query = useModel();
   const style = useApi('me.style.get');
   const dna = useApi('me.dna.get');
-  const { pick, pending } = useModelPick();
   useDrawTwin('mount');
   if (query.isError) return <EmptyState title={errorMessage(query.error)} />;
   const model = query.data;
@@ -60,14 +50,7 @@ export function Model() {
     // The hero is full-bleed, so the gutter belongs to what sits under it.
     <ScrollView contentContainerClassName="pb-12">
       <Stage model={model} />
-      <View className="gap-6 px-6 pt-6">
-        {!model.filed ? (
-          <PrimaryScope>
-            <Button loading={pending} onPress={() => pick({})}>
-              {copy.build}
-            </Button>
-          </PrimaryScope>
-        ) : null}
+      <View className="px-6 pt-6">
         <View className="rounded-soft border border-hairline bg-surface">
           <Door
             label={tw.colouring}
