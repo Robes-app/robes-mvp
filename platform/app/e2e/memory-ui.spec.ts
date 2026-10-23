@@ -109,7 +109,7 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: /^Hard nos.*2 lines/ })).toBeVisible();
 
-  await page.goto('/you/model');
+  await page.goto('/you/model/body');
   await page.getByRole('button', { name: 'The facts' }).click();
   const facts = page.getByRole('dialog', { name: 'The facts' });
   await facts.getByRole('button', { name: 'More: Size' }).click();

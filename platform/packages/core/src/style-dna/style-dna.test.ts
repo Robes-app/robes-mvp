@@ -56,6 +56,16 @@ describe('style DNA matches legacy', () => {
   });
 });
 
+describe('the facts with bust and waist (the digital twin)', () => {
+  it('prints a bra size as given, else the tape, and the waist', () => {
+    expect(factsLines({ size_uk: 12, bust_band: 34, bust_cup: 'DD', waist_cm: 72 })).toEqual([
+      'THE FACTS she gave — size, never weight: dress size UK 12 (EU 40), bust 34DD, waist 72 cm. Size every piece to these; never estimate them from a photograph.',
+    ]);
+    expect(factsLines({ bust_band: 34, bust_cm: 92 })[0]).toContain('bust 92 cm');
+    expect(factsLines({ bust_cup: 'Z', bust_band: 34 })).toEqual([]);
+  });
+});
+
 describe('style DNA hardening', () => {
   it('covers every season and body the classifiers can return', () => {
     expect(Object.keys(SEASONS)).toHaveLength(12);

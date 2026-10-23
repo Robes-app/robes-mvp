@@ -6,7 +6,7 @@ const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
-test('a close-up reads her colouring; she picks the season next door and sets her colours', async ({
+test('a close-up reads her colouring; on Colouring, she picks the season next door and sets her colours', async ({
   page,
 }) => {
   await signIn(page);
@@ -16,22 +16,19 @@ test('a close-up reads her colouring; she picks the season next door and sets he
   await expect(page).toHaveURL(/\/you\/model$/);
   expect(await seriousViolations(page)).toEqual([]);
 
+  await page.getByRole('link', { name: /Colouring/ }).click();
+  await expect(page).toHaveURL(/\/you\/model\/colouring$/);
   const colours = page.getByRole('region', { name: 'Your colours' });
   await colours.getByLabel('Choose a photo').setInputFiles(PHOTO);
   // The offline fake reads every face as Soft Autumn.
-  const read = page.getByRole('region', { name: 'Read from your photographs' });
-  await expect(read.getByRole('button', { name: /Colouring.*Soft Autumn/ })).toBeVisible({
-    timeout: 30_000,
-  });
-
-  await read.getByRole('button', { name: /Colouring/ }).click();
-  const sheet = page.getByRole('dialog', { name: 'Your photographs' });
-  await expect(sheet.getByRole('button', { name: 'Soft Autumn', exact: true })).toHaveAttribute(
+  const season = page.getByRole('region', { name: 'Your season' });
+  await expect(season.getByRole('button', { name: 'Soft Autumn', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
+    { timeout: 30_000 },
   );
-  await sheet.getByRole('button', { name: 'True Autumn', exact: true }).click();
-  await expect(sheet.getByRole('button', { name: 'True Autumn', exact: true })).toHaveAttribute(
+  await season.getByRole('button', { name: 'True Autumn', exact: true }).click();
+  await expect(season.getByRole('button', { name: 'True Autumn', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );

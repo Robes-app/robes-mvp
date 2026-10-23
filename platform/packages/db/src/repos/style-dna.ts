@@ -24,6 +24,10 @@ export interface FactsPatch {
   sizeUk?: number | null;
   shoeUk?: number | null;
   ageBand?: string | null;
+  bustBand?: number | null;
+  bustCup?: string | null;
+  bustCm?: number | null;
+  waistCm?: number | null;
 }
 
 export interface MemoryEntryInput {
@@ -239,6 +243,10 @@ export function styleDnaRepo(db: Db) {
             'sizeUk',
             sql<number | null>`shoe_uk::float8`.as('shoeUk'),
             'ageBand',
+            'bustBand',
+            'bustCup',
+            'bustCm',
+            'waistCm',
           ])
           .where('id', '=', userId)
           .executeTakeFirst(),

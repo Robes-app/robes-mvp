@@ -1,5 +1,6 @@
 import type { Db } from '../client';
 import type { UserId } from '../ids';
+import { failTwin, modelRow } from './model';
 
 // Worker side of "see it on me": the look's pieces and where the render lands. Scoped by the job
 // owner's id (SEC-16/22): only her own look, her own pieces and her own filed model.
@@ -73,6 +74,27 @@ export function modelRenderRepo(db: Db) {
         .select(['id', 'status', 'bucketKey', 'contentType'])
         .where('id', '=', key)
         .executeTakeFirst();
+    },
+
+    // Her model and twin inputs, read by the job owner's id.
+    model(userId: UserId) {
+      return modelRow(db, userId);
+    },
+
+    // Lands only if this is still the twin she asked for.
+    async setTwin(userId: UserId, key: string, assetId: string): Promise<boolean> {
+      const row = await db
+        .updateTable('avatars')
+        .set({ twinAssetId: assetId, twinKey: key, twinDrawKey: null, twinDrawStatus: null })
+        .where('userId', '=', userId)
+        .where('twinDrawKey', '=', key)
+        .returning('userId')
+        .executeTakeFirst();
+      return row !== undefined;
+    },
+
+    failTwin(userId: UserId, key: string) {
+      return failTwin(db, userId, key);
     },
   };
 }

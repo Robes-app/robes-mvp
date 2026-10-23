@@ -200,6 +200,18 @@ export function factsLines(f: unknown): string[] {
   const sh = Number(facts.shoe_uk);
   if (h >= 120 && h <= 230) parts.push(`height ${Math.round(h)} cm`);
   if (s >= 2 && s <= 30) parts.push(`dress size UK ${s} (EU ${s + 28})`);
+  // Bust and waist (the digital twin): a bra size as given, or the tape; a measurement, never a
+  // weight.
+  const band = Number(facts.bust_band);
+  const bcm = Number(facts.bust_cm);
+  const w = Number(facts.waist_cm);
+  const cup =
+    typeof facts.bust_cup === 'string' && /^[A-G]{1,2}\+?$/.test(facts.bust_cup)
+      ? facts.bust_cup
+      : '';
+  if (band >= 26 && band <= 50 && cup) parts.push(`bust ${Math.round(band)}${cup}`);
+  else if (bcm >= 60 && bcm <= 160) parts.push(`bust ${Math.round(bcm)} cm`);
+  if (w >= 45 && w <= 150) parts.push(`waist ${Math.round(w)} cm`);
   if (sh >= 1 && sh <= 14) parts.push(`shoes UK ${sh}`);
   const age =
     typeof facts.age_band === 'string' && facts.age_band.trim()

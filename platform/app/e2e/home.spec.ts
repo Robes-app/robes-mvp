@@ -46,10 +46,11 @@ test('onboarding: splash → name → the first piece read live → Composing �
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
   await expect(page.getByText('What are you dressing for today?')).toBeVisible();
-  // One piece filed: Style DNA leads; the map carries the rest; the deck's looks wait in Suggested.
+  // Three pieces filed (the one styled, the others quietly): Style DNA leads; the map carries the
+  // rest; the deck's looks wait in Suggested.
   await expect(page.getByText('Next · Style DNA')).toBeVisible();
   const map = page.getByRole('region', { name: 'Getting to know you' });
-  await expect(map.getByText('One piece filed')).toBeVisible();
+  await expect(map.getByText('Three pieces filed')).toBeVisible();
   const suggested = page.getByTestId('home-suggested');
   const card = suggested.getByRole('listitem').first().getByRole('link');
   await expect(card).toBeVisible();

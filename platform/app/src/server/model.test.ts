@@ -1,34 +1,152 @@
+import { NO_ADJ, twinInputsOf, twinKey } from '@robes/core/avatar';
 import { verifiedUserId } from '@robes/db';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
+
+const CLOSE_UP = '33333333-3333-4333-8333-333333333333';
+const TWIN = '44444444-4444-4444-8444-444444444444';
+const base = {
+  genderIdentity: 'woman',
+  avatarPrefs: {} as unknown,
+  heightCm: null,
+  sizeUk: 12 as number | null,
+  bustBand: null,
+  bustCup: null,
+  bustCm: null,
+  waistCm: null,
+  ageBand: null,
+  filedCellId: 'w-s3-h1-nt' as string | null,
+  twinAssetId: null as string | null,
+  twinKey: null as string | null,
+  twinDrawKey: null as string | null,
+  twinDrawStatus: null as string | null,
+  twinDrawAt: null as Date | null,
+  bodyType: 'Pear' as string | null,
+  headshotAssetId: CLOSE_UP as string | null,
+  skinHex: null,
+  hairHex: null,
+  colourRead: true,
+  silhouetteRead: true,
+};
+let row = { ...base };
 const repos = {
-  model: { get: vi.fn() },
+  model: {
+    get: vi.fn(async (): Promise<unknown> => row),
+    savePicks: vi.fn(async () => {}),
+    file: vi.fn(async () => {}),
+    claimTwin: vi.fn(async () => true),
+    failTwin: vi.fn(async () => {}),
+  },
   avatarCells: {
-    claim: vi.fn(async () => true),
+    get: vi.fn(async () => undefined),
+    claim: vi.fn(async () => false),
     setJob: vi.fn(async () => {}),
     fail: vi.fn(async () => {}),
   },
+  assets: {
+    getForUser: vi.fn(async (_u: unknown, id: string) => ({
+      id,
+      status: 'ready',
+      renditions: {},
+    })),
+  },
   capacity: { isExhausted: vi.fn(async () => false) },
 };
+const startJob = vi.fn(async () => ({ jobId: 'job', status: 'queued' }));
+const createAndEnqueueJob = vi.fn(async () => ({ jobId: 'cell-job', status: 'queued' }));
 vi.mock('./db', () => ({ repos }));
-vi.mock('./flags', () => ({ isFlagEnabled: vi.fn(async () => true) }));
-vi.mock('./media', () => ({ mediaDelivery: { url: async (k: string) => k } }));
+vi.mock('./jobs', () => ({ startJob, createAndEnqueueJob }));
 vi.mock('./logger', () => ({ logger: { warn: vi.fn() } }));
-vi.mock('./jobs', () => ({
-  startJob: vi.fn(),
-  createAndEnqueueJob: vi.fn(async () => ({ jobId: 'cell-job', status: 'queued' })),
+vi.mock('./flags', () => ({ isFlagEnabled: vi.fn(async () => true) }));
+vi.mock('./media', () => ({
+  mediaDelivery: { url: vi.fn(async (k: string) => `https://m.test/${k}`) },
+}));
+vi.mock('./asset-urls', () => ({
+  signedRenditions: vi.fn(async (_d: unknown, _u: string, a: { id: string }) => ({
+    master: `https://m.test/${a.id}.jpg`,
+    renditions: [],
+  })),
 }));
 
-const { ensureGenericCells } = await import('./model');
-const { createAndEnqueueJob, startJob } = await import('./jobs');
+const { drawTwin, ensureGenericCells, loadModel, updateModel } = await import('./model');
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
+const req = new Request('https://robes.test/api/v1/me/model/twin', { method: 'POST' });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  row = { ...base };
+  repos.model.get.mockImplementation(async () => row);
+  repos.avatarCells.claim.mockImplementation(async () => false);
+});
+
+describe('her twin', () => {
+  it('draws once for what she has now, as a job on her image quota', async () => {
+    const key = await twinKey(twinInputsOf(row));
+    await drawTwin(USER, req);
+    expect(repos.model.claimTwin).toHaveBeenCalledWith(USER, key);
+    expect(startJob).toHaveBeenCalledWith(USER, req, {
+      kind: 'avatar_cell',
+      input: { target: 'twin', twinKey: key },
+      quota: { metric: 'generation.image', cost: 1 },
+    });
+  });
+
+  it('never draws an unchanged twin twice, and gives a claim back when the draw cannot start', async () => {
+    repos.model.claimTwin.mockResolvedValueOnce(false);
+    await drawTwin(USER, req);
+    expect(startJob).not.toHaveBeenCalled();
+    repos.capacity.isExhausted.mockResolvedValueOnce(true);
+    await drawTwin(USER, req);
+    expect(repos.model.failTwin).toHaveBeenCalled();
+  });
+
+  it('draws nothing from nothing: the catalog model stands', async () => {
+    row = {
+      ...base,
+      sizeUk: null,
+      headshotAssetId: null,
+      bodyType: null,
+      avatarPrefs: {},
+    };
+    await drawTwin(USER, req);
+    expect(repos.model.claimTwin).not.toHaveBeenCalled();
+  });
+
+  it('shows the twin on file, says when it answers to what she has now, and seeds the sliders once', async () => {
+    const key = await twinKey(twinInputsOf(row));
+    row = { ...base, twinAssetId: TWIN, twinKey: key };
+    const m = await loadModel(USER);
+    expect(m.twin).toEqual({
+      status: 'ready',
+      current: true,
+      imageUrl: `https://m.test/${TWIN}.jpg`,
+    });
+    expect(m.closeUpUrl).toBe(`https://m.test/${CLOSE_UP}.jpg`);
+    // A legacy line read seeds the sliders until she moves one.
+    expect(m.adj).toEqual({ ...NO_ADJ, hips: 1 });
+    row = { ...row, twinDrawKey: 'other', twinDrawStatus: 'pending', twinDrawAt: new Date() };
+    row.sizeUk = 14;
+    const stale = await loadModel(USER);
+    expect(stale.twin).toMatchObject({ status: 'none', current: false });
+  });
+
+  it('merges a moved scale over the sliders as they stand; {} is back to her facts', async () => {
+    await updateModel(USER, req, { adj: { bust: 2 } });
+    expect(repos.model.savePicks).toHaveBeenLastCalledWith(
+      USER,
+      { adj: { shoulders: null, bust: 2, hips: 1 } },
+      undefined,
+    );
+    await updateModel(USER, req, { adj: {} });
+    expect(repos.model.savePicks).toHaveBeenLastCalledWith(USER, { adj: NO_ADJ }, undefined);
+  });
+});
 
 describe('the generic models', () => {
   it('draws the three generic portraits for her catalog, off her quota and her request', async () => {
     repos.model.get.mockResolvedValue({ filedCellId: null, genderIdentity: 'man' });
+    repos.avatarCells.claim.mockResolvedValue(true);
     await ensureGenericCells(USER);
     expect(repos.avatarCells.claim.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
       'm-s4-h1-nt@v2',

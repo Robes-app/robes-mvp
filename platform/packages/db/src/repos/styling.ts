@@ -40,6 +40,10 @@ export function stylingRepo(db: Db) {
           'sizeUk',
           sql<number | null>`shoe_uk::float8`.as('shoeUk'),
           'ageBand',
+          'bustBand',
+          'bustCup',
+          'bustCm',
+          'waistCm',
         ])
         .where('id', '=', userId)
         .executeTakeFirst();
@@ -114,6 +118,10 @@ export function stylingRepo(db: Db) {
             height_cm: profile?.heightCm ?? null,
             size_uk: profile?.sizeUk ?? null,
             shoe_uk: profile?.shoeUk ?? null,
+            bust_band: profile?.bustBand ?? null,
+            bust_cup: profile?.bustCup ?? null,
+            bust_cm: profile?.bustCm ?? null,
+            waist_cm: profile?.waistCm ?? null,
             age_band: ageBandLabel(profile?.ageBand),
           },
           icon_tags: iconTags,

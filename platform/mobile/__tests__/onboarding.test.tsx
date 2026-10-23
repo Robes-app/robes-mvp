@@ -129,6 +129,83 @@ test('the first piece is photographed, read into the ledger, styled three ways o
   expect(calls.some((c) => c.path.endsWith('/me/onboarding/complete'))).toBe(true);
 }, 20_000);
 
+test('several pieces in the photo: she picks which first; it is styled, the others file quietly', async () => {
+  const OTHER_ID = '88888888-8888-4888-8888-888888888888';
+  const readPiece = (index: number, label: string) => ({
+    index,
+    label,
+    category: 'Outerwear',
+    categoryL2: null,
+    categoryL3: null,
+    color: null,
+    brand: null,
+    notes: null,
+    box: { x: 0.1, y: 0.1, w: 0.4, h: 0.4 },
+    match: null,
+    cropAssetId: ASSET_ID,
+  });
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET file:///tmp/coat.jpg': {},
+    'POST /uploads': {
+      assetId: ASSET_ID,
+      upload: {
+        method: 'PUT',
+        url: 'http://minio.test/u',
+        headers: {},
+        expiresAt: '2026-10-01T00:00:00.000Z',
+      },
+    },
+    'PUT /u': {},
+    [`POST /uploads/${ASSET_ID}/complete`]: {
+      id: ASSET_ID,
+      kind: 'wardrobe',
+      status: 'pending',
+      width: null,
+      height: null,
+      blurhash: null,
+      master: null,
+      renditions: [],
+    },
+    'POST /wardrobe/photo-reads': { jobId: READ_JOB, status: 'queued' },
+    [`GET /jobs/${READ_JOB}`]: snap(READ_JOB, 'wardrobe_pieces', {
+      readPieces: [readPiece(0, 'Camel coat'), readPiece(1, 'Silk scarf')],
+    }),
+    [`POST /wardrobe/photo-reads/${READ_JOB}/file`]: {
+      filed: [
+        piece({ id: OTHER_ID, label: 'Camel coat' }),
+        piece({ label: 'Silk scarf', brand: 'Hermès' }),
+      ],
+      photoAdded: [],
+    },
+    'POST /looks/generate': { jobId: JOB_ID, status: 'queued' },
+    'POST /me/onboarding/complete': { onboardedAt: new Date().toISOString() },
+    [`GET /jobs/${JOB_ID}`]: snap(JOB_ID, 'key_piece', {}),
+  });
+  await renderWithApi(<FirstPiece />);
+  await fireEvent.press(screen.getByRole('button', { name: copy.piece.add }));
+  await fireEvent.press(await screen.findByRole('button', { name: home.plus.upload }));
+  expect(await screen.findByText(copy.piece.many(2), { exact: false })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Silk scarf' }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith(`/photo-reads/${READ_JOB}/file`))?.body).toEqual({
+      answers: [
+        { index: 0, state: 'add' },
+        { index: 1, state: 'add' },
+      ],
+    }),
+  );
+  await fireEvent.press(
+    await screen.findByRole('button', { name: copy.piece.style }, { timeout: 8_000 }),
+  );
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/looks/generate'))?.body).toEqual({
+      anchor: { type: 'piece', pieceId: PIECE_ID },
+    }),
+  );
+  expect(calls.some((c) => c.path.endsWith('/wardrobe/items/batch'))).toBe(false);
+}, 20_000);
+
 test('Skip takes two taps, then home with the cache already onboarded', async () => {
   mockFetch({
     'GET /me': ME,

@@ -4,7 +4,12 @@ import { photoPieces as copy, wardrobe } from '@robes/copy';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 import { isTerminal, JOB_REFRESH_MS } from '@/features/looks/ideas';
-import { type AddSource, PICKER_OPTIONS, uploadPhoto } from '@/features/wardrobe/add-pieces';
+import {
+  type AddSource,
+  PICKER_OPTIONS,
+  type PickedPhoto,
+  uploadPhoto,
+} from '@/features/wardrobe/add-pieces';
 
 export interface ReadPhoto {
   uri: string;
@@ -44,14 +49,9 @@ export function usePhotoRead(kind: UploadKind) {
     },
   );
 
-  const start = useCallback(
-    async (source: AddSource) => {
-      const picked = await pickOne(source);
-      if (picked === 'denied') {
-        setError(source === 'camera' ? wardrobe.cameraDenied : wardrobe.photosDenied);
-        return;
-      }
-      if (!picked) return;
+  // A photo already picked (the first-piece screen picks its own).
+  const startPicked = useCallback(
+    async (picked: PickedPhoto & { width: number; height: number }) => {
       setError(null);
       setJobId(null);
       setPhoto({ uri: picked.uri, width: picked.width, height: picked.height });
@@ -67,6 +67,18 @@ export function usePhotoRead(kind: UploadKind) {
       }
     },
     [api, kind],
+  );
+
+  const start = useCallback(
+    async (source: AddSource) => {
+      const picked = await pickOne(source);
+      if (picked === 'denied') {
+        setError(source === 'camera' ? wardrobe.cameraDenied : wardrobe.photosDenied);
+        return;
+      }
+      if (picked) await startPicked(picked);
+    },
+    [startPicked],
   );
 
   const reset = useCallback(() => {
@@ -93,6 +105,7 @@ export function usePhotoRead(kind: UploadKind) {
     pieces,
     error: failed ? (error ?? copy.failed) : null,
     start,
+    startPicked,
     reset,
   };
 }

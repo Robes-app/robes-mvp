@@ -5,6 +5,7 @@ import {
   FRAME_FEATURE,
   MAX_PIECE_REFERENCES,
   RENDER_FEATURE,
+  twinFigureLine,
 } from '@robes/ai/prompts/avatar';
 import {
   buildAnchorPrompt,
@@ -16,7 +17,7 @@ import {
 import { FEATURE as STYLE_FEATURE } from '@robes/ai/prompts/style-piece';
 import { buildImagePrompt as buildIdeaImagePrompt } from '@robes/ai/prompts/style-piece/v2';
 import { LookRenderInput } from '@robes/contracts';
-import { cellKey, parseCellId } from '@robes/core/avatar';
+import { cellKey, parseCellId, twinInputsOf, twinSpec } from '@robes/core/avatar';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -37,7 +38,10 @@ export interface LookRenderDeps {
   frames: Pick<SystemRepositories['frames'], 'get' | 'set'>;
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
   // "See it on me": her look on her model. Absent where the runtime doesn't render on models.
-  model?: Pick<SystemRepositories['modelRender'], 'look' | 'cell' | 'setRender' | 'failRender'>;
+  model?: Pick<
+    SystemRepositories['modelRender'],
+    'look' | 'cell' | 'setRender' | 'failRender' | 'model'
+  >;
   // Frames are stored as uploads; AWS renders them from the S3 event, dev renders here.
   onGenerated?(key: string): Promise<void>;
 }
@@ -182,23 +186,50 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
     if (!found || !found.cellId) throw new JobError('not_found');
     // She changed her model or the rack since asking: this render is no longer wanted.
     if (found.look.renderKey !== renderKey) throw new JobError('superseded');
-    const cell = await model.cell(cellKey(found.cellId));
-    const parsedCell = parseCellId(found.cellId);
-    const cellImage =
-      cell?.status === 'ready' && cell.bucketKey
-        ? await deps.storage.getObject(cell.bucketKey)
+    // Her twin when the render was asked for it: IMAGE 1 the twin, IMAGE 2 her close-up, and one
+    // figure line (a reference carries a face, not proportions). Else the catalog cell.
+    const references: { mimeType: 'image/jpeg' | 'image/png' | 'image/webp'; data: Uint8Array }[] =
+      [];
+    let gender: 'woman' | 'man' | null = null;
+    let twinLine: { face: boolean; figure: string } | undefined;
+    if (renderKey.startsWith('twin:')) {
+      const src = await model.model(ctx.userId);
+      const twin = src?.twinAssetId
+        ? await deps.storage
+            .getObject(mediaKeys.master(ctx.userId, src.twinAssetId))
+            .catch(() => null)
         : null;
-    if (!cellImage || !parsedCell) {
+      if (src && twin) {
+        const inputs = twinInputsOf(src);
+        const face = inputs.closeUpAssetId
+          ? await deps.storage
+              .getObject(mediaKeys.master(ctx.userId, inputs.closeUpAssetId))
+              .catch(() => null)
+          : null;
+        references.push({ mimeType: 'image/jpeg', data: twin });
+        if (face) references.push({ mimeType: 'image/jpeg', data: face });
+        gender = inputs.gender;
+        twinLine = { face: face !== null, figure: twinFigureLine(twinSpec(inputs, face !== null)) };
+      }
+    } else {
+      const cell = await model.cell(cellKey(found.cellId));
+      const parsedCell = parseCellId(found.cellId);
+      const cellImage =
+        cell?.status === 'ready' && cell.bucketKey
+          ? await deps.storage.getObject(cell.bucketKey)
+          : null;
+      if (cellImage && parsedCell) {
+        references.push({
+          mimeType: (cell?.contentType as 'image/jpeg' | 'image/png' | 'image/webp') ?? 'image/png',
+          data: cellImage,
+        });
+        gender = parsedCell.gender;
+      }
+    }
+    if (!gender) {
       await model.failRender(ctx.userId, lookId, renderKey);
       throw new JobError('model_not_ready');
     }
-    const references: { mimeType: 'image/jpeg' | 'image/png' | 'image/webp'; data: Uint8Array }[] =
-      [
-        {
-          mimeType: (cell?.contentType as 'image/jpeg' | 'image/png' | 'image/webp') ?? 'image/png',
-          data: cellImage,
-        },
-      ];
     const lookStyling = StoredStyling.parse(found.look.styling ?? {});
     const pieces = [];
     for (const p of found.pieces) {
@@ -230,7 +261,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       const { image, usage } = await deps.ai.generateImage({
         feature,
         capability: 'image.hero',
-        prompt: buildRenderPrompt(parsedCell.gender, pieces),
+        prompt: buildRenderPrompt(gender, pieces, twinLine),
         references,
         aspectRatio: '4:5',
         signal: ctx.signal,

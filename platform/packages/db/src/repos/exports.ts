@@ -123,6 +123,7 @@ export function dataExportRepo(db: Db) {
         assets,
         styleBriefLines,
         styleMemory,
+        model,
       ] = await Promise.all([
         db
           .selectFrom('users')
@@ -286,6 +287,12 @@ export function dataExportRepo(db: Db) {
           .where('userId', '=', userId)
           .orderBy('createdAt')
           .execute(),
+        // Her filed model and her twin (the asset itself is listed under assets).
+        db
+          .selectFrom('avatars')
+          .select(['avatarId', 'derivedFrom', 'twinAssetId', 'twinKey', 'updatedAt'])
+          .where('userId', '=', userId)
+          .executeTakeFirst(),
       ]);
       return {
         user,
@@ -304,6 +311,7 @@ export function dataExportRepo(db: Db) {
         assets,
         styleBriefLines,
         styleMemory,
+        model,
       };
     },
   };
