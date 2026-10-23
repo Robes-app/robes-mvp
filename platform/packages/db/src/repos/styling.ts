@@ -53,6 +53,8 @@ export function stylingRepo(db: Db) {
           'w.color',
           'w.brand',
           'w.imageAssetId',
+          'w.heroPosition',
+          'w.seasonBand',
           's.timesWorn',
         ])
         .where('w.userId', '=', userId)
@@ -126,8 +128,24 @@ export function stylingRepo(db: Db) {
           brand: c.brand,
           imageAssetId: c.imageAssetId,
           timesWorn: c.timesWorn ?? 0,
+          hero: c.heroPosition !== null,
+          seasonBand: c.seasonBand,
         })),
       };
+    },
+
+    // The sets Robes made her last, newest first: what a second ask must not repeat.
+    async recentSets(userId: UserId, limit = 4) {
+      const rows = await db
+        .selectFrom('artifacts')
+        .select('data')
+        .where('userId', '=', userId)
+        .where('type', '=', 'idea')
+        .where('deletedAt', 'is', null)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .execute();
+      return rows.map((r) => r.data);
     },
 
     // Her filed model, if she has one: every suggested frame is shot on it (legacy 2026-10-09).

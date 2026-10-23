@@ -15353,7 +15353,7 @@
     },
     {
       "args": [{}, 3, ["Phoebe Philo", "  ", 7, "The Row"]],
-      "output": "STYLE ICONS — her taste references: Phoebe Philo, The Row. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon."
+      "output": "STYLE ICONS — her taste references: Phoebe Philo, The Row. Their silhouettes, styling codes and houses are the north star for every choice, inside her hard nos and her brief above; the colour and line notes below are guidance to adapt an icon's register to her, never a reason to abandon it."
     },
     {
       "args": [
@@ -15425,7 +15425,7 @@
         0,
         []
       ],
-      "output": "STYLE DNA — verified styling constraints for this user:\nColour archetype: Soft Autumn (undertone Warm, contrast Low).\nFoundation neutrals: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nStar colours: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nNever style them in: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals: Gold, Bronze, Rose gold (Brushed / Matte); never High-shine Silver, Chrome, Platinum.\nSYSTEM DIRECTIVE: The user has not catalogued any wardrobe pieces yet — focus on fashion-house execution matching the colour archetype and silhouette rules above, producing ideal editorial combinations."
+      "output": "STYLE DNA — read from her photographs. Guidance, not law: it tilts a choice between two pieces that both satisfy her brief, and yields to anything she has said above and to the pieces she owns and wears.\nColouring read: Soft Autumn (undertone Warm, contrast Low).\nNeutrals that tend to flatter: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nColours that tend to flatter: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nColours that tend to fight her colouring — lean away from them when proposing a NEW piece, but a piece she owns or asks for in one is hers to wear: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals that tend to suit her: Gold, Bronze, Rose gold (Brushed / Matte); High-shine Silver, Chrome, Platinum less so.\nSYSTEM DIRECTIVE: The user has not catalogued any wardrobe pieces yet — focus on fashion-house execution in her register, guided by the colour and line notes above, producing ideal editorial combinations."
     },
     {
       "args": [
@@ -15546,7 +15546,7 @@
         7,
         ["Jane Birkin"]
       ],
-      "output": "STYLE ICONS — her taste references: Jane Birkin. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.\nSTYLE DNA — verified styling constraints for this user:\nColour archetype: Soft Autumn (undertone Warm, contrast Low).\nFoundation neutrals: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nStar colours: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nNever style them in: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals: Gold, Bronze, Rose gold (Brushed / Matte); never High-shine Silver, Chrome, Platinum.\nBody architecture: Hourglass. Best dress silhouettes: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Best necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling maxims: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): Navy.\nThe user has personally rejected these colours — never style them in: Mustard.\nExact measurements supplied by the user — trust these over any photo estimate: waist: 70cm.\nSYSTEM DIRECTIVE: The user is building their digital closet (7/15 items). Lead with fashion-house execution matching the colour and silhouette rules above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations."
+      "output": "HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never \"worth trying\".\nNever in these colours — she has ruled them out herself: Mustard.\nSTYLE ICONS — her taste references: Jane Birkin. Their silhouettes, styling codes and houses are the north star for every choice, inside her hard nos and her brief above; the colour and line notes below are guidance to adapt an icon's register to her, never a reason to abandon it.\nSTYLE DNA — read from her photographs. Guidance, not law: it tilts a choice between two pieces that both satisfy her brief, and yields to anything she has said above and to the pieces she owns and wears.\nColouring read: Soft Autumn (undertone Warm, contrast Low).\nNeutrals that tend to flatter: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nColours that tend to flatter: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nColours that tend to fight her colouring — lean away from them when proposing a NEW piece, but a piece she owns or asks for in one is hers to wear: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals that tend to suit her: Gold, Bronze, Rose gold (Brushed / Matte); High-shine Silver, Chrome, Platinum less so.\nLine read, from one photograph — a tilt, never a rule: Hourglass. Dress silhouettes that tend to suit it: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling leanings — apply one only where it agrees with her brief and with how she already dresses; drop any that fights a line she wrote or a piece she reaches for: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nHER COLOURS — the ones she has told Robes work on her: Navy. These outrank the colouring read: a colour she named is right whatever the archetype says.\nExact measurements supplied by the user — trust these over any photo estimate: waist: 70cm.\nSYSTEM DIRECTIVE: The user is building their digital closet (7/15 items). Lead with fashion-house execution in her register, guided by the colour and line notes above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations."
     },
     {
       "args": [
@@ -15596,7 +15596,7 @@
         20,
         []
       ],
-      "output": "STYLE DNA — verified styling constraints for this user:\nBody architecture: Hourglass. Best dress silhouettes: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Best necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling maxims: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nSYSTEM DIRECTIVE: The user has a mature digital closet (20 items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above."
+      "output": "STYLE DNA — read from her photographs. Guidance, not law: it tilts a choice between two pieces that both satisfy her brief, and yields to anything she has said above and to the pieces she owns and wears.\nLine read, from one photograph — a tilt, never a rule: Hourglass. Dress silhouettes that tend to suit it: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling leanings — apply one only where it agrees with her brief and with how she already dresses; drop any that fights a line she wrote or a piece she reaches for: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nSYSTEM DIRECTIVE: The user has a mature digital closet (20 items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that sit inside her brief and her taste; the colour and line notes above guide the choice between them."
     },
     {
       "args": [
@@ -15685,7 +15685,7 @@
         0,
         []
       ],
-      "output": "HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nNever: Crop tops.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nStruck from her brief (Robes had it wrong): \"Loves florals\".\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): navy, Camel.\nThe user has personally rejected these colours — never style them in: Mustard."
+      "output": "HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never \"worth trying\".\nNever: Crop tops.\nNever in these colours — she has ruled them out herself: Mustard.\nHER STYLE BRIEF — in her own words, confirmed by her. These lines outrank every note read from a photograph below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.\nHER COLOURS — the ones she has told Robes work on her: navy, Camel. These outrank the colouring read: a colour she named is right whatever the archetype says."
     },
     {
       "args": [
@@ -15696,7 +15696,7 @@
         0,
         []
       ],
-      "output": "STYLE TYPE — her own placing: Minimalist, Classic; sometimes Bohemian. Every look sits in this register — the first types lead, a \"sometimes\" type is an occasional mood. Taste, never an override of the colour or silhouette rules below."
+      "output": "STYLE TYPE — her own placing: Minimalist, Classic; sometimes Bohemian. Every look sits in this register — the first types lead, a \"sometimes\" type is an occasional mood. Her taste leads: where a colour or line note below pulls against it, her taste wins."
     },
     {
       "args": [
@@ -15706,7 +15706,7 @@
         0,
         ["Zendaya"]
       ],
-      "output": "STYLE TYPE — her own placing: sometimes Romantic. Every look sits in this register — the first types lead, a \"sometimes\" type is an occasional mood. Taste, never an override of the colour or silhouette rules below.\nSTYLE ICONS — her taste references: Zendaya. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon."
+      "output": "STYLE TYPE — her own placing: sometimes Romantic. Every look sits in this register — the first types lead, a \"sometimes\" type is an occasional mood. Her taste leads: where a colour or line note below pulls against it, her taste wins.\nSTYLE ICONS — her taste references: Zendaya. Their silhouettes, styling codes and houses are the north star for every choice, inside her hard nos and her brief above; the colour and line notes below are guidance to adapt an icon's register to her, never a reason to abandon it."
     },
     {
       "args": [
@@ -15719,7 +15719,7 @@
         2,
         ["Jane Birkin", "Kate Moss"]
       ],
-      "output": "STYLE ICONS — her taste references: Jane Birkin (ease), Kate Moss. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.\nBRANDS she reaches for: Toteme, COS. A piece that has to be found comes from these houses and their register first."
+      "output": "STYLE ICONS — her taste references: Jane Birkin (ease), Kate Moss. Their silhouettes, styling codes and houses are the north star for every choice, inside her hard nos and her brief above; the colour and line notes below are guidance to adapt an icon's register to her, never a reason to abandon it.\nBRANDS she reaches for: Toteme, COS. A piece that has to be found comes from these houses and their register first."
     },
     {
       "args": [
@@ -15981,7 +15981,7 @@
         16,
         ["Phoebe Philo"]
       ],
-      "output": "HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nNever: Crop tops.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nStruck from her brief (Robes had it wrong): \"Loves florals\".\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.\nSTYLE TYPE — her own placing: Minimalist. Every look sits in this register — the first types lead, a \"sometimes\" type is an occasional mood. Taste, never an override of the colour or silhouette rules below.\nSTYLE ICONS — her taste references: Phoebe Philo. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.\nBRANDS she reaches for: Khaite. A piece that has to be found comes from these houses and their register first.\nINVESTMENT LEVEL — she spends €1,000 a year on clothes: never a piece above what that level buys, however well it would photograph.\nTHE FACTS she gave — size, never weight: dress size UK 12 (EU 40). Size every piece to these; never estimate them from a photograph.\nSTYLE DNA — verified styling constraints for this user:\nColour archetype: Soft Autumn (undertone Warm, contrast Low).\nFoundation neutrals: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nStar colours: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nNever style them in: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals: Gold, Bronze, Rose gold (Brushed / Matte); never High-shine Silver, Chrome, Platinum.\nBody architecture: Hourglass. Best dress silhouettes: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Best necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling maxims: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): NAVY, Olive, Camel.\nThe user has personally rejected these colours — never style them in: Mustard.\nSYSTEM DIRECTIVE: The user has a mature digital closet (16 items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above."
+      "output": "HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never \"worth trying\".\nNever: Crop tops.\nNever in these colours — she has ruled them out herself: Mustard.\nHER STYLE BRIEF — in her own words, confirmed by her. These lines outrank every note read from a photograph below; a look that breaks one is wrong however well it photographs.\nWorks: Long coats · wide trousers.\nRules: Flat shoes on weekdays.\nIn her words: I dress for a long commute.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nLoved — Gallery opening: \"Exactly me\"\nNot quite — Brunch.\nAsked — Office look: \"Make it warmer\".\nHas swapped out shoes three times — read that as a rule, not a coincidence.\nSwapped out Blazer for her cardigan (outerwear).\nWore \"Weekend navy\" (4 pieces) — a look she reaches for.\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.\nSTYLE TYPE — her own placing: Minimalist. Every look sits in this register — the first types lead, a \"sometimes\" type is an occasional mood. Her taste leads: where a colour or line note below pulls against it, her taste wins.\nSTYLE ICONS — her taste references: Phoebe Philo. Their silhouettes, styling codes and houses are the north star for every choice, inside her hard nos and her brief above; the colour and line notes below are guidance to adapt an icon's register to her, never a reason to abandon it.\nBRANDS she reaches for: Khaite. A piece that has to be found comes from these houses and their register first.\nINVESTMENT LEVEL — she spends €1,000 a year on clothes: never a piece above what that level buys, however well it would photograph.\nTHE FACTS she gave — size, never weight: dress size UK 12 (EU 40). Size every piece to these; never estimate them from a photograph.\nSTYLE DNA — read from her photographs. Guidance, not law: it tilts a choice between two pieces that both satisfy her brief, and yields to anything she has said above and to the pieces she owns and wears.\nColouring read: Soft Autumn (undertone Warm, contrast Low).\nNeutrals that tend to flatter: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nColours that tend to flatter: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nColours that tend to fight her colouring — lean away from them when proposing a NEW piece, but a piece she owns or asks for in one is hers to wear: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals that tend to suit her: Gold, Bronze, Rose gold (Brushed / Matte); High-shine Silver, Chrome, Platinum less so.\nLine read, from one photograph — a tilt, never a rule: Hourglass. Dress silhouettes that tend to suit it: True wrap dress, Tailored fit & flare, Belted midi, Contoured column. Necklines: Deep surplice V, Sculpted scoop, Architectural square, Collared V.\nStyling leanings — apply one only where it agrees with her brief and with how she already dresses; drop any that fights a line she wrote or a piece she reaches for: Always anchor outfits at the true waist. Keep upper and lower body volumes perfectly mirrored. Prioritize fluid fabrics with natural drape — silk, viscose, tropical wool. Use the skin break technique at the wrists or ankles to lighten visual weight.\nHER COLOURS — the ones she has told Robes work on her: NAVY, Olive, Camel. These outrank the colouring read: a colour she named is right whatever the archetype says.\nSYSTEM DIRECTIVE: The user has a mature digital closet (16 items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that sit inside her brief and her taste; the colour and line notes above guide the choice between them."
     },
     {
       "args": [
@@ -15995,7 +15995,115 @@
         0,
         ["Icon"]
       ],
-      "output": "STYLE ICONS — her taste references: Icon. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.\nThe user has personally confirmed these colours work on them (they override the avoid list on conflict): Sage."
+      "output": "STYLE ICONS — her taste references: Icon. Their silhouettes, styling codes and houses are the north star for every choice, inside her hard nos and her brief above; the colour and line notes below are guidance to adapt an icon's register to her, never a reason to abandon it.\nHER COLOURS — the ones she has told Robes work on her: Sage. These outrank the colouring read: a colour she named is right whatever the archetype says."
+    },
+    {
+      "args": [
+        {
+          "color_harmony": {
+            "archetype_name": "Soft Autumn",
+            "verified_undertone": "Warm",
+            "calculated_contrast": "Low",
+            "refinement_needed": false,
+            "classification": {
+              "source": "primitive_mapping",
+              "primitive_season": "Soft Autumn",
+              "agreement": true,
+              "reasoning": null
+            },
+            "extracted_values": {
+              "skin_tone_hex": "#C8A080",
+              "hair_color_hex": null,
+              "eye_color_hex": null
+            },
+            "eighteen_shade_matrix": {
+              "row_1_warm_mutes": [
+                "#DCC8AC",
+                "#C8A982",
+                "#C2925A",
+                "#B5774A",
+                "#9C5638",
+                "#8A8048"
+              ],
+              "row_2_earth_greens": [
+                "#7E8E6E",
+                "#5A6E50",
+                "#3E5E48",
+                "#2E6A66",
+                "#2C5E66",
+                "#355A66"
+              ],
+              "row_3_deep_velvets": [
+                "#2E3A52",
+                "#3A3450",
+                "#4E3A50",
+                "#5E3340",
+                "#7A3A42",
+                "#9A5A4E"
+              ]
+            },
+            "functional_sub_palettes": {
+              "best_neutrals": ["Cream", "Oat", "Wheat", "Taupe", "Olive grey", "Cocoa"],
+              "primary_stars": ["Sage", "Olive", "Teal", "Rust"],
+              "secondary_accents": ["Muted coral", "Camel", "Warm taupe", "Soft navy"],
+              "avoid_list": [
+                "Bright white",
+                "Icy pink",
+                "Cool lavender",
+                "Bright blue",
+                "Fuchsia",
+                "Cool grey",
+                "Jet black"
+              ]
+            },
+            "metals_rules": {
+              "finish_type": "Brushed / Matte",
+              "approved_metals": ["Gold", "Bronze", "Rose gold"],
+              "prohibited_metals": ["High-shine Silver", "Chrome", "Platinum"]
+            },
+            "stylist_voice": "Inspired by nature's shifting light—rich, muted, and beautifully grounded. Your palette relies on sophisticated, organic mid-tones like sage, mauve, and oatmeal. Robes uses this to curate an incredibly cohesive, low-contrast wardrobe."
+          },
+          "brief": {
+            "avoids": ["Combat boots", "combat boots.", "6"],
+            "rules": ["Covered arms", "  "],
+            "colours": {
+              "rejected": ["Red"]
+            }
+          },
+          "memory": {
+            "entries": [
+              {
+                "k": "ask",
+                "text": "Button up the jacket",
+                "on": "Desk day"
+              },
+              {
+                "k": "ask",
+                "text": "Button up the jacket",
+                "on": "Desk day"
+              }
+            ]
+          }
+        },
+        9,
+        [],
+        {
+          "balance": "new"
+        }
+      ],
+      "output": "HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never \"worth trying\".\nNever: Combat boots.\nNever in these colours — she has ruled them out herself: Red.\nHER STYLE BRIEF — in her own words, confirmed by her. These lines outrank every note read from a photograph below; a look that breaks one is wrong however well it photographs.\nRules: Covered arms.\nA rule above also governs what is PROPOSED — never suggest a piece she would have to find that a rule excludes.\nWHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):\nAsked — Desk day: \"Button up the jacket\".\nA piece she has swapped out twice is not proposed again unless she names it; a move she called \"not quite\" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.\nSTYLE DNA — read from her photographs. Guidance, not law: it tilts a choice between two pieces that both satisfy her brief, and yields to anything she has said above and to the pieces she owns and wears.\nColouring read: Soft Autumn (undertone Warm, contrast Low).\nNeutrals that tend to flatter: Cream, Oat, Wheat, Taupe, Olive grey, Cocoa.\nColours that tend to flatter: Sage, Olive, Teal, Rust. Accents: Muted coral, Camel, Warm taupe, Soft navy.\nColours that tend to fight her colouring — lean away from them when proposing a NEW piece, but a piece she owns or asks for in one is hers to wear: Bright white, Icy pink, Cool lavender, Bright blue, Fuchsia, Cool grey, Jet black.\nMetals that tend to suit her: Gold, Bronze, Rose gold (Brushed / Matte); High-shine Silver, Chrome, Platinum less so.\nSYSTEM DIRECTIVE: She has said where the pieces of this look should come from — her wardrobe, a mix, or new pieces (WHERE THE PIECES COME FROM, beside her wardrobe). Follow that answer, in her register, guided by the colour and line notes above."
+    },
+    {
+      "args": [
+        {
+          "brief": {
+            "avoids": ["Heels"]
+          }
+        },
+        0,
+        []
+      ],
+      "output": "HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never \"worth trying\".\nNever: Heels."
     }
   ],
   "helpers": {
@@ -16025,6 +16133,17 @@
         "output": [
           "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         ]
+      },
+      {
+        "input": [
+          "6",
+          "No prints",
+          "no prints.",
+          {
+            "text": "  "
+          }
+        ],
+        "output": ["No prints"]
       }
     ],
     "briefIsEmpty": [

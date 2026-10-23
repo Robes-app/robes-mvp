@@ -28,12 +28,20 @@ const BRIEF_LINE_MAX = 160;
 export const BRIEF_KEPT_MAX = 50;
 export const BRIEF_PROMPT_MAX = 30;
 
+// A line with no letters (a stray "6") is not a line; the same line twice is one line.
 export function briefList(a: unknown): string[] {
   if (!Array.isArray(a)) return [];
+  const seen = new Set<string>();
   return a
     .map((x) => (x && typeof x === 'object' ? (x as Obj).text : x))
-    .filter((t): t is string => typeof t === 'string' && t.trim() !== '')
-    .map((t) => t.trim().replace(/\s+/g, ' ').slice(0, BRIEF_LINE_MAX));
+    .filter((t): t is string => typeof t === 'string' && /\p{L}/u.test(t))
+    .map((t) => t.trim().replace(/\s+/g, ' ').slice(0, BRIEF_LINE_MAX))
+    .filter((t) => {
+      const k = t.toLowerCase().replace(/[.\s]+$/, '');
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
 }
 
 export function briefIsEmpty(b: unknown): boolean {
@@ -47,20 +55,38 @@ export function briefIsEmpty(b: unknown): boolean {
   );
 }
 
+// The hierarchy (legacy 2026-10-19): her hard nos are absolute and come first; her brief outranks
+// everything a photograph produced; her taste leads; colour and line are guidance. The word
+// "never" belongs to her hard nos alone.
+function hardNoLines(b: unknown, rejectedColours: string[]): string[] {
+  const avoids = briefList(obj(b)?.avoids).slice(-BRIEF_PROMPT_MAX);
+  if (!avoids.length && !rejectedColours.length) return [];
+  const words: string[] = [];
+  if (avoids.length) words.push(`Never: ${avoids.join(' · ')}.`);
+  if (rejectedColours.length) {
+    words.push(
+      `Never in these colours — she has ruled them out herself: ${rejectedColours.join(', ')}.`,
+    );
+  }
+  return [
+    'HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never "worth trying".',
+    fenced(words.join('\n')),
+  ];
+}
+
 function styleBriefLines(b: unknown): string[] {
   const brief = obj(b);
-  if (!brief || briefIsEmpty(brief)) return [];
+  if (!brief) return [];
   const loves = briefList(brief.loves).slice(-BRIEF_PROMPT_MAX);
-  const avoids = briefList(brief.avoids).slice(-BRIEF_PROMPT_MAX);
   const rules = briefList(brief.rules).slice(-BRIEF_PROMPT_MAX);
   const notes =
     typeof brief.notes === 'string' ? brief.notes.trim().replace(/\s+/g, ' ').slice(0, 600) : '';
+  if (!loves.length && !rules.length && !notes) return [];
   const out = [
-    'HER STYLE BRIEF — in her own words. These lines outrank every rule below; a look that breaks one is wrong however well it photographs.',
+    'HER STYLE BRIEF — in her own words, confirmed by her. These lines outrank every note read from a photograph below; a look that breaks one is wrong however well it photographs.',
   ];
   const words: string[] = [];
   if (loves.length) words.push(`Works: ${loves.join(' · ')}.`);
-  if (avoids.length) words.push(`Never: ${avoids.join(' · ')}.`);
   if (rules.length) words.push(`Rules: ${rules.join(' · ')}.`);
   if (notes) words.push(`In her words: ${notes}`);
   out.push(fenced(words.join('\n')));
@@ -93,16 +119,12 @@ const count = (n: number): string => (n === 3 ? 'three' : n === 4 ? 'four' : Str
 function memoryLines(m: unknown): string[] {
   const all = memoryEntries(m);
   if (!all.length) return [];
-  const verdicts = all.filter((e) => e.k === 'verdict' || e.k === 'strike' || e.k === 'ask');
+  // A struck observation does not exist: rendering it told the model the opposite of her call.
+  const verdicts = all.filter((e) => e.k === 'verdict' || e.k === 'ask');
   const swaps = all.filter((e) => e.k === 'swap' && !e.folded);
   const wears = all.filter((e) => e.k === 'wear');
   const out: string[] = [];
   for (const e of verdicts) {
-    if (e.k === 'strike') {
-      const t = memStr(e.text, 160);
-      if (t) out.push(`Struck from her brief (Robes had it wrong): "${t}".`);
-      continue;
-    }
     if (e.k === 'ask') {
       const t = memStr(e.text, 200);
       const on = memStr(e.on, 90);
@@ -143,10 +165,12 @@ function memoryLines(m: unknown): string[] {
         `Wore "${l}"${e.pieces ? ` (${String(e.pieces)} pieces)` : ''} — a look she reaches for.`,
       );
   }
-  if (!out.length) return [];
+  // The same ask twice is one line.
+  const uniq = [...new Set(out)];
+  if (!uniq.length) return [];
   return [
     'WHAT SHE HAS TOLD ROBES RECENTLY (newest first — read the pattern, never repeat a rejected move):',
-    fenced(out.slice(0, MEMORY_LINES_MAX).join('\n')),
+    fenced(uniq.slice(0, MEMORY_LINES_MAX).join('\n')),
     'A piece she has swapped out twice is not proposed again unless she names it; a move she called "not quite" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.',
   ];
 }
@@ -168,18 +192,13 @@ function briefOverrides(dna: Obj): Obj {
   return uo;
 }
 
+// Her colours (rejected ones are hard nos, rendered first) and the measurements she supplied.
 function overrideLines(uo: Obj): string[] {
   const lines: string[] = [];
   const loved = list(uo.loved_colors);
   if (loved?.length) {
     lines.push(
-      `The user has personally confirmed these colours work on them (they override the avoid list on conflict): ${fenced(loved.join(', '))}.`,
-    );
-  }
-  const rejected = list(uo.rejected_colors);
-  if (rejected?.length) {
-    lines.push(
-      `The user has personally rejected these colours — never style them in: ${fenced(rejected.join(', '))}.`,
+      `HER COLOURS — the ones she has told Robes work on her: ${fenced(loved.join(', '))}. These outrank the colouring read: a colour she named is right whatever the archetype says.`,
     );
   }
   const measurements = obj(uo.measurements);
@@ -236,10 +255,13 @@ function spendRead(v: unknown) {
 }
 const euro = (n: number): string => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
+// opts.balance: she said where this look's pieces come from, so the SYSTEM DIRECTIVE defers to
+// her answer (rendered beside the wardrobe by the job prompt) instead of the piece count.
 export function styleDnaPromptBlock(
   styleDna: unknown,
   wardrobeCount = 0,
   styleIcons: unknown = [],
+  opts: { balance?: unknown } = {},
 ): string {
   const icons = (list(styleIcons) ?? [])
     .map((s) => s.trim())
@@ -260,6 +282,9 @@ export function styleDnaPromptBlock(
       : '';
   const factLines = factsLines(dna.facts);
   const tags = obj(dna.icon_tags) ?? {};
+  const uo = briefOverrides(dna);
+  const loved = list(uo.loved_colors) ?? [];
+  const noLines = hardNoLines(dna.brief, list(uo.rejected_colors) ?? []);
   if (
     !ch &&
     !sp &&
@@ -270,20 +295,22 @@ export function styleDnaPromptBlock(
     !memLines.length &&
     !brands.length &&
     !investment &&
-    !factLines.length
+    !factLines.length &&
+    !noLines.length &&
+    !loved.length
   ) {
     return '';
   }
   const lines: string[] = [];
-  // Her own words first: they outrank every rule a photograph produced.
-  lines.push(...briefLines, ...memLines);
+  // Her hard nos first (the one absolute), then her own words, which outrank every photograph read.
+  lines.push(...noLines, ...briefLines, ...memLines);
   if (arch.length || soft.length) {
     const typed = arch.length ? `: ${arch.join(', ')}` : '';
     const sometimes = soft.length
       ? `${arch.length ? '; sometimes ' : ': sometimes '}${soft.join(', ')}`
       : '';
     lines.push(
-      `STYLE TYPE — her own placing${typed}${sometimes}. Every look sits in this register — the first types lead, a "sometimes" type is an occasional mood. Taste, never an override of the colour or silhouette rules below.`,
+      `STYLE TYPE — her own placing${typed}${sometimes}. Every look sits in this register — the first types lead, a "sometimes" type is an occasional mood. Her taste leads: where a colour or line note below pulls against it, her taste wins.`,
     );
   }
   // Style icons are her declared taste, layered over the photo-verified DNA.
@@ -294,7 +321,7 @@ export function styleDnaPromptBlock(
       return t ? `${i} (${t})` : i;
     });
     lines.push(
-      `STYLE ICONS — her taste references: ${fenced(named.join(', '))}. Their silhouettes, styling codes and houses are the north star for every choice, adapted to her constraints below; never contradict the colour or silhouette rules to imitate an icon.`,
+      `STYLE ICONS — her taste references: ${fenced(named.join(', '))}. Their silhouettes, styling codes and houses are the north star for every choice, inside her hard nos and her brief above; the colour and line notes below are guidance to adapt an icon's register to her, never a reason to abandon it.`,
     );
   }
   if (brands.length) {
@@ -315,46 +342,60 @@ export function styleDnaPromptBlock(
     }
   }
   lines.push(...factLines);
-  const uo = briefOverrides(dna);
   if (!ch && !sp) {
     lines.push(...overrideLines(uo));
     return withFenceRule(lines);
   }
-  lines.push('STYLE DNA — verified styling constraints for this user:');
+  // The photograph reads are GUIDANCE: not reliable enough to outrank what she said or wears.
+  lines.push(
+    'STYLE DNA — read from her photographs. Guidance, not law: it tilts a choice between two pieces that both satisfy her brief, and yields to anything she has said above and to the pieces she owns and wears.',
+  );
   if (ch) {
     const sub = obj(ch.functional_sub_palettes) ?? {};
     lines.push(
-      `Colour archetype: ${ch.archetype_name} (undertone ${ch.verified_undertone}, contrast ${ch.calculated_contrast}).`,
+      `Colouring read: ${ch.archetype_name} (undertone ${ch.verified_undertone}, contrast ${ch.calculated_contrast}).`,
     );
-    if (list(sub.best_neutrals)) lines.push(`Foundation neutrals: ${join(sub.best_neutrals)}.`);
+    if (list(sub.best_neutrals)) {
+      lines.push(`Neutrals that tend to flatter: ${join(sub.best_neutrals)}.`);
+    }
     if (list(sub.primary_stars)) {
       lines.push(
-        `Star colours: ${join(sub.primary_stars)}. Accents: ${join(sub.secondary_accents)}.`,
+        `Colours that tend to flatter: ${join(sub.primary_stars)}. Accents: ${join(sub.secondary_accents)}.`,
       );
     }
-    if (list(sub.avoid_list)) lines.push(`Never style them in: ${join(sub.avoid_list)}.`);
+    if (list(sub.avoid_list)) {
+      lines.push(
+        `Colours that tend to fight her colouring — lean away from them when proposing a NEW piece, but a piece she owns or asks for in one is hers to wear: ${join(sub.avoid_list)}.`,
+      );
+    }
     const metals = obj(ch.metals_rules);
     if (metals) {
       lines.push(
-        `Metals: ${join(metals.approved_metals)} (${metals.finish_type}); never ${join(metals.prohibited_metals)}.`,
+        `Metals that tend to suit her: ${join(metals.approved_metals)} (${metals.finish_type}); ${join(metals.prohibited_metals)} less so.`,
       );
     }
   }
   if (sp) {
     const ar = obj(sp.architectural_rules) ?? {};
     lines.push(
-      `Body architecture: ${sp.body_type}. Best dress silhouettes: ${join(ar.dress_silhouettes)}. Best necklines: ${join(ar.necklines)}.`,
+      `Line read, from one photograph — a tilt, never a rule: ${sp.body_type}. Dress silhouettes that tend to suit it: ${join(ar.dress_silhouettes)}. Necklines: ${join(ar.necklines)}.`,
     );
-    if (list(ar.styling_maxims)) lines.push(`Styling maxims: ${join(ar.styling_maxims, ' ')}`);
+    if (list(ar.styling_maxims)) {
+      lines.push(
+        `Styling leanings — apply one only where it agrees with her brief and with how she already dresses; drop any that fights a line she wrote or a piece she reaches for: ${join(ar.styling_maxims, ' ')}`,
+      );
+    }
   }
-  // Her corrections always outrank the photo-derived profile.
+  // Her colours always outrank the photo-derived read.
   lines.push(...overrideLines(uo));
   lines.push(
-    wardrobeCount >= 15
-      ? `SYSTEM DIRECTIVE: The user has a mature digital closet (${wardrobeCount} items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that obey the silhouette maxims above.`
-      : wardrobeCount > 0
-        ? `SYSTEM DIRECTIVE: The user is building their digital closet (${wardrobeCount}/15 items). Lead with fashion-house execution matching the colour and silhouette rules above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations.`
-        : 'SYSTEM DIRECTIVE: The user has not catalogued any wardrobe pieces yet — focus on fashion-house execution matching the colour archetype and silhouette rules above, producing ideal editorial combinations.',
+    opts.balance
+      ? 'SYSTEM DIRECTIVE: She has said where the pieces of this look should come from — her wardrobe, a mix, or new pieces (WHERE THE PIECES COME FROM, beside her wardrobe). Follow that answer, in her register, guided by the colour and line notes above.'
+      : wardrobeCount >= 15
+        ? `SYSTEM DIRECTIVE: The user has a mature digital closet (${wardrobeCount} items). Strictly optimise for mix-and-match modularity, combining their verified closet foundations with new pieces that sit inside her brief and her taste; the colour and line notes above guide the choice between them.`
+        : wardrobeCount > 0
+          ? `SYSTEM DIRECTIVE: The user is building their digital closet (${wardrobeCount}/15 items). Lead with fashion-house execution in her register, guided by the colour and line notes above, but weave in the pieces they already own by their exact labels wherever an owned piece genuinely serves the look — an owned piece always beats a hypothetical one. Fill the remaining gaps with ideal editorial combinations.`
+          : 'SYSTEM DIRECTIVE: The user has not catalogued any wardrobe pieces yet — focus on fashion-house execution in her register, guided by the colour and line notes above, producing ideal editorial combinations.',
   );
   return withFenceRule(lines);
 }
