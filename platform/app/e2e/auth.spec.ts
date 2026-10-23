@@ -21,6 +21,23 @@ test('passwordless sign-in, onboarding and sign-out', async ({ page }) => {
   expect((await page.request.get('/api/v1/me')).status()).toBe(401);
 });
 
+test('the Terms and Privacy notice are public, linked from sign-in', async ({ page }) => {
+  await page.goto('/auth/sign-in');
+  await page.getByRole('link', { name: 'Privacy notice' }).click();
+  await expect(page).toHaveURL(/\/legal\/privacy$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Privacy notice' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Your digital twin' })).toBeVisible();
+  await expect(page.getByText('On its way.')).toHaveCount(0);
+
+  await page.goto('/legal/terms');
+  await expect(page.getByRole('heading', { level: 1, name: 'Terms of use' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'hello@byrobes.com' })).toHaveAttribute(
+    'href',
+    'mailto:hello@byrobes.com',
+  );
+  expect((await page.goto('/legal/nope'))?.status()).toBe(404);
+});
+
 test('a wrong code is rejected', async ({ page }) => {
   const email = uniqueEmail('e2e-bad');
   await page.goto('/auth/sign-in');
