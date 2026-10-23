@@ -915,6 +915,7 @@ export const share = {
   eyebrow: 'A look from Robes',
   by: (name: string): string => `Styled by ${name}`,
   pieces: 'The pieces',
+  ways: 'Ways to wear it',
   cta: 'Style your own wardrobe',
   imageAlt: (name: string): string => `The look: ${name}`,
   pieceAlt: (label: string): string => label,

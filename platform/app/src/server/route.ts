@@ -19,7 +19,7 @@ import { logger } from './logger';
 
 // Deployed: Upstash when configured, else Postgres counters (shared across instances, SEC-33).
 // Dev: in-process, so local runs never wait on the limiter's store.
-const rateLimiter =
+export const rateLimiter =
   env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
     ? createUpstashRateLimiter(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN)
     : env.APP_ENV === 'dev'

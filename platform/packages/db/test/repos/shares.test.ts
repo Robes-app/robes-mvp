@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { UserId } from '../../src/ids';
 import { createRepositories, mintShareToken } from '../../src/repos';
@@ -41,7 +42,11 @@ describe('shares', () => {
     expect(again).toMatchObject({ token: first.token, created: false });
 
     const viewed = await publicShares.view(first.token);
-    expect(viewed).toMatchObject({ subjectType: 'look', snapshot: { name: 'Gallery' } });
+    expect(viewed).toMatchObject({
+      subjectType: 'look',
+      snapshot: { name: 'Gallery' },
+      legacyToken: false,
+    });
     expect(await shares.revoke(bea, first.token)).toBe(false);
     expect(await shares.revoke(ann, first.token)).toBe(true);
     expect(await publicShares.view(first.token)).toBeUndefined();
@@ -69,5 +74,28 @@ describe('shares', () => {
       .executeTakeFirstOrThrow();
     expect(row.viewCount).toBe(2);
     expect(await publicShares.view(mintShareToken())).toBeUndefined();
+  });
+
+  it('resolves a migrated legacy token until it expires, and says it is legacy', async () => {
+    const token = 'a1b2c3d4e5';
+    await db
+      .insertInto('shares')
+      .values({
+        token,
+        ownerId: bea,
+        subjectType: 'artifact',
+        subjectId: lookId,
+        snapshot: JSON.stringify({ v: 1, legacy: true, type: 'idea', title: 'Navy blazer' }),
+        legacyToken: true,
+        expiresAt: sql<Date>`now() + interval '1 day'`,
+      })
+      .execute();
+    expect(await publicShares.view(token)).toMatchObject({ legacyToken: true });
+    await db
+      .updateTable('shares')
+      .set({ expiresAt: sql<Date>`now() - interval '1 second'` })
+      .where('token', '=', token)
+      .execute();
+    expect(await publicShares.view(token)).toBeUndefined();
   });
 });

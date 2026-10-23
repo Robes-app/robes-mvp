@@ -1,5 +1,6 @@
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
+import { legacyRedirects } from './src/lib/legacy-redirects';
 
 const staticSecurityHeaders = [
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
@@ -45,6 +46,9 @@ const config: NextConfig = {
     '@aws-sdk/client-sesv2',
     '@aws-sdk/client-sqs',
   ],
+  async redirects() {
+    return legacyRedirects;
+  },
   async headers() {
     return [{ source: '/:path*', headers: staticSecurityHeaders }];
   },
