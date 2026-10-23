@@ -80,11 +80,34 @@ export const lookbook = {
   saved: 'Saved to your lookbook',
   addedToDay: (day: string): string => `In your plan for ${day}.`,
   // Save opens the diary every time (legacy 0.2); closing it is "not yet" and writes nothing.
+  // The diary sheet is beta's month (legacy _lkDiaryPaint): any day is one tap, a day gone by
+  // records it as worn, and the CTA says which of those it is about to do.
   diary: {
     title: 'Put it in the diary',
+    eyebrow: 'Put in the diary',
     notYet: 'Not yet',
     pick: 'Pick a day',
     add: (day: string): string => `Add to ${day}`,
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
+    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    // "Today, Friday 17 October · records it as worn"
+    picked: (long: string, today: boolean, suffix: 'worn' | 'filed' | null): string =>
+      `${today ? 'Today, ' : ''}${long}${
+        suffix === 'worn'
+          ? ' · records it as worn'
+          : suffix === 'filed'
+            ? ' · something already filed'
+            : ''
+      }`,
+    put: 'Put it in the diary',
+    already: 'Already in the diary · Open the day',
+    record: 'Record it as worn',
+    recorded: 'Already worn that day',
+    woreToday: 'I wore this today',
+    woreTodayDone: 'Worn today ✓',
+    recordedOn: (day: string): string => `Recorded — worn ${day}`,
+    inDiaryFor: (look: string, day: string): string => `“${look}” is in your diary for ${day}`,
   },
   discarded: 'Draft let go.',
   name: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, diaryDays, monthGrid, monthLabel, shiftMonth } from './index';
+import { addDays, diaryDays, diaryPick, monthGrid, monthLabel, shiftMonth } from './index';
 
 describe('calendar', () => {
   it('builds a Monday-first month grid', () => {
@@ -94,5 +94,38 @@ describe('trip bands', () => {
     expect(diaryDays('2026-10-30', '2026-10-29').preset).toBeNull();
     expect(diaryDays('2026-10-30', null).preset).toBeNull();
     expect(diaryDays('2026-10-30', '2026-12-25').preset).toBeNull();
+  });
+});
+
+describe('diaryPick', () => {
+  const clear = { pinned: false, worn: false, filed: false };
+
+  it('files a look on a day ahead, and says when something is already there', () => {
+    expect(diaryPick('2026-10-25', '2026-10-23', clear)).toEqual({
+      past: false,
+      suffix: null,
+      action: 'put',
+    });
+    expect(diaryPick('2026-10-25', '2026-10-23', { ...clear, filed: true }).suffix).toBe('filed');
+  });
+
+  it('opens the day when this look is already pinned to it', () => {
+    expect(diaryPick('2026-10-25', '2026-10-23', { ...clear, pinned: true }).action).toBe(
+      'already',
+    );
+  });
+
+  // Beta's retro path, which the day-pill sheet could not reach at all.
+  it('records a wear on a day gone by, and refuses a second one', () => {
+    expect(diaryPick('2026-10-20', '2026-10-23', clear)).toEqual({
+      past: true,
+      suffix: 'worn',
+      action: 'record',
+    });
+    expect(diaryPick('2026-10-20', '2026-10-23', { ...clear, worn: true }).action).toBe('recorded');
+  });
+
+  it('treats today as a day ahead, so it files rather than records', () => {
+    expect(diaryPick('2026-10-23', '2026-10-23', clear).action).toBe('put');
   });
 });
