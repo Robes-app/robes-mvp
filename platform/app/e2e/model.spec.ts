@@ -81,8 +81,8 @@ test('You › Your digital twin: build by hand, nudge colouring and line, and he
   await page.goto('/you');
   await page.getByRole('link', { name: 'Your digital twin' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Your digital twin' })).toBeVisible();
-  await page.getByRole('button', { name: 'Build your model' }).click();
-
+  // The redline deleted this screen's own CTA (legacy 9760a3a): the two doors are the way in,
+  // and the Porcelain pick below files the model anyway.
   await page.getByRole('link', { name: /Colouring/ }).click();
   await page.getByRole('button', { name: 'Porcelain' }).click();
   await expect(page.getByRole('button', { name: 'Porcelain' })).toHaveAttribute(

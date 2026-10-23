@@ -116,3 +116,8 @@ platform has no modular home yet; harness and CLAUDE.md edits.
 
 - `wardrobe-ui` wishlist Undo under heavy parallel load (seen once, not reproduced).
 - `ui-native` Sheet test once under a full parallel run.
+- `route-manifest` (SEC-01) once under a full `pnpm test` while two agents were writing to the
+  same checkout: one route's dynamic import overran its per-route timeout (the suite reported
+  111s of transforms on that run). Passed in isolation immediately after and on a quiet re-run.
+  It is shaped like a timeout, not a logic failure — but it is the security-critical manifest
+  test, so re-run `pnpm test` on a quiet tree before trusting a green and never narrow its glob.
