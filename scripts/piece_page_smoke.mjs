@@ -182,19 +182,17 @@ const SHOT = process.env.SHOT_DIR || '';
   check('wardrobe · the address is the piece', await page.evaluate(() => location.pathname) === '/piece/w-top1');
   const t = (await pg.innerText()).replace(/\n/g, ' ');
   const ret = page.locator('#rb-piece-page .rb-ret');
-  check('wardrobe · the return band names the previous screen (Wardrobe) and the set position (in tops)',
-    (await ret.locator('.rb-ret-pill .lab').innerText()).trim() === 'Wardrobe' && /1 of 2 in tops/i.test(await ret.locator('.rb-ret-pos').innerText()));
-  check('wardrobe · the band is 48px, hairline-bottomed, holding the pill and the position alone',
-    await ret.evaluate((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return Math.round(r.height) === 48 && cs.borderBottomWidth !== '0px' && e.querySelectorAll('button').length === 3; }));
-  check('wardrobe · eyebrow (rose) + title + brand in the title block', /In your wardrobe/i.test(t) && t.includes('Cream silk shirt') && t.includes('Arket')
-    && await page.locator('.rb-tb .rb-tb-ey').evaluate((e) => getComputedStyle(e).color === 'rgb(142, 112, 119)'));
-  check('wardrobe · the pencil and the star sit after the title, in the title block', await page.locator('.rb-tb-trow .rb-pc-pencil').count() === 1 && await page.locator('.rb-tb-trow .rb-pc-star').count() === 1);
-  check('wardrobe · the meta line reads category · worn · in N looks', /Tops · worn eight times · in 1 look/i.test(t), t.slice(0, 300));
+  check('wardrobe · the return band names the previous screen (Wardrobe) and carries no set position (2026-10-23)',
+    (await ret.locator('.rb-ret-pill .lab').innerText()).trim() === 'Wardrobe' && await ret.locator('.rb-ret-pos').count() === 0);
+  check('wardrobe · the band is 48px, hairline-bottomed, holding the pill alone',
+    await ret.evaluate((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return Math.round(r.height) === 48 && cs.borderBottomWidth !== '0px' && e.querySelectorAll('button').length === 1; }));
+  const head = await page.evaluate(() => { const ph = document.querySelector('.rb-pc-card').getBoundingClientRect(), hd = document.querySelector('.rb-pc-head'); const h = hd && hd.getBoundingClientRect(); return { below: !!h && h.top >= ph.bottom, title: document.querySelector('#rb-pc-title')?.textContent, pencil: !!hd?.querySelector('#rb-pc-title .rb-pc-pencil'), brand: hd?.querySelector('.rb-pc-brand')?.textContent, star: !!hd?.querySelector(':scope > .rb-pc-star'), ey: !!document.querySelector('#rb-piece-page .rb-tb-ey'), meta: !!document.querySelector('#rb-piece-page .rb-tb-meta') }; });
+  check('wardrobe · the photograph leads; under it the name with its pencil, the brand, the star at the right — no eyebrow, no meta line', head.below && head.title === 'Cream silk shirt' && head.pencil && head.brand === 'Arket' && head.star && !head.ey && !head.meta, JSON.stringify(head));
   check('wardrobe · two columns at 1280: the piece 38% (min 360 max 560), the rest beside it',
     await page.evaluate(() => { const m = document.querySelector('.rb-pc-media').getBoundingClientRect(), r = document.querySelector('.rb-pc-rest').getBoundingClientRect(); return m.width >= 360 && m.width <= 560 && r.left > m.right + 40 && Math.abs(r.top - m.top) < 4; }));
-  check('wardrobe · the photo renders with a replace-photo button', await page.locator('.rb-pc-photo img').count() === 1 && await page.locator('#rb-pc-rephoto').count() === 1);
+  check('wardrobe · the photo renders with a "Change photo" pill', await page.locator('.rb-pc-photo img').count() === 1 && (await page.locator('#rb-pc-rephoto').innerText()).trim() === 'Change photo');
   const ph = await page.evaluate(() => { const b = document.querySelector('.rb-pc-photo').getBoundingClientRect(); const i = document.querySelector('.rb-pc-photo img'); return { w: b.width, h: b.height, fit: getComputedStyle(i).objectFit }; });
-  check('wardrobe · the photo is shown whole in a 1:1 frame, never a landscape crop', ph.fit === 'contain' && Math.abs(ph.h - ph.w) < 3, JSON.stringify(ph));
+  check('wardrobe · the photo is shown whole in a 4:5 frame, never a landscape crop', ph.fit === 'contain' && Math.abs(ph.h - ph.w * 1.25) < 3, JSON.stringify(ph));
   check('wardrobe · the replace icon is the Look photograph\'s glyph', await page.evaluate(() => document.querySelector('#rb-pc-rephoto svg path')?.getAttribute('d')?.startsWith('M1.4 5.2')));
   check('wardrobe · the note reads in italic serif', t.includes('Close-fitting base under the open shirt.'));
   const rows = await page.evaluate(() => Array.from(document.querySelectorAll('#rb-piece-page .rb-ps-row')).map((r) => r.dataset.k + '=' + r.querySelector('.rb-ps-v').textContent));
@@ -267,7 +265,7 @@ const SHOT = process.env.SHOT_DIR || '';
   const t2 = (await pg.innerText()).replace(/\n/g, ' ');
   check('look · the row opens the piece page from the look', await pg.isVisible());
   check('look · the return pill names the look', (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'The Thursday one');
-  check('look · the position reads 1 of 4 in this look', /1 of 4 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()));
+  check('look · no set position on the band', await page.locator('#rb-piece-page .rb-ret-pos').count() === 0);
   check('look · the meta line carries category · brand · worn', /Tops · Arket · worn eight times/i.test(t2), t2.slice(0, 160));
   check('look · no star and no pencil from a look — the preview, not the record (handoff 4c)', await page.locator('.rb-tb-trow .rb-pc-star').count() === 0 && await page.locator('.rb-tb-trow .rb-pc-pencil').count() === 0);
   check('look · no wear ledger on the preview', await page.locator('.rb-pc-rule').count() === 0 && await page.locator('.rb-pc-wear').count() === 0);
@@ -291,10 +289,10 @@ const SHOT = process.env.SHOT_DIR || '';
   // was reached from the piece's wardrobe record, so Wardrobe stays lit.
   check('look · the nav keeps the section she entered through (Wardrobe)', await page.locator('#rb-tn-wardrobe').evaluate((e) => e.classList.contains('active')));
   if (SHOT) await page.screenshot({ path: SHOT + '/piece-look.png', fullPage: false });
-  await page.locator('#rb-piece-page .rb-ret-nav').nth(1).click();
+  await page.evaluate(() => window.__rbPiecePage(1));
   await page.waitForTimeout(300);
   const t3 = (await pg.innerText()).replace(/\n/g, ' ');
-  check('look · › walks to the second piece', /2 of 4 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()) && t3.includes('Barrel-leg jeans'));
+  check('look · the pager (swipe) still walks to the second piece', t3.includes('Barrel-leg jeans'));
   check('look · a piece worn in two wears reads twice (from the wear snapshots, not times_worn)', /Worn twice/i.test(t3), t3.slice(0, 300));
   await page.locator('#rb-piece-page .rb-ret-pill').click();
   await page.waitForTimeout(300);
@@ -385,7 +383,7 @@ const SHOT = process.env.SHOT_DIR || '';
   const pg = page.locator('#rb-piece-page');
   const t = (await pg.innerText()).replace(/\n/g, ' ');
   check('daily · opens from the draft with its name as the way back', await pg.isVisible() && (await page.locator('#rb-piece-page .rb-ret-pill .lab').innerText()).trim() === 'Coffee run, elevated');
-  check('daily · the position walks every row of the draft, proposals included (handoff 4d)', /2 of 4 in this look/i.test(await page.locator('#rb-piece-page .rb-ret-pos').innerText()) && t.includes('Barrel-leg jeans'), t.slice(0, 200));
+  check('daily · the row opened is the piece on the page, no position on the band', await page.locator('#rb-piece-page .rb-ret-pos').count() === 0 && t.includes('Barrel-leg jeans'), t.slice(0, 200));
   check('daily · the rail holds SAVED looks only — the unsaved draft is not in it', /In 1 look/i.test(t) && !t.includes('Coffee run, elevated.'), t.slice(0, 300));
   await page.locator('#rb-piece-page .rb-ret-pill').click();
   await page.waitForTimeout(300);
@@ -446,9 +444,9 @@ const SHOT = process.env.SHOT_DIR || '';
   const { ctx, page, errs } = await boot(browser, { width: 390, path: '/piece/w-top1' });
   const pg = page.locator('#rb-piece-page');
   check('deep link · /piece/:id opens the record once the wardrobe lands', await pg.isVisible() && (await pg.innerText()).includes('Cream silk shirt'));
-  check('mobile · the nav bar IS the return band: the pill replaces the wordmark, the position the avatar, the in-page band hides',
+  check('mobile · the nav bar IS the return band: the pill replaces the wordmark, no position, the in-page band hides',
     await page.locator('#rb-backpill').isVisible() && (await page.locator('#rb-backpill-label').innerText()).trim() === 'Wardrobe'
-    && /1 of 2 in tops/i.test(await page.locator('#rb-navset').innerText())
+    && !/of \d/i.test(await page.locator('#rb-navset').innerText().catch(() => ''))
     && !(await page.locator('#rb-piece-page .rb-ret').isVisible()) && !(await page.locator('#nav-wordmark').isVisible()) && !(await page.locator('.av-wrap').isVisible()));
   check('mobile · the columns stack, media first, at the full gutter width',
     await page.evaluate(() => { const m = document.querySelector('.rb-pc-media').getBoundingClientRect(), r = document.querySelector('.rb-pc-rest').getBoundingClientRect(); return r.top > m.bottom && Math.abs(m.width - r.width) < 2 && m.width > 300; }));

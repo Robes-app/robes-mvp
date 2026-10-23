@@ -101,7 +101,7 @@ const check = (name, pass, detail = '') => results.push({ name, pass, detail });
 const shot = async (page, name) => { if (process.env.RB_SHOTS) { try { await page.screenshot({ path: process.env.RB_SHOTS + '/addflow-' + name + '.png' }); } catch (e) {} } };
 
 async function boot(browser, tagBody, opts = {}) {
-  const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 1100 } });
+  const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 1100 }, permissions: ['camera'] });
   const page = await ctx.newPage();
   const supaPosts = [];
   const supaPatches = [];
@@ -202,8 +202,9 @@ async function boot(browser, tagBody, opts = {}) {
   return { ctx, page, errs, supaPosts, supaPatches, inboxPatches, profilePatches, urlReads, wlPosts };
 }
 
-const browser = await chromium.launch(
-  process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
+const browser = await chromium.launch(Object.assign(
+  { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
+  process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}));
 
 // ── Step 1 + happy path: scan → summary → details → save ───────────────
 {
@@ -1031,10 +1032,28 @@ const browser = await chromium.launch(
   await page.click('.rb-wf-way[data-way="lib"]');
   const libChooser = await fcLib;
   check('ways · Photo library opens the OS picker, several at once', !!libChooser && libChooser.isMultiple(), String(!!libChooser));
-  const fcCam = page.waitForEvent('filechooser', { timeout: 2500 }).catch(() => null);
+  // Camera (1c): the in-app camera — Single | Several, the shutter, Done.
+  await page.evaluate(() => { try { localStorage.removeItem('rb_cam_mode'); } catch (e) {} });
   await page.click('.rb-wf-way[data-way="cam"]');
-  const camChooser = await fcCam;
-  check('ways · Camera opens the capture input, one piece at a time', !!camChooser && !camChooser.isMultiple(), String(!!camChooser));
+  await page.waitForFunction(() => { const b = document.getElementById('rb-cam-shut'); return b && !b.disabled; }, null, { timeout: 6000 }).catch(() => {});
+  const cm1 = await page.evaluate(() => ({ open: !!document.getElementById('rb-cam'), seg: [...document.querySelectorAll('#rb-cam .rb-cam-seg button')].map((b) => b.textContent.trim() + (b.classList.contains('on') ? '*' : '')).join('|'), shut: document.getElementById('rb-cam-shut')?.disabled === false, done: document.getElementById('rb-cam-done')?.hidden }));
+  check('ways · Camera opens the in-app camera: Single* | Several, the shutter live, no Done on Single', cm1.open && cm1.seg === 'Single*|Several' && cm1.shut && cm1.done === true, JSON.stringify(cm1));
+  await page.click('#rb-cam .rb-cam-seg [data-m="several"]');
+  await page.click('#rb-cam-shut');
+  await page.waitForTimeout(250);
+  await page.click('#rb-cam-shut');
+  await page.waitForTimeout(350);
+  const cm2 = await page.evaluate(() => ({ n: document.querySelector('#rb-cam-th .n')?.textContent, done: document.getElementById('rb-cam-done')?.disabled === false && !document.getElementById('rb-cam-done').hidden, mode: localStorage.getItem('rb_cam_mode') }));
+  await shot(page, 'camera-1280');
+  check('ways · Several keeps the shutter open: two shots ride the thumbnail, Done comes live, the pick is remembered', cm2.n === '2' && cm2.done && cm2.mode === 'several', JSON.stringify(cm2));
+  await page.click('#rb-cam-done');
+  await page.waitForTimeout(600);
+  const cm3 = await page.evaluate(() => ({ gone: !document.getElementById('rb-cam'), tag: /PIECE 1 OF 2/.test(document.querySelector('#wa-modal .fm-step')?.textContent || '') }));
+  check('ways · Done hands the shots to the batch — piece 1 of 2 reads', cm3.gone && cm3.tag, JSON.stringify(cm3));
+  await page.evaluate(() => { try { localStorage.removeItem('rb_cam_mode'); } catch (e) {} window.WA && WA.close(); });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.WA && WA.open({ way: 'choose' }));
+  await page.waitForTimeout(400);
   await page.evaluate(() => window.__waWay('photo'));
   await page.waitForTimeout(300);
   const ph = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', file: !!document.getElementById('wa-rb-file'), cam: !!document.getElementById('wa-rb-cam'), back: document.querySelector('.rb-wf-back')?.textContent || '', nophoto: !!document.querySelector('.rb-wf-nophoto'), door: document.getElementById('wa-modal').classList.contains('rb-wf-door') }));
@@ -1099,10 +1118,10 @@ const browser = await chromium.launch(
   // Forward a receipt: her address is minted on first open, copyable.
   await page.evaluate(() => window.WA && WA.open({ way: 'mail' }));
   await page.waitForTimeout(700);
-  const m1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', eye: document.querySelector('.rb-wf-heye')?.textContent || '', addr: document.getElementById('rb-wf-addr')?.textContent || '', copy: document.getElementById('rb-wf-copy')?.disabled, cardIsBtn: document.getElementById('rb-wf-copy')?.tagName, copyLbl: document.getElementById('rb-wf-copylbl')?.textContent, steps: document.querySelectorAll('.rb-wf-step').length, got: document.querySelector('.rb-wf-quiet')?.textContent, mail: document.getElementById('rb-wf-mailgo')?.getAttribute('href'), mailT: document.getElementById('rb-wf-mailgo')?.textContent, door: document.getElementById('wa-modal').classList.contains('rb-wf-door') }));
+  const m1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', eye: document.querySelector('.rb-wf-heye')?.textContent || '', addr: document.getElementById('rb-wf-addr')?.textContent || '', copy: document.getElementById('rb-wf-copy')?.disabled, cardIsBtn: document.getElementById('rb-wf-copy')?.tagName, copyLbl: document.getElementById('rb-wf-copylbl')?.textContent, steps: document.querySelectorAll('.rb-wf-step').length, got: !!document.querySelector('#wa-modal .rb-wf-quiet'), mail: !!document.getElementById('rb-wf-mailgo'), back: !!document.querySelector('#wa-modal .rb-wf-hback'), door: document.getElementById('wa-modal').classList.contains('rb-wf-door') }));
   await shot(page, 'mail-1280');
-  check('mail · (2a) the chevron header, "Your own address.", the address CARD is the Copy button (annie-xxxx@in.byrobes.com minted onto her profile), three numbered steps, Open Mail → mailto, Got it',
-    m1.h === 'Your own address.' && m1.eye === 'Forward a receipt' && /^annie-[a-z2-9]{4}@in\.byrobes\.com$/.test(m1.addr) && m1.copy === false && m1.cardIsBtn === 'BUTTON' && m1.copyLbl === 'Copy' && m1.steps === 3 && m1.got === 'Got it' && m1.mail === 'mailto:' + m1.addr && m1.mailT === 'Open Mail' && m1.door
+  check('mail · (2a) the chevron header, "Your own address.", the address CARD is the Copy button (annie-xxxx@in.byrobes.com minted onto her profile), three numbered steps — no Open Mail, no Got it, the chevron the way back',
+    m1.h === 'Your own address.' && m1.eye === 'Forward a receipt' && /^annie-[a-z2-9]{4}@in\.byrobes\.com$/.test(m1.addr) && m1.copy === false && m1.cardIsBtn === 'BUTTON' && m1.copyLbl === 'Copy' && m1.steps === 3 && !m1.got && !m1.mail && m1.back && m1.door
       && profilePatches.length === 1 && /^annie-[a-z2-9]{4}$/.test(profilePatches[0].inbox_address || ''), JSON.stringify([m1, profilePatches]));
   await page.evaluate(() => window.WA && WA.close());
   check('no page errors (ways)', errs.length === 0, errs.join(' | ').slice(0, 240));

@@ -4238,7 +4238,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               // Programmatic input.click() bubbles back here — never re-route it
               if (e.target && e.target.tagName === 'INPUT') return;
               const b = e.target.closest && e.target.closest('[data-pick]');
-              if (b && b.dataset.pick === 'cam') { if (camInput) camInput.click(); return; }
+              if (b && b.dataset.pick === 'cam') { _waCamOpen(); return; }
               if (b && b.dataset.pick === 'lib-m') { (libInput || fileInput).click(); return; }
               if (fileInput) fileInput.click();
             });
@@ -4324,7 +4324,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           if (way === 'choose') { _showChooser(); return; }
           // Camera and Photo library go straight to the OS from the sheet —
           // the OS picker IS the library (1b/1c are the phone's own screens).
-          if (way === 'cam') { const i = document.getElementById('wa-rb-cam'); if (i) i.click(); else { _waFromChooser = true; _showStep1(); } return; }
+          if (way === 'cam') { _waCamOpen(); return; }
           if (way === 'lib') { const i = document.getElementById('wa-rb-lib') || document.getElementById('wa-rb-file'); if (i) i.click(); else { _waFromChooser = true; _showStep1(); } return; }
           if (way === 'photo') { _waFromChooser = true; _showStep1(); return; }
           if (way === 'mail') { _showMailStep(); return; }
@@ -4356,20 +4356,18 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               '<li class="rb-wf-step"><span class="n">02</span><span class="t">Robes reads each piece’s colour, cut, label, price and sizing.</span></li>' +
               '<li class="rb-wf-step"><span class="n">03</span><span class="t">You review and verify before anything gets filed.</span></li>' +
             '</ol>' +
-            (held ? '<p class="rb-wf-note">' + pieces + (pieces === 1 ? ' piece' : ' pieces') + ' waiting · <button type="button" class="rb-wf-back" onclick="window.__waWay(\'receipts\')">Review them →</button></p>' : '') +
-            '<div class="rb-wf-dfoot">' +
-              '<a class="rb-wf-cta rb-wf-mailgo" id="rb-wf-mailgo" href="mailto:' + (addr ? _sawEsc(addr) : '') + '" onclick="window._rbTrack&&_rbTrack(\'inbox_mail_opened\',{})">' + _WAY_ICONS.mail + 'Open Mail</a>' +
-              '<button type="button" class="rb-wf-quiet" onclick="window.WA&&WA.close()">Got it</button>' +
-            '</div>';
+            (held ? '<p class="rb-wf-note">' + pieces + (pieces === 1 ? ' piece' : ' pieces') + ' waiting · <button type="button" class="rb-wf-back" onclick="window.__waWay(\'receipts\')">Review them →</button></p>' : '');
+          // No Open Mail / Got it (Annie, 2026-10-23): opening a blank mail
+          // read wrong — the address card IS the one action (copy), the
+          // header chevron the way back.
           _setDot(0);
           _dummyLabel(step);
           if (!_wiDown && !_wiAddr) {
             _wiAddress().then(function(local) {
               const el = document.getElementById('rb-wf-addr');
               const cp = document.getElementById('rb-wf-copy');
-              const go = document.getElementById('rb-wf-mailgo');
               if (!el) return;
-              if (local) { el.textContent = local + '@' + _WI_DOMAIN; if (cp) cp.disabled = false; if (go) go.setAttribute('href', 'mailto:' + local + '@' + _WI_DOMAIN); }
+              if (local) { el.textContent = local + '@' + _WI_DOMAIN; if (cp) cp.disabled = false; }
               else if (_wiDown) _showMailStep();
               else el.textContent = 'Robes couldn’t set up your address just now — try again in a moment.';
             });
@@ -4391,6 +4389,170 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           else _waShowToast(addr);
           _rbTrack('inbox_address_copied', {});
         };
+
+        // ══ The camera (Add_Pieces 1c, 2026-10-23) ═══════════════════════
+        // Camera-first, in the app: Single files the shot and goes straight
+        // to its read; Several keeps the shutter open — every shot rides the
+        // thumbnail, Done hands the lot to the batch (one read after
+        // another, as the photo library does). getUserMedia carries it; with
+        // no camera API (or no secure context) the door falls back to the
+        // OS capture input in the same tap, and a refused permission offers
+        // the phone's own camera as a button.
+        var _waCam = null;
+        function _waCamCss() {
+          if (document.getElementById('rb-cam-style')) return;
+          const st = document.createElement('style');
+          st.id = 'rb-cam-style';
+          st.textContent = [
+            '#rb-cam{position:fixed;inset:0;z-index:996;background:#1C1B1A;color:#FAF8F5;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);font-family:var(--font-sans,Inter,sans-serif)}',
+            '#rb-cam *{box-sizing:border-box}',
+            '.rb-cam-in{flex:1;display:flex;flex-direction:column;width:100%;max-width:520px;margin:0 auto;padding:8px 16px 12px;min-height:0}',
+            '.rb-cam-top{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;height:56px;flex:none}',
+            '.rb-cam-x{width:44px;height:44px;border:0;background:none;color:#FAF8F5;font-size:22px;line-height:1;cursor:pointer;padding:0;font-family:inherit}',
+            '.rb-cam-seg{justify-self:center;display:inline-flex;gap:2px;background:rgba(250,248,245,.12);border-radius:100px;padding:3px}',
+            '.rb-cam-seg button{min-width:86px;height:32px;padding:0 14px;border:0;border-radius:100px;background:transparent;color:rgba(250,248,245,.72);font:500 9.5px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.22em;text-transform:uppercase;cursor:pointer}',
+            '.rb-cam-seg button.on{background:#F3EFE6;color:#202021}',
+            '.rb-cam-vf{position:relative;flex:1;min-height:0;margin-top:8px;border-radius:14px;overflow:hidden;background:#0E0E0D}',
+            '.rb-cam-vf video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}',
+            '.rb-cam-c{position:absolute;width:26px;height:26px;border:0 solid rgba(250,248,245,.75);pointer-events:none}',
+            '.rb-cam-c.a{top:18px;left:18px;border-top-width:1.5px;border-left-width:1.5px}',
+            '.rb-cam-c.b{top:18px;right:18px;border-top-width:1.5px;border-right-width:1.5px}',
+            '.rb-cam-c.c{bottom:18px;left:18px;border-bottom-width:1.5px;border-left-width:1.5px}',
+            '.rb-cam-c.d{bottom:18px;right:18px;border-bottom-width:1.5px;border-right-width:1.5px}',
+            '.rb-cam-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}',
+            '.rb-cam-flash.on{opacity:.75;transition:none}',
+            '.rb-cam-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;font:300 20px/1.3 var(--font-serif,Cormorant,Georgia,serif)}',
+            '.rb-cam-msg button{height:44px;padding:0 20px;border-radius:100px;border:1px solid rgba(250,248,245,.4);background:none;color:#FAF8F5;font:500 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}',
+            '.rb-cam-bot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:112px;flex:none}',
+            '.rb-cam-th{justify-self:start;position:relative;width:48px;height:60px;border-radius:8px;overflow:hidden;border:1px solid rgba(250,248,245,.35);background:#2A2826;padding:0;cursor:default}',
+            '.rb-cam-th img{width:100%;height:100%;object-fit:cover;display:block}',
+            '.rb-cam-th .n{position:absolute;right:3px;bottom:3px;min-width:18px;height:18px;border-radius:100px;background:#F3EFE6;color:#202021;font:500 10px/18px var(--font-sans,Inter,sans-serif);text-align:center;padding:0 5px}',
+            '.rb-cam-th[hidden]{display:none}',
+            '.rb-cam-shut{width:74px;height:74px;border-radius:100px;border:3px solid #FAF8F5;background:none;padding:5px;cursor:pointer}',
+            '.rb-cam-shut span{display:block;width:100%;height:100%;border-radius:100px;background:#FAF8F5;transition:transform .12s}',
+            '.rb-cam-shut:active span{transform:scale(.92)}',
+            '.rb-cam-shut[disabled]{opacity:.4;cursor:default}',
+            '.rb-cam-done{justify-self:end;min-width:44px;height:44px;border:0;background:none;color:#FAF8F5;font:500 10px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.22em;text-transform:uppercase;cursor:pointer;padding:0 4px}',
+            '.rb-cam-done[disabled]{color:rgba(250,248,245,.35);cursor:default}',
+            '.rb-cam-done[hidden]{display:none}',
+          ].join('\n');
+          document.head.appendChild(st);
+        }
+        function _waCamNative() {
+          const i = document.getElementById('wa-rb-cam');
+          if (i) i.click(); else { _waFromChooser = true; _showStep1(); }
+        }
+        function _waCamOpen() {
+          const md = navigator.mediaDevices;
+          if (!md || typeof md.getUserMedia !== 'function' || window.isSecureContext === false) { _waCamNative(); return; }
+          _waCamCss();
+          document.getElementById('rb-cam')?.remove();
+          let mode = 'single';
+          try { if (localStorage.getItem('rb_cam_mode') === 'several') mode = 'several'; } catch (e) {}
+          _waCam = { mode, shots: [], urls: [], stream: null };
+          const el = document.createElement('div');
+          el.id = 'rb-cam';
+          el.setAttribute('role', 'dialog');
+          el.setAttribute('aria-label', 'Camera');
+          el.innerHTML = '<div class="rb-cam-in">' +
+            '<div class="rb-cam-top"><button type="button" class="rb-cam-x" aria-label="Close the camera" onclick="window.__waCamClose()">×</button>' +
+              '<div class="rb-cam-seg" role="radiogroup" aria-label="How many">' +
+                '<button type="button" role="radio" data-m="single" onclick="window.__waCamMode(\'single\')">Single</button>' +
+                '<button type="button" role="radio" data-m="several" onclick="window.__waCamMode(\'several\')">Several</button>' +
+              '</div><span></span></div>' +
+            '<div class="rb-cam-vf"><video id="rb-cam-v" autoplay playsinline muted></video>' +
+              '<span class="rb-cam-c a"></span><span class="rb-cam-c b"></span><span class="rb-cam-c c"></span><span class="rb-cam-c d"></span>' +
+              '<div class="rb-cam-flash" id="rb-cam-flash"></div><div id="rb-cam-msg"></div></div>' +
+            '<div class="rb-cam-bot">' +
+              '<button type="button" class="rb-cam-th" id="rb-cam-th" tabindex="-1" aria-hidden="true" hidden></button>' +
+              '<button type="button" class="rb-cam-shut" id="rb-cam-shut" aria-label="Take the photo" disabled onclick="window.__waCamShoot()"><span></span></button>' +
+              '<button type="button" class="rb-cam-done" id="rb-cam-done" onclick="window.__waCamDone()">Done</button>' +
+            '</div></div>';
+          document.body.appendChild(el);
+          _waCamSync();
+          _rbTrack('camera_opened', { mode });
+          md.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false }).then(function(stream) {
+            if (!_waCam || !document.getElementById('rb-cam')) { stream.getTracks().forEach(function(t) { t.stop(); }); return; }
+            _waCam.stream = stream;
+            const v = document.getElementById('rb-cam-v');
+            v.srcObject = stream;
+            const p = v.play && v.play();
+            if (p && p.catch) p.catch(function() {});
+            const sh = document.getElementById('rb-cam-shut');
+            if (sh) sh.disabled = false;
+          }).catch(function(err) {
+            console.warn('[camera]', err && err.name || err);
+            const m = document.getElementById('rb-cam-msg');
+            if (m) {
+              m.className = 'rb-cam-msg';
+              m.innerHTML = '<span>Robes can’t reach the camera.</span><button type="button" onclick="window.__waCamNative()">Use the phone’s camera</button>';
+            }
+          });
+        }
+        function _waCamSync() {
+          if (!_waCam) return;
+          const several = _waCam.mode === 'several', n = _waCam.shots.length;
+          document.querySelectorAll('#rb-cam .rb-cam-seg button').forEach(function(b) {
+            const on = b.dataset.m === _waCam.mode;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-checked', on ? 'true' : 'false');
+          });
+          const th = document.getElementById('rb-cam-th'), done = document.getElementById('rb-cam-done');
+          if (th) {
+            th.hidden = !n;
+            th.innerHTML = n ? '<img src="' + _waCam.urls[n - 1] + '" alt=""><span class="n">' + n + '</span>' : '';
+          }
+          if (done) { done.hidden = !several; done.disabled = !n; }
+        }
+        function _waCamStop() {
+          if (!_waCam) return;
+          if (_waCam.stream) _waCam.stream.getTracks().forEach(function(t) { t.stop(); });
+          _waCam.urls.forEach(function(u) { try { URL.revokeObjectURL(u); } catch (e) {} });
+          _waCam = null;
+          document.getElementById('rb-cam')?.remove();
+        }
+        window.__waCamNative = function() { _waCamStop(); _waCamNative(); };
+        window.__waCamMode = function(m) {
+          if (!_waCam || (m !== 'single' && m !== 'several')) return;
+          _waCam.mode = m;
+          try { localStorage.setItem('rb_cam_mode', m); } catch (e) {}
+          _waCamSync();
+        };
+        window.__waCamShoot = function() {
+          const v = document.getElementById('rb-cam-v');
+          if (!_waCam || !v || !v.videoWidth) return;
+          const w = v.videoWidth, h = v.videoHeight, k = Math.min(1, 1600 / Math.max(w, h));
+          const c = document.createElement('canvas');
+          c.width = Math.round(w * k); c.height = Math.round(h * k);
+          c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+          const fl = document.getElementById('rb-cam-flash');
+          if (fl) { fl.classList.add('on'); setTimeout(function() { fl.classList.remove('on'); }, 60); }
+          c.toBlob(function(b) {
+            if (!b || !_waCam) return;
+            const f = new File([b], 'camera-' + Date.now() + '.jpg', { type: 'image/jpeg' });
+            if (_waCam.mode === 'single') { _waCamStop(); _waProcessFiles([f]); _rbTrack('camera_filed', { mode: 'single', n: 1 }); return; }
+            _waCam.shots.push(f);
+            _waCam.urls.push(URL.createObjectURL(b));
+            _waCamSync();
+          }, 'image/jpeg', 0.9);
+        };
+        window.__waCamDone = function() {
+          if (!_waCam || !_waCam.shots.length) return;
+          const shots = _waCam.shots.slice();
+          _waCamStop();
+          _rbTrack('camera_filed', { mode: 'several', n: shots.length });
+          _waProcessFiles(shots);
+        };
+        window.__waCamClose = function() {
+          if (!_waCam) return;
+          const n = _waCam.shots.length;
+          if (!n) { _waCamStop(); return; }
+          window._rbConfirmDelete('Leave ' + (n === 1 ? 'this photo' : 'these ' + n + ' photos') + '?', function() { _waCamStop(); },
+            { sub: 'Done files them.', yes: 'Leave them' });
+          const dm = document.getElementById('rb-del-modal');
+          if (dm) dm.style.zIndex = '1000';
+        };
+        window._waCamOpen = _waCamOpen;
 
         // ── Paste a link (2b): Paste lives in the field, one action ────
         function _showUrlStep(errText, keepUrl) {
@@ -8886,6 +9048,23 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 .rb-pc-rephoto{position:absolute;top:14px;right:14px;width:28px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(250,248,245,.9);border:1px solid var(--rule-mid,rgba(32,32,33,0.14));border-radius:100px;color:#4F4A44}
 .rb-pc-rephoto:hover{background:#FAF8F5}
 .rb-pc-rephoto.busy{opacity:.5;pointer-events:none}
+.rb-pc-rephoto.lbl{top:auto;bottom:14px;right:14px;width:auto;height:36px;padding:0 15px 0 13px;gap:8px;font:400 13px/1 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021);background:rgba(250,248,245,.94)}
+.rb-pc-card.rec{padding:0}
+.rb-pc-card.rec .rb-pc-photo{aspect-ratio:4/5;background:#fff;border-radius:0}
+.rb-pc-media>.rb-tb{padding:22px 0 0;max-width:none}
+.rb-pc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-top:22px}
+.rb-pc-head .m{min-width:0;flex:1}
+.rb-pc-head .rb-pc-title{font-size:34px;line-height:1.12}
+.rb-pc-head .rb-pc-pencil{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;width:30px;height:30px;margin-left:6px;padding:0;border:0;background:none;color:var(--ink-faint,#7E6F50);cursor:pointer;position:relative;top:-2px}
+.rb-pc-head .rb-pc-pencil svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round}
+.rb-pc-head .rb-pc-pencil:hover{color:var(--ink,#202021)}
+.rb-pc-brand{display:block;margin-top:6px;padding:0;border:0;background:none;cursor:pointer;text-align:left;font:300 19px/1.3 var(--font-serif,Cormorant,Georgia,serif);font-style:italic;color:var(--ink-soft,#6E6A64);min-height:30px}
+.rb-pc-brand.none{color:var(--ink-faint,#A89880)}
+.rb-pc-brand:hover{color:var(--ink,#202021)}
+.rb-pc-star{flex:none;width:44px;height:44px;border-radius:100px;border:1px solid var(--rule-mid,rgba(32,32,33,0.14));background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;color:var(--ink,#202021);transition:background .15s,border-color .15s}
+.rb-pc-star:hover{border-color:rgba(32,32,33,0.3)}
+.rb-pc-star.on{background:#F3EFE6;border-color:#C9BCA6}
+.rb-pc-star.on svg{fill:currentColor}
 .rb-pc-note{font-family:var(--font-serif,Cormorant,Georgia,serif);font-style:italic;font-weight:300;font-size:15px;line-height:1.62;color:var(--ink-soft,#5C574F);margin:16px 0 0}
 .rb-pc-tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--rule,rgba(32,32,33,0.08))}
 .rb-pc-tag{background:var(--secondary,#E3E1CC);border-radius:100px;padding:4px 11px;font-size:10.5px;color:var(--ink,#202021);white-space:nowrap}
@@ -9055,6 +9234,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
       const _PC_PENCIL = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1"><path d="M11.2 2.6l2.2 2.2-8 8-3 .8.8-3 8-8z"></path></svg>';
       const _PC_ARROW = '<svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"></path></svg>';
       const _PC_CAM = '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M4.4 7.6A6 6 0 0114.6 5.4"></path><path d="M14.6 2.8v2.8h-2.8"></path><path d="M15.6 12.4A6 6 0 015.4 14.6"></path><path d="M5.4 17.2v-2.8h2.8"></path></svg>';
+      const _PC_STAR_LINE = '<svg width="18" height="18" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width=".9" stroke-linejoin="round"><path d="M7 1.6l1.7 3.5 3.8.5-2.8 2.7.7 3.8L7 10.2l-3.4 1.9.7-3.8L1.5 5.6l3.8-.5z"></path></svg>';
       const _PC_STAR = '<svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor"><path d="M7 1.6l1.7 3.5 3.8.5-2.8 2.7.7 3.8L7 10.2l-3.4 1.9.7-3.8L1.5 5.6l3.8-.5z"></path></svg>';
 
       function _pcPaint() {
@@ -9090,7 +9270,11 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
           prev: function() { window.__rbPiecePage(-1); },
           next: function() { window.__rbPiecePage(1); },
         });
-        const band = _rbRetHtml({ key: 'piece', label: backLabel, pos: (sibs.length > 1 && at > -1) ? { i: at + 1, n: sibs.length, suffix } : null });
+        // No set position on a piece (Annie, 2026-10-23: "2 of 3 in
+        // outerwear" read as a stat) — the back pill alone. The swipe still
+        // walks the set on a phone through the registry above.
+        void at; void suffix;
+        const band = _rbRetHtml({ key: 'piece', label: backLabel, pos: null });
 
         // Band three — the object, and its actions, identical from every door.
         const wears = (wish || prop) ? [] : _pcWears(it.id);
@@ -9128,7 +9312,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
         // replaces the photograph.
         const imgBtn = lkc
           ? '<button type="button" class="rb-pc-rephoto rb-pc-swapback" title="Swap this piece" aria-label="Swap this piece in the look" onclick="window.__rbPieceSwapBack()">' + _rbcSwapSvg + '</button>'
-          : (wish ? '' : '<button type="button" class="rb-pc-rephoto" id="rb-pc-rephoto" title="Replace photo" aria-label="Replace photo" onclick="window.__rbPiecePhoto()">' + (typeof _LKM_REFRESH_SVG === 'string' ? _LKM_REFRESH_SVG : _PC_CAM) + '</button>' +
+          : (wish ? '' : '<button type="button" class="rb-pc-rephoto' + ((!fromLook && !fromDay && !prop) ? ' lbl' : '') + '" id="rb-pc-rephoto" title="Change photo" aria-label="Change photo" onclick="window.__rbPiecePhoto()">' + (typeof _LKM_REFRESH_SVG === 'string' ? _LKM_REFRESH_SVG : _PC_CAM) + ((!fromLook && !fromDay && !prop) ? '<span>Change photo</span>' : '') + '</button>' +
               '<input type="file" id="rb-pc-photoin" accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onchange="window.__rbPiecePhotoPick(event)">');
         // The record (the wardrobe door, Piece_Sheet 01): the photograph,
         // the stats strip, then every field as a row — the rows ARE the
@@ -9136,13 +9320,23 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
         // other doors keep the preview card (note + tags).
         const record = !wish && !prop && !fromLook && !fromDay;
         if (record) _pcViewAdapter(it);
-        let media = '<div class="rb-pc-card">' +
+        let media = '<div class="rb-pc-card' + (record ? ' rec' : '') + '">' +
           '<div class="rb-pc-photo' + (prop ? ' dashed' : '') + '">' + (img ? '<img src="' + _waEsc(img) + '" alt="' + _waEsc(it.label || '') + '">' : (prop ? '<div class="mono">' + _waEsc(String(it.label || '?').charAt(0).toUpperCase()) + '</div>' : '<div class="ph">' + (wish ? 'No photo' : 'Photo') + '</div>')) +
             imgBtn +
           '</div>' +
           (note && !record ? '<p class="rb-pc-note">' + _waEsc(note) + '</p>' : '') +
           (prop || record ? '' : '<div class="rb-pc-tags">' + (wish ? _pcWishTagsHtml(it) : _pcTagsHtml(it)) + '</div>') +
           '</div>';
+        // The object under its photograph (Piece_Sheet 01, 2026-10-23): the
+        // name with its pencil, the brand beneath, the star at the right.
+        // Every other door keeps its title block, also under the photo.
+        if (record) {
+          media += '<div class="rb-pc-head"><div class="m">' +
+            '<h1 class="rb-tb-title rb-pc-title" id="rb-pc-title">' + _waEsc(it.label || 'A piece') +
+              '<button type="button" class="rb-pc-pencil" title="Edit the name" aria-label="Edit the name" onclick="window.__rbPieceEdit()">' + _RB_PENCIL_SVG + '</button></h1>' +
+            '<button type="button" class="rb-pc-brand' + (it.brand ? '' : ' none') + '" onclick="window.__rbPieceBrand()">' + _waEsc(it.brand || 'Add the brand') + '</button>' +
+            '</div><button type="button" class="rb-pc-star' + (isHero ? ' on' : '') + '" title="' + (isHero ? 'Remove from favourites' : 'Favourite') + '" aria-label="' + (isHero ? 'Remove from favourites' : 'Favourite') + '" aria-pressed="' + (isHero ? 'true' : 'false') + '" onclick="window.__waHeroToggle(\'' + sid + '\')">' + _PC_STAR_LINE + '</button></div>';
+        } else media += title;
         if (record) {
           media += '<div class="rb-pc-stats">' +
             '<div><span class="k">Worn</span><span class="v">' + _waEsc(worn ? _pcTimes(worn) : 'Not yet') + '</span></div>' +
@@ -9216,7 +9410,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
         }
         const spark = (!wish && !prop && !lkc)
           ? '<button type="button" class="rb-pc-spark" id="rb-pc-spark" onclick="window.__rbPieceSpark()" aria-label="Style this piece">' + _RB_LP_SPARK + '</button>' : '';
-        el.innerHTML = band + title + '<div class="rb-pc-body"><div class="rb-pc-cols"><div class="rb-pc-media">' + media + '</div><div class="rb-pc-rest">' + rest + '</div></div></div>' + spark;
+        el.innerHTML = band + '<div class="rb-pc-body"><div class="rb-pc-cols"><div class="rb-pc-media">' + media + '</div><div class="rb-pc-rest">' + rest + '</div></div></div>' + spark;
       }
       // A wishlist piece has no tags of its own — its provenance and price
       // stand where the wardrobe's tags do.
@@ -9464,6 +9658,13 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
           },
         };
       }
+      window.__rbPieceBrand = function() {
+        if (!_pcCtx || typeof window.__psOpen !== 'function') return;
+        const wi = _waItems.find(w => String(w.id) === String(_pcCtx.id));
+        if (!wi) return;
+        _pcViewAdapter(wi);
+        window.__psOpen('view', 'brand');
+      };
       window.__rbPiecePhoto = function() {
         const inp = document.getElementById('rb-pc-photoin');
         if (inp) inp.click();
