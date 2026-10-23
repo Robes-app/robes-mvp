@@ -65,8 +65,15 @@ export function legacyUrl(): string {
   return process.env.LEGACY_DATABASE_URL ?? databaseUrl(LEGACY_FIXTURE_DB);
 }
 
-export function targetUrl(): string {
-  const url = process.env.TARGET_DATABASE_URL ?? databaseUrl(REHEARSAL_TARGET_DB);
-  assertLocal(url, 'migration target');
+export function targetUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const url = env.TARGET_DATABASE_URL ?? databaseUrl(REHEARSAL_TARGET_DB);
+  if (isLocal(url)) return url;
+  // The cutover run (docs/migration.md §4): the operator names the exact host they mean to write.
+  const host = new URL(url).hostname;
+  if (env.ROBES_MIGRATE_PRODUCTION !== host) {
+    throw new Error(
+      `migration target ${host} is not local; set ROBES_MIGRATE_PRODUCTION=${host} to confirm the cutover run`,
+    );
+  }
   return url;
 }
