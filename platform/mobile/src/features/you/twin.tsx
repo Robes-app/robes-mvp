@@ -21,8 +21,8 @@ import {
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
-import Svg, { Ellipse, Line, Path } from 'react-native-svg';
+import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import Svg, { Ellipse, Line, Path, Rect } from 'react-native-svg';
 import { errorMessage } from '@/lib/errors';
 import { useDnaMutations } from './dna';
 
@@ -137,12 +137,45 @@ export function SkinAndHair({ model, pick }: { model: Model; pick: Pick }) {
   );
 }
 
-// Her line as a drawing: a figure on a hairline, dashed guides at bust · waist · hips.
-export function Figure({ facts, adj }: { facts: Facts; adj: Model['adj'] }) {
+// Her line, drawn from her facts. Two renderings off one geometry (legacy twFigSvg and
+// twFigLineSvg): given her colouring it is the hero's underlay — her shape, in her skin and hair,
+// under the photograph, so a pick reads at once while the next twin draws. Without it, Body shape's
+// line drawing: a lifted figure on its own ground, with dashed guides at bust · waist · hips.
+export function Figure({
+  facts,
+  adj,
+  tone,
+}: {
+  facts: Facts;
+  adj: Model['adj'];
+  tone?: { skin: string; hair: string };
+}) {
   const g = twinFigure(facts, readAdj(adj));
   const stroke = useColor('ink-muted');
   const guide = useColor('hairline');
   const fill = useColor('bg');
+  const ground = useColor('surface-sunk');
+  const body = useColor('selected-line');
+  const { width } = useWindowDimensions();
+  // Legacy .tw-fig is 150 x 250, narrowing to 120 x 200 on the smallest phones.
+  const w = width < 360 ? 120 : 150;
+  if (tone) {
+    return (
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 150 250"
+        preserveAspectRatio="xMidYMax meet"
+        accessible={false}
+        className="absolute inset-0"
+      >
+        {/* Swatch colours are catalog data, the one place colour comes inline. */}
+        <Ellipse cx={75} cy={g.headY - 4} rx={12} ry={g.headRy + 3} fill={tone.hair} />
+        <Ellipse cx={75} cy={g.headY} rx={g.headRx} ry={g.headRy} fill={tone.skin} />
+        <Path d={g.d} fill={body} />
+      </Svg>
+    );
+  }
   const line = (y: number) => (
     <Line
       x1={18}
@@ -155,7 +188,9 @@ export function Figure({ facts, adj }: { facts: Facts; adj: Model['adj'] }) {
     />
   );
   return (
-    <Svg width={120} height={200} viewBox="0 0 150 250" accessible={false}>
+    <Svg width={w} height={(w * 250) / 150} viewBox="0 0 150 250" accessible={false}>
+      {/* Its own ground, so the figure reads lifted wherever it is placed. */}
+      <Rect x={0} y={0} width={150} height={250} rx={3} fill={ground} />
       {line(g.guides.bust)}
       {line(g.guides.waist)}
       {line(g.guides.hips)}

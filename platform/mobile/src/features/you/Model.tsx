@@ -1,5 +1,5 @@
 import { useApi } from '@robes/api-client/react';
-import type { Model as ModelData } from '@robes/contracts';
+import type { Facts, Model as ModelData } from '@robes/contracts';
 import { twin, you } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import { EmptyState, Image, MIN_TOUCH, Skeleton, Text, useColor } from '@robes/ui-native';
@@ -7,7 +7,7 @@ import { type Href, useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { errorMessage } from '@/lib/errors';
-import { lineSummary, type TwinRead, twinRead, useDrawTwin, useModel } from './twin';
+import { Figure, lineSummary, type TwinRead, twinRead, useDrawTwin, useModel } from './twin';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -43,14 +43,15 @@ export function Model() {
   useDrawTwin('mount');
   if (query.isError) return <EmptyState title={errorMessage(query.error)} />;
   const model = query.data;
-  if (!model || !style.data || !dna.data) return <Skeleton width="100%" aspectRatio={4 / 5} />;
+  if (!model || !style.data || !dna.data)
+    return <Skeleton width="100%" height={440} className="rounded-none" />;
   const colour = style.data.colour;
   const line = lineSummary(dna.data.facts);
   const read = twinRead(model, dna.data.facts);
   return (
     // The hero is full-bleed, so the gutter belongs to what sits under it.
     <ScrollView contentContainerClassName="pb-12">
-      <Stage model={model} read={read} />
+      <Stage model={model} facts={dna.data.facts} read={read} />
       <View className="gap-6 px-6 pt-6">
         <View className="rounded-soft border border-hairline bg-surface">
           <Door
@@ -75,7 +76,7 @@ export function Model() {
 
 // The hero (legacy .tw-stage): 440 tall, full-bleed and flush under the header, with a 90px fade to
 // the ground at its foot carrying the caption — her colour words, never a shape.
-function Stage({ model, read }: { model: ModelData; read: TwinRead }) {
+function Stage({ model, facts, read }: { model: ModelData; facts: Facts; read: TwinRead }) {
   const empty = read === 'none';
   const image = model.twin.imageUrl ?? model.cell.imageUrl;
   const drawing = model.twin.status === 'pending' || model.cell.status === 'pending';
@@ -84,6 +85,17 @@ function Stage({ model, read }: { model: ModelData; read: TwinRead }) {
   return (
     <View className="gap-2">
       <View className="h-[440px] overflow-hidden bg-surface-sunk">
+        {/* Her shape under the photograph: the ghost until anything is on file. */}
+        <View className="absolute inset-0" style={{ opacity: empty ? 0.22 : 1 }}>
+          <Figure
+            facts={facts}
+            adj={model.adj}
+            tone={{
+              skin: model.swatches.skin[model.skin] ?? '',
+              hair: model.swatches.hair[model.hair] ?? '',
+            }}
+          />
+        </View>
         {image ? (
           <View
             className="absolute inset-0"
@@ -91,9 +103,7 @@ function Stage({ model, read }: { model: ModelData; read: TwinRead }) {
           >
             <Image source={image} alt={copy.imageAlt} className="h-full" />
           </View>
-        ) : empty ? null : (
-          <Skeleton width="100%" height="100%" shape="text" className="rounded-none" />
-        )}
+        ) : null}
         <StageFade />
         {empty ? (
           // Nothing on file: the invitation sits in the stage, over the ghost figure.

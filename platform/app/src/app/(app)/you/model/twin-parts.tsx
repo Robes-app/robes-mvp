@@ -139,9 +139,35 @@ export function SkinAndHair({ model, pick }: { model: Model; pick: Pick }) {
   );
 }
 
-// Her line as a drawing: a white figure on a hairline, dashed guides at bust · waist · hips.
-export function Figure({ facts, adj }: { facts: Facts; adj: TwinAdj }) {
+// Her line, drawn from her facts. Two renderings off one geometry (legacy twFigSvg and
+// twFigLineSvg): given her colouring it is the hero's underlay — her shape, in her skin and hair,
+// under the photograph, so a pick reads at once while the next twin draws. Without it, Body shape's
+// line drawing: a lifted figure on its own ground, with dashed guides at bust · waist · hips.
+export function Figure({
+  facts,
+  adj,
+  tone,
+}: {
+  facts: Facts;
+  adj: TwinAdj;
+  tone?: { skin: string; hair: string };
+}) {
   const g = twinFigure(facts, adj);
+  if (tone) {
+    return (
+      <svg
+        viewBox="0 0 150 250"
+        preserveAspectRatio="xMidYMax meet"
+        aria-hidden
+        className="absolute inset-0 size-full"
+      >
+        {/* Swatch colours are catalog data, the one place colour comes inline. */}
+        <ellipse cx="75" cy={g.headY - 4} rx="12" ry={g.headRy + 3} fill={tone.hair} />
+        <ellipse cx="75" cy={g.headY} rx={g.headRx} ry={g.headRy} fill={tone.skin} />
+        <path d={g.d} className="fill-selected-line" />
+      </svg>
+    );
+  }
   const guide = (y: number) => (
     <line
       x1="18"
@@ -155,6 +181,8 @@ export function Figure({ facts, adj }: { facts: Facts; adj: TwinAdj }) {
   );
   return (
     <svg viewBox="0 0 150 250" aria-hidden className="h-[250px] w-[150px]">
+      {/* Its own ground, so the figure reads lifted wherever it is placed. */}
+      <rect x="0" y="0" width="150" height="250" rx="3" className="fill-surface-sunk" />
       {guide(g.guides.bust)}
       {guide(g.guides.waist)}
       {guide(g.guides.hips)}
@@ -166,18 +194,13 @@ export function Figure({ facts, adj }: { facts: Facts; adj: TwinAdj }) {
         className="stroke-ink-muted"
         strokeWidth="0.7"
       />
-      <path
-        d={g.d}
-        className="fill-surface stroke-ink-muted"
-        strokeWidth="0.9"
-        strokeLinejoin="round"
-      />
+      <path d={g.d} className="fill-bg stroke-ink-muted" strokeWidth="0.9" strokeLinejoin="round" />
       <ellipse
         cx="75"
         cy={g.headY}
         rx={g.headRx}
         ry={g.headRy}
-        className="fill-surface stroke-ink-muted"
+        className="fill-bg stroke-ink-muted"
         strokeWidth="0.9"
       />
     </svg>
