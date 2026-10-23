@@ -12,6 +12,7 @@
     "assert": "tsx src/cli/assert.ts",
     "rehost": "tsx src/cli/rehost.ts",
     "reverse-delta": "tsx src/cli/reverse-delta.ts",
+    "reset": "tsx src/cli/reset.ts",
     "rehearse": "tsx src/cli/rehearse.ts"
   },
   "dependencies": {
