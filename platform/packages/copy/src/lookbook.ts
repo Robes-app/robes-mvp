@@ -154,6 +154,16 @@ export const lookbook = {
     // On a suggested look's frame while she has no model; it opens the build-your-model door.
     genericModel: 'Generic model ›',
     genericModelLabel: 'Generic model. Build your own model',
+    // The badge's own drawer (legacy design 1a): it opens here, never a navigation. Closing it
+    // changes nothing, so an undecided deck stays where it was.
+    twin: {
+      eyebrow: 'Generic model',
+      title: 'See every look',
+      titleEm: 'on you.',
+      body: 'Two photos — a close-up, and full length in good light. Robes builds your digital twin, and dresses her in every look.',
+      upload: 'Upload digital twin',
+      keep: 'Keep styling on the generic model',
+    },
     teach: 'Swipe left to pass, right to keep.',
     keep: 'Keep',
     pass: 'Pass',
