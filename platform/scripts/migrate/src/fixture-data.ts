@@ -117,7 +117,19 @@ update public.profiles set
     style_archetypes: ['Minimalist', 'Classic'],
     brands: ['The Row', 'COS'],
     investment: '€500–1,500',
-    facts: { height_cm: 168, size_uk: 10, shoe_uk: 5.5, age_band: '45–54', weight: 60 },
+    // Bust as a bra size (the tape is ignored in bra mode) and the waist (legacy migration 26).
+    facts: {
+      height_cm: 168,
+      size_uk: 10,
+      shoe_uk: 5.5,
+      age_band: '45–54',
+      weight: 60,
+      bust_mode: 'bra',
+      bust_band: 34,
+      bust_cup: 'C',
+      bust_cm: 91,
+      waist_cm: 72,
+    },
     brief: {
       loves: [
         { text: 'A defined waist', source: 'drafted', at: '2026-09-30T10:00:00Z' },
@@ -155,11 +167,16 @@ update public.profiles set
   })},
   onboarded_at = '2026-07-01', instagram_handle = 'niall.maher',
   notification_prefs = ${json({ looks_ready: true, morning: false, nudges: true, receipts: false, timezone: 'Australia/Sydney' })},
-  avatar_id = 'avatar-niall'
+  avatar_id = 'avatar-niall', twin_url = '${CDN}/niall-twin.png', twin_key = 'legacy-twin-key-niall'
 where id = '${NIALL}';
 
 update public.profiles set first_name = 'Bea', instagram_handle = '@bea.style!', is_admin = true
 where id = '${BEA}';
+
+-- Out-of-range bust and waist are dropped; a twin with no filed model still carries over.
+update public.profiles set style_dna = ${json({ facts: { bust_mode: 'cm', bust_cm: 300, waist_cm: 20, bust_band: 34, bust_cup: 'C' } })},
+  twin_url = '${CDN}/cat-twin.png'
+where id = '${CAT}';
 
 update public.profiles set first_name = '${'C'.repeat(70)}', gender_identity = 'unspecified',
   onboarded_at = '2026-07-03'

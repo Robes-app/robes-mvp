@@ -147,6 +147,8 @@ export const LEGACY_CATALOG: Record<string, ReadonlyArray<readonly [string, stri
     ['avatar_prefs', 'jsonb'],
     ['notification_prefs', 'jsonb'],
     ['inbox_address', 'text'],
+    ['twin_url', 'text'],
+    ['twin_key', 'text'],
   ],
   'public.prompt_history': [
     ['id', 'uuid'],
