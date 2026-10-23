@@ -31,7 +31,7 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await page.getByRole('dialog').getByRole('button', { name: 'Straight jeans' }).click();
   await expect(page.getByText('2 pieces', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText('Saved to your lookbook', { exact: true })).toBeVisible();
+  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
   // Save opens the diary every time; Not yet closes it and writes nothing.
   await page.getByRole('dialog').getByRole('button', { name: 'Not yet' }).click();
 

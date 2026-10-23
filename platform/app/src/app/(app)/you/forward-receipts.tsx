@@ -62,14 +62,15 @@ export function ForwardReceipts() {
           <button
             type="button"
             onClick={() => void copyAddress(value)}
-            data-testid="inbox-address"
             className="flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-soft border border-hairline bg-surface px-4 py-3 text-left hover:border-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
           >
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="font-sans text-ink-faint text-xs uppercase tracking-[0.18em]">
                 {copy.addressLabel}
               </span>
-              <span className="break-all font-mono text-ink text-sm">{value}</span>
+              <span className="break-all font-mono text-ink text-sm" data-testid="inbox-address">
+                {value}
+              </span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5 font-sans text-ink-muted text-sm">
               <Icon name={copied ? 'check' : 'link'} size={14} />
