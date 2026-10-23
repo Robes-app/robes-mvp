@@ -78,6 +78,7 @@ export function CameraDoor({
         type="file"
         accept={PHOTO_ACCEPT}
         capture="environment"
+        aria-label={copy.open}
         className="sr-only"
         tabIndex={-1}
         onChange={(event) => {
