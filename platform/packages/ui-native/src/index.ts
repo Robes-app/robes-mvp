@@ -41,3 +41,4 @@ export {
   ToastProvider,
   useToast,
 } from './Toast';
+export { WarmGround } from './WarmGround';
