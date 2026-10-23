@@ -6,18 +6,25 @@ import {
   cellKey,
   genericCellIds,
   HAIR_SWATCHES,
+  hasTwinInputs,
   type ModelPicks,
+  NO_ADJ,
   type Presence,
   resolveModel,
   SKIN_SWATCHES,
+  twinInputsOf,
+  twinKey,
 } from '@robes/core/avatar';
 import type { UserId } from '@robes/db';
 import { z } from 'zod';
+import { signedRenditions } from './asset-urls';
 import { repos } from './db';
 import { isFlagEnabled } from './flags';
 import { createAndEnqueueJob, startJob } from './jobs';
 import { logger } from './logger';
 import { mediaDelivery } from './media';
+
+const DRAW_STALE_MS = 10 * 60_000;
 
 // Stored picks are read defensively: anything malformed is ignored, never trusted.
 const StoredPicks = z.object({
@@ -43,9 +50,49 @@ async function current(userId: UserId) {
   return { row, resolved };
 }
 
+type Row = Awaited<ReturnType<typeof current>>['row'];
+
+// Her twin as the screens see it: the image on file (even while a redraw of newer inputs runs) and
+// how the draw of what she has now stands.
+async function signedAsset(userId: UserId, assetId: string | null) {
+  const asset = assetId ? await repos.assets.getForUser(userId, assetId) : null;
+  return {
+    url: asset ? (await signedRenditions(mediaDelivery, userId, asset)).master : null,
+    failed: asset?.status === 'failed',
+  };
+}
+
+async function twinState(userId: UserId, row: Row, key: string, now = Date.now()) {
+  const { url: imageUrl, failed } = await signedAsset(userId, row.twinAssetId);
+  const current = row.twinKey === key && row.twinAssetId !== null;
+  const drawing =
+    row.twinDrawKey === key &&
+    row.twinDrawStatus === 'pending' &&
+    row.twinDrawAt !== null &&
+    now - row.twinDrawAt.getTime() < DRAW_STALE_MS;
+  // A drawn twin is pending until its renditions exist; one whose renditions failed has failed.
+  const status = current
+    ? imageUrl
+      ? 'ready'
+      : failed
+        ? 'failed'
+        : 'pending'
+    : drawing
+      ? 'pending'
+      : row.twinDrawKey === key && row.twinDrawStatus === 'failed'
+        ? 'failed'
+        : 'none';
+  return { status, current, imageUrl } as const;
+}
+
 export async function loadModel(userId: UserId): Promise<Model> {
   const { row, resolved } = await current(userId);
-  const cell = await repos.avatarCells.get(cellKey(resolved.cellId));
+  const inputs = twinInputsOf(row);
+  const [cell, twin, closeUp] = await Promise.all([
+    repos.avatarCells.get(cellKey(resolved.cellId)),
+    twinState(userId, row, await twinKey(inputs)),
+    signedAsset(userId, row.headshotAssetId),
+  ]);
   const imageUrl =
     cell?.status === 'ready' && cell.bucketKey ? await mediaDelivery.url(cell.bucketKey) : null;
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
@@ -61,6 +108,11 @@ export async function loadModel(userId: UserId): Promise<Model> {
     cellId: resolved.cellId,
     cell: { status: cell?.status ?? 'none', imageUrl },
     swatches: { skin: [...SKIN_SWATCHES], hair: [...HAIR_SWATCHES] },
+    skinSet: inputs.skinSet,
+    hairSet: inputs.hairSet,
+    adj: inputs.adj,
+    closeUpUrl: closeUp.url,
+    twin,
   });
 }
 
@@ -108,8 +160,16 @@ export async function updateModel(
   req: Request,
   input: UpdateModelInput,
 ): Promise<Model> {
-  const { presence, ...picks } = input;
-  await repos.model.savePicks(userId, picks, presence);
+  const { presence, adj, ...picks } = input;
+  // A scale moved merges over the sliders as they stand (a legacy seed included); {} is "back to
+  // your facts".
+  const sliders =
+    adj === undefined
+      ? undefined
+      : Object.keys(adj).length === 0
+        ? NO_ADJ
+        : { ...twinInputsOf((await current(userId)).row).adj, ...adj };
+  await repos.model.savePicks(userId, sliders ? { ...picks, adj: sliders } : picks, presence);
   const { resolved } = await current(userId);
   await repos.model.file(userId, resolved.cellId, { source: resolved.source });
   await ensureCell(resolved.cellId, (key) =>
@@ -119,6 +179,36 @@ export async function updateModel(
       quota: { metric: 'generation.image', cost: 1 },
     }),
   );
+  return loadModel(userId);
+}
+
+// Draws her twin when what it is drawn from changed since the last (legacy mvTwinSync): asked on
+// leaving a twin screen and on landing on the model, never per tap. One image quota per draw.
+export async function drawTwin(userId: UserId, req: Request): Promise<Model> {
+  const { row, resolved } = await current(userId);
+  const inputs = twinInputsOf(row);
+  if (!hasTwinInputs(inputs) || !(await isFlagEnabled('model.portraits'))) return loadModel(userId);
+  if (row.filedCellId === null) {
+    await repos.model.file(userId, resolved.cellId, { source: resolved.source });
+  }
+  const key = await twinKey(inputs);
+  if (await repos.model.claimTwin(userId, key)) {
+    try {
+      if (await repos.capacity.isExhausted(['gemini-image'])) throw new ApiError('capacity');
+      await startJob(userId, req, {
+        kind: 'avatar_cell',
+        input: { target: 'twin', twinKey: key },
+        quota: { metric: 'generation.image', cost: 1 },
+      });
+    } catch (err) {
+      // The model she has stands; the next visit may draw again.
+      await repos.model.failTwin(userId, key);
+      logger.warn(
+        { reason: err instanceof ApiError ? err.code : 'start_failed' },
+        'avatar_twin_not_started',
+      );
+    }
+  }
   return loadModel(userId);
 }
 
@@ -136,8 +226,12 @@ export async function renderOnModel(
   if (!look || look.status !== 'saved' || look.frameAssetId) throw new ApiError('conflict');
   const row = await repos.model.get(userId);
   if (!row?.filedCellId) throw new ApiError('conflict');
-  const cell = await repos.avatarCells.get(cellKey(row.filedCellId));
-  if (cell?.status !== 'ready') throw new ApiError('conflict');
+  // Her twin when she has one, else the catalog cell she filed.
+  const twin = row.twinAssetId && row.twinKey ? `twin:${row.twinKey}` : null;
+  if (!twin) {
+    const cell = await repos.avatarCells.get(cellKey(row.filedCellId));
+    if (cell?.status !== 'ready') throw new ApiError('conflict');
+  }
   const pieces = await repos.looks.piecesFor(userId, [lookId]);
   if (pieces.length === 0) throw new ApiError('invalid_input');
   // How each piece is worn is part of what the render shows, so a changed note re-renders once.
@@ -148,7 +242,7 @@ export async function renderOnModel(
     )
     .digest('base64url')
     .slice(0, 22);
-  const renderKey = `${cellKey(row.filedCellId)}:${rack}`;
+  const renderKey = `${twin ?? cellKey(row.filedCellId)}:${rack}`;
 
   if (!(await repos.looks.claimRender(userId, lookId, renderKey))) {
     const again = await repos.looks.renderState(userId, lookId);

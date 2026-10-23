@@ -127,6 +127,11 @@ export interface AvatarCells {
 export interface Avatars {
   avatarId: string;
   derivedFrom: Generated<Json>;
+  twinAssetId: string | null;
+  twinDrawAt: Timestamp | null;
+  twinDrawKey: string | null;
+  twinDrawStatus: string | null;
+  twinKey: string | null;
   updatedAt: Generated<Timestamp>;
   userId: string;
 }
@@ -378,6 +383,9 @@ export interface Profiles {
   annualSpend: string | null;
   avatarPrefs: Json | null;
   budget: string | null;
+  bustBand: number | null;
+  bustCm: number | null;
+  bustCup: string | null;
   createdAt: Generated<Timestamp>;
   currency: Generated<string>;
   firstName: string | null;
@@ -403,6 +411,7 @@ export interface Profiles {
   styleIcons: Generated<string[]>;
   timezone: Generated<string>;
   updatedAt: Generated<Timestamp>;
+  waistCm: number | null;
   wardrobeDescription: string | null;
 }
 

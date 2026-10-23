@@ -81,6 +81,8 @@ const paletteSide = (key: string, ids: string, values: string) =>
     from jsonb_each(case when jsonb_typeof(pl.p -> '${key}') = 'object' then pl.p -> '${key}' else '{}'::jsonb end) e
     where e.key = any(${ids}) and e.value in (${values}))`;
 
+const CUPS = `('AA','A','B','C','D','DD','E','F','G+')`;
+
 const CATEGORIES = `('Tops','Bottoms','Dresses','Outerwear','Shoes','Bags','Accessories','Swimwear','Other')`;
 
 export const IDENTITY_SQL = `
@@ -97,6 +99,7 @@ on conflict do nothing;
 
 ${assetsFrom(`select id as user_id, headshot_url as url, created_at from legacy.profiles`, 'headshot', true)}
 ${assetsFrom(`select id as user_id, full_length_url as url, created_at from legacy.profiles`, 'full_length', true)}
+${assetsFrom(`select id as user_id, twin_url as url, created_at from legacy.profiles`, 'generated', true)}
 
 -- The signup trigger made the row; fill it, holding every value to the target's checks.
 update app.profiles t set
@@ -151,6 +154,18 @@ select p.id, p.avatar_id from legacy.profiles p join app.users u on u.id = p.id
 where nullif(trim(p.avatar_id), '') is not null
 on conflict (user_id) do nothing;
 
+-- Her digital twin (legacy migration 26): the image carries over as an asset; the key does not
+-- (legacy keys hash different inputs), so the platform redraws its own on her first visit. A twin
+-- with no filed model files the catalog default for her presence.
+insert into app.avatars (user_id, avatar_id)
+select p.id, case when p.gender_identity = 'man' then 'm-s3-h1-nt' else 'w-s3-h1-nt' end
+from legacy.profiles p join app.users u on u.id = p.id
+where pg_temp.is_http(p.twin_url)
+on conflict (user_id) do nothing;
+update app.avatars a set twin_asset_id = ${asset('p.id', 'p.twin_url')}, twin_key = null
+from legacy.profiles p
+where a.user_id = p.id and pg_temp.is_http(p.twin_url) and a.twin_asset_id is null;
+
 -- Her digital twin and brief (legacy Settings + style memory, profiles.style_dna): the brands, the
 -- one investment level, the facts, her brief's lines and the memory she told Robes. Anything
 -- outside the target's ranges is dropped, never clamped.
@@ -171,9 +186,19 @@ update app.profiles t set
   shoe_uk = case when (f.f ->> 'shoe_uk') ~ '^[0-9]+(\\.[05])?$' and (f.f ->> 'shoe_uk')::numeric between 2 and 8
     then (f.f ->> 'shoe_uk')::numeric end,
   age_band = case f.f ->> 'age_band' when 'Under 25' then 'under_25' when '25–34' then '25_34'
-    when '35–44' then '35_44' when '45–54' then '45_54' when '55–64' then '55_64' when '65+' then '65_plus' end
+    when '35–44' then '35_44' when '45–54' then '45_54' when '55–64' then '55_64' when '65+' then '65_plus' end,
+  -- Bust as a bra size (band + cup) unless she chose the tape (bust_mode 'cm'), and her waist.
+  bust_band = case when b.bra then (f.f ->> 'bust_band')::int end,
+  bust_cup = case when b.bra then f.f ->> 'bust_cup' end,
+  bust_cm = case when not b.bra and (f.f ->> 'bust_cm') ~ '^[0-9]+$'
+    and (f.f ->> 'bust_cm')::int between 70 and 140 then (f.f ->> 'bust_cm')::int end,
+  waist_cm = case when (f.f ->> 'waist_cm') ~ '^[0-9]+$' and (f.f ->> 'waist_cm')::int between 50 and 130
+    then (f.f ->> 'waist_cm')::int end
 from legacy.profiles p,
-  lateral (select case when jsonb_typeof(p.style_dna -> 'facts') = 'object' then p.style_dna -> 'facts' else '{}'::jsonb end as f) f
+  lateral (select case when jsonb_typeof(p.style_dna -> 'facts') = 'object' then p.style_dna -> 'facts' else '{}'::jsonb end as f) f,
+  lateral (select coalesce(coalesce(f.f ->> 'bust_mode', 'bra') <> 'cm' and (f.f ->> 'bust_cup') in ${CUPS}
+    and (f.f ->> 'bust_band') ~ '^[0-9]+$' and (f.f ->> 'bust_band')::int between 28 and 46
+    and (f.f ->> 'bust_band')::int % 2 = 0, false) as bra) b
 where t.id = p.id and p.style_dna is not null;
 
 -- The brief's paragraph and colours ride her style profile (the colours as her overrides).

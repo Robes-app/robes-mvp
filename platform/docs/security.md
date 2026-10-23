@@ -81,6 +81,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 
 **SEC-22 — Try-on / avatar only edit the account holder's own photo.** The worker loads the source photo from the user's profile by id; request bodies cannot supply image data or third-party URLs for likeness edits. Style options are validated against enums from `packages/core` (`style_dna` catalogs).
 - As built (M6): her model is a catalog portrait chosen by picks (presence, skin, hair, figure, nudges) — no one's photo is edited. `PATCH /me/model` accepts only catalog enums; `POST /looks/:id/render` renders only her own look on her own filed model (the worker loads both by the job owner's id). The shared `avatar_cells` catalog holds no user data.
+- As built (twin, 2026-10-23): once she gives a close-up, a fact or a slider, her model is **one private twin per account** (`app.avatars.twin_asset_id`, a generated asset under her own prefix, delivered only signed). `POST /me/model/twin` takes no body: the job (`avatar_cell`, `target: 'twin'`) reads her close-up, facts and sliders by the job owner's id and lands only on her row (composite FK to her assets). Her close-up is sent to the image model as a reference for the twin and for each render on it.
 
 **SEC-23 — Moderation.** Image prompts are built from server templates + validated fields (never raw model output to the image model). Generated images and user uploads that become public (shares) pass a moderation check; share pages have a report action.
 

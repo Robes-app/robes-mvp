@@ -111,6 +111,8 @@ test('P0 routes have no serious accessibility violations', async ({ page }) => {
     '/you/account',
     '/you/style',
     '/you/model',
+    '/you/model/colouring',
+    '/you/model/body',
     '/you/observations',
     '/looks/new',
     '/wardrobe/wishlist',

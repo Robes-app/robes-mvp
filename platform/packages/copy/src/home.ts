@@ -188,6 +188,9 @@ export const firstRun = {
     noPiece: 'Robes couldn’t find a piece in that photo — try a clear shot of the piece.',
     failed: 'Robes couldn’t read that piece just now — try again in a moment.',
     unreadable: 'Couldn’t read that image — try another file.',
+    // Several pieces in one photo (legacy 0.8): she picks the one to style; the rest file quietly.
+    many: (n: number): string => `Robes sees ${n} pieces`,
+    whichFirst: 'Which one first?',
   },
   compose: {
     title: 'Composing',

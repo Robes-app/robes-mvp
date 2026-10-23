@@ -168,7 +168,18 @@ async function createWorkerContext(): Promise<WorkerContext> {
             lookPrompt: system.lookPrompt,
             ledger: system.ledger,
           },
-          avatarCell: { ai, storage, cells: system.avatarCells, ledger: system.ledger },
+          avatarCell: {
+            ai,
+            storage,
+            cells: system.avatarCells,
+            ledger: system.ledger,
+            twin: {
+              storage,
+              model: system.modelRender,
+              styling: system.styling,
+              ...(onGenerated ? { onGenerated } : {}),
+            },
+          },
           styleAnalyse: { ai, storage, profiles: system.styleAnalysis, ledger: system.ledger },
           styleBrief: {
             ai,

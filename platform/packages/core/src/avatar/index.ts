@@ -175,3 +175,5 @@ export function genericCellId(wearer: 'woman' | 'man', index: number): string {
   const ids = genericCellIds(wearer);
   return ids[((index % ids.length) + ids.length) % ids.length] ?? ids[0] ?? '';
 }
+
+export * from './twin';

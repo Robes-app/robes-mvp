@@ -161,6 +161,10 @@ export const PushTokenParams = z.object({ token: ExpoPushToken });
 // You › Your model (M6 task 1): her picks over what her photo reads say. The swatches are data for
 // the pickers; the cell is the shared reference portrait her looks are rendered on.
 export const ModelPresence = z.enum(['woman', 'man', 'unspecified']);
+const stop = z.number().int().min(-2).max(2).nullable();
+export const TwinAdj = z.object({ shoulders: stop, bust: stop, hips: stop });
+export type TwinAdj = z.infer<typeof TwinAdj>;
+
 export const Model = z.object({
   filed: z.boolean(),
   presence: ModelPresence,
@@ -177,6 +181,20 @@ export const Model = z.object({
     imageUrl: z.url().nullable(),
   }),
   swatches: z.object({ skin: z.array(z.string()), hair: z.array(z.string()) }),
+  // Whether skin and hair are hand picks over what her close-up shows.
+  skinSet: z.boolean(),
+  hairSet: z.boolean(),
+  // The twin's three sliders (−2…+2); null on a scale is "from your facts".
+  adj: TwinAdj,
+  // Her close-up, signed for her alone; null until one is on file.
+  closeUpUrl: z.url().nullable(),
+  // Her digital twin: drawn from her close-up and her line. `current` is false while a twin drawn
+  // from older inputs still stands (shown until the redraw lands).
+  twin: z.object({
+    status: z.enum(['none', 'pending', 'ready', 'failed']),
+    current: z.boolean(),
+    imageUrl: z.url().nullable(),
+  }),
 });
 export type Model = z.infer<typeof Model>;
 
@@ -187,6 +205,8 @@ export const UpdateModelInput = z
     hair: z.number().int().min(0).max(4),
     line: z.enum(['soft', 'straight']).nullable(),
     frame: z.enum(['fuller', 'narrower']).nullable(),
+    // A scale moved, or {} back to her facts.
+    adj: TwinAdj.partial().strict(),
   })
   .partial()
   .strict();

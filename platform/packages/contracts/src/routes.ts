@@ -226,6 +226,15 @@ export const routes = {
     input: UpdateModelInput,
     output: Model,
   },
+  // Draws her twin when what it is drawn from has changed since the last; asked when she leaves a
+  // twin screen, never per tap. Naturally idempotent per key.
+  'me.model.twin': {
+    method: 'POST',
+    path: '/me/model/twin',
+    auth: 'user',
+    input: EmptyInput,
+    output: Model,
+  },
   // "See it on me": naturally idempotent per model and rack.
   'looks.renderOnModel': {
     method: 'POST',

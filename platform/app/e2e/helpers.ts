@@ -37,6 +37,10 @@ export async function signIn(
   await page.getByRole('button', { name: 'Continue' }).click();
   if (firstPiece) {
     await page.getByLabel('Add photo').setInputFiles(PHOTO);
+    // The offline read sees three pieces: she picks which first; the others file quietly.
+    await page
+      .getByRole('button', { name: 'Cream long-sleeve t-shirt' })
+      .click({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Style it three ways →' }).click({ timeout: 30_000 });
     await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/, { timeout: 30_000 });
     return email;

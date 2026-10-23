@@ -43,7 +43,8 @@ export interface StylePieceDeps {
     SystemRepositories['suggested'],
     'mintSet' | 'rewrite' | 'look' | 'setFrame' | 'failFrame'
   >;
-  cells?: Pick<SystemRepositories['modelRender'], 'cell'>;
+  cells?: Pick<SystemRepositories['modelRender'], 'cell'> &
+    Partial<Pick<SystemRepositories['modelRender'], 'model'>>;
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
   forecast?: DayForecastFor;
   // Generated frames are stored as uploads; AWS renders them from the S3 event, dev renders here.

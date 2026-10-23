@@ -38,7 +38,16 @@ describe('styling + ideas', () => {
       memory: { entries: [] },
       brands: [],
       investment: '',
-      facts: { height_cm: null, size_uk: null, shoe_uk: null, age_band: '' },
+      facts: {
+        height_cm: null,
+        size_uk: null,
+        shoe_uk: null,
+        bust_band: null,
+        bust_cup: null,
+        bust_cm: null,
+        waist_cm: null,
+        age_band: '',
+      },
       icon_tags: {},
     });
     await db

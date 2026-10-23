@@ -89,7 +89,19 @@ select 'piece colour lost', w.id::text from legacy.wardrobe_items w join app.war
   where w.colour_shade = any(${SHADE_IDS_SQL}) and a.colour_shade is distinct from w.colour_shade
 union all
 select 'wish colour lost', w.id::text from legacy.wishlist_items w join app.wishlist_items a on a.id = w.id
-  where w.colour_shade = any(${SHADE_IDS_SQL}) and a.colour_shade is distinct from w.colour_shade`;
+  where w.colour_shade = any(${SHADE_IDS_SQL}) and a.colour_shade is distinct from w.colour_shade
+union all
+select 'twin lost', p.id::text from legacy.profiles p join app.users u on u.id = p.id
+  where p.twin_url ~ '^https?://' and not exists (select 1 from app.avatars a join app.assets s
+    on s.id = a.twin_asset_id and s.user_id = a.user_id
+    where a.user_id = p.id and s.legacy_url = p.twin_url and a.twin_key is null)`;
+
+// Bust and waist facts (the twin, migration 26) outside the target's ranges: dropped, counted.
+const DROPPED_FACTS_SQL = `
+select count(*)::int as n from legacy.profiles p join app.profiles t on t.id = p.id
+where (p.style_dna #>> '{facts,waist_cm}' is not null and t.waist_cm is null)
+   or (coalesce(p.style_dna #>> '{facts,bust_band}', p.style_dna #>> '{facts,bust_cm}') is not null
+       and t.bust_band is null and t.bust_cm is null)`;
 
 // Legacy colour values the model doesn't know (migration 27): dropped to null, counted for review.
 const UNKNOWN_COLOURS_SQL = `
@@ -192,6 +204,9 @@ export async function assertMigration(targetUrl: string): Promise<AssertReport> 
       report.warnings.push(
         `${n} pieces have legacy times_worn above their recorded wears (count not carried)`,
       );
+    const facts = (await c.query<{ n: number }>(DROPPED_FACTS_SQL)).rows[0]?.n ?? 0;
+    if (facts > 0)
+      report.warnings.push(`${facts} profiles had a bust or waist outside the ranges (left unset)`);
     const unknown = (await c.query<{ n: number }>(UNKNOWN_COLOURS_SQL)).rows[0]?.n ?? 0;
     if (unknown > 0)
       report.warnings.push(
