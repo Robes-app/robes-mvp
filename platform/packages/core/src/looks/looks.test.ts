@@ -19,6 +19,7 @@ import {
   type RackRow,
   type RackState,
   rackSignature,
+  readBalance,
   rowNote,
   sortLooks,
   startedLabel,
@@ -256,5 +257,28 @@ describe('the Saved tab’s sort', () => {
       'Brunch',
       'Cocktails',
     ]);
+  });
+});
+
+describe('readBalance', () => {
+  it.each([
+    ['just my own pieces', 'owned'],
+    ['All mine', 'owned'],
+    ['nothing new please', 'owned'],
+    ['mostly mine', 'mix'],
+    ['a mix of both', 'mix'],
+    ['new pieces please', 'new'],
+    ['suggest something fresh', 'new'],
+  ])('%s → %s', (text, balance) => {
+    expect(readBalance(text)).toEqual({ balance, note: null });
+  });
+
+  it('keeps words it cannot place as her note, capped', () => {
+    expect(readBalance('  whatever suits the brunch  ')).toEqual({
+      balance: null,
+      note: 'whatever suits the brunch',
+    });
+    expect(readBalance('x'.repeat(400)).note).toHaveLength(160);
+    expect(readBalance('   ')).toEqual({ balance: null, note: null });
   });
 });

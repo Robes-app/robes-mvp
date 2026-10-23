@@ -51,10 +51,10 @@ Rehearse against a copy of legacy on staging until `migrate:assert` is clean twi
 
 ## 4. Cutover (production), target end of M6
 
-T-7 d: email beta users (what changes, same login, lookbook preserved, localStorage-only drafts not migrated).
+T-7 d: email beta users (what changes, same email but a 6-digit code instead of a password, Google unchanged, lookbook preserved, localStorage-only drafts not migrated).
 T-0:
 1. Put legacy into read-only mode (feature flag in legacy server: 503 on write routes; banner).
-2. Final `extract` → `transform` → `assert` into production.
+2. Final `extract` → `transform` → `assert` into production. Production's schema `app` lives inside the legacy Supabase project (Robes_p0), so source and target are the same database; the tool refuses any non-local target unless `ROBES_MIGRATE_PRODUCTION` names its exact host. Drop the `legacy` copy schema once assert passes.
 3. Start `rehost` (runs in background; loader serves `cloudinary_legacy` until done).
 4. DNS: `www.byrobes.com` and `beta.byrobes.com` → Vercel (beta redirects to `app.`). Legacy paths: `/look/:id` → share lookup by legacy id (Airtable-backed looks imported into `shares` with `legacy_token`), `/board/:id` → `/share/:id`, `/dashboard` → `/today`, etc. (redirect map generated from `reference/legacy-features.md` route map).
 5. Rotate: legacy Supabase publishable + service keys, Gemini key, Cloudinary keys, Airtable token.

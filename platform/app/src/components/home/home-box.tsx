@@ -4,12 +4,13 @@ import { useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { home as copy, lookbook } from '@robes/copy';
 import { isTripAsk } from '@robes/core/home';
-import { ASK_MAX_CHARS, askDateFrom } from '@robes/core/looks';
+import { ASK_MAX_CHARS, askDateFrom, type Balance, readBalance } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { ErrorText, IconButton, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useFeatures } from '@/components/features';
+import { BalanceQuestion } from '@/components/looks/balance-question';
 import { SwapSheet } from '@/components/looks/swap-sheet';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { formatDay, localToday } from '@/lib/dates';
@@ -19,6 +20,7 @@ import { PHOTO_ACCEPT } from '@/lib/upload';
 
 type Attached = { kind: 'piece'; piece: Piece } | { kind: 'photo' };
 type Mode = 'build' | 'three';
+type Steer = { balance: Balance } | { balanceNote: string };
 
 // H2, the home box (legacy _rbHbSync + the + inside the box, 2026-10-05): her words become three
 // suggested looks on the deck, for the day they name; a piece attached by photograph or from the
@@ -51,6 +53,8 @@ export function HomeBox({
   const [busy, setBusy] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Her ask, held while the box asks where its pieces come from.
+  const [held, setHeld] = useState<string | null>(null);
   const { filing, file, reset } = usePhotoFiling();
 
   useEffect(() => {
@@ -66,12 +70,34 @@ export function HomeBox({
   const clearPiece = () => {
     setAttached(null);
     setMode(null);
+    if (held !== null) setText(held);
+    setHeld(null);
     reset();
   };
 
-  async function send() {
+  // Once per new look, while she has filed anything: the ask waits for her answer.
+  const holdFor = (words: string, steer: Steer | undefined) => {
+    if (steer || !(hasPieces || pieceForSend)) return false;
+    setHeld(words);
+    setText('');
+    return true;
+  };
+  const failed = (err: unknown, words: string) => {
+    setBusy(null);
+    if (held !== null) setText(words);
+    setHeld(null);
+    setError(errorCopy(err));
+  };
+
+  async function send(steer?: Steer) {
     if (busy) return;
-    const words = text.trim();
+    if (held !== null && !steer) {
+      const read = readBalance(text);
+      if (read.balance) void send({ balance: read.balance });
+      else if (read.note) void send({ balanceNote: read.note });
+      return;
+    }
+    const words = (held ?? text).trim();
     setError(null);
     if (attached) {
       if (!mode) {
@@ -90,18 +116,19 @@ export function HomeBox({
         router.push(`/looks/new?pieceId=${pieceForSend.id}`);
         return;
       }
+      if (holdFor(words, steer)) return;
       setBusy(lookbook.prompt.busyRead);
       try {
         const { jobId } = await api.call('looks.generate', {
           input: {
             anchor: { type: 'piece', pieceId: pieceForSend.id },
             ...(words ? { occasion: words.slice(0, 120) } : {}),
+            ...steer,
           },
         });
         router.push(`/looks/style/${jobId}?from=home`);
       } catch (err) {
-        setBusy(null);
-        setError(errorCopy(err));
+        failed(err, words);
       }
       return;
     }
@@ -112,15 +139,15 @@ export function HomeBox({
       return;
     }
     const day = date ?? (trip ? null : askDateFrom(words, localToday()));
+    if (holdFor(words, steer)) return;
     setBusy(lookbook.prompt.busyRead);
     try {
       const { jobId } = await api.call('looks.prompt', {
-        input: { prompt: words, ...(day ? { date: day } : {}) },
+        input: { prompt: words, ...(day ? { date: day } : {}), ...steer },
       });
       router.push(`/looks/style/${jobId}?from=home`);
     } catch (err) {
-      setBusy(null);
-      setError(errorCopy(err));
+      failed(err, words);
     }
   }
 
@@ -155,7 +182,10 @@ export function HomeBox({
           ? copy.plus.notFiled
           : copy.plus.justTaken;
 
-  const ready = attached ? mode !== null : text.trim().length >= 2;
+  const ready =
+    held !== null ? text.trim().length > 0 : attached ? mode !== null : text.trim().length >= 2;
+  const fieldHint =
+    held !== null ? lookbook.prompt.balance.typed : attached ? copy.plus.placeholder : place;
   return (
     <section
       aria-label={lookbook.prompt.newLabel}
@@ -213,6 +243,13 @@ export function HomeBox({
           ) : null}
         </div>
       ) : null}
+      {held !== null ? (
+        <BalanceQuestion
+          echo={held}
+          disabled={busy !== null}
+          onPick={(b) => void send({ balance: b })}
+        />
+      ) : null}
       <div className="relative flex items-end gap-2 rounded-[24px] border border-border-control bg-bg px-2 py-1.5">
         <IconButton
           icon="plus"
@@ -222,7 +259,7 @@ export function HomeBox({
           onClick={() => setMenu((m) => !m)}
         />
         <label htmlFor={id} className="sr-only">
-          {attached ? copy.plus.placeholder : place}
+          {fieldHint}
         </label>
         <textarea
           ref={field}
@@ -230,7 +267,7 @@ export function HomeBox({
           rows={1}
           value={text}
           maxLength={ASK_MAX_CHARS}
-          placeholder={attached ? copy.plus.placeholder : place}
+          placeholder={fieldHint}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
           disabled={busy !== null}

@@ -106,10 +106,15 @@ test('activated: the strip selects a day; Dress {weekday} puts the box on the da
   const box = await screen.findByLabelText(copy.doorDay(dayLabel('2026-10-03')));
   await fireEvent.changeText(box, 'Dinner with friends');
   await fireEvent(box, 'submitEditing');
+  // She has filed pieces: the box asks once where the look's pieces come from.
+  expect(await screen.findByText(lookbook.prompt.balance.question)).toBeTruthy();
+  expect(calls.some((c) => c.path.endsWith('/looks/prompt'))).toBe(false);
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.balance.mix }));
   await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(DECK));
   expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toEqual({
     prompt: 'Dinner with friends',
     date: '2026-10-03',
+    balance: 'mix',
   });
 });
 

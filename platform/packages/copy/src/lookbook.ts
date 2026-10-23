@@ -187,6 +187,14 @@ export const lookbook = {
     label: (name: string): string => `Change ${name}`,
     newLabel: 'A new look',
     failed: 'Robes couldn’t read that just now. Try again.',
+    // The one question on a new look: where its pieces come from.
+    balance: {
+      question: 'Where should the pieces in your look come from?',
+      owned: 'All mine',
+      mix: 'A mix',
+      new: 'Suggest new pieces',
+      typed: 'Or say it your way',
+    },
   },
   // F8: a verdict on a suggestion lands in her memory; "not quite" lets it go.
   verdict: {

@@ -43,6 +43,16 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fake() })) {
     createGeneratedAsset: vi.fn(async () => `44444444-4444-4444-8444-44444444444${n++}`),
     trackImage: vi.fn(async () => {}),
     createSet: vi.fn(async () => SET),
+    recentSets: vi.fn(
+      async (): Promise<unknown[]> => [
+        {
+          prompt: null,
+          anchor: { label: 'Silk slip' },
+          ways: [{ title: 'Gallery night', pieces: [{ name: 'Silk slip' }, { name: 'Mules' }] }],
+        },
+        'not a set',
+      ],
+    ),
     getSet: vi.fn(async () => ({
       id: SET,
       title: 'Camel coat',
@@ -142,7 +152,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 3 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 4 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
@@ -254,6 +264,42 @@ describe('key_piece handler (suggested looks)', () => {
     await expect(run({ mode: 'restyle', lookId: LOOK })).rejects.toMatchObject({
       code: 'not_found',
     });
+  });
+
+  it('steers by where she said the pieces come from, and never repeats what she has seen', async () => {
+    const { run, generateJson, styling, suggested } = setup();
+    await run({ anchor: { type: 'piece', pieceId: PIECE }, balance: 'new' });
+    const system = generateJson.mock.calls[0]?.[0].system ?? '';
+    expect(system).toContain('she asked for NEW pieces');
+    expect(system).toContain('ALREADY SHOWN');
+    expect(system).toContain('- "Gallery night": Silk slip, Mules (asked: "Silk slip")');
+    expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
+      data: { balance: 'new', balanceNote: null },
+    });
+    // ↻ on one of the set's looks honours the answer the set was made with.
+    styling.getSet.mockResolvedValueOnce({
+      id: SET,
+      title: 'Camel coat',
+      generationJobId: JOB,
+      data: {
+        set: true,
+        mode: 'prompt',
+        anchor: { type: 'text', label: 'Brunch' },
+        prompt: 'Brunch',
+        dateHint: null,
+        day: null,
+        fallback: false,
+        wearer: 'woman',
+        ways: fake().ways,
+        balance: null,
+        balanceNote: 'two of mine',
+      },
+    } as never);
+    await run({ mode: 'restyle', lookId: LOOK });
+    expect(generateJson.mock.calls[1]?.[0].system).toContain(
+      'WHERE THE PIECES COME FROM — in her own words: <user_input>\ntwo of mine',
+    );
+    expect(suggested.rewrite).toHaveBeenCalled();
   });
 
   it('keeps the looks when the frame fails (UX-08), and rejects bad input', async () => {

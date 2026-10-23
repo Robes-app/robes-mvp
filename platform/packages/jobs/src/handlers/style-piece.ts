@@ -10,12 +10,22 @@ import {
   type Mode,
   normalisePieces,
   Output,
+  type RecentSet,
   type Refine,
+  type Steer,
   type StoredPiece,
   sceneOf,
+  VERSION,
 } from '@robes/ai/prompts/style-piece';
 import { KeyPieceJobInput } from '@robes/contracts';
-import { askDate, frameKey, type LookRole, newProposalKey, noteShort } from '@robes/core/looks';
+import {
+  askDate,
+  BALANCES,
+  frameKey,
+  type LookRole,
+  newProposalKey,
+  noteShort,
+} from '@robes/core/looks';
 import type { SuggestedSpec, SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -75,7 +85,36 @@ export const StoredSet = z.object({
   ways: z.array(
     z.looseObject({ eyebrow: z.string(), title: z.string(), scene: z.string().default('') }),
   ),
+  // Where she said the pieces come from; ↻ on one of the set's looks honours it again.
+  balance: z.enum(BALANCES).nullable().optional(),
+  balanceNote: z.string().nullable().optional(),
 });
+
+// The sets Robes already made her, read back as titles and piece names (ALREADY SHOWN).
+const RecentRow = z.object({
+  prompt: z.string().nullable().catch(null),
+  anchor: z.object({ label: z.string() }).optional().catch(undefined),
+  ways: z
+    .array(
+      z.object({
+        title: z.string().catch(''),
+        pieces: z.array(z.object({ name: z.string().catch('') })).catch([]),
+      }),
+    )
+    .catch([]),
+});
+export function recentFrom(rows: readonly unknown[]): RecentSet[] {
+  return rows.flatMap((data) => {
+    const r = RecentRow.safeParse(data);
+    if (!r.success) return [];
+    return [
+      {
+        prompt: r.data.prompt ?? r.data.anchor?.label ?? null,
+        ways: r.data.ways.map((w) => ({ title: w.title, pieces: w.pieces.map((p) => p.name) })),
+      },
+    ];
+  });
+}
 
 function localToday(now: Date, timezone: string): string {
   try {
@@ -308,7 +347,11 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       const parsed = StylePieceInput.safeParse(ctx.input);
       if (!parsed.success) throw new JobError('invalid_input');
       const input = parsed.data;
-      const styleCtx = await deps.styling.context(ctx.userId);
+      const [styleCtx, recentRows] = await Promise.all([
+        deps.styling.context(ctx.userId),
+        deps.styling.recentSets(ctx.userId),
+      ]);
+      const recent = recentFrom(recentRows);
 
       // ↻ on one suggested look: re-written in place, then its frame.
       if ('mode' in input && input.mode === 'restyle') {
@@ -361,7 +404,11 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         const photo = await piecePhoto(ctx.userId, anchorPiece?.imageAssetId);
         const out = await generate(
           ctx,
-          buildSystem(styleCtx, mode),
+          buildSystem(styleCtx, mode, {
+            balance: set.data.balance ?? null,
+            balanceNote: set.data.balanceNote ?? null,
+            recent,
+          }),
           buildUser(ask, { hasPhoto: Boolean(photo), refine }),
           photo,
         );
@@ -412,6 +459,11 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       let day: DayContext | null = null;
       let dateHint: string | null = null;
       let brief: string | null = null;
+      const steer: Steer = {
+        balance: 'balance' in input ? (input.balance ?? null) : null,
+        balanceNote: 'balanceNote' in input ? (input.balanceNote ?? null) : null,
+        recent,
+      };
       if (prompted) {
         mode = 'dress-me';
         const dated = await dayContext(ctx.userId, input.date);
@@ -439,7 +491,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
 
       const out = await generate(
         ctx,
-        buildSystem(styleCtx, mode),
+        buildSystem(styleCtx, mode, steer),
         buildUser(ask, { hasPhoto: Boolean(photo) }),
         photo,
       );
@@ -466,8 +518,10 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           fallback,
           wearer,
           ways,
+          balance: steer.balance,
+          balanceNote: steer.balanceNote,
           images: [],
-          promptVersion: 3,
+          promptVersion: VERSION,
         },
       });
       const specs = ways.map((w, i) =>
