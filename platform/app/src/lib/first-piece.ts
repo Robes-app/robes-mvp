@@ -82,6 +82,8 @@ export function useFirstPiece() {
   );
 
   const s = single.filing;
+  const stalled = read.errorCode === 'asset_not_ready' || read.errorCode === 'asset_missing';
+
   const piece = chosen ?? (s.phase === 'filed' ? s.piece : null);
   const singleReading = s.phase === 'uploading' || s.phase === 'reading';
   // Several pieces wait for her pick (once nothing is filed yet).
@@ -94,8 +96,15 @@ export function useFirstPiece() {
     choices,
     reading: !piece && !choices && (status === 'reading' || filing || singleReading),
     preview: read.photoUrl ?? (s.phase !== 'idle' && s.phase !== 'none' ? s.preview : null),
-    // 'none': nothing to file in the photo; 'failed': it could not be read or filed.
-    problem: error || s.phase === 'failed' ? 'failed' : s.phase === 'none' ? 'none' : null,
+    // 'none': nothing to file in the photo; 'stalled': the photo never finished preparing, so
+    // "no piece" would be a lie; 'failed': it could not be read or filed.
+    problem: stalled
+      ? 'stalled'
+      : error || s.phase === 'failed'
+        ? 'failed'
+        : s.phase === 'none'
+          ? 'none'
+          : null,
     choose: (index: number) => (jobId ? void fileRead(jobId, pieces, index) : undefined),
     start,
     reset,

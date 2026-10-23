@@ -55,6 +55,9 @@ export interface StylePieceDeps {
 // The API contract is the job input; the worker re-parses it (never trusts the row).
 export const StylePieceInput = KeyPieceJobInput;
 
+// Three ways, as /api/style has always answered.
+const WAYS = 3;
+
 const ROLE_OF: Record<string, LookRole> = {
   'The Canvas': 'canvas',
   'The Anchor': 'anchor',
@@ -177,6 +180,29 @@ export function specFromWay(
   };
 }
 
+// Her balance answer is auditable on the ledger row (legacy 62b3d35): what she asked for, how
+// many earlier sets rode along as ALREADY SHOWN, and owned/total per way — the read that says
+// whether "suggest new pieces" was honoured. Counts and one enum; her own words never land here,
+// only the fact that she wrote some ('words').
+function askDetail(steer: Steer): Record<string, unknown> {
+  const balance = steer.balance ?? (steer.balanceNote?.trim() ? 'words' : null);
+  const shown = steer.recent?.length ?? 0;
+  return { ...(balance ? { balance } : {}), ...(shown ? { shown } : {}) };
+}
+
+// Counted on the pieces as they will be stored, so the row says what she was actually shown.
+function ownedOfTotal(
+  ways: readonly { pieces: Parameters<typeof normalisePieces>[0] }[],
+  closet: Parameters<typeof normalisePieces>[1],
+): string {
+  return ways
+    .map((w) => {
+      const pieces = normalisePieces(w.pieces, closet);
+      return `${pieces.filter((p) => p.pieceId).length}/${pieces.length}`;
+    })
+    .join(' ');
+}
+
 // Style a piece, or dress a day, three ways (legacy /api/style): the looks as text first, minted
 // as suggested looks for the keep-or-pass deck, then the first frame. ↻ re-writes one look.
 export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
@@ -184,6 +210,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     ctx: { jobId: string; userId: string },
     usage: Usage | undefined,
     status: 'ok' | 'error' | 'timeout',
+    detail: Record<string, unknown> = {},
   ) {
     if (usage)
       await deps.ledger.record({
@@ -192,6 +219,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         userId: ctx.userId,
         feature: FEATURE,
         status,
+        ...(Object.keys(detail).length ? { detail } : {}),
       });
   }
 
@@ -200,6 +228,9 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     system: string,
     user: string,
     photo: Uint8Array | null,
+    detail: Record<string, unknown> = {},
+    // Only its own answer can say how many pieces of hers each way used.
+    ownedOf?: (out: z.infer<typeof Output>) => string,
   ) {
     try {
       const text = await deps.ai.generateJson({
@@ -212,11 +243,12 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         signal: ctx.signal,
       });
-      await record(ctx, text.usage, 'ok');
+      const owned = ownedOf?.(text.data);
+      await record(ctx, text.usage, 'ok', owned ? { ...detail, owned_of_total: owned } : detail);
       return text.data;
     } catch (err) {
       if (err instanceof AiError) {
-        await record(ctx, err.usage, err.code === 'timeout' ? 'timeout' : 'error');
+        await record(ctx, err.usage, err.code === 'timeout' ? 'timeout' : 'error', detail);
         if (err.code === 'cancelled') throw err;
         throw new JobError(`ai_${err.code}`);
       }
@@ -403,15 +435,19 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           others,
         };
         const photo = await piecePhoto(ctx.userId, anchorPiece?.imageAssetId);
+        // ↻ honours the answer the set was made with.
+        const steer: Steer = {
+          balance: set.data.balance ?? null,
+          balanceNote: set.data.balanceNote ?? null,
+          recent,
+        };
         const out = await generate(
           ctx,
-          buildSystem(styleCtx, mode, {
-            balance: set.data.balance ?? null,
-            balanceNote: set.data.balanceNote ?? null,
-            recent,
-          }),
+          buildSystem(styleCtx, mode, steer),
           buildUser(ask, { hasPhoto: Boolean(photo), refine }),
           photo,
+          askDetail(steer),
+          (o) => ownedOfTotal(o.ways.slice(0, 1), styleCtx.closet),
         );
         const raw = out.ways[0];
         if (!raw) throw new JobError('ai_invalid_output');
@@ -495,11 +531,13 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         buildSystem(styleCtx, mode, steer),
         buildUser(ask, { hasPhoto: Boolean(photo) }),
         photo,
+        askDetail(steer),
+        (o) => ownedOfTotal(o.ways.slice(0, WAYS), styleCtx.closet),
       );
       const { fallback } = out;
       // Her profile decides the wearer; the model's judgement stands only when it is silent.
       const wearer = styleCtx.gender === 'unspecified' ? (out.wearer ?? 'woman') : styleCtx.gender;
-      const ways = out.ways.slice(0, 3).map((w) => ({
+      const ways = out.ways.slice(0, WAYS).map((w) => ({
         ...w,
         scene: sceneOf(w),
         pieces: normalisePieces(w.pieces, styleCtx.closet),

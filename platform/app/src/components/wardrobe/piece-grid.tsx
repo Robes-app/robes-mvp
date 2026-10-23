@@ -1,6 +1,6 @@
 'use client';
 
-import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { ListPiecesInput, Piece } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import { COLOUR_FAMILIES } from '@robes/core/colour';
@@ -20,12 +20,13 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
-import { anyReading, withPatch } from '@/lib/wardrobe';
+import { anyReading } from '@/lib/wardrobe';
 import { ShadeSwatch } from './colour-field';
 import { AddCard, CardRow, type CardStatus, CardTile, StarButton } from './piece-card';
 import { PieceImage } from './piece-image';
 import { useWardrobeLayout } from './use-layout';
 import { useRemovePiece } from './use-remove-piece';
+import { useStarPiece } from './use-star-piece';
 import { AddCircle, CategoryTabs, CountRow, WardrobeHeader } from './wardrobe-header';
 
 const PAGE_SIZE = 30;
@@ -51,8 +52,8 @@ function pieceStatus(piece: Piece): CardStatus {
 // Wardrobe › Pieces (legacy b4b051a + a268ef0/809b13e): the one header, then rows or tiles.
 export function PieceGrid() {
   const client = useApiClient();
-  const queryClient = useQueryClient();
-  const toast = useToast();
+  const _queryClient = useQueryClient();
+  const _toast = useToast();
   const remove = useRemovePiece();
   const [layout, setLayout] = useWardrobeLayout();
   const [category, setCategory] = useState<Category | null>(null);
@@ -74,25 +75,7 @@ export function PieceGrid() {
     // Pieces fill in as their photos are read.
     refetchInterval: (q) => (anyReading(q.state.data?.pages) ? READING_REFRESH_MS : false),
   });
-  const star = useApiMutation('wardrobe.update', {
-    onSuccess: (piece) => {
-      toast({ message: piece.heroPosition ? wardrobe.card.starred : wardrobe.card.unstarred });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
-    },
-    onError: (err) => {
-      toast({ message: err.code === 'conflict' ? wardrobe.card.heroFull : errorCopy(err) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
-    },
-  });
-  // The star fills at once; the server picks the Hero Rack place.
-  const toggleStar = (piece: Piece) => {
-    const on = piece.heroPosition === null;
-    queryClient.setQueriesData(
-      { queryKey: queryKeys.route('wardrobe.list') },
-      withPatch(piece.id, { heroPosition: on ? 10 : null }),
-    );
-    star.mutate({ params: { id: piece.id }, input: { hero: on } });
-  };
+  const { toggle: toggleStar } = useStarPiece();
   const sentinel = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
 

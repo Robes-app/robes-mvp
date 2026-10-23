@@ -6,7 +6,7 @@ import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { StackScreen } from '@/components/StackScreen';
-import { type AddSource, useAddPieces } from '@/features/wardrobe/add-pieces';
+import { type AddSource, addedHref, useAddPieces } from '@/features/wardrobe/add-pieces';
 import { useFeatures } from '@/lib/features';
 
 type Option = { label: string; icon: IconName; group: 'add' | 'dress'; trips?: true } & (
@@ -17,7 +17,7 @@ type Option = { label: string; icon: IconName; group: 'add' | 'dress'; trips?: t
 // IA §3.2 Create sheet, grouped: pieces in, then the stylist (the sparkle, never a chat
 // bubble). Options not built yet lead to the shared "On its way" screen.
 const OPTIONS: Option[] = [
-  { label: shell.create.photograph, icon: 'camera', group: 'add', add: 'camera' },
+  { label: shell.create.photograph, icon: 'camera', group: 'add', href: '/wardrobe/camera' },
   { label: shell.create.cameraRoll, icon: 'image', group: 'add', add: 'library' },
   { label: photoPieces.door.title, icon: 'camera', group: 'add', href: '/wardrobe/pieces' },
   { label: shell.create.link, icon: 'link', group: 'add', href: '/wardrobe/link' },
@@ -54,9 +54,7 @@ export default function Create() {
     const result = await add(option.add);
     if (result.status === 'cancelled') return;
     if (result.status === 'added') {
-      // One photo gets its reveal; a batch files quietly and reads on the grid.
-      const [one, more] = result.ids;
-      router.replace(one && !more ? `/piece/${one}?saw=1` : '/wardrobe');
+      router.replace(addedHref(result.ids));
       return;
     }
     toast.show({ message: result.message });

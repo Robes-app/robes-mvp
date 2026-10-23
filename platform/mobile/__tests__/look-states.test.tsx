@@ -34,6 +34,25 @@ const mules = {
   role: 'exclamation' as const,
   wishlisted: false,
 };
+// No twin on file, so every frame stands on a generic model and carries its badge.
+const GENERIC_MODEL = {
+  filed: false,
+  presence: 'woman',
+  skin: 3,
+  hair: 1,
+  line: null,
+  frame: null,
+  source: 'hand',
+  reads: { colour: false, silhouette: false },
+  cellId: 'w-s3-h1-nt',
+  cell: { status: 'none', imageUrl: null },
+  swatches: { skin: [], hair: [] },
+  skinSet: false,
+  hairSet: false,
+  adj: { shoulders: null, bust: null, hips: null },
+  closeUpUrl: null,
+  twin: { status: 'none', current: false, imageUrl: null },
+};
 const suggestion = (o: Partial<Look> = {}): Look =>
   look({
     status: 'suggested',
@@ -139,6 +158,7 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
     [`POST /plan/looks/${LOOK_ID}/days`]: { entries: [] },
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   expect(await screen.findByText(lookbook.eyebrow.suggestedAround('camel wool coat'))).toBeTruthy();
@@ -148,19 +168,19 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   expect(screen.getByText('Exclamation · Not yours yet · toteme.com · €390')).toBeTruthy();
   expect(screen.getByText(lookbook.composedByRobes)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.saveToLookbook }));
-  // The diary opens every time, the day her words named already chosen.
-  expect(await screen.findByText(lookbook.diary.title)).toBeTruthy();
+  // The diary opens every time as beta's month, the day her words named already picked.
+  expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   expect(calls.find((c) => c.path.endsWith('/save'))?.body).toEqual({});
-  await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.diary.add(dayLabel(tomorrow, localDate())) }),
-  );
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.put }));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/days'))?.body).toEqual({
       dates: [tomorrow],
       slot: 'day',
     }),
   );
-  expect(await screen.findByText(lookbook.addedToDay(dayLabel(tomorrow)))).toBeTruthy();
+  expect(
+    await screen.findByText(lookbook.diary.inDiaryFor('Garden party', dayLabel(tomorrow))),
+  ).toBeTruthy();
 });
 
 test('closing the diary after Save is not yet: nothing is pinned', async () => {
@@ -174,13 +194,15 @@ test('closing the diary after Save is not yet: nothing is pinned', async () => {
     },
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.saveToLookbook }));
-  expect(await screen.findByText(lookbook.diary.title)).toBeTruthy();
-  expect(screen.getByRole('button', { name: lookbook.diary.pick })).toBeDisabled();
+  expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
+  // Today is already picked, so the CTA is live — beta never opens this sheet inert.
+  expect(screen.getByRole('button', { name: lookbook.diary.put })).not.toBeDisabled();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.notYet }));
-  await waitFor(() => expect(screen.queryByText(lookbook.diary.title)).toBeNull());
+  await waitFor(() => expect(screen.queryByText(lookbook.diary.eyebrow)).toBeNull());
   expect(calls.some((c) => c.path.endsWith('/days'))).toBe(false);
 });
 
@@ -195,6 +217,7 @@ test('↻ on a suggested look swaps in one tap, stays suggested, and Undo puts i
     'GET /wardrobe/items': { items: [piece(), coat], nextCursor: null },
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(
@@ -213,33 +236,28 @@ test('↻ on a suggested look swaps in one tap, stays suggested, and Undo puts i
   expect(screen.getByRole('button', { name: lookbook.bar.saveToLookbook })).toBeTruthy();
 });
 
-test('a suggested frame with no model of her own carries the Generic model door', async () => {
+test('the Generic model badge opens the twin drawer, and only its CTA navigates', async () => {
   mockFetch({
-    'GET /me/model': {
-      filed: false,
-      presence: 'woman',
-      skin: 3,
-      hair: 1,
-      line: null,
-      frame: null,
-      source: 'hand',
-      reads: { colour: false, silhouette: false },
-      cellId: 'w-s3-h1-nt',
-      cell: { status: 'none', imageUrl: null },
-      swatches: { skin: [], hair: [] },
-      skinSet: false,
-      hairSet: false,
-      adj: { shoulders: null, bust: null, hips: null },
-      closeUpUrl: null,
-      twin: { status: 'none', current: false, imageUrl: null },
-    },
+    'GET /me/model': GENERIC_MODEL,
     'GET /me': ME,
     [`GET /looks/${LOOK_ID}`]: suggestion(),
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('link', { name: lookbook.deck.genericModelLabel }));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.deck.genericModelLabel }),
+  );
+  expect(await screen.findByText(lookbook.deck.twin.body)).toBeTruthy();
+  // Keeping the generic model closes it and changes nothing.
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.twin.keep }));
+  expect(mockRouter.push).not.toHaveBeenCalled();
+
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.deck.genericModelLabel }),
+  );
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.deck.twin.upload }));
   expect(mockRouter.push).toHaveBeenCalledWith('/you/model');
 });
 
@@ -380,6 +398,71 @@ test('keep or pass: a pass waits behind Undo; the end counts what she kept', asy
   await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.see }));
   expect(mockRouter.replace).toHaveBeenCalledWith('/looks?tab=suggested');
   expect(calls.some((c) => c.path.endsWith(`/${SECOND}/restore`))).toBe(true);
+});
+
+test('the deck leaves the model line to the card badge, whose tap never decides the card', async () => {
+  const set: LookSet = {
+    id: SET_ID,
+    mode: 'piece',
+    prompt: null,
+    anchor,
+    dateHint: null,
+    jobId: JOB_ID,
+    looks: [suggestion()],
+  };
+  mockFetch({
+    'GET /me': ME,
+    'GET /me/model': GENERIC_MODEL,
+    [`GET /looks/sets/${SET_ID}`]: set,
+    'GET /looks': byStatus({}),
+  });
+  await renderWithApi(<Deck setId={SET_ID} />);
+  expect(await screen.findByText('Garden party')).toBeTruthy();
+  expect(screen.queryByText(lookbook.deck.modelYours)).toBeNull();
+
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.genericModelLabel }));
+  expect(await screen.findByText(lookbook.deck.twin.body)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.twin.keep }));
+  // Neither kept nor passed: the card she was on is still the card she is on.
+  expect(screen.getByText('Garden party')).toBeTruthy();
+  expect(screen.queryByText(lookbook.deck.kept(0))).toBeNull();
+  expect(mockRouter.push).not.toHaveBeenCalled();
+});
+
+// The scanner's three lists (legacy): a piece, her words, and the overlay before the set lands.
+// Only the overlay names who wears the looks — the deck's own lists never do.
+const dressingSet = (over: Partial<LookSet> = {}): LookSet => ({
+  id: SET_ID,
+  mode: 'piece',
+  prompt: null,
+  anchor,
+  dateHint: null,
+  jobId: JOB_ID,
+  looks: [],
+  ...over,
+});
+
+test.each([
+  ['a piece', dressingSet(), lookbook.deck.scanPiece[1]],
+  [
+    'her words',
+    dressingSet({ mode: 'prompt', anchor: null, prompt: 'dinner' }),
+    lookbook.deck.scanPrompt[1],
+  ],
+])('the deck dresses to the lines for %s, never the overlay’s', async (_label, set, second) => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /me/model': GENERIC_MODEL,
+    [`GET /looks/sets/${SET_ID}`]: set,
+    [`GET /jobs/${JOB_ID}`]: job({ setId: SET_ID }, 'running'),
+    'GET /looks': byStatus({}),
+  });
+  await renderWithApi(<Deck setId={SET_ID} />);
+  expect(await screen.findByTestId('deck-dressing')).toBeTruthy();
+  expect(screen.getByText(lookbook.deck.scanPiece[0] as string)).toBeTruthy();
+  // One beat on: the line that belongs to this list alone.
+  expect(await screen.findByText(second as string, {}, { timeout: 4000 })).toBeTruthy();
+  expect(screen.queryByText(lookbook.deck.scanGeneric)).toBeNull();
 });
 
 test('a verdict on a suggestion lands in her memory; Not quite lets the look go', async () => {

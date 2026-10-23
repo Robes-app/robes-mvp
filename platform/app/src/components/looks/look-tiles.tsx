@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { localToday } from '@/lib/dates';
 import { imageSources } from '@/lib/image';
 import { LookImage } from './look-image';
+import { Scanning, scanningLine } from './scan-line';
 
 const tile =
   'block rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
@@ -76,24 +77,21 @@ export function SuggestedTile({
 }) {
   const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
   const mark = look.anchor?.image ? imageSources(look.anchor.image.renditions) : null;
-  const busy = swapping
-    ? copy.suggestedTile.restyling
-    : !look.image || look.framePending
-      ? copy.suggestedTile.framing
-      : null;
+  const busy = scanningLine(look, swapping);
   return (
     <article
       className="relative flex flex-col overflow-hidden rounded-soft border border-hairline bg-surface"
       data-testid={`suggested-${look.id}`}
     >
       <Link href={`/look/${look.id}`} aria-label={look.name} className={tile}>
-        <div className="relative">
+        <div className="relative overflow-hidden">
           <LookImage look={look} sizes="(min-width: 768px) 33vw, 50vw" />
           {showMark && mark ? (
             <div className="absolute bottom-2 left-2 w-9 overflow-hidden rounded-crisp border border-hairline bg-bg">
               <Image src={mark.src} srcSet={mark.srcSet} sizes="36px" alt="" aspect="4:5" />
             </div>
           ) : null}
+          {busy ? <Scanning line={busy} /> : null}
         </div>
         <div className="flex flex-col gap-1 px-3 pt-2.5 pb-3">
           <Text size="caption" tone="muted" className="uppercase tracking-wider">
@@ -101,7 +99,7 @@ export function SuggestedTile({
           </Text>
           <Text className="truncate font-display text-xl">{look.name}</Text>
           <Text size="caption" tone="faint" className="truncate">
-            {busy ?? (around ? copy.suggestedTile.around(around) : copy.suggestedTile.fromPrompt)}
+            {around ? copy.suggestedTile.around(around) : copy.suggestedTile.fromPrompt}
           </Text>
         </div>
       </Link>

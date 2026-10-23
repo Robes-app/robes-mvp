@@ -68,6 +68,8 @@ export const ICONS = {
     'M7 13l4 7a2 2 0 0 0 2-2.5L12.5 14H18a2 2 0 0 0 2-2.3l-1.2-6A2 2 0 0 0 16.8 4H7',
   ],
   // The look surfaces: ♡ a proposal to the wishlist, ↻ swap or re-style, the prompt's send arrow.
+  // The palette's avoid verb (legacy .pf-ctl): a ringed slash, never a cross on its own.
+  avoid: ['M20.5 12a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0', 'M6 6l12 12'],
   heart: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
   swap: ['M20 12a8 8 0 1 1-2.35-5.65', 'M20 4v5h-5'],
   send: ['M12 19V5', 'M6 11l6-6 6 6'],

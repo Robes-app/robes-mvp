@@ -24,6 +24,27 @@ export function ShadeSwatch({ shade: s, size = 22 }: { shade: Shade | null; size
   );
 }
 
+// A family reads as ONE rounded square quartered into four of its shades (legacy .pf-tile) —
+// never a row of circles, which reads as four separate answers rather than one family.
+export function FamilyTile({
+  family,
+  size = 48,
+}: {
+  family: { name: string; tile: readonly Shade[] };
+  size?: number;
+}) {
+  return (
+    <View
+      className="flex-row flex-wrap overflow-hidden rounded-soft"
+      style={{ width: size, height: size }}
+    >
+      {family.tile.map((s) => (
+        <View key={s.id} style={{ width: size / 2, height: size / 2, backgroundColor: s.hex }} />
+      ))}
+    </View>
+  );
+}
+
 // "Navy · Optic white · Stripes", or nothing when no colour is set.
 export function colourSummary(v: PieceColour): string {
   const names = [v.colourShade, ...v.colourExtra].map((id) => shade(id)?.name).filter(Boolean);
