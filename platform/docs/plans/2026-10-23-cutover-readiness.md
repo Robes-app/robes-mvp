@@ -73,9 +73,9 @@ change lands twice.
       an env var plus a typed confirmation, run only from the cutover checklist.
 - [ ] **Images**: build the real `rehost` copy (Cloudinary → S3, renditions, flip provider).
       Until it finishes, keep Cloudinary paid and live.
-- [ ] Legacy share links: render legacy artifact shares at `/share/[token]` (OD-7: live 180 days)
+- [x] Legacy share links: render legacy artifact shares at `/share/[token]` (OD-7: live 180 days)
       and build the redirect map (`/look/:id`, `/board/:id`, `/dashboard`, `/wardrobe`,
-      `/lookbook`, `/diary`, `/settings`, `/piece/:id`, `/moodboard/:slug`).
+      `/lookbook`, `/diary`, `/settings`, `/piece/:id`, `/moodboard/:slug`) — `app/src/lib/legacy-redirects.ts`.
 - [ ] Legacy read-only flag (503 on write routes + banner) in `server.js`.
 - [ ] Test `reverse-delta` in rehearsal (it is the rollback path after DNS moves).
 - [ ] Airtable export into the backups bucket.

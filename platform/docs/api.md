@@ -46,6 +46,7 @@ export const POST = route({
 | `GET /api/v1/health` | returns `{ ok: true }` only |
 | `POST /api/v1/public/waitlist` (built) | Turnstile + 5/hour per IP + `signups` kill switch; insert-only (an existing contact is never changed) and the same 202 either way; double opt-in via the `/waitlist/confirm?t=` page (HMAC, purpose-bound token, button confirms) |
 | `GET /api/v1/public/shares/:token` (built) | 128-bit token; whitelisted snapshot projected through `SharedLook`; images signed ≤2 h; IP rate limit |
+| Page `/share/[token]` with a 10-character legacy token (built; `/board/:id` redirects here) | Only a migrated row with `legacy_token = true`, not revoked, not past its 180-day expiry; text-only whitelisted snapshot (title, ways, piece names, never images or ids); 30/min per IP (`public.legacy-shares`), over the limit reads as not found. No API route: the JSON endpoint above accepts 128-bit tokens only. |
 | `POST /api/v1/shares/:token/report` | Turnstile + IP rate limit |
 | `POST /api/v1/public/unsub/:token` (built) | HMAC token naming one user + one preference (RFC 8058 one-click, form or JSON body); IP rate limit. The `/unsubscribe?t=` page confirms before acting. |
 | `POST /api/v1/webhooks/resend-inbound` | Svix signature (no shared-secret query param) |

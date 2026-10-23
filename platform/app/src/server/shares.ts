@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { repos } from './db';
 import { env } from './env';
 import { mediaDelivery } from './media';
+import { rateLimiter } from './route';
 
 // What a snapshot stores about an image: enough to sign its renditions, nothing else.
 const SnapshotImage = z.object({
@@ -125,5 +126,47 @@ export async function viewShare(token: string): Promise<SharedLook> {
       })),
     ),
     sharedAt: row.createdAt.toISOString(),
+  });
+}
+
+// What scripts/migrate's shareSnapshot kept of a legacy board: words only, never images.
+const LegacySnapshot = z.object({
+  v: z.literal(1),
+  legacy: z.literal(true),
+  title: z.string(),
+  subtitle: z.string().nullish(),
+  headline: z.string().nullish(),
+  ways: z
+    .array(
+      z.object({ title: z.string(), scene: z.string().nullish(), outfit: z.string().nullish() }),
+    )
+    .nullish(),
+  steps: z
+    .array(z.object({ items: z.array(z.object({ name: z.string() })).default([]) }))
+    .nullish(),
+});
+
+export const SharedLegacy = z.object({
+  name: z.string(),
+  note: z.string().nullable(),
+  ways: z.array(z.object({ title: z.string(), text: z.string() })),
+  pieces: z.array(z.string()),
+});
+export type SharedLegacy = z.infer<typeof SharedLegacy>;
+
+// A migrated `/board/<id>` link (data-model.md §5): 40-bit tokens, so a tight per-IP limit. Over
+// the limit, an unknown, expired or non-legacy token all read the same: not found.
+export async function viewLegacyShare(token: string, ip: string): Promise<SharedLegacy | null> {
+  const limited = await rateLimiter.limit(`public.legacy-shares:${ip}`, 30, 60);
+  if (!limited.success) return null;
+  const row = await repos.publicShares.view(token);
+  const snapshot = LegacySnapshot.safeParse(row?.snapshot);
+  if (!row?.legacyToken || !snapshot.success) return null;
+  const s = snapshot.data;
+  return SharedLegacy.parse({
+    name: s.title,
+    note: s.headline || s.subtitle || null,
+    ways: (s.ways ?? []).map((w) => ({ title: w.title, text: w.scene || w.outfit || '' })),
+    pieces: (s.steps ?? []).flatMap((step) => step.items.map((i) => i.name)).filter(Boolean),
   });
 }
