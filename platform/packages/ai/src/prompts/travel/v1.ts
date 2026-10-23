@@ -6,8 +6,8 @@ import {
   type DailyClosetPiece,
   GENDER_DIRECTIVE,
   type Gender,
-  HERO_DIRECTIVE,
-  heroMark,
+  HERO_RULE,
+  type HeroRule,
   LOOK_TAG_CLIMATES,
   LOOK_TAG_WEAR,
   LOOK_TAGS_RULE,
@@ -142,7 +142,7 @@ export function buildSystem(
   ctx: TravelContext,
   trip: TripBrief,
   correctiveNote?: string,
-  heroDirective = HERO_DIRECTIVE,
+  heroRule: HeroRule = HERO_RULE,
 ): string {
   const closet = ctx.closet.slice(0, 60);
   const n = closet.length;
@@ -150,13 +150,13 @@ export function buildSystem(
   const p = tripParams(trip, short.length);
   const who = ctx.firstName ? `The user's name is ${ctx.firstName.slice(0, 60)}. ` : '';
   const dna = styleDnaPromptBlock(ctx.styleDna, n, ctx.styleIcons);
-  const hero = closet.some((c) => c.hero) ? heroDirective : '';
+  const hero = closet.some((c) => c.hero) ? heroRule.directive : '';
   const state = short.length ? '' : stateDirective(n);
   const closetBlock = n
     ? `THE USER'S DIGITISED WARDROBE (${n} pieces, referenced by wardrobe_index):\n${closet
         .map(
           (c, idx) =>
-            `${idx}: ${clip(c.label, 120)}${c.category ? ` [${c.category}]` : ''}${c.color ? `, ${clip(c.color, 60)}` : ''}${c.brand ? `, ${clip(c.brand, 80)}` : ''}${c.timesWorn > 0 ? `, worn ${c.timesWorn}×` : ''}${heroMark(c)}`,
+            `${idx}: ${clip(c.label, 120)}${c.category ? ` [${c.category}]` : ''}${c.color ? `, ${clip(c.color, 60)}` : ''}${c.brand ? `, ${clip(c.brand, 80)}` : ''}${c.timesWorn > 0 ? `, worn ${c.timesWorn}×` : ''}${heroRule.mark(c)}`,
         )
         .join('\n')}`
     : 'THE USER HAS NOT CATALOGUED ANY WARDROBE PIECES YET.';

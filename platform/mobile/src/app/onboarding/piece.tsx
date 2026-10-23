@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Me, Piece } from '@robes/contracts';
-import { firstRun as copy, home, onboarding } from '@robes/copy';
+import { firstRun as copy, home, onboarding, photoPieces } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -127,9 +127,11 @@ export default function FirstPiece() {
     error ??
     (first.problem === 'none'
       ? copy.piece.noPiece
-      : first.problem === 'failed'
-        ? copy.piece.failed
-        : null);
+      : first.problem === 'stalled'
+        ? photoPieces.stalled
+        : first.problem === 'failed'
+          ? copy.piece.failed
+          : null);
   const eyebrow = piece
     ? copy.piece.filed
     : reading

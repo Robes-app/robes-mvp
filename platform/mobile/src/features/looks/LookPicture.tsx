@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 import { useRequestFrame } from './look-states';
+import { Scanning, scanningLine } from './ScanLine';
 
 export function LookPicture({ look }: { look: Look }) {
   const requestFrame = useRequestFrame();
@@ -17,18 +18,19 @@ export function LookPicture({ look }: { look: Look }) {
     }
   }, [look, requestFrame]);
   const uri = renditionUri(look.image, 360);
+  // The frame is scanned while it is drawn, so the page never rests on the bare pieces.
+  const busy = scanningLine(look);
   return (
     <View className="gap-1">
-      {uri ? (
-        <Image source={uri} alt={copy.prompt.label(look.name)} blurhash={look.image?.blurhash} />
-      ) : (
-        <Skeleton width="100%" aspectRatio={4 / 5} />
-      )}
-      {look.framePending ? (
-        <Text size="caption" tone="muted">
-          {copy.suggestedTile.restyling}
-        </Text>
-      ) : look.composedByRobes ? (
+      <View className="overflow-hidden rounded-crisp">
+        {uri ? (
+          <Image source={uri} alt={copy.prompt.label(look.name)} blurhash={look.image?.blurhash} />
+        ) : (
+          <Skeleton width="100%" aspectRatio={4 / 5} />
+        )}
+        {busy ? <Scanning line={busy} corner /> : null}
+      </View>
+      {!busy && look.composedByRobes ? (
         <Text size="caption" tone="faint" className="self-end">
           {copy.composedByRobes}
         </Text>

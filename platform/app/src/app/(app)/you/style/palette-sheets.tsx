@@ -12,20 +12,15 @@ import {
   setPreference,
   shadePreference,
 } from '@robes/core/colour';
-import { Button, SegmentedControl, Text, useToast } from '@robes/ui';
+import { Icon } from '@robes/icons/web';
+import { Button, PreferenceControl, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ShadeSwatch } from '@/components/wardrobe/colour-field';
+import { FamilyTile, PatternSwatch, ShadeSwatch } from '@/components/wardrobe/colour-field';
 import { errorCopy } from '@/lib/error-copy';
 
 const copy = you.style.palette;
 const STYLE_KEY = queryKeys.call('me.style.get');
-type State = '-1' | '0' | '1';
-const STATES = [
-  { value: '-1', label: copy.states.avoid },
-  { value: '0', label: copy.states.none },
-  { value: '1', label: copy.states.love },
-] as const satisfies ReadonlyArray<{ value: State; label: string }>;
 
 // The Style DNA rows' values: "2 loved · 1 avoided".
 export function paletteSummary(p: Palette | undefined, kind: 'colours' | 'prints'): string {
@@ -55,87 +50,77 @@ export function usePalette() {
   return { palette: query.data?.palette, set };
 }
 
-function Control({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: Preference;
-  onChange: (v: Preference) => void;
-}) {
-  return (
-    <SegmentedControl
-      size="sm"
-      label={label}
-      options={STATES}
-      value={String(value) as State}
-      onChange={(v) => onChange(Number(v) as Preference)}
-    />
-  );
-}
+// A row carries her answer: love is the warm fill across the whole row, avoid fades the tile and
+// the name. Never black — selected is warm here as everywhere (brand-and-design §1).
+const rowClass = (v: Preference): string =>
+  `-mx-3 border-hairline border-b px-3 motion-safe:transition-colors ${v === 1 ? 'bg-selected' : ''}`;
+const nameClass = (v: Preference): string =>
+  `font-sans text-base ${v === 1 ? 'font-medium text-ink' : v === -1 ? 'text-ink-faint' : 'text-ink'}`;
 
-// Your colours: the 13 families on Avoid · No view · Love; a family opens to its shades, which
-// follow it until she sets one (legacy a61f211).
+// Your colours: the 13 families on Avoid · No view · Love; the tile and the name are one
+// disclosure that opens the family's shades, which follow it until she sets one (legacy a61f211).
 export function ColoursBody() {
   const { palette, set } = usePalette();
   const [open, setOpen] = useState<string | null>(null);
   if (!palette) return null;
   return (
     <div className="flex flex-col gap-2">
-      <Text tone="muted">{copy.coloursBody}</Text>
-      <ul className="flex flex-col divide-y divide-hairline">
+      <Text tone="muted">{copy.coloursSub}</Text>
+      <ul className="mt-1.5 flex flex-col">
         {COLOUR_FAMILIES.map((f) => {
           const fam = palette.fam[f.id] ?? 0;
           const own = f.shades.filter((s) => s.id in palette.shade);
+          const shown = open === f.id;
           return (
-            <li key={f.id} className="flex flex-col gap-3 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="flex items-center gap-3">
-                  <span className="flex -space-x-1.5">
-                    {f.tile.map((s) => (
-                      <ShadeSwatch key={s.id} shade={s} size={20} />
-                    ))}
+            <li key={f.id} className={rowClass(fam)}>
+              <div className="flex flex-wrap items-center gap-3 py-3">
+                <button
+                  type="button"
+                  aria-expanded={shown}
+                  aria-label={copy.shades(f.name)}
+                  onClick={() => setOpen(shown ? null : f.id)}
+                  className="flex min-w-0 flex-1 items-center gap-4 text-left"
+                >
+                  <span className={fam === -1 ? 'opacity-40' : undefined}>
+                    <FamilyTile family={f} />
                   </span>
-                  <span className="font-sans text-base text-ink">{f.name}</span>
-                </span>
-                <Control
+                  <span className="flex min-w-0 flex-col gap-[3px]">
+                    <span className={`flex items-center gap-1.5 ${nameClass(fam)}`}>
+                      {f.name}
+                      <Icon
+                        name="down"
+                        size={12}
+                        className={`text-ink-faint motion-safe:transition-transform ${shown ? 'rotate-180' : ''}`}
+                      />
+                    </span>
+                    <span className="min-h-3 font-sans text-ink-muted text-xs">
+                      {own.length ? copy.shadesSet(own.length) : ''}
+                    </span>
+                  </span>
+                </button>
+                <PreferenceControl
                   label={f.name}
                   value={fam}
+                  labels={copy.states}
                   onChange={(v) => set(setPreference(palette, 'fam', f.id, v))}
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="quiet"
-                  aria-expanded={open === f.id}
-                  onClick={() => setOpen(open === f.id ? null : f.id)}
-                >
-                  {open === f.id ? copy.hideShades : copy.showShades}
-                </Button>
-                {own.length ? (
-                  <Button variant="quiet" onClick={() => set(matchFamily(palette, f.id))}>
-                    {copy.matchFamily}
-                  </Button>
-                ) : null}
-              </div>
-              {open === f.id ? (
-                <ul aria-label={copy.shades(f.name)} className="flex flex-col gap-3 pl-2">
+              {shown ? (
+                <ul aria-label={copy.shades(f.name)} className="flex flex-col pb-3.5 pl-16">
                   {f.shades.map((s) => (
-                    <li key={s.id} className="flex flex-wrap items-center justify-between gap-3">
-                      <span className="flex items-center gap-3">
-                        <ShadeSwatch shade={s} size={20} />
-                        <span className="flex flex-col">
-                          <span className="font-sans text-sm text-ink">{s.name}</span>
-                          <span className="font-sans text-xs text-ink-muted">
-                            {s.id in palette.shade ? copy.setHere : copy.fromFamily}
-                          </span>
-                        </span>
+                    <li key={s.id} className="flex min-h-11 flex-wrap items-center gap-3">
+                      <span className="flex min-w-0 flex-1 items-center gap-3">
+                        <ShadeSwatch shade={s} size={26} />
+                        <span className="font-sans text-ink text-sm">{s.name}</span>
                       </span>
-                      {/* The family's answer is no setting; anything else, No view included, is. */}
-                      <Control
+                      {/* The family's answer is no setting of its own; anything else is. */}
+                      <PreferenceControl
+                        size="sm"
                         label={s.name}
-                        value={shadePreference(palette, s.id)}
+                        follows={f.name}
+                        inherited={fam}
+                        value={s.id in palette.shade ? shadePreference(palette, s.id) : null}
+                        labels={copy.states}
                         onChange={(v) =>
                           set(
                             v === fam
@@ -146,12 +131,24 @@ export function ColoursBody() {
                       />
                     </li>
                   ))}
+                  {own.length ? (
+                    <Button
+                      variant="quiet"
+                      className="min-h-11 self-start"
+                      onClick={() => set(matchFamily(palette, f.id))}
+                    >
+                      {copy.matchFamily}
+                    </Button>
+                  ) : null}
                 </ul>
               ) : null}
             </li>
           );
         })}
       </ul>
+      <Text size="small" tone="muted" className="mt-4">
+        {copy.coloursNote}
+      </Text>
     </div>
   );
 }
@@ -161,25 +158,34 @@ export function PrintsBody() {
   const { palette, set } = usePalette();
   if (!palette) return null;
   return (
-    <ul className="flex flex-col divide-y divide-hairline">
-      {PATTERNS.filter((p) => p.pref).map((p) => (
-        <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-          <span className="flex items-center gap-3">
-            {/* The print's swatch is the colour model's data, as the shade swatches. */}
-            <span
-              aria-hidden
-              className="inline-block size-8 shrink-0 rounded-full border border-hairline"
-              style={{ background: p.css }}
-            />
-            <span className="font-sans text-base text-ink">{p.name}</span>
-          </span>
-          <Control
-            label={p.name}
-            value={palette.print[p.id] ?? 0}
-            onChange={(v) => set(setPreference(palette, 'print', p.id, v))}
-          />
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-2">
+      <Text tone="muted">{copy.printsSub}</Text>
+      <ul className="mt-1.5 flex flex-col">
+        {PATTERNS.filter((p) => p.pref).map((p) => {
+          const v = palette.print[p.id] ?? 0;
+          return (
+            <li key={p.id} className={rowClass(v)}>
+              <div className="flex flex-wrap items-center gap-3 py-3">
+                <span className="flex min-w-0 flex-1 items-center gap-4">
+                  <span className={v === -1 ? 'opacity-40' : undefined}>
+                    <PatternSwatch pattern={p} />
+                  </span>
+                  <span className={nameClass(v)}>{p.name}</span>
+                </span>
+                <PreferenceControl
+                  label={p.name}
+                  value={v}
+                  labels={copy.states}
+                  onChange={(next) => set(setPreference(palette, 'print', p.id, next))}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <Text size="small" tone="muted" className="mt-4">
+        {copy.printsNote}
+      </Text>
+    </div>
   );
 }

@@ -1,13 +1,14 @@
 'use client';
 
 import { useApi } from '@robes/api-client/react';
-import type { Model } from '@robes/contracts';
+import type { Facts, Model } from '@robes/contracts';
 import { twin, you } from '@robes/copy';
+import { readAdj } from '@robes/core/avatar';
 import { Icon } from '@robes/icons/web';
-import { Button, ErrorText, Skeleton, Text } from '@robes/ui';
+import { ErrorText, Skeleton, Text } from '@robes/ui';
 import Link from 'next/link';
 import { errorCopy } from '@/lib/error-copy';
-import { lineSummary, useDrawTwin, useModel, useModelPick } from './twin-parts';
+import { Figure, lineSummary, type TwinRead, twinRead, useDrawTwin, useModel } from './twin-parts';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -33,24 +34,19 @@ export function ModelView() {
   const query = useModel();
   const style = useApi('me.style.get');
   const dna = useApi('me.dna.get');
-  const { pick, pending } = useModelPick();
   useDrawTwin('mount');
 
   if (query.isError) return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   const model = query.data;
   if (!model || !style.data || !dna.data) {
-    return <Skeleton className="aspect-[4/5] w-full max-w-sm" />;
+    return <Skeleton className="h-[440px] w-full md:h-[480px] md:rounded-soft" />;
   }
   const colour = style.data.colour;
   const line = lineSummary(dna.data.facts);
+  const read = twinRead(model, dna.data.facts);
   return (
     <div className="flex flex-col gap-8">
-      <ModelStage model={model} />
-      {!model.filed ? (
-        <Button variant="primary" className="self-start" loading={pending} onClick={() => pick({})}>
-          {copy.build}
-        </Button>
-      ) : null}
+      <ModelStage model={model} facts={dna.data.facts} read={read} />
       <nav aria-label={tw.title} className="rounded-soft border border-hairline bg-surface">
         <Door
           href="/you/model/colouring"
@@ -63,32 +59,61 @@ export function ModelView() {
         />
         <Door href="/you/model/body" label={tw.bodyShape} sub={line || tw.bodyShapeSub} />
       </nav>
+      {/* Her model's own line: what Robes drew her from. One size up — the sans never goes italic. */}
+      <Text italic size="small" tone="faint" className="max-md:text-center">
+        {tw.status(model.presence, read)}
+      </Text>
     </div>
   );
 }
 
-// The twin when she has one (dimmed while a newer one draws), else the catalog portrait.
-function ModelStage({ model }: { model: Model }) {
+// The hero (legacy .tw-stage): 440 tall and flush under the header, full-bleed, on the phone; a
+// bordered 480 card on the web. A 90px fade to the ground at its foot carries the caption, which
+// sits inside the stage — her colour words, never a shape.
+function ModelStage({ model, facts, read }: { model: Model; facts: Facts; read: TwinRead }) {
+  const empty = read === 'none';
   const image = model.twin.imageUrl ?? model.cell.imageUrl;
   const drawing = model.twin.status === 'pending' || model.cell.status === 'pending';
   const failed =
     model.twin.status === 'failed' || (!model.twin.imageUrl && model.cell.status === 'failed');
   return (
-    <figure className="relative flex flex-col gap-2">
-      {image ? (
-        // Signed per viewer; a single fixed-ratio image, no renditions.
-        // biome-ignore lint/performance/noImgElement: signed URL, fixed 4:5 frame
-        <img
-          src={image}
-          alt={copy.imageAlt}
-          className={`aspect-[4/5] w-full max-w-sm rounded-soft object-cover ${drawing && !model.twin.current ? 'opacity-60' : ''}`}
+    <div className="flex flex-col gap-2">
+      <figure className="-mx-4 -mt-6 relative h-[440px] overflow-hidden bg-surface-sunk md:mx-0 md:mt-0 md:h-[480px] md:rounded-soft md:border md:border-hairline">
+        {/* Her shape under the photograph: the ghost until anything is on file. */}
+        <div className={`absolute inset-0 ${empty ? 'opacity-[0.22]' : ''}`}>
+          <Figure
+            facts={facts}
+            adj={readAdj(model.adj)}
+            tone={{
+              skin: model.swatches.skin[model.skin] ?? '',
+              hair: model.swatches.hair[model.hair] ?? '',
+            }}
+          />
+        </div>
+        {image ? (
+          // Signed per viewer; one fixed frame, no renditions.
+          // biome-ignore lint/performance/noImgElement: signed URL, fixed hero frame
+          <img
+            src={image}
+            alt={copy.imageAlt}
+            className={`absolute inset-0 size-full object-cover object-[50%_12%] ${drawing && !model.twin.current ? 'opacity-60' : ''}`}
+          />
+        ) : null}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[90px] bg-gradient-to-t from-bg to-transparent"
         />
-      ) : (
-        <Skeleton className="aspect-[4/5] w-full max-w-sm" />
-      )}
-      <figcaption className="font-display text-xl text-ink italic">
-        {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
-      </figcaption>
+        {empty ? (
+          // Nothing on file: the invitation sits in the stage, over the ghost figure.
+          <p className="absolute inset-0 flex items-center justify-center px-[34px] text-center font-display text-ink-faint text-lg italic leading-[1.6]">
+            {tw.stageEmpty}
+          </p>
+        ) : (
+          <figcaption className="absolute inset-x-5 bottom-[18px] font-display text-ink text-xl italic leading-[1.35]">
+            {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
+          </figcaption>
+        )}
+      </figure>
       {drawing ? (
         <Text role="status" size="small" tone="muted">
           {tw.drawing}
@@ -98,6 +123,6 @@ function ModelStage({ model }: { model: Model }) {
           {tw.twinFailed}
         </Text>
       ) : null}
-    </figure>
+    </div>
   );
 }

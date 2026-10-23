@@ -27,6 +27,45 @@ export function ShadeSwatch({ shade: s, size = 24 }: { shade: Shade | null; size
   );
 }
 
+// A family reads as ONE rounded square quartered into four of its shades (legacy .pf-tile) —
+// never a row of circles, which reads as four separate answers rather than one family.
+export function FamilyTile({
+  family,
+  size = 48,
+}: {
+  family: { name: string; tile: readonly Shade[] };
+  size?: number;
+}) {
+  return (
+    <span
+      aria-hidden
+      className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-soft"
+      style={{ width: size, height: size }}
+    >
+      {family.tile.map((s) => (
+        <span key={s.id} className="block" style={{ background: s.css }} />
+      ))}
+    </span>
+  );
+}
+
+// A print is a rounded square of its own pattern (legacy .pf-pt), to the family tile's shape.
+export function PatternSwatch({
+  pattern: p,
+  size = 48,
+}: {
+  pattern: { name: string; css: string };
+  size?: number;
+}) {
+  return (
+    <span
+      aria-hidden
+      className="block shrink-0 rounded-soft border border-hairline"
+      style={{ width: size, height: size, background: p.css }}
+    />
+  );
+}
+
 // "Navy · Optic white · Stripes", or nothing when no colour is set.
 export function colourSummary(v: PieceColour): string {
   const names = [v.colourShade, ...v.colourExtra].map((id) => shade(id)?.name).filter(Boolean);

@@ -4,6 +4,7 @@ import { type BatchPiecesOutput, UploadContentType, type UploadKind } from '@rob
 import { wardrobe as copy } from '@robes/copy';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
+import type { Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 export interface PickedPhoto {
@@ -76,21 +77,26 @@ async function pick(source: AddSource): Promise<PickedPhoto[] | 'denied' | null>
   return result.canceled ? null : result.assets;
 }
 
+// Where filing lands her: one photo gets its reveal, a batch files quietly and reads on the grid.
+export function addedHref(ids: string[]): Href {
+  const [one, more] = ids;
+  return one && !more ? `/piece/${one}?saw=1` : '/wardrobe';
+}
+
 // Pick → upload → batch; the new pieces show as "reading" and fill in as analysis finishes.
-export function useAddPieces(): { add: (source: AddSource) => Promise<AddResult>; busy: boolean } {
+// `file` is the second half on its own, for a surface that produced the photos itself (the
+// in-app camera): a new way to take a photo, never a new way to file one.
+export function useAddPieces(): {
+  add: (source: AddSource) => Promise<AddResult>;
+  file: (photos: PickedPhoto[]) => Promise<AddResult>;
+  busy: boolean;
+} {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
-  const add = useCallback(
-    async (source: AddSource): Promise<AddResult> => {
-      const photos = await pick(source);
-      if (photos === 'denied') {
-        return {
-          status: 'denied',
-          message: source === 'camera' ? copy.cameraDenied : copy.photosDenied,
-        };
-      }
-      if (!photos || photos.length === 0) return { status: 'cancelled' };
+  const file = useCallback(
+    async (photos: PickedPhoto[]): Promise<AddResult> => {
+      if (photos.length === 0) return { status: 'cancelled' };
       setBusy(true);
       try {
         const { pieces } = await addPieces(api, photos);
@@ -104,5 +110,19 @@ export function useAddPieces(): { add: (source: AddSource) => Promise<AddResult>
     },
     [api, queryClient],
   );
-  return { add, busy };
+  const add = useCallback(
+    async (source: AddSource): Promise<AddResult> => {
+      const photos = await pick(source);
+      if (photos === 'denied') {
+        return {
+          status: 'denied',
+          message: source === 'camera' ? copy.cameraDenied : copy.photosDenied,
+        };
+      }
+      if (!photos) return { status: 'cancelled' };
+      return file(photos);
+    },
+    [file],
+  );
+  return { add, file, busy };
 }

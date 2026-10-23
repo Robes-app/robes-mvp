@@ -6,7 +6,7 @@ import { extract, legacyTableName } from '../src/extract';
 import { CAT, L, NIALL, SHARE_TOKEN, W } from '../src/fixture-data';
 import { legacyUuid } from '../src/ids';
 import { buildLegacyFixture, legacySchemaPresent } from '../src/legacy-fixture';
-import { planRehost } from '../src/rehost';
+import { applyRehost, planRehost } from '../src/rehost';
 import { resetTarget } from '../src/reset';
 import { reverseDelta } from '../src/reverse-delta';
 import { recreateTarget } from '../src/target';
@@ -335,6 +335,48 @@ describe.skipIf(!legacySchemaPresent())(
         expect(item.from).toMatch(/^https:\/\/res\.cloudinary\.com\//);
         expect(item.to).toBe(`uploads/${item.userId}/${item.assetId}/original`);
       }
+    });
+
+    it('copies Cloudinary images to their upload keys and resumes after a failure', async () => {
+      const plan = await planRehost(targetUrl);
+      const [broken] = plan;
+      const puts: string[] = [];
+      const storage = { putObject: async (key: string) => void puts.push(key) };
+      const fetch = async (url: string) =>
+        url === broken?.from
+          ? new Response(null, { status: 404 })
+          : new Response(new Uint8Array([0xff, 0xd8, 0xff]), {
+              headers: { 'content-type': 'image/jpeg' },
+            });
+
+      const first = await applyRehost(targetUrl, storage, { fetch });
+      expect(first).toMatchObject({ copied: plan.length - 1, skipped: [] });
+      expect(first.failed).toEqual([{ assetId: broken?.assetId, error: 'HTTP 404' }]);
+      expect(puts.sort()).toEqual(
+        plan
+          .slice(1)
+          .map((i) => i.to)
+          .sort(),
+      );
+      const moved = await one<{ key: string; status: string }>(
+        `select bucket_key as key, status from app.assets where id = $1`,
+        [plan[1]?.assetId],
+      );
+      // Still pending: the S3 event (RenditionFn) renders it and marks it ready.
+      expect(moved).toEqual({ key: plan[1]?.to, status: 'pending' });
+
+      // Only the failed one is left; a URL off Cloudinary is never fetched.
+      await withClient(targetUrl, (c) =>
+        c.query(`update app.assets set legacy_url = 'https://evil.example/x.jpg' where id = $1`, [
+          broken?.assetId,
+        ]),
+      );
+      const second = await applyRehost(targetUrl, storage, { fetch });
+      expect(second).toEqual({
+        copied: 0,
+        skipped: [{ assetId: broken?.assetId, reason: 'not_cloudinary' }],
+        failed: [],
+      });
     });
 
     it('exports only what was created on the platform after cutover', async () => {

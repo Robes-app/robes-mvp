@@ -267,7 +267,7 @@ describe('key_piece handler (suggested looks)', () => {
   });
 
   it('steers by where she said the pieces come from, and never repeats what she has seen', async () => {
-    const { run, generateJson, styling, suggested } = setup();
+    const { run, generateJson, styling, suggested, ledger } = setup();
     await run({ anchor: { type: 'piece', pieceId: PIECE }, balance: 'new' });
     const system = generateJson.mock.calls[0]?.[0].system ?? '';
     expect(system).toContain('she asked for NEW pieces');
@@ -276,6 +276,14 @@ describe('key_piece handler (suggested looks)', () => {
     expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
       data: { balance: 'new', balanceNote: null },
     });
+    // The acceptance read: her answer, the sets that rode along, owned/total per way.
+    expect(ledger.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feature: 'looks.style_piece',
+        status: 'ok',
+        detail: { balance: 'new', shown: 1, owned_of_total: '0/3 0/3 0/3' },
+      }),
+    );
     // ↻ on one of the set's looks honours the answer the set was made with.
     styling.getSet.mockResolvedValueOnce({
       id: SET,
@@ -300,6 +308,21 @@ describe('key_piece handler (suggested looks)', () => {
       'WHERE THE PIECES COME FROM — in her own words: <user_input>\ntwo of mine',
     );
     expect(suggested.rewrite).toHaveBeenCalled();
+  });
+
+  it('counts her own pieces per way, and logs that she wrote words, never the words', async () => {
+    const { run, ledger } = setup(
+      createFakeProvider({ 'looks.style_piece': () => fake({ closetSize: 1 }) }),
+    );
+    await run({ anchor: { type: 'piece', pieceId: PIECE }, balanceNote: 'two of mine, one new' });
+    // One way used a piece of hers, two used none — the read is per way, not an average.
+    expect(ledger.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: { balance: 'words', shown: 1, owned_of_total: '1/3 0/3 0/3' },
+      }),
+    );
+    // Her words themselves never reach the row.
+    expect(JSON.stringify(ledger.record.mock.calls)).not.toContain('two of mine');
   });
 
   it('keeps the looks when the frame fails (UX-08), and rejects bad input', async () => {

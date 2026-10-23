@@ -1,6 +1,5 @@
 import { twin, you } from '@robes/copy';
 import { asSentence } from '@robes/core';
-import { COLOUR_FAMILIES } from '@robes/core/colour';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { Observations } from '../src/features/you/Observations';
 import { StyleDna } from '../src/features/you/StyleDna';
@@ -72,12 +71,10 @@ test('Your colours: a family on Love and a shade on Avoid save the whole palette
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ ...empty, fam: { blues: 1 } }),
   );
-  const blueShades = screen.getAllByRole('button', { name: copy.showShades })[
-    COLOUR_FAMILIES.findIndex((f) => f.id === 'blues')
-  ];
-  if (!blueShades) throw new Error('the Blues row has no Shades toggle');
-  await fireEvent.press(blueShades);
-  const cobalt = within(await screen.findByLabelText('Cobalt'));
+  // The tile and the name ARE the disclosure (legacy .pf-open) — there is no separate toggle.
+  await fireEvent.press(await screen.findByLabelText(copy.shades('Blues')));
+  // A shade with no answer of its own says whose it is taking (legacy .pf-ctl aria-label).
+  const cobalt = within(await screen.findByLabelText('Cobalt: following Blues'));
   await fireEvent.press(cobalt.getByRole('radio', { name: copy.states.avoid }));
   await waitFor(() =>
     expect(calls.filter((c) => c.method === 'PUT').at(-1)?.body).toEqual({

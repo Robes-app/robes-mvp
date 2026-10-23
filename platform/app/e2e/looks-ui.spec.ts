@@ -70,7 +70,7 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   await expect(page.getByText('Not yours yet', { exact: false }).first()).toBeVisible();
   expect(await seriousViolations(page), 'a suggested look').toEqual([]);
   await page.getByRole('button', { name: 'Save to lookbook' }).click();
-  await expect(page.getByText('Saved to your lookbook', { exact: true })).toBeVisible();
+  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
   // Save opens the diary every time; Not yet closes it and writes nothing.
   await page.getByRole('dialog').getByRole('button', { name: 'Not yet' }).click();
   await expect(page.getByText('Saved look')).toBeVisible();
@@ -127,7 +127,7 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   expect(await seriousViolations(page), 'a draft with the prompt open').toEqual([]);
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText('Saved to your lookbook', { exact: true })).toBeVisible();
+  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
   await page.goto('/looks');
   await expect(page.getByTestId('looks-count')).toHaveText('1 look');
 });

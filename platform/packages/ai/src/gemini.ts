@@ -13,6 +13,21 @@ function imagePart(image: InlineImage) {
   return { inlineData: { mimeType: image.mimeType, data: toBase64(image.data) } };
 }
 
+// Gemini answers 400 INVALID_ARGUMENT to `maxItems` on arrays of objects (every styling,
+// receipt and pieces schema), so the cap is left out of what it sees; zod still enforces it.
+export function geminiSchema(schema: z.ZodType): unknown {
+  const strip = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(strip);
+    if (!node || typeof node !== 'object') return node;
+    return Object.fromEntries(
+      Object.entries(node)
+        .filter(([key]) => key !== 'maxItems')
+        .map(([key, value]) => [key, strip(value)]),
+    );
+  };
+  return strip(z.toJSONSchema(schema));
+}
+
 function mapError(err: unknown, signal: AbortSignal): AiError {
   if (err instanceof AiError) return err;
   if (signal.aborted) {
@@ -45,7 +60,7 @@ export function createGeminiProvider(opts: { apiKey: string } | { models: Models
           config: {
             systemInstruction: req.system,
             responseMimeType: 'application/json',
-            responseJsonSchema: z.toJSONSchema(req.schema),
+            responseJsonSchema: geminiSchema(req.schema),
             maxOutputTokens: req.maxOutputTokens,
             temperature: req.temperature ?? 0.4,
             // Thinking is billed as output; styling JSON doesn't need it (cost lever 5).

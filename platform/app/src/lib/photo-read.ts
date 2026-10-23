@@ -19,8 +19,15 @@ export interface PhotoRead {
   jobId: string | null;
   pieces: ReadPiece[];
   error: string | null;
+  // The job's error code, so a caller can tell a stalled photo from one with nothing in it.
+  errorCode: string | null;
   start(file: File): Promise<void>;
   reset(): void;
+}
+
+// A photo whose rendition never landed is a stalled upload, not a photo with nothing in it.
+function jobErrorCopy(code: string | null | undefined): string {
+  return code === 'asset_not_ready' || code === 'asset_missing' ? copy.stalled : copy.failed;
 }
 
 // Her photo → a direct upload → the read job, followed over SSE until every piece is found.
@@ -85,7 +92,8 @@ export function usePhotoRead(kind: UploadKind): PhotoRead {
     assetId,
     jobId,
     pieces: finished ? (job?.output.readPieces ?? []) : [],
-    error: failed ? (error ?? copy.failed) : null,
+    error: failed ? (error ?? jobErrorCopy(job?.error)) : null,
+    errorCode: failed ? (job?.error ?? null) : null,
     start,
     reset,
   };

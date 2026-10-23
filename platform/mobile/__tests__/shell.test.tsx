@@ -1,6 +1,5 @@
-import { nav, shell, twin, you } from '@robes/copy';
+import { nav, shell, twin, wardrobe, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { renderRouter } from 'expo-router/testing-library';
 import { Text } from 'react-native';
 import TabsLayout from '../src/app/(tabs)/_layout';
@@ -13,6 +12,7 @@ import Create from '../src/app/create';
 import OnboardingLayout from '../src/app/onboarding/_layout';
 import Soon from '../src/app/soon';
 import NewTrip from '../src/app/trip/new';
+import CameraRoute from '../src/app/wardrobe/camera';
 import YouIndex from '../src/app/you/index';
 import { ME, mockFetch, newQueryClient } from './support/api';
 import { Providers } from './support/providers';
@@ -57,6 +57,7 @@ async function app(initialUrl = '/') {
       create: Create,
       soon: Soon,
       'trip/new': NewTrip,
+      'wardrobe/camera': CameraRoute,
       'you/index': YouIndex,
       'sign-in': () => <Text>sign-in screen</Text>,
       'onboarding/_layout': OnboardingLayout,
@@ -155,8 +156,9 @@ test('a long press on [+] goes straight to the camera', async () => {
   const router = await app();
   expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
   await fireEvent(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }), 'longPress');
-  await waitFor(() => expect(router.getPathname()).toBe('/create'));
-  await waitFor(() => expect(ImagePicker.launchCameraAsync).toHaveBeenCalled());
+  // Create passes straight through to the in-app camera (legacy bc56305), not the OS one.
+  await waitFor(() => expect(router.getPathname()).toBe('/wardrobe/camera'));
+  expect(screen.getByRole('button', { name: wardrobe.camera.shutter })).toBeTruthy();
 });
 
 test('the avatar opens You', async () => {

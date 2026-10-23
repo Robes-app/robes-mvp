@@ -13,6 +13,7 @@ import { LookImage } from './look-image';
 import { LookPromptBox } from './look-prompt-box';
 import { LookVerdict } from './look-verdict';
 import { RackRowCard } from './rack-row';
+import { Scanning, scanningLine } from './scan-line';
 import { SwapSheet } from './swap-sheet';
 
 // Robes' frame (drawn when she first reaches a suggestion, UX-09) or her look's picture.
@@ -25,15 +26,16 @@ export function LookPicture({ look }: { look: Look }) {
       requestFrame(look.id);
     }
   }, [look, requestFrame]);
+  // The frame is scanned while it is drawn, so the page never rests on the bare pieces.
+  const busy = scanningLine(look);
   return (
     <figure className="flex flex-col gap-1">
-      <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
+      <div className="relative overflow-hidden rounded-crisp">
+        <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
+        {busy ? <Scanning line={busy} corner /> : null}
+      </div>
       <figcaption className="flex justify-end">
-        {look.framePending ? (
-          <Text size="caption" tone="muted">
-            {copy.suggestedTile.restyling}
-          </Text>
-        ) : look.composedByRobes ? (
+        {!busy && look.composedByRobes ? (
           <Text size="caption" tone="faint">
             {copy.composedByRobes}
           </Text>
