@@ -17,6 +17,9 @@ export interface CallRecord {
   // Stored for 30 days only (SEC-82) and never logged.
   prompt?: string | undefined;
   response?: unknown;
+  // Counts and enums that make an answer auditable (e.g. where a look's pieces came from).
+  // Never her words, a prompt or anything else personal: `detail` outlives the 30-day purge.
+  detail?: Record<string, unknown> | undefined;
 }
 
 // The budget day is the UTC calendar day, computed by the database for both write and read.
@@ -42,6 +45,7 @@ export function ledgerRepo(db: Db) {
             costMicros: call.costMicros,
             prompt: call.prompt ?? null,
             response: call.response === undefined ? null : JSON.stringify(call.response),
+            ...(call.detail ? { detail: JSON.stringify(call.detail) } : {}),
           })
           .execute();
         if (call.costMicros > 0) {

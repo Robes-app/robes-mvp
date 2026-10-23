@@ -1538,6 +1538,9 @@ export const photoPieces = {
     body: 'One moment — Robes is finding the pieces.',
   },
   failed: 'Robes couldn’t read the pieces in that photo. Try again in a moment.',
+  // A photo that never finished preparing is not a photo with nothing in it: saying "no
+  // piece" for a stalled upload sends everyone looking at the wrong thing (23 Oct).
+  stalled: 'Robes couldn’t open that photo. Try it again in a moment.',
   none: 'Robes couldn’t see a piece in that photo.',
   photoAlt: 'Your photo',
   tag: (n: number, label: string): string => `Piece ${n}: ${label}`,

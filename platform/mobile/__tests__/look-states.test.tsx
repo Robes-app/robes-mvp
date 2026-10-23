@@ -34,6 +34,25 @@ const mules = {
   role: 'exclamation' as const,
   wishlisted: false,
 };
+// No twin on file, so every frame stands on a generic model and carries its badge.
+const GENERIC_MODEL = {
+  filed: false,
+  presence: 'woman',
+  skin: 3,
+  hair: 1,
+  line: null,
+  frame: null,
+  source: 'hand',
+  reads: { colour: false, silhouette: false },
+  cellId: 'w-s3-h1-nt',
+  cell: { status: 'none', imageUrl: null },
+  swatches: { skin: [], hair: [] },
+  skinSet: false,
+  hairSet: false,
+  adj: { shoulders: null, bust: null, hips: null },
+  closeUpUrl: null,
+  twin: { status: 'none', current: false, imageUrl: null },
+};
 const suggestion = (o: Partial<Look> = {}): Look =>
   look({
     status: 'suggested',
@@ -213,33 +232,27 @@ test('↻ on a suggested look swaps in one tap, stays suggested, and Undo puts i
   expect(screen.getByRole('button', { name: lookbook.bar.saveToLookbook })).toBeTruthy();
 });
 
-test('a suggested frame with no model of her own carries the Generic model door', async () => {
+test('the Generic model badge opens the twin drawer, and only its CTA navigates', async () => {
   mockFetch({
-    'GET /me/model': {
-      filed: false,
-      presence: 'woman',
-      skin: 3,
-      hair: 1,
-      line: null,
-      frame: null,
-      source: 'hand',
-      reads: { colour: false, silhouette: false },
-      cellId: 'w-s3-h1-nt',
-      cell: { status: 'none', imageUrl: null },
-      swatches: { skin: [], hair: [] },
-      skinSet: false,
-      hairSet: false,
-      adj: { shoulders: null, bust: null, hips: null },
-      closeUpUrl: null,
-      twin: { status: 'none', current: false, imageUrl: null },
-    },
+    'GET /me/model': GENERIC_MODEL,
     'GET /me': ME,
     [`GET /looks/${LOOK_ID}`]: suggestion(),
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('link', { name: lookbook.deck.genericModelLabel }));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.deck.genericModelLabel }),
+  );
+  expect(await screen.findByText(lookbook.deck.twin.body)).toBeTruthy();
+  // Keeping the generic model closes it and changes nothing.
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.twin.keep }));
+  expect(mockRouter.push).not.toHaveBeenCalled();
+
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.deck.genericModelLabel }),
+  );
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.deck.twin.upload }));
   expect(mockRouter.push).toHaveBeenCalledWith('/you/model');
 });
 
@@ -380,6 +393,35 @@ test('keep or pass: a pass waits behind Undo; the end counts what she kept', asy
   await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.see }));
   expect(mockRouter.replace).toHaveBeenCalledWith('/looks?tab=suggested');
   expect(calls.some((c) => c.path.endsWith(`/${SECOND}/restore`))).toBe(true);
+});
+
+test('the deck leaves the model line to the card badge, whose tap never decides the card', async () => {
+  const set: LookSet = {
+    id: SET_ID,
+    mode: 'piece',
+    prompt: null,
+    anchor,
+    dateHint: null,
+    jobId: JOB_ID,
+    looks: [suggestion()],
+  };
+  mockFetch({
+    'GET /me': ME,
+    'GET /me/model': GENERIC_MODEL,
+    [`GET /looks/sets/${SET_ID}`]: set,
+    'GET /looks': byStatus({}),
+  });
+  await renderWithApi(<Deck setId={SET_ID} />);
+  expect(await screen.findByText('Garden party')).toBeTruthy();
+  expect(screen.queryByText(lookbook.deck.modelYours)).toBeNull();
+
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.genericModelLabel }));
+  expect(await screen.findByText(lookbook.deck.twin.body)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.twin.keep }));
+  // Neither kept nor passed: the card she was on is still the card she is on.
+  expect(screen.getByText('Garden party')).toBeTruthy();
+  expect(screen.queryByText(lookbook.deck.kept(0))).toBeNull();
+  expect(mockRouter.push).not.toHaveBeenCalled();
 });
 
 test('a verdict on a suggestion lands in her memory; Not quite lets the look go', async () => {

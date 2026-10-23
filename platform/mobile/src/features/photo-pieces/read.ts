@@ -34,6 +34,11 @@ async function pickOne(source: AddSource) {
 
 // One photo → presigned upload → the read job, polled until every piece is found (no SSE on
 // native yet; the job row is the durable truth).
+// A photo whose rendition never landed is a stalled upload, not a photo with nothing in it.
+function jobErrorCopy(code: string | null | undefined): string {
+  return code === 'asset_not_ready' || code === 'asset_missing' ? copy.stalled : copy.failed;
+}
+
 export function usePhotoRead(kind: UploadKind) {
   const api = useApiClient();
   const [photo, setPhoto] = useState<ReadPhoto | null>(null);
@@ -103,7 +108,7 @@ export function usePhotoRead(kind: UploadKind) {
     photo,
     jobId,
     pieces,
-    error: failed ? (error ?? copy.failed) : null,
+    error: failed ? (error ?? jobErrorCopy(data?.error)) : null,
     start,
     startPicked,
     reset,
