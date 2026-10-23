@@ -88,6 +88,17 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 10. **Sharing one account** (sandbox, or staging and production side by side): stack names (`Stg-*` / `Prod-*`) and resource names (`robes-staging-*` / `robes-prod-*`) are stage-prefixed and the media bucket is suffixed with the account id, so both stages deploy into one account. Pick a stage with `-c stage=` or `ROBES_STAGE`. Per-stage overrides for small or member accounts:
     - `ROBES_<STAGE>_GENERATE_RESERVED_CONCURRENCY=0`: no reserved concurrency (needed while the account's Lambda limit is 10).
     - `ROBES_<STAGE>_BUDGETS=off`: skip the Budgets stack. An Organizations member account can't create budgets; set them from the payer account instead.
+**This project's shared account (259887029472), as deployed 2026-10-23.** Both stages live here; run from `platform/infra` with that account's credentials:
+    ```bash
+    # staging: it OWNS the GitHub OIDC provider, so never set ROBES_STAGING_GITHUB_OIDC_PROVIDER_ARN (the import would delete it)
+    ROBES_STAGING_AWS_ACCOUNT_ID=259887029472 ROBES_STAGING_BUDGETS=off ROBES_STAGING_GENERATE_RESERVED_CONCURRENCY=0 \
+      pnpm cdk deploy 'Staging/*' -c stage=staging
+    # production: imports staging's provider; a separate cdk output dir so both can run at once
+    ROBES_PRODUCTION_AWS_ACCOUNT_ID=259887029472 ROBES_PRODUCTION_BUDGETS=off ROBES_PRODUCTION_GENERATE_RESERVED_CONCURRENCY=0 \
+      ROBES_PRODUCTION_GITHUB_OIDC_PROVIDER_ARN=arn:aws:iam::259887029472:oidc-provider/token.actions.githubusercontent.com \
+      pnpm cdk deploy 'Production/*' -c stage=production --output cdk.out.prod
+    ```
+    Lambda's account limit is 10 (hence no reserved concurrency), the account is an Organizations member (no budgets), and neither stage has a custom media domain yet (`MEDIA_PUBLIC_ORIGIN` is the CloudFront domain). The GitHub `staging`/`production` environments are not set up, so `platform-deploy-*` never runs: deploy from a laptop after merging worker or infra changes, and always `cdk diff` first.
 11. Confirm the SNS email subscription for alerts/budgets (`ROBES_<STAGE>_ALERT_EMAIL`). Optional: AWS Chatbot → Slack `#robes-alerts` subscribed to `robes-<env>-alerts`.
 
 ## 5. GitHub
