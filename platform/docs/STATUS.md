@@ -43,7 +43,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
    `10 inbound-smtp.eu-west-1.amazonaws.com` and activate the rule set (`runbooks/environments.md` §9 step 7).
 2. ~~CloudFront private key~~ in `robes-staging/cloudfront/signing-key` (2026-09-24).
    Vercel project `codu/robes-app` (root `platform/app`, dub1, Node 24) is linked with non-secret env set;
-   run `bash scripts/staging-bootstrap.sh` to migrate Supabase, create the robes_app login and set every
+   run `bash scripts/bootstrap.sh staging` to migrate Supabase, create the robes_app login and set every
    secret (Vercel + Secrets Manager), then `vercel deploy --prod --scope codu` from the repo root.
 3. Set real values for the placeholder secrets: `gemini/api-key`, `unsub/hmac-key` (and the same
    value as Vercel `UNSUB_HMAC_KEY`), `expo/access-token`, `database/url`, `auth/*`.
