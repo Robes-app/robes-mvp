@@ -300,7 +300,10 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       status: 'pending',
     });
     try {
-      const model = await modelReference(frameDeps(), ctx.userId);
+      const model = await modelReference(frameDeps(), ctx.userId, {
+        wearer: o.wearer,
+        index: o.setIndex,
+      });
       const { spec: _spec, lookId: _lookId, ...draw } = o;
       const assetId = await drawSuggestedFrame(frameDeps(), ctx, {
         ...draw,

@@ -28,6 +28,8 @@ export interface HomeState {
   pics: number;
   // A look composed from hers (see ownLook).
   ownLookSaved: boolean;
+  // Any saved look at all: the week strip shows from the first (legacy 0.3).
+  anyLook?: boolean;
   // When she last tapped Later on a step (ISO).
   snoozed: Partial<Record<HomeStep, string>>;
 }
@@ -85,6 +87,8 @@ export function resolveHome(
   const stage = (activated ? 5 : next ? HOME_STEPS.indexOf(next) + 1 : 5) as HomeResolved['stage'];
   const modules: HomeModule[] = ['H0', 'H1', 'H2'];
   if (!activated) {
+    // The week strip stands from her first saved look, before the step that leads.
+    if (st.anyLook) modules.push('H3');
     if (next) modules.push(next);
     modules.push('G1', 'H4');
   } else {

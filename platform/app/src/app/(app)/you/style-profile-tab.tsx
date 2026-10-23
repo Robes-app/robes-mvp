@@ -5,14 +5,15 @@ import type { Observation } from '@robes/contracts';
 import { twin } from '@robes/copy';
 import { asSentence } from '@robes/core';
 import { Icon } from '@robes/icons/web';
-import { Button, Eyebrow, Text } from '@robes/ui';
+import { Eyebrow, Text } from '@robes/ui';
 import Link from 'next/link';
-import { useBriefRead, useDnaMutations } from '@/lib/use-dna';
+import { ObservationThumbs } from '@/components/observation-thumbs';
+import { useBriefRead } from '@/lib/use-dna';
 
 const card =
   'flex min-h-16 items-center justify-between gap-4 rounded-crisp border border-hairline bg-surface px-5 font-serif text-xl text-ink hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Style Profile: the three cards print their title only; the one card that asks is Robes noticed.
+// Style Profile: the three cards print their title only; the one card that asks is an Observation.
 export function StyleProfileTab() {
   const { data: dna } = useApi('me.dna.get');
   useBriefRead(dna);
@@ -38,10 +39,8 @@ export function StyleProfileTab() {
   );
 }
 
-// The first waiting line, answered with Keep or Not me.
+// The first waiting line, answered with That’s right or Not quite.
 function NoticedCard({ line }: { line: Observation }) {
-  const { keep, dismiss } = useDnaMutations();
-  const busy = keep.isPending || dismiss.isPending;
   return (
     <section
       aria-label={twin.noticed.eyebrow}
@@ -54,22 +53,7 @@ function NoticedCard({ line }: { line: Observation }) {
           {asSentence(line.because)}
         </Text>
       ) : null}
-      <div className="flex justify-between gap-3">
-        <Button
-          variant="quiet"
-          disabled={busy}
-          onClick={() => dismiss.mutate({ params: { id: line.id } })}
-        >
-          {twin.noticed.notMe}
-        </Button>
-        <Button
-          variant="secondary"
-          disabled={busy}
-          onClick={() => keep.mutate({ params: { id: line.id } })}
-        >
-          {twin.noticed.keep}
-        </Button>
-      </div>
+      <ObservationThumbs line={line} />
     </section>
   );
 }

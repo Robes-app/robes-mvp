@@ -103,9 +103,9 @@ export const home = {
     receiptRead: (n: number): string => `${Word(n)} ${pieces(n)} read,`,
     receiptReady: 'ready to check.',
     review: 'Review ›',
-    noticed: 'Robes noticed',
-    keep: 'Keep ›',
-    notMe: 'Not me',
+    noticed: 'Observations',
+    keep: 'That’s right ›',
+    notMe: 'Not quite',
   },
   // H3: the strip selects a day; its card sits beneath.
   week: {

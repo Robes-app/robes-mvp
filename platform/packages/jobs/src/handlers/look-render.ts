@@ -382,14 +382,22 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         ledger: deps.ledger,
         ...(deps.onGenerated ? { onGenerated: deps.onGenerated } : {}),
       };
+      const wearer: 'woman' | 'man' = set?.success
+        ? set.data.wearer
+        : styleCtx.gender === 'man'
+          ? 'man'
+          : 'woman';
       try {
         assetId = await drawSuggestedFrame(frameDeps, ctx, {
-          wearer: set?.success ? set.data.wearer : styleCtx.gender === 'man' ? 'man' : 'woman',
+          wearer,
           mode: set?.success && set.data.mode === 'prompt' ? 'dress-me' : 'piece',
           fallback: set?.success ? set.data.fallback : false,
           pieceLabel: anchor?.label ?? null,
           piecePhoto,
-          model: await modelReference(frameDeps, ctx.userId),
+          model: await modelReference(frameDeps, ctx.userId, {
+            wearer,
+            index: found.look.setIndex ?? 0,
+          }),
           styleIcons: styleCtx.styleIcons,
           brief: set?.success ? set.data.prompt : null,
           way: {

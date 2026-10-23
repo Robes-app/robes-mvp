@@ -15,13 +15,13 @@ function Toggle() {
 }
 
 describe('Pill and Chip', () => {
-  it('toggles with aria-pressed and uses outline + ink, never a black fill, when selected', async () => {
+  it('toggles with aria-pressed and is warm when selected, never a black fill', async () => {
     render(<Toggle />);
     const pill = screen.getByRole('button', { name: 'Knitwear' });
     expect(pill).toHaveAttribute('aria-pressed', 'false');
     await userEvent.click(pill);
     expect(pill).toHaveAttribute('aria-pressed', 'true');
-    expect(pill).toHaveClass('border-ink', 'text-ink');
+    expect(pill).toHaveClass('bg-selected', 'border-selected-line', 'text-ink');
     expect(pill.className).not.toMatch(/\bbg-ink\b/);
     pill.focus();
     await userEvent.keyboard(' ');

@@ -4,6 +4,7 @@ import { ApiError } from '@robes/api';
 import { JobStatus, Model, type StartJobOutput, type UpdateModelInput } from '@robes/contracts';
 import {
   cellKey,
+  genericCellIds,
   HAIR_SWATCHES,
   type ModelPicks,
   type Presence,
@@ -14,7 +15,7 @@ import type { UserId } from '@robes/db';
 import { z } from 'zod';
 import { repos } from './db';
 import { isFlagEnabled } from './flags';
-import { startJob } from './jobs';
+import { createAndEnqueueJob, startJob } from './jobs';
 import { logger } from './logger';
 import { mediaDelivery } from './media';
 
@@ -63,19 +64,18 @@ export async function loadModel(userId: UserId): Promise<Model> {
   });
 }
 
-// Draws the portrait for a cell nobody has drawn yet (shared catalog; one image quota for her).
-async function ensureCell(userId: UserId, req: Request, cellId: string): Promise<void> {
+// Draws the portrait for a cell nobody has drawn yet (shared catalog); `start` makes the job.
+async function ensureCell(
+  cellId: string,
+  start: (key: string) => Promise<StartJobOutput>,
+): Promise<void> {
   const key = cellKey(cellId);
   // Kill switch for the paid draw only; her picks still save and the portrait waits.
   if (!(await isFlagEnabled('model.portraits'))) return;
   if (!(await repos.avatarCells.claim(key))) return;
   try {
     if (await repos.capacity.isExhausted(['gemini-image'])) throw new ApiError('capacity');
-    const started = await startJob(userId, req, {
-      kind: 'avatar_cell',
-      input: { cellKey: key },
-      quota: { metric: 'generation.image', cost: 1 },
-    });
+    const started = await start(key);
     await repos.avatarCells.setJob(key, started.jobId);
   } catch (err) {
     // Her picks still save; the portrait can be drawn on the next change or visit.
@@ -83,6 +83,21 @@ async function ensureCell(userId: UserId, req: Request, cellId: string): Promise
     logger.warn(
       { reason: err instanceof ApiError ? err.code : 'start_failed' },
       'avatar_cell_not_started',
+    );
+  }
+}
+
+// With no model of her own, a set's three ways stand on three generic Robes models (legacy 0.4):
+// their shared catalog portraits are drawn once ever (the claim), the first time anyone needs
+// them. Not charged to her quota (it is Robes' catalog, six portraits in all), and never on her
+// request's idempotency key, which belongs to the look she asked for.
+export async function ensureGenericCells(userId: UserId): Promise<void> {
+  const row = await repos.model.get(userId);
+  if (!row || row.filedCellId !== null) return;
+  const wearer = presenceOf(row.genderIdentity) === 'man' ? 'man' : 'woman';
+  for (const id of genericCellIds(wearer)) {
+    await ensureCell(id, (key) =>
+      createAndEnqueueJob(userId, { kind: 'avatar_cell', input: { cellKey: key } }),
     );
   }
 }
@@ -97,7 +112,13 @@ export async function updateModel(
   await repos.model.savePicks(userId, picks, presence);
   const { resolved } = await current(userId);
   await repos.model.file(userId, resolved.cellId, { source: resolved.source });
-  await ensureCell(userId, req, resolved.cellId);
+  await ensureCell(resolved.cellId, (key) =>
+    startJob(userId, req, {
+      kind: 'avatar_cell',
+      input: { cellKey: key },
+      quota: { metric: 'generation.image', cost: 1 },
+    }),
+  );
   return loadModel(userId);
 }
 

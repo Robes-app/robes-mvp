@@ -14,6 +14,7 @@ import { Button, ErrorText, Eyebrow, Field, Heading, Skeleton, Text, useToast } 
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
+import { DiarySheet } from '@/components/looks/diary-sheet';
 import { LookImage } from '@/components/looks/look-image';
 import { LookPicture, SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
 import { localToday } from '@/lib/dates';
@@ -35,13 +36,23 @@ export function LookView({ id }: { id: string }) {
         q.state.data?.onModel === 'pending' || q.state.data?.framePending ? 3_000 : false,
     },
   );
+  // Save opens the diary every time; the sheet outlives the working page it was saved from.
+  const [justSaved, setJustSaved] = useState<Look | null>(null);
   if (query.isError) {
     return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!query.data) return <LookSkeleton />;
-  // One look, three states (docs/look-states-brief.md): suggested and draft are hers to work on.
-  if (query.data.status !== 'saved') return <WorkingLook look={query.data} />;
-  return <LookBody look={query.data} />;
+  return (
+    <>
+      {/* One look, three states (docs/look-states-brief.md): suggested and draft are hers to work on. */}
+      {query.data.status !== 'saved' ? (
+        <WorkingLook look={query.data} onSaved={setJustSaved} />
+      ) : (
+        <LookBody look={query.data} />
+      )}
+      <DiarySheet look={justSaved} onClose={() => setJustSaved(null)} />
+    </>
+  );
 }
 
 function useLookActions(look: Look) {

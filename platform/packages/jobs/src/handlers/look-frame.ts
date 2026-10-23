@@ -6,7 +6,7 @@ import {
   MAX_REFERENCES,
   type Mode,
 } from '@robes/ai/prompts/style-piece';
-import { cellKey } from '@robes/core/avatar';
+import { cellKey, genericCellId } from '@robes/core/avatar';
 import type { SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -42,13 +42,17 @@ async function read(storage: FrameDeps['storage'], key: string): Promise<Uint8Ar
   }
 }
 
-// Her model cell as IMAGE 1, when it is ready; a missing model shoots on a Robes model.
+// Her model cell as IMAGE 1, when it is ready. With no model of her own, the k-th way stands on
+// the k-th generic Robes model (legacy 0.4) once that catalog cell is drawn; else no model.
 export async function modelReference(
   deps: Pick<FrameDeps, 'storage' | 'styling' | 'cells'>,
   userId: UserId,
+  generic?: { wearer: 'woman' | 'man'; index: number },
 ): Promise<InlineImage | null> {
   if (!deps.cells) return null;
-  const cellId = await deps.styling.modelCellId(userId);
+  const cellId =
+    (await deps.styling.modelCellId(userId)) ??
+    (generic ? genericCellId(generic.wearer, generic.index) : null);
   if (!cellId) return null;
   const cell = await deps.cells.cell(cellKey(cellId));
   if (cell?.status !== 'ready' || !cell.bucketKey) return null;

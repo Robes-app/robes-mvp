@@ -19,6 +19,7 @@ import { toImage } from './asset-urls';
 import { repos } from './db';
 import { startJob } from './jobs';
 import { mediaDelivery } from './media';
+import { WARDROBE_READ } from './observations-flag';
 import { toStyleProfile } from './style-profile';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -36,7 +37,7 @@ export function readDue(
   now = Date.now(),
   failedAt: Date | null = null,
 ): boolean {
-  if (waiting > 0) return false;
+  if (!WARDROBE_READ || waiting > 0) return false;
   if (failedAt && now - failedAt.getTime() < READ_BACKOFF_MS) return false;
   return readAt === null || now - readAt.getTime() > WEEK_MS;
 }

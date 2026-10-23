@@ -19,6 +19,11 @@ export const palette = {
   mauve: '#D4C8C4',
   // The warm end of the sign-in ground (legacy signup.html).
   blush: '#E8D5D2',
+  // Selected is warm, never black (Annie, 2026-10-21): this fill on this line, plus a check.
+  warm: '#F3EFE6',
+  warmLine: '#C9BCA6',
+  warmDark: '#38342E',
+  warmLineDark: '#8A7F6C',
   success: '#3F6B4C',
   successLight: '#7FB08E',
   danger: '#8B3A30',
@@ -46,6 +51,8 @@ export const semanticNames = [
   'focus-ring',
   'hairline',
   'border-control',
+  'selected',
+  'selected-line',
 ] as const;
 
 export type Semantic = (typeof semanticNames)[number];
@@ -66,6 +73,8 @@ export const light: Record<Semantic, ColorRef> = {
   'focus-ring': 'ink',
   hairline: { base: 'ink', alpha: 0.075 },
   'border-control': { base: 'ink', alpha: 0.5 },
+  selected: 'warm',
+  'selected-line': 'warmLine',
 };
 
 export const dark: Record<Semantic, ColorRef> = {
@@ -84,6 +93,8 @@ export const dark: Record<Semantic, ColorRef> = {
   'focus-ring': 'cream50',
   hairline: { base: 'cream50', alpha: 0.1 },
   'border-control': { base: 'cream50', alpha: 0.4 },
+  selected: 'warmDark',
+  'selected-line': 'warmLineDark',
 };
 
 // Accent colours are declared at 3:1 (large text, icons, fills only) per the brand guideline.
@@ -110,6 +121,7 @@ export const pairs: Array<{ fg: Semantic; bg: Semantic; min: number }> = [
   { fg: 'border-control', bg: 'bg', min: 3 },
   { fg: 'border-control', bg: 'surface', min: 3 },
   { fg: 'focus-ring', bg: 'bg', min: 3 },
+  { fg: 'ink', bg: 'selected', min: 4.5 },
 ];
 
 export const font = {

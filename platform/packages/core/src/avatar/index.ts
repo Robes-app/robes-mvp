@@ -164,3 +164,14 @@ export function parseCellId(id: string): ParsedCell | null {
 
 // The catalog row key: the cell id plus the art direction it was drawn in.
 export const cellKey = (cellId: string): string => `${cellId}@${CELL_STYLE}`;
+
+// Three Robes models for an account with no model of her own (legacy GENERIC_CELLS, 2026-10-17):
+// the k-th look of a set stands on the k-th, so the three ways read as three people; `m-` for a man.
+const GENERIC_CELLS = ['s4-h1-nt', 's1-h0-nt', 's7-h3-nt'] as const;
+export function genericCellIds(wearer: 'woman' | 'man'): string[] {
+  return GENERIC_CELLS.map((c) => `${wearer === 'man' ? 'm' : 'w'}-${c}`);
+}
+export function genericCellId(wearer: 'woman' | 'man', index: number): string {
+  const ids = genericCellIds(wearer);
+  return ids[((index % ids.length) + ids.length) % ids.length] ?? ids[0] ?? '';
+}

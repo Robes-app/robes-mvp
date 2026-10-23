@@ -4,6 +4,7 @@ import { briefList, styleDnaPromptBlock } from './prompt';
 import {
   ageBandLabel,
   BRAND_POOL,
+  BRAND_SEED,
   chooseSeason,
   euShoe,
   euSize,
@@ -23,6 +24,13 @@ describe('the twin vocabulary', () => {
     expect(new Set(names).size).toBe(names.length);
     expect(BRAND_POOL).toEqual(expect.arrayContaining(['Zara', 'Chopova Lowena', 'The Row']));
     expect(ICON_POOL.every(([, tag]) => tag.length > 0)).toBe(true);
+  });
+
+  it('carries the high street, each seeded under a style type', () => {
+    const high = ['Marks & Spencer', '& Other Stories', 'Mango', 'Dunnes Stores', 'Penneys'];
+    expect(BRAND_POOL).toEqual(expect.arrayContaining(high));
+    const seeded = new Set(Object.values(BRAND_SEED).flat());
+    for (const b of high) expect(seeded.has(b)).toBe(true);
   });
 
   it('tags an icon from the pool, ignoring case and spacing', () => {

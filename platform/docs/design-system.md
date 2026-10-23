@@ -86,7 +86,7 @@ Primitives (both `ui` and `ui-native`, same props):
 | `Text`, `Heading`, `Eyebrow` | Heading enforces Cormorant ≥17px; Eyebrow is uppercase tracking |
 | `Button` | variants `primary` (filled ink — **max one per screen**, dev-mode warning if two mount), `secondary` (outline), `quiet` (text); `loading` state never says "Generating" |
 | `IconButton` | 44×44 min hit area |
-| `Pill` / `Chip` | selected state uses outline + ink text, **not** black fill (fixes legacy filter pill) |
+| `Pill` / `Chip` | **selected is warm, never black**: the `selected` fill (#F3EFE6) on the `selected-line` border (#C9BCA6) with ink text and a check (Annie, 2026-10-21) — any selected control uses these two tokens, never an ink fill or ink outline |
 | `Card` (`PieceCard`, `LookCard`, `RackCard` variants) | aspect ratios from reference §5; blur placeholder; skeleton twin |
 | `Image` | wraps `next/image` loader / `expo-image` with our CDN loader, `sizes`, blurhash/thumbhash placeholder |
 | `Sheet` / `Dialog` | native bottom sheet; web dialog (Radix); focus trap; no confirm dialogs for reversible actions — use `Toast` with Undo |
@@ -96,6 +96,8 @@ Primitives (both `ui` and `ui-native`, same props):
 | `Progress` (generation) | staged: "Styling your pieces" → per-image fill; copy from `packages/copy` |
 | `EmptyState` | title, body, one action; copy from `packages/copy` |
 | `Avatar`, `TabBar` (native), `NavRail`/`TopBar` (web) | IA per `SPEC.md` §UX |
+
+**Counts**: never show a count as a fraction (`4 / 15`, `4 of 15`) — a denominator reads as a limit. Print the bare count ("4 pieces filed") or the distance ("Two more pieces and…").
 
 ## 6. Quality gates
 
