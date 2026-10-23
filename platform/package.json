@@ -38,6 +38,7 @@
     "migrate:assert": "pnpm --filter @robes/migrate assert",
     "migrate:rehost": "pnpm --filter @robes/migrate rehost",
     "migrate:reverse-delta": "pnpm --filter @robes/migrate reverse-delta",
+    "migrate:reset": "pnpm --filter @robes/migrate reset",
     "migrate:rehearse": "pnpm --filter @robes/migrate rehearse",
     "batch:tick": "pnpm --filter @robes/workers batch:tick",
     "receipt:ingest": "pnpm --filter @robes/workers receipt:ingest"

@@ -7,6 +7,7 @@ import { CAT, L, NIALL, SHARE_TOKEN, W } from '../src/fixture-data';
 import { legacyUuid } from '../src/ids';
 import { buildLegacyFixture, legacySchemaPresent } from '../src/legacy-fixture';
 import { planRehost } from '../src/rehost';
+import { resetTarget } from '../src/reset';
 import { reverseDelta } from '../src/reverse-delta';
 import { recreateTarget } from '../src/target';
 import { transform } from '../src/transform';
@@ -384,6 +385,51 @@ describe.skipIf(!legacySchemaPresent())(
       );
       expect(jeans).toEqual({ season_band: 'spring_summer', season_source: 'user' });
       expect(legacyTableName('auth.users')).toBe('auth_users');
+    });
+
+    it('reset wipes a test copy so the cutover run copies the legacy app fresh', async () => {
+      await rehearse();
+      // Someone signed up on the new app while it was being tested: the final run must not keep them.
+      await withClient(targetUrl, (c) =>
+        c.query(`insert into app.users (id, email) values ($1, 'tester@new.test')`, [
+          '55555555-5555-4555-8555-555555555555',
+        ]),
+      );
+      const { usersRemoved } = await resetTarget(targetUrl);
+      expect(usersRemoved).toBeGreaterThan(1);
+      const owned = await withClient(targetUrl, async (c) => {
+        const { rows } = await c.query<{ table_name: string }>(
+          `select table_name from information_schema.columns
+           where table_schema = 'app' and column_name = 'user_id'`,
+        );
+        const counts: Record<string, number> = {};
+        for (const { table_name } of rows) {
+          const r = await c.query<{ n: number }>(
+            `select count(*)::int as n from app."${table_name}"`,
+          );
+          counts[table_name] = r.rows[0]?.n ?? 0;
+        }
+        return counts;
+      });
+      expect(Object.values(owned).every((n) => n === 0)).toBe(true);
+      expect(await one<{ n: number }>('select count(*)::int as n from app.users')).toEqual({
+        n: 0,
+      });
+      expect(
+        await one<{ present: boolean }>(
+          `select exists (select 1 from information_schema.schemata where schema_name = 'legacy') as present`,
+        ),
+      ).toEqual({ present: false });
+
+      await extract(legacyUrl, targetUrl);
+      await transform(targetUrl);
+      const report = await assertMigration(targetUrl);
+      expect(report.failures).toEqual([]);
+      expect(
+        await one<{ n: number }>(
+          `select count(*)::int as n from app.users where email = 'tester@new.test'`,
+        ),
+      ).toEqual({ n: 0 });
     });
   },
 );
