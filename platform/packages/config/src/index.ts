@@ -415,13 +415,6 @@ export const workerEnv = z
         message: 'MinIO settings are dev only',
       });
     }
-    if (env.APP_ENV !== 'dev' && !env.GEMINI_API_KEY_SECRET_ARN) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['GEMINI_API_KEY_SECRET_ARN'],
-        message: 'required outside dev',
-      });
-    }
     if (!env.DATABASE_URL === !env.DATABASE_URL_SECRET_ARN) {
       ctx.addIssue({
         code: 'custom',
