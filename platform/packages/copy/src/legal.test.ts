@@ -21,7 +21,13 @@ describe('legal docs', () => {
     const privacy = JSON.stringify(legal.docs.privacy);
     for (const name of ['Amazon SES', 'Vercel', 'Supabase', 'Google Gemini', 'PostHog'])
       expect(privacy).toContain(name);
-    for (const gone of ['Resend', 'Airtable', 'Anthropic', 'Passwords are never'])
+    for (const gone of [
+      'Resend',
+      'Airtable',
+      'Anthropic',
+      'Passwords are never',
+      'full-length photograph',
+    ])
       expect(privacy).not.toContain(gone);
   });
 });
