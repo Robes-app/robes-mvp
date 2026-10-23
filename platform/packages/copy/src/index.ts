@@ -801,6 +801,19 @@ export const you = {
   receipts: {
     title: 'Forward receipts',
     body: 'Forward an order email here and Robes holds the pieces in your Inbox for a yes or no.',
+    // The door's own anatomy (legacy _showMailStep): the eyebrow, the heading, and the address
+    // card as THE one action — tap it to copy. No "Open Mail": a blank mail read wrong.
+    eyebrow: 'Forward a receipt',
+    heading: 'Your own address.',
+    addressLabel: 'Your Robes address',
+    settingUp: 'Setting up your address…',
+    steps: [
+      'Forward the order email.',
+      'Robes reads each piece’s colour, cut, label, price and sizing.',
+      'You review and verify before anything gets filed.',
+    ],
+    waiting: (n: number): string => `${n} ${n === 1 ? 'piece' : 'pieces'} waiting`,
+    review: 'Review them →',
     copy: 'Copy address',
     copied: 'Address copied.',
     copyFailed: (address: string): string => `Copy this address: ${address}`,
@@ -1350,6 +1363,29 @@ export const twin = {
     backToFacts: 'Back to your facts',
     gender: 'Gender',
     age: 'Age',
+    // The one italic line under her model (legacy #mv-status): what Robes drew her from, and what
+    // would take her further. "Nothing yet" is retired from the chrome, so the last rung says drawn.
+    status: (
+      presence: 'woman' | 'man' | 'unspecified',
+      read: 'both' | 'closeUp' | 'facts' | 'hand' | 'none',
+    ): string => {
+      const man = presence === 'man';
+      const they = presence === 'unspecified' ? 'they' : man ? 'he' : 'she';
+      const theyAre = presence === 'unspecified' ? 'They’re' : man ? 'He’s' : 'She’s';
+      const their = presence === 'unspecified' ? 'their' : man ? 'his' : 'her';
+      const s = presence === 'unspecified' ? '' : 's';
+      if (read === 'both')
+        return `Read from your close-up and your facts. ${theyAre} as close as ${they} get${s}.`;
+      if (read === 'closeUp')
+        return `Read from your close-up. Add your facts and Robes draws ${their} line.`;
+      if (read === 'facts')
+        return `Drawn from your facts. Add a close-up and ${they} take${s} your face.`;
+      if (read === 'hand')
+        return `Shaped by hand. A close-up or your facts, whenever you like — ${they} update${s}.`;
+      return 'Nothing drawn yet. Add a close-up, or set your line from your facts.';
+    },
+    // The stage with nothing on it (legacy #mv-fig-empty), over the ghost figure.
+    stageEmpty: 'Your model starts here. Add a close-up, or set your line from your facts.',
   },
   facts: {
     title: 'The facts',

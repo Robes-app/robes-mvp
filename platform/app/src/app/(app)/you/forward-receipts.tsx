@@ -2,19 +2,25 @@
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { you } from '@robes/copy';
-import { Button, Heading, Text, useToast } from '@robes/ui';
+import { Icon } from '@robes/icons/web';
+import { Button, Eyebrow, Heading, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 
 const copy = you.receipts;
 
-// Her forwarding address for receipts: copy it, replace it, or turn it off.
+// Her forwarding address (legacy _showMailStep): the eyebrow, the heading, and the address card
+// as THE one action — a tap copies it. Replacing it and turning it off are quiet beneath, and
+// there is no "Open Mail": opening a blank mail read wrong.
 export function ForwardReceipts() {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [off, setOff] = useState(false);
+  const [copied, setCopied] = useState(false);
   const address = useApi('me.inboxAddress.get', undefined, { enabled: !off });
+  const held = useApi('inbox.list', undefined, { enabled: !off });
   const key = queryKeys.call('me.inboxAddress.get');
   const regenerate = useApiMutation('me.inboxAddress.regenerate', {
     onSuccess: (data) => {
@@ -32,33 +38,65 @@ export function ForwardReceipts() {
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const value = off ? null : (address.data?.address ?? null);
+  const waiting = off ? 0 : (held.data?.count ?? 0);
 
   async function copyAddress(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      toast({ message: copy.copied });
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({ message: copy.copyFailed(text) });
     }
   }
 
   return (
-    <section aria-labelledby="you-receipts" className="flex flex-col gap-2">
-      <Heading level={2} size="sm" id="you-receipts">
-        {copy.title}
+    <section aria-labelledby="you-receipts" className="flex flex-col gap-3">
+      <Eyebrow>{copy.eyebrow}</Eyebrow>
+      <Heading level={2} size="md" id="you-receipts">
+        {copy.heading}
       </Heading>
-      <Text size="small" tone="muted">
-        {copy.body}
-      </Text>
       {value ? (
         <>
-          <Text className="break-all font-mono" data-testid="inbox-address">
-            {value}
-          </Text>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => void copyAddress(value)}>
-              {copy.copy}
-            </Button>
+          {/* The card is the action: one tap copies, and it says so for two seconds. */}
+          <button
+            type="button"
+            onClick={() => void copyAddress(value)}
+            data-testid="inbox-address"
+            className="flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-soft border border-hairline bg-surface px-4 py-3 text-left hover:border-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+          >
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-sans text-ink-faint text-xs uppercase tracking-[0.18em]">
+                {copy.addressLabel}
+              </span>
+              <span className="break-all font-mono text-ink text-sm">{value}</span>
+            </span>
+            <span className="flex shrink-0 items-center gap-1.5 font-sans text-ink-muted text-sm">
+              <Icon name={copied ? 'check' : 'link'} size={14} />
+              {copied ? copy.copied : copy.copy}
+            </span>
+          </button>
+          <ol className="flex flex-col gap-2">
+            {copy.steps.map((step, i) => (
+              <li key={step} className="flex gap-3">
+                <span className="font-display text-ink-faint text-sm">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <Text size="small" tone="muted">
+                  {step}
+                </Text>
+              </li>
+            ))}
+          </ol>
+          {waiting > 0 ? (
+            <Text size="small" tone="muted">
+              {copy.waiting(waiting)} ·{' '}
+              <Link href="/wardrobe/inbox" className="underline">
+                {copy.review}
+              </Link>
+            </Text>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="quiet"
               loading={regenerate.isPending}
@@ -66,22 +104,21 @@ export function ForwardReceipts() {
             >
               {copy.regenerate}
             </Button>
+            {/* Destructive, so it keeps its distance from the card. */}
+            <Button variant="quiet" loading={revoke.isPending} onClick={() => revoke.mutate({})}>
+              {copy.turnOff}
+            </Button>
           </div>
-          {/* Destructive, so on its own line, away from Copy. */}
-          <Button
-            variant="quiet"
-            className="self-start"
-            loading={revoke.isPending}
-            onClick={() => revoke.mutate({})}
-          >
-            {copy.turnOff}
-          </Button>
         </>
       ) : off ? (
         <Button variant="secondary" className="self-start" onClick={() => setOff(false)}>
           {copy.turnOn}
         </Button>
-      ) : null}
+      ) : (
+        <Text size="small" tone="muted">
+          {copy.settingUp}
+        </Text>
+      )}
     </section>
   );
 }
