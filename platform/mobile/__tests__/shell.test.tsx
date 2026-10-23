@@ -1,5 +1,6 @@
 import { nav, shell, twin, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { renderRouter } from 'expo-router/testing-library';
 import { Text } from 'react-native';
 import TabsLayout from '../src/app/(tabs)/_layout';
@@ -17,6 +18,12 @@ import { ME, mockFetch, newQueryClient } from './support/api';
 import { Providers } from './support/providers';
 
 let mockSession: { data: unknown; isPending: boolean } = { data: null, isPending: false };
+jest.mock('expo-image-picker', () => ({
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
 jest.mock('../src/lib/auth-client', () => ({
   authClient: {
     useSession: () => mockSession,
@@ -140,6 +147,16 @@ test('tabs in IA order; [+] opens Create; unbuilt options land on the shared scr
   await fireEvent.press(screen.getByRole('button', { name: shell.create.askRobes }));
   await waitFor(() => expect(router.getPathname()).toBe('/soon'));
   expect(screen.getByText(shell.soon.title)).toBeTruthy();
+});
+
+test('a long press on [+] goes straight to the camera', async () => {
+  mockSession = { data: { user: { id: ME.id } }, isPending: false };
+  mockFetch(ROUTES);
+  const router = await app();
+  expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
+  await fireEvent(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }), 'longPress');
+  await waitFor(() => expect(router.getPathname()).toBe('/create'));
+  await waitFor(() => expect(ImagePicker.launchCameraAsync).toHaveBeenCalled());
 });
 
 test('the avatar opens You', async () => {

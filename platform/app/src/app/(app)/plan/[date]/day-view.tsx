@@ -47,7 +47,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') });
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
   };
-  const rename = useApiMutation('plan.update', {
+  const rename = useApiMutation('plan.nameDay', {
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const unpin = useUndoableMutation('plan.unpin', {
@@ -66,19 +66,16 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
   });
 
   const entries: PlanEntry[] = query.data?.days[0]?.entries ?? [];
-  const s = daySummary(entries);
-  const words = entries.find((e) => e.activity?.trim())?.activity?.trim() ?? '';
+  const dayName = query.data?.days[0]?.name ?? null;
+  const s = daySummary(entries, dayName);
+  const words = dayName ?? entries.find((e) => e.activity?.trim())?.activity?.trim() ?? '';
 
   async function commitName(value: string) {
     setNaming(false);
     const next = value.trim() || null;
     if ((next ?? '') === words) return;
-    // The day's name is what's on that day: every look on it carries it.
-    await Promise.all(
-      entries.map((e) =>
-        rename.mutateAsync({ params: { id: e.id }, input: { activity: next } }).catch(() => null),
-      ),
-    );
+    // The day keeps its name with or without looks; the looks on it carry it too (server-side).
+    await rename.mutateAsync({ params: { date }, input: { name: next } }).catch(() => null);
     refresh();
   }
 
@@ -116,8 +113,8 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
               {s.name ?? copy.name}
             </h1>
           )}
-          {/* A day takes a name once a look is on it: the name rides on its looks. */}
-          {!naming && entries.length ? (
+          {/* Any day can be named, so she can plan a week before adding outfits. */}
+          {!naming ? (
             <IconButton
               icon="pencil"
               label={s.name ? copy.rename : copy.name}

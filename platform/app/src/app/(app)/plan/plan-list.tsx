@@ -22,7 +22,7 @@ export function PlanList({ today }: { today: string }) {
     return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   if (!query.data) return <PlanSkeleton />;
-  const any = query.data.days.some((d) => d.entries.length > 0);
+  const any = query.data.days.some((d) => d.entries.length > 0 || d.name);
   return (
     <div className="flex flex-col gap-6">
       {any ? null : (
@@ -45,7 +45,7 @@ export function PlanList({ today }: { today: string }) {
             <ol className="flex flex-col">
               {g.days.map((day) => (
                 <li key={day.date}>
-                  <DayRow date={day.date} today={today} entries={day.entries} />
+                  <DayRow date={day.date} today={today} name={day.name} entries={day.entries} />
                 </li>
               ))}
             </ol>
@@ -56,9 +56,19 @@ export function PlanList({ today }: { today: string }) {
   );
 }
 
-function DayRow({ date, today, entries }: { date: string; today: string; entries: PlanEntry[] }) {
+function DayRow({
+  date,
+  today,
+  name,
+  entries,
+}: {
+  date: string;
+  today: string;
+  name: string | null;
+  entries: PlanEntry[];
+}) {
   const isToday = date === today;
-  const s = daySummary(entries);
+  const s = daySummary(entries, name);
   const title = s.name ?? (s.looks ? plan.list.looks(s.looks) : null);
   const label = isToday ? plan.today : weekdayShort(date);
   return (

@@ -65,10 +65,11 @@ export function useUnpin() {
   });
 }
 
-export function useUpdateEntry() {
+// Her name for a day, with or without looks on it; the looks there carry it too (server-side).
+export function useNameDay() {
   const toast = useToast();
   const queryClient = useQueryClient();
-  return useApiMutation('plan.update', {
+  return useApiMutation('plan.nameDay', {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') }),
     onError: () => toast.show({ message: errors.internal }),
   });

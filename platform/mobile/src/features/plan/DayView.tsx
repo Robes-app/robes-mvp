@@ -11,7 +11,7 @@ import { errorMessage } from '@/lib/errors';
 import { localDate } from '../looks/saved-looks';
 import { LookPicker } from './LookPicker';
 import { LookThumb } from './LookThumb';
-import { usePlanDay, useUnpin, useUpdateEntry } from './plan';
+import { useNameDay, usePlanDay, useUnpin } from './plan';
 
 function LookCard({ entry, n }: { entry: PlanEntry; n: number }) {
   const router = useRouter();
@@ -57,12 +57,13 @@ export function DayView({ date }: { date: string }) {
   const ink = useColor('ink');
   const today = localDate();
   const query = usePlanDay(date);
-  const update = useUpdateEntry();
+  const nameDay = useNameDay();
   const [picking, setPicking] = useState(false);
   const [naming, setNaming] = useState(false);
   const entries = query.data?.days[0]?.entries ?? [];
-  const s = daySummary(entries);
-  const words = entries.find((e) => e.activity?.trim())?.activity?.trim() ?? '';
+  const dayName = query.data?.days[0]?.name ?? null;
+  const s = daySummary(entries, dayName);
+  const words = dayName ?? entries.find((e) => e.activity?.trim())?.activity?.trim() ?? '';
   const [draft, setDraft] = useState('');
   const router = useRouter();
   const ahead = date >= today;
@@ -77,8 +78,7 @@ export function DayView({ date }: { date: string }) {
     setNaming(false);
     const next = draft.trim() || null;
     if ((next ?? '') === words) return;
-    // The day's name is what's on that day: every look on it carries it.
-    for (const e of entries) update.mutate({ params: { id: e.id }, input: { activity: next } });
+    nameDay.mutate({ params: { date }, input: { name: next } });
   }
 
   const section =
@@ -113,8 +113,8 @@ export function DayView({ date }: { date: string }) {
                 {s.name ?? copy.day.name}
               </Text>
             )}
-            {/* A day takes a name once a look is on it: the name rides on its looks. */}
-            {!naming && entries.length ? (
+            {/* Any day can be named, so she can plan a week before adding outfits. */}
+            {!naming ? (
               <IconButton
                 icon="pencil"
                 tone="ink-muted"
