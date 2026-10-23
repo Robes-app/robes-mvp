@@ -158,6 +158,7 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
     [`POST /plan/looks/${LOOK_ID}/days`]: { entries: [] },
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   expect(await screen.findByText(lookbook.eyebrow.suggestedAround('camel wool coat'))).toBeTruthy();
@@ -167,19 +168,19 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   expect(screen.getByText('Exclamation · Not yours yet · toteme.com · €390')).toBeTruthy();
   expect(screen.getByText(lookbook.composedByRobes)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.saveToLookbook }));
-  // The diary opens every time, the day her words named already chosen.
-  expect(await screen.findByText(lookbook.diary.title)).toBeTruthy();
+  // The diary opens every time as beta's month, the day her words named already picked.
+  expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   expect(calls.find((c) => c.path.endsWith('/save'))?.body).toEqual({});
-  await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.diary.add(dayLabel(tomorrow, localDate())) }),
-  );
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.put }));
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/days'))?.body).toEqual({
       dates: [tomorrow],
       slot: 'day',
     }),
   );
-  expect(await screen.findByText(lookbook.addedToDay(dayLabel(tomorrow)))).toBeTruthy();
+  expect(
+    await screen.findByText(lookbook.diary.inDiaryFor('Garden party', dayLabel(tomorrow))),
+  ).toBeTruthy();
 });
 
 test('closing the diary after Save is not yet: nothing is pinned', async () => {
@@ -193,13 +194,15 @@ test('closing the diary after Save is not yet: nothing is pinned', async () => {
     },
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.saveToLookbook }));
-  expect(await screen.findByText(lookbook.diary.title)).toBeTruthy();
-  expect(screen.getByRole('button', { name: lookbook.diary.pick })).toBeDisabled();
+  expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
+  // Today is already picked, so the CTA is live — beta never opens this sheet inert.
+  expect(screen.getByRole('button', { name: lookbook.diary.put })).not.toBeDisabled();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.notYet }));
-  await waitFor(() => expect(screen.queryByText(lookbook.diary.title)).toBeNull());
+  await waitFor(() => expect(screen.queryByText(lookbook.diary.eyebrow)).toBeNull());
   expect(calls.some((c) => c.path.endsWith('/days'))).toBe(false);
 });
 
@@ -214,6 +217,7 @@ test('↻ on a suggested look swaps in one tap, stays suggested, and Undo puts i
     'GET /wardrobe/items': { items: [piece(), coat], nextCursor: null },
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(
@@ -239,6 +243,7 @@ test('the Generic model badge opens the twin drawer, and only its CTA navigates'
     [`GET /looks/${LOOK_ID}`]: suggestion(),
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(

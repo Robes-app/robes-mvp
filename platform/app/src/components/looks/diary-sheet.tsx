@@ -99,8 +99,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
         if (!o) close();
       }}
       eyebrow={copy.diary.eyebrow}
-      title={copy.diary.title}
-      description={look?.name}
+      title={look?.name || copy.diary.title}
       footer={
         <>
           <Button variant="quiet" onClick={close}>
