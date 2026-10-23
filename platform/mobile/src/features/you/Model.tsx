@@ -7,7 +7,7 @@ import { type Href, useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { errorMessage } from '@/lib/errors';
-import { lineSummary, useDrawTwin, useModel } from './twin';
+import { lineSummary, twinRead, useDrawTwin, useModel } from './twin';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -46,11 +46,12 @@ export function Model() {
   if (!model || !style.data || !dna.data) return <Skeleton width="100%" aspectRatio={4 / 5} />;
   const colour = style.data.colour;
   const line = lineSummary(dna.data.facts);
+  const read = twinRead(model, dna.data.facts);
   return (
     // The hero is full-bleed, so the gutter belongs to what sits under it.
     <ScrollView contentContainerClassName="pb-12">
       <Stage model={model} />
-      <View className="px-6 pt-6">
+      <View className="gap-6 px-6 pt-6">
         <View className="rounded-soft border border-hairline bg-surface">
           <Door
             label={tw.colouring}
@@ -63,6 +64,10 @@ export function Model() {
           />
           <Door label={tw.bodyShape} sub={line || tw.bodyShapeSub} href="/you/model/body" />
         </View>
+        {/* Her model's own line: what Robes drew her from. One size up — the sans never goes italic. */}
+        <Text italic size="small" tone="faint" className="text-center">
+          {tw.status(model.presence, read)}
+        </Text>
       </View>
     </ScrollView>
   );

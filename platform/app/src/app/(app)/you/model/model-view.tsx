@@ -7,7 +7,7 @@ import { Icon } from '@robes/icons/web';
 import { ErrorText, Skeleton, Text } from '@robes/ui';
 import Link from 'next/link';
 import { errorCopy } from '@/lib/error-copy';
-import { lineSummary, useDrawTwin, useModel } from './twin-parts';
+import { lineSummary, twinRead, useDrawTwin, useModel } from './twin-parts';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -42,6 +42,7 @@ export function ModelView() {
   }
   const colour = style.data.colour;
   const line = lineSummary(dna.data.facts);
+  const read = twinRead(model, dna.data.facts);
   return (
     <div className="flex flex-col gap-8">
       <ModelStage model={model} />
@@ -57,6 +58,10 @@ export function ModelView() {
         />
         <Door href="/you/model/body" label={tw.bodyShape} sub={line || tw.bodyShapeSub} />
       </nav>
+      {/* Her model's own line: what Robes drew her from. One size up — the sans never goes italic. */}
+      <Text italic size="small" tone="faint" className="max-md:text-center">
+        {tw.status(model.presence, read)}
+      </Text>
     </div>
   );
 }

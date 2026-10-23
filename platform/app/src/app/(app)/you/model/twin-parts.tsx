@@ -184,6 +184,26 @@ export function Figure({ facts, adj }: { facts: Facts; adj: TwinAdj }) {
   );
 }
 
+// What drew her, in the order the status line reads it (legacy renderModel + twAnyFact): only the
+// facts that draw her line count, never her shoes or her age.
+export function twinRead(
+  model: Model,
+  facts: Facts,
+): 'both' | 'closeUp' | 'facts' | 'hand' | 'none' {
+  const closeUp = !!model.closeUpUrl;
+  const line = !!(
+    facts.heightCm ||
+    facts.sizeUk ||
+    facts.bustBand ||
+    facts.bustCm ||
+    facts.waistCm
+  );
+  if (closeUp && line) return 'both';
+  if (closeUp) return 'closeUp';
+  if (line) return 'facts';
+  return model.filed || model.skinSet || model.hairSet ? 'hand' : 'none';
+}
+
 export const bustOf = (facts: Facts): string =>
   f.bustValue(facts.bustBand, facts.bustCup, facts.bustCm);
 
