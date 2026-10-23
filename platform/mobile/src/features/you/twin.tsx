@@ -176,10 +176,9 @@ export function Figure({ facts, adj }: { facts: Facts; adj: Model['adj'] }) {
 
 // What drew her, in the order the status line reads it (legacy renderModel + twAnyFact): only the
 // facts that draw her line count, never her shoes or her age.
-export function twinRead(
-  model: Model,
-  facts: Facts,
-): 'both' | 'closeUp' | 'facts' | 'hand' | 'none' {
+export type TwinRead = 'both' | 'closeUp' | 'facts' | 'hand' | 'none';
+
+export function twinRead(model: Model, facts: Facts): TwinRead {
   const closeUp = !!model.closeUpUrl;
   const line = !!(
     facts.heightCm ||

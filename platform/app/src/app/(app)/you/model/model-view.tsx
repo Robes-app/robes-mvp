@@ -7,7 +7,7 @@ import { Icon } from '@robes/icons/web';
 import { ErrorText, Skeleton, Text } from '@robes/ui';
 import Link from 'next/link';
 import { errorCopy } from '@/lib/error-copy';
-import { lineSummary, twinRead, useDrawTwin, useModel } from './twin-parts';
+import { lineSummary, type TwinRead, twinRead, useDrawTwin, useModel } from './twin-parts';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -45,7 +45,7 @@ export function ModelView() {
   const read = twinRead(model, dna.data.facts);
   return (
     <div className="flex flex-col gap-8">
-      <ModelStage model={model} />
+      <ModelStage model={model} read={read} />
       <nav aria-label={tw.title} className="rounded-soft border border-hairline bg-surface">
         <Door
           href="/you/model/colouring"
@@ -69,7 +69,8 @@ export function ModelView() {
 // The hero (legacy .tw-stage): 440 tall and flush under the header, full-bleed, on the phone; a
 // bordered 480 card on the web. A 90px fade to the ground at its foot carries the caption, which
 // sits inside the stage — her colour words, never a shape.
-function ModelStage({ model }: { model: Model }) {
+function ModelStage({ model, read }: { model: Model; read: TwinRead }) {
+  const empty = read === 'none';
   const image = model.twin.imageUrl ?? model.cell.imageUrl;
   const drawing = model.twin.status === 'pending' || model.cell.status === 'pending';
   const failed =
@@ -85,16 +86,23 @@ function ModelStage({ model }: { model: Model }) {
             alt={copy.imageAlt}
             className={`absolute inset-0 size-full object-cover object-[50%_12%] ${drawing && !model.twin.current ? 'opacity-60' : ''}`}
           />
-        ) : (
+        ) : empty ? null : (
           <Skeleton className="absolute inset-0 size-full rounded-none" />
         )}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 h-[90px] bg-gradient-to-t from-bg to-transparent"
         />
-        <figcaption className="absolute inset-x-5 bottom-[18px] font-display text-ink text-xl italic leading-[1.35]">
-          {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
-        </figcaption>
+        {empty ? (
+          // Nothing on file: the invitation sits in the stage, over the ghost figure.
+          <p className="absolute inset-0 flex items-center justify-center px-[34px] text-center font-display text-ink-faint text-lg italic leading-[1.6]">
+            {tw.stageEmpty}
+          </p>
+        ) : (
+          <figcaption className="absolute inset-x-5 bottom-[18px] font-display text-ink text-xl italic leading-[1.35]">
+            {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
+          </figcaption>
+        )}
       </figure>
       {drawing ? (
         <Text role="status" size="small" tone="muted">

@@ -57,7 +57,9 @@ test('her model is the hero with two doors; landing asks for the twin once', asy
     'GET /today': {},
   });
   await renderWithApi(<Model />);
-  expect(await screen.findByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
+  // Nothing on file: the stage carries the invitation, not a caption.
+  expect(await screen.findByText(tw.stageEmpty)).toBeTruthy();
+  expect(screen.queryByText(tw.caption('Tan', 'Espresso'))).toBeNull();
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
   // The redline cut Build your model from the twin: the hero and the two doors are all it carries.
   expect(screen.queryByRole('button', { name: copy.build })).toBeNull();
@@ -92,6 +94,7 @@ test('says so while her twin is being drawn, and shows the twin over the catalog
   mockFetch({ ...TWIN, 'GET /me/model': drawing, 'POST /me/model/twin': drawing });
   await renderWithApi(<Model />);
   expect(await screen.findByText(tw.drawing)).toBeTruthy();
+  expect(screen.getByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
 });
 
 test('a look offers See it on me once her model is ready, and asks for the render', async () => {

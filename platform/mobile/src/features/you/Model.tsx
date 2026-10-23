@@ -7,7 +7,7 @@ import { type Href, useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { errorMessage } from '@/lib/errors';
-import { lineSummary, twinRead, useDrawTwin, useModel } from './twin';
+import { lineSummary, type TwinRead, twinRead, useDrawTwin, useModel } from './twin';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -50,7 +50,7 @@ export function Model() {
   return (
     // The hero is full-bleed, so the gutter belongs to what sits under it.
     <ScrollView contentContainerClassName="pb-12">
-      <Stage model={model} />
+      <Stage model={model} read={read} />
       <View className="gap-6 px-6 pt-6">
         <View className="rounded-soft border border-hairline bg-surface">
           <Door
@@ -75,7 +75,8 @@ export function Model() {
 
 // The hero (legacy .tw-stage): 440 tall, full-bleed and flush under the header, with a 90px fade to
 // the ground at its foot carrying the caption — her colour words, never a shape.
-function Stage({ model }: { model: ModelData }) {
+function Stage({ model, read }: { model: ModelData; read: TwinRead }) {
+  const empty = read === 'none';
   const image = model.twin.imageUrl ?? model.cell.imageUrl;
   const drawing = model.twin.status === 'pending' || model.cell.status === 'pending';
   const failed =
@@ -90,13 +91,22 @@ function Stage({ model }: { model: ModelData }) {
           >
             <Image source={image} alt={copy.imageAlt} className="h-full" />
           </View>
-        ) : (
+        ) : empty ? null : (
           <Skeleton width="100%" height="100%" shape="text" className="rounded-none" />
         )}
         <StageFade />
-        <Text italic className="absolute right-5 bottom-[18px] left-5 font-display text-xl">
-          {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
-        </Text>
+        {empty ? (
+          // Nothing on file: the invitation sits in the stage, over the ghost figure.
+          <View className="absolute inset-0 items-center justify-center px-[34px]">
+            <Text italic tone="faint" className="text-center font-display">
+              {tw.stageEmpty}
+            </Text>
+          </View>
+        ) : (
+          <Text italic className="absolute right-5 bottom-[18px] left-5 font-display text-xl">
+            {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
+          </Text>
+        )}
       </View>
       <View className="px-6">
         {drawing ? (
