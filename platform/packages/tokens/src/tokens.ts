@@ -17,6 +17,8 @@ export const palette = {
   sage: '#7E7C5A',
   sageLight: '#A9A67E',
   mauve: '#D4C8C4',
+  // The warm end of the sign-in ground (legacy signup.html).
+  blush: '#E8D5D2',
   success: '#3F6B4C',
   successLight: '#7FB08E',
   danger: '#8B3A30',
