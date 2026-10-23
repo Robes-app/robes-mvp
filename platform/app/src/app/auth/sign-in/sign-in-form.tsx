@@ -1,7 +1,8 @@
 'use client';
 
-import { auth as copy } from '@robes/copy';
+import { auth as copy, you } from '@robes/copy';
 import { Button, Eyebrow, Field, Heading, Text, Wordmark } from '@robes/ui';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { authClient } from '@/lib/auth-client';
@@ -145,7 +146,15 @@ export function SignInForm({
         </div>
       ) : null}
       <Text size="caption" tone="faint">
-        {copy.legal}
+        {copy.legal.lead}{' '}
+        <Link href="/legal/terms" className="text-ink underline underline-offset-4">
+          {you.legal.terms}
+        </Link>{' '}
+        {copy.legal.and}{' '}
+        <Link href="/legal/privacy" className="text-ink underline underline-offset-4">
+          {you.legal.privacyNotice}
+        </Link>
+        {copy.legal.end}
       </Text>
     </div>
   );

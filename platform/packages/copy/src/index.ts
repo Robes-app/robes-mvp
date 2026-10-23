@@ -1,4 +1,5 @@
 import { firstRun, home } from './home';
+import { legal } from './legal';
 import { lookbook } from './lookbook';
 
 // Every user-facing string lives here (SPEC principle 6); voice rules: brand-and-design.md §1.
@@ -64,7 +65,7 @@ export const auth = {
   invalidCode: 'That code didn’t match. Check it and try again.',
   sendFailed: 'Robes couldn’t send a code just now. Try again in a moment.',
   signOut: 'Sign out',
-  legal: 'By continuing you agree to the Terms and Privacy notice.',
+  legal: { lead: 'By continuing you agree to the', and: 'and', end: '.' },
 } as const;
 
 export const emails = {
@@ -915,6 +916,7 @@ export const share = {
   eyebrow: 'A look from Robes',
   by: (name: string): string => `Styled by ${name}`,
   pieces: 'The pieces',
+  ways: 'Ways to wear it',
   cta: 'Style your own wardrobe',
   imageAlt: (name: string): string => `The look: ${name}`,
   pieceAlt: (label: string): string => label,
@@ -1505,6 +1507,7 @@ export const twin = {
 } as const;
 
 export { firstRun, home } from './home';
+export { legal } from './legal';
 export { lookbook } from './lookbook';
 
 // Several pieces from one photograph (legacy 2026-10-13): the wardrobe add (use case 3) and a
@@ -1667,4 +1670,5 @@ export const copy = {
   notify,
   admin,
   keyPiece,
+  legal,
 } as const;

@@ -3,6 +3,8 @@ import { AssetRendition } from './media';
 
 // Public share links (M6 task 3): a whitelisted snapshot behind a 128-bit token (SEC-13).
 export const ShareToken = z.string().regex(/^[A-Za-z0-9_-]{22,64}$/);
+// Migrated legacy `/board/<id>` links: 40-bit, so read only by the share page, rate limited.
+export const LegacyShareToken = z.string().regex(/^[A-Za-z0-9]{10}$/);
 export const ShareParams = z.object({ token: ShareToken });
 
 export const CreateShareInput = z.object({

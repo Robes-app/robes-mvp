@@ -65,7 +65,7 @@ export function publicSharesRepo(db: Db) {
         .where('token', '=', token)
         .where('revokedAt', 'is', null)
         .where((eb) => eb.or([eb('expiresAt', 'is', null), eb('expiresAt', '>', sql<Date>`now()`)]))
-        .returning(['ownerId', 'subjectType', 'snapshot', 'createdAt'])
+        .returning(['ownerId', 'subjectType', 'snapshot', 'legacyToken', 'createdAt'])
         .executeTakeFirst();
     },
   };
