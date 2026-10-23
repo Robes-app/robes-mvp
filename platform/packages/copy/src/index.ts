@@ -1237,9 +1237,9 @@ export const twin = {
     observations: 'Observations',
   },
   noticed: {
-    eyebrow: 'Robes noticed',
-    keep: 'Keep →',
-    notMe: '← Not me',
+    eyebrow: 'Observations',
+    keep: 'That’s right',
+    notMe: 'Not quite',
     kept: 'Kept. Filed under Style DNA.',
   },
   twinPage: {
@@ -1402,14 +1402,18 @@ export const twin = {
   },
   observations: {
     title: 'Observations',
-    sub: 'Read from what you wear. Keep a line and it joins your Style DNA.',
+    sub: 'What Robes notices. Say it’s right and it joins your Style DNA.',
     since: 'Since your last visit',
     reading: 'Robes is reading your wardrobe…',
     failed: 'Robes couldn’t read your wardrobe just now — try again in a moment.',
-    empty: 'Nothing new. Robes keeps reading.',
+    // "Nothing yet" is banned in chrome (brand §1), so the legacy line opens "Nothing so far".
+    empty: 'Nothing so far. Robes notes what you keep and change on your looks.',
     keptBefore: 'Kept before',
-    keep: 'Keep',
-    notMe: 'Not me',
+    keep: 'That’s right',
+    notMe: 'Not quite',
+    answer: (verb: string, text: string): string => `${verb}: ${text}`,
+    remove: (text: string): string => `Remove from your Style DNA: ${text}`,
+    removed: 'Removed from your Style DNA.',
     list: {
       loves: 'Works',
       avoids: 'Never',

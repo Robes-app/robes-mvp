@@ -172,6 +172,27 @@ describe('suggested looks (look states)', () => {
     });
   });
 
+  it('a swap on a suggestion with keepSuggested lands on it and it stays suggested', async () => {
+    const [id] = await system.suggested.mintSet(ann, await newSet(ann), [
+      {
+        setIndex: 0,
+        name: 'Weekend',
+        note: null,
+        pieces: [{ pieceId: dress, role: 'anchor' }],
+        proposals: [proposal],
+        anchorPieceId: dress,
+        dateHint: null,
+      },
+    ]);
+    if (!id) throw new Error('no look');
+    const swapped = await looks.update(ann, id, {
+      pieces: [{ pieceId: boots, role: 'anchor' }],
+      keepSuggested: true,
+    });
+    expect(swapped).toMatchObject({ status: 'suggested' });
+    expect(await looks.update(bea, id, { pieces: [], keepSuggested: true })).toBeUndefined();
+  });
+
   it('re-writes a suggestion in place (↻), never a saved look or another user’s', async () => {
     const [id] = await system.suggested.mintSet(ann, await newSet(ann), [
       {

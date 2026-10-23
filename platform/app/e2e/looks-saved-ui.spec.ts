@@ -32,6 +32,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await expect(page.getByText('2 pieces', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Saved to your lookbook', { exact: true })).toBeVisible();
+  // Save opens the diary every time; Not yet closes it and writes nothing.
+  await page.getByRole('dialog').getByRole('button', { name: 'Not yet' }).click();
 
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Camel coat, styled' })).toBeVisible();

@@ -131,7 +131,28 @@ test('observations: Robes reads when due, then Keep files a line and toasts', as
   await renderWithApi(<Observations />);
   expect(await screen.findByText(asSentence(notice.text), {}, { timeout: 5000 })).toBeTruthy();
   expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/me/dna/read'))).toBe(true);
-  await fireEvent.press(screen.getByRole('button', { name: twin.observations.keep }));
+  await fireEvent.press(
+    screen.getByRole('button', {
+      name: twin.observations.answer(twin.observations.keep, notice.text),
+    }),
+  );
   expect(await screen.findByText(twin.noticed.kept)).toBeTruthy();
   expect(await screen.findByText(twin.observations.keptBefore)).toBeTruthy();
+});
+
+test('Observations: × takes a kept line off her Style DNA', async () => {
+  const line = { ...kept('loves', 'You reach for a defined waist'), source: 'drafted' as const };
+  const calls = mockFetch({
+    'GET /me/dna': styleDna({ brief: { ...styleDna().brief, loves: [line] } }),
+    [`DELETE /me/dna/lines/${LINE_ID}`]: styleDna(),
+  });
+  await renderWithApi(<Observations />);
+  expect(await screen.findByText(twin.observations.empty)).toBeTruthy();
+  await fireEvent.press(
+    await screen.findByRole('button', { name: twin.observations.remove(line.text) }),
+  );
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith(LINE_ID))).toBe(true),
+  );
+  expect(await screen.findByText(twin.observations.removed)).toBeTruthy();
 });

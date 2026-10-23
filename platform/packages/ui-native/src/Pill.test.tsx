@@ -17,7 +17,7 @@ test('selected pill is announced as selected and toggles through onPress', async
   expect(onPress).toHaveBeenCalledTimes(1);
 });
 
-test('selected state is an ink outline, never a black fill', async () => {
+test('selected state is warm, never a black fill', async () => {
   await render(
     <Pill selected onPress={() => {}}>
       Knitwear
@@ -25,7 +25,8 @@ test('selected state is an ink outline, never a black fill', async () => {
   );
   const button = screen.getByRole('button', { name: 'Knitwear' });
   const face = button.children[0] as unknown as { props: { className: string } };
-  expect(face.props.className).toContain('border-ink');
+  expect(face.props.className).toContain('bg-selected');
+  expect(face.props.className).toContain('border-selected-line');
   expect(face.props.className).not.toContain('bg-ink');
   expect(button).toHaveStyle({ minHeight: 44 });
 });

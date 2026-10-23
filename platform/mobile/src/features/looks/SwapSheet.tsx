@@ -8,7 +8,7 @@ import { usePieces } from '@/features/wardrobe/pieces';
 import { renditionUri } from '@/lib/images';
 
 // The swap drawer (legacy 4b): her pieces by category, opening on the piece's own; a tap picks,
-// "Swap in …" commits, closing changes nothing. With no piece to swap it adds one instead.
+// "Swap in …" commits (or the tap itself, `instant`), closing changes nothing. With no piece to swap it adds one instead.
 export function SwapSheet({
   open,
   swapping,
@@ -16,6 +16,7 @@ export function SwapSheet({
   onClose,
   onPick,
   opensOn = null,
+  instant = false,
 }: {
   open: boolean;
   swapping: { name: string; category: string } | null;
@@ -24,6 +25,8 @@ export function SwapSheet({
   onRack: readonly string[];
   onClose: () => void;
   onPick: (piece: Piece) => void;
+  // A suggested look swaps on the one tap (legacy 0.1); its Undo is the way back.
+  instant?: boolean;
 }) {
   const { pieces } = usePieces();
   const ready = pieces.filter((p) => p.status === 'ready' && !onRack.includes(p.id));
@@ -81,13 +84,13 @@ export function SwapSheet({
                   accessibilityLabel={item.label}
                   accessibilityState={{ checked: on }}
                   onPress={() => {
-                    if (!swapping) {
+                    if (!swapping || instant) {
                       onPick(item);
                       close();
                     } else setPicked(item);
                   }}
                   style={{ width: 96 }}
-                  className={`gap-1 rounded-soft border p-1 ${on ? 'border-ink' : 'border-hairline'}`}
+                  className={`gap-1 rounded-soft border p-1 ${on ? 'border-selected-line bg-selected' : 'border-hairline'}`}
                 >
                   {uri ? (
                     <Image source={uri} alt="" aspect="3:4" blurhash={item.image?.blurhash} />

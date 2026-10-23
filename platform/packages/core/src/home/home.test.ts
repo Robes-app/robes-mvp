@@ -72,6 +72,21 @@ describe('resolveHome (legacy home_harness stages)', () => {
   });
 });
 
+describe('the week from the first saved look (legacy 0.3)', () => {
+  it('stands on an un-activated home once any look is saved, ahead of the leading step', () => {
+    expect(resolveHome(base, { now: NOW }).modules).not.toContain('H3');
+    expect(resolveHome({ ...base, anyLook: true }, { now: NOW }).modules).toEqual([
+      'H0',
+      'H1',
+      'H2',
+      'H3',
+      'O1',
+      'G1',
+      'H4',
+    ]);
+  });
+});
+
 describe('the step tests', () => {
   it('two of three style rows confirm Style DNA', () => {
     expect(styleConfirmed({ brands: ['The Row'], icons: [], styles: [] })).toBe(false);

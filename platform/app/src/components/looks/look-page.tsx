@@ -1,48 +1,19 @@
 'use client';
 
-import { queryKeys, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { anchorName, noteShort } from '@robes/core/looks';
-import { Button, Dialog, Eyebrow, Field, Heading, Text, useToast } from '@robes/ui';
-import { useQueryClient } from '@tanstack/react-query';
+import { Button, Dialog, Eyebrow, Field, Heading, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { formatDay } from '@/lib/dates';
 import { useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRequestFrame, useSaveLook } from '@/lib/look-states';
+import { GenericModelBadge } from './generic-model-badge';
 import { LookImage } from './look-image';
 import { LookPromptBox } from './look-prompt-box';
 import { LookVerdict } from './look-verdict';
 import { RackRowCard } from './rack-row';
 import { SwapSheet } from './swap-sheet';
-
-// "Saved to your lookbook", with the day her words named one tap away (never filed by itself).
-export function useSavedToast() {
-  const toast = useToast();
-  const queryClient = useQueryClient();
-  const pin = useApiMutation('plan.pin', {
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') }),
-  });
-  return (look: Look) => {
-    const day = look.dateHint;
-    toast({
-      message: copy.saved,
-      ...(day
-        ? {
-            action: {
-              label: copy.savedFor(formatDay(day)),
-              onAction: () =>
-                void pin
-                  .mutateAsync({ params: { id: look.id }, input: { dates: [day], slot: 'day' } })
-                  .then(() => toast({ message: copy.addedToDay(formatDay(day)) }))
-                  .catch(() => undefined),
-            },
-          }
-        : {}),
-    });
-  };
-}
 
 // Robes' frame (drawn when she first reaches a suggestion, UX-09) or her look's picture.
 export function LookPicture({ look }: { look: Look }) {
@@ -86,15 +57,18 @@ function eyebrowOf(look: Look): string {
 
 type Editor = ReturnType<typeof useLookEditor>;
 
-// The rack, read like the wardrobe; editable rows swap, remove and add through the drawer.
+// The rack, read like the wardrobe; editable rows swap, remove and add through the drawer. A
+// suggested look's rows swap in place (↻, no Edit) and stay suggested.
 export function Rack({
   look,
   editor,
   editable,
+  swapInPlace = false,
 }: {
   look: Look;
   editor: Editor;
   editable: boolean;
+  swapInPlace?: boolean;
 }) {
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -131,7 +105,9 @@ export function Rack({
               {...(row.proposal ? { onWish: () => editor.wish(row.key) } : {})}
               {...(editable
                 ? { onSwap: () => setSwapping(row.key), onRemove: () => editor.remove(row.key) }
-                : {})}
+                : swapInPlace
+                  ? { onSwap: () => setSwapping(row.key) }
+                  : {})}
             />
           ))}
         </ul>
@@ -153,18 +129,24 @@ export function Rack({
           setSwapping(null);
           setAdding(false);
         }}
-        onPick={(piece) => (swapping ? editor.swap(swapping, piece) : editor.add(piece))}
+        instant={swapInPlace}
+        onPick={(piece) =>
+          swapping
+            ? swapInPlace
+              ? editor.swapKeep(swapping, piece)
+              : editor.swap(swapping, piece)
+            : editor.add(piece)
+        }
       />
     </section>
   );
 }
 
 // Suggested (F8) and draft (F9 / 4d): one page, one bar.
-export function WorkingLook({ look }: { look: Look }) {
+export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => void }) {
   const router = useRouter();
   const editor = useLookEditor(look);
-  const savedToast = useSavedToast();
-  const save = useSaveLook((saved) => savedToast(saved));
+  const save = useSaveLook(onSaved);
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [name, setName] = useState(look.nameProvisional ? '' : look.name);
   const suggested = look.status === 'suggested';
@@ -172,7 +154,14 @@ export function WorkingLook({ look }: { look: Look }) {
   const typed = name.trim() && name.trim() !== look.name ? name.trim() : undefined;
   return (
     <article className="grid gap-8 pb-28 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      {look.image || look.setId ? <LookPicture look={look} /> : <div aria-hidden />}
+      {look.image || look.setId ? (
+        <div className="relative">
+          <LookPicture look={look} />
+          {suggested && look.frame ? <GenericModelBadge /> : null}
+        </div>
+      ) : (
+        <div aria-hidden />
+      )}
       <div className="flex flex-col gap-6">
         <header className="flex flex-col gap-2">
           <Eyebrow>{eyebrowOf(look)}</Eyebrow>
@@ -197,7 +186,7 @@ export function WorkingLook({ look }: { look: Look }) {
           </Text>
         </header>
         {look.note ? <Text>{noteShort(look.note)}</Text> : null}
-        <Rack look={look} editor={editor} editable={!suggested} />
+        <Rack look={look} editor={editor} editable={!suggested} swapInPlace={suggested} />
         {editor.rack.rows.length > 0 ? (
           <LookPromptBox
             lookId={look.id}

@@ -236,6 +236,8 @@ export const UpdateLookInput = z
     ...rackFields,
     // Editing a suggestion makes it a draft: at five drafts, she lets the oldest go.
     letGoOldest: z.boolean(),
+    // ↻ on a suggested look's row (legacy 0.1): the swap lands on the suggestion, which stays one.
+    keepSuggested: z.boolean(),
   })
   .partial();
 export type UpdateLookInput = z.infer<typeof UpdateLookInput>;

@@ -7,6 +7,7 @@ import { LookScreen } from '../src/features/looks/LookScreen';
 import { LooksView } from '../src/features/looks/LooksView';
 import { NewLookBox } from '../src/features/looks/NewLookBox';
 import { localDate } from '../src/features/looks/saved-looks';
+import { dayLabel } from '../src/features/plan/plan';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { Providers } from './support/providers';
@@ -123,16 +124,19 @@ test('an empty Suggested tab offers the prompt; her words go with the day they n
   });
 });
 
-test('a suggested look reads as Robes composed it; Save to lookbook keeps it as is', async () => {
+test('a suggested look reads as Robes composed it; Save to lookbook opens the diary', async () => {
   let saved = false;
+  const [y, m, d] = localDate().split('-').map(Number);
+  const tomorrow = localDate(new Date(y ?? 0, (m ?? 1) - 1, (d ?? 1) + 1));
   const calls = mockFetch({
     'GET /me': ME,
     [`GET /looks/${LOOK_ID}`]: () =>
-      saved ? suggestion({ status: 'saved' }) : suggestion({ dateHint: '2026-10-17' }),
+      saved ? suggestion({ status: 'saved' }) : suggestion({ dateHint: tomorrow }),
     [`POST /looks/${LOOK_ID}/save`]: () => {
       saved = true;
-      return suggestion({ status: 'saved', dateHint: '2026-10-17' });
+      return suggestion({ status: 'saved', dateHint: tomorrow });
     },
+    [`POST /plan/looks/${LOOK_ID}/days`]: { entries: [] },
     'GET /looks': byStatus({}),
     'GET /looks/sets/:id': {},
   });
@@ -144,9 +148,94 @@ test('a suggested look reads as Robes composed it; Save to lookbook keeps it as 
   expect(screen.getByText('Exclamation · Not yours yet · toteme.com · €390')).toBeTruthy();
   expect(screen.getByText(lookbook.composedByRobes)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.saveToLookbook }));
-  expect(await screen.findByText(lookbook.saved)).toBeTruthy();
-  expect(screen.getByRole('button', { name: lookbook.savedFor('Sat 17 Oct') })).toBeTruthy();
+  // The diary opens every time, the day her words named already chosen.
+  expect(await screen.findByText(lookbook.diary.title)).toBeTruthy();
   expect(calls.find((c) => c.path.endsWith('/save'))?.body).toEqual({});
+  await fireEvent.press(
+    screen.getByRole('button', { name: lookbook.diary.add(dayLabel(tomorrow, localDate())) }),
+  );
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/days'))?.body).toEqual({
+      dates: [tomorrow],
+      slot: 'day',
+    }),
+  );
+  expect(await screen.findByText(lookbook.addedToDay(dayLabel(tomorrow)))).toBeTruthy();
+});
+
+test('closing the diary after Save is not yet: nothing is pinned', async () => {
+  let saved = false;
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: () => (saved ? suggestion({ status: 'saved' }) : suggestion()),
+    [`POST /looks/${LOOK_ID}/save`]: () => {
+      saved = true;
+      return suggestion({ status: 'saved' });
+    },
+    'GET /looks': byStatus({}),
+    'GET /looks/sets/:id': {},
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.saveToLookbook }));
+  expect(await screen.findByText(lookbook.diary.title)).toBeTruthy();
+  expect(screen.getByRole('button', { name: lookbook.diary.pick })).toBeDisabled();
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.notYet }));
+  await waitFor(() => expect(screen.queryByText(lookbook.diary.title)).toBeNull());
+  expect(calls.some((c) => c.path.endsWith('/days'))).toBe(false);
+});
+
+test('↻ on a suggested look swaps in one tap, stays suggested, and Undo puts it back', async () => {
+  const COAT = '99999999-9999-4999-8999-999999999999';
+  const coat = piece({ id: COAT, label: 'Navy wool coat' });
+  const shown = suggestion({ pieces: [{ piece: piece(), slot: null, role: 'anchor' }] });
+  const calls = mockFetch({
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: shown,
+    [`PATCH /looks/${LOOK_ID}`]: shown,
+    'GET /wardrobe/items': { items: [piece(), coat], nextCursor: null },
+    'GET /looks': byStatus({}),
+    'GET /looks/sets/:id': {},
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+  );
+  await fireEvent.press(await screen.findByRole('radio', { name: 'Navy wool coat' }));
+  const patches = () => calls.filter((c) => c.method === 'PATCH');
+  await waitFor(() => expect(patches()).toHaveLength(1));
+  expect(patches()[0]?.body).toMatchObject({ keepSuggested: true });
+  expect(JSON.stringify(patches()[0]?.body)).toContain(COAT);
+  await fireEvent.press(await screen.findByRole('button', { name: ui.undo }));
+  await waitFor(() => expect(patches()).toHaveLength(2));
+  expect(patches()[1]?.body).toMatchObject({ keepSuggested: true });
+  expect(JSON.stringify(patches()[1]?.body)).not.toContain(COAT);
+  // Still a suggestion: Save to lookbook, never a draft's Save.
+  expect(screen.getByRole('button', { name: lookbook.bar.saveToLookbook })).toBeTruthy();
+});
+
+test('a suggested frame with no model of her own carries the Generic model door', async () => {
+  mockFetch({
+    'GET /me/model': {
+      filed: false,
+      presence: 'woman',
+      skin: 3,
+      hair: 1,
+      line: null,
+      frame: null,
+      source: 'hand',
+      reads: { colour: false, silhouette: false },
+      cellId: 'w-s3-h1-nt',
+      cell: { status: 'none', imageUrl: null },
+      swatches: { skin: [], hair: [] },
+    },
+    'GET /me': ME,
+    [`GET /looks/${LOOK_ID}`]: suggestion(),
+    'GET /looks': byStatus({}),
+    'GET /looks/sets/:id': {},
+  });
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('link', { name: lookbook.deck.genericModelLabel }));
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/model');
 });
 
 test('the look prompt lands a swap on a draft and remembers what it replaced', async () => {

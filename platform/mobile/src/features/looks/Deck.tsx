@@ -24,6 +24,7 @@ import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
 import { type SetLook, useInvalidateLooks, useLookSet, useRequestFrame } from './look-states';
+import { ScanLine } from './ScanLine';
 
 const COMMIT_PX = 100;
 const JOB_POLL_MS = 1500;
@@ -51,33 +52,38 @@ function DeckTitle({ set }: { set: LookSet | undefined }) {
   );
 }
 
-// While the looks compose: her piece (or her words) over a line that changes every 2s.
+// While the looks compose: her piece (or her words) under the scanner, a line that changes every
+// 2.2s; a Robes model wears them until hers exists.
 function Dressing({ set, prompt }: { set?: LookSet; prompt?: string | null }) {
   const [i, setI] = useState(0);
+  const { data: model } = useApi('me.model.get');
   const around = set?.anchor ? anchorName(set.anchor.label, set.anchor.brand) : '';
-  const lines = around ? copy.deck.lines : copy.deck.linesPrompt;
+  const lines = model?.filed ? copy.deck.scan : [...copy.deck.scan, copy.deck.scanGeneric];
   useEffect(() => {
-    const t = setInterval(() => setI((n) => n + 1), 2000);
+    const t = setInterval(() => setI((n) => n + 1), 2200);
     return () => clearInterval(t);
   }, []);
   const uri = renditionUri(set?.anchor?.image, 300);
   return (
     <View className="gap-3" accessibilityLiveRegion="polite" testID="deck-dressing">
-      {uri ? (
-        <Image source={uri} alt="" />
-      ) : (
-        <View
-          className="items-center justify-center rounded-soft bg-surface-sunk p-8"
-          style={{ aspectRatio: 4 / 5 }}
-        >
-          <Heading>“</Heading>
-          {(prompt ?? set?.prompt) ? (
-            <Text tone="muted" className="text-center">
-              {(prompt ?? set?.prompt ?? '').slice(0, 90)}
-            </Text>
-          ) : null}
-        </View>
-      )}
+      <View className="overflow-hidden rounded-soft">
+        {uri ? (
+          <Image source={uri} alt="" />
+        ) : (
+          <View
+            className="items-center justify-center bg-surface-sunk p-8"
+            style={{ aspectRatio: 4 / 5 }}
+          >
+            <Heading>“</Heading>
+            {(prompt ?? set?.prompt) ? (
+              <Text tone="muted" className="text-center">
+                {(prompt ?? set?.prompt ?? '').slice(0, 90)}
+              </Text>
+            ) : null}
+          </View>
+        )}
+        <ScanLine />
+      </View>
       <Text>{around ? copy.deck.yourPiece(around) : copy.deck.composing}</Text>
       <Text size="small" tone="muted">
         {lines[i % lines.length]}

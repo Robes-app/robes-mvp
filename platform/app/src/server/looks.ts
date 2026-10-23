@@ -7,6 +7,7 @@ import { toImage } from './asset-urls';
 import { repos } from './db';
 import { startJob } from './jobs';
 import { mediaDelivery } from './media';
+import { ensureGenericCells } from './model';
 import { requestRender } from './renders';
 
 type IdeaRow = NonNullable<Awaited<ReturnType<typeof repos.ideas.get>>>;
@@ -46,6 +47,7 @@ export async function generateLook(
   if (input.anchor.type === 'piece' && !(await repos.wardrobe.get(userId, input.anchor.pieceId))) {
     throw new ApiError('not_found');
   }
+  await ensureGenericCells(userId);
   return startJob(userId, req, { kind: 'key_piece', input, quota: [...STYLE_QUOTA] });
 }
 

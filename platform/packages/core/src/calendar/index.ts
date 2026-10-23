@@ -5,6 +5,18 @@ export function addDays(date: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// The days the save sheet offers (today and the fortnight after); the day her words named leads
+// selected when it is one of them, never a day gone by.
+export const DIARY_DAYS = 14;
+export function diaryDays(
+  today: string,
+  hint: string | null | undefined,
+  n = DIARY_DAYS,
+): { days: string[]; preset: string | null } {
+  const days = Array.from({ length: n }, (_, i) => addDays(today, i));
+  return { days, preset: hint && days.includes(hint) ? hint : null };
+}
+
 export function monthOf(date: string): string {
   return date.slice(0, 7);
 }

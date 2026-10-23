@@ -10,7 +10,7 @@ const PHOTO = '33333333-3333-4333-8333-333333333333';
 const FRAME = '88888888-8888-4888-8888-888888888888';
 const SET = '55555555-5555-4555-8555-555555555555';
 
-function setup(look: Record<string, unknown> = {}) {
+function setup(look: Record<string, unknown> = {}, model?: { cell: (key: string) => unknown }) {
   const ai = createFakeProvider();
   const generateImage = vi.spyOn(ai, 'generateImage');
   const suggested = {
@@ -75,6 +75,7 @@ function setup(look: Record<string, unknown> = {}) {
     styling: styling as never,
     frames: {} as never,
     suggested: suggested as never,
+    ...(model ? { model: model as never } : {}),
     ledger: { record: vi.fn(async () => {}) },
   });
   const run = (frameKey = 'k1') =>
@@ -125,5 +126,31 @@ describe('look_render: Robes’ frame of a look', () => {
     generateImage.mockRejectedValueOnce(new AiError('blocked'));
     await expect(run()).rejects.toMatchObject({ code: 'ai_blocked' });
     expect(suggested.failFrame).toHaveBeenCalledWith(USER, LOOK, 'k1');
+  });
+
+  it('with no model of her own, the k-th way stands on the k-th generic Robes model', async () => {
+    const cell = vi.fn(async (key: string) =>
+      key === 'w-s1-h0-nt@v2'
+        ? {
+            id: key,
+            status: 'ready',
+            bucketKey: 'catalog/w-s1-h0-nt.png',
+            contentType: 'image/png',
+          }
+        : undefined,
+    );
+    const { run, generateImage, storage } = setup({ frameAssetId: null }, { cell });
+    await run();
+    expect(cell).toHaveBeenCalledWith('w-s1-h0-nt@v2');
+    expect(storage.getObject).toHaveBeenCalledWith('catalog/w-s1-h0-nt.png');
+    expect(generateImage.mock.calls[0]?.[0]?.references?.[0]?.mimeType).toBe('image/png');
+  });
+
+  it('shoots on no model while the generic cell is not drawn yet', async () => {
+    const cell = vi.fn(async () => undefined);
+    const { run, generateImage } = setup({ frameAssetId: null }, { cell });
+    await run();
+    expect(cell).toHaveBeenCalledWith('w-s1-h0-nt@v2');
+    expect(generateImage.mock.calls[0]?.[0]?.references).toHaveLength(1);
   });
 });

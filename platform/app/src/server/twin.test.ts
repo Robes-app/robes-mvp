@@ -2,6 +2,12 @@ import { BriefListFull, verifiedUserId } from '@robes/db';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
+const flag = vi.hoisted(() => ({ on: true }));
+vi.mock('./observations-flag', () => ({
+  get WARDROBE_READ() {
+    return flag.on;
+  },
+}));
 const repos = {
   styleDna: {
     get: vi.fn(),
@@ -104,6 +110,21 @@ describe('Style DNA server', () => {
     expect(twin.readDue(null, 1, now)).toBe(false);
     expect(twin.readDue(null, 0, now, new Date(now - 60_000))).toBe(false);
     expect(twin.readDue(null, 0, now, new Date(now - twin.READ_BACKOFF_MS - 1))).toBe(true);
+  });
+
+  it('never reads her wardrobe while the read is paused', async () => {
+    flag.on = false;
+    try {
+      expect(twin.readDue(null, 0, at.getTime())).toBe(false);
+      repos.styleDna.get.mockResolvedValue(snapshot({ readAt: null }));
+      expect((await twin.loadStyleDna(USER)).readDue).toBe(false);
+      await expect(twin.startBriefRead(USER, new Request('http://x'))).rejects.toMatchObject({
+        code: 'conflict',
+      });
+      expect(startJob).not.toHaveBeenCalled();
+    } finally {
+      flag.on = true;
+    }
   });
 
   it('shapes her Style DNA from the rows, tags icons from the pool', async () => {
