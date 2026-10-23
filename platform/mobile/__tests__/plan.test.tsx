@@ -19,6 +19,7 @@ const planWith = (entries: boolean) => ({
   days: [
     {
       date: '2026-10-01',
+      name: null,
       entries: entries
         ? [
             {
@@ -31,8 +32,8 @@ const planWith = (entries: boolean) => ({
           ]
         : [],
     },
-    { date: '2026-10-02', entries: [] },
-    { date: '2026-10-03', entries: [] },
+    { date: '2026-10-02', name: null, entries: [] },
+    { date: '2026-10-03', name: null, entries: [] },
   ],
 });
 
@@ -65,13 +66,7 @@ test('a row reads her name for the day, its looks and pieces', async () => {
 test('the day page names the day, opens a look and takes it off with Undo', async () => {
   const calls = mockFetch({
     'GET /plan': planWith(true),
-    [`PATCH /plan/entries/${ENTRY_ID}`]: {
-      id: ENTRY_ID,
-      date: '2026-10-01',
-      slot: 'day',
-      activity: 'Dinner',
-      look: look(),
-    },
+    'PUT /plan/days/2026-10-01/name': { date: '2026-10-01', name: 'Dinner' },
     [`DELETE /plan/entries/${ENTRY_ID}`]: { ok: true },
     [`POST /plan/entries/${ENTRY_ID}/restore`]: { ok: true },
   });
@@ -85,7 +80,7 @@ test('the day page names the day, opens a look and takes it off with Undo', asyn
   await fireEvent.changeText(screen.getByLabelText(plan.day.nameLabel), 'Dinner');
   await fireEvent(screen.getByLabelText(plan.day.nameLabel), 'submitEditing');
   await waitFor(() =>
-    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ activity: 'Dinner' }),
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ name: 'Dinner' }),
   );
 
   await fireEvent.press(screen.getByRole('button', { name: plan.day.remove('Weekend navy') }));
@@ -127,4 +122,18 @@ test('a look already on the day is shown, never offered twice', async () => {
   expect(await screen.findByText(plan.picker.already)).toBeTruthy();
   const tiles = screen.getAllByRole('button', { name: 'Weekend navy' });
   expect(tiles.at(-1)?.props.accessibilityState.disabled).toBe(true);
+});
+
+test('an empty day can be named, so she can plan a week before adding outfits', async () => {
+  const calls = mockFetch({
+    'GET /plan': planWith(false),
+    'PUT /plan/days/2026-10-01/name': { date: '2026-10-01', name: 'Gallery opening' },
+  });
+  await renderWithApi(<DayView date="2026-10-01" />);
+  await fireEvent.press(await screen.findByRole('button', { name: plan.day.name }));
+  await fireEvent.changeText(screen.getByLabelText(plan.day.nameLabel), 'Gallery opening');
+  await fireEvent(screen.getByLabelText(plan.day.nameLabel), 'submitEditing');
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ name: 'Gallery opening' }),
+  );
 });

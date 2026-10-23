@@ -60,7 +60,7 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
         first: first
           ? {
               id: first.look.id,
-              name: first.activity ?? first.look.name,
+              name: d.name ?? first.activity ?? first.look.name,
               image: first.look.image ?? first.look.pieces[0]?.piece.image ?? null,
               worn: d.date === date && worn.includes(first.look.id),
             }

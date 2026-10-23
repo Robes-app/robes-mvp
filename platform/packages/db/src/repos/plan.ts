@@ -86,6 +86,16 @@ export function planRepo(db: Db) {
           .where('lookId', '=', lookId)
           .orderBy('position')
           .execute();
+        // A named day lends its name to the look she pins there.
+        const named = days.length
+          ? await trx
+              .selectFrom('dayNames')
+              .select([dayDate.as('dayDate'), 'name'])
+              .where('userId', '=', userId)
+              .where(sql<boolean>`day_date = any(${days}::date[])`)
+              .execute()
+          : [];
+        const nameOf = new Map(named.map((n) => [n.dayDate, n.name]));
         const ids: string[] = [];
         for (const day of days) {
           const row = await trx
@@ -97,7 +107,7 @@ export function planRepo(db: Db) {
               lookId,
               slot: opts.slot,
               pinned: true,
-              activity: opts.activity ?? null,
+              activity: opts.activity ?? nameOf.get(day) ?? null,
               itemIds: pieces.map((p) => p.wardrobeItemId),
             })
             .onConflict((oc) =>
@@ -134,6 +144,45 @@ export function planRepo(db: Db) {
         .where('sourceKind', '=', 'look')
         .executeTakeFirst();
       return res.numUpdatedRows > 0n ? entry(userId, id) : undefined;
+    },
+
+    // Her names for the days on [from, to], with or without looks on them.
+    names(userId: UserId, from: string, to: string) {
+      return db
+        .selectFrom('dayNames')
+        .select([dayDate.as('dayDate'), 'name'])
+        .where('userId', '=', userId)
+        .where('dayDate', '>=', sql<Date>`${from}::date`)
+        .where('dayDate', '<=', sql<Date>`${to}::date`)
+        .orderBy('dayDate')
+        .execute();
+    },
+
+    // Names a day (null clears it); every look on it carries the name, as before day names existed.
+    async nameDay(userId: UserId, day: string, name: string | null): Promise<void> {
+      await db.transaction().execute(async (trx) => {
+        if (name === null) {
+          await trx
+            .deleteFrom('dayNames')
+            .where('userId', '=', userId)
+            .where('dayDate', '=', sql<Date>`${day}::date`)
+            .execute();
+        } else {
+          await trx
+            .insertInto('dayNames')
+            .values({ userId, dayDate: day, name })
+            .onConflict((oc) => oc.columns(['userId', 'dayDate']).doUpdateSet({ name }))
+            .execute();
+        }
+        await trx
+          .updateTable('plannedDays')
+          .set({ activity: name })
+          .where('userId', '=', userId)
+          .where('dayDate', '=', sql<Date>`${day}::date`)
+          .where('sourceKind', '=', 'look')
+          .where('deletedAt', 'is', null)
+          .execute();
+      });
     },
 
     // Unpin (soft); undone by restore unless the same look was pinned there again meanwhile.

@@ -102,11 +102,21 @@ export function PlanView() {
   );
 }
 
-function DayRow({ date, today, entries }: { date: string; today: string; entries: PlanEntry[] }) {
+function DayRow({
+  date,
+  today,
+  name,
+  entries,
+}: {
+  date: string;
+  today: string;
+  name: string | null;
+  entries: PlanEntry[];
+}) {
   const router = useRouter();
   const muted = useColor('ink-muted');
   const isToday = date === today;
-  const s = daySummary(entries);
+  const s = daySummary(entries, name);
   const title = s.name ?? (s.looks ? copy.list.looks(s.looks) : null);
   const label = isToday ? copy.today : weekdayShort(date);
   return (
@@ -178,7 +188,7 @@ export function PlanList() {
       />
     );
   }
-  const planned = data.days.some((d) => d.entries.length > 0);
+  const planned = data.days.some((d) => d.entries.length > 0 || d.name);
   return (
     <ScrollView
       testID="plan-list"
@@ -198,7 +208,13 @@ export function PlanList() {
             {g.range ?? (g.wholeWeek ? copy.list.thisWeek : copy.list.restOfWeek)}
           </Text>
           {g.days.map((day) => (
-            <DayRow key={day.date} date={day.date} today={data.from} entries={day.entries} />
+            <DayRow
+              key={day.date}
+              date={day.date}
+              today={data.from}
+              name={day.name}
+              entries={day.entries}
+            />
           ))}
         </View>
       ))}

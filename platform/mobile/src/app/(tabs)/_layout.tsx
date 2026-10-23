@@ -70,6 +70,8 @@ export default function TabsLayout() {
               event.preventDefault();
               router.push('/create');
             },
+            // A long press goes straight to the camera.
+            tabLongPress: () => router.push({ pathname: '/create', params: { start: 'camera' } }),
           }}
         />
         <Tabs.Screen

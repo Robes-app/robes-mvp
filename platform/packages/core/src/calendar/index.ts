@@ -114,12 +114,14 @@ export function weekGroups<D extends { date: string }>(days: D[], today: string)
   return groups;
 }
 
-// What a day row reads: her words for the day (the first activity), else its one look's name;
-// several looks and no words → null name, so the row says "N looks".
+// What a day row reads: her name for the day, else her words on its looks (the first activity),
+// else its one look's name; several looks and no words → null name, so the row says "N looks".
 export function daySummary(
   entries: ReadonlyArray<{ activity: string | null; look: { name: string; pieces: unknown[] } }>,
+  dayName: string | null = null,
 ): { name: string | null; looks: number; pieces: number } {
-  const words = entries.find((e) => e.activity?.trim())?.activity?.trim() ?? null;
+  const words =
+    dayName?.trim() || (entries.find((e) => e.activity?.trim())?.activity?.trim() ?? null);
   const only = entries.length === 1 ? (entries[0]?.look.name ?? null) : null;
   return {
     name: words ?? only,

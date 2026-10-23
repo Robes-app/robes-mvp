@@ -52,17 +52,23 @@ export function withoutTripLooks(entries: PlanEntry[], tripsOn: boolean): PlanEn
 
 export async function loadPlan(userId: UserId, from: string, days: number): Promise<Plan> {
   const to = addDays(from, days - 1);
-  const [rows, tripsOn] = await Promise.all([
+  const [rows, names, tripsOn] = await Promise.all([
     repos.plan.range(userId, from, to),
+    repos.plan.names(userId, from, to),
     isFlagEnabled('trips'),
   ]);
+  const nameOf = new Map(names.map((n) => [n.dayDate, n.name]));
   const entries = withoutTripLooks(await toEntries(userId, rows), tripsOn);
   return {
     from,
     to,
     days: Array.from({ length: days }, (_, i) => {
       const date = addDays(from, i);
-      return { date, entries: entries.filter((e) => e.date === date) };
+      return {
+        date,
+        name: nameOf.get(date) ?? null,
+        entries: entries.filter((e) => e.date === date),
+      };
     }),
   };
 }
