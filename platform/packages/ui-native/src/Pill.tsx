@@ -11,7 +11,7 @@ export interface PillProps {
   testID?: string;
 }
 
-// Selected = ink outline + ink text, never a black fill (design-system.md §5).
+// Selected is warm, never black: the warm fill on its line and ink text (design-system.md §5).
 export function Pill({
   children,
   selected = false,
@@ -24,7 +24,7 @@ export function Pill({
     <View
       className={cx(
         'min-h-9 items-center justify-center rounded-pill border px-4',
-        selected ? 'border-ink bg-bg' : 'border-border-control',
+        selected ? 'border-selected-line bg-selected' : 'border-border-control',
         disabled && 'opacity-50',
       )}
       style={selected ? { borderWidth: 1.5 } : undefined}

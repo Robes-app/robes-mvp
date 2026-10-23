@@ -126,12 +126,7 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
           hasPieces={home.state.pics > 0}
         />
 
-        {resolved.next ? <StepCard step={resolved.next} home={home} onLater={later} /> : null}
-        {!resolved.activated ? (
-          <StepMap resolved={resolved} pics={home.state.pics} onExpand={setForce} />
-        ) : null}
-
-        {resolved.activated ? (
+        {resolved.modules.includes('H3') ? (
           <Week
             data={data}
             weatherLine={weatherLine}
@@ -142,6 +137,11 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
               box.current?.focus();
             }}
           />
+        ) : null}
+
+        {resolved.next ? <StepCard step={resolved.next} home={home} onLater={later} /> : null}
+        {!resolved.activated ? (
+          <StepMap resolved={resolved} pics={home.state.pics} onExpand={setForce} />
         ) : null}
 
         <LookRow

@@ -40,6 +40,10 @@ export function stylingRepo(db: Db) {
           'sizeUk',
           sql<number | null>`shoe_uk::float8`.as('shoeUk'),
           'ageBand',
+          'bustBand',
+          'bustCup',
+          'bustCm',
+          'waistCm',
         ])
         .where('id', '=', userId)
         .executeTakeFirst();
@@ -53,6 +57,8 @@ export function stylingRepo(db: Db) {
           'w.color',
           'w.brand',
           'w.imageAssetId',
+          'w.heroPosition',
+          'w.seasonBand',
           's.timesWorn',
         ])
         .where('w.userId', '=', userId)
@@ -64,7 +70,7 @@ export function stylingRepo(db: Db) {
         .execute();
       const dna = await db
         .selectFrom('styleProfiles')
-        .select(['colorHarmony', 'silhouetteProportions', 'userOverrides', 'briefNotes'])
+        .select(['colorHarmony', 'silhouetteProportions', 'userOverrides', 'palette', 'briefNotes'])
         .where('userId', '=', userId)
         .executeTakeFirst();
       const [kept, memory] = await Promise.all([
@@ -94,6 +100,8 @@ export function stylingRepo(db: Db) {
           color_harmony: dna?.colorHarmony ?? null,
           silhouette_proportions: dna?.silhouetteProportions ?? null,
           user_overrides: dna?.userOverrides ?? {},
+          // Her colours and prints (avoid is soft, love weighted up).
+          palette: dna?.palette ?? {},
           // Her "very me" style types; the prompt block reads them as a register (legacy 2026-09-25).
           style_archetypes: profile?.styleArchetypes ?? [],
           // Her brief, the memory and Style DNA (legacy 2026-09-30 / 10-07), in the block's shape.
@@ -110,6 +118,10 @@ export function stylingRepo(db: Db) {
             height_cm: profile?.heightCm ?? null,
             size_uk: profile?.sizeUk ?? null,
             shoe_uk: profile?.shoeUk ?? null,
+            bust_band: profile?.bustBand ?? null,
+            bust_cup: profile?.bustCup ?? null,
+            bust_cm: profile?.bustCm ?? null,
+            waist_cm: profile?.waistCm ?? null,
             age_band: ageBandLabel(profile?.ageBand),
           },
           icon_tags: iconTags,
@@ -126,8 +138,24 @@ export function stylingRepo(db: Db) {
           brand: c.brand,
           imageAssetId: c.imageAssetId,
           timesWorn: c.timesWorn ?? 0,
+          hero: c.heroPosition !== null,
+          seasonBand: c.seasonBand,
         })),
       };
+    },
+
+    // The sets Robes made her last, newest first: what a second ask must not repeat.
+    async recentSets(userId: UserId, limit = 4) {
+      const rows = await db
+        .selectFrom('artifacts')
+        .select('data')
+        .where('userId', '=', userId)
+        .where('type', '=', 'idea')
+        .where('deletedAt', 'is', null)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .execute();
+      return rows.map((r) => r.data);
     },
 
     // Her filed model, if she has one: every suggested frame is shot on it (legacy 2026-10-09).

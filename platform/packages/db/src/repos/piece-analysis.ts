@@ -7,6 +7,9 @@ export interface PieceAnalysis {
   categoryL3: string | null;
   category: string;
   color: string | null;
+  colourShade: string | null;
+  colourExtra: string[];
+  print: string | null;
   brand: string | null;
   price: number | null;
   currency: string | null;
@@ -52,6 +55,9 @@ export function pieceAnalysisRepo(db: Db) {
           categoryL2: a.categoryL2,
           categoryL3: a.categoryL3,
           color: a.color,
+          colourShade: a.colourShade,
+          colourExtra: a.colourExtra,
+          print: a.print,
           brand: current.brand ?? a.brand,
           price: current.price ?? a.price,
           currency: current.currency ?? a.currency,

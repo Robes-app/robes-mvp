@@ -2,6 +2,8 @@ import {
   ASK_MAX_CHARS,
   ASK_RACK_MAX,
   ASK_THREAD_MAX,
+  BALANCE_NOTE_MAX,
+  BALANCES,
   LOOK_STATUSES,
   PROPOSAL_KEY_PATTERN,
 } from '@robes/core/looks';
@@ -15,9 +17,16 @@ export const LookAnchorInput = z.discriminatedUnion('type', [
 ]);
 export type LookAnchorInput = z.infer<typeof LookAnchorInput>;
 
+// Where the pieces of a new look come from: her chip, or her own words when they name none.
+const BalanceFields = {
+  balance: z.enum(BALANCES).optional(),
+  balanceNote: z.string().trim().min(1).max(BALANCE_NOTE_MAX).optional(),
+};
+
 export const GenerateLookInput = z.object({
   anchor: LookAnchorInput,
   occasion: z.string().trim().max(120).optional(),
+  ...BalanceFields,
 });
 export type GenerateLookInput = z.infer<typeof GenerateLookInput>;
 
@@ -236,6 +245,8 @@ export const UpdateLookInput = z
     ...rackFields,
     // Editing a suggestion makes it a draft: at five drafts, she lets the oldest go.
     letGoOldest: z.boolean(),
+    // ↻ on a suggested look's row (legacy 0.1): the swap lands on the suggestion, which stays one.
+    keepSuggested: z.boolean(),
   })
   .partial();
 export type UpdateLookInput = z.infer<typeof UpdateLookInput>;
@@ -258,6 +269,7 @@ export const SaveLookInput = z.object({ name: lookName.optional() });
 export const PromptLookInput = z.object({
   prompt: z.string().trim().min(2).max(300),
   date: wornOn.optional(),
+  ...BalanceFields,
 });
 export type PromptLookInput = z.infer<typeof PromptLookInput>;
 
@@ -348,6 +360,7 @@ export const KeyPieceJobInput = z.union([
     mode: z.literal('prompt'),
     prompt: z.string().min(2).max(300),
     date: wornOn.optional(),
+    ...BalanceFields,
   }),
   z.object({ mode: z.literal('restyle'), lookId: z.uuid() }),
 ]);

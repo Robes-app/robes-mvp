@@ -343,6 +343,20 @@ export const wardrobe = {
     remove: 'Remove',
     stylePiece: 'Style this piece',
   },
+  // The colour model on a piece (legacy f3e5b5b): one shade, up to three more, a print.
+  colour: {
+    title: 'Colour',
+    notSet: 'Not set',
+    change: 'Change colour',
+    done: 'Done',
+    main: 'Main colour',
+    extra: 'Additional colours',
+    extraHint: 'Up to three.',
+    families: 'Colour families',
+    print: 'Print',
+    plain: 'Plain',
+    check: 'Robes wasn’t sure of this colour. Check it.',
+  },
   // The reveal after one photo (beta's step 3): her photo, then what Robes filed.
   saw: {
     title: 'Here’s what Robes saw.',
@@ -395,6 +409,7 @@ export const wardrobe = {
   filter: {
     title: 'Filter',
     season: 'Season',
+    colour: 'Colour',
     seasons: {
       spring_summer: 'Spring and summer',
       autumn_winter: 'Autumn and winter',
@@ -698,11 +713,27 @@ export const you = {
     necklines: 'Necklines',
     silhouettes: 'Shapes that work',
     tips: 'Tips',
-    lovedLabel: 'Colours you love on you',
-    rejectedLabel: 'Colours you never wear',
-    coloursHint: 'Separate with commas.',
-    saveColours: 'Save',
-    savedColours: 'Saved.',
+    // Your colours and Your prints (legacy a61f211): three states per family, shade and print.
+    palette: {
+      coloursTitle: 'Your colours',
+      coloursBody:
+        'Love weighs a colour up. Avoid means nothing new in it; what you own is still styled.',
+      printsTitle: 'Your prints',
+      states: { avoid: 'Avoid', none: 'No view', love: 'Love' },
+      shades: (family: string): string => `${family} shades`,
+      showShades: 'Shades',
+      hideShades: 'Hide shades',
+      setHere: 'Set here',
+      fromFamily: 'From the family',
+      matchFamily: 'Match the family',
+      saved: 'Saved.',
+      summary: (love: number, avoid: number): string =>
+        love + avoid === 0
+          ? 'No view yet'
+          : [love ? `${love} loved` : '', avoid ? `${avoid} avoided` : '']
+              .filter(Boolean)
+              .join(' · '),
+    },
     // Native screen (cards per read, colours edited one at a time).
     colour: {
       title: 'Your colouring',
@@ -719,12 +750,6 @@ export const you = {
       noSubject: 'Robes couldn’t see your full figure in that photo. Try another.',
     },
     again: 'Try another photo',
-    loved: 'Colours you love',
-    rejected: 'Colours you don’t wear',
-    colourLabel: 'Add a colour',
-    colourPlaceholder: 'Navy',
-    add: 'Add',
-    removeColour: (name: string): string => `Remove ${name}`,
   },
   // SEC-81: her data as one file.
   dataExport: {
@@ -1237,39 +1262,60 @@ export const twin = {
     observations: 'Observations',
   },
   noticed: {
-    eyebrow: 'Robes noticed',
-    keep: 'Keep →',
-    notMe: '← Not me',
+    eyebrow: 'Observations',
+    keep: 'That’s right',
+    notMe: 'Not quite',
     kept: 'Kept. Filed under Style DNA.',
   },
   twinPage: {
     title: 'Your digital twin',
-    readSection: 'Read from your photographs',
     colouring: 'Colouring',
+    colouringSub: 'One close-up reads your season.',
     bodyShape: 'Body shape',
-    bodyShapeRead: 'Read from the full-length',
-    adjust: 'Adjust by hand',
-    adjustSub: 'Skin, hair, the line and the frame',
-    adjustSheetSub: 'Robes read these from your photographs. Nudge anything that looks off.',
-    photographs: 'Your photographs',
-    photographsSub: 'What Robes read from each, and the readings you can nudge.',
-    closeUp: 'Close-up',
-    fullLength: 'Full length',
-    closeUpGuide: 'Soft daylight, facing a window. No filters.',
-    fullLengthGuide: 'Head to toe, fitted clothes. A mirror is fine.',
-    addColour: 'Add a close-up and Robes reads your colouring.',
-    addLine: 'Add a full-length and Robes reads your line.',
-    lineRead: 'Read from your full-length.',
+    bodyShapeSub: 'Set your line by hand.',
+    // The caption under her model: colour words only, never a shape.
+    caption: (skin: string, hair: string): string => `${skin} · ${String(hair).toLowerCase()} hair`,
+    drawing: 'Drawing your model…',
+    twinFailed:
+      'Robes couldn’t photograph your model just now. A close-up in daylight, facing the camera, helps.',
+    closeUpCard: 'Your close-up',
+    closeUpHelp: 'Robes reads your season, skin and hair from this.',
+    season: 'Your season',
+    addSeason: 'Add a close-up and Robes reads your season.',
+    colourNotes: 'Full colour notes',
     anotherSeason: 'Another season',
     seasonFailed: 'Robes couldn’t change the reading just now.',
-    lineAndFrame: (line: string, frame: string): string =>
-      line && frame
-        ? `${line} line, ${String(frame).toLowerCase()} frame`
-        : line
-          ? `${line} line`
-          : frame
-            ? `${frame} frame`
-            : '',
+    // "{axes} — {one sentence}." — one dash, never two.
+    seasonSummary: (axes: string, summary: string): string => {
+      let sum = String(summary)
+        .trim()
+        .replace(/\s*[—–]\s*/g, ', ')
+        .replace(/[.\s]+$/, '');
+      if (sum) sum += '.';
+      return axes && sum ? `${axes} — ${sum}` : axes || sum;
+    },
+    skinAndHair: 'Skin and hair',
+    skinAndHairRead: 'Read from your close-up. Nudge either if it looks off.',
+    skinAndHairHand: 'Or choose them by hand until a close-up reads.',
+    yourLine: 'Your line',
+    edit: 'Edit',
+    proportions: (presence: 'woman' | 'man' | 'unspecified'): string =>
+      `${presence === 'man' ? 'His' : presence === 'unspecified' ? 'Their' : 'Her'} proportions`,
+    adjust: 'Adjust by hand',
+    scales: {
+      shoulders: { label: 'Shoulders', less: 'Narrower', more: 'Broader' },
+      bust: { label: 'Bust', less: 'Smaller', more: 'Fuller' },
+      hips: { label: 'Hips', less: 'Narrower', more: 'Fuller' },
+    },
+    chest: 'Chest',
+    asIs: (presence: 'woman' | 'man' | 'unspecified'): string =>
+      `As ${presence === 'man' ? 'he' : presence === 'unspecified' ? 'they' : 'she'} is`,
+    // A cell's spoken name: "Hips: much fuller".
+    stop: (label: string, stop: number, less: string, more: string, asIs: string): string =>
+      `${label}: ${stop === 0 ? asIs : `${Math.abs(stop) === 2 ? 'much ' : ''}${String(stop < 0 ? less : more).toLowerCase()}`}`,
+    backToFacts: 'Back to your facts',
+    gender: 'Gender',
+    age: 'Age',
   },
   facts: {
     title: 'The facts',
@@ -1287,6 +1333,17 @@ export const twin = {
     clear: 'Clear the facts',
     genderOptions: { woman: 'Woman', man: 'Man', unspecified: 'Prefer not to say' },
     unspecified: '—',
+    bust: 'Bust',
+    waist: 'Waist',
+    braSize: 'Bra size',
+    tape: 'Tape',
+    band: 'Band',
+    cup: 'Cup',
+    inches: 'in',
+    bustValue: (band: number | null, cup: string | null, cm: number | null): string =>
+      band && cup ? `${band}${cup}` : cm ? `${cm} cm` : '',
+    waistValue: (cm: number, unit: 'cm' | 'in'): string =>
+      unit === 'cm' ? `${cm} cm` : `${Math.round(cm / 2.54)} in`,
     heightValue: (cm: number): string => `${cm} cm`,
     ukValue: (uk: number | string): string => `UK ${uk}`,
     euValue: (eu: number | string): string => `EU ${eu}`,
@@ -1402,14 +1459,18 @@ export const twin = {
   },
   observations: {
     title: 'Observations',
-    sub: 'Read from what you wear. Keep a line and it joins your Style DNA.',
+    sub: 'What Robes notices. Say it’s right and it joins your Style DNA.',
     since: 'Since your last visit',
     reading: 'Robes is reading your wardrobe…',
     failed: 'Robes couldn’t read your wardrobe just now — try again in a moment.',
-    empty: 'Nothing new. Robes keeps reading.',
+    // "Nothing yet" is banned in chrome (brand §1), so the legacy line opens "Nothing so far".
+    empty: 'Nothing so far. Robes notes what you keep and change on your looks.',
     keptBefore: 'Kept before',
-    keep: 'Keep',
-    notMe: 'Not me',
+    keep: 'That’s right',
+    notMe: 'Not quite',
+    answer: (verb: string, text: string): string => `${verb}: ${text}`,
+    remove: (text: string): string => `Remove from your Style DNA: ${text}`,
+    removed: 'Removed from your Style DNA.',
     list: {
       loves: 'Works',
       avoids: 'Never',

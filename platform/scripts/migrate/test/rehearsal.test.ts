@@ -3,7 +3,7 @@ import { assertMigration } from '../src/assert';
 import { LEGACY_CATALOG } from '../src/catalog';
 import { databaseUrl, dropDatabase, recreateDatabase, withClient } from '../src/db';
 import { extract, legacyTableName } from '../src/extract';
-import { L, NIALL, SHARE_TOKEN, W } from '../src/fixture-data';
+import { CAT, L, NIALL, SHARE_TOKEN, W } from '../src/fixture-data';
 import { legacyUuid } from '../src/ids';
 import { buildLegacyFixture, legacySchemaPresent } from '../src/legacy-fixture';
 import { planRehost } from '../src/rehost';
@@ -81,6 +81,119 @@ describe.skipIf(!legacySchemaPresent())(
       expect(first.report.warnings).toContain(
         '1 suggested looks carried without their legacy set (no ↻)',
       );
+    });
+
+    it('carries the colour model: shades on the list, extras, prints and her palette', async () => {
+      expect(first.report.warnings).toContain(
+        "1 pieces had a colour or print the model doesn't know (left unset)",
+      );
+      const pieces = await withClient(
+        targetUrl,
+        async (c) =>
+          (
+            await c.query(
+              `select id, colour_shade, colour_extra, print from app.wardrobe_items
+               where id = any($1::uuid[]) order by created_at`,
+              [[W.jeans, W.coat, W.shirt]],
+            )
+          ).rows,
+      );
+      expect(pieces).toEqual([
+        // On the list as filed; extras deduped, the main shade and unknown ids dropped, at most three.
+        {
+          id: W.jeans,
+          colour_shade: 'denim',
+          colour_extra: ['optic', 'ivory', 'chalk'],
+          print: 'stripes',
+        },
+        // No shade filed: the one her colour word names.
+        { id: W.coat, colour_shade: 'camel', colour_extra: [], print: null },
+        // Unknown shade and print, a colour word that names no shade: left unset.
+        { id: W.shirt, colour_shade: null, colour_extra: [], print: null },
+      ]);
+      const wishes = await withClient(
+        targetUrl,
+        async (c) =>
+          (
+            await c.query(
+              `select label, colour_shade, print from app.wishlist_items where user_id = $1 order by created_at`,
+              [NIALL],
+            )
+          ).rows,
+      );
+      expect(wishes).toEqual([
+        { label: 'Trench coat', colour_shade: 'sand', print: 'checks' },
+        { label: 'Scarf', colour_shade: null, print: 'other' },
+      ]);
+      expect(
+        await one(`select palette from app.style_profiles where user_id = $1`, [NIALL]),
+      ).toEqual({
+        palette: { fam: { blues: 1 }, shade: { cobalt: -1, navy: 0 }, print: { stripes: 1 } },
+      });
+    });
+
+    it('carries the twin (migration 26): bust and waist in range, the image as an asset, no key', async () => {
+      expect(
+        await one(`select bust_band, bust_cup, bust_cm, waist_cm from app.profiles where id = $1`, [
+          NIALL,
+        ]),
+      ).toEqual({ bust_band: 34, bust_cup: 'C', bust_cm: null, waist_cm: 72 });
+      // Out of range is dropped, never a failed run.
+      expect(
+        await one(`select bust_band, bust_cup, bust_cm, waist_cm from app.profiles where id = $1`, [
+          CAT,
+        ]),
+      ).toEqual({ bust_band: null, bust_cup: null, bust_cm: null, waist_cm: null });
+      expect(first.report.warnings).toContain(
+        '1 profiles had a bust or waist outside the ranges (left unset)',
+      );
+      const twins = await withClient(
+        targetUrl,
+        async (c) =>
+          (
+            await c.query(
+              `select a.user_id, a.avatar_id, a.twin_key, s.provider, s.kind, s.status, s.sensitive,
+                 s.legacy_url
+               from app.avatars a join app.assets s on s.id = a.twin_asset_id and s.user_id = a.user_id
+               where a.user_id = any($1::uuid[]) order by a.user_id`,
+              [[NIALL, CAT]],
+            )
+          ).rows,
+      );
+      const asset = {
+        provider: 'cloudinary_legacy',
+        kind: 'generated',
+        status: 'pending',
+        sensitive: true,
+      };
+      expect(twins).toEqual([
+        {
+          user_id: NIALL,
+          avatar_id: 'avatar-niall',
+          twin_key: null,
+          ...asset,
+          legacy_url: 'https://res.cloudinary.com/robes/image/upload/niall-twin.png',
+        },
+        // No filed model: the catalog default for her presence, so the twin has a row to ride.
+        {
+          user_id: CAT,
+          avatar_id: 'w-s3-h1-nt',
+          twin_key: null,
+          ...asset,
+          legacy_url: 'https://res.cloudinary.com/robes/image/upload/cat-twin.png',
+        },
+      ]);
+    });
+
+    it('fails the gate when a twin is lost', async () => {
+      await withClient(targetUrl, (c) =>
+        c.query('update app.avatars set twin_asset_id = null where user_id = $1', [CAT]),
+      );
+      const report = await assertMigration(targetUrl);
+      expect(report.failures.some((f) => f.includes('twin lost'))).toBe(true);
+      // Re-running the transform puts it back.
+      await transform(targetUrl);
+      expect((await assertMigration(targetUrl)).ok).toBe(true);
     });
 
     it('carries her twin, her brief and the memory she told Robes', async () => {

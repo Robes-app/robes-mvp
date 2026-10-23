@@ -20,8 +20,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
-import { type PhotoSource, pickOne, usePhotoFiling } from '@/features/home/file-photo';
+import { type PhotoSource, pickOne } from '@/features/home/file-photo';
+import { useFirstPiece } from '@/features/home/first-piece';
 import { isTerminal } from '@/features/looks/ideas';
+import { CropThumb } from '@/features/photo-pieces/PhotoFrame';
 import { errorMessage } from '@/lib/errors';
 
 const REVEAL_MS = 480;
@@ -36,7 +38,8 @@ export default function FirstPiece() {
   const queryClient = useQueryClient();
   const me = useApi('me.get');
   const name = me.data?.firstName?.trim().split(/\s+/)[0] || null;
-  const { filing, file, reset } = usePhotoFiling();
+  const first = useFirstPiece();
+  const { piece, choices, reading, preview } = first;
   const [menu, setMenu] = useState(false);
   const [revealed, setRevealed] = useState(0);
   const [skipArmed, setSkipArmed] = useState(false);
@@ -44,8 +47,6 @@ export default function FirstPiece() {
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const styled = useRef<{ pieceId: string; jobId: string } | null>(null);
-  const piece = filing.phase === 'filed' ? filing.piece : null;
-  const reading = filing.phase === 'uploading' || filing.phase === 'reading';
 
   useEffect(() => {
     if (!piece) {
@@ -107,7 +108,7 @@ export default function FirstPiece() {
     const picked = await pickOne(source);
     if (picked === 'denied' || !picked) return;
     setError(null);
-    void file(picked);
+    first.start(picked);
   };
 
   if (jobId) return <Compose jobId={jobId} name={name} />;
@@ -124,12 +125,11 @@ export default function FirstPiece() {
   const filed = piece !== null && revealed >= copy.piece.rows.length;
   const message =
     error ??
-    (filing.phase === 'none'
+    (first.problem === 'none'
       ? copy.piece.noPiece
-      : filing.phase === 'failed'
+      : first.problem === 'failed'
         ? copy.piece.failed
         : null);
-  const preview = filing.phase !== 'idle' && filing.phase !== 'none' ? filing.preview : null;
   const eyebrow = piece
     ? copy.piece.filed
     : reading
@@ -150,7 +150,7 @@ export default function FirstPiece() {
             >
               {copy.piece.style}
             </Button>
-          ) : reading || piece ? (
+          ) : reading || piece || choices ? (
             <Text tone="muted" className="text-center">
               {copy.piece.wait}
             </Text>
@@ -183,7 +183,7 @@ export default function FirstPiece() {
                 variant="quiet"
                 className="self-center"
                 onPress={() => {
-                  reset();
+                  first.reset();
                   setMenu(true);
                 }}
               >
@@ -215,6 +215,29 @@ export default function FirstPiece() {
           </Pressable>
         )}
         {message ? <ErrorText size="small">{message}</ErrorText> : null}
+        {choices && first.photo ? (
+          <View className="gap-3" testID="first-piece-choices">
+            <Heading size="sm">
+              {copy.piece.many(choices.length)} · <Em>{copy.piece.whichFirst}</Em>
+            </Heading>
+            <View className="flex-row flex-wrap gap-2">
+              {choices.map((c) => (
+                <Pressable
+                  key={c.index}
+                  accessibilityRole="button"
+                  accessibilityLabel={c.label}
+                  onPress={() => first.choose(c.index)}
+                  className="w-[30%] gap-1 rounded-crisp border border-hairline bg-surface p-1.5"
+                >
+                  {first.photo ? <CropThumb photo={first.photo} box={c.box} size={88} /> : null}
+                  <Text size="caption" numberOfLines={2}>
+                    {c.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
         <View className="border-hairline border-t" testID="ledger">
           {copy.piece.rows.map((row, i) => {
             const value = values && i < revealed ? values[i] : null;

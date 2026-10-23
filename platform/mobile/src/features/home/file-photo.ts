@@ -17,7 +17,9 @@ export type Filing =
 export type PhotoSource = 'camera' | 'library';
 
 // One photo from the camera or the roll (JPEG from the picker, so HEIC never reaches the server).
-export async function pickOne(source: PhotoSource): Promise<PickedPhoto | 'denied' | null> {
+export async function pickOne(
+  source: PhotoSource,
+): Promise<ImagePicker.ImagePickerAsset | 'denied' | null> {
   const permission =
     source === 'camera'
       ? await ImagePicker.requestCameraPermissionsAsync()

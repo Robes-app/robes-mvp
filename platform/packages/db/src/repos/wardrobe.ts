@@ -1,4 +1,5 @@
 import { resolveTaxonomy, type SeasonBand } from '@robes/core';
+import { familyShadeIds, shade, shadeByName } from '@robes/core/colour';
 import { type Insertable, type Kysely, sql, type Transaction, type Updateable } from 'kysely';
 import type { Db } from '../client';
 import type { DB, WardrobeItems } from '../database.types';
@@ -13,6 +14,9 @@ export const PIECE_COLUMNS = [
   'categoryL2',
   'categoryL3',
   'color',
+  'colourShade',
+  'colourExtra',
+  'print',
   'brand',
   'notes',
   'imageAssetId',
@@ -35,6 +39,9 @@ export interface PieceFields {
   categoryL2?: string | null;
   categoryL3?: string | null;
   color?: string | null;
+  colourShade?: string | null;
+  colourExtra?: string[];
+  print?: string | null;
   brand?: string | null;
   notes?: string | null;
   seasonBand?: SeasonBand;
@@ -68,6 +75,7 @@ export interface ListPiecesQuery {
   category?: string | undefined;
   categoryL2?: string | undefined;
   seasonBand?: SeasonBand | undefined;
+  colourFamily?: string | undefined;
 }
 
 export const HERO_RACK_SIZE = 10;
@@ -114,7 +122,16 @@ function withTaxonomy(fields: PieceFields): PieceColumns {
     out.categoryL3 = tax?.categoryL3 ?? null;
   }
   if (fields.seasonBand !== undefined) out.seasonSource = 'user';
+  // `color` stays the shade's display name, so every reader of the plain word agrees with it.
+  if (fields.colourShade) out.color = shade(fields.colourShade)?.name ?? fields.color ?? null;
   return out;
+}
+
+// Her colour answers Robes' "check it" flag.
+function colourChecked(fields: PieceFields) {
+  return fields.colourShade === undefined
+    ? {}
+    : { itemDna: sql<string>`item_dna - 'colour_check'` };
 }
 
 export function wardrobeRepo(db: Db) {
@@ -131,6 +148,10 @@ export function wardrobeRepo(db: Db) {
       if (q.category) query = query.where('category', '=', q.category);
       if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
       if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
+      // Refine by colour family: the pieces whose shade sits in it (an unknown family matches none).
+      if (q.colourFamily) {
+        query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
+      }
       const after = afterCursor(q.cursor);
       if (after) query = query.where(after);
       return toPage(await query.execute(), q.limit);
@@ -185,6 +206,7 @@ export function wardrobeRepo(db: Db) {
                 categoryL2: tax?.categoryL2 ?? null,
                 categoryL3: tax?.categoryL3 ?? null,
                 color: p.color,
+                colourShade: shadeByName(p.color)?.id ?? null,
                 brand: p.brand,
                 notes: p.notes,
                 price: p.price,
@@ -242,6 +264,7 @@ export function wardrobeRepo(db: Db) {
       return db
         .updateTable('wardrobeItems')
         .set(values)
+        .set(colourChecked(fields))
         .where('userId', '=', userId)
         .where('id', '=', id)
         .where('deletedAt', 'is', null)
@@ -322,6 +345,7 @@ export function wardrobeRepo(db: Db) {
           await trx
             .updateTable('wardrobeItems')
             .set(values)
+            .set(colourChecked(fields))
             .where('userId', '=', userId)
             .where('id', '=', id)
             .execute();
@@ -402,6 +426,10 @@ export function wardrobeRepo(db: Db) {
       if (q.category) query = query.where('category', '=', q.category);
       if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
       if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
+      // Refine by colour family: the pieces whose shade sits in it (an unknown family matches none).
+      if (q.colourFamily) {
+        query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
+      }
       const row = await query.executeTakeFirst();
       return Number(row?.n ?? 0);
     },

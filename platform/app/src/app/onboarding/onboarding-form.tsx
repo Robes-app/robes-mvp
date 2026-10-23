@@ -14,7 +14,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { usePhotoFiling } from '@/lib/file-photo';
+import { CropThumb } from '@/components/photo-pieces/photo-frame';
+import { useFirstPiece } from '@/lib/first-piece';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 import { useJob } from '@/lib/use-job';
 
@@ -216,14 +217,14 @@ function FirstPiece({
   onStyle: (piece: Piece) => Promise<void>;
 }) {
   const inputId = useId();
-  const { filing, file, reset } = usePhotoFiling();
+  const first = useFirstPiece();
+  const { piece, choices, reading, preview } = first;
+  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [revealed, setRevealed] = useState(0);
   const [skipArmed, setSkipArmed] = useState(false);
   const [leaving, setLeaving] = useState<'style' | 'skip' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [over, setOver] = useState(false);
-  const piece = filing.phase === 'filed' ? filing.piece : null;
-  const reading = filing.phase === 'uploading' || filing.phase === 'reading';
 
   useEffect(() => {
     if (!piece) {
@@ -253,12 +254,11 @@ function FirstPiece({
   const filed = piece !== null && revealed >= copy.piece.rows.length;
   const message =
     error ??
-    (filing.phase === 'none'
+    (first.problem === 'none'
       ? copy.piece.noPiece
-      : filing.phase === 'failed'
+      : first.problem === 'failed'
         ? copy.piece.failed
         : null);
-  const preview = filing.phase !== 'idle' && filing.phase !== 'none' ? filing.preview : null;
 
   const pick = (f: File | undefined) => {
     if (!f) return;
@@ -267,7 +267,7 @@ function FirstPiece({
       return;
     }
     setError(null);
-    void file(f);
+    first.start(f);
   };
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -300,7 +300,7 @@ function FirstPiece({
           >
             {copy.piece.style}
           </Button>
-        ) : reading || piece ? (
+        ) : reading || piece || choices ? (
           <Text tone="muted" className="text-center" role="status">
             {copy.piece.wait}
           </Text>
@@ -346,7 +346,17 @@ function FirstPiece({
       >
         {preview ? (
           // biome-ignore lint/performance/noImgElement: a local object URL preview
-          <img src={preview} alt="" className="absolute inset-0 size-full object-cover" />
+          <img
+            src={preview}
+            alt=""
+            className="absolute inset-0 size-full object-cover"
+            onLoad={(e) =>
+              setNatural({
+                width: e.currentTarget.naturalWidth,
+                height: e.currentTarget.naturalHeight,
+              })
+            }
+          />
         ) : (
           <>
             <span className="font-display text-ink-faint text-xl italic">
@@ -383,7 +393,7 @@ function FirstPiece({
           variant="quiet"
           className="self-center"
           onClick={() => {
-            reset();
+            first.reset();
             setError(null);
             document.getElementById(inputId)?.click();
           }}
@@ -392,6 +402,31 @@ function FirstPiece({
         </Button>
       ) : null}
       {message ? <ErrorText>{message}</ErrorText> : null}
+      {choices && preview ? (
+        <section aria-labelledby="first-piece-many" className="flex flex-col gap-3">
+          <Heading level={2} size="md" id="first-piece-many">
+            {copy.piece.many(choices.length)} · <em>{copy.piece.whichFirst}</em>
+          </Heading>
+          <div className="grid grid-cols-3 gap-2">
+            {choices.map((c) => (
+              <button
+                key={c.index}
+                type="button"
+                onClick={() => first.choose(c.index)}
+                className="flex min-h-11 flex-col items-stretch gap-1.5 rounded-crisp border border-hairline bg-surface p-1.5 text-left hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <CropThumb
+                  src={preview}
+                  box={c.box}
+                  natural={natural}
+                  className="aspect-square w-full"
+                />
+                <span className="line-clamp-2 font-sans text-ink text-xs">{c.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <dl
         className="flex flex-col divide-y divide-hairline border-hairline border-y"
         data-testid="ledger"

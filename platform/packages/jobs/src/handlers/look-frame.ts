@@ -6,7 +6,7 @@ import {
   MAX_REFERENCES,
   type Mode,
 } from '@robes/ai/prompts/style-piece';
-import { cellKey } from '@robes/core/avatar';
+import { cellKey, genericCellId } from '@robes/core/avatar';
 import type { SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -18,7 +18,8 @@ export interface FrameDeps {
   ai: AiProvider;
   storage: Pick<MediaStorage, 'getObject' | 'putObject'>;
   styling: Pick<SystemRepositories['styling'], 'createGeneratedAsset' | 'modelCellId'>;
-  cells?: Pick<SystemRepositories['modelRender'], 'cell'>;
+  cells?: Pick<SystemRepositories['modelRender'], 'cell'> &
+    Partial<Pick<SystemRepositories['modelRender'], 'model'>>;
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
   onGenerated?(key: string): Promise<void>;
 }
@@ -42,13 +43,23 @@ async function read(storage: FrameDeps['storage'], key: string): Promise<Uint8Ar
   }
 }
 
-// Her model cell as IMAGE 1, when it is ready; a missing model shoots on a Robes model.
+// Her twin first, else her model cell, as IMAGE 1 when ready. With no model of her own, the
+// k-th way stands on the k-th generic Robes model (legacy 0.4) once that cell is drawn.
 export async function modelReference(
   deps: Pick<FrameDeps, 'storage' | 'styling' | 'cells'>,
   userId: UserId,
+  generic?: { wearer: 'woman' | 'man'; index: number },
 ): Promise<InlineImage | null> {
   if (!deps.cells) return null;
-  const cellId = await deps.styling.modelCellId(userId);
+  // Her twin first: it is her (legacy modelRefsForUser, 2026-10-20).
+  const twin = deps.cells.model ? (await deps.cells.model(userId))?.twinAssetId : null;
+  if (twin) {
+    const data = await read(deps.storage, mediaKeys.master(userId, twin));
+    if (data) return { mimeType: 'image/jpeg', data };
+  }
+  const cellId =
+    (await deps.styling.modelCellId(userId)) ??
+    (generic ? genericCellId(generic.wearer, generic.index) : null);
   if (!cellId) return null;
   const cell = await deps.cells.cell(cellKey(cellId));
   if (cell?.status !== 'ready' || !cell.bucketKey) return null;

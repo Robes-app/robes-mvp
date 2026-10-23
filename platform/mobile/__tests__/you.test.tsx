@@ -113,7 +113,11 @@ test('the Robes noticed card keeps the first waiting line', async () => {
   });
   await renderWithApi(<YouMenu />);
   expect(await screen.findByText('No double denim.')).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: twin.noticed.keep }));
+  await fireEvent.press(
+    screen.getByRole('button', {
+      name: twin.observations.answer(twin.observations.keep, 'No double denim'),
+    }),
+  );
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/keep'))).toBe(true),
   );

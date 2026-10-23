@@ -1,6 +1,6 @@
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine, BriefListName, StyleDna as Dna } from '@robes/contracts';
-import { twin } from '@robes/copy';
+import { twin, you } from '@robes/copy';
 import { asSentence } from '@robes/core';
 import {
   INVESTMENT_LEVELS,
@@ -31,9 +31,19 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useDnaMutations } from './dna';
+import { ColoursBody, PrintsBody, paletteSummary, usePalette } from './Palette';
 
 const copy = twin.dnaPage;
-type SheetKind = 'types' | 'brands' | 'icons' | 'pieces' | 'investment' | BriefListName;
+type SheetKind =
+  | 'types'
+  | 'brands'
+  | 'icons'
+  | 'pieces'
+  | 'investment'
+  | 'colours'
+  | 'prints'
+  | BriefListName;
+const palette = you.style.palette;
 const WALL_N = 18;
 
 function ValueRow({
@@ -101,6 +111,7 @@ function Option({
 export function StyleDna() {
   const query = useApi('me.dna.get');
   const [sheet, setSheet] = useState<SheetKind | null>(null);
+  const colours = usePalette().palette;
   if (query.isPending) return <CardSkeleton className="mx-6" />;
   if (query.isError || !query.data) return <EmptyState title={errorMessage(query.error)} />;
   const dna = query.data;
@@ -149,6 +160,16 @@ export function StyleDna() {
           value={level?.label ?? copy.pickOne}
           onPress={() => setSheet('investment')}
         />
+        <ValueRow
+          label={palette.coloursTitle}
+          value={paletteSummary(colours, 'colours')}
+          onPress={() => setSheet('colours')}
+        />
+        <ValueRow
+          label={palette.printsTitle}
+          value={paletteSummary(colours, 'prints')}
+          onPress={() => setSheet('prints')}
+        />
       </View>
       <View className="gap-1">
         <Eyebrow>{copy.words}</Eyebrow>
@@ -179,6 +200,8 @@ const HEAD: Record<SheetKind, [string, string]> = {
   icons: [twin.wall.iconsTitle, twin.wall.iconsSub],
   pieces: [twin.pieces.title, twin.pieces.sub],
   investment: [twin.investment.title, twin.investment.sub],
+  colours: [palette.coloursTitle, ''],
+  prints: [palette.printsTitle, ''],
   loves: [twin.words.loves.title, twin.words.loves.sub],
   avoids: [twin.words.avoids.title, twin.words.avoids.sub],
   rules: [twin.words.rules.title, twin.words.rules.sub],
@@ -197,11 +220,13 @@ function DnaSheet({
   return (
     <Sheet open={kind !== null} onClose={onClose} title={title} testID="dna-sheet">
       <ScrollView contentContainerClassName="gap-4 pb-6" keyboardShouldPersistTaps="handled">
-        <Text tone="muted">{sub}</Text>
+        {sub ? <Text tone="muted">{sub}</Text> : null}
         {kind === 'types' ? <TypesBody dna={dna} /> : null}
         {kind === 'brands' || kind === 'icons' ? <WallBody dna={dna} kind={kind} /> : null}
         {kind === 'pieces' ? <PiecesBody dna={dna} onClose={onClose} /> : null}
         {kind === 'investment' ? <InvestmentBody dna={dna} /> : null}
+        {kind === 'colours' ? <ColoursBody /> : null}
+        {kind === 'prints' ? <PrintsBody /> : null}
         {kind === 'loves' || kind === 'avoids' || kind === 'rules' ? (
           <WordsBody dna={dna} list={kind} />
         ) : null}

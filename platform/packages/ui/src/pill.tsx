@@ -9,7 +9,7 @@ export interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>,
   selected?: boolean;
 }
 
-// Selected = outline + ink text, never a black fill (brand-and-design.md §4.4).
+// Selected is warm, never black: the warm fill on its line, ink text and a check.
 export function Pill({
   selected = false,
   type = 'button',
@@ -25,7 +25,7 @@ export function Pill({
       className={cn(
         base,
         selected
-          ? 'border-ink bg-surface text-ink'
+          ? 'border-selected-line bg-selected text-ink'
           : 'border-border-control text-ink-muted hover:border-ink hover:text-ink',
         'disabled:border-hairline disabled:text-ink-faint',
         focusRing,

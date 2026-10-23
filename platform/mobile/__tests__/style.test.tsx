@@ -1,6 +1,7 @@
-import { twin } from '@robes/copy';
+import { twin, you } from '@robes/copy';
 import { asSentence } from '@robes/core';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { COLOUR_FAMILIES } from '@robes/core/colour';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { Observations } from '../src/features/you/Observations';
 import { StyleDna } from '../src/features/you/StyleDna';
 import { mockFetch, renderWithApi } from './support/api';
@@ -43,6 +44,46 @@ test('Style DNA: a type, a brand from the wall and the investment level save at 
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Minimal' }).props.accessibilityState).toMatchObject({
       selected: true,
+    }),
+  );
+});
+
+test('Your colours: a family on Love and a shade on Avoid save the whole palette', async () => {
+  const empty = { fam: {}, shade: {}, print: {} };
+  const style = (palette: object) => ({
+    colour: null,
+    silhouette: null,
+    overrides: { lovedColors: [], rejectedColors: [], measurements: {} },
+    palette,
+    updatedAt: null,
+  });
+  const calls = mockFetch({
+    'GET /me/dna': styleDna(),
+    'GET /me/style': style(empty),
+    'PUT /me/style/palette': (init: RequestInit) => style(JSON.parse(String(init.body))),
+  });
+  const copy = you.style.palette;
+  await renderWithApi(<StyleDna />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: `${copy.coloursTitle}, ${copy.summary(0, 0)}` }),
+  );
+  const blues = within(await screen.findByLabelText('Blues'));
+  await fireEvent.press(blues.getByRole('radio', { name: copy.states.love }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ ...empty, fam: { blues: 1 } }),
+  );
+  const blueShades = screen.getAllByRole('button', { name: copy.showShades })[
+    COLOUR_FAMILIES.findIndex((f) => f.id === 'blues')
+  ];
+  if (!blueShades) throw new Error('the Blues row has no Shades toggle');
+  await fireEvent.press(blueShades);
+  const cobalt = within(await screen.findByLabelText('Cobalt'));
+  await fireEvent.press(cobalt.getByRole('radio', { name: copy.states.avoid }));
+  await waitFor(() =>
+    expect(calls.filter((c) => c.method === 'PUT').at(-1)?.body).toEqual({
+      fam: { blues: 1 },
+      shade: { cobalt: -1 },
+      print: {},
     }),
   );
 });
@@ -131,7 +172,28 @@ test('observations: Robes reads when due, then Keep files a line and toasts', as
   await renderWithApi(<Observations />);
   expect(await screen.findByText(asSentence(notice.text), {}, { timeout: 5000 })).toBeTruthy();
   expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/me/dna/read'))).toBe(true);
-  await fireEvent.press(screen.getByRole('button', { name: twin.observations.keep }));
+  await fireEvent.press(
+    screen.getByRole('button', {
+      name: twin.observations.answer(twin.observations.keep, notice.text),
+    }),
+  );
   expect(await screen.findByText(twin.noticed.kept)).toBeTruthy();
   expect(await screen.findByText(twin.observations.keptBefore)).toBeTruthy();
+});
+
+test('Observations: × takes a kept line off her Style DNA', async () => {
+  const line = { ...kept('loves', 'You reach for a defined waist'), source: 'drafted' as const };
+  const calls = mockFetch({
+    'GET /me/dna': styleDna({ brief: { ...styleDna().brief, loves: [line] } }),
+    [`DELETE /me/dna/lines/${LINE_ID}`]: styleDna(),
+  });
+  await renderWithApi(<Observations />);
+  expect(await screen.findByText(twin.observations.empty)).toBeTruthy();
+  await fireEvent.press(
+    await screen.findByRole('button', { name: twin.observations.remove(line.text) }),
+  );
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith(LINE_ID))).toBe(true),
+  );
+  expect(await screen.findByText(twin.observations.removed)).toBeTruthy();
 });

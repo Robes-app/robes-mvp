@@ -109,4 +109,36 @@ describe('wardrobe schema', () => {
         [USER_B, tag?.id, ITEM],
       );
     }));
+
+  it('holds a piece to the colour model: one known shade, up to three more, a known print', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q(
+        `update app.wardrobe_items set colour_shade = 'navy', colour_extra = '{optic,gold}',
+         print = 'stripes' where id = $1`,
+        [ITEM],
+      );
+      for (const set of [
+        "colour_shade = 'chartreuse'",
+        "colour_extra = '{optic,jet,ivory,chalk}'",
+        "colour_extra = '{nope}'",
+        "print = 'plain'",
+      ]) {
+        await expectPgError(q, '23514', `update app.wardrobe_items set ${set} where id = $1`, [
+          ITEM,
+        ]);
+      }
+      await expectPgError(
+        q,
+        '23514',
+        "insert into app.wishlist_items (user_id, label, colour_shade) values ($1, 'x', 'nope')",
+        [USER_A],
+      );
+      await expectPgError(
+        q,
+        '23514',
+        `insert into app.style_profiles (user_id, palette) values ($1, '[]')`,
+        [USER_A],
+      );
+    }));
 });

@@ -1,3 +1,4 @@
+import { BUST_CUPS } from '@robes/core/avatar';
 import { AGE_BAND_KEYS, INVESTMENT_KEYS, SEASON_WHEEL, STYLE_TYPES } from '@robes/core/style-dna';
 import { z } from 'zod';
 import { ModelPresence } from './me';
@@ -53,6 +54,17 @@ export const Facts = z.object({
     .refine((n) => Number.isInteger(n * 2))
     .nullable(),
   ageBand: AgeBand.nullable(),
+  // Her bust as a bra size (band + cup) or the tape, and her waist (the digital twin).
+  bustBand: z
+    .number()
+    .int()
+    .min(28)
+    .max(46)
+    .refine((n) => n % 2 === 0)
+    .nullable(),
+  bustCup: z.enum(BUST_CUPS).nullable(),
+  bustCm: z.number().int().min(70).max(140).nullable(),
+  waistCm: z.number().int().min(50).max(130).nullable(),
 });
 export type Facts = z.infer<typeof Facts>;
 

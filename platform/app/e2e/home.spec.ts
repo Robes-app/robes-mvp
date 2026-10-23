@@ -46,10 +46,11 @@ test('onboarding: splash → name → the first piece read live → Composing �
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
   await expect(page.getByText('What are you dressing for today?')).toBeVisible();
-  // One piece filed: Style DNA leads; the map carries the rest; the deck's looks wait in Suggested.
+  // Three pieces filed (the one styled, the others quietly): Style DNA leads; the map carries the
+  // rest; the deck's looks wait in Suggested.
   await expect(page.getByText('Next · Style DNA')).toBeVisible();
   const map = page.getByRole('region', { name: 'Getting to know you' });
-  await expect(map.getByText('One piece filed')).toBeVisible();
+  await expect(map.getByText('Three pieces filed')).toBeVisible();
   const suggested = page.getByTestId('home-suggested');
   const card = suggested.getByRole('listitem').first().getByRole('link');
   await expect(card).toBeVisible();
@@ -128,6 +129,9 @@ test('the home walks its stages: one door, Later, the map, then the activated we
   await expect(box).toBeFocused();
   await box.fill('Dinner with friends');
   await box.press('Enter');
+  // She has filed pieces: the box asks once where the look's pieces come from.
+  await expect(page.getByText('Where should the pieces in your look come from?')).toBeVisible();
+  await page.getByRole('button', { name: 'A mix' }).click();
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
   await expect(page.getByText(/^For \w{3} \d{1,2} \w{3}$/)).toBeVisible({ timeout: 30_000 });
 });
@@ -162,6 +166,9 @@ test('the home box: words become three looks on the deck; a photographed piece s
   await expect(page.getByText('Pick how Robes styles it.')).toBeVisible();
   await piece.getByRole('button', { name: /Style it three ways/ }).click();
   await page.getByRole('button', { name: 'Send' }).click();
+  // Her answer can be her own words in the field.
+  await page.getByPlaceholder('Or say it your way').fill('Suggest new pieces');
+  await page.getByPlaceholder('Or say it your way').press('Enter');
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
   await expect(page.getByText(/^Around your/)).toBeVisible({ timeout: 30_000 });
 });

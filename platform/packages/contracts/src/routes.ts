@@ -61,6 +61,7 @@ import {
   Me,
   Model,
   OnboardingComplete,
+  Palette,
   PushTokenParams,
   RegisterPushTokenInput,
   RequestDeletionInput,
@@ -225,6 +226,15 @@ export const routes = {
     input: UpdateModelInput,
     output: Model,
   },
+  // Draws her twin when what it is drawn from has changed since the last; asked when she leaves a
+  // twin screen, never per tap. Naturally idempotent per key.
+  'me.model.twin': {
+    method: 'POST',
+    path: '/me/model/twin',
+    auth: 'user',
+    input: EmptyInput,
+    output: Model,
+  },
   // "See it on me": naturally idempotent per model and rack.
   'looks.renderOnModel': {
     method: 'POST',
@@ -254,6 +264,14 @@ export const routes = {
     path: '/me/style/overrides',
     auth: 'user',
     input: StyleOverrides,
+    output: StyleProfile,
+  },
+  // Your colours and Your prints: Avoid · No view · Love, saved whole on each change.
+  'me.style.palette': {
+    method: 'PUT',
+    path: '/me/style/palette',
+    auth: 'user',
+    input: Palette,
     output: StyleProfile,
   },
   // A season she chose by hand: that season's catalog read, no model call (legacy 2026-10-08).

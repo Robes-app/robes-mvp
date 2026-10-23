@@ -2,12 +2,13 @@ import { useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { home as copy, lookbook } from '@robes/copy';
 import { isTripAsk } from '@robes/core/home';
-import { ASK_MAX_CHARS, askDateFrom } from '@robes/core/looks';
+import { ASK_MAX_CHARS, askDateFrom, type Balance, readBalance } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import { ErrorText, fonts, IconButton, Image, Sheet, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import { BalanceQuestion } from '@/features/looks/BalanceQuestion';
 import { SwapSheet } from '@/features/looks/SwapSheet';
 import { localDate } from '@/features/looks/saved-looks';
 import { dayLabel } from '@/features/plan/plan';
@@ -17,6 +18,7 @@ import { renditionUri } from '@/lib/images';
 import { type PhotoSource, pickOne, usePhotoFiling } from './file-photo';
 
 type Mode = 'build' | 'three';
+type Steer = { balance: Balance } | { balanceNote: string };
 export type HomeBoxHandle = { focus: () => void };
 
 // H2, the home box (legacy _rbHbSync + the + inside the box): her words become three suggested
@@ -42,6 +44,8 @@ export const HomeBox = forwardRef<
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Her ask, held while the box asks where its pieces come from.
+  const [held, setHeld] = useState<string | null>(null);
   const { filing, file, reset } = usePhotoFiling();
   useImperativeHandle(ref, () => ({ focus: () => input.current?.focus() }));
 
@@ -49,22 +53,45 @@ export const HomeBox = forwardRef<
   const filedPiece = filing.phase === 'filed' ? filing.piece : null;
   const stillFiling = filing.phase === 'uploading' || filing.phase === 'reading';
   const forSend = piece ?? filedPiece;
-  const place = attached
-    ? copy.plus.placeholder
-    : date
-      ? copy.doorDay(dayLabel(date))
-      : placeholder;
+  const place =
+    held !== null
+      ? lookbook.prompt.balance.typed
+      : attached
+        ? copy.plus.placeholder
+        : date
+          ? copy.doorDay(dayLabel(date))
+          : placeholder;
 
   const clear = () => {
     setPiece(null);
     setPhoto(false);
     setMode(null);
+    setHeld(null);
     reset();
   };
 
-  async function send(): Promise<void> {
+  // Once per new look, while she has filed anything: the ask waits for her answer.
+  const holdFor = (words: string, steer: Steer | undefined) => {
+    if (steer || !(hasPieces || forSend)) return false;
+    setHeld(words);
+    setText('');
+    return true;
+  };
+  const failed = (err: unknown, words: string) => {
+    if (held !== null) setText(words);
+    setHeld(null);
+    setError(errorMessage(err));
+  };
+
+  async function send(steer?: Steer): Promise<void> {
     if (busy) return;
-    const words = text.trim();
+    if (held !== null && !steer) {
+      const read = readBalance(text);
+      if (read.balance) void send({ balance: read.balance });
+      else if (read.note) void send({ balanceNote: read.note });
+      return;
+    }
+    const words = (held ?? text).trim();
     setError(null);
     if (attached) {
       if (!mode) {
@@ -84,19 +111,21 @@ export const HomeBox = forwardRef<
         clear();
         return;
       }
+      if (holdFor(words, steer)) return;
       setBusy(true);
       try {
         const { jobId } = await api.call('looks.generate', {
           input: {
             anchor: { type: 'piece', pieceId: forSend.id },
             ...(words ? { occasion: words.slice(0, 120) } : {}),
+            ...steer,
           },
         });
         setText('');
         clear();
         router.push({ pathname: '/looks/job/[jobId]', params: { jobId, from: 'home' } });
       } catch (err) {
-        setError(errorMessage(err));
+        failed(err, words);
       } finally {
         setBusy(false);
       }
@@ -109,16 +138,18 @@ export const HomeBox = forwardRef<
       return;
     }
     const day = date ?? (trip ? null : askDateFrom(words, localDate()));
+    if (holdFor(words, steer)) return;
     setBusy(true);
     try {
       const { jobId } = await api.call('looks.prompt', {
-        input: { prompt: words, ...(day ? { date: day } : {}) },
+        input: { prompt: words, ...(day ? { date: day } : {}), ...steer },
       });
       setText('');
+      setHeld(null);
       onDateClear();
       router.push({ pathname: '/looks/job/[jobId]', params: { jobId, from: 'home' } });
     } catch (err) {
-      setError(errorMessage(err));
+      failed(err, words);
     } finally {
       setBusy(false);
     }
@@ -156,7 +187,8 @@ export const HomeBox = forwardRef<
     : filing.phase !== 'idle'
       ? filing.preview
       : null;
-  const ready = attached ? mode !== null : text.trim().length >= 2;
+  const ready =
+    held !== null ? text.trim().length > 0 : attached ? mode !== null : text.trim().length >= 2;
 
   return (
     <View className="gap-2" testID="home-box">
@@ -206,6 +238,9 @@ export const HomeBox = forwardRef<
             </Text>
           ) : null}
         </View>
+      ) : null}
+      {held !== null ? (
+        <BalanceQuestion echo={held} disabled={busy} onPick={(b) => void send({ balance: b })} />
       ) : null}
       <View className="flex-row items-end gap-1 rounded-[24px] border border-border-control bg-bg px-1 py-1">
         <IconButton

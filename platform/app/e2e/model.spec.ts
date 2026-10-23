@@ -73,17 +73,42 @@ test('a model and its renders are hers alone', async ({ page, browser }) => {
   await other.close();
 });
 
-test('You › Your model: build by hand and pick a skin tone', async ({ page }) => {
+test('You › Your digital twin: build by hand, nudge colouring and line, and her twin is drawn', async ({
+  page,
+}) => {
   await signIn(page);
   await declineConsent(page);
   await page.goto('/you');
   await page.getByRole('link', { name: 'Your digital twin' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Your digital twin' })).toBeVisible();
   await page.getByRole('button', { name: 'Build your model' }).click();
+
+  await page.getByRole('link', { name: /Colouring/ }).click();
   await page.getByRole('button', { name: 'Porcelain' }).click();
   await expect(page.getByRole('button', { name: 'Porcelain' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
+  await page.getByRole('link', { name: 'Your digital twin' }).click();
+
+  await page.getByRole('link', { name: /Body shape/ }).click();
+  await page.getByRole('button', { name: 'Hips: much fuller' }).click();
+  await expect(page.getByRole('button', { name: 'Hips: much fuller' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('link', { name: 'Your digital twin' }).click();
+
+  // Leaving a twin screen draws her twin once; the hero shows it.
   await expect(page.getByRole('img', { name: 'Your model' })).toBeVisible({ timeout: 30_000 });
+  await expect
+    .poll(async () => (await (await page.request.get('/api/v1/me/model')).json()).twin, {
+      timeout: 30_000,
+    })
+    .toMatchObject({ status: 'ready', current: true });
+  const model = await (await page.request.get('/api/v1/me/model')).json();
+  expect(model).toMatchObject({ skin: 7, skinSet: true, adj: { hips: 2 } });
+  // Nothing changed: asking again draws nothing new and answers with the twin on file.
+  const again = await (await page.request.post('/api/v1/me/model/twin')).json();
+  expect(again.twin).toMatchObject({ status: 'ready', current: true });
 });

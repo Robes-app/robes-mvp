@@ -9,7 +9,8 @@ import { useState } from 'react';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 
 // The swap drawer (legacy 4b): her pieces by category, opening on the piece's own; a tap picks,
-// "Swap in …" commits, closing changes nothing. With nothing to swap it adds a piece instead.
+// "Swap in …" commits (or the tap itself, `instant`), closing changes nothing. With nothing to
+// swap it adds a piece instead.
 export function SwapSheet({
   open,
   swapping,
@@ -17,6 +18,7 @@ export function SwapSheet({
   onClose,
   onPick,
   opensOn = null,
+  instant = false,
 }: {
   open: boolean;
   swapping: { name: string; category: string } | null;
@@ -25,6 +27,8 @@ export function SwapSheet({
   onRack: readonly string[];
   onClose: () => void;
   onPick: (piece: Piece) => void;
+  // A suggested look swaps on the one tap (legacy 0.1); its Undo is the way back.
+  instant?: boolean;
 }) {
   const pieces = useApi('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
   const ready = (pieces.data?.items ?? []).filter(
@@ -91,12 +95,12 @@ export function SwapSheet({
                   type="button"
                   aria-pressed={picked?.id === piece.id}
                   onClick={() => {
-                    if (!swapping) {
+                    if (!swapping || instant) {
                       onPick(piece);
                       close();
                     } else setPicked(piece);
                   }}
-                  className={`flex w-full flex-col gap-1 rounded-crisp border p-1 text-left ${picked?.id === piece.id ? 'border-ink' : 'border-hairline'}`}
+                  className={`flex w-full flex-col gap-1 rounded-crisp border p-1 text-left ${picked?.id === piece.id ? 'border-selected-line bg-selected' : 'border-hairline'}`}
                 >
                   <PieceImage piece={piece} sizes="120px" />
                   <Text size="caption" className="line-clamp-2">

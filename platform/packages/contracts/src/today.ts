@@ -35,6 +35,8 @@ export const Home = z.object({
     twinOnFile: z.boolean(),
     pics: z.number().int().min(0),
     ownLookSaved: z.boolean(),
+    // Any saved look: the week strip shows from the first (legacy 0.3).
+    anyLook: z.boolean().optional(),
     snoozed: z.partialRecord(HomeStep, z.iso.datetime()),
   }),
   // O1's rows: her chips, three at most.

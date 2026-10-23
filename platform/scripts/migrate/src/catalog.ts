@@ -147,6 +147,8 @@ export const LEGACY_CATALOG: Record<string, ReadonlyArray<readonly [string, stri
     ['avatar_prefs', 'jsonb'],
     ['notification_prefs', 'jsonb'],
     ['inbox_address', 'text'],
+    ['twin_url', 'text'],
+    ['twin_key', 'text'],
   ],
   'public.prompt_history': [
     ['id', 'uuid'],
@@ -218,6 +220,9 @@ export const LEGACY_CATALOG: Record<string, ReadonlyArray<readonly [string, stri
     ['season_source', 'text'],
     ['size', 'text'],
     ['currency', 'text'],
+    ['colour_shade', 'text'],
+    ['colour_extra', 'text[]'],
+    ['print', 'text'],
   ],
   'public.wears': [
     ['id', 'uuid'],
@@ -249,5 +254,8 @@ export const LEGACY_CATALOG: Record<string, ReadonlyArray<readonly [string, stri
     ['currency', 'text'],
     ['category_l2', 'text'],
     ['category_l3', 'text'],
+    ['colour_shade', 'text'],
+    ['colour_extra', 'text[]'],
+    ['print', 'text'],
   ],
 };
