@@ -51,30 +51,59 @@ production before the DNS move**, because it is invisible in a health check
 
 ## A. Catch up with this week's founder work (legacy 16–23 Oct)
 
-Last parity pass was 2026-10-15 (`docs/STATUS.md`). New legacy work since, in build order:
+Ported 2026-10-23 and then **audited against legacy clause by clause** (four read-only audits:
+twin, front door, prompt + observations, piece page). The ports were functional-first, so the
+list below separates "the behaviour is there" from "it reads as beta does".
 
-- [ ] **Prompt hierarchy**: her hard nos first and absolute; brief outranks photo reads; struck
-      observations never rendered (`packages/core/src/style-dna/prompt.ts`). S–M.
-- [ ] **Quick ones** (S each): Observations verbs "That's right / Not quite" + un-keep ×, wardrobe
-      read paused; high-street brands in the brand pool (M&S, & Other Stories, Mango, Dunnes,
-      Penneys); Save opens the diary sheet; the scanner line while a look generates.
-- [ ] **"Where should the pieces come from?"** (All mine · A mix · Suggest new pieces) + `recent`
-      sets so a second ask is a second answer + starred pieces as taste; then the balance answer
-      overriding the owned-first rules. L, then S. Fixes "it shows me the same clothes again".
-- [ ] **Front door**: swap on a suggested look without Edit (M); three generic models + the
-      "Generic model" badge (M); week strip from the first saved look (S–M, needs the modular home).
-- [ ] **Onboarding multi-piece pick** ("Robes sees N pieces · Which one first?"), reusing
-      `wardrobe-pieces`. M.
-- [ ] **Digital twin**: one reference image per account (face from the close-up, line from the
-      facts); migration for twin url/key; then the redlined twin screens. L + M.
-- [ ] **Colour model** phases 1 → 2 → 3/4: shade list + analyse output + migration for
-      shade/extra colours/print; piece sheet + Refine by family; add-flow doors + Your colours /
-      Your prints with soft avoid. M, L, L.
-- [ ] **Design-system doc**: selected = warm `#F3EFE6` / `#C9BCA6`; never a count as a fraction.
+- [x] **Prompt hierarchy** — at parity, verified clause by clause against `30d7ea5`
+      (`packages/core/src/style-dna/prompt.ts`): hard nos first and absolute, brief above the
+      photo reads, struck lines never rendered, the DNA block as guidance.
+- [x] **"Where should the pieces come from?"** — at parity and better: `recent` sets are loaded
+      server-side from her own artifacts rather than trusted from the client payload.
+      `readBalance` is regex-identical to legacy; starred pieces as taste present.
+- [x] **The balance answer governs the owned-first clauses** (`62b3d35`) and is now auditable —
+      `balance`, `shown` and `owned_of_total` ride `app.generation_calls.detail`.
+- [x] **The hero rule** — `bcf8b8a` replaced one shared directive used by style, daily AND
+      travel; only style-piece had been updated, so the overnight look and trips still ran the
+      superseded 2026-10-08 rule. Fixed as `daily/v3` + `travel/v3`, with a test pinning v3's
+      directive byte-equal to style-piece v4's so the three cannot drift again.
+- [x] **Observations** — "That's right / Not quite", the un-keep ×, the paused wardrobe read and
+      the high-street brands (M&S, & Other Stories, Mango, Dunnes, Penneys) are all at parity,
+      web and native.
+- [x] **Onboarding multi-piece pick** ("Robes sees N pieces · Which one first?").
+- [x] **The week strip from the first saved look** — the cleanest port of the set.
+- [x] **Colour model** phases 1–4 — the shade list, the analyse output, migration 27's columns and
+      the piece sheet. **Your colours / Your prints** then needed its own shape: a family is one
+      rounded square quartered into four shades (it was four circles), prints the same square (a
+      circle), and the answer sits on the sheet's own avoid · no view · love control, not the
+      header's uppercase segmented control. Fixed web and native.
+- [ ] **The diary sheet is 14 day pills, not beta's month calendar** (`diary-sheet.tsx`,
+      `packages/core/src/calendar`). Consequences: no past days, so **retro "record it as worn"
+      is unreachable**; no filed-day dots; no "I wore this today"; and nothing is preselected on
+      an undated save, so the CTA opens disabled where beta's is live. M.
+- [ ] **The generic-model badge** — missing from the deck's top card, the line it replaced still
+      printed, and it navigated away instead of opening the twin drawer (which from the deck
+      throws away an undecided set). In progress.
+- [ ] **The scanner** — wired to one of legacy's four slots; missing on the suggested tile and the
+      look page's busy frame, and the three separate line lists were collapsed into one. In progress.
+- [ ] **The digital twin screens** — the engine is a faithful port (every constant matches) but
+      the redline is not: the hero is not full-bleed over cream with the 90px fade and the caption
+      inside it, the "Build your model" CTA the redline **deleted** was re-added, and the italic
+      five-state status line and the empty state are missing. The parametric figure underlay is
+      absent, so the stage is empty until the first twin lands. L.
+- [ ] **The piece page, the in-app camera and the receipt door** (`bc56305`, the newest legacy
+      commit) were not ported at all. The camera is the headline: beta has an in-app viewfinder
+      with **Single | Several** modes; the platform has a drop zone on web and a one-shot OS
+      camera on native. In progress.
+- [ ] **Her rejected colours sit outside HER HARD NOS** — deliberate on the platform (soft avoid
+      in the palette block) but it contradicts `30d7ea5`'s "her nos are absolute". Needs Annie's
+      call, not a code change.
+- [ ] **The balance question is asked on one of four new-look doors** — the home box only. The
+      other three fall back to the count-derived posture. S.
 - [ ] Re-run the parity pass right before cutover (the founder keeps shipping on legacy until then).
 
 Ask the founders to **freeze new legacy features** from the cutover date minus two weeks, or every
-change lands twice.
+change lands twice. The 16–23 Oct window alone was eight days of work landing twice.
 
 ## B. Production environment
 
