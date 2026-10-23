@@ -434,3 +434,31 @@ export function sortLooks<T extends { name: string; createdAt: string; lastWornO
   }
   return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
+
+// Where a new look's pieces come from (legacy 2026-10-19): her answer to the one question asked on
+// a new look, a chip or her own words. Words that name none of the three ride verbatim as a note.
+export const BALANCES = ['owned', 'mix', 'new'] as const;
+export type Balance = (typeof BALANCES)[number];
+export const BALANCE_NOTE_MAX = 160;
+
+export function readBalance(text: string): { balance: Balance | null; note: string | null } {
+  const t = text.trim();
+  const low = t.toLowerCase();
+  if (
+    /\b(all|only|just|everything|entirely)\b.*\b(mine|my|own|wardrobe|closet|have)\b|\b(mine|my wardrobe|my own|what i own|what i have)\b.*\b(only|alone)\b|^\s*(all )?mine\s*$|^\s*(from )?my (wardrobe|closet|own)\s*$|\bnothing new\b|\bno new\b/.test(
+      low,
+    )
+  ) {
+    return { balance: 'owned', note: null };
+  }
+  if (
+    /\b(new|shop|buy|suggest|fresh|something different)\b/.test(low) &&
+    !/\b(no|nothing|not|don'?t)\b.{0,14}\b(new|shop|buy)\b/.test(low)
+  ) {
+    return { balance: 'new', note: null };
+  }
+  if (/\b(a |the )?mix\b|\bboth\b|\bmostly mine\b|\bsome new\b|\bbalance\b/.test(low)) {
+    return { balance: 'mix', note: null };
+  }
+  return { balance: null, note: t ? t.slice(0, BALANCE_NOTE_MAX) : null };
+}

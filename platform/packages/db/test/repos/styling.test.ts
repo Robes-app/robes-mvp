@@ -75,6 +75,17 @@ describe('styling + ideas', () => {
     expect(saved?.savedAt).toBeInstanceOf(Date);
   });
 
+  it('lists her own recent sets, newest first, never another user’s', async () => {
+    const { job } = await repos.jobs.create(ann, { kind: 'key_piece', input: {} });
+    for (const n of [1, 2]) {
+      await styling.createSet(ann, { jobId: job.id, title: `Set ${n}`, subtitle: '', data: { n } });
+    }
+    const { job: bJob } = await repos.jobs.create(bea, { kind: 'key_piece', input: {} });
+    await styling.createSet(bea, { jobId: bJob.id, title: 'Bea', subtitle: '', data: { n: 9 } });
+    expect(await styling.recentSets(ann, 2)).toEqual([{ n: 2 }, { n: 1 }]);
+    expect(await styling.recentSets(bea)).toEqual([{ n: 9 }]);
+  });
+
   it('tracks generated frames idempotently', async () => {
     const { job } = await repos.jobs.create(ann, { kind: 'key_piece', input: {} });
     const assetId = await styling.createGeneratedAsset(ann);

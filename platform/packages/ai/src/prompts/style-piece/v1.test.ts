@@ -27,7 +27,7 @@ describe('looks.style_piece v1', () => {
     expect(system).toContain(
       'STYLE ICONS — her taste references: <user_input>\nPhoebe Philo\n</user_input>.',
     );
-    expect(system).toContain('Colour archetype: Soft Autumn');
+    expect(system).toContain('Colouring read: Soft Autumn');
     expect(system).toContain('building their digital closet (3/15 items)');
   });
 

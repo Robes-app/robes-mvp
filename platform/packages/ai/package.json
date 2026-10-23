@@ -5,7 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./prompts/wardrobe-analyse": "./src/prompts/wardrobe-analyse/v2.ts",
-    "./prompts/style-piece": "./src/prompts/style-piece/v3.ts",
+    "./prompts/style-piece": "./src/prompts/style-piece/v4.ts",
     "./prompts/style-analyse": "./src/prompts/style-analyse/v1.ts",
     "./prompts/daily": "./src/prompts/daily/v2.ts",
     "./prompts/travel": "./src/prompts/travel/v2.ts",

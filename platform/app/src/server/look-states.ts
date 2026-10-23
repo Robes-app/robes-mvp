@@ -51,7 +51,7 @@ export async function promptLook(
   }
   return startJob(userId, req, {
     kind: 'key_piece',
-    input: { mode: 'prompt', prompt: input.prompt, ...(input.date ? { date: input.date } : {}) },
+    input: { mode: 'prompt', ...input },
     quota: [...SET_QUOTA],
   });
 }
