@@ -20,9 +20,13 @@ export function GenericModelBadge() {
         accessibilityLabel={copy.deck.genericModelLabel}
         onPress={() => setOpen(true)}
         style={{ minHeight: MIN_TOUCH }}
-        className="absolute top-3 right-3 justify-center rounded-pill border border-hairline bg-bg px-4"
+        className="absolute top-3 right-3 flex-row items-center justify-center gap-2 rounded-pill border border-hairline bg-bg px-4"
       >
+        <View className="h-1.5 w-1.5 rounded-pill bg-ink-faint" />
         <Text size="small">{copy.deck.genericModel}</Text>
+        <Text size="small" tone="faint">
+          ›
+        </Text>
       </Pressable>
       <Sheet
         open={open}

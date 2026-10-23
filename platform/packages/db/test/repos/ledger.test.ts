@@ -34,7 +34,7 @@ describe('ledger', () => {
       status: 'ok' as const,
     };
     // Unknown families use the 10 USD default limit.
-    await system.ledger.record({ ...call, costMicros: 6_000_000 });
+    await system.ledger.record({ ...call, costMicros: 6_000_000, detail: { balance: 'new' } });
     expect(await repos.capacity.isExhausted([family])).toBe(false);
     await system.ledger.record({ ...call, costMicros: 4_000_000 });
     expect(await repos.capacity.isExhausted([family])).toBe(true);
@@ -48,9 +48,12 @@ describe('ledger', () => {
     expect(String(row?.costMicros)).toBe('10000000');
     const calls = await db
       .selectFrom('generationCalls')
-      .select('feature')
+      .select(['feature', 'detail'])
       .where('jobId', '=', job.id)
+      .orderBy('createdAt')
       .execute();
     expect(calls).toHaveLength(2);
+    // Counts and enums that make an answer auditable; '{}' when a call records none.
+    expect(calls.map((c) => c.detail)).toEqual([{ balance: 'new' }, {}]);
   });
 });

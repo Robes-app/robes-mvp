@@ -2,7 +2,7 @@
 
 import { useApi, useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
-import { firstRun as copy, onboarding } from '@robes/copy';
+import { firstRun as copy, onboarding, photoPieces } from '@robes/copy';
 import { Button, ErrorText, Eyebrow, Field, Heading, IconButton, Text, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import {
@@ -256,9 +256,11 @@ function FirstPiece({
     error ??
     (first.problem === 'none'
       ? copy.piece.noPiece
-      : first.problem === 'failed'
-        ? copy.piece.failed
-        : null);
+      : first.problem === 'stalled'
+        ? photoPieces.stalled
+        : first.problem === 'failed'
+          ? copy.piece.failed
+          : null);
 
   const pick = (f: File | undefined) => {
     if (!f) return;

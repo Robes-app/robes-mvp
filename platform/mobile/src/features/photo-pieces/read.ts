@@ -109,6 +109,8 @@ export function usePhotoRead(kind: UploadKind) {
     jobId,
     pieces,
     error: failed ? (error ?? jobErrorCopy(data?.error)) : null,
+    // The job's error code, so a caller can tell a stalled photo from one with nothing in it.
+    errorCode: failed ? (data?.error ?? null) : null,
     start,
     startPicked,
     reset,

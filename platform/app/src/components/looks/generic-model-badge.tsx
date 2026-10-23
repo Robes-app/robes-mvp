@@ -36,9 +36,13 @@ export function GenericModelBadge({ stopTap = false }: { stopTap?: boolean }) {
           if (stopTap) e.stopPropagation();
           setOpen(true);
         }}
-        className="absolute top-3 right-3 z-10 inline-flex min-h-11 items-center rounded-pill border border-hairline bg-bg/90 px-4 font-sans text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        className="absolute top-3 right-3 z-10 inline-flex min-h-11 items-center gap-2 rounded-pill border border-hairline bg-bg/90 px-4 font-sans text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
+        <span aria-hidden className="size-1.5 rounded-pill bg-ink-faint" />
         {copy.deck.genericModel}
+        <span aria-hidden className="text-ink-faint">
+          ›
+        </span>
       </button>
       <Dialog
         open={open}

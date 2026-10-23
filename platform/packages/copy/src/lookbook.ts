@@ -152,8 +152,8 @@ export const lookbook = {
     scan: ['Styling a look', 'Choosing the shoes', 'Finding a layer', 'Setting the colour'],
     scanGeneric: 'On a Robes model for now',
     // On a suggested look's frame while she has no model; it opens the build-your-model door.
-    genericModel: 'Generic model ›',
-    genericModelLabel: 'Generic model. Build your own model',
+    genericModel: 'Generic model',
+    genericModelLabel: 'Generic model — see every look on you',
     // The badge's own drawer (legacy design 1a): it opens here, never a navigation. Closing it
     // changes nothing, so an undecided deck stays where it was.
     twin: {
