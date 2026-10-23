@@ -1,4 +1,12 @@
-import { COLOUR_EXTRA_MAX, LEGACY_COLOURS, PATTERN_IDS, SHADE_IDS, SHADES } from '../colour';
+import {
+  COLOUR_EXTRA_MAX,
+  COLOUR_FAMILY_IDS,
+  LEGACY_COLOURS,
+  PATTERN_IDS,
+  PATTERNS,
+  SHADE_IDS,
+  SHADES,
+} from '../colour';
 
 export const COLOUR_MODEL_MIGRATION = '20261023091752_colour_model.sql';
 
@@ -15,17 +23,28 @@ function pieceColumns(table: string): string {
     check (print in (${list(PATTERN_IDS)}));`;
 }
 
-// A stored colour word (a shade's name, or one of the retired wheel's) → its shade.
-function backfill(table: string): string {
+// The model's ids as SQL arrays, for checks and for the legacy copy (scripts/migrate).
+const textArray = (ids: readonly string[]): string => `array[${list(ids)}]::text[]`;
+export const SHADE_IDS_SQL = textArray(SHADE_IDS);
+export const PATTERN_IDS_SQL = textArray(PATTERN_IDS);
+export const FAMILY_IDS_SQL = textArray(COLOUR_FAMILY_IDS);
+export const PREF_PATTERN_IDS_SQL = textArray(PATTERNS.filter((p) => p.pref).map((p) => p.id));
+
+// A stored colour word (a shade's name, or one of the retired wheel's) → its shade, else null.
+export function shadeFromNameSql(expr: string): string {
   const names = new Map<string, string>();
   for (const s of SHADES) names.set(s.name.toLowerCase(), s.id);
   for (const [name, id] of Object.entries(LEGACY_COLOURS))
     if (!names.has(name)) names.set(name, id);
   const whens = [...names].map(([name, id]) => `    when ${lit(name)} then ${lit(id)}`).join('\n');
-  return `update app.${table}
-  set colour_shade = case lower(btrim(color))
+  return `case lower(btrim(${expr}))
 ${whens}
-  end
+  end`;
+}
+
+function backfill(table: string): string {
+  return `update app.${table}
+  set colour_shade = ${shadeFromNameSql('color')}
   where color is not null and colour_shade is null;
 update app.${table} set print = 'other' where lower(btrim(color)) in ('print', 'multi');`;
 }

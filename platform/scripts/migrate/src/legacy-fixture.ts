@@ -32,6 +32,7 @@ export const LEGACY_SQL_ORDER = [
   'wardrobe_inbox_migration.sql',
   'look_styling_migration.sql',
   'look_states_migration.sql',
+  'colour_model_migration.sql',
 ] as const;
 
 const LEGACY_DIR = fileURLToPath(new URL('../../../../supabase/', import.meta.url));

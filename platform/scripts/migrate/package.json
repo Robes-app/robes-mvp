@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@robes/contracts": "workspace:*",
+    "@robes/core": "workspace:*",
     "@robes/media": "workspace:*",
     "pg": "8.23.0",
     "zod": "catalog:"

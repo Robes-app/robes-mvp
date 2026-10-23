@@ -83,6 +83,55 @@ describe.skipIf(!legacySchemaPresent())(
       );
     });
 
+    it('carries the colour model: shades on the list, extras, prints and her palette', async () => {
+      expect(first.report.warnings).toContain(
+        "1 pieces had a colour or print the model doesn't know (left unset)",
+      );
+      const pieces = await withClient(
+        targetUrl,
+        async (c) =>
+          (
+            await c.query(
+              `select id, colour_shade, colour_extra, print from app.wardrobe_items
+               where id = any($1::uuid[]) order by created_at`,
+              [[W.jeans, W.coat, W.shirt]],
+            )
+          ).rows,
+      );
+      expect(pieces).toEqual([
+        // On the list as filed; extras deduped, the main shade and unknown ids dropped, at most three.
+        {
+          id: W.jeans,
+          colour_shade: 'denim',
+          colour_extra: ['optic', 'ivory', 'chalk'],
+          print: 'stripes',
+        },
+        // No shade filed: the one her colour word names.
+        { id: W.coat, colour_shade: 'camel', colour_extra: [], print: null },
+        // Unknown shade and print, a colour word that names no shade: left unset.
+        { id: W.shirt, colour_shade: null, colour_extra: [], print: null },
+      ]);
+      const wishes = await withClient(
+        targetUrl,
+        async (c) =>
+          (
+            await c.query(
+              `select label, colour_shade, print from app.wishlist_items where user_id = $1 order by created_at`,
+              [NIALL],
+            )
+          ).rows,
+      );
+      expect(wishes).toEqual([
+        { label: 'Trench coat', colour_shade: 'sand', print: 'checks' },
+        { label: 'Scarf', colour_shade: null, print: 'other' },
+      ]);
+      expect(
+        await one(`select palette from app.style_profiles where user_id = $1`, [NIALL]),
+      ).toEqual({
+        palette: { fam: { blues: 1 }, shade: { cobalt: -1, navy: 0 }, print: { stripes: 1 } },
+      });
+    });
+
     it('carries her twin, her brief and the memory she told Robes', async () => {
       expect(
         await one(

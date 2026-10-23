@@ -218,6 +218,9 @@ export const LEGACY_CATALOG: Record<string, ReadonlyArray<readonly [string, stri
     ['season_source', 'text'],
     ['size', 'text'],
     ['currency', 'text'],
+    ['colour_shade', 'text'],
+    ['colour_extra', 'text[]'],
+    ['print', 'text'],
   ],
   'public.wears': [
     ['id', 'uuid'],
@@ -249,5 +252,8 @@ export const LEGACY_CATALOG: Record<string, ReadonlyArray<readonly [string, stri
     ['currency', 'text'],
     ['category_l2', 'text'],
     ['category_l3', 'text'],
+    ['colour_shade', 'text'],
+    ['colour_extra', 'text[]'],
+    ['print', 'text'],
   ],
 };
