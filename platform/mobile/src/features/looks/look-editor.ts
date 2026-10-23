@@ -8,7 +8,7 @@ import {
   rackFromLook,
   rackUpdate,
 } from '@robes/contracts';
-import { errors, lookbook } from '@robes/copy';
+import { errors, lookbook, ui } from '@robes/copy';
 import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui-native';
 import { useMemo, useState } from 'react';
@@ -84,6 +84,40 @@ export function useLookEditor(look: Look) {
     }
   };
 
+  // A swap is something she told Robes: it lands in her memory (style memory slice B).
+  const swapped = (key: string, piece: Piece): RackState => {
+    const out = rack.rows.find((r) => r.key === key);
+    if (out) {
+      void api
+        .call('me.memory.record', {
+          input: {
+            kind: 'swap',
+            pieceOut: out.name.slice(0, 120),
+            pieceIn: piece.label.slice(0, 120),
+            category: piece.category,
+            surface: look.status,
+            lookId: look.id,
+          },
+        })
+        .catch(() => undefined);
+    }
+    return applyAsk(rack, {
+      swaps: [
+        {
+          key,
+          to: {
+            pieceId: piece.id,
+            name: piece.label,
+            category: piece.category,
+            brand: piece.brand,
+          },
+        },
+      ],
+      back: [],
+      styled: [],
+    });
+  };
+
   const mark = (key: string): RowMark | null => {
     const note = rowNote(rack, key);
     if (note) return note;
@@ -105,40 +139,42 @@ export function useLookEditor(look: Look) {
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
-    swap: (key: string, piece: Piece) => {
-      const out = rack.rows.find((r) => r.key === key);
-      // A swap is something she told Robes: it lands in her memory (style memory slice B).
-      if (out) {
-        void api
-          .call('me.memory.record', {
-            input: {
-              kind: 'swap',
-              pieceOut: out.name.slice(0, 120),
-              pieceIn: piece.label.slice(0, 120),
-              category: piece.category,
-              surface: look.status,
-              lookId: look.id,
-            },
-          })
-          .catch(() => undefined);
-      }
-      change(
-        applyAsk(rack, {
-          swaps: [
-            {
-              key,
-              to: {
-                pieceId: piece.id,
-                name: piece.label,
-                category: piece.category,
-                brand: piece.brand,
+    swap: (key: string, piece: Piece) => change(swapped(key, piece)),
+    // ↻ on a suggested look (legacy 0.1): the swap lands on the suggestion at once, which stays
+    // suggested, behind a quiet Undo that puts the rack back.
+    swapKeep: (key: string, piece: Piece) => {
+      const before = rack;
+      const next = swapped(key, piece);
+      const put = (r: RackState) =>
+        api.call('looks.update', {
+          params: { id: look.id },
+          input: { ...rackUpdate(r, { keepEdits: true }), keepSuggested: true },
+        });
+      setRack(next);
+      void put(next)
+        .then((updated) => {
+          refresh(updated);
+          reframe(updated);
+          toast.show({
+            message: lookbook.swap.swapped(piece.label),
+            action: {
+              label: ui.undo,
+              onPress: () => {
+                setRack(before);
+                void put(before)
+                  .then((back) => {
+                    refresh(back);
+                    reframe(back);
+                  })
+                  .catch(() => toast.show({ message: errors.internal }));
               },
             },
-          ],
-          back: [],
-          styled: [],
-        }),
-      );
+          });
+        })
+        .catch(() => {
+          setRack(before);
+          toast.show({ message: errors.internal });
+        });
     },
     add: (piece: Piece) => change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] }),
     remove: (key: string) => {

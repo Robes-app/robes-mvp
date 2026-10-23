@@ -68,7 +68,18 @@ const handlers = createHandlers({
     lookPrompt: system.lookPrompt,
     ledger: system.ledger,
   },
-  avatarCell: { ai, storage: mediaStorage, cells: system.avatarCells, ledger: system.ledger },
+  avatarCell: {
+    ai,
+    storage: mediaStorage,
+    cells: system.avatarCells,
+    ledger: system.ledger,
+    twin: {
+      storage: mediaStorage,
+      model: system.modelRender,
+      styling: system.styling,
+      onGenerated: renderLocally,
+    },
+  },
   daily: {
     ai,
     storage: mediaStorage,

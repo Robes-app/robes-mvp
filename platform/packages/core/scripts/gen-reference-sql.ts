@@ -1,6 +1,11 @@
 import { writeFileSync } from 'node:fs';
+import { COLOUR_MODEL_MIGRATION, colourModelSql } from '../src/sql/colour-model';
 import { REFERENCE_MIGRATION, referenceDataSql } from '../src/sql/reference-data';
 
-const target = new URL(`../../../db/migrations/${REFERENCE_MIGRATION}`, import.meta.url);
-writeFileSync(target, referenceDataSql());
-console.log(`wrote db/migrations/${REFERENCE_MIGRATION}`);
+for (const [name, sql] of [
+  [REFERENCE_MIGRATION, referenceDataSql()],
+  [COLOUR_MODEL_MIGRATION, colourModelSql()],
+] as const) {
+  writeFileSync(new URL(`../../../db/migrations/${name}`, import.meta.url), sql);
+  console.log(`wrote db/migrations/${name}`);
+}

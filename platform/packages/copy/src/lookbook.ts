@@ -78,8 +78,14 @@ export const lookbook = {
     notForYou: 'Not for you',
   },
   saved: 'Saved to your lookbook',
-  savedFor: (day: string): string => `Add it to ${day}`,
   addedToDay: (day: string): string => `In your plan for ${day}.`,
+  // Save opens the diary every time (legacy 0.2); closing it is "not yet" and writes nothing.
+  diary: {
+    title: 'Put it in the diary',
+    notYet: 'Not yet',
+    pick: 'Pick a day',
+    add: (day: string): string => `Add to ${day}`,
+  },
   discarded: 'Draft let go.',
   name: {
     label: 'Name this look',
@@ -119,6 +125,8 @@ export const lookbook = {
     swapIn: (name: string): string => `Swap in ${name}`,
     addIn: (name: string): string => `Add ${name}`,
     empty: 'Nothing else of this kind in your wardrobe.',
+    // A swap on a suggested look lands at once, behind Undo.
+    swapped: (name: string): string => `${name} is on the look.`,
   },
   drafts: {
     fullTitle: 'Five drafts are waiting.',
@@ -141,21 +149,12 @@ export const lookbook = {
     modelYours: 'Each look, shot on your model.',
     composing: 'Robes is composing',
     yourPiece: (piece: string): string => `Your ${piece}`,
-    lines: [
-      'Dressing it three ways',
-      'Looking at the hem',
-      'Choosing the shoes',
-      'Finding a layer',
-      'Weighing the bag',
-      'Setting the colour',
-    ],
-    linesPrompt: [
-      'Reading your words',
-      'Choosing the pieces',
-      'Setting the tone',
-      'Finding the shoes',
-      'Weighing a layer',
-    ],
+    // The scanner's lines while a look composes (legacy 0.5; "Generating" is banned in chrome).
+    scan: ['Styling a look', 'Choosing the shoes', 'Finding a layer', 'Setting the colour'],
+    scanGeneric: 'On a Robes model for now',
+    // On a suggested look's frame while she has no model; it opens the build-your-model door.
+    genericModel: 'Generic model ›',
+    genericModelLabel: 'Generic model. Build your own model',
     teach: 'Swipe left to pass, right to keep.',
     keep: 'Keep',
     pass: 'Pass',
@@ -188,6 +187,14 @@ export const lookbook = {
     label: (name: string): string => `Change ${name}`,
     newLabel: 'A new look',
     failed: 'Robes couldn’t read that just now. Try again.',
+    // The one question on a new look: where its pieces come from.
+    balance: {
+      question: 'Where should the pieces in your look come from?',
+      owned: 'All mine',
+      mix: 'A mix',
+      new: 'Suggest new pieces',
+      typed: 'Or say it your way',
+    },
   },
   // F8: a verdict on a suggestion lands in her memory; "not quite" lets it go.
   verdict: {

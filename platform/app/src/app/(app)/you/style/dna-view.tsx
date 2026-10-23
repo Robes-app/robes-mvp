@@ -2,7 +2,7 @@
 
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine, BriefListName, StyleDna } from '@robes/contracts';
-import { twin } from '@robes/copy';
+import { twin, you } from '@robes/copy';
 import { asSentence } from '@robes/core';
 import {
   INVESTMENT_LEVELS,
@@ -32,9 +32,19 @@ import { type KeyboardEvent, type ReactNode, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { imageSources } from '@/lib/image';
 import { useDnaMutations } from '@/lib/use-dna';
+import { ColoursBody, PrintsBody, paletteSummary, usePalette } from './palette-sheets';
 
 const copy = twin.dnaPage;
-type SheetKind = 'types' | 'brands' | 'icons' | 'pieces' | 'investment' | BriefListName;
+type SheetKind =
+  | 'types'
+  | 'brands'
+  | 'icons'
+  | 'pieces'
+  | 'investment'
+  | 'colours'
+  | 'prints'
+  | BriefListName;
+const palette = you.style.palette;
 const WALL_N = 18;
 
 const rowClass =
@@ -64,6 +74,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 export function DnaView() {
   const query = useApi('me.dna.get');
   const [sheet, setSheet] = useState<SheetKind | null>(null);
+  const colours = usePalette().palette;
   if (query.isError) {
     return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
@@ -110,6 +121,16 @@ export function DnaView() {
           value={level?.label ?? copy.pickOne}
           onClick={() => setSheet('investment')}
         />
+        <Row
+          label={palette.coloursTitle}
+          value={paletteSummary(colours, 'colours')}
+          onClick={() => setSheet('colours')}
+        />
+        <Row
+          label={palette.printsTitle}
+          value={paletteSummary(colours, 'prints')}
+          onClick={() => setSheet('prints')}
+        />
       </Group>
       <Group title={copy.words}>
         <Row
@@ -148,6 +169,8 @@ function DnaSheet({
     icons: [twin.wall.iconsTitle, twin.wall.iconsSub],
     pieces: [twin.pieces.title, twin.pieces.sub],
     investment: [twin.investment.title, twin.investment.sub],
+    colours: [palette.coloursTitle, ''],
+    prints: [palette.printsTitle, ''],
     loves: [twin.words.loves.title, twin.words.loves.sub],
     avoids: [twin.words.avoids.title, twin.words.avoids.sub],
     rules: [twin.words.rules.title, twin.words.rules.sub],
@@ -164,6 +187,8 @@ function DnaSheet({
       {kind === 'brands' || kind === 'icons' ? <WallBody dna={dna} kind={kind} /> : null}
       {kind === 'pieces' ? <PiecesBody dna={dna} /> : null}
       {kind === 'investment' ? <InvestmentBody dna={dna} /> : null}
+      {kind === 'colours' ? <ColoursBody /> : null}
+      {kind === 'prints' ? <PrintsBody /> : null}
       {kind === 'loves' || kind === 'avoids' || kind === 'rules' ? (
         <WordsBody dna={dna} list={kind} />
       ) : null}

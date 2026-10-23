@@ -1,3 +1,4 @@
+import type { Palette } from '@robes/core/colour';
 import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
@@ -12,6 +13,7 @@ const PROFILE_COLUMNS = [
   'headshotAssetId',
   'fullLengthAssetId',
   'userOverrides',
+  'palette',
   'updatedAt',
 ] as const;
 
@@ -42,6 +44,23 @@ export function styleProfileRepo(db: Db) {
           oc
             .column('userId')
             .doUpdateSet({ userOverrides: sql`style_profiles.user_overrides || ${patch}::jsonb` }),
+        )
+        .returning(PROFILE_COLUMNS)
+        .executeTakeFirstOrThrow();
+    },
+
+    // Her colours and prints (Avoid · No view · Love). Saving them retires the free-text colour
+    // lists, which the palette replaced (they were mapped into it when she opened the sheet).
+    async setPalette(userId: UserId, palette: Palette) {
+      const value = JSON.stringify(palette);
+      return db
+        .insertInto('styleProfiles')
+        .values({ userId, palette: value })
+        .onConflict((oc) =>
+          oc.column('userId').doUpdateSet({
+            palette: value,
+            userOverrides: sql`style_profiles.user_overrides - 'loved_colors' - 'rejected_colors'`,
+          }),
         )
         .returning(PROFILE_COLUMNS)
         .executeTakeFirstOrThrow();

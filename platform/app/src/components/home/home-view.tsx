@@ -116,12 +116,7 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
         />
       </div>
 
-      {resolved.next ? <StepCard step={resolved.next} home={home} onLater={later} /> : null}
-      {!resolved.activated ? (
-        <StepMap resolved={resolved} pics={home.state.pics} onExpand={setForce} />
-      ) : null}
-
-      {resolved.activated ? (
+      {resolved.modules.includes('H3') ? (
         <HomeWeek
           data={data}
           weatherLine={weatherLine}
@@ -132,6 +127,11 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
             boxRef.current?.querySelector('textarea')?.focus();
           }}
         />
+      ) : null}
+
+      {resolved.next ? <StepCard step={resolved.next} home={home} onLater={later} /> : null}
+      {!resolved.activated ? (
+        <StepMap resolved={resolved} pics={home.state.pics} onExpand={setForce} />
       ) : null}
 
       <LookRow title={copy.saved} href="/looks" looks={home.saved} kind="saved" />

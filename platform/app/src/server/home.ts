@@ -100,6 +100,7 @@ export async function loadHome(userId: UserId, profile: Profile, savedCount: num
       twinOnFile: hasModel || Boolean(style?.season || style?.bodyType),
       pics: pics.total,
       ownLookSaved: ownLook,
+      anyLook: savedCount > 0,
       snoozed: snoozes(profile.homeSnoozes),
     },
     rows,

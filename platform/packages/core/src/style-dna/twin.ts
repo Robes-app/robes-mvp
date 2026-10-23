@@ -90,18 +90,32 @@ export const BRAND_POOL: readonly string[] = [
   'Kallmeyer',
   'LABRUM London',
   'Matières Fécales',
+  'Marks & Spencer',
+  '& Other Stories',
+  'Mango',
+  'Dunnes Stores',
+  'Penneys',
 ];
 
 export const BRAND_SEED: Record<StyleType, readonly string[]> = {
-  Minimal: ['The Row', 'Phoebe Philo', 'Lemaire', 'COS', 'Jil Sander'],
+  Minimal: ['The Row', 'Phoebe Philo', 'Lemaire', 'COS', 'Jil Sander', 'Arket', 'Uniqlo'],
   Bohemian: ['Dôen', 'Chloé', 'Ulla Johnson', 'Zimmermann'],
-  Classic: ['Max Mara', 'Ralph Lauren', 'Joseph', 'Loro Piana'],
-  Romantic: ['Simone Rocha', 'Zimmermann', 'Dôen'],
+  Classic: [
+    'Max Mara',
+    'Ralph Lauren',
+    'Joseph',
+    'Loro Piana',
+    'Marks & Spencer',
+    'Zara',
+    'Mango',
+    'Dunnes Stores',
+  ],
+  Romantic: ['Simone Rocha', 'Zimmermann', 'Dôen', '& Other Stories'],
   Sculptural: ['Totême', 'Khaite', 'Alaïa', 'Jil Sander'],
   Utility: ['Arket', 'Carhartt', 'Nike', 'Adidas'],
   Heritage: ['Loro Piana', 'Brunello Cucinelli', 'Ralph Lauren'],
   Eclectic: ['Miu Miu', 'Marni', 'Chopova Lowena', 'Dries Van Noten'],
-  'Off-duty': ['Auralee', 'Nike', 'Adidas', 'Uniqlo'],
+  'Off-duty': ['Auralee', 'Nike', 'Adidas', 'Uniqlo', 'H&M', 'Penneys'],
   'Avant-garde': ['Rick Owens', 'Comme des Garçons', 'Yohji Yamamoto', 'Maison Margiela'],
 };
 

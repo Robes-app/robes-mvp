@@ -417,19 +417,23 @@ export function looksRepo(db: Db) {
     },
 
     // Edits in place ("Update"); pieces, when given, replace the whole set atomically. A suggestion
-    // becomes a draft the moment she changes its rack; a saved look never carries working notes.
+    // becomes a draft the moment she changes its rack (unless keepSuggested); a saved look never
+    // carries working notes.
     async update(
       userId: UserId,
       id: string,
       fields: LookFields & {
         pieces?: readonly LookPieceInput[] | undefined;
         letGoOldest?: boolean | undefined;
+        keepSuggested?: boolean | undefined;
       },
     ) {
+      // keepSuggested: a swap from a suggested look's rack lands on it, and it stays suggested.
       const rackChanged =
-        fields.pieces !== undefined ||
-        fields.proposals !== undefined ||
-        fields.styling !== undefined;
+        fields.keepSuggested !== true &&
+        (fields.pieces !== undefined ||
+          fields.proposals !== undefined ||
+          fields.styling !== undefined);
       return db.transaction().execute(async (trx) => {
         // A suggestion becoming a draft counts against the five drafts like a new one.
         if (rackChanged) {

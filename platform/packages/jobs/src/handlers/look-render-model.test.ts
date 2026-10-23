@@ -10,7 +10,14 @@ const ASSET = '33333333-3333-4333-8333-333333333333';
 const NEW_ASSET = '44444444-4444-4444-8444-444444444444';
 
 function setup(
-  opts: { cellStatus?: string; renderKey?: string; pieces?: object[]; cellId?: string | null } = {},
+  opts: {
+    cellStatus?: string;
+    renderKey?: string;
+    asked?: string;
+    pieces?: object[];
+    cellId?: string | null;
+    twin?: object;
+  } = {},
 ) {
   const model = {
     look: vi.fn(async () => ({
@@ -50,6 +57,7 @@ function setup(
     })),
     setRender: vi.fn(async () => {}),
     failRender: vi.fn(async () => {}),
+    model: vi.fn(async () => opts.twin),
   };
   const storage = {
     getObject: vi.fn(async () => new Uint8Array([1])),
@@ -70,7 +78,7 @@ function setup(
     handler.run({
       jobId: '66666666-6666-4666-8666-666666666666',
       userId: USER,
-      input: { target: 'look', lookId: LOOK, renderKey: 'k1' },
+      input: { target: 'look', lookId: LOOK, renderKey: opts.asked ?? 'k1' },
       signal: new AbortController().signal,
       writeStage: vi.fn(async () => {}),
       isCancelled: async () => false,
@@ -112,5 +120,51 @@ describe('look_render on her model: how a piece is worn', () => {
     const { run, generateImage } = setup();
     await run();
     expect(generateImage.mock.calls[0]?.[0].prompt).toContain('Worn: worn open.');
+  });
+});
+
+describe('look_render on her twin', () => {
+  const TWIN = '77777777-7777-4777-8777-777777777777';
+  const FACE = '88888888-8888-4888-8888-888888888888';
+  const row = {
+    genderIdentity: 'woman',
+    avatarPrefs: {},
+    heightCm: null,
+    sizeUk: 12,
+    bustBand: null,
+    bustCup: null,
+    bustCm: null,
+    waistCm: null,
+    ageBand: null,
+    bodyType: null,
+    headshotAssetId: FACE,
+    skinHex: null,
+    hairHex: null,
+    twinAssetId: TWIN,
+  };
+
+  it('feeds the twin, then her close-up, then her pieces, with her figure in words', async () => {
+    const key = 'twin:abc:rack';
+    const { run, storage, generateImage } = setup({ renderKey: key, asked: key, twin: row });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(storage.getObject).toHaveBeenNthCalledWith(1, `media/${USER}/${TWIN}/master.jpg`);
+    expect(storage.getObject).toHaveBeenNthCalledWith(2, `media/${USER}/${FACE}/master.jpg`);
+    const req = generateImage.mock.calls[0]?.[0];
+    expect(req?.references).toHaveLength(3);
+    expect(req?.prompt).toContain('IMAGE 2 is a close-up photograph of the same person');
+    expect(req?.prompt).toContain('- IMAGE 3: the Camel coat');
+    expect(req?.prompt).toContain('Her figure, as IMAGE 1 shows it: an average frame.');
+  });
+
+  it('fails the render when the twin is gone', async () => {
+    const key = 'twin:abc:rack';
+    const { run, model, generateImage } = setup({
+      renderKey: key,
+      asked: key,
+      twin: { ...row, twinAssetId: null },
+    });
+    await expect(run()).rejects.toEqual(new JobError('model_not_ready'));
+    expect(model.failRender).toHaveBeenCalled();
+    expect(generateImage).not.toHaveBeenCalled();
   });
 });

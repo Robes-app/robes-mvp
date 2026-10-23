@@ -2,10 +2,20 @@ import { useApi } from '@robes/api-client/react';
 import type { BriefLine } from '@robes/contracts';
 import { twin } from '@robes/copy';
 import { asSentence } from '@robes/core';
-import { Button, CardSkeleton, EmptyState, Eyebrow, fonts, Progress, Text } from '@robes/ui-native';
+import {
+  CardSkeleton,
+  EmptyState,
+  Eyebrow,
+  fonts,
+  IconButton,
+  Progress,
+  Text,
+  useToast,
+} from '@robes/ui-native';
 import { ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useBriefRead, useDnaMutations } from './dna';
+import { ObservationThumbs } from './ObservationThumbs';
 
 const copy = twin.observations;
 
@@ -15,15 +25,16 @@ const keptIn = (iso: string, now = new Date()): string => {
   return copy.keptIn(d.getFullYear() === now.getFullYear() ? month : `${month} ${d.getFullYear()}`);
 };
 
-// You › Robes Observations: what waits for Keep or Not me, then what she kept before.
+// You › Observations: what waits for That’s right or Not quite, then what she kept before — each
+// removable, struck so it is never drafted again.
 export function Observations() {
   const query = useApi('me.dna.get');
   const { reading, failed } = useBriefRead(query.data);
-  const { keep, dismiss } = useDnaMutations();
+  const { removeLine } = useDnaMutations();
+  const toast = useToast();
   if (query.isPending) return <CardSkeleton className="mx-6" />;
   if (query.isError || !query.data) return <EmptyState title={errorMessage(query.error)} />;
   const dna = query.data;
-  const busy = keep.isPending || dismiss.isPending;
   const kept: BriefLine[] = [...dna.brief.loves, ...dna.brief.avoids, ...dna.brief.rules].filter(
     (x) => x.source !== 'typed',
   );
@@ -46,22 +57,7 @@ export function Observations() {
                   {asSentence(o.because)}
                 </Text>
               ) : null}
-              <View className="flex-row items-center gap-4">
-                <Button
-                  variant="secondary"
-                  disabled={busy}
-                  onPress={() => keep.mutate({ params: { id: o.id } })}
-                >
-                  {copy.keep}
-                </Button>
-                <Button
-                  variant="quiet"
-                  disabled={busy}
-                  onPress={() => dismiss.mutate({ params: { id: o.id } })}
-                >
-                  {copy.notMe}
-                </Button>
-              </View>
+              <ObservationThumbs line={o} />
             </View>
           ))
         ) : (
@@ -76,7 +72,7 @@ export function Observations() {
           {kept.map((x) => (
             <View
               key={x.id}
-              className="flex-row items-baseline justify-between gap-4 border-b border-hairline py-3"
+              className="flex-row items-center justify-between gap-4 border-b border-hairline py-3"
             >
               <View className="flex-1">
                 <Text>{x.text}</Text>
@@ -87,6 +83,21 @@ export function Observations() {
               <Text size="caption" tone="faint">
                 {keptIn(x.keptAt)}
               </Text>
+              <IconButton
+                icon="close"
+                tone="ink-muted"
+                disabled={removeLine.isPending}
+                label={copy.remove(x.text)}
+                onPress={() =>
+                  removeLine
+                    .mutateAsync({ params: { id: x.id } })
+                    // A failure is already toasted by useDnaMutations.
+                    .then(
+                      () => toast.show({ message: copy.removed }),
+                      () => {},
+                    )
+                }
+              />
             </View>
           ))}
         </View>

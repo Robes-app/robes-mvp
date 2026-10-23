@@ -9,7 +9,8 @@ import { useState } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 import { API_URL } from '@/lib/config';
 import { useSignOut } from '@/lib/use-sign-out';
-import { useBriefRead, useDnaMutations } from './dna';
+import { useBriefRead } from './dna';
+import { ObservationThumbs } from './ObservationThumbs';
 import { Row } from './Row';
 
 // Legal pages are served by the web app, which shares the API origin.
@@ -67,8 +68,6 @@ function StyleProfile() {
 
 // The first waiting line, answered with Keep or Not me.
 function NoticedCard({ line }: { line: Observation }) {
-  const { keep, dismiss } = useDnaMutations();
-  const busy = keep.isPending || dismiss.isPending;
   return (
     <View className="gap-3 rounded-crisp border border-hairline bg-surface p-5" testID="noticed">
       <Eyebrow>{twin.noticed.eyebrow}</Eyebrow>
@@ -80,22 +79,7 @@ function NoticedCard({ line }: { line: Observation }) {
           {asSentence(line.because)}
         </Text>
       ) : null}
-      <View className="flex-row justify-between gap-3">
-        <Button
-          variant="quiet"
-          disabled={busy}
-          onPress={() => dismiss.mutate({ params: { id: line.id } })}
-        >
-          {twin.noticed.notMe}
-        </Button>
-        <Button
-          variant="secondary"
-          disabled={busy}
-          onPress={() => keep.mutate({ params: { id: line.id } })}
-        >
-          {twin.noticed.keep}
-        </Button>
-      </View>
+      <ObservationThumbs line={line} />
     </View>
   );
 }

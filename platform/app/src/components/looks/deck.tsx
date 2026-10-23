@@ -26,6 +26,7 @@ import { imageSources } from '@/lib/image';
 import { useLookSet, useRefreshLooks, useRequestFrame } from '@/lib/look-states';
 import { useJob } from '@/lib/use-job';
 import { LookImage } from './look-image';
+import { ScanLine } from './scan-line';
 
 const COMMIT_PX = 100;
 const JOB_POLL_MS = 1500;
@@ -60,13 +61,15 @@ function DeckTitle({ set }: { set: LookSet | undefined }) {
   );
 }
 
-// While the looks compose: her piece (or her words) over a line that changes every 2s.
+// While the looks compose: her piece (or her words) under the scanner, a line that changes every
+// 2.2s; a Robes model wears them until hers exists.
 function Dressing({ set }: { set?: LookSet }) {
   const [i, setI] = useState(0);
+  const { data: model } = useApi('me.model.get');
   const around = set?.anchor ? anchorName(set.anchor.label, set.anchor.brand) : '';
-  const lines = around ? copy.deck.lines : copy.deck.linesPrompt;
+  const lines = model?.filed ? copy.deck.scan : [...copy.deck.scan, copy.deck.scanGeneric];
   useEffect(() => {
-    const t = setInterval(() => setI((n) => n + 1), 2000);
+    const t = setInterval(() => setI((n) => n + 1), 2200);
     return () => clearInterval(t);
   }, []);
   const photo = set?.anchor?.image ? imageSources(set.anchor.image.renditions) : null;
@@ -76,16 +79,19 @@ function Dressing({ set }: { set?: LookSet }) {
       aria-live="polite"
       data-testid="deck-dressing"
     >
-      {photo ? (
-        <Image src={photo.src} srcSet={photo.srcSet} sizes="384px" alt="" aspect="4:5" />
-      ) : (
-        <div className="flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-soft bg-surface-sunk p-8 text-center">
-          <span className="font-display text-5xl text-ink-muted" aria-hidden>
-            “
-          </span>
-          {set?.prompt ? <Text tone="muted">{set.prompt.slice(0, 90)}</Text> : null}
-        </div>
-      )}
+      <div className="relative overflow-hidden rounded-soft">
+        {photo ? (
+          <Image src={photo.src} srcSet={photo.srcSet} sizes="384px" alt="" aspect="4:5" />
+        ) : (
+          <div className="flex aspect-[4/5] flex-col items-center justify-center gap-2 bg-surface-sunk p-8 text-center">
+            <span className="font-display text-5xl text-ink-muted" aria-hidden>
+              “
+            </span>
+            {set?.prompt ? <Text tone="muted">{set.prompt.slice(0, 90)}</Text> : null}
+          </div>
+        )}
+        <ScanLine />
+      </div>
       <Text className="font-display text-xl">
         {around ? copy.deck.yourPiece(around) : copy.deck.composing}
       </Text>

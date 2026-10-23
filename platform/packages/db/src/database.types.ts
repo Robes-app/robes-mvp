@@ -127,6 +127,11 @@ export interface AvatarCells {
 export interface Avatars {
   avatarId: string;
   derivedFrom: Generated<Json>;
+  twinAssetId: string | null;
+  twinDrawAt: Timestamp | null;
+  twinDrawKey: string | null;
+  twinDrawStatus: string | null;
+  twinKey: string | null;
   updatedAt: Generated<Timestamp>;
   userId: string;
 }
@@ -378,6 +383,9 @@ export interface Profiles {
   annualSpend: string | null;
   avatarPrefs: Json | null;
   budget: string | null;
+  bustBand: number | null;
+  bustCm: number | null;
+  bustCup: string | null;
   createdAt: Generated<Timestamp>;
   currency: Generated<string>;
   firstName: string | null;
@@ -403,6 +411,7 @@ export interface Profiles {
   styleIcons: Generated<string[]>;
   timezone: Generated<string>;
   updatedAt: Generated<Timestamp>;
+  waistCm: number | null;
   wardrobeDescription: string | null;
 }
 
@@ -498,6 +507,7 @@ export interface StyleProfiles {
   fullLengthAssetId: string | null;
   headshotAssetId: string | null;
   modelVersion: string | null;
+  palette: Generated<Json>;
   season: string | null;
   silhouetteProportions: Json | null;
   silhouetteRender: Json | null;
@@ -609,6 +619,8 @@ export interface WardrobeItems {
   categoryL2: string | null;
   categoryL3: string | null;
   color: string | null;
+  colourExtra: Generated<string[]>;
+  colourShade: string | null;
   createdAt: Generated<Timestamp>;
   currency: string | null;
   cutoutAssetId: string | null;
@@ -621,6 +633,7 @@ export interface WardrobeItems {
   label: string;
   notes: string | null;
   price: Numeric | null;
+  print: string | null;
   seasonBand: Generated<string>;
   seasonSource: Generated<string>;
   sentiment: string | null;
@@ -678,6 +691,8 @@ export interface WishlistItems {
   categoryL2: string | null;
   categoryL3: string | null;
   color: string | null;
+  colourExtra: Generated<string[]>;
+  colourShade: string | null;
   createdAt: Generated<Timestamp>;
   currency: string | null;
   deletedAt: Timestamp | null;
@@ -687,6 +702,7 @@ export interface WishlistItems {
   label: string;
   note: string | null;
   price: Numeric | null;
+  print: string | null;
   promotedItemId: string | null;
   size: string | null;
   sourceLabel: string | null;

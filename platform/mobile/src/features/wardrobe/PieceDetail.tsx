@@ -1,6 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { wardrobe as copy, lookbook, ui } from '@robes/copy';
+import type { PieceColour } from '@robes/core/colour';
 import {
   Button,
   EmptyState,
@@ -20,13 +21,22 @@ import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { SuggestedRail } from '@/features/looks/SuggestedRail';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { ColourField, colourSummary } from './ColourField';
 import { READING_REFRESH_MS, useDeletePiece } from './pieces';
 
-type Draft = { label: string; color: string; brand: string; size: string; notes: string };
+type Text4 = { label: string; brand: string; size: string; notes: string };
+type Draft = Text4 & { colour: PieceColour };
+
+const colourOf = (p: Piece): PieceColour => ({
+  colourShade: p.colourShade,
+  colourExtra: p.colourExtra,
+  print: p.print,
+});
+const colourText = (p: Piece): string | null => colourSummary(colourOf(p)) || p.color;
 
 const toDraft = (p: Piece): Draft => ({
   label: p.label,
-  color: p.color ?? '',
+  colour: colourOf(p),
   brand: p.brand ?? '',
   size: p.size ?? '',
   notes: p.notes ?? '',
@@ -55,7 +65,7 @@ function EditForm({ piece, onDone }: { piece: Piece; onDone: () => void }) {
       onDone();
     },
   });
-  const set = (key: keyof Draft) => (value: string) => setDraft((d) => ({ ...d, [key]: value }));
+  const set = (key: keyof Text4) => (value: string) => setDraft((d) => ({ ...d, [key]: value }));
   return (
     <PrimaryScope>
       <View className="gap-4">
@@ -65,11 +75,10 @@ function EditForm({ piece, onDone }: { piece: Piece; onDone: () => void }) {
           onChangeText={set('label')}
           maxLength={120}
         />
-        <Field
-          label={copy.piece.color}
-          value={draft.color}
-          onChangeText={set('color')}
-          maxLength={60}
+        <ColourField
+          value={draft.colour}
+          check={piece.colourCheck}
+          onChange={(colour) => setDraft((d) => ({ ...d, colour }))}
         />
         <Field
           label={copy.piece.brand}
@@ -97,7 +106,7 @@ function EditForm({ piece, onDone }: { piece: Piece; onDone: () => void }) {
               params: { id: piece.id },
               input: {
                 label: draft.label.trim() || piece.label,
-                color: orNull(draft.color),
+                ...draft.colour,
                 brand: orNull(draft.brand),
                 size: orNull(draft.size),
                 notes: orNull(draft.notes),
@@ -176,7 +185,7 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
                   value={[piece.category, piece.categoryL2].filter(Boolean).join(' · ')}
                 />
               ) : null}
-              <Detail label={copy.piece.color} value={piece.color} />
+              <Detail label={copy.piece.color} value={colourText(piece)} />
               <Detail label={copy.piece.brand} value={piece.brand} />
               <Detail label={copy.piece.size} value={piece.size} />
               <Detail label={copy.piece.notes} value={piece.notes} />
@@ -229,7 +238,7 @@ function Saw({ piece }: { piece: Piece }) {
   const rows: [string, string | null][] = [
     [copy.saw.rows.piece, piece.label],
     [copy.saw.rows.category, [piece.category, piece.categoryL2].filter(Boolean).join(' · ')],
-    [copy.saw.rows.colour, piece.color],
+    [copy.saw.rows.colour, colourText(piece)],
     [copy.saw.rows.brand, piece.brand],
   ];
   return (

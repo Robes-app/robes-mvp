@@ -16,9 +16,11 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
+import { DiarySheet } from './DiarySheet';
+import { GenericModelBadge } from './GenericModelBadge';
 import { JOB_REFRESH_MS } from './ideas';
 import { LookDetail } from './LookDetail';
-import { LookPicture, useSavedToast } from './LookPicture';
+import { LookPicture } from './LookPicture';
 import { LookPromptBox } from './LookPromptBox';
 import { LookVerdict } from './LookVerdict';
 import { useLookEditor } from './look-editor';
@@ -36,11 +38,21 @@ export function LookScreen({ id }: { id: string }) {
         q.state.data?.framePending || q.state.data?.onModel === 'pending' ? JOB_REFRESH_MS : false,
     },
   );
+  // Save opens the diary every time; the sheet outlives the working page it was saved from.
+  const [justSaved, setJustSaved] = useState<Look | null>(null);
   if (query.isPending) return <Skeleton width="100%" aspectRatio={4 / 5} />;
   if (query.isError || !query.data) return <EmptyState title={errorMessage(query.error)} />;
   const look = query.data;
-  if (look.status === 'saved') return <LookDetail id={id} />;
-  return <WorkingLook look={look} />;
+  return (
+    <>
+      {look.status === 'saved' ? (
+        <LookDetail id={id} />
+      ) : (
+        <WorkingLook look={look} onSaved={setJustSaved} />
+      )}
+      <DiarySheet look={justSaved} onClose={() => setJustSaved(null)} />
+    </>
+  );
 }
 
 function eyebrowOf(look: Look): string {
@@ -56,12 +68,11 @@ function eyebrowOf(look: Look): string {
 }
 
 // Suggested (F8) and draft (F9 / 4d): the rack, the prompt box and one bar.
-function WorkingLook({ look }: { look: Look }) {
+function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => void }) {
   const router = useRouter();
   const editor = useLookEditor(look);
-  const savedToast = useSavedToast();
   const refresh = useInvalidateLooks();
-  const save = useSaveLook((saved) => savedToast(saved));
+  const save = useSaveLook(onSaved);
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -96,7 +107,12 @@ function WorkingLook({ look }: { look: Look }) {
             {copy.meta.pieces(editor.rack.rows.length)}
           </Text>
         </View>
-        {look.image || look.setId ? <LookPicture look={look} /> : null}
+        {look.image || look.setId ? (
+          <View>
+            <LookPicture look={look} />
+            {suggested && look.frame ? <GenericModelBadge /> : null}
+          </View>
+        ) : null}
         {look.note ? <Text>{noteShort(look.note)}</Text> : null}
         <View className="gap-3">
           <Eyebrow>{copy.rack.title(editor.rack.rows.length)}</Eyebrow>
@@ -121,7 +137,7 @@ function WorkingLook({ look }: { look: Look }) {
               {...(row.pieceId ? { onOpen: () => router.push(`/piece/${row.pieceId}`) } : {})}
               {...(row.proposal ? { onWish: () => editor.wish(row.key) } : {})}
               {...(suggested
-                ? {}
+                ? { onSwap: () => setSwapping(row.key) }
                 : {
                     onSwap: () => setSwapping(row.key),
                     onRemove: () => editor.remove(row.key),
@@ -214,7 +230,14 @@ function WorkingLook({ look }: { look: Look }) {
           setSwapping(null);
           setAdding(false);
         }}
-        onPick={(piece) => (swapping ? editor.swap(swapping, piece) : editor.add(piece))}
+        instant={suggested}
+        onPick={(piece) =>
+          swapping
+            ? suggested
+              ? editor.swapKeep(swapping, piece)
+              : editor.swap(swapping, piece)
+            : editor.add(piece)
+        }
       />
     </View>
   );

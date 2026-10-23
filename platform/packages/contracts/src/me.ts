@@ -1,3 +1,4 @@
+import { COLOUR_FAMILY_IDS, PATTERNS, SHADE_IDS } from '@robes/core/colour';
 import { z } from 'zod';
 
 const name = z.string().trim().max(60);
@@ -94,6 +95,18 @@ export const StyleOverrides = z.object({
 });
 export type StyleOverrides = z.infer<typeof StyleOverrides>;
 
+// Her colours and prints (legacy a61f211): -1 avoid, 1 love, a missing key is no view; a shade
+// she set overrides its family.
+const ids = (list: readonly string[]) => z.enum(list as [string, ...string[]]);
+const pref = z.union([z.literal(-1), z.literal(1)]);
+export const Palette = z.object({
+  fam: z.partialRecord(ids(COLOUR_FAMILY_IDS), pref),
+  // A shade may say No view (0) under a family she loves or avoids.
+  shade: z.partialRecord(ids(SHADE_IDS), z.union([pref, z.literal(0)])),
+  print: z.partialRecord(ids(PATTERNS.filter((p) => p.pref).map((p) => p.id)), pref),
+});
+export type Palette = z.infer<typeof Palette>;
+
 export const StyleProfile = z.object({
   colour: ColourProfile.nullable(),
   silhouette: SilhouetteProfile.nullable(),
@@ -102,6 +115,8 @@ export const StyleProfile = z.object({
     rejectedColors: z.array(z.string()),
     measurements: z.record(z.string(), z.string()),
   }),
+  // Defaulted across version skew, so an older server's response still parses.
+  palette: Palette.default({ fam: {}, shade: {}, print: {} }),
   updatedAt: z.iso.datetime().nullable(),
 });
 export type StyleProfile = z.infer<typeof StyleProfile>;
@@ -146,6 +161,10 @@ export const PushTokenParams = z.object({ token: ExpoPushToken });
 // You › Your model (M6 task 1): her picks over what her photo reads say. The swatches are data for
 // the pickers; the cell is the shared reference portrait her looks are rendered on.
 export const ModelPresence = z.enum(['woman', 'man', 'unspecified']);
+const stop = z.number().int().min(-2).max(2).nullable();
+export const TwinAdj = z.object({ shoulders: stop, bust: stop, hips: stop });
+export type TwinAdj = z.infer<typeof TwinAdj>;
+
 export const Model = z.object({
   filed: z.boolean(),
   presence: ModelPresence,
@@ -162,6 +181,20 @@ export const Model = z.object({
     imageUrl: z.url().nullable(),
   }),
   swatches: z.object({ skin: z.array(z.string()), hair: z.array(z.string()) }),
+  // Whether skin and hair are hand picks over what her close-up shows.
+  skinSet: z.boolean(),
+  hairSet: z.boolean(),
+  // The twin's three sliders (−2…+2); null on a scale is "from your facts".
+  adj: TwinAdj,
+  // Her close-up, signed for her alone; null until one is on file.
+  closeUpUrl: z.url().nullable(),
+  // Her digital twin: drawn from her close-up and her line. `current` is false while a twin drawn
+  // from older inputs still stands (shown until the redraw lands).
+  twin: z.object({
+    status: z.enum(['none', 'pending', 'ready', 'failed']),
+    current: z.boolean(),
+    imageUrl: z.url().nullable(),
+  }),
 });
 export type Model = z.infer<typeof Model>;
 
@@ -172,6 +205,8 @@ export const UpdateModelInput = z
     hair: z.number().int().min(0).max(4),
     line: z.enum(['soft', 'straight']).nullable(),
     frame: z.enum(['fuller', 'narrower']).nullable(),
+    // A scale moved, or {} back to her facts.
+    adj: TwinAdj.partial().strict(),
   })
   .partial()
   .strict();

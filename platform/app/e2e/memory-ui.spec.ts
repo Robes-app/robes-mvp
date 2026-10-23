@@ -1,50 +1,64 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
-test('Robes reads her wardrobe; she keeps a line, strikes one and they stay that way', async ({
+// The wardrobe read is paused (OBS_WARDROBE_READ): an observation comes from what she says.
+async function noticeByPrompt(page: Page, text: string): Promise<void> {
+  const api = page.request;
+  const trouser = await (
+    await api.post('/api/v1/wardrobe/items', { data: { label: 'White wide-leg trouser' } })
+  ).json();
+  const look = await (
+    await api.post('/api/v1/looks', {
+      data: { status: 'draft', pieces: [{ pieceId: trouser.id }] },
+    })
+  ).json();
+  const res = await api.post(`/api/v1/looks/${look.id}/ask`, {
+    data: {
+      surface: 'draft',
+      text,
+      rack: [{ key: trouser.id, pieceId: trouser.id, proposal: null }],
+    },
+    headers: { 'idempotency-key': crypto.randomUUID() },
+  });
+  expect(res.status()).toBe(202);
+  const jobId = (await res.json()).jobId;
+  await expect
+    .poll(async () => (await (await api.get(`/api/v1/jobs/${jobId}`)).json()).status, {
+      timeout: 30_000,
+    })
+    .toMatch(/succeeded|partial/);
+}
+
+test('an observation is hers: That’s right keeps it, × takes it off and Robes never reads', async ({
   page,
 }) => {
   await signIn(page);
   await declineConsent(page);
+  await noticeByPrompt(page, "I don't wear double denim");
   await page.goto('/you');
 
-  // The read runs itself once; the offline fake notices the same lines every time.
-  const noticed = page.getByRole('region', { name: 'Robes noticed' });
-  await expect(noticed.getByText('You reach for a defined waist')).toBeVisible({
-    timeout: 30_000,
-  });
+  const noticed = page.getByRole('region', { name: 'Observations' });
+  await expect(noticed.getByText('No double denim')).toBeVisible({ timeout: 30_000 });
   expect(await seriousViolations(page)).toEqual([]);
-  await noticed.getByRole('button', { name: 'Keep →' }).click();
+  await noticed.getByRole('button', { name: 'That’s right: No double denim' }).click();
   await expect(page.getByText('Kept. Filed under Style DNA.', { exact: true })).toBeVisible();
-  await expect(noticed.getByText('One thing that disrupts the line')).toBeVisible();
 
   await page.getByRole('link', { name: 'Observations' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Observations' })).toBeVisible();
-  await page.getByRole('button', { name: 'Not me: Anything that reads polite' }).click();
-  await expect(page.getByText('Anything that reads polite')).toHaveCount(0);
   const kept = page.getByRole('region', { name: 'Kept before' });
-  await expect(kept.getByText('You reach for a defined waist')).toBeVisible();
+  await expect(kept.getByText('No double denim')).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
+  await kept.getByRole('button', { name: 'Remove from your Style DNA: No double denim' }).click();
+  await expect(page.getByText('Removed from your Style DNA.', { exact: true })).toBeVisible();
+  await expect(page.getByText('No double denim')).toHaveCount(0);
 
   const dna = await (await page.request.get('/api/v1/me/dna')).json();
-  expect(dna.brief.loves.map((l: { text: string }) => l.text)).toEqual([
-    'You reach for a defined waist',
-  ]);
-  expect(dna.observations.map((o: { text: string }) => o.text)).not.toContain(
-    'Anything that reads polite',
-  );
+  expect(dna.brief.rules.map((l: { text: string }) => l.text)).not.toContain('No double denim');
   expect(dna.readDue).toBe(false);
-
-  // Not due again for a week: another read is refused, so a revisit never spends quota. (A struck
-  // line never coming back from a later read is covered by the style-dna repository test.)
-  const again = await page.request.post('/api/v1/me/dna/read');
-  expect(again.status()).toBe(409);
-  const after = await (await page.request.get('/api/v1/me/dna')).json();
-  const texts = after.observations.map((o: { text: string }) => o.text);
-  expect(texts).not.toContain('Anything that reads polite');
-  expect(texts).not.toContain('You reach for a defined waist');
+  // The wardrobe read is paused: it is refused, so nothing is ever drafted from her wardrobe.
+  expect((await page.request.post('/api/v1/me/dna/read')).status()).toBe(409);
 });
 
 test('Style DNA: her types, a brand, the investment level, a hard no and a fact', async ({
@@ -95,7 +109,7 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: /^Hard nos.*2 lines/ })).toBeVisible();
 
-  await page.goto('/you/model');
+  await page.goto('/you/model/body');
   await page.getByRole('button', { name: 'The facts' }).click();
   const facts = page.getByRole('dialog', { name: 'The facts' });
   await facts.getByRole('button', { name: 'More: Size' }).click();

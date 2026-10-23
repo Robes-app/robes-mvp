@@ -4,7 +4,8 @@ import { useApi } from '@robes/api-client/react';
 import type { BriefLine } from '@robes/contracts';
 import { twin } from '@robes/copy';
 import { asSentence } from '@robes/core';
-import { Button, ErrorText, Eyebrow, Progress, Skeleton, Text } from '@robes/ui';
+import { ErrorText, Eyebrow, IconButton, Progress, Skeleton, Text, useToast } from '@robes/ui';
+import { ObservationThumbs } from '@/components/observation-thumbs';
 import { errorCopy } from '@/lib/error-copy';
 import { useBriefRead, useDnaMutations } from '@/lib/use-dna';
 
@@ -16,17 +17,18 @@ const keptIn = (iso: string, now = new Date()): string => {
   return copy.keptIn(d.getFullYear() === now.getFullYear() ? month : `${month} ${d.getFullYear()}`);
 };
 
-// What Robes noticed since her last visit (Keep / Not me), then what she kept before.
+// What Robes noticed (That’s right / Not quite), then what she kept before — each line removable,
+// struck so it is never drafted again.
 export function ObservationsView() {
   const query = useApi('me.dna.get');
   const { reading, failed } = useBriefRead(query.data);
-  const { keep, dismiss } = useDnaMutations();
+  const { removeLine } = useDnaMutations();
+  const toast = useToast();
   if (query.isError) {
     return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
   const dna = query.data;
   if (!dna) return <Skeleton className="h-64" />;
-  const busy = keep.isPending || dismiss.isPending;
   const kept: BriefLine[] = [...dna.brief.loves, ...dna.brief.avoids, ...dna.brief.rules].filter(
     (x) => x.source !== 'typed',
   );
@@ -56,24 +58,7 @@ export function ObservationsView() {
                     {asSentence(o.because)}
                   </Text>
                 ) : null}
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="secondary"
-                    disabled={busy}
-                    aria-label={`${copy.keep}: ${o.text}`}
-                    onClick={() => keep.mutate({ params: { id: o.id } })}
-                  >
-                    {copy.keep}
-                  </Button>
-                  <Button
-                    variant="quiet"
-                    disabled={busy}
-                    aria-label={`${copy.notMe}: ${o.text}`}
-                    onClick={() => dismiss.mutate({ params: { id: o.id } })}
-                  >
-                    {copy.notMe}
-                  </Button>
-                </div>
+                <ObservationThumbs line={o} />
               </li>
             ))}
           </ul>
@@ -90,13 +75,29 @@ export function ObservationsView() {
             {kept.map((x) => (
               <li
                 key={x.id}
-                className="flex items-baseline justify-between gap-4 border-b border-hairline py-3 last:border-b-0"
+                className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0"
               >
                 <span className="flex flex-col">
                   <span className="text-ink">{x.text}</span>
                   <span className="text-xs text-ink-muted">{copy.list[x.list]}</span>
                 </span>
-                <span className="shrink-0 text-xs text-ink-faint">{keptIn(x.keptAt)}</span>
+                <span className="flex shrink-0 items-center gap-1">
+                  <span className="text-xs text-ink-faint">{keptIn(x.keptAt)}</span>
+                  <IconButton
+                    icon="close"
+                    disabled={removeLine.isPending}
+                    label={copy.remove(x.text)}
+                    onClick={() =>
+                      removeLine
+                        .mutateAsync({ params: { id: x.id } })
+                        // A failure is already toasted by useDnaMutations.
+                        .then(
+                          () => toast({ message: copy.removed }),
+                          () => {},
+                        )
+                    }
+                  />
+                </span>
               </li>
             ))}
           </ul>

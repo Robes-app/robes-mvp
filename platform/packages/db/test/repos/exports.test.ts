@@ -85,7 +85,9 @@ describe('data export (SEC-81)', () => {
         oc.column('userId').doUpdateSet({ briefNotes: 'Ann notes', briefReadAt: new Date() }),
       )
       .execute();
+    await repos.styleProfile.setPalette(ann, { fam: { greens: 1 }, shade: {}, print: {} });
     const doc = await dataExport.collect(ann);
+    expect(doc.styleProfile?.palette).toEqual({ fam: { greens: 1 }, shade: {}, print: {} });
     expect(doc.styleBriefLines.map((l) => l.text)).toEqual(['Ann loves navy']);
     expect(doc.styleMemory.map((m) => m.body)).toEqual(['Ann asked for flats']);
     expect(doc.styleProfile?.briefNotes).toBe('Ann notes');
@@ -93,5 +95,13 @@ describe('data export (SEC-81)', () => {
     const json = JSON.stringify(doc);
     expect(json).not.toContain('Bea loves red');
     expect(json).not.toContain('Bea asked for heels');
+  });
+
+  it('includes her model and her twin, and only hers (SEC-81)', async () => {
+    await repos.model.file(ann, 'w-s3-h1-nt', { source: 'hand' });
+    await repos.model.file(bea, 'w-s1-h0-nt', { source: 'hand' });
+    const doc = await dataExport.collect(ann);
+    expect(doc.model).toMatchObject({ avatarId: 'w-s3-h1-nt', twinAssetId: null, twinKey: null });
+    expect(JSON.stringify(doc)).not.toContain('w-s1-h0-nt');
   });
 });

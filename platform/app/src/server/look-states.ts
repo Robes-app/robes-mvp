@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { repos } from './db';
 import { startJob } from './jobs';
 import { toLook, toLooks } from './looks-entity';
+import { ensureGenericCells } from './model';
 
 // Look states (docs/look-states-brief.md) and the look prompt (docs/look-prompt-brief.md).
 
@@ -49,9 +50,10 @@ export async function promptLook(
   if (await repos.capacity.isExhausted([...TEXT_FAMILIES, ...IMAGE_FAMILIES])) {
     throw new ApiError('capacity');
   }
+  await ensureGenericCells(userId);
   return startJob(userId, req, {
     kind: 'key_piece',
-    input: { mode: 'prompt', prompt: input.prompt, ...(input.date ? { date: input.date } : {}) },
+    input: { mode: 'prompt', ...input },
     quota: [...SET_QUOTA],
   });
 }

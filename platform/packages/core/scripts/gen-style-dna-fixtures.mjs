@@ -1,16 +1,20 @@
 // Regenerates src/style-dna/fixtures/legacy.json by running the legacy style_dna.js (repo root)
 // over a fixed input set, so the parity tests prove the TypeScript port. Run after a legacy change:
-//   node packages/core/scripts/gen-style-dna-fixtures.mjs   (from platform/)
+//   node packages/core/scripts/gen-style-dna-fixtures.mjs [path/to/style_dna.js]   (from platform/)
 // Remove with the legacy app at cutover (the fixtures stay).
-import { copyFileSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const legacy = fileURLToPath(new URL('../../../../style_dna.js', import.meta.url));
+const legacy =
+  process.argv[2] ?? fileURLToPath(new URL('../../../../style_dna.js', import.meta.url));
 const out = fileURLToPath(new URL('../src/style-dna/fixtures/legacy.json', import.meta.url));
 const copy = join(mkdtempSync(join(tmpdir(), 'style-dna-')), 'legacy.mjs');
 copyFileSync(legacy, copy);
+// Legacy style_dna.js requires its sibling colour model (2026-10-22); it rides along.
+const model = join(dirname(legacy), 'colour_model.cjs');
+if (existsSync(model)) copyFileSync(model, join(dirname(copy), 'colour_model.cjs'));
 const L = await import(pathToFileURL(copy).href);
 
 const U = ['Warm', 'Cool', 'Neutral-Warm', 'Neutral-Cool', undefined];
@@ -164,10 +168,39 @@ const prompts = [
     ],
   },
   { args: [{ brief: { colours: { loved: ['Sage'] } } }, 0, ['Icon']] },
+  // Synced 2026-10-19: the hierarchy (hard nos first, rejected colours among them), letterless and
+  // duplicate brief lines dropped, a repeated ask once, the balance answer steering the directive.
+  {
+    args: [
+      {
+        color_harmony: ch,
+        brief: {
+          avoids: ['Combat boots', 'combat boots.', '6'],
+          rules: ['Covered arms', '  '],
+          colours: { rejected: ['Red'] },
+        },
+        memory: {
+          entries: [
+            { k: 'ask', text: 'Button up the jacket', on: 'Desk day' },
+            { k: 'ask', text: 'Button up the jacket', on: 'Desk day' },
+          ],
+        },
+      },
+      9,
+      [],
+      { balance: 'new' },
+    ],
+  },
+  { args: [{ brief: { avoids: ['Heels'] } }, 0, []] },
 ].map(({ args }) => ({ args, output: L.styleDnaPromptBlock(...args) }));
 
 const helpers = {
-  briefList: [brief.loves, 'nope', [{ text: 'x'.repeat(200) }]].map((a) => ({
+  briefList: [
+    brief.loves,
+    'nope',
+    [{ text: 'x'.repeat(200) }],
+    ['6', 'No prints', 'no prints.', { text: '  ' }],
+  ].map((a) => ({
     input: a,
     output: L.briefList(a),
   })),

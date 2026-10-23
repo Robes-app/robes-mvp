@@ -93,9 +93,11 @@ describe('style DNA repos', () => {
       ['loves', 'kept', 'drafted'],
     ]);
     expect(got.style?.briefNotes).toBe('You dress well. Structure first.');
-    expect(got.style?.userOverrides).toMatchObject({
-      loved_colors: ['navy'],
-      rejected_colors: ['mustard'],
+    // A kept colour observation lands on her palette at shade level.
+    expect((await repos.styleProfile.get(ann))?.palette).toEqual({
+      fam: {},
+      shade: { navy: 1, mustard: -1 },
+      print: {},
     });
     expect(got.style?.briefReadAt).toBeInstanceOf(Date);
     const memory = await repos.styleMemory.recent(ann);

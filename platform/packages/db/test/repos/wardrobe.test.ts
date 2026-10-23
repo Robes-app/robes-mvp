@@ -45,6 +45,33 @@ describe('wardrobe repo', () => {
     expect((await wardrobe.get(ann, piece.id))?.label).toBe('Silk shirt');
   });
 
+  it('files a shade, writing its name as the colour word, and refines by family', async () => {
+    const user = await createTestUser(db);
+    const navy = await wardrobe.create(user, {
+      label: 'Breton top',
+      colourShade: 'navy',
+      colourExtra: ['optic'],
+      print: 'stripes',
+    });
+    expect(navy).toMatchObject({ color: 'Navy', colourExtra: ['optic'], print: 'stripes' });
+    const red = await wardrobe.create(user, { label: 'Red bag', color: 'Red' });
+    await db
+      .updateTable('wardrobeItems')
+      .set({ itemDna: JSON.stringify({ colour_check: true, formality: 'smart' }) })
+      .where('id', '=', red.id)
+      .execute();
+    const edited = await wardrobe.update(user, red.id, { colourShade: 'cherry' });
+    expect(edited).toMatchObject({ color: 'Cherry', colourShade: 'cherry' });
+    // Her answer clears Robes' check flag and nothing else.
+    expect(edited?.itemDna).toEqual({ formality: 'smart' });
+    const blues = await wardrobe.list(user, { limit: 10, colourFamily: 'blues' });
+    expect(blues.items.map((p) => p.id)).toEqual([navy.id]);
+    expect(await wardrobe.countMatching(user, { colourFamily: 'reds' })).toBe(1);
+    expect(await wardrobe.countMatching(user, { colourFamily: 'nope' })).toBe(0);
+    expect((await wardrobe.list(ann, { limit: 50, colourFamily: 'blues' })).items).toEqual([]);
+    await deleteTestUsers(db, user);
+  });
+
   it('marks a season she sets as hers', async () => {
     const piece = await wardrobe.create(ann, { label: 'Linen dress' });
     const updated = await wardrobe.update(ann, piece.id, { seasonBand: 'spring_summer' });

@@ -108,10 +108,28 @@ update public.profiles set
     color_harmony: { archetype_name: 'Soft Autumn' },
     silhouette_proportions: { body_type: 'Pear' },
     user_overrides: { loved_colors: ['Navy'] },
+    // Legacy migration 27's palette: unknown ids and values are dropped, never a failed run.
+    palette: {
+      fam: { blues: 1, nope: 1, reds: 2 },
+      shade: { cobalt: -1, navy: 0, x: 1 },
+      print: { stripes: 1, camo: -1 },
+    },
     style_archetypes: ['Minimalist', 'Classic'],
     brands: ['The Row', 'COS'],
     investment: '€500–1,500',
-    facts: { height_cm: 168, size_uk: 10, shoe_uk: 5.5, age_band: '45–54', weight: 60 },
+    // Bust as a bra size (the tape is ignored in bra mode) and the waist (legacy migration 26).
+    facts: {
+      height_cm: 168,
+      size_uk: 10,
+      shoe_uk: 5.5,
+      age_band: '45–54',
+      weight: 60,
+      bust_mode: 'bra',
+      bust_band: 34,
+      bust_cup: 'C',
+      bust_cm: 91,
+      waist_cm: 72,
+    },
     brief: {
       loves: [
         { text: 'A defined waist', source: 'drafted', at: '2026-09-30T10:00:00Z' },
@@ -149,34 +167,44 @@ update public.profiles set
   })},
   onboarded_at = '2026-07-01', instagram_handle = 'niall.maher',
   notification_prefs = ${json({ looks_ready: true, morning: false, nudges: true, receipts: false, timezone: 'Australia/Sydney' })},
-  avatar_id = 'avatar-niall'
+  avatar_id = 'avatar-niall', twin_url = '${CDN}/niall-twin.png', twin_key = 'legacy-twin-key-niall'
 where id = '${NIALL}';
 
 update public.profiles set first_name = 'Bea', instagram_handle = '@bea.style!', is_admin = true
 where id = '${BEA}';
+
+-- Out-of-range bust and waist are dropped; a twin with no filed model still carries over.
+update public.profiles set style_dna = ${json({ facts: { bust_mode: 'cm', bust_cm: 300, waist_cm: 20, bust_band: 34, bust_cup: 'C' } })},
+  twin_url = '${CDN}/cat-twin.png'
+where id = '${CAT}';
 
 update public.profiles set first_name = '${'C'.repeat(70)}', gender_identity = 'unspecified',
   onboarded_at = '2026-07-03'
 where id = '${CAT}';
 
 insert into public.wardrobe_items (id, user_id, label, category, category_l2, category_l3, color, brand,
-  image_url, times_worn, hero_position, seasons, occasions, season_band, season_source, price, currency, size, created_at) values
+  image_url, times_worn, hero_position, seasons, occasions, season_band, season_source, price, currency, size, created_at,
+  colour_shade, colour_extra, print) values
   ('${W.jeans}', '${NIALL}', 'Straight jeans', 'Bottoms', 'Jeans', 'Straight-leg jeans', 'Indigo', 'Levi''s',
-   '${CDN}/jeans.jpg', 3, 1, '{Spring,Summer}', '{Work,Date night}', 'spring_summer', 'user', 120, 'eur', '28', '2026-07-05'),
+   '${CDN}/jeans.jpg', 3, 1, '{Spring,Summer}', '{Work,Date night}', 'spring_summer', 'user', 120, 'eur', '28', '2026-07-05',
+   'denim', '{optic,denim,nope,optic,ivory,chalk,jet}', 'stripes'),
   ('${W.coat}', '${NIALL}', 'Camel coat', 'Outerwear', null, null, 'Camel', null,
-   '${CDN}/coat.jpg', 0, null, '{}', '{}', 'year_round', 'inferred', null, null, null, '2026-07-06'),
+   '${CDN}/coat.jpg', 0, null, '{}', '{}', 'year_round', 'inferred', null, null, null, '2026-07-06',
+   null, '{}', null),
   ('${W.shirt}', '${NIALL}', 'Blue shirt', 'Tops', null, null, 'Blue', null,
-   null, 0, null, null, null, 'year_round', 'inferred', null, null, null, '2026-07-07'),
+   null, 0, null, null, null, 'year_round', 'inferred', null, null, null, '2026-07-07',
+   'chartreuse', '{}', 'tartan-ish'),
   ('${W.jumper}', '${CAT}', 'Jumper', 'Knitwear', null, null, null, null,
-   null, 0, 11, null, null, 'year_round', 'inferred', null, null, null, '2026-07-08'),
+   null, 0, 11, null, null, 'year_round', 'inferred', null, null, null, '2026-07-08', null, '{}', null),
   ('${W.loafers}', '${BEA}', 'Loafers', 'Shoes', null, null, 'Black', null,
-   'not-a-url', 0, null, null, null, 'year_round', 'inferred', null, null, null, '2026-07-09');
+   'not-a-url', 0, null, null, null, 'year_round', 'inferred', null, null, null, '2026-07-09', null, '{}', null);
 
-insert into public.wishlist_items (id, user_id, label, category, image_url, price, currency, source_type, source_url, created_at) values
+insert into public.wishlist_items (id, user_id, label, category, image_url, price, currency, source_type, source_url, created_at,
+  color, colour_shade, colour_extra, print) values
   ('cccccccc-0000-4000-8000-000000000001', '${NIALL}', 'Trench coat', 'Outerwear', '${CDN}/trench.jpg', 250, 'eur',
-   'url', 'https://shop.test/trench', '2026-07-10'),
+   'url', 'https://shop.test/trench', '2026-07-10', 'Sand', 'sand', '{}', 'checks'),
   ('cccccccc-0000-4000-8000-000000000002', '${NIALL}', 'Scarf', 'Accessories', null, null, null,
-   'magazine', 'javascript:alert(1)', '2026-07-11');
+   'magazine', 'javascript:alert(1)', '2026-07-11', 'Print', null, '{}', null);
 
 insert into public.looks (id, user_id, name, name_provisional, tags, note, photo_url, source, climate_band,
   render_url, created_at) values

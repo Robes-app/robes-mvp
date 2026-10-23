@@ -66,6 +66,10 @@ describe('wardrobe_analyse handler', () => {
         label: 'Camel wool coat',
         categoryL2: 'Coats',
         category: 'Outerwear',
+        color: 'Camel',
+        colourShade: 'camel',
+        colourExtra: [],
+        print: null,
       }),
     );
     expect(ledger.record).toHaveBeenCalledWith(
