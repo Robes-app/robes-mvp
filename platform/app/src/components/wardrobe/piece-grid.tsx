@@ -3,6 +3,7 @@
 import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
 import type { ListPiecesInput, Piece } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
+import { COLOUR_FAMILIES } from '@robes/core/colour';
 import { rankCategories, type WardrobeLayout } from '@robes/core/wardrobe';
 import {
   Button,
@@ -20,6 +21,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { anyReading, withPatch } from '@/lib/wardrobe';
+import { ShadeSwatch } from './colour-field';
 import { AddCard, CardRow, type CardStatus, CardTile, StarButton } from './piece-card';
 import { PieceImage } from './piece-image';
 import { useWardrobeLayout } from './use-layout';
@@ -32,6 +34,11 @@ const SKELETON_SLOTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const SEASONS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type Season = (typeof SEASONS)[number];
 type Category = NonNullable<ListPiecesInput['category']>;
+type Refine = { season: Season | null; family: string | null };
+const refineInput = (r: Refine) => ({
+  ...(r.season ? { seasonBand: r.season } : {}),
+  ...(r.family ? { colourFamily: r.family } : {}),
+});
 
 function pieceStatus(piece: Piece): CardStatus {
   if (piece.status === 'reading') return { text: wardrobe.reading, warm: false };
@@ -49,9 +56,10 @@ export function PieceGrid() {
   const remove = useRemovePiece();
   const [layout, setLayout] = useWardrobeLayout();
   const [category, setCategory] = useState<Category | null>(null);
-  const [season, setSeason] = useState<Season | null>(null);
+  const [refine, setRefine] = useState<Refine>({ season: null, family: null });
   const [filterOpen, setFilterOpen] = useState(false);
-  const filters = { ...(category ? { category } : {}), ...(season ? { seasonBand: season } : {}) };
+  const filters = { ...(category ? { category } : {}), ...refineInput(refine) };
+  const refined = refine.season !== null || refine.family !== null;
   const summary = useApi('wardrobe.summary');
   const query = useInfiniteQuery({
     // Under the wardrobe.list route key so optimistic edits and invalidations reach it.
@@ -117,7 +125,7 @@ export function PieceGrid() {
   const pieces = query.data?.pages.flatMap((p) => p.items) ?? [];
   const total = query.data?.pages[0]?.total ?? null;
   const owned = summary.data?.total ?? null;
-  const filtered = category !== null || season !== null;
+  const filtered = category !== null || refined;
 
   if (owned === 0 && !filtered) {
     return (
@@ -147,7 +155,7 @@ export function PieceGrid() {
       />
       <CountRow
         count={total === null ? null : wardrobe.header.count(total)}
-        filter={{ on: season !== null, onOpen: () => setFilterOpen(true) }}
+        filter={{ on: refined, onOpen: () => setFilterOpen(true) }}
         layout={layout}
         onLayout={setLayout}
       />
@@ -160,7 +168,7 @@ export function PieceGrid() {
             variant="quiet"
             onClick={() => {
               setCategory(null);
-              setSeason(null);
+              setRefine({ season: null, family: null });
             }}
           >
             {wardrobe.filter.showEverything}
@@ -199,8 +207,8 @@ export function PieceGrid() {
         open={filterOpen}
         onOpenChange={setFilterOpen}
         category={category}
-        season={season}
-        onApply={setSeason}
+        refine={refine}
+        onApply={setRefine}
       />
     </div>
   );
@@ -255,31 +263,30 @@ function PieceCard({
   );
 }
 
-// Filter (legacy Refine): the season, counted before she applies it.
+// Filter (legacy Refine): the season and the colour family, counted before she applies them.
 function FilterSheet({
   open,
   onOpenChange,
   category,
-  season,
+  refine,
   onApply,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   category: Category | null;
-  season: Season | null;
-  onApply: (season: Season | null) => void;
+  refine: Refine;
+  onApply: (refine: Refine) => void;
 }) {
-  const [pick, setPick] = useState<Season | null>(season);
+  const [pick, setPick] = useState<Refine>(refine);
   useEffect(() => {
-    if (open) setPick(season);
-  }, [open, season]);
+    if (open) setPick(refine);
+  }, [open, refine]);
   const count = useApi(
     'wardrobe.list',
-    {
-      input: { limit: 1, ...(category ? { category } : {}), ...(pick ? { seasonBand: pick } : {}) },
-    },
+    { input: { limit: 1, ...(category ? { category } : {}), ...refineInput(pick) } },
     { enabled: open },
   );
+  const legend = 'mb-3 font-sans text-xs font-medium tracking-[0.18em] text-ink-muted uppercase';
   return (
     <Sheet
       title={wardrobe.filter.title}
@@ -296,20 +303,41 @@ function FilterSheet({
           >
             {count.data ? wardrobe.filter.show(count.data.total) : wardrobe.filter.title}
           </Button>
-          <Button variant="quiet" onClick={() => setPick(null)} disabled={pick === null}>
+          <Button
+            variant="quiet"
+            onClick={() => setPick({ season: null, family: null })}
+            disabled={pick.season === null && pick.family === null}
+          >
             {wardrobe.filter.clear}
           </Button>
         </>
       }
     >
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-3 font-sans text-xs font-medium tracking-[0.18em] text-ink-muted uppercase">
-          {wardrobe.filter.season}
-        </legend>
+        <legend className={legend}>{wardrobe.filter.season}</legend>
         <div className="flex flex-wrap gap-2">
           {SEASONS.map((s) => (
-            <Pill key={s} selected={pick === s} onClick={() => setPick(pick === s ? null : s)}>
+            <Pill
+              key={s}
+              selected={pick.season === s}
+              onClick={() => setPick({ ...pick, season: pick.season === s ? null : s })}
+            >
               {wardrobe.filter.seasons[s]}
+            </Pill>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset className="mt-6 flex flex-col gap-3">
+        <legend className={legend}>{wardrobe.filter.colour}</legend>
+        <div className="flex flex-wrap gap-2">
+          {COLOUR_FAMILIES.map((f) => (
+            <Pill
+              key={f.id}
+              selected={pick.family === f.id}
+              onClick={() => setPick({ ...pick, family: pick.family === f.id ? null : f.id })}
+            >
+              <ShadeSwatch shade={f.tile[0] ?? null} size={16} />
+              {f.name}
             </Pill>
           ))}
         </div>

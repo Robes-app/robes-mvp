@@ -31,7 +31,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useDnaMutations } from './dna';
-import { AnalysisCard, ColourList } from './Style';
+import { AnalysisCard } from './Style';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -284,10 +284,6 @@ function PhotographsBody({
 }) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const overrides = useApiMutation('me.style.overrides', {
-    onSuccess: (next) => queryClient.setQueryData(queryKeys.call('me.style.get'), next),
-    onError: (err) => toast.show({ message: errorMessage(err) }),
-  });
   const [more, setMore] = useState(false);
   const season = useApiMutation('me.style.season', {
     onSuccess: (data) => queryClient.setQueryData(queryKeys.call('me.style.get'), data),
@@ -323,16 +319,6 @@ function PhotographsBody({
         </Text>
       )}
       <ColourRows model={model} pick={pick} />
-      <ColourList
-        label={you.style.loved}
-        colours={profile.overrides.lovedColors}
-        onChange={(lovedColors) => overrides.mutate({ input: { lovedColors } })}
-      />
-      <ColourList
-        label={you.style.rejected}
-        colours={profile.overrides.rejectedColors}
-        onChange={(rejectedColors) => overrides.mutate({ input: { rejectedColors } })}
-      />
       <Eyebrow>{tw.bodyShape}</Eyebrow>
       <AnalysisCard kind="silhouette" profile={profile} />
       <LineRows model={model} pick={pick} />

@@ -1,22 +1,12 @@
 'use client';
 
-import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { StyleProfile } from '@robes/contracts';
 import { you } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
-import {
-  Button,
-  Card,
-  ErrorText,
-  Field,
-  Heading,
-  Progress,
-  Skeleton,
-  Text,
-  useToast,
-} from '@robes/ui';
+import { Card, ErrorText, Heading, Progress, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react';
+import { type ChangeEvent, useEffect, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
 import { useJob } from '@/lib/use-job';
@@ -167,52 +157,5 @@ function List({ term, items }: { term: string; items: string[] }) {
       <dt className="font-sans text-xs font-medium text-ink-muted">{term}</dt>
       <dd className="font-sans text-sm font-light text-ink">{items.join(' · ')}</dd>
     </div>
-  );
-}
-
-const splitColours = (v: string): string[] =>
-  v
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 30);
-
-// Her corrections outrank the photo read in every styling prompt.
-export function Overrides({ profile }: { profile: StyleProfile }) {
-  const toast = useToast();
-  const queryClient = useQueryClient();
-  const [loved, setLoved] = useState(profile.overrides.lovedColors.join(', '));
-  const [rejected, setRejected] = useState(profile.overrides.rejectedColors.join(', '));
-  const save = useApiMutation('me.style.overrides', {
-    onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.call('me.style.get'), data);
-      toast({ message: copy.savedColours });
-    },
-    onError: (err) => toast({ message: errorCopy(err) }),
-  });
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    save.mutate({
-      input: { lovedColors: splitColours(loved), rejectedColors: splitColours(rejected) },
-    });
-  };
-  return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <Field
-        label={copy.lovedLabel}
-        hint={copy.coloursHint}
-        value={loved}
-        onChange={(e) => setLoved(e.target.value)}
-      />
-      <Field
-        label={copy.rejectedLabel}
-        hint={copy.coloursHint}
-        value={rejected}
-        onChange={(e) => setRejected(e.target.value)}
-      />
-      <Button type="submit" variant="secondary" className="self-start" loading={save.isPending}>
-        {copy.saveColours}
-      </Button>
-    </form>
   );
 }

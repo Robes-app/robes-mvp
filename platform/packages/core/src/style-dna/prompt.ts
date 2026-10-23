@@ -4,6 +4,7 @@
 // stay outside the fence.
 
 import { FENCE_RULE, fenceUserText } from '../fence';
+import { paletteLines } from './palette';
 
 const FENCED_MAX = 16_000;
 const fenced = (text: string): string => fenceUserText(text, FENCED_MAX);
@@ -58,16 +59,11 @@ export function briefIsEmpty(b: unknown): boolean {
 // The hierarchy (legacy 2026-10-19): her hard nos are absolute and come first; her brief outranks
 // everything a photograph produced; her taste leads; colour and line are guidance. The word
 // "never" belongs to her hard nos alone.
-function hardNoLines(b: unknown, rejectedColours: string[]): string[] {
+// Her typed hard nos are the one absolute; a colour she avoids is soft and lives in ./palette.
+function hardNoLines(b: unknown): string[] {
   const avoids = briefList(obj(b)?.avoids).slice(-BRIEF_PROMPT_MAX);
-  if (!avoids.length && !rejectedColours.length) return [];
-  const words: string[] = [];
-  if (avoids.length) words.push(`Never: ${avoids.join(' · ')}.`);
-  if (rejectedColours.length) {
-    words.push(
-      `Never in these colours — she has ruled them out herself: ${rejectedColours.join(', ')}.`,
-    );
-  }
+  if (!avoids.length) return [];
+  const words = [`Never: ${avoids.join(' · ')}.`];
   return [
     'HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never "worth trying".',
     fenced(words.join('\n')),
@@ -175,32 +171,10 @@ function memoryLines(m: unknown): string[] {
   ];
 }
 
-// user_overrides merged with the brief's colours (case-insensitive, at most twelve each).
-function briefOverrides(dna: Obj): Obj {
-  const uo: Obj = { ...(obj(dna.user_overrides) ?? {}) };
-  const colours = obj(obj(dna.brief)?.colours) ?? {};
-  const merge = (a: unknown, b: unknown): string[] => {
-    const out: string[] = [];
-    for (const x of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
-      const t = typeof x === 'string' ? x.trim() : '';
-      if (t && !out.some((y) => y.toLowerCase() === t.toLowerCase())) out.push(t);
-    }
-    return out.slice(0, 12);
-  };
-  uo.loved_colors = merge(uo.loved_colors, colours.loved);
-  uo.rejected_colors = merge(uo.rejected_colors, colours.rejected);
-  return uo;
-}
-
-// Her colours (rejected ones are hard nos, rendered first) and the measurements she supplied.
+// Her colours and prints are the palette (soft avoid, ./palette); the one override slot left is
+// the measurements she supplied.
 function overrideLines(uo: Obj): string[] {
   const lines: string[] = [];
-  const loved = list(uo.loved_colors);
-  if (loved?.length) {
-    lines.push(
-      `HER COLOURS — the ones she has told Robes work on her: ${fenced(loved.join(', '))}. These outrank the colouring read: a colour she named is right whatever the archetype says.`,
-    );
-  }
   const measurements = obj(uo.measurements);
   if (measurements) {
     const m = Object.entries(measurements)
@@ -282,9 +256,7 @@ export function styleDnaPromptBlock(
       : '';
   const factLines = factsLines(dna.facts);
   const tags = obj(dna.icon_tags) ?? {};
-  const uo = briefOverrides(dna);
-  const loved = list(uo.loved_colors) ?? [];
-  const noLines = hardNoLines(dna.brief, list(uo.rejected_colors) ?? []);
+  const noLines = hardNoLines(dna.brief);
   if (
     !ch &&
     !sp &&
@@ -297,7 +269,7 @@ export function styleDnaPromptBlock(
     !investment &&
     !factLines.length &&
     !noLines.length &&
-    !loved.length
+    !paletteLines(dna).length
   ) {
     return '';
   }
@@ -342,8 +314,9 @@ export function styleDnaPromptBlock(
     }
   }
   lines.push(...factLines);
+  const uo = obj(dna.user_overrides) ?? {};
   if (!ch && !sp) {
-    lines.push(...overrideLines(uo));
+    lines.push(...paletteLines(dna), ...overrideLines(uo));
     return withFenceRule(lines);
   }
   // The photograph reads are GUIDANCE: not reliable enough to outrank what she said or wears.
@@ -386,8 +359,8 @@ export function styleDnaPromptBlock(
       );
     }
   }
-  // Her colours always outrank the photo-derived read.
-  lines.push(...overrideLines(uo));
+  // Her corrections always outrank the photo-derived profile.
+  lines.push(...paletteLines(dna), ...overrideLines(uo));
   lines.push(
     opts.balance
       ? 'SYSTEM DIRECTIVE: She has said where the pieces of this look should come from — her wardrobe, a mix, or new pieces (WHERE THE PIECES COME FROM, beside her wardrobe). Follow that answer, in her register, guided by the colour and line notes above.'

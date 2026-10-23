@@ -140,6 +140,7 @@ export function dataExportRepo(db: Db) {
             'colourRender',
             'silhouetteRender',
             'userOverrides',
+            'palette',
             'briefNotes',
             'briefReadAt',
             'updatedAt',

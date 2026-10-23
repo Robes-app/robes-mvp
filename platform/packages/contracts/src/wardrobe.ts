@@ -1,3 +1,4 @@
+import { COLOUR_EXTRA_MAX, COLOUR_FAMILY_IDS, PATTERN_IDS, SHADE_IDS } from '@robes/core/colour';
 import { z } from 'zod';
 import { AssetRendition } from './media';
 
@@ -13,6 +14,21 @@ export const LEGACY_CATEGORY = z.enum([
   'Other',
 ]);
 export const SeasonBand = z.enum(['spring_summer', 'autumn_winter', 'year_round']);
+// The colour model (@robes/core/colour): one shade, up to three more, and a print (null = plain).
+export const ColourShade = z.enum(SHADE_IDS as [string, ...string[]]);
+export const ColourFamily = z.enum(COLOUR_FAMILY_IDS as [string, ...string[]]);
+export const Print = z.enum(PATTERN_IDS as [string, ...string[]]);
+const colourFields = {
+  colourShade: ColourShade.nullable(),
+  colourExtra: z.array(ColourShade).max(COLOUR_EXTRA_MAX),
+  print: Print.nullable(),
+};
+// Read side: defaulted across version skew, so an older server's response still parses.
+const colourOut = {
+  colourShade: z.string().nullable().default(null),
+  colourExtra: z.array(z.string()).default([]),
+  print: z.string().nullable().default(null),
+};
 
 export const PieceImage = z.object({
   assetId: z.uuid(),
@@ -32,6 +48,9 @@ export const Piece = z.object({
   categoryL2: z.string().nullable(),
   categoryL3: z.string().nullable(),
   color: z.string().nullable(),
+  ...colourOut,
+  // Robes wasn't sure of the colour (light, a filter, a busy print): she checks it.
+  colourCheck: z.boolean().default(false),
   brand: z.string().nullable(),
   notes: z.string().nullable(),
   // 'reading' while Robes reads the photo; 'failed' when no piece was found in it.
@@ -57,6 +76,7 @@ export const ListPiecesInput = z.object({
   category: LEGACY_CATEGORY.optional(),
   categoryL2: z.string().max(60).optional(),
   seasonBand: SeasonBand.optional(),
+  colourFamily: ColourFamily.optional(),
 });
 export type ListPiecesInput = z.infer<typeof ListPiecesInput>;
 
@@ -73,6 +93,7 @@ const editable = {
   categoryL2: z.string().max(60).nullable(),
   categoryL3: z.string().max(60).nullable(),
   color: z.string().max(60).nullable(),
+  ...colourFields,
   brand: z.string().trim().max(80).nullable(),
   notes: z.string().trim().max(1000).nullable(),
   seasonBand: SeasonBand,
@@ -118,6 +139,7 @@ export const Wish = z.object({
   categoryL2: z.string().nullable(),
   categoryL3: z.string().nullable(),
   color: z.string().nullable(),
+  ...colourOut,
   brand: z.string().nullable(),
   note: z.string().nullable(),
   price: z.number().nullable(),
@@ -147,6 +169,9 @@ const wishEditable = {
   categoryL2: editable.categoryL2,
   categoryL3: editable.categoryL3,
   color: editable.color,
+  colourShade: editable.colourShade,
+  colourExtra: editable.colourExtra,
+  print: editable.print,
   brand: editable.brand,
   note: editable.notes,
   price: editable.price,

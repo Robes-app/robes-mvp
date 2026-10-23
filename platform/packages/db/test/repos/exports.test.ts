@@ -85,7 +85,9 @@ describe('data export (SEC-81)', () => {
         oc.column('userId').doUpdateSet({ briefNotes: 'Ann notes', briefReadAt: new Date() }),
       )
       .execute();
+    await repos.styleProfile.setPalette(ann, { fam: { greens: 1 }, shade: {}, print: {} });
     const doc = await dataExport.collect(ann);
+    expect(doc.styleProfile?.palette).toEqual({ fam: { greens: 1 }, shade: {}, print: {} });
     expect(doc.styleBriefLines.map((l) => l.text)).toEqual(['Ann loves navy']);
     expect(doc.styleMemory.map((m) => m.body)).toEqual(['Ann asked for flats']);
     expect(doc.styleProfile?.briefNotes).toBe('Ann notes');

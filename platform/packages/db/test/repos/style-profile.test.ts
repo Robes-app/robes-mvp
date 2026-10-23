@@ -60,6 +60,20 @@ describe('style profile repos', () => {
     expect((await styleProfile.get(ann))?.userOverrides).toEqual({});
   });
 
+  it('saves her palette, retiring the free-text colour lists, and keeps it to her', async () => {
+    const user = await createTestUser(db);
+    await styleProfile.setOverrides(user, {
+      loved_colors: ['Navy'],
+      measurements: { waist: '70' },
+    });
+    const palette = { fam: { blues: 1 as const }, shade: { cobalt: -1 as const }, print: {} };
+    const row = await styleProfile.setPalette(user, palette);
+    expect(row.palette).toEqual(palette);
+    expect(row.userOverrides).toEqual({ measurements: { waist: '70' } });
+    expect((await styleProfile.get(ann))?.palette ?? {}).toEqual({});
+    await deleteTestUsers(db, user);
+  });
+
   it('changes the season only on her own colour read', async () => {
     expect(
       await styleProfile.chooseSeason(bea, {

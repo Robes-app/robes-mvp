@@ -343,6 +343,20 @@ export const wardrobe = {
     remove: 'Remove',
     stylePiece: 'Style this piece',
   },
+  // The colour model on a piece (legacy f3e5b5b): one shade, up to three more, a print.
+  colour: {
+    title: 'Colour',
+    notSet: 'Not set',
+    change: 'Change colour',
+    done: 'Done',
+    main: 'Main colour',
+    extra: 'Additional colours',
+    extraHint: 'Up to three.',
+    families: 'Colour families',
+    print: 'Print',
+    plain: 'Plain',
+    check: 'Robes wasn’t sure of this colour. Check it.',
+  },
   // The reveal after one photo (beta's step 3): her photo, then what Robes filed.
   saw: {
     title: 'Here’s what Robes saw.',
@@ -395,6 +409,7 @@ export const wardrobe = {
   filter: {
     title: 'Filter',
     season: 'Season',
+    colour: 'Colour',
     seasons: {
       spring_summer: 'Spring and summer',
       autumn_winter: 'Autumn and winter',
@@ -698,11 +713,27 @@ export const you = {
     necklines: 'Necklines',
     silhouettes: 'Shapes that work',
     tips: 'Tips',
-    lovedLabel: 'Colours you love on you',
-    rejectedLabel: 'Colours you never wear',
-    coloursHint: 'Separate with commas.',
-    saveColours: 'Save',
-    savedColours: 'Saved.',
+    // Your colours and Your prints (legacy a61f211): three states per family, shade and print.
+    palette: {
+      coloursTitle: 'Your colours',
+      coloursBody:
+        'Love weighs a colour up. Avoid means nothing new in it; what you own is still styled.',
+      printsTitle: 'Your prints',
+      states: { avoid: 'Avoid', none: 'No view', love: 'Love' },
+      shades: (family: string): string => `${family} shades`,
+      showShades: 'Shades',
+      hideShades: 'Hide shades',
+      setHere: 'Set here',
+      fromFamily: 'From the family',
+      matchFamily: 'Match the family',
+      saved: 'Saved.',
+      summary: (love: number, avoid: number): string =>
+        love + avoid === 0
+          ? 'No view yet'
+          : [love ? `${love} loved` : '', avoid ? `${avoid} avoided` : '']
+              .filter(Boolean)
+              .join(' · '),
+    },
     // Native screen (cards per read, colours edited one at a time).
     colour: {
       title: 'Your colouring',
@@ -719,12 +750,6 @@ export const you = {
       noSubject: 'Robes couldn’t see your full figure in that photo. Try another.',
     },
     again: 'Try another photo',
-    loved: 'Colours you love',
-    rejected: 'Colours you don’t wear',
-    colourLabel: 'Add a colour',
-    colourPlaceholder: 'Navy',
-    add: 'Add',
-    removeColour: (name: string): string => `Remove ${name}`,
   },
   // SEC-81: her data as one file.
   dataExport: {

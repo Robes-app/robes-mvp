@@ -1,6 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { ListPiecesInput, Piece } from '@robes/contracts';
 import { wardrobe as copy, nav, ui } from '@robes/copy';
+import { COLOUR_FAMILIES } from '@robes/core/colour';
 import { rankCategories } from '@robes/core/wardrobe';
 import {
   Button,
@@ -29,6 +30,12 @@ const SEGMENTS: readonly Segment[] = ['pieces', 'wishlist', 'inbox'];
 const SEASONS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type Season = (typeof SEASONS)[number];
 type Category = NonNullable<ListPiecesInput['category']>;
+type Refine = { season: Season | null; family: string | null };
+const NO_REFINE: Refine = { season: null, family: null };
+const refineInput = (r: Refine) => ({
+  ...(r.season ? { seasonBand: r.season } : {}),
+  ...(r.family ? { colourFamily: r.family } : {}),
+});
 
 function pieceStatus(piece: Piece): CardStatus {
   if (piece.status === 'reading') return { text: copy.reading, warm: false };
@@ -38,29 +45,27 @@ function pieceStatus(piece: Piece): CardStatus {
     : { text: copy.card.neverWorn, warm: true };
 }
 
-// Filter (legacy Refine): the season, counted before she applies it.
+// Filter (legacy Refine): the season and the colour family, counted before she applies them.
 function FilterSheet({
   open,
   onClose,
   category,
-  season,
+  refine,
   onApply,
 }: {
   open: boolean;
   onClose: () => void;
   category: Category | null;
-  season: Season | null;
-  onApply: (season: Season | null) => void;
+  refine: Refine;
+  onApply: (refine: Refine) => void;
 }) {
-  const [pick, setPick] = useState<Season | null>(season);
+  const [pick, setPick] = useState<Refine>(refine);
   useEffect(() => {
-    if (open) setPick(season);
-  }, [open, season]);
+    if (open) setPick(refine);
+  }, [open, refine]);
   const count = useApi(
     'wardrobe.list',
-    {
-      input: { limit: 1, ...(category ? { category } : {}), ...(pick ? { seasonBand: pick } : {}) },
-    },
+    { input: { limit: 1, ...(category ? { category } : {}), ...refineInput(pick) } },
     { enabled: open },
   );
   return (
@@ -73,8 +78,28 @@ function FilterSheet({
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {SEASONS.map((s) => (
-                <Pill key={s} selected={pick === s} onPress={() => setPick(pick === s ? null : s)}>
+                <Pill
+                  key={s}
+                  selected={pick.season === s}
+                  onPress={() => setPick({ ...pick, season: pick.season === s ? null : s })}
+                >
                   {copy.filter.seasons[s]}
+                </Pill>
+              ))}
+            </View>
+          </View>
+          <View className="gap-3">
+            <Text size="caption" tone="muted">
+              {copy.filter.colour}
+            </Text>
+            <View className="flex-row flex-wrap gap-2">
+              {COLOUR_FAMILIES.map((f) => (
+                <Pill
+                  key={f.id}
+                  selected={pick.family === f.id}
+                  onPress={() => setPick({ ...pick, family: pick.family === f.id ? null : f.id })}
+                >
+                  {f.name}
                 </Pill>
               ))}
             </View>
@@ -87,7 +112,11 @@ function FilterSheet({
           >
             {count.data ? copy.filter.show(count.data.total) : copy.filter.title}
           </Button>
-          <Button variant="quiet" disabled={pick === null} onPress={() => setPick(null)}>
+          <Button
+            variant="quiet"
+            disabled={pick.season === null && pick.family === null}
+            onPress={() => setPick(NO_REFINE)}
+          >
             {copy.filter.clear}
           </Button>
         </View>
@@ -101,7 +130,7 @@ function Pieces() {
   const toast = useToast();
   const [layout, setLayout] = useWardrobeLayout();
   const [category, setCategory] = useState<Category | null>(null);
-  const [season, setSeason] = useState<Season | null>(null);
+  const [refine, setRefine] = useState<Refine>(NO_REFINE);
   const [filterOpen, setFilterOpen] = useState(false);
   const summary = useApi('wardrobe.summary');
   const {
@@ -116,12 +145,13 @@ function Pieces() {
     hasNextPage,
   } = usePieces({
     ...(category ? { category } : {}),
-    ...(season ? { seasonBand: season } : {}),
+    ...refineInput(refine),
   });
   const star = useStarPiece();
   const remove = useDeletePiece();
   const { add, busy } = useAddPieces();
-  const filtered = category !== null || season !== null;
+  const refined = refine.season !== null || refine.family !== null;
+  const filtered = category !== null || refined;
 
   async function addFromLibrary() {
     const result = await add('library');
@@ -172,7 +202,7 @@ function Pieces() {
       />
       <CountRow
         count={total === null ? null : copy.header.count(total)}
-        filter={{ on: season !== null, onOpen: () => setFilterOpen(true) }}
+        filter={{ on: refined, onOpen: () => setFilterOpen(true) }}
         layout={layout}
         onLayout={setLayout}
       />
@@ -226,7 +256,7 @@ function Pieces() {
               variant="quiet"
               onPress={() => {
                 setCategory(null);
-                setSeason(null);
+                setRefine(NO_REFINE);
               }}
             >
               {copy.filter.showEverything}
@@ -238,8 +268,8 @@ function Pieces() {
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
         category={category}
-        season={season}
-        onApply={setSeason}
+        refine={refine}
+        onApply={setRefine}
       />
     </View>
   );

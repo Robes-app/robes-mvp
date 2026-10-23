@@ -14,6 +14,7 @@ function setup(
     struck?: string[];
     notes?: string;
     overrides?: object;
+    palette?: object;
   } = {},
 ) {
   const fails = [...(opts.fail ?? [])];
@@ -58,6 +59,7 @@ function setup(
       styleDna: {
         brief: { loves: opts.kept ?? [], avoids: [], rules: [], notes: opts.notes ?? '' },
         user_overrides: opts.overrides ?? {},
+        palette: opts.palette ?? {},
       },
     })),
   };
@@ -128,6 +130,15 @@ describe('style_brief handler', () => {
     await run();
     const drafts = brief.saveRead.mock.calls[0]?.[1] as { list: string }[];
     expect(drafts.map((d) => d.list)).toEqual(['loves', 'loves', 'rules']);
+  });
+
+  it('reads her palette: a colour it already says is not offered again', async () => {
+    const { run, brief } = setup({
+      palette: { fam: { blues: 1, whites: 1 }, shade: { mustard: -1 } },
+    });
+    await run();
+    const drafts = brief.saveRead.mock.calls[0]?.[1] as { list: string }[];
+    expect(drafts.map((d) => d.list)).not.toContain('colours');
   });
 
   it('retries a cut answer once on the compact evidence set', async () => {

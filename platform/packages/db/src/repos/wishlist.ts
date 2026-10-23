@@ -1,4 +1,5 @@
 import { resolveTaxonomy } from '@robes/core';
+import { shade } from '@robes/core/colour';
 import { type Insertable, sql, type Updateable } from 'kysely';
 import type { Db } from '../client';
 import type { WishlistItems } from '../database.types';
@@ -13,6 +14,9 @@ export const WISH_COLUMNS = [
   'categoryL2',
   'categoryL3',
   'color',
+  'colourShade',
+  'colourExtra',
+  'print',
   'brand',
   'note',
   'imageAssetId',
@@ -31,6 +35,9 @@ export interface WishFields {
   categoryL2?: string | null;
   categoryL3?: string | null;
   color?: string | null;
+  colourShade?: string | null;
+  colourExtra?: string[];
+  print?: string | null;
   brand?: string | null;
   note?: string | null;
   price?: number | null;
@@ -49,6 +56,7 @@ function withTaxonomy(fields: WishFields): Updateable<WishlistItems> {
     out.categoryL2 = tax?.categoryL2 ?? null;
     out.categoryL3 = tax?.categoryL3 ?? null;
   }
+  if (fields.colourShade) out.color = shade(fields.colourShade)?.name ?? fields.color ?? null;
   return out;
 }
 
@@ -156,6 +164,9 @@ export function wishlistRepo(db: Db) {
             categoryL2: wish.categoryL2,
             categoryL3: wish.categoryL3,
             color: wish.color,
+            colourShade: wish.colourShade,
+            colourExtra: wish.colourExtra,
+            print: wish.print,
             brand: wish.brand,
             notes: wish.note,
             imageAssetId: wish.imageAssetId,
