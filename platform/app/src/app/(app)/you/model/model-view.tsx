@@ -39,7 +39,7 @@ export function ModelView() {
   if (query.isError) return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   const model = query.data;
   if (!model || !style.data || !dna.data) {
-    return <Skeleton className="aspect-[4/5] w-full max-w-sm" />;
+    return <Skeleton className="h-[440px] w-full md:h-[480px] md:rounded-soft" />;
   }
   const colour = style.data.colour;
   const line = lineSummary(dna.data.facts);
@@ -67,28 +67,36 @@ export function ModelView() {
   );
 }
 
-// The twin when she has one (dimmed while a newer one draws), else the catalog portrait.
+// The hero (legacy .tw-stage): 440 tall and flush under the header, full-bleed, on the phone; a
+// bordered 480 card on the web. A 90px fade to the ground at its foot carries the caption, which
+// sits inside the stage — her colour words, never a shape.
 function ModelStage({ model }: { model: Model }) {
   const image = model.twin.imageUrl ?? model.cell.imageUrl;
   const drawing = model.twin.status === 'pending' || model.cell.status === 'pending';
   const failed =
     model.twin.status === 'failed' || (!model.twin.imageUrl && model.cell.status === 'failed');
   return (
-    <figure className="relative flex flex-col gap-2">
-      {image ? (
-        // Signed per viewer; a single fixed-ratio image, no renditions.
-        // biome-ignore lint/performance/noImgElement: signed URL, fixed 4:5 frame
-        <img
-          src={image}
-          alt={copy.imageAlt}
-          className={`aspect-[4/5] w-full max-w-sm rounded-soft object-cover ${drawing && !model.twin.current ? 'opacity-60' : ''}`}
+    <div className="flex flex-col gap-2">
+      <figure className="-mx-4 -mt-6 relative h-[440px] overflow-hidden bg-surface-sunk md:mx-0 md:mt-0 md:h-[480px] md:rounded-soft md:border md:border-hairline">
+        {image ? (
+          // Signed per viewer; one fixed frame, no renditions.
+          // biome-ignore lint/performance/noImgElement: signed URL, fixed hero frame
+          <img
+            src={image}
+            alt={copy.imageAlt}
+            className={`absolute inset-0 size-full object-cover object-[50%_12%] ${drawing && !model.twin.current ? 'opacity-60' : ''}`}
+          />
+        ) : (
+          <Skeleton className="absolute inset-0 size-full rounded-none" />
+        )}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[90px] bg-gradient-to-t from-bg to-transparent"
         />
-      ) : (
-        <Skeleton className="aspect-[4/5] w-full max-w-sm" />
-      )}
-      <figcaption className="font-display text-xl text-ink italic">
-        {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
-      </figcaption>
+        <figcaption className="absolute inset-x-5 bottom-[18px] font-display text-ink text-xl italic leading-[1.35]">
+          {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
+        </figcaption>
+      </figure>
       {drawing ? (
         <Text role="status" size="small" tone="muted">
           {tw.drawing}
@@ -98,6 +106,6 @@ function ModelStage({ model }: { model: Model }) {
           {tw.twinFailed}
         </Text>
       ) : null}
-    </figure>
+    </div>
   );
 }
