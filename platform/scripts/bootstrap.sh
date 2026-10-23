@@ -1,20 +1,33 @@
 #!/usr/bin/env bash
-# One-off staging bootstrap for the Supabase database, Vercel env secrets and AWS secrets.
+# One-off bootstrap of an environment's database, Vercel env secrets and AWS secrets.
 # Run it yourself (it writes secrets); nothing it handles is printed or saved to disk.
-#   Needs: AWS credentials for the staging account in the environment, `vercel` logged in with
-#   access to the codu team, psql, and the repo linked (`vercel link --project robes-app`).
-#   Usage (from platform/):  bash scripts/staging-bootstrap.sh
+#   Needs: AWS credentials for the account in the environment, `vercel` logged in with access to the
+#   codu team, psql, the stage's CDK stacks deployed (it reads the keys CDK created).
+#   Usage (from platform/):  bash scripts/bootstrap.sh staging|production
+#   The Supabase postgres password is asked for, or read from DB_PASSWORD_FILE (a file only you can read).
 set -euo pipefail
 
-REF="${SUPABASE_REF:-ebqaolcwhcqtuvkluubu}"
+STAGE="${1:-}"
+case "$STAGE" in
+  staging) REF="${SUPABASE_REF:-ebqaolcwhcqtuvkluubu}" PROJECT=robes-app ENV=robes-staging ;;
+  # Production's schema `app` lives inside the legacy Supabase project (docs/migration.md §4).
+  production) REF="${SUPABASE_REF:-ayowpaknssulsqqvwpqx}" PROJECT=robes-prod ENV=robes-prod ;;
+  *) echo "usage: bash scripts/bootstrap.sh staging|production" >&2; exit 1 ;;
+esac
 POOLER="${SUPABASE_POOLER:-aws-1-eu-west-1.pooler.supabase.com}"
 SCOPE="${VERCEL_SCOPE:-codu}"
-ENV="robes-staging"
 export AWS_REGION="${AWS_REGION:-eu-west-1}"
 cd "$(dirname "$0")/.."
 
-read -rsp "Supabase postgres password: " DB_PASSWORD && echo
-ADMIN_URL="postgresql://postgres:${DB_PASSWORD}@db.${REF}.supabase.co:5432/postgres?sslmode=require"
+if [ -n "${DB_PASSWORD_FILE:-}" ]; then
+  DB_PASSWORD="$(tr -d '\n' <"$DB_PASSWORD_FILE")"
+else
+  read -rsp "Supabase postgres password ($STAGE): " DB_PASSWORD && echo
+fi
+[ -n "$DB_PASSWORD" ] || { echo "No password; nothing was changed." >&2; exit 1; }
+ENC="$(DB_PASSWORD="$DB_PASSWORD" node -e 'process.stdout.write(encodeURIComponent(process.env.DB_PASSWORD))')"
+# The direct db.<ref> host is IPv6-only; the session pooler (5432) works on IPv4 and runs DDL.
+ADMIN_URL="postgresql://postgres.${REF}:${ENC}@${POOLER}:5432/postgres?sslmode=require"
 
 echo "1/5 migrating the database"
 DATABASE_ADMIN_URL="$ADMIN_URL" pnpm --silent db:migrate
@@ -36,6 +49,8 @@ aws_secret() { # name value
 }
 aws_read() { aws secretsmanager get-secret-value --secret-id "${ENV}/$1" --query SecretString --output text; }
 
+(cd app && vercel link --yes --scope "$SCOPE" --project "$PROJECT" >/dev/null)
+
 echo "3/5 app secrets"
 vercel_secret DATABASE_URL "$DATABASE_URL"
 aws_secret database/url "$DATABASE_URL"
@@ -54,4 +69,4 @@ echo "5/5 Gemini for the workers (from the repo-root .env, if present)"
 GEMINI="$(grep -E '^GEM(I|E)NI_API_KEY=' ../.env 2>/dev/null | head -1 | cut -d= -f2- | tr -d "\"' " || true)"
 if [ -n "$GEMINI" ]; then aws_secret gemini/api-key "$GEMINI"; else echo "   skipped: no GEMINI_API_KEY in ../.env"; fi
 
-echo "Done. Deploy with: (cd .. && vercel deploy --prod --scope $SCOPE)"
+echo "Done. Deploy with: (cd app && vercel deploy --prod --scope $SCOPE)"
