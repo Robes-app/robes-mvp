@@ -32,7 +32,10 @@ export async function extract(sourceUrl: string, targetUrl: string): Promise<Ext
   const report: ExtractReport = { tables: {} };
   await withClient(sourceUrl, (src) =>
     withClient(targetUrl, async (dst) => {
-      await dst.query('drop schema if exists legacy cascade; create schema legacy;');
+      // On the cutover run the target is the live Supabase project: keep the copy away from its API roles.
+      await dst.query(
+        'drop schema if exists legacy cascade; create schema legacy; revoke all on schema legacy from public;',
+      );
       for (const [table, columns] of Object.entries(LEGACY_CATALOG)) {
         const target = `legacy.${ident(legacyTableName(table))}`;
         await dst.query(
