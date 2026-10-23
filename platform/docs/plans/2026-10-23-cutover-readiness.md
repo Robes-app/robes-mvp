@@ -14,6 +14,41 @@ true before we run them, and adds what this week's legacy work changed.
 - Production for the new app does not exist yet (`docs/HANDOVER.md`: "Production: not set up yet").
 - Migration tooling (`scripts/migrate`) has only been rehearsed against a local fixture.
 
+## 0. BLOCKER on staging now: the media pipeline is not running
+
+Found 2026-10-23 by walking the flow on staging as a new account. **Every photo-driven flow is
+dead**, which reads to a tester as "I can't create a look".
+
+What was measured:
+- `POST /api/v1/uploads` signs fine and a direct `PUT` to
+  `robes-staging-media-259887029472` returns 200. Bucket CORS answers
+  `Access-Control-Allow-Origin: https://staging.byrobes.com` for `PUT`. The upload is NOT the problem.
+- The asset then **stays `status: 'pending'` forever** — `GET /api/v1/assets/:id` polled for 60s
+  returns no `master`, no renditions, no width/height/blurhash.
+- `wardrobe-pieces` waits `assetWaitMs` (30s) for the asset to leave `pending`, throws
+  `asset_not_ready`; `useFirstPiece` falls back to the single read, which waits another 30s on
+  `wardrobe-analyse`. Total ~60s, then the piece is marked failed.
+
+So `uploads/` is not reaching **RenditionFn**, or RenditionFn is failing every invocation. The CDK
+wiring is correct in code (`infra/src/stacks/media-stack.ts`: native `notificationConfiguration`
+→ `s3:ObjectCreated:*` on `RENDITION_PREFIXES`), so this is deployed state, not a code defect.
+
+Ops steps (needs admin credentials on `259887029472`, eu-west-1):
+- [ ] CloudWatch logs for the `rendition` function: is it invoked at all? If it is, read the error.
+- [ ] The rendition DLQ (`queues-stack.ts` `RenditionDlq`) — depth and a sample message.
+- [ ] `aws s3api get-bucket-notification-configuration` on the media bucket: is the Lambda
+      configuration actually present, and does the `S3InvokeRendition` permission still exist?
+- [ ] Check the worker secrets the rendition path needs — this plan's §B still lists
+      `database/url` as a placeholder. `processUpload` writes the asset row, so a bad
+      `DATABASE_URL` fails every invocation into the DLQ.
+- [ ] `pnpm cdk diff 'Staging/*'`, then redeploy `Stg-Media`.
+- [ ] Re-test: upload a photo, poll `GET /api/v1/assets/:id` until `ready`, then create a look
+      from a photo end to end.
+
+Until this is fixed, nothing else about staging can be judged — and **it must be proved on
+production before the DNS move**, because it is invisible in a health check
+(`/api/v1/health` answered `{"ok":true}` throughout).
+
 ## A. Catch up with this week's founder work (legacy 16–23 Oct)
 
 Last parity pass was 2026-10-15 (`docs/STATUS.md`). New legacy work since, in build order:

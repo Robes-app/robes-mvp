@@ -184,14 +184,14 @@ export function specFromWay(
 // many earlier sets rode along as ALREADY SHOWN, and owned/total per way — the read that says
 // whether "suggest new pieces" was honoured. Counts and one enum; her own words never land here,
 // only the fact that she wrote some ('words').
-export function askDetail(steer: Steer): Record<string, unknown> {
+function askDetail(steer: Steer): Record<string, unknown> {
   const balance = steer.balance ?? (steer.balanceNote?.trim() ? 'words' : null);
   const shown = steer.recent?.length ?? 0;
   return { ...(balance ? { balance } : {}), ...(shown ? { shown } : {}) };
 }
 
 // Counted on the pieces as they will be stored, so the row says what she was actually shown.
-export function ownedOfTotal(
+function ownedOfTotal(
   ways: readonly { pieces: Parameters<typeof normalisePieces>[0] }[],
   closet: Parameters<typeof normalisePieces>[1],
 ): string {
