@@ -1,4 +1,5 @@
-import { BRIEF_KEPT_MAX } from '@robes/core/style-dna';
+import { paletteFromWords } from '@robes/core/colour';
+import { BRIEF_KEPT_MAX, paletteOf } from '@robes/core/style-dna';
 import { type Kysely, sql, type Transaction } from 'kysely';
 import type { Db } from '../client';
 import type { DB } from '../database.types';
@@ -363,16 +364,27 @@ export function styleDnaRepo(db: Db) {
               .where('userId', '=', userId)
               .execute();
           } else {
-            const merged = (key: string, add: string[]) =>
-              sql`(select coalesce(jsonb_agg(distinct c), '[]'::jsonb) from (
-                select jsonb_array_elements_text(coalesce(user_overrides -> ${key}, '[]'::jsonb)) c
-                union select unnest(${add}::text[])) x)`;
+            // A kept colour observation lands on her palette at shade level (legacy a61f211).
+            const row = await trx
+              .selectFrom('styleProfiles')
+              .select(['palette', 'userOverrides'])
+              .where('userId', '=', userId)
+              .executeTakeFirst();
+            const current = paletteOf({
+              palette: row?.palette,
+              user_overrides: row?.userOverrides,
+            });
+            const add = paletteFromWords(line.loved, line.rejected);
+            const palette = {
+              fam: { ...current.fam, ...add.fam },
+              shade: { ...current.shade, ...add.shade },
+              print: current.print,
+            };
             await trx
               .updateTable('styleProfiles')
               .set({
-                userOverrides: sql`user_overrides || jsonb_build_object(
-                  'loved_colors', ${merged('loved_colors', line.loved)},
-                  'rejected_colors', ${merged('rejected_colors', line.rejected)})`,
+                palette: JSON.stringify(palette),
+                userOverrides: sql`user_overrides - 'loved_colors' - 'rejected_colors'`,
               })
               .where('userId', '=', userId)
               .execute();

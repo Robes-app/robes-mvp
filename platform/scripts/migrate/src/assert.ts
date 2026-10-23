@@ -1,4 +1,5 @@
 import { DAILY_STEPS, IdeaWay } from '@robes/contracts';
+import { PATTERN_IDS_SQL, SHADE_IDS_SQL } from '@robes/core/colour-sql';
 import { z } from 'zod';
 import { withClient } from './db';
 import { LEGACY_TYPE_MAP } from './lookbook';
@@ -82,7 +83,21 @@ union all
 select 'daily piece not hers', a.id::text from app.artifacts a,
   jsonb_array_elements(coalesce(a.data -> 'look' -> 'steps', '[]')) s, jsonb_array_elements(s -> 'items') i
   where a.type = 'daily_look' and a.legacy_id is not null and i ->> 'pieceId' is not null
-    and not exists (select 1 from app.wardrobe_items w where w.id::text = i ->> 'pieceId' and w.user_id = a.user_id)`;
+    and not exists (select 1 from app.wardrobe_items w where w.id::text = i ->> 'pieceId' and w.user_id = a.user_id)
+union all
+select 'piece colour lost', w.id::text from legacy.wardrobe_items w join app.wardrobe_items a on a.id = w.id
+  where w.colour_shade = any(${SHADE_IDS_SQL}) and a.colour_shade is distinct from w.colour_shade
+union all
+select 'wish colour lost', w.id::text from legacy.wishlist_items w join app.wishlist_items a on a.id = w.id
+  where w.colour_shade = any(${SHADE_IDS_SQL}) and a.colour_shade is distinct from w.colour_shade`;
+
+// Legacy colour values the model doesn't know (migration 27): dropped to null, counted for review.
+const UNKNOWN_COLOURS_SQL = `
+select count(*)::int as n from (
+  select colour_shade, print from legacy.wardrobe_items
+  union all select colour_shade, print from legacy.wishlist_items) x
+where (x.colour_shade is not null and not x.colour_shade = any(${SHADE_IDS_SQL}))
+   or (x.print is not null and not x.print = any(${PATTERN_IDS_SQL}))`;
 
 const SHARES_SQL = `
 select b.share_id as token from legacy.lookbook_items b
@@ -176,6 +191,11 @@ export async function assertMigration(targetUrl: string): Promise<AssertReport> 
     if (n > 0)
       report.warnings.push(
         `${n} pieces have legacy times_worn above their recorded wears (count not carried)`,
+      );
+    const unknown = (await c.query<{ n: number }>(UNKNOWN_COLOURS_SQL)).rows[0]?.n ?? 0;
+    if (unknown > 0)
+      report.warnings.push(
+        `${unknown} pieces had a colour or print the model doesn't know (left unset)`,
       );
     // Legacy key-piece sets aren't the platform's set records: suggested looks keep their anchor
     // but leave the deck (no ↻ re-roll); their rows stand in Suggested.

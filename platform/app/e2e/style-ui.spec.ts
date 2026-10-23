@@ -6,7 +6,7 @@ const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
-test('a close-up reads her colouring; she picks the season next door and corrects colours', async ({
+test('a close-up reads her colouring; she picks the season next door and sets her colours', async ({
   page,
 }) => {
   await signIn(page);
@@ -38,9 +38,15 @@ test('a close-up reads her colouring; she picks the season next door and correct
   const style = await (await page.request.get('/api/v1/me/style')).json();
   expect(style.colour.season).toBe('True Autumn');
 
-  await sheet.getByLabel('Colours you love on you').fill('Navy, Cream');
-  await sheet.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText('Saved.', { exact: true })).toBeVisible();
-  const saved = await (await page.request.get('/api/v1/me/style')).json();
-  expect(saved.overrides.lovedColors).toEqual(['Navy', 'Cream']);
+  // Your colours (Style DNA): Avoid · No view · Love per family, saved at once.
+  await page.goto('/you/style');
+  await page.getByRole('button', { name: /Your colours/ }).click();
+  const coloursSheet = page.getByRole('dialog', { name: 'Your colours' });
+  await coloursSheet
+    .getByRole('radiogroup', { name: 'Blues' })
+    .getByRole('radio', { name: 'Love' })
+    .click();
+  await expect
+    .poll(async () => (await (await page.request.get('/api/v1/me/style')).json()).palette.fam)
+    .toEqual({ blues: 1 });
 });

@@ -498,6 +498,7 @@ export interface StyleProfiles {
   fullLengthAssetId: string | null;
   headshotAssetId: string | null;
   modelVersion: string | null;
+  palette: Generated<Json>;
   season: string | null;
   silhouetteProportions: Json | null;
   silhouetteRender: Json | null;
@@ -609,6 +610,8 @@ export interface WardrobeItems {
   categoryL2: string | null;
   categoryL3: string | null;
   color: string | null;
+  colourExtra: Generated<string[]>;
+  colourShade: string | null;
   createdAt: Generated<Timestamp>;
   currency: string | null;
   cutoutAssetId: string | null;
@@ -621,6 +624,7 @@ export interface WardrobeItems {
   label: string;
   notes: string | null;
   price: Numeric | null;
+  print: string | null;
   seasonBand: Generated<string>;
   seasonSource: Generated<string>;
   sentiment: string | null;
@@ -678,6 +682,8 @@ export interface WishlistItems {
   categoryL2: string | null;
   categoryL3: string | null;
   color: string | null;
+  colourExtra: Generated<string[]>;
+  colourShade: string | null;
   createdAt: Generated<Timestamp>;
   currency: string | null;
   deletedAt: Timestamp | null;
@@ -687,6 +693,7 @@ export interface WishlistItems {
   label: string;
   note: string | null;
   price: Numeric | null;
+  print: string | null;
   promotedItemId: string | null;
   size: string | null;
   sourceLabel: string | null;

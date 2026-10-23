@@ -3,6 +3,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
+import type { PieceColour } from '@robes/core/colour';
 import { Icon } from '@robes/icons/web';
 import {
   Button,
@@ -20,6 +21,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
 import { SuggestedRail } from '@/components/looks/suggested-rail';
+import { ColourField, colourSummary } from '@/components/wardrobe/colour-field';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { errorCopy } from '@/lib/error-copy';
@@ -28,13 +30,19 @@ import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 const copy = wardrobe.piece;
 const READING_REFRESH_MS = 2000;
 
-type Draft = Record<'label' | 'brand' | 'color' | 'size' | 'notes', string>;
+type Draft = Record<'label' | 'brand' | 'size' | 'notes', string> & { colour: PieceColour };
+
+const colourOf = (p: Piece): PieceColour => ({
+  colourShade: p.colourShade,
+  colourExtra: p.colourExtra,
+  print: p.print,
+});
 
 function toDraft(p: Piece): Draft {
   return {
     label: p.label,
     brand: p.brand ?? '',
-    color: p.color ?? '',
+    colour: colourOf(p),
     size: p.size ?? '',
     notes: p.notes ?? '',
   };
@@ -95,14 +103,14 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
       input: {
         label: draft.label.trim(),
         brand: orNull(draft.brand),
-        color: orNull(draft.color),
+        ...draft.colour,
         size: orNull(draft.size),
         notes: orNull(draft.notes),
       },
     });
   }
 
-  const set = (key: keyof Draft) => (value: string) =>
+  const set = (key: Exclude<keyof Draft, 'colour'>) => (value: string) =>
     setDraft((d) => (d ? { ...d, [key]: value } : d));
 
   return (
@@ -179,12 +187,10 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
               value={draft.brand}
               onChange={(e) => set('brand')(e.target.value)}
             />
-            <Field
-              label={copy.color}
-              name="color"
-              maxLength={60}
-              value={draft.color}
-              onChange={(e) => set('color')(e.target.value)}
+            <ColourField
+              value={draft.colour}
+              check={piece.colourCheck}
+              onChange={(colour) => setDraft((d) => (d ? { ...d, colour } : d))}
             />
             <Field
               label={copy.size}
@@ -236,7 +242,7 @@ function Saw({ piece }: { piece: Piece }) {
   const rows: [string, string | null][] = [
     [wardrobe.saw.rows.piece, piece.label],
     [wardrobe.saw.rows.category, [piece.category, piece.categoryL2].filter(Boolean).join(' · ')],
-    [wardrobe.saw.rows.colour, piece.color],
+    [wardrobe.saw.rows.colour, colourSummary(colourOf(piece)) || piece.color],
     [wardrobe.saw.rows.brand, piece.brand],
   ];
   return (

@@ -7,6 +7,7 @@ import {
   type StartJobOutput,
   StyleProfile,
 } from '@robes/contracts';
+import { paletteOf } from '@robes/core/style-dna';
 import type { UserId } from '@robes/db';
 import { z } from 'zod';
 import { repos } from './db';
@@ -31,6 +32,8 @@ export function toStyleProfile(row: Row): StyleProfile {
       rejectedColors: overrides.rejected_colors,
       measurements: overrides.measurements,
     },
+    // Until she saves one, her free-text colour lists read through the model.
+    palette: paletteOf({ palette: row?.palette, user_overrides: row?.userOverrides }),
     updatedAt: row?.updatedAt.toISOString() ?? null,
   });
 }

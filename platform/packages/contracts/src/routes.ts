@@ -61,6 +61,7 @@ import {
   Me,
   Model,
   OnboardingComplete,
+  Palette,
   PushTokenParams,
   RegisterPushTokenInput,
   RequestDeletionInput,
@@ -254,6 +255,14 @@ export const routes = {
     path: '/me/style/overrides',
     auth: 'user',
     input: StyleOverrides,
+    output: StyleProfile,
+  },
+  // Your colours and Your prints: Avoid · No view · Love, saved whole on each change.
+  'me.style.palette': {
+    method: 'PUT',
+    path: '/me/style/palette',
+    auth: 'user',
+    input: Palette,
     output: StyleProfile,
   },
   // A season she chose by hand: that season's catalog read, no model call (legacy 2026-10-08).

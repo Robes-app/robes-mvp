@@ -2,9 +2,9 @@
 // over a fixed input set, so the parity tests prove the TypeScript port. Run after a legacy change:
 //   node packages/core/scripts/gen-style-dna-fixtures.mjs [path/to/style_dna.js]   (from platform/)
 // Remove with the legacy app at cutover (the fixtures stay).
-import { copyFileSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const legacy =
@@ -12,6 +12,9 @@ const legacy =
 const out = fileURLToPath(new URL('../src/style-dna/fixtures/legacy.json', import.meta.url));
 const copy = join(mkdtempSync(join(tmpdir(), 'style-dna-')), 'legacy.mjs');
 copyFileSync(legacy, copy);
+// Legacy style_dna.js requires its sibling colour model (2026-10-22); it rides along.
+const model = join(dirname(legacy), 'colour_model.cjs');
+if (existsSync(model)) copyFileSync(model, join(dirname(copy), 'colour_model.cjs'));
 const L = await import(pathToFileURL(copy).href);
 
 const U = ['Warm', 'Cool', 'Neutral-Warm', 'Neutral-Cool', undefined];

@@ -66,7 +66,7 @@ export function stylingRepo(db: Db) {
         .execute();
       const dna = await db
         .selectFrom('styleProfiles')
-        .select(['colorHarmony', 'silhouetteProportions', 'userOverrides', 'briefNotes'])
+        .select(['colorHarmony', 'silhouetteProportions', 'userOverrides', 'palette', 'briefNotes'])
         .where('userId', '=', userId)
         .executeTakeFirst();
       const [kept, memory] = await Promise.all([
@@ -96,6 +96,8 @@ export function stylingRepo(db: Db) {
           color_harmony: dna?.colorHarmony ?? null,
           silhouette_proportions: dna?.silhouetteProportions ?? null,
           user_overrides: dna?.userOverrides ?? {},
+          // Her colours and prints (avoid is soft, love weighted up).
+          palette: dna?.palette ?? {},
           // Her "very me" style types; the prompt block reads them as a register (legacy 2026-09-25).
           style_archetypes: profile?.styleArchetypes ?? [],
           // Her brief, the memory and Style DNA (legacy 2026-09-30 / 10-07), in the block's shape.

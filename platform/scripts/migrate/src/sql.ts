@@ -1,3 +1,11 @@
+import {
+  FAMILY_IDS_SQL,
+  PATTERN_IDS_SQL,
+  PREF_PATTERN_IDS_SQL,
+  SHADE_IDS_SQL,
+  shadeFromNameSql,
+} from '@robes/core/colour-sql';
+
 // Set-based domain transforms, legacy.* → app.* (reference/legacy-data-model.md §6.10 amended by
 // data-model.md §5). Every statement is insert … on conflict do nothing with legacy ids kept or
 // derived deterministically (pg_temp.legacy_uuid), so a second run inserts nothing.
@@ -54,6 +62,24 @@ on conflict (id) do nothing;`;
 
 const asset = (owner: string, url: string) =>
   `case when pg_temp.is_http(${url}) then pg_temp.legacy_uuid('asset', ${owner}, ${url}) end`;
+
+// The colour model (legacy migration 27): a shade on the list, else the shade her colour word
+// names; extras on the list (not the main shade, at most three); a known print. Anything else is
+// null, never a failed run.
+const colourShade = (t: string) =>
+  `coalesce(case when ${t}.colour_shade = any(${SHADE_IDS_SQL}) then ${t}.colour_shade end, ${shadeFromNameSql(`${t}.color`)})`;
+const colourExtra = (t: string) => `coalesce(array(
+    select x from unnest(coalesce(${t}.colour_extra, '{}'::text[])) with ordinality e(x, n)
+    where x = any(${SHADE_IDS_SQL}) and x is distinct from cs.shade
+    group by x order by min(n) limit 3), '{}'::text[])`;
+const colourPrint = (t: string) =>
+  `case when ${t}.print = any(${PATTERN_IDS_SQL}) then ${t}.print
+    when lower(btrim(${t}.color)) in ('print', 'multi') then 'other' end`;
+// Her palette (style_dna.palette): -1 avoid, 1 love (0 only on a shade), known ids only.
+const paletteSide = (key: string, ids: string, values: string) =>
+  `(select coalesce(jsonb_object_agg(e.key, e.value), '{}'::jsonb)
+    from jsonb_each(case when jsonb_typeof(pl.p -> '${key}') = 'object' then pl.p -> '${key}' else '{}'::jsonb end) e
+    where e.key = any(${ids}) and e.value in (${values}))`;
 
 const CATEGORIES = `('Tops','Bottoms','Dresses','Outerwear','Shoes','Bags','Accessories','Swimwear','Other')`;
 
@@ -169,6 +195,14 @@ update app.style_profiles t set
 from legacy.profiles p, lateral (select p.style_dna -> 'brief' as b) b
 where t.user_id = p.id and jsonb_typeof(b.b) = 'object';
 
+-- Her colours and prints; a palette she already set on the platform is never overwritten.
+update app.style_profiles t set palette = jsonb_build_object(
+  'fam', ${paletteSide('fam', FAMILY_IDS_SQL, `'1'::jsonb, '-1'::jsonb`)},
+  'shade', ${paletteSide('shade', SHADE_IDS_SQL, `'1'::jsonb, '-1'::jsonb, '0'::jsonb`)},
+  'print', ${paletteSide('print', PREF_PATTERN_IDS_SQL, `'1'::jsonb, '-1'::jsonb`)})
+from legacy.profiles p, lateral (select p.style_dna -> 'palette' as p) pl
+where t.user_id = p.id and jsonb_typeof(pl.p) = 'object' and t.palette = '{}'::jsonb;
+
 -- Kept lines (a string, or {text, source, at, prompt}), what waits, and what she struck.
 insert into app.style_brief_lines (user_id, list, state, text, source, origin, chip, kept_at, created_at)
 select p.id, l.list, 'kept', left(trim(coalesce(e.v ->> 'text', e.v #>> '{}')), 160),
@@ -259,15 +293,16 @@ on conflict (user_id, kind, slug) do nothing;
 
 ${assetsFrom(`select user_id, image_url as url, created_at from legacy.wardrobe_items`, 'wardrobe')}
 
-insert into app.wardrobe_items (id, user_id, label, category, category_l2, category_l3, color, brand,
-  notes, image_asset_id, item_dna, status, hero_position, season_band, season_source, fit_confidence,
+insert into app.wardrobe_items (id, user_id, label, category, category_l2, category_l3, color,
+  colour_shade, colour_extra, print, brand, notes, image_asset_id, item_dna, status, hero_position, season_band, season_source, fit_confidence,
   sentiment, price, currency, size, acquired_via, created_at)
 select w.id, w.user_id,
   left(coalesce(nullif(trim(w.label), ''), 'Piece'), 120),
   case when w.category in ${CATEGORIES} then w.category else 'Other' end,
   case when exists (select 1 from app.wardrobe_taxonomy x where x.l2 = w.category_l2) then w.category_l2 end,
   case when exists (select 1 from app.wardrobe_taxonomy x where x.l2 = w.category_l2 and x.l3 = w.category_l3) then w.category_l3 end,
-  left(w.color, 60), left(w.brand, 80), left(w.notes, 1000),
+  left(w.color, 60), cs.shade, ${colourExtra('w')}, ${colourPrint('w')},
+  left(w.brand, 80), left(w.notes, 1000),
   ${asset('w.user_id', 'w.image_url')},
   case when jsonb_typeof(w.item_dna) = 'object' then w.item_dna else '{}'::jsonb end,
   'ready',
@@ -283,6 +318,7 @@ select w.id, w.user_id,
   left(w.size, 40), 'photo', coalesce(w.created_at, now())
 from legacy.wardrobe_items w
 join app.users u on u.id = w.user_id
+cross join lateral (select ${colourShade('w')} as shade) cs
 on conflict (id) do nothing;
 
 -- Her picks (legacy tag_pieces, or occasions if migration 17 never ran); owners must match (S8).
@@ -304,14 +340,15 @@ on conflict (tag_id, wardrobe_item_id) do update set source = 'user'
 
 ${assetsFrom(`select user_id, image_url as url, created_at from legacy.wishlist_items`, 'wishlist')}
 
-insert into app.wishlist_items (id, user_id, label, category, category_l2, category_l3, color, brand,
-  note, image_asset_id, item_dna, price, currency, size, source_type, source_label, source_url, created_at)
+insert into app.wishlist_items (id, user_id, label, category, category_l2, category_l3, color,
+  colour_shade, colour_extra, print, brand, note, image_asset_id, item_dna, price, currency, size, source_type, source_label, source_url, created_at)
 select i.id, i.user_id,
   left(coalesce(nullif(trim(i.label), ''), 'Piece'), 120),
   case when i.category in ${CATEGORIES} then i.category else 'Other' end,
   case when exists (select 1 from app.wardrobe_taxonomy x where x.l2 = i.category_l2) then i.category_l2 end,
   case when exists (select 1 from app.wardrobe_taxonomy x where x.l2 = i.category_l2 and x.l3 = i.category_l3) then i.category_l3 end,
-  left(i.color, 60), left(i.brand, 80), left(i.note, 1000),
+  left(i.color, 60), cs.shade, ${colourExtra('i')}, ${colourPrint('i')},
+  left(i.brand, 80), left(i.note, 1000),
   ${asset('i.user_id', 'i.image_url')},
   case when jsonb_typeof(i.item_dna) = 'object' then i.item_dna else '{}'::jsonb end,
   case when i.price >= 0 and i.price < 100000000 then i.price end,
@@ -323,6 +360,7 @@ select i.id, i.user_id,
   coalesce(i.created_at, now())
 from legacy.wishlist_items i
 join app.users u on u.id = i.user_id
+cross join lateral (select ${colourShade('i')} as shade) cs
 on conflict (id) do nothing;
 `;
 

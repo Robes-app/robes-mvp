@@ -29,7 +29,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { useDnaMutations } from '@/lib/use-dna';
-import { AnalyseCard, ColourResult, Overrides, SilhouetteResult } from '../style/style-profile';
+import { AnalyseCard, ColourResult, SilhouetteResult } from '../style/style-profile';
 
 const copy = you.model;
 const tw = twin.twinPage;
@@ -387,7 +387,6 @@ function PhotographsBody({
         </Text>
       )}
       <ColourRows model={model} pick={pick} />
-      <Overrides profile={profile} />
     </section>
   );
   const lineBlock = (

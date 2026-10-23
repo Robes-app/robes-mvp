@@ -32,6 +32,7 @@ describe('styling + ideas', () => {
       color_harmony: null,
       silhouette_proportions: null,
       user_overrides: {},
+      palette: {},
       style_archetypes: [],
       brief: { loves: [], avoids: [], rules: [], notes: '' },
       memory: { entries: [] },

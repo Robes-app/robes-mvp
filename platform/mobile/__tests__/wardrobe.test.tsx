@@ -46,7 +46,7 @@ test('a reading piece says so and offers no styling yet', async () => {
   ).toBe(true);
 });
 
-test('editing saves only the edited fields, blanks as null', async () => {
+test('editing saves the fields and the colour she picks, blanks as null', async () => {
   const calls = mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
     [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ brand: 'Toteme' }),
@@ -55,13 +55,20 @@ test('editing saves only the edited fields, blanks as null', async () => {
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: wardrobe.edit }));
   await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.brand), 'Toteme');
-  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.color), '  ');
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.size), '  ');
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.colour.change }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Blues' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Navy' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Stripes' }));
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.save }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({
     label: 'Camel wool coat',
     brand: 'Toteme',
-    color: null,
+    size: null,
+    colourShade: 'navy',
+    colourExtra: [],
+    print: 'stripes',
   });
   expect(await screen.findByText('Toteme')).toBeTruthy();
 });
@@ -183,7 +190,7 @@ test('grid | list switches the layout; the list swipes (or acts) to remove with 
   expect(await screen.findByText(wardrobe.empty.title)).toBeTruthy();
 });
 
-test('Filter counts the season before she applies it', async () => {
+test('Filter counts the season and the colour family before she applies them', async () => {
   const calls = mockFetch({
     'GET /me': ME,
     'GET /wardrobe/items': (_: RequestInit, url: string) =>
@@ -193,6 +200,10 @@ test('Filter counts the season before she applies it', async () => {
   });
   await renderWithApi(<WardrobeView />);
   await fireEvent.press(await screen.findByTestId('wardrobe-filter'));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Neutrals' }));
+  await waitFor(() =>
+    expect(calls.some((c) => c.url.includes('colourFamily=neutrals'))).toBe(true),
+  );
   await fireEvent.press(
     await screen.findByRole('button', { name: wardrobe.filter.seasons.spring_summer }),
   );

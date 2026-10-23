@@ -57,7 +57,7 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
           user: buildUser(),
           images: [{ mimeType: 'image/jpeg', data: image }],
           schema: Output,
-          maxOutputTokens: 760,
+          maxOutputTokens: 860,
           temperature: 0,
           signal: ctx.signal,
         });

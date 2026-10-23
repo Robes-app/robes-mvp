@@ -12,6 +12,8 @@ import {
   Output,
 } from '@robes/ai/prompts/style-brief';
 import { twin } from '@robes/copy';
+import { colourPreference, type Palette, shadePreference } from '@robes/core/colour';
+import { paletteOf } from '@robes/core/style-dna';
 import type { PendingDraft, SystemRepositories } from '@robes/db';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
@@ -26,10 +28,12 @@ export interface StyleBriefDeps {
 // The job carries intent only; everything is read from her rows (SEC-16).
 export const StyleBriefInput = z.object({}).strict();
 
-const lower = (a: unknown): string[] =>
-  Array.isArray(a)
-    ? a.filter((x): x is string => typeof x === 'string').map((x) => x.toLowerCase())
-    : [];
+// A colour Robes noticed that her palette already says the same of is not offered again.
+function alreadySaid(palette: Palette, colour: string, v: 1 | -1): boolean {
+  const r = colourPreference(colour);
+  if (!r) return false;
+  return 'shade' in r ? shadePreference(palette, r.shade) === v : palette.fam[r.family] === v;
+}
 
 // Robes reads her wardrobe for the brief (legacy /api/stylenotes/brief + Settings obsDraft): what
 // it noticed lands as lines waiting for her Keep or Not me, never filed on its own.
@@ -110,7 +114,7 @@ export function createStyleBriefHandler(deps: StyleBriefDeps): JobHandler {
           out[list].map((x) => ({ list, text: x.text, because: x.because })),
         ),
       ];
-      const dna = styleCtx.styleDna as { brief?: { notes?: string }; user_overrides?: unknown };
+      const dna = styleCtx.styleDna as { brief?: { notes?: string } };
       const struck = new Set(ev.struck.map((s) => s.toLowerCase()));
       if (!dna.brief?.notes?.trim() && out.notes && !struck.has(out.notes.toLowerCase())) {
         drafts.push({
@@ -120,15 +124,13 @@ export function createStyleBriefHandler(deps: StyleBriefDeps): JobHandler {
           because: evidence,
         });
       }
-      const overrides = (dna.user_overrides ?? {}) as Record<string, unknown>;
-      const hadLoved = lower(overrides.loved_colors);
-      const hadRejected = lower(overrides.rejected_colors);
+      const palette = paletteOf(dna);
       const loved = out.colours.loved
         .map((c) => c.toLowerCase())
-        .filter((c) => !hadLoved.includes(c));
+        .filter((c) => !alreadySaid(palette, c, 1));
       const rejected = out.colours.rejected
         .map((c) => c.toLowerCase())
-        .filter((c) => !hadRejected.includes(c));
+        .filter((c) => !alreadySaid(palette, c, -1));
       if (loved.length || rejected.length) {
         drafts.push({
           list: 'colours',
