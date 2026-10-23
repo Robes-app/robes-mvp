@@ -65,5 +65,6 @@ Open items: retention for `feedback`, `waitlist`, `notifications` and `audit_log
 | PostHog | Consented product analytics and masked replay | EU cloud | Loads only after consent. Enable *Discard client IP data* in project settings |
 | Sentry | Scrubbed error events and traces | Configure an EU (`de`) region org | `sendDefaultPii: false` |
 | Upstash | Rate-limit counters | EU (`eu-west-1`) | No payloads, only keys and counts |
+| Cloudflare Turnstile | The waitlist form's bot check: the visitor's IP and browser signals | Global | Waitlist only; no account data |
 | Apple, Google (sign-in) | OAuth identity for users who choose them | — | Identity providers, not storage |
 | Expo, Apple APNs, Google FCM | Push tokens and notification payloads | — | Native only |
