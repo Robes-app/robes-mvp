@@ -12,6 +12,7 @@ import {
   ErrorText,
   Field,
   Heading,
+  IconButton,
   Skeleton,
   Text,
   TextArea,
@@ -19,11 +20,13 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useId, useState } from 'react';
 import { SuggestedRail } from '@/components/looks/suggested-rail';
 import { ColourField, colourSummary } from '@/components/wardrobe/colour-field';
+import { StarButton } from '@/components/wardrobe/piece-card';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
+import { useStarPiece } from '@/components/wardrobe/use-star-piece';
 import { errorCopy } from '@/lib/error-copy';
 import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 
@@ -53,6 +56,9 @@ const orNull = (v: string): string | null => (v.trim() ? v.trim() : null);
 export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const labelId = useId();
+  const brandId = useId();
+  const star = useStarPiece();
   const query = useApi(
     'wardrobe.get',
     { params: { id } },
@@ -114,19 +120,43 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
     setDraft((d) => (d ? { ...d, [key]: value } : d));
 
   return (
-    <article className="grid gap-8 md:grid-cols-2">
-      <PieceImage piece={piece} sizes="(min-width: 768px) 50vw, 100vw" priority />
+    <article className="mx-auto flex w-full max-w-xl flex-col gap-6">
+      <PieceImage piece={piece} sizes="(min-width: 768px) 640px, 100vw" priority />
       <div className="flex flex-col gap-6">
-        <header className="flex flex-col gap-3">
-          {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
-          <Heading
-            level={1}
-            size="xl"
-            italic={piece.status !== 'ready'}
-            tone={piece.status === 'ready' ? 'default' : 'faint'}
-          >
-            {piece.label}
-          </Heading>
+        <header className="flex flex-col gap-1.5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="flex items-start gap-2">
+                {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
+                <Heading
+                  level={1}
+                  size="xl"
+                  italic={piece.status !== 'ready'}
+                  tone={piece.status === 'ready' ? 'default' : 'faint'}
+                >
+                  {piece.label}
+                </Heading>
+                <IconButton
+                  icon="pencil"
+                  label={copy.editName}
+                  onClick={() => document.getElementById(labelId)?.focus()}
+                />
+              </span>
+              {/* The brand is its own line, and says so when it is missing. */}
+              <button
+                type="button"
+                onClick={() => document.getElementById(brandId)?.focus()}
+                className="self-start font-display text-ink-muted text-lg italic"
+              >
+                {piece.brand ?? copy.addBrand}
+              </button>
+            </div>
+            <StarButton
+              label={piece.label}
+              on={piece.heroPosition !== null}
+              onToggle={() => star.toggle(piece)}
+            />
+          </div>
           {piece.status === 'ready' ? (
             <>
               <div className="flex flex-wrap gap-2">
@@ -173,6 +203,7 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
         {draft ? (
           <form onSubmit={submit} className="flex flex-col gap-4">
             <Field
+              id={labelId}
               label={copy.label}
               name="label"
               required
@@ -181,6 +212,7 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
               onChange={(e) => set('label')(e.target.value)}
             />
             <Field
+              id={brandId}
               label={copy.brand}
               name="brand"
               maxLength={80}

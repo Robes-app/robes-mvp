@@ -343,6 +343,10 @@ export const wardrobe = {
     saved: 'Saved.',
     remove: 'Remove',
     stylePiece: 'Style this piece',
+    // The record door leads with the photograph (legacy bc56305): the name carries a pencil
+    // and the brand is its own tappable line, empty or not.
+    editName: 'Edit the name',
+    addBrand: 'Add the brand',
   },
   // The colour model on a piece (legacy f3e5b5b): one shade, up to three more, a print.
   colour: {
