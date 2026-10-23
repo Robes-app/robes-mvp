@@ -341,9 +341,10 @@ describe('parseEnv(workerEnv)', () => {
         GEMINI_API_KEY_SECRET_ARN: arn,
       }),
     ).toThrow(/exactly one/);
-    expect(() => parseEnv(workerEnv, { APP_ENV: 'staging', DATABASE_URL_SECRET_ARN: arn })).toThrow(
-      /GEMINI_API_KEY_SECRET_ARN/,
-    );
+    // Rendition, maintenance and notify hold no Gemini secret; the AI is built only where it is.
+    expect(() =>
+      parseEnv(workerEnv, { APP_ENV: 'staging', DATABASE_URL_SECRET_ARN: arn }),
+    ).not.toThrow();
     expect(() =>
       parseEnv(workerEnv, { APP_ENV: 'production', DATABASE_URL: base.DATABASE_URL }),
     ).toThrow(/SECRET_ARN/);
