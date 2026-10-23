@@ -719,9 +719,19 @@ export const you = {
       coloursTitle: 'Your colours',
       coloursBody:
         'Love weighs a colour up. Avoid means nothing new in it; what you own is still styled.',
+      // The sheet's own sub and closing note (legacy settings.html shColours/shPrints): her
+      // answers outrank the photographs, and avoid is soft — it never un-styles what she owns.
+      coloursSub:
+        'The colours you love, and the ones you’d rather not buy. Yours to change at any time — they outrank what Robes reads from your photographs.',
+      coloursNote:
+        'Robes won’t suggest new pieces in anything you avoid. What you already own in one is styled like any other.',
       printsTitle: 'Your prints',
+      printsSub: 'The prints you love, and the ones you’d rather not buy.',
+      printsNote: 'Robes won’t suggest new pieces in a print you avoid.',
       states: { avoid: 'Avoid', none: 'No view', love: 'Love' },
       shades: (family: string): string => `${family} shades`,
+      // The family row's quiet meta: only the shades she has set apart from it.
+      shadesSet: (n: number): string => `${n} ${n === 1 ? 'shade' : 'shades'} set`,
       showShades: 'Shades',
       hideShades: 'Hide shades',
       setHere: 'Set here',

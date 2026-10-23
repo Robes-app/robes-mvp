@@ -144,8 +144,7 @@ export const lookbook = {
     titleAround: (piece: string): string => `Your ${piece},`,
     titlePrompt: 'Your ask,',
     titleTail: 'three ways.',
-    modelNone: 'A Robes model wears these for now.',
-    modelBuild: 'Build your model',
+    // No twin: the top card's own badge carries the door, so the deck says nothing here.
     modelYours: 'Each look, shot on your model.',
     composing: 'Robes is composing',
     yourPiece: (piece: string): string => `Your ${piece}`,

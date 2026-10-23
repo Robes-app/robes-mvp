@@ -10,6 +10,7 @@ export * from './field';
 export * from './icon-button';
 export * from './image';
 export * from './pill';
+export * from './preference-control';
 export * from './progress';
 export * from './segmented-control';
 export * from './skeleton';

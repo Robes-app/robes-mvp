@@ -43,9 +43,9 @@ function DeckTitle({ set }: { set: LookSet | undefined }) {
       <Heading className="text-center">
         {`${around ? copy.deck.titleAround(around) : copy.deck.titlePrompt} ${copy.deck.titleTail}`}
       </Heading>
-      {model ? (
+      {model?.filed ? (
         <Text size="caption" tone="muted">
-          {model.filed ? copy.deck.modelYours : copy.deck.modelNone}
+          {copy.deck.modelYours}
         </Text>
       ) : null}
     </View>

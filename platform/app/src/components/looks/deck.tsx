@@ -47,14 +47,9 @@ function DeckTitle({ set }: { set: LookSet | undefined }) {
         {around ? copy.deck.titleAround(around) : copy.deck.titlePrompt}{' '}
         <em>{copy.deck.titleTail}</em>
       </Heading>
-      {model ? (
+      {model?.filed ? (
         <Text size="small" tone="muted">
-          {model.filed ? copy.deck.modelYours : copy.deck.modelNone}{' '}
-          {model.filed ? null : (
-            <Link href="/you/model" className="underline">
-              {copy.deck.modelBuild}
-            </Link>
-          )}
+          {copy.deck.modelYours}
         </Text>
       ) : null}
     </header>
