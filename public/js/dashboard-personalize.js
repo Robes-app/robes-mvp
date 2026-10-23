@@ -43,7 +43,7 @@
       // Every key the prompt block reads (the walk's answers included —
       // brands, the investment level, the facts, the icon tags reached the
       // block but not this gate until 2026-10-09).
-      const _RB_DNA_KEYS = ['color_harmony', 'silhouette_proportions', 'style_archetypes', 'style_archetypes_soft', 'user_overrides', 'brief', 'memory', 'brands', 'investment', 'facts', 'icon_tags'];
+      const _RB_DNA_KEYS = ['color_harmony', 'silhouette_proportions', 'style_archetypes', 'style_archetypes_soft', 'user_overrides', 'brief', 'memory', 'brands', 'investment', 'facts', 'icon_tags', 'palette'];
       const _rbStyleDna = () => {
         const dna = (window.__robes_profile || {}).style_dna;
         if (!(dna && typeof dna === 'object' && _RB_DNA_KEYS.some(k => dna[k]))) return null;
@@ -4101,7 +4101,14 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         // the old 21-swatch popover is gone.
         window.__waColourPop = function() { window.__psOpen('add', 'colour'); };
 
-        function _setDot(n) {
+        // n = 1..3 is a step; 0 is a DOOR (the action sheet, the receipt and
+        // link screens — "a side door, not a step", 2026-10-23): the dots
+        // stand down, and `mode === 'sheet'` pins the modal to the foot of a
+        // phone as a bottom sheet.
+        function _setDot(n, mode) {
+          const m = document.getElementById('wa-modal');
+          if (m) { m.classList.toggle('rb-wf-door', !n); m.classList.toggle('rb-wf-sheetmode', !n && mode === 'sheet'); }
+          if (!n) return;
           const dotsWrap = document.querySelector('#wa-modal .fm-dots');
           if (!dotsWrap) return;
           let dots = dotsWrap.querySelectorAll('.fmd');
@@ -4140,6 +4147,43 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             : '';
         }
 
+        // Three inputs, one per source (2026-08-05 → the action sheet
+        // 2026-10-23): the camera input carries `capture` (the one legitimate
+        // use — a dedicated Camera door, never the picker); the library input
+        // is a pure accept="image/*" multiple, which is what lets iOS open the
+        // photo picker DIRECTLY; #wa-rb-file keeps its extension list for the
+        // desktop drop zone + every poke-the-input flow (the macOS-Safari
+        // multi-select quirk). The chooser and the photo step both render
+        // them, so the Camera and Photo library rows reach the OS in one tap.
+        function _waInputsHtml() {
+          return '<input id="wa-rb-file" type="file" multiple accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp" class="rb-wf-in">' +
+            '<input id="wa-rb-lib" type="file" multiple accept="image/*" class="rb-wf-in">' +
+            '<input id="wa-rb-cam" type="file" accept="image/*" capture="environment" class="rb-wf-in">';
+        }
+        function _waProcessFiles(files) {
+          const list = Array.prototype.slice.call(files || [])
+            .filter(function(f) { return f && (/^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name)); });
+          if (!list.length) return;
+          if (_waBatchQueue.length) {
+            // Retake mid-batch: the new photo replaces the current piece
+            // and any extra picks join the front of the queue.
+            _waBatchQueue = list.slice(1).concat(_waBatchQueue);
+            _waBatchTotal += list.length - 1;
+          } else {
+            _waBatchQueue = list.slice(1);
+            _waBatchTotal = list.length;
+            _waBatchDone = 0;
+          }
+          _waFileToDataUrl(list[0]).then(_runStep2).catch(function(err) {
+            console.warn('[robes-autotag] could not read dropped file:', err);
+          });
+        }
+        function _waWireInputs() {
+          ['wa-rb-file', 'wa-rb-lib', 'wa-rb-cam'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el && !el._rbWired) { el._rbWired = true; el.addEventListener('change', function() { _waProcessFiles(this.files); }); }
+          });
+        }
         function _showStep1() {
           _waFormCss();
           _waForm = null;
@@ -4171,13 +4215,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
                 <button type="button" class="rb-wf-btn ink" data-pick="lib-m">Attach photos</button>
                 <button type="button" class="rb-wf-btn line" data-pick="cam">Take a photo</button>
               </span>
-              <input id="wa-rb-file" type="file" multiple
-                accept="image/*,.jpg,.jpeg,.png,.heic,.heif,.webp"
-                style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
-              <input id="wa-rb-lib" type="file" multiple accept="image/*"
-                style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
-              <input id="wa-rb-cam" type="file" accept="image/*" capture="environment"
-                style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);">
+              ${_waInputsHtml()}
             </div>
             ${_waFromChooser
               ? '<div class="rb-wf-foot"><button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button></div>'
@@ -4191,43 +4229,10 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
 
           const fileInput = document.getElementById('wa-rb-file');
           const zone = document.getElementById('wa-rb-zone');
-          function _process(files) {
-            const list = Array.prototype.slice.call(files || [])
-              .filter(function(f) { return f && (/^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name)); });
-            if (!list.length) return;
-            if (_waBatchQueue.length) {
-              // Retake mid-batch: the new photo replaces the current piece
-              // and any extra picks join the front of the queue.
-              _waBatchQueue = list.slice(1).concat(_waBatchQueue);
-              _waBatchTotal += list.length - 1;
-            } else {
-              _waBatchQueue = list.slice(1);
-              _waBatchTotal = list.length;
-              _waBatchDone = 0;
-            }
-            _waFileToDataUrl(list[0]).then(_runStep2).catch(function(err) {
-              console.warn('[robes-autotag] could not read dropped file:', err);
-            });
-          }
-          if (fileInput) {
-            fileInput.addEventListener('change', function() { _process(this.files); });
-          }
-          // Three inputs, one per source. Take-a-photo goes STRAIGHT to the
-          // camera via its capture input; Choose-from-library rides a pure
-          // accept="image/*" multiple input — a photos-only accept is what
-          // lets iOS open the photo picker DIRECTLY (the extension-carrying
-          // #wa-rb-file invites the Files/Drive providers, so iOS shows its
-          // source chooser; that input survives for desktop Choose-files +
-          // drop + every poke-the-input flow, where the extensions fix the
-          // macOS-Safari multi-select quirk).
+          const _process = _waProcessFiles;
+          _waWireInputs();
           const camInput = document.getElementById('wa-rb-cam');
           const libInput = document.getElementById('wa-rb-lib');
-          if (camInput) {
-            camInput.addEventListener('change', function() { _process(this.files); });
-          }
-          if (libInput) {
-            libInput.addEventListener('change', function() { _process(this.files); });
-          }
           if (zone) {
             zone.addEventListener('click', function(e) {
               // Programmatic input.click() bubbles back here — never re-route it
@@ -4259,22 +4264,31 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           }
         }
 
-        // ══ The ways in (2026-09-22) ═══════════════════════════════════
-        // The chooser is the first screen behind every user-facing add
-        // door: Photograph it / Forward a receipt / Paste a link / Add
-        // without a photo. The photo step, the address panel, the link
-        // reader and the held receipts each carry "← Other ways in".
+        // ══ The ways in — the action sheet (Add_Pieces 1a, 2026-10-23; the
+        // chooser of 2026-09-22 before it) ══════════════════════════════════
+        // Behind every user-facing add door: Camera · Photo library · Forward
+        // a receipt · Paste a link, then "Add without a photo". On a phone it
+        // is a bottom sheet over the page; on the web the same rows in the
+        // dialog. Camera and Photo library hand straight to the OS — the
+        // per-piece confirm (the piece sheet) still follows every read.
         const _WAY_ICONS = {
-          photo: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.2-2h5.6L16 5"/></svg>',
-          mail: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
-          url: '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1.3 1.3"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1.3-1.3"/></svg>',
-          manual: '<svg viewBox="0 0 24 24"><path d="M4 20l4-1 10.5-10.5a2 2 0 00-3-3L5 16z"/><path d="M13.5 6.5l3 3"/></svg>',
+          cam: '<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+          lib: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><circle cx="9" cy="9.5" r="1.5"/><path d="m4 17 5-5 4 4 2-2 5 5"/></svg>',
+          mail: '<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>',
+          url: '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
         };
-        function _wayRow(way, title, sub, dashed) {
-          return '<button type="button" class="rb-wf-way' + (dashed ? ' dashed' : '') + '" data-way="' + way + '" onclick="window.__waWay(\'' + way + '\')">' +
+        const _WF_COPY_SVG = '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>';
+        const _WF_CHECK_SVG = '<svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>';
+        function _wayRow(way, title, note) {
+          return '<button type="button" class="rb-wf-way" data-way="' + way + '" onclick="window.__waWay(\'' + way + '\')">' +
             '<span class="rb-wf-way-ic" aria-hidden="true">' + _WAY_ICONS[way] + '</span>' +
-            '<span class="rb-wf-way-tx"><span class="rb-wf-way-t">' + title + '</span><span class="rb-wf-way-s">' + sub + '</span></span>' +
-            '<span class="rb-wf-way-ar" aria-hidden="true">→</span></button>';
+            '<span class="rb-wf-way-t">' + title + (note ? '<span class="rb-wf-way-n">' + note + '</span>' : '') + '</span>' +
+            '<span class="rb-wf-way-ar" aria-hidden="true">›</span></button>';
+        }
+        // The door screens' header (2a/2b): the native back chevron to the
+        // sheet, the door's name as the eyebrow, nothing right.
+        function _wayHdr(eyebrow) {
+          return '<div class="rb-wf-hdr"><button type="button" class="rb-wf-hback" aria-label="Other ways in" onclick="window.__waWay(\'choose\')"><svg width="11" height="18" viewBox="0 0 11 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 2 9l7 7"/></svg></button><span class="rb-wf-heye">' + eyebrow + '</span><span></span></div>';
         }
         function _dummyLabel(step) {
           if (document.getElementById('wa-label-in')) return;
@@ -4291,22 +4305,27 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const held = _wiRows.length;
           const wl = _waTarget === 'wishlist';
           step.innerHTML =
-            '<h2 class="fm-h">' + (wl ? 'Save a piece.' : 'Add a piece.') + '</h2>' +
-            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 20px;">' + (wl ? 'To your wishlist — however it catches your eye.' : 'However it reaches you.') + '</p>' +
+            '<div class="rb-wf-grab" aria-hidden="true"></div>' +
+            '<span class="rb-wf-eyebrow rb-wf-sheeteye">' + (wl ? 'Save a piece' : 'Add a piece') + '</span>' +
             '<div class="rb-wf-ways" id="rb-wf-ways">' +
-              _wayRow('photo', 'Photograph it', wl ? 'A screenshot, a photo — Robes reads what it can.' : 'One photo. Robes reads the rest.') +
-              _wayRow('mail', 'Forward a receipt', held
-                ? held + (held === 1 ? ' receipt is' : ' receipts are') + ' waiting for you to look over.'
-                : 'Send the order email. Robes files what’s in it.') +
-              _wayRow('url', 'Paste a link', 'A product page from anywhere.') +
+              _wayRow('cam', 'Camera') +
+              _wayRow('lib', 'Photo library') +
+              _wayRow('mail', 'Forward a receipt', held ? held + ' waiting' : '') +
+              _wayRow('url', 'Paste a link') +
             '</div>' +
-            _wayRow('manual', 'Add without a photo', 'Name it yourself. The photograph can come later.', true);
-          _setDot(1);
+            '<button type="button" class="rb-wf-nophoto" onclick="window.__waWay(\'manual\')">Add without a photo</button>' +
+            _waInputsHtml();
+          _setDot(0, 'sheet');
           _dummyLabel(step);
+          _waWireInputs();
         }
         window.__waWay = function(way) {
           if (_waEditId) return;
           if (way === 'choose') { _showChooser(); return; }
+          // Camera and Photo library go straight to the OS from the sheet —
+          // the OS picker IS the library (1b/1c are the phone's own screens).
+          if (way === 'cam') { const i = document.getElementById('wa-rb-cam'); if (i) i.click(); else { _waFromChooser = true; _showStep1(); } return; }
+          if (way === 'lib') { const i = document.getElementById('wa-rb-lib') || document.getElementById('wa-rb-file'); if (i) i.click(); else { _waFromChooser = true; _showStep1(); } return; }
           if (way === 'photo') { _waFromChooser = true; _showStep1(); return; }
           if (way === 'mail') { _showMailStep(); return; }
           if (way === 'url') { _showUrlStep(); return; }
@@ -4314,39 +4333,43 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           if (way === 'manual') { window.__waManualStart(); return; }
         };
 
-        // ── Forward a receipt: her address, and what happens next ──────
+        // ── Forward a receipt (2a): her address, tap to copy, Open Mail ─
         function _showMailStep() {
           _waFormCss();
           _waForm = null;
           const step = document.querySelector('#wa-modal .fm-step');
           if (!step) return;
           const held = _wiRows.length, pieces = _wiHeldCount();
-          const addrHtml = _wiDown
+          const addr = _wiAddr ? _wiAddr + '@' + _WI_DOMAIN : '';
+          const cardIn = _wiDown
             ? '<span class="rb-wf-addr-v off">Robes’ inbox isn’t switched on for this account yet.</span>'
-            : '<span class="rb-wf-addr-v" id="rb-wf-addr">' + (_wiAddr ? _sawEsc(_wiAddr + '@' + _WI_DOMAIN) : 'Setting up your address…') + '</span>' +
-              '<button type="button" class="rb-pill sm" id="rb-wf-copy" onclick="window.__waMailCopy()"' + (_wiAddr ? '' : ' disabled') + '>Copy</button>';
+            : '<span class="rb-wf-addr-tx"><span class="rb-wf-addr-k">Your Robes address</span><span class="rb-wf-addr-v" id="rb-wf-addr">' + (addr ? _sawEsc(addr) : 'Setting up your address…') + '</span></span>' +
+              '<span class="rb-wf-addr-cp" id="rb-wf-copylbl">' + _WF_COPY_SVG + 'Copy</span>';
           step.innerHTML =
-            '<span class="rb-wf-eyebrow">Forward a receipt</span>' +
-            '<h2 class="fm-h">Your own address.</h2>' +
-            '<div class="rb-wf-addr"><span class="rb-wf-eyebrow">Your Robes address</span><div class="rb-wf-addr-row">' + addrHtml + '</div></div>' +
-            '<div class="rb-wf-steps">' +
-              '<div class="rb-wf-step"><span class="n">01</span><span class="t">Forward the order email.</span></div>' +
-              '<div class="rb-wf-step"><span class="n">02</span><span class="t">Robes reads each piece’s colour, cut, label, price and sizing.</span></div>' +
-              '<div class="rb-wf-step"><span class="n">03</span><span class="t">You review and verify before anything gets filed.</span></div>' +
-            '</div>' +
+            _wayHdr('Forward a receipt') +
+            '<h2 class="fm-h">Your own <em>address.</em></h2>' +
+            (_wiDown
+              ? '<div class="rb-wf-addr">' + cardIn + '</div>'
+              : '<button type="button" class="rb-wf-addr" id="rb-wf-copy" onclick="window.__waMailCopy()"' + (addr ? '' : ' disabled') + '>' + cardIn + '</button>') +
+            '<ol class="rb-wf-steps">' +
+              '<li class="rb-wf-step"><span class="n">01</span><span class="t">Forward the order email.</span></li>' +
+              '<li class="rb-wf-step"><span class="n">02</span><span class="t">Robes reads each piece’s colour, cut, label, price and sizing.</span></li>' +
+              '<li class="rb-wf-step"><span class="n">03</span><span class="t">You review and verify before anything gets filed.</span></li>' +
+            '</ol>' +
             (held ? '<p class="rb-wf-note">' + pieces + (pieces === 1 ? ' piece' : ' pieces') + ' waiting · <button type="button" class="rb-wf-back" onclick="window.__waWay(\'receipts\')">Review them →</button></p>' : '') +
-            '<div class="rb-wf-foot">' +
-              '<button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button>' +
-              '<button type="button" class="rb-wf-cta sm" onclick="window.WA&&WA.close()">Got it</button>' +
+            '<div class="rb-wf-dfoot">' +
+              '<a class="rb-wf-cta rb-wf-mailgo" id="rb-wf-mailgo" href="mailto:' + (addr ? _sawEsc(addr) : '') + '" onclick="window._rbTrack&&_rbTrack(\'inbox_mail_opened\',{})">' + _WAY_ICONS.mail + 'Open Mail</a>' +
+              '<button type="button" class="rb-wf-quiet" onclick="window.WA&&WA.close()">Got it</button>' +
             '</div>';
-          _setDot(1);
+          _setDot(0);
           _dummyLabel(step);
           if (!_wiDown && !_wiAddr) {
             _wiAddress().then(function(local) {
               const el = document.getElementById('rb-wf-addr');
               const cp = document.getElementById('rb-wf-copy');
+              const go = document.getElementById('rb-wf-mailgo');
               if (!el) return;
-              if (local) { el.textContent = local + '@' + _WI_DOMAIN; if (cp) cp.disabled = false; }
+              if (local) { el.textContent = local + '@' + _WI_DOMAIN; if (cp) cp.disabled = false; if (go) go.setAttribute('href', 'mailto:' + local + '@' + _WI_DOMAIN); }
               else if (_wiDown) _showMailStep();
               else el.textContent = 'Robes couldn’t set up your address just now — try again in a moment.';
             });
@@ -4355,32 +4378,64 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         window.__waMailCopy = function() {
           if (!_wiAddr) return;
           const addr = _wiAddr + '@' + _WI_DOMAIN;
-          const done = function() { const b = document.getElementById('rb-wf-copy'); if (b) { b.textContent = 'Copied'; setTimeout(function() { if (b.isConnected) b.textContent = 'Copy'; }, 1800); } };
+          const done = function() {
+            const card = document.getElementById('rb-wf-copy'), lbl = document.getElementById('rb-wf-copylbl');
+            if (card) card.classList.add('copied');
+            if (lbl) lbl.innerHTML = _WF_CHECK_SVG + 'Copied';
+            setTimeout(function() {
+              if (card && card.isConnected) card.classList.remove('copied');
+              if (lbl && lbl.isConnected) lbl.innerHTML = _WF_COPY_SVG + 'Copy';
+            }, 2200);
+          };
           if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(addr).then(done, function() { _waShowToast(addr); });
           else _waShowToast(addr);
           _rbTrack('inbox_address_copied', {});
         };
 
-        // ── Paste a link: the page is read like a photograph ───────────
+        // ── Paste a link (2b): Paste lives in the field, one action ────
         function _showUrlStep(errText, keepUrl) {
           _waFormCss();
           _waForm = null;
           const step = document.querySelector('#wa-modal .fm-step');
           if (!step) return;
           step.innerHTML =
-            '<h2 class="fm-h">From a link.</h2>' +
-            '<p style="font-size:14px;color:var(--ink-faint);margin:0 0 18px;">Paste the product page and Robes reads the piece out of it.</p>' +
-            '<div class="rb-wf-urlrow"><input id="rb-wf-url" class="rb-wf-input" type="url" inputmode="url" placeholder="https://" value="' + _sawEsc(keepUrl || '') + '" onkeydown="if(event.key===\'Enter\'){event.preventDefault();window.__waUrlRead();}">' +
-            '<button type="button" class="rb-wf-cta sm" id="rb-wf-urlgo" onclick="window.__waUrlRead()">Read it</button></div>' +
-            (errText ? '<p class="rb-wf-err" id="rb-wf-urlerr">' + _sawEsc(errText) + '</p>' : '') +
-            '<p class="rb-wf-note">Any retailer product page. Robes takes the name, brand, colour, price and size, and leaves the rest.</p>' +
-            '<div class="rb-wf-foot"><button type="button" class="rb-wf-back" onclick="window.__waWay(\'choose\')">← Other ways in</button>' +
-            (errText ? '<button type="button" class="rb-wf-back" onclick="window.__waWay(\'manual\')">Add it without a photo instead →</button>' : '') + '</div>';
-          _setDot(1);
+            _wayHdr('Paste a link') +
+            '<h2 class="fm-h">From a <em>link.</em></h2>' +
+            '<p class="rb-wf-sub">Paste the product page and Robes reads the piece out of it.</p>' +
+            '<div class="rb-wf-urlfield' + (keepUrl ? ' has' : '') + '" id="rb-wf-urlfield">' +
+              '<input id="rb-wf-url" class="rb-wf-urlin" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://" value="' + _sawEsc(keepUrl || '') + '" oninput="window.__waUrlInput()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();window.__waUrlRead();}">' +
+              '<button type="button" class="rb-wf-paste" id="rb-wf-paste" onclick="window.__waUrlPaste()"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/></svg>Paste</button>' +
+              '<button type="button" class="rb-wf-urlx" aria-label="Clear" onclick="window.__waUrlClear()">×</button>' +
+            '</div>' +
+            (errText
+              ? '<p class="rb-wf-err" id="rb-wf-urlerr">' + _sawEsc(errText) + '</p><p class="rb-wf-note" style="margin-top:8px"><button type="button" class="rb-wf-back" onclick="window.__waWay(\'manual\')">Add it without a photo instead →</button></p>'
+              : '<p class="rb-wf-note">Any retailer product page. Robes takes the name, brand, colour, price and size, and leaves the rest.</p>') +
+            '<div class="rb-wf-dfoot"><button type="button" class="rb-wf-cta' + (keepUrl ? '' : ' dim') + '" id="rb-wf-urlgo" onclick="window.__waUrlRead()">Read it</button></div>';
+          _setDot(0);
           _dummyLabel(step);
           const inp = document.getElementById('rb-wf-url');
           if (inp && !keepUrl) inp.focus();
         }
+        window.__waUrlInput = function() {
+          const inp = document.getElementById('rb-wf-url'), f = document.getElementById('rb-wf-urlfield'), go = document.getElementById('rb-wf-urlgo');
+          const has = !!(inp && inp.value.trim());
+          if (f) f.classList.toggle('has', has);
+          if (go) go.classList.toggle('dim', !has);
+        };
+        window.__waUrlClear = function() {
+          const inp = document.getElementById('rb-wf-url');
+          if (inp) { inp.value = ''; window.__waUrlInput(); inp.focus(); }
+        };
+        // Paste reads the clipboard where the browser allows it (iOS asks
+        // once, in its own bubble); anywhere it can't, the field takes focus
+        // and the keyboard's own paste does the job.
+        window.__waUrlPaste = function() {
+          const inp = document.getElementById('rb-wf-url');
+          if (!inp) return;
+          const land = function(t) { if (t && String(t).trim()) { inp.value = String(t).trim(); window.__waUrlInput(); } inp.focus(); };
+          if (navigator.clipboard && navigator.clipboard.readText) navigator.clipboard.readText().then(land, function() { land(''); });
+          else land('');
+        };
         function _showReading(h, sub) {
           const step = document.querySelector('#wa-modal .fm-step');
           if (!step) return;
@@ -5034,33 +5089,59 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             '.rb-mp-tileim{display:block;aspect-ratio:3/4;border-radius:var(--rad-sm);overflow:hidden;background:var(--cream-200,#EFE9DC)}',
             '.rb-mp-tile .rb-mp-eye{margin-top:8px}',
             '.rb-mp-ownedline{font-size:13px;color:var(--ink-soft);margin:16px 0 0}',
-            // the ways chooser + the two text doors (2026-09-22)
-            '.rb-wf-ways{display:flex;flex-direction:column;gap:10px}',
-            '.rb-wf-way{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:15px 16px;border:1px solid var(--rule-mid,#E7E0CF);background:#fff;border-radius:var(--rad-sm);cursor:pointer;font-family:inherit;color:#2A2520;transition:border-color .15s,background .15s;box-sizing:border-box}',
-            '.rb-wf-way:hover{border-color:rgba(142,112,119,.45);background:rgba(212,200,196,.22)}',
-            '.rb-wf-way.dashed{border:1.5px dashed #D8CFC0;background:transparent;margin-top:2px}',
-            '.rb-wf-way.dashed:hover{border-color:#8E7077;background:transparent}',
-            '.rb-wf-way-ic{flex:0 0 38px;width:38px;height:38px;border-radius:8px;background:rgba(212,200,196,.6);color:#8E7077;display:flex;align-items:center;justify-content:center}',
-            '.rb-wf-way.dashed .rb-wf-way-ic{background:transparent;border:1px dashed #D8CFC0;color:var(--ink-faint)}',
-            '.rb-wf-way-ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}',
-            '.rb-wf-way-tx{flex:1;min-width:0}',
-            '.rb-wf-way-t{display:block;font-size:13.5px;font-weight:500;color:#2A2520}',
-            '.rb-wf-way-s{display:block;font-size:11.5px;color:var(--ink-faint);margin-top:3px;line-height:1.45}',
-            '.rb-wf-way-ar{color:var(--ink-faint);font-size:13px;flex:none}',
+            // the action sheet + the two door screens (Add_Pieces 1a/2a/2b,
+            // 2026-10-23 — the chooser of 2026-09-22 before them)
+            '#wa-modal.rb-wf-door .fm-dots{visibility:hidden}',
+            '.rb-wf-in{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}',
+            '.rb-wf-grab{display:none;width:36px;height:4px;border-radius:2px;background:var(--cream-400,#D8CFC0);margin:0 auto 22px}',
+            '.rb-wf-sheeteye{text-align:center;margin-bottom:14px}',
+            '.rb-wf-ways{display:flex;flex-direction:column;border-top:1px solid var(--rule-mid,#E7E0CF)}',
+            '.rb-wf-way{display:flex;align-items:center;gap:16px;width:100%;text-align:left;padding:16px 4px;border:0;border-bottom:1px solid var(--rule-mid,#E7E0CF);border-radius:0;background:transparent;cursor:pointer;font-family:inherit;color:#2A2520;transition:background .2s;box-sizing:border-box}',
+            '.rb-wf-way:hover,.rb-wf-way:active{background:#F3EFE6}',
+            '.rb-wf-way-ic{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--rule-mid,#E7E0CF);background:#fff;color:#2A2520;display:flex;align-items:center;justify-content:center}',
+            '.rb-wf-way-ic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}',
+            '.rb-wf-way-t{flex:1;min-width:0;font-family:var(--font-serif,Georgia,serif);font-weight:400;font-size:20px;line-height:1;color:#2A2520}',
+            '.rb-wf-way-n{font-family:var(--font-sans,Inter,sans-serif);font-size:11px;color:var(--ink-faint);margin-left:10px}',
+            '.rb-wf-way-ar{color:var(--ink-soft);font-size:15px;flex:none}',
+            '.rb-wf-ways+.rb-wf-nophoto{border-top:0;margin-top:20px;padding:0;min-height:44px;color:var(--ink-soft)}',
+            '.rb-wf-hdr{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;margin:-8px -10px 18px}',
+            '.rb-wf-hback{width:44px;height:44px;border:0;background:none;color:#2A2520;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;font-family:inherit}',
+            '.rb-wf-heye{justify-self:center;font-size:9px;letter-spacing:.24em;text-transform:uppercase;font-weight:500;color:var(--ink-soft)}',
+            '.rb-wf-sub{margin:10px 0 0;font-size:15px;line-height:1.45;color:var(--ink-soft)}',
             '.rb-wf-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px;padding-top:16px;border-top:1px solid #EFE9DC}',
+            '.rb-wf-note{margin:14px 0 0;font-size:12px;line-height:1.55;color:var(--ink-faint)}',
             '.rb-wf-back{background:none;border:none;padding:0;font-size:12px;color:var(--ink-faint);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-family:inherit}',
             '.rb-wf-back:hover{color:var(--ink)}',
-            '.rb-wf-note{margin:14px 0 0;font-size:12px;line-height:1.55;color:var(--ink-faint)}',
-            '.rb-wf-addr{background:#fff;border:1px solid var(--rule-mid,#E7E0CF);border-radius:var(--rad-sm);padding:16px 18px}',
-            '.rb-wf-addr-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}',
-            '.rb-wf-addr-v{font-size:14.5px;color:#2A2520;word-break:break-all}',
+            // 2a — the address card is the Copy button
+            '.rb-wf-addr{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin-top:22px;border:1px solid var(--rule,#EFE9DC);background:#fff;border-radius:var(--rad-card,16px);padding:18px 18px 18px 20px;font-family:inherit;cursor:pointer;transition:background .2s,border-color .2s;box-sizing:border-box;color:#2A2520}',
+            '.rb-wf-addr.copied{background:#F3EFE6;border-color:#C9BCA6}',
+            'div.rb-wf-addr,.rb-wf-addr[disabled]{cursor:default}',
+            '.rb-wf-addr-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px}',
+            '.rb-wf-addr-k{font-size:9px;letter-spacing:.22em;text-transform:uppercase;font-weight:500;color:var(--rose,#8E6A7C)}',
+            '.rb-wf-addr-v{font-size:16px;line-height:1.2;color:#2A2520;overflow-wrap:anywhere}',
             '.rb-wf-addr-v.off{font-family:var(--font-serif,Georgia,serif);font-style:italic;font-weight:300;font-size:15px;color:var(--ink-faint)}',
-            '.rb-wf-steps{display:flex;flex-direction:column;gap:13px;margin-top:22px}',
-            '.rb-wf-step{display:flex;gap:12px;align-items:flex-start}',
-            '.rb-wf-step .n{flex:0 0 18px;font-size:10px;font-weight:500;line-height:19px;color:#9A8070}',
-            '.rb-wf-step .t{font-size:12.5px;line-height:1.6;color:var(--ink-soft)}',
-            '.rb-wf-urlrow{display:flex;gap:8px;flex-wrap:wrap}',
-            '.rb-wf-urlrow .rb-wf-input{flex:1;min-width:180px;width:auto}',
+            '.rb-wf-addr-cp{flex:none;display:flex;align-items:center;gap:6px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;font-weight:500;color:var(--ink-soft)}',
+            '.rb-wf-addr-cp svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}',
+            '.rb-wf-steps{list-style:none;margin:30px 0 0;padding:0;display:flex;flex-direction:column;gap:18px}',
+            '.rb-wf-step{display:grid;grid-template-columns:32px 1fr;font-size:15px;line-height:1.45;color:#2A2520}',
+            '.rb-wf-step .n{font-size:11px;line-height:22px;color:var(--rose,#8E6A7C)}',
+            '.rb-wf-step .t{font-size:15px;line-height:1.45;color:#2A2520}',
+            '.rb-wf-dfoot{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:28px}',
+            '.rb-wf-dfoot .rb-wf-cta{margin-top:0;width:100%;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:10px;box-sizing:border-box;padding:18px;transition:opacity .25s}',
+            '.rb-wf-dfoot .rb-wf-cta svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linejoin:round}',
+            '.rb-wf-cta.dim{opacity:.28}',
+            '.rb-wf-quiet{border:0;background:none;font-size:13px;color:var(--ink-soft);min-height:44px;padding:0 16px;cursor:pointer;font-family:inherit}',
+            // 2b — the field carries Paste, then ×
+            '.rb-wf-urlfield{margin-top:22px;height:56px;border:1px solid #2A2520;background:#fff;border-radius:var(--rad,10px);display:flex;align-items:center;gap:8px;padding:0 6px 0 16px;box-sizing:border-box}',
+            '.rb-wf-urlin{flex:1;min-width:0;border:0;outline:0;background:none;font-family:inherit;font-size:15px;color:#2A2520;height:100%;padding:0}',
+            '.rb-wf-urlin::placeholder{color:var(--ink-faint)}',
+            '.rb-wf-paste{flex:none;height:40px;border:1px solid var(--rule,#EFE9DC);background:var(--cream,#FAF8F5);border-radius:100px;padding:0 14px;display:flex;align-items:center;gap:7px;font-family:inherit;font-size:9px;letter-spacing:.2em;text-transform:uppercase;font-weight:500;color:#2A2520;cursor:pointer}',
+            '.rb-wf-paste svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}',
+            '.rb-wf-urlx{flex:none;width:40px;height:40px;border:0;background:none;color:var(--ink-faint);font-size:18px;font-weight:300;cursor:pointer;font-family:inherit}',
+            '.rb-wf-urlfield.has .rb-wf-paste,.rb-wf-urlfield:not(.has) .rb-wf-urlx{display:none}',
+            // the sheet on a phone: pinned to the foot, a grab bar, no rail
+            '@media(max-width:767px){#wa-modal.rb-wf-sheetmode{align-items:flex-end;padding:0}#wa-modal.rb-wf-sheetmode .fm-dialog{height:auto;max-height:88dvh;width:100%;border-radius:var(--rad-lg,22px) var(--rad-lg,22px) 0 0;border:0;animation:rbWfUp .35s cubic-bezier(.22,1,.36,1) both}#wa-modal.rb-wf-sheetmode .fm-rail{display:none}#wa-modal.rb-wf-sheetmode .fm-stage{padding:10px 24px calc(30px + env(safe-area-inset-bottom,0px))}#wa-modal.rb-wf-sheetmode .rb-wf-grab{display:block}}',
+            '@keyframes rbWfUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}',
             '.rb-wf-err{margin:10px 0 0;font-size:12px;color:#B0533B}',
             '.rb-wf-reading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:54px 20px;text-align:center}',
             '.rb-wf-reading .sp{font-size:20px;color:#8E7077;animation:rbSawPulse 1.6s ease-in-out infinite}',
@@ -5774,6 +5855,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               _waBrief = null;
               _waFromChooser = false;
               _waTarget = 'wardrobe';
+              const mEl = document.getElementById('wa-modal');
+              if (mEl) { mEl.classList.remove('rb-wf-door'); mEl.classList.remove('rb-wf-sheetmode'); }
               // Form + tag-axis + taxonomy state must not leak into the next open
               _waForm = null;
               _waMp = null; _waMpOpenIdx = null; _waMpNext = null;
@@ -22612,15 +22695,28 @@ body.rb-lk-push #rb-lk-undo{left:18px;right:18px;bottom:calc(20px + env(safe-are
         const i = b.pending.findIndex(p => p && p.text === x.text);
         if (i >= 0) b.pending.splice(i, 1);
         const at = new Date().toISOString();
+        const patch = { brief: b };
         if (v === 'keep') {
           if (x.list === 'notes') b.notes = x.full || x.text;
-          else if (x.list === 'colours') { b.colours.loved = b.colours.loved.concat(x.loved || []); b.colours.rejected = b.colours.rejected.concat(x.rejected || []); }
+          else if (x.list === 'colours') {
+            // A kept colour observation lands on the colour model (phase 4,
+            // 2026-10-23) — a shade name on its shade, a plain word on its
+            // family — exactly as Settings' Keep does; never on the old lists.
+            const cm = _rbCM();
+            const prof = window.__robes_profile || {};
+            const p0 = prof.style_dna && prof.style_dna.palette && typeof prof.style_dna.palette === 'object' ? prof.style_dna.palette : {};
+            const pal = { v: 1, fam: Object.assign({}, p0.fam || {}), shade: Object.assign({}, p0.shade || {}), print: Object.assign({}, p0.print || {}) };
+            const land = (w, val) => { const r = cm && cm.preference(w); if (!r) return; if (r.shade) pal.shade[r.shade] = val; else pal.fam[r.family] = val; };
+            (Array.isArray(x.rejected) ? x.rejected : []).forEach(w => land(w, -1));
+            (Array.isArray(x.loved) ? x.loved : []).forEach(w => land(w, 1));
+            patch.palette = pal;
+          }
           else if (Array.isArray(b[x.list])) b[x.list] = b[x.list].concat([{ text: String(x.text).slice(0, 160), source: 'drafted', at }]);
         } else {
           b.struck = [String(x.text).slice(0, 160)].concat(b.struck).slice(0, 30);
         }
         b.updated_at = at;
-        _rbDnaMerge({ brief: b }, 'brief');
+        _rbDnaMerge(patch, 'brief');
         if (v !== 'keep') _rbMemoryPush({ k: 'strike', surface: 'brief', text: String(x.text).slice(0, 160) });
         if (v === 'keep') _waShowToast('Kept. Filed under Style DNA.');
         _rbTrack('brief_line', { verb: v === 'keep' ? 'keep' : 'strike', list: x.list, from: 'card' });

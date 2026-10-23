@@ -97,6 +97,8 @@ const ROWS = [
 
 const results = [];
 const check = (name, pass, detail = '') => results.push({ name, pass, detail });
+// RB_SHOTS=<dir> writes a screenshot at a few key screens (eyeballing, never a check).
+const shot = async (page, name) => { if (process.env.RB_SHOTS) { try { await page.screenshot({ path: process.env.RB_SHOTS + '/addflow-' + name + '.png' }); } catch (e) {} } };
 
 async function boot(browser, tagBody, opts = {}) {
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 1280, height: 1100 } });
@@ -967,6 +969,31 @@ const browser = await chromium.launch(
   });
   check('mobile · step 1 stacks Attach photos over Take a photo (3.3 mock)', ms1.dropH.join('|') === 'Add as many as you like'
     && ms1.btns.join('|') === 'Attach photos|Take a photo', `${ms1.dropH.join('|')} / ${ms1.btns.join('|')}`);
+  await page.evaluate(() => window.WA && WA.close());
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.__waAddChooser());
+  await page.waitForTimeout(500);
+  const msh = await page.evaluate(() => {
+    const m = document.getElementById('wa-modal'), d = m.querySelector('.fm-dialog'), r = d.getBoundingClientRect();
+    const rows = Array.from(document.querySelectorAll('.rb-wf-way')).map((b) => b.getBoundingClientRect().height);
+    return { sheet: m.classList.contains('rb-wf-sheetmode'), bottom: Math.round(r.bottom), vh: window.innerHeight, top: Math.round(r.top), radius: getComputedStyle(d).borderTopLeftRadius, grab: getComputedStyle(document.querySelector('.rb-wf-grab')).display, rail: getComputedStyle(m.querySelector('.fm-rail')).display, rows, overflow: document.documentElement.scrollWidth <= window.innerWidth };
+  });
+  await shot(page, 'sheet-390');
+  check('mobile · the action sheet is a bottom sheet at 390: pinned to the foot, rounded top, a grab bar, no rail, rows ≥ 44pt', msh.sheet && msh.bottom === msh.vh && msh.top > 200 && parseInt(msh.radius) > 12 && msh.grab === 'block' && msh.rail === 'none' && msh.rows.length === 4 && msh.rows.every((h) => h >= 44) && msh.overflow, JSON.stringify(msh));
+  await page.click('.rb-wf-way[data-way="url"]');
+  await page.waitForTimeout(300);
+  const mu = await page.evaluate(() => { const m = document.getElementById('wa-modal'), d = m.querySelector('.fm-dialog').getBoundingClientRect(); return { sheet: m.classList.contains('rb-wf-sheetmode'), top: Math.round(d.top), h: document.querySelector('#wa-modal .fm-h')?.textContent, eye: document.querySelector('.rb-wf-heye')?.textContent }; });
+  await shot(page, 'link-390');
+  await page.evaluate(() => window.__waWay('mail'));
+  await page.waitForTimeout(600);
+  await shot(page, 'mail-390');
+  await page.evaluate(() => window.__waWay('url'));
+  await page.waitForTimeout(300);
+  check('mobile · a door screen (Paste a link) is the full screen again, not the sheet', !mu.sheet && mu.top < 12 && mu.h === 'From a link.' && mu.eye === 'Paste a link', JSON.stringify(mu));  // the dialog's rise animation is still settling at 300ms
+  await page.click('.rb-wf-hback');
+  await page.waitForTimeout(300);
+  check('mobile · the chevron returns to the sheet', await page.evaluate(() => document.getElementById('wa-modal').classList.contains('rb-wf-sheetmode') && document.querySelectorAll('.rb-wf-way').length === 4));
+  await page.evaluate(() => window.WA && WA.close());
   check('no page errors (mobile)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
@@ -986,20 +1013,36 @@ const browser = await chromium.launch(
   await page.waitForTimeout(400);
   const ch = await page.evaluate(() => ({
     h: document.querySelector('#wa-modal .fm-h')?.textContent || '',
-    ways: Array.from(document.querySelectorAll('.rb-wf-way')).map((b) => b.dataset.way + ':' + b.querySelector('.rb-wf-way-t').textContent + (b.classList.contains('dashed') ? '*' : '')),
-    file: !!document.getElementById('wa-rb-file'),
+    eye: document.querySelector('.rb-wf-sheeteye')?.textContent || '',
+    ways: Array.from(document.querySelectorAll('.rb-wf-way')).map((b) => b.dataset.way + ':' + b.querySelector('.rb-wf-way-t').textContent),
+    ics: Array.from(document.querySelectorAll('.rb-wf-way-ic')).map((i) => getComputedStyle(i).width + '/' + getComputedStyle(i).borderRadius),
+    nophoto: document.querySelector('.rb-wf-ways + .rb-wf-nophoto')?.textContent || '',
+    inputs: ['wa-rb-file', 'wa-rb-lib', 'wa-rb-cam'].map((id) => !!document.getElementById(id)),
+    cap: document.getElementById('wa-rb-cam')?.getAttribute('capture'), libCap: document.getElementById('wa-rb-lib')?.hasAttribute('capture'), libMulti: document.getElementById('wa-rb-lib')?.hasAttribute('multiple'),
+    door: document.getElementById('wa-modal').classList.contains('rb-wf-door'), dots: getComputedStyle(document.querySelector('#wa-modal .fm-dots')).visibility,
     fills: Array.from(document.querySelectorAll('#wa-modal .fm-step button')).filter((b) => getComputedStyle(b).backgroundColor === 'rgb(32, 32, 33)').length,
   }));
-  check('ways · __waAddChooser opens the chooser: Photograph it / Forward a receipt / Paste a link + the dashed Add without a photo, no ink fill',
-    ch.h === 'Add a piece.' && ch.ways.join('|') === 'photo:Photograph it|mail:Forward a receipt|url:Paste a link|manual:Add without a photo*' && ch.fills === 0, JSON.stringify(ch));
-  await page.click('.rb-wf-way[data-way="photo"]');
+  await shot(page, 'sheet-1280');
+  check('ways · the action sheet (1a): Camera / Photo library / Forward a receipt / Paste a link as 44px-circle rows, Add without a photo beneath, no heading, no ink fill',
+    !ch.h && ch.eye === 'Add a piece' && ch.ways.join('|') === 'cam:Camera|lib:Photo library|mail:Forward a receipt|url:Paste a link' && ch.ics.every((x) => x === '44px/50%') && ch.nophoto === 'Add without a photo' && ch.fills === 0, JSON.stringify(ch));
+  check('ways · the sheet carries the three inputs, so Camera (capture) and Photo library (image/* multiple, no capture) reach the OS in one tap; the dots stand down on a door',
+    ch.inputs.every(Boolean) && ch.cap === 'environment' && !ch.libCap && ch.libMulti && ch.door && ch.dots === 'hidden', JSON.stringify(ch));
+  const fcLib = page.waitForEvent('filechooser', { timeout: 2500 }).catch(() => null);
+  await page.click('.rb-wf-way[data-way="lib"]');
+  const libChooser = await fcLib;
+  check('ways · Photo library opens the OS picker, several at once', !!libChooser && libChooser.isMultiple(), String(!!libChooser));
+  const fcCam = page.waitForEvent('filechooser', { timeout: 2500 }).catch(() => null);
+  await page.click('.rb-wf-way[data-way="cam"]');
+  const camChooser = await fcCam;
+  check('ways · Camera opens the capture input, one piece at a time', !!camChooser && !camChooser.isMultiple(), String(!!camChooser));
+  await page.evaluate(() => window.__waWay('photo'));
   await page.waitForTimeout(300);
-  const ph = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', file: !!document.getElementById('wa-rb-file'), cam: !!document.getElementById('wa-rb-cam'), back: document.querySelector('.rb-wf-back')?.textContent || '', nophoto: !!document.querySelector('.rb-wf-nophoto') }));
-  check('ways · Photograph it is the photo step with "← Other ways in" in place of the no-photo link', ph.h === 'Add your pieces.' && ph.file && ph.cam && ph.back === '← Other ways in' && !ph.nophoto, JSON.stringify(ph));
+  const ph = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', file: !!document.getElementById('wa-rb-file'), cam: !!document.getElementById('wa-rb-cam'), back: document.querySelector('.rb-wf-back')?.textContent || '', nophoto: !!document.querySelector('.rb-wf-nophoto'), door: document.getElementById('wa-modal').classList.contains('rb-wf-door') }));
+  check('ways · the drop step (the web’s own door) survives behind __waWay("photo") with "← Other ways in" in place of the no-photo link, the dots back', ph.h === 'Add your pieces.' && ph.file && ph.cam && ph.back === '← Other ways in' && !ph.nophoto && !ph.door, JSON.stringify(ph));
   await page.click('.rb-wf-back');
   await page.waitForTimeout(300);
-  check('ways · Other ways in returns to the chooser', (await page.evaluate(() => document.querySelectorAll('.rb-wf-way').length)) === 4);
-  await page.click('.rb-wf-way[data-way="manual"]');
+  check('ways · Other ways in returns to the sheet', (await page.evaluate(() => document.querySelectorAll('.rb-wf-way').length)) === 4);
+  await page.click('.rb-wf-ways + .rb-wf-nophoto');
   await page.waitForTimeout(300);
   check('ways · Add without a photo opens the empty sheet', await page.evaluate(() => /Add a piece/.test(document.querySelector('#wa-modal .fm-h')?.textContent || '') && !!document.querySelector('.rb-wf-slot') && !!document.querySelector('.rb-ps-row[data-k="name"]')));
 
@@ -1007,8 +1050,19 @@ const browser = await chromium.launch(
   await page.evaluate(() => window.__waWay('choose'));
   await page.click('.rb-wf-way[data-way="url"]');
   await page.waitForTimeout(300);
-  const u0 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', input: !!document.getElementById('rb-wf-url'), go: document.getElementById('rb-wf-urlgo')?.textContent || '', focused: document.activeElement?.id }));
-  check('link · the step is an input + Read it, focused', u0.h === 'From a link.' && u0.input && u0.go === 'Read it' && u0.focused === 'rb-wf-url', JSON.stringify(u0));
+  const u0 = await page.evaluate(() => {
+    const shown = (el) => !!el && getComputedStyle(el).display !== 'none';
+    return { h: document.querySelector('#wa-modal .fm-h')?.textContent || '', eye: document.querySelector('.rb-wf-heye')?.textContent || '', back: document.querySelector('.rb-wf-hback')?.getAttribute('aria-label'), input: !!document.getElementById('rb-wf-url'), go: document.getElementById('rb-wf-urlgo')?.textContent || '', dim: document.getElementById('rb-wf-urlgo')?.classList.contains('dim'), paste: shown(document.getElementById('rb-wf-paste')), x: shown(document.querySelector('.rb-wf-urlx')), focused: document.activeElement?.id, w: document.getElementById('rb-wf-urlgo')?.getBoundingClientRect().width, fw: document.querySelector('.rb-wf-dfoot')?.getBoundingClientRect().width };
+  });
+  await shot(page, 'link-1280');
+  check('link · (2b) the chevron header, "From a link.", Paste in the field, the one full-width Read it dim until a URL, the field focused', u0.h === 'From a link.' && u0.eye === 'Paste a link' && u0.back === 'Other ways in' && u0.input && u0.go === 'Read it' && u0.dim && u0.paste && !u0.x && u0.focused === 'rb-wf-url' && Math.abs(u0.w - u0.fw) < 2, JSON.stringify(u0));
+  await page.fill('#rb-wf-url', 'https://x.example');
+  await page.waitForTimeout(80);
+  const u0b = await page.evaluate(() => { const shown = (el) => !!el && getComputedStyle(el).display !== 'none'; return { dim: document.getElementById('rb-wf-urlgo')?.classList.contains('dim'), paste: shown(document.getElementById('rb-wf-paste')), x: shown(document.querySelector('.rb-wf-urlx')) }; });
+  check('link · typing swaps Paste for × and lights Read it', !u0b.dim && !u0b.paste && u0b.x, JSON.stringify(u0b));
+  await page.click('.rb-wf-urlx');
+  await page.waitForTimeout(80);
+  check('link · × clears the field and brings Paste back', await page.evaluate(() => document.getElementById('rb-wf-url').value === '' && getComputedStyle(document.getElementById('rb-wf-paste')).display !== 'none'));
   await page.fill('#rb-wf-url', 'not a link');
   await page.click('#rb-wf-urlgo');
   await page.waitForTimeout(200);
@@ -1045,9 +1099,10 @@ const browser = await chromium.launch(
   // Forward a receipt: her address is minted on first open, copyable.
   await page.evaluate(() => window.WA && WA.open({ way: 'mail' }));
   await page.waitForTimeout(700);
-  const m1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', addr: document.getElementById('rb-wf-addr')?.textContent || '', copy: document.getElementById('rb-wf-copy')?.disabled, steps: document.querySelectorAll('.rb-wf-step').length, got: !!document.querySelector('.rb-wf-cta.sm') }));
-  check('mail · the address panel: annie-xxxx@in.byrobes.com minted onto her profile, Copy live, three steps, Got it',
-    m1.h === 'Your own address.' && /^annie-[a-z2-9]{4}@in\.byrobes\.com$/.test(m1.addr) && m1.copy === false && m1.steps === 3 && m1.got
+  const m1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', eye: document.querySelector('.rb-wf-heye')?.textContent || '', addr: document.getElementById('rb-wf-addr')?.textContent || '', copy: document.getElementById('rb-wf-copy')?.disabled, cardIsBtn: document.getElementById('rb-wf-copy')?.tagName, copyLbl: document.getElementById('rb-wf-copylbl')?.textContent, steps: document.querySelectorAll('.rb-wf-step').length, got: document.querySelector('.rb-wf-quiet')?.textContent, mail: document.getElementById('rb-wf-mailgo')?.getAttribute('href'), mailT: document.getElementById('rb-wf-mailgo')?.textContent, door: document.getElementById('wa-modal').classList.contains('rb-wf-door') }));
+  await shot(page, 'mail-1280');
+  check('mail · (2a) the chevron header, "Your own address.", the address CARD is the Copy button (annie-xxxx@in.byrobes.com minted onto her profile), three numbered steps, Open Mail → mailto, Got it',
+    m1.h === 'Your own address.' && m1.eye === 'Forward a receipt' && /^annie-[a-z2-9]{4}@in\.byrobes\.com$/.test(m1.addr) && m1.copy === false && m1.cardIsBtn === 'BUTTON' && m1.copyLbl === 'Copy' && m1.steps === 3 && m1.got === 'Got it' && m1.mail === 'mailto:' + m1.addr && m1.mailT === 'Open Mail' && m1.door
       && profilePatches.length === 1 && /^annie-[a-z2-9]{4}$/.test(profilePatches[0].inbox_address || ''), JSON.stringify([m1, profilePatches]));
   await page.evaluate(() => window.WA && WA.close());
   check('no page errors (ways)', errs.length === 0, errs.join(' | ').slice(0, 240));
@@ -1188,9 +1243,9 @@ const browser = await chromium.launch(
   check('wishlist · the empty state offers Save a piece + a live Paste a link (no Coming soon), no bespoke modal, no receipt notice on this view', w0.pill === 'Save a piece' && !w0.soon && !w0.modal && !w0.notice && /Paste a link/.test(w0.empty), JSON.stringify(w0));
   await page.click('#rb-add-pill');
   await page.waitForTimeout(400);
-  const w1 = await page.evaluate(() => ({ h: document.querySelector('#wa-modal .fm-h')?.textContent || '', sub: document.querySelector('#wa-modal .fm-step > p')?.textContent || '', ways: Array.from(document.querySelectorAll('.rb-wf-way')).map((b) => b.dataset.way), photoSub: document.querySelector('.rb-wf-way[data-way="photo"] .rb-wf-way-s')?.textContent || '' }));
-  check('wishlist · + Save a piece opens the same chooser in the wishlist register: "Save a piece." / the four ways', w1.h === 'Save a piece.' && /wishlist/.test(w1.sub) && w1.ways.join('|') === 'photo|mail|url|manual' && /screenshot/i.test(w1.photoSub), JSON.stringify(w1));
-  await page.click('.rb-wf-way[data-way="photo"]');
+  const w1 = await page.evaluate(() => ({ eye: document.querySelector('.rb-wf-sheeteye')?.textContent || '', ways: Array.from(document.querySelectorAll('.rb-wf-way')).map((b) => b.dataset.way) }));
+  check('wishlist · + Save a piece opens the same action sheet in the wishlist register: "Save a piece" / the four ways', w1.eye === 'Save a piece' && w1.ways.join('|') === 'cam|lib|mail|url', JSON.stringify(w1));
+  await page.evaluate(() => window.__waWay('photo'));
   await page.waitForTimeout(300);
   check('wishlist · the photo step reads "Save what catches your eye."', await page.evaluate(() => document.querySelector('#wa-modal .fm-h')?.textContent) === 'Save what catches your eye.');
   await page.setInputFiles('#wa-rb-file', { name: 'blazer.png', mimeType: 'image/png', buffer: PNG_OK });

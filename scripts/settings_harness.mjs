@@ -45,7 +45,8 @@ const srv = http.createServer((q, r) => {
   const u = q.url.split('?')[0];
   if (u === '/dashboard' || u === '/lookbook' || u === '/wardrobe' || u === '/') { r.writeHead(200, { 'Content-Type': 'text/html' }); return r.end('<html><body>' + u + '</body></html>'); }
   if (u === '/api/account/delete') { r.writeHead(200, { 'Content-Type': 'application/json' }); return r.end('{"ok":true}'); }
-  const f = u === '/settings' ? path.join(ROOT, 'settings.html') : path.join(ROOT, u);
+  // The colour model is served by server.js from the repo root, not public/ (phase 1, 2026-10-22).
+  const f = u === '/settings' ? path.join(ROOT, 'settings.html') : u === '/js/colour-model.js' ? path.join(ROOT, '..', 'colour_model.cjs') : path.join(ROOT, u);
   if (fs.existsSync(f) && fs.statSync(f).isFile()) { r.writeHead(200); return r.end(fs.readFileSync(f)); }
   r.writeHead(404); r.end('');
 });
@@ -165,6 +166,8 @@ async function open(vp, profile = 'empty', o = {}) {
   return { ctx, p, errs, cellPosts, briefPosts, deletes, seasonPosts, twinPosts, upd };
 }
 const txt = async (p, sel) => (await p.locator(sel).innerText()).replace(/\s+/g, ' ').trim();
+// RB_SHOTS=<dir> writes a screenshot at a few key screens (eyeballing, never a check).
+const shot = async (p, name) => { if (process.env.RB_SHOTS) { try { await p.screenshot({ path: process.env.RB_SHOTS + '/settings-' + name + '-' + p.viewportSize().width + '.png' }); } catch (e) {} } };
 
 for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile', { width: 390, height: 844 }]]) {
 
@@ -444,7 +447,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     const { ctx, p, errs, upd } = await open(vp, 'empty', { hash: '#dna', row: { style_icons: ['The Row', 'Jane Birkin'], budget: 'Everyday, Designer' } });
     ok(await p.locator('#pg-dna').isVisible(), '#dna opens Style DNA');
     ok((await txt(p, '#sp-hdr-title')) === 'Style DNA' && (await txt(p, '#pg-dna .sp-pagesub')) === 'What you love, and the lines you dress by.', 'titled Style DNA in the header row, the masthead now the 12px sub (D1)');
-    ok(await p.locator('#pg-dna .sp-group').count() === 2 && await p.locator('#pg-dna .sp-row .chev').count() === 9, 'grouped rows in white cards with chevrons stay (D2) — nine rows with Your colours (19 Oct)');
+    ok(await p.locator('#pg-dna .sp-group').count() === 2 && await p.locator('#pg-dna .sp-row .chev').count() === 10, 'grouped rows in white cards with chevrons stay (D2) — ten rows with Your colours and Your prints (23 Oct)');
     // the one-time reconcile: brands split off the icons, the tiers mapped to a level
     const once = await upd('u.style_icons');
     ok(once && once.style_icons.join() === 'Jane Birkin' && once.style_dna.brands.join() === 'The Row' && once.style_dna.investment === '€1,500–5,000' && once.annual_spend === '€1,500–5,000', 'ONE write splits the brands off the icons and maps the highest tier to a level: ' + JSON.stringify(once));
@@ -523,23 +526,54 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok((await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.avoids.length === 0 && (await upd('u.style_dna && u.style_dna.brief')).style_dna.brief.struck.length === 0, '× strikes a typed line without recording it as struck (it was hers, not Robes’)');
     await p.click('#sh-done'); await p.waitForTimeout(200);
     ok((await txt(p, '#dna-avoids-v')) === 'Not yet', 'Hard nos reads as a count on the row (D3)');
-    // Your colours (19 Oct): hers to set, loved and never, amended at any time
-    ok((await txt(p, '#dna-colours-v')) === 'Not yet', 'Your colours reads Not yet before she picks');
+    // Your colours · Your prints (the colour model, phase 4, 23 Oct): the
+    // model's families and shades on a three-state control, saved at once.
+    ok((await txt(p, '#dna-colours-v')) === 'Not yet' && (await txt(p, '#dna-prints-v')) === 'Not yet', 'Your colours and Your prints read Not yet before she picks');
     await p.click('#dna-colours'); await p.waitForTimeout(300);
-    ok(/^your colours$/i.test(await txt(p, '#sh-title')) && /outrank what Robes read from your photographs/i.test(await txt(p, '#sh-sub')), 'the sheet says her colours outrank the photograph read');
-    ok(await p.locator('#sh-body .sh-pill[data-side="loved"]').count() >= 20 && await p.locator('#sh-body .sh-pill[data-side="rejected"]').count() >= 20, 'two pools — the colours she reaches for, and never');
-    await p.click('#sh-body .sh-pill[data-side="loved"][data-colour="Camel"]'); await p.waitForTimeout(250);
-    const col = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.loved.length');
-    ok(col && col.style_dna.brief.colours.loved.join() === 'Camel' && col.style_dna.brief.source === 'edited', 'a tap files Camel under her loved colours');
-    await p.click('#sh-body .sh-pill[data-side="rejected"][data-colour="Camel"]'); await p.waitForTimeout(250);
-    const col2 = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.rejected.length');
-    ok(col2 && col2.style_dna.brief.colours.rejected.join() === 'Camel' && col2.style_dna.brief.colours.loved.length === 0, 'the same colour under Never moves it — a colour is never on both lists');
-    await p.fill('#sh-body [data-colour-in="loved"]', 'burnt orange'); await p.press('#sh-body [data-colour-in="loved"]', 'Enter'); await p.waitForTimeout(250);
-    const col3 = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.loved.length');
-    ok(col3 && col3.style_dna.brief.colours.loved.join() === 'Burnt orange' && await p.locator('#sh-body .sh-pill.on[data-colour="Burnt orange"]').count() === 1, 'a colour of her own files capitalised and joins the pool as a kept pill');
+    ok(/^your colours$/i.test(await txt(p, '#sh-title')) && /outrank what Robes reads from your photographs/i.test(await txt(p, '#sh-sub')), 'the sheet says her colours outrank the photograph read');
+    const fams = await p.evaluate(() => ({ rows: Array.from(document.querySelectorAll('#sh-body .pf-row')).map(r => r.dataset.fam), free: document.querySelectorAll('#sh-body [data-colour-in]').length, pills: document.querySelectorAll('#sh-body .sh-pill').length }));
+    ok(fams.rows.join() === 'blacks,greys,whites,neutrals,browns,greens,blues,purples,reds,pinks,oranges,yellows,metallics' && fams.free === 0 && fams.pills === 0, 'thirteen family rows in the brief’s order, Metallics last; no free text, no chip pools: ' + JSON.stringify(fams));
+    const ctl = await p.evaluate(() => { const c = document.querySelector('#sh-body .pf-row[data-fam="blues"] .pf-ctl'); const r = c.getBoundingClientRect(); const b = Array.from(c.querySelectorAll('button')); return { w: Math.round(r.width), h: Math.round(r.height), labels: b.map(x => x.getAttribute('aria-label')), role: c.getAttribute('role'), checked: b.map(x => x.getAttribute('aria-checked')), tile: document.querySelectorAll('#sh-body .pf-row[data-fam="blues"] .pf-tile span').length }; });
+    await shot(p, 'colours');
+    ok(ctl.role === 'radiogroup' && ctl.labels.join() === 'Avoid,No view,Love' && ctl.checked.join() === 'false,true,false' && ctl.w === 144 && ctl.h === 44 && ctl.tile === 4, 'each row: a four-shade tile and the labelled avoid · no view · love control at 44pt, starting on no view');
+    await p.click('#sh-body .pf-row[data-fam="blues"] .pf-ctl button[data-v="1"]'); await p.waitForTimeout(250);
+    const c1 = await upd('u.style_dna && u.style_dna.palette');
+    ok(c1 && c1.style_dna.palette.fam.blues === 1 && await p.locator('#sh-body .pf-row[data-fam="blues"].love').count() === 1, 'Love on Blues writes palette.fam.blues = 1 at once and the row warms');
+    await p.click('#sh-body .pf-row[data-fam="blues"] .pf-open'); await p.waitForTimeout(250);
+    const sh = await p.evaluate(() => { const rows = Array.from(document.querySelectorAll('#sh-body .pf-row[data-fam="blues"] .pf-sh')); const c = rows.find(r => r.dataset.shade === 'cobalt'); const ctl = c.querySelector('.pf-ctl'); return { n: rows.length, first: rows[0].querySelector('.pf-shn').textContent, inh: ctl.classList.contains('inh'), label: ctl.getAttribute('aria-label'), checked: Array.from(ctl.querySelectorAll('button')).map(b => b.getAttribute('aria-checked')).join(), thumbBg: getComputedStyle(ctl.querySelector('.th')).backgroundColor }; });
+    ok(sh.n === 7 && sh.first === 'Navy' && sh.inh && sh.label === 'Cobalt: following Blues' && sh.checked === 'false,false,true' && sh.thumbBg === 'rgba(0, 0, 0, 0)', 'tap the name: the seven blues as named swatches, each following the family — an outline thumb on Love, announced as following Blues');
+    await p.click('#sh-body .pf-sh[data-shade="cobalt"] .pf-ctl button[data-v="-1"]'); await p.waitForTimeout(250);
+    const c2 = await upd('u.style_dna && u.style_dna.palette && u.style_dna.palette.shade.cobalt != null');
+    const after = await p.evaluate(() => ({ meta: document.querySelector('#sh-body .pf-row[data-fam="blues"] .pf-meta').textContent, inh: document.querySelector('#sh-body .pf-sh[data-shade="cobalt"] .pf-ctl').classList.contains('inh'), reset: document.querySelector('#sh-body .pf-row[data-fam="blues"] .pf-reset')?.textContent }));
+    await shot(p, 'colours-open');
+    ok(c2 && c2.style_dna.palette.shade.cobalt === -1 && c2.style_dna.palette.fam.blues === 1 && after.meta === '1 shade set' && !after.inh && after.reset === 'Match the family', 'Avoid on cobalt is a shade override: filled, "1 shade set" on the row, Match the family offered — Blues still loved');
+    await p.click('#sh-body .pf-row[data-fam="blues"] .pf-reset'); await p.waitForTimeout(250);
+    const c3 = await upd('u.style_dna && u.style_dna.palette && !("cobalt" in u.style_dna.palette.shade)');
+    ok(c3 && c3.style_dna.palette.fam.blues === 1 && await p.locator('#sh-body .pf-sh[data-shade="cobalt"] .pf-ctl.inh').count() === 1 && (await txt(p, '#sh-body .pf-row[data-fam="blues"] .pf-meta')) === '', 'Match the family clears the overrides and the shades follow Blues again');
+    await p.click('#sh-body .pf-row[data-fam="reds"] .pf-ctl button[data-v="-1"]'); await p.waitForTimeout(250);
+    const c4 = await upd('u.style_dna && u.style_dna.palette && u.style_dna.palette.fam.reds');
+    ok(c4 && c4.style_dna.palette.fam.reds === -1 && await p.locator('#sh-body .pf-row[data-fam="reds"].avoid').count() === 1, 'Avoid on Reds writes -1 and the row dims');
     await p.click('#sh-done'); await p.waitForTimeout(200);
-    ok((await txt(p, '#dna-colours-v')) === 'Burnt orange · never camel', 'the row reads her colours back');
+    ok((await txt(p, '#dna-colours-v')) === 'Blues · avoids reds', 'the row reads her colours back');
+    await p.click('#dna-prints'); await p.waitForTimeout(300);
+    const pr = await p.evaluate(() => Array.from(document.querySelectorAll('#sh-body .pf-row')).map(r => r.dataset.print));
+    ok(/^your prints$/i.test(await txt(p, '#sh-title')) && pr.join() === 'stripes,checks,plaid,houndstooth,dots,florals,animal,paisley,graphic,abstract' && await p.locator('#sh-body .pf-tile').count() === 0, 'Your prints: the ten preference prints (tie-dye, camouflage and other tag pieces only), no shades');
+    await p.click('#sh-body .pf-row[data-print="stripes"] .pf-ctl button[data-v="1"]'); await p.waitForTimeout(250);
+    const c5 = await upd('u.style_dna && u.style_dna.palette && u.style_dna.palette.print.stripes');
+    await shot(p, 'prints');
+    ok(c5 && c5.style_dna.palette.print.stripes === 1 && c5.style_dna.palette.fam.reds === -1, 'Love on Stripes writes palette.print.stripes = 1 beside her colours');
+    await p.click('#sh-done'); await p.waitForTimeout(200);
+    ok((await txt(p, '#dna-prints-v')) === 'Stripes', 'the prints row reads back');
     ok(await p.locator('#dna-noticed').count() === 0, 'no "new from Robes" door on Style DNA (D4)');
+    ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
+    await ctx.close();
+  }
+  {
+    // the 19 Oct colour lists map ONCE into the model at boot (testers only, best effort)
+    const { ctx, p, errs, upd } = await open(vp, 'empty', { hash: '#dna', row: { style_dna: { brief: { colours: { loved: ['Camel', 'burgundy'], rejected: ['red', 'nonsense'] } } } } });
+    const mapped = await upd('u.style_dna && u.style_dna.palette');
+    ok(mapped && mapped.style_dna.palette.shade.camel === 1 && mapped.style_dna.palette.shade.burgundy === 1 && mapped.style_dna.palette.fam.reds === -1 && !('nonsense' in mapped.style_dna.palette.fam) && mapped.style_dna.brief.colours.loved.length === 0 && mapped.style_dna.brief.colours.rejected.length === 0, 'the legacy lists map at boot — a shade name to its shade, a plain word to its family, a word the model cannot place dropped, the lists emptied');
+    ok((await txt(p, '#dna-colours-v')) === 'camel, burgundy · avoids reds', 'and the row reads them back — a loved shade inside an avoided family stands');
     ok(errs.length === 0, 'no page errors: ' + errs.join(' | '));
     await ctx.close();
   }
@@ -588,8 +622,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     const nts = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.notes');
     ok(nts && /^You dress best.*read as yours\.$/.test(nts.style_dna.brief.notes), 'agreeing with the notes line files the WHOLE paragraph behind its sentence');
     await p.click('#obs-body [data-keep="0"]'); await p.waitForTimeout(400);
-    const c = await upd('u.style_dna && u.style_dna.brief && u.style_dna.brief.colours.loved.length');
-    ok(c && c.style_dna.brief.colours.loved.join() === 'black,taupe' && c.style_dna.brief.colours.rejected.join() === 'red' && c.style_dna.brief.pending.length === 0, 'agreeing with the colour line lands the colours');
+    const c = await upd('u.style_dna && u.style_dna.palette && u.style_dna.brief && u.style_dna.brief.pending.length === 0');
+    ok(c && c.style_dna.palette.fam.blacks === 1 && c.style_dna.palette.shade.taupe === 1 && c.style_dna.palette.fam.reds === -1 && c.style_dna.brief.colours.loved.length === 0, 'agreeing with the colour line lands the colours on the model — a shade on its shade (taupe), a plain word on its family (black, red) — never on the old lists');
     ok(/Nothing yet\. Robes notes what you keep and change on your looks\./.test(await txt(p, '#obs-body')) && !/keeps reading/.test(await txt(p, '#obs-body')) && await p.locator('#obs-again').count() === 0, 'empty: the new one line — no read implied, no Read again (O6)');
     ok(briefPosts.length === 0, 'and an empty queue still asks the wardrobe for nothing');
     // the Hard nos sheet's pills take the same verb

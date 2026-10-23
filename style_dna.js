@@ -2,6 +2,11 @@
 // Gemini extracts measurable primitives only; everything the user sees comes from
 // this catalog so results are repeatable and editable in one place.
 
+import { createRequire } from 'module';
+// The colour and pattern model — the one source the Settings sheets, the
+// analyse and this block all read (colour_model.cjs is CommonJS on purpose).
+const CM = createRequire(import.meta.url)('./colour_model.cjs');
+
 export const METAL_GRADIENTS = {
   'Gold':        ['#E4C878', '#C6A24C', '#9C7E36'],
   'Yellow gold': ['#EED27E', '#D2A845', '#A87F2E'],
@@ -578,14 +583,16 @@ export function briefIsEmpty(b) {
 // outranks everything a photograph produced; her taste (type, icons)
 // leads; colour and line are guidance. Nothing an observation drafted
 // reaches here until she confirmed it — brief.pending is never rendered.
-function hardNoLines(b, rejectedColours) {
+// The typed hard nos are the ONE absolute. A colour she avoids is SOFT
+// (Annie, 22 Oct — the colour model, phase 4): it left this block for
+// paletteLines, where what she owns in it is still styled.
+function hardNoLines(b) {
   const avoids = briefList(b && b.avoids);
-  const cols = Array.isArray(rejectedColours) ? rejectedColours : [];
-  if (!avoids.length && !cols.length) return [];
-  const out = ['HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never "worth trying".'];
-  if (avoids.length) out.push(`Never: ${avoids.join(' · ')}.`);
-  if (cols.length) out.push(`Never in these colours — she has ruled them out herself: ${cols.join(', ')}.`);
-  return out;
+  if (!avoids.length) return [];
+  return [
+    'HER HARD NOS — non-negotiable. These override everything beneath them: her taste, her icons, the colour and line notes, the occasion. A look that carries one is wrong; a piece one excludes is never proposed, never listed, never "worth trying".',
+    `Never: ${avoids.join(' · ')}.`,
+  ];
 }
 function styleBriefLines(b) {
   if (briefIsEmpty(b)) return [];
@@ -664,31 +671,54 @@ function memoryLines(m) {
     'A piece she has swapped out twice is not proposed again unless she names it; a move she called "not quite" is not repeated in another colour. Her brief today outranks all of this — what she asks for by name, she gets.',
   ];
 }
-// user_overrides merged with the brief's colours — the brief is the door
-// the override slots never had.
-function briefOverrides(dna) {
-  const uo = Object.assign({}, dna.user_overrides || {});
+// The colour and pattern model (phase 4, 2026-10-23): style_dna.palette =
+// {fam:{blues:1}, shade:{cobalt:-1}, print:{stripes:1}} — -1 avoid, 1 love,
+// a shade with no key follows its family. Until Settings has mapped them,
+// the 19 Oct lists (brief.colours) and the legacy user_overrides colours
+// read through the same resolver, best effort: a shade name lands on its
+// shade, a plain colour word on its family, anything else is dropped.
+function paletteOf(dna) {
+  const clean = o => { const out = {}; if (o && typeof o === 'object') Object.keys(o).forEach(k => { const v = Number(o[k]); if (v === -1 || v === 0 || v === 1) out[k] = v; }); return out; };
+  const p = dna.palette && typeof dna.palette === 'object' ? dna.palette : null;
+  if (p) return { fam: clean(p.fam), shade: clean(p.shade), print: clean(p.print) };
+  const out = { fam: {}, shade: {}, print: {} };
+  const land = (w, v) => { const r = CM.preference(w); if (!r) return; if (r.shade) out.shade[r.shade] = v; else out.fam[r.family] = v; };
   const c = dna.brief && typeof dna.brief === 'object' && dna.brief.colours && typeof dna.brief.colours === 'object' ? dna.brief.colours : {};
-  const merge = (a, b) => {
-    const out = [];
-    [].concat(Array.isArray(a) ? a : [], Array.isArray(b) ? b : []).forEach(x => {
-      const t = typeof x === 'string' ? x.trim() : '';
-      if (t && !out.some(y => y.toLowerCase() === t.toLowerCase())) out.push(t);
-    });
-    return out.slice(0, 12);
-  };
-  uo.loved_colors = merge(uo.loved_colors, c.loved);
-  uo.rejected_colors = merge(uo.rejected_colors, c.rejected);
-  return uo;
+  const uo = dna.user_overrides && typeof dna.user_overrides === 'object' ? dna.user_overrides : {};
+  const lst = a => Array.isArray(a) ? a.filter(x => typeof x === 'string') : [];
+  lst(c.rejected).concat(lst(uo.rejected_colors)).forEach(w => land(w, -1));
+  lst(c.loved).concat(lst(uo.loved_colors)).forEach(w => land(w, 1));
+  return out;
 }
-// Her loved colours ride beside the colouring read and outrank it; her
-// rejected colours are hard nos and render in that block instead.
+// What love and avoid MEAN (the brief, 22 Oct): love is weighted up when
+// Robes styles her own pieces and when it proposes new ones; avoid is soft
+// — what she owns is still styled, never singled out, and nothing new is
+// suggested in it. A shade she set overrides its family.
+export function paletteLines(dna) {
+  const p = paletteOf(dna && typeof dna === 'object' ? dna : {});
+  const eff = s => (s.id in p.shade ? p.shade[s.id] : (p.fam[s.family] || 0));
+  const side = v => {
+    const fams = CM.FAMILIES.filter(f => (p.fam[f.id] || 0) === v).map(f => {
+      const ex = f.shades.filter(s => s.id in p.shade && p.shade[s.id] !== v).map(s => s.name.toLowerCase());
+      return f.name + (ex.length ? ' (not ' + ex.join(', ') + ')' : '');
+    });
+    const shades = CM.SHADES.filter(s => (p.fam[s.family] || 0) !== v && eff(s) === v).map(s => s.name.toLowerCase());
+    return fams.concat(shades);
+  };
+  const love = side(1), avoid = side(-1);
+  const pl = CM.PATTERNS.filter(x => (p.print[x.id] || 0) === 1).map(x => x.name.toLowerCase());
+  const pa = CM.PATTERNS.filter(x => (p.print[x.id] || 0) === -1).map(x => x.name.toLowerCase());
+  const lines = [];
+  if (love.length) lines.push(`HER COLOURS — the ones she loves: ${love.join(', ')}. Weight them up: reach for them first among her own pieces, and lead with them when a piece has to be found. These outrank the colouring read — a colour she loves is right whatever the archetype says.`);
+  if (avoid.length) lines.push(`COLOURS SHE'D RATHER NOT BUY — ${avoid.join(', ')}. Never propose a NEW piece in one, and never build a look around one. A piece she already owns in one is hers to wear: style it like any other, never single it out, never apologise for it. A shade she set overrides its family — loving Blues and avoiding cobalt means blues are weighted up and cobalt is never suggested.`);
+  if (pl.length) lines.push(`PRINTS she loves: ${pl.join(', ')} — reach for them, among her pieces and in anything proposed.`);
+  if (pa.length) lines.push(`PRINTS she'd rather not buy: ${pa.join(', ')} — never a new piece in one; one she owns is styled like any other.`);
+  return lines;
+}
+// The one override slot left: exact measurements she supplied.
 function overrideLines(uo) {
   const lines = [];
-  if (Array.isArray(uo.loved_colors) && uo.loved_colors.length) {
-    lines.push(`HER COLOURS — the ones she has told Robes work on her: ${uo.loved_colors.join(', ')}. These outrank the colouring read: a colour she named is right whatever the archetype says.`);
-  }
-  if (uo.measurements && typeof uo.measurements === 'object') {
+  if (uo && uo.measurements && typeof uo.measurements === 'object') {
     const m = Object.entries(uo.measurements).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ');
     if (m) lines.push(`Exact measurements supplied by the user — trust these over any photo estimate: ${m}.`);
   }
@@ -751,13 +781,14 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
   const investment = typeof dna.investment === 'string' && dna.investment.trim() ? dna.investment.trim().slice(0, 40) : '';
   const factLines = factsLines(dna.facts);
   const tags = dna.icon_tags && typeof dna.icon_tags === 'object' ? dna.icon_tags : {};
-  const uo0 = briefOverrides(dna);
-  if (!ch && !sp && !icons.length && !arch.length && !soft.length && !briefLines.length && !memLines.length && !brands.length && !investment && !factLines.length && !hardNoLines(dna.brief, uo0.rejected_colors).length && !uo0.loved_colors.length) return '';
+  const uo = dna.user_overrides && typeof dna.user_overrides === 'object' ? dna.user_overrides : {};
+  const palLines = paletteLines(dna);
+  const noLines = hardNoLines(dna.brief);
+  if (!ch && !sp && !icons.length && !arch.length && !soft.length && !briefLines.length && !memLines.length && !brands.length && !investment && !factLines.length && !noLines.length && !palLines.length && !overrideLines(uo).length) return '';
   const lines = [];
-  // Her hard nos FIRST — the one absolute block (her typed nos, the
-  // observations she confirmed as nos, the colours she ruled out).
-  const uo = briefOverrides(dna);
-  const noLines = hardNoLines(dna.brief, uo.rejected_colors);
+  // Her hard nos FIRST — the one absolute block (her typed nos and the
+  // observations she confirmed as nos). Her colours are not here: avoid is
+  // soft, and lives with HER COLOURS below.
   if (noLines.length) lines.push(...noLines);
   // Her brief, in her own words (the In-your-words chapter, 2026-09-30):
   // second, and said to outrank every note a photograph produced. Empty
@@ -793,10 +824,9 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
     }
   }
   if (factLines.length) lines.push(...factLines);
-  // Colours she confirmed or refused on the brief ride the same override
-  // slots the DNA engine has always honoured.
+  // Her colours and prints (the model) render with or without a read.
   if (!ch && !sp) {
-    lines.push(...overrideLines(uo));
+    lines.push(...palLines, ...overrideLines(uo));
     return lines.join('\n');
   }
   // The photograph reads are GUIDANCE (Annie, 19 Oct): the analysis is not
@@ -817,7 +847,7 @@ export function styleDnaPromptBlock(styleDna, wardrobeCount = 0, styleIcons = []
     if (ar.styling_maxims) lines.push(`Styling leanings — apply one only where it agrees with her brief and with how she already dresses; drop any that fights a line she wrote or a piece she reaches for: ${ar.styling_maxims.join(' ')}`);
   }
   // Her colours always outrank the photo-derived read.
-  lines.push(...overrideLines(uo));
+  lines.push(...palLines, ...overrideLines(uo));
   lines.push(opts && opts.balance
     ? 'SYSTEM DIRECTIVE: She has said where the pieces of this look should come from — her wardrobe, a mix, or new pieces (WHERE THE PIECES COME FROM, beside her wardrobe). Follow that answer, in her register, guided by the colour and line notes above.'
     : wardrobeCount >= 15

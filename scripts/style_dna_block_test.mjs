@@ -1,7 +1,7 @@
 // The prompt block's brief slice (docs/style-memory-brief.md, slice A):
 // the brief renders FIRST, its colours reach the override slots, and an
 // empty brief renders nothing. `node scripts/style_dna_block_test.mjs`.
-import { styleDnaPromptBlock, briefList, briefIsEmpty, memoryEntries, MEMORY_MAX } from '../style_dna.js';
+import { styleDnaPromptBlock, paletteLines, briefList, briefIsEmpty, memoryEntries, MEMORY_MAX } from '../style_dna.js';
 
 let passes = 0, fails = 0;
 const ok = (c, m) => { if (c) passes++; else { fails++; console.log('  \x1b[31m✗\x1b[0m ' + m); } };
@@ -17,24 +17,35 @@ const dnaFull = {
   brief,
   style_archetypes: ['Sculptural'],
   color_harmony: { archetype_name: 'Soft Autumn', verified_undertone: 'Neutral-Warm', calculated_contrast: 'Low', functional_sub_palettes: { avoid_list: ['fuchsia'] } },
-  user_overrides: { rejected_colors: ['neon'] },
+  user_overrides: { rejected_colors: ['pink', 'neon'] },
 };
 const out = styleDnaPromptBlock(dnaFull, 6, ['The Row']);
 ok(out.indexOf('HER HARD NOS') === 0 && /override everything beneath them: her taste, her icons, the colour and line notes/.test(out), 'her hard nos are the first block, and absolute (19 Oct)');
-ok(/^Never: Anything that reads polite\.$/m.test(out) && /Never in these colours — she has ruled them out herself: neon, camel\./.test(out), 'the Never line and her rejected colours live in the hard nos');
+ok(/^Never: Anything that reads polite\.$/m.test(out) && !/Never in these colours/.test(out) && !/camel/.test(out.split('HER STYLE BRIEF')[0]), 'the Never line is the typed no alone — a colour she avoids is SOFT and never a hard no (22 Oct)');
 ok(out.indexOf('HER HARD NOS') < out.indexOf('HER STYLE BRIEF') && out.indexOf('HER STYLE BRIEF') < out.indexOf('STYLE TYPE') && out.indexOf('STYLE TYPE') < out.indexOf('STYLE ICONS') && out.indexOf('STYLE ICONS') < out.indexOf('STYLE DNA'), 'hard nos → brief → type → icons → DNA, in that order');
 ok(/Works: A defined waist · An open neckline\./.test(out), 'loves render as one Works line, blanks dropped');
 ok(!/HER STYLE BRIEF[\s\S]*Never:/.test(out.split('STYLE TYPE')[0].split('HER STYLE BRIEF')[1] || ''), 'the brief block itself carries no Never line — the nos moved up');
 ok(/Rules: No more button-ups — six is plenty\./.test(out), 'rules render as Rules');
 ok(/In her words: I dress well/.test(out), 'the notes paragraph rides in');
 ok(/outrank every note read from a photograph below/.test(out) && /never suggest a piece she would have to find that a rule excludes/.test(out), 'the brief outranks the photograph reads and governs proposals');
-ok(/HER COLOURS — the ones she has told Robes work on her: burgundy\./.test(out) && !/burgundy, Burgundy/.test(out) && /outrank the colouring read/.test(out), 'brief colours reach HER COLOURS, deduped, and outrank the read');
+ok(/HER COLOURS — the ones she loves: burgundy\./.test(out) && !/burgundy, Burgundy/.test(out) && /outrank the colouring read/.test(out), 'the legacy loved list maps through the colour model (burgundy → the shade, once) and outranks the read');
+ok(/COLOURS SHE'D RATHER NOT BUY — Pinks, camel\. Never propose a NEW piece in one/.test(out) && /A piece she already owns in one is hers to wear: style it like any other, never single it out/.test(out) && !/neon/.test(out), 'the legacy rejected lists map too (pink → the Pinks family, camel → the shade, a word the model cannot place dropped), as a soft avoid: nothing new, what she owns still styled');
+ok(out.indexOf("COLOURS SHE'D RATHER NOT BUY") > out.indexOf('STYLE DNA'), 'her colours render after the photograph read, which they outrank');
 ok(!/personally rejected/.test(out) && !/Never style them in/.test(out), 'no "never" survives outside the hard nos — the DNA read is guidance');
 ok(/STYLE DNA — read from her photographs\. Guidance, not law/.test(out) && /Colours that tend to fight her colouring[^\n]*fuchsia/.test(out), 'the DNA header and the avoid list read as guidance');
 ok(/mature digital closet|building their digital closet/.test(out), 'the closet directive still closes the block');
 
 const noDna = styleDnaPromptBlock({ brief }, 0, []);
-ok(noDna.indexOf('HER HARD NOS') === 0 && /ruled them out herself: camel/.test(noDna) && /HER COLOURS[^\n]*burgundy/.test(noDna) && !/STYLE DNA/.test(noDna), 'a brief with no DNA and no icons still renders, colours included, no DNA header');
+ok(noDna.indexOf('HER HARD NOS') === 0 && /RATHER NOT BUY — camel/.test(noDna) && /HER COLOURS[^\n]*burgundy/.test(noDna) && !/STYLE DNA/.test(noDna), 'a brief with no DNA and no icons still renders, colours included, no DNA header');
+// The model proper (phase 4): a shade she set overrides its family, prints have their own two lines, an empty palette renders nothing.
+const pal = { palette: { fam: { blues: 1, reds: -1 }, shade: { cobalt: -1, cherry: 1 }, print: { stripes: 1, animal: -1 } } };
+const palOut = styleDnaPromptBlock(pal, 0, []);
+ok(/HER COLOURS — the ones she loves: Blues \(not cobalt\), cherry\./.test(palOut) && /RATHER NOT BUY — Reds \(not cherry\), cobalt\./.test(palOut), 'a palette renders its families with their shade exceptions on both sides');
+ok(/PRINTS she loves: stripes/.test(palOut) && /PRINTS she'd rather not buy: animal prints — never a new piece in one; one she owns is styled like any other\./.test(palOut), 'prints render love and soft avoid');
+ok(!/HER HARD NOS/.test(palOut), 'a palette alone raises no hard-nos block');
+ok(styleDnaPromptBlock({ palette: {} }, 0, []) === '' && paletteLines({ palette: { fam: { blues: 0 } } }).length === 0, 'an empty palette (or one at no view) renders nothing');
+ok(paletteLines({ palette: { fam: { blues: 1 }, shade: { cobalt: 1 } } }).join('\n').indexOf('cobalt') === -1, 'a shade set the same way as its family folds into the family');
+ok(styleDnaPromptBlock({ palette: { fam: { greens: 1 } }, brief: { colours: { loved: ['red'] } } }, 0, []).indexOf('Reds') === -1, 'once a palette exists the legacy lists are no longer read');
 
 ok(styleDnaPromptBlock({ brief: { loves: [], avoids: [], notes: '   ' } }, 0, []) === '', 'an empty brief on an empty profile renders nothing');
 ok(!/HER STYLE BRIEF/.test(styleDnaPromptBlock({ brief: { loves: [] }, style_archetypes: ['Minimal'] }, 0, [])), 'an empty brief beside a style type renders no brief block');

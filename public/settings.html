@@ -384,6 +384,50 @@
     .sub-body .mvr:first-child { padding-top: 4px; }
     .sub-body .mvr:last-child { padding-bottom: 0; }
 
+    /* Your colours · Your prints — the preference rows (the colour and
+       pattern model, phase 4, 2026-10-23): a tile, the name, the three-state
+       control. Set = the warm fill; a shade following its family = an
+       outline thumb. Love is rose, avoid is faint — never black. */
+    .pf-rows { margin-top: 6px; }
+    .pf-row { display: block; border-bottom: 1px solid var(--rule); margin: 0 -12px; padding: 0 12px; transition: background .2s; }   /* display:block — a sheet rule elsewhere flexes bare divs */
+    .pf-row.love { background: #F3EFE6; }
+    .pf-head { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+    .pf-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; font-family: inherit; color: var(--ink); }
+    .pf-tile { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; width: 48px; height: 48px; border-radius: 10px; overflow: hidden; }
+    .pf-tile span { display: block; }
+    .pf-pt { flex: none; width: 48px; height: 48px; border-radius: 10px; }
+    .pf-row.avoid .pf-tile, .pf-row.avoid .pf-pt { opacity: .4; }
+    .pf-name { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .pf-n { display: flex; align-items: center; gap: 6px; font: 400 17px/1.2 'Inter'; color: var(--ink); }
+    .pf-row.love .pf-n { font-weight: 500; }
+    .pf-row.avoid .pf-n { color: rgba(32,32,33,.42); }
+    .pf-n .car { display: inline-flex; color: var(--ink-faint); transition: transform .2s; }
+    .pf-n .car svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .pf-row.open .pf-n .car { transform: rotate(180deg); }
+    .pf-meta { font: 300 12px/1 'Inter'; color: var(--ink-soft); min-height: 12px; }
+    .pf-shades { padding: 0 0 14px 64px; display: flex; flex-direction: column; }
+    .pf-sh { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+    .pf-sw { flex: none; width: 26px; height: 26px; border-radius: 50%; }
+    .pf-shn { flex: 1; font: 300 14px/1.2 'Inter'; color: var(--ink); }
+    .pf-reset { align-self: flex-start; margin-top: 6px; min-height: 44px; border: 0; background: transparent; padding: 0; font: 300 12px/1 'Inter'; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+    .pf-note { margin: 18px 0 0; font: 300 12px/1.5 'Inter'; color: var(--ink-soft); }
+    .pf-ctl { position: relative; display: flex; flex: none; padding: 2px; width: 144px; height: 44px; box-sizing: border-box; border: 1px solid var(--cream-300); border-radius: 100px; background: #fff; }
+    .pf-ctl.love { background: var(--cream-100); }
+    .pf-ctl .th { position: absolute; top: 2px; left: 2px; width: 46px; height: 38px; border-radius: 100px; background: #F3EFE6; border: 1px solid #C9BCA6; box-sizing: border-box; transition: left .2s; }
+    .pf-ctl .th.p1 { left: 48px; } .pf-ctl .th.p2 { left: 94px; }
+    .pf-ctl.inh .th { background: transparent; border-color: var(--ink-faint); }
+    .pf-ctl button { position: relative; width: 46px; height: 38px; border: 0; background: transparent; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-family: inherit; }
+    .pf-ctl button::before { content: ''; position: absolute; inset: -7px 0; }
+    .pf-ctl button.ink { color: var(--ink); }
+    .pf-ctl button.rose { color: var(--rose); }
+    .pf-ctl button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .pf-ctl.love button.rose svg { fill: var(--rose); }
+    .pf-ctl button i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; display: block; }
+    .pf-ctl.sm { width: 108px; height: 32px; }
+    .pf-ctl.sm .th { width: 34px; height: 26px; } .pf-ctl.sm .th.p1 { left: 36px; } .pf-ctl.sm .th.p2 { left: 70px; }
+    .pf-ctl.sm button { width: 34px; height: 26px; } .pf-ctl.sm button::before { inset: -9px 0; }
+    .pf-ctl.sm button svg { width: 13px; height: 13px; } .pf-ctl.sm button i { width: 3px; height: 3px; }
+
     /* pills — chosen is warm, never black */
     .sh-pills { display: flex; flex-wrap: wrap; gap: 8px; }
     .sh-pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--cream-400); background: #fff; border-radius: 100px; padding: 10px 14px; font: 400 12.5px/1 'Inter'; color: var(--ink); cursor: pointer; text-align: left; }
@@ -669,6 +713,7 @@
         <button type="button" class="sp-row" id="dna-pieces"><span class="l"><span class="n">Pieces you love</span></span><span class="v" id="dna-pieces-v"></span><span class="chev">›</span></button>
         <button type="button" class="sp-row" id="dna-invest"><span class="l"><span class="n">Investment level</span></span><span class="v" id="dna-invest-v"></span><span class="chev">›</span></button>
         <button type="button" class="sp-row" id="dna-colours"><span class="l"><span class="n">Your colours</span></span><span class="v" id="dna-colours-v"></span><span class="chev">›</span></button>
+        <button type="button" class="sp-row" id="dna-prints"><span class="l"><span class="n">Your prints</span></span><span class="v" id="dna-prints-v"></span><span class="chev">›</span></button>
       </div>
       <div class="sp-gk">In your words</div>
       <div class="sp-group">
@@ -1607,8 +1652,9 @@
         // "You reach for white, black, taupe and camel. Red and pink stay on the rail."
         const lc = a => a.map(c => String(c).trim().toLowerCase()).filter(Boolean);
         const joinAnd = a => a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
-        const loved = lc(Array.isArray(d.colours && d.colours.loved) ? d.colours.loved : []).filter(c => !b.colours.loved.some(x => x.toLowerCase() === c));
-        const rejected = lc(Array.isArray(d.colours && d.colours.rejected) ? d.colours.rejected : []).filter(c => !b.colours.rejected.some(x => x.toLowerCase() === c));
+        const pal = palGet();
+        const loved = lc(Array.isArray(d.colours && d.colours.loved) ? d.colours.loved : []).filter(c => !palHas(pal, c, 1));
+        const rejected = lc(Array.isArray(d.colours && d.colours.rejected) ? d.colours.rejected : []).filter(c => !palHas(pal, c, -1));
         if (loved.length || rejected.length) {
           const rej = joinAnd(rejected);
           pending.push({ list: 'colours', text: ((loved.length ? 'You reach for ' + joinAnd(loved) + '.' : '') + (rejected.length ? ' ' + rej.charAt(0).toUpperCase() + rej.slice(1) + (rejected.length > 1 ? ' stay' : ' stays') + ' on the rail.' : '')).trim(), because: evidence, at, loved, rejected });
@@ -1635,7 +1681,7 @@
       const b = chBrief(); const x = b.pending[i]; if (!x) return;
       b.pending.splice(i, 1);
       if (x.list === 'notes') b.notes = x.full || x.text;
-      else if (x.list === 'colours') { b.colours.loved = b.colours.loved.concat(x.loved || []); b.colours.rejected = b.colours.rejected.concat(x.rejected || []); }
+      else if (x.list === 'colours') palKeepWords(x.loved, x.rejected);
       else if (b[x.list]) b[x.list].push({ text: x.text, source: 'drafted', at: new Date().toISOString() });
       chSaveBrief(b);
       snTrack('brief_line', { verb: 'keep', list: x.list });
@@ -2122,8 +2168,10 @@
       const hn = st.heroes ? st.heroes.length : null;
       v('dna-pieces-v', hn == null ? '' : hn ? hn + (hn === 1 ? ' piece' : ' pieces') : 'None starred', hn === 0);
       v('dna-invest-v', st.investment || 'Pick one', !st.investment);
-      const cl = b.colours.loved.length, cr = b.colours.rejected.length;
-      v('dna-colours-v', cl || cr ? [cl ? b.colours.loved.slice(0, 3).map(cap1).join(', ') + (cl > 3 ? ' +' + (cl - 3) : '') : '', cr ? 'never ' + b.colours.rejected.slice(0, 2).map(c => c.toLowerCase()).join(', ') + (cr > 2 ? ' +' + (cr - 2) : '') : ''].filter(Boolean).join(' · ') : 'Not yet', !cl && !cr);
+      const pal = palGet(), pl = palWords(pal, 1), pa = palWords(pal, -1), ql = palPrintWords(pal, 1), qa = palPrintWords(pal, -1);
+      const few = (a, n) => a.slice(0, n).join(', ') + (a.length > n ? ' +' + (a.length - n) : '');
+      v('dna-colours-v', pl.length || pa.length ? [pl.length ? few(pl, 3) : '', pa.length ? 'avoids ' + few(pa.map(c => c.toLowerCase()), 2) : ''].filter(Boolean).join(' · ') : 'Not yet', !pl.length && !pa.length);
+      v('dna-prints-v', ql.length || qa.length ? [ql.length ? few(ql, 2) : '', qa.length ? 'avoids ' + few(qa.map(c => c.toLowerCase()), 2) : ''].filter(Boolean).join(' · ') : 'Not yet', !ql.length && !qa.length);
       v('dna-loves-v', linesCount(b.loves.length), !b.loves.length);
       v('dna-avoids-v', linesCount(b.avoids.length), !b.avoids.length);
       v('dna-rules-v', linesCount(b.rules.length), !b.rules.length);
@@ -2489,42 +2537,149 @@
     document.getElementById('dna-avoids').addEventListener('click', () => shWords('avoids'));
     document.getElementById('dna-rules').addEventListener('click', () => shWords('rules'));
     document.getElementById('dna-colours').addEventListener('click', shColours);
+    document.getElementById('dna-prints').addEventListener('click', shPrints);
 
-    /* ══ Your colours (Annie, 19 Oct — the prompt feedback): the colours she
-       reaches for and the ones she rules out, hers to set and amend at any
-       time. They ride brief.colours — a loved colour outranks the colouring
-       read in every prompt, a rejected one is a hard no. ══ */
-    const COLOUR_POOL = ['White', 'Cream', 'Navy', 'Charcoal', 'Black', 'Espresso', 'Camel', 'Taupe', 'Olive', 'Aubergine', 'Forest', 'Bordeaux', 'Blush', 'Ochre', 'Magenta', 'Cobalt', 'Emerald', 'Vermillion', 'Acid', 'Grey', 'Brown', 'Red', 'Pink', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Silver', 'Gold'];
+    /* ══ Your colours · Your prints — the colour and pattern model, phase 4
+       (Annie, 22–23 Oct). One model (window.RB_COLOURS) read everywhere:
+       13 families and their shades, the ten prints, each on a three-state
+       control — avoid · no view · love. A shade with no setting follows its
+       family; a shade she set overrides it. Love weights a colour up when
+       Robes styles her pieces and when it proposes new ones; avoid is SOFT —
+       what she owns is still styled, never singled out, and nothing new is
+       suggested in it. Saved at once on style_dna.palette:
+       {v:1, fam:{blues:1}, shade:{cobalt:-1}, print:{stripes:1}}. ══ */
+    const CMS = window.RB_COLOURS || null;
+    const pcOpen = {};
+    const PC_ICON = {
+      avoid: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m6 6 12 12"/></svg>',
+      love: '<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.4-7 10-7 10z"/></svg>',
+      caret: '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+    };
     function cap1(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
-    function coloursSet(side, name, on) {
-      const b = chBrief(); const v = cap1(String(name || '').trim().replace(/\s+/g, ' ').slice(0, 30)); if (!v) return;
-      const other = side === 'loved' ? 'rejected' : 'loved';
-      const has = a => a.some(x => x.toLowerCase() === v.toLowerCase());
-      b.colours[side] = b.colours[side].filter(x => x.toLowerCase() !== v.toLowerCase());
-      if (on) { b.colours[side].push(v); b.colours[other] = b.colours[other].filter(x => x.toLowerCase() !== v.toLowerCase()); }
-      b.source = 'edited';
-      chSaveBrief(b); snTrack('brief_colour', { side, on: !!on, own: !COLOUR_POOL.some(c => c.toLowerCase() === v.toLowerCase()) });
+    function palGet() {
+      const p = st.styleDna && st.styleDna.palette && typeof st.styleDna.palette === 'object' ? st.styleDna.palette : {};
+      const m = o => { const out = {}; if (o && typeof o === 'object') Object.keys(o).forEach(k => { const v = Number(o[k]); if (v === -1 || v === 0 || v === 1) out[k] = v; }); return out; };
+      return { v: 1, fam: m(p.fam), shade: m(p.shade), print: m(p.print) };
+    }
+    function palWrite(p) { saveDna({ palette: p }); }
+    // A family or a print at no view is the default (the key goes); a shade
+    // at no view can be a setting of its own (it stops following its family).
+    function palSet(kind, id, v) {
+      const p = palGet();
+      if (kind === 'shade') { if (v == null) delete p.shade[id]; else p.shade[id] = v; }
+      else { const o = kind === 'print' ? p.print : p.fam; if (!v) delete o[id]; else o[id] = v; }
+      palWrite(p);
+      snTrack('palette_set', { kind, id, v: v == null ? null : v });
+    }
+    function palReset(fam) {
+      const f = CMS && CMS.family(fam); if (!f) return;
+      const p = palGet(); f.shades.forEach(x => { delete p.shade[x.id]; });
+      palWrite(p);
+      snTrack('palette_reset', { family: fam });
+    }
+    function palShadeEff(p, s) { return s.id in p.shade ? p.shade[s.id] : (p.fam[s.family] || 0); }
+    // A word → where it lands in the model: a shade name on its shade, a plain
+    // colour word on its family (CMS.preference). Null when it names nothing.
+    function palLand(p, word, v) {
+      const r = CMS && CMS.preference(word); if (!r) return false;
+      if (r.shade) p.shade[r.shade] = v; else p.fam[r.family] = v;
+      return true;
+    }
+    function palHas(p, word, v) {
+      const r = CMS && CMS.preference(word); if (!r) return false;
+      return r.shade ? palShadeEff(p, CMS.shade(r.shade)) === v : (p.fam[r.family] || 0) === v;
+    }
+    // A kept colour observation lands at SHADE level where the word is a
+    // shade (Annie, 22 Oct), on the family where it is a plain word.
+    function palKeepWords(loved, rejected) {
+      const p = palGet(); let n = 0;
+      (Array.isArray(rejected) ? rejected : []).forEach(w => { if (palLand(p, w, -1)) n++; });
+      (Array.isArray(loved) ? loved : []).forEach(w => { if (palLand(p, w, 1)) n++; });
+      if (n) palWrite(p);
+      return n;
+    }
+    // Her preferences as words, for the DNA row: the families, then the
+    // shades set apart from their family.
+    function palWords(p, v) {
+      if (!CMS) return [];
+      const out = [];
+      CMS.FAMILIES.forEach(f => { if ((p.fam[f.id] || 0) === v) out.push(f.name); });
+      CMS.SHADES.forEach(s => { if (s.id in p.shade && p.shade[s.id] === v && (p.fam[s.family] || 0) !== v) out.push(s.name.toLowerCase()); });
+      return out;
+    }
+    function palPrintWords(p, v) { return CMS ? CMS.PATTERNS.filter(x => x.pref && (p.print[x.id] || 0) === v).map(x => x.name) : []; }
+    // The legacy lists (brief.colours.loved/rejected, 19 Oct) map ONCE into
+    // the model — best effort, testers only (Annie, 22 Oct): a word the model
+    // cannot place is dropped, and the lists are emptied so no prompt ever
+    // reads both. Returns true when it changed the DNA (the boot's one write).
+    function palMapLegacy() {
+      const dna = st.styleDna || {};
+      if (dna.palette && typeof dna.palette === 'object') return false;
+      const b = dna.brief && typeof dna.brief === 'object' ? dna.brief : null;
+      const c = b && b.colours && typeof b.colours === 'object' ? b.colours : {};
+      const loved = Array.isArray(c.loved) ? c.loved : [], rejected = Array.isArray(c.rejected) ? c.rejected : [];
+      if (!loved.length && !rejected.length) return false;
+      const p = { v: 1, fam: {}, shade: {}, print: {} };
+      rejected.forEach(w => palLand(p, w, -1)); loved.forEach(w => palLand(p, w, 1));
+      st.styleDna = Object.assign({}, dna, { palette: p, brief: Object.assign({}, b, { colours: { loved: [], rejected: [] } }) });
+      return true;
+    }
+    // The three-state control. v = -1 | 0 | 1, or null for a shade following
+    // its family (inh = the family's view) — an outline thumb, never a fill.
+    function pcCtlHtml(kind, id, v, inh, label, follow) {
+      const inherited = v == null;
+      const pos = (inherited ? (inh || 0) : v) + 1;
+      const a = i => i === pos ? 'true' : 'false';
+      const col = i => (i === pos && !inherited) ? (i === 2 ? 'rose' : 'ink') : 'faint';
+      return '<div class="pf-ctl' + (kind === 'shade' ? ' sm' : '') + (inherited ? ' inh' : '') + (pos === 2 && !inherited ? ' love' : '') + '" role="radiogroup" aria-label="' + esc(inherited && follow ? label + ': following ' + follow : label) + '" data-kind="' + kind + '" data-id="' + esc(id) + '">' +
+        '<span class="th p' + pos + '" aria-hidden="true"></span>' +
+        '<button type="button" role="radio" aria-checked="' + a(0) + '" aria-label="Avoid" title="Avoid" data-v="-1" class="' + col(0) + '">' + PC_ICON.avoid + '</button>' +
+        '<button type="button" role="radio" aria-checked="' + a(1) + '" aria-label="No view" title="No view" data-v="0" class="' + col(1) + '"><i></i></button>' +
+        '<button type="button" role="radio" aria-checked="' + a(2) + '" aria-label="Love" title="Love" data-v="1" class="' + col(2) + '">' + PC_ICON.love + '</button></div>';
+    }
+    function pcTileHtml(f) { return '<span class="pf-tile">' + f.tile.map(x => '<span style="' + CMS.swatchCss(x) + '"></span>').join('') + '</span>'; }
+    function pcWire(body) {
+      body.querySelectorAll('[data-open]').forEach(bt => bt.addEventListener('click', () => { pcOpen[bt.dataset.open] = !pcOpen[bt.dataset.open]; shRepaint(); }));
+      body.querySelectorAll('.pf-ctl button').forEach(bt => bt.addEventListener('click', () => {
+        const g = bt.closest('.pf-ctl');
+        palSet(g.dataset.kind, g.dataset.id, Number(bt.dataset.v));
+        shRepaint(); dnaPaint();
+      }));
+      body.querySelectorAll('[data-reset]').forEach(bt => bt.addEventListener('click', () => { palReset(bt.dataset.reset); shRepaint(); dnaPaint(); }));
     }
     function shColours() {
       shOpen({
-        kind: 'colours', title: 'Your colours', sub: 'The colours you reach for, and the ones you never wear. Yours to change at any time — they outrank what Robes read from your photographs.',
+        kind: 'colours', title: 'Your colours', sub: 'The colours you love, and the ones you’d rather not buy. Yours to change at any time — they outrank what Robes reads from your photographs.',
         body: () => {
-          const b = chBrief();
-          const row = (side, label, hint) => {
-            const mine = b.colours[side];
-            const has = n => mine.some(x => x.toLowerCase() === n.toLowerCase());
-            const own = mine.filter(n => !COLOUR_POOL.some(c => c.toLowerCase() === n.toLowerCase()));
-            return '<div class="sh-k">' + label + ' <span class="h">' + hint + '</span></div><div class="sh-pills">' +
-              COLOUR_POOL.concat(own).map(n => '<button type="button" class="sh-pill' + (has(n) ? ' on' : '') + '" data-colour="' + esc(n) + '" data-side="' + side + '">' + (has(n) ? '<span>✓</span>' : '') + esc(n) + '</button>').join('') +
-              '</div><div class="ln-add"><span class="plus">+</span><input type="text" data-colour-in="' + side + '" placeholder="A colour of your own" maxlength="30" autocomplete="off"></div>';
-          };
-          return row('loved', 'Colours you reach for', 'Robes dresses toward these') + row('rejected', 'Never', 'Robes never proposes a piece in these') +
-            (b.colours.loved.length || b.colours.rejected.length ? '<div class="sh-filed">✓ Filed · Robes reads it from here on</div>' : '');
+          if (!CMS) return '<div class="sh-empty">The colour model didn’t load — refresh the page.</div>';
+          const p = palGet();
+          return '<div class="pf-rows">' + CMS.FAMILIES.map(f => {
+            const fv = p.fam[f.id] || 0, open = !!pcOpen[f.id];
+            const set = f.shades.filter(x => x.id in p.shade);
+            return '<div class="pf-row' + (fv === 1 ? ' love' : fv === -1 ? ' avoid' : '') + (open ? ' open' : '') + '" data-fam="' + f.id + '">' +
+              '<div class="pf-head"><button type="button" class="pf-open" data-open="' + f.id + '" aria-expanded="' + open + '" aria-label="' + esc(f.name) + ' shades">' + pcTileHtml(f) +
+                '<span class="pf-name"><span class="pf-n">' + esc(f.name) + '<span class="car">' + PC_ICON.caret + '</span></span><span class="pf-meta">' + (set.length ? set.length + (set.length === 1 ? ' shade set' : ' shades set') : '') + '</span></span></button>' +
+                pcCtlHtml('fam', f.id, fv, null, f.name) + '</div>' +
+              (open ? '<div class="pf-shades">' + f.shades.map(x => '<div class="pf-sh" data-shade="' + x.id + '"><span class="pf-sw" style="' + CMS.swatchCss(x) + '"></span><span class="pf-shn">' + esc(x.name) + '</span>' + pcCtlHtml('shade', x.id, x.id in p.shade ? p.shade[x.id] : null, fv, x.name, f.name) + '</div>').join('') +
+                (set.length ? '<button type="button" class="pf-reset" data-reset="' + f.id + '">Match the family</button>' : '') + '</div>' : '') +
+              '</div>';
+          }).join('') + '</div><p class="pf-note">Robes won’t suggest new pieces in anything you avoid. What you already own in one is styled like any other.</p>';
         },
-        wire: body => {
-          body.querySelectorAll('[data-colour]').forEach(bt => bt.addEventListener('click', () => { coloursSet(bt.dataset.side, bt.dataset.colour, !bt.classList.contains('on')); shRepaint(); dnaPaint(); }));
-          body.querySelectorAll('[data-colour-in]').forEach(inp => inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); const side = inp.dataset.colourIn; if (inp.value.trim()) { coloursSet(side, inp.value, true); shRepaint(); dnaPaint(); const i2 = body.querySelector('[data-colour-in="' + side + '"]'); if (i2) i2.focus(); } } }));
+        wire: pcWire,
+      });
+    }
+    function shPrints() {
+      shOpen({
+        kind: 'prints', title: 'Your prints', sub: 'The prints you love, and the ones you’d rather not buy.',
+        body: () => {
+          if (!CMS) return '<div class="sh-empty">The colour model didn’t load — refresh the page.</div>';
+          const p = palGet();
+          return '<div class="pf-rows">' + CMS.PATTERNS.filter(x => x.pref).map(x => {
+            const v = p.print[x.id] || 0;
+            return '<div class="pf-row' + (v === 1 ? ' love' : v === -1 ? ' avoid' : '') + '" data-print="' + x.id + '"><div class="pf-head"><span class="pf-pt" style="' + CMS.patternCss(x) + '"></span><span class="pf-name" style="flex:1"><span class="pf-n">' + esc(x.name) + '</span></span>' + pcCtlHtml('print', x.id, v, null, x.name) + '</div></div>';
+          }).join('') + '</div><p class="pf-note">Robes won’t suggest new pieces in a print you avoid.</p>';
         },
+        wire: pcWire,
       });
     }
 
@@ -2710,6 +2865,8 @@
           const lv = tiers.map(t => TIER_TO_LEVEL[t]).filter(Boolean).sort((a, b) => order.indexOf(b) - order.indexOf(a))[0];
           if (lv) { st.investment = lv; st.styleDna = Object.assign({}, st.styleDna, { investment: lv }); once = Object.assign(once || {}, { annual_spend: lv }); }
         }
+        // The 19 Oct colour lists map once into the colour model (phase 4).
+        if (palMapLegacy()) once = once || {};
         let prefs = profile.avatar_prefs && typeof profile.avatar_prefs === 'object' ? profile.avatar_prefs : null;
         if (!prefs) { try { const k = MV_LS(); const raw = k && localStorage.getItem(k); if (raw) prefs = JSON.parse(raw); } catch (e) {} }
         if (prefs) {
