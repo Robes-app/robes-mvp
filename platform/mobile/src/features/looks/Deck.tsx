@@ -22,6 +22,7 @@ import { Animated, PanResponder, Pressable, ScrollView, View } from 'react-nativ
 import { dayLabel } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { GenericModelBadge } from './GenericModelBadge';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
 import { type SetLook, useInvalidateLooks, useLookSet, useRequestFrame } from './look-states';
 import { ScanLine } from './ScanLine';
@@ -175,6 +176,8 @@ function Card({
       >
         <Text size="caption" tone="muted">{`✕ ${copy.deck.pass}`}</Text>
       </Animated.View>
+      {/* Last, so it sits over the stamps. Its own Pressable, so a tap never reaches the card. */}
+      <GenericModelBadge />
     </Animated.View>
   );
 }

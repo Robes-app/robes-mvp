@@ -25,6 +25,7 @@ import { errorCopy } from '@/lib/error-copy';
 import { imageSources } from '@/lib/image';
 import { useLookSet, useRefreshLooks, useRequestFrame } from '@/lib/look-states';
 import { useJob } from '@/lib/use-job';
+import { GenericModelBadge } from './generic-model-badge';
 import { LookImage } from './look-image';
 import { ScanLine } from './scan-line';
 
@@ -161,6 +162,7 @@ function Card({
       <div className="pointer-events-none">
         <LookImage look={look} sizes="384px" />
       </div>
+      <GenericModelBadge stopTap />
       <Text className="mt-2 font-display text-xl">{look.name}</Text>
       <Text size="small" tone="muted">
         {copy.deck.pieces(look.pieces.length + look.proposals.length)}
