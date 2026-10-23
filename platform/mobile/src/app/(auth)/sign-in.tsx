@@ -1,5 +1,5 @@
 import { auth as copy } from '@robes/copy';
-import { Button, Field, Heading, PrimaryScope, Text, Wordmark } from '@robes/ui-native';
+import { Button, Field, Heading, PrimaryScope, Text, WarmGround, Wordmark } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
@@ -39,76 +39,79 @@ export default function SignIn() {
 
   return (
     <PrimaryScope>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 justify-center gap-8 bg-bg px-6"
-      >
-        {step === 'email' ? (
-          <>
-            <View className="gap-2">
-              <Wordmark />
-              <Heading size="xl">{copy.title}</Heading>
-              <Text tone="muted">{copy.subtitle}</Text>
-            </View>
-            <Field
-              label={copy.emailLabel}
-              placeholder={copy.emailPlaceholder}
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              value={email}
-              onChangeText={setEmail}
-              onSubmitEditing={sendCode}
-              error={error}
-            />
-            <Button onPress={sendCode} loading={busy} loadingLabel={copy.sendingCode}>
-              {copy.sendCode}
-            </Button>
-          </>
-        ) : (
-          <>
-            <View className="gap-2">
-              <Heading>{copy.codeTitle}</Heading>
-              <Text tone="muted">{copy.codeSubtitle(email.trim())}</Text>
-            </View>
-            <Field
-              label={copy.codeLabel}
-              keyboardType="number-pad"
-              textContentType="oneTimeCode"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={code}
-              onChangeText={(v) => setCode(v.replace(/\D/g, ''))}
-              onSubmitEditing={verify}
-              error={error}
-            />
-            <Button
-              onPress={verify}
-              disabled={code.length !== 6}
-              loading={busy}
-              loadingLabel={copy.verifying}
-            >
-              {copy.verify}
-            </Button>
-            <View className="flex-row justify-between">
-              <Button variant="quiet" onPress={sendCode}>
-                {copy.resend}
+      <View className="flex-1 bg-bg">
+        <WarmGround />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          className="flex-1 justify-center gap-8 px-6"
+        >
+          {step === 'email' ? (
+            <>
+              <View className="gap-2">
+                <Wordmark />
+                <Heading size="xl">{copy.title}</Heading>
+                <Text tone="muted">{copy.subtitle}</Text>
+              </View>
+              <Field
+                label={copy.emailLabel}
+                placeholder={copy.emailPlaceholder}
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                value={email}
+                onChangeText={setEmail}
+                onSubmitEditing={sendCode}
+                error={error}
+              />
+              <Button onPress={sendCode} loading={busy} loadingLabel={copy.sendingCode}>
+                {copy.sendCode}
               </Button>
+            </>
+          ) : (
+            <>
+              <View className="gap-2">
+                <Heading>{copy.codeTitle}</Heading>
+                <Text tone="muted">{copy.codeSubtitle(email.trim())}</Text>
+              </View>
+              <Field
+                label={copy.codeLabel}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChangeText={(v) => setCode(v.replace(/\D/g, ''))}
+                onSubmitEditing={verify}
+                error={error}
+              />
               <Button
-                variant="quiet"
-                onPress={() => {
-                  setStep('email');
-                  setCode('');
-                  setError(null);
-                }}
+                onPress={verify}
+                disabled={code.length !== 6}
+                loading={busy}
+                loadingLabel={copy.verifying}
               >
-                {copy.useDifferentEmail}
+                {copy.verify}
               </Button>
-            </View>
-          </>
-        )}
-      </KeyboardAvoidingView>
+              <View className="flex-row justify-between">
+                <Button variant="quiet" onPress={sendCode}>
+                  {copy.resend}
+                </Button>
+                <Button
+                  variant="quiet"
+                  onPress={() => {
+                    setStep('email');
+                    setCode('');
+                    setError(null);
+                  }}
+                >
+                  {copy.useDifferentEmail}
+                </Button>
+              </View>
+            </>
+          )}
+        </KeyboardAvoidingView>
+      </View>
     </PrimaryScope>
   );
 }
