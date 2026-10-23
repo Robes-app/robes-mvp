@@ -119,9 +119,13 @@ async function createWorkerContext(): Promise<WorkerContext> {
     env.APP_ENV === 'dev' && storage && localRenderer
       ? localRenderer({ storage, assets: system.assets })
       : undefined;
-  const ai = storage
-    ? createJobAi({ appEnv: env.APP_ENV, geminiApiKey: await resolveGeminiKey(env) })
-    : null;
+  // Only the functions infra grants the Gemini secret build AI (rendition, maintenance and notify
+  // hold none); outside dev a missing key leaves them without AI handlers rather than crashing.
+  const geminiApiKey = await resolveGeminiKey(env);
+  const ai =
+    storage && (geminiApiKey || env.APP_ENV === 'dev')
+      ? createJobAi({ appEnv: env.APP_ENV, geminiApiKey })
+      : null;
   // Generated frames land as uploads, so the S3 event renders them; no onGenerated here.
   // Link imports need no AI or bucket; in AWS the isolated fetcher attaches the page result,
   // in dev the same SSRF-guarded fetch runs in-process.
@@ -257,7 +261,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
           ledger: system.ledger,
           weather: createWeather(),
         },
-        batch: createJobBatch({ appEnv: env.APP_ENV, geminiApiKey: await resolveGeminiKey(env) }),
+        batch: createJobBatch({ appEnv: env.APP_ENV, geminiApiKey }),
         transport,
         renderAnchor: createAnchorRenderer({ repos: createRepositories(db), transport, logger }),
         logger,
