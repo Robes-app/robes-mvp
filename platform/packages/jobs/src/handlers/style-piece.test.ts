@@ -311,12 +311,18 @@ describe('key_piece handler (suggested looks)', () => {
   });
 
   it('counts her own pieces per way, and logs that she wrote words, never the words', async () => {
-    const { run, ledger } = setup(createFakeProvider({ 'looks.style_piece': () => fake({ closetSize: 1 }) }));
+    const { run, ledger } = setup(
+      createFakeProvider({ 'looks.style_piece': () => fake({ closetSize: 1 }) }),
+    );
     await run({ anchor: { type: 'piece', pieceId: PIECE }, balanceNote: 'two of mine, one new' });
-    const detail = (ledger.record.mock.calls[0]?.[0] as { detail?: Record<string, unknown> })
-      ?.detail;
-    expect(detail).toEqual({ balance: 'words', shown: 1, owned_of_total: '1/3 1/3 1/3' });
-    expect(JSON.stringify(detail)).not.toContain('two of mine');
+    // One way used a piece of hers, two used none — the read is per way, not an average.
+    expect(ledger.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: { balance: 'words', shown: 1, owned_of_total: '1/3 0/3 0/3' },
+      }),
+    );
+    // Her words themselves never reach the row.
+    expect(JSON.stringify(ledger.record.mock.calls)).not.toContain('two of mine');
   });
 
   it('keeps the looks when the frame fails (UX-08), and rejects bad input', async () => {
