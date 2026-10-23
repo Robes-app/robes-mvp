@@ -424,6 +424,42 @@ test('the deck leaves the model line to the card badge, whose tap never decides 
   expect(mockRouter.push).not.toHaveBeenCalled();
 });
 
+// The scanner's three lists (legacy): a piece, her words, and the overlay before the set lands.
+// Only the overlay names who wears the looks — the deck's own lists never do.
+const dressingSet = (over: Partial<LookSet> = {}): LookSet => ({
+  id: SET_ID,
+  mode: 'piece',
+  prompt: null,
+  anchor,
+  dateHint: null,
+  jobId: JOB_ID,
+  looks: [],
+  ...over,
+});
+
+test.each([
+  ['a piece', dressingSet(), lookbook.deck.scanPiece[1]],
+  [
+    'her words',
+    dressingSet({ mode: 'prompt', anchor: null, prompt: 'dinner' }),
+    lookbook.deck.scanPrompt[1],
+  ],
+])('the deck dresses to the lines for %s, never the overlay’s', async (_label, set, second) => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /me/model': GENERIC_MODEL,
+    [`GET /looks/sets/${SET_ID}`]: set,
+    [`GET /jobs/${JOB_ID}`]: job({ setId: SET_ID }, 'running'),
+    'GET /looks': byStatus({}),
+  });
+  await renderWithApi(<Deck setId={SET_ID} />);
+  expect(await screen.findByTestId('deck-dressing')).toBeTruthy();
+  expect(screen.getByText(lookbook.deck.scanPiece[0] as string)).toBeTruthy();
+  // One beat on: the line that belongs to this list alone.
+  expect(await screen.findByText(second as string, {}, { timeout: 4000 })).toBeTruthy();
+  expect(screen.queryByText(lookbook.deck.scanGeneric)).toBeNull();
+});
+
 test('a verdict on a suggestion lands in her memory; Not quite lets the look go', async () => {
   const calls = mockFetch({
     'GET /me': ME,

@@ -58,12 +58,19 @@ function DeckTitle({ set }: { set: LookSet | undefined }) {
 }
 
 // While the looks compose: her piece (or her words) under the scanner, a line that changes every
-// 2.2s; a Robes model wears them until hers exists.
+// 2.2s. Three lists, one per surface (legacy): the deck's own two once the set exists, and before
+// it lands the overlay's, which alone names who wears the looks until her twin is filed.
 function Dressing({ set }: { set?: LookSet }) {
   const [i, setI] = useState(0);
   const { data: model } = useApi('me.model.get');
   const around = set?.anchor ? anchorName(set.anchor.label, set.anchor.brand) : '';
-  const lines = model?.filed ? copy.deck.scan : [...copy.deck.scan, copy.deck.scanGeneric];
+  const lines = set
+    ? set.anchor
+      ? copy.deck.scanPiece
+      : copy.deck.scanPrompt
+    : model?.filed
+      ? copy.deck.scanOverlay
+      : [...copy.deck.scanOverlay, copy.deck.scanGeneric];
   useEffect(() => {
     const t = setInterval(() => setI((n) => n + 1), 2200);
     return () => clearInterval(t);

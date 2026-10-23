@@ -148,8 +148,29 @@ export const lookbook = {
     modelYours: 'Each look, shot on your model.',
     composing: 'Robes is composing',
     yourPiece: (piece: string): string => `Your ${piece}`,
-    // The scanner's lines while a look composes (legacy 0.5; "Generating" is banned in chrome).
-    scan: ['Styling a look', 'Choosing the shoes', 'Finding a layer', 'Setting the colour'],
+    // The scanner's lines while a look composes (legacy 0.5). Three lists, one per surface
+    // ("Generating a look" is legacy's first line; chrome says "Styling a look").
+    // Around a piece she handed Robes.
+    scanPiece: [
+      'Styling a look',
+      'Looking at the hem',
+      'Choosing the shoes',
+      'Finding a layer',
+      'Weighing the bag',
+      'Setting the colour',
+    ],
+    // From her words alone.
+    scanPrompt: [
+      'Styling a look',
+      'Reading your words',
+      'Choosing the pieces',
+      'Setting the tone',
+      'Finding the shoes',
+      'Weighing a layer',
+    ],
+    // Before the set lands. Only this one says who wears the looks, and only until her twin is
+    // filed — the deck's own lists never carry it.
+    scanOverlay: ['Styling a look', 'Choosing the shoes', 'Finding a layer', 'Setting the colour'],
     scanGeneric: 'On a Robes model for now',
     // On a suggested look's frame while she has no model; it opens the build-your-model door.
     genericModel: 'Generic model',
