@@ -1,6 +1,6 @@
 import { ingestReceipt, SesNotification } from '@robes/jobs';
 import { type WorkerContext, workerContext } from '../context';
-import { withSentry } from '../sentry';
+import { withErrorReporting } from '../errors';
 import { processBatch, type SqsBatchResponse, type SqsEvent } from '../sqs';
 
 type Context = Pick<WorkerContext, 'inbound' | 'logger'>;
@@ -26,4 +26,4 @@ export function createInboundHandler(getContext: () => Promise<Context>) {
   };
 }
 
-export const handler = withSentry(createInboundHandler(workerContext));
+export const handler = withErrorReporting(createInboundHandler(workerContext));

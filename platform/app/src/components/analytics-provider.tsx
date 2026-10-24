@@ -43,9 +43,10 @@ export function AnalyticsProvider({
 }) {
   const key = config?.key;
   const host = config?.host;
+  const environment = config?.environment;
   const browser = useMemo(
-    () => (key && host ? createBrowserAnalytics({ key, host }) : null),
-    [key, host],
+    () => (key && host && environment ? createBrowserAnalytics({ key, host, environment }) : null),
+    [key, host, environment],
   );
   const [consents, setConsents] = useState(initialConsents);
   const [synced, setSynced] = useState(initialConsents);

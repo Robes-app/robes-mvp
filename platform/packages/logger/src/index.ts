@@ -2,7 +2,7 @@ import pino, { type DestinationStream, type Logger } from 'pino';
 
 import { scrub } from './scrub';
 
-export { REDACTED_KEYS, scrub, scrubBreadcrumb, scrubEvent } from './scrub';
+export { REDACTED_KEYS, scrub } from './scrub';
 
 export interface LoggerOptions {
   service: string;

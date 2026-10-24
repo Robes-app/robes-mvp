@@ -41,6 +41,8 @@ export interface StageConfig {
   workers: {
     generateReservedConcurrency?: number;
   };
+  /** PostHog (EU) publishable key (`ROBES_POSTHOG_KEY` at deploy): worker errors go to error tracking. */
+  posthog: { key?: string };
   alerts: { email?: string };
   /** `enabled: false` skips the Budgets stack (member accounts can't create budgets). */
   budget: { enabled: boolean; monthlyUsd: number; email?: string };

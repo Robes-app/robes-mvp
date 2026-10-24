@@ -9,15 +9,15 @@ packages:
 catalog:
   typescript: 6.0.3
   vitest: 5.0.1
-  zod: 4.6.5
+  zod: 4.6.6
   jose: 6.2.12
   fast-check: 4.10.2
   tsx: 4.23.15
 
 allowBuilds:
   '@google/genai': false
-  # Binary comes from its per-platform optional dependency; the postinstall only re-checks it.
-  '@sentry/cli': false
+  # Its postinstall fetches the binary that uploads web source maps to PostHog.
+  '@posthog/cli': true
   # posthog-js dependency; its postinstall only prints a funding banner.
   core-js: false
   dbmate: true
@@ -37,6 +37,10 @@ overrides:
   # GHSA-cg2g-xh64-v4q7, GHSA-mrv2-3pqr-j5jr (via posthog-js); GHSA-587h-7wmj-h5pm (via vitest).
   dompurify@<3.4.17: '>=3.4.17'
   vite@>=8.3.0 <8.3.3: '>=8.3.3'
+  # GHSA-mrhx-c7xc-m3w5 (zod, via better-auth); happy-dom's import-alias RCE (via vitest).
+  zod@<4.6.6: '>=4.6.6 <5'
+  happy-dom@>=17.0.0 <21.0.4: '>=21.0.4'
+  undici@>=8.0.0 <8.12.2: '>=8.12.2 <9'
 
 auditConfig:
   # No patched release yet; both run only in the Expo CLI / Metro dev toolchain, never in the app or API.

@@ -4,6 +4,8 @@ import { type Analytics, createAnalytics } from './index';
 export interface BrowserAnalyticsConfig {
   key: string;
   host: string;
+  // Tags every event and error: staging and production share one project.
+  environment: string;
 }
 
 export interface ConsentedStart {
@@ -21,6 +23,7 @@ export interface BrowserAnalytics extends Analytics {
 type Client = Pick<
   PostHog,
   | 'init'
+  | 'register'
   | 'capture'
   | 'identify'
   | 'reset'
@@ -35,6 +38,8 @@ export type LoadPostHog = (replay: boolean) => Promise<Client>;
 // Bundled, no-CDN build: nothing is fetched from PostHog but the ingest API (CSP connect-src).
 const loadPostHog: LoadPostHog = async (replay) => {
   const { default: posthog } = await import('posthog-js/dist/module.no-external');
+  // The no-external build ships error tracking as a bundled extension, like the recorder.
+  await import('posthog-js/dist/exception-autocapture');
   if (replay) await import('posthog-js/dist/posthog-recorder');
   return posthog;
 };
@@ -48,7 +53,8 @@ export function posthogOptions(config: BrowserAnalyticsConfig, replay: boolean) 
     autocapture: false,
     capture_pageview: false,
     capture_pageleave: false,
-    capture_exceptions: false,
+    // Uncaught errors reach PostHog error tracking (still only after consent).
+    capture_exceptions: true,
     capture_dead_clicks: false,
     capture_heatmaps: false,
     rageclick: false,
@@ -94,6 +100,7 @@ export function createBrowserAnalytics(
         client.opt_in_capturing();
       } else {
         loaded.init(config.key, posthogOptions(config, replay));
+        loaded.register({ environment: config.environment });
         client = loaded;
       }
       if (replay) client.startSessionRecording();

@@ -28,7 +28,7 @@ Vercel values: update in Project → Settings → Environment Variables, then **
 2. As the host's admin user via `psql` (not a web console): `alter role robes_app with password '<PW>';`. Open pooled connections keep working; new ones need the new password, so move through steps 3–4 quickly.
 3. Update Secrets Manager `robes-$ENV/database/url` with the new URL, then force Lambda cold starts (above).
 4. Update Vercel `DATABASE_URL` and redeploy.
-5. Verify: `/api/v1/health` ok; a job completes; no `password authentication failed` in Sentry/CloudWatch for 10 min. `unset PW`.
+5. Verify: `/api/v1/health` ok; a job completes; no `password authentication failed` in PostHog/CloudWatch for 10 min. `unset PW`.
 
 The migration role (`MIGRATION_DATABASE_URL`, GitHub environment secret) rotates the same way: `alter role robes_migrator with password …`, then update the GitHub secret. Nothing else uses it.
 

@@ -24,6 +24,8 @@ export const production: StageConfig = {
     signingPublicKeyPem: publicKeyFor('production'),
   },
   workers: { generateReservedConcurrency: reservedConcurrency('production', 20) },
+  // One PostHog project for both stages for now; events carry `environment`.
+  posthog: { key: fromEnv('ROBES_POSTHOG_KEY') },
   alerts: { email: fromEnv('ROBES_PRODUCTION_ALERT_EMAIL') },
   budget: {
     enabled: budgetsEnabled('production'),

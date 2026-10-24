@@ -1,7 +1,7 @@
 # Robes Platform — Mobile (Expo) Spec
 
 Status: **normative** for architecture; screens follow the IA in `SPEC.md` §6 and the UX requirements in `reference/ux-opportunities.md` §5.
-Versions: `reference/stack-versions.md` — Expo SDK 57 (RN 0.86.3, React 19.2.3, Reanimated 4.5.1), Uniwind 1.12 on Tailwind 4.3, Expo Router, `@sentry/react-native` via `npx expo install`.
+Versions: `reference/stack-versions.md` — Expo SDK 57 (RN 0.86.3, React 19.2.3, Reanimated 4.5.1), Uniwind 1.12 on Tailwind 4.3, Expo Router.
 
 ---
 
@@ -54,7 +54,7 @@ Shared packages consumed: `@robes/tokens`, `@robes/ui-native`, `@robes/copy`, `@
 | Haptics | `expo-haptics` on primary commits (save look, add piece) | |
 | Accessibility | Dynamic Type respected (scale caps per token), `accessibilityLabel` lint, reduce-motion respected | a11y P0 |
 | Analytics | `posthog-react-native` after consent; same event catalogue as web (`@robes/analytics`) | |
-| Errors | `@sentry/react-native`, source maps via EAS | |
+| Errors | `posthog-react-native` exception autocapture (after consent); JS only — native crashes need `@posthog/react-native-plugin` | |
 
 Later (post-parity): home-screen widget "Today's look" (iOS WidgetKit via `expo-apple-targets`), calendar export, Live Activity for long travel generations.
 
@@ -71,7 +71,7 @@ Later (post-parity): home-screen widget "Today's look" (iOS WidgetKit via `expo-
 
 ## 5. Build & release
 
-- EAS Build profiles: `development` (dev client), `preview` (internal distribution, staging API), `production` (store, prod API). EAS env vars hold **public** config only (API base URL, Supabase URL + publishable key, Sentry DSN, PostHog key).
+- EAS Build profiles: `development` (dev client), `preview` (internal distribution, staging API), `production` (store, prod API). EAS env vars hold **public** config only (API base URL, Supabase URL + publishable key, PostHog key).
 - EAS Update channels `preview` / `production`; `runtimeVersion.policy = fingerprint`.
 - E2E: Maestro flows in `mobile/e2e/` (sign-in, add piece via library, generate look, save, share) run on EAS Workflows nightly and on release PRs.
 - Unit/component tests: jest-expo + React Native Testing Library; shared pure packages tested with Vitest.

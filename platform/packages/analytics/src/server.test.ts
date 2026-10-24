@@ -1,9 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createServerAnalytics, type ServerAnalyticsClient } from './server';
+import {
+  createErrorReporter,
+  createServerAnalytics,
+  type ServerAnalyticsClient,
+  scrubExceptions,
+} from './server';
 
 function setup(consented: boolean) {
   const client = {
     captureImmediate: vi.fn(async () => {}),
+    captureExceptionImmediate: vi.fn(async () => {}),
     shutdown: vi.fn(async () => {}),
   } satisfies ServerAnalyticsClient;
   const hasConsent = vi.fn(async () => consented);
@@ -33,4 +39,25 @@ describe('server analytics', () => {
     expect(hasConsent).toHaveBeenCalledWith('u2');
     expect(client.captureImmediate).not.toHaveBeenCalled();
   });
+});
+
+describe('error reporter', () => {
+  it('reports anonymously with the environment and never throws', async () => {
+    const { client } = setup(false);
+    const reporter = createErrorReporter(client, 'staging');
+    const err = new Error('boom');
+    await reporter.capture(err, { requestId: 'r1' });
+    expect(client.captureExceptionImmediate).toHaveBeenCalledWith(err, undefined, {
+      requestId: 'r1',
+      environment: 'staging',
+    });
+    client.captureExceptionImmediate.mockRejectedValueOnce(new Error('offline'));
+    await expect(reporter.capture(err)).resolves.toBeUndefined();
+  });
+});
+
+it('strips email addresses from exception messages (SEC-83)', () => {
+  const event = { properties: { $exception_list: [{ value: 'no user niall@example.com' }] } };
+  expect(scrubExceptions(event)?.properties.$exception_list[0]?.value).toBe('no user [redacted]');
+  expect(scrubExceptions(null)).toBeNull();
 });

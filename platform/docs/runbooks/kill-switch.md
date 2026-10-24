@@ -12,7 +12,7 @@ Every paid or risky route declares `flag: '<key>'` in `route()` (`../api.md` §1
    ```sql
    update app.feature_flags set enabled = false, updated_at = now() where key = 'looks.generate';
    ```
-3. Confirm within 60 s: the route returns 503 `disabled` (`curl -i -X POST $APP_URL/api/v1/looks/generate -H "authorization: Bearer $TOKEN"`); PostHog/Sentry show no new generations.
+3. Confirm within 60 s: the route returns 503 `disabled` (`curl -i -X POST $APP_URL/api/v1/looks/generate -H "authorization: Bearer $TOKEN"`); PostHog shows no new generations.
 
 ## Everything that spends money, at once
 

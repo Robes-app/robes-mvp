@@ -26,7 +26,7 @@ Inputs: `reference/cost-research.md` (prices fetched 2026-09-24), `reference/sta
                                       ├─ EventBridge Scheduler (cron)
                                       ├─ Secrets Manager · CloudWatch · SNS → Chatbot/Slack
                                       └─ AWS Budgets
- Third parties: Gemini API (per-env GCP project) · Resend (send + inbound) · PostHog EU · Sentry · Cloudflare Turnstile · fal (BiRefNet cutouts) · Expo Push
+ Third parties: Gemini API (per-env GCP project) · Resend (send + inbound) · PostHog EU (analytics + errors) · Cloudflare Turnstile · fal (BiRefNet cutouts) · Expo Push
 ```
 
 Principles:
@@ -45,7 +45,7 @@ Principles:
 | Gemini | dev key, low quota | staging GCP project + budget | prod GCP project + budget + quota caps |
 | Media | local S3 (MinIO) or staging bucket w/ dev prefix | `media.staging.byrobes.com` | `media.byrobes.com` |
 | Resend | test mode | `staging.mail.byrobes.com` | `mail.byrobes.com` |
-| PostHog / Sentry | disabled / dev DSN | staging project | prod project |
+| PostHog | disabled | project 275134, `environment=staging` | project 275134, `environment=production` |
 | Mobile | Expo dev client | EAS channel `preview` | EAS channel `production` |
 
 The legacy stack (Railway `main` + `beta`, Supabase `Robes_p0`, Cloudinary, Airtable) stays untouched until cutover (`migration.md`).
@@ -163,8 +163,8 @@ Unit economics dashboard (admin): cost per MAU, cost per generation by feature/m
 
 ## 9. Observability
 
-- **Sentry**: `@sentry/nextjs` (web + API, source maps uploaded in CI), `@sentry/react-native` (via `expo install`), `@sentry/aws-serverless` in workers. Release = git SHA; environment tag.
-- **Tracing**: W3C `traceparent` from API → SQS message attribute → worker; Sentry performance ties request → job → Gemini calls.
+- **Errors**: PostHog error tracking — `posthog-node` on the API and in workers (anonymous), `posthog-js` / `posthog-react-native` exception autocapture after consent. Web source maps via `@posthog/nextjs-config`; `environment` tag on everything.
+- **Tracing**: W3C `traceparent` from API → SQS message attribute → worker (request ids tie a route error to its job).
 - **Logs**: pino JSON with redaction (SEC-83) → Vercel log drain / CloudWatch (14 d).
 - **Product analytics**: PostHog EU, consent-gated, typed event catalogue in `packages/analytics` (both apps import the same event names/props).
 - **Uptime**: Checkly (or Vercel/BetterStack) hitting `/api/v1/health` and a synthetic "generate a look" every hour on staging and production with a dedicated test user.
