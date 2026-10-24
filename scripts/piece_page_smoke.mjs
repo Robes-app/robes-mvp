@@ -52,7 +52,7 @@ window.supabase = {
 };`;
 
 const PIECES = [
-  { id: 'w-top1', label: 'Cream silk shirt',   category: 'Tops',        color: 'Cream',  price: 180, times_worn: 8, brand: 'Arket', notes: 'Close-fitting base under the open shirt.' },
+  { id: 'w-top1', label: 'Cream silk shirt',   category: 'Tops',        color: 'Cream',  material: 'silk', price: 180, times_worn: 8, brand: 'Arket', notes: 'Close-fitting base under the open shirt.' },
   { id: 'w-top2', label: 'Ribbed white tank',  category: 'Tops',        color: 'White',  price: 40 },
   { id: 'w-bot1', label: 'Barrel-leg jeans',   category: 'Bottoms',     color: 'Navy',   price: 220 },
   { id: 'w-bot2', label: 'Linen shorts',       category: 'Bottoms',     color: 'Cream',  price: 90 },
@@ -197,7 +197,7 @@ const SHOT = process.env.SHOT_DIR || '';
   check('wardrobe · the note reads in italic serif', t.includes('Close-fitting base under the open shirt.'));
   const rows = await page.evaluate(() => Array.from(document.querySelectorAll('#rb-piece-page .rb-ps-row')).map((r) => r.dataset.k + '=' + r.querySelector('.rb-ps-v').textContent));
   check('wardrobe · the record is the piece sheet (Piece_Sheet 01): every field a row, the band and the wear-for defaults among them, no tag chips',
-    rows.join('|') === 'category=Tops|brand=Arket|colour=Cream|extra=Add|print=Plain|season=Year-round|wear=Everyday|size=Add|price=€180|notes=' && await page.locator('.rb-pc-tag').count() === 0, JSON.stringify(rows));
+    rows.join('|') === 'category=Tops|brand=Arket|colour=Cream|extra=Add|print=Plain|material=Silk|season=Year-round|wear=Everyday|size=Add|price=€180|notes=' && await page.locator('.rb-pc-tag').count() === 0, JSON.stringify(rows));
   const stats = await page.evaluate(() => ({ k: Array.from(document.querySelectorAll('.rb-pc-stats .k')).map((k) => k.textContent), v: Array.from(document.querySelectorAll('.rb-pc-stats .v')).map((k) => k.textContent) }));
   check('wardrobe · the stats strip reads Worn / Last worn / In looks', stats.k.join('|') === 'Worn|Last worn|In looks' && stats.v[0] === 'eight times' && /Aug/.test(stats.v[1]) && stats.v[2] === '1', JSON.stringify(stats));
   check('wardrobe · Remove from wardrobe is the quiet link at the foot', await page.locator('.rb-pc-removebtn').count() === 1 && await page.locator('.rb-pc-removebtn').evaluate((e) => getComputedStyle(e).backgroundColor === 'rgba(0, 0, 0, 0)'));
@@ -230,6 +230,15 @@ const SHOT = process.env.SHOT_DIR || '';
   const colourWrite = writes.find((w) => w.method === 'PATCH' && /wardrobe_items\?id=eq\.w-top1/.test(w.url) && w.body && w.body.colour_shade);
   check('editor · a shade pick saves at once (PATCH colour + the model columns) and the row reads it', !!colourWrite && colourWrite.body.color === 'Camel' && colourWrite.body.colour_shade === 'camel'
     && await page.evaluate(() => document.querySelector('#rb-piece-page .rb-ps-row[data-k="colour"] .rb-ps-v')?.textContent) === 'Camel', JSON.stringify(colourWrite && colourWrite.body));
+  await page.locator('#rb-piece-page .rb-ps-row[data-k="material"]').click();
+  await page.waitForTimeout(250);
+  const matOn = await page.evaluate(() => document.querySelector('.rb-ps-mfam.on')?.textContent);
+  await page.locator('.rb-ps-mfam:has-text("Plant-based")').click();
+  await page.locator('.rb-ps-mats .rb-ps-opt:has-text("Viscose")').click();
+  await page.waitForTimeout(500);
+  const matWrite = writes.find((w) => w.method === 'PATCH' && /wardrobe_items\?id=eq\.w-top1/.test(w.url) && w.body && 'material' in w.body);
+  check('editor · Material opens on Natural (silk lives there), a pick PATCHes material and the row reads it', matOn === 'Natural' && !!matWrite && matWrite.body.material === 'viscose'
+    && await page.evaluate(() => document.querySelector('#rb-piece-page .rb-ps-row[data-k="material"] .rb-ps-v')?.textContent) === 'Viscose', JSON.stringify([matOn, matWrite && matWrite.body]));
 
   // Replace photo: downscale → upload → PATCH image_url → the page repaints
   await page.setInputFiles('#rb-pc-photoin', { name: 'shirt.png', mimeType: 'image/png',

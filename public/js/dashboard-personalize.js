@@ -674,6 +674,16 @@
       // preference row reads it. Null only if the script failed to load, and
       // every reader degrades to the retired wheel then.
       function _rbCM() { return window.RB_COLOURS || null; }
+      // The material model (2026-10-24, material_model.cjs → window.RB_MATERIALS):
+      // ONE material per piece, an id or null. Its own list, never the colour
+      // model's. The one builder of the column from whatever a caller holds —
+      // an analysed tag, a receipt item, an edit — through the shared resolver.
+      function _rbMM() { return window.RB_MATERIALS || null; }
+      function _rbMaterialField(src) {
+        const MM = _rbMM(); src = src || {};
+        if (!MM) return {};
+        return { material: MM.resolve(src.material) };
+      }
       // The three colour columns for a row (migration 27), from whatever the
       // caller holds: an analysed tag (shade id + extras + print), a receipt
       // or wishlist item (a colour name), an edit (a name she picked on the
@@ -1460,6 +1470,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             color: tag.color || null, brand: tag.brand || null, notes: tag.notes || null, image_url: (up && up.url) || null, item_dna: tag.item_dna || undefined };
           if (!_waTaxCols) { delete row.category_l2; delete row.category_l3; }
           if (_waCmCols) Object.assign(row, _rbColourFields(tag));
+          if (_waMatCols) Object.assign(row, _rbMaterialField(tag));
           const saved = await _waRowWrite(null, row, false);
           let it = Array.isArray(saved) ? saved[0] : saved;
           if (!it || it.id == null) it = Object.assign({ id: null }, row);
@@ -1544,6 +1555,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         };
         if (_waTaxCols) { row.category_l2 = tag.category_l2 || null; row.category_l3 = row.category_l2 ? (tag.category_l3 || null) : null; }
         if (_waCmCols) Object.assign(row, _rbColourFields(tag));
+        if (_waMatCols) Object.assign(row, _rbMaterialField(tag));
         if (_waV2Cols && tag.price != null && tag.price !== '' && Number.isFinite(Number(tag.price))) row.price = Number(tag.price);
         if (_waV3Cols) { if (tag.size) row.size = String(tag.size).slice(0, 40); if (tag.currency && row.price != null) row.currency = String(tag.currency).slice(0, 3); }
         return row;
@@ -3643,6 +3655,13 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         '.rb-ps-opt.on{background:#F3EFE6;border-color:#C9BCA6;font-weight:500}',
         '.rb-ps-opt .sw{flex:none;width:28px;height:28px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--rule-mid,rgba(32,32,33,.12))}',
         '.rb-ps-opt .n{flex:1;min-width:0}',
+        '.rb-ps-opt .n .h{display:block;margin-top:3px;font-size:12px;color:var(--ink-soft,#6E6A64)}',
+        '.rb-ps-mfams{display:flex;gap:6px;overflow-x:auto;padding:4px 0 14px;scrollbar-width:none}',
+        '.rb-ps-mfams::-webkit-scrollbar{display:none}',
+        '.rb-ps-mfam{flex:none;display:flex;align-items:center;gap:6px;height:40px;padding:0 16px;border-radius:100px;border:1px solid var(--cream-300,#E7E0CF);background:#fff;font:300 13px/1 var(--font-sans,Inter,sans-serif);color:var(--ink,#202021);cursor:pointer;white-space:nowrap}',
+        '.rb-ps-mfam.on{background:#F3EFE6;border-color:#C9BCA6;font-weight:500}',
+        '.rb-ps-mfam .dot{width:5px;height:5px;border-radius:50%;background:#C9BCA6}',
+        '.rb-ps-mats{max-height:360px;overflow-y:auto;scrollbar-width:none}',
         '.rb-ps-opt .ck{font-size:13px;color:var(--ink-soft,#6E6A64)}',
         '.rb-ps-opt .dr{color:var(--ink-faint,#A89880)}',
         '.rb-ps-opt.muted .n{color:var(--ink-soft,#6E6A64);font-style:italic}',
@@ -3754,10 +3773,13 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           row('brand', 'Brand', p.brand),
           A.wl ? row('src', 'Spotted', (_WL_PICK.find(x => x[0] === p.src) || [])[1] || '') : '',
         ] });
-        groups.push({ title: 'Colour', rows: [
+        const MMr = _rbMM();
+        const mat = MMr && p.material ? MMr.material(p.material) : null;
+        groups.push({ title: 'Colour & material', rows: [
           row('colour', 'Colour', sh ? sh.name : (p.color || ''), { sw: sw(sh) }),
           row('extra', 'Additional colours', ex.map(x => x.name).join(', '), { sw: ex.map(sw).join('') }),
           row('print', 'Print', pat ? pat.name : 'Plain', { sw: '<span class="rb-ps-sw sq" style="' + (M ? M.patternCss(pat) : '') + '"></span>' }),
+          MMr ? row('material', 'Material', mat ? mat.name : '') : '',
         ] });
         if (!A.wl) groups.push({ title: 'Wearing', rows: [
           row('season', 'Season', WA_BAND_LABELS[p.band] || WA_BAND_LABELS.year_round),
@@ -3789,6 +3811,11 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const treeOn = !!_waTaxTree;
           S.cat = p.sheet || ''; S.sub = p.l2 || '';
           S.level = treeOn ? (p.l2 ? (_waTaxL3s(p.l2).length ? 'type' : 'sub') : (p.sheet && _waTaxL2s(p.sheet).length ? 'sub' : 'cat')) : 'cat';
+        } else if (kind === 'material') {
+          const MMo = _rbMM();
+          if (!MMo) return;
+          const fam = MMo.familyOf(p.material);
+          S.fam = fam ? fam.id : MMo.families[0].id;
         } else if (kind === 'wear') {
           S.sel = (p.wear || []).slice();
         } else if (kind === 'price') {
@@ -3822,7 +3849,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       function _psOpt(o) {
         return '<button type="button" class="rb-ps-opt' + (o.on ? ' on' : '') + (o.muted ? ' muted' : '') + '" role="' + (o.role || 'radio') + '" aria-checked="' + (o.on ? 'true' : 'false') + '" onclick="window.__psAct(\'' + o.act + '\',\'' + _psEsc(o.v).replace(/'/g, '\\\'') + '\')">' +
           (o.sw ? '<span class="sw" style="' + o.sw + '"></span>' : '') +
-          '<span class="n">' + _psEsc(o.name) + '</span>' +
+          '<span class="n">' + _psEsc(o.name) + (o.hint ? '<span class="h">' + _psEsc(o.hint) + '</span>' : '') + '</span>' +
           '<span class="ck">' + (o.on ? '✓' : '') + '</span>' +
           (o.drill ? '<svg class="dr" width="6" height="10" viewBox="0 0 6 10" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1 1l4 4-4 4"></path></svg>' : '') +
           '</button>';
@@ -3876,6 +3903,26 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const cur = p.print || 'plain';
           const list = [M ? M.PLAIN : { id: 'plain', name: 'Plain' }].concat(M ? M.PATTERNS : []);
           body = _psHd('Print') + '<div class="rb-ps-opts" role="radiogroup">' + list.map(x => _psOpt({ name: x.name, v: x.id, act: 'print', on: cur === x.id, sw: M ? M.patternCss(x.id === 'plain' ? null : x) : '' })).join('') + '</div>';
+        } else if (S.kind === 'material') {
+          // Families across the top, the family's materials below (the colour
+          // picker's anatomy): opens on the current value's family, a dot
+          // marks where it lives while another family is showing; a pick
+          // saves and closes, "Not sure" sets null.
+          const MMp = _rbMM();
+          const curFam = MMp.familyOf(p.material);
+          const fam = MMp.family(S.fam) || MMp.families[0];
+          body = _psHd('Material') +
+            '<div class="rb-ps-mfams">' + MMp.families.map(f => {
+              const on = f.id === fam.id;
+              return '<button type="button" class="rb-ps-mfam' + (on ? ' on' : '') + '" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="window.__psAct(\'mfam\',\'' + f.id + '\')">' + _psEsc(f.name) +
+                (curFam && curFam.id === f.id && !on ? '<span class="dot"></span>' : '') + '</button>';
+            }).join('') + '</div>' +
+            '<div class="rb-ps-rule"></div>' +
+            '<div class="rb-ps-opts rb-ps-mats" role="radiogroup" aria-label="Material">' + fam.materials.map(id => {
+              const m = MMp.material(id);
+              return _psOpt({ name: m.name, hint: m.hint, v: m.id, act: 'material', on: p.material === m.id });
+            }).join('') + '</div>' +
+            (p.material ? '<button type="button" class="rb-ps-clear" onclick="window.__psAct(\'mclear\')">Not sure</button>' : '');
         } else if (S.kind === 'src') {
           body = _psHd('Where did you spot it?') + '<div class="rb-ps-opts" role="radiogroup">' + _WL_PICK.map(d => _psOpt({ name: d[1], v: d[0], act: 'src', on: p.src === d[0] })).join('') + '</div>';
         } else if (S.kind === 'wear') {
@@ -3916,8 +3963,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         wrap.querySelector('.rb-ps-body').innerHTML = body;
         const inp = document.getElementById('rb-ps-in') || document.getElementById('rb-ps-own');
         if (inp) { inp.focus(); if (inp.setSelectionRange && inp.type !== 'number') { try { const n = inp.value.length; inp.setSelectionRange(n, n); } catch (_) {} } }
-        if (S.kind === 'colour' || S.kind === 'extra') {
-          const on = wrap.querySelector('.rb-ps-fam.on');
+        if (S.kind === 'colour' || S.kind === 'extra' || S.kind === 'material') {
+          const on = wrap.querySelector('.rb-ps-fam.on, .rb-ps-mfam.on');
           if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'auto' }); } catch (_) {} }
         }
       }
@@ -3956,6 +4003,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
         if (act === 'type') { done({ cat: { sheet: S.cat, l2: S.sub, l3: v } }); return; }
         if (act === 'band') { done({ band: v }); return; }
         if (act === 'print') { done({ print: v === 'plain' ? '' : v }); return; }
+        if (act === 'mfam') { S.fam = v; _psSheetPaint(); return; }
+        if (act === 'material') { done({ material: v }); return; }
+        if (act === 'mclear') { done({ material: '' }); return; }
         if (act === 'src') { done({ src: v }); return; }
         if (act === 'wear') {
           const i = S.sel.indexOf(v);
@@ -5018,6 +5068,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             const e = pc.edits;
             window.__waSawLabel = e.label; window.__waSawBrand = e.brand; window.__waSawColor = e.color;
             window.__waSawShade = e.shade || ''; window.__waSawExtra = Array.isArray(e.extra) ? e.extra.slice() : []; window.__waSawPrint = e.print || '';
+            window.__waSawMaterial = e.material || '';
             window.__waSawCat = e.cat; window.__waSawL2 = e.l2; window.__waSawL3 = e.l3;
             window.__waSawTaxSel = e.taxSel ? Object.assign({}, e.taxSel) : window.__waSawTaxSel;
             window.__waSawNotes = e.notes; window.__waSawPrice = e.price; window.__waSawSize = e.size;
@@ -5040,6 +5091,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           pc.edits = {
             label: window.__waSawLabel || '', brand: window.__waSawBrand || '', color: window.__waSawColor || '',
             shade: window.__waSawShade || '', extra: Array.isArray(window.__waSawExtra) ? window.__waSawExtra.slice() : [], print: window.__waSawPrint || '',
+            material: window.__waSawMaterial || '',
             cat: window.__waSawCat || '', l2: window.__waSawL2 || '', l3: window.__waSawL3 || '',
             taxSel: window.__waSawTaxSel ? Object.assign({}, window.__waSawTaxSel) : null,
             notes: window.__waSawNotes || '', price: window.__waSawPrice || '', size: window.__waSawSize || '',
@@ -5068,6 +5120,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           const row = _rbPieceRow({
             label: e.label, brand: e.brand, color: e.color, notes: e.notes || null,
             colour_shade: e.shade || null, colour_extra: Array.isArray(e.extra) ? e.extra : [], print: e.print || null,
+            material: e.material || null,
             category: e.category, category_l2: e.category_l2, category_l3: e.category_l3,
             price: priced.amount, currency: priced.amount != null ? priced.currency : null, size: e.size,
             item_dna: dna,
@@ -5492,6 +5545,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               shade: window.__waSawShade || (byName ? byName.id : ''), color: window.__waSawColor || '',
               extra: Array.isArray(window.__waSawExtra) ? window.__waSawExtra : [],
               print: window.__waSawPrint || '',
+              material: window.__waSawMaterial || '',
               band: d.band || 'year_round', wear: Array.isArray(d.wear) ? d.wear : [],
               size: window.__waSawSize || '', price: window.__waSawPrice || '', notes: window.__waSawNotes || '',
               src: window.__waSawSrc || 'photo',
@@ -5521,6 +5575,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             }
             if ('extra' in patch) window.__waSawExtra = (patch.extra || []).filter(x => x !== window.__waSawShade).slice(0, 3);
             if ('print' in patch) window.__waSawPrint = patch.print || '';
+            if ('material' in patch) window.__waSawMaterial = patch.material || '';
             if ('band' in patch || 'wear' in patch) {
               const d = window.__rbWaDetail || (window.__rbWaDetail = _waDetailSeed('', ''));
               if ('band' in patch) { d.band = patch.band; d.bandTouched = true; }
@@ -5534,6 +5589,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
               _waForm.touched = _waForm.touched || {};
               if (kind) _waForm.touched[kind] = true;
               if ('shade' in patch && window.__waSawItemDna && window.__waSawItemDna.colour_check) delete window.__waSawItemDna.colour_check;
+              if ('material' in patch && window.__waSawItemDna && window.__waSawItemDna.material_check) delete window.__waSawItemDna.material_check;
               _waForm.revealed = true;
               _waFormPaint();
             }
@@ -5764,6 +5820,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           window.__waSawShade = '';
           window.__waSawExtra = [];
           window.__waSawPrint = '';
+          window.__waSawMaterial = '';
           window.__waSawPrice = '';
           window.__waSawSize = '';
           window.__waSawSrc = 'photo';
@@ -5797,6 +5854,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           window.__waSawShade = it.colour_shade || '';
           window.__waSawExtra = Array.isArray(it.colour_extra) ? it.colour_extra.slice() : [];
           window.__waSawPrint = it.print || '';
+          window.__waSawMaterial = it.material || '';
           window.__waSawPrice = _waPriceFmt(it.price, it.currency);
           window.__waSawSize = it.size || '';
           window.__waSawItemDna = (it.item_dna && typeof it.item_dna === 'object') ? JSON.parse(JSON.stringify(it.item_dna)) : {};
@@ -5830,6 +5888,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           window.__waSawShade = cmSh ? cmSh.id : '';
           window.__waSawExtra = Array.isArray(tag.colour_extra) ? tag.colour_extra.slice() : [];
           window.__waSawPrint = tag.print || '';
+          window.__waSawMaterial = (_rbMaterialField(tag).material) || '';
           window.__waSawLabel = tag.label || '';
           window.__waSawBrand = tag.brand || '';
           window.__waSawPrice = _waPriceFmt(tag.price, tag.currency);
@@ -5860,7 +5919,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           // The Check marks (Piece_Sheet 02): a colour the analyse flagged
           // as uncertain, a category it could not place — until she touches
           // the row.
-          _waForm.flags = readable ? { colour: !!dna.colour_check, extra: !!dna.colour_check, category: !(tag.category_l2 || tag.category_l3) } : {};
+          _waForm.flags = readable ? { colour: !!dna.colour_check, extra: !!dna.colour_check, category: !(tag.category_l2 || tag.category_l3), material: !!(dna.material_check && tag.material) } : {};
           _waForm.touched = {};
           _waFormPaint();
         }
@@ -6110,6 +6169,9 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             };
             const cmFields = _rbColourFields({ colour_shade: window.__waSawShade, colour_extra: window.__waSawExtra, print: window.__waSawPrint, color: colorName, item_dna: savedDna });
             if (_waCmCols) Object.assign(payload, cmFields);
+            // The material: every save writes it, a value or null.
+            const matField = { material: (_rbMM() && _rbMM().resolve(window.__waSawMaterial)) || null };
+            if (_waMatCols && _rbMM()) Object.assign(payload, matField);
 
             // ── The wishlist target (2026-09-22) ─────────────────────────
             // Same form, same reads, a wishlist_items row: provenance from
@@ -6132,6 +6194,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
                 item_dna: payload.item_dna || {},
               };
               if (_wlCmCols) Object.assign(wlPayload, cmFields);
+              if (_wlMatCols && _rbMM()) Object.assign(wlPayload, matField);
               if (_wlV23Cols) {
                 wlPayload.size = String(window.__waSawSize || '').trim().slice(0, 40) || null;
                 wlPayload.currency = wlPriced.amount != null ? wlPriced.currency : null;
@@ -6346,6 +6409,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
       var _waTarget = 'wardrobe';          // where the add modal files: 'wardrobe' | 'wishlist' (2026-09-22, the same ways in for both)
       var _wlV23Cols = true;               // migration 23 on wishlist_items (size/currency/category_l2/l3)? flipped off on PGRST204
       var _waCmCols = true, _wlCmCols = true; // migration 27 (colour_shade/colour_extra/print) on each table? flipped off on PGRST204
+      var _waMatCols = true, _wlMatCols = true; // migration 29 (material) on each table? flipped off on PGRST204
       // The receipt inbox (2026-09-22): held wardrobe_inbox rows, the
       // migration-23 stand-down flag, her minted address (local part).
       var _wiRows = [], _wiDown = false, _wiAddr = null, _wiLoaded = false;
@@ -6378,6 +6442,12 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             return await _waFetch('POST', table, payload);
           } catch (err) {
             const msg = String(err && err.message || err);
+            // The material (migration 29) is the newest tier on both tables.
+            if (/PGRST204|column/i.test(msg) && /\bmaterial\b/.test(msg) && 'material' in payload) {
+              if (table === 'wishlist_items') _wlMatCols = false; else _waMatCols = false;
+              delete payload.material;
+              continue;
+            }
             if (table === 'wishlist_items') {
               if (/PGRST204|column/i.test(msg) && _wlCmCols && /\b(colour_shade|colour_extra|print)\b/.test(msg)) {
                 _wlCmCols = false;
@@ -6557,6 +6627,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
             };
             if (_wlV23Cols) { wlPayload.size = it.size || null; wlPayload.currency = it.currency || null; wlPayload.category_l2 = it.category_l2 || null; wlPayload.category_l3 = wlPayload.category_l2 ? (it.category_l3 || null) : null; }
             if (_wlCmCols) Object.assign(wlPayload, _rbColourFields(it));
+            if (_wlMatCols) Object.assign(wlPayload, _rbMaterialField(it));
             try {
               const created = await _waRowWrite(null, wlPayload, false, 'wishlist_items');
               const id = Array.isArray(created) && created[0] && created[0].id;
@@ -6582,6 +6653,7 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           };
           if (_waTaxCols) { payload.category_l2 = it.category_l2 || null; payload.category_l3 = payload.category_l2 ? (it.category_l3 || null) : null; }
           if (_waCmCols) Object.assign(payload, _rbColourFields(it));
+          if (_waMatCols) Object.assign(payload, _rbMaterialField(it));
           if (!_waV2Cols) delete payload.price;
           if (!_waV3Cols) { delete payload.size; delete payload.currency; }
           try {
@@ -7392,6 +7464,8 @@ body:has(#rb-lp.rb-lp-dock) #rb-dock{transform:translateY(120%)}
           if (_waV2Cols && w.price > 0) payload.price = Number(w.price);
           if (_waV3Cols) { if (w.size) payload.size = w.size; if (w.currency) payload.currency = w.currency; }
           if (_waTaxCols && w.category_l2) { payload.category_l2 = w.category_l2; payload.category_l3 = w.category_l3 || null; }
+          if (_waCmCols) Object.assign(payload, _rbColourFields(w));
+          if (_waMatCols) Object.assign(payload, _rbMaterialField(w));
           await _waRowWrite(null, payload, false);
           await _waFetch('DELETE', 'wishlist_items?id=eq.' + id, undefined);
           _wlItems = _wlItems.filter(x => String(x.id) !== String(id));
@@ -9592,13 +9666,17 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
               shade: sh ? sh.id : '', color: it.color || '',
               extra: Array.isArray(it.colour_extra) ? it.colour_extra : [],
               print: it.print || ((nm === 'multi' || nm === 'print') ? 'other' : ''),
+              material: it.material || '',
               band: _waItemBand(it), wear: (it._wearPick || _tgWearOf(it)).slice(),
               size: it.size || '', price: _waPriceFmt(it.price, it.currency || (it.price != null ? 'EUR' : null)), notes: it.notes || '', src: '',
             };
           },
           flags() {
             const it = row();
-            return it.item_dna && it.item_dna.colour_check ? { colour: true, extra: true } : {};
+            const d = it.item_dna || {};
+            const out = d.colour_check ? { colour: true, extra: true } : {};
+            if (d.material_check && it.material) out.material = true;
+            return out;
           },
           set(patch) {
             const it = row();
@@ -9626,6 +9704,13 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
               if (_waCmCols) { payload.colour_shade = sh ? sh.id : null; payload.colour_extra = extra; payload.print = prt; }
               // The page reads these whatever the schema holds.
               it.colour_shade = sh ? sh.id : null; it.colour_extra = extra; it.print = prt;
+            }
+            if ('material' in patch) {
+              const MMv = _rbMM();
+              const mat = (MMv && MMv.resolve(patch.material)) || null;
+              if (_waMatCols) payload.material = mat;
+              it.material = mat;
+              if (dna.material_check) { delete dna.material_check; dnaChanged = true; }
             }
             if ('band' in patch) { payload.season_band = patch.band; payload.season_source = 'user'; hasDet = true; }
             if ('wear' in patch) wearSlugs = (patch.wear || []).slice();
@@ -36271,6 +36356,7 @@ body.rb-hb-on #dash .concierge{display:none!important}
               item_dna: (tag && tag.item_dna) || undefined,
             };
             if (_waCmCols) Object.assign(row, _rbColourFields(tag || {}));
+            if (_waMatCols) Object.assign(row, _rbMaterialField(tag || {}));
             await _waRowWrite(null, row, false);
             await _waLoad();
             console.log('[robes] onboarding key piece saved to wardrobe:', label);

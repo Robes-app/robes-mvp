@@ -186,7 +186,7 @@ const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath
     retake: !!document.querySelector('#rb-saw-panel .rb-saw-retake'), banner: document.querySelector('.rb-saw-banner')?.textContent,
     rows: document.querySelectorAll('.rb-ps-row').length, mp: !!document.querySelector('.rb-mp-cards'),
   }));
-  check('4.2 · › opens the existing single-piece screen scoped to that piece: ‹ All pieces · Piece 2, its banner, the piece sheet’s rows, "Add this piece", no Retake', /All pieces/.test(c.crumb) && /Piece 2/.test(c.crumb) && c.cta === 'Add this piece' && !c.retake && c.banner === 'Black leggings' && c.rows === 11 && !c.mp, JSON.stringify(c));
+  check('4.2 · › opens the existing single-piece screen scoped to that piece: ‹ All pieces · Piece 2, its banner, the piece sheet’s rows, "Add this piece", no Retake', /All pieces/.test(c.crumb) && /Piece 2/.test(c.crumb) && c.cta === 'Add this piece' && !c.retake && c.banner === 'Black leggings' && c.rows === 12 && !c.mp, JSON.stringify(c));
   await page.click('.rb-ps-row[data-k="name"]');
   await page.waitForTimeout(150);
   await page.fill('#rb-ps-in', 'Black ribbed leggings');
