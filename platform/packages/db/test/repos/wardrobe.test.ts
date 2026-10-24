@@ -19,6 +19,24 @@ afterAll(async () => {
 });
 
 describe('wardrobe repo', () => {
+  it('files what a piece is worn for, replacing what was inferred, and keeps it to its owner', async () => {
+    const coat = await wardrobe.create(ann, { label: 'Camel coat', categoryL2: 'Coats' });
+    // The trigger seeds a default from the category when the piece is filed.
+    expect((await wardrobe.wearTags(ann, [coat.id])).get(coat.id)).toEqual(['Everyday']);
+
+    expect(await wardrobe.setWearTags(ann, coat.id, ['Work', 'School run'])).toBe(true);
+    expect((await wardrobe.wearTags(ann, [coat.id])).get(coat.id)).toEqual(['School run', 'Work']);
+
+    // Her own answer replaces what was inferred; nothing she did not pick survives.
+    expect(await wardrobe.setWearTags(ann, coat.id, ['Work'])).toBe(true);
+    expect((await wardrobe.wearTags(ann, [coat.id])).get(coat.id)).toEqual(['Work']);
+
+    // Another woman's piece is not hers to tag, and nothing is written.
+    expect(await wardrobe.setWearTags(bea, coat.id, ['Evening'])).toBe(false);
+    expect((await wardrobe.wearTags(ann, [coat.id])).get(coat.id)).toEqual(['Work']);
+    expect(await wardrobe.wearTags(bea, [coat.id])).toEqual(new Map());
+  });
+
   it("reads a piece's own record, and keeps it to its owner", async () => {
     const coat = await wardrobe.create(ann, { label: 'Camel coat' });
     const look = await looks.create(ann, {

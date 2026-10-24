@@ -90,6 +90,25 @@ test('the category drills Category › Subcategory › Item type and files the l
   });
 });
 
+test('wear it for is hers to set, and each tap is the answer', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ wearFor: ['Everyday', 'Work'] }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: `${wardrobe.piece.rows.wearFor}: Everyday` }),
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Work' }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  // The tags ride into the prompt when a look is built around the piece, so they are the write.
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+    wearFor: ['Everyday', 'Work'],
+  });
+});
+
 test('a colour answers on the tap, from the family tiles and their shades', async () => {
   const calls = mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece(),

@@ -57,6 +57,8 @@ export const Piece = z.object({
   status: z.enum(['reading', 'ready', 'failed']),
   heroPosition: z.number().int().min(1).max(10).nullable(),
   seasonBand: SeasonBand,
+  // What she wears it for: the styling signal a look generated from this piece reads.
+  wearFor: z.array(z.string()).default([]),
   price: z.number().nullable(),
   currency: z.string().nullable(),
   size: z.string().nullable(),
@@ -113,6 +115,7 @@ const editable = {
   brand: z.string().trim().max(80).nullable(),
   notes: z.string().trim().max(1000).nullable(),
   seasonBand: SeasonBand,
+  wearFor: z.array(z.string().trim().min(1).max(40)).max(6),
   price: z.number().min(0).max(10_000_000).nullable(),
   currency: z
     .string()

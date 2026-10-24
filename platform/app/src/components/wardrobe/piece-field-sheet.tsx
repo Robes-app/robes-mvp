@@ -9,9 +9,10 @@ import {
   sheetCategories,
   sheetL1For,
   subcategoriesOf,
+  WEAR_SEEDS,
 } from '@robes/core/taxonomy';
 import { Button, Field, Pill, Sheet, Text, TextArea } from '@robes/ui';
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { ColourPicker, PrintPicker } from './colour-field';
 
 const copy = wardrobe.piece;
@@ -25,6 +26,7 @@ export type PieceField =
   | 'print'
   | 'category'
   | 'season'
+  | 'wearFor'
   | 'size'
   | 'price'
   | 'notes';
@@ -37,6 +39,7 @@ const TITLES: Record<PieceField, string> = {
   extra: copy.rows.extra,
   print: copy.rows.print,
   season: copy.rows.season,
+  wearFor: copy.rows.wearFor,
   size: copy.rows.size,
   price: copy.rows.price,
   notes: copy.rows.notes,
@@ -114,6 +117,7 @@ export function PieceFieldSheet({
     field === 'extra' ||
     field === 'print' ||
     field === 'season' ||
+    field === 'wearFor' ||
     field === 'category';
 
   return (
@@ -141,7 +145,9 @@ export function PieceFieldSheet({
         )
       }
     >
-      {field === 'category' ? (
+      {field === 'wearFor' ? (
+        <WearForPicker piece={piece} onPick={onSave} />
+      ) : field === 'category' ? (
         <CategoryPicker piece={piece} onPick={commit} />
       ) : field === 'notes' ? (
         <TextArea
@@ -282,5 +288,62 @@ function CategoryPicker({
         </li>
       ))}
     </ul>
+  );
+}
+
+// What she wears it for: the seven seeds plus anything she has added, multi-select. Each tap is
+// the answer, so the drawer writes as she goes.
+function WearForPicker({
+  piece,
+  onPick,
+}: {
+  piece: Piece;
+  onPick: (input: UpdatePieceInput) => void;
+}) {
+  const [own, setOwn] = useState('');
+  const chosen = piece.wearFor;
+  // Her own tags sit after the seeds, in the order she made them.
+  const options = [
+    ...WEAR_SEEDS.map((s) => s.label),
+    ...chosen.filter((c) => !WEAR_SEEDS.some((s) => s.label === c)),
+  ];
+  const toggle = (label: string) =>
+    onPick({
+      wearFor: chosen.includes(label) ? chosen.filter((c) => c !== label) : [...chosen, label],
+    });
+  const add = (e: FormEvent) => {
+    e.preventDefault();
+    const label = own.trim();
+    if (!label || chosen.includes(label)) return;
+    setOwn('');
+    onPick({ wearFor: [...chosen, label] });
+  };
+  return (
+    <div className="flex flex-col gap-4">
+      <Text size="small" tone="muted">
+        {copy.wearForHint}
+      </Text>
+      <ul className="flex flex-wrap gap-2">
+        {options.map((label) => (
+          <li key={label}>
+            <Pill selected={chosen.includes(label)} onClick={() => toggle(label)}>
+              {label}
+            </Pill>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={add} className="flex items-end gap-2">
+        <Field
+          label={copy.addWearFor}
+          value={own}
+          maxLength={40}
+          onChange={(e) => setOwn(e.target.value)}
+          className="flex-1"
+        />
+        <Button type="submit" variant="secondary" disabled={!own.trim()}>
+          {copy.add}
+        </Button>
+      </form>
+    </div>
   );
 }

@@ -16,6 +16,7 @@ async function toPiece(
   row: PieceRow,
   asset: AssetRow | undefined,
   wearCount: number,
+  wearFor: string[],
 ): Promise<Piece> {
   const image = asset ? await toImage(mediaDelivery, userId, asset) : null;
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
@@ -35,6 +36,7 @@ async function toPiece(
     status: row.status,
     heroPosition: row.heroPosition,
     seasonBand: row.seasonBand,
+    wearFor,
     price: row.price === null ? null : Number(row.price),
     currency: row.currency,
     size: row.size,
@@ -47,9 +49,13 @@ async function toPiece(
 
 export async function toPieces(userId: UserId, rows: PieceRow[]): Promise<Piece[]> {
   const assetIds = rows.flatMap((r) => (r.imageAssetId ? [r.imageAssetId] : []));
-  const [assetRows, wears] = await Promise.all([
+  const [assetRows, wears, wearFor] = await Promise.all([
     repos.assets.getManyForUser(userId, assetIds),
     repos.wardrobe.wearCounts(
+      userId,
+      rows.map((r) => r.id),
+    ),
+    repos.wardrobe.wearTags(
       userId,
       rows.map((r) => r.id),
     ),
@@ -62,6 +68,7 @@ export async function toPieces(userId: UserId, rows: PieceRow[]): Promise<Piece[
         r,
         r.imageAssetId ? assets.get(r.imageAssetId) : undefined,
         wears.get(r.id) ?? 0,
+        wearFor.get(r.id) ?? [],
       ),
     ),
   );

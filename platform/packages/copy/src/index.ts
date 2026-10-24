@@ -367,6 +367,7 @@ export const wardrobe = {
       extra: 'Additional colours',
       print: 'Print',
       season: 'Season',
+      wearFor: 'Wear it for',
       size: 'Size',
       price: 'Price',
       notes: 'Notes',
@@ -386,6 +387,9 @@ export const wardrobe = {
           : `${n} wears counted before Robes kept the dates.`,
     },
     extraHint: 'Buttons, trims, a second colour in the weave. Tap as many as there are.',
+    // What she wears it for steers the looks Robes builds around it, so it earns its own row.
+    wearForHint: 'Robes reads these when it styles a look around this piece.',
+    addWearFor: 'Add your own',
   },
   // The colour model on a piece (legacy f3e5b5b): one shade, up to three more, a print.
   colour: {

@@ -295,14 +295,29 @@ export function stylingRepo(db: Db) {
       return row.id;
     },
 
-    anchorPiece(userId: UserId, pieceId: string) {
-      return db
+    // The key piece a look is built around, with what she wears it for: the tags are a styling
+    // signal, so they ride into the prompt with the piece's name.
+    async anchorPiece(userId: UserId, pieceId: string) {
+      const row = await db
         .selectFrom('wardrobeItems')
         .select(['id', 'label', 'imageAssetId'])
         .where('userId', '=', userId)
         .where('id', '=', pieceId)
         .where('deletedAt', 'is', null)
         .executeTakeFirst();
+      if (!row) return undefined;
+      const tags = await db
+        .selectFrom('tagPieces')
+        .innerJoin('tags', (j) =>
+          j.onRef('tags.id', '=', 'tagPieces.tagId').onRef('tags.userId', '=', 'tagPieces.userId'),
+        )
+        .select('tags.label')
+        .where('tagPieces.userId', '=', userId)
+        .where('tagPieces.wardrobeItemId', '=', pieceId)
+        .where('tags.kind', '=', 'wear_for')
+        .orderBy('tags.label')
+        .execute();
+      return { ...row, wearFor: tags.map((t) => t.label) };
     },
 
     async createGeneratedAsset(userId: UserId): Promise<string> {

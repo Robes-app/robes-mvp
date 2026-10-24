@@ -191,6 +191,11 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
           value={wardrobe.filter.seasons[piece.seasonBand]}
           onClick={() => setField('season')}
         />
+        <PieceRow
+          label={copy.rows.wearFor}
+          value={piece.wearFor.join(' · ')}
+          onClick={() => setField('wearFor')}
+        />
       </PieceSection>
 
       <PieceSection title={copy.sections.fit}>

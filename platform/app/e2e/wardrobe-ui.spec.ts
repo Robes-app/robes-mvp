@@ -48,6 +48,13 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await cat.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByText('T-shirts & tees · Crew neck t-shirt')).toBeVisible();
 
+  // What she wears it for is a styling signal, so it is hers to set and reads back on the row.
+  await page.getByRole('button', { name: /^Wear it for/ }).click();
+  const wear = page.getByRole('dialog', { name: 'Wear it for' });
+  await wear.getByRole('button', { name: 'Work', exact: true }).click();
+  await wear.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: /Wear it for.*Work/ })).toBeVisible();
+
   // The pencil edits the name where it is written.
   await page.getByRole('button', { name: 'Edit the name' }).click();
   const name = page.getByRole('dialog', { name: 'Name' });

@@ -134,6 +134,8 @@ function colourChecked(fields: PieceFields) {
     : { itemDna: sql<string>`item_dna - 'colour_check'` };
 }
 
+const WEAR_TAG_MAX = 6;
+
 export function wardrobeRepo(db: Db) {
   const active = () => db.selectFrom('wardrobeItems').where('deletedAt', 'is', null);
 
@@ -442,6 +444,84 @@ export function wardrobeRepo(db: Db) {
         .groupBy('category')
         .execute();
       return rows.map((r) => ({ category: r.category, count: Number(r.n) }));
+    },
+
+    // What each piece is worn for (app.tag_pieces, kind wear_for). The trigger seeds these from
+    // the category when a piece is filed; her own picks replace them.
+    async wearTags(userId: UserId, pieceIds: readonly string[]): Promise<Map<string, string[]>> {
+      if (pieceIds.length === 0) return new Map();
+      const rows = await db
+        .selectFrom('tagPieces')
+        .innerJoin('tags', (j) =>
+          j.onRef('tags.id', '=', 'tagPieces.tagId').onRef('tags.userId', '=', 'tagPieces.userId'),
+        )
+        .select(['tagPieces.wardrobeItemId as pieceId', 'tags.label'])
+        .where('tagPieces.userId', '=', userId)
+        .where('tags.kind', '=', 'wear_for')
+        .where('tagPieces.wardrobeItemId', 'in', [...pieceIds])
+        .orderBy('tags.label')
+        .execute();
+      const out = new Map<string, string[]>();
+      for (const r of rows) out.set(r.pieceId, [...(out.get(r.pieceId) ?? []), r.label]);
+      return out;
+    },
+
+    // Her answer replaces whatever was inferred: the tags are minted if new, then this piece's
+    // wear_for set is made to match exactly. The piece must be hers or nothing is written.
+    async setWearTags(
+      userId: UserId,
+      pieceId: string,
+      labels: readonly string[],
+    ): Promise<boolean> {
+      const clean = [...new Set(labels.map((l) => l.trim()).filter(Boolean))].slice(
+        0,
+        WEAR_TAG_MAX,
+      );
+      return db.transaction().execute(async (tx) => {
+        const owns = await tx
+          .selectFrom('wardrobeItems')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('id', '=', pieceId)
+          .where('deletedAt', 'is', null)
+          .executeTakeFirst();
+        if (!owns) return false;
+        const ids: string[] = [];
+        for (const label of clean) {
+          await tx
+            .insertInto('tags')
+            .values({ userId, kind: 'wear_for', label, isSeed: false })
+            .onConflict((oc) => oc.columns(['userId', 'kind', 'slug']).doNothing())
+            .execute();
+          const tag = await tx
+            .selectFrom('tags')
+            .select('id')
+            .where('userId', '=', userId)
+            .where('kind', '=', 'wear_for')
+            .where(sql`slug`, '=', sql`private.tag_slug(${label})`)
+            .executeTakeFirst();
+          if (tag) ids.push(tag.id);
+        }
+        // Everything this piece wore that she did not pick comes off, inferred or not.
+        let drop = tx
+          .deleteFrom('tagPieces')
+          .where('userId', '=', userId)
+          .where('wardrobeItemId', '=', pieceId);
+        if (ids.length) drop = drop.where('tagId', 'not in', ids);
+        await drop.execute();
+        if (ids.length) {
+          await tx
+            .insertInto('tagPieces')
+            .values(
+              ids.map((tagId) => ({ userId, tagId, wardrobeItemId: pieceId, source: 'user' })),
+            )
+            .onConflict((oc) =>
+              oc.columns(['tagId', 'wardrobeItemId']).doUpdateSet({ source: 'user' }),
+            )
+            .execute();
+        }
+        return true;
+      });
     },
 
     // One piece's record, newest first: the day it was on her and the look she wore it in. The
