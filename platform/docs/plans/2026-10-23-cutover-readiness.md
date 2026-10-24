@@ -104,6 +104,17 @@ list below separates "the behaviour is there" from "it reads as beta does".
 - [ ] **Change photo on a piece**: add `wardrobe.photo` to `packages/contracts/src/routes.ts`
       plus its handler, then the corner pill on the record door. S–M, needs the api-security
       checklist.
+- [ ] **A saved look has no wear record.** Beta's look page closes with the Look entity's whole
+      point: "Worn ——— three times" over the dated rows (each one a door to its day, each naming
+      what differed that day — `_lkWearDiff`), then **Add a date**. The platform shows the count
+      in the meta line and nothing else: `wear` only ever fires with `localToday()`, and the
+      `unwear` undo lives in a transient toast, so a wear she logged in an earlier session can
+      never be corrected. **Most of it is API-ready** — `looks.wear` takes any `wornOn` (no
+      today-clamp in the handler), `looks.unwear` takes `{id, date}`, and `Wear` already carries
+      the `pieceIds` snapshot the difference line is read from. What is missing is the read-back:
+      `Look` carries `timesWorn` + `lastWornOn` alone, so no route lists a look's wears. Add that
+      output (or a `looks.wears` route), then the record under the rack. M, needs the
+      api-security checklist for the output change.
 - [ ] **Her rejected colours sit outside HER HARD NOS** — deliberate on the platform (soft avoid
       in the palette block) but it contradicts `30d7ea5`'s "her nos are absolute". Needs Annie's
       call, not a code change.
