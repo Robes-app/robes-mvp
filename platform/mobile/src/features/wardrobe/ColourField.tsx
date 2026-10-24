@@ -8,9 +8,10 @@ import {
   type Shade,
   shade,
 } from '@robes/core/colour';
-import { Button, Pill, SegmentedControl, Text } from '@robes/ui-native';
+import { Icon } from '@robes/icons/native';
+import { Text, useColor } from '@robes/ui-native';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 const copy = wardrobe.colour;
 
@@ -52,111 +53,132 @@ export function colourSummary(v: PieceColour): string {
   return [...names, ...(print ? [print] : [])].join(' · ');
 }
 
-// The piece's colour (legacy f3e5b5b): family → shade for the main colour or up to three more,
-// and the print.
-export function ColourField({
+// A print is a rounded square of its own pattern, to the family tile's shape.
+export function PatternSwatch({ hex, size = 48 }: { hex: string; size?: number }) {
+  return (
+    <View
+      className="rounded-soft border border-hairline"
+      style={{ width: size, height: size, backgroundColor: hex }}
+    />
+  );
+}
+
+// The family row, then its shades as named circles — the picker Settings' Your colours uses, so
+// a colour reads the same wherever she sets one. The web twin is components/wardrobe/colour-field.
+export function ColourPicker({
   value,
   onChange,
-  check = false,
+  slot,
 }: {
   value: PieceColour;
   onChange: (next: PieceColour) => void;
-  check?: boolean;
+  slot: 'main' | 'extra';
 }) {
-  const [open, setOpen] = useState(false);
-  const [slot, setSlot] = useState<'main' | 'extra'>('main');
-  const [family, setFamily] = useState(shade(value.colourShade)?.family ?? 'blacks');
-  const summary = colourSummary(value);
+  const bg = useColor('bg');
+  const ink = useColor('ink');
+  const chosen = new Set(
+    (slot === 'main' ? [value.colourShade] : value.colourExtra).filter(Boolean) as string[],
+  );
+  const [family, setFamily] = useState(
+    () =>
+      shade(slot === 'main' ? value.colourShade : (value.colourExtra[0] ?? null))?.family ??
+      'blacks',
+  );
   const fam = COLOUR_FAMILIES.find((f) => f.id === family);
-  const chosen = new Set(slot === 'main' ? [value.colourShade] : value.colourExtra);
   return (
-    <View className="gap-3">
-      <Text size="small" tone="muted">
-        {copy.title}
-      </Text>
-      <View className="flex-row flex-wrap items-center gap-3">
-        <View className="flex-row gap-1">
-          {[value.colourShade, ...value.colourExtra].map((id, i) => (
-            <ShadeSwatch key={id ?? i} shade={shade(id)} />
-          ))}
-        </View>
-        <Text tone={summary ? 'ink' : 'faint'} italic={!summary}>
-          {summary || copy.notSet}
-        </Text>
-      </View>
-      {check ? (
-        <Text size="small" tone="muted">
-          {copy.check}
-        </Text>
-      ) : null}
-      <Button variant="quiet" className="self-start" onPress={() => setOpen(!open)}>
-        {open ? copy.done : copy.change}
-      </Button>
-      {open ? (
-        <View className="gap-4">
-          <SegmentedControl
-            size="sm"
-            label={copy.title}
-            options={[
-              { value: 'main', label: copy.main },
-              { value: 'extra', label: copy.extra },
-            ]}
-            value={slot}
-            onChange={setSlot}
-          />
-          {slot === 'extra' ? (
-            <Text size="small" tone="muted">
-              {copy.extraHint}
-            </Text>
-          ) : null}
-          <View accessibilityLabel={copy.families} className="flex-row flex-wrap gap-2">
-            {COLOUR_FAMILIES.map((f) => (
-              <Pill key={f.id} selected={f.id === family} onPress={() => setFamily(f.id)}>
-                {f.name}
-              </Pill>
-            ))}
-          </View>
-          <View accessibilityLabel={fam?.name} className="flex-row flex-wrap gap-2">
-            {fam?.shades.map((s) => (
-              <Pressable
-                key={s.id}
-                accessibilityRole="button"
-                accessibilityLabel={s.name}
-                accessibilityState={{ selected: chosen.has(s.id) }}
-                onPress={() => onChange(pickShade(value, s.id, slot))}
-                className={`min-h-11 flex-row items-center gap-2 rounded-pill border px-3 ${
-                  chosen.has(s.id) ? 'border-ink' : 'border-hairline'
-                }`}
-              >
-                <ShadeSwatch shade={s} size={18} />
-                <Text size="small" tone={chosen.has(s.id) ? 'ink' : 'muted'}>
-                  {s.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Text size="small" tone="muted">
-            {copy.print}
-          </Text>
-          <View accessibilityLabel={copy.print} className="flex-row flex-wrap gap-2">
-            <Pill
-              selected={value.print === null}
-              onPress={() => onChange({ ...value, print: null })}
+    <View className="gap-4">
+      {/* The families scroll as one row, so the list never pushes the shades off the drawer. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        accessibilityLabel={copy.families}
+        contentContainerClassName="gap-3 pb-1"
+      >
+        {COLOUR_FAMILIES.map((f) => (
+          <Pressable
+            key={f.id}
+            accessibilityRole="button"
+            accessibilityLabel={f.name}
+            accessibilityState={{ selected: f.id === family }}
+            onPress={() => setFamily(f.id)}
+            style={{ width: 64 }}
+            className="items-center gap-1.5"
+          >
+            <View
+              className={`rounded-soft p-0.5 ${f.id === family ? 'border-2 border-ink' : 'border border-hairline'}`}
             >
-              {copy.plain}
-            </Pill>
-            {PATTERNS.map((p) => (
-              <Pill
-                key={p.id}
-                selected={value.print === p.id}
-                onPress={() => onChange({ ...value, print: p.id })}
-              >
-                {p.name}
-              </Pill>
-            ))}
+              <FamilyTile family={f} size={44} />
+            </View>
+            <Text size="caption" tone={f.id === family ? 'ink' : 'muted'} numberOfLines={1}>
+              {f.name}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <View className="flex-row flex-wrap gap-y-4">
+        {fam?.shades.map((s) => (
+          <Pressable
+            key={s.id}
+            accessibilityRole="button"
+            accessibilityLabel={s.name}
+            accessibilityState={{ selected: chosen.has(s.id) }}
+            onPress={() => onChange(pickShade(value, s.id, slot))}
+            className="w-1/4 items-center gap-1.5 px-1"
+          >
+            <View
+              className="size-12 items-center justify-center rounded-full border border-hairline"
+              style={{ backgroundColor: s.hex }}
+            >
+              {chosen.has(s.id) ? <Icon name="check" size={18} color={s.light ? ink : bg} /> : null}
+            </View>
+            <Text size="caption" tone="muted" numberOfLines={2} className="text-center">
+              {s.name}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// Plain first, then the thirteen.
+export function PrintPicker({
+  value,
+  onChange,
+}: {
+  value: PieceColour;
+  onChange: (next: PieceColour) => void;
+}) {
+  const ink = useColor('ink');
+  const surface = useColor('surface');
+  const options: { id: string | null; name: string; hex: string }[] = [
+    { id: null, name: copy.plain, hex: surface },
+    ...PATTERNS.map((p) => ({ id: p.id, name: p.name, hex: surface })),
+  ];
+  return (
+    <View className="flex-row flex-wrap gap-y-4">
+      {options.map((o) => (
+        <Pressable
+          key={o.id ?? 'plain'}
+          accessibilityRole="button"
+          accessibilityLabel={o.name}
+          accessibilityState={{ selected: value.print === o.id }}
+          onPress={() => onChange({ ...value, print: o.id })}
+          className="w-1/4 items-center gap-1.5 px-1"
+        >
+          <View
+            className={`size-12 items-center justify-center rounded-soft border ${
+              value.print === o.id ? 'border-ink' : 'border-hairline'
+            }`}
+            style={{ backgroundColor: o.hex }}
+          >
+            {value.print === o.id ? <Icon name="check" size={18} color={ink} /> : null}
           </View>
-        </View>
-      ) : null}
+          <Text size="caption" tone="muted" numberOfLines={2} className="text-center">
+            {o.name}
+          </Text>
+        </Pressable>
+      ))}
     </View>
   );
 }

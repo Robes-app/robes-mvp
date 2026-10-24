@@ -39,6 +39,15 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await brand.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('button', { name: 'Harbour' })).toBeVisible();
 
+  // Category drills Category › Subcategory › Item type, from wardrobe_taxonomy.
+  await page.getByRole('button', { name: /^Category/ }).click();
+  const cat = page.getByRole('dialog', { name: 'Category' });
+  await cat.getByRole('button', { name: 'Tops', exact: true }).click();
+  await cat.getByRole('button', { name: 'T-shirts & tees' }).click();
+  await cat.getByRole('button', { name: 'Crew neck t-shirt' }).click();
+  await cat.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByText('T-shirts & tees · Crew neck t-shirt')).toBeVisible();
+
   // The pencil edits the name where it is written.
   await page.getByRole('button', { name: 'Edit the name' }).click();
   const name = page.getByRole('dialog', { name: 'Name' });

@@ -46,31 +46,70 @@ test('a reading piece says so and offers no styling yet', async () => {
   ).toBe(true);
 });
 
-test('editing saves the fields and the colour she picks, blanks as null', async () => {
+test('each fact is its own drawer: a brand saves and shows under the name at once', async () => {
   const calls = mockFetch({
-    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ brand: null }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
     [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ brand: 'Toteme' }),
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<PieceDetail id={PIECE_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.edit }));
+  // The line under the name is the door, and it says what is missing.
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.piece.addBrand }));
   await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.brand), 'Toteme');
-  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.size), '  ');
-  await fireEvent.press(screen.getByRole('button', { name: wardrobe.colour.change }));
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.saveField }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ brand: 'Toteme' });
+  // The line under the name and the row read the same saved piece, so both say it.
+  expect(await screen.findAllByText('Toteme')).toHaveLength(2);
+});
+
+test('the category drills Category › Subcategory › Item type and files the legacy column', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece(),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', {
+      name: `${wardrobe.piece.rows.category}: ${piece().categoryL2}`,
+    }),
+  );
+  // It opens where the piece already sits (Outerwear › Coats); back walks out to the categories.
+  await fireEvent.press(screen.getByRole('button', { name: '‹ Outerwear' }));
+  await fireEvent.press(screen.getByRole('button', { name: `‹ ${wardrobe.piece.rows.category}` }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Tops' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'T-shirts & tees' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Crew neck t-shirt' }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+    categoryL2: 'T-shirts & tees',
+    categoryL3: 'Crew neck t-shirt',
+  });
+});
+
+test('a colour answers on the tap, from the family tiles and their shades', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ colourShade: 'navy' }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  // The fixture is filed as Camel, so the row says so.
+  await fireEvent.press(
+    await screen.findByRole('button', { name: `${wardrobe.piece.rows.colour}: Camel` }),
+  );
   await fireEvent.press(screen.getByRole('button', { name: 'Blues' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Navy' }));
-  await fireEvent.press(screen.getByRole('button', { name: 'Stripes' }));
-  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.save }));
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
-  expect(calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({
-    label: 'Camel wool coat',
-    brand: 'Toteme',
-    size: null,
+  // Picking IS the answer: no second step, and the print is a separate row.
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
     colourShade: 'navy',
     colourExtra: [],
-    print: 'stripes',
   });
-  expect(await screen.findByText('Toteme')).toBeTruthy();
 });
 
 test('removing a piece goes back and offers Undo, which restores it', async () => {

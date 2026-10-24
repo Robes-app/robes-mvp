@@ -356,6 +356,11 @@ export const wardrobe = {
       wears: 'Worn',
       looks: (n: number): string => (n === 1 ? 'In one look' : `In ${n} looks`),
     },
+    // The Category drill (wardrobe_taxonomy). The sheet calls its third level "item type"; she
+    // reads "type", because nothing in Robes is an item.
+    taxonomy: {
+      justThis: (l2: string): string => `Just ${l2.toLowerCase()}`,
+    },
     rows: {
       category: 'Category',
       colour: 'Colour',

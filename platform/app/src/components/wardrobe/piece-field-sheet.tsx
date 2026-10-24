@@ -3,6 +3,13 @@
 import { type Piece, SeasonBand, type UpdatePieceInput } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import type { PieceColour } from '@robes/core/colour';
+import {
+  itemTypesOf,
+  resolveTaxonomy,
+  sheetCategories,
+  sheetL1For,
+  subcategoriesOf,
+} from '@robes/core/taxonomy';
 import { Button, Field, Pill, Sheet, Text, TextArea } from '@robes/ui';
 import { useEffect, useState } from 'react';
 import { ColourPicker, PrintPicker } from './colour-field';
@@ -16,12 +23,14 @@ export type PieceField =
   | 'colour'
   | 'extra'
   | 'print'
+  | 'category'
   | 'season'
   | 'size'
   | 'price'
   | 'notes';
 
 const TITLES: Record<PieceField, string> = {
+  category: copy.rows.category,
   label: copy.label,
   brand: copy.brand,
   colour: copy.rows.colour,
@@ -100,7 +109,12 @@ export function PieceFieldSheet({
   };
 
   // A colour, a print and a season answer on the tap; the rest are hers to type, then save.
-  const picks = field === 'colour' || field === 'extra' || field === 'print' || field === 'season';
+  const picks =
+    field === 'colour' ||
+    field === 'extra' ||
+    field === 'print' ||
+    field === 'season' ||
+    field === 'category';
 
   return (
     <Sheet
@@ -127,7 +141,9 @@ export function PieceFieldSheet({
         )
       }
     >
-      {field === 'notes' ? (
+      {field === 'category' ? (
+        <CategoryPicker piece={piece} onPick={commit} />
+      ) : field === 'notes' ? (
         <TextArea
           label={TITLES[field]}
           labelHidden
@@ -190,5 +206,81 @@ export function PieceFieldSheet({
         </div>
       )}
     </Sheet>
+  );
+}
+
+// Category › Subcategory › Item type (wardrobe_taxonomy): the drill stops wherever she does —
+// a subcategory alone is a complete answer, so "Just trousers" commits without an item type.
+function CategoryPicker({
+  piece,
+  onPick,
+}: {
+  piece: Piece;
+  onPick: (input: UpdatePieceInput) => void;
+}) {
+  const [sheetL1, setSheetL1] = useState<string | null>(
+    () => (piece.categoryL2 ? sheetL1For(piece.categoryL2) : null) ?? null,
+  );
+  const [l2, setL2] = useState<string | null>(piece.categoryL2);
+
+  const commit = (nextL2: string, nextL3: string | null) => {
+    const resolved = resolveTaxonomy(nextL2, nextL3);
+    if (resolved) onPick({ categoryL2: resolved.categoryL2, categoryL3: resolved.categoryL3 });
+  };
+
+  if (l2) {
+    return (
+      <div className="flex flex-col gap-3">
+        <Button variant="quiet" className="self-start" onClick={() => setL2(null)}>
+          {`‹ ${sheetL1 ?? copy.rows.category}`}
+        </Button>
+        <ul className="flex flex-wrap gap-2">
+          <li>
+            <Pill selected={piece.categoryL3 === null} onClick={() => commit(l2, null)}>
+              {copy.taxonomy.justThis(l2)}
+            </Pill>
+          </li>
+          {itemTypesOf(l2).map((l3) => (
+            <li key={l3}>
+              <Pill selected={piece.categoryL3 === l3} onClick={() => commit(l2, l3)}>
+                {l3}
+              </Pill>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+  if (sheetL1) {
+    return (
+      <div className="flex flex-col gap-3">
+        <Button variant="quiet" className="self-start" onClick={() => setSheetL1(null)}>
+          {`‹ ${copy.rows.category}`}
+        </Button>
+        <ul className="flex flex-wrap gap-2">
+          {subcategoriesOf(sheetL1).map((sub) => (
+            <li key={sub}>
+              <Pill selected={piece.categoryL2 === sub} onClick={() => setL2(sub)}>
+                {sub}
+              </Pill>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+  return (
+    <ul className="flex flex-wrap gap-2">
+      {sheetCategories().map((cat) => (
+        <li key={cat}>
+          <Pill
+            selected={piece.categoryL2 !== null && sheetL1For(piece.categoryL2) === cat}
+            onClick={() => setSheetL1(cat)}
+          >
+            {cat}
+          </Pill>
+        </li>
+      ))}
+    </ul>
   );
 }

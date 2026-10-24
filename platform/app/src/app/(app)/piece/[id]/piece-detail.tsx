@@ -158,10 +158,10 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
       {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
 
       <PieceSection title={copy.sections.piece}>
-        {/* Read-only until the taxonomy picker lands: Robes files the category from the photo. */}
         <PieceRow
           label={copy.rows.category}
           value={[piece.categoryL2 ?? piece.category, piece.categoryL3].filter(Boolean).join(' · ')}
+          onClick={() => setField('category')}
         />
         <PieceRow label={copy.brand} value={piece.brand} onClick={() => setField('brand')} />
       </PieceSection>
