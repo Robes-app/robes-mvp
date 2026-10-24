@@ -8,13 +8,11 @@ import { Button, buttonClasses, Sheet, Skeleton, Text, useToast } from '@robes/u
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { LookImage } from '@/components/looks/look-image';
+import { LookTile } from '@/components/looks/look-tile';
 import { formatDay } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 
 const copy = plan.picker;
-const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The Add-a-look picker (legacy ff87e89, saved looks only since 2026-10-10): tap looks to tick
 // them, add one or several at once; a look already on the day is shown, never offered twice.
@@ -104,35 +102,32 @@ export function LookPicker({
               const had = onDay.has(look.id);
               const on = picks.includes(look.id);
               return (
-                <li key={look.id}>
-                  <button
-                    type="button"
-                    aria-pressed={on}
+                <li key={look.id} className="flex">
+                  <LookTile
+                    look={look}
+                    sizes="160px"
+                    className="flex-1"
+                    selected={on}
+                    dimmed={had}
                     disabled={had}
-                    onClick={() =>
+                    onSelect={() =>
                       setPicks((p) => (on ? p.filter((x) => x !== look.id) : [...p, look.id]))
                     }
-                    className={`relative flex w-full flex-col rounded-crisp border p-1.5 text-left ${
-                      on ? 'border-ink' : 'border-hairline hover:border-border-control'
-                    } ${had ? 'opacity-60' : ''} ${focus}`}
-                  >
-                    <LookImage look={look} sizes="160px" />
-                    {on ? (
-                      <span className="absolute top-3 right-3 flex size-6 items-center justify-center rounded-pill bg-ink text-bg">
-                        <Icon name="check" size={14} />
-                      </span>
-                    ) : null}
-                    <span className="mt-2 truncate px-0.5 font-display text-base text-ink">
-                      {look.name}
-                    </span>
-                    <span className="mt-1 truncate px-0.5 font-sans text-[9px] tracking-[0.14em] text-ink-muted uppercase">
-                      {had
+                    meta={
+                      had
                         ? copy.already
                         : look.lastWornOn
                           ? copy.lastWorn(formatDay(look.lastWornOn))
-                          : copy.neverWorn}
-                    </span>
-                  </button>
+                          : copy.neverWorn
+                    }
+                    onImage={
+                      on ? (
+                        <span className="absolute top-2 right-2 z-10 flex size-6 items-center justify-center rounded-pill bg-ink text-bg">
+                          <Icon name="check" size={14} />
+                        </span>
+                      ) : null
+                    }
+                  />
                 </li>
               );
             })}

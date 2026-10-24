@@ -16,7 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 import { BackLink } from '@/components/back-link';
-import { LookImage } from '@/components/looks/look-image';
+import { LookTile } from '@/components/looks/look-tile';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { LookPicker } from '../look-picker';
@@ -153,44 +153,49 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
       ) : (
         <ul className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {entries.map((entry, i) => (
-            <li key={entry.id} className="relative">
-              <Link
+            <li key={entry.id} className="flex">
+              <LookTile
+                look={entry.look}
                 href={`/look/${entry.look.id}`}
-                className={`flex flex-col gap-2 rounded-crisp ${focus}`}
-              >
-                <LookImage look={entry.look} sizes="(min-width: 768px) 30vw, 50vw" />
-                <span className="font-sans text-[9px] tracking-[0.18em] text-ink-faint uppercase">
-                  {copy.lookEyebrow(i + 1)}
-                </span>
-                <span className="font-display text-xl leading-tight text-ink">
-                  {entry.look.name}
-                </span>
-                <span className="font-sans text-xs text-ink-muted">
-                  {plan.list.pieces(entry.look.pieces.length)}
-                </span>
-              </Link>
-              <IconButton
-                icon="close"
-                label={copy.remove(entry.look.name)}
-                onClick={() => unpin.mutate({ params: { id: entry.id } })}
-                className="absolute top-1.5 right-1.5 bg-bg/90"
+                sizes="(min-width: 768px) 30vw, 50vw"
+                eyebrow={copy.lookEyebrow(i + 1)}
+                meta={plan.list.pieces(entry.look.pieces.length)}
+                className="flex-1"
+                corner={
+                  <IconButton
+                    icon="close"
+                    label={copy.remove(entry.look.name)}
+                    onClick={() => unpin.mutate({ params: { id: entry.id } })}
+                    className="bg-bg/90"
+                  />
+                }
               />
             </li>
           ))}
-          <li className={entries.length ? '' : 'col-span-full'}>
+          <li className={entries.length ? 'flex' : 'col-span-full'}>
+            {/* The slot beside the looks is the card's twin, filled rather than dashed — a dash
+                would read as a second boundary inside the same grid. */}
             <button
               type="button"
               onClick={() => setPicking(true)}
-              className={`flex w-full items-center gap-4 rounded-crisp border border-dashed border-border-control p-4 text-left hover:border-ink ${
-                entries.length ? 'aspect-[4/5] flex-col justify-center text-center' : ''
+              className={`flex w-full items-center gap-4 rounded-crisp p-4 text-left ${
+                entries.length
+                  ? 'flex-1 flex-col justify-center bg-surface-sunk text-center hover:bg-surface'
+                  : 'border border-dashed border-border-control hover:border-ink'
               } ${focus}`}
             >
               <Icon name={entries.length ? 'plus' : 'looks'} size={20} className="text-ink-muted" />
-              <span className="flex flex-1 flex-col gap-0.5">
-                <span className="font-display text-lg text-ink">
+              <span className="flex flex-col gap-1">
+                <span
+                  className={
+                    entries.length
+                      ? 'font-sans text-[10px] tracking-[0.18em] text-ink uppercase'
+                      : 'font-display text-ink text-lg'
+                  }
+                >
                   {entries.length ? copy.addAnother : copy.choose}
                 </span>
-                <span className="font-display text-lg text-ink-faint italic">
+                <span className="font-display text-ink-faint text-base italic">
                   {entries.length ? copy.addAnotherHint : copy.chooseHint}
                 </span>
               </span>

@@ -11,7 +11,7 @@ import { Eyebrow, Heading, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
-import { LookImage } from '@/components/looks/look-image';
+import { LookTile } from '@/components/looks/look-tile';
 import { errorCopy } from '@/lib/error-copy';
 import { HomeBox } from './home-box';
 import { StepCard, StepMap } from './home-steps';
@@ -298,24 +298,20 @@ function LookRow({
         {looks.map((look) => {
           const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
           return (
-            <li key={look.id}>
-              <Link
+            <li key={look.id} className="flex">
+              <LookTile
+                look={look}
                 href={`/look/${look.id}`}
-                className="flex flex-col gap-2"
-                aria-label={look.name}
-              >
-                <LookImage look={look} sizes="(min-width: 640px) 300px, 50vw" />
-                <span className="flex flex-col">
-                  <Text className="truncate font-display text-lg">{look.name}</Text>
-                  <Text size="caption" tone="muted" className="truncate">
-                    {kind === 'suggested'
-                      ? around
-                        ? copy.aroundYour(around)
-                        : copy.fromPrompt
-                      : lookbook.meta.pieces(look.pieces.length)}
-                  </Text>
-                </span>
-              </Link>
+                sizes="(min-width: 640px) 300px, 50vw"
+                className="flex-1"
+                meta={
+                  kind === 'suggested'
+                    ? around
+                      ? copy.aroundYour(around)
+                      : copy.fromPrompt
+                    : lookbook.meta.pieces(look.pieces.length)
+                }
+              />
             </li>
           );
         })}

@@ -2,7 +2,7 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { type Aspect, aspects } from './aspect';
 import { cn } from './cn';
 import { Skeleton } from './skeleton';
-import { Eyebrow, Heading, Text } from './text';
+import { Eyebrow, Heading, type HeadingSize, Text } from './text';
 
 export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
   as?: 'article' | 'div' | 'li' | 'section';
@@ -11,6 +11,10 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
   title?: ReactNode;
   meta?: ReactNode;
   headingLevel?: 2 | 3 | 4;
+  titleSize?: HeadingSize;
+  // Anything that sits ON the card rather than in its flow — an action in a corner, a mark on
+  // the photograph. The caller positions it; the card only gives it a containing block.
+  overlay?: ReactNode;
 }
 
 // Cards get a hairline, never a shadow (brand-and-design.md §4.5).
@@ -21,6 +25,8 @@ export function Card({
   title,
   meta,
   headingLevel = 3,
+  titleSize,
+  overlay,
   className,
   children,
   ...rest
@@ -29,7 +35,7 @@ export function Card({
     <Tag
       {...rest}
       className={cn(
-        'flex flex-col overflow-hidden rounded-crisp border border-hairline bg-surface',
+        'relative flex flex-col overflow-hidden rounded-crisp border border-hairline bg-surface',
         className,
       )}
     >
@@ -38,7 +44,7 @@ export function Card({
         <div className="flex flex-col gap-1.5 px-4 pt-3.5 pb-4">
           {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
           {title ? (
-            <Heading level={headingLevel} size="md">
+            <Heading level={headingLevel} size={titleSize ?? 'md'}>
               {title}
             </Heading>
           ) : null}
@@ -50,6 +56,7 @@ export function Card({
           {children}
         </div>
       ) : null}
+      {overlay}
     </Tag>
   );
 }
