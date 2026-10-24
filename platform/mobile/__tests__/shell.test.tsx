@@ -32,11 +32,10 @@ jest.mock('../src/lib/auth-client', () => ({
   },
 }));
 
-// RNTL 14 renders asynchronously: renderRouter returns the render promise with the router
-// helpers attached, so await it before asserting.
+// renderRouter is async (expo-router 58): await it for the router helpers.
 async function app(initialUrl = '/') {
   const queryClient = newQueryClient();
-  const router = renderRouter(
+  const router = await renderRouter(
     {
       _layout: {
         default: () => {
@@ -65,8 +64,6 @@ async function app(initialUrl = '/') {
     },
     { initialUrl },
   );
-  await router;
-  // Returning the thenable itself from an async function would unwrap it.
   return { getPathname: () => router.getPathname() };
 }
 

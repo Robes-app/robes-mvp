@@ -76,7 +76,7 @@ Postgres is a private database behind the API: no RLS, no client-side queries, n
 24. Nothing secret in the repo (gitleaks runs in CI on each change's commits). Publishable/anon keys are not secrets but still come from env. The legacy app has keys in its git history; they are being rotated and scrubbed after merge — never copy values from legacy files.
 
 ## Toolchain
-Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vitest · Playwright · Next.js 16.3 (React 19.3) · Tailwind 4.3 · Expo SDK 57 (RN 0.86, React 19.2.3) · Uniwind 1.12 · Postgres 17 (Docker) · Kysely · dbmate · Better Auth · AWS CDK v2. Versions and rationale: `docs/reference/stack-versions.md`. Shared packages declare React as a **peer** dependency.
+Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vitest · Playwright · Next.js 16.3 (React 19.3) · Tailwind 4.3 · Expo SDK 58 (RN 0.88, React 19.3) · Uniwind 1.12 · Postgres 17 (Docker) · Kysely · dbmate · Better Auth · AWS CDK v2. Versions and rationale: `docs/reference/stack-versions.md`. Shared packages declare React as a **peer** dependency.
 
 Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + typecheck + test + db:test) · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm services:up` · `pnpm db:reset` · `pnpm db:migrate` · `pnpm db:new <name>` · `pnpm db:types` · `pnpm db:test` · `pnpm maintenance` · `pnpm dev:web` · `pnpm dev:mobile` (Expo; ADR 018) · `pnpm --filter @robes/app test:e2e`. Recipes (new package / route / table): `docs/DEVELOPING.md`.
 

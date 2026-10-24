@@ -7,7 +7,7 @@ import { Icon } from '@robes/icons/native';
 import { ErrorText, fonts, IconButton, Image, Sheet, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, TextInput, type TextInputInstance, View } from 'react-native';
 import { BalanceQuestion } from '@/features/looks/BalanceQuestion';
 import { SwapSheet } from '@/features/looks/SwapSheet';
 import { localDate } from '@/features/looks/saved-looks';
@@ -31,7 +31,7 @@ export const HomeBox = forwardRef<
   const router = useRouter();
   const api = useApiClient();
   const { features } = useFeatures();
-  const input = useRef<TextInput>(null);
+  const input = useRef<TextInputInstance>(null);
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
   const [text, setText] = useState('');

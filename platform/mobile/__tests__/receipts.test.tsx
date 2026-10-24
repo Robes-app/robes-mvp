@@ -17,7 +17,9 @@ const ADDRESS = {
 
 test('shows her forwarding address and shares it', async () => {
   mockFetch({ 'GET /me/inbox-address': ADDRESS });
-  const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+  const share = jest
+    .spyOn(Share, 'share')
+    .mockResolvedValue({ action: 'sharedAction', activityType: undefined });
   await renderWithApi(<ForwardReceipts />);
   expect(await screen.findByText(ADDRESS.address)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: copy.share }));

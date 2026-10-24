@@ -192,7 +192,7 @@ export function LooksView() {
           }
           ListEmptyComponent={
             tab === 'saved' ? (
-              draftItems.length ? null : (
+              draftItems.length ? undefined : (
                 <EmptyState
                   title={copy.savedEmpty.title}
                   body={copy.savedEmpty.body}

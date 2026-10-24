@@ -1,6 +1,6 @@
 import { Icon } from '@robes/icons/native';
 import { forwardRef } from 'react';
-import { TextInput, type TextInputProps, View } from 'react-native';
+import { TextInput, type TextInputInstance, type TextInputProps, View } from 'react-native';
 import { useColor } from './color';
 import { cx } from './cx';
 import { fonts, maxFontSizeMultiplier } from './scale';
@@ -16,7 +16,7 @@ export interface FieldProps extends Omit<TextInputProps, 'accessibilityLabel'> {
 }
 
 // Visible 3:1 control border (border-control); errors pair danger text with an icon.
-export const Field = forwardRef<TextInput, FieldProps>(function Field(
+export const Field = forwardRef<TextInputInstance, FieldProps>(function Field(
   { label, error, hint, className, style, multiline, variant = 'box', ...input },
   ref,
 ) {

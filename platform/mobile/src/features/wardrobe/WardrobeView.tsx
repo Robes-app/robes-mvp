@@ -247,7 +247,7 @@ function Pieces() {
             <View className="pt-2">
               <AddRow label={copy.card.addRow} onPress={addFromLibrary} />
             </View>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           <View className="items-start gap-3 py-6">

@@ -25,7 +25,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, type ScrollViewInstance, View } from 'react-native';
 import { isTerminal } from '@/features/looks/ideas';
 import { DayDots } from '@/features/plan/DayDots';
 import { dayLabel } from '@/features/plan/plan';
@@ -63,7 +63,7 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
     if (dress) setDressDate(dress);
   }, [dress]);
   const box = useRef<HomeBoxHandle>(null);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const data = query.data;
   if (query.isError) {
     return (
