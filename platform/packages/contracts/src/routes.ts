@@ -126,6 +126,7 @@ import {
   Piece,
   PiecePage,
   PieceParams,
+  PieceWearPage,
   UpdatePieceInput,
   UpdateWishInput,
   WardrobeSummary,
@@ -421,6 +422,14 @@ export const routes = {
     params: PieceParams,
     input: EmptyInput,
     output: Piece,
+  },
+  'wardrobe.wears': {
+    method: 'GET',
+    path: '/wardrobe/items/:id/wears',
+    auth: 'user',
+    params: PieceParams,
+    input: EmptyInput,
+    output: PieceWearPage,
   },
   'wardrobe.update': {
     method: 'PATCH',

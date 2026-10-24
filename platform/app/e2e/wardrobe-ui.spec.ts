@@ -31,9 +31,20 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await pieces.getByRole('link', { name: /Camel wool coat/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Camel wool coat' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Photo of Camel wool coat' })).toBeVisible();
-  await page.getByLabel('Brand').fill('Harbour');
-  await page.getByRole('button', { name: 'Save changes' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+  // Every fact is a row that opens its own drawer, and the line under the name is the truth:
+  // a brand she adds shows there at once, with no form to save.
+  await page.getByRole('button', { name: 'Add the brand' }).click();
+  const brand = page.getByRole('dialog', { name: 'Brand' });
+  await brand.getByLabel('Brand').fill('Harbour');
+  await brand.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('button', { name: 'Harbour' })).toBeVisible();
+
+  // The pencil edits the name where it is written.
+  await page.getByRole('button', { name: 'Edit the name' }).click();
+  const name = page.getByRole('dialog', { name: 'Name' });
+  await name.getByLabel('Name').fill('Camel wool coat');
+  await name.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Camel wool coat' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Wardrobe' }).first().click();
   // The web opens on the grid; the count row counts and the star files it to the Hero Rack.

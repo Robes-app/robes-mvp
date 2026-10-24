@@ -19,6 +19,24 @@ afterAll(async () => {
 });
 
 describe('wardrobe repo', () => {
+  it("reads a piece's own record, and keeps it to its owner", async () => {
+    const coat = await wardrobe.create(ann, { label: 'Camel coat' });
+    const look = await looks.create(ann, {
+      name: 'Gallery opening',
+      nameProvisional: false,
+      pieces: [{ pieceId: coat.id }],
+    });
+    await looks.wear(ann, look.id, '2026-09-24');
+    await looks.wear(ann, look.id, '2026-09-20');
+    const record = await wardrobe.wears(ann, coat.id);
+    expect(record.map((w) => [w.wornOn, w.lookName])).toEqual([
+      ['2026-09-24', 'Gallery opening'],
+      ['2026-09-20', 'Gallery opening'],
+    ]);
+    // A piece that is not hers has no record to read.
+    expect(await wardrobe.wears(bea, coat.id)).toEqual([]);
+  });
+
   it('creates pieces with the taxonomy deciding the category', async () => {
     const piece = await wardrobe.create(ann, {
       label: 'Mom jeans',

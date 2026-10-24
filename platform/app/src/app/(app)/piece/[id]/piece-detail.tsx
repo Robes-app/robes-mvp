@@ -1,30 +1,31 @@
 'use client';
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { Piece } from '@robes/contracts';
+import type { Piece, UpdatePieceInput } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
-import type { PieceColour } from '@robes/core/colour';
+import { dayMonth, longDate } from '@robes/core/calendar';
+import { type PieceColour, pattern, shade } from '@robes/core/colour';
 import { Icon } from '@robes/icons/web';
 import {
   Button,
   buttonClasses,
-  Chip,
   ErrorText,
-  Field,
+  Eyebrow,
   Heading,
   IconButton,
   Skeleton,
   Text,
-  TextArea,
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useId, useState } from 'react';
+import { useState } from 'react';
 import { SuggestedRail } from '@/components/looks/suggested-rail';
-import { ColourField, colourSummary } from '@/components/wardrobe/colour-field';
+import { colourSummary, ShadeSwatch } from '@/components/wardrobe/colour-field';
 import { StarButton } from '@/components/wardrobe/piece-card';
+import { type PieceField, PieceFieldSheet } from '@/components/wardrobe/piece-field-sheet';
 import { PieceImage } from '@/components/wardrobe/piece-image';
+import { PieceRow, PieceSection } from '@/components/wardrobe/piece-rows';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { useStarPiece } from '@/components/wardrobe/use-star-piece';
 import { errorCopy } from '@/lib/error-copy';
@@ -33,50 +34,40 @@ import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 const copy = wardrobe.piece;
 const READING_REFRESH_MS = 2000;
 
-type Draft = Record<'label' | 'brand' | 'size' | 'notes', string> & { colour: PieceColour };
-
 const colourOf = (p: Piece): PieceColour => ({
   colourShade: p.colourShade,
   colourExtra: p.colourExtra,
   print: p.print,
 });
 
-function toDraft(p: Piece): Draft {
-  return {
-    label: p.label,
-    brand: p.brand ?? '',
-    colour: colourOf(p),
-    size: p.size ?? '',
-    notes: p.notes ?? '',
-  };
-}
+const money = (price: number | null, currency: string | null): string | null =>
+  price === null
+    ? null
+    : new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: currency ?? 'EUR',
+        maximumFractionDigits: 0,
+      }).format(price);
 
-const orNull = (v: string): string | null => (v.trim() ? v.trim() : null);
-
+// The record (legacy Piece_Sheet 01): the photograph, her name for it with the pencil on it, the
+// facts she has given, then the days she wore it. Every fact is a row that opens its own drawer —
+// there is no form, so what the title says and what a row says can never disagree.
 export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const labelId = useId();
-  const brandId = useId();
   const star = useStarPiece();
+  const [field, setField] = useState<PieceField | null>(null);
   const query = useApi(
     'wardrobe.get',
     { params: { id } },
     { refetchInterval: (q) => (pieceIsReading(q.state.data) ? READING_REFRESH_MS : false) },
   );
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [saved, setSaved] = useState(false);
   const piece = query.data;
-
-  useEffect(() => {
-    if (piece && !pieceIsReading(piece)) setDraft((d) => d ?? toDraft(piece));
-  }, [piece]);
 
   const update = useApiMutation('wardrobe.update', {
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.call('wardrobe.get', { params: { id } }), data);
       void invalidateWardrobe(queryClient);
-      setSaved(true);
     },
   });
   const remove = useRemovePiece();
@@ -84,192 +75,236 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
     onSuccess: ({ jobId }) => router.push(`/looks/style/${jobId}`),
   });
 
-  if (query.isError) {
-    return <ErrorText>{errorCopy(query.error)}</ErrorText>;
-  }
+  if (query.isError) return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   if (!piece) {
     return (
-      <div aria-busy className="grid gap-8 md:grid-cols-2">
+      <div aria-busy className="mx-auto flex w-full max-w-xl flex-col gap-6">
         <Skeleton className="aspect-[4/5]" />
-        <div className="flex flex-col gap-4">
-          <Skeleton shape="text" className="h-10 w-2/3" />
-          <Skeleton className="h-16" />
-          <Skeleton className="h-16" />
-        </div>
+        <Skeleton shape="text" className="h-10 w-2/3" />
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
       </div>
     );
   }
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!draft) return;
-    setSaved(false);
-    update.mutate({
-      params: { id },
-      input: {
-        label: draft.label.trim(),
-        brand: orNull(draft.brand),
-        ...draft.colour,
-        size: orNull(draft.size),
-        notes: orNull(draft.notes),
-      },
-    });
-  }
-
-  const set = (key: Exclude<keyof Draft, 'colour'>) => (value: string) =>
-    setDraft((d) => (d ? { ...d, [key]: value } : d));
+  const save = (input: UpdatePieceInput) => update.mutate({ params: { id }, input });
+  const ready = piece.status === 'ready';
+  const mainShade = shade(piece.colourShade);
+  const extras = piece.colourExtra.map((x) => shade(x)?.name).filter(Boolean) as string[];
 
   return (
     <article className="mx-auto flex w-full max-w-xl flex-col gap-6">
       <PieceImage piece={piece} sizes="(min-width: 768px) 640px, 100vw" priority />
-      <div className="flex flex-col gap-6">
-        <header className="flex flex-col gap-1.5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <span className="flex items-start gap-2">
-                {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
-                <Heading
-                  level={1}
-                  size="xl"
-                  italic={piece.status !== 'ready'}
-                  tone={piece.status === 'ready' ? 'default' : 'faint'}
-                >
-                  {piece.label}
-                </Heading>
-                <IconButton
-                  icon="pencil"
-                  label={copy.editName}
-                  onClick={() => document.getElementById(labelId)?.focus()}
-                />
-              </span>
-              {/* The brand is its own line, and says so when it is missing. */}
-              <button
-                type="button"
-                onClick={() => document.getElementById(brandId)?.focus()}
-                className="self-start font-display text-ink-muted text-lg italic"
-              >
-                {piece.brand ?? copy.addBrand}
-              </button>
-            </div>
-            <StarButton
-              label={piece.label}
-              on={piece.heroPosition !== null}
-              onToggle={() => star.toggle(piece)}
-            />
-          </div>
-          {piece.status === 'ready' ? (
-            <>
-              <div className="flex flex-wrap gap-2">
-                <Chip>{piece.category}</Chip>
-                {piece.categoryL2 ? <Chip>{piece.categoryL2}</Chip> : null}
-              </div>
-              <Text
-                size="small"
-                tone={piece.wearCount ? 'muted' : 'default'}
-                className={piece.wearCount ? '' : 'text-accent-warm'}
-              >
-                {piece.wearCount ? wardrobe.card.worn(piece.wearCount) : wardrobe.card.neverWorn}
-              </Text>
-            </>
-          ) : null}
-          {piece.status === 'reading' ? (
-            <Text role="status" tone="muted">
-              {wardrobe.reading}
-            </Text>
-          ) : null}
-          {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
-        </header>
-        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="primary"
-            disabled={piece.status !== 'ready'}
-            loading={style.isPending || style.isSuccess}
-            onClick={() => style.mutate({ input: { anchor: { type: 'piece', pieceId: id } } })}
-          >
-            {copy.stylePiece}
-          </Button>
-          {piece.status === 'ready' ? (
-            <Link
-              href={`/looks/new?pieceId=${id}`}
-              className={buttonClasses({ variant: 'secondary' })}
+
+      <header className="flex flex-col gap-1.5">
+        <div className="flex items-start justify-between gap-3">
+          <span className="flex min-w-0 flex-1 items-start gap-2">
+            {/* Until Robes has read it, "New piece" is a placeholder, not a fact. */}
+            <Heading
+              level={1}
+              size="xl"
+              className="min-w-0"
+              italic={!ready}
+              tone={ready ? 'default' : 'faint'}
             >
-              {lookbook.startLook}
-            </Link>
-          ) : null}
+              {piece.label}
+            </Heading>
+            {/* The pencil edits the name where it is written, never a field further down. */}
+            <IconButton icon="pencil" label={copy.editName} onClick={() => setField('label')} />
+          </span>
+          <StarButton
+            label={piece.label}
+            on={piece.heroPosition !== null}
+            onToggle={() => star.toggle(piece)}
+          />
         </div>
-        {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
-        <SuggestedRail pieceId={id} />
-        {draft ? (
-          <form onSubmit={submit} className="flex flex-col gap-4">
-            <Field
-              id={labelId}
-              label={copy.label}
-              name="label"
-              required
-              maxLength={120}
-              value={draft.label}
-              onChange={(e) => set('label')(e.target.value)}
-            />
-            <Field
-              id={brandId}
-              label={copy.brand}
-              name="brand"
-              maxLength={80}
-              value={draft.brand}
-              onChange={(e) => set('brand')(e.target.value)}
-            />
-            <ColourField
-              value={draft.colour}
-              check={piece.colourCheck}
-              onChange={(colour) => setDraft((d) => (d ? { ...d, colour } : d))}
-            />
-            <Field
-              label={copy.size}
-              name="size"
-              maxLength={40}
-              value={draft.size}
-              onChange={(e) => set('size')(e.target.value)}
-            />
-            <TextArea
-              label={copy.notes}
-              name="notes"
-              maxLength={1000}
-              value={draft.notes}
-              onChange={(e) => set('notes')(e.target.value)}
-            />
-            <Button
-              type="submit"
-              disabled={!draft.label.trim()}
-              loading={update.isPending}
-              loadingLabel={copy.saving}
-              className="self-start"
-            >
-              {copy.save}
-            </Button>
-            <Text role="status" size="small" tone="muted" className="min-h-5">
-              {saved ? copy.saved : ''}
-            </Text>
-            {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
-          </form>
-        ) : null}
-        {/* Destructive, so away from the primary action; Undo follows in a toast. */}
-        <Button
-          variant="quiet"
-          className="self-start border-hairline border-t pt-4"
-          onClick={() => {
-            remove.mutate({ params: { id } });
-            router.push('/wardrobe');
-          }}
+        {/* The brand is its own line, and says so when it is missing — one source, the saved piece. */}
+        <button
+          type="button"
+          onClick={() => setField('brand')}
+          className="self-start font-display text-lg text-ink-muted italic"
         >
-          {copy.remove}
+          {piece.brand ?? copy.addBrand}
+        </button>
+        {piece.status === 'reading' ? (
+          <Text role="status" tone="muted">
+            {wardrobe.reading}
+          </Text>
+        ) : null}
+        {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
+      </header>
+
+      {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
+      {ready ? <Stats piece={piece} /> : null}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant="primary"
+          disabled={!ready}
+          loading={style.isPending || style.isSuccess}
+          onClick={() => style.mutate({ input: { anchor: { type: 'piece', pieceId: id } } })}
+        >
+          {copy.stylePiece}
         </Button>
+        {ready ? (
+          <Link
+            href={`/looks/new?pieceId=${id}`}
+            className={buttonClasses({ variant: 'secondary' })}
+          >
+            {lookbook.startLook}
+          </Link>
+        ) : null}
       </div>
+      {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
+
+      <PieceSection title={copy.sections.piece}>
+        {/* Read-only until the taxonomy picker lands: Robes files the category from the photo. */}
+        <PieceRow
+          label={copy.rows.category}
+          value={[piece.categoryL2 ?? piece.category, piece.categoryL3].filter(Boolean).join(' · ')}
+        />
+        <PieceRow label={copy.brand} value={piece.brand} onClick={() => setField('brand')} />
+      </PieceSection>
+
+      <PieceSection title={copy.sections.colour}>
+        <PieceRow
+          label={copy.rows.colour}
+          value={mainShade?.name ?? null}
+          swatch={mainShade ? <ShadeSwatch shade={mainShade} size={18} /> : undefined}
+          onClick={() => setField('colour')}
+        />
+        <PieceRow
+          label={copy.rows.extra}
+          value={extras.join(' · ')}
+          onClick={() => setField('extra')}
+        />
+        <PieceRow
+          label={copy.rows.print}
+          value={pattern(piece.print)?.name ?? wardrobe.colour.plain}
+          onClick={() => setField('print')}
+        />
+      </PieceSection>
+
+      <PieceSection title={copy.sections.wearing}>
+        <PieceRow
+          label={copy.rows.season}
+          value={wardrobe.filter.seasons[piece.seasonBand]}
+          onClick={() => setField('season')}
+        />
+      </PieceSection>
+
+      <PieceSection title={copy.sections.fit}>
+        <PieceRow label={copy.rows.size} value={piece.size} onClick={() => setField('size')} />
+        <PieceRow
+          label={copy.rows.price}
+          value={money(piece.price, piece.currency)}
+          onClick={() => setField('price')}
+        />
+        <PieceRow label={copy.rows.notes} value={null} onClick={() => setField('notes')}>
+          {piece.notes ? (
+            <Text size="small" tone="muted" italic className="pr-6">
+              {piece.notes}
+            </Text>
+          ) : null}
+        </PieceRow>
+      </PieceSection>
+
+      <Wears pieceId={id} />
+      <SuggestedRail pieceId={id} />
+
+      {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
+
+      {/* Destructive, so away from the primary action; Undo follows in a toast. */}
+      <Button
+        variant="quiet"
+        className="self-start border-hairline border-t pt-4"
+        onClick={() => {
+          remove.mutate({ params: { id } });
+          router.push('/wardrobe');
+        }}
+      >
+        {copy.remove}
+      </Button>
+
+      <PieceFieldSheet
+        piece={piece}
+        field={field}
+        onClose={() => setField(null)}
+        onSave={save}
+        saving={update.isPending}
+      />
     </article>
   );
 }
 
-// Beta's reveal: what Robes filed, row by row, once it has read the piece; the form below adjusts.
+// Worn · Last worn, as beta's strip reads them: facts, side by side, under the name.
+function Stats({ piece }: { piece: Piece }) {
+  const cells: [string, string][] = [
+    [copy.stats.worn, piece.wearCount ? wardrobe.card.worn(piece.wearCount) : copy.stats.never],
+  ];
+  return (
+    <dl className="grid grid-cols-2 overflow-hidden rounded-crisp border border-hairline bg-surface">
+      {cells.map(([k, v], i) => (
+        <div key={k} className={`flex flex-col gap-1 p-3 ${i ? 'border-hairline border-l' : ''}`}>
+          <dt>
+            <Eyebrow>{k}</Eyebrow>
+          </dt>
+          <dd>
+            <Text size="small">{v}</Text>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+// The piece's own record: the days it was on her, and the look she wore it in.
+function Wears({ pieceId }: { pieceId: string }) {
+  const query = useApi('wardrobe.wears', { params: { id: pieceId } });
+  const items = query.data?.items ?? [];
+  const undated = query.data?.undated ?? 0;
+  return (
+    <section aria-labelledby="piece-wears" className="flex flex-col gap-2">
+      <Eyebrow id="piece-wears">{copy.sections.wears}</Eyebrow>
+      {query.isPending ? (
+        <Skeleton shape="text" className="h-4 w-40" />
+      ) : items.length === 0 && !undated ? (
+        <Text size="small" tone="muted" italic>
+          {copy.wears.none}
+        </Text>
+      ) : (
+        <>
+          <ul className="flex flex-col divide-y divide-hairline overflow-hidden rounded-crisp border border-hairline bg-surface">
+            {items.map((wear) => (
+              <li key={wear.id}>
+                <Link
+                  href={`/plan/${wear.wornOn}`}
+                  aria-label={copy.wears.openDay(longDate(wear.wornOn))}
+                  className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
+                >
+                  <Text size="small" className="shrink-0">
+                    {dayMonth(wear.wornOn)}
+                  </Text>
+                  <Text size="caption" tone="faint" italic className="min-w-0 flex-1 truncate">
+                    {wear.lookName ?? ''}
+                  </Text>
+                  <Icon name="forward" size={15} className="shrink-0 text-ink-faint" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {undated ? (
+            <Text size="caption" tone="faint" italic>
+              {copy.wears.undated(undated)}
+            </Text>
+          ) : null}
+        </>
+      )}
+    </section>
+  );
+}
+
+// Beta's reveal: what Robes filed, row by row, once it has read the piece; the rows above adjust.
 function Saw({ piece }: { piece: Piece }) {
   const rows: [string, string | null][] = [
     [wardrobe.saw.rows.piece, piece.label],

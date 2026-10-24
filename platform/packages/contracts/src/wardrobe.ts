@@ -70,6 +70,22 @@ export type Piece = z.infer<typeof Piece>;
 
 export const PieceParams = z.object({ id: z.uuid() });
 
+// A piece's own record: the days it was on her, and the look she wore it in. A wear is
+// immutable, so these rows keep saying what was worn after the look moves on.
+export const PieceWear = z.object({
+  id: z.uuid(),
+  wornOn: z.iso.date(),
+  lookId: z.uuid().nullable(),
+  lookName: z.string().nullable(),
+});
+export type PieceWear = z.infer<typeof PieceWear>;
+export const PieceWearPage = z.object({
+  items: z.array(PieceWear),
+  // Wears counted before Robes kept the dates (the count the piece carries, minus these rows).
+  undated: z.number().int().min(0).default(0),
+});
+export type PieceWearPage = z.infer<typeof PieceWearPage>;
+
 export const ListPiecesInput = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(60),
   cursor: z.string().max(200).optional(),

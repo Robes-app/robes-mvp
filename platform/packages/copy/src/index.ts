@@ -347,6 +347,40 @@ export const wardrobe = {
     // and the brand is its own tappable line, empty or not.
     editName: 'Edit the name',
     addBrand: 'Add the brand',
+    // The record's sections (legacy Piece_Sheet 01): every fact is a row, a tap opens its drawer.
+    sections: {
+      piece: 'The piece',
+      colour: 'Colour',
+      wearing: 'Wearing',
+      fit: 'Fit & notes',
+      wears: 'Worn',
+      looks: (n: number): string => (n === 1 ? 'In one look' : `In ${n} looks`),
+    },
+    rows: {
+      category: 'Category',
+      colour: 'Colour',
+      extra: 'Additional colours',
+      print: 'Print',
+      season: 'Season',
+      size: 'Size',
+      price: 'Price',
+      notes: 'Notes',
+    },
+    // What a row says when there is nothing filed yet — a door, not a blank.
+    add: 'Add',
+    saveField: 'Save',
+    done: 'Done',
+    // The stats strip under the name.
+    stats: { worn: 'Worn', lastWorn: 'Last worn', never: 'Not yet' },
+    wears: {
+      none: 'Not yet. The counter starts the first day you wear it.',
+      openDay: (date: string): string => `Open ${date}`,
+      undated: (n: number): string =>
+        n === 1
+          ? 'One wear counted before Robes kept the dates.'
+          : `${n} wears counted before Robes kept the dates.`,
+    },
+    extraHint: 'Buttons, trims, a second colour in the weave. Tap as many as there are.',
   },
   // The colour model on a piece (legacy f3e5b5b): one shade, up to three more, a print.
   colour: {

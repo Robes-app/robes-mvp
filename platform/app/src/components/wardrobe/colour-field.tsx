@@ -10,7 +10,8 @@ import {
   type Shade,
   shade,
 } from '@robes/core/colour';
-import { Button, Pill, SegmentedControl, Text } from '@robes/ui';
+import { Icon } from '@robes/icons/web';
+import { Text } from '@robes/ui';
 import { useState } from 'react';
 
 const copy = wardrobe.colour;
@@ -73,109 +74,117 @@ export function colourSummary(v: PieceColour): string {
   return [...names, ...(print ? [print] : [])].join(' · ');
 }
 
-// The piece's colour in view and add mode (legacy f3e5b5b): the current read, then a family →
-// shade picker for the main colour or up to three more, and the print.
-export function ColourField({
+// The family row, then its shades as named circles — the picker Settings' Your colours uses,
+// so a colour reads the same wherever she sets one. It fills a drawer; it is never a page.
+export function ColourPicker({
   value,
   onChange,
-  check = false,
+  slot,
 }: {
   value: PieceColour;
   onChange: (next: PieceColour) => void;
-  check?: boolean;
+  slot: 'main' | 'extra';
 }) {
-  const [open, setOpen] = useState(false);
-  const [slot, setSlot] = useState<'main' | 'extra'>('main');
-  const [family, setFamily] = useState(shade(value.colourShade)?.family ?? 'blacks');
-  const summary = colourSummary(value);
+  const chosen = new Set(slot === 'main' ? [value.colourShade].filter(Boolean) : value.colourExtra);
+  const [family, setFamily] = useState(
+    () =>
+      shade(slot === 'main' ? value.colourShade : (value.colourExtra[0] ?? null))?.family ??
+      'blacks',
+  );
   const fam = COLOUR_FAMILIES.find((f) => f.id === family);
-  const chosen = new Set(slot === 'main' ? [value.colourShade] : value.colourExtra);
   return (
-    <fieldset className="flex flex-col gap-3">
-      <legend className="mb-2 font-sans text-sm font-medium text-ink">{copy.title}</legend>
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="flex -space-x-1.5">
-          {[value.colourShade, ...value.colourExtra].map((id, i) => (
-            <ShadeSwatch key={id ?? i} shade={shade(id)} />
-          ))}
-        </span>
-        <Text tone={summary ? 'default' : 'faint'} italic={!summary}>
-          {summary || copy.notSet}
-        </Text>
-        <Button variant="quiet" aria-expanded={open} onClick={() => setOpen(!open)}>
-          {open ? copy.done : copy.change}
-        </Button>
-      </div>
-      {check ? (
-        <Text size="small" tone="muted">
-          {copy.check}
-        </Text>
-      ) : null}
-      {open ? (
-        <div className="flex flex-col gap-4">
-          <SegmentedControl
-            size="sm"
-            label={copy.title}
-            options={[
-              { value: 'main', label: copy.main },
-              { value: 'extra', label: copy.extra },
-            ]}
-            value={slot}
-            onChange={setSlot}
-          />
-          {slot === 'extra' ? (
-            <Text size="small" tone="muted">
-              {copy.extraHint}
-            </Text>
-          ) : null}
-          <ul aria-label={copy.families} className="flex flex-wrap gap-2">
-            {COLOUR_FAMILIES.map((f) => (
-              <li key={f.id}>
-                <Pill selected={f.id === family} onClick={() => setFamily(f.id)}>
-                  {f.name}
-                </Pill>
-              </li>
-            ))}
-          </ul>
-          <ul aria-label={fam?.name} className="flex flex-wrap gap-2">
-            {fam?.shades.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  aria-pressed={chosen.has(s.id)}
-                  onClick={() => onChange(pickShade(value, s.id, slot))}
-                  className={`flex min-h-11 items-center gap-2 rounded-pill border px-3 font-sans text-sm focus-visible:outline-2 focus-visible:outline-focus-ring ${
-                    chosen.has(s.id) ? 'border-ink text-ink' : 'border-hairline text-ink-muted'
-                  }`}
-                >
-                  <ShadeSwatch shade={s} size={20} />
-                  {s.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 font-sans text-sm text-ink-muted">{copy.print}</legend>
-            <div className="flex flex-wrap gap-2">
-              <Pill
-                selected={value.print === null}
-                onClick={() => onChange({ ...value, print: null })}
+    <div className="flex flex-col gap-4">
+      {/* The families scroll as one row, so the list never pushes the shades off the drawer. */}
+      <ul
+        aria-label={copy.families}
+        className="-mx-6 flex gap-3 overflow-x-auto px-6 pb-1 [scrollbar-width:none]"
+      >
+        {COLOUR_FAMILIES.map((f) => (
+          <li key={f.id}>
+            <button
+              type="button"
+              aria-pressed={f.id === family}
+              onClick={() => setFamily(f.id)}
+              className="flex w-16 flex-col items-center gap-1.5 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              <span
+                className={`rounded-soft p-0.5 ${
+                  f.id === family ? 'ring-2 ring-ink' : 'ring-1 ring-hairline'
+                }`}
               >
-                {copy.plain}
-              </Pill>
-              {PATTERNS.map((p) => (
-                <Pill
-                  key={p.id}
-                  selected={value.print === p.id}
-                  onClick={() => onChange({ ...value, print: p.id })}
-                >
-                  {p.name}
-                </Pill>
-              ))}
-            </div>
-          </fieldset>
-        </div>
-      ) : null}
-    </fieldset>
+                <FamilyTile family={f} size={44} />
+              </span>
+              <Text size="caption" tone={f.id === family ? 'default' : 'muted'}>
+                {f.name}
+              </Text>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <ul aria-label={fam?.name} className="grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-4">
+        {fam?.shades.map((s) => (
+          <li key={s.id}>
+            <button
+              type="button"
+              aria-pressed={chosen.has(s.id)}
+              onClick={() => onChange(pickShade(value, s.id, slot))}
+              className="flex w-full flex-col items-center gap-1.5 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              <span
+                className="relative flex size-12 items-center justify-center rounded-pill border border-hairline"
+                style={{ background: s.css }}
+              >
+                {chosen.has(s.id) ? (
+                  <Icon name="check" size={18} className={s.light ? 'text-ink' : 'text-bg'} />
+                ) : null}
+              </span>
+              <Text size="caption" tone="muted" className="text-center">
+                {s.name}
+              </Text>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Plain first, then the thirteen — a print is its own square, to the family tile's shape.
+export function PrintPicker({
+  value,
+  onChange,
+}: {
+  value: PieceColour;
+  onChange: (next: PieceColour) => void;
+}) {
+  const options: { id: string | null; name: string; css: string }[] = [
+    { id: null, name: copy.plain, css: 'var(--color-surface)' },
+    ...PATTERNS.map((p) => ({ id: p.id, name: p.name, css: p.css })),
+  ];
+  return (
+    <ul aria-label={copy.print} className="grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-4">
+      {options.map((o) => (
+        <li key={o.id ?? 'plain'}>
+          <button
+            type="button"
+            aria-pressed={value.print === o.id}
+            onClick={() => onChange({ ...value, print: o.id })}
+            className="flex w-full flex-col items-center gap-1.5 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            <span
+              className={`relative flex size-12 items-center justify-center rounded-soft border ${
+                value.print === o.id ? 'border-ink' : 'border-hairline'
+              }`}
+              style={{ background: o.css }}
+            >
+              {value.print === o.id ? <Icon name="check" size={18} className="text-ink" /> : null}
+            </span>
+            <Text size="caption" tone="muted" className="text-center">
+              {o.name}
+            </Text>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

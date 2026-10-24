@@ -444,6 +444,24 @@ export function wardrobeRepo(db: Db) {
       return rows.map((r) => ({ category: r.category, count: Number(r.n) }));
     },
 
+    // One piece's record, newest first: the day it was on her and the look she wore it in. The
+    // wear's own snapshot decides membership, so a piece dropped from a look keeps its days.
+    async wears(userId: UserId, pieceId: string) {
+      const rows = await sql<{
+        id: string;
+        wornOn: string;
+        lookId: string | null;
+        lookName: string | null;
+      }>`
+        select w.id, w.worn_on::text as worn_on, l.id as look_id, l.name as look_name
+        from app.wears w
+        left join app.looks l on l.id = w.look_id and l.user_id = w.user_id
+        where w.user_id = ${userId} and ${pieceId}::uuid = any(w.piece_ids)
+        order by w.worn_on desc
+        limit 200`.execute(db);
+      return rows.rows;
+    },
+
     // Times each piece was worn (a wear records the pieces of the look that day).
     async wearCounts(userId: UserId, pieceIds: readonly string[]): Promise<Map<string, number>> {
       if (pieceIds.length === 0) return new Map();
