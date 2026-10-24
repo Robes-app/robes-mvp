@@ -35,7 +35,7 @@ export function buildCsp(opts: {
   return opts.isDev ? csp : `${csp}; upgrade-insecure-requests`;
 }
 
-// Media serves images and takes upload PUTs; Sentry/PostHog origins appear only when configured.
+// Media serves images and takes upload PUTs; PostHog origins appear only when configured.
 export const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 
 export function cspSources(

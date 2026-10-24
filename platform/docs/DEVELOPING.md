@@ -95,19 +95,9 @@ The identity comes from the Better Auth session (`user.id`), never from the body
 
 ## Observability and consent
 
-Both tools are **off unless configured**, so local dev and CI send nothing anywhere. Outside dev, `packages/config` requires `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` and `NEXT_PUBLIC_POSTHOG_KEY`.
+PostHog is **off unless configured**, so local dev and CI send nothing anywhere. Outside dev, `packages/config` requires `NEXT_PUBLIC_POSTHOG_KEY`. One project (EU, id 275134) serves staging and production for now; every event and error carries `environment` (`APP_ENV`), so filter on it.
 
-**Sentry (errors, traces).** Add to `app/.env.local` and restart:
-
-```bash
-SENTRY_DSN=https://<key>@o<org>.ingest.de.sentry.io/<project>          # server + edge (src/instrumentation.ts)
-NEXT_PUBLIC_SENTRY_DSN=https://<key>@o<org>.ingest.de.sentry.io/<project>  # browser (src/instrumentation-client.ts), inlined at build
-SENTRY_TRACES_SAMPLE_RATE=1        # default 0.1
-```
-
-Release is `SENTRY_RELEASE` or `VERCEL_GIT_COMMIT_SHA`; environment is `SENTRY_ENVIRONMENT` or `APP_ENV`. `next.config.ts` wraps the build with `withSentryConfig` only when `SENTRY_AUTH_TOKEN` is set (CI source-map upload; also `SENTRY_ORG`, `SENTRY_PROJECT`). Route handlers report unexpected 500s through `RouteDeps.captureError` (expected `ApiError`s are not reported). Workers wrap every Lambda handler with `withSentry()` (`workers/src/sentry.ts`, `@sentry/aws-serverless`) when their `SENTRY_DSN` is set; CDK doesn't pass it yet. Mobile has no Sentry yet: `@sentry/react-native` needs a dev build, not Expo Go (ADR 018), so it lands with M7.
-
-**What is scrubbed (SEC-83).** `sendDefaultPii` is off. Every event, transaction and breadcrumb goes through `scrubEvent`/`scrubBreadcrumb` from `@robes/logger/scrub` (the same key list as the pino logger, and importable from client code): email addresses are removed from any string; `extra`, `tags` and non-SDK `contexts` lose values under keys such as `email`, `name`, `prompt`, `text`, `note`, `token`, `cookie`, `url` and `body`; requests keep only method, URL without its query string and a few safe headers (no cookies, auth or forwarded IPs, no body); `user` is reduced to its id; breadcrumb URLs lose their query strings.
+**Errors (PostHog error tracking).** Server: route handlers report unexpected 500s through `RouteDeps.captureError` (expected `ApiError`s are not reported) and `src/instrumentation.ts` reports render/route errors; both go through `errorReporter` (`src/server/analytics.ts`). Workers wrap every Lambda handler with `withErrorReporting()` (`workers/src/errors.ts`) when CDK passes `POSTHOG_KEY`. Server errors are anonymous (no person, not tied to the user), so they are sent whatever her consent; email addresses are stripped from exception messages before sending (`scrubExceptions`, SEC-83). Browser and mobile capture uncaught errors through their PostHog SDKs, so client errors arrive only from users who allowed analytics. `next.config.ts` uploads source maps (`@posthog/nextjs-config`) only when `POSTHOG_PERSONAL_API_KEY` and `POSTHOG_PROJECT_ID` are set at build; Lambda bundles carry their own source maps (`--enable-source-maps`).
 
 **PostHog (product analytics, EU).** Set `NEXT_PUBLIC_POSTHOG_KEY` (host defaults to `https://eu.i.posthog.com`). The key is read on the server and passed to the browser at runtime, and the CSP gains the ingest and assets origins only when a key is set. Nothing loads until the signed-in user answers the consent banner with **Allow** (SEC-84). Then the bundled `posthog-js` (no CDN scripts, no autocapture) starts, identified by user id only. Session replay stays off unless the user also grants `replay` in `/you/privacy`. Replay masks every input, all text and all images and video. Withdrawing consent opts out and resets PostHog, and so does sign-out. Events come from the typed catalogue in `@robes/analytics` (ids, counts and enums only), and unknown events or props are dropped. Server-side events (`@robes/analytics/server`) are keyed by user id and sent only if that user has consented. Consents are append-only rows in `app.consents` (`GET/POST /api/v1/me/consents`); the latest answer per kind wins.
 

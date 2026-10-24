@@ -23,8 +23,7 @@ Fill in as resources are created. IDs are not secrets; keys and passwords are.
 | Google OAuth client ID | `<id>.apps.googleusercontent.com` | `<id>.apps.googleusercontent.com` | Better Auth (§3) |
 | Upstash database | `robes-staging` (`eu-west-1`) | `robes-prod` (`eu-west-1`) | Vercel env |
 | GCP project | `robes-staging` | `robes-prod` | Gemini key owner |
-| Sentry projects | `robes-web-staging`, `robes-workers-staging` | `robes-web`, `robes-workers`, `robes-mobile` | DSNs |
-| PostHog (EU) project ID | `<id>` | `<id>` | `NEXT_PUBLIC_POSTHOG_KEY` |
+| PostHog (EU) project ID | `275134` ("Robes", shared with legacy beta) | `275134` (same project for now; split by `environment`) | `NEXT_PUBLIC_POSTHOG_KEY` |
 | SES domain / config set | `staging.mail.byrobes.com` / `robes-staging-email` | `mail.byrobes.com` / `robes-prod-email` | `MAIL_FROM`, `SES_CONFIGURATION_SET` (§9) |
 | EAS channel | `preview` | `production` | mobile builds |
 
@@ -135,11 +134,9 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `GEMINI_API_KEY` | only if the API makes sub-3 s model calls; otherwise workers only |
 | `MAIL_FROM`, `SES_CONFIGURATION_SET` | `Robes <hello@staging.mail.byrobes.com>` / `robes-staging-email` (production: `mail.byrobes.com`, `robes-prod-email`) |
 | `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | |
-| `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | required outside dev; the browser DSN is inlined at build time, and its ingest origin is added to CSP `connect-src` |
-| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | build-time only (source-map upload via `withSentryConfig`); token sensitive. Without the token the build skips Sentry's plugin |
-| `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE` | optional; default to `APP_ENV`, `VERCEL_GIT_COMMIT_SHA` (set by Vercel) and `0.1` |
 | `NEXT_PUBLIC_POSTHOG_KEY` | required outside dev; publishable ingest key, read at runtime and passed to the browser |
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional, default `https://eu.i.posthog.com` (https required outside dev); CSP gains it and `https://eu-assets.i.posthog.com` |
+| `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID` | build-time only: source-map upload to PostHog error tracking. Key sensitive, scope *Error tracking: write*. Without them the build skips the upload |
 | `MIN_APP_VERSION` | 426 gate for old native builds |
 | `INBOUND_MAIL_DOMAIN` | `in.staging.mail.byrobes.com` / `in.mail.byrobes.com`; the domain of her forwarding address (§9 step 7) |
 | `UNSUB_HMAC_KEY` | sensitive; the same value as Secrets Manager `robes-<env>/unsub/hmac-key` (≥32 chars), which notifyFn signs unsubscribe links with. Rotating it voids links in mail already sent |
@@ -160,7 +157,7 @@ Local dev (`app/.env.example`) uses MinIO instead: `MEDIA_S3_ENDPOINT=http://loc
 
 Set by CDK; listed so nobody adds them by hand. Plain env: `APP_ENV`, `MEDIA_BUCKET`, and `*_QUEUE_URL` for queues a function may send to. Secrets arrive as ARNs (`<NAME>_SECRET_ARN`) and are read at cold start:
 
-Sentry is off in workers until `SENTRY_DSN` (plus optional `SENTRY_RELEASE`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE`) is added to the function environment. CDK doesn't set it yet: add it together with the Sentry project (§11).
+`POSTHOG_KEY` (plain env) turns on error reporting to PostHog; CDK sets it from `ROBES_POSTHOG_KEY` in the deploying shell (the project token, `phc_…`), and omits it when unset.
 
 | Function | Secret ARNs |
 |---|---|
@@ -212,13 +209,12 @@ CDK (`EmailStack`) creates the domain identity (Easy DKIM, RSA 2048), MAIL FROM 
 
 ## 11. Observability and analytics
 
-- **Sentry**: projects `robes-web`, `robes-workers`, `robes-mobile` (plus staging twins, or one project each with `environment` tags). CI auth token (`project:releases`, `org:read`) for source maps.
-- **PostHog**: **EU cloud** projects `Robes Staging` and `Robes Production`. Project settings: *Discard client IP data* on, autocapture off, replay masking on (inputs, text and images; the web SDK also enforces this). The app loads PostHog only after consent (SEC-84).
+- **PostHog** (analytics and errors): **EU cloud** project 275134 for both stages for now (the free plan allows one project; a second needs a card on file). Events and errors carry `environment`. Project settings: *Discard client IP data* on, exception autocapture on, authorized URLs `staging.byrobes.com`, `beta.byrobes.com`, `www.byrobes.com`, `byrobes.com`, autocapture off, replay masking on (inputs, text and images; the web SDK also enforces this). The app loads PostHog only after consent (SEC-84).
 - **Uptime**: Checkly checks on `/api/v1/health` for both environments.
 
 ## 12. Mobile (EAS)
 
-EAS project linked to `platform/mobile`; channels `preview` (staging) and `production`. EAS env holds **public** values only (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_POSTHOG_KEY`). `expo/access-token` in Secrets Manager is the push-sending token for `notifyFn`.
+EAS project linked to `platform/mobile`; channels `preview` (staging) and `production`. EAS env holds **public** values only (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_POSTHOG_KEY` — after `eas init`: `eas env:create --name EXPO_PUBLIC_POSTHOG_KEY --value <phc_…> --environment preview --environment production --visibility plaintext`). `expo/access-token` in Secrets Manager is the push-sending token for `notifyFn`.
 
 ## Checklist before the first deploy
 

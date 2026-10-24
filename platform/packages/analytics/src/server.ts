@@ -8,6 +8,11 @@ export interface ServerAnalyticsClient {
     properties: Record<string, unknown>;
     disableGeoip?: boolean;
   }): Promise<void>;
+  captureExceptionImmediate(
+    error: unknown,
+    distinctId?: string,
+    properties?: Record<string, unknown>,
+  ): Promise<void>;
   shutdown(): Promise<void>;
 }
 
@@ -17,9 +22,50 @@ export interface ServerAnalytics {
   shutdown(): Promise<void>;
 }
 
-export function createPostHogClient(key: string, host: string): ServerAnalyticsClient {
-  return new PostHog(key, { host, flushAt: 1, flushInterval: 0, disableGeoip: true });
+const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+
+// SEC-83: an error message can carry an address; strip it before it leaves the server.
+export function scrubExceptions<E extends { properties?: Record<string, unknown> }>(
+  event: E | null,
+) {
+  const list = event?.properties?.$exception_list;
+  if (Array.isArray(list)) {
+    for (const ex of list) {
+      if (ex && typeof ex.value === 'string') ex.value = ex.value.replace(EMAIL, '[redacted]');
+    }
+  }
+  return event;
 }
+
+export function createPostHogClient(key: string, host: string): ServerAnalyticsClient {
+  return new PostHog(key, {
+    host,
+    flushAt: 1,
+    flushInterval: 0,
+    disableGeoip: true,
+    before_send: scrubExceptions,
+  });
+}
+
+export interface ErrorReporter {
+  // Anonymous (no person): reports reach PostHog error tracking whatever her consent, like logs.
+  capture(error: unknown, properties?: Record<string, unknown>): Promise<void>;
+}
+
+export function createErrorReporter(
+  client: ServerAnalyticsClient,
+  environment: string,
+): ErrorReporter {
+  return {
+    async capture(error, properties) {
+      await client
+        .captureExceptionImmediate(error, undefined, { ...properties, environment })
+        .catch(() => undefined);
+    },
+  };
+}
+
+export const noopErrorReporter: ErrorReporter = { async capture() {} };
 
 export function createServerAnalytics(deps: {
   client: ServerAnalyticsClient;

@@ -4,6 +4,7 @@ import { createBrowserAnalytics, type LoadPostHog } from './browser';
 function fakePostHog() {
   const client = {
     init: vi.fn(),
+    register: vi.fn(),
     capture: vi.fn(),
     identify: vi.fn(),
     reset: vi.fn(),
@@ -16,7 +17,7 @@ function fakePostHog() {
   return { client, load };
 }
 
-const config = { key: 'phc_test', host: 'https://eu.i.posthog.com' };
+const config = { key: 'phc_test', host: 'https://eu.i.posthog.com', environment: 'staging' };
 
 describe('browser analytics (SEC-84)', () => {
   it('loads nothing and sends nothing before consent', () => {
@@ -38,10 +39,12 @@ describe('browser analytics (SEC-84)', () => {
     expect(options).toMatchObject({
       api_host: 'https://eu.i.posthog.com',
       autocapture: false,
+      capture_exceptions: true,
       disable_external_dependency_loading: true,
       disable_session_recording: true,
       session_recording: { maskAllInputs: true, blockSelector: expect.stringContaining('img') },
     });
+    expect(client.register).toHaveBeenCalledWith({ environment: 'staging' });
     expect(client.stopSessionRecording).toHaveBeenCalled();
     expect(client.identify).toHaveBeenCalledWith('u1');
     analytics.track('job_started', { kind: 'fake' });

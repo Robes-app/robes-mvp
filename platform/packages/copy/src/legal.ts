@@ -78,7 +78,7 @@ const privacy: LegalDoc = {
           'Photos and prompts are sent to Google Gemini solely to produce your results.',
           'Photos copied over from the earlier version of Robes stay on Cloudinary until they have moved to Amazon S3, and are then removed from Cloudinary.',
           'Emails are sent through Amazon SES. On the phone app, notifications travel through Expo, Apple and Google.',
-          'Errors are reported to Sentry with names, emails, prompts and photo links removed. Rate limits are counted by Upstash in the EU.',
+          'Errors on our servers are reported to PostHog, on European servers, with email addresses removed and never linked to you. Rate limits are counted by Upstash in the EU.',
           'The waitlist form is checked by Cloudflare Turnstile to keep out bots.',
           'If you agree, how the app is used is measured in PostHog, on European servers.',
         ],
@@ -93,7 +93,7 @@ const privacy: LegalDoc = {
     {
       heading: 'Usage counts and screen recordings',
       body: [
-        'Robes asks before it measures anything in PostHog, and you can change your answer at any time under You › Privacy. With usage counts on, PostHog counts which screens you open and what you tap; it never sees your photos, words or email. Screen recordings are a separate choice: recordings of how you move through Robes, with every word, photo and typed answer hidden. Recordings are stored on European servers, are visible only to us, and are never used for advertising.',
+        'Robes asks before it measures anything in PostHog, and you can change your answer at any time under You › Privacy. With usage counts on, PostHog counts which screens you open and what you tap; it never sees your photos, words or email. If something in the app breaks, PostHog also records the error so we can fix it. Screen recordings are a separate choice: recordings of how you move through Robes, with every word, photo and typed answer hidden. Recordings are stored on European servers, are visible only to us, and are never used for advertising.',
       ],
     },
     {
