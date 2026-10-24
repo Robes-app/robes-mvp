@@ -47,8 +47,8 @@ Schema source of truth: `db/migrations`. Retention jobs: `private.run_maintenanc
 | Export files `exports/{userId}/{requestId}.json` (media bucket) | Everything she holds: profile, consents, style profile, pieces, wishlist, looks, wears, plan, ideas, shares, asset metadata (no image files, sessions or OAuth tokens) | SEC-81 self-serve export | 7 days (S3 lifecycle `exports-7d`; download link signed ≤1 h); deleted with the account | AWS S3 |
 | `app.admin_users`, `app.audit_log` | Staff user ids, actions on user records, `ip` | Admin access control and accountability | Life of staff account; audit log has no purge yet | Postgres host |
 | Application logs (Vercel, CloudWatch) | Request ids, user ids, status codes. Emails, names, prompts, tokens and photo URLs are redacted (SEC-83) | Operations | 14 days (CloudWatch); Vercel plan default | Vercel, AWS CloudWatch |
-| Sentry | Error events: stack traces, user id, URL path without query string, browser/OS. Scrubbed as for logs (`@robes/logger/scrub`); `sendDefaultPii` off | Error monitoring | Sentry plan default (90 days) | Sentry |
-| PostHog (EU) | User id as distinct id; catalogue events (`@robes/analytics`: ids, counts, enums); masked session replay only with `replay` consent. No email or name is sent | Product analytics, only after `analytics` consent (SEC-84) | PostHog plan default; person deleted on account deletion (SEC-80) | PostHog (EU cloud) |
+| PostHog error tracking | Server errors: stack trace, route path without query string, request id, environment; anonymous, email addresses stripped from messages | Error monitoring | Sentry plan default (90 days) | Sentry |
+| PostHog (EU) | User id as distinct id; catalogue events (`@robes/analytics`: ids, counts, enums); uncaught client errors (error tracking); masked session replay only with `replay` consent. No email or name is sent | Product analytics, only after `analytics` consent (SEC-84) | PostHog plan default; person deleted on account deletion (SEC-80) | PostHog (EU cloud) |
 | Browser storage | Session cookie (httpOnly, `robes.*`); after consent, PostHog cookie/localStorage (`ph_*`) | Sign-in; analytics identity | Session lifetime; PostHog storage is cleared on withdrawal or sign-out | None (on device) |
 | Native secure storage | Session token (SecureStore) | Sign-in | Until sign-out | None (on device) |
 
@@ -63,7 +63,6 @@ Open items: retention for `feedback`, `waitlist`, `notifications` and `audit_log
 | Vercel | Web app and API hosting, function logs | `dub1` functions | |
 | Google (Gemini API) | Prompts, style context and the photos sent to a job | Google Cloud | Use paid-tier keys, whose prompts Google doesn't use to improve its products. Budgets and quotas are set per project |
 | PostHog | Consented product analytics and masked replay | EU cloud | Loads only after consent. Enable *Discard client IP data* in project settings |
-| Sentry | Scrubbed error events and traces | Configure an EU (`de`) region org | `sendDefaultPii: false` |
 | Upstash | Rate-limit counters | EU (`eu-west-1`) | No payloads, only keys and counts |
 | Cloudflare Turnstile | The waitlist form's bot check: the visitor's IP and browser signals | Global | Waitlist only; no account data |
 | Apple, Google (sign-in) | OAuth identity for users who choose them | — | Identity providers, not storage |

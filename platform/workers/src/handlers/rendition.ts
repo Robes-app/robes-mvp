@@ -1,7 +1,7 @@
 import { processUpload } from '@robes/media/process';
 import { createMediaBucket, createMediaStorage, type MediaStorage } from '@robes/media/storage';
 import { workerContext } from '../context';
-import { withSentry } from '../sentry';
+import { withErrorReporting } from '../errors';
 
 interface S3EventRecord {
   s3: { object: { key: string } };
@@ -37,4 +37,4 @@ async function handleRendition(event: S3Event, deps?: { storage: MediaStorage })
   }
 }
 
-export const handler = withSentry(handleRendition);
+export const handler = withErrorReporting(handleRendition);

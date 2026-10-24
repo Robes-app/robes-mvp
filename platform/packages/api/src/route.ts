@@ -21,7 +21,7 @@ export interface RouteDeps {
   rateLimiter: RateLimiter;
   clientIp(req: Request): string;
   logger: { error(obj: Record<string, unknown>, msg: string): void };
-  // Error monitoring (Sentry in the app), injected so this package stays vendor-free.
+  // Error monitoring (PostHog error tracking in the app), injected so this package stays vendor-free.
   captureError?(err: unknown, context: { requestId: string }): void;
 }
 

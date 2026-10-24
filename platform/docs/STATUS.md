@@ -29,7 +29,7 @@ Without `GEMINI_API_KEY` every AI call uses the deterministic fake, so all flows
 | M4 styling | style a piece, ideas, saved looks, look page, composer, share, You › Style | same | `key_piece` job (text then frames), ideas, looks + variants + wears, style DNA engine (legacy parity fixtures), colour/silhouette analysis job, shares (128-bit token, signed ≤2 h images) |
 | M5 today & plan | Today (next step, week strip, tray), Style it for today, Plan | same | `/today`, next-step rules, `daily` job (weather via Open-Meteo), plan pin/unpin/rename |
 | M6 comms & admin | unsubscribe page, waitlist + confirm, admin app, data export | — | notify tick (looks ready, five, empty week, morning cue; RFC 8058 one-click), account deletion (SEC-80), data export (SEC-81), admin reads (every read audited), waitlist (SEC-60) |
-| M7 native | — | push registration + deep links, Sentry (JS), consent-gated PostHog | push tokens API, Expo push channel on the notify tick |
+| M7 native | — | push registration + deep links, consent-gated PostHog (analytics + JS errors) | push tokens API, Expo push channel on the notify tick |
 
 ## Infrastructure
 
@@ -58,7 +58,7 @@ member/small accounts use `ROBES_<STAGE>_BUDGETS=off` and `ROBES_<STAGE>_GENERAT
 - `borrowing` email and `finish` next-step rule (need look proposals). Your model: no photographed try-on from her own photos (renders use the catalog portrait for her picks, per SEC-22).
 - Trips: no images, no "more looks from this capsule", trips not drawn as Plan blocks.
 - Legal texts (pages exist, copy "On its way"), "export ready" email, push receipts polling.
-- Native Sentry crash reporting needs an EAS/dev build; push needs an EAS project id + APNs/FCM.
+- Native crash reporting needs `@posthog/react-native-plugin` in an EAS/dev build; push needs an EAS project id + APNs/FCM.
 - M8 monetisation.
 - Legacy migration tooling: see `migration.md` (rehearsed locally against a fixture, not the real legacy DB).
 

@@ -14,9 +14,6 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { api } from '@/lib/api';
-import { initSentry } from '@/lib/sentry';
-
-initSentry();
 
 export default function RootLayout() {
   const [loaded] = useFonts({

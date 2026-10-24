@@ -9,8 +9,10 @@ interface Client {
   reset(): void;
   optIn(): Promise<void> | void;
   optOut(): Promise<void> | void;
+  register(properties: Record<string, string>): Promise<void> | void;
 }
-export type LoadPostHog = (config: { key: string; host: string }) => Promise<Client>;
+type PostHogConfig = { key: string; host: string; environment: string };
+export type LoadPostHog = (config: PostHogConfig) => Promise<Client>;
 
 // Loaded only after consent, so nothing reaches PostHog before she says yes (SEC-84).
 const loadPostHog: LoadPostHog = async ({ key, host }) => {
@@ -18,9 +20,10 @@ const loadPostHog: LoadPostHog = async ({ key, host }) => {
   return new PostHog(key, {
     host,
     personProfiles: 'identified_only',
-    // Catalogue events only: no lifecycle pings, no session replay on mobile.
+    // Catalogue events and uncaught JS errors only: no lifecycle pings, no replay on mobile.
     captureAppLifecycleEvents: false,
     enableSessionReplay: false,
+    errorTracking: { autocapture: { uncaughtExceptions: true, unhandledRejections: true } },
   }) as unknown as Client;
 };
 
@@ -32,7 +35,7 @@ export interface NativeAnalytics extends Analytics {
 // Same contract as the web's browser analytics: `start` after consent, `stop` when withdrawn
 // or on sign-out. Every event is checked against the shared catalogue first.
 export function createNativeAnalytics(
-  config: { key: string; host: string } | null,
+  config: PostHogConfig | null,
   load: LoadPostHog = loadPostHog,
 ): NativeAnalytics {
   let client: Client | null = null;
@@ -51,7 +54,11 @@ export function createNativeAnalytics(
     async start(userId) {
       if (!config) return;
       if (client) await client.optIn();
-      else client = await load(config);
+      else {
+        client = await load(config);
+        // Staging and production share one project for now.
+        await client.register({ environment: config.environment });
+      }
       active = true;
       client.identify(userId);
     },

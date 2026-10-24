@@ -1,5 +1,4 @@
 import { createNativeAnalytics } from '../src/lib/analytics';
-import { sentryOptions } from '../src/lib/sentry-options';
 
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
@@ -10,10 +9,11 @@ function fakeClient() {
     reset: jest.fn(),
     optIn: jest.fn(async () => {}),
     optOut: jest.fn(async () => {}),
+    register: jest.fn(),
   };
 }
 
-const CONFIG = { key: 'phc_test', host: 'https://eu.i.posthog.com' };
+const CONFIG = { key: 'phc_test', host: 'https://eu.i.posthog.com', environment: 'staging' };
 
 test('PostHog loads only after consent and sends only catalogue events', async () => {
   const client = fakeClient();
@@ -23,6 +23,7 @@ test('PostHog loads only after consent and sends only catalogue events', async (
   expect(load).not.toHaveBeenCalled();
 
   await analytics.start('u1');
+  expect(client.register).toHaveBeenCalledWith({ environment: 'staging' });
   expect(client.identify).toHaveBeenCalledWith('u1');
   analytics.track('job_started', { kind: 'key_piece' });
   analytics.track('not_an_event' as never, {} as never);
@@ -46,20 +47,4 @@ test('without a key analytics never loads', async () => {
   const load = jest.fn();
   await createNativeAnalytics(null, load).start('u1');
   expect(load).not.toHaveBeenCalled();
-});
-
-test('Sentry sends no PII and runs JS-only in Expo Go', () => {
-  const opts = sentryOptions({
-    dsn: 'https://k@o.ingest.sentry.io/1',
-    environment: 'dev',
-    release: '1.0.0',
-    expoGo: true,
-  });
-  expect(opts).toMatchObject({ enableNative: false, sendDefaultPii: false });
-  expect(sentryOptions({ ...opts, expoGo: false }).enableNative).toBe(true);
-  const event = opts.beforeSend({
-    message: 'failed for niall@test.dev',
-    extra: { email: 'niall@test.dev' },
-  });
-  expect(JSON.stringify(event)).not.toContain('niall@test.dev');
 });

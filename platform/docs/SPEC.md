@@ -68,7 +68,7 @@ The production readiness review that motivated this work: https://claude.ai/arti
 | 007 | **Airtable retired**; waitlist, feedback, looks move to Postgres; optional one-way CRM sync from a worker | review H2, M3 |
 | 008 | **AI provider layer** (`packages/ai`) with a capability→model registry, versioned prompt modules, evals, cost accounting; Gemini first | infrastructure.md §6; model churn in cost-research §4.1 |
 | 009 | **Upstash Redis** for rate limits + idempotency keys | security SEC-04 |
-| 010 | Sentry (all runtimes), PostHog EU (consent-gated, replay masked), pino logs with redaction | security SEC-83/84 |
+| 010 | PostHog EU for analytics and errors (client consent-gated, server errors anonymous, replay masked; Sentry dropped 2026-10-24), pino logs with redaction | security SEC-83/84 |
 | 011 | Data migration by scripted ETL into new projects + staged cutover with rollback | migration.md |
 | 012 | Testing: Vitest (TS packages, web), jest-expo + RNTL (native components), Playwright (web e2e), Maestro (native e2e), pgTAP (DB), fast-check (contract fuzz), `packages/ai/evals` | stack-versions |
 | 013 | Branching: M0–M1 on `platform`; then merge `platform/` into `beta` as trunk with Railway watch paths excluding `platform/**`; Vercel/turbo-ignore excludes legacy | infrastructure.md §7 |

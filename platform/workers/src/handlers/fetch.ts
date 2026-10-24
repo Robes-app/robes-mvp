@@ -1,7 +1,7 @@
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { fetchLink, type LinkFetchResult, parseFetchRequest } from '@robes/jobs';
 import { createLogger } from '@robes/logger';
-import { withSentry } from '../sentry';
+import { withErrorReporting } from '../errors';
 import { processBatch, type SqsBatchResponse, type SqsEvent } from '../sqs';
 
 // SEC-40 isolated fetcher: no DB, no secrets, no bucket. It fetches the URL with the SSRF guard,
@@ -43,4 +43,4 @@ function lambdaDeps(): FetchDeps {
   return deps;
 }
 
-export const handler = withSentry(createFetchHandler(lambdaDeps));
+export const handler = withErrorReporting(createFetchHandler(lambdaDeps));

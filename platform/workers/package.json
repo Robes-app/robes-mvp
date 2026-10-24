@@ -13,13 +13,13 @@
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "3.1138.0",
     "@aws-sdk/client-sqs": "3.1138.0",
+    "@robes/analytics": "workspace:*",
     "@robes/config": "workspace:*",
     "@robes/db": "workspace:*",
     "@robes/jobs": "workspace:*",
     "@robes/logger": "workspace:*",
     "@robes/mailer": "workspace:*",
-    "@robes/media": "workspace:*",
-    "@sentry/aws-serverless": "10.75.2"
+    "@robes/media": "workspace:*"
   },
   "devDependencies": {
     "tsx": "catalog:",

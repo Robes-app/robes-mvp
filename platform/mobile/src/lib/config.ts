@@ -5,12 +5,15 @@ export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3300
 export const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
 
 // Publishable keys, not secrets. Unset → analytics and error reporting stay off.
+export const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'dev';
 const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 export const POSTHOG = posthogKey
-  ? { key: posthogKey, host: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com' }
+  ? {
+      key: posthogKey,
+      host: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com',
+      environment: APP_ENV,
+    }
   : null;
-export const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? null;
-export const APP_ENV = process.env.EXPO_PUBLIC_APP_ENV ?? 'dev';
 
 // The build variant's URL scheme (app.config.ts): robes, robes-staging or robes-dev.
 const scheme = Constants.expoConfig?.scheme;

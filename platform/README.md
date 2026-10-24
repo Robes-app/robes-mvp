@@ -69,7 +69,7 @@ Fixes made while standing up staging:
 - **AWS keys on Vercel:** one IAM key pair, named `ROBES_AWS_*` because Vercel reserves `AWS_*`. It is passed explicitly to email (SES), storage (S3) and queues (SQS).
 - **Vercel build:** pinned pnpm 11 so Vercel builds the platform workspace, not the root app.
 - **Rate limits:** stored in Postgres, so Upstash/Redis isn't needed.
-- **Optional services:** Sentry, PostHog and Turnstile are only required in production.
+- **Optional services:** PostHog (analytics and errors) and Turnstile are only required in production.
 - **App variants:** separate dev, staging and production builds (`com.byrobes.app.dev`, `.staging` and `com.byrobes.app`), so test builds never take the App Store id.
 - **Local email:** Mailpit catches every email locally, sign-in codes included.
 

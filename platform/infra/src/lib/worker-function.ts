@@ -87,6 +87,7 @@ export class WorkerFunction extends Construct {
       deadLetterQueue: props.deadLetterQueue,
       environment: {
         APP_ENV: config.stage,
+        ...(config.posthog.key ? { POSTHOG_KEY: config.posthog.key } : {}),
         NODE_OPTIONS: '--enable-source-maps',
         ...secretEnv,
         ...props.environment,
