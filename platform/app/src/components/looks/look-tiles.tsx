@@ -3,6 +3,7 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy, looks } from '@robes/copy';
 import { anchorName, startedLabel } from '@robes/core/looks';
+import { Icon } from '@robes/icons/web';
 import { IconButton, Image, Text } from '@robes/ui';
 import Link from 'next/link';
 import { localToday } from '@/lib/dates';
@@ -13,25 +14,60 @@ import { Scanning, scanningLine } from './scan-line';
 const tile =
   'block rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Saved: no eyebrow (the default state needs no label).
-export function SavedTile({ look, priority = false }: { look: Look; priority?: boolean }) {
+// Saved: no eyebrow (the default state needs no label). The calendar sits ON the image bottom
+// left — the look's own diary door, so a day is set without leaving the grid (legacy 13 Oct, it
+// replaced the card's Wear pill) — and ✕ deletes, top right, as on a suggestion. The card's link
+// is stretched behind both, so the actions are never nested inside it.
+export function SavedTile({
+  look,
+  priority = false,
+  onDiary,
+  onDelete,
+}: {
+  look: Look;
+  priority?: boolean;
+  onDiary?: () => void;
+  onDelete?: () => void;
+}) {
   const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
   return (
-    <Link href={`/look/${look.id}`} aria-label={look.name} className={tile}>
-      <article className="flex flex-col overflow-hidden rounded-soft border border-hairline bg-surface">
+    <article className="relative flex flex-col overflow-hidden rounded-soft border border-hairline bg-surface">
+      <div className="relative">
         <LookImage look={look} priority={priority} sizes="(min-width: 768px) 33vw, 50vw" />
-        <div className="flex flex-col gap-1 px-3 pt-2.5 pb-3">
+        {onDiary ? (
+          <button
+            type="button"
+            onClick={onDiary}
+            aria-label={copy.card.diary}
+            title={copy.card.diary}
+            className="absolute bottom-2.5 left-2.5 z-10 flex size-9 items-center justify-center rounded-pill bg-bg text-ink shadow-sm hover:bg-surface focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+          >
+            <Icon name="plan" size={16} />
+          </button>
+        ) : null}
+        {onDelete ? (
+          <div className="absolute top-2 right-2 z-10">
+            <IconButton icon="close" label={copy.card.delete} onClick={onDelete} />
+          </div>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-1 px-3 pt-2.5 pb-3">
+        <Link
+          href={`/look/${look.id}`}
+          className={`${tile} after:absolute after:inset-0`}
+          aria-label={look.name}
+        >
           <Text className="truncate font-display text-xl">{look.name}</Text>
-          <Text size="caption" tone="faint" className="truncate">
-            {around
-              ? `${looks.savedList.worn(look.timesWorn)} · ${copy.meta.around(around)}`
-              : look.timesWorn
-                ? looks.savedList.worn(look.timesWorn)
-                : copy.meta.notYetWorn}
-          </Text>
-        </div>
-      </article>
-    </Link>
+        </Link>
+        <Text size="caption" tone="faint" className="truncate">
+          {around
+            ? `${looks.savedList.worn(look.timesWorn)} · ${copy.meta.around(around)}`
+            : look.timesWorn
+              ? looks.savedList.worn(look.timesWorn)
+              : copy.meta.notYetWorn}
+        </Text>
+      </div>
+    </article>
   );
 }
 

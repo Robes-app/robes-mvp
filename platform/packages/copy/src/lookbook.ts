@@ -66,6 +66,25 @@ export const lookbook = {
   },
   composedByRobes: 'Composed by Robes',
   noteLabel: 'The look',
+  // The Lookbook's Filter drawer (legacy Refine): the axes a saved look can be narrowed by.
+  refine: {
+    open: 'Filter',
+    title: 'Filter',
+    clear: 'Clear all',
+    show: (n: number): string => `Show ${n} ${n === 1 ? 'look' : 'looks'}`,
+    season: 'Season',
+    seasons: {
+      spring_summer: 'Spring / Summer',
+      autumn_winter: 'Autumn / Winter',
+      year_round: 'Year-round',
+    },
+    none: 'Nothing in this edit.',
+    on: 'Filters on',
+  },
+  card: {
+    diary: 'Put this look in the diary',
+    delete: 'Delete this look',
+  },
   bar: {
     save: 'Save',
     saveToLookbook: 'Save to lookbook',

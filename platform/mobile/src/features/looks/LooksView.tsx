@@ -2,9 +2,11 @@ import type { Look } from '@robes/contracts';
 import { lookbook as copy, nav, ui } from '@robes/copy';
 import { type LookSort, SORT_FROM, SORTS, sortLooks } from '@robes/core/looks';
 import {
+  Button,
   CardSkeleton,
   Chip,
   EmptyState,
+  Eyebrow,
   IconButton,
   SegmentedControl,
   Text,
@@ -14,11 +16,15 @@ import { useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
+import { DiarySheet } from './DiarySheet';
 import { DraftTile, SavedTile, SuggestedTile } from './LookTiles';
 import { useLetGo, useLooksByStatus, useRestyle } from './look-states';
 import { NewLookBox } from './NewLookBox';
 
 type Tab = 'saved' | 'suggested';
+// The only axis a saved look can be narrowed by today; Wear-it-for and Vibe need look tags.
+const SEASON_BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
+type SeasonBandId = (typeof SEASON_BANDS)[number];
 const TABS = [
   { value: 'saved', label: copy.tabs.saved },
   { value: 'suggested', label: copy.tabs.suggested },
@@ -39,9 +45,17 @@ export function LooksView() {
   const restyle = useRestyle();
   const letGo = useLetGo();
   const [sort, setSort] = useState<LookSort>('newest');
+  const [refineOpen, setRefineOpen] = useState(false);
+  const [bands, setBands] = useState<SeasonBandId[]>([]);
+  // The calendar on a card opens the same diary sheet, over the grid — she never leaves it.
+  const [diary, setDiary] = useState<Look | null>(null);
   const current = tab === 'saved' ? saved : suggested;
-  const raw = current.data?.items ?? [];
-  const sortable = tab === 'saved' && raw.length >= SORT_FROM;
+  const all = current.data?.items ?? [];
+  const raw =
+    tab === 'saved' && bands.length
+      ? all.filter((l) => bands.includes(l.climateBand as SeasonBandId))
+      : all;
+  const sortable = tab === 'saved' && all.length >= SORT_FROM;
   const items = sortable ? sortLooks(raw, sort) : raw;
   const draftItems = drafts.data?.items ?? [];
   const count =
@@ -73,12 +87,45 @@ export function LooksView() {
         </Text>
       ) : null}
       {sortable ? (
-        <View className="flex-row gap-2" accessibilityLabel={copy.sort.label}>
+        <View className="flex-row flex-wrap gap-2" accessibilityLabel={copy.sort.label}>
           {SORTS.map((s) => (
             <Chip key={s} selected={sort === s} onPress={() => setSort(s)}>
               {copy.sort[s]}
             </Chip>
           ))}
+          <Chip
+            selected={refineOpen}
+            onPress={() => setRefineOpen(!refineOpen)}
+          >{`${copy.refine.open}${bands.length ? ` · ${copy.refine.on}` : ''}`}</Chip>
+        </View>
+      ) : null}
+      {refineOpen && sortable ? (
+        <View
+          accessibilityLabel={copy.refine.title}
+          className="gap-3 rounded-soft border border-hairline bg-surface p-4"
+        >
+          <Eyebrow>{copy.refine.season}</Eyebrow>
+          <View className="flex-row flex-wrap gap-2">
+            {SEASON_BANDS.map((b) => (
+              <Chip
+                key={b}
+                selected={bands.includes(b)}
+                onPress={() =>
+                  setBands(bands.includes(b) ? bands.filter((x) => x !== b) : [...bands, b])
+                }
+              >
+                {copy.refine.seasons[b]}
+              </Chip>
+            ))}
+          </View>
+          <View className="flex-row items-center justify-between gap-2">
+            <Button variant="quiet" disabled={!bands.length} onPress={() => setBands([])}>
+              {copy.refine.clear}
+            </Button>
+            <Button variant="secondary" onPress={() => setRefineOpen(false)}>
+              {copy.refine.show(items.length)}
+            </Button>
+          </View>
         </View>
       ) : null}
       {tab === 'saved' && draftItems.length ? (
@@ -121,7 +168,12 @@ export function LooksView() {
           renderItem={({ item }) => (
             <View className="flex-1">
               {tab === 'saved' ? (
-                <SavedTile look={item} onPress={() => open(item)} />
+                <SavedTile
+                  look={item}
+                  onPress={() => open(item)}
+                  onDiary={() => setDiary(item)}
+                  onDelete={() => letGo(item.id)}
+                />
               ) : (
                 <SuggestedTile
                   look={item}
@@ -157,6 +209,7 @@ export function LooksView() {
           }
         />
       )}
+      <DiarySheet look={diary} onClose={() => setDiary(null)} />
     </TabScreen>
   );
 }

@@ -22,12 +22,36 @@ function Picture({ look }: { look: Look }) {
   );
 }
 
-// Saved: no eyebrow (the default state needs no label).
-export function SavedTile({ look, onPress }: { look: Look; onPress: () => void }) {
+// Saved: no eyebrow (the default state needs no label). The calendar sits ON the image bottom
+// left — the look's own diary door, so a day is set without leaving the grid (legacy 13 Oct) —
+// and ✕ deletes, top right, as on a suggestion.
+export function SavedTile({
+  look,
+  onPress,
+  onDiary,
+  onDelete,
+}: {
+  look: Look;
+  onPress: () => void;
+  onDiary?: () => void;
+  onDelete?: () => void;
+}) {
   const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
   return (
     <Card onPress={onPress} accessibilityLabel={look.name} className="flex-1">
-      <Picture look={look} />
+      <View>
+        <Picture look={look} />
+        {onDiary ? (
+          <View className="absolute bottom-2 left-2 rounded-pill bg-bg">
+            <IconButton icon="plan" label={copy.card.diary} onPress={onDiary} />
+          </View>
+        ) : null}
+        {onDelete ? (
+          <View className="absolute top-1 right-1 rounded-pill bg-bg">
+            <IconButton icon="close" label={copy.card.delete} onPress={onDelete} />
+          </View>
+        ) : null}
+      </View>
       <View className="gap-1 p-2">
         <Text size="small" numberOfLines={1}>
           {look.name}
