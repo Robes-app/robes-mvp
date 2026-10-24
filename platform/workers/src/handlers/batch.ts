@@ -1,6 +1,6 @@
 import { overnightTick, pollOvernight } from '@robes/jobs';
 import { type WorkerContext, workerContext } from '../context';
-import { withSentry } from '../sentry';
+import { withErrorReporting } from '../errors';
 import { processBatch, type SqsBatchResponse, type SqsEvent } from '../sqs';
 
 // Schedule names from infra SchedulesStack (jobs-batch queue), delivered as `{ kind }`.
@@ -34,4 +34,4 @@ export function createBatchHandler(getContext: () => Promise<Context>) {
   };
 }
 
-export const handler = withSentry(createBatchHandler(workerContext));
+export const handler = withErrorReporting(createBatchHandler(workerContext));

@@ -1,6 +1,6 @@
 import { processAccountDeletions, processDataExports, sweep } from '@robes/jobs';
 import { type WorkerContext, workerContext } from '../context';
-import { withSentry } from '../sentry';
+import { withErrorReporting } from '../errors';
 import { processBatch, type SqsBatchResponse, type SqsEvent } from '../sqs';
 
 // Schedule names from infra SchedulesStack, delivered as `{ kind }`.
@@ -62,4 +62,4 @@ export function createMaintenanceHandler(getContext: () => Promise<Context>) {
   };
 }
 
-export const handler = withSentry(createMaintenanceHandler(workerContext));
+export const handler = withErrorReporting(createMaintenanceHandler(workerContext));

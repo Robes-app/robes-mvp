@@ -1,12 +1,14 @@
-import * as Sentry from '@sentry/nextjs';
+import type { Instrumentation } from 'next';
 
-// Sentry runs only when SENTRY_DSN is set (packages/config); both runtimes share one setup.
-export async function register(): Promise<void> {
-  if (process.env.NEXT_RUNTIME !== 'nodejs' && process.env.NEXT_RUNTIME !== 'edge') return;
-  const { env } = await import('./server/env');
-  const { sentryOptions } = await import('./lib/sentry-options');
-  const config = env.observability.sentry;
-  if (config) Sentry.init(sentryOptions(config));
-}
-
-export const onRequestError = Sentry.captureRequestError;
+// Server render/route errors reach PostHog error tracking (anonymous; see server/analytics).
+export const onRequestError: Instrumentation.onRequestError = async (err, request, context) => {
+  if (process.env.NEXT_RUNTIME !== 'nodejs') return;
+  const { errorReporter } = await import('./server/analytics');
+  await errorReporter.capture(err, {
+    path: request.path.split('?')[0],
+    method: request.method,
+    route: context.routePath,
+    routeType: context.routeType,
+    source: 'next',
+  });
+};

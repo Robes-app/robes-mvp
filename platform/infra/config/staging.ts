@@ -27,6 +27,8 @@ export const staging: StageConfig = {
     signingPublicKeyPem: publicKeyFor('staging'),
   },
   workers: { generateReservedConcurrency: reservedConcurrency('staging', 5) },
+  // One PostHog project for both stages for now; events carry `environment`.
+  posthog: { key: fromEnv('ROBES_POSTHOG_KEY') },
   alerts: { email: fromEnv('ROBES_STAGING_ALERT_EMAIL') },
   budget: {
     enabled: budgetsEnabled('staging'),

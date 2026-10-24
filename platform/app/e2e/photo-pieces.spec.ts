@@ -169,7 +169,7 @@ test('a look from a photo', async ({ page }) => {
   await expect(rack.getByText('New · filed on save')).toBeVisible();
   await expect(rack.getByText('White running shoes')).toBeVisible();
   await expect(page.getByText('The look · 2 pieces')).toBeVisible();
-  await page.getByLabel('Name (optional)').fill('Sunday run');
+  await page.getByLabel('Name this look').fill('Sunday run');
   await page.getByLabel('Wearing it today, log it worn').check();
   await save.click();
 

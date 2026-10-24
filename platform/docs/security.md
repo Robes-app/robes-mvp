@@ -90,7 +90,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 **SEC-30 — Validate every input.** Every route declares a zod `input` schema with explicit string/array caps; unknown keys stripped. Model outputs are parsed with zod before use or storage.
 - Test: contract tests fuzz each route with type-confused bodies (`fast-check`) and assert `400`, never `500`.
 
-**SEC-31 — No unhandled rejections.** Route wrapper catches and maps errors; a global error boundary logs to Sentry; clients get `{ code, message }` with generic text. No raw upstream error messages.
+**SEC-31 — No unhandled rejections.** Route wrapper catches and maps errors; a global error boundary reports to PostHog error tracking; clients get `{ code, message }` with generic text. No raw upstream error messages.
 
 **SEC-32 — Body limits.** Default JSON limit 32 KB; no route accepts binary in JSON.
 
@@ -108,7 +108,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 
 ### Browser and app surface (closes B4, B5, M2, L1)
 
-**SEC-50 — Strict CSP with nonces.** Next.js middleware sets `Content-Security-Policy` with per-request nonce, `script-src 'self' 'nonce-…' 'strict-dynamic'`, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`, `img-src` for self, data:, blob:, res.cloudinary.com; `connect-src` for Supabase, PostHog (EU), Sentry. No inline event handlers. Plus HSTS (preload), `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, `X-Content-Type-Options`.
+**SEC-50 — Strict CSP with nonces.** Next.js middleware sets `Content-Security-Policy` with per-request nonce, `script-src 'self' 'nonce-…' 'strict-dynamic'`, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`, `img-src` for self, data:, blob:, res.cloudinary.com; `connect-src` for Supabase, PostHog (EU). No inline event handlers. Plus HSTS (preload), `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, `X-Content-Type-Options`.
 - Test: Playwright asserts headers on `/`, `/app`, `/share/[token]`.
 
 **SEC-51 — No raw HTML sinks.** `dangerouslySetInnerHTML` is banned by lint (allowlist only for JSON-LD via a helper that escapes `<`). Markdown/LLM text renders as text components.
@@ -153,7 +153,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 
 **SEC-84 — Consent.** Analytics and session replay load only after consent (web banner; native ATT prompt not required for first-party analytics without tracking, but consent screen for replay). Replay masks all inputs and images by default.
 
-**SEC-85 — Policies.** Privacy notice, terms, DPIA for photo analysis/AI edits, sub-processor list (Supabase, Vercel, AWS, Google, Cloudinary, Resend, PostHog, Sentry), app-store privacy labels generated from a single data inventory (`docs/data-inventory.md`, maintained with the schema).
+**SEC-85 — Policies.** Privacy notice, terms, DPIA for photo analysis/AI edits, sub-processor list (Supabase, Vercel, AWS, Google, Cloudinary, Resend, PostHog), app-store privacy labels generated from a single data inventory (`docs/data-inventory.md`, maintained with the schema).
 
 ---
 

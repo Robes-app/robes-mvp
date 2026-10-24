@@ -68,22 +68,22 @@ describe('cspSources', () => {
     expect(on).toContain("frame-src 'self' https://challenges.cloudflare.com;");
   });
 
-  it('adds nothing for Sentry or PostHog when they are not configured', () => {
+  it('adds nothing for PostHog when they are not configured', () => {
     const csp = buildCsp({
       nonce: 'n',
       isDev: false,
       ...cspSources(media, { connectOrigins: [] }),
     });
-    expect(csp).not.toMatch(/sentry|posthog/);
+    expect(csp).not.toMatch(/posthog/);
   });
 
-  it('lets the browser reach the configured Sentry ingest and PostHog EU hosts', () => {
+  it('lets the browser reach the configured PostHog EU host', () => {
     const sources = cspSources(media, {
-      connectOrigins: ['https://o1.ingest.de.sentry.io', 'https://eu.i.posthog.com'],
+      connectOrigins: ['https://eu.i.posthog.com'],
     });
     const csp = buildCsp({ nonce: 'n', isDev: false, ...sources });
     expect(csp).toContain(
-      "connect-src 'self' https://media.byrobes.com https://robes-prod-media.s3.eu-west-1.amazonaws.com https://o1.ingest.de.sentry.io https://eu.i.posthog.com;",
+      "connect-src 'self' https://media.byrobes.com https://robes-prod-media.s3.eu-west-1.amazonaws.com https://eu.i.posthog.com;",
     );
     expect(csp).toContain("img-src 'self' data: blob: https://media.byrobes.com;");
     expect(csp).toContain("script-src 'self' 'nonce-n' 'strict-dynamic';");

@@ -54,4 +54,4 @@ Enrol as an organisation; it needs a D-U-N-S number and can take a week or more.
    ```
 3. TestFlight → Internal testing → add testers by email. They install the TestFlight app and accept the invite. No device IDs needed; builds last 90 days.
 4. JS-only changes after that can ship as EAS Updates to the `staging` channel without a new build; native changes need a new build.
-5. A **development build** (`eas build --profile development`) replaces Expo Go for the founder once a feature needs a native module Expo Go lacks (Sign in with Apple, RevenueCat, native Sentry). It installs via ad hoc distribution, which needs each iPhone registered: `npx eas-cli device:create`.
+5. A **development build** (`eas build --profile development`) replaces Expo Go for the founder once a feature needs a native module Expo Go lacks (Sign in with Apple, RevenueCat, native crash reporting). It installs via ad hoc distribution, which needs each iPhone registered: `npx eas-cli device:create`.
