@@ -152,6 +152,8 @@ async function boot(browser, tagBody, opts = {}) {
         supaPosts.push(body);
         // cmDown: migration 27 not run — a POST carrying the colour columns
         // is refused the way PostgREST refuses it (PGRST204 names the column).
+        // matDown: migration 29 not run — the same refusal naming material.
+        if (opts.matDown && 'material' in body) return r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST204', message: "Could not find the 'material' column of 'wardrobe_items' in the schema cache" }) });
         if (opts.cmDown && 'colour_shade' in body) return r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST204', message: "Could not find the 'colour_shade' column of 'wardrobe_items' in the schema cache" }) });
         return r.fulfill({ status: 201, contentType: 'application/json',
           body: JSON.stringify([{ id: 'new-1', ...body }]) });
@@ -278,8 +280,8 @@ const browser = await chromium.launch(Object.assign(
   }));
   check('summary · tag pops on the photo (no fit tags)', early.tags === 3, String(early.tags));
   check('summary · label banner', early.banner === 'Cream wool blazer', early.banner);
-  check('sheet · every field is a row in four groups (Piece_Sheet 02): Name · Category · Brand / Colour · Additional colours · Print / Season · Wear it for / Size · Price · Notes',
-    early.rows.join('|') === 'name|category|brand|colour|extra|print|season|wear|size|price|notes' && early.groups.join('|') === 'The piece|Colour|Wearing|Fit & notes', JSON.stringify([early.rows, early.groups]));
+  check('sheet · every field is a row in four groups (Piece_Sheet 02 + Colour & material): Name · Category · Brand / Colour · Additional colours · Print · Material / Season · Wear it for / Size · Price · Notes',
+    early.rows.join('|') === 'name|category|brand|colour|extra|print|material|season|wear|size|price|notes' && early.groups.join('|') === 'The piece|Colour & material|Wearing|Fit & notes', JSON.stringify([early.rows, early.groups]));
   check('sheet · no form fields, no toggles, no ledger — the rows read first', !early.fields && early.toggles === 0);
   check('sheet · "Filed from your photo. Tap anything that isn’t quite right."', /Filed from your photo\. Tap anything that isn’t quite right\./.test(early.sub), early.sub);
   check('summary · photo contained + the one ink pill pinned (sticky)', early.photo && early.fit === 'contain' && /Add to wardrobe/.test(early.cta) && early.sticky === 'sticky', early.cta + '|' + early.sticky);
@@ -721,7 +723,7 @@ const browser = await chromium.launch(Object.assign(
     stats: Array.from(document.querySelectorAll('.rb-pc-stats .k')).map((k) => k.textContent), remove: document.querySelector('.rb-pc-removebtn')?.textContent,
   }));
   check('edit · the edit door opens the piece PAGE, never the modal: the rows prefilled from the row, the stats strip, Remove from wardrobe at the foot',
-    ed.page === 'block' && !ed.modal && ed.rows.join('|') === 'category=Skinny jeans|brand=Levi’s|colour=Navy|extra=Add|print=Plain|season=Spring/Summer|wear=Everyday, Travel|size=Add|price=Add|notes=Add'
+    ed.page === 'block' && !ed.modal && ed.rows.join('|') === 'category=Skinny jeans|brand=Levi’s|colour=Navy|extra=Add|print=Plain|material=Add|season=Spring/Summer|wear=Everyday, Travel|size=Add|price=Add|notes=Add'
       && ed.stats.join('|') === 'Worn|Last worn|In looks' && ed.remove === 'Remove from wardrobe', JSON.stringify(ed));
   // A pick saves at once — one PATCH per field, nothing else on it
   await page.click('#rb-piece-page .rb-ps-row[data-k="season"]');
@@ -1273,7 +1275,7 @@ const browser = await chromium.launch(Object.assign(
   check('wishlist · the scan lands on the same confirm screen, CTA "Save to wishlist →"', /what Robes/.test(w2.h) && /Read from your image/.test(w2.sub) && w2.cta === 'Save to wishlist →', JSON.stringify(w2));
   await page.waitForTimeout(2200);
   const w3 = await page.evaluate(() => ({ rows: Array.from(document.querySelectorAll('.rb-ps-row')).map((r) => r.dataset.k), src: document.querySelector('.rb-ps-row[data-k="src"] .rb-ps-v')?.textContent }));
-  check('wishlist · the rows carry Spotted (Screenshot by default) and Size / Price / Notes — no Season, no Wear it for', w3.rows.join('|') === 'name|category|brand|src|colour|extra|print|size|price|notes' && w3.src === 'Screenshot', JSON.stringify(w3));
+  check('wishlist · the rows carry Spotted (Screenshot by default) and Size / Price / Notes — no Season, no Wear it for', w3.rows.join('|') === 'name|category|brand|src|colour|extra|print|material|size|price|notes' && w3.src === 'Screenshot', JSON.stringify(w3));
   await page.click('.rb-ps-row[data-k="src"]');
   await page.waitForTimeout(150);
   const w3b = await page.evaluate(() => ({ title: document.querySelector('#rb-ps-wrap h3')?.textContent, opts: Array.from(document.querySelectorAll('#rb-ps-wrap .rb-ps-opt .n')).map((n) => n.textContent) }));
@@ -1410,6 +1412,82 @@ const browser = await chromium.launch(Object.assign(
     supaPosts.length === 2 && 'colour_shade' in supaPosts[0] && !('colour_shade' in p) && !('colour_extra' in p) && !('print' in p) && p.color === 'Cream' && p.category_l2 !== undefined,
     JSON.stringify(supaPosts.map((x) => Object.keys(x).filter((k) => /colour|print|color/.test(k)))));
   check('no page errors (colour model degrade)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+
+// ── The material (2026-10-24, Colour & material): the fourth row of the
+// colour group, its own sheet — families across the top, the family's
+// materials below, a pick saves and closes, "Not sure" clears. A read the
+// model was unsure of carries Check until she touches it; an untouched save
+// files the id; migration 29 missing strips it and the row still lands.
+{
+  const TAG_MAT = { ...TAG, material: 'polyester', item_dna: { ...TAG.item_dna, material_check: true } };
+  const { ctx, page, errs, supaPosts } = await boot(browser, TAG_MAT);
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  await page.setInputFiles('#wa-rb-file', { name: 'blazer.png', mimeType: 'image/png', buffer: PNG_OK });
+  await page.waitForSelector('#rb-saw-panel', { timeout: 8000 });
+  await page.waitForTimeout(2800);
+  const m0 = await page.evaluate(() => ({
+    model: !!(window.RB_MATERIALS && window.RB_MATERIALS.materials.length === 40),
+    val: document.querySelector('.rb-ps-row[data-k="material"] .rb-ps-v')?.textContent.trim(),
+    check: !!document.querySelector('.rb-ps-row[data-k="material"] .rb-ps-chk'),
+    after: document.querySelector('.rb-ps-row[data-k="print"]')?.nextElementSibling?.dataset.k,
+  }));
+  check('material · the page carries window.RB_MATERIALS (40 materials)', m0.model, JSON.stringify(m0));
+  check('material · the read lands on the Material row (Polyester), after Print, carrying Check while unsure', m0.val === 'Polyester' && m0.check && m0.after === 'material', JSON.stringify(m0));
+  await page.click('.rb-ps-row[data-k="material"]');
+  await page.waitForTimeout(250);
+  const sh = await page.evaluate(() => ({
+    title: document.querySelector('#rb-ps-wrap h3')?.textContent,
+    fams: Array.from(document.querySelectorAll('.rb-ps-mfam')).map((b) => b.textContent),
+    on: document.querySelector('.rb-ps-mfam.on')?.textContent,
+    opts: Array.from(document.querySelectorAll('.rb-ps-mats .rb-ps-opt .n')).map((n) => n.childNodes[0].textContent),
+    hint: document.querySelector('.rb-ps-mats .rb-ps-opt .n .h')?.textContent,
+    ticked: document.querySelector('.rb-ps-mats .rb-ps-opt[aria-checked="true"] .n')?.childNodes[0].textContent,
+    notSure: document.querySelector('#rb-ps-wrap .rb-ps-clear')?.textContent,
+    h: Math.round(document.querySelector('.rb-ps-mfam')?.getBoundingClientRect().height || 0),
+  }));
+  check('material · the sheet opens on the value’s family — seven families in order, Synthetic open, Polyester ticked, hints beneath, Not sure at the foot',
+    sh.title === 'Material' && sh.fams.join('|') === 'Natural|Cloths|Synthetic|Leather & skins|Plant-based|Faux|Accessories' && sh.on === 'Synthetic' &&
+    sh.opts.join('|') === 'Polyester|Polyamide|Elastane|Acrylic' && sh.hint === 'Also nylon' && sh.ticked === 'Polyester' && sh.notSure === 'Not sure', JSON.stringify(sh));
+  check('material · family chips are 40pt pills', sh.h === 40, String(sh.h));
+  await page.click('.rb-ps-mfam:has-text("Natural")');
+  await page.waitForTimeout(150);
+  const dot = await page.evaluate(() => ({ on: document.querySelector('.rb-ps-mfam.on')?.textContent, dotOn: document.querySelector('.rb-ps-mfam .dot')?.parentElement.textContent, first: document.querySelector('.rb-ps-mats .rb-ps-opt .n')?.childNodes[0].textContent }));
+  check('material · another family shows its materials and a dot marks where the value lives', dot.on === 'Natural' && dot.dotOn === 'Synthetic' && dot.first === 'Cotton', JSON.stringify(dot));
+  await page.click('.rb-ps-mats .rb-ps-opt:has-text("Wool")');
+  await page.waitForTimeout(200);
+  const m1 = await page.evaluate(() => ({ closed: !document.getElementById('rb-ps-wrap'), val: document.querySelector('.rb-ps-row[data-k="material"] .rb-ps-v')?.textContent.trim(), check: !!document.querySelector('.rb-ps-row[data-k="material"] .rb-ps-chk'), stash: window.__waSawMaterial }));
+  check('material · a pick saves and closes, and the Check comes off', m1.closed && m1.val === 'Wool' && !m1.check && m1.stash === 'wool', JSON.stringify(m1));
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1800);
+  const p = supaPosts[0] || {};
+  check('material · the save files material "wool" and drops material_check from item_dna', supaPosts.length === 1 && p.material === 'wool' && !(p.item_dna && p.item_dna.material_check), JSON.stringify([p.material, p.item_dna && p.item_dna.material_check]));
+  check('no page errors (material)', errs.length === 0, errs.join(' | ').slice(0, 200));
+  await ctx.close();
+}
+{
+  // "Not sure" clears to null; migration 29 missing strips the column.
+  const { ctx, page, errs, supaPosts } = await boot(browser, { ...TAG, material: 'wool' }, { matDown: true });
+  await page.evaluate(() => window.WA && WA.open());
+  await page.waitForTimeout(400);
+  await page.setInputFiles('#wa-rb-file', { name: 'blazer.png', mimeType: 'image/png', buffer: PNG_OK });
+  await page.waitForSelector('#rb-saw-panel', { timeout: 8000 });
+  await page.waitForTimeout(2800);
+  await page.click('.rb-ps-row[data-k="material"]');
+  await page.waitForTimeout(200);
+  await page.click('#rb-ps-wrap .rb-ps-clear');
+  await page.waitForTimeout(200);
+  const v = await page.evaluate(() => document.querySelector('.rb-ps-row[data-k="material"] .rb-ps-v')?.textContent.trim());
+  check('material · Not sure clears the row back to Add', v === 'Add', String(v));
+  await page.click('#wa-saw-cta');
+  await page.waitForTimeout(1800);
+  const last = supaPosts[supaPosts.length - 1] || {};
+  check('material · PGRST204 on material → one retry without it, the row lands with its colour',
+    supaPosts.length === 2 && 'material' in supaPosts[0] && supaPosts[0].material === null && !('material' in last) && last.colour_shade !== undefined,
+    JSON.stringify(supaPosts.map((x) => ['material' in x, x.material])));
+  check('no page errors (material degrade)', errs.length === 0, errs.join(' | ').slice(0, 200));
   await ctx.close();
 }
 

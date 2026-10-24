@@ -17,6 +17,7 @@ export const WISH_COLUMNS = [
   'colourShade',
   'colourExtra',
   'print',
+  'material',
   'brand',
   'note',
   'imageAssetId',
@@ -38,6 +39,7 @@ export interface WishFields {
   colourShade?: string | null;
   colourExtra?: string[];
   print?: string | null;
+  material?: string | null;
   brand?: string | null;
   note?: string | null;
   price?: number | null;
@@ -167,6 +169,7 @@ export function wishlistRepo(db: Db) {
             colourShade: wish.colourShade,
             colourExtra: wish.colourExtra,
             print: wish.print,
+            material: wish.material,
             brand: wish.brand,
             notes: wish.note,
             imageAssetId: wish.imageAssetId,

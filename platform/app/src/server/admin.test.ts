@@ -82,6 +82,7 @@ describe('admin user records', () => {
       category: 'Outerwear',
       brand: null,
       colourShade: 'camel',
+      material: 'wool',
       status: 'active',
       acquiredVia: 'photo',
       heroPosition: 1,
@@ -103,7 +104,7 @@ describe('admin user records', () => {
       ],
     });
     const r = await admin.userRecords(actor, uid);
-    expect(r.pieces[0]).toMatchObject({ hero: true, wears: 3 });
+    expect(r.pieces[0]).toMatchObject({ hero: true, wears: 3, material: 'wool' });
     expect(r.pieces[0]?.image).toMatch(/^https:\/\/media\.test\/.*320.*\.webp\?sig=1$/);
     expect(r.pieces[0]?.image).toContain(uid);
     expect(r.pieces[1]?.image).toBeNull();

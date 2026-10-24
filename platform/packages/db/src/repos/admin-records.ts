@@ -59,6 +59,7 @@ export async function collectRecords(db: Db, userId: string) {
         'wardrobeItems.category',
         'wardrobeItems.brand',
         'wardrobeItems.colourShade',
+        'wardrobeItems.material',
         'wardrobeItems.status',
         'wardrobeItems.acquiredVia',
         'wardrobeItems.heroPosition',

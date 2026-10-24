@@ -23,6 +23,7 @@ export function PieceRow({
   label,
   value,
   swatch,
+  check,
   onPress,
   note,
   first = false,
@@ -30,6 +31,8 @@ export function PieceRow({
   label: string;
   value?: string | null;
   swatch?: ReactNode;
+  // Robes' read here is a guess she should look at: the rose "Check" mark, with its reason.
+  check?: string | undefined;
   // No handler means the row is a fact, not a door: no chevron, nothing to press.
   onPress?: () => void;
   note?: string | null;
@@ -42,6 +45,11 @@ export function PieceRow({
         <Text size="small" className="flex-1">
           {label}
         </Text>
+        {check ? (
+          <Text size="caption" className="text-accent-warm">
+            {copy.check}
+          </Text>
+        ) : null}
         {swatch}
         <Text size="small" tone={value ? 'muted' : 'faint'} numberOfLines={1}>
           {value || (onPress ? copy.add : '')}
@@ -60,7 +68,7 @@ export function PieceRow({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${label}: ${value || copy.add}`}
+      accessibilityLabel={`${label}: ${value || copy.add}${check ? `. ${check}` : ''}`}
       onPress={onPress}
     >
       {body}

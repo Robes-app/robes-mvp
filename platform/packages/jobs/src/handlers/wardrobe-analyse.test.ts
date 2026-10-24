@@ -70,12 +70,36 @@ describe('wardrobe_analyse handler', () => {
         colourShade: 'camel',
         colourExtra: [],
         print: null,
+        material: 'wool',
       }),
     );
     expect(ledger.record).toHaveBeenCalledWith(
       expect.objectContaining({ feature: 'wardrobe.analyse', status: 'ok' }),
     );
     expect(writeStage).toHaveBeenCalledWith('text', expect.objectContaining({ pieceId: PIECE }));
+  });
+
+  it("files the material read from the label, and Robes' doubt about it", async () => {
+    const { run, pieces } = setup({ output: { material: 'polyamide', material_check: true } });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(pieces.apply).toHaveBeenCalledWith(
+      USER,
+      PIECE,
+      expect.objectContaining({
+        material: 'polyamide',
+        itemDna: expect.objectContaining({ material_check: true, prompt_version: 4 }),
+      }),
+    );
+  });
+
+  it('files no material when the read leaves it out', async () => {
+    const { run, pieces } = setup({ output: { material: undefined } });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(pieces.apply).toHaveBeenCalledWith(
+      USER,
+      PIECE,
+      expect.objectContaining({ material: null }),
+    );
   });
 
   it('waits for renditions that are still processing', async () => {

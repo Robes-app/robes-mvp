@@ -181,6 +181,7 @@ export async function userRecords(actor: AdminActor, userId: string): Promise<Ad
         category: p.category,
         brand: p.brand,
         colourShade: p.colourShade,
+        material: p.material,
         status: p.status,
         acquiredVia: p.acquiredVia,
         hero: p.heroPosition !== null,

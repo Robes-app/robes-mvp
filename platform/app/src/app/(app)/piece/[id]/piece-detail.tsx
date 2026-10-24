@@ -5,6 +5,7 @@ import type { Piece, UpdatePieceInput } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { type PieceColour, pattern, shade } from '@robes/core/colour';
+import { material } from '@robes/core/material';
 import { Icon } from '@robes/icons/web';
 import {
   Button,
@@ -171,6 +172,7 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
           label={copy.rows.colour}
           value={mainShade?.name ?? null}
           swatch={mainShade ? <ShadeSwatch shade={mainShade} size={18} /> : undefined}
+          check={piece.colourCheck ? wardrobe.colour.check : undefined}
           onClick={() => setField('colour')}
         />
         <PieceRow
@@ -182,6 +184,12 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
           label={copy.rows.print}
           value={pattern(piece.print)?.name ?? wardrobe.colour.plain}
           onClick={() => setField('print')}
+        />
+        <PieceRow
+          label={copy.rows.material}
+          value={material(piece.material)?.name ?? null}
+          check={piece.materialCheck ? wardrobe.material.check : undefined}
+          onClick={() => setField('material')}
         />
       </PieceSection>
 

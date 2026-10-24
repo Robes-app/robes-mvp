@@ -47,7 +47,7 @@ describe('data export (SEC-81)', () => {
   });
 
   it('collects only her own data, with calendar days as text and no session tokens', async () => {
-    await repos.wardrobe.create(ann, { label: 'Niall coat' });
+    await repos.wardrobe.create(ann, { label: 'Niall coat', material: 'tweed' });
     await repos.wardrobe.create(bea, { label: 'Bea coat' });
     const look = await repos.looks.create(ann, {
       name: 'Office',
@@ -63,7 +63,7 @@ describe('data export (SEC-81)', () => {
       expect.objectContaining({ dayDate: '2026-10-02', name: 'Ann’s gallery night' }),
     ]);
     expect(doc.user?.email).toBe(`${ann}@test.dev`);
-    expect(doc.pieces.map((p) => p.label)).toEqual(['Niall coat']);
+    expect(doc.pieces.map((p) => [p.label, p.material])).toEqual([['Niall coat', 'tweed']]);
     expect(doc.wears[0]?.wornOn).toBe('2026-09-24');
     expect(doc.plan[0]?.dayDate).toBe('2026-10-01');
     const json = JSON.stringify(doc);

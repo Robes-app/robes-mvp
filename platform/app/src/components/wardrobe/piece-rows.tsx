@@ -24,6 +24,7 @@ export function PieceRow({
   label,
   value,
   swatch,
+  check,
   onClick,
   children,
 }: {
@@ -31,6 +32,8 @@ export function PieceRow({
   // What is filed; nothing filed reads as the door it is.
   value?: string | null;
   swatch?: ReactNode;
+  // Robes' read here is a guess she should look at: the rose "Check" mark, with its reason.
+  check?: string | undefined;
   // No handler means the row is a fact, not a door: no chevron, nothing to press.
   onClick?: () => void;
   // A longer answer (a note) sits under the row's own line.
@@ -43,6 +46,12 @@ export function PieceRow({
         <Text size="small" className="flex-1">
           {label}
         </Text>
+        {check ? (
+          <span className="font-sans text-accent-warm text-xs" title={check}>
+            {copy.check}
+            <span className="sr-only">{`: ${check}`}</span>
+          </span>
+        ) : null}
         {swatch}
         <Text size="small" tone={filled ? 'muted' : 'faint'} className="truncate text-right">
           {value || (onClick ? copy.add : '')}

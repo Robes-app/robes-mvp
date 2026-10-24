@@ -194,6 +194,7 @@ export const AdminUserRecords = z.object({
       category: z.string(),
       brand: z.string().nullable(),
       colourShade: z.string().nullable(),
+      material: z.string().nullable(),
       status: z.string(),
       acquiredVia: z.string(),
       hero: z.boolean(),

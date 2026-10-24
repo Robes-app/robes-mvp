@@ -14,6 +14,9 @@ import { createRequire } from 'module';
 // The colour and pattern model (2026-10-22) — a .cjs so the same file runs as
 // the browser's /js/colour-model.js; see colour_model.cjs.
 const CM = createRequire(import.meta.url)('./colour_model.cjs');
+// The material model (2026-10-24) — its own list beside the colour model; see
+// material_model.cjs (served as /js/material-model.js).
+const MM = createRequire(import.meta.url)('./material_model.cjs');
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -3254,6 +3257,11 @@ const ANALYSE_SCHEMA = {
     colour_extra:         { type: 'array', items: { type: 'string' } },
     print:                { type: 'string', enum: ['plain'].concat(CM.patternIds) },
     colour_check:         { type: 'boolean' },
+    // The material (2026-10-24): ONE id from the material list — what the
+    // piece is mostly made of — and whether the read is sure. Optional (an
+    // empty string is not allowed in a Gemini enum): omitted = not read.
+    material:             { type: 'string', enum: MM.ids },
+    material_check:       { type: 'boolean' },
     primary_color_hex:    { type: 'string' },
     editorial_color_name: { type: 'string' },
     brand:                { type: 'string' },
@@ -3289,6 +3297,10 @@ ${taxonomyPromptBlock()}
 "colour_check": true ONLY when the light, a filter or a busy print leaves the colour genuinely uncertain — still give the best shade, never leave it; false otherwise.
 SHADES:
 ${CM.promptBlock()}
+"material": ONE material id from the MATERIALS list below — what the piece is mostly made of, read from the photo AND any visible care or composition label (a label outranks the eye). A blend files under its main fibre (95% cotton, 5% elastane is cotton). A cloth people name by the cloth takes the cloth (denim jeans are denim, a velvet blazer velvet, a jersey tee jersey). Leather against vegan leather, wool against acrylic, silk against satin polyester — only from clear cues (grain, sheen, a label); otherwise give the likelier one and set material_check. Omit "material" only when nothing at all can be told.
+"material_check": true ONLY when the material is genuinely uncertain from the photo — no label, an ambiguous surface; false when a label shows it or it is unmistakable.
+MATERIALS:
+${MM.promptBlock()}
 "color": the display name of the shade you chose in colour_shade, exactly as listed (e.g. "Soft black", "Navy")
 "primary_color_hex": hex code of the dominant color (e.g. "#D2B48C")
 "editorial_color_name": evocative color name (e.g. "Warm Caramel", "Washed Slate")
@@ -3328,6 +3340,8 @@ function analysedPiece(parsed) {
     ai_generated_notes: parsed.ai_generated_notes || '',
   };
   if (parsed.colour_check === true) item_dna.colour_check = true;
+  const mat = MM.resolve(parsed.material);
+  if (mat && parsed.material_check === true) item_dna.material_check = true;
   return {
     label: String(parsed.label || '').trim().slice(0, 120),
     category: tax ? tax.category : (parsed.category || 'Other'),
@@ -3337,6 +3351,7 @@ function analysedPiece(parsed) {
     colour_shade: sh ? sh.id : null,
     colour_extra: Array.from(new Set(extra)).slice(0, 3),
     print: prt && prt.id !== 'plain' ? prt.id : null,
+    material: mat,
     brand: parsed.brand || '',
     price: (() => { const n = parseFloat(String(parsed.price || '').replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; })(),
     currency: String(parsed.currency || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || null,
@@ -3345,7 +3360,7 @@ function analysedPiece(parsed) {
     item_dna,
   };
 }
-const EMPTY_PIECE = () => ({ label: '', category: 'Other', category_l2: null, category_l3: null, color: '', colour_shade: null, colour_extra: [], print: null, brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } });
+const EMPTY_PIECE = () => ({ label: '', category: 'Other', category_l2: null, category_l3: null, color: '', colour_shade: null, colour_extra: [], print: null, material: null, brand: '', notes: '', item_dna: { display: {}, structural_dna: { silhouette_fit: [] }, formality: '', llm_styling_context: {}, ai_generated_notes: '' } });
 
 // The colour model, byte for byte the file the server reads — one source for
 // the browser's swatches, pickers and preference rows (it sets
@@ -3354,6 +3369,13 @@ app.get('/js/colour-model.js', (req, res) => {
   res.set('Cache-Control', 'public, max-age=3600');
   res.type('application/javascript');
   res.sendFile(join(__dirname, 'colour_model.cjs'));
+});
+// The material model — the same rule: the file the server reads, sent as is
+// (it sets window.RB_MATERIALS).
+app.get('/js/material-model.js', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.type('application/javascript');
+  res.sendFile(join(__dirname, 'material_model.cjs'));
 });
 
 // The full taxonomy tree for the client's Category / Subcategory / Item type
@@ -3387,7 +3409,7 @@ If a clothing item IS present, set "no_item_detected": false and fill every fiel
 ${ANALYSE_FIELD_RULES()}` }
         ]
       }],
-      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 860, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+      config: { responseMimeType: 'application/json', responseSchema: ANALYSE_SCHEMA, maxOutputTokens: 900, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
     });
 
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
@@ -3487,7 +3509,7 @@ ${ANALYSE_FIELD_RULES()}
 ${closet}` }
         ]
       }],
-      config: { responseMimeType: 'application/json', responseSchema: PIECES_SCHEMA, maxOutputTokens: 4600, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
+      config: { responseMimeType: 'application/json', responseSchema: PIECES_SCHEMA, maxOutputTokens: 5000, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
     });
     const result = await Promise.race([call, new Promise((_, rej) => setTimeout(() => rej(new Error('pieces_timeout')), 70_000))]);
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';

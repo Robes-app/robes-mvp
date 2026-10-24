@@ -1,4 +1,5 @@
 import { COLOUR_EXTRA_MAX, COLOUR_FAMILY_IDS, PATTERN_IDS, SHADE_IDS } from '@robes/core/colour';
+import { MATERIAL_IDS } from '@robes/core/material';
 import { z } from 'zod';
 import { AssetRendition } from './media';
 
@@ -23,12 +24,16 @@ const colourFields = {
   colourExtra: z.array(ColourShade).max(COLOUR_EXTRA_MAX),
   print: Print.nullable(),
 };
+// The material model (@robes/core/material): one id, or null when not filed.
+export const MaterialId = z.enum(MATERIAL_IDS as [string, ...string[]]);
 // Read side: defaulted across version skew, so an older server's response still parses.
 const colourOut = {
   colourShade: z.string().nullable().default(null),
   colourExtra: z.array(z.string()).default([]),
   print: z.string().nullable().default(null),
 };
+// Its own field beside the colour, defaulted the same way.
+const materialOut = { material: z.string().nullable().default(null) };
 
 export const PieceImage = z.object({
   assetId: z.uuid(),
@@ -49,8 +54,11 @@ export const Piece = z.object({
   categoryL3: z.string().nullable(),
   color: z.string().nullable(),
   ...colourOut,
+  ...materialOut,
   // Robes wasn't sure of the colour (light, a filter, a busy print): she checks it.
   colourCheck: z.boolean().default(false),
+  // …and of the material: the row carries "Check" until she answers it.
+  materialCheck: z.boolean().default(false),
   brand: z.string().nullable(),
   notes: z.string().nullable(),
   // 'reading' while Robes reads the photo; 'failed' when no piece was found in it.
@@ -112,6 +120,7 @@ const editable = {
   categoryL3: z.string().max(60).nullable(),
   color: z.string().max(60).nullable(),
   ...colourFields,
+  material: MaterialId.nullable(),
   brand: z.string().trim().max(80).nullable(),
   notes: z.string().trim().max(1000).nullable(),
   seasonBand: SeasonBand,
@@ -159,6 +168,7 @@ export const Wish = z.object({
   categoryL3: z.string().nullable(),
   color: z.string().nullable(),
   ...colourOut,
+  ...materialOut,
   brand: z.string().nullable(),
   note: z.string().nullable(),
   price: z.number().nullable(),
@@ -191,6 +201,7 @@ const wishEditable = {
   colourShade: editable.colourShade,
   colourExtra: editable.colourExtra,
   print: editable.print,
+  material: editable.material,
   brand: editable.brand,
   note: editable.notes,
   price: editable.price,

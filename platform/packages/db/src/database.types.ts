@@ -631,6 +631,7 @@ export interface WardrobeItems {
   imageAssetId: string | null;
   itemDna: Generated<Json>;
   label: string;
+  material: string | null;
   notes: string | null;
   price: Numeric | null;
   print: string | null;
@@ -700,6 +701,7 @@ export interface WishlistItems {
   imageAssetId: string | null;
   itemDna: Generated<Json>;
   label: string;
+  material: string | null;
   note: string | null;
   price: Numeric | null;
   print: string | null;
