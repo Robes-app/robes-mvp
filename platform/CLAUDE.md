@@ -83,5 +83,7 @@ Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + ty
 ## Product rules to respect
 Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Lookbook · Diary + Create + You (routes stay `/looks`, `/plan`) (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.
 
+**A look and a piece are components, not drawings.** A look is `LookTile` (`app/src/components/looks/look-tile.tsx`, `mobile/src/features/looks/LookTile.tsx`) — the photograph and what the look is held in ONE frame, with an eyebrow, a meta line and slots for what sits on the photograph and in the corner. A piece is `cardLines` → `CardRow`/`CardTile` (`app/src/components/wardrobe/piece-card.tsx`). Every surface composes them; never hand-roll a second anatomy for the same object.
+
 ## Conventions
 Match surrounding code; single quotes; 2-space indent; no comments unless the why is non-obvious. Tests live next to code (`*.test.ts`) except e2e (`app/e2e`, `mobile/e2e`) and DB tests (`packages/db/test`, need `pnpm services:up`).
