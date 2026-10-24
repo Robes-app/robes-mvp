@@ -17,6 +17,7 @@ import { type FormEvent, useState } from 'react';
 import { DiarySheet } from '@/components/looks/diary-sheet';
 import { LookImage } from '@/components/looks/look-image';
 import { LookPicture, SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
+import { WearRecord } from '@/components/looks/wear-record';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { useLookEditor } from '@/lib/look-editor';
@@ -161,6 +162,7 @@ function LookBody({ look }: { look: Look }) {
         <SavedRack look={look} editor={editor} />
         {editor.editing ? null : (
           <>
+            <WearRecord look={look} />
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="primary"

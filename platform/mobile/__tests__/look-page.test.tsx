@@ -1,4 +1,5 @@
 import { looks } from '@robes/copy';
+import { longDate } from '@robes/core/calendar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Share } from 'react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
@@ -80,4 +81,45 @@ test('save as new opens the copy; share opens the share sheet and can be stopped
   await fireEvent.press(await screen.findByRole('button', { name: looks.look.stopSharing }));
   expect(await screen.findByText(looks.look.sharingStopped)).toBeTruthy();
   expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith(TOKEN))).toBe(true);
+});
+
+test("the look's record names what each wear held that the look no longer does", async () => {
+  const WEAR_A = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const WEAR_B = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const GONE = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const saved = look();
+  const onIt = saved.pieces[0]?.piece;
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: saved,
+    [`GET /looks/${LOOK_ID}/wears`]: {
+      items: [
+        {
+          id: WEAR_A,
+          wornOn: '2026-10-20',
+          pieces: [{ id: onIt?.id, label: onIt?.label }],
+        },
+        {
+          id: WEAR_B,
+          wornOn: '2026-10-12',
+          // That day she wore something the look has since let go of.
+          pieces: [{ id: GONE, label: 'White sandals' }],
+        },
+      ],
+    },
+    [`DELETE /looks/${LOOK_ID}/wears/2026-10-12`]: { ok: true },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  expect(await screen.findByText(longDate('2026-10-20'))).toBeTruthy();
+  // One diff line, on the day that differed; the day she wore it as it stands says the day alone.
+  const difference = looks.page.wears.diff(['White sandals'], [onIt?.label ?? '']);
+  expect(await screen.findAllByText(difference)).toHaveLength(1);
+
+  await fireEvent.press(
+    screen.getByRole('button', { name: looks.page.wears.remove(longDate('2026-10-12')) }),
+  );
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith('/wears/2026-10-12'))).toBe(
+      true,
+    ),
+  );
 });

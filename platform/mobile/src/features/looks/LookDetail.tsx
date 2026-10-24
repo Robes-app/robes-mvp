@@ -39,6 +39,7 @@ import {
   useStopSharing,
   useWearToday,
 } from './saved-looks';
+import { WearRecord } from './WearRecord';
 
 const DAY_CHOICES = 14;
 
@@ -207,6 +208,7 @@ function SavedLook({ look }: { look: Look }) {
             onAnswer={editor.answer}
           />
         ) : null}
+        {editor.editing ? null : <WearRecord look={look} />}
         {editor.editing ? null : (
           <PrimaryScope>
             <View className="gap-3">

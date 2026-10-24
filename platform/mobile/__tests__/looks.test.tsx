@@ -111,7 +111,10 @@ test('a saved look can be worn today (her local date) and removed with Undo', as
   expect(await screen.findByText(looks.look.worn(2))).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: looks.look.wearToday }));
   expect(await screen.findByText(looks.look.woreToday)).toBeTruthy();
-  expect(calls.find((c) => c.path.endsWith('/wears'))?.body).toEqual({ wornOn: today });
+  // The record reads /wears too, so name the method: the wear itself is the POST.
+  expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/wears'))?.body).toEqual({
+    wornOn: today,
+  });
 
   await fireEvent.press(screen.getByRole('button', { name: looks.result.remove }));
   expect(mockRouter.back).toHaveBeenCalled();

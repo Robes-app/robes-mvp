@@ -41,9 +41,27 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await expect(page.getByText('Robes’ suggestion')).toBeHidden();
   expect(await seriousViolations(page)).toEqual([]);
 
+  // The look's own record stands under the rack, empty until the first day she wears it.
+  const record = page.getByRole('region', { name: 'Worn' });
+  await expect(record.getByText('Not yet.', { exact: false })).toBeVisible();
+
   await page.getByRole('button', { name: 'Wear it today' }).click();
   await expect(page.getByText('Worn today.', { exact: true })).toBeVisible();
+  // The day it was worn joins the record, and opens that day.
+  // Her local date, printed the way core's longDate prints it: "Saturday 24 October".
+  const todayLocal = await page.evaluate(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const longToday = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(new Date(`${todayLocal}T00:00:00Z`));
+  await expect(record.getByRole('link', { name: `Open ${longToday}` })).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(record.getByRole('link', { name: `Open ${longToday}` })).toBeHidden();
   const lookId = page.url().split('/').at(-1) ?? '';
   await expect
     .poll(async () => (await (await page.request.get(`/api/v1/looks/${lookId}`)).json()).timesWorn)

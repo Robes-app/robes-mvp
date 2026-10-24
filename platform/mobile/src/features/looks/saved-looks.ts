@@ -30,6 +30,13 @@ export function nextDays(count: number, now = new Date()): string[] {
   );
 }
 
+// Today and the days behind it, for recording a wear after the fact.
+export function pastDays(count: number, now = new Date()): string[] {
+  return Array.from({ length: count }, (_, i) =>
+    localDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)),
+  );
+}
+
 export function useWearToday() {
   const api = useApiClient();
   const queryClient = useQueryClient();
@@ -44,13 +51,17 @@ export function useWearToday() {
             void api
               .call('looks.unwear', { params: { id: wear.lookId, date: wear.wornOn } })
               .then(() =>
-                queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') }),
+                Promise.all([
+                  queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') }),
+                  queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') }),
+                ]),
               ),
         },
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') }),
         queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') }),
       ]);
     },
     onError: () => toast.show({ message: errors.internal }),

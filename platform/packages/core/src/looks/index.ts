@@ -484,3 +484,22 @@ export function readBalance(text: string): { balance: Balance | null; note: stri
   }
   return { balance: null, note: t ? t.slice(0, BALANCE_NOTE_MAX) : null };
 }
+
+// What a wear held that the look no longer does, and what the look holds that she did not wear
+// that day. A wear is immutable, so the record keeps saying what was on the body; the names come
+// from each side's own record, and a piece with no name left is counted by `differs` alone.
+export function wearDiff(
+  worn: { id: string; label: string | null }[],
+  now: { id: string }[],
+  labelOf: (id: string) => string | null = () => null,
+): { differs: boolean; instead: string[]; without: string[] } {
+  const wornIds = new Set(worn.map((p) => p.id));
+  const nowIds = new Set(now.map((p) => p.id));
+  const instead = worn.filter((p) => !nowIds.has(p.id));
+  const without = now.filter((p) => !wornIds.has(p.id));
+  return {
+    differs: instead.length > 0 || without.length > 0,
+    instead: instead.map((p) => p.label).filter((l): l is string => !!l),
+    without: without.map((p) => labelOf(p.id)).filter((l): l is string => !!l),
+  };
+}

@@ -1,10 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { copy } from './index';
 
+// Copy takes names, counts and lists; every shape is probed so none escapes the voice rules.
+const PROBES: unknown[][] = [
+  ['Niall', 9],
+  [['Loafers'], ['Straight jeans']],
+];
+
 function strings(value: unknown): string[] {
   if (typeof value === 'string') return [value];
-  if (typeof value === 'function')
-    return [String((value as (...a: unknown[]) => unknown)('Niall', 9))];
+  if (typeof value === 'function') {
+    const fn = value as (...a: unknown[]) => unknown;
+    const out: string[] = [];
+    for (const args of PROBES) {
+      try {
+        out.push(String(fn(...args)));
+      } catch {
+        // Not this function's shape of argument; another probe will be.
+      }
+    }
+    return out;
+  }
   if (value && typeof value === 'object') return Object.values(value).flatMap(strings);
   return [];
 }

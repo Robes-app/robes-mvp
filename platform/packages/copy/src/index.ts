@@ -632,6 +632,31 @@ export const looks = {
     removed: 'Look removed.',
     imageAlt: (name: string): string => `The look: ${name}`,
     noPieces: 'No pieces yet.',
+    // The look's own record: a wear is a fact, so it keeps its date and what was on the body.
+    wears: {
+      title: 'Worn',
+      none: 'Not yet. The counter starts the first day you wear it.',
+      openDay: (date: string): string => `Open ${date}`,
+      remove: (date: string): string => `Not worn on ${date}`,
+      removed: 'Taken off the record.',
+      addDate: 'Add a date',
+      addDateLabel: 'A day you wore it',
+      add: 'Record it',
+      added: 'Recorded.',
+      // What that day held that the look no longer does, and what it holds that she did not wear.
+      // The names are printed as she filed them — never re-cased, or a brand reads wrong.
+      diff: (instead: string[], without: string[]): string => {
+        const list = (xs: string[]) =>
+          xs.length > 2
+            ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
+            : xs.join(' and ');
+        if (instead.length && without.length)
+          return `${list(instead)} in place of ${list(without)}`;
+        if (instead.length) return `With ${list(instead)}`;
+        if (without.length) return `Without ${list(without)}`;
+        return 'Worn a little differently';
+      },
+    },
   },
   composer: {
     eyebrow: 'New look',
