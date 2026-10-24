@@ -5,6 +5,19 @@ import { cn, focusRing } from './cn';
 const base =
   'inline-flex min-h-11 items-center gap-1.5 rounded-pill border px-4 font-sans text-sm motion-safe:transition-colors motion-safe:duration-150';
 
+// The pill anatomy on its own, for the controls that are not toggles — a menu
+// trigger or a disclosure, which must not claim aria-pressed.
+export function pillClasses({ selected = false }: { selected?: boolean } = {}): string {
+  return cn(
+    base,
+    selected
+      ? 'border-selected-line bg-selected text-ink'
+      : 'border-border-control text-ink-muted hover:border-ink hover:text-ink',
+    'disabled:border-hairline disabled:text-ink-faint',
+    focusRing,
+  );
+}
+
 export interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-pressed'> {
   selected?: boolean;
 }
@@ -22,15 +35,7 @@ export function Pill({
       {...rest}
       type={type}
       aria-pressed={selected}
-      className={cn(
-        base,
-        selected
-          ? 'border-selected-line bg-selected text-ink'
-          : 'border-border-control text-ink-muted hover:border-ink hover:text-ink',
-        'disabled:border-hairline disabled:text-ink-faint',
-        focusRing,
-        className,
-      )}
+      className={cn(pillClasses({ selected }), className)}
     >
       {selected ? <Icon name="check" size={16} /> : null}
       {children}

@@ -3,6 +3,7 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { type LookSort, SORT_FROM, SORTS, sortLooks } from '@robes/core/looks';
+import { Icon } from '@robes/icons/web';
 import {
   Button,
   buttonClasses,
@@ -10,12 +11,13 @@ import {
   EmptyState,
   ErrorText,
   Pill,
+  pillClasses,
   SegmentedControl,
   Text,
 } from '@robes/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { useLetGo, useLooksByStatus, useRestyle } from '@/lib/look-states';
 import { DiarySheet } from './diary-sheet';
@@ -42,10 +44,22 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const restyle = useRestyle();
   const letGo = useLetGo();
   const [sort, setSort] = useState<LookSort>('newest');
+  const [sortOpen, setSortOpen] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
   const [bands, setBands] = useState<SeasonBandId[]>([]);
   // The calendar on a card opens the same diary sheet, over the grid — she never leaves it.
   const [diary, setDiary] = useState<Look | null>(null);
+  const refineId = useId();
+  const tools = useRef<HTMLDivElement>(null);
+  // A menu closes on the next tap outside it, like the prompt's + menu.
+  useEffect(() => {
+    if (!sortOpen) return;
+    const away = (e: MouseEvent) => {
+      if (!tools.current?.contains(e.target as Node)) setSortOpen(false);
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [sortOpen]);
   const current = tab === 'saved' ? saved : suggested;
   const all = current.data?.items ?? [];
   const raw =
@@ -76,12 +90,19 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           onChange={(t) => router.replace(t === 'saved' ? '/looks' : '/looks?tab=suggested')}
         />
         {tab === 'saved' ? (
-          <Link href="/looks/new" className={buttonClasses({ variant: 'secondary' })}>
-            {copy.newLook}
+          // Beta's masthead: a circle, not a worded pill — the control beside it is the name.
+          <Link
+            href="/looks/new"
+            aria-label={copy.newLook}
+            title={copy.newLook}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-pill border border-border-control text-ink-muted hover:border-ink hover:text-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+          >
+            <Icon name="plus" size={18} />
           </Link>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* The count row holds its height on both tabs, so the grid never jumps on a switch. */}
+      <div className="flex min-h-11 flex-wrap items-center justify-between gap-3">
         {count ? (
           <Text size="small" tone="muted" data-testid="looks-count">
             {count}
@@ -90,37 +111,68 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           <span />
         )}
         {sortable ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <fieldset className="flex items-center gap-2">
-              <legend className="sr-only">{copy.sort.label}</legend>
-              {SORTS.map((s) => (
-                <Pill key={s} selected={sort === s} onClick={() => setSort(s)}>
-                  {copy.sort[s]}
-                </Pill>
-              ))}
-            </fieldset>
-            <Pill
-              selected={refineOpen}
-              aria-expanded={refineOpen}
-              onClick={() => setRefineOpen(!refineOpen)}
+          <div ref={tools} className="relative flex flex-wrap items-center gap-2">
+            {/* One pill naming the sort in play, opening the three — never three pills. */}
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={sortOpen}
+              aria-label={`${copy.sort.label}: ${copy.sort[sort]}`}
+              onClick={() => setSortOpen((o) => !o)}
+              className={pillClasses({ selected: sortOpen })}
             >
+              <Icon name="sort" size={16} />
+              {copy.sort[sort]}
+            </button>
+            <button
+              type="button"
+              aria-expanded={refineOpen}
+              aria-controls={refineId}
+              onClick={() => setRefineOpen(!refineOpen)}
+              className={pillClasses({ selected: refineOpen })}
+            >
+              <Icon name="filter" size={16} />
               {copy.refine.open}
               {bands.length ? (
                 <>
                   {/* The dot is decorative; the state reaches a screen reader as words. */}
                   <span
                     aria-hidden
-                    className="ml-1.5 inline-block size-1.5 rounded-pill bg-accent-inspire align-middle"
+                    className="inline-block size-1.5 rounded-pill bg-accent-inspire align-middle"
                   />
                   <span className="sr-only">{copy.refine.on}</span>
                 </>
               ) : null}
-            </Pill>
+            </button>
+            {sortOpen ? (
+              <div
+                role="menu"
+                aria-label={copy.sort.label}
+                className="absolute top-full right-0 z-10 mt-2 flex w-44 flex-col rounded-soft border border-hairline bg-surface p-1 shadow-sm"
+              >
+                {SORTS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setSort(s);
+                      setSortOpen(false);
+                    }}
+                    className="flex items-center justify-between gap-2 rounded-crisp px-3 py-2 text-left font-sans text-ink text-sm hover:bg-surface-sunk focus-visible:outline-2 focus-visible:outline-focus-ring"
+                  >
+                    {copy.sort[s]}
+                    {sort === s ? <Icon name="check" size={16} className="text-ink-muted" /> : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
       {refineOpen && sortable ? (
         <section
+          id={refineId}
           aria-label={copy.refine.title}
           className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface p-4"
         >

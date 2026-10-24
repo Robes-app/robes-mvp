@@ -9,6 +9,7 @@ import {
   Eyebrow,
   IconButton,
   SegmentedControl,
+  Sheet,
   Text,
 } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -45,6 +46,7 @@ export function LooksView() {
   const restyle = useRestyle();
   const letGo = useLetGo();
   const [sort, setSort] = useState<LookSort>('newest');
+  const [sortOpen, setSortOpen] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
   const [bands, setBands] = useState<SeasonBandId[]>([]);
   // The calendar on a card opens the same diary sheet, over the grid — she never leaves it.
@@ -87,12 +89,9 @@ export function LooksView() {
         </Text>
       ) : null}
       {sortable ? (
-        <View className="flex-row flex-wrap gap-2" accessibilityLabel={copy.sort.label}>
-          {SORTS.map((s) => (
-            <Chip key={s} selected={sort === s} onPress={() => setSort(s)}>
-              {copy.sort[s]}
-            </Chip>
-          ))}
+        <View className="flex-row flex-wrap gap-2">
+          {/* One chip naming the sort in play, opening the three — never three chips. */}
+          <Chip onPress={() => setSortOpen(true)}>{`${copy.sort.label} · ${copy.sort[sort]}`}</Chip>
           <Chip
             selected={refineOpen}
             onPress={() => setRefineOpen(!refineOpen)}
@@ -209,6 +208,22 @@ export function LooksView() {
           }
         />
       )}
+      <Sheet open={sortOpen} onClose={() => setSortOpen(false)} title={copy.sort.label}>
+        <View className="gap-2">
+          {SORTS.map((s) => (
+            <Button
+              key={s}
+              variant={sort === s ? 'secondary' : 'quiet'}
+              onPress={() => {
+                setSort(s);
+                setSortOpen(false);
+              }}
+            >
+              {copy.sort[s]}
+            </Button>
+          ))}
+        </View>
+      </Sheet>
       <DiarySheet look={diary} onClose={() => setDiary(null)} />
     </TabScreen>
   );
