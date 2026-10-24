@@ -135,7 +135,7 @@ Columns: `id, user_id, lookbook_item_id bigint (soft reference, matches the clie
 - Every verdict ALSO lands on the memory (§4.6), which is what the next generation reads.
 
 ### 4.5 Admin read across existing tables
-Admin-read policies (existing own-row policies untouched) on `profiles`, `wardrobe_items`, `wishlist_items`, `lookbook_items`, `prompt_history` (migration 11), and since then `planned_days` (12), `tags` / `tag_pieces` / `tag_looks` (17, skipped with a notice if `is_admin()` is missing), `notifications` (22) and `wardrobe_inbox` (23). **Not covered: `looks`, `look_pieces`, `wears`** — see §13.
+Admin-read policies (existing own-row policies untouched) on `profiles`, `wardrobe_items`, `wishlist_items`, `lookbook_items`, `prompt_history` (migration 11), and since then `planned_days` (12), `tags` / `tag_pieces` / `tag_looks` (17, skipped with a notice if `is_admin()` is missing), `notifications` (22), `wardrobe_inbox` (23) and `looks` / `look_pieces` / `wears` (28, `supabase/looks_admin_read_migration.sql`, 2026-10-24 — **not yet run on Robes_p0**; until it runs an admin can read only her own looks, and the Looks section's empty state says so).
 
 ### 4.6 Other admin-visible stores added after migration 11
 - **`profiles.style_dna.memory`** (2026-09-30, no migration): `{entries: [...], v: 1, read_at}`, newest first, capped at 60 — verdicts, swaps (`out/in/cat`), wears, struck brief lines, look-prompt asks. Written client-side by `_rbMemoryPush`. Every generation reads it through `styleDnaPromptBlock`.
@@ -167,6 +167,7 @@ Route `GET /admin` serves `public/admin.html`. `sbClient`, session check, then `
    - **Receipts**: retailer · received · N pieces · N read from photographs · order ref · waiting / N filed to wardrobe or wishlist + when / nothing kept.
    - **Wardrobe** and **Wishlist**: thumbnail grids.
    - **Lookbook**: saved artifacts with type, date, shared status; a tile opens the output viewer.
+   - **Looks** (2026-10-24, needs migration 28): her saved Look entities with suggested/draft rows counted apart — the frame (render → her photograph → the first piece's photo), piece count + proposals still to find, wears and last worn. A tile opens the **look viewer**: the frame, the note and tags, her pieces by slot and role with how each is worn (`styling`), the proposals still to find (and how many are wishlisted), the wear log and cost per wear when priced pieces exist.
    - **Generations**: grouped by `detail.gen_id` — when, endpoint, her prompt, one status chip per LLM call (`text ✓ · 2.1s`, `img partial`), and "Saved as" naming the artifact that carries that gen_id. A chip opens the full prompt / response / detail modal; the saved title opens the output viewer.
    - Long lists collapse: Activity and Memory show 8, Generations 10 (cap 100), with "Show all N" / "Show the latest N" at the card foot.
 3. **Output viewer** (modal, 2026-09-15): renders a lookbook row visually per type — key piece (her attached photo + the three ways as frames with prose), daily look (occasion · date · city, stylist summary, pieces as tiles grouped by role, "✓ yours", brand · retailer · price, row notes), travel edit (destination · dates · vibe, hero frame, each look with its pins and pieces, the capsule with hers/packed counts), moodboard. Her prompt rides in from the gen_id; a public `/board/:shareId` link when shared; raw JSON in a disclosure. Image ladder mirrors the app: wardrobe photo, then the generated still at `image_index`.
@@ -255,8 +256,9 @@ Beta and production share one Supabase project, so the admin plane is environmen
 
 ## 13. Known gaps (not built)
 
-- **Saved Looks are invisible to the admin.** `looks` / `look_pieces` / `wears` (migration 14) have no admin-read policy, so the panel can't show a user's saved looks, their wears or cost-per-wear, and `/api/avatar/render` generations show "—" under Saved as. Suggested fix: one migration adding `looks_admin_read`, `look_pieces_admin_read`, `wears_admin_read` (`for select using (public.is_admin())`), then a Looks section on the user detail and a `looks` branch in the output viewer.
-- **Suggested looks too.** Suggested and draft rows live in `looks` (migration 25) or on the device until it runs — same gap.
+- **Run migration 28.** The Looks section and look viewer are built (2026-10-24) but read other users' looks only once `supabase/looks_admin_read_migration.sql` has run.
+- **Look renders aren't linked to their look.** `/api/avatar/render` generations still show "—" under Saved as: the image call logs only `{has_image}` and `looks` carries no `gen_id`. Linking needs the render job to log the look id (or `render_key`) in `detail`.
+- **Suggested and draft looks** show only once migration 25 has run; before then they live on her device.
 - **The Profile · Style DNA summary reads retired fields.** It shows `budget` (retired 2026-10-07; the level now lives in `style_dna.investment` / `annual_spend`) and doesn't show the brief (`style_dna.brief`), style types, brands, the facts, the palette (`style_dna.palette`), `gender_identity`, the twin (`twin_url`) or notification prefs.
 - **`planned_days` isn't on the user detail** even though the admin can read it — no view of her diary.
 - **Users list has no environment column or filter**; a user who only used beta is indistinguishable from one on production until the cutover.

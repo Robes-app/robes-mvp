@@ -333,7 +333,7 @@
     const evQuery = sbClient.from('events').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(100);
     let glQuery = sbClient.from('generation_log').select('id,endpoint,model,status,latency_ms,tokens_used,environment,created_at,detail').eq('user_id', uid).order('created_at', { ascending: false }).limit(300);
     if (env !== 'all') glQuery = glQuery.eq('environment', env);
-    const [ov, prof, wardrobe, wishlist, lookbook, fb, events, gens, mails, inbox] = await Promise.all([
+    const [ov, prof, wardrobe, wishlist, lookbook, fb, events, gens, mails, inbox, looksQ, wearsQ] = await Promise.all([
       sbClient.rpc('admin_user_overview', { p_limit: 1, p_offset: 0, p_user: uid }),
       sbClient.from('profiles').select('*').eq('id', uid).single(),
       sbClient.from('wardrobe_items').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(200),
@@ -344,6 +344,8 @@
       glQuery,
       sbClient.from('notifications').select('kind,ref,sent_at').eq('user_id', uid).order('sent_at', { ascending: false }).limit(100),
       sbClient.from('wardrobe_inbox').select('id,retailer,order_ref,subject,status,items,filed_ids,filed_to,received_at,decided_at').eq('user_id', uid).order('received_at', { ascending: false }).limit(100),
+      sbClient.from('looks').select('*, look_pieces(*)').eq('user_id', uid).order('created_at', { ascending: false }).limit(200),
+      sbClient.from('wears').select('id,look_id,worn_on,piece_ids,source,note').eq('user_id', uid).order('worn_on', { ascending: false }).limit(500),
     ]);
     const o = (ov.data && ov.data[0]) || {};
     const p = prof.data || {};
@@ -440,6 +442,32 @@
           '<div class="l2">' + esc(TYPE_LABEL[l.type] || l.type) + ' · ' + fmtDate(l.created_at) + (l.share_id && l.is_public ? ' · shared' : '') + '</div></div></div>';
       }).join('') + '</div>'
       : '<div class="card"><div class="empty">Nothing saved yet.</div></div>') + '</div>';
+    // saved looks — the Look entity (migration 14), readable here once
+    // migration 28 adds the admin-read policies. Until then RLS returns
+    // only the admin's OWN looks, so an empty list on someone else's
+    // account is ambiguous — the empty state says so.
+    const lkRows = looksQ.data || [];
+    const wrRows = wearsQ.data || [];
+    const wByLook = {};
+    wrRows.forEach(w => { (wByLook[w.look_id] = wByLook[w.look_id] || []).push(w); });
+    const wById = {};
+    wRows.forEach(w => { wById[w.id] = w; });
+    const saved = lkRows.filter(l => !l.status || l.status === 'saved');
+    const unsaved = lkRows.length - saved.length;
+    html += '<div class="sec"><div class="sec-h"><h2>Looks</h2><span class="cnt">' + saved.length + (unsaved ? ' · ' + unsaved + ' suggested or draft' : '') + ' · ' + wrRows.length + (wrRows.length === 1 ? ' wear' : ' wears') + '</span></div>' +
+      (looksQ.error ? '<div class="card"><div class="err">looks unavailable — ' + esc(looksQ.error.message || 'run migration 14') + '</div></div>'
+      : lkRows.length ? '<div class="thumbgrid">' + lkRows.map((l, i) => {
+          const pcs = Array.isArray(l.look_pieces) ? l.look_pieces : [];
+          const props = Array.isArray(l.proposals) ? l.proposals.length : 0;
+          const ws = wByLook[l.id] || [];
+          const pc = pcs.map(x => wById[x.wardrobe_item_id]).find(w => w && w.image_url);
+          const im = l.render_url || l.photo_url || (pc && pc.image_url);
+          const st = l.status && l.status !== 'saved' ? l.status : '';
+          const l2 = [st, pcs.length + (pcs.length === 1 ? ' piece' : ' pieces') + (props ? ' + ' + props + ' to find' : ''), ws.length ? 'worn ' + ws.length + '× · ' + fmtDate(ws[0].worn_on) : 'not worn'].filter(Boolean).join(' · ');
+          return '<div class="titem open" data-look="' + esc(l.id) + '" title="Open the look"' + (i >= 24 ? ' hidden' : '') + '><div class="im">' + (im ? '<img loading="lazy" src="' + esc(im) + '">' : esc((l.name || '?')[0].toUpperCase())) + '</div>' +
+            '<div class="tx"><div class="l1" title="' + esc(l.name) + '">' + esc(l.name || 'Untitled') + '</div><div class="l2" title="' + esc(l2) + '">' + esc(l2) + '</div></div></div>';
+        }).join('') + '</div>' + (lkRows.length > 24 ? '<div class="note">Showing 24 of ' + lkRows.length + ' looks.</div>' : '')
+      : '<div class="card"><div class="empty">' + (me && me.id !== uid ? 'No saved looks — or migration 28 hasn’t run yet (until it does, an admin can only read her own looks).' : 'No saved looks yet.') + '</div></div>') + '</div>';
     html += '</div></div>';
 
     // Generations — one row per generation, joined by gen_id: her typed
@@ -482,7 +510,56 @@
       const row = lbRows.find(l => String(l.id) === b.dataset.view);
       if (row) viewOutput(row, gRows);
     });
+    main.querySelectorAll('[data-look]').forEach(b => b.onclick = () => {
+      const l = lkRows.find(x => String(x.id) === b.dataset.look);
+      if (l) viewLook(l, wByLook[l.id] || [], wById);
+    });
     main.querySelectorAll('[data-more]').forEach(b => b.onclick = () => toggleMore(b));
+  }
+
+  /* ── a saved Look, as she saw it ──────────────────────────── */
+  // Its frame (render → her photograph), the pieces by role with their
+  // wardrobe photos, the proposals still to find, the wear log, and
+  // cost per wear when priced pieces and a wear both exist.
+  function viewLook(l, wears, wById) {
+    const http = u => (typeof u === 'string' && /^https?:/.test(u)) ? u : null;
+    const pcs = (Array.isArray(l.look_pieces) ? l.look_pieces : []).slice().sort((a, b) => (a.position || 0) - (b.position || 0));
+    const props = Array.isArray(l.proposals) ? l.proposals : [];
+    const styling = l.styling && typeof l.styling === 'object' ? l.styling : {};
+    const tile = (im, ey, l1, l2, how, own) =>
+      '<div class="vw-it"><div class="im">' + (im ? '<img loading="lazy" src="' + esc(im) + '">' : esc((l1 || '?')[0].toUpperCase())) + (own ? '<span class="own">✓ yours</span>' : '') + '</div>' +
+      '<div class="tx">' + (ey ? '<div class="ey">' + esc(ey) + '</div>' : '') + '<div class="l1">' + esc(l1 || '—') + '</div>' + (l2 ? '<div class="l2">' + esc(l2) + '</div>' : '') + (how ? '<div class="how">' + esc(how) + '</div>' : '') + '</div></div>';
+    let body = '';
+    const frame = http(l.render_url) || http(l.photo_url);
+    if (frame) body += '<img class="vw-hero" src="' + esc(frame) + '"><div class="note" style="margin:-6px 0 10px">' + (http(l.render_url) ? 'Rendered on her model' : 'Her photograph') + (l.render_url && l.photo_url ? ' · <a href="' + esc(l.photo_url) + '" target="_blank">her photograph ↗</a>' : '') + '</div>';
+    if (l.note) body += '<p class="vw-ed">' + esc(l.note) + '</p>';
+    if (Array.isArray(l.tags) && l.tags.length) body += '<div class="vw-tags">' + l.tags.map(t => '<span class="chip">' + esc(t) + '</span>').join('') + '</div>';
+    let priced = 0, total = 0;
+    if (pcs.length) {
+      body += '<div class="sec-h"><h2>Her pieces</h2><span class="cnt">' + pcs.length + '</span></div><div class="vw-grid">' + pcs.map(x => {
+        const w = wById[x.wardrobe_item_id] || {};
+        if (Number(w.price) > 0) { priced++; total += Number(w.price); }
+        return tile(http(w.image_url), [x.slot, x.role].filter(Boolean).join(' · '), w.label || 'A piece no longer in her wardrobe', [w.category, w.brand].filter(Boolean).join(' · ') + (Number(w.times_worn) ? ' · worn ' + Number(w.times_worn) + '×' : ''), styling[x.wardrobe_item_id] || '', !!w.id);
+      }).join('') + '</div>';
+    }
+    if (props.length) {
+      body += '<div class="sec-h" style="margin-top:14px"><h2>Still to find</h2><span class="cnt">' + props.length + (props.filter(p => p && p.saved).length ? ' · ' + props.filter(p => p && p.saved).length + ' on her wishlist' : '') + '</span></div><div class="vw-grid">' + props.map(p => {
+        const opts = Array.isArray(p && p.opts) ? p.opts : [];
+        const o = opts[Number.isInteger(p.oi) ? p.oi : 0] || opts[0] || {};
+        return tile(http(p.image_url), [p.chip, p.role].filter(Boolean).join(' · '), o.name || p.chip || 'A proposal', [o.brand, o.retailer_hint, o.price_point].filter(Boolean).join(' · '), o.how || '', false);
+      }).join('') + '</div>';
+    }
+    if (!pcs.length && !props.length) body += '<div class="empty">Nothing hangs on this look.</div>';
+    body += '<div class="sec-h" style="margin-top:14px"><h2>Worn</h2><span class="cnt">' + wears.length + (wears.length && priced ? ' · €' + Math.round(total / wears.length) + ' a wear (' + priced + ' priced)' : '') + '</span></div>' +
+      (wears.length ? '<ul class="tl">' + wears.map(w => '<li><span class="t">' + fmtDate(w.worn_on) + '</span><span>' + esc((Array.isArray(w.piece_ids) ? w.piece_ids.length : 0) + ' pieces') + (w.source ? ' <span class="chip">' + esc(w.source) + '</span>' : '') + (w.note ? ' <span class="m">' + esc(w.note) + '</span>' : '') + '</span></li>').join('') + '</ul>' : '<div class="empty">Not worn yet.</div>');
+    const meta = ['Look', l.status && l.status !== 'saved' ? l.status : 'saved', l.source, 'saved ' + fmtDT(l.created_at), l.name_provisional ? 'name offered by Robes' : ''].filter(Boolean).join(' · ');
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-wrap';
+    wrap.innerHTML = '<div class="modal wide"><button class="x">✕</button>' +
+      '<div class="vw-head"><h3>' + esc(l.name || 'Untitled') + '</h3><span class="meta">' + esc(meta) + '</span></div>' + body +
+      '<details style="margin-top:14px"><summary class="dim" style="cursor:pointer;font-size:12px">Raw data</summary><pre>' + esc(JSON.stringify(l, null, 2).slice(0, 60000)) + '</pre></details></div>';
+    wrap.onclick = e => { if (e.target === wrap || e.target.classList.contains('x')) wrap.remove(); };
+    document.body.appendChild(wrap);
   }
   // Long lists render collapsed: the first N rows show, the rest carry
   // `xtra` + hidden until "Show all" flips them (and back).
