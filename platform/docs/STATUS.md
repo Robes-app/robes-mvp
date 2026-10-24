@@ -112,6 +112,24 @@ platform has no modular home yet; harness and CLAUDE.md edits.
 **New in legacy, not built here** (rough effort):
 - The saved look's calendar on a Lookbook card (schedule a day or log a wear from the grid, `76187f0`), S.
 
+## Legacy sync 2026-10-24 — admin
+
+Legacy `public/admin.html` (beta) compared with `/admin` here. The new admin already had the users
+list, the user's profile / consents / usage / jobs, job health, metrics, costs, flags and the audit log.
+
+**Ported:** the user page now carries her records, as beta's does — her wardrobe (with signed photo
+thumbnails and wear counts), looks (pieces, pieces still to find, wears and last worn), saved
+artifacts, wishlist, feedback, what she told Robes (style memory), her brief lines, model calls,
+emails sent, receipts and events (`GET /admin/users/:id/records`, audited `admin.user.records`).
+Plus a feedback feed across users (`/admin/feedback`), one model call with its prompt and response
+(`/admin/generations/:id`, audited `admin.call.read`; the prompt reads "Cleared" after 30 days), and
+an output viewer for a saved artifact (`/admin/artifacts/:id`, audited `admin.artifact.read`).
+
+**Not ported:** the per-type artifact rendering (the viewer shows the artifact as stored — a
+`shortcut:` in `admin/artifacts/[id]/page.tsx`); beta's prompt → calls → artifact grouping by
+`gen_id` (calls link to their job id instead); the beta / production environment filter (each
+environment has its own database here). Admins are granted with `pnpm --filter @robes/db admin:grant <email>`.
+
 ## Flakes to watch
 
 - `wardrobe-ui` wishlist Undo under heavy parallel load (seen once, not reproduced).

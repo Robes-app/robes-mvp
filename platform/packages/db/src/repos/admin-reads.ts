@@ -4,6 +4,7 @@ import type { Db } from '../client';
 import { NotAdmin } from '../errors';
 import type { UserId } from '../ids';
 import { collectMetrics } from './admin-metrics';
+import { collectRecords } from './admin-records';
 import { afterCursor, toPage } from './paging';
 
 // Who is reading, from where: every admin read of user data leaves an audit row (SEC-11).
@@ -165,6 +166,109 @@ export function adminReadsRepo(db: Db) {
       ]);
       await audit(actor, 'admin.user.read', { userId, table: 'users', id: userId });
       return { user, consents, usage, jobs, deletion: deletion ?? null, role: role?.role ?? null };
+    },
+
+    // What she filed, made, kept, said and was sent (bounded, newest first); undefined for no user.
+    async userRecords(actor: AdminActor, userId: string) {
+      await authorise(actor);
+      const exists = await db
+        .selectFrom('users')
+        .select('id')
+        .where('id', '=', userId)
+        .executeTakeFirst();
+      if (!exists) return undefined;
+      const records = await collectRecords(db, userId);
+      await audit(actor, 'admin.user.records', { userId, table: 'users', id: userId });
+      return records;
+    },
+
+    // One model call with its prompt and response (cleared after 30 days), read deliberately.
+    async generationCall(actor: AdminActor, id: string) {
+      await authorise(actor);
+      const row = await db
+        .selectFrom('generationCalls as c')
+        .leftJoin('users as u', 'u.id', 'c.userId')
+        .select([
+          'c.id',
+          'c.userId',
+          'u.email',
+          'c.feature',
+          'c.model',
+          'c.status',
+          'c.latencyMs',
+          'c.costMicros',
+          'c.images',
+          'c.tokensIn',
+          'c.tokensOut',
+          'c.jobId',
+          'c.detail',
+          'c.prompt',
+          'c.response',
+          'c.createdAt',
+        ])
+        .where('c.id', '=', id)
+        .executeTakeFirst();
+      if (!row) return undefined;
+      await audit(actor, 'admin.call.read', {
+        userId: row.userId ?? undefined,
+        table: 'generation_calls',
+        id,
+      });
+      return row;
+    },
+
+    // Every rating and note, newest first, across users.
+    async feedbackFeed(actor: AdminActor, q: { limit: number; cursor?: string | undefined }) {
+      await authorise(actor);
+      let query = db
+        .selectFrom('feedback as f')
+        .leftJoin('users as u', 'u.id', 'f.userId')
+        .select([
+          'f.id',
+          'f.userId',
+          'u.email',
+          'f.rating',
+          'f.note',
+          'f.track',
+          'f.subjectType',
+          'f.subjectId',
+          'f.createdAt',
+        ])
+        .orderBy(sql`date_trunc('milliseconds', f.created_at)`, 'desc')
+        .orderBy('f.id', 'desc')
+        .limit(q.limit + 1);
+      const after = afterCursor(q.cursor, 'f');
+      if (after) query = query.where(after);
+      const page = toPage(await query.execute(), q.limit);
+      await audit(actor, 'admin.feedback.list', { table: 'feedback' });
+      return page;
+    },
+
+    // One saved artifact as stored, for the output viewer.
+    async artifact(actor: AdminActor, id: string) {
+      await authorise(actor);
+      const row = await db
+        .selectFrom('artifacts as a')
+        .innerJoin('users as u', 'u.id', 'a.userId')
+        .select([
+          'a.id',
+          'a.userId',
+          'u.email',
+          'a.type',
+          'a.title',
+          'a.subtitle',
+          'a.data',
+          'a.schemaVersion',
+          'a.generationJobId',
+          'a.createdAt',
+          'a.savedAt',
+          'a.deletedAt',
+        ])
+        .where('a.id', '=', id)
+        .executeTakeFirst();
+      if (!row) return undefined;
+      await audit(actor, 'admin.artifact.read', { userId: row.userId, table: 'artifacts', id });
+      return row;
     },
 
     // Last 24 h of jobs: counts by kind × status, duration percentiles, the commonest errors.
