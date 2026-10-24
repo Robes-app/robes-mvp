@@ -16,7 +16,7 @@ import { View } from 'react-native';
 import { api } from '@/lib/api';
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  const [loaded, fontError] = useFonts({
     Cormorant_300Light,
     Cormorant_300Light_Italic,
     Cormorant_400Regular,
@@ -27,7 +27,9 @@ export default function RootLayout() {
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } }),
   );
-  if (!loaded) return null;
+  // A font that fails to load must not brick the app: hold the frame only while the load is
+  // genuinely in flight, then render on the system face rather than a blank screen for good.
+  if (!loaded && !fontError) return null;
   return (
     <QueryClientProvider client={queryClient}>
       <ApiClientProvider client={api}>
