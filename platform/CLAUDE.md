@@ -83,6 +83,8 @@ Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + ty
 ## Product rules to respect
 Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Lookbook · Diary + Create + You (routes stay `/looks`, `/plan`) (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.
 
+**A date is logged in one drawer.** `DiarySheet` (web `components/looks/diary-sheet.tsx`, native `features/looks/DiarySheet.tsx`) is the only place a day is picked — pinning a look to a day and recording one she wore are the same act. It pulls up from the bottom edge on `Sheet`; never a modal, and never a second date field beside it.
+
 **A look and a piece are components, not drawings.** A look is `LookTile` (`app/src/components/looks/look-tile.tsx`, `mobile/src/features/looks/LookTile.tsx`) — the photograph and what the look is held in ONE frame, with an eyebrow, a meta line and slots for what sits on the photograph and in the corner. A piece is `cardLines` → `CardRow`/`CardTile` (`app/src/components/wardrobe/piece-card.tsx`). Every surface composes them; never hand-roll a second anatomy for the same object.
 
 ## Conventions

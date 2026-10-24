@@ -6,11 +6,9 @@ import { looks as looksCopy } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { wearDiff } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { Button, ErrorText, Eyebrow, Field, IconButton, Skeleton, Text, useToast } from '@robes/ui';
+import { Button, ErrorText, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { type FormEvent, useState } from 'react';
-import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 
 const copy = looksCopy.page.wears;
@@ -19,26 +17,15 @@ const copy = looksCopy.page.wears;
 // part of the look's composition. Each row opens its day and says what that day held that the
 // look no longer does — the wear keeps its own snapshot, so the record stays true as the look
 // moves on.
-export function WearRecord({ look }: { look: Look }) {
+export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => void }) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [day, setDay] = useState('');
-  const [adding, setAdding] = useState(false);
   const query = useApi('looks.wears', { params: { id: look.id } });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') });
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
   };
-  const add = useApiMutation('looks.wear', {
-    onSuccess: () => {
-      setDay('');
-      setAdding(false);
-      toast({ message: copy.added });
-      refresh();
-    },
-    onError: (err) => toast({ message: errorCopy(err) }),
-  });
   const remove = useApiMutation('looks.unwear', {
     onSuccess: () => {
       toast({ message: copy.removed });
@@ -49,11 +36,6 @@ export function WearRecord({ look }: { look: Look }) {
 
   const items = query.data?.items ?? [];
   const labelOf = (id: string) => look.pieces.find((p) => p.piece.id === id)?.piece.label ?? null;
-
-  const onAdd = (e: FormEvent) => {
-    e.preventDefault();
-    if (day) add.mutate({ params: { id: look.id }, input: { wornOn: day } });
-  };
 
   return (
     <section
@@ -116,27 +98,12 @@ export function WearRecord({ look }: { look: Look }) {
         </ul>
       )}
 
-      {/* A wear can be recorded after the fact; a day still ahead is a plan, not a wear. */}
-      {adding ? (
-        <form onSubmit={onAdd} className="flex flex-wrap items-end justify-end gap-2">
-          <Field
-            type="date"
-            label={copy.addDateLabel}
-            value={day}
-            max={localToday()}
-            onChange={(e) => setDay(e.target.value)}
-          />
-          <Button type="submit" variant="secondary" disabled={!day} loading={add.isPending}>
-            {copy.add}
-          </Button>
-        </form>
-      ) : (
-        <div className="flex justify-end">
-          <Button variant="quiet" onClick={() => setAdding(true)}>
-            {copy.addDate}
-          </Button>
-        </div>
-      )}
+      {/* A wear can be recorded after the fact, through the one drawer that logs a date. */}
+      <div className="flex justify-end">
+        <Button variant="quiet" onClick={onAddDate}>
+          {copy.addDate}
+        </Button>
+      </div>
     </section>
   );
 }

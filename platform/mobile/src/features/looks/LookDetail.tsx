@@ -1,6 +1,6 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { looks as copy, errors, lookbook, ui } from '@robes/copy';
+import { looks as copy, lookbook, ui } from '@robes/copy';
 import { lookFacts, noteShort } from '@robes/core/looks';
 import {
   Button,
@@ -9,18 +9,13 @@ import {
   Field,
   Heading,
   IconButton,
-  Image,
-  Pill,
   PrimaryScope,
-  Sheet,
   Skeleton,
   Text,
-  useToast,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { dayLabel, usePinLook } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { DiarySheet } from './DiarySheet';
@@ -30,20 +25,8 @@ import { useLookEditor } from './look-editor';
 import { RackRowCard } from './RackRow';
 import { SeeOnMe } from './SeeOnMe';
 import { SwapSheet } from './SwapSheet';
-import {
-  localDate,
-  nextDays,
-  useRemoveLook,
-  useRenameLook,
-  useSaveAsNew,
-  useShareLook,
-  useShareToken,
-  useStopSharing,
-  useWearToday,
-} from './saved-looks';
+import { localDate, useRemoveLook, useRenameLook, useSaveAsNew, useWearToday } from './saved-looks';
 import { WearRecord } from './WearRecord';
-
-const DAY_CHOICES = 14;
 
 // A provisional name is Robes' suggestion: she can keep it or name the look herself.
 // The pencil sits on the name; the field only exists while she is changing it.
@@ -111,35 +94,6 @@ function Name({ look }: { look: Look }) {
   );
 }
 
-function WearOnDay({ look, open, onClose }: { look: Look; open: boolean; onClose: () => void }) {
-  const toast = useToast();
-  const pin = usePinLook();
-  const days = nextDays(DAY_CHOICES);
-  return (
-    <Sheet open={open} onClose={onClose} title={copy.look.chooseDay}>
-      <View className="flex-row flex-wrap gap-2 pb-6">
-        {days.map((date) => (
-          <Pill
-            key={date}
-            disabled={pin.isPending}
-            onPress={() =>
-              void pin
-                .mutateAsync({ params: { id: look.id }, input: { dates: [date], slot: 'day' } })
-                .then(() => {
-                  toast.show({ message: copy.look.pinned });
-                  onClose();
-                })
-                .catch(() => toast.show({ message: errors.internal }))
-            }
-          >
-            {dayLabel(date, days[0])}
-          </Pill>
-        ))}
-      </View>
-    </Sheet>
-  );
-}
-
 export function LookDetail({ id }: { id: string }) {
   // Follows a render on her model until it lands.
   const {
@@ -167,16 +121,12 @@ function SavedLook({ look }: { look: Look }) {
   const wear = useWearToday();
   const remove = useRemoveLook();
   const saveAsNew = useSaveAsNew((newId) => router.push(`/look/${newId}`));
-  const shareLook = useShareLook();
-  const token = useShareToken(look.id);
-  const stopSharing = useStopSharing(look.id);
-  const [choosingDay, setChoosingDay] = useState(false);
   const [diary, setDiary] = useState(false);
   const editor = useLookEditor(look);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const woreToday = look.lastWornOn === localDate();
-  const render = renditionUri(look.image, 360);
+  const _render = renditionUri(look.image, 360);
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
   const meta = [lookbook.meta.saved(lookFacts(look, editor.rack.rows.length))];
@@ -227,7 +177,7 @@ function SavedLook({ look }: { look: Look }) {
             onAnswer={editor.answer}
           />
         ) : null}
-        {editor.editing ? null : <WearRecord look={look} />}
+        {editor.editing ? null : <WearRecord look={look} onAddDate={() => setDiary(true)} />}
         {editor.editing ? null : (
           <PrimaryScope>
             <View className="gap-3">
@@ -240,29 +190,10 @@ function SavedLook({ look }: { look: Look }) {
               >
                 {woreToday ? copy.look.woreToday : copy.look.wearToday}
               </Button>
-              <Button variant="secondary" onPress={() => setChoosingDay(true)}>
+              <Button variant="secondary" onPress={() => setDiary(true)}>
                 {copy.look.wearOnDay}
               </Button>
               {look.frame ? null : <SeeOnMe look={look} />}
-              <Button
-                variant="secondary"
-                loading={shareLook.isPending}
-                loadingLabel={ui.loading}
-                onPress={() =>
-                  shareLook.mutate({ input: { subjectType: 'look', subjectId: look.id } })
-                }
-              >
-                {copy.look.share}
-              </Button>
-              {token ? (
-                <Button
-                  variant="quiet"
-                  className="self-center"
-                  onPress={() => stopSharing.mutate({ params: { token } })}
-                >
-                  {copy.look.stopSharing}
-                </Button>
-              ) : null}
               <Button
                 variant="quiet"
                 className="self-center"
@@ -286,7 +217,6 @@ function SavedLook({ look }: { look: Look }) {
             </View>
           </PrimaryScope>
         )}
-        <WearOnDay look={look} open={choosingDay} onClose={() => setChoosingDay(false)} />
         <DiarySheet look={diary ? look : null} onClose={() => setDiary(false)} />
       </ScrollView>
       <View

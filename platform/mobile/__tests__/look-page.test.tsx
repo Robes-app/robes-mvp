@@ -1,10 +1,8 @@
-import { looks } from '@robes/copy';
-import { dayMonth, longDate } from '@robes/core/calendar';
+import { lookbook, looks } from '@robes/copy';
+import { longDate } from '@robes/core/calendar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { Share } from 'react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
 import { nextDays } from '../src/features/looks/saved-looks';
-import { dayLabel } from '../src/features/plan/plan';
 import { mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look } from './support/fixtures';
 import { mockRouter } from './support/router';
@@ -13,7 +11,7 @@ jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouter
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
 const NEW_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
-const TOKEN = 'AbCdEfGhIjKlMnOpQrStUv';
+const _TOKEN = 'AbCdEfGhIjKlMnOpQrStUv';
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -36,96 +34,46 @@ test('a suggested name can be kept or replaced', async () => {
   expect(await screen.findByText('Gallery opening')).toBeTruthy();
 });
 
-test('wear on a day pins the look to the chosen local date', async () => {
+test('wear on a day opens the one diary drawer and pins the chosen local date', async () => {
   mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    'GET /plan': { days: [] },
     [`POST /plan/looks/${LOOK_ID}/days`]: { entries: [] },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: looks.look.wearOnDay }));
-  const [today, tomorrow] = nextDays(2);
-  await fireEvent.press(screen.getByRole('button', { name: dayLabel(tomorrow ?? '', today) }));
-  expect(await screen.findByText(looks.look.pinned)).toBeTruthy();
+  const [, tomorrow] = nextDays(2);
+  await fireEvent.press(await screen.findByLabelText(longDate(tomorrow ?? '')));
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.put }));
   const pin = (globalThis.fetch as jest.Mock).mock.calls.find(([url]) =>
     String(url).includes('/plan/looks/'),
   );
   expect(JSON.parse(String(pin?.[1]?.body))).toEqual({ dates: [tomorrow], slot: 'day' });
 });
 
-test('save as new opens the copy; share opens the share sheet and can be stopped', async () => {
-  const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
-  const calls = mockFetch({
+test('the record logs a day through the same drawer', async () => {
+  mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    'GET /plan': { days: [] },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: looks.page.wears.addDate }));
+  // The same drawer, named for the look — never a second way to log a date.
+  expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
+});
+
+test('save as new opens the copy', async () => {
+  mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look(),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
     [`POST /looks/${LOOK_ID}/variants`]: look({ id: NEW_ID, originLookId: LOOK_ID }),
     'GET /looks': { items: [], nextCursor: null },
-    'POST /shares': {
-      token: TOKEN,
-      url: `https://robes.test/share/${TOKEN}`,
-      createdAt: '2026-09-24T10:00:00.000Z',
-    },
-    [`DELETE /shares/${TOKEN}`]: { ok: true },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: looks.look.saveAsNew }));
   await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/look/${NEW_ID}`));
-
-  await fireEvent.press(screen.getByRole('button', { name: looks.look.share }));
-  await waitFor(() =>
-    expect(shareSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ url: `https://robes.test/share/${TOKEN}` }),
-    ),
-  );
-  expect(calls.find((c) => c.path.endsWith('/shares'))?.body).toEqual({
-    subjectType: 'look',
-    subjectId: LOOK_ID,
-  });
-  await fireEvent.press(await screen.findByRole('button', { name: looks.look.stopSharing }));
-  expect(await screen.findByText(looks.look.sharingStopped)).toBeTruthy();
-  expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith(TOKEN))).toBe(true);
-});
-
-test("the look's record names what each wear held that the look no longer does", async () => {
-  const WEAR_A = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-  const WEAR_B = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
-  const GONE = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
-  const saved = look();
-  const onIt = saved.pieces[0]?.piece;
-  const calls = mockFetch({
-    [`GET /looks/${LOOK_ID}`]: saved,
-    [`GET /looks/${LOOK_ID}/wears`]: {
-      items: [
-        {
-          id: WEAR_A,
-          wornOn: '2026-10-20',
-          pieces: [{ id: onIt?.id, label: onIt?.label }],
-        },
-        {
-          id: WEAR_B,
-          wornOn: '2026-10-12',
-          // That day she wore something the look has since let go of.
-          pieces: [{ id: GONE, label: 'White sandals' }],
-        },
-      ],
-    },
-    [`DELETE /looks/${LOOK_ID}/wears/2026-10-12`]: { ok: true },
-  });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
-  expect(await screen.findByText(dayMonth('2026-10-20'))).toBeTruthy();
-  expect(
-    screen.getByRole('link', { name: looks.page.wears.openDay(longDate('2026-10-20')) }),
-  ).toBeTruthy();
-  // The day she wore it exactly as it stands says so, rather than naming a difference.
-  expect(screen.getByText(looks.page.wears.asSaved)).toBeTruthy();
-  // One diff line, on the day that differed; the day she wore it as it stands says the day alone.
-  const difference = looks.page.wears.diff(['White sandals'], [onIt?.label ?? '']);
-  expect(await screen.findAllByText(difference)).toHaveLength(1);
-
-  await fireEvent.press(
-    screen.getByRole('button', { name: looks.page.wears.remove(longDate('2026-10-12')) }),
-  );
-  await waitFor(() =>
-    expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith('/wears/2026-10-12'))).toBe(
-      true,
-    ),
-  );
+  // A look carries no share door.
+  expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
 });

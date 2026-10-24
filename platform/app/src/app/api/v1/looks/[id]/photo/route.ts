@@ -16,7 +16,7 @@ export const POST = route({
   handler: async ({ user, input, params }) => {
     const userId = verifiedUserId(user.id);
     const asset = await repos.assets.getForUser(userId, input.assetId);
-    if (!asset || asset.kind !== 'look_photo') throw new ApiError('not_found');
+    if (asset?.kind !== 'look_photo') throw new ApiError('not_found');
     return toLook(userId, await repos.looks.setPhoto(userId, params.id, input.assetId));
   },
 });

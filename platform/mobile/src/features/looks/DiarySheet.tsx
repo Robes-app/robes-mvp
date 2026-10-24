@@ -24,6 +24,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { dayLabel, usePinLook } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
+import { LookPhoto } from './LookTile';
 import { localDate } from './saved-looks';
 
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
@@ -100,6 +101,15 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
       onClose={close}
       eyebrow={copy.diary.eyebrow}
       title={look?.name || copy.diary.title}
+      {...(look
+        ? {
+            media: (
+              <View style={{ width: 56 }} className="overflow-hidden rounded-crisp">
+                <LookPhoto look={look} width={56} />
+              </View>
+            ),
+          }
+        : {})}
       testID="diary-sheet"
     >
       <PrimaryScope>

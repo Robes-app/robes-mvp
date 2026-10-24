@@ -21,6 +21,8 @@ export interface DialogProps {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   footer?: ReactNode;
+  // A Sheet only: a picture of what the sheet is about, beside its eyebrow and title.
+  media?: ReactNode;
 }
 
 // The screen behind dims; it never blurs to mush (beta).
@@ -32,12 +34,30 @@ function Frame({
   description,
   children,
   footer,
+  media,
+  grabBar = false,
   className,
   titleSize,
-}: Pick<DialogProps, 'title' | 'eyebrow' | 'description' | 'children' | 'footer'> & {
+}: Pick<DialogProps, 'title' | 'eyebrow' | 'description' | 'children' | 'footer' | 'media'> & {
+  grabBar?: boolean;
   className: string;
   titleSize: 'lg' | 'md';
 }) {
+  const head = (
+    <div className="flex flex-col gap-2 pr-10">
+      {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+      <RadixDialog.Title asChild>
+        <Heading level={2} size={titleSize}>
+          {title}
+        </Heading>
+      </RadixDialog.Title>
+      {description ? (
+        <RadixDialog.Description asChild>
+          <Text tone="muted">{description}</Text>
+        </RadixDialog.Description>
+      ) : null}
+    </div>
+  );
   return (
     <RadixDialog.Portal>
       <RadixDialog.Overlay className={overlay} />
@@ -46,19 +66,18 @@ function Frame({
         {...(description ? {} : { 'aria-describedby': undefined })}
       >
         <PrimaryScope>
-          <div className="flex flex-col gap-2 pr-10">
-            {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-            <RadixDialog.Title asChild>
-              <Heading level={2} size={titleSize}>
-                {title}
-              </Heading>
-            </RadixDialog.Title>
-            {description ? (
-              <RadixDialog.Description asChild>
-                <Text tone="muted">{description}</Text>
-              </RadixDialog.Description>
-            ) : null}
-          </div>
+          {/* The drawer's own handle: it says this pulls up from the edge, and nothing else. */}
+          {grabBar ? (
+            <span aria-hidden className="mx-auto h-1 w-10 shrink-0 rounded-pill bg-hairline" />
+          ) : null}
+          {media ? (
+            <div className="flex items-start gap-4">
+              <span className="shrink-0">{media}</span>
+              {head}
+            </div>
+          ) : (
+            head
+          )}
           {children}
           {footer ? <div className="flex flex-col gap-3">{footer}</div> : null}
           {/* Last in DOM order so opening focuses the content, not the close button. */}
@@ -92,7 +111,15 @@ function Root({
   );
 }
 
-export function Dialog({ title, eyebrow, description, children, footer, ...root }: DialogProps) {
+export function Dialog({
+  title,
+  eyebrow,
+  description,
+  children,
+  footer,
+  media: _media,
+  ...root
+}: DialogProps) {
   return (
     <Root {...root}>
       <Frame
@@ -109,8 +136,17 @@ export function Dialog({ title, eyebrow, description, children, footer, ...root 
   );
 }
 
-// Bottom sheet: anchored to the bottom edge, soft top corners, capped width on large screens.
-export function Sheet({ title, eyebrow, description, children, footer, ...root }: DialogProps) {
+// The drawer: it pulls up from the bottom edge with a grab bar, soft top corners, and a capped
+// width on large screens. Anything that asks for one thing on top of the page uses it.
+export function Sheet({
+  title,
+  eyebrow,
+  description,
+  children,
+  footer,
+  media,
+  ...root
+}: DialogProps) {
   return (
     <Root {...root}>
       <Frame
@@ -118,8 +154,10 @@ export function Sheet({ title, eyebrow, description, children, footer, ...root }
         eyebrow={eyebrow}
         description={description}
         footer={footer}
+        {...(media ? { media } : {})}
+        grabBar
         titleSize="md"
-        className="inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-soft border border-b-0 border-hairline px-6 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up"
+        className="inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-soft border border-b-0 border-hairline px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up"
       >
         {children}
       </Frame>

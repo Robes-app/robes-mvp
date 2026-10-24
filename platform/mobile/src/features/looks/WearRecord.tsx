@@ -3,34 +3,22 @@ import type { Look } from '@robes/contracts';
 import { errors, looks as looksCopy } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { wearDiff } from '@robes/core/looks';
-import {
-  Button,
-  Eyebrow,
-  IconButton,
-  Pill,
-  Sheet,
-  Skeleton,
-  Text,
-  useToast,
-} from '@robes/ui-native';
+import { Button, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { pastDays } from './saved-looks';
 
 const copy = looksCopy.page.wears;
-const PAST_DAYS = 14;
+const _PAST_DAYS = 14;
 
 // The look's own record, under the rack and standing alone: a wear is a fact about a day, never
 // part of the look's composition. Each row opens its day and says what that day held that the
 // look no longer does — the wear keeps its own snapshot, so the record stays true as the look
 // moves on. The native twin of the web's WearRecord.
-export function WearRecord({ look }: { look: Look }) {
+export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => void }) {
   const router = useRouter();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [adding, setAdding] = useState(false);
   const query = useApi('looks.wears', { params: { id: look.id } });
   const refresh = () =>
     Promise.all([
@@ -38,14 +26,6 @@ export function WearRecord({ look }: { look: Look }) {
       queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') }),
       queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
     ]);
-  const add = useApiMutation('looks.wear', {
-    onSuccess: async () => {
-      setAdding(false);
-      toast.show({ message: copy.added });
-      await refresh();
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
   const remove = useApiMutation('looks.unwear', {
     onSuccess: async () => {
       toast.show({ message: copy.removed });
@@ -56,7 +36,6 @@ export function WearRecord({ look }: { look: Look }) {
 
   const items = query.data?.items ?? [];
   const labelOf = (id: string) => look.pieces.find((p) => p.piece.id === id)?.piece.label ?? null;
-  const worn = new Set(items.map((w) => w.wornOn));
 
   return (
     <View className="gap-3 rounded-crisp border border-hairline bg-surface p-4">
@@ -112,25 +91,9 @@ export function WearRecord({ look }: { look: Look }) {
         </View>
       )}
 
-      <Button variant="quiet" onPress={() => setAdding(true)}>
+      <Button variant="quiet" onPress={onAddDate}>
         {copy.addDate}
       </Button>
-
-      {/* A wear can be recorded after the fact; a day still ahead is a plan, not a wear. */}
-      <Sheet open={adding} onClose={() => setAdding(false)} title={copy.addDateLabel}>
-        <View className="flex-row flex-wrap gap-2">
-          {pastDays(PAST_DAYS).map((date) => (
-            <Pill
-              key={date}
-              selected={worn.has(date)}
-              disabled={worn.has(date) || add.isPending}
-              onPress={() => add.mutate({ params: { id: look.id }, input: { wornOn: date } })}
-            >
-              {longDate(date)}
-            </Pill>
-          ))}
-        </View>
-      </Sheet>
     </View>
   );
 }

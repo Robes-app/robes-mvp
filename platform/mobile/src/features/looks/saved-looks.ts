@@ -8,8 +8,7 @@ import {
 import type { LookPage } from '@robes/contracts';
 import { looks as copy, errors, ui } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Share } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 const LIMIT = 30;
 
@@ -118,38 +117,4 @@ export function useSaveAsNew(onSaved: (id: string) => void) {
 }
 
 // The share token for a look lives in the query cache for the session, so "Stop sharing" knows it.
-const shareKey = (lookId: string) => ['share', lookId] as const;
-
-export function useShareToken(lookId: string): string | null {
-  const { data } = useQuery({
-    queryKey: shareKey(lookId),
-    queryFn: () => null as string | null,
-    staleTime: Number.POSITIVE_INFINITY,
-    gcTime: Number.POSITIVE_INFINITY,
-  });
-  return data ?? null;
-}
-
-export function useShareLook() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useApiMutation('shares.create', {
-    onSuccess: async (share, { input }) => {
-      queryClient.setQueryData(shareKey(input.subjectId), share.token);
-      await Share.share({ url: share.url, message: share.url });
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
-}
-
-export function useStopSharing(lookId: string) {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useApiMutation('shares.revoke', {
-    onSuccess: () => {
-      queryClient.setQueryData(shareKey(lookId), null);
-      toast.show({ message: copy.look.sharingStopped });
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
-}
+const _shareKey = (lookId: string) => ['share', lookId] as const;

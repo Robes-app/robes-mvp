@@ -23,7 +23,7 @@ import {
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
+import { useState } from 'react';
 import { DiarySheet } from '@/components/looks/diary-sheet';
 import { LookHero } from '@/components/looks/look-hero';
 import { SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
@@ -33,7 +33,6 @@ import { errorCopy } from '@/lib/error-copy';
 import { useLookEditor } from '@/lib/look-editor';
 import { withoutId } from '@/lib/wardrobe';
 import { SeeOnMe } from './see-on-me';
-import { ShareLook } from './share-look';
 
 const copy = looks.page;
 
@@ -167,7 +166,7 @@ function LookBody({ look }: { look: Look }) {
         <SavedRack look={look} editor={editor} />
         {editor.editing ? null : (
           <>
-            <WearRecord look={look} />
+            <WearRecord look={look} onAddDate={() => setDiary(true)} />
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="primary"
@@ -196,7 +195,6 @@ function LookBody({ look }: { look: Look }) {
               </Button>
             </div>
             {look.frame ? null : <SeeOnMe look={look} />}
-            <ShareLook lookId={look.id} />
           </>
         )}
       </div>

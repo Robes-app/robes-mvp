@@ -110,30 +110,6 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await expect(page.getByRole('link', { name: 'Camel coat, styled' })).toBeVisible();
 });
 
-test('a look can be shared and the link turned off', async ({ page, context, browser }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await signIn(page);
-  await declineConsent(page);
-  const look = await (
-    await page.request.post('/api/v1/looks', { data: { name: 'Gallery night', pieces: [] } })
-  ).json();
-  await page.goto(`/look/${look.id}`);
-  await page.getByRole('button', { name: 'Share', exact: true }).click();
-  await expect(page.getByText('Link copied.', { exact: true })).toBeVisible();
-  const url = await page.evaluate(() => navigator.clipboard.readText());
-  expect(url).toMatch(/\/share\/[\w-]+$/);
-
-  const visitor = await browser.newPage();
-  await visitor.goto(new URL(url).pathname);
-  await expect(visitor.getByRole('heading', { name: 'Gallery night' })).toBeVisible();
-
-  await page.getByRole('button', { name: 'Stop sharing' }).click();
-  await expect(page.getByText('Link turned off.', { exact: true })).toBeVisible();
-  // A turned-off link is indistinguishable from one that never existed.
-  expect((await visitor.reload())?.status()).toBe(404);
-  await visitor.close();
-});
-
 test('removing a look can be undone', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);

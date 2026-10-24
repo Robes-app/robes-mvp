@@ -622,9 +622,7 @@ export const looks = {
     pieces: 'Pieces',
     wearToday: 'Wear it today',
     woreToday: 'Worn today.',
-    wearOnDay: 'Wear on a day',
     dayLabel: 'Day',
-    addToPlan: 'Add to Diary',
     addedToPlan: 'Added to your diary.',
     saveAsNew: 'Save as new',
     savedAsNew: 'Saved as a new look.',
@@ -647,8 +645,6 @@ export const looks = {
       remove: (date: string): string => `Not worn on ${date}`,
       removed: 'Taken off the record.',
       addDate: 'Add a date',
-      addDateLabel: 'A day you wore it',
-      add: 'Record it',
       added: 'Recorded.',
       // What that day held that the look no longer does, and what it holds that she did not wear.
       // The names are printed as she filed them — never re-cased, or a brand reads wrong.
@@ -691,13 +687,8 @@ export const looks = {
     nameLabel: 'Name this look',
     saveName: 'Save name',
     wearOnDay: 'Wear on a day',
-    chooseDay: 'Which day?',
-    pinned: 'On your plan.',
     saveAsNew: 'Save as new',
     savedAsNew: 'Saved as a new look.',
-    share: 'Share',
-    stopSharing: 'Stop sharing',
-    sharingStopped: 'Sharing turned off.',
   },
 } as const;
 

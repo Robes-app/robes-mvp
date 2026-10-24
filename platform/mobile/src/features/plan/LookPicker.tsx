@@ -6,7 +6,7 @@ import { Button, Em, fonts, PrimaryScope, Sheet, Text, useColor, useToast } from
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { LookTile } from '../looks/LookTile';
 import { dayLabel } from './plan';
 

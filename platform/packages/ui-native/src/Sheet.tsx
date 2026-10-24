@@ -11,6 +11,8 @@ export interface SheetProps {
   title?: string;
   // A small-caps line above the title (e.g. "Add a look · Wed 21 Oct").
   eyebrow?: string;
+  // A picture of what the sheet is about, beside its eyebrow and title.
+  media?: ReactNode;
   children: ReactNode;
   className?: string;
   testID?: string;
@@ -21,7 +23,16 @@ const DISMISS_DRAG = 120;
 const BACKDROP_OPACITY = 0.4;
 
 // Bottom sheet from RN Modal + Animated: Expo Go compatible, no native bottom-sheet module (ADR-018).
-export function Sheet({ open, onClose, title, eyebrow, children, className, testID }: SheetProps) {
+export function Sheet({
+  open,
+  onClose,
+  title,
+  eyebrow,
+  media,
+  children,
+  className,
+  testID,
+}: SheetProps) {
   const reduced = useReducedMotion();
   const [visible, setVisible] = useState(open);
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
@@ -97,12 +108,24 @@ export function Sheet({ open, onClose, title, eyebrow, children, className, test
               <View className="h-1 w-10 rounded-pill bg-border-control" />
             </Pressable>
           </View>
-          {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
-          {title ? (
-            <Heading size="md" className="mb-4">
-              {title}
-            </Heading>
-          ) : null}
+          {media ? (
+            <View className="mb-4 flex-row items-start gap-4">
+              <View>{media}</View>
+              <View className="min-w-0 flex-1">
+                {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
+                {title ? <Heading size="md">{title}</Heading> : null}
+              </View>
+            </View>
+          ) : (
+            <>
+              {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
+              {title ? (
+                <Heading size="md" className="mb-4">
+                  {title}
+                </Heading>
+              ) : null}
+            </>
+          )}
           {children}
         </Animated.View>
       </View>
