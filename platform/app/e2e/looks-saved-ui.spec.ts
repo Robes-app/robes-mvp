@@ -72,9 +72,18 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     d.setDate(d.getDate() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
-  await page.getByLabel('Wear on a day').fill(tomorrow);
-  await page.getByRole('button', { name: 'Add to Diary' }).click();
-  await expect(page.getByText('Added to your diary.', { exact: true })).toBeVisible();
+  // The calendar on the photograph is the one way a look reaches a day.
+  const longTomorrow = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(new Date(`${tomorrow}T00:00:00Z`));
+  await page.getByRole('button', { name: 'Put this look in the diary' }).click();
+  const diary = page.getByRole('dialog');
+  await diary.getByRole('button', { name: longTomorrow }).click();
+  await diary.getByRole('button', { name: 'Put it in the diary' }).click();
+  await expect(page.getByText(/is in your diary for/)).toBeVisible();
 
   // The plan lists summary rows; the row opens the day page, where the day is named and edited.
   await page.goto('/plan');

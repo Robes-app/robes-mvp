@@ -1,5 +1,5 @@
 import { looks } from '@robes/copy';
-import { longDate } from '@robes/core/calendar';
+import { dayMonth, longDate } from '@robes/core/calendar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Share } from 'react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
@@ -30,6 +30,7 @@ test('a suggested name can be kept or replaced', async () => {
   await waitFor(() => expect(screen.queryByText(looks.look.suggested)).toBeNull());
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Camel coat, styled' });
 
+  await fireEvent.press(screen.getByRole('button', { name: looks.page.rename }));
   await fireEvent.changeText(screen.getByLabelText(looks.look.nameLabel), 'Gallery opening');
   await fireEvent.press(screen.getByRole('button', { name: looks.look.saveName }));
   expect(await screen.findByText('Gallery opening')).toBeTruthy();
@@ -109,7 +110,12 @@ test("the look's record names what each wear held that the look no longer does",
     [`DELETE /looks/${LOOK_ID}/wears/2026-10-12`]: { ok: true },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  expect(await screen.findByText(longDate('2026-10-20'))).toBeTruthy();
+  expect(await screen.findByText(dayMonth('2026-10-20'))).toBeTruthy();
+  expect(
+    screen.getByRole('link', { name: looks.page.wears.openDay(longDate('2026-10-20')) }),
+  ).toBeTruthy();
+  // The day she wore it exactly as it stands says so, rather than naming a difference.
+  expect(screen.getByText(looks.page.wears.asSaved)).toBeTruthy();
   // One diff line, on the day that differed; the day she wore it as it stands says the day alone.
   const difference = looks.page.wears.diff(['White sandals'], [onIt?.label ?? '']);
   expect(await screen.findAllByText(difference)).toHaveLength(1);

@@ -41,6 +41,7 @@ import {
   LookAskInput,
   LookPage,
   LookParams,
+  LookPhotoInput,
   LookSet,
   LookSetParams,
   LookWearPage,
@@ -598,6 +599,15 @@ export const routes = {
     params: LookParams,
     input: EmptyInput,
     output: LookWearPage,
+  },
+  // Her photograph of the look she wore, kept alongside Robes' own picture of it.
+  'looks.photo': {
+    method: 'POST',
+    path: '/looks/:id/photo',
+    auth: 'user',
+    params: LookParams,
+    input: LookPhotoInput,
+    output: Look,
   },
   // Naturally idempotent: one wear per look per day.
   'looks.wear': {

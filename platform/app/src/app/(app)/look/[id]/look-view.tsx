@@ -10,13 +10,23 @@ import {
 import type { Look } from '@robes/contracts';
 import { lookbook, looks, wardrobe } from '@robes/copy';
 import { noteShort } from '@robes/core/looks';
-import { Button, ErrorText, Eyebrow, Field, Heading, Skeleton, Text, useToast } from '@robes/ui';
+import {
+  Button,
+  ErrorText,
+  Eyebrow,
+  Field,
+  Heading,
+  IconButton,
+  Skeleton,
+  Text,
+  useToast,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { DiarySheet } from '@/components/looks/diary-sheet';
-import { LookImage } from '@/components/looks/look-image';
-import { LookPicture, SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
+import { LookHero } from '@/components/looks/look-hero';
+import { SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
 import { WearRecord } from '@/components/looks/wear-record';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
@@ -131,26 +141,21 @@ function LookBody({ look }: { look: Look }) {
   const router = useRouter();
   const actions = useLookActions(look);
   const editor = useLookEditor(look);
-  const [day, setDay] = useState('');
-
-  const onPin = (e: FormEvent) => {
-    e.preventDefault();
-    if (!day) return;
-    actions.pin.mutate({ params: { id: look.id }, input: { dates: [day], slot: 'day' } });
-  };
+  const [diary, setDiary] = useState(false);
 
   return (
-    <article className="grid gap-8 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      {look.frame ? (
-        <LookPicture look={look} />
-      ) : (
-        <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
-      )}
+    <article className="grid gap-8 pb-20 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <LookHero look={look} onDiary={() => setDiary(true)} />
       <div className="flex flex-col gap-6">
         <LookName look={look} update={actions.update} editing={editor.editing} />
         <Text size="small" tone="muted">
           {savedMeta(look, editor.rack.rows.length)}
         </Text>
+        {look.frame ? (
+          <Text size="small" tone="faint" italic>
+            {copy.photoNote}
+          </Text>
+        ) : null}
         {look.note ? (
           <section aria-labelledby="look-note" className="flex flex-col gap-2">
             <Heading level={2} size="sm" id="look-note">
@@ -192,26 +197,10 @@ function LookBody({ look }: { look: Look }) {
             </div>
             {look.frame ? null : <SeeOnMe look={look} />}
             <ShareLook lookId={look.id} />
-            <form onSubmit={onPin} className="flex flex-wrap items-end gap-2">
-              <Field
-                type="date"
-                label={copy.wearOnDay}
-                value={day}
-                min={localToday()}
-                onChange={(e) => setDay(e.target.value)}
-              />
-              <Button
-                type="submit"
-                variant="secondary"
-                disabled={!day}
-                loading={actions.pin.isPending}
-              >
-                {copy.addToPlan}
-              </Button>
-            </form>
           </>
         )}
       </div>
+      <DiarySheet look={diary ? look : null} onClose={() => setDiary(false)} />
     </article>
   );
 }
@@ -260,24 +249,23 @@ function LookName({
   return (
     <header className="flex flex-col gap-2">
       <Eyebrow>{editingLook ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}</Eyebrow>
-      <Heading level={1} size="xl">
-        {look.name}
-      </Heading>
+      {/* The pencil sits on the name, as it does on a day: renaming is not its own paragraph. */}
+      <div className="flex items-start gap-2">
+        <Heading level={1} size="xl" className="min-w-0 flex-1">
+          {look.name}
+        </Heading>
+        <IconButton icon="pencil" label={copy.rename} onClick={() => setEditing(true)} />
+      </div>
       {look.nameProvisional ? (
-        <Text size="small" tone="muted">
-          {copy.suggested}
-        </Text>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        {look.nameProvisional ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Text size="small" tone="muted">
+            {copy.suggested}
+          </Text>
           <Button variant="quiet" loading={update.isPending} onClick={() => save(look.name)}>
             {copy.keepName}
           </Button>
-        ) : null}
-        <Button variant="quiet" onClick={() => setEditing(true)}>
-          {copy.rename}
-        </Button>
-      </div>
+        </div>
+      ) : null}
     </header>
   );
 }

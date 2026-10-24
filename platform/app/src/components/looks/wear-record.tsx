@@ -3,9 +3,10 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { looks as looksCopy } from '@robes/copy';
-import { longDate } from '@robes/core/calendar';
+import { dayMonth, longDate } from '@robes/core/calendar';
 import { wearDiff } from '@robes/core/looks';
-import { Button, ErrorText, Field, Heading, IconButton, Skeleton, Text, useToast } from '@robes/ui';
+import { Icon } from '@robes/icons/web';
+import { Button, ErrorText, Eyebrow, Field, IconButton, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { type FormEvent, useState } from 'react';
@@ -22,6 +23,7 @@ export function WearRecord({ look }: { look: Look }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [day, setDay] = useState('');
+  const [adding, setAdding] = useState(false);
   const query = useApi('looks.wears', { params: { id: look.id } });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });
@@ -31,6 +33,7 @@ export function WearRecord({ look }: { look: Look }) {
   const add = useApiMutation('looks.wear', {
     onSuccess: () => {
       setDay('');
+      setAdding(false);
       toast({ message: copy.added });
       refresh();
     },
@@ -57,10 +60,15 @@ export function WearRecord({ look }: { look: Look }) {
       aria-labelledby="look-wears"
       className="flex flex-col gap-3 rounded-crisp border border-hairline bg-surface p-4"
     >
-      {/* The count is on the page's own meta line; these rows are the record itself. */}
-      <Heading level={2} size="sm" id="look-wears">
-        {copy.title}
-      </Heading>
+      {/* The record's own head: what it is, and how often — the rows beneath are the days. */}
+      <div className="flex items-baseline justify-between gap-3">
+        <Eyebrow id="look-wears">{copy.title}</Eyebrow>
+        {look.timesWorn > 0 ? (
+          <Text size="caption" tone="faint" italic>
+            {copy.count(look.timesWorn)}
+          </Text>
+        ) : null}
+      </div>
 
       {query.isError ? (
         <ErrorText>{errorCopy(query.error)}</ErrorText>
@@ -71,7 +79,7 @@ export function WearRecord({ look }: { look: Look }) {
           {copy.none}
         </Text>
       ) : (
-        <ul className="flex flex-col divide-y divide-hairline">
+        <ul className="flex flex-col gap-1.5">
           {items.map((wear) => {
             const diff = wearDiff(
               wear.pieces,
@@ -80,18 +88,22 @@ export function WearRecord({ look }: { look: Look }) {
             );
             const date = longDate(wear.wornOn);
             return (
-              <li key={wear.id} className="flex items-center gap-2 py-2.5">
+              <li
+                key={wear.id}
+                className="flex items-center gap-2 rounded-crisp border border-hairline bg-bg py-2 pr-1.5 pl-3"
+              >
                 <Link
                   href={`/plan/${wear.wornOn}`}
                   aria-label={copy.openDay(date)}
-                  className="flex min-w-0 flex-1 flex-col rounded-crisp focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                 >
-                  <Text size="small">{date}</Text>
-                  {diff.differs ? (
-                    <Text size="caption" tone="faint" italic className="truncate">
-                      {copy.diff(diff.instead, diff.without)}
-                    </Text>
-                  ) : null}
+                  <Text size="small" className="shrink-0">
+                    {dayMonth(wear.wornOn)}
+                  </Text>
+                  <Text size="caption" tone="faint" italic className="min-w-0 flex-1 truncate">
+                    {diff.differs ? copy.diff(diff.instead, diff.without) : copy.asSaved}
+                  </Text>
+                  <Icon name="forward" size={15} className="shrink-0 text-ink-faint" />
                 </Link>
                 <IconButton
                   icon="close"
@@ -105,18 +117,26 @@ export function WearRecord({ look }: { look: Look }) {
       )}
 
       {/* A wear can be recorded after the fact; a day still ahead is a plan, not a wear. */}
-      <form onSubmit={onAdd} className="flex flex-wrap items-end gap-2">
-        <Field
-          type="date"
-          label={copy.addDateLabel}
-          value={day}
-          max={localToday()}
-          onChange={(e) => setDay(e.target.value)}
-        />
-        <Button type="submit" variant="secondary" disabled={!day} loading={add.isPending}>
-          {copy.add}
-        </Button>
-      </form>
+      {adding ? (
+        <form onSubmit={onAdd} className="flex flex-wrap items-end justify-end gap-2">
+          <Field
+            type="date"
+            label={copy.addDateLabel}
+            value={day}
+            max={localToday()}
+            onChange={(e) => setDay(e.target.value)}
+          />
+          <Button type="submit" variant="secondary" disabled={!day} loading={add.isPending}>
+            {copy.add}
+          </Button>
+        </form>
+      ) : (
+        <div className="flex justify-end">
+          <Button variant="quiet" onClick={() => setAdding(true)}>
+            {copy.addDate}
+          </Button>
+        </div>
+      )}
     </section>
   );
 }

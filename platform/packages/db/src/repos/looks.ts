@@ -589,6 +589,19 @@ export function looksRepo(db: Db) {
       });
     },
 
+    // Her own photograph of the look. Both the look and the asset must be hers; the composite
+    // key means the database refuses the pairing even if a caller ever got past this filter.
+    setPhoto(userId: UserId, lookId: string, photoAssetId: string) {
+      return db
+        .updateTable('looks')
+        .set({ photoAssetId })
+        .where('userId', '=', userId)
+        .where('id', '=', lookId)
+        .where('deletedAt', 'is', null)
+        .returning(LOOK_SELECT)
+        .executeTakeFirst();
+    },
+
     // One look's record, newest first: the day and the pieces she wore that day, named from the
     // wear's own snapshot — so the row keeps saying what she wore after the look moves on. A piece
     // she has let go of still names itself (the record is true); one whose row is gone is counted.

@@ -8,6 +8,7 @@ import {
   Eyebrow,
   Field,
   Heading,
+  IconButton,
   Image,
   Pill,
   PrimaryScope,
@@ -22,7 +23,8 @@ import { ScrollView, View } from 'react-native';
 import { dayLabel, usePinLook } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
-import { LookPicture } from './LookPicture';
+import { DiarySheet } from './DiarySheet';
+import { LookHero } from './LookHero';
 import { LookPromptBox } from './LookPromptBox';
 import { useLookEditor } from './look-editor';
 import { RackRowCard } from './RackRow';
@@ -44,13 +46,54 @@ import { WearRecord } from './WearRecord';
 const DAY_CHOICES = 14;
 
 // A provisional name is Robes' suggestion: she can keep it or name the look herself.
+// The pencil sits on the name; the field only exists while she is changing it.
 function Name({ look }: { look: Look }) {
   const rename = useRenameLook();
+  const [editing, setEditing] = useState(false);
   const [name, setName] = useState(look.name);
   const dirty = name.trim() !== '' && name.trim() !== look.name;
+  if (editing) {
+    return (
+      <View className="gap-3">
+        <Field
+          label={copy.look.nameLabel}
+          value={name}
+          onChangeText={setName}
+          maxLength={120}
+          returnKeyType="done"
+        />
+        <View className="flex-row items-center gap-3">
+          <Button
+            variant="secondary"
+            disabled={!dirty}
+            loading={rename.isPending}
+            loadingLabel={ui.loading}
+            onPress={() => {
+              rename.mutate({ params: { id: look.id }, input: { name: name.trim() } });
+              setEditing(false);
+            }}
+          >
+            {copy.look.saveName}
+          </Button>
+          <Button
+            variant="quiet"
+            onPress={() => {
+              setName(look.name);
+              setEditing(false);
+            }}
+          >
+            {copy.page.cancel}
+          </Button>
+        </View>
+      </View>
+    );
+  }
   return (
-    <View className="gap-3">
-      <Heading>{look.name}</Heading>
+    <View className="gap-2">
+      <View className="flex-row items-start gap-2">
+        <Heading className="min-w-0 flex-1">{look.name}</Heading>
+        <IconButton icon="pencil" label={copy.page.rename} onPress={() => setEditing(true)} />
+      </View>
       {look.nameProvisional ? (
         <View className="flex-row items-center gap-3">
           <Text size="small" tone="muted">
@@ -63,23 +106,6 @@ function Name({ look }: { look: Look }) {
             {copy.look.keepName}
           </Button>
         </View>
-      ) : null}
-      <Field
-        label={copy.look.nameLabel}
-        value={name}
-        onChangeText={setName}
-        maxLength={120}
-        returnKeyType="done"
-      />
-      {dirty ? (
-        <Button
-          variant="secondary"
-          loading={rename.isPending}
-          loadingLabel={ui.loading}
-          onPress={() => rename.mutate({ params: { id: look.id }, input: { name: name.trim() } })}
-        >
-          {copy.look.saveName}
-        </Button>
       ) : null}
     </View>
   );
@@ -145,6 +171,7 @@ function SavedLook({ look }: { look: Look }) {
   const token = useShareToken(look.id);
   const stopSharing = useStopSharing(look.id);
   const [choosingDay, setChoosingDay] = useState(false);
+  const [diary, setDiary] = useState(false);
   const editor = useLookEditor(look);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -156,15 +183,7 @@ function SavedLook({ look }: { look: Look }) {
   return (
     <View className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-6 pb-32">
-        {look.frame ? (
-          <LookPicture look={look} />
-        ) : render ? (
-          <Image
-            source={render}
-            alt={copy.look.imageAlt(look.name)}
-            blurhash={look.image?.blurhash}
-          />
-        ) : null}
+        <LookHero look={look} onDiary={() => setDiary(true)} />
         <View className="gap-2">
           <Eyebrow>{editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}</Eyebrow>
           <Name key={look.name} look={look} />
@@ -268,6 +287,7 @@ function SavedLook({ look }: { look: Look }) {
           </PrimaryScope>
         )}
         <WearOnDay look={look} open={choosingDay} onClose={() => setChoosingDay(false)} />
+        <DiarySheet look={diary ? look : null} onClose={() => setDiary(false)} />
       </ScrollView>
       <View
         className="absolute inset-x-0 bottom-0 flex-row items-center justify-end gap-3 border-t border-hairline bg-bg px-6 py-3"

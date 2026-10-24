@@ -5,7 +5,7 @@ import { createRepositories, LookPiecesNotFound } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
-const { looks, wardrobe } = createRepositories(db);
+const { assets, looks, wardrobe } = createRepositories(db);
 let ann: UserId;
 let bea: UserId;
 let coat: string;
@@ -115,6 +115,19 @@ describe('looks repo', () => {
     expect(after[1]?.pieces.map((p) => p.label)).toEqual(['Camel coat', 'Woven belt']);
     // A look that is not hers has no record to read.
     expect(await looks.wears(bea, look.id)).toEqual([]);
+  });
+
+  it('keeps her photograph of a look to its owner', async () => {
+    const look = await create(ann, [coat], 'Photographed');
+    const photo = await assets.createPending(ann, {
+      kind: 'look_photo',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    expect((await looks.setPhoto(ann, look.id, photo.id))?.photoAssetId).toBe(photo.id);
+    // Another woman's look is not hers to put a photograph on, and nothing is written.
+    expect(await looks.setPhoto(bea, look.id, photo.id)).toBeUndefined();
+    expect((await looks.get(ann, look.id))?.photoAssetId).toBe(photo.id);
   });
 
   it('counts her looks and the looks she wore on a day', async () => {

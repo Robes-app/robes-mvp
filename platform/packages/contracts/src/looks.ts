@@ -251,6 +251,11 @@ export const UpdateLookInput = z
   .partial();
 export type UpdateLookInput = z.infer<typeof UpdateLookInput>;
 
+// Her own photograph of the look, once the bytes are uploaded: the asset is hers or there is
+// nothing to attach (the composite key on app.looks makes that true in the database too).
+export const LookPhotoInput = z.object({ assetId: z.uuid() });
+export type LookPhotoInput = z.infer<typeof LookPhotoInput>;
+
 export const WearInput = z.object({ wornOn });
 export const Wear = z.object({
   id: z.uuid(),

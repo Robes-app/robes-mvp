@@ -632,10 +632,17 @@ export const looks = {
     removed: 'Look removed.',
     imageAlt: (name: string): string => `The look: ${name}`,
     noPieces: 'No pieces yet.',
+    // On the photograph: the day it is worn, and her own picture of it.
+    addPhoto: 'Add your photograph',
+    photoNote: 'Wore this look? Add your photograph and it is kept alongside Robes’ own.',
     // The look's own record: a wear is a fact, so it keeps its date and what was on the body.
     wears: {
       title: 'Worn',
       none: 'Not yet. The counter starts the first day you wear it.',
+      count: (n: number): string =>
+        n === 1 ? 'once' : n === 2 ? 'twice' : n === 3 ? 'three times' : `${n} times`,
+      // A day she wore it exactly as the look stands needs no difference named.
+      asSaved: 'Worn as saved',
       openDay: (date: string): string => `Open ${date}`,
       remove: (date: string): string => `Not worn on ${date}`,
       removed: 'Taken off the record.',

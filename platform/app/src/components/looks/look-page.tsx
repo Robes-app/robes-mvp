@@ -293,29 +293,33 @@ export function SavedRack({ look, editor }: { look: Look; editor: Editor }) {
           onAnswer={editor.answer}
         />
       ) : null}
+      {/* The look's one bar, held at the foot: Edit look, or Done and Update while she works.
+          Fixed above the tab bar on a phone, at the foot of the window on the web. */}
       <div
-        className="flex items-center justify-end gap-3 border-t border-hairline pt-4"
+        className="fixed inset-x-0 bottom-[calc(68px+env(safe-area-inset-bottom))] z-30 border-t border-hairline bg-bg/95 backdrop-blur md:bottom-0"
         data-testid="look-bar"
       >
-        {editor.editing ? (
-          <>
-            <Button variant="quiet" onClick={editor.discard}>
-              {editor.dirty ? copy.bar.discard : copy.bar.done}
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-end gap-3 px-4 py-3">
+          {editor.editing ? (
+            <>
+              <Button variant="quiet" onClick={editor.discard}>
+                {editor.dirty ? copy.bar.discard : copy.bar.done}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={!editor.dirty}
+                loading={editor.saving}
+                onClick={editor.update}
+              >
+                {copy.bar.update}
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" onClick={editor.startEditing}>
+              {look.pieces.length || look.proposals.length ? copy.bar.editLook : copy.bar.addPieces}
             </Button>
-            <Button
-              variant="primary"
-              disabled={!editor.dirty}
-              loading={editor.saving}
-              onClick={editor.update}
-            >
-              {copy.bar.update}
-            </Button>
-          </>
-        ) : (
-          <Button variant="secondary" onClick={editor.startEditing}>
-            {look.pieces.length || look.proposals.length ? copy.bar.editLook : copy.bar.addPieces}
-          </Button>
-        )}
+          )}
+        </div>
       </div>
     </>
   );
