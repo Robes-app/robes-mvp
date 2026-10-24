@@ -64,3 +64,19 @@ export function when(iso: string | null, empty: string): string {
 export function money(micros: number): string {
   return `$${(micros / 1_000_000).toFixed(micros < 10_000_000 ? 4 : 2)}`;
 }
+
+// A small photo cell for admin tables; the URL is already signed for this read.
+export function Thumb({ src, empty }: { src: string | null; empty: string }) {
+  if (!src) return <span className="text-ink-muted">{empty}</span>;
+  // biome-ignore lint/performance/noImgElement: a short-lived signed URL the image optimiser can't fetch
+  return <img src={src} alt="" className="block h-14 w-11 rounded-crisp object-cover" />;
+}
+
+// Pretty-printed stored JSON, for the output and call viewers.
+export function JsonBlock({ value }: { value: unknown }) {
+  return (
+    <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-crisp border border-hairline bg-surface-sunk p-3 font-mono text-xs text-ink">
+      {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
+    </pre>
+  );
+}

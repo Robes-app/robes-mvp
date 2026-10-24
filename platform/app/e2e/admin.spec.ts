@@ -8,9 +8,14 @@ import {
   uniqueEmail,
 } from './helpers';
 
+const NO_USER = '00000000-0000-4000-8000-000000000000';
 const ADMIN_API: [string, string][] = [
   ['GET', '/api/v1/admin/users'],
   ['GET', '/api/v1/admin/users/00000000-0000-4000-8000-000000000000'],
+  ['GET', '/api/v1/admin/users/00000000-0000-4000-8000-000000000000/records'],
+  ['GET', '/api/v1/admin/generations/00000000-0000-4000-8000-000000000000'],
+  ['GET', '/api/v1/admin/artifacts/00000000-0000-4000-8000-000000000000'],
+  ['GET', '/api/v1/admin/feedback'],
   ['GET', '/api/v1/admin/health'],
   ['GET', '/api/v1/admin/costs'],
   ['GET', '/api/v1/admin/metrics'],
@@ -24,6 +29,7 @@ const ADMIN_PAGES = [
   '/admin/metrics',
   '/admin/costs',
   '/admin/flags',
+  '/admin/feedback',
   '/admin/audit',
 ];
 
@@ -64,12 +70,20 @@ test('an admin reads users, and every read is audited', async ({ page, browser }
   await page.getByRole('link', { name: otherEmail }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Tia' })).toBeVisible();
   await expect(page.getByRole('table', { name: 'Recent jobs' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Looks' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Model calls' })).toBeVisible();
 
   const userId = page.url().split('/').at(-1) ?? '';
   const audit = await (await page.request.get(`/api/v1/admin/audit?userId=${userId}`)).json();
   expect(audit.items).toContainEqual(
     expect.objectContaining({ action: 'admin.user.read', actorEmail: email }),
   );
+  expect(audit.items).toContainEqual(
+    expect.objectContaining({ action: 'admin.user.records', actorEmail: email }),
+  );
+  expect((await page.request.get(`/api/v1/admin/users/${NO_USER}/records`)).status()).toBe(404);
+  const feedback = await page.request.get('/api/v1/admin/feedback');
+  expect(feedback.status()).toBe(200);
 
   expect(await seriousViolations(page)).toEqual([]);
   for (const url of ADMIN_PAGES) {

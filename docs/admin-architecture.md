@@ -213,6 +213,7 @@ Beta and production share one Supabase project, so the admin plane is environmen
 - Auth is shared, so testers are already production accounts and `is_admin` carries over.
 - Mixed traffic is separated by the `environment` column (client: hostname `www.byrobes.com` / `byrobes.com` → production; server: `PUBLIC_URL`) and the panel's env filter. `notifications` and `wardrobe_inbox` are per user and carry no environment.
 - Split into separate Supabase projects only if test volume distorts production metrics despite the filter, or for hard isolation. It costs two migration runs and no single-pane admin view.
+- **The new app (staging.byrobes.com, `platform/`) has its own admin at `/admin`**, built on its own database (Better Auth, no Supabase): users, the user page with her records, job health, metrics, costs, flags, feedback, one model call with its prompt, an artifact viewer and the audit log. Every read is audited in `app.audit_log`. Admin is `app.admin_users`, granted with `pnpm --filter @robes/db admin:grant <email>` — `profiles.is_admin` does not carry over. What it still lacks against this page is listed in `platform/docs/STATUS.md` (Legacy sync 2026-10-24 — admin).
 
 ---
 

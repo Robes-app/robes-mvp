@@ -69,6 +69,12 @@ describe('admin reads (SEC-11)', () => {
       );
       await expect(adminReads.auditLog(as(actor), { limit: 5 })).rejects.toBeInstanceOf(NotAdmin);
       await expect(adminReads.metrics(as(actor), 7)).rejects.toBeInstanceOf(NotAdmin);
+      await expect(adminReads.userRecords(as(actor), target)).rejects.toBeInstanceOf(NotAdmin);
+      await expect(adminReads.generationCall(as(actor), target)).rejects.toBeInstanceOf(NotAdmin);
+      await expect(adminReads.feedbackFeed(as(actor), { limit: 5 })).rejects.toBeInstanceOf(
+        NotAdmin,
+      );
+      await expect(adminReads.artifact(as(actor), target)).rejects.toBeInstanceOf(NotAdmin);
       expect(await auditsBy(actor)).toEqual([]);
     }
   });
@@ -115,6 +121,127 @@ describe('admin reads (SEC-11)', () => {
     expect(
       await adminReads.userDetail(as(admin), '00000000-0000-4000-8000-000000000000'),
     ).toBeUndefined();
+  });
+
+  it('lists one user’s records and nobody else’s, audited against that user', async () => {
+    const look = await db
+      .insertInto('looks')
+      .values({ userId: target, name: 'Office armour', status: 'saved', source: 'manual' })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await db
+      .insertInto('wears')
+      .values({ userId: target, lookId: look.id, wornOn: new Date('2026-10-20T12:00:00Z') })
+      .execute();
+    await db
+      .insertInto('looks')
+      .values({ userId: other, name: 'Not hers', status: 'saved', source: 'manual' })
+      .execute();
+    const art = await db
+      .insertInto('artifacts')
+      .values({ userId: target, type: 'key_piece', title: 'Coat, three ways', data: '{"ways":[]}' })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await db
+      .insertInto('feedback')
+      .values({ userId: target, rating: 0, note: 'Too formal', subjectType: 'look' })
+      .execute();
+    await db
+      .insertInto('styleMemory')
+      .values({ userId: target, kind: 'verdict', verdict: 1, subject: 'Office armour' })
+      .execute();
+
+    const photo = await db
+      .insertInto('assets')
+      .values({
+        userId: target,
+        kind: 'wardrobe',
+        status: 'ready',
+        renditions: JSON.stringify({ v: 1, master: { width: 800, height: 1000 }, widths: [320] }),
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await db
+      .updateTable('wardrobeItems')
+      .set({ imageAssetId: photo.id })
+      .where('userId', '=', target)
+      .execute();
+
+    const r = await adminReads.userRecords(as(admin), target);
+    expect(r?.pieces[0]?.image).toMatchObject({ id: photo.id, status: 'ready' });
+    expect(r?.pieceCount).toBe(1);
+    expect(r?.pieces.map((p) => p.label)).toEqual(['Coat']);
+    expect(r?.looks).toEqual([
+      expect.objectContaining({ name: 'Office armour', wears: '1', lastWornOn: '2026-10-20' }),
+    ]);
+    expect(r?.artifacts.map((a) => a.title)).toEqual(['Coat, three ways']);
+    expect(r?.feedback[0]).toMatchObject({ rating: 0, note: 'Too formal' });
+    expect(r?.memory[0]).toMatchObject({ kind: 'verdict', subject: 'Office armour' });
+    expect(r?.calls[0]).toMatchObject({ feature: 'looks.style_piece', hasPrompt: false });
+    expect(JSON.stringify(r)).not.toContain('Not hers');
+    expect((await auditsBy(admin)).at(-1)).toMatchObject({
+      action: 'admin.user.records',
+      subjectUserId: target,
+    });
+    expect(
+      await adminReads.userRecords(as(admin), '00000000-0000-4000-8000-000000000000'),
+    ).toBeUndefined();
+
+    const viewed = await adminReads.artifact(as(admin), art.id);
+    expect(viewed).toMatchObject({ type: 'key_piece', userId: target, data: { ways: [] } });
+    expect((await auditsBy(admin)).at(-1)).toMatchObject({
+      action: 'admin.artifact.read',
+      subjectId: art.id,
+    });
+  });
+
+  it('opens one model call with its prompt, audited against its user', async () => {
+    const call = await db
+      .insertInto('generationCalls')
+      .values({
+        userId: target,
+        feature: 'looks.daily',
+        model: 'gemini-x',
+        status: 'ok',
+        prompt: 'Dress her for Friday',
+        response: JSON.stringify({ headline: 'Friday' }),
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const c = await adminReads.generationCall(as(admin), call.id);
+    expect(c).toMatchObject({
+      prompt: 'Dress her for Friday',
+      response: { headline: 'Friday' },
+      userId: target,
+    });
+    expect((await auditsBy(admin)).at(-1)).toMatchObject({
+      action: 'admin.call.read',
+      subjectUserId: target,
+      subjectId: call.id,
+    });
+    expect(
+      await adminReads.generationCall(as(admin), '00000000-0000-4000-8000-000000000000'),
+    ).toBeUndefined();
+  });
+
+  it('feeds every rating newest first, paged without repeats', async () => {
+    await db
+      .insertInto('feedback')
+      .values([
+        { userId: other, rating: 1, note: 'Loved it', subjectType: 'look' },
+        { userId: other, rating: null, note: 'Shoes off', subjectType: 'look' },
+      ])
+      .execute();
+    const first = await adminReads.feedbackFeed(as(admin), { limit: 2 });
+    const second = await adminReads.feedbackFeed(as(admin), {
+      limit: 2,
+      cursor: first.nextCursor ?? undefined,
+    });
+    const ids = [...first.items, ...second.items].map((f) => f.id);
+    expect(ids.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(first.items[0]?.email).toContain('@test.dev');
+    expect((await auditsBy(admin)).at(-1)).toMatchObject({ action: 'admin.feedback.list' });
   });
 
   it('reports job health and costs without prompts', async () => {
