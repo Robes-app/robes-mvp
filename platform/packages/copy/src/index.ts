@@ -1677,6 +1677,8 @@ export const photoPieces = {
     eyebrow: 'The look',
     title: 'A look from a photo.',
     head: (n: number): string => `The look · ${n} ${piecesWord(n)}`,
+    // The same head while the read runs, so the canvas never changes its label mid-read.
+    headReading: 'The look · Reading',
     askMatch: (label: string): string => `Your ${label.toLowerCase()}?`,
     askNew: 'Not in your rack. New?',
     yes: 'Yes',

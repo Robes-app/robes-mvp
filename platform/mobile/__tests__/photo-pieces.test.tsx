@@ -1,4 +1,4 @@
-import { photoPieces, shell, wardrobe } from '@robes/copy';
+import { lookbook, photoPieces, shell, wardrobe } from '@robes/copy';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { LookFromPhoto } from '../src/features/photo-pieces/LookFromPhoto';
 import { WardrobePieces } from '../src/features/photo-pieces/WardrobePieces';
@@ -217,7 +217,8 @@ test('a look from a photo: hers, new and left out, then saved with the wear', as
   expect(screen.getByText(copy.look.newRow)).toBeTruthy();
   expect(screen.getByText(copy.look.head(2))).toBeTruthy();
 
-  await fireEvent.changeText(screen.getByLabelText('Name (optional)'), 'Sunday run');
+  // The read runs inside the draft now: the name is the draft's own masthead line.
+  await fireEvent.changeText(screen.getByLabelText(lookbook.name.label), 'Sunday run');
   await fireEvent(screen.getByLabelText(copy.look.wearToday), 'valueChange', true);
   await fireEvent.press(screen.getByRole('button', { name: copy.look.save }));
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/look/${LOOK_ID}`));
