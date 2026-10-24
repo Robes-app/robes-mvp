@@ -43,6 +43,7 @@ import {
   LookParams,
   LookSet,
   LookSetParams,
+  LookWearPage,
   PromptLookInput,
   SaveLookInput,
   SaveWayInput,
@@ -588,6 +589,15 @@ export const routes = {
     input: UpdateLookInput,
     output: Look,
     idempotent: true,
+  },
+  // The look's own record: every wear, newest first.
+  'looks.wears': {
+    method: 'GET',
+    path: '/looks/:id/wears',
+    auth: 'user',
+    params: LookParams,
+    input: EmptyInput,
+    output: LookWearPage,
   },
   // Naturally idempotent: one wear per look per day.
   'looks.wear': {

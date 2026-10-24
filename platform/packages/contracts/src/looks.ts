@@ -260,6 +260,18 @@ export const Wear = z.object({
 });
 export type Wear = z.infer<typeof Wear>;
 
+// One wear as the look's record reads it: the day, and the pieces she wore THAT day, named.
+// The names come from the snapshot, so the row keeps saying what she wore after the look moves
+// on; a piece she has since let go of has no name left to give and is counted, not named.
+export const LookWear = z.object({
+  id: z.uuid(),
+  wornOn,
+  pieces: z.array(z.object({ id: z.uuid(), label: z.string().nullable() })),
+});
+export type LookWear = z.infer<typeof LookWear>;
+export const LookWearPage = z.object({ items: z.array(LookWear) });
+export type LookWearPage = z.infer<typeof LookWearPage>;
+
 export const SaveWayInput = z.object({ wayIdx: z.number().int().min(0).max(2) });
 
 // Suggested or draft → saved; a name she typed makes it hers.

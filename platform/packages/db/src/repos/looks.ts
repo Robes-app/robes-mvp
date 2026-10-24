@@ -73,6 +73,8 @@ const emptyToNull = (v: Record<string, unknown> | readonly unknown[] | null | un
 
 // Wear dates are calendar days: read as text so no timezone can move them.
 const wornOnText = sql<string>`worn_on::text`;
+// A look's record is read whole; a wardrobe cannot hold enough wears for a page.
+const WEARS_MAX = 200;
 
 export function looksRepo(db: Db) {
   const active = () => db.selectFrom('looks').where('deletedAt', 'is', null);
@@ -585,6 +587,36 @@ export function looksRepo(db: Db) {
           .where('wornOn', '=', sql<Date>`${wornOn}::date`)
           .executeTakeFirstOrThrow();
       });
+    },
+
+    // One look's record, newest first: the day and the pieces she wore that day, named from the
+    // wear's own snapshot — so the row keeps saying what she wore after the look moves on. A piece
+    // she has let go of still names itself (the record is true); one whose row is gone is counted.
+    async wears(userId: UserId, lookId: string) {
+      const rows = await db
+        .selectFrom('wears')
+        .select(['id', 'pieceIds', wornOnText.as('wornOn')])
+        .where('userId', '=', userId)
+        .where('lookId', '=', lookId)
+        .orderBy('wornOn', 'desc')
+        .limit(WEARS_MAX)
+        .execute();
+      const ids = [...new Set(rows.flatMap((r) => r.pieceIds))];
+      const labels = new Map<string, string>();
+      if (ids.length) {
+        const pieces = await db
+          .selectFrom('wardrobeItems')
+          .select(['id', 'label'])
+          .where('userId', '=', userId)
+          .where('id', 'in', ids)
+          .execute();
+        for (const p of pieces) labels.set(p.id, p.label);
+      }
+      return rows.map((r) => ({
+        id: r.id,
+        wornOn: r.wornOn,
+        pieces: r.pieceIds.map((id) => ({ id, label: labels.get(id) ?? null })),
+      }));
     },
 
     // Looks she recorded wearing on a calendar day.

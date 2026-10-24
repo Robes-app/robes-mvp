@@ -98,6 +98,25 @@ describe('looks repo', () => {
     expect(await looks.unwear(ann, look.id, '2026-09-24')).toBe(false);
   });
 
+  it("reads a look's record newest first, naming the pieces the wear itself holds", async () => {
+    const belt = (await wardrobe.create(ann, { label: 'Woven belt' })).id;
+    const look = await create(ann, [coat, belt], 'The record');
+    await looks.wear(ann, look.id, '2026-09-18');
+    // The belt leaves the look, so the two wears hold different pieces.
+    await looks.update(ann, look.id, { pieces: [{ pieceId: coat }] });
+    await looks.wear(ann, look.id, '2026-09-25');
+    const record = await looks.wears(ann, look.id);
+    expect(record.map((w) => w.wornOn)).toEqual(['2026-09-25', '2026-09-18']);
+    expect(record[0]?.pieces.map((p) => p.label)).toEqual(['Camel coat']);
+    expect(record[1]?.pieces.map((p) => p.label)).toEqual(['Camel coat', 'Woven belt']);
+    // A piece she has let go of still names itself — the record of what she wore stays true.
+    await wardrobe.remove(ann, belt);
+    const after = await looks.wears(ann, look.id);
+    expect(after[1]?.pieces.map((p) => p.label)).toEqual(['Camel coat', 'Woven belt']);
+    // A look that is not hers has no record to read.
+    expect(await looks.wears(bea, look.id)).toEqual([]);
+  });
+
   it('counts her looks and the looks she wore on a day', async () => {
     const user = await createTestUser(db);
     const a = await looks.create(user, { name: 'A', nameProvisional: false, pieces: [] });
