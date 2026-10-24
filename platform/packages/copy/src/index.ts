@@ -350,7 +350,8 @@ export const wardrobe = {
     // The record's sections (legacy Piece_Sheet 01): every fact is a row, a tap opens its drawer.
     sections: {
       piece: 'The piece',
-      colour: 'Colour',
+      // Colour and material share one section (design "Colour & material, one section").
+      colour: 'Colour & material',
       wearing: 'Wearing',
       fit: 'Fit & notes',
       wears: 'Worn',
@@ -366,6 +367,7 @@ export const wardrobe = {
       colour: 'Colour',
       extra: 'Additional colours',
       print: 'Print',
+      material: 'Material',
       season: 'Season',
       wearFor: 'Wear it for',
       size: 'Size',
@@ -374,6 +376,8 @@ export const wardrobe = {
     },
     // What a row says when there is nothing filed yet — a door, not a blank.
     add: 'Add',
+    // Robes' read on this row is a guess she should look at (until she touches it).
+    check: 'Check',
     saveField: 'Save',
     done: 'Done',
     // The stats strip under the name.
@@ -404,6 +408,14 @@ export const wardrobe = {
     print: 'Print',
     plain: 'Plain',
     check: 'Robes wasn’t sure of this colour. Check it.',
+  },
+  // The material model on a piece (legacy 2026-10-24): one material, the one it is mostly made of.
+  // The family and material names live with the list in @robes/core/material.
+  material: {
+    title: 'Material',
+    families: 'Material families',
+    notSure: 'Not sure',
+    check: 'Robes wasn’t sure of this material. Check it.',
   },
   // The reveal after one photo (beta's step 3): her photo, then what Robes filed.
   saw: {
@@ -1234,6 +1246,7 @@ export const admin = {
         category: 'Category',
         brand: 'Brand',
         colour: 'Colour',
+        material: 'Material',
         status: 'Status',
         via: 'Arrived by',
         wears: 'Wears',

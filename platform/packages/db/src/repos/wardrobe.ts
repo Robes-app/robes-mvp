@@ -17,6 +17,7 @@ export const PIECE_COLUMNS = [
   'colourShade',
   'colourExtra',
   'print',
+  'material',
   'brand',
   'notes',
   'imageAssetId',
@@ -42,6 +43,7 @@ export interface PieceFields {
   colourShade?: string | null;
   colourExtra?: string[];
   print?: string | null;
+  material?: string | null;
   brand?: string | null;
   notes?: string | null;
   seasonBand?: SeasonBand;
@@ -127,11 +129,14 @@ function withTaxonomy(fields: PieceFields): PieceColumns {
   return out;
 }
 
-// Her colour answers Robes' "check it" flag.
-function colourChecked(fields: PieceFields) {
-  return fields.colourShade === undefined
-    ? {}
-    : { itemDna: sql<string>`item_dna - 'colour_check'` };
+// Her answer clears Robes' "check it" flag on that field: a colour, or a material ("Not sure"
+// included — she has looked at it).
+function checksAnswered(fields: PieceFields) {
+  const keys = [
+    ...(fields.colourShade === undefined ? [] : ['colour_check']),
+    ...(fields.material === undefined ? [] : ['material_check']),
+  ];
+  return keys.length === 0 ? {} : { itemDna: sql<string>`item_dna - ${sql.val(keys)}::text[]` };
 }
 
 const WEAR_TAG_MAX = 6;
@@ -266,7 +271,7 @@ export function wardrobeRepo(db: Db) {
       return db
         .updateTable('wardrobeItems')
         .set(values)
-        .set(colourChecked(fields))
+        .set(checksAnswered(fields))
         .where('userId', '=', userId)
         .where('id', '=', id)
         .where('deletedAt', 'is', null)
@@ -347,7 +352,7 @@ export function wardrobeRepo(db: Db) {
           await trx
             .updateTable('wardrobeItems')
             .set(values)
-            .set(colourChecked(fields))
+            .set(checksAnswered(fields))
             .where('userId', '=', userId)
             .where('id', '=', id)
             .execute();

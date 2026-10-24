@@ -55,6 +55,22 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await wear.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('button', { name: /Wear it for.*Work/ })).toBeVisible();
 
+  // Material is the fourth row of Colour & material: the read files Wool, a pick from another
+  // family answers it, and "Not sure" files nothing.
+  await expect(page.getByRole('button', { name: /^Material.*Wool/ })).toBeVisible();
+  await page.getByRole('button', { name: /^Material/ }).click();
+  const fabric = page.getByRole('dialog', { name: 'Material' });
+  await expect(fabric.getByRole('radio', { name: /Wool/ })).toHaveAttribute('aria-checked', 'true');
+  await fabric.getByRole('button', { name: 'Cloths', exact: true }).click();
+  await fabric.getByRole('radio', { name: /Denim/ }).click();
+  await expect(page.getByRole('button', { name: /^Material.*Denim/ })).toBeVisible();
+  await page.getByRole('button', { name: /^Material/ }).click();
+  await page
+    .getByRole('dialog', { name: 'Material' })
+    .getByRole('button', { name: 'Not sure' })
+    .click();
+  await expect(page.getByRole('button', { name: /^Material.*Add/ })).toBeVisible();
+
   // The pencil edits the name where it is written.
   await page.getByRole('button', { name: 'Edit the name' }).click();
   const name = page.getByRole('dialog', { name: 'Name' });

@@ -10,6 +10,7 @@ export interface PieceAnalysis {
   colourShade: string | null;
   colourExtra: string[];
   print: string | null;
+  material: string | null;
   brand: string | null;
   price: number | null;
   currency: string | null;
@@ -34,15 +35,18 @@ export function pieceAnalysisRepo(db: Db) {
         .executeTakeFirst();
     },
 
-    // Fills a reading piece; anything she already typed is kept.
+    // Fills a reading piece; anything she already typed (or picked, like a material) is kept.
     async apply(userId: UserId, pieceId: string, a: PieceAnalysis): Promise<void> {
       const current = await db
         .selectFrom('wardrobeItems')
-        .select(['status', 'label', 'brand', 'price', 'currency', 'size', 'notes'])
+        .select(['status', 'label', 'brand', 'price', 'currency', 'size', 'notes', 'material'])
         .where('userId', '=', userId)
         .where('id', '=', pieceId)
         .executeTakeFirst();
       if (!current) return;
+      // Robes' doubt about a material she has already answered is no doubt at all.
+      const { material_check: _, ...answered } = a.itemDna;
+      const itemDna = current.material ? answered : a.itemDna;
       await db
         .updateTable('wardrobeItems')
         .set({
@@ -58,12 +62,13 @@ export function pieceAnalysisRepo(db: Db) {
           colourShade: a.colourShade,
           colourExtra: a.colourExtra,
           print: a.print,
+          material: current.material ?? a.material,
           brand: current.brand ?? a.brand,
           price: current.price ?? a.price,
           currency: current.currency ?? a.currency,
           size: current.size ?? a.size,
           notes: current.notes ?? a.notes,
-          itemDna: JSON.stringify(a.itemDna),
+          itemDna: JSON.stringify(itemDna),
           status: 'ready',
         })
         .where('userId', '=', userId)

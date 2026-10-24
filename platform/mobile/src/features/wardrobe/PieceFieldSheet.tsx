@@ -13,6 +13,7 @@ import { Button, Field, Pill, Sheet, Text } from '@robes/ui-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { ColourPicker, PrintPicker } from './ColourField';
+import { MaterialPicker } from './MaterialField';
 
 const copy = wardrobe.piece;
 
@@ -23,6 +24,7 @@ export type PieceField =
   | 'colour'
   | 'extra'
   | 'print'
+  | 'material'
   | 'category'
   | 'season'
   | 'wearFor'
@@ -37,6 +39,7 @@ const TITLES: Record<PieceField, string> = {
   colour: copy.rows.colour,
   extra: copy.rows.extra,
   print: copy.rows.print,
+  material: wardrobe.material.title,
   season: copy.rows.season,
   wearFor: copy.rows.wearFor,
   size: copy.rows.size,
@@ -136,6 +139,8 @@ export function PieceFieldSheet({
               </Pill>
             ))}
           </View>
+        ) : field === 'material' ? (
+          <MaterialPicker value={piece.material} onChange={(material) => commit({ material })} />
         ) : field === 'print' ? (
           <PrintPicker
             value={colour}
@@ -172,7 +177,8 @@ export function PieceFieldSheet({
             }
           />
         ) : null}
-        {picks ? (
+        {/* A material is answered by the pick itself, and "Not sure" sits inside the picker. */}
+        {field === 'material' ? null : picks ? (
           <Button variant="quiet" onPress={onClose}>
             {copy.done}
           </Button>

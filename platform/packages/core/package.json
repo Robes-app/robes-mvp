@@ -7,6 +7,7 @@
     "./taxonomy": "./src/taxonomy/index.ts",
     "./colour": "./src/colour/index.ts",
     "./colour-sql": "./src/sql/colour-model.ts",
+    "./material": "./src/material/index.ts",
     "./wardrobe": "./src/wardrobe/index.ts",
     "./quotas": "./src/quotas/index.ts",
     "./flags": "./src/flags/index.ts",

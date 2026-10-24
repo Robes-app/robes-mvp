@@ -27,6 +27,7 @@ export async function toWishes(userId: UserId, rows: WishRow[]): Promise<Wish[]>
         colourShade: row.colourShade,
         colourExtra: row.colourExtra,
         print: row.print,
+        material: row.material,
         brand: row.brand,
         note: row.note,
         price: row.price === null ? null : Number(row.price),

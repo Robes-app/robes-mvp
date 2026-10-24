@@ -131,6 +131,67 @@ test('a colour answers on the tap, from the family tiles and their shades', asyn
   });
 });
 
+test('material is a row of Colour & material: the read marks Check, a pick answers it', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ material: 'wool', materialCheck: true }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ material: 'denim' }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  expect(await screen.findByText(wardrobe.piece.sections.colour)).toBeTruthy();
+  // Robes was unsure, so the row says so until she answers it.
+  const row = await screen.findByRole('button', {
+    name: `${wardrobe.piece.rows.material}: Wool. ${wardrobe.material.check}`,
+  });
+  expect(screen.getByText(wardrobe.piece.check)).toBeTruthy();
+  await fireEvent.press(row);
+  // The sheet opens on the family of what is filed, with that material checked.
+  expect(screen.getByRole('radio', { name: 'Wool' }).props.accessibilityState).toMatchObject({
+    checked: true,
+  });
+  expect(screen.getByRole('button', { name: wardrobe.material.notSure })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Cloths' }));
+  // Natural holds her material while she looks at Cloths, so it carries the dot.
+  expect(screen.getByTestId('material-home-natural')).toBeTruthy();
+  expect(screen.getByText('Sequins & glitter')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('radio', { name: 'Denim' }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ material: 'denim' });
+});
+
+test('"Not sure" files no material', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ material: 'silk' }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ material: null }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: `${wardrobe.piece.rows.material}: Silk` }),
+  );
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.material.notSure }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ material: null });
+});
+
+test('an unfiled material reads as the door, and its sheet opens on Natural', async () => {
+  mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', {
+      name: `${wardrobe.piece.rows.material}: ${wardrobe.piece.add}`,
+    }),
+  );
+  expect(screen.getByRole('radio', { name: 'Cotton' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: wardrobe.material.notSure })).toBeNull();
+});
+
 test('removing a piece goes back and offers Undo, which restores it', async () => {
   const calls = mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece(),

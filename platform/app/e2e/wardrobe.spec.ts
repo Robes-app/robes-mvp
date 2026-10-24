@@ -45,7 +45,15 @@ test('a batch of photos becomes filed pieces', async ({ page }) => {
     label: 'Camel wool coat',
     category: 'Outerwear',
     categoryL2: 'Coats',
+    material: 'wool',
+    materialCheck: false,
   });
+  // A material is one id from the list, or none; a word off the list is refused.
+  expect((await api.patch(pieceUrl, { data: { material: 'nylon' } })).status()).toBe(400);
+  const linen = await (await api.patch(pieceUrl, { data: { material: 'linen' } })).json();
+  expect(linen.material).toBe('linen');
+  const unsure = await (await api.patch(pieceUrl, { data: { material: null } })).json();
+  expect(unsure.material).toBeNull();
   expect(piece.image.renditions.length).toBeGreaterThan(0);
 
   const list = await (await api.get('/api/v1/wardrobe/items')).json();

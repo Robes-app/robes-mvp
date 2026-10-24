@@ -1,5 +1,6 @@
 import { AdminUserParams } from '@robes/contracts';
 import { admin as copy } from '@robes/copy';
+import { material } from '@robes/core/material';
 import { Heading, Text } from '@robes/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -90,13 +91,24 @@ export default async function AdminUser({ params }: Props) {
       />
       <DataTable
         caption={rc.pieces(r.pieces.length, r.pieceCount)}
-        columns={[c.photo, c.name, c.category, c.brand, c.colour, c.via, c.wears, c.when]}
+        columns={[
+          c.photo,
+          c.name,
+          c.category,
+          c.brand,
+          c.colour,
+          c.material,
+          c.via,
+          c.wears,
+          c.when,
+        ]}
         rows={r.pieces.map((p) => [
           <Thumb key="t" src={p.image} empty={rc.noPhoto} />,
           p.hero ? `${p.label} · ${rc.hero}` : p.label,
           p.category,
           p.brand ?? copy.empty,
           p.colourShade ?? copy.empty,
+          material(p.material)?.name ?? copy.empty,
           p.acquiredVia,
           p.wears,
           when(p.createdAt, copy.empty),
