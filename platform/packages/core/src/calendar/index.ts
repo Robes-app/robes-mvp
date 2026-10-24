@@ -91,6 +91,11 @@ const DAY_MONTH = new Intl.DateTimeFormat('en-GB', {
 });
 const at = (date: string) => new Date(`${date}T00:00:00Z`);
 
+// "23 Jul", the way a look says the day it was last worn.
+export function dayMonth(date: string): string {
+  return DAY_MONTH.format(at(date));
+}
+
 export function weekdayShort(date: string): string {
   return SHORT_DAY.format(at(date));
 }

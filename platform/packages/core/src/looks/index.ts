@@ -1,6 +1,8 @@
 // Looks: one entity in three states (docs/look-states-brief.md) and the rack the look prompt edits
 // (docs/look-prompt-brief.md). Pure, shared by the API, the workers and both clients.
 
+import { dayMonth } from '../calendar';
+
 export const LOOK_STATUSES = ['suggested', 'draft', 'saved'] as const;
 export type LookStatus = (typeof LOOK_STATUSES)[number];
 
@@ -57,6 +59,26 @@ export function theName(name: string): string {
 export function anchorName(label: string, brand: string | null | undefined): string {
   const nm = nameNoBrand(label, brand);
   return nm ? nm.charAt(0).toLowerCase() + nm.slice(1) : '';
+}
+
+// The facts a saved look states about itself, in the shape the copy line takes:
+// its rack, its wears, when it was last worn (the date as the day says it) and the
+// piece it was styled around. One reader, so the card and the look page agree.
+export function lookFacts(
+  look: {
+    timesWorn: number;
+    lastWornOn: string | null;
+    anchor?: { label: string; brand: string | null } | null;
+  },
+  rows: number,
+): { pieces: number; timesWorn: number; lastWorn: string | null; around: string | null } {
+  const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
+  return {
+    pieces: rows,
+    timesWorn: look.timesWorn,
+    lastWorn: look.timesWorn && look.lastWornOn ? dayMonth(look.lastWornOn) : null,
+    around: around || null,
+  };
 }
 
 // ── The rack ────────────────────────────────────────────────────────────

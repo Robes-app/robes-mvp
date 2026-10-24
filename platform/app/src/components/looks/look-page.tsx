@@ -2,7 +2,7 @@
 
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
-import { anchorName, noteShort } from '@robes/core/looks';
+import { anchorName, lookFacts, noteShort } from '@robes/core/looks';
 import { Button, Dialog, Eyebrow, Field, Heading, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -322,12 +322,5 @@ export function SavedRack({ look, editor }: { look: Look; editor: Editor }) {
 }
 
 export function savedMeta(look: Look, rows: number): string {
-  const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
-  return [
-    copy.meta.pieces(rows),
-    look.timesWorn ? copy.meta.wears(look.timesWorn) : copy.meta.notYetWorn,
-    around ? copy.meta.around(around) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  return copy.meta.saved(lookFacts(look, rows));
 }

@@ -1,6 +1,6 @@
 import type { Look } from '@robes/contracts';
-import { lookbook as copy, looks } from '@robes/copy';
-import { anchorName, startedLabel } from '@robes/core/looks';
+import { lookbook as copy } from '@robes/copy';
+import { anchorName, lookFacts, startedLabel } from '@robes/core/looks';
 import { Card, IconButton, Image, Skeleton, Text } from '@robes/ui-native';
 import { Pressable, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
@@ -36,7 +36,6 @@ export function SavedTile({
   onDiary?: () => void;
   onDelete?: () => void;
 }) {
-  const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
   return (
     <Card onPress={onPress} accessibilityLabel={look.name} className="flex-1">
       <View>
@@ -57,9 +56,7 @@ export function SavedTile({
           {look.name}
         </Text>
         <Text size="caption" tone="muted" numberOfLines={1}>
-          {around
-            ? `${looks.look.worn(look.timesWorn)} · ${copy.meta.around(around)}`
-            : looks.look.worn(look.timesWorn)}
+          {copy.meta.card(lookFacts(look, look.pieces.length))}
         </Text>
       </View>
     </Card>

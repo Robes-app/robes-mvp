@@ -1,7 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { looks as copy, errors, lookbook, ui } from '@robes/copy';
-import { anchorName, noteShort } from '@robes/core/looks';
+import { lookFacts, noteShort } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
@@ -151,12 +151,7 @@ function SavedLook({ look }: { look: Look }) {
   const render = renditionUri(look.image, 360);
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
-  const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
-  const meta = [
-    lookbook.meta.pieces(editor.rack.rows.length),
-    look.timesWorn ? lookbook.meta.wears(look.timesWorn) : lookbook.meta.notYetWorn,
-    around ? lookbook.meta.around(around) : null,
-  ].filter(Boolean);
+  const meta = [lookbook.meta.saved(lookFacts(look, editor.rack.rows.length))];
   return (
     <View className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-6 pb-32">

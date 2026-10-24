@@ -4,6 +4,16 @@
 const pieces = (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`);
 const KEPT_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
 const ROLE = { canvas: 'Canvas', anchor: 'Anchor', texture: 'Texture', exclamation: 'Exclamation' };
+const line = (parts: (string | null)[]): string => parts.filter(Boolean).join(' · ');
+
+// What a saved look says about itself: its rack, its wears, when it was last worn
+// and the piece it was styled around.
+export interface LookFacts {
+  pieces: number;
+  timesWorn: number;
+  lastWorn: string | null;
+  around: string | null;
+}
 
 export const lookbook = {
   title: 'Lookbook',
@@ -63,6 +73,23 @@ export const lookbook = {
     lastWorn: (when: string): string => `last ${when}`,
     around: (piece: string): string => `around your ${piece}`,
     photographOnly: 'Photograph · not yet filed',
+    // One line of facts, built from the same words wherever a saved look says them.
+    // On a card the wears LEAD — how often a look actually gets worn is the card's
+    // job in a lookbook she browses; the look page leads with its rack instead.
+    card: (f: LookFacts): string =>
+      line([
+        f.timesWorn ? lookbook.meta.wears(f.timesWorn) : lookbook.meta.notYetWorn,
+        pieces(f.pieces),
+        f.lastWorn ? lookbook.meta.lastWorn(f.lastWorn) : null,
+        f.around ? lookbook.meta.around(f.around) : null,
+      ]),
+    saved: (f: LookFacts): string =>
+      line([
+        pieces(f.pieces),
+        f.timesWorn ? lookbook.meta.wears(f.timesWorn) : lookbook.meta.notYetWorn,
+        f.lastWorn ? lookbook.meta.lastWorn(f.lastWorn) : null,
+        f.around ? lookbook.meta.around(f.around) : null,
+      ]),
   },
   composedByRobes: 'Composed by Robes',
   noteLabel: 'The look',

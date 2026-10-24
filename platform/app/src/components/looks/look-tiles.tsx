@@ -1,8 +1,8 @@
 'use client';
 
 import type { Look } from '@robes/contracts';
-import { lookbook as copy, looks } from '@robes/copy';
-import { anchorName, startedLabel } from '@robes/core/looks';
+import { lookbook as copy } from '@robes/copy';
+import { anchorName, lookFacts, startedLabel } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { IconButton, Image, Text } from '@robes/ui';
 import Link from 'next/link';
@@ -29,7 +29,6 @@ export function SavedTile({
   onDiary?: () => void;
   onDelete?: () => void;
 }) {
-  const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
   return (
     <article className="relative flex flex-col overflow-hidden rounded-soft border border-hairline bg-surface">
       <div className="relative">
@@ -60,11 +59,7 @@ export function SavedTile({
           <Text className="truncate font-display text-xl">{look.name}</Text>
         </Link>
         <Text size="caption" tone="faint" className="truncate">
-          {around
-            ? `${looks.savedList.worn(look.timesWorn)} · ${copy.meta.around(around)}`
-            : look.timesWorn
-              ? looks.savedList.worn(look.timesWorn)
-              : copy.meta.notYetWorn}
+          {copy.meta.card(lookFacts(look, look.pieces.length))}
         </Text>
       </div>
     </article>

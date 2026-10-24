@@ -12,6 +12,7 @@ import {
   forecastWord,
   frameKey,
   isProposalKey,
+  lookFacts,
   nameNoBrand,
   newProposalKey,
   noteShort,
@@ -280,5 +281,32 @@ describe('readBalance', () => {
     });
     expect(readBalance('x'.repeat(400)).note).toHaveLength(160);
     expect(readBalance('   ')).toEqual({ balance: null, note: null });
+  });
+});
+
+describe('lookFacts', () => {
+  const look = {
+    timesWorn: 3,
+    lastWornOn: '2026-07-23',
+    anchor: { label: 'Rust slip dress', brand: 'Ganni' },
+  };
+
+  it('reads the rack, the wears, the day and the piece it was styled around', () => {
+    expect(lookFacts(look, 4)).toEqual({
+      pieces: 4,
+      timesWorn: 3,
+      lastWorn: '23 Jul',
+      around: 'rust slip dress',
+    });
+  });
+
+  it('says nothing it cannot say: no wears means no date, no anchor means no piece', () => {
+    expect(lookFacts({ timesWorn: 0, lastWornOn: '2026-07-23', anchor: null }, 2)).toEqual({
+      pieces: 2,
+      timesWorn: 0,
+      lastWorn: null,
+      around: null,
+    });
+    expect(lookFacts({ timesWorn: 1, lastWornOn: null }, 1).lastWorn).toBeNull();
   });
 });
