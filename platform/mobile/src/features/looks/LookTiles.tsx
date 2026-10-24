@@ -1,26 +1,12 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { anchorName, lookFacts, startedLabel } from '@robes/core/looks';
-import { Card, IconButton, Image, Skeleton, Text } from '@robes/ui-native';
-import { Pressable, View } from 'react-native';
+import { IconButton, Image } from '@robes/ui-native';
+import { View } from 'react-native';
 import { renditionUri } from '@/lib/images';
+import { LookTile } from './LookTile';
 import { Scanning, scanningLine } from './ScanLine';
 import { localDate } from './saved-looks';
-
-// The look's picture on a tile: Robes' frame or her render, else her first piece.
-function heroOf(look: Look) {
-  return look.image ?? look.pieces.find((p) => p.piece.image)?.piece.image ?? null;
-}
-
-function Picture({ look }: { look: Look }) {
-  const image = heroOf(look);
-  const uri = renditionUri(image, 180);
-  return uri ? (
-    <Image source={uri} alt="" blurhash={image?.blurhash} recyclingKey={look.id} />
-  ) : (
-    <Skeleton width="100%" aspectRatio={4 / 5} />
-  );
-}
 
 // Saved: no eyebrow (the default state needs no label). The calendar sits ON the image bottom
 // left — the look's own diary door, so a day is set without leaving the grid (legacy 13 Oct) —
@@ -37,54 +23,45 @@ export function SavedTile({
   onDelete?: () => void;
 }) {
   return (
-    <Card onPress={onPress} accessibilityLabel={look.name} className="flex-1">
-      <View>
-        <Picture look={look} />
-        {onDiary ? (
+    <LookTile
+      look={look}
+      onPress={onPress}
+      className="flex-1"
+      meta={copy.meta.card(lookFacts(look, look.pieces.length))}
+      onImage={
+        onDiary ? (
           <View className="absolute bottom-2 left-2 rounded-pill bg-bg">
             <IconButton icon="plan" label={copy.card.diary} onPress={onDiary} />
           </View>
-        ) : null}
-        {onDelete ? (
-          <View className="absolute top-1 right-1 rounded-pill bg-bg">
+        ) : null
+      }
+      corner={
+        onDelete ? (
+          <View className="rounded-pill bg-bg">
             <IconButton icon="close" label={copy.card.delete} onPress={onDelete} />
           </View>
-        ) : null}
-      </View>
-      <View className="gap-1 p-2">
-        <Text size="small" numberOfLines={1}>
-          {look.name}
-        </Text>
-        <Text size="caption" tone="muted" numberOfLines={1}>
-          {copy.meta.card(lookFacts(look, look.pieces.length))}
-        </Text>
-      </View>
-    </Card>
+        ) : null
+      }
+    />
   );
 }
 
 // Draft: the same tile, dashed — a look, unfinished.
 export function DraftTile({ look, onPress }: { look: Look; onPress: () => void }) {
+  const name = look.nameProvisional ? copy.draftTile.untitled : look.name;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${copy.draftTile.eyebrow}: ${look.nameProvisional ? copy.draftTile.untitled : look.name}`}
+    <LookTile
+      look={look}
       onPress={onPress}
-      style={{ width: 160 }}
-      className="gap-1 rounded-soft border border-dashed border-border-control bg-surface p-1.5"
+      width={160}
+      dashed
+      eyebrow={copy.draftTile.eyebrow}
+      name={name}
+      italic={look.nameProvisional}
+      label={`${copy.draftTile.eyebrow}: ${name}`}
+      meta={copy.draftTile.meta(startedLabel(look.createdAt, localDate()))}
       testID={`draft-${look.id}`}
-    >
-      <Picture look={look} />
-      <Text size="caption" tone="muted">
-        {copy.draftTile.eyebrow}
-      </Text>
-      <Text size="small" numberOfLines={1} italic={look.nameProvisional}>
-        {look.nameProvisional ? copy.draftTile.untitled : look.name}
-      </Text>
-      <Text size="caption" tone="muted" numberOfLines={1}>
-        {copy.draftTile.meta(startedLabel(look.createdAt, localDate()))}
-      </Text>
-    </Pressable>
+    />
   );
 }
 
@@ -108,24 +85,28 @@ export function SuggestedTile({
   const markUri = renditionUri(look.anchor?.image, 36);
   const busy = scanningLine(look, swapping);
   return (
-    <Card
+    <LookTile
+      look={look}
       onPress={onPress}
-      accessibilityLabel={look.name}
       className="flex-1"
+      eyebrow={copy.suggestedTile.eyebrow}
+      meta={around ? copy.suggestedTile.around(around) : copy.suggestedTile.fromPrompt}
       testID={`suggested-${look.id}`}
-    >
-      <View className="overflow-hidden">
-        <Picture look={look} />
-        {busy ? <Scanning line={busy} /> : null}
-        {showMark && markUri ? (
-          <View
-            className="absolute bottom-2 left-2 overflow-hidden rounded-crisp border border-hairline bg-bg"
-            style={{ width: 36 }}
-          >
-            <Image source={markUri} alt="" aspect="4:5" />
-          </View>
-        ) : null}
-        <View className="absolute right-1 top-1 flex-row">
+      onImage={
+        <>
+          {busy ? <Scanning line={busy} /> : null}
+          {showMark && markUri ? (
+            <View
+              className="absolute bottom-2 left-2 overflow-hidden rounded-crisp border border-hairline bg-bg"
+              style={{ width: 36 }}
+            >
+              <Image source={markUri} alt="" aspect="4:5" />
+            </View>
+          ) : null}
+        </>
+      }
+      corner={
+        <View className="flex-row rounded-pill bg-bg">
           <IconButton
             icon="close"
             label={copy.suggestedTile.remove(look.name)}
@@ -138,18 +119,7 @@ export function SuggestedTile({
             disabled={swapping}
           />
         </View>
-      </View>
-      <View className="gap-1 p-2">
-        <Text size="caption" tone="muted">
-          {copy.suggestedTile.eyebrow}
-        </Text>
-        <Text size="small" numberOfLines={1}>
-          {look.name}
-        </Text>
-        <Text size="caption" tone="muted" numberOfLines={1}>
-          {around ? copy.suggestedTile.around(around) : copy.suggestedTile.fromPrompt}
-        </Text>
-      </View>
-    </Card>
+      }
+    />
   );
 }

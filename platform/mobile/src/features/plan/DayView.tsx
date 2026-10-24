@@ -8,45 +8,32 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
+import { LookTile } from '../looks/LookTile';
 import { localDate } from '../looks/saved-looks';
 import { LookPicker } from './LookPicker';
-import { LookThumb } from './LookThumb';
 import { useNameDay, usePlanDay, useUnpin } from './plan';
 
 function LookCard({ entry, n }: { entry: PlanEntry; n: number }) {
   const router = useRouter();
   const unpin = useUnpin();
   return (
-    <View style={{ width: '47%' }}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={entry.look.name}
-        onPress={() => router.push(`/look/${entry.look.id}`)}
-        className="gap-1.5"
-      >
-        <LookThumb look={entry.look} width={160} />
-        <Text
-          className="text-[9px] text-ink-faint uppercase"
-          style={{ fontFamily: fonts.sans, letterSpacing: 1.6 }}
-        >
-          {copy.day.lookEyebrow(n)}
-        </Text>
-        <Text className="text-xl text-ink" style={{ fontFamily: fonts.displayRegular }}>
-          {entry.look.name}
-        </Text>
-        <Text size="caption" tone="muted">
-          {copy.list.pieces(entry.look.pieces.length)}
-        </Text>
-      </Pressable>
-      <View className="absolute top-1 right-1 rounded-pill bg-bg">
-        <IconButton
-          icon="close"
-          tone="ink-muted"
-          label={copy.day.remove(entry.look.name)}
-          onPress={() => unpin.mutate({ params: { id: entry.id } })}
-        />
-      </View>
-    </View>
+    <LookTile
+      look={entry.look}
+      onPress={() => router.push(`/look/${entry.look.id}`)}
+      className="w-[47%]"
+      eyebrow={copy.day.lookEyebrow(n)}
+      meta={copy.list.pieces(entry.look.pieces.length)}
+      corner={
+        <View className="rounded-pill bg-bg">
+          <IconButton
+            icon="close"
+            tone="ink-muted"
+            label={copy.day.remove(entry.look.name)}
+            onPress={() => unpin.mutate({ params: { id: entry.id } })}
+          />
+        </View>
+      }
+    />
   );
 }
 

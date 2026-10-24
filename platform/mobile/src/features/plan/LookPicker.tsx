@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { LookThumb } from './LookThumb';
+import { LookTile } from '../looks/LookTile';
 import { dayLabel } from './plan';
 
 // The Add-a-look picker (legacy ff87e89, saved looks only since 2026-10-10): tap looks to tick
@@ -88,39 +88,31 @@ export function LookPicker({
                   const had = onDay.has(look.id);
                   const on = picks.includes(look.id);
                   return (
-                    <Pressable
+                    <LookTile
                       key={look.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={look.name}
-                      accessibilityState={{ selected: on, disabled: had }}
+                      look={look}
+                      className="w-[47%]"
+                      selected={on}
+                      dimmed={had}
                       disabled={had}
                       onPress={() =>
                         setPicks((p) => (on ? p.filter((x) => x !== look.id) : [...p, look.id]))
                       }
-                      style={{ width: '47%' }}
-                      className={`rounded-crisp border p-1.5 ${on ? 'border-ink' : 'border-hairline'} ${had ? 'opacity-60' : ''}`}
-                    >
-                      <LookThumb look={look} width={140} />
-                      {on ? (
-                        <View className="absolute top-3 right-3 size-6 items-center justify-center rounded-pill bg-ink">
-                          <Icon name="check" size={14} color={bg} />
-                        </View>
-                      ) : null}
-                      <Text
-                        numberOfLines={1}
-                        className="mt-2"
-                        style={{ fontFamily: fonts.displayRegular }}
-                      >
-                        {look.name}
-                      </Text>
-                      <Text size="caption" tone="muted" numberOfLines={1}>
-                        {had
+                      meta={
+                        had
                           ? copy.picker.already
                           : look.lastWornOn
                             ? copy.picker.lastWorn(dayLabel(look.lastWornOn))
-                            : copy.picker.neverWorn}
-                      </Text>
-                    </Pressable>
+                            : copy.picker.neverWorn
+                      }
+                      onImage={
+                        on ? (
+                          <View className="absolute top-2 right-2 size-6 items-center justify-center rounded-pill bg-ink">
+                            <Icon name="check" size={14} color={bg} />
+                          </View>
+                        ) : null
+                      }
+                    />
                   );
                 })}
               </View>
