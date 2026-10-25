@@ -1,12 +1,48 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { anchorName, lookFacts, startedLabel } from '@robes/core/looks';
-import { IconButton, Image } from '@robes/ui-native';
-import { View } from 'react-native';
+import type { IconName } from '@robes/icons';
+import { Icon } from '@robes/icons/native';
+import { fonts, Image, MIN_TOUCH, useColor } from '@robes/ui-native';
+import { useRouter } from 'expo-router';
+import { Pressable, Text, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 import { LookTile } from './LookTile';
 import { Scanning, scanningLine } from './ScanLine';
 import { localDate } from './saved-looks';
+
+// A control on the photograph: drawn small (32pt ✕, 36pt calendar — beta's size, not a large
+// white disc) with the hit area reaching out to 44pt.
+function OnPhoto({
+  icon,
+  label,
+  size,
+  onPress,
+  disabled = false,
+}: {
+  icon: IconName;
+  label: string;
+  size: 32 | 36;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  const ink = useColor('ink');
+  const slop = (MIN_TOUCH - size) / 2;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      hitSlop={slop}
+      style={{ width: size, height: size }}
+      className={`items-center justify-center rounded-pill bg-bg ${disabled ? 'opacity-50' : ''}`}
+    >
+      <Icon name={icon} size={size === 32 ? 14 : 16} color={ink} />
+    </Pressable>
+  );
+}
 
 // Saved: no eyebrow (the default state needs no label). The calendar sits ON the image bottom
 // left — the look's own diary door, so a day is set without leaving the grid (legacy 13 Oct) —
@@ -30,42 +66,87 @@ export function SavedTile({
       meta={copy.meta.card(lookFacts(look, look.pieces.length))}
       onImage={
         onDiary ? (
-          <View className="absolute bottom-2 left-2 rounded-pill bg-bg">
-            <IconButton icon="plan" label={copy.card.diary} onPress={onDiary} />
+          <View className="absolute bottom-2 left-2">
+            <OnPhoto icon="plan" label={copy.card.diary} size={36} onPress={onDiary} />
           </View>
         ) : null
       }
       corner={
         onDelete ? (
-          <View className="rounded-pill bg-bg">
-            <IconButton icon="close" label={copy.card.delete} onPress={onDelete} />
-          </View>
+          <OnPhoto icon="close" label={copy.card.delete} size={32} onPress={onDelete} />
         ) : null
       }
     />
   );
 }
 
-// Draft: the same tile, dashed — a look, unfinished.
+// Draft: the same tile, dashed and small — a look, unfinished, in the In progress row.
 export function DraftTile({ look, onPress }: { look: Look; onPress: () => void }) {
   const name = look.nameProvisional ? copy.draftTile.untitled : look.name;
   return (
     <LookTile
       look={look}
       onPress={onPress}
-      width={160}
+      width={116}
       dashed
       eyebrow={copy.draftTile.eyebrow}
+      eyebrowTone="warm"
       name={name}
       italic={look.nameProvisional}
       label={`${copy.draftTile.eyebrow}: ${name}`}
-      meta={copy.draftTile.meta(startedLabel(look.createdAt, localDate()))}
+      meta={copy.draftTile.started(startedLabel(look.createdAt, localDate()))}
       testID={`draft-${look.id}`}
     />
   );
 }
 
-// Suggested: Robes' frame, the piece it was styled around in the corner, ✕ and ↻ always shown.
+// Bottom left of a suggestion says where it came from (legacy _lkSuggCard): the piece it was
+// styled around — its photograph, or its initial — and a tap opens the piece; a look styled
+// from her own words wears a rose open-quote instead.
+function SuggestedMark({ look }: { look: Look }) {
+  const router = useRouter();
+  const rose = useColor('accent-inspire');
+  const anchor = look.anchor;
+  const frame = 'absolute bottom-2 left-2 overflow-hidden rounded-crisp border-2 border-bg';
+  if (!anchor) {
+    return (
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        testID={`suggested-${look.id}-quote`}
+        className={`${frame} items-center justify-center bg-surface`}
+        style={{ width: 36, height: 44 }}
+      >
+        <Text style={{ fontFamily: fonts.display, fontSize: 26, lineHeight: 30, color: rose }}>
+          {copy.suggestedTile.quote}
+        </Text>
+      </View>
+    );
+  }
+  const name = anchorName(anchor.label, anchor.brand);
+  const uri = renditionUri(anchor.image, 36);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={copy.suggestedTile.yourPiece(name)}
+      onPress={() => router.push(`/piece/${anchor.id}`)}
+      hitSlop={4}
+      className={`${frame} items-center justify-center bg-surface`}
+      style={{ width: 36, height: 44 }}
+      testID={`suggested-${look.id}-mark`}
+    >
+      {uri ? (
+        <Image source={uri} alt="" aspect="4:5" />
+      ) : (
+        <Text className="text-ink" style={{ fontFamily: fonts.display, fontSize: 18 }}>
+          {name.charAt(0).toLocaleUpperCase()}
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
+// Suggested: Robes' frame, where it came from in the corner, ✕ and ↻ always shown.
 export function SuggestedTile({
   look,
   onPress,
@@ -82,7 +163,6 @@ export function SuggestedTile({
   showMark?: boolean;
 }) {
   const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
-  const markUri = renditionUri(look.anchor?.image, 36);
   const busy = scanningLine(look, swapping);
   return (
     <LookTile
@@ -90,31 +170,27 @@ export function SuggestedTile({
       onPress={onPress}
       className="flex-1"
       eyebrow={copy.suggestedTile.eyebrow}
+      eyebrowTone="warm"
       meta={around ? copy.suggestedTile.around(around) : copy.suggestedTile.fromPrompt}
       testID={`suggested-${look.id}`}
       onImage={
         <>
           {busy ? <Scanning line={busy} /> : null}
-          {showMark && markUri ? (
-            <View
-              className="absolute bottom-2 left-2 overflow-hidden rounded-crisp border border-hairline bg-bg"
-              style={{ width: 36 }}
-            >
-              <Image source={markUri} alt="" aspect="4:5" />
-            </View>
-          ) : null}
+          {showMark ? <SuggestedMark look={look} /> : null}
         </>
       }
       corner={
-        <View className="flex-row rounded-pill bg-bg">
-          <IconButton
+        <View className="flex-row gap-[6px]">
+          <OnPhoto
             icon="close"
             label={copy.suggestedTile.remove(look.name)}
+            size={32}
             onPress={onRemove}
           />
-          <IconButton
+          <OnPhoto
             icon="swap"
             label={copy.suggestedTile.swap(look.name)}
+            size={32}
             onPress={onSwap}
             disabled={swapping}
           />

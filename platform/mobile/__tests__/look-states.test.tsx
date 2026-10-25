@@ -608,3 +608,41 @@ test('editing a suggestion at five drafts asks, then lets the oldest go', async 
   expect(sent[0]?.letGoOldest).toBeUndefined();
   expect(sent[1]?.letGoOldest).toBe(true);
 });
+
+test('the Lookbook opens on the looks worn last; a draft reads as started; suggestions say where they came from', async () => {
+  const id = (n: number) => `dddddddd-dddd-4ddd-8ddd-00000000000${n}`;
+  mockFetch({
+    'GET /me': ME,
+    'GET /looks': byStatus({
+      saved: [
+        look({ id: id(1), name: 'Never worn', timesWorn: 0, lastWornOn: null }),
+        look({ id: id(2), name: 'Worn in August', lastWornOn: '2026-08-02' }),
+        look({ id: id(3), name: 'Worn last', lastWornOn: '2026-10-20' }),
+        look({ id: id(4), name: 'Worn in September', lastWornOn: '2026-09-12' }),
+      ],
+      draft: [look({ id: SECOND, status: 'draft', name: 'Minion Day' })],
+      suggested: [suggestion(), suggestion({ id: JEAN, name: 'Gallery night', anchor: null })],
+    }),
+  });
+  await renderWithApi(<LooksView />);
+  await screen.findByText('Worn last');
+  expect(
+    screen.getByRole('button', { name: `${lookbook.sort.label}: ${lookbook.sort.lastWorn}` }),
+  ).toBeTruthy();
+  const order = ['Worn last', 'Worn in September', 'Worn in August', 'Never worn'].map(
+    (name) => screen.getByText(name).props.children,
+  );
+  expect(screen.getAllByText(/^(Worn|Never)/).map((t) => t.props.children)).toEqual(order);
+  expect(screen.getByText(/^Started /)).toBeTruthy();
+
+  await fireEvent.press(screen.getByRole('radio', { name: lookbook.tabs.suggested }));
+  await screen.findByText('Gallery night');
+  // Styled from her words: the rose open-quote. Styled around a piece: the piece, which opens.
+  expect(
+    screen.getByTestId(`suggested-${JEAN}-quote`, { includeHiddenElements: true }),
+  ).toBeTruthy();
+  await fireEvent.press(
+    screen.getByRole('button', { name: lookbook.suggestedTile.yourPiece('camel wool coat') }),
+  );
+  expect(mockRouter.push).toHaveBeenCalledWith(`/piece/${PIECE_ID}`);
+});
