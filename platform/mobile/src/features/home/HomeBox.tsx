@@ -34,6 +34,7 @@ export const HomeBox = forwardRef<
   const input = useRef<TextInputInstance>(null);
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
+  const faint = useColor('ink-faint');
   const [text, setText] = useState('');
   const [menu, setMenu] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -194,7 +195,7 @@ export const HomeBox = forwardRef<
     <View className="gap-2" testID="home-box">
       {attached ? (
         <View
-          className={`gap-3 rounded-soft border bg-surface p-3 ${nudge ? 'border-accent-warm' : 'border-hairline'}`}
+          className={`gap-3 rounded-[12px] border bg-surface-raised p-3 ${nudge ? 'border-accent-warm' : 'border-hairline'}`}
           testID="box-piece"
         >
           <View className="flex-row items-center gap-3">
@@ -242,18 +243,14 @@ export const HomeBox = forwardRef<
       {held !== null ? (
         <BalanceQuestion echo={held} disabled={busy} onPick={(b) => void send({ balance: b })} />
       ) : null}
-      <View className="flex-row items-end gap-1 rounded-[24px] border border-border-control bg-bg px-1 py-1">
-        <IconButton
-          icon="plus"
-          label={copy.plus.label}
-          onPress={() => setMenu(true)}
-          tone="ink-muted"
-        />
+      {/* Beta's prompt: a one-line white pill on the fine edge, the + circle at its left. */}
+      <View className="min-h-[54px] flex-row items-center gap-2 rounded-[27px] border border-rule-mid bg-surface-raised py-[5px] pr-1 pl-[5px]">
+        <IconButton icon="plus" label={copy.plus.label} onPress={() => setMenu(true)} framed />
         <TextInput
           ref={input}
           accessibilityLabel={place}
           placeholder={place}
-          placeholderTextColor={muted}
+          placeholderTextColor={faint}
           value={text}
           onChangeText={setText}
           maxLength={ASK_MAX_CHARS}
@@ -262,8 +259,8 @@ export const HomeBox = forwardRef<
           returnKeyType="send"
           onSubmitEditing={() => void send()}
           editable={!busy}
-          className="flex-1 py-3 text-lg"
-          style={{ color: ink, maxHeight: 96, fontFamily: fonts.displayItalic }}
+          className="flex-1 py-2"
+          style={{ color: ink, fontSize: 19, maxHeight: 96, fontFamily: fonts.displayItalic }}
         />
         {date && !attached ? (
           <IconButton icon="close" label={dayLabel(date)} onPress={onDateClear} tone="ink-muted" />
