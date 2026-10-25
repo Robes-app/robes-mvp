@@ -1,7 +1,7 @@
 import type { Look } from '@robes/contracts';
-import { Card, Image, Skeleton, Text } from '@robes/ui-native';
+import { Card, Eyebrow, fonts, Image, maxFontSizeMultiplier, Skeleton } from '@robes/ui-native';
 import type { ReactNode } from 'react';
-import { View } from 'react-native';
+import { Text as RNText, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 
 // The look's picture: Robes' frame or her render, else her first piece.
@@ -25,6 +25,8 @@ export interface LookTileProps {
   onPress?: () => void;
   label?: string;
   eyebrow?: string;
+  // Rose marks Robes' hand or something unfinished (Draft); the default is faint.
+  eyebrowTone?: 'faint' | 'warm';
   meta?: string;
   name?: string;
   italic?: boolean;
@@ -47,6 +49,7 @@ export function LookTile({
   onPress,
   label,
   eyebrow,
+  eyebrowTone = 'faint',
   meta,
   name,
   italic = false,
@@ -61,10 +64,10 @@ export function LookTile({
   testID,
 }: LookTileProps) {
   const title = name ?? look.name;
+  // Beta's card: white on a hairline (Card), the dashed draft on the fine rule-mid edge.
   const frame = [
-    'border',
-    dashed ? 'border-[1.5px] border-dashed border-border-control' : '',
-    selected ? 'border-ink' : dashed ? '' : 'border-hairline',
+    dashed ? 'border-dashed border-rule-mid bg-transparent p-[6px]' : '',
+    selected ? 'border-ink' : '',
     dimmed ? 'opacity-60' : '',
     className ?? '',
   ]
@@ -80,27 +83,45 @@ export function LookTile({
         accessibilityLabel={label ?? title}
         {...(selected || disabled ? { accessibilityState: { selected, disabled } } : {})}
       >
-        <View>
+        <View className={dashed ? 'overflow-hidden rounded-[8px]' : undefined}>
           <LookPhoto look={look} width={width} />
           {onImage}
         </View>
-        <View className="gap-1 p-3">
+        <View className={dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-[2px] px-3 pt-[10px] pb-3'}>
           {eyebrow ? (
-            <Text size="caption" tone="muted" className="uppercase">
+            <Eyebrow
+              numberOfLines={1}
+              className={eyebrowTone === 'warm' ? 'text-accent-warm' : undefined}
+              style={{ fontSize: dashed ? 10 : 11 }}
+            >
               {eyebrow}
-            </Text>
+            </Eyebrow>
           ) : null}
-          <Text size="small" numberOfLines={1} italic={italic}>
+          <RNText
+            numberOfLines={1}
+            maxFontSizeMultiplier={maxFontSizeMultiplier.heading}
+            className="text-ink"
+            style={{
+              fontFamily: italic ? fonts.displayItalic : fonts.display,
+              fontSize: dashed ? 18 : 20,
+              lineHeight: dashed ? 22 : 23,
+            }}
+          >
             {title}
-          </Text>
+          </RNText>
           {meta ? (
-            <Text size="caption" tone="faint" numberOfLines={1}>
+            <RNText
+              numberOfLines={1}
+              maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+              className="text-ink-muted"
+              style={{ fontFamily: fonts.sans, fontSize: 11 }}
+            >
               {meta}
-            </Text>
+            </RNText>
           ) : null}
         </View>
       </Card>
-      {corner ? <View className="absolute top-2 right-2">{corner}</View> : null}
+      {corner ? <View className="absolute top-[6px] right-[6px]">{corner}</View> : null}
     </View>
   );
 }

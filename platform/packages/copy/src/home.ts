@@ -31,6 +31,9 @@ export const home = {
   weather: (city: string | null, tempRange: string, condition: string): string =>
     [city, tempRange, condition].filter(Boolean).join(' · '),
   weatherLabel: 'Today’s weather',
+  // The meta line under the greeting (beta's H0): the weekday, the city, the day's range.
+  meta: (weekday: string, city: string | null, tempRange: string | null): string =>
+    [weekday, city, tempRange].filter(Boolean).join(' · '),
   doorDay: (day: string): string => `Dress ${day}…`,
   later: 'Later',
   map: {
@@ -126,6 +129,8 @@ export const home = {
   saved: 'Saved looks',
   suggested: 'Suggested',
   viewAll: 'View all',
+  viewAllMore: 'View all ›',
+  lookEyebrow: 'Look',
   aroundYour: (piece: string): string => `Around your ${piece}`,
   fromPrompt: 'From your prompt',
   // The + inside the box: a piece by photograph or from the wardrobe, then Build or Three ways.

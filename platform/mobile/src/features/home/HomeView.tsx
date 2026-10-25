@@ -17,6 +17,7 @@ import {
   fonts,
   Heading,
   Image,
+  MIN_TOUCH,
   PrimaryScope,
   Text,
   useColor,
@@ -25,8 +26,9 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, type ScrollViewInstance, View } from 'react-native';
 import { isTerminal } from '@/features/looks/ideas';
+import { LookTile } from '@/features/looks/LookTile';
 import { DayDots } from '@/features/plan/DayDots';
 import { dayLabel } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
@@ -56,6 +58,7 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
     staleTime: WEATHER_STALE_MS,
     refetchOnWindowFocus: false,
   });
+  const faint = useColor('ink-faint');
   const [force, setForce] = useState<HomeStep | null>(null);
   const [dressDate, setDressDate] = useState<string | null>(dress);
   // The tab stays mounted: a day page's "Dress this day…" arms the box on its date.
@@ -63,7 +66,7 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
     if (dress) setDressDate(dress);
   }, [dress]);
   const box = useRef<HomeBoxHandle>(null);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const data = query.data;
   if (query.isError) {
     return (
@@ -86,37 +89,38 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
   };
   const wx = weather.data;
   const weatherLine = wx ? copy.weather(wx.city, wx.tempRange, wx.condition) : null;
+  // Beta's H0 meta: the weekday, then where she is and the day's range once the forecast lands.
+  const metaLine = copy.meta(weekdayLong(data.date), wx?.city ?? null, wx?.tempRange ?? null);
 
   return (
     <ScrollView
       ref={scroll}
-      contentContainerClassName="gap-8 px-6 py-8"
+      contentContainerClassName="gap-7 px-5 pt-[22px] pb-8"
       keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
       }
     >
       <PrimaryScope>
-        <View className="gap-2">
-          <Heading size="md">{todayCopy.greeting(greetingName(data.firstName), data.hour)}</Heading>
-          <Text tone="faint" italic>
+        <View className="gap-1.5">
+          <Heading size="xl" style={{ fontSize: 38, lineHeight: 42 }}>
+            {todayCopy.greeting(greetingName(data.firstName), data.hour)}
+          </Heading>
+          <Text tone="muted" italic style={{ fontSize: 21 }}>
             {copy.echo}
           </Text>
-          {weatherLine ? (
-            <Text
-              size="caption"
-              tone="muted"
-              weight="medium"
-              className="uppercase"
-              style={{ letterSpacing: 1.6 }}
-              accessibilityLabel={`${copy.weatherLabel}: ${weatherLine}`}
-            >
-              {weatherLine}
-            </Text>
-          ) : null}
+          <View
+            className="mt-1.5 flex-row items-center gap-2"
+            accessible
+            accessibilityLabel={metaLine}
+            testID="home-meta"
+          >
+            <Icon name="today" size={16} color={faint} />
+            <Eyebrow>{metaLine}</Eyebrow>
+          </View>
         </View>
 
-        <Alerts data={data} onChanged={refresh} />
+        <Alerts data={data} weekShown={resolved.modules.includes('H3')} onChanged={refresh} />
 
         <HomeBox
           ref={box}
@@ -165,8 +169,18 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
   );
 }
 
-// H1 · alerts: held receipts, the overnight look, one line Robes noticed.
-function Alerts({ data, onChanged }: { data: Today; onChanged: () => void }) {
+// H1 · alerts: held receipts, the look Robes made overnight, one line Robes noticed. While the
+// week is on screen the overnight look is today's card there instead, never a second row (the
+// web twin is app/src/components/home/home-view.tsx).
+function Alerts({
+  data,
+  weekShown,
+  onChanged,
+}: {
+  data: Today;
+  weekShown: boolean;
+  onChanged: () => void;
+}) {
   const router = useRouter();
   const api = useApiClient();
   const toast = useToast();
@@ -218,13 +232,13 @@ function Alerts({ data, onChanged }: { data: Today; onChanged: () => void }) {
         [
           {
             label: copy.alerts.review,
-            onPress: () => router.push({ pathname: '/wardrobe', params: { segment: 'inbox' } }),
+            onPress: () => router.push('/wardrobe/inbox'),
           },
         ],
       ),
     );
   }
-  if (data.overnight) {
+  if (data.overnight && !weekShown) {
     const id = data.overnight.id;
     rows.push(
       row('overnight', todayCopy.overnight.title, data.overnight.headline || data.overnight.title, [
@@ -243,7 +257,8 @@ function Alerts({ data, onChanged }: { data: Today; onChanged: () => void }) {
   return rows.length ? <View>{rows}</View> : null;
 }
 
-// H3 · the week: a tap selects a day; its card sits beneath.
+// H3 · the week: a tap selects a day; its card sits beneath. Today is raised white on the fine
+// edge with its rose label (beta's strip); a day she selects takes the warm selected edge.
 function Week({
   data,
   weatherLine,
@@ -264,12 +279,34 @@ function Week({
   const isToday = day?.date === data.date;
   const label = !day ? '' : isToday ? copy.week.today : weekdayLong(day.date);
   const look = day?.first ?? null;
+  // The look Robes made overnight stands in for an empty today (it used to be a second row).
+  const overnight = isToday && !look ? data.overnight : null;
+  const eyebrow = (text: string) => (
+    <Text
+      className={`text-[11px] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
+      style={{ fontFamily: fonts.sansRegular, letterSpacing: 2.42 }}
+    >
+      {text}
+    </Text>
+  );
+  const name = (text: string) => (
+    <Text numberOfLines={1} className="text-[22px] text-ink" style={{ fontFamily: fonts.display }}>
+      {text}
+    </Text>
+  );
+  const card = 'flex-row items-center gap-3.5 rounded-[12px] border py-2.5 pr-3.5 pl-2.5';
   return (
-    <View className="gap-3" testID="home-week">
-      <View className="flex-row items-baseline justify-between">
+    <View className="gap-2.5" testID="home-week">
+      <View className="min-h-6 flex-row items-center justify-between">
         <Eyebrow>{copy.week.title}</Eyebrow>
-        <Pressable accessibilityRole="link" onPress={() => router.push('/plan')} hitSlop={12}>
-          <Text className="underline">{copy.week.diary}</Text>
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => router.push('/plan')}
+          hitSlop={12}
+          style={{ minHeight: MIN_TOUCH }}
+          className="justify-center"
+        >
+          <Text className="text-[13px] text-ink-muted">{copy.week.diary}</Text>
         </Pressable>
       </View>
       <View className="flex-row gap-1">
@@ -284,17 +321,27 @@ function Week({
               accessibilityLabel={todayCopy.weekDay(dayLabel(d.date, data.date), d.looks)}
               onPress={() => setSelected(d.date)}
               testID={`week-day-${d.date}`}
-              className={`min-h-[72px] flex-1 items-center justify-center gap-1.5 rounded-crisp border py-2 ${
-                sel ? 'border-hairline bg-surface' : 'border-transparent'
+              className={`h-[70px] flex-1 items-center justify-center gap-0.5 rounded-[12px] border ${
+                today
+                  ? 'border-rule-mid bg-surface-raised'
+                  : sel
+                    ? 'border-selected-line bg-surface-raised'
+                    : 'border-transparent'
               }`}
             >
               <Text
                 className={`text-[9px] uppercase ${today ? 'text-accent-warm' : 'text-ink-faint'}`}
-                style={{ fontFamily: fonts.sans, letterSpacing: 1.4 }}
+                style={{ fontFamily: fonts.sansRegular, letterSpacing: 1.26 }}
               >
                 {today ? copy.week.today : weekdayShort(d.date)}
               </Text>
-              <Text className="text-2xl text-ink" style={{ fontFamily: fonts.displayRegular }}>
+              <Text
+                className="text-[26px] text-ink"
+                style={{
+                  fontFamily: today ? fonts.displayRegular : fonts.display,
+                  lineHeight: 28,
+                }}
+              >
                 {Number(d.date.slice(8))}
               </Text>
               <DayDots looks={d.looks} past={today} />
@@ -307,32 +354,21 @@ function Week({
           accessibilityRole="link"
           accessibilityLabel={copy.week.open(look.name)}
           onPress={() => router.push(`/day/${day.date}`)}
-          className="flex-row items-center gap-4 rounded-soft border border-hairline bg-surface p-3"
+          className={`${card} border-hairline bg-surface-raised`}
           testID="day-card"
         >
-          <View style={{ width: 56 }}>
-            {renditionUri(look.image, 56) ? (
-              <Image source={renditionUri(look.image, 56) ?? ''} alt="" />
+          <View style={{ width: 52 }}>
+            {renditionUri(look.image, 52) ? (
+              <Image source={renditionUri(look.image, 52) ?? ''} alt="" className="rounded-[4px]" />
             ) : (
-              <View className="aspect-[4/5] rounded-crisp bg-surface-sunk" />
+              <View className="aspect-[4/5] rounded-[4px] bg-surface-sunk" />
             )}
           </View>
           <View className="flex-1 gap-0.5">
-            <Text size="caption" tone="muted" className="uppercase">
-              {label}
-              {day.looks > 1 ? copy.week.looks(day.looks) : ''}
-            </Text>
-            <Text
-              numberOfLines={1}
-              style={{ fontFamily: fonts.displayRegular }}
-              className="text-lg"
-            >
-              {look.name}
-            </Text>
+            {eyebrow(`${label}${day.looks > 1 ? copy.week.looks(day.looks) : ''}`)}
+            {name(look.name)}
             {look.worn ? (
-              <Text size="small" tone="muted">
-                {copy.week.worn}
-              </Text>
+              <Text className="text-xs text-ink-muted">{copy.week.worn}</Text>
             ) : isToday && data.hour >= WORE_IT_HOUR ? (
               <Pressable
                 accessibilityRole="button"
@@ -344,46 +380,56 @@ function Week({
                     .catch((err) => toast.show({ message: errorMessage(err) }))
                 }
               >
-                <Text size="small" className="underline">
-                  {copy.week.woreIt}
-                </Text>
+                <Text className="text-xs text-ink underline">{copy.week.woreIt}</Text>
               </Pressable>
             ) : isToday && weatherLine ? (
-              <Text size="small" tone="muted">
-                {weatherLine}
-              </Text>
+              <Text className="text-xs text-ink-muted">{weatherLine}</Text>
             ) : null}
           </View>
-          <Icon name="forward" size={20} color={muted} />
+          <Icon name="forward" size={18} color={muted} />
+        </Pressable>
+      ) : overnight ? (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={copy.week.open(overnight.headline || overnight.title)}
+          onPress={() => router.push(`/today/look/${overnight.id}`)}
+          className={`${card} border-hairline bg-surface-raised`}
+          testID="day-card"
+        >
+          <View className="aspect-[4/5] w-[52px] rounded-[4px] bg-surface-sunk" />
+          <View className="flex-1 gap-0.5">
+            {eyebrow(copy.week.today)}
+            {name(overnight.headline || overnight.title)}
+            {weatherLine ? <Text className="text-xs text-ink-muted">{weatherLine}</Text> : null}
+          </View>
+          <Icon name="forward" size={18} color={muted} />
         </Pressable>
       ) : day ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={isToday ? copy.week.dressToday : copy.week.dress(label)}
           onPress={() => onDress(isToday ? null : day.date)}
-          className="flex-row items-center gap-4 rounded-soft border border-border-control border-dashed p-3"
+          className={`${card} border-border-control border-dashed`}
           testID="day-card"
         >
-          <Icon name="looks" size={22} color={muted} />
+          <View className="w-[52px] items-center">
+            <Icon name="looks" size={22} color={muted} />
+          </View>
           <View className="flex-1 gap-0.5">
-            <Text size="caption" tone="muted" className="uppercase">
-              {label}
-            </Text>
-            <Text style={{ fontFamily: fonts.displayRegular }} className="text-lg">
-              {isToday ? copy.week.dressToday : copy.week.dress(label)}
-            </Text>
-            <Text size="small" tone="muted">
-              {copy.week.dressLine}
+            {eyebrow(label)}
+            {name(isToday ? copy.week.dressToday : copy.week.dress(label))}
+            <Text className="text-xs text-ink-muted">
+              {isToday && weatherLine ? weatherLine : copy.week.dressLine}
             </Text>
           </View>
-          <Icon name="forward" size={20} color={muted} />
+          <Icon name="forward" size={18} color={muted} />
         </Pressable>
       ) : null}
     </View>
   );
 }
 
-// H4 · Saved looks then Suggested, whenever each has data; a card opens its look.
+// H4 · Saved looks then Suggested, whenever each has data; each card is the LookTile.
 function LookRow({
   title,
   looks,
@@ -398,46 +444,37 @@ function LookRow({
   const router = useRouter();
   if (!looks.length) return null;
   return (
-    <View className="gap-3" testID={`home-${kind}`}>
-      <View className="flex-row items-baseline justify-between">
+    <View className="gap-2.5" testID={`home-${kind}`}>
+      <View className="min-h-6 flex-row items-center justify-between">
         <Eyebrow>{title}</Eyebrow>
-        <Pressable accessibilityRole="link" onPress={onAll} hitSlop={12}>
-          <Text className="underline">{copy.viewAll}</Text>
+        <Pressable
+          accessibilityRole="link"
+          onPress={onAll}
+          hitSlop={12}
+          style={{ minHeight: MIN_TOUCH }}
+          className="justify-center"
+        >
+          <Text className="text-[13px] text-ink-muted">{copy.viewAllMore}</Text>
         </Pressable>
       </View>
-      <View className="flex-row flex-wrap gap-4">
+      <View className="flex-row flex-wrap justify-between gap-y-3">
         {looks.map((look) => {
           const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
-          const uri = renditionUri(look.image ?? look.pieces[0]?.piece.image, 160);
           return (
-            <Pressable
-              key={look.id}
-              accessibilityRole="link"
-              accessibilityLabel={look.name}
-              onPress={() => router.push(`/look/${look.id}`)}
-              className="gap-2"
-              style={{ width: '47%' }}
-            >
-              {uri ? (
-                <Image source={uri} alt="" blurhash={look.image?.blurhash} />
-              ) : (
-                <View className="aspect-[4/5] rounded-crisp bg-surface-sunk" />
-              )}
-              <Text
-                numberOfLines={1}
-                style={{ fontFamily: fonts.displayRegular }}
-                className="text-lg"
-              >
-                {look.name}
-              </Text>
-              <Text size="caption" tone="muted" numberOfLines={1}>
-                {kind === 'suggested'
-                  ? around
-                    ? copy.aroundYour(around)
-                    : copy.fromPrompt
-                  : lookbook.meta.pieces(look.pieces.length)}
-              </Text>
-            </Pressable>
+            <View key={look.id} style={{ width: '48.4%' }}>
+              <LookTile
+                look={look}
+                eyebrow={copy.lookEyebrow}
+                meta={
+                  kind === 'suggested'
+                    ? around
+                      ? copy.aroundYour(around)
+                      : copy.fromPrompt
+                    : lookbook.meta.pieces(look.pieces.length)
+                }
+                onPress={() => router.push(`/look/${look.id}`)}
+              />
+            </View>
           );
         })}
       </View>

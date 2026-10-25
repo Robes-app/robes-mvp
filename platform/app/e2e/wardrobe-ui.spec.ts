@@ -37,15 +37,18 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   const brand = page.getByRole('dialog', { name: 'Brand' });
   await brand.getByLabel('Brand').fill('Harbour');
   await brand.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByRole('button', { name: 'Harbour' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Harbour', exact: true })).toBeVisible();
 
   // Category drills Category › Subcategory › Item type, from wardrobe_taxonomy.
   await page.getByRole('button', { name: /^Category/ }).click();
   const cat = page.getByRole('dialog', { name: 'Category' });
+  // The sheet opens where the piece already sits (Outerwear › Coats); step back to the top.
+  await cat.getByRole('button', { name: '‹ Outerwear' }).click();
+  await cat.getByRole('button', { name: '‹ Category' }).click();
   await cat.getByRole('button', { name: 'Tops', exact: true }).click();
   await cat.getByRole('button', { name: 'T-shirts & tees' }).click();
+  // A pick saves and closes the sheet (the record's rows, no form to save).
   await cat.getByRole('button', { name: 'Crew neck t-shirt' }).click();
-  await cat.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByText('T-shirts & tees · Crew neck t-shirt')).toBeVisible();
 
   // What she wears it for is a styling signal, so it is hers to set and reads back on the row.
@@ -89,7 +92,8 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   ).toHaveAttribute('aria-pressed', 'true');
   // The list is the rack card; its row swipes (or tabs) to Remove.
   await page.getByRole('radio', { name: 'List', exact: true }).click();
-  await expect(pieces.getByText('Outerwear', { exact: false })).toBeVisible();
+  // Re-filed above as a crew neck tee, so the card's eyebrow reads Tops now.
+  await expect(pieces.getByText('Tops · Harbour')).toBeVisible();
   // A drag to the left past the threshold lets it go (legacy swipe, with a mouse here).
   const row = pieces.getByRole('heading', { name: 'Camel wool coat' });
   const box = await row.boundingBox();
@@ -136,7 +140,9 @@ test('a wish becomes a piece when she buys it, and removal can be undone', async
     .filter({ hasText: 'Black leather loafers' })
     .getByRole('button', { name: 'I bought Black leather loafers' })
     .click();
-  await expect(page.getByText('Black leather loafers is in your wardrobe now.')).toBeVisible();
+  await expect(
+    page.getByText('Black leather loafers is in your wardrobe now.', { exact: true }),
+  ).toBeVisible();
   await expect(wishes.getByText('Black leather loafers')).toHaveCount(0);
   await page.getByRole('radio', { name: 'Pieces' }).click();
   await expect(

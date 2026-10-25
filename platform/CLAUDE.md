@@ -76,12 +76,12 @@ Postgres is a private database behind the API: no RLS, no client-side queries, n
 24. Nothing secret in the repo (gitleaks runs in CI on each change's commits). Publishable/anon keys are not secrets but still come from env. The legacy app has keys in its git history; they are being rotated and scrubbed after merge — never copy values from legacy files.
 
 ## Toolchain
-Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vitest · Playwright · Next.js 16.3 (React 19.3) · Tailwind 4.3 · Expo SDK 57 (RN 0.86, React 19.2.3) · Uniwind 1.12 · Postgres 17 (Docker) · Kysely · dbmate · Better Auth · AWS CDK v2. Versions and rationale: `docs/reference/stack-versions.md`. Shared packages declare React as a **peer** dependency.
+Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vitest · Playwright · Next.js 16.3 (React 19.3) · Tailwind 4.3 · Expo SDK 58 (RN 0.88, React 19.3) · Uniwind 1.12 · Postgres 17 (Docker) · Kysely · dbmate · Better Auth · AWS CDK v2. Versions and rationale: `docs/reference/stack-versions.md`. Shared packages declare React as a **peer** dependency.
 
 Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + typecheck + test + db:test) · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm services:up` · `pnpm db:reset` · `pnpm db:migrate` · `pnpm db:new <name>` · `pnpm db:types` · `pnpm db:test` · `pnpm maintenance` · `pnpm dev:web` · `pnpm dev:mobile` (Expo; ADR 018) · `pnpm --filter @robes/app test:e2e`. Recipes (new package / route / table): `docs/DEVELOPING.md`.
 
 ## Product rules to respect
-Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Lookbook · Diary + Create + You (routes stay `/looks`, `/plan`) (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.
+Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Lookbook · Diary · Wardrobe on native (beta's dock, Create as the sparkle beside the bar — Native parity handoff 2026-10-25; web still Today · Wardrobe · Lookbook · Diary) + Create + You (routes stay `/looks`, `/plan`) (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.
 
 **Web and native move together.** A change to a screen lands on both in the same pass — never web now and native later. Where a surface exists on both, build the twin and say so in a comment naming it, so the pair can be found.
 

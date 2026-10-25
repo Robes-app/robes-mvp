@@ -163,7 +163,7 @@ export function PieceGrid() {
           className={
             list
               ? 'grid grid-cols-1 gap-2 md:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] md:gap-x-3.5'
-              : 'grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+              : 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
           }
         >
           {pieces.map((piece, i) => (
@@ -235,6 +235,7 @@ function PieceCard({
       photo={
         <PieceImage
           piece={piece}
+          mat
           priority={priority}
           sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
         />

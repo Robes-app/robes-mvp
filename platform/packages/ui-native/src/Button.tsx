@@ -122,6 +122,9 @@ export interface IconButtonProps {
   onPress: (event: GestureResponderEvent) => void;
   disabled?: boolean;
   tone?: 'ink' | 'ink-muted';
+  // The labelled round control beside a tab's switcher (the + on every tab root): a 44pt white
+  // circle on the fine rule-mid edge with an 18pt glyph, rather than a bare glyph.
+  framed?: boolean;
   className?: string;
   testID?: string;
 }
@@ -132,6 +135,7 @@ export function IconButton({
   onPress,
   disabled = false,
   tone = 'ink',
+  framed = false,
   className,
   testID,
 }: IconButtonProps) {
@@ -147,11 +151,12 @@ export function IconButton({
       style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH }}
       className={cx(
         'items-center justify-center rounded-pill',
+        framed && 'border border-rule-mid bg-surface-raised',
         disabled && 'opacity-50',
         className,
       )}
     >
-      <Icon name={icon} size={24} color={color} />
+      <Icon name={icon} size={framed ? 18 : 24} color={color} />
     </Pressable>
   );
 }

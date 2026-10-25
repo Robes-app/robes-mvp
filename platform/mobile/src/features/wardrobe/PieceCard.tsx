@@ -24,16 +24,16 @@ export interface CardStatus {
   error?: boolean;
 }
 
+// "BOTTOMS · M&S" in one quiet tone: rose is kept for Robes' hand and "Never worn" (beta).
 function Eyebrow({ piece }: { piece: CardPiece }) {
   const eye = pieceEyebrow(piece);
   return (
     <Text
       numberOfLines={1}
-      className="text-[9px] text-ink-faint uppercase"
-      style={{ fontFamily: fonts.sans, letterSpacing: 1.6 }}
+      className="text-[10px] text-ink-faint uppercase"
+      style={{ fontFamily: fonts.sansRegular, letterSpacing: 2.2 }}
     >
-      {eye.category}
-      {eye.brand ? <Text className="text-accent-warm">{` · ${eye.brand}`}</Text> : null}
+      {eye.brand ? `${eye.category} · ${eye.brand}` : eye.category}
     </Text>
   );
 }
@@ -42,8 +42,8 @@ function Name({ piece }: { piece: CardPiece }) {
   return (
     <Text
       numberOfLines={2}
-      className="mt-1 text-lg text-ink"
-      style={{ fontFamily: fonts.displayRegular, lineHeight: 22 }}
+      className="text-ink"
+      style={{ fontFamily: fonts.display, fontSize: 19, lineHeight: 22 }}
     >
       {nameWithoutBrand(piece.label, piece.brand)}
     </Text>
@@ -64,21 +64,42 @@ function Status({ status }: { status: CardStatus }) {
   }
   return (
     <Text
-      className={`text-[9px] uppercase ${status.warm ? 'text-accent-warm' : 'text-ink-muted'}`}
-      style={{ fontFamily: fonts.sans, letterSpacing: 1.3 }}
+      className={`text-[10px] uppercase ${status.warm ? 'text-accent-warm' : 'text-ink-muted'}`}
+      style={{ fontFamily: fonts.sansRegular, letterSpacing: 2.2 }}
     >
       {status.text}
     </Text>
   );
 }
 
-function Photo({ piece, width }: { piece: CardPiece; width: number }) {
+function Photo({
+  piece,
+  width,
+  aspect = '4:5',
+  fit = 'cover',
+}: {
+  piece: CardPiece;
+  width: number;
+  aspect?: '4:5' | '3:4';
+  fit?: 'cover' | 'contain';
+}) {
   const uri = renditionUri(piece.image, width);
-  if (!uri) return <Skeleton width="100%" aspectRatio={4 / 5} />;
-  return <Image source={uri} alt="" blurhash={piece.image?.blurhash} recyclingKey={piece.id} />;
+  if (!uri) return <Skeleton width="100%" aspectRatio={aspect === '3:4' ? 3 / 4 : 4 / 5} />;
+  return (
+    <Image
+      source={uri}
+      alt=""
+      aspect={aspect}
+      contentFit={fit}
+      blurhash={piece.image?.blurhash}
+      recyclingKey={piece.id}
+      className={fit === 'contain' ? 'bg-surface-raised' : undefined}
+    />
+  );
 }
 
-// The 40pt hairline star circle: on is warm, never black (legacy b4b051a).
+// The hairline star circle (32pt on a tile, 40pt on a row; 44pt to the finger): on is raised on
+// the warm edge, never black.
 export function StarButton({
   label,
   on,
@@ -92,7 +113,7 @@ export function StarButton({
 }) {
   const ink = useColor('ink');
   const muted = useColor('ink-muted');
-  const size = tile ? 36 : 40;
+  const size = tile ? 32 : 40;
   return (
     <Pressable
       accessibilityRole="button"
@@ -102,7 +123,7 @@ export function StarButton({
       hitSlop={(44 - size) / 2}
       style={{ width: size, height: size }}
       className={`items-center justify-center rounded-pill border ${
-        on ? 'border-border-control bg-surface-sunk' : 'border-hairline bg-bg'
+        on ? 'border-selected-line bg-surface-raised' : 'border-hairline bg-bg'
       }`}
     >
       <Icon name="star" size={tile ? 14 : 15} color={on ? ink : muted} filled={on} />
@@ -126,10 +147,10 @@ export function BoughtButton({
       accessibilityState={{ disabled: busy }}
       disabled={busy}
       onPress={onBought}
-      hitSlop={2}
-      className="h-10 items-center justify-center rounded-pill border border-hairline bg-bg px-4"
+      hitSlop={(44 - 32) / 2}
+      className="h-8 items-center justify-center rounded-pill border border-rule-mid bg-surface-raised px-3.5"
     >
-      <Text className="text-[13px] text-ink" style={{ fontFamily: fonts.sans }}>
+      <Text className="text-xs text-ink-muted" style={{ fontFamily: fonts.sans }}>
         {copy.card.bought}
       </Text>
     </Pressable>
@@ -178,7 +199,7 @@ function SwipeRow({
     };
   }, [x]);
   return (
-    <View className="overflow-hidden rounded-crisp bg-accent-warm">
+    <View className="overflow-hidden rounded-soft bg-accent-warm">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={removeLabel}
@@ -229,7 +250,7 @@ export function CardRow({
   const muted = useColor('ink-muted');
   return (
     <SwipeRow removeLabel={removeLabel} onRemove={onRemove}>
-      <View className="flex-row gap-3 rounded-crisp border border-hairline bg-bg py-3.5 pr-2.5 pl-3">
+      <View className="flex-row gap-3 rounded-soft border border-hairline bg-surface-raised py-3.5 pr-2.5 pl-3">
         <View style={{ width: 52 }} className="overflow-hidden rounded-[6px]">
           <Photo piece={piece} width={52} />
         </View>
@@ -243,7 +264,9 @@ export function CardRow({
               className="flex-1"
             >
               <Eyebrow piece={piece} />
-              <Name piece={piece} />
+              <View className="mt-1">
+                <Name piece={piece} />
+              </View>
             </Pressable>
             <View className="flex-row items-center gap-1.5">
               {action}
@@ -259,7 +282,8 @@ export function CardRow({
   );
 }
 
-// A grid tile: the same three lines under the photograph; the action sits on the photograph.
+// A grid tile (beta's card): white on a hairline, the photograph on a 3:4 white mat, then the
+// same three lines; the action sits on the photograph's corner.
 export function CardTile({
   piece,
   status,
@@ -272,25 +296,25 @@ export function CardTile({
   onOpen?: () => void;
 }) {
   return (
-    <View className="flex-1">
+    <View className="flex-1 overflow-hidden rounded-soft border border-hairline bg-surface-raised">
       <Pressable
         accessibilityRole={onOpen ? 'button' : undefined}
         accessibilityLabel={piece.label}
         onPress={onOpen}
         disabled={!onOpen}
       >
-        <View className="overflow-hidden rounded-crisp border border-hairline">
-          <Photo piece={piece} width={180} />
-        </View>
-        <View className="gap-0.5 px-0.5 pt-2.5">
-          <Eyebrow piece={piece} />
-          <Name piece={piece} />
-          <View className="mt-1.5">
-            <Status status={status} />
+        <View className="bg-surface-raised p-3.5">
+          <View className="overflow-hidden rounded-crisp">
+            <Photo piece={piece} width={180} aspect="3:4" fit="contain" />
           </View>
         </View>
+        <View className="gap-[3px] px-3 pt-2.5 pb-3">
+          <Eyebrow piece={piece} />
+          <Name piece={piece} />
+          <Status status={status} />
+        </View>
       </Pressable>
-      <View className="absolute top-2 right-2">{action}</View>
+      <View className="absolute top-1.5 right-1.5">{action}</View>
     </View>
   );
 }
@@ -303,7 +327,7 @@ export function AddRow({ onPress, label }: { onPress: () => void; label: string 
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      className="min-h-[52px] flex-row items-center justify-center gap-2 rounded-crisp border border-dashed border-border-control"
+      className="min-h-[52px] flex-row items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid"
     >
       <Icon name="plus" size={16} color={muted} />
       <Text className="text-xs text-ink-muted" style={{ fontFamily: fonts.sans }}>

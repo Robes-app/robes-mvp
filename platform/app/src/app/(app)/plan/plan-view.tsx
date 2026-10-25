@@ -3,9 +3,8 @@
 import { plan } from '@robes/copy';
 import { monthLabel, shiftMonth } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { SegmentedControl } from '@robes/ui';
+import { Eyebrow, IconButton, SegmentedControl } from '@robes/ui';
 import { useState } from 'react';
-import { AddCircle } from '@/components/add-circle';
 import { localToday } from '@/lib/dates';
 import { LookPicker } from './look-picker';
 import { PLAN_DAYS, PlanList } from './plan-list';
@@ -16,17 +15,18 @@ type View = 'list' | 'month';
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// The Plan (legacy Diary) head is the shared anatomy (809b13e): the List | Month track and the +
-// on row 1; row 2 is the eyebrow alone, with ‹ › at its right on Month.
+// The Diary tab (beta parity canvas, 04 Diary; the native twin is mobile/src/features/plan/
+// PlanView.tsx): the List | Month track and the framed + pinned under the header; the eyebrow
+// names the window, or the month with its ‹ › on Month.
 export function PlanView() {
   const today = localToday();
   const [view, setView] = useState<View>('list');
   const [month, setMonth] = useState(today.slice(0, 7));
   const [picking, setPicking] = useState(false);
   return (
-    <div className="flex flex-col gap-5 pt-2">
+    <div className="flex flex-col">
       <h1 className="sr-only">{plan.title}</h1>
-      <div className="flex items-center justify-between gap-4">
+      <div className="sticky top-11 z-30 -mx-5 flex items-center justify-between gap-4 bg-bg px-5 py-1 md:top-16 md:-mx-4 md:px-4">
         <SegmentedControl<View>
           label={plan.view.label}
           options={[
@@ -37,12 +37,16 @@ export function PlanView() {
           onChange={setView}
         />
         {/* The trip is hidden, so the + adds a look straight away (legacy 2eacfb4). */}
-        <AddCircle label={plan.header.add} expanded={picking} onClick={() => setPicking(true)} />
+        <IconButton
+          framed
+          icon="plus"
+          label={plan.header.add}
+          aria-expanded={picking}
+          onClick={() => setPicking(true)}
+        />
       </div>
-      <div className="flex h-8 items-center justify-between gap-3">
-        <p className="font-sans text-[10px] tracking-[0.24em] text-ink-faint uppercase">
-          {view === 'list' ? plan.header.window(PLAN_DAYS) : monthLabel(month)}
-        </p>
+      <div className="mt-[22px] mb-3 flex min-h-8 items-center justify-between gap-3">
+        <Eyebrow>{view === 'list' ? plan.header.window(PLAN_DAYS) : monthLabel(month)}</Eyebrow>
         {view === 'month' ? (
           <div className="flex items-center gap-2">
             <MonthArrow
@@ -64,6 +68,7 @@ export function PlanView() {
   );
 }
 
+// The month's ‹ ›: small white circles on the fine edge (the label is the cue).
 function MonthArrow({
   label,
   icon,
@@ -79,7 +84,7 @@ function MonthArrow({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`relative inline-flex size-8 items-center justify-center rounded-pill border border-hairline text-ink after:absolute after:-inset-1.5 hover:border-border-control ${focus}`}
+      className={`relative inline-flex size-8 items-center justify-center rounded-pill border border-rule-mid bg-surface-raised text-ink after:absolute after:-inset-1.5 hover:border-border-control ${focus}`}
     >
       <Icon name={icon} size={14} />
     </button>

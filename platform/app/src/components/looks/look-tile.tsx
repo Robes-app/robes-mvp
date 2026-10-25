@@ -17,6 +17,8 @@ export interface LookTileProps {
   disabled?: boolean;
   // What the tile says beside its name, per surface: LOOK 1 / Suggested / Draft, and the facts.
   eyebrow?: ReactNode;
+  // Rose marks Robes' hand or something unfinished (Draft); the default is faint.
+  eyebrowTone?: 'faint' | 'warm';
   meta?: ReactNode;
   name?: string;
   italic?: boolean;
@@ -33,7 +35,9 @@ export interface LookTileProps {
 
 // ONE look card, every surface: the photograph and what the look is are held in one frame, so a
 // look reads the same in the Lookbook, on a day, in a rail and in a picker. Give it an eyebrow
-// and a meta line; never redraw the anatomy.
+// and a meta line; never redraw the anatomy. Beta's card (native parity canvas): white on a
+// hairline, a Cormorant name and a muted meta line — the native twin is
+// mobile/src/features/looks/LookTile.tsx.
 export function LookTile({
   look,
   sizes,
@@ -42,6 +46,7 @@ export function LookTile({
   selected = false,
   disabled = false,
   eyebrow,
+  eyebrowTone = 'faint',
   meta,
   name,
   italic = false,
@@ -56,7 +61,7 @@ export function LookTile({
 }: LookTileProps) {
   const title = name ?? look.name;
   // The whole card is the target: a stretched link (or button) behind the actions on top of it.
-  const stretched = `${focus} rounded-crisp after:absolute after:inset-0 after:rounded-crisp`;
+  const stretched = `${focus} rounded-soft after:absolute after:inset-0 after:rounded-soft`;
   const heading = href ? (
     <Link href={href} aria-label={label ?? title} className={stretched}>
       <span className={italic ? 'italic' : undefined}>{title}</span>
@@ -82,7 +87,8 @@ export function LookTile({
       data-testid={testId}
       className={[
         'min-w-0',
-        dashed ? 'border-[1.5px] border-dashed border-border-control' : '',
+        // The dashed draft: unfinished, on the fine edge, its photograph inset in the frame.
+        dashed ? 'border-dashed border-rule-mid bg-transparent p-1.5' : '',
         selected ? 'border-ink' : '',
         dimmed ? 'opacity-60' : '',
         className ?? '',
@@ -90,16 +96,35 @@ export function LookTile({
         .filter(Boolean)
         .join(' ')}
       media={
-        <div className="relative">
-          <LookImage look={look} sizes={sizes} priority={priority} />
-          {onImage}
-        </div>
+        <>
+          <div className={`relative ${dashed ? 'overflow-hidden rounded-[8px]' : ''}`}>
+            <LookImage look={look} sizes={sizes} priority={priority} />
+            {onImage}
+          </div>
+          <div
+            className={`flex flex-col ${dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-0.5 px-3 pt-2.5 pb-3'}`}
+          >
+            {eyebrow ? (
+              <p
+                className={`truncate font-sans font-normal uppercase tracking-[0.22em] ${
+                  eyebrowTone === 'warm' ? 'text-accent-warm' : 'text-ink-faint'
+                } ${dashed ? 'text-[10px]' : 'text-[11px]'}`}
+              >
+                {eyebrow}
+              </p>
+            ) : null}
+            <h3
+              className={`truncate font-display font-light text-ink ${dashed ? 'text-lg leading-[22px]' : 'text-xl leading-[23px]'}`}
+            >
+              {heading}
+            </h3>
+            {meta ? <p className="truncate font-sans text-[11px] text-ink-muted">{meta}</p> : null}
+          </div>
+        </>
       }
-      {...(eyebrow ? { eyebrow } : {})}
-      title={<span className="block truncate">{heading}</span>}
-      titleSize="sm"
-      {...(meta ? { meta: <span className="block truncate">{meta}</span> } : {})}
-      {...(corner ? { overlay: <div className="absolute top-2 right-2 z-10">{corner}</div> } : {})}
+      {...(corner
+        ? { overlay: <div className="absolute top-1.5 right-1.5 z-10">{corner}</div> }
+        : {})}
     />
   );
 }

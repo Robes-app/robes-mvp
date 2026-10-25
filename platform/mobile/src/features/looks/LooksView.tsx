@@ -1,20 +1,25 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy, nav, ui } from '@robes/copy';
 import { type LookSort, SORT_FROM, SORTS, sortLooks } from '@robes/core/looks';
+import type { IconName } from '@robes/icons';
+import { Icon } from '@robes/icons/native';
 import {
   Button,
   CardSkeleton,
   Chip,
   EmptyState,
   Eyebrow,
+  fonts,
   IconButton,
+  MIN_TOUCH,
+  maxFontSizeMultiplier,
   SegmentedControl,
   Sheet,
-  Text,
+  useColor,
 } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { DiarySheet } from './DiarySheet';
@@ -31,7 +36,45 @@ const TABS = [
   { value: 'suggested', label: copy.tabs.suggested },
 ] as const;
 
-// The Lookbook (legacy F2–F7): Saved | Suggested; drafts lead Saved as an In progress rail.
+// A tool pill on the count row (beta's Last worn · Filter): 36pt white on the fine edge, the
+// label ink-muted, the hit area reaching 44pt.
+function ToolPill({
+  icon,
+  label,
+  accessibilityLabel,
+  expanded,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
+  accessibilityLabel?: string;
+  expanded: boolean;
+  onPress: () => void;
+}) {
+  const muted = useColor('ink-muted');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ expanded }}
+      onPress={onPress}
+      hitSlop={{ top: (MIN_TOUCH - 36) / 2, bottom: (MIN_TOUCH - 36) / 2 }}
+      className={`h-9 flex-row items-center gap-[6px] rounded-pill border bg-surface-raised px-3 ${expanded ? 'border-selected-line' : 'border-rule-mid'}`}
+    >
+      <Icon name={icon} size={14} color={muted} />
+      <Text
+        maxFontSizeMultiplier={maxFontSizeMultiplier.control}
+        className="text-ink-muted"
+        style={{ fontFamily: fonts.sans, fontSize: 12 }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// The Lookbook (legacy F2–F7; native parity canvas 02): Saved | Suggested pinned under the header,
+// the italic count with Last worn · Filter, drafts as a small dashed In progress row, then the grid.
 export function LooksView() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
@@ -45,7 +88,8 @@ export function LooksView() {
   const suggested = useLooksByStatus('suggested', { refetch: true });
   const restyle = useRestyle();
   const letGo = useLetGo();
-  const [sort, setSort] = useState<LookSort>('newest');
+  // Beta opens on the looks she wore last.
+  const [sort, setSort] = useState<LookSort>('lastWorn');
   const [sortOpen, setSortOpen] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
   const [bands, setBands] = useState<SeasonBandId[]>([]);
@@ -73,35 +117,57 @@ export function LooksView() {
         : '';
   const open = (look: Look) => router.push(`/look/${look.id}`);
 
-  const header = (
-    <View className="gap-4 pb-3">
-      <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-1">
-          <SegmentedControl label={copy.title} options={TABS} value={tab} onChange={setTab} />
-        </View>
-        {tab === 'saved' ? (
-          <IconButton icon="plus" label={copy.newLook} onPress={() => router.push('/looks/new')} />
-        ) : null}
-      </View>
-      {count ? (
-        <Text size="small" tone="muted" testID="looks-count">
-          {count}
-        </Text>
+  const toolbar = (
+    <View className="flex-row items-center justify-between gap-3">
+      <SegmentedControl label={copy.title} options={TABS} value={tab} onChange={setTab} />
+      {tab === 'saved' ? (
+        <IconButton
+          framed
+          icon="plus"
+          label={copy.newLook}
+          onPress={() => router.push('/looks/new')}
+        />
       ) : null}
-      {sortable ? (
-        <View className="flex-row flex-wrap gap-2">
-          {/* One chip naming the sort in play, opening the three — never three chips. */}
-          <Chip onPress={() => setSortOpen(true)}>{`${copy.sort.label} · ${copy.sort[sort]}`}</Chip>
-          <Chip
-            selected={refineOpen}
-            onPress={() => setRefineOpen(!refineOpen)}
-          >{`${copy.refine.open}${bands.length ? ` · ${copy.refine.on}` : ''}`}</Chip>
+    </View>
+  );
+
+  const header = (
+    <View className="gap-5 pb-5">
+      {count || sortable ? (
+        <View className="min-h-9 flex-row items-center justify-between gap-3">
+          <Text
+            testID="looks-count"
+            maxFontSizeMultiplier={maxFontSizeMultiplier.body}
+            className="flex-1 text-ink-faint"
+            style={{ fontFamily: fonts.displayItalic, fontSize: 19 }}
+          >
+            {count}
+          </Text>
+          {sortable ? (
+            <View className="flex-row gap-[6px]">
+              {/* One pill naming the sort in play, opening the three — never three pills. */}
+              <ToolPill
+                icon="sort"
+                label={copy.sort[sort]}
+                accessibilityLabel={`${copy.sort.label}: ${copy.sort[sort]}`}
+                expanded={sortOpen}
+                onPress={() => setSortOpen(true)}
+              />
+              <ToolPill
+                icon="filter"
+                label={copy.refine.open}
+                accessibilityLabel={`${copy.refine.open}${bands.length ? ` · ${copy.refine.on}` : ''}`}
+                expanded={refineOpen}
+                onPress={() => setRefineOpen(!refineOpen)}
+              />
+            </View>
+          ) : null}
         </View>
       ) : null}
       {refineOpen && sortable ? (
         <View
           accessibilityLabel={copy.refine.title}
-          className="gap-3 rounded-soft border border-hairline bg-surface p-4"
+          className="gap-3 rounded-soft border border-hairline bg-surface-raised p-4"
         >
           <Eyebrow>{copy.refine.season}</Eyebrow>
           <View className="flex-row flex-wrap gap-2">
@@ -128,26 +194,28 @@ export function LooksView() {
         </View>
       ) : null}
       {tab === 'saved' && draftItems.length ? (
-        <View className="gap-2">
-          <Text size="caption" tone="muted">
-            {copy.inProgress}
-          </Text>
+        <View className="gap-[10px]">
+          <Eyebrow>{copy.inProgress}</Eyebrow>
           <FlatList
             horizontal
             data={draftItems}
             keyExtractor={(l) => l.id}
-            contentContainerClassName="gap-3"
+            showsHorizontalScrollIndicator={false}
+            // The row bleeds past the right gutter so the next draft peeks.
+            className="-mr-5"
+            contentContainerClassName="gap-[10px] pr-5"
             renderItem={({ item }) => <DraftTile look={item} onPress={() => open(item)} />}
           />
+          <View className="mt-3 h-px bg-hairline" />
         </View>
       ) : null}
     </View>
   );
 
   return (
-    <TabScreen title={nav.looks}>
+    <TabScreen title={nav.looks} toolbar={toolbar}>
       {current.isPending ? (
-        <View className="flex-row gap-3 px-6">
+        <View className="flex-row gap-3 px-5 pt-5">
           <CardSkeleton className="flex-1" />
           <CardSkeleton className="flex-1" />
         </View>
@@ -162,7 +230,7 @@ export function LooksView() {
           keyExtractor={(l) => l.id}
           numColumns={2}
           columnWrapperClassName="gap-3"
-          contentContainerClassName="gap-3 px-6 pb-8"
+          contentContainerClassName="gap-3 px-5 pt-[18px] pb-8"
           ListHeaderComponent={header}
           renderItem={({ item }) => (
             <View className="flex-1">
@@ -192,7 +260,7 @@ export function LooksView() {
           }
           ListEmptyComponent={
             tab === 'saved' ? (
-              draftItems.length ? null : (
+              draftItems.length ? undefined : (
                 <EmptyState
                   title={copy.savedEmpty.title}
                   body={copy.savedEmpty.body}

@@ -18,13 +18,14 @@ export interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
-  // md: the screen header's track (legacy .rb-seg2, 36pt); sm: the count row's small toggle (32pt).
+  // md: the tab header's track (beta parity canvas: 38pt segments in a 3pt sunk track = 44pt);
+  // sm: the count row's small grid | list toggle (32pt).
   size?: 'md' | 'sm';
   className?: string;
   testID?: string;
 }
 
-const HEIGHT = { md: 36, sm: 32 } as const;
+const HEIGHT = { md: 44, sm: 32 } as const;
 
 // The header's segmented control (legacy header audit): a sunk track, a raised thumb, tracked caps.
 export function SegmentedControl<T extends string>({
@@ -38,6 +39,8 @@ export function SegmentedControl<T extends string>({
   testID,
 }: SegmentedControlProps<T>) {
   const ink = useColor('ink');
+  // Unselected labels sit on the sunk track, where ink-muted is 4.44:1 (under AA); faint passes.
+  const muted = useColor('ink-faint');
   const height = HEIGHT[size];
   // The track is shorter than a touch target; the hit area reaches past it.
   const slop = (MIN_TOUCH - height) / 2;
@@ -66,16 +69,16 @@ export function SegmentedControl<T extends string>({
             }}
             className={cx(
               'flex-1 items-center justify-center rounded-pill px-3',
-              selected && 'bg-bg',
+              selected && 'border border-selected-line bg-surface-raised',
               disabled && 'opacity-50',
             )}
           >
             {option.icon ? (
-              <Icon name={option.icon} size={14} color={ink} />
+              <Icon name={option.icon} size={14} color={selected ? ink : muted} />
             ) : (
               <Text
                 maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-                className="text-[10px] text-ink uppercase"
+                className={cx('text-[10px] uppercase', selected ? 'text-ink' : 'text-ink-faint')}
                 style={{ fontFamily: fonts.sansMedium, letterSpacing: 2.4 }}
               >
                 {option.label}

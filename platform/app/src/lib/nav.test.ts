@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { activeRoot, CREATE_ITEMS, createItems, GO_TO_ITEMS, NAV_ITEMS, SOON_SLUGS } from './nav';
 
 describe('nav', () => {
-  it('has the four roots in IA order', () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Today', 'Wardrobe', 'Lookbook', 'Diary']);
+  it('has the four roots in the dock order', () => {
+    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Today', 'Lookbook', 'Diary', 'Wardrobe']);
   });
 
   it('routes every unbuilt Create option to a known placeholder', () => {

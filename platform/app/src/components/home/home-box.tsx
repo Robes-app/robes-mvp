@@ -194,7 +194,7 @@ export function HomeBox({
     >
       {attached ? (
         <div
-          className={`flex flex-col gap-3 rounded-soft border bg-surface p-3 ${nudge ? 'border-accent-warm' : 'border-hairline'}`}
+          className={`flex flex-col gap-3 rounded-soft border bg-surface-raised p-3 ${nudge ? 'border-accent-warm' : 'border-hairline'}`}
           data-testid="box-piece"
         >
           <div className="flex items-center gap-3">
@@ -250,13 +250,16 @@ export function HomeBox({
           onPick={(b) => void send({ balance: b })}
         />
       ) : null}
-      <div className="relative flex items-end gap-2 rounded-[24px] border border-border-control bg-bg px-2 py-1.5">
+      {/* Beta's prompt: a one-line white pill on the fine edge, the + circle at its left. The
+          native twin is mobile/src/features/home/HomeBox.tsx. */}
+      <div className="relative flex min-h-[54px] items-center gap-2 rounded-[27px] border border-rule-mid bg-surface-raised py-[4px] pr-1 pl-[4px]">
         <IconButton
           icon="plus"
           label={copy.plus.label}
           aria-haspopup="menu"
           aria-expanded={menu}
           onClick={() => setMenu((m) => !m)}
+          framed
         />
         <label htmlFor={id} className="sr-only">
           {fieldHint}
@@ -271,7 +274,7 @@ export function HomeBox({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
           disabled={busy !== null}
-          className="max-h-24 min-h-10 flex-1 resize-none bg-transparent py-2 font-display text-lg italic text-ink placeholder:text-ink-muted focus:outline-none"
+          className="max-h-24 min-h-10 flex-1 resize-none bg-transparent py-2 font-display text-[19px] font-light italic text-ink placeholder:text-ink-faint focus:outline-none"
         />
         {date && !attached ? (
           <IconButton icon="close" label={formatDay(date)} onClick={onDateClear} />

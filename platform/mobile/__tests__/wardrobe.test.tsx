@@ -4,7 +4,7 @@ import { PieceDetail } from '../src/features/wardrobe/PieceDetail';
 import { WardrobeView } from '../src/features/wardrobe/WardrobeView';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { PIECE_ID, piece } from './support/fixtures';
-import { mockRouter } from './support/router';
+import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -255,7 +255,8 @@ test('the list is the rack card: eyebrow, status line, the star, and the count r
   expect(await screen.findByText('2 pieces')).toBeTruthy();
   expect(screen.getByText('Worn 6×')).toBeTruthy();
   expect(screen.getByText(wardrobe.card.neverWorn)).toBeTruthy();
-  expect(screen.getByText(' · Toteme')).toBeTruthy();
+  // Category · Brand is one quiet line; rose is kept for "Never worn".
+  expect(screen.getByText(/ · Toteme$/)).toBeTruthy();
 
   await fireEvent.press(
     screen.getByRole('button', { name: wardrobe.card.star('Camel wool coat') }),
@@ -331,4 +332,62 @@ test('Filter counts the season and the colour family before she applies them', a
   expect(calls.some((c) => c.url.includes('seasonBand=spring_summer'))).toBe(true);
   await fireEvent.press(screen.getByRole('button', { name: wardrobe.filter.showEverything }));
   expect(await screen.findByText('Camel wool coat')).toBeTruthy();
+});
+
+test('Pieces | Wishlist only; the Inbox is a row that shows only while something waits', async () => {
+  const entry = {
+    id: '00000000-0000-4000-8000-0000000000e1',
+    source: 'link',
+    retailer: 'Fixture Shop',
+    subject: null,
+    receivedAt: '2026-10-01T09:00:00.000Z',
+    items: [
+      { index: 0, label: 'Wool coat', brand: null, price: null, currency: null, sourceUrl: null },
+      { index: 1, label: 'Silk scarf', brand: null, price: null, currency: null, sourceUrl: null },
+    ],
+  };
+  mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/summary': {
+      total: 2,
+      categories: [
+        { category: 'Outerwear', count: 1 },
+        { category: 'Other', count: 1 },
+      ],
+    },
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null, total: 2 },
+    'GET /inbox': { items: [entry], count: 1 },
+  });
+  await renderWithApi(<WardrobeView />);
+  expect(await screen.findByText('2 pieces')).toBeTruthy();
+  const segments = screen.getAllByRole('radio').map((r) => r.props.accessibilityLabel);
+  expect(segments).toEqual(
+    expect.arrayContaining([wardrobe.segments.pieces, wardrobe.segments.wishlist]),
+  );
+  expect(segments).not.toContain(wardrobe.segments.inbox);
+  // "Other" isn't a tab; its pieces stay under All.
+  expect(screen.getByRole('button', { name: 'Outerwear' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Other' })).toBeNull();
+
+  await fireEvent.press(await screen.findByTestId('wardrobe-inbox-row'));
+  expect(screen.getByText(wardrobe.inboxWaiting(2))).toBeTruthy();
+  expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
+});
+
+test('with nothing waiting there is no Inbox row, and an old Inbox link opens it', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/summary': { total: 1, categories: [{ category: 'Outerwear', count: 1 }] },
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null, total: 1 },
+    'GET /inbox': { items: [], count: 0 },
+  });
+  mockParams.segment = 'inbox';
+  try {
+    await renderWithApi(<WardrobeView />);
+    expect(await screen.findByText('1 piece')).toBeTruthy();
+    expect(screen.queryByTestId('wardrobe-inbox-row')).toBeNull();
+    expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
+  } finally {
+    delete mockParams.segment;
+  }
 });

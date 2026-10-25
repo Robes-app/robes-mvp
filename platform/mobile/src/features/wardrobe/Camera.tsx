@@ -168,7 +168,7 @@ export function Camera() {
                   style={{
                     minWidth: 86,
                     height: 32,
-                    backgroundColor: on ? palette.warm : undefined,
+                    backgroundColor: on ? palette.white : undefined,
                   }}
                   className="items-center justify-center rounded-pill px-3"
                 >
@@ -265,7 +265,7 @@ export function Camera() {
                     ...LABEL,
                     letterSpacing: 0,
                     color: palette.ink,
-                    backgroundColor: palette.warm,
+                    backgroundColor: palette.white,
                   }}
                   className="absolute right-[3px] bottom-[3px] min-w-[18px] rounded-pill px-[5px] text-center leading-[18px]"
                 >

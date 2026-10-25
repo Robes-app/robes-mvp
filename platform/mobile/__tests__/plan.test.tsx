@@ -137,3 +137,17 @@ test('an empty day can be named, so she can plan a week before adding outfits', 
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ name: 'Gallery opening' }),
   );
 });
+
+test('the switcher and + sit pinned under the header; the eyebrow names the window or month', async () => {
+  mockFetch({ 'GET /plan': planWith(false) });
+  await renderWithApi(<PlanView />);
+  expect(await screen.findByText(plan.header.window(30))).toBeTruthy();
+  expect(screen.getByRole('button', { name: plan.header.add })).toBeTruthy();
+  // Today's row reads TODAY, never its weekday.
+  expect(await screen.findByTestId('plan-day-2026-10-01')).toHaveTextContent(
+    new RegExp(plan.today),
+  );
+  await fireEvent.press(screen.getByRole('radio', { name: plan.view.month }));
+  expect(await screen.findByText('October 2026')).toBeTruthy();
+  expect(screen.getByRole('button', { name: plan.prevMonth })).toBeTruthy();
+});

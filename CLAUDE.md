@@ -4,7 +4,7 @@
 The dated entries further down record calls as they were made, and some of them have since been reversed. Where an entry disagrees with this block, this block wins.
 1. **Keep text to an absolute minimum.** One line where there would be a paragraph. No explanatory copy, no helper text a control can carry itself, no repeating what the screen already shows.
 2. **Design for native mobile first.** Start at phone width (390pt), keep primary actions within thumb reach, use bottom sheets over modals, and keep touch targets at 44pt or more. The web version adapts from the phone, not the other way round.
-3. **Selected means warm, never black**: a `#F3EFE6` fill with a `#C9BCA6` border.
+3. **Cards and selections sit on white** (`surface-raised`) with a hairline, or a `#C9BCA6` edge when selected; beige only below the page (Native parity handoff, 2026-10-25 — supersedes the `#F3EFE6` selected fill). Never black.
 4. **Never show a count as a fraction** ("4 / 15").
 - **RETIRED: "one black fill per screen" / "the one ink fill"** (12 Aug 2026, repeated through later entries). It no longer applies. Do not withhold, demote or restyle a dark button on that ground, and do not write harness pins that count ink fills. Existing pins asserting it are stale — update them when the screen they cover changes.
 

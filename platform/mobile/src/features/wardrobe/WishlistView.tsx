@@ -128,7 +128,7 @@ export function WishlistView({ adding = false }: { adding?: boolean }) {
           );
         }}
         ListEmptyComponent={
-          isPending ? null : wishes.length === 0 ? (
+          isPending ? undefined : wishes.length === 0 ? (
             <EmptyState title={copy.wishlistEmpty.title} body={copy.wishlistEmpty.body} />
           ) : (
             <View className="items-start gap-3 py-6">

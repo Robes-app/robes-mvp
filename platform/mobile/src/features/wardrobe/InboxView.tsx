@@ -86,7 +86,7 @@ export function InboxView() {
       }
       renderItem={({ item }) => <Entry entry={item} />}
       ListEmptyComponent={
-        query.isPending ? null : (
+        query.isPending ? undefined : (
           <EmptyState
             title={copy.inboxEmpty.title}
             body={copy.inboxEmpty.body}

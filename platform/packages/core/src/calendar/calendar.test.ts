@@ -34,7 +34,10 @@ describe('day planning', () => {
 
   it('labels ranges across months and long dates', async () => {
     const { rangeLabel, longDate, weekdayShort, mondayOf } = await import('./index');
-    expect(rangeLabel('2026-09-28', '2026-10-04')).toBe('28 Sept – 4 Oct');
+    expect(rangeLabel('2026-09-28', '2026-10-04')).toBe('28 Sep – 4 Oct');
+    expect(rangeLabel('2026-10-05', '2026-10-11')).toBe('5–11 Oct');
+    const { dayMonth } = await import('./index');
+    expect(dayMonth('2026-09-06')).toBe('6 Sep');
     expect(longDate('2026-10-13')).toBe('Tuesday 13 October');
     expect(weekdayShort('2026-10-13')).toBe('Tue');
     expect(mondayOf('2026-10-18')).toBe('2026-10-12');

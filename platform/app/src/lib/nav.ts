@@ -8,12 +8,13 @@ export interface NavItem {
   icon: IconName;
 }
 
-// The four roots, in the same order on every surface (IA §3.2, UX-11/12).
+// The four roots, in beta's dock order on every surface (Native parity handoff 2026-10-25; the
+// native twin is mobile/src/app/(tabs)/_layout.tsx). Create is the sparkle beside them.
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/', label: nav.today, icon: 'today' },
-  { href: '/wardrobe', label: nav.wardrobe, icon: 'wardrobe' },
-  { href: '/looks', label: nav.looks, icon: 'looks' },
+  { href: '/looks', label: nav.looks, icon: 'book' },
   { href: '/plan', label: nav.plan, icon: 'plan' },
+  { href: '/wardrobe', label: nav.wardrobe, icon: 'wardrobe' },
 ];
 
 export const SOON_SLUGS = ['receipt', 'ask'] as const;

@@ -72,8 +72,10 @@ function useLookActions(look: Look) {
   const toast = useToast();
   const onError = (err: unknown) => toast({ message: errorCopy(err) });
   const key = queryKeys.call('looks.get', { params: { id: look.id } });
+  // A wear (or its undo) changes the look's count AND its record of days, so both refetch.
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: key });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
   };
 

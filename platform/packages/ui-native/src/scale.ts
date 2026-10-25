@@ -9,6 +9,7 @@ export const maxFontSizeMultiplier = {
 // Families loaded by the app with expo-font (@expo-google-fonts/*).
 export const fonts = {
   sans: 'Inter_300Light',
+  sansRegular: 'Inter_400Regular',
   sansMedium: 'Inter_500Medium',
   display: 'Cormorant_300Light',
   displayRegular: 'Cormorant_400Regular',

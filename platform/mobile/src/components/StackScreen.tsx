@@ -5,7 +5,8 @@ import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Pushed screens and modals: a back (or close) control and a title.
+// Pushed screens and modals (a piece, a look, a day): a back (or close) chevron and a small
+// centred title — the tab bar is gone here, so the title says where she is.
 export function StackScreen({
   title,
   children,
@@ -23,13 +24,19 @@ export function StackScreen({
   return (
     // Uniwind doesn't style third-party views, so insets go on a plain View.
     <View className="flex-1 bg-bg" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
-      <View className="flex-row items-center gap-2 px-4 pt-2">
+      <View className="h-11 flex-row items-center px-2">
+        {title ? (
+          <View pointerEvents="none" className="absolute inset-x-14 items-center">
+            <Heading size="sm" weight="regular" numberOfLines={1}>
+              {title}
+            </Heading>
+          </View>
+        ) : null}
         <IconButton
           icon={close ? 'close' : 'back'}
           label={close ? ui.close : ui.back}
           onPress={() => (!home && router.canGoBack() ? router.back() : router.replace('/'))}
         />
-        {title ? <Heading size="sm">{title}</Heading> : null}
       </View>
       <View className="flex-1">{children}</View>
     </View>

@@ -72,7 +72,7 @@ The production readiness review that motivated this work: https://claude.ai/arti
 | 011 | Data migration by scripted ETL into new projects + staged cutover with rollback | migration.md |
 | 012 | Testing: Vitest (TS packages, web), jest-expo + RNTL (native components), Playwright (web e2e), Maestro (native e2e), pgTAP (DB), fast-check (contract fuzz), `packages/ai/evals` | stack-versions |
 | 013 | Branching: M0–M1 on `platform`; then merge `platform/` into `beta` as trunk with Railway watch paths excluding `platform/**`; Vercel/turbo-ignore excludes legacy | infrastructure.md §7 |
-| 014 | Runtime baselines: Node 24 LTS, pnpm 11.27, TypeScript 6.0.3, Biome 2.5, Next 16.3.6 / React 19.3, Expo SDK 57 / RN 0.86.3 / React 19.2.3, zod 4.6 | stack-versions |
+| 014 | Runtime baselines: Node 24 LTS, pnpm 11.27, TypeScript 6.0.3, Biome 2.5, Next 16.3.6 / React 19.3, Expo SDK 58 / RN 0.88.0 / React 19.3.0, zod 4.6 | stack-versions |
 | 015 | IA: **Today · Wardrobe · Looks · Plan + Create + You**, identical routes on web and native | ux-opportunities §3 |
 | 016 | Identifiers: server-minted UUIDs; share tokens ≥128-bit; legacy share ids honoured read-only for 180 days | security SEC-13; data-model §5 |
 | 017 | Emails via Resend + React Email (`packages/emails`) using `tokens.js`; inbound receipts via Resend inbound webhook (Svix-verified) | security SEC-61 |

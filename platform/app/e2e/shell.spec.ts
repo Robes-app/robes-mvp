@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
-const ROOTS = ['Today', 'Wardrobe', 'Lookbook', 'Diary'];
+const ROOTS = ['Today', 'Lookbook', 'Diary', 'Wardrobe'];
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
@@ -34,7 +34,7 @@ test('every shell route renders its heading', async ({ page }) => {
   const routes: [string, string | RegExp][] = [
     ['/wardrobe', 'Wardrobe'],
     ['/wardrobe/wishlist', 'Wardrobe'],
-    ['/wardrobe/inbox', 'Wardrobe'],
+    ['/wardrobe/inbox', 'Inbox'],
     ['/wardrobe/add', 'Add pieces'],
     ['/looks', 'Lookbook'],
     ['/looks/ideas', 'Lookbook'],

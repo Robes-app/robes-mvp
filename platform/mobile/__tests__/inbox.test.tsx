@@ -88,8 +88,5 @@ test('paste a link starts an import and opens the Inbox when it lands', async ()
     }),
   );
   await fireEvent.press(await screen.findByRole('button', { name: wardrobe.link.openInbox }));
-  expect(mockRouter.replace).toHaveBeenCalledWith({
-    pathname: '/wardrobe',
-    params: { segment: 'inbox' },
-  });
+  expect(mockRouter.replace).toHaveBeenCalledWith('/wardrobe/inbox');
 });

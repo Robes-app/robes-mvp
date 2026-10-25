@@ -19,14 +19,14 @@ import { FlatList, RefreshControl, View } from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { useAddPieces } from './add-pieces';
-import { InboxView } from './InboxView';
+import { useInbox } from './inbox';
 import { useWardrobeLayout } from './layout';
 import { AddRow, CardRow, type CardStatus, CardTile, StarButton } from './PieceCard';
 import { useDeletePiece, usePieces, useStarPiece } from './pieces';
-import { CategoryTabs, CountRow, HeaderRow, type Segment } from './WardrobeHeader';
+import { CategoryTabs, CountRow, HeaderRow, InboxRow, type Segment } from './WardrobeHeader';
 import { WishlistView } from './WishlistView';
 
-const SEGMENTS: readonly Segment[] = ['pieces', 'wishlist', 'inbox'];
+const SEGMENTS: readonly Segment[] = ['pieces', 'wishlist'];
 const SEASONS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type Season = (typeof SEASONS)[number];
 type Category = NonNullable<ListPiecesInput['category']>;
@@ -162,7 +162,7 @@ function Pieces() {
   if (isPending) {
     return (
       <View
-        className="flex-row gap-3 px-6 pt-5"
+        className="flex-row gap-3 px-5 pt-5"
         accessibilityLabel={copy.title}
         accessibilityState={{ busy: true }}
       >
@@ -196,7 +196,8 @@ function Pieces() {
   return (
     <View className="flex-1">
       <CategoryTabs
-        categories={rankCategories(summary.data?.categories ?? [])}
+        // "Other" isn't a place to browse to; its pieces stay under All (beta's sheet).
+        categories={rankCategories(summary.data?.categories ?? []).filter((c) => c !== 'Other')}
         value={category}
         onChange={(c) => setCategory(c as Category | null)}
       />
@@ -213,7 +214,7 @@ function Pieces() {
         keyExtractor={(p) => p.id}
         numColumns={grid ? 2 : 1}
         {...(grid ? { columnWrapperClassName: 'gap-3' } : {})}
-        contentContainerClassName={grid ? 'gap-5 px-6 pb-8' : 'gap-2 px-6 pb-8'}
+        contentContainerClassName={grid ? 'gap-3 px-5 pb-8' : 'gap-2 px-5 pb-8'}
         renderItem={({ item }) => {
           const open = () => router.push(`/piece/${item.id}`);
           const action = (
@@ -247,7 +248,7 @@ function Pieces() {
             <View className="pt-2">
               <AddRow label={copy.card.addRow} onPress={addFromLibrary} />
             </View>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           <View className="items-start gap-3 py-6">
@@ -276,24 +277,39 @@ function Pieces() {
 }
 
 export function WardrobeView() {
-  // `?segment=inbox` opens a segment directly (e.g. after pasting a link).
+  // `?segment=wishlist` opens a segment directly; the old `?segment=inbox` (Today, receipts)
+  // now opens the pushed Inbox.
   const params = useLocalSearchParams<{ segment?: string }>();
   const router = useRouter();
   const [segment, setSegment] = useState<Segment>(
     SEGMENTS.includes(params.segment as Segment) ? (params.segment as Segment) : 'pieces',
   );
+  useEffect(() => {
+    if (params.segment === 'inbox') {
+      router.setParams({ segment: undefined });
+      router.push('/wardrobe/inbox');
+    }
+  }, [params.segment, router]);
   const [adding, setAdding] = useState(false);
+  const inbox = useInbox();
+  const waiting = (inbox.data?.items ?? []).reduce((n, e) => n + e.items.length, 0);
   return (
-    <TabScreen title={nav.wardrobe}>
-      <HeaderRow
-        segment={segment}
-        onSegment={setSegment}
-        addLabel={segment === 'wishlist' ? copy.header.savePiece : copy.header.addPiece}
-        onAdd={() => (segment === 'wishlist' ? setAdding(true) : router.push('/create'))}
-      />
+    <TabScreen
+      title={nav.wardrobe}
+      toolbar={
+        <HeaderRow
+          segment={segment}
+          onSegment={setSegment}
+          addLabel={segment === 'wishlist' ? copy.header.savePiece : copy.header.addPiece}
+          onAdd={() => (segment === 'wishlist' ? setAdding(true) : router.push('/create'))}
+        />
+      }
+    >
+      {waiting > 0 ? (
+        <InboxRow count={waiting} onOpen={() => router.push('/wardrobe/inbox')} />
+      ) : null}
       {segment === 'pieces' ? <Pieces /> : null}
       {segment === 'wishlist' ? <WishlistView adding={adding} /> : null}
-      {segment === 'inbox' ? <InboxView /> : null}
     </TabScreen>
   );
 }

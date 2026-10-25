@@ -35,11 +35,16 @@ export const lookbook = {
     eyebrow: 'Draft',
     untitled: 'Untitled',
     meta: (when: string): string => `Not saved · started ${when}`,
+    // The In progress row's small card (native parity canvas): the dashed frame says unsaved.
+    started: (when: string): string => `Started ${when}`,
   },
   suggestedTile: {
     eyebrow: 'Suggested',
     around: (piece: string): string => `Around your ${piece}`,
     fromPrompt: 'From your prompt',
+    // The mark on a look styled from her own words; the piece's mark names the piece.
+    quote: '“',
+    yourPiece: (piece: string): string => `Your ${piece}`,
     remove: (name: string): string => `Remove ${name}`,
     swap: (name: string): string => `Swap ${name} for another look`,
     framing: 'Creating the frame…',

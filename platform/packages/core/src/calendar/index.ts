@@ -84,16 +84,28 @@ const LONG_DAY = new Intl.DateTimeFormat('en-GB', {
   month: 'long',
   timeZone: 'UTC',
 });
-const DAY_MONTH = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  timeZone: 'UTC',
-});
+// Short months come from a table, never Intl: newer ICU prints "Sept", and beta (and every
+// fixed-width cell that holds one) always reads three letters.
+const MONTHS_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 const at = (date: string) => new Date(`${date}T00:00:00Z`);
+const monthShort = (date: string) => MONTHS_SHORT[at(date).getUTCMonth()] ?? '';
 
 // "23 Jul", the way a look says the day it was last worn.
 export function dayMonth(date: string): string {
-  return DAY_MONTH.format(at(date));
+  return `${at(date).getUTCDate()} ${monthShort(date)}`;
 }
 
 export function weekdayShort(date: string): string {
@@ -109,16 +121,12 @@ export function longDate(date: string): string {
   return LONG_DAY.format(at(date));
 }
 
-// "5–11 Oct", or "28 Sept – 4 Oct" across months.
+// "5–11 Oct", or "28 Sep – 4 Oct" across months.
 export function rangeLabel(first: string, last: string): string {
-  const a = DAY_MONTH.formatToParts(at(first));
-  const b = DAY_MONTH.formatToParts(at(last));
-  const part = (p: Intl.DateTimeFormatPart[], t: string) =>
-    p.find((x) => x.type === t)?.value ?? '';
-  if (part(a, 'month') === part(b, 'month')) {
-    return `${part(a, 'day')}–${part(b, 'day')} ${part(b, 'month')}`;
+  if (monthShort(first) === monthShort(last)) {
+    return `${at(first).getUTCDate()}–${at(last).getUTCDate()} ${monthShort(last)}`;
   }
-  return `${DAY_MONTH.format(at(first))} – ${DAY_MONTH.format(at(last))}`;
+  return `${dayMonth(first)} – ${dayMonth(last)}`;
 }
 
 export interface WeekGroup<D extends { date: string }> {

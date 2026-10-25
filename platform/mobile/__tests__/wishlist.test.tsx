@@ -98,7 +98,7 @@ test('a wish reads as the rack card: Category · Brand, its price and "Not yours
   await renderWithApi(<WishlistView />);
   expect(await screen.findByText('2 wishlisted')).toBeTruthy();
   expect(screen.getByText('€27.95 · Not yours yet')).toBeTruthy();
-  expect(screen.getByText(' · Toteme')).toBeTruthy();
+  expect(screen.getByText(/ · Toteme$/)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: 'Shoes' }));
   expect(await screen.findByText('1 wishlisted')).toBeTruthy();
   expect(screen.queryByText('Silk scarf')).toBeNull();

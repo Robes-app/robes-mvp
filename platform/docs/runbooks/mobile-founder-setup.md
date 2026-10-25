@@ -8,7 +8,7 @@ Time: about 20 minutes the first time, then one command each time.
 
 - A Mac on the same Wi-Fi as your iPhone (see "Different networks" below if that isn't possible).
 - Access to the GitHub repo.
-- **Expo Go** on your iPhone, from the App Store. It must support **Expo SDK 57**. The current App Store version does; if Expo Go later says the project is incompatible, update it.
+- **Expo Go** on your iPhone, from the App Store. It must support **Expo SDK 58**. iOS only ever offers the newest Expo Go, so when Expo ships a new SDK the phone updates first and the project has to follow (see "When it breaks").
 
 ## One-time setup
 
@@ -62,7 +62,7 @@ While it's running:
 | No sign-in code arrives | Check spam. If it's still missing, the staging email service may only be allowed to send to approved addresses. Ask Niall to approve yours. |
 | Expo Go: "Could not connect to the server" / spinner forever | Phone and Mac must be on the same Wi-Fi, and some office or guest Wi-Fi blocks this. Use the tunnel (next row). |
 | Different networks, or the above didn't help | `pnpm dev:mobile:staging:tunnel`. The first run asks to install `@expo/ngrok`; say yes. Slower, but works across any network. |
-| "Project is incompatible with this version of Expo Go" | Update Expo Go from the App Store. |
+| "Project is incompatible with this version of Expo Go" | If Expo Go's SDK is **newer** than the project's, the project needs an SDK upgrade (Expo Go can't be downgraded on iOS): ask Claude Code to upgrade `platform/mobile` to the SDK Expo Go names. If it's **older**, update Expo Go from the App Store. |
 | Red error screen in the app | Read the first line. It's usually a code error from the last change. Paste it into Claude Code. |
 | Something odd after pulling new code | `Ctrl+C`, run `pnpm setup:mobile`, then `pnpm dev:mobile:staging -- --clear`. |
 | `node` / `pnpm` version errors | `nvm use 24`, then `corepack enable` again. |
