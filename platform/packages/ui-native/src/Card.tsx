@@ -16,7 +16,8 @@ export interface CardProps {
   testID?: string;
 }
 
-const base = 'overflow-hidden rounded-soft bg-surface';
+// Beta's white card on a hairline: raised off the cream page, never a beige panel.
+const base = 'overflow-hidden rounded-soft border border-hairline bg-surface-raised';
 
 export function Card({
   children,

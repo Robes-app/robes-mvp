@@ -38,6 +38,7 @@ export function SegmentedControl<T extends string>({
   testID,
 }: SegmentedControlProps<T>) {
   const ink = useColor('ink');
+  const muted = useColor('ink-muted');
   const height = HEIGHT[size];
   // The track is shorter than a touch target; the hit area reaches past it.
   const slop = (MIN_TOUCH - height) / 2;
@@ -66,16 +67,16 @@ export function SegmentedControl<T extends string>({
             }}
             className={cx(
               'flex-1 items-center justify-center rounded-pill px-3',
-              selected && 'bg-bg',
+              selected && 'border border-selected-line bg-surface-raised',
               disabled && 'opacity-50',
             )}
           >
             {option.icon ? (
-              <Icon name={option.icon} size={14} color={ink} />
+              <Icon name={option.icon} size={14} color={selected ? ink : muted} />
             ) : (
               <Text
                 maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-                className="text-[10px] text-ink uppercase"
+                className={cx('text-[10px] uppercase', selected ? 'text-ink' : 'text-ink-muted')}
                 style={{ fontFamily: fonts.sansMedium, letterSpacing: 2.4 }}
               >
                 {option.label}

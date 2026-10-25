@@ -3,7 +3,6 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { Text } from 'react-native';
 import TabsLayout from '../src/app/(tabs)/_layout';
-import AddTab from '../src/app/(tabs)/add';
 import Today from '../src/app/(tabs)/index';
 import Looks from '../src/app/(tabs)/looks';
 import Plan from '../src/app/(tabs)/plan';
@@ -50,7 +49,6 @@ async function app(initialUrl = '/') {
       '(tabs)/_layout': TabsLayout,
       '(tabs)/index': Today,
       '(tabs)/wardrobe': Wardrobe,
-      '(tabs)/add': AddTab,
       '(tabs)/looks': Looks,
       '(tabs)/plan': Plan,
       create: Create,
@@ -127,17 +125,18 @@ test('an onboarded person who lands on onboarding goes home', async () => {
   expect(router.getPathname()).toBe('/');
 });
 
-test('tabs in IA order; [+] opens Create; unbuilt options land on the shared screen', async () => {
+test('four tabs in beta order; the sparkle beside them opens Create', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
   const router = await app();
   expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
-  const tabs = screen.getAllByRole('button').map((b) => b.props.accessibilityLabel ?? '');
-  const order = [nav.today, nav.wardrobe, nav.create, nav.looks, nav.plan].map((label) =>
-    tabs.findIndex((t: string) => t.startsWith(label)),
-  );
-  expect(order.every((i) => i >= 0)).toBe(true);
-  expect([...order].sort((a, b) => a - b)).toEqual(order);
+  const tabs = screen.getAllByRole('tab').map((t) => t.props.accessibilityLabel);
+  expect(tabs).toEqual([nav.today, nav.looks, nav.plan, nav.wardrobe]);
+  expect(screen.getByRole('tab', { name: nav.today }).props.accessibilityState).toEqual({
+    selected: true,
+  });
+  // The tab bar names the place, so the header carries the wordmark and the tab name is read only.
+  expect(screen.getByRole('header', { name: nav.today })).toBeTruthy();
 
   await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
@@ -147,7 +146,7 @@ test('tabs in IA order; [+] opens Create; unbuilt options land on the shared scr
   expect(screen.getByText(shell.soon.title)).toBeTruthy();
 });
 
-test('a long press on [+] goes straight to the camera', async () => {
+test('a long press on the sparkle goes straight to the camera', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
   const router = await app();

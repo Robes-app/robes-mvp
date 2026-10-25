@@ -112,8 +112,8 @@ export function Eyebrow({ className, style, ...rest }: RNTextProps) {
     <RNText
       maxFontSizeMultiplier={maxFontSizeMultiplier.label}
       {...rest}
-      className={cx('text-xs uppercase tracking-widest text-ink-muted', className)}
-      style={[{ fontFamily: fonts.sansMedium }, style]}
+      className={cx('text-xs uppercase text-ink-faint', className)}
+      style={[{ fontFamily: fonts.sansRegular, letterSpacing: 2.64 }, style]}
     />
   );
 }

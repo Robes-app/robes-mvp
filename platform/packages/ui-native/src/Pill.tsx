@@ -11,7 +11,8 @@ export interface PillProps {
   testID?: string;
 }
 
-// Selected is warm, never black: the warm fill on its line and ink text (design-system.md §5).
+// Selected is raised, never black: white on the warm line with ink text (design-system.md §5).
+// Unselected, the label is the cue, so the edge is the fine rule-mid.
 export function Pill({
   children,
   selected = false,
@@ -24,7 +25,7 @@ export function Pill({
     <View
       className={cx(
         'min-h-9 items-center justify-center rounded-pill border px-4',
-        selected ? 'border-selected-line bg-selected' : 'border-border-control',
+        selected ? 'border-selected-line bg-selected' : 'border-rule-mid bg-surface-raised',
         disabled && 'opacity-50',
       )}
       style={selected ? { borderWidth: 1.5 } : undefined}
