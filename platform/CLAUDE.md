@@ -81,7 +81,7 @@ Node 24 · pnpm 11.27.1 · Turborepo · TypeScript 6.0.3 · Biome · zod 4 · Vi
 Common commands (from `platform/`): `pnpm bootstrap` · `pnpm verify` (lint + typecheck + test + db:test) · `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm services:up` · `pnpm db:reset` · `pnpm db:migrate` · `pnpm db:new <name>` · `pnpm db:types` · `pnpm db:test` · `pnpm maintenance` · `pnpm dev:web` · `pnpm dev:mobile` (Expo; ADR 018) · `pnpm --filter @robes/app test:e2e`. Recipes (new package / route / table): `docs/DEVELOPING.md`.
 
 ## Product rules to respect
-Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Wardrobe · Lookbook · Diary + Create + You (routes stay `/looks`, `/plan`) (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.
+Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Today · Lookbook · Diary · Wardrobe on native (beta's dock, Create as the sparkle beside the bar — Native parity handoff 2026-10-25; web still Today · Wardrobe · Lookbook · Diary) + Create + You (routes stay `/looks`, `/plan`) (`docs/reference/ux-opportunities.md` §3). P0 UX acceptance criteria UX-01…29: `docs/reference/ux-opportunities.md` §5. One filled (ink) button per screen; no lock language; titles offered, never applied; Wears are immutable.
 
 **Web and native move together.** A change to a screen lands on both in the same pass — never web now and native later. Where a surface exists on both, build the twin and say so in a comment naming it, so the pair can be found.
 
