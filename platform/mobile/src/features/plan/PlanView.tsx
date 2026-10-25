@@ -1,11 +1,14 @@
 import type { PlanEntry } from '@robes/contracts';
-import { plan as copy, ui } from '@robes/copy';
+import { plan as copy, nav, ui } from '@robes/copy';
 import { daySummary, monthLabel, shiftMonth, weekdayShort, weekGroups } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import {
+  Card,
   CardSkeleton,
   EmptyState,
+  Eyebrow,
   fonts,
+  IconButton,
   MIN_TOUCH,
   SegmentedControl,
   Text,
@@ -14,6 +17,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { localDate } from '../looks/saved-looks';
 import { LookPicker } from './LookPicker';
@@ -23,15 +27,14 @@ import { PLAN_DAYS, usePlan } from './plan';
 
 type View_ = 'list' | 'month';
 
-function Circle({
+// The month's ‹ ›: small labelled circles on the fine edge (the label is the cue).
+function MonthStep({
   label,
   icon,
-  size,
   onPress,
 }: {
   label: string;
-  icon: 'plus' | 'back' | 'forward';
-  size: 36 | 32;
+  icon: 'back' | 'forward';
   onPress: () => void;
 }) {
   const ink = useColor('ink');
@@ -40,17 +43,17 @@ function Circle({
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      hitSlop={(MIN_TOUCH - size) / 2}
-      style={{ width: size, height: size }}
-      className={`items-center justify-center rounded-pill border ${size === 36 ? 'border-border-control' : 'border-hairline'}`}
+      hitSlop={(MIN_TOUCH - 32) / 2}
+      style={{ width: 32, height: 32 }}
+      className="items-center justify-center rounded-pill border border-rule-mid bg-surface-raised"
     >
-      <Icon name={icon} size={size === 36 ? 16 : 14} color={ink} />
+      <Icon name={icon} size={14} color={ink} />
     </Pressable>
   );
 }
 
-// The Plan (legacy Diary) head is the shared anatomy (809b13e): the List | Month track and the +
-// on row 1; row 2 is the eyebrow alone, with ‹ › at its right on Month.
+// The Diary tab (beta parity canvas, 04 Diary): the List | Month track and the + pinned under
+// the header; the eyebrow names the window, or the month with its ‹ › on Month.
 export function PlanView() {
   const [view, setView] = useState<View_>('list');
   const { data } = usePlan();
@@ -58,39 +61,38 @@ export function PlanView() {
   const [month, setMonth] = useState(today.slice(0, 7));
   const [picking, setPicking] = useState(false);
   return (
-    <View className="flex-1">
-      <View className="flex-row items-center justify-between gap-4 px-6 pt-2">
-        <SegmentedControl<View_>
-          label={copy.view.label}
-          options={[
-            { value: 'list', label: copy.view.list },
-            { value: 'month', label: copy.view.month },
-          ]}
-          value={view}
-          onChange={setView}
-        />
-        {/* The trip is hidden, so the + adds a look straight away (legacy 2eacfb4). */}
-        <Circle label={copy.header.add} icon="plus" size={36} onPress={() => setPicking(true)} />
-      </View>
-      <View className="mt-5 mb-3 h-8 flex-row items-center justify-between px-6">
-        <Text
-          className="text-[10px] text-ink-faint uppercase"
-          style={{ fontFamily: fonts.sans, letterSpacing: 2.4 }}
-        >
+    <TabScreen
+      title={nav.plan}
+      toolbar={
+        <View className="flex-row items-center justify-between gap-4">
+          <SegmentedControl<View_>
+            label={copy.view.label}
+            options={[
+              { value: 'list', label: copy.view.list },
+              { value: 'month', label: copy.view.month },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+          {/* The trip is hidden, so the + adds a look straight away (legacy 2eacfb4). */}
+          <IconButton framed icon="plus" label={copy.header.add} onPress={() => setPicking(true)} />
+        </View>
+      }
+    >
+      <View className="mt-[22px] mb-3 min-h-8 flex-row items-center justify-between px-5">
+        <Eyebrow accessibilityRole="header">
           {view === 'list' ? copy.header.window(PLAN_DAYS) : monthLabel(month)}
-        </Text>
+        </Eyebrow>
         {view === 'month' ? (
           <View className="flex-row gap-2">
-            <Circle
+            <MonthStep
               label={copy.prevMonth}
               icon="back"
-              size={32}
               onPress={() => setMonth(shiftMonth(month, -1))}
             />
-            <Circle
+            <MonthStep
               label={copy.nextMonth}
               icon="forward"
-              size={32}
               onPress={() => setMonth(shiftMonth(month, 1))}
             />
           </View>
@@ -98,20 +100,25 @@ export function PlanView() {
       </View>
       {view === 'list' ? <PlanList /> : <PlanMonth today={today} month={month} />}
       <LookPicker date={picking ? today : null} onClose={() => setPicking(false)} />
-    </View>
+    </TabScreen>
   );
 }
 
+// One row of a week card: the weekday over its numeral, the look's photograph when one is on
+// the day, her name for it (or the faint invitation) and what it holds. Today carries the rose
+// rule and label, and the one full-ink numeral.
 function DayRow({
   date,
   today,
   name,
   entries,
+  first,
 }: {
   date: string;
   today: string;
   name: string | null;
   entries: PlanEntry[];
+  first: boolean;
 }) {
   const router = useRouter();
   const muted = useColor('ink-muted');
@@ -119,41 +126,44 @@ function DayRow({
   const s = daySummary(entries, name);
   const title = s.name ?? (s.looks ? copy.list.looks(s.looks) : null);
   const label = isToday ? copy.today : weekdayShort(date);
+  const lead = entries[0];
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${copy.list.open(`${label} ${Number(date.slice(8))}`)}${title ? `: ${title}` : ''}`}
       onPress={() => router.push(`/day/${date}`)}
       testID={`plan-day-${date}`}
-      className={`min-h-16 flex-row items-center gap-3 border-b border-hairline py-3 ${
-        isToday ? 'border-l-2 border-l-accent-inspire pl-2' : ''
+      className={`flex-row items-center gap-3 pr-3 ${first ? '' : 'border-t border-hairline'} ${
+        isToday ? 'min-h-[68px] border-l-2 border-l-accent-inspire py-2 pl-[14px]' : 'min-h-14 pl-4'
       }`}
     >
-      <View className="w-11 items-center">
+      <View className="w-10">
         <Text
           className={`text-[9px] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
-          style={{ fontFamily: fonts.sans, letterSpacing: 1.6 }}
+          style={{ fontFamily: fonts.sansRegular, letterSpacing: 1.26 }}
         >
           {label}
         </Text>
-        <Text className="text-2xl text-ink" style={{ fontFamily: fonts.displayRegular }}>
+        <Text
+          className={isToday ? 'text-ink' : 'text-ink-muted'}
+          style={{
+            fontFamily: fonts.display,
+            fontSize: isToday ? 24 : 22,
+            lineHeight: isToday ? 26 : 24,
+          }}
+        >
           {Number(date.slice(8))}
         </Text>
       </View>
-      {entries.length ? (
-        <View className="flex-row">
-          {entries.slice(0, 2).map((e, i) => (
-            <View key={e.id} style={i ? { marginLeft: -12 } : undefined}>
-              <LookThumb look={e.look} width={34} />
-            </View>
-          ))}
-        </View>
-      ) : null}
-      <View className="flex-1 gap-0.5">
+      {lead ? <LookThumb look={lead.look} width={40} /> : null}
+      <View className="flex-1 gap-px">
         <Text
           numberOfLines={1}
-          className={`text-lg ${title ? 'text-ink' : 'text-ink-faint'}`}
-          style={{ fontFamily: title ? fonts.displayRegular : fonts.displayRegularItalic }}
+          className={title ? 'text-ink' : 'text-ink-faint'}
+          style={{
+            fontFamily: title ? fonts.display : fonts.displayItalic,
+            fontSize: title ? 21 : 19,
+          }}
         >
           {title ?? copy.list.nameTheDay}
         </Text>
@@ -174,7 +184,7 @@ export function PlanList() {
   const { data, isPending, isError, error, refetch, isRefetching } = usePlan();
   if (isPending) {
     return (
-      <View className="gap-3 px-6" accessibilityState={{ busy: true }}>
+      <View className="gap-3 px-5" accessibilityState={{ busy: true }}>
         <CardSkeleton />
         <CardSkeleton />
       </View>
@@ -192,31 +202,33 @@ export function PlanList() {
   return (
     <ScrollView
       testID="plan-list"
-      contentContainerClassName="gap-6 px-6 pb-12"
+      contentContainerClassName="gap-3 px-5 pb-12"
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
     >
       {planned ? null : (
         <EmptyState title={copy.empty.title} titleEm={copy.empty.titleEm} body={copy.empty.body} />
       )}
       {weekGroups(data.days, data.from).map((g) => (
-        <View key={g.monday}>
+        // A week is one white card: its range (or "Rest of this week") then a row per day.
+        <Card key={g.monday}>
           <Text
-            className="mb-2 text-[10px] text-ink-faint uppercase"
-            style={{ fontFamily: fonts.sans, letterSpacing: 2.4 }}
+            className="px-4 pt-3 pb-1.5 text-[11px] text-ink-faint uppercase"
+            style={{ fontFamily: fonts.sansRegular, letterSpacing: 2.42 }}
             accessibilityRole="header"
           >
             {g.range ?? (g.wholeWeek ? copy.list.thisWeek : copy.list.restOfWeek)}
           </Text>
-          {g.days.map((day) => (
+          {g.days.map((day, i) => (
             <DayRow
               key={day.date}
               date={day.date}
               today={data.from}
               name={day.name}
               entries={day.entries}
+              first={i === 0}
             />
           ))}
-        </View>
+        </Card>
       ))}
     </ScrollView>
   );
