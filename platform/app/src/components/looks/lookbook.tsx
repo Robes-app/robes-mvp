@@ -1,7 +1,7 @@
 'use client';
 
 import type { Look } from '@robes/contracts';
-import { lookbook as copy } from '@robes/copy';
+import { lookbook as copy, nav } from '@robes/copy';
 import { type LookSort, SORT_FROM, SORTS, sortLooks } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import {
@@ -92,6 +92,8 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
         : '';
   return (
     <div className="flex flex-col gap-5">
+      {/* The dock names the place; the page title is read to assistive tech (as Diary, Wardrobe). */}
+      <h1 className="sr-only">{nav.looks}</h1>
       {/* Pinned under the header while the grid scrolls (TabScreen's toolbar on native). */}
       <div className="sticky top-11 z-30 -mx-5 -mt-3.5 flex items-center justify-between gap-3 bg-bg px-5 pt-3.5 pb-2 md:top-16 md:-mx-4 md:-mt-6 md:px-4 md:pt-6">
         <SegmentedControl

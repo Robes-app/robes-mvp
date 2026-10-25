@@ -136,7 +136,9 @@ test('a wish becomes a piece when she buys it, and removal can be undone', async
     .filter({ hasText: 'Black leather loafers' })
     .getByRole('button', { name: 'I bought Black leather loafers' })
     .click();
-  await expect(page.getByText('Black leather loafers is in your wardrobe now.')).toBeVisible();
+  await expect(
+    page.getByText('Black leather loafers is in your wardrobe now.', { exact: true }),
+  ).toBeVisible();
   await expect(wishes.getByText('Black leather loafers')).toHaveCount(0);
   await page.getByRole('radio', { name: 'Pieces' }).click();
   await expect(
