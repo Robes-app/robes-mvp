@@ -49,3 +49,6 @@ auditConfig:
   ignoreGhsas:
     - GHSA-86w9-cpqp-85rv # node-forge via @expo/code-signing-certificates
     - GHSA-vfj7-8cjw-p6xm # braces via metro-file-map > micromatch
+
+patchedDependencies:
+  uniwind@1.12.0: patches/uniwind@1.12.0.patch

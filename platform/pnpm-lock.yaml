@@ -32,6 +32,9 @@ overrides:
   happy-dom@>=17.0.0 <21.0.4: '>=21.0.4'
   undici@>=8.0.0 <8.12.2: '>=8.12.2 <9'
 
+patchedDependencies:
+  uniwind@1.12.0: 4ffb51a5707a28e5922daa957ebb2fe00865f86e2187e62d8353a34c8711f0d6
+
 importers:
 
   .:
@@ -337,7 +340,7 @@ importers:
         version: 4.3.3
       uniwind:
         specifier: 1.12.0
-        version: 1.12.0(@expo/metro-config@58.0.16(expo@58.0.17)(supports-color@8.1.1)(typescript@6.0.3))(metro-cache@0.87.1(supports-color@8.1.1))(metro-transform-worker@0.87.1(supports-color@8.1.1))(metro@0.87.1(supports-color@8.1.1))(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(tailwindcss@4.3.3)
+        version: 1.12.0(patch_hash=4ffb51a5707a28e5922daa957ebb2fe00865f86e2187e62d8353a34c8711f0d6)(@expo/metro-config@58.0.16(expo@58.0.17)(supports-color@8.1.1)(typescript@6.0.3))(metro-cache@0.87.1(supports-color@8.1.1))(metro-transform-worker@0.87.1(supports-color@8.1.1))(metro@0.87.1(supports-color@8.1.1))(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(tailwindcss@4.3.3)
     devDependencies:
       '@testing-library/react-native':
         specifier: ^14.0.1
@@ -893,7 +896,7 @@ importers:
         version: 6.0.3
       uniwind:
         specifier: 1.12.0
-        version: 1.12.0(@expo/metro-config@58.0.16(expo@58.0.17)(supports-color@8.1.1)(typescript@6.0.3))(metro-cache@0.87.1(supports-color@8.1.1))(metro-transform-worker@0.87.1(supports-color@8.1.1))(metro@0.87.1(supports-color@8.1.1))(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(tailwindcss@4.3.3)
+        version: 1.12.0(patch_hash=4ffb51a5707a28e5922daa957ebb2fe00865f86e2187e62d8353a34c8711f0d6)(@expo/metro-config@58.0.16(expo@58.0.17)(supports-color@8.1.1)(typescript@6.0.3))(metro-cache@0.87.1(supports-color@8.1.1))(metro-transform-worker@0.87.1(supports-color@8.1.1))(metro@0.87.1(supports-color@8.1.1))(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(tailwindcss@4.3.3)
 
   scripts/migrate:
     dependencies:
@@ -15627,7 +15630,7 @@ snapshots:
 
   unicode-property-aliases-ecmascript@2.2.0: {}
 
-  uniwind@1.12.0(@expo/metro-config@58.0.16(expo@58.0.17)(supports-color@8.1.1)(typescript@6.0.3))(metro-cache@0.87.1(supports-color@8.1.1))(metro-transform-worker@0.87.1(supports-color@8.1.1))(metro@0.87.1(supports-color@8.1.1))(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(tailwindcss@4.3.3):
+  uniwind@1.12.0(patch_hash=4ffb51a5707a28e5922daa957ebb2fe00865f86e2187e62d8353a34c8711f0d6)(@expo/metro-config@58.0.16(expo@58.0.17)(supports-color@8.1.1)(typescript@6.0.3))(metro-cache@0.87.1(supports-color@8.1.1))(metro-transform-worker@0.87.1(supports-color@8.1.1))(metro@0.87.1(supports-color@8.1.1))(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(tailwindcss@4.3.3):
     dependencies:
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3
