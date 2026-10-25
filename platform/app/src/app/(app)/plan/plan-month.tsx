@@ -20,7 +20,8 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Month view: a numeral and one dot per look in each cell; every cell opens its day.
+// Month view (the native twin is mobile/src/features/plan/PlanMonth.tsx): every day on the sunk
+// tile, today raised white on the fine edge with a rose dot; Cormorant numerals and a dot per look.
 export function PlanMonth({ today, month }: { today: string; month: string }) {
   const grid = monthGrid(month);
   const query = useApi('plan.get', { input: { from: grid.from, days: grid.days } });
@@ -39,9 +40,9 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
       <div aria-hidden className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((d) => (
           <div key={d} className="text-center">
-            <Text size="caption" tone="muted" className="font-medium uppercase tracking-[0.16em]">
+            <span className="font-sans text-[9px] tracking-[0.14em] text-ink-faint uppercase">
               {d}
-            </Text>
+            </span>
           </div>
         ))}
       </div>
@@ -52,12 +53,11 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
           const looks = byDate.get(date) ?? 0;
           const isToday = date === today;
           const band = bands.get(date);
-          // A printed diary: the past is filed (filled), what's ahead is not hers yet (dashed).
           const state = band
             ? 'border-transparent'
-            : date < today
-              ? 'border-transparent bg-surface'
-              : 'border-dashed border-border-control bg-bg';
+            : isToday
+              ? 'border-rule-mid bg-surface-raised'
+              : 'border-transparent bg-surface-sunk';
           return (
             <li key={date} className="relative">
               {band ? <Band band={band} /> : null}
@@ -65,13 +65,17 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                 href={`/plan/${date}`}
                 aria-label={plan.week.day(longDate(date), looks)}
                 aria-current={isToday ? 'date' : undefined}
-                className={`relative flex min-h-16 flex-col items-start gap-1.5 rounded-crisp border px-1.5 pt-1.5 pb-1.5 hover:border-ink ${state} ${
+                className={`relative flex min-h-16 flex-col items-start gap-1.5 rounded-soft border px-1.5 pt-1.5 pb-1.5 hover:border-border-control ${state} ${
                   band ? 'md:pt-9' : ''
                 } ${focus}`}
               >
-                <span className="flex items-center gap-1 font-display text-base text-ink leading-none">
+                <span
+                  className={`flex items-center gap-1 font-display text-lg leading-none ${isToday ? 'text-ink' : 'font-light text-ink-muted'}`}
+                >
                   {Number(date.slice(8))}
-                  {isToday ? <i aria-hidden className="block size-1 rounded-pill bg-ink" /> : null}
+                  {isToday ? (
+                    <i aria-hidden className="block size-1 rounded-pill bg-accent-inspire" />
+                  ) : null}
                 </span>
                 {!query.data ? (
                   <Skeleton shape="text" className="h-1.5 w-6" />
@@ -94,7 +98,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
             <li key={t.id}>
               <Link
                 href={`/trip/${t.id}`}
-                className={`flex items-center gap-3 rounded-crisp border border-hairline p-3 hover:border-border-control ${focus}`}
+                className={`flex items-center gap-3 rounded-soft border border-hairline bg-surface-raised p-3 hover:border-border-control ${focus}`}
               >
                 <span className="flex size-11 flex-col items-center justify-center rounded-crisp bg-accent-decor font-display text-lg leading-none text-ink">
                   {Number(t.dateFrom.slice(8))}
