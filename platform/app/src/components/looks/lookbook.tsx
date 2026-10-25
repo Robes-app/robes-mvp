@@ -10,10 +10,10 @@ import {
   CardSkeleton,
   EmptyState,
   ErrorText,
+  Eyebrow,
+  IconButton,
   Pill,
-  pillClasses,
   SegmentedControl,
-  Text,
 } from '@robes/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -34,8 +34,17 @@ const SKELETONS = ['a', 'b', 'c'] as const;
 const SEASON_BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type SeasonBandId = (typeof SEASON_BANDS)[number];
 
-// The Lookbook (legacy F2–F7): Saved | Suggested, the count line beneath, + on Saved alone;
-// drafts lead Saved as an In progress rail.
+// A tool pill on the count row (beta's Last worn · Filter): 36px white on the fine edge, the
+// label ink-muted, the hit area reaching 44px. The native twin is LooksView.tsx ToolPill.
+function toolPill(expanded: boolean): string {
+  return `relative inline-flex h-9 items-center gap-1.5 rounded-pill border bg-surface-raised px-3 font-sans text-xs text-ink-muted after:absolute after:inset-x-0 after:-inset-y-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+    expanded ? 'border-selected-line' : 'border-rule-mid'
+  }`;
+}
+
+// The Lookbook (legacy F2–F7; native parity canvas 02 — the native twin is LooksView.tsx):
+// Saved | Suggested pinned under the header, the italic count with Last worn · Filter, drafts as a
+// small dashed In progress row, then the grid.
 export function Lookbook({ tab }: { tab: LookbookTab }) {
   const router = useRouter();
   const saved = useLooksByStatus('saved');
@@ -43,7 +52,8 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const suggested = useLooksByStatus('suggested');
   const restyle = useRestyle();
   const letGo = useLetGo();
-  const [sort, setSort] = useState<LookSort>('newest');
+  // Beta opens on the looks she wore last.
+  const [sort, setSort] = useState<LookSort>('lastWorn');
   const [sortOpen, setSortOpen] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
   const [bands, setBands] = useState<SeasonBandId[]>([]);
@@ -81,8 +91,9 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
         ? copy.count.suggested(items.length)
         : '';
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-5">
+      {/* Pinned under the header while the grid scrolls (TabScreen's toolbar on native). */}
+      <div className="sticky top-11 z-30 -mx-5 -mt-3.5 flex items-center justify-between gap-3 bg-bg px-5 pt-3.5 pb-2 md:top-16 md:-mx-4 md:-mt-6 md:px-4 md:pt-6">
         <SegmentedControl
           label={copy.title}
           options={TABS}
@@ -90,28 +101,28 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           onChange={(t) => router.replace(t === 'saved' ? '/looks' : '/looks?tab=suggested')}
         />
         {tab === 'saved' ? (
-          // Beta's masthead: a circle, not a worded pill — the control beside it is the name.
-          <Link
-            href="/looks/new"
-            aria-label={copy.newLook}
-            title={copy.newLook}
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-pill border border-border-control text-ink-muted hover:border-ink hover:text-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-          >
-            <Icon name="plus" size={18} />
-          </Link>
+          <IconButton
+            framed
+            icon="plus"
+            label={copy.newLook}
+            onClick={() => router.push('/looks/new')}
+          />
         ) : null}
       </div>
       {/* The count row holds its height on both tabs, so the grid never jumps on a switch. */}
-      <div className="flex min-h-11 flex-wrap items-center justify-between gap-3">
+      <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
         {count ? (
-          <Text size="small" tone="muted" data-testid="looks-count">
+          <p
+            data-testid="looks-count"
+            className="font-display text-[19px] font-light text-ink-faint italic"
+          >
             {count}
-          </Text>
+          </p>
         ) : (
           <span />
         )}
         {sortable ? (
-          <div ref={tools} className="relative flex flex-wrap items-center gap-2">
+          <div ref={tools} className="relative flex flex-wrap items-center gap-1.5">
             {/* One pill naming the sort in play, opening the three — never three pills. */}
             <button
               type="button"
@@ -119,9 +130,9 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               aria-expanded={sortOpen}
               aria-label={`${copy.sort.label}: ${copy.sort[sort]}`}
               onClick={() => setSortOpen((o) => !o)}
-              className={pillClasses({ selected: sortOpen })}
+              className={toolPill(sortOpen)}
             >
-              <Icon name="sort" size={16} />
+              <Icon name="sort" size={14} />
               {copy.sort[sort]}
             </button>
             <button
@@ -129,9 +140,9 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               aria-expanded={refineOpen}
               aria-controls={refineId}
               onClick={() => setRefineOpen(!refineOpen)}
-              className={pillClasses({ selected: refineOpen })}
+              className={toolPill(refineOpen)}
             >
-              <Icon name="filter" size={16} />
+              <Icon name="filter" size={14} />
               {copy.refine.open}
               {bands.length ? (
                 <>
@@ -148,7 +159,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               <div
                 role="menu"
                 aria-label={copy.sort.label}
-                className="absolute top-full right-0 z-10 mt-2 flex w-44 flex-col rounded-soft border border-hairline bg-surface p-1 shadow-sm"
+                className="absolute top-full right-0 z-10 mt-2 flex w-44 flex-col rounded-soft border border-hairline bg-surface-raised p-1 shadow-sm"
               >
                 {SORTS.map((s) => (
                   <button
@@ -174,7 +185,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
         <section
           id={refineId}
           aria-label={copy.refine.title}
-          className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface p-4"
+          className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-4"
         >
           <fieldset className="flex flex-col gap-2">
             <legend className="font-sans text-ink-faint text-xs uppercase tracking-[0.18em]">
@@ -205,15 +216,15 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
         </section>
       ) : null}
       {tab === 'saved' && draftItems.length ? (
-        <section aria-labelledby="in-progress" className="flex flex-col gap-2">
-          <Text id="in-progress" size="caption" tone="muted" className="uppercase tracking-wider">
-            {copy.inProgress}
-          </Text>
-          <div className="flex gap-3 overflow-x-auto pb-1">
+        <section aria-labelledby="in-progress" className="flex flex-col gap-2.5">
+          <Eyebrow id="in-progress">{copy.inProgress}</Eyebrow>
+          {/* The row bleeds past the right gutter so the next draft peeks. */}
+          <div className="-mr-5 flex gap-2.5 overflow-x-auto pr-5 pb-1 md:-mr-4 md:pr-4">
             {draftItems.map((l) => (
               <DraftTile key={l.id} look={l} />
             ))}
           </div>
+          <div className="mt-3 h-px bg-hairline" />
         </section>
       ) : null}
       {current.isError ? (
