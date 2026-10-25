@@ -120,7 +120,7 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
           </View>
         </View>
 
-        <Alerts data={data} onChanged={refresh} />
+        <Alerts data={data} weekShown={resolved.modules.includes('H3')} onChanged={refresh} />
 
         <HomeBox
           ref={box}
@@ -169,9 +169,18 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
   );
 }
 
-// H1 · alerts: held receipts and one line Robes noticed. The look Robes made overnight is
-// today's card in the week, never a second row saying the same thing.
-function Alerts({ data, onChanged }: { data: Today; onChanged: () => void }) {
+// H1 · alerts: held receipts, the look Robes made overnight, one line Robes noticed. While the
+// week is on screen the overnight look is today's card there instead, never a second row (the
+// web twin is app/src/components/home/home-view.tsx).
+function Alerts({
+  data,
+  weekShown,
+  onChanged,
+}: {
+  data: Today;
+  weekShown: boolean;
+  onChanged: () => void;
+}) {
   const router = useRouter();
   const api = useApiClient();
   const toast = useToast();
@@ -227,6 +236,14 @@ function Alerts({ data, onChanged }: { data: Today; onChanged: () => void }) {
           },
         ],
       ),
+    );
+  }
+  if (data.overnight && !weekShown) {
+    const id = data.overnight.id;
+    rows.push(
+      row('overnight', todayCopy.overnight.title, data.overnight.headline || data.overnight.title, [
+        { label: `${todayCopy.overnight.open} ›`, onPress: () => router.push(`/today/look/${id}`) },
+      ]),
     );
   }
   if (noticed) {

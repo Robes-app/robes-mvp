@@ -136,6 +136,21 @@ test('today’s card carries the forecast; the overnight look is that card, neve
   expect(mockRouter.push).toHaveBeenCalledWith(`/today/look/${LOOK_ID}`);
 });
 
+test('before the week shows, the overnight look keeps its own row (it has nowhere else to go)', async () => {
+  mockFetch({
+    'GET /today': todayWith(
+      {},
+      { overnight: { id: LOOK_ID, title: 'Daily look', headline: 'Rain-ready tailoring' } },
+    ),
+    'GET /today/weather': null,
+  });
+  await renderWithApi(<HomeView />);
+  expect(await screen.findByText(todayCopy.overnight.title)).toBeTruthy();
+  expect(screen.getByText('Rain-ready tailoring')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: `${todayCopy.overnight.open} ›` }));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/today/look/${LOOK_ID}`);
+});
+
 test('after 19:00 today’s planned look asks Wore it?', async () => {
   const calls = mockFetch({
     'GET /today': todayWith(activated, { hour: 20 }),
