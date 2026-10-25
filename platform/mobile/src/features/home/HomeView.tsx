@@ -223,7 +223,7 @@ function Alerts({ data, onChanged }: { data: Today; onChanged: () => void }) {
         [
           {
             label: copy.alerts.review,
-            onPress: () => router.push({ pathname: '/wardrobe', params: { segment: 'inbox' } }),
+            onPress: () => router.push('/wardrobe/inbox'),
           },
         ],
       ),

@@ -1,17 +1,17 @@
 import { wardrobe as copy } from '@robes/copy';
 import type { WardrobeLayout } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/native';
-import { fonts, MIN_TOUCH, SegmentedControl, useColor } from '@robes/ui-native';
+import { fonts, IconButton, MIN_TOUCH, SegmentedControl, useColor } from '@robes/ui-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-export type Segment = 'pieces' | 'wishlist' | 'inbox';
+// Pieces | Wishlist only: the Inbox is a row that shows while something waits (Native parity).
+export type Segment = 'pieces' | 'wishlist';
 const SEGMENTS = [
   { value: 'pieces', label: copy.segments.pieces },
   { value: 'wishlist', label: copy.segments.wishlist },
-  { value: 'inbox', label: copy.segments.inbox },
 ] as const;
 
-// Row 1 of the one header (legacy a268ef0/809b13e): the 36pt track and the 36pt + circle.
+// The tab's pinned toolbar (beta's header row): the segmented track and the framed + circle.
 export function HeaderRow({
   segment,
   onSegment,
@@ -23,27 +23,39 @@ export function HeaderRow({
   addLabel: string;
   onAdd: () => void;
 }) {
-  const ink = useColor('ink');
   return (
-    <View className="flex-row items-center justify-between gap-4 px-6 pt-2">
+    <View className="flex-row items-center justify-between gap-4">
       <SegmentedControl
         label={copy.title}
         options={SEGMENTS}
         value={segment}
         onChange={onSegment}
-        className="flex-1"
       />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={addLabel}
-        onPress={onAdd}
-        hitSlop={(MIN_TOUCH - 36) / 2}
-        testID="wardrobe-add"
-        className="size-9 items-center justify-center rounded-pill border border-border-control"
-      >
-        <Icon name="plus" size={16} color={ink} />
-      </Pressable>
+      <IconButton icon="plus" label={addLabel} onPress={onAdd} framed testID="wardrobe-add" />
     </View>
+  );
+}
+
+// Shown only while the Inbox holds something: a dashed row that opens it (beta's receipt strip).
+export function InboxRow({ count, onOpen }: { count: number; onOpen: () => void }) {
+  const muted = useColor('ink-muted');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${copy.inboxWaiting(count)}, ${copy.segments.inbox}`}
+      onPress={onOpen}
+      testID="wardrobe-inbox-row"
+      className="mx-5 mt-3 h-[50px] flex-row items-center gap-2.5 rounded-soft border border-dashed border-rule-mid pr-3 pl-3.5"
+    >
+      <View className="size-1.5 rounded-pill bg-accent-inspire" />
+      <Text className="flex-1 text-[13px] text-ink-muted" style={{ fontFamily: fonts.sans }}>
+        {copy.inboxWaiting(count)}
+      </Text>
+      <Text className="text-xs text-ink-faint" style={{ fontFamily: fonts.sans }}>
+        {copy.segments.inbox}
+      </Text>
+      <Icon name="forward" size={16} color={muted} />
+    </Pressable>
   );
 }
 
@@ -62,12 +74,12 @@ export function CategoryTabs({
     ...categories.map((c) => ({ key: c, label: c })),
   ];
   return (
-    <View className="mt-5 px-6">
+    <View className="mt-3.5 border-b border-hairline pl-5">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         accessibilityLabel={copy.header.categories}
-        contentContainerClassName="gap-[22px] border-b border-hairline"
+        contentContainerClassName="gap-5 pr-5"
       >
         {tabs.map((t) => {
           const on = t.key === value;
@@ -78,12 +90,12 @@ export function CategoryTabs({
               accessibilityLabel={t.label}
               accessibilityState={{ selected: on }}
               onPress={() => onChange(t.key)}
-              style={{ minHeight: MIN_TOUCH, marginBottom: -1 }}
-              className={`justify-center border-b ${on ? 'border-ink' : 'border-transparent'}`}
+              style={{ minHeight: MIN_TOUCH, borderBottomWidth: 1.5, marginBottom: -1 }}
+              className={`justify-center ${on ? 'border-ink' : 'border-transparent'}`}
             >
               <Text
                 className={`text-[13px] ${on ? 'text-ink' : 'text-ink-muted'}`}
-                style={{ fontFamily: fonts.sans }}
+                style={{ fontFamily: on ? fonts.sansMedium : fonts.sans }}
               >
                 {t.label}
               </Text>
@@ -107,12 +119,13 @@ export function CountRow({
   layout: WardrobeLayout;
   onLayout: (next: WardrobeLayout) => void;
 }) {
+  const ink = useColor('ink');
   const muted = useColor('ink-muted');
   return (
-    <View className="mt-5 mb-3 h-8 flex-row items-center justify-between gap-3 px-6">
+    <View className="mt-3.5 mb-3.5 h-9 flex-row items-center justify-between gap-3 px-5">
       <Text
         className="text-[19px] text-ink-faint"
-        style={{ fontFamily: fonts.displayRegularItalic }}
+        style={{ fontFamily: fonts.displayItalic }}
         accessibilityLiveRegion="polite"
       >
         {count ?? ''}
@@ -124,14 +137,17 @@ export function CountRow({
             accessibilityLabel={copy.header.filter}
             accessibilityState={{ selected: filter.on }}
             onPress={filter.onOpen}
-            hitSlop={6}
+            hitSlop={(MIN_TOUCH - 36) / 2}
             testID="wardrobe-filter"
-            className={`h-8 flex-row items-center gap-2 rounded-pill border px-3.5 ${
-              filter.on ? 'border-border-control bg-surface-sunk' : 'border-hairline bg-bg'
+            className={`h-9 flex-row items-center gap-1.5 rounded-pill border bg-surface-raised px-3 ${
+              filter.on ? 'border-selected-line' : 'border-rule-mid'
             }`}
           >
-            <Icon name="filter" size={14} color={muted} />
-            <Text className="text-xs text-ink-muted" style={{ fontFamily: fonts.sans }}>
+            <Icon name="filter" size={14} color={filter.on ? ink : muted} />
+            <Text
+              className={`text-xs ${filter.on ? 'text-ink' : 'text-ink-muted'}`}
+              style={{ fontFamily: fonts.sans }}
+            >
               {copy.header.filter}
             </Text>
           </Pressable>

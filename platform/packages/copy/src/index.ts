@@ -321,6 +321,8 @@ export const wardrobe = {
   deleted: 'Piece removed.',
   undo: 'Undo',
   segments: { pieces: 'Pieces', wishlist: 'Wishlist', inbox: 'Inbox' },
+  // The dashed row under the switcher, only while something waits in the Inbox.
+  inboxWaiting: (n: number): string => (n === 1 ? '1 piece to check' : `${n} pieces to check`),
   removePiece: (label: string): string => `Remove ${label}`,
   photoAlt: (label: string): string => `Photo of ${label}`,
   wishlistEmpty: {

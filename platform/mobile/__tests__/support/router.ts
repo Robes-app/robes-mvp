@@ -4,6 +4,7 @@ export const mockRouter = {
   replace: jest.fn(),
   back: jest.fn(),
   canGoBack: jest.fn(() => true),
+  setParams: jest.fn(),
 };
 
 // Search params a test can change between renders (a door naming a tab, say).

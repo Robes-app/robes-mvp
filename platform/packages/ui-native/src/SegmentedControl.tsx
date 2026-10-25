@@ -18,13 +18,14 @@ export interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
-  // md: the screen header's track (legacy .rb-seg2, 36pt); sm: the count row's small toggle (32pt).
+  // md: the tab header's track (beta parity canvas: 38pt segments in a 3pt sunk track = 44pt);
+  // sm: the count row's small grid | list toggle (32pt).
   size?: 'md' | 'sm';
   className?: string;
   testID?: string;
 }
 
-const HEIGHT = { md: 36, sm: 32 } as const;
+const HEIGHT = { md: 44, sm: 32 } as const;
 
 // The header's segmented control (legacy header audit): a sunk track, a raised thumb, tracked caps.
 export function SegmentedControl<T extends string>({

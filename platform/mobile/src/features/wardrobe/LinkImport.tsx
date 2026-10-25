@@ -43,11 +43,7 @@ export function LinkImport() {
       {status === 'succeeded' ? (
         <>
           <Text accessibilityRole="text">{copy.link.done}</Text>
-          <Button
-            onPress={() => router.replace({ pathname: '/wardrobe', params: { segment: 'inbox' } })}
-          >
-            {copy.link.openInbox}
-          </Button>
+          <Button onPress={() => router.replace('/wardrobe/inbox')}>{copy.link.openInbox}</Button>
         </>
       ) : (
         <PrimaryScope>

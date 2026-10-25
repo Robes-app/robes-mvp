@@ -163,10 +163,7 @@ test('H1 carries the receipts and Robes noticed; H4 Saved then Suggested open th
   expect(await screen.findByText(copy.alerts.receiptFrom('Zara', 1))).toBeTruthy();
   expect(screen.getByText('You reach for soft tailoring in muted…')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: copy.alerts.review }));
-  expect(mockRouter.push).toHaveBeenCalledWith({
-    pathname: '/wardrobe',
-    params: { segment: 'inbox' },
-  });
+  expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
   await fireEvent.press(screen.getByRole('button', { name: copy.alerts.keep }));
   await waitFor(() =>
     expect(calls.some((c) => c.path.endsWith(`/observations/${NOTICE_ID}/keep`))).toBe(true),

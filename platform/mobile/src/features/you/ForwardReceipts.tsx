@@ -75,7 +75,7 @@ export function ForwardReceipts() {
             <Button
               variant="quiet"
               className="self-start"
-              onPress={() => router.push('/wardrobe?segment=inbox')}
+              onPress={() => router.push('/wardrobe/inbox')}
             >
               {`${copy.waiting(waiting)} · ${copy.review}`}
             </Button>
