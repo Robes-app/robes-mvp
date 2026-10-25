@@ -3,11 +3,12 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Look, Today } from '@robes/contracts';
 import { home as copy, lookbook, today as todayCopy } from '@robes/copy';
+import { weekdayLong } from '@robes/core/calendar';
 import { greetingName, type HomeStep, noticedLine, resolveHome } from '@robes/core/home';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { anchorName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { Eyebrow, Heading, Text, useToast } from '@robes/ui';
+import { Eyebrow, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
@@ -37,6 +38,8 @@ function trayHref(job: Today['tray'][number]): string {
 
 // The modular home (legacy 0478e63): H0 masthead · H1 alerts · H2 the box · the next step (O1–O4)
 // and the map (G1) while onboarding · the week (H3) once activated · Saved then Suggested (H4).
+// Beta parity (Native parity handoff 2026-10-25). The native twin is
+// mobile/src/features/home/HomeView.tsx.
 export function HomeView({ initial, dress = null }: { initial: Today; dress?: string | null }) {
   const api = useApiClient();
   const queryClient = useQueryClient();
@@ -78,34 +81,30 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
   const wx = weather.data;
   const weatherLine = wx ? copy.weather(wx.city, wx.tempRange, wx.condition) : null;
   const name = greetingName(data.firstName);
+  // Beta's H0 meta: the weekday, then where she is and the day's range once the forecast lands.
+  const metaLine = copy.meta(weekdayLong(data.date), wx?.city ?? null, wx?.tempRange ?? null);
 
   return (
     <div
-      className="mx-auto flex w-full max-w-[640px] flex-col gap-8 py-8"
+      className="mx-auto flex w-full max-w-[640px] flex-col gap-7 pt-[22px] pb-8"
       data-home={resolved.activated ? 'activated' : 'onboarding'}
       data-stage={resolved.stage}
     >
-      <header className="flex flex-col gap-2">
-        <Heading level={1} size="lg">
+      <header className="flex flex-col gap-1.5">
+        <h1 className="font-display text-[38px] font-light leading-[1.1] text-ink">
           {todayCopy.greeting(name, data.hour)}
-        </Heading>
-        <Text italic tone="faint">
-          {copy.echo}
-        </Text>
-        {weatherLine ? (
-          <Text
-            size="caption"
-            tone="muted"
-            className="flex items-center gap-2 font-medium uppercase tracking-[0.16em]"
-            aria-label={`${copy.weatherLabel}: ${weatherLine}`}
-          >
-            <Icon name={/clear|partly/.test(wx?.condition ?? '') ? 'today' : 'cloud'} size={16} />
-            {weatherLine}
-          </Text>
-        ) : null}
+        </h1>
+        <p className="font-display text-[21px] font-light text-ink-muted italic">{copy.echo}</p>
+        <p
+          className="mt-1.5 flex items-center gap-2 font-sans text-xs font-normal uppercase tracking-[0.22em] text-ink-faint"
+          data-testid="home-meta"
+        >
+          <Icon name="today" size={16} />
+          {metaLine}
+        </p>
       </header>
 
-      <Alerts data={data} onAnswer={answer} />
+      <Alerts data={data} weekShown={resolved.modules.includes('H3')} onAnswer={answer} />
 
       <div ref={boxRef}>
         <HomeBox
@@ -182,12 +181,15 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
   );
 }
 
-// H1 · alerts: the receipt strip, the look Robes made overnight, one line Robes noticed.
+// H1 · alerts: the receipt strip, the look Robes made overnight, one line Robes noticed. While the
+// week is on screen the overnight look is today's card there instead, never a second row.
 function Alerts({
   data,
+  weekShown,
   onAnswer,
 }: {
   data: Today;
+  weekShown: boolean;
   onAnswer: (id: string, keep: boolean) => void;
 }) {
   const { receipts, noticed } = data.home;
@@ -212,7 +214,7 @@ function Alerts({
       </li>,
     );
   }
-  if (data.overnight) {
+  if (data.overnight && !weekShown) {
     rows.push(
       <li key="overnight" className="flex items-center gap-3 py-3" data-kind="overnight">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk text-ink-muted">
@@ -272,7 +274,7 @@ function Alerts({
   );
 }
 
-// H4 · Saved looks, then Suggested — each whenever it has data; a card opens its look.
+// H4 · Saved looks, then Suggested — each whenever it has data; each card is the LookTile.
 function LookRow({
   title,
   href,
@@ -287,14 +289,17 @@ function LookRow({
   if (!looks.length) return null;
   const id = `home-${kind}`;
   return (
-    <section aria-labelledby={id} className="flex flex-col gap-3" data-testid={id}>
-      <div className="flex items-baseline justify-between">
+    <section aria-labelledby={id} className="flex flex-col gap-2.5" data-testid={id}>
+      <div className="flex min-h-6 items-center justify-between">
         <Eyebrow id={id}>{title}</Eyebrow>
-        <Link href={href} className="font-sans text-sm underline underline-offset-4">
-          {copy.viewAll}
+        <Link
+          href={href}
+          className="inline-flex min-h-11 items-center font-sans text-[13px] text-ink-muted hover:text-ink"
+        >
+          {copy.viewAllMore}
         </Link>
       </div>
-      <ul className="grid grid-cols-2 gap-4">
+      <ul className="grid grid-cols-2 gap-3">
         {looks.map((look) => {
           const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
           return (
@@ -304,6 +309,7 @@ function LookRow({
                 href={`/look/${look.id}`}
                 sizes="(min-width: 640px) 300px, 50vw"
                 className="flex-1"
+                eyebrow={copy.lookEyebrow}
                 meta={
                   kind === 'suggested'
                     ? around
