@@ -8,7 +8,6 @@ import {
   type Command,
   CommandBar,
   Eyebrow,
-  IconButton,
   Sheet,
   useCommandHotkey,
   Wordmark,
@@ -22,7 +21,9 @@ import { FeaturesProvider } from '../features';
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Signed-in chrome: top nav ≥768, tab bar below, Create sheet and ⌘K everywhere (IA §3.2).
+// Signed-in chrome: top nav ≥768; below it beta's dock — a floating bar of the four roots with
+// the sparkle beside it for Create (the native twin is mobile/src/components/TabBar.tsx).
+// Create sheet and ⌘K everywhere (IA §3.2).
 export function AppShell({
   name,
   features,
@@ -63,7 +64,7 @@ export function AppShell({
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
+        <div className="mx-auto flex h-11 max-w-5xl items-center gap-2 px-5 md:h-16 md:px-4">
           <Link href="/" className={`text-ink ${focus}`}>
             <Wordmark />
           </Link>
@@ -94,18 +95,12 @@ export function AppShell({
               {shell.command.label}
               <kbd className="font-sans text-xs text-ink-faint">{shell.command.hint}</kbd>
             </button>
-            <IconButton
-              icon="search"
-              label={shell.command.label}
-              onClick={toggleCommand}
-              className="md:hidden"
-            />
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
               className={`hidden min-h-11 items-center gap-2 rounded-pill border border-border-control px-5 font-sans text-sm font-medium text-ink hover:border-ink md:inline-flex ${focus}`}
             >
-              <Icon name="plus" size={16} />
+              <Icon name="looks" size={16} />
               {nav.create}
             </button>
             <Link
@@ -120,32 +115,30 @@ export function AppShell({
         </div>
       </header>
 
-      <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-28 md:pb-16">
+      <main
+        id="main"
+        className="mx-auto w-full max-w-5xl flex-1 px-5 pt-3.5 pb-32 md:px-4 md:pt-6 md:pb-16"
+      >
         <FeaturesProvider value={features}>{children}</FeaturesProvider>
       </main>
 
       <nav
         aria-label={shell.primaryNav}
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-3.5 bottom-0 z-40 flex items-center gap-2.5 pb-[max(env(safe-area-inset-bottom),12px)] md:hidden"
       >
-        <ul className="mx-auto grid max-w-md grid-cols-5">
-          {NAV_ITEMS.slice(0, 2).map((item) => (
-            <TabLink key={item.href} item={item} active={current === item.href} />
-          ))}
-          <li className="flex items-center justify-center">
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              aria-label={nav.create}
-              className={`flex size-12 items-center justify-center rounded-pill border border-ink text-ink ${focus}`}
-            >
-              <Icon name="plus" size={22} />
-            </button>
-          </li>
-          {NAV_ITEMS.slice(2).map((item) => (
+        <ul className="flex h-16 grow items-center justify-between rounded-pill border border-hairline bg-bg/90 px-1.5 shadow-[0_10px_30px_color-mix(in_srgb,var(--color-ink)_10%,transparent)] backdrop-blur-xl">
+          {NAV_ITEMS.map((item) => (
             <TabLink key={item.href} item={item} active={current === item.href} />
           ))}
         </ul>
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          aria-label={nav.create}
+          className={`flex size-16 shrink-0 items-center justify-center rounded-pill border border-hairline bg-bg/90 text-ink shadow-[0_10px_30px_color-mix(in_srgb,var(--color-ink)_10%,transparent)] backdrop-blur-xl ${focus}`}
+        >
+          <Icon name="looks" size={22} />
+        </button>
       </nav>
 
       <Sheet title={shell.create.title} open={createOpen} onOpenChange={setCreateOpen}>
@@ -190,17 +183,18 @@ export function AppShell({
   );
 }
 
+// Active: ink on a sunk pill; the rest ink-muted (Native parity handoff).
 function TabLink({ item, active }: { item: (typeof NAV_ITEMS)[number]; active: boolean }) {
   return (
-    <li>
+    <li className="flex-1">
       <Link
         href={item.href}
         aria-current={active ? 'page' : undefined}
-        className={`flex min-h-14 flex-col items-center justify-center gap-1 border-t font-sans text-[10px] font-medium uppercase tracking-[0.14em] ${
-          active ? 'border-ink text-ink' : 'border-transparent text-ink-muted'
+        className={`flex h-13 flex-col items-center justify-center gap-[3px] rounded-pill font-sans text-[9px] font-medium uppercase tracking-[0.14em] ${
+          active ? 'bg-surface-sunk text-ink' : 'text-ink-muted'
         } ${focus}`}
       >
-        <Icon name={item.icon} size={22} />
+        <Icon name={item.icon} size={20} />
         {item.label}
       </Link>
     </li>

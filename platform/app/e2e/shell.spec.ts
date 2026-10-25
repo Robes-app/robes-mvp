@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
-const ROOTS = ['Today', 'Wardrobe', 'Lookbook', 'Diary'];
+const ROOTS = ['Today', 'Lookbook', 'Diary', 'Wardrobe'];
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 

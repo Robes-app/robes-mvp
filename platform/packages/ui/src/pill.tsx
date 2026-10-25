@@ -12,7 +12,7 @@ export function pillClasses({ selected = false }: { selected?: boolean } = {}): 
     base,
     selected
       ? 'border-selected-line bg-selected text-ink'
-      : 'border-border-control text-ink-muted hover:border-ink hover:text-ink',
+      : 'border-rule-mid bg-surface-raised text-ink-muted hover:border-border-control hover:text-ink',
     'disabled:border-hairline disabled:text-ink-faint',
     focusRing,
   );
@@ -22,7 +22,8 @@ export interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>,
   selected?: boolean;
 }
 
-// Selected is warm, never black: the warm fill on its line, ink text and a check.
+// Selected is raised, never black: white on the warm line, ink text and a check. Unselected, the
+// label is the cue, so the edge is the fine rule-mid (the native twin is ui-native Pill.tsx).
 export function Pill({
   selected = false,
   type = 'button',
