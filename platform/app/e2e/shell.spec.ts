@@ -34,7 +34,7 @@ test('every shell route renders its heading', async ({ page }) => {
   const routes: [string, string | RegExp][] = [
     ['/wardrobe', 'Wardrobe'],
     ['/wardrobe/wishlist', 'Wardrobe'],
-    ['/wardrobe/inbox', 'Wardrobe'],
+    ['/wardrobe/inbox', 'Inbox'],
     ['/wardrobe/add', 'Add pieces'],
     ['/looks', 'Lookbook'],
     ['/looks/ideas', 'Lookbook'],

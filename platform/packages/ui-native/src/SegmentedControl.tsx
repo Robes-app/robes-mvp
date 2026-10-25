@@ -39,7 +39,8 @@ export function SegmentedControl<T extends string>({
   testID,
 }: SegmentedControlProps<T>) {
   const ink = useColor('ink');
-  const muted = useColor('ink-muted');
+  // Unselected labels sit on the sunk track, where ink-muted is 4.44:1 (under AA); faint passes.
+  const muted = useColor('ink-faint');
   const height = HEIGHT[size];
   // The track is shorter than a touch target; the hit area reaches past it.
   const slop = (MIN_TOUCH - height) / 2;
@@ -77,7 +78,7 @@ export function SegmentedControl<T extends string>({
             ) : (
               <Text
                 maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-                className={cx('text-[10px] uppercase', selected ? 'text-ink' : 'text-ink-muted')}
+                className={cx('text-[10px] uppercase', selected ? 'text-ink' : 'text-ink-faint')}
                 style={{ fontFamily: fonts.sansMedium, letterSpacing: 2.4 }}
               >
                 {option.label}

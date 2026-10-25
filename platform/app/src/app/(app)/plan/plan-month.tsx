@@ -70,7 +70,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                 } ${focus}`}
               >
                 <span
-                  className={`flex items-center gap-1 font-display text-lg leading-none ${isToday ? 'text-ink' : 'font-light text-ink-muted'}`}
+                  className={`flex items-center gap-1 font-display text-lg leading-none ${isToday ? 'text-ink' : 'font-light text-ink-faint'}`}
                 >
                   {Number(date.slice(8))}
                   {isToday ? (

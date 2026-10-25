@@ -37,7 +37,7 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   const brand = page.getByRole('dialog', { name: 'Brand' });
   await brand.getByLabel('Brand').fill('Harbour');
   await brand.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByRole('button', { name: 'Harbour' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Harbour', exact: true })).toBeVisible();
 
   // Category drills Category › Subcategory › Item type, from wardrobe_taxonomy.
   await page.getByRole('button', { name: /^Category/ }).click();

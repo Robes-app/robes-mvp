@@ -84,10 +84,11 @@ export function SegmentedControl<T extends string>({
             onKeyDown={onKeyDown}
             className={cn(
               'relative inline-flex items-center justify-center rounded-pill border px-3 font-sans text-[10px] font-medium tracking-[0.24em] uppercase motion-safe:transition-colors motion-safe:duration-150',
-              // The selected segment is raised on the warm edge (the native twin: ui-native).
+              // The selected segment is raised on the warm edge (the native twin: ui-native); the
+              // rest read ink-faint, since ink-muted on the sunk track is 4.44:1, under AA.
               checked
                 ? 'border-selected-line bg-surface-raised text-ink'
-                : 'border-transparent text-ink-muted hover:text-ink',
+                : 'border-transparent text-ink-faint hover:text-ink',
               focusRing,
             )}
           >

@@ -77,6 +77,8 @@ export function LookHero({ look, onDiary }: { look: Look; onDiary: () => void })
           ref={file}
           type="file"
           accept={PHOTO_ACCEPT}
+          aria-label={copy.addPhoto}
+          tabIndex={-1}
           className="sr-only"
           onChange={(e) => {
             void onPicked(e.target.files?.[0]);

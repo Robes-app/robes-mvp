@@ -197,7 +197,7 @@ function Alerts({
   if (receipts) {
     rows.push(
       <li key="receipt" className="flex items-center gap-3 py-3" data-kind="receipt">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk font-sans text-ink-muted text-sm">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk font-sans text-ink-faint text-sm">
           {receipts.pieces}
         </span>
         <span className="flex flex-1 flex-col">
