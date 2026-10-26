@@ -39,7 +39,7 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
       ...(tripsOn ? (['travel'] as const) : []),
     ]),
     repos.ideas.list(userId, 3),
-    repos.inbox.countHeld(userId),
+    repos.inbox.piecesWaiting(userId),
     repos.dailyLooks.overnightFor(userId, date),
   ]);
   const todayEntries = (plan.days[0]?.entries ?? []).map((entry) => ({

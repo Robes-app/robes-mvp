@@ -185,6 +185,25 @@ describe('wardrobe repo', () => {
     expect((await wardrobe.get(ann, other.id))?.material).toBeNull();
   });
 
+  it('a read that finds nothing leaves no piece, and only for the job owner', async () => {
+    const reading = await wardrobe.create(ann, { label: 'New piece', status: 'reading' });
+    // Another user's id discards nothing.
+    expect(await pieces.discard(bea, reading.id)).toBe(false);
+    expect(await wardrobe.get(ann, reading.id)).toBeDefined();
+    expect(await pieces.discard(ann, reading.id)).toBe(true);
+    expect(await wardrobe.get(ann, reading.id)).toBeUndefined();
+    const row = await db
+      .selectFrom('wardrobeItems')
+      .select('id')
+      .where('id', '=', reading.id)
+      .executeTakeFirst();
+    expect(row).toBeUndefined();
+    // A piece the read already filled is never discarded.
+    const filed = await wardrobe.create(ann, { label: 'Camel coat' });
+    expect(await pieces.discard(ann, filed.id)).toBe(false);
+    expect(await wardrobe.get(ann, filed.id)).toBeDefined();
+  });
+
   it('marks a season she sets as hers', async () => {
     const piece = await wardrobe.create(ann, { label: 'Linen dress' });
     const updated = await wardrobe.update(ann, piece.id, { seasonBand: 'spring_summer' });

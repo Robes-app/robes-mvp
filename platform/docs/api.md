@@ -111,7 +111,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `POST /wardrobe/import-link` Job (fetch worker) | `/api/wardrobe/read-url` |
 | `GET /wardrobe/taxonomy` | `/api/wardrobe/taxonomy` |
 | `GET/POST/PATCH/DELETE /wishlist/items[...]` · `POST /wishlist/items/:id/promote` | client REST `wishlist_items` |
-| `GET /inbox` · `POST /inbox/:id/decide` · `GET /me/inbox-address` | `wardrobe_inbox` + `/api/inbox/receipt` |
+| `GET /inbox` (forwarded receipts only; `count` = the pieces they hold) · `GET /inbox/:id` (one held entry of any source — Review opens a pasted link here; 404 once decided or for anyone else) · `POST /inbox/:id/decide` · `GET /me/inbox-address` | `wardrobe_inbox` + `/api/inbox/receipt` |
 | `GET/POST/DELETE /tags[...]` | client REST `tags`, `tag_pieces` |
 
 ### Styling engines (all Jobs)

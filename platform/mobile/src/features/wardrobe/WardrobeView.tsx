@@ -21,7 +21,7 @@ import { useInbox } from './inbox';
 import { useWardrobeLayout } from './layout';
 import { AddRow, CardRow, type CardStatus, CardTile, StarButton } from './PieceCard';
 import { useDeletePiece, usePieces, useStarPiece } from './pieces';
-import { CategoryTabs, CountRow, HeaderRow, InboxRow, type Segment } from './WardrobeHeader';
+import { CategoryTabs, CountRow, HeaderRow, InboxNotice, type Segment } from './WardrobeHeader';
 import { WishlistView } from './WishlistView';
 
 const SEGMENTS: readonly Segment[] = ['pieces', 'wishlist'];
@@ -283,7 +283,8 @@ export function WardrobeView() {
     }
   }, [params.segment, router]);
   const inbox = useInbox();
-  const waiting = (inbox.data?.items ?? []).reduce((n, e) => n + e.items.length, 0);
+  const receipts = inbox.data?.items.length ?? 0;
+  const waiting = inbox.data?.count ?? 0;
   return (
     <TabScreen
       title={nav.wardrobe}
@@ -302,7 +303,11 @@ export function WardrobeView() {
       }
     >
       {waiting > 0 ? (
-        <InboxRow count={waiting} onOpen={() => router.push('/wardrobe/inbox')} />
+        <InboxNotice
+          receipts={receipts}
+          pieces={waiting}
+          onOpen={() => router.push('/wardrobe/inbox')}
+        />
       ) : null}
       {segment === 'pieces' ? <Pieces /> : null}
       {segment === 'wishlist' ? <WishlistView /> : null}

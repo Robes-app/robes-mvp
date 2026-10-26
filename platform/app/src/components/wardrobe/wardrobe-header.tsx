@@ -1,10 +1,10 @@
 'use client';
 
 import { useApi } from '@robes/api-client/react';
-import { wardrobe } from '@robes/copy';
+import { wardrobe, you } from '@robes/copy';
 import type { WardrobeLayout } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
-import { SegmentedControl } from '@robes/ui';
+import { buttonClasses, SegmentedControl } from '@robes/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -14,7 +14,7 @@ export { AddCircle } from '../add-circle';
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Pieces | Wishlist only: the Inbox is a row that shows while something waits (Native parity
+// Pieces | Wishlist only: the Inbox is a notice that shows while a receipt waits (Native parity
 // handoff; the native twin is mobile/src/features/wardrobe/WardrobeHeader.tsx).
 const VIEWS = [
   { value: '/wardrobe', label: wardrobe.segments.pieces },
@@ -23,7 +23,7 @@ const VIEWS = [
 export type WardrobeView = (typeof VIEWS)[number]['value'];
 
 // The tab's pinned toolbar (beta's header row): the segmented track and the framed + circle stay
-// put under the app header while the grid scrolls; the Inbox row follows while something waits.
+// put under the app header while the grid scrolls; the receipt notice follows while one waits.
 export function WardrobeHeader({ current, add }: { current: WardrobeView; add?: ReactNode }) {
   const router = useRouter();
   return (
@@ -38,30 +38,31 @@ export function WardrobeHeader({ current, add }: { current: WardrobeView; add?: 
         />
         {add}
       </div>
-      <InboxRow />
+      <InboxNotice />
     </header>
   );
 }
 
-// Shown only while the Inbox holds something: a dashed row that opens it (beta's receipt strip;
-// the native twin is InboxRow in mobile/src/features/wardrobe/WardrobeHeader.tsx).
-function InboxRow() {
+// Shown only while a forwarded receipt waits (beta's receipt notice, Add Piece redline 05b): a
+// cream card on a hairline that says what Robes read, and one hairline pill into the Inbox.
+// The native twin is InboxNotice in mobile/src/features/wardrobe/WardrobeHeader.tsx.
+function InboxNotice() {
   const { data } = useApi('inbox.list');
-  const waiting = (data?.items ?? []).reduce((n, e) => n + e.items.length, 0);
-  if (waiting === 0) return null;
+  const receipts = data?.items.length ?? 0;
+  const pieces = data?.count ?? 0;
+  if (receipts === 0 || pieces === 0) return null;
   return (
-    <Link
-      href="/wardrobe/inbox"
-      aria-label={`${wardrobe.inboxWaiting(waiting)}, ${wardrobe.segments.inbox}`}
-      className={`flex h-[50px] items-center gap-2.5 rounded-soft border border-dashed border-rule-mid pr-3 pl-3.5 hover:border-border-control ${focus}`}
+    <section
+      aria-label={wardrobe.segments.inbox}
+      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-soft border border-hairline bg-surface py-2.5 pr-2.5 pl-4"
     >
-      <span aria-hidden className="size-1.5 shrink-0 rounded-pill bg-accent-inspire" />
-      <span className="grow font-sans text-[13px] text-ink-muted">
-        {wardrobe.inboxWaiting(waiting)}
-      </span>
-      <span className="font-sans text-ink-faint text-xs">{wardrobe.segments.inbox}</span>
-      <Icon name="forward" size={16} className="text-ink-muted" />
-    </Link>
+      <p className="font-sans text-[13px] text-ink-muted">
+        {wardrobe.inbox.notice(receipts)} · {you.receipts.waiting(pieces)}
+      </p>
+      <Link href="/wardrobe/inbox" className={buttonClasses({ variant: 'secondary' })}>
+        {you.receipts.review(pieces)}
+      </Link>
+    </section>
   );
 }
 

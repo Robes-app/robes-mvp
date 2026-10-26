@@ -22,6 +22,7 @@
     "./looks": "./src/looks/index.ts",
     "./photo-pieces": "./src/photo-pieces/index.ts",
     "./add-flow": "./src/add-flow/index.ts",
+    "./inbox": "./src/inbox/index.ts",
     "./home": "./src/home/index.ts",
     "./fence": "./src/fence/index.ts"
   },

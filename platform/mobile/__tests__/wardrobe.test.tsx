@@ -1,4 +1,4 @@
-import { wardrobe } from '@robes/copy';
+import { wardrobe, you } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { PieceDetail } from '../src/features/wardrobe/PieceDetail';
 import { WardrobeView } from '../src/features/wardrobe/WardrobeView';
@@ -334,11 +334,11 @@ test('Filter counts the season and the colour family before she applies them', a
   expect(await screen.findByText('Camel wool coat')).toBeTruthy();
 });
 
-test('Pieces | Wishlist only; the Inbox is a row that shows only while something waits', async () => {
+test('Pieces | Wishlist only; the receipt notice shows only while a receipt waits', async () => {
   const entry = {
     id: '00000000-0000-4000-8000-0000000000e1',
-    source: 'link',
-    retailer: 'Fixture Shop',
+    source: 'receipt',
+    retailer: 'Zara',
     subject: null,
     receivedAt: '2026-10-01T09:00:00.000Z',
     items: [
@@ -356,7 +356,7 @@ test('Pieces | Wishlist only; the Inbox is a row that shows only while something
       ],
     },
     'GET /wardrobe/items': { items: [piece()], nextCursor: null, total: 2 },
-    'GET /inbox': { items: [entry], count: 1 },
+    'GET /inbox': { items: [entry], count: 2 },
   });
   await renderWithApi(<WardrobeView />);
   expect(await screen.findByText('2 pieces')).toBeTruthy();
@@ -369,12 +369,13 @@ test('Pieces | Wishlist only; the Inbox is a row that shows only while something
   expect(screen.getByRole('button', { name: 'Outerwear' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Other' })).toBeNull();
 
-  await fireEvent.press(await screen.findByTestId('wardrobe-inbox-row'));
-  expect(screen.getByText(wardrobe.inboxWaiting(2))).toBeTruthy();
+  await screen.findByTestId('wardrobe-inbox-notice');
+  expect(screen.getByText(`${wardrobe.inbox.notice(1)} · ${you.receipts.waiting(2)}`)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: you.receipts.review(2) }));
   expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
 });
 
-test('with nothing waiting there is no Inbox row, and an old Inbox link opens it', async () => {
+test('with nothing waiting there is no receipt notice, and an old Inbox link opens it', async () => {
   mockFetch({
     'GET /me': ME,
     'GET /wardrobe/summary': { total: 1, categories: [{ category: 'Outerwear', count: 1 }] },
@@ -385,7 +386,7 @@ test('with nothing waiting there is no Inbox row, and an old Inbox link opens it
   try {
     await renderWithApi(<WardrobeView />);
     expect(await screen.findByText('1 piece')).toBeTruthy();
-    expect(screen.queryByTestId('wardrobe-inbox-row')).toBeNull();
+    expect(screen.queryByTestId('wardrobe-inbox-notice')).toBeNull();
     expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
   } finally {
     delete mockParams.segment;

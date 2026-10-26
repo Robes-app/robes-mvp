@@ -19,7 +19,8 @@ export interface WardrobeAnalyseDeps {
 
 const Input = z.object({ pieceId: z.uuid() });
 
-// Reads a wardrobe photo and files the piece (legacy /api/wardrobe/analyse, now a job).
+// Reads a wardrobe photo and files the piece (legacy /api/wardrobe/analyse, now a job). A read
+// that finds no piece, or cannot run, discards the placeholder: nothing failed is ever filed.
 export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHandler {
   const assetWaitMs = deps.assetWaitMs ?? 30_000;
   const pollMs = deps.pollMs ?? 500;
@@ -39,7 +40,7 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
       );
       if (!piece || !piece.imageAssetId) throw new JobError('not_found');
       if (piece.assetStatus !== 'ready') {
-        await deps.pieces.markFailed(ctx.userId, pieceId);
+        await deps.pieces.discard(ctx.userId, pieceId);
         throw new JobError(piece.assetStatus === 'failed' ? 'unreadable_photo' : 'asset_not_ready');
       }
 
@@ -73,7 +74,7 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
             });
           }
           if (err.code === 'cancelled') throw err;
-          await deps.pieces.markFailed(ctx.userId, pieceId);
+          await deps.pieces.discard(ctx.userId, pieceId);
           throw new JobError(`ai_${err.code}`);
         }
         throw err;
@@ -90,7 +91,7 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
 
       const analysed = toPiece(result.data);
       if (analysed.noItemDetected) {
-        await deps.pieces.markFailed(ctx.userId, pieceId);
+        await deps.pieces.discard(ctx.userId, pieceId);
         await ctx.writeStage('text', { pieceId, noItemDetected: true });
         return { status: 'partial' };
       }
