@@ -134,27 +134,22 @@ test('a row she changes on Review rides the filing, and the wishlist is the dest
 
 test('a link is reviewed like a photo and filed through its Inbox entry', async () => {
   const calls = mockFetch({
-    'GET /inbox': {
+    [`GET /inbox/${ENTRY_ID}`]: {
+      id: ENTRY_ID,
+      source: 'link',
+      retailer: 'Arket',
+      subject: null,
       items: [
         {
-          id: ENTRY_ID,
-          source: 'link',
-          retailer: 'Arket',
-          subject: null,
-          items: [
-            {
-              index: 0,
-              label: 'Wool coat',
-              brand: 'Arket',
-              price: 250,
-              currency: 'EUR',
-              sourceUrl: null,
-            },
-          ],
-          receivedAt: '2026-10-15T10:00:00.000Z',
+          index: 0,
+          label: 'Wool coat',
+          brand: 'Arket',
+          price: 250,
+          currency: 'EUR',
+          sourceUrl: null,
         },
       ],
-      count: 1,
+      receivedAt: '2026-10-15T10:00:00.000Z',
     },
     [`POST /inbox/${ENTRY_ID}/decide`]: {
       id: ENTRY_ID,

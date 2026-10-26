@@ -98,7 +98,8 @@ export function Review({
   const api = useApiClient();
   const queryClient = useQueryClient();
   const reduced = useReducedMotion();
-  const inbox = useApi('inbox.list', undefined, { enabled: link !== null });
+  // A link's own entry (links never sit in the Inbox list, which holds receipts).
+  const inbox = useApi('inbox.get', { params: { id: link ?? '' } }, { enabled: link !== null });
   const [answers, setAnswers] = useState<
     Record<string, { answer: 'add' | 'skip'; edits?: RowChanges }>
   >({});
@@ -111,7 +112,7 @@ export function Review({
   const filing = useRef(new Set<string>());
   // A link's Inbox entry leaves the Inbox once filed, so Review keeps the one it saw.
   const [held, setHeld] = useState<InboxEntry | null>(null);
-  const seen = link ? inbox.data?.items.find((e) => e.id === link) : undefined;
+  const seen = link && inbox.data?.id === link ? inbox.data : undefined;
   if (seen && !held) setHeld(seen);
 
   // The queue, in the order she took the photos and Robes found the pieces.
