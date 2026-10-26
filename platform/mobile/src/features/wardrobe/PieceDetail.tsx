@@ -69,8 +69,16 @@ export function PieceDetail({ id }: { id: string }) {
   return (
     <View className="flex-1">
       <ScrollView contentContainerClassName="gap-5 px-6 pb-10">
+        {/* The whole cut-out, contained on white in a 4:5 frame: never cropped at the hem. */}
         {uri ? (
-          <Image source={uri} alt={copy.photoAlt(piece.label)} blurhash={piece.image?.blurhash} />
+          <View className="rounded-crisp border border-hairline bg-surface-raised p-4">
+            <Image
+              source={uri}
+              alt={copy.photoAlt(piece.label)}
+              blurhash={piece.image?.blurhash}
+              contentFit="contain"
+            />
+          </View>
         ) : null}
         <View className="gap-1.5">
           <View className="flex-row items-start gap-2">

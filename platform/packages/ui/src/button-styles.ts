@@ -2,8 +2,9 @@
 import { cn, focusRing } from './cn';
 
 const variants = {
-  primary:
-    'bg-ink text-bg hover:opacity-90 disabled:bg-surface-sunk disabled:text-ink-faint disabled:opacity-100',
+  // Disabled stays ink, at 30%, so the one commitment reads as waiting rather than gone (redline
+  // audit "one primary button spec").
+  primary: 'bg-ink text-bg hover:opacity-90 disabled:opacity-30 disabled:hover:opacity-30',
   secondary:
     'border border-border-control text-ink hover:border-ink disabled:border-hairline disabled:text-ink-faint',
   quiet: 'text-ink-muted underline underline-offset-4 hover:text-ink disabled:text-ink-faint',

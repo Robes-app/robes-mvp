@@ -70,3 +70,59 @@ export function formatPrice(amount: number | null, currency: string | null): str
     return amount.toFixed(2);
   }
 }
+
+// The Price drawer's currencies (beta: £ GBP / € EUR / $ USD), in the order the chips read.
+export const PRICE_CURRENCIES = [
+  { code: 'GBP', symbol: '£' },
+  { code: 'EUR', symbol: '€' },
+  { code: 'USD', symbol: '$' },
+] as const;
+export type PriceCurrency = (typeof PRICE_CURRENCIES)[number]['code'];
+
+export function isPriceCurrency(code: string | null | undefined): code is PriceCurrency {
+  return PRICE_CURRENCIES.some((c) => c.code === code);
+}
+
+const GBP_REGIONS = new Set(['GB', 'UK', 'GG', 'JE', 'IM']);
+
+// The chip a fresh price opens on, from the device's locale ("en-GB" → GBP, "en-US" → USD);
+// euro otherwise, the house currency.
+export function currencyForLocale(locale: string | null | undefined): PriceCurrency {
+  const region = (locale ?? '')
+    .split(/[-_]/)
+    .slice(1)
+    .find((part) => /^[A-Za-z]{2}$/.test(part))
+    ?.toUpperCase();
+  if (region && GBP_REGIONS.has(region)) return 'GBP';
+  if (region === 'US') return 'USD';
+  return 'EUR';
+}
+
+// What she typed in the Price field as a number: "89.99", "89,99", "1,200", "€ 340". Null when it
+// isn't a price (blank, negative, letters).
+export function parsePriceInput(text: string): number | null {
+  let t = text.replace(/[\s£€$]/g, '');
+  if (!t) return null;
+  if (t.includes(',') && !t.includes('.')) {
+    // One comma with one or two digits after it is a decimal comma; otherwise it groups thousands.
+    t = /^\d+,\d{1,2}$/.test(t) ? t.replace(',', '.') : t.replace(/,/g, '');
+  } else {
+    t = t.replace(/,/g, '');
+  }
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n <= 10_000_000 ? n : null;
+}
+
+// The name Robes offers when she hasn't given one (redline 06/07): the colour and the leaf of
+// the category, "Navy crew neck jumper". Offered as a placeholder, never applied.
+export function suggestPieceName(p: {
+  colourName?: string | null;
+  categoryL2?: string | null;
+  categoryL3?: string | null;
+}): string | null {
+  const leaf = (p.categoryL3 ?? p.categoryL2 ?? '').trim();
+  if (!leaf) return null;
+  const colour = p.colourName?.trim();
+  return colour ? `${colour} ${leaf.toLowerCase()}` : leaf;
+}

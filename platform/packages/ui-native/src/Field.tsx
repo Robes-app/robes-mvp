@@ -13,17 +13,29 @@ export interface FieldProps extends Omit<TextInputProps, 'accessibilityLabel'> {
   multiline?: boolean;
   // The notebook line: the screen's question names the field, her answer is in Cormorant.
   variant?: 'box' | 'underline';
+  // The sheet's title already names the field, so no eyebrow repeats it (web twin: labelHidden).
+  labelHidden?: boolean;
 }
 
 // Visible 3:1 control border (border-control); errors pair danger text with an icon.
 export const Field = forwardRef<TextInputInstance, FieldProps>(function Field(
-  { label, error, hint, className, style, multiline, variant = 'box', ...input },
+  {
+    label,
+    error,
+    hint,
+    className,
+    style,
+    multiline,
+    variant = 'box',
+    labelHidden = false,
+    ...input
+  },
   ref,
 ) {
   const danger = useColor('danger');
   return (
     <View className="gap-2">
-      {variant === 'box' ? <Eyebrow>{label}</Eyebrow> : null}
+      {variant === 'box' && !labelHidden ? <Eyebrow>{label}</Eyebrow> : null}
       <TextInput
         ref={ref}
         {...input}

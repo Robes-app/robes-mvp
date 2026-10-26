@@ -96,7 +96,8 @@ export function Button({
       className={cx(
         'flex-row items-center justify-center gap-2 py-3',
         container[variant],
-        inactive && 'opacity-50',
+        // A waiting primary stays ink at 30% (the one primary button spec); the rest dim to half.
+        inactive && (variant === 'primary' ? 'opacity-30' : 'opacity-50'),
         className,
       )}
     >

@@ -389,9 +389,6 @@ export const wardrobe = {
           : `${n} wears counted before Robes kept the dates.`,
     },
     extraHint: 'Buttons, trims, a second colour in the weave. Tap as many as there are.',
-    // What she wears it for steers the looks Robes builds around it, so it earns its own row.
-    wearForHint: 'Robes reads these when it styles a look around this piece.',
-    addWearFor: 'Add your own',
   },
   // The colour model on a piece (legacy f3e5b5b): one shade, up to three more, a print.
   colour: {
@@ -414,6 +411,34 @@ export const wardrobe = {
     families: 'Material families',
     notSure: 'Not sure',
     check: 'Robes wasn’t sure of this material. Check it.',
+  },
+  // The piece record's rows and their one-field drawers (redline audit "Add a piece", 26 Oct).
+  fields: {
+    // What an empty row offers, in the faint ink, instead of a column of "Add".
+    hints: { brand: 'e.g. Toteme', category: 'Choose', optional: 'Optional' },
+    // A filled Notes row: the note prints beneath, the row is the door to change it.
+    edit: 'Edit',
+    name: { placeholder: 'What is it?' },
+    brand: { placeholder: 'Who made it' },
+    notes: { placeholder: 'How it fits, how you wear it' },
+    // The category drill's back chevron.
+    back: (to: string): string => `Back to ${to}`,
+    price: {
+      helper: 'Both optional. Robes fills them in when a receipt or a link carries them.',
+      currencies: 'Currency',
+      chip: (symbol: string, code: string): string => `${symbol} ${code}`,
+    },
+    size: {
+      down: 'A size smaller',
+      up: 'A size larger',
+      conversion: (eu: number, us: number): string => `EU ${eu} · US ${us}`,
+      notSure: 'Not sure',
+    },
+    wearFor: {
+      helper: 'Pick as many as fit.',
+      own: '+ Your own',
+      ownLabel: 'Your own',
+    },
   },
   // The reveal after one photo (beta's step 3): her photo, then what Robes filed.
 

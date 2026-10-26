@@ -23,6 +23,8 @@ export const ICONS = {
     'M4 10h16M8 3v4M16 3v4',
   ],
   plus: ['M12 5v14M5 12h14'],
+  // The stepper's step down (the Size drawer), the plus's twin.
+  minus: ['M5 12h14'],
   cloud: ['M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 11.2 3.4 3.4 0 0 0 7 18z'],
   close: ['M6 6l12 12M18 6 6 18'],
   back: ['M15 18l-6-6 6-6'],

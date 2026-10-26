@@ -52,15 +52,26 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
 
   // Category drills Category › Subcategory › Item type, from wardrobe_taxonomy.
   await page.getByRole('button', { name: /^Category/ }).click();
-  const cat = page.getByRole('dialog', { name: 'Category' });
-  // The sheet opens where the piece already sits (Outerwear › Coats); step back to the top.
-  await cat.getByRole('button', { name: '‹ Outerwear' }).click();
-  await cat.getByRole('button', { name: '‹ Category' }).click();
-  await cat.getByRole('button', { name: 'Tops', exact: true }).click();
-  await cat.getByRole('button', { name: 'T-shirts & tees' }).click();
-  // A pick saves and closes the sheet (the record's rows, no form to save).
-  await cat.getByRole('button', { name: 'Crew neck t-shirt' }).click();
-  await expect(page.getByText('T-shirts & tees · Crew neck t-shirt')).toBeVisible();
+  // The sheet opens where the piece already sits (Outerwear › Coats): the level is the title, the
+  // family its eyebrow, and the back chevron steps out a level at a time.
+  const cat = page.getByRole('dialog', { name: 'Coats' });
+  await cat.getByRole('button', { name: 'Back to Outerwear' }).click();
+  await page
+    .getByRole('dialog', { name: 'Outerwear' })
+    .getByRole('button', { name: 'Back to Category' })
+    .click();
+  const top = page.getByRole('dialog', { name: 'Category' });
+  await top.getByRole('button', { name: 'Tops', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Tops' })
+    .getByRole('button', { name: 'T-shirts & tees' })
+    .click();
+  // A pick saves and closes the sheet (the record's rows, no form to save); the row reads the leaf.
+  await page
+    .getByRole('dialog', { name: 'T-shirts & tees' })
+    .getByRole('button', { name: 'Crew neck t-shirt' })
+    .click();
+  await expect(page.getByRole('button', { name: /^Category.*Crew neck t-shirt/ })).toBeVisible();
 
   // What she wears it for is a styling signal, so it is hers to set and reads back on the row.
   await page.getByRole('button', { name: /^Wear it for/ }).click();
@@ -83,13 +94,14 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
     .getByRole('dialog', { name: 'Material' })
     .getByRole('button', { name: 'Not sure' })
     .click();
-  await expect(page.getByRole('button', { name: /^Material.*Add/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Material.*Optional/ })).toBeVisible();
 
-  // The pencil edits the name where it is written.
+  // The pencil edits the name where it is written; Save waits until the name has changed.
   await page.getByRole('button', { name: 'Edit the name' }).click();
   const name = page.getByRole('dialog', { name: 'Name' });
   await name.getByLabel('Name').fill('Camel wool coat');
-  await name.getByRole('button', { name: 'Save' }).click();
+  await expect(name.getByRole('button', { name: 'Save' })).toBeDisabled();
+  await name.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Camel wool coat' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Wardrobe' }).first().click();

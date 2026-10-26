@@ -93,7 +93,6 @@ function Photo({
       contentFit={fit}
       blurhash={piece.image?.blurhash}
       recyclingKey={piece.id}
-      className={fit === 'contain' ? 'bg-surface-raised' : undefined}
     />
   );
 }

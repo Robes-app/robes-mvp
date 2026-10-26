@@ -49,6 +49,27 @@ describe('Dialog and Sheet', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
+  it('closes from a worded close in place of the ×, with a leading control beside the title', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(
+      <Sheet
+        title="Jumpers & sweaters"
+        eyebrow="Knitwear"
+        leading={<button type="button">Back to Knitwear</button>}
+        closeLabel="Done"
+        defaultOpen
+        onOpenChange={onOpenChange}
+      >
+        <p>Options</p>
+      </Sheet>,
+    );
+    expect(screen.getByRole('button', { name: 'Back to Knitwear' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: ui.close })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
   it('gives a dialog its own primary scope', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(
