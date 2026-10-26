@@ -5,6 +5,7 @@ import {
   SHADE_IDS_SQL,
   shadeFromNameSql,
 } from '@robes/core/colour-sql';
+import { MATERIAL_IDS } from '@robes/core/material';
 
 // Set-based domain transforms, legacy.* → app.* (reference/legacy-data-model.md §6.10 amended by
 // data-model.md §5). Every statement is insert … on conflict do nothing with legacy ids kept or
@@ -81,59 +82,13 @@ const paletteSide = (key: string, ids: string, values: string) =>
     from jsonb_each(case when jsonb_typeof(pl.p -> '${key}') = 'object' then pl.p -> '${key}' else '{}'::jsonb end) e
     where e.key = any(${ids}) and e.value in (${values}))`;
 
-// Legacy migration 29's material (legacy material_model.cjs ids). The platform has no material
-// column yet, so a known id rides item_dna.material: nothing is lost, and the column's own
-// migration can backfill from it. Unknown values are dropped; an item_dna that already names one
-// keeps its own.
-export const MATERIAL_IDS = [
-  'cotton',
-  'wool',
-  'linen',
-  'silk',
-  'cashmere',
-  'merino',
-  'mohair',
-  'alpaca',
-  'hemp',
-  'denim',
-  'jersey',
-  'satin',
-  'velvet',
-  'lace',
-  'corduroy',
-  'tweed',
-  'sequin',
-  'polyester',
-  'polyamide',
-  'elastane',
-  'acrylic',
-  'leather',
-  'suede',
-  'patent',
-  'shearling',
-  'nubuck',
-  'exotic',
-  'viscose',
-  'lyocell',
-  'modal',
-  'acetate',
-  'cupro',
-  'vegan_leather',
-  'faux_fur',
-  'faux_suede',
-  'vinyl',
-  'straw',
-  'metal',
-  'resin',
-  'wood',
-] as const;
+// Legacy migration 29's material: the platform column carries the same 40 ids
+// (@robes/core/material); a value outside the list is dropped (the column's check would refuse it).
 const MATERIAL_IDS_SQL = `array[${MATERIAL_IDS.map((m) => `'${m}'`).join(',')}]::text[]`;
-const itemDna = (
-  t: string,
-) => `(case when jsonb_typeof(${t}.item_dna) = 'object' then ${t}.item_dna else '{}'::jsonb end
-    || case when lower(btrim(${t}.material)) = any(${MATERIAL_IDS_SQL})
-      and not (case when jsonb_typeof(${t}.item_dna) = 'object' then ${t}.item_dna else '{}'::jsonb end ? 'material')
-      then jsonb_build_object('material', lower(btrim(${t}.material))) else '{}'::jsonb end)`;
+const materialOf = (t: string) =>
+  `case when lower(btrim(${t}.material)) = any(${MATERIAL_IDS_SQL}) then lower(btrim(${t}.material)) end`;
+const itemDna = (t: string) =>
+  `case when jsonb_typeof(${t}.item_dna) = 'object' then ${t}.item_dna else '{}'::jsonb end`;
 const CUPS = `('AA','A','B','C','D','DD','E','F','G+')`;
 
 const CATEGORIES = `('Tops','Bottoms','Dresses','Outerwear','Shoes','Bags','Accessories','Swimwear','Other')`;
@@ -372,14 +327,14 @@ on conflict (user_id, kind, slug) do nothing;
 ${assetsFrom(`select user_id, image_url as url, created_at from legacy.wardrobe_items`, 'wardrobe')}
 
 insert into app.wardrobe_items (id, user_id, label, category, category_l2, category_l3, color,
-  colour_shade, colour_extra, print, brand, notes, image_asset_id, item_dna, status, hero_position, season_band, season_source, fit_confidence,
+  colour_shade, colour_extra, print, material, brand, notes, image_asset_id, item_dna, status, hero_position, season_band, season_source, fit_confidence,
   sentiment, price, currency, size, acquired_via, created_at)
 select w.id, w.user_id,
   left(coalesce(nullif(trim(w.label), ''), 'Piece'), 120),
   case when w.category in ${CATEGORIES} then w.category else 'Other' end,
   case when exists (select 1 from app.wardrobe_taxonomy x where x.l2 = w.category_l2) then w.category_l2 end,
   case when exists (select 1 from app.wardrobe_taxonomy x where x.l2 = w.category_l2 and x.l3 = w.category_l3) then w.category_l3 end,
-  left(w.color, 60), cs.shade, ${colourExtra('w')}, ${colourPrint('w')},
+  left(w.color, 60), cs.shade, ${colourExtra('w')}, ${colourPrint('w')}, ${materialOf('w')},
   left(w.brand, 80), left(w.notes, 1000),
   ${asset('w.user_id', 'w.image_url')},
   ${itemDna('w')},
@@ -419,13 +374,13 @@ on conflict (tag_id, wardrobe_item_id) do update set source = 'user'
 ${assetsFrom(`select user_id, image_url as url, created_at from legacy.wishlist_items`, 'wishlist')}
 
 insert into app.wishlist_items (id, user_id, label, category, category_l2, category_l3, color,
-  colour_shade, colour_extra, print, brand, note, image_asset_id, item_dna, price, currency, size, source_type, source_label, source_url, created_at)
+  colour_shade, colour_extra, print, material, brand, note, image_asset_id, item_dna, price, currency, size, source_type, source_label, source_url, created_at)
 select i.id, i.user_id,
   left(coalesce(nullif(trim(i.label), ''), 'Piece'), 120),
   case when i.category in ${CATEGORIES} then i.category else 'Other' end,
   case when exists (select 1 from app.wardrobe_taxonomy x where x.l2 = i.category_l2) then i.category_l2 end,
   case when exists (select 1 from app.wardrobe_taxonomy x where x.l2 = i.category_l2 and x.l3 = i.category_l3) then i.category_l3 end,
-  left(i.color, 60), cs.shade, ${colourExtra('i')}, ${colourPrint('i')},
+  left(i.color, 60), cs.shade, ${colourExtra('i')}, ${colourPrint('i')}, ${materialOf('i')},
   left(i.brand, 80), left(i.note, 1000),
   ${asset('i.user_id', 'i.image_url')},
   ${itemDna('i')},

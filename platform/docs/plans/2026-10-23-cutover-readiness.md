@@ -158,9 +158,9 @@ change lands twice. The 16–23 Oct window alone was eight days of work landing 
 - [x] Extend the catalog/transform for the legacy columns through migration 29: twin url/key (26),
       colour shade / extra colours / print (27), `style_dna.palette`, `brief`/`memory`/`facts`/
       `brands`/`investment`, looks `styling` (24), states/anchor (25), `proposals` (19), size /
-      currency / L2 / L3 on wardrobe and wishlist, `notification_prefs`, inbox rows. **Material
-      (29) has no platform column yet**: a known material id rides `item_dna.material` (wardrobe and
-      wishlist) so nothing is lost; the column's own migration can backfill from it. Not carried,
+      currency / L2 / L3 on wardrobe and wishlist, `notification_prefs`, inbox rows. Material
+      (29) lands in the platform's `material` column on wardrobe and wishlist (an id outside the 40
+      is dropped). Not carried,
       no platform home: `style_dna.style_archetypes_soft` ("sometimes" types — the platform's
       prompt reads the key but nothing stores it), legacy look `set_id`/`set_index` (warning), the
       twin key (redrawn), `inbox_address` (re-minted), `is_admin` (by hand). `icon_tags` is

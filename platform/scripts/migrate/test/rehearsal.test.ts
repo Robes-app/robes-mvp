@@ -133,14 +133,14 @@ describe.skipIf(!legacySchemaPresent())(
       });
     });
 
-    it('carries the material (migration 29) on item_dna until the platform has its own column', async () => {
+    it('carries the material (migration 29) into the material column', async () => {
       const mat = async (table: string) =>
         withClient(
           targetUrl,
           async (c) =>
             (
               await c.query(
-                `select label, item_dna ->> 'material' as material from app.${table}
+                `select label, material from app.${table}
                  where user_id = $1 order by created_at`,
                 [NIALL],
               )

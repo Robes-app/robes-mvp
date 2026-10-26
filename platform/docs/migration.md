@@ -49,7 +49,7 @@ The tests (`scripts/migrate/test`, part of `pnpm db:test`) rehearse the fixture 
 
 **Needs the real legacy database to verify:** which of migrations 12–23 actually ran and the real JSON heterogeneity (run extract and read its missing-column report, then assert's census); duplicate emails; volumes (extract batches through a cursor, transform is set-based except artifacts, which loop per row); Cloudinary URL shapes. **Not built yet:** the Airtable export. (The legacy redirect map is `app/src/lib/legacy-redirects.ts`; legacy artifact shares render at `/share/[token]`.)
 
-**Material (legacy migration 29):** the platform has no material column yet, so a known material id (legacy `material_model.cjs`) rides `item_dna.material` on wardrobe and wishlist items; an unknown value is dropped. A later migration can backfill a real column from it.
+**Material (legacy migration 29):** lands in `app.wardrobe_items.material` / `app.wishlist_items.material` (the same 40 ids as `@robes/core/material`); an unknown value is dropped.
 
 **Building the fixture from a checkout without the legacy SQL** (`main`): `ROBES_LEGACY_SQL_DIR=<a checkout of beta>/supabase pnpm migrate:rehearse`.
 
