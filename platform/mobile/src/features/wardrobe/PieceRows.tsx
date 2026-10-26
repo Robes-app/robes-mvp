@@ -2,22 +2,25 @@ import type { PieceValues } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import { pattern, shade } from '@robes/core/colour';
 import { material } from '@robes/core/material';
+import { suggestPieceName } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/native';
-import { Eyebrow, Text, useColor } from '@robes/ui-native';
+import { Eyebrow, fonts, maxFontSizeMultiplier, Text, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 import { ShadeSwatch } from './ColourField';
 import type { PieceField } from './PieceFieldSheet';
 
 const copy = wardrobe.piece;
+const fields = wardrobe.fields;
 
 // One piece anatomy (legacy Piece_Sheet 01): every fact is a row under a named section, and a
-// tap opens that one field's drawer. Nothing on the record is a form. Web twin: piece-rows.tsx.
+// tap opens that one field's drawer. Nothing on the record is a form. Resting rows sit on white with
+// a hairline; the warm edge means selected, and no row is selected. Web twin: piece-rows.tsx.
 export function PieceSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View className="gap-2">
       <Eyebrow>{title}</Eyebrow>
-      <View className="overflow-hidden rounded-crisp border border-hairline bg-surface">
+      <View className="overflow-hidden rounded-crisp border border-hairline bg-surface-raised">
         {children}
       </View>
     </View>
@@ -27,6 +30,8 @@ export function PieceSection({ title, children }: { title: string; children: Rea
 export function PieceRow({
   label,
   value,
+  hint,
+  spoken,
   swatch,
   check,
   onPress,
@@ -34,7 +39,12 @@ export function PieceRow({
   first = false,
 }: {
   label: string;
+  // What is filed, in ink.
   value?: string | null;
+  // What an empty row offers instead, in the faint ink ("e.g. Toteme", "Choose", "Optional").
+  hint?: string;
+  // What a reader hears for the value when the row shows something else (a note's "Edit").
+  spoken?: string | null;
   swatch?: ReactNode;
   // Robes' read here is a guess she should look at: the rose "Check" mark, with its reason.
   check?: string | undefined;
@@ -46,19 +56,30 @@ export function PieceRow({
   const faint = useColor('ink-faint');
   const body = (
     <View className={`gap-1 px-4 py-3 ${first ? '' : 'border-hairline border-t'}`}>
-      <View className="flex-row items-center gap-3">
-        <Text size="small" className="flex-1">
+      {/* The label never gives way (it wrapped a letter a line beside a long category): the
+          value yields its width and ends in an ellipsis. */}
+      <View className="min-h-6 flex-row items-center gap-3">
+        <Text size="small" numberOfLines={1} style={{ flexShrink: 0 }}>
           {label}
         </Text>
         {check ? (
-          <Text size="caption" className="text-accent-warm">
+          <Text size="caption" className="text-accent-warm" style={{ flexShrink: 0 }}>
             {copy.check}
           </Text>
         ) : null}
-        {swatch}
-        <Text size="small" tone={value ? 'muted' : 'faint'} numberOfLines={1}>
-          {value || (onPress ? copy.add : '')}
-        </Text>
+        <View className="min-w-0 flex-1 flex-row items-center justify-end gap-2">
+          {swatch}
+          <Text
+            size="small"
+            tone={value ? 'ink' : 'faint'}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            className="text-right"
+            style={{ flexShrink: 1, minWidth: 0 }}
+          >
+            {value || (onPress ? (hint ?? fields.hints.optional) : '')}
+          </Text>
+        </View>
         {onPress ? <Icon name="forward" size={15} color={faint} /> : null}
       </View>
       {note ? (
@@ -69,15 +90,48 @@ export function PieceRow({
     </View>
   );
   if (!onPress) return body;
+  const heard = spoken ?? value;
   // The row says what it holds as well as what it is, so a reader hears the whole fact.
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${label}: ${value || copy.add}${check ? `. ${check}` : ''}`}
+      accessibilityLabel={`${label}: ${heard || copy.add}${check ? `. ${check}` : ''}`}
       onPress={onPress}
     >
       {body}
     </Pressable>
+  );
+}
+
+// The Name row as a field she types in place (redline 06): a drawer for one line of text is a
+// detour. The placeholder offers Robes' name from the colour and category, never applies it.
+function NameRow({
+  value,
+  offer,
+  onChange,
+}: {
+  value: string;
+  offer: string | null;
+  onChange: (label: string) => void;
+}) {
+  return (
+    <View className="min-h-12 flex-row items-center gap-3 px-4">
+      <Text size="small" numberOfLines={1} style={{ flexShrink: 0 }}>
+        {copy.label}
+      </Text>
+      <TextInput
+        accessibilityLabel={copy.label}
+        value={value}
+        maxLength={120}
+        autoCorrect={false}
+        placeholder={offer ?? fields.name.placeholder}
+        placeholderTextColorClassName="accent-ink-faint"
+        maxFontSizeMultiplier={maxFontSizeMultiplier.control}
+        onChangeText={onChange}
+        className="min-h-11 min-w-0 flex-1 text-right text-sm text-ink"
+        style={{ fontFamily: fonts.sans }}
+      />
+    </View>
   );
 }
 
@@ -96,18 +150,26 @@ export type RecordValues = PieceValues & {
   materialCheck?: boolean;
 };
 
+// The leaf of the category (redline 08): "Crew neck jumper", not the whole path — the family
+// belongs to the picker's header.
+export const categoryLeaf = (v: RecordValues): string | null =>
+  v.categoryL3 ?? v.categoryL2 ?? v.category ?? null;
+
 // The record's four sections (legacy Piece_Sheet 01), shared by the piece page, Review and Add
 // without a photo, so a piece reads the same everywhere. `withName` adds the Name row where the
-// name isn't already the heading; `reading` holds every value at "Reading…" while Robes reads.
+// name isn't already the heading — a drawer row, or a field typed in place when `onName` is given;
+// `reading` holds every value at "Reading…" while Robes reads.
 // Web twin: RecordRows in piece-rows.tsx.
 export function RecordRows({
   values,
   onField,
+  onName,
   withName = false,
   reading = false,
 }: {
   values: RecordValues;
   onField: (field: PieceField) => void;
+  onName?: (label: string) => void;
   withName?: boolean;
   reading?: boolean;
 }) {
@@ -121,18 +183,32 @@ export function RecordRows({
   return (
     <>
       <PieceSection title={copy.sections.piece}>
-        {withName ? (
+        {withName && onName && !reading ? (
+          <NameRow
+            value={values.label}
+            offer={suggestPieceName({
+              colourName: mainShade?.name ?? null,
+              categoryL2: values.categoryL2,
+              categoryL3: values.categoryL3,
+            })}
+            onChange={onName}
+          />
+        ) : withName ? (
           <PieceRow first label={copy.label} value={v(values.label)} onPress={open('label')} />
         ) : null}
         <PieceRow
           first={!withName}
           label={copy.rows.category}
-          value={v(
-            [values.categoryL2 ?? values.category, values.categoryL3].filter(Boolean).join(' · '),
-          )}
+          value={v(categoryLeaf(values))}
+          hint={fields.hints.category}
           onPress={open('category')}
         />
-        <PieceRow label={copy.brand} value={v(values.brand)} onPress={open('brand')} />
+        <PieceRow
+          label={copy.brand}
+          value={v(values.brand)}
+          hint={fields.hints.brand}
+          onPress={open('brand')}
+        />
       </PieceSection>
 
       <PieceSection title={copy.sections.colour}>
@@ -179,9 +255,11 @@ export function RecordRows({
           value={v(money(values.price, values.currency))}
           onPress={open('price')}
         />
+        {/* A filled note prints beneath, and the row's own value says the door is to change it. */}
         <PieceRow
           label={copy.rows.notes}
-          value={reading ? wardrobe.add.review.reading : undefined}
+          value={v(values.notes ? fields.edit : null)}
+          spoken={reading ? null : values.notes}
           note={reading ? null : values.notes}
           onPress={open('notes')}
         />

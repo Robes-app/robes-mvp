@@ -77,9 +77,18 @@ test('the category drills Category › Subcategory › Item type and files the l
       name: `${wardrobe.piece.rows.category}: ${piece().categoryL2}`,
     }),
   );
-  // It opens where the piece already sits (Outerwear › Coats); back walks out to the categories.
-  await fireEvent.press(screen.getByRole('button', { name: '‹ Outerwear' }));
-  await fireEvent.press(screen.getByRole('button', { name: `‹ ${wardrobe.piece.rows.category}` }));
+  // It opens where the piece already sits (Outerwear › Coats): the family is the eyebrow over
+  // the level, "Just coats" leads in the serif and carries the check; back walks out a level.
+  expect(screen.getByRole('header', { name: 'Coats' })).toBeTruthy();
+  expect(screen.getByText('Outerwear')).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: wardrobe.piece.taxonomy.justThis('Coats') }).props
+      .accessibilityState,
+  ).toMatchObject({ selected: true });
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.fields.back('Outerwear') }));
+  await fireEvent.press(
+    screen.getByRole('button', { name: wardrobe.fields.back(wardrobe.piece.rows.category) }),
+  );
   await fireEvent.press(screen.getByRole('button', { name: 'Tops' }));
   await fireEvent.press(screen.getByRole('button', { name: 'T-shirts & tees' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Crew neck t-shirt' }));
@@ -190,6 +199,162 @@ test('an unfiled material reads as the door, and its sheet opens on Natural', as
   );
   expect(screen.getByRole('radio', { name: 'Cotton' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: wardrobe.material.notSure })).toBeNull();
+});
+
+test('an empty row offers a hint, not "Add"; a long category keeps its label whole', async () => {
+  mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({
+      brand: null,
+      categoryL2: 'Jumpers & sweaters',
+      categoryL3: 'Crew neck jumper',
+      notes: 'Runs small.',
+    }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  // The leaf of the category, not its path.
+  expect(
+    await screen.findByRole('button', {
+      name: `${wardrobe.piece.rows.category}: Crew neck jumper`,
+    }),
+  ).toBeTruthy();
+  expect(screen.getByText(wardrobe.fields.hints.brand)).toBeTruthy();
+  expect(screen.getAllByText(wardrobe.fields.hints.optional).length).toBeGreaterThan(0);
+  expect(screen.queryByText(wardrobe.piece.add)).toBeNull();
+  // A filled note prints beneath; the row says Edit, and a reader hears the note.
+  expect(screen.getByText(wardrobe.fields.edit)).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: `${wardrobe.piece.rows.notes}: Runs small.` }),
+  ).toBeTruthy();
+  const label = screen.getByText(wardrobe.piece.rows.category);
+  expect(label.props.numberOfLines).toBe(1);
+  expect(label.props.style).toEqual(expect.arrayContaining([{ flexShrink: 0 }]));
+});
+
+test('a typed field waits for a change: Save is off until the brand has words', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ brand: null }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ brand: 'Toteme' }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', {
+      name: `${wardrobe.piece.brand}: ${wardrobe.piece.add}`,
+    }),
+  );
+  const save = () => screen.getByRole('button', { name: wardrobe.piece.saveField });
+  expect(save().props.accessibilityState.disabled).toBe(true);
+  // No eyebrow repeats the title, and the sheet closes from its own ×.
+  expect(screen.getAllByText(wardrobe.piece.brand)).toHaveLength(2);
+  expect(screen.getByPlaceholderText(wardrobe.fields.brand.placeholder)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.brand), 'Toteme');
+  expect(save().props.accessibilityState.disabled).toBe(false);
+  await fireEvent.press(save());
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ brand: 'Toteme' });
+});
+
+test('a price is filed with its currency, read from the chips', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ price: null, currency: null }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ price: 89.99, currency: 'GBP' }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', {
+      name: `${wardrobe.piece.rows.price}: ${wardrobe.piece.add}`,
+    }),
+  );
+  expect(screen.getByText(wardrobe.fields.price.helper)).toBeTruthy();
+  await fireEvent.press(
+    screen.getByRole('button', { name: wardrobe.fields.price.chip('£', 'GBP') }),
+  );
+  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.rows.price), '89,99');
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.saveField }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ price: 89.99, currency: 'GBP' });
+});
+
+test('a size steps along the category’s scale, with the conversion beside it', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ size: 'UK 12' }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ size: 'UK 14' }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: `${wardrobe.piece.rows.size}: UK 12` }),
+  );
+  expect(screen.getByText(wardrobe.fields.size.conversion(40, 8))).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: wardrobe.piece.saveField }).props.accessibilityState
+      .disabled,
+  ).toBe(true);
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.fields.size.up }));
+  expect(screen.getByText('UK 14')).toBeTruthy();
+  expect(screen.getByText(wardrobe.fields.size.conversion(42, 10))).toBeTruthy();
+  expect(screen.getByRole('button', { name: wardrobe.fields.size.notSure })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.saveField }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ size: 'UK 14' });
+});
+
+test('a print is a list with its own drawn square; a pick saves', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ print: 'stripes' }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', {
+      name: `${wardrobe.piece.rows.print}: ${wardrobe.colour.plain}`,
+    }),
+  );
+  expect(
+    screen.getByRole('radio', { name: wardrobe.colour.plain }).props.accessibilityState,
+  ).toMatchObject({ checked: true });
+  expect(screen.getByTestId('print-swatch-stripes')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: wardrobe.piece.done })).toBeNull();
+  await fireEvent.press(screen.getByRole('radio', { name: 'Stripes' }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ print: 'stripes' });
+});
+
+test('her own wear tag is added from "+ Your own" and picked at once', async () => {
+  const calls = mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece(),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    [`PATCH /wardrobe/items/${PIECE_ID}`]: piece({ wearFor: ['Everyday', 'Weekend casual'] }),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  await fireEvent.press(
+    await screen.findByRole('button', { name: `${wardrobe.piece.rows.wearFor}: Everyday` }),
+  );
+  expect(screen.getByText(wardrobe.fields.wearFor.helper)).toBeTruthy();
+  // Done sits in the header; there is no ×.
+  expect(screen.getByRole('button', { name: wardrobe.piece.done })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.fields.wearFor.own }));
+  await fireEvent.changeText(
+    screen.getByLabelText(wardrobe.fields.wearFor.ownLabel),
+    'Weekend casual',
+  );
+  await fireEvent(screen.getByLabelText(wardrobe.fields.wearFor.ownLabel), 'submitEditing');
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+    wearFor: ['Everyday', 'Weekend casual'],
+  });
+  expect(await screen.findByRole('button', { name: 'Weekend casual' })).toBeTruthy();
 });
 
 test('removing a piece goes back and offers Undo, which restores it', async () => {

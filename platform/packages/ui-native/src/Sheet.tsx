@@ -1,10 +1,11 @@
 import { ui } from '@robes/copy';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, PanResponder, Pressable, View } from 'react-native';
-import { PrimaryScope } from './Button';
+import { IconButton, PrimaryScope } from './Button';
 import { cx } from './cx';
 import { useReducedMotion } from './motion';
-import { Eyebrow, Heading } from './Text';
+import { MIN_TOUCH } from './scale';
+import { Eyebrow, Heading, Text } from './Text';
 
 export interface SheetProps {
   open: boolean;
@@ -14,6 +15,12 @@ export interface SheetProps {
   eyebrow?: string;
   // A picture of what the sheet is about, beside its eyebrow and title.
   media?: ReactNode;
+  // A control before the title — a drill's back chevron.
+  leading?: ReactNode;
+  // The 44pt × at the top right, beside the title (the web Sheet always has one).
+  closeButton?: boolean;
+  // The close control as a word ("Done") where every tap already saved; implies closeButton.
+  closeLabel?: string;
   children: ReactNode;
   className?: string;
   testID?: string;
@@ -30,6 +37,9 @@ export function Sheet({
   title,
   eyebrow,
   media,
+  leading,
+  closeButton = false,
+  closeLabel,
   children,
   className,
   testID,
@@ -62,6 +72,28 @@ export function Sheet({
     });
     return () => animation.stop();
   }, [open, visible, reduced, translateY, backdrop]);
+
+  const close = closeLabel ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={closeLabel}
+      onPress={onClose}
+      style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH }}
+      className="-mr-1 items-center justify-center px-1"
+    >
+      <Text size="small" tone="muted" className="underline">
+        {closeLabel}
+      </Text>
+    </Pressable>
+  ) : closeButton ? (
+    <IconButton
+      icon="close"
+      label={ui.close}
+      tone="ink-muted"
+      onPress={onClose}
+      className="-mr-3"
+    />
+  ) : null;
 
   const drag = useMemo(
     () =>
@@ -100,7 +132,10 @@ export function Sheet({
           style={{ transform: [{ translateY }] }}
         >
           <View {...drag.panHandlers} className="items-center py-3">
+            {/* With a close in the header, the grab bar is only the handle, so a reader hears
+                one Close, not two. */}
             <Pressable
+              accessible={!close}
               accessibilityRole="button"
               accessibilityLabel={ui.close}
               onPress={onClose}
@@ -116,17 +151,26 @@ export function Sheet({
                 {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
                 {title ? <Heading size="md">{title}</Heading> : null}
               </View>
+              {close}
             </View>
-          ) : (
-            <>
-              {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
-              {title ? (
-                <Heading size="md" className="mb-4">
-                  {title}
-                </Heading>
-              ) : null}
-            </>
-          )}
+          ) : title || eyebrow || leading || close ? (
+            <View
+              className={cx(
+                'flex-row items-center gap-1',
+                title || leading || close ? 'mb-4' : 'mb-1',
+                leading ? '-ml-3' : null,
+              )}
+            >
+              {leading}
+              <View className="min-w-0 flex-1">
+                {eyebrow ? (
+                  <Eyebrow className={title ? 'mb-1' : undefined}>{eyebrow}</Eyebrow>
+                ) : null}
+                {title ? <Heading size="md">{title}</Heading> : null}
+              </View>
+              {close}
+            </View>
+          ) : null}
           {/* A drawer is a layer of its own: its one filled button stands beside the screen's. */}
           <PrimaryScope>{children}</PrimaryScope>
         </Animated.View>

@@ -58,3 +58,49 @@ describe('formatPrice', () => {
     expect(formatPrice(0, 'EUR')).toBeNull();
   });
 });
+
+describe('the Price drawer', () => {
+  it('opens on the currency of the device’s region, euro otherwise', async () => {
+    const { currencyForLocale, isPriceCurrency } = await import('./index');
+    expect(currencyForLocale('en-GB')).toBe('GBP');
+    expect(currencyForLocale('en_GB')).toBe('GBP');
+    expect(currencyForLocale('en-US')).toBe('USD');
+    expect(currencyForLocale('zh-Hant-US')).toBe('USD');
+    expect(currencyForLocale('en-IE')).toBe('EUR');
+    expect(currencyForLocale('fr')).toBe('EUR');
+    expect(currencyForLocale(undefined)).toBe('EUR');
+    expect(isPriceCurrency('GBP')).toBe(true);
+    expect(isPriceCurrency('JPY')).toBe(false);
+    expect(isPriceCurrency(null)).toBe(false);
+  });
+
+  it('reads a price as she types it, and nothing that isn’t one', async () => {
+    const { parsePriceInput } = await import('./index');
+    expect(parsePriceInput('89.99')).toBe(89.99);
+    expect(parsePriceInput('89,99')).toBe(89.99);
+    expect(parsePriceInput('1,200')).toBe(1200);
+    expect(parsePriceInput('1,200.50')).toBe(1200.5);
+    expect(parsePriceInput(' € 340 ')).toBe(340);
+    expect(parsePriceInput('')).toBeNull();
+    expect(parsePriceInput('-5')).toBeNull();
+    expect(parsePriceInput('ten')).toBeNull();
+    expect(parsePriceInput('1.2.3')).toBeNull();
+    expect(parsePriceInput('99999999')).toBeNull();
+  });
+});
+
+describe('suggestPieceName', () => {
+  it('offers the colour and the leaf of the category', async () => {
+    const { suggestPieceName } = await import('./index');
+    expect(
+      suggestPieceName({
+        colourName: 'Navy',
+        categoryL2: 'Jumpers & sweaters',
+        categoryL3: 'Crew neck jumper',
+      }),
+    ).toBe('Navy crew neck jumper');
+    expect(suggestPieceName({ categoryL2: 'Coats', categoryL3: null })).toBe('Coats');
+    expect(suggestPieceName({ colourName: 'Navy' })).toBeNull();
+    expect(suggestPieceName({})).toBeNull();
+  });
+});

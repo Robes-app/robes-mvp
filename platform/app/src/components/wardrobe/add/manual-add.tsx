@@ -3,13 +3,9 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { PieceValues, UpdatePieceInput } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
-import {
-  type RowChanges,
-  readDraft,
-  rowChanges,
-  suggestName,
-  wishChanges,
-} from '@robes/core/add-flow';
+import { type RowChanges, readDraft, rowChanges, wishChanges } from '@robes/core/add-flow';
+import { shade } from '@robes/core/colour';
+import { suggestPieceName } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
 import { Button, ErrorText, Eyebrow, Heading, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -101,7 +97,8 @@ export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: 
   if (done) return <Filed to={to} kept={1} />;
 
   const uploading = !!photo && !photo.assetId;
-  const suggested = suggestName(values) ?? '';
+  const suggested =
+    suggestPieceName({ ...values, colourName: shade(values.colourShade)?.name ?? null }) ?? '';
   const ready = !!values.categoryL2 && !uploading;
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-5">
@@ -111,7 +108,12 @@ export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: 
           {copy.title} <em>{copy.wink}</em>
         </Heading>
       </header>
-      <RecordRows values={values} onField={setField} withName />
+      <RecordRows
+        values={values}
+        onField={setField}
+        withName
+        onName={(label) => setChanges((c) => ({ ...c, label }))}
+      />
       <label
         htmlFor={inputId}
         aria-busy={uploading}

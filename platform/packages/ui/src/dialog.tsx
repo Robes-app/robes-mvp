@@ -4,6 +4,7 @@ import * as RadixDialog from '@radix-ui/react-dialog';
 import { ui } from '@robes/copy';
 import type { ReactElement, ReactNode } from 'react';
 import { PrimaryScope } from './button';
+import { buttonClasses } from './button-styles';
 import { cn } from './cn';
 import { IconButton } from './icon-button';
 import { Eyebrow, Heading, Text } from './text';
@@ -23,6 +24,11 @@ export interface DialogProps {
   footer?: ReactNode;
   // A Sheet only: a picture of what the sheet is about, beside its eyebrow and title.
   media?: ReactNode;
+  // A Sheet only: a control before the title — a drill's back chevron.
+  leading?: ReactNode;
+  // A Sheet only: the close control as a word ("Done") where every tap already saved, in place
+  // of the ×.
+  closeLabel?: string;
 }
 
 // The screen behind dims; it never blurs to mush (beta).
@@ -35,16 +41,23 @@ function Frame({
   children,
   footer,
   media,
+  leading,
+  closeLabel,
   grabBar = false,
   className,
   titleSize,
-}: Pick<DialogProps, 'title' | 'eyebrow' | 'description' | 'children' | 'footer' | 'media'> & {
+}: Pick<
+  DialogProps,
+  'title' | 'eyebrow' | 'description' | 'children' | 'footer' | 'media' | 'leading' | 'closeLabel'
+> & {
   grabBar?: boolean;
   className: string;
   titleSize: 'lg' | 'md';
 }) {
-  const head = (
-    <div className="flex flex-col gap-2 pr-10">
+  const titles = (
+    <div
+      className={cn('flex min-w-0 flex-col gap-2', !leading && (closeLabel ? 'pr-16' : 'pr-10'))}
+    >
       {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
       <RadixDialog.Title asChild>
         <Heading level={2} size={titleSize}>
@@ -57,6 +70,14 @@ function Frame({
         </RadixDialog.Description>
       ) : null}
     </div>
+  );
+  const head = leading ? (
+    <div className={cn('-ml-3 flex items-center gap-1', closeLabel ? 'pr-16' : 'pr-10')}>
+      <span className="shrink-0">{leading}</span>
+      {titles}
+    </div>
+  ) : (
+    titles
   );
   return (
     <RadixDialog.Portal>
@@ -82,7 +103,16 @@ function Frame({
           {footer ? <div className="flex flex-col gap-3">{footer}</div> : null}
           {/* Last in DOM order so opening focuses the content, not the close button. */}
           <RadixDialog.Close asChild>
-            <IconButton icon="close" label={ui.close} className="absolute top-3 right-3" />
+            {closeLabel ? (
+              <button
+                type="button"
+                className={cn(buttonClasses({ variant: 'quiet' }), 'absolute top-3 right-3')}
+              >
+                {closeLabel}
+              </button>
+            ) : (
+              <IconButton icon="close" label={ui.close} className="absolute top-3 right-3" />
+            )}
           </RadixDialog.Close>
         </PrimaryScope>
       </RadixDialog.Content>
@@ -118,6 +148,8 @@ export function Dialog({
   children,
   footer,
   media: _media,
+  leading: _leading,
+  closeLabel: _closeLabel,
   ...root
 }: DialogProps) {
   return (
@@ -145,6 +177,8 @@ export function Sheet({
   children,
   footer,
   media,
+  leading,
+  closeLabel,
   ...root
 }: DialogProps) {
   return (
@@ -155,6 +189,8 @@ export function Sheet({
         description={description}
         footer={footer}
         {...(media ? { media } : {})}
+        {...(leading ? { leading } : {})}
+        {...(closeLabel ? { closeLabel } : {})}
         grabBar
         titleSize="md"
         className="inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-soft border border-b-0 border-hairline px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up"

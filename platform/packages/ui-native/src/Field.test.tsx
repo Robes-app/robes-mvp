@@ -28,3 +28,9 @@ test('a hint shows when there is no error', async () => {
   expect(screen.getByText('As you’d like Robes to say it.')).toBeTruthy();
   expect(screen.queryByRole('alert')).toBeNull();
 });
+
+test('a hidden label names the input without repeating the sheet’s title', async () => {
+  await render(<Field label="Brand" labelHidden value="" />);
+  expect(screen.getByLabelText('Brand')).toBeTruthy();
+  expect(screen.queryByText('Brand')).toBeNull();
+});

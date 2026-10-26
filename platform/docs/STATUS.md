@@ -174,6 +174,31 @@ API's `owned` answer stays for it. Native picks from the camera roll with the OS
 roll is a file input. The e2e specs were rewritten for the flow but not run in this container (no
 MinIO); the unit, DB and native suites and `next build` pass.
 
+### Redline pass — 2026-10-26 (design "Add Piece — Redline Audit")
+
+- **Jobs follow SSE with the row as the fallback** (`app/src/lib/follow-job.ts`, used by `useJob`
+  and Review's reads): a stream that errors, sends a payload the contract rejects, or stays silent
+  for 4s falls back to `jobs.get` every 2.5s until the job settles, and the row is re-read every
+  20s while the stream is open. Staging showed Review stuck on "reading" and links never reaching
+  Review; this removes the dependence on the stream arriving.
+- **Review's reading state**: a falling scan line, three breathing rows, "Robes is *reading* your
+  photo…", Cancel; after 20s or an empty read, "Fill it in yourself" opens the manual form with the
+  photo attached (a late read still lands).
+- **Chrome**: one primary spec (ink pill, 48pt, 30% ink disabled, pinned at the foot —
+  `PinnedAction` on both); the web dock stands down on the add routes (`isFlowPath`); the
+  destination is chosen once on the Add pieces sheet (the camera's toggle and the link's are gone;
+  the link says "Filing to your wardrobe · Change").
+- **Inbox holds receipts only**: link entries keep `source: 'link'` and load through the new
+  `inbox.get`; the count is pieces waiting. A quiet photo read that finds nothing now discards its
+  placeholder piece (`pieces.discard`) instead of leaving a failed "New piece". The receipt
+  selection screen is on both platforms.
+- **Field drawers** (rows as a white card with hints, colour/material/category/print/wear/price/
+  size/notes) per the audit; size logic in `@robes/core/sizes`, price parsing in `@robes/core/wardrobe`.
+- **Not done in code**: staging receipts need the MX record for `in.staging.mail.byrobes.com` and
+  the `robes-staging-inbound` SES rule set activated (runbooks/environments.md §9 step 7). Native
+  camera refused → Settings (the OS-camera fallback is gone, per the audit). Size conversions are
+  womenswear only.
+
 ## Flakes to watch
 
 - `wardrobe-ui` wishlist Undo under heavy parallel load (seen once, not reproduced).

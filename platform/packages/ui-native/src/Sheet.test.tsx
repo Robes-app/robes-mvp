@@ -38,6 +38,39 @@ describe.each([
   });
 });
 
+test('a header close sits beside the title: the ×, or a word where every tap saved', async () => {
+  const onClose = jest.fn();
+  const { rerender } = await render(
+    <Sheet open onClose={onClose} title="Brand" closeButton>
+      <Text>Body</Text>
+    </Sheet>,
+  );
+  // One Close, not two: the grab bar becomes only the handle.
+  expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1);
+  await fireEvent.press(screen.getByRole('button', { name: 'Close' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  await rerender(
+    <Sheet
+      open
+      onClose={onClose}
+      title="Jumpers & sweaters"
+      eyebrow="Knitwear"
+      leading={
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to Knitwear">
+          <Text>‹</Text>
+        </Pressable>
+      }
+      closeLabel="Done"
+    >
+      <Text>Body</Text>
+    </Sheet>,
+  );
+  expect(screen.getByRole('button', { name: 'Back to Knitwear' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
+  expect(onClose).toHaveBeenCalledTimes(2);
+});
+
 test('the Android back gesture closes it', async () => {
   const onClose = jest.fn();
   await render(

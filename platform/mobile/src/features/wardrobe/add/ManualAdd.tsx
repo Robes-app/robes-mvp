@@ -1,13 +1,9 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { PieceValues, UpdatePieceInput } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
-import {
-  type RowChanges,
-  readDraft,
-  rowChanges,
-  suggestName,
-  wishChanges,
-} from '@robes/core/add-flow';
+import { type RowChanges, readDraft, rowChanges, wishChanges } from '@robes/core/add-flow';
+import { shade } from '@robes/core/colour';
+import { suggestPieceName } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -116,7 +112,8 @@ export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: 
   if (done) return <Filed to={to} kept={1} />;
 
   const uploading = !!photo && !photo.assetId;
-  const suggested = suggestName(values) ?? '';
+  const suggested =
+    suggestPieceName({ ...values, colourName: shade(values.colourShade)?.name ?? null }) ?? '';
   const ready = !!values.categoryL2 && !uploading;
   return (
     <PrimaryScope>
@@ -124,7 +121,12 @@ export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: 
         <Heading size="md" style={{ fontSize: 28 }}>
           {copy.title} <Em>{copy.wink}</Em>
         </Heading>
-        <RecordRows values={values} onField={setField} withName />
+        <RecordRows
+          values={values}
+          onField={setField}
+          withName
+          onName={(label) => setChanges((c) => ({ ...c, label }))}
+        />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={photo ? copy.changePhoto : copy.addPhoto}

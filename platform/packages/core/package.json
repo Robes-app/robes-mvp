@@ -9,6 +9,7 @@
     "./colour-sql": "./src/sql/colour-model.ts",
     "./material": "./src/material/index.ts",
     "./wardrobe": "./src/wardrobe/index.ts",
+    "./sizes": "./src/sizes/index.ts",
     "./quotas": "./src/quotas/index.ts",
     "./flags": "./src/flags/index.ts",
     "./jobs": "./src/jobs/index.ts",
