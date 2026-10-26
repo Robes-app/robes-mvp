@@ -29,6 +29,7 @@ const copy = wardrobe.colour;
 export function ShadeSwatch({ shade: s, size = 22 }: { shade: Shade | null; size?: number }) {
   return (
     <View
+      testID={`shade-swatch-${s?.id ?? 'none'}`}
       className="rounded-full border border-hairline"
       style={{ width: size, height: size, backgroundColor: s?.hex }}
     />
@@ -191,7 +192,8 @@ export function PrintSwatch({ id, size = 24 }: { id: string | null; size?: numbe
   return (
     <View
       testID={`print-swatch-${id ?? 'plain'}`}
-      className="overflow-hidden rounded-soft border border-hairline"
+      // A row-sized square keeps the small radius, or it reads as a dot.
+      className={`overflow-hidden border border-hairline ${size < 24 ? 'rounded-crisp' : 'rounded-soft'}`}
       style={{ width: size, height: size, backgroundColor: art ? G0 : plain }}
     >
       {art ? (

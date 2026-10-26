@@ -7,7 +7,7 @@ import { Icon } from '@robes/icons/native';
 import { Eyebrow, fonts, maxFontSizeMultiplier, Text, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { ShadeSwatch } from './ColourField';
+import { PrintSwatch, ShadeSwatch } from './ColourField';
 import type { PieceField } from './PieceFieldSheet';
 
 const copy = wardrobe.piece;
@@ -174,10 +174,14 @@ export function RecordRows({
   reading?: boolean;
 }) {
   const mainShade = shade(values.colourShade);
-  const extras = values.colourExtra
-    .map((x) => shade(x)?.name)
-    .filter(Boolean)
-    .join(' · ');
+  // Each additional colour shows its own dot, and the print its own square, beside the names
+  // (beta's rows): a colour is read at a glance, never only spelled out.
+  const extraShades = values.colourExtra.flatMap((x) => {
+    const found = shade(x);
+    return found ? [found] : [];
+  });
+  const extras = extraShades.map((x) => x.name).join(' · ');
+  const print = pattern(values.print);
   const v = (value: string | null | undefined) => (reading ? wardrobe.add.review.reading : value);
   const open = (field: PieceField) => (reading ? undefined : () => onField(field));
   return (
@@ -220,10 +224,24 @@ export function RecordRows({
           check={values.colourCheck && !reading ? wardrobe.colour.check : undefined}
           onPress={open('colour')}
         />
-        <PieceRow label={copy.rows.extra} value={v(extras)} onPress={open('extra')} />
+        <PieceRow
+          label={copy.rows.extra}
+          value={v(extras)}
+          swatch={
+            extraShades.length && !reading ? (
+              <View className="flex-row items-center gap-1">
+                {extraShades.map((x) => (
+                  <ShadeSwatch key={x.id} shade={x} size={18} />
+                ))}
+              </View>
+            ) : undefined
+          }
+          onPress={open('extra')}
+        />
         <PieceRow
           label={copy.rows.print}
-          value={v(pattern(values.print)?.name ?? wardrobe.colour.plain)}
+          value={v(print?.name ?? wardrobe.colour.plain)}
+          swatch={print && !reading ? <PrintSwatch id={print.id} size={18} /> : undefined}
           onPress={open('print')}
         />
         <PieceRow

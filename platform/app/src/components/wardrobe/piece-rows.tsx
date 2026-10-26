@@ -8,7 +8,7 @@ import { suggestPieceName } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
 import { Eyebrow, Text } from '@robes/ui';
 import { type ReactNode, useId } from 'react';
-import { ShadeSwatch } from './colour-field';
+import { PatternSwatch, ShadeSwatch } from './colour-field';
 import type { PieceField } from './piece-field-sheet';
 
 const copy = wardrobe.piece;
@@ -162,10 +162,14 @@ export function RecordRows({
   reading?: boolean;
 }) {
   const mainShade = shade(values.colourShade);
-  const extras = values.colourExtra
-    .map((x) => shade(x)?.name)
-    .filter(Boolean)
-    .join(' · ');
+  // Each additional colour shows its own dot, and the print its own square, beside the names
+  // (beta's rows): a colour is read at a glance, never only spelled out.
+  const extraShades = values.colourExtra.flatMap((x) => {
+    const found = shade(x);
+    return found ? [found] : [];
+  });
+  const extras = extraShades.map((x) => x.name).join(' · ');
+  const print = pattern(values.print);
   const v = (value: string | null | undefined) => (reading ? wardrobe.add.review.reading : value);
   const open = (field: PieceField) => (reading ? undefined : () => onField(field));
   return (
@@ -206,10 +210,24 @@ export function RecordRows({
           check={values.colourCheck && !reading ? wardrobe.colour.check : undefined}
           onClick={open('colour')}
         />
-        <PieceRow label={copy.rows.extra} value={v(extras)} onClick={open('extra')} />
+        <PieceRow
+          label={copy.rows.extra}
+          value={v(extras)}
+          swatch={
+            extraShades.length && !reading ? (
+              <span className="flex shrink-0 items-center gap-1">
+                {extraShades.map((x) => (
+                  <ShadeSwatch key={x.id} shade={x} size={18} />
+                ))}
+              </span>
+            ) : undefined
+          }
+          onClick={open('extra')}
+        />
         <PieceRow
           label={copy.rows.print}
-          value={v(pattern(values.print)?.name ?? wardrobe.colour.plain)}
+          value={v(print?.name ?? wardrobe.colour.plain)}
+          swatch={print && !reading ? <PatternSwatch pattern={print} size={18} /> : undefined}
           onClick={open('print')}
         />
         <PieceRow
