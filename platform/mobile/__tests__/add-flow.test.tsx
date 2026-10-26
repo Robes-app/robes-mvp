@@ -177,24 +177,16 @@ test('a link is reviewed like a photo and filed through its Inbox entry', async 
   expect(await screen.findByText(add.filed.line.wardrobe)).toBeTruthy();
 });
 
-test('without a photo, a piece needs a name, then files to where she chose', async () => {
+test('without a photo, the piece waits for a category; nothing files before it', async () => {
   const calls = mockFetch({
     'POST /wardrobe/items': piece({ label: 'Navy blazer' }),
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<ManualAdd to="wardrobe" />);
-  await fireEvent.press(screen.getByRole('button', { name: add.file('wardrobe') }));
-  expect(await screen.findByText(add.manual.nameFirst)).toBeTruthy();
+  const commit = screen.getByRole('button', { name: add.file('wardrobe') });
+  expect(commit.props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(commit);
   expect(calls.some((c) => c.method === 'POST')).toBe(false);
-  // The name drawer opened on its own.
-  await fireEvent.changeText(screen.getByLabelText(wardrobe.piece.label), 'Navy blazer');
-  await act(async () => {
-    await fireEvent.press(screen.getByRole('button', { name: wardrobe.piece.saveField }));
-  });
-  await act(async () => {
-    await fireEvent.press(screen.getByRole('button', { name: add.file('wardrobe') }));
-  });
-  await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
-  expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ label: 'Navy blazer' });
-  expect(await screen.findByText(add.filed.line.wardrobe)).toBeTruthy();
+  // The photo comes last, and later.
+  expect(screen.getByRole('button', { name: add.manual.addPhoto })).toBeTruthy();
 });

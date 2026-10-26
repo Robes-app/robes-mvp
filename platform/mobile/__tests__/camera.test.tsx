@@ -1,7 +1,6 @@
 import { wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import { Camera } from '../src/features/wardrobe/Camera';
 import { CAPTURE_MAX, captureSize, downscale } from '../src/features/wardrobe/camera-capture';
 import { mockFetch, renderWithApi } from './support/api';
@@ -171,9 +170,9 @@ test('downscale resizes an oversized frame to JPEG and leaves one within the cap
 test('each shot is read as it is taken; the tray counts, and Review opens on them', async () => {
   const calls = mockFetch(UPLOAD);
   await show();
-  const review = () => screen.getByRole('button', { name: add.shots.review });
-  // Review waits until something has been taken and read.
-  expect(review().props.accessibilityState.disabled).toBe(true);
+  // Review shows once something has been taken, with how many: "Review 1".
+  expect(screen.queryByRole('button', { name: /^Review/ })).toBeNull();
+  const review = () => screen.getByRole('button', { name: add.shots.review(1) });
 
   await act(async () => {
     await fireEvent.press(shutter());
@@ -195,18 +194,19 @@ test('each shot is read as it is taken; the tray counts, and Review opens on the
   ]);
 });
 
-test('where the pieces go is chosen on the camera, Mine or Wishlist', async () => {
+test('where the pieces go comes from the Add pieces sheet; the camera has no toggle', async () => {
   mockParams.to = 'wishlist';
   mockFetch(UPLOAD);
   await show();
-  expect(
-    screen.getByRole('radio', { name: add.to.wishlist }).props.accessibilityState.checked,
-  ).toBe(true);
-  await fireEvent.press(screen.getByRole('radio', { name: add.shots.mine }));
-  expect(screen.getByRole('radio', { name: add.shots.mine }).props.accessibilityState.checked).toBe(
-    true,
-  );
-  expect(screen.queryByRole('radio', { name: 'Several' })).toBeNull();
+  expect(screen.queryByRole('radiogroup')).toBeNull();
+  expect(screen.queryByRole('radio')).toBeNull();
+  await act(async () => {
+    await fireEvent.press(shutter());
+  });
+  await waitFor(() => expect(screen.getByText(add.shots.found(2))).toBeTruthy());
+  await fireEvent.press(screen.getByRole('button', { name: add.shots.review(1) }));
+  const href = mockRouter.replace.mock.calls.at(-1)?.[0] as { params: { to: string } };
+  expect(href.params.to).toBe('wishlist');
 });
 
 test('closing with shots held asks first; with none it just leaves', async () => {
@@ -235,32 +235,15 @@ test('closing with shots held asks first; with none it just leaves', async () =>
   ask.mockRestore();
 });
 
-test('a refused camera says so and hands over to the phone’s own', async () => {
+test('a refused camera says so, never a blank viewfinder, and opens Settings', async () => {
   mockGranted = false;
   mockCanAsk = false;
+  const settings = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
   mockFetch(UPLOAD);
   await show();
   expect(screen.getByText(copy.unreachable)).toBeTruthy();
-  (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValue({
-    canceled: false,
-    assets: [
-      {
-        uri: 'file:///tmp/small.jpg',
-        mimeType: 'image/jpeg',
-        fileSize: 2048,
-        width: 9,
-        height: 12,
-      },
-    ],
-  });
-  await act(async () => {
-    await fireEvent.press(screen.getByRole('button', { name: copy.useDevice }));
-  });
-  expect(ImagePicker.launchCameraAsync).toHaveBeenCalled();
-  // The phone's own photo goes to Review like any shot.
-  await waitFor(() =>
-    expect(mockRouter.replace).toHaveBeenCalledWith(
-      expect.objectContaining({ pathname: '/wardrobe/review' }),
-    ),
-  );
+  expect(shutter().props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(screen.getByRole('button', { name: copy.allow }));
+  expect(settings).toHaveBeenCalled();
+  settings.mockRestore();
 });

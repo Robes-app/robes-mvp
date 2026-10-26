@@ -2,11 +2,11 @@
 
 import type { ApiClient } from '@robes/api-client';
 import { useApiClient } from '@robes/api-client/react';
-import { openEvents } from '@robes/api-client/sse';
-import { JOB_EVENT, type JobSnapshot } from '@robes/contracts';
+import type { JobSnapshot } from '@robes/contracts';
 import { type AddDestination, isDestination } from '@robes/core/add-flow';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { followJob } from './follow-job';
 import { PHOTO_ACCEPT, uploadPhoto } from './upload';
 
 // Add a piece, end to end (design "Add Piece — Handoff"): every way in carries where the pieces
@@ -51,12 +51,14 @@ export interface SessionShot {
   url: string;
   width: number;
   height: number;
+  // The photo itself, so a read that never lands can still be filled in by hand.
+  file?: File;
   jobId?: string;
   failed?: boolean;
 }
 
-// Each photo's read, followed live over SSE (UX-05: no polling). A stream the server refuses
-// is a read she can't have, so it counts as settled with nothing in it.
+// Each photo's read, followed live (lib/follow-job.ts: SSE, the row when the stream can't). A
+// read she can't have counts as settled with nothing in it.
 export function useReadJobs(jobIds: readonly string[]): {
   jobs: Map<string, JobSnapshot>;
   lost: ReadonlySet<string>;
@@ -64,33 +66,27 @@ export function useReadJobs(jobIds: readonly string[]): {
   const api = useApiClient();
   const [jobs, setJobs] = useState<Map<string, JobSnapshot>>(() => new Map());
   const [lost, setLost] = useState<ReadonlySet<string>>(() => new Set());
-  const streams = useRef(new Map<string, { close(): void }>());
+  const followed = useRef(new Map<string, { close(): void }>());
   const key = jobIds.join(',');
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the joined key is the list.
   useEffect(() => {
     for (const id of jobIds) {
-      if (streams.current.has(id)) continue;
-      const stream = openEvents(api, 'jobs.events', {
-        params: { id },
-        on: {
-          [JOB_EVENT]: (job) => {
-            if (isTerminalJobStatus(job.status)) stream.close();
-            setJobs((all) => new Map(all).set(id, job));
-          },
-        },
-        onError: ({ closed }) => {
-          if (closed) setLost((all) => new Set(all).add(id));
-        },
-      });
-      streams.current.set(id, stream);
+      if (followed.current.has(id)) continue;
+      followed.current.set(
+        id,
+        followJob(api, id, {
+          onJob: (job) => setJobs((all) => new Map(all).set(id, job)),
+          onLost: () => setLost((all) => new Set(all).add(id)),
+        }),
+      );
     }
   }, [api, key]);
 
   useEffect(() => {
-    const open = streams.current;
+    const open = followed.current;
     return () => {
-      for (const stream of open.values()) stream.close();
+      for (const f of open.values()) f.close();
       open.clear();
     };
   }, []);
@@ -128,7 +124,7 @@ export function useShotSession(): ShotSession {
       const url = URL.createObjectURL(file);
       urls.current.add(url);
       // In the session at once (so it counts as reading), its size once the photo has loaded.
-      setShots((all) => [...all, { key, url, width: 1, height: 1 }]);
+      setShots((all) => [...all, { key, url, width: 1, height: 1, file }]);
       void naturalSize(url).then((size) =>
         setShots((all) => all.map((s) => (s.key === key ? { ...s, ...size } : s))),
       );
@@ -157,6 +153,10 @@ export function useShotSession(): ShotSession {
   const found = shots.reduce((n, s) => n + (s.jobId ? piecesIn(jobs.get(s.jobId)) : 0), 0);
   return { shots, jobs, add, reset, reading, found };
 }
+
+// How long Review waits on a read before offering to fill it in by hand (redline 01). A result
+// that lands later still opens Review.
+export const READ_PATIENCE_MS = 20_000;
 
 export const isTerminal = (job: JobSnapshot | undefined): job is JobSnapshot =>
   !!job && isTerminalJobStatus(job.status);

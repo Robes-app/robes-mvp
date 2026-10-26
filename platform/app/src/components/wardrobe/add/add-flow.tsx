@@ -6,9 +6,16 @@ import { Icon } from '@robes/icons/web';
 import { Heading, SegmentedControl } from '@robes/ui';
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
-import { type AddDestination, isPhoto, REVIEW_MAX, useShotSession } from '@/lib/add-flow';
+import {
+  type AddDestination,
+  isPhoto,
+  REVIEW_MAX,
+  type SessionShot,
+  useShotSession,
+} from '@/lib/add-flow';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 import { Camera, canUseCamera } from '../camera';
+import { ManualAdd } from './manual-add';
 import { Review } from './review';
 
 const copy = wardrobe.add;
@@ -21,7 +28,9 @@ const focusRing =
 export function AddFlow({ initial, start }: { initial: AddDestination; start: 'camera' | null }) {
   const session = useShotSession();
   const [to, setTo] = useState<AddDestination>(initial);
-  const [stage, setStage] = useState<'panel' | 'camera' | 'review'>('panel');
+  const [stage, setStage] = useState<'panel' | 'camera' | 'review' | 'manual'>('panel');
+  // A read that never landed, filled in by hand with its photo.
+  const [byHand, setByHand] = useState<SessionShot | null>(null);
   const [from, setFrom] = useState<'camera' | 'roll' | null>(null);
   const device = useRef<HTMLInputElement>(null);
 
@@ -74,8 +83,14 @@ export function AddFlow({ initial, start }: { initial: AddDestination; start: 'c
           addFiles(files, 'camera');
         }}
       />
-      {stage === 'review' ? (
+      {stage === 'manual' ? (
+        <ManualAdd to={to} {...(byHand?.file ? { photo: byHand.file } : {})} />
+      ) : stage === 'review' ? (
         <Review
+          onFillIn={(shot) => {
+            setByHand(shot ?? null);
+            setStage('manual');
+          }}
           to={to}
           session={session}
           onAnother={again}
@@ -98,8 +113,6 @@ export function AddFlow({ initial, start }: { initial: AddDestination; start: 'c
       )}
       {stage === 'camera' ? (
         <Camera
-          to={to}
-          onTo={setTo}
           session={session}
           onReview={() => setStage('review')}
           onClose={() => setStage('panel')}
@@ -145,12 +158,12 @@ export function AddPiecesPanel({
       />
       <div className="grid grid-cols-2 gap-3">
         <button type="button" onClick={onCamera} className={tile}>
-          <Icon name="camera" size={28} className="text-ink" />
-          <span className="font-sans text-base text-ink">{copy.doors.photograph}</span>
+          <Icon name="camera" size={22} className="text-ink" />
+          <span className="font-display text-[19px] text-ink">{copy.doors.photograph}</span>
         </button>
         <label htmlFor={rollId} className={`${tile} cursor-pointer focus-within:outline-2`}>
-          <Icon name="image" size={28} className="text-ink" />
-          <span className="font-sans text-base text-ink">{copy.doors.cameraRoll}</span>
+          <Icon name="image" size={22} className="text-ink" />
+          <span className="font-display text-[19px] text-ink">{copy.doors.cameraRoll}</span>
           <input
             id={rollId}
             type="file"
@@ -174,7 +187,8 @@ export function AddPiecesPanel({
   );
 }
 
-const tile = `flex flex-col items-center justify-center gap-3 rounded-soft border border-hairline bg-surface py-7 hover:border-ink focus-within:outline-focus-ring focus-within:outline-offset-2 ${focusRing}`;
+// Two large targets on white with a hairline (redline 02: warm is for selected only).
+const tile = `flex h-28 flex-col items-center justify-center gap-3 rounded-soft border border-hairline bg-surface-raised hover:border-border-control focus-within:outline-focus-ring focus-within:outline-offset-2 ${focusRing}`;
 
 function Door({ icon, label, href }: { icon: IconName; label: string; href: string }) {
   return (

@@ -120,3 +120,10 @@ export function activeRoot(pathname: string): string {
   const root = NAV_ITEMS.find((i) => i.href !== '/' && pathname.startsWith(i.href));
   return root?.href ?? (pathname === '/' ? '/' : '');
 }
+
+// The add-a-piece flow is a task, not a place: the dock stands down there so its one action sits
+// at the foot (redline "Hide the tab bar in the add flow").
+const FLOW_PATHS = ['/wardrobe/add', '/wardrobe/review', '/wardrobe/link', '/wardrobe/manual'];
+export function isFlowPath(pathname: string): boolean {
+  return FLOW_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}

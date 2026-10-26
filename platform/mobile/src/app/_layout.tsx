@@ -43,7 +43,8 @@ export default function RootLayout() {
                 name="wardrobe/add"
                 options={{
                   presentation: 'formSheet',
-                  sheetGrabberVisible: true,
+                  // The sheet draws its own handle above its title row (redline 02).
+                  sheetGrabberVisible: false,
                   sheetAllowedDetents: [0.72, 1],
                   sheetCornerRadius: 22,
                 }}

@@ -508,9 +508,9 @@ export const wardrobe = {
           : n === 1
             ? 'One piece found'
             : `${countWord(n)} pieces found`,
-      review: 'Review',
+      // "Review 3": how many photos are waiting; hidden until there is one.
+      review: (n: number): string => `Review ${n}`,
       roll: 'Open the camera roll',
-      mine: 'Mine',
     },
     link: {
       eyebrow: 'Paste a link',
@@ -520,22 +520,24 @@ export const wardrobe = {
       placeholder: 'https://',
       paste: 'Paste',
       clear: 'Clear the link',
-      help: {
-        wardrobe: 'Filed in your wardrobe, ready to style.',
-        wishlist: 'Saves to your wishlist.',
+      // Where the piece goes, chosen once on the Add pieces sheet; Change goes back to it.
+      filingTo: {
+        wardrobe: 'Filing to your wardrobe',
+        wishlist: 'Filing to your wishlist',
       },
+      change: 'Change',
       read: 'Read the page',
       reading: 'Reading the page…',
-      failed: 'Robes couldn’t read that page. Check the link, or add the piece by hand.',
+      failed: 'Robes couldn’t read that page.',
+      fixIt: 'Fix it',
     },
     manual: {
       eyebrow: 'Without a photo',
       title: 'Add a',
       wink: 'piece.',
-      addPhoto: 'Add a photo',
+      addPhoto: 'Add a photo later',
       changePhoto: 'Change the photo',
       uploading: 'Adding the photo…',
-      nameFirst: 'Give it a name first.',
       failed: 'Robes couldn’t add that piece. Try again in a moment.',
     },
     review: {
@@ -547,7 +549,17 @@ export const wardrobe = {
         link: 'Read from the shop page. Tap anything that isn’t quite right.',
       },
       reading: 'Reading…',
-      readingPhoto: 'Robes is reading your photos…',
+      // "Robes is *reading* your photo…": the middle word in serif italic.
+      readingHead: {
+        pre: 'Robes is',
+        wink: 'reading',
+        post: (n: number): string => (n > 1 ? 'your photos…' : 'your photo…'),
+      },
+      readingPhoto: (n: number): string =>
+        n > 1 ? 'Robes is reading your photos…' : 'Robes is reading your photo…',
+      unread: 'Robes couldn’t read this one.',
+      fillIn: 'Fill it in yourself',
+      cancel: 'Cancel',
       retake: 'Retake',
       notThis: 'Not this piece',
       pieces: 'Pieces to review',
@@ -574,13 +586,16 @@ export const wardrobe = {
       to === 'wishlist' ? 'Add to wishlist →' : 'Add to wardrobe →',
   },
   // The camera in the app (design "Add Piece — Handoff"): every shot is read as it is taken, and
-  // Review opens on them; where they go (Mine / Wishlist) sits where Single / Several was.
+  // Review opens on them, filing where the Add pieces sheet chose.
   camera: {
     title: 'Camera',
     close: 'Close the camera',
     shutter: 'Take the photo',
     taken: (n: number): string => (n === 1 ? '1 photo taken' : `${n} photos taken`),
     unreachable: 'Robes can’t reach the camera.',
+    // The viewfinder before the camera answers, and the door when she refused it.
+    waiting: 'The camera is opening.',
+    allow: 'Allow the camera',
     useDevice: 'Use the phone’s camera',
     leave: (n: number): string => (n === 1 ? 'Leave this photo?' : `Leave these ${n} photos?`),
     leaveBody: 'Nothing is filed until you review them.',

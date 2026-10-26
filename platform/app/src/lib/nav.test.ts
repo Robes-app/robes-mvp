@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { activeRoot, CREATE_ITEMS, createItems, GO_TO_ITEMS, NAV_ITEMS, SOON_SLUGS } from './nav';
+import {
+  activeRoot,
+  CREATE_ITEMS,
+  createItems,
+  GO_TO_ITEMS,
+  isFlowPath,
+  NAV_ITEMS,
+  SOON_SLUGS,
+} from './nav';
 
 describe('nav', () => {
   it('has the four roots in the dock order', () => {
@@ -43,5 +51,15 @@ describe('nav', () => {
     expect(activeRoot('/piece/abc')).toBe('/wardrobe');
     expect(activeRoot('/looks/ideas/abc')).toBe('/looks');
     expect(activeRoot('/you')).toBe('');
+  });
+
+  it('stands the dock down in the add flow only', () => {
+    expect(isFlowPath('/wardrobe/add')).toBe(true);
+    expect(isFlowPath('/wardrobe/review')).toBe(true);
+    expect(isFlowPath('/wardrobe/link')).toBe(true);
+    expect(isFlowPath('/wardrobe/manual')).toBe(true);
+    expect(isFlowPath('/wardrobe')).toBe(false);
+    expect(isFlowPath('/wardrobe/additional')).toBe(false);
+    expect(isFlowPath('/wardrobe/inbox')).toBe(false);
   });
 });

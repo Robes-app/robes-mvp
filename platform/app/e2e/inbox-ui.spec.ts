@@ -31,9 +31,13 @@ test('paste a link from Create, review it, and it files to the wishlist', async 
   await expect(page.getByRole('heading', { name: 'Add from a shop page.' })).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
 
-  await page.getByLabel('Link to the piece').fill(shopUrl);
+  // Where it goes is chosen once, on the Add pieces sheet; the link screen says so (redline 04).
+  await expect(page.getByText(/Filing to your wardrobe/)).toBeVisible();
+  await page.getByRole('link', { name: 'Change' }).click();
   await page.getByRole('radio', { name: 'Wishlist' }).click();
-  await expect(page.getByText('Saves to your wishlist.')).toBeVisible();
+  await page.getByRole('link', { name: 'Paste a link' }).click();
+  await expect(page.getByText(/Filing to your wishlist/)).toBeVisible();
+  await page.getByLabel('Link to the piece').fill(shopUrl);
   await page.getByRole('button', { name: 'Read the page' }).click();
 
   // The page is read, then reviewed like a photo before anything files (design "Add Piece").

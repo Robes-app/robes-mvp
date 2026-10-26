@@ -40,6 +40,10 @@ const container: Record<ButtonVariant, string> = {
   quiet: 'px-1',
 };
 
+// The one primary (redline "one primary button spec"): an ink pill, 48pt, at 30% ink while it
+// waits on her.
+const PRIMARY_HEIGHT = 48;
+
 const label: Record<ButtonVariant, string> = {
   primary: 'text-bg',
   secondary: 'text-ink',
@@ -92,11 +96,11 @@ export function Button({
         }
         onPress(event);
       }}
-      style={{ minHeight: MIN_TOUCH }}
+      style={{ minHeight: variant === 'primary' ? PRIMARY_HEIGHT : MIN_TOUCH }}
       className={cx(
         'flex-row items-center justify-center gap-2 py-3',
         container[variant],
-        inactive && 'opacity-50',
+        inactive && (variant === 'primary' ? 'opacity-30' : 'opacity-50'),
         className,
       )}
     >

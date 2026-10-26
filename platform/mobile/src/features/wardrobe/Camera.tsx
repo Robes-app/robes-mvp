@@ -4,14 +4,12 @@ import { palette } from '@robes/tokens';
 import { fonts, MIN_TOUCH, maxFontSizeMultiplier, useToast } from '@robes/ui-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { type AddDestination, destinationOf, pickFromRoll, reviewHref } from './add/flow';
+import { destinationOf, pickFromRoll, reviewHref } from './add/flow';
 import { useShotSession } from './add/reads';
-import { PICKER_OPTIONS } from './add-pieces';
 import { downscale } from './camera-capture';
 
 const copy = wardrobe.camera;
@@ -22,6 +20,7 @@ const CHROME = palette.cream50;
 const SUNK = `${palette.cream50}1F`;
 const MARK = `${palette.cream50}BF`;
 const FAINT = `${palette.cream50}59`;
+const SOFT = `${palette.cream50}B3`;
 const LABEL = {
   fontFamily: fonts.sansMedium,
   fontSize: 10,
@@ -31,8 +30,8 @@ const LABEL = {
 
 // "Take a photo" (design "Add Piece — Handoff"): the camera in the app. Every shot is read the
 // moment it is taken — Robes counts what is in the frame, so one photo holds one piece or five —
-// and the tray says what it has found. Review opens on them; nothing files from here. Where the
-// pieces go (Mine / Wishlist) sits where Single / Several was. Web twin: components/wardrobe/camera.
+// and the tray says what it has found. Review opens on them; nothing files from here, and where
+// they go was chosen on the Add pieces sheet (redline 03). Web twin: components/wardrobe/camera.
 export function Camera() {
   const router = useRouter();
   const toast = useToast();
@@ -40,7 +39,7 @@ export function Camera() {
   const params = useLocalSearchParams<{ to?: string }>();
   const camera = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const [to, setTo] = useState<AddDestination>(() => destinationOf(params.to));
+  const to = destinationOf(params.to);
   const [ready, setReady] = useState(false);
   const [shooting, setShooting] = useState(false);
   const session = useShotSession();
@@ -74,6 +73,7 @@ export function Camera() {
 
   async function shoot() {
     setShooting(true);
+    if (shooting || !ready) return;
     try {
       const shot = await camera.current?.takePictureAsync({ exif: false });
       if (shot) void session.add(await downscale(shot));
@@ -106,26 +106,6 @@ export function Camera() {
     ]);
   }
 
-  // A refused camera still has the OS one behind it; its photo goes to Review like any shot.
-  async function openOsCamera() {
-    const result = await ImagePicker.launchCameraAsync(PICKER_OPTIONS).catch(() => null);
-    if (!result) {
-      toast.show({ message: wardrobe.addFailed });
-      return;
-    }
-    if (result.canceled) {
-      leave();
-      return;
-    }
-    router.replace(
-      reviewHref({
-        to,
-        from: 'camera',
-        shots: result.assets.map((a) => ({ uri: a.uri, width: a.width, height: a.height })),
-      }),
-    );
-  }
-
   // The hook answers undefined before it has read the status, not just null.
   const refused = !!permission && !permission.granted && !permission.canAskAgain;
   const last = shots.at(-1);
@@ -135,10 +115,7 @@ export function Camera() {
       ? add.shots.reading
       : add.shots.found(session.found)
     : '';
-  const destinations: [AddDestination, string][] = [
-    ['wardrobe', add.shots.mine],
-    ['wishlist', add.to.wishlist],
-  ];
+  const live = !!permission?.granted;
   return (
     <View
       accessibilityViewIsModal
@@ -169,33 +146,37 @@ export function Camera() {
           style={{ position: 'absolute', width: 26, height: 26, borderColor: MARK, ...corner }}
         />
       ))}
-      {refused ? (
+      {/* Never a blank viewfinder (redline 03): a line while the camera opens, and the way to
+          Settings when she refused it. */}
+      {!live || !ready ? (
         <View
-          style={{ backgroundColor: palette.ink900 }}
+          pointerEvents="box-none"
           className="absolute inset-0 items-center justify-center gap-4 p-6"
         >
           <Text
-            accessibilityRole="alert"
+            {...(refused ? { accessibilityRole: 'alert' as const } : {})}
             maxFontSizeMultiplier={maxFontSizeMultiplier.heading}
             style={{ fontFamily: fonts.displayItalic, fontSize: 20, color: CHROME }}
             className="text-center"
           >
-            {copy.unreachable}
+            {refused ? copy.unreachable : copy.waiting}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.useDevice}
-            onPress={() => void openOsCamera()}
-            style={{ minHeight: MIN_TOUCH, borderColor: MARK }}
-            className="items-center justify-center rounded-pill border px-5"
-          >
-            <Text
-              maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-              style={{ ...LABEL, color: CHROME }}
+          {refused || (permission && !permission.granted) ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copy.allow}
+              onPress={() => (refused ? void Linking.openSettings() : void requestPermission())}
+              style={{ minHeight: MIN_TOUCH, borderColor: MARK }}
+              className="items-center justify-center rounded-pill border px-5"
             >
-              {copy.useDevice}
-            </Text>
-          </Pressable>
+              <Text
+                maxFontSizeMultiplier={maxFontSizeMultiplier.control}
+                style={{ ...LABEL, color: CHROME }}
+              >
+                {copy.allow}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
@@ -214,39 +195,6 @@ export function Camera() {
           >
             <Icon name="close" size={22} color={CHROME} />
           </Pressable>
-          <View
-            accessibilityRole="radiogroup"
-            accessibilityLabel={add.destination}
-            style={{ backgroundColor: SUNK }}
-            className="flex-row gap-[2px] rounded-pill p-[3px]"
-          >
-            {destinations.map(([value, label]) => {
-              const on = to === value;
-              return (
-                <Pressable
-                  key={value}
-                  accessibilityRole="radio"
-                  accessibilityLabel={label}
-                  accessibilityState={{ checked: on }}
-                  onPress={() => setTo(value)}
-                  hitSlop={{ top: 6, bottom: 6 }}
-                  style={{
-                    minWidth: 86,
-                    height: 32,
-                    backgroundColor: on ? CHROME : undefined,
-                  }}
-                  className="items-center justify-center rounded-pill px-3"
-                >
-                  <Text
-                    maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-                    style={{ ...LABEL, fontSize: 9.5, color: on ? palette.ink : MARK }}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
           <View style={{ width: MIN_TOUCH }} />
         </View>
 
@@ -281,31 +229,35 @@ export function Camera() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={copy.shutter}
-              accessibilityState={{ disabled: !ready || shooting }}
-              disabled={!ready || shooting}
+              accessibilityState={{ disabled: !live }}
+              disabled={!live}
               onPress={shoot}
               testID="camera-shutter"
-              style={{ borderColor: CHROME, opacity: ready && !shooting ? 1 : 0.4 }}
-              className="size-[76px] rounded-pill border-[3px] p-[5px]"
+              style={{ borderColor: CHROME, opacity: live ? 1 : 0.4 }}
+              className="size-[72px] rounded-pill border-2 p-1"
             >
               <View style={{ backgroundColor: CHROME }} className="flex-1 rounded-pill" />
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={add.shots.review}
-              accessibilityState={{ disabled: !canReview }}
-              disabled={!canReview}
-              onPress={review}
-              style={{ minHeight: MIN_TOUCH, minWidth: 48 }}
-              className="items-end justify-center px-1"
-            >
-              <Text
-                maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-                style={{ ...LABEL, color: canReview ? CHROME : FAINT }}
+            {shots.length ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={add.shots.review(shots.length)}
+                accessibilityState={{ disabled: !canReview }}
+                disabled={!canReview}
+                onPress={review}
+                style={{ minHeight: MIN_TOUCH, minWidth: 48 }}
+                className="items-end justify-center px-1"
               >
-                {add.shots.review}
-              </Text>
-            </Pressable>
+                <Text
+                  maxFontSizeMultiplier={maxFontSizeMultiplier.control}
+                  style={{ ...LABEL, color: canReview ? SOFT : FAINT }}
+                >
+                  {add.shots.review(shots.length)}
+                </Text>
+              </Pressable>
+            ) : (
+              <View style={{ minWidth: 48 }} />
+            )}
           </View>
         </View>
       </View>

@@ -24,22 +24,29 @@ import {
   Button,
   Em,
   ErrorText,
-  Eyebrow,
   Heading,
   PrimaryScope,
-  Skeleton,
   Text,
+  useColor,
   useReducedMotion,
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { type Href, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, View } from 'react-native';
+import { PinnedAction } from '@/components/PinnedAction';
 import { isTerminal } from '@/features/looks/ideas';
 import { CropThumb } from '@/features/photo-pieces/PhotoFrame';
 import { type PieceField, PieceFieldSheet } from '../PieceFieldSheet';
 import { RecordRows } from '../PieceRows';
-import { pickFromRoll, type ReviewShot, reviewHref, wardrobeHref } from './flow';
+import {
+  manualHref,
+  pickFromRoll,
+  READ_PATIENCE_MS,
+  type ReviewShot,
+  reviewHref,
+  wardrobeHref,
+} from './flow';
 import { useShotSession } from './reads';
 import { ScanPhoto, type ScanSource } from './ScanPhoto';
 
@@ -130,6 +137,18 @@ export function Review({
   const pendingAt = at >= 0 && entries[at]?.answer === 'pending' ? at : nextPending(entries, -1);
   const cur = pendingAt === null ? undefined : entries[pendingAt];
   const reading = session.reading || (link !== null && !held && inbox.isPending);
+
+  // Twenty seconds without a piece to show: offer the piece by hand (a late read still lands).
+  const waiting = reading && !cur;
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!waiting) {
+      setSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlow(true), READ_PATIENCE_MS);
+    return () => clearTimeout(timer);
+  }, [waiting]);
 
   // Each piece plays its scan once, as it comes up.
   // biome-ignore lint/correctness/useExhaustiveDependencies: restart only when the piece changes.
@@ -241,42 +260,66 @@ export function Review({
     return <Filed to={to} kept={tally.kept} />;
   }
 
-  // Nothing in any photo (or a link that never arrived).
+  const latest = session.shots.at(-1);
+  const fillIn = (
+    <Button
+      variant="secondary"
+      className="self-start"
+      onPress={() => router.replace(manualHref(to, latest))}
+    >
+      {copy.review.fillIn}
+    </Button>
+  );
+
+  // Nothing in any photo (or a link that never arrived): she fills it in herself.
   if (!reading && !anyFound) {
     const stalled = session.shots.some((s) => s.failed);
     return (
       <ScrollView contentContainerClassName="gap-4 px-6 pb-12">
-        <Eyebrow>{copy.review.eyebrow}</Eyebrow>
-        <ErrorText>{stalled ? copy.review.stalled : copy.review.nothing}</ErrorText>
-        <Button
-          variant="secondary"
-          onPress={() => router.replace({ pathname: '/wardrobe/add', params: { to } })}
-        >
-          {copy.filed.another}
-        </Button>
+        <Heading size="md" style={{ fontSize: 28 }} accessibilityLiveRegion="polite">
+          {copy.review.unread}
+        </Heading>
+        <Text tone="muted">{stalled ? copy.review.stalled : copy.review.nothing}</Text>
+        {fillIn}
       </ScrollView>
     );
   }
 
-  // The next piece isn't read yet: the latest photo, scanning, under "Robes is reading…".
+  // The next piece isn't read yet: the latest photo, the scan line falling, three rows breathing.
   if (!cur) {
-    const latest = session.shots.at(-1);
+    const count = Math.max(1, session.shots.length);
     return (
-      <ScrollView contentContainerClassName="gap-5 px-6 pb-12" accessibilityState={{ busy: true }}>
-        <Eyebrow>{copy.review.eyebrow}</Eyebrow>
-        <Heading size="md" style={{ fontSize: 32 }}>
-          {copy.review.readingPhoto}
+      <ScrollView contentContainerClassName="gap-5 px-6 pb-12" accessibilityState={{ busy: !slow }}>
+        <Heading size="md" style={{ fontSize: 28 }} accessibilityLiveRegion="polite">
+          {slow ? (
+            copy.review.unread
+          ) : (
+            <>
+              {copy.review.readingHead.pre} <Em>{copy.review.readingHead.wink}</Em>{' '}
+              {copy.review.readingHead.post(count)}
+            </>
+          )}
         </Heading>
         <ScanPhoto
           source={latest ? { ...latest, box: { x: 0, y: 0, w: 1, h: 1 } } : null}
           monogram={copy.review.eyebrow}
-          step={2}
+          step={0}
           tags={[]}
           caption=""
-          alt={copy.review.readingPhoto}
+          alt={copy.review.readingPhoto(count)}
+          scanning={!slow}
         />
-        <Skeleton width="100%" height={120} />
+        {slow ? fillIn : <BreathingRows />}
         {failed.size ? <Retry onRetry={() => setFailed(new Set())} /> : null}
+        {slow ? null : (
+          <Button
+            variant="quiet"
+            className="self-center"
+            onPress={() => router.replace({ pathname: '/wardrobe/add', params: { to } })}
+          >
+            {copy.review.cancel}
+          </Button>
+        )}
       </ScrollView>
     );
   }
@@ -329,8 +372,7 @@ export function Review({
           </ScrollView>
         ) : null}
         <View className="gap-2">
-          <Eyebrow>{copy.review.eyebrow}</Eyebrow>
-          <Heading size="md" style={{ fontSize: 32 }}>
+          <Heading size="md" style={{ fontSize: 28 }}>
             {copy.review.title} <Em>{copy.review.wink}</Em>
           </Heading>
           <Text tone="muted" size="small">
@@ -357,15 +399,19 @@ export function Review({
             </Pressable>
           ) : null}
         </View>
-        <RecordRows values={values} onField={setField} withName reading={!ready} />
+        <FadeIn key={cur.key}>
+          <RecordRows values={values} onField={setField} withName reading={!ready} />
+        </FadeIn>
         <Button variant="quiet" className="self-center" onPress={() => answer(cur, 'skip')}>
           {copy.review.notThis}
         </Button>
         {failed.size ? <Retry onRetry={() => setFailed(new Set())} /> : null}
+      </ScrollView>
+      <PinnedAction>
         <Button disabled={!ready} onPress={() => answer(cur, 'add')}>
           {copy.review.file(to, hasNext)}
         </Button>
-      </ScrollView>
+      </PinnedAction>
       <PieceFieldSheet
         piece={values}
         field={field}
@@ -375,6 +421,52 @@ export function Review({
       />
     </PrimaryScope>
   );
+}
+
+// Three rows still to come, on a white card, breathing between faint and full (redline 01).
+function BreathingRows() {
+  const reduced = useReducedMotion();
+  const sunk = useColor('surface-sunk');
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (reduced) return;
+    opacity.setValue(0.35);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 1200, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.35, duration: 1200, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity, reduced]);
+  return (
+    <View aria-hidden className="gap-3 rounded-soft border border-hairline bg-surface-raised p-4">
+      {['60%', '40%', '30%'].map((w) => (
+        <Animated.View
+          key={w}
+          style={{
+            width: w as `${number}%`,
+            height: 12,
+            borderRadius: 999,
+            backgroundColor: sunk,
+            opacity,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+// The rows arrive as the read lands: a short fade, none under reduced motion.
+function FadeIn({ children }: { children: ReactNode }) {
+  const reduced = useReducedMotion();
+  const opacity = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  useEffect(() => {
+    if (reduced) return;
+    Animated.timing(opacity, { toValue: 1, duration: 450, useNativeDriver: true }).start();
+  }, [opacity, reduced]);
+  return <Animated.View style={{ opacity }}>{children}</Animated.View>;
 }
 
 function Retry({ onRetry }: { onRetry: () => void }) {

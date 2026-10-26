@@ -3,11 +3,18 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { PieceValues, UpdatePieceInput } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
-import { type RowChanges, readDraft, rowChanges, wishChanges } from '@robes/core/add-flow';
+import {
+  type RowChanges,
+  readDraft,
+  rowChanges,
+  suggestName,
+  wishChanges,
+} from '@robes/core/add-flow';
 import { Icon } from '@robes/icons/web';
 import { Button, ErrorText, Eyebrow, Heading, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
+import { PinnedAction } from '@/components/pinned-action';
 import type { AddDestination } from '@/lib/add-flow';
 import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
 import { invalidateWardrobe } from '@/lib/wardrobe';
@@ -25,10 +32,12 @@ const EMPTY = readDraft({
   color: null,
 });
 
-// Add without a photo (design "Add Piece — Handoff"): a dashed "Add a photo" invite, then the
-// record's four sections as rows, each opening its drawer, and the one commit. Native twin:
+// Add without a photo (design "Add Piece — Handoff", redlines 06/07): the record's sections as
+// rows, each opening its drawer, a dashed "Add a photo later" row at the end, and the one commit
+// — which waits for a category, and names the piece from it when she leaves the name blank. A
+// read that never landed arrives here with its photo. Native twin:
 // features/wardrobe/add/ManualAdd.tsx.
-export function ManualAdd({ to }: { to: AddDestination }) {
+export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: File }) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -36,7 +45,6 @@ export function ManualAdd({ to }: { to: AddDestination }) {
   const [changes, setChanges] = useState<RowChanges>({});
   const [field, setField] = useState<PieceField | null>(null);
   const [photo, setPhoto] = useState<{ url: string; assetId: string | null } | null>(null);
-  const [nameError, setNameError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const [done, setDone] = useState(false);
@@ -45,6 +53,14 @@ export function ManualAdd({ to }: { to: AddDestination }) {
   // The photo's object URL lives as long as it is shown.
   const shown = useRef<string | null>(null);
   useEffect(() => () => void (shown.current && URL.revokeObjectURL(shown.current)), []);
+  const attached = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the photo she arrived with, once.
+  useEffect(() => {
+    if (initial && !attached.current) {
+      attached.current = true;
+      void addPhoto(initial);
+    }
+  }, []);
 
   async function addPhoto(file: File | undefined) {
     if (!file) return;
@@ -61,12 +77,8 @@ export function ManualAdd({ to }: { to: AddDestination }) {
   }
 
   async function file() {
-    const label = values.label.trim();
-    if (!label) {
-      setNameError(true);
-      setField('label');
-      return;
-    }
+    const label = values.label.trim() || suggested;
+    if (!label) return;
     setSaving(true);
     setFailed(false);
     const image = photo?.assetId ? { imageAssetId: photo.assetId } : {};
@@ -89,6 +101,8 @@ export function ManualAdd({ to }: { to: AddDestination }) {
   if (done) return <Filed to={to} kept={1} />;
 
   const uploading = !!photo && !photo.assetId;
+  const suggested = suggestName(values) ?? '';
+  const ready = !!values.categoryL2 && !uploading;
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-5">
       <header className="flex flex-col gap-2">
@@ -97,25 +111,21 @@ export function ManualAdd({ to }: { to: AddDestination }) {
           {copy.title} <em>{copy.wink}</em>
         </Heading>
       </header>
+      <RecordRows values={values} onField={setField} withName />
       <label
         htmlFor={inputId}
         aria-busy={uploading}
-        className="relative flex h-40 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-soft border border-border-control border-dashed text-ink-muted focus-within:outline-2 focus-within:outline-focus-ring focus-within:outline-offset-2"
+        className="relative flex min-h-16 cursor-pointer items-center gap-4 overflow-hidden rounded-soft border border-border-control border-dashed px-4 text-ink-muted focus-within:outline-2 focus-within:outline-focus-ring focus-within:outline-offset-2"
       >
         {photo ? (
           // biome-ignore lint/performance/noImgElement: a local object URL of her own photo
-          <img src={photo.url} alt="" className="absolute inset-0 size-full object-cover" />
+          <img src={photo.url} alt="" className="size-12 rounded-crisp object-cover" />
         ) : (
-          <Icon name="camera" size={24} />
+          <Icon name="camera" size={20} />
         )}
-        <span className={photo ? 'sr-only' : 'font-sans text-base'}>
-          {photo ? copy.changePhoto : copy.addPhoto}
+        <span className="font-sans text-base">
+          {uploading ? copy.uploading : photo ? copy.changePhoto : copy.addPhoto}
         </span>
-        {uploading ? (
-          <span role="status" className="absolute inset-x-0 bottom-0 bg-bg/80 px-3 py-2 text-sm">
-            {copy.uploading}
-          </span>
-        ) : null}
         <input
           id={inputId}
           type="file"
@@ -129,12 +139,18 @@ export function ManualAdd({ to }: { to: AddDestination }) {
           }}
         />
       </label>
-      <RecordRows values={values} onField={setField} withName />
-      {nameError && !values.label.trim() ? <ErrorText>{copy.nameFirst}</ErrorText> : null}
       {failed ? <ErrorText>{copy.failed}</ErrorText> : null}
-      <Button variant="primary" loading={saving} disabled={uploading} onClick={() => void file()}>
-        {wardrobe.add.file(to)}
-      </Button>
+      <PinnedAction>
+        <Button
+          variant="primary"
+          block
+          loading={saving}
+          disabled={!ready}
+          onClick={() => void file()}
+        >
+          {wardrobe.add.file(to)}
+        </Button>
+      </PinnedAction>
       <PieceFieldSheet
         piece={values}
         field={field}

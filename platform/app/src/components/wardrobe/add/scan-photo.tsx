@@ -17,6 +17,8 @@ function coverOf(source: ScanSource) {
 
 // Review's photograph (design 3a): the piece's own crop of her photo, filling a 4:5 frame, with
 // the scan line sweeping it and the tags popping in one a step. No photo (a link) is a monogram.
+// `scanning`: the read is still out — the line falls top to bottom, again and again, with a
+// fading trail behind it (redline 01).
 // Native twin: mobile/src/features/wardrobe/add/ScanPhoto.tsx.
 export function ScanPhoto({
   source,
@@ -25,6 +27,7 @@ export function ScanPhoto({
   tags,
   caption,
   alt,
+  scanning = false,
 }: {
   source: ScanSource | null;
   monogram: string;
@@ -32,13 +35,14 @@ export function ScanPhoto({
   tags: readonly string[];
   caption: string;
   alt: string;
+  scanning?: boolean;
 }) {
   const frame = scanFrame(step);
   return (
     <div
       role="img"
       aria-label={alt}
-      className="relative aspect-[4/5] w-full overflow-hidden rounded-soft bg-surface-sunk"
+      className="relative aspect-[4/5] w-full overflow-hidden rounded-soft border border-hairline bg-surface-sunk"
     >
       {source ? (
         // biome-ignore lint/performance/noImgElement: a local object URL of her own photo
@@ -57,7 +61,13 @@ export function ScanPhoto({
           {monogram.charAt(0).toUpperCase()}
         </span>
       )}
-      {frame.lineVisible ? (
+      {scanning ? (
+        <span
+          aria-hidden
+          data-testid="scan-line"
+          className="pointer-events-none absolute inset-x-0 top-0 h-8 border-accent-warm border-b bg-linear-to-b from-transparent to-accent-warm/15 motion-safe:animate-scan-down"
+        />
+      ) : frame.lineVisible ? (
         <span
           aria-hidden
           className="pointer-events-none absolute inset-x-0 h-0.5 bg-accent-warm motion-safe:transition-[top] motion-safe:duration-300"

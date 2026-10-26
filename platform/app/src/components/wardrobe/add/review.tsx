@@ -22,12 +22,19 @@ import {
 } from '@robes/core/add-flow';
 import { shade } from '@robes/core/colour';
 import { pieceWord } from '@robes/core/photo-pieces';
-import { Button, buttonClasses, ErrorText, Eyebrow, Heading, Skeleton, Text } from '@robes/ui';
+import { Button, buttonClasses, ErrorText, Eyebrow, Heading, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CropThumb } from '@/components/photo-pieces/photo-frame';
-import { isTerminal, type SessionShot, type ShotSession, wardrobeHref } from '@/lib/add-flow';
+import { PinnedAction } from '@/components/pinned-action';
+import {
+  isTerminal,
+  READ_PATIENCE_MS,
+  type SessionShot,
+  type ShotSession,
+  wardrobeHref,
+} from '@/lib/add-flow';
 import { invalidateWardrobe } from '@/lib/wardrobe';
 import { type PieceField, PieceFieldSheet } from '../piece-field-sheet';
 import { RecordRows } from '../piece-rows';
@@ -76,6 +83,7 @@ export function Review({
   link = null,
   onRetake,
   onAnother,
+  onFillIn,
 }: {
   to: AddDestination;
   session?: ShotSession;
@@ -84,6 +92,8 @@ export function Review({
   onRetake?: () => void;
   // Back to the Add pieces sheet in place, where Review shares its page with it.
   onAnother?: () => void;
+  // A read that never lands: the piece by hand, with this photo attached.
+  onFillIn?: (shot: SessionShot | undefined) => void;
 }) {
   const api = useApiClient();
   const queryClient = useQueryClient();
@@ -142,6 +152,18 @@ export function Review({
   const pendingAt = at >= 0 && entries[at]?.answer === 'pending' ? at : nextPending(entries, -1);
   const cur = pendingAt === null ? undefined : entries[pendingAt];
   const reading = session.reading || (link !== null && !held && inbox.isPending);
+
+  // Twenty seconds without a piece to show: offer the piece by hand (a late read still lands).
+  const waiting = reading && !cur;
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!waiting) {
+      setSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSlow(true), READ_PATIENCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [waiting]);
 
   // Each piece plays its scan once, as it comes up.
   // biome-ignore lint/correctness/useExhaustiveDependencies: restart only when the piece changes.
@@ -245,37 +267,66 @@ export function Review({
     return <Filed to={to} kept={tally.kept} onAnother={onAnother} />;
   }
 
-  // Nothing in any photo (or a link that never arrived).
+  const latest = session.shots.at(-1);
+  const fillIn = <FillIn to={to} shot={latest} onFillIn={onFillIn} />;
+
+  // Nothing in any photo (or a link that never arrived): she fills it in herself.
   if (!reading && !anyFound) {
     const stalled = session.shots.some((s) => s.failed);
     return (
       <div className="mx-auto flex w-full max-w-md flex-col gap-4">
         <Eyebrow>{copy.review.eyebrow}</Eyebrow>
-        <ErrorText>{stalled ? copy.review.stalled : copy.review.nothing}</ErrorText>
-        <Another to={to} onAnother={onAnother} className="self-start" />
+        <Heading level={1} size="lg" role="status">
+          {copy.review.unread}
+        </Heading>
+        <Text tone="muted">{stalled ? copy.review.stalled : copy.review.nothing}</Text>
+        {fillIn}
       </div>
     );
   }
 
-  // The next piece isn't read yet: the latest photo, scanning, under "Robes is reading…".
+  // The next piece isn't read yet: the latest photo, the scan line falling, three rows breathing.
   if (!cur) {
-    const latest = session.shots.at(-1);
+    const count = Math.max(1, session.shots.length);
     return (
-      <div className="mx-auto flex w-full max-w-md flex-col gap-5" aria-busy="true">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-5" aria-busy={!slow}>
         <Eyebrow>{copy.review.eyebrow}</Eyebrow>
         <Heading level={1} size="lg" role="status">
-          {copy.review.readingPhoto}
+          {slow ? (
+            copy.review.unread
+          ) : (
+            <>
+              {copy.review.readingHead.pre} <em>{copy.review.readingHead.wink}</em>{' '}
+              {copy.review.readingHead.post(count)}
+            </>
+          )}
         </Heading>
         <ScanPhoto
           source={latest ? { ...latest, box: { x: 0, y: 0, w: 1, h: 1 } } : null}
           monogram={copy.review.eyebrow}
-          step={2}
+          step={0}
           tags={[]}
           caption=""
-          alt={copy.review.readingPhoto}
+          alt={copy.review.readingPhoto(count)}
+          scanning={!slow}
         />
-        <Skeleton className="h-32 w-full" />
+        {slow ? (
+          fillIn
+        ) : (
+          <div
+            aria-hidden
+            className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-4"
+          >
+            {['w-3/5', 'w-2/5', 'w-[30%]'].map((w) => (
+              <span
+                key={w}
+                className={`h-3 rounded-pill bg-surface-sunk motion-safe:animate-breathe ${w}`}
+              />
+            ))}
+          </div>
+        )}
         {failed.size ? <Retry onRetry={() => setFailed(new Set())} /> : null}
+        {slow ? null : <CancelLink to={to} onCancel={onAnother} />}
       </div>
     );
   }
@@ -354,14 +405,18 @@ export function Review({
           </button>
         ) : null}
       </div>
-      <RecordRows values={values} onField={setField} withName reading={!ready} />
+      <div key={cur.key} className="motion-safe:animate-fade-in">
+        <RecordRows values={values} onField={setField} withName reading={!ready} />
+      </div>
       <Button variant="quiet" className="self-center" onClick={() => answer(cur, 'skip')}>
         {copy.review.notThis}
       </Button>
       {failed.size ? <Retry onRetry={() => setFailed(new Set())} /> : null}
-      <Button variant="primary" disabled={!ready} onClick={() => answer(cur, 'add')}>
-        {copy.review.file(to, hasNext)}
-      </Button>
+      <PinnedAction>
+        <Button variant="primary" block disabled={!ready} onClick={() => answer(cur, 'add')}>
+          {copy.review.file(to, hasNext)}
+        </Button>
+      </PinnedAction>
       <PieceFieldSheet
         piece={values}
         field={field}
@@ -370,6 +425,42 @@ export function Review({
         saving={false}
       />
     </div>
+  );
+}
+
+// The piece by hand (redline 01): one hairline pill, into the form with the photo attached.
+function FillIn({
+  to,
+  shot,
+  onFillIn,
+}: {
+  to: AddDestination;
+  shot: SessionShot | undefined;
+  onFillIn?: ((shot: SessionShot | undefined) => void) | undefined;
+}) {
+  const pill = buttonClasses({ variant: 'secondary' });
+  return onFillIn ? (
+    <button type="button" className={`${pill} self-start`} onClick={() => onFillIn(shot)}>
+      {copy.review.fillIn}
+    </button>
+  ) : (
+    <Link href={`/wardrobe/manual?to=${to}`} className={`${pill} self-start`}>
+      {copy.review.fillIn}
+    </Link>
+  );
+}
+
+// Leaving while it reads: nothing has filed, so it simply stops.
+function CancelLink({ to, onCancel }: { to: AddDestination; onCancel?: (() => void) | undefined }) {
+  const quiet = buttonClasses({ variant: 'quiet' });
+  return onCancel ? (
+    <button type="button" className={`${quiet} self-center`} onClick={onCancel}>
+      {copy.review.cancel}
+    </button>
+  ) : (
+    <Link href={`/wardrobe/add?to=${to}`} className={`${quiet} self-center`}>
+      {copy.review.cancel}
+    </Link>
   );
 }
 

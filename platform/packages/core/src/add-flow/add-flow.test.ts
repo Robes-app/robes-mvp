@@ -13,6 +13,7 @@ import {
   scanCover,
   scanFrame,
   scanTags,
+  suggestName,
   TAG_SPOTS,
   wishChanges,
 } from '.';
@@ -158,5 +159,23 @@ describe('scanCover', () => {
   it('never divides by a zero-wide photo', () => {
     const c = scanCover({ width: 0, height: 0, box: { x: 0, y: 0, w: 1, h: 1 } });
     expect(Number.isFinite(c.width) && Number.isFinite(c.height)).toBe(true);
+  });
+});
+
+describe('suggestName', () => {
+  it('waits for a category', () => {
+    expect(suggestName({ categoryL2: null, categoryL3: null, colourShade: 'navy' })).toBeNull();
+  });
+  it('names the most specific category, with its colour', () => {
+    expect(
+      suggestName({
+        categoryL2: 'Jumpers & sweaters',
+        categoryL3: 'Crew-neck jumper',
+        colourShade: 'navy',
+      }),
+    ).toBe('Navy crew-neck jumper');
+  });
+  it('stands on the category alone without a colour', () => {
+    expect(suggestName({ categoryL2: 'jeans', categoryL3: null, colourShade: null })).toBe('Jeans');
   });
 });

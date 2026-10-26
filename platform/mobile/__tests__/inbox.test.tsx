@@ -5,12 +5,15 @@ import { InboxView } from '../src/features/wardrobe/InboxView';
 import { LinkImport } from '../src/features/wardrobe/LinkImport';
 import { mockFetch, renderWithApi } from './support/api';
 import { JOB_ID } from './support/fixtures';
-import { mockRouter } from './support/router';
+import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  for (const k of Object.keys(mockParams)) delete mockParams[k];
+});
 
 const ENTRY_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const PIECE = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
@@ -79,6 +82,8 @@ test('paste a link reads the page and opens Review on the piece', async () => {
     'POST /imports/link': { jobId: JOB_ID, status: 'queued' },
     [`GET /jobs/${JOB_ID}`]: job('succeeded'),
   });
+  // Where it goes was chosen on the Add pieces sheet; the link screen only says so.
+  mockParams.to = 'wishlist';
   await renderWithApi(<LinkImport />);
   const link = wardrobe.add.link;
   // Read the page waits for a link; Paste fills it from the clipboard.
@@ -90,8 +95,8 @@ test('paste a link reads the page and opens Review on the piece', async () => {
   await waitFor(() =>
     expect(screen.getByLabelText(link.label).props.value).toBe('https://shop.test/coat'),
   );
-  await fireEvent.press(screen.getByRole('radio', { name: wardrobe.add.to.wishlist }));
-  expect(screen.getByText(link.help.wishlist)).toBeTruthy();
+  expect(screen.queryByRole('radio')).toBeNull();
+  expect(screen.getByText(new RegExp(link.filingTo.wishlist))).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: link.read }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({

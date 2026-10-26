@@ -5,43 +5,45 @@ import {
   Button,
   Em,
   ErrorText,
-  Eyebrow,
   Heading,
   MIN_TOUCH,
   PrimaryScope,
-  SegmentedControl,
   Text,
   useColor,
 } from '@robes/ui-native';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   TextInput,
+  type TextInputInstance,
   View,
 } from 'react-native';
+import { PinnedAction } from '@/components/PinnedAction';
 import { errorMessage } from '@/lib/errors';
 import { isTerminal } from '../looks/ideas';
-import { type AddDestination, destinationOf, reviewHref } from './add/flow';
+import { destinationOf, reviewHref } from './add/flow';
 import { JOB_POLL_MS } from './inbox';
 
 const copy = wardrobe.add.link;
 
-// Paste a link (design "Add Piece — Handoff"): the URL field with Paste inside it (the link is
-// almost always on the clipboard) and a clear ×, where the piece goes, and "Read the page"
-// docked above the keyboard. The isolated fetcher reads the page (SEC-40), then Review opens on
-// the piece. Web twin: components/wardrobe/link-import.tsx.
+// Paste a link (design "Add Piece — Handoff", redline 04): the URL field with Paste inside it
+// (the link is almost always on the clipboard) and a clear ×, one line on where the piece goes
+// (chosen on the Add pieces sheet), and "Read the page" docked above the keyboard. The isolated
+// fetcher reads the page (SEC-40), then Review opens on the piece — nothing files before it; a
+// page that can't be read keeps her here. Web twin: components/wardrobe/link-import.tsx.
 export function LinkImport() {
   const router = useRouter();
   const params = useLocalSearchParams<{ to?: string }>();
   const ink = useColor('ink');
   const faint = useColor('ink-faint');
   const [url, setUrl] = useState('');
-  const [to, setTo] = useState<AddDestination>(() => destinationOf(params.to));
+  const to = destinationOf(params.to);
+  const field = useRef<TextInputInstance>(null);
   const start = useApiMutation('imports.link');
   const jobId = start.data?.jobId ?? '';
   const job = useApi(
@@ -73,18 +75,16 @@ export function LinkImport() {
         className="flex-1"
       >
         <ScrollView contentContainerClassName="gap-5 px-6 pb-6" keyboardShouldPersistTaps="handled">
+          <Heading size="md" style={{ fontSize: 28 }}>
+            {copy.title} <Em>{copy.wink}</Em>
+          </Heading>
           <View className="gap-2">
-            <Eyebrow>{copy.eyebrow}</Eyebrow>
-            <Heading size="md" style={{ fontSize: 32 }}>
-              {copy.title} <Em>{copy.wink}</Em>
-            </Heading>
-          </View>
-          <View className="gap-2">
-            <Eyebrow>{copy.label}</Eyebrow>
-            <View
-              className={`min-h-11 flex-row items-center rounded-crisp border bg-surface-raised pl-4 ${empty ? 'border-border-control' : 'border-ink-muted'}`}
-            >
+            <Text size="caption" tone="faint" className="uppercase tracking-[2px]">
+              {copy.label}
+            </Text>
+            <View className="min-h-12 flex-row items-center rounded-crisp border border-hairline bg-surface-raised pl-4">
               <TextInput
+                ref={field}
                 accessibilityLabel={copy.label}
                 value={url}
                 onChangeText={setUrl}
@@ -102,9 +102,9 @@ export function LinkImport() {
                   accessibilityLabel={copy.paste}
                   onPress={() => void paste()}
                   style={{ minHeight: MIN_TOUCH }}
-                  className="justify-center px-3"
+                  className="justify-center pr-3 pl-2"
                 >
-                  <View className="rounded-pill border border-hairline bg-surface px-3 py-1">
+                  <View className="rounded-pill border border-hairline bg-surface-raised px-3 py-1">
                     <Text size="caption" style={{ color: ink }}>
                       {copy.paste}
                     </Text>
@@ -123,27 +123,43 @@ export function LinkImport() {
               )}
             </View>
           </View>
-          <View className="gap-2">
-            <SegmentedControl<AddDestination>
-              label={wardrobe.add.destination}
-              value={to}
-              onChange={setTo}
-              options={[
-                { value: 'wardrobe', label: wardrobe.add.to.wardrobe },
-                { value: 'wishlist', label: wardrobe.add.to.wishlist },
-              ]}
-            />
-            <Text size="small" tone="muted">
-              {copy.help[to]}
+          <Text size="small" tone="muted">
+            {copy.filingTo[to]} ·{' '}
+            <Text
+              size="small"
+              accessibilityRole="link"
+              className="underline"
+              onPress={() => router.replace({ pathname: '/wardrobe/add', params: { to } })}
+            >
+              {copy.change}
             </Text>
-          </View>
+          </Text>
           {start.isError ? (
             <ErrorText>{errorMessage(start.error)}</ErrorText>
           ) : failed ? (
-            <ErrorText>{copy.failed}</ErrorText>
+            <Text size="small" tone="muted" accessibilityRole="alert">
+              {copy.failed}{' '}
+              <Text
+                size="small"
+                accessibilityRole="button"
+                className="underline"
+                onPress={() => field.current?.focus()}
+              >
+                {copy.fixIt}
+              </Text>
+              {' · '}
+              <Text
+                size="small"
+                accessibilityRole="link"
+                className="underline"
+                onPress={() => router.replace({ pathname: '/wardrobe/manual', params: { to } })}
+              >
+                {wardrobe.add.review.fillIn}
+              </Text>
+            </Text>
           ) : null}
         </ScrollView>
-        <View className="px-6 pb-4">
+        <PinnedAction>
           <Button
             disabled={empty || reading}
             loading={reading}
@@ -152,7 +168,7 @@ export function LinkImport() {
           >
             {copy.read}
           </Button>
-        </View>
+        </PinnedAction>
       </KeyboardAvoidingView>
     </PrimaryScope>
   );

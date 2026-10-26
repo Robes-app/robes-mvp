@@ -1,4 +1,4 @@
-import { shadeByName } from '../colour';
+import { shade, shadeByName } from '../colour';
 import { cropRegion } from '../photo-pieces';
 
 // Add a piece, end to end (design "Add Piece — Handoff", 2026-10-26): every way in — the camera,
@@ -234,4 +234,18 @@ export function fileEdits(label: string, changes: RowChanges): RowChanges & { la
 export function wishChanges(changes: RowChanges) {
   const { notes, seasonBand: _s, wearFor: _w, ...rest } = changes;
   return notes === undefined ? rest : { ...rest, note: notes };
+}
+
+// A piece added by hand is named for her if she leaves the name blank (redline 07): its colour
+// and the most specific category she chose — "Navy crew-neck jumper". Null until a category.
+export function suggestName(values: {
+  categoryL2: string | null;
+  categoryL3: string | null;
+  colourShade: string | null;
+}): string | null {
+  const kind = values.categoryL3 ?? values.categoryL2;
+  if (!kind) return null;
+  const colour = shade(values.colourShade)?.name;
+  if (!colour) return kind.charAt(0).toUpperCase() + kind.slice(1);
+  return `${colour} ${kind.charAt(0).toLowerCase()}${kind.slice(1)}`;
 }

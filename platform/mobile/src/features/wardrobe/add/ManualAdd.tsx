@@ -1,13 +1,18 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { PieceValues, UpdatePieceInput } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
-import { type RowChanges, readDraft, rowChanges, wishChanges } from '@robes/core/add-flow';
+import {
+  type RowChanges,
+  readDraft,
+  rowChanges,
+  suggestName,
+  wishChanges,
+} from '@robes/core/add-flow';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
   Em,
   ErrorText,
-  Eyebrow,
   Heading,
   PrimaryScope,
   Text,
@@ -17,12 +22,13 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView } from 'react-native';
+import { PinnedAction } from '@/components/PinnedAction';
 import { PICKER_OPTIONS, uploadPhoto } from '../add-pieces';
 import { type PieceField, PieceFieldSheet } from '../PieceFieldSheet';
 import { RecordRows } from '../PieceRows';
-import type { AddDestination } from './flow';
+import type { AddDestination, ReviewShot } from './flow';
 import { Filed } from './Review';
 
 const copy = wardrobe.add.manual;
@@ -35,10 +41,12 @@ const EMPTY = readDraft({
   color: null,
 });
 
-// Add without a photo (design "Add Piece — Handoff"): a dashed "Add a photo" invite, then the
-// record's four sections as rows, each opening its drawer, and the one commit. Web twin:
+// Add without a photo (design "Add Piece — Handoff", redlines 06/07): the record's sections as
+// rows, each opening its drawer, a 64pt dashed "Add a photo later" row at the end, and the one
+// commit pinned at the foot — which waits for a category, and names the piece from it when she
+// leaves the name blank. A read that never landed arrives here with its photo. Web twin:
 // components/wardrobe/add/manual-add.tsx.
-export function ManualAdd({ to }: { to: AddDestination }) {
+export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: ReviewShot }) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -46,11 +54,19 @@ export function ManualAdd({ to }: { to: AddDestination }) {
   const [changes, setChanges] = useState<RowChanges>({});
   const [field, setField] = useState<PieceField | null>(null);
   const [photo, setPhoto] = useState<{ uri: string; assetId: string | null } | null>(null);
-  const [nameError, setNameError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const [done, setDone] = useState(false);
   const values = { ...EMPTY, ...changes } as PieceValues;
+
+  const attached = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the photo she arrived with, once.
+  useEffect(() => {
+    if (initial && !attached.current) {
+      attached.current = true;
+      void attach(initial);
+    }
+  }, []);
 
   async function addPhoto() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -60,7 +76,10 @@ export function ManualAdd({ to }: { to: AddDestination }) {
     }
     const result = await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
     const asset = result.canceled ? undefined : result.assets[0];
-    if (!asset) return;
+    if (asset) await attach(asset);
+  }
+
+  async function attach(asset: { uri: string }) {
     setPhoto({ uri: asset.uri, assetId: null });
     try {
       const assetId = await uploadPhoto(api, asset, to === 'wishlist' ? 'wishlist' : 'wardrobe');
@@ -72,12 +91,8 @@ export function ManualAdd({ to }: { to: AddDestination }) {
   }
 
   async function file() {
-    const label = values.label.trim();
-    if (!label) {
-      setNameError(true);
-      setField('label');
-      return;
-    }
+    const label = values.label.trim() || suggested;
+    if (!label) return;
     setSaving(true);
     setFailed(false);
     const image = photo?.assetId ? { imageAssetId: photo.assetId } : {};
@@ -101,47 +116,44 @@ export function ManualAdd({ to }: { to: AddDestination }) {
   if (done) return <Filed to={to} kept={1} />;
 
   const uploading = !!photo && !photo.assetId;
+  const suggested = suggestName(values) ?? '';
+  const ready = !!values.categoryL2 && !uploading;
   return (
     <PrimaryScope>
       <ScrollView contentContainerClassName="gap-5 px-6 pb-12">
-        <View className="gap-2">
-          <Eyebrow>{copy.eyebrow}</Eyebrow>
-          <Heading size="md" style={{ fontSize: 32 }}>
-            {copy.title} <Em>{copy.wink}</Em>
-          </Heading>
-        </View>
+        <Heading size="md" style={{ fontSize: 28 }}>
+          {copy.title} <Em>{copy.wink}</Em>
+        </Heading>
+        <RecordRows values={values} onField={setField} withName />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={photo ? copy.changePhoto : copy.addPhoto}
           onPress={() => void addPhoto()}
           disabled={uploading}
-          className="h-40 items-center justify-center gap-2 overflow-hidden rounded-soft border border-dashed border-border-control"
+          style={{ minHeight: 64 }}
+          className="flex-row items-center gap-4 overflow-hidden rounded-soft border border-dashed border-border-control px-4"
         >
           {photo ? (
             <ExpoImage
               source={{ uri: photo.uri }}
               contentFit="cover"
-              style={{ width: '100%', height: '100%' }}
+              style={{ width: 48, height: 48, borderRadius: 4 }}
             />
           ) : (
-            <>
-              <Icon name="camera" size={24} color={muted} />
-              <Text tone="muted">{copy.addPhoto}</Text>
-            </>
+            <Icon name="camera" size={20} color={muted} />
           )}
-          {uploading ? (
-            <View className="absolute inset-0 items-center justify-center bg-bg/60">
-              <ActivityIndicator accessibilityLabel={copy.uploading} />
-            </View>
-          ) : null}
+          <Text tone="muted" className="flex-1">
+            {photo ? copy.changePhoto : copy.addPhoto}
+          </Text>
+          {uploading ? <ActivityIndicator accessibilityLabel={copy.uploading} /> : null}
         </Pressable>
-        <RecordRows values={values} onField={setField} withName />
-        {nameError && !values.label.trim() ? <ErrorText>{copy.nameFirst}</ErrorText> : null}
         {failed ? <ErrorText>{copy.failed}</ErrorText> : null}
-        <Button loading={saving} disabled={uploading} onPress={() => void file()}>
+      </ScrollView>
+      <PinnedAction>
+        <Button loading={saving} disabled={!ready} onPress={() => void file()}>
           {wardrobe.add.file(to)}
         </Button>
-      </ScrollView>
+      </PinnedAction>
       <PieceFieldSheet
         piece={values}
         field={field}

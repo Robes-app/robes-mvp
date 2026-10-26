@@ -6,6 +6,10 @@
   --animate-sheet-up: robes-sheet-up 280ms cubic-bezier(0.22, 0.7, 0.2, 1);
   --animate-sweep: robes-sweep 2.5s ease-in-out infinite;
   --animate-scan: robes-scan 1.6s ease-in-out infinite alternate;
+  /* A photo being read: the line falls top to bottom, again and again. */
+  --animate-scan-down: robes-scan-down 1.6s var(--ease-robes) infinite;
+  /* A row still to come: breathes between faint and full. */
+  --animate-breathe: robes-breathe 1.2s ease-in-out infinite alternate;
 
   @keyframes robes-fade-in {
     from {
@@ -31,6 +35,22 @@
     }
     to {
       top: calc(100% - 2px);
+    }
+  }
+  @keyframes robes-scan-down {
+    from {
+      top: -32px;
+    }
+    to {
+      top: 100%;
+    }
+  }
+  @keyframes robes-breathe {
+    from {
+      opacity: 0.35;
+    }
+    to {
+      opacity: 1;
     }
   }
   @keyframes robes-sweep {

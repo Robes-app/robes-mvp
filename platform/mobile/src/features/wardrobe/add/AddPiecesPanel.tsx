@@ -1,7 +1,7 @@
 import { wardrobe } from '@robes/copy';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
-import { MIN_TOUCH, SegmentedControl, Text, useColor, useToast } from '@robes/ui-native';
+import { Heading, MIN_TOUCH, SegmentedControl, Text, useColor, useToast } from '@robes/ui-native';
 import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -12,7 +12,8 @@ const copy = wardrobe.add;
 // The Add pieces sheet's body (design "Add Piece — Handoff", 3a): where the pieces go, chosen
 // once and carried through every path; the camera and the camera roll as the two large targets;
 // a link, a receipt and the piece by hand as rows. The Create modal draws the same body.
-// Web twin: components/wardrobe/add/add-pieces-panel.tsx.
+// Tiles sit on white with a hairline (redline 02: warm is for selected only).
+// Web twin: components/wardrobe/add/add-flow.tsx (AddPiecesPanel).
 export function AddPiecesPanel({ initial = 'wardrobe' }: { initial?: AddDestination }) {
   const router = useRouter();
   const toast = useToast();
@@ -87,10 +88,13 @@ function Tile({
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
-      className={`flex-1 items-center justify-center gap-3 rounded-soft border border-hairline bg-surface py-7 ${disabled ? 'opacity-50' : ''}`}
+      style={{ height: 112 }}
+      className={`flex-1 items-center justify-center gap-3 rounded-soft border border-hairline bg-surface-raised ${disabled ? 'opacity-50' : ''}`}
     >
-      <Icon name={icon} size={28} color={ink} />
-      <Text>{label}</Text>
+      <Icon name={icon} size={22} color={ink} />
+      <Heading size="sm" weight="regular" style={{ fontSize: 19 }}>
+        {label}
+      </Heading>
     </Pressable>
   );
 }

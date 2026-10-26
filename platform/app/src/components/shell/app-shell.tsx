@@ -15,7 +15,14 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
-import { activeRoot, CREATE_GROUPS, createItems, GO_TO_ITEMS, NAV_ITEMS } from '@/lib/nav';
+import {
+  activeRoot,
+  CREATE_GROUPS,
+  createItems,
+  GO_TO_ITEMS,
+  isFlowPath,
+  NAV_ITEMS,
+} from '@/lib/nav';
 import { FeaturesProvider } from '../features';
 
 const focus =
@@ -40,6 +47,7 @@ export function AppShell({
   const toggleCommand = useCallback(() => setCommandOpen((o) => !o), []);
   useCommandHotkey(toggleCommand);
   const current = activeRoot(pathname);
+  const inFlow = isFlowPath(pathname);
   const create = useMemo(() => createItems(features), [features]);
 
   const commands = useMemo<Command[]>(
@@ -117,13 +125,14 @@ export function AppShell({
 
       <main
         id="main"
-        className="mx-auto w-full max-w-5xl flex-1 px-5 pt-3.5 pb-32 md:px-4 md:pt-6 md:pb-16"
+        className={`mx-auto w-full max-w-5xl flex-1 px-5 pt-3.5 md:px-4 md:pt-6 md:pb-16 ${inFlow ? 'pb-8' : 'pb-32'}`}
       >
         <FeaturesProvider value={features}>{children}</FeaturesProvider>
       </main>
 
       <nav
         aria-label={shell.primaryNav}
+        hidden={inFlow}
         className="fixed inset-x-3.5 bottom-0 z-40 flex items-center gap-2.5 pb-[max(env(safe-area-inset-bottom),12px)] md:hidden"
       >
         <ul className="flex h-16 grow items-center justify-between rounded-pill border border-hairline bg-bg/90 px-1.5 shadow-[0_10px_30px_color-mix(in_srgb,var(--color-ink)_10%,transparent)] backdrop-blur-xl">

@@ -4,7 +4,7 @@ import { wardrobe } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
 import { Button, Dialog } from '@robes/ui';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { type AddDestination, isPhoto, REVIEW_MAX, type ShotSession } from '@/lib/add-flow';
+import { isPhoto, REVIEW_MAX, type ShotSession } from '@/lib/add-flow';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 import {
   CAMERA_CONSTRAINTS,
@@ -30,19 +30,15 @@ export function canUseCamera(): boolean {
 
 // "Take a photo" (design "Add Piece — Handoff"): the camera in the app. Every shot is read the
 // moment it is taken — Robes counts what is in the frame, so one photo holds one piece or five —
-// and the tray says what it has found. Review opens on them; nothing files from here. Where the
-// pieces go (Mine / Wishlist) sits where Single / Several was. The last-photo thumb is the camera
+// and the tray says what it has found. Review opens on them; nothing files from here, and where
+// they go was chosen on the Add pieces sheet (redline 03). The last-photo thumb is the camera
 // roll. Native twin: mobile/src/features/wardrobe/Camera.tsx.
 export function Camera({
-  to,
-  onTo,
   session,
   onReview,
   onClose,
   onUseDevice,
 }: {
-  to: AddDestination;
-  onTo: (to: AddDestination) => void;
   session: ShotSession;
   onReview: () => void;
   onClose: () => void;
@@ -144,10 +140,6 @@ export function Camera({
       ? add.shots.reading
       : add.shots.found(session.found)
     : '';
-  const destinations: [AddDestination, string][] = [
-    ['wardrobe', add.shots.mine],
-    ['wishlist', add.to.wishlist],
-  ];
   return (
     <div
       role="dialog"
@@ -165,27 +157,6 @@ export function Camera({
           >
             <Icon name="close" size={22} />
           </button>
-          <div
-            role="radiogroup"
-            aria-label={add.destination}
-            className="inline-flex justify-self-center gap-[2px] rounded-pill bg-cream50/12 p-[3px]"
-          >
-            {destinations.map(([value, label]) => (
-              // biome-ignore lint/a11y/useSemanticElements: a WAI-ARIA radio group of buttons; a native radio can't take the pill segment styling.
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={to === value}
-                onClick={() => onTo(value)}
-                className={`h-8 min-w-[86px] rounded-pill px-3.5 font-medium font-sans text-[9.5px] uppercase tracking-[0.22em] ${
-                  to === value ? 'bg-cream50 text-ink900' : 'text-cream50/75'
-                } ${DARK_FOCUS}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
         <div className="relative mt-2 min-h-0 flex-1 overflow-hidden rounded-soft bg-ink900">
           <video
@@ -220,10 +191,13 @@ export function Camera({
                 : 'opacity-0 motion-safe:transition-opacity motion-safe:duration-200'
             }`}
           />
-          {refused ? (
+          {refused || !live ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
-              <p role="alert" className="font-display font-light text-cream50 text-xl italic">
-                {copy.unreachable}
+              <p
+                {...(refused ? { role: 'alert' } : {})}
+                className="font-display font-light text-cream50 text-xl italic"
+              >
+                {refused ? copy.unreachable : copy.waiting}
               </p>
               <button
                 type="button"
@@ -273,23 +247,27 @@ export function Camera({
           <button
             type="button"
             aria-label={copy.shutter}
-            disabled={!live}
+            disabled={refused}
             onClick={shoot}
-            className={`group size-[76px] justify-self-center rounded-pill border-[3px] border-cream50 p-[5px] disabled:opacity-40 ${DARK_FOCUS}`}
+            className={`group size-[72px] justify-self-center rounded-pill border-2 border-cream50 p-[4px] disabled:opacity-40 ${DARK_FOCUS}`}
           >
             <span
               aria-hidden
               className="block size-full rounded-pill bg-cream50 motion-safe:transition-transform group-active:scale-92"
             />
           </button>
-          <button
-            type="button"
-            disabled={!canReview}
-            onClick={review}
-            className={`min-h-11 justify-self-end px-1 font-medium font-sans text-[10px] uppercase tracking-[0.22em] disabled:text-cream50/35 ${DARK_FOCUS}`}
-          >
-            {add.shots.review}
-          </button>
+          {shots.length ? (
+            <button
+              type="button"
+              disabled={!canReview}
+              onClick={review}
+              className={`min-h-11 justify-self-end px-1 font-medium font-sans text-[10px] text-cream50/70 uppercase tracking-[0.22em] disabled:text-cream50/35 ${DARK_FOCUS}`}
+            >
+              {add.shots.review(shots.length)}
+            </button>
+          ) : (
+            <span />
+          )}
         </div>
       </div>
       {/* The app's own confirm, over the camera: nothing taken is dropped without a word. */}

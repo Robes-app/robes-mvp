@@ -9,6 +9,10 @@ import { PICKER_OPTIONS, type PickedPhoto, uploadPhoto } from '../add-pieces';
 
 export type { AddDestination };
 
+// How long Review waits on a read before offering to fill it in by hand (redline 01). A result
+// that lands later still opens Review. Web twin: READ_PATIENCE_MS in app/src/lib/add-flow.ts.
+export const READ_PATIENCE_MS = 20_000;
+
 // Photos one Review takes at once: each is its own read, and reads are rate-limited (20/min).
 export const REVIEW_MAX = 12;
 
@@ -37,6 +41,16 @@ export function reviewHref(p: ReviewParams): Href {
         pathname: '/wardrobe/review',
         params: { to: p.to, from: p.from, shots: JSON.stringify(p.shots) },
       };
+}
+
+// Add without a photo, or with the photo of a read that never landed (redline 01).
+export function manualHref(to: AddDestination, photo?: ReviewShot): Href {
+  return {
+    pathname: '/wardrobe/manual',
+    params: photo
+      ? { to, photo: JSON.stringify({ uri: photo.uri, width: photo.width, height: photo.height }) }
+      : { to },
+  };
 }
 
 export function parseShots(raw: unknown): ReviewShot[] {
