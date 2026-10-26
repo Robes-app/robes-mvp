@@ -65,15 +65,50 @@ export function legacyUrl(): string {
   return process.env.LEGACY_DATABASE_URL ?? databaseUrl(LEGACY_FIXTURE_DB);
 }
 
-export function targetUrl(env: NodeJS.ProcessEnv = process.env): string {
+// The cutover run (docs/migration.md §4, runbooks/production-release.md): a non-local target needs
+// three things that can't line up by accident — the admin URL in TARGET_DATABASE_URL, the explicit
+// `--target=production` flag on the command, and the operator typing the target's exact host into
+// ROBES_MIGRATE_PRODUCTION. A stale env var alone, or a flag on a local run, refuses.
+function targetFlag(argv: readonly string[]): string | undefined {
+  const hit = argv.find((a) => a === '--target' || a.startsWith('--target='));
+  if (!hit) return undefined;
+  return hit.includes('=') ? hit.slice(hit.indexOf('=') + 1) : '';
+}
+
+export function targetUrl(
+  env: NodeJS.ProcessEnv = process.env,
+  argv: readonly string[] = process.argv,
+): string {
   const url = env.TARGET_DATABASE_URL ?? databaseUrl(REHEARSAL_TARGET_DB);
-  if (isLocal(url)) return url;
-  // The cutover run (docs/migration.md §4): the operator names the exact host they mean to write.
+  const target = targetFlag(argv);
+  if (target !== undefined && target !== 'production') {
+    throw new Error(`unknown --target=${target}; the only named target is --target=production`);
+  }
+  if (isLocal(url)) {
+    if (target === 'production') {
+      throw new Error(
+        '--target=production given but TARGET_DATABASE_URL is local (or unset); set it to the production admin URL',
+      );
+    }
+    return url;
+  }
   const host = new URL(url).hostname;
+  if (target !== 'production') {
+    throw new Error(
+      `migration target ${host} is not local; a production run needs --target=production (docs/runbooks/production-release.md)`,
+    );
+  }
   if (env.ROBES_MIGRATE_PRODUCTION !== host) {
     throw new Error(
       `migration target ${host} is not local; set ROBES_MIGRATE_PRODUCTION=${host} to confirm the cutover run`,
     );
   }
   return url;
+}
+
+// One line on stderr naming where a CLI is about to write, so the operator sees it before it runs.
+export function announceTarget(url: string): void {
+  const where = isLocal(url) ? 'local rehearsal' : 'PRODUCTION';
+  const u = new URL(url);
+  process.stderr.write(`robes-migrate → ${where}: ${u.hostname}${u.pathname}\n`);
 }

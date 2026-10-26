@@ -47,7 +47,11 @@ The tests (`scripts/migrate/test`, part of `pnpm db:test`) rehearse the fixture 
 - **Comms:** the notification ledger copies (keeps idempotency; `receipt_held` → `receipt`). Held inbox rows copy whole; decided ones keep only their outcome.
 - **Not migrated:** `events`, `generation_log`, `prompt_history`, `feedback`, `avatar_cells`, the Airtable exports. They are extracted, so they can be added as domains later.
 
-**Needs the real legacy database to verify:** which of migrations 12–23 actually ran and the real JSON heterogeneity (run extract and read its missing-column report, then assert's census); duplicate emails; volumes (extract batches through a cursor, transform is set-based except artifacts, which loop per row); Cloudinary URL shapes. **Not built yet:** the Airtable export, the legacy redirect map, and a public renderer for legacy artifact shares (`/share/[token]` currently renders look snapshots only).
+**Needs the real legacy database to verify:** which of migrations 12–23 actually ran and the real JSON heterogeneity (run extract and read its missing-column report, then assert's census); duplicate emails; volumes (extract batches through a cursor, transform is set-based except artifacts, which loop per row); Cloudinary URL shapes. **Not built yet:** the Airtable export. (The legacy redirect map is `app/src/lib/legacy-redirects.ts`; legacy artifact shares render at `/share/[token]`.)
+
+**Material (legacy migration 29):** the platform has no material column yet, so a known material id (legacy `material_model.cjs`) rides `item_dna.material` on wardrobe and wishlist items; an unknown value is dropped. A later migration can backfill a real column from it.
+
+**Building the fixture from a checkout without the legacy SQL** (`main`): `ROBES_LEGACY_SQL_DIR=<a checkout of beta>/supabase pnpm migrate:rehearse`.
 
 Rehearse against a copy of legacy on staging until `migrate:assert` is clean twice in a row.
 
@@ -58,8 +62,8 @@ Test copy first (any day before T-0): with the legacy app still live, run `extra
 
 T-0:
 1. Put legacy into read-only mode (feature flag in legacy server: 503 on write routes; banner).
-2. `pnpm migrate:reset --confirm-wipe` (drops the test copy and every account made while testing), then the final `extract` → `transform` → `assert` into production. Re-enable the two paused schedules. Production's schema `app` lives inside the legacy Supabase project (Robes_p0), so source and target are the same database; the tool refuses any non-local target unless `ROBES_MIGRATE_PRODUCTION` names its exact host. Drop the `legacy` copy schema once assert passes.
-3. `pnpm migrate:rehost -- --apply --bucket=robes-prod-media-259887029472` (same `ROBES_MIGRATE_PRODUCTION`); re-run until `failed` is empty. The app shows no image for a `cloudinary_legacy` asset, so finish this before DNS.
+2. `pnpm migrate:reset -- --target=production --confirm-wipe=<host>` (drops the test copy and every account made while testing), then the final `extract` → `transform` → `assert` into production. Re-enable the two paused schedules. Production's schema `app` lives inside the legacy Supabase project (Robes_p0), so source and target are the same database; the tool refuses any non-local target unless the command carries `--target=production` **and** `ROBES_MIGRATE_PRODUCTION` names its exact host (and `migrate:reset` there needs `--confirm-wipe=<host>`). Exact commands: `runbooks/production-release.md`. Drop the `legacy` copy schema once assert passes.
+3. `pnpm migrate:rehost -- --target=production --apply --bucket=robes-prod-media-259887029472` (same `ROBES_MIGRATE_PRODUCTION`); re-run until `failed` is empty. The app shows no image for a `cloudinary_legacy` asset, so finish this before DNS.
 4. DNS: `www.byrobes.com` and `beta.byrobes.com` → Vercel (beta redirects to `app.`). Legacy paths: `/look/:id` → share lookup by legacy id (Airtable-backed looks imported into `shares` with `legacy_token`), `/board/:id` → `/share/:id`, `/dashboard` → `/today`, etc. (redirect map generated from `reference/legacy-features.md` route map).
 5. Rotate: legacy Supabase publishable + service keys, Gemini key, Cloudinary keys, Airtable token.
 6. Smoke tests + watch dashboards for 48 h.

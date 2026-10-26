@@ -184,27 +184,27 @@ where id = '${CAT}';
 
 insert into public.wardrobe_items (id, user_id, label, category, category_l2, category_l3, color, brand,
   image_url, times_worn, hero_position, seasons, occasions, season_band, season_source, price, currency, size, created_at,
-  colour_shade, colour_extra, print) values
+  colour_shade, colour_extra, print, material) values
   ('${W.jeans}', '${NIALL}', 'Straight jeans', 'Bottoms', 'Jeans', 'Straight-leg jeans', 'Indigo', 'Levi''s',
    '${CDN}/jeans.jpg', 3, 1, '{Spring,Summer}', '{Work,Date night}', 'spring_summer', 'user', 120, 'eur', '28', '2026-07-05',
-   'denim', '{optic,denim,nope,optic,ivory,chalk,jet}', 'stripes'),
+   'denim', '{optic,denim,nope,optic,ivory,chalk,jet}', 'stripes', ' Denim '),
   ('${W.coat}', '${NIALL}', 'Camel coat', 'Outerwear', null, null, 'Camel', null,
    '${CDN}/coat.jpg', 0, null, '{}', '{}', 'year_round', 'inferred', null, null, null, '2026-07-06',
-   null, '{}', null),
+   null, '{}', null, 'wool'),
   ('${W.shirt}', '${NIALL}', 'Blue shirt', 'Tops', null, null, 'Blue', null,
    null, 0, null, null, null, 'year_round', 'inferred', null, null, null, '2026-07-07',
-   'chartreuse', '{}', 'tartan-ish'),
+   'chartreuse', '{}', 'tartan-ish', 'plastic-ish'),
   ('${W.jumper}', '${CAT}', 'Jumper', 'Knitwear', null, null, null, null,
-   null, 0, 11, null, null, 'year_round', 'inferred', null, null, null, '2026-07-08', null, '{}', null),
+   null, 0, 11, null, null, 'year_round', 'inferred', null, null, null, '2026-07-08', null, '{}', null, null),
   ('${W.loafers}', '${BEA}', 'Loafers', 'Shoes', null, null, 'Black', null,
-   'not-a-url', 0, null, null, null, 'year_round', 'inferred', null, null, null, '2026-07-09', null, '{}', null);
+   'not-a-url', 0, null, null, null, 'year_round', 'inferred', null, null, null, '2026-07-09', null, '{}', null, null);
 
 insert into public.wishlist_items (id, user_id, label, category, image_url, price, currency, source_type, source_url, created_at,
-  color, colour_shade, colour_extra, print) values
+  color, colour_shade, colour_extra, print, material) values
   ('cccccccc-0000-4000-8000-000000000001', '${NIALL}', 'Trench coat', 'Outerwear', '${CDN}/trench.jpg', 250, 'eur',
-   'url', 'https://shop.test/trench', '2026-07-10', 'Sand', 'sand', '{}', 'checks'),
+   'url', 'https://shop.test/trench', '2026-07-10', 'Sand', 'sand', '{}', 'checks', 'cotton'),
   ('cccccccc-0000-4000-8000-000000000002', '${NIALL}', 'Scarf', 'Accessories', null, null, null,
-   'magazine', 'javascript:alert(1)', '2026-07-11', 'Print', null, '{}', null);
+   'magazine', 'javascript:alert(1)', '2026-07-11', 'Print', null, '{}', null, null);
 
 insert into public.looks (id, user_id, name, name_provisional, tags, note, photo_url, source, climate_band,
   render_url, created_at) values

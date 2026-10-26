@@ -34,11 +34,17 @@ export const LEGACY_SQL_ORDER = [
   'look_states_migration.sql',
   'twin_migration.sql',
   'colour_model_migration.sql',
+  'material_migration.sql',
 ] as const;
 
-const LEGACY_DIR = fileURLToPath(new URL('../../../../supabase/', import.meta.url));
-
 // The legacy app's schema sits beside platform/ only on branches that carry it (beta, not main).
+// ROBES_LEGACY_SQL_DIR points a checkout without it at another one's supabase/ (read-only).
+const LEGACY_DIR = (() => {
+  const dir = process.env.ROBES_LEGACY_SQL_DIR;
+  if (dir) return dir.endsWith('/') ? dir : `${dir}/`;
+  return fileURLToPath(new URL('../../../../supabase/', import.meta.url));
+})();
+
 export function legacySchemaPresent(): boolean {
   return existsSync(`${LEGACY_DIR}schema.sql`);
 }

@@ -81,6 +81,59 @@ const paletteSide = (key: string, ids: string, values: string) =>
     from jsonb_each(case when jsonb_typeof(pl.p -> '${key}') = 'object' then pl.p -> '${key}' else '{}'::jsonb end) e
     where e.key = any(${ids}) and e.value in (${values}))`;
 
+// Legacy migration 29's material (legacy material_model.cjs ids). The platform has no material
+// column yet, so a known id rides item_dna.material: nothing is lost, and the column's own
+// migration can backfill from it. Unknown values are dropped; an item_dna that already names one
+// keeps its own.
+export const MATERIAL_IDS = [
+  'cotton',
+  'wool',
+  'linen',
+  'silk',
+  'cashmere',
+  'merino',
+  'mohair',
+  'alpaca',
+  'hemp',
+  'denim',
+  'jersey',
+  'satin',
+  'velvet',
+  'lace',
+  'corduroy',
+  'tweed',
+  'sequin',
+  'polyester',
+  'polyamide',
+  'elastane',
+  'acrylic',
+  'leather',
+  'suede',
+  'patent',
+  'shearling',
+  'nubuck',
+  'exotic',
+  'viscose',
+  'lyocell',
+  'modal',
+  'acetate',
+  'cupro',
+  'vegan_leather',
+  'faux_fur',
+  'faux_suede',
+  'vinyl',
+  'straw',
+  'metal',
+  'resin',
+  'wood',
+] as const;
+const MATERIAL_IDS_SQL = `array[${MATERIAL_IDS.map((m) => `'${m}'`).join(',')}]::text[]`;
+const itemDna = (
+  t: string,
+) => `(case when jsonb_typeof(${t}.item_dna) = 'object' then ${t}.item_dna else '{}'::jsonb end
+    || case when lower(btrim(${t}.material)) = any(${MATERIAL_IDS_SQL})
+      and not (case when jsonb_typeof(${t}.item_dna) = 'object' then ${t}.item_dna else '{}'::jsonb end ? 'material')
+      then jsonb_build_object('material', lower(btrim(${t}.material))) else '{}'::jsonb end)`;
 const CUPS = `('AA','A','B','C','D','DD','E','F','G+')`;
 
 const CATEGORIES = `('Tops','Bottoms','Dresses','Outerwear','Shoes','Bags','Accessories','Swimwear','Other')`;
@@ -329,7 +382,7 @@ select w.id, w.user_id,
   left(w.color, 60), cs.shade, ${colourExtra('w')}, ${colourPrint('w')},
   left(w.brand, 80), left(w.notes, 1000),
   ${asset('w.user_id', 'w.image_url')},
-  case when jsonb_typeof(w.item_dna) = 'object' then w.item_dna else '{}'::jsonb end,
+  ${itemDna('w')},
   'ready',
   case when w.hero_position between 1 and 10
     and row_number() over (partition by w.user_id, w.hero_position order by w.created_at, w.id) = 1
@@ -375,7 +428,7 @@ select i.id, i.user_id,
   left(i.color, 60), cs.shade, ${colourExtra('i')}, ${colourPrint('i')},
   left(i.brand, 80), left(i.note, 1000),
   ${asset('i.user_id', 'i.image_url')},
-  case when jsonb_typeof(i.item_dna) = 'object' then i.item_dna else '{}'::jsonb end,
+  ${itemDna('i')},
   case when i.price >= 0 and i.price < 100000000 then i.price end,
   case when upper(i.currency) ~ '^[A-Z]{3}$' then upper(i.currency) end,
   left(i.size, 40),
