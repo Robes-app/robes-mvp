@@ -76,13 +76,17 @@ export function pieceAnalysisRepo(db: Db) {
         .execute();
     },
 
-    async markFailed(userId: UserId, pieceId: string): Promise<void> {
-      await db
-        .updateTable('wardrobeItems')
-        .set({ status: 'failed' })
+    // A read that found nothing (or could not run) leaves no piece behind: the row only ever
+    // held a placeholder while it read, so it goes rather than sitting in the wardrobe as a
+    // failed "New piece" (Add Piece redline 04c). A piece the read already filled is kept.
+    async discard(userId: UserId, pieceId: string): Promise<boolean> {
+      const res = await db
+        .deleteFrom('wardrobeItems')
         .where('userId', '=', userId)
         .where('id', '=', pieceId)
-        .execute();
+        .where('status', '=', 'reading')
+        .executeTakeFirst();
+      return res.numDeletedRows > 0n;
     },
   };
 }

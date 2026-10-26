@@ -317,17 +317,16 @@ export const wardrobe = {
   deleted: 'Piece removed.',
   undo: 'Undo',
   segments: { pieces: 'Pieces', wishlist: 'Wishlist', inbox: 'Inbox' },
-  // The dashed row under the switcher, only while something waits in the Inbox.
-  inboxWaiting: (n: number): string => (n === 1 ? '1 piece to check' : `${n} pieces to check`),
   removePiece: (label: string): string => `Remove ${label}`,
   photoAlt: (label: string): string => `Photo of ${label}`,
   wishlistEmpty: {
     title: 'Pieces you’re after live here.',
     body: 'Keep a list of what you want, then tell Robes when you buy it.',
   },
+  // The Inbox holds forwarded receipts only; a pasted link goes straight to Review.
   inboxEmpty: {
-    title: 'Pieces to check land here.',
-    body: 'When Robes isn’t sure about a photo, it waits here for you.',
+    title: 'Forwarded receipts land here.',
+    body: 'Forward an order email to your Robes address and its pieces wait here for a yes or no.',
   },
   piece: {
     back: 'Wardrobe',
@@ -474,13 +473,24 @@ export const wardrobe = {
   photosDenied: 'Allow Robes to see your photos in Settings to add pieces.',
   cameraDenied: 'Allow Robes to use the camera in Settings to photograph pieces.',
   category: 'Category',
-  // Wardrobe › Inbox and Paste a link (M3 tasks 4 + 9).
+  // Wardrobe › Inbox: one forwarded receipt at a time, every piece ticked until she unticks what
+  // went back (Add Piece redline 05c). The notice is the card on Wardrobe while one waits (05b).
   inbox: {
     from: (retailer: string): string => `From ${retailer}`,
-    keep: (label: string): string => `Keep ${label}`,
-    toWardrobe: 'Add to wardrobe',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    read: (n: number): string => `${n} ${n === 1 ? 'piece' : 'pieces'} read`,
+    untick: 'Untick anything that went back.',
+    file: (n: number): string =>
+      n === 0 ? 'File pieces' : `File ${n} ${n === 1 ? 'piece' : 'pieces'}`,
     toWishlist: 'Add to wishlist',
     skip: 'Skip',
+    more: (n: number): string =>
+      n === 1 ? 'One more receipt after this.' : `${countWord(n)} more receipts after this.`,
+    notice: (receipts: number): string =>
+      receipts === 1
+        ? 'Robes read one receipt'
+        : `Robes read ${countWord(receipts).toLowerCase()} receipts`,
     filed: 'Filed.',
     skipped: 'Skipped.',
   },
@@ -962,9 +972,10 @@ export const you = {
       'You review and verify before anything gets filed.',
     ],
     waiting: (n: number): string => `${n} ${n === 1 ? 'piece' : 'pieces'} waiting`,
-    review: 'Review them →',
+    review: (n: number): string => (n === 1 ? 'Review it →' : 'Review them →'),
     copy: 'Copy address',
-    copied: 'Address copied.',
+    // The pill's own label for two seconds after a tap.
+    copied: 'Copied',
     copyFailed: (address: string): string => `Copy this address: ${address}`,
     regenerate: 'New address',
     regenerated: 'New address ready. The old one no longer works.',

@@ -31,6 +31,7 @@ import {
   InboxAddress,
   InboxAddressStatus,
   InboxDecision,
+  InboxEntry,
   InboxList,
   InboxParams,
 } from './inbox';
@@ -1015,12 +1016,22 @@ export const routes = {
     input: ListAuditInput,
     output: AuditPage,
   },
+  // Forwarded receipts only; `count` is the pieces they hold.
   'inbox.list': {
     method: 'GET',
     path: '/inbox',
     auth: 'user',
     input: EmptyInput,
     output: InboxList,
+  },
+  // One held entry of any source (Review opens a pasted link here); 404 once decided.
+  'inbox.get': {
+    method: 'GET',
+    path: '/inbox/:id',
+    auth: 'user',
+    params: InboxParams,
+    input: EmptyInput,
+    output: InboxEntry,
   },
   // Naturally idempotent: a decided row isn't decided again.
   'inbox.decide': {

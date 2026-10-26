@@ -15,7 +15,9 @@ export const LinkImportInput = z.object({
   fetched: Result.optional(),
 });
 
-// Link import (SEC-40): turns the fetcher's parsed product into a held Inbox row.
+// Link import (SEC-40): turns the fetcher's parsed product into a held entry that Review opens by
+// id (`inbox.get`); it never shows in the Inbox list, and nothing is filed until she reviews it.
+// A page that can't be read throws, so a failed read leaves no entry and no piece behind.
 export function createLinkImportHandler(deps: LinkImportDeps): JobHandler {
   return {
     budgetMs: 30_000,

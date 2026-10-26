@@ -1,10 +1,10 @@
-import { wardrobe as copy } from '@robes/copy';
+import { wardrobe as copy, you } from '@robes/copy';
 import type { WardrobeLayout } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/native';
-import { fonts, IconButton, MIN_TOUCH, SegmentedControl, useColor } from '@robes/ui-native';
+import { Button, fonts, IconButton, MIN_TOUCH, SegmentedControl, useColor } from '@robes/ui-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-// Pieces | Wishlist only: the Inbox is a row that shows while something waits (Native parity).
+// Pieces | Wishlist only: the Inbox is a notice that shows while a receipt waits (Native parity).
 export type Segment = 'pieces' | 'wishlist';
 const SEGMENTS = [
   { value: 'pieces', label: copy.segments.pieces },
@@ -36,26 +36,30 @@ export function HeaderRow({
   );
 }
 
-// Shown only while the Inbox holds something: a dashed row that opens it (beta's receipt strip).
-export function InboxRow({ count, onOpen }: { count: number; onOpen: () => void }) {
-  const muted = useColor('ink-muted');
+// Shown only while a forwarded receipt waits (beta's receipt notice, Add Piece redline 05b): a
+// cream card on a hairline that says what Robes read, and one hairline pill into the Inbox.
+// Web twin: InboxNotice in app/src/components/wardrobe/wardrobe-header.tsx.
+export function InboxNotice({
+  receipts,
+  pieces,
+  onOpen,
+}: {
+  receipts: number;
+  pieces: number;
+  onOpen: () => void;
+}) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${copy.inboxWaiting(count)}, ${copy.segments.inbox}`}
-      onPress={onOpen}
-      testID="wardrobe-inbox-row"
-      className="mx-5 mt-3 h-[50px] flex-row items-center gap-2.5 rounded-soft border border-dashed border-rule-mid pr-3 pl-3.5"
+    <View
+      testID="wardrobe-inbox-notice"
+      className="mx-5 mt-3 flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-soft border border-hairline bg-surface py-2.5 pr-2.5 pl-4"
     >
-      <View className="size-1.5 rounded-pill bg-accent-inspire" />
-      <Text className="flex-1 text-[13px] text-ink-muted" style={{ fontFamily: fonts.sans }}>
-        {copy.inboxWaiting(count)}
+      <Text className="shrink text-[13px] text-ink-muted" style={{ fontFamily: fonts.sans }}>
+        {`${copy.inbox.notice(receipts)} · ${you.receipts.waiting(pieces)}`}
       </Text>
-      <Text className="text-xs text-ink-faint" style={{ fontFamily: fonts.sans }}>
-        {copy.segments.inbox}
-      </Text>
-      <Icon name="forward" size={16} color={muted} />
-    </Pressable>
+      <Button variant="secondary" onPress={onOpen} testID="wardrobe-inbox-review">
+        {you.receipts.review(pieces)}
+      </Button>
+    </View>
   );
 }
 

@@ -1,6 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { you } from '@robes/copy';
-import { Button, Eyebrow, Heading, Text, useToast } from '@robes/ui-native';
+import { splitAddress } from '@robes/core/inbox';
+import { Button, Eyebrow, fonts, Heading, MIN_TOUCH, Text, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -10,10 +11,11 @@ import { errorMessage } from '@/lib/errors';
 
 const copy = you.receipts;
 
-// Her forwarding address (legacy _showMailStep): the eyebrow, the heading, and the address card
-// as THE one action — a tap copies it. Replacing it and turning it off are quiet beneath, except
-// as the add flow's door (`door`), which is the card and the three steps alone (design "Add
-// Piece — Handoff"). Web twin: app/(app)/you/forward-receipts.tsx.
+// Her forwarding address (legacy _showMailStep): the eyebrow, the heading (serif 28/300, the
+// subpage size), and the address card — a rose eyebrow, the address broken only at the @, and one
+// hairline "Copy address" pill that reads "Copied" for two seconds (Add Piece redline 05).
+// Replacing it and turning it off are quiet beneath, except as the add flow's door (`door`), which
+// is the card and the three steps alone. Web twin: app/(app)/you/forward-receipts.tsx.
 export function ForwardReceipts({ door = false }: { door?: boolean }) {
   const router = useRouter();
   const toast = useToast();
@@ -44,7 +46,7 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
     try {
       await Clipboard.setStringAsync(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2200);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.show({ message: copy.copyFailed(text) });
     }
@@ -54,29 +56,36 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
   return (
     <ScrollView contentContainerClassName="gap-4 px-6 pb-12">
       <Eyebrow>{copy.eyebrow}</Eyebrow>
-      <Heading>{copy.heading}</Heading>
+      <Heading style={{ fontSize: 28 }}>{copy.heading}</Heading>
       {value ? (
         <View className="gap-4">
-          {/* The card is the action: one tap copies, and it says so for two seconds. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copied ? copy.copied : copy.copy}
-            onPress={() => void copyAddress(value)}
-            testID="inbox-address"
-            className={`min-h-11 gap-1 rounded-soft border px-4 py-3 ${copied ? 'border-selected-line bg-selected' : 'border-hairline bg-surface'}`}
-          >
-            <Text size="caption" tone="muted">
+          <View className="gap-3 rounded-soft border border-hairline bg-surface-raised px-4 py-4">
+            <Text
+              className="text-[9px] uppercase text-accent-warm"
+              style={{ fontFamily: fonts.sansMedium, letterSpacing: 2.16 }}
+            >
               {copy.addressLabel}
             </Text>
-            <Text selectable>{value}</Text>
-            <Text size="small" tone="muted">
-              {copied ? copy.copied : copy.copy}
-            </Text>
-          </Pressable>
+            <AddressLines address={value} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copied ? copy.copied : copy.copy}
+              onPress={() => void copyAddress(value)}
+              testID="inbox-address-copy"
+              hitSlop={(MIN_TOUCH - 36) / 2}
+              className="h-9 flex-row items-center self-start rounded-pill border border-rule-mid bg-surface-raised px-4"
+            >
+              <Text size="caption">{copied ? copy.copied : copy.copy}</Text>
+            </Pressable>
+          </View>
           <View className="gap-2">
             {copy.steps.map((step, i) => (
-              <View key={step} className="flex-row gap-3">
-                <Text tone="muted" size="small">
+              <View key={step} className="flex-row items-baseline gap-3">
+                <Text
+                  tone="faint"
+                  className="text-[9px]"
+                  style={{ fontFamily: fonts.sans, letterSpacing: 1.8 }}
+                >
                   {String(i + 1).padStart(2, '0')}
                 </Text>
                 <Text tone="muted" size="small" className="flex-1">
@@ -86,13 +95,21 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
             ))}
           </View>
           {waiting > 0 ? (
-            <Button
-              variant="quiet"
-              className="self-start"
-              onPress={() => router.push('/wardrobe/inbox')}
-            >
-              {`${copy.waiting(waiting)} · ${copy.review}`}
-            </Button>
+            <View className="flex-row flex-wrap items-center">
+              <Text size="small" tone="muted">
+                {`${copy.waiting(waiting)} · `}
+              </Text>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => router.push('/wardrobe/inbox')}
+                style={{ minHeight: MIN_TOUCH }}
+                className="justify-center"
+              >
+                <Text size="small" tone="muted" className="underline">
+                  {copy.review(waiting)}
+                </Text>
+              </Pressable>
+            </View>
           ) : null}
           {door ? null : (
             <>
@@ -115,5 +132,22 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
         </Button>
       ) : null}
     </ScrollView>
+  );
+}
+
+// Line one is the local part, line two "@in.…": the address only ever breaks at the @ (Inter
+// 15/400, never monospace).
+function AddressLines({ address }: { address: string }) {
+  const { local, domain } = splitAddress(address);
+  return (
+    <Text
+      selectable
+      testID="inbox-address"
+      accessibilityLabel={address}
+      className="text-[15px]"
+      style={{ fontFamily: fonts.sansRegular }}
+    >
+      {domain ? `${local}\n${domain}` : local}
+    </Text>
   );
 }

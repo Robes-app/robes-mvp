@@ -73,3 +73,31 @@ test('You shows the address with copy, new address and turn off', async ({ page 
   await section.getByRole('button', { name: 'Turn off' }).click();
   await expect(section.getByRole('button', { name: 'Get an address' })).toBeVisible();
 });
+
+test('the receipt notice opens one receipt, all ticked; the pill files what stays ticked', async ({
+  page,
+}) => {
+  await signIn(page);
+  await declineConsent(page);
+  const { address } = await (await page.request.get('/api/v1/me/inbox-address')).json();
+  expect(await forward(address)).toMatchObject({ status: 'held', items: 2 });
+
+  await page.goto('/wardrobe');
+  const notice = page.getByRole('region', { name: 'Inbox' });
+  await expect(notice).toContainText('Robes read one receipt · 2 pieces waiting');
+  await notice.getByRole('link', { name: 'Review them →' }).click();
+
+  await expect(page.getByRole('heading', { name: '2 pieces read' })).toBeVisible();
+  const scarf = page.getByRole('button', { name: /Silk scarf/ });
+  await expect(scarf).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'File 2 pieces' })).toBeVisible();
+  await scarf.click();
+  await expect(scarf).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'File 1 piece' }).click();
+  await expect(page.getByText('Forwarded receipts land here.')).toBeVisible();
+
+  const pieces = await (await page.request.get('/api/v1/wardrobe/items')).json();
+  const labels = pieces.items.map((p: { label: string }) => p.label);
+  expect(labels).toContain('Camel wool coat');
+  expect(labels).not.toContain('Silk scarf');
+});

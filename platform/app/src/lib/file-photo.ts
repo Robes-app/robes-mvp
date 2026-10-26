@@ -1,6 +1,6 @@
 'use client';
 
-import { queryKeys, useApiClient } from '@robes/api-client/react';
+import { useApiClient } from '@robes/api-client/react';
 import type { Piece } from '@robes/contracts';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { useQueryClient } from '@tanstack/react-query';
@@ -39,6 +39,12 @@ export function usePhotoFiling(): {
     if (!done) return;
     const { preview, pieceId } = filing;
     const n = attempt.current;
+    // A read that saw no piece files nothing: the placeholder is gone, so there is nothing to get.
+    if (job?.output.noItemDetected) {
+      void invalidateWardrobe(queryClient);
+      settle(n, { phase: 'none', preview });
+      return;
+    }
     void api
       .call('wardrobe.get', { params: { id: pieceId } })
       .then((piece) => {
@@ -47,7 +53,7 @@ export function usePhotoFiling(): {
           n,
           piece.status === 'ready'
             ? { phase: 'filed', preview, piece }
-            : { phase: piece.status === 'failed' ? 'none' : 'failed', preview },
+            : { phase: 'failed', preview },
         );
       })
       .catch(() => settle(n, { phase: 'failed', preview }));

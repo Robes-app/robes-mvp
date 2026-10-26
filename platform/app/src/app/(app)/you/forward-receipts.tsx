@@ -2,6 +2,7 @@
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { you } from '@robes/copy';
+import { splitAddress } from '@robes/core/inbox';
 import { Icon } from '@robes/icons/web';
 import { Button, Eyebrow, Heading, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,11 +12,12 @@ import { errorCopy } from '@/lib/error-copy';
 
 const copy = you.receipts;
 
-// Her forwarding address (legacy _showMailStep): the eyebrow, the heading, and the address card
-// as THE one action — a tap copies it. Replacing it and turning it off are quiet beneath, and
-// there is no "Open Mail": opening a blank mail read wrong. As the add flow's door (`door`), it is
-// the card and the three steps alone (design "Add Piece — Handoff"). Native twin:
-// features/you/ForwardReceipts.tsx.
+// Her forwarding address (legacy _showMailStep): the eyebrow, the heading, and the address card —
+// a rose eyebrow, the address broken only at the @, and one hairline "Copy address" pill that
+// reads "Copied" for two seconds (Add Piece redline 05). Replacing it and turning it off are
+// quiet beneath, and there is no "Open Mail": opening a blank mail read wrong. As the add flow's
+// door (`door`), it is the card and the three steps alone (design "Add Piece — Handoff"). Native
+// twin: features/you/ForwardReceipts.tsx.
 export function ForwardReceipts({ door = false }: { door?: boolean }) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -60,29 +62,24 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
       </Heading>
       {value ? (
         <>
-          {/* The card is the action: one tap copies, and it says so for two seconds. */}
-          <button
-            type="button"
-            onClick={() => void copyAddress(value)}
-            className={`flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-soft border px-4 py-3 text-left hover:border-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${copied ? 'border-selected-line bg-selected' : 'border-hairline bg-surface'}`}
-          >
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="font-sans text-ink-faint text-xs uppercase tracking-[0.18em]">
-                {copy.addressLabel}
-              </span>
-              <span className="break-all font-mono text-ink text-sm" data-testid="inbox-address">
-                {value}
-              </span>
+          <div className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised px-4 py-4">
+            <span className="font-sans text-[9px] text-accent-warm uppercase tracking-[0.24em]">
+              {copy.addressLabel}
             </span>
-            <span className="flex shrink-0 items-center gap-1.5 font-sans text-ink-muted text-sm">
+            <AddressLines address={value} />
+            <button
+              type="button"
+              onClick={() => void copyAddress(value)}
+              className="relative inline-flex h-9 items-center gap-1.5 self-start rounded-pill border border-rule-mid bg-surface-raised px-4 font-sans text-ink text-xs after:absolute after:-inset-y-1 after:inset-x-0 hover:border-border-control focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+            >
               <Icon name={copied ? 'check' : 'link'} size={14} />
-              {copied ? copy.copied : copy.copy}
-            </span>
-          </button>
+              <span aria-live="polite">{copied ? copy.copied : copy.copy}</span>
+            </button>
+          </div>
           <ol className="flex flex-col gap-2">
             {copy.steps.map((step, i) => (
-              <li key={step} className="flex gap-3">
-                <span className="font-display text-ink-faint text-sm">
+              <li key={step} className="flex items-baseline gap-3">
+                <span className="font-sans text-[9px] text-ink-faint tracking-[0.2em]">
                   {String(i + 1).padStart(2, '0')}
                 </span>
                 <Text size="small" tone="muted">
@@ -94,8 +91,8 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
           {waiting > 0 ? (
             <Text size="small" tone="muted">
               {copy.waiting(waiting)} ·{' '}
-              <Link href="/wardrobe/inbox" className="underline">
-                {copy.review}
+              <Link href="/wardrobe/inbox" className="underline underline-offset-4">
+                {copy.review(waiting)}
               </Link>
             </Text>
           ) : null}
@@ -125,5 +122,20 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
         </Text>
       )}
     </section>
+  );
+}
+
+// Line one is the local part, line two "@in.…": an address only ever breaks at the @, and a
+// very narrow screen falls back to breaking anywhere rather than overflowing.
+function AddressLines({ address }: { address: string }) {
+  const { local, domain } = splitAddress(address);
+  return (
+    <span
+      className="flex flex-col font-normal font-sans text-[15px] text-ink leading-snug [overflow-wrap:anywhere]"
+      data-testid="inbox-address"
+    >
+      <span>{local}</span>
+      {domain ? <span>{domain}</span> : null}
+    </span>
   );
 }

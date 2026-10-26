@@ -20,7 +20,7 @@ function setup(opts: { assetStatus?: string[]; output?: object; aiError?: AiErro
       assetStatus: statuses.length > 1 ? statuses.shift() : statuses[0],
     })),
     apply: vi.fn(async () => {}),
-    markFailed: vi.fn(async () => {}),
+    discard: vi.fn(async () => true),
   };
   const ledger = { record: vi.fn(async () => {}) };
   const storage = { getObject: vi.fn(async () => new Uint8Array([1, 2, 3])) };
@@ -111,14 +111,15 @@ describe('wardrobe_analyse handler', () => {
   it('gives up cleanly when the upload never becomes ready', async () => {
     const { run, pieces } = setup({ assetStatus: ['pending'] });
     await expect(run()).rejects.toMatchObject({ code: 'asset_not_ready' });
-    expect(pieces.markFailed).toHaveBeenCalled();
+    expect(pieces.discard).toHaveBeenCalledWith(USER, PIECE);
   });
 
-  it('marks a photo with no piece and ends partial', async () => {
-    const { run, pieces } = setup({ output: { no_item_detected: true } });
+  it('files nothing for a photo with no piece: the placeholder goes, and the job ends partial', async () => {
+    const { run, pieces, writeStage } = setup({ output: { no_item_detected: true } });
     await expect(run()).resolves.toEqual({ status: 'partial' });
-    expect(pieces.markFailed).toHaveBeenCalled();
+    expect(pieces.discard).toHaveBeenCalledWith(USER, PIECE);
     expect(pieces.apply).not.toHaveBeenCalled();
+    expect(writeStage).toHaveBeenCalledWith('text', { pieceId: PIECE, noItemDetected: true });
   });
 
   it('maps provider failures to short codes and keeps the ledger honest', async () => {
@@ -138,6 +139,13 @@ describe('wardrobe_analyse handler', () => {
     expect(ledger.record).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'error', costMicros: 5 }),
     );
-    expect(pieces.markFailed).toHaveBeenCalled();
+    expect(pieces.discard).toHaveBeenCalledWith(USER, PIECE);
+    expect(pieces.apply).not.toHaveBeenCalled();
+  });
+
+  it('keeps the placeholder while a cancelled read may be retried', async () => {
+    const { run, pieces } = setup({ aiError: new AiError('cancelled') });
+    await expect(run()).rejects.toBeInstanceOf(AiError);
+    expect(pieces.discard).not.toHaveBeenCalled();
   });
 });
