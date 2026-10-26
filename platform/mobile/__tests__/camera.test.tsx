@@ -1,26 +1,15 @@
 import { wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
 import { Camera } from '../src/features/wardrobe/Camera';
-import {
-  CAMERA_MODE_KEY,
-  CAPTURE_MAX,
-  captureSize,
-  downscale,
-  readMode,
-} from '../src/features/wardrobe/camera-capture';
+import { CAPTURE_MAX, captureSize, downscale } from '../src/features/wardrobe/camera-capture';
 import { mockFetch, renderWithApi } from './support/api';
-import { ASSET_ID, PIECE_ID, piece } from './support/fixtures';
-import { mockRouter } from './support/router';
+import { ASSET_ID, JOB_ID } from './support/fixtures';
+import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
-jest.mock('expo-secure-store', () => ({
-  getItemAsync: jest.fn(async () => null),
-  setItemAsync: jest.fn(async () => undefined),
-}));
 jest.mock('expo-image-picker', () => ({
   launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
   requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
@@ -77,7 +66,7 @@ beforeEach(() => {
   mockGranted = true;
   mockCanAsk = true;
   jest.clearAllMocks();
-  (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(null);
+  for (const k of Object.keys(mockParams)) delete mockParams[k];
   mockTakePicture.mockResolvedValue({
     uri: 'file:///tmp/shot.jpg',
     width: 3024,
@@ -110,11 +99,38 @@ const UPLOAD = {
     master: null,
     renditions: [],
   },
-  'POST /wardrobe/items/batch': {
-    pieces: [piece({ status: 'reading' })],
-    jobs: [{ pieceId: PIECE_ID, jobId: ASSET_ID }],
+  'POST /wardrobe/photo-reads': { jobId: JOB_ID, status: 'queued' },
+  [`GET /jobs/${JOB_ID}`]: {
+    id: JOB_ID,
+    kind: 'wardrobe_pieces',
+    status: 'succeeded',
+    stage: 'text',
+    output: { assetId: ASSET_ID, noItemDetected: false, readPieces: [readPiece(0), readPiece(1)] },
+    error: null,
+    cancelRequested: false,
+    createdAt: '2026-10-15T10:00:00.000Z',
+    updatedAt: '2026-10-15T10:00:00.000Z',
+    finishedAt: '2026-10-15T10:00:01.000Z',
   },
 };
+
+function readPiece(index: number) {
+  return {
+    index,
+    label: index ? 'Black leggings' : 'Cream tee',
+    category: index ? 'Bottoms' : 'Tops',
+    categoryL2: null,
+    categoryL3: null,
+    color: null,
+    brand: null,
+    notes: null,
+    box: { x: 0, y: 0, w: 1, h: 1 },
+    match: null,
+    cropAssetId: ASSET_ID,
+  };
+}
+
+const add = wardrobe.add;
 
 const show = () => renderWithApi(<Camera />);
 
@@ -134,71 +150,67 @@ test('downscale resizes an oversized frame to JPEG and leaves one within the cap
   const big = await downscale({ uri: 'file:///tmp/shot.jpg', width: 3024, height: 4032 });
   expect(mockResize).toHaveBeenCalledWith({ width: 1200, height: 1600 });
   expect(mockSave).toHaveBeenCalledWith({ format: 'jpeg', compress: 0.9 });
-  expect(big).toEqual({ uri: 'file:///tmp/small.jpg', mimeType: 'image/jpeg' });
+  expect(big).toEqual({
+    uri: 'file:///tmp/small.jpg',
+    mimeType: 'image/jpeg',
+    width: 1200,
+    height: 1600,
+  });
 
   mockResize.mockClear();
   const small = await downscale({ uri: 'file:///tmp/shot.jpg', width: 900, height: 1200 });
   expect(mockResize).not.toHaveBeenCalled();
-  expect(small).toEqual({ uri: 'file:///tmp/shot.jpg', mimeType: 'image/jpeg' });
+  expect(small).toEqual({
+    uri: 'file:///tmp/shot.jpg',
+    mimeType: 'image/jpeg',
+    width: 900,
+    height: 1200,
+  });
 });
 
-test('the mode is remembered per device, and anything else reads as Single', async () => {
-  (SecureStore.getItemAsync as jest.Mock).mockResolvedValue('several');
-  await expect(readMode()).resolves.toBe('several');
-  (SecureStore.getItemAsync as jest.Mock).mockResolvedValue('both');
-  await expect(readMode()).resolves.toBe('single');
-  (SecureStore.getItemAsync as jest.Mock).mockRejectedValue(new Error('no store'));
-  await expect(readMode()).resolves.toBe('single');
+test('each shot is read as it is taken; the tray counts, and Review opens on them', async () => {
+  const calls = mockFetch(UPLOAD);
+  await show();
+  const review = () => screen.getByRole('button', { name: add.shots.review });
+  // Review waits until something has been taken and read.
+  expect(review().props.accessibilityState.disabled).toBe(true);
 
-  (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(null);
+  await act(async () => {
+    await fireEvent.press(shutter());
+  });
+  await waitFor(() => expect(screen.getByText(add.shots.found(2))).toBeTruthy());
+  expect(calls.filter((c) => c.path.endsWith('/photo-reads'))).toHaveLength(1);
+  // Nothing files from the camera.
+  expect(calls.some((c) => c.path.includes('/file') || c.path.endsWith('/batch'))).toBe(false);
+
+  await fireEvent.press(review());
+  const href = mockRouter.replace.mock.calls.at(-1)?.[0] as {
+    pathname: string;
+    params: { to: string; from: string; shots: string };
+  };
+  expect(href.pathname).toBe('/wardrobe/review');
+  expect(href.params.to).toBe('wardrobe');
+  expect(JSON.parse(href.params.shots)).toEqual([
+    { uri: 'file:///tmp/small.jpg', width: 1200, height: 1600, jobId: JOB_ID },
+  ]);
+});
+
+test('where the pieces go is chosen on the camera, Mine or Wishlist', async () => {
+  mockParams.to = 'wishlist';
   mockFetch(UPLOAD);
   await show();
-  await fireEvent.press(screen.getByRole('radio', { name: copy.several }));
-  expect(SecureStore.setItemAsync).toHaveBeenCalledWith(CAMERA_MODE_KEY, 'several');
-});
-
-test('Single files its one shot and lands on the read', async () => {
-  const calls = mockFetch(UPLOAD);
-  await show();
-  await act(async () => {
-    await fireEvent.press(shutter());
-  });
-  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/piece/${PIECE_ID}?saw=1`));
-  expect(calls.filter((c) => c.path.endsWith('/batch'))).toHaveLength(1);
-  expect(calls.find((c) => c.path.endsWith('/batch'))?.body).toEqual({ assetIds: [ASSET_ID] });
-});
-
-test('Several collects, counts, and Done hands the lot to one batch', async () => {
-  (SecureStore.getItemAsync as jest.Mock).mockResolvedValue('several');
-  const calls = mockFetch(UPLOAD);
-  await show();
-  await waitFor(() => expect(screen.getByRole('radio', { name: copy.several })).toBeTruthy());
-  // Done waits until something has been taken.
-  const done = () => screen.getByRole('button', { name: copy.done });
-  expect(done().props.accessibilityState.disabled).toBe(true);
-
-  await act(async () => {
-    await fireEvent.press(shutter());
-  });
-  await act(async () => {
-    await fireEvent.press(shutter());
-  });
-  expect(screen.getByLabelText(copy.taken(2))).toBeTruthy();
-  // Nothing is filed until Done.
-  expect(calls.some((c) => c.path.endsWith('/batch'))).toBe(false);
-
-  await act(async () => {
-    await fireEvent.press(done());
-  });
-  await waitFor(() => expect(calls.filter((c) => c.path.endsWith('/batch'))).toHaveLength(1));
-  expect(calls.find((c) => c.path.endsWith('/batch'))?.body).toEqual({
-    assetIds: [ASSET_ID, ASSET_ID],
-  });
+  expect(
+    screen.getByRole('radio', { name: add.to.wishlist }).props.accessibilityState.checked,
+  ).toBe(true);
+  await fireEvent.press(screen.getByRole('radio', { name: add.shots.mine }));
+  expect(screen.getByRole('radio', { name: add.shots.mine }).props.accessibilityState.checked).toBe(
+    true,
+  );
+  expect(screen.queryByRole('radio', { name: 'Several' })).toBeNull();
 });
 
 test('closing with shots held asks first; with none it just leaves', async () => {
   const ask = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  (SecureStore.getItemAsync as jest.Mock).mockResolvedValue('several');
   mockFetch(UPLOAD);
   await show();
   const close = () => screen.getByRole('button', { name: copy.close });
@@ -231,11 +243,24 @@ test('a refused camera says so and hands over to the phone’s own', async () =>
   expect(screen.getByText(copy.unreachable)).toBeTruthy();
   (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValue({
     canceled: false,
-    assets: [{ uri: 'file:///tmp/small.jpg', mimeType: 'image/jpeg', fileSize: 2048 }],
+    assets: [
+      {
+        uri: 'file:///tmp/small.jpg',
+        mimeType: 'image/jpeg',
+        fileSize: 2048,
+        width: 9,
+        height: 12,
+      },
+    ],
   });
   await act(async () => {
     await fireEvent.press(screen.getByRole('button', { name: copy.useDevice }));
   });
   expect(ImagePicker.launchCameraAsync).toHaveBeenCalled();
-  await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/piece/${PIECE_ID}?saw=1`));
+  // The phone's own photo goes to Review like any shot.
+  await waitFor(() =>
+    expect(mockRouter.replace).toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: '/wardrobe/review' }),
+    ),
+  );
 });

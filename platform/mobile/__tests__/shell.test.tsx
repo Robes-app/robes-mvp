@@ -140,7 +140,7 @@ test('four tabs in beta order; the sparkle beside them opens Create', async () =
 
   await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
-  expect(screen.getByText(shell.create.photograph)).toBeTruthy();
+  expect(screen.getByText(wardrobe.add.doors.photograph)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: shell.create.askRobes }));
   await waitFor(() => expect(router.getPathname()).toBe('/soon'));
   expect(screen.getByText(shell.soon.title)).toBeTruthy();
@@ -177,7 +177,7 @@ test('trips are hidden by default: no Create door, and a deep link lands on Toda
   await screen.findByText(/, Niall\.$/);
   await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
-  await screen.findByText(shell.create.photograph);
+  await screen.findByText(wardrobe.add.doors.photograph);
   expect(screen.queryByText(shell.create.planTrip)).toBeNull();
 
   const deep = await app('/trip/new');

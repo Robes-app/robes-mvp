@@ -1,8 +1,25 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, test } from '@playwright/test';
+import { type APIRequestContext, expect, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, signIn } from './helpers';
 
 const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
+
+// A piece filed from a photo the quick way (the home's file-photo door uses the batch): Add
+// pieces' Review is walked in photo-pieces.spec.
+async function filePhoto(api: APIRequestContext): Promise<void> {
+  const bytes = readFileSync(PHOTO);
+  const upload = await api.post('/api/v1/uploads', {
+    data: { kind: 'wardrobe', contentType: 'image/jpeg', bytes: bytes.length },
+  });
+  const { assetId, upload: put } = await upload.json();
+  expect((await fetch(put.url, { method: 'PUT', headers: put.headers, body: bytes })).ok).toBe(
+    true,
+  );
+  expect((await api.post(`/api/v1/uploads/${assetId}/complete`)).ok()).toBe(true);
+  const batch = await api.post('/api/v1/wardrobe/items/batch', { data: { assetIds: [assetId] } });
+  expect(batch.status()).toBe(202);
+}
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
@@ -14,14 +31,8 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
     page.getByRole('heading', { name: 'Every look starts with a photograph.' }),
   ).toBeVisible();
 
-  await page.goto('/wardrobe/add');
-  await page.getByLabel(/Choose photos/).setInputFiles(PHOTO);
-  // One photo gets beta's reveal: her photo, then what Robes filed, row by row.
-  await expect(page).toHaveURL(/\/piece\/[0-9a-f-]{36}\?saw=1$/);
-  const saw = page.getByRole('region', { name: 'Here’s what Robes saw.' });
-  await expect(saw.getByText('Camel wool coat')).toBeVisible({ timeout: 30_000 });
-  await saw.getByRole('link', { name: 'Keep it' }).click();
-  await expect(page).toHaveURL(/\/wardrobe$/);
+  await filePhoto(page.request);
+  await page.reload();
   const pieces = page.getByRole('list', { name: 'Pieces' });
   // Read by the offline fake: the piece fills in without a reload.
   await expect(pieces.getByRole('heading', { name: 'Camel wool coat' })).toBeVisible({

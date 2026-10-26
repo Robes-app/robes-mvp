@@ -81,14 +81,23 @@ export function assetsRepo(db: Db) {
         .where('sourceAssetId', '=', sourceAssetId)
         .where('id', 'in', [...assetIds])
         .where('deletedAt', 'is', null)
-        .where(({ not, exists, selectFrom }) =>
+        // A crop a piece or a wish took is theirs now, whatever the caller thought was spare.
+        .where(({ not, exists, selectFrom, or }) =>
           not(
-            exists(
-              selectFrom('wardrobeItems as w')
-                .select('w.id')
-                .whereRef('w.imageAssetId', '=', 'assets.id')
-                .where('w.userId', '=', userId),
-            ),
+            or([
+              exists(
+                selectFrom('wardrobeItems as w')
+                  .select('w.id')
+                  .whereRef('w.imageAssetId', '=', 'assets.id')
+                  .where('w.userId', '=', userId),
+              ),
+              exists(
+                selectFrom('wishlistItems as l')
+                  .select('l.id')
+                  .whereRef('l.imageAssetId', '=', 'assets.id')
+                  .where('l.userId', '=', userId),
+              ),
+            ]),
           ),
         )
         .executeTakeFirst();

@@ -36,13 +36,6 @@ function withoutWish(old: unknown, id: string): unknown {
   };
 }
 
-export function useAddWish() {
-  const queryClient = useQueryClient();
-  return useApiMutation('wishlist.create', {
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') }),
-  });
-}
-
 // "I bought this": the wish becomes a piece in her wardrobe.
 export function usePromoteWish() {
   const queryClient = useQueryClient();

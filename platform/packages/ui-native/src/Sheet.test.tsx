@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { useState } from 'react';
 import { AccessibilityInfo, Pressable, Text } from 'react-native';
+import { Button, DOUBLE_PRIMARY_WARNING, PrimaryScope } from './Button';
 import { Sheet } from './Sheet';
 
 function Harness() {
@@ -49,4 +50,19 @@ test('the Android back gesture closes it', async () => {
   );
   modal?.props.onRequestClose();
   expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test('a drawer’s one filled button stands beside the screen’s', async () => {
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  await render(
+    <PrimaryScope>
+      <Button onPress={() => {}}>Add to wardrobe</Button>
+      <Sheet open onClose={() => {}} title="Brand">
+        <Button onPress={() => {}}>Save</Button>
+      </Sheet>
+    </PrimaryScope>,
+  );
+  expect(await screen.findByText('Save')).toBeTruthy();
+  expect(warn).not.toHaveBeenCalledWith(DOUBLE_PRIMARY_WARNING);
+  warn.mockRestore();
 });

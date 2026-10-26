@@ -3,126 +3,59 @@
 import { wardrobe } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
 import { Button, Dialog } from '@robes/ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { type AddDestination, isPhoto, REVIEW_MAX, type ShotSession } from '@/lib/add-flow';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 import {
   CAMERA_CONSTRAINTS,
-  CAMERA_MODE_KEY,
   CAPTURE_QUALITY,
   CAPTURE_TYPE,
-  type CameraMode,
   cameraAvailable,
   captureSize,
   FLASH_MS,
-  isCameraMode,
   shotName,
 } from './camera-capture';
 
 const copy = wardrobe.camera;
+const add = wardrobe.add;
 // A viewfinder is dark whatever the theme, so its chrome takes palette tokens, not the
 // semantic ones that flip with the ground — the focus ring with them.
 const DARK_FOCUS =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream50';
 
-function readMode(): CameraMode {
-  try {
-    const stored = window.localStorage.getItem(CAMERA_MODE_KEY);
-    if (isCameraMode(stored)) return stored;
-  } catch {
-    // Private mode or blocked storage: Single, as it would be on a first visit.
-  }
-  return 'single';
+// No camera API, or an insecure page: the OS capture input answers in the same tap.
+export function canUseCamera(): boolean {
+  return cameraAvailable(window);
 }
 
-function rememberMode(mode: CameraMode): void {
-  try {
-    window.localStorage.setItem(CAMERA_MODE_KEY, mode);
-  } catch {
-    // The pick still holds for this visit.
-  }
-}
-
-// "Take a photo" (legacy Add_Pieces 1c): the in-app camera, with the OS camera behind it when
-// the browser has none. Single files one shot; Several keeps shooting and Done files the lot.
-export function CameraDoor({
-  onShots,
-  disabled = false,
-  className,
-  children,
-}: {
-  onShots: (files: File[]) => void;
-  disabled?: boolean;
-  className?: string;
-  children?: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-  const openCamera = () => {
-    // No camera API, or an insecure page: the OS input answers inside the same tap.
-    if (cameraAvailable(window)) setOpen(true);
-    else input.current?.click();
-  };
-  return (
-    <>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={openCamera}
-        className={className ?? ''}
-        data-testid="camera-door"
-      >
-        {children ?? copy.open}
-      </button>
-      <input
-        ref={input}
-        type="file"
-        accept={PHOTO_ACCEPT}
-        capture="environment"
-        aria-label={copy.open}
-        className="sr-only"
-        tabIndex={-1}
-        onChange={(event) => {
-          const files = [...(event.target.files ?? [])];
-          event.target.value = '';
-          if (files.length > 0) onShots(files);
-        }}
-      />
-      {open ? (
-        <Camera
-          onClose={() => setOpen(false)}
-          onShots={onShots}
-          onUseDevice={() => {
-            setOpen(false);
-            input.current?.click();
-          }}
-        />
-      ) : null}
-    </>
-  );
-}
-
-interface Shot {
-  file: File;
-  url: string;
-}
-
-function Camera({
+// "Take a photo" (design "Add Piece — Handoff"): the camera in the app. Every shot is read the
+// moment it is taken — Robes counts what is in the frame, so one photo holds one piece or five —
+// and the tray says what it has found. Review opens on them; nothing files from here. Where the
+// pieces go (Mine / Wishlist) sits where Single / Several was. The last-photo thumb is the camera
+// roll. Native twin: mobile/src/features/wardrobe/Camera.tsx.
+export function Camera({
+  to,
+  onTo,
+  session,
+  onReview,
   onClose,
-  onShots,
   onUseDevice,
 }: {
+  to: AddDestination;
+  onTo: (to: AddDestination) => void;
+  session: ShotSession;
+  onReview: () => void;
   onClose: () => void;
-  onShots: (files: File[]) => void;
   onUseDevice: () => void;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
-  const [mode, setMode] = useState<CameraMode>(readMode);
-  const [shots, setShots] = useState<Shot[]>([]);
+  const rollId = useId();
   const [live, setLive] = useState(false);
   const [refused, setRefused] = useState(false);
   const [flash, setFlash] = useState(false);
   const [asking, setAsking] = useState(false);
+  const { shots } = session;
 
   const stop = useCallback(() => {
     for (const track of stream.current?.getTracks() ?? []) track.stop();
@@ -155,18 +88,13 @@ function Camera({
     };
   }, [stop]);
 
-  // Object URLs for the thumbnail only; the files themselves go on to the upload.
-  useEffect(() => {
-    return () => {
-      for (const shot of shots) URL.revokeObjectURL(shot.url);
-    };
-  }, [shots]);
-
   const leave = useCallback(() => {
     stop();
+    session.reset();
     onClose();
-  }, [onClose, stop]);
+  }, [onClose, session, stop]);
 
+  // Nothing taken is dropped without a word.
   const close = useCallback(() => {
     if (shots.length === 0) leave();
     else setAsking(true);
@@ -183,11 +111,6 @@ function Camera({
     return () => window.removeEventListener('keydown', onKey);
   }, [asking, close]);
 
-  function pickMode(next: CameraMode) {
-    setMode(next);
-    rememberMode(next);
-  }
-
   function shoot() {
     const el = video.current;
     if (!el?.videoWidth) return;
@@ -201,30 +124,30 @@ function Camera({
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
-        const file = new File([blob], shotName(Date.now()), { type: CAPTURE_TYPE });
-        // Single hands its one shot straight to the read; Several collects.
-        if (mode === 'single') {
-          leave();
-          onShots([file]);
-          return;
-        }
-        setShots((taken) => [...taken, { file, url: URL.createObjectURL(blob) }]);
+        void session.add(new File([blob], shotName(Date.now()), { type: CAPTURE_TYPE }));
       },
       CAPTURE_TYPE,
       CAPTURE_QUALITY,
     );
   }
 
-  function done() {
-    if (shots.length === 0) return;
-    const files = shots.map((shot) => shot.file);
+  function review() {
+    if (shots.length === 0 || session.reading) return;
     stop();
-    onClose();
-    onShots(files);
+    onReview();
   }
 
   const last = shots.at(-1);
-  const several = mode === 'several';
+  const canReview = shots.length > 0 && !session.reading;
+  const tray = shots.length
+    ? session.reading
+      ? add.shots.reading
+      : add.shots.found(session.found)
+    : '';
+  const destinations: [AddDestination, string][] = [
+    ['wardrobe', add.shots.mine],
+    ['wishlist', add.to.wishlist],
+  ];
   return (
     <div
       role="dialog"
@@ -238,28 +161,28 @@ function Camera({
             type="button"
             aria-label={copy.close}
             onClick={close}
-            className={`inline-flex size-11 items-center justify-center rounded-pill ${DARK_FOCUS}`}
+            className={`inline-flex size-11 items-center justify-center rounded-pill bg-cream50/12 ${DARK_FOCUS}`}
           >
             <Icon name="close" size={22} />
           </button>
           <div
             role="radiogroup"
-            aria-label={copy.mode}
-            className="inline-flex justify-self-center gap-[2px] rounded-pill bg-cream50/15 p-[3px]"
+            aria-label={add.destination}
+            className="inline-flex justify-self-center gap-[2px] rounded-pill bg-cream50/12 p-[3px]"
           >
-            {(['single', 'several'] as const).map((option) => (
+            {destinations.map(([value, label]) => (
               // biome-ignore lint/a11y/useSemanticElements: a WAI-ARIA radio group of buttons; a native radio can't take the pill segment styling.
               <button
-                key={option}
+                key={value}
                 type="button"
                 role="radio"
-                aria-checked={mode === option}
-                onClick={() => pickMode(option)}
+                aria-checked={to === value}
+                onClick={() => onTo(value)}
                 className={`h-8 min-w-[86px] rounded-pill px-3.5 font-medium font-sans text-[9.5px] uppercase tracking-[0.22em] ${
-                  mode === option ? 'bg-warm text-ink900' : 'text-cream50/75'
+                  to === value ? 'bg-cream50 text-ink900' : 'text-cream50/75'
                 } ${DARK_FOCUS}`}
               >
-                {copy[option]}
+                {label}
               </button>
             ))}
           </div>
@@ -312,43 +235,61 @@ function Camera({
             </div>
           ) : null}
         </div>
+        <p
+          aria-live="polite"
+          className="mt-3 min-h-4 text-center font-medium font-sans text-[10px] uppercase tracking-[0.16em]"
+        >
+          {tray}
+        </p>
         <div className="grid h-28 shrink-0 grid-cols-[1fr_auto_1fr] items-center">
-          {last ? (
-            <span className="relative block w-12 justify-self-start overflow-hidden rounded-[8px] border border-cream50/35">
-              {/* The last shot, so she can see what Robes has; the count says how many. */}
-              <img src={last.url} alt="" className="block h-[60px] w-12 object-cover" />
-              <span className="absolute right-[3px] bottom-[3px] min-w-[18px] rounded-pill bg-warm px-[5px] text-center font-medium font-sans text-[10px] text-ink900 leading-[18px]">
-                {shots.length}
-              </span>
-              <span className="sr-only">{copy.taken(shots.length)}</span>
+          {/* The last shot, so she can see what Robes has; a tap opens the camera roll. */}
+          <label
+            htmlFor={rollId}
+            className="relative flex h-[60px] w-12 cursor-pointer items-center justify-center justify-self-start overflow-hidden rounded-[8px] border border-cream50/75 bg-cream50/12 focus-within:outline-2 focus-within:outline-cream50 focus-within:outline-offset-2"
+          >
+            {last ? (
+              // biome-ignore lint/performance/noImgElement: a local object URL of her own photo
+              <img src={last.url} alt="" className="block size-full object-cover" />
+            ) : (
+              <Icon name="image" size={20} />
+            )}
+            <span className="sr-only">
+              {add.shots.roll}
+              {shots.length ? `, ${copy.taken(shots.length)}` : ''}
             </span>
-          ) : (
-            <span />
-          )}
+            <input
+              id={rollId}
+              type="file"
+              multiple
+              accept={PHOTO_ACCEPT}
+              className="sr-only"
+              onChange={(event) => {
+                const files = [...(event.target.files ?? [])].filter(isPhoto);
+                event.target.value = '';
+                for (const file of files.slice(0, REVIEW_MAX)) void session.add(file);
+              }}
+            />
+          </label>
           <button
             type="button"
             aria-label={copy.shutter}
             disabled={!live}
             onClick={shoot}
-            className={`group size-[74px] justify-self-center rounded-pill border-[3px] border-cream50 p-[5px] disabled:opacity-40 ${DARK_FOCUS}`}
+            className={`group size-[76px] justify-self-center rounded-pill border-[3px] border-cream50 p-[5px] disabled:opacity-40 ${DARK_FOCUS}`}
           >
             <span
               aria-hidden
               className="block size-full rounded-pill bg-cream50 motion-safe:transition-transform group-active:scale-92"
             />
           </button>
-          {several ? (
-            <button
-              type="button"
-              disabled={shots.length === 0}
-              onClick={done}
-              className={`min-h-11 justify-self-end px-1 font-medium font-sans text-[10px] uppercase tracking-[0.22em] disabled:text-cream50/35 ${DARK_FOCUS}`}
-            >
-              {copy.done}
-            </button>
-          ) : (
-            <span />
-          )}
+          <button
+            type="button"
+            disabled={!canReview}
+            onClick={review}
+            className={`min-h-11 justify-self-end px-1 font-medium font-sans text-[10px] uppercase tracking-[0.22em] disabled:text-cream50/35 ${DARK_FOCUS}`}
+          >
+            {add.shots.review}
+          </button>
         </div>
       </div>
       {/* The app's own confirm, over the camera: nothing taken is dropped without a word. */}

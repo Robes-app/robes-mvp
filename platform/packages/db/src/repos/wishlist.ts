@@ -106,6 +106,49 @@ export function wishlistRepo(db: Db) {
         .executeTakeFirstOrThrow();
     },
 
+    // Wishes kept from a photo read, each holding its piece's crop. The crop is the piece's
+    // identity: a retried filing returns the wish already holding it instead of a second one.
+    async createFromRead(
+      userId: UserId,
+      wishes: ReadonlyArray<WishFields & { label: string; category: string; imageAssetId: string }>,
+    ) {
+      if (wishes.length === 0) return [];
+      return db.transaction().execute(async (trx) => {
+        const crops = wishes.map((w) => w.imageAssetId);
+        const existing = await trx
+          .selectFrom('wishlistItems')
+          .select(WISH_COLUMNS)
+          .where('userId', '=', userId)
+          .where('imageAssetId', 'in', crops)
+          .where('deletedAt', 'is', null)
+          .execute();
+        const held = new Map(existing.map((w) => [w.imageAssetId, w]));
+        const out = [];
+        for (const wish of wishes) {
+          const kept = held.get(wish.imageAssetId);
+          if (kept) {
+            out.push(kept);
+            continue;
+          }
+          out.push(
+            await trx
+              .insertInto('wishlistItems')
+              .values({
+                // Robes' category stands unless an L2 decides it (withTaxonomy).
+                ...withTaxonomy(wish),
+                userId,
+                label: wish.label,
+                imageAssetId: wish.imageAssetId,
+                sourceType: 'photo',
+              })
+              .returning(WISH_COLUMNS)
+              .executeTakeFirstOrThrow(),
+          );
+        }
+        return out;
+      });
+    },
+
     async update(userId: UserId, id: string, fields: WishFields) {
       const values = withTaxonomy(fields);
       if (Object.keys(values).length === 0) return this.get(userId, id);

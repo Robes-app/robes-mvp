@@ -68,6 +68,11 @@ export interface ReadPieceRow {
   imageAssetId: string | null;
   // Set when she chose it on the single-piece screen.
   seasonBand?: SeasonBand | undefined;
+  // Her answers from Review's colour and material rows (undefined = Robes' read stands).
+  colourShade?: string | null | undefined;
+  colourExtra?: string[] | undefined;
+  print?: string | null | undefined;
+  material?: string | null | undefined;
 }
 
 export interface ListPiecesQuery {
@@ -212,8 +217,12 @@ export function wardrobeRepo(db: Db) {
                 category: tax?.category ?? p.category,
                 categoryL2: tax?.categoryL2 ?? null,
                 categoryL3: tax?.categoryL3 ?? null,
-                color: p.color,
-                colourShade: shadeByName(p.color)?.id ?? null,
+                color: p.colourShade ? (shade(p.colourShade)?.name ?? p.color) : p.color,
+                colourShade:
+                  p.colourShade !== undefined ? p.colourShade : (shadeByName(p.color)?.id ?? null),
+                ...(p.colourExtra !== undefined ? { colourExtra: p.colourExtra } : {}),
+                ...(p.print !== undefined ? { print: p.print } : {}),
+                ...(p.material !== undefined ? { material: p.material } : {}),
                 brand: p.brand,
                 notes: p.notes,
                 price: p.price,

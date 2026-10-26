@@ -148,6 +148,32 @@ The Colour row now shows Robes' "Check" too.
 `wardrobe.analyse` v2, colour model included) and on receipt reads; the legacy data copy
 (`scripts/migrate`) does not carry `material` yet; Refine has no material filter.
 
+## Add a piece — 2026-10-26 (design "Add Piece — Handoff")
+
+One flow, web and native together. **Add pieces** (native: a form sheet; web: `/wardrobe/add`) picks
+where the pieces go once (Wardrobe | Wishlist) and carries it through every door: Take a photo,
+Camera roll (several at once, up to 12), Paste a link, Forward a receipt, Add without a photo. The
+camera reads every shot as it is taken (Mine / Wishlist replaces Single / Several; the tray counts
+what it found; the last-photo thumb is the roll). Every photo and link lands on **Review**: the
+scan (7 steps × 380 ms; reduced motion shows it settled), one piece at a time, the record's rows
+resolving from "Reading…", any row opening its drawer, "Not this piece", one ink button that files
+and walks on, then **Filed** ("Two pieces filed."). A photo read files once all its pieces are
+answered (`photoReads.file`, now carrying every edited field and `to`); a link files through its
+Inbox entry (`inbox.decide`, then her edits). Shared logic: `@robes/core/add-flow` (scan frames,
+tags, the cover crop, the queue, the edit diff); copy: `wardrobe.add`. Twins are named in comments
+(`AddPiecesPanel`/`add-flow.tsx`, `Review`/`review.tsx`, `ScanPhoto`, `ManualAdd`, `LinkImport`).
+
+Retired: the web dropzone (`AddPieces`) and its batch-then-reveal (`?saw=1`) on both platforms, the
+separate "Several pieces in one photo" screen (web `/wardrobe/add/photo`, native
+`/wardrobe/pieces`), the wishlist's inline name form (wishes come in through Add pieces on the
+Wishlist), and the "On its way" receipt door (Create's receipt row is the real door now).
+
+**Not carried over, flagged:** Review offers add or skip; the old screen's "Already yours?" (file a
+read piece as a duplicate of one she owns, giving it the crop as its photo) is not on Review — the
+API's `owned` answer stays for it. Native picks from the camera roll with the OS picker; the web
+roll is a file input. The e2e specs were rewritten for the flow but not run in this container (no
+MinIO); the unit, DB and native suites and `next build` pass.
+
 ## Flakes to watch
 
 - `wardrobe-ui` wishlist Undo under heavy parallel load (seen once, not reproduced).

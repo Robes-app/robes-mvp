@@ -105,7 +105,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 |---|---|
 | `GET /wardrobe/items` (filters incl. `colourFamily`) · `POST` · `PATCH /:id` (incl. `colourShade` / `colourExtra` / `print` / `material`) · `DELETE /:id` (soft, undoable) · `POST /:id/restore` | client REST `wardrobe_items` |
 | `POST /wardrobe/items/batch` (N uploaded assets → N draft items + analyse jobs) | — (new: batch capture) |
-| `POST /wardrobe/photo-reads` (one photo → `wardrobe_pieces` job: every piece, its box, crop and match) · `POST /:id/file` (each answered piece filed once) · `POST /:id/look` (new pieces filed, then a look with the photo as its record, optional wear) | `POST /api/wardrobe/pieces` + client writes |
+| `POST /wardrobe/photo-reads` (one photo → `wardrobe_pieces` job: every piece, its box, crop and match) · `POST /:id/file` (each answered piece filed once, with her edits on any field; `to: 'wardrobe' \| 'wishlist'`, default wardrobe — a wishlist filing takes `add`/`skip` only and is idempotent on the crop) · `POST /:id/look` (new pieces filed, then a look with the photo as its record, optional wear) | `POST /api/wardrobe/pieces` + client writes |
 | `GET /wardrobe/summary` (piece counts per category, for the tabs) | — |
 | `POST /wardrobe/analyse` Job | `/api/wardrobe/analyse` |
 | `POST /wardrobe/import-link` Job (fetch worker) | `/api/wardrobe/read-url` |

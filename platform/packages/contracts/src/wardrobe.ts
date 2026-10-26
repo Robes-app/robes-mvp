@@ -78,6 +78,25 @@ export const Piece = z.object({
 });
 export type Piece = z.infer<typeof Piece>;
 
+// What a piece's rows and field drawers read: a filed piece, or Review's draft of one not yet
+// filed (whose season stays unset until she answers it).
+export type PieceValues = Pick<
+  Piece,
+  | 'label'
+  | 'brand'
+  | 'notes'
+  | 'categoryL2'
+  | 'categoryL3'
+  | 'colourShade'
+  | 'colourExtra'
+  | 'print'
+  | 'material'
+  | 'wearFor'
+  | 'size'
+  | 'price'
+  | 'currency'
+> & { seasonBand: z.infer<typeof SeasonBand> | null };
+
 export const PieceParams = z.object({ id: z.uuid() });
 
 // A piece's own record: the days it was on her, and the look she wore it in. A wear is

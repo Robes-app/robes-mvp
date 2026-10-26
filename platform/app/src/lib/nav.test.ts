@@ -21,6 +21,17 @@ describe('nav', () => {
     expect(new Set(GO_TO_ITEMS.map((i) => i.href)).size).toBe(GO_TO_ITEMS.length);
   });
 
+  it('puts the Add pieces sheet’s doors in Create, every one built', () => {
+    const add = CREATE_ITEMS.filter((i) => i.group === 'add');
+    expect(add.map((i) => i.href)).toEqual([
+      '/wardrobe/add?start=camera',
+      '/wardrobe/add',
+      '/wardrobe/link',
+      '/wardrobe/receipt',
+      '/wardrobe/manual',
+    ]);
+  });
+
   it('drops the trip door while trips are hidden', () => {
     expect(createItems({ trips: false }).map((i) => i.id)).not.toContain('trip');
     expect(createItems({ trips: true }).map((i) => i.id)).toContain('trip');

@@ -36,6 +36,8 @@ test('every shell route renders its heading', async ({ page }) => {
     ['/wardrobe/wishlist', 'Wardrobe'],
     ['/wardrobe/inbox', 'Inbox'],
     ['/wardrobe/add', 'Add pieces'],
+    ['/wardrobe/link', 'Add from a shop page.'],
+    ['/wardrobe/manual', 'Add a piece.'],
     ['/looks', 'Lookbook'],
     ['/looks/ideas', 'Lookbook'],
     ['/looks/style', 'Which piece?'],
@@ -79,15 +81,16 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
   // Two groups: pieces in, then the stylist.
   await expect(sheet.getByRole('region')).toHaveText([/^Add pieces/, /^Dress/]);
   expect(options).toEqual([
-    'Photograph pieces',
-    'From camera roll',
+    'Take a photo',
+    'Camera roll',
     'Paste a link',
     'Forward a receipt',
+    'Add without a photo',
     'Style a piece',
     'New look',
     'Ask Robes',
   ]);
-  await sheet.getByRole('link', { name: 'Forward a receipt' }).click();
+  await sheet.getByRole('link', { name: 'Ask Robes' }).click();
   await expect(page.getByRole('heading', { name: 'On its way.' })).toBeVisible();
 });
 
@@ -102,6 +105,9 @@ test('P0 routes have no serious accessibility violations', async ({ page }) => {
     '/',
     '/wardrobe',
     '/wardrobe/add',
+    '/wardrobe/link',
+    '/wardrobe/receipt',
+    '/wardrobe/manual',
     '/looks',
     '/looks/ideas',
     '/looks/style',

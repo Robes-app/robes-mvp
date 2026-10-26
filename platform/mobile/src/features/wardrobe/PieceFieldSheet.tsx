@@ -1,4 +1,4 @@
-import { type Piece, SeasonBand, type UpdatePieceInput } from '@robes/contracts';
+import { type PieceValues, SeasonBand, type UpdatePieceInput } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import type { PieceColour } from '@robes/core/colour';
 import {
@@ -47,7 +47,7 @@ const TITLES: Record<PieceField, string> = {
   notes: copy.rows.notes,
 };
 
-const colourOf = (p: Piece): PieceColour => ({
+const colourOf = (p: PieceValues): PieceColour => ({
   colourShade: p.colourShade,
   colourExtra: p.colourExtra,
   print: p.print,
@@ -64,7 +64,7 @@ export function PieceFieldSheet({
   onSave,
   saving,
 }: {
-  piece: Piece;
+  piece: PieceValues;
   field: PieceField | null;
   onClose: () => void;
   onSave: (input: UpdatePieceInput) => void;
@@ -198,7 +198,7 @@ function CategoryPicker({
   piece,
   onPick,
 }: {
-  piece: Piece;
+  piece: PieceValues;
   onPick: (input: UpdatePieceInput) => void;
 }) {
   const [sheetL1, setSheetL1] = useState<string | null>(
@@ -267,7 +267,7 @@ function WearForPicker({
   piece,
   onPick,
 }: {
-  piece: Piece;
+  piece: PieceValues;
   onPick: (input: UpdatePieceInput) => void;
 }) {
   const [own, setOwn] = useState('');

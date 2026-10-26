@@ -115,4 +115,42 @@ describe('photo reads', () => {
     expect(await repos.assets.getForUser(ann, spare)).toBeUndefined();
     expect(await repos.assets.getForUser(ann, used)).toBeDefined();
   });
+
+  it("carries her colour and material answers, else Robes' colour word decides the shade", async () => {
+    const src = await photo(ann);
+    const [answered, read0] = [
+      await photoReads.createCrop(ann, src.id, { x: 0, y: 0, w: 1, h: 1 }),
+      await photoReads.createCrop(ann, src.id, { x: 0, y: 0, w: 1, h: 1 }),
+    ];
+    const filed = await repos.wardrobe.createFromRead(ann, src.id, [
+      read(0, answered, {
+        colourShade: 'navy',
+        colourExtra: ['ivory'],
+        print: 'stripes',
+        material: 'cotton',
+      }),
+      read(1, read0),
+    ]);
+    expect(filed.find((p) => p.sourceIndex === 0)).toMatchObject({
+      colourShade: 'navy',
+      color: 'Navy',
+      colourExtra: ['ivory'],
+      print: 'stripes',
+      material: 'cotton',
+    });
+    expect(filed.find((p) => p.sourceIndex === 1)?.colourShade).not.toBeNull();
+  });
+
+  it('keeps a piece to the wish list once, with its crop, and never discards that crop', async () => {
+    const src = await photo(ann);
+    const crop = await photoReads.createCrop(ann, src.id, { x: 0, y: 0, w: 1, h: 1 });
+    const wish = { label: 'Black leggings', category: 'Bottoms', imageAssetId: crop, note: 'Soft' };
+    const first = await repos.wishlist.createFromRead(ann, [wish]);
+    const again = await repos.wishlist.createFromRead(ann, [wish]);
+    expect(again.map((w) => w.id)).toEqual(first.map((w) => w.id));
+    expect(first[0]).toMatchObject({ category: 'Bottoms', note: 'Soft', sourceType: 'photo' });
+    expect(await repos.assets.discardCrops(ann, src.id, [crop])).toBe(0);
+    // Her crop never makes someone else's wish (the composite FK keeps it on its owner).
+    await expect(repos.wishlist.createFromRead(bea, [wish])).rejects.toThrow();
+  });
 });

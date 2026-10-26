@@ -38,6 +38,16 @@ export default function RootLayout() {
           <ToastProvider>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="create" options={{ presentation: 'modal' }} />
+              {/* The Add pieces sheet pulls up from the bottom edge with its grab bar. */}
+              <Stack.Screen
+                name="wardrobe/add"
+                options={{
+                  presentation: 'formSheet',
+                  sheetGrabberVisible: true,
+                  sheetAllowedDetents: [0.72, 1],
+                  sheetCornerRadius: 22,
+                }}
+              />
             </Stack>
           </ToastProvider>
         </View>

@@ -4,8 +4,6 @@ import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Piece, UpdatePieceInput } from '@robes/contracts';
 import { lookbook, wardrobe } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
-import { type PieceColour, pattern, shade } from '@robes/core/colour';
-import { material } from '@robes/core/material';
 import { Icon } from '@robes/icons/web';
 import {
   Button,
@@ -22,11 +20,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { SuggestedRail } from '@/components/looks/suggested-rail';
-import { colourSummary, ShadeSwatch } from '@/components/wardrobe/colour-field';
 import { StarButton } from '@/components/wardrobe/piece-card';
 import { type PieceField, PieceFieldSheet } from '@/components/wardrobe/piece-field-sheet';
 import { PieceImage } from '@/components/wardrobe/piece-image';
-import { PieceRow, PieceSection } from '@/components/wardrobe/piece-rows';
+import { RecordRows } from '@/components/wardrobe/piece-rows';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { useStarPiece } from '@/components/wardrobe/use-star-piece';
 import { errorCopy } from '@/lib/error-copy';
@@ -35,25 +32,10 @@ import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 const copy = wardrobe.piece;
 const READING_REFRESH_MS = 2000;
 
-const colourOf = (p: Piece): PieceColour => ({
-  colourShade: p.colourShade,
-  colourExtra: p.colourExtra,
-  print: p.print,
-});
-
-const money = (price: number | null, currency: string | null): string | null =>
-  price === null
-    ? null
-    : new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: currency ?? 'EUR',
-        maximumFractionDigits: 0,
-      }).format(price);
-
 // The record (legacy Piece_Sheet 01): the photograph, her name for it with the pencil on it, the
 // facts she has given, then the days she wore it. Every fact is a row that opens its own drawer —
 // there is no form, so what the title says and what a row says can never disagree.
-export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) {
+export function PieceDetail({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const star = useStarPiece();
@@ -90,8 +72,6 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
 
   const save = (input: UpdatePieceInput) => update.mutate({ params: { id }, input });
   const ready = piece.status === 'ready';
-  const mainShade = shade(piece.colourShade);
-  const extras = piece.colourExtra.map((x) => shade(x)?.name).filter(Boolean) as string[];
 
   return (
     <article className="mx-auto flex w-full max-w-xl flex-col gap-6">
@@ -135,7 +115,6 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
         {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
       </header>
 
-      {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
       {ready ? <Stats piece={piece} /> : null}
 
       <div className="flex flex-wrap items-center gap-3">
@@ -158,69 +137,7 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
       </div>
       {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
 
-      <PieceSection title={copy.sections.piece}>
-        <PieceRow
-          label={copy.rows.category}
-          value={[piece.categoryL2 ?? piece.category, piece.categoryL3].filter(Boolean).join(' · ')}
-          onClick={() => setField('category')}
-        />
-        <PieceRow label={copy.brand} value={piece.brand} onClick={() => setField('brand')} />
-      </PieceSection>
-
-      <PieceSection title={copy.sections.colour}>
-        <PieceRow
-          label={copy.rows.colour}
-          value={mainShade?.name ?? null}
-          swatch={mainShade ? <ShadeSwatch shade={mainShade} size={18} /> : undefined}
-          check={piece.colourCheck ? wardrobe.colour.check : undefined}
-          onClick={() => setField('colour')}
-        />
-        <PieceRow
-          label={copy.rows.extra}
-          value={extras.join(' · ')}
-          onClick={() => setField('extra')}
-        />
-        <PieceRow
-          label={copy.rows.print}
-          value={pattern(piece.print)?.name ?? wardrobe.colour.plain}
-          onClick={() => setField('print')}
-        />
-        <PieceRow
-          label={copy.rows.material}
-          value={material(piece.material)?.name ?? null}
-          check={piece.materialCheck ? wardrobe.material.check : undefined}
-          onClick={() => setField('material')}
-        />
-      </PieceSection>
-
-      <PieceSection title={copy.sections.wearing}>
-        <PieceRow
-          label={copy.rows.season}
-          value={wardrobe.filter.seasons[piece.seasonBand]}
-          onClick={() => setField('season')}
-        />
-        <PieceRow
-          label={copy.rows.wearFor}
-          value={piece.wearFor.join(' · ')}
-          onClick={() => setField('wearFor')}
-        />
-      </PieceSection>
-
-      <PieceSection title={copy.sections.fit}>
-        <PieceRow label={copy.rows.size} value={piece.size} onClick={() => setField('size')} />
-        <PieceRow
-          label={copy.rows.price}
-          value={money(piece.price, piece.currency)}
-          onClick={() => setField('price')}
-        />
-        <PieceRow label={copy.rows.notes} value={null} onClick={() => setField('notes')}>
-          {piece.notes ? (
-            <Text size="small" tone="muted" italic className="pr-6">
-              {piece.notes}
-            </Text>
-          ) : null}
-        </PieceRow>
-      </PieceSection>
+      <RecordRows values={piece} onField={setField} />
 
       <Wears pieceId={id} />
       <SuggestedRail pieceId={id} />
@@ -312,56 +229,6 @@ function Wears({ pieceId }: { pieceId: string }) {
             </Text>
           ) : null}
         </>
-      )}
-    </section>
-  );
-}
-
-// Beta's reveal: what Robes filed, row by row, once it has read the piece; the rows above adjust.
-function Saw({ piece }: { piece: Piece }) {
-  const rows: [string, string | null][] = [
-    [wardrobe.saw.rows.piece, piece.label],
-    [wardrobe.saw.rows.category, [piece.category, piece.categoryL2].filter(Boolean).join(' · ')],
-    [wardrobe.saw.rows.colour, colourSummary(colourOf(piece)) || piece.color],
-    [wardrobe.saw.rows.brand, piece.brand],
-  ];
-  return (
-    <section aria-labelledby="saw-title" className="flex flex-col gap-3">
-      <h2 id="saw-title" className="font-display font-light text-3xl text-ink">
-        {wardrobe.saw.title}
-      </h2>
-      {piece.status === 'ready' ? (
-        <>
-          <dl className="flex flex-col divide-y divide-hairline border-hairline border-y">
-            {rows.map(([k, v]) => (
-              <div key={k} className="flex items-baseline gap-3 py-2">
-                <dt className="flex-1 font-medium font-sans text-ink-muted text-xs uppercase tracking-[0.2em]">
-                  {k}
-                </dt>
-                <dd
-                  className={
-                    v ? 'font-sans text-ink text-sm' : 'font-display text-ink-faint text-lg italic'
-                  }
-                >
-                  {v || wardrobe.saw.unread}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href="/wardrobe" className={buttonClasses({ variant: 'secondary' })}>
-              {wardrobe.saw.keep}
-              <Icon name="forward" size={16} />
-            </Link>
-            <Text size="small" tone="muted" italic>
-              {wardrobe.saw.adjust}
-            </Text>
-          </div>
-        </>
-      ) : (
-        <Text role="status" size="small" tone="muted" italic>
-          {wardrobe.saw.reading}
-        </Text>
       )}
     </section>
   );

@@ -5,14 +5,17 @@ import { fonts, MIN_TOUCH, maxFontSizeMultiplier, useToast } from '@robes/ui-nat
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { addedHref, PICKER_OPTIONS, type PickedPhoto, useAddPieces } from './add-pieces';
-import { CAMERA_MODES, type CameraMode, downscale, readMode, rememberMode } from './camera-capture';
+import { type AddDestination, destinationOf, pickFromRoll, reviewHref } from './add/flow';
+import { useShotSession } from './add/reads';
+import { PICKER_OPTIONS } from './add-pieces';
+import { downscale } from './camera-capture';
 
 const copy = wardrobe.camera;
+const add = wardrobe.add;
 // A viewfinder is dark whatever the theme, so its chrome takes palette tokens, not the semantic
 // ones that flip with the ground (the web camera takes the same decision).
 const CHROME = palette.cream50;
@@ -26,25 +29,23 @@ const LABEL = {
   textTransform: 'uppercase',
 } as const;
 
-// "Take a photo" (legacy bc56305): the camera in the app rather than the OS one. Single files its
-// one shot straight into the read; Several keeps shooting and Done hands the lot to the batch.
+// "Take a photo" (design "Add Piece — Handoff"): the camera in the app. Every shot is read the
+// moment it is taken — Robes counts what is in the frame, so one photo holds one piece or five —
+// and the tray says what it has found. Review opens on them; nothing files from here. Where the
+// pieces go (Mine / Wishlist) sits where Single / Several was. Web twin: components/wardrobe/camera.
 export function Camera() {
   const router = useRouter();
   const toast = useToast();
   const insets = useSafeAreaInsets();
-  const { file, busy } = useAddPieces();
+  const params = useLocalSearchParams<{ to?: string }>();
   const camera = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const [mode, setMode] = useState<CameraMode>('single');
-  const [shots, setShots] = useState<PickedPhoto[]>([]);
+  const [to, setTo] = useState<AddDestination>(() => destinationOf(params.to));
   const [ready, setReady] = useState(false);
+  const [shooting, setShooting] = useState(false);
+  const session = useShotSession();
+  const { shots } = session;
   const asked = useRef(false);
-
-  useEffect(() => {
-    // shortcut: `camera_opened { mode }` isn't in the @robes/analytics catalogue yet, and
-    // packages/ are outside this change — add it there and capture it here.
-    void readMode().then(setMode);
-  }, []);
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain && !asked.current) {
@@ -58,43 +59,39 @@ export function Camera() {
     else router.replace('/wardrobe');
   }, [router]);
 
-  // The one filing path: the batch reads one piece after another, as the photo library's does.
-  const send = useCallback(
-    async (photos: PickedPhoto[]) => {
-      // shortcut: `camera_filed { mode, n }` isn't in the @robes/analytics catalogue yet, and
-      // packages/ are outside this change — add it there and capture it here.
-      const result = await file(photos);
-      if (result.status === 'added') {
-        router.replace(addedHref(result.ids));
-        return;
-      }
-      if (result.status !== 'cancelled') toast.show({ message: result.message });
-      leave();
-    },
-    [file, leave, router, toast],
-  );
-
-  function pickMode(next: CameraMode) {
-    setMode(next);
-    rememberMode(next);
-  }
+  const review = () => {
+    if (shots.length === 0 || session.reading) return;
+    router.replace(
+      reviewHref({
+        to,
+        from: 'camera',
+        shots: shots.flatMap((s) =>
+          s.jobId ? [{ uri: s.uri, width: s.width, height: s.height, jobId: s.jobId }] : [],
+        ),
+      }),
+    );
+  };
 
   async function shoot() {
-    let photo: PickedPhoto;
+    setShooting(true);
     try {
       const shot = await camera.current?.takePictureAsync({ exif: false });
-      if (!shot) return;
-      photo = await downscale(shot);
+      if (shot) void session.add(await downscale(shot));
     } catch {
       toast.show({ message: wardrobe.addFailed });
+    } finally {
+      setShooting(false);
+    }
+  }
+
+  // The last-photo thumb is the way to the camera roll; picks join this session's shots.
+  async function roll() {
+    const picked = await pickFromRoll();
+    if (picked === 'denied') {
+      toast.show({ message: wardrobe.photosDenied });
       return;
     }
-    // Single hands its one shot straight to the read; Several collects.
-    if (mode === 'single') {
-      void send([photo]);
-      return;
-    }
-    setShots((taken) => [...taken, photo]);
+    for (const photo of picked ?? []) void session.add(photo);
   }
 
   // Nothing taken is dropped without a word.
@@ -109,7 +106,7 @@ export function Camera() {
     ]);
   }
 
-  // A refused camera still has the OS one behind it.
+  // A refused camera still has the OS one behind it; its photo goes to Review like any shot.
   async function openOsCamera() {
     const result = await ImagePicker.launchCameraAsync(PICKER_OPTIONS).catch(() => null);
     if (!result) {
@@ -120,55 +117,123 @@ export function Camera() {
       leave();
       return;
     }
-    void send(result.assets);
+    router.replace(
+      reviewHref({
+        to,
+        from: 'camera',
+        shots: result.assets.map((a) => ({ uri: a.uri, width: a.width, height: a.height })),
+      }),
+    );
   }
 
   // The hook answers undefined before it has read the status, not just null.
   const refused = !!permission && !permission.granted && !permission.canAskAgain;
   const last = shots.at(-1);
-  const several = mode === 'several';
+  const canReview = shots.length > 0 && !session.reading;
+  const tray = shots.length
+    ? session.reading
+      ? add.shots.reading
+      : add.shots.found(session.found)
+    : '';
+  const destinations: [AddDestination, string][] = [
+    ['wardrobe', add.shots.mine],
+    ['wishlist', add.to.wishlist],
+  ];
   return (
     <View
       accessibilityViewIsModal
       accessibilityLabel={copy.title}
-      style={{
-        flex: 1,
-        backgroundColor: palette.ink900,
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-      }}
+      style={{ flex: 1, backgroundColor: palette.ink900 }}
     >
-      <View className="mx-auto w-full max-w-[520px] flex-1 px-4 pt-2 pb-3">
+      {/* Full bleed: the live view runs edge to edge, the chrome floats over it. */}
+      {permission?.granted ? (
+        <CameraView
+          ref={camera}
+          facing="back"
+          mode="picture"
+          onCameraReady={() => setReady(true)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+      ) : null}
+      {[
+        { top: insets.top + 84, left: 28, borderTopWidth: 1.5, borderLeftWidth: 1.5 },
+        { top: insets.top + 84, right: 28, borderTopWidth: 1.5, borderRightWidth: 1.5 },
+        { bottom: insets.bottom + 170, left: 28, borderBottomWidth: 1.5, borderLeftWidth: 1.5 },
+        { bottom: insets.bottom + 170, right: 28, borderBottomWidth: 1.5, borderRightWidth: 1.5 },
+      ].map((corner, i) => (
+        <View
+          // biome-ignore lint/suspicious/noArrayIndexKey: four fixed framing marks.
+          key={i}
+          aria-hidden
+          pointerEvents="none"
+          style={{ position: 'absolute', width: 26, height: 26, borderColor: MARK, ...corner }}
+        />
+      ))}
+      {refused ? (
+        <View
+          style={{ backgroundColor: palette.ink900 }}
+          className="absolute inset-0 items-center justify-center gap-4 p-6"
+        >
+          <Text
+            accessibilityRole="alert"
+            maxFontSizeMultiplier={maxFontSizeMultiplier.heading}
+            style={{ fontFamily: fonts.displayItalic, fontSize: 20, color: CHROME }}
+            className="text-center"
+          >
+            {copy.unreachable}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.useDevice}
+            onPress={() => void openOsCamera()}
+            style={{ minHeight: MIN_TOUCH, borderColor: MARK }}
+            className="items-center justify-center rounded-pill border px-5"
+          >
+            <Text
+              maxFontSizeMultiplier={maxFontSizeMultiplier.control}
+              style={{ ...LABEL, color: CHROME }}
+            >
+              {copy.useDevice}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <View
+        pointerEvents="box-none"
+        style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }}
+        className="mx-auto w-full max-w-[520px] justify-between px-4 pt-2 pb-3"
+      >
         <View className="h-14 flex-row items-center justify-between">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={copy.close}
             onPress={close}
-            style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
+            style={{ width: MIN_TOUCH, height: MIN_TOUCH, backgroundColor: SUNK }}
             className="items-center justify-center rounded-pill"
           >
             <Icon name="close" size={22} color={CHROME} />
           </Pressable>
           <View
             accessibilityRole="radiogroup"
-            accessibilityLabel={copy.mode}
+            accessibilityLabel={add.destination}
             style={{ backgroundColor: SUNK }}
             className="flex-row gap-[2px] rounded-pill p-[3px]"
           >
-            {CAMERA_MODES.map((option) => {
-              const on = mode === option;
+            {destinations.map(([value, label]) => {
+              const on = to === value;
               return (
                 <Pressable
-                  key={option}
+                  key={value}
                   accessibilityRole="radio"
-                  accessibilityLabel={copy[option]}
+                  accessibilityLabel={label}
                   accessibilityState={{ checked: on }}
-                  onPress={() => pickMode(option)}
+                  onPress={() => setTo(value)}
                   hitSlop={{ top: 6, bottom: 6 }}
                   style={{
                     minWidth: 86,
                     height: 32,
-                    backgroundColor: on ? palette.white : undefined,
+                    backgroundColor: on ? CHROME : undefined,
                   }}
                   className="items-center justify-center rounded-pill px-3"
                 >
@@ -176,7 +241,7 @@ export function Camera() {
                     maxFontSizeMultiplier={maxFontSizeMultiplier.control}
                     style={{ ...LABEL, fontSize: 9.5, color: on ? palette.ink : MARK }}
                   >
-                    {copy[option]}
+                    {label}
                   </Text>
                 </Pressable>
               );
@@ -184,127 +249,63 @@ export function Camera() {
           </View>
           <View style={{ width: MIN_TOUCH }} />
         </View>
-        <View className="mt-2 flex-1 overflow-hidden rounded-soft">
-          {permission?.granted ? (
-            <CameraView
-              ref={camera}
-              facing="back"
-              mode="picture"
-              // Released while the shots upload, so the preview isn't held open for nothing.
-              active={!busy}
-              onCameraReady={() => setReady(true)}
-              style={{ flex: 1 }}
-            />
-          ) : null}
-          {[
-            { top: 18, left: 18, borderTopWidth: 1.5, borderLeftWidth: 1.5 },
-            { top: 18, right: 18, borderTopWidth: 1.5, borderRightWidth: 1.5 },
-            { bottom: 18, left: 18, borderBottomWidth: 1.5, borderLeftWidth: 1.5 },
-            { bottom: 18, right: 18, borderBottomWidth: 1.5, borderRightWidth: 1.5 },
-          ].map((corner, i) => (
-            <View
-              // biome-ignore lint/suspicious/noArrayIndexKey: four fixed framing marks.
-              key={i}
-              aria-hidden
-              pointerEvents="none"
-              style={{ position: 'absolute', width: 26, height: 26, borderColor: MARK, ...corner }}
-            />
-          ))}
-          {refused ? (
-            <View
-              style={{ backgroundColor: palette.ink900 }}
-              className="absolute inset-0 items-center justify-center gap-4 p-6"
+
+        <View pointerEvents="box-none" className="gap-3">
+          <Text
+            accessibilityLiveRegion="polite"
+            maxFontSizeMultiplier={maxFontSizeMultiplier.control}
+            style={{ ...LABEL, letterSpacing: 1.6, color: CHROME, minHeight: 16 }}
+            className="text-center"
+          >
+            {tray}
+          </Text>
+          <View className="h-28 flex-row items-center justify-between">
+            {/* The last shot, so she can see what Robes has; a tap opens the camera roll. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={add.shots.roll}
+              onPress={() => void roll()}
+              style={{ borderColor: MARK, backgroundColor: SUNK }}
+              className="h-[60px] w-12 items-center justify-center overflow-hidden rounded-[8px] border"
+            >
+              {last ? (
+                <Image
+                  source={{ uri: last.uri }}
+                  contentFit="cover"
+                  style={{ width: '100%', height: '100%' }}
+                />
+              ) : (
+                <Icon name="image" size={20} color={CHROME} />
+              )}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copy.shutter}
+              accessibilityState={{ disabled: !ready || shooting }}
+              disabled={!ready || shooting}
+              onPress={shoot}
+              testID="camera-shutter"
+              style={{ borderColor: CHROME, opacity: ready && !shooting ? 1 : 0.4 }}
+              className="size-[76px] rounded-pill border-[3px] p-[5px]"
+            >
+              <View style={{ backgroundColor: CHROME }} className="flex-1 rounded-pill" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={add.shots.review}
+              accessibilityState={{ disabled: !canReview }}
+              disabled={!canReview}
+              onPress={review}
+              style={{ minHeight: MIN_TOUCH, minWidth: 48 }}
+              className="items-end justify-center px-1"
             >
               <Text
-                accessibilityRole="alert"
-                maxFontSizeMultiplier={maxFontSizeMultiplier.heading}
-                style={{ fontFamily: fonts.displayItalic, fontSize: 20, color: CHROME }}
-                className="text-center"
+                maxFontSizeMultiplier={maxFontSizeMultiplier.control}
+                style={{ ...LABEL, color: canReview ? CHROME : FAINT }}
               >
-                {copy.unreachable}
+                {add.shots.review}
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={copy.useDevice}
-                onPress={() => void openOsCamera()}
-                style={{ minHeight: MIN_TOUCH, borderColor: MARK }}
-                className="items-center justify-center rounded-pill border px-5"
-              >
-                <Text
-                  maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-                  style={{ ...LABEL, color: CHROME }}
-                >
-                  {copy.useDevice}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-          {busy ? (
-            <View
-              style={{ backgroundColor: `${palette.ink900}CC` }}
-              className="absolute inset-0 items-center justify-center"
-            >
-              <ActivityIndicator color={CHROME} />
-            </View>
-          ) : null}
-        </View>
-        <View className="h-28 flex-row items-center justify-between">
-          <View className="w-12">
-            {last ? (
-              // The last shot, so she can see what Robes has; the count says how many.
-              <View
-                accessible
-                accessibilityLabel={copy.taken(shots.length)}
-                style={{ borderColor: MARK }}
-                className="h-[60px] w-12 overflow-hidden rounded-[8px] border"
-              >
-                <Image source={{ uri: last.uri }} contentFit="cover" style={{ flex: 1 }} />
-                <Text
-                  maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-                  style={{
-                    ...LABEL,
-                    letterSpacing: 0,
-                    color: palette.ink,
-                    backgroundColor: palette.white,
-                  }}
-                  className="absolute right-[3px] bottom-[3px] min-w-[18px] rounded-pill px-[5px] text-center leading-[18px]"
-                >
-                  {shots.length}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.shutter}
-            accessibilityState={{ disabled: !ready || busy }}
-            disabled={!ready || busy}
-            onPress={shoot}
-            testID="camera-shutter"
-            style={{ borderColor: CHROME, opacity: ready && !busy ? 1 : 0.4 }}
-            className="size-[74px] rounded-pill border-[3px] p-[5px]"
-          >
-            <View style={{ backgroundColor: CHROME }} className="flex-1 rounded-pill" />
-          </Pressable>
-          <View className="w-12 items-end">
-            {several ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={copy.done}
-                accessibilityState={{ disabled: shots.length === 0 || busy }}
-                disabled={shots.length === 0 || busy}
-                onPress={() => void send(shots)}
-                style={{ minHeight: MIN_TOUCH }}
-                className="justify-center px-1"
-              >
-                <Text
-                  maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-                  style={{ ...LABEL, color: shots.length === 0 ? FAINT : CHROME }}
-                >
-                  {copy.done}
-                </Text>
-              </Pressable>
-            ) : null}
+            </Pressable>
           </View>
         </View>
       </View>

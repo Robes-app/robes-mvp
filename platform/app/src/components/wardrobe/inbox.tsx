@@ -110,7 +110,7 @@ export function Inbox() {
         body={wardrobe.inboxEmpty.body}
         action={
           <Link href="/wardrobe/link" className="underline underline-offset-4">
-            {wardrobe.link.eyebrow}
+            {wardrobe.add.doors.link}
           </Link>
         }
       />

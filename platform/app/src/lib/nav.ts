@@ -17,7 +17,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/wardrobe', label: nav.wardrobe, icon: 'wardrobe' },
 ];
 
-export const SOON_SLUGS = ['receipt', 'ask'] as const;
+export const SOON_SLUGS = ['ask'] as const;
 export type SoonSlug = (typeof SOON_SLUGS)[number];
 
 export type CreateGroup = 'add' | 'dress';
@@ -28,32 +28,46 @@ export interface CreateItem extends NavItem {
   keywords?: string;
 }
 
-// The Create sheet (IA §3.2), grouped: pieces in, then the stylist (the sparkle, never a chat
-// bubble). Unbuilt options go to one shared "On its way" page.
+// The Create sheet (IA §3.2), grouped: pieces in — the Add pieces sheet's own doors (design "Add
+// Piece — Handoff"; native draws AddPiecesPanel itself) — then the stylist (the sparkle, never a
+// chat bubble). Unbuilt options go to one shared "On its way" page.
 export const CREATE_ITEMS: readonly CreateItem[] = [
   {
     id: 'photograph',
     group: 'add',
-    href: '/wardrobe/add',
-    label: shell.create.photograph,
+    href: '/wardrobe/add?start=camera',
+    label: wardrobe.add.doors.photograph,
     icon: 'camera',
-    keywords: 'add photo upload',
+    keywords: 'add photo camera',
   },
   {
     id: 'camera-roll',
     group: 'add',
     href: '/wardrobe/add',
-    label: shell.create.cameraRoll,
+    label: wardrobe.add.doors.cameraRoll,
     icon: 'image',
     keywords: 'add photo upload',
   },
-  { id: 'link', group: 'add', href: '/wardrobe/link', label: shell.create.link, icon: 'link' },
+  {
+    id: 'link',
+    group: 'add',
+    href: '/wardrobe/link',
+    label: wardrobe.add.doors.link,
+    icon: 'link',
+  },
   {
     id: 'receipt',
     group: 'add',
-    href: '/soon/receipt',
-    label: shell.create.receipt,
+    href: '/wardrobe/receipt',
+    label: wardrobe.add.doors.receipt,
     icon: 'mail',
+  },
+  {
+    id: 'manual',
+    group: 'add',
+    href: '/wardrobe/manual',
+    label: wardrobe.add.doors.manual,
+    icon: 'pencil',
   },
   {
     id: 'style-piece',
@@ -83,7 +97,6 @@ export function createItems(features: Features): readonly CreateItem[] {
 }
 
 export const SOON_TITLES: Record<SoonSlug, string> = {
-  receipt: shell.create.receipt,
   ask: shell.create.askRobes,
 };
 

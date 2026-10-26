@@ -21,6 +21,7 @@
     "./avatar": "./src/avatar/index.ts",
     "./looks": "./src/looks/index.ts",
     "./photo-pieces": "./src/photo-pieces/index.ts",
+    "./add-flow": "./src/add-flow/index.ts",
     "./home": "./src/home/index.ts",
     "./fence": "./src/fence/index.ts"
   },

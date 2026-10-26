@@ -1,9 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { Piece, UpdatePieceInput } from '@robes/contracts';
+import type { UpdatePieceInput } from '@robes/contracts';
 import { wardrobe as copy, lookbook } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
-import { type PieceColour, pattern, shade } from '@robes/core/colour';
-import { material } from '@robes/core/material';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -25,31 +23,14 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { SuggestedRail } from '@/features/looks/SuggestedRail';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
-import { colourSummary, ShadeSwatch } from './ColourField';
 import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
-import { PieceRow, PieceSection } from './PieceRows';
+import { RecordRows } from './PieceRows';
 import { READING_REFRESH_MS, useDeletePiece } from './pieces';
-
-const colourOf = (p: Piece): PieceColour => ({
-  colourShade: p.colourShade,
-  colourExtra: p.colourExtra,
-  print: p.print,
-});
-const colourText = (p: Piece): string | null => colourSummary(colourOf(p)) || p.color;
-
-const money = (price: number | null, currency: string | null): string | null =>
-  price === null
-    ? null
-    : new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: currency ?? 'EUR',
-        maximumFractionDigits: 0,
-      }).format(price);
 
 // The record (legacy Piece_Sheet 01): the photograph, her name for it with the pencil on it, the
 // facts she has given, then the days she wore it. Every fact is a row that opens its own drawer —
 // there is no form, so what the title says and what a row says can never disagree.
-export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) {
+export function PieceDetail({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [field, setField] = useState<PieceField | null>(null);
@@ -84,11 +65,6 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
   const uri = renditionUri(piece.image, 400);
   const reading = piece.status === 'reading';
   const ready = piece.status === 'ready';
-  const mainShade = shade(piece.colourShade);
-  const extras = piece.colourExtra
-    .map((x) => shade(x)?.name)
-    .filter(Boolean)
-    .join(' · ');
   const save = (input: UpdatePieceInput) => update.mutate({ params: { id: piece.id }, input });
   return (
     <View className="flex-1">
@@ -128,7 +104,6 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
           {reading ? <Text tone="muted">{copy.reading}</Text> : null}
           {piece.status === 'failed' ? <ErrorText>{copy.noPieceFound}</ErrorText> : null}
         </View>
-        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
 
         {ready ? (
           <View className="flex-row overflow-hidden rounded-crisp border border-hairline bg-surface">
@@ -162,81 +137,7 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
           </View>
         </PrimaryScope>
 
-        <PieceSection title={copy.piece.sections.piece}>
-          <PieceRow
-            first
-            label={copy.piece.rows.category}
-            value={[piece.categoryL2 ?? piece.category, piece.categoryL3]
-              .filter(Boolean)
-              .join(' · ')}
-            onPress={() => setField('category')}
-          />
-          <PieceRow
-            label={copy.piece.brand}
-            value={piece.brand}
-            onPress={() => setField('brand')}
-          />
-        </PieceSection>
-
-        <PieceSection title={copy.piece.sections.colour}>
-          <PieceRow
-            first
-            label={copy.piece.rows.colour}
-            value={mainShade?.name ?? null}
-            swatch={mainShade ? <ShadeSwatch shade={mainShade} size={18} /> : undefined}
-            check={piece.colourCheck ? copy.colour.check : undefined}
-            onPress={() => setField('colour')}
-          />
-          <PieceRow
-            label={copy.piece.rows.extra}
-            value={extras}
-            onPress={() => setField('extra')}
-          />
-          <PieceRow
-            label={copy.piece.rows.print}
-            value={pattern(piece.print)?.name ?? copy.colour.plain}
-            onPress={() => setField('print')}
-          />
-          <PieceRow
-            label={copy.piece.rows.material}
-            value={material(piece.material)?.name ?? null}
-            check={piece.materialCheck ? copy.material.check : undefined}
-            onPress={() => setField('material')}
-          />
-        </PieceSection>
-
-        <PieceSection title={copy.piece.sections.wearing}>
-          <PieceRow
-            first
-            label={copy.piece.rows.season}
-            value={copy.filter.seasons[piece.seasonBand]}
-            onPress={() => setField('season')}
-          />
-          <PieceRow
-            label={copy.piece.rows.wearFor}
-            value={piece.wearFor.join(' · ')}
-            onPress={() => setField('wearFor')}
-          />
-        </PieceSection>
-
-        <PieceSection title={copy.piece.sections.fit}>
-          <PieceRow
-            first
-            label={copy.piece.rows.size}
-            value={piece.size}
-            onPress={() => setField('size')}
-          />
-          <PieceRow
-            label={copy.piece.rows.price}
-            value={money(piece.price, piece.currency)}
-            onPress={() => setField('price')}
-          />
-          <PieceRow
-            label={copy.piece.rows.notes}
-            note={piece.notes}
-            onPress={() => setField('notes')}
-          />
-        </PieceSection>
+        <RecordRows values={piece} onField={setField} />
 
         <Wears pieceId={piece.id} />
         <SuggestedRail pieceId={piece.id} />
@@ -305,43 +206,6 @@ function Wears({ pieceId }: { pieceId: string }) {
             </Text>
           ) : null}
         </>
-      )}
-    </View>
-  );
-}
-
-// Beta's reveal: what Robes filed, row by row, once it has read the piece.
-function Saw({ piece }: { piece: Piece }) {
-  const router = useRouter();
-  const rows: [string, string | null][] = [
-    [copy.saw.rows.piece, piece.label],
-    [copy.saw.rows.category, [piece.category, piece.categoryL2].filter(Boolean).join(' · ')],
-    [copy.saw.rows.colour, colourText(piece)],
-    [copy.saw.rows.brand, piece.brand],
-  ];
-  return (
-    <View className="gap-3">
-      <Heading size="md">{copy.saw.title}</Heading>
-      {piece.status === 'ready' ? (
-        <>
-          <View className="border-hairline border-t">
-            {rows.map(([k, v]) => (
-              <View key={k} className="flex-row items-baseline gap-3 border-hairline border-b py-2">
-                <Eyebrow className="flex-1">{k}</Eyebrow>
-                <Text size="small" tone={v ? 'ink' : 'faint'} italic={!v}>
-                  {v || copy.saw.unread}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <Button variant="secondary" onPress={() => router.replace('/wardrobe')}>
-            {copy.saw.keep}
-          </Button>
-        </>
-      ) : (
-        <Text size="small" tone="muted" italic accessibilityLiveRegion="polite">
-          {copy.saw.reading}
-        </Text>
       )}
     </View>
   );

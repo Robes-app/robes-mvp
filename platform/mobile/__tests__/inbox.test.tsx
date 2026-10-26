@@ -1,5 +1,6 @@
 import { wardrobe } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as Clipboard from 'expo-clipboard';
 import { InboxView } from '../src/features/wardrobe/InboxView';
 import { LinkImport } from '../src/features/wardrobe/LinkImport';
 import { mockFetch, renderWithApi } from './support/api';
@@ -30,12 +31,13 @@ const entry = {
     },
   ],
 };
+const INBOX_ID = '77777777-7777-4777-8777-777777777777';
 const job = (status: string) => ({
   id: JOB_ID,
   kind: 'link_import',
   status,
   stage: 'text',
-  output: {},
+  output: status === 'succeeded' ? { inboxId: INBOX_ID } : {},
   error: null,
   cancelRequested: false,
   createdAt: '2026-09-24T10:00:00.000Z',
@@ -68,25 +70,39 @@ test('files a held link into the wardrobe', async () => {
 test('an empty Inbox offers Paste a link', async () => {
   mockFetch({ 'GET /inbox': { items: [], count: 0 } });
   await renderWithApi(<InboxView />);
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.link.eyebrow }));
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.add.doors.link }));
   expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/link');
 });
 
-test('paste a link starts an import and opens the Inbox when it lands', async () => {
+test('paste a link reads the page and opens Review on the piece', async () => {
   const calls = mockFetch({
     'POST /imports/link': { jobId: JOB_ID, status: 'queued' },
     [`GET /jobs/${JOB_ID}`]: job('succeeded'),
   });
   await renderWithApi(<LinkImport />);
-  await fireEvent.changeText(screen.getByLabelText(wardrobe.link.label), 'https://shop.test/coat');
-  await fireEvent.press(screen.getByRole('radio', { name: wardrobe.link.toWishlist }));
-  await fireEvent.press(screen.getByRole('button', { name: wardrobe.link.start }));
+  const link = wardrobe.add.link;
+  // Read the page waits for a link; Paste fills it from the clipboard.
+  expect(screen.getByRole('button', { name: link.read }).props.accessibilityState.disabled).toBe(
+    true,
+  );
+  await Clipboard.setStringAsync('https://shop.test/coat');
+  await fireEvent.press(screen.getByRole('button', { name: link.paste }));
+  await waitFor(() =>
+    expect(screen.getByLabelText(link.label).props.value).toBe('https://shop.test/coat'),
+  );
+  await fireEvent.press(screen.getByRole('radio', { name: wardrobe.add.to.wishlist }));
+  expect(screen.getByText(link.help.wishlist)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: link.read }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       url: 'https://shop.test/coat',
       as: 'wishlist',
     }),
   );
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.link.openInbox }));
-  expect(mockRouter.replace).toHaveBeenCalledWith('/wardrobe/inbox');
+  await waitFor(() =>
+    expect(mockRouter.replace).toHaveBeenCalledWith({
+      pathname: '/wardrobe/review',
+      params: { to: 'wishlist', link: INBOX_ID },
+    }),
+  );
 });

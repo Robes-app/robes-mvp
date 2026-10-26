@@ -1,9 +1,14 @@
 'use client';
 
+import type { PieceValues } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
+import { pattern, shade } from '@robes/core/colour';
+import { material } from '@robes/core/material';
 import { Icon } from '@robes/icons/web';
 import { Eyebrow, Text } from '@robes/ui';
 import type { ReactNode } from 'react';
+import { ShadeSwatch } from './colour-field';
+import type { PieceField } from './piece-field-sheet';
 
 const copy = wardrobe.piece;
 
@@ -71,5 +76,116 @@ export function PieceRow({
     >
       {body}
     </button>
+  );
+}
+
+export const money = (price: number | null, currency: string | null): string | null =>
+  price === null
+    ? null
+    : new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: currency ?? 'EUR',
+        maximumFractionDigits: 0,
+      }).format(price);
+
+export type RecordValues = PieceValues & {
+  category?: string | null;
+  colourCheck?: boolean;
+  materialCheck?: boolean;
+};
+
+// The record's four sections (legacy Piece_Sheet 01), shared by the piece page, Review and Add
+// without a photo, so a piece reads the same everywhere. `withName` adds the Name row where the
+// name isn't already the heading; `reading` holds every value at "Reading…" while Robes reads.
+// Native twin: RecordRows in features/wardrobe/PieceRows.tsx.
+export function RecordRows({
+  values,
+  onField,
+  withName = false,
+  reading = false,
+}: {
+  values: RecordValues;
+  onField: (field: PieceField) => void;
+  withName?: boolean;
+  reading?: boolean;
+}) {
+  const mainShade = shade(values.colourShade);
+  const extras = values.colourExtra
+    .map((x) => shade(x)?.name)
+    .filter(Boolean)
+    .join(' · ');
+  const v = (value: string | null | undefined) => (reading ? wardrobe.add.review.reading : value);
+  const open = (field: PieceField) => (reading ? undefined : () => onField(field));
+  return (
+    <>
+      <PieceSection title={copy.sections.piece}>
+        {withName ? (
+          <PieceRow label={copy.label} value={v(values.label)} onClick={open('label')} />
+        ) : null}
+        <PieceRow
+          label={copy.rows.category}
+          value={v(
+            [values.categoryL2 ?? values.category, values.categoryL3].filter(Boolean).join(' · '),
+          )}
+          onClick={open('category')}
+        />
+        <PieceRow label={copy.brand} value={v(values.brand)} onClick={open('brand')} />
+      </PieceSection>
+
+      <PieceSection title={copy.sections.colour}>
+        <PieceRow
+          label={copy.rows.colour}
+          value={v(mainShade?.name ?? null)}
+          swatch={mainShade && !reading ? <ShadeSwatch shade={mainShade} size={18} /> : undefined}
+          check={values.colourCheck && !reading ? wardrobe.colour.check : undefined}
+          onClick={open('colour')}
+        />
+        <PieceRow label={copy.rows.extra} value={v(extras)} onClick={open('extra')} />
+        <PieceRow
+          label={copy.rows.print}
+          value={v(pattern(values.print)?.name ?? wardrobe.colour.plain)}
+          onClick={open('print')}
+        />
+        <PieceRow
+          label={copy.rows.material}
+          value={v(material(values.material)?.name ?? null)}
+          check={values.materialCheck && !reading ? wardrobe.material.check : undefined}
+          onClick={open('material')}
+        />
+      </PieceSection>
+
+      <PieceSection title={copy.sections.wearing}>
+        <PieceRow
+          label={copy.rows.season}
+          value={v(values.seasonBand ? wardrobe.filter.seasons[values.seasonBand] : null)}
+          onClick={open('season')}
+        />
+        <PieceRow
+          label={copy.rows.wearFor}
+          value={v(values.wearFor.join(' · '))}
+          onClick={open('wearFor')}
+        />
+      </PieceSection>
+
+      <PieceSection title={copy.sections.fit}>
+        <PieceRow label={copy.rows.size} value={v(values.size)} onClick={open('size')} />
+        <PieceRow
+          label={copy.rows.price}
+          value={v(money(values.price, values.currency))}
+          onClick={open('price')}
+        />
+        <PieceRow
+          label={copy.rows.notes}
+          value={reading ? wardrobe.add.review.reading : null}
+          onClick={open('notes')}
+        >
+          {values.notes && !reading ? (
+            <Text size="small" tone="muted" italic className="pr-6">
+              {values.notes}
+            </Text>
+          ) : null}
+        </PieceRow>
+      </PieceSection>
+    </>
   );
 }

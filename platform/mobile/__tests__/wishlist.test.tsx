@@ -3,7 +3,9 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { WishlistView } from '../src/features/wardrobe/WishlistView';
 import { mockFetch, renderWithApi } from './support/api';
 import { piece } from './support/fixtures';
+import { mockRouter } from './support/router';
 
+jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
 const WISH_ID = '99999999-9999-4999-8999-999999999999';
@@ -26,22 +28,15 @@ const wish = {
   updatedAt: '2026-09-24T10:00:00.000Z',
 };
 
-test('adding a wish sends its name and clears the field', async () => {
-  const calls = mockFetch({
-    'GET /wishlist/items': { items: [], nextCursor: null },
-    'POST /wishlist/items': wish,
-  });
+test('an empty wishlist opens the Add pieces sheet on the wishlist', async () => {
+  mockFetch({ 'GET /wishlist/items': { items: [], nextCursor: null } });
   await renderWithApi(<WishlistView />);
   expect(await screen.findByText(wardrobe.wishlistEmpty.title)).toBeTruthy();
-  await fireEvent.changeText(
-    screen.getByLabelText(wardrobe.wishlist.addLabel),
-    'Black leather loafers',
-  );
-  await fireEvent.press(screen.getByRole('button', { name: wardrobe.wishlist.add }));
-  await waitFor(() =>
-    expect(screen.getByLabelText(wardrobe.wishlist.addLabel).props.value).toBe(''),
-  );
-  expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ label: 'Black leather loafers' });
+  await fireEvent.press(screen.getByRole('button', { name: wardrobe.header.savePiece }));
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/wardrobe/add',
+    params: { to: 'wishlist' },
+  });
 });
 
 test('"I bought this" promotes the wish into the wardrobe', async () => {

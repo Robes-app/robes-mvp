@@ -13,8 +13,10 @@ const copy = you.receipts;
 
 // Her forwarding address (legacy _showMailStep): the eyebrow, the heading, and the address card
 // as THE one action — a tap copies it. Replacing it and turning it off are quiet beneath, and
-// there is no "Open Mail": opening a blank mail read wrong.
-export function ForwardReceipts() {
+// there is no "Open Mail": opening a blank mail read wrong. As the add flow's door (`door`), it is
+// the card and the three steps alone (design "Add Piece — Handoff"). Native twin:
+// features/you/ForwardReceipts.tsx.
+export function ForwardReceipts({ door = false }: { door?: boolean }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [off, setOff] = useState(false);
@@ -53,7 +55,7 @@ export function ForwardReceipts() {
   return (
     <section aria-labelledby="you-receipts" className="flex flex-col gap-3">
       <Eyebrow>{copy.eyebrow}</Eyebrow>
-      <Heading level={2} size="md" id="you-receipts">
+      <Heading level={door ? 1 : 2} size={door ? 'lg' : 'md'} id="you-receipts">
         {copy.heading}
       </Heading>
       {value ? (
@@ -62,7 +64,7 @@ export function ForwardReceipts() {
           <button
             type="button"
             onClick={() => void copyAddress(value)}
-            className="flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-soft border border-hairline bg-surface px-4 py-3 text-left hover:border-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+            className={`flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-soft border px-4 py-3 text-left hover:border-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${copied ? 'border-selected-line bg-selected' : 'border-hairline bg-surface'}`}
           >
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="font-sans text-ink-faint text-xs uppercase tracking-[0.18em]">
@@ -97,19 +99,21 @@ export function ForwardReceipts() {
               </Link>
             </Text>
           ) : null}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="quiet"
-              loading={regenerate.isPending}
-              onClick={() => regenerate.mutate({})}
-            >
-              {copy.regenerate}
-            </Button>
-            {/* Destructive, so it keeps its distance from the card. */}
-            <Button variant="quiet" loading={revoke.isPending} onClick={() => revoke.mutate({})}>
-              {copy.turnOff}
-            </Button>
-          </div>
+          {door ? null : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="quiet"
+                loading={regenerate.isPending}
+                onClick={() => regenerate.mutate({})}
+              >
+                {copy.regenerate}
+              </Button>
+              {/* Destructive, so it keeps its distance from the card. */}
+              <Button variant="quiet" loading={revoke.isPending} onClick={() => revoke.mutate({})}>
+                {copy.turnOff}
+              </Button>
+            </div>
+          )}
         </>
       ) : off ? (
         <Button variant="secondary" className="self-start" onClick={() => setOff(false)}>

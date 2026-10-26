@@ -90,7 +90,7 @@ export function InboxView() {
           <EmptyState
             title={copy.inboxEmpty.title}
             body={copy.inboxEmpty.body}
-            action={{ label: copy.link.eyebrow, onPress: () => router.push('/wardrobe/link') }}
+            action={{ label: copy.add.doors.link, onPress: () => router.push('/wardrobe/link') }}
           />
         )
       }

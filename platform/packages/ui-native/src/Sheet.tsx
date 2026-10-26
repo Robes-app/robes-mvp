@@ -1,6 +1,7 @@
 import { ui } from '@robes/copy';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, PanResponder, Pressable, View } from 'react-native';
+import { PrimaryScope } from './Button';
 import { cx } from './cx';
 import { useReducedMotion } from './motion';
 import { Eyebrow, Heading } from './Text';
@@ -126,7 +127,8 @@ export function Sheet({
               ) : null}
             </>
           )}
-          {children}
+          {/* A drawer is a layer of its own: its one filled button stands beside the screen's. */}
+          <PrimaryScope>{children}</PrimaryScope>
         </Animated.View>
       </View>
     </Modal>

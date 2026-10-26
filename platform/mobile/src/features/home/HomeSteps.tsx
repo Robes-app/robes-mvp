@@ -1,5 +1,5 @@
 import type { Home, HomePiece } from '@robes/contracts';
-import { home as copy } from '@robes/copy';
+import { home as copy, wardrobe } from '@robes/copy';
 import { type HomeResolved, type HomeStep, mapRows } from '@robes/core/home';
 import { anchorName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
@@ -18,7 +18,7 @@ import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { SwapSheet } from '@/features/looks/SwapSheet';
-import { useAddPieces } from '@/features/wardrobe/add-pieces';
+import { pickFromRoll, reviewHref } from '@/features/wardrobe/add/flow';
 import { renditionUri } from '@/lib/images';
 
 const card = 'gap-4 rounded-soft border border-hairline bg-surface p-5';
@@ -130,18 +130,17 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
   const router = useRouter();
   const toast = useToast();
   const muted = useColor('ink-muted');
-  const { add, busy } = useAddPieces();
+  // Several at once from the roll, each read and looked at in Review before it files.
   const snap = () =>
-    void add('library').then((r) => {
-      if (r.status === 'denied' || r.status === 'failed') toast.show({ message: r.message });
-      if (r.status === 'added') router.push('/wardrobe');
+    void pickFromRoll().then((shots) => {
+      if (shots === 'denied') toast.show({ message: wardrobe.photosDenied });
+      else if (shots?.length) router.push(reviewHref({ to: 'wardrobe', shots, from: 'roll' }));
     });
   const route = (title: string, line: string, icon: 'camera' | 'mail', onPress: () => void) => (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
       onPress={onPress}
-      disabled={busy}
       className="min-h-11 flex-row items-center gap-4 rounded-crisp border border-hairline px-4 py-3"
     >
       <Icon name={icon} size={22} color={muted} />
@@ -168,7 +167,7 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
       </View>
       {route(copy.o3.snap.title, copy.o3.snap.line, 'camera', snap)}
       {route(copy.o3.receipt.title, copy.o3.receipt.line, 'mail', () =>
-        router.push('/you/receipts'),
+        router.push('/wardrobe/receipt'),
       )}
     </View>
   );

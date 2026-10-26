@@ -177,7 +177,7 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
       </ul>
       <div className="flex flex-col gap-2">
         {route('/wardrobe/add', 'camera', copy.o3.snap.title, copy.o3.snap.line)}
-        {route('/you?tab=account', 'mail', copy.o3.receipt.title, copy.o3.receipt.line)}
+        {route('/wardrobe/receipt', 'mail', copy.o3.receipt.title, copy.o3.receipt.line)}
       </div>
     </div>
   );

@@ -11,14 +11,12 @@ import {
   PrimaryScope,
   Sheet,
   Text,
-  useToast,
 } from '@robes/ui-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
-import { useAddPieces } from './add-pieces';
 import { useInbox } from './inbox';
 import { useWardrobeLayout } from './layout';
 import { AddRow, CardRow, type CardStatus, CardTile, StarButton } from './PieceCard';
@@ -127,7 +125,6 @@ function FilterSheet({
 
 function Pieces() {
   const router = useRouter();
-  const toast = useToast();
   const [layout, setLayout] = useWardrobeLayout();
   const [category, setCategory] = useState<Category | null>(null);
   const [refine, setRefine] = useState<Refine>(NO_REFINE);
@@ -149,15 +146,10 @@ function Pieces() {
   });
   const star = useStarPiece();
   const remove = useDeletePiece();
-  const { add, busy } = useAddPieces();
+  // Every way in starts on the Add pieces sheet (design "Add Piece — Handoff").
+  const addPieces = () => router.push('/wardrobe/add');
   const refined = refine.season !== null || refine.family !== null;
   const filtered = category !== null || refined;
-
-  async function addFromLibrary() {
-    const result = await add('library');
-    if (result.status === 'denied' || result.status === 'failed')
-      toast.show({ message: result.message });
-  }
 
   if (isPending) {
     return (
@@ -184,7 +176,7 @@ function Pieces() {
       <PrimaryScope>
         <View className="items-center gap-2 px-6 pt-8">
           <EmptyState title={copy.empty.title} body={copy.empty.body} />
-          <Button icon="plus" onPress={addFromLibrary} loading={busy} loadingLabel={ui.loading}>
+          <Button icon="plus" onPress={addPieces}>
             {copy.empty.action}
           </Button>
         </View>
@@ -246,7 +238,7 @@ function Pieces() {
         ListFooterComponent={
           !grid && !hasNextPage && pieces.length > 0 ? (
             <View className="pt-2">
-              <AddRow label={copy.card.addRow} onPress={addFromLibrary} />
+              <AddRow label={copy.card.addRow} onPress={addPieces} />
             </View>
           ) : undefined
         }
@@ -290,7 +282,6 @@ export function WardrobeView() {
       router.push('/wardrobe/inbox');
     }
   }, [params.segment, router]);
-  const [adding, setAdding] = useState(false);
   const inbox = useInbox();
   const waiting = (inbox.data?.items ?? []).reduce((n, e) => n + e.items.length, 0);
   return (
@@ -301,7 +292,12 @@ export function WardrobeView() {
           segment={segment}
           onSegment={setSegment}
           addLabel={segment === 'wishlist' ? copy.header.savePiece : copy.header.addPiece}
-          onAdd={() => (segment === 'wishlist' ? setAdding(true) : router.push('/create'))}
+          onAdd={() =>
+            router.push({
+              pathname: '/wardrobe/add',
+              params: { to: segment === 'wishlist' ? 'wishlist' : 'wardrobe' },
+            })
+          }
         />
       }
     >
@@ -309,7 +305,7 @@ export function WardrobeView() {
         <InboxRow count={waiting} onOpen={() => router.push('/wardrobe/inbox')} />
       ) : null}
       {segment === 'pieces' ? <Pieces /> : null}
-      {segment === 'wishlist' ? <WishlistView adding={adding} /> : null}
+      {segment === 'wishlist' ? <WishlistView /> : null}
     </TabScreen>
   );
 }
