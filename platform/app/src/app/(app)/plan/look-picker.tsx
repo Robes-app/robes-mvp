@@ -204,6 +204,12 @@ export function LookPicker({
                   </div>
                 </fieldset>
               ) : null}
+              {/* shortcut: Vibe is a placeholder — looks carry no vibe yet; the founder builds the options separately. */}
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-2 font-sans text-[10px] text-accent-warm uppercase tracking-[0.18em]">
+                  {lookbook.refine.vibe}
+                </legend>
+              </fieldset>
               <div className="flex items-center justify-between">
                 <Button
                   variant="quiet"

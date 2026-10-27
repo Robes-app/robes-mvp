@@ -256,6 +256,12 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               </div>
             </fieldset>
           ) : null}
+          {/* shortcut: Vibe is a placeholder — looks carry no vibe yet; the founder builds the options separately. */}
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 font-sans text-[10px] text-accent-warm uppercase tracking-[0.18em]">
+              {copy.refine.vibe}
+            </legend>
+          </fieldset>
           <div className="flex justify-end border-t border-hairline pt-3">
             <button type="button" onClick={() => setRefineOpen(false)} className={toolPill(false)}>
               {copy.refine.show(items.length)}

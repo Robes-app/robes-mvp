@@ -222,6 +222,13 @@ export function LookPicker({
                       </View>
                     </>
                   ) : null}
+                  {/* shortcut: Vibe is a placeholder — looks carry no vibe yet; the founder builds the options separately. Twin of web look-picker.tsx. */}
+                  <Text
+                    className="text-[10px] text-accent-warm uppercase"
+                    style={{ fontFamily: fonts.sans, letterSpacing: 1.8 }}
+                  >
+                    {lookbook.refine.vibe}
+                  </Text>
                   <View className="flex-row items-center justify-between">
                     <Button
                       variant="quiet"

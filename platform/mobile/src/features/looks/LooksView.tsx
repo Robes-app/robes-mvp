@@ -227,6 +227,8 @@ export function LooksView() {
               </View>
             </>
           ) : null}
+          {/* shortcut: Vibe is a placeholder — looks carry no vibe yet; the founder builds the options separately. Twin of web lookbook.tsx. */}
+          <Eyebrow className="text-accent-warm">{copy.refine.vibe}</Eyebrow>
           <View className="flex-row justify-end border-t border-hairline pt-3">
             <ToolPill
               label={copy.refine.show(items.length)}

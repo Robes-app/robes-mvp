@@ -106,6 +106,7 @@ export const lookbook = {
     show: (n: number): string => `Show ${n} ${n === 1 ? 'look' : 'looks'}`,
     season: 'Season',
     wearFor: 'Wear it for',
+    vibe: 'Vibe',
     seasons: {
       spring_summer: 'Spring / Summer',
       autumn_winter: 'Autumn / Winter',
