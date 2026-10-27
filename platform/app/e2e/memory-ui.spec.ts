@@ -114,11 +114,12 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
   const facts = page.getByRole('dialog', { name: 'The facts' });
   await facts.getByRole('button', { name: 'More: Size' }).click();
   await expect(facts.getByLabel('Size', { exact: true })).toHaveText('UK 10');
-  await facts.getByRole('button', { name: '45–54' }).click();
-  await expect(facts.getByRole('button', { name: '45–54' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  // Title and fields only: age and gender live in their own pills on Body shape.
+  await expect(facts.getByRole('button', { name: '45–54' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /^Age/ }).click();
+  await page.getByRole('menuitemradio', { name: '45–54' }).click();
+  await expect(page.getByRole('button', { name: /^Age.*45–54/ })).toBeVisible();
 
   const dna = await (await page.request.get('/api/v1/me/dna')).json();
   expect(dna).toMatchObject({

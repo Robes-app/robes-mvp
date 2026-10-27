@@ -3,7 +3,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Facts, Model } from '@robes/contracts';
 import { twin, you } from '@robes/copy';
-import { readAdj } from '@robes/core/avatar';
+import { chosenTones, readAdj } from '@robes/core/avatar';
 import { ErrorText, Skeleton, Text } from '@robes/ui';
 import { SettingsGroup, SettingsRow } from '@/components/settings/settings-chrome';
 import { errorCopy } from '@/lib/error-copy';
@@ -46,10 +46,13 @@ export function ModelView() {
           />
           <SettingsRow href="/you/model/body" label={tw.bodyShape} sub={line || tw.bodyShapeSub} />
         </SettingsGroup>
-        {/* Her model's own line: what Robes drew her from. One size up — the sans never goes italic. */}
-        <p className="font-display text-ink-faint text-lg italic leading-normal max-lg:text-center">
-          {tw.status(model.presence, read)}
-        </p>
+        {/* Her model's own line: what Robes drew her from. One size up — the sans never goes italic.
+            With nothing on file the hero already says it, so nothing repeats under the doors. */}
+        {read === 'none' ? null : (
+          <p className="font-display text-ink-faint text-lg italic leading-normal max-lg:text-center">
+            {tw.status(model.presence, read)}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -60,7 +63,13 @@ export function ModelView() {
 // sits inside the stage — her colour words, never a shape.
 function ModelStage({ model, facts, read }: { model: Model; facts: Facts; read: TwinRead }) {
   const empty = read === 'none';
-  const image = model.twin.imageUrl ?? model.cell.imageUrl;
+  // Nothing on file: the empty figure alone, never a catalog portrait of someone who isn't her.
+  const image = empty ? null : (model.twin.imageUrl ?? model.cell.imageUrl);
+  const chosen = chosenTones(model);
+  const caption = tw.caption(
+    chosen.skin === null ? '' : (copy.skinNames[chosen.skin] ?? ''),
+    chosen.hair === null ? '' : (copy.hairNames[chosen.hair] ?? ''),
+  );
   const drawing = model.twin.status === 'pending' || model.cell.status === 'pending';
   const failed =
     model.twin.status === 'failed' || (!model.twin.imageUrl && model.cell.status === 'failed');
@@ -93,14 +102,14 @@ function ModelStage({ model, facts, read }: { model: Model; facts: Facts; read: 
         />
         {empty ? (
           // Nothing on file: the invitation sits in the stage, over the ghost figure.
-          <p className="absolute inset-0 flex items-center justify-center px-[34px] text-center font-display text-ink-faint text-lg italic leading-[1.6]">
+          <p className="absolute inset-0 flex items-center justify-center px-[34px] text-center font-display text-[15px] text-ink-faint italic leading-[1.6]">
             {tw.stageEmpty}
           </p>
-        ) : (
+        ) : caption ? (
           <figcaption className="absolute inset-x-5 bottom-[18px] font-display text-ink text-xl italic leading-[1.35]">
-            {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
+            {caption}
           </figcaption>
-        )}
+        ) : null}
         {drawing ? (
           // The chip on the stage while she is drawn (legacy .mv-photo-busy).
           <p

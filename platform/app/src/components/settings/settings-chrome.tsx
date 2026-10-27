@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 // Settings' own chrome (legacy settings.html, redlines 2026-10-08 G1–G3): a pushed stack, so no
-// wordmark, no avatar and no dock. One 44pt row on every screen — ← at the left, the page's title
+// wordmark, no avatar and no dock. One 44pt row on every screen — ‹ at the left (decided 27 Oct, both platforms), the page's title
 // centred in the serif, nothing at the right — over a centred 720 column (the twin runs 1100).
 // The app shell stands down on /you (isSettingsPath). Native twin: components/StackScreen.tsx.
 
@@ -21,7 +21,7 @@ export function SettingsHeader({ title, back }: { title: string; back: string })
           aria-label={ui.back}
           className={`-ml-2.5 flex size-11 items-center justify-center rounded-pill text-ink hover:text-ink-muted ${focus}`}
         >
-          <Icon name="arrowLeft" size={22} />
+          <Icon name="back" size={22} />
         </Link>
         <h1 className="truncate px-1 text-center font-display text-[22px] text-ink leading-[44px] max-[374px]:text-[19px]">
           {title}

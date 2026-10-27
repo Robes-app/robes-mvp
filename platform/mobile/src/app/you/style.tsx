@@ -4,7 +4,7 @@ import { StyleDna } from '@/features/you/StyleDna';
 
 export default function StyleDnaScreen() {
   return (
-    <StackScreen title={twin.dnaPage.title}>
+    <StackScreen settings title={twin.dnaPage.title}>
       <StyleDna />
     </StackScreen>
   );

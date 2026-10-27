@@ -4,7 +4,7 @@ import { Privacy } from '@/features/you/Privacy';
 
 export default function PrivacyScreen() {
   return (
-    <StackScreen title={you.privacy}>
+    <StackScreen settings title={you.privacy}>
       <Privacy />
     </StackScreen>
   );

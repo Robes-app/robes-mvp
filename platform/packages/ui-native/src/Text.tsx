@@ -34,6 +34,13 @@ export function Text({
   style,
   ...rest
 }: TextProps) {
+  // The family rides inline (Uniwind can't name a loaded face), so a `font-display` class must
+  // choose it here — otherwise the inline sans wins and a serif line renders in Inter.
+  const family = /(^|\s)font-display(\s|$)/.test(className ?? '')
+    ? fonts.display
+    : weight === 'medium'
+      ? fonts.sansMedium
+      : fonts.sans;
   return (
     <RNText
       maxFontSizeMultiplier={maxFontSizeMultiplier.body}
@@ -42,7 +49,7 @@ export function Text({
       style={
         italic
           ? [style, { fontFamily: fonts.displayItalic, fontSize: italicSize[size] }]
-          : [{ fontFamily: weight === 'medium' ? fonts.sansMedium : fonts.sans }, style]
+          : [{ fontFamily: family }, style]
       }
     />
   );

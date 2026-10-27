@@ -4,7 +4,7 @@ import { YouMenu } from '@/features/you/YouMenu';
 
 export default function YouMenuScreen() {
   return (
-    <StackScreen title={you.settings}>
+    <StackScreen settings title={you.settings}>
       <YouMenu />
     </StackScreen>
   );

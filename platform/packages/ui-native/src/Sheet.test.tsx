@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { useState } from 'react';
-import { AccessibilityInfo, Pressable, Text } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, Text } from 'react-native';
 import { Button, DOUBLE_PRIMARY_WARNING, PrimaryScope } from './Button';
 import { Sheet } from './Sheet';
 
@@ -98,4 +98,17 @@ test('a drawer’s one filled button stands beside the screen’s', async () => 
   expect(await screen.findByText('Save')).toBeTruthy();
   expect(warn).not.toHaveBeenCalledWith(DOUBLE_PRIMARY_WARNING);
   warn.mockRestore();
+});
+
+test('a tall drawer stops short of the status bar', async () => {
+  await render(
+    <Sheet open onClose={() => {}} title="The facts">
+      <Text>Height</Text>
+    </Sheet>,
+  );
+  let panel = screen.getByText('Height').parent;
+  while (panel && panel.props.accessibilityViewIsModal !== true) panel = panel.parent;
+  expect(StyleSheet.flatten(panel?.props.style)).toEqual(
+    expect.objectContaining({ maxHeight: '92%' }),
+  );
 });

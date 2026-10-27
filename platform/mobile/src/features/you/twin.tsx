@@ -1,18 +1,20 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Facts, Model, StyleDna, UpdateModelInput } from '@robes/contracts';
 import { twin, you } from '@robes/copy';
-import { BUST_CUPS, readAdj, stepTwinFact, type TwinStep, twinFigure } from '@robes/core/avatar';
 import {
-  AGE_BANDS,
-  euShoe,
-  euSize,
-  type FactStep,
-  feetInches,
-  stepFact,
-} from '@robes/core/style-dna';
+  BUST_CUPS,
+  chosenTones,
+  readAdj,
+  stepTwinFact,
+  type TwinStep,
+  twinFigure,
+} from '@robes/core/avatar';
+import { euShoe, euSize, type FactStep, feetInches, stepFact } from '@robes/core/style-dna';
+import { Icon } from '@robes/icons/native';
 import {
   Button,
   Eyebrow,
+  MIN_TOUCH,
   Pill,
   SegmentedControl,
   Text,
@@ -82,55 +84,73 @@ export function Section({ title, children }: { title: string; children: ReactNod
 }
 
 // Swatch colours are catalog data (like the style swatches), the one place colour comes inline.
+// 28pt dots, 7 apart, so all eight skin tones sit on one row; hitSlop keeps each target 44pt.
 function SwatchRow(props: {
   label: string;
   hexes: string[];
   names: readonly string[];
-  value: number;
+  value: number | null;
   onPick: (i: number) => void;
 }) {
+  const ink = useColor('ink');
+  const name = props.value === null ? '' : props.names[props.value];
   return (
-    <View className="gap-2">
+    <View className="gap-3">
       <Text size="small" tone="muted">
-        {`${props.label} · ${props.names[props.value] ?? ''}`}
+        {name ? `${props.label} · ${name}` : props.label}
       </Text>
-      <View className="flex-row flex-wrap gap-2">
-        {props.hexes.map((hex, i) => (
-          <Pressable
-            key={hex}
-            accessibilityRole="button"
-            accessibilityLabel={props.names[i] ?? hex}
-            accessibilityState={{ selected: i === props.value }}
-            onPress={() => props.onPick(i)}
-            className={`rounded-full border ${i === props.value ? 'border-ink' : 'border-hairline'}`}
-            style={{
-              width: 44,
-              height: 44,
-              backgroundColor: hex,
-              borderWidth: i === props.value ? 2 : 1,
-            }}
-          />
-        ))}
+      <View className="flex-row" style={{ gap: 7 }}>
+        {props.hexes.map((hex, i) => {
+          const on = i === props.value;
+          return (
+            <Pressable
+              key={hex}
+              accessibilityRole="button"
+              accessibilityLabel={props.names[i] ?? hex}
+              accessibilityState={{ selected: on }}
+              onPress={() => props.onPick(i)}
+              // The neighbours' frames touch, so the row is all target; the slop makes it 44 tall.
+              hitSlop={{ top: 5, bottom: 5 }}
+              // The chosen dot: a 1.5pt ink ring 2pt off its edge (frame 35, laid out at 28).
+              style={{
+                width: 35,
+                height: 35,
+                margin: -3.5,
+                borderRadius: 17.5,
+                borderWidth: 1.5,
+                borderColor: on ? ink : 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <View
+                className="rounded-full border border-hairline"
+                style={{ width: 28, height: 28, backgroundColor: hex }}
+              />
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
 }
 
 export function SkinAndHair({ model, pick }: { model: Model; pick: Pick }) {
+  const chosen = chosenTones(model);
   return (
     <>
       <SwatchRow
         label={copy.skin}
         hexes={model.swatches.skin}
         names={copy.skinNames}
-        value={model.skin}
+        value={chosen.skin}
         onPick={(skin) => pick({ skin })}
       />
       <SwatchRow
         label={copy.hair}
         hexes={model.swatches.hair}
         names={copy.hairNames}
-        value={model.hair}
+        value={chosen.hair}
         onPick={(hair) => pick({ hair })}
       />
     </>
@@ -242,6 +262,8 @@ export function lineSummary(facts: Facts): string {
     .join(' · ');
 }
 
+// Plain − and + (decided 27 Oct, both platforms), each a 44pt circle; an empty value reads "Add"
+// in the serif italic. Twin of web twin-parts.tsx Stepper.
 function Stepper({
   label,
   value,
@@ -253,20 +275,34 @@ function Stepper({
   sub?: string;
   onStep: (dir: 1 | -1) => void;
 }) {
+  const ink = useColor('ink');
+  const step = (dir: 1 | -1) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${dir < 0 ? f.less : f.more}: ${label}`}
+      onPress={() => onStep(dir)}
+      style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
+      className="items-center justify-center rounded-pill border border-border-control"
+    >
+      <Icon name={dir < 0 ? 'minus' : 'plus'} size={16} color={ink} />
+    </Pressable>
+  );
   return (
     <View className="flex-row items-center justify-between gap-3">
       <Text>{label}</Text>
       <View className="items-end">
         <View className="flex-row items-center gap-2">
-          <Button variant="secondary" onPress={() => onStep(-1)}>
-            {`− ${f.less}`}
-          </Button>
-          <Text accessibilityLabel={`${label}: ${value || f.add}`} tone={value ? 'ink' : 'faint'}>
+          {step(-1)}
+          <Text
+            accessibilityLabel={`${label}: ${value || f.add}`}
+            tone={value ? 'ink' : 'faint'}
+            italic={!value}
+            size={value ? 'body' : 'caption'}
+            className="min-w-16 text-center"
+          >
             {value || f.add}
           </Text>
-          <Button variant="secondary" onPress={() => onStep(1)}>
-            {`+ ${f.more}`}
-          </Button>
+          {step(1)}
         </View>
         {sub ? (
           <Text size="caption" tone="muted">
@@ -278,16 +314,9 @@ function Stepper({
   );
 }
 
-// The facts drawer (size, never weight): height, size, bust, waist, shoes, age and gender.
-export function FactsBody({
-  dna,
-  gender,
-  pick,
-}: {
-  dna: StyleDna;
-  gender: Model['presence'];
-  pick: Pick;
-}) {
+// The facts drawer (size, never weight): height, size, bust, waist and shoes. Title and fields
+// only; her age and gender are set by their own pills on Body shape (decided 27 Oct).
+export function FactsBody({ dna, gender }: { dna: StyleDna; gender: Model['presence'] }) {
   const { update } = useDnaMutations();
   const facts = dna.facts;
   const [unit, setUnit] = useState<'cm' | 'ft'>('cm');
@@ -299,11 +328,10 @@ export function FactsBody({
     set({ [key]: stepFact(kind, facts[key], dir) });
   const stepTwin = (kind: TwinStep, dir: 1 | -1, patch: Partial<Facts> = {}) =>
     set({ [kind]: stepTwinFact(kind, facts[kind], dir), ...patch });
-  const any = Object.values(facts).some((v) => v !== null);
+  const any = Object.entries(facts).some(([k, v]) => k !== 'ageBand' && v !== null);
   const bra = bustMode === 'bra' && !man;
   return (
-    <ScrollView contentContainerClassName="gap-5 pb-6">
-      <Text tone="muted">{f.sub}</Text>
+    <ScrollView style={{ flexShrink: 1 }} contentContainerClassName="gap-5 pb-6">
       <Stepper
         label={f.height}
         value={
@@ -390,30 +418,6 @@ export function FactsBody({
         sub={facts.shoeUk ? f.euValue(euShoe(facts.shoeUk)) : undefined}
         onStep={(d) => step('shoeUk', 'shoeUk', d)}
       />
-      <View className="gap-2">
-        <Text>{f.age}</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {AGE_BANDS.map((a) => (
-            <Pill
-              key={a.key}
-              selected={facts.ageBand === a.key}
-              onPress={() => set({ ageBand: facts.ageBand === a.key ? null : a.key })}
-            >
-              {a.label}
-            </Pill>
-          ))}
-        </View>
-      </View>
-      <View className="gap-2">
-        <Text>{f.gender}</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {(['woman', 'man', 'unspecified'] as const).map((g) => (
-            <Pill key={g} selected={gender === g} onPress={() => pick({ presence: g })}>
-              {f.genderOptions[g]}
-            </Pill>
-          ))}
-        </View>
-      </View>
       {any ? (
         <Button
           variant="quiet"
@@ -423,7 +427,6 @@ export function FactsBody({
               heightCm: null,
               sizeUk: null,
               shoeUk: null,
-              ageBand: null,
               bustBand: null,
               bustCup: null,
               bustCm: null,

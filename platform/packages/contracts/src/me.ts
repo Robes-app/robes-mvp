@@ -77,6 +77,8 @@ export const ColourProfile = z.object({
   seen_on_you: z.array(z.object({ lifts: z.string(), flattens: z.string() })),
   metals: z.array(z.object({ name: z.string(), hexes: z.array(z.string()) })),
   metals_note: z.string(),
+  // Set once she picks a season by hand: what her photograph read, so the list stays anchored.
+  read_season: z.string().optional(),
 });
 export const SilhouetteProfile = z.object({
   body_type: z.string(),

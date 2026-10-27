@@ -10,7 +10,16 @@ import { Pressable, Switch, View } from 'react-native';
 export function SettingsGroup({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <View className="gap-2.5">
-      {title ? <Eyebrow className="ml-0.5">{title}</Eyebrow> : null}
+      {title ? (
+        // One line at 9.5px, tracked .24em, as on the web (redline 27 Oct).
+        <Eyebrow
+          numberOfLines={1}
+          className="ml-0.5"
+          style={{ fontSize: 9.5, letterSpacing: 2.28 }}
+        >
+          {title}
+        </Eyebrow>
+      ) : null}
       <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
         {children}
       </View>

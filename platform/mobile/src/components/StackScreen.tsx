@@ -12,10 +12,13 @@ export function StackScreen({
   children,
   close = false,
   home = false,
+  settings = false,
 }: {
   title?: string;
   children: ReactNode;
   close?: boolean;
+  // You's screens carry Settings' header: the title in the serif at 22 (web SettingsHeader).
+  settings?: boolean;
   // Back always lands home (a screen reached from onboarding has nothing worth going back to).
   home?: boolean;
 }) {
@@ -27,7 +30,12 @@ export function StackScreen({
       <View className="h-11 flex-row items-center px-2">
         {title ? (
           <View pointerEvents="none" className="absolute inset-x-14 items-center">
-            <Heading size="sm" weight="regular" numberOfLines={1}>
+            <Heading
+              size="sm"
+              weight="regular"
+              numberOfLines={1}
+              style={settings ? { fontSize: 22 } : undefined}
+            >
               {title}
             </Heading>
           </View>

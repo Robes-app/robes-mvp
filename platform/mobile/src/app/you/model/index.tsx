@@ -4,7 +4,7 @@ import { Model } from '@/features/you/Model';
 
 export default function ModelScreen() {
   return (
-    <StackScreen title={twin.twinPage.title}>
+    <StackScreen settings title={twin.twinPage.title}>
       <Model />
     </StackScreen>
   );

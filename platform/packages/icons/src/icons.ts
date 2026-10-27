@@ -81,8 +81,7 @@ export const ICONS = {
   heart: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
   swap: ['M20 12a8 8 0 1 1-2.35-5.65', 'M20 4v5h-5'],
   send: ['M12 19V5', 'M6 11l6-6 6 6'],
-  // Settings' header ← (legacy .sn-back) and a row that leaves the app ↗ (Privacy notice, terms).
-  arrowLeft: ['M20 12H4', 'M10 6l-6 6 6 6'],
+  // A row that leaves the app ↗ (Privacy notice, terms).
   external: ['M7 17L17 7', 'M8 7h9v9'],
 } as const satisfies Record<string, readonly string[]>;
 

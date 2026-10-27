@@ -29,6 +29,8 @@ export interface SheetProps {
 const OFFSCREEN = 800;
 const DISMISS_DRAG = 120;
 const BACKDROP_OPACITY = 0.4;
+// The top 8% stays clear: past every iPhone's status bar and island (59pt of 874 on a 17).
+const SHEET_MAX = '92%';
 
 // Bottom sheet from RN Modal + Animated: Expo Go compatible, no native bottom-sheet module (ADR-018).
 export function Sheet({
@@ -129,7 +131,8 @@ export function Sheet({
         <Animated.View
           accessibilityViewIsModal
           className={cx('rounded-t-soft bg-bg px-6 pb-10', className)}
-          style={{ transform: [{ translateY }] }}
+          // A tall drawer stops short of the status bar and Dynamic Island; its content scrolls.
+          style={{ maxHeight: SHEET_MAX, transform: [{ translateY }] }}
         >
           <View {...drag.panHandlers} className="items-center py-3">
             {/* With a close in the header, the grab bar is only the handle, so a reader hears

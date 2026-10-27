@@ -2,7 +2,7 @@ import { useApi } from '@robes/api-client/react';
 import type { Facts, Model, UpdateModelInput } from '@robes/contracts';
 import { twin } from '@robes/copy';
 import { effectiveStops, isAdjusted, readAdj, STOPS, TWIN_SCALES } from '@robes/core/avatar';
-import { ageBandLabel, euSize } from '@robes/core/style-dna';
+import { AGE_BANDS, ageBandLabel, euSize } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -17,6 +17,7 @@ import {
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
+import { useDnaMutations } from './dna';
 import {
   bustOf,
   FactsBody,
@@ -46,17 +47,89 @@ export function BodyShape() {
   const open = () => setFacts(true);
   return (
     <ScrollView contentContainerClassName="gap-5 px-6 pb-12">
-      <LineCard model={model} facts={dna.data.facts} onOpen={open} />
+      <LineCard model={model} facts={dna.data.facts} onOpen={open} pick={pick} />
       <Scales model={model} facts={dna.data.facts} pick={pick} />
-      <Sheet open={facts} onClose={() => setFacts(false)} title={f.title}>
-        <FactsBody dna={dna.data} gender={model.presence} pick={pick} />
+      <Sheet open={facts} onClose={() => setFacts(false)} title={f.title} closeButton>
+        <FactsBody dna={dna.data} gender={model.presence} />
       </Sheet>
     </ScrollView>
   );
 }
 
-function LineCard({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen: () => void }) {
+// A pill that opens its own short list and saves on the pick (decided 27 Oct): Gender and Age are
+// set here, never in the facts drawer. Twin of web you/model/body/body-view.tsx PillMenu.
+function PillMenu<T extends string>({
+  label,
+  value,
+  options,
+  current,
+  onPick,
+}: {
+  label: string;
+  value: string;
+  options: readonly { key: T; label: string }[];
+  current: T | null;
+  onPick: (key: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
   const muted = useColor('ink-muted');
+  const ink = useColor('ink');
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: ${value || f.add}`}
+        onPress={() => setOpen(true)}
+        style={{ minHeight: MIN_TOUCH }}
+        className={`flex-row items-center gap-2 rounded-pill border px-4 ${value ? 'border-hairline' : 'border-border-control border-dashed'}`}
+      >
+        <Eyebrow style={{ fontSize: 9.5 }}>{label}</Eyebrow>
+        <Text size={value ? 'small' : 'caption'} tone={value ? 'ink' : 'faint'} italic={!value}>
+          {value || f.add}
+        </Text>
+        <Icon name="down" color={muted} size={12} />
+      </Pressable>
+      <Sheet open={open} onClose={() => setOpen(false)} title={label} closeButton>
+        <View>
+          {options.map((o, i) => (
+            <Pressable
+              key={o.key}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: current === o.key }}
+              onPress={() => {
+                onPick(o.key);
+                setOpen(false);
+              }}
+              style={{ minHeight: MIN_TOUCH }}
+              className={`flex-row items-center justify-between ${i ? 'border-t border-hairline' : ''}`}
+            >
+              <Text>{o.label}</Text>
+              {current === o.key ? <Icon name="check" color={ink} size={16} /> : null}
+            </Pressable>
+          ))}
+        </View>
+      </Sheet>
+    </>
+  );
+}
+
+const GENDERS = (['woman', 'man', 'unspecified'] as const).map((key) => ({
+  key,
+  label: f.genderOptions[key],
+}));
+
+function LineCard({
+  model,
+  facts,
+  onOpen,
+  pick,
+}: {
+  model: Model;
+  facts: Facts;
+  onOpen: () => void;
+  pick: Pick;
+}) {
+  const { update } = useDnaMutations();
   const chest = model.presence === 'man' ? tw.chest : f.bust;
   const rows: [string, string][] = [
     [f.height, facts.heightCm ? f.heightValue(facts.heightCm) : ''],
@@ -72,20 +145,6 @@ function LineCard({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen
     [f.shoes, facts.shoeUk ? f.ukValue(facts.shoeUk) : ''],
   ];
   const age = ageBandLabel(facts.ageBand);
-  const select = (label: string, set: boolean) => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onOpen}
-      style={{ minHeight: MIN_TOUCH }}
-      className={`flex-row items-center gap-2 rounded-pill border px-4 ${set ? 'border-hairline' : 'border-border-control border-dashed'}`}
-    >
-      <Text size="small" tone={set ? 'ink' : 'muted'}>
-        {label}
-      </Text>
-      <Icon name="down" color={muted} size={12} />
-    </Pressable>
-  );
   return (
     <View className="gap-4 rounded-soft border border-hairline bg-surface-raised p-5">
       <View className="flex-row items-center justify-between">
@@ -97,7 +156,9 @@ function LineCard({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen
       <View className="flex-row gap-4 rounded-soft border border-hairline p-3">
         <Figure facts={facts} adj={model.adj} />
         <View className="flex-1 justify-center gap-2">
-          <Eyebrow>{tw.proportions(model.presence)}</Eyebrow>
+          <Eyebrow numberOfLines={1} style={{ fontSize: 9, letterSpacing: 1.8 }}>
+            {tw.proportions(model.presence)}
+          </Eyebrow>
           {rows.map(([k, v]) => (
             <View key={k} className="flex-row items-baseline justify-between gap-2">
               <Text size="caption" tone="muted">
@@ -111,8 +172,20 @@ function LineCard({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen
         </View>
       </View>
       <View className="flex-row flex-wrap gap-2">
-        {select(f.genderOptions[model.presence], true)}
-        {select(age || tw.age, Boolean(age))}
+        <PillMenu
+          label={tw.gender}
+          value={f.genderOptions[model.presence]}
+          options={GENDERS}
+          current={model.presence}
+          onPick={(presence) => pick({ presence })}
+        />
+        <PillMenu
+          label={tw.age}
+          value={age}
+          options={AGE_BANDS}
+          current={facts.ageBand}
+          onPick={(ageBand) => update.mutate({ input: { facts: { ageBand } } })}
+        />
       </View>
       <Pressable
         accessibilityRole="button"
@@ -125,7 +198,12 @@ function LineCard({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen
             <Text size="caption" tone="muted">
               {k}
             </Text>
-            <Text size="small" tone={v ? 'ink' : 'faint'} numberOfLines={1}>
+            <Text
+              size={v ? 'small' : 'caption'}
+              tone={v ? 'ink' : 'faint'}
+              italic={!v}
+              numberOfLines={1}
+            >
               {v || f.add}
             </Text>
           </View>
@@ -147,10 +225,11 @@ function Scales({ model, facts, pick }: { model: Model; facts: Facts; pick: Pick
         return (
           <View key={k} className="gap-2">
             <Text className="font-display text-lg">{label}</Text>
+            {/* Five cells in a cream track; the chosen one takes the selected edge and an ink dot. */}
             <View
               accessibilityRole="radiogroup"
               accessibilityLabel={label}
-              className="flex-row gap-1 rounded-crisp border border-hairline bg-surface-sunk p-1"
+              className="flex-row overflow-hidden rounded-pill border border-rule-mid bg-surface"
             >
               {STOPS.map((v) => {
                 const on = eff[k] === v;
@@ -163,9 +242,13 @@ function Scales({ model, facts, pick }: { model: Model; facts: Facts; pick: Pick
                     // A second tap on the chosen stop hands the scale back to her facts.
                     onPress={() => pick({ adj: { [k]: on ? null : v } as UpdateModelInput['adj'] })}
                     style={{ minHeight: MIN_TOUCH }}
-                    className={`flex-1 items-center justify-center rounded-crisp border ${on ? 'border-selected-line bg-surface-raised' : 'border-transparent'}`}
+                    className={`flex-1 items-center justify-center ${v !== STOPS[0] ? 'border-l border-rule-mid' : ''}`}
                   >
-                    {on ? <View className="size-1.5 rounded-full bg-ink" /> : null}
+                    {on ? (
+                      <View className="absolute inset-0 items-center justify-center rounded-pill border border-selected-line bg-selected">
+                        <View className="size-1.5 rounded-full bg-ink" />
+                      </View>
+                    ) : null}
                   </Pressable>
                 );
               })}

@@ -101,6 +101,17 @@ describe('the twin vocabulary', () => {
     expect(dna.classification.source).toBe('chosen');
     expect(dna.classification.primitive_season).toBe(read.classification.primitive_season);
   });
+
+  it('remembers what the photograph read through every hand pick', () => {
+    const read = buildColorHarmony({ season: 'Light Spring', undertone: 'Warm' }).dna;
+    const first = chooseSeason('True Winter', read);
+    expect(first.render.read_season).toBe('Light Spring');
+    const second = chooseSeason('Dark Winter', first.dna);
+    expect(second.render.read_season).toBe('Light Spring');
+    expect(second.dna.classification.read_season).toBe('Light Spring');
+    // The list stays anchored on the reading, whatever she picked last.
+    expect(seasonChoices(second.render.read_season ?? null, false)[0]).toBe('Light Spring');
+  });
 });
 
 describe('her brief in the prompt', () => {

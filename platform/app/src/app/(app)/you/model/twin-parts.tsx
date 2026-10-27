@@ -5,19 +5,13 @@ import type { Facts, Model, StyleDna, UpdateModelInput } from '@robes/contracts'
 import { twin, you } from '@robes/copy';
 import {
   BUST_CUPS,
+  chosenTones,
   stepTwinFact,
   type TwinAdj,
   type TwinStep,
   twinFigure,
 } from '@robes/core/avatar';
-import {
-  AGE_BANDS,
-  euShoe,
-  euSize,
-  type FactStep,
-  feetInches,
-  stepFact,
-} from '@robes/core/style-dna';
+import { euShoe, euSize, type FactStep, feetInches, stepFact } from '@robes/core/style-dna';
 import { Button, Eyebrow, Pill, SegmentedControl, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
@@ -83,6 +77,7 @@ export function Section({ title, children }: { title: string; children: ReactNod
 }
 
 // Swatch colours are catalog data (like the style swatches), the one place colour comes inline.
+// 28px dots, 7 apart, so all eight skin tones sit on one row; each keeps a 44px hit area.
 function SwatchRow({
   label,
   hexes,
@@ -93,15 +88,16 @@ function SwatchRow({
   label: string;
   hexes: string[];
   names: readonly string[];
-  value: number;
+  value: number | null;
   onPick: (i: number) => void;
 }) {
+  const name = value === null ? '' : names[value];
   return (
-    <fieldset className="flex flex-col gap-2">
-      <legend className="font-sans text-sm text-ink-muted">
-        {label} · {names[value]}
+    <fieldset className="flex flex-col gap-3">
+      <legend className="pb-3 font-sans text-sm text-ink-muted">
+        {name ? `${label} · ${name}` : label}
       </legend>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-nowrap gap-[7px]">
         {hexes.map((hex, i) => (
           <button
             key={hex}
@@ -109,7 +105,7 @@ function SwatchRow({
             aria-label={names[i] ?? hex}
             aria-pressed={i === value}
             onClick={() => onPick(i)}
-            className="size-11 rounded-full border border-hairline outline-offset-2 aria-pressed:outline aria-pressed:outline-2 aria-pressed:outline-ink focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="relative size-7 flex-none rounded-full border border-hairline outline-offset-2 after:absolute after:-inset-x-[3.5px] after:-inset-y-2 after:content-[''] aria-pressed:outline aria-pressed:outline-[1.5px] aria-pressed:outline-ink focus-visible:outline-2 focus-visible:outline-focus-ring"
             style={{ backgroundColor: hex }}
           />
         ))}
@@ -119,20 +115,21 @@ function SwatchRow({
 }
 
 export function SkinAndHair({ model, pick }: { model: Model; pick: Pick }) {
+  const chosen = chosenTones(model);
   return (
     <>
       <SwatchRow
         label={copy.skin}
         hexes={model.swatches.skin}
         names={copy.skinNames}
-        value={model.skin}
+        value={chosen.skin}
         onPick={(skin) => pick({ skin })}
       />
       <SwatchRow
         label={copy.hair}
         hexes={model.swatches.hair}
         names={copy.hairNames}
-        value={model.hair}
+        value={chosen.hair}
         onPick={(hair) => pick({ hair })}
       />
     </>
@@ -275,16 +272,9 @@ function Stepper({
   );
 }
 
-// The facts drawer (size, never weight): height, size, bust, waist, shoes, age and gender.
-export function FactsBody({
-  dna,
-  gender,
-  pick,
-}: {
-  dna: StyleDna;
-  gender: Model['presence'];
-  pick: Pick;
-}) {
+// The facts drawer (size, never weight): height, size, bust, waist and shoes. Title and fields
+// only; her age and gender are set by their own dropdowns on Body shape (decided 27 Oct).
+export function FactsBody({ dna, gender }: { dna: StyleDna; gender: Model['presence'] }) {
   const { update } = useDnaMutations();
   const [unit, setUnit] = useState<'cm' | 'ft'>('cm');
   const [waistUnit, setWaistUnit] = useState<'cm' | 'in'>('cm');
@@ -296,7 +286,7 @@ export function FactsBody({
     set({ [key]: stepFact(kind, facts[key], dir) });
   const stepTwin = (kind: TwinStep, dir: 1 | -1, patch: Partial<Facts> = {}) =>
     set({ [kind]: stepTwinFact(kind, facts[kind], dir), ...patch });
-  const any = Object.entries(facts).some(([, v]) => v !== null);
+  const any = Object.entries(facts).some(([k, v]) => k !== 'ageBand' && v !== null);
   const bra = bustMode === 'bra' && !man;
   return (
     <div className="flex flex-col gap-6">
@@ -386,30 +376,6 @@ export function FactsBody({
         sub={facts.shoeUk ? f.euValue(euShoe(facts.shoeUk)) : undefined}
         onStep={(d) => step('shoeUk', 'shoeUk', d)}
       />
-      <fieldset className="flex flex-col gap-2">
-        <legend className="font-sans text-base text-ink">{f.age}</legend>
-        <div className="flex flex-wrap gap-2">
-          {AGE_BANDS.map((a) => (
-            <Pill
-              key={a.key}
-              selected={facts.ageBand === a.key}
-              onClick={() => set({ ageBand: facts.ageBand === a.key ? null : a.key })}
-            >
-              {a.label}
-            </Pill>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="font-sans text-base text-ink">{f.gender}</legend>
-        <div className="flex flex-wrap gap-2">
-          {(['woman', 'man', 'unspecified'] as const).map((g) => (
-            <Pill key={g} selected={gender === g} onClick={() => pick({ presence: g })}>
-              {f.genderOptions[g]}
-            </Pill>
-          ))}
-        </div>
-      </fieldset>
       {any ? (
         <Button
           variant="quiet"
@@ -419,7 +385,6 @@ export function FactsBody({
               heightCm: null,
               sizeUk: null,
               shoeUk: null,
-              ageBand: null,
               bustBand: null,
               bustCup: null,
               bustCm: null,

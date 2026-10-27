@@ -63,7 +63,8 @@ test('her model is the hero with two doors; landing asks for the twin once', asy
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
   // The redline cut Build your model from the twin: the hero and the two doors are all it carries.
   expect(screen.queryByRole('button', { name: copy.build })).toBeNull();
-  expect(screen.getByText(tw.status('woman', 'none'))).toBeTruthy();
+  // The hero already says it, so nothing repeats under the doors (redline 27 Oct).
+  expect(screen.queryByText(tw.status('woman', 'none'))).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: `${tw.bodyShape}, ${tw.bodyShapeSub}` }),
   );
@@ -88,6 +89,8 @@ test.each([
 test('says so while her twin is being drawn, and shows the twin over the catalog cell', async () => {
   const drawing = model({
     filed: true,
+    skinSet: true,
+    hairSet: true,
     cell: { status: 'ready', imageUrl: 'https://media.test/catalog/cell.png' },
     twin: { status: 'pending', current: false, imageUrl: 'https://media.test/media/twin.jpg' },
   });
@@ -95,6 +98,14 @@ test('says so while her twin is being drawn, and shows the twin over the catalog
   await renderWithApi(<Model />);
   expect(await screen.findByText(tw.drawing)).toBeTruthy();
   expect(screen.getByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
+});
+
+test('a skin or hair she never chose is never named under her model', async () => {
+  const handHair = model({ filed: true, hairSet: true });
+  mockFetch({ ...TWIN, 'GET /me/model': handHair, 'POST /me/model/twin': handHair });
+  await renderWithApi(<Model />);
+  expect(await screen.findByText(tw.caption('', 'Espresso'))).toBeTruthy();
+  expect(screen.queryByText(/Tan/)).toBeNull();
 });
 
 test('a look offers See it on me once her model is ready, and asks for the render', async () => {
@@ -144,15 +155,21 @@ test('body shape: the facts drawer, a scale by hand, back to her facts, a redraw
   });
   const view = await renderWithApi(<BodyShape />);
   await fireEvent.press(await screen.findByRole('button', { name: twin.facts.title }));
+  // Plain − and + (decided 27 Oct); the drawer holds no age and no gender.
   await fireEvent.press(
-    screen.getAllByRole('button', { name: `+ ${twin.facts.more}` })[1] as never,
+    screen.getByRole('button', { name: `${twin.facts.more}: ${twin.facts.size}` }),
   );
+  expect(screen.queryByRole('button', { name: '45–54' })).toBeNull();
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/dna'))?.body).toEqual({
       facts: { sizeUk: 10 },
     }),
   );
-  await fireEvent.press(screen.getByRole('button', { name: twin.facts.genderOptions.man }));
+  // Gender is its own pill on Body shape: it opens a short list and saves on the pick.
+  await fireEvent.press(
+    screen.getByRole('button', { name: `${tw.gender}: ${twin.facts.genderOptions.woman}` }),
+  );
+  await fireEvent.press(screen.getByRole('radio', { name: twin.facts.genderOptions.man }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/model'))?.body).toEqual({
       presence: 'man',

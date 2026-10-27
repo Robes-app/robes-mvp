@@ -4,27 +4,20 @@ import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { StyleProfile } from '@robes/contracts';
 import { you } from '@robes/copy';
 import { isTerminalJobStatus } from '@robes/core/jobs';
-import { Card, ErrorText, Heading, Progress, Text } from '@robes/ui';
+import { Card, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { type ChangeEvent, useEffect, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
-import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
+import { uploadPhoto } from '@/lib/upload';
 import { useJob } from '@/lib/use-job';
 import { Swatches } from './swatches';
 
 const copy = you.style;
 type Kind = 'colour' | 'silhouette';
 
-// Upload the right photo, run the analysis job, and show the result when it lands.
-export function AnalyseCard({
-  kind,
-  profile,
-  compact = false,
-}: {
-  kind: Kind;
-  profile: StyleProfile;
-  compact?: boolean;
-}) {
+// Upload the right photo and run the analysis job; the profile refetches when it lands. The
+// close-up card (Colouring) is the one door — the photo and its re-take circle carry it.
+export function useAnalyse(kind: Kind) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const [jobId, setJobId] = useState<string | null>(null);
@@ -39,6 +32,7 @@ export function AnalyseCard({
     else if (job.status !== 'succeeded') setError(copy.failed);
     setJobId(null);
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.style.get') });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') });
   }, [job, colour, queryClient]);
 
   useEffect(() => {
@@ -67,56 +61,7 @@ export function AnalyseCard({
     }
   };
 
-  const busy = uploading || jobId !== null;
-  const title = colour ? copy.colourTitle : copy.silhouetteTitle;
-  const hasResult = colour ? profile.colour !== null : profile.silhouette !== null;
-  const inputId = `style-photo-${kind}`;
-  return (
-    <section
-      aria-labelledby={compact ? undefined : `${inputId}-title`}
-      aria-label={compact ? title : undefined}
-      className="flex flex-col gap-4"
-    >
-      {/* Compact (the close-up card): the card names it and says why once; the door alone stays. */}
-      {compact ? null : (
-        <Heading level={2} size="md" id={`${inputId}-title`}>
-          {title}
-        </Heading>
-      )}
-      {!compact && colour && profile.colour ? <ColourResult colour={profile.colour} /> : null}
-      {!compact && !colour && profile.silhouette ? (
-        <SilhouetteResult silhouette={profile.silhouette} />
-      ) : null}
-      {busy ? (
-        <div className="flex flex-col gap-2" aria-live="polite">
-          <Progress stage="reading" />
-          <Text size="small" tone="muted">
-            {copy.reading}
-          </Text>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {hasResult || compact ? null : (
-            <Text tone="muted">{colour ? copy.colourBody : copy.silhouetteBody}</Text>
-          )}
-          <label
-            htmlFor={inputId}
-            className="inline-flex min-h-11 cursor-pointer items-center self-start rounded-crisp border border-border-control px-4 font-sans text-sm text-ink hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-ring"
-          >
-            {hasResult ? copy.retake : copy.choosePhoto}
-            <input
-              id={inputId}
-              type="file"
-              accept={PHOTO_ACCEPT}
-              className="sr-only"
-              onChange={(e) => void onFile(e)}
-            />
-          </label>
-        </div>
-      )}
-      {error ? <ErrorText>{error}</ErrorText> : null}
-    </section>
-  );
+  return { onFile, busy: uploading || jobId !== null, error };
 }
 
 export function ColourResult({ colour }: { colour: NonNullable<StyleProfile['colour']> }) {
@@ -138,31 +83,5 @@ export function ColourResult({ colour }: { colour: NonNullable<StyleProfile['col
         />
       </div>
     </Card>
-  );
-}
-
-export function SilhouetteResult({
-  silhouette,
-}: {
-  silhouette: NonNullable<StyleProfile['silhouette']>;
-}) {
-  return (
-    <Card as="article" title={silhouette.body_type} meta={silhouette.summary}>
-      <dl className="flex flex-col gap-3 pt-2">
-        <List term={copy.traits} items={silhouette.traits} />
-        <List term={copy.silhouettes} items={silhouette.dress_silhouettes.map((d) => d.name)} />
-        <List term={copy.necklines} items={silhouette.neckline_recommendations} />
-        <List term={copy.tips} items={silhouette.styling_tips} />
-      </dl>
-    </Card>
-  );
-}
-
-function List({ term, items }: { term: string; items: string[] }) {
-  return (
-    <div>
-      <dt className="font-sans text-xs font-medium text-ink-muted">{term}</dt>
-      <dd className="font-sans text-sm font-light text-ink">{items.join(' · ')}</dd>
-    </div>
   );
 }

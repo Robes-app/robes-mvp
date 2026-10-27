@@ -973,22 +973,11 @@ export const you = {
               .join(' · ');
       },
     },
-    // Native screen (cards per read, colours edited one at a time).
+    // Native's close-up card (Colouring).
     colour: {
-      title: 'Your colouring',
-      body: 'A close-up of your face in daylight, no filter.',
-      add: 'Add a close-up',
       reading: 'Reading your colouring…',
       noSubject: 'Robes couldn’t see a face in that photo. Try another.',
     },
-    silhouette: {
-      title: 'Your shape',
-      body: 'A full-length photo, standing straight, in fitted clothes.',
-      add: 'Add a full-length photo',
-      reading: 'Reading your shape…',
-      noSubject: 'Robes couldn’t see your full figure in that photo. Try another.',
-    },
-    again: 'Try another photo',
   },
   // SEC-81: her data as one file.
   dataExport: {
@@ -1654,7 +1643,9 @@ export const twin = {
     bodyShape: 'Body shape',
     bodyShapeSub: 'Set your line by hand.',
     // The caption under her model: colour words only, never a shape.
-    caption: (skin: string, hair: string): string => `${skin} · ${String(hair).toLowerCase()} hair`,
+    // Only what she chose or a close-up read: an unchosen skin or hair has no name to show.
+    caption: (skin: string, hair: string): string =>
+      [skin, hair ? `${String(hair).toLowerCase()} hair` : ''].filter(Boolean).join(' · '),
     drawing: 'Drawing your model…',
     twinFailed:
       'Robes couldn’t photograph your model just now. A close-up in daylight, facing the camera, helps.',
@@ -1718,11 +1709,10 @@ export const twin = {
       return 'Nothing drawn yet. Add a close-up, or set your line from your facts.';
     },
     // The stage with nothing on it (legacy #mv-fig-empty), over the ghost figure.
-    stageEmpty: 'Your model starts here. Add a close-up, or set your line from your facts.',
+    stageEmpty: 'Your model starts here.',
   },
   facts: {
     title: 'The facts',
-    sub: 'Size, never weight. Robes uses these to propose what fits.',
     height: 'Height',
     size: 'Size',
     shoes: 'Shoes',
