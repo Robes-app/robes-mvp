@@ -141,12 +141,16 @@ test('a wish becomes a piece when she buys it, and removal can be undone', async
   await declineConsent(page);
   await page.goto('/wardrobe/wishlist');
   await expect(page.getByRole('heading', { name: 'Pieces you’re after live here.' })).toBeVisible();
+  // Wishes arrive through Add pieces now (walked in inbox-ui / photo-pieces); seed them directly.
   for (const label of ['Black leather loafers', 'Silk scarf']) {
-    await page.getByLabel('A piece you want').fill(label);
-    await page.getByRole('button', { name: 'Add to wishlist' }).click();
-    await expect(page.getByRole('list', { name: 'Wishlist' }).getByText(label)).toBeVisible();
+    const created = await page.request.post('/api/v1/wishlist/items', { data: { label } });
+    expect(created.status()).toBe(201);
   }
+  await page.reload();
   const wishes = page.getByRole('list', { name: 'Wishlist' });
+  for (const label of ['Black leather loafers', 'Silk scarf']) {
+    await expect(wishes.getByText(label)).toBeVisible();
+  }
   await expect(page.getByText('2 wishlisted')).toBeVisible();
   await expect(wishes.getByText('Not yours yet').first()).toBeVisible();
   await page.getByRole('radio', { name: 'List', exact: true }).click();

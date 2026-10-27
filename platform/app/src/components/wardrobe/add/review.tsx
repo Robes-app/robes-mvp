@@ -488,8 +488,9 @@ export function Filed({
 }) {
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-6 py-10">
-      <div className="flex flex-col gap-3">
-        <Heading level={1} size="lg" role="status">
+      {/* The region announces the outcome; the h1 stays a heading inside it. */}
+      <div role="status" className="flex flex-col gap-3">
+        <Heading level={1} size="lg">
           {kept ? (
             <>
               {copy.filed.head(kept)} <em>{copy.filed.wink}</em>
