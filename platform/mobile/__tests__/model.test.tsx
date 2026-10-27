@@ -1,5 +1,4 @@
 import { twin, you } from '@robes/copy';
-import { HAIR_SWATCHES, SKIN_SWATCHES } from '@robes/core/avatar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
 import { BodyShape } from '../src/features/you/BodyShape';
@@ -7,7 +6,7 @@ import { Colouring } from '../src/features/you/Colouring';
 import { Model } from '../src/features/you/Model';
 import { twinRead } from '../src/features/you/twin';
 import { mockFetch, renderWithApi } from './support/api';
-import { LOOK_ID, look, styleDna } from './support/fixtures';
+import { LOOK_ID, look, modelData, styleDna } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -25,25 +24,7 @@ const noStyle = {
 };
 const TWIN = { 'GET /me/style': noStyle, 'GET /me/dna': styleDna() };
 const CLOSE_UP = 'https://media.test/media/close-up.jpg';
-const model = (over: object = {}) => ({
-  filed: false,
-  presence: 'woman',
-  skin: 3,
-  hair: 1,
-  line: null,
-  frame: null,
-  source: 'hand',
-  reads: { colour: false, silhouette: false },
-  cellId: 'w-s3-h1-nt',
-  cell: { status: 'none', imageUrl: null },
-  swatches: { skin: [...SKIN_SWATCHES], hair: [...HAIR_SWATCHES] },
-  skinSet: false,
-  hairSet: false,
-  adj: { shoulders: null, bust: null, hips: null },
-  closeUpUrl: null,
-  twin: { status: 'none', current: false, imageUrl: null },
-  ...over,
-});
+const model = modelData;
 const twinCalls = (calls: { method: string; path: string }[]) =>
   calls.filter((c) => c.method === 'POST' && c.path.endsWith('/me/model/twin'));
 

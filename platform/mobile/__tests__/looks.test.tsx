@@ -5,7 +5,16 @@ import { LookDetail } from '../src/features/looks/LookDetail';
 import { StylePiece } from '../src/features/looks/StylePiece';
 import { localDate } from '../src/features/looks/saved-looks';
 import { mockFetch, renderWithApi } from './support/api';
-import { IDEA_ID, idea, JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
+import {
+  IDEA_ID,
+  idea,
+  JOB_ID,
+  LOOK_ID,
+  look,
+  modelData,
+  PIECE_ID,
+  piece,
+} from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -274,4 +283,29 @@ test('before her photograph: the hint stands, no You · Model; Edit tags sets th
       climateBand: 'autumn_winter',
     }),
   );
+});
+
+test('her photograph on a look her model has not worn: You · Model stands, and Model dresses her', async () => {
+  const photo = piece().image;
+  if (!photo) throw new Error('fixture piece has an image');
+  const mine = look({ photo, model: null, record: 'photo', image: photo, onModel: null });
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: mine,
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...mine,
+      ...JSON.parse(String(init.body)),
+    }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: '77777777-7777-4777-8777-777777777777' },
+    'GET /me/model': modelData({ filed: true, cell: { status: 'ready', imageUrl: null } }),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  // Beta dressed every saved look: with her model on file, the Model side is hers to ask for.
+  const modelSide = await screen.findByRole('radio', { name: looks.page.record.model });
+  await fireEvent.press(modelSide);
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),
+  );
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ record: 'model' });
 });

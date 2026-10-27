@@ -170,3 +170,40 @@ test('her own photograph joins a look; You · Model chooses which picture is the
     .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).record)
     .toBe('model');
 });
+
+test('her photograph on a look her model has not worn: her model dresses it, and You · Model stands', async ({
+  page,
+}) => {
+  await signIn(page);
+  await declineConsent(page);
+  const api = page.request;
+  const shoes = await (
+    await api.post('/api/v1/wardrobe/items', { data: { label: 'White running shoes' } })
+  ).json();
+  const look = await (
+    await api.post('/api/v1/looks', {
+      data: { name: 'Runner look', pieces: [{ pieceId: shoes.id }] },
+    })
+  ).json();
+  await api.patch('/api/v1/me/model', { data: { skin: 6 } });
+  await expect
+    .poll(async () => (await (await api.get('/api/v1/me/model')).json()).cell.status, {
+      timeout: 30_000,
+    })
+    .toBe('ready');
+
+  // Never rendered on her model: her photograph alone, then the dressing starts by itself.
+  await page.goto(`/look/${look.id}`);
+  await page.locator('input[type="file"][aria-label="Add your photograph"]').setInputFiles(PHOTO);
+  const record = page.getByRole('radiogroup', { name: 'The record of this look' });
+  await expect(record).toBeVisible({ timeout: 30_000 });
+  await expect
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).onModel, {
+      timeout: 30_000,
+    })
+    .toBe('ready');
+  await record.getByRole('radio', { name: 'Model' }).click();
+  await expect
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).record)
+    .toBe('model');
+});

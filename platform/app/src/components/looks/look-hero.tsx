@@ -1,8 +1,8 @@
 'use client';
 
-import { queryKeys, useApiClient, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { lookbook, looks as looksCopy, ui } from '@robes/copy';
+import { lookbook, looks as looksCopy, ui, you } from '@robes/copy';
 import { lookLine, lookWearFor } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { Eyebrow, Pill, SegmentedControl, Sheet, useToast } from '@robes/ui';
@@ -44,7 +44,30 @@ export function LookHero({
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
   };
   const onError = (err: unknown) => toast({ message: errorCopy(err) });
-  const attach = useApiMutation('looks.photo', { onSuccess: landed, onError });
+  // Her model can wear the look once she has one filed and drawn (beta dressed every saved look).
+  const me = useApi('me.model.get');
+  const canDress =
+    me.data?.filed === true &&
+    me.data.cell.status === 'ready' &&
+    look.pieces.length > 0 &&
+    !look.frame;
+  const dress = useApiMutation('looks.renderOnModel', {
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
+    onError,
+  });
+  const dressIfNeeded = (l: Look) => {
+    if (canDress && l.model === null && l.onModel !== 'pending' && !dress.isPending) {
+      dress.mutate({ params: { id: l.id } });
+    }
+  };
+  // Her photograph lands; her model starts dressing the look, so You · Model has both sides.
+  const attach = useApiMutation('looks.photo', {
+    onSuccess: (updated) => {
+      landed(updated);
+      dressIfNeeded(updated);
+    },
+    onError,
+  });
   const update = useApiMutation('looks.update', {
     onSuccess: landed,
     onError: (err) => {
@@ -67,14 +90,16 @@ export function LookHero({
   };
 
   // The tap is the choice: the picture swaps at once, then the record is saved.
+  // Model before her model has worn it starts the dressing; the picture follows when it lands.
   const choose = (record: 'photo' | 'model') => {
     if (record === look.record) return;
     queryClient.setQueryData(key, {
       ...look,
       record,
-      image: record === 'photo' ? look.photo : look.model,
+      image: record === 'photo' ? look.photo : (look.model ?? look.photo),
     });
     update.mutate({ params: { id: look.id }, input: { record } });
+    if (record === 'model') dressIfNeeded(look);
   };
 
   const line = lookLine(look);
@@ -82,7 +107,9 @@ export function LookHero({
     ...(look.climateBand === 'year_round' ? [] : [seasons[look.climateBand]]),
     ...lookWearFor(look),
   ];
-  const both = look.photo !== null && look.model !== null;
+  // You · Model stands once there is her photograph and a model side: drawn, or hers to dress.
+  const both = look.photo !== null && (look.model !== null || canDress);
+  const dressing = (look.onModel === 'pending' || dress.isPending) && !look.frame;
   const editTags = (
     <button
       type="button"
@@ -102,6 +129,14 @@ export function LookHero({
         ) : (
           <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
         )}
+        {dressing ? (
+          <p
+            role="status"
+            className="absolute top-3 left-3 z-10 rounded-pill border border-hairline bg-bg/90 px-3 py-1.5 font-sans text-ink-muted text-xs"
+          >
+            {you.model.dressing}
+          </p>
+        ) : null}
         <button
           type="button"
           onClick={onDiary}

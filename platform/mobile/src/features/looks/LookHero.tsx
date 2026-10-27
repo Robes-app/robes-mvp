@@ -1,4 +1,4 @@
-import { queryKeys, useApiClient, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { errors, lookbook, looks as looksCopy, ui, wardrobe, you } from '@robes/copy';
 import { lookLine, lookWearFor } from '@robes/core/looks';
@@ -50,8 +50,29 @@ export function LookHero({
     queryClient.setQueryData(key, updated);
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
   };
+  // Her model can wear the look once she has one filed and drawn (beta dressed every saved look).
+  // Twin of web components/looks/look-hero.tsx.
+  const me = useApi('me.model.get');
+  const canDress =
+    me.data?.filed === true &&
+    me.data.cell.status === 'ready' &&
+    look.pieces.length > 0 &&
+    !look.frame;
+  const dress = useApiMutation('looks.renderOnModel', {
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
+    onError: () => toast.show({ message: errors.internal }),
+  });
+  const dressIfNeeded = (l: Look) => {
+    if (canDress && l.model === null && l.onModel !== 'pending' && !dress.isPending) {
+      dress.mutate({ params: { id: l.id } });
+    }
+  };
+  // Her photograph lands; her model starts dressing the look, so You · Model has both sides.
   const attach = useApiMutation('looks.photo', {
-    onSuccess: landed,
+    onSuccess: (updated) => {
+      landed(updated);
+      dressIfNeeded(updated);
+    },
     onError: () => toast.show({ message: errors.internal }),
   });
   const update = useApiMutation('looks.update', {
@@ -91,13 +112,16 @@ export function LookHero({
     queryClient.setQueryData(key, {
       ...look,
       record,
-      image: record === 'photo' ? look.photo : look.model,
+      image: record === 'photo' ? look.photo : (look.model ?? look.photo),
     });
     update.mutate({ params: { id: look.id }, input: { record } });
+    // Model before her model has worn it starts the dressing; the picture follows when it lands.
+    if (record === 'model') dressIfNeeded(look);
   };
 
   const hasPhoto = look.photo !== null;
-  const both = hasPhoto && look.model !== null;
+  // You · Model stands once there is her photograph and a model side: drawn, or hers to dress.
+  const both = hasPhoto && (look.model !== null || canDress);
   const render = renditionUri(look.image, 360);
   const line = lookLine(look);
   const editTags = (
@@ -139,7 +163,7 @@ export function LookHero({
             style={{ aspectRatio: 4 / 5 }}
           />
         )}
-        {look.onModel === 'pending' && !look.frame ? (
+        {(look.onModel === 'pending' || dress.isPending) && !look.frame ? (
           // Her model is being dressed: a small chip on the picture.
           <View className="absolute top-3 left-3 rounded-pill border border-hairline bg-bg px-3 py-1.5">
             <Text size="caption" tone="muted" accessibilityLiveRegion="polite">
