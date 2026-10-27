@@ -17,8 +17,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/wardrobe', label: nav.wardrobe, icon: 'wardrobe' },
 ];
 
-export const SOON_SLUGS = ['ask'] as const;
-export type SoonSlug = (typeof SOON_SLUGS)[number];
+// No Create option waits on a placeholder today; the new-look box answers Ask Robes in the sheet.
+export const SOON_SLUGS: readonly string[] = [];
+export type SoonSlug = string;
 
 export type CreateGroup = 'add' | 'dress';
 
@@ -78,7 +79,6 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
     keywords: 'three ways',
   },
   { id: 'new-look', group: 'dress', href: '/looks/new', label: shell.create.newLook, icon: 'plus' },
-  { id: 'ask', group: 'dress', href: '/soon/ask', label: shell.create.askRobes, icon: 'looks' },
   {
     id: 'trip',
     group: 'dress',
@@ -96,9 +96,7 @@ export function createItems(features: Features): readonly CreateItem[] {
   return CREATE_ITEMS.filter((i) => i.id !== 'trip' || features.trips);
 }
 
-export const SOON_TITLES: Record<SoonSlug, string> = {
-  ask: shell.create.askRobes,
-};
+export const SOON_TITLES: Record<SoonSlug, string> = {};
 
 // Command bar "Go to": the roots plus the pages under them.
 export const GO_TO_ITEMS: readonly NavItem[] = [

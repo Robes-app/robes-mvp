@@ -18,10 +18,10 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
+import { NewLookBox } from '@/components/home/home-box';
 import { errorCopy } from '@/lib/error-copy';
 import { useLetGo, useLooksByStatus, useRestyle } from '@/lib/look-states';
 import { DiarySheet } from './diary-sheet';
-import { NewLookBox } from './look-prompt-box';
 import { DraftTile, SavedTile, SuggestedTile } from './look-tiles';
 
 export type LookbookTab = 'saved' | 'suggested';

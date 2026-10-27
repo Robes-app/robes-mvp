@@ -167,9 +167,12 @@ export const lookbook = {
   },
   // The draft stands on a figure (legacy 2026-10-15): a slot per part of her, tapped to dress.
   figure: {
-    untitled: 'Untitled look',
+    untitled: 'Untitled Look',
+    head: (n: number): string => `The look · ${pieces(n)}`,
     alt: 'Your model, ready to dress',
     slots: { top: '+ Top', bottom: '+ Bottom', shoes: '+ Shoes' },
+    // The empty draft's start bar (legacy 2026-10-15 second pass): two icon CTAs in one pill.
+    start: { photo: 'Start from a photo', pieces: 'Add pieces' },
   },
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,
@@ -303,7 +306,8 @@ export const lookbook = {
   // F8: a verdict on a suggestion lands in her memory; "not quite" lets it go.
   verdict: {
     title: 'How was this look?',
-    up: 'More like this',
+    sub: 'Your taste shapes what comes next',
+    up: 'Loved it',
     down: 'Not quite',
     ask: 'What would have made it better?',
     send: 'Send',

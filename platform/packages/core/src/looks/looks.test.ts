@@ -17,6 +17,7 @@ import {
   newProposalKey,
   noteShort,
   orderRack,
+  pieceNoun,
   type RackRow,
   type RackState,
   rackSignature,
@@ -258,6 +259,20 @@ describe('the Saved tab’s sort', () => {
       'Brunch',
       'Cocktails',
     ]);
+  });
+});
+
+describe('pieceNoun', () => {
+  it('reads the last word of the name, plural when it ends in a plain s', () => {
+    expect(pieceNoun('Light wash wide-leg jeans')).toEqual({ word: 'jeans', plural: true });
+    expect(pieceNoun('Acid green cropped jumper')).toEqual({ word: 'jumper', plural: false });
+    expect(pieceNoun('Silk dress')).toEqual({ word: 'dress', plural: false });
+    expect(pieceNoun('Cream long-sleeve t-shirt')).toEqual({ word: 't-shirt', plural: false });
+  });
+  it('falls back to this piece when the name tells nothing', () => {
+    expect(pieceNoun('')).toEqual({ word: 'piece', plural: false });
+    expect(pieceNoun(null)).toEqual({ word: 'piece', plural: false });
+    expect(pieceNoun('New')).toEqual({ word: 'piece', plural: false });
   });
 });
 

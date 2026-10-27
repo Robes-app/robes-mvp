@@ -23,9 +23,9 @@ describe('nav', () => {
 
   it('has unique command ids and destinations', () => {
     expect(new Set(CREATE_ITEMS.map((i) => i.id)).size).toBe(CREATE_ITEMS.length);
-    // Pieces in first, then the stylist; Ask Robes wears the sparkle, never a chat bubble.
+    // Pieces in first, then the stylist; Ask Robes is the new-look box in the sheet itself.
     expect(CREATE_ITEMS.map((i) => i.group)).toEqual([...CREATE_ITEMS.map((i) => i.group)].sort());
-    expect(CREATE_ITEMS.find((i) => i.id === 'ask')?.icon).toBe('looks');
+    expect(CREATE_ITEMS.some((i) => i.href.startsWith('/soon/'))).toBe(false);
     expect(new Set(GO_TO_ITEMS.map((i) => i.href)).size).toBe(GO_TO_ITEMS.length);
   });
 

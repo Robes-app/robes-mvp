@@ -159,7 +159,7 @@ function Card({
         accessibilityRole="button"
         accessibilityLabel={look.name}
         onPress={onOpen}
-        className="gap-2 rounded-soft border border-hairline bg-surface p-2"
+        className="gap-2 rounded-soft border border-hairline bg-surface-raised p-2"
       >
         {uri ? (
           <Image source={uri} alt="" blurhash={look.image?.blurhash} />

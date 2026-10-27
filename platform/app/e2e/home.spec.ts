@@ -153,18 +153,17 @@ test('the home box: words become three looks on the deck; a photographed piece s
     page.getByTestId('home-suggested').getByText('From your prompt').first(),
   ).toBeVisible();
 
-  // The + inside the box: a photograph files quietly behind the card, then Style it three ways.
+  // The + inside the box: a photograph files quietly inside the box, and is the ask on its own.
   await page.getByRole('button', { name: 'Add a piece' }).click();
   await expect(page.getByRole('menuitem', { name: /Take a picture/ })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /From your wardrobe/ })).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('menuitem', { name: /Upload a photo/ }).click();
   await (await chooser).setFiles(PHOTO);
   const piece = page.getByTestId('box-piece');
-  await expect(piece).toContainText('Style this piece');
   await expect(piece).toContainText('filed to your wardrobe', { timeout: 30_000 });
-  await page.getByRole('button', { name: 'Send' }).click();
-  await expect(page.getByText('Pick how Robes styles it.')).toBeVisible();
-  await piece.getByRole('button', { name: /Style it three ways/ }).click();
+  // Once filed the line asks where the piece is going ("Style this t-shirt for…").
+  await expect(page.getByPlaceholder(/^Style th(is|ese) .+ for…$/)).toBeVisible();
   await page.getByRole('button', { name: 'Send' }).click();
   // Her answer can be her own words in the field.
   await page.getByPlaceholder('Or say it your way').fill('Suggest new pieces');

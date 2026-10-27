@@ -2,10 +2,10 @@ import type { Look, LookSet } from '@robes/contracts';
 import { lookbook, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
+import { NewLookBox } from '../src/features/home/HomeBox';
 import { Deck, JobDeck } from '../src/features/looks/Deck';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { LooksView } from '../src/features/looks/LooksView';
-import { NewLookBox } from '../src/features/looks/NewLookBox';
 import { localDate } from '../src/features/looks/saved-looks';
 import { dayLabel } from '../src/features/plan/plan';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
@@ -125,6 +125,7 @@ test('an empty Suggested tab offers the prompt; her words go with the day they n
   const calls = mockFetch({
     'GET /me': ME,
     'GET /looks': byStatus({}),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
     'POST /looks/prompt': { jobId: JOB_ID, status: 'queued' },
   });
   await renderWithApi(<NewLookBox />);
@@ -133,7 +134,12 @@ test('an empty Suggested tab offers the prompt; her words go with the day they n
     'Dinner tomorrow, chic',
   );
   await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
-  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/looks/job/${JOB_ID}`));
+  await waitFor(() =>
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/looks/job/[jobId]',
+      params: { jobId: JOB_ID },
+    }),
+  );
   const today = localDate();
   const [y, m, d] = today.split('-').map(Number);
   const tomorrow = localDate(new Date(y ?? 0, (m ?? 1) - 1, (d ?? 1) + 1));
@@ -141,6 +147,27 @@ test('an empty Suggested tab offers the prompt; her words go with the day they n
     prompt: 'Dinner tomorrow, chic',
     date: tomorrow,
   });
+});
+
+test('every new-look door asks where the pieces come from once she has filed any', async () => {
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    'POST /looks/prompt': { jobId: JOB_ID, status: 'queued' },
+  });
+  await renderWithApi(<NewLookBox />);
+  await waitFor(() => expect(calls.some((c) => c.path.includes('/wardrobe/items'))).toBe(true));
+  await fireEvent.changeText(screen.getByLabelText(lookbook.prompt.doorNew), 'Gallery opening');
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
+  expect(await screen.findByText(lookbook.prompt.balance.question)).toBeTruthy();
+  expect(calls.some((c) => c.method === 'POST')).toBe(false);
+  await fireEvent.press(screen.getByTestId('balance-mix'));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+      prompt: 'Gallery opening',
+      balance: 'mix',
+    }),
+  );
 });
 
 test('a suggested look reads as Robes composed it; Save to lookbook opens the diary', async () => {

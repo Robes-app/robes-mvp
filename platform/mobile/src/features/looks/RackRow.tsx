@@ -47,7 +47,7 @@ export function RackRowCard({
       onPress={onOpen}
       disabled={!onOpen}
       testID={`rack-row-${row.key}`}
-      className={`flex-row items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-border-control bg-bg' : 'border-hairline bg-surface'}`}
+      className={`flex-row items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
     >
       <View className="overflow-hidden rounded-crisp" style={{ width: 52 }}>
         {uri ? (

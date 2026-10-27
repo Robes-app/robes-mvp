@@ -155,7 +155,7 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
   const hasAny = editor.rack.rows.length > 0 || look.image !== null;
   const typed = name.trim() && name.trim() !== look.name ? name.trim() : undefined;
   return (
-    <article className="grid gap-8 pb-28 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <article className="grid grid-cols-[minmax(0,1fr)] gap-8 pb-40 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       {look.image || look.setId ? (
         <div className="relative">
           <LookPicture look={look} />
@@ -242,7 +242,7 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
         }
       />
       <div
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-bg px-4 py-3 md:sticky md:col-span-2 md:rounded-soft md:border"
+        className="fixed inset-x-0 bottom-[calc(68px+env(safe-area-inset-bottom))] z-30 border-t border-hairline bg-bg/95 px-4 py-3 backdrop-blur md:sticky md:bottom-0 md:col-span-2 md:rounded-soft md:border"
         data-testid="look-bar"
       >
         <div className="mx-auto flex max-w-3xl items-center justify-end gap-3">

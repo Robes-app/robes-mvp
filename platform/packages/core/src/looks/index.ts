@@ -485,6 +485,20 @@ export function readBalance(text: string): { balance: Balance | null; note: stri
   return { balance: null, note: t ? t.slice(0, BALANCE_NOTE_MAX) : null };
 }
 
+// The word a piece goes by in the prompt (legacy _rbLpPieceNoun): the last word of its name —
+// "Light wash wide-leg jeans" is these jeans, "Acid green cropped jumper" this jumper; anything
+// unreadable is this piece.
+export function pieceNoun(name: string | null | undefined): { word: string; plural: boolean } {
+  const last =
+    String(name ?? '')
+      .trim()
+      .split(/\s+/)
+      .pop() ?? '';
+  const word = last.toLowerCase().replace(/[^a-z'-]/g, '');
+  if (word.length < 3 || /^(new|piece|item)$/.test(word)) return { word: 'piece', plural: false };
+  return { word, plural: /s$/.test(word) && !/(ss|us|is)$/.test(word) };
+}
+
 // What a wear held that the look no longer does, and what the look holds that she did not wear
 // that day. A wear is immutable, so the record keeps saying what was on the body; the names come
 // from each side's own record, and a piece with no name left is counted by `differs` alone.

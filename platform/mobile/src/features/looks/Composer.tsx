@@ -1,7 +1,7 @@
 import { ApiClientError } from '@robes/api-client';
 import { useApi, useApiClient } from '@robes/api-client/react';
 import type { CreateLookInput, Piece } from '@robes/contracts';
-import { lookbook as copy, errors, photoPieces } from '@robes/copy';
+import { lookbook as copy, errors } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { usePieces } from '@/features/wardrobe/pieces';
+import { GenericModelBadge } from './GenericModelBadge';
 import { useInvalidateLooks } from './look-states';
 import { SwapSheet } from './SwapSheet';
 
@@ -102,7 +103,8 @@ export function Composer({ pieceId }: { pieceId?: string }) {
             style={{ color: ink, fontFamily: fonts.displayItalic }}
           />
         </View>
-        <View>
+        <View className="gap-3">
+          <Eyebrow>{copy.figure.head(0)}</Eyebrow>
           <View>
             {model.data?.cell.imageUrl ? (
               <Image source={model.data.cell.imageUrl} alt={copy.figure.alt} />
@@ -126,32 +128,25 @@ export function Composer({ pieceId }: { pieceId?: string }) {
                   accessibilityLabel={copy.figure.slots[slot]}
                   disabled={busy}
                   onPress={() => setAdding(category)}
-                  className="min-h-11 -translate-y-1/2 justify-center rounded-pill border border-border-control bg-bg px-4"
+                  className="min-h-11 -translate-y-1/2 justify-center rounded-pill border border-hairline bg-surface-raised px-4"
                 >
-                  <Text
-                    size="caption"
-                    weight="medium"
-                    className="uppercase"
-                    style={{ letterSpacing: 1.6 }}
-                  >
-                    {copy.figure.slots[slot]}
-                  </Text>
+                  <Text size="small">{copy.figure.slots[slot]}</Text>
                 </Pressable>
               </View>
             ))}
+            {/* No model of her own yet: the generic one stands in, and the badge is the door.
+                The web twin is app/src/app/(app)/looks/new/composer.tsx. */}
+            <GenericModelBadge />
           </View>
-          <Text size="small" tone="muted" italic className="pt-3 text-center">
-            {copy.guide.body}
-          </Text>
         </View>
       </ScrollView>
       {/* The actions float above the tab bar (legacy start bar). */}
-      <View className="absolute inset-x-4 bottom-6 flex-row gap-2 rounded-pill border border-hairline bg-bg p-1.5">
+      <View className="absolute inset-x-4 bottom-6 flex-row gap-2 rounded-pill border border-hairline bg-surface-raised p-1.5">
         <Button icon="camera" className="flex-1" onPress={() => router.push('/looks/photo')}>
-          {photoPieces.look.start.title}
+          {copy.figure.start.photo}
         </Button>
-        <Button variant="secondary" onPress={() => setAdding(null)} loading={busy}>
-          {copy.rack.addPiece}
+        <Button variant="secondary" icon="plus" onPress={() => setAdding(null)} loading={busy}>
+          {copy.figure.start.pieces}
         </Button>
       </View>
       <SwapSheet

@@ -23,12 +23,12 @@ test('a new look is a draft from its first piece, named when she names it, then 
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<Composer />);
-  expect(await screen.findByText(lookbook.guide.body)).toBeTruthy();
+  expect(await screen.findByText(lookbook.figure.head(0))).toBeTruthy();
   for (const slot of Object.values(lookbook.figure.slots)) {
     expect(screen.getByRole('button', { name: slot })).toBeTruthy();
   }
   await fireEvent.changeText(screen.getByLabelText(lookbook.name.label), 'Gallery');
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.rack.addPiece }));
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.figure.start.pieces }));
   await fireEvent.press(await screen.findByRole('radio', { name: 'Silk scarf' }));
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith(`/look/${LOOK_ID}`));
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
@@ -55,7 +55,8 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
   await waitFor(() => expect(alert).toHaveBeenCalled());
   await waitFor(() =>
     expect(
-      screen.getByRole('button', { name: lookbook.rack.addPiece }).props.accessibilityState.busy,
+      screen.getByRole('button', { name: lookbook.figure.start.pieces }).props.accessibilityState
+        .busy,
     ).toBe(false),
   );
   const [title, body, buttons] = alert.mock.calls[0] as [
