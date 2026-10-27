@@ -72,25 +72,11 @@ function Name({ look }: { look: Look }) {
       </View>
     );
   }
+  // No "Robes’ suggestion · Keep this name": the pencil is how she renames (27 Oct).
   return (
-    <View className="gap-2">
-      <View className="flex-row items-start gap-2">
-        <Heading className="min-w-0 flex-1">{look.name}</Heading>
-        <IconButton icon="pencil" label={copy.page.rename} onPress={() => setEditing(true)} />
-      </View>
-      {look.nameProvisional ? (
-        <View className="flex-row items-center gap-3">
-          <Text size="small" tone="muted">
-            {copy.look.suggested}
-          </Text>
-          <Button
-            variant="quiet"
-            onPress={() => rename.mutate({ params: { id: look.id }, input: { name: look.name } })}
-          >
-            {copy.look.keepName}
-          </Button>
-        </View>
-      ) : null}
+    <View className="flex-row items-start gap-2">
+      <Heading className="min-w-0 flex-1">{look.name}</Heading>
+      <IconButton icon="pencil" label={copy.page.rename} onPress={() => setEditing(true)} />
     </View>
   );
 }
@@ -135,9 +121,13 @@ function SavedLook({ look }: { look: Look }) {
   return (
     <View className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-6 pb-32">
-        <LookHero look={look} onDiary={() => setDiary(true)} />
-        <View className="gap-2">
-          <Eyebrow>{editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}</Eyebrow>
+        <LookHero
+          look={look}
+          eyebrow={editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}
+          onDiary={() => setDiary(true)}
+        />
+        {/* The name and its one line of facts, close together; the eyebrow is over the picture. */}
+        <View className="gap-1">
           <Name key={look.name} look={look} />
           {/* One line straight under the title; the picture's line carries the note. */}
           <Text size="small" tone="muted">

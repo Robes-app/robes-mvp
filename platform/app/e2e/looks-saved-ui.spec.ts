@@ -40,8 +40,9 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
 
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Camel coat, styled' })).toBeVisible();
-  await page.getByRole('button', { name: 'Keep this name' }).click();
-  await expect(page.getByText('Robes’ suggestion')).toBeHidden();
+  // Saved look is said once, over the picture; no "Robes’ suggestion · Keep this name" (27 Oct).
+  await expect(page.getByText('Saved look', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('Robes’ suggestion')).toHaveCount(0);
   expect(await seriousViolations(page)).toEqual([]);
 
   // The look's own record stands under the rack, empty until the first day she wears it.

@@ -781,8 +781,6 @@ export const looks = {
   openLook: 'Open',
   page: {
     eyebrow: 'Look',
-    suggested: 'Robes’ suggestion',
-    keepName: 'Keep this name',
     rename: 'Rename',
     nameLabel: 'Name',
     saveName: 'Save name',
@@ -799,8 +797,6 @@ export const looks = {
     remove: 'Delete this look',
     removed: 'Look removed.',
     wearOnDay: 'Wear on a day',
-    // The eyebrow over the look's picture.
-    theLook: 'The look',
     imageAlt: (name: string): string => `The look: ${name}`,
     noPieces: 'No pieces yet.',
     // On the photograph: the day it is worn, and her own picture of it (↻ once one is kept).
@@ -868,8 +864,6 @@ export const looks = {
     removed: 'Look removed.',
     pieces: 'Pieces',
     imageAlt: (name: string): string => `The look: ${name}`,
-    suggested: 'Robes’ suggestion',
-    keepName: 'Keep this name',
     nameLabel: 'Name this look',
     saveName: 'Save name',
     wearOnDay: 'Wear on a day',

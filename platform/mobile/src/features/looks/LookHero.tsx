@@ -29,7 +29,16 @@ const BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 // app/src/components/looks/look-hero.tsx): THE LOOK, the picture with the diary bottom-left and
 // her photograph bottom-right (↻ once one is kept), the line naming the pieces, the tags, then the
 // hint to add her photograph — or, with both pictures, You · Model, which picks the record.
-export function LookHero({ look, onDiary }: { look: Look; onDiary: () => void }) {
+export function LookHero({
+  look,
+  eyebrow,
+  onDiary,
+}: {
+  look: Look;
+  // What the look is (Saved look / Editing): said once, over the picture.
+  eyebrow: string;
+  onDiary: () => void;
+}) {
   const api = useApiClient();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -91,13 +100,30 @@ export function LookHero({ look, onDiary }: { look: Look; onDiary: () => void })
   const both = hasPhoto && look.model !== null;
   const render = renditionUri(look.image, 360);
   const line = lookLine(look);
+  const editTags = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={copy.editTags}
+      onPress={() => setTagsOpen(true)}
+      hitSlop={12}
+    >
+      <Text
+        size="caption"
+        tone="faint"
+        className="uppercase"
+        style={{ fontSize: 10, letterSpacing: 2 }}
+      >
+        {copy.editTags}
+      </Text>
+    </Pressable>
+  );
   const tags = [
     ...(look.climateBand === 'year_round' ? [] : [seasons[look.climateBand]]),
     ...lookWearFor(look),
   ];
   return (
     <View className="gap-3">
-      <Eyebrow>{copy.theLook}</Eyebrow>
+      <Eyebrow>{eyebrow}</Eyebrow>
       <View className="relative">
         {look.frame && !(hasPhoto && look.record === 'photo') ? (
           <LookPicture look={look} />
@@ -133,57 +159,55 @@ export function LookHero({ look, onDiary }: { look: Look; onDiary: () => void })
           />
         </View>
       </View>
-      {line ? (
-        <Text italic size="caption" tone="muted">
-          {line}
-        </Text>
-      ) : null}
-      <View className="flex-row items-start justify-between gap-3">
-        <View accessibilityLabel={copy.tags} className="flex-1 flex-row flex-wrap gap-1.5">
-          {tags.map((t) => (
-            <View key={t} className="rounded-pill border border-hairline bg-surface px-2.5 py-1">
-              <Text size="caption" tone="muted" style={{ fontSize: 11 }}>
-                {t}
-              </Text>
+      {/* Under the picture, one tight group: the line, the tags with Edit tags at the right
+          (beside the line when there are no tags), then the hint or You · Model. */}
+      <View className="gap-2">
+        {line || !tags.length ? (
+          <View className="flex-row items-baseline justify-between gap-3">
+            <Text italic size="caption" tone="muted" className="flex-1">
+              {line}
+            </Text>
+            {tags.length ? null : editTags}
+          </View>
+        ) : null}
+        {tags.length ? (
+          <View className="flex-row items-center justify-between gap-3">
+            <View accessibilityLabel={copy.tags} className="flex-1 flex-row flex-wrap gap-1.5">
+              {tags.map((t) => (
+                <View
+                  key={t}
+                  className="rounded-pill border border-hairline bg-surface px-2.5 py-1"
+                >
+                  <Text size="caption" tone="muted" style={{ fontSize: 11 }}>
+                    {t}
+                  </Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.editTags}
-          onPress={() => setTagsOpen(true)}
-          hitSlop={12}
-        >
-          <Text
-            size="caption"
-            tone="faint"
-            className="uppercase"
-            style={{ fontSize: 10, letterSpacing: 2 }}
-          >
-            {copy.editTags}
-          </Text>
-        </Pressable>
-      </View>
-      {both ? (
-        <View className="flex-row flex-wrap items-center justify-between gap-3">
-          <SegmentedControl
-            label={copy.record.label}
-            value={look.record}
-            options={[
-              { value: 'photo', label: copy.record.you },
-              { value: 'model', label: copy.record.model },
-            ]}
-            onChange={choose}
-          />
+            {editTags}
+          </View>
+        ) : null}
+        {both ? (
+          <View className="flex-row flex-wrap items-center justify-between gap-3">
+            <SegmentedControl
+              label={copy.record.label}
+              value={look.record}
+              options={[
+                { value: 'photo', label: copy.record.you },
+                { value: 'model', label: copy.record.model },
+              ]}
+              onChange={choose}
+            />
+            <Text italic size="caption" tone="muted">
+              {copy.record.kept}
+            </Text>
+          </View>
+        ) : hasPhoto ? null : (
           <Text italic size="caption" tone="muted">
-            {copy.record.kept}
+            {copy.photoNote}
           </Text>
-        </View>
-      ) : hasPhoto ? null : (
-        <Text italic size="caption" tone="muted">
-          {copy.photoNote}
-        </Text>
-      )}
+        )}
+      </View>
       <Sheet
         open={choosing}
         onClose={() => setChoosing(false)}

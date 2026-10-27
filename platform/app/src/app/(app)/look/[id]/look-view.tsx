@@ -10,17 +10,7 @@ import {
 import type { Look } from '@robes/contracts';
 import { lookbook, looks, wardrobe } from '@robes/copy';
 import { isHandBuiltDraft } from '@robes/core/looks';
-import {
-  Button,
-  ErrorText,
-  Eyebrow,
-  Field,
-  Heading,
-  IconButton,
-  Skeleton,
-  Text,
-  useToast,
-} from '@robes/ui';
+import { Button, ErrorText, Field, Heading, IconButton, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -154,12 +144,15 @@ function LookBody({ look }: { look: Look }) {
   return (
     // The foot clears the look's fixed bar (Edit look, or Done · Update).
     <article className="grid gap-8 pb-40 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <LookHero look={look} onDiary={() => setDiary(true)} />
+      <LookHero
+        look={look}
+        eyebrow={editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}
+        onDiary={() => setDiary(true)}
+      />
       <div className="flex flex-col gap-6">
         <LookName
           look={look}
           update={actions.update}
-          editing={editor.editing}
           meta={savedMeta(look, editor.rack.rows.length)}
         />
         <SavedRack look={look} editor={editor} />
@@ -211,12 +204,10 @@ function LookBody({ look }: { look: Look }) {
 function LookName({
   look,
   update,
-  editing: editingLook,
   meta,
 }: {
   look: Look;
   update: ReturnType<typeof useLookActions>['update'];
-  editing: boolean;
   meta: string;
 }) {
   const [editing, setEditing] = useState(false);
@@ -251,30 +242,19 @@ function LookName({
       </form>
     );
   }
+  // The eyebrow is over the picture; no "Robes’ suggestion · Keep this name" — the pencil is how
+  // she renames (27 Oct). The name and its one line of facts sit close together.
   return (
-    <header className="flex flex-col gap-2">
-      <Eyebrow>{editingLook ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}</Eyebrow>
-      {/* The pencil sits on the name, as it does on a day: renaming is not its own paragraph. */}
+    <header className="flex flex-col gap-1">
       <div className="flex items-start gap-2">
         <Heading level={1} size="xl" className="min-w-0 flex-1">
           {look.name}
         </Heading>
         <IconButton icon="pencil" label={copy.rename} onClick={() => setEditing(true)} />
       </div>
-      {/* One line straight under the title: the pieces, the wears, the last day. */}
       <Text size="small" tone="muted">
         {meta}
       </Text>
-      {look.nameProvisional ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Text size="small" tone="muted">
-            {copy.suggested}
-          </Text>
-          <Button variant="quiet" loading={update.isPending} onClick={() => save(look.name)}>
-            {copy.keepName}
-          </Button>
-        </div>
-      ) : null}
     </header>
   );
 }

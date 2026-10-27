@@ -15,7 +15,7 @@ const _TOKEN = 'AbCdEfGhIjKlMnOpQrStUv';
 
 beforeEach(() => jest.clearAllMocks());
 
-test('a suggested name can be kept or replaced', async () => {
+test('a suggested name is renamed with the pencil, never a "Keep this name" line', async () => {
   const calls = mockFetch({
     [`GET /looks/${LOOK_ID}`]: look({ nameProvisional: true, name: 'Camel coat, styled' }),
     [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) =>
@@ -23,15 +23,17 @@ test('a suggested name can be kept or replaced', async () => {
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  expect(await screen.findByText(looks.look.suggested)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: looks.look.keepName }));
-  await waitFor(() => expect(screen.queryByText(looks.look.suggested)).toBeNull());
-  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Camel coat, styled' });
+  expect(await screen.findByText('Camel coat, styled')).toBeTruthy();
+  // Saved look is said once, over the picture; the suggestion line is gone (27 Oct).
+  expect(screen.getAllByText(lookbook.eyebrow.saved)).toHaveLength(1);
+  expect(screen.queryByText('Robes’ suggestion')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Keep this name' })).toBeNull();
 
   await fireEvent.press(screen.getByRole('button', { name: looks.page.rename }));
   await fireEvent.changeText(screen.getByLabelText(looks.look.nameLabel), 'Gallery opening');
   await fireEvent.press(screen.getByRole('button', { name: looks.look.saveName }));
   expect(await screen.findByText('Gallery opening')).toBeTruthy();
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Gallery opening' });
 });
 
 test('wear on a day opens the one diary drawer and pins the chosen local date', async () => {
