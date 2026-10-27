@@ -114,83 +114,82 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     >
       <PrimaryScope>
         <View className="gap-4 pb-6">
-          <View className="flex-row items-center justify-between">
-            <Text className="font-display text-lg">{monthLabel(month)}</Text>
-            <View className="flex-row items-center gap-1">
-              <IconButton
-                icon="back"
-                label={copy.diary.prevMonth}
-                onPress={() => setMonth(shiftMonth(month, -1))}
-              />
-              <IconButton
-                icon="forward"
-                label={copy.diary.nextMonth}
-                onPress={() => setMonth(shiftMonth(month, 1))}
-              />
+          {/* Beta's month sits on a white card (twin: diary-sheet.tsx). */}
+          <View className="gap-3 rounded-soft border border-hairline bg-surface-raised p-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="font-display text-lg">{monthLabel(month)}</Text>
+              <View className="flex-row items-center gap-1">
+                <IconButton
+                  icon="back"
+                  label={copy.diary.prevMonth}
+                  onPress={() => setMonth(shiftMonth(month, -1))}
+                />
+                <IconButton
+                  icon="forward"
+                  label={copy.diary.nextMonth}
+                  onPress={() => setMonth(shiftMonth(month, 1))}
+                />
+              </View>
             </View>
-          </View>
-          <View className="gap-1">
-            <View className="flex-row" importantForAccessibility="no-hide-descendants">
-              {WEEKDAYS.map((k, i) => (
-                <Text key={k} tone="muted" size="caption" className="flex-1 text-center">
-                  {copy.diary.weekdays[i]}
-                </Text>
+            <View className="gap-1">
+              <View className="flex-row" importantForAccessibility="no-hide-descendants">
+                {WEEKDAYS.map((k, i) => (
+                  <Text key={k} tone="muted" size="caption" className="flex-1 text-center">
+                    {copy.diary.weekdays[i]}
+                  </Text>
+                ))}
+              </View>
+              {rows.map((row, r) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: rows of a fixed grid
+                <View key={r} className="flex-row gap-1">
+                  {row.map((date, c) => {
+                    // biome-ignore lint/suspicious/noArrayIndexKey: padding cells are fixed positions
+                    if (!date) return <View key={`pad-${r}-${c}`} className="flex-1" />;
+                    const on = date === day;
+                    return (
+                      <Pressable
+                        key={date}
+                        accessibilityRole="button"
+                        accessibilityLabel={longDate(date)}
+                        accessibilityState={{ selected: on }}
+                        onPress={() => setPicked(date)}
+                        className={`min-h-11 flex-1 items-center justify-center gap-1 rounded-soft border ${
+                          on
+                            ? 'border-selected-line bg-selected'
+                            : date === today
+                              ? 'border-hairline'
+                              : 'border-transparent'
+                        }`}
+                      >
+                        <Text size="small" tone={date < today ? 'muted' : 'ink'}>
+                          {Number(date.slice(8))}
+                        </Text>
+                        {/* A filed day carries a dot, so her diary reads at a glance. */}
+                        <View
+                          className="size-1 rounded-pill"
+                          style={filled.has(date) ? { backgroundColor: rose } : undefined}
+                        />
+                      </Pressable>
+                    );
+                  })}
+                </View>
               ))}
             </View>
-            {rows.map((row, r) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: rows of a fixed grid
-              <View key={r} className="flex-row gap-1">
-                {row.map((date, c) => {
-                  // biome-ignore lint/suspicious/noArrayIndexKey: padding cells are fixed positions
-                  if (!date) return <View key={`pad-${r}-${c}`} className="flex-1" />;
-                  const on = date === day;
-                  return (
-                    <Pressable
-                      key={date}
-                      accessibilityRole="button"
-                      accessibilityLabel={longDate(date)}
-                      accessibilityState={{ selected: on }}
-                      onPress={() => setPicked(date)}
-                      className={`min-h-11 flex-1 items-center justify-center gap-1 rounded-soft border ${
-                        on
-                          ? 'border-selected-line bg-selected'
-                          : date === today
-                            ? 'border-hairline'
-                            : 'border-transparent'
-                      }`}
-                    >
-                      <Text size="small" tone={date < today ? 'muted' : 'ink'}>
-                        {Number(date.slice(8))}
-                      </Text>
-                      {/* A filed day carries a dot, so her diary reads at a glance. */}
-                      <View
-                        className="size-1 rounded-pill"
-                        style={filled.has(date) ? { backgroundColor: rose } : undefined}
-                      />
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ))}
           </View>
-          <Text tone="muted" italic accessibilityLiveRegion="polite">
+          <Text
+            tone="muted"
+            italic
+            accessibilityLiveRegion="polite"
+            className="border-t border-hairline pt-3 text-center"
+          >
             {copy.diary.picked(longDate(day), day === today, state.suffix)}
           </Text>
-          <View className="flex-row gap-3">
-            <Button variant="quiet" onPress={close} className="flex-1">
-              {copy.diary.notYet}
-            </Button>
-            <Button
-              disabled={state.action === 'recorded'}
-              loading={busy}
-              className="flex-1"
-              onPress={act}
-            >
-              {copy.diary[state.action]}
-            </Button>
-          </View>
+          {/* Beta's order: the day's act, "I wore this today" beneath it, then not yet. */}
+          <Button disabled={state.action === 'recorded'} loading={busy} onPress={act}>
+            {copy.diary[state.action]}
+          </Button>
           {worn.has(today) ? (
-            <View className="flex-row items-center gap-1.5">
+            <View className="flex-row items-center justify-center gap-1.5">
               <Icon name="check" size={14} color={rose} />
               <Text size="small" tone="muted">
                 {copy.diary.woreTodayDone}
@@ -200,7 +199,6 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
             <Button
               variant="quiet"
               disabled={busy}
-              className="self-start"
               onPress={() => {
                 if (look) wear.mutate({ params: { id: look.id }, input: { wornOn: today } });
               }}
@@ -208,6 +206,9 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
               {copy.diary.woreToday}
             </Button>
           )}
+          <Button variant="quiet" onPress={close}>
+            {copy.diary.notYet}
+          </Button>
         </View>
       </PrimaryScope>
     </Sheet>

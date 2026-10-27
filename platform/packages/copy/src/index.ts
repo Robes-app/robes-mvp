@@ -1086,6 +1086,10 @@ export const plan = {
     action: 'Go to Lookbook',
   },
   monthCaption: 'Month reads the shape of it. List is where you plan.',
+  // A past day on the web's month card: what it held, never a fraction.
+  monthFiled: (pieces: number): string =>
+    `Filed · ${pieces === 1 ? '1 piece' : `${pieces} pieces`}`,
+  monthMore: (n: number): string => `+${n}`,
   // Month view (M5 task 4) and trip days.
   view: { label: 'Diary view', list: 'List', month: 'Month' },
   prevMonth: 'Previous month',
@@ -1146,8 +1150,20 @@ export const plan = {
     hint: 'Tap looks to add one or several',
     add: (n: number): string => (n === 1 ? 'Add 1 look' : `Add ${n} looks`),
     already: 'Already on this day',
-    neverWorn: 'Never worn',
-    lastWorn: (date: string): string => `Last worn ${date}`,
+    neverWorn: 'Look · never worn',
+    lastWorn: (date: string): string => `Look · last ${date}`,
+    // The looks still waiting in Suggested, one tap away (a day takes saved looks only).
+    suggested: (n: number): string =>
+      `${countWord(n)} ${n === 1 ? 'look waits' : 'looks wait'} in Suggested — save one first`,
+    lastWornFirst: 'Last worn ↓',
+    firstWornFirst: 'First worn ↑',
+    sortLabel: 'Order',
+    refine: 'Refine',
+    refineOn: (n: number): string => `Refine · ${n}`,
+    search: 'Search by name or piece',
+    clear: 'Clear all',
+    noneTitle: 'Nothing matches.',
+    noneBody: 'Clear the filters to see every saved look.',
     added: (n: number, day: string): string =>
       n === 1 ? `Added to ${day}.` : `${n} looks added to ${day}.`,
     emptyTitle: 'Nothing saved',

@@ -457,6 +457,66 @@ export function sortLooks<T extends { name: string; createdAt: string; lastWornO
   return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+// The Add-a-look picker's order (legacy _mvPkPaint): "Last worn ↓" leads with the look she wore
+// most recently and leaves the never-worn at the end; "First worn ↑" turns it round, so the
+// never-worn lead. Ties fall to the name.
+export function pickerOrder<T extends { name: string; lastWornOn: string | null }>(
+  looks: readonly T[],
+  lastWornFirst: boolean,
+): T[] {
+  const byName = (a: T, b: T) => a.name.localeCompare(b.name, 'en-GB');
+  const worn = (l: T) => l.lastWornOn ?? '';
+  const list = [...looks].sort((a, b) =>
+    lastWornFirst
+      ? worn(b).localeCompare(worn(a)) || byName(a, b)
+      : worn(a).localeCompare(worn(b)) || byName(a, b),
+  );
+  return list;
+}
+
+// The picker's search: a look matches by its own name or any piece's label or brand.
+export function lookMatches(
+  look: {
+    name: string;
+    pieces: readonly { piece: { label: string; brand?: string | null } }[];
+  },
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (look.name.toLowerCase().includes(q)) return true;
+  return look.pieces.some(
+    ({ piece }) =>
+      piece.label.toLowerCase().includes(q) || (piece.brand ?? '').toLowerCase().includes(q),
+  );
+}
+
+// What a look is worn for, read from its pieces (legacy _rbInheritLookTags): the tags every one
+// of its pieces carries, Everyday aside (nearly every piece has it, so it says nothing), A–Z, two
+// at most. Filters (the picker's Refine, the Lookbook's Filter) read it as the look's Wear it for.
+export function lookWearFor(look: {
+  pieces: readonly { piece: { wearFor?: readonly string[] } }[];
+}): string[] {
+  const pieces = look.pieces.map((p) => p.piece.wearFor ?? []);
+  if (!pieces.length) return [];
+  const counts = new Map<string, number>();
+  for (const tags of pieces) {
+    for (const t of new Set(tags)) counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  return [...counts]
+    .filter(([t, n]) => n === pieces.length && t.toLowerCase() !== 'everyday')
+    .map(([t]) => t)
+    .sort((a, b) => a.localeCompare(b, 'en-GB'))
+    .slice(0, 2);
+}
+
+// The Wear it for options a set of looks offers, A–Z.
+export function wearForOptions(
+  looks: readonly { pieces: readonly { piece: { wearFor?: readonly string[] } }[] }[],
+): string[] {
+  return [...new Set(looks.flatMap(lookWearFor))].sort((a, b) => a.localeCompare(b, 'en-GB'));
+}
+
 // Where a new look's pieces come from (legacy 2026-10-19): her answer to the one question asked on
 // a new look, a chip or her own words. Words that name none of the three ride verbatim as a note.
 export const BALANCES = ['owned', 'mix', 'new'] as const;

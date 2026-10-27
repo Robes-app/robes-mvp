@@ -2,7 +2,14 @@
 
 import type { Look } from '@robes/contracts';
 import { lookbook as copy, nav } from '@robes/copy';
-import { type LookSort, SORT_FROM, SORTS, sortLooks } from '@robes/core/looks';
+import {
+  type LookSort,
+  lookWearFor,
+  SORT_FROM,
+  SORTS,
+  sortLooks,
+  wearForOptions,
+} from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import {
   Button,
@@ -30,7 +37,7 @@ const TABS = [
   { value: 'suggested', label: copy.tabs.suggested },
 ] as const;
 const SKELETONS = ['a', 'b', 'c'] as const;
-// The only axis a saved look can be narrowed by today; Wear-it-for and Vibe need look tags.
+// Season, and Wear it for read from the look's pieces (Vibe needs look tags the platform lacks).
 const SEASON_BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type SeasonBandId = (typeof SEASON_BANDS)[number];
 
@@ -57,6 +64,8 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   const [sortOpen, setSortOpen] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
   const [bands, setBands] = useState<SeasonBandId[]>([]);
+  const [wear, setWear] = useState<string[]>([]);
+  const filters = bands.length + wear.length;
   // The calendar on a card opens the same diary sheet, over the grid — she never leaves it.
   const [diary, setDiary] = useState<Look | null>(null);
   const refineId = useId();
@@ -72,10 +81,16 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   }, [sortOpen]);
   const current = tab === 'saved' ? saved : suggested;
   const all = current.data?.items ?? [];
+  // Within an axis picks OR, across axes AND (legacy _lkMatchRefine).
   const raw =
-    tab === 'saved' && bands.length
-      ? all.filter((l) => bands.includes(l.climateBand as SeasonBandId))
+    tab === 'saved' && filters
+      ? all.filter(
+          (l) =>
+            (!bands.length || bands.includes(l.climateBand as SeasonBandId)) &&
+            (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
+        )
       : all;
+  const wearOpts = tab === 'saved' ? wearForOptions(all) : [];
   const sortable = tab === 'saved' && all.length >= SORT_FROM;
   const items = sortable ? sortLooks(raw, sort) : raw;
   const draftItems = drafts.data?.items ?? [];
@@ -102,14 +117,13 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           value={tab}
           onChange={(t) => router.replace(t === 'saved' ? '/looks' : '/looks?tab=suggested')}
         />
-        {tab === 'saved' ? (
-          <IconButton
-            framed
-            icon="plus"
-            label={copy.newLook}
-            onClick={() => router.push('/looks/new')}
-          />
-        ) : null}
+        {/* The + stands on both tabs (beta's header: the track and the circle, always). */}
+        <IconButton
+          framed
+          icon="plus"
+          label={copy.newLook}
+          onClick={() => router.push('/looks/new')}
+        />
       </div>
       {/* The count row holds its height on both tabs, so the grid never jumps on a switch. */}
       <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
@@ -146,7 +160,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
             >
               <Icon name="filter" size={14} />
               {copy.refine.open}
-              {bands.length ? (
+              {filters ? (
                 <>
                   {/* The dot is decorative; the state reaches a screen reader as words. */}
                   <span
@@ -189,8 +203,23 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           aria-label={copy.refine.title}
           className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-4"
         >
+          {/* Beta's drawer: FILTER with a quiet Clear at its right, the groups, then the count to
+              close it on — a hairline pill, since filtering is not a commitment. */}
+          <div className="flex items-center justify-between">
+            <Eyebrow>{copy.refine.title}</Eyebrow>
+            <Button
+              variant="quiet"
+              disabled={!filters}
+              onClick={() => {
+                setBands([]);
+                setWear([]);
+              }}
+            >
+              {copy.refine.clear}
+            </Button>
+          </div>
           <fieldset className="flex flex-col gap-2">
-            <legend className="font-sans text-ink-faint text-xs uppercase tracking-[0.18em]">
+            <legend className="mb-2 font-sans text-[10px] text-accent-warm uppercase tracking-[0.18em]">
               {copy.refine.season}
             </legend>
             <div className="flex flex-wrap gap-2">
@@ -207,13 +236,30 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               ))}
             </div>
           </fieldset>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Button variant="quiet" disabled={!bands.length} onClick={() => setBands([])}>
-              {copy.refine.clear}
-            </Button>
-            <Button variant="secondary" onClick={() => setRefineOpen(false)}>
+          {wearOpts.length ? (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 font-sans text-[10px] text-accent-warm uppercase tracking-[0.18em]">
+                {copy.refine.wearFor}
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {wearOpts.map((t) => (
+                  <Pill
+                    key={t}
+                    selected={wear.includes(t)}
+                    onClick={() =>
+                      setWear(wear.includes(t) ? wear.filter((x) => x !== t) : [...wear, t])
+                    }
+                  >
+                    {t}
+                  </Pill>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
+          <div className="flex justify-end border-t border-hairline pt-3">
+            <button type="button" onClick={() => setRefineOpen(false)} className={toolPill(false)}>
               {copy.refine.show(items.length)}
-            </Button>
+            </button>
           </div>
         </section>
       ) : null}
@@ -240,7 +286,21 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           ))}
         </ul>
       ) : items.length === 0 ? (
-        tab === 'saved' ? (
+        tab === 'saved' && filters ? (
+          // A filter that matches nothing names it and offers the way back, never a bare grid.
+          <div className="flex flex-col items-center gap-2 py-8 text-center">
+            <p className="font-display text-ink text-xl">{copy.refine.none}</p>
+            <Button
+              variant="quiet"
+              onClick={() => {
+                setBands([]);
+                setWear([]);
+              }}
+            >
+              {copy.refine.clear}
+            </Button>
+          </div>
+        ) : tab === 'saved' ? (
           draftItems.length ? null : (
             <EmptyState
               title={copy.savedEmpty.title}

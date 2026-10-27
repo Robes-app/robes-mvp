@@ -121,6 +121,23 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
           >
             {copy.diary[state.action]}
           </Button>
+          {/* Beta's order: the day's act, then "I wore this today" beneath it. */}
+          {worn.has(today) ? (
+            <span className="flex items-center justify-center gap-1.5 font-sans text-ink-muted text-sm">
+              <Icon name="check" size={14} />
+              {copy.diary.woreTodayDone}
+            </span>
+          ) : (
+            <Button
+              variant="quiet"
+              disabled={busy}
+              onClick={() => {
+                if (look) wear.mutate({ params: { id: look.id }, input: { wornOn: today } });
+              }}
+            >
+              {copy.diary.woreToday}
+            </Button>
+          )}
           <Button variant="quiet" onClick={close}>
             {copy.diary.notYet}
           </Button>
@@ -128,7 +145,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
       }
     >
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface p-4">
+        <div className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-4">
           <div className="flex items-center justify-between">
             <span className="font-display text-ink text-lg">{monthLabel(month)}</span>
             <span className="flex items-center gap-1">
@@ -193,23 +210,6 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
         >
           {copy.diary.picked(longDate(day), day === today, state.suffix)}
         </p>
-        {worn.has(today) ? (
-          <span className="flex items-center gap-1.5 font-sans text-ink-muted text-sm">
-            <Icon name="check" size={14} />
-            {copy.diary.woreTodayDone}
-          </span>
-        ) : (
-          <Button
-            variant="quiet"
-            className="self-start"
-            disabled={busy}
-            onClick={() => {
-              if (look) wear.mutate({ params: { id: look.id }, input: { wornOn: today } });
-            }}
-          >
-            {copy.diary.woreToday}
-          </Button>
-        )}
       </div>
     </Sheet>
   );

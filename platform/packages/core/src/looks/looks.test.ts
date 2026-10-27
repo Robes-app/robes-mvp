@@ -13,10 +13,13 @@ import {
   frameKey,
   isProposalKey,
   lookFacts,
+  lookMatches,
+  lookWearFor,
   nameNoBrand,
   newProposalKey,
   noteShort,
   orderRack,
+  pickerOrder,
   pieceNoun,
   type RackRow,
   type RackState,
@@ -26,6 +29,7 @@ import {
   sortLooks,
   startedLabel,
   theName,
+  wearForOptions,
 } from './index';
 
 const row = (key: string, name: string, role: RackRow['role'] = null): RackRow => ({
@@ -323,5 +327,54 @@ describe('lookFacts', () => {
       around: null,
     });
     expect(lookFacts({ timesWorn: 1, lastWornOn: null }, 1).lastWorn).toBeNull();
+  });
+});
+
+describe('the Add-a-look picker', () => {
+  const a = { name: 'Brunch', lastWornOn: '2026-10-10', pieces: [] };
+  const b = { name: 'Archive', lastWornOn: null, pieces: [] };
+  const c = { name: 'Cocktails', lastWornOn: '2026-10-12', pieces: [] };
+  it('orders by last worn, the never-worn at the end, and turns round', () => {
+    expect(pickerOrder([a, b, c], true).map((l) => l.name)).toEqual([
+      'Cocktails',
+      'Brunch',
+      'Archive',
+    ]);
+    expect(pickerOrder([a, b, c], false).map((l) => l.name)).toEqual([
+      'Archive',
+      'Brunch',
+      'Cocktails',
+    ]);
+  });
+  it('finds a look by its name or a piece', () => {
+    const look = {
+      name: 'Office armour',
+      pieces: [{ piece: { label: 'Wool blazer', brand: 'Toteme' } }],
+    };
+    expect(lookMatches(look, '')).toBe(true);
+    expect(lookMatches(look, 'ARMOUR')).toBe(true);
+    expect(lookMatches(look, 'blazer')).toBe(true);
+    expect(lookMatches(look, 'totê')).toBe(false);
+    expect(lookMatches(look, 'toteme')).toBe(true);
+    expect(lookMatches(look, 'sandals')).toBe(false);
+  });
+});
+
+describe('a look’s Wear it for', () => {
+  const look = (...tags: string[][]) => ({
+    pieces: tags.map((wearFor) => ({ piece: { wearFor } })),
+  });
+  it('is what every piece carries, Everyday aside, two at most', () => {
+    expect(
+      lookWearFor(look(['Work', 'Everyday', 'Evening'], ['Evening', 'Work', 'Everyday'])),
+    ).toEqual(['Evening', 'Work']);
+    expect(lookWearFor(look(['Work'], ['Evening']))).toEqual([]);
+    expect(lookWearFor(look())).toEqual([]);
+  });
+  it('offers the union across looks', () => {
+    expect(wearForOptions([look(['Work']), look(['Travel'], ['Travel'])])).toEqual([
+      'Travel',
+      'Work',
+    ]);
   });
 });

@@ -116,6 +116,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
           {/* Any day can be named, so she can plan a week before adding outfits. */}
           {!naming ? (
             <IconButton
+              framed
               icon="pencil"
               label={s.name ? copy.rename : copy.name}
               onClick={() => setNaming(true)}
@@ -173,24 +174,30 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
             </li>
           ))}
           <li className={entries.length ? 'flex' : 'col-span-full'}>
-            {/* The slot beside the looks is the card's twin, filled rather than dashed — a dash
-                would read as a second boundary inside the same grid. */}
+            {/* Beta's two doors: beside the looks a dashed slot for another moment; on an empty
+                day one white door to her looks, its icon in a cream circle. */}
             <button
               type="button"
               onClick={() => setPicking(true)}
-              className={`flex w-full items-center gap-4 rounded-crisp p-4 text-left ${
+              className={`flex w-full items-center gap-4 rounded-soft p-4 text-left ${
                 entries.length
-                  ? 'flex-1 flex-col justify-center bg-surface-sunk text-center hover:bg-surface'
-                  : 'border border-dashed border-border-control hover:border-ink'
+                  ? 'flex-1 flex-col justify-center border border-dashed border-border-control bg-surface-sunk text-center hover:border-ink'
+                  : 'border border-hairline bg-surface-raised hover:border-border-control'
               } ${focus}`}
             >
-              <Icon name={entries.length ? 'plus' : 'looks'} size={20} className="text-ink-muted" />
-              <span className="flex flex-col gap-1">
+              {entries.length ? (
+                <Icon name="plus" size={20} className="text-ink-muted" />
+              ) : (
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted">
+                  <Icon name="looks" size={18} />
+                </span>
+              )}
+              <span className="flex flex-1 flex-col gap-1">
                 <span
                   className={
                     entries.length
                       ? 'font-sans text-[10px] tracking-[0.18em] text-ink uppercase'
-                      : 'font-display text-ink text-lg'
+                      : 'font-sans text-ink text-base'
                   }
                 >
                   {entries.length ? copy.addAnother : copy.choose}

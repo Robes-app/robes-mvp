@@ -87,7 +87,8 @@ export function DraftTile({ look, onPress }: { look: Look; onPress: () => void }
     <LookTile
       look={look}
       onPress={onPress}
-      width={116}
+      // Beta's In progress tile is 140 wide (twin: look-tiles.tsx).
+      width={140}
       dashed
       eyebrow={copy.draftTile.eyebrow}
       eyebrowTone="warm"
@@ -181,18 +182,19 @@ export function SuggestedTile({
       }
       corner={
         <View className="flex-row gap-[6px]">
-          <OnPhoto
-            icon="close"
-            label={copy.suggestedTile.remove(look.name)}
-            size={32}
-            onPress={onRemove}
-          />
+          {/* Beta's order: ↻ then ✕, the way out at the edge (twin: look-tiles.tsx). */}
           <OnPhoto
             icon="swap"
             label={copy.suggestedTile.swap(look.name)}
             size={32}
             onPress={onSwap}
             disabled={swapping}
+          />
+          <OnPhoto
+            icon="close"
+            label={copy.suggestedTile.remove(look.name)}
+            size={32}
+            onPress={onRemove}
           />
         </View>
       }
