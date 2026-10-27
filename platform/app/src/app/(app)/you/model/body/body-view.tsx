@@ -70,7 +70,7 @@ function Line({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen: ()
   return (
     <section
       aria-label={tw.yourLine}
-      className="flex flex-col gap-4 rounded-soft border border-hairline bg-surface p-5"
+      className="flex flex-col gap-4 rounded-soft border border-hairline bg-surface-raised p-5"
     >
       <div className="flex items-center justify-between">
         <span className="font-sans text-ink-muted text-xs uppercase tracking-[0.2em]">
@@ -165,7 +165,7 @@ function Scales({ model, facts, pick }: { model: Model; facts: Facts; pick: Pick
                     aria-label={tw.stop(label, v, s.less, s.more, asIs)}
                     // A second tap on the chosen stop hands the scale back to her facts.
                     onClick={() => pick({ adj: { [k]: on ? null : v } as UpdateModelInput['adj'] })}
-                    className={`flex h-11 items-center justify-center rounded-crisp border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${on ? 'border-ink bg-surface' : 'border-transparent hover:border-hairline'}`}
+                    className={`flex h-11 items-center justify-center rounded-crisp border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${on ? 'border-selected-line bg-surface-raised' : 'border-transparent hover:border-hairline'}`}
                   >
                     {on ? <span aria-hidden className="size-1.5 rounded-full bg-ink" /> : null}
                   </button>

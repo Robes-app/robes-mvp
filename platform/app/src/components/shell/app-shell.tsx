@@ -21,6 +21,7 @@ import {
   createItems,
   GO_TO_ITEMS,
   isFlowPath,
+  isSettingsPath,
   NAV_ITEMS,
 } from '@/lib/nav';
 import { FeaturesProvider } from '../features';
@@ -68,6 +69,26 @@ export function AppShell({
     ],
     [router, create],
   );
+
+  // Settings carries its own header row and no dock (components/settings/settings-chrome.tsx);
+  // ⌘K still opens the command bar there.
+  if (isSettingsPath(pathname)) {
+    return (
+      <>
+        <main id="main">
+          <FeaturesProvider value={features}>{children}</FeaturesProvider>
+        </main>
+        <CommandBar
+          open={commandOpen}
+          onOpenChange={setCommandOpen}
+          commands={commands}
+          label={shell.command.label}
+          placeholder={shell.command.placeholder}
+          emptyLabel={shell.command.empty}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">

@@ -89,7 +89,7 @@ test('You › Your digital twin: build by hand, nudge colouring and line, and he
     'aria-pressed',
     'true',
   );
-  await page.getByRole('link', { name: 'Your digital twin' }).click();
+  await page.getByRole('link', { name: 'Back' }).click();
 
   await page.getByRole('link', { name: /Body shape/ }).click();
   await page.getByRole('button', { name: 'Hips: much fuller' }).click();
@@ -97,7 +97,7 @@ test('You › Your digital twin: build by hand, nudge colouring and line, and he
     'aria-pressed',
     'true',
   );
-  await page.getByRole('link', { name: 'Your digital twin' }).click();
+  await page.getByRole('link', { name: 'Back' }).click();
 
   // Leaving a twin screen draws her twin once; the hero shows it.
   await expect(page.getByRole('img', { name: 'Your model' })).toBeVisible({ timeout: 30_000 });

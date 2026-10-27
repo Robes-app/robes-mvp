@@ -30,8 +30,8 @@ appId: host.exp.Exponent
 # the avatar → You path is covered by __tests__/shell.test.tsx.
 - openLink: ${EXPO_URL}/--/you
 - extendedWaitUntil:
-    visible: 'Notifications'
+    visible: 'Style DNA'
     timeout: 10000
-- tapOn: 'Notifications'
+- tapOn: 'Account'
 - assertVisible: 'Gentle nudges to add pieces'
 - tapOn: 'Back'

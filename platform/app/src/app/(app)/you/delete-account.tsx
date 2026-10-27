@@ -5,10 +5,11 @@ import { errors, you } from '@robes/copy';
 import { Button, Dialog, Field, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { SettingsRowContent, settingsRowClass } from '@/components/settings/settings-chrome';
 
 const CONFIRM_WORD = 'DELETE';
 
-// SEC-80: typed confirmation, then the request is recorded and the account shows as being deleted.
+// SEC-80 (a row of the Account tab's Profile card): typed confirmation, then the request is recorded and the account shows as being deleted.
 export function DeleteAccount() {
   const queryClient = useQueryClient();
   const status = useApi('me.deletion.get');
@@ -23,9 +24,11 @@ export function DeleteAccount() {
 
   if (status.data?.request) {
     return (
-      <Text role="status" size="small" tone="muted">
-        {you.deletion.requested}
-      </Text>
+      <div className={settingsRowClass}>
+        <Text role="status" size="small" tone="muted">
+          {you.deletion.requested}
+        </Text>
+      </div>
     );
   }
 
@@ -39,9 +42,10 @@ export function DeleteAccount() {
         if (!next) setTyped('');
       }}
       trigger={
-        <Button variant="quiet" className="-mx-2 text-danger">
-          {you.deletion.title}
-        </Button>
+        // The last row of Profile (legacy Account): the danger name, then ›.
+        <button type="button" className={`${settingsRowClass} hover:bg-surface`}>
+          <SettingsRowContent label={you.deletion.title} tone="danger" />
+        </button>
       }
       footer={
         <Button

@@ -166,7 +166,7 @@ test('the avatar opens You', async () => {
   await waitFor(() => expect(router.getPathname()).toBe('/you'));
   expect(screen.getByText(twin.cards.twin)).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: twin.tabs.account }));
-  expect(screen.getByRole('button', { name: you.account.title })).toBeTruthy();
+  expect(await screen.findByText(you.account.name)).toBeTruthy();
   expect(screen.getByText(you.deletion.title)).toBeTruthy();
 });
 

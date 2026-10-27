@@ -13,8 +13,8 @@ export function SignOutButton() {
   const queryClient = useQueryClient();
   return (
     <Button
-      variant="quiet"
-      className="-mx-2"
+      // Settings' foot (legacy .sp-out): a hairline pill.
+      variant="secondary"
       onClick={async () => {
         await authClient.signOut();
         forget();

@@ -8,7 +8,7 @@ import {
   matchFamily,
   PATTERNS,
   type Preference,
-  paletteTally,
+  paletteWords,
   setPreference,
   shadePreference,
 } from '@robes/core/colour';
@@ -22,11 +22,14 @@ import { errorCopy } from '@/lib/error-copy';
 const copy = you.style.palette;
 const STYLE_KEY = queryKeys.call('me.style.get');
 
-// The Style DNA rows' values: "2 loved · 1 avoided".
+// The Style DNA rows' values: "Blues, cherry · avoids reds" (legacy dnaPaint).
 export function paletteSummary(p: Palette | undefined, kind: 'colours' | 'prints'): string {
   if (!p) return '';
-  const { love, avoid } = paletteTally(p, kind);
-  return copy.summary(love, avoid);
+  return copy.summary(
+    paletteWords(p, kind, 1),
+    paletteWords(p, kind, -1),
+    kind === 'colours' ? 3 : 2,
+  );
 }
 
 // Her palette, saved whole on each change; the cache moves first so the control never lags.

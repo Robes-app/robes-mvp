@@ -856,6 +856,9 @@ export const looks = {
 // You area.
 export const you = {
   title: 'You',
+  // The header row's title on the root (legacy settings.html): the avatar's door reads Settings.
+  settings: 'Settings',
+  version: 'Robes beta',
   // The Account tab's groups and the line under each row (beta's Settings › Account).
   sections: { profile: 'Profile', notifications: 'Notifications', privacy: 'Privacy & terms' },
   subs: {
@@ -869,6 +872,7 @@ export const you = {
   helpEmail: 'hello@byrobes.com',
   account: {
     title: 'Account',
+    name: 'Name',
     firstName: 'First name',
     lastName: 'Last name',
     email: 'Email',
@@ -944,12 +948,24 @@ export const you = {
       fromFamily: 'From the family',
       matchFamily: 'Match the family',
       saved: 'Saved.',
-      summary: (love: number, avoid: number): string =>
-        love + avoid === 0
-          ? 'No view yet'
-          : [love ? `${love} loved` : '', avoid ? `${avoid} avoided` : '']
+      // The row's value (legacy dnaPaint): "Blues, cherry · avoids reds", or Not yet.
+      summary: (love: readonly string[], avoid: readonly string[], n = 3): string => {
+        const few = (a: readonly string[], k: number) =>
+          a.slice(0, k).join(', ') + (a.length > k ? ` +${a.length - k}` : '');
+        return love.length + avoid.length === 0
+          ? 'Not yet'
+          : [
+              love.length ? few(love, n) : '',
+              avoid.length
+                ? `avoids ${few(
+                    avoid.map((w) => w.toLowerCase()),
+                    2,
+                  )}`
+                : '',
+            ]
               .filter(Boolean)
-              .join(' · '),
+              .join(' · ');
+      },
     },
     // Native screen (cards per read, colours edited one at a time).
     colour: {
@@ -1610,6 +1626,7 @@ export const twin = {
   },
   twinPage: {
     title: 'Your digital twin',
+    readFrom: 'Read from your photograph and facts',
     colouring: 'Colouring',
     colouringSub: 'One close-up reads your season.',
     bodyShape: 'Body shape',

@@ -5,6 +5,7 @@ import {
   createItems,
   GO_TO_ITEMS,
   isFlowPath,
+  isSettingsPath,
   NAV_ITEMS,
   SOON_SLUGS,
 } from './nav';
@@ -61,5 +62,12 @@ describe('nav', () => {
     expect(isFlowPath('/wardrobe')).toBe(false);
     expect(isFlowPath('/wardrobe/additional')).toBe(false);
     expect(isFlowPath('/wardrobe/inbox')).toBe(false);
+  });
+
+  it('gives Settings its own chrome on /you and its pages only', () => {
+    expect(isSettingsPath('/you')).toBe(true);
+    expect(isSettingsPath('/you/model/body')).toBe(true);
+    expect(isSettingsPath('/young')).toBe(false);
+    expect(isSettingsPath('/')).toBe(false);
   });
 });

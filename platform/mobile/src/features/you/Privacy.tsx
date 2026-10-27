@@ -5,8 +5,8 @@ import { ErrorText } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Platform, ScrollView } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { ToggleRow } from '@/components/ToggleRow';
 import { errorMessage } from '@/lib/errors';
+import { SettingsGroup, SettingsToggleRow } from './Settings';
 
 const SOURCE = Platform.OS === 'android' ? 'android' : 'ios';
 
@@ -27,21 +27,24 @@ export function Privacy() {
   }
 
   return (
-    <ScrollView contentContainerClassName="px-6 pb-12">
-      <ToggleRow
-        label={copy.analyticsLabel}
-        hint={copy.analyticsHint}
-        value={consents.analytics === true}
-        // Recordings need usage counts, so turning counts off withdraws both.
-        onChange={(v) => void set(v ? { analytics: true } : { analytics: false, replay: false })}
-      />
-      <ToggleRow
-        label={copy.replayLabel}
-        hint={copy.replayHint}
-        value={consents.replay === true}
-        disabled={consents.analytics !== true}
-        onChange={(v) => void set({ replay: v })}
-      />
+    <ScrollView contentContainerClassName="gap-3 px-6 pt-6 pb-12">
+      <SettingsGroup>
+        <SettingsToggleRow
+          first
+          label={copy.analyticsLabel}
+          sub={copy.analyticsHint}
+          value={consents.analytics === true}
+          // Recordings need usage counts, so turning counts off withdraws both.
+          onChange={(v) => void set(v ? { analytics: true } : { analytics: false, replay: false })}
+        />
+        <SettingsToggleRow
+          label={copy.replayLabel}
+          sub={copy.replayHint}
+          value={consents.replay === true}
+          disabled={consents.analytics !== true}
+          onChange={(v) => void set({ replay: v })}
+        />
+      </SettingsGroup>
       {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
     </ScrollView>
   );

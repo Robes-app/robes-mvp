@@ -72,10 +72,17 @@ export function AnalyseCard({
   const hasResult = colour ? profile.colour !== null : profile.silhouette !== null;
   const inputId = `style-photo-${kind}`;
   return (
-    <section aria-labelledby={`${inputId}-title`} className="flex flex-col gap-4">
-      <Heading level={2} size="md" id={`${inputId}-title`}>
-        {title}
-      </Heading>
+    <section
+      aria-labelledby={compact ? undefined : `${inputId}-title`}
+      aria-label={compact ? title : undefined}
+      className="flex flex-col gap-4"
+    >
+      {/* Compact (the close-up card): the card names it and says why once; the door alone stays. */}
+      {compact ? null : (
+        <Heading level={2} size="md" id={`${inputId}-title`}>
+          {title}
+        </Heading>
+      )}
       {!compact && colour && profile.colour ? <ColourResult colour={profile.colour} /> : null}
       {!compact && !colour && profile.silhouette ? (
         <SilhouetteResult silhouette={profile.silhouette} />
@@ -89,7 +96,7 @@ export function AnalyseCard({
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {hasResult ? null : (
+          {hasResult || compact ? null : (
             <Text tone="muted">{colour ? copy.colourBody : copy.silhouetteBody}</Text>
           )}
           <label

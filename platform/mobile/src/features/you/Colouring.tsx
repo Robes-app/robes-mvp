@@ -84,7 +84,7 @@ function Seasons({ profile }: { profile: StyleProfile }) {
               disabled={season.isPending}
               onPress={() => (on ? null : season.mutate({ input: { season: s } }))}
               style={{ minHeight: Math.max(MIN_TOUCH, 60) }}
-              className={`${row} ${on ? 'border-ink bg-surface' : 'border-hairline'}`}
+              className={`${row} ${on ? 'border-selected-line bg-surface-raised' : 'border-hairline'}`}
             >
               <Text className="font-display text-xl">{s}</Text>
               {on ? <Icon name="check" color={ink} size={16} /> : null}
@@ -118,7 +118,7 @@ function Seasons({ profile }: { profile: StyleProfile }) {
           accessibilityLabel={tw.anotherSeason}
           onPress={() => setMore(true)}
           style={{ minHeight: Math.max(MIN_TOUCH, 60) }}
-          className={`${row} border-hairline bg-surface`}
+          className={`${row} border-hairline bg-surface-raised`}
         >
           <Text>{tw.anotherSeason}</Text>
           <Icon name="forward" color={muted} size={16} />

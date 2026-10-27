@@ -87,7 +87,7 @@ function LineCard({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen
     </Pressable>
   );
   return (
-    <View className="gap-4 rounded-soft border border-hairline bg-surface p-5">
+    <View className="gap-4 rounded-soft border border-hairline bg-surface-raised p-5">
       <View className="flex-row items-center justify-between">
         <Eyebrow>{tw.yourLine}</Eyebrow>
         <Button variant="quiet" onPress={onOpen}>
@@ -163,7 +163,7 @@ function Scales({ model, facts, pick }: { model: Model; facts: Facts; pick: Pick
                     // A second tap on the chosen stop hands the scale back to her facts.
                     onPress={() => pick({ adj: { [k]: on ? null : v } as UpdateModelInput['adj'] })}
                     style={{ minHeight: MIN_TOUCH }}
-                    className={`flex-1 items-center justify-center rounded-crisp border ${on ? 'border-ink bg-surface' : 'border-transparent'}`}
+                    className={`flex-1 items-center justify-center rounded-crisp border ${on ? 'border-selected-line bg-surface-raised' : 'border-transparent'}`}
                   >
                     {on ? <View className="size-1.5 rounded-full bg-ink" /> : null}
                   </Pressable>

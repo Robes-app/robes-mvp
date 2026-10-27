@@ -4,29 +4,13 @@ import { useApi } from '@robes/api-client/react';
 import type { Facts, Model } from '@robes/contracts';
 import { twin, you } from '@robes/copy';
 import { readAdj } from '@robes/core/avatar';
-import { Icon } from '@robes/icons/web';
 import { ErrorText, Skeleton, Text } from '@robes/ui';
-import Link from 'next/link';
+import { SettingsGroup, SettingsRow } from '@/components/settings/settings-chrome';
 import { errorCopy } from '@/lib/error-copy';
 import { Figure, lineSummary, type TwinRead, twinRead, useDrawTwin, useModel } from './twin-parts';
 
 const copy = you.model;
 const tw = twin.twinPage;
-
-const doorClass =
-  'flex min-h-[76px] w-full items-center justify-between gap-4 border-b border-hairline px-4 py-3.5 last:border-b-0 hover:bg-surface-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
-
-function Door({ href, label, sub }: { href: string; label: string; sub: string }) {
-  return (
-    <Link href={href} className={doorClass}>
-      <span className="flex flex-col gap-0.5">
-        <span className="font-display text-xl text-ink">{label}</span>
-        <span className="font-sans text-sm text-ink-muted">{sub}</span>
-      </span>
-      <Icon name="forward" size={16} />
-    </Link>
-  );
-}
 
 // You › Your digital twin (legacy 2026-10-20 redline 3a): her model as the hero, then two doors —
 // Colouring (one close-up) and Body shape (her line, by hand). No full-length photograph.
@@ -45,24 +29,28 @@ export function ModelView() {
   const line = lineSummary(dna.data.facts);
   const read = twinRead(model, dna.data.facts);
   return (
-    <div className="flex flex-col gap-8">
+    // ≥1024 the stage holds the left column (430) beside the doors; below it leads, full-bleed.
+    <div className="grid grid-cols-1 gap-[22px] lg:grid-cols-[430px_minmax(0,1fr)] lg:items-start lg:gap-12">
       <ModelStage model={model} facts={dna.data.facts} read={read} />
-      <nav aria-label={tw.title} className="rounded-soft border border-hairline bg-surface">
-        <Door
-          href="/you/model/colouring"
-          label={tw.colouring}
-          sub={
-            colour
-              ? [colour.season, colour.undertone, colour.contrast].filter(Boolean).join(' · ')
-              : tw.colouringSub
-          }
-        />
-        <Door href="/you/model/body" label={tw.bodyShape} sub={line || tw.bodyShapeSub} />
-      </nav>
-      {/* Her model's own line: what Robes drew her from. One size up — the sans never goes italic. */}
-      <Text italic size="small" tone="faint" className="max-md:text-center">
-        {tw.status(model.presence, read)}
-      </Text>
+      <div className="flex min-w-0 flex-col gap-[22px]">
+        <SettingsGroup id="twin-read" title={tw.readFrom}>
+          <SettingsRow
+            href="/you/model/colouring"
+            label={tw.colouring}
+            sub={
+              colour
+                ? [colour.undertone, colour.contrast].filter(Boolean).join(' · ')
+                : tw.colouringSub
+            }
+            value={colour?.season ?? ''}
+          />
+          <SettingsRow href="/you/model/body" label={tw.bodyShape} sub={line || tw.bodyShapeSub} />
+        </SettingsGroup>
+        {/* Her model's own line: what Robes drew her from. One size up — the sans never goes italic. */}
+        <p className="font-display text-ink-faint text-lg italic leading-normal max-lg:text-center">
+          {tw.status(model.presence, read)}
+        </p>
+      </div>
     </div>
   );
 }
@@ -77,8 +65,8 @@ function ModelStage({ model, facts, read }: { model: Model; facts: Facts; read: 
   const failed =
     model.twin.status === 'failed' || (!model.twin.imageUrl && model.cell.status === 'failed');
   return (
-    <div className="flex flex-col gap-2">
-      <figure className="-mx-4 -mt-6 relative h-[440px] overflow-hidden bg-surface-sunk md:mx-0 md:mt-0 md:h-[480px] md:rounded-soft md:border md:border-hairline">
+    <div className="flex flex-col gap-2 lg:sticky lg:top-[68px]">
+      <figure className="-mx-6 -mt-6 relative h-[440px] overflow-hidden bg-surface-sunk md:mx-0 md:mt-0 md:h-[480px] md:rounded-soft md:border md:border-hairline lg:h-[520px]">
         {/* Her shape under the photograph: the ghost until anything is on file. */}
         <div className={`absolute inset-0 ${empty ? 'opacity-[0.22]' : ''}`}>
           <Figure
@@ -113,12 +101,17 @@ function ModelStage({ model, facts, read }: { model: Model; facts: Facts; read: 
             {tw.caption(copy.skinNames[model.skin] ?? '', copy.hairNames[model.hair] ?? '')}
           </figcaption>
         )}
+        {drawing ? (
+          // The chip on the stage while she is drawn (legacy .mv-photo-busy).
+          <p
+            role="status"
+            className="absolute top-4 right-3.5 rounded-pill border border-hairline bg-bg/90 px-3.5 py-2 font-sans text-[9.5px] text-ink uppercase tracking-[0.16em] motion-safe:animate-pulse"
+          >
+            {tw.drawing}
+          </p>
+        ) : null}
       </figure>
-      {drawing ? (
-        <Text role="status" size="small" tone="muted">
-          {tw.drawing}
-        </Text>
-      ) : failed ? (
+      {failed && !drawing ? (
         <Text role="status" size="small" tone="muted">
           {tw.twinFailed}
         </Text>

@@ -3,10 +3,10 @@ import type { Me, NotificationPrefs } from '@robes/contracts';
 import { you } from '@robes/copy';
 import { ErrorText } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { ScrollView } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { ToggleRow } from '@/components/ToggleRow';
 import { errorMessage } from '@/lib/errors';
+import { SettingsGroup, SettingsToggleRow } from './Settings';
 
 const copy = you.notifications;
 const KEYS = ['looksReady', 'morningCue', 'nudges', 'receipts'] as const satisfies ReadonlyArray<
@@ -14,6 +14,17 @@ const KEYS = ['looksReady', 'morningCue', 'nudges', 'receipts'] as const satisfi
 >;
 
 export function Notifications() {
+  return (
+    <ScrollView contentContainerClassName="px-6 pt-6 pb-12">
+      <SettingsGroup>
+        <NotificationRows />
+      </SettingsGroup>
+    </ScrollView>
+  );
+}
+
+// The rows of the Account tab's Notifications card (legacy .sp-tog rows).
+export function NotificationRows() {
   const queryClient = useQueryClient();
   const meKey = queryKeys.call('me.get');
   const { data: me } = useApi('me.get');
@@ -34,16 +45,21 @@ export function Notifications() {
   }
 
   return (
-    <ScrollView contentContainerClassName="px-6 pb-12">
-      {KEYS.map((key) => (
-        <ToggleRow
+    <>
+      {KEYS.map((key, i) => (
+        <SettingsToggleRow
           key={key}
+          first={i === 0}
           label={copy[key]}
           value={me.notifications[key]}
           onChange={(v) => void toggle(key, v)}
         />
       ))}
-      {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
-    </ScrollView>
+      {update.isError ? (
+        <View className="border-t border-hairline px-[18px] py-3">
+          <ErrorText>{errorMessage(update.error)}</ErrorText>
+        </View>
+      ) : null}
+    </>
   );
 }
