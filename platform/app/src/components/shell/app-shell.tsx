@@ -14,7 +14,8 @@ import {
 } from '@robes/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { type ReactNode, useCallback, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { NewLookBox } from '@/components/home/home-box';
 import {
   activeRoot,
   CREATE_GROUPS,
@@ -50,6 +51,9 @@ export function AppShell({
   const current = activeRoot(pathname);
   const inFlow = isFlowPath(pathname);
   const create = useMemo(() => createItems(features), [features]);
+  // The new-look box in the sheet navigates to the deck; the sheet goes with the page it opened on.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: closes on every route change
+  useEffect(() => setCreateOpen(false), [pathname]);
 
   const commands = useMemo<Command[]>(
     () => [
@@ -175,6 +179,10 @@ export function AppShell({
 
       <Sheet title={shell.create.title} open={createOpen} onOpenChange={setCreateOpen}>
         <div className="flex flex-col gap-5">
+          {/* Beta's sparkle opens the new-look box (legacy __rbHbOpen({fresh})): here it leads the sheet. */}
+          <FeaturesProvider value={features}>
+            <NewLookBox autoFocus={createOpen} />
+          </FeaturesProvider>
           {CREATE_GROUPS.map((group) => (
             <section
               key={group}

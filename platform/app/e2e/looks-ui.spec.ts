@@ -54,7 +54,12 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
     await page.request.post('/api/v1/wardrobe/items', { data: { label: 'Navy blazer' } })
   ).json();
   await page.goto(`/piece/${piece.id}`);
+  // The piece page's door opens the new-look box with the piece inside it; Send asks the one
+  // question, then three looks around it.
   await page.getByRole('button', { name: 'Style this piece' }).click();
+  await expect(page.getByTestId('box-piece')).toContainText('Navy blazer');
+  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'A mix' }).click();
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Around your navy blazer')).toBeVisible({ timeout: 30_000 });
   await deckLive(page);
@@ -98,7 +103,7 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   }
   await page.goto('/looks/new');
   // The draft stands on a figure: a slot per part of her, each opening her wardrobe.
-  await expect(page.getByLabel('Name this look')).toHaveAttribute('placeholder', 'Untitled look');
+  await expect(page.getByLabel('Name this look')).toHaveAttribute('placeholder', 'Untitled Look');
   for (const slot of ['+ Top', '+ Bottom', '+ Shoes']) {
     await expect(page.getByRole('button', { name: slot })).toBeVisible();
   }

@@ -21,11 +21,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
+import { NewLookBox } from '@/features/home/HomeBox';
 import { errorMessage } from '@/lib/errors';
 import { DiarySheet } from './DiarySheet';
 import { DraftTile, SavedTile, SuggestedTile } from './LookTiles';
 import { useLetGo, useLooksByStatus, useRestyle } from './look-states';
-import { NewLookBox } from './NewLookBox';
 
 type Tab = 'saved' | 'suggested';
 // The only axis a saved look can be narrowed by today; Wear-it-for and Vibe need look tags.

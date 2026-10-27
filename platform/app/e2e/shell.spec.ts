@@ -95,10 +95,10 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
     'Add without a photo',
     'Style a piece',
     'New look',
-    'Ask Robes',
   ]);
-  await sheet.getByRole('link', { name: 'Ask Robes' }).click();
-  await expect(page.getByRole('heading', { name: 'On its way.' })).toBeVisible();
+  // Ask Robes is the new-look box itself, leading the sheet (beta's sparkle).
+  await expect(sheet.getByTestId('home-box')).toBeVisible();
+  await expect(sheet.getByPlaceholder('Where to, and how should it feel?')).toBeVisible();
 });
 
 test('P0 routes have no serious accessibility violations', async ({ page }) => {

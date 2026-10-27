@@ -19,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { HomeBox } from '@/components/home/home-box';
 import { SavedTile } from '@/components/looks/look-tiles';
 import { SuggestedRail } from '@/components/looks/suggested-rail';
 import { StarButton } from '@/components/wardrobe/piece-card';
@@ -56,9 +57,7 @@ export function PieceDetail({ id }: { id: string }) {
     },
   });
   const remove = useRemovePiece();
-  const style = useApiMutation('looks.generate', {
-    onSuccess: ({ jobId }) => router.push(`/looks/style/${jobId}`),
-  });
+  const [styling, setStyling] = useState(false);
 
   if (query.isError) return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   if (!piece) {
@@ -130,12 +129,9 @@ export function PieceDetail({ id }: { id: string }) {
         {ready ? <Stats piece={piece} /> : null}
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="primary"
-            disabled={!ready}
-            loading={style.isPending || style.isSuccess}
-            onClick={() => style.mutate({ input: { anchor: { type: 'piece', pieceId: id } } })}
-          >
+          {/* The piece page's door opens the new-look box with the piece inside it (legacy ✦), so
+              her words and the balance question ride along like every other new look. */}
+          <Button variant="primary" disabled={!ready} onClick={() => setStyling((v) => !v)}>
             {copy.stylePiece}
           </Button>
           {ready ? (
@@ -147,7 +143,9 @@ export function PieceDetail({ id }: { id: string }) {
             </Link>
           ) : null}
         </div>
-        {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
+        {styling && ready ? (
+          <HomeBox initialPiece={piece} hasPieces autoFocus fromHome={false} />
+        ) : null}
 
         <RecordRows values={piece} onField={setField} />
         {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}

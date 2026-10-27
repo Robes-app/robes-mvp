@@ -1,4 +1,4 @@
-import { nav, shell, twin, wardrobe, you } from '@robes/copy';
+import { lookbook, nav, shell, twin, wardrobe, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { Text } from 'react-native';
@@ -141,9 +141,8 @@ test('four tabs in beta order; the sparkle beside them opens Create', async () =
   await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
   expect(screen.getByText(wardrobe.add.doors.photograph)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: shell.create.askRobes }));
-  await waitFor(() => expect(router.getPathname()).toBe('/soon'));
-  expect(screen.getByText(shell.soon.title)).toBeTruthy();
+  // Ask Robes is the new-look box itself, leading the sheet (beta's sparkle).
+  expect(screen.getByLabelText(lookbook.prompt.doorNew)).toBeTruthy();
 });
 
 test('a long press on the sparkle goes straight to the camera', async () => {

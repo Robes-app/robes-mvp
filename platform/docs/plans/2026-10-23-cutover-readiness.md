@@ -82,11 +82,10 @@ list below separates "the behaviour is there" from "it reads as beta does".
       `packages/core/src/calendar`). Consequences: no past days, so **retro "record it as worn"
       is unreachable**; no filed-day dots; no "I wore this today"; and nothing is preselected on
       an undated save, so the CTA opens disabled where beta's is live. M.
-- [ ] **The generic-model badge** — missing from the deck's top card, the line it replaced still
-      printed, and it navigated away instead of opening the twin drawer (which from the deck
-      throws away an undecided set). In progress.
-- [ ] **The scanner** — wired to one of legacy's four slots; missing on the suggested tile and the
-      look page's busy frame, and the three separate line lists were collapsed into one. In progress.
+- [x] **The generic-model badge** — on the deck's top card (`bcf8b8a`), the suggested look's
+      frame and the empty draft's canvas (2026-10-27), opening the twin drawer, never a navigation.
+- [x] **The scanner** — the deck's dressing card, the suggested tile and the look page's busy
+      frame (`9ca0bf3`), with the three line lists kept apart.
 - [ ] **The digital twin screens** — the engine is a faithful port (every constant matches) but
       the redline is not: the hero is not full-bleed over cream with the 90px fade and the caption
       inside it, the "Build your model" CTA the redline **deleted** was re-added, and the italic
@@ -113,8 +112,9 @@ list below separates "the behaviour is there" from "it reads as beta does".
 - [ ] **Her rejected colours sit outside HER HARD NOS** — deliberate on the platform (soft avoid
       in the palette block) but it contradicts `30d7ea5`'s "her nos are absolute". Needs Annie's
       call, not a code change.
-- [ ] **The balance question is asked on one of four new-look doors** — the home box only. The
-      other three fall back to the count-derived posture. S.
+- [x] **The balance question on every new-look door** — the home box, the empty Suggested tab and
+      the Create sheet (one `HomeBox`), a dated day door, and the piece page (web: the box opens
+      with the piece inside it; native: Style a piece asks it) (2026-10-27).
 - [ ] **No product events come from either client's components.** Legacy fires `camera_opened`,
       `camera_filed`, `piece_removed`, `swap_drawer_opened` and dozens more through `_rbTrack`.
       On the platform, `@robes/analytics` is a closed typed catalogue, the web exposes only

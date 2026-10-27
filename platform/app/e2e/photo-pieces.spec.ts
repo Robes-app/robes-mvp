@@ -165,7 +165,7 @@ test('a look from a photo', async ({ page }) => {
   await ownShoes(page.request);
 
   await page.goto('/looks/new');
-  await page.getByRole('link', { name: /Start with a photo/ }).click();
+  await page.getByRole('link', { name: /Start from a photo/ }).click();
   await choosePhoto(page, /Add a photo/);
   const cards = page.getByRole('list', { name: 'Pieces in your photo' }).getByRole('listitem');
   await expect(cards).toHaveCount(3, { timeout: 30_000 });

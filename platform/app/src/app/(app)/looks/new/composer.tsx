@@ -3,12 +3,13 @@
 import { isApiClientError } from '@robes/api-client';
 import { useApi, useApiClient } from '@robes/api-client/react';
 import type { CreateLookInput, Piece } from '@robes/contracts';
-import { lookbook as copy, photoPieces } from '@robes/copy';
+import { lookbook as copy } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
-import { Button, buttonClasses, Dialog, Eyebrow, Skeleton, Text, useToast } from '@robes/ui';
+import { Button, buttonClasses, Dialog, Eyebrow, Skeleton, useToast } from '@robes/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { GenericModelBadge } from '@/components/looks/generic-model-badge';
 import { SwapSheet } from '@/components/looks/swap-sheet';
 import { errorCopy } from '@/lib/error-copy';
 import { useRefreshLooks } from '@/lib/look-states';
@@ -17,6 +18,9 @@ const draftsFull = (err: unknown): boolean =>
   isApiClientError(err) &&
   err.code === 'conflict' &&
   (err.details as { reason?: string } | undefined)?.reason === 'drafts_full';
+
+// The start bar holds both CTAs on one line at 390: tighter pills than the house default.
+const TIGHT = 'px-4! tracking-[0.1em]! md:px-6! md:tracking-[0.16em]!';
 
 // A new look (legacy 4d, the guide): nothing is a row until the first piece lands; then it is a
 // draft that waits in In progress. Five drafts wait at most — a sixth asks to let the oldest go.
@@ -82,7 +86,8 @@ export function Composer({ pieceId }: { pieceId?: string }) {
           />
         </label>
       </header>
-      <figure>
+      <figure className="flex flex-col gap-3">
+        <Eyebrow>{copy.figure.head(0)}</Eyebrow>
         <div className="relative">
           {model.data?.cell.imageUrl ? (
             // Her model (or Robes' catalog portrait) in the base layer: a signed URL, fixed 4:5.
@@ -115,27 +120,33 @@ export function Composer({ pieceId }: { pieceId?: string }) {
               disabled={busy}
               onClick={() => setAdding(category)}
               style={{ top }}
-              className="absolute left-1/2 min-h-11 -translate-x-1/2 -translate-y-1/2 rounded-pill border border-border-control bg-bg/90 px-4 font-medium font-sans text-ink text-xs uppercase tracking-[0.16em] backdrop-blur hover:border-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+              className="absolute left-1/2 min-h-11 -translate-x-1/2 -translate-y-1/2 rounded-pill border border-hairline bg-surface-raised/90 px-4 font-sans text-ink text-sm backdrop-blur hover:border-ink focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
             >
               {copy.figure.slots[slot]}
             </button>
           ))}
+          {/* No model of her own yet: the generic one stands in, and the badge is the door. */}
+          <GenericModelBadge />
         </div>
-        <figcaption className="pt-3 text-center">
-          <Text size="small" tone="muted" italic>
-            {copy.guide.body}
-          </Text>
-        </figcaption>
       </figure>
       {/* The actions float above the tab bar (legacy start bar). */}
       <div className="pointer-events-none fixed inset-x-0 bottom-20 z-30 flex justify-center px-4 md:bottom-6">
-        <div className="pointer-events-auto flex gap-2 rounded-pill border border-hairline bg-bg/95 p-1.5 shadow-sm backdrop-blur">
-          <Link href="/looks/new/photo" className={buttonClasses({ variant: 'primary' })}>
+        <div className="pointer-events-auto flex gap-2 whitespace-nowrap rounded-pill border border-hairline bg-surface-raised p-1.5 shadow-sm">
+          <Link
+            href="/looks/new/photo"
+            className={`${buttonClasses({ variant: 'primary' })} ${TIGHT}`}
+          >
             <Icon name="camera" size={16} />
-            {photoPieces.look.start.title}
+            {copy.figure.start.photo}
           </Link>
-          <Button variant="secondary" loading={busy} onClick={() => setAdding(null)}>
-            {copy.rack.addPiece}
+          <Button
+            variant="secondary"
+            loading={busy}
+            onClick={() => setAdding(null)}
+            className={TIGHT}
+          >
+            <Icon name="plus" size={16} />
+            {copy.figure.start.pieces}
           </Button>
         </div>
       </div>

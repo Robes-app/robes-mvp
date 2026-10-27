@@ -6,18 +6,17 @@ import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { StackScreen } from '@/components/StackScreen';
+import { NewLookBox } from '@/features/home/HomeBox';
 import { AddPiecesPanel } from '@/features/wardrobe/add/AddPiecesPanel';
 import { useFeatures } from '@/lib/features';
 
 type Option = { label: string; icon: IconName; href: Href; trips?: true };
 
 // IA §3.2 Create sheet: pieces in (the Add pieces sheet's own body, so the two never drift),
-// then the stylist (the sparkle, never a chat bubble). Options not built yet lead to the shared
-// "On its way" screen.
+// then the stylist: the new-look box first (Ask Robes), then the ways to start from a piece.
 const DRESS: Option[] = [
   { label: shell.create.stylePiece, icon: 'looks', href: '/looks/style' },
   { label: shell.create.newLook, icon: 'plus', href: '/looks/new' },
-  { label: shell.create.askRobes, icon: 'looks', href: '/soon' },
   { label: shell.create.planTrip, icon: 'trip', href: '/trip/new', trips: true },
 ];
 
@@ -38,7 +37,10 @@ export default function Create() {
 
   return (
     <StackScreen title={shell.create.title} close>
-      <ScrollView contentContainerClassName="gap-5 px-6 pb-8">
+      <ScrollView contentContainerClassName="gap-5 px-6 pb-8" keyboardShouldPersistTaps="handled">
+        {/* Beta's sparkle opens the new-look box (legacy __rbHbOpen({fresh})): here it leads.
+            The web twin leads the Create sheet in app/src/components/shell/app-shell.tsx. */}
+        <NewLookBox />
         <View className="gap-3">
           <Eyebrow>{shell.create.groups.add}</Eyebrow>
           <AddPiecesPanel />

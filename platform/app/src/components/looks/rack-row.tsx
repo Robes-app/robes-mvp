@@ -89,7 +89,7 @@ export function RackRowCard({
   return (
     <li
       data-testid={`rack-row-${row.key}`}
-      className={`flex items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-border-control bg-bg' : 'border-hairline bg-surface'}`}
+      className={`flex items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
     >
       {row.pieceId ? (
         <Link
