@@ -1,16 +1,14 @@
 import { lookbook, looks } from '@robes/copy';
 import { longDate } from '@robes/core/calendar';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen } from '@testing-library/react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
 import { nextDays } from '../src/features/looks/saved-looks';
 import { mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look } from './support/fixtures';
-import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
-const NEW_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const _TOKEN = 'AbCdEfGhIjKlMnOpQrStUv';
 
 beforeEach(() => jest.clearAllMocks());

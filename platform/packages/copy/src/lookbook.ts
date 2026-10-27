@@ -156,7 +156,6 @@ export const lookbook = {
     record: 'Record it as worn',
     recorded: 'Already worn that day',
     woreToday: 'I wore this today',
-    woreTodayDone: 'Worn today ✓',
     recordedOn: (day: string): string => `Recorded — worn ${day}`,
     inDiaryFor: (look: string, day: string): string => `“${look}” is in your diary for ${day}`,
   },

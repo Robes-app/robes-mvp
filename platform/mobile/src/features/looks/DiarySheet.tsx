@@ -204,15 +204,9 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
             {copy.diary[state.action]}
           </Button>
           {/* Beta's order: the day's act, then "I wore this today" on every day — it is how a wear
-              is logged now the look page carries no wear buttons. × closes; no "Not yet" (27 Oct). */}
-          {worn.has(today) ? (
-            <View className="flex-row items-center justify-center gap-1.5">
-              <Icon name="check" size={14} color={rose} />
-              <Text size="small" tone="muted">
-                {copy.diary.woreTodayDone}
-              </Text>
-            </View>
-          ) : (
+              is logged now the look page carries no wear buttons; once today is logged the link goes
+              (the calendar's dot says it). × closes; no "Not yet" (27 Oct). */}
+          {worn.has(today) ? null : (
             <Button
               variant="quiet"
               disabled={busy}

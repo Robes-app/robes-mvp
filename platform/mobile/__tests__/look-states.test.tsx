@@ -4,6 +4,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { NewLookBox } from '../src/features/home/HomeBox';
 import { Deck, JobDeck } from '../src/features/looks/Deck';
+import { LookDetail } from '../src/features/looks/LookDetail';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { LooksView } from '../src/features/looks/LooksView';
 import { localDate } from '../src/features/looks/saved-looks';
@@ -695,4 +696,20 @@ test('Sort and Filter stand on Saved at every count, inert below four looks', as
   expect(
     screen.getByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) }),
   ).toBeDisabled();
+});
+
+test('once today is logged, the diary sheet carries no second "worn today" line', async () => {
+  const worn = look({ lastWornOn: localDate(), timesWorn: 1 });
+  mockFetch({
+    [`GET /looks/${LOOK_ID}`]: worn,
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    'GET /plan': { days: [] },
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.card.diary }));
+  expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
+  // It read like a bug, two checks in a row (27 Oct): the link simply goes.
+  expect(screen.queryByRole('button', { name: lookbook.diary.woreToday })).toBeNull();
+  expect(screen.queryByText(/Worn today/)).toBeNull();
 });

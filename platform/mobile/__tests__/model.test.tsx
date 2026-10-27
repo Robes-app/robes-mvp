@@ -1,12 +1,11 @@
 import { twin, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { LookDetail } from '../src/features/looks/LookDetail';
 import { BodyShape } from '../src/features/you/BodyShape';
 import { Colouring } from '../src/features/you/Colouring';
 import { Model } from '../src/features/you/Model';
 import { twinRead } from '../src/features/you/twin';
 import { mockFetch, renderWithApi } from './support/api';
-import { LOOK_ID, look, modelData, styleDna } from './support/fixtures';
+import { modelData, styleDna } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -14,7 +13,7 @@ jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null
 
 beforeEach(() => jest.clearAllMocks());
 
-const copy = you.model;
+const _copy = you.model;
 const tw = twin.twinPage;
 const noStyle = {
   colour: null,
