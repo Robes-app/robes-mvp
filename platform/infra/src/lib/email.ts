@@ -37,5 +37,5 @@ export function inboundDomain(config: StageConfig): string {
   return `in.${config.email.domain}`;
 }
 export function receiptRuleSetName(config: StageConfig): string {
-  return `${config.namePrefix}-inbound`;
+  return config.email.sharedReceiptRuleSet ?? `${config.namePrefix}-inbound`;
 }
