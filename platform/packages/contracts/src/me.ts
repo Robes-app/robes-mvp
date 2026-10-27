@@ -195,6 +195,9 @@ export const Model = z.object({
     current: z.boolean(),
     imageUrl: z.url().nullable(),
   }),
+  // What a new look stands on in the composer: her twin, else her filed cell, else the first
+  // generic Robes model (`generic`) while she has none. Signed; null until that portrait exists.
+  stand: z.object({ imageUrl: z.url().nullable(), generic: z.boolean() }).optional(),
 });
 export type Model = z.infer<typeof Model>;
 

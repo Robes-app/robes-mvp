@@ -9,7 +9,7 @@ import {
 } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook, looks, wardrobe } from '@robes/copy';
-import { noteShort } from '@robes/core/looks';
+import { isHandBuiltDraft, noteShort } from '@robes/core/looks';
 import {
   Button,
   ErrorText,
@@ -24,6 +24,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Composer } from '@/components/looks/composer';
 import { DiarySheet } from '@/components/looks/diary-sheet';
 import { LookHero } from '@/components/looks/look-hero';
 import { SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
@@ -55,7 +56,10 @@ export function LookView({ id }: { id: string }) {
   return (
     <>
       {/* One look, three states (docs/look-states-brief.md): suggested and draft are hers to work on. */}
-      {query.data.status !== 'saved' ? (
+      {isHandBuiltDraft(query.data) ? (
+        // A draft she builds by hand stays in the composer until she saves it.
+        <Composer look={query.data} onSaved={setJustSaved} />
+      ) : query.data.status !== 'saved' ? (
         <WorkingLook look={query.data} onSaved={setJustSaved} />
       ) : (
         <LookBody look={query.data} />

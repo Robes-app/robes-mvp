@@ -14,7 +14,15 @@ import {
 } from '@robes/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { NewLookBox } from '@/components/home/home-box';
 import {
   activeRoot,
@@ -29,6 +37,17 @@ import { FeaturesProvider } from '../features';
 
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+
+// A pushed view (the draft look, legacy 2026-10-06 second pass): below 768 the header and the dock
+// stand down while it is open, and its own sticky footer closes the screen.
+const PushedContext = createContext<(on: boolean) => void>(() => {});
+export function usePushedView(): void {
+  const set = useContext(PushedContext);
+  useEffect(() => {
+    set(true);
+    return () => set(false);
+  }, [set]);
+}
 
 // Signed-in chrome: top nav ≥768; below it beta's dock — a floating bar of the four roots with
 // the sparkle beside it for Create (the native twin is mobile/src/components/TabBar.tsx).
@@ -46,10 +65,11 @@ export function AppShell({
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [pushed, setPushed] = useState(false);
   const toggleCommand = useCallback(() => setCommandOpen((o) => !o), []);
   useCommandHotkey(toggleCommand);
   const current = activeRoot(pathname);
-  const inFlow = isFlowPath(pathname);
+  const inFlow = isFlowPath(pathname) || pushed;
   const create = useMemo(() => createItems(features), [features]);
   // The new-look box in the sheet navigates to the deck; the sheet goes with the page it opened on.
   // biome-ignore lint/correctness/useExhaustiveDependencies: closes on every route change
@@ -96,7 +116,9 @@ export function AppShell({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur">
+      <header
+        className={`sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur ${pushed ? 'max-md:hidden' : ''}`}
+      >
         <div className="mx-auto flex h-11 max-w-5xl items-center gap-2 px-5 md:h-16 md:px-4">
           <Link href="/" aria-label={nav.today} className={`text-ink ${focus}`}>
             <Wordmark />
@@ -154,7 +176,9 @@ export function AppShell({
         id="main"
         className={`mx-auto w-full max-w-5xl flex-1 px-5 pt-3.5 md:px-4 md:pt-6 md:pb-16 ${inFlow ? 'pb-8' : 'pb-32'}`}
       >
-        <FeaturesProvider value={features}>{children}</FeaturesProvider>
+        <PushedContext value={setPushed}>
+          <FeaturesProvider value={features}>{children}</FeaturesProvider>
+        </PushedContext>
       </main>
 
       <nav

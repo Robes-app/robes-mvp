@@ -1,5 +1,5 @@
 import { Icon } from '@robes/icons/web';
-import type { ButtonHTMLAttributes, HTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes, Ref } from 'react';
 import { cn, focusRing } from './cn';
 
 const base =
@@ -20,6 +20,7 @@ export function pillClasses({ selected = false }: { selected?: boolean } = {}): 
 
 export interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-pressed'> {
   selected?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 }
 
 // Selected is raised, never black: white on the warm line, ink text and a check. Unselected, the

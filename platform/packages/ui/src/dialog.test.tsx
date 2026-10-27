@@ -1,6 +1,7 @@
 import { ui } from '@robes/copy';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { seriousViolations } from '../test/axe';
 import { Button } from './button';
@@ -68,6 +69,22 @@ describe('Dialog and Sheet', () => {
     expect(screen.queryByRole('button', { name: ui.close })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('lands focus where a sheet asks, never on its search field', async () => {
+    function Picker() {
+      const first = useRef<HTMLButtonElement>(null);
+      return (
+        <Sheet title="Add a piece" defaultOpen initialFocus={first}>
+          <input type="search" aria-label="Search your wardrobe" />
+          <button ref={first} type="button">
+            All
+          </button>
+        </Sheet>
+      );
+    }
+    render(<Picker />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'All' })).toHaveFocus());
   });
 
   it('gives a dialog its own primary scope', async () => {

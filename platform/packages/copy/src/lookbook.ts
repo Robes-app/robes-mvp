@@ -175,6 +175,26 @@ export const lookbook = {
     slots: { top: '+ Top', bottom: '+ Bottom', shoes: '+ Shoes' },
     // The empty draft's start bar (legacy 2026-10-15 second pass): two icon CTAs in one pill.
     start: { photo: 'Start from a photo', pieces: 'Add pieces' },
+    // A filled slot reads warm with its tick; the label says which part of her it dresses.
+    filled: { top: '✓ Top', bottom: '✓ Bottom', shoes: '✓ Shoes' },
+    // While the next frame comes the last one stays up, under this chip.
+    dressing: (pronoun: string): string => `Dressing ${pronoun}…`,
+    reading: 'Reading the piece…',
+    prompt: 'Ask Robes about this look',
+  },
+  // The one wardrobe sheet behind every + and every swap (legacy 2026-10-15, design 2 / 4a).
+  sheet: {
+    eyebrow: 'From your wardrobe',
+    swapEyebrow: 'Swap from your wardrobe',
+    slot: { top: 'Add a top', bottom: 'Add a bottom', shoes: 'Add shoes' },
+    search: 'Search your wardrobe',
+    photograph: 'Photograph one',
+    filesIn: 'Files straight in',
+    swapsIn: 'Swaps straight in',
+    inLook: '✓ In the look',
+    noMatch: (q: string): string => `Nothing in your wardrobe matches “${q}”.`,
+    emptyCategory: (category: string): string => `No ${category.toLowerCase()} yet.`,
+    emptyHint: 'Photograph one to add it to your wardrobe',
   },
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,

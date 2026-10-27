@@ -324,6 +324,8 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     'GET /looks': byStatus({}),
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
+  // A hand-built draft opens in the composer: the ✦ above Discard · Save opens the prompt.
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.prompt }));
   const field = await screen.findByLabelText(lookbook.prompt.doorDraft);
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
@@ -383,6 +385,8 @@ test('a rule said in the prompt waits under Robes noticed; a vague ask is writte
     noticed: true,
   };
   await renderWithApi(<LookScreen id={LOOK_ID} />);
+  // A hand-built draft opens in the composer: the ✦ above Discard · Save opens the prompt.
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.prompt }));
   const field = await screen.findByLabelText(lookbook.prompt.doorDraft);
   await fireEvent.changeText(field, 'never grey');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));

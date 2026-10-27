@@ -99,7 +99,7 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await signIn(page);
   await declineConsent(page);
   for (const label of ['White wide-leg trouser', 'Dark straight jean']) {
-    await page.request.post('/api/v1/wardrobe/items', { data: { label } });
+    await page.request.post('/api/v1/wardrobe/items', { data: { label, categoryL2: 'Trousers' } });
   }
   await page.goto('/looks/new');
   // The draft stands on a figure: a slot per part of her, each opening her wardrobe.
@@ -108,9 +108,13 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
     await expect(page.getByRole('button', { name: slot })).toBeVisible();
   }
   await page.getByRole('button', { name: '+ Bottom' }).click();
+  // The sheet opens on the slot's own category.
   await page.getByRole('dialog').getByRole('button', { name: 'White wide-leg trouser' }).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
+  // The draft stays in the one composer: the slot it filled reads warm, Discard · Save at the foot.
   await expect(page.getByText('Draft look')).toBeVisible();
+  await expect(page.getByRole('button', { name: '+ Bottom' })).toHaveText('✓ Bottom');
+  await page.getByRole('button', { name: 'Ask Robes about this look' }).click();
 
   const field = page.getByLabel('Change this draft…');
   await field.fill('swap the trouser for the dark straight jean');
@@ -135,6 +139,61 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
   await page.goto('/looks');
   await expect(page.getByTestId('looks-count')).toHaveText('1 look');
+});
+
+test('the draft look at 390: her model, the wardrobe sheet, and Discard · Save at the foot', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await declineConsent(page);
+  for (const [label, categoryL2] of [
+    ['White wide-leg trouser', 'Trousers'],
+    ['Cream silk shirt', 'Shirts & blouses'],
+  ]) {
+    await page.request.post('/api/v1/wardrobe/items', { data: { label, categoryL2 } });
+  }
+  await page.goto('/looks/new');
+  // A clean screen: no header, no tab bar — the footer closes it.
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
+  await expect(page.getByText('Draft look')).toBeVisible();
+  await expect(page.getByText('The look · 0 pieces')).toBeVisible();
+  const bar = page.getByTestId('look-bar');
+  await expect(bar.getByRole('button', { name: 'Discard' })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
+  const box = await bar.boundingBox();
+  expect(Math.round((box?.y ?? 0) + (box?.height ?? 0))).toBe(844);
+
+  // The slot's sheet: titled for the slot, a search, one row of chips, Photograph one first.
+  await page.getByRole('button', { name: '+ Shoes' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Add shoes' });
+  await expect(sheet.getByText('From your wardrobe')).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Shoes', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(sheet.getByRole('button', { name: 'Photograph one' })).toBeVisible();
+  await expect(sheet.getByText('Files straight in')).toBeVisible();
+  await sheet.getByRole('searchbox').fill('silk');
+  await expect(sheet.getByRole('button', { name: 'Cream silk shirt' })).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'White wide-leg trouser' })).toBeHidden();
+  expect(await seriousViolations(page), 'the wardrobe sheet').toEqual([]);
+  await sheet.getByRole('button', { name: 'Cream silk shirt' }).click();
+
+  // The first piece makes the draft; it carries on in the same composer.
+  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
+  await expect(page.getByText('The look · 1 piece')).toBeVisible();
+  // Picked from + Shoes, the shirt lands in its own slot.
+  await expect(page.getByRole('button', { name: '+ Top' })).toHaveText('✓ Top');
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
+  await page.getByRole('button', { name: '+ Bottom' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'White wide-leg trouser' }).click();
+  await expect(page.getByText('The look · 2 pieces')).toBeVisible();
+  await expect(page.getByText('Draft look')).toBeVisible();
+  await expect(
+    page.getByTestId('look-bar').getByRole('button', { name: 'Save', exact: true }),
+  ).toBeEnabled();
+  expect(await seriousViolations(page), 'a draft with two pieces').toEqual([]);
 });
 
 test('passing every card ends the deck: none kept, a way back', async ({ page }) => {

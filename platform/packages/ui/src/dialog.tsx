@@ -2,7 +2,7 @@
 
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { ui } from '@robes/copy';
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement, ReactNode, RefObject } from 'react';
 import { PrimaryScope } from './button';
 import { buttonClasses } from './button-styles';
 import { cn } from './cn';
@@ -29,6 +29,9 @@ export interface DialogProps {
   // A Sheet only: the close control as a word ("Done") where every tap already saved, in place
   // of the ×.
   closeLabel?: string;
+  // A Sheet only: where focus lands on open, in place of the first field — a picker whose first
+  // control is a search must not raise the phone's keyboard before she has looked.
+  initialFocus?: RefObject<HTMLElement | null>;
 }
 
 // The screen behind dims; it never blurs to mush (beta).
@@ -46,9 +49,18 @@ function Frame({
   grabBar = false,
   className,
   titleSize,
+  initialFocus,
 }: Pick<
   DialogProps,
-  'title' | 'eyebrow' | 'description' | 'children' | 'footer' | 'media' | 'leading' | 'closeLabel'
+  | 'title'
+  | 'eyebrow'
+  | 'description'
+  | 'children'
+  | 'footer'
+  | 'media'
+  | 'leading'
+  | 'closeLabel'
+  | 'initialFocus'
 > & {
   grabBar?: boolean;
   className: string;
@@ -85,6 +97,15 @@ function Frame({
       <RadixDialog.Content
         className={cn('fixed z-50 flex flex-col gap-6 bg-bg text-ink shadow-xl', className)}
         {...(description ? {} : { 'aria-describedby': undefined })}
+        {...(initialFocus
+          ? {
+              onOpenAutoFocus: (e: Event) => {
+                if (!initialFocus.current) return;
+                e.preventDefault();
+                initialFocus.current.focus();
+              },
+            }
+          : {})}
       >
         <PrimaryScope>
           {/* The drawer's own handle: it says this pulls up from the edge, and nothing else. */}
@@ -150,6 +171,7 @@ export function Dialog({
   media: _media,
   leading: _leading,
   closeLabel: _closeLabel,
+  initialFocus: _initialFocus,
   ...root
 }: DialogProps) {
   return (
@@ -179,11 +201,13 @@ export function Sheet({
   media,
   leading,
   closeLabel,
+  initialFocus,
   ...root
 }: DialogProps) {
   return (
     <Root {...root}>
       <Frame
+        {...(initialFocus ? { initialFocus } : {})}
         title={title}
         eyebrow={eyebrow}
         description={description}
