@@ -681,7 +681,7 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
   const threeWays = wantsNew
     ? 'THREE WAYS, THREE LOOKS — no two ways share the same Anchor, and every Anchor is a NEW piece she has yet to find, three different pieces from three different houses; the three differ in register (one easier, one sharper, one unexpected), never three colourways of one idea, never three ways of dressing the same owned pieces.'
     : 'THREE WAYS, THREE LOOKS — no two ways share the same Anchor; where her wardrobe holds three candidates, each way leads with a different owned piece; the three differ in register (one easier, one sharper, one unexpected), never three colourways of one idea. A small wardrobe is varied by combination, by how a piece is worn and by the scene — never by inventing pieces she did not ask for.';
-  const formulaBlock = `THE FORMULA — every look layers 1) THE ANCHOR, the hero piece for the weather and agenda; 2) THE CANVAS, premium supporting basics; 3) THE TEXTURE, one depth-adding element; 4) THE EXCLAMATION POINT, the footwear, bag and hardware that inject identity. Name exact cuts, fabrications and how a piece is worn — never "jeans and a top".
+  const formulaBlock = `THE FORMULA — every look layers 1) THE ANCHOR, the hero piece for the weather and agenda; 2) THE CANVAS, premium supporting basics; 3) THE TEXTURE, one depth-adding element; 4) THE EXCLAMATION POINT, the footwear plus the one finish that injects identity — a bag, a belt, eyewear, a scarf, hosiery or jewellery, whichever earns its place in this look; a bag is not owed to every look. Name exact cuts, fabrications and how a piece is worn — never "jeans and a top".
 
 SANITY CHECK — every styling move is one a respected stylist would shoot on the street, in the key piece's natural register: sporty pieces stay elevated-casual (no belted knitwear over athletic shorts, no waist-cinching tricks on a sporty silhouette, no tailoring over gym wear). ${selectRule}; the colour and line notes only tilt a choice between pieces that both fit, and never dictate how a piece is contorted. A trick that needs explaining is dropped.
 
@@ -1118,11 +1118,40 @@ function recentBlock(recent, bal) {
     });
   });
   if (!rows.length) return '';
+  // A piece that rides in look after look (2026-10-27, Annie: one black
+  // crossbody bag closed all twelve of a tester's recent looks). The rules
+  // above only test the lead piece and the whole set, so a supporting
+  // piece repeated everywhere passed both — and the list itself read as
+  // proof she always carries it. Name what is leaning, so it rests.
+  const lean = leaningPieces(sets);
+  const leanLine = lean.length
+    ? `\nLEANING ON: ${lean.map(l => `${l.name} (${l.n === l.of ? 'every recent look' : l.n + ' of the last ' + l.of})`).join(', ')}. Rest them: fill that slot with another of her pieces, or leave it out where the slot is optional (a bag, a belt), unless her brief today names it or nothing else she owns would serve.`
+    : '';
   const lead = bal === 'new'
     ? 'Each new look leads with a NEW piece she has yet to find — never an owned piece these looks already led with.'
     : 'Each new look leads with a different owned piece where the wardrobe allows; where it does not, the same piece is paired differently, worn differently, in a different scene — and the scene line says what is new.';
   return `ALREADY SHOWN — the looks Robes has already made for her, newest first. They exist; never return one again, and never the same set of pieces under a new name. ${lead}
-${rows.slice(0, 18).join('\n')}`;
+${rows.slice(0, 18).join('\n')}${leanLine}`;
+}
+// Pieces in at least three of the recent looks and at least half of them,
+// most-repeated first, four at most. Names are compared case-blind.
+function leaningPieces(sets) {
+  const counts = new Map();
+  let looks = 0;
+  sets.forEach(st => (Array.isArray(st.ways) ? st.ways : []).slice(0, 3).forEach(w => {
+    const pieces = (w && Array.isArray(w.pieces) ? w.pieces : []).map(p => String(p || '').replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean).slice(0, 6);
+    if (!pieces.length) return;
+    looks++;
+    new Set(pieces.map(p => p.toLowerCase())).forEach(k => {
+      const c = counts.get(k) || { name: pieces.find(p => p.toLowerCase() === k), n: 0 };
+      c.n++; counts.set(k, c);
+    });
+  }));
+  return [...counts.values()]
+    .filter(c => c.n >= 3 && c.n * 2 >= looks)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 4)
+    .map(c => ({ name: c.name, n: c.n, of: looks }));
 }
 const REFINE_MAX = 240;
 function refineText(v) { return String(v || '').replace(/\s+/g, ' ').trim().slice(0, REFINE_MAX); }
