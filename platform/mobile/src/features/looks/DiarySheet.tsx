@@ -10,15 +10,7 @@ import {
   shiftMonth,
 } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import {
-  Button,
-  IconButton,
-  PrimaryScope,
-  Sheet,
-  Text,
-  useColor,
-  useToast,
-} from '@robes/ui-native';
+import { Button, PrimaryScope, Sheet, Text, useColor, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -40,6 +32,8 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
   const queryClient = useQueryClient();
   const pin = usePinLook();
   const rose = useColor('accent-inspire');
+  const ink = useColor('ink');
+  const muted = useColor('ink-muted');
 
   const grid = monthGrid(month);
   const plan = useApi(
@@ -110,6 +104,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
             ),
           }
         : {})}
+      closeButton
       testID="diary-sheet"
     >
       <PrimaryScope>
@@ -118,23 +113,37 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
           <View className="gap-3 rounded-soft border border-hairline bg-surface-raised p-4">
             <View className="flex-row items-center justify-between">
               <Text className="font-display text-lg">{monthLabel(month)}</Text>
-              <View className="flex-row items-center gap-1">
-                <IconButton
-                  icon="back"
-                  label={copy.diary.prevMonth}
-                  onPress={() => setMonth(shiftMonth(month, -1))}
-                />
-                <IconButton
-                  icon="forward"
-                  label={copy.diary.nextMonth}
-                  onPress={() => setMonth(shiftMonth(month, 1))}
-                />
+              {/* ‹ › in 22pt hairline circles, each a 44pt target (web twin diary-sheet.tsx). */}
+              <View className="flex-row items-center gap-2">
+                {(
+                  [
+                    ['back', copy.diary.prevMonth, -1],
+                    ['forward', copy.diary.nextMonth, 1],
+                  ] as const
+                ).map(([icon, label, by]) => (
+                  <Pressable
+                    key={icon}
+                    accessibilityRole="button"
+                    accessibilityLabel={label}
+                    onPress={() => setMonth(shiftMonth(month, by))}
+                    hitSlop={11}
+                    className="h-[22px] w-[22px] items-center justify-center rounded-pill border border-rule-mid"
+                  >
+                    <Icon name={icon} size={12} color={muted} />
+                  </Pressable>
+                ))}
               </View>
             </View>
             <View className="gap-1">
               <View className="flex-row" importantForAccessibility="no-hide-descendants">
                 {WEEKDAYS.map((k, i) => (
-                  <Text key={k} tone="muted" size="caption" className="flex-1 text-center">
+                  <Text
+                    key={k}
+                    tone="muted"
+                    size="caption"
+                    className="flex-1 text-center uppercase"
+                    style={{ fontSize: 9.5, letterSpacing: 1.7 }}
+                  >
                     {copy.diary.weekdays[i]}
                   </Text>
                 ))}
@@ -153,17 +162,21 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
                         accessibilityLabel={longDate(date)}
                         accessibilityState={{ selected: on }}
                         onPress={() => setPicked(date)}
-                        className={`min-h-11 flex-1 items-center justify-center gap-1 rounded-soft border ${
-                          on
-                            ? 'border-selected-line bg-selected'
-                            : date === today
-                              ? 'border-hairline'
-                              : 'border-transparent'
-                        }`}
+                        className="min-h-11 flex-1 items-center justify-center gap-0.5"
                       >
-                        <Text size="small" tone={date < today ? 'muted' : 'ink'}>
-                          {Number(date.slice(8))}
-                        </Text>
+                        {/* The picked day is a warm circle; today carries no ring of its own. */}
+                        <View
+                          className={`h-8 w-8 items-center justify-center rounded-full border ${
+                            on ? 'border-selected-line bg-selected' : 'border-transparent'
+                          }`}
+                        >
+                          <Text
+                            className="font-display text-base"
+                            style={{ color: on || date === today ? ink : muted }}
+                          >
+                            {Number(date.slice(8))}
+                          </Text>
+                        </View>
                         {/* A filed day carries a dot, so her diary reads at a glance. */}
                         <View
                           className="size-1 rounded-pill"
@@ -188,7 +201,9 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
           <Button disabled={state.action === 'recorded'} loading={busy} onPress={act}>
             {copy.diary[state.action]}
           </Button>
-          {worn.has(today) ? (
+          {/* "I wore this today" only when another day is picked — with today picked the pill says
+              it; × closes, so there is no "Not yet" (Look redline 27 Oct). */}
+          {day === today ? null : worn.has(today) ? (
             <View className="flex-row items-center justify-center gap-1.5">
               <Icon name="check" size={14} color={rose} />
               <Text size="small" tone="muted">
@@ -206,9 +221,6 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
               {copy.diary.woreToday}
             </Button>
           )}
-          <Button variant="quiet" onPress={close}>
-            {copy.diary.notYet}
-          </Button>
         </View>
       </PrimaryScope>
     </Sheet>

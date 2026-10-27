@@ -321,6 +321,7 @@ export interface Looks {
   originLookId: string | null;
   photoAssetId: string | null;
   proposals: Json | null;
+  recordImage: string | null;
   renderAssetId: string | null;
   renderClaimedAt: Timestamp | null;
   renderJobId: string | null;

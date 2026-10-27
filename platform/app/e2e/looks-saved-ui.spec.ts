@@ -1,5 +1,8 @@
+import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
+
+const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
@@ -32,8 +35,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await expect(page.getByText('The look · 2 pieces', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
-  // Save opens the diary every time; Not yet closes it and writes nothing.
-  await page.getByRole('dialog').getByRole('button', { name: 'Not yet' }).click();
+  // Save opens the diary every time; × closes it and writes nothing.
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Camel coat, styled' })).toBeVisible();
@@ -83,7 +86,7 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   const diary = page.getByRole('dialog');
   await diary.getByRole('button', { name: longTomorrow }).click();
   await diary.getByRole('button', { name: 'Put it in the diary' }).click();
-  await expect(page.getByText(/is in your diary for/)).toBeVisible();
+  await expect(page.getByRole('listitem').getByText(/is in your diary for/)).toBeVisible();
 
   // The plan lists summary rows; the row opens the day page, where the day is named and edited.
   await page.goto('/plan');
@@ -117,9 +120,52 @@ test('removing a look can be undone', async ({ page }) => {
     await page.request.post('/api/v1/looks', { data: { name: 'Weekend', pieces: [] } })
   ).json();
   await page.goto(`/look/${look.id}`);
-  await page.getByRole('button', { name: 'Remove' }).click();
+  await page.getByRole('button', { name: 'Delete this look' }).click();
   await expect(page).toHaveURL(/\/looks$/);
   await expect(page.getByText('Look removed.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByRole('link', { name: 'Weekend' })).toBeVisible();
+});
+
+test('her own photograph joins a look; You · Model chooses which picture is the record', async ({
+  page,
+}) => {
+  await signIn(page);
+  await declineConsent(page);
+  const api = page.request;
+  const coat = await (
+    await api.post('/api/v1/wardrobe/items', { data: { label: 'Camel coat' } })
+  ).json();
+  const look = await (
+    await api.post('/api/v1/looks', { data: { name: 'Gallery', pieces: [{ pieceId: coat.id }] } })
+  ).json();
+  // Her model wears it first (the offline fake draws it), so the look has Robes' picture.
+  await api.patch('/api/v1/me/model', { data: { skin: 6 } });
+  await expect
+    .poll(async () => (await (await api.get('/api/v1/me/model')).json()).cell.status, {
+      timeout: 30_000,
+    })
+    .toBe('ready');
+  await api.post(`/api/v1/looks/${look.id}/render`);
+  await expect
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).onModel, {
+      timeout: 30_000,
+    })
+    .toBe('ready');
+
+  await page.goto(`/look/${look.id}`);
+  // No photograph yet: the camera, the hint, and no You · Model.
+  await expect(page.getByText('Wore this look? Add your photograph')).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: 'The record of this look' })).toBeHidden();
+  await page.locator('input[type="file"][aria-label="Add your photograph"]').setInputFiles(PHOTO);
+  const record = page.getByRole('radiogroup', { name: 'The record of this look' });
+  await expect(record).toBeVisible({ timeout: 30_000 });
+  // Her photograph leads; the camera becomes ↻ and the hint goes.
+  await expect(record.getByRole('radio', { name: 'You' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('button', { name: 'Replace your photograph' })).toBeVisible();
+  await expect(page.getByText('Wore this look? Add your photograph')).toBeHidden();
+  await record.getByRole('radio', { name: 'Model' }).click();
+  await expect
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).record)
+    .toBe('model');
 });

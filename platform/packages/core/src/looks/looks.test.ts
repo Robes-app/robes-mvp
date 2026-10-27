@@ -13,6 +13,7 @@ import {
   frameKey,
   isProposalKey,
   lookFacts,
+  lookLine,
   lookMatches,
   lookWearFor,
   nameNoBrand,
@@ -376,5 +377,19 @@ describe('a look’s Wear it for', () => {
       'Travel',
       'Work',
     ]);
+  });
+});
+
+describe('lookLine', () => {
+  const p = (label: string) => ({ piece: { label } });
+  it('reads Robes’ note, else names the pieces', () => {
+    expect(lookLine({ note: 'Soft tailoring. Easy shoes. A sharp bag. More.', pieces: [] })).toBe(
+      'Soft tailoring. Easy shoes. A sharp bag.',
+    );
+    expect(
+      lookLine({ note: null, pieces: [p('Camel coat'), p('Straight jeans'), p('Loafers')] }),
+    ).toBe('Camel coat, Straight jeans and Loafers');
+    expect(lookLine({ note: null, pieces: [p('Camel coat')] })).toBe('Camel coat');
+    expect(lookLine({ note: null, pieces: [] })).toBe('');
   });
 });

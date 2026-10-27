@@ -50,12 +50,14 @@ function ToolPill({
   label,
   accessibilityLabel,
   expanded,
+  disabled = false,
   onPress,
 }: {
   icon?: IconName;
   label: string;
   accessibilityLabel?: string;
   expanded: boolean;
+  disabled?: boolean;
   onPress: () => void;
 }) {
   const muted = useColor('ink-muted');
@@ -63,8 +65,10 @@ function ToolPill({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ expanded }}
+      accessibilityState={{ expanded, disabled }}
+      disabled={disabled}
       onPress={onPress}
+      style={disabled ? { opacity: 0.45 } : undefined}
       hitSlop={{ top: (MIN_TOUCH - 36) / 2, bottom: (MIN_TOUCH - 36) / 2 }}
       className={`h-9 flex-row items-center gap-[6px] rounded-pill border bg-surface-raised px-3 ${expanded ? 'border-selected-line' : 'border-rule-mid'}`}
     >
@@ -151,7 +155,7 @@ export function LooksView() {
 
   const header = (
     <View className="gap-5 pb-5">
-      {count || sortable ? (
+      {count || tab === 'saved' ? (
         <View className="min-h-9 flex-row items-center justify-between gap-3">
           <Text
             testID="looks-count"
@@ -161,7 +165,8 @@ export function LooksView() {
           >
             {count}
           </Text>
-          {sortable ? (
+          {/* Beta: Sort and Filter stand on Saved at every count, inert below four looks. */}
+          {tab === 'saved' ? (
             <View className="flex-row gap-[6px]">
               {/* One pill naming the sort in play, opening the three — never three pills. */}
               <ToolPill
@@ -169,6 +174,7 @@ export function LooksView() {
                 label={copy.sort[sort]}
                 accessibilityLabel={`${copy.sort.label}: ${copy.sort[sort]}`}
                 expanded={sortOpen}
+                disabled={!sortable}
                 onPress={() => setSortOpen(true)}
               />
               <ToolPill
@@ -176,6 +182,7 @@ export function LooksView() {
                 label={copy.refine.open}
                 accessibilityLabel={`${copy.refine.open}${filters ? ` · ${copy.refine.on}` : ''}`}
                 expanded={refineOpen}
+                disabled={!sortable}
                 onPress={() => setRefineOpen(!refineOpen)}
               />
             </View>

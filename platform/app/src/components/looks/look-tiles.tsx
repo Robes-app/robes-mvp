@@ -2,7 +2,7 @@
 
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
-import { anchorName, lookFacts, startedLabel } from '@robes/core/looks';
+import { anchorName, lookFacts, lookWearFor, startedLabel } from '@robes/core/looks';
 import { Icon, type IconName } from '@robes/icons/web';
 import { Image } from '@robes/ui';
 import Link from 'next/link';
@@ -65,6 +65,7 @@ export function SavedTile({
       href={`/look/${look.id}`}
       sizes="(min-width: 768px) 33vw, 50vw"
       priority={priority}
+      tag={lookWearFor(look)[0] ?? null}
       meta={copy.meta.card(lookFacts(look, look.pieces.length))}
       onImage={
         onDiary ? (
@@ -101,7 +102,7 @@ export function DraftTile({ look }: { look: Look }) {
       name={name}
       italic={look.nameProvisional}
       label={`${copy.draftTile.eyebrow}: ${name}`}
-      meta={copy.draftTile.started(startedLabel(look.createdAt, localToday()))}
+      meta={copy.draftTile.meta(startedLabel(look.createdAt, localToday()))}
       testId={`draft-${look.id}`}
     />
   );

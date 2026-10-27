@@ -49,7 +49,8 @@ export function SegmentedControl<T extends string>({
       accessibilityRole="radiogroup"
       accessibilityLabel={label}
       testID={testID}
-      style={{ height, minWidth: size === 'md' ? 213 : 72 }}
+      // 232 holds "SUGGESTED" on one line at 10pt tracked caps (Look redline 27 Oct: it broke).
+      style={{ height, minWidth: size === 'md' ? 232 : 72 }}
       className={cx('flex-row rounded-pill bg-surface-sunk p-[3px]', className)}
     >
       {options.map((option) => {
@@ -78,6 +79,7 @@ export function SegmentedControl<T extends string>({
             ) : (
               <Text
                 maxFontSizeMultiplier={maxFontSizeMultiplier.control}
+                numberOfLines={1}
                 className={cx('text-[10px] uppercase', selected ? 'text-ink' : 'text-ink-faint')}
                 style={{ fontFamily: fonts.sansMedium, letterSpacing: 2.4 }}
               >

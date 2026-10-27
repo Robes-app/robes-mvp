@@ -579,3 +579,17 @@ export function wearDiff(
     without: without.map((p) => labelOf(p.id)).filter((l): l is string => !!l),
   };
 }
+
+// The serif italic line under a look's picture (Look redline 27 Oct): Robes' note when it wrote
+// one, else the pieces named in the order they hang ("Camel coat, straight jeans and loafers").
+export function lookLine(look: {
+  note: string | null;
+  pieces: readonly { piece: { label: string } }[];
+}): string {
+  const note = noteShort(look.note);
+  if (note) return note;
+  const names = look.pieces.map((p) => p.piece.label.trim()).filter(Boolean);
+  if (names.length < 2) return names[0] ?? '';
+  // Printed as she filed them, never re-cased: a brand reads wrong lower-cased.
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+}

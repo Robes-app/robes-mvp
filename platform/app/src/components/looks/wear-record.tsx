@@ -40,7 +40,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
   return (
     <section
       aria-labelledby="look-wears"
-      className="flex flex-col gap-3 rounded-crisp border border-hairline bg-surface p-4"
+      className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-4"
     >
       {/* The record's own head: what it is, and how often — the rows beneath are the days. */}
       <div className="flex items-baseline justify-between gap-3">

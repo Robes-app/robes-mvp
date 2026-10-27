@@ -172,8 +172,14 @@ export const Look = z.object({
   source: z.string(),
   originLookId: z.uuid().nullable(),
   climateBand: SeasonBand,
-  // The look's picture: Robes' frame when there is one, else the render on her model.
+  // The look's picture — the record, its cover on the Lookbook and in the diary: the one she picked
+  // of `photo` and `model`, else her photograph when she has one, else Robes' picture.
   image: PieceImage.nullable(),
+  // Her own photograph of the look, and Robes' picture of it (the frame, else the render on her
+  // model). With both, the look page's You / Model pair chooses the record (Look redline 27 Oct).
+  photo: PieceImage.nullable(),
+  model: PieceImage.nullable(),
+  record: z.enum(['photo', 'model']),
   // True when the picture is Robes' frame: it holds through every state; edits re-draw it and
   // her model never replaces it.
   frame: z.boolean(),
@@ -249,6 +255,8 @@ export const UpdateLookInput = z
     letGoOldest: z.boolean(),
     // ↻ on a suggested look's row (legacy 0.1): the swap lands on the suggestion, which stays one.
     keepSuggested: z.boolean(),
+    // You / Model: which picture is the record.
+    record: z.enum(['photo', 'model']),
   })
   .partial();
 export type UpdateLookInput = z.infer<typeof UpdateLookInput>;

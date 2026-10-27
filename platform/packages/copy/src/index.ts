@@ -795,13 +795,30 @@ export const looks = {
     addedToPlan: 'Added to your diary.',
     saveAsNew: 'Save as new',
     savedAsNew: 'Saved as a new look.',
-    remove: 'Remove',
+    // A text link at the foot, rose; no glyph (Look redline 27 Oct).
+    remove: 'Delete this look',
     removed: 'Look removed.',
+    wearOnDay: 'Wear on a day',
+    // The eyebrow over the look's picture.
+    theLook: 'The look',
     imageAlt: (name: string): string => `The look: ${name}`,
     noPieces: 'No pieces yet.',
-    // On the photograph: the day it is worn, and her own picture of it.
+    // On the photograph: the day it is worn, and her own picture of it (↻ once one is kept).
     addPhoto: 'Add your photograph',
-    photoNote: 'Wore this look? Add your photograph and it is kept alongside Robes’ own.',
+    replacePhoto: 'Replace your photograph',
+    photoNote: 'Wore this look? Add your photograph and it is kept alongside her.',
+    // You / Model: with both pictures, she chooses which is the record — the Lookbook cover and
+    // the diary thumbnail.
+    record: {
+      label: 'The record of this look',
+      you: 'You',
+      model: 'Model',
+      kept: 'Kept as the record of this look',
+    },
+    // What the look is: the season, and what its pieces are worn for.
+    tags: 'Tags',
+    editTags: 'Edit tags',
+    season: 'Season',
     // The look's own record: a wear is a fact, so it keeps its date and what was on the body.
     wears: {
       title: 'Worn',
@@ -851,7 +868,7 @@ export const looks = {
     removed: 'Look removed.',
     pieces: 'Pieces',
     imageAlt: (name: string): string => `The look: ${name}`,
-    suggested: 'Robes’ suggested name',
+    suggested: 'Robes’ suggestion',
     keepName: 'Keep this name',
     nameLabel: 'Name this look',
     saveName: 'Save name',

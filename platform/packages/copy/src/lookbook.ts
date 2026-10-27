@@ -34,9 +34,8 @@ export const lookbook = {
   draftTile: {
     eyebrow: 'Draft',
     untitled: 'Untitled',
+    // The In progress row's card (Look redline 27 Oct): it says it isn't saved.
     meta: (when: string): string => `Not saved · started ${when}`,
-    // The In progress row's small card (native parity canvas): the dashed frame says unsaved.
-    started: (when: string): string => `Started ${when}`,
   },
   suggestedTile: {
     eyebrow: 'Suggested',
@@ -138,7 +137,6 @@ export const lookbook = {
   diary: {
     title: 'Put it in the diary',
     eyebrow: 'Put in the diary',
-    notYet: 'Not yet',
     pick: 'Pick a day',
     add: (day: string): string => `Add to ${day}`,
     prevMonth: 'Previous month',

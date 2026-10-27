@@ -28,6 +28,7 @@ const LOOK_COLUMNS = [
   'styling',
   'edits',
   'photoAssetId',
+  'recordImage',
   'createdAt',
   'updatedAt',
 ] as const;
@@ -52,6 +53,8 @@ export interface LookFields {
   styling?: Record<string, string> | null | undefined;
   edits?: Record<string, unknown> | null | undefined;
   dateHint?: string | null | undefined;
+  // Which picture is the record (her photograph or the render on her model); she sets it.
+  record?: 'photo' | 'model' | undefined;
 }
 
 export class LookPiecesNotFound extends Error {
@@ -478,6 +481,7 @@ export function looksRepo(db: Db) {
               : {}),
             ...(fields.styling !== undefined ? { styling: json(emptyToNull(fields.styling)) } : {}),
             ...(fields.dateHint !== undefined ? { dateHint: fields.dateHint } : {}),
+            ...(fields.record !== undefined ? { recordImage: fields.record } : {}),
             ...(fields.edits !== undefined
               ? {
                   edits: sql`case when status = 'saved' then null else ${json(emptyToNull(fields.edits))}::jsonb end`,

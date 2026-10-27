@@ -20,6 +20,8 @@ export interface LookTileProps {
   // Rose marks Robes' hand or something unfinished (Draft); the default is faint.
   eyebrowTone?: 'faint' | 'warm';
   meta?: ReactNode;
+  // The look's first tag, a small chip between the name and the facts (Look redline 27 Oct).
+  tag?: string | null;
   name?: string;
   italic?: boolean;
   label?: string;
@@ -48,6 +50,7 @@ export function LookTile({
   eyebrow,
   eyebrowTone = 'faint',
   meta,
+  tag,
   name,
   italic = false,
   label,
@@ -118,6 +121,11 @@ export function LookTile({
             >
               {heading}
             </h3>
+            {tag ? (
+              <span className="mt-1 mb-0.5 self-start rounded-pill border border-hairline bg-surface px-2 py-0.5 font-sans text-[10px] text-ink-muted">
+                {tag}
+              </span>
+            ) : null}
             {meta ? <p className="truncate font-sans text-[11px] text-ink-muted">{meta}</p> : null}
           </div>
         </>

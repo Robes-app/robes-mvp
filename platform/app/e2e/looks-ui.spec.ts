@@ -76,8 +76,8 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   expect(await seriousViolations(page), 'a suggested look').toEqual([]);
   await page.getByRole('button', { name: 'Save to lookbook' }).click();
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
-  // Save opens the diary every time; Not yet closes it and writes nothing.
-  await page.getByRole('dialog').getByRole('button', { name: 'Not yet' }).click();
+  // Save opens the diary every time; × closes it and writes nothing.
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
   await expect(page.getByText('Saved look')).toBeVisible();
 
   // The piece page shows the rest of the set; Edit on one makes it a draft.

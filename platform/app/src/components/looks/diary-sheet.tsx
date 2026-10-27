@@ -12,15 +12,18 @@ import {
   shiftMonth,
 } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { Button, IconButton, Sheet, useToast } from '@robes/ui';
+import { Button, Sheet, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { formatDay, localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { LookImage } from './look-image';
 
+// A day is a Cormorant numeral, small and ink-soft; the selected day a warm circle (Look redline).
 const CELL =
-  'relative flex aspect-square flex-col items-center justify-center gap-1 rounded-pill font-sans text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-full font-display text-base [font-variant-numeric:lining-nums] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+const ARROW =
+  "relative flex size-[22px] items-center justify-center rounded-full border border-rule-mid text-ink-muted after:absolute after:-inset-[11px] after:content-[''] hover:border-border-control hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 // Save opens the diary every time (legacy 0.2): beta's month, any day one tap, a day gone by
 // records it as worn, and "I wore this today" beneath. Closing it writes nothing.
@@ -121,8 +124,9 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
           >
             {copy.diary[state.action]}
           </Button>
-          {/* Beta's order: the day's act, then "I wore this today" beneath it. */}
-          {worn.has(today) ? (
+          {/* "I wore this today" only when another day is picked — on today the pill says it.
+              × closes, so there is no "Not yet" (decided 27 Oct). */}
+          {day === today ? null : worn.has(today) ? (
             <span className="flex items-center justify-center gap-1.5 font-sans text-ink-muted text-sm">
               <Icon name="check" size={14} />
               {copy.diary.woreTodayDone}
@@ -138,9 +142,6 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
               {copy.diary.woreToday}
             </Button>
           )}
-          <Button variant="quiet" onClick={close}>
-            {copy.diary.notYet}
-          </Button>
         </>
       }
     >
@@ -148,17 +149,23 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
         <div className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-4">
           <div className="flex items-center justify-between">
             <span className="font-display text-ink text-lg">{monthLabel(month)}</span>
-            <span className="flex items-center gap-1">
-              <IconButton
-                icon="back"
-                label={copy.diary.prevMonth}
+            <span className="flex items-center gap-4">
+              <button
+                type="button"
+                aria-label={copy.diary.prevMonth}
                 onClick={() => setMonth(shiftMonth(month, -1))}
-              />
-              <IconButton
-                icon="forward"
-                label={copy.diary.nextMonth}
+                className={ARROW}
+              >
+                <Icon name="back" size={12} />
+              </button>
+              <button
+                type="button"
+                aria-label={copy.diary.nextMonth}
                 onClick={() => setMonth(shiftMonth(month, 1))}
-              />
+                className={ARROW}
+              >
+                <Icon name="forward" size={12} />
+              </button>
             </span>
           </div>
           <div aria-hidden className="grid grid-cols-7 gap-1 text-center">
@@ -186,11 +193,9 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
                     onClick={() => setPicked(date)}
                     className={`${CELL} w-full ${
                       date === day
-                        ? 'border border-selected-line bg-selected'
-                        : date === today
-                          ? 'border border-hairline'
-                          : 'border border-transparent'
-                    } ${date < today ? 'text-ink-muted' : 'text-ink'}`}
+                        ? 'border border-selected-line bg-selected text-ink'
+                        : 'border border-transparent text-ink-muted'
+                    }`}
                   >
                     <span>{Number(date.slice(8))}</span>
                     {/* A filed day carries a dot, so her diary reads at a glance. */}

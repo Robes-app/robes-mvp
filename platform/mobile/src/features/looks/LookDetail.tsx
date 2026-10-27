@@ -1,7 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { looks as copy, lookbook, ui } from '@robes/copy';
-import { lookFacts, noteShort } from '@robes/core/looks';
+import { lookFacts } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
@@ -9,15 +9,16 @@ import {
   Field,
   Heading,
   IconButton,
+  MIN_TOUCH,
   PrimaryScope,
   Skeleton,
   Text,
+  useColor,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
 import { DiarySheet } from './DiarySheet';
 import { LookHero } from './LookHero';
 import { LookPromptBox } from './LookPromptBox';
@@ -126,10 +127,11 @@ function SavedLook({ look }: { look: Look }) {
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const woreToday = look.lastWornOn === localDate();
-  const _render = renditionUri(look.image, 360);
+  // The deep rose: the brand's rose at a size small text can read (4.5:1).
+  const rose = useColor('accent-warm');
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
-  const meta = [lookbook.meta.saved(lookFacts(look, editor.rack.rows.length))];
+  const meta = lookbook.meta.saved(lookFacts(look, editor.rack.rows.length));
   return (
     <View className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-6 pb-32">
@@ -137,11 +139,10 @@ function SavedLook({ look }: { look: Look }) {
         <View className="gap-2">
           <Eyebrow>{editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}</Eyebrow>
           <Name key={look.name} look={look} />
-          <Text tone="muted">{copy.look.worn(look.timesWorn)}</Text>
+          {/* One line straight under the title; the picture's line carries the note. */}
           <Text size="small" tone="muted">
-            {meta.join(' · ')}
+            {meta}
           </Text>
-          {look.note ? <Text>{noteShort(look.note)}</Text> : null}
         </View>
         <View className="gap-3">
           <Eyebrow>{lookbook.rack.title(editor.rack.rows.length)}</Eyebrow>
@@ -179,6 +180,8 @@ function SavedLook({ look }: { look: Look }) {
         ) : null}
         {editor.editing ? null : <WearRecord look={look} onAddDate={() => setDiary(true)} />}
         {editor.editing ? null : (
+          // One ink "Wear it today", a hairline "Wear on a day" (the diary), then the quiet links
+          // (decided 27 Oct; web twin app/(app)/look/[id]/look-view.tsx).
           <PrimaryScope>
             <View className="gap-3">
               <Button
@@ -188,10 +191,10 @@ function SavedLook({ look }: { look: Look }) {
                 disabled={woreToday}
                 loading={wear.isPending}
               >
-                {woreToday ? copy.look.woreToday : copy.look.wearToday}
+                {woreToday ? copy.look.woreToday : copy.page.wearToday}
               </Button>
               <Button variant="secondary" onPress={() => setDiary(true)}>
-                {copy.look.wearOnDay}
+                {copy.page.wearOnDay}
               </Button>
               {look.frame ? null : <SeeOnMe look={look} />}
               <Button
@@ -201,19 +204,22 @@ function SavedLook({ look }: { look: Look }) {
                 loadingLabel={ui.loading}
                 onPress={() => saveAsNew.mutate({ params: { id: look.id }, input: {} })}
               >
-                {copy.look.saveAsNew}
+                {copy.page.saveAsNew}
               </Button>
-              <Button
-                variant="quiet"
-                icon="trash"
-                className="self-center"
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={copy.page.remove}
                 onPress={() => {
                   remove.mutate({ params: { id: look.id } });
                   router.back();
                 }}
+                style={{ minHeight: MIN_TOUCH }}
+                className="items-center justify-center self-center"
               >
-                {copy.result.remove}
-              </Button>
+                <Text size="small" style={{ color: rose }}>
+                  {copy.page.remove}
+                </Text>
+              </Pressable>
             </View>
           </PrimaryScope>
         )}
@@ -238,11 +244,19 @@ function SavedLook({ look }: { look: Look }) {
             </Button>
           </PrimaryScope>
         ) : (
-          <Button variant="secondary" onPress={editor.startEditing}>
-            {look.pieces.length || look.proposals.length
-              ? lookbook.bar.editLook
-              : lookbook.bar.addPieces}
-          </Button>
+          // A small hairline pill in sentence case (beta's size).
+          <Pressable
+            accessibilityRole="button"
+            onPress={editor.startEditing}
+            hitSlop={4}
+            className="min-h-9 justify-center rounded-pill border border-border-control px-4"
+          >
+            <Text size="small">
+              {look.pieces.length || look.proposals.length
+                ? lookbook.bar.editLook
+                : lookbook.bar.addPieces}
+            </Text>
+          </Pressable>
         )}
       </View>
       <SwapSheet

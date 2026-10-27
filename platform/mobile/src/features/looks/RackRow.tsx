@@ -1,7 +1,8 @@
 import type { PieceImage } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/looks';
-import { IconButton, Image, Text } from '@robes/ui-native';
+import { Icon } from '@robes/icons/native';
+import { IconButton, Image, Text, useColor } from '@robes/ui-native';
 import { Pressable, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 
@@ -33,8 +34,9 @@ export function RackRowCard({
   const name = nameNoBrand(row.name, brand);
   const uri = renditionUri(image, 52);
   const proposal = row.proposal;
+  const faint = useColor('ink-faint');
+  const rose = useColor('accent-warm');
   const ctx = [
-    row.role ? copy.rack.roles[row.role] : null,
     proposal ? (proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours) : null,
     proposal?.retailerHint || null,
     proposal?.pricePoint || null,
@@ -64,10 +66,30 @@ export function RackRowCard({
         )}
       </View>
       <View className="flex-1 gap-0.5">
-        <Text size="caption" tone="muted" numberOfLines={1}>
+        {/* Beta's row (Look redline 27 Oct; web twin rack-row.tsx): the tracked eyebrow, the name
+            in the serif, its role in rose. */}
+        <Text
+          size="caption"
+          tone="muted"
+          numberOfLines={1}
+          className="uppercase"
+          style={{ fontSize: 9.5, letterSpacing: 1.7 }}
+        >
           {brand ? `${row.category} · ${brand}` : row.category}
         </Text>
-        <Text numberOfLines={2}>{name}</Text>
+        <Text numberOfLines={2} className="font-display text-lg">
+          {name}
+        </Text>
+        {row.role ? (
+          <Text
+            size="caption"
+            numberOfLines={1}
+            className="uppercase"
+            style={{ fontSize: 9.5, letterSpacing: 1.7, color: rose }}
+          >
+            {copy.rack.roles[row.role]}
+          </Text>
+        ) : null}
         {ctx.length ? (
           <Text size="caption" tone="faint" numberOfLines={1}>
             {ctx.join(' · ')}
@@ -105,6 +127,7 @@ export function RackRowCard({
         {onRemove ? (
           <IconButton icon="close" label={copy.rack.remove(name)} onPress={onRemove} />
         ) : null}
+        {onOpen && !onSwap && !onRemove ? <Icon name="forward" size={16} color={faint} /> : null}
       </View>
     </Pressable>
   );

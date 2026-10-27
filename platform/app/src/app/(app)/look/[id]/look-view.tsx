@@ -9,7 +9,7 @@ import {
 } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook, looks, wardrobe } from '@robes/copy';
-import { isHandBuiltDraft, noteShort } from '@robes/core/looks';
+import { isHandBuiltDraft } from '@robes/core/looks';
 import {
   Button,
   ErrorText,
@@ -29,6 +29,7 @@ import { DiarySheet } from '@/components/looks/diary-sheet';
 import { LookHero } from '@/components/looks/look-hero';
 import { SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
 import { WearRecord } from '@/components/looks/wear-record';
+import { usePushedView } from '@/components/shell/app-shell';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { useLookEditor } from '@/lib/look-editor';
@@ -49,6 +50,8 @@ export function LookView({ id }: { id: string }) {
   );
   // Save opens the diary every time; the sheet outlives the working page it was saved from.
   const [justSaved, setJustSaved] = useState<Look | null>(null);
+  // A look is a pushed view on a phone: the back pill alone, no masthead and no dock (redline).
+  usePushedView();
   if (query.isError) {
     return <ErrorText>{errorCopy(query.error)}</ErrorText>;
   }
@@ -149,31 +152,22 @@ function LookBody({ look }: { look: Look }) {
   const [diary, setDiary] = useState(false);
 
   return (
-    <article className="grid gap-8 pb-20 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    // The foot clears the look's fixed bar (Edit look, or Done · Update).
+    <article className="grid gap-8 pb-40 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <LookHero look={look} onDiary={() => setDiary(true)} />
       <div className="flex flex-col gap-6">
-        <LookName look={look} update={actions.update} editing={editor.editing} />
-        <Text size="small" tone="muted">
-          {savedMeta(look, editor.rack.rows.length)}
-        </Text>
-        {look.frame ? (
-          <Text size="small" tone="faint" italic>
-            {copy.photoNote}
-          </Text>
-        ) : null}
-        {look.note ? (
-          <section aria-labelledby="look-note" className="flex flex-col gap-2">
-            <Heading level={2} size="sm" id="look-note">
-              {copy.note}
-            </Heading>
-            <Text>{noteShort(look.note)}</Text>
-          </section>
-        ) : null}
+        <LookName
+          look={look}
+          update={actions.update}
+          editing={editor.editing}
+          meta={savedMeta(look, editor.rack.rows.length)}
+        />
         <SavedRack look={look} editor={editor} />
         {editor.editing ? null : (
           <>
             <WearRecord look={look} onAddDate={() => setDiary(true)} />
-            <div className="flex flex-wrap items-center gap-2">
+            {/* One ink commitment; a day is the diary's (decided 27 Oct). */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <Button
                 variant="primary"
                 loading={actions.wear.isPending}
@@ -183,24 +177,29 @@ function LookBody({ look }: { look: Look }) {
               >
                 {copy.wearToday}
               </Button>
-              <Button
-                variant="secondary"
-                loading={actions.variant.isPending}
-                onClick={() => actions.variant.mutate({ params: { id: look.id }, input: {} })}
-              >
-                {copy.saveAsNew}
-              </Button>
-              <Button
-                variant="quiet"
-                onClick={() => {
-                  actions.remove.mutate({ params: { id: look.id } });
-                  router.push('/looks');
-                }}
-              >
-                {copy.remove}
+              <Button variant="secondary" onClick={() => setDiary(true)}>
+                {copy.wearOnDay}
               </Button>
             </div>
+            <Button
+              variant="quiet"
+              className="self-start px-0"
+              loading={actions.variant.isPending}
+              onClick={() => actions.variant.mutate({ params: { id: look.id }, input: {} })}
+            >
+              {copy.saveAsNew}
+            </Button>
             {look.frame ? null : <SeeOnMe look={look} />}
+            <button
+              type="button"
+              onClick={() => {
+                actions.remove.mutate({ params: { id: look.id } });
+                router.push('/looks');
+              }}
+              className="min-h-11 self-start font-sans text-danger text-sm underline underline-offset-4 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-focus-ring"
+            >
+              {copy.remove}
+            </button>
           </>
         )}
       </div>
@@ -213,10 +212,12 @@ function LookName({
   look,
   update,
   editing: editingLook,
+  meta,
 }: {
   look: Look;
   update: ReturnType<typeof useLookActions>['update'];
   editing: boolean;
+  meta: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(look.name);
@@ -260,6 +261,10 @@ function LookName({
         </Heading>
         <IconButton icon="pencil" label={copy.rename} onClick={() => setEditing(true)} />
       </div>
+      {/* One line straight under the title: the pieces, the wears, the last day. */}
+      <Text size="small" tone="muted">
+        {meta}
+      </Text>
       {look.nameProvisional ? (
         <div className="flex flex-wrap items-center gap-2">
           <Text size="small" tone="muted">

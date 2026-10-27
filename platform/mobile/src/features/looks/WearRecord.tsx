@@ -38,7 +38,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
   const labelOf = (id: string) => look.pieces.find((p) => p.piece.id === id)?.piece.label ?? null;
 
   return (
-    <View className="gap-3 rounded-crisp border border-hairline bg-surface p-4">
+    <View className="gap-3 rounded-crisp border border-hairline bg-surface-raised p-4">
       {/* The record's own head: what it is, and how often — the rows beneath are the days. */}
       <View className="flex-row items-baseline justify-between gap-3">
         <Eyebrow>{copy.title}</Eyebrow>
@@ -91,7 +91,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
         </View>
       )}
 
-      <Button variant="quiet" onPress={onAddDate}>
+      <Button variant="quiet" className="self-end" onPress={onAddDate}>
         {copy.addDate}
       </Button>
     </View>

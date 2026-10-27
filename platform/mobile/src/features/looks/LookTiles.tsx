@@ -1,6 +1,6 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
-import { anchorName, lookFacts, startedLabel } from '@robes/core/looks';
+import { anchorName, lookFacts, lookWearFor, startedLabel } from '@robes/core/looks';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
 import { fonts, Image, MIN_TOUCH, useColor } from '@robes/ui-native';
@@ -63,6 +63,7 @@ export function SavedTile({
       look={look}
       onPress={onPress}
       className="flex-1"
+      tag={lookWearFor(look)[0] ?? null}
       meta={copy.meta.card(lookFacts(look, look.pieces.length))}
       onImage={
         onDiary ? (
@@ -95,7 +96,7 @@ export function DraftTile({ look, onPress }: { look: Look; onPress: () => void }
       name={name}
       italic={look.nameProvisional}
       label={`${copy.draftTile.eyebrow}: ${name}`}
-      meta={copy.draftTile.started(startedLabel(look.createdAt, localDate()))}
+      meta={copy.draftTile.meta(startedLabel(look.createdAt, localDate()))}
       testID={`draft-${look.id}`}
     />
   );

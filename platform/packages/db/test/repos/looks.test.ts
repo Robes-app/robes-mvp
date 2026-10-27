@@ -139,6 +139,16 @@ describe('looks repo', () => {
     expect((await looks.get(ann, look.id))?.photoAssetId).toBe(photo.id);
   });
 
+  it('keeps which picture is the record, and only she can set it', async () => {
+    const look = await create(ann, [coat]);
+    expect(look.recordImage).toBeNull();
+    expect((await looks.update(ann, look.id, { record: 'model' }))?.recordImage).toBe('model');
+    expect(await looks.update(bea, look.id, { record: 'photo' })).toBeUndefined();
+    expect((await looks.get(ann, look.id))?.recordImage).toBe('model');
+    // Saying which picture leads is not a change to the rack: a saved look stays saved.
+    expect((await looks.get(ann, look.id))?.status).toBe('saved');
+  });
+
   it('counts her looks and the looks she wore on a day', async () => {
     const user = await createTestUser(db);
     const a = await looks.create(user, { name: 'A', nameProvisional: false, pieces: [] });

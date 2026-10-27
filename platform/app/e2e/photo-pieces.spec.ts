@@ -193,11 +193,14 @@ test('a look from a photo', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/look\//, { timeout: 15_000 });
   await expect(page.getByRole('heading', { level: 1, name: 'Sunday run' })).toBeVisible();
-  await expect(page.getByText('Black leggings')).toBeVisible();
-  await expect(page.getByText('White running shoes')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Black leggings' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open White running shoes' })).toBeVisible();
+  // The line under the picture names the pieces when Robes wrote no note.
+  await expect(page.getByText('Black leggings and White running shoes')).toBeVisible();
   // Her photo is the look's record, and the wear is logged for today.
   const lookId = page.url().split('/look/')[1];
   const look = await (await page.request.get(`/api/v1/looks/${lookId}`)).json();
   expect(look).toMatchObject({ timesWorn: 1, name: 'Sunday run' });
   expect(look.image).not.toBeNull();
+  expect(look).toMatchObject({ record: 'photo' });
 });

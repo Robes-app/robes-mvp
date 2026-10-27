@@ -59,7 +59,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         onFocus={onFocus}
-        className="max-h-24 min-h-10 flex-1 resize-none bg-transparent py-2 font-display text-lg italic text-ink placeholder:text-ink-muted focus:outline-none"
+        className="max-h-24 min-h-10 flex-1 resize-none bg-transparent py-2 font-sans text-sm text-ink placeholder:text-ink-muted focus:outline-none"
       />
       {value.trim() ? (
         <IconButton icon="send" label={copy.prompt.send} onClick={onSend} disabled={busy} />

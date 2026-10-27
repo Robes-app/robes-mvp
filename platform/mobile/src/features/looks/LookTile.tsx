@@ -28,6 +28,8 @@ export interface LookTileProps {
   // Rose marks Robes' hand or something unfinished (Draft); the default is faint.
   eyebrowTone?: 'faint' | 'warm';
   meta?: string;
+  // The look's first tag, a small chip between the title and the meta (Look redline 27 Oct).
+  tag?: string | null;
   name?: string;
   italic?: boolean;
   width?: number;
@@ -51,6 +53,7 @@ export function LookTile({
   eyebrow,
   eyebrowTone = 'faint',
   meta,
+  tag,
   name,
   italic = false,
   width,
@@ -109,6 +112,18 @@ export function LookTile({
           >
             {title}
           </RNText>
+          {tag ? (
+            <View className="mt-1 mb-0.5 self-start rounded-pill border border-hairline bg-surface px-2 py-0.5">
+              <RNText
+                numberOfLines={1}
+                maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                className="text-ink-muted"
+                style={{ fontFamily: fonts.sans, fontSize: 10 }}
+              >
+                {tag}
+              </RNText>
+            </View>
+          ) : null}
           {meta ? (
             <RNText
               numberOfLines={1}
