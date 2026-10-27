@@ -1,7 +1,7 @@
 import type { Home, HomePiece } from '@robes/contracts';
 import { home as copy, wardrobe } from '@robes/copy';
 import { type HomeResolved, type HomeStep, mapRows } from '@robes/core/home';
-import { anchorName } from '@robes/core/looks';
+import { anchorName, nameNoBrand } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -21,7 +21,8 @@ import { SwapSheet } from '@/features/looks/SwapSheet';
 import { pickFromRoll, reviewHref } from '@/features/wardrobe/add/flow';
 import { renditionUri } from '@/lib/images';
 
-const card = 'gap-4 rounded-soft border border-hairline bg-surface p-5';
+// A step card sits on white with a hairline (Design principle 3); the web twin is home-steps.tsx.
+const card = 'gap-4 rounded-soft border border-hairline bg-surface-raised p-5';
 
 function Title({ title, em }: { title: string; em: string }) {
   return (
@@ -61,7 +62,9 @@ function StyleCard({ rows, onLater }: { rows: Home['rows']; onLater: () => void 
     <View className={card} testID="home-O1">
       <Eyebrow>{copy.o1.eyebrow}</Eyebrow>
       <Title title={copy.o1.title} em={copy.o1.titleEm} />
-      <Text tone="muted">{any ? copy.o1.body : copy.o1.bodyEmpty}</Text>
+      <Text size="small" tone="muted">
+        {any ? copy.o1.body : copy.o1.bodyEmpty}
+      </Text>
       {any ? (
         <>
           {(['brands', 'icons', 'styles'] as const).map((k) => (
@@ -108,7 +111,7 @@ function TwinCard({ onLater }: { onLater: () => void }) {
             className="aspect-[4/5] flex-1 items-center justify-end rounded-crisp border border-border-control border-dashed p-3"
             style={{ maxWidth: 150 }}
           >
-            <Text size="small" tone="muted">
+            <Text tone="muted" style={{ fontFamily: fonts.displayItalic, fontSize: 17 }}>
               {label}
             </Text>
           </Pressable>
@@ -116,7 +119,9 @@ function TwinCard({ onLater }: { onLater: () => void }) {
       </View>
       <Eyebrow>{copy.o2.eyebrow}</Eyebrow>
       <Title title={copy.o2.title} em={copy.o2.titleEm} />
-      <Text tone="muted">{copy.o2.body}</Text>
+      <Text size="small" tone="muted">
+        {copy.o2.body}
+      </Text>
       <Button variant="secondary" onPress={go}>
         {copy.o2.cta}
       </Button>
@@ -141,11 +146,11 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
       accessibilityRole="button"
       accessibilityLabel={title}
       onPress={onPress}
-      className="min-h-11 flex-row items-center gap-4 rounded-crisp border border-hairline px-4 py-3"
+      className="min-h-11 flex-row items-center gap-4 border-hairline border-b py-3"
     >
-      <Icon name={icon} size={22} color={muted} />
+      <Icon name={icon} size={20} color={muted} />
       <View className="flex-1">
-        <Text>{title}</Text>
+        <Text style={{ fontFamily: fonts.display, fontSize: 18 }}>{title}</Text>
         <Text size="small" tone="muted">
           {line}
         </Text>
@@ -165,10 +170,12 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
           <Thumb key={p.id} piece={p} width={52} />
         ))}
       </View>
-      {route(copy.o3.snap.title, copy.o3.snap.line, 'camera', snap)}
-      {route(copy.o3.receipt.title, copy.o3.receipt.line, 'mail', () =>
-        router.push('/wardrobe/receipt'),
-      )}
+      <View className="border-hairline border-t">
+        {route(copy.o3.snap.title, copy.o3.snap.line, 'camera', snap)}
+        {route(copy.o3.receipt.title, copy.o3.receipt.line, 'mail', () =>
+          router.push('/wardrobe/receipt'),
+        )}
+      </View>
     </View>
   );
 }
@@ -176,6 +183,7 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
 // O4 · the first look: three candidates, the first picked; the pick anchors the look.
 function FirstLookCard({ candidates }: { candidates: HomePiece[] }) {
   const router = useRouter();
+  const ink = useColor('ink');
   const [picked, setPicked] = useState<HomePiece | null>(null);
   const [all, setAll] = useState(false);
   const pick = picked ?? candidates[0] ?? null;
@@ -187,7 +195,9 @@ function FirstLookCard({ candidates }: { candidates: HomePiece[] }) {
     <View className={card} testID="home-O4">
       <Eyebrow>{copy.o4.eyebrow}</Eyebrow>
       <Title title={copy.o4.title} em={copy.o4.titleEm} />
-      <Text tone="muted">{copy.o4.body}</Text>
+      <Text size="small" tone="muted">
+        {copy.o4.body}
+      </Text>
       <View className="flex-row gap-3">
         {shown.map((p) => (
           <Pressable
@@ -196,11 +206,16 @@ function FirstLookCard({ candidates }: { candidates: HomePiece[] }) {
             accessibilityState={{ selected: pick?.id === p.id }}
             accessibilityLabel={copy.o4.pick(anchorName(p.label, p.brand))}
             onPress={() => setPicked(p)}
-            className={`flex-1 gap-1 rounded-crisp border p-1 ${pick?.id === p.id ? 'border-ink' : 'border-hairline'}`}
+            className={`flex-1 gap-1 rounded-crisp border bg-surface-raised p-1 ${pick?.id === p.id ? 'border-selected-line' : 'border-hairline'}`}
           >
             <Thumb piece={p} width={90} />
-            <Text size="caption" numberOfLines={2}>
-              {anchorName(p.label, p.brand)}
+            {pick?.id === p.id ? (
+              <View className="absolute top-2 right-2 h-6 w-6 items-center justify-center rounded-pill border border-selected-line bg-surface-raised">
+                <Icon name="check" size={14} color={ink} />
+              </View>
+            ) : null}
+            <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: 16 }}>
+              {nameNoBrand(p.label, p.brand)}
             </Text>
           </Pressable>
         ))}
@@ -261,40 +276,46 @@ export function StepMap({
 }) {
   const router = useRouter();
   const muted = useColor('ink-muted');
+  const ink = useColor('ink');
   const keys = mapRows(resolved);
   if (!keys.length) return null;
   return (
-    <View testID="home-map">
+    <View testID="home-map" className="gap-2.5">
       {resolved.activated ? null : <Eyebrow>{copy.map.title}</Eyebrow>}
-      {keys.map((k) => {
-        const done = resolved.done[k];
-        const line = k === 'O3' ? copy.map.line.O3(pics) : copy.map.line[k](done);
-        return (
-          <Pressable
-            key={k}
-            accessibilityRole={done || resolved.activated ? 'link' : 'button'}
-            accessibilityLabel={`${copy.map.steps[k]}, ${line}`}
-            onPress={() => (done || resolved.activated ? router.push(DONE_HREF[k]) : onExpand(k))}
-            className="min-h-11 flex-row items-center gap-4 border-hairline border-b py-3"
-            testID={`home-map-${k}`}
-          >
-            <View
-              className={`h-6 w-6 items-center justify-center rounded-pill border ${done ? 'border-hairline' : 'border-border-control border-dashed'}`}
+      <View className="border-hairline border-t">
+        {keys.map((k) => {
+          const done = resolved.done[k];
+          const line = k === 'O3' ? copy.map.line.O3(pics) : copy.map.line[k](done);
+          return (
+            <Pressable
+              key={k}
+              accessibilityRole={done || resolved.activated ? 'link' : 'button'}
+              accessibilityLabel={`${copy.map.steps[k]}, ${line}`}
+              onPress={() => (done || resolved.activated ? router.push(DONE_HREF[k]) : onExpand(k))}
+              className="min-h-11 flex-row items-center gap-4 border-hairline border-b py-3"
+              testID={`home-map-${k}`}
             >
-              {done ? <Text className="text-accent-warm text-xs">✓</Text> : null}
-            </View>
-            <View className="flex-1">
-              <Text className="text-xl" style={{ fontFamily: fonts.displayRegular }}>
-                {copy.map.steps[k]}
-              </Text>
-              <Text size="small" tone="muted">
-                {line}
-              </Text>
-            </View>
-            <Icon name="forward" size={16} color={muted} />
-          </Pressable>
-        );
-      })}
+              <View
+                className={`h-6 w-6 items-center justify-center rounded-pill border ${done ? 'border-selected-line bg-selected' : 'border-border-control border-dashed'}`}
+              >
+                {done ? <Icon name="check" size={14} color={ink} /> : null}
+              </View>
+              <View className="flex-1">
+                <Text
+                  className={`text-xl ${done ? 'text-ink-faint' : ''}`}
+                  style={{ fontFamily: fonts.displayRegular }}
+                >
+                  {copy.map.steps[k]}
+                </Text>
+                <Text size="small" tone="muted">
+                  {line}
+                </Text>
+              </View>
+              <Icon name="forward" size={16} color={muted} />
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }

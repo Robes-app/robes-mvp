@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Look, Today } from '@robes/contracts';
-import { home as copy, lookbook, today as todayCopy } from '@robes/copy';
+import { home as copy, lookbook, today as todayCopy, twin } from '@robes/copy';
 import { weekdayShort } from '@robes/core/calendar';
 import {
   greetingName,
@@ -16,6 +16,7 @@ import {
   Eyebrow,
   fonts,
   Heading,
+  IconButton,
   Image,
   MIN_TOUCH,
   PrimaryScope,
@@ -190,36 +191,48 @@ function Alerts({
       .call(keep ? 'me.dna.observations.keep' : 'me.dna.observations.dismiss', { params: { id } })
       .then(onChanged)
       .catch((err) => toast.show({ message: errorMessage(err) }));
+  // Each alert is its own white card on a hairline (beta's .rb-al); text links act, an
+  // observation answers with the two thumbs.
   const row = (
     key: string,
     eyebrow: string,
     line: string,
-    acts: { label: string; onPress: () => void }[],
+    acts: { label: string; onPress: () => void; icon?: 'thumbsUp' | 'thumbsDown' }[],
   ) => (
     <View
       key={key}
-      className="flex-row items-center gap-3 border-hairline border-b py-3"
+      className="flex-row items-center gap-3 rounded-soft border border-hairline bg-surface-raised px-4 py-3"
       testID={`alert-${key}`}
     >
       <View className="flex-1">
-        <Text size="caption" tone="muted" className="uppercase">
-          {eyebrow}
+        <Eyebrow>{eyebrow}</Eyebrow>
+        <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: 18 }}>
+          {line}
         </Text>
-        <Text numberOfLines={1}>{line}</Text>
       </View>
-      {acts.map((a) => (
-        <Pressable
-          key={a.label}
-          accessibilityRole="button"
-          accessibilityLabel={a.label}
-          onPress={a.onPress}
-          hitSlop={8}
-        >
-          <Text size="small" className="underline">
-            {a.label}
-          </Text>
-        </Pressable>
-      ))}
+      {acts.map((a) =>
+        a.icon ? (
+          <IconButton
+            key={a.label}
+            icon={a.icon}
+            label={a.label}
+            className="border border-border-control"
+            onPress={a.onPress}
+          />
+        ) : (
+          <Pressable
+            key={a.label}
+            accessibilityRole="button"
+            accessibilityLabel={a.label}
+            onPress={a.onPress}
+            hitSlop={8}
+          >
+            <Text size="small" className="underline">
+              {a.label}
+            </Text>
+          </Pressable>
+        ),
+      )}
     </View>
   );
   const rows = [];
@@ -249,12 +262,20 @@ function Alerts({
   if (noticed) {
     rows.push(
       row('noticed', copy.alerts.noticed, noticedLine(noticed.text), [
-        { label: copy.alerts.keep, onPress: () => answer(noticed.id, true) },
-        { label: copy.alerts.notMe, onPress: () => answer(noticed.id, false) },
+        {
+          label: twin.observations.answer(twin.observations.keep, noticed.text),
+          icon: 'thumbsUp',
+          onPress: () => answer(noticed.id, true),
+        },
+        {
+          label: twin.observations.answer(twin.observations.notMe, noticed.text),
+          icon: 'thumbsDown',
+          onPress: () => answer(noticed.id, false),
+        },
       ]),
     );
   }
-  return rows.length ? <View>{rows}</View> : null;
+  return rows.length ? <View className="gap-2.5">{rows}</View> : null;
 }
 
 // H3 · the week: a tap selects a day; its card sits beneath. Today is raised white on the fine
@@ -297,7 +318,7 @@ function Week({
   const card = 'flex-row items-center gap-3.5 rounded-[12px] border py-2.5 pr-3.5 pl-2.5';
   return (
     <View className="gap-2.5" testID="home-week">
-      <View className="min-h-6 flex-row items-center justify-between">
+      <View className="min-h-6 flex-row items-center justify-between border-hairline border-b">
         <Eyebrow>{copy.week.title}</Eyebrow>
         <Pressable
           accessibilityRole="link"
@@ -357,11 +378,11 @@ function Week({
           className={`${card} border-hairline bg-surface-raised`}
           testID="day-card"
         >
-          <View style={{ width: 52 }}>
-            {renditionUri(look.image, 52) ? (
-              <Image source={renditionUri(look.image, 52) ?? ''} alt="" className="rounded-[4px]" />
+          <View style={{ width: 64 }}>
+            {renditionUri(look.image, 64) ? (
+              <Image source={renditionUri(look.image, 64) ?? ''} alt="" className="rounded-[6px]" />
             ) : (
-              <View className="aspect-[4/5] rounded-[4px] bg-surface-sunk" />
+              <View className="aspect-[4/5] rounded-[6px] bg-surface-sunk" />
             )}
           </View>
           <View className="flex-1 gap-0.5">

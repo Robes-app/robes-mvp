@@ -252,7 +252,7 @@ export const marketing = {
 } as const;
 
 export const nav = {
-  today: 'Today',
+  today: 'Home',
   wardrobe: 'Wardrobe',
   looks: 'Lookbook',
   plan: 'Diary',
