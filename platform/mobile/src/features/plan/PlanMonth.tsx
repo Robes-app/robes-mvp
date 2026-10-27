@@ -1,7 +1,8 @@
 import { useApi } from '@robes/api-client/react';
 import { plan as copy } from '@robes/copy';
 import { longDate, monthGrid, rangeLabel, tripBands } from '@robes/core/calendar';
-import { ErrorText, fonts, Text } from '@robes/ui-native';
+import { Icon } from '@robes/icons/native';
+import { ErrorText, fonts, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
@@ -21,9 +22,11 @@ const WEEKDAYS = [
 // Month view: a numeral and one dot per look in each cell; every cell opens its day.
 export function PlanMonth({ today, month }: { today: string; month: string }) {
   const router = useRouter();
+  const faint = useColor('ink-faint');
   const grid = monthGrid(month);
   const query = useApi('plan.get', { input: { from: grid.from, days: grid.days } });
   const byDate = new Map(query.data?.days.map((d) => [d.date, d.entries.length]) ?? []);
+  const dayName = new Map(query.data?.days.map((d) => [d.date, d.name]) ?? []);
   // Trips draw only while the trip is live (hidden at launch, legacy 2eacfb4).
   const { features } = useFeatures();
   const trips = useApi('trips.list', undefined, { enabled: features.trips });
@@ -35,17 +38,14 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
     grid.cells.slice(r * 7, r * 7 + 7),
   );
   return (
-    <ScrollView contentContainerClassName="gap-1 px-6 pb-12" testID="plan-month">
+    <ScrollView contentContainerClassName="gap-1 px-5 pb-12" testID="plan-month">
       {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
       <View className="mb-1 flex-row" importantForAccessibility="no-hide-descendants">
         {WEEKDAYS.map(([k, d]) => (
           <Text
             key={k}
-            tone="muted"
-            size="caption"
-            weight="medium"
-            className="flex-1 text-center uppercase"
-            style={{ letterSpacing: 1.6 }}
+            className="flex-1 text-center text-[9px] text-ink-faint uppercase"
+            style={{ fontFamily: fonts.sansRegular, letterSpacing: 1.26 }}
           >
             {d}
           </Text>
@@ -59,12 +59,19 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
             if (!date) return <View key={`pad-${r}-${c}`} className="flex-1" />;
             const looks = byDate.get(date) ?? 0;
             const band = bands.get(date);
-            // A printed diary: the past is filed (filled), what's ahead is not hers yet (dashed).
+            // Beta's month (twin: plan-month.tsx): a past day on cream behind a hairline, a day
+            // ahead with nothing on it dashed, a day ahead with looks white on a hairline. A
+            // trip's mauve band is the tile itself.
+            const isToday = date === today;
+            const past = date < today;
+            const named = !!dayName.get(date);
             const state = band
               ? 'border-transparent'
-              : date < today
-                ? 'border-transparent bg-surface'
-                : 'border-dashed border-border-control';
+              : past
+                ? 'border-hairline bg-surface'
+                : looks || named
+                  ? 'border-hairline bg-surface-raised'
+                  : 'border-dashed border-rule-mid';
             return (
               <Pressable
                 key={date}
@@ -72,7 +79,8 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                 accessibilityRole="button"
                 accessibilityLabel={copy.week.day(longDate(date), looks)}
                 onPress={() => router.push(`/day/${date}`)}
-                className={`min-h-14 flex-1 items-start gap-1.5 rounded-crisp border px-1 py-1 ${state}`}
+                style={{ aspectRatio: 1, minHeight: MIN_TOUCH }}
+                className={`flex-1 items-start gap-1 overflow-hidden rounded-soft border p-1.5 ${state}`}
               >
                 {/* The phone's trip band is the whole tile, bridging the gutters (11337c3). */}
                 {band ? (
@@ -82,20 +90,33 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                   />
                 ) : null}
                 <View className="flex-row items-center gap-1">
-                  <Text className="text-base text-ink" style={{ fontFamily: fonts.displayRegular }}>
+                  <Text
+                    className={isToday ? 'text-ink' : 'text-ink-faint'}
+                    style={{
+                      fontFamily: fonts.display,
+                      fontSize: 17,
+                      lineHeight: 18,
+                    }}
+                  >
                     {Number(date.slice(8))}
                   </Text>
-                  {date === today ? <View className="size-1 rounded-pill bg-ink" /> : null}
+                  {isToday ? <View className="size-1 rounded-pill bg-ink" /> : null}
                 </View>
                 <View className="mt-auto">
                   <DayDots looks={looks} past={date <= today} />
                 </View>
+                {/* An empty day still ahead carries a faint + : the cell is the door. */}
+                {!past && !looks && !named && !band ? (
+                  <View className="absolute bottom-1.5 left-1.5">
+                    <Icon name="plus" size={10} color={faint} />
+                  </View>
+                ) : null}
               </Pressable>
             );
           })}
         </View>
       ))}
-      <Text size="small" tone="muted" italic className="pt-3 text-center">
+      <Text size="small" tone="muted" className="pt-3 text-center">
         {copy.monthCaption}
       </Text>
       {inMonth.length ? (
@@ -109,7 +130,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                 accessibilityRole="button"
                 accessibilityLabel={`${t.destination}, ${copy.tripLine(rangeLabel(t.dateFrom, t.dateTo), days)}`}
                 onPress={() => router.push(`/trip/${t.id}`)}
-                className="flex-row items-center gap-3 rounded-crisp border border-hairline p-3"
+                className="flex-row items-center gap-3 rounded-soft border border-hairline bg-surface-raised p-3"
               >
                 <View className="size-11 items-center justify-center rounded-crisp bg-accent-decor">
                   <Text className="text-lg text-ink" style={{ fontFamily: fonts.displayRegular }}>

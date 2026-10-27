@@ -5,7 +5,16 @@ import { LookDetail } from '../src/features/looks/LookDetail';
 import { StylePiece } from '../src/features/looks/StylePiece';
 import { localDate } from '../src/features/looks/saved-looks';
 import { mockFetch, renderWithApi } from './support/api';
-import { IDEA_ID, idea, JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
+import {
+  IDEA_ID,
+  idea,
+  JOB_ID,
+  LOOK_ID,
+  look,
+  modelData,
+  PIECE_ID,
+  piece,
+} from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -93,7 +102,7 @@ test('an idea can be saved, and removing it goes back', async () => {
   expect(calls.some((c) => c.method === 'DELETE')).toBe(true);
 });
 
-test('a saved look can be worn today (her local date) and removed with Undo', async () => {
+test('a saved look is worn today through the diary sheet (her local date) and removed with Undo', async () => {
   const today = localDate();
   const calls = mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
@@ -108,12 +117,21 @@ test('a saved look can be worn today (her local date) and removed with Undo', as
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  expect(await screen.findByText(looks.look.worn(2))).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: looks.look.wearToday }));
-  expect(await screen.findByText(looks.look.woreToday)).toBeTruthy();
-  expect(calls.find((c) => c.path.endsWith('/wears'))?.body).toEqual({ wornOn: today });
+  // One meta line under the title carries the wears; the old second "Worn 2 times" line is gone.
+  expect(await screen.findByText(/2 wears/)).toBeTruthy();
+  expect(screen.queryByText(looks.look.worn(2))).toBeNull();
+  // No wear buttons on the page (27 Oct): the diary on the picture logs it, on any day.
+  expect(screen.queryByRole('button', { name: 'Wear it today' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Wear on a day' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Save as new' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.card.diary }));
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.diary.woreToday }));
+  // The record reads /wears too, so name the method: the wear itself is the POST.
+  expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/wears'))?.body).toEqual({
+    wornOn: today,
+  });
 
-  await fireEvent.press(screen.getByRole('button', { name: looks.result.remove }));
+  await fireEvent.press(screen.getByRole('button', { name: looks.page.remove }));
   expect(mockRouter.back).toHaveBeenCalled();
   expect(await screen.findByText(looks.look.removed)).toBeTruthy();
   await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
@@ -215,4 +233,82 @@ test('a card opens its sheet piece by piece, her own pieces marked', async () =>
   expect(await screen.findByText(keyPiece.inWardrobe)).toBeTruthy();
   expect(screen.getByText('Shoes · COS €89')).toBeTruthy();
   expect(screen.getByText('Black loafers')).toBeTruthy();
+});
+
+test('her photograph and her model: You · Model picks the record and saves it at once', async () => {
+  const model = piece().image;
+  if (!model) throw new Error('fixture piece has an image');
+  const photo = { ...model, assetId: '99999999-9999-4999-8999-999999999999' };
+  const both = look({ photo, model, record: 'photo', image: photo });
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: both,
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...both,
+      ...JSON.parse(String(init.body)),
+      image: model,
+    }),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  expect(await screen.findByText(looks.page.record.kept)).toBeTruthy();
+  // With her photograph kept, the camera is ↻ and the hint is gone.
+  expect(screen.getByRole('button', { name: looks.page.replacePhoto })).toBeTruthy();
+  expect(screen.queryByText(looks.page.photoNote)).toBeNull();
+  await fireEvent.press(screen.getByRole('radio', { name: looks.page.record.model }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ record: 'model' }),
+  );
+});
+
+test('before her photograph: the hint stands, no You · Model; Edit tags sets the season', async () => {
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look(),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...look(),
+      ...JSON.parse(String(init.body)),
+    }),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  expect(await screen.findByText(looks.page.photoNote)).toBeTruthy();
+  expect(screen.queryByText(looks.page.record.kept)).toBeNull();
+  expect(screen.getByRole('button', { name: looks.page.addPhoto })).toBeTruthy();
+  // The record, then "Delete this look" as a link — no wear or save-as-new buttons (27 Oct).
+  expect(screen.getByRole('button', { name: looks.page.remove })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: looks.page.editTags }));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.refine.seasons.autumn_winter }),
+  );
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+      climateBand: 'autumn_winter',
+    }),
+  );
+});
+
+test('her photograph on a look her model has not worn: You · Model stands, and Model dresses her', async () => {
+  const photo = piece().image;
+  if (!photo) throw new Error('fixture piece has an image');
+  const mine = look({ photo, model: null, record: 'photo', image: photo, onModel: null });
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: mine,
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...mine,
+      ...JSON.parse(String(init.body)),
+    }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: '77777777-7777-4777-8777-777777777777' },
+    'GET /me/model': modelData({ filed: true, cell: { status: 'ready', imageUrl: null } }),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  // Beta dressed every saved look: with her model on file, the Model side is hers to ask for.
+  const modelSide = await screen.findByRole('radio', { name: looks.page.record.model });
+  await fireEvent.press(modelSide);
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),
+  );
+  expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ record: 'model' });
 });

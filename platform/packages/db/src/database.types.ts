@@ -321,6 +321,7 @@ export interface Looks {
   originLookId: string | null;
   photoAssetId: string | null;
   proposals: Json | null;
+  recordImage: string | null;
   renderAssetId: string | null;
   renderClaimedAt: Timestamp | null;
   renderJobId: string | null;
@@ -631,6 +632,7 @@ export interface WardrobeItems {
   imageAssetId: string | null;
   itemDna: Generated<Json>;
   label: string;
+  material: string | null;
   notes: string | null;
   price: Numeric | null;
   print: string | null;
@@ -700,6 +702,7 @@ export interface WishlistItems {
   imageAssetId: string | null;
   itemDna: Generated<Json>;
   label: string;
+  material: string | null;
   note: string | null;
   price: Numeric | null;
   print: string | null;

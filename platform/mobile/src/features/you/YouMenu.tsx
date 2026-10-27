@@ -2,39 +2,31 @@ import { useApi } from '@robes/api-client/react';
 import type { Observation } from '@robes/contracts';
 import { you as copy, twin } from '@robes/copy';
 import { asSentence } from '@robes/core';
-import { Avatar, Button, Eyebrow, fonts, Heading, SegmentedControl, Text } from '@robes/ui-native';
+import { Icon } from '@robes/icons/native';
+import { Eyebrow, fonts, SegmentedControl, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { Linking, ScrollView, View } from 'react-native';
+import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { API_URL } from '@/lib/config';
 import { useSignOut } from '@/lib/use-sign-out';
 import { useBriefRead } from './dna';
+import { NotificationRows } from './Notifications';
 import { ObservationThumbs } from './ObservationThumbs';
-import { Row } from './Row';
+import { SettingsGroup, SettingsRow } from './Settings';
 
 // Legal pages are served by the web app, which shares the API origin.
 export const LEGAL_URLS = { terms: `${API_URL}/legal/terms`, privacy: `${API_URL}/legal/privacy` };
 
 type Tab = 'style' | 'account';
 
-// The avatar's door (legacy Settings): Style Profile | Account.
+// The avatar's door (legacy Settings, 2026-10-08 redlines): the stack's header reads Settings,
+// then Style Profile | Account; Account prints her answers on white rows. Web twin:
+// app/src/app/(app)/you/page.tsx.
 export function YouMenu({ initialTab = 'style' }: { initialTab?: Tab }) {
-  const { data: me } = useApi('me.get');
   const [tab, setTab] = useState<Tab>(initialTab);
   return (
-    <ScrollView contentContainerClassName="gap-6 px-6 pb-12">
-      <View className="flex-row items-center gap-4">
-        <Avatar name={me?.firstName ?? me?.email ?? null} size="lg" />
-        <View className="flex-1 gap-1">
-          <Heading size="md">{me?.firstName ?? copy.title}</Heading>
-          {me ? (
-            <Text size="small" tone="muted">
-              {me.email}
-            </Text>
-          ) : null}
-        </View>
-      </View>
+    <ScrollView contentContainerClassName="gap-[26px] px-6 pt-6 pb-12">
       <SegmentedControl
         label={twin.tabs.label}
         value={tab}
@@ -49,29 +41,46 @@ export function YouMenu({ initialTab = 'style' }: { initialTab?: Tab }) {
   );
 }
 
+// A landing card prints its title only (redlines G4/L5): white on a hairline, the card the door.
+function Card({ label, onPress }: { label: string; onPress: () => void }) {
+  const faint = useColor('ink-faint');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      className="flex-row items-center justify-between gap-4 rounded-soft border border-hairline bg-surface-raised px-[22px] py-5"
+    >
+      <Text style={{ fontFamily: fonts.displayRegular, fontSize: 24 }}>{label}</Text>
+      <Icon name="forward" color={faint} size={16} />
+    </Pressable>
+  );
+}
+
 function StyleProfile() {
   const router = useRouter();
   const { data: dna } = useApi('me.dna.get');
   useBriefRead(dna);
   const first = dna?.observations[0];
   return (
-    <View className="gap-4">
+    <View className="gap-3.5">
       {first ? <NoticedCard line={first} /> : null}
-      <View>
-        <Row label={twin.cards.twin} onPress={() => router.push('/you/model')} />
-        <Row label={twin.cards.dna} onPress={() => router.push('/you/style')} />
-        <Row label={twin.cards.observations} onPress={() => router.push('/you/observations')} />
-      </View>
+      <Card label={twin.cards.twin} onPress={() => router.push('/you/model')} />
+      <Card label={twin.cards.dna} onPress={() => router.push('/you/style')} />
+      <Card label={twin.cards.observations} onPress={() => router.push('/you/observations')} />
     </View>
   );
 }
 
-// The first waiting line, answered with Keep or Not me.
+// The first waiting line, answered with That’s right or Not quite.
 function NoticedCard({ line }: { line: Observation }) {
   return (
-    <View className="gap-3 rounded-crisp border border-hairline bg-surface p-5" testID="noticed">
-      <Eyebrow>{twin.noticed.eyebrow}</Eyebrow>
-      <Text className="text-xl" style={{ fontFamily: fonts.display }}>
+    <View
+      className="gap-2.5 rounded-soft border border-rule-mid bg-surface-raised px-[22px] pt-5 pb-[18px]"
+      testID="noticed"
+    >
+      <Eyebrow className="text-accent-plan">{twin.noticed.eyebrow}</Eyebrow>
+      <Text numberOfLines={3} style={{ fontFamily: fonts.displayRegular, fontSize: 22 }}>
         {asSentence(line.text)}
       </Text>
       {line.because ? (
@@ -87,53 +96,78 @@ function NoticedCard({ line }: { line: Observation }) {
 function Account() {
   const router = useRouter();
   const signOut = useSignOut();
+  const { data: me } = useApi('me.get');
+  const name = [me?.firstName, me?.lastName].filter(Boolean).join(' ');
   return (
-    <View className="gap-6">
-      <View>
-        <Eyebrow>{copy.sections.profile}</Eyebrow>
-        <Row
-          label={copy.account.title}
-          sub={copy.subs.account}
+    <View className="gap-[26px]">
+      <SettingsGroup title={copy.sections.profile}>
+        <SettingsRow
+          first
+          label={copy.account.name}
+          value={me ? name || twin.dnaPage.notYet : ''}
+          empty={!!me && !name}
           onPress={() => router.push('/you/account')}
         />
-      </View>
-      <View>
-        <Eyebrow>{copy.sections.notifications}</Eyebrow>
-        <Row
-          label={copy.notifications.title}
-          sub={copy.subs.notifications}
-          onPress={() => router.push('/you/notifications')}
+        <SettingsRow label={copy.account.email} value={me?.email ?? ''} />
+        <SettingsRow
+          label={copy.deletion.title}
+          tone="danger"
+          onPress={() => router.push('/you/delete')}
         />
-        <Row
+      </SettingsGroup>
+      <SettingsGroup title={copy.sections.notifications}>
+        <NotificationRows />
+        <SettingsRow
           label={copy.receipts.title}
           sub={copy.subs.receipts}
           onPress={() => router.push('/you/receipts')}
         />
-      </View>
-      <View>
-        <Eyebrow>{copy.sections.privacy}</Eyebrow>
-        <Row
-          label={copy.privacy}
-          sub={copy.subs.privacy}
-          onPress={() => router.push('/you/privacy')}
-        />
-        <Row
-          label={copy.legal.terms}
-          sub={copy.subs.terms}
-          onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.terms)}
-        />
-        <Row
+      </SettingsGroup>
+      <SettingsGroup title={copy.sections.privacy}>
+        <SettingsRow first label={copy.privacy} onPress={() => router.push('/you/privacy')} />
+        <SettingsRow
           label={copy.legal.privacyNotice}
+          sub={copy.subs.privacy}
+          external
           onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
         />
-        <Row label={copy.deletion.title} tone="danger" onPress={() => router.push('/you/delete')} />
+        <SettingsRow
+          label={copy.legal.betaTerms}
+          sub={copy.subs.terms}
+          external
+          onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.terms)}
+        />
+      </SettingsGroup>
+      <View className="items-center gap-2.5">
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => void Linking.openURL(`mailto:${copy.helpEmail}`)}
+        >
+          <Text size="small" tone="muted">
+            {`${copy.help} `}
+            <Text size="small" className="underline">
+              {copy.helpEmail}
+            </Text>
+          </Text>
+        </Pressable>
+        <Eyebrow>{copy.version}</Eyebrow>
+        {/* A small hairline pill (legacy .sp-out); hitSlop keeps the target 44. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.signOut}
+          onPress={() => void signOut()}
+          hitSlop={4}
+          className="min-h-9 justify-center rounded-pill border border-border-control px-5"
+        >
+          <Text
+            size="caption"
+            className="uppercase"
+            style={{ fontFamily: fonts.sansMedium, letterSpacing: 1.9 }}
+          >
+            {copy.signOut}
+          </Text>
+        </Pressable>
       </View>
-      <Button variant="secondary" onPress={() => void signOut()}>
-        {copy.signOut}
-      </Button>
-      <Button variant="quiet" onPress={() => void Linking.openURL(`mailto:${copy.helpEmail}`)}>
-        {`${copy.help} ${copy.helpEmail}`}
-      </Button>
     </View>
   );
 }

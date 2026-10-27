@@ -1,4 +1,5 @@
 import { COLOUR_EXTRA_MAX, COLOUR_FAMILY_IDS, PATTERN_IDS, SHADE_IDS } from '@robes/core/colour';
+import { MATERIAL_IDS } from '@robes/core/material';
 import { z } from 'zod';
 import { AssetRendition } from './media';
 
@@ -23,12 +24,16 @@ const colourFields = {
   colourExtra: z.array(ColourShade).max(COLOUR_EXTRA_MAX),
   print: Print.nullable(),
 };
+// The material model (@robes/core/material): one id, or null when not filed.
+export const MaterialId = z.enum(MATERIAL_IDS as [string, ...string[]]);
 // Read side: defaulted across version skew, so an older server's response still parses.
 const colourOut = {
   colourShade: z.string().nullable().default(null),
   colourExtra: z.array(z.string()).default([]),
   print: z.string().nullable().default(null),
 };
+// Its own field beside the colour, defaulted the same way.
+const materialOut = { material: z.string().nullable().default(null) };
 
 export const PieceImage = z.object({
   assetId: z.uuid(),
@@ -49,14 +54,19 @@ export const Piece = z.object({
   categoryL3: z.string().nullable(),
   color: z.string().nullable(),
   ...colourOut,
+  ...materialOut,
   // Robes wasn't sure of the colour (light, a filter, a busy print): she checks it.
   colourCheck: z.boolean().default(false),
+  // …and of the material: the row carries "Check" until she answers it.
+  materialCheck: z.boolean().default(false),
   brand: z.string().nullable(),
   notes: z.string().nullable(),
   // 'reading' while Robes reads the photo; 'failed' when no piece was found in it.
   status: z.enum(['reading', 'ready', 'failed']),
   heroPosition: z.number().int().min(1).max(10).nullable(),
   seasonBand: SeasonBand,
+  // What she wears it for: the styling signal a look generated from this piece reads.
+  wearFor: z.array(z.string()).default([]),
   price: z.number().nullable(),
   currency: z.string().nullable(),
   size: z.string().nullable(),
@@ -68,7 +78,42 @@ export const Piece = z.object({
 });
 export type Piece = z.infer<typeof Piece>;
 
+// What a piece's rows and field drawers read: a filed piece, or Review's draft of one not yet
+// filed (whose season stays unset until she answers it).
+export type PieceValues = Pick<
+  Piece,
+  | 'label'
+  | 'brand'
+  | 'notes'
+  | 'categoryL2'
+  | 'categoryL3'
+  | 'colourShade'
+  | 'colourExtra'
+  | 'print'
+  | 'material'
+  | 'wearFor'
+  | 'size'
+  | 'price'
+  | 'currency'
+> & { seasonBand: z.infer<typeof SeasonBand> | null };
+
 export const PieceParams = z.object({ id: z.uuid() });
+
+// A piece's own record: the days it was on her, and the look she wore it in. A wear is
+// immutable, so these rows keep saying what was worn after the look moves on.
+export const PieceWear = z.object({
+  id: z.uuid(),
+  wornOn: z.iso.date(),
+  lookId: z.uuid().nullable(),
+  lookName: z.string().nullable(),
+});
+export type PieceWear = z.infer<typeof PieceWear>;
+export const PieceWearPage = z.object({
+  items: z.array(PieceWear),
+  // Wears counted before Robes kept the dates (the count the piece carries, minus these rows).
+  undated: z.number().int().min(0).default(0),
+});
+export type PieceWearPage = z.infer<typeof PieceWearPage>;
 
 export const ListPiecesInput = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(60),
@@ -77,6 +122,9 @@ export const ListPiecesInput = z.object({
   categoryL2: z.string().max(60).optional(),
   seasonBand: SeasonBand.optional(),
   colourFamily: ColourFamily.optional(),
+  // Filter (legacy Refine): what she wears it for, and the brand on the label.
+  wearFor: z.string().trim().min(1).max(40).optional(),
+  brand: z.string().trim().min(1).max(80).optional(),
 });
 export type ListPiecesInput = z.infer<typeof ListPiecesInput>;
 
@@ -94,9 +142,11 @@ const editable = {
   categoryL3: z.string().max(60).nullable(),
   color: z.string().max(60).nullable(),
   ...colourFields,
+  material: MaterialId.nullable(),
   brand: z.string().trim().max(80).nullable(),
   notes: z.string().trim().max(1000).nullable(),
   seasonBand: SeasonBand,
+  wearFor: z.array(z.string().trim().min(1).max(40)).max(6),
   price: z.number().min(0).max(10_000_000).nullable(),
   currency: z
     .string()
@@ -140,6 +190,7 @@ export const Wish = z.object({
   categoryL3: z.string().nullable(),
   color: z.string().nullable(),
   ...colourOut,
+  ...materialOut,
   brand: z.string().nullable(),
   note: z.string().nullable(),
   price: z.number().nullable(),
@@ -172,6 +223,7 @@ const wishEditable = {
   colourShade: editable.colourShade,
   colourExtra: editable.colourExtra,
   print: editable.print,
+  material: editable.material,
   brand: editable.brand,
   note: editable.notes,
   price: editable.price,
@@ -198,5 +250,8 @@ export type UpdateWishInput = z.infer<typeof UpdateWishInput>;
 export const WardrobeSummary = z.object({
   total: z.number().int().min(0),
   categories: z.array(z.object({ category: LEGACY_CATEGORY, count: z.number().int().min(1) })),
+  // The Filter's choices: the brands on her pieces and what she has said she wears them for.
+  brands: z.array(z.string()).default([]),
+  wearFor: z.array(z.string()).default([]),
 });
 export type WardrobeSummary = z.infer<typeof WardrobeSummary>;

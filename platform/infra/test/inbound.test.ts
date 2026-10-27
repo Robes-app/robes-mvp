@@ -6,10 +6,12 @@ describe.each(['staging', 'production'] as const)('%s inbound mail (M3 task 10)'
   const { namePrefix, email } = s.stage.config;
 
   it('stores mail for in.<mail domain> under inbound/ with spam/virus scanning and TLS', () => {
-    const ruleSet = must(s.resources('AWS::SES::ReceiptRuleSet')[0], 'rule set');
-    expect(ruleSet.properties.RuleSetName).toBe(`${namePrefix}-inbound`);
+    // The account's one active rule set is shared, so no stage creates its own.
+    expect(s.resources('AWS::SES::ReceiptRuleSet')).toHaveLength(0);
     const rule = must(s.resources('AWS::SES::ReceiptRule')[0], 'rule');
+    expect(rule.properties.RuleSetName).toBe(email.sharedReceiptRuleSet);
     const r = rule.properties.Rule as Record<string, unknown>;
+    expect(r.Name).toBe(`${namePrefix}-receipts`);
     expect(r.Recipients).toEqual([`in.${email.domain}`]);
     expect(r.ScanEnabled).toBe(true);
     expect(r.TlsPolicy).toBe('Require');

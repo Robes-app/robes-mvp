@@ -12,10 +12,16 @@ import {
   forecastWord,
   frameKey,
   isProposalKey,
+  lookFacts,
+  lookLine,
+  lookMatches,
+  lookWearFor,
   nameNoBrand,
   newProposalKey,
   noteShort,
   orderRack,
+  pickerOrder,
+  pieceNoun,
   type RackRow,
   type RackState,
   rackSignature,
@@ -24,6 +30,7 @@ import {
   sortLooks,
   startedLabel,
   theName,
+  wearForOptions,
 } from './index';
 
 const row = (key: string, name: string, role: RackRow['role'] = null): RackRow => ({
@@ -260,6 +267,20 @@ describe('the Saved tab’s sort', () => {
   });
 });
 
+describe('pieceNoun', () => {
+  it('reads the last word of the name, plural when it ends in a plain s', () => {
+    expect(pieceNoun('Light wash wide-leg jeans')).toEqual({ word: 'jeans', plural: true });
+    expect(pieceNoun('Acid green cropped jumper')).toEqual({ word: 'jumper', plural: false });
+    expect(pieceNoun('Silk dress')).toEqual({ word: 'dress', plural: false });
+    expect(pieceNoun('Cream long-sleeve t-shirt')).toEqual({ word: 't-shirt', plural: false });
+  });
+  it('falls back to this piece when the name tells nothing', () => {
+    expect(pieceNoun('')).toEqual({ word: 'piece', plural: false });
+    expect(pieceNoun(null)).toEqual({ word: 'piece', plural: false });
+    expect(pieceNoun('New')).toEqual({ word: 'piece', plural: false });
+  });
+});
+
 describe('readBalance', () => {
   it.each([
     ['just my own pieces', 'owned'],
@@ -280,5 +301,95 @@ describe('readBalance', () => {
     });
     expect(readBalance('x'.repeat(400)).note).toHaveLength(160);
     expect(readBalance('   ')).toEqual({ balance: null, note: null });
+  });
+});
+
+describe('lookFacts', () => {
+  const look = {
+    timesWorn: 3,
+    lastWornOn: '2026-07-23',
+    anchor: { label: 'Rust slip dress', brand: 'Ganni' },
+  };
+
+  it('reads the rack, the wears, the day and the piece it was styled around', () => {
+    expect(lookFacts(look, 4)).toEqual({
+      pieces: 4,
+      timesWorn: 3,
+      lastWorn: '23 Jul',
+      around: 'rust slip dress',
+    });
+  });
+
+  it('says nothing it cannot say: no wears means no date, no anchor means no piece', () => {
+    expect(lookFacts({ timesWorn: 0, lastWornOn: '2026-07-23', anchor: null }, 2)).toEqual({
+      pieces: 2,
+      timesWorn: 0,
+      lastWorn: null,
+      around: null,
+    });
+    expect(lookFacts({ timesWorn: 1, lastWornOn: null }, 1).lastWorn).toBeNull();
+  });
+});
+
+describe('the Add-a-look picker', () => {
+  const a = { name: 'Brunch', lastWornOn: '2026-10-10', pieces: [] };
+  const b = { name: 'Archive', lastWornOn: null, pieces: [] };
+  const c = { name: 'Cocktails', lastWornOn: '2026-10-12', pieces: [] };
+  it('orders by last worn, the never-worn at the end, and turns round', () => {
+    expect(pickerOrder([a, b, c], true).map((l) => l.name)).toEqual([
+      'Cocktails',
+      'Brunch',
+      'Archive',
+    ]);
+    expect(pickerOrder([a, b, c], false).map((l) => l.name)).toEqual([
+      'Archive',
+      'Brunch',
+      'Cocktails',
+    ]);
+  });
+  it('finds a look by its name or a piece', () => {
+    const look = {
+      name: 'Office armour',
+      pieces: [{ piece: { label: 'Wool blazer', brand: 'Toteme' } }],
+    };
+    expect(lookMatches(look, '')).toBe(true);
+    expect(lookMatches(look, 'ARMOUR')).toBe(true);
+    expect(lookMatches(look, 'blazer')).toBe(true);
+    expect(lookMatches(look, 'totê')).toBe(false);
+    expect(lookMatches(look, 'toteme')).toBe(true);
+    expect(lookMatches(look, 'sandals')).toBe(false);
+  });
+});
+
+describe('a look’s Wear it for', () => {
+  const look = (...tags: string[][]) => ({
+    pieces: tags.map((wearFor) => ({ piece: { wearFor } })),
+  });
+  it('is what every piece carries, Everyday aside, two at most', () => {
+    expect(
+      lookWearFor(look(['Work', 'Everyday', 'Evening'], ['Evening', 'Work', 'Everyday'])),
+    ).toEqual(['Evening', 'Work']);
+    expect(lookWearFor(look(['Work'], ['Evening']))).toEqual([]);
+    expect(lookWearFor(look())).toEqual([]);
+  });
+  it('offers the union across looks', () => {
+    expect(wearForOptions([look(['Work']), look(['Travel'], ['Travel'])])).toEqual([
+      'Travel',
+      'Work',
+    ]);
+  });
+});
+
+describe('lookLine', () => {
+  const p = (label: string) => ({ piece: { label } });
+  it('reads Robes’ note, else names the pieces', () => {
+    expect(lookLine({ note: 'Soft tailoring. Easy shoes. A sharp bag. More.', pieces: [] })).toBe(
+      'Soft tailoring. Easy shoes. A sharp bag.',
+    );
+    expect(
+      lookLine({ note: null, pieces: [p('Camel coat'), p('Straight jeans'), p('Loafers')] }),
+    ).toBe('Camel coat, Straight jeans and Loafers');
+    expect(lookLine({ note: null, pieces: [p('Camel coat')] })).toBe('Camel coat');
+    expect(lookLine({ note: null, pieces: [] })).toBe('');
   });
 });

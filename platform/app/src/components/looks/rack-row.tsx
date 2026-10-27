@@ -3,6 +3,7 @@
 import type { PieceImage as PieceImageData } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/looks';
+import { Icon } from '@robes/icons/web';
 import { IconButton, Image, Text } from '@robes/ui';
 import Link from 'next/link';
 import { imageSources } from '@/lib/image';
@@ -32,8 +33,9 @@ export function RackRowCard({
   const name = nameNoBrand(row.name, brand);
   const sources = image ? imageSources(image.renditions) : null;
   const proposal = row.proposal;
+  // The role reads on its own line in rose (Look redline 27 Oct); the exception follows, faint.
+  const role = row.role ? copy.rack.roles[row.role] : null;
   const ctx = [
-    row.role ? copy.rack.roles[row.role] : null,
     proposal ? (proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours) : null,
     proposal?.retailerHint || null,
     proposal?.pricePoint || null,
@@ -56,10 +58,15 @@ export function RackRowCard({
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <Text size="caption" tone="muted" className="truncate uppercase tracking-wider">
+        <p className="truncate font-sans text-[10px] text-ink-muted uppercase tracking-[0.18em]">
           {brand ? `${row.category} · ${brand}` : row.category}
-        </Text>
-        <Text className="line-clamp-2 font-display text-lg">{name}</Text>
+        </p>
+        <p className="line-clamp-2 font-display font-light text-ink text-lg leading-snug">{name}</p>
+        {role ? (
+          <p className="font-sans text-[10px] text-accent-warm uppercase tracking-[0.18em]">
+            {role}
+          </p>
+        ) : null}
         {ctx.length ? (
           <Text size="caption" tone="faint" className="truncate">
             {ctx.join(' · ')}
@@ -89,7 +96,7 @@ export function RackRowCard({
   return (
     <li
       data-testid={`rack-row-${row.key}`}
-      className={`flex items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-border-control bg-bg' : 'border-hairline bg-surface'}`}
+      className={`flex items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
     >
       {row.pieceId ? (
         <Link
@@ -98,6 +105,7 @@ export function RackRowCard({
           className="flex min-w-0 flex-1 items-center gap-3 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           {body}
+          <Icon name="forward" size={16} className="shrink-0 text-ink-faint" />
         </Link>
       ) : (
         <div className="flex min-w-0 flex-1 items-center gap-3">{body}</div>

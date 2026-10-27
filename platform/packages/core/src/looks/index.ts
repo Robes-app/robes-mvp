@@ -1,6 +1,10 @@
 // Looks: one entity in three states (docs/look-states-brief.md) and the rack the look prompt edits
 // (docs/look-prompt-brief.md). Pure, shared by the API, the workers and both clients.
 
+import { dayMonth } from '../calendar';
+
+export * from './draft';
+
 export const LOOK_STATUSES = ['suggested', 'draft', 'saved'] as const;
 export type LookStatus = (typeof LOOK_STATUSES)[number];
 
@@ -57,6 +61,26 @@ export function theName(name: string): string {
 export function anchorName(label: string, brand: string | null | undefined): string {
   const nm = nameNoBrand(label, brand);
   return nm ? nm.charAt(0).toLowerCase() + nm.slice(1) : '';
+}
+
+// The facts a saved look states about itself, in the shape the copy line takes:
+// its rack, its wears, when it was last worn (the date as the day says it) and the
+// piece it was styled around. One reader, so the card and the look page agree.
+export function lookFacts(
+  look: {
+    timesWorn: number;
+    lastWornOn: string | null;
+    anchor?: { label: string; brand: string | null } | null;
+  },
+  rows: number,
+): { pieces: number; timesWorn: number; lastWorn: string | null; around: string | null } {
+  const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
+  return {
+    pieces: rows,
+    timesWorn: look.timesWorn,
+    lastWorn: look.timesWorn && look.lastWornOn ? dayMonth(look.lastWornOn) : null,
+    around: around || null,
+  };
 }
 
 // ── The rack ────────────────────────────────────────────────────────────
@@ -435,6 +459,66 @@ export function sortLooks<T extends { name: string; createdAt: string; lastWornO
   return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+// The Add-a-look picker's order (legacy _mvPkPaint): "Last worn ↓" leads with the look she wore
+// most recently and leaves the never-worn at the end; "First worn ↑" turns it round, so the
+// never-worn lead. Ties fall to the name.
+export function pickerOrder<T extends { name: string; lastWornOn: string | null }>(
+  looks: readonly T[],
+  lastWornFirst: boolean,
+): T[] {
+  const byName = (a: T, b: T) => a.name.localeCompare(b.name, 'en-GB');
+  const worn = (l: T) => l.lastWornOn ?? '';
+  const list = [...looks].sort((a, b) =>
+    lastWornFirst
+      ? worn(b).localeCompare(worn(a)) || byName(a, b)
+      : worn(a).localeCompare(worn(b)) || byName(a, b),
+  );
+  return list;
+}
+
+// The picker's search: a look matches by its own name or any piece's label or brand.
+export function lookMatches(
+  look: {
+    name: string;
+    pieces: readonly { piece: { label: string; brand?: string | null } }[];
+  },
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (look.name.toLowerCase().includes(q)) return true;
+  return look.pieces.some(
+    ({ piece }) =>
+      piece.label.toLowerCase().includes(q) || (piece.brand ?? '').toLowerCase().includes(q),
+  );
+}
+
+// What a look is worn for, read from its pieces (legacy _rbInheritLookTags): the tags every one
+// of its pieces carries, Everyday aside (nearly every piece has it, so it says nothing), A–Z, two
+// at most. Filters (the picker's Refine, the Lookbook's Filter) read it as the look's Wear it for.
+export function lookWearFor(look: {
+  pieces: readonly { piece: { wearFor?: readonly string[] } }[];
+}): string[] {
+  const pieces = look.pieces.map((p) => p.piece.wearFor ?? []);
+  if (!pieces.length) return [];
+  const counts = new Map<string, number>();
+  for (const tags of pieces) {
+    for (const t of new Set(tags)) counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  return [...counts]
+    .filter(([t, n]) => n === pieces.length && t.toLowerCase() !== 'everyday')
+    .map(([t]) => t)
+    .sort((a, b) => a.localeCompare(b, 'en-GB'))
+    .slice(0, 2);
+}
+
+// The Wear it for options a set of looks offers, A–Z.
+export function wearForOptions(
+  looks: readonly { pieces: readonly { piece: { wearFor?: readonly string[] } }[] }[],
+): string[] {
+  return [...new Set(looks.flatMap(lookWearFor))].sort((a, b) => a.localeCompare(b, 'en-GB'));
+}
+
 // Where a new look's pieces come from (legacy 2026-10-19): her answer to the one question asked on
 // a new look, a chip or her own words. Words that name none of the three ride verbatim as a note.
 export const BALANCES = ['owned', 'mix', 'new'] as const;
@@ -461,4 +545,51 @@ export function readBalance(text: string): { balance: Balance | null; note: stri
     return { balance: 'mix', note: null };
   }
   return { balance: null, note: t ? t.slice(0, BALANCE_NOTE_MAX) : null };
+}
+
+// The word a piece goes by in the prompt (legacy _rbLpPieceNoun): the last word of its name —
+// "Light wash wide-leg jeans" is these jeans, "Acid green cropped jumper" this jumper; anything
+// unreadable is this piece.
+export function pieceNoun(name: string | null | undefined): { word: string; plural: boolean } {
+  const last =
+    String(name ?? '')
+      .trim()
+      .split(/\s+/)
+      .pop() ?? '';
+  const word = last.toLowerCase().replace(/[^a-z'-]/g, '');
+  if (word.length < 3 || /^(new|piece|item)$/.test(word)) return { word: 'piece', plural: false };
+  return { word, plural: /s$/.test(word) && !/(ss|us|is)$/.test(word) };
+}
+
+// What a wear held that the look no longer does, and what the look holds that she did not wear
+// that day. A wear is immutable, so the record keeps saying what was on the body; the names come
+// from each side's own record, and a piece with no name left is counted by `differs` alone.
+export function wearDiff(
+  worn: { id: string; label: string | null }[],
+  now: { id: string }[],
+  labelOf: (id: string) => string | null = () => null,
+): { differs: boolean; instead: string[]; without: string[] } {
+  const wornIds = new Set(worn.map((p) => p.id));
+  const nowIds = new Set(now.map((p) => p.id));
+  const instead = worn.filter((p) => !nowIds.has(p.id));
+  const without = now.filter((p) => !wornIds.has(p.id));
+  return {
+    differs: instead.length > 0 || without.length > 0,
+    instead: instead.map((p) => p.label).filter((l): l is string => !!l),
+    without: without.map((p) => labelOf(p.id)).filter((l): l is string => !!l),
+  };
+}
+
+// The serif italic line under a look's picture (Look redline 27 Oct): Robes' note when it wrote
+// one, else the pieces named in the order they hang ("Camel coat, straight jeans and loafers").
+export function lookLine(look: {
+  note: string | null;
+  pieces: readonly { piece: { label: string } }[];
+}): string {
+  const note = noteShort(look.note);
+  if (note) return note;
+  const names = look.pieces.map((p) => p.piece.label.trim()).filter(Boolean);
+  if (names.length < 2) return names[0] ?? '';
+  // Printed as she filed them, never re-cased: a brand reads wrong lower-cased.
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 }

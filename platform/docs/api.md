@@ -103,15 +103,15 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Wardrobe
 | New | Legacy |
 |---|---|
-| `GET /wardrobe/items` (filters incl. `colourFamily`) · `POST` · `PATCH /:id` (incl. `colourShade` / `colourExtra` / `print`) · `DELETE /:id` (soft, undoable) · `POST /:id/restore` | client REST `wardrobe_items` |
+| `GET /wardrobe/items` (filters incl. `colourFamily`) · `POST` · `PATCH /:id` (incl. `colourShade` / `colourExtra` / `print` / `material`) · `DELETE /:id` (soft, undoable) · `POST /:id/restore` | client REST `wardrobe_items` |
 | `POST /wardrobe/items/batch` (N uploaded assets → N draft items + analyse jobs) | — (new: batch capture) |
-| `POST /wardrobe/photo-reads` (one photo → `wardrobe_pieces` job: every piece, its box, crop and match) · `POST /:id/file` (each answered piece filed once) · `POST /:id/look` (new pieces filed, then a look with the photo as its record, optional wear) | `POST /api/wardrobe/pieces` + client writes |
+| `POST /wardrobe/photo-reads` (one photo → `wardrobe_pieces` job: every piece, its box, crop and match) · `POST /:id/file` (each answered piece filed once, with her edits on any field; `to: 'wardrobe' \| 'wishlist'`, default wardrobe — a wishlist filing takes `add`/`skip` only and is idempotent on the crop) · `POST /:id/look` (new pieces filed, then a look with the photo as its record, optional wear) | `POST /api/wardrobe/pieces` + client writes |
 | `GET /wardrobe/summary` (piece counts per category, for the tabs) | — |
 | `POST /wardrobe/analyse` Job | `/api/wardrobe/analyse` |
 | `POST /wardrobe/import-link` Job (fetch worker) | `/api/wardrobe/read-url` |
 | `GET /wardrobe/taxonomy` | `/api/wardrobe/taxonomy` |
 | `GET/POST/PATCH/DELETE /wishlist/items[...]` · `POST /wishlist/items/:id/promote` | client REST `wishlist_items` |
-| `GET /inbox` · `POST /inbox/:id/decide` · `GET /me/inbox-address` | `wardrobe_inbox` + `/api/inbox/receipt` |
+| `GET /inbox` (forwarded receipts only; `count` = the pieces they hold) · `GET /inbox/:id` (one held entry of any source — Review opens a pasted link here; 404 once decided or for anyone else) · `POST /inbox/:id/decide` · `GET /me/inbox-address` | `wardrobe_inbox` + `/api/inbox/receipt` |
 | `GET/POST/DELETE /tags[...]` | client REST `tags`, `tag_pieces` |
 
 ### Styling engines (all Jobs)
@@ -157,4 +157,4 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Admin (`auth: 'admin'`, every call writes `audit_log`)
 | New | Legacy |
 |---|---|
-| `GET /admin/users` · `GET /admin/users/:id` · `GET /admin/generations` · `GET /admin/costs` · `GET /admin/metrics` (new: aggregates only) · `PATCH /admin/flags/:key` · `POST /admin/users/:id/entitlements` | `admin.html` direct REST under `is_admin()` policies, `admin_user_overview` RPC |
+| `GET /admin/users` · `GET /admin/users/:id` · `GET /admin/users/:id/records` · `GET /admin/generations/:id` (one call, prompt included) · `GET /admin/feedback` · `GET /admin/artifacts/:id` · `GET /admin/costs` · `GET /admin/metrics` (new: aggregates only) · `PATCH /admin/flags/:key` · `POST /admin/users/:id/entitlements` | `admin.html` direct REST under `is_admin()` policies, `admin_user_overview` RPC |

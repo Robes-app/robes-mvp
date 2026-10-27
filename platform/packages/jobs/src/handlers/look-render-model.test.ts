@@ -8,6 +8,8 @@ const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const LOOK = '55555555-5555-4555-8555-555555555555';
 const ASSET = '33333333-3333-4333-8333-333333333333';
 const NEW_ASSET = '44444444-4444-4444-8444-444444444444';
+// The render key names the model it stands on: `{cellId}@{style}:{rack}`.
+const KEY = 'w-s3-h1-nt@v2:rack1';
 
 function setup(
   opts: {
@@ -15,7 +17,6 @@ function setup(
     renderKey?: string;
     asked?: string;
     pieces?: object[];
-    cellId?: string | null;
     twin?: object;
   } = {},
 ) {
@@ -24,7 +25,7 @@ function setup(
       look: {
         id: LOOK,
         name: 'Office',
-        renderKey: opts.renderKey ?? 'k1',
+        renderKey: opts.renderKey ?? KEY,
         renderStatus: 'pending',
         styling: { 'piece-coat': 'worn open' },
       },
@@ -47,12 +48,11 @@ function setup(
           assetStatus: null,
         },
       ],
-      cellId: opts.cellId === undefined ? 'w-s3-h1-nt' : opts.cellId,
     })),
-    cell: vi.fn(async () => ({
-      id: 'w-s3-h1-nt@v2',
+    cell: vi.fn(async (key: string) => ({
+      id: key,
       status: opts.cellStatus ?? 'ready',
-      bucketKey: 'catalog/avatar/w-s3-h1-nt@v2.png',
+      bucketKey: `catalog/avatar/${key}.png`,
       contentType: 'image/png',
     })),
     setRender: vi.fn(async () => {}),
@@ -78,7 +78,7 @@ function setup(
     handler.run({
       jobId: '66666666-6666-4666-8666-666666666666',
       userId: USER,
-      input: { target: 'look', lookId: LOOK, renderKey: opts.asked ?? 'k1' },
+      input: { target: 'look', lookId: LOOK, renderKey: opts.asked ?? KEY },
       signal: new AbortController().signal,
       writeStage: vi.fn(async () => {}),
       isCancelled: async () => false,
@@ -96,21 +96,31 @@ describe('look_render on her model', () => {
     expect(req?.references?.map((r) => r.mimeType)).toEqual(['image/png', 'image/jpeg']);
     expect(req?.prompt).toContain('- IMAGE 2: the Camel coat');
     expect(req?.prompt).toContain('- the Loafers');
-    expect(model.setRender).toHaveBeenCalledWith(USER, LOOK, 'k1', NEW_ASSET);
+    expect(model.setRender).toHaveBeenCalledWith(USER, LOOK, KEY, NEW_ASSET);
   });
 
   it('spends nothing when the render was superseded or there is no model yet', async () => {
     const stale = setup({ renderKey: 'k2' });
     await expect(stale.run()).rejects.toEqual(new JobError('superseded'));
     expect(stale.generateImage).not.toHaveBeenCalled();
-    const none = setup({ cellId: null });
-    await expect(none.run()).rejects.toEqual(new JobError('not_found'));
+    // A key that names no catalog cell draws nothing.
+    const none = setup({ renderKey: 'nonsense:rack1', asked: 'nonsense:rack1' });
+    await expect(none.run()).rejects.toEqual(new JobError('model_not_ready'));
+    expect(none.generateImage).not.toHaveBeenCalled();
+  });
+
+  it('stands a draft on the generic Robes model the key names while she has none', async () => {
+    const key = 'w-s4-h1-nt@v2:rack1';
+    const { run, model, storage } = setup({ renderKey: key, asked: key });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(model.cell).toHaveBeenCalledWith('w-s4-h1-nt@v2');
+    expect(storage.getObject).toHaveBeenNthCalledWith(1, 'catalog/avatar/w-s4-h1-nt@v2.png');
   });
 
   it('fails the render (so she can ask again) when her model cell is not ready', async () => {
     const { run, model, generateImage } = setup({ cellStatus: 'pending' });
     await expect(run()).rejects.toEqual(new JobError('model_not_ready'));
-    expect(model.failRender).toHaveBeenCalledWith(USER, LOOK, 'k1');
+    expect(model.failRender).toHaveBeenCalledWith(USER, LOOK, KEY);
     expect(generateImage).not.toHaveBeenCalled();
   });
 });

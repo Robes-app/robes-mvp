@@ -61,6 +61,7 @@ const row = (o: Record<string, unknown> = {}) =>
     styling: null,
     edits: null,
     photoAssetId: null,
+    recordImage: null,
     dateHint: null,
     createdAt: new Date(NOW),
     updatedAt: new Date(NOW),
@@ -110,5 +111,28 @@ describe('a look’s frame', () => {
       NOW,
     );
     expect(look).toMatchObject({ framePending: false, image: { assetId: PHOTO } });
+  });
+});
+
+describe('the record: her photograph or her model', () => {
+  it('leads with her photograph until she picks, then shows the one she picked', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    const both = { frameAssetId: FRAME, photoAssetId: PHOTO, renderStatus: 'ready' };
+    const [unset] = await toLooks(USER, [row(both)], NOW);
+    expect(unset).toMatchObject({
+      record: 'photo',
+      image: { assetId: PHOTO },
+      photo: { assetId: PHOTO },
+      model: { assetId: FRAME },
+    });
+    const [model] = await toLooks(USER, [row({ ...both, recordImage: 'model' })], NOW);
+    expect(model).toMatchObject({ record: 'model', image: { assetId: FRAME } });
+  });
+
+  it('is Robes’ picture while she has no photograph, whatever was picked', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    const [look] = await toLooks(USER, [row({ frameAssetId: FRAME, recordImage: 'photo' })], NOW);
+    expect(look).toMatchObject({ photo: null, image: { assetId: FRAME } });
   });
 });

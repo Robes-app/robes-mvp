@@ -141,4 +141,25 @@ describe('wardrobe schema', () => {
         [USER_A],
       );
     }));
+
+  it('holds a piece and a wish to the material model: one known material, or none', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q(`update app.wardrobe_items set material = 'vegan_leather' where id = $1`, [ITEM]);
+      await q(`update app.wardrobe_items set material = null where id = $1`, [ITEM]);
+      for (const value of ['nylon', 'other', '']) {
+        await expectPgError(
+          q,
+          '23514',
+          'update app.wardrobe_items set material = $2 where id = $1',
+          [ITEM, value],
+        );
+      }
+      await expectPgError(
+        q,
+        '23514',
+        "insert into app.wishlist_items (user_id, label, material) values ($1, 'x', 'Cotton')",
+        [USER_A],
+      );
+    }));
 });

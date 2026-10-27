@@ -63,7 +63,7 @@ export function PreferenceControl({
       role="radiogroup"
       aria-label={following && follows ? `${label}: following ${follows}` : label}
       className={cn(
-        'relative inline-grid grid-flow-col auto-cols-fr rounded-pill border border-hairline bg-bg p-0.5',
+        'relative inline-grid grid-flow-col auto-cols-fr rounded-pill border border-hairline bg-surface p-0.5',
         size === 'md' ? 'h-11 w-36' : 'h-8 w-27',
         className,
       )}

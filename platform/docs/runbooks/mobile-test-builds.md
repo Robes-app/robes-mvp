@@ -4,7 +4,7 @@ How to put the Robes app on someone's iPhone, by how far the Apple setup has got
 
 ## The staging API the app uses
 
-- Vercel project `codu/robes-app`, **production** target → `https://staging.byrobes.com` (also `robes-app-two.vercel.app`). Health: `curl https://staging.byrobes.com/api/v1/health` → `{"ok":true}`.
+- Vercel project `codu/robes-app`, custom environment **`staging`** (branch `beta`) → `https://staging.byrobes.com`. Health: `curl https://staging.byrobes.com/api/v1/health` → `{"ok":true}`.
 - `BETTER_AUTH_URL` and `APP_URL` = `https://staging.byrobes.com` (set 2026-10-15).
 - `AUTH_TRUSTED_ORIGINS` = `https://robes-app-two.vercel.app,robes://,robes-staging://,robes-dev://,exp://`. **`exp://` is what lets Expo Go sign in.** Better Auth's Expo plugin only trusts `exp://` when `NODE_ENV=development`, and Vercel runs as production. Remove `exp://` before this deployment holds real customers. Check it from a terminal:
   ```bash
@@ -13,7 +13,7 @@ How to put the Robes app on someone's iPhone, by how far the Apple setup has got
   # VALIDATION_ERROR = origin accepted (good); INVALID_ORIGIN = exp:// missing
   ```
 - **Sign-in codes go through SES** (`environments.md` §9). Until the account has production access it is in the SES sandbox and only delivers to verified addresses: add each tester's email under SES → Identities (eu-west-1) first.
-- Vercel env changes only apply after a redeploy (`vercel redeploy <deployment> --target production --scope codu`).
+- Vercel env changes only apply after a redeploy (`vercel redeploy <deployment> --target staging --scope codu`).
 
 ## Today: no Apple Developer account
 

@@ -21,13 +21,15 @@ export const PATCH = route({
   rateLimit: { key: 'wardrobe.update', limit: 120, windowSeconds: 60 },
   handler: async ({ user, input, params }) => {
     const userId = verifiedUserId(user.id);
-    const { heroPosition, hero, ...fields } = input;
+    const { heroPosition, hero, wearFor, ...fields } = input;
     try {
       const updated = await repos.wardrobe.edit(userId, params.id, fields, {
         position: heroPosition,
         star: hero,
       });
       if (!updated) throw new ApiError('not_found');
+      // What she wears it for lives in the tag namespace, not a column on the piece.
+      if (wearFor) await repos.wardrobe.setWearTags(userId, params.id, wearFor);
     } catch (err) {
       // The Hero Rack holds ten; nothing was written and the client says so (legacy __waHeroToggle).
       if (err instanceof HeroRackFull) throw new ApiError('conflict');

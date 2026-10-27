@@ -92,6 +92,19 @@ test('the day page names the day, opens a look and takes it off with Undo', asyn
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/restore'))).toBe(true));
 });
 
+test('a look she wore on the day carries Worn ✓; the day never borrows the look’s name', async () => {
+  const p = planWith(true);
+  const entry = p.days[0]?.entries[0] as Record<string, unknown>;
+  entry.activity = null;
+  entry.worn = true;
+  mockFetch({ 'GET /plan': p });
+  await renderWithApi(<DayView date="2026-10-01" />);
+  expect(await screen.findByText(plan.day.worn)).toBeTruthy();
+  // One look on an unnamed day: the title still invites her to name it.
+  expect(screen.getByRole('header').props.children).toBe(plan.day.name);
+  expect(screen.getByRole('button', { name: plan.day.addAnother })).toBeTruthy();
+});
+
 test('an empty day’s one door opens the picker, which adds several looks at once', async () => {
   const second = look({ id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Gallery night' });
   const third = look({ id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', name: 'Errands' });
@@ -136,4 +149,18 @@ test('an empty day can be named, so she can plan a week before adding outfits', 
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ name: 'Gallery opening' }),
   );
+});
+
+test('the switcher and + sit pinned under the header; the eyebrow names the window or month', async () => {
+  mockFetch({ 'GET /plan': planWith(false) });
+  await renderWithApi(<PlanView />);
+  expect(await screen.findByText(plan.header.window(30))).toBeTruthy();
+  expect(screen.getByRole('button', { name: plan.header.add })).toBeTruthy();
+  // Today's row reads TODAY, never its weekday.
+  expect(await screen.findByTestId('plan-day-2026-10-01')).toHaveTextContent(
+    new RegExp(plan.today),
+  );
+  await fireEvent.press(screen.getByRole('radio', { name: plan.view.month }));
+  expect(await screen.findByText('October 2026')).toBeTruthy();
+  expect(screen.getByRole('button', { name: plan.prevMonth })).toBeTruthy();
 });

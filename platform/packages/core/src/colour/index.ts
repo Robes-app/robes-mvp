@@ -185,6 +185,19 @@ const FAMS: [id: string, name: string, tile: string[]][] = [
 
 const I = '#202021';
 const C = '#FAF8F5';
+const SAND = '#E4D3B4';
+const TIEDYE = ['#8E7077', '#D4C8C4', '#7E7C5A', '#E7E0CF'] as const;
+const CAMO = ['#8C8A63', '#4E5134', '#6E5B3E'] as const;
+
+// The colours a print is drawn in, for a surface that can't paint its css (native draws each print
+// as SVG from these). Model data, like a shade's hex, not design tokens.
+export const PATTERN_PAINT = {
+  ink: I,
+  ground: C,
+  sand: SAND,
+  tiedye: TIEDYE,
+  camo: CAMO,
+} as const;
 const PATS: [id: string, name: string, pref: boolean, css: string][] = [
   ['stripes', 'Stripes', true, `repeating-linear-gradient(0deg,${I} 0 3px,${C} 3px 7px)`],
   [
@@ -216,7 +229,7 @@ const PATS: [id: string, name: string, pref: boolean, css: string][] = [
     'animal',
     'Animal prints',
     true,
-    `radial-gradient(ellipse 5px 3.5px at 22% 28%,${I} 85%,transparent 100%) 0 0/22px 22px,radial-gradient(ellipse 3.5px 5px at 72% 40%,${I} 85%,transparent 100%) 0 0/22px 22px,#E4D3B4`,
+    `radial-gradient(ellipse 5px 3.5px at 22% 28%,${I} 85%,transparent 100%) 0 0/22px 22px,radial-gradient(ellipse 3.5px 5px at 72% 40%,${I} 85%,transparent 100%) 0 0/22px 22px,${SAND}`,
   ],
   [
     'paisley',
@@ -240,13 +253,13 @@ const PATS: [id: string, name: string, pref: boolean, css: string][] = [
     'tiedye',
     'Tie-dye',
     false,
-    'repeating-radial-gradient(circle at 50% 50%,#8E7077 0 3px,#D4C8C4 3px 6px,#7E7C5A 6px 9px,#E7E0CF 9px 12px)',
+    `repeating-radial-gradient(circle at 50% 50%,${TIEDYE[0]} 0 3px,${TIEDYE[1]} 3px 6px,${TIEDYE[2]} 6px 9px,${TIEDYE[3]} 9px 12px)`,
   ],
   [
     'camo',
     'Camouflage',
     false,
-    'radial-gradient(ellipse 8px 6px at 20% 30%,#4E5134 90%,transparent) 0 0/24px 24px,radial-gradient(ellipse 7px 9px at 65% 70%,#6E5B3E 90%,transparent) 0 0/24px 24px,#8C8A63',
+    `radial-gradient(ellipse 8px 6px at 20% 30%,${CAMO[1]} 90%,transparent) 0 0/24px 24px,radial-gradient(ellipse 7px 9px at 65% 70%,${CAMO[2]} 90%,transparent) 0 0/24px 24px,${CAMO[0]}`,
   ],
   [
     'other',
@@ -522,6 +535,20 @@ export function matchFamily(p: Palette, familyId: string): Palette {
     ...p,
     shade: Object.fromEntries(Object.entries(p.shade).filter(([k]) => !ids.has(k))),
   };
+}
+
+// What she loves (or avoids) by name, for the Style DNA rows (legacy palWords / palPrintWords):
+// families by name, then a shade set apart from its family in lower case; prints offered as a
+// preference only.
+export function paletteWords(p: Palette, kind: 'colours' | 'prints', value: 1 | -1): string[] {
+  if (kind === 'prints') {
+    return PATTERNS.filter((x) => x.pref && (p.print[x.id] ?? 0) === value).map((x) => x.name);
+  }
+  const out = COLOUR_FAMILIES.filter((f) => (p.fam[f.id] ?? 0) === value).map((f) => f.name);
+  for (const s of SHADES) {
+    if (p.shade[s.id] === value && (p.fam[s.family] ?? 0) !== value) out.push(s.name.toLowerCase());
+  }
+  return out;
 }
 
 // How many families and shades (or prints) she loves and avoids, for the Style DNA rows.

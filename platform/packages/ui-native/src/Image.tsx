@@ -32,7 +32,12 @@ export function Image({
   return (
     <View
       testID={testID}
-      className={cx('w-full overflow-hidden bg-surface-sunk', className)}
+      // A contained photo sits on white (a cut-out's own ground); a cropped one never shows its frame.
+      className={cx(
+        'w-full overflow-hidden',
+        contentFit === 'contain' ? 'bg-surface-raised' : 'bg-surface-sunk',
+        className,
+      )}
       style={{ aspectRatio: ASPECTS[aspect] }}
       accessible={!decorative}
       accessibilityRole={decorative ? undefined : 'image'}

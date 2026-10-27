@@ -4,7 +4,7 @@ import { BodyShape } from '@/features/you/BodyShape';
 
 export default function BodyShapeScreen() {
   return (
-    <StackScreen title={twin.twinPage.bodyShape}>
+    <StackScreen settings title={twin.twinPage.bodyShape}>
       <BodyShape />
     </StackScreen>
   );

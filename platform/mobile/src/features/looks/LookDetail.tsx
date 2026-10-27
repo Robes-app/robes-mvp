@@ -1,115 +1,82 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { looks as copy, errors, lookbook, ui } from '@robes/copy';
-import { anchorName, noteShort } from '@robes/core/looks';
+import { looks as copy, lookbook, ui } from '@robes/copy';
+import { lookFacts } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
   Eyebrow,
   Field,
   Heading,
-  Image,
-  Pill,
+  IconButton,
+  MIN_TOUCH,
   PrimaryScope,
-  Sheet,
   Skeleton,
   Text,
-  useToast,
+  useColor,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { dayLabel, usePinLook } from '@/features/plan/plan';
+import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
-import { renditionUri } from '@/lib/images';
-import { LookPicture } from './LookPicture';
+import { DiarySheet } from './DiarySheet';
+import { LookHero } from './LookHero';
 import { LookPromptBox } from './LookPromptBox';
 import { useLookEditor } from './look-editor';
 import { RackRowCard } from './RackRow';
-import { SeeOnMe } from './SeeOnMe';
 import { SwapSheet } from './SwapSheet';
-import {
-  localDate,
-  nextDays,
-  useRemoveLook,
-  useRenameLook,
-  useSaveAsNew,
-  useShareLook,
-  useShareToken,
-  useStopSharing,
-  useWearToday,
-} from './saved-looks';
-
-const DAY_CHOICES = 14;
+import { useRemoveLook, useRenameLook } from './saved-looks';
+import { WearRecord } from './WearRecord';
 
 // A provisional name is Robes' suggestion: she can keep it or name the look herself.
+// The pencil sits on the name; the field only exists while she is changing it.
 function Name({ look }: { look: Look }) {
   const rename = useRenameLook();
+  const [editing, setEditing] = useState(false);
   const [name, setName] = useState(look.name);
   const dirty = name.trim() !== '' && name.trim() !== look.name;
-  return (
-    <View className="gap-3">
-      <Heading>{look.name}</Heading>
-      {look.nameProvisional ? (
+  if (editing) {
+    return (
+      <View className="gap-3">
+        <Field
+          label={copy.look.nameLabel}
+          value={name}
+          onChangeText={setName}
+          maxLength={120}
+          returnKeyType="done"
+        />
         <View className="flex-row items-center gap-3">
-          <Text size="small" tone="muted">
-            {copy.look.suggested}
-          </Text>
+          <Button
+            variant="secondary"
+            disabled={!dirty}
+            loading={rename.isPending}
+            loadingLabel={ui.loading}
+            onPress={() => {
+              rename.mutate({ params: { id: look.id }, input: { name: name.trim() } });
+              setEditing(false);
+            }}
+          >
+            {copy.look.saveName}
+          </Button>
           <Button
             variant="quiet"
-            onPress={() => rename.mutate({ params: { id: look.id }, input: { name: look.name } })}
+            onPress={() => {
+              setName(look.name);
+              setEditing(false);
+            }}
           >
-            {copy.look.keepName}
+            {copy.page.cancel}
           </Button>
         </View>
-      ) : null}
-      <Field
-        label={copy.look.nameLabel}
-        value={name}
-        onChangeText={setName}
-        maxLength={120}
-        returnKeyType="done"
-      />
-      {dirty ? (
-        <Button
-          variant="secondary"
-          loading={rename.isPending}
-          loadingLabel={ui.loading}
-          onPress={() => rename.mutate({ params: { id: look.id }, input: { name: name.trim() } })}
-        >
-          {copy.look.saveName}
-        </Button>
-      ) : null}
-    </View>
-  );
-}
-
-function WearOnDay({ look, open, onClose }: { look: Look; open: boolean; onClose: () => void }) {
-  const toast = useToast();
-  const pin = usePinLook();
-  const days = nextDays(DAY_CHOICES);
-  return (
-    <Sheet open={open} onClose={onClose} title={copy.look.chooseDay}>
-      <View className="flex-row flex-wrap gap-2 pb-6">
-        {days.map((date) => (
-          <Pill
-            key={date}
-            disabled={pin.isPending}
-            onPress={() =>
-              void pin
-                .mutateAsync({ params: { id: look.id }, input: { dates: [date], slot: 'day' } })
-                .then(() => {
-                  toast.show({ message: copy.look.pinned });
-                  onClose();
-                })
-                .catch(() => toast.show({ message: errors.internal }))
-            }
-          >
-            {dayLabel(date, days[0])}
-          </Pill>
-        ))}
       </View>
-    </Sheet>
+    );
+  }
+  // No "Robes’ suggestion · Keep this name": the pencil is how she renames (27 Oct).
+  return (
+    <View className="flex-row items-start gap-2">
+      <Heading className="min-w-0 flex-1">{look.name}</Heading>
+      <IconButton icon="pencil" label={copy.page.rename} onPress={() => setEditing(true)} />
+    </View>
   );
 }
 
@@ -137,46 +104,31 @@ export function LookDetail({ id }: { id: string }) {
 // look), and the prompt box — a change made through it opens Editing.
 function SavedLook({ look }: { look: Look }) {
   const router = useRouter();
-  const wear = useWearToday();
   const remove = useRemoveLook();
-  const saveAsNew = useSaveAsNew((newId) => router.push(`/look/${newId}`));
-  const shareLook = useShareLook();
-  const token = useShareToken(look.id);
-  const stopSharing = useStopSharing(look.id);
-  const [choosingDay, setChoosingDay] = useState(false);
+  const [diary, setDiary] = useState(false);
   const editor = useLookEditor(look);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const woreToday = look.lastWornOn === localDate();
-  const render = renditionUri(look.image, 360);
+  // The deep rose: the brand's rose at a size small text can read (4.5:1).
+  const rose = useColor('accent-warm');
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
-  const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
-  const meta = [
-    lookbook.meta.pieces(editor.rack.rows.length),
-    look.timesWorn ? lookbook.meta.wears(look.timesWorn) : lookbook.meta.notYetWorn,
-    around ? lookbook.meta.around(around) : null,
-  ].filter(Boolean);
+  const meta = lookbook.meta.saved(lookFacts(look, editor.rack.rows.length));
   return (
     <View className="flex-1">
       <ScrollView contentContainerClassName="gap-6 px-6 pb-32">
-        {look.frame ? (
-          <LookPicture look={look} />
-        ) : render ? (
-          <Image
-            source={render}
-            alt={copy.look.imageAlt(look.name)}
-            blurhash={look.image?.blurhash}
-          />
-        ) : null}
-        <View className="gap-2">
-          <Eyebrow>{editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}</Eyebrow>
+        <LookHero
+          look={look}
+          eyebrow={editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}
+          onDiary={() => setDiary(true)}
+        />
+        {/* The name and its one line of facts, close together; the eyebrow is over the picture. */}
+        <View className="gap-1">
           <Name key={look.name} look={look} />
-          <Text tone="muted">{copy.look.worn(look.timesWorn)}</Text>
+          {/* One line straight under the title; the picture's line carries the note. */}
           <Text size="small" tone="muted">
-            {meta.join(' · ')}
+            {meta}
           </Text>
-          {look.note ? <Text>{noteShort(look.note)}</Text> : null}
         </View>
         <View className="gap-3">
           <Eyebrow>{lookbook.rack.title(editor.rack.rows.length)}</Eyebrow>
@@ -212,65 +164,30 @@ function SavedLook({ look }: { look: Look }) {
             onAnswer={editor.answer}
           />
         ) : null}
+        {editor.editing ? null : <WearRecord look={look} onAddDate={() => setDiary(true)} />}
         {editor.editing ? null : (
+          // Beta's foot: the record, then Delete this look. Wearing is the diary on the picture,
+          // a new look the composer, her model You · Model (27 Oct; web twin look-view.tsx).
           <PrimaryScope>
             <View className="gap-3">
-              <Button
-                onPress={() =>
-                  wear.mutate({ params: { id: look.id }, input: { wornOn: localDate() } })
-                }
-                disabled={woreToday}
-                loading={wear.isPending}
-              >
-                {woreToday ? copy.look.woreToday : copy.look.wearToday}
-              </Button>
-              <Button variant="secondary" onPress={() => setChoosingDay(true)}>
-                {copy.look.wearOnDay}
-              </Button>
-              {look.frame ? null : <SeeOnMe look={look} />}
-              <Button
-                variant="secondary"
-                loading={shareLook.isPending}
-                loadingLabel={ui.loading}
-                onPress={() =>
-                  shareLook.mutate({ input: { subjectType: 'look', subjectId: look.id } })
-                }
-              >
-                {copy.look.share}
-              </Button>
-              {token ? (
-                <Button
-                  variant="quiet"
-                  className="self-center"
-                  onPress={() => stopSharing.mutate({ params: { token } })}
-                >
-                  {copy.look.stopSharing}
-                </Button>
-              ) : null}
-              <Button
-                variant="quiet"
-                className="self-center"
-                loading={saveAsNew.isPending}
-                loadingLabel={ui.loading}
-                onPress={() => saveAsNew.mutate({ params: { id: look.id }, input: {} })}
-              >
-                {copy.look.saveAsNew}
-              </Button>
-              <Button
-                variant="quiet"
-                icon="trash"
-                className="self-center"
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={copy.page.remove}
                 onPress={() => {
                   remove.mutate({ params: { id: look.id } });
                   router.back();
                 }}
+                style={{ minHeight: MIN_TOUCH }}
+                className="items-center justify-center self-center"
               >
-                {copy.result.remove}
-              </Button>
+                <Text size="small" style={{ color: rose }}>
+                  {copy.page.remove}
+                </Text>
+              </Pressable>
             </View>
           </PrimaryScope>
         )}
-        <WearOnDay look={look} open={choosingDay} onClose={() => setChoosingDay(false)} />
+        <DiarySheet look={diary ? look : null} onClose={() => setDiary(false)} />
       </ScrollView>
       <View
         className="absolute inset-x-0 bottom-0 flex-row items-center justify-end gap-3 border-t border-hairline bg-bg px-6 py-3"
@@ -291,11 +208,19 @@ function SavedLook({ look }: { look: Look }) {
             </Button>
           </PrimaryScope>
         ) : (
-          <Button variant="secondary" onPress={editor.startEditing}>
-            {look.pieces.length || look.proposals.length
-              ? lookbook.bar.editLook
-              : lookbook.bar.addPieces}
-          </Button>
+          // A small hairline pill in sentence case (beta's size).
+          <Pressable
+            accessibilityRole="button"
+            onPress={editor.startEditing}
+            hitSlop={4}
+            className="min-h-9 justify-center rounded-pill border border-border-control px-4"
+          >
+            <Text size="small">
+              {look.pieces.length || look.proposals.length
+                ? lookbook.bar.editLook
+                : lookbook.bar.addPieces}
+            </Text>
+          </Pressable>
         )}
       </View>
       <SwapSheet

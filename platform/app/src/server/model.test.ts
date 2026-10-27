@@ -39,7 +39,7 @@ const repos = {
     failTwin: vi.fn(async () => {}),
   },
   avatarCells: {
-    get: vi.fn(async () => undefined),
+    get: vi.fn(async (_key: string): Promise<unknown> => undefined),
     claim: vi.fn(async () => false),
     setJob: vi.fn(async () => {}),
     fail: vi.fn(async () => {}),
@@ -52,7 +52,18 @@ const repos = {
     })),
   },
   capacity: { isExhausted: vi.fn(async () => false) },
+  looks: {
+    renderState: vi.fn(async (): Promise<unknown> => ({ renderStatus: null })),
+    get: vi.fn(async (): Promise<unknown> => look),
+    piecesFor: vi.fn(async () => [{ id: 'piece-1' }]),
+    claimRender: vi.fn(async () => true),
+    setRenderJob: vi.fn(async () => {}),
+    releaseRender: vi.fn(async () => {}),
+  },
+  jobs: { getForUser: vi.fn(async () => undefined) },
 };
+const LOOK = '55555555-5555-4555-8555-555555555555';
+let look: Record<string, unknown> = { status: 'draft', frameAssetId: null, styling: {} };
 const startJob = vi.fn(async () => ({ jobId: 'job', status: 'queued' }));
 const createAndEnqueueJob = vi.fn(async () => ({ jobId: 'cell-job', status: 'queued' }));
 vi.mock('./db', () => ({ repos }));
@@ -69,14 +80,18 @@ vi.mock('./asset-urls', () => ({
   })),
 }));
 
-const { drawTwin, ensureGenericCells, loadModel, updateModel } = await import('./model');
+const { drawTwin, ensureGenericCells, loadModel, renderOnModel, updateModel } = await import(
+  './model'
+);
 const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const req = new Request('https://robes.test/api/v1/me/model/twin', { method: 'POST' });
 
 beforeEach(() => {
   vi.clearAllMocks();
   row = { ...base };
+  look = { status: 'draft', frameAssetId: null, styling: {} };
   repos.model.get.mockImplementation(async () => row);
+  repos.avatarCells.get.mockImplementation(async () => undefined);
   repos.avatarCells.claim.mockImplementation(async () => false);
 });
 
@@ -168,5 +183,67 @@ describe('the generic models', () => {
     repos.avatarCells.claim.mockResolvedValue(false);
     await ensureGenericCells(USER);
     expect(createAndEnqueueJob).not.toHaveBeenCalled();
+  });
+});
+
+const readyCell = async (key: string): Promise<unknown> => ({
+  status: 'ready',
+  bucketKey: `catalog/avatar/${key}.png`,
+});
+
+describe('what a new look stands on', () => {
+  it('stands on the first generic Robes model while she has none of her own', async () => {
+    row = { ...base, filedCellId: null };
+    repos.avatarCells.get.mockImplementation(readyCell);
+    expect((await loadModel(USER)).stand).toEqual({
+      imageUrl: 'https://m.test/catalog/avatar/w-s4-h1-nt@v2.png',
+      generic: true,
+    });
+  });
+
+  it('stands on her twin, else her filed cell', async () => {
+    repos.avatarCells.get.mockImplementation(readyCell);
+    expect((await loadModel(USER)).stand).toEqual({
+      imageUrl: 'https://m.test/catalog/avatar/w-s3-h1-nt@v2.png',
+      generic: false,
+    });
+    row = { ...base, twinAssetId: TWIN, twinKey: 'k' };
+    expect((await loadModel(USER)).stand).toEqual({
+      imageUrl: `https://m.test/${TWIN}.jpg`,
+      generic: false,
+    });
+  });
+});
+
+describe('a look on her model', () => {
+  it('dresses a draft as she builds it, keyed by the model it stands on', async () => {
+    repos.avatarCells.get.mockImplementation(readyCell);
+    await renderOnModel(USER, req, LOOK);
+    const key = (repos.looks.claimRender.mock.calls[0] as unknown[])[2] as string;
+    expect(key).toMatch(/^w-s3-h1-nt@v2:[\w-]{22}$/);
+    expect(startJob).toHaveBeenCalledWith(USER, req, {
+      kind: 'look_render',
+      input: { target: 'look', lookId: LOOK, renderKey: key },
+      quota: { metric: 'generation.image', cost: 1 },
+    });
+  });
+
+  it('stands a look on the generic model while she has none, drawing it first if need be', async () => {
+    row = { ...base, filedCellId: null };
+    await expect(renderOnModel(USER, req, LOOK)).rejects.toMatchObject({ code: 'conflict' });
+    expect(repos.avatarCells.claim).toHaveBeenCalledWith('w-s4-h1-nt@v2');
+    expect(startJob).not.toHaveBeenCalled();
+    repos.avatarCells.get.mockImplementation(readyCell);
+    await renderOnModel(USER, req, LOOK);
+    expect((repos.looks.claimRender.mock.calls[0] as unknown[])[2]).toMatch(/^w-s4-h1-nt@v2:/);
+  });
+
+  it('never draws over Robes’ frame, nor a suggestion', async () => {
+    repos.avatarCells.get.mockImplementation(readyCell);
+    look = { status: 'draft', frameAssetId: 'f', styling: {} };
+    await expect(renderOnModel(USER, req, LOOK)).rejects.toMatchObject({ code: 'conflict' });
+    look = { status: 'suggested', frameAssetId: null, styling: {} };
+    await expect(renderOnModel(USER, req, LOOK)).rejects.toMatchObject({ code: 'conflict' });
+    expect(startJob).not.toHaveBeenCalled();
   });
 });

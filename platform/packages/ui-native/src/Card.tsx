@@ -1,6 +1,6 @@
 import { ui } from '@robes/copy';
 import type { ReactNode } from 'react';
-import { type GestureResponderEvent, Pressable, View } from 'react-native';
+import { type AccessibilityState, type GestureResponderEvent, Pressable, View } from 'react-native';
 import { cx } from './cx';
 import { ASPECTS, type Aspect } from './Image';
 import { Skeleton } from './Skeleton';
@@ -9,13 +9,25 @@ export interface CardProps {
   children: ReactNode;
   onPress?: (event: GestureResponderEvent) => void;
   accessibilityLabel?: string;
+  // A card that is a choice says so — picked, or already taken.
+  accessibilityState?: AccessibilityState;
+  disabled?: boolean;
   className?: string;
   testID?: string;
 }
 
-const base = 'overflow-hidden rounded-soft bg-surface';
+// Beta's white card on a hairline: raised off the cream page, never a beige panel.
+const base = 'overflow-hidden rounded-soft border border-hairline bg-surface-raised';
 
-export function Card({ children, onPress, accessibilityLabel, className, testID }: CardProps) {
+export function Card({
+  children,
+  onPress,
+  accessibilityLabel,
+  accessibilityState,
+  disabled = false,
+  className,
+  testID,
+}: CardProps) {
   if (!onPress) {
     return (
       <View testID={testID} className={cx(base, className)}>
@@ -27,6 +39,8 @@ export function Card({ children, onPress, accessibilityLabel, className, testID 
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={accessibilityState}
+      disabled={disabled}
       onPress={onPress}
       testID={testID}
       className={cx(base, className)}

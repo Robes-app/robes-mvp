@@ -3,7 +3,9 @@ import { cn, focusRing } from './cn';
 
 const variants = {
   primary:
-    'bg-ink text-bg hover:opacity-90 disabled:bg-surface-sunk disabled:text-ink-faint disabled:opacity-100',
+    // The one primary (redline "one primary button spec"): an ink pill, 48pt, at 30% ink while it
+    // waits on her.
+    'min-h-12 bg-ink text-bg hover:opacity-90 disabled:bg-ink/30 disabled:text-bg disabled:opacity-100',
   secondary:
     'border border-border-control text-ink hover:border-ink disabled:border-hairline disabled:text-ink-faint',
   quiet: 'text-ink-muted underline underline-offset-4 hover:text-ink disabled:text-ink-faint',

@@ -2,7 +2,7 @@
 
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { LookAnswer, Piece, ReadPiece } from '@robes/contracts';
-import { looks as looksCopy, photoPieces } from '@robes/copy';
+import { lookbook, looks as looksCopy, photoPieces } from '@robes/copy';
 import { sheetL1For } from '@robes/core';
 import type { LookCardState } from '@robes/core/photo-pieces';
 import { Icon } from '@robes/icons/web';
@@ -11,7 +11,6 @@ import {
   Dialog,
   ErrorText,
   Eyebrow,
-  Field,
   Heading,
   IconButton,
   Image,
@@ -45,6 +44,7 @@ const sheetOf = (p: { categoryL2: string | null; category: string }): string =>
 // left out) before Save; new pieces file to the wardrobe on save with their own crops.
 export function LookFromPhoto() {
   const read = usePhotoRead('look_photo');
+  const model = useApi('me.model.get');
   const router = useRouter();
   const client = useApiClient();
   const queryClient = useQueryClient();
@@ -140,7 +140,8 @@ export function LookFromPhoto() {
             frameClassName="w-40 rounded-crisp"
           />
         ) : null}
-        {read.status === 'failed' ? <ErrorText>{copy.readFailed}</ErrorText> : null}
+        {/* The hook knows WHY it failed — a stalled photo is not a photo it couldn't read. */}
+        {read.status === 'failed' ? <ErrorText>{read.error ?? copy.readFailed}</ErrorText> : null}
       </div>
     );
   }
@@ -150,10 +151,27 @@ export function LookFromPhoto() {
   const pending = list.filter((c) => c.state.state === 'pending');
   const onRack = list.filter((c) => c.state.state === 'owned' || c.state.state === 'new');
   const notice = read.status === 'done' && !list.length ? copy.empty : null;
+  // The read happens INSIDE the draft (legacy 2b): the same masthead, the same canvas — her
+  // model stands in it while Robes reads, then her photograph takes its place with a dot per
+  // piece — and one bar at the foot. It is never a screen of its own.
   return (
-    <form onSubmit={save} className="grid gap-6 md:grid-cols-2">
-      <div className="flex flex-col gap-3">
-        {read.photoUrl ? (
+    <form onSubmit={save} className="mx-auto flex w-full max-w-md flex-col gap-6 pb-28">
+      <header className="flex flex-col items-center gap-2 text-center">
+        <Eyebrow>{lookbook.eyebrow.draft}</Eyebrow>
+        <label className="w-full">
+          <span className="sr-only">{lookbook.name.label}</span>
+          <input
+            value={name}
+            maxLength={120}
+            placeholder={lookbook.figure.untitled}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full border-0 border-transparent border-b bg-transparent text-center font-display font-light text-3xl text-ink italic placeholder:text-ink-faint focus-visible:border-ink focus-visible:outline-none"
+          />
+        </label>
+      </header>
+      <section className="flex flex-col gap-3">
+        <Eyebrow>{reading ? copy.headReading : copy.head(onRack.length)}</Eyebrow>
+        {read.photoUrl && !reading ? (
           <PhotoFrame
             src={read.photoUrl}
             onNatural={setNatural}
@@ -164,17 +182,26 @@ export function LookFromPhoto() {
               label: c.piece.label,
             }))}
           />
-        ) : null}
+        ) : model.data?.cell.imageUrl ? (
+          // biome-ignore lint/performance/noImgElement: signed catalog URL, fixed 4:5 frame
+          <img
+            src={model.data.cell.imageUrl}
+            alt={lookbook.figure.alt}
+            className="aspect-[4/5] w-full rounded-soft object-cover"
+          />
+        ) : (
+          <Skeleton className="aspect-[4/5] w-full" />
+        )}
         {notice ? (
           <Text role="status" size="small" tone="muted">
             {notice}
           </Text>
         ) : null}
-      </div>
+      </section>
       <div className="flex flex-col gap-4">
-        <Eyebrow>{reading ? copy.reading.eyebrow : copy.head(onRack.length)}</Eyebrow>
         {reading ? (
           <div aria-busy className="flex flex-col gap-3">
+            <Eyebrow>{copy.reading.eyebrow}</Eyebrow>
             <Heading level={2} size="md">
               {copy.reading.title} <i className="text-accent-inspire">{copy.reading.aside}</i>
             </Heading>
@@ -220,13 +247,6 @@ export function LookFromPhoto() {
         ) : null}
         {reading ? null : (
           <>
-            <Field
-              label={looksCopy.composer.nameLabel}
-              placeholder={looksCopy.composer.namePlaceholder}
-              value={name}
-              maxLength={120}
-              onChange={(e) => setName(e.target.value)}
-            />
             <label className="flex items-center gap-3 font-sans text-ink text-sm">
               <input
                 type="checkbox"
@@ -236,12 +256,24 @@ export function LookFromPhoto() {
               />
               {copy.wearToday}
             </label>
+            {error ? <ErrorText>{error}</ErrorText> : null}
+          </>
+        )}
+      </div>
+      {/* One bar at the foot: let the draft go, what is still to answer, and Save. */}
+      {reading ? null : (
+        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-30 flex justify-center px-4 md:bottom-6">
+          <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-pill border border-hairline bg-bg/95 p-1.5 pl-4 shadow-sm backdrop-blur">
+            <Button variant="quiet" onClick={() => router.push('/looks')}>
+              {lookbook.bar.discard}
+            </Button>
             {pending.length ? (
-              <Text size="small" tone="muted" role="status">
+              <Text size="small" tone="muted" role="status" className="flex-1 text-center">
                 {copy.gate(pending.length)}
               </Text>
-            ) : null}
-            {error ? <ErrorText>{error}</ErrorText> : null}
+            ) : (
+              <span className="flex-1" />
+            )}
             <Button
               type="submit"
               variant="primary"
@@ -251,9 +283,9 @@ export function LookFromPhoto() {
             >
               {copy.save}
             </Button>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
       <FindIt
         card={finding === null ? undefined : list.find((c) => c.piece.index === finding)}
         pieces={(pieces.data?.items ?? []).filter((p) => p.status === 'ready')}

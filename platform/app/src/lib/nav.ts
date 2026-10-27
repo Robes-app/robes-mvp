@@ -8,16 +8,18 @@ export interface NavItem {
   icon: IconName;
 }
 
-// The four roots, in the same order on every surface (IA §3.2, UX-11/12).
+// The four roots, in beta's dock order on every surface (Native parity handoff 2026-10-25; the
+// native twin is mobile/src/app/(tabs)/_layout.tsx). Create is the sparkle beside them.
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/', label: nav.today, icon: 'today' },
-  { href: '/wardrobe', label: nav.wardrobe, icon: 'wardrobe' },
-  { href: '/looks', label: nav.looks, icon: 'looks' },
+  { href: '/looks', label: nav.looks, icon: 'book' },
   { href: '/plan', label: nav.plan, icon: 'plan' },
+  { href: '/wardrobe', label: nav.wardrobe, icon: 'wardrobe' },
 ];
 
-export const SOON_SLUGS = ['receipt', 'ask'] as const;
-export type SoonSlug = (typeof SOON_SLUGS)[number];
+// No Create option waits on a placeholder today; the new-look box answers Ask Robes in the sheet.
+export const SOON_SLUGS: readonly string[] = [];
+export type SoonSlug = string;
 
 export type CreateGroup = 'add' | 'dress';
 
@@ -27,32 +29,46 @@ export interface CreateItem extends NavItem {
   keywords?: string;
 }
 
-// The Create sheet (IA §3.2), grouped: pieces in, then the stylist (the sparkle, never a chat
-// bubble). Unbuilt options go to one shared "On its way" page.
+// The Create sheet (IA §3.2), grouped: pieces in — the Add pieces sheet's own doors (design "Add
+// Piece — Handoff"; native draws AddPiecesPanel itself) — then the stylist (the sparkle, never a
+// chat bubble). Unbuilt options go to one shared "On its way" page.
 export const CREATE_ITEMS: readonly CreateItem[] = [
   {
     id: 'photograph',
     group: 'add',
-    href: '/wardrobe/add',
-    label: shell.create.photograph,
+    href: '/wardrobe/add?start=camera',
+    label: wardrobe.add.doors.photograph,
     icon: 'camera',
-    keywords: 'add photo upload',
+    keywords: 'add photo camera',
   },
   {
     id: 'camera-roll',
     group: 'add',
     href: '/wardrobe/add',
-    label: shell.create.cameraRoll,
+    label: wardrobe.add.doors.cameraRoll,
     icon: 'image',
     keywords: 'add photo upload',
   },
-  { id: 'link', group: 'add', href: '/wardrobe/link', label: shell.create.link, icon: 'link' },
+  {
+    id: 'link',
+    group: 'add',
+    href: '/wardrobe/link',
+    label: wardrobe.add.doors.link,
+    icon: 'link',
+  },
   {
     id: 'receipt',
     group: 'add',
-    href: '/soon/receipt',
-    label: shell.create.receipt,
+    href: '/wardrobe/receipt',
+    label: wardrobe.add.doors.receipt,
     icon: 'mail',
+  },
+  {
+    id: 'manual',
+    group: 'add',
+    href: '/wardrobe/manual',
+    label: wardrobe.add.doors.manual,
+    icon: 'pencil',
   },
   {
     id: 'style-piece',
@@ -63,7 +79,6 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
     keywords: 'three ways',
   },
   { id: 'new-look', group: 'dress', href: '/looks/new', label: shell.create.newLook, icon: 'plus' },
-  { id: 'ask', group: 'dress', href: '/soon/ask', label: shell.create.askRobes, icon: 'looks' },
   {
     id: 'trip',
     group: 'dress',
@@ -81,10 +96,7 @@ export function createItems(features: Features): readonly CreateItem[] {
   return CREATE_ITEMS.filter((i) => i.id !== 'trip' || features.trips);
 }
 
-export const SOON_TITLES: Record<SoonSlug, string> = {
-  receipt: shell.create.receipt,
-  ask: shell.create.askRobes,
-};
+export const SOON_TITLES: Record<SoonSlug, string> = {};
 
 // Command bar "Go to": the roots plus the pages under them.
 export const GO_TO_ITEMS: readonly NavItem[] = [
@@ -105,4 +117,17 @@ export function activeRoot(pathname: string): string {
   if (pathname.startsWith('/look')) return '/looks';
   const root = NAV_ITEMS.find((i) => i.href !== '/' && pathname.startsWith(i.href));
   return root?.href ?? (pathname === '/' ? '/' : '');
+}
+
+// The add-a-piece flow is a task, not a place: the dock stands down there so its one action sits
+// at the foot (redline "Hide the tab bar in the add flow").
+const FLOW_PATHS = ['/wardrobe/add', '/wardrobe/review', '/wardrobe/link', '/wardrobe/manual'];
+export function isFlowPath(pathname: string): boolean {
+  return FLOW_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+// Settings (the avatar's door, /you) is a pushed stack with its own 44pt header row: no wordmark,
+// no avatar and no dock there (legacy settings.html, redlines G1–G3).
+export function isSettingsPath(pathname: string): boolean {
+  return pathname === '/you' || pathname.startsWith('/you/');
 }

@@ -41,8 +41,9 @@ appId: host.exp.Exponent
 - runFlow: looks-plan.yaml
 - openLink: ${EXPO_URL}/--/you
 - extendedWaitUntil:
-    visible: 'Notifications'
+    visible: 'Style DNA'
     timeout: 10000
+- tapOn: 'Account'
 - scrollUntilVisible:
     element: 'Sign out'
 - tapOn: 'Sign out'

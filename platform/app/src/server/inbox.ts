@@ -25,12 +25,20 @@ function toEntry(row: Row): InboxEntry {
   });
 }
 
+// Receipts only, with the pieces they hold (a pasted link goes to Review, never the Inbox).
 export async function loadInbox(userId: UserId): Promise<InboxList> {
   const [rows, count] = await Promise.all([
     repos.inbox.listHeld(userId),
-    repos.inbox.countHeld(userId),
+    repos.inbox.piecesWaiting(userId),
   ]);
   return { items: rows.map(toEntry), count };
+}
+
+// One held entry of any source: Review opens a pasted link by the id its import returned.
+export async function loadInboxEntry(userId: UserId, id: string): Promise<InboxEntry> {
+  const row = await repos.inbox.getHeld(userId, id);
+  if (!row) throw new ApiError('not_found');
+  return toEntry(row);
 }
 
 export async function decideInbox(

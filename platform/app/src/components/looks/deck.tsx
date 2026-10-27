@@ -163,7 +163,7 @@ function Card({
       }}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: the card takes ← → and Enter
       tabIndex={0}
-      className={`relative mx-auto w-full max-w-sm cursor-grab touch-pan-y select-none rounded-soft border border-hairline bg-surface p-2 ${start.current === null ? 'transition-transform duration-300' : ''}`}
+      className={`relative mx-auto w-full max-w-sm cursor-grab touch-pan-y select-none rounded-soft border border-hairline bg-surface-raised p-2 ${start.current === null ? 'transition-transform duration-300' : ''}`}
       style={{ transform: x ? `translateX(${x}px) rotate(${x * 0.04}deg)` : undefined }}
     >
       <div className="pointer-events-none">

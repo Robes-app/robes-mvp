@@ -25,8 +25,10 @@ export function YouTabs({
     router.replace(next === 'account' ? `${pathname}?tab=account` : pathname, { scroll: false });
   };
   return (
-    <div className="flex flex-col gap-6">
+    // The tab header (legacy .rb-seg2): centred, 260 wide on the web, the column's width on a phone.
+    <div className="flex flex-col gap-[26px]">
       <SegmentedControl
+        className="w-full self-center md:w-[260px]"
         label={labels.label}
         value={tab}
         options={[

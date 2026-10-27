@@ -4,7 +4,7 @@ import { Observations } from '@/features/you/Observations';
 
 export default function ObservationsScreen() {
   return (
-    <StackScreen title={twin.observations.title}>
+    <StackScreen settings title={twin.observations.title}>
       <Observations />
     </StackScreen>
   );

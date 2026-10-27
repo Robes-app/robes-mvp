@@ -4,7 +4,7 @@ import { DeleteAccount } from '@/features/you/DeleteAccount';
 
 export default function DeleteAccountScreen() {
   return (
-    <StackScreen title={you.deletion.title}>
+    <StackScreen settings title={you.deletion.title}>
       <DeleteAccount />
     </StackScreen>
   );

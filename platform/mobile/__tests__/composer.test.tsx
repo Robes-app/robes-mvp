@@ -23,7 +23,7 @@ test('a new look is a draft from its first piece, named when she names it, then 
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<Composer />);
-  expect(await screen.findByText(lookbook.guide.body)).toBeTruthy();
+  expect(await screen.findByText(lookbook.figure.head(0))).toBeTruthy();
   for (const slot of Object.values(lookbook.figure.slots)) {
     expect(screen.getByRole('button', { name: slot })).toBeTruthy();
   }
@@ -55,7 +55,7 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
   await waitFor(() => expect(alert).toHaveBeenCalled());
   await waitFor(() =>
     expect(
-      screen.getByRole('button', { name: lookbook.rack.addPiece }).props.accessibilityState.busy,
+      screen.getByRole('button', { name: lookbook.bar.save }).props.accessibilityState.busy,
     ).toBe(false),
   );
   const [title, body, buttons] = alert.mock.calls[0] as [
@@ -95,4 +95,79 @@ test('a slot opens her wardrobe on its category, and All still widens it', async
   expect(screen.queryByRole('radio', { name: 'Camel wool coat' })).toBeNull();
   await fireEvent.press(screen.getByText(lookbook.swap.all));
   expect(await screen.findByRole('radio', { name: 'Camel wool coat' })).toBeTruthy();
+});
+
+test('the empty draft stands her model on the canvas with Discard and a held Save at the foot', async () => {
+  mockFetch({
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<Composer />);
+  expect(await screen.findByText(lookbook.eyebrow.draft)).toBeTruthy();
+  expect(screen.getByRole('button', { name: lookbook.bar.discard })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: lookbook.bar.save }).props.accessibilityState.disabled,
+  ).toBe(true);
+  // A hotspot titles the sheet for its slot, and Photograph one leads the grid.
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.figure.slots.shoes }));
+  expect(await screen.findByText(lookbook.sheet.slot.shoes)).toBeTruthy();
+  expect(screen.getByText(lookbook.sheet.eyebrow)).toBeTruthy();
+  expect(screen.getByRole('button', { name: lookbook.sheet.photograph })).toBeTruthy();
+  expect(screen.getByLabelText(lookbook.sheet.search)).toBeTruthy();
+});
+
+test('the sheet searches her whole wardrobe', async () => {
+  mockFetch({
+    'GET /wardrobe/items': {
+      items: [piece(), piece({ id: SCARF, label: 'Silk scarf', category: 'Accessories' })],
+      nextCursor: null,
+    },
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<Composer />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.slots.top }));
+  await fireEvent.changeText(screen.getByLabelText(lookbook.sheet.search), 'silk');
+  expect(await screen.findByRole('radio', { name: 'Silk scarf' })).toBeTruthy();
+  expect(screen.queryByRole('radio', { name: 'Camel wool coat' })).toBeNull();
+});
+
+test('a piece on the draft dresses her model once the rack settles, a top lights ✓ Top', async () => {
+  const calls = mockFetch({
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /me/model': {
+      filed: false,
+      presence: 'woman',
+      skin: 3,
+      hair: 1,
+      line: null,
+      frame: null,
+      source: 'hand',
+      reads: { colour: false, silhouette: false },
+      cellId: 'w-s3-h1-nt',
+      cell: { status: 'none', imageUrl: null },
+      swatches: { skin: [], hair: [] },
+      skinSet: false,
+      hairSet: false,
+      adj: { shoulders: null, bust: null, hips: null },
+      closeUpUrl: null,
+      twin: { status: 'none', current: false, imageUrl: null },
+      stand: { imageUrl: 'https://m.test/w-s4-h1-nt.png', generic: true },
+    },
+    [`POST /looks/${LOOK_ID}/render`]: {
+      jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'queued',
+    },
+  });
+  const draft = look({
+    status: 'draft',
+    pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+  });
+  await renderWithApi(<Composer look={draft} />);
+  expect(await screen.findByText(lookbook.figure.dressing('her'))).toBeTruthy();
+  expect(screen.getByText(lookbook.figure.filled.top)).toBeTruthy();
+  await waitFor(
+    () => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
+    { timeout: 4_000 },
+  );
 });

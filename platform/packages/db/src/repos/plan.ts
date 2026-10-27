@@ -4,6 +4,9 @@ import type { UserId } from '../ids';
 
 // Calendar days are read as text so no timezone can move them (CLAUDE.md rule 23).
 const dayDate = sql<string>`day_date::text`;
+// Whether she wore this look on this day: a wear on the same look and date.
+const wornHere = (t: string) =>
+  sql<boolean>`exists (select 1 from app.wears w where w.user_id = ${sql.ref(`${t}.user_id`)} and w.look_id = ${sql.ref(`${t}.look_id`)} and w.worn_on = ${sql.ref(`${t}.day_date`)})`;
 
 const ENTRY_COLUMNS = [
   'id',
@@ -24,7 +27,7 @@ export function planRepo(db: Db) {
 
   const entry = (userId: UserId, id: string) =>
     active()
-      .select([...ENTRY_COLUMNS, dayDate.as('dayDate')])
+      .select([...ENTRY_COLUMNS, dayDate.as('dayDate'), wornHere('planned_days').as('worn')])
       .where('userId', '=', userId)
       .where('id', '=', id)
       .executeTakeFirst();
@@ -46,6 +49,7 @@ export function planRepo(db: Db) {
           'p.activity',
           'p.createdAt',
           sql<string>`p.day_date::text`.as('dayDate'),
+          wornHere('p').as('worn'),
         ])
         .where('p.userId', '=', userId)
         .where('p.deletedAt', 'is', null)

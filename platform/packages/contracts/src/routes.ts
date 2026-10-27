@@ -1,7 +1,12 @@
 import type { z } from 'zod';
 import {
+  AdminArtifact,
+  AdminArtifactParams,
+  AdminCall,
+  AdminCallParams,
   AdminCosts,
   AdminCostsInput,
+  AdminFeedbackPage,
   AdminFlag,
   AdminFlagParams,
   AdminFlags,
@@ -11,7 +16,9 @@ import {
   AdminUserDetail,
   AdminUserPage,
   AdminUserParams,
+  AdminUserRecords,
   AuditPage,
+  ListAdminFeedbackInput,
   ListAdminUsersInput,
   ListAuditInput,
   SetAdminFlagInput,
@@ -24,6 +31,7 @@ import {
   InboxAddress,
   InboxAddressStatus,
   InboxDecision,
+  InboxEntry,
   InboxList,
   InboxParams,
 } from './inbox';
@@ -41,8 +49,10 @@ import {
   LookAskInput,
   LookPage,
   LookParams,
+  LookPhotoInput,
   LookSet,
   LookSetParams,
+  LookWearPage,
   PromptLookInput,
   SaveLookInput,
   SaveWayInput,
@@ -124,6 +134,7 @@ import {
   Piece,
   PiecePage,
   PieceParams,
+  PieceWearPage,
   UpdatePieceInput,
   UpdateWishInput,
   WardrobeSummary,
@@ -420,6 +431,14 @@ export const routes = {
     input: EmptyInput,
     output: Piece,
   },
+  'wardrobe.wears': {
+    method: 'GET',
+    path: '/wardrobe/items/:id/wears',
+    auth: 'user',
+    params: PieceParams,
+    input: EmptyInput,
+    output: PieceWearPage,
+  },
   'wardrobe.update': {
     method: 'PATCH',
     path: '/wardrobe/items/:id',
@@ -588,6 +607,24 @@ export const routes = {
     input: UpdateLookInput,
     output: Look,
     idempotent: true,
+  },
+  // The look's own record: every wear, newest first.
+  'looks.wears': {
+    method: 'GET',
+    path: '/looks/:id/wears',
+    auth: 'user',
+    params: LookParams,
+    input: EmptyInput,
+    output: LookWearPage,
+  },
+  // Her photograph of the look she wore, kept alongside Robes' own picture of it.
+  'looks.photo': {
+    method: 'POST',
+    path: '/looks/:id/photo',
+    auth: 'user',
+    params: LookParams,
+    input: LookPhotoInput,
+    output: Look,
   },
   // Naturally idempotent: one wear per look per day.
   'looks.wear': {
@@ -905,6 +942,37 @@ export const routes = {
     input: EmptyInput,
     output: AdminUserDetail,
   },
+  'admin.users.records': {
+    method: 'GET',
+    path: '/admin/users/:id/records',
+    auth: 'admin',
+    params: AdminUserParams,
+    input: EmptyInput,
+    output: AdminUserRecords,
+  },
+  'admin.generations.get': {
+    method: 'GET',
+    path: '/admin/generations/:id',
+    auth: 'admin',
+    params: AdminCallParams,
+    input: EmptyInput,
+    output: AdminCall,
+  },
+  'admin.feedback': {
+    method: 'GET',
+    path: '/admin/feedback',
+    auth: 'admin',
+    input: ListAdminFeedbackInput,
+    output: AdminFeedbackPage,
+  },
+  'admin.artifacts.get': {
+    method: 'GET',
+    path: '/admin/artifacts/:id',
+    auth: 'admin',
+    params: AdminArtifactParams,
+    input: EmptyInput,
+    output: AdminArtifact,
+  },
   'admin.health': {
     method: 'GET',
     path: '/admin/health',
@@ -948,12 +1016,22 @@ export const routes = {
     input: ListAuditInput,
     output: AuditPage,
   },
+  // Forwarded receipts only; `count` is the pieces they hold.
   'inbox.list': {
     method: 'GET',
     path: '/inbox',
     auth: 'user',
     input: EmptyInput,
     output: InboxList,
+  },
+  // One held entry of any source (Review opens a pasted link here); 404 once decided.
+  'inbox.get': {
+    method: 'GET',
+    path: '/inbox/:id',
+    auth: 'user',
+    params: InboxParams,
+    input: EmptyInput,
+    output: InboxEntry,
   },
   // Naturally idempotent: a decided row isn't decided again.
   'inbox.decide': {

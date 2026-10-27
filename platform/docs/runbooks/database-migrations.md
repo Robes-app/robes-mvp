@@ -48,17 +48,25 @@ day…" (table, repository, cross-user and export tests, route, screens, docs).
 ## Shipping order: migrate first, then deploy
 
 The web app deploys from `beta` (Vercel production branch) and the workers from the AWS stack, so
-new code goes live minutes after a merge. Run the migration **before** merging code that uses it,
-or the app queries a table or column that does not exist yet.
+new code goes live minutes after a merge.
 
 1. Open the PR. CI applies every migration to a fresh Postgres and runs the database tests.
-2. **Staging:** `bash scripts/migrate-staging.sh` (from `platform/`). It asks for the staging
-   Supabase postgres password, lists what is pending, applies it and never prints the password. The
-   owner runs it in their own terminal window (not with Claude Code's `!` prefix: that has no
-   keyboard input, so the password prompt would get nothing).
-3. Merge. Vercel deploys `beta`.
-4. **Production:** only through the `platform-deploy-prod` workflow (manual, a reviewer approves).
+2. Merge. **Staging migrates itself:** the `robes-app` Vercel project's production build runs
+   `pnpm db:migrate` before `next build` (preview builds skip it), using the `DATABASE_ADMIN_URL`
+   Production env var (the migration role). A failed migration fails the build, so the old
+   deployment keeps serving. Check the build log for `node scripts/db-migrate.mjs`.
+   `bash scripts/migrate-staging.sh` (from `platform/`, in a real terminal) still works to apply
+   migrations by hand ahead of a deploy.
+3. **Production:** only through the `platform-deploy-prod` workflow (manual, a reviewer approves).
    It migrates, then deploys. Ask the owner first; never run production migrations from a laptop.
+
+The migration runs while the previous deployment is still live, and the phone app stays on
+whatever version people have installed (App Store review, and some never update). So every
+migration must work with the old code too, as below.
+
+Why this matters (2026-10-24): the `material` migration was pushed but never applied, the new code
+deployed anyway, and staging's home page failed with `column w.material does not exist` until the
+migration ran.
 
 ### Keep each step safe on its own
 
@@ -68,6 +76,9 @@ code for a few minutes):
 - Add, don't rename. To rename or reshape a column, add the new one, write both, backfill, move
   readers, and drop the old one in a later migration.
 - A new `not null` column needs a default, or a backfill in the same migration.
+- New code treats a new column as possibly empty (old rows are, and an old phone app never fills
+  it). `material` is the model: null renders as the empty "Add" row.
+- Drop a column only once no app version still in use reads it: weeks for the phone app.
 - Big backfills and new indexes on large tables: ask the owner first (they lock tables).
 
 ## If something goes wrong

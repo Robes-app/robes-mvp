@@ -15,18 +15,21 @@ export interface InboundStackProps extends RobesStackProps {
 // raw under inbound/ in the media bucket, and announced on the inbound topic → inboundFn.
 // SES allows one ACTIVE rule set per account and region: activate it once (runbook §9).
 export class InboundStack extends RobesStack {
-  readonly ruleSet: ses.ReceiptRuleSet;
+  readonly ruleSet: ses.IReceiptRuleSet;
 
   constructor(scope: Construct, id: string, props: InboundStackProps) {
     super(scope, id, props);
     const { config } = props;
     const domain = inboundDomain(config);
 
-    this.ruleSet = new ses.ReceiptRuleSet(this, 'RuleSet', {
-      receiptRuleSetName: receiptRuleSetName(config),
-    });
-    this.ruleSet.addRule('Receipts', {
-      receiptRuleName: 'receipts',
+    const shared = config.email.sharedReceiptRuleSet;
+    this.ruleSet = shared
+      ? ses.ReceiptRuleSet.fromReceiptRuleSetName(this, 'RuleSet', shared)
+      : new ses.ReceiptRuleSet(this, 'RuleSet', { receiptRuleSetName: receiptRuleSetName(config) });
+    new ses.ReceiptRule(this, 'Receipts', {
+      ruleSet: this.ruleSet,
+      // Rule names are unique within a set, and a shared set holds both stages.
+      receiptRuleName: shared ? `${config.namePrefix}-receipts` : 'receipts',
       recipients: [domain],
       scanEnabled: true,
       tlsPolicy: ses.TlsPolicy.REQUIRE,

@@ -3,7 +3,7 @@ import type { UserId } from '../ids';
 import { failTwin, modelRow } from './model';
 
 // Worker side of "see it on me": the look's pieces and where the render lands. Scoped by the job
-// owner's id (SEC-16/22): only her own look, her own pieces and her own filed model.
+// owner's id (SEC-16/22): only her own look, her own pieces and her own model.
 export function modelRenderRepo(db: Db) {
   return {
     async look(userId: UserId, lookId: string) {
@@ -37,12 +37,7 @@ export function modelRenderRepo(db: Db) {
         .where('w.deletedAt', 'is', null)
         .orderBy('lp.position')
         .execute();
-      const model = await db
-        .selectFrom('avatars')
-        .select('avatarId')
-        .where('userId', '=', userId)
-        .executeTakeFirst();
-      return { look, pieces, cellId: model?.avatarId ?? null };
+      return { look, pieces };
     },
 
     // Lands only if the look still wants this render (she may have changed model or rack since).

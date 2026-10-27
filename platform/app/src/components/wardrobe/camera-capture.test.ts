@@ -1,11 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import {
-  CAMERA_CONSTRAINTS,
-  cameraAvailable,
-  captureSize,
-  isCameraMode,
-  shotName,
-} from './camera-capture';
+import { CAMERA_CONSTRAINTS, cameraAvailable, captureSize, shotName } from './camera-capture';
 
 describe('captureSize', () => {
   test('scales the longest side down to 1600 and keeps the ratio', () => {
@@ -31,13 +25,6 @@ describe('captureSize', () => {
 
 test('shotName names the file by when it was taken', () => {
   expect(shotName(1_700_000_000_000)).toBe('camera-1700000000000.jpg');
-});
-
-test('isCameraMode only accepts the two modes', () => {
-  expect(isCameraMode('single')).toBe(true);
-  expect(isCameraMode('several')).toBe(true);
-  expect(isCameraMode('many')).toBe(false);
-  expect(isCameraMode(null)).toBe(false);
 });
 
 test('the stream asks for the rear camera and no audio', () => {

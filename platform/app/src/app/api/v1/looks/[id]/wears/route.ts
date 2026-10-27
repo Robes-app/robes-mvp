@@ -1,8 +1,21 @@
 import { ApiError } from '@robes/api';
-import { LookParams, Wear, WearInput } from '@robes/contracts';
+import { EmptyInput, LookParams, LookWearPage, Wear, WearInput } from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
 import { route } from '@/server/route';
+
+// The look's own record. A look that is not hers has no wears to show, which is the same answer
+// as a look she has never worn — so this never says whether it exists.
+export const GET = route({
+  auth: 'user',
+  input: EmptyInput,
+  params: LookParams,
+  output: LookWearPage,
+  rateLimit: { key: 'looks.wears', limit: 120, windowSeconds: 60 },
+  handler: async ({ user, params }) => ({
+    items: await repos.looks.wears(verifiedUserId(user.id), params.id),
+  }),
+});
 
 // "Wear it" on a day: immutable, one per look per day; a repeat returns the same wear.
 export const POST = route({

@@ -2,9 +2,10 @@
 
 import type { UpdateConsentsInput } from '@robes/contracts';
 import { consent as copy } from '@robes/copy';
-import { ErrorText, Switch } from '@robes/ui';
+import { ErrorText } from '@robes/ui';
 import { useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
+import { SettingsGroup, SettingsToggleRow } from '@/components/settings/settings-chrome';
 
 type Change = UpdateConsentsInput['consents'];
 
@@ -25,21 +26,23 @@ export function PrivacyForm() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Switch
-        label={copy.analyticsLabel}
-        hint={copy.analyticsHint}
-        checked={analytics}
-        disabled={status === 'saving'}
-        onChange={(on) => save({ analytics: on })}
-      />
-      <Switch
-        label={copy.replayLabel}
-        hint={copy.replayHint}
-        checked={analytics && shown.replay === true}
-        disabled={status === 'saving' || !analytics}
-        onChange={(on) => save({ replay: on })}
-      />
+    <div className="flex flex-col gap-3">
+      <SettingsGroup>
+        <SettingsToggleRow
+          label={copy.analyticsLabel}
+          sub={copy.analyticsHint}
+          checked={analytics}
+          disabled={status === 'saving'}
+          onChange={(on) => save({ analytics: on })}
+        />
+        <SettingsToggleRow
+          label={copy.replayLabel}
+          sub={copy.replayHint}
+          checked={analytics && shown.replay === true}
+          disabled={status === 'saving' || !analytics}
+          onChange={(on) => save({ replay: on })}
+        />
+      </SettingsGroup>
       <p role="status" className="min-h-5 text-sm text-ink-muted">
         {status === 'saving' ? copy.saving : status === 'saved' ? copy.saved : ''}
       </p>

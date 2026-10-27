@@ -19,10 +19,9 @@ export const palette = {
   mauve: '#D4C8C4',
   // The warm end of the sign-in ground (legacy signup.html).
   blush: '#E8D5D2',
-  // Selected is warm, never black (Annie, 2026-10-21): this fill on this line, plus a check.
-  warm: '#F3EFE6',
+  // A selection is the warm fill with the warm edge, never white (Annie, 27 Oct — reverses 25 Oct).
+  warmFill: '#F3EFE6',
   warmLine: '#C9BCA6',
-  warmDark: '#38342E',
   warmLineDark: '#8A7F6C',
   success: '#3F6B4C',
   successLight: '#7FB08E',
@@ -39,6 +38,8 @@ export const semanticNames = [
   'bg',
   'surface',
   'surface-sunk',
+  // Beta's white cards: cards, fields, the prompt box, a selected chip or segment.
+  'surface-raised',
   'ink',
   'ink-muted',
   'ink-faint',
@@ -51,6 +52,8 @@ export const semanticNames = [
   'focus-ring',
   'hairline',
   'border-control',
+  // The fine edge of a labelled control (pill, + button, segment, prompt box): the label is the cue.
+  'rule-mid',
   'selected',
   'selected-line',
 ] as const;
@@ -61,6 +64,7 @@ export const light: Record<Semantic, ColorRef> = {
   bg: 'cream50',
   surface: 'cream100',
   'surface-sunk': 'cream200',
+  'surface-raised': 'white',
   ink: 'ink',
   'ink-muted': 'inkSoft',
   'ink-faint': 'inkFaint',
@@ -73,7 +77,8 @@ export const light: Record<Semantic, ColorRef> = {
   'focus-ring': 'ink',
   hairline: { base: 'ink', alpha: 0.075 },
   'border-control': { base: 'ink', alpha: 0.5 },
-  selected: 'warm',
+  'rule-mid': { base: 'ink', alpha: 0.12 },
+  selected: 'warmFill',
   'selected-line': 'warmLine',
 };
 
@@ -81,6 +86,7 @@ export const dark: Record<Semantic, ColorRef> = {
   bg: 'ink',
   surface: 'ink800',
   'surface-sunk': 'ink900',
+  'surface-raised': 'ink800',
   ink: 'cream50',
   'ink-muted': 'mutedDark',
   'ink-faint': 'faintDark',
@@ -93,7 +99,8 @@ export const dark: Record<Semantic, ColorRef> = {
   'focus-ring': 'cream50',
   hairline: { base: 'cream50', alpha: 0.1 },
   'border-control': { base: 'cream50', alpha: 0.4 },
-  selected: 'warmDark',
+  'rule-mid': { base: 'cream50', alpha: 0.16 },
+  selected: 'ink800',
   'selected-line': 'warmLineDark',
 };
 
@@ -107,6 +114,12 @@ export const pairs: Array<{ fg: Semantic; bg: Semantic; min: number }> = [
   { fg: 'ink-faint', bg: 'bg', min: 4.5 },
   { fg: 'ink-faint', bg: 'surface', min: 4.5 },
   { fg: 'ink-faint', bg: 'surface-sunk', min: 4.5 },
+  { fg: 'ink', bg: 'surface-raised', min: 4.5 },
+  { fg: 'ink-muted', bg: 'surface-raised', min: 4.5 },
+  { fg: 'ink-faint', bg: 'surface-raised', min: 4.5 },
+  { fg: 'accent-warm', bg: 'surface-raised', min: 4.5 },
+  { fg: 'accent-inspire', bg: 'surface-raised', min: 3 },
+  { fg: 'border-control', bg: 'surface-raised', min: 3 },
   { fg: 'accent-inspire', bg: 'bg', min: 3 },
   { fg: 'accent-inspire', bg: 'surface', min: 3 },
   { fg: 'accent-warm', bg: 'bg', min: 4.5 },

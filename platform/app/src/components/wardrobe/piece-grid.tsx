@@ -4,6 +4,7 @@ import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { ListPiecesInput, Piece } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import { COLOUR_FAMILIES } from '@robes/core/colour';
+import { WEAR_SEEDS } from '@robes/core/taxonomy';
 import { rankCategories, type WardrobeLayout } from '@robes/core/wardrobe';
 import {
   Button,
@@ -18,10 +19,10 @@ import {
 } from '@robes/ui';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { anyReading } from '@/lib/wardrobe';
-import { ShadeSwatch } from './colour-field';
+import { FamilyTile } from './colour-field';
 import { AddCard, CardRow, type CardStatus, CardTile, StarButton } from './piece-card';
 import { PieceImage } from './piece-image';
 import { useWardrobeLayout } from './use-layout';
@@ -35,11 +36,25 @@ const SKELETON_SLOTS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const SEASONS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type Season = (typeof SEASONS)[number];
 type Category = NonNullable<ListPiecesInput['category']>;
-type Refine = { season: Season | null; family: string | null };
+// Filter (legacy Refine): one season, what she wears it for, one colour family, one brand.
+type Refine = {
+  season: Season | null;
+  wear: string | null;
+  family: string | null;
+  brand: string | null;
+};
+const NO_REFINE: Refine = { season: null, wear: null, family: null, brand: null };
 const refineInput = (r: Refine) => ({
   ...(r.season ? { seasonBand: r.season } : {}),
+  ...(r.wear ? { wearFor: r.wear } : {}),
   ...(r.family ? { colourFamily: r.family } : {}),
+  ...(r.brand ? { brand: r.brand } : {}),
 });
+const isRefined = (r: Refine) => Object.values(r).some((v) => v !== null);
+// What she can pick to wear it for: the seeded words first, then any of her own.
+const wearChoices = (own: readonly string[]) => [
+  ...new Set([...WEAR_SEEDS.map((w) => w.label), ...own]),
+];
 
 function pieceStatus(piece: Piece): CardStatus {
   if (piece.status === 'reading') return { text: wardrobe.reading, warm: false };
@@ -57,10 +72,10 @@ export function PieceGrid() {
   const remove = useRemovePiece();
   const [layout, setLayout] = useWardrobeLayout();
   const [category, setCategory] = useState<Category | null>(null);
-  const [refine, setRefine] = useState<Refine>({ season: null, family: null });
+  const [refine, setRefine] = useState<Refine>(NO_REFINE);
   const [filterOpen, setFilterOpen] = useState(false);
   const filters = { ...(category ? { category } : {}), ...refineInput(refine) };
-  const refined = refine.season !== null || refine.family !== null;
+  const refined = isRefined(refine);
   const summary = useApi('wardrobe.summary');
   const query = useInfiniteQuery({
     // Under the wardrobe.list route key so optimistic edits and invalidations reach it.
@@ -151,7 +166,7 @@ export function PieceGrid() {
             variant="quiet"
             onClick={() => {
               setCategory(null);
-              setRefine({ season: null, family: null });
+              setRefine(NO_REFINE);
             }}
           >
             {wardrobe.filter.showEverything}
@@ -163,7 +178,7 @@ export function PieceGrid() {
           className={
             list
               ? 'grid grid-cols-1 gap-2 md:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] md:gap-x-3.5'
-              : 'grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+              : 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
           }
         >
           {pieces.map((piece, i) => (
@@ -235,6 +250,7 @@ function PieceCard({
       photo={
         <PieceImage
           piece={piece}
+          mat
           priority={priority}
           sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
         />
@@ -246,7 +262,8 @@ function PieceCard({
   );
 }
 
-// Filter (legacy Refine): the season and the colour family, counted before she applies them.
+// Filter (legacy Refine): Season · Wear it for · Colour · Brand, counted before she applies them.
+// The native twin is FilterSheet in mobile/src/features/wardrobe/WardrobeView.tsx.
 function FilterSheet({
   open,
   onOpenChange,
@@ -264,12 +281,15 @@ function FilterSheet({
   useEffect(() => {
     if (open) setPick(refine);
   }, [open, refine]);
+  const summary = useApi('wardrobe.summary', undefined, { enabled: open });
   const count = useApi(
     'wardrobe.list',
     { input: { limit: 1, ...(category ? { category } : {}), ...refineInput(pick) } },
     { enabled: open },
   );
-  const legend = 'mb-3 font-sans text-xs font-medium tracking-[0.18em] text-ink-muted uppercase';
+  const toggle = <K extends keyof Refine>(key: K, value: NonNullable<Refine[K]>) =>
+    setPick({ ...pick, [key]: pick[key] === value ? null : value });
+  const brands = summary.data?.brands ?? [];
   return (
     <Sheet
       title={wardrobe.filter.title}
@@ -286,46 +306,98 @@ function FilterSheet({
           >
             {count.data ? wardrobe.filter.show(count.data.total) : wardrobe.filter.title}
           </Button>
-          <Button
-            variant="quiet"
-            onClick={() => setPick({ season: null, family: null })}
-            disabled={pick.season === null && pick.family === null}
-          >
+          <Button variant="quiet" onClick={() => setPick(NO_REFINE)} disabled={!isRefined(pick)}>
             {wardrobe.filter.clear}
           </Button>
         </>
       }
     >
-      <fieldset className="flex flex-col gap-3">
-        <legend className={legend}>{wardrobe.filter.season}</legend>
-        <div className="flex flex-wrap gap-2">
-          {SEASONS.map((s) => (
-            <Pill
-              key={s}
-              selected={pick.season === s}
-              onClick={() => setPick({ ...pick, season: pick.season === s ? null : s })}
+      <div className="flex flex-col gap-5">
+        <FilterGroup legend={wardrobe.filter.season} first>
+          <div className="flex flex-wrap gap-2">
+            {SEASONS.map((s) => (
+              <Pill key={s} selected={pick.season === s} onClick={() => toggle('season', s)}>
+                {wardrobe.filter.seasons[s]}
+              </Pill>
+            ))}
+          </div>
+        </FilterGroup>
+        <FilterGroup legend={wardrobe.filter.wearFor}>
+          <div className="flex flex-wrap gap-2">
+            {wearChoices(summary.data?.wearFor ?? []).map((w) => (
+              <Pill key={w} selected={pick.wear === w} onClick={() => toggle('wear', w)}>
+                {w}
+              </Pill>
+            ))}
+          </div>
+        </FilterGroup>
+        <FilterGroup legend={wardrobe.filter.colour}>
+          {/* The family as one quartered tile with its name beneath (legacy .rb-ref-fam). */}
+          <div className="grid grid-cols-4 gap-x-2 gap-y-3 sm:grid-cols-6">
+            {COLOUR_FAMILIES.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={pick.family === f.id}
+                onClick={() => toggle('family', f.id)}
+                className={`flex min-h-11 flex-col items-center gap-1.5 rounded-crisp border px-1 py-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+                  pick.family === f.id ? 'border-selected-line bg-selected' : 'border-transparent'
+                }`}
+              >
+                <FamilyTile family={f} size={40} />
+                <Text
+                  as="span"
+                  size="caption"
+                  tone={pick.family === f.id ? 'default' : 'muted'}
+                  className={pick.family === f.id ? 'font-medium' : undefined}
+                >
+                  {f.name}
+                </Text>
+              </button>
+            ))}
+          </div>
+        </FilterGroup>
+        {brands.length ? (
+          <FilterGroup legend={wardrobe.filter.brand}>
+            <select
+              aria-label={wardrobe.filter.brand}
+              value={pick.brand ?? ''}
+              onChange={(e) => setPick({ ...pick, brand: e.target.value || null })}
+              className="min-h-11 max-w-xs rounded-crisp border border-hairline bg-surface-raised px-3 text-ink text-sm focus-visible:outline-2 focus-visible:outline-focus-ring"
             >
-              {wardrobe.filter.seasons[s]}
-            </Pill>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset className="mt-6 flex flex-col gap-3">
-        <legend className={legend}>{wardrobe.filter.colour}</legend>
-        <div className="flex flex-wrap gap-2">
-          {COLOUR_FAMILIES.map((f) => (
-            <Pill
-              key={f.id}
-              selected={pick.family === f.id}
-              onClick={() => setPick({ ...pick, family: pick.family === f.id ? null : f.id })}
-            >
-              <ShadeSwatch shade={f.tile[0] ?? null} size={16} />
-              {f.name}
-            </Pill>
-          ))}
-        </div>
-      </fieldset>
+              <option value="">{wardrobe.filter.allBrands}</option>
+              {brands.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </FilterGroup>
+        ) : null}
+      </div>
     </Sheet>
+  );
+}
+
+// One group of the Filter: its eyebrow, then its choices; a hairline above every group but the first.
+function FilterGroup({
+  legend,
+  first = false,
+  children,
+}: {
+  legend: string;
+  first?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={first ? undefined : 'border-hairline border-t pt-5'}>
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-3 font-sans text-ink-muted text-xs font-medium tracking-[0.18em] uppercase">
+          {legend}
+        </legend>
+        {children}
+      </fieldset>
+    </div>
   );
 }
 

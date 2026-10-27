@@ -12,12 +12,12 @@ All versions below come from `npm view <pkg> version` / `dist-tags` / `peerDepen
 | typescript | 7.0.2 (6.0.3 on the 6.x line) | TS 7 is the native (Go) compiler, released July 2026. Next, Expo and Vitest don't declare a TS peer. Pin **6.0.3** until every tool (Storybook, typed ESLint, CDK's jsii-free TS path) is confirmed on 7. |
 | next | 16.3.6 | Peer `react ^18.2 \|\| ^19`, engines `node >=20.9`. In Next 16, `middleware.ts` became `proxy.ts` and Turbopack is the default bundler. App Router uses the React canary vendored inside Next, so the app-level `react` pin only affects the Pages Router and tooling. |
 | react / react-dom (web) | 19.3.0 | Fine for Next 16. |
-| react / react-dom (native) | **19.2.3 (pinned by Expo SDK 57)** | See the matrix. The two apps will be on different React minors. |
-| expo | 57.0.24 (SDK 57) | SDK 57 released 2026-06-30. Pins `react-native 0.86.3`, `react 19.2.3`, `react-native-web ~0.21.0`, `react-native-reanimated 4.5.1`, `react-native-worklets 0.10.1`, `react-native-screens ~4.26.0`, `react-native-safe-area-context ~5.7.0` (from `expo/bundledNativeModules.json`). The New Architecture has been mandatory since SDK 55. https://expo.dev/changelog/sdk-57 |
-| react-native | 0.87.1 on npm; **use 0.86.3** | RN 0.87 is not yet supported by any Expo SDK. RN 0.87 peers need `react ^19.2.3` and `node ^22.13 \|\| ^24.3`. |
-| expo-router | 57.0.22 | Versioned with the SDK. Always install with `npx expo install`. |
-| expo-secure-store | 57.0.4 | Versioned with the SDK. |
-| expo-image | 57.0.5 | Versioned with the SDK. |
+| react / react-dom (native) | **19.3.0 (pinned by Expo SDK 58)** | Same minor as web since the SDK 58 upgrade (2026-10-24). |
+| expo | 58.0.17 (SDK 58) | SDK 58 released 2026-09-29; adopted 2026-10-24 when the App Store Expo Go moved to 58 (iOS offers no older Expo Go). Pins `react-native 0.88.0`, `react 19.3.0`, `react-native-web ~0.21.4`, `react-native-reanimated 4.7.1`, `react-native-worklets 0.13.0`, `react-native-gesture-handler ~3.3.0`, `react-native-screens ~4.30.0`, `react-native-safe-area-context ~5.10.1` (from `expo/bundledNativeModules.json`). 58.0.19 was under pnpm's release-age window on the day, so 58.0.17 rather than release-age exclusions. https://expo.dev/changelog/sdk-58 |
+| react-native | **0.88.0** (SDK 58) | RN 0.88 types: refs use `TextInputInstance` / `ScrollViewInstance`, and FlatList slots take `undefined`, not `null`. |
+| expo-router | 58.0.25 | Versioned with the SDK. Always install with `pnpm exec expo install`. `renderRouter` (testing-library) is async from 58. |
+| expo-secure-store | 58.0.2 | Versioned with the SDK. |
+| expo-image | 58.0.16 | Versioned with the SDK. |
 | tailwindcss / @tailwindcss/postcss | 4.3.3 | v4 is stable (4.0 shipped 2025-01-21) and uses CSS-first `@theme` config. v3 remains only as the `v3-lts` tag (3.4.19). |
 | nativewind | 4.2.7 stable (**Tailwind v3 only**); 5.0.0-rc.0 (Tailwind v4) | v5 RC (2026-09-13) peers are `tailwindcss >4.1.11` and `react-native-css 3.1.0-rc.0`. It targets Expo SDK 57 and needs exact engine pins. A ~2-week bake is planned before promotion to `latest`. Known issue: Android animation cancellation (Reanimated #10507). https://github.com/nativewind/nativewind/discussions/1818 |
 | **uniwind** | **1.12.0** | Stable, Tailwind v4 native, MIT (free tier). Peers `tailwindcss >=4`, `react >=19`, `react-native >=0.81`. A paid Pro tier adds a C++ engine (zero re-renders, Reanimated className animations) and requires a dev build. https://docs.uniwind.dev/pro-version.md |
@@ -57,7 +57,7 @@ All versions below come from `npm view <pkg> version` / `dist-tags` / `peerDepen
 | Layer | Pick | Pinned to | Why |
 |---|---|---|---|
 | Web | Next 16.3.x + React 19.3 | Node 24, Tailwind 4.3 | Current major. `proxy.ts` replaces middleware. |
-| Native | **Expo SDK 57** | RN 0.86.3, React **19.2.3**, Reanimated 4.5.1 | Don't install RN 0.87 or React 19.3 in `apps/mobile`. Use `npx expo install` for every native dependency. |
+| Native | **Expo SDK 58** | RN 0.88.0, React **19.3.0**, Reanimated 4.7.1 | Use `pnpm exec expo install` for every native dependency; never pin a React Native or React version the SDK doesn't bundle. |
 | React split | Allow different React minors per app | pnpm catalog or per-app pins | Shared packages (`ui-tokens`, `schemas`, `api-client`) declare `react` as a **peerDependency `^19.2`** and never as a dependency, to avoid duplicate-React errors in Metro. |
 | Native styling | **Uniwind 1.12** (free/MIT) | Tailwind 4.3 | Stable today on Tailwind v4, with the same `@theme` CSS vocabulary as web. NativeWind 4.x is stuck on Tailwind v3, and NativeWind 5 is still RC. Revisit NativeWind 5 once it hits `latest` (API-compatible className model, easy swap). Unistyles is excellent but not className/Tailwind-based, so it can't share the web's utility vocabulary. |
 | Auth (web) | `@supabase/ssr` 0.12.x + supabase-js 2.117 | exact pin on ssr | In `proxy.ts`/server code use **`supabase.auth.getClaims()`**. Never trust `getSession()` server-side. Use `getUser()` only when you need a fresh user record from the Auth server. |

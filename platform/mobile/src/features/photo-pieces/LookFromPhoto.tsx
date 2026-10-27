@@ -1,6 +1,6 @@
-import { queryKeys, useApiClient } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { LookAnswer, Piece, ReadPiece } from '@robes/contracts';
-import { looks as looksCopy, photoPieces, shell } from '@robes/copy';
+import { lookbook, photoPieces, shell } from '@robes/copy';
 import { sheetL1For } from '@robes/core';
 import type { LookCardState } from '@robes/core/photo-pieces';
 import {
@@ -63,6 +63,7 @@ function Thumb({
 // Use case 2b on native: every piece in her photo confirmed (hers, new, or left out) before Save.
 export function LookFromPhoto() {
   const read = usePhotoRead('look_photo');
+  const model = useApi('me.model.get');
   const api = useApiClient();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -155,8 +156,23 @@ export function LookFromPhoto() {
   };
   return (
     <>
-      <ScrollView contentContainerClassName="gap-5 px-6 pb-12">
-        {read.photo ? (
+      {/* The read happens INSIDE the draft (legacy 2b): the same masthead, the same canvas — her
+          model stands in it while Robes reads, then her photograph takes its place with a dot per
+          piece — and one bar at the foot. It is never a screen of its own. */}
+      <ScrollView contentContainerClassName="gap-5 px-6 pb-32">
+        <View className="items-center gap-2">
+          <Eyebrow>{lookbook.eyebrow.draft}</Eyebrow>
+          <Field
+            variant="underline"
+            label={lookbook.name.label}
+            placeholder={lookbook.figure.untitled}
+            value={name}
+            onChangeText={setName}
+            maxLength={120}
+          />
+        </View>
+        <Eyebrow>{reading ? copy.headReading : copy.head(onRack.length)}</Eyebrow>
+        {read.photo && !reading ? (
           <PhotoFrame
             photo={read.photo}
             dots
@@ -166,10 +182,14 @@ export function LookFromPhoto() {
               label: c.piece.label,
             }))}
           />
-        ) : null}
-        <Eyebrow>{reading ? copy.reading.eyebrow : copy.head(onRack.length)}</Eyebrow>
+        ) : model.data?.cell.imageUrl ? (
+          <Image source={model.data.cell.imageUrl} alt={lookbook.figure.alt} aspect="4:5" />
+        ) : (
+          <Skeleton width="100%" height={320} />
+        )}
         {reading ? (
           <View className="gap-3" accessibilityState={{ busy: true }}>
+            <Eyebrow>{copy.reading.eyebrow}</Eyebrow>
             <Heading size="md">{`${copy.reading.title} ${copy.reading.aside}`}</Heading>
             <Skeleton width="100%" height={80} />
           </View>
@@ -257,36 +277,38 @@ export function LookFromPhoto() {
         })}
         {reading ? null : (
           <>
-            <Field
-              label={looksCopy.composer.nameLabel}
-              placeholder={looksCopy.composer.namePlaceholder}
-              value={name}
-              onChangeText={setName}
-              maxLength={120}
-            />
             <View className="flex-row items-center justify-between gap-3">
               <Text>{copy.wearToday}</Text>
               <Switch value={wear} onValueChange={setWear} accessibilityLabel={copy.wearToday} />
             </View>
-            {pending.length ? (
-              <Text size="small" tone="muted">
-                {copy.gate(pending.length)}
-              </Text>
-            ) : null}
             {error ? <ErrorText>{error}</ErrorText> : null}
-            <PrimaryScope>
-              <Button
-                disabled={pending.length > 0}
-                loading={saving}
-                loadingLabel={copy.saving}
-                onPress={() => void save()}
-              >
-                {copy.save}
-              </Button>
-            </PrimaryScope>
           </>
         )}
       </ScrollView>
+      {reading ? null : (
+        <View className="absolute inset-x-0 bottom-0 flex-row items-center gap-3 border-hairline border-t bg-bg px-4 pt-3 pb-8">
+          <Button variant="quiet" onPress={() => router.back()}>
+            {lookbook.bar.discard}
+          </Button>
+          {pending.length ? (
+            <Text size="small" tone="muted" className="flex-1 text-center">
+              {copy.gate(pending.length)}
+            </Text>
+          ) : (
+            <View className="flex-1" />
+          )}
+          <PrimaryScope>
+            <Button
+              disabled={pending.length > 0}
+              loading={saving}
+              loadingLabel={copy.saving}
+              onPress={() => void save()}
+            >
+              {copy.save}
+            </Button>
+          </PrimaryScope>
+        </View>
+      )}
       <Sheet
         open={!!findCard}
         onClose={closeFind}

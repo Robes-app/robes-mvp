@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { seriousViolations } from '../test/axe';
-import { Chip, Pill } from './pill';
+import { Chip, Pill, pillClasses } from './pill';
 
 function Toggle() {
   const [on, setOn] = useState(false);
@@ -26,6 +26,20 @@ describe('Pill and Chip', () => {
     pill.focus();
     await userEvent.keyboard(' ');
     expect(pill).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('lends its anatomy to the controls that are not toggles', () => {
+    // A menu trigger or a disclosure wears the pill without claiming aria-pressed.
+    render(
+      <button type="button" aria-haspopup="menu" className={pillClasses({ selected: true })}>
+        Newest
+      </button>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Newest' });
+    expect(trigger).not.toHaveAttribute('aria-pressed');
+    expect(trigger).toHaveClass('rounded-pill', 'bg-selected', 'border-selected-line');
+    expect(pillClasses()).toMatch(/\bborder-border-control\b/);
+    expect(pillClasses()).not.toMatch(/\bbg-selected\b/);
   });
 
   it('has no serious accessibility violations', async () => {

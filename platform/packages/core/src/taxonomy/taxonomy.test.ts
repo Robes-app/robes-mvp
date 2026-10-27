@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   defaultTagsFor,
+  itemTypesOf,
   resolveTaxonomy,
+  sheetCategories,
+  subcategoriesOf,
   TAXONOMY_GROUPS,
   tagDefaultRows,
   taxonomyPromptBlock,
@@ -65,5 +68,23 @@ describe('tag defaults', () => {
     expect(defaultTagsFor('Outerwear', 'Coats')?.band).toBe('autumn_winter');
     expect(defaultTagsFor('Swimwear')).toEqual({ wear: ['travel'], band: 'spring_summer' });
     expect(defaultTagsFor('Other')).toBeNull();
+  });
+});
+
+describe('the picker levels', () => {
+  it('walks Category › Subcategory › Item type, in the sheet order', () => {
+    const cats = sheetCategories();
+    expect(cats[0]).toBe('Tops');
+    expect(new Set(cats).size).toBe(cats.length);
+    const subs = subcategoriesOf('Tops');
+    expect(subs).toContain('T-shirts & tees');
+    expect(itemTypesOf('T-shirts & tees')).toContain('Crew neck t-shirt');
+    // A pick resolves to the legacy category the column still carries.
+    expect(resolveTaxonomy('T-shirts & tees', 'Crew neck t-shirt')).toEqual({
+      category: 'Tops',
+      categoryL2: 'T-shirts & tees',
+      categoryL3: 'Crew neck t-shirt',
+    });
+    expect(subcategoriesOf('Nothing')).toEqual([]);
   });
 });

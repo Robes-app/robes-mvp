@@ -10,3 +10,15 @@ jest.mock('expo-notifications', () => ({
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
 }));
 jest.mock('expo-device', () => ({ isDevice: false }));
+
+// The clipboard is a native module: Paste and tap-to-copy read and write this stand-in.
+jest.mock('expo-clipboard', () => {
+  let text = '';
+  return {
+    getStringAsync: jest.fn(async () => text),
+    setStringAsync: jest.fn(async (next: string) => {
+      text = next;
+      return true;
+    }),
+  };
+});

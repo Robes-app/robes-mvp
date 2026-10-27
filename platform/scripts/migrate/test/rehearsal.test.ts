@@ -133,6 +133,31 @@ describe.skipIf(!legacySchemaPresent())(
       });
     });
 
+    it('carries the material (migration 29) into the material column', async () => {
+      const mat = async (table: string) =>
+        withClient(
+          targetUrl,
+          async (c) =>
+            (
+              await c.query(
+                `select label, material from app.${table}
+                 where user_id = $1 order by created_at`,
+                [NIALL],
+              )
+            ).rows,
+        );
+      // A known id (trimmed, lower-cased) rides along; an unknown one is dropped.
+      expect(await mat('wardrobe_items')).toEqual([
+        { label: 'Straight jeans', material: 'denim' },
+        { label: 'Camel coat', material: 'wool' },
+        { label: 'Blue shirt', material: null },
+      ]);
+      expect(await mat('wishlist_items')).toEqual([
+        { label: 'Trench coat', material: 'cotton' },
+        { label: 'Scarf', material: null },
+      ]);
+    });
+
     it('carries the twin (migration 26): bust and waist in range, the image as an asset, no key', async () => {
       expect(
         await one(`select bust_band, bust_cup, bust_cm, waist_cm from app.profiles where id = $1`, [

@@ -2,7 +2,7 @@
 
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
-import { anchorName, noteShort } from '@robes/core/looks';
+import { anchorName, lookFacts, noteShort } from '@robes/core/looks';
 import { Button, Dialog, Eyebrow, Field, Heading, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -78,9 +78,12 @@ export function Rack({
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
   return (
     <section aria-labelledby="look-rack" className="flex flex-col gap-3">
-      <Heading level={2} size="sm" id="look-rack">
+      <h2
+        id="look-rack"
+        className="font-sans text-[11px] text-ink-faint uppercase tracking-[0.22em]"
+      >
         {copy.rack.title(editor.rack.rows.length)}
-      </Heading>
+      </h2>
       {editor.rack.rows.length === 0 ? (
         editable ? (
           <div className="flex flex-col gap-1 rounded-soft border border-dashed border-border-control p-4">
@@ -155,7 +158,7 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
   const hasAny = editor.rack.rows.length > 0 || look.image !== null;
   const typed = name.trim() && name.trim() !== look.name ? name.trim() : undefined;
   return (
-    <article className="grid gap-8 pb-28 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <article className="grid grid-cols-[minmax(0,1fr)] gap-8 pb-40 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       {look.image || look.setId ? (
         <div className="relative">
           <LookPicture look={look} />
@@ -242,7 +245,7 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
         }
       />
       <div
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-bg px-4 py-3 md:sticky md:col-span-2 md:rounded-soft md:border"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-bg/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:sticky md:bottom-0 md:col-span-2 md:rounded-soft md:border"
         data-testid="look-bar"
       >
         <div className="mx-auto flex max-w-3xl items-center justify-end gap-3">
@@ -293,41 +296,44 @@ export function SavedRack({ look, editor }: { look: Look; editor: Editor }) {
           onAnswer={editor.answer}
         />
       ) : null}
+      {/* The look's one bar, held at the foot: Edit look, or Done and Update while she works.
+          Fixed above the tab bar on a phone, at the foot of the window on the web. */}
       <div
-        className="flex items-center justify-end gap-3 border-t border-hairline pt-4"
+        // The look is a pushed view on a phone, so nothing sits under the bar.
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
         data-testid="look-bar"
       >
-        {editor.editing ? (
-          <>
-            <Button variant="quiet" onClick={editor.discard}>
-              {editor.dirty ? copy.bar.discard : copy.bar.done}
-            </Button>
-            <Button
-              variant="primary"
-              disabled={!editor.dirty}
-              loading={editor.saving}
-              onClick={editor.update}
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-end gap-3 px-4 py-3">
+          {editor.editing ? (
+            <>
+              <Button variant="quiet" onClick={editor.discard}>
+                {editor.dirty ? copy.bar.discard : copy.bar.done}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={!editor.dirty}
+                loading={editor.saving}
+                onClick={editor.update}
+              >
+                {copy.bar.update}
+              </Button>
+            </>
+          ) : (
+            // Beta's size and case: a small hairline pill in sentence case (its hit area stays 44).
+            <button
+              type="button"
+              onClick={editor.startEditing}
+              className="relative min-h-9 rounded-pill border border-border-control px-4 font-sans text-ink text-sm after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
-              {copy.bar.update}
-            </Button>
-          </>
-        ) : (
-          <Button variant="secondary" onClick={editor.startEditing}>
-            {look.pieces.length || look.proposals.length ? copy.bar.editLook : copy.bar.addPieces}
-          </Button>
-        )}
+              {look.pieces.length || look.proposals.length ? copy.bar.editLook : copy.bar.addPieces}
+            </button>
+          )}
+        </div>
       </div>
     </>
   );
 }
 
 export function savedMeta(look: Look, rows: number): string {
-  const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
-  return [
-    copy.meta.pieces(rows),
-    look.timesWorn ? copy.meta.wears(look.timesWorn) : copy.meta.notYetWorn,
-    around ? copy.meta.around(around) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  return copy.meta.saved(lookFacts(look, rows));
 }

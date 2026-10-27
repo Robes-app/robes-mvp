@@ -31,6 +31,9 @@ export const home = {
   weather: (city: string | null, tempRange: string, condition: string): string =>
     [city, tempRange, condition].filter(Boolean).join(' · '),
   weatherLabel: 'Today’s weather',
+  // The meta line under the greeting (beta's H0): the weekday, the city, the day's range.
+  meta: (weekday: string, city: string | null, tempRange: string | null): string =>
+    [weekday, city, tempRange].filter(Boolean).join(' · '),
   doorDay: (day: string): string => `Dress ${day}…`,
   later: 'Later',
   map: {
@@ -104,8 +107,6 @@ export const home = {
     receiptReady: 'ready to check.',
     review: 'Review ›',
     noticed: 'Observations',
-    keep: 'That’s right ›',
-    notMe: 'Not quite',
   },
   // H3: the strip selects a day; its card sits beneath.
   week: {
@@ -126,27 +127,32 @@ export const home = {
   saved: 'Saved looks',
   suggested: 'Suggested',
   viewAll: 'View all',
+  viewAllMore: 'View all ›',
+  lookEyebrow: 'Look',
   aroundYour: (piece: string): string => `Around your ${piece}`,
   fromPrompt: 'From your prompt',
-  // The + inside the box: a piece by photograph or from the wardrobe, then Build or Three ways.
+  // The + inside the box (legacy HomePrompt 2026-10-15): a piece by photograph or from the
+  // wardrobe sits inside the box above her words, and Send is three looks around it.
   plus: {
     label: 'Add a piece',
     camera: 'Take a picture',
-    cameraHint: 'Lay the piece flat, in good light.',
+    cameraHint: 'Lay it flat, in good light.',
     upload: 'Upload a photo',
-    wardrobe: 'From wardrobe',
+    uploadHint: 'A flat lay, or you wearing it.',
+    wardrobe: 'From your wardrobe',
+    wardrobeHint: 'Anything already filed.',
     remove: 'Remove piece',
-    styleThis: 'Style this piece',
-    build: { title: 'Build a look', line: 'Start from this piece' },
-    three: { title: 'Style it three ways', line: 'Robes proposes three' },
-    justTaken: 'Just taken · Robes will file it',
+    reading: 'Reading the piece…',
+    readingSub: 'Robes will file it to your wardrobe',
+    // "Style these jeans for…" / "Style this jumper for…"
+    styleFor: (noun: { word: string; plural: boolean }): string =>
+      `Style ${noun.plural ? 'these' : 'this'} ${noun.word} for…`,
     inWardrobe: (category: string): string => `${category} · in your wardrobe`,
     filedTo: (category: string): string => `${category} · filed to your wardrobe`,
     notFiled: 'Not filed yet — the looks still run',
     nothingFound: 'Robes couldn’t see a piece to file — the looks still run',
     filing: 'Filing it to your wardrobe…',
     placeholder: 'Where to? Optional',
-    pickMode: 'Pick how Robes styles it.',
     emptyWardrobe: 'Nothing catalogued yet — take a picture of the piece instead',
     pickTitle: 'From your wardrobe',
     newPiece: 'New piece',

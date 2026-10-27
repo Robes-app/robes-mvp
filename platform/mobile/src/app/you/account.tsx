@@ -4,7 +4,7 @@ import { Account } from '@/features/you/Account';
 
 export default function AccountScreen() {
   return (
-    <StackScreen title={you.account.title}>
+    <StackScreen settings title={you.account.title}>
       <Account />
     </StackScreen>
   );

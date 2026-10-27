@@ -4,6 +4,7 @@ export const mockRouter = {
   replace: jest.fn(),
   back: jest.fn(),
   canGoBack: jest.fn(() => true),
+  setParams: jest.fn(),
 };
 
 // Search params a test can change between renders (a door naming a tab, say).
@@ -13,4 +14,6 @@ export const mockRouterModule = {
   useRouter: () => mockRouter,
   useLocalSearchParams: () => ({ ...mockParams }),
   Redirect: () => null,
+  // A screen in a test is always the focused one: the effect runs once it mounts.
+  useFocusEffect: (effect: () => void) => require('react').useEffect(effect, [effect]),
 };

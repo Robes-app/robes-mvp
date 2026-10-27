@@ -26,6 +26,16 @@ const held = (user: UserId, label = 'Wool coat') =>
     item: item(label),
   });
 
+const receipt = (user: UserId, labels: string[]) =>
+  inboxIntake.fromReceipt(user, {
+    providerId: `ses:${randomUUID()}`,
+    retailer: 'Sézane',
+    orderRef: null,
+    subject: 'Your order',
+    fromEmail: 'orders@sezane.test',
+    items: labels.map((l) => item(l)),
+  });
+
 beforeAll(async () => {
   niall = await createTestUser(db);
   bea = await createTestUser(db);
@@ -37,13 +47,39 @@ afterAll(async () => {
 
 describe('inbox repo', () => {
   it('keeps each person’s inbox to themselves', async () => {
-    const id = await held(niall);
+    const { id } = await receipt(niall, ['Wool coat']);
     expect((await inbox.listHeld(niall)).map((r) => r.id)).toContain(id);
-    expect(await inbox.countHeld(niall)).toBeGreaterThan(0);
+    expect(await inbox.piecesWaiting(niall)).toBeGreaterThan(0);
     expect(await inbox.get(bea, id)).toBeUndefined();
+    expect(await inbox.getHeld(bea, id)).toBeUndefined();
     expect(await inbox.listHeld(bea)).toEqual([]);
+    expect(await inbox.piecesWaiting(bea)).toBe(0);
     expect(await inbox.decide(bea, id, 'wardrobe')).toBeUndefined();
     expect((await inbox.get(niall, id))?.status).toBe('held');
+  });
+
+  it('lists and counts receipts only: a pasted link waits for Review, not the Inbox', async () => {
+    const dana = await createTestUser(db);
+    try {
+      const link = await held(dana, 'Silk slip dress');
+      expect(await inbox.listHeld(dana)).toEqual([]);
+      expect(await inbox.piecesWaiting(dana)).toBe(0);
+      // Review still opens the link by its id, until it is decided.
+      expect((await inbox.getHeld(dana, link))?.source).toBe('link');
+      expect(await inbox.getHeld(niall, link)).toBeUndefined();
+
+      const { id } = await receipt(dana, ['Camel coat', 'Silk scarf', 'Loafers']);
+      expect((await inbox.listHeld(dana)).map((r) => r.id)).toEqual([id]);
+      // The count is the pieces she will tick through, not the receipts.
+      expect(await inbox.piecesWaiting(dana)).toBe(3);
+
+      await inbox.decide(dana, link, 'wishlist');
+      expect(await inbox.getHeld(dana, link)).toBeUndefined();
+      await inbox.decide(dana, id, 'dismiss');
+      expect(await inbox.piecesWaiting(dana)).toBe(0);
+    } finally {
+      await deleteTestUsers(db, dana);
+    }
   });
 
   it('files an item as a piece once, however often it is asked', async () => {

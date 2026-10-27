@@ -4,7 +4,7 @@ import { ForwardReceipts } from '@/features/you/ForwardReceipts';
 
 export default function ReceiptsScreen() {
   return (
-    <StackScreen title={you.receipts.title}>
+    <StackScreen settings title={you.receipts.title}>
       <ForwardReceipts />
     </StackScreen>
   );

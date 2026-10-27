@@ -37,6 +37,8 @@ export const JobOutput = z.object({
   // wardrobe_pieces: the photo read and every piece found in it
   assetId: z.uuid().optional(),
   readPieces: z.array(ReadPiece).optional(),
+  // link_import: the Inbox entry the page became (Review opens on it)
+  inboxId: z.uuid().optional(),
   // daily
   dailyLookId: z.uuid().optional(),
   // travel

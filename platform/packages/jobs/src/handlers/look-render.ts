@@ -183,7 +183,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
     const model = deps.model;
     if (!model) throw new JobError('unsupported');
     const found = await model.look(ctx.userId, lookId);
-    if (!found || !found.cellId) throw new JobError('not_found');
+    if (!found) throw new JobError('not_found');
     // She changed her model or the rack since asking: this render is no longer wanted.
     if (found.look.renderKey !== renderKey) throw new JobError('superseded');
     // Her twin when the render was asked for it: IMAGE 1 the twin, IMAGE 2 her close-up, and one
@@ -212,8 +212,12 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         twinLine = { face: face !== null, figure: twinFigureLine(twinSpec(inputs, face !== null)) };
       }
     } else {
-      const cell = await model.cell(cellKey(found.cellId));
-      const parsedCell = parseCellId(found.cellId);
+      // The key names the cell the render stands on (her filed cell, or a generic Robes model
+      // while she has none): `{cellId}@{style}:{rack}`.
+      const key = renderKey.slice(0, renderKey.lastIndexOf(':'));
+      const cellId = key.slice(0, key.lastIndexOf('@'));
+      const cell = cellKey(cellId) === key ? await model.cell(key) : undefined;
+      const parsedCell = parseCellId(cellId);
       const cellImage =
         cell?.status === 'ready' && cell.bucketKey
           ? await deps.storage.getObject(cell.bucketKey)

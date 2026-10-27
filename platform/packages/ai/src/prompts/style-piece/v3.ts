@@ -231,7 +231,12 @@ export interface Refine {
 }
 
 export type Ask =
-  | { mode: 'piece'; anchor: { type: 'piece'; label: string } | { type: 'text'; text: string } }
+  | {
+      mode: 'piece';
+      anchor:
+        | { type: 'piece'; label: string; wearFor?: readonly string[] }
+        | { type: 'text'; text: string };
+    }
   | { mode: 'dress-me'; prompt: string; day: DayContext | null };
 
 function refineUser(refine: Refine): string {
@@ -260,7 +265,17 @@ export function buildUser(ask: Ask, opts: { hasPhoto: boolean; refine?: Refine |
     const line = dayLine(ask.day);
     head = `${line ? `${line}\n\n` : ''}Her brief for ${ask.day?.dayLabel?.slice(0, 40) || 'today'}: ${fenceUserText(ask.prompt, 300)}`;
   } else if (ask.anchor.type === 'piece') {
-    head = `The key piece: ${fenceUserText(ask.anchor.label, 120)}${opts.hasPhoto ? ' A photo of it is attached.' : ''}`;
+    // What she wears it for is a read on the piece's register, not a rule: a work coat and a
+    // weekend one are styled differently even when they are the same coat.
+    // Her own words can be among the tags, so the list is fenced once, as one piece of her text.
+    const wears = (ask.anchor.wearFor ?? [])
+      .slice(0, 6)
+      .map((w) => w.slice(0, 40))
+      .join(', ');
+    const worn = wears
+      ? ` She files it under ${fenceUserText(wears, 260)} — read that as its register, not a limit.`
+      : '';
+    head = `The key piece: ${fenceUserText(ask.anchor.label, 120)}${opts.hasPhoto ? ' A photo of it is attached.' : ''}${worn}`;
   } else {
     head = `The key piece, in her words: ${fenceUserText(ask.anchor.text, 300)}`;
   }

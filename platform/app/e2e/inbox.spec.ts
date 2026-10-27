@@ -24,7 +24,7 @@ test.afterAll(() => {
 });
 test.beforeEach(async ({ context }) => isolateClientIp(context));
 
-test('a pasted link lands in the Inbox and files into the wardrobe once', async ({
+test('a pasted link waits for Review, never the Inbox, and files into the wardrobe once', async ({
   page,
   browser,
 }) => {
@@ -35,16 +35,27 @@ test('a pasted link lands in the Inbox and files into the wardrobe once', async 
   });
   expect(started.status()).toBe(202);
   const { jobId } = await started.json();
+  let job: { status: string; output: { inboxId?: string } } = { status: '', output: {} };
   await expect
-    .poll(async () => (await (await api.get(`/api/v1/jobs/${jobId}`)).json()).status, {
-      timeout: 20_000,
-    })
+    .poll(
+      async () => {
+        job = await (await api.get(`/api/v1/jobs/${jobId}`)).json();
+        return job.status;
+      },
+      { timeout: 20_000 },
+    )
     .toBe('succeeded');
+  const inboxId = job.output.inboxId;
+  expect(inboxId).toBeTruthy();
 
+  // Links are not receipts: nothing in the Inbox, nothing counted on Today (Add Piece 04b).
   const inbox = await (await api.get('/api/v1/inbox')).json();
-  expect(inbox.count).toBe(1);
-  const [entry] = inbox.items;
-  expect(entry).toMatchObject({ source: 'link', retailer: 'Fixture Shop' });
+  expect(inbox).toEqual({ items: [], count: 0 });
+  expect((await (await api.get('/api/v1/today')).json()).inboxCount).toBe(0);
+
+  // Review opens the entry by its id.
+  const entry = await (await api.get(`/api/v1/inbox/${inboxId}`)).json();
+  expect(entry).toMatchObject({ id: inboxId, source: 'link', retailer: 'Fixture Shop' });
   expect(entry.items[0]).toMatchObject({
     label: 'Double-faced wool coat',
     brand: 'Toteme',
@@ -52,31 +63,31 @@ test('a pasted link lands in the Inbox and files into the wardrobe once', async 
     currency: 'EUR',
   });
   expect(JSON.stringify(entry)).not.toContain('imageUrl');
-  expect((await (await api.get('/api/v1/today')).json()).inboxCount).toBe(1);
 
   // Someone else can't see or decide it.
   const other = await browser.newContext();
   await isolateClientIp(other);
   const otherPage = await other.newPage();
   await signIn(otherPage);
-  expect((await (await otherPage.request.get('/api/v1/inbox')).json()).items).toEqual([]);
-  const stolen = await otherPage.request.post(`/api/v1/inbox/${entry.id}/decide`, {
+  expect((await otherPage.request.get(`/api/v1/inbox/${inboxId}`)).status()).toBe(404);
+  const stolen = await otherPage.request.post(`/api/v1/inbox/${inboxId}/decide`, {
     data: { action: 'wardrobe' },
   });
   expect(stolen.status()).toBe(404);
   await other.close();
 
   const decided = await (
-    await api.post(`/api/v1/inbox/${entry.id}/decide`, { data: { action: 'wardrobe' } })
+    await api.post(`/api/v1/inbox/${inboxId}/decide`, { data: { action: 'wardrobe' } })
   ).json();
   expect(decided).toMatchObject({ status: 'filed', filedTo: 'wardrobe' });
   const again = await (
-    await api.post(`/api/v1/inbox/${entry.id}/decide`, { data: { action: 'wishlist' } })
+    await api.post(`/api/v1/inbox/${inboxId}/decide`, { data: { action: 'wishlist' } })
   ).json();
   expect(again.filedIds).toEqual(decided.filedIds);
   const piece = await (await api.get(`/api/v1/wardrobe/items/${decided.filedIds[0]}`)).json();
   expect(piece).toMatchObject({ label: 'Double-faced wool coat', brand: 'Toteme' });
-  expect((await (await api.get('/api/v1/inbox')).json()).count).toBe(0);
+  // Decided, it no longer opens.
+  expect((await api.get(`/api/v1/inbox/${inboxId}`)).status()).toBe(404);
 });
 
 test('non-web links are refused before anything is fetched', async ({ page }) => {

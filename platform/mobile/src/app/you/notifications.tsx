@@ -4,7 +4,7 @@ import { Notifications } from '@/features/you/Notifications';
 
 export default function NotificationsScreen() {
   return (
-    <StackScreen title={you.notifications.title}>
+    <StackScreen settings title={you.notifications.title}>
       <Notifications />
     </StackScreen>
   );

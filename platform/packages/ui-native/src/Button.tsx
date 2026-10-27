@@ -40,6 +40,10 @@ const container: Record<ButtonVariant, string> = {
   quiet: 'px-1',
 };
 
+// The one primary (redline "one primary button spec"): an ink pill, 48pt, at 30% ink while it
+// waits on her.
+const PRIMARY_HEIGHT = 48;
+
 const label: Record<ButtonVariant, string> = {
   primary: 'text-bg',
   secondary: 'text-ink',
@@ -92,11 +96,12 @@ export function Button({
         }
         onPress(event);
       }}
-      style={{ minHeight: MIN_TOUCH }}
+      style={{ minHeight: variant === 'primary' ? PRIMARY_HEIGHT : MIN_TOUCH }}
       className={cx(
         'flex-row items-center justify-center gap-2 py-3',
         container[variant],
-        inactive && 'opacity-50',
+        // A waiting primary stays ink at 30% (the one primary button spec); the rest dim to half.
+        inactive && (variant === 'primary' ? 'opacity-30' : 'opacity-50'),
         className,
       )}
     >
@@ -122,6 +127,9 @@ export interface IconButtonProps {
   onPress: (event: GestureResponderEvent) => void;
   disabled?: boolean;
   tone?: 'ink' | 'ink-muted';
+  // The labelled round control beside a tab's switcher (the + on every tab root): a 44pt white
+  // circle on the fine rule-mid edge with an 18pt glyph, rather than a bare glyph.
+  framed?: boolean;
   className?: string;
   testID?: string;
 }
@@ -132,6 +140,7 @@ export function IconButton({
   onPress,
   disabled = false,
   tone = 'ink',
+  framed = false,
   className,
   testID,
 }: IconButtonProps) {
@@ -147,11 +156,12 @@ export function IconButton({
       style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH }}
       className={cx(
         'items-center justify-center rounded-pill',
+        framed && 'border border-rule-mid bg-surface-raised',
         disabled && 'opacity-50',
         className,
       )}
     >
-      <Icon name={icon} size={24} color={color} />
+      <Icon name={icon} size={framed ? 18 : 24} color={color} />
     </Pressable>
   );
 }

@@ -1,13 +1,11 @@
 import { twin, you } from '@robes/copy';
-import { HAIR_SWATCHES, SKIN_SWATCHES } from '@robes/core/avatar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { LookDetail } from '../src/features/looks/LookDetail';
 import { BodyShape } from '../src/features/you/BodyShape';
 import { Colouring } from '../src/features/you/Colouring';
 import { Model } from '../src/features/you/Model';
 import { twinRead } from '../src/features/you/twin';
 import { mockFetch, renderWithApi } from './support/api';
-import { LOOK_ID, look, styleDna } from './support/fixtures';
+import { modelData, styleDna } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -15,7 +13,7 @@ jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null
 
 beforeEach(() => jest.clearAllMocks());
 
-const copy = you.model;
+const _copy = you.model;
 const tw = twin.twinPage;
 const noStyle = {
   colour: null,
@@ -25,25 +23,7 @@ const noStyle = {
 };
 const TWIN = { 'GET /me/style': noStyle, 'GET /me/dna': styleDna() };
 const CLOSE_UP = 'https://media.test/media/close-up.jpg';
-const model = (over: object = {}) => ({
-  filed: false,
-  presence: 'woman',
-  skin: 3,
-  hair: 1,
-  line: null,
-  frame: null,
-  source: 'hand',
-  reads: { colour: false, silhouette: false },
-  cellId: 'w-s3-h1-nt',
-  cell: { status: 'none', imageUrl: null },
-  swatches: { skin: [...SKIN_SWATCHES], hair: [...HAIR_SWATCHES] },
-  skinSet: false,
-  hairSet: false,
-  adj: { shoulders: null, bust: null, hips: null },
-  closeUpUrl: null,
-  twin: { status: 'none', current: false, imageUrl: null },
-  ...over,
-});
+const model = modelData;
 const twinCalls = (calls: { method: string; path: string }[]) =>
   calls.filter((c) => c.method === 'POST' && c.path.endsWith('/me/model/twin'));
 
@@ -62,8 +42,9 @@ test('her model is the hero with two doors; landing asks for the twin once', asy
   expect(screen.queryByText(tw.caption('Tan', 'Espresso'))).toBeNull();
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
   // The redline cut Build your model from the twin: the hero and the two doors are all it carries.
-  expect(screen.queryByRole('button', { name: copy.build })).toBeNull();
-  expect(screen.getByText(tw.status('woman', 'none'))).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Build your model' })).toBeNull();
+  // The hero already says it, so nothing repeats under the doors (redline 27 Oct).
+  expect(screen.queryByText(tw.status('woman', 'none'))).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: `${tw.bodyShape}, ${tw.bodyShapeSub}` }),
   );
@@ -88,6 +69,8 @@ test.each([
 test('says so while her twin is being drawn, and shows the twin over the catalog cell', async () => {
   const drawing = model({
     filed: true,
+    skinSet: true,
+    hairSet: true,
     cell: { status: 'ready', imageUrl: 'https://media.test/catalog/cell.png' },
     twin: { status: 'pending', current: false, imageUrl: 'https://media.test/media/twin.jpg' },
   });
@@ -97,32 +80,12 @@ test('says so while her twin is being drawn, and shows the twin over the catalog
   expect(screen.getByText(tw.caption('Tan', 'Espresso'))).toBeTruthy();
 });
 
-test('a look offers See it on me once her model is ready, and asks for the render', async () => {
-  const withPiece = look();
-  const calls = mockFetch({
-    [`GET /looks/${LOOK_ID}`]: withPiece,
-    'GET /me/model': model({
-      filed: true,
-      cell: { status: 'ready', imageUrl: 'https://media.test/catalog/avatar/w-s3-h1-nt@v2.png' },
-    }),
-    [`POST /looks/${LOOK_ID}/render`]: {
-      jobId: '66666666-6666-4666-8666-666666666666',
-      status: 'queued',
-    },
-  });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: copy.seeOnMe }));
-  await waitFor(() =>
-    expect(
-      calls.some((c) => c.method === 'POST' && c.path.endsWith(`/looks/${LOOK_ID}/render`)),
-    ).toBe(true),
-  );
-});
-
-test('without a model the look points her to build one', async () => {
-  mockFetch({ [`GET /looks/${LOOK_ID}`]: look(), 'GET /me/model': model() });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
-  expect(await screen.findByRole('button', { name: copy.build })).toBeTruthy();
+test('a skin or hair she never chose is never named under her model', async () => {
+  const handHair = model({ filed: true, hairSet: true });
+  mockFetch({ ...TWIN, 'GET /me/model': handHair, 'POST /me/model/twin': handHair });
+  await renderWithApi(<Model />);
+  expect(await screen.findByText(tw.caption('', 'Espresso'))).toBeTruthy();
+  expect(screen.queryByText(/Tan/)).toBeNull();
 });
 
 test('body shape: the facts drawer, a scale by hand, back to her facts, a redraw on leaving', async () => {
@@ -144,15 +107,21 @@ test('body shape: the facts drawer, a scale by hand, back to her facts, a redraw
   });
   const view = await renderWithApi(<BodyShape />);
   await fireEvent.press(await screen.findByRole('button', { name: twin.facts.title }));
+  // Plain − and + (decided 27 Oct); the drawer holds no age and no gender.
   await fireEvent.press(
-    screen.getAllByRole('button', { name: `+ ${twin.facts.more}` })[1] as never,
+    screen.getByRole('button', { name: `${twin.facts.more}: ${twin.facts.size}` }),
   );
+  expect(screen.queryByRole('button', { name: '45–54' })).toBeNull();
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/dna'))?.body).toEqual({
       facts: { sizeUk: 10 },
     }),
   );
-  await fireEvent.press(screen.getByRole('button', { name: twin.facts.genderOptions.man }));
+  // Gender is its own pill on Body shape: it opens a short list and saves on the pick.
+  await fireEvent.press(
+    screen.getByRole('button', { name: `${tw.gender}: ${twin.facts.genderOptions.woman}` }),
+  );
+  await fireEvent.press(screen.getByRole('radio', { name: twin.facts.genderOptions.man }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/model'))?.body).toEqual({
       presence: 'man',

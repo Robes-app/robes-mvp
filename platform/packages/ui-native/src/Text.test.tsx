@@ -62,3 +62,14 @@ test('an italic line is Cormorant italic, never the sans, and never below 17pt',
   });
   expect(screen.getByText('call you?')).toHaveStyle({ fontFamily: 'Cormorant_300Light_Italic' });
 });
+
+test('a font-display class sets the serif, which the inline sans would otherwise beat', async () => {
+  await render(
+    <>
+      <Text className="font-display text-xl">Light Spring</Text>
+      <Text className="text-display-ish">Sans</Text>
+    </>,
+  );
+  expect(screen.getByText('Light Spring')).toHaveStyle({ fontFamily: 'Cormorant_300Light' });
+  expect(screen.getByText('Sans')).toHaveStyle({ fontFamily: 'Inter_300Light' });
+});

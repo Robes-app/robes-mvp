@@ -77,6 +77,8 @@ export const ColourProfile = z.object({
   seen_on_you: z.array(z.object({ lifts: z.string(), flattens: z.string() })),
   metals: z.array(z.object({ name: z.string(), hexes: z.array(z.string()) })),
   metals_note: z.string(),
+  // Set once she picks a season by hand: what her photograph read, so the list stays anchored.
+  read_season: z.string().optional(),
 });
 export const SilhouetteProfile = z.object({
   body_type: z.string(),
@@ -195,6 +197,9 @@ export const Model = z.object({
     current: z.boolean(),
     imageUrl: z.url().nullable(),
   }),
+  // What a new look stands on in the composer: her twin, else her filed cell, else the first
+  // generic Robes model (`generic`) while she has none. Signed; null until that portrait exists.
+  stand: z.object({ imageUrl: z.url().nullable(), generic: z.boolean() }).optional(),
 });
 export type Model = z.infer<typeof Model>;
 

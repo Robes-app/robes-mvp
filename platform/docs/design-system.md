@@ -54,7 +54,9 @@ Seed `tokens.ts` from `reference/tokens.draft.json`. Canonical values (all contr
 |---|---|---|---|
 | `bg` (page) | cream `#FAF8F5` | ink `#202021` | |
 | `surface` | cream-100 `#F5F0E8` (panels, cards) | `#2A2A2B` | Pure white `#FFFFFF` stays a palette value for photo mats only |
-| `surface-sunk` | cream-200 `#EFE9DC` | `#252526` | |
+| `surface-sunk` | cream-200 `#EFE9DC` | `#252526` | Tracks, placeholders, tags, unselected Month days |
+| `surface-raised` | white `#FFFFFF` | `#2A2A2B` | Beta's white cards: cards, fields, the prompt box, a selected chip or segment (2026-10-25) |
+| `rule-mid` | ink @ 12% | cream @ 16% | Edge of a labelled control (pill, + button, segment, prompt box, selected day) — the label is the cue, so it needn't reach 3:1 |
 | `ink` | `#202021` | cream `#FAF8F5` | |
 | `ink-muted` | `#6E6A64` | `#B9B3A8` | 5.07:1 on bg light; 7.81:1 dark |
 | `ink-faint` | `#74664A` (darkened from legacy `#7E6F50`, which fails 4.5:1 on cream-100) | `#A89E8C` | ≥4.64:1 on every light surface |
@@ -71,11 +73,13 @@ Seed `tokens.ts` from `reference/tokens.draft.json`. Canonical values (all contr
 - Display/serif: **Cormorant** (not Cormorant Garamond), weights 300 and 400, italic 400. Minimum size 17px (brand rule).
 - Sans/UI: **Inter**, weights 300, 400, 500 **and 600** (legacy requests 600/700 but never loads them → faux bold). Ban 700.
 - Both SIL OFL: self-host via `next/font/local` (web) and `expo-font` (native) from the same woff2/ttf files in `packages/tokens/fonts/` (subset Latin + Latin-ext).
-- Type scale: take the de facto scale from reference §3 into `size`/`leading`/`tracking` tokens; eyebrow labels = Inter 500, 11–12px, uppercase, tracking ≈ 0.12–0.28em per reference.
+- Type scale: take the de facto scale from reference §3 into `size`/`leading`/`tracking` tokens; eyebrow labels = Inter 400, 12px, uppercase, 0.22em tracking, `ink-faint` (2026-10-25). Light (300) is the default weight for both families; a numeral or label goes 400 or full `ink` only when it marks today or a value she set. Pill and chip labels `ink-muted`; italic serif counts `ink-faint`.
 
 **Shape**: keep both radius families deliberately (reference §4): `radius-soft` (8–18px, cards/sheets on native) and `radius-crisp` (2–6px, editorial cards/dialogs on web). Components pick one per the component spec; no ad-hoc radii.
 
 **Motion**: durations/easings from reference; respect `prefers-reduced-motion` / `AccessibilityInfo.isReduceMotionEnabled`.
+
+**Colour rules (2026-10-25).** Rose marks *now* and *Robes' hand* — today's label and dot, today's rule in Diary, Draft, the why-this-look mark, Robes' own labels, a wishlisted piece — one or two per screen. Small rose text (under 24px) is `accent-warm`; dots, rules and icons `accent-inspire`. Mauve (`accent-decor`) is a surface only (trip bands, a pinned day's ring, the day-scope chip), never text.
 
 ## 5. Component inventory (build targets)
 
@@ -86,7 +90,7 @@ Primitives (both `ui` and `ui-native`, same props):
 | `Text`, `Heading`, `Eyebrow` | Heading enforces Cormorant ≥17px; Eyebrow is uppercase tracking |
 | `Button` | variants `primary` (filled ink — **max one per screen**, dev-mode warning if two mount), `secondary` (outline), `quiet` (text); `loading` state never says "Generating" |
 | `IconButton` | 44×44 min hit area |
-| `Pill` / `Chip` | **selected is warm, never black**: the `selected` fill (#F3EFE6) on the `selected-line` border (#C9BCA6) with ink text and a check (Annie, 2026-10-21) — any selected control uses these two tokens, never an ink fill or ink outline |
+| `Pill` / `Chip` | **selected is raised, never black**: the `selected` fill (white, = `surface-raised`) on the `selected-line` border (#C9BCA6) with ink text (2026-10-25; was the #F3EFE6 fill) — any selected control uses these two tokens, never an ink fill or ink outline. Unselected: white on `rule-mid`, `ink-muted` label |
 | `Card` (`PieceCard`, `LookCard`, `RackCard` variants) | aspect ratios from reference §5; blur placeholder; skeleton twin |
 | `Image` | wraps `next/image` loader / `expo-image` with our CDN loader, `sizes`, blurhash/thumbhash placeholder |
 | `Sheet` / `Dialog` | native bottom sheet; web dialog (Radix); focus trap; no confirm dialogs for reversible actions — use `Toast` with Undo |

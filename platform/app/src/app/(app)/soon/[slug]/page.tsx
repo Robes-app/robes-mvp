@@ -8,6 +8,7 @@ function isSoonSlug(value: string): value is SoonSlug {
 
 export default async function SoonPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  if (!isSoonSlug(slug)) notFound();
-  return <Soon title={SOON_TITLES[slug]} />;
+  const title = isSoonSlug(slug) ? SOON_TITLES[slug] : undefined;
+  if (!title) notFound();
+  return <Soon title={title} />;
 }

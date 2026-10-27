@@ -1,17 +1,11 @@
-import { looks } from '@robes/copy';
 import { Lookbook } from '@/components/looks/lookbook';
-import { PageHeader } from '@/components/page-header';
 
+// No page title: the Saved | Suggested control IS the masthead (legacy header audit, 2026-10-07).
 export default async function LooksPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   const { tab } = await searchParams;
-  return (
-    <>
-      <PageHeader title={looks.title} />
-      <Lookbook tab={tab === 'suggested' ? 'suggested' : 'saved'} />
-    </>
-  );
+  return <Lookbook tab={tab === 'suggested' ? 'suggested' : 'saved'} />;
 }

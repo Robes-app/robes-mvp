@@ -407,7 +407,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
             : {
                 mode,
                 anchor: anchorPiece
-                  ? { type: 'piece', label: anchorPiece.label }
+                  ? { type: 'piece', label: anchorPiece.label, wearFor: anchorPiece.wearFor }
                   : { type: 'text', text: set.data.anchor.label },
               };
         const proposals = z
@@ -515,7 +515,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           if (!piece) throw new JobError('not_found');
           photo = await piecePhoto(ctx.userId, piece.imageAssetId);
           anchorPieceId = piece.id;
-          ask = { mode, anchor: { type: 'piece', label: piece.label } };
+          ask = { mode, anchor: { type: 'piece', label: piece.label, wearFor: piece.wearFor } };
           anchor = { type: 'piece', pieceId: piece.id, label: piece.label };
         } else {
           ask = { mode, anchor: { type: 'text', text: input.anchor.text } };

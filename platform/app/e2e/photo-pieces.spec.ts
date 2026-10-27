@@ -92,53 +92,71 @@ async function choosePhoto(page: Page, label: RegExp | string) {
   await page.getByLabel(label).setInputFiles(PHOTO_PATH);
 }
 
-test('several pieces to the wardrobe from one photo', async ({ page }) => {
+test('several pieces from one photo, reviewed one at a time (design "Add Piece")', async ({
+  page,
+}) => {
   await signIn(page);
   await declineConsent(page);
-  await ownShoes(page.request);
 
   await page.goto('/wardrobe/add');
-  await page.getByRole('link', { name: /Several pieces in one photo/ }).click();
-  await choosePhoto(page, /Choose a photo/);
+  await expect(page.getByRole('heading', { name: 'Add pieces' })).toBeVisible();
+  await choosePhoto(page, 'Camera roll');
   await expect(page.getByRole('heading', { name: 'Here’s what Robes saw.' })).toBeVisible({
     timeout: 30_000,
   });
+  // Three pieces read: a strip of them, the first on the screen.
   await expect(
-    page.getByText(
-      'Three pieces in your photo. Confirm the ones to add; each is filed on its own.',
-    ),
+    page.getByRole('navigation', { name: 'Pieces to review' }).getByRole('button'),
+  ).toHaveCount(3);
+  await expect(
+    page.getByRole('button', { name: /^Name\s*Cream long-sleeve t-shirt/ }),
   ).toBeVisible();
-  await expect(page.getByRole('img', { name: /^Piece \d:/ })).toHaveCount(3);
-  const cards = page.getByRole('list', { name: 'Pieces in your photo' }).getByRole('listitem');
-  await expect(cards).toHaveCount(3);
-  await expect(cards.nth(0)).toContainText('Add this one?');
-  await expect(cards.nth(2)).toContainText('Already yours?');
-  await expect(cards.nth(2)).toContainText('White running shoes');
-  const cta = page.getByRole('button', { name: 'Add to wardrobe →' });
-  await expect(cta).toBeDisabled();
 
-  await cards.nth(0).getByRole('button', { name: 'Yes' }).click();
-  await expect(cards.nth(0)).toContainText('To add');
-  await expect(page.getByRole('img', { name: /^Piece \d:/ })).toHaveCount(2);
+  // Any row opens its drawer; her change rides the filing.
+  await page.getByRole('button', { name: /^Name/ }).click();
+  const name = page.getByRole('dialog', { name: 'Name' });
+  await name.getByLabel('Name').fill('Cream long-sleeve tee');
+  await name.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Add to wardrobe, next piece →' }).click();
 
-  // › opens the single-piece screen scoped to that piece; "Add this piece" returns with her edit.
-  await page.getByRole('button', { name: 'Open piece 2' }).click();
-  await expect(page.getByText('Piece 2')).toBeVisible();
-  await page.getByLabel('Name').fill('Black ribbed leggings');
-  await page.getByRole('button', { name: 'Add this piece' }).click();
-  await expect(cards.nth(1)).toContainText('Black ribbed leggings');
+  // The leggings aren't hers: Not this piece.
+  await expect(page.getByRole('button', { name: /^Name\s*Black leggings/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Not this piece' }).click();
+  // The last piece ends the read: its button says so.
+  await expect(page.getByRole('button', { name: /^Name\s*White running shoes/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Add to wardrobe →' }).click();
 
-  await cards.nth(2).getByRole('button', { name: 'Yes' }).click();
-  await expect(page.getByRole('heading', { name: 'Two to add, one already yours.' })).toBeVisible();
-  await expect(page.getByRole('img', { name: /^Piece \d:/ })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Add 2 pieces to wardrobe →' }).click();
-
-  await expect(page.getByRole('heading', { name: 'Two pieces, filed.' })).toBeVisible();
-  await expect(page.getByText('Your white running shoes kept the new photo.')).toBeVisible();
-  await page.getByRole('link', { name: 'Back to wardrobe →' }).click();
+  await expect(page.getByRole('heading', { name: 'Two pieces filed.' })).toBeVisible();
+  await page.getByRole('link', { name: 'See your wardrobe' }).click();
   const grid = page.getByRole('list', { name: 'Pieces' });
-  await expect(grid.getByRole('heading', { name: 'Black ribbed leggings' })).toBeVisible();
-  await expect(grid.getByRole('heading', { name: 'Cream long-sleeve t-shirt' })).toBeVisible();
+  await expect(grid.getByRole('heading', { name: 'Cream long-sleeve tee' })).toBeVisible();
+  await expect(grid.getByRole('heading', { name: 'White running shoes' })).toBeVisible();
+  await expect(grid.getByRole('heading', { name: 'Black leggings' })).toHaveCount(0);
+});
+
+test('a photo can go to the wishlist instead', async ({ page }) => {
+  await signIn(page);
+  await declineConsent(page);
+  await page.goto('/wardrobe/add?to=wishlist');
+  await expect(page.getByRole('radio', { name: 'Wishlist' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await choosePhoto(page, 'Camera roll');
+  for (const next of [true, true, false]) {
+    await page
+      .getByRole('button', { name: next ? 'Add to wishlist, next piece →' : 'Add to wishlist →' })
+      .click({ timeout: 30_000 });
+  }
+  await expect(page.getByRole('heading', { name: 'Three pieces filed.' })).toBeVisible();
+  await page.getByRole('link', { name: 'See your wishlist' }).click();
+  const wishes = page.getByRole('list', { name: 'Wishlist' });
+  await expect(wishes.getByText('Black leggings')).toBeVisible();
+  // Nothing reached the wardrobe.
+  await page.goto('/wardrobe');
+  await expect(
+    page.getByRole('heading', { name: 'Every look starts with a photograph.' }),
+  ).toBeVisible();
 });
 
 test('a look from a photo', async ({ page }) => {
@@ -147,7 +165,7 @@ test('a look from a photo', async ({ page }) => {
   await ownShoes(page.request);
 
   await page.goto('/looks/new');
-  await page.getByRole('link', { name: /Start with a photo/ }).click();
+  await page.getByRole('link', { name: /Start from a photo/ }).click();
   await choosePhoto(page, /Add a photo/);
   const cards = page.getByRole('list', { name: 'Pieces in your photo' }).getByRole('listitem');
   await expect(cards).toHaveCount(3, { timeout: 30_000 });
@@ -169,17 +187,20 @@ test('a look from a photo', async ({ page }) => {
   await expect(rack.getByText('New · filed on save')).toBeVisible();
   await expect(rack.getByText('White running shoes')).toBeVisible();
   await expect(page.getByText('The look · 2 pieces')).toBeVisible();
-  await page.getByLabel('Name (optional)').fill('Sunday run');
+  await page.getByLabel('Name this look').fill('Sunday run');
   await page.getByLabel('Wearing it today, log it worn').check();
   await save.click();
 
   await expect(page).toHaveURL(/\/look\//, { timeout: 15_000 });
   await expect(page.getByRole('heading', { level: 1, name: 'Sunday run' })).toBeVisible();
-  await expect(page.getByText('Black leggings')).toBeVisible();
-  await expect(page.getByText('White running shoes')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Black leggings' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open White running shoes' })).toBeVisible();
+  // The line under the picture names the pieces when Robes wrote no note.
+  await expect(page.getByText('Black leggings and White running shoes')).toBeVisible();
   // Her photo is the look's record, and the wear is logged for today.
   const lookId = page.url().split('/look/')[1];
   const look = await (await page.request.get(`/api/v1/looks/${lookId}`)).json();
   expect(look).toMatchObject({ timesWorn: 1, name: 'Sunday run' });
   expect(look.image).not.toBeNull();
+  expect(look).toMatchObject({ record: 'photo' });
 });

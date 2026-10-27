@@ -107,4 +107,14 @@ describe('looks and planning schema', () => {
       await expectPgError(q, '23514', "update app.looks set styling = '[]' where id = $1", [LOOK]);
       await expectPgError(q, '23514', 'update app.looks set set_index = 3 where id = $1', [LOOK]);
     }));
+
+  it('names the record as her photograph or her model, nothing else', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q("update app.looks set record_image = 'model' where id = $1", [LOOK]);
+      await q("update app.looks set record_image = 'photo' where id = $1", [LOOK]);
+      await expectPgError(q, '23514', "update app.looks set record_image = 'cover' where id = $1", [
+        LOOK,
+      ]);
+    }));
 });
