@@ -1064,6 +1064,10 @@ export const plan = {
     action: 'Go to Lookbook',
   },
   monthCaption: 'Month reads the shape of it. List is where you plan.',
+  // A past day on the web's month card: what it held, never a fraction.
+  monthFiled: (pieces: number): string =>
+    `Filed · ${pieces === 1 ? '1 piece' : `${pieces} pieces`}`,
+  monthMore: (n: number): string => `+${n}`,
   // Month view (M5 task 4) and trip days.
   view: { label: 'Diary view', list: 'List', month: 'Month' },
   prevMonth: 'Previous month',

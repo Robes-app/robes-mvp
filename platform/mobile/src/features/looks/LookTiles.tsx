@@ -87,7 +87,8 @@ export function DraftTile({ look, onPress }: { look: Look; onPress: () => void }
     <LookTile
       look={look}
       onPress={onPress}
-      width={116}
+      // Beta's In progress tile is 140 wide (twin: look-tiles.tsx).
+      width={140}
       dashed
       eyebrow={copy.draftTile.eyebrow}
       eyebrowTone="warm"

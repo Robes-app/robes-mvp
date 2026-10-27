@@ -491,6 +491,32 @@ export function lookMatches(
   );
 }
 
+// What a look is worn for, read from its pieces (legacy _rbInheritLookTags): the tags every one
+// of its pieces carries, Everyday aside (nearly every piece has it, so it says nothing), A–Z, two
+// at most. Filters (the picker's Refine, the Lookbook's Filter) read it as the look's Wear it for.
+export function lookWearFor(look: {
+  pieces: readonly { piece: { wearFor?: readonly string[] } }[];
+}): string[] {
+  const pieces = look.pieces.map((p) => p.piece.wearFor ?? []);
+  if (!pieces.length) return [];
+  const counts = new Map<string, number>();
+  for (const tags of pieces) {
+    for (const t of new Set(tags)) counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  return [...counts]
+    .filter(([t, n]) => n === pieces.length && t.toLowerCase() !== 'everyday')
+    .map(([t]) => t)
+    .sort((a, b) => a.localeCompare(b, 'en-GB'))
+    .slice(0, 2);
+}
+
+// The Wear it for options a set of looks offers, A–Z.
+export function wearForOptions(
+  looks: readonly { pieces: readonly { piece: { wearFor?: readonly string[] } }[] }[],
+): string[] {
+  return [...new Set(looks.flatMap(lookWearFor))].sort((a, b) => a.localeCompare(b, 'en-GB'));
+}
+
 // Where a new look's pieces come from (legacy 2026-10-19): her answer to the one question asked on
 // a new look, a chip or her own words. Words that name none of the three ride verbatim as a note.
 export const BALANCES = ['owned', 'mix', 'new'] as const;

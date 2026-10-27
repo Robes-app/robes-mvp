@@ -1,6 +1,13 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy, nav, ui } from '@robes/copy';
-import { type LookSort, SORT_FROM, SORTS, sortLooks } from '@robes/core/looks';
+import {
+  type LookSort,
+  lookWearFor,
+  SORT_FROM,
+  SORTS,
+  sortLooks,
+  wearForOptions,
+} from '@robes/core/looks';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
 import {
@@ -28,7 +35,7 @@ import { useLetGo, useLooksByStatus, useRestyle } from './look-states';
 import { NewLookBox } from './NewLookBox';
 
 type Tab = 'saved' | 'suggested';
-// The only axis a saved look can be narrowed by today; Wear-it-for and Vibe need look tags.
+// Season, and Wear it for read from the look's pieces (Vibe needs look tags the platform lacks).
 const SEASON_BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type SeasonBandId = (typeof SEASON_BANDS)[number];
 const TABS = [
@@ -93,14 +100,26 @@ export function LooksView() {
   const [sortOpen, setSortOpen] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
   const [bands, setBands] = useState<SeasonBandId[]>([]);
+  const [wear, setWear] = useState<string[]>([]);
+  const filters = bands.length + wear.length;
+  const clearFilters = () => {
+    setBands([]);
+    setWear([]);
+  };
   // The calendar on a card opens the same diary sheet, over the grid — she never leaves it.
   const [diary, setDiary] = useState<Look | null>(null);
   const current = tab === 'saved' ? saved : suggested;
   const all = current.data?.items ?? [];
+  // Within an axis picks OR, across axes AND (twin: lookbook.tsx).
   const raw =
-    tab === 'saved' && bands.length
-      ? all.filter((l) => bands.includes(l.climateBand as SeasonBandId))
+    tab === 'saved' && filters
+      ? all.filter(
+          (l) =>
+            (!bands.length || bands.includes(l.climateBand as SeasonBandId)) &&
+            (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
+        )
       : all;
+  const wearOpts = tab === 'saved' ? wearForOptions(all) : [];
   const sortable = tab === 'saved' && all.length >= SORT_FROM;
   const items = sortable ? sortLooks(raw, sort) : raw;
   const draftItems = drafts.data?.items ?? [];
@@ -120,14 +139,13 @@ export function LooksView() {
   const toolbar = (
     <View className="flex-row items-center justify-between gap-3">
       <SegmentedControl label={copy.title} options={TABS} value={tab} onChange={setTab} />
-      {tab === 'saved' ? (
-        <IconButton
-          framed
-          icon="plus"
-          label={copy.newLook}
-          onPress={() => router.push('/looks/new')}
-        />
-      ) : null}
+      {/* The + stands on both tabs (twin: lookbook.tsx). */}
+      <IconButton
+        framed
+        icon="plus"
+        label={copy.newLook}
+        onPress={() => router.push('/looks/new')}
+      />
     </View>
   );
 
@@ -156,7 +174,7 @@ export function LooksView() {
               <ToolPill
                 icon="filter"
                 label={copy.refine.open}
-                accessibilityLabel={`${copy.refine.open}${bands.length ? ` · ${copy.refine.on}` : ''}`}
+                accessibilityLabel={`${copy.refine.open}${filters ? ` · ${copy.refine.on}` : ''}`}
                 expanded={refineOpen}
                 onPress={() => setRefineOpen(!refineOpen)}
               />
@@ -173,7 +191,7 @@ export function LooksView() {
               groups, then the count to close it on as a hairline pill. */}
           <View className="flex-row items-center justify-between">
             <Eyebrow>{copy.refine.title}</Eyebrow>
-            <Button variant="quiet" disabled={!bands.length} onPress={() => setBands([])}>
+            <Button variant="quiet" disabled={!filters} onPress={clearFilters}>
               {copy.refine.clear}
             </Button>
           </View>
@@ -191,6 +209,24 @@ export function LooksView() {
               </Chip>
             ))}
           </View>
+          {wearOpts.length ? (
+            <>
+              <Eyebrow className="text-accent-warm">{copy.refine.wearFor}</Eyebrow>
+              <View className="flex-row flex-wrap gap-2">
+                {wearOpts.map((t) => (
+                  <Chip
+                    key={t}
+                    selected={wear.includes(t)}
+                    onPress={() =>
+                      setWear(wear.includes(t) ? wear.filter((x) => x !== t) : [...wear, t])
+                    }
+                  >
+                    {t}
+                  </Chip>
+                ))}
+              </View>
+            </>
+          ) : null}
           <View className="flex-row justify-end border-t border-hairline pt-3">
             <ToolPill
               label={copy.refine.show(items.length)}
@@ -267,7 +303,21 @@ export function LooksView() {
             />
           }
           ListEmptyComponent={
-            tab === 'saved' ? (
+            tab === 'saved' && filters ? (
+              // A filter that matches nothing names it and offers the way back.
+              <View className="items-center gap-2 py-8">
+                <Text
+                  className="text-ink text-xl"
+                  style={{ fontFamily: fonts.displayRegular }}
+                  maxFontSizeMultiplier={maxFontSizeMultiplier.body}
+                >
+                  {copy.refine.none}
+                </Text>
+                <Button variant="quiet" onPress={clearFilters}>
+                  {copy.refine.clear}
+                </Button>
+              </View>
+            ) : tab === 'saved' ? (
               draftItems.length ? undefined : (
                 <EmptyState
                   title={copy.savedEmpty.title}

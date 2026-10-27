@@ -75,7 +75,10 @@ export function SavedTile({
       }
       corner={
         onDelete ? (
-          <OnPhoto icon="close" label={copy.card.delete} size={32} onClick={onDelete} />
+          // Beta's ✕ waits for the pointer on a device that has one; a phone always shows it.
+          <span className="block transition-opacity [@media(hover:hover)]:opacity-0 [article:focus-within_&]:opacity-100 [article:hover_&]:opacity-100">
+            <OnPhoto icon="close" label={copy.card.delete} size={32} onClick={onDelete} />
+          </span>
         ) : undefined
       }
     />
@@ -89,9 +92,10 @@ export function DraftTile({ look }: { look: Look }) {
     <LookTile
       look={look}
       href={`/look/${look.id}`}
-      sizes="116px"
+      sizes="140px"
       dashed
-      className="w-[116px] shrink-0"
+      // Beta's In progress tile is 140 wide (Header Audit Round 2).
+      className="w-[140px] shrink-0"
       eyebrow={copy.draftTile.eyebrow}
       eyebrowTone="warm"
       name={name}

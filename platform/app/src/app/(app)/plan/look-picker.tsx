@@ -3,7 +3,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { lookbook, plan } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
-import { lookMatches, pickerOrder } from '@robes/core/looks';
+import { lookMatches, lookWearFor, pickerOrder, wearForOptions } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { Button, buttonClasses, Pill, pillClasses, Sheet, Skeleton, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -39,12 +39,14 @@ export function LookPicker({
   const [refining, setRefining] = useState(false);
   const [q, setQ] = useState('');
   const [bands, setBands] = useState<Band[]>([]);
+  const [wear, setWear] = useState<string[]>([]);
   useEffect(() => {
     if (open) {
       setPicks([]);
       setRefining(false);
       setQ('');
       setBands([]);
+      setWear([]);
     }
   }, [open]);
   const looks = useApi('looks.list', { input: { limit: 60 } }, { enabled: open });
@@ -75,10 +77,14 @@ export function LookPicker({
   }
 
   const all = looks.data?.items ?? [];
-  const filters = (q.trim() ? 1 : 0) + bands.length;
+  const filters = (q.trim() ? 1 : 0) + bands.length + wear.length;
+  const wearOpts = wearForOptions(all);
   const items = pickerOrder(
     all.filter(
-      (l) => lookMatches(l, q) && (!bands.length || bands.includes(l.climateBand as Band)),
+      (l) =>
+        lookMatches(l, q) &&
+        (!bands.length || bands.includes(l.climateBand as Band)) &&
+        (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
     ),
     lastWornFirst,
   );
@@ -161,7 +167,7 @@ export function LookPicker({
                 className={`min-h-11 rounded-pill border border-rule-mid bg-surface-raised px-4 font-sans text-ink text-sm placeholder:text-ink-faint ${focus}`}
               />
               <fieldset className="flex flex-col gap-2">
-                <legend className="mb-2 font-sans text-[10px] text-ink-faint uppercase tracking-[0.18em]">
+                <legend className="mb-2 font-sans text-[10px] text-accent-warm uppercase tracking-[0.18em]">
                   {lookbook.refine.season}
                 </legend>
                 <div className="flex flex-wrap gap-2">
@@ -178,6 +184,26 @@ export function LookPicker({
                   ))}
                 </div>
               </fieldset>
+              {wearOpts.length ? (
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="mb-2 font-sans text-[10px] text-accent-warm uppercase tracking-[0.18em]">
+                    {lookbook.refine.wearFor}
+                  </legend>
+                  <div className="flex flex-wrap gap-2">
+                    {wearOpts.map((t) => (
+                      <Pill
+                        key={t}
+                        selected={wear.includes(t)}
+                        onClick={() =>
+                          setWear(wear.includes(t) ? wear.filter((x) => x !== t) : [...wear, t])
+                        }
+                      >
+                        {t}
+                      </Pill>
+                    ))}
+                  </div>
+                </fieldset>
+              ) : null}
               <div className="flex items-center justify-between">
                 <Button
                   variant="quiet"
@@ -185,6 +211,7 @@ export function LookPicker({
                   onClick={() => {
                     setQ('');
                     setBands([]);
+                    setWear([]);
                   }}
                 >
                   {copy.clear}

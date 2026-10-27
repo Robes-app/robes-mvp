@@ -1,7 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { plan as copy, errors, lookbook } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
-import { lookMatches, pickerOrder } from '@robes/core/looks';
+import { lookMatches, lookWearFor, pickerOrder, wearForOptions } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
@@ -49,12 +49,14 @@ export function LookPicker({
   const [refining, setRefining] = useState(false);
   const [q, setQ] = useState('');
   const [bands, setBands] = useState<Band[]>([]);
+  const [wear, setWear] = useState<string[]>([]);
   useEffect(() => {
     if (open) {
       setPicks([]);
       setRefining(false);
       setQ('');
       setBands([]);
+      setWear([]);
     }
   }, [open]);
   const looks = useApi('looks.list', { input: { limit: 60 } }, { enabled: open });
@@ -85,10 +87,14 @@ export function LookPicker({
   }
 
   const all = looks.data?.items ?? [];
-  const filters = (q.trim() ? 1 : 0) + bands.length;
+  const filters = (q.trim() ? 1 : 0) + bands.length + wear.length;
+  const wearOpts = wearForOptions(all);
   const items = pickerOrder(
     all.filter(
-      (l) => lookMatches(l, q) && (!bands.length || bands.includes(l.climateBand as Band)),
+      (l) =>
+        lookMatches(l, q) &&
+        (!bands.length || bands.includes(l.climateBand as Band)) &&
+        (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
     ),
     lastWornFirst,
   );
@@ -193,6 +199,29 @@ export function LookPicker({
                       </Pill>
                     ))}
                   </View>
+                  {wearOpts.length ? (
+                    <>
+                      <Text
+                        className="text-[10px] text-accent-warm uppercase"
+                        style={{ fontFamily: fonts.sans, letterSpacing: 1.8 }}
+                      >
+                        {lookbook.refine.wearFor}
+                      </Text>
+                      <View className="flex-row flex-wrap gap-2">
+                        {wearOpts.map((t) => (
+                          <Pill
+                            key={t}
+                            selected={wear.includes(t)}
+                            onPress={() =>
+                              setWear(wear.includes(t) ? wear.filter((x) => x !== t) : [...wear, t])
+                            }
+                          >
+                            {t}
+                          </Pill>
+                        ))}
+                      </View>
+                    </>
+                  ) : null}
                   <View className="flex-row items-center justify-between">
                     <Button
                       variant="quiet"
@@ -200,6 +229,7 @@ export function LookPicker({
                       onPress={() => {
                         setQ('');
                         setBands([]);
+                        setWear([]);
                       }}
                     >
                       {copy.picker.clear}

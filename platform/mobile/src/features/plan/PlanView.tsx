@@ -126,18 +126,20 @@ function DayRow({
   const s = daySummary(entries, name);
   const title = s.name ?? (s.looks ? copy.list.looks(s.looks) : null);
   const label = isToday ? copy.today : weekdayShort(date);
-  const lead = entries[0];
+  // Up to two looks' photographs, overlapping (legacy .dy-r-th).
+  const thumbs = entries.slice(0, 2);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${copy.list.open(`${label} ${Number(date.slice(8))}`)}${title ? `: ${title}` : ''}`}
       onPress={() => router.push(`/day/${date}`)}
       testID={`plan-day-${date}`}
-      className={`flex-row items-center gap-3 pr-3 ${first ? '' : 'border-t border-hairline'} ${
-        isToday ? 'min-h-[68px] border-l-2 border-l-accent-inspire py-2 pl-[14px]' : 'min-h-14 pl-4'
+      // Twin: plan-list.tsx (legacy .dy-r).
+      className={`min-h-14 flex-row items-center gap-[14px] py-3 pr-[14px] ${first ? '' : 'border-t border-hairline'} ${
+        isToday ? 'border-l-[3px] border-l-accent-inspire pl-[13px]' : 'pl-4'
       }`}
     >
-      <View className="w-10">
+      <View className="w-[34px] items-center">
         <Text
           className={`text-[9px] uppercase ${isToday ? 'text-accent-warm' : 'text-ink-faint'}`}
           style={{ fontFamily: fonts.sansRegular, letterSpacing: 1.26 }}
@@ -145,30 +147,39 @@ function DayRow({
           {label}
         </Text>
         <Text
-          className={isToday ? 'text-ink' : 'text-ink-muted'}
-          style={{
-            fontFamily: fonts.display,
-            fontSize: isToday ? 24 : 22,
-            lineHeight: isToday ? 26 : 24,
-          }}
+          className="mt-1 text-ink"
+          style={{ fontFamily: fonts.displayRegular, fontSize: 22, lineHeight: 24 }}
         >
           {Number(date.slice(8))}
         </Text>
       </View>
-      {lead ? <LookThumb look={lead.look} width={40} /> : null}
+      {thumbs.length ? (
+        <View className="flex-row">
+          {thumbs.map((e, i) => (
+            <View
+              key={e.look.id}
+              className="rounded-[5px] border-[1.5px] border-surface-raised"
+              style={i ? { marginLeft: -12 } : undefined}
+            >
+              <LookThumb look={e.look} width={31} />
+            </View>
+          ))}
+        </View>
+      ) : null}
       <View className="flex-1 gap-px">
         <Text
           numberOfLines={1}
           className={title ? 'text-ink' : 'text-ink-faint'}
-          style={{
-            fontFamily: title ? fonts.display : fonts.displayItalic,
-            fontSize: title ? 21 : 19,
-          }}
+          style={{ fontFamily: title ? fonts.displayRegular : fonts.displayItalic, fontSize: 18 }}
         >
           {title ?? copy.list.nameTheDay}
         </Text>
         {s.looks ? (
-          <Text size="caption" tone="muted">
+          <Text
+            numberOfLines={1}
+            className="text-[11px] text-ink-faint"
+            style={{ fontFamily: fonts.sansRegular }}
+          >
             {copy.list.looks(s.looks)}
             {s.pieces ? ` · ${copy.list.pieces(s.pieces)}` : ''}
           </Text>
@@ -212,8 +223,8 @@ export function PlanList() {
         // A week is one white card: its range (or "Rest of this week") then a row per day.
         <Card key={g.monday}>
           <Text
-            className="px-4 pt-3 pb-1.5 text-[11px] text-ink-faint uppercase"
-            style={{ fontFamily: fonts.sansRegular, letterSpacing: 2.42 }}
+            className="border-b border-hairline px-4 pt-3 pb-2.5 text-[9.5px] text-ink-faint uppercase"
+            style={{ fontFamily: fonts.sansRegular, letterSpacing: 1.9 }}
             accessibilityRole="header"
           >
             {g.range ?? (g.wholeWeek ? copy.list.thisWeek : copy.list.restOfWeek)}

@@ -1,7 +1,8 @@
 import { useApi } from '@robes/api-client/react';
 import { plan as copy } from '@robes/copy';
 import { longDate, monthGrid, rangeLabel, tripBands } from '@robes/core/calendar';
-import { ErrorText, fonts, MIN_TOUCH, Text } from '@robes/ui-native';
+import { Icon } from '@robes/icons/native';
+import { ErrorText, fonts, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
@@ -21,9 +22,11 @@ const WEEKDAYS = [
 // Month view: a numeral and one dot per look in each cell; every cell opens its day.
 export function PlanMonth({ today, month }: { today: string; month: string }) {
   const router = useRouter();
+  const faint = useColor('ink-faint');
   const grid = monthGrid(month);
   const query = useApi('plan.get', { input: { from: grid.from, days: grid.days } });
   const byDate = new Map(query.data?.days.map((d) => [d.date, d.entries.length]) ?? []);
+  const dayName = new Map(query.data?.days.map((d) => [d.date, d.name]) ?? []);
   // Trips draw only while the trip is live (hidden at launch, legacy 2eacfb4).
   const { features } = useFeatures();
   const trips = useApi('trips.list', undefined, { enabled: features.trips });
@@ -56,14 +59,19 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
             if (!date) return <View key={`pad-${r}-${c}`} className="flex-1" />;
             const looks = byDate.get(date) ?? 0;
             const band = bands.get(date);
-            // Beta's month: every day a sunk tile; today raised white on the fine edge. A trip's
-            // mauve band is the tile itself.
+            // Beta's month (twin: plan-month.tsx): a past day on cream behind a hairline, a day
+            // ahead with nothing on it dashed, a day ahead with looks white on a hairline. A
+            // trip's mauve band is the tile itself.
             const isToday = date === today;
+            const past = date < today;
+            const named = !!dayName.get(date);
             const state = band
               ? 'border-transparent'
-              : isToday
-                ? 'border-rule-mid bg-surface-raised'
-                : 'border-transparent bg-surface-sunk';
+              : past
+                ? 'border-hairline bg-surface'
+                : looks || named
+                  ? 'border-hairline bg-surface-raised'
+                  : 'border-dashed border-rule-mid';
             return (
               <Pressable
                 key={date}
@@ -71,8 +79,8 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                 accessibilityRole="button"
                 accessibilityLabel={copy.week.day(longDate(date), looks)}
                 onPress={() => router.push(`/day/${date}`)}
-                style={{ minHeight: MIN_TOUCH + 12 }}
-                className={`flex-1 items-start gap-1.5 rounded-crisp border px-1 py-1 ${state}`}
+                style={{ aspectRatio: 1, minHeight: MIN_TOUCH }}
+                className={`flex-1 items-start gap-1 overflow-hidden rounded-soft border p-1.5 ${state}`}
               >
                 {/* The phone's trip band is the whole tile, bridging the gutters (11337c3). */}
                 {band ? (
@@ -85,23 +93,30 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                   <Text
                     className={isToday ? 'text-ink' : 'text-ink-faint'}
                     style={{
-                      fontFamily: isToday ? fonts.displayRegular : fonts.display,
+                      fontFamily: fonts.display,
                       fontSize: 17,
+                      lineHeight: 18,
                     }}
                   >
                     {Number(date.slice(8))}
                   </Text>
-                  {isToday ? <View className="size-1 rounded-pill bg-accent-inspire" /> : null}
+                  {isToday ? <View className="size-1 rounded-pill bg-ink" /> : null}
                 </View>
                 <View className="mt-auto">
                   <DayDots looks={looks} past={date <= today} />
                 </View>
+                {/* An empty day still ahead carries a faint + : the cell is the door. */}
+                {!past && !looks && !named && !band ? (
+                  <View className="absolute bottom-1.5 left-1.5">
+                    <Icon name="plus" size={10} color={faint} />
+                  </View>
+                ) : null}
               </Pressable>
             );
           })}
         </View>
       ))}
-      <Text size="small" tone="muted" italic className="pt-3 text-center">
+      <Text size="small" tone="muted" className="pt-3 text-center">
         {copy.monthCaption}
       </Text>
       {inMonth.length ? (
