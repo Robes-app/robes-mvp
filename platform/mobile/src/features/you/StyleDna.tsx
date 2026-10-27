@@ -32,6 +32,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useDnaMutations } from './dna';
 import { ColoursBody, PrintsBody, paletteSummary, usePalette } from './Palette';
+import { SettingsGroup, SettingsRow } from './Settings';
 
 const copy = twin.dnaPage;
 type SheetKind =
@@ -45,35 +46,6 @@ type SheetKind =
   | BriefListName;
 const palette = you.style.palette;
 const WALL_N = 18;
-
-function ValueRow({
-  label,
-  value,
-  onPress,
-}: {
-  label: string;
-  value: string;
-  onPress: () => void;
-}) {
-  const muted = useColor('ink-muted');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${label}, ${value}`}
-      onPress={onPress}
-      style={{ minHeight: MIN_TOUCH }}
-      className="flex-row items-center justify-between gap-4 border-b border-hairline py-4"
-    >
-      <Text>{label}</Text>
-      <View className="flex-shrink flex-row items-center gap-2">
-        <Text size="small" tone="muted" numberOfLines={1}>
-          {value}
-        </Text>
-        <Icon name="forward" color={muted} size={18} />
-      </View>
-    </Pressable>
-  );
-}
 
 function Option({
   name,
@@ -94,7 +66,7 @@ function Option({
       accessibilityState={{ selected: on }}
       onPress={onPress}
       style={{ minHeight: MIN_TOUCH }}
-      className={`flex-row items-center justify-between gap-4 rounded-crisp border px-4 py-3 ${on ? 'border-ink bg-surface' : 'border-hairline'}`}
+      className={`flex-row items-center justify-between gap-4 rounded-crisp border px-4 py-3 ${on ? 'border-selected-line bg-surface-raised' : 'border-hairline'}`}
     >
       <View className="flex-1 gap-0.5">
         <Text>{name}</Text>
@@ -118,77 +90,50 @@ export function StyleDna() {
   const icons = dna.icons.map((i) => i.name);
   const n = (k: BriefListName) => dna.brief[k].length;
   const level = INVESTMENT_LEVELS.find((l) => l.key === dna.investment);
+  const brands =
+    dna.brands.length <= 3 ? dna.brands.join(', ') : copy.brandsCount(dna.brands.length);
+  const iconsValue = icons.length <= 2 ? icons.join(', ') : copy.iconsCount(icons.length);
+  const coloursValue = paletteSummary(colours, 'colours');
+  const printsValue = paletteSummary(colours, 'prints');
+  // An empty answer reads "Not yet" in the faint italic (legacy .sp-row .v.none).
+  const row = (label: string, value: string, empty: boolean, kind: SheetKind, first = false) => (
+    <SettingsRow
+      first={first}
+      label={label}
+      value={empty ? copy.notYet : value}
+      empty={empty}
+      onPress={() => setSheet(kind)}
+    />
+  );
   return (
-    <ScrollView contentContainerClassName="gap-6 px-6 pb-12">
-      <Text tone="muted">{copy.sub}</Text>
-      <View className="gap-1">
-        <Eyebrow>{copy.taste}</Eyebrow>
-        <ValueRow
-          label={copy.styleType}
-          value={dna.types.length ? dna.types.join(', ') : copy.notYet}
-          onPress={() => setSheet('types')}
-        />
-        <ValueRow
-          label={copy.brands}
-          value={
-            !dna.brands.length
-              ? copy.notYet
-              : dna.brands.length <= 3
-                ? dna.brands.join(', ')
-                : copy.brandsCount(dna.brands.length)
-          }
-          onPress={() => setSheet('brands')}
-        />
-        <ValueRow
-          label={copy.icons}
-          value={
-            !icons.length
-              ? copy.notYet
-              : icons.length <= 2
-                ? icons.join(', ')
-                : copy.iconsCount(icons.length)
-          }
-          onPress={() => setSheet('icons')}
-        />
-        <ValueRow
+    <ScrollView contentContainerClassName="gap-[26px] px-6 pt-6 pb-12">
+      <Text size="caption" tone="muted" className="text-center">
+        {copy.sub}
+      </Text>
+      <SettingsGroup title={copy.taste}>
+        {row(copy.styleType, dna.types.join(', '), !dna.types.length, 'types', true)}
+        {row(copy.brands, brands, !dna.brands.length, 'brands')}
+        {row(copy.icons, iconsValue, !icons.length, 'icons')}
+        <SettingsRow
           label={copy.pieces}
           value={dna.pieces.length ? copy.piecesCount(dna.pieces.length) : copy.noneStarred}
+          empty={!dna.pieces.length}
           onPress={() => setSheet('pieces')}
         />
-        <ValueRow
+        <SettingsRow
           label={copy.investment}
           value={level?.label ?? copy.pickOne}
+          empty={!level}
           onPress={() => setSheet('investment')}
         />
-        <ValueRow
-          label={palette.coloursTitle}
-          value={paletteSummary(colours, 'colours')}
-          onPress={() => setSheet('colours')}
-        />
-        <ValueRow
-          label={palette.printsTitle}
-          value={paletteSummary(colours, 'prints')}
-          onPress={() => setSheet('prints')}
-        />
-      </View>
-      <View className="gap-1">
-        <Eyebrow>{copy.words}</Eyebrow>
-        <ValueRow
-          label={copy.loves}
-          value={copy.linesCount(n('loves'))}
-          onPress={() => setSheet('loves')}
-        />
-        <ValueRow
-          label={copy.avoids}
-          value={copy.linesCount(n('avoids'))}
-          onPress={() => setSheet('avoids')}
-        />
-        <ValueRow
-          label={copy.rules}
-          value={copy.linesCount(n('rules'))}
-          onPress={() => setSheet('rules')}
-        />
-      </View>
+        {row(palette.coloursTitle, coloursValue, coloursValue === copy.notYet, 'colours')}
+        {row(palette.printsTitle, printsValue, printsValue === copy.notYet, 'prints')}
+      </SettingsGroup>
+      <SettingsGroup title={copy.words}>
+        {row(copy.loves, copy.linesCount(n('loves')), !n('loves'), 'loves', true)}
+        {row(copy.avoids, copy.linesCount(n('avoids')), !n('avoids'), 'avoids')}
+        {row(copy.rules, copy.linesCount(n('rules')), !n('rules'), 'rules')}
+      </SettingsGroup>
       <DnaSheet dna={dna} kind={sheet} onClose={() => setSheet(null)} />
     </ScrollView>
   );

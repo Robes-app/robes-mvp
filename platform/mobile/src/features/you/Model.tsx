@@ -1,42 +1,21 @@
 import { useApi } from '@robes/api-client/react';
 import type { Facts, Model as ModelData } from '@robes/contracts';
 import { twin, you } from '@robes/copy';
-import { Icon } from '@robes/icons/native';
-import { EmptyState, Image, MIN_TOUCH, Skeleton, Text, useColor } from '@robes/ui-native';
-import { type Href, useRouter } from 'expo-router';
-import { Pressable, ScrollView, View } from 'react-native';
+import { EmptyState, Image, Skeleton, Text, useColor } from '@robes/ui-native';
+import { useRouter } from 'expo-router';
+import { ScrollView, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { errorMessage } from '@/lib/errors';
+import { SettingsGroup, SettingsRow } from './Settings';
 import { Figure, lineSummary, type TwinRead, twinRead, useDrawTwin, useModel } from './twin';
 
 const copy = you.model;
 const tw = twin.twinPage;
 
-function Door({ label, sub, href }: { label: string; sub: string; href: Href }) {
-  const router = useRouter();
-  const muted = useColor('ink-muted');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${label}, ${sub}`}
-      onPress={() => router.push(href)}
-      style={{ minHeight: Math.max(MIN_TOUCH, 76) }}
-      className="flex-row items-center justify-between gap-4 border-b border-hairline px-4 py-3.5"
-    >
-      <View className="flex-1 gap-0.5">
-        <Text className="font-display text-xl">{label}</Text>
-        <Text size="small" tone="muted">
-          {sub}
-        </Text>
-      </View>
-      <Icon name="forward" color={muted} size={18} />
-    </Pressable>
-  );
-}
-
 // You › Your digital twin (legacy 2026-10-20 redline 3a): her model as the hero, then two doors —
 // Colouring (one close-up) and Body shape (her line, by hand). No full-length photograph.
 export function Model() {
+  const router = useRouter();
   const query = useModel();
   const style = useApi('me.style.get');
   const dna = useApi('me.dna.get');
@@ -52,19 +31,25 @@ export function Model() {
     // The hero is full-bleed, so the gutter belongs to what sits under it.
     <ScrollView contentContainerClassName="pb-12">
       <Stage model={model} facts={dna.data.facts} read={read} />
-      <View className="gap-6 px-6 pt-6">
-        <View className="rounded-soft border border-hairline bg-surface">
-          <Door
+      <View className="gap-[22px] px-6 pt-6">
+        <SettingsGroup title={tw.readFrom}>
+          <SettingsRow
+            first
             label={tw.colouring}
             sub={
               colour
-                ? [colour.season, colour.undertone, colour.contrast].filter(Boolean).join(' · ')
+                ? [colour.undertone, colour.contrast].filter(Boolean).join(' · ')
                 : tw.colouringSub
             }
-            href="/you/model/colouring"
+            value={colour?.season ?? ''}
+            onPress={() => router.push('/you/model/colouring')}
           />
-          <Door label={tw.bodyShape} sub={line || tw.bodyShapeSub} href="/you/model/body" />
-        </View>
+          <SettingsRow
+            label={tw.bodyShape}
+            sub={line || tw.bodyShapeSub}
+            onPress={() => router.push('/you/model/body')}
+          />
+        </SettingsGroup>
         {/* Her model's own line: what Robes drew her from. One size up — the sans never goes italic. */}
         <Text italic size="small" tone="faint" className="text-center">
           {tw.status(model.presence, read)}
@@ -105,6 +90,19 @@ function Stage({ model, facts, read }: { model: ModelData; facts: Facts; read: T
           </View>
         ) : null}
         <StageFade />
+        {drawing ? (
+          // The chip on the stage while she is drawn (legacy .mv-photo-busy).
+          <View className="absolute top-4 right-3.5 rounded-pill border border-hairline bg-bg px-3.5 py-2">
+            <Text
+              size="caption"
+              className="text-[10px] uppercase"
+              accessibilityLiveRegion="polite"
+              style={{ letterSpacing: 1.6 }}
+            >
+              {tw.drawing}
+            </Text>
+          </View>
+        ) : null}
         {empty ? (
           // Nothing on file: the invitation sits in the stage, over the ghost figure.
           <View className="absolute inset-0 items-center justify-center px-[34px]">
@@ -118,15 +116,11 @@ function Stage({ model, facts, read }: { model: ModelData; facts: Facts; read: T
           </Text>
         )}
       </View>
-      <View className="px-6">
-        {drawing ? (
-          <Text tone="muted" accessibilityLiveRegion="polite">
-            {tw.drawing}
-          </Text>
-        ) : failed ? (
+      {failed && !drawing ? (
+        <View className="px-6">
           <Text tone="muted">{tw.twinFailed}</Text>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
     </View>
   );
 }

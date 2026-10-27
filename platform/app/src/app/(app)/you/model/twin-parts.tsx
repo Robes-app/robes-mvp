@@ -74,7 +74,7 @@ export function Section({ title, children }: { title: string; children: ReactNod
   return (
     <section
       aria-label={title}
-      className="flex flex-col gap-4 rounded-soft border border-hairline bg-surface p-5"
+      className="flex flex-col gap-4 rounded-soft border border-hairline bg-surface-raised p-5"
     >
       <Eyebrow>{title}</Eyebrow>
       {children}

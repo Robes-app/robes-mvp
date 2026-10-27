@@ -42,10 +42,10 @@ test('every shell route renders its heading', async ({ page }) => {
     ['/looks/ideas', 'Lookbook'],
     ['/looks/style', 'Which piece?'],
     ['/plan', 'Diary'],
-    ['/you', 'You'],
+    ['/you', 'Settings'],
     ['/you/account', 'Account'],
     ['/you/notifications', 'Notifications'],
-    ['/you/privacy', 'Privacy.'],
+    ['/you/privacy', 'Privacy'],
     ['/you/style', 'Style DNA'],
     ['/you/model', 'Your digital twin'],
     ['/you/observations', 'Observations'],
@@ -71,6 +71,8 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/you\/notifications$/);
 
+  // Settings carries its own header (no Create there): Create opens from a root.
+  await page.goto('/');
   await page.getByRole('button', { name: 'Create' }).click();
   const sheet = page.getByRole('dialog', { name: 'Create' });
   await expect(sheet.getByRole('link').first()).toBeVisible();

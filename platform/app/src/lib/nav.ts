@@ -127,3 +127,9 @@ const FLOW_PATHS = ['/wardrobe/add', '/wardrobe/review', '/wardrobe/link', '/war
 export function isFlowPath(pathname: string): boolean {
   return FLOW_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
+
+// Settings (the avatar's door, /you) is a pushed stack with its own 44pt header row: no wordmark,
+// no avatar and no dock there (legacy settings.html, redlines G1–G3).
+export function isSettingsPath(pathname: string): boolean {
+  return pathname === '/you' || pathname.startsWith('/you/');
+}

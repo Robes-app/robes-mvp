@@ -33,10 +33,11 @@ export function ObservationsView() {
     (x) => x.source !== 'typed',
   );
   return (
-    <div className="flex flex-col gap-8">
-      <Text tone="muted">{copy.sub}</Text>
+    <div className="flex flex-col gap-[26px]">
       <section aria-labelledby="obs-since" className="flex flex-col gap-3">
-        <Eyebrow id="obs-since">{copy.since}</Eyebrow>
+        <Eyebrow id="obs-since" className="text-[9.5px]">
+          {copy.since}
+        </Eyebrow>
         {reading ? (
           <div className="flex flex-col gap-2" aria-live="polite">
             <Progress stage="reading" />
@@ -49,7 +50,7 @@ export function ObservationsView() {
             {dna.observations.map((o) => (
               <li
                 key={o.id}
-                className="flex flex-col gap-2 rounded-crisp border border-hairline bg-surface p-5"
+                className="flex flex-col gap-2 rounded-soft border border-hairline bg-surface-raised p-5"
               >
                 <Eyebrow>{copy.list[o.list] ?? twin.noticed.eyebrow}</Eyebrow>
                 <p className="font-display font-light text-ink text-xl">{asSentence(o.text)}</p>
@@ -63,22 +64,24 @@ export function ObservationsView() {
             ))}
           </ul>
         ) : (
-          <Text tone="muted" italic>
+          <p className="font-display text-ink-faint text-lg italic leading-snug">
             {failed ? copy.failed : copy.empty}
-          </Text>
+          </p>
         )}
       </section>
       {kept.length ? (
         <section aria-labelledby="obs-kept" className="flex flex-col gap-3">
-          <Eyebrow id="obs-kept">{copy.keptBefore}</Eyebrow>
-          <ul className="flex flex-col rounded-crisp border border-hairline bg-surface px-5">
+          <Eyebrow id="obs-kept" className="text-[9.5px]">
+            {copy.keptBefore}
+          </Eyebrow>
+          <ul className="flex flex-col rounded-soft border border-hairline bg-surface-raised px-5">
             {kept.map((x) => (
               <li
                 key={x.id}
                 className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0"
               >
                 <span className="flex flex-col">
-                  <span className="text-ink">{x.text}</span>
+                  <span className="font-display text-[17px] text-ink">{x.text}</span>
                   <span className="text-xs text-ink-muted">{copy.list[x.list]}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-1">

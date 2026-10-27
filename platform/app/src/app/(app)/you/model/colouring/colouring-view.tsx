@@ -88,7 +88,7 @@ function Seasons({ profile }: { profile: StyleProfile }) {
               aria-pressed={on}
               disabled={season.isPending}
               onClick={() => (on ? null : season.mutate({ input: { season: s } }))}
-              className={`${rowClass} ${on ? 'border-ink bg-surface' : 'border-hairline hover:border-ink'}`}
+              className={`${rowClass} ${on ? 'border-selected-line bg-surface-raised' : 'border-hairline hover:border-ink'}`}
             >
               {s}
               {on ? <Icon name="check" size={16} /> : null}
@@ -128,7 +128,7 @@ function Seasons({ profile }: { profile: StyleProfile }) {
         <button
           type="button"
           onClick={() => setMore(true)}
-          className={`${rowClass} border-hairline bg-surface font-sans text-base hover:border-ink`}
+          className={`${rowClass} border-hairline bg-surface-raised font-sans text-base hover:border-ink`}
         >
           {tw.anotherSeason}
           <Icon name="forward" size={16} />

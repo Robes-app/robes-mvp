@@ -28,7 +28,8 @@ import {
   Text,
 } from '@robes/ui';
 import Link from 'next/link';
-import { type KeyboardEvent, type ReactNode, useState } from 'react';
+import { type KeyboardEvent, useState } from 'react';
+import { SettingsGroup, SettingsRow } from '@/components/settings/settings-chrome';
 import { errorCopy } from '@/lib/error-copy';
 import { imageSources } from '@/lib/image';
 import { useDnaMutations } from '@/lib/use-dna';
@@ -47,30 +48,6 @@ type SheetKind =
 const palette = you.style.palette;
 const WALL_N = 18;
 
-const rowClass =
-  'flex min-h-14 w-full items-center justify-between gap-4 border-b border-hairline px-1 text-left font-sans text-base text-ink last:border-b-0 hover:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
-
-function Row({ label, value, onClick }: { label: string; value: string; onClick: () => void }) {
-  return (
-    <button type="button" className={rowClass} onClick={onClick}>
-      <span>{label}</span>
-      <span className="flex items-center gap-2 text-sm text-ink-muted">
-        {value}
-        <Icon name="forward" size={16} />
-      </span>
-    </button>
-  );
-}
-
-function Group({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section aria-label={title} className="flex flex-col gap-2">
-      <Eyebrow>{title}</Eyebrow>
-      <div className="rounded-crisp border border-hairline bg-surface px-4">{children}</div>
-    </section>
-  );
-}
-
 export function DnaView() {
   const query = useApi('me.dna.get');
   const [sheet, setSheet] = useState<SheetKind | null>(null);
@@ -83,72 +60,47 @@ export function DnaView() {
   const n = (k: BriefListName) => dna.brief[k].length;
   const icons = dna.icons.map((i) => i.name);
   const level = INVESTMENT_LEVELS.find((l) => l.key === dna.investment);
-  const typesValue = dna.types.length ? dna.types.join(', ') : copy.notYet;
+  const types = dna.types.join(', ');
+  const brands =
+    dna.brands.length <= 3 ? dna.brands.join(', ') : copy.brandsCount(dna.brands.length);
+  const iconsValue = icons.length <= 2 ? icons.join(', ') : copy.iconsCount(icons.length);
+  const coloursValue = paletteSummary(colours, 'colours');
+  const printsValue = paletteSummary(colours, 'prints');
+  // An empty answer reads "Not yet" in the faint italic (legacy .sp-row .v.none).
+  const row = (label: string, value: string, empty: boolean, kind: SheetKind) => (
+    <SettingsRow
+      label={label}
+      value={empty ? copy.notYet : value}
+      empty={empty}
+      onClick={() => setSheet(kind)}
+    />
+  );
   return (
-    <div className="flex flex-col gap-8">
-      <Text tone="muted">{copy.sub}</Text>
-      <Group title={copy.taste}>
-        <Row label={copy.styleType} value={typesValue} onClick={() => setSheet('types')} />
-        <Row
-          label={copy.brands}
-          value={
-            !dna.brands.length
-              ? copy.notYet
-              : dna.brands.length <= 3
-                ? dna.brands.join(', ')
-                : copy.brandsCount(dna.brands.length)
-          }
-          onClick={() => setSheet('brands')}
-        />
-        <Row
-          label={copy.icons}
-          value={
-            !icons.length
-              ? copy.notYet
-              : icons.length <= 2
-                ? icons.join(', ')
-                : copy.iconsCount(icons.length)
-          }
-          onClick={() => setSheet('icons')}
-        />
-        <Row
+    <div className="flex flex-col gap-[26px]">
+      <SettingsGroup id="dna-taste" title={copy.taste}>
+        {row(copy.styleType, types, !dna.types.length, 'types')}
+        {row(copy.brands, brands, !dna.brands.length, 'brands')}
+        {row(copy.icons, iconsValue, !icons.length, 'icons')}
+        <SettingsRow
           label={copy.pieces}
           value={dna.pieces.length ? copy.piecesCount(dna.pieces.length) : copy.noneStarred}
+          empty={!dna.pieces.length}
           onClick={() => setSheet('pieces')}
         />
-        <Row
+        <SettingsRow
           label={copy.investment}
           value={level?.label ?? copy.pickOne}
+          empty={!level}
           onClick={() => setSheet('investment')}
         />
-        <Row
-          label={palette.coloursTitle}
-          value={paletteSummary(colours, 'colours')}
-          onClick={() => setSheet('colours')}
-        />
-        <Row
-          label={palette.printsTitle}
-          value={paletteSummary(colours, 'prints')}
-          onClick={() => setSheet('prints')}
-        />
-      </Group>
-      <Group title={copy.words}>
-        <Row
-          label={copy.loves}
-          value={copy.linesCount(n('loves'))}
-          onClick={() => setSheet('loves')}
-        />
-        <Row
-          label={copy.avoids}
-          value={copy.linesCount(n('avoids'))}
-          onClick={() => setSheet('avoids')}
-        />
-        <Row
-          label={copy.rules}
-          value={copy.linesCount(n('rules'))}
-          onClick={() => setSheet('rules')}
-        />
-      </Group>
+        {row(palette.coloursTitle, coloursValue, coloursValue === copy.notYet, 'colours')}
+        {row(palette.printsTitle, printsValue, printsValue === copy.notYet, 'prints')}
+      </SettingsGroup>
+      <SettingsGroup id="dna-words" title={copy.words}>
+        {row(copy.loves, copy.linesCount(n('loves')), !n('loves'), 'loves')}
+        {row(copy.avoids, copy.linesCount(n('avoids')), !n('avoids'), 'avoids')}
+        {row(copy.rules, copy.linesCount(n('rules')), !n('rules'), 'rules')}
+      </SettingsGroup>
       <DnaSheet dna={dna} kind={sheet} onClose={() => setSheet(null)} />
     </div>
   );
@@ -215,7 +167,7 @@ function Option({
       aria-pressed={on}
       disabled={disabled}
       onClick={onClick}
-      className={`flex min-h-14 w-full items-center justify-between gap-4 rounded-crisp border px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${on ? 'border-ink bg-surface' : 'border-hairline hover:border-ink'}`}
+      className={`flex min-h-14 w-full items-center justify-between gap-4 rounded-crisp border px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${on ? 'border-selected-line bg-surface-raised' : 'border-hairline hover:border-ink'}`}
     >
       <span className="flex flex-col gap-0.5">
         <span className="font-sans text-base text-ink">{name}</span>

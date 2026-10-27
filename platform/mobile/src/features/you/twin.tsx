@@ -74,7 +74,7 @@ export function useDrawTwin(when: 'mount' | 'leave') {
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <View className="gap-4 rounded-soft border border-hairline bg-surface p-5">
+    <View className="gap-4 rounded-soft border border-hairline bg-surface-raised p-5">
       <Eyebrow>{title}</Eyebrow>
       {children}
     </View>

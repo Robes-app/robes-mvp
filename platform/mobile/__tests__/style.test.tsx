@@ -64,7 +64,7 @@ test('Your colours: a family on Love and a shade on Avoid save the whole palette
   const copy = you.style.palette;
   await renderWithApi(<StyleDna />);
   await fireEvent.press(
-    await screen.findByRole('button', { name: `${copy.coloursTitle}, ${copy.summary(0, 0)}` }),
+    await screen.findByRole('button', { name: `${copy.coloursTitle}, ${copy.summary([], [])}` }),
   );
   const blues = within(await screen.findByLabelText('Blues'));
   await fireEvent.press(blues.getByRole('radio', { name: copy.states.love }));

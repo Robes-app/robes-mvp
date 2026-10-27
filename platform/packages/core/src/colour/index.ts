@@ -537,6 +537,20 @@ export function matchFamily(p: Palette, familyId: string): Palette {
   };
 }
 
+// What she loves (or avoids) by name, for the Style DNA rows (legacy palWords / palPrintWords):
+// families by name, then a shade set apart from its family in lower case; prints offered as a
+// preference only.
+export function paletteWords(p: Palette, kind: 'colours' | 'prints', value: 1 | -1): string[] {
+  if (kind === 'prints') {
+    return PATTERNS.filter((x) => x.pref && (p.print[x.id] ?? 0) === value).map((x) => x.name);
+  }
+  const out = COLOUR_FAMILIES.filter((f) => (p.fam[f.id] ?? 0) === value).map((f) => f.name);
+  for (const s of SHADES) {
+    if (p.shade[s.id] === value && (p.fam[s.family] ?? 0) !== value) out.push(s.name.toLowerCase());
+  }
+  return out;
+}
+
 // How many families and shades (or prints) she loves and avoids, for the Style DNA rows.
 export function paletteTally(
   p: Palette,

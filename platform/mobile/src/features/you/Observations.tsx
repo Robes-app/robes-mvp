@@ -47,7 +47,10 @@ export function Observations() {
           <Progress stage={copy.reading} />
         ) : dna.observations.length ? (
           dna.observations.map((o) => (
-            <View key={o.id} className="gap-2 rounded-crisp border border-hairline bg-surface p-5">
+            <View
+              key={o.id}
+              className="gap-2 rounded-soft border border-hairline bg-surface-raised p-5"
+            >
               <Eyebrow>{copy.list[o.list] ?? twin.noticed.eyebrow}</Eyebrow>
               <Text className="text-xl" style={{ fontFamily: fonts.display }}>
                 {asSentence(o.text)}

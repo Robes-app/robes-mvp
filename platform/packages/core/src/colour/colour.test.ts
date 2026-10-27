@@ -11,6 +11,7 @@ import {
   PATTERNS,
   paletteFromWords,
   paletteTally,
+  paletteWords,
   pickShade,
   resolveShade,
   SHADE_IDS,
@@ -146,5 +147,16 @@ describe('editing', () => {
     expect(matchFamily(p, 'blues').shade).toEqual({ jet: -1 });
     expect(paletteTally(p, 'colours')).toEqual({ love: 1, avoid: 2 });
     expect(paletteTally(p, 'prints')).toEqual({ love: 0, avoid: 0 });
+  });
+
+  it('names what she loves and avoids for the Style DNA rows', () => {
+    const p = cleanPalette({
+      fam: { blues: 1, reds: -1 },
+      shade: { cobalt: 1, cherry: 1 },
+      print: { stripes: 1, other: 1 },
+    });
+    expect(paletteWords(p, 'colours', 1)).toEqual(['Blues', 'cherry']);
+    expect(paletteWords(p, 'colours', -1)).toEqual(['Reds']);
+    expect(paletteWords(p, 'prints', 1)).toEqual(['Stripes']);
   });
 });
