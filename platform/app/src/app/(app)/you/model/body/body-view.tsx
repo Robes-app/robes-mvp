@@ -2,7 +2,7 @@
 
 import { useApi } from '@robes/api-client/react';
 import type { Facts, Model, UpdateModelInput } from '@robes/contracts';
-import { twin } from '@robes/copy';
+import { twin, ui } from '@robes/copy';
 import { effectiveStops, isAdjusted, readAdj, STOPS, TWIN_SCALES } from '@robes/core/avatar';
 import { AGE_BANDS, ageBandLabel, euSize } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/web';
@@ -41,7 +41,7 @@ export function BodyView() {
     <div className="flex flex-col gap-5">
       <Line model={model} facts={dna.data.facts} onOpen={open} pick={pick} />
       <Scales model={model} facts={dna.data.facts} pick={pick} />
-      <Sheet open={facts} onOpenChange={setFacts} title={f.title}>
+      <Sheet open={facts} onOpenChange={setFacts} title={f.title} closeLabel={ui.done}>
         <FactsBody dna={dna.data} gender={model.presence} />
       </Sheet>
     </div>

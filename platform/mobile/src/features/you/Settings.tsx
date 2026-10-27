@@ -1,7 +1,7 @@
 import { Icon } from '@robes/icons/native';
 import { Eyebrow, fonts, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
-import { Pressable, Switch, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 // Settings' rows and cards (legacy settings.html .sp-gk / .sp-group / .sp-row): a titled white
 // card on a hairline; a row is the serif name, a sans sub, her answer at the right and ›.
@@ -116,7 +116,9 @@ export function SettingsRow({
   );
 }
 
-// A row with an on/off switch (legacy .sp-tog); ink when on.
+// A row with an on/off switch: a 36×22 track, the same as the web's — not the system switch —
+// ink-soft when on (ink stays for the one commitment), cream when off; the row is the target. Web
+// twin: app/src/components/settings/settings-chrome.tsx SettingsToggleRow.
 export function SettingsToggleRow({
   label,
   sub,
@@ -132,20 +134,25 @@ export function SettingsToggleRow({
   disabled?: boolean;
   first?: boolean;
 }) {
-  const ink = useColor('ink');
-  const track = useColor('border-control');
   return (
-    <View
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: value, disabled }}
+      disabled={disabled}
+      onPress={() => onChange(!value)}
+      style={{ minHeight: MIN_TOUCH, opacity: disabled ? 0.5 : 1 }}
       className={`min-h-[60px] flex-row items-center gap-3.5 px-[18px] py-3.5 ${first ? '' : 'border-t border-hairline'}`}
     >
       <RowBody label={label} sub={sub} />
-      <Switch
-        accessibilityLabel={label}
-        value={value}
-        onValueChange={onChange}
-        disabled={disabled}
-        trackColor={{ true: ink, false: track }}
-      />
-    </View>
+      <View
+        className={`h-[22px] w-9 justify-center rounded-pill border px-[2px] ${value ? 'border-ink-muted bg-ink-muted' : 'border-rule-mid bg-surface-sunk'}`}
+      >
+        <View
+          className="h-4 w-4 rounded-pill bg-surface-raised"
+          style={{ transform: [{ translateX: value ? 14 : 0 }] }}
+        />
+      </View>
+    </Pressable>
   );
 }

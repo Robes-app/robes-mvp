@@ -45,8 +45,8 @@ export default async function YouPage({
               />
             </SettingsGroup>
             <SettingsGroup id="you-privacy" title={you.sections.privacy}>
+              {/* One row for her data: her consents and the download sit inside it (27 Oct). */}
               <SettingsRow href="/you/privacy" label={you.privacy} />
-              <SettingsRow href="/you/data" label={you.dataExport.title} />
               <SettingsRow
                 href="/legal/privacy"
                 external
@@ -56,7 +56,7 @@ export default async function YouPage({
               <SettingsRow
                 href="/legal/terms"
                 external
-                label={you.legal.terms}
+                label={you.legal.betaTerms}
                 sub={you.subs.terms}
               />
             </SettingsGroup>

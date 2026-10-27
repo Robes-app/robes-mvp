@@ -146,7 +146,7 @@ function Seasons({ profile }: { profile: StyleProfile }) {
               disabled={season.isPending}
               onPress={() => (on ? null : season.mutate({ input: { season: s } }))}
               style={{ minHeight: Math.max(MIN_TOUCH, 60) }}
-              className={`${row} ${on ? 'border-selected-line bg-surface-raised' : 'border-hairline'}`}
+              className={`${row} ${on ? 'border-selected-line bg-selected' : 'border-hairline'}`}
             >
               <Text className="font-display text-xl">{s}</Text>
               {on ? <Icon name="check" color={ink} size={16} /> : null}

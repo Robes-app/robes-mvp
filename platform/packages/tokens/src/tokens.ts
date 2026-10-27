@@ -19,7 +19,8 @@ export const palette = {
   mauve: '#D4C8C4',
   // The warm end of the sign-in ground (legacy signup.html).
   blush: '#E8D5D2',
-  // A selection sits on the raised white with this edge (Annie, 2026-10-25; was a #F3EFE6 fill).
+  // A selection is the warm fill with the warm edge, never white (Annie, 27 Oct — reverses 25 Oct).
+  warmFill: '#F3EFE6',
   warmLine: '#C9BCA6',
   warmLineDark: '#8A7F6C',
   success: '#3F6B4C',
@@ -77,7 +78,7 @@ export const light: Record<Semantic, ColorRef> = {
   hairline: { base: 'ink', alpha: 0.075 },
   'border-control': { base: 'ink', alpha: 0.5 },
   'rule-mid': { base: 'ink', alpha: 0.12 },
-  selected: 'white',
+  selected: 'warmFill',
   'selected-line': 'warmLine',
 };
 

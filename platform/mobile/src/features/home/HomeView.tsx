@@ -346,7 +346,7 @@ function Week({
                 today
                   ? 'border-rule-mid bg-surface-raised'
                   : sel
-                    ? 'border-selected-line bg-surface-raised'
+                    ? 'border-selected-line bg-selected'
                     : 'border-transparent'
               }`}
             >

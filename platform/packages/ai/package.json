@@ -11,7 +11,7 @@
     "./prompts/travel": "./src/prompts/travel/v3.ts",
     "./prompts/receipt-read": "./src/prompts/receipt-read/v2.ts",
     "./prompts/avatar": "./src/prompts/avatar/v3.ts",
-    "./prompts/style-brief": "./src/prompts/style-brief/v1.ts",
+    "./prompts/style-brief": "./src/prompts/style-brief/v2.ts",
     "./prompts/wardrobe-pieces": "./src/prompts/wardrobe-pieces/v1.ts",
     "./prompts/style-piece/v2": "./src/prompts/style-piece/v2.ts",
     "./prompts/look-ask": "./src/prompts/look-ask/v1.ts"

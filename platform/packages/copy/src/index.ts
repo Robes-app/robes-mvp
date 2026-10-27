@@ -670,6 +670,8 @@ export const ui = {
   wordmark: 'Robes',
   loading: 'One moment…',
   close: 'Close',
+  // A sheet whose every tap already saved closes on a word, not an ×.
+  done: 'Done',
   dismiss: 'Dismiss',
   undo: 'Undo',
   notifications: 'Notifications',
@@ -896,9 +898,12 @@ export const you = {
     nudges: 'Gentle nudges to add pieces',
     receipts: 'When a receipt becomes a piece',
   },
-  privacy: 'Privacy',
+  // The row that holds her consents and her data export (decided 27 Oct: one "privacy" row only).
+  privacy: 'Your data',
   legal: {
     terms: 'Terms',
+    // The Settings row while Robes is in beta.
+    betaTerms: 'Beta terms',
     privacyNotice: 'Privacy notice',
   },
   signOut: 'Sign out',
@@ -954,24 +959,10 @@ export const you = {
       fromFamily: 'From the family',
       matchFamily: 'Match the family',
       saved: 'Saved.',
-      // The row's value (legacy dnaPaint): "Blues, cherry · avoids reds", or Not yet.
-      summary: (love: readonly string[], avoid: readonly string[], n = 3): string => {
-        const few = (a: readonly string[], k: number) =>
-          a.slice(0, k).join(', ') + (a.length > k ? ` +${a.length - k}` : '');
-        return love.length + avoid.length === 0
-          ? 'Not yet'
-          : [
-              love.length ? few(love, n) : '',
-              avoid.length
-                ? `avoids ${few(
-                    avoid.map((w) => w.toLowerCase()),
-                    2,
-                  )}`
-                : '',
-            ]
-              .filter(Boolean)
-              .join(' · ');
-      },
+      // The row's value (Settings redline 27 Oct): what she loves, the first and a count
+      // ("Blacks +2"), never cut mid-word and never the avoids; Not yet when she loves nothing.
+      summary: (love: readonly string[]): string =>
+        love.length > 1 ? `${love[0]} +${love.length - 1}` : (love[0] ?? 'Not yet'),
     },
     // Native's close-up card (Colouring).
     colour: {
@@ -1758,9 +1749,10 @@ export const twin = {
     pickOne: 'Pick one',
     noneStarred: 'None starred',
     sometimes: (types: string): string => `sometimes ${types}`,
-    brandsCount: (n: number): string => `${n} brands`,
-    iconsCount: (n: number): string => `${n} icons`,
     piecesCount: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+    // A row's answer: the first name, then how many more ("Phoebe Philo +2"), never cut mid-word.
+    firstPlus: (names: readonly string[]): string =>
+      names.length > 1 ? `${names[0]} +${names.length - 1}` : (names[0] ?? ''),
     linesCount,
   },
   types: {
@@ -1871,7 +1863,8 @@ export const twin = {
       notes: 'How you dress well',
       colours: 'Colour',
     } as Record<string, string>,
-    keptIn: (month: string): string => `Kept in ${month}`,
+    // Follows the list name under a kept line: "Works · kept in October".
+    keptIn: (month: string): string => `kept in ${month}`,
     // Written by the read onto each line it drafts (stored with the line).
     evidence: (pieces: number, looks: number): string =>
       pieces && looks

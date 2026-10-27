@@ -99,7 +99,7 @@ export function StarButton({
         tile ? 'size-8 after:absolute after:-inset-1.5' : 'size-10'
       } ${
         on
-          ? 'border-selected-line bg-surface-raised text-ink'
+          ? 'border-selected-line bg-selected text-ink'
           : `border-hairline text-ink-muted ${tile ? 'bg-surface-raised/90' : 'bg-surface-raised'}`
       } ${focus}`}
     >

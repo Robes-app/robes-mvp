@@ -1,6 +1,6 @@
 import { useApi } from '@robes/api-client/react';
 import type { Facts, Model, UpdateModelInput } from '@robes/contracts';
-import { twin } from '@robes/copy';
+import { twin, ui } from '@robes/copy';
 import { effectiveStops, isAdjusted, readAdj, STOPS, TWIN_SCALES } from '@robes/core/avatar';
 import { AGE_BANDS, ageBandLabel, euSize } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/native';
@@ -49,7 +49,7 @@ export function BodyShape() {
     <ScrollView contentContainerClassName="gap-5 px-6 pb-12">
       <LineCard model={model} facts={dna.data.facts} onOpen={open} pick={pick} />
       <Scales model={model} facts={dna.data.facts} pick={pick} />
-      <Sheet open={facts} onClose={() => setFacts(false)} title={f.title} closeButton>
+      <Sheet open={facts} onClose={() => setFacts(false)} title={f.title} closeLabel={ui.done}>
         <FactsBody dna={dna.data} gender={model.presence} />
       </Sheet>
     </ScrollView>
@@ -89,7 +89,7 @@ function PillMenu<T extends string>({
         </Text>
         <Icon name="down" color={muted} size={12} />
       </Pressable>
-      <Sheet open={open} onClose={() => setOpen(false)} title={label} closeButton>
+      <Sheet open={open} onClose={() => setOpen(false)} title={label} closeLabel={ui.done}>
         <View>
           {options.map((o, i) => (
             <Pressable

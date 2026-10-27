@@ -3,7 +3,7 @@ import type { Observation } from '@robes/contracts';
 import { you as copy, twin } from '@robes/copy';
 import { asSentence } from '@robes/core';
 import { Icon } from '@robes/icons/native';
-import { Button, Eyebrow, fonts, SegmentedControl, Text, useColor } from '@robes/ui-native';
+import { Eyebrow, fonts, SegmentedControl, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
@@ -132,7 +132,7 @@ function Account() {
           onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
         />
         <SettingsRow
-          label={copy.legal.terms}
+          label={copy.legal.betaTerms}
           sub={copy.subs.terms}
           external
           onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.terms)}
@@ -151,9 +151,22 @@ function Account() {
           </Text>
         </Pressable>
         <Eyebrow>{copy.version}</Eyebrow>
-        <Button variant="secondary" onPress={() => void signOut()}>
-          {copy.signOut}
-        </Button>
+        {/* A small hairline pill (legacy .sp-out); hitSlop keeps the target 44. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.signOut}
+          onPress={() => void signOut()}
+          hitSlop={4}
+          className="min-h-9 justify-center rounded-pill border border-border-control px-5"
+        >
+          <Text
+            size="caption"
+            className="uppercase"
+            style={{ fontFamily: fonts.sansMedium, letterSpacing: 1.9 }}
+          >
+            {copy.signOut}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );

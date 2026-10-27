@@ -48,7 +48,7 @@ test('she downloads her data as one JSON file with only her things (SEC-81)', as
 test('You › Download your data prepares a file and offers the download', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
-  await page.goto('/you/data');
+  await page.goto('/you/privacy');
   await page.getByRole('button', { name: 'Prepare my data' }).click();
   await expect(page.getByRole('link', { name: 'Download' })).toBeVisible({ timeout: 20_000 });
 });

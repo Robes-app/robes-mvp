@@ -10,7 +10,8 @@ import {
   setPreference,
   shadePreference,
 } from '@robes/core/colour';
-import { Button, PreferenceControl, Text, useToast } from '@robes/ui-native';
+import { Icon } from '@robes/icons/native';
+import { Button, PreferenceControl, Text, useColor, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -20,13 +21,11 @@ import { errorMessage } from '@/lib/errors';
 const copy = you.style.palette;
 const STYLE_KEY = queryKeys.call('me.style.get');
 
+// The Style DNA rows' values: what she loves, first and a count ("Blacks +2"). Web twin:
+// app/(app)/you/style/palette-sheets.tsx.
 export function paletteSummary(p: Palette | undefined, kind: 'colours' | 'prints'): string {
   if (!p) return '';
-  return copy.summary(
-    paletteWords(p, kind, 1),
-    paletteWords(p, kind, -1),
-    kind === 'colours' ? 3 : 2,
-  );
+  return copy.summary(paletteWords(p, kind, 1));
 }
 
 // Her palette, saved whole on each change; the cache moves first so the control never lags.
@@ -50,15 +49,16 @@ export function usePalette() {
   return { palette: query.data?.palette, set };
 }
 
-// A row carries her answer: love is the warm fill across the row, avoid fades the tile and name.
-const rowClass = (v: Preference): string =>
-  `border-b border-hairline px-3 ${v === 1 ? 'bg-selected' : ''}`;
-const nameTone = (v: Preference): 'ink' | 'faint' => (v === -1 ? 'faint' : 'ink');
+// A row carries her answer: love is the warm fill across the row; avoid fades the tile only — the
+// name stays ink, for contrast. An open family sits on cream so its shades read as one group.
+const rowClass = (v: Preference, open = false): string =>
+  `border-b border-hairline px-3 ${v === 1 ? 'bg-selected' : open ? 'bg-surface' : ''}`;
 
 // Your colours (legacy a61f211): the 13 families on Avoid · No view · Love; a family's tile and
 // name open its shades, which follow it until she sets one.
 export function ColoursBody() {
   const { palette, set } = usePalette();
+  const faint = useColor('ink-faint');
   const [open, setOpen] = useState<string | null>(null);
   if (!palette) return null;
   return (
@@ -70,7 +70,7 @@ export function ColoursBody() {
           const own = f.shades.filter((s) => s.id in palette.shade);
           const shown = open === f.id;
           return (
-            <View key={f.id} className={rowClass(fam)}>
+            <View key={f.id} className={rowClass(fam, shown)}>
               <View className="flex-row items-center gap-3 py-3">
                 <Pressable
                   accessibilityRole="button"
@@ -83,7 +83,13 @@ export function ColoursBody() {
                     <FamilyTile family={f} />
                   </View>
                   <View className="flex-1 gap-[3px]">
-                    <Text tone={nameTone(fam)}>{f.name}</Text>
+                    {/* The ⌄ says the family opens. */}
+                    <View className="flex-row items-center gap-1.5">
+                      <Text>{f.name}</Text>
+                      <View style={shown ? { transform: [{ rotate: '180deg' }] } : undefined}>
+                        <Icon name="down" color={faint} size={12} />
+                      </View>
+                    </View>
                     <Text size="caption" tone="muted">
                       {own.length ? copy.shadesSet(own.length) : ''}
                     </Text>
@@ -122,15 +128,15 @@ export function ColoursBody() {
                       />
                     </View>
                   ))}
-                  {own.length ? (
-                    <Button
-                      variant="quiet"
-                      className="self-start"
-                      onPress={() => set(matchFamily(palette, f.id))}
-                    >
-                      {copy.matchFamily}
-                    </Button>
-                  ) : null}
+                  {/* The foot of an open family: hand every shade back to the family's answer. */}
+                  <Button
+                    variant="quiet"
+                    className="self-start"
+                    disabled={!own.length}
+                    onPress={() => set(matchFamily(palette, f.id))}
+                  >
+                    {copy.matchFamily}
+                  </Button>
                 </View>
               ) : null}
             </View>
@@ -158,9 +164,7 @@ export function PrintsBody() {
           return (
             <View key={p.id} className={rowClass(v)}>
               <View className="flex-row items-center gap-3 py-3">
-                <Text tone={nameTone(v)} className="flex-1">
-                  {p.name}
-                </Text>
+                <Text className="flex-1">{p.name}</Text>
                 <PreferenceControl
                   label={p.name}
                   value={v}

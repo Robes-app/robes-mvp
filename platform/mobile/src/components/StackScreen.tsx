@@ -27,7 +27,11 @@ export function StackScreen({
   return (
     // Uniwind doesn't style third-party views, so insets go on a plain View.
     <View className="flex-1 bg-bg" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
-      <View className="h-11 flex-row items-center px-2">
+      {/* Settings' header sits on the cream with a hairline under it, so rows never run under the
+          title (web SettingsHeader). */}
+      <View
+        className={`h-11 flex-row items-center px-2 ${settings ? 'border-b border-rule-mid bg-bg' : ''}`}
+      >
         {title ? (
           <View pointerEvents="none" className="absolute inset-x-14 items-center">
             <Heading

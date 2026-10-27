@@ -87,7 +87,7 @@ export function SegmentedControl<T extends string>({
               // The selected segment is raised on the warm edge (the native twin: ui-native); the
               // rest read ink-faint, since ink-muted on the sunk track is 4.44:1, under AA.
               checked
-                ? 'border-selected-line bg-surface-raised text-ink'
+                ? 'border-selected-line bg-selected text-ink'
                 : 'border-transparent text-ink-faint hover:text-ink',
               focusRing,
             )}

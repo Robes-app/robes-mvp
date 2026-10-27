@@ -69,7 +69,7 @@ export function SegmentedControl<T extends string>({
             }}
             className={cx(
               'flex-1 items-center justify-center rounded-pill px-3',
-              selected && 'border border-selected-line bg-surface-raised',
+              selected && 'border border-selected-line bg-selected',
               disabled && 'opacity-50',
             )}
           >

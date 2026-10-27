@@ -147,7 +147,7 @@ function Seasons({ profile }: { profile: StyleProfile }) {
               aria-pressed={on}
               disabled={season.isPending}
               onClick={() => (on ? null : season.mutate({ input: { season: s } }))}
-              className={`${rowClass} ${on ? 'border-selected-line bg-surface-raised' : 'border-hairline hover:border-ink'}`}
+              className={`${rowClass} ${on ? 'border-selected-line bg-selected' : 'border-hairline hover:border-ink'}`}
             >
               {s}
               {on ? <Icon name="check" size={16} /> : null}

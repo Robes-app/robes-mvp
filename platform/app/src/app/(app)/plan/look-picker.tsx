@@ -142,7 +142,7 @@ export function LookPicker({
                 type="button"
                 aria-label={`${copy.sortLabel}: ${lastWornFirst ? copy.lastWornFirst : copy.firstWornFirst}`}
                 onClick={() => setLastWornFirst((v) => !v)}
-                className={`${pillClasses()} min-h-9 px-3 text-xs`}
+                className={pillClasses({ size: 'sm' })}
               >
                 {lastWornFirst ? copy.lastWornFirst : copy.firstWornFirst}
               </button>
@@ -150,7 +150,7 @@ export function LookPicker({
                 type="button"
                 aria-expanded={refining}
                 onClick={() => setRefining((v) => !v)}
-                className={`${pillClasses({ selected: refining || filters > 0 })} min-h-9 px-3 text-xs`}
+                className={pillClasses({ selected: refining || filters > 0, size: 'sm' })}
               >
                 {filters ? copy.refineOn(filters) : copy.refine}
               </button>

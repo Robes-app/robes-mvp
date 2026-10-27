@@ -80,12 +80,14 @@ export function ObservationsView() {
                 key={x.id}
                 className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0"
               >
-                <span className="flex flex-col">
-                  <span className="font-display text-[17px] text-ink">{x.text}</span>
-                  <span className="text-xs text-ink-muted">{copy.list[x.list]}</span>
+                {/* The line runs the full width; what it is and when she kept it sit under it. */}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="font-display text-[17px] text-ink leading-snug">{x.text}</span>
+                  <span className="font-display text-[15px] text-ink-muted italic">
+                    {[copy.list[x.list], keptIn(x.keptAt)].filter(Boolean).join(' · ')}
+                  </span>
                 </span>
-                <span className="flex shrink-0 items-center gap-1">
-                  <span className="text-xs text-ink-faint">{keptIn(x.keptAt)}</span>
+                <span className="flex shrink-0 items-center">
                   <IconButton
                     icon="close"
                     disabled={removeLine.isPending}

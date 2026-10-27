@@ -150,7 +150,8 @@ export function SettingsRowContent({
   );
 }
 
-// A row with an on/off switch (legacy .sp-tog): a 42×24 track, ink when on; the row is the target.
+// A row with an on/off switch: a 36×22 track, ink-soft when on (ink stays for the one commitment),
+// cream when off; the row is the target. Native twin: mobile/src/features/you/Settings.tsx.
 export function SettingsToggleRow({
   label,
   sub,
@@ -176,10 +177,10 @@ export function SettingsToggleRow({
       <SettingsRowContent label={label} sub={sub} chevron={null} />
       <span
         aria-hidden
-        className={`relative h-6 w-[42px] shrink-0 rounded-pill border motion-safe:transition-colors ${checked ? 'border-ink bg-ink' : 'border-border-control bg-surface-sunk'}`}
+        className={`relative h-[22px] w-9 shrink-0 rounded-pill border motion-safe:transition-colors ${checked ? 'border-ink-muted bg-ink-muted' : 'border-rule-mid bg-surface-sunk'}`}
       >
         <span
-          className={`absolute top-[2px] left-[2px] size-[18px] rounded-pill bg-surface-raised shadow-sm motion-safe:transition-transform ${checked ? 'translate-x-[18px]' : ''}`}
+          className={`absolute top-[2px] left-[2px] size-4 rounded-pill bg-surface-raised shadow-sm motion-safe:transition-transform ${checked ? 'translate-x-[14px]' : ''}`}
         />
       </span>
     </button>

@@ -52,7 +52,7 @@ export function PreferenceControl({
       accessibilityLabel={following && follows ? `${label}: following ${follows}` : label}
       testID={testID}
       style={{ height: box.h, width: box.w }}
-      className={cx('flex-row rounded-pill border border-hairline bg-bg p-0.5', className)}
+      className={cx('flex-row rounded-pill border border-hairline bg-surface p-0.5', className)}
     >
       {ORDER.map((pref, index) => {
         const checked = pref === shown;

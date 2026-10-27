@@ -67,7 +67,7 @@ export function HomeWeek({
                   isToday
                     ? 'border-rule-mid bg-surface-raised'
                     : isSel
-                      ? 'border-selected-line bg-surface-raised'
+                      ? 'border-selected-line bg-selected'
                       : 'border-transparent'
                 } ${focus}`}
               >

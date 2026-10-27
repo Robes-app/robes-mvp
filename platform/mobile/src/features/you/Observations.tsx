@@ -40,7 +40,9 @@ export function Observations() {
   );
   return (
     <ScrollView contentContainerClassName="gap-6 px-6 pb-12">
-      <Text tone="muted">{copy.sub}</Text>
+      <Text size="caption" tone="muted" className="text-center">
+        {copy.sub}
+      </Text>
       <View className="gap-3">
         <Eyebrow>{copy.since}</Eyebrow>
         {reading ? (
@@ -77,15 +79,13 @@ export function Observations() {
               key={x.id}
               className="flex-row items-center justify-between gap-4 border-b border-hairline py-3"
             >
-              <View className="flex-1">
-                <Text>{x.text}</Text>
-                <Text size="caption" tone="muted">
-                  {copy.list[x.list]}
+              {/* The line runs the full width; what it is and when she kept it sit under it. */}
+              <View className="flex-1 gap-0.5">
+                <Text style={{ fontFamily: fonts.displayRegular, fontSize: 17 }}>{x.text}</Text>
+                <Text italic size="caption" tone="muted">
+                  {[copy.list[x.list], keptIn(x.keptAt)].filter(Boolean).join(' · ')}
                 </Text>
               </View>
-              <Text size="caption" tone="faint">
-                {keptIn(x.keptAt)}
-              </Text>
               <IconButton
                 icon="close"
                 tone="ink-muted"

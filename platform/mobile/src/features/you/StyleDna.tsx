@@ -1,6 +1,6 @@
 import { useApi } from '@robes/api-client/react';
 import type { BriefLine, BriefListName, StyleDna as Dna } from '@robes/contracts';
-import { twin, you } from '@robes/copy';
+import { twin, ui, you } from '@robes/copy';
 import { asSentence } from '@robes/core';
 import {
   INVESTMENT_LEVELS,
@@ -19,6 +19,7 @@ import {
   EmptyState,
   Eyebrow,
   Field,
+  fonts,
   IconButton,
   MIN_TOUCH,
   Pill,
@@ -28,7 +29,7 @@ import {
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useDnaMutations } from './dna';
 import { ColoursBody, PrintsBody, paletteSummary, usePalette } from './Palette';
@@ -47,34 +48,59 @@ type SheetKind =
 const palette = you.style.palette;
 const WALL_N = 18;
 
+// A sheet's option row. `radio` (one answer, Investment level): the amount in the serif with lining
+// figures, its line beneath, an 18pt radio at the right; selected is the warm fill. Web twin:
+// app/(app)/you/style/dna-view.tsx Option.
 function Option({
   name,
   desc,
   on,
   onPress,
+  radio = false,
 }: {
   name: string;
   desc: string;
   on: boolean;
   onPress: () => void;
+  radio?: boolean;
 }) {
   const ink = useColor('ink');
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={radio ? 'radio' : 'button'}
       accessibilityLabel={name}
-      accessibilityState={{ selected: on }}
+      accessibilityState={radio ? { checked: on } : { selected: on }}
       onPress={onPress}
       style={{ minHeight: MIN_TOUCH }}
-      className={`flex-row items-center justify-between gap-4 rounded-crisp border px-4 py-3 ${on ? 'border-selected-line bg-surface-raised' : 'border-hairline'}`}
+      className={`flex-row items-center justify-between gap-4 rounded-crisp border px-4 py-3 ${on ? 'border-selected-line bg-selected' : 'border-hairline'}`}
     >
       <View className="flex-1 gap-0.5">
-        <Text>{name}</Text>
-        <Text size="small" tone="muted">
+        {radio ? (
+          <Text
+            style={{
+              fontFamily: fonts.displayRegular,
+              fontSize: 17,
+              fontVariant: ['lining-nums'],
+            }}
+          >
+            {name}
+          </Text>
+        ) : (
+          <Text>{name}</Text>
+        )}
+        <Text size={radio ? 'caption' : 'small'} tone="muted">
           {desc}
         </Text>
       </View>
-      {on ? <Icon name="check" color={ink} size={18} /> : null}
+      {radio ? (
+        <View
+          className={`h-[18px] w-[18px] items-center justify-center rounded-full border ${on ? 'border-selected-line bg-surface-raised' : 'border-border-control'}`}
+        >
+          {on ? <Icon name="check" color={ink} size={12} /> : null}
+        </View>
+      ) : on ? (
+        <Icon name="check" color={ink} size={18} />
+      ) : null}
     </Pressable>
   );
 }
@@ -90,9 +116,9 @@ export function StyleDna() {
   const icons = dna.icons.map((i) => i.name);
   const n = (k: BriefListName) => dna.brief[k].length;
   const level = INVESTMENT_LEVELS.find((l) => l.key === dna.investment);
-  const brands =
-    dna.brands.length <= 3 ? dna.brands.join(', ') : copy.brandsCount(dna.brands.length);
-  const iconsValue = icons.length <= 2 ? icons.join(', ') : copy.iconsCount(icons.length);
+  // First name and a count, never a list cut mid-word (Settings redline 27 Oct).
+  const brands = copy.firstPlus(dna.brands);
+  const iconsValue = copy.firstPlus(icons);
   const coloursValue = paletteSummary(colours, 'colours');
   const printsValue = paletteSummary(colours, 'prints');
   // An empty answer reads "Not yet" in the faint italic (legacy .sp-row .v.none).
@@ -111,7 +137,7 @@ export function StyleDna() {
         {copy.sub}
       </Text>
       <SettingsGroup title={copy.taste}>
-        {row(copy.styleType, dna.types.join(', '), !dna.types.length, 'types', true)}
+        {row(copy.styleType, copy.firstPlus(dna.types), !dna.types.length, 'types', true)}
         {row(copy.brands, brands, !dna.brands.length, 'brands')}
         {row(copy.icons, iconsValue, !icons.length, 'icons')}
         <SettingsRow
@@ -163,8 +189,18 @@ function DnaSheet({
 }) {
   const [title, sub] = kind ? HEAD[kind] : ['', ''];
   return (
-    <Sheet open={kind !== null} onClose={onClose} title={title} testID="dna-sheet">
-      <ScrollView contentContainerClassName="gap-4 pb-6" keyboardShouldPersistTaps="handled">
+    <Sheet
+      open={kind !== null}
+      onClose={onClose}
+      title={title}
+      closeLabel={ui.done}
+      testID="dna-sheet"
+    >
+      <ScrollView
+        style={{ flexShrink: 1 }}
+        contentContainerClassName="gap-4 pb-6"
+        keyboardShouldPersistTaps="handled"
+      >
         {sub ? <Text tone="muted">{sub}</Text> : null}
         {kind === 'types' ? <TypesBody dna={dna} /> : null}
         {kind === 'brands' || kind === 'icons' ? <WallBody dna={dna} kind={kind} /> : null}
@@ -210,6 +246,9 @@ function TypesBody({ dna }: { dna: Dna }) {
 
 function WallBody({ dna, kind }: { dna: Dna; kind: WallKind }) {
   const { update } = useDnaMutations();
+  const ink = useColor('ink');
+  const muted = useColor('ink-muted');
+  const faint = useColor('ink-faint');
   const [q, setQ] = useState('');
   const brands = kind === 'brands';
   const mine = brands ? dna.brands : dna.icons.map((i) => i.name);
@@ -226,22 +265,46 @@ function WallBody({ dna, kind }: { dna: Dna; kind: WallKind }) {
     : pool.slice(0, WALL_N);
   const exact = query && (wallPool(kind, dna.types).some((n) => normName(n) === query) || has(q));
   const label = (n: string) => (!brands && iconTag(n) ? `${n} · ${iconTag(n)}` : n);
+  const placeholder = brands ? twin.wall.searchBrands : twin.wall.searchIcons;
   return (
     <View className="gap-4">
-      <Field
-        label={brands ? twin.wall.searchBrands : twin.wall.searchIcons}
-        value={q}
-        onChangeText={setQ}
-        autoCorrect={false}
-        returnKeyType="done"
-        onSubmitEditing={() => (q.trim() && !has(q.trim()) ? toggle(q.trim()) : null)}
-      />
+      {/* A 44pt pill with its glyph; the placeholder names it, so no label above (redline). */}
+      <View
+        className="flex-row items-center gap-2.5 rounded-pill border border-hairline bg-surface-raised px-4"
+        style={{ minHeight: MIN_TOUCH }}
+      >
+        <Icon name="search" color={muted} size={16} />
+        <TextInput
+          accessibilityLabel={placeholder}
+          placeholder={placeholder}
+          placeholderTextColor={faint}
+          value={q}
+          onChangeText={setQ}
+          autoCorrect={false}
+          returnKeyType="done"
+          onSubmitEditing={() => (q.trim() && !has(q.trim()) ? toggle(q.trim()) : null)}
+          className="flex-1 text-sm"
+          style={{ fontFamily: fonts.sans, color: ink, minHeight: MIN_TOUCH }}
+        />
+      </View>
       {mine.length ? (
         <View className="gap-2">
-          <Eyebrow>{`${twin.wall.selections} · ${twin.wall.keptCount(mine.length)}`}</Eyebrow>
+          <View className="flex-row items-baseline gap-2">
+            <Eyebrow>{twin.wall.selections}</Eyebrow>
+            <Text italic size="caption" tone="muted">
+              {twin.wall.keptCount(mine.length)}
+            </Text>
+          </View>
           <View className="flex-row flex-wrap gap-2">
             {mine.map((n) => (
-              <Pill key={n} selected onPress={() => toggle(n)}>
+              <Pill
+                key={n}
+                selected
+                removable
+                size="sm"
+                label={twin.wall.remove(n)}
+                onPress={() => toggle(n)}
+              >
                 {label(n)}
               </Pill>
             ))}
@@ -249,13 +312,20 @@ function WallBody({ dna, kind }: { dna: Dna; kind: WallKind }) {
         </View>
       ) : null}
       <View className="gap-2">
-        <Eyebrow>
-          {query ? twin.wall.matches : brands ? twin.wall.popular : twin.wall.often}
-        </Eyebrow>
+        <View className="flex-row flex-wrap items-baseline gap-2">
+          <Eyebrow>
+            {query ? twin.wall.matches : brands ? twin.wall.popular : twin.wall.often}
+          </Eyebrow>
+          {query ? null : (
+            <Text italic size="caption" tone="muted">
+              {twin.wall.tapToKeep}
+            </Text>
+          )}
+        </View>
         {matches.length ? (
           <View className="flex-row flex-wrap gap-2">
             {matches.map((n) => (
-              <Pill key={n} onPress={() => toggle(n)}>
+              <Pill key={n} size="sm" onPress={() => toggle(n)}>
                 {label(n)}
               </Pill>
             ))}
@@ -266,7 +336,9 @@ function WallBody({ dna, kind }: { dna: Dna; kind: WallKind }) {
           </Text>
         )}
         {query && !exact ? (
-          <Pill onPress={() => toggle(q.trim())}>{twin.wall.add(q.trim())}</Pill>
+          <Pill size="sm" onPress={() => toggle(q.trim())}>
+            {twin.wall.add(q.trim())}
+          </Pill>
         ) : null}
       </View>
     </View>
@@ -319,6 +391,7 @@ function InvestmentBody({ dna }: { dna: Dna }) {
     <View className="gap-2">
       {INVESTMENT_LEVELS.map((l) => (
         <Option
+          radio
           key={l.key}
           name={l.label}
           desc={twin.investment.notes[l.key] ?? ''}
