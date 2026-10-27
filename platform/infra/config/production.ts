@@ -1,4 +1,11 @@
-import { budgetsEnabled, fromEnv, mediaBucketName, publicKeyFor, reservedConcurrency } from './env';
+import {
+  budgetsEnabled,
+  fromEnv,
+  mediaBucketName,
+  publicKeyFor,
+  reservedConcurrency,
+  SHARED_RECEIPT_RULE_SET,
+} from './env';
 import type { StageConfig } from './types';
 
 export const production: StageConfig = {
@@ -15,7 +22,11 @@ export const production: StageConfig = {
     environment: 'production',
     oidcProviderArn: fromEnv('ROBES_PRODUCTION_GITHUB_OIDC_PROVIDER_ARN'),
   },
-  email: { domain: 'mail.byrobes.com', fromAddress: 'Robes <hello@mail.byrobes.com>' },
+  email: {
+    domain: 'mail.byrobes.com',
+    fromAddress: 'Robes <hello@mail.byrobes.com>',
+    sharedReceiptRuleSet: SHARED_RECEIPT_RULE_SET,
+  },
   api: { accessKeys: [{ serial: 1, status: 'Active' }] },
   media: {
     bucketName: mediaBucketName('robes-prod', fromEnv('ROBES_PRODUCTION_AWS_ACCOUNT_ID')),

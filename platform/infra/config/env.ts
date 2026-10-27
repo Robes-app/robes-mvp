@@ -13,6 +13,10 @@ export function publicKeyFor(stage: string): string | undefined {
   return existsSync(file) ? readFileSync(file, 'utf8') : undefined;
 }
 
+// SES allows one active receipt rule set per account and region, and in 259887029472 (eu-west-1)
+// it is Pluck's. Both stages add their rule to it; a rule in an inactive set receives nothing.
+export const SHARED_RECEIPT_RULE_SET = 'pluck-inbound';
+
 // S3 names are global across all AWS customers; suffixing the account id keeps two stages (or two
 // accounts) from colliding. Without an account (offline synth/tests) the plain name is used.
 export function mediaBucketName(namePrefix: string, account: string | undefined): string {
