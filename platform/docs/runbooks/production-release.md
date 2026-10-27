@@ -57,7 +57,7 @@ register as you go. In order:
 3. **SES** (§9): domain `mail.byrobes.com` verified, DKIM + MAIL FROM + DMARC records live,
    **production access requested and granted in the production account**. No SES = no sign-in
    codes = nobody can sign in. Inbound MX for `in.mail.byrobes.com` and the active receipt rule set
-   (one active set per account and region: decide if staging shares the account).
+   (one active set per account and region: both stages add their rule to the shared set, §9 step 7).
 4. **Better Auth** (§3): production secret, `BETTER_AUTH_URL=https://app.byrobes.com`, Google
    production OAuth client with exact redirect URIs. Apple stays off until TestFlight.
 5. **Gemini** (§10): production key restricted to the Generative Language API, budget and quotas.
@@ -66,8 +66,8 @@ register as you go. In order:
 8. **GitHub** (§5): the `production` environment with a required reviewer and its variables
    (`AWS_ACCOUNT_ID`, `AWS_DEPLOY_ROLE_ARN`, `APP_URL=https://app.byrobes.com`, `MEDIA_DOMAIN`,
    `MEDIA_CERT_ARN`, alert/budget emails) and the `MIGRATION_DATABASE_URL` secret.
-9. **Vercel** (§6): a real production target on `app.byrobes.com` (today the project's production
-   target serves staging — move staging to a Preview branch domain first), every variable in the
+9. **Vercel** (§6): Production on `app.byrobes.com` from `main` in `robes-app` (staging moved to its
+   own `staging` environment on 2026-10-27; the stray `robes-prod` project goes), every variable in the
    §6 table for production, the API user's access key (§6 step 8), `AUTH_TRUSTED_ORIGINS` without
    `exp://`, spend cap.
 10. **DNS** (no user-facing records yet): `media.byrobes.com` → the CloudFront output, the SES
@@ -121,13 +121,15 @@ From `../migration.md` §4. Production is real from here: every command below wr
 1. Pause production's `notify-tick` and `daily-look-batch` schedules (EventBridge Scheduler) so
    migrated users get no email or overnight looks early.
 2. Run the copy with all three guards (`scripts/migrate/src/db.ts`): the admin URL, the
-   `--target=production` flag on each command, and the target's exact host typed into
-   `ROBES_MIGRATE_PRODUCTION`. Any one missing and the tool refuses before connecting.
+   `--target=production` flag on each command, and the target's `user@host` typed into
+   `ROBES_MIGRATE_PRODUCTION` (the user carries the Supabase project ref: staging and production
+   share the pooler host). Any one missing and the tool refuses before connecting. Rehearse the
+   same commands on staging first with `--target=staging` and `ROBES_MIGRATE_STAGING`.
    ```bash
    cd platform
    export LEGACY_DATABASE_URL='<Robes_p0 admin URL>'        # read with SELECT only
    export TARGET_DATABASE_URL='<production admin URL>'      # the migration role, never robes_app
-   export ROBES_MIGRATE_PRODUCTION='<the host in TARGET_DATABASE_URL, typed by hand>'
+   export ROBES_MIGRATE_PRODUCTION='<user@host from TARGET_DATABASE_URL, typed by hand>'
    pnpm migrate:extract -- --target=production
    pnpm migrate:transform -- --target=production
    pnpm migrate:assert -- --target=production               # exits 1 on any failure
@@ -151,13 +153,13 @@ Then, in a low-traffic window with the founders available for 48 h:
    — a small legacy change on `beta`/`main` (cutover-readiness §C).
 2. **Wipe the test copy, then the final run** (from `../migration.md` §4 step 2):
    ```bash
-   pnpm migrate:reset -- --target=production --confirm-wipe=<host>   # the host typed again
+   pnpm migrate:reset -- --target=production --confirm-wipe=<user@host>   # typed again
    pnpm migrate:extract -- --target=production
    pnpm migrate:transform -- --target=production
    pnpm migrate:assert -- --target=production
    ```
-   On a remote target `migrate:reset` refuses a bare `--confirm-wipe`; it needs the host.
-   Re-enable the two paused schedules. Drop the `legacy` copy schema once assert passes.
+   On a remote target `migrate:reset` refuses a bare `--confirm-wipe`; it needs the `user@host`.
+   Re-enable the two paused schedules. Keep the `legacy` copy schema for the week-long rollback window.
 3. **Images**: `pnpm migrate:rehost -- --target=production --apply --bucket=<bucket>`, re-run until
    `failed` is empty. The app shows nothing for a `cloudinary_legacy` asset, so this is before DNS.
 4. **Admins**: grant `app.admin_users` by hand (`is_admin` is not carried).

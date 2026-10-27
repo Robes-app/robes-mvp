@@ -168,9 +168,9 @@ change lands twice. The 16–23 Oct window alone was eight days of work landing 
       checkout without the legacy SQL with `ROBES_LEGACY_SQL_DIR`.
 - [x] The production run is gated (`scripts/migrate/src/db.ts`, tested in
       `test/target-guard.test.ts`): a non-local target needs the admin URL in `TARGET_DATABASE_URL`,
-      `--target=production` on the command, and its exact host typed into
-      `ROBES_MIGRATE_PRODUCTION`; `--target=production` against a local URL refuses; every CLI names
-      its target on stderr first; `migrate:reset` on a remote target needs `--confirm-wipe=<host>`.
+      `--target=production` on the command, and its `user@host` typed into
+      `ROBES_MIGRATE_PRODUCTION` (`--target=staging` + `ROBES_MIGRATE_STAGING` for rehearsals); `--target=production` against a local URL refuses; every CLI names
+      its target on stderr first; `migrate:reset` on a remote target needs `--confirm-wipe=<user@host>`.
 - [ ] **Images**: build the real `rehost` copy (Cloudinary → S3, renditions, flip provider).
       Until it finishes, keep Cloudinary paid and live.
 - [x] Legacy share links: render legacy artifact shares at `/share/[token]` (OD-7: live 180 days)
