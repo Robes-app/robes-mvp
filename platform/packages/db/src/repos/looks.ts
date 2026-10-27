@@ -597,6 +597,38 @@ export function looksRepo(db: Db) {
           })
           .onConflict((oc) => oc.columns(['userId', 'lookId', 'wornOn']).doNothing())
           .execute();
+        // Recording a wear and pinning to a day are one act (beta): the day she wore it holds the
+        // look, unless it is already there in either slot. A named day lends the look its name.
+        const onDay = await trx
+          .selectFrom('plannedDays')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId)
+          .where('dayDate', '=', sql<Date>`${wornOn}::date`)
+          .where('deletedAt', 'is', null)
+          .executeTakeFirst();
+        if (!onDay) {
+          const named = await trx
+            .selectFrom('dayNames')
+            .select('name')
+            .where('userId', '=', userId)
+            .where('dayDate', '=', sql<Date>`${wornOn}::date`)
+            .executeTakeFirst();
+          await trx
+            .insertInto('plannedDays')
+            .values({
+              userId,
+              dayDate: wornOn,
+              sourceKind: 'look',
+              lookId,
+              slot: 'day',
+              pinned: true,
+              status: 'worn',
+              activity: named?.name ?? null,
+              itemIds: pieces.map((p) => p.wardrobeItemId),
+            })
+            .execute();
+        }
         return trx
           .selectFrom('wears')
           .select(['id', 'lookId', 'pieceIds', 'confirmedAt', wornOnText.as('wornOn')])
@@ -661,14 +693,26 @@ export function looksRepo(db: Db) {
       return rows.map((r) => r.lookId);
     },
 
+    // Taking a wear back takes the look off that day too: the two are one act.
     async unwear(userId: UserId, lookId: string, wornOn: string): Promise<boolean> {
-      const res = await db
-        .deleteFrom('wears')
-        .where('userId', '=', userId)
-        .where('lookId', '=', lookId)
-        .where('wornOn', '=', sql<Date>`${wornOn}::date`)
-        .executeTakeFirst();
-      return res.numDeletedRows > 0n;
+      return db.transaction().execute(async (trx) => {
+        const res = await trx
+          .deleteFrom('wears')
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId)
+          .where('wornOn', '=', sql<Date>`${wornOn}::date`)
+          .executeTakeFirst();
+        if (res.numDeletedRows === 0n) return false;
+        await trx
+          .updateTable('plannedDays')
+          .set({ deletedAt: sql`now()` })
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId)
+          .where('dayDate', '=', sql<Date>`${wornOn}::date`)
+          .where('deletedAt', 'is', null)
+          .execute();
+        return true;
+      });
     },
   };
 }

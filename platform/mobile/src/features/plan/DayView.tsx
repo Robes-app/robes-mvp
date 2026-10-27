@@ -22,6 +22,7 @@ function LookCard({ entry, n }: { entry: PlanEntry; n: number }) {
       onPress={() => router.push(`/look/${entry.look.id}`)}
       className="w-[47%]"
       eyebrow={copy.day.lookEyebrow(n)}
+      badge={entry.worn ? copy.day.worn : null}
       meta={copy.list.pieces(entry.look.pieces.length)}
       corner={
         <View className="rounded-pill bg-bg">
@@ -51,6 +52,8 @@ export function DayView({ date }: { date: string }) {
   const dayName = query.data?.days[0]?.name ?? null;
   const s = daySummary(entries, dayName);
   const words = dayName ?? entries.find((e) => e.activity?.trim())?.activity?.trim() ?? '';
+  // The day's title is hers (beta): never borrowed from the one look on it.
+  const title = words || null;
   const [draft, setDraft] = useState('');
   const router = useRouter();
   const ahead = date >= today;
@@ -94,10 +97,10 @@ export function DayView({ date }: { date: string }) {
             ) : (
               <Text
                 accessibilityRole="header"
-                className={`flex-1 text-3xl ${s.name ? 'text-ink' : 'text-ink-faint'}`}
+                className={`flex-1 text-3xl ${title ? 'text-ink' : 'text-ink-faint'}`}
                 style={{ fontFamily: fonts.displayRegularItalic }}
               >
-                {s.name ?? copy.day.name}
+                {title ?? copy.day.name}
               </Text>
             )}
             {/* Any day can be named, so she can plan a week before adding outfits. */}
@@ -106,7 +109,7 @@ export function DayView({ date }: { date: string }) {
                 framed
                 icon="pencil"
                 tone="ink-muted"
-                label={s.name ? copy.day.rename : copy.day.name}
+                label={title ? copy.day.rename : copy.day.name}
                 onPress={() => {
                   setDraft(words);
                   setNaming(true);
@@ -160,17 +163,18 @@ export function DayView({ date }: { date: string }) {
               accessibilityLabel={entries.length ? copy.day.addAnother : copy.day.choose}
               accessibilityHint={entries.length ? copy.day.addAnotherHint : copy.day.chooseHint}
               onPress={() => setPicking(true)}
-              style={entries.length ? { width: '47%', aspectRatio: 4 / 5 } : { width: '100%' }}
+              // Beside a look it stands as tall as the card (the row stretches it); alone, a floor.
+              style={entries.length ? { width: '47%', minHeight: 220 } : { width: '100%' }}
               // Beta's two doors (twin: day-view.tsx): a dashed slot beside the looks; on an empty
               // day one white door to her looks, its icon in a cream circle.
               className={`rounded-soft p-4 ${
                 entries.length
-                  ? 'items-center justify-center gap-2 border border-dashed border-border-control bg-surface-sunk'
+                  ? 'items-center justify-center gap-2 border border-dashed border-rule-mid bg-surface'
                   : 'flex-row items-center gap-4 border border-hairline bg-surface-raised'
               }`}
             >
               {entries.length ? (
-                <Icon name="plus" size={20} color={muted} />
+                <Icon name="plus" size={18} color={muted} />
               ) : (
                 <View className="size-11 items-center justify-center rounded-pill bg-surface-sunk">
                   <Icon name="looks" size={18} color={muted} />
@@ -180,7 +184,7 @@ export function DayView({ date }: { date: string }) {
                 {entries.length ? (
                   <Text
                     className="text-[10px] text-ink uppercase"
-                    style={{ fontFamily: fonts.sans, letterSpacing: 1.8 }}
+                    style={{ fontFamily: fonts.sans, letterSpacing: 2.2 }}
                   >
                     {copy.day.addAnother}
                   </Text>
@@ -197,7 +201,7 @@ export function DayView({ date }: { date: string }) {
             </Pressable>
           </View>
         )}
-        <LookPicker date={picking ? date : null} title={s.name} onClose={() => setPicking(false)} />
+        <LookPicker date={picking ? date : null} title={title} onClose={() => setPicking(false)} />
       </ScrollView>
       {ahead ? (
         // Beta's floating door: a new look for this day, from the box on Today.

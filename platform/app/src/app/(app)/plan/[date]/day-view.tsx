@@ -69,6 +69,8 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
   const dayName = query.data?.days[0]?.name ?? null;
   const s = daySummary(entries, dayName);
   const words = dayName ?? entries.find((e) => e.activity?.trim())?.activity?.trim() ?? '';
+  // The day's title is hers (beta): never borrowed from the one look on it.
+  const title = words || null;
 
   async function commitName(value: string) {
     setNaming(false);
@@ -108,9 +110,9 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
             />
           ) : (
             <h1
-              className={`font-display text-3xl leading-tight italic ${s.name ? 'text-ink' : 'text-ink-faint'}`}
+              className={`font-display text-3xl leading-tight italic ${title ? 'text-ink' : 'text-ink-faint'}`}
             >
-              {s.name ?? copy.name}
+              {title ?? copy.name}
             </h1>
           )}
           {/* Any day can be named, so she can plan a week before adding outfits. */}
@@ -118,7 +120,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
             <IconButton
               framed
               icon="pencil"
-              label={s.name ? copy.rename : copy.name}
+              label={title ? copy.rename : copy.name}
               onClick={() => setNaming(true)}
             />
           ) : null}
@@ -160,6 +162,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
                 href={`/look/${entry.look.id}`}
                 sizes="(min-width: 768px) 30vw, 50vw"
                 eyebrow={copy.lookEyebrow(i + 1)}
+                badge={entry.worn ? copy.worn : null}
                 meta={plan.list.pieces(entry.look.pieces.length)}
                 className="flex-1"
                 corner={
@@ -174,46 +177,46 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
             </li>
           ))}
           <li className={entries.length ? 'flex' : 'col-span-full'}>
-            {/* Beta's two doors: beside the looks a dashed slot for another moment; on an empty
-                day one white door to her looks, its icon in a cream circle. */}
-            <button
-              type="button"
-              onClick={() => setPicking(true)}
-              className={`flex w-full items-center gap-4 rounded-soft p-4 text-left ${
-                entries.length
-                  ? 'flex-1 flex-col justify-center border border-dashed border-border-control bg-surface-sunk text-center hover:border-ink'
-                  : 'border border-hairline bg-surface-raised hover:border-border-control'
-              } ${focus}`}
-            >
-              {entries.length ? (
-                <Icon name="plus" size={20} className="text-ink-muted" />
-              ) : (
+            {entries.length ? (
+              // Beta's slot for another moment: as tall as the card beside it, everything centred.
+              <button
+                type="button"
+                onClick={() => setPicking(true)}
+                className={`flex min-h-56 w-full flex-1 flex-col items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid bg-surface p-4 text-center hover:border-ink ${focus}`}
+              >
+                <Icon name="plus" size={18} className="text-ink-muted" />
+                <span className="font-sans text-[10px] tracking-[0.22em] text-ink uppercase">
+                  {copy.addAnother}
+                </span>
+                <span className="font-display text-ink-faint text-sm italic">
+                  {copy.addAnotherHint}
+                </span>
+              </button>
+            ) : (
+              // On an empty day, one white door to her looks, its icon in a cream circle.
+              <button
+                type="button"
+                onClick={() => setPicking(true)}
+                className={`flex w-full items-center gap-4 rounded-soft border border-hairline bg-surface-raised p-4 text-left hover:border-border-control ${focus}`}
+              >
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted">
                   <Icon name="looks" size={18} />
                 </span>
-              )}
-              <span className="flex flex-1 flex-col gap-1">
-                <span
-                  className={
-                    entries.length
-                      ? 'font-sans text-[10px] tracking-[0.18em] text-ink uppercase'
-                      : 'font-sans text-ink text-base'
-                  }
-                >
-                  {entries.length ? copy.addAnother : copy.choose}
+                <span className="flex flex-1 flex-col gap-1">
+                  <span className="font-sans text-base text-ink">{copy.choose}</span>
+                  <span className="font-display text-base text-ink-faint italic">
+                    {copy.chooseHint}
+                  </span>
                 </span>
-                <span className="font-display text-ink-faint text-base italic">
-                  {entries.length ? copy.addAnotherHint : copy.chooseHint}
-                </span>
-              </span>
-              {entries.length ? null : <Icon name="forward" size={16} className="text-ink-muted" />}
-            </button>
+                <Icon name="forward" size={16} className="text-ink-muted" />
+              </button>
+            )}
           </li>
         </ul>
       )}
       <LookPicker
         date={picking ? date : null}
-        title={s.name}
+        title={title}
         onClose={() => {
           setPicking(false);
           refresh();

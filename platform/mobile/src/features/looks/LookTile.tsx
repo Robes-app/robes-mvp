@@ -27,6 +27,8 @@ export interface LookTileProps {
   eyebrow?: string;
   // Rose marks Robes' hand or something unfinished (Draft); the default is faint.
   eyebrowTone?: 'faint' | 'warm';
+  // A small warm chip at the eyebrow's right: Worn ✓ on a day she wore it.
+  badge?: string | null;
   meta?: string;
   // The look's first tag, a small chip between the title and the meta (Look redline 27 Oct).
   tag?: string | null;
@@ -52,6 +54,7 @@ export function LookTile({
   label,
   eyebrow,
   eyebrowTone = 'faint',
+  badge,
   meta,
   tag,
   name,
@@ -91,14 +94,27 @@ export function LookTile({
           {onImage}
         </View>
         <View className={dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-[2px] px-3 pt-[10px] pb-3'}>
-          {eyebrow ? (
-            <Eyebrow
-              numberOfLines={1}
-              className={eyebrowTone === 'warm' ? 'text-accent-warm' : undefined}
-              style={{ fontSize: dashed ? 10 : 11 }}
-            >
-              {eyebrow}
-            </Eyebrow>
+          {eyebrow || badge ? (
+            <View className="flex-row items-center justify-between gap-2">
+              <Eyebrow
+                numberOfLines={1}
+                className={`flex-1 ${eyebrowTone === 'warm' ? 'text-accent-warm' : ''}`}
+                style={{ fontSize: dashed ? 10 : 11 }}
+              >
+                {eyebrow ?? ''}
+              </Eyebrow>
+              {badge ? (
+                <View className="rounded-pill border border-selected-line bg-selected px-2 py-px">
+                  <RNText
+                    maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                    className="text-ink"
+                    style={{ fontFamily: fonts.sans, fontSize: 10 }}
+                  >
+                    {badge}
+                  </RNText>
+                </View>
+              ) : null}
+            </View>
           ) : null}
           <RNText
             numberOfLines={1}

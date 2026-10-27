@@ -1101,6 +1101,7 @@ export const plan = {
     stat: (looks: number, pieces: number): string =>
       `${looks === 1 ? '1 look' : `${looks} looks`}${pieces ? ` · ${pieces === 1 ? '1 piece' : `${pieces} pieces`} filed` : ''}`,
     lookEyebrow: (n: number): string => `Look ${n}`,
+    worn: 'Worn ✓',
     remove: (name: string): string => `Take ${name} off the day`,
     addAnother: 'Add a look',
     addAnotherHint: 'another moment in the day',

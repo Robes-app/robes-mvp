@@ -68,6 +68,13 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     timeZone: 'UTC',
   }).format(new Date(`${todayLocal}T00:00:00Z`));
   await expect(record.getByRole('link', { name: `Open ${longToday}` })).toBeVisible();
+  // The wear put the look on its day (beta): Worn ✓ on its card, and the day keeps its own title.
+  await record.getByRole('link', { name: `Open ${longToday}` }).click();
+  await expect(page).toHaveURL(new RegExp(`/plan/${todayLocal}`));
+  await expect(page.getByText('Worn ✓', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Name the day' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Add a look/ })).toBeVisible();
+  await page.goBack();
   // Taken off the record from its own row.
   await record.getByRole('button', { name: `Not worn on ${longToday}` }).click();
   await expect(record.getByRole('link', { name: `Open ${longToday}` })).toBeHidden();
@@ -99,7 +106,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await page.getByRole('link', { name: /Camel coat, styled$/ }).click();
   await expect(page).toHaveURL(new RegExp(`/plan/${tomorrow}$`));
   expect(await seriousViolations(page)).toEqual([]);
-  await page.getByRole('button', { name: 'Rename the day' }).click();
+  // The day keeps its own title (beta): unnamed, it invites a name rather than borrowing the look's.
+  await page.getByRole('button', { name: 'Name the day', exact: true }).click();
   await page.getByLabel('The day’s name').fill('Gallery opening');
   await page.getByLabel('The day’s name').press('Enter');
   await expect(page.getByRole('heading', { level: 1, name: 'Gallery opening' })).toBeVisible();

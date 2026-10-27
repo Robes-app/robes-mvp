@@ -10,6 +10,8 @@ export const PlanEntry = z.object({
   date: day,
   slot: PlanSlot,
   activity: z.string().nullable(),
+  // She wore this look on this day (a wear on the same date): the card's Worn ✓.
+  worn: z.boolean().default(false),
   look: Look,
 });
 export type PlanEntry = z.infer<typeof PlanEntry>;

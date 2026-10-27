@@ -19,6 +19,8 @@ export interface LookTileProps {
   eyebrow?: ReactNode;
   // Rose marks Robes' hand or something unfinished (Draft); the default is faint.
   eyebrowTone?: 'faint' | 'warm';
+  // A small warm chip at the eyebrow's right: Worn ✓ on a day she wore it.
+  badge?: string | null;
   meta?: ReactNode;
   // The look's first tag, a small chip between the name and the facts (Look redline 27 Oct).
   tag?: string | null;
@@ -49,6 +51,7 @@ export function LookTile({
   disabled = false,
   eyebrow,
   eyebrowTone = 'faint',
+  badge,
   meta,
   tag,
   name,
@@ -107,14 +110,21 @@ export function LookTile({
           <div
             className={`flex flex-col ${dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-0.5 px-3 pt-2.5 pb-3'}`}
           >
-            {eyebrow ? (
-              <p
-                className={`truncate font-sans font-normal uppercase tracking-[0.22em] ${
-                  eyebrowTone === 'warm' ? 'text-accent-warm' : 'text-ink-faint'
-                } ${dashed ? 'text-[10px]' : 'text-[11px]'}`}
-              >
-                {eyebrow}
-              </p>
+            {eyebrow || badge ? (
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <p
+                  className={`truncate font-sans font-normal uppercase tracking-[0.22em] ${
+                    eyebrowTone === 'warm' ? 'text-accent-warm' : 'text-ink-faint'
+                  } ${dashed ? 'text-[10px]' : 'text-[11px]'}`}
+                >
+                  {eyebrow}
+                </p>
+                {badge ? (
+                  <span className="shrink-0 rounded-pill border border-selected-line bg-selected px-2 py-px font-sans text-[10px] text-ink">
+                    {badge}
+                  </span>
+                ) : null}
+              </div>
             ) : null}
             <h3
               className={`truncate font-display font-light text-ink ${dashed ? 'text-lg leading-[22px]' : 'text-xl leading-[23px]'}`}

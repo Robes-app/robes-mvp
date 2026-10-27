@@ -65,7 +65,8 @@ describe('data export (SEC-81)', () => {
     expect(doc.user?.email).toBe(`${ann}@test.dev`);
     expect(doc.pieces.map((p) => [p.label, p.material])).toEqual([['Niall coat', 'tweed']]);
     expect(doc.wears[0]?.wornOn).toBe('2026-09-24');
-    expect(doc.plan[0]?.dayDate).toBe('2026-10-01');
+    // The wear filed the look on its day too, so the plan holds both days, as text.
+    expect(doc.plan.map((p) => p.dayDate).sort()).toEqual(['2026-09-24', '2026-10-01']);
     const json = JSON.stringify(doc);
     expect(json).not.toContain('Bea coat');
     expect(json).not.toContain('Bea’s day');
