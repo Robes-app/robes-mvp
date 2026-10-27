@@ -42,7 +42,7 @@ export function HomeWeek({
   const day = data.week.find((d) => d.date === selected) ?? data.week[0];
   return (
     <section aria-labelledby="home-week" className="flex flex-col gap-2.5" data-testid="home-week">
-      <div className="flex min-h-6 items-center justify-between">
+      <div className="flex min-h-6 items-center justify-between border-hairline border-b">
         <Eyebrow id="home-week">{copy.week.title}</Eyebrow>
         <Link
           href="/plan"
@@ -153,9 +153,9 @@ function DayCard({
         data-testid="day-card"
         data-state="planned"
       >
-        <div className="w-[52px] shrink-0 overflow-hidden rounded-[4px]">
+        <div className="w-16 shrink-0 overflow-hidden rounded-[6px]">
           {src ? (
-            <Image src={src.src} srcSet={src.srcSet} sizes="52px" alt="" aspect="4:5" />
+            <Image src={src.src} srcSet={src.srcSet} sizes="64px" alt="" aspect="4:5" />
           ) : (
             <div aria-hidden className="aspect-[4/5] bg-surface-sunk" />
           )}

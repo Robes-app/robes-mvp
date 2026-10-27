@@ -11,7 +11,7 @@ import {
 
 describe('nav', () => {
   it('has the four roots in the dock order', () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Today', 'Lookbook', 'Diary', 'Wardrobe']);
+    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Home', 'Lookbook', 'Diary', 'Wardrobe']);
   });
 
   it('routes every unbuilt Create option to a known placeholder', () => {

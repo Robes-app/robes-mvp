@@ -107,8 +107,6 @@ export const home = {
     receiptReady: 'ready to check.',
     review: 'Review ›',
     noticed: 'Observations',
-    keep: 'That’s right ›',
-    notMe: 'Not quite',
   },
   // H3: the strip selects a day; its card sits beneath.
   week: {

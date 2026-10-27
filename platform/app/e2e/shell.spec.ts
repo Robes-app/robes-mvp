@@ -1,16 +1,21 @@
 import { expect, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
-const ROOTS = ['Today', 'Lookbook', 'Diary', 'Wardrobe'];
+const ROOTS = ['Home', 'Lookbook', 'Diary', 'Wardrobe'];
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
-test('the four roots match on desktop and phone, and each is reachable', async ({ page }) => {
+test('the roots match beta on desktop and phone, and each is reachable', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await signIn(page);
   await declineConsent(page);
   const nav = page.getByRole('navigation', { name: 'Main' });
-  await expect(nav.getByRole('link')).toHaveText(ROOTS);
+  // Desktop: the wordmark is Home; Lookbook · Diary · Wardrobe sit beside it (beta's top nav).
+  await expect(nav.getByRole('link')).toHaveText(ROOTS.slice(1));
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Home' })).toHaveAttribute(
+    'href',
+    '/',
+  );
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(nav.getByRole('link')).toHaveText(ROOTS);
@@ -20,7 +25,7 @@ test('the four roots match on desktop and phone, and each is reachable', async (
     ['Wardrobe', '/wardrobe'],
     ['Lookbook', '/looks'],
     ['Diary', '/plan'],
-    ['Today', '/'],
+    ['Home', '/'],
   ] as const) {
     await nav.getByRole('link', { name: label }).click();
     await expect(page).toHaveURL(new RegExp(`${path === '/' ? '/' : path}$`));

@@ -1,5 +1,5 @@
 import type { Today } from '@robes/contracts';
-import { home as copy, lookbook, today as todayCopy } from '@robes/copy';
+import { home as copy, lookbook, today as todayCopy, twin } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { HomeView } from '../src/features/home/HomeView';
 import { dayLabel } from '../src/features/plan/plan';
@@ -179,7 +179,15 @@ test('H1 carries the receipts and Robes noticed; H4 Saved then Suggested open th
   expect(screen.getByText('You reach for soft tailoring in muted…')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: copy.alerts.review }));
   expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
-  await fireEvent.press(screen.getByRole('button', { name: copy.alerts.keep }));
+  // An observation answers with the thumbs, as on beta and in Settings.
+  await fireEvent.press(
+    screen.getByRole('button', {
+      name: twin.observations.answer(
+        twin.observations.keep,
+        'You reach for soft tailoring in muted neutrals most weeks',
+      ),
+    }),
+  );
   await waitFor(() =>
     expect(calls.some((c) => c.path.endsWith(`/observations/${NOTICE_ID}/keep`))).toBe(true),
   );

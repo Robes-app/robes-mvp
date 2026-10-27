@@ -73,18 +73,20 @@ export function AppShell({
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur">
         <div className="mx-auto flex h-11 max-w-5xl items-center gap-2 px-5 md:h-16 md:px-4">
-          <Link href="/" className={`text-ink ${focus}`}>
+          <Link href="/" aria-label={nav.today} className={`text-ink ${focus}`}>
             <Wordmark />
           </Link>
           <nav aria-label={shell.primaryNav} className="ml-6 hidden items-center gap-1 md:flex">
-            {NAV_ITEMS.map((item) => (
+            {/* Beta's top nav: the wordmark is Home; Lookbook · Diary · Wardrobe sit beside it. */}
+            {NAV_ITEMS.filter((item) => item.href !== '/').map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={current === item.href ? 'page' : undefined}
-                className={`inline-flex min-h-11 items-center rounded-pill px-4 font-sans text-xs font-medium uppercase tracking-[0.16em] ${
+                // Sentence-case links, the active one ink on a fine underline.
+                className={`inline-flex min-h-11 items-center px-3 font-sans text-sm ${
                   current === item.href
-                    ? 'text-ink underline underline-offset-8'
+                    ? 'text-ink underline decoration-[1.5px] underline-offset-[7px]'
                     : 'text-ink-muted hover:text-ink'
                 } ${focus}`}
               >
@@ -97,11 +99,11 @@ export function AppShell({
               type="button"
               onClick={toggleCommand}
               aria-keyshortcuts="Meta+K Control+K"
-              className={`hidden min-h-11 items-center gap-2 rounded-pill border border-hairline px-4 font-sans text-sm text-ink-muted hover:text-ink md:inline-flex ${focus}`}
+              aria-label={shell.command.label}
+              title={`${shell.command.label} ${shell.command.hint}`}
+              className={`hidden size-11 items-center justify-center rounded-pill text-ink-muted hover:text-ink md:inline-flex ${focus}`}
             >
-              <Icon name="search" size={16} />
-              {shell.command.label}
-              <kbd className="font-sans text-xs text-ink-faint">{shell.command.hint}</kbd>
+              <Icon name="search" size={18} />
             </button>
             <button
               type="button"

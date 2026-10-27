@@ -2,13 +2,13 @@
 
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Look, Today } from '@robes/contracts';
-import { home as copy, lookbook, today as todayCopy } from '@robes/copy';
+import { home as copy, lookbook, today as todayCopy, twin } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
 import { greetingName, type HomeStep, noticedLine, resolveHome } from '@robes/core/home';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { anchorName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { Eyebrow, Text, useToast } from '@robes/ui';
+import { Eyebrow, IconButton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
@@ -91,10 +91,12 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
       data-stage={resolved.stage}
     >
       <header className="flex flex-col gap-1.5">
-        <h1 className="font-display text-[38px] font-light leading-[1.1] text-ink">
+        <h1 className="font-display text-[38px] font-light leading-[1.1] text-ink md:text-[clamp(40px,6vw,62px)] md:leading-none">
           {todayCopy.greeting(name, data.hour)}
         </h1>
-        <p className="font-display text-[21px] font-light text-ink-muted italic">{copy.echo}</p>
+        <p className="font-display text-[21px] font-light text-ink-muted italic md:mt-1 md:text-[clamp(21px,2.6vw,27px)]">
+          {copy.echo}
+        </p>
         <p
           className="mt-1.5 flex items-center gap-2 font-sans text-xs font-normal uppercase tracking-[0.22em] text-ink-faint"
           data-testid="home-meta"
@@ -181,6 +183,10 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
   );
 }
 
+// Each alert is its own white card on a hairline (beta's .rb-al).
+const alertCard =
+  'flex items-center gap-3 rounded-soft border border-hairline bg-surface-raised px-4 py-3';
+
 // H1 · alerts: the receipt strip, the look Robes made overnight, one line Robes noticed. While the
 // week is on screen the overnight look is today's card there instead, never a second row.
 function Alerts({
@@ -196,7 +202,7 @@ function Alerts({
   const rows = [];
   if (receipts) {
     rows.push(
-      <li key="receipt" className="flex items-center gap-3 py-3" data-kind="receipt">
+      <li key="receipt" className={alertCard} data-kind="receipt">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk font-sans text-ink-faint text-sm">
           {receipts.pieces}
         </span>
@@ -204,9 +210,9 @@ function Alerts({
           <Text size="caption" tone="muted" className="uppercase tracking-wider">
             {copy.alerts.receiptFrom(receipts.retailer, receipts.receipts)}
           </Text>
-          <Text>
+          <span className="font-display text-ink text-lg leading-snug">
             {copy.alerts.receiptRead(receipts.pieces)} <em>{copy.alerts.receiptReady}</em>
-          </Text>
+          </span>
         </span>
         <Link href="/wardrobe/inbox" className="font-sans text-sm underline underline-offset-4">
           {copy.alerts.review}
@@ -216,7 +222,7 @@ function Alerts({
   }
   if (data.overnight && !weekShown) {
     rows.push(
-      <li key="overnight" className="flex items-center gap-3 py-3" data-kind="overnight">
+      <li key="overnight" className={alertCard} data-kind="overnight">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk text-ink-muted">
           <Icon name="today" size={18} />
         </span>
@@ -237,7 +243,7 @@ function Alerts({
   }
   if (noticed) {
     rows.push(
-      <li key="noticed" className="flex items-center gap-3 py-3" data-kind="observation">
+      <li key="noticed" className={alertCard} data-kind="observation">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-crisp bg-surface-sunk text-ink-muted">
           <Icon name="looks" size={18} />
         </span>
@@ -245,31 +251,34 @@ function Alerts({
           <Text size="caption" tone="muted" className="uppercase tracking-wider">
             {copy.alerts.noticed}
           </Text>
-          <Text className="truncate" title={noticed.text}>
+          <span
+            className="line-clamp-2 font-display text-ink text-lg leading-snug"
+            title={noticed.text}
+          >
             {noticedLine(noticed.text)}
-          </Text>
+          </span>
         </span>
-        <button
-          type="button"
-          className="font-sans text-sm underline underline-offset-4"
-          onClick={() => onAnswer(noticed.id, true)}
-        >
-          {copy.alerts.keep}
-        </button>
-        <button
-          type="button"
-          className="font-sans text-ink-muted text-sm"
-          onClick={() => onAnswer(noticed.id, false)}
-        >
-          {copy.alerts.notMe}
-        </button>
+        <span className="flex shrink-0 items-center gap-2">
+          <IconButton
+            icon="thumbsUp"
+            outlined
+            label={twin.observations.answer(twin.observations.keep, noticed.text)}
+            onClick={() => onAnswer(noticed.id, true)}
+          />
+          <IconButton
+            icon="thumbsDown"
+            outlined
+            label={twin.observations.answer(twin.observations.notMe, noticed.text)}
+            onClick={() => onAnswer(noticed.id, false)}
+          />
+        </span>
       </li>,
     );
   }
   if (!rows.length) return null;
   return (
     <section aria-label={copy.alerts.label} data-testid="home-alerts">
-      <ul className="flex flex-col divide-y divide-hairline">{rows}</ul>
+      <ul className="flex flex-col gap-2.5">{rows}</ul>
     </section>
   );
 }

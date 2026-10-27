@@ -3,7 +3,7 @@
 import type { Home, HomePiece } from '@robes/contracts';
 import { home as copy } from '@robes/copy';
 import { type HomeResolved, type HomeStep, mapRows } from '@robes/core/home';
-import { anchorName } from '@robes/core/looks';
+import { anchorName, nameNoBrand } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { Button, buttonClasses, Eyebrow, Heading, Image, Text } from '@robes/ui';
 import Link from 'next/link';
@@ -11,7 +11,8 @@ import { useState } from 'react';
 import { SwapSheet } from '@/components/looks/swap-sheet';
 import { imageSources } from '@/lib/image';
 
-const card = 'flex flex-col gap-4 rounded-soft border border-hairline bg-surface p-5';
+// A step card sits on white with a hairline (Design principle 3), never on the beige page.
+const card = 'flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-5';
 
 function Title({ title, em }: { title: string; em: string }) {
   return (
@@ -55,7 +56,9 @@ function StyleCard({ rows, onLater }: { rows: Home['rows']; onLater: () => void 
       <Title title={copy.o1.title} em={copy.o1.titleEm} />
       {any ? (
         <>
-          <Text tone="muted">{copy.o1.body}</Text>
+          <Text size="small" tone="muted">
+            {copy.o1.body}
+          </Text>
           <ul className="flex flex-col divide-y divide-hairline border-hairline border-y">
             {(['brands', 'icons', 'styles'] as const).map((k) => (
               <li key={k}>
@@ -93,7 +96,9 @@ function StyleCard({ rows, onLater }: { rows: Home['rows']; onLater: () => void 
         </>
       ) : (
         <>
-          <Text tone="muted">{copy.o1.bodyEmpty}</Text>
+          <Text size="small" tone="muted">
+            {copy.o1.bodyEmpty}
+          </Text>
           <Link href="/you/style" className={`${buttonClasses({ variant: 'primary' })} w-full`}>
             {copy.o1.one}
           </Link>
@@ -113,7 +118,7 @@ function TwinCard({ onLater }: { onLater: () => void }) {
           <Link
             key={label}
             href="/you/model"
-            className="flex aspect-[4/5] max-w-[150px] items-end justify-center rounded-crisp border-[1.5px] border-border-control border-dashed p-3 font-sans text-ink-muted text-sm focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="flex aspect-[4/5] max-w-[150px] items-end justify-center rounded-crisp border-[1.5px] border-border-control border-dashed p-3 font-display text-ink-muted text-base italic focus-visible:outline-2 focus-visible:outline-focus-ring"
           >
             {label}
           </Link>
@@ -121,7 +126,9 @@ function TwinCard({ onLater }: { onLater: () => void }) {
       </div>
       <Eyebrow>{copy.o2.eyebrow}</Eyebrow>
       <Title title={copy.o2.title} em={copy.o2.titleEm} />
-      <Text tone="muted">{copy.o2.body}</Text>
+      <Text size="small" tone="muted">
+        {copy.o2.body}
+      </Text>
       <div className="flex items-center gap-3">
         <Link href="/you/model" className={buttonClasses({ variant: 'secondary' })}>
           {copy.o2.cta}
@@ -137,11 +144,11 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
   const route = (href: string, icon: 'camera' | 'mail', title: string, line: string) => (
     <Link
       href={href}
-      className="flex items-center gap-4 rounded-crisp border border-hairline px-4 py-3 focus-visible:outline-2 focus-visible:outline-focus-ring"
+      className="flex min-h-11 items-center gap-4 py-3 focus-visible:outline-2 focus-visible:outline-focus-ring"
     >
-      <Icon name={icon} size={22} className="text-ink-muted" />
+      <Icon name={icon} size={20} className="text-ink-muted" />
       <span className="flex flex-1 flex-col">
-        <span className="font-sans text-ink">{title}</span>
+        <span className="font-display text-ink text-lg">{title}</span>
         <span className="font-sans text-ink-muted text-sm">{line}</span>
       </span>
       <Icon name="forward" size={16} className="text-ink-muted" />
@@ -175,7 +182,7 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
           </Link>
         </li>
       </ul>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col divide-y divide-hairline border-hairline border-y">
         {route('/wardrobe/add', 'camera', copy.o3.snap.title, copy.o3.snap.line)}
         {route('/wardrobe/receipt', 'mail', copy.o3.receipt.title, copy.o3.receipt.line)}
       </div>
@@ -196,7 +203,9 @@ function FirstLookCard({ candidates }: { candidates: HomePiece[] }) {
     <div className={card} data-module="O4">
       <Eyebrow>{copy.o4.eyebrow}</Eyebrow>
       <Title title={copy.o4.title} em={copy.o4.titleEm} />
-      <Text tone="muted">{copy.o4.body}</Text>
+      <Text size="small" tone="muted">
+        {copy.o4.body}
+      </Text>
       <ul className="grid grid-cols-3 gap-3">
         {shown.map((p) => (
           <li key={p.id}>
@@ -205,12 +214,20 @@ function FirstLookCard({ candidates }: { candidates: HomePiece[] }) {
               aria-pressed={pick?.id === p.id}
               aria-label={copy.o4.pick(anchorName(p.label, p.brand))}
               onClick={() => setPicked(p)}
-              className={`flex w-full flex-col gap-1 rounded-crisp border p-1 text-left focus-visible:outline-2 focus-visible:outline-focus-ring ${pick?.id === p.id ? 'border-ink' : 'border-hairline'}`}
+              className={`relative flex w-full flex-col gap-1 rounded-crisp border bg-surface-raised p-1 text-left focus-visible:outline-2 focus-visible:outline-focus-ring ${pick?.id === p.id ? 'border-selected-line' : 'border-hairline'}`}
             >
               <Thumb piece={p} />
-              <Text size="caption" className="line-clamp-2">
-                {anchorName(p.label, p.brand)}
-              </Text>
+              {pick?.id === p.id ? (
+                <span
+                  aria-hidden
+                  className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-pill border border-selected-line bg-surface-raised text-ink"
+                >
+                  <Icon name="check" size={14} />
+                </span>
+              ) : null}
+              <span className="line-clamp-2 px-1 pb-1 font-display text-ink text-base">
+                {nameNoBrand(p.label, p.brand)}
+              </span>
             </button>
           </li>
         ))}
@@ -282,12 +299,14 @@ export function StepMap({
       <>
         <span
           aria-hidden
-          className={`flex size-6 items-center justify-center rounded-pill text-xs ${done ? 'border border-hairline text-accent-warm' : 'border border-border-control border-dashed'}`}
+          className={`flex size-6 items-center justify-center rounded-pill ${done ? 'border border-selected-line bg-selected text-ink' : 'border border-border-control border-dashed'}`}
         >
-          {done ? '✓' : ''}
+          {done ? <Icon name="check" size={14} /> : null}
         </span>
         <span className="flex flex-1 flex-col">
-          <span className="font-display text-ink text-xl">{copy.map.steps[k]}</span>
+          <span className={`font-display text-xl ${done ? 'text-ink-faint' : 'text-ink'}`}>
+            {copy.map.steps[k]}
+          </span>
           <span className="font-sans text-ink-muted text-sm">{line(k, done)}</span>
         </span>
         <Icon name="forward" size={16} className="text-ink-muted" />
@@ -313,9 +332,11 @@ export function StepMap({
     );
   };
   return (
-    <section aria-label={copy.map.title} className="flex flex-col" data-testid="home-map">
+    <section aria-label={copy.map.title} className="flex flex-col gap-2.5" data-testid="home-map">
       {resolved.activated ? null : <Eyebrow>{copy.map.title}</Eyebrow>}
-      <ul className="flex flex-col divide-y divide-hairline">{keys.map(row)}</ul>
+      <ul className="flex flex-col divide-y divide-hairline border-hairline border-y">
+        {keys.map(row)}
+      </ul>
     </section>
   );
 }

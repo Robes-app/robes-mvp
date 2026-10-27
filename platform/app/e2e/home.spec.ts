@@ -42,7 +42,7 @@ test('onboarding: splash → name → the first piece read live → Composing �
   await expect(page.getByText(/^Around your/)).toBeVisible({ timeout: 30_000 });
   await deckLive(page);
 
-  await page.getByRole('link', { name: 'Today' }).first().click();
+  await page.getByRole('link', { name: 'Home' }).first().click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
   await expect(page.getByText('What are you dressing for today?')).toBeVisible();
@@ -148,7 +148,7 @@ test('the home box: words become three looks on the deck; a photographed piece s
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
   await expect(page.getByText('From your prompt')).toBeVisible({ timeout: 30_000 });
   await deckLive(page);
-  await page.getByRole('link', { name: 'Today' }).first().click();
+  await page.getByRole('link', { name: 'Home' }).first().click();
   await expect(
     page.getByTestId('home-suggested').getByText('From your prompt').first(),
   ).toBeVisible();
