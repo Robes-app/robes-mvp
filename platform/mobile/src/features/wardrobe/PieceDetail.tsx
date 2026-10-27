@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { UpdatePieceInput } from '@robes/contracts';
-import { wardrobe as copy, lookbook } from '@robes/copy';
+import type { Piece, UpdatePieceInput } from '@robes/contracts';
+import { wardrobe as copy, lookbook, looks as looksCopy } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import {
@@ -20,12 +20,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
+import { SavedTile } from '@/features/looks/LookTiles';
 import { SuggestedRail } from '@/features/looks/SuggestedRail';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
+import { StarButton } from './PieceCard';
 import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
 import { RecordRows } from './PieceRows';
-import { READING_REFRESH_MS, useDeletePiece } from './pieces';
+import { READING_REFRESH_MS, useDeletePiece, useStarPiece } from './pieces';
+
+const LOOKS_LIMIT = 30;
 
 // The record (legacy Piece_Sheet 01): the photograph, her name for it with the pencil on it, the
 // facts she has given, then the days she wore it. Every fact is a row that opens its own drawer —
@@ -45,6 +49,7 @@ export function PieceDetail({ id }: { id: string }) {
     { refetchInterval: (q) => (q.state.data?.status === 'reading' ? READING_REFRESH_MS : false) },
   );
   const remove = useDeletePiece();
+  const star = useStarPiece();
   const update = useApiMutation('wardrobe.update', {
     onSuccess: async (saved) => {
       queryClient.setQueryData(queryKeys.call('wardrobe.get', { params: { id: saved.id } }), saved);
@@ -98,6 +103,11 @@ export function PieceDetail({ id }: { id: string }) {
               label={copy.piece.editName}
               onPress={() => setField('label')}
             />
+            <StarButton
+              label={piece.label}
+              on={piece.heroPosition !== null}
+              onToggle={() => star(piece)}
+            />
           </View>
           {/* The brand is its own line, and says so when it is missing — one source, the piece. */}
           <Pressable
@@ -113,16 +123,7 @@ export function PieceDetail({ id }: { id: string }) {
           {piece.status === 'failed' ? <ErrorText>{copy.noPieceFound}</ErrorText> : null}
         </View>
 
-        {ready ? (
-          <View className="flex-row overflow-hidden rounded-crisp border border-hairline bg-surface">
-            <View className="flex-1 gap-1 p-3">
-              <Eyebrow>{copy.piece.stats.worn}</Eyebrow>
-              <Text size="small">
-                {piece.wearCount ? copy.card.worn(piece.wearCount) : copy.piece.stats.never}
-              </Text>
-            </View>
-          </View>
-        ) : null}
+        {ready ? <Stats piece={piece} /> : null}
 
         <PrimaryScope>
           <View className="gap-3">
@@ -148,6 +149,7 @@ export function PieceDetail({ id }: { id: string }) {
         <RecordRows values={piece} onField={setField} />
 
         <Wears pieceId={piece.id} />
+        <InLooks pieceId={piece.id} />
         <SuggestedRail pieceId={piece.id} />
         {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
 
@@ -182,14 +184,12 @@ function Wears({ pieceId }: { pieceId: string }) {
   const items = query.data?.items ?? [];
   const undated = query.data?.undated ?? 0;
   if (query.isPending) return <Skeleton shape="text" width="60%" />;
+  // Nothing worn yet: the stats strip already says so, so the section stands down (beta).
+  if (items.length === 0 && !undated) return null;
   return (
     <View className="gap-2">
       <Eyebrow>{copy.piece.sections.wears}</Eyebrow>
-      {items.length === 0 && !undated ? (
-        <Text size="small" tone="muted" italic>
-          {copy.piece.wears.none}
-        </Text>
-      ) : (
+      {items.length ? (
         <>
           <View className="overflow-hidden rounded-crisp border border-hairline bg-surface">
             {items.map((wear, i) => (
@@ -208,12 +208,71 @@ function Wears({ pieceId }: { pieceId: string }) {
               </Pressable>
             ))}
           </View>
-          {undated ? (
-            <Text size="caption" tone="faint" italic>
-              {copy.piece.wears.undated(undated)}
-            </Text>
-          ) : null}
         </>
+      ) : null}
+      {undated ? (
+        <Text size="caption" tone="faint" italic>
+          {copy.piece.wears.undated(undated)}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+// Worn · Last worn · In looks, as beta's strip reads them: facts side by side under the name,
+// between two hairlines. The web twin is Stats in app/src/app/(app)/piece/[id]/piece-detail.tsx.
+function Stats({ piece }: { piece: Piece }) {
+  const wears = useApi('wardrobe.wears', { params: { id: piece.id } });
+  const looks = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
+  const last = wears.data?.items[0]?.wornOn;
+  const cells: [string, string][] = [
+    [
+      copy.piece.stats.worn,
+      piece.wearCount ? looksCopy.page.wears.count(piece.wearCount) : copy.piece.stats.never,
+    ],
+    [copy.piece.stats.lastWorn, last ? dayMonth(last) : '—'],
+    [copy.piece.stats.inLooks, looks.data ? String(looks.data.items.length) : '—'],
+  ];
+  return (
+    <View className="flex-row border-hairline border-y">
+      {cells.map(([k, v], i) => (
+        <View
+          key={k}
+          className={`flex-1 gap-1.5 py-3 ${i ? 'border-hairline border-l pl-3.5' : ''}`}
+        >
+          <Eyebrow>{k}</Eyebrow>
+          <Text size="small" numberOfLines={1}>
+            {v}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// "In N looks": the saved looks she has put this piece on, drawn as the Lookbook draws them.
+function InLooks({ pieceId }: { pieceId: string }) {
+  const router = useRouter();
+  const query = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId } });
+  const items = query.data?.items ?? [];
+  if (query.isPending) return <Skeleton shape="text" width="60%" />;
+  return (
+    <View className="gap-2">
+      <Eyebrow>
+        {items.length ? copy.piece.sections.looks(items.length) : copy.piece.sections.noLooks}
+      </Eyebrow>
+      {items.length ? (
+        <View className="flex-row flex-wrap gap-3">
+          {items.map((look) => (
+            <View key={look.id} style={{ width: '47%' }}>
+              <SavedTile look={look} onPress={() => router.push(`/look/${look.id}`)} />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text size="small" tone="muted" italic>
+          {copy.piece.sections.noLooksHint}
+        </Text>
       )}
     </View>
   );

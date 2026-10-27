@@ -55,6 +55,15 @@ describe('looks repo', () => {
     expect(items.map((l) => l.name)).not.toContain('Twice');
   });
 
+  it('lists the looks a piece is on, for its owner only', async () => {
+    const hat = (await wardrobe.create(ann, { label: 'Felt hat' })).id;
+    const withHat = await create(ann, [hat, jeans], 'With the hat');
+    await create(ann, [coat], 'Without it');
+    const { items } = await looks.list(ann, { limit: 50, pieceId: hat });
+    expect(items.map((l) => l.id)).toEqual([withHat.id]);
+    expect((await looks.list(bea, { limit: 50, pieceId: hat })).items).toEqual([]);
+  });
+
   it('naming a look makes the name hers; pieces are replaced atomically', async () => {
     const look = await create(ann, [coat]);
     const renamed = await looks.update(ann, look.id, {

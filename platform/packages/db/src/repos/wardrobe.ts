@@ -83,6 +83,8 @@ export interface ListPiecesQuery {
   categoryL2?: string | undefined;
   seasonBand?: SeasonBand | undefined;
   colourFamily?: string | undefined;
+  wearFor?: string | undefined;
+  brand?: string | undefined;
 }
 
 export const HERO_RACK_SIZE = 10;
@@ -163,6 +165,27 @@ export function wardrobeRepo(db: Db) {
       // Refine by colour family: the pieces whose shade sits in it (an unknown family matches none).
       if (q.colourFamily) {
         query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
+      }
+      // Refine by brand (case-insensitive) and by what she wears it for (a wear_for tag of hers).
+      if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
+      const { wearFor } = q;
+      if (wearFor) {
+        query = query.where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom('tagPieces')
+              .innerJoin('tags', (j) =>
+                j
+                  .onRef('tags.id', '=', 'tagPieces.tagId')
+                  .onRef('tags.userId', '=', 'tagPieces.userId'),
+              )
+              .select('tagPieces.wardrobeItemId')
+              .whereRef('tagPieces.wardrobeItemId', '=', 'wardrobeItems.id')
+              .where('tagPieces.userId', '=', userId)
+              .where('tags.kind', '=', 'wear_for')
+              .where(sql<boolean>`lower(tags.label) = lower(${wearFor})`),
+          ),
+        );
       }
       const after = afterCursor(q.cursor);
       if (after) query = query.where(after);
@@ -446,8 +469,60 @@ export function wardrobeRepo(db: Db) {
       if (q.colourFamily) {
         query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
       }
+      // Refine by brand (case-insensitive) and by what she wears it for (a wear_for tag of hers).
+      if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
+      const { wearFor } = q;
+      if (wearFor) {
+        query = query.where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom('tagPieces')
+              .innerJoin('tags', (j) =>
+                j
+                  .onRef('tags.id', '=', 'tagPieces.tagId')
+                  .onRef('tags.userId', '=', 'tagPieces.userId'),
+              )
+              .select('tagPieces.wardrobeItemId')
+              .whereRef('tagPieces.wardrobeItemId', '=', 'wardrobeItems.id')
+              .where('tagPieces.userId', '=', userId)
+              .where('tags.kind', '=', 'wear_for')
+              .where(sql<boolean>`lower(tags.label) = lower(${wearFor})`),
+          ),
+        );
+      }
       const row = await query.executeTakeFirst();
       return Number(row?.n ?? 0);
+    },
+
+    // The Filter's brand choices: every brand on her pieces, once, in alphabetical order.
+    async brands(userId: UserId): Promise<string[]> {
+      const rows = await active()
+        .select('brand')
+        .distinct()
+        .where('userId', '=', userId)
+        .where('brand', 'is not', null)
+        .where('brand', '!=', '')
+        .orderBy('brand')
+        .execute();
+      return rows.flatMap((r) => (r.brand ? [r.brand] : []));
+    },
+
+    // The Filter's "Wear it for" choices: the wear_for labels on her pieces.
+    async wearLabels(userId: UserId): Promise<string[]> {
+      const rows = await db
+        .selectFrom('tagPieces')
+        .innerJoin('tags', (j) =>
+          j.onRef('tags.id', '=', 'tagPieces.tagId').onRef('tags.userId', '=', 'tagPieces.userId'),
+        )
+        .innerJoin('wardrobeItems', 'wardrobeItems.id', 'tagPieces.wardrobeItemId')
+        .select('tags.label')
+        .distinct()
+        .where('tagPieces.userId', '=', userId)
+        .where('tags.kind', '=', 'wear_for')
+        .where('wardrobeItems.deletedAt', 'is', null)
+        .orderBy('tags.label')
+        .execute();
+      return rows.map((r) => r.label);
     },
 
     // The category tabs: how many pieces she has in each category.

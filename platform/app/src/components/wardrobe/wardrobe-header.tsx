@@ -17,7 +17,7 @@ const focus =
 // Pieces | Wishlist only: the Inbox is a notice that shows while a receipt waits (Native parity
 // handoff; the native twin is mobile/src/features/wardrobe/WardrobeHeader.tsx).
 const VIEWS = [
-  { value: '/wardrobe', label: wardrobe.segments.pieces },
+  { value: '/wardrobe', label: wardrobe.segments.wardrobe },
   { value: '/wardrobe/wishlist', label: wardrobe.segments.wishlist },
 ] as const;
 export type WardrobeView = (typeof VIEWS)[number]['value'];

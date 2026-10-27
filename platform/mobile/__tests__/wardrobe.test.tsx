@@ -499,6 +499,24 @@ test('Filter counts the season and the colour family before she applies them', a
   expect(await screen.findByText('Camel wool coat')).toBeTruthy();
 });
 
+test('Filter refines by what she wears it for and by brand', async () => {
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /wardrobe/summary': { total: 1, categories: [], brands: ['Toteme'], wearFor: ['Skiing'] },
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null, total: 1 },
+  });
+  await renderWithApi(<WardrobeView />);
+  await fireEvent.press(await screen.findByTestId('wardrobe-filter'));
+  expect(await screen.findByText(wardrobe.filter.wearFor)).toBeTruthy();
+  await fireEvent.press(await screen.findByRole('button', { name: 'Skiing' }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Toteme' }));
+  await waitFor(() =>
+    expect(
+      calls.some((c) => c.url.includes('wearFor=Skiing') && c.url.includes('brand=Toteme')),
+    ).toBe(true),
+  );
+});
+
 test('Pieces | Wishlist only; the receipt notice shows only while a receipt waits', async () => {
   const entry = {
     id: '00000000-0000-4000-8000-0000000000e1',
@@ -527,7 +545,7 @@ test('Pieces | Wishlist only; the receipt notice shows only while a receipt wait
   expect(await screen.findByText('2 pieces')).toBeTruthy();
   const segments = screen.getAllByRole('radio').map((r) => r.props.accessibilityLabel);
   expect(segments).toEqual(
-    expect.arrayContaining([wardrobe.segments.pieces, wardrobe.segments.wishlist]),
+    expect.arrayContaining([wardrobe.segments.wardrobe, wardrobe.segments.wishlist]),
   );
   expect(segments).not.toContain(wardrobe.segments.inbox);
   // "Other" isn't a tab; its pieces stay under All.

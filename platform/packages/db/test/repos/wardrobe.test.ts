@@ -109,6 +109,27 @@ describe('wardrobe repo', () => {
     await deleteTestUsers(db, user);
   });
 
+  it('refines by brand and by what she wears it for, and lists both as the Filter’s choices', async () => {
+    const user = await createTestUser(db);
+    const coat = await wardrobe.create(user, { label: 'Coat', brand: 'Brandvale' });
+    const jeans = await wardrobe.create(user, { label: 'Jeans', brand: 'Levi’s' });
+    await wardrobe.create(user, { label: 'Tee' });
+    await wardrobe.setWearTags(user, coat.id, ['Work']);
+    await wardrobe.setWearTags(user, jeans.id, ['Everyday', 'Travel']);
+    const toteme = await wardrobe.list(user, { limit: 10, brand: 'brandvale' });
+    expect(toteme.items.map((p) => p.id)).toEqual([coat.id]);
+    expect(await wardrobe.countMatching(user, { wearFor: 'travel' })).toBe(1);
+    expect(
+      (await wardrobe.list(user, { limit: 10, wearFor: 'Work' })).items.map((p) => p.id),
+    ).toEqual([coat.id]);
+    expect(await wardrobe.brands(user)).toEqual(['Brandvale', 'Levi’s']);
+    expect(await wardrobe.wearLabels(user)).toEqual(expect.arrayContaining(['Work', 'Travel']));
+    // Another woman's tags never reach her Filter.
+    expect(await wardrobe.countMatching(ann, { wearFor: 'Travel' })).toBe(0);
+    expect(await wardrobe.brands(ann)).not.toContain('Brandvale');
+    await deleteTestUsers(db, user);
+  });
+
   it("files a material; her answer clears Robes' check on it alone, and stays hers", async () => {
     const piece = await wardrobe.create(ann, { label: 'Wool blazer', material: 'wool' });
     expect(piece.material).toBe('wool');

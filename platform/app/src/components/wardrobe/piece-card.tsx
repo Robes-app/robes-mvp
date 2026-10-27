@@ -100,7 +100,7 @@ export function StarButton({
       } ${
         on
           ? 'border-selected-line bg-surface-raised text-ink'
-          : `border-hairline text-ink-muted ${tile ? 'bg-bg/90' : 'bg-bg'}`
+          : `border-hairline text-ink-muted ${tile ? 'bg-surface-raised/90' : 'bg-surface-raised'}`
       } ${focus}`}
     >
       <Icon name="star" size={tile ? 14 : 15} filled={on} />

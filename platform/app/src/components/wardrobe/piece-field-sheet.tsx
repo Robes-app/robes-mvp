@@ -272,18 +272,19 @@ export function PieceFieldSheet({
           ) : null}
         </form>
       ) : field === 'season' ? (
-        <ul className="flex flex-wrap gap-2">
+        // The bands as a list of answers, a pick saves and closes (beta's Season sheet).
+        <div role="radiogroup" aria-label={TITLES.season} className="flex flex-col">
           {SeasonBand.options.map((band) => (
-            <li key={band}>
-              <Pill
-                selected={piece.seasonBand === band}
-                onClick={() => commit({ seasonBand: band })}
-              >
-                {wardrobe.filter.seasons[band]}
-              </Pill>
-            </li>
+            <OptionRow
+              key={band}
+              role="radio"
+              aria-checked={piece.seasonBand === band}
+              selected={piece.seasonBand === band}
+              label={wardrobe.filter.seasons[band]}
+              onClick={() => commit({ seasonBand: band })}
+            />
           ))}
-        </ul>
+        </div>
       ) : field === 'material' ? (
         <MaterialPicker value={piece.material} onChange={(material) => commit({ material })} />
       ) : field === 'print' ? (

@@ -159,6 +159,7 @@ export function looksRepo(db: Db) {
         cursor?: string | undefined;
         status?: LookStatus | undefined;
         anchorPieceId?: string | undefined;
+        pieceId?: string | undefined;
       },
     ) {
       let query = active()
@@ -171,6 +172,19 @@ export function looksRepo(db: Db) {
       const after = afterCursor(q.cursor);
       if (after) query = query.where(after);
       if (q.anchorPieceId) query = query.where('anchorPieceId', '=', q.anchorPieceId);
+      const { pieceId } = q;
+      if (pieceId) {
+        query = query.where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom('lookPieces as lp')
+              .select('lp.lookId')
+              .whereRef('lp.lookId', '=', 'looks.id')
+              .where('lp.userId', '=', userId)
+              .where('lp.wardrobeItemId', '=', pieceId),
+          ),
+        );
+      }
       return toPage(await query.execute(), q.limit);
     },
 
