@@ -103,6 +103,7 @@ export function DayView({ date }: { date: string }) {
             {/* Any day can be named, so she can plan a week before adding outfits. */}
             {!naming ? (
               <IconButton
+                framed
                 icon="pencil"
                 tone="ink-muted"
                 label={s.name ? copy.day.rename : copy.day.name}
@@ -160,15 +161,34 @@ export function DayView({ date }: { date: string }) {
               accessibilityHint={entries.length ? copy.day.addAnotherHint : copy.day.chooseHint}
               onPress={() => setPicking(true)}
               style={entries.length ? { width: '47%', aspectRatio: 4 / 5 } : { width: '100%' }}
-              className={`rounded-crisp border border-dashed border-border-control p-4 ${
-                entries.length ? 'items-center justify-center gap-2' : 'flex-row items-center gap-4'
+              // Beta's two doors (twin: day-view.tsx): a dashed slot beside the looks; on an empty
+              // day one white door to her looks, its icon in a cream circle.
+              className={`rounded-soft p-4 ${
+                entries.length
+                  ? 'items-center justify-center gap-2 border border-dashed border-border-control bg-surface-sunk'
+                  : 'flex-row items-center gap-4 border border-hairline bg-surface-raised'
               }`}
             >
-              <Icon name={entries.length ? 'plus' : 'looks'} size={20} color={muted} />
+              {entries.length ? (
+                <Icon name="plus" size={20} color={muted} />
+              ) : (
+                <View className="size-11 items-center justify-center rounded-pill bg-surface-sunk">
+                  <Icon name="looks" size={18} color={muted} />
+                </View>
+              )}
               <View className={entries.length ? 'items-center' : 'flex-1'}>
-                <Text className="text-lg text-ink" style={{ fontFamily: fonts.displayRegular }}>
-                  {entries.length ? copy.day.addAnother : copy.day.choose}
-                </Text>
+                {entries.length ? (
+                  <Text
+                    className="text-[10px] text-ink uppercase"
+                    style={{ fontFamily: fonts.sans, letterSpacing: 1.8 }}
+                  >
+                    {copy.day.addAnother}
+                  </Text>
+                ) : (
+                  <Text className="text-base text-ink" style={{ fontFamily: fonts.sans }}>
+                    {copy.day.choose}
+                  </Text>
+                )}
                 <Text size="caption" tone="faint" italic>
                   {entries.length ? copy.day.addAnotherHint : copy.day.chooseHint}
                 </Text>

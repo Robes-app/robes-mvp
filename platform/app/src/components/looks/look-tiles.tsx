@@ -170,18 +170,19 @@ export function SuggestedTile({
       }
       corner={
         <div className="flex gap-1.5">
-          <OnPhoto
-            icon="close"
-            label={copy.suggestedTile.remove(look.name)}
-            size={32}
-            onClick={onRemove}
-          />
+          {/* Beta's order: ↻ then ✕, the way out at the edge. */}
           <OnPhoto
             icon="swap"
             label={copy.suggestedTile.swap(look.name)}
             size={32}
             onClick={onSwap}
             disabled={swapping}
+          />
+          <OnPhoto
+            icon="close"
+            label={copy.suggestedTile.remove(look.name)}
+            size={32}
+            onClick={onRemove}
           />
         </div>
       }

@@ -189,8 +189,16 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           aria-label={copy.refine.title}
           className="flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-4"
         >
+          {/* Beta's drawer: FILTER with a quiet Clear at its right, the groups, then the count to
+              close it on — a hairline pill, since filtering is not a commitment. */}
+          <div className="flex items-center justify-between">
+            <Eyebrow>{copy.refine.title}</Eyebrow>
+            <Button variant="quiet" disabled={!bands.length} onClick={() => setBands([])}>
+              {copy.refine.clear}
+            </Button>
+          </div>
           <fieldset className="flex flex-col gap-2">
-            <legend className="font-sans text-ink-faint text-xs uppercase tracking-[0.18em]">
+            <legend className="mb-2 font-sans text-[10px] text-accent-warm uppercase tracking-[0.18em]">
               {copy.refine.season}
             </legend>
             <div className="flex flex-wrap gap-2">
@@ -207,13 +215,10 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               ))}
             </div>
           </fieldset>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Button variant="quiet" disabled={!bands.length} onClick={() => setBands([])}>
-              {copy.refine.clear}
-            </Button>
-            <Button variant="secondary" onClick={() => setRefineOpen(false)}>
+          <div className="flex justify-end border-t border-hairline pt-3">
+            <button type="button" onClick={() => setRefineOpen(false)} className={toolPill(false)}>
               {copy.refine.show(items.length)}
-            </Button>
+            </button>
           </div>
         </section>
       ) : null}

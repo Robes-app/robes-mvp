@@ -13,10 +13,12 @@ import {
   frameKey,
   isProposalKey,
   lookFacts,
+  lookMatches,
   nameNoBrand,
   newProposalKey,
   noteShort,
   orderRack,
+  pickerOrder,
   type RackRow,
   type RackState,
   rackSignature,
@@ -308,5 +310,35 @@ describe('lookFacts', () => {
       around: null,
     });
     expect(lookFacts({ timesWorn: 1, lastWornOn: null }, 1).lastWorn).toBeNull();
+  });
+});
+
+describe('the Add-a-look picker', () => {
+  const a = { name: 'Brunch', lastWornOn: '2026-10-10', pieces: [] };
+  const b = { name: 'Archive', lastWornOn: null, pieces: [] };
+  const c = { name: 'Cocktails', lastWornOn: '2026-10-12', pieces: [] };
+  it('orders by last worn, the never-worn at the end, and turns round', () => {
+    expect(pickerOrder([a, b, c], true).map((l) => l.name)).toEqual([
+      'Cocktails',
+      'Brunch',
+      'Archive',
+    ]);
+    expect(pickerOrder([a, b, c], false).map((l) => l.name)).toEqual([
+      'Archive',
+      'Brunch',
+      'Cocktails',
+    ]);
+  });
+  it('finds a look by its name or a piece', () => {
+    const look = {
+      name: 'Office armour',
+      pieces: [{ piece: { label: 'Wool blazer', brand: 'Toteme' } }],
+    };
+    expect(lookMatches(look, '')).toBe(true);
+    expect(lookMatches(look, 'ARMOUR')).toBe(true);
+    expect(lookMatches(look, 'blazer')).toBe(true);
+    expect(lookMatches(look, 'totê')).toBe(false);
+    expect(lookMatches(look, 'toteme')).toBe(true);
+    expect(lookMatches(look, 'sandals')).toBe(false);
   });
 });

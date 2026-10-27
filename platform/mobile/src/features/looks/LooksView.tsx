@@ -45,7 +45,7 @@ function ToolPill({
   expanded,
   onPress,
 }: {
-  icon: IconName;
+  icon?: IconName;
   label: string;
   accessibilityLabel?: string;
   expanded: boolean;
@@ -61,7 +61,7 @@ function ToolPill({
       hitSlop={{ top: (MIN_TOUCH - 36) / 2, bottom: (MIN_TOUCH - 36) / 2 }}
       className={`h-9 flex-row items-center gap-[6px] rounded-pill border bg-surface-raised px-3 ${expanded ? 'border-selected-line' : 'border-rule-mid'}`}
     >
-      <Icon name={icon} size={14} color={muted} />
+      {icon ? <Icon name={icon} size={14} color={muted} /> : null}
       <Text
         maxFontSizeMultiplier={maxFontSizeMultiplier.control}
         className="text-ink-muted"
@@ -169,7 +169,15 @@ export function LooksView() {
           accessibilityLabel={copy.refine.title}
           className="gap-3 rounded-soft border border-hairline bg-surface-raised p-4"
         >
-          <Eyebrow>{copy.refine.season}</Eyebrow>
+          {/* Beta's drawer (twin: lookbook.tsx): FILTER with a quiet Clear at its right, the
+              groups, then the count to close it on as a hairline pill. */}
+          <View className="flex-row items-center justify-between">
+            <Eyebrow>{copy.refine.title}</Eyebrow>
+            <Button variant="quiet" disabled={!bands.length} onPress={() => setBands([])}>
+              {copy.refine.clear}
+            </Button>
+          </View>
+          <Eyebrow className="text-accent-warm">{copy.refine.season}</Eyebrow>
           <View className="flex-row flex-wrap gap-2">
             {SEASON_BANDS.map((b) => (
               <Chip
@@ -183,13 +191,13 @@ export function LooksView() {
               </Chip>
             ))}
           </View>
-          <View className="flex-row items-center justify-between gap-2">
-            <Button variant="quiet" disabled={!bands.length} onPress={() => setBands([])}>
-              {copy.refine.clear}
-            </Button>
-            <Button variant="secondary" onPress={() => setRefineOpen(false)}>
-              {copy.refine.show(items.length)}
-            </Button>
+          <View className="flex-row justify-end border-t border-hairline pt-3">
+            <ToolPill
+              label={copy.refine.show(items.length)}
+              accessibilityLabel={copy.refine.show(items.length)}
+              expanded={false}
+              onPress={() => setRefineOpen(false)}
+            />
           </View>
         </View>
       ) : null}
