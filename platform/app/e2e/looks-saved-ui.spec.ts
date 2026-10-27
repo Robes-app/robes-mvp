@@ -49,8 +49,12 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   const record = page.getByRole('region', { name: 'Worn' });
   await expect(record.getByText('Not yet.', { exact: false })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Wear it today' }).click();
-  await expect(page.getByText('Worn today.', { exact: true })).toBeVisible();
+  // No wear buttons on the page (27 Oct): the diary on the picture logs today's wear.
+  await expect(page.getByRole('button', { name: 'Wear it today' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save as new' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Put this look in the diary' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'I wore this today' }).click();
+  await expect(page.getByRole('listitem').getByText(/Recorded — worn/)).toBeVisible();
   // The day it was worn joins the record, and opens that day.
   // Her local date, printed the way core's longDate prints it: "Saturday 24 October".
   const todayLocal = await page.evaluate(() => {
@@ -64,7 +68,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     timeZone: 'UTC',
   }).format(new Date(`${todayLocal}T00:00:00Z`));
   await expect(record.getByRole('link', { name: `Open ${longToday}` })).toBeVisible();
-  await page.getByRole('button', { name: 'Undo' }).click();
+  // Taken off the record from its own row.
+  await record.getByRole('button', { name: `Not worn on ${longToday}` }).click();
   await expect(record.getByRole('link', { name: `Open ${longToday}` })).toBeHidden();
   const lookId = page.url().split('/').at(-1) ?? '';
   await expect

@@ -24,9 +24,8 @@ import { LookHero } from './LookHero';
 import { LookPromptBox } from './LookPromptBox';
 import { useLookEditor } from './look-editor';
 import { RackRowCard } from './RackRow';
-import { SeeOnMe } from './SeeOnMe';
 import { SwapSheet } from './SwapSheet';
-import { localDate, useRemoveLook, useRenameLook, useSaveAsNew, useWearToday } from './saved-looks';
+import { useRemoveLook, useRenameLook } from './saved-looks';
 import { WearRecord } from './WearRecord';
 
 // A provisional name is Robes' suggestion: she can keep it or name the look herself.
@@ -105,14 +104,11 @@ export function LookDetail({ id }: { id: string }) {
 // look), and the prompt box — a change made through it opens Editing.
 function SavedLook({ look }: { look: Look }) {
   const router = useRouter();
-  const wear = useWearToday();
   const remove = useRemoveLook();
-  const saveAsNew = useSaveAsNew((newId) => router.push(`/look/${newId}`));
   const [diary, setDiary] = useState(false);
   const editor = useLookEditor(look);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const woreToday = look.lastWornOn === localDate();
   // The deep rose: the brand's rose at a size small text can read (4.5:1).
   const rose = useColor('accent-warm');
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
@@ -170,32 +166,10 @@ function SavedLook({ look }: { look: Look }) {
         ) : null}
         {editor.editing ? null : <WearRecord look={look} onAddDate={() => setDiary(true)} />}
         {editor.editing ? null : (
-          // One ink "Wear it today", a hairline "Wear on a day" (the diary), then the quiet links
-          // (decided 27 Oct; web twin app/(app)/look/[id]/look-view.tsx).
+          // Beta's foot: the record, then Delete this look. Wearing is the diary on the picture,
+          // a new look the composer, her model You · Model (27 Oct; web twin look-view.tsx).
           <PrimaryScope>
             <View className="gap-3">
-              <Button
-                onPress={() =>
-                  wear.mutate({ params: { id: look.id }, input: { wornOn: localDate() } })
-                }
-                disabled={woreToday}
-                loading={wear.isPending}
-              >
-                {woreToday ? copy.look.woreToday : copy.page.wearToday}
-              </Button>
-              <Button variant="secondary" onPress={() => setDiary(true)}>
-                {copy.page.wearOnDay}
-              </Button>
-              {look.frame ? null : <SeeOnMe look={look} />}
-              <Button
-                variant="quiet"
-                className="self-center"
-                loading={saveAsNew.isPending}
-                loadingLabel={ui.loading}
-                onPress={() => saveAsNew.mutate({ params: { id: look.id }, input: {} })}
-              >
-                {copy.page.saveAsNew}
-              </Button>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={copy.page.remove}

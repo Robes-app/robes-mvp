@@ -43,7 +43,7 @@ test('her model is the hero with two doors; landing asks for the twin once', asy
   expect(screen.queryByText(tw.caption('Tan', 'Espresso'))).toBeNull();
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
   // The redline cut Build your model from the twin: the hero and the two doors are all it carries.
-  expect(screen.queryByRole('button', { name: copy.build })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Build your model' })).toBeNull();
   // The hero already says it, so nothing repeats under the doors (redline 27 Oct).
   expect(screen.queryByText(tw.status('woman', 'none'))).toBeNull();
   await fireEvent.press(
@@ -87,34 +87,6 @@ test('a skin or hair she never chose is never named under her model', async () =
   await renderWithApi(<Model />);
   expect(await screen.findByText(tw.caption('', 'Espresso'))).toBeTruthy();
   expect(screen.queryByText(/Tan/)).toBeNull();
-});
-
-test('a look offers See it on me once her model is ready, and asks for the render', async () => {
-  const withPiece = look();
-  const calls = mockFetch({
-    [`GET /looks/${LOOK_ID}`]: withPiece,
-    'GET /me/model': model({
-      filed: true,
-      cell: { status: 'ready', imageUrl: 'https://media.test/catalog/avatar/w-s3-h1-nt@v2.png' },
-    }),
-    [`POST /looks/${LOOK_ID}/render`]: {
-      jobId: '66666666-6666-4666-8666-666666666666',
-      status: 'queued',
-    },
-  });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: copy.seeOnMe }));
-  await waitFor(() =>
-    expect(
-      calls.some((c) => c.method === 'POST' && c.path.endsWith(`/looks/${LOOK_ID}/render`)),
-    ).toBe(true),
-  );
-});
-
-test('without a model the look points her to build one', async () => {
-  mockFetch({ [`GET /looks/${LOOK_ID}`]: look(), 'GET /me/model': model() });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
-  expect(await screen.findByRole('button', { name: copy.build })).toBeTruthy();
 });
 
 test('body shape: the facts drawer, a scale by hand, back to her facts, a redraw on leaving', async () => {

@@ -20,11 +20,9 @@ import { LookHero } from '@/components/looks/look-hero';
 import { SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
 import { WearRecord } from '@/components/looks/wear-record';
 import { usePushedView } from '@/components/shell/app-shell';
-import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { useLookEditor } from '@/lib/look-editor';
 import { withoutId } from '@/lib/wardrobe';
-import { SeeOnMe } from './see-on-me';
 
 const copy = looks.page;
 
@@ -65,56 +63,14 @@ export function LookView({ id }: { id: string }) {
 function useLookActions(look: Look) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const router = useRouter();
   const toast = useToast();
   const onError = (err: unknown) => toast({ message: errorCopy(err) });
   const key = queryKeys.call('looks.get', { params: { id: look.id } });
-  // A wear (or its undo) changes the look's count AND its record of days, so both refetch.
-  const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: key });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
-  };
 
   const update = useApiMutation('looks.update', {
     onSuccess: (data) => {
       queryClient.setQueryData(key, data);
       void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
-    },
-    onError,
-  });
-  const wear = useApiMutation('looks.wear', {
-    onSuccess: (w) => {
-      refresh();
-      // Wearing is a tap with a quiet undo, never a confirmation.
-      toast({
-        message: copy.woreToday,
-        action: {
-          label: wardrobe.undo,
-          onAction: () =>
-            void client
-              .call('looks.unwear', { params: { id: look.id, date: w.wornOn } })
-              .then(refresh, onError),
-        },
-      });
-    },
-    onError,
-  });
-  const pin = useApiMutation('plan.pin', {
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') });
-      toast({
-        message: copy.addedToPlan,
-        action: { label: looks.openLook, onAction: () => router.push('/plan') },
-      });
-    },
-    onError,
-  });
-  const variant = useApiMutation('looks.variant', {
-    onSuccess: (created) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
-      toast({ message: copy.savedAsNew });
-      router.push(`/look/${created.id}`);
     },
     onError,
   });
@@ -132,7 +88,7 @@ function useLookActions(look: Look) {
       compensate: (args) => client.call('looks.restore', { params: { id: args.params.id } }),
     },
   });
-  return { update, wear, pin, variant, remove };
+  return { update, remove };
 }
 
 function LookBody({ look }: { look: Look }) {
@@ -159,30 +115,8 @@ function LookBody({ look }: { look: Look }) {
         {editor.editing ? null : (
           <>
             <WearRecord look={look} onAddDate={() => setDiary(true)} />
-            {/* One ink commitment; a day is the diary's (decided 27 Oct). */}
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-              <Button
-                variant="primary"
-                loading={actions.wear.isPending}
-                onClick={() =>
-                  actions.wear.mutate({ params: { id: look.id }, input: { wornOn: localToday() } })
-                }
-              >
-                {copy.wearToday}
-              </Button>
-              <Button variant="secondary" onClick={() => setDiary(true)}>
-                {copy.wearOnDay}
-              </Button>
-            </div>
-            <Button
-              variant="quiet"
-              className="self-start px-0"
-              loading={actions.variant.isPending}
-              onClick={() => actions.variant.mutate({ params: { id: look.id }, input: {} })}
-            >
-              {copy.saveAsNew}
-            </Button>
-            {look.frame ? null : <SeeOnMe look={look} />}
+            {/* Beta's foot: the record, then Delete this look. Wearing is the diary on the
+                picture, a new look the composer, her model You · Model (27 Oct). */}
             <button
               type="button"
               onClick={() => {

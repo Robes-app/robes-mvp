@@ -787,16 +787,10 @@ export const looks = {
     cancel: 'Cancel',
     note: 'Notes',
     pieces: 'Pieces',
-    wearToday: 'Wear it today',
-    woreToday: 'Worn today.',
     dayLabel: 'Day',
-    addedToPlan: 'Added to your diary.',
-    saveAsNew: 'Save as new',
-    savedAsNew: 'Saved as a new look.',
     // A text link at the foot, rose; no glyph (Look redline 27 Oct).
     remove: 'Delete this look',
     removed: 'Look removed.',
-    wearOnDay: 'Wear on a day',
     imageAlt: (name: string): string => `The look: ${name}`,
     noPieces: 'No pieces yet.',
     // On the photograph: the day it is worn, and her own picture of it (↻ once one is kept).
@@ -859,16 +853,11 @@ export const looks = {
   look: {
     worn: (times: number): string =>
       times === 0 ? 'Not worn yet' : `Worn ${times} ${times === 1 ? 'time' : 'times'}`,
-    wearToday: 'Wear it today',
-    woreToday: 'Worn today.',
     removed: 'Look removed.',
     pieces: 'Pieces',
     imageAlt: (name: string): string => `The look: ${name}`,
     nameLabel: 'Name this look',
     saveName: 'Save name',
-    wearOnDay: 'Wear on a day',
-    saveAsNew: 'Save as new',
-    savedAsNew: 'Saved as a new look.',
   },
 } as const;
 
@@ -1045,13 +1034,10 @@ export const you = {
     lineOptions: { soft: 'Softer', none: 'As she is', straight: 'Straighter' },
     frame: 'The frame',
     frameOptions: { fuller: 'Fuller', none: 'As she is', narrower: 'Narrower' },
-    build: 'Build your model',
     creating: 'Creating your model…',
     failed: 'Robes couldn’t draw your model just now. Change a pick to try again.',
     imageAlt: 'Your model',
-    seeOnMe: 'See it on me',
     dressing: 'Dressing your model…',
-    onMeFailed: 'Robes couldn’t dress your model just now. Try again in a moment.',
   },
 } as const;
 

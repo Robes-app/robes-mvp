@@ -230,9 +230,10 @@ test('closing the diary after Save is not yet: nothing is pinned', async () => {
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   // Today is already picked, so the CTA is live — beta never opens this sheet inert.
   expect(screen.getByRole('button', { name: lookbook.diary.put })).not.toBeDisabled();
-  // × closes it: there is no "Not yet", and with today picked no second "I wore this today".
+  // × closes it: there is no "Not yet". "I wore this today" stands on every day — it is how a
+  // wear is logged now the look page carries no wear buttons (27 Oct).
   expect(screen.queryByRole('button', { name: 'Not yet' })).toBeNull();
-  expect(screen.queryByRole('button', { name: lookbook.diary.woreToday })).toBeNull();
+  expect(screen.getByRole('button', { name: lookbook.diary.woreToday })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: ui.close }));
   await waitFor(() => expect(screen.queryByText(lookbook.diary.eyebrow)).toBeNull());
   expect(calls.some((c) => c.path.endsWith('/days'))).toBe(false);

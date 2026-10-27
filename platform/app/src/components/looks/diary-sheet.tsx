@@ -67,6 +67,9 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
   const settle = (message: string) => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') });
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
+    // The look's own page reads the count and the record of days: both follow a wear.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });
     toast({ message });
     close();
   };
@@ -124,9 +127,9 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
           >
             {copy.diary[state.action]}
           </Button>
-          {/* "I wore this today" only when another day is picked — on today the pill says it.
-              × closes, so there is no "Not yet" (decided 27 Oct). */}
-          {day === today ? null : worn.has(today) ? (
+          {/* Beta's order: the day's act, then "I wore this today" on every day — it is how a wear
+              is logged now the look page carries no wear buttons. × closes; no "Not yet" (27 Oct). */}
+          {worn.has(today) ? (
             <span className="flex items-center justify-center gap-1.5 font-sans text-ink-muted text-sm">
               <Icon name="check" size={14} />
               {copy.diary.woreTodayDone}

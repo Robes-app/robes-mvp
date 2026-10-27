@@ -36,7 +36,7 @@ test('a suggested name is renamed with the pencil, never a "Keep this name" line
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Gallery opening' });
 });
 
-test('wear on a day opens the one diary drawer and pins the chosen local date', async () => {
+test('the diary on the picture opens the one diary drawer and pins the chosen local date', async () => {
   mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
     [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
@@ -44,7 +44,7 @@ test('wear on a day opens the one diary drawer and pins the chosen local date', 
     [`POST /plan/looks/${LOOK_ID}/days`]: { entries: [] },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: looks.look.wearOnDay }));
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.card.diary }));
   const [, tomorrow] = nextDays(2);
   await fireEvent.press(await screen.findByLabelText(longDate(tomorrow ?? '')));
   await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.put }));
@@ -66,16 +66,14 @@ test('the record logs a day through the same drawer', async () => {
   expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
 });
 
-test('save as new opens the copy', async () => {
+test('a look carries no share door, and no save-as-new (27 Oct)', async () => {
   mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
     [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
-    [`POST /looks/${LOOK_ID}/variants`]: look({ id: NEW_ID, originLookId: LOOK_ID }),
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: looks.look.saveAsNew }));
-  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/look/${NEW_ID}`));
-  // A look carries no share door.
+  expect(await screen.findByText(look().name)).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Save as new' })).toBeNull();
 });

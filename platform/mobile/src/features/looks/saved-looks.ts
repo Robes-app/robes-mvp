@@ -36,37 +36,6 @@ export function pastDays(count: number, now = new Date()): string[] {
   );
 }
 
-export function useWearToday() {
-  const api = useApiClient();
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useApiMutation('looks.wear', {
-    onSuccess: async (wear) => {
-      toast.show({
-        message: copy.look.woreToday,
-        action: {
-          label: ui.undo,
-          onPress: () =>
-            void api
-              .call('looks.unwear', { params: { id: wear.lookId, date: wear.wornOn } })
-              .then(() =>
-                Promise.all([
-                  queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') }),
-                  queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') }),
-                ]),
-              ),
-        },
-      });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') }),
-      ]);
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
-}
-
 function withoutLook(old: unknown, id: string): unknown {
   const page = old as LookPage | undefined;
   return page?.items ? { ...page, items: page.items.filter((l) => l.id !== id) } : old;
@@ -98,19 +67,6 @@ export function useRenameLook() {
     onSuccess: async (look) => {
       queryClient.setQueryData(queryKeys.call('looks.get', { params: { id: look.id } }), look);
       await queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
-}
-
-export function useSaveAsNew(onSaved: (id: string) => void) {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useApiMutation('looks.variant', {
-    onSuccess: async (look) => {
-      toast.show({ message: copy.look.savedAsNew });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
-      onSaved(look.id);
     },
     onError: () => toast.show({ message: errors.internal }),
   });

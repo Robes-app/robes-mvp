@@ -102,7 +102,7 @@ test('an idea can be saved, and removing it goes back', async () => {
   expect(calls.some((c) => c.method === 'DELETE')).toBe(true);
 });
 
-test('a saved look can be worn today (her local date) and removed with Undo', async () => {
+test('a saved look is worn today through the diary sheet (her local date) and removed with Undo', async () => {
   const today = localDate();
   const calls = mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
@@ -120,8 +120,12 @@ test('a saved look can be worn today (her local date) and removed with Undo', as
   // One meta line under the title carries the wears; the old second "Worn 2 times" line is gone.
   expect(await screen.findByText(/2 wears/)).toBeTruthy();
   expect(screen.queryByText(looks.look.worn(2))).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: looks.look.wearToday }));
-  expect(await screen.findByText(looks.look.woreToday)).toBeTruthy();
+  // No wear buttons on the page (27 Oct): the diary on the picture logs it, on any day.
+  expect(screen.queryByRole('button', { name: 'Wear it today' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Wear on a day' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Save as new' })).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.card.diary }));
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.diary.woreToday }));
   // The record reads /wears too, so name the method: the wear itself is the POST.
   expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/wears'))?.body).toEqual({
     wornOn: today,
@@ -271,8 +275,7 @@ test('before her photograph: the hint stands, no You · Model; Edit tags sets th
   expect(await screen.findByText(looks.page.photoNote)).toBeTruthy();
   expect(screen.queryByText(looks.page.record.kept)).toBeNull();
   expect(screen.getByRole('button', { name: looks.page.addPhoto })).toBeTruthy();
-  // One ink "Wear it today", a hairline "Wear on a day", and "Delete this look" as a link.
-  expect(screen.getByRole('button', { name: looks.page.wearOnDay })).toBeTruthy();
+  // The record, then "Delete this look" as a link — no wear or save-as-new buttons (27 Oct).
   expect(screen.getByRole('button', { name: looks.page.remove })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: looks.page.editTags }));
   await fireEvent.press(
