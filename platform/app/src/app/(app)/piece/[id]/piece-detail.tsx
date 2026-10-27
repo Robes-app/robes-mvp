@@ -2,7 +2,7 @@
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Piece, UpdatePieceInput } from '@robes/contracts';
-import { lookbook, wardrobe } from '@robes/copy';
+import { lookbook, looks as looksCopy, wardrobe } from '@robes/copy';
 import { dayMonth, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
 import {
@@ -19,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { SavedTile } from '@/components/looks/look-tiles';
 import { SuggestedRail } from '@/components/looks/suggested-rail';
 import { StarButton } from '@/components/wardrobe/piece-card';
 import { type PieceField, PieceFieldSheet } from '@/components/wardrobe/piece-field-sheet';
@@ -31,6 +32,7 @@ import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 
 const copy = wardrobe.piece;
 const READING_REFRESH_MS = 2000;
+const LOOKS_LIMIT = 30;
 
 // The record (legacy Piece_Sheet 01): the photograph, her name for it with the pencil on it, the
 // facts she has given, then the days she wore it. Every fact is a row that opens its own drawer —
@@ -74,87 +76,100 @@ export function PieceDetail({ id }: { id: string }) {
   const ready = piece.status === 'ready';
 
   return (
-    <article className="mx-auto flex w-full max-w-xl flex-col gap-6">
-      <PieceImage piece={piece} sizes="(min-width: 768px) 640px, 100vw" priority />
-
-      <header className="flex flex-col gap-1.5">
-        <div className="flex items-start justify-between gap-3">
-          <span className="flex min-w-0 flex-1 items-start gap-2">
-            {/* Until Robes has read it, "New piece" is a placeholder, not a fact. */}
-            <Heading
-              level={1}
-              size="xl"
-              className="min-w-0"
-              italic={!ready}
-              tone={ready ? 'default' : 'faint'}
-            >
-              {piece.label}
-            </Heading>
-            {/* The pencil edits the name where it is written, never a field further down. */}
-            <IconButton icon="pencil" label={copy.editName} onClick={() => setField('label')} />
-          </span>
-          <StarButton
-            label={piece.label}
-            on={piece.heroPosition !== null}
-            onToggle={() => star.toggle(piece)}
+    // Beta's two columns (Robes_Piece_IA): the piece — photograph, name, stats, rows — at 38% from
+    // 1024px, the record beside it; one column, photograph first, below.
+    <article className="mx-auto grid w-full max-w-xl grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-[clamp(360px,38%,560px)_minmax(0,1fr)] lg:items-start lg:gap-14">
+      <div className="flex min-w-0 flex-col gap-6">
+        <div className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
+          <PieceImage
+            piece={piece}
+            contain
+            sizes="(min-width: 1024px) 560px, (min-width: 768px) 576px, 100vw"
+            priority
           />
         </div>
-        {/* The brand is its own line, and says so when it is missing — one source, the saved piece. */}
-        <button
-          type="button"
-          onClick={() => setField('brand')}
-          className="self-start font-display text-lg text-ink-muted italic"
-        >
-          {piece.brand ?? copy.addBrand}
-        </button>
-        {piece.status === 'reading' ? (
-          <Text role="status" tone="muted">
-            {wardrobe.reading}
-          </Text>
-        ) : null}
-        {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
-      </header>
 
-      {ready ? <Stats piece={piece} /> : null}
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant="primary"
-          disabled={!ready}
-          loading={style.isPending || style.isSuccess}
-          onClick={() => style.mutate({ input: { anchor: { type: 'piece', pieceId: id } } })}
-        >
-          {copy.stylePiece}
-        </Button>
-        {ready ? (
-          <Link
-            href={`/looks/new?pieceId=${id}`}
-            className={buttonClasses({ variant: 'secondary' })}
+        <header className="flex flex-col gap-1.5">
+          <div className="flex items-start justify-between gap-3">
+            <span className="flex min-w-0 flex-1 items-start gap-2">
+              {/* Until Robes has read it, "New piece" is a placeholder, not a fact. */}
+              <Heading
+                level={1}
+                size="xl"
+                className="min-w-0"
+                italic={!ready}
+                tone={ready ? 'default' : 'faint'}
+              >
+                {piece.label}
+              </Heading>
+              {/* The pencil edits the name where it is written, never a field further down. */}
+              <IconButton icon="pencil" label={copy.editName} onClick={() => setField('label')} />
+            </span>
+            <StarButton
+              label={piece.label}
+              on={piece.heroPosition !== null}
+              onToggle={() => star.toggle(piece)}
+            />
+          </div>
+          {/* The brand is its own line, and says so when it is missing — one source, the saved piece. */}
+          <button
+            type="button"
+            onClick={() => setField('brand')}
+            className="self-start font-display text-lg text-ink-muted italic"
           >
-            {lookbook.startLook}
-          </Link>
-        ) : null}
+            {piece.brand ?? copy.addBrand}
+          </button>
+          {piece.status === 'reading' ? (
+            <Text role="status" tone="muted">
+              {wardrobe.reading}
+            </Text>
+          ) : null}
+          {piece.status === 'failed' ? <ErrorText>{wardrobe.noPieceFound}</ErrorText> : null}
+        </header>
+
+        {ready ? <Stats piece={piece} /> : null}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="primary"
+            disabled={!ready}
+            loading={style.isPending || style.isSuccess}
+            onClick={() => style.mutate({ input: { anchor: { type: 'piece', pieceId: id } } })}
+          >
+            {copy.stylePiece}
+          </Button>
+          {ready ? (
+            <Link
+              href={`/looks/new?pieceId=${id}`}
+              className={buttonClasses({ variant: 'secondary' })}
+            >
+              {lookbook.startLook}
+            </Link>
+          ) : null}
+        </div>
+        {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
+
+        <RecordRows values={piece} onField={setField} />
+        {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
       </div>
-      {style.isError ? <ErrorText>{errorCopy(style.error)}</ErrorText> : null}
 
-      <RecordRows values={piece} onField={setField} />
+      <div className="flex min-w-0 flex-col gap-8">
+        <Wears pieceId={id} />
+        <InLooks pieceId={id} />
+        <SuggestedRail pieceId={id} />
 
-      <Wears pieceId={id} />
-      <SuggestedRail pieceId={id} />
-
-      {update.isError ? <ErrorText>{errorCopy(update.error)}</ErrorText> : null}
-
-      {/* Destructive, so away from the primary action; Undo follows in a toast. */}
-      <Button
-        variant="quiet"
-        className="self-start border-hairline border-t pt-4"
-        onClick={() => {
-          remove.mutate({ params: { id } });
-          router.push('/wardrobe');
-        }}
-      >
-        {copy.remove}
-      </Button>
+        {/* Destructive, so away from the primary action; Undo follows in a toast. */}
+        <Button
+          variant="quiet"
+          className="self-center"
+          onClick={() => {
+            remove.mutate({ params: { id } });
+            router.push('/wardrobe');
+          }}
+        >
+          {copy.remove}
+        </Button>
+      </div>
 
       <PieceFieldSheet
         piece={piece}
@@ -167,24 +182,65 @@ export function PieceDetail({ id }: { id: string }) {
   );
 }
 
-// Worn · Last worn, as beta's strip reads them: facts, side by side, under the name.
+// Worn · Last worn · In looks, as beta's strip reads them: facts side by side under the name,
+// between two hairlines. The native twin is Stats in mobile/src/features/wardrobe/PieceDetail.tsx.
 function Stats({ piece }: { piece: Piece }) {
+  const wears = useApi('wardrobe.wears', { params: { id: piece.id } });
+  const looks = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
+  const last = wears.data?.items[0]?.wornOn;
   const cells: [string, string][] = [
-    [copy.stats.worn, piece.wearCount ? wardrobe.card.worn(piece.wearCount) : copy.stats.never],
+    [
+      copy.stats.worn,
+      piece.wearCount ? looksCopy.page.wears.count(piece.wearCount) : copy.stats.never,
+    ],
+    [copy.stats.lastWorn, last ? dayMonth(last) : '—'],
+    [copy.stats.inLooks, looks.data ? String(looks.data.items.length) : '—'],
   ];
   return (
-    <dl className="grid grid-cols-2 overflow-hidden rounded-crisp border border-hairline bg-surface">
+    <dl className="grid grid-cols-3 border-hairline border-y">
       {cells.map(([k, v], i) => (
-        <div key={k} className={`flex flex-col gap-1 p-3 ${i ? 'border-hairline border-l' : ''}`}>
+        <div
+          key={k}
+          className={`flex min-w-0 flex-col gap-1.5 py-3 ${i ? 'border-hairline border-l pl-3.5' : ''}`}
+        >
           <dt>
             <Eyebrow>{k}</Eyebrow>
           </dt>
           <dd>
-            <Text size="small">{v}</Text>
+            <Text size="small" className="truncate">
+              {v}
+            </Text>
           </dd>
         </div>
       ))}
     </dl>
+  );
+}
+
+// "In N looks": the saved looks she has put this piece on, drawn as the Lookbook draws them.
+function InLooks({ pieceId }: { pieceId: string }) {
+  const query = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId } });
+  const items = query.data?.items ?? [];
+  if (query.isPending) return <Skeleton shape="text" className="h-4 w-40" />;
+  return (
+    <section aria-labelledby="piece-looks" className="flex flex-col gap-2">
+      <Eyebrow id="piece-looks">
+        {items.length ? copy.sections.looks(items.length) : copy.sections.noLooks}
+      </Eyebrow>
+      {items.length ? (
+        <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {items.map((look) => (
+            <li key={look.id}>
+              <SavedTile look={look} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Text size="small" tone="muted" italic>
+          {copy.sections.noLooksHint}
+        </Text>
+      )}
+    </section>
   );
 }
 
@@ -193,43 +249,38 @@ function Wears({ pieceId }: { pieceId: string }) {
   const query = useApi('wardrobe.wears', { params: { id: pieceId } });
   const items = query.data?.items ?? [];
   const undated = query.data?.undated ?? 0;
+  // Nothing worn yet: the stats strip already says so, so the section stands down (beta).
+  if (query.isPending) return <Skeleton shape="text" className="h-4 w-40" />;
+  if (items.length === 0 && !undated) return null;
   return (
     <section aria-labelledby="piece-wears" className="flex flex-col gap-2">
       <Eyebrow id="piece-wears">{copy.sections.wears}</Eyebrow>
-      {query.isPending ? (
-        <Skeleton shape="text" className="h-4 w-40" />
-      ) : items.length === 0 && !undated ? (
-        <Text size="small" tone="muted" italic>
-          {copy.wears.none}
+      {items.length ? (
+        <ul className="flex flex-col divide-y divide-hairline overflow-hidden rounded-crisp border border-hairline bg-surface">
+          {items.map((wear) => (
+            <li key={wear.id}>
+              <Link
+                href={`/plan/${wear.wornOn}`}
+                aria-label={copy.wears.openDay(longDate(wear.wornOn))}
+                className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <Text size="small" className="shrink-0">
+                  {dayMonth(wear.wornOn)}
+                </Text>
+                <Text size="caption" tone="faint" italic className="min-w-0 flex-1 truncate">
+                  {wear.lookName ?? ''}
+                </Text>
+                <Icon name="forward" size={15} className="shrink-0 text-ink-faint" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {undated ? (
+        <Text size="caption" tone="faint" italic>
+          {copy.wears.undated(undated)}
         </Text>
-      ) : (
-        <>
-          <ul className="flex flex-col divide-y divide-hairline overflow-hidden rounded-crisp border border-hairline bg-surface">
-            {items.map((wear) => (
-              <li key={wear.id}>
-                <Link
-                  href={`/plan/${wear.wornOn}`}
-                  aria-label={copy.wears.openDay(longDate(wear.wornOn))}
-                  className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
-                >
-                  <Text size="small" className="shrink-0">
-                    {dayMonth(wear.wornOn)}
-                  </Text>
-                  <Text size="caption" tone="faint" italic className="min-w-0 flex-1 truncate">
-                    {wear.lookName ?? ''}
-                  </Text>
-                  <Icon name="forward" size={15} className="shrink-0 text-ink-faint" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {undated ? (
-            <Text size="caption" tone="faint" italic>
-              {copy.wears.undated(undated)}
-            </Text>
-          ) : null}
-        </>
-      )}
+      ) : null}
     </section>
   );
 }

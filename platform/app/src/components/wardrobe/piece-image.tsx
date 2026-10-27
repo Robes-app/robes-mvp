@@ -9,6 +9,7 @@ export function PieceImage({
   sizes,
   priority = false,
   mat = false,
+  contain = false,
   className,
 }: {
   piece: Pick<Piece, 'label' | 'image'> & { status?: Piece['status'] };
@@ -16,12 +17,16 @@ export function PieceImage({
   priority?: boolean;
   // A grid tile's photograph: the whole piece contained on a 3:4 white mat (beta's card).
   mat?: boolean;
+  // The piece page's photograph: the whole piece contained on white in a 4:5 frame, never
+  // cropped at the hem (beta's record card).
+  contain?: boolean;
   className?: string;
 }) {
   const aspect = mat ? '3:4' : '4:5';
   const ratio = mat ? 'aspect-3/4' : 'aspect-[4/5]';
-  const frame = [mat ? 'bg-surface-raised!' : '', className ?? ''].filter(Boolean).join(' ');
-  const fit = mat ? { className: 'object-contain!' } : {};
+  const onWhite = mat || contain;
+  const frame = [onWhite ? 'bg-surface-raised!' : '', className ?? ''].filter(Boolean).join(' ');
+  const fit = onWhite ? { className: 'object-contain!' } : {};
   const sources = piece.image ? imageSources(piece.image.renditions) : null;
   const local = sources ? null : localPreview(piece.image?.assetId);
   if (local) {

@@ -66,14 +66,20 @@ function withPiece(old: unknown, id: string, patch: Partial<Piece>): unknown {
 export function useStarPiece() {
   const toast = useToast();
   const queryClient = useQueryClient();
+  // The grid and the piece page share this star, so both caches settle (the web twin is
+  // app/src/components/wardrobe/use-star-piece.ts).
+  const settle = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.get') });
+  };
   const star = useApiMutation('wardrobe.update', {
     onSuccess: (piece) => {
       toast.show({ message: piece.heroPosition ? copy.card.starred : copy.card.unstarred });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+      settle();
     },
     onError: (err) => {
       toast.show({ message: err.code === 'conflict' ? copy.card.heroFull : errors.internal });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+      settle();
     },
   });
   return (piece: Piece) => {
@@ -81,6 +87,10 @@ export function useStarPiece() {
     queryClient.setQueriesData({ queryKey: piecesKey }, (old: unknown) =>
       withPiece(old, piece.id, { heroPosition: on ? 10 : null }),
     );
+    queryClient.setQueryData(queryKeys.call('wardrobe.get', { params: { id: piece.id } }), {
+      ...piece,
+      heroPosition: on ? 10 : null,
+    });
     star.mutate({ params: { id: piece.id }, input: { hero: on } });
   };
 }

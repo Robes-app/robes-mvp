@@ -122,7 +122,7 @@ export function StarButton({
       hitSlop={(44 - size) / 2}
       style={{ width: size, height: size }}
       className={`items-center justify-center rounded-pill border ${
-        on ? 'border-selected-line bg-surface-raised' : 'border-hairline bg-bg'
+        on ? 'border-selected-line bg-surface-raised' : 'border-hairline bg-surface-raised'
       }`}
     >
       <Icon name="star" size={tile ? 14 : 15} color={on ? ink : muted} filled={on} />

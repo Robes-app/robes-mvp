@@ -220,15 +220,17 @@ export function PieceFieldSheet({
         ) : field === 'category' ? (
           <CategoryList piece={piece} drill={drill} onDrill={setDrill} onPick={commit} />
         ) : field === 'season' ? (
-          <View className="flex-row flex-wrap gap-2">
+          // The bands as a list of answers, a pick saves and closes (beta's Season sheet).
+          <View accessibilityRole="radiogroup" accessibilityLabel={TITLES.season}>
             {SeasonBand.options.map((band) => (
-              <Pill
+              <OptionRow
                 key={band}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: piece.seasonBand === band }}
                 selected={piece.seasonBand === band}
+                label={wardrobe.filter.seasons[band]}
                 onPress={() => commit({ seasonBand: band })}
-              >
-                {wardrobe.filter.seasons[band]}
-              </Pill>
+              />
             ))}
           </View>
         ) : field === 'material' ? (

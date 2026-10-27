@@ -122,6 +122,9 @@ export const ListPiecesInput = z.object({
   categoryL2: z.string().max(60).optional(),
   seasonBand: SeasonBand.optional(),
   colourFamily: ColourFamily.optional(),
+  // Filter (legacy Refine): what she wears it for, and the brand on the label.
+  wearFor: z.string().trim().min(1).max(40).optional(),
+  brand: z.string().trim().min(1).max(80).optional(),
 });
 export type ListPiecesInput = z.infer<typeof ListPiecesInput>;
 
@@ -247,5 +250,8 @@ export type UpdateWishInput = z.infer<typeof UpdateWishInput>;
 export const WardrobeSummary = z.object({
   total: z.number().int().min(0),
   categories: z.array(z.object({ category: LEGACY_CATEGORY, count: z.number().int().min(1) })),
+  // The Filter's choices: the brands on her pieces and what she has said she wears them for.
+  brands: z.array(z.string()).default([]),
+  wearFor: z.array(z.string()).default([]),
 });
 export type WardrobeSummary = z.infer<typeof WardrobeSummary>;

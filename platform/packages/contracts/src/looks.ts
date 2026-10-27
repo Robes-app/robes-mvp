@@ -209,6 +209,8 @@ export const ListLooksInput = z.object({
   status: LookStatus.default('saved'),
   // The piece page's "Robes suggested" rail.
   anchorPieceId: z.uuid().optional(),
+  // The piece page's "In N looks": the looks this piece is on.
+  pieceId: z.uuid().optional(),
 });
 export type ListLooksInput = z.infer<typeof ListLooksInput>;
 

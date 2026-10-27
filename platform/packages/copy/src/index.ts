@@ -316,7 +316,8 @@ export const wardrobe = {
   },
   deleted: 'Piece removed.',
   undo: 'Undo',
-  segments: { pieces: 'Pieces', wishlist: 'Wishlist', inbox: 'Inbox' },
+  // The header's segment reads Wardrobe (beta); the list it opens is still "Pieces".
+  segments: { pieces: 'Pieces', wardrobe: 'Wardrobe', wishlist: 'Wishlist', inbox: 'Inbox' },
   removePiece: (label: string): string => `Remove ${label}`,
   photoAlt: (label: string): string => `Photo of ${label}`,
   wishlistEmpty: {
@@ -338,7 +339,7 @@ export const wardrobe = {
     save: 'Save changes',
     saving: 'Saving…',
     saved: 'Saved.',
-    remove: 'Remove',
+    remove: 'Remove from wardrobe',
     stylePiece: 'Style this piece',
     // The record door leads with the photograph (legacy bc56305): the name carries a pencil
     // and the brand is its own tappable line, empty or not.
@@ -351,8 +352,10 @@ export const wardrobe = {
       colour: 'Colour & material',
       wearing: 'Wearing',
       fit: 'Fit & notes',
-      wears: 'Worn',
+      wears: 'Wears',
       looks: (n: number): string => (n === 1 ? 'In one look' : `In ${n} looks`),
+      noLooks: 'Not in a look yet',
+      noLooksHint: 'Build a look and it files here.',
     },
     // The Category drill (wardrobe_taxonomy). The sheet calls its third level "item type"; she
     // reads "type", because nothing in Robes is an item.
@@ -378,7 +381,7 @@ export const wardrobe = {
     saveField: 'Save',
     done: 'Done',
     // The stats strip under the name.
-    stats: { worn: 'Worn', lastWorn: 'Last worn', never: 'Not yet' },
+    stats: { worn: 'Worn', lastWorn: 'Last worn', inLooks: 'In looks', never: 'Not yet' },
     wears: {
       none: 'Not yet. The counter starts the first day you wear it.',
       openDay: (date: string): string => `Open ${date}`,
@@ -483,12 +486,15 @@ export const wardrobe = {
     season: 'Season',
     colour: 'Colour',
     seasons: {
-      spring_summer: 'Spring and summer',
-      autumn_winter: 'Autumn and winter',
-      year_round: 'All year',
+      spring_summer: 'Spring/Summer',
+      autumn_winter: 'Autumn/Winter',
+      year_round: 'Year-round',
     },
+    wearFor: 'Wear it for',
+    brand: 'Brand',
+    allBrands: 'All brands',
     show: (n: number): string => (n === 1 ? 'Show 1 piece' : `Show ${n} pieces`),
-    clear: 'Clear',
+    clear: 'Clear all',
     nothing: 'Nothing in your wardrobe here.',
     wishNothing: 'Nothing on your wishlist here.',
     showEverything: 'Show everything',

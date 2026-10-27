@@ -7,7 +7,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 // Pieces | Wishlist only: the Inbox is a notice that shows while a receipt waits (Native parity).
 export type Segment = 'pieces' | 'wishlist';
 const SEGMENTS = [
-  { value: 'pieces', label: copy.segments.pieces },
+  { value: 'pieces', label: copy.segments.wardrobe },
   { value: 'wishlist', label: copy.segments.wishlist },
 ] as const;
 
