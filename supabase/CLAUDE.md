@@ -19,6 +19,8 @@ where table_schema = 'public' and column_name in ('material', 'colour_shade', 't
 - RLS: own-row policies plus `public.is_admin()` admin-read. Insert-only tables with admin-only select are written with `Prefer: return=minimal`.
 - **Generated files — never edit the SQL**: 15 (`wardrobe_taxonomy.js`), 18 (`CATEGORY_DEFAULTS` in it), 27 (`colour_model.cjs`). Edit the source and rerun the matching `scripts/gen_*_migration.mjs`.
 - **Never re-run `onboarding_migration.sql`**: its unguarded backfill stamps every pending user as onboarded.
+- **`baseline/robes_p0_<date>.sql` is the beginning of time**: production's `public` structure, beta's `auth.users` trigger and the reference rows, no user data. Staging was built from it on 2026-10-27 and matched production line for line. Take a new one with `pg_dump` 17 (`/opt/homebrew/opt/libpq/bin`) in a read-only session; production is reached through the `aws-1-eu-central-1` session pooler (its direct host is IPv6-only).
+- **The new app's migrations never run as `postgres` here.** Its baseline revokes default `EXECUTE` on functions for the role that runs it, so every later beta function made by `postgres` would lose public access. Run them as a dedicated `robes_migrator` role.
 - Migrations 17 and 18 have a throwaway-database harness (`scripts/season_tags_migration_test.sh`, `scripts/tag_prefill_test.sh`, needs `DATABASE_URL`). Run `season_tags_audit.sql` before 17 and `season_tags_verify.sql` after.
 
 ## Order
