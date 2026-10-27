@@ -65,26 +65,33 @@ One deliberate reconciliation, flagged for Liberty: her hierarchy puts explicit 
 
 Liberty's worked examples ("elevated casual, blazers are a hard no → a refined cardigan or overshirt, never the blazer"; "bohemian, but no florals → texture and layering, never the print") are exactly the case where a glossary entry's *visual characteristics* name the thing her hard no excludes. The renderer should say it generically once: "Where a term's usual pieces meet one of her hard nos, the hard no wins and the term is served by its OTHER characteristics." Testable (§1.7).
 
-### 1.5 One archetype registry, per gender, with houses
+### 1.5 One archetype registry, per gender, with houses — from Liberty's street-style boards (27 Oct)
 
-Move `ARCHETYPES`, `BRAND_SEED`, `ICON_SEED` out of `settings.html` into the module (the page imports the same list through `GET /api/wardrobe/taxonomy`'s pattern) and make it Liberty's:
+Liberty's 24 boards (Drive, `Street Style Images for …`, 25 Oct) supersede the runway grids as the registry's source: three decks of eight, each board an archetype name, a line of descriptor words in her voice, and eight generated street frames of the same models on the same streets. They read as generated, not photographed, so they can ship as the onboarding tiles as they stand. **Across the three decks the registers are the app's ten with Modern and Off-duty in and Romantic out** — decision 1 answers itself.
 
-| Register | Women (her grids) | Men (her grid) | Non-binary expression |
+Move `ARCHETYPES`, `BRAND_SEED`, `ICON_SEED` out of `settings.html` into the module (the page imports the list through the `GET /api/wardrobe/taxonomy` pattern) and make it the boards':
+
+| Register | Women | Men | Non-binary expression |
 |---|---|---|---|
-| Minimal | Auralee, The Row | The Row, COS, Lemaire | Androgynous Minimalist — COS, Lemaire, Studio Nicholson |
-| Modern **(new)** | Zara, Phoebe Philo | Auralee, Our Legacy, Celine | Modern — Celine, Acne, Auralee |
-| Sculptural | COS, Balenciaga | Rick Owens, CdG, Craig Green | Gender-Fluid — Telfar, Collina Strada, Marni |
-| Eclectic | & Other Stories, Dries Van Noten | Dries, Marni, Gucci | Bold Maximalist — Charles Jeffrey, Gucci, CdG |
-| Bohemian | Dôen, Zimmermann | Wales Bonner, Story Mfg., Bode | Soft Masc/Femme — Our Legacy, Sandy Liang, Dries |
-| Utility | Carhartt WIP, Wales Bonner × Adidas | Stone Island, Carhartt WIP, A-Cold-Wall* | Utility — Carhartt WIP, Universal Works, Uniqlo U |
-| Classic | M&S Autograph | Ralph Lauren, Cucinelli, Zegna | Tomboy-Leaning — Dickies, Levi's, Margaret Howell |
-| Heritage | Joules, Ralph Lauren | Barbour, Drake's, Belstaff | — |
-| Avant-garde | Rick Owens | — | Punk / Alt — Westwood, Dr. Martens, Rick Owens |
-| Off-duty | (trend map only) | — | — |
+| Minimal | **board owed** (grid: Auralee, The Row) | board | Androgynous Minimalist — COS, Lemaire, Studio Nicholson |
+| Modern | board | board | Modern (no houses on the board) |
+| Sculptural | board | board | — |
+| Eclectic | board | board (tame — see below) | Bold Maximalist (no houses on the board) |
+| Bohemian | board | board | — |
+| Utility | **board owed** (grid: Carhartt WIP) | board | Workwear (no houses on the board) |
+| Classic | board | **board owed** (grid: Ralph Lauren, Cucinelli, Zegna) | Soft Masc — The Row, Lemaire, Aimé Leon Dore |
+| Heritage | board | board | — |
+| Avant-garde | board | **board owed** | Punk — Vetements, Martine Rose, Comme des Garçons |
+| Off-duty | board | board | Tomboy-Leaning — Dickies, Levi's, Margaret Howell |
+| Gender-Fluid | — | — | its own card — Telfar, Collina Strada, Marni; a styling posture ("mixed codes, playful proportion"), not a register — the prompt reads it as a modifier on whatever register the pieces imply |
 
-Then the prompt can say, for a man placed Minimal who ticked no houses: "STYLE TYPE — Minimal (The Row, COS, Lemaire are its houses)". The trend entries carry their archetype so "office siren" steers Classic without her ever having chosen it.
+**The descriptor lines are the registry's `visual` field, verbatim**: e.g. women's Sculptural "artful silhouettes · architectural layers · structured volumes · refined drama · timeless elegance"; men's Utility "functional style · refined utility · modern workwear · transeasonal layers · practical elegance · everyday versatility"; non-binary Soft Masc "relaxed tailoring · refined masculinity · feminine influences · layering & texture · modern classics · everyday wear". All 24 lines are transcribed in the session notes of 27 Oct and go into the module as data.
 
-**Three decisions this needs** (§4): Romantic — fold into Bohemian or keep as a women-only register; the non-binary deck — a fourth `gender_identity` value or the deck for `unspecified`; the men's list — eight registers, no Avant-garde / Off-duty, by design or by omission.
+**Houses**: the women's boards and three non-binary boards (Bold Maximalist, Workwear, Modern) carry none; the runway grids carry a trio per cell. Until Liberty confirms a trio per cell, the grids' trios stand for women and men and the boards' for non-binary. Two non-binary trios moved between the grid and the board (Punk: Westwood / Dr. Martens / Rick Owens → Vetements / Martine Rose / CdG; Soft Masc: Our Legacy / Sandy Liang / Dries → The Row / Lemaire / Aimé Leon Dore) — the board wins, being newer.
+
+Then the prompt can say, for a man placed Minimal who ticked no houses: "STYLE TYPE — Minimal (The Row, COS, Lemaire are its houses; clean lines, understated luxury, refined proportions)". The trend entries carry their archetype so "office siren" steers Classic without her ever having chosen it.
+
+**Owed and open** (§4): four boards before onboarding can ship (women's Minimal and Utility, men's Classic and Avant-garde — the grids cover all four, the street boards do not exist yet); the men's Eclectic board reads as cream-and-khaki relaxed tailoring, closer to men's Modern than to the women's leopard-and-patchwork Eclectic — either the register means something different for men and the glossary should say so, or the board needs the women's register; one house trio per cell; whether Gender-Fluid stays a deck card; the non-binary deck implies a `gender_identity` value the enum lacks.
 
 ### 1.6 Where it lands — the endpoints
 
@@ -136,7 +143,7 @@ Rendering: the prompt carries only the rows the resolver matched (§1.1) plus, w
 
 ### 2.5 The images
 
-Her four grids are the right visual grounding for the onboarding deck and for `example_pieces` — but they are runway photographs. Use them as design reference for the archetype stills (`gen_archetype_tiles.mjs` generates rights-free frames per archetype; its prompts can take her grids' silhouettes and houses as the brief), never as shipped tiles.
+Liberty's 24 street-style boards (27 Oct) are the visual grounding: generated frames, eight per archetype, consistent models and streets — shippable as the onboarding deck's tiles and as `example_pieces` references as they stand, which retires the `gen_archetype_tiles.mjs` plan for the ten registers. Her four runway grids stay as reference for the brand trios and for the four boards still owed (§4). The glossary's per-TERM imagery (a board per dress code or trend) is a later ask of the same shape: one board, eight frames, a descriptor line.
 
 ---
 
@@ -169,20 +176,23 @@ Cheaper per ask by two-thirds in frames and text; dearer per *session* if she as
 
 ## 4 · Decisions before building
 
-1. **Romantic**: fold into Bohemian (Liberty's grids) or keep as a women's register (the app's deck today).
+1. ~~**Romantic**~~ — settled by the boards (27 Oct): the ten registers are the app's ten with Modern and Off-duty in, Romantic out.
 2. **Non-binary**: the deck implies a `gender_identity` value the enum lacks (woman · man · unspecified). Add `non-binary`, or treat `unspecified` as that deck? And every generation's `genderDirective` needs the third branch written — today `unspecified` means "model's judgement, gender-neutral when nothing points".
 3. **Hard nos vs her words today**: the order in §1.2 (hard nos first). Liberty's document puts explicit instruction first.
 4. **The clarify question**: at most one per new ask, resolver-decided, chips with the default first — or never (the standing "the box never questions her" rule, 1 Oct).
 5. **Where the feed lives**: Airtable (recommended, connected) or a sheet.
 6. **The key piece**: one look or three around a piece.
-7. **Men's registers**: eight by design (no Avant-garde, no Off-duty) or to be filled.
+7. **The four boards owed**: women's Minimal and Utility, men's Classic and Avant-garde — Liberty, before onboarding is built.
+8. **Men's Eclectic**: a different register for men (say so in the glossary) or a board redrawn to the women's register.
+9. **One house trio per cell**: the women's boards and three non-binary boards carry none; confirm the grid trios or supply new ones.
+10. **Gender-Fluid**: a deck card that maps to no register — keep it as a modifier, or fold it.
 
 ## 5 · Sequencing
 
 | Slice | What | Depends on | Size |
 |---|---|---|---|
 | A | `stylist_language.js`: the glossary as data, the resolver, the hierarchy block, the test | nothing | one session |
-| B | The archetype registry out of `settings.html`, per gender, houses in the prompt | decisions 1, 2, 7 and design's onboarding deck | one session |
+| B | The archetype registry out of `settings.html`, per gender, houses + descriptor lines in the prompt, the boards as the deck's tiles | decisions 2, 7, 8, 9, 10 and design's onboarding deck | one session |
 | C | The Airtable table + the pull script + JSON + admin `read` column; Liberty's first Monday | A | one session + onboarding Liberty |
 | D | One look per ask, "another", Save as the verdict, the deck behind a flag | A (so the one look lands right); decisions 4, 6 | two sessions, the harnesses included |
 | E | The golden set against the live model, weekly | A, C | half a session, then Liberty's ritual |
