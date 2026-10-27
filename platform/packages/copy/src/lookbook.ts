@@ -4,6 +4,16 @@
 const pieces = (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`);
 const KEPT_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
 const ROLE = { canvas: 'Canvas', anchor: 'Anchor', texture: 'Texture', exclamation: 'Exclamation' };
+const line = (parts: (string | null)[]): string => parts.filter(Boolean).join(' · ');
+
+// What a saved look says about itself: its rack, its wears, when it was last worn
+// and the piece it was styled around.
+export interface LookFacts {
+  pieces: number;
+  timesWorn: number;
+  lastWorn: string | null;
+  around: string | null;
+}
 
 export const lookbook = {
   title: 'Lookbook',
@@ -24,12 +34,16 @@ export const lookbook = {
   draftTile: {
     eyebrow: 'Draft',
     untitled: 'Untitled',
+    // The In progress row's card (Look redline 27 Oct): it says it isn't saved.
     meta: (when: string): string => `Not saved · started ${when}`,
   },
   suggestedTile: {
     eyebrow: 'Suggested',
     around: (piece: string): string => `Around your ${piece}`,
     fromPrompt: 'From your prompt',
+    // The mark on a look styled from her own words; the piece's mark names the piece.
+    quote: '“',
+    yourPiece: (piece: string): string => `Your ${piece}`,
     remove: (name: string): string => `Remove ${name}`,
     swap: (name: string): string => `Swap ${name} for another look`,
     framing: 'Creating the frame…',
@@ -63,9 +77,47 @@ export const lookbook = {
     lastWorn: (when: string): string => `last ${when}`,
     around: (piece: string): string => `around your ${piece}`,
     photographOnly: 'Photograph · not yet filed',
+    // One line of facts, built from the same words wherever a saved look says them.
+    // On a card the wears LEAD — how often a look actually gets worn is the card's
+    // job in a lookbook she browses; the look page leads with its rack instead.
+    card: (f: LookFacts): string =>
+      line([
+        f.timesWorn ? lookbook.meta.wears(f.timesWorn) : lookbook.meta.notYetWorn,
+        pieces(f.pieces),
+        f.lastWorn ? lookbook.meta.lastWorn(f.lastWorn) : null,
+        f.around ? lookbook.meta.around(f.around) : null,
+      ]),
+    saved: (f: LookFacts): string =>
+      line([
+        pieces(f.pieces),
+        f.timesWorn ? lookbook.meta.wears(f.timesWorn) : lookbook.meta.notYetWorn,
+        f.lastWorn ? lookbook.meta.lastWorn(f.lastWorn) : null,
+        f.around ? lookbook.meta.around(f.around) : null,
+      ]),
   },
   composedByRobes: 'Composed by Robes',
   noteLabel: 'The look',
+  // The Lookbook's Filter drawer (legacy Refine): the axes a saved look can be narrowed by.
+  refine: {
+    open: 'Filter',
+    title: 'Filter',
+    clear: 'Clear',
+    show: (n: number): string => `Show ${n} ${n === 1 ? 'look' : 'looks'}`,
+    season: 'Season',
+    wearFor: 'Wear it for',
+    vibe: 'Vibe',
+    seasons: {
+      spring_summer: 'Spring / Summer',
+      autumn_winter: 'Autumn / Winter',
+      year_round: 'Year-round',
+    },
+    none: 'Nothing in this edit.',
+    on: 'Filters on',
+  },
+  card: {
+    diary: 'Put this look in the diary',
+    delete: 'Delete this look',
+  },
   bar: {
     save: 'Save',
     saveToLookbook: 'Save to lookbook',
@@ -85,7 +137,6 @@ export const lookbook = {
   diary: {
     title: 'Put it in the diary',
     eyebrow: 'Put in the diary',
-    notYet: 'Not yet',
     pick: 'Pick a day',
     add: (day: string): string => `Add to ${day}`,
     prevMonth: 'Previous month',
@@ -105,7 +156,6 @@ export const lookbook = {
     record: 'Record it as worn',
     recorded: 'Already worn that day',
     woreToday: 'I wore this today',
-    woreTodayDone: 'Worn today ✓',
     recordedOn: (day: string): string => `Recorded — worn ${day}`,
     inDiaryFor: (look: string, day: string): string => `“${look}” is in your diary for ${day}`,
   },
@@ -116,9 +166,32 @@ export const lookbook = {
   },
   // The draft stands on a figure (legacy 2026-10-15): a slot per part of her, tapped to dress.
   figure: {
-    untitled: 'Untitled look',
+    untitled: 'Untitled Look',
+    head: (n: number): string => `The look · ${pieces(n)}`,
     alt: 'Your model, ready to dress',
     slots: { top: '+ Top', bottom: '+ Bottom', shoes: '+ Shoes' },
+    // The empty draft's start bar (legacy 2026-10-15 second pass): two icon CTAs in one pill.
+    start: { photo: 'Start from a photo', pieces: 'Add pieces' },
+    // A filled slot reads warm with its tick; the label says which part of her it dresses.
+    filled: { top: '✓ Top', bottom: '✓ Bottom', shoes: '✓ Shoes' },
+    // While the next frame comes the last one stays up, under this chip.
+    dressing: (pronoun: string): string => `Dressing ${pronoun}…`,
+    reading: 'Reading the piece…',
+    prompt: 'Ask Robes about this look',
+  },
+  // The one wardrobe sheet behind every + and every swap (legacy 2026-10-15, design 2 / 4a).
+  sheet: {
+    eyebrow: 'From your wardrobe',
+    swapEyebrow: 'Swap from your wardrobe',
+    slot: { top: 'Add a top', bottom: 'Add a bottom', shoes: 'Add shoes' },
+    search: 'Search your wardrobe',
+    photograph: 'Photograph one',
+    filesIn: 'Files straight in',
+    swapsIn: 'Swaps straight in',
+    inLook: '✓ In the look',
+    noMatch: (q: string): string => `Nothing in your wardrobe matches “${q}”.`,
+    emptyCategory: (category: string): string => `No ${category.toLowerCase()} yet.`,
+    emptyHint: 'Photograph one to add it to your wardrobe',
   },
   rack: {
     title: (n: number): string => `The rack · ${pieces(n)}`,
@@ -252,7 +325,8 @@ export const lookbook = {
   // F8: a verdict on a suggestion lands in her memory; "not quite" lets it go.
   verdict: {
     title: 'How was this look?',
-    up: 'More like this',
+    sub: 'Your taste shapes what comes next',
+    up: 'Loved it',
     down: 'Not quite',
     ask: 'What would have made it better?',
     send: 'Send',

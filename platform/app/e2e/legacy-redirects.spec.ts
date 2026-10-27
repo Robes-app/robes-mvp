@@ -14,6 +14,12 @@ test('legacy app paths land on their new homes, query strings kept', async ({ re
     ['/signup.html?mode=signin', '/auth/sign-in?mode=signin'],
     ['/look/a1b2c3d4e5', '/'],
     ['/board/a1b2c3d4e5', '/share/a1b2c3d4e5'],
+    ['/wardrobe?receipts=1', '/wardrobe/inbox?receipts=1'],
+    ['/settings?page=twin', '/you/model?page=twin'],
+    ['/stylenotes?chapter=brief', '/you/observations?chapter=brief'],
+    ['/lookbook?new=1', '/looks/new?new=1'],
+    ['/inspiration', '/looks/ideas'],
+    ['/api/notify/unsub?t=abc', '/you/notifications?t=abc'],
   ];
   for (const [from, to] of cases) {
     const res = await request.get(from, { maxRedirects: 0 });

@@ -182,3 +182,183 @@ export const AuditPage = z.object({
   nextCursor: z.string().nullable(),
 });
 export type AuditPage = z.infer<typeof AuditPage>;
+
+// One person's records (newest first, bounded). Photos arrive as short-lived signed URLs.
+const image = z.string().nullable();
+export const AdminUserRecords = z.object({
+  pieceCount: count,
+  pieces: z.array(
+    z.object({
+      id,
+      label: z.string(),
+      category: z.string(),
+      brand: z.string().nullable(),
+      colourShade: z.string().nullable(),
+      material: z.string().nullable(),
+      status: z.string(),
+      acquiredVia: z.string(),
+      hero: z.boolean(),
+      wears: count,
+      createdAt: at,
+      image,
+    }),
+  ),
+  wishlist: z.array(
+    z.object({
+      id,
+      label: z.string(),
+      brand: z.string().nullable(),
+      sourceType: z.string(),
+      price: z.string().nullable(),
+      bought: z.boolean(),
+      createdAt: at,
+      image,
+    }),
+  ),
+  looks: z.array(
+    z.object({
+      id,
+      name: z.string(),
+      status: z.string(),
+      source: z.string(),
+      pieces: count,
+      proposals: count,
+      wears: count,
+      lastWornOn: z.iso.date().nullable(),
+      createdAt: at,
+      image,
+    }),
+  ),
+  artifacts: z.array(
+    z.object({
+      id,
+      type: z.string(),
+      title: z.string(),
+      subtitle: z.string(),
+      saved: z.boolean(),
+      createdAt: at,
+    }),
+  ),
+  feedback: z.array(
+    z.object({
+      id,
+      rating: z.number().int().nullable(),
+      note: z.string().nullable(),
+      track: z.string().nullable(),
+      subjectType: z.string(),
+      createdAt: at,
+    }),
+  ),
+  memory: z.array(
+    z.object({
+      id,
+      kind: z.string(),
+      surface: z.string().nullable(),
+      text: z.string().nullable(),
+      verdict: z.number().int().nullable(),
+      createdAt: at,
+    }),
+  ),
+  brief: z.array(
+    z.object({
+      id,
+      list: z.string(),
+      state: z.string(),
+      source: z.string(),
+      text: z.string(),
+      because: z.string().nullable(),
+      createdAt: at,
+    }),
+  ),
+  notifications: z.array(
+    z.object({ id, kind: z.string(), channel: z.string(), status: z.string(), sentAt: at }),
+  ),
+  inbox: z.array(
+    z.object({
+      id,
+      retailer: z.string().nullable(),
+      status: z.string(),
+      items: count,
+      filed: count,
+      filedTo: z.string().nullable(),
+      receivedAt: at,
+    }),
+  ),
+  calls: z.array(
+    z.object({
+      id,
+      feature: z.string(),
+      model: z.string(),
+      status: z.string(),
+      latencyMs: z.number().int().nullable(),
+      costMicros: count,
+      images: count,
+      jobId: id.nullable(),
+      hasPrompt: z.boolean(),
+      createdAt: at,
+    }),
+  ),
+  events: z.array(z.object({ id, eventType: z.string(), createdAt: at })),
+});
+export type AdminUserRecords = z.infer<typeof AdminUserRecords>;
+
+// One model call, read on purpose: its prompt and response (null once cleared at 30 days).
+export const AdminCallParams = z.object({ id });
+export const AdminCall = z.object({
+  id,
+  userId: id.nullable(),
+  email: z.string().nullable(),
+  feature: z.string(),
+  model: z.string(),
+  status: z.string(),
+  latencyMs: z.number().int().nullable(),
+  costMicros: count,
+  images: count,
+  tokensIn: z.number().int().nullable(),
+  tokensOut: z.number().int().nullable(),
+  jobId: id.nullable(),
+  detail: z.record(z.string(), z.unknown()),
+  prompt: z.string().nullable(),
+  response: z.unknown().nullable(),
+  createdAt: at,
+});
+export type AdminCall = z.infer<typeof AdminCall>;
+
+export const ListAdminFeedbackInput = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().max(200).optional(),
+});
+export const AdminFeedbackPage = z.object({
+  items: z.array(
+    z.object({
+      id,
+      userId: id.nullable(),
+      email: z.string().nullable(),
+      rating: z.number().int().nullable(),
+      note: z.string().nullable(),
+      track: z.string().nullable(),
+      subjectType: z.string(),
+      createdAt: at,
+    }),
+  ),
+  nextCursor: z.string().nullable(),
+});
+export type AdminFeedbackPage = z.infer<typeof AdminFeedbackPage>;
+
+// The output viewer: one saved artifact as stored.
+export const AdminArtifactParams = z.object({ id });
+export const AdminArtifact = z.object({
+  id,
+  userId: id,
+  email: z.string(),
+  type: z.string(),
+  title: z.string(),
+  subtitle: z.string(),
+  data: z.record(z.string(), z.unknown()),
+  schemaVersion: z.number().int(),
+  generationJobId: id.nullable(),
+  createdAt: at,
+  savedAt: at.nullable(),
+  deletedAt: at.nullable(),
+});
+export type AdminArtifact = z.infer<typeof AdminArtifact>;

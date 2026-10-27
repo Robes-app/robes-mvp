@@ -26,7 +26,9 @@ export interface CardStatus {
   error?: boolean;
 }
 
-// Eyebrow "Category · Brand" (the brand in rose) and the serif name, two lines.
+// Eyebrow "BOTTOMS · M&S" in one quiet tone (rose is kept for Robes' hand and "Never worn"),
+// then the Cormorant Light name and the status. The native twin is
+// mobile/src/features/wardrobe/PieceCard.tsx.
 function cardLines({
   piece,
   href,
@@ -40,13 +42,12 @@ function cardLines({
   const name = nameWithoutBrand(piece.label, piece.brand);
   return {
     eyebrow: (
-      <p className="truncate font-sans text-[9px] tracking-[0.18em] text-ink-faint uppercase">
-        {eye.category}
-        {eye.brand ? <span className="text-accent-warm"> · {eye.brand}</span> : null}
+      <p className="truncate font-normal font-sans text-[10px] tracking-[0.22em] text-ink-faint uppercase">
+        {eye.brand ? `${eye.category} · ${eye.brand}` : eye.category}
       </p>
     ),
     name: (
-      <h3 className="mt-1 line-clamp-2 font-display text-lg leading-tight font-normal text-ink">
+      <h3 className="line-clamp-2 font-display text-[19px] leading-[1.15] font-light text-ink">
         {href ? (
           // The whole card opens the piece (a stretched link; the actions sit above it).
           <Link href={href} draggable={false} className={`after:absolute after:inset-0 ${focus}`}>
@@ -64,7 +65,7 @@ function cardLines({
       </p>
     ) : (
       <p
-        className={`font-sans text-[9px] tracking-[0.14em] uppercase ${
+        className={`font-normal font-sans text-[10px] tracking-[0.22em] uppercase ${
           status.warm ? 'text-accent-warm' : 'text-ink-muted'
         }`}
       >
@@ -74,7 +75,8 @@ function cardLines({
   };
 }
 
-// The 40pt hairline star circle: on is warm, never black (legacy b4b051a).
+// The hairline star circle (32pt on a tile, 40pt on a row; 44pt to the finger): on is raised on
+// the warm edge, never black.
 export function StarButton({
   label,
   on,
@@ -94,8 +96,12 @@ export function StarButton({
       title={on ? copy.unstar(label) : copy.star(label)}
       onClick={onToggle}
       className={`relative z-10 inline-flex shrink-0 items-center justify-center rounded-pill border ${
-        tile ? 'size-9 bg-bg/90' : 'size-10 bg-bg'
-      } ${on ? 'border-border-control bg-surface-sunk text-ink' : 'border-hairline text-ink-muted'} ${focus}`}
+        tile ? 'size-8 after:absolute after:-inset-1.5' : 'size-10'
+      } ${
+        on
+          ? 'border-selected-line bg-selected text-ink'
+          : `border-hairline text-ink-muted ${tile ? 'bg-surface-raised/90' : 'bg-surface-raised'}`
+      } ${focus}`}
     >
       <Icon name="star" size={tile ? 14 : 15} filled={on} />
     </button>
@@ -119,8 +125,8 @@ export function BoughtButton({
       onClick={onBought}
       disabled={busy}
       aria-label={copy.boughtLabel(label)}
-      className={`relative z-10 inline-flex shrink-0 items-center rounded-pill border border-hairline bg-bg font-sans text-ink hover:border-border-control disabled:text-ink-faint ${
-        tile ? 'h-[34px] px-3.5 text-xs' : 'h-10 px-4 text-[13px]'
+      className={`relative z-10 inline-flex shrink-0 items-center rounded-pill border border-rule-mid bg-surface-raised font-sans text-ink-muted hover:border-border-control hover:text-ink disabled:text-ink-faint ${
+        tile ? 'h-8 px-3.5 text-xs after:absolute after:-inset-1.5' : 'h-10 px-4 text-[13px]'
       } ${focus}`}
     >
       {copy.bought}
@@ -174,7 +180,7 @@ function SwipeRow({
   };
   const shown = dx !== 0 || focused;
   return (
-    <div className={`relative overflow-hidden rounded-crisp ${shown ? 'bg-accent-warm' : ''}`}>
+    <div className={`relative overflow-hidden rounded-soft ${shown ? 'bg-accent-warm' : ''}`}>
       <button
         type="button"
         onClick={() => {
@@ -239,11 +245,11 @@ export function CardRow({
   const lines = cardLines({ piece, ...(href ? { href } : {}), status });
   return (
     <SwipeRow removeLabel={removeLabel} onRemove={onRemove}>
-      <div className="relative grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-crisp border border-hairline bg-bg py-3.5 pr-2.5 pl-3 hover:border-border-control">
+      <div className="relative grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-soft border border-hairline bg-surface-raised py-3.5 pr-2.5 pl-3 hover:border-border-control">
         <div className="row-span-2 w-[52px] overflow-hidden rounded-[6px]">{thumb}</div>
         <div className="min-w-0 self-end">
           {lines.eyebrow}
-          {lines.name}
+          <div className="mt-1">{lines.name}</div>
         </div>
         <div className="flex items-center gap-1.5 self-end">
           {action}
@@ -259,7 +265,8 @@ export function CardRow({
   );
 }
 
-// A grid tile: the same three lines under the photograph; the action sits on the photograph.
+// A grid tile (beta's card): white on a hairline, the photograph on a 3:4 white mat, then the
+// same three lines; the action sits on the photograph's corner.
 export function CardTile({
   piece,
   photo,
@@ -275,15 +282,15 @@ export function CardTile({
 }) {
   const lines = cardLines({ piece, ...(href ? { href } : {}), status });
   return (
-    <div className="relative flex min-w-0 flex-col">
-      <div className="relative overflow-hidden rounded-crisp border border-hairline">
-        {photo}
-        <div className="absolute top-2 right-2 z-10">{action}</div>
+    <div className="relative flex min-w-0 flex-col overflow-hidden rounded-soft border border-hairline bg-surface-raised hover:border-border-control">
+      <div className="relative bg-surface-raised p-3.5">
+        <div className="overflow-hidden rounded-crisp">{photo}</div>
       </div>
-      <div className="flex flex-col gap-0.5 px-0.5 pt-2.5">
+      <div className="absolute top-1.5 right-1.5 z-10">{action}</div>
+      <div className="flex flex-col gap-[3px] px-3 pt-2.5 pb-3">
         {lines.eyebrow}
         {lines.name}
-        <div className="mt-1.5">{lines.status}</div>
+        {lines.status}
       </div>
     </div>
   );
@@ -295,7 +302,7 @@ export function AddCard({ href, layout }: { href: string; layout: 'list' | 'grid
     return (
       <Link
         href={href}
-        className={`flex min-h-[52px] items-center justify-center gap-2 rounded-crisp border border-dashed border-border-control font-sans text-xs text-ink-muted hover:text-ink ${focus}`}
+        className={`flex min-h-[52px] items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid font-sans text-xs text-ink-muted hover:text-ink ${focus}`}
       >
         <Icon name="plus" size={16} />
         {copy.addRow}
@@ -305,7 +312,7 @@ export function AddCard({ href, layout }: { href: string; layout: 'list' | 'grid
   return (
     <Link
       href={href}
-      className={`flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-crisp border border-dashed border-border-control text-ink-muted hover:text-ink ${focus}`}
+      className={`flex min-h-full flex-col items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid text-ink-muted hover:text-ink ${focus}`}
     >
       <Icon name="plus" size={20} />
       <span className="font-display text-lg text-ink">{copy.addRow}</span>

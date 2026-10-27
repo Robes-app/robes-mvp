@@ -31,8 +31,15 @@ test('selected state is warm, never a black fill', async () => {
   expect(button).toHaveStyle({ minHeight: 44 });
 });
 
-test('a pill without onPress is plain text, not a button', async () => {
-  await render(<Pill>Tag</Pill>);
-  expect(screen.queryByRole('button')).toBeNull();
-  expect(screen.getByText('Tag')).toBeTruthy();
+test('a selected pill carries the check, as on the web', async () => {
+  const icons = () =>
+    screen.container.queryAll((node) => node.props.accessibilityElementsHidden === true);
+  const { rerender } = await render(
+    <Pill selected onPress={() => {}}>
+      Knitwear
+    </Pill>,
+  );
+  expect(icons().length).toBeGreaterThan(0);
+  await rerender(<Pill onPress={() => {}}>Knitwear</Pill>);
+  expect(icons()).toHaveLength(0);
 });

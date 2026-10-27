@@ -1,15 +1,11 @@
 'use client';
 
-import { useApiMutation } from '@robes/api-client/react';
 import { askRack, type LookAskInput, type LookAskResult } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
-import { ASK_MAX_CHARS, ASK_THREAD_MAX, askDateFrom, type RackState } from '@robes/core/looks';
+import { ASK_MAX_CHARS, ASK_THREAD_MAX, type RackState } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { ErrorText, IconButton, Text } from '@robes/ui';
-import { useRouter } from 'next/navigation';
+import { IconButton, Text } from '@robes/ui';
 import { type KeyboardEvent, useId, useRef, useState } from 'react';
-import { localToday } from '@/lib/dates';
-import { errorCopy } from '@/lib/error-copy';
 import { useLookAsk } from '@/lib/look-states';
 
 type Line = { id: number; who: 'her' | 'robes' | 'filed'; text: string };
@@ -63,7 +59,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         onFocus={onFocus}
-        className="max-h-24 min-h-10 flex-1 resize-none bg-transparent py-2 font-display text-lg italic text-ink placeholder:text-ink-muted focus:outline-none"
+        className="max-h-24 min-h-10 flex-1 resize-none bg-transparent py-2 font-sans text-sm text-ink placeholder:text-ink-muted focus:outline-none"
       />
       {value.trim() ? (
         <IconButton icon="send" label={copy.prompt.send} onClick={onSend} disabled={busy} />
@@ -193,35 +189,5 @@ export function LookPromptBox({
         </Text>
       ) : null}
     </section>
-  );
-}
-
-// "Where to, and how should it feel?" (legacy home box, mode new): three suggested looks on the deck, styled for
-// the day her words name. Exposed for Home and the empty Suggested tab; `date` pins a dated door.
-export function NewLookBox({ date }: { date?: string }) {
-  const router = useRouter();
-  const [text, setText] = useState('');
-  const start = useApiMutation('looks.prompt', {
-    onSuccess: ({ jobId }) => router.push(`/looks/style/${jobId}`),
-  });
-  const send = () => {
-    const prompt = text.trim();
-    if (prompt.length < 2 || start.isPending) return;
-    const day = date ?? askDateFrom(prompt, localToday());
-    start.mutate({ input: { prompt, ...(day ? { date: day } : {}) } });
-  };
-  return (
-    <div className="flex flex-col gap-1" data-testid="new-look-box">
-      <Field
-        label={copy.prompt.doorNew}
-        placeholder={copy.prompt.doorNew}
-        value={text}
-        drafted={false}
-        busy={start.isPending}
-        onChange={setText}
-        onSend={send}
-      />
-      {start.isError ? <ErrorText size="caption">{errorCopy(start.error)}</ErrorText> : null}
-    </div>
   );
 }

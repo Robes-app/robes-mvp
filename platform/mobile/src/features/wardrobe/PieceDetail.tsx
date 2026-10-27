@@ -1,135 +1,43 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { Piece } from '@robes/contracts';
-import { wardrobe as copy, lookbook, ui } from '@robes/copy';
-import type { PieceColour } from '@robes/core/colour';
+import type { Piece, UpdatePieceInput } from '@robes/contracts';
+import { wardrobe as copy, lookbook, looks as looksCopy } from '@robes/copy';
+import { dayMonth, longDate } from '@robes/core/calendar';
+import { Icon } from '@robes/icons/native';
 import {
   Button,
   EmptyState,
   ErrorText,
   Eyebrow,
-  Field,
   Heading,
+  IconButton,
   Image,
   PrimaryScope,
   Skeleton,
   Text,
+  useColor,
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import { SavedTile } from '@/features/looks/LookTiles';
 import { SuggestedRail } from '@/features/looks/SuggestedRail';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
-import { ColourField, colourSummary } from './ColourField';
-import { READING_REFRESH_MS, useDeletePiece } from './pieces';
+import { StarButton } from './PieceCard';
+import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
+import { RecordRows } from './PieceRows';
+import { READING_REFRESH_MS, useDeletePiece, useStarPiece } from './pieces';
 
-type Text4 = { label: string; brand: string; size: string; notes: string };
-type Draft = Text4 & { colour: PieceColour };
+const LOOKS_LIMIT = 30;
 
-const colourOf = (p: Piece): PieceColour => ({
-  colourShade: p.colourShade,
-  colourExtra: p.colourExtra,
-  print: p.print,
-});
-const colourText = (p: Piece): string | null => colourSummary(colourOf(p)) || p.color;
-
-const toDraft = (p: Piece): Draft => ({
-  label: p.label,
-  colour: colourOf(p),
-  brand: p.brand ?? '',
-  size: p.size ?? '',
-  notes: p.notes ?? '',
-});
-const orNull = (v: string): string | null => (v.trim() === '' ? null : v.trim());
-
-function Detail({ label, value }: { label: string; value: string | null }) {
-  if (!value) return null;
-  return (
-    <View className="gap-1 border-b border-hairline py-3">
-      <Text size="caption" tone="muted">
-        {label}
-      </Text>
-      <Text>{value}</Text>
-    </View>
-  );
-}
-
-function EditForm({ piece, onDone }: { piece: Piece; onDone: () => void }) {
-  const queryClient = useQueryClient();
-  const [draft, setDraft] = useState<Draft>(() => toDraft(piece));
-  const update = useApiMutation('wardrobe.update', {
-    onSuccess: async (saved) => {
-      queryClient.setQueryData(queryKeys.call('wardrobe.get', { params: { id: saved.id } }), saved);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
-      onDone();
-    },
-  });
-  const set = (key: keyof Text4) => (value: string) => setDraft((d) => ({ ...d, [key]: value }));
-  return (
-    <PrimaryScope>
-      <View className="gap-4">
-        <Field
-          label={copy.piece.label}
-          value={draft.label}
-          onChangeText={set('label')}
-          maxLength={120}
-        />
-        <ColourField
-          value={draft.colour}
-          check={piece.colourCheck}
-          onChange={(colour) => setDraft((d) => ({ ...d, colour }))}
-        />
-        <Field
-          label={copy.piece.brand}
-          value={draft.brand}
-          onChangeText={set('brand')}
-          maxLength={80}
-        />
-        <Field
-          label={copy.piece.size}
-          value={draft.size}
-          onChangeText={set('size')}
-          maxLength={40}
-        />
-        <Field
-          label={copy.piece.notes}
-          value={draft.notes}
-          onChangeText={set('notes')}
-          maxLength={1000}
-          multiline
-          error={update.isError ? errorMessage(update.error) : null}
-        />
-        <Button
-          onPress={() =>
-            update.mutate({
-              params: { id: piece.id },
-              input: {
-                label: draft.label.trim() || piece.label,
-                ...draft.colour,
-                brand: orNull(draft.brand),
-                size: orNull(draft.size),
-                notes: orNull(draft.notes),
-              },
-            })
-          }
-          disabled={draft.label.trim() === ''}
-          loading={update.isPending}
-          loadingLabel={copy.piece.saving}
-        >
-          {copy.piece.save}
-        </Button>
-        <Button variant="quiet" onPress={onDone} className="self-center">
-          {ui.close}
-        </Button>
-      </View>
-    </PrimaryScope>
-  );
-}
-
-export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) {
+// The record (legacy Piece_Sheet 01): the photograph, her name for it with the pencil on it, the
+// facts she has given, then the days she wore it. Every fact is a row that opens its own drawer —
+// there is no form, so what the title says and what a row says can never disagree.
+export function PieceDetail({ id }: { id: string }) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
+  const queryClient = useQueryClient();
+  const [field, setField] = useState<PieceField | null>(null);
   const {
     data: piece,
     isPending,
@@ -141,6 +49,13 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
     { refetchInterval: (q) => (q.state.data?.status === 'reading' ? READING_REFRESH_MS : false) },
   );
   const remove = useDeletePiece();
+  const star = useStarPiece();
+  const update = useApiMutation('wardrobe.update', {
+    onSuccess: async (saved) => {
+      queryClient.setQueryData(queryKeys.call('wardrobe.get', { params: { id: saved.id } }), saved);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+    },
+  });
 
   if (isPending) {
     return (
@@ -154,115 +69,209 @@ export function PieceDetail({ id, saw = false }: { id: string; saw?: boolean }) 
 
   const uri = renditionUri(piece.image, 400);
   const reading = piece.status === 'reading';
+  const ready = piece.status === 'ready';
+  const save = (input: UpdatePieceInput) => update.mutate({ params: { id: piece.id }, input });
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1"
-    >
-      <ScrollView contentContainerClassName="gap-4 px-6 pb-10">
+    <View className="flex-1">
+      <ScrollView contentContainerClassName="gap-5 px-6 pb-10">
+        {/* The whole cut-out, contained on white in a 4:5 frame: never cropped at the hem. */}
         {uri ? (
-          <Image source={uri} alt={copy.photoAlt(piece.label)} blurhash={piece.image?.blurhash} />
+          <View className="rounded-crisp border border-hairline bg-surface-raised p-4">
+            <Image
+              source={uri}
+              alt={copy.photoAlt(piece.label)}
+              blurhash={piece.image?.blurhash}
+              contentFit="contain"
+            />
+          </View>
         ) : null}
-        {/* Until Robes has read it, "New piece" and "Other" are placeholders, not facts. */}
-        {piece.status === 'ready' ? (
-          <Heading size="md">{piece.label}</Heading>
-        ) : (
-          <Text tone="faint" italic accessibilityRole="header">
-            {reading ? copy.newPiece : piece.label}
-          </Text>
-        )}
-        {reading ? <Text tone="muted">{copy.reading}</Text> : null}
-        {piece.status === 'failed' ? <ErrorText>{copy.noPieceFound}</ErrorText> : null}
-        {saw && piece.status !== 'failed' ? <Saw piece={piece} /> : null}
-        {editing ? (
-          <EditForm piece={piece} onDone={() => setEditing(false)} />
-        ) : (
-          <PrimaryScope>
-            <View>
-              {piece.status === 'ready' ? (
-                <Detail
-                  label={copy.category}
-                  value={[piece.category, piece.categoryL2].filter(Boolean).join(' · ')}
-                />
-              ) : null}
-              <Detail label={copy.piece.color} value={colourText(piece)} />
-              <Detail label={copy.piece.brand} value={piece.brand} />
-              <Detail label={copy.piece.size} value={piece.size} />
-              <Detail label={copy.piece.notes} value={piece.notes} />
-            </View>
-            <SuggestedRail pieceId={piece.id} />
-            <View className="gap-3 pt-2">
-              <Button
-                icon="looks"
-                disabled={reading}
-                onPress={() =>
-                  router.push({ pathname: '/looks/style', params: { pieceId: piece.id } })
-                }
-              >
-                {copy.piece.stylePiece}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={reading}
-                onPress={() =>
-                  router.push({ pathname: '/looks/new', params: { pieceId: piece.id } })
-                }
-              >
-                {lookbook.startLook}
-              </Button>
-              <Button variant="secondary" onPress={() => setEditing(true)}>
-                {copy.edit}
-              </Button>
-              <Button
-                variant="quiet"
-                icon="trash"
-                className="self-center"
-                onPress={() => {
-                  remove.mutate({ params: { id: piece.id } });
-                  router.back();
-                }}
-              >
-                {copy.piece.remove}
-              </Button>
-            </View>
-          </PrimaryScope>
-        )}
+        <View className="gap-1.5">
+          <View className="flex-row items-start gap-2">
+            {/* Until Robes has read it, "New piece" is a placeholder, not a fact. */}
+            {ready ? (
+              <Heading size="md" className="min-w-0 flex-1">
+                {piece.label}
+              </Heading>
+            ) : (
+              <Text tone="faint" italic accessibilityRole="header" className="flex-1">
+                {reading ? copy.newPiece : piece.label}
+              </Text>
+            )}
+            {/* The pencil edits the name where it is written, never a field further down. */}
+            <IconButton
+              icon="pencil"
+              label={copy.piece.editName}
+              onPress={() => setField('label')}
+            />
+            <StarButton
+              label={piece.label}
+              on={piece.heroPosition !== null}
+              onToggle={() => star(piece)}
+            />
+          </View>
+          {/* The brand is its own line, and says so when it is missing — one source, the piece. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={piece.brand ?? copy.piece.addBrand}
+            onPress={() => setField('brand')}
+          >
+            <Text tone="muted" italic>
+              {piece.brand ?? copy.piece.addBrand}
+            </Text>
+          </Pressable>
+          {reading ? <Text tone="muted">{copy.reading}</Text> : null}
+          {piece.status === 'failed' ? <ErrorText>{copy.noPieceFound}</ErrorText> : null}
+        </View>
+
+        {ready ? <Stats piece={piece} /> : null}
+
+        <PrimaryScope>
+          <View className="gap-3">
+            <Button
+              icon="looks"
+              disabled={reading}
+              onPress={() =>
+                router.push({ pathname: '/looks/style', params: { pieceId: piece.id } })
+              }
+            >
+              {copy.piece.stylePiece}
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={reading}
+              onPress={() => router.push({ pathname: '/looks/new', params: { pieceId: piece.id } })}
+            >
+              {lookbook.startLook}
+            </Button>
+          </View>
+        </PrimaryScope>
+
+        <RecordRows values={piece} onField={setField} />
+
+        <Wears pieceId={piece.id} />
+        <InLooks pieceId={piece.id} />
+        <SuggestedRail pieceId={piece.id} />
+        {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
+
+        <Button
+          variant="quiet"
+          icon="trash"
+          className="self-center"
+          onPress={() => {
+            remove.mutate({ params: { id: piece.id } });
+            router.back();
+          }}
+        >
+          {copy.piece.remove}
+        </Button>
       </ScrollView>
-    </KeyboardAvoidingView>
+      <PieceFieldSheet
+        piece={piece}
+        field={field}
+        onClose={() => setField(null)}
+        onSave={save}
+        saving={update.isPending}
+      />
+    </View>
   );
 }
 
-// Beta's reveal: what Robes filed, row by row, once it has read the piece.
-function Saw({ piece }: { piece: Piece }) {
+// The piece's own record: the days it was on her, and the look she wore it in.
+function Wears({ pieceId }: { pieceId: string }) {
   const router = useRouter();
-  const rows: [string, string | null][] = [
-    [copy.saw.rows.piece, piece.label],
-    [copy.saw.rows.category, [piece.category, piece.categoryL2].filter(Boolean).join(' · ')],
-    [copy.saw.rows.colour, colourText(piece)],
-    [copy.saw.rows.brand, piece.brand],
-  ];
+  const faint = useColor('ink-faint');
+  const query = useApi('wardrobe.wears', { params: { id: pieceId } });
+  const items = query.data?.items ?? [];
+  const undated = query.data?.undated ?? 0;
+  if (query.isPending) return <Skeleton shape="text" width="60%" />;
+  // Nothing worn yet: the stats strip already says so, so the section stands down (beta).
+  if (items.length === 0 && !undated) return null;
   return (
-    <View className="gap-3">
-      <Heading size="md">{copy.saw.title}</Heading>
-      {piece.status === 'ready' ? (
+    <View className="gap-2">
+      <Eyebrow>{copy.piece.sections.wears}</Eyebrow>
+      {items.length ? (
         <>
-          <View className="border-hairline border-t">
-            {rows.map(([k, v]) => (
-              <View key={k} className="flex-row items-baseline gap-3 border-hairline border-b py-2">
-                <Eyebrow className="flex-1">{k}</Eyebrow>
-                <Text size="small" tone={v ? 'ink' : 'faint'} italic={!v}>
-                  {v || copy.saw.unread}
+          <View className="overflow-hidden rounded-crisp border border-hairline bg-surface">
+            {items.map((wear, i) => (
+              <Pressable
+                key={wear.id}
+                accessibilityRole="link"
+                accessibilityLabel={copy.piece.wears.openDay(longDate(wear.wornOn))}
+                onPress={() => router.push(`/day/${wear.wornOn}`)}
+                className={`flex-row items-center gap-3 px-4 py-3 ${i ? 'border-hairline border-t' : ''}`}
+              >
+                <Text size="small">{dayMonth(wear.wornOn)}</Text>
+                <Text size="caption" tone="faint" italic numberOfLines={1} className="flex-1">
+                  {wear.lookName ?? ''}
                 </Text>
-              </View>
+                <Icon name="forward" size={15} color={faint} />
+              </Pressable>
             ))}
           </View>
-          <Button variant="secondary" onPress={() => router.replace('/wardrobe')}>
-            {copy.saw.keep}
-          </Button>
         </>
+      ) : null}
+      {undated ? (
+        <Text size="caption" tone="faint" italic>
+          {copy.piece.wears.undated(undated)}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+// Worn · Last worn · In looks, as beta's strip reads them: facts side by side under the name,
+// between two hairlines. The web twin is Stats in app/src/app/(app)/piece/[id]/piece-detail.tsx.
+function Stats({ piece }: { piece: Piece }) {
+  const wears = useApi('wardrobe.wears', { params: { id: piece.id } });
+  const looks = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId: piece.id } });
+  const last = wears.data?.items[0]?.wornOn;
+  const cells: [string, string][] = [
+    [
+      copy.piece.stats.worn,
+      piece.wearCount ? looksCopy.page.wears.count(piece.wearCount) : copy.piece.stats.never,
+    ],
+    [copy.piece.stats.lastWorn, last ? dayMonth(last) : '—'],
+    [copy.piece.stats.inLooks, looks.data ? String(looks.data.items.length) : '—'],
+  ];
+  return (
+    <View className="flex-row border-hairline border-y">
+      {cells.map(([k, v], i) => (
+        <View
+          key={k}
+          className={`flex-1 gap-1.5 py-3 ${i ? 'border-hairline border-l pl-3.5' : ''}`}
+        >
+          <Eyebrow>{k}</Eyebrow>
+          <Text size="small" numberOfLines={1}>
+            {v}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// "In N looks": the saved looks she has put this piece on, drawn as the Lookbook draws them.
+function InLooks({ pieceId }: { pieceId: string }) {
+  const router = useRouter();
+  const query = useApi('looks.list', { input: { limit: LOOKS_LIMIT, pieceId } });
+  const items = query.data?.items ?? [];
+  if (query.isPending) return <Skeleton shape="text" width="60%" />;
+  return (
+    <View className="gap-2">
+      <Eyebrow>
+        {items.length ? copy.piece.sections.looks(items.length) : copy.piece.sections.noLooks}
+      </Eyebrow>
+      {items.length ? (
+        <View className="flex-row flex-wrap gap-3">
+          {items.map((look) => (
+            <View key={look.id} style={{ width: '47%' }}>
+              <SavedTile look={look} onPress={() => router.push(`/look/${look.id}`)} />
+            </View>
+          ))}
+        </View>
       ) : (
-        <Text size="small" tone="muted" italic accessibilityLiveRegion="polite">
-          {copy.saw.reading}
+        <Text size="small" tone="muted" italic>
+          {copy.piece.sections.noLooksHint}
         </Text>
       )}
     </View>

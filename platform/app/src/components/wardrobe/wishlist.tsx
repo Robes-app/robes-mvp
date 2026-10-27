@@ -10,9 +10,18 @@ import {
 import type { Wish } from '@robes/contracts';
 import { wardrobe } from '@robes/copy';
 import { countByCategory, formatPrice, rankCategories } from '@robes/core/wardrobe';
-import { Button, CardSkeleton, EmptyState, ErrorText, Field, Text, useToast } from '@robes/ui';
+import {
+  Button,
+  buttonClasses,
+  CardSkeleton,
+  EmptyState,
+  ErrorText,
+  Text,
+  useToast,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { withoutId } from '@/lib/wardrobe';
 import { BoughtButton, CardRow, type CardStatus, CardTile } from './piece-card';
@@ -26,7 +35,8 @@ function wishStatus(wish: Wish): CardStatus {
   return { text: wardrobe.card.notYours(formatPrice(wish.price, wish.currency)), warm: true };
 }
 
-// Wardrobe › Wishlist: the same header, tabs and card as the pieces (legacy 809b13e R5).
+// Wardrobe › Wishlist: the same header, tabs and card as the pieces (legacy 809b13e R5). Wishes
+// come in through Add pieces opened on the Wishlist (the + here); native twin: WishlistView.tsx.
 export function Wishlist() {
   const client = useApiClient();
   const queryClient = useQueryClient();
@@ -34,9 +44,6 @@ export function Wishlist() {
   const list = useApi('wishlist.list', { input: { limit: 100 } });
   const [layout, setLayout] = useWardrobeLayout();
   const [category, setCategory] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [label, setLabel] = useState('');
-  const field = useRef<HTMLDivElement>(null);
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') }),
@@ -44,12 +51,6 @@ export function Wishlist() {
       queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.summary') }),
     ]);
 
-  const create = useApiMutation('wishlist.create', {
-    onSuccess: () => {
-      setLabel('');
-      void refresh();
-    },
-  });
   const promote = useApiMutation('wishlist.promote', {
     onSuccess: (piece) => {
       toast({ message: copy.boughtToast(piece.label) });
@@ -72,15 +73,7 @@ export function Wishlist() {
     },
   });
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    // The form stays open while she keeps adding.
-    setAdding(true);
-    if (label.trim()) create.mutate({ input: { label: label.trim() } });
-  }
-
   const items = list.data?.items ?? [];
-  const showForm = adding || (list.data !== undefined && items.length === 0);
   const visible = category ? items.filter((w) => w.category === category) : items;
   const list_ = layout === 'list';
 
@@ -88,36 +81,8 @@ export function Wishlist() {
     <div className="flex flex-col gap-5">
       <WardrobeHeader
         current="/wardrobe/wishlist"
-        add={
-          <AddCircle
-            label={wardrobe.header.savePiece}
-            expanded={showForm}
-            onClick={() => {
-              setAdding(true);
-              // The field mounts with the form; focus it on the next frame.
-              requestAnimationFrame(() => field.current?.querySelector('input')?.focus());
-            }}
-          />
-        }
+        add={<AddCircle href="/wardrobe/add?to=wishlist" label={wardrobe.header.savePiece} />}
       />
-      {showForm ? (
-        <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <div ref={field} className="min-w-64 flex-1">
-            <Field
-              label={copy.addLabel}
-              name="wish"
-              placeholder={copy.addPlaceholder}
-              maxLength={120}
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              error={create.isError ? errorCopy(create.error) : null}
-            />
-          </div>
-          <Button type="submit" disabled={!label.trim()} loading={create.isPending}>
-            {copy.add}
-          </Button>
-        </form>
-      ) : null}
       {items.length > 0 ? (
         <>
           <CategoryTabs
@@ -140,7 +105,18 @@ export function Wishlist() {
           <CardSkeleton />
         </div>
       ) : items.length === 0 ? (
-        <EmptyState title={wardrobe.wishlistEmpty.title} body={wardrobe.wishlistEmpty.body} />
+        <EmptyState
+          title={wardrobe.wishlistEmpty.title}
+          body={wardrobe.wishlistEmpty.body}
+          action={
+            <Link
+              href="/wardrobe/add?to=wishlist"
+              className={buttonClasses({ variant: 'primary' })}
+            >
+              {wardrobe.header.savePiece}
+            </Link>
+          }
+        />
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-start gap-3 py-6">
           <Text tone="muted">{wardrobe.filter.wishNothing}</Text>
@@ -154,7 +130,7 @@ export function Wishlist() {
           className={
             list_
               ? 'grid grid-cols-1 gap-2 md:grid-cols-[repeat(auto-fill,minmax(360px,1fr))] md:gap-x-3.5'
-              : 'grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+              : 'grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
           }
         >
           {visible.map((wish) => {
@@ -184,6 +160,7 @@ export function Wishlist() {
                     photo={
                       <PieceImage
                         piece={wish}
+                        mat
                         sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
                       />
                     }

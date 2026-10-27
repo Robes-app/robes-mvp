@@ -1,4 +1,5 @@
 import type { Idea, Look, Piece, StyleDna } from '@robes/contracts';
+import { HAIR_SWATCHES, SKIN_SWATCHES } from '@robes/core/avatar';
 
 export const PIECE_ID = '33333333-3333-4333-8333-333333333333';
 export const ASSET_ID = '44444444-4444-4444-8444-444444444444';
@@ -19,12 +20,15 @@ export function piece(overrides: Partial<Piece> = {}): Piece {
     colourShade: 'camel',
     colourExtra: [],
     print: null,
+    material: null,
     colourCheck: false,
+    materialCheck: false,
     brand: null,
     notes: null,
     status: 'ready',
     heroPosition: null,
     seasonBand: 'autumn_winter',
+    wearFor: ['Everyday'],
     price: null,
     currency: null,
     size: null,
@@ -90,6 +94,9 @@ export function look(overrides: Partial<Look> = {}): Look {
     originLookId: null,
     climateBand: 'year_round',
     image: null,
+    photo: null,
+    model: null,
+    record: 'model',
     frame: false,
     framePending: false,
     composedByRobes: false,
@@ -138,3 +145,24 @@ export function styleDna(overrides: Partial<StyleDna> = {}): StyleDna {
     ...overrides,
   };
 }
+
+// Her model as me.model.get answers it (shared by the twin and look tests).
+export const modelData = (over: object = {}) => ({
+  filed: false,
+  presence: 'woman',
+  skin: 3,
+  hair: 1,
+  line: null,
+  frame: null,
+  source: 'hand',
+  reads: { colour: false, silhouette: false },
+  cellId: 'w-s3-h1-nt',
+  cell: { status: 'none', imageUrl: null },
+  swatches: { skin: [...SKIN_SWATCHES], hair: [...HAIR_SWATCHES] },
+  skinSet: false,
+  hairSet: false,
+  adj: { shoulders: null, bust: null, hips: null },
+  closeUpUrl: null,
+  twin: { status: 'none', current: false, imageUrl: null },
+  ...over,
+});

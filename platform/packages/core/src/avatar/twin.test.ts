@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   adjFor,
   bustCmOf,
+  chosenTones,
   effectiveStops,
   NO_ADJ,
   stepTwinFact,
@@ -107,5 +108,14 @@ describe('the twin', () => {
     expect(stepTwinFact('bustBand', null, 1)).toBe(34);
     expect(stepTwinFact('bustBand', 46, 1)).toBe(46);
     expect(stepTwinFact('waistCm', 70, -1)).toBe(69);
+  });
+});
+
+describe('chosenTones', () => {
+  const base = { closeUpUrl: null, skin: 3, hair: 1, skinSet: false, hairSet: false };
+  it('names nothing until she picks or a close-up reads', () => {
+    expect(chosenTones(base)).toEqual({ skin: null, hair: null });
+    expect(chosenTones({ ...base, skinSet: true })).toEqual({ skin: 3, hair: null });
+    expect(chosenTones({ ...base, closeUpUrl: 'https://x/c.jpg' })).toEqual({ skin: 3, hair: 1 });
   });
 });

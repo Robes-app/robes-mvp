@@ -8,8 +8,7 @@ import {
 import type { LookPage } from '@robes/contracts';
 import { looks as copy, errors, ui } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Share } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
 const LIMIT = 30;
 
@@ -30,31 +29,11 @@ export function nextDays(count: number, now = new Date()): string[] {
   );
 }
 
-export function useWearToday() {
-  const api = useApiClient();
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useApiMutation('looks.wear', {
-    onSuccess: async (wear) => {
-      toast.show({
-        message: copy.look.woreToday,
-        action: {
-          label: ui.undo,
-          onPress: () =>
-            void api
-              .call('looks.unwear', { params: { id: wear.lookId, date: wear.wornOn } })
-              .then(() =>
-                queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') }),
-              ),
-        },
-      });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.get') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
-      ]);
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
+// Today and the days behind it, for recording a wear after the fact.
+export function pastDays(count: number, now = new Date()): string[] {
+  return Array.from({ length: count }, (_, i) =>
+    localDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)),
+  );
 }
 
 function withoutLook(old: unknown, id: string): unknown {
@@ -93,52 +72,5 @@ export function useRenameLook() {
   });
 }
 
-export function useSaveAsNew(onSaved: (id: string) => void) {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useApiMutation('looks.variant', {
-    onSuccess: async (look) => {
-      toast.show({ message: copy.look.savedAsNew });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
-      onSaved(look.id);
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
-}
-
 // The share token for a look lives in the query cache for the session, so "Stop sharing" knows it.
-const shareKey = (lookId: string) => ['share', lookId] as const;
-
-export function useShareToken(lookId: string): string | null {
-  const { data } = useQuery({
-    queryKey: shareKey(lookId),
-    queryFn: () => null as string | null,
-    staleTime: Number.POSITIVE_INFINITY,
-    gcTime: Number.POSITIVE_INFINITY,
-  });
-  return data ?? null;
-}
-
-export function useShareLook() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useApiMutation('shares.create', {
-    onSuccess: async (share, { input }) => {
-      queryClient.setQueryData(shareKey(input.subjectId), share.token);
-      await Share.share({ url: share.url, message: share.url });
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
-}
-
-export function useStopSharing(lookId: string) {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  return useApiMutation('shares.revoke', {
-    onSuccess: () => {
-      queryClient.setQueryData(shareKey(lookId), null);
-      toast.show({ message: copy.look.sharingStopped });
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
-}
+const _shareKey = (lookId: string) => ['share', lookId] as const;

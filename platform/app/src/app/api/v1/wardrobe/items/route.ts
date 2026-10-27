@@ -33,7 +33,10 @@ export const POST = route({
       const asset = await repos.assets.getForUser(userId, input.imageAssetId);
       if (!asset || asset.kind !== 'wardrobe') throw new ApiError('not_found');
     }
-    const piece = await repos.wardrobe.create(userId, { ...input, acquiredVia: 'photo' });
+    // What she wears it for lives in the tag namespace, not on the row.
+    const { wearFor, ...fields } = input;
+    const piece = await repos.wardrobe.create(userId, { ...fields, acquiredVia: 'photo' });
+    if (wearFor?.length) await repos.wardrobe.setWearTags(userId, piece.id, wearFor);
     return loadPiece(userId, piece.id);
   },
 });

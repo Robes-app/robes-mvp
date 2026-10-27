@@ -16,7 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 import { BackLink } from '@/components/back-link';
-import { LookImage } from '@/components/looks/look-image';
+import { LookTile } from '@/components/looks/look-tile';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { LookPicker } from '../look-picker';
@@ -69,6 +69,8 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
   const dayName = query.data?.days[0]?.name ?? null;
   const s = daySummary(entries, dayName);
   const words = dayName ?? entries.find((e) => e.activity?.trim())?.activity?.trim() ?? '';
+  // The day's title is hers (beta): never borrowed from the one look on it.
+  const title = words || null;
 
   async function commitName(value: string) {
     setNaming(false);
@@ -108,16 +110,17 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
             />
           ) : (
             <h1
-              className={`font-display text-3xl leading-tight italic ${s.name ? 'text-ink' : 'text-ink-faint'}`}
+              className={`font-display text-3xl leading-tight italic ${title ? 'text-ink' : 'text-ink-faint'}`}
             >
-              {s.name ?? copy.name}
+              {title ?? copy.name}
             </h1>
           )}
           {/* Any day can be named, so she can plan a week before adding outfits. */}
           {!naming ? (
             <IconButton
+              framed
               icon="pencil"
-              label={s.name ? copy.rename : copy.name}
+              label={title ? copy.rename : copy.name}
               onClick={() => setNaming(true)}
             />
           ) : null}
@@ -153,55 +156,67 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
       ) : (
         <ul className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {entries.map((entry, i) => (
-            <li key={entry.id} className="relative">
-              <Link
+            <li key={entry.id} className="flex">
+              <LookTile
+                look={entry.look}
                 href={`/look/${entry.look.id}`}
-                className={`flex flex-col gap-2 rounded-crisp ${focus}`}
-              >
-                <LookImage look={entry.look} sizes="(min-width: 768px) 30vw, 50vw" />
-                <span className="font-sans text-[9px] tracking-[0.18em] text-ink-faint uppercase">
-                  {copy.lookEyebrow(i + 1)}
-                </span>
-                <span className="font-display text-xl leading-tight text-ink">
-                  {entry.look.name}
-                </span>
-                <span className="font-sans text-xs text-ink-muted">
-                  {plan.list.pieces(entry.look.pieces.length)}
-                </span>
-              </Link>
-              <IconButton
-                icon="close"
-                label={copy.remove(entry.look.name)}
-                onClick={() => unpin.mutate({ params: { id: entry.id } })}
-                className="absolute top-1.5 right-1.5 bg-bg/90"
+                sizes="(min-width: 768px) 30vw, 50vw"
+                eyebrow={copy.lookEyebrow(i + 1)}
+                badge={entry.worn ? copy.worn : null}
+                meta={plan.list.pieces(entry.look.pieces.length)}
+                className="flex-1"
+                corner={
+                  <IconButton
+                    icon="close"
+                    label={copy.remove(entry.look.name)}
+                    onClick={() => unpin.mutate({ params: { id: entry.id } })}
+                    className="bg-bg/90"
+                  />
+                }
               />
             </li>
           ))}
-          <li className={entries.length ? '' : 'col-span-full'}>
-            <button
-              type="button"
-              onClick={() => setPicking(true)}
-              className={`flex w-full items-center gap-4 rounded-crisp border border-dashed border-border-control p-4 text-left hover:border-ink ${
-                entries.length ? 'aspect-[4/5] flex-col justify-center text-center' : ''
-              } ${focus}`}
-            >
-              <Icon name={entries.length ? 'plus' : 'looks'} size={20} className="text-ink-muted" />
-              <span className="flex flex-1 flex-col gap-0.5">
-                <span className="font-display text-lg text-ink">
-                  {entries.length ? copy.addAnother : copy.choose}
+          <li className={entries.length ? 'flex' : 'col-span-full'}>
+            {entries.length ? (
+              // Beta's slot for another moment: as tall as the card beside it, everything centred.
+              <button
+                type="button"
+                onClick={() => setPicking(true)}
+                className={`flex min-h-56 w-full flex-1 flex-col items-center justify-center gap-2 rounded-soft border border-dashed border-rule-mid bg-surface p-4 text-center hover:border-ink ${focus}`}
+              >
+                <Icon name="plus" size={18} className="text-ink-muted" />
+                <span className="font-sans text-[10px] tracking-[0.22em] text-ink uppercase">
+                  {copy.addAnother}
                 </span>
-                <span className="font-display text-lg text-ink-faint italic">
-                  {entries.length ? copy.addAnotherHint : copy.chooseHint}
+                <span className="font-display text-ink-faint text-sm italic">
+                  {copy.addAnotherHint}
                 </span>
-              </span>
-              {entries.length ? null : <Icon name="forward" size={16} className="text-ink-muted" />}
-            </button>
+              </button>
+            ) : (
+              // On an empty day, one white door to her looks, its icon in a cream circle.
+              <button
+                type="button"
+                onClick={() => setPicking(true)}
+                className={`flex w-full items-center gap-4 rounded-soft border border-hairline bg-surface-raised p-4 text-left hover:border-border-control ${focus}`}
+              >
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted">
+                  <Icon name="looks" size={18} />
+                </span>
+                <span className="flex flex-1 flex-col gap-1">
+                  <span className="font-sans text-base text-ink">{copy.choose}</span>
+                  <span className="font-display text-base text-ink-faint italic">
+                    {copy.chooseHint}
+                  </span>
+                </span>
+                <Icon name="forward" size={16} className="text-ink-muted" />
+              </button>
+            )}
           </li>
         </ul>
       )}
       <LookPicker
         date={picking ? date : null}
-        title={s.name}
+        title={title}
         onClose={() => {
           setPicking(false);
           refresh();

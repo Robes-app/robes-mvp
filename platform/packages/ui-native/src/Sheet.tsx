@@ -1,9 +1,11 @@
 import { ui } from '@robes/copy';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, PanResponder, Pressable, View } from 'react-native';
+import { IconButton, PrimaryScope } from './Button';
 import { cx } from './cx';
 import { useReducedMotion } from './motion';
-import { Eyebrow, Heading } from './Text';
+import { MIN_TOUCH } from './scale';
+import { Eyebrow, Heading, Text } from './Text';
 
 export interface SheetProps {
   open: boolean;
@@ -11,6 +13,14 @@ export interface SheetProps {
   title?: string;
   // A small-caps line above the title (e.g. "Add a look · Wed 21 Oct").
   eyebrow?: string;
+  // A picture of what the sheet is about, beside its eyebrow and title.
+  media?: ReactNode;
+  // A control before the title — a drill's back chevron.
+  leading?: ReactNode;
+  // The 44pt × at the top right, beside the title (the web Sheet always has one).
+  closeButton?: boolean;
+  // The close control as a word ("Done") where every tap already saved; implies closeButton.
+  closeLabel?: string;
   children: ReactNode;
   className?: string;
   testID?: string;
@@ -19,9 +29,23 @@ export interface SheetProps {
 const OFFSCREEN = 800;
 const DISMISS_DRAG = 120;
 const BACKDROP_OPACITY = 0.4;
+// The top 8% stays clear: past every iPhone's status bar and island (59pt of 874 on a 17).
+const SHEET_MAX = '92%';
 
 // Bottom sheet from RN Modal + Animated: Expo Go compatible, no native bottom-sheet module (ADR-018).
-export function Sheet({ open, onClose, title, eyebrow, children, className, testID }: SheetProps) {
+export function Sheet({
+  open,
+  onClose,
+  title,
+  eyebrow,
+  media,
+  leading,
+  closeButton = false,
+  closeLabel,
+  children,
+  className,
+  testID,
+}: SheetProps) {
   const reduced = useReducedMotion();
   const [visible, setVisible] = useState(open);
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
@@ -50,6 +74,28 @@ export function Sheet({ open, onClose, title, eyebrow, children, className, test
     });
     return () => animation.stop();
   }, [open, visible, reduced, translateY, backdrop]);
+
+  const close = closeLabel ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={closeLabel}
+      onPress={onClose}
+      style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH }}
+      className="-mr-1 items-center justify-center px-1"
+    >
+      <Text size="small" tone="muted" className="underline">
+        {closeLabel}
+      </Text>
+    </Pressable>
+  ) : closeButton ? (
+    <IconButton
+      icon="close"
+      label={ui.close}
+      tone="ink-muted"
+      onPress={onClose}
+      className="-mr-3"
+    />
+  ) : null;
 
   const drag = useMemo(
     () =>
@@ -85,10 +131,14 @@ export function Sheet({ open, onClose, title, eyebrow, children, className, test
         <Animated.View
           accessibilityViewIsModal
           className={cx('rounded-t-soft bg-bg px-6 pb-10', className)}
-          style={{ transform: [{ translateY }] }}
+          // A tall drawer stops short of the status bar and Dynamic Island; its content scrolls.
+          style={{ maxHeight: SHEET_MAX, transform: [{ translateY }] }}
         >
           <View {...drag.panHandlers} className="items-center py-3">
+            {/* With a close in the header, the grab bar is only the handle, so a reader hears
+                one Close, not two. */}
             <Pressable
+              accessible={!close}
               accessibilityRole="button"
               accessibilityLabel={ui.close}
               onPress={onClose}
@@ -97,13 +147,35 @@ export function Sheet({ open, onClose, title, eyebrow, children, className, test
               <View className="h-1 w-10 rounded-pill bg-border-control" />
             </Pressable>
           </View>
-          {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
-          {title ? (
-            <Heading size="md" className="mb-4">
-              {title}
-            </Heading>
+          {media ? (
+            <View className="mb-4 flex-row items-start gap-4">
+              <View>{media}</View>
+              <View className="min-w-0 flex-1">
+                {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
+                {title ? <Heading size="md">{title}</Heading> : null}
+              </View>
+              {close}
+            </View>
+          ) : title || eyebrow || leading || close ? (
+            <View
+              className={cx(
+                'flex-row items-center gap-1',
+                title || leading || close ? 'mb-4' : 'mb-1',
+                leading ? '-ml-3' : null,
+              )}
+            >
+              {leading}
+              <View className="min-w-0 flex-1">
+                {eyebrow ? (
+                  <Eyebrow className={title ? 'mb-1' : undefined}>{eyebrow}</Eyebrow>
+                ) : null}
+                {title ? <Heading size="md">{title}</Heading> : null}
+              </View>
+              {close}
+            </View>
           ) : null}
-          {children}
+          {/* A drawer is a layer of its own: its one filled button stands beside the screen's. */}
+          <PrimaryScope>{children}</PrimaryScope>
         </Animated.View>
       </View>
     </Modal>

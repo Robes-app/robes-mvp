@@ -99,12 +99,22 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
   return rows.map((row) => {
     const proposals = proposalsOf(row.proposals);
     const anchor = row.anchorPieceId ? anchors.get(row.anchorPieceId) : undefined;
-    // Robes' frame, else the render on her model, else her own photograph (a look from a photo);
-    // a picture whose renditions failed gives way to the next.
-    const image =
-      [row.frameAssetId, row.renderAssetId, row.photoAssetId]
-        .map((id) => (id ? images.get(id) : undefined))
-        .find((img) => img !== undefined && img.status !== 'failed') ?? null;
+    // Robes' picture is the frame, else the render on her model; a picture whose renditions failed
+    // gives way to the next. The record is the one she picked, else her photograph when she has
+    // one (it leads, legacy "You" first), else Robes' picture.
+    const usable = (id: string | null) => {
+      const img = id ? images.get(id) : undefined;
+      return img && img.status !== 'failed' ? img : null;
+    };
+    const model = usable(row.frameAssetId) ?? usable(row.renderAssetId);
+    const photo = usable(row.photoAssetId);
+    const record: 'photo' | 'model' =
+      row.recordImage === 'model' || row.recordImage === 'photo'
+        ? row.recordImage
+        : photo
+          ? 'photo'
+          : 'model';
+    const image = (record === 'photo' ? (photo ?? model) : (model ?? photo)) ?? null;
     const frameRender = row.renderKey?.startsWith('frame:') ?? false;
     // A frame is still coming while a job draws it (a claim younger than 10 minutes) or while its
     // renditions are made: in AWS they run later, from the S3 event, after the row says ready.
@@ -125,6 +135,9 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       originLookId: row.originLookId,
       climateBand: row.climateBand,
       image,
+      photo,
+      model,
+      record,
       frame: row.frameAssetId !== null,
       framePending,
       composedByRobes: ROBES_SOURCES.has(row.source) || proposals.length > 0,

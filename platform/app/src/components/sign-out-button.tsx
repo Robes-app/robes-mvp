@@ -13,8 +13,9 @@ export function SignOutButton() {
   const queryClient = useQueryClient();
   return (
     <Button
-      variant="quiet"
-      className="-mx-2"
+      // Settings' foot (legacy .sp-out): a small hairline pill; its hit area stays 44.
+      variant="secondary"
+      className="relative min-h-9 px-5 after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']"
       onClick={async () => {
         await authClient.signOut();
         forget();

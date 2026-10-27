@@ -4,7 +4,7 @@ import { Colouring } from '@/features/you/Colouring';
 
 export default function ColouringScreen() {
   return (
-    <StackScreen title={twin.twinPage.colouring}>
+    <StackScreen settings title={twin.twinPage.colouring}>
       <Colouring />
     </StackScreen>
   );

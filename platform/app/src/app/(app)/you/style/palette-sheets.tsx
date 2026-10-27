@@ -8,7 +8,7 @@ import {
   matchFamily,
   PATTERNS,
   type Preference,
-  paletteTally,
+  paletteWords,
   setPreference,
   shadePreference,
 } from '@robes/core/colour';
@@ -22,11 +22,11 @@ import { errorCopy } from '@/lib/error-copy';
 const copy = you.style.palette;
 const STYLE_KEY = queryKeys.call('me.style.get');
 
-// The Style DNA rows' values: "2 loved · 1 avoided".
+// The Style DNA rows' values: what she loves, first and a count ("Blacks +2"). Native twin:
+// mobile/src/features/you/Palette.tsx.
 export function paletteSummary(p: Palette | undefined, kind: 'colours' | 'prints'): string {
   if (!p) return '';
-  const { love, avoid } = paletteTally(p, kind);
-  return copy.summary(love, avoid);
+  return copy.summary(paletteWords(p, kind, 1));
 }
 
 // Her palette, saved whole on each change; the cache moves first so the control never lags.
@@ -50,12 +50,13 @@ export function usePalette() {
   return { palette: query.data?.palette, set };
 }
 
-// A row carries her answer: love is the warm fill across the whole row, avoid fades the tile and
-// the name. Never black — selected is warm here as everywhere (brand-and-design §1).
-const rowClass = (v: Preference): string =>
-  `-mx-3 border-hairline border-b px-3 motion-safe:transition-colors ${v === 1 ? 'bg-selected' : ''}`;
+// A row carries her answer: love is the warm fill across the whole row; avoid fades the tile only —
+// the name stays ink, for contrast. An open family sits on cream so its shades read as one group.
+// Never black — selected is warm here as everywhere (brand-and-design §1).
+const rowClass = (v: Preference, open = false): string =>
+  `-mx-3 border-hairline border-b px-3 motion-safe:transition-colors ${v === 1 ? 'bg-selected' : open ? 'bg-surface' : ''}`;
 const nameClass = (v: Preference): string =>
-  `font-sans text-base ${v === 1 ? 'font-medium text-ink' : v === -1 ? 'text-ink-faint' : 'text-ink'}`;
+  `font-sans text-base text-ink ${v === 1 ? 'font-medium' : ''}`;
 
 // Your colours: the 13 families on Avoid · No view · Love; the tile and the name are one
 // disclosure that opens the family's shades, which follow it until she sets one (legacy a61f211).
@@ -72,7 +73,7 @@ export function ColoursBody() {
           const own = f.shades.filter((s) => s.id in palette.shade);
           const shown = open === f.id;
           return (
-            <li key={f.id} className={rowClass(fam)}>
+            <li key={f.id} className={rowClass(fam, shown)}>
               <div className="flex flex-wrap items-center gap-3 py-3">
                 <button
                   type="button"
@@ -131,15 +132,15 @@ export function ColoursBody() {
                       />
                     </li>
                   ))}
-                  {own.length ? (
-                    <Button
-                      variant="quiet"
-                      className="min-h-11 self-start"
-                      onClick={() => set(matchFamily(palette, f.id))}
-                    >
-                      {copy.matchFamily}
-                    </Button>
-                  ) : null}
+                  {/* The foot of an open family: hand every shade back to the family's answer. */}
+                  <Button
+                    variant="quiet"
+                    className="min-h-11 self-start px-0"
+                    disabled={!own.length}
+                    onClick={() => set(matchFamily(palette, f.id))}
+                  >
+                    {copy.matchFamily}
+                  </Button>
                 </ul>
               ) : null}
             </li>

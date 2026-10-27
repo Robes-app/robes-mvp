@@ -1,9 +1,8 @@
-import { nav, shell, twin, wardrobe, you } from '@robes/copy';
+import { lookbook, nav, shell, twin, wardrobe, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { Text } from 'react-native';
 import TabsLayout from '../src/app/(tabs)/_layout';
-import AddTab from '../src/app/(tabs)/add';
 import Today from '../src/app/(tabs)/index';
 import Looks from '../src/app/(tabs)/looks';
 import Plan from '../src/app/(tabs)/plan';
@@ -32,11 +31,10 @@ jest.mock('../src/lib/auth-client', () => ({
   },
 }));
 
-// RNTL 14 renders asynchronously: renderRouter returns the render promise with the router
-// helpers attached, so await it before asserting.
+// renderRouter is async (expo-router 58): await it for the router helpers.
 async function app(initialUrl = '/') {
   const queryClient = newQueryClient();
-  const router = renderRouter(
+  const router = await renderRouter(
     {
       _layout: {
         default: () => {
@@ -51,7 +49,6 @@ async function app(initialUrl = '/') {
       '(tabs)/_layout': TabsLayout,
       '(tabs)/index': Today,
       '(tabs)/wardrobe': Wardrobe,
-      '(tabs)/add': AddTab,
       '(tabs)/looks': Looks,
       '(tabs)/plan': Plan,
       create: Create,
@@ -65,8 +62,6 @@ async function app(initialUrl = '/') {
     },
     { initialUrl },
   );
-  await router;
-  // Returning the thenable itself from an async function would unwrap it.
   return { getPathname: () => router.getPathname() };
 }
 
@@ -130,27 +125,27 @@ test('an onboarded person who lands on onboarding goes home', async () => {
   expect(router.getPathname()).toBe('/');
 });
 
-test('tabs in IA order; [+] opens Create; unbuilt options land on the shared screen', async () => {
+test('four tabs in beta order; the sparkle beside them opens Create', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
   const router = await app();
   expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
-  const tabs = screen.getAllByRole('button').map((b) => b.props.accessibilityLabel ?? '');
-  const order = [nav.today, nav.wardrobe, nav.create, nav.looks, nav.plan].map((label) =>
-    tabs.findIndex((t: string) => t.startsWith(label)),
-  );
-  expect(order.every((i) => i >= 0)).toBe(true);
-  expect([...order].sort((a, b) => a - b)).toEqual(order);
+  const tabs = screen.getAllByRole('tab').map((t) => t.props.accessibilityLabel);
+  expect(tabs).toEqual([nav.today, nav.looks, nav.plan, nav.wardrobe]);
+  expect(screen.getByRole('tab', { name: nav.today }).props.accessibilityState).toEqual({
+    selected: true,
+  });
+  // The tab bar names the place, so the header carries the wordmark and the tab name is read only.
+  expect(screen.getByRole('header', { name: nav.today })).toBeTruthy();
 
   await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
-  expect(screen.getByText(shell.create.photograph)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: shell.create.askRobes }));
-  await waitFor(() => expect(router.getPathname()).toBe('/soon'));
-  expect(screen.getByText(shell.soon.title)).toBeTruthy();
+  expect(screen.getByText(wardrobe.add.doors.photograph)).toBeTruthy();
+  // Ask Robes is the new-look box itself, leading the sheet (beta's sparkle).
+  expect(screen.getByLabelText(lookbook.prompt.doorNew)).toBeTruthy();
 });
 
-test('a long press on [+] goes straight to the camera', async () => {
+test('a long press on the sparkle goes straight to the camera', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
   const router = await app();
@@ -170,7 +165,7 @@ test('the avatar opens You', async () => {
   await waitFor(() => expect(router.getPathname()).toBe('/you'));
   expect(screen.getByText(twin.cards.twin)).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: twin.tabs.account }));
-  expect(screen.getByRole('button', { name: you.account.title })).toBeTruthy();
+  expect(await screen.findByText(you.account.name)).toBeTruthy();
   expect(screen.getByText(you.deletion.title)).toBeTruthy();
 });
 
@@ -181,7 +176,7 @@ test('trips are hidden by default: no Create door, and a deep link lands on Toda
   await screen.findByText(/, Niall\.$/);
   await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
-  await screen.findByText(shell.create.photograph);
+  await screen.findByText(wardrobe.add.doors.photograph);
   expect(screen.queryByText(shell.create.planTrip)).toBeNull();
 
   const deep = await app('/trip/new');

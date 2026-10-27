@@ -65,15 +65,61 @@ export function legacyUrl(): string {
   return process.env.LEGACY_DATABASE_URL ?? databaseUrl(LEGACY_FIXTURE_DB);
 }
 
-export function targetUrl(env: NodeJS.ProcessEnv = process.env): string {
+// A remote run (docs/migration.md §4, runbooks/production-release.md) needs three things that can't
+// line up by accident: the admin URL in TARGET_DATABASE_URL, a named `--target=production|staging`
+// on the command, and the operator typing the target's identity into ROBES_MIGRATE_<TARGET>. A
+// stale env var alone, or a flag on a local run, refuses.
+const NAMED_TARGETS = ['production', 'staging'];
+
+function targetFlag(argv: readonly string[]): string | undefined {
+  const hit = argv.find((a) => a === '--target' || a.startsWith('--target='));
+  if (!hit) return undefined;
+  return hit.includes('=') ? hit.slice(hit.indexOf('=') + 1) : '';
+}
+
+// What an operator types to confirm a remote target: user@host. Supabase's shared pooler gives every
+// project the same host; only the user (`postgres.<project-ref>`) tells staging from production.
+export function targetId(url: string): string {
+  const u = new URL(url);
+  return `${decodeURIComponent(u.username)}@${u.hostname}`;
+}
+
+export function targetUrl(
+  env: NodeJS.ProcessEnv = process.env,
+  argv: readonly string[] = process.argv,
+): string {
   const url = env.TARGET_DATABASE_URL ?? databaseUrl(REHEARSAL_TARGET_DB);
-  if (isLocal(url)) return url;
-  // The cutover run (docs/migration.md §4): the operator names the exact host they mean to write.
-  const host = new URL(url).hostname;
-  if (env.ROBES_MIGRATE_PRODUCTION !== host) {
+  const target = targetFlag(argv);
+  if (target !== undefined && !NAMED_TARGETS.includes(target)) {
     throw new Error(
-      `migration target ${host} is not local; set ROBES_MIGRATE_PRODUCTION=${host} to confirm the cutover run`,
+      `unknown --target=${target}; the named targets are --target=production and --target=staging`,
+    );
+  }
+  if (isLocal(url)) {
+    if (target) {
+      throw new Error(
+        `--target=${target} given but TARGET_DATABASE_URL is local (or unset); set it to the ${target} admin URL`,
+      );
+    }
+    return url;
+  }
+  const id = targetId(url);
+  if (!target) {
+    throw new Error(
+      `migration target ${id} is not local; a remote run needs --target=production or --target=staging (docs/runbooks/production-release.md)`,
+    );
+  }
+  const confirmVar = `ROBES_MIGRATE_${target.toUpperCase()}`;
+  if (env[confirmVar] !== id) {
+    throw new Error(
+      `migration target ${id} is not local; set ${confirmVar}=${id} to confirm the ${target} run`,
     );
   }
   return url;
+}
+
+// One line on stderr naming where a CLI is about to write, so the operator sees it before it runs.
+export function announceTarget(url: string, argv: readonly string[] = process.argv): void {
+  const where = isLocal(url) ? 'local rehearsal' : (targetFlag(argv) ?? 'remote').toUpperCase();
+  process.stderr.write(`robes-migrate → ${where}: ${targetId(url)}${new URL(url).pathname}\n`);
 }

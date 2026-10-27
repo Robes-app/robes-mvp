@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CreatePieceInput, LEGACY_CATEGORY, Piece } from './wardrobe';
+import { CreatePieceInput, LEGACY_CATEGORY, Piece, Wish } from './wardrobe';
 
 // Several pieces from one photograph (legacy 2026-10-13): one read behind "several pieces to the
 // wardrobe" and "a look from a photo". Every piece is confirmed by her, never filed on Robes' word.
@@ -43,11 +43,17 @@ export const FileAnswer = z.discriminatedUnion('state', [
 ]);
 export type FileAnswer = z.infer<typeof FileAnswer>;
 
-export const FileReadInput = z.object({ answers: z.array(FileAnswer).min(1).max(8) });
+export const FileReadInput = z.object({
+  answers: z.array(FileAnswer).min(1).max(8),
+  // Where the kept pieces land: her wardrobe, or her wish list (no "owned" answers there).
+  to: z.enum(['wardrobe', 'wishlist']).default('wardrobe'),
+});
 export type FileReadInput = z.infer<typeof FileReadInput>;
 
 export const FileReadOutput = z.object({
   filed: z.array(Piece),
+  // Pieces kept to the wish list instead (`to: 'wishlist'`).
+  wished: z.array(Wish).default([]),
   // Pieces she owned with no photo, which took the crop as their photograph.
   photoAdded: z.array(z.uuid()),
 });

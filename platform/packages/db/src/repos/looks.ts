@@ -28,6 +28,7 @@ const LOOK_COLUMNS = [
   'styling',
   'edits',
   'photoAssetId',
+  'recordImage',
   'createdAt',
   'updatedAt',
 ] as const;
@@ -52,6 +53,8 @@ export interface LookFields {
   styling?: Record<string, string> | null | undefined;
   edits?: Record<string, unknown> | null | undefined;
   dateHint?: string | null | undefined;
+  // Which picture is the record (her photograph or the render on her model); she sets it.
+  record?: 'photo' | 'model' | undefined;
 }
 
 export class LookPiecesNotFound extends Error {
@@ -73,6 +76,8 @@ const emptyToNull = (v: Record<string, unknown> | readonly unknown[] | null | un
 
 // Wear dates are calendar days: read as text so no timezone can move them.
 const wornOnText = sql<string>`worn_on::text`;
+// A look's record is read whole; a wardrobe cannot hold enough wears for a page.
+const WEARS_MAX = 200;
 
 export function looksRepo(db: Db) {
   const active = () => db.selectFrom('looks').where('deletedAt', 'is', null);
@@ -157,6 +162,7 @@ export function looksRepo(db: Db) {
         cursor?: string | undefined;
         status?: LookStatus | undefined;
         anchorPieceId?: string | undefined;
+        pieceId?: string | undefined;
       },
     ) {
       let query = active()
@@ -169,6 +175,19 @@ export function looksRepo(db: Db) {
       const after = afterCursor(q.cursor);
       if (after) query = query.where(after);
       if (q.anchorPieceId) query = query.where('anchorPieceId', '=', q.anchorPieceId);
+      const { pieceId } = q;
+      if (pieceId) {
+        query = query.where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom('lookPieces as lp')
+              .select('lp.lookId')
+              .whereRef('lp.lookId', '=', 'looks.id')
+              .where('lp.userId', '=', userId)
+              .where('lp.wardrobeItemId', '=', pieceId),
+          ),
+        );
+      }
       return toPage(await query.execute(), q.limit);
     },
 
@@ -462,6 +481,7 @@ export function looksRepo(db: Db) {
               : {}),
             ...(fields.styling !== undefined ? { styling: json(emptyToNull(fields.styling)) } : {}),
             ...(fields.dateHint !== undefined ? { dateHint: fields.dateHint } : {}),
+            ...(fields.record !== undefined ? { recordImage: fields.record } : {}),
             ...(fields.edits !== undefined
               ? {
                   edits: sql`case when status = 'saved' then null else ${json(emptyToNull(fields.edits))}::jsonb end`,
@@ -577,6 +597,38 @@ export function looksRepo(db: Db) {
           })
           .onConflict((oc) => oc.columns(['userId', 'lookId', 'wornOn']).doNothing())
           .execute();
+        // Recording a wear and pinning to a day are one act (beta): the day she wore it holds the
+        // look, unless it is already there in either slot. A named day lends the look its name.
+        const onDay = await trx
+          .selectFrom('plannedDays')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId)
+          .where('dayDate', '=', sql<Date>`${wornOn}::date`)
+          .where('deletedAt', 'is', null)
+          .executeTakeFirst();
+        if (!onDay) {
+          const named = await trx
+            .selectFrom('dayNames')
+            .select('name')
+            .where('userId', '=', userId)
+            .where('dayDate', '=', sql<Date>`${wornOn}::date`)
+            .executeTakeFirst();
+          await trx
+            .insertInto('plannedDays')
+            .values({
+              userId,
+              dayDate: wornOn,
+              sourceKind: 'look',
+              lookId,
+              slot: 'day',
+              pinned: true,
+              status: 'worn',
+              activity: named?.name ?? null,
+              itemIds: pieces.map((p) => p.wardrobeItemId),
+            })
+            .execute();
+        }
         return trx
           .selectFrom('wears')
           .select(['id', 'lookId', 'pieceIds', 'confirmedAt', wornOnText.as('wornOn')])
@@ -585,6 +637,49 @@ export function looksRepo(db: Db) {
           .where('wornOn', '=', sql<Date>`${wornOn}::date`)
           .executeTakeFirstOrThrow();
       });
+    },
+
+    // Her own photograph of the look. Both the look and the asset must be hers; the composite
+    // key means the database refuses the pairing even if a caller ever got past this filter.
+    setPhoto(userId: UserId, lookId: string, photoAssetId: string) {
+      return db
+        .updateTable('looks')
+        .set({ photoAssetId })
+        .where('userId', '=', userId)
+        .where('id', '=', lookId)
+        .where('deletedAt', 'is', null)
+        .returning(LOOK_SELECT)
+        .executeTakeFirst();
+    },
+
+    // One look's record, newest first: the day and the pieces she wore that day, named from the
+    // wear's own snapshot — so the row keeps saying what she wore after the look moves on. A piece
+    // she has let go of still names itself (the record is true); one whose row is gone is counted.
+    async wears(userId: UserId, lookId: string) {
+      const rows = await db
+        .selectFrom('wears')
+        .select(['id', 'pieceIds', wornOnText.as('wornOn')])
+        .where('userId', '=', userId)
+        .where('lookId', '=', lookId)
+        .orderBy('wornOn', 'desc')
+        .limit(WEARS_MAX)
+        .execute();
+      const ids = [...new Set(rows.flatMap((r) => r.pieceIds))];
+      const labels = new Map<string, string>();
+      if (ids.length) {
+        const pieces = await db
+          .selectFrom('wardrobeItems')
+          .select(['id', 'label'])
+          .where('userId', '=', userId)
+          .where('id', 'in', ids)
+          .execute();
+        for (const p of pieces) labels.set(p.id, p.label);
+      }
+      return rows.map((r) => ({
+        id: r.id,
+        wornOn: r.wornOn,
+        pieces: r.pieceIds.map((id) => ({ id, label: labels.get(id) ?? null })),
+      }));
     },
 
     // Looks she recorded wearing on a calendar day.
@@ -598,14 +693,26 @@ export function looksRepo(db: Db) {
       return rows.map((r) => r.lookId);
     },
 
+    // Taking a wear back takes the look off that day too: the two are one act.
     async unwear(userId: UserId, lookId: string, wornOn: string): Promise<boolean> {
-      const res = await db
-        .deleteFrom('wears')
-        .where('userId', '=', userId)
-        .where('lookId', '=', lookId)
-        .where('wornOn', '=', sql<Date>`${wornOn}::date`)
-        .executeTakeFirst();
-      return res.numDeletedRows > 0n;
+      return db.transaction().execute(async (trx) => {
+        const res = await trx
+          .deleteFrom('wears')
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId)
+          .where('wornOn', '=', sql<Date>`${wornOn}::date`)
+          .executeTakeFirst();
+        if (res.numDeletedRows === 0n) return false;
+        await trx
+          .updateTable('plannedDays')
+          .set({ deletedAt: sql`now()` })
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId)
+          .where('dayDate', '=', sql<Date>`${wornOn}::date`)
+          .where('deletedAt', 'is', null)
+          .execute();
+        return true;
+      });
     },
   };
 }

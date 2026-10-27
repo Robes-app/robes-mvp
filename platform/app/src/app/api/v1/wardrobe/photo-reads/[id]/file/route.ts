@@ -9,5 +9,6 @@ export const POST = route({
   params: PhotoReadParams,
   output: FileReadOutput,
   rateLimit: { key: 'wardrobe.photoRead.file', limit: 30, windowSeconds: 60 },
-  handler: ({ user, input, params }) => fileRead(verifiedUserId(user.id), params.id, input.answers),
+  handler: ({ user, input, params }) =>
+    fileRead(verifiedUserId(user.id), params.id, input.answers, input.to),
 });

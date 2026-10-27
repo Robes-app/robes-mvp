@@ -48,6 +48,26 @@ describe('plan repo', () => {
     expect(await plan.remove(bea, id ?? '')).toBe(false);
   });
 
+  it('a wear puts the look on its day, marked worn; taking the wear back takes it off', async () => {
+    await plan.nameDay(ann, '2026-12-03', 'Gallery opening');
+    await looks.wear(ann, lookId, '2026-12-03');
+    await looks.wear(ann, lookId, '2026-12-03');
+    const rows = await plan.range(ann, '2026-12-03', '2026-12-03');
+    expect(rows.map((r) => [r.lookId, r.slot, r.worn, r.activity])).toEqual([
+      [lookId, 'day', true, 'Gallery opening'],
+    ]);
+    // Already on the day (here in the evening): the wear never adds a second entry.
+    await plan.pin(ann, other, ['2026-12-04'], { slot: 'evening' });
+    await looks.wear(ann, other, '2026-12-04');
+    const evening = await plan.range(ann, '2026-12-04', '2026-12-04');
+    expect(evening.map((r) => [r.slot, r.worn])).toEqual([['evening', true]]);
+    // A pin with no wear on its date is not worn.
+    await plan.pin(ann, other, ['2026-12-05'], { slot: 'day' });
+    expect((await plan.range(ann, '2026-12-05', '2026-12-05'))[0]?.worn).toBe(false);
+    expect(await looks.unwear(ann, lookId, '2026-12-03')).toBe(true);
+    expect(await plan.range(ann, '2026-12-03', '2026-12-03')).toEqual([]);
+  });
+
   it('renames, unpins and undoes; a deleted look leaves the plan', async () => {
     const [id] = (await plan.pin(ann, lookId, ['2026-10-07'], { slot: 'day' })) ?? [];
     expect((await plan.update(ann, id ?? '', { activity: 'Board meeting' }))?.activity).toBe(

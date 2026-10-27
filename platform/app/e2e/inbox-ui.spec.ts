@@ -20,7 +20,7 @@ test.afterAll(() => {
 });
 test.beforeEach(async ({ context }) => isolateClientIp(context));
 
-test('paste a link from Create, then file it from the Inbox', async ({ page }) => {
+test('paste a link from Create, review it, and it files to the wishlist', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
   await page.getByRole('button', { name: 'Create' }).click();
@@ -31,27 +31,29 @@ test('paste a link from Create, then file it from the Inbox', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Add from a shop page.' })).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
 
+  // Where it goes is chosen once, on the Add pieces sheet; the link screen says so (redline 04).
+  await expect(page.getByText(/Filing to your wardrobe/)).toBeVisible();
+  await page.getByRole('link', { name: 'Change' }).click();
+  await page.getByRole('radio', { name: 'Wishlist' }).click();
+  await page.getByRole('link', { name: 'Paste a link' }).click();
+  await expect(page.getByText(/Filing to your wishlist/)).toBeVisible();
   await page.getByLabel('Link to the piece').fill(shopUrl);
-  await page.getByRole('radio', { name: 'I want it' }).click();
   await page.getByRole('button', { name: 'Read the page' }).click();
-  await expect(page.getByRole('status')).toHaveText('It’s waiting in your Inbox.', {
+
+  // The page is read, then reviewed like a photo before anything files (design "Add Piece").
+  await expect(page.getByRole('heading', { name: 'Here’s what Robes saw.' })).toBeVisible({
     timeout: 20_000,
   });
-  await page.getByRole('link', { name: 'Open the Inbox' }).click();
-
-  const inbox = page.getByRole('list', { name: 'Inbox' });
-  await expect(inbox.getByText('Silk slip dress')).toBeVisible();
-  await expect(inbox.getByText('From Fixture Shop')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Name\s*Silk slip dress/ })).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
-  await inbox.getByRole('button', { name: 'Add to wishlist' }).click();
-  // The toast is brief; assert the durable outcome instead: the entry leaves the Inbox.
-  await expect(inbox.getByText('Silk slip dress')).toHaveCount(0);
-  await expect(
-    page.getByText('When Robes isn’t sure about a photo', { exact: false }),
-  ).toBeVisible();
-
-  await page.goto('/wardrobe/wishlist');
+  await page.getByRole('button', { name: 'Add to wishlist →' }).click();
+  await expect(page.getByRole('heading', { name: 'One piece filed.' })).toBeVisible();
+  await page.getByRole('link', { name: 'See your wishlist' }).click();
   await expect(
     page.getByRole('list', { name: 'Wishlist' }).getByText('Silk slip dress'),
   ).toBeVisible();
+
+  // Filed, it has left the Inbox.
+  await page.goto('/wardrobe/inbox');
+  await expect(page.getByText('Silk slip dress')).toHaveCount(0);
 });

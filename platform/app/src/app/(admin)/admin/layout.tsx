@@ -12,6 +12,7 @@ const LINKS = [
   ['/admin/metrics', copy.nav.metrics],
   ['/admin/costs', copy.nav.costs],
   ['/admin/flags', copy.nav.flags],
+  ['/admin/feedback', copy.nav.feedback],
   ['/admin/audit', copy.nav.audit],
 ] as const;
 

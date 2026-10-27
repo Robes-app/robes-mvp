@@ -13,11 +13,18 @@ export const ICONS = {
     'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z',
     'M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z',
   ],
+  // An open book: the Lookbook tab (beta's dock). `looks` stays the sparkle — Robes' own hand.
+  book: [
+    'M3.5 5.5c2.8-1 5.6-1 8.5.8v13c-2.9-1.8-5.7-1.8-8.5-.8z',
+    'M20.5 5.5c-2.8-1-5.6-1-8.5.8v13c2.9-1.8 5.7-1.8 8.5-.8z',
+  ],
   plan: [
     'M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-12z',
     'M4 10h16M8 3v4M16 3v4',
   ],
   plus: ['M12 5v14M5 12h14'],
+  // The stepper's step down (the Size drawer), the plus's twin.
+  minus: ['M5 12h14'],
   cloud: ['M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 11.2 3.4 3.4 0 0 0 7 18z'],
   close: ['M6 6l12 12M18 6 6 18'],
   back: ['M15 18l-6-6 6-6'],
@@ -56,6 +63,7 @@ export const ICONS = {
   alert: ['M12 3 2.5 20h19L12 3z', 'M12 10v4M12 17h.01'],
   star: ['M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z'],
   filter: ['M4 7h16M7 12h10M10 17h4'],
+  sort: ['M7 4v16', 'M3 8l4-4 4 4', 'M17 20V4', 'M21 16l-4 4-4-4'],
   grid: ['M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'],
   list: ['M4 6h16M4 12h16M4 18h16'],
   pencil: ['M4 20h4L19 9l-4-4L4 16v4z', 'M13.5 6.5l4 4'],
@@ -73,6 +81,8 @@ export const ICONS = {
   heart: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
   swap: ['M20 12a8 8 0 1 1-2.35-5.65', 'M20 4v5h-5'],
   send: ['M12 19V5', 'M6 11l6-6 6 6'],
+  // A row that leaves the app ↗ (Privacy notice, terms).
+  external: ['M7 17L17 7', 'M8 7h9v9'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

@@ -10,6 +10,7 @@ export interface PieceAnalysis {
   colourShade: string | null;
   colourExtra: string[];
   print: string | null;
+  material: string | null;
   brand: string | null;
   price: number | null;
   currency: string | null;
@@ -34,15 +35,18 @@ export function pieceAnalysisRepo(db: Db) {
         .executeTakeFirst();
     },
 
-    // Fills a reading piece; anything she already typed is kept.
+    // Fills a reading piece; anything she already typed (or picked, like a material) is kept.
     async apply(userId: UserId, pieceId: string, a: PieceAnalysis): Promise<void> {
       const current = await db
         .selectFrom('wardrobeItems')
-        .select(['status', 'label', 'brand', 'price', 'currency', 'size', 'notes'])
+        .select(['status', 'label', 'brand', 'price', 'currency', 'size', 'notes', 'material'])
         .where('userId', '=', userId)
         .where('id', '=', pieceId)
         .executeTakeFirst();
       if (!current) return;
+      // Robes' doubt about a material she has already answered is no doubt at all.
+      const { material_check: _, ...answered } = a.itemDna;
+      const itemDna = current.material ? answered : a.itemDna;
       await db
         .updateTable('wardrobeItems')
         .set({
@@ -58,12 +62,13 @@ export function pieceAnalysisRepo(db: Db) {
           colourShade: a.colourShade,
           colourExtra: a.colourExtra,
           print: a.print,
+          material: current.material ?? a.material,
           brand: current.brand ?? a.brand,
           price: current.price ?? a.price,
           currency: current.currency ?? a.currency,
           size: current.size ?? a.size,
           notes: current.notes ?? a.notes,
-          itemDna: JSON.stringify(a.itemDna),
+          itemDna: JSON.stringify(itemDna),
           status: 'ready',
         })
         .where('userId', '=', userId)
@@ -71,13 +76,17 @@ export function pieceAnalysisRepo(db: Db) {
         .execute();
     },
 
-    async markFailed(userId: UserId, pieceId: string): Promise<void> {
-      await db
-        .updateTable('wardrobeItems')
-        .set({ status: 'failed' })
+    // A read that found nothing (or could not run) leaves no piece behind: the row only ever
+    // held a placeholder while it read, so it goes rather than sitting in the wardrobe as a
+    // failed "New piece" (Add Piece redline 04c). A piece the read already filled is kept.
+    async discard(userId: UserId, pieceId: string): Promise<boolean> {
+      const res = await db
+        .deleteFrom('wardrobeItems')
         .where('userId', '=', userId)
         .where('id', '=', pieceId)
-        .execute();
+        .where('status', '=', 'reading')
+        .executeTakeFirst();
+      return res.numDeletedRows > 0n;
     },
   };
 }

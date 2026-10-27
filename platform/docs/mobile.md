@@ -1,7 +1,7 @@
 # Robes Platform — Mobile (Expo) Spec
 
 Status: **normative** for architecture; screens follow the IA in `SPEC.md` §6 and the UX requirements in `reference/ux-opportunities.md` §5.
-Versions: `reference/stack-versions.md` — Expo SDK 57 (RN 0.86.3, React 19.2.3, Reanimated 4.5.1), Uniwind 1.12 on Tailwind 4.3, Expo Router.
+Versions: `reference/stack-versions.md` — Expo SDK 58 (RN 0.88.0, React 19.3.0, Reanimated 4.7.1), Uniwind 1.12 on Tailwind 4.3, Expo Router.
 
 ---
 
@@ -39,7 +39,7 @@ mobile/
   eas.json                  profiles: development, preview, production; channels
 ```
 
-Shared packages consumed: `@robes/tokens`, `@robes/ui-native`, `@robes/copy`, `@robes/icons`, `@robes/contracts`, `@robes/api-client`, `@robes/core`, `@robes/analytics`, `@robes/media`. React is a **peer** dependency in all shared packages (web runs React 19.3, native 19.2.3).
+Shared packages consumed: `@robes/tokens`, `@robes/ui-native`, `@robes/copy`, `@robes/icons`, `@robes/contracts`, `@robes/api-client`, `@robes/core`, `@robes/analytics`, `@robes/media`. React is a **peer** dependency in all shared packages (web and native both run React 19.3).
 
 ## 3. Key capabilities
 

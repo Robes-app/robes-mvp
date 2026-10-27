@@ -1,25 +1,15 @@
 import { nav } from '@robes/copy';
-import type { IconName } from '@robes/icons';
-import { Icon } from '@robes/icons/native';
-import { fonts, useColor } from '@robes/ui-native';
-import { Redirect, Tabs, useRouter } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { TabBar } from '@/components/TabBar';
 import { AnalyticsSetup } from '@/lib/analytics';
 import { useAuthGate } from '@/lib/use-auth-gate';
 import { PushSetup } from '@/lib/use-push';
 
-// Today · Wardrobe · [+] · Lookbook · Diary — the same names and order as the web nav (UX-11).
+// Today · Lookbook · Diary · Wardrobe, with Create as the sparkle beside the bar — beta's dock
+// (Native parity handoff, 2026-10-25; supersedes the five-tab UX-11 order with [+] in the middle).
 export default function TabsLayout() {
   const gate = useAuthGate();
-  const router = useRouter();
-  const ink = useColor('ink');
-  const muted = useColor('ink-muted');
-  const bg = useColor('bg');
-  const hairline = useColor('hairline');
-
-  const icon =
-    (name: IconName) =>
-    ({ focused }: { focused: boolean }) => <Icon name={name} color={focused ? ink : muted} />;
 
   if (gate.state === 'loading') return <LoadingScreen />;
   if (gate.state === 'signed-out') return <Redirect href="/sign-in" />;
@@ -29,58 +19,13 @@ export default function TabsLayout() {
     <>
       <PushSetup />
       <AnalyticsSetup />
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: ink,
-          tabBarInactiveTintColor: muted,
-          tabBarStyle: { backgroundColor: bg, borderTopColor: hairline },
-          // The house caps (beta's tab bar): small tracked Inter, uppercased by style.
-          tabBarLabelStyle: {
-            fontFamily: fonts.sansMedium,
-            fontSize: 10,
-            letterSpacing: 1.4,
-            textTransform: 'uppercase',
-          },
-        }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{ title: nav.today, tabBarIcon: icon('today'), tabBarButtonTestID: 'today-tab' }}
-        />
+      <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
+        <Tabs.Screen name="index" options={{ title: nav.today, tabBarButtonTestID: 'today-tab' }} />
+        <Tabs.Screen name="looks" options={{ title: nav.looks, tabBarButtonTestID: 'looks-tab' }} />
+        <Tabs.Screen name="plan" options={{ title: nav.plan, tabBarButtonTestID: 'plan-tab' }} />
         <Tabs.Screen
           name="wardrobe"
-          options={{
-            title: nav.wardrobe,
-            tabBarIcon: icon('wardrobe'),
-            tabBarButtonTestID: 'wardrobe-tab',
-          }}
-        />
-        <Tabs.Screen
-          // Not "create": that path belongs to the Create modal route.
-          name="add"
-          options={{
-            title: nav.create,
-            tabBarIcon: icon('plus'),
-            tabBarButtonTestID: 'create-tab',
-          }}
-          listeners={{
-            tabPress: (event) => {
-              // [+] opens the Create modal over whatever tab she's on.
-              event.preventDefault();
-              router.push('/create');
-            },
-            // A long press goes straight to the camera.
-            tabLongPress: () => router.push({ pathname: '/create', params: { start: 'camera' } }),
-          }}
-        />
-        <Tabs.Screen
-          name="looks"
-          options={{ title: nav.looks, tabBarIcon: icon('looks'), tabBarButtonTestID: 'looks-tab' }}
-        />
-        <Tabs.Screen
-          name="plan"
-          options={{ title: nav.plan, tabBarIcon: icon('plan'), tabBarButtonTestID: 'plan-tab' }}
+          options={{ title: nav.wardrobe, tabBarButtonTestID: 'wardrobe-tab' }}
         />
       </Tabs>
     </>

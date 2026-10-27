@@ -57,11 +57,18 @@ export function usePhotoFiling(): {
     },
   );
   const done = Boolean(jobId) && (isTerminal(job.data) || job.isError);
+  const noPiece = job.data?.output.noItemDetected === true;
 
   useEffect(() => {
     if (filing.phase !== 'reading' || !filing.pieceId || !done) return;
     const { preview, pieceId } = filing;
     const n = attempt.current;
+    // A read that saw no piece files nothing: the placeholder is gone, so there is nothing to get.
+    if (noPiece) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') });
+      settle(n, { phase: 'none', preview });
+      return;
+    }
     void api
       .call('wardrobe.get', { params: { id: pieceId } })
       .then((piece) => {
@@ -70,11 +77,11 @@ export function usePhotoFiling(): {
           n,
           piece.status === 'ready'
             ? { phase: 'filed', preview, piece }
-            : { phase: piece.status === 'failed' ? 'none' : 'failed', preview },
+            : { phase: 'failed', preview },
         );
       })
       .catch(() => settle(n, { phase: 'failed', preview }));
-  }, [api, queryClient, filing, done, settle]);
+  }, [api, queryClient, filing, done, noPiece, settle]);
 
   const file = useCallback(
     async (photo: PickedPhoto) => {

@@ -85,6 +85,28 @@ describe('looks.style_piece v3 (legacy beta 2026-10-13)', () => {
     expect(user).toContain('Dress her for this day three ways');
   });
 
+  it('tells the model what she wears the key piece for, as a register and not a limit', () => {
+    const user = buildUser(
+      {
+        mode: 'piece',
+        anchor: { type: 'piece', label: 'Camel wool coat', wearFor: ['Work', 'Everyday'] },
+      },
+      { hasPhoto: false },
+    );
+    expect(user).toContain('She files it under');
+    expect(user).toContain('Work, Everyday');
+    expect(user).toContain('not a limit');
+    // A piece she has not filed says nothing rather than guessing.
+    expect(
+      buildUser(
+        { mode: 'piece', anchor: { type: 'piece', label: 'Camel wool coat' } },
+        {
+          hasPhoto: false,
+        },
+      ),
+    ).not.toContain('She files it under');
+  });
+
   it('re-writes one way with her adjustment fenced in the user turn', () => {
     const user = buildUser(
       { mode: 'piece', anchor: { type: 'piece', label: 'Rust slip dress' } },

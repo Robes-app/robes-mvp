@@ -1,7 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
-import { anchorName, noteShort } from '@robes/core/looks';
+import { anchorName, isHandBuiltDraft, noteShort } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
+import { Composer } from './Composer';
 import { DiarySheet } from './DiarySheet';
 import { GenericModelBadge } from './GenericModelBadge';
 import { JOB_REFRESH_MS } from './ideas';
@@ -45,7 +46,10 @@ export function LookScreen({ id }: { id: string }) {
   const look = query.data;
   return (
     <>
-      {look.status === 'saved' ? (
+      {isHandBuiltDraft(look) ? (
+        // A draft she builds by hand stays in the composer until she saves it.
+        <Composer look={look} onSaved={setJustSaved} />
+      ) : look.status === 'saved' ? (
         <LookDetail id={id} />
       ) : (
         <WorkingLook look={look} onSaved={setJustSaved} />

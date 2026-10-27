@@ -1,5 +1,5 @@
 import type { Today } from '@robes/contracts';
-import { home as copy, lookbook, today as todayCopy } from '@robes/copy';
+import { home as copy, lookbook, today as todayCopy, twin } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { HomeView } from '../src/features/home/HomeView';
 import { dayLabel } from '../src/features/plan/plan';
@@ -57,7 +57,9 @@ test('stage 1: the greeting, the question, the one-door Style DNA card and the m
   await renderWithApi(<HomeView />);
   expect(await screen.findByText('Good morning, Niall.')).toBeTruthy();
   expect(screen.getByText(copy.echo)).toBeTruthy();
-  expect(await screen.findByText('Dublin · 9–14°C · light rain')).toBeTruthy();
+  // The meta line under the greeting: the weekday, the city, the day's range (beta's H0).
+  expect(await screen.findByText('Thursday · Dublin · 9–14°C')).toBeTruthy();
+  expect(screen.queryByText('Dublin · 9–14°C · light rain')).toBeNull();
   expect(screen.getByText(copy.o1.eyebrow)).toBeTruthy();
   expect(screen.getByLabelText(lookbook.prompt.doorNew)).toBeTruthy();
   expect(screen.getByLabelText(`${copy.map.steps.O3}, ${copy.map.line.O3(0)}`)).toBeTruthy();
@@ -118,6 +120,37 @@ test('activated: the strip selects a day; Dress {weekday} puts the box on the da
   });
 });
 
+test('today’s card carries the forecast; the overnight look is that card, never a second row', async () => {
+  mockFetch({
+    'GET /today': todayWith(activated, {
+      week: week.map((d) => ({ ...d, looks: 0, first: null })),
+      overnight: { id: LOOK_ID, title: 'Daily look', headline: 'Rain-ready tailoring' },
+    }),
+    'GET /today/weather': { city: 'Dublin', tempRange: '9–14°C', condition: 'light rain' },
+  });
+  await renderWithApi(<HomeView />);
+  const card = await screen.findByRole('link', { name: copy.week.open('Rain-ready tailoring') });
+  expect(await screen.findByText('Dublin · 9–14°C · light rain')).toBeTruthy();
+  expect(screen.queryByText(todayCopy.overnight.title)).toBeNull();
+  await fireEvent.press(card);
+  expect(mockRouter.push).toHaveBeenCalledWith(`/today/look/${LOOK_ID}`);
+});
+
+test('before the week shows, the overnight look keeps its own row (it has nowhere else to go)', async () => {
+  mockFetch({
+    'GET /today': todayWith(
+      {},
+      { overnight: { id: LOOK_ID, title: 'Daily look', headline: 'Rain-ready tailoring' } },
+    ),
+    'GET /today/weather': null,
+  });
+  await renderWithApi(<HomeView />);
+  expect(await screen.findByText(todayCopy.overnight.title)).toBeTruthy();
+  expect(screen.getByText('Rain-ready tailoring')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: `${todayCopy.overnight.open} ›` }));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/today/look/${LOOK_ID}`);
+});
+
 test('after 19:00 today’s planned look asks Wore it?', async () => {
   const calls = mockFetch({
     'GET /today': todayWith(activated, { hour: 20 }),
@@ -145,15 +178,20 @@ test('H1 carries the receipts and Robes noticed; H4 Saved then Suggested open th
   expect(await screen.findByText(copy.alerts.receiptFrom('Zara', 1))).toBeTruthy();
   expect(screen.getByText('You reach for soft tailoring in muted…')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: copy.alerts.review }));
-  expect(mockRouter.push).toHaveBeenCalledWith({
-    pathname: '/wardrobe',
-    params: { segment: 'inbox' },
-  });
-  await fireEvent.press(screen.getByRole('button', { name: copy.alerts.keep }));
+  expect(mockRouter.push).toHaveBeenCalledWith('/wardrobe/inbox');
+  // An observation answers with the thumbs, as on beta and in Settings.
+  await fireEvent.press(
+    screen.getByRole('button', {
+      name: twin.observations.answer(
+        twin.observations.keep,
+        'You reach for soft tailoring in muted neutrals most weeks',
+      ),
+    }),
+  );
   await waitFor(() =>
     expect(calls.some((c) => c.path.endsWith(`/observations/${NOTICE_ID}/keep`))).toBe(true),
   );
-  await fireEvent.press(screen.getByRole('link', { name: 'Garden party' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Garden party' }));
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);
   expect(screen.getByText(todayCopy.greeting('Niall', 8))).toBeTruthy();
 });

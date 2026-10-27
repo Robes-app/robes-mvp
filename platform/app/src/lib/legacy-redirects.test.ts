@@ -42,10 +42,14 @@ describe('legacy redirects', () => {
     ['/dashboard?from=email', '/'],
     ['/dashboard?d=2026-10-23', '/plan/2026-10-23'],
     ['/dashboard?d=tomorrow', '/'],
+    ['/dashboard?account=1', '/you/account'],
     ['/index.html', '/'],
     ['/wardrobe?receipts=1', '/wardrobe/inbox'],
+    ['/wardrobe?receipts=1&from=email', '/wardrobe/inbox'],
+    ['/inspiration?open=1729000000000', '/looks/ideas'],
     ['/wishlist', '/wardrobe/wishlist'],
     ['/lookbook', '/looks'],
+    ['/lookbook?new=1&robes=1&from=email', '/looks/new'],
     [
       '/lookbook?open=0b6f2c1e-3d4a-4b5c-8d9e-0f1a2b3c4d5e',
       '/look/0b6f2c1e-3d4a-4b5c-8d9e-0f1a2b3c4d5e',
@@ -57,7 +61,11 @@ describe('legacy redirects', () => {
     ['/diary', '/plan'],
     ['/calendar', '/plan'],
     ['/settings', '/you'],
-    ['/stylenotes?chapter=brief', '/you'],
+    ['/settings?page=twin&from=email', '/you/model'],
+    ['/settings?walk=1', '/you/style'],
+    ['/stylenotes?chapter=brief', '/you/observations'],
+    ['/stylenotes?begin=1', '/you'],
+    ['/stylenotes?page=twin', '/you/model'],
     ['/signup', '/auth/sign-in'],
     ['/signup.html?mode=signin', '/auth/sign-in'],
     ['/reset', '/auth/sign-in'],
@@ -65,6 +73,7 @@ describe('legacy redirects', () => {
     ['/privacy', '/legal/privacy'],
     ['/board/a1b2c3d4e5', '/share/a1b2c3d4e5'],
     ['/look/a1b2c3d4e5', '/'],
+    ['/api/notify/unsub?t=abc.nudges.def', '/you/notifications'],
   ])('%s → %s', (from, to) => {
     expect(resolve(from)).toBe(to);
   });

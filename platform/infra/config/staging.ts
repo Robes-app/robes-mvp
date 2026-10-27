@@ -1,4 +1,11 @@
-import { budgetsEnabled, fromEnv, mediaBucketName, publicKeyFor, reservedConcurrency } from './env';
+import {
+  budgetsEnabled,
+  fromEnv,
+  mediaBucketName,
+  publicKeyFor,
+  reservedConcurrency,
+  SHARED_RECEIPT_RULE_SET,
+} from './env';
 import type { StageConfig } from './types';
 
 export const staging: StageConfig = {
@@ -18,6 +25,7 @@ export const staging: StageConfig = {
   email: {
     domain: 'staging.mail.byrobes.com',
     fromAddress: 'Robes <hello@staging.mail.byrobes.com>',
+    sharedReceiptRuleSet: SHARED_RECEIPT_RULE_SET,
   },
   api: { accessKeys: [{ serial: 1, status: 'Active' }] },
   media: {

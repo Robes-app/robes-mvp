@@ -17,27 +17,29 @@ jest.mock('../src/lib/auth-client', () => ({
 
 beforeEach(() => jest.clearAllMocks());
 
-test('You opens on Style Profile; Account lists every area and signs out', async () => {
+test('You opens on Style Profile; Account prints her answers and signs out', async () => {
   mockFetch({ 'GET /me': ME, 'GET /me/dna': styleDna() });
   const { queryClient } = await renderWithApi(<YouMenu />);
-  expect(await screen.findByText(ME.email)).toBeTruthy();
+  // Settings carries no avatar block: the three cards are the page.
   for (const label of [twin.cards.twin, twin.cards.dna, twin.cards.observations]) {
-    expect(screen.getByRole('button', { name: label })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: label })).toBeTruthy();
   }
   await fireEvent.press(screen.getByRole('button', { name: twin.cards.observations }));
   expect(mockRouter.push).toHaveBeenCalledWith('/you/observations');
   await fireEvent.press(screen.getByRole('radio', { name: twin.tabs.account }));
-  for (const label of [
-    you.account.title,
-    you.notifications.title,
-    you.privacy,
-    you.legal.terms,
-    you.deletion.title,
-  ]) {
+  // Profile prints her name and email; notifications switch in place.
+  await fireEvent.press(
+    await screen.findByRole('button', { name: `${you.account.name}, ${ME.firstName}` }),
+  );
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/account');
+  expect(screen.getByText(ME.email)).toBeTruthy();
+  expect(await screen.findByLabelText(you.notifications.nudges)).toBeTruthy();
+  for (const label of [you.privacy, you.deletion.title]) {
     expect(screen.getByRole('button', { name: label })).toBeTruthy();
   }
-  await fireEvent.press(screen.getByRole('button', { name: you.notifications.title }));
-  expect(mockRouter.push).toHaveBeenCalledWith('/you/notifications');
+  expect(
+    screen.getByRole('link', { name: `${you.legal.betaTerms}, ${you.subs.terms}` }),
+  ).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: you.signOut }));
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/sign-in'));
   expect(mockSignOut).toHaveBeenCalled();
@@ -51,10 +53,13 @@ test('a notification toggle flips at once and saves just that key', async () => 
   });
   await renderWithApi(<Notifications />);
   const nudges = await screen.findByLabelText(you.notifications.nudges);
-  expect(nudges.props.value).toBe(false);
-  await fireEvent(nudges, 'valueChange', true);
+  // The row is the switch (36×22, not the system one): a tap flips it.
+  expect(nudges.props.accessibilityState.checked).toBe(false);
+  await fireEvent.press(nudges);
   await waitFor(() =>
-    expect(screen.getByLabelText(you.notifications.nudges).props.value).toBe(true),
+    expect(screen.getByLabelText(you.notifications.nudges).props.accessibilityState.checked).toBe(
+      true,
+    ),
   );
   await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
@@ -78,7 +83,7 @@ test('turning usage counts off also withdraws recordings', async () => {
     },
   });
   await renderWithApi(<Privacy />);
-  await fireEvent(await screen.findByLabelText(consent.analyticsLabel), 'valueChange', false);
+  await fireEvent.press(await screen.findByLabelText(consent.analyticsLabel));
   await waitFor(() => expect(calls.length).toBeGreaterThan(1));
   expect(calls[1]?.body).toEqual({ source: 'ios', consents: { analytics: false, replay: false } });
 });

@@ -7,7 +7,7 @@ The day-to-day guide for engineers: layout, commands, how the pieces fit, recipe
 | Folder | What |
 |---|---|
 | `app/` | Next.js 16 web app + `/api/v1` route handlers (Vercel) |
-| `mobile/` | Expo SDK 57 app (EAS), Expo Router in `src/app` |
+| `mobile/` | Expo SDK 58 app (EAS), Expo Router in `src/app` |
 | `db/` | dbmate migrations (`db/migrations`, forward-only) and the local Postgres init script |
 | `packages/db` | Kysely client, typed repositories (every query scoped by a branded `UserId`), schema + cross-user tests |
 | `packages/auth` | Better Auth: passwordless email OTP (+ Apple/Google), server-side sessions, Expo plugin |

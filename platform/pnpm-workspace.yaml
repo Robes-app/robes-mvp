@@ -16,6 +16,8 @@ catalog:
 
 allowBuilds:
   '@google/genai': false
+  # Metro's native file watcher: its install script resolves the prebuilt binary for this host.
+  '@parcel/watcher': true
   # Its postinstall fetches the binary that uploads web source maps to PostHog.
   '@posthog/cli': true
   # posthog-js dependency; its postinstall only prints a funding banner.
@@ -47,3 +49,6 @@ auditConfig:
   ignoreGhsas:
     - GHSA-86w9-cpqp-85rv # node-forge via @expo/code-signing-certificates
     - GHSA-vfj7-8cjw-p6xm # braces via metro-file-map > micromatch
+
+patchedDependencies:
+  uniwind@1.12.0: patches/uniwind@1.12.0.patch

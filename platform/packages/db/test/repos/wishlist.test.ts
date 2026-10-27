@@ -83,10 +83,11 @@ describe('wishlist repo', () => {
       colourShade: 'powder',
       colourExtra: ['optic'],
       print: 'florals',
+      material: 'silk',
       price: 120,
       currency: 'EUR',
     });
-    expect(wish).toMatchObject({ color: 'Powder blue', colourShade: 'powder' });
+    expect(wish).toMatchObject({ color: 'Powder blue', colourShade: 'powder', material: 'silk' });
     const [first, second] = await Promise.all([
       wishlist.promote(ann, wish.id),
       wishlist.promote(ann, wish.id),
@@ -100,6 +101,7 @@ describe('wishlist repo', () => {
       colourShade: 'powder',
       colourExtra: ['optic'],
       print: 'florals',
+      material: 'silk',
       acquiredVia: 'wishlist',
     });
     expect(await wardrobe.get(ann, pieces[0]?.id ?? '')).toBeDefined();

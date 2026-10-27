@@ -46,6 +46,21 @@ export function resolveTaxonomy(
   return { category, categoryL2: l2Key, categoryL3: l3Key };
 }
 
+// The picker's three levels (Category › Subcategory › Item type), in the sheet's own order.
+export function sheetCategories(): string[] {
+  const seen: string[] = [];
+  for (const g of TAXONOMY_GROUPS) if (!seen.includes(g.sheetL1)) seen.push(g.sheetL1);
+  return seen;
+}
+
+export function subcategoriesOf(sheetL1: string): string[] {
+  return TAXONOMY_GROUPS.filter((g) => g.sheetL1 === sheetL1).map((g) => g.l2);
+}
+
+export function itemTypesOf(l2: string): string[] {
+  return TAXONOMY_GROUPS.filter((g) => g.l2 === l2).flatMap((g) => [...g.l3]);
+}
+
 // Compact tree for the analyse prompt: one line per (l1 › l2) group.
 export function taxonomyPromptBlock(): string {
   return TAXONOMY_GROUPS.map((g) => `${g.l1} › ${g.l2}: ${g.l3.join(' | ')}`).join('\n');

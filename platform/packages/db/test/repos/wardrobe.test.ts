@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { HeroRackFull } from '../../src/errors';
 import type { UserId } from '../../src/ids';
-import { createRepositories } from '../../src/repos';
+import { createRepositories, createSystemRepositories } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
 const { wardrobe, looks } = createRepositories(db);
+const { pieces } = createSystemRepositories(db);
 let ann: UserId;
 let bea: UserId;
 
@@ -19,6 +20,42 @@ afterAll(async () => {
 });
 
 describe('wardrobe repo', () => {
+  it('files what a piece is worn for, replacing what was inferred, and keeps it to its owner', async () => {
+    const coat = await wardrobe.create(ann, { label: 'Camel coat', categoryL2: 'Coats' });
+    // The trigger seeds a default from the category when the piece is filed.
+    expect((await wardrobe.wearTags(ann, [coat.id])).get(coat.id)).toEqual(['Everyday']);
+
+    expect(await wardrobe.setWearTags(ann, coat.id, ['Work', 'School run'])).toBe(true);
+    expect((await wardrobe.wearTags(ann, [coat.id])).get(coat.id)).toEqual(['School run', 'Work']);
+
+    // Her own answer replaces what was inferred; nothing she did not pick survives.
+    expect(await wardrobe.setWearTags(ann, coat.id, ['Work'])).toBe(true);
+    expect((await wardrobe.wearTags(ann, [coat.id])).get(coat.id)).toEqual(['Work']);
+
+    // Another woman's piece is not hers to tag, and nothing is written.
+    expect(await wardrobe.setWearTags(bea, coat.id, ['Evening'])).toBe(false);
+    expect((await wardrobe.wearTags(ann, [coat.id])).get(coat.id)).toEqual(['Work']);
+    expect(await wardrobe.wearTags(bea, [coat.id])).toEqual(new Map());
+  });
+
+  it("reads a piece's own record, and keeps it to its owner", async () => {
+    const coat = await wardrobe.create(ann, { label: 'Camel coat' });
+    const look = await looks.create(ann, {
+      name: 'Gallery opening',
+      nameProvisional: false,
+      pieces: [{ pieceId: coat.id }],
+    });
+    await looks.wear(ann, look.id, '2026-09-24');
+    await looks.wear(ann, look.id, '2026-09-20');
+    const record = await wardrobe.wears(ann, coat.id);
+    expect(record.map((w) => [w.wornOn, w.lookName])).toEqual([
+      ['2026-09-24', 'Gallery opening'],
+      ['2026-09-20', 'Gallery opening'],
+    ]);
+    // A piece that is not hers has no record to read.
+    expect(await wardrobe.wears(bea, coat.id)).toEqual([]);
+  });
+
   it('creates pieces with the taxonomy deciding the category', async () => {
     const piece = await wardrobe.create(ann, {
       label: 'Mom jeans',
@@ -70,6 +107,122 @@ describe('wardrobe repo', () => {
     expect(await wardrobe.countMatching(user, { colourFamily: 'nope' })).toBe(0);
     expect((await wardrobe.list(ann, { limit: 50, colourFamily: 'blues' })).items).toEqual([]);
     await deleteTestUsers(db, user);
+  });
+
+  it('refines by brand and by what she wears it for, and lists both as the Filter’s choices', async () => {
+    const user = await createTestUser(db);
+    const coat = await wardrobe.create(user, { label: 'Coat', brand: 'Brandvale' });
+    const jeans = await wardrobe.create(user, { label: 'Jeans', brand: 'Levi’s' });
+    await wardrobe.create(user, { label: 'Tee' });
+    await wardrobe.setWearTags(user, coat.id, ['Work']);
+    await wardrobe.setWearTags(user, jeans.id, ['Everyday', 'Travel']);
+    const toteme = await wardrobe.list(user, { limit: 10, brand: 'brandvale' });
+    expect(toteme.items.map((p) => p.id)).toEqual([coat.id]);
+    expect(await wardrobe.countMatching(user, { wearFor: 'travel' })).toBe(1);
+    expect(
+      (await wardrobe.list(user, { limit: 10, wearFor: 'Work' })).items.map((p) => p.id),
+    ).toEqual([coat.id]);
+    expect(await wardrobe.brands(user)).toEqual(['Brandvale', 'Levi’s']);
+    expect(await wardrobe.wearLabels(user)).toEqual(expect.arrayContaining(['Work', 'Travel']));
+    // Another woman's tags never reach her Filter.
+    expect(await wardrobe.countMatching(ann, { wearFor: 'Travel' })).toBe(0);
+    expect(await wardrobe.brands(ann)).not.toContain('Brandvale');
+    await deleteTestUsers(db, user);
+  });
+
+  it("files a material; her answer clears Robes' check on it alone, and stays hers", async () => {
+    const piece = await wardrobe.create(ann, { label: 'Wool blazer', material: 'wool' });
+    expect(piece.material).toBe('wool');
+    await db
+      .updateTable('wardrobeItems')
+      .set({
+        itemDna: JSON.stringify({ colour_check: true, material_check: true, formality: 'smart' }),
+      })
+      .where('id', '=', piece.id)
+      .execute();
+
+    const picked = await wardrobe.update(ann, piece.id, { material: 'polyester' });
+    expect(picked?.material).toBe('polyester');
+    expect(picked?.itemDna).toEqual({ colour_check: true, formality: 'smart' });
+
+    // "Not sure" is an answer too: nothing filed, and no doubt left on the row.
+    await db
+      .updateTable('wardrobeItems')
+      .set({ itemDna: JSON.stringify({ material_check: true }) })
+      .where('id', '=', piece.id)
+      .execute();
+    const unsure = await wardrobe.edit(ann, piece.id, { material: null, colourShade: 'navy' });
+    expect(unsure).toMatchObject({ material: null, colourShade: 'navy', itemDna: {} });
+
+    // Another woman cannot file a material on it, and nothing is written.
+    expect(await wardrobe.update(bea, piece.id, { material: 'silk' })).toBeUndefined();
+    expect((await wardrobe.get(ann, piece.id))?.material).toBeNull();
+  });
+
+  it('the read fills a material, but never over one she already picked', async () => {
+    const read = {
+      label: 'Denim jacket',
+      categoryL2: null,
+      categoryL3: null,
+      category: 'Outerwear',
+      color: 'Denim',
+      colourShade: 'denim',
+      colourExtra: [],
+      print: null,
+      brand: null,
+      price: null,
+      currency: null,
+      size: null,
+      notes: null,
+    };
+    const fresh = await wardrobe.create(ann, { label: 'New piece', status: 'reading' });
+    await pieces.apply(ann, fresh.id, {
+      ...read,
+      material: 'denim',
+      itemDna: { material_check: true, prompt_version: 4 },
+    });
+    expect(await wardrobe.get(ann, fresh.id)).toMatchObject({
+      material: 'denim',
+      itemDna: { material_check: true, prompt_version: 4 },
+    });
+
+    const answered = await wardrobe.create(ann, {
+      label: 'New piece',
+      status: 'reading',
+      material: 'cotton',
+    });
+    await pieces.apply(ann, answered.id, {
+      ...read,
+      material: 'denim',
+      itemDna: { material_check: true, prompt_version: 4 },
+    });
+    expect(await wardrobe.get(ann, answered.id)).toMatchObject({
+      material: 'cotton',
+      itemDna: { prompt_version: 4 },
+    });
+    // The read is scoped to the job owner: another user's id fills nothing.
+    const other = await wardrobe.create(ann, { label: 'New piece', status: 'reading' });
+    await pieces.apply(bea, other.id, { ...read, material: 'silk', itemDna: {} });
+    expect((await wardrobe.get(ann, other.id))?.material).toBeNull();
+  });
+
+  it('a read that finds nothing leaves no piece, and only for the job owner', async () => {
+    const reading = await wardrobe.create(ann, { label: 'New piece', status: 'reading' });
+    // Another user's id discards nothing.
+    expect(await pieces.discard(bea, reading.id)).toBe(false);
+    expect(await wardrobe.get(ann, reading.id)).toBeDefined();
+    expect(await pieces.discard(ann, reading.id)).toBe(true);
+    expect(await wardrobe.get(ann, reading.id)).toBeUndefined();
+    const row = await db
+      .selectFrom('wardrobeItems')
+      .select('id')
+      .where('id', '=', reading.id)
+      .executeTakeFirst();
+    expect(row).toBeUndefined();
+    // A piece the read already filled is never discarded.
+    const filed = await wardrobe.create(ann, { label: 'Camel coat' });
+    expect(await pieces.discard(ann, filed.id)).toBe(false);
+    expect(await wardrobe.get(ann, filed.id)).toBeDefined();
   });
 
   it('marks a season she sets as hers', async () => {

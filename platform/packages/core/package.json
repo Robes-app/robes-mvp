@@ -7,7 +7,9 @@
     "./taxonomy": "./src/taxonomy/index.ts",
     "./colour": "./src/colour/index.ts",
     "./colour-sql": "./src/sql/colour-model.ts",
+    "./material": "./src/material/index.ts",
     "./wardrobe": "./src/wardrobe/index.ts",
+    "./sizes": "./src/sizes/index.ts",
     "./quotas": "./src/quotas/index.ts",
     "./flags": "./src/flags/index.ts",
     "./jobs": "./src/jobs/index.ts",
@@ -20,6 +22,8 @@
     "./avatar": "./src/avatar/index.ts",
     "./looks": "./src/looks/index.ts",
     "./photo-pieces": "./src/photo-pieces/index.ts",
+    "./add-flow": "./src/add-flow/index.ts",
+    "./inbox": "./src/inbox/index.ts",
     "./home": "./src/home/index.ts",
     "./fence": "./src/fence/index.ts"
   },

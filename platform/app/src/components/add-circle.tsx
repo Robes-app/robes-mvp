@@ -6,15 +6,16 @@ import Link from 'next/link';
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// The 36pt + circle on row 1 (legacy .rb-hdr-add): a link, or a button on the wishlist.
+// The 44pt + circle beside a tab's switcher (beta parity canvas): white on the fine rule-mid
+// edge, a link or a button. The native twin is ui-native IconButton `framed`.
 export function AddCircle(
   props: { label: string } & ({ href: string } | { onClick: () => void; expanded: boolean }),
 ) {
-  const className = `relative inline-flex size-9 shrink-0 items-center justify-center rounded-pill border border-border-control text-ink after:absolute after:-inset-1 hover:border-ink ${focus}`;
+  const className = `inline-flex size-11 shrink-0 items-center justify-center rounded-pill border border-rule-mid bg-surface-raised text-ink hover:border-border-control ${focus}`;
   if ('href' in props) {
     return (
       <Link href={props.href} aria-label={props.label} title={props.label} className={className}>
-        <Icon name="plus" size={16} />
+        <Icon name="plus" size={18} />
       </Link>
     );
   }
@@ -27,7 +28,7 @@ export function AddCircle(
       title={props.label}
       className={className}
     >
-      <Icon name="plus" size={16} />
+      <Icon name="plus" size={18} />
     </button>
   );
 }

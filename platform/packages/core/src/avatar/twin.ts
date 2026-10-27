@@ -306,3 +306,16 @@ export async function twinKey(i: TwinInputs): Promise<string> {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
+
+// What she chose, or what her close-up read. A preset nobody picked is no answer, so it is never
+// ringed or named, and the hero's caption leaves it out (redline 27 Oct).
+export function chosenTones(m: {
+  closeUpUrl: string | null;
+  skin: number;
+  hair: number;
+  skinSet: boolean;
+  hairSet: boolean;
+}): { skin: number | null; hair: number | null } {
+  const read = !!m.closeUpUrl;
+  return { skin: read || m.skinSet ? m.skin : null, hair: read || m.hairSet ? m.hair : null };
+}

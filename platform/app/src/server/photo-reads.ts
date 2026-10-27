@@ -15,6 +15,7 @@ import { repos } from './db';
 import { startJob } from './jobs';
 import { suggestedName, toLook, withOwnedPieces } from './looks-entity';
 import { toPieces } from './wardrobe';
+import { toWishes } from './wishlist';
 
 const READABLE_KINDS = new Set(['wardrobe', 'look_photo']);
 
@@ -96,6 +97,10 @@ function toRow(
     currency: edits?.currency !== undefined ? edits.currency : piece.currency,
     size: edits?.size !== undefined ? edits.size : piece.size,
     seasonBand: edits?.seasonBand,
+    colourShade: edits?.colourShade,
+    colourExtra: edits?.colourExtra,
+    print: edits?.print,
+    material: edits?.material,
     itemDna: { ...piece.itemDna, source },
     imageAssetId: piece.cropAssetId,
   };
@@ -121,29 +126,56 @@ async function settleOwned(
 }
 
 // Use case 3: each kept piece filed on its own with its crop; retrying files nothing twice.
+// To the wish list instead, each kept piece becomes a wish holding its crop (no "owned" there).
 export async function fileRead(
   userId: UserId,
   jobId: string,
   answers: readonly FileAnswer[],
+  to: 'wardrobe' | 'wishlist' = 'wardrobe',
 ): Promise<FileReadOutput> {
   const read = await loadRead(userId, jobId);
   const pairs = answered(read, answers);
   const owned = pairs.flatMap(({ piece, answer }) =>
     answer.state === 'owned' ? [{ piece, pieceId: answer.pieceId }] : [],
   );
+  if (to === 'wishlist' && owned.length) {
+    throw new ApiError('invalid_input', {
+      details: [{ path: 'answers', message: 'a wish is never one she owns' }],
+    });
+  }
   await assertOwned(
     userId,
     owned.map((o) => o.pieceId),
   );
   const source = { kind: 'photo_multi' as const, of: read.readPieces.length };
-  const rows = pairs.flatMap(({ piece, answer }) =>
-    answer.state === 'add' ? [toRow(piece, source, answer.edits)] : [],
+  const kept = pairs.flatMap(({ piece, answer }) =>
+    answer.state === 'add'
+      ? [{ row: toRow(piece, source, answer.edits), edits: answer.edits }]
+      : [],
   );
-  const filed = await repos.wardrobe.createFromRead(userId, read.assetId, rows);
+  const rows = kept.map((k) => k.row);
   const used = new Set(rows.flatMap((r) => (r.imageAssetId ? [r.imageAssetId] : [])));
+  if (to === 'wishlist') {
+    const wishes = await repos.wishlist.createFromRead(
+      userId,
+      rows.map(({ sourceIndex: _i, itemDna: _d, seasonBand: _s, notes, imageAssetId, ...r }) => ({
+        ...r,
+        note: notes,
+        imageAssetId: imageAssetId as string,
+      })),
+    );
+    await settleOwned(userId, read, [], used);
+    return { filed: [], wished: await toWishes(userId, wishes), photoAdded: [] };
+  }
+  const filed = await repos.wardrobe.createFromRead(userId, read.assetId, rows);
+  // What she wears it for lives in the tag namespace, so it lands once the piece exists.
+  for (const { row, edits } of kept) {
+    const id = filed.find((p) => p.sourceIndex === row.sourceIndex)?.id;
+    if (id && edits?.wearFor) await repos.wardrobe.setWearTags(userId, id, edits.wearFor);
+  }
   const photoAdded = await settleOwned(userId, read, owned, used);
   const ordered = [...filed].sort((a, b) => (a.sourceIndex ?? 0) - (b.sourceIndex ?? 0));
-  return { filed: await toPieces(userId, ordered), photoAdded };
+  return { filed: await toPieces(userId, ordered), wished: [], photoAdded };
 }
 
 // Use case 2b: the new pieces file first, then the look saves with her photo as its record,

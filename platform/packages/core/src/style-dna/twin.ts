@@ -268,9 +268,10 @@ export const SEASON_WHEEL: readonly SeasonName[] = [
   'Light Summer',
 ];
 
-// The read season, its two neighbours, then (on "Another season") the rest.
-export function seasonChoices(current: string | null, more: boolean): SeasonName[] {
-  const i = SEASON_WHEEL.indexOf(current as SeasonName);
+// The read season, its two neighbours, then (on "Another season") the rest. Anchored on what her
+// photograph read, never on a season she has since picked, so the list holds still under her.
+export function seasonChoices(read: string | null, more: boolean): SeasonName[] {
+  const i = SEASON_WHEEL.indexOf(read as SeasonName);
   if (i < 0) return [...SEASON_WHEEL];
   const near = [SEASON_WHEEL[i], SEASON_WHEEL[(i + 11) % 12], SEASON_WHEEL[(i + 1) % 12]].filter(
     (s): s is SeasonName => s !== undefined,
@@ -296,13 +297,25 @@ export function chooseSeason(season: SeasonName, current: unknown) {
     eye_color_hex: ev.eye_color_hex,
     season_reasoning: 'Chosen by hand in Settings.',
   });
-  const primitive = obj(c.classification).primitive_season;
+  const prior = obj(c.classification);
+  const primitive = prior.primitive_season;
+  // The photograph's own call survives every hand pick: it anchors the season list.
+  const read =
+    typeof prior.read_season === 'string'
+      ? prior.read_season
+      : prior.source !== 'chosen' && typeof c.archetype_name === 'string'
+        ? c.archetype_name
+        : null;
   const classification = {
     ...built.dna.classification,
     source: 'chosen',
     ...(typeof primitive === 'string'
       ? { primitive_season: primitive, agreement: primitive === season }
       : {}),
+    ...(read ? { read_season: read } : {}),
   };
-  return { render: built.render, dna: { ...built.dna, classification } };
+  return {
+    render: { ...built.render, ...(read ? { read_season: read } : {}) },
+    dna: { ...built.dna, classification },
+  };
 }

@@ -4,6 +4,7 @@ import { ApiError } from '@robes/api';
 import { JobStatus, Model, type StartJobOutput, type UpdateModelInput } from '@robes/contracts';
 import {
   cellKey,
+  genericCellId,
   genericCellIds,
   HAIR_SWATCHES,
   hasTwinInputs,
@@ -33,6 +34,9 @@ const StoredPicks = z.object({
   line: z.enum(['soft', 'straight']).nullable().optional().catch(undefined),
   frame: z.enum(['fuller', 'narrower']).nullable().optional().catch(undefined),
 });
+
+const wearerOf = (g: string | null | undefined): 'woman' | 'man' =>
+  presenceOf(g) === 'man' ? 'man' : 'woman';
 
 function presenceOf(genderIdentity: string | null | undefined): Presence {
   return genderIdentity === 'man' || genderIdentity === 'unspecified' ? genderIdentity : 'woman';
@@ -95,6 +99,7 @@ export async function loadModel(userId: UserId): Promise<Model> {
   ]);
   const imageUrl =
     cell?.status === 'ready' && cell.bucketKey ? await mediaDelivery.url(cell.bucketKey) : null;
+  const stand = await standOf(row, twin.imageUrl);
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
   return Model.parse({
     filed: row.filedCellId !== null,
@@ -113,7 +118,21 @@ export async function loadModel(userId: UserId): Promise<Model> {
     adj: inputs.adj,
     closeUpUrl: closeUp.url,
     twin,
+    stand,
   });
+}
+
+// The model a new look stands on — the same one renderOnModel draws on (her twin, her filed cell,
+// else the first generic Robes model).
+async function standOf(row: Row, twinUrl: string | null) {
+  if (row.filedCellId && row.twinAssetId && row.twinKey && twinUrl) {
+    return { imageUrl: twinUrl, generic: false };
+  }
+  const cellId = row.filedCellId ?? genericCellId(wearerOf(row.genderIdentity), 0);
+  const cell = await repos.avatarCells.get(cellKey(cellId));
+  const imageUrl =
+    cell?.status === 'ready' && cell.bucketKey ? await mediaDelivery.url(cell.bucketKey) : null;
+  return { imageUrl, generic: row.filedCellId === null };
 }
 
 // Draws the portrait for a cell nobody has drawn yet (shared catalog); `start` makes the job.
@@ -146,8 +165,7 @@ async function ensureCell(
 export async function ensureGenericCells(userId: UserId): Promise<void> {
   const row = await repos.model.get(userId);
   if (!row || row.filedCellId !== null) return;
-  const wearer = presenceOf(row.genderIdentity) === 'man' ? 'man' : 'woman';
-  for (const id of genericCellIds(wearer)) {
+  for (const id of genericCellIds(wearerOf(row.genderIdentity))) {
     await ensureCell(id, (key) =>
       createAndEnqueueJob(userId, { kind: 'avatar_cell', input: { cellKey: key } }),
     );
@@ -220,17 +238,25 @@ export async function renderOnModel(
 ): Promise<StartJobOutput> {
   const state = await repos.looks.renderState(userId, lookId);
   if (!state) throw new ApiError('not_found');
-  // Only a saved look renders on her model; Robes' frame is a look's picture and her model never
-  // replaces it (legacy 2026-10-07).
+  // A saved look renders on her model, and so does a draft while she builds it (the composer
+  // dresses the model as pieces land, legacy 2026-09-03); Robes' frame is a look's picture and her
+  // model never replaces it (legacy 2026-10-07).
   const look = await repos.looks.get(userId, lookId);
-  if (!look || look.status !== 'saved' || look.frameAssetId) throw new ApiError('conflict');
+  if (!look || !['saved', 'draft'].includes(look.status) || look.frameAssetId) {
+    throw new ApiError('conflict');
+  }
   const row = await repos.model.get(userId);
-  if (!row?.filedCellId) throw new ApiError('conflict');
-  // Her twin when she has one, else the catalog cell she filed.
-  const twin = row.twinAssetId && row.twinKey ? `twin:${row.twinKey}` : null;
+  if (!row) throw new ApiError('conflict');
+  // Her twin when she has one, else the catalog cell she filed; with no model of her own, the
+  // first generic Robes model (legacy 2026-10-15, day 0) — its portrait drawn once ever.
+  const twin = row.filedCellId && row.twinAssetId && row.twinKey ? `twin:${row.twinKey}` : null;
+  const cellId = row.filedCellId ?? genericCellId(wearerOf(row.genderIdentity), 0);
   if (!twin) {
-    const cell = await repos.avatarCells.get(cellKey(row.filedCellId));
-    if (cell?.status !== 'ready') throw new ApiError('conflict');
+    const cell = await repos.avatarCells.get(cellKey(cellId));
+    if (cell?.status !== 'ready') {
+      if (!row.filedCellId) await ensureGenericCells(userId);
+      throw new ApiError('conflict');
+    }
   }
   const pieces = await repos.looks.piecesFor(userId, [lookId]);
   if (pieces.length === 0) throw new ApiError('invalid_input');
@@ -242,7 +268,8 @@ export async function renderOnModel(
     )
     .digest('base64url')
     .slice(0, 22);
-  const renderKey = `${twin ?? cellKey(row.filedCellId)}:${rack}`;
+  // The key names the model it stands on, so the worker draws on exactly that one.
+  const renderKey = `${twin ?? cellKey(cellId)}:${rack}`;
 
   if (!(await repos.looks.claimRender(userId, lookId, renderKey))) {
     const again = await repos.looks.renderState(userId, lookId);

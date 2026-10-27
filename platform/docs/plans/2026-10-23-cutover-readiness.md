@@ -1,6 +1,7 @@
 # Cutover readiness: swapping byrobes.com to the new app
 
-Status: draft, 2026-10-23. Owner: Niall. This is the checklist that gets us from "the new app works on
+Status: draft, 2026-10-23 (updated 2026-10-26). Owner: Niall. The ordered steps a person with
+credentials runs are [`runbooks/production-release.md`](../runbooks/production-release.md). This is the checklist that gets us from "the new app works on
 staging" to "every beta user is on the new app and didn't notice anything break". The cutover
 mechanics themselves stay in `docs/migration.md` §3–5 (normative); this plan lists what has to be
 true before we run them, and adds what this week's legacy work changed.
@@ -81,11 +82,10 @@ list below separates "the behaviour is there" from "it reads as beta does".
       `packages/core/src/calendar`). Consequences: no past days, so **retro "record it as worn"
       is unreachable**; no filed-day dots; no "I wore this today"; and nothing is preselected on
       an undated save, so the CTA opens disabled where beta's is live. M.
-- [ ] **The generic-model badge** — missing from the deck's top card, the line it replaced still
-      printed, and it navigated away instead of opening the twin drawer (which from the deck
-      throws away an undecided set). In progress.
-- [ ] **The scanner** — wired to one of legacy's four slots; missing on the suggested tile and the
-      look page's busy frame, and the three separate line lists were collapsed into one. In progress.
+- [x] **The generic-model badge** — on the deck's top card (`bcf8b8a`), the suggested look's
+      frame and the empty draft's canvas (2026-10-27), opening the twin drawer, never a navigation.
+- [x] **The scanner** — the deck's dressing card, the suggested tile and the look page's busy
+      frame (`9ca0bf3`), with the three line lists kept apart.
 - [ ] **The digital twin screens** — the engine is a faithful port (every constant matches) but
       the redline is not: the hero is not full-bleed over cream with the 90px fade and the caption
       inside it, the "Build your model" CTA the redline **deleted** was re-added, and the italic
@@ -104,11 +104,17 @@ list below separates "the behaviour is there" from "it reads as beta does".
 - [ ] **Change photo on a piece**: add `wardrobe.photo` to `packages/contracts/src/routes.ts`
       plus its handler, then the corner pill on the record door. S–M, needs the api-security
       checklist.
+- [x] **A saved look has no wear record.** Closed 2026-10-24 (`ac827fb`, `1a0b3db`): a dedicated
+      `looks.wears` read (the day, and the pieces she wore that day named from the wear's own
+      snapshot), `wearDiff` in `@robes/core`, and the record under the rack on both clients —
+      the dated rows each opening their day and naming what that day held that the look no
+      longer does, each removable, with a door to record a day before today.
 - [ ] **Her rejected colours sit outside HER HARD NOS** — deliberate on the platform (soft avoid
       in the palette block) but it contradicts `30d7ea5`'s "her nos are absolute". Needs Annie's
       call, not a code change.
-- [ ] **The balance question is asked on one of four new-look doors** — the home box only. The
-      other three fall back to the count-derived posture. S.
+- [x] **The balance question on every new-look door** — the home box, the empty Suggested tab and
+      the Create sheet (one `HomeBox`), a dated day door, and the piece page (web: the box opens
+      with the piece inside it; native: Style a piece asks it) (2026-10-27).
 - [ ] **No product events come from either client's components.** Legacy fires `camera_opened`,
       `camera_filed`, `piece_removed`, `swap_drawer_opened` and dozens more through `_rbTrack`.
       On the platform, `@robes/analytics` is a closed typed catalogue, the web exposes only
@@ -149,18 +155,34 @@ change lands twice. The 16–23 Oct window alone was eight days of work landing 
 - [ ] **Rehearse against a real copy of `Robes_p0`** (a dump restored locally, never prod
       directly): extract → transform → assert. Find duplicate emails (case-insensitive), the real
       volumes, and anything migrations 12–27 added that the catalog doesn't know.
-- [ ] Extend the catalog/transform for this week's legacy columns: twin url/key (26), colour
-      shade / extra colours / print (27), `style_dna.palette`, `style_dna.brief`/`memory` changes.
-- [ ] Decide how the production run is allowed: `scripts/migrate/src/db.ts` refuses non-local
-      databases by design. Proposal: a `--target production` flag that requires the admin URL from
-      an env var plus a typed confirmation, run only from the cutover checklist.
+- [x] Extend the catalog/transform for the legacy columns through migration 29: twin url/key (26),
+      colour shade / extra colours / print (27), `style_dna.palette`, `brief`/`memory`/`facts`/
+      `brands`/`investment`, looks `styling` (24), states/anchor (25), `proposals` (19), size /
+      currency / L2 / L3 on wardrobe and wishlist, `notification_prefs`, inbox rows. Material
+      (29) lands in the platform's `material` column on wardrobe and wishlist (an id outside the 40
+      is dropped). Not carried,
+      no platform home: `style_dna.style_archetypes_soft` ("sometimes" types — the platform's
+      prompt reads the key but nothing stores it), legacy look `set_id`/`set_index` (warning), the
+      twin key (redrawn), `inbox_address` (re-minted), `is_admin` (by hand). `icon_tags` is
+      derived from the icons on the platform, so nothing to carry. The fixture can be built from a
+      checkout without the legacy SQL with `ROBES_LEGACY_SQL_DIR`.
+- [x] The production run is gated (`scripts/migrate/src/db.ts`, tested in
+      `test/target-guard.test.ts`): a non-local target needs the admin URL in `TARGET_DATABASE_URL`,
+      `--target=production` on the command, and its `user@host` typed into
+      `ROBES_MIGRATE_PRODUCTION` (`--target=staging` + `ROBES_MIGRATE_STAGING` for rehearsals); `--target=production` against a local URL refuses; every CLI names
+      its target on stderr first; `migrate:reset` on a remote target needs `--confirm-wipe=<user@host>`.
 - [ ] **Images**: build the real `rehost` copy (Cloudinary → S3, renditions, flip provider).
       Until it finishes, keep Cloudinary paid and live.
 - [x] Legacy share links: render legacy artifact shares at `/share/[token]` (OD-7: live 180 days)
       and build the redirect map (`/look/:id`, `/board/:id`, `/dashboard`, `/wardrobe`,
       `/lookbook`, `/diary`, `/settings`, `/piece/:id`, `/moodboard/:slug`) — `app/src/lib/legacy-redirects.ts`.
-- [ ] Legacy read-only flag (503 on write routes + banner) in `server.js`.
-- [ ] Test `reverse-delta` in rehearsal (it is the rollback path after DNS moves).
+      2026-10-26: plus the query deep links `?page=twin`, `?walk=1`, `?chapter=brief`,
+      `?account=1`, `?new=1` and the legacy unsubscribe links (`/api/notify/unsub` → You ›
+      Notifications); unit-tested and in `e2e/legacy-redirects.spec.ts`.
+- [ ] Legacy read-only flag (503 on write routes + banner) in `server.js`. A legacy change, on its
+      own branch (platform work never edits legacy files).
+- [x] Test `reverse-delta` in rehearsal (it is the rollback path after DNS moves) — covered by
+      `scripts/migrate/test/rehearsal.test.ts` on the fixture; rehearse it once more on the real dump.
 - [ ] Airtable export into the backups bucket.
 - [ ] Not migrated by design (tell users where it matters): events, generation logs, prompt
       history, feedback, avatar cells, **drafts kept only in the browser** (unsaved composer drafts,
@@ -179,13 +201,13 @@ Checklist:
 
 - [ ] SES production access + DNS live **before** cutover (no email = nobody can sign in).
 - [ ] Duplicate-email accounts merged by hand before the final run (assert fails otherwise).
-- [ ] Fix the T-7d email copy in `docs/migration.md` §4: not "same login" but "same email; you'll
-      get a code instead of typing a password".
+- [x] Fix the T-7d email copy in `docs/migration.md` §4: not "same login" but "same email; you'll
+      get a code instead of typing a password". (Already reads so in §4; repeated in the release runbook §5.)
 - [ ] T-7d email to every beta user (from SES, the new sending domain, so it also warms it up):
       what changes, sign in with your email, your wardrobe and lookbook come with you, save any
       unsaved drafts.
-- [ ] Installed home-screen app (PWA at `/dashboard`): redirect `/dashboard` → `/today` so the
-      icon keeps working.
+- [x] Installed home-screen app (PWA at `/dashboard`): redirect `/dashboard` → `/` (Today) so the
+      icon keeps working (`legacy-redirects.ts`).
 - [ ] Admins: `is_admin` is not carried over; grant `app.admin_users` by hand.
 - [ ] Support path: a reply-to address that a person reads during the 48h watch.
 

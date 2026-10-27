@@ -17,6 +17,7 @@ export const PIECE_COLUMNS = [
   'colourShade',
   'colourExtra',
   'print',
+  'material',
   'brand',
   'notes',
   'imageAssetId',
@@ -42,6 +43,7 @@ export interface PieceFields {
   colourShade?: string | null;
   colourExtra?: string[];
   print?: string | null;
+  material?: string | null;
   brand?: string | null;
   notes?: string | null;
   seasonBand?: SeasonBand;
@@ -66,6 +68,11 @@ export interface ReadPieceRow {
   imageAssetId: string | null;
   // Set when she chose it on the single-piece screen.
   seasonBand?: SeasonBand | undefined;
+  // Her answers from Review's colour and material rows (undefined = Robes' read stands).
+  colourShade?: string | null | undefined;
+  colourExtra?: string[] | undefined;
+  print?: string | null | undefined;
+  material?: string | null | undefined;
 }
 
 export interface ListPiecesQuery {
@@ -76,6 +83,8 @@ export interface ListPiecesQuery {
   categoryL2?: string | undefined;
   seasonBand?: SeasonBand | undefined;
   colourFamily?: string | undefined;
+  wearFor?: string | undefined;
+  brand?: string | undefined;
 }
 
 export const HERO_RACK_SIZE = 10;
@@ -127,12 +136,17 @@ function withTaxonomy(fields: PieceFields): PieceColumns {
   return out;
 }
 
-// Her colour answers Robes' "check it" flag.
-function colourChecked(fields: PieceFields) {
-  return fields.colourShade === undefined
-    ? {}
-    : { itemDna: sql<string>`item_dna - 'colour_check'` };
+// Her answer clears Robes' "check it" flag on that field: a colour, or a material ("Not sure"
+// included — she has looked at it).
+function checksAnswered(fields: PieceFields) {
+  const keys = [
+    ...(fields.colourShade === undefined ? [] : ['colour_check']),
+    ...(fields.material === undefined ? [] : ['material_check']),
+  ];
+  return keys.length === 0 ? {} : { itemDna: sql<string>`item_dna - ${sql.val(keys)}::text[]` };
 }
+
+const WEAR_TAG_MAX = 6;
 
 export function wardrobeRepo(db: Db) {
   const active = () => db.selectFrom('wardrobeItems').where('deletedAt', 'is', null);
@@ -151,6 +165,27 @@ export function wardrobeRepo(db: Db) {
       // Refine by colour family: the pieces whose shade sits in it (an unknown family matches none).
       if (q.colourFamily) {
         query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
+      }
+      // Refine by brand (case-insensitive) and by what she wears it for (a wear_for tag of hers).
+      if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
+      const { wearFor } = q;
+      if (wearFor) {
+        query = query.where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom('tagPieces')
+              .innerJoin('tags', (j) =>
+                j
+                  .onRef('tags.id', '=', 'tagPieces.tagId')
+                  .onRef('tags.userId', '=', 'tagPieces.userId'),
+              )
+              .select('tagPieces.wardrobeItemId')
+              .whereRef('tagPieces.wardrobeItemId', '=', 'wardrobeItems.id')
+              .where('tagPieces.userId', '=', userId)
+              .where('tags.kind', '=', 'wear_for')
+              .where(sql<boolean>`lower(tags.label) = lower(${wearFor})`),
+          ),
+        );
       }
       const after = afterCursor(q.cursor);
       if (after) query = query.where(after);
@@ -205,8 +240,12 @@ export function wardrobeRepo(db: Db) {
                 category: tax?.category ?? p.category,
                 categoryL2: tax?.categoryL2 ?? null,
                 categoryL3: tax?.categoryL3 ?? null,
-                color: p.color,
-                colourShade: shadeByName(p.color)?.id ?? null,
+                color: p.colourShade ? (shade(p.colourShade)?.name ?? p.color) : p.color,
+                colourShade:
+                  p.colourShade !== undefined ? p.colourShade : (shadeByName(p.color)?.id ?? null),
+                ...(p.colourExtra !== undefined ? { colourExtra: p.colourExtra } : {}),
+                ...(p.print !== undefined ? { print: p.print } : {}),
+                ...(p.material !== undefined ? { material: p.material } : {}),
                 brand: p.brand,
                 notes: p.notes,
                 price: p.price,
@@ -264,7 +303,7 @@ export function wardrobeRepo(db: Db) {
       return db
         .updateTable('wardrobeItems')
         .set(values)
-        .set(colourChecked(fields))
+        .set(checksAnswered(fields))
         .where('userId', '=', userId)
         .where('id', '=', id)
         .where('deletedAt', 'is', null)
@@ -345,7 +384,7 @@ export function wardrobeRepo(db: Db) {
           await trx
             .updateTable('wardrobeItems')
             .set(values)
-            .set(colourChecked(fields))
+            .set(checksAnswered(fields))
             .where('userId', '=', userId)
             .where('id', '=', id)
             .execute();
@@ -430,8 +469,60 @@ export function wardrobeRepo(db: Db) {
       if (q.colourFamily) {
         query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
       }
+      // Refine by brand (case-insensitive) and by what she wears it for (a wear_for tag of hers).
+      if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
+      const { wearFor } = q;
+      if (wearFor) {
+        query = query.where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom('tagPieces')
+              .innerJoin('tags', (j) =>
+                j
+                  .onRef('tags.id', '=', 'tagPieces.tagId')
+                  .onRef('tags.userId', '=', 'tagPieces.userId'),
+              )
+              .select('tagPieces.wardrobeItemId')
+              .whereRef('tagPieces.wardrobeItemId', '=', 'wardrobeItems.id')
+              .where('tagPieces.userId', '=', userId)
+              .where('tags.kind', '=', 'wear_for')
+              .where(sql<boolean>`lower(tags.label) = lower(${wearFor})`),
+          ),
+        );
+      }
       const row = await query.executeTakeFirst();
       return Number(row?.n ?? 0);
+    },
+
+    // The Filter's brand choices: every brand on her pieces, once, in alphabetical order.
+    async brands(userId: UserId): Promise<string[]> {
+      const rows = await active()
+        .select('brand')
+        .distinct()
+        .where('userId', '=', userId)
+        .where('brand', 'is not', null)
+        .where('brand', '!=', '')
+        .orderBy('brand')
+        .execute();
+      return rows.flatMap((r) => (r.brand ? [r.brand] : []));
+    },
+
+    // The Filter's "Wear it for" choices: the wear_for labels on her pieces.
+    async wearLabels(userId: UserId): Promise<string[]> {
+      const rows = await db
+        .selectFrom('tagPieces')
+        .innerJoin('tags', (j) =>
+          j.onRef('tags.id', '=', 'tagPieces.tagId').onRef('tags.userId', '=', 'tagPieces.userId'),
+        )
+        .innerJoin('wardrobeItems', 'wardrobeItems.id', 'tagPieces.wardrobeItemId')
+        .select('tags.label')
+        .distinct()
+        .where('tagPieces.userId', '=', userId)
+        .where('tags.kind', '=', 'wear_for')
+        .where('wardrobeItems.deletedAt', 'is', null)
+        .orderBy('tags.label')
+        .execute();
+      return rows.map((r) => r.label);
     },
 
     // The category tabs: how many pieces she has in each category.
@@ -442,6 +533,102 @@ export function wardrobeRepo(db: Db) {
         .groupBy('category')
         .execute();
       return rows.map((r) => ({ category: r.category, count: Number(r.n) }));
+    },
+
+    // What each piece is worn for (app.tag_pieces, kind wear_for). The trigger seeds these from
+    // the category when a piece is filed; her own picks replace them.
+    async wearTags(userId: UserId, pieceIds: readonly string[]): Promise<Map<string, string[]>> {
+      if (pieceIds.length === 0) return new Map();
+      const rows = await db
+        .selectFrom('tagPieces')
+        .innerJoin('tags', (j) =>
+          j.onRef('tags.id', '=', 'tagPieces.tagId').onRef('tags.userId', '=', 'tagPieces.userId'),
+        )
+        .select(['tagPieces.wardrobeItemId as pieceId', 'tags.label'])
+        .where('tagPieces.userId', '=', userId)
+        .where('tags.kind', '=', 'wear_for')
+        .where('tagPieces.wardrobeItemId', 'in', [...pieceIds])
+        .orderBy('tags.label')
+        .execute();
+      const out = new Map<string, string[]>();
+      for (const r of rows) out.set(r.pieceId, [...(out.get(r.pieceId) ?? []), r.label]);
+      return out;
+    },
+
+    // Her answer replaces whatever was inferred: the tags are minted if new, then this piece's
+    // wear_for set is made to match exactly. The piece must be hers or nothing is written.
+    async setWearTags(
+      userId: UserId,
+      pieceId: string,
+      labels: readonly string[],
+    ): Promise<boolean> {
+      const clean = [...new Set(labels.map((l) => l.trim()).filter(Boolean))].slice(
+        0,
+        WEAR_TAG_MAX,
+      );
+      return db.transaction().execute(async (tx) => {
+        const owns = await tx
+          .selectFrom('wardrobeItems')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('id', '=', pieceId)
+          .where('deletedAt', 'is', null)
+          .executeTakeFirst();
+        if (!owns) return false;
+        const ids: string[] = [];
+        for (const label of clean) {
+          await tx
+            .insertInto('tags')
+            .values({ userId, kind: 'wear_for', label, isSeed: false })
+            .onConflict((oc) => oc.columns(['userId', 'kind', 'slug']).doNothing())
+            .execute();
+          const tag = await tx
+            .selectFrom('tags')
+            .select('id')
+            .where('userId', '=', userId)
+            .where('kind', '=', 'wear_for')
+            .where(sql`slug`, '=', sql`private.tag_slug(${label})`)
+            .executeTakeFirst();
+          if (tag) ids.push(tag.id);
+        }
+        // Everything this piece wore that she did not pick comes off, inferred or not.
+        let drop = tx
+          .deleteFrom('tagPieces')
+          .where('userId', '=', userId)
+          .where('wardrobeItemId', '=', pieceId);
+        if (ids.length) drop = drop.where('tagId', 'not in', ids);
+        await drop.execute();
+        if (ids.length) {
+          await tx
+            .insertInto('tagPieces')
+            .values(
+              ids.map((tagId) => ({ userId, tagId, wardrobeItemId: pieceId, source: 'user' })),
+            )
+            .onConflict((oc) =>
+              oc.columns(['tagId', 'wardrobeItemId']).doUpdateSet({ source: 'user' }),
+            )
+            .execute();
+        }
+        return true;
+      });
+    },
+
+    // One piece's record, newest first: the day it was on her and the look she wore it in. The
+    // wear's own snapshot decides membership, so a piece dropped from a look keeps its days.
+    async wears(userId: UserId, pieceId: string) {
+      const rows = await sql<{
+        id: string;
+        wornOn: string;
+        lookId: string | null;
+        lookName: string | null;
+      }>`
+        select w.id, w.worn_on::text as worn_on, l.id as look_id, l.name as look_name
+        from app.wears w
+        left join app.looks l on l.id = w.look_id and l.user_id = w.user_id
+        where w.user_id = ${userId} and ${pieceId}::uuid = any(w.piece_ids)
+        order by w.worn_on desc
+        limit 200`.execute(db);
+      return rows.rows;
     },
 
     // Times each piece was worn (a wear records the pieces of the look that day).

@@ -14,7 +14,9 @@ const repos = {
     get: vi.fn(),
     createFromRead: vi.fn(),
     adoptPhoto: vi.fn(async () => false),
+    setWearTags: vi.fn(async () => true),
   },
+  wishlist: { createFromRead: vi.fn() },
   looks: {
     create: vi.fn(async () => ({ id: 'look-1' })),
     wear: vi.fn(async () => ({})),
@@ -25,6 +27,7 @@ const startJob = vi.fn(async () => ({ jobId: 'job', status: 'queued' }));
 vi.mock('./db', () => ({ repos }));
 vi.mock('./jobs', () => ({ startJob }));
 vi.mock('./wardrobe', () => ({ toPieces: vi.fn(async (_u: unknown, rows: unknown[]) => rows) }));
+vi.mock('./wishlist', () => ({ toWishes: vi.fn(async (_u: unknown, rows: unknown[]) => rows) }));
 vi.mock('./looks-entity', () => ({
   suggestedName: vi.fn(async () => 'Suggested'),
   toLook: vi.fn(async (_u: unknown, row: unknown) => row),
@@ -78,6 +81,7 @@ beforeEach(() => {
   repos.wardrobe.get.mockImplementation(async (_u: unknown, id: string) =>
     id === SHOES ? { id: SHOES, imageAssetId: null } : undefined,
   );
+  repos.wishlist.createFromRead.mockImplementation(async (_u: unknown, rows: unknown[]) => rows);
   repos.wardrobe.createFromRead.mockImplementation(
     async (_u: unknown, _a: unknown, rows: Array<{ sourceIndex: number; label: string }>) =>
       rows.map((r) => ({
@@ -179,6 +183,85 @@ describe('photo reads', () => {
       { index: 2, state: 'owned', pieceId: SHOES },
     ]);
     expect(repos.assets.discardCrops).toHaveBeenCalledWith(USER, PHOTO, [crop(0), crop(2)]);
+  });
+
+  it('carries her colour, material and wear answers from Review onto the filed piece', async () => {
+    await fileRead(USER, JOB, [
+      {
+        index: 0,
+        state: 'add',
+        edits: {
+          label: 'Cream tee',
+          colourShade: 'ivory',
+          colourExtra: ['navy'],
+          print: 'stripes',
+          material: 'cotton',
+          wearFor: ['Work'],
+        },
+      },
+      { index: 1, state: 'skip' },
+      { index: 2, state: 'skip' },
+    ]);
+    const rows = repos.wardrobe.createFromRead.mock.calls[0]?.[2] as Array<Record<string, unknown>>;
+    expect(rows[0]).toMatchObject({
+      colourShade: 'ivory',
+      colourExtra: ['navy'],
+      print: 'stripes',
+      material: 'cotton',
+    });
+    expect(repos.wardrobe.setWearTags).toHaveBeenCalledWith(USER, 'piece-0', ['Work']);
+  });
+
+  it("leaves Robes' read standing when she didn't touch a field", async () => {
+    await fileRead(USER, JOB, [
+      { index: 0, state: 'add' },
+      { index: 1, state: 'skip' },
+      { index: 2, state: 'skip' },
+    ]);
+    const rows = repos.wardrobe.createFromRead.mock.calls[0]?.[2] as Array<Record<string, unknown>>;
+    expect(rows[0]?.colourShade).toBeUndefined();
+    expect(repos.wardrobe.setWearTags).not.toHaveBeenCalled();
+  });
+
+  it('keeps pieces to the wish list with their crops, and never files them to the wardrobe', async () => {
+    const out = await fileRead(
+      USER,
+      JOB,
+      [
+        { index: 0, state: 'skip' },
+        { index: 1, state: 'add', edits: { label: 'Black leggings', notes: 'In black' } },
+        { index: 2, state: 'add' },
+      ],
+      'wishlist',
+    );
+    expect(repos.wardrobe.createFromRead).not.toHaveBeenCalled();
+    const wishes = repos.wishlist.createFromRead.mock.calls[0]?.[1] as Array<
+      Record<string, unknown>
+    >;
+    expect(wishes.map((w) => [w.label, w.imageAssetId, w.note, w.category])).toEqual([
+      ['Black leggings', crop(1), 'In black', 'Bottoms'],
+      ['White running shoes', crop(2), null, 'Shoes'],
+    ]);
+    expect(wishes[0]).not.toHaveProperty('itemDna');
+    expect(repos.assets.discardCrops).toHaveBeenCalledWith(USER, PHOTO, [crop(0)]);
+    expect(out.wished).toHaveLength(2);
+    expect(out.filed).toEqual([]);
+  });
+
+  it('refuses an "owned" answer on the wish list', async () => {
+    await expect(
+      fileRead(
+        USER,
+        JOB,
+        [
+          { index: 0, state: 'skip' },
+          { index: 1, state: 'skip' },
+          { index: 2, state: 'owned', pieceId: SHOES },
+        ],
+        'wishlist',
+      ),
+    ).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(repos.wishlist.createFromRead).not.toHaveBeenCalled();
   });
 
   it('saves a look from the photo: new pieces filed first, hers hung, the photo as its record', async () => {

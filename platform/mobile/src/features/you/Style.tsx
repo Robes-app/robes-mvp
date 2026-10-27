@@ -1,18 +1,7 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { StyleProfile } from '@robes/contracts';
-import { ui, you } from '@robes/copy';
-import {
-  Button,
-  Card,
-  ErrorText,
-  Eyebrow,
-  Field,
-  Heading,
-  Pill,
-  Progress,
-  Text,
-  useToast,
-} from '@robes/ui-native';
+import { you } from '@robes/copy';
+import { Eyebrow, Heading, Text, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
@@ -53,37 +42,30 @@ function Swatches({
   );
 }
 
-function ColourResult({ colour }: { colour: NonNullable<StyleProfile['colour']> }) {
+// The colour notes (4b): what the season wears, its neutrals, what to go easy on and its metals.
+// Twin of web you/style/style-profile.tsx ColourResult.
+export function ColourResult({ colour }: { colour: NonNullable<StyleProfile['colour']> }) {
   return (
     <View className="gap-4">
       <Heading size="md">{colour.season}</Heading>
       <Text>{colour.summary}</Text>
+      <Text size="small" tone="muted">
+        {colour.undertone_note}
+      </Text>
       <Swatches label={copy.best} swatches={colour.best_colours} />
+      <Swatches label={copy.neutrals} swatches={colour.neutrals} />
       <Swatches label={copy.avoid} swatches={colour.avoid_colours} />
-      <View className="gap-1">
-        <Eyebrow>{copy.metals}</Eyebrow>
-        <Text>{colour.metals.map((m) => m.name).join(', ')}</Text>
-      </View>
+      <Swatches
+        label={copy.metals}
+        swatches={colour.metals.map((m) => ({ name: m.name, hex: m.hexes[1] ?? m.hexes[0] ?? '' }))}
+      />
     </View>
   );
 }
 
-function SilhouetteResult({ silhouette }: { silhouette: NonNullable<StyleProfile['silhouette']> }) {
-  return (
-    <View className="gap-3">
-      <Heading size="md">{silhouette.body_type}</Heading>
-      <Text>{silhouette.summary}</Text>
-      {silhouette.styling_tips.map((tip) => (
-        <Text key={tip} size="small">
-          {tip}
-        </Text>
-      ))}
-    </View>
-  );
-}
-
-// Photo → upload → analysis job, polled until it lands on the profile.
-function useAnalyse(kind: Kind) {
+// Photo → upload → analysis job, polled until it lands on the profile. The close-up card
+// (Colouring) is its one door.
+export function useAnalyse(kind: Kind) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -105,6 +87,7 @@ function useAnalyse(kind: Kind) {
     if (job.data.status === 'failed') toast.show({ message: copy.failed });
     setJobId(null);
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.style.get') });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') });
   }, [finished, job.data, queryClient, toast]);
 
   async function start() {
@@ -126,30 +109,4 @@ function useAnalyse(kind: Kind) {
     }
   }
   return { start, busy, reading: jobId !== null, noSubject };
-}
-
-export function AnalysisCard({ kind, profile }: { kind: Kind; profile: StyleProfile }) {
-  const text = copy[kind];
-  const { start, busy, reading, noSubject } = useAnalyse(kind);
-  const has = kind === 'colour' ? profile.colour : profile.silhouette;
-  return (
-    <Card className="gap-4 p-5" testID={`style-${kind}`}>
-      <Eyebrow>{text.title}</Eyebrow>
-      {reading ? <Progress stage={text.reading} /> : null}
-      {noSubject ? <ErrorText>{text.noSubject}</ErrorText> : null}
-      {profile.colour && kind === 'colour' ? <ColourResult colour={profile.colour} /> : null}
-      {profile.silhouette && kind === 'silhouette' ? (
-        <SilhouetteResult silhouette={profile.silhouette} />
-      ) : null}
-      {!has ? <Text tone="muted">{text.body}</Text> : null}
-      <Button
-        variant="secondary"
-        loading={busy || reading}
-        loadingLabel={ui.loading}
-        onPress={() => void start()}
-      >
-        {has ? copy.again : text.add}
-      </Button>
-    </Card>
-  );
 }

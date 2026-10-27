@@ -25,6 +25,11 @@ export interface StageConfig {
     fromAddress: string;
     /** SES account still in the sandbox: SES also authorises each verified recipient identity. */
     sandbox?: boolean;
+    /**
+     * The account's one ACTIVE SES receipt rule set, when another owner holds it: this stage adds
+     * its receipt rule to that set instead of creating `<namePrefix>-inbound`.
+     */
+    sharedReceiptRuleSet?: string;
   };
   api: {
     /** IAM access keys for the Vercel API user (ADR-021); the last entry is current. */

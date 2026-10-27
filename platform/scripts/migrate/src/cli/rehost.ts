@@ -1,12 +1,11 @@
 import { createMediaBucket, createMediaStorage } from '@robes/media/storage';
-import { targetUrl } from '../db';
 import { applyRehost, planRehost } from '../rehost';
-import { flag, print } from './args';
+import { cliTarget, flag, print } from './args';
 
 // pnpm migrate:rehost --dry-run — what the Cloudinary → S3 copy would do.
 // pnpm migrate:rehost --apply --bucket=<media bucket> — does it, with the admin AWS creds in env.
 if (flag('dry-run')) {
-  const plan = await planRehost(targetUrl());
+  const plan = await planRehost(cliTarget());
   print({ count: plan.length, items: plan });
 } else if (flag('apply')) {
   const bucket = flag('bucket') ?? process.env.MEDIA_BUCKET;
@@ -15,7 +14,7 @@ if (flag('dry-run')) {
     process.exit(1);
   }
   const storage = createMediaStorage(createMediaBucket({ bucket, region: 'eu-west-1' }));
-  print(await applyRehost(targetUrl(), storage));
+  print(await applyRehost(cliTarget(), storage));
 } else {
   console.error('pass --dry-run or --apply --bucket=<media bucket> (docs/migration.md §3 step 5)');
   process.exit(1);

@@ -8,21 +8,50 @@ import {
   type Command,
   CommandBar,
   Eyebrow,
-  IconButton,
   Sheet,
   useCommandHotkey,
   Wordmark,
 } from '@robes/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { type ReactNode, useCallback, useMemo, useState } from 'react';
-import { activeRoot, CREATE_GROUPS, createItems, GO_TO_ITEMS, NAV_ITEMS } from '@/lib/nav';
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { NewLookBox } from '@/components/home/home-box';
+import {
+  activeRoot,
+  CREATE_GROUPS,
+  createItems,
+  GO_TO_ITEMS,
+  isFlowPath,
+  isSettingsPath,
+  NAV_ITEMS,
+} from '@/lib/nav';
 import { FeaturesProvider } from '../features';
 
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Signed-in chrome: top nav ≥768, tab bar below, Create sheet and ⌘K everywhere (IA §3.2).
+// A pushed view (the draft look, legacy 2026-10-06 second pass): below 768 the header and the dock
+// stand down while it is open, and its own sticky footer closes the screen.
+const PushedContext = createContext<(on: boolean) => void>(() => {});
+export function usePushedView(): void {
+  const set = useContext(PushedContext);
+  useEffect(() => {
+    set(true);
+    return () => set(false);
+  }, [set]);
+}
+
+// Signed-in chrome: top nav ≥768; below it beta's dock — a floating bar of the four roots with
+// the sparkle beside it for Create (the native twin is mobile/src/components/TabBar.tsx).
+// Create sheet and ⌘K everywhere (IA §3.2).
 export function AppShell({
   name,
   features,
@@ -36,10 +65,15 @@ export function AppShell({
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [pushed, setPushed] = useState(false);
   const toggleCommand = useCallback(() => setCommandOpen((o) => !o), []);
   useCommandHotkey(toggleCommand);
   const current = activeRoot(pathname);
+  const inFlow = isFlowPath(pathname) || pushed;
   const create = useMemo(() => createItems(features), [features]);
+  // The new-look box in the sheet navigates to the deck; the sheet goes with the page it opened on.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: closes on every route change
+  useEffect(() => setCreateOpen(false), [pathname]);
 
   const commands = useMemo<Command[]>(
     () => [
@@ -60,22 +94,46 @@ export function AppShell({
     [router, create],
   );
 
+  // Settings carries its own header row and no dock (components/settings/settings-chrome.tsx);
+  // ⌘K still opens the command bar there.
+  if (isSettingsPath(pathname)) {
+    return (
+      <>
+        <main id="main">
+          <FeaturesProvider value={features}>{children}</FeaturesProvider>
+        </main>
+        <CommandBar
+          open={commandOpen}
+          onOpenChange={setCommandOpen}
+          commands={commands}
+          label={shell.command.label}
+          placeholder={shell.command.placeholder}
+          emptyLabel={shell.command.empty}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
-          <Link href="/" className={`text-ink ${focus}`}>
+      <header
+        className={`sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur ${pushed ? 'max-md:hidden' : ''}`}
+      >
+        <div className="mx-auto flex h-11 max-w-5xl items-center gap-2 px-5 md:h-16 md:px-4">
+          <Link href="/" aria-label={nav.today} className={`text-ink ${focus}`}>
             <Wordmark />
           </Link>
           <nav aria-label={shell.primaryNav} className="ml-6 hidden items-center gap-1 md:flex">
-            {NAV_ITEMS.map((item) => (
+            {/* Beta's top nav: the wordmark is Home; Lookbook · Diary · Wardrobe sit beside it. */}
+            {NAV_ITEMS.filter((item) => item.href !== '/').map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={current === item.href ? 'page' : undefined}
-                className={`inline-flex min-h-11 items-center rounded-pill px-4 font-sans text-xs font-medium uppercase tracking-[0.16em] ${
+                // Sentence-case links, the active one ink on a fine underline.
+                className={`inline-flex min-h-11 items-center px-3 font-sans text-sm ${
                   current === item.href
-                    ? 'text-ink underline underline-offset-8'
+                    ? 'text-ink underline decoration-[1.5px] underline-offset-[7px]'
                     : 'text-ink-muted hover:text-ink'
                 } ${focus}`}
               >
@@ -88,24 +146,18 @@ export function AppShell({
               type="button"
               onClick={toggleCommand}
               aria-keyshortcuts="Meta+K Control+K"
-              className={`hidden min-h-11 items-center gap-2 rounded-pill border border-hairline px-4 font-sans text-sm text-ink-muted hover:text-ink md:inline-flex ${focus}`}
+              aria-label={shell.command.label}
+              title={`${shell.command.label} ${shell.command.hint}`}
+              className={`hidden size-11 items-center justify-center rounded-pill text-ink-muted hover:text-ink md:inline-flex ${focus}`}
             >
-              <Icon name="search" size={16} />
-              {shell.command.label}
-              <kbd className="font-sans text-xs text-ink-faint">{shell.command.hint}</kbd>
+              <Icon name="search" size={18} />
             </button>
-            <IconButton
-              icon="search"
-              label={shell.command.label}
-              onClick={toggleCommand}
-              className="md:hidden"
-            />
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
               className={`hidden min-h-11 items-center gap-2 rounded-pill border border-border-control px-5 font-sans text-sm font-medium text-ink hover:border-ink md:inline-flex ${focus}`}
             >
-              <Icon name="plus" size={16} />
+              <Icon name="looks" size={16} />
               {nav.create}
             </button>
             <Link
@@ -120,36 +172,41 @@ export function AppShell({
         </div>
       </header>
 
-      <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-28 md:pb-16">
-        <FeaturesProvider value={features}>{children}</FeaturesProvider>
+      <main
+        id="main"
+        className={`mx-auto w-full max-w-5xl flex-1 px-5 pt-3.5 md:px-4 md:pt-6 md:pb-16 ${inFlow ? 'pb-8' : 'pb-32'}`}
+      >
+        <PushedContext value={setPushed}>
+          <FeaturesProvider value={features}>{children}</FeaturesProvider>
+        </PushedContext>
       </main>
 
       <nav
         aria-label={shell.primaryNav}
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        hidden={inFlow}
+        className="fixed inset-x-3.5 bottom-0 z-40 flex items-center gap-2.5 pb-[max(env(safe-area-inset-bottom),12px)] md:hidden"
       >
-        <ul className="mx-auto grid max-w-md grid-cols-5">
-          {NAV_ITEMS.slice(0, 2).map((item) => (
-            <TabLink key={item.href} item={item} active={current === item.href} />
-          ))}
-          <li className="flex items-center justify-center">
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              aria-label={nav.create}
-              className={`flex size-12 items-center justify-center rounded-pill border border-ink text-ink ${focus}`}
-            >
-              <Icon name="plus" size={22} />
-            </button>
-          </li>
-          {NAV_ITEMS.slice(2).map((item) => (
+        <ul className="flex h-16 grow items-center justify-between rounded-pill border border-hairline bg-bg/90 px-1.5 shadow-[0_10px_30px_color-mix(in_srgb,var(--color-ink)_10%,transparent)] backdrop-blur-xl">
+          {NAV_ITEMS.map((item) => (
             <TabLink key={item.href} item={item} active={current === item.href} />
           ))}
         </ul>
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          aria-label={nav.create}
+          className={`flex size-16 shrink-0 items-center justify-center rounded-pill border border-hairline bg-bg/90 text-ink shadow-[0_10px_30px_color-mix(in_srgb,var(--color-ink)_10%,transparent)] backdrop-blur-xl ${focus}`}
+        >
+          <Icon name="looks" size={22} />
+        </button>
       </nav>
 
       <Sheet title={shell.create.title} open={createOpen} onOpenChange={setCreateOpen}>
         <div className="flex flex-col gap-5">
+          {/* Beta's sparkle opens the new-look box (legacy __rbHbOpen({fresh})): here it leads the sheet. */}
+          <FeaturesProvider value={features}>
+            <NewLookBox autoFocus={createOpen} />
+          </FeaturesProvider>
           {CREATE_GROUPS.map((group) => (
             <section
               key={group}
@@ -190,17 +247,18 @@ export function AppShell({
   );
 }
 
+// Active: ink on a sunk pill; the rest ink-muted (Native parity handoff).
 function TabLink({ item, active }: { item: (typeof NAV_ITEMS)[number]; active: boolean }) {
   return (
-    <li>
+    <li className="flex-1">
       <Link
         href={item.href}
         aria-current={active ? 'page' : undefined}
-        className={`flex min-h-14 flex-col items-center justify-center gap-1 border-t font-sans text-[10px] font-medium uppercase tracking-[0.14em] ${
-          active ? 'border-ink text-ink' : 'border-transparent text-ink-muted'
+        className={`flex h-13 flex-col items-center justify-center gap-[3px] rounded-pill font-sans text-[9px] font-medium uppercase tracking-[0.14em] ${
+          active ? 'bg-surface-sunk text-ink' : 'text-ink-muted'
         } ${focus}`}
       >
-        <Icon name={item.icon} size={22} />
+        <Icon name={item.icon} size={20} />
         {item.label}
       </Link>
     </li>

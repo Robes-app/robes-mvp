@@ -39,6 +39,7 @@ export async function toEntries(userId: UserId, rows: EntryRow[]): Promise<PlanE
         date: row.dayDate,
         slot: row.slot,
         activity: row.activity,
+        worn: row.worn,
         look,
       }),
     ];

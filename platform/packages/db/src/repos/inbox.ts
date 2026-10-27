@@ -40,30 +40,46 @@ const INBOX_COLUMNS = [
 
 export type InboxAction = 'wardrobe' | 'wishlist' | 'dismiss';
 
-// Wardrobe › Inbox: things Robes found for her (links, receipts) waiting for a yes or no.
+// Wardrobe › Inbox: forwarded receipts waiting for a yes or no. A pasted link also holds a row
+// (Review files it), but links never show in the Inbox or its counts: she chose where a link
+// goes before pasting it, so only receipts ask her here (Add Piece redline 04b).
 export function inboxRepo(db: Db) {
   const mine = (userId: UserId) => db.selectFrom('wardrobeInbox').where('userId', '=', userId);
+  const waiting = (userId: UserId) =>
+    mine(userId).where('status', '=', 'held').where('source', '=', 'receipt');
 
   return {
     listHeld(userId: UserId, limit = 50) {
-      return mine(userId)
+      return waiting(userId)
         .select(INBOX_COLUMNS)
-        .where('status', '=', 'held')
         .orderBy('receivedAt', 'desc')
         .limit(limit)
         .execute();
     },
 
-    async countHeld(userId: UserId): Promise<number> {
-      const row = await mine(userId)
-        .select((eb) => eb.fn.countAll<string>().as('n'))
-        .where('status', '=', 'held')
+    // Pieces (not receipts) waiting, so "N pieces waiting" counts what she will tick through.
+    async piecesWaiting(userId: UserId): Promise<number> {
+      const row = await waiting(userId)
+        .select(
+          sql<string>`coalesce(sum(case when jsonb_typeof(items) = 'array' then jsonb_array_length(items) else 0 end), 0)`.as(
+            'n',
+          ),
+        )
         .executeTakeFirst();
       return Number(row?.n ?? 0);
     },
 
     get(userId: UserId, id: string) {
       return mine(userId).select(INBOX_COLUMNS).where('id', '=', id).executeTakeFirst();
+    },
+
+    // One held entry of any source (Review opens a pasted link by its id).
+    getHeld(userId: UserId, id: string) {
+      return mine(userId)
+        .select(INBOX_COLUMNS)
+        .where('id', '=', id)
+        .where('status', '=', 'held')
+        .executeTakeFirst();
     },
 
     // Files the chosen items (all when none are named) as pieces or wishes, or dismisses the row,
@@ -130,7 +146,8 @@ export function inboxRepo(db: Db) {
   };
 }
 
-// Worker side: a fetched link lands as one held row per import job (provider id dedupes retries).
+// Worker side: a fetched link lands as one held row per import job (provider id dedupes retries),
+// for Review alone; a forwarded receipt lands as one held row per message, for the Inbox.
 export function inboxIntakeRepo(db: Db) {
   return {
     // Receipts: the owner of an active forwarding address, if any.

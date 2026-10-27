@@ -172,8 +172,14 @@ export const Look = z.object({
   source: z.string(),
   originLookId: z.uuid().nullable(),
   climateBand: SeasonBand,
-  // The look's picture: Robes' frame when there is one, else the render on her model.
+  // The look's picture — the record, its cover on the Lookbook and in the diary: the one she picked
+  // of `photo` and `model`, else her photograph when she has one, else Robes' picture.
   image: PieceImage.nullable(),
+  // Her own photograph of the look, and Robes' picture of it (the frame, else the render on her
+  // model). With both, the look page's You / Model pair chooses the record (Look redline 27 Oct).
+  photo: PieceImage.nullable(),
+  model: PieceImage.nullable(),
+  record: z.enum(['photo', 'model']),
   // True when the picture is Robes' frame: it holds through every state; edits re-draw it and
   // her model never replaces it.
   frame: z.boolean(),
@@ -209,6 +215,8 @@ export const ListLooksInput = z.object({
   status: LookStatus.default('saved'),
   // The piece page's "Robes suggested" rail.
   anchorPieceId: z.uuid().optional(),
+  // The piece page's "In N looks": the looks this piece is on.
+  pieceId: z.uuid().optional(),
 });
 export type ListLooksInput = z.infer<typeof ListLooksInput>;
 
@@ -247,9 +255,16 @@ export const UpdateLookInput = z
     letGoOldest: z.boolean(),
     // ↻ on a suggested look's row (legacy 0.1): the swap lands on the suggestion, which stays one.
     keepSuggested: z.boolean(),
+    // You / Model: which picture is the record.
+    record: z.enum(['photo', 'model']),
   })
   .partial();
 export type UpdateLookInput = z.infer<typeof UpdateLookInput>;
+
+// Her own photograph of the look, once the bytes are uploaded: the asset is hers or there is
+// nothing to attach (the composite key on app.looks makes that true in the database too).
+export const LookPhotoInput = z.object({ assetId: z.uuid() });
+export type LookPhotoInput = z.infer<typeof LookPhotoInput>;
 
 export const WearInput = z.object({ wornOn });
 export const Wear = z.object({
@@ -259,6 +274,18 @@ export const Wear = z.object({
   pieceIds: z.array(z.uuid()),
 });
 export type Wear = z.infer<typeof Wear>;
+
+// One wear as the look's record reads it: the day, and the pieces she wore THAT day, named.
+// The names come from the snapshot, so the row keeps saying what she wore after the look moves
+// on; a piece she has since let go of has no name left to give and is counted, not named.
+export const LookWear = z.object({
+  id: z.uuid(),
+  wornOn,
+  pieces: z.array(z.object({ id: z.uuid(), label: z.string().nullable() })),
+});
+export type LookWear = z.infer<typeof LookWear>;
+export const LookWearPage = z.object({ items: z.array(LookWear) });
+export type LookWearPage = z.infer<typeof LookWearPage>;
 
 export const SaveWayInput = z.object({ wayIdx: z.number().int().min(0).max(2) });
 

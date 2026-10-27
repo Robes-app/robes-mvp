@@ -32,7 +32,8 @@ export function DownloadData() {
       <Text size="small" tone="muted">
         {copy.body}
       </Text>
-      <div role="status" className="flex flex-col items-start gap-2">
+      {/* Announced politely; not a second status region beside the consents' "Saved." */}
+      <div aria-live="polite" className="flex flex-col items-start gap-2">
         {pending(current) ? <Text size="small">{copy.preparing}</Text> : null}
         {current?.status === 'failed' ? <Text size="small">{copy.failed}</Text> : null}
         {current?.status === 'expired' ? <Text size="small">{copy.expired}</Text> : null}

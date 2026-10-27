@@ -21,13 +21,27 @@ test('she builds her model, Today stops asking, and a look is rendered on her', 
   expect(fresh).toMatchObject({ filed: false, source: 'hand', cellId: 'w-s3-h1-nt' });
   // Home's twin step is open until a model is filed.
   expect((await (await api.get('/api/v1/today')).json()).home.state.twinOnFile).toBe(false);
-  // No model yet: asking to see the look on her is a conflict, not a spend.
-  expect((await api.post(`/api/v1/looks/${look.id}/render`)).status()).toBe(409);
+  // No model of her own yet: the look stands on Robes' first generic model (legacy day 0), whose
+  // portrait is drawn once ever — asking before it exists starts that draw and spends nothing.
+  await api.post(`/api/v1/looks/${look.id}/render`);
+  await expect
+    .poll(async () => (await (await api.get('/api/v1/me/model')).json()).stand.imageUrl, {
+      timeout: 30_000,
+    })
+    .toBeTruthy();
+  expect(fresh.stand.generic).toBe(true);
+  const generic = await api.post(`/api/v1/looks/${look.id}/render`);
+  expect(generic.status()).toBe(202);
+  await expect
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).onModel, {
+      timeout: 30_000,
+    })
+    .toBe('ready');
 
   const filed = await (
     await api.patch('/api/v1/me/model', { data: { skin: 6, line: 'soft' } })
   ).json();
-  expect(filed).toMatchObject({ filed: true, cellId: 'w-s6-h1-nt-ll' });
+  expect(filed).toMatchObject({ filed: true, cellId: 'w-s6-h1-nt-ll', stand: { generic: false } });
   await expect
     .poll(async () => (await (await api.get('/api/v1/me/model')).json()).cell.status, {
       timeout: 30_000,
@@ -89,7 +103,7 @@ test('You › Your digital twin: build by hand, nudge colouring and line, and he
     'aria-pressed',
     'true',
   );
-  await page.getByRole('link', { name: 'Your digital twin' }).click();
+  await page.getByRole('link', { name: 'Back' }).click();
 
   await page.getByRole('link', { name: /Body shape/ }).click();
   await page.getByRole('button', { name: 'Hips: much fuller' }).click();
@@ -97,7 +111,7 @@ test('You › Your digital twin: build by hand, nudge colouring and line, and he
     'aria-pressed',
     'true',
   );
-  await page.getByRole('link', { name: 'Your digital twin' }).click();
+  await page.getByRole('link', { name: 'Back' }).click();
 
   // Leaving a twin screen draws her twin once; the hero shows it.
   await expect(page.getByRole('img', { name: 'Your model' })).toBeVisible({ timeout: 30_000 });

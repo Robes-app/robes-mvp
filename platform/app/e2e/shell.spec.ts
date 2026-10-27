@@ -1,16 +1,21 @@
 import { expect, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
-const ROOTS = ['Today', 'Wardrobe', 'Lookbook', 'Diary'];
+const ROOTS = ['Home', 'Lookbook', 'Diary', 'Wardrobe'];
 
 test.beforeEach(({ context }) => isolateClientIp(context));
 
-test('the four roots match on desktop and phone, and each is reachable', async ({ page }) => {
+test('the roots match beta on desktop and phone, and each is reachable', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await signIn(page);
   await declineConsent(page);
   const nav = page.getByRole('navigation', { name: 'Main' });
-  await expect(nav.getByRole('link')).toHaveText(ROOTS);
+  // Desktop: the wordmark is Home; Lookbook · Diary · Wardrobe sit beside it (beta's top nav).
+  await expect(nav.getByRole('link')).toHaveText(ROOTS.slice(1));
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Home' })).toHaveAttribute(
+    'href',
+    '/',
+  );
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(nav.getByRole('link')).toHaveText(ROOTS);
@@ -20,7 +25,7 @@ test('the four roots match on desktop and phone, and each is reachable', async (
     ['Wardrobe', '/wardrobe'],
     ['Lookbook', '/looks'],
     ['Diary', '/plan'],
-    ['Today', '/'],
+    ['Home', '/'],
   ] as const) {
     await nav.getByRole('link', { name: label }).click();
     await expect(page).toHaveURL(new RegExp(`${path === '/' ? '/' : path}$`));
@@ -34,16 +39,18 @@ test('every shell route renders its heading', async ({ page }) => {
   const routes: [string, string | RegExp][] = [
     ['/wardrobe', 'Wardrobe'],
     ['/wardrobe/wishlist', 'Wardrobe'],
-    ['/wardrobe/inbox', 'Wardrobe'],
+    ['/wardrobe/inbox', 'Inbox'],
     ['/wardrobe/add', 'Add pieces'],
+    ['/wardrobe/link', 'Add from a shop page.'],
+    ['/wardrobe/manual', 'Add a piece.'],
     ['/looks', 'Lookbook'],
     ['/looks/ideas', 'Lookbook'],
     ['/looks/style', 'Which piece?'],
     ['/plan', 'Diary'],
-    ['/you', 'You'],
+    ['/you', 'Settings'],
     ['/you/account', 'Account'],
     ['/you/notifications', 'Notifications'],
-    ['/you/privacy', 'Privacy.'],
+    ['/you/privacy', 'Your data'],
     ['/you/style', 'Style DNA'],
     ['/you/model', 'Your digital twin'],
     ['/you/observations', 'Observations'],
@@ -69,6 +76,8 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/you\/notifications$/);
 
+  // Settings carries its own header (no Create there): Create opens from a root.
+  await page.goto('/');
   await page.getByRole('button', { name: 'Create' }).click();
   const sheet = page.getByRole('dialog', { name: 'Create' });
   await expect(sheet.getByRole('link').first()).toBeVisible();
@@ -79,16 +88,17 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
   // Two groups: pieces in, then the stylist.
   await expect(sheet.getByRole('region')).toHaveText([/^Add pieces/, /^Dress/]);
   expect(options).toEqual([
-    'Photograph pieces',
-    'From camera roll',
+    'Take a photo',
+    'Camera roll',
     'Paste a link',
     'Forward a receipt',
+    'Add without a photo',
     'Style a piece',
     'New look',
-    'Ask Robes',
   ]);
-  await sheet.getByRole('link', { name: 'Forward a receipt' }).click();
-  await expect(page.getByRole('heading', { name: 'On its way.' })).toBeVisible();
+  // Ask Robes is the new-look box itself, leading the sheet (beta's sparkle).
+  await expect(sheet.getByTestId('home-box')).toBeVisible();
+  await expect(sheet.getByPlaceholder('Where to, and how should it feel?')).toBeVisible();
 });
 
 test('P0 routes have no serious accessibility violations', async ({ page }) => {
@@ -102,6 +112,9 @@ test('P0 routes have no serious accessibility violations', async ({ page }) => {
     '/',
     '/wardrobe',
     '/wardrobe/add',
+    '/wardrobe/link',
+    '/wardrobe/receipt',
+    '/wardrobe/manual',
     '/looks',
     '/looks/ideas',
     '/looks/style',
