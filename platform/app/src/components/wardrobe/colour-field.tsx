@@ -61,7 +61,8 @@ export function PatternSwatch({
   return (
     <span
       aria-hidden
-      className="block shrink-0 rounded-soft border border-hairline"
+      // A row-sized square keeps the small radius, or it reads as a dot.
+      className={`block shrink-0 border border-hairline ${size < 24 ? 'rounded-crisp' : 'rounded-soft'}`}
       style={{ width: size, height: size, background: p.css }}
     />
   );
