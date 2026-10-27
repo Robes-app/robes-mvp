@@ -8,6 +8,10 @@ const staticSecurityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+  // Only production is indexed; staging and previews (APP_ENV unset) tell crawlers to stay out.
+  ...(process.env.APP_ENV === 'production'
+    ? []
+    : [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }]),
 ];
 
 const config: NextConfig = {
