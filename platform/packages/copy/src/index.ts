@@ -52,6 +52,8 @@ export const auth = {
   emailPlaceholder: 'you@example.com',
   sendCode: 'Email me a code',
   sendingCode: 'Sending…',
+  // For beta testers who signed in with a password (F4): one line, under the button.
+  noPassword: 'Used a password? Robes emails you a code now.',
   codeTitle: 'Check your email.',
   codeSubtitle: (email: string): string => `Robes sent a six-digit code to ${email}.`,
   codeLabel: 'Code',
@@ -909,10 +911,10 @@ export const you = {
   signOut: 'Sign out',
   deletion: {
     title: 'Delete account',
-    body: 'Robes will delete your pieces, looks, photos and account. This can’t be undone.',
+    body: 'Robes signs you out and deletes your pieces, looks, photos and account. This can’t be undone.',
     confirmLabel: 'Type DELETE to confirm',
     confirm: 'Delete my account',
-    requested: 'Your account is being deleted. You’ll be signed out when it’s done.',
+    requested: 'Your account is being deleted.',
   },
   style: {
     title: 'Your colours and shape',

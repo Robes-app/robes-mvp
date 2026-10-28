@@ -15,6 +15,8 @@ jest.mock('../src/lib/auth-client', () => ({
 
 test('rejects a malformed email without calling the server', async () => {
   await render(<SignIn />);
+  // One line for testers who signed in with a password on beta (F4).
+  expect(screen.getByText('Used a password? Robes emails you a code now.')).toBeTruthy();
   await fireEvent.changeText(screen.getByLabelText('Email'), 'not-an-email');
   await fireEvent.press(screen.getByRole('button', { name: 'Email me a code' }));
   expect(await screen.findByText('That email doesn’t look quite right.')).toBeTruthy();

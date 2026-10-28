@@ -1,9 +1,9 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
-import type { Consents } from '@robes/contracts';
-import { consent as copy } from '@robes/copy';
-import { ErrorText } from '@robes/ui-native';
+import type { Consents, DataExport } from '@robes/contracts';
+import { consent as copy, you } from '@robes/copy';
+import { Button, ErrorText, Text } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { Platform, ScrollView } from 'react-native';
+import { Linking, Platform, ScrollView, View } from 'react-native';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { errorMessage } from '@/lib/errors';
 import { SettingsGroup, SettingsToggleRow } from './Settings';
@@ -46,6 +46,60 @@ export function Privacy() {
         />
       </SettingsGroup>
       {update.isError ? <ErrorText>{errorMessage(update.error)}</ErrorText> : null}
+      <DownloadData />
     </ScrollView>
+  );
+}
+
+const exportCopy = you.dataExport;
+const REFRESH_MS = 3_000;
+const pending = (e: DataExport | null | undefined) =>
+  e?.status === 'requested' || e?.status === 'running';
+
+// SEC-81: request → preparing → a short-lived link, opened in the browser to download. Web twin:
+// app/(app)/you/download-data.tsx.
+export function DownloadData() {
+  const queryClient = useQueryClient();
+  const status = useApi('me.exports.get', undefined, {
+    refetchInterval: (q) => (pending(q.state.data?.export) ? REFRESH_MS : false),
+  });
+  const request = useApiMutation('me.exports.request', {
+    onSuccess: (data) =>
+      queryClient.setQueryData(queryKeys.call('me.exports.get'), { export: data }),
+  });
+  const current = status.data?.export ?? null;
+  const canRequest = !current || current.status === 'expired' || current.status === 'failed';
+  const url = current?.status === 'ready' ? current.downloadUrl : null;
+
+  return (
+    <SettingsGroup title={exportCopy.title}>
+      <View className="items-start gap-2 px-4 py-3.5" accessibilityLiveRegion="polite">
+        <Text size="small" tone="muted">
+          {exportCopy.body}
+        </Text>
+        {pending(current) ? <Text size="small">{exportCopy.preparing}</Text> : null}
+        {current?.status === 'failed' ? <Text size="small">{exportCopy.failed}</Text> : null}
+        {current?.status === 'expired' ? <Text size="small">{exportCopy.expired}</Text> : null}
+        {url ? (
+          <>
+            <Text size="small">{exportCopy.ready}</Text>
+            <Button variant="secondary" onPress={() => void Linking.openURL(url)}>
+              {exportCopy.download}
+            </Button>
+          </>
+        ) : null}
+        {canRequest ? (
+          <Button
+            variant="secondary"
+            loading={request.isPending}
+            loadingLabel={exportCopy.requesting}
+            onPress={() => request.mutate({})}
+          >
+            {current ? exportCopy.again : exportCopy.request}
+          </Button>
+        ) : null}
+        {request.isError ? <ErrorText>{errorMessage(request.error)}</ErrorText> : null}
+      </View>
+    </SettingsGroup>
   );
 }
