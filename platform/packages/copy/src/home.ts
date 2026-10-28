@@ -28,12 +28,16 @@ const pieces = (n: number): string => (n === 1 ? 'piece' : 'pieces');
 export const home = {
   // H0: the standing question under the greeting.
   echo: 'What are you dressing for today?',
-  weather: (city: string | null, tempRange: string, condition: string): string =>
-    [city, tempRange, condition].filter(Boolean).join(' · '),
+  // The temperature is today's live reading (or the day's range without one).
+  weather: (city: string | null, temp: string, condition: string): string =>
+    [city, temp, condition].filter(Boolean).join(' · '),
   weatherLabel: 'Today’s weather',
-  // The meta line under the greeting (beta's H0): the weekday, the city, the day's range.
-  meta: (weekday: string, city: string | null, tempRange: string | null): string =>
-    [weekday, city, tempRange].filter(Boolean).join(' · '),
+  // The meta line under the greeting (beta's H0), after the conditions' icon: the weekday, the
+  // city, the temperature now. Read aloud with the conditions first, as the icon shows them.
+  meta: (weekday: string, city: string | null, temp: string | null): string =>
+    [weekday, city, temp].filter(Boolean).join(' · '),
+  metaSpoken: (condition: string | null, meta: string): string =>
+    [condition, meta].filter(Boolean).join(' · '),
   doorDay: (day: string): string => `Dress ${day}…`,
   later: 'Later',
   map: {

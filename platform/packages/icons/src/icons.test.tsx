@@ -10,6 +10,12 @@ describe('icons', () => {
     }
   });
 
+  it('has a line icon for each weather condition (@robes/core/weather), never an emoji', () => {
+    for (const name of ['sun', 'partCloud', 'cloud', 'fog', 'rain', 'snow', 'thunder']) {
+      expect(ICON_NAMES).toContain(name);
+    }
+  });
+
   it('uses valid path data only', () => {
     for (const paths of Object.values(ICONS)) {
       for (const d of paths) expect(d).toMatch(/^[MmLlHhVvCcSsQqTtAaZz0-9 .,-]+$/);

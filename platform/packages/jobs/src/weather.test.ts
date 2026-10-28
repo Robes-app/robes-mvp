@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { conditionWord, createWeather, parseForecast, parseGeocode } from './weather';
+import {
+  createLiveWeather,
+  createWeather,
+  LIVE_TTL_MS,
+  parseCurrent,
+  parseForecast,
+  parseGeocode,
+} from './weather';
 
 const geo = { results: [{ name: 'Dublin', latitude: 53.35, longitude: -6.26 }] };
 const forecast = {
@@ -11,10 +18,19 @@ describe('weather', () => {
   it('parses Open-Meteo fixtures', () => {
     expect(parseGeocode(geo)).toEqual({ lat: 53.35, lon: -6.26, name: 'Dublin' });
     expect(parseGeocode({ results: [] })).toBeNull();
-    expect(parseForecast(forecast)).toEqual({ tempRange: '11–17°C', condition: 'light rain' });
+    expect(parseForecast(forecast)).toEqual({
+      tempRange: '11–17°C',
+      condition: 'light rain',
+      code: 61,
+    });
     expect(parseForecast({})).toBeNull();
-    expect(conditionWord(0)).toBe('clear');
-    expect(conditionWord(95)).toBe('thunderstorms');
+    expect(parseCurrent({ current: { temperature_2m: 12.6, weather_code: 3 } })).toEqual({
+      nowC: 13,
+      code: 3,
+    });
+    expect(parseCurrent({ current: { temperature_2m: 12.4 } })).toEqual({ nowC: 12, code: null });
+    expect(parseCurrent({ current: {} })).toBeNull();
+    expect(parseCurrent(null)).toBeNull();
   });
 
   it('geocodes her city, caches per day, and never throws', async () => {
@@ -28,6 +44,7 @@ describe('weather', () => {
       month: 'September',
       tempRange: '11–17°C',
       condition: 'light rain',
+      code: 61,
     });
     await weatherFor(place);
     expect(fetchFn).toHaveBeenCalledTimes(2);
@@ -44,6 +61,49 @@ describe('weather', () => {
     await createWeather(fetchFn)({ ...place, lat: 53.3, lon: -6.2 });
     expect(fetchFn).toHaveBeenCalledTimes(1);
     expect(String(fetchFn.mock.calls[0]?.[0])).toContain('api.open-meteo.com');
+  });
+});
+
+describe('live weather', () => {
+  const current = { current: { temperature_2m: 12.7, weather_code: 3 } };
+  const fake = () =>
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => (url.includes('geocoding') ? geo : current),
+    }));
+
+  it('reads the temperature and conditions now, and holds them fifteen minutes', async () => {
+    const fetchFn = fake();
+    let now = 1_800_000_000_000;
+    const liveFor = createLiveWeather(fetchFn, () => now);
+    const dublin = { city: 'Dublin', lat: null, lon: null };
+    expect(await liveFor(dublin)).toEqual({ nowC: 13, code: 3 });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    const asked = String(fetchFn.mock.calls[1]?.[0]);
+    expect(asked).toContain('current=temperature_2m,weather_code');
+    expect(asked).not.toContain('daily=');
+
+    now += LIVE_TTL_MS - 1;
+    await liveFor(dublin);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+
+    // Stale: read again, but her city's coordinates are kept.
+    now += 2;
+    await liveFor(dublin);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(String(fetchFn.mock.calls[2]?.[0])).toContain('api.open-meteo.com/v1/forecast');
+  });
+
+  it('uses stored coordinates, needs a place, and never throws', async () => {
+    const fetchFn = fake();
+    const liveFor = createLiveWeather(fetchFn);
+    await liveFor({ city: null, lat: 53.3, lon: -6.2 });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(await liveFor({ city: null, lat: null, lon: null })).toBeNull();
+    const down = createLiveWeather(async () => {
+      throw new Error('offline');
+    });
+    expect(await down({ city: 'Dublin', lat: null, lon: null })).toBeNull();
   });
 });
 

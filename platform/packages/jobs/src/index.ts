@@ -66,10 +66,13 @@ export { createInlineTransport, createSqsTransport, type JobTransport } from './
 export {
   type CityAt,
   createDayForecast,
+  createLiveWeather,
   createReverseGeocode,
   createTripWeather,
   createWeather,
   type DayForecastFor,
+  type DayWeather,
+  type LiveWeatherFor,
   type TripWeatherFor,
   type WeatherFor,
 } from './weather';

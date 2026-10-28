@@ -26,6 +26,7 @@
     "./inbox": "./src/inbox/index.ts",
     "./home": "./src/home/index.ts",
     "./location": "./src/location/index.ts",
+    "./weather": "./src/weather/index.ts",
     "./fence": "./src/fence/index.ts"
   },
   "scripts": {

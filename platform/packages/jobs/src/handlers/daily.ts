@@ -6,6 +6,7 @@ import {
   FEATURE,
   normalise,
   Output,
+  type Weather,
 } from '@robes/ai/prompts/daily';
 import { TodayGenerateInput } from '@robes/contracts';
 import type { SystemRepositories, UserId } from '@robes/db';
@@ -43,7 +44,7 @@ export interface DailyPlan {
   system: string;
   user: string;
   closetIds: string[];
-  weather: Awaited<ReturnType<WeatherFor>>;
+  weather: Weather | null;
   gender: DailyContext['gender'];
   styleIcons: string[];
   homeCity: string | null;
@@ -60,13 +61,20 @@ export async function planDaily(
 ): Promise<DailyPlan> {
   const her = await deps.styling.dailyContext(userId);
   const { date, month } = localDay(deps.now?.() ?? new Date(), her.timezone);
-  const weather = await deps.weather({
+  const day = await deps.weather({
     city: her.homeCity,
     lat: her.homeLat,
     lon: her.homeLon,
     date,
     month,
   });
+  // The prompt's fields only (the weather line's icon code stays off the stored plan).
+  const weather: Weather | null = day && {
+    city: day.city,
+    month: day.month,
+    tempRange: day.tempRange,
+    condition: day.condition,
+  };
   const brief = [input.occasion, input.prompt].filter(Boolean).join('. ');
   return {
     system: buildSystem({

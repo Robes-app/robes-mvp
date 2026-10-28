@@ -10,6 +10,7 @@ import {
 import type { PlanEntry } from '@robes/contracts';
 import { plan, wardrobe } from '@robes/copy';
 import { daySummary, longDate } from '@robes/core/calendar';
+import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
 import {
   ErrorText,
@@ -48,9 +49,10 @@ export function DayView({ date }: { date: string }) {
   const weather = useApi(
     'today.weather',
     { input: { date } },
-    { enabled: ahead, staleTime: 3_600_000 },
+    { enabled: ahead, staleTime: WEATHER_STALE_MS },
   );
   const wx = ahead ? weather.data : null;
+  const wxIcon = weatherIcon(wx?.code);
   const [picking, setPicking] = useState(false);
   const [naming, setNaming] = useState(false);
   const refresh = () => {
@@ -124,9 +126,15 @@ export function DayView({ date }: { date: string }) {
           ) : null}
         </div>
         {wx ? (
-          <div className="flex flex-col gap-1">
-            <Text size="caption" tone="muted" className="font-medium uppercase tracking-[0.16em]">
-              {[wx.city, wx.condition, wx.tempRange].filter(Boolean).join(' · ')}
+          <div className="flex flex-col gap-1" data-testid="day-weather">
+            {/* Today live, the temperature and conditions now; a day ahead its range (DayView.tsx). */}
+            <Text
+              size="caption"
+              tone="muted"
+              className="flex items-center gap-2 font-medium uppercase tracking-[0.16em]"
+            >
+              {wxIcon ? <Icon name={wxIcon} size={16} /> : null}
+              {copy.weather(wx.city, weatherWord(wx), weatherTemp(wx))}
             </Text>
             <Text size="small" tone="muted" italic>
               {copy.advice(wx.condition, wx.tempRange)}
