@@ -7,7 +7,8 @@ const staticSecurityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'X-Frame-Options', value: 'DENY' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+  // Geolocation for our own origin only: the weather, once she allows it (shell/device-location.tsx).
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=()' },
   // Only production is indexed; staging and previews (APP_ENV unset) tell crawlers to stay out.
   ...(process.env.APP_ENV === 'production'
     ? []

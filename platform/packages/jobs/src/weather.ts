@@ -260,3 +260,56 @@ export function createTripWeather(fetchFn: Fetch = fetch as unknown as Fetch) {
   };
 }
 export type TripWeatherFor = ReturnType<typeof createTripWeather>;
+
+// Reverse geocoding for the device location she allows (her home city's display name). Nominatim's
+// usage policy asks for an identifying User-Agent and at most one request a second; coordinates
+// arrive rounded to ~1 km and nothing else about her is sent.
+const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse';
+export const GEOCODER_USER_AGENT = 'Robes/1.0 (https://www.byrobes.com; hello@byrobes.com)';
+
+export function parseReverse(json: unknown): string | null {
+  const a = (json as { address?: Record<string, unknown> })?.address;
+  for (const key of ['city', 'town', 'village', 'county'] as const) {
+    const v = a?.[key];
+    if (typeof v === 'string' && v.trim()) return v.trim().slice(0, 120);
+  }
+  return null;
+}
+
+type HeaderFetch = (
+  url: string,
+  init: { signal: AbortSignal; headers: Record<string, string> },
+) => Promise<{ ok: boolean; json(): Promise<unknown> }>;
+
+// The city at a (rounded) point, or null on any failure. `url` replaces Nominatim in dev/e2e only
+// (REVERSE_GEOCODE_URL, refused when deployed). Like createWeather, a bounded per-instance cache
+// (a place's name doesn't change) keeps repeat visits off Nominatim.
+export function createReverseGeocode(opts: { url?: string; fetchFn?: HeaderFetch } = {}) {
+  const base = opts.url ?? NOMINATIM_REVERSE;
+  const fetchFn = opts.fetchFn ?? (fetch as unknown as HeaderFetch);
+  const cache = new Map<string, string>();
+  return async function cityAt(lat: number, lon: number): Promise<string | null> {
+    const at = `lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`;
+    const hit = cache.get(at);
+    if (hit) return hit;
+    try {
+      const res = await fetchFn(
+        `${base}?format=json&zoom=10&addressdetails=1&accept-language=en&${at}`,
+        {
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+          headers: { 'user-agent': GEOCODER_USER_AGENT, accept: 'application/json' },
+        },
+      );
+      if (!res.ok) return null;
+      const city = parseReverse(await res.json());
+      if (city) {
+        if (cache.size > 500) cache.clear();
+        cache.set(at, city);
+      }
+      return city;
+    } catch {
+      return null;
+    }
+  };
+}
+export type CityAt = ReturnType<typeof createReverseGeocode>;

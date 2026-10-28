@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test';
-import { E2E_DATABASE_URL, E2E_MEDIA_ENDPOINT, E2E_UNSUB_KEY } from './e2e/env';
+import { E2E_DATABASE_URL, E2E_GEOCODE_URL, E2E_MEDIA_ENDPOINT, E2E_UNSUB_KEY } from './e2e/env';
 
 // Configurable so parallel checkouts can run e2e side by side.
 const port = Number(process.env.E2E_PORT ?? 3310);
@@ -22,6 +22,8 @@ export default defineConfig({
       MEDIA_S3_ENDPOINT: E2E_MEDIA_ENDPOINT,
       // Dev-only SEC-40 escape hatch so inbox.spec can import from its local fixture page.
       ALLOW_PRIVATE_FETCH: '1',
+      // location.spec's stand-in geocoder; never Nominatim from a test.
+      REVERSE_GEOCODE_URL: E2E_GEOCODE_URL,
       // Dummy key: consent.spec intercepts the PostHog host and proves nothing loads before consent.
       NEXT_PUBLIC_POSTHOG_KEY: 'phc_e2e_dummy',
     },

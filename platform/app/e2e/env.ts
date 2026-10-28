@@ -17,3 +17,8 @@ export const CLI_ENV = {
   DATABASE_URL: E2E_DATABASE_URL,
   MEDIA_S3_ENDPOINT: E2E_MEDIA_ENDPOINT,
 };
+
+// The stand-in reverse geocoder location.spec serves (REVERSE_GEOCODE_URL, dev only): the e2e
+// server never sends a coordinate to Nominatim. Beside E2E_PORT so parallel checkouts don't clash.
+export const E2E_GEOCODE_PORT = Number(process.env.E2E_PORT ?? 3310) + 1000;
+export const E2E_GEOCODE_URL = `http://127.0.0.1:${E2E_GEOCODE_PORT}/reverse`;

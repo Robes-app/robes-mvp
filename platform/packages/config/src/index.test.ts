@@ -132,6 +132,14 @@ describe('parseEnv(appServerEnv)', () => {
     ).toThrow(/https/);
   });
 
+  it('keeps the reverse-geocoder stand-in to dev', () => {
+    const fake = { REVERSE_GEOCODE_URL: 'http://127.0.0.1:3311/reverse' };
+    expect(parseEnv(appServerEnv, devEnv(fake)).REVERSE_GEOCODE_URL).toBe(fake.REVERSE_GEOCODE_URL);
+    expect(() => parseEnv(appServerEnv, { ...base, APP_ENV: 'staging', ...fake })).toThrow(
+      /REVERSE_GEOCODE_URL/,
+    );
+  });
+
   it('never echoes secret values in errors', () => {
     try {
       parseEnv(appServerEnv, { ...base, DATABASE_URL: 'not-a-url-SECRET123' });

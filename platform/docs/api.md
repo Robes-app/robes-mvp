@@ -82,7 +82,8 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | New | Legacy | Notes |
 |---|---|---|
 | `GET /me` | client REST `profiles` | profile + style summary + entitlements + flags |
-| `PATCH /me` | client REST PATCH `profiles` | only user-writable fields |
+| `PATCH /me` | client REST PATCH `profiles` | only user-writable fields; a typed `homeCity` that differs clears `home_lat`/`home_lon` |
+| `POST /me/location` `{ lat, lon }` → `{ ok }` (10/h/user) | browser geolocation + Nominatim in the client (`dashboard-personalize.js`) | her device position, sent only after she allowed it: rounded to 2 decimals (~1 km), named server-side by Nominatim (rounded coords only, no user id), written to `home_lat`/`home_lon`/`home_city`; an unnamed place keeps her city |
 | `PUT /me/style/palette` (Your colours and Your prints: avoid · love per family, shade and print) | Settings `style_dna.palette` |
 | `GET /me/features` | `_RB_TRIP_HIDDEN`, `?trip=on` | the flagged doors clients show (`trips`); flags stay server-side |
 | `POST /me/onboarding/complete` | client writes `onboarded_at` | server sets |

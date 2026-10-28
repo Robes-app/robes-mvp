@@ -64,7 +64,9 @@ export {
 } from './runtime';
 export { createInlineTransport, createSqsTransport, type JobTransport } from './transport';
 export {
+  type CityAt,
   createDayForecast,
+  createReverseGeocode,
   createTripWeather,
   createWeather,
   type DayForecastFor,

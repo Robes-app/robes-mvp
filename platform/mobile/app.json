@@ -51,6 +51,12 @@
       "expo-secure-store",
       "expo-image",
       "expo-localization",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Robes uses your location to dress you for the weather."
+        }
+      ],
       "expo-status-bar",
       "expo-web-browser"
     ],
