@@ -13,7 +13,12 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
+import { Uniwind } from 'uniwind';
 import { api } from '@/lib/api';
+
+// Light only, as beta: a dark-mode phone still sees cream (dark waits for a setting). Expo Go
+// may ignore app.json's userInterfaceStyle, so the theme is pinned here too. Twin of web layout.tsx.
+Uniwind.setTheme('light');
 
 export default function RootLayout() {
   const [loaded, fontError] = useFonts({

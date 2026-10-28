@@ -30,6 +30,7 @@ export {
   HEADING_MIN_SIZE,
   MIN_TOUCH,
   maxFontSizeMultiplier,
+  TOAST_DEFAULT_DURATION,
   TOAST_MIN_DURATION,
 } from './scale';
 export { Em, Eyebrow, Heading, type HeadingProps, Text, type TextProps, Wordmark } from './Text';

@@ -20,7 +20,7 @@ export function SettingsGroup({ title, children }: { title?: string; children: R
           {title}
         </Eyebrow>
       ) : null}
-      <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
+      <View className="overflow-hidden rounded-card border border-hairline bg-surface-raised">
         {children}
       </View>
     </View>

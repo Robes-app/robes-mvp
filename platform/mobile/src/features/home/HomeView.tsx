@@ -201,7 +201,7 @@ function Alerts({
   ) => (
     <View
       key={key}
-      className="flex-row items-center gap-3 rounded-soft border border-hairline bg-surface-raised px-4 py-3"
+      className="flex-row items-center gap-3 rounded-card border border-hairline bg-surface-raised px-4 py-3"
       testID={`alert-${key}`}
     >
       <View className="flex-1">

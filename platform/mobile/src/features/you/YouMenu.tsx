@@ -49,7 +49,7 @@ function Card({ label, onPress }: { label: string; onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      className="flex-row items-center justify-between gap-4 rounded-soft border border-hairline bg-surface-raised px-[22px] py-5"
+      className="flex-row items-center justify-between gap-4 rounded-card border border-hairline bg-surface-raised px-[22px] py-5"
     >
       <Text style={{ fontFamily: fonts.displayRegular, fontSize: 24 }}>{label}</Text>
       <Icon name="forward" color={faint} size={16} />
@@ -76,7 +76,7 @@ function StyleProfile() {
 function NoticedCard({ line }: { line: Observation }) {
   return (
     <View
-      className="gap-2.5 rounded-soft border border-rule-mid bg-surface-raised px-[22px] pt-5 pb-[18px]"
+      className="gap-2.5 rounded-card border border-rule-mid bg-surface-raised px-[22px] pt-5 pb-[18px]"
       testID="noticed"
     >
       <Eyebrow className="text-accent-plan">{twin.noticed.eyebrow}</Eyebrow>

@@ -7,7 +7,7 @@ import { fonts, MIN_TOUCH, maxFontSizeMultiplier } from './scale';
 export interface PillProps {
   children: string;
   selected?: boolean;
-  // sm: 12pt text for dense walls (brands, icons); still a 44pt target.
+  // Beta's .rb-pill: md 36pt, sm 32pt for dense walls (brands, icons); both 12pt text, 44pt targets.
   size?: 'md' | 'sm';
   // A kept name she can let go: × after the label instead of the check.
   removable?: boolean;
@@ -38,20 +38,16 @@ export function Pill({
   const body = (
     <View
       className={cx(
-        'min-h-9 flex-row items-center justify-center gap-1.5 rounded-pill border',
-        size === 'sm' ? 'px-3.5' : 'px-4',
+        'flex-row items-center justify-center gap-1.5 rounded-pill border',
+        size === 'sm' ? 'min-h-8 px-3.5' : 'min-h-9 px-4',
         selected ? 'border-selected-line bg-selected' : 'border-rule-mid bg-surface-raised',
         disabled && 'opacity-50',
       )}
-      style={selected ? { borderWidth: 1.5 } : undefined}
     >
       {selected && !removable ? <Icon name="check" size={14} color={ink} /> : null}
       <Text
         maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        className={cx(
-          size === 'sm' ? 'text-xs' : 'text-sm',
-          selected ? 'text-ink' : 'text-ink-muted',
-        )}
+        className={cx('text-xs', selected ? 'text-ink' : 'text-ink-muted')}
         style={{ fontFamily: selected ? fonts.sansMedium : fonts.sans }}
       >
         {children}

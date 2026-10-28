@@ -62,7 +62,7 @@ export default function Onboarding() {
         className="flex-1 items-center justify-center bg-ink"
         testID="splash"
       >
-        <Wordmark className="text-5xl text-bg" />
+        <Wordmark size="hero" className="text-bg" />
       </Pressable>
     );
   }

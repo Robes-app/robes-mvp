@@ -95,7 +95,7 @@ function Frame({
     <RadixDialog.Portal>
       <RadixDialog.Overlay className={overlay} />
       <RadixDialog.Content
-        className={cn('fixed z-50 flex flex-col gap-6 bg-bg text-ink shadow-xl', className)}
+        className={cn('fixed z-50 flex flex-col gap-6 bg-bg text-ink', className)}
         {...(description ? {} : { 'aria-describedby': undefined })}
         {...(initialFocus
           ? {
@@ -110,7 +110,7 @@ function Frame({
         <PrimaryScope>
           {/* The drawer's own handle: it says this pulls up from the edge, and nothing else. */}
           {grabBar ? (
-            <span aria-hidden className="mx-auto h-1 w-10 shrink-0 rounded-pill bg-hairline" />
+            <span aria-hidden className="mx-auto h-1 w-9 shrink-0 rounded-pill bg-rule-mid" />
           ) : null}
           {media ? (
             <div className="flex items-start gap-4">
@@ -182,7 +182,7 @@ export function Dialog({
         description={description}
         footer={footer}
         titleSize="lg"
-        className="top-1/2 left-1/2 max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-crisp border border-hairline p-6 motion-safe:data-[state=open]:animate-rise sm:p-8"
+        className="top-1/2 left-1/2 max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-crisp border border-hairline p-6 shadow-xl motion-safe:data-[state=open]:animate-rise sm:p-8"
       >
         {children}
       </Frame>
@@ -217,7 +217,7 @@ export function Sheet({
         {...(closeLabel ? { closeLabel } : {})}
         grabBar
         titleSize="md"
-        className="inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-soft border border-b-0 border-hairline px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up"
+        className="inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up"
       >
         {children}
       </Frame>

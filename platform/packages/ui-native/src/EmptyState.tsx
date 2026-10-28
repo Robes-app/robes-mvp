@@ -24,7 +24,7 @@ export function EmptyState({ title, titleEm, body, action, className, testID }: 
     <View
       testID={testID}
       className={cx(
-        'items-center gap-3 rounded-crisp border border-border-control border-dashed px-6 py-10',
+        'items-center gap-3 rounded-soft border border-border-control border-dashed px-6 py-10',
         className,
       )}
     >

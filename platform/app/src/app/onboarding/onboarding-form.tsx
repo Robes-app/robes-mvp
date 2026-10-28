@@ -119,7 +119,7 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
         onClick={() => setStage('name')}
         className="flex min-h-dvh w-full items-center justify-center bg-ink text-bg"
       >
-        <Wordmark className="text-5xl" />
+        <Wordmark size="hero" />
       </button>
     );
   }
