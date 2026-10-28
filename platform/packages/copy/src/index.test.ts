@@ -75,3 +75,10 @@ describe('the day’s advice', () => {
     expect(plan.day.advice('overcast', '12–19°C')).toBe('Easy layers.');
   });
 });
+
+describe('season labels', () => {
+  it('spell a band one way on the wardrobe, the Lookbook and a look', () => {
+    expect(copy.lookbook.refine.seasons).toBe(copy.wardrobe.filter.seasons);
+    expect(copy.lookbook.refine.seasons.spring_summer).toBe('Spring/Summer');
+  });
+});

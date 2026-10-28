@@ -1,5 +1,14 @@
 import type { Look } from '@robes/contracts';
-import { Card, Eyebrow, fonts, Image, maxFontSizeMultiplier, Skeleton } from '@robes/ui-native';
+import {
+  ASPECTS,
+  type Aspect,
+  Card,
+  Eyebrow,
+  fonts,
+  Image,
+  maxFontSizeMultiplier,
+  Skeleton,
+} from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Text as RNText, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
@@ -9,19 +18,30 @@ export function lookHero(look: Look) {
   return look.image ?? look.pieces.find((p) => p.piece.image)?.piece.image ?? null;
 }
 
-// Just the photograph, at whatever width the surface gives it (a tile, a 34pt avatar in a row).
-export function LookPhoto({ look, width }: { look: Look; width?: number }) {
+// Just the photograph, at whatever width the surface gives it (a tile, a 34pt avatar in a row),
+// in the surface's shape: 3:4 in the Lookbook grid and on a day (beta), 4:5 elsewhere.
+export function LookPhoto({
+  look,
+  width,
+  aspect = '4:5',
+}: {
+  look: Look;
+  width?: number;
+  aspect?: Aspect;
+}) {
   const image = lookHero(look);
   const uri = renditionUri(image, width ?? 180);
   return uri ? (
-    <Image source={uri} alt="" blurhash={image?.blurhash} recyclingKey={look.id} />
+    <Image source={uri} alt="" aspect={aspect} blurhash={image?.blurhash} recyclingKey={look.id} />
   ) : (
-    <Skeleton width="100%" aspectRatio={4 / 5} />
+    <Skeleton width="100%" aspectRatio={ASPECTS[aspect]} />
   );
 }
 
 export interface LookTileProps {
   look: Look;
+  // The photograph's shape on this surface (twin: look-tile.tsx).
+  aspect?: Aspect;
   onPress?: () => void;
   label?: string;
   eyebrow?: string;
@@ -50,6 +70,7 @@ export interface LookTileProps {
 // the look is held in one frame. Give it an eyebrow and a meta line; never redraw the anatomy.
 export function LookTile({
   look,
+  aspect = '4:5',
   onPress,
   label,
   eyebrow,
@@ -90,7 +111,7 @@ export function LookTile({
         {...(selected || disabled ? { accessibilityState: { selected, disabled } } : {})}
       >
         <View className={dashed ? 'overflow-hidden rounded-[8px]' : undefined}>
-          <LookPhoto look={look} width={width} />
+          <LookPhoto look={look} width={width} aspect={aspect} />
           {onImage}
         </View>
         <View className={dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-[2px] px-3 pt-[10px] pb-3'}>

@@ -1,3 +1,4 @@
+export * from './aspect';
 export * from './avatar';
 export * from './button';
 export * from './button-styles';

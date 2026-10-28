@@ -1,6 +1,8 @@
 // Look states, the keep-or-pass deck and the look prompt (legacy beta 2026-10-01 → 10-13).
 // en-GB, curly apostrophes, Robes in the third person, no exclamation marks.
 
+import { SEASON_LABELS } from './seasons';
+
 const pieces = (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`);
 const KEPT_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
 const ROLE = { canvas: 'Canvas', anchor: 'Anchor', texture: 'Texture', exclamation: 'Exclamation' };
@@ -106,11 +108,8 @@ export const lookbook = {
     season: 'Season',
     wearFor: 'Wear it for',
     vibe: 'Vibe',
-    seasons: {
-      spring_summer: 'Spring / Summer',
-      autumn_winter: 'Autumn / Winter',
-      year_round: 'Year-round',
-    },
+    // The wardrobe's labels (wardrobe.filter.seasons): one spelling for a band.
+    seasons: SEASON_LABELS,
     none: 'Nothing in this edit.',
     on: 'Filters on',
   },

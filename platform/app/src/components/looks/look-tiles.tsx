@@ -4,7 +4,7 @@ import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { anchorName, lookFacts, lookWearFor, startedLabel } from '@robes/core/looks';
 import { Icon, type IconName } from '@robes/icons/web';
-import { Image } from '@robes/ui';
+import { type Aspect, Image } from '@robes/ui';
 import Link from 'next/link';
 import { localToday } from '@/lib/dates';
 import { imageSources } from '@/lib/image';
@@ -51,11 +51,13 @@ function OnPhoto({
 export function SavedTile({
   look,
   priority = false,
+  aspect,
   onDiary,
   onDelete,
 }: {
   look: Look;
   priority?: boolean;
+  aspect?: Aspect;
   onDiary?: () => void;
   onDelete?: () => void;
 }) {
@@ -65,6 +67,7 @@ export function SavedTile({
       href={`/look/${look.id}`}
       sizes="(min-width: 768px) 33vw, 50vw"
       priority={priority}
+      {...(aspect ? { aspect } : {})}
       tag={lookWearFor(look)[0] ?? null}
       meta={copy.meta.card(lookFacts(look, look.pieces.length))}
       onImage={
@@ -149,12 +152,14 @@ export function SuggestedTile({
   onSwap,
   swapping,
   showMark = true,
+  aspect,
 }: {
   look: Look;
   onRemove: () => void;
   onSwap: () => void;
   swapping: boolean;
   showMark?: boolean;
+  aspect?: Aspect;
 }) {
   const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
   const busy = scanningLine(look, swapping);
@@ -163,6 +168,7 @@ export function SuggestedTile({
       look={look}
       href={`/look/${look.id}`}
       sizes="(min-width: 768px) 33vw, 50vw"
+      {...(aspect ? { aspect } : {})}
       eyebrow={copy.suggestedTile.eyebrow}
       eyebrowTone="warm"
       meta={around ? copy.suggestedTile.around(around) : copy.suggestedTile.fromPrompt}

@@ -109,6 +109,33 @@ describe('the rack', () => {
     expect(changedKeys(next)).toEqual(['dark']);
   });
 
+  it('a swap keeps the piece’s subcategory, so the rack’s eyebrow reads the sheet', () => {
+    const next = applyAsk(base, {
+      swaps: [
+        {
+          key: 'tee',
+          to: {
+            pieceId: 'knit',
+            name: 'Grey jumper',
+            category: 'Tops',
+            categoryL2: 'Jumpers & sweaters',
+            brand: 'COS',
+          },
+        },
+      ],
+      back: [],
+      styled: [],
+    });
+    expect(next.rows[0]).toMatchObject({ key: 'knit', categoryL2: 'Jumpers & sweaters' });
+    // A target without one (an older server) still lands, read from its stored category.
+    const old = applyAsk(base, {
+      swaps: [{ key: 'tee', to: { pieceId: 'old', name: 'Tee', category: 'Tops', brand: null } }],
+      back: [],
+      styled: [],
+    });
+    expect(old.rows[0]?.categoryL2).toBeNull();
+  });
+
   it('a second change on a row keeps the first original; back restores it', () => {
     let s = applyAsk(base, {
       swaps: [

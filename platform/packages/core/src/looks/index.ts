@@ -103,7 +103,10 @@ export interface RackRow {
   // Her piece, or null for a proposal.
   pieceId: string | null;
   name: string;
+  // The stored category (slots and the sheet read it); the eyebrow reads the sheet's L1 from
+  // categoryL2 when the taxonomy knows it (pieceEyebrow), so the rack and the wardrobe agree.
   category: string;
+  categoryL2?: string | null;
   brand: string | null;
   role: LookRole | null;
   proposal: Proposal | null;
@@ -159,7 +162,13 @@ export function changedKeys(state: Pick<RackState, 'edits'>): string[] {
 
 // An edit from the look prompt, resolved by the server against the rack she sent.
 export type AskTarget =
-  | { pieceId: string; name: string; category: string; brand: string | null }
+  | {
+      pieceId: string;
+      name: string;
+      category: string;
+      categoryL2?: string | null;
+      brand: string | null;
+    }
   | {
       proposal: Omit<Proposal, 'key' | 'role' | 'wishlisted'>;
     };
@@ -207,6 +216,7 @@ export function applyAsk(
         pieceId: to.pieceId,
         name: to.name,
         category: to.category,
+        categoryL2: to.categoryL2 ?? null,
         brand: to.brand,
         role: cur.role,
         proposal: null,

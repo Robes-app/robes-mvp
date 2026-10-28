@@ -130,6 +130,7 @@ const RackRowJson = z.object({
   pieceId: z.uuid().nullable(),
   name: z.string().max(120),
   category: z.string().max(40),
+  categoryL2: z.string().max(60).nullable().optional(),
   brand: z.string().max(60).nullable(),
   role: LookRole.nullable(),
   proposal: Proposal.nullable(),
@@ -351,6 +352,7 @@ export const AskTarget = z.union([
     pieceId: z.uuid(),
     name: z.string(),
     category: z.string(),
+    categoryL2: z.string().nullable().optional(),
     brand: z.string().nullable(),
   }),
   z.object({

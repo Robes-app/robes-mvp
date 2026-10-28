@@ -161,6 +161,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
                 look={entry.look}
                 href={`/look/${entry.look.id}`}
                 sizes="(min-width: 768px) 30vw, 50vw"
+                aspect="3:4"
                 eyebrow={copy.lookEyebrow(i + 1)}
                 badge={entry.worn ? copy.worn : null}
                 meta={plan.list.pieces(entry.look.pieces.length)}
