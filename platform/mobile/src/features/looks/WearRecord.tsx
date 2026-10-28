@@ -1,7 +1,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { errors, looks as looksCopy } from '@robes/copy';
-import { dayMonth, longDate } from '@robes/core/calendar';
+import { longDate, weekdayDayMonth } from '@robes/core/calendar';
 import { wearDiff } from '@robes/core/looks';
 import { Button, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -75,7 +75,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
                   onPress={() => router.push(`/day/${wear.wornOn}`)}
                   className="min-w-0 flex-1 flex-row items-center gap-3"
                 >
-                  <Text size="small">{dayMonth(wear.wornOn)}</Text>
+                  <Text size="small">{weekdayDayMonth(wear.wornOn)}</Text>
                   <Text size="caption" tone="faint" italic numberOfLines={1} className="flex-1">
                     {diff.differs ? copy.diff(diff.instead, diff.without) : copy.asSaved}
                   </Text>

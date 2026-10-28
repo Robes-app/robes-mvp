@@ -20,6 +20,7 @@ import { LookHero } from '@/components/looks/look-hero';
 import { SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
 import { WearRecord } from '@/components/looks/wear-record';
 import { usePushedView } from '@/components/shell/app-shell';
+import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { useLookEditor } from '@/lib/look-editor';
 import { withoutId } from '@/lib/wardrobe';
@@ -109,7 +110,7 @@ function LookBody({ look }: { look: Look }) {
         <LookName
           look={look}
           update={actions.update}
-          meta={savedMeta(look, editor.rack.rows.length)}
+          meta={savedMeta(look, editor.rack.rows.length, localToday())}
         />
         <SavedRack look={look} editor={editor} />
         {editor.editing ? null : (

@@ -41,7 +41,7 @@ export function SwapSheet({
   title?: string;
   // "Photograph one": the photograph files straight into her wardrobe and onto the look.
   onSnap?: (file: File) => void;
-  // A suggested look swaps on the one tap (legacy 0.1); its Undo is the way back.
+  // One tap swaps (a suggestion, legacy 0.1; a saved look while she edits, L5); its Undo is the way back.
   instant?: boolean;
 }) {
   const pieces = useApi('wardrobe.list', { input: { limit: 100 } }, { enabled: open });

@@ -6,17 +6,20 @@ import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/lo
 import { Icon } from '@robes/icons/web';
 import { IconButton, Image, Text } from '@robes/ui';
 import Link from 'next/link';
+import { cardLines } from '@/components/wardrobe/piece-card';
 import { imageSources } from '@/lib/image';
 
 export type RowMark = RowNote | { kind: 'added' };
 
-// One piece on a look's rack, read like the wardrobe list (legacy fix 13): Category · Brand, the
-// name without its brand, then the role and the exception. The card opens the piece.
+// One piece on a look's rack, composed from the wardrobe row's lines (legacy fix 13): Category ·
+// Brand, the name without its brand, then the role and the exception. The card opens the piece.
+// The native twin is mobile/src/features/looks/RackRow.tsx.
 export function RackRowCard({
   row,
   image,
   mark,
   styled,
+  wears,
   onSwap,
   onWish,
   onRemove,
@@ -25,6 +28,8 @@ export function RackRowCard({
   image?: PieceImageData | null;
   mark?: RowMark | null;
   styled?: string | null;
+  // The piece's own wear count, on a saved look at rest (beta's ledger, L19).
+  wears?: number;
   onSwap?: () => void;
   onWish?: () => void;
   onRemove?: () => void;
@@ -33,8 +38,14 @@ export function RackRowCard({
   const name = nameNoBrand(row.name, brand);
   const sources = image ? imageSources(image.renditions) : null;
   const proposal = row.proposal;
-  // The role reads on its own line in rose (Look redline 27 Oct); the exception follows, faint.
-  const role = row.role ? copy.rack.roles[row.role] : null;
+  // The piece card's own lines (one anatomy with the wardrobe row): the sheet's eyebrow, the
+  // serif name, and the role in rose as its status (Look redline 27 Oct). The name is already
+  // stripped of its brand here (nameNoBrand reads "… by Brand" too).
+  const lines = cardLines({
+    piece: { label: name, category: row.category, categoryL2: row.categoryL2 ?? null, brand },
+    status: row.role ? { text: copy.rack.roles[row.role], warm: true } : null,
+  });
+  // The exception follows the role, faint.
   const ctx = [
     proposal ? (proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours) : null,
     proposal?.retailerHint || null,
@@ -58,14 +69,13 @@ export function RackRowCard({
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate font-sans text-[10px] text-ink-muted uppercase tracking-[0.18em]">
-          {brand ? `${row.category} · ${brand}` : row.category}
-        </p>
-        <p className="line-clamp-2 font-display font-light text-ink text-lg leading-snug">{name}</p>
-        {role ? (
-          <p className="font-sans text-[10px] text-accent-warm uppercase tracking-[0.18em]">
-            {role}
-          </p>
+        {lines.eyebrow}
+        {lines.name}
+        {lines.status}
+        {wears !== undefined ? (
+          <Text size="caption" tone="faint">
+            {copy.meta.wears(wears)}
+          </Text>
         ) : null}
         {ctx.length ? (
           <Text size="caption" tone="faint" className="truncate">

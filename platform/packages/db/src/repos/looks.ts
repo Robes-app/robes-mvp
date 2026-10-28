@@ -384,6 +384,22 @@ export function looksRepo(db: Db) {
         .execute();
     },
 
+    // The days each look is pinned on from yesterday on, earliest first (a day can hold a look in
+    // both slots, so a day may repeat). The client drops the days before her own today; the day of
+    // slack covers time zones behind the server's.
+    async pinnedDays(userId: UserId, lookIds: readonly string[]) {
+      if (lookIds.length === 0) return [];
+      return db
+        .selectFrom('plannedDays')
+        .select(['lookId', sql<string>`day_date::text`.as('dayDate')])
+        .where('userId', '=', userId)
+        .where('lookId', 'in', [...lookIds])
+        .where('deletedAt', 'is', null)
+        .where('dayDate', '>=', sql<Date>`current_date - 1`)
+        .orderBy('dayDate')
+        .execute();
+    },
+
     async create(
       userId: UserId,
       look: LookFields & {

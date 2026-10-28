@@ -18,7 +18,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { HomeBox } from '@/components/home/home-box';
 import { SavedTile } from '@/components/looks/look-tiles';
 import { SuggestedRail } from '@/components/looks/suggested-rail';
@@ -26,9 +26,11 @@ import { StarButton } from '@/components/wardrobe/piece-card';
 import { type PieceField, PieceFieldSheet } from '@/components/wardrobe/piece-field-sheet';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { RecordRows } from '@/components/wardrobe/piece-rows';
+import { usePiecePhoto } from '@/components/wardrobe/use-piece-photo';
 import { useRemovePiece } from '@/components/wardrobe/use-remove-piece';
 import { useStarPiece } from '@/components/wardrobe/use-star-piece';
 import { errorCopy } from '@/lib/error-copy';
+import { PHOTO_ACCEPT } from '@/lib/upload';
 import { invalidateWardrobe, pieceIsReading } from '@/lib/wardrobe';
 
 const copy = wardrobe.piece;
@@ -79,13 +81,14 @@ export function PieceDetail({ id }: { id: string }) {
     // 1024px, the record beside it; one column, photograph first, below.
     <article className="mx-auto grid w-full max-w-xl grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-[clamp(360px,38%,560px)_minmax(0,1fr)] lg:items-start lg:gap-14">
       <div className="flex min-w-0 flex-col gap-6">
-        <div className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
+        <div className="relative overflow-hidden rounded-soft border border-hairline bg-surface-raised">
           <PieceImage
             piece={piece}
             contain
             sizes="(min-width: 1024px) 560px, (min-width: 768px) 576px, 100vw"
             priority
           />
+          <ChangePhoto id={id} hasPhoto={piece.image !== null} />
         </div>
 
         <header className="flex flex-col gap-1.5">
@@ -177,6 +180,42 @@ export function PieceDetail({ id }: { id: string }) {
         saving={update.isPending}
       />
     </article>
+  );
+}
+
+// The pill at the photograph's bottom-right (legacy rb-pc-rephoto): ↻ Change photo, or the camera
+// when there is none yet. Native twin: ChangePhoto in mobile/src/features/wardrobe/PieceDetail.tsx.
+function ChangePhoto({ id, hasPhoto }: { id: string; hasPhoto: boolean }) {
+  const file = useRef<HTMLInputElement>(null);
+  const photo = usePiecePhoto(id);
+  const label = hasPhoto ? copy.changePhoto : copy.addPhoto;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => file.current?.click()}
+        disabled={photo.busy}
+        aria-busy={photo.busy}
+        className="absolute right-3.5 bottom-3.5 z-10 flex min-h-11 items-center gap-2 rounded-pill border border-hairline bg-bg/95 pr-4 pl-3.5 font-sans text-ink text-sm shadow-sm hover:bg-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:text-ink-faint"
+      >
+        <Icon name={hasPhoto ? 'swap' : 'camera'} size={16} />
+        {label}
+      </button>
+      <input
+        ref={file}
+        type="file"
+        accept={PHOTO_ACCEPT}
+        // The pill is the door; the input itself is hidden from assistive tech.
+        aria-hidden
+        aria-label={label}
+        tabIndex={-1}
+        className="sr-only"
+        onChange={(e) => {
+          void photo.change(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+    </>
   );
 }
 

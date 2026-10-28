@@ -3,7 +3,7 @@ import { lookbook as copy } from '@robes/copy';
 import { anchorName, lookFacts, lookWearFor, startedLabel } from '@robes/core/looks';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
-import { fonts, Image, MIN_TOUCH, useColor } from '@robes/ui-native';
+import { type Aspect, fonts, Image, MIN_TOUCH, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
@@ -13,7 +13,7 @@ import { localDate } from './saved-looks';
 
 // A control on the photograph: drawn small (32pt ✕, 36pt calendar — beta's size, not a large
 // white disc) with the hit area reaching out to 44pt.
-function OnPhoto({
+export function OnPhoto({
   icon,
   label,
   size,
@@ -49,11 +49,13 @@ function OnPhoto({
 // and ✕ deletes, top right, as on a suggestion.
 export function SavedTile({
   look,
+  aspect,
   onPress,
   onDiary,
   onDelete,
 }: {
   look: Look;
+  aspect?: Aspect;
   onPress: () => void;
   onDiary?: () => void;
   onDelete?: () => void;
@@ -62,6 +64,7 @@ export function SavedTile({
     <LookTile
       look={look}
       onPress={onPress}
+      {...(aspect ? { aspect } : {})}
       className="flex-1"
       tag={lookWearFor(look)[0] ?? null}
       meta={copy.meta.card(lookFacts(look, look.pieces.length))}
@@ -156,6 +159,7 @@ export function SuggestedTile({
   onSwap,
   swapping,
   showMark = true,
+  aspect,
 }: {
   look: Look;
   onPress: () => void;
@@ -163,6 +167,7 @@ export function SuggestedTile({
   onSwap: () => void;
   swapping: boolean;
   showMark?: boolean;
+  aspect?: Aspect;
 }) {
   const around = look.anchor ? anchorName(look.anchor.label, look.anchor.brand) : '';
   const busy = scanningLine(look, swapping);
@@ -170,6 +175,7 @@ export function SuggestedTile({
     <LookTile
       look={look}
       onPress={onPress}
+      {...(aspect ? { aspect } : {})}
       className="flex-1"
       eyebrow={copy.suggestedTile.eyebrow}
       eyebrowTone="warm"

@@ -1,7 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { looks as copy, lookbook, ui } from '@robes/copy';
-import { lookFacts } from '@robes/core/looks';
+import { lookFacts, pinnedFor } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
@@ -13,7 +13,6 @@ import {
   PrimaryScope,
   Skeleton,
   Text,
-  useColor,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -25,7 +24,7 @@ import { LookPromptBox } from './LookPromptBox';
 import { useLookEditor } from './look-editor';
 import { RackRowCard } from './RackRow';
 import { SwapSheet } from './SwapSheet';
-import { useRemoveLook, useRenameLook } from './saved-looks';
+import { localDate, useRemoveLook, useRenameLook } from './saved-looks';
 import { WearRecord } from './WearRecord';
 
 // A provisional name is Robes' suggestion: she can keep it or name the look herself.
@@ -109,11 +108,13 @@ function SavedLook({ look }: { look: Look }) {
   const editor = useLookEditor(look);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  // The deep rose: the brand's rose at a size small text can read (4.5:1).
-  const rose = useColor('accent-warm');
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
-  const meta = lookbook.meta.saved(lookFacts(look, editor.rack.rows.length));
+  // The web twin is savedMeta in look-page.tsx.
+  const meta = lookbook.meta.saved({
+    ...lookFacts(look, editor.rack.rows.length),
+    pinnedFor: pinnedFor(look.pinnedOn, localDate()),
+  });
   return (
     <View className="flex-1">
       <ScrollView
@@ -145,6 +146,9 @@ function SavedLook({ look }: { look: Look }) {
               image={row.pieceId ? piecesById.get(row.pieceId)?.image : null}
               mark={editor.mark(row.key)}
               styled={editor.rack.styling[row.key]}
+              {...(!editor.editing && row.pieceId
+                ? { wears: piecesById.get(row.pieceId)?.wearCount ?? 0 }
+                : {})}
               {...(row.pieceId ? { onOpen: () => router.push(`/piece/${row.pieceId}`) } : {})}
               {...(row.proposal ? { onWish: () => editor.wish(row.key) } : {})}
               {...(editor.editing
@@ -185,7 +189,9 @@ function SavedLook({ look }: { look: Look }) {
                 style={{ minHeight: MIN_TOUCH }}
                 className="items-center justify-center self-center"
               >
-                <Text size="small" style={{ color: rose }}>
+                {/* Destructive text is danger on both clients (web twin look-view.tsx); rose marks
+                    now and Robes' hand (design-system.md, 25 Oct). */}
+                <Text size="small" tone="danger">
                   {copy.page.remove}
                 </Text>
               </Pressable>
@@ -236,6 +242,8 @@ function SavedLook({ look }: { look: Look }) {
           setSwapping(null);
           setAdding(false);
         }}
+        // One tap swaps while she edits, behind a 6 s Undo (web twin: Rack in look-page.tsx).
+        instant
         onPick={(piece) => (swapping ? editor.swap(swapping, piece) : editor.add(piece))}
       />
     </View>

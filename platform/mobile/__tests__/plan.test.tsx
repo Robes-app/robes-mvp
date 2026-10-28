@@ -1,14 +1,26 @@
-import { plan, ui } from '@robes/copy';
+import { looks, plan, ui, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { DayView } from '../src/features/plan/DayView';
 import { PlanView } from '../src/features/plan/PlanView';
 import { dayLabel } from '../src/features/plan/plan';
 import { mockFetch, renderWithApi } from './support/api';
-import { LOOK_ID, look } from './support/fixtures';
+import { ASSET_ID, LOOK_ID, look, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
+jest.mock('expo-image-picker', () => ({
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+  launchImageLibraryAsync: jest.fn(async () => ({
+    canceled: false,
+    assets: [{ uri: 'file:///tmp/me.jpg', width: 900, height: 1200, mimeType: 'image/jpeg' }],
+  })),
+}));
+jest.mock('../src/features/wardrobe/add-pieces', () => ({
+  ...jest.requireActual('../src/features/wardrobe/add-pieces'),
+  uploadPhoto: jest.fn(async () => '44444444-4444-4444-8444-444444444444'),
+}));
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -90,6 +102,25 @@ test('the day page names the day, opens a look and takes it off with Undo', asyn
     await fireEvent.press(screen.getAllByRole('button', { name: ui.undo }).at(-1) as never);
   });
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/restore'))).toBe(true));
+});
+
+test('the camera on a day’s look adds her photograph to the look, and the day re-reads', async () => {
+  const photo = piece().image;
+  if (!photo) throw new Error('fixture piece has an image');
+  const calls = mockFetch({
+    'GET /plan': planWith(true),
+    [`POST /looks/${LOOK_ID}/photo`]: look({ photo, image: photo, record: 'photo' }),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<DayView date="2026-10-01" />);
+  await fireEvent.press(await screen.findByRole('button', { name: looks.page.addPhoto }));
+  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.add.doors.cameraRoll }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/photo'))?.body).toEqual({ assetId: ASSET_ID }),
+  );
+  await waitFor(() =>
+    expect(calls.filter((c) => c.method === 'GET' && c.path.endsWith('/plan'))).toHaveLength(2),
+  );
 });
 
 test('a look she wore on the day carries Worn ✓; the day never borrows the look’s name', async () => {

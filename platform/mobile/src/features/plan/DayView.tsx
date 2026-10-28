@@ -1,40 +1,69 @@
-import { useApi } from '@robes/api-client/react';
+import { queryKeys, useApi } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
 import { plan as copy } from '@robes/copy';
 import { daySummary, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import { ErrorText, Eyebrow, fonts, IconButton, Skeleton, Text, useColor } from '@robes/ui-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
+import { useHerPhoto } from '../looks/her-photo';
 import { LookTile } from '../looks/LookTile';
+import { OnPhoto } from '../looks/LookTiles';
 import { localDate } from '../looks/saved-looks';
 import { LookPicker } from './LookPicker';
 import { useNameDay, usePlanDay, useUnpin } from './plan';
 
+// A look on the day: ✕ takes it off the day; the camera on the photograph adds her photograph of
+// it (beta's day card), kept on the LOOK — ↻ replaces it while her photograph is the record.
+// Web twin: app/src/app/(app)/plan/[date]/day-view.tsx DayLook.
 function LookCard({ entry, n }: { entry: PlanEntry; n: number }) {
   const router = useRouter();
   const unpin = useUnpin();
+  const queryClient = useQueryClient();
+  const photo = useHerPhoto(entry.look, () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
+  });
+  const camera = !photo.hasPhoto || entry.look.record === 'photo';
   return (
-    <LookTile
-      look={entry.look}
-      onPress={() => router.push(`/look/${entry.look.id}`)}
-      className="w-[47%]"
-      eyebrow={copy.day.lookEyebrow(n)}
-      badge={entry.worn ? copy.day.worn : null}
-      meta={copy.list.pieces(entry.look.pieces.length)}
-      corner={
-        <View className="rounded-pill bg-bg">
-          <IconButton
-            icon="close"
-            tone="ink-muted"
-            label={copy.day.remove(entry.look.name)}
-            onPress={() => unpin.mutate({ params: { id: entry.id } })}
-          />
-        </View>
-      }
-    />
+    <>
+      <LookTile
+        look={entry.look}
+        onPress={() => router.push(`/look/${entry.look.id}`)}
+        className="w-[47%]"
+        aspect="3:4"
+        eyebrow={copy.day.lookEyebrow(n)}
+        badge={entry.worn ? copy.day.worn : null}
+        meta={copy.list.pieces(entry.look.pieces.length)}
+        onImage={
+          camera ? (
+            <View className="absolute right-2 bottom-2">
+              <OnPhoto
+                icon={photo.hasPhoto ? 'swap' : 'camera'}
+                label={photo.label}
+                size={36}
+                disabled={photo.busy}
+                onPress={photo.pick}
+              />
+            </View>
+          ) : null
+        }
+        corner={
+          <View className="rounded-pill bg-bg">
+            <IconButton
+              icon="close"
+              tone="ink-muted"
+              label={copy.day.remove(entry.look.name)}
+              onPress={() => unpin.mutate({ params: { id: entry.id } })}
+            />
+          </View>
+        }
+      />
+      {photo.sheet}
+    </>
   );
 }
 
@@ -150,8 +179,8 @@ export function DayView({ date }: { date: string }) {
         {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
         {query.isPending ? (
           <View className="flex-row gap-3" accessibilityState={{ busy: true }}>
-            <Skeleton width="47%" aspectRatio={4 / 5} />
-            <Skeleton width="47%" aspectRatio={4 / 5} />
+            <Skeleton width="47%" aspectRatio={3 / 4} />
+            <Skeleton width="47%" aspectRatio={3 / 4} />
           </View>
         ) : (
           <View className="flex-row flex-wrap gap-4">

@@ -1,6 +1,7 @@
 import { firstRun, home } from './home';
 import { legal } from './legal';
 import { lookbook } from './lookbook';
+import { SEASON_LABELS } from './seasons';
 
 // Every user-facing string lives here (SPEC principle 6); voice rules: brand-and-design.md §1.
 // Keys are stable ids; values are en-GB. Use curly apostrophes (’) and no exclamation marks.
@@ -345,6 +346,9 @@ export const wardrobe = {
     // and the brand is its own tappable line, empty or not.
     editName: 'Edit the name',
     addBrand: 'Add the brand',
+    // The pill on the record's photograph (legacy rb-pc-rephoto); with no photo, it adds one.
+    changePhoto: 'Change photo',
+    addPhoto: 'Add a photo',
     // The record's sections (legacy Piece_Sheet 01): every fact is a row, a tap opens its drawer.
     sections: {
       piece: 'The piece',
@@ -485,11 +489,7 @@ export const wardrobe = {
     title: 'Filter',
     season: 'Season',
     colour: 'Colour',
-    seasons: {
-      spring_summer: 'Spring/Summer',
-      autumn_winter: 'Autumn/Winter',
-      year_round: 'Year-round',
-    },
+    seasons: SEASON_LABELS,
     wearFor: 'Wear it for',
     brand: 'Brand',
     allBrands: 'All brands',

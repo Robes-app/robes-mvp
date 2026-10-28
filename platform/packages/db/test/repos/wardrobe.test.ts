@@ -5,7 +5,7 @@ import { createRepositories, createSystemRepositories } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
-const { wardrobe, looks } = createRepositories(db);
+const { wardrobe, looks, assets } = createRepositories(db);
 const { pieces } = createSystemRepositories(db);
 let ann: UserId;
 let bea: UserId;
@@ -36,6 +36,27 @@ describe('wardrobe repo', () => {
     expect(await wardrobe.setWearTags(bea, coat.id, ['Evening'])).toBe(false);
     expect((await wardrobe.wearTags(ann, [coat.id])).get(coat.id)).toEqual(['Work']);
     expect(await wardrobe.wearTags(bea, [coat.id])).toEqual(new Map());
+  });
+
+  it("changes a piece's photograph: only hers, and only with her own photo", async () => {
+    const upload = (userId: UserId) =>
+      assets.createPending(userId, { kind: 'wardrobe', contentType: 'image/jpeg', bytes: 1000 });
+    const first = await upload(ann);
+    const coat = await wardrobe.create(ann, { label: 'Camel coat', imageAssetId: first.id });
+    const next = await upload(ann);
+    expect(await wardrobe.setPhoto(ann, coat.id, next.id)).toBe(true);
+    expect((await wardrobe.get(ann, coat.id))?.imageAssetId).toBe(next.id);
+
+    // Another woman's piece is not hers to rephotograph, and nothing is written.
+    const beas = await upload(bea);
+    expect(await wardrobe.setPhoto(bea, coat.id, beas.id)).toBe(false);
+    expect((await wardrobe.get(ann, coat.id))?.imageAssetId).toBe(next.id);
+    // Her piece cannot take another woman's photo: the composite key refuses it.
+    await expect(wardrobe.setPhoto(ann, coat.id, beas.id)).rejects.toThrow();
+    expect((await wardrobe.get(ann, coat.id))?.imageAssetId).toBe(next.id);
+    // A piece she let go of takes no new photo.
+    await wardrobe.remove(ann, coat.id);
+    expect(await wardrobe.setPhoto(ann, coat.id, first.id)).toBe(false);
   });
 
   it("reads a piece's own record, and keeps it to its owner", async () => {

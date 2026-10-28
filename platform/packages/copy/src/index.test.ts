@@ -65,6 +65,17 @@ describe('next line counts', () => {
   });
 });
 
+describe('a saved look’s meta line', () => {
+  it('ends on the next day it is pinned for, when it has one (beta)', async () => {
+    const { lookbook } = await import('./index');
+    const facts = { pieces: 3, timesWorn: 2, lastWorn: '23 Jul', around: null };
+    expect(lookbook.meta.saved({ ...facts, pinnedFor: 'Tuesday 29 Sep' })).toBe(
+      '3 pieces · 2 wears · last 23 Jul · pinned for Tuesday 29 Sep',
+    );
+    expect(lookbook.meta.saved(facts)).toBe('3 pieces · 2 wears · last 23 Jul');
+  });
+});
+
 describe('the day’s advice', () => {
   it('reads the condition first, then the high', async () => {
     const { plan } = await import('./index');
@@ -73,5 +84,12 @@ describe('the day’s advice', () => {
     expect(plan.day.advice('partly cloudy', '10–15°C')).toBe('Bring one warm layer.');
     expect(plan.day.advice('clear', '18–27°C')).toBe('Light and breathable.');
     expect(plan.day.advice('overcast', '12–19°C')).toBe('Easy layers.');
+  });
+});
+
+describe('season labels', () => {
+  it('spell a band one way on the wardrobe, the Lookbook and a look', () => {
+    expect(copy.lookbook.refine.seasons).toBe(copy.wardrobe.filter.seasons);
+    expect(copy.lookbook.refine.seasons.spring_summer).toBe('Spring/Summer');
   });
 });

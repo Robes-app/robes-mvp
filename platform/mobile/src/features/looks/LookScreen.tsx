@@ -76,7 +76,7 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
   const router = useRouter();
   const editor = useLookEditor(look);
   const refresh = useInvalidateLooks();
-  const save = useSaveLook(onSaved);
+  const save = useSaveLook(onSaved, look.status === 'suggested' ? 'suggested' : 'draft');
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);

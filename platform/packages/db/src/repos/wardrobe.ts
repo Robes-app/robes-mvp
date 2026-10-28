@@ -297,6 +297,19 @@ export function wardrobeRepo(db: Db) {
       return res.numUpdatedRows > 0n;
     },
 
+    // Change photo: her photograph replaces the piece's, whatever it had. The composite FK keeps
+    // the asset hers; the caller checks its kind.
+    async setPhoto(userId: UserId, id: string, assetId: string): Promise<boolean> {
+      const res = await db
+        .updateTable('wardrobeItems')
+        .set({ imageAssetId: assetId })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
+    },
+
     async update(userId: UserId, id: string, fields: PieceFields) {
       const values = withTaxonomy(fields);
       if (Object.keys(values).length === 0) return this.get(userId, id);

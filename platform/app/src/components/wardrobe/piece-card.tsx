@@ -27,16 +27,16 @@ export interface CardStatus {
 }
 
 // Eyebrow "BOTTOMS · M&S" in one quiet tone (rose is kept for Robes' hand and "Never worn"),
-// then the Cormorant Light name and the status. The native twin is
-// mobile/src/features/wardrobe/PieceCard.tsx.
-function cardLines({
+// then the Cormorant Light name and the status. Every piece row composes these (the wardrobe, the
+// look's rack). The native twin is mobile/src/features/wardrobe/PieceCard.tsx.
+export function cardLines({
   piece,
   href,
   status,
 }: {
-  piece: CardPiece;
+  piece: Omit<CardPiece, 'id'>;
   href?: string;
-  status: CardStatus;
+  status?: CardStatus | null;
 }) {
   const eye = pieceEyebrow(piece);
   const name = nameWithoutBrand(piece.label, piece.brand);
@@ -58,7 +58,7 @@ function cardLines({
         )}
       </h3>
     ),
-    status: status.error ? (
+    status: !status ? null : status.error ? (
       <p className="flex items-center gap-1.5 font-sans text-danger text-xs">
         <Icon name="alert" size={14} className="shrink-0" />
         {status.text}
