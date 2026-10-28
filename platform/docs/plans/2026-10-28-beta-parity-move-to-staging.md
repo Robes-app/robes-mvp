@@ -224,7 +224,7 @@ blockers ship first and the token pass doesn't conflict with component work.
 | **3 · Look page + metadata** ✅ 2026-10-28 (`fix/parity-pass-3-look-page`) | Rack eyebrow = sheet L1; instant swap + Undo; pinned-for; her photo in composer + day card; Change photo; season label; held card; rack anatomy composed; wear-record weekday; toasts | M1 L5 L6 L4 M3/W1 M6 M4 M2 M10 M11 L10 L19 L21 L22 | 4–5 h | `look-page.tsx` `look-view.tsx` `composer.tsx` `rack-row.tsx` `wear-record.tsx` `piece-detail.tsx` ↔ `LookDetail.tsx` `Composer.tsx` `RackRow.tsx` `WearRecord.tsx` `PieceDetail.tsx`; `packages/contracts/src/{looks,routes}.ts` (+ api-security checklist for `wardrobe.photo`); `packages/copy/src/lookbook.ts` |
 | **4 · Diary · Lookbook · Home · Wardrobe · You (S items)** ✅ 2026-10-28 (`fix/parity-pass-4`) | Open the day from the sheet; worn dots from `looks.wears`; "· Worn" rows; persisted toggles; copy; native tray/past-day/weekday; sort/filter hidden under four; native prints/pieces swatches; sign-in line; Download data on native | L7 L9/L3 D2 D4 D7 D9 L1 L7 L9 L10 F6 F7 F9 F10 W4 W8 Y6 Y7 Y4 F4 N1 | 3–4 h | `diary-sheet.tsx` ↔ `DiarySheet.tsx`, `plan-list/plan-view/plan-month.tsx` ↔ `PlanView/PlanMonth.tsx`, `lookbook.tsx` ↔ `LooksView.tsx`, `home-view.tsx` ↔ `HomeView.tsx`, `db/repos/wardrobe.ts`, `features/you/{Palette,StyleDna,Privacy}.tsx`, `(auth)/sign-in.tsx`, `packages/copy/src/index.ts` |
 | **5 · Native shell** ✅ 2026-10-28 (`fix/parity-pass-5`) | `+not-found`; `links.ts` rules; Create as formSheet; sheet bottom inset; Google button; associated domains + AASA (config) | N5 N6 D1 D2 D3 F5 N4 | 1.5 h | `mobile/src/app/{+not-found,_layout}.tsx`, `mobile/src/lib/links.ts` (+ test), `packages/ui-native/src/Sheet.tsx`, `mobile/app.json`, web AASA route |
-| **6 · Product events** (decision 11) | Events catalogue + call sites on both clients | N8 | M | `packages/analytics`, `Camera.tsx`, `SwapSheet.tsx`, `look-editor.ts` + web twins |
+| **6 · Product events** (decision 11) ✅ 2026-10-28 (`fix/parity-pass-6`) | Events catalogue + call sites on both clients | N8 | M | `packages/analytics`, `Camera.tsx`, `SwapSheet.tsx`, `look-editor.ts` + web twins |
 | **7 · Docs** | Correct the stale lines (§9); history entry; `STATUS.md` | — | 0.5 h | `docs/plans/2026-10-23-cutover-readiness.md`, `docs/STATUS.md`, `docs/legacy-app-history.md` |
 
 **Pass 1 notes (done).** L1: the rule lives server-side (`saveLook`, `lookDateName` in
@@ -318,6 +318,18 @@ explicit include list in `@robes/core/app-links` (every native screen; never `/a
 `APPLE_APP_BUNDLE_ID`, `ANDROID_APP_PACKAGE`, `ANDROID_CERT_SHA256` per stage; Associated Domains on
 the App IDs; `AUTH_TRUSTED_ORIGINS` carries the build's scheme; a new EAS build per stage. N9 (native
 Sign in with Apple, App Store blocker) stays open.
+
+**Pass 6 notes (done).** `packages/analytics/src/events.ts` is the catalogue: strict zod shapes,
+props only enums, counts, booleans, day offsets and one piece uuid (free text refused by type and at
+runtime); `track` is typed on both clients. Beta's names kept where the act matches (`look_created`,
+`look_pinned`, `wear_confirmed`, `camera_opened`, `swap_drawer_opened`, `prompt_submitted`,
+`balance_*`, `look_prompt_*`, `home_module_*`, `first_look_*`, `home_activated`, …); new:
+`look_piece_added/removed`, `look_updated`. Consent gates both clients (tests on each, and
+`consent.spec` decodes real PostHog payloads — posthog-js drops headless browsers as bots, so the
+spec presents as a person). **Open:** onboarding events rarely reach PostHog (consent isn't asked
+during onboarding; native analytics mounts in the tabs); the admin funnel reads tables, not events
+(`app.events` has no writer); `look_generated` / `pieces_read` belong server-side (no worker
+analytics client); `look_dismissed`, `draft_discarded`, `inbox_reviewed` not wired.
 
 Passes 1 → 2 → 3 are the move-today bar. 4 and 5 are the same day if hands allow; nothing in
 them stops a tester. The M/L items left in §4 (held card M4/M5, deck card M8, key-piece tile M15,
