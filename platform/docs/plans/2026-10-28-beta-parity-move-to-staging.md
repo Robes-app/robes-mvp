@@ -222,7 +222,7 @@ blockers ship first and the token pass doesn't conflict with component work.
 | **1 · Blockers** ✅ 2026-10-28 (`fix/parity-pass-1-blockers`) | Unnamed save = today's date; model re-render after edit; You · Model without a twin; "Sept"; morning-cue default; native keyboard | L1 L2 L3 D1 Y1 N2 | 3–4 h | `packages/db/src/repos/looks.ts`, `app/src/lib/look-editor.ts` ↔ `mobile/src/features/looks/look-editor.ts`, `look-hero.tsx` ↔ `LookHero.tsx`, `app/src/lib/dates.ts`, `mobile/src/features/plan/plan.ts`, `packages/core/src/looks/index.ts`, `packages/contracts/src/me.ts`, `scripts/migrate/src/sql.ts`, `LookScreen/Composer/LookDetail.tsx`, `packages/ui-native/src/Sheet.tsx`; e2e `looks-saved-ui.spec.ts` |
 | **2 · Visual tokens** ✅ 2026-10-28 (`fix/parity-pass-2-visual`) | Light only; control edge (per decision 2); sheet radius + handle; toast; pill/segmented; radius steps; washes; disabled; wordmark; dock | V1–V5, V7 V8 V10–V12 V14 V15 (V6/V9 per decision) | 3 h | `packages/tokens/src/tokens.ts`, `app/src/app/layout.tsx`, `mobile/app.json`, `packages/ui/src/{dialog,pill,segmented-control,toast,button-styles,wordmark,empty-state}.tsx` ↔ `packages/ui-native/src/{Sheet,Pill,SegmentedControl,Toast,Button,Text}.tsx`, `app-shell.tsx` ↔ `TabBar.tsx` |
 | **3 · Look page + metadata** ✅ 2026-10-28 (`fix/parity-pass-3-look-page`) | Rack eyebrow = sheet L1; instant swap + Undo; pinned-for; her photo in composer + day card; Change photo; season label; held card; rack anatomy composed; wear-record weekday; toasts | M1 L5 L6 L4 M3/W1 M6 M4 M2 M10 M11 L10 L19 L21 L22 | 4–5 h | `look-page.tsx` `look-view.tsx` `composer.tsx` `rack-row.tsx` `wear-record.tsx` `piece-detail.tsx` ↔ `LookDetail.tsx` `Composer.tsx` `RackRow.tsx` `WearRecord.tsx` `PieceDetail.tsx`; `packages/contracts/src/{looks,routes}.ts` (+ api-security checklist for `wardrobe.photo`); `packages/copy/src/lookbook.ts` |
-| **4 · Diary · Lookbook · Home · Wardrobe · You (S items)** | Open the day from the sheet; worn dots from `looks.wears`; "· Worn" rows; persisted toggles; copy; native tray/past-day/weekday; sort/filter hidden under four; native prints/pieces swatches; sign-in line; Download data on native | L7 L9/L3 D2 D4 D7 D9 L1 L7 L9 L10 F6 F7 F9 F10 W4 W8 Y6 Y7 Y4 F4 N1 | 3–4 h | `diary-sheet.tsx` ↔ `DiarySheet.tsx`, `plan-list/plan-view/plan-month.tsx` ↔ `PlanView/PlanMonth.tsx`, `lookbook.tsx` ↔ `LooksView.tsx`, `home-view.tsx` ↔ `HomeView.tsx`, `db/repos/wardrobe.ts`, `features/you/{Palette,StyleDna,Privacy}.tsx`, `(auth)/sign-in.tsx`, `packages/copy/src/index.ts` |
+| **4 · Diary · Lookbook · Home · Wardrobe · You (S items)** ✅ 2026-10-28 (`fix/parity-pass-4`) | Open the day from the sheet; worn dots from `looks.wears`; "· Worn" rows; persisted toggles; copy; native tray/past-day/weekday; sort/filter hidden under four; native prints/pieces swatches; sign-in line; Download data on native | L7 L9/L3 D2 D4 D7 D9 L1 L7 L9 L10 F6 F7 F9 F10 W4 W8 Y6 Y7 Y4 F4 N1 | 3–4 h | `diary-sheet.tsx` ↔ `DiarySheet.tsx`, `plan-list/plan-view/plan-month.tsx` ↔ `PlanView/PlanMonth.tsx`, `lookbook.tsx` ↔ `LooksView.tsx`, `home-view.tsx` ↔ `HomeView.tsx`, `db/repos/wardrobe.ts`, `features/you/{Palette,StyleDna,Privacy}.tsx`, `(auth)/sign-in.tsx`, `packages/copy/src/index.ts` |
 | **5 · Native shell** | `+not-found`; `links.ts` rules; Create as formSheet; sheet bottom inset; Google button; associated domains + AASA (config) | N5 N6 D1 D2 D3 F5 N4 | 1.5 h | `mobile/src/app/{+not-found,_layout}.tsx`, `mobile/src/lib/links.ts` (+ test), `packages/ui-native/src/Sheet.tsx`, `mobile/app.json`, web AASA route |
 | **6 · Product events** (decision 11) | Events catalogue + call sites on both clients | N8 | M | `packages/analytics`, `Camera.tsx`, `SwapSheet.tsx`, `look-editor.ts` + web twins |
 | **7 · Docs** | Correct the stale lines (§9); history entry; `STATUS.md` | — | 0.5 h | `docs/plans/2026-10-23-cutover-readiness.md`, `docs/STATUS.md`, `docs/legacy-app-history.md` |
@@ -269,6 +269,23 @@ Lookbook ✓", "Saved to your lookbook" from a suggestion, "Updated". M3/W1: `wa
 photo" pill; no re-read, so her fields stand. **Deferred:** W2 (camera door on a photo-less thumb —
 the `usePiecePhoto` hooks are ready); the empty composer before its first piece has no photo door
 (`shortcut:`); M4 held card stays on the week's list.
+
+**Pass 4 notes (done).** Diary: L7 "Open the day" routes on both; L9 the sheet's worn days come
+from `looks.wears` (`diaryMarks` in `@robes/core/calendar`); D2 "· Worn" rows; D4 List|Month kept
+per viewer (web localStorage, native `lib/prefs` on SecureStore — the app's one per-viewer store,
+also the wardrobe layout W8); D7 beta's empty copy; D9 `WEEKDAYS_SHORT` heads (native now Mon…Sun).
+Lookbook: L1 Sort/Filter hidden under four (a hidden filter no longer applies); L9 Last worn ·
+Newest · Name; L7 beta's empty Suggested line; L10 a wear dated today toasts "Worn today ✓".
+Home: F6 native "In the studio" tray (`trayKind`/`trayState` shared); F7 past empty day "Nothing
+filed"; F9 calendar weekday; F10 `profiles.style_confirmed_at` (migration, carried from legacy
+`style_dna.confirmed_at`) — set for migrated users only, the platform has no style walk yet.
+Wardrobe: W4 in-season heroes lead the first page (`seasonBandOn`, her timezone). You: Y4 delete
+signs out on both, copy true; Y6 native print swatches; Y7 native loved-piece photos; N1 native
+Download data; F4 "Used a password? Robes emails you a code now." Also: Review has one header
+(title + ×; no eyebrow, back pill or second Cancel), and staging workers deploy on a `beta` merge
+once `STAGING_AUTO_DEPLOY` is set (environments.md §5) — until then, deploy workers from a laptop
+after any `packages/jobs`/`packages/ai`/`workers` merge. Photo reads (28 Oct) were still the old
+worker for this reason.
 
 Passes 1 → 2 → 3 are the move-today bar. 4 and 5 are the same day if hands allow; nothing in
 them stops a tester. The M/L items left in §4 (held card M4/M5, deck card M8, key-piece tile M15,
