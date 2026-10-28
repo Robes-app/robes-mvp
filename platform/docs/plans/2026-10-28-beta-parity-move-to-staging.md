@@ -287,6 +287,23 @@ once `STAGING_AUTO_DEPLOY` is set (environments.md §5) — until then, deploy w
 after any `packages/jobs`/`packages/ai`/`workers` merge. Photo reads (28 Oct) were still the old
 worker for this reason.
 
+**Pass 4b notes (done, 28 Oct — Annie's staging walk).** Web pushed pages carry the back pill in
+the top bar in place of the wordmark (`backFor` in `app/src/lib/nav.ts`: the shell reads it from
+the URL — a new pushed page adds its row there, never its own `BackLink`; native `StackScreen`
+already did this). One `InlineTitleField` (web `@robes/ui`, native `@robes/ui-native`) names a day,
+renames a look and names a draft — the title becomes the field, underline only (a global
+`:focus-visible` outline outside any CSS layer had boxed every quiet field; moving it into
+`@layer base` is open). Weather follows her: asked once on first visit, then her device location
+silently each session (≤ every 3 h) → `POST /me/location` (rounded ~1 km, Nominatim name) → her
+profile (data inventory updated; `Permissions-Policy` now `geolocation=(self)`, and
+`camera=(self)` — `camera=()` had blocked the in-page camera). The twin draws at 2K (legacy
+parity; the face survives a full-length frame) and the colour read is `deliberate` (medium thinking,
+full-detail photo). A draft's canvas dresses only on a ready render, and a failed draw says
+"Couldn't dress her · Try again" on the canvas and the saved look. **Worker-side** (twin, colour
+read, model dressing, photo reads): live only after a staging worker deploy
+(`docs/runbooks/staging-deploy-handoff.md`). Native location needs a new dev/TestFlight build for
+the iOS string; Expo Go works.
+
 Passes 1 → 2 → 3 are the move-today bar. 4 and 5 are the same day if hands allow; nothing in
 them stops a tester. The M/L items left in §4 (held card M4/M5, deck card M8, key-piece tile M15,
 O4 Robes-build F8, filter multi-select W5, cascade W6, Review "Already mine" W9, morning hour Y2,
