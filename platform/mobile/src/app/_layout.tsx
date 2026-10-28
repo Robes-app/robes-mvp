@@ -14,6 +14,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Uniwind } from 'uniwind';
+import { FORM_SHEET } from '@/components/FormSheetScreen';
 import { api } from '@/lib/api';
 
 // Light only, as beta: a dark-mode phone still sees cream (dark waits for a setting). Expo Go
@@ -42,18 +43,9 @@ export default function RootLayout() {
         <View className="flex-1 bg-bg">
           <ToastProvider>
             <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="create" options={{ presentation: 'modal' }} />
-              {/* The Add pieces sheet pulls up from the bottom edge with its grab bar. */}
-              <Stack.Screen
-                name="wardrobe/add"
-                options={{
-                  presentation: 'formSheet',
-                  // The sheet draws its own handle above its title row (redline 02).
-                  sheetGrabberVisible: false,
-                  sheetAllowedDetents: [0.72, 1],
-                  sheetCornerRadius: 22,
-                }}
-              />
+              {/* Create and Add pieces pull up from the bottom edge the same way (beta parity). */}
+              <Stack.Screen name="create" options={FORM_SHEET} />
+              <Stack.Screen name="wardrobe/add" options={FORM_SHEET} />
             </Stack>
           </ToastProvider>
         </View>

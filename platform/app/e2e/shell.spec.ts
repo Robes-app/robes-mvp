@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { shell } from '@robes/copy';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
 const ROOTS = ['Home', 'Lookbook', 'Diary', 'Wardrobe'];
@@ -110,6 +111,8 @@ test('every shell route renders its heading', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: heading }), path).toBeVisible();
   }
   expect((await page.goto('/soon/nope'))?.status()).toBe(404);
+  await expect(page.getByRole('heading', { name: shell.notFound.title })).toBeVisible();
+  await expect(page.getByRole('link', { name: shell.notFound.back })).toHaveAttribute('href', '/');
 });
 
 test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {

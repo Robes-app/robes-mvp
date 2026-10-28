@@ -2,6 +2,7 @@ import { ui } from '@robes/copy';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   PanResponder,
@@ -9,6 +10,7 @@ import {
   Pressable,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, PrimaryScope } from './Button';
 import { cx } from './cx';
 import { useReducedMotion } from './motion';
@@ -39,6 +41,28 @@ const DISMISS_DRAG = 120;
 const BACKDROP_OPACITY = 0.4;
 // The top 8% stays clear: past every iPhone's status bar and island (59pt of 874 on a 17).
 const SHEET_MAX = '92%';
+// Space under the last row; the home indicator's inset is added below it.
+const SHEET_PAD = 24;
+
+// While the keyboard is up the KeyboardAvoidingView already lifts the sheet clear of the home
+// indicator, so the inset is only added while it's down.
+function useKeyboardShown(): boolean {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const ios = Platform.OS === 'ios';
+    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', () =>
+      setShown(true),
+    );
+    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () =>
+      setShown(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return shown;
+}
 
 // Bottom sheet from RN Modal + Animated: Expo Go compatible, no native bottom-sheet module (ADR-018).
 export function Sheet({
@@ -55,6 +79,8 @@ export function Sheet({
   testID,
 }: SheetProps) {
   const reduced = useReducedMotion();
+  const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardShown();
   const [visible, setVisible] = useState(open);
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
@@ -142,9 +168,14 @@ export function Sheet({
         </Animated.View>
         <Animated.View
           accessibilityViewIsModal
-          className={cx('rounded-t-sheet bg-bg px-6 pb-10', className)}
+          className={cx('rounded-t-sheet bg-bg px-6', className)}
           // A tall drawer stops short of the status bar and Dynamic Island; its content scrolls.
-          style={{ maxHeight: SHEET_MAX, transform: [{ translateY }] }}
+          // Its last row (a footer button) sits above the home indicator, never under it.
+          style={{
+            maxHeight: SHEET_MAX,
+            paddingBottom: SHEET_PAD + (keyboard ? 0 : insets.bottom),
+            transform: [{ translateY }],
+          }}
         >
           <View {...drag.panHandlers} className="items-center py-3">
             {/* With a close in the header, the grab bar is only the handle, so a reader hears

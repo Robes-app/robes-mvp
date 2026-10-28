@@ -717,6 +717,11 @@ export const shell = {
     body: 'This part of Robes is being built. Everything you add now will be here when it lands.',
     back: 'Back to Today',
   },
+  // A link to a page that isn't there (web not-found.tsx, native +not-found.tsx): one line, home.
+  notFound: {
+    title: 'Robes couldn’t find that.',
+    back: 'Back to Today',
+  },
   segments: {
     saved: 'Saved',
     ideas: 'Ideas',
