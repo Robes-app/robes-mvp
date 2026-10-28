@@ -28,3 +28,6 @@ export type ErrorBody = z.infer<typeof ErrorBody>;
 
 export const EmptyInput = z.object({});
 export const HealthOutput = z.object({ ok: z.literal(true) });
+// Which social sign-ins this server offers, so the phone shows the same buttons as the web.
+export const AuthProviders = z.object({ apple: z.boolean(), google: z.boolean() });
+export type AuthProviders = z.infer<typeof AuthProviders>;

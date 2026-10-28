@@ -1,5 +1,16 @@
+import { useApi } from '@robes/api-client/react';
 import { auth as copy } from '@robes/copy';
-import { Button, Field, Heading, PrimaryScope, Text, WarmGround, Wordmark } from '@robes/ui-native';
+import {
+  Button,
+  ErrorText,
+  Eyebrow,
+  Field,
+  Heading,
+  PrimaryScope,
+  Text,
+  WarmGround,
+  Wordmark,
+} from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
@@ -14,6 +25,9 @@ export default function SignIn() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [socialError, setSocialError] = useState(false);
+  // The server says which providers it runs; until it answers (or if it can't), email only.
+  const { data: providers } = useApi('public.authProviders');
 
   async function sendCode() {
     if (!EMAIL.test(email.trim())) return setError(copy.invalidEmail);
@@ -35,6 +49,16 @@ export default function SignIn() {
     setBusy(false);
     if (res.error) return setError(copy.invalidCode);
     router.replace('/');
+  }
+
+  // Better Auth's Expo client opens the provider in an auth session and keeps the session in
+  // SecureStore; a cancelled sheet resolves without a session and leaves her here.
+  async function social(provider: 'apple' | 'google') {
+    setSocialError(false);
+    const res = await authClient.signIn.social({ provider, callbackURL: '/' });
+    if (res.error) return setSocialError(true);
+    const session = await authClient.getSession();
+    if (session.data) router.replace('/');
   }
 
   return (
@@ -71,6 +95,22 @@ export default function SignIn() {
               <Text size="small" tone="muted" className="-mt-2 text-center">
                 {copy.noPassword}
               </Text>
+              {providers?.apple || providers?.google ? (
+                <View className="gap-3">
+                  <Eyebrow className="text-center">{copy.or}</Eyebrow>
+                  {providers.apple ? (
+                    <Button variant="secondary" onPress={() => social('apple')}>
+                      {copy.apple}
+                    </Button>
+                  ) : null}
+                  {providers.google ? (
+                    <Button variant="secondary" onPress={() => social('google')}>
+                      {copy.google}
+                    </Button>
+                  ) : null}
+                  {socialError ? <ErrorText size="small">{copy.socialFailed}</ErrorText> : null}
+                </View>
+              ) : null}
             </>
           ) : (
             <>

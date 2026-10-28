@@ -223,7 +223,7 @@ blockers ship first and the token pass doesn't conflict with component work.
 | **2 · Visual tokens** ✅ 2026-10-28 (`fix/parity-pass-2-visual`) | Light only; control edge (per decision 2); sheet radius + handle; toast; pill/segmented; radius steps; washes; disabled; wordmark; dock | V1–V5, V7 V8 V10–V12 V14 V15 (V6/V9 per decision) | 3 h | `packages/tokens/src/tokens.ts`, `app/src/app/layout.tsx`, `mobile/app.json`, `packages/ui/src/{dialog,pill,segmented-control,toast,button-styles,wordmark,empty-state}.tsx` ↔ `packages/ui-native/src/{Sheet,Pill,SegmentedControl,Toast,Button,Text}.tsx`, `app-shell.tsx` ↔ `TabBar.tsx` |
 | **3 · Look page + metadata** ✅ 2026-10-28 (`fix/parity-pass-3-look-page`) | Rack eyebrow = sheet L1; instant swap + Undo; pinned-for; her photo in composer + day card; Change photo; season label; held card; rack anatomy composed; wear-record weekday; toasts | M1 L5 L6 L4 M3/W1 M6 M4 M2 M10 M11 L10 L19 L21 L22 | 4–5 h | `look-page.tsx` `look-view.tsx` `composer.tsx` `rack-row.tsx` `wear-record.tsx` `piece-detail.tsx` ↔ `LookDetail.tsx` `Composer.tsx` `RackRow.tsx` `WearRecord.tsx` `PieceDetail.tsx`; `packages/contracts/src/{looks,routes}.ts` (+ api-security checklist for `wardrobe.photo`); `packages/copy/src/lookbook.ts` |
 | **4 · Diary · Lookbook · Home · Wardrobe · You (S items)** ✅ 2026-10-28 (`fix/parity-pass-4`) | Open the day from the sheet; worn dots from `looks.wears`; "· Worn" rows; persisted toggles; copy; native tray/past-day/weekday; sort/filter hidden under four; native prints/pieces swatches; sign-in line; Download data on native | L7 L9/L3 D2 D4 D7 D9 L1 L7 L9 L10 F6 F7 F9 F10 W4 W8 Y6 Y7 Y4 F4 N1 | 3–4 h | `diary-sheet.tsx` ↔ `DiarySheet.tsx`, `plan-list/plan-view/plan-month.tsx` ↔ `PlanView/PlanMonth.tsx`, `lookbook.tsx` ↔ `LooksView.tsx`, `home-view.tsx` ↔ `HomeView.tsx`, `db/repos/wardrobe.ts`, `features/you/{Palette,StyleDna,Privacy}.tsx`, `(auth)/sign-in.tsx`, `packages/copy/src/index.ts` |
-| **5 · Native shell** | `+not-found`; `links.ts` rules; Create as formSheet; sheet bottom inset; Google button; associated domains + AASA (config) | N5 N6 D1 D2 D3 F5 N4 | 1.5 h | `mobile/src/app/{+not-found,_layout}.tsx`, `mobile/src/lib/links.ts` (+ test), `packages/ui-native/src/Sheet.tsx`, `mobile/app.json`, web AASA route |
+| **5 · Native shell** ✅ 2026-10-28 (`fix/parity-pass-5`) | `+not-found`; `links.ts` rules; Create as formSheet; sheet bottom inset; Google button; associated domains + AASA (config) | N5 N6 D1 D2 D3 F5 N4 | 1.5 h | `mobile/src/app/{+not-found,_layout}.tsx`, `mobile/src/lib/links.ts` (+ test), `packages/ui-native/src/Sheet.tsx`, `mobile/app.json`, web AASA route |
 | **6 · Product events** (decision 11) | Events catalogue + call sites on both clients | N8 | M | `packages/analytics`, `Camera.tsx`, `SwapSheet.tsx`, `look-editor.ts` + web twins |
 | **7 · Docs** | Correct the stale lines (§9); history entry; `STATUS.md` | — | 0.5 h | `docs/plans/2026-10-23-cutover-readiness.md`, `docs/STATUS.md`, `docs/legacy-app-history.md` |
 
@@ -303,6 +303,21 @@ full-detail photo). A draft's canvas dresses only on a ready render, and a faile
 read, model dressing, photo reads): live only after a staging worker deploy
 (`docs/runbooks/staging-deploy-handoff.md`). Native location needs a new dev/TestFlight build for
 the iOS string; Expo Go works.
+
+**Pass 5 notes (done).** N5: `+not-found` on native and a web `not-found.tsx` twin ("Robes
+couldn’t find that." · Back to Today). N6/D3: `mobile/src/lib/links.ts` maps every web URL the
+mail, push and share senders carry (test walks `app/src/app/**/page.tsx` so a new web page without a
+native screen fails); only `tab`/`to`/`pieceId` survive the query. D1: Create and Add pieces share
+`FORM_SHEET` (formSheet, detents 0.72/1) and one header (`FormSheetScreen`). D2: `ui-native` Sheet
+pads 24 + the home-indicator inset (dropped while the keyboard lifts it). F5: native shows Apple then
+Google when `GET /api/v1/public/auth-providers` says they're on (browser auth session via the Expo
+plugin). N4: `/.well-known/apple-app-site-association` and `/assetlinks.json` from the web app, an
+explicit include list in `@robes/core/app-links` (every native screen; never `/api`, `/auth`,
+`/share`, `/legal`, `/unsubscribe`, `/waitlist`, `/admin`, `/dev`), per-build domains in
+`mobile/app.config.ts`. **Outside code** (environments.md §6/§12): Vercel `APPLE_TEAM_ID`,
+`APPLE_APP_BUNDLE_ID`, `ANDROID_APP_PACKAGE`, `ANDROID_CERT_SHA256` per stage; Associated Domains on
+the App IDs; `AUTH_TRUSTED_ORIGINS` carries the build's scheme; a new EAS build per stage. N9 (native
+Sign in with Apple, App Store blocker) stays open.
 
 Passes 1 → 2 → 3 are the move-today bar. 4 and 5 are the same day if hands allow; nothing in
 them stops a tester. The M/L items left in §4 (held card M4/M5, deck card M8, key-piece tile M15,

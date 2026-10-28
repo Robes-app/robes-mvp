@@ -64,6 +64,8 @@ export const auth = {
   or: 'or',
   apple: 'Continue with Apple',
   google: 'Continue with Google',
+  // Native only: the web's provider flow reports back on its own page.
+  socialFailed: 'Robes couldn’t sign you in. Try again.',
   invalidEmail: 'That email doesn’t look quite right.',
   invalidCode: 'That code didn’t match. Check it and try again.',
   sendFailed: 'Robes couldn’t send a code just now. Try again in a moment.',
@@ -715,6 +717,11 @@ export const shell = {
   soon: {
     title: 'On its way.',
     body: 'This part of Robes is being built. Everything you add now will be here when it lands.',
+    back: 'Back to Today',
+  },
+  // A link to a page that isn't there (web not-found.tsx, native +not-found.tsx): one line, home.
+  notFound: {
+    title: 'Robes couldn’t find that.',
     back: 'Back to Today',
   },
   segments: {
