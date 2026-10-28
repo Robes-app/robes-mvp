@@ -28,8 +28,11 @@ describe('apple-app-site-association', () => {
     expect(paths).toContain('/look/*');
     expect(paths).toContain('/plan');
     expect(paths).toContain('/wardrobe/*');
+    expect(paths).toContain('/');
+    expect(paths).toContain('/day/*');
+    // Web-only pages have no native screen; never a catch-all.
     for (const path of paths) {
-      expect(path).not.toMatch(/^\/(api|auth|share|admin|unsubscribe|waitlist|legal)\b/);
+      expect(path).not.toMatch(/^\/(api|auth|share|admin|dev|unsubscribe|waitlist|legal)\b/);
       expect(path).not.toMatch(/^\/\*/);
     }
     expect(AppleAppSiteAssociation.parse(file)).toEqual(file);

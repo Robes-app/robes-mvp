@@ -13,7 +13,10 @@ test('serves the apple-app-site-association file signed out', async ({ request }
   expect(body.applinks.details[0].appIDs).toEqual([appId]);
   const paths: string[] = body.applinks.details[0].components.map((c: { '/': string }) => c['/']);
   expect(paths).toEqual(expect.arrayContaining(['/look/*', '/plan', '/wardrobe/*']));
-  for (const path of paths) expect(path).not.toMatch(/^\/(api|auth|share|admin)\b/);
+  for (const path of paths) {
+    expect(path).not.toMatch(/^\/(api|auth|share|admin|dev|unsubscribe|waitlist|legal)\b/);
+    expect(path).not.toMatch(/^\/\*/);
+  }
 });
 
 test('serves assetlinks.json signed out', async ({ request }) => {

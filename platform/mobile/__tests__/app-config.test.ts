@@ -30,9 +30,13 @@ test.each([
   expect(data).toContainEqual({ scheme: 'https', host, path: '/look' });
   expect(data).toContainEqual({ scheme: 'https', host, pathPrefix: '/look/' });
   const paths = data.map((d) => d.path ?? d.pathPrefix ?? '');
+  expect(data).toContainEqual({ scheme: 'https', host, path: '/' });
+  expect(data).toContainEqual({ scheme: 'https', host, pathPrefix: '/day/' });
+  // Web-only pages have no native screen; they stay in the browser.
   for (const path of paths) {
-    expect(path).not.toMatch(/^\/($|api|auth|share|admin|unsubscribe|waitlist|legal)\b/);
+    expect(path).not.toMatch(/^\/(api|auth|share|admin|dev|unsubscribe|waitlist|legal)\b/);
   }
+  expect(paths.filter((p) => p === '/' || p === '/*')).toEqual(['/']);
 });
 
 test('a development build claims no host', () => {
