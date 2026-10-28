@@ -100,9 +100,13 @@ test('the day page names the day, opens a look and takes it off with Undo', asyn
   await fireEvent.press(screen.getByRole('button', { name: 'Weekend navy' }));
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}`);
 
+  // The title itself becomes the field, on the day's name: no label, no Save, no Cancel.
   await fireEvent.press(screen.getByRole('button', { name: plan.day.rename }));
-  await fireEvent.changeText(screen.getByLabelText(plan.day.nameLabel), 'Dinner');
-  await fireEvent(screen.getByLabelText(plan.day.nameLabel), 'submitEditing');
+  const field = screen.getByLabelText(plan.day.name);
+  expect(field.props.value).toBe('Board meeting');
+  expect(screen.queryByRole('button', { name: plan.day.rename })).toBeNull();
+  await fireEvent.changeText(field, 'Dinner');
+  await fireEvent(field, 'submitEditing');
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ name: 'Dinner' }),
   );
@@ -187,8 +191,8 @@ test('an empty day can be named, so she can plan a week before adding outfits', 
   });
   await renderWithApi(<DayView date="2026-10-01" />);
   await fireEvent.press(await screen.findByRole('button', { name: plan.day.name }));
-  await fireEvent.changeText(screen.getByLabelText(plan.day.nameLabel), 'Gallery opening');
-  await fireEvent(screen.getByLabelText(plan.day.nameLabel), 'submitEditing');
+  await fireEvent.changeText(screen.getByLabelText(plan.day.name), 'Gallery opening');
+  await fireEvent(screen.getByLabelText(plan.day.name), 'submitEditing');
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ name: 'Gallery opening' }),
   );

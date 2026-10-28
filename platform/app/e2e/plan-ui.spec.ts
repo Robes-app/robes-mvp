@@ -29,8 +29,14 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   await expect(page.getByRole('heading', { level: 1, name: 'Name the day' })).toBeVisible();
   // An empty day takes a name, so she can plan a week before adding outfits; it shows on the list.
   await page.getByRole('button', { name: 'Name the day' }).click();
-  await page.getByLabel('The day’s name').fill('Gallery opening');
-  await page.getByLabel('The day’s name').press('Enter');
+  // The title itself becomes the field: focused, an underline and never a box.
+  const dayName = page.getByRole('textbox', { name: 'Name the day' });
+  await expect(dayName).toBeFocused();
+  await expect(dayName).toHaveCSS('outline-style', 'none');
+  await expect(dayName).toHaveCSS('border-top-width', '0px');
+  await expect(dayName).toHaveCSS('font-style', 'italic');
+  await dayName.fill('Gallery opening');
+  await dayName.press('Enter');
   await expect(page.getByRole('heading', { level: 1, name: 'Gallery opening' })).toBeVisible();
   await page.goto('/plan');
   await expect(page.getByRole('link', { name: /^Open Today.*: Gallery opening$/ })).toBeVisible();

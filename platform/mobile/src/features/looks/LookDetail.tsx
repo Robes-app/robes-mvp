@@ -1,14 +1,14 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { looks as copy, lookbook, ui } from '@robes/copy';
+import { looks as copy, lookbook } from '@robes/copy';
 import { lookFacts, pinnedFor } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
   Eyebrow,
-  Field,
   Heading,
   IconButton,
+  InlineTitleField,
   MIN_TOUCH,
   PrimaryScope,
   Skeleton,
@@ -27,54 +27,33 @@ import { SwapSheet } from './SwapSheet';
 import { localDate, useRemoveLook, useRenameLook } from './saved-looks';
 import { WearRecord } from './WearRecord';
 
-// A provisional name is Robes' suggestion: she can keep it or name the look herself.
-// The pencil sits on the name; the field only exists while she is changing it.
+// The pencil sits on the name; the title itself becomes the field while she changes it.
+// Empty or unchanged keeps the name it had (a look is named). Web twin: look-view.tsx LookName.
 function Name({ look }: { look: Look }) {
   const rename = useRenameLook();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(look.name);
-  const dirty = name.trim() !== '' && name.trim() !== look.name;
-  if (editing) {
-    return (
-      <View className="gap-3">
-        <Field
-          label={copy.look.nameLabel}
-          value={name}
-          onChangeText={setName}
-          maxLength={120}
-          returnKeyType="done"
-        />
-        <View className="flex-row items-center gap-3">
-          <Button
-            variant="secondary"
-            disabled={!dirty}
-            loading={rename.isPending}
-            loadingLabel={ui.loading}
-            onPress={() => {
-              rename.mutate({ params: { id: look.id }, input: { name: name.trim() } });
-              setEditing(false);
-            }}
-          >
-            {copy.look.saveName}
-          </Button>
-          <Button
-            variant="quiet"
-            onPress={() => {
-              setName(look.name);
-              setEditing(false);
-            }}
-          >
-            {copy.page.cancel}
-          </Button>
-        </View>
-      </View>
-    );
-  }
   // No "Robes’ suggestion · Keep this name": the pencil is how she renames (27 Oct).
   return (
     <View className="flex-row items-start gap-2">
-      <Heading className="min-w-0 flex-1">{look.name}</Heading>
-      <IconButton icon="pencil" label={copy.page.rename} onPress={() => setEditing(true)} />
+      {editing ? (
+        <InlineTitleField
+          value={look.name}
+          label={copy.look.nameLabel}
+          required
+          onCommit={(next) => {
+            setEditing(false);
+            if (next !== look.name) {
+              rename.mutate({ params: { id: look.id }, input: { name: next } });
+            }
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        <>
+          <Heading className="min-w-0 flex-1">{look.name}</Heading>
+          <IconButton icon="pencil" label={copy.page.rename} onPress={() => setEditing(true)} />
+        </>
+      )}
     </View>
   );
 }

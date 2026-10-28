@@ -14,9 +14,9 @@ import { Icon } from '@robes/icons/native';
 import {
   Button,
   Eyebrow,
-  fonts,
   IconButton,
   Image,
+  InlineTitleField,
   PrimaryScope,
   SegmentedControl,
   Skeleton,
@@ -27,7 +27,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
 import { usePieces } from '@/features/wardrobe/pieces';
 import { renditionUri } from '@/lib/images';
@@ -414,8 +414,6 @@ function DraftLayout({
   footer: ReactNode;
   children: ReactNode;
 }) {
-  const ink = useColor('ink');
-  const faint = useColor('ink-faint');
   return (
     <View className="flex-1">
       <ScrollView
@@ -427,16 +425,16 @@ function DraftLayout({
         <View className="items-center gap-1">
           <Eyebrow>{copy.eyebrow.draft}</Eyebrow>
           {/* The title is the name: tap the italic line and write over it. */}
-          <TextInput
-            accessibilityLabel={copy.name.label}
-            placeholder={copy.figure.untitled}
-            placeholderTextColor={faint}
+          <InlineTitleField
             value={name}
-            onChangeText={onName}
-            onBlur={onNameDone}
-            maxLength={120}
-            className="min-h-11 w-full text-center text-3xl"
-            style={{ color: ink, fontFamily: fonts.displayItalic }}
+            label={copy.name.label}
+            placeholder={copy.figure.untitled}
+            size={30}
+            italic
+            align="center"
+            autoFocus={false}
+            onChange={onName}
+            onCommit={() => onNameDone?.()}
           />
         </View>
         <View className="gap-3">

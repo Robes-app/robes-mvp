@@ -6,8 +6,8 @@ import {
   Button,
   EmptyState,
   Eyebrow,
-  Field,
   Heading,
+  InlineTitleField,
   PrimaryScope,
   Skeleton,
   Text,
@@ -98,18 +98,20 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
           {suggested ? (
             <Heading className="text-center">{look.name}</Heading>
           ) : (
-            <Field
+            // The title is the name, as in the composer: tap it and write over it.
+            // Web twin: look-page.tsx WorkingLook.
+            <InlineTitleField
+              value={name}
               label={copy.name.label}
               placeholder={look.name || copy.name.placeholder}
-              value={name}
-              maxLength={120}
-              onChangeText={setName}
-              onBlur={() => {
-                const next = name.trim();
-                if (next && next !== look.name) {
-                  editor.rename(next);
-                }
+              size={36}
+              align="center"
+              autoFocus={false}
+              onChange={setName}
+              onCommit={(next) => {
+                if (next && next !== look.name) editor.rename(next);
               }}
+              onCancel={() => setName(look.nameProvisional ? '' : look.name)}
             />
           )}
           <Text size="small" tone="muted">

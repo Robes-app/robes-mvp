@@ -28,11 +28,30 @@ test('a suggested name is renamed with the pencil, never a "Keep this name" line
   expect(screen.queryByText('Robes’ suggestion')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Keep this name' })).toBeNull();
 
+  // The title itself becomes the field: no label, no Save name, no Cancel.
   await fireEvent.press(screen.getByRole('button', { name: looks.page.rename }));
-  await fireEvent.changeText(screen.getByLabelText(looks.look.nameLabel), 'Gallery opening');
-  await fireEvent.press(screen.getByRole('button', { name: looks.look.saveName }));
+  const field = screen.getByLabelText(looks.look.nameLabel);
+  expect(field.props.value).toBe('Camel coat, styled');
+  expect(screen.queryByText('Save name')).toBeNull();
+  expect(screen.queryByText('Cancel')).toBeNull();
+  await fireEvent.changeText(field, 'Gallery opening');
+  await fireEvent(field, 'submitEditing');
   expect(await screen.findByText('Gallery opening')).toBeTruthy();
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Gallery opening' });
+});
+
+test('an emptied name is refused: the look keeps its name and nothing is sent', async () => {
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look({ name: 'Gallery opening' }),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: looks.page.rename }));
+  const field = screen.getByLabelText(looks.look.nameLabel);
+  await fireEvent.changeText(field, '  ');
+  await fireEvent(field, 'blur');
+  expect(await screen.findByText('Gallery opening')).toBeTruthy();
+  expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
 });
 
 test('the diary on the picture opens the one diary drawer and pins the chosen local date', async () => {

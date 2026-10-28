@@ -3,11 +3,20 @@ import type { PlanEntry } from '@robes/contracts';
 import { plan as copy } from '@robes/copy';
 import { daySummary, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { ErrorText, Eyebrow, fonts, IconButton, Skeleton, Text, useColor } from '@robes/ui-native';
+import {
+  ErrorText,
+  Eyebrow,
+  fonts,
+  IconButton,
+  InlineTitleField,
+  Skeleton,
+  Text,
+  useColor,
+} from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useHerPhoto } from '../looks/her-photo';
 import { LookTile } from '../looks/LookTile';
@@ -83,7 +92,6 @@ export function DayView({ date }: { date: string }) {
   const words = dayName ?? entries.find((e) => e.activity?.trim())?.activity?.trim() ?? '';
   // The day's title is hers (beta): never borrowed from the one look on it.
   const title = words || null;
-  const [draft, setDraft] = useState('');
   const router = useRouter();
   const ahead = date >= today;
   const weather = useApi(
@@ -93,9 +101,9 @@ export function DayView({ date }: { date: string }) {
   );
   const wx = ahead ? weather.data : null;
 
-  function commit() {
+  function commit(value: string) {
     setNaming(false);
-    const next = draft.trim() || null;
+    const next = value || null;
     if ((next ?? '') === words) return;
     nameDay.mutate({ params: { date }, input: { name: next } });
   }
@@ -110,18 +118,15 @@ export function DayView({ date }: { date: string }) {
           <Eyebrow>{longDate(date)}</Eyebrow>
           <View className="flex-row items-center gap-2">
             {naming ? (
-              <TextInput
-                autoFocus
-                accessibilityLabel={copy.day.nameLabel}
-                value={draft}
-                onChangeText={setDraft}
-                maxLength={120}
+              <InlineTitleField
+                value={words}
+                label={copy.day.name}
                 placeholder={copy.day.name}
-                returnKeyType="done"
-                onSubmitEditing={commit}
-                onBlur={commit}
-                className="min-h-11 flex-1 border-b border-border-control text-3xl text-ink"
-                style={{ fontFamily: fonts.displayRegularItalic }}
+                size={30}
+                italic
+                weight="regular"
+                onCommit={commit}
+                onCancel={() => setNaming(false)}
               />
             ) : (
               <Text
@@ -139,10 +144,7 @@ export function DayView({ date }: { date: string }) {
                 icon="pencil"
                 tone="ink-muted"
                 label={title ? copy.day.rename : copy.day.name}
-                onPress={() => {
-                  setDraft(words);
-                  setNaming(true);
-                }}
+                onPress={() => setNaming(true)}
               />
             ) : null}
           </View>

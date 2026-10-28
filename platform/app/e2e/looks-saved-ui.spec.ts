@@ -131,8 +131,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   expect(await seriousViolations(page)).toEqual([]);
   // The day keeps its own title (beta): unnamed, it invites a name rather than borrowing the look's.
   await page.getByRole('button', { name: 'Name the day', exact: true }).click();
-  await page.getByLabel('The day’s name').fill('Gallery opening');
-  await page.getByLabel('The day’s name').press('Enter');
+  await page.getByLabel('Name the day').fill('Gallery opening');
+  await page.getByLabel('Name the day').press('Enter');
   await expect(page.getByRole('heading', { level: 1, name: 'Gallery opening' })).toBeVisible();
   await expect
     .poll(async () => {
@@ -285,4 +285,45 @@ test('editing a saved look: a swap is one tap behind Undo, and Update says Updat
       ),
     )
     .toEqual([navy]);
+});
+
+test('a saved look is renamed in place: its title becomes the field', async ({ page }) => {
+  await signIn(page);
+  await declineConsent(page);
+  const res = await page.request.post('/api/v1/looks', { data: { name: 'Office', pieces: [] } });
+  const look = await res.json();
+  await page.goto(`/look/${look.id}`);
+  const heading = page.getByRole('heading', { level: 1, name: 'Office' });
+  await expect(heading).toBeVisible();
+
+  // No NAME label, no Save name, no Cancel: the title is the field, focused with the name selected.
+  await page.getByRole('button', { name: 'Rename' }).click();
+  const field = page.getByRole('textbox', { name: 'Name this look' });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue('Office');
+  await expect(field).toHaveCSS('outline-style', 'none');
+  await expect(field).toHaveCSS('border-top-width', '0px');
+  await expect(page.getByRole('button', { name: 'Save name' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+  expect(await seriousViolations(page)).toEqual([]);
+  // Typing replaces the selected name; Enter keeps it.
+  await page.keyboard.type('Gallery dinner');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: 'Gallery dinner' })).toBeVisible();
+  await expect
+    .poll(async () => (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).name)
+    .toBe('Gallery dinner');
+
+  // Escape leaves the name as it was; an emptied name is refused (a look is named).
+  await page.getByRole('button', { name: 'Rename' }).click();
+  await page.keyboard.type('Nope');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('heading', { level: 1, name: 'Gallery dinner' })).toBeVisible();
+  await page.getByRole('button', { name: 'Rename' }).click();
+  await field.fill('');
+  await field.press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: 'Gallery dinner' })).toBeVisible();
+  await expect
+    .poll(async () => (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).name)
+    .toBe('Gallery dinner');
 });
