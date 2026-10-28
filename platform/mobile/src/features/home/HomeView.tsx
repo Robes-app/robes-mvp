@@ -1,12 +1,14 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Look, Today } from '@robes/contracts';
 import { home as copy, lookbook, today as todayCopy, twin } from '@robes/copy';
-import { weekdayShort } from '@robes/core/calendar';
+import { weekdayLong, weekdayShort } from '@robes/core/calendar';
 import {
   greetingName,
   type HomeStep,
   noticedLine,
   resolveHome,
+  trayKind,
+  trayState,
   WORE_IT_HOUR,
 } from '@robes/core/home';
 import { anchorName } from '@robes/core/looks';
@@ -41,8 +43,27 @@ const WEATHER_STALE_MS = 30 * 60_000;
 
 const isRunning = (t: Today | undefined) => t?.tray.some((j) => !isTerminal(j)) ?? false;
 
-const weekdayLong = (date: string) =>
-  new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+type TrayJob = Today['tray'][number];
+// Where a tray row opens: the native routes for the web's trayHref (home-view.tsx).
+function trayRoute(job: TrayJob): string {
+  const kind = trayKind(job);
+  if (kind === 'styleColour') return '/you/style';
+  if (kind === 'trip') {
+    return job.output.tripId ? `/trip/${job.output.tripId}` : `/trip/job/${job.id}`;
+  }
+  if (kind === 'daily') {
+    return job.output.dailyLookId
+      ? `/today/look/${job.output.dailyLookId}`
+      : `/today/job/${job.id}`;
+  }
+  return job.output.ideaId ? `/idea/${job.output.ideaId}` : `/looks/job/${job.id}`;
+}
+const TRAY_TITLE = {
+  styleColour: todayCopy.tray.styleColour,
+  trip: todayCopy.tray.trip,
+  daily: todayCopy.daily.trayTitle,
+  stylePiece: todayCopy.tray.stylePiece,
+} as const;
 
 // The modular home (legacy 0478e63), the same read as the web: H0 · H1 · H2 · the next step and
 // the map while onboarding · the week once activated · Saved then Suggested.
@@ -165,8 +186,40 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
         {resolved.activated ? (
           <StepMap resolved={resolved} pics={home.state.pics} onExpand={setForce} />
         ) : null}
+
+        {data.tray.length > 0 ? <Tray jobs={data.tray} /> : null}
       </PrimaryScope>
     </ScrollView>
+  );
+}
+
+// The studio tray: running jobs and ones just finished, each opening where it lands (the web twin
+// is home-view.tsx).
+function Tray({ jobs }: { jobs: TrayJob[] }) {
+  const router = useRouter();
+  return (
+    <View className="gap-3" testID="home-tray">
+      <Eyebrow>{todayCopy.tray.title}</Eyebrow>
+      <View className="gap-2">
+        {jobs.map((job) => {
+          const title = TRAY_TITLE[trayKind(job)];
+          const state = todayCopy.tray[trayState(job.status)];
+          return (
+            <Pressable
+              key={job.id}
+              accessibilityRole="link"
+              accessibilityLabel={`${title} · ${state}`}
+              onPress={() => router.push(trayRoute(job))}
+              style={{ minHeight: MIN_TOUCH }}
+              className="flex-row items-center justify-between gap-4"
+            >
+              <Text>{title}</Text>
+              <Text tone="muted">{state}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -425,6 +478,12 @@ function Week({
           </View>
           <Icon name="forward" size={18} color={muted} />
         </Pressable>
+      ) : day && day.date < data.date ? (
+        // A day gone by with nothing on it says so; it is never dressed (twin: home-week.tsx).
+        <View className="flex-row items-center gap-4 p-3" testID="day-card">
+          {eyebrow(label)}
+          <Text tone="muted">{copy.week.nothing}</Text>
+        </View>
       ) : day ? (
         <Pressable
           accessibilityRole="button"

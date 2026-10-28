@@ -1,3 +1,5 @@
+import { isTerminalJobStatus, type JobStatus } from '../jobs';
+
 // The modular home (legacy 0478e63, Annie's Homepage_Modules): a stack of independent modules,
 // resolved by how far she has come. O1 Style DNA · O2 the twin · O3 the wardrobe · O4 the first
 // look lead until O3 and O4 are done; then the week (H3) and the looks (H4) take over.
@@ -44,8 +46,10 @@ export interface HomeResolved {
   modules: HomeModule[];
 }
 
-// Style DNA is confirmed by two of the three rows filled (brands · icons · styles).
-export function styleConfirmed(rows: StyleRows): boolean {
+// Style DNA is confirmed once she said so (legacy style_dna.confirmed_at, beta's style walk Done),
+// or by two of the three rows filled (brands · icons · styles).
+export function styleConfirmed(rows: StyleRows, confirmedAt: Date | string | null = null): boolean {
+  if (confirmedAt) return true;
   return [rows.brands, rows.icons, rows.styles].filter((r) => r.length > 0).length >= 2;
 }
 
@@ -123,6 +127,20 @@ export function noticedLine(text: string, max = HOME_NOTICED_CHARS): string {
   const t = text.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max).replace(/\s+\S*$/, '')}…`;
+}
+
+// The studio tray (Today's running jobs, and ones just finished): what each row is, and where it
+// stands. Both clients read these; each maps a row to its own route.
+export type TrayKind = 'styleColour' | 'trip' | 'daily' | 'stylePiece';
+export function trayKind(job: { kind: string; output: { dailyLookId?: string } }): TrayKind {
+  if (job.kind === 'stylenotes_analyse') return 'styleColour';
+  if (job.kind === 'travel') return 'trip';
+  if (job.kind === 'daily' || job.output.dailyLookId) return 'daily';
+  return 'stylePiece';
+}
+export function trayState(status: JobStatus): 'running' | 'failed' | 'ready' {
+  if (!isTerminalJobStatus(status)) return 'running';
+  return status === 'failed' || status === 'cancelled' ? 'failed' : 'ready';
 }
 
 // After 19:00 today's planned look asks Wore it?

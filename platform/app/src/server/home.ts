@@ -95,7 +95,7 @@ export async function loadHome(userId: UserId, profile: Profile, savedCount: num
 
   return {
     state: {
-      styleConfirmed: styleConfirmed(rows),
+      styleConfirmed: styleConfirmed(rows, profile.styleConfirmedAt),
       // A model on file, or a colour or line read of her.
       twinOnFile: hasModel || Boolean(style?.season || style?.bodyType),
       pics: pics.total,
