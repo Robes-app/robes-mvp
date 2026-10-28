@@ -4,6 +4,7 @@ import { wardrobe } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
 import { Button, Dialog } from '@robes/ui';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { isPhoto, REVIEW_MAX, type ShotSession } from '@/lib/add-flow';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 import {
@@ -52,6 +53,8 @@ export function Camera({
   const [flash, setFlash] = useState(false);
   const [asking, setAsking] = useState(false);
   const { shots } = session;
+  const { track } = useAnalytics().analytics;
+  useEffect(() => track('camera_opened'), [track]);
 
   const stop = useCallback(() => {
     for (const track of stream.current?.getTracks() ?? []) track.stop();
@@ -129,6 +132,7 @@ export function Camera({
 
   function review() {
     if (shots.length === 0 || session.reading) return;
+    track('camera_filed', { n: shots.length });
     stop();
     onReview();
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { type AnalyticsSink, createAnalytics, EVENTS, parseEvent } from './index';
+import { type AnalyticsSink, createAnalytics, EVENTS, parseEvent, trackFiled } from './index';
 
 function sink() {
   return { capture: vi.fn(), identify: vi.fn(), reset: vi.fn() } satisfies AnalyticsSink;
@@ -94,5 +94,18 @@ describe('event catalogue', () => {
     ]) {
       expect(parseEvent(legacy)).toEqual({ ok: false, reason: 'unknown_event' });
     }
+  });
+
+  it('files a review as one pieces_filed and a wardrobe_added per piece kept', () => {
+    const s = sink();
+    const { track } = createAnalytics(s);
+    trackFiled(track, 'photo', [{ state: 'add' }, { state: 'skip' }, { state: 'add' }], 'wardrobe');
+    trackFiled(track, 'link', [{ state: 'add' }], 'wishlist');
+    expect(s.capture.mock.calls).toEqual([
+      ['pieces_filed', { source: 'photo', n: 2, skipped: 1, to: 'wardrobe' }],
+      ['wardrobe_added', { source: 'photo', batch_n: 2, batch_i: 1 }],
+      ['wardrobe_added', { source: 'photo', batch_n: 2, batch_i: 2 }],
+      ['pieces_filed', { source: 'link', n: 1, skipped: 0, to: 'wishlist' }],
+    ]);
   });
 });

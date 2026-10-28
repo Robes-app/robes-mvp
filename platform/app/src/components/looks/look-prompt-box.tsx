@@ -5,7 +5,8 @@ import { lookbook as copy } from '@robes/copy';
 import { ASK_MAX_CHARS, ASK_THREAD_MAX, type RackState } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { IconButton, Text } from '@robes/ui';
-import { type KeyboardEvent, useId, useRef, useState } from 'react';
+import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { useLookAsk } from '@/lib/look-states';
 
 type Line = { id: number; who: 'her' | 'robes' | 'filed'; text: string };
@@ -96,11 +97,24 @@ export function LookPromptBox({
   const [drafted, setDrafted] = useState(false);
   const [thread, setThread] = useState<Line[]>([]);
   const lineId = useRef(0);
+  const { track } = useAnalytics().analytics;
   const line = (who: Line['who'], text: string): Line => {
     lineId.current += 1;
     return { id: lineId.current, who, text };
   };
+  // Opening and folding the box, once each way.
+  const wasOpen = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fires on open and fold only.
+  useEffect(() => {
+    if (open === wasOpen.current) return;
+    wasOpen.current = open;
+    if (open) track('look_prompt_opened', { surface });
+    else
+      track('look_prompt_closed', { surface, turns: thread.filter((l) => l.who === 'her').length });
+  }, [open]);
   const ask = useLookAsk(lookId, (result) => {
+    const slots = result.swaps.length + result.back.length + result.styled.length;
+    if (slots) track('look_prompt_applied', { surface, intent: result.intent, slots });
     setThread((t) => [
       ...t,
       line('robes', result.reply || copy.prompt.doneNone),
@@ -124,6 +138,7 @@ export function LookPromptBox({
       .filter((l): l is Line & { who: 'her' | 'robes' } => l.who !== 'filed')
       .map(({ who, text }) => ({ who, text }))
       .slice(-ASK_THREAD_MAX);
+    track('look_prompt_sent', { surface, chars: words.length, from_draft: drafted });
     setThread((t) => [...t, line('her', words)]);
     setText('');
     setDrafted(false);

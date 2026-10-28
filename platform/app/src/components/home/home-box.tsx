@@ -16,6 +16,7 @@ import { Icon } from '@robes/icons/web';
 import { ErrorText, Eyebrow, IconButton, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { useFeatures } from '@/components/features';
 import { BalanceQuestion } from '@/components/looks/balance-question';
 import { SwapSheet } from '@/components/looks/swap-sheet';
@@ -78,6 +79,8 @@ export function HomeBox({
   const [error, setError] = useState<string | null>(null);
   // Her ask, held while the box asks where its pieces come from.
   const [held, setHeld] = useState<string | null>(null);
+  const { track } = useAnalytics().analytics;
+  const surface = fromHome ? 'home' : 'piece';
   const { filing, file, reset } = usePhotoFiling();
 
   useEffect(() => {
@@ -99,11 +102,18 @@ export function HomeBox({
   // Once per new look, while she has filed anything: the ask waits for her answer.
   const holdFor = (words: string, steer: Steer | undefined) => {
     if (steer || !(hasPieces || pieceForSend)) return false;
+    track('balance_asked', { surface, piece: pieceForSend !== null });
     setHeld(words);
     setText('');
     return true;
   };
   const failed = (err: unknown, words: string) => {
+    track('prompt_submitted', {
+      surface,
+      intent: attached ? 'piece' : 'words',
+      scope: date ? 'day' : 'none',
+      ok: false,
+    });
     setBusy(null);
     if (held !== null) setText(words);
     setHeld(null);
@@ -120,6 +130,8 @@ export function HomeBox({
     }
     const words = (held ?? text).trim();
     setError(null);
+    if (steer)
+      track('balance_answered', { surface, balance: 'balance' in steer ? steer.balance : 'words' });
     if (attached) {
       if (stillFiling) {
         setWaiting(true);
@@ -139,6 +151,7 @@ export function HomeBox({
             ...steer,
           },
         });
+        track('prompt_submitted', { surface, intent: 'piece', scope: 'none', ok: true });
         router.push(`/looks/style/${jobId}${fromHome ? '?from=home' : ''}`);
       } catch (err) {
         failed(err, words);
@@ -157,6 +170,12 @@ export function HomeBox({
     try {
       const { jobId } = await api.call('looks.prompt', {
         input: { prompt: words, ...(day ? { date: day } : {}), ...steer },
+      });
+      track('prompt_submitted', {
+        surface,
+        intent: 'words',
+        scope: day ? 'day' : 'none',
+        ok: true,
       });
       router.push(`/looks/style/${jobId}${fromHome ? '?from=home' : ''}`);
     } catch (err) {

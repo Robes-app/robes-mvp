@@ -14,6 +14,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { CropThumb } from '@/components/photo-pieces/photo-frame';
 import { useFirstPiece } from '@/lib/first-piece';
 import { PHOTO_ACCEPT } from '@/lib/upload';
@@ -81,6 +82,11 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
   const [busy, setBusy] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const styled = useRef<{ pieceId: string; jobId: string } | null>(null);
+  const { track } = useAnalytics().analytics;
+  useEffect(() => {
+    if (stage === 'name' || stage === 'piece')
+      track('onboarding_step', { step: stage, outcome: 'shown' });
+  }, [track, stage]);
 
   useEffect(() => {
     if (stage !== 'splash') return;
@@ -105,6 +111,7 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
       }
       setBusy(false);
     }
+    track('onboarding_step', { step: 'name', outcome: 'answered' });
     setStage('piece');
   }
 
@@ -135,6 +142,7 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
         onBack={() => setStage('name')}
         onSkip={async () => {
           await complete();
+          track('onboarding_step', { step: 'piece', outcome: 'skipped' });
           router.replace('/');
           router.refresh();
         }}
@@ -150,6 +158,7 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
             ).jobId;
           styled.current = { pieceId: piece.id, jobId };
           await complete();
+          track('onboarding_step', { step: 'piece', outcome: 'answered' });
           setJobId(jobId);
           setStage('compose');
         }}
@@ -219,6 +228,12 @@ function FirstPiece({
   const inputId = useId();
   const first = useFirstPiece();
   const { piece, choices, reading, preview } = first;
+  // Her first piece is filed as Robes reads it (twin: mobile onboarding/piece.tsx).
+  const { track } = useAnalytics().analytics;
+  const pieceId = piece?.id;
+  useEffect(() => {
+    if (pieceId) track('wardrobe_added', { source: 'onboarding', batch_n: 1, batch_i: 1 });
+  }, [track, pieceId]);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [revealed, setRevealed] = useState(0);
   const [skipArmed, setSkipArmed] = useState(false);

@@ -19,7 +19,8 @@ import { Icon } from '@robes/icons/web';
 import { Eyebrow, IconButton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { LookTile } from '@/components/looks/look-tile';
 import { errorCopy } from '@/lib/error-copy';
 import { HomeBox } from './home-box';
@@ -77,10 +78,22 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
   const boxRef = useRef<HTMLDivElement>(null);
   const home = data.home;
   const resolved = resolveHome(home.state, { force });
+  const { track } = useAnalytics().analytics;
+  useEffect(() => {
+    if (resolved.next) track('home_module_view', { id: resolved.next });
+  }, [track, resolved.next]);
+  // Her first own look and activation, seen as they happen on home (beta's _rbHomeHadOwnLook).
+  const was = useRef(resolved);
+  useEffect(() => {
+    if (!was.current.done.O4 && resolved.done.O4) track('first_look_saved');
+    if (!was.current.activated && resolved.activated) track('home_activated');
+    was.current = resolved;
+  });
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
 
   const later = (step: HomeStep) => {
+    track('home_module_later', { id: step });
     if (force === step) setForce(null);
     void api
       .call('me.home.later', { input: { step } })

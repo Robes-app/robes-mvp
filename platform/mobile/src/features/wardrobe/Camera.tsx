@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { nativeAnalytics } from '@/lib/analytics';
 import { destinationOf, pickFromRoll, reviewHref } from './add/flow';
 import { useShotSession } from './add/reads';
 import { downscale } from './camera-capture';
@@ -45,6 +46,7 @@ export function Camera() {
   const session = useShotSession();
   const { shots } = session;
   const asked = useRef(false);
+  useEffect(() => nativeAnalytics.track('camera_opened'), []);
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain && !asked.current) {
@@ -60,6 +62,7 @@ export function Camera() {
 
   const review = () => {
     if (shots.length === 0 || session.reading) return;
+    nativeAnalytics.track('camera_filed', { n: shots.length });
     router.replace(
       reviewHref({
         to,

@@ -1,3 +1,4 @@
+import { trackFiled } from '@robes/analytics';
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { InboxEntry, PieceValues, ReadPiece, UpdatePieceInput } from '@robes/contracts';
 import { ui, wardrobe } from '@robes/copy';
@@ -38,6 +39,7 @@ import { Animated, Pressable, ScrollView, View } from 'react-native';
 import { PinnedAction } from '@/components/PinnedAction';
 import { isTerminal } from '@/features/looks/ideas';
 import { CropThumb } from '@/features/photo-pieces/PhotoFrame';
+import { nativeAnalytics } from '@/lib/analytics';
 import { type PieceField, PieceFieldSheet } from '../PieceFieldSheet';
 import { RecordRows } from '../PieceRows';
 import {
@@ -228,6 +230,12 @@ export function Review({
         },
       });
     }
+    trackFiled(
+      nativeAnalytics.track,
+      group.startsWith('inbox:') ? 'link' : 'photo',
+      groupAnswers,
+      to,
+    );
     await queryClient.invalidateQueries({
       queryKey: queryKeys.route(to === 'wishlist' ? 'wishlist.list' : 'wardrobe.list'),
     });
@@ -235,6 +243,7 @@ export function Review({
 
   function answer(entry: Entry, state: 'add' | 'skip') {
     const edits = changes[entry.key];
+    nativeAnalytics.track('piece_answered', { state, edited: edits !== undefined });
     setAnswers((a) => ({ ...a, [entry.key]: { answer: state, ...(edits ? { edits } : {}) } }));
     const next = nextPending(
       entries.map((e) => (e.key === entry.key ? { ...e, answer: state } : e)),
