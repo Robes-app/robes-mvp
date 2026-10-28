@@ -1,9 +1,12 @@
+import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn, uniqueEmail } from './helpers';
 
 // Look states on the web (legacy beta 2026-10-06 → 10-13): a styling job lands on the keep-or-
 // pass deck; a suggestion is saved as is or edited into a draft; the look prompt edits a draft.
 test.beforeEach(({ context }) => isolateClientIp(context));
+
+const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
 async function deckLive(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: /three ways\.$/ })).toBeVisible({
@@ -211,4 +214,54 @@ test('passing every card ends the deck: none kept, a way back', async ({ page })
   // The set refetches with no looks left; the end stays the end.
   await page.waitForTimeout(2_500);
   await expect(page.getByRole('heading', { name: 'No suggested looks kept.' })).toBeVisible();
+});
+
+test('the draft: a swap lands behind Undo, and her photograph is added from the canvas', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await declineConsent(page);
+  const api = page.request;
+  const ids: string[] = [];
+  for (const label of ['White wide-leg trouser', 'Dark straight jean']) {
+    const res = await api.post('/api/v1/wardrobe/items', {
+      data: { label, categoryL2: 'Trousers' },
+    });
+    ids.push((await res.json()).id);
+  }
+  const draft = await (
+    await api.post('/api/v1/looks', { data: { status: 'draft', pieces: [{ pieceId: ids[0] }] } })
+  ).json();
+  const pieces = async () =>
+    (
+      (await (await api.get(`/api/v1/looks/${draft.id}`)).json()).pieces as {
+        piece: { id: string };
+      }[]
+    ).map((p) => p.piece.id);
+
+  await page.goto(`/look/${draft.id}`);
+  await expect(page.getByText('Draft look')).toBeVisible();
+  // L10: the swap lands at once; Undo (6 s) puts the rack back.
+  await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Dark straight jean' }).click();
+  await expect(page.getByText('Dark straight jean is on the look.')).toBeVisible();
+  await expect.poll(pieces).toEqual([ids[1]]);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(pieces).toEqual([ids[0]]);
+
+  // L4: the camera on the canvas adds her photograph to the draft; it stays in the composer,
+  // You · Model stands under the canvas, and the camera becomes ↻.
+  await expect(page.getByRole('radiogroup', { name: 'The record of this look' })).toBeHidden();
+  await page.locator('input[type="file"][aria-label="Add your photograph"]').setInputFiles(PHOTO);
+  const record = page.getByRole('radiogroup', { name: 'The record of this look' });
+  await expect(record).toBeVisible({ timeout: 30_000 });
+  await expect(record.getByRole('radio', { name: 'You' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('button', { name: 'Replace your photograph' })).toBeVisible();
+  await expect(page.getByText('Draft look')).toBeVisible();
+  expect(
+    (await (await api.get(`/api/v1/looks/${draft.id}`)).json()).photo,
+    'her photograph is on the draft',
+  ).not.toBeNull();
+  expect(await seriousViolations(page), 'a draft with her photograph').toEqual([]);
 });

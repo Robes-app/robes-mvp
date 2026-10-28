@@ -13,7 +13,7 @@ import { localDate } from './saved-looks';
 
 // A control on the photograph: drawn small (32pt ✕, 36pt calendar — beta's size, not a large
 // white disc) with the hit area reaching out to 44pt.
-function OnPhoto({
+export function OnPhoto({
   icon,
   label,
   size,

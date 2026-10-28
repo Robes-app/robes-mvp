@@ -1,7 +1,7 @@
 import { ApiClientError } from '@robes/api-client';
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { CreateLookInput, Look, Model, Piece } from '@robes/contracts';
-import { lookbook as copy, errors } from '@robes/copy';
+import { lookbook as copy, errors, looks as looksCopy } from '@robes/copy';
 import {
   compositionKey,
   DRESS_DEBOUNCE_MS,
@@ -18,6 +18,7 @@ import {
   IconButton,
   Image,
   PrimaryScope,
+  SegmentedControl,
   Skeleton,
   Text,
   useColor,
@@ -31,6 +32,7 @@ import { pickOne, usePhotoFiling } from '@/features/home/file-photo';
 import { usePieces } from '@/features/wardrobe/pieces';
 import { renditionUri } from '@/lib/images';
 import { GenericModelBadge } from './GenericModelBadge';
+import { useHerPhoto } from './her-photo';
 import { LookPromptBox } from './LookPromptBox';
 import { useLookEditor } from './look-editor';
 import { useInvalidateLooks, useLetGo, useSaveLook } from './look-states';
@@ -87,6 +89,8 @@ function useSnap(onFiled: (piece: Piece) => void) {
   };
 }
 
+// shortcut: no "Add your photograph" here yet (beta showed it on the new canvas) — her photograph
+// lands on a look, and nothing is a row until the first piece; the camera stands from the draft on.
 function EmptyComposer({ pieceId }: { pieceId?: string }) {
   const router = useRouter();
   const api = useApiClient();
@@ -236,7 +240,16 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
   // A photograph filed from the sheet lands where the sheet was opened.
   const snapFor = useRef<Opened>({ add: true });
   const snap = useSnap((piece) => pick(piece, snapFor.current));
-  const rendered = look.onModel && look.image && look.pieces.length > 0 ? look : null;
+  // Her photograph of the look (beta's camera on the canvas): once kept, You · Model under the
+  // canvas picks which picture stands — her photograph, or her model wearing the rack.
+  // Twin of web components/looks/composer.tsx.
+  const herPhoto = useHerPhoto(look);
+  const own = look.photo !== null && look.record === 'photo';
+  const rendered = own
+    ? look
+    : look.onModel && look.model && look.pieces.length > 0
+      ? { ...look, image: look.model }
+      : null;
 
   return (
     <DraftLayout
@@ -247,20 +260,36 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
       }}
       count={rows.length}
       canvas={
-        <ModelCanvas
-          model={model.data}
-          pending={model.isPending}
-          rendered={rendered}
-          filled={filledSlots(rows.map((r) => r.category))}
-          chip={
-            snap.reading
-              ? copy.figure.reading
-              : dressing
-                ? copy.figure.dressing(pronoun(model.data))
-                : null
-          }
-          onHotspot={(slot) => setOpened({ slot })}
-        />
+        <>
+          <ModelCanvas
+            model={model.data}
+            pending={model.isPending}
+            rendered={rendered}
+            own={own}
+            filled={filledSlots(rows.map((r) => r.category))}
+            chip={
+              snap.reading
+                ? copy.figure.reading
+                : dressing && !own
+                  ? copy.figure.dressing(pronoun(model.data))
+                  : null
+            }
+            onHotspot={(slot) => setOpened({ slot })}
+            photo={herPhoto}
+          />
+          {herPhoto.sheet}
+          {herPhoto.hasPhoto ? (
+            <SegmentedControl
+              label={looksCopy.page.record.label}
+              value={look.record}
+              options={[
+                { value: 'photo', label: looksCopy.page.record.you },
+                { value: 'model', label: looksCopy.page.record.model },
+              ]}
+              onChange={herPhoto.choose}
+            />
+          ) : null}
+        </>
       }
       footer={
         <DraftBar
@@ -421,22 +450,28 @@ function DraftLayout({
   );
 }
 
+// Her own photograph (`own`) stands without the hotspots: they are drawn for the model's figure.
+// The camera bottom-right adds her photograph, ↻ once one is kept (as on the saved look).
 function ModelCanvas({
   model,
   pending,
   rendered = null,
+  own = false,
   filled,
   chip,
   disabled = false,
   onHotspot,
+  photo,
 }: {
   model: Model | undefined;
   pending: boolean;
   rendered?: Look | null;
+  own?: boolean;
   filled: Set<HotspotSlot>;
   chip: string | null;
   disabled?: boolean;
   onHotspot: (slot: HotspotSlot) => void;
+  photo?: { hasPhoto: boolean; label: string; busy: boolean; pick: () => void };
 }) {
   const control = useColor('border-control');
   const stand = model?.stand?.imageUrl ?? (model?.filed ? model.cell.imageUrl : null);
@@ -458,7 +493,7 @@ function ModelCanvas({
           <Icon name="user" size={160} color={control} />
         </View>
       )}
-      {HOTSPOTS.map((h) => {
+      {(own ? [] : HOTSPOTS).map((h) => {
         const on = filled.has(h.slot);
         return (
           <View key={h.slot} className="absolute inset-x-0 items-center" style={{ top: h.top }}>
@@ -495,7 +530,17 @@ function ModelCanvas({
         </View>
       ) : null}
       {/* No model of her own yet: the generic one stands in, and the badge is the door. */}
-      <GenericModelBadge />
+      {own ? null : <GenericModelBadge />}
+      {photo ? (
+        <View className="absolute right-3 bottom-3 rounded-pill bg-bg">
+          <IconButton
+            icon={photo.hasPhoto ? 'swap' : 'camera'}
+            label={photo.label}
+            disabled={disabled || photo.busy}
+            onPress={photo.pick}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

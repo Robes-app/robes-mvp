@@ -3,7 +3,7 @@
 import { isApiClientError } from '@robes/api-client';
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { CreateLookInput, Look, Model, Piece } from '@robes/contracts';
-import { lookbook as copy } from '@robes/copy';
+import { lookbook as copy, looks as looksCopy } from '@robes/copy';
 import {
   compositionKey,
   DRESS_DEBOUNCE_MS,
@@ -13,7 +13,15 @@ import {
   placePick,
 } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { Button, Dialog, Eyebrow, IconButton, Skeleton, useToast } from '@robes/ui';
+import {
+  Button,
+  Dialog,
+  Eyebrow,
+  IconButton,
+  SegmentedControl,
+  Skeleton,
+  useToast,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -24,6 +32,7 @@ import { usePhotoFiling } from '@/lib/file-photo';
 import { useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
 import { GenericModelBadge } from './generic-model-badge';
+import { useHerPhoto } from './her-photo';
 import { LookImage } from './look-image';
 import { LookPromptBox } from './look-prompt-box';
 import { RackRowCard } from './rack-row';
@@ -65,6 +74,8 @@ export function Composer({
 
 // Before the first piece: the model in her base layer and the doors in; the first pick makes the
 // draft and the composer carries on under its own address.
+// shortcut: no "Add your photograph" here yet (beta showed it on the new canvas) — her photograph
+// lands on a look, and nothing is a row until the first piece; the camera stands from the draft on.
 function EmptyComposer({ pieceId }: { pieceId?: string }) {
   const router = useRouter();
   const api = useApiClient();
@@ -257,7 +268,15 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
     pick(filed, snapFor.current);
   });
   const reading = photo.filing.phase === 'uploading' || photo.filing.phase === 'reading';
-  const rendered = look.onModel && look.image && look.pieces.length > 0 ? look : null;
+  // Her photograph of the look (beta's camera on the canvas): once kept, You · Model under the
+  // canvas picks which picture stands — her photograph, or her model wearing the rack.
+  const herPhoto = useHerPhoto(look);
+  const own = look.photo !== null && look.record === 'photo';
+  const rendered = own
+    ? look
+    : look.onModel && look.model && look.pieces.length > 0
+      ? { ...look, image: look.model }
+      : null;
 
   return (
     <DraftLayout
@@ -268,20 +287,36 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
       }}
       count={rows.length}
       canvas={
-        <ModelCanvas
-          model={model.data}
-          pending={model.isPending}
-          rendered={rendered}
-          filled={filledSlots(rows.map((r) => r.category))}
-          chip={
-            reading
-              ? copy.figure.reading
-              : dressing
-                ? copy.figure.dressing(pronoun(model.data))
-                : null
-          }
-          onHotspot={(slot) => setOpened({ slot })}
-        />
+        <>
+          <ModelCanvas
+            model={model.data}
+            pending={model.isPending}
+            rendered={rendered}
+            own={own}
+            filled={filledSlots(rows.map((r) => r.category))}
+            chip={
+              reading
+                ? copy.figure.reading
+                : dressing && !own
+                  ? copy.figure.dressing(pronoun(model.data))
+                  : null
+            }
+            onHotspot={(slot) => setOpened({ slot })}
+            photo={herPhoto}
+          />
+          {herPhoto.input}
+          {herPhoto.hasPhoto ? (
+            <SegmentedControl
+              label={looksCopy.page.record.label}
+              value={look.record}
+              options={[
+                { value: 'photo', label: looksCopy.page.record.you },
+                { value: 'model', label: looksCopy.page.record.model },
+              ]}
+              onChange={herPhoto.choose}
+            />
+          ) : null}
+        </>
       }
       footer={
         <DraftBar
@@ -451,22 +486,28 @@ function DraftLayout({
 
 // Her model on a 4:5 canvas — the render of what she has on once one lands, else the model in her
 // base layer — with "+ Top · + Bottom · + Shoes" on the figure; a filled slot reads warm with ✓.
+// Her own photograph (`own`) stands without the hotspots: they are drawn for the model's figure.
+// The camera bottom-right adds her photograph, ↻ once one is kept (as on the saved look).
 function ModelCanvas({
   model,
   pending,
   rendered = null,
+  own = false,
   filled,
   chip,
   disabled = false,
   onHotspot,
+  photo,
 }: {
   model: Model | undefined;
   pending: boolean;
   rendered?: Look | null;
+  own?: boolean;
   filled: Set<HotspotSlot>;
   chip: string | null;
   disabled?: boolean;
   onHotspot: (slot: HotspotSlot) => void;
+  photo?: { hasPhoto: boolean; label: string; busy: boolean; pick: () => void };
 }) {
   const stand = model?.stand?.imageUrl ?? (model?.filed ? model.cell.imageUrl : null);
   return (
@@ -487,7 +528,7 @@ function ModelCanvas({
           <Icon name="user" size={160} className="text-border-control" />
         </div>
       )}
-      {HOTSPOTS.map((h) => {
+      {(own ? [] : HOTSPOTS).map((h) => {
         const on = filled.has(h.slot);
         return (
           <button
@@ -513,7 +554,19 @@ function ModelCanvas({
         </span>
       ) : null}
       {/* No model of her own yet: the generic one stands in, and the badge is the door. */}
-      <GenericModelBadge />
+      {own ? null : <GenericModelBadge />}
+      {photo ? (
+        <button
+          type="button"
+          onClick={photo.pick}
+          disabled={disabled || photo.busy}
+          aria-label={photo.label}
+          title={photo.label}
+          className={`absolute right-3 bottom-3 z-10 flex size-11 items-center justify-center rounded-pill bg-bg/90 text-ink shadow-sm hover:bg-bg disabled:text-ink-faint ${focus}`}
+        >
+          <Icon name={photo.hasPhoto ? 'swap' : 'camera'} size={17} />
+        </button>
+      ) : null}
     </div>
   );
 }
