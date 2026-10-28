@@ -48,9 +48,51 @@ describe('event catalogue', () => {
   it('only allows id, count, boolean and enum props', () => {
     for (const schema of Object.values(EVENTS)) {
       for (const prop of Object.values(schema.shape)) {
-        const kind = (prop as { def: { type: string } }).def.type;
-        expect(['enum', 'number', 'boolean', 'uuid']).toContain(kind);
+        const { type, format } = (prop as { def: { type: string; format?: string } }).def;
+        // A string is only ever an id: free text can't be catalogued.
+        expect(type === 'string' ? `string:${format}` : type).toMatch(
+          /^(enum|number|boolean|string:uuid)$/,
+        );
       }
+    }
+  });
+
+  it('types and checks the product events the clients send', () => {
+    const s = sink();
+    const analytics = createAnalytics(s);
+    analytics.track('look_created', { from: 'draft', pieces: 4, proposed: 1, anchored: true });
+    analytics.track('camera_opened');
+    analytics.track('piece_swapped', { surface: 'saved', cat: 'Tops' });
+    // @ts-expect-error a piece's name is never sent (beta's `out`/`in`)
+    analytics.track('piece_swapped', { surface: 'saved', cat: 'Tops', out: 'Silk shirt' });
+    analytics.track('look_prompt_sent', {
+      surface: 'draft',
+      chars: 3,
+      from_draft: false,
+      // @ts-expect-error her words are never sent, only how many characters
+      text: 'hi',
+    });
+    // @ts-expect-error categories are the catalogue's
+    analytics.track('look_piece_added', { surface: 'draft', cat: 'Knitwear' });
+    // An id is a uuid, never a name; counts are whole and never negative (checked at runtime).
+    analytics.track('first_look_started', { piece_id: 'Silk shirt' });
+    analytics.track('camera_filed', { n: -1 });
+    analytics.track('camera_filed', { n: 1.5 });
+    expect(s.capture.mock.calls).toEqual([
+      ['look_created', { from: 'draft', pieces: 4, proposed: 1, anchored: true }],
+      ['camera_opened', {}],
+      ['piece_swapped', { surface: 'saved', cat: 'Tops' }],
+    ]);
+  });
+
+  it('keeps the dropped legacy acts out of the catalogue', () => {
+    for (const legacy of [
+      'travel_generated',
+      'intake_opened',
+      'weekly_generated',
+      'avatar_render',
+    ]) {
+      expect(parseEvent(legacy)).toEqual({ ok: false, reason: 'unknown_event' });
     }
   });
 });
