@@ -1,6 +1,7 @@
 import { firstRun, home } from './home';
 import { legal } from './legal';
 import { lookbook } from './lookbook';
+import { SEASON_LABELS } from './seasons';
 
 // Every user-facing string lives here (SPEC principle 6); voice rules: brand-and-design.md §1.
 // Keys are stable ids; values are en-GB. Use curly apostrophes (’) and no exclamation marks.
@@ -485,11 +486,7 @@ export const wardrobe = {
     title: 'Filter',
     season: 'Season',
     colour: 'Colour',
-    seasons: {
-      spring_summer: 'Spring/Summer',
-      autumn_winter: 'Autumn/Winter',
-      year_round: 'Year-round',
-    },
+    seasons: SEASON_LABELS,
     wearFor: 'Wear it for',
     brand: 'Brand',
     allBrands: 'All brands',
