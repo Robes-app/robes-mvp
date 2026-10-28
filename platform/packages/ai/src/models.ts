@@ -41,12 +41,14 @@ export const MODEL_REGISTRY: Record<TextCapability, TextModelSpec> &
     inputPerMTok: 0.75,
     outputPerMTok: 3.75,
   },
+  // Reading a photo: the full Flash, not Lite. Lite at medium resolution missed the brand on a
+  // collar label, the print and the material that legacy's Flash read (staging, 2026-10-28).
   'vision.analyse': {
     kind: 'text',
-    model: 'gemini-3.1-flash-lite',
-    family: 'gemini-flash-lite',
-    inputPerMTok: 0.25,
-    outputPerMTok: 1.5,
+    model: 'gemini-3.8-flash',
+    family: 'gemini-flash',
+    inputPerMTok: 0.75,
+    outputPerMTok: 3.75,
   },
   'image.hero': {
     kind: 'image',

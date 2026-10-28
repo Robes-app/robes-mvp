@@ -1,5 +1,6 @@
 import { shadeByName } from '../colour';
 import { cropRegion } from '../photo-pieces';
+import { defaultTagsFor, sheetL1For, WEAR_SEEDS } from '../taxonomy';
 
 // Add a piece, end to end (design "Add Piece — Handoff", 2026-10-26): every way in — the camera,
 // the camera roll, a link — lands on one Review screen, and nothing files without a look. These
@@ -82,8 +83,9 @@ export function scanTags(values: ReadonlyArray<string | null | undefined>): stri
 }
 
 // What Review shows on its rows before she has touched anything: Robes' read, with the colour
-// word resolved to a shade so the swatch and the drawer agree. A season is left unset, so the
-// row reads "Add" until she answers it (filing then keeps the season Robes infers).
+// word resolved to a shade so the swatch and the drawer agree. The season and wear-for stay unset
+// here — filing applies the category's defaults (apply_tag_defaults) — and `withTagDefaults`
+// shows those defaults on the rows meanwhile, as legacy's add form previewed them.
 export interface ReadValues {
   label: string;
   brand: string | null;
@@ -91,6 +93,10 @@ export interface ReadValues {
   categoryL2: string | null;
   categoryL3: string | null;
   color: string | null;
+  colourShade?: string | null;
+  colourExtra?: readonly string[];
+  print?: string | null;
+  material?: string | null;
   price?: number | null;
   currency?: string | null;
   size?: string | null;
@@ -103,10 +109,10 @@ export function readDraft(read: ReadValues) {
     notes: read.notes,
     categoryL2: read.categoryL2,
     categoryL3: read.categoryL3,
-    colourShade: shadeByName(read.color)?.id ?? null,
-    colourExtra: [] as string[],
-    print: null as string | null,
-    material: null as string | null,
+    colourShade: read.colourShade ?? shadeByName(read.color)?.id ?? null,
+    colourExtra: [...(read.colourExtra ?? [])],
+    print: read.print ?? null,
+    material: read.material ?? null,
     seasonBand: null as 'spring_summer' | 'autumn_winter' | 'year_round' | null,
     wearFor: [] as string[],
     size: read.size ?? null,
@@ -234,4 +240,22 @@ export function fileEdits(label: string, changes: RowChanges): RowChanges & { la
 export function wishChanges(changes: RowChanges) {
   const { notes, seasonBand: _s, wearFor: _w, ...rest } = changes;
   return notes === undefined ? rest : { ...rest, note: notes };
+}
+
+// The rows' view of a draft: an unanswered season and wear-for read as the defaults her category
+// files with, so Review shows "Year-round · Everyday" rather than "Optional". Display only — the
+// draft itself stays unset, so filing still lets the database infer them.
+export function withTagDefaults<
+  V extends { categoryL2: string | null; seasonBand: string | null; wearFor: readonly string[] },
+>(values: V): V {
+  if (values.seasonBand && values.wearFor.length) return values;
+  const l2 = values.categoryL2;
+  const d = l2 ? defaultTagsFor(sheetL1For(l2), l2) : null;
+  if (!d) return values;
+  const label = (slug: string) => WEAR_SEEDS.find((w) => w.slug === slug)?.label ?? slug;
+  return {
+    ...values,
+    seasonBand: values.seasonBand ?? d.band,
+    wearFor: values.wearFor.length ? values.wearFor : d.wear.map(label),
+  };
 }

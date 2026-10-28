@@ -185,7 +185,8 @@ export function RecordRows({
   const v = (value: string | null | undefined) => (reading ? wardrobe.add.review.reading : value);
   const open = (field: PieceField) => (reading ? undefined : () => onField(field));
   return (
-    <>
+    // The sections own their spacing, so every screen that holds them reads the same.
+    <View className="gap-5">
       <PieceSection title={copy.sections.piece}>
         {withName && onName && !reading ? (
           <NameRow
@@ -282,6 +283,6 @@ export function RecordRows({
           onPress={open('notes')}
         />
       </PieceSection>
-    </>
+    </View>
   );
 }
