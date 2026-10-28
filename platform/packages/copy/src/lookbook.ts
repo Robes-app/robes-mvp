@@ -62,7 +62,7 @@ export const lookbook = {
   },
   suggestedEmpty: {
     title: 'Nothing suggested yet.',
-    body: 'Ask Robes for a look, or style one of your pieces three ways.',
+    body: 'Tell Robes where you’re going, or pick a piece, and it dresses you.',
   },
   // The look page, in each state.
   eyebrow: {
@@ -163,6 +163,8 @@ export const lookbook = {
     recorded: 'Already worn that day',
     woreToday: 'I wore this today',
     recordedOn: (day: string): string => `Recorded — worn ${day}`,
+    // "I wore this today" says so (beta's __lkDiaryWoreToday).
+    wornToday: 'Worn today ✓',
     inDiaryFor: (look: string, day: string): string => `“${look}” is in your diary for ${day}`,
   },
   discarded: 'Draft let go.',

@@ -687,17 +687,54 @@ test('the Lookbook opens on the looks worn last; a draft reads as started; sugge
   expect(mockRouter.push).toHaveBeenCalledWith(`/piece/${PIECE_ID}`);
 });
 
-test('Sort and Filter stand on Saved at every count, inert below four looks', async () => {
+test('Sort and Filter hide below four looks — never inert', async () => {
   mockFetch({
     'GET /looks': byStatus({ saved: [look({ id: LOOK_ID })] }),
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LooksView />);
-  const sort = await screen.findByRole('button', { name: new RegExp(`^${lookbook.sort.label}`) });
-  expect(sort).toBeDisabled();
+  await screen.findByText('Weekend navy');
+  expect(screen.queryByRole('button', { name: new RegExp(`^${lookbook.sort.label}`) })).toBeNull();
+  expect(screen.queryByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) })).toBeNull();
+});
+
+test('from four looks Sort and Filter stand, the menu in beta’s order', async () => {
+  const id = (n: number) => `dddddddd-dddd-4ddd-8ddd-00000000000${n}`;
+  mockFetch({
+    'GET /looks': byStatus({
+      saved: [1, 2, 3, 4].map((n) => look({ id: id(n), name: `Look ${n}` })),
+    }),
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
+  });
+  await renderWithApi(<LooksView />);
+  await screen.findByText('Look 4');
+  expect(screen.getByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) })).toBeTruthy();
+  await fireEvent.press(
+    screen.getByRole('button', { name: new RegExp(`^${lookbook.sort.label}`) }),
+  );
+  // The sheet lists the three after the pill naming the sort in play.
+  await screen.findByText(lookbook.sort.newest);
+  const menu = [lookbook.sort.lastWorn, lookbook.sort.newest, lookbook.sort.name];
+  const shown = screen
+    .getAllByText(new RegExp(`^(${menu.join('|')})$`))
+    .map((t) => t.props.children);
+  expect(shown.slice(-3)).toEqual(menu);
+});
+
+test('nothing suggested says beta’s line and offers the prompt', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /looks': byStatus({}),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  mockParams.tab = 'suggested';
+  await renderWithApi(<LooksView />);
+  expect(await screen.findByText(lookbook.suggestedEmpty.title)).toBeTruthy();
   expect(
-    screen.getByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) }),
-  ).toBeDisabled();
+    screen.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
+  ).toBeTruthy();
+  expect(screen.getByLabelText(lookbook.prompt.doorNew)).toBeTruthy();
+  delete mockParams.tab;
 });
 
 test('once today is logged, the diary sheet carries no second "worn today" line', async () => {

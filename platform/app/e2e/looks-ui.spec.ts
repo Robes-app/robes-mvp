@@ -142,6 +142,14 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
   await page.goto('/looks');
   await expect(page.getByTestId('looks-count')).toHaveText('1 look');
+  // Under four looks Sort and Filter are hidden, as beta — never rendered inert (L1).
+  await expect(page.getByRole('button', { name: /^Sort/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Filter' })).toHaveCount(0);
+  // Nothing suggested: beta's line, and the prompt (L7).
+  await page.getByRole('radio', { name: 'Suggested' }).click();
+  await expect(
+    page.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
+  ).toBeVisible();
 });
 
 test('the draft look at 390: her model, the wardrobe sheet, and Discard · Save at the foot', async ({
