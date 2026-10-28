@@ -9,7 +9,10 @@ const staticSecurityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   // Our own origin only: the in-page camera (wardrobe/camera.tsx) and the weather once she allows
   // her location (shell/device-location.tsx). camera=() had blocked getUserMedia outright.
-  { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self), payment=()' },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(self), microphone=(), geolocation=(self), payment=()',
+  },
   // Only production is indexed; staging and previews (APP_ENV unset) tell crawlers to stay out.
   ...(process.env.APP_ENV === 'production'
     ? []
