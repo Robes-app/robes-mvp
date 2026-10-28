@@ -9,13 +9,12 @@ import {
 } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
 import { plan, wardrobe } from '@robes/copy';
-import { daySummary, longDate, monthLabel } from '@robes/core/calendar';
+import { daySummary, longDate } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
 import { ErrorText, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
-import { BackLink } from '@/components/back-link';
 import { useHerPhoto } from '@/components/looks/her-photo';
 import { LookTile } from '@/components/looks/look-tile';
 import { OnPhoto } from '@/components/looks/look-tiles';
@@ -30,7 +29,7 @@ const focus =
 
 // The day page (legacy ff87e89): the date as eyebrow, her name for the day with the pencil, the
 // looks on it, and the door to add one or several.
-export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }) {
+export function DayView({ date }: { date: string }) {
   const client = useApiClient();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -83,15 +82,10 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
     refresh();
   }
 
-  const back =
-    from === 'today'
-      ? { href: '/', label: plan.today }
-      : { href: '/plan', label: monthLabel(date.slice(0, 7)) };
   const section = date === today ? copy.filedToday : date < today ? copy.filed : copy.planned;
 
   return (
     <article className="flex flex-col gap-6">
-      <BackLink href={back.href} label={copy.back(back.label)} />
       <header className="flex flex-col gap-2">
         <Eyebrow>{longDate(date)}</Eyebrow>
         <div className="flex items-center gap-2">

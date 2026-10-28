@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeRoot,
+  backFor,
   CREATE_ITEMS,
   createItems,
   GO_TO_ITEMS,
@@ -69,5 +70,50 @@ describe('nav', () => {
     expect(isSettingsPath('/you/model/body')).toBe(true);
     expect(isSettingsPath('/young')).toBe(false);
     expect(isSettingsPath('/')).toBe(false);
+  });
+});
+
+describe('backFor', () => {
+  const q = (s = '') => new URLSearchParams(s);
+
+  it('gives the day page its month, or Today when it came from Today', () => {
+    expect(backFor('/plan/2026-10-28', q())).toEqual({ href: '/plan', label: 'October 2026' });
+    expect(backFor('/plan/2026-10-28', q('from=today'))).toEqual({ href: '/', label: 'Today' });
+    expect(backFor('/plan/2026-13-01', q())).toBeNull();
+  });
+
+  it('names the previous screen on every pushed page', () => {
+    const id = '0b9f4c1e-0000-4000-8000-000000000000';
+    expect(backFor(`/look/${id}`, q())).toEqual({ href: '/looks', label: 'Lookbook' });
+    expect(backFor('/looks/new', q())?.href).toBe('/looks');
+    expect(backFor('/looks/new/photo', q())?.href).toBe('/looks');
+    expect(backFor(`/looks/ideas/${id}`, q())?.href).toBe('/looks/ideas');
+    expect(backFor(`/piece/${id}`, q())).toEqual({ href: '/wardrobe', label: 'Wardrobe' });
+    expect(backFor('/wardrobe/inbox', q())?.href).toBe('/wardrobe');
+    expect(backFor('/wardrobe/add', q())?.href).toBe('/wardrobe');
+    expect(backFor('/wardrobe/receipt', q())?.href).toBe('/wardrobe/add');
+  });
+
+  it('keeps the add destination, and only a known one', () => {
+    expect(backFor('/wardrobe/link', q('to=wishlist'))?.href).toBe('/wardrobe/add?to=wishlist');
+    expect(backFor('/wardrobe/manual', q('to=elsewhere'))?.href).toBe('/wardrobe/add?to=wardrobe');
+  });
+
+  it('backs a styling job out to Home only when it started there', () => {
+    expect(backFor('/looks/style/abc', q('from=home'))).toEqual({ href: '/', label: 'Home' });
+    expect(backFor('/looks/style/abc', q())).toBeNull();
+  });
+
+  it('leaves the roots their wordmark', () => {
+    for (const root of [
+      '/',
+      '/looks',
+      '/plan',
+      '/wardrobe',
+      '/wardrobe/wishlist',
+      '/looks/style',
+    ]) {
+      expect(backFor(root, q())).toBeNull();
+    }
   });
 });

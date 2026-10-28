@@ -108,7 +108,12 @@ test('several pieces from one photo, reviewed one at a time (design "Add Piece")
 
   await page.goto('/wardrobe/add');
   await expect(page.getByRole('heading', { name: 'Add pieces' })).toBeVisible();
-  const back = page.getByRole('main').getByRole('link', { name: 'Wardrobe', exact: true });
+  // The back pill (‹ Wardrobe) stands in the top bar, where the wordmark sits on the roots; the
+  // desktop nav's own Wardrobe link beside it carries no chevron.
+  const back = page
+    .getByRole('banner')
+    .getByRole('link', { name: 'Wardrobe', exact: true })
+    .filter({ has: page.locator('svg') });
   await expect(back).toBeVisible();
   await choosePhoto(page, 'Camera roll');
   await expect(page.getByRole('heading', { name: 'Here’s what Robes saw.' })).toBeVisible({
