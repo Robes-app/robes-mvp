@@ -2,7 +2,7 @@
   "name": "@robes/mobile",
   "main": "expo-router/entry",
   "dependencies": {
-    "@better-auth/expo": "1.7.5",
+    "@better-auth/expo": "1.7.7",
     "@expo-google-fonts/cormorant": "^0.4.2",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/ui": "~58.0.22",
@@ -16,7 +16,7 @@
     "@robes/tokens": "workspace:*",
     "@robes/ui-native": "workspace:*",
     "@tanstack/react-query": "5.103.2",
-    "better-auth": "1.7.5",
+    "better-auth": "1.7.7",
     "expo": "~58.0.17",
     "expo-application": "~58.1.2",
     "expo-camera": "~58.0.12",
