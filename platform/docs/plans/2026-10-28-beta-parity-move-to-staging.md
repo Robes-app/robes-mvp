@@ -220,7 +220,7 @@ blockers ship first and the token pass doesn't conflict with component work.
 |---|---|---|---|---|
 | **0 · Live checks** (Annie, 30 min, no code) | Media pipeline; dark-mode phone; Google env; trips flag; native keyboard | §8.1–8.5 | 0.5 h | — |
 | **1 · Blockers** ✅ 2026-10-28 (`fix/parity-pass-1-blockers`) | Unnamed save = today's date; model re-render after edit; You · Model without a twin; "Sept"; morning-cue default; native keyboard | L1 L2 L3 D1 Y1 N2 | 3–4 h | `packages/db/src/repos/looks.ts`, `app/src/lib/look-editor.ts` ↔ `mobile/src/features/looks/look-editor.ts`, `look-hero.tsx` ↔ `LookHero.tsx`, `app/src/lib/dates.ts`, `mobile/src/features/plan/plan.ts`, `packages/core/src/looks/index.ts`, `packages/contracts/src/me.ts`, `scripts/migrate/src/sql.ts`, `LookScreen/Composer/LookDetail.tsx`, `packages/ui-native/src/Sheet.tsx`; e2e `looks-saved-ui.spec.ts` |
-| **2 · Visual tokens** | Light only; control edge (per decision 2); sheet radius + handle; toast; pill/segmented; radius steps; washes; disabled; wordmark; dock | V1–V5, V7 V8 V10–V12 V14 V15 (V6/V9 per decision) | 3 h | `packages/tokens/src/tokens.ts`, `app/src/app/layout.tsx`, `mobile/app.json`, `packages/ui/src/{dialog,pill,segmented-control,toast,button-styles,wordmark,empty-state}.tsx` ↔ `packages/ui-native/src/{Sheet,Pill,SegmentedControl,Toast,Button,Text}.tsx`, `app-shell.tsx` ↔ `TabBar.tsx` |
+| **2 · Visual tokens** ✅ 2026-10-28 (`fix/parity-pass-2-visual`) | Light only; control edge (per decision 2); sheet radius + handle; toast; pill/segmented; radius steps; washes; disabled; wordmark; dock | V1–V5, V7 V8 V10–V12 V14 V15 (V6/V9 per decision) | 3 h | `packages/tokens/src/tokens.ts`, `app/src/app/layout.tsx`, `mobile/app.json`, `packages/ui/src/{dialog,pill,segmented-control,toast,button-styles,wordmark,empty-state}.tsx` ↔ `packages/ui-native/src/{Sheet,Pill,SegmentedControl,Toast,Button,Text}.tsx`, `app-shell.tsx` ↔ `TabBar.tsx` |
 | **3 · Look page + metadata** | Rack eyebrow = sheet L1; instant swap + Undo; pinned-for; her photo in composer + day card; Change photo; season label; held card; rack anatomy composed; wear-record weekday; toasts | M1 L5 L6 L4 M3/W1 M6 M4 M2 M10 M11 L10 L19 L21 L22 | 4–5 h | `look-page.tsx` `look-view.tsx` `composer.tsx` `rack-row.tsx` `wear-record.tsx` `piece-detail.tsx` ↔ `LookDetail.tsx` `Composer.tsx` `RackRow.tsx` `WearRecord.tsx` `PieceDetail.tsx`; `packages/contracts/src/{looks,routes}.ts` (+ api-security checklist for `wardrobe.photo`); `packages/copy/src/lookbook.ts` |
 | **4 · Diary · Lookbook · Home · Wardrobe · You (S items)** | Open the day from the sheet; worn dots from `looks.wears`; "· Worn" rows; persisted toggles; copy; native tray/past-day/weekday; sort/filter hidden under four; native prints/pieces swatches; sign-in line; Download data on native | L7 L9/L3 D2 D4 D7 D9 L1 L7 L9 L10 F6 F7 F9 F10 W4 W8 Y6 Y7 Y4 F4 N1 | 3–4 h | `diary-sheet.tsx` ↔ `DiarySheet.tsx`, `plan-list/plan-view/plan-month.tsx` ↔ `PlanView/PlanMonth.tsx`, `lookbook.tsx` ↔ `LooksView.tsx`, `home-view.tsx` ↔ `HomeView.tsx`, `db/repos/wardrobe.ts`, `features/you/{Palette,StyleDna,Privacy}.tsx`, `(auth)/sign-in.tsx`, `packages/copy/src/index.ts` |
 | **5 · Native shell** | `+not-found`; `links.ts` rules; Create as formSheet; sheet bottom inset; Google button; associated domains + AASA (config) | N5 N6 D1 D2 D3 F5 N4 | 1.5 h | `mobile/src/app/{+not-found,_layout}.tsx`, `mobile/src/lib/links.ts` (+ test), `packages/ui-native/src/Sheet.tsx`, `mobile/app.json`, web AASA route |
@@ -237,6 +237,20 @@ which every read goes through, so migrated users need no SQL change. N2: iOS key
 the three look scroll views and a `KeyboardAvoidingView` in `ui-native` `Sheet` — **still needs
 the device check in §8.5**. Known, unrelated: `packages/db/test/repos/exports.test.ts` fails
 locally on clean `beta` too (the Postgres container's clock runs ~1 s ahead of the host).
+
+**Pass 2 notes (done).** V1 light only (web `data-theme="light"`, native `userInterfaceStyle`
++ `Uniwind.setTheme('light')`). V3 sheet: `rounded-t-sheet` (18), handle `rule-mid` on both, web
+shadow and border dropped. V4 native toast is an ink pill; 4 s, 6 s with an action, as web. V5 pills
+36/32 at 12px with 44 hit areas, native selected edge 1; segmented 36 on `surface` + hairline. V7
+wordmark `size="header"` (Cormorant 400 / 17 / .34em) and `size="hero"`, both clients. V12 radius
+steps `input` 8 · `card` 14 · `sheet` 18 — fields, home and Settings cards, You title cards. V13/V14
+skeleton and empty state at 12 (empty-state edge keeps 3:1, decision 2). V18 Inter 600 dropped on
+web. V19 Settings header hairline on both. **Kept on purpose:** V11 (30% ink disabled primary is
+the 26 Oct "one primary button spec" redline, newer than beta); V15 success hex (contrast-driven,
+like decision 2). **Left for Annie's eye:** V8 dock (the 25 Oct native parity handoff agreed its
+shape; beta's is white glass, no shadow, an ink bar for the active tab), V10 accent washes (no
+consumer yet — add with the first surface that uses one), V16 secondary buttons in caps vs beta's
+sentence case, V17 web content width 1024 vs beta 1440 (desktop only).
 
 Passes 1 → 2 → 3 are the move-today bar. 4 and 5 are the same day if hands allow; nothing in
 them stops a tester. The M/L items left in §4 (held card M4/M5, deck card M8, key-piece tile M15,
