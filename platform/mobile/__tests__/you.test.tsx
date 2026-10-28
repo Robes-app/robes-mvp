@@ -1,5 +1,6 @@
 import { consent, twin, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import { DeleteAccount } from '../src/features/you/DeleteAccount';
 import { Notifications } from '../src/features/you/Notifications';
 import { Privacy } from '../src/features/you/Privacy';
@@ -84,8 +85,46 @@ test('turning usage counts off also withdraws recordings', async () => {
   });
   await renderWithApi(<Privacy />);
   await fireEvent.press(await screen.findByLabelText(consent.analyticsLabel));
-  await waitFor(() => expect(calls.length).toBeGreaterThan(1));
-  expect(calls[1]?.body).toEqual({ source: 'ios', consents: { analytics: false, replay: false } });
+  // The page also asks for her data export; the consent write is the one POST.
+  await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
+  expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+    source: 'ios',
+    consents: { analytics: false, replay: false },
+  });
+});
+
+test('Download your data: prepare, then the ready file opens to download (SEC-81)', async () => {
+  const exp = (over: object) => ({
+    id: '99999999-9999-4999-8999-999999999999',
+    status: 'requested',
+    requestedAt: '2026-10-28T10:00:00.000Z',
+    readyAt: null,
+    expiresAt: null,
+    downloadUrl: null,
+    ...over,
+  });
+  let ready = false;
+  const calls = mockFetch({
+    'GET /me/consents': {
+      analytics: false,
+      replay: false,
+      marketing_email: null,
+      photo_analysis: null,
+    },
+    'GET /me/exports': () => ({
+      export: ready ? exp({ status: 'ready', downloadUrl: 'https://files.test/robes.zip' }) : null,
+    }),
+    'POST /me/exports': exp({}),
+  });
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  const { queryClient } = await renderWithApi(<Privacy />);
+  await fireEvent.press(await screen.findByRole('button', { name: you.dataExport.request }));
+  expect(await screen.findByText(you.dataExport.preparing)).toBeTruthy();
+  expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/me/exports'))).toBe(true);
+  ready = true;
+  await queryClient.invalidateQueries();
+  await fireEvent.press(await screen.findByRole('button', { name: you.dataExport.download }));
+  expect(open).toHaveBeenCalledWith('https://files.test/robes.zip');
 });
 
 test('deleting the account needs DELETE typed, then signs out', async () => {
