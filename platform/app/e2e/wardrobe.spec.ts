@@ -81,6 +81,21 @@ test('another user cannot see or change the piece', async ({ page, browser }) =>
   await other.close();
 });
 
+// W4 (beta _waRender): a starred piece worn all year leads the wardrobe, ahead of newer pieces.
+test('her in-season heroes lead the wardrobe', async ({ page }) => {
+  await signIn(page);
+  const api = page.request;
+  const add = async (label: string, seasonBand: string) =>
+    (await (await api.post('/api/v1/wardrobe/items', { data: { label, seasonBand } })).json()).id;
+  const tee = await add('Hero tee', 'year_round');
+  const newer = await add('Newer knit', 'year_round');
+  expect((await api.patch(`/api/v1/wardrobe/items/${tee}`, { data: { hero: true } })).ok()).toBe(
+    true,
+  );
+  const { items } = await (await api.get('/api/v1/wardrobe/items')).json();
+  expect(items.map((p: { id: string }) => p.id)).toEqual([tee, newer]);
+});
+
 async function upload(api: APIRequestContext): Promise<string> {
   const res = await api.post('/api/v1/uploads', {
     data: { kind: 'wardrobe', contentType: 'image/jpeg', bytes: PHOTO.length },

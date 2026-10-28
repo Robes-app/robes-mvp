@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { HeroRackFull } from '../../src/errors';
 import type { UserId } from '../../src/ids';
@@ -273,6 +274,63 @@ describe('wardrobe repo', () => {
     const ids = [...first.items, ...second.items, ...third.items].map((p) => p.id);
     expect(new Set(ids).size).toBe(5);
     expect(third.nextCursor).toBeNull();
+    await deleteTestUsers(db, user);
+  });
+
+  it('leads with her in-season heroes in rack order, then the rest newest first (W4)', async () => {
+    const user = await createTestUser(db);
+    let age = 10;
+    const make = async (
+      label: string,
+      seasonBand: 'spring_summer' | 'autumn_winter' | 'year_round',
+    ) => {
+      const { id } = await wardrobe.create(user, { label, seasonBand });
+      // A second apart, so newest-first never rests on a same-millisecond tie.
+      await db
+        .updateTable('wardrobeItems')
+        .set({ createdAt: sql`now() - make_interval(secs => ${age--})` })
+        .where('id', '=', id)
+        .execute();
+      return id;
+    };
+    const coat = await make('Coat', 'autumn_winter');
+    const linen = await make('Linen', 'spring_summer');
+    const tee = await make('Tee', 'year_round');
+    const knit = await make('Knit', 'autumn_winter');
+    const plain = await make('Plain', 'year_round');
+    await wardrobe.setHero(user, coat, 2);
+    await wardrobe.setHero(user, tee, 1);
+    await wardrobe.setHero(user, linen, 3);
+    // Autumn: the coat and the year-round tee lead (tee first, rack 1); the linen hero rests in place.
+    const first = await wardrobe.list(user, { limit: 2 }, 'autumn_winter');
+    expect(first.items.map((p) => p.id)).toEqual([tee, coat, plain, knit]);
+    const next = await wardrobe.list(
+      user,
+      { limit: 2, cursor: first.nextCursor ?? undefined },
+      'autumn_winter',
+    );
+    expect(next.items.map((p) => p.id)).toEqual([linen]);
+    expect(next.nextCursor).toBeNull();
+    // Summer leads with the linen; a filter keeps the lead to what matches.
+    expect(
+      (await wardrobe.list(user, { limit: 10 }, 'spring_summer')).items.map((p) => p.id),
+    ).toEqual([tee, linen, plain, knit, coat]);
+    expect(
+      (
+        await wardrobe.list(user, { limit: 10, seasonBand: 'autumn_winter' }, 'autumn_winter')
+      ).items.map((p) => p.id),
+    ).toEqual([coat, knit]);
+    // Without a season the order is plain newest first; another user's list never sees her heroes.
+    expect((await wardrobe.list(user, { limit: 10 })).items.map((p) => p.id)).toEqual([
+      plain,
+      knit,
+      tee,
+      linen,
+      coat,
+    ]);
+    expect(
+      (await wardrobe.list(bea, { limit: 50 }, 'autumn_winter')).items.map((p) => p.id),
+    ).not.toContain(coat);
     await deleteTestUsers(db, user);
   });
 

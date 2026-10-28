@@ -1,6 +1,13 @@
 import { resolveTaxonomy, type SeasonBand } from '@robes/core';
 import { familyShadeIds, shade, shadeByName } from '@robes/core/colour';
-import { type Insertable, type Kysely, sql, type Transaction, type Updateable } from 'kysely';
+import {
+  type ExpressionBuilder,
+  type Insertable,
+  type Kysely,
+  sql,
+  type Transaction,
+  type Updateable,
+} from 'kysely';
 import type { Db } from '../client';
 import type { DB, WardrobeItems } from '../database.types';
 import { HeroRackFull } from '../errors';
@@ -87,6 +94,10 @@ export interface ListPiecesQuery {
   brand?: string | undefined;
 }
 
+export type PieceFilters = Omit<ListPiecesQuery, 'limit' | 'cursor'>;
+// The band in season: in-season heroes lead the list (`seasonBandOn` in @robes/core/wardrobe).
+export type LeadBand = Exclude<SeasonBand, 'year_round'>;
+
 export const HERO_RACK_SIZE = 10;
 
 // What a piece edit does to the Hero Rack: an explicit place, a star on (first free place) or off.
@@ -151,45 +162,67 @@ const WEAR_TAG_MAX = 6;
 export function wardrobeRepo(db: Db) {
   const active = () => db.selectFrom('wardrobeItems').where('deletedAt', 'is', null);
 
+  // Her live pieces under the wardrobe's filters: one place for the list and its count row.
+  const matching = (userId: UserId, q: PieceFilters) => {
+    let query = active().where('userId', '=', userId);
+    if (q.category) query = query.where('category', '=', q.category);
+    if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
+    if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
+    // Refine by colour family: the pieces whose shade sits in it (an unknown family matches none).
+    if (q.colourFamily) {
+      query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
+    }
+    // Refine by brand (case-insensitive) and by what she wears it for (a wear_for tag of hers).
+    if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
+    const { wearFor } = q;
+    if (wearFor) {
+      query = query.where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('tagPieces')
+            .innerJoin('tags', (j) =>
+              j
+                .onRef('tags.id', '=', 'tagPieces.tagId')
+                .onRef('tags.userId', '=', 'tagPieces.userId'),
+            )
+            .select('tagPieces.wardrobeItemId')
+            .whereRef('tagPieces.wardrobeItemId', '=', 'wardrobeItems.id')
+            .where('tagPieces.userId', '=', userId)
+            .where('tags.kind', '=', 'wear_for')
+            .where(sql<boolean>`lower(tags.label) = lower(${wearFor})`),
+        ),
+      );
+    }
+    return query;
+  };
+
   return {
-    async list(userId: UserId, q: ListPiecesQuery) {
-      let query = active()
+    // Newest first. On the first page, her in-season heroes lead in rack order (beta _waRender):
+    // a hero whose band is `leadBand` or year-round. Off-season heroes keep their place. The lead
+    // rides on top of the page's `limit` (the rack holds at most HERO_RACK_SIZE), so the keyset
+    // cursor only ever walks the rest.
+    async list(userId: UserId, q: ListPiecesQuery, leadBand?: LeadBand) {
+      const inSeasonHero = (eb: ExpressionBuilder<DB, 'wardrobeItems'>) =>
+        eb.and([
+          eb('heroPosition', 'is not', null),
+          eb('seasonBand', 'in', [leadBand ?? 'year_round', 'year_round']),
+        ]);
+      let rest = matching(userId, q)
         .select(PIECE_COLUMNS)
-        .where('userId', '=', userId)
         .orderBy(createdMs, 'desc')
         .orderBy('id', 'desc')
         .limit(q.limit + 1);
-      if (q.category) query = query.where('category', '=', q.category);
-      if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
-      if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
-      // Refine by colour family: the pieces whose shade sits in it (an unknown family matches none).
-      if (q.colourFamily) {
-        query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
-      }
-      // Refine by brand (case-insensitive) and by what she wears it for (a wear_for tag of hers).
-      if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
-      const { wearFor } = q;
-      if (wearFor) {
-        query = query.where((eb) =>
-          eb.exists(
-            eb
-              .selectFrom('tagPieces')
-              .innerJoin('tags', (j) =>
-                j
-                  .onRef('tags.id', '=', 'tagPieces.tagId')
-                  .onRef('tags.userId', '=', 'tagPieces.userId'),
-              )
-              .select('tagPieces.wardrobeItemId')
-              .whereRef('tagPieces.wardrobeItemId', '=', 'wardrobeItems.id')
-              .where('tagPieces.userId', '=', userId)
-              .where('tags.kind', '=', 'wear_for')
-              .where(sql<boolean>`lower(tags.label) = lower(${wearFor})`),
-          ),
-        );
-      }
+      if (leadBand) rest = rest.where((eb) => eb.not(inSeasonHero(eb)));
       const after = afterCursor(q.cursor);
-      if (after) query = query.where(after);
-      return toPage(await query.execute(), q.limit);
+      if (after) rest = rest.where(after);
+      const page = toPage(await rest.execute(), q.limit);
+      if (!leadBand || q.cursor) return page;
+      const lead = await matching(userId, q)
+        .select(PIECE_COLUMNS)
+        .where(inSeasonHero)
+        .orderBy('heroPosition')
+        .execute();
+      return { items: [...lead, ...page.items], nextCursor: page.nextCursor };
     },
 
     get(userId: UserId, id: string) {
@@ -471,39 +504,10 @@ export function wardrobeRepo(db: Db) {
     },
 
     // The wardrobe's count row: every piece matching the same filters as `list`.
-    async countMatching(userId: UserId, q: Omit<ListPiecesQuery, 'limit' | 'cursor'>) {
-      let query = active()
+    async countMatching(userId: UserId, q: PieceFilters) {
+      const row = await matching(userId, q)
         .select((eb) => eb.fn.countAll<string>().as('n'))
-        .where('userId', '=', userId);
-      if (q.category) query = query.where('category', '=', q.category);
-      if (q.categoryL2) query = query.where('categoryL2', '=', q.categoryL2);
-      if (q.seasonBand) query = query.where('seasonBand', '=', q.seasonBand);
-      // Refine by colour family: the pieces whose shade sits in it (an unknown family matches none).
-      if (q.colourFamily) {
-        query = query.where('colourShade', 'in', [...familyShadeIds(q.colourFamily), '']);
-      }
-      // Refine by brand (case-insensitive) and by what she wears it for (a wear_for tag of hers).
-      if (q.brand) query = query.where(sql<boolean>`lower(brand) = lower(${q.brand})`);
-      const { wearFor } = q;
-      if (wearFor) {
-        query = query.where((eb) =>
-          eb.exists(
-            eb
-              .selectFrom('tagPieces')
-              .innerJoin('tags', (j) =>
-                j
-                  .onRef('tags.id', '=', 'tagPieces.tagId')
-                  .onRef('tags.userId', '=', 'tagPieces.userId'),
-              )
-              .select('tagPieces.wardrobeItemId')
-              .whereRef('tagPieces.wardrobeItemId', '=', 'wardrobeItems.id')
-              .where('tagPieces.userId', '=', userId)
-              .where('tags.kind', '=', 'wear_for')
-              .where(sql<boolean>`lower(tags.label) = lower(${wearFor})`),
-          ),
-        );
-      }
-      const row = await query.executeTakeFirst();
+        .executeTakeFirst();
       return Number(row?.n ?? 0);
     },
 

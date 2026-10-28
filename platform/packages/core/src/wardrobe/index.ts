@@ -1,4 +1,4 @@
-import { LEGACY_CATEGORIES, type LegacyCategory, sheetL1For } from '../taxonomy';
+import { LEGACY_CATEGORIES, type LegacyCategory, type SeasonBand, sheetL1For } from '../taxonomy';
 
 // The piece card everywhere (legacy b4b051a "the rack card as the wardrobe's row"): one anatomy
 // for a list row and a grid tile, on the wardrobe and the wishlist, web and native.
@@ -12,6 +12,13 @@ export function defaultLayout(isPhone: boolean): WardrobeLayout {
 
 export function isWardrobeLayout(value: unknown): value is WardrobeLayout {
   return value === 'list' || value === 'grid';
+}
+
+// The band in season on a calendar day (YYYY-MM-DD): April to September is spring/summer, as
+// beta's Hero Rack (_waSeasonNow). In-season heroes lead her wardrobe; year-round ones always do.
+export function seasonBandOn(date: string): Exclude<SeasonBand, 'year_round'> {
+  const month = Number(date.slice(5, 7));
+  return month >= 4 && month <= 9 ? 'spring_summer' : 'autumn_winter';
 }
 
 // Eyebrow "Category · Brand": the sheet's category when the taxonomy knows the type.
