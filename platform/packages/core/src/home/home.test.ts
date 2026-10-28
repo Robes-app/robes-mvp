@@ -9,6 +9,8 @@ import {
   ownLook,
   resolveHome,
   styleConfirmed,
+  trayKind,
+  trayState,
 } from './index';
 
 const NOW = new Date('2026-10-16T12:00:00Z');
@@ -91,6 +93,11 @@ describe('the step tests', () => {
   it('two of three style rows confirm Style DNA', () => {
     expect(styleConfirmed({ brands: ['The Row'], icons: [], styles: [] })).toBe(false);
     expect(styleConfirmed({ brands: ['The Row'], icons: ['Jane Birkin'], styles: [] })).toBe(true);
+    // Once she confirmed it (beta's walk Done), O1 is done whatever the rows hold.
+    const empty = { brands: [], icons: [], styles: [] };
+    expect(styleConfirmed(empty, '2026-10-11T09:30:00Z')).toBe(true);
+    expect(styleConfirmed(empty, new Date())).toBe(true);
+    expect(styleConfirmed(empty, null)).toBe(false);
   });
 
   it('a look from hers: a Robes build, or her pieces and nothing proposed', () => {
@@ -140,5 +147,19 @@ describe('module helpers', () => {
     expect(isTripAsk('Packing for Rome')).toBe(true);
     expect(isTripAsk('Dinner on Friday')).toBe(false);
     expect(isTripAsk('Something for the weekend')).toBe(false);
+  });
+
+  it('names a tray row by what the job is, and says where it stands', () => {
+    expect(trayKind({ kind: 'stylenotes_analyse', output: {} })).toBe('styleColour');
+    expect(trayKind({ kind: 'travel', output: {} })).toBe('trip');
+    expect(trayKind({ kind: 'daily', output: {} })).toBe('daily');
+    expect(trayKind({ kind: 'key_piece', output: { dailyLookId: 'x' } })).toBe('daily');
+    expect(trayKind({ kind: 'key_piece', output: {} })).toBe('stylePiece');
+    expect(trayState('queued')).toBe('running');
+    expect(trayState('running')).toBe('running');
+    expect(trayState('succeeded')).toBe('ready');
+    expect(trayState('partial')).toBe('ready');
+    expect(trayState('failed')).toBe('failed');
+    expect(trayState('cancelled')).toBe('failed');
   });
 });

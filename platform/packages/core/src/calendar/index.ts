@@ -37,6 +37,29 @@ export function diaryPick(
   };
 }
 
+// What the diary sheet's month marks for one look: every day carrying a look is filed, the days
+// this look is pinned to say "already in the diary", and every day she wore it (its wears, not
+// only the last one) is worn — and filed, so the month shows its history.
+export function diaryMarks(
+  days: ReadonlyArray<{ date: string; entries: ReadonlyArray<{ look: { id: string } }> }>,
+  lookId: string | null | undefined,
+  wornOn: Iterable<string | null | undefined>,
+): { filed: Set<string>; pinned: Set<string>; worn: Set<string> } {
+  const filed = new Set<string>();
+  const pinned = new Set<string>();
+  for (const d of days) {
+    if (d.entries.length) filed.add(d.date);
+    if (lookId && d.entries.some((e) => e.look.id === lookId)) pinned.add(d.date);
+  }
+  const worn = new Set<string>();
+  for (const d of wornOn) {
+    if (!d) continue;
+    worn.add(d);
+    filed.add(d);
+  }
+  return { filed, pinned, worn };
+}
+
 export function monthOf(date: string): string {
   return date.slice(0, 7);
 }
@@ -77,7 +100,6 @@ export function mondayOf(date: string): string {
   return addDays(date, -((d.getUTCDay() + 6) % 7));
 }
 
-const SHORT_DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
 const LONG_DAY = new Intl.DateTimeFormat('en-GB', {
   weekday: 'long',
   day: 'numeric',
@@ -100,6 +122,8 @@ const MONTHS_SHORT = [
   'Nov',
   'Dec',
 ] as const;
+// Monday first, as every month grid here is: the heads over a month and a day's short name.
+export const WEEKDAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 const at = (date: string) => new Date(`${date}T00:00:00Z`);
 const monthShort = (date: string) => MONTHS_SHORT[at(date).getUTCMonth()] ?? '';
 
@@ -109,7 +133,7 @@ export function dayMonth(date: string): string {
 }
 
 export function weekdayShort(date: string): string {
-  return SHORT_DAY.format(at(date));
+  return WEEKDAYS_SHORT[(at(date).getUTCDay() + 6) % 7] ?? '';
 }
 
 export function weekdayLong(date: string): string {

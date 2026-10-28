@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, diaryDays, diaryPick, monthGrid, monthLabel, shiftMonth } from './index';
+import {
+  addDays,
+  diaryDays,
+  diaryMarks,
+  diaryPick,
+  monthGrid,
+  monthLabel,
+  shiftMonth,
+  WEEKDAYS_SHORT,
+  weekdayShort,
+} from './index';
 
 describe('calendar', () => {
   it('builds a Monday-first month grid', () => {
@@ -136,5 +146,40 @@ describe('diaryPick', () => {
 
   it('treats today as a day ahead, so it files rather than records', () => {
     expect(diaryPick('2026-10-23', '2026-10-23', clear).action).toBe('put');
+  });
+});
+
+describe('diaryMarks', () => {
+  const day = (date: string, ...ids: string[]) => ({
+    date,
+    entries: ids.map((id) => ({ look: { id } })),
+  });
+
+  it('marks every wear of the look, not only the last, as worn and filed', () => {
+    const m = diaryMarks([day('2026-10-01'), day('2026-10-02', 'b')], 'a', [
+      '2026-10-03',
+      '2026-09-12',
+      null,
+    ]);
+    expect([...m.worn].sort()).toEqual(['2026-09-12', '2026-10-03']);
+    expect([...m.filed].sort()).toEqual(['2026-09-12', '2026-10-02', '2026-10-03']);
+    expect(m.pinned.size).toBe(0);
+  });
+
+  it('knows the days this look is pinned to', () => {
+    const m = diaryMarks([day('2026-10-02', 'b', 'a'), day('2026-10-04', 'b')], 'a', []);
+    expect([...m.pinned]).toEqual(['2026-10-02']);
+    expect(diaryMarks([day('2026-10-02', 'a')], null, []).pinned.size).toBe(0);
+  });
+});
+
+describe('weekdays', () => {
+  it('heads a Monday-first month from one table, and names a day from it', () => {
+    expect(WEEKDAYS_SHORT).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+    // 1 Oct 2026 is a Thursday: monthGrid pads three cells, so the heads line up over it.
+    expect(monthGrid('2026-10').cells.indexOf('2026-10-01')).toBe(3);
+    expect(weekdayShort('2026-10-01')).toBe(WEEKDAYS_SHORT[3]);
+    expect(weekdayShort('2026-10-04')).toBe('Sun');
+    expect(weekdayShort('2026-10-05')).toBe('Mon');
   });
 });

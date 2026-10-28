@@ -97,7 +97,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
       ROBES_PRODUCTION_GITHUB_OIDC_PROVIDER_ARN=arn:aws:iam::259887029472:oidc-provider/token.actions.githubusercontent.com \
       pnpm cdk deploy 'Production/*' -c stage=production --output cdk.out.prod
     ```
-    Lambda's account limit is 10 (hence no reserved concurrency), the account is an Organizations member (no budgets), and neither stage has a custom media domain yet (`MEDIA_PUBLIC_ORIGIN` is the CloudFront domain). The GitHub `staging`/`production` environments are not set up, so `platform-deploy-*` never runs: deploy from a laptop after merging worker or infra changes, and always `cdk diff` first.
+    Lambda's account limit is 10 (hence no reserved concurrency), the account is an Organizations member (no budgets), and neither stage has a custom media domain yet (`MEDIA_PUBLIC_ORIGIN` is the CloudFront domain). The GitHub `staging`/`production` environments are not set up yet, so deploy staging from a laptop after merging worker or infra changes (always `cdk diff` first) until §5 step 5 is done. The website alone redeploys on a `beta` merge; the workers (photo reads, looks, images) do not — a merge that changes `packages/jobs`, `packages/ai` or `workers/` reaches staging only with a deploy.
 11. Confirm the SNS email subscription for alerts/budgets (`ROBES_<STAGE>_ALERT_EMAIL`). Optional: AWS Chatbot → Slack `#robes-alerts` subscribed to `robes-<env>-alerts`.
 
 ## 5. GitHub
@@ -105,6 +105,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 1. Settings → Environments: create `staging` and `production`. Production: required reviewer, deployment branches limited to `platform` (later the trunk).
 2. Per environment **variables**: `AWS_ACCOUNT_ID`, `AWS_DEPLOY_ROLE_ARN`, `APP_URL` (`https://staging.byrobes.com` / `https://app.byrobes.com`), `MEDIA_DOMAIN`, `MEDIA_CERT_ARN`, `CLOUDFRONT_PUBLIC_KEY` (optional if committed), `ALERT_EMAIL`, `BUDGET_EMAIL`, and optionally `BUDGETS` (`off` in a member account) and `GENERATE_RESERVED_CONCURRENCY` (§4 step 10).
 3. Per environment **secrets**: `MIGRATION_DATABASE_URL` (§2 step 4; migration role, never `robes_app`).
+5. **Staging deploys on every `beta` merge** that touches `platform/**` (`platform-deploy-staging.yml`, 2026-10-28), once the repo variable `STAGING_AUTO_DEPLOY` is `true` (Settings → Secrets and variables → Actions → Variables). Set it only after steps 1–3 exist for `staging`: `AWS_DEPLOY_ROLE_ARN` is the staging stack's `robes-staging-github-deploy` role, `AWS_ACCOUNT_ID` 259887029472, `APP_URL` `https://staging.byrobes.com`, `BUDGETS` `off`, `GENERATE_RESERVED_CONCURRENCY` `0`. **Run workflow** (manual) works as soon as the environment exists, switch or not.
 4. Renovate: install the Renovate app and add a root `renovate.json` containing `{ "extends": ["local>Robes-app/robes-mvp//platform/renovate.json"] }` (Renovate only reads config at the repo root).
 
 ## 6. Vercel

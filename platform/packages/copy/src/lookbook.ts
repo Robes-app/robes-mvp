@@ -62,7 +62,7 @@ export const lookbook = {
   },
   suggestedEmpty: {
     title: 'Nothing suggested yet.',
-    body: 'Ask Robes for a look, or style one of your pieces three ways.',
+    body: 'Tell Robes where you’re going, or pick a piece, and it dresses you.',
   },
   // The look page, in each state.
   eyebrow: {
@@ -147,7 +147,6 @@ export const lookbook = {
     add: (day: string): string => `Add to ${day}`,
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
-    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     // "Today, Friday 17 October · records it as worn"
     picked: (long: string, today: boolean, suffix: 'worn' | 'filed' | null): string =>
       `${today ? 'Today, ' : ''}${long}${
@@ -163,6 +162,8 @@ export const lookbook = {
     recorded: 'Already worn that day',
     woreToday: 'I wore this today',
     recordedOn: (day: string): string => `Recorded — worn ${day}`,
+    // "I wore this today" says so (beta's __lkDiaryWoreToday).
+    wornToday: 'Worn today ✓',
     inDiaryFor: (look: string, day: string): string => `“${look}” is in your diary for ${day}`,
   },
   discarded: 'Draft let go.',

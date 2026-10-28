@@ -81,6 +81,8 @@ function DayRow({
   const s = daySummary(entries, name);
   const title = s.name ?? (s.looks ? plan.list.looks(s.looks) : null);
   const label = isToday ? plan.today : weekdayShort(date);
+  // A wear on the day (its record, not the look's last wear) reads after the count (D2).
+  const worn = entries.some((e) => e.worn);
   // Up to two looks' photographs, overlapping (legacy .dy-r-th).
   const thumbs = entries.slice(0, 2);
   return (
@@ -125,6 +127,12 @@ function DayRow({
           <span className="truncate font-sans text-[11px] text-ink-faint">
             {plan.list.looks(s.looks)}
             {s.pieces ? ` · ${plan.list.pieces(s.pieces)}` : ''}
+            {worn ? (
+              <>
+                {' · '}
+                <span className="text-ink-muted">{plan.list.worn}</span>
+              </>
+            ) : null}
           </span>
         ) : null}
       </span>

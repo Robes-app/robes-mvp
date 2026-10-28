@@ -22,7 +22,19 @@ jest.mock('../src/features/wardrobe/add-pieces', () => ({
   uploadPhoto: jest.fn(async () => '44444444-4444-4444-8444-444444444444'),
 }));
 
-beforeEach(() => jest.clearAllMocks());
+// Her List | Month pick (D4): a store per test.
+const mockPrefs = new Map<string, string>();
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async (k: string) => mockPrefs.get(k) ?? null),
+  setItemAsync: jest.fn(async (k: string, v: string) => {
+    mockPrefs.set(k, v);
+  }),
+}));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockPrefs.clear();
+});
 
 const ENTRY_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const planWith = (entries: boolean) => ({
@@ -194,4 +206,31 @@ test('the switcher and + sit pinned under the header; the eyebrow names the wind
   await fireEvent.press(screen.getByRole('radio', { name: plan.view.month }));
   expect(await screen.findByText('October 2026')).toBeTruthy();
   expect(screen.getByRole('button', { name: plan.prevMonth })).toBeTruthy();
+});
+
+test('a day she wore a look reads "· Worn" after the count (D2)', async () => {
+  const p = planWith(true);
+  (p.days[0]?.entries[0] as Record<string, unknown>).worn = true;
+  mockFetch({ 'GET /plan': p });
+  await renderWithApi(<PlanView />);
+  expect(await screen.findByTestId('plan-day-2026-10-01')).toHaveTextContent(
+    new RegExp(`1 look · 1 piece · ${plan.list.worn}`),
+  );
+  expect(screen.getByTestId('plan-day-2026-10-02')).not.toHaveTextContent(
+    new RegExp(plan.list.worn),
+  );
+});
+
+test('List | Month is kept: the Diary opens on the view she left it on (D4)', async () => {
+  mockFetch({ 'GET /plan': planWith(false) });
+  const first = await renderWithApi(<PlanView />);
+  await fireEvent.press(await screen.findByRole('radio', { name: plan.view.month }));
+  expect(await screen.findByTestId('plan-month')).toBeTruthy();
+  first.unmount();
+
+  await renderWithApi(<PlanView />);
+  expect(await screen.findByTestId('plan-month')).toBeTruthy();
+  expect(screen.queryByTestId('plan-list')).toBeNull();
+  // The month's heads come from the one table, as beta's (D9).
+  expect(screen.getByText('Wed', { includeHiddenElements: true })).toBeTruthy();
 });

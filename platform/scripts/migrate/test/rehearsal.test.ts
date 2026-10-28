@@ -170,6 +170,16 @@ describe.skipIf(!legacySchemaPresent())(
           CAT,
         ]),
       ).toEqual({ bust_band: null, bust_cup: null, bust_cm: null, waist_cm: null });
+      // Beta's style walk Done carries over as home's O1; never set stays unset.
+      expect(
+        await one(
+          `select (style_confirmed_at at time zone 'UTC')::text as at from app.profiles where id = $1`,
+          [NIALL],
+        ),
+      ).toEqual({ at: '2026-10-11 09:30:00' });
+      expect(await one(`select style_confirmed_at from app.profiles where id = $1`, [CAT])).toEqual(
+        { style_confirmed_at: null },
+      );
       expect(first.report.warnings).toContain(
         '1 profiles had a bust or waist outside the ranges (left unset)',
       );

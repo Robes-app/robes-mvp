@@ -455,9 +455,10 @@ export function startedLabel(createdAt: string, today: string, timeZone?: string
   return dayMonth(day);
 }
 
-// The Saved tab's sort (legacy __lkSortMenu): newest first, last worn first, or by name. Sort
-// shows from four looks (never inert).
-export const SORTS = ['newest', 'lastWorn', 'name'] as const;
+// The Saved tab's sort, in beta's menu order (legacy __lkSortMenu, F12 · 2): last worn first (the
+// standing sort), newest, then by name. Sort and Filter show from four looks — hidden below, never
+// inert.
+export const SORTS = ['lastWorn', 'newest', 'name'] as const;
 export type LookSort = (typeof SORTS)[number];
 export const SORT_FROM = 4;
 export function sortLooks<T extends { name: string; createdAt: string; lastWornOn: string | null }>(

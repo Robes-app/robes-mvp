@@ -2,24 +2,25 @@ import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import {
+  diaryMarks,
   diaryPick,
   longDate,
   monthGrid,
   monthLabel,
   monthOf,
   shiftMonth,
+  WEEKDAYS_SHORT,
 } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import { Button, PrimaryScope, Sheet, Text, useColor, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { dayLabel, usePinLook } from '@/features/plan/plan';
 import { errorMessage } from '@/lib/errors';
 import { LookPhoto } from './LookTile';
 import { localDate } from './saved-looks';
-
-const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
 // Save opens the diary every time (legacy 0.2): beta's month, any day one tap, a day gone by
 // records it as worn, and "I wore this today" beneath. Closing it writes nothing.
@@ -30,6 +31,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
   const day = picked ?? look?.dateHint ?? today;
   const toast = useToast();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const pin = usePinLook();
   const rose = useColor('accent-inspire');
   const ink = useColor('ink');
@@ -41,13 +43,20 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     { input: { from: grid.from, days: grid.days } },
     { enabled: look !== null },
   );
-  const days = plan.data?.days ?? [];
-  const filled = new Set(days.filter((d) => d.entries.length > 0).map((d) => d.date));
-  const pins = new Set(
-    days.filter((d) => d.entries.some((e) => e.look.id === look?.id)).map((d) => d.date),
+  // Every day she wore this look, from its record of wears (twin: diary-sheet.tsx, L9).
+  const wears = useApi(
+    'looks.wears',
+    { params: { id: look?.id ?? '' } },
+    { enabled: look !== null },
   );
-  const worn = new Set(look?.lastWornOn ? [look.lastWornOn] : []);
-  for (const d of worn) filled.add(d);
+  const {
+    filed: filled,
+    pinned: pins,
+    worn,
+  } = diaryMarks(plan.data?.days ?? [], look?.id, [
+    look?.lastWornOn,
+    ...(wears.data?.items ?? []).map((w) => w.wornOn),
+  ]);
 
   const state = diaryPick(day, today, {
     pinned: pins.has(day),
@@ -69,18 +78,23 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     close();
   };
   const wear = useApiMutation('looks.wear', {
-    onSuccess: (w) => settle(copy.diary.recordedOn(dayLabel(w.wornOn))),
+    // Today's wear says so as beta does; a day gone by names its date (twin: diary-sheet.tsx).
+    onSuccess: (w) =>
+      settle(w.wornOn === today ? copy.diary.wornToday : copy.diary.recordedOn(dayLabel(w.wornOn))),
     onError: (err: unknown) => toast.show({ message: errorMessage(err) }),
   });
   const busy = pin.isPending || wear.isPending;
 
   const act = () => {
     if (!look || state.action === 'recorded') return;
-    if (state.action === 'record' || state.action === 'already') {
-      // A day already carrying this look needs no second pin; a day gone by records the wear.
-      if (state.action === 'record')
-        wear.mutate({ params: { id: look.id }, input: { wornOn: day } });
-      else close();
+    if (state.action === 'record') {
+      wear.mutate({ params: { id: look.id }, input: { wornOn: day } });
+      return;
+    }
+    // Already pinned: the day page is where it lives, so go there rather than pin it twice.
+    if (state.action === 'already') {
+      close();
+      router.push(`/day/${day}`);
       return;
     }
     pin.mutateAsync({ params: { id: look.id }, input: { dates: [day], slot: 'day' } }).then(
@@ -139,15 +153,15 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
             </View>
             <View className="gap-1">
               <View className="flex-row" importantForAccessibility="no-hide-descendants">
-                {WEEKDAYS.map((k, i) => (
+                {WEEKDAYS_SHORT.map((w) => (
                   <Text
-                    key={k}
+                    key={w}
                     tone="muted"
                     size="caption"
                     className="flex-1 text-center uppercase"
                     style={{ fontSize: 9.5, letterSpacing: 1.7 }}
                   >
-                    {copy.diary.weekdays[i]}
+                    {w}
                   </Text>
                 ))}
               </View>

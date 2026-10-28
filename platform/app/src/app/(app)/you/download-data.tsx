@@ -2,8 +2,8 @@
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { DataExport } from '@robes/contracts';
-import { you } from '@robes/copy';
-import { Button, buttonClasses, Heading, Text } from '@robes/ui';
+import { errors, you } from '@robes/copy';
+import { Button, buttonClasses, ErrorText, Heading, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 
 const copy = you.dataExport;
@@ -11,7 +11,8 @@ const REFRESH_MS = 3_000;
 const pending = (e: DataExport | null | undefined) =>
   e?.status === 'requested' || e?.status === 'running';
 
-// SEC-81: request → preparing → a short-lived download link (refetch for a fresh one).
+// SEC-81: request → preparing → a short-lived download link (refetch for a fresh one). Native
+// twin: DownloadData in mobile/src/features/you/Privacy.tsx.
 export function DownloadData() {
   const queryClient = useQueryClient();
   const status = useApi('me.exports.get', undefined, {
@@ -61,6 +62,7 @@ export function DownloadData() {
           {current ? copy.again : copy.request}
         </Button>
       ) : null}
+      {request.isError ? <ErrorText>{errors.internal}</ErrorText> : null}
     </section>
   );
 }

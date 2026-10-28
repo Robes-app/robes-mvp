@@ -1,7 +1,9 @@
 import { ApiError } from '@robes/api';
 import { CreatePieceInput, ListPiecesInput, Piece, PiecePage } from '@robes/contracts';
+import { seasonBandOn } from '@robes/core/wardrobe';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
+import { todayIn } from '@/server/plan';
 import { route } from '@/server/route';
 import { loadPiece, toPieces } from '@/server/wardrobe';
 
@@ -13,8 +15,11 @@ export const GET = route({
   handler: async ({ user, input }) => {
     const userId = verifiedUserId(user.id);
     const { limit: _limit, cursor: _cursor, ...filters } = input;
+    // Her in-season heroes lead the grid; the season is her calendar's, in her timezone.
+    const profile = await repos.profiles.get(userId);
+    const leadBand = profile ? seasonBandOn(todayIn(profile.timezone)) : undefined;
     const [page, total] = await Promise.all([
-      repos.wardrobe.list(userId, input),
+      repos.wardrobe.list(userId, input, leadBand),
       repos.wardrobe.countMatching(userId, filters),
     ]);
     return { items: await toPieces(userId, page.items), nextCursor: page.nextCursor, total };

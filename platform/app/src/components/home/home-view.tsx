@@ -4,7 +4,14 @@ import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Look, Today } from '@robes/contracts';
 import { home as copy, lookbook, today as todayCopy, twin } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
-import { greetingName, type HomeStep, noticedLine, resolveHome } from '@robes/core/home';
+import {
+  greetingName,
+  type HomeStep,
+  noticedLine,
+  resolveHome,
+  trayKind,
+  trayState,
+} from '@robes/core/home';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { anchorName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
@@ -23,18 +30,27 @@ const WEATHER_STALE_MS = 30 * 60_000;
 const isRunning = (t: Today | undefined) =>
   t?.tray.some((j) => !isTerminalJobStatus(j.status)) ?? false;
 
-function trayHref(job: Today['tray'][number]): string {
-  if (job.kind === 'stylenotes_analyse') return '/you/style';
-  if (job.kind === 'travel') {
+type TrayJob = Today['tray'][number];
+// Where a tray row opens (the native twin is HomeView.tsx trayRoute).
+function trayHref(job: TrayJob): string {
+  const kind = trayKind(job);
+  if (kind === 'styleColour') return '/you/style';
+  if (kind === 'trip') {
     return job.output.tripId ? `/trip/${job.output.tripId}` : `/trip/job/${job.id}`;
   }
-  if (job.kind === 'daily' || job.output.dailyLookId) {
+  if (kind === 'daily') {
     return job.output.dailyLookId
       ? `/today/looks/${job.output.dailyLookId}`
       : `/today/style/${job.id}`;
   }
   return job.output.ideaId ? `/looks/ideas/${job.output.ideaId}` : `/looks/style/${job.id}`;
 }
+const TRAY_TITLE = {
+  styleColour: todayCopy.tray.styleColour,
+  trip: todayCopy.tray.trip,
+  daily: todayCopy.daily.trayTitle,
+  stylePiece: todayCopy.tray.stylePiece,
+} as const;
 
 // The modular home (legacy 0478e63): H0 masthead · H1 alerts · H2 the box · the next step (O1–O4)
 // and the map (G1) while onboarding · the week (H3) once activated · Saved then Suggested (H4).
@@ -157,21 +173,9 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
                   href={trayHref(job)}
                   className="flex justify-between gap-4 underline-offset-4 hover:underline"
                 >
-                  <Text>
-                    {job.kind === 'stylenotes_analyse'
-                      ? todayCopy.tray.styleColour
-                      : job.kind === 'travel'
-                        ? todayCopy.tray.trip
-                        : job.kind === 'daily' || job.output.dailyLookId
-                          ? todayCopy.daily.trayTitle
-                          : todayCopy.tray.stylePiece}
-                  </Text>
+                  <Text>{TRAY_TITLE[trayKind(job)]}</Text>
                   <Text tone="muted" role="status">
-                    {!isTerminalJobStatus(job.status)
-                      ? todayCopy.tray.running
-                      : job.status === 'failed' || job.status === 'cancelled'
-                        ? todayCopy.tray.failed
-                        : todayCopy.tray.ready}
+                    {todayCopy.tray[trayState(job.status)]}
                   </Text>
                 </Link>
               </li>

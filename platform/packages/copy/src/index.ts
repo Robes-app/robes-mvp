@@ -52,6 +52,8 @@ export const auth = {
   emailPlaceholder: 'you@example.com',
   sendCode: 'Email me a code',
   sendingCode: 'Sending…',
+  // For beta testers who signed in with a password (F4): one line, under the button.
+  noPassword: 'Used a password? Robes emails you a code now.',
   codeTitle: 'Check your email.',
   codeSubtitle: (email: string): string => `Robes sent a six-digit code to ${email}.`,
   codeLabel: 'Code',
@@ -909,10 +911,10 @@ export const you = {
   signOut: 'Sign out',
   deletion: {
     title: 'Delete account',
-    body: 'Robes will delete your pieces, looks, photos and account. This can’t be undone.',
+    body: 'Robes signs you out and deletes your pieces, looks, photos and account. This can’t be undone.',
     confirmLabel: 'Type DELETE to confirm',
     confirm: 'Delete my account',
-    requested: 'Your account is being deleted. You’ll be signed out when it’s done.',
+    requested: 'Your account is being deleted.',
   },
   style: {
     title: 'Your colours and shape',
@@ -1059,7 +1061,8 @@ export const plan = {
   empty: {
     title: 'Nothing planned',
     titleEm: 'yet.',
-    body: 'Open a look and choose Wear on a day.',
+    // Beta's empty diary with the trip hidden (legacy _dyListHtml).
+    body: 'Name a day below and add a look. The diary keeps the dates; the lookbook keeps the looks.',
     action: 'Go to Lookbook',
   },
   monthCaption: 'Month reads the shape of it. List is where you plan.',
@@ -1087,6 +1090,8 @@ export const plan = {
     nameTheDay: 'Name the day',
     looks: (n: number): string => (n === 1 ? '1 look' : `${n} looks`),
     pieces: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+    // A day she wore a look carries it after the count (legacy .dy-r-worn).
+    worn: 'Worn',
     open: (day: string): string => `Open ${day}`,
   },
   // The day page: the one door every day opens (legacy ff87e89).

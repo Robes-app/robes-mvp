@@ -63,7 +63,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await expect(page.getByRole('button', { name: 'Save as new' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Put this look in the diary' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'I wore this today' }).click();
-  await expect(page.getByRole('listitem').getByText(/Recorded — worn/)).toBeVisible();
+  // Beta says so: today's wear is "Worn today ✓", never silence (L10).
+  await expect(page.getByRole('listitem').getByText('Worn today ✓')).toBeVisible();
   // The day it was worn joins the record, and opens that day.
   // Her local date, printed the way core's longDate prints it: "Saturday 24 October".
   const todayLocal = await page.evaluate(() => {

@@ -28,6 +28,7 @@ import {
   rackSignature,
   readBalance,
   rowNote,
+  SORTS,
   sortLooks,
   startedLabel,
   theName,
@@ -292,6 +293,9 @@ describe('the Saved tab’s sort', () => {
       'Brunch',
       'Cocktails',
     ]);
+  });
+  it('lists the menu in beta’s order: Last worn, Newest, Name', () => {
+    expect(SORTS).toEqual(['lastWorn', 'newest', 'name']);
   });
 });
 

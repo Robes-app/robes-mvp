@@ -97,3 +97,65 @@ test('the camera on a day’s look adds her photograph to the look', async ({ pa
   expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).record).toBe('photo');
   expect(await seriousViolations(page), 'a day with her photograph').toEqual([]);
 });
+
+// Pass 4 (Diary): a worn day reads "· Worn"; List | Month is kept; the diary drawer marks every
+// wear of the look and opens a day the look is already on.
+test('the diary list says Worn, keeps its view, and the drawer reads every wear', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await declineConsent(page);
+  const api = page.request;
+  const coat = await (
+    await api.post('/api/v1/wardrobe/items', { data: { label: 'Camel coat' } })
+  ).json();
+  const look = await (
+    await api.post('/api/v1/looks', { data: { name: 'Gallery', pieces: [{ pieceId: coat.id }] } })
+  ).json();
+  const { date } = await (await api.get('/api/v1/today')).json();
+  const lastMonth = new Date(`${date.slice(0, 7)}-15T00:00:00Z`);
+  lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1);
+  const earlier = lastMonth.toISOString().slice(0, 10);
+  expect(
+    (await api.post(`/api/v1/plan/looks/${look.id}/days`, { data: { dates: [date] } })).ok(),
+  ).toBe(true);
+  for (const wornOn of [earlier, date]) {
+    expect((await api.post(`/api/v1/looks/${look.id}/wears`, { data: { wornOn } })).ok()).toBe(
+      true,
+    );
+  }
+
+  await page.goto('/plan');
+  await expect(page.getByRole('link', { name: /^Open Today/ })).toContainText(
+    '1 look · 1 piece · Worn',
+  );
+
+  // Month is kept across a reload, headed Mon to Sun from the one table.
+  await page.getByRole('radio', { name: 'Month' }).click();
+  await expect(page.getByRole('button', { name: 'Next month' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('radio', { name: 'Month' })).toBeChecked();
+  await expect(page.getByText('Wed', { exact: true })).toBeVisible();
+
+  // The drawer: a day last month she wore it (not its last wear) is already recorded…
+  const long = (d: string) =>
+    new Intl.DateTimeFormat('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      timeZone: 'UTC',
+    }).format(new Date(`${d}T00:00:00Z`));
+  await page.goto(`/look/${look.id}`);
+  await page.getByRole('button', { name: 'Put this look in the diary' }).click();
+  const diary = page.getByRole('dialog');
+  await diary.getByRole('button', { name: 'Previous month' }).click();
+  await diary.getByRole('button', { name: long(earlier) }).click();
+  await expect(diary.getByRole('button', { name: 'Already worn that day' })).toBeDisabled();
+  // …and today, which the look is on, opens the day.
+  await diary.getByRole('button', { name: 'Next month' }).click();
+  await diary.getByRole('button', { name: long(date) }).click();
+  await diary.getByRole('button', { name: 'Already in the diary · Open the day' }).click();
+  await expect(page).toHaveURL(new RegExp(`/plan/${date}$`));
+  expect(await seriousViolations(page)).toEqual([]);
+});

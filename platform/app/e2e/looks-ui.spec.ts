@@ -142,6 +142,14 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
   await page.goto('/looks');
   await expect(page.getByTestId('looks-count')).toHaveText('1 look');
+  // Under four looks Sort and Filter are hidden, as beta — never rendered inert (L1).
+  await expect(page.getByRole('button', { name: /^Sort/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Filter' })).toHaveCount(0);
+  // Nothing suggested: beta's line, and the prompt (L7).
+  await page.getByRole('radio', { name: 'Suggested' }).click();
+  await expect(
+    page.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
+  ).toBeVisible();
 });
 
 test('the draft look at 390: her model, the wardrobe sheet, and Discard · Save at the foot', async ({
@@ -245,7 +253,8 @@ test('the draft: a swap lands behind Undo, and her photograph is added from the 
   // L10: the swap lands at once; Undo (6 s) puts the rack back.
   await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Dark straight jean' }).click();
-  await expect(page.getByText('Dark straight jean is on the look.')).toBeVisible();
+  // The toast's text is also echoed in its screen-reader live region: check the first (visible) one.
+  await expect(page.getByText('Dark straight jean is on the look.').first()).toBeVisible();
   await expect.poll(pieces).toEqual([ids[1]]);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(pieces).toEqual([ids[0]]);

@@ -50,14 +50,12 @@ function ToolPill({
   label,
   accessibilityLabel,
   expanded,
-  disabled = false,
   onPress,
 }: {
   icon?: IconName;
   label: string;
   accessibilityLabel?: string;
   expanded: boolean;
-  disabled?: boolean;
   onPress: () => void;
 }) {
   const muted = useColor('ink-muted');
@@ -65,10 +63,8 @@ function ToolPill({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ expanded, disabled }}
-      disabled={disabled}
+      accessibilityState={{ expanded }}
       onPress={onPress}
-      style={disabled ? { opacity: 0.45 } : undefined}
       hitSlop={{ top: (MIN_TOUCH - 36) / 2, bottom: (MIN_TOUCH - 36) / 2 }}
       className={`h-9 flex-row items-center gap-[6px] rounded-pill border bg-surface-raised px-3 ${expanded ? 'border-selected-line' : 'border-rule-mid'}`}
     >
@@ -114,17 +110,19 @@ export function LooksView() {
   const [diary, setDiary] = useState<Look | null>(null);
   const current = tab === 'saved' ? saved : suggested;
   const all = current.data?.items ?? [];
-  // Within an axis picks OR, across axes AND (twin: lookbook.tsx).
-  const raw =
-    tab === 'saved' && filters
-      ? all.filter(
-          (l) =>
-            (!bands.length || bands.includes(l.climateBand as SeasonBandId)) &&
-            (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
-        )
-      : all;
-  const wearOpts = tab === 'saved' ? wearForOptions(all) : [];
+  // Sort and Filter stand on Saved from four looks; below, beta hides them — never inert. A
+  // filter left on holds only while the tools that show it stand (twin: lookbook.tsx).
   const sortable = tab === 'saved' && all.length >= SORT_FROM;
+  const filtering = sortable && filters > 0;
+  // Within an axis picks OR, across axes AND.
+  const raw = filtering
+    ? all.filter(
+        (l) =>
+          (!bands.length || bands.includes(l.climateBand as SeasonBandId)) &&
+          (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
+      )
+    : all;
+  const wearOpts = tab === 'saved' ? wearForOptions(all) : [];
   const items = sortable ? sortLooks(raw, sort) : raw;
   const draftItems = drafts.data?.items ?? [];
   const count =
@@ -165,8 +163,7 @@ export function LooksView() {
           >
             {count}
           </Text>
-          {/* Beta: Sort and Filter stand on Saved at every count, inert below four looks. */}
-          {tab === 'saved' ? (
+          {sortable ? (
             <View className="flex-row gap-[6px]">
               {/* One pill naming the sort in play, opening the three — never three pills. */}
               <ToolPill
@@ -174,7 +171,6 @@ export function LooksView() {
                 label={copy.sort[sort]}
                 accessibilityLabel={`${copy.sort.label}: ${copy.sort[sort]}`}
                 expanded={sortOpen}
-                disabled={!sortable}
                 onPress={() => setSortOpen(true)}
               />
               <ToolPill
@@ -182,7 +178,6 @@ export function LooksView() {
                 label={copy.refine.open}
                 accessibilityLabel={`${copy.refine.open}${filters ? ` · ${copy.refine.on}` : ''}`}
                 expanded={refineOpen}
-                disabled={!sortable}
                 onPress={() => setRefineOpen(!refineOpen)}
               />
             </View>
@@ -314,7 +309,7 @@ export function LooksView() {
             />
           }
           ListEmptyComponent={
-            tab === 'saved' && filters ? (
+            filtering ? (
               // A filter that matches nothing names it and offers the way back.
               <View className="items-center gap-2 py-8">
                 <Text

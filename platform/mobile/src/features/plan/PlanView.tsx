@@ -15,10 +15,11 @@ import {
   useColor,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { TabScreen } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
+import { readPref, writePref } from '@/lib/prefs';
 import { localDate } from '../looks/saved-looks';
 import { LookPicker } from './LookPicker';
 import { LookThumb } from './LookThumb';
@@ -26,6 +27,30 @@ import { PlanMonth } from './PlanMonth';
 import { PLAN_DAYS, usePlan } from './plan';
 
 type View_ = 'list' | 'month';
+
+const VIEW_KEY = 'robes.plan.view';
+
+// List | Month, kept per viewer (D4; web twin app/src/app/(app)/plan/use-plan-view.ts). Null
+// until the stored pick is read, so the Diary never fetches the wrong view's days first.
+export function usePlanView(): [View_ | null, (next: View_) => void] {
+  const [view, setView] = useState<View_ | null>(null);
+  useEffect(() => {
+    let live = true;
+    void readPref(VIEW_KEY).then((stored) => {
+      if (live) setView((v) => v ?? (stored === 'month' ? 'month' : 'list'));
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return [
+    view,
+    (next) => {
+      setView(next);
+      void writePref(VIEW_KEY, next);
+    },
+  ];
+}
 
 // The month's ‹ ›: small labelled circles on the fine edge (the label is the cue).
 function MonthStep({
@@ -55,7 +80,8 @@ function MonthStep({
 // The Diary tab (beta parity canvas, 04 Diary): the List | Month track and the + pinned under
 // the header; the eyebrow names the window, or the month with its ‹ › on Month.
 export function PlanView() {
-  const [view, setView] = useState<View_>('list');
+  const [stored, setView] = usePlanView();
+  const view = stored ?? 'list';
   const { data } = usePlan();
   const today = data?.from ?? localDate();
   const [month, setMonth] = useState(today.slice(0, 7));
@@ -98,7 +124,11 @@ export function PlanView() {
           </View>
         ) : null}
       </View>
-      {view === 'list' ? <PlanList /> : <PlanMonth today={today} month={month} />}
+      {stored === null ? null : view === 'list' ? (
+        <PlanList />
+      ) : (
+        <PlanMonth today={today} month={month} />
+      )}
       <LookPicker date={picking ? today : null} onClose={() => setPicking(false)} />
     </TabScreen>
   );
@@ -126,6 +156,8 @@ function DayRow({
   const s = daySummary(entries, name);
   const title = s.name ?? (s.looks ? copy.list.looks(s.looks) : null);
   const label = isToday ? copy.today : weekdayShort(date);
+  // A wear on the day (its record, not the look's last wear) reads after the count (D2).
+  const worn = entries.some((e) => e.worn);
   // Up to two looks' photographs, overlapping (legacy .dy-r-th).
   const thumbs = entries.slice(0, 2);
   return (
@@ -182,6 +214,17 @@ function DayRow({
           >
             {copy.list.looks(s.looks)}
             {s.pieces ? ` · ${copy.list.pieces(s.pieces)}` : ''}
+            {worn ? (
+              <>
+                {' · '}
+                <Text
+                  className="text-[11px] text-ink-muted"
+                  style={{ fontFamily: fonts.sansRegular }}
+                >
+                  {copy.list.worn}
+                </Text>
+              </>
+            ) : null}
           </Text>
         ) : null}
       </View>

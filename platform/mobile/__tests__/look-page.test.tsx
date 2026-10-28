@@ -1,10 +1,11 @@
 import { lookbook, looks, ui } from '@robes/copy';
-import { longDate, lookDateName } from '@robes/core/calendar';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { longDate, lookDateName, monthOf, shiftMonth } from '@robes/core/calendar';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
 import { localDate, nextDays } from '../src/features/looks/saved-looks';
 import { mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
+import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -50,6 +51,62 @@ test('the diary on the picture opens the one diary drawer and pins the chosen lo
     String(url).includes('/plan/looks/'),
   );
   expect(JSON.parse(String(pin?.[1]?.body))).toEqual({ dates: [tomorrow], slot: 'day' });
+});
+
+test('a day already carrying the look opens that day from the drawer (L7)', async () => {
+  const [, tomorrow = ''] = nextDays(2);
+  mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look(),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    'GET /plan': {
+      from: tomorrow,
+      to: tomorrow,
+      days: [
+        {
+          date: tomorrow,
+          name: null,
+          entries: [
+            {
+              id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+              date: tomorrow,
+              slot: 'day',
+              activity: null,
+              look: look(),
+            },
+          ],
+        },
+      ],
+    },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.card.diary }));
+  await fireEvent.press(await screen.findByLabelText(longDate(tomorrow)));
+  await act(async () => {
+    await fireEvent.press(await screen.findByRole('button', { name: lookbook.diary.already }));
+  });
+  expect(mockRouter.push).toHaveBeenCalledWith(`/day/${tomorrow}`);
+});
+
+test('every wear on the look marks its day, not only the last (L9)', async () => {
+  const earlier = `${shiftMonth(monthOf(localDate()), -1)}-15`;
+  mockFetch({
+    // The look's last wear is today; the record also holds a day last month.
+    [`GET /looks/${LOOK_ID}`]: look({ lastWornOn: localDate(), timesWorn: 2 }),
+    [`GET /looks/${LOOK_ID}/wears`]: {
+      items: [
+        { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', wornOn: localDate(), pieces: [] },
+        { id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', wornOn: earlier, pieces: [] },
+      ],
+    },
+    'GET /plan': { days: [] },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.card.diary }));
+  await fireEvent.press(await screen.findByLabelText(lookbook.diary.prevMonth));
+  await fireEvent.press(await screen.findByLabelText(longDate(earlier)));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: lookbook.diary.recorded })).toBeDisabled(),
+  );
 });
 
 test('the record logs a day through the same drawer', async () => {
