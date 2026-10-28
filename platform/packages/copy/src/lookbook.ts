@@ -147,7 +147,6 @@ export const lookbook = {
     add: (day: string): string => `Add to ${day}`,
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
-    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     // "Today, Friday 17 October · records it as worn"
     picked: (long: string, today: boolean, suffix: 'worn' | 'filed' | null): string =>
       `${today ? 'Today, ' : ''}${long}${

@@ -1,6 +1,6 @@
 import { useApi } from '@robes/api-client/react';
 import { plan as copy } from '@robes/copy';
-import { longDate, monthGrid, rangeLabel, tripBands } from '@robes/core/calendar';
+import { longDate, monthGrid, rangeLabel, tripBands, WEEKDAYS_SHORT } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import { ErrorText, fonts, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
@@ -8,16 +8,6 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { useFeatures } from '@/lib/features';
 import { DayDots } from './DayDots';
-
-const WEEKDAYS = [
-  ['mon', 'M'],
-  ['tue', 'T'],
-  ['wed', 'W'],
-  ['thu', 'T'],
-  ['fri', 'F'],
-  ['sat', 'S'],
-  ['sun', 'S'],
-] as const;
 
 // Month view: a numeral and one dot per look in each cell; every cell opens its day.
 export function PlanMonth({ today, month }: { today: string; month: string }) {
@@ -41,9 +31,10 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
     <ScrollView contentContainerClassName="gap-1 px-5 pb-12" testID="plan-month">
       {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
       <View className="mb-1 flex-row" importantForAccessibility="no-hide-descendants">
-        {WEEKDAYS.map(([k, d]) => (
+        {/* Beta's heads, Mon to Sun, from the one table (twin: plan-month.tsx). */}
+        {WEEKDAYS_SHORT.map((d) => (
           <Text
-            key={k}
+            key={d}
             className="flex-1 text-center text-[9px] text-ink-faint uppercase"
             style={{ fontFamily: fonts.sansRegular, letterSpacing: 1.26 }}
           >

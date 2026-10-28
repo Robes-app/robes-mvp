@@ -10,6 +10,7 @@ import {
   rangeLabel,
   type TripBand,
   tripBands,
+  WEEKDAYS_SHORT,
 } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
 import { ErrorText, Skeleton } from '@robes/ui';
@@ -19,7 +20,6 @@ import { LookImage } from '@/components/looks/look-image';
 import { DayDots } from '@/components/plan/day-dots';
 import { errorCopy } from '@/lib/error-copy';
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
@@ -44,7 +44,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
     <section aria-label={monthLabel(month)} className="flex flex-col gap-3">
       {query.isError ? <ErrorText>{errorCopy(query.error)}</ErrorText> : null}
       <div aria-hidden className="grid grid-cols-7 gap-1 md:gap-2">
-        {WEEKDAYS.map((d) => (
+        {WEEKDAYS_SHORT.map((d) => (
           <div key={d} className="text-center md:pl-0.5 md:text-left">
             <span className="font-sans text-[9px] tracking-[0.2em] text-ink-faint uppercase">
               {d}

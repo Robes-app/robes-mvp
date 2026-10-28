@@ -9,8 +9,7 @@ import { localToday } from '@/lib/dates';
 import { LookPicker } from './look-picker';
 import { PLAN_DAYS, PlanList } from './plan-list';
 import { PlanMonth } from './plan-month';
-
-type View = 'list' | 'month';
+import { type PlanViewKind, usePlanView } from './use-plan-view';
 
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
@@ -20,14 +19,15 @@ const focus =
 // names the window, or the month with its ‹ › on Month.
 export function PlanView() {
   const today = localToday();
-  const [view, setView] = useState<View>('list');
+  const [stored, setView] = usePlanView();
+  const view = stored ?? 'list';
   const [month, setMonth] = useState(today.slice(0, 7));
   const [picking, setPicking] = useState(false);
   return (
     <div className="flex flex-col">
       <h1 className="sr-only">{plan.title}</h1>
       <div className="sticky top-11 z-30 -mx-5 flex items-center justify-between gap-4 bg-bg px-5 py-1 md:top-16 md:-mx-4 md:px-4">
-        <SegmentedControl<View>
+        <SegmentedControl<PlanViewKind>
           label={plan.view.label}
           options={[
             { value: 'list', label: plan.view.list },
@@ -62,7 +62,11 @@ export function PlanView() {
           </div>
         ) : null}
       </div>
-      {view === 'list' ? <PlanList today={today} /> : <PlanMonth today={today} month={month} />}
+      {stored === null ? null : view === 'list' ? (
+        <PlanList today={today} />
+      ) : (
+        <PlanMonth today={today} month={month} />
+      )}
       <LookPicker date={picking ? today : null} onClose={() => setPicking(false)} />
     </div>
   );

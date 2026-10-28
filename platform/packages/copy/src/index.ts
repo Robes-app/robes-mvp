@@ -1059,7 +1059,8 @@ export const plan = {
   empty: {
     title: 'Nothing planned',
     titleEm: 'yet.',
-    body: 'Open a look and choose Wear on a day.',
+    // Beta's empty diary with the trip hidden (legacy _dyListHtml).
+    body: 'Name a day below and add a look. The diary keeps the dates; the lookbook keeps the looks.',
     action: 'Go to Lookbook',
   },
   monthCaption: 'Month reads the shape of it. List is where you plan.',
@@ -1087,6 +1088,8 @@ export const plan = {
     nameTheDay: 'Name the day',
     looks: (n: number): string => (n === 1 ? '1 look' : `${n} looks`),
     pieces: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+    // A day she wore a look carries it after the count (legacy .dy-r-worn).
+    worn: 'Worn',
     open: (day: string): string => `Open ${day}`,
   },
   // The day page: the one door every day opens (legacy ff87e89).
