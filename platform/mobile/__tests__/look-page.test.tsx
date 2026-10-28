@@ -1,10 +1,10 @@
-import { lookbook, looks } from '@robes/copy';
-import { longDate } from '@robes/core/calendar';
-import { fireEvent, screen } from '@testing-library/react-native';
+import { lookbook, looks, ui } from '@robes/copy';
+import { longDate, lookDateName } from '@robes/core/calendar';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
-import { nextDays } from '../src/features/looks/saved-looks';
+import { localDate, nextDays } from '../src/features/looks/saved-looks';
 import { mockFetch, renderWithApi } from './support/api';
-import { LOOK_ID, look } from './support/fixtures';
+import { LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -74,4 +74,65 @@ test('a look carries no share door, and no save-as-new (27 Oct)', async () => {
   expect(await screen.findByText(look().name)).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Save as new' })).toBeNull();
+});
+
+test('the saved look says the day it is pinned for, each piece its wears, each wear its weekday', async () => {
+  const [today, tomorrow] = nextDays(2);
+  mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look({
+      pieces: [{ piece: piece({ wearCount: 4 }), slot: null, role: null }],
+      pinnedOn: ['2020-01-01', tomorrow ?? ''],
+    }),
+    [`GET /looks/${LOOK_ID}/wears`]: {
+      items: [{ id: LOOK_ID, wornOn: '2026-09-08', pieces: [{ id: PIECE_ID, label: null }] }],
+    },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  expect(
+    await screen.findByText(
+      `1 piece · 2 wears · last 1 Sep · pinned for ${lookDateName(tomorrow ?? today ?? '')}`,
+    ),
+  ).toBeTruthy();
+  expect(screen.getByText(lookbook.meta.wears(4))).toBeTruthy();
+  expect(await screen.findByText('Tue 8 Sep')).toBeTruthy();
+  // Delete this look is destructive text, as on the web.
+  expect(screen.getByText(looks.page.remove).props.className).toContain('text-danger');
+});
+
+test('editing a saved look, a swap lands on one tap behind Undo; Update says Updated', async () => {
+  const COAT = '99999999-9999-4999-8999-999999999999';
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look(),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    [`PATCH /looks/${LOOK_ID}`]: look(),
+    'GET /wardrobe/items': {
+      items: [piece(), piece({ id: COAT, label: 'Navy wool coat' })],
+      nextCursor: null,
+    },
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.editLook }));
+  // Editing hides the ledger: the rows swap and remove.
+  expect(screen.queryByText(lookbook.meta.wears(0))).toBeNull();
+  await fireEvent.press(
+    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+  );
+  await fireEvent.press(await screen.findByRole('radio', { name: 'Navy wool coat' }));
+  // One tap: no "Swap in" step, and nothing written until Update.
+  expect(await screen.findByText(lookbook.swap.swapped('Navy wool coat'))).toBeTruthy();
+  expect(screen.getByTestId(`rack-row-${COAT}`)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: ui.undo }));
+  await waitFor(() => expect(screen.queryByTestId(`rack-row-${COAT}`)).toBeNull());
+  expect(screen.getByTestId(`rack-row-${PIECE_ID}`)).toBeTruthy();
+  expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(0);
+
+  await fireEvent.press(
+    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
+  );
+  await fireEvent.press(await screen.findByRole('radio', { name: 'Navy wool coat' }));
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.update }));
+  expect(await screen.findByText(lookbook.updated)).toBeTruthy();
+  expect(JSON.stringify(calls.find((c) => c.method === 'PATCH')?.body)).toContain(COAT);
 });

@@ -67,9 +67,10 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
     return ids.filter((id): id is string => id !== null);
   });
   const anchorIds = [...new Set(rows.flatMap((r) => (r.anchorPieceId ? [r.anchorPieceId] : [])))];
-  const [pieceRows, stats, renders, anchorRows] = await Promise.all([
+  const [pieceRows, stats, pinRows, renders, anchorRows] = await Promise.all([
     repos.looks.piecesFor(userId, ids),
     repos.looks.wearStats(userId, ids),
+    repos.looks.pinnedDays(userId, ids),
     repos.assets.getManyForUser(userId, renderIds),
     Promise.all(anchorIds.map((id) => repos.wardrobe.get(userId, id))),
   ]);
@@ -90,6 +91,13 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
     byLook.set(row.lookId, list);
   });
   const wears = new Map(stats.map((s) => [s.lookId, s]));
+  const pinned = new Map<string, string[]>();
+  for (const p of pinRows) {
+    if (!p.lookId) continue;
+    const days = pinned.get(p.lookId) ?? [];
+    if (days.at(-1) !== p.dayDate) days.push(p.dayDate);
+    pinned.set(p.lookId, days);
+  }
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
   const images = new Map(
     await Promise.all(
@@ -155,6 +163,7 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       dateHint: row.dateHint,
       timesWorn: Number(wears.get(row.id)?.timesWorn ?? 0),
       lastWornOn: wears.get(row.id)?.lastWornOn ?? null,
+      pinnedOn: pinned.get(row.id) ?? [],
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     });

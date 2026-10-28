@@ -15,6 +15,8 @@ export interface LookFacts {
   timesWorn: number;
   lastWorn: string | null;
   around: string | null;
+  // The saved look page only: the next day it is pinned on ("Wednesday 28 Oct").
+  pinnedFor?: string | null;
 }
 
 export const lookbook = {
@@ -78,6 +80,7 @@ export const lookbook = {
     wears: (n: number): string => (n === 1 ? '1 wear' : `${n} wears`),
     lastWorn: (when: string): string => `last ${when}`,
     around: (piece: string): string => `around your ${piece}`,
+    pinnedFor: (day: string): string => `pinned for ${day}`,
     photographOnly: 'Photograph · not yet filed',
     // One line of facts, built from the same words wherever a saved look says them.
     // On a card the wears LEAD — how often a look actually gets worn is the card's
@@ -95,6 +98,7 @@ export const lookbook = {
         f.timesWorn ? lookbook.meta.wears(f.timesWorn) : lookbook.meta.notYetWorn,
         f.lastWorn ? lookbook.meta.lastWorn(f.lastWorn) : null,
         f.around ? lookbook.meta.around(f.around) : null,
+        f.pinnedFor ? lookbook.meta.pinnedFor(f.pinnedFor) : null,
       ]),
   },
   composedByRobes: 'Composed by Robes',
@@ -128,7 +132,10 @@ export const lookbook = {
     update: 'Update look',
     notForYou: 'Not for you',
   },
+  // Beta's save and update toasts: a suggestion kept as it stands, a look she worked on by name.
   saved: 'Saved to your lookbook',
+  savedAs: (name: string): string => `${name} saved to your Lookbook ✓`,
+  updated: 'Updated',
   addedToDay: (day: string): string => `In your plan for ${day}.`,
   // Save opens the diary every time (legacy 0.2); closing it is "not yet" and writes nothing.
   // The diary sheet is beta's month (legacy _lkDiaryPaint): any day is one tap, a day gone by

@@ -35,6 +35,10 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await expect(page.getByText('The look · 2 pieces', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
+  // Beta's save toast names the look.
+  await expect(
+    page.getByText(/^[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2} saved to your Lookbook ✓$/),
+  ).toBeVisible();
   // Save opens the diary every time; × closes it and writes nothing.
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
@@ -73,6 +77,12 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     timeZone: 'UTC',
   }).format(new Date(`${todayLocal}T00:00:00Z`));
   await expect(record.getByRole('link', { name: `Open ${longToday}` })).toBeVisible();
+  // The row prints the day with its weekday ("Tue 8 Sep"), the month from the table.
+  await expect(
+    record.getByText(
+      /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/,
+    ),
+  ).toBeVisible();
   // The wear put the look on its day (beta): Worn ✓ on its card, and the day keeps its own title.
   await record.getByRole('link', { name: `Open ${longToday}` }).click();
   await expect(page).toHaveURL(new RegExp(`/plan/${todayLocal}`));
@@ -105,6 +115,13 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await diary.getByRole('button', { name: longTomorrow }).click();
   await diary.getByRole('button', { name: 'Put it in the diary' }).click();
   await expect(page.getByRole('listitem').getByText(/is in your diary for/)).toBeVisible();
+  // The saved look says the day it is pinned for, as beta's meta line does ("Thursday 29 Oct").
+  const pinnedDay = longTomorrow.split(' ');
+  await expect(
+    page.getByText(
+      new RegExp(`pinned for ${pinnedDay[0]} ${pinnedDay[1]} ${pinnedDay[2]?.slice(0, 3)}$`),
+    ),
+  ).toBeVisible();
 
   // The plan lists summary rows; the row opens the day page, where the day is named and edited.
   await page.goto('/plan');
@@ -139,6 +156,8 @@ test('removing a look can be undone', async ({ page }) => {
     await page.request.post('/api/v1/looks', { data: { name: 'Weekend', pieces: [] } })
   ).json();
   await page.goto(`/look/${look.id}`);
+  // Destructive text in danger, as on the phone.
+  await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveClass(/text-danger/);
   await page.getByRole('button', { name: 'Delete this look' }).click();
   await expect(page).toHaveURL(/\/looks$/);
   await expect(page.getByText('Look removed.', { exact: true })).toBeVisible();
@@ -224,4 +243,45 @@ test('her photograph on a look her model has not worn: her model dresses it, and
   await expect
     .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).record)
     .toBe('model');
+});
+
+test('editing a saved look: a swap is one tap behind Undo, and Update says Updated', async ({
+  page,
+}) => {
+  await signIn(page);
+  await declineConsent(page);
+  await makePieces(page, ['Camel coat', 'Navy coat']);
+  const items = (await (await page.request.get('/api/v1/wardrobe/items')).json()).items as {
+    id: string;
+    label: string;
+  }[];
+  const camel = items.find((p) => p.label === 'Camel coat')?.id ?? '';
+  const navy = items.find((p) => p.label === 'Navy coat')?.id ?? '';
+  const look = await (
+    await page.request.post('/api/v1/looks', {
+      data: { name: 'Weekend', pieces: [{ pieceId: camel }] },
+    })
+  ).json();
+  await page.goto(`/look/${look.id}`);
+  // At rest, each row carries the piece's own wears (beta's ledger).
+  await expect(page.getByTestId(`rack-row-${camel}`).getByText('0 wears')).toBeVisible();
+  await page.getByRole('button', { name: 'Edit look' }).click();
+  await page.getByRole('button', { name: /^Swap / }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Navy coat' }).click();
+  // One tap: the sheet closes on the swap; Undo puts the rack back.
+  await expect(page.getByTestId(`rack-row-${navy}`)).toBeVisible();
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByTestId(`rack-row-${camel}`)).toBeVisible();
+  await expect(page.getByTestId(`rack-row-${navy}`)).toHaveCount(0);
+  await page.getByRole('button', { name: /^Swap / }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Navy coat' }).click();
+  await page.getByRole('button', { name: 'Update look' }).click();
+  await expect(page.getByText('Updated', { exact: true })).toBeVisible();
+  await expect
+    .poll(async () =>
+      (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).pieces.map(
+        (p: { piece: { id: string } }) => p.piece.id,
+      ),
+    )
+    .toEqual([navy]);
 });

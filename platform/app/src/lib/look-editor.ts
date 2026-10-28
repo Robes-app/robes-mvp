@@ -14,7 +14,7 @@ import {
 import { errors, lookbook, wardrobe } from '@robes/copy';
 import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { z } from 'zod';
 import type { RowMark } from '@/components/looks/rack-row';
 import {
@@ -37,6 +37,9 @@ export function useLookEditor(look: Look) {
   const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
   const [dirty, setDirty] = useState(false);
+  // The rack as it stands now, for an Undo that fires after later renders.
+  const current = useRef(rack);
+  current.current = rack;
   const original = useMemo(() => new Set(rackFromLook(look).rows.map((r) => r.key)), [look]);
   // A fresh look from the server replaces the local rack unless she has unsaved edits.
   const [seen, setSeen] = useState(look.updatedAt);
@@ -150,13 +153,28 @@ export function useLookEditor(look: Look) {
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
-    // A swap lands at once behind a 6 s Undo that puts the rack back (beta's swap pill).
+    // A swap lands at once behind a 6 s Undo that puts the rack back (beta's swap pill) —
+    // unless she has changed it again since. A draft writes the rack back; a saved look being
+    // edited goes back to how it stood, unsaved changes and all (L5, L10).
     swap: (key: string, piece: Piece) => {
       const before = rack;
-      change(swapped(key, piece));
+      const wasDirty = dirty;
+      const next = swapped(key, piece);
+      change(next);
       toast({
         message: lookbook.swap.swapped(piece.label),
-        action: { label: wardrobe.undo, onAction: () => change(before) },
+        action: {
+          label: wardrobe.undo,
+          onAction: () => {
+            if (current.current !== next) return;
+            if (live) {
+              change(before);
+              return;
+            }
+            setRack(before);
+            setDirty(wasDirty);
+          },
+        },
       });
     },
     // ↻ on a suggested look (legacy 0.1): the swap lands on the suggestion at once, which stays
@@ -233,6 +251,7 @@ export function useLookEditor(look: Look) {
         .then(() => {
           setDirty(false);
           setEditing(false);
+          toast({ message: lookbook.updated });
         })
         .catch(() => undefined),
     discard: () => {

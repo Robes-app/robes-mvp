@@ -5,7 +5,7 @@ import { createRepositories, LookPiecesNotFound } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
-const { assets, looks, wardrobe } = createRepositories(db);
+const { assets, looks, plan, wardrobe } = createRepositories(db);
 let ann: UserId;
 let bea: UserId;
 let coat: string;
@@ -105,6 +105,23 @@ describe('looks repo', () => {
     expect(await looks.wear(bea, look.id, '2026-09-24')).toBeUndefined();
     expect(await looks.unwear(ann, look.id, '2026-09-24')).toBe(true);
     expect(await looks.unwear(ann, look.id, '2026-09-24')).toBe(false);
+  });
+
+  it('lists the days a look is pinned on from yesterday on, to its owner only', async () => {
+    const look = await create(ann, [coat]);
+    const day = async (n: number) =>
+      (
+        await db
+          .selectNoFrom(sql<string>`(current_date + ${n}::int)::text`.as('d'))
+          .executeTakeFirstOrThrow()
+      ).d;
+    const [lastWeek, tomorrow, nextWeek] = [await day(-7), await day(1), await day(7)];
+    await plan.pin(ann, look.id, [nextWeek, lastWeek, tomorrow], { slot: 'day' });
+    expect(await looks.pinnedDays(ann, [look.id])).toEqual([
+      { lookId: look.id, dayDate: tomorrow },
+      { lookId: look.id, dayDate: nextWeek },
+    ]);
+    expect(await looks.pinnedDays(bea, [look.id])).toEqual([]);
   });
 
   it("reads a look's record newest first, naming the pieces the wear itself holds", async () => {
