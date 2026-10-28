@@ -335,6 +335,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               {tab === 'saved' ? (
                 <SavedTile
                   look={look}
+                  aspect="3:4"
                   priority={i < 3}
                   onDiary={() => setDiary(look)}
                   onDelete={() => letGo(look.id)}
@@ -342,6 +343,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               ) : (
                 <SuggestedTile
                   look={look}
+                  aspect="3:4"
                   onRemove={() => letGo(look.id)}
                   onSwap={() => restyle.restyle(look.id)}
                   swapping={restyle.busyId === look.id}

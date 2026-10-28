@@ -290,6 +290,7 @@ export function LooksView() {
               {tab === 'saved' ? (
                 <SavedTile
                   look={item}
+                  aspect="3:4"
                   onPress={() => open(item)}
                   onDiary={() => setDiary(item)}
                   onDelete={() => letGo(item.id)}
@@ -297,6 +298,7 @@ export function LooksView() {
               ) : (
                 <SuggestedTile
                   look={item}
+                  aspect="3:4"
                   onPress={() => open(item)}
                   onRemove={() => letGo(item.id)}
                   onSwap={() => restyle.restyle(item.id)}

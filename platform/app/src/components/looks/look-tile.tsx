@@ -1,5 +1,5 @@
 import type { Look } from '@robes/contracts';
-import { Card } from '@robes/ui';
+import { type Aspect, Card } from '@robes/ui';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { LookImage } from './look-image';
@@ -10,6 +10,8 @@ const focus =
 export interface LookTileProps {
   look: Look;
   sizes: string;
+  // The photograph's shape on this surface: 3:4 in the Lookbook grid and on a day (beta).
+  aspect?: Aspect;
   // The whole tile opens the look, or answers a pick — never both.
   href?: string;
   onSelect?: () => void;
@@ -45,6 +47,7 @@ export interface LookTileProps {
 export function LookTile({
   look,
   sizes,
+  aspect = '4:5',
   href,
   onSelect,
   selected = false,
@@ -104,7 +107,7 @@ export function LookTile({
       media={
         <>
           <div className={`relative ${dashed ? 'overflow-hidden rounded-[8px]' : ''}`}>
-            <LookImage look={look} sizes={sizes} priority={priority} />
+            <LookImage look={look} sizes={sizes} priority={priority} aspect={aspect} />
             {onImage}
           </div>
           <div

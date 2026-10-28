@@ -19,6 +19,7 @@ function LookCard({ entry, n }: { entry: PlanEntry; n: number }) {
   return (
     <LookTile
       look={entry.look}
+      aspect="3:4"
       onPress={() => router.push(`/look/${entry.look.id}`)}
       className="w-[47%]"
       eyebrow={copy.day.lookEyebrow(n)}
