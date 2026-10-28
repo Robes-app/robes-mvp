@@ -33,6 +33,31 @@ test('the roots match beta on desktop and phone, and each is reachable', async (
   }
 });
 
+test('a pushed page’s back pill stands in the top bar where the wordmark was', async ({ page }) => {
+  await signIn(page);
+  await declineConsent(page);
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/plan/2026-10-14');
+    const banner = page.getByRole('banner');
+    const back = banner.getByRole('link', { name: 'October 2026' });
+    await expect(back).toHaveAttribute('href', '/plan');
+    await expect(banner.getByRole('link', { name: 'Home' })).toHaveCount(0);
+    // One header row: the pill isn't drawn a second time in the page.
+    await expect(page.getByRole('main').getByRole('link', { name: 'October 2026' })).toHaveCount(0);
+    await expect(banner.getByRole('link', { name: 'You' })).toBeVisible();
+
+    await page.goto('/wardrobe');
+    await expect(banner.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    await expect(banner.getByRole('link', { name: 'October 2026' })).toHaveCount(0);
+  }
+  // Back from the day lands on the Diary, and the wordmark comes back with it.
+  await page.goto('/plan/2026-10-14');
+  await page.getByRole('banner').getByRole('link', { name: 'October 2026' }).click();
+  await expect(page).toHaveURL(/\/plan$/);
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Home' })).toBeVisible();
+});
+
 test('every shell route renders its heading', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);

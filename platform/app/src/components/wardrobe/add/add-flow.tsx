@@ -6,7 +6,7 @@ import { Icon } from '@robes/icons/web';
 import { Heading, SegmentedControl } from '@robes/ui';
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
-import { BackLink } from '@/components/back-link';
+import { useHideBack } from '@/components/shell/app-shell';
 import {
   type AddDestination,
   isPhoto,
@@ -34,6 +34,8 @@ export function AddFlow({ initial, start }: { initial: AddDestination; start: 'c
   const [byHand, setByHand] = useState<SessionShot | null>(null);
   const [from, setFrom] = useState<'camera' | 'roll' | null>(null);
   const device = useRef<HTMLInputElement>(null);
+  // Review has its own × beside its title; the top bar's back pill would be a second way out.
+  useHideBack(stage === 'review');
 
   // The OS camera answers when the browser has none (or she refused it); its photo goes to
   // Review like any shot.
@@ -70,8 +72,6 @@ export function AddFlow({ initial, start }: { initial: AddDestination; start: 'c
 
   return (
     <>
-      {/* Review has its own × beside its title; a back pill above it would be a second header. */}
-      {stage === 'review' ? null : <BackLink href="/wardrobe" label={wardrobe.title} />}
       <input
         ref={device}
         type="file"
