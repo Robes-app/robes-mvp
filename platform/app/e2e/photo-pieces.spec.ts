@@ -108,10 +108,10 @@ test('several pieces from one photo, reviewed one at a time (design "Add Piece")
 
   await page.goto('/wardrobe/add');
   await expect(page.getByRole('heading', { name: 'Add pieces' })).toBeVisible();
-  // The back pill (‹ Wardrobe) stands in the top bar, where the wordmark sits on the roots; the
-  // desktop nav's own Wardrobe link beside it carries no chevron.
+  // The back pill (‹ Wardrobe): in the top bar on a phone, at the head of the page on desktop.
+  // Unscoped, so it finds whichever this width shows (the other is display:none); the desktop nav's
+  // own Wardrobe link carries no chevron, and the dock is hidden on this flow.
   const back = page
-    .getByRole('banner')
     .getByRole('link', { name: 'Wardrobe', exact: true })
     .filter({ has: page.locator('svg') });
   await expect(back).toBeVisible();
