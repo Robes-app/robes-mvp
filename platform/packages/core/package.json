@@ -27,7 +27,8 @@
     "./home": "./src/home/index.ts",
     "./location": "./src/location/index.ts",
     "./weather": "./src/weather/index.ts",
-    "./fence": "./src/fence/index.ts"
+    "./fence": "./src/fence/index.ts",
+    "./app-links": "./src/app-links/index.ts"
   },
   "scripts": {
     "test": "vitest run",

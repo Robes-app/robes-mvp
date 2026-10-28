@@ -22,3 +22,11 @@ export const CLI_ENV = {
 // server never sends a coordinate to Nominatim. Beside E2E_PORT so parallel checkouts don't clash.
 export const E2E_GEOCODE_PORT = Number(process.env.E2E_PORT ?? 3310) + 1000;
 export const E2E_GEOCODE_URL = `http://127.0.0.1:${E2E_GEOCODE_PORT}/reverse`;
+
+// Universal-link identities the e2e server names in its /.well-known files (app-links.spec).
+export const E2E_APP_LINKS = {
+  APPLE_TEAM_ID: 'E2ETEAM123',
+  APPLE_APP_BUNDLE_ID: 'com.byrobes.app.e2e',
+  ANDROID_APP_PACKAGE: 'com.byrobes.app.e2e',
+  ANDROID_CERT_SHA256: Array.from({ length: 32 }, () => 'E2').join(':'),
+};
