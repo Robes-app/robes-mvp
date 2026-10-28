@@ -14,6 +14,7 @@ import {
 } from '@robes/core/home';
 import { isTerminalJobStatus } from '@robes/core/jobs';
 import { anchorName } from '@robes/core/looks';
+import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
 import { Eyebrow, IconButton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -24,8 +25,6 @@ import { errorCopy } from '@/lib/error-copy';
 import { HomeBox } from './home-box';
 import { StepCard, StepMap } from './home-steps';
 import { HomeWeek } from './home-week';
-
-const WEATHER_STALE_MS = 30 * 60_000;
 
 const isRunning = (t: Today | undefined) =>
   t?.tray.some((j) => !isTerminalJobStatus(j.status)) ?? false;
@@ -95,10 +94,12 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
       .catch((err) => toast({ message: errorCopy(err) }));
 
   const wx = weather.data;
-  const weatherLine = wx ? copy.weather(wx.city, wx.tempRange, wx.condition) : null;
+  const weatherLine = wx ? copy.weather(wx.city, weatherTemp(wx), weatherWord(wx)) : null;
   const name = greetingName(data.firstName);
-  // Beta's H0 meta: the weekday, then where she is and the day's range once the forecast lands.
-  const metaLine = copy.meta(weekdayLong(data.date), wx?.city ?? null, wx?.tempRange ?? null);
+  // Beta's H0 meta, led by the conditions' line icon: the weekday, then where she is and the
+  // temperature now once the reading lands (the day's range without a live one).
+  const metaLine = copy.meta(weekdayLong(data.date), wx?.city ?? null, wx ? weatherTemp(wx) : null);
+  const wxIcon = weatherIcon(wx?.code);
 
   return (
     <div
@@ -117,7 +118,12 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
           className="mt-1.5 flex items-center gap-2 font-sans text-xs font-normal uppercase tracking-[0.22em] text-ink-faint"
           data-testid="home-meta"
         >
-          <Icon name="today" size={16} />
+          {wx && wxIcon ? (
+            <>
+              <Icon name={wxIcon} size={16} label={weatherWord(wx)} />
+              <span aria-hidden>·</span>
+            </>
+          ) : null}
           {metaLine}
         </p>
       </header>

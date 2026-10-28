@@ -4,10 +4,13 @@ import {
   diaryDays,
   diaryMarks,
   diaryPick,
+  longDate,
   monthGrid,
   monthLabel,
+  monthLong,
   shiftMonth,
   WEEKDAYS_SHORT,
+  weekdayLong,
   weekdayShort,
 } from './index';
 
@@ -181,5 +184,15 @@ describe('weekdays', () => {
     expect(weekdayShort('2026-10-01')).toBe(WEEKDAYS_SHORT[3]);
     expect(weekdayShort('2026-10-04')).toBe('Sun');
     expect(weekdayShort('2026-10-05')).toBe('Mon');
+  });
+});
+
+describe('names come from the tables', () => {
+  it('reads every month and weekday in full, the same everywhere', () => {
+    expect(monthLabel('2026-09')).toBe('September 2026');
+    expect(longDate('2026-09-08')).toBe('Tuesday 8 September');
+    expect(weekdayLong('2026-10-28')).toBe('Wednesday');
+    expect(monthLong('2026-09-30')).toBe('September');
+    expect(weekdayLong('2026-11-01')).toBe('Sunday');
   });
 });

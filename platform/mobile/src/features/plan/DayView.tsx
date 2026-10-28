@@ -2,6 +2,7 @@ import { queryKeys, useApi } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
 import { plan as copy } from '@robes/copy';
 import { daySummary, longDate } from '@robes/core/calendar';
+import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/native';
 import {
   ErrorText,
@@ -97,9 +98,10 @@ export function DayView({ date }: { date: string }) {
   const weather = useApi(
     'today.weather',
     { input: { date } },
-    { enabled: ahead, staleTime: 3_600_000 },
+    { enabled: ahead, staleTime: WEATHER_STALE_MS },
   );
   const wx = ahead ? weather.data : null;
+  const wxIcon = weatherIcon(wx?.code);
 
   function commit(value: string) {
     setNaming(false);
@@ -150,15 +152,19 @@ export function DayView({ date }: { date: string }) {
           </View>
           {wx ? (
             <View className="gap-1" accessibilityLabel={copy.day.weatherLabel}>
-              <Text
-                size="caption"
-                tone="muted"
-                weight="medium"
-                className="uppercase"
-                style={{ letterSpacing: 1.6 }}
-              >
-                {[wx.city, wx.condition, wx.tempRange].filter(Boolean).join(' · ')}
-              </Text>
+              {/* Today live, the temperature and conditions now; a day ahead its range (web day-view.tsx). */}
+              <View className="flex-row items-center gap-2" testID="day-weather">
+                {wxIcon ? <Icon name={wxIcon} size={16} color={muted} /> : null}
+                <Text
+                  size="caption"
+                  tone="muted"
+                  weight="medium"
+                  className="uppercase"
+                  style={{ letterSpacing: 1.6 }}
+                >
+                  {copy.day.weather(wx.city, weatherWord(wx), weatherTemp(wx))}
+                </Text>
+              </View>
               <Text size="small" tone="muted" italic>
                 {copy.day.advice(wx.condition, wx.tempRange)}
               </Text>

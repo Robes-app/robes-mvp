@@ -87,8 +87,7 @@ export function InlineTitleField({
         e.currentTarget.blur();
       }}
       className={cn(
-        // outline-none! beats the app's global :focus-visible ring, which sits outside the layers.
-        'min-h-11 w-full min-w-0 rounded-none border-0 border-b border-border-control bg-transparent p-0 font-display font-light text-ink outline-none! placeholder:text-ink-faint focus-visible:border-ink focus-visible:shadow-[0_1px_0_0_var(--color-ink)]',
+        'min-h-11 w-full min-w-0 rounded-none border-0 border-b border-border-control bg-transparent p-0 font-display font-light text-ink outline-none placeholder:text-ink-faint focus-visible:border-ink focus-visible:shadow-[0_1px_0_0_var(--color-ink)]',
         headingSizes[size],
         italic && 'italic',
         align === 'center' && 'text-center',

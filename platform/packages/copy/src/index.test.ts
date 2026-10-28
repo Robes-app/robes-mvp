@@ -87,6 +87,20 @@ describe('the day’s advice', () => {
   });
 });
 
+describe('the weather line', () => {
+  it('reads the weekday, the city and the temperature, the conditions spoken first', async () => {
+    const { home, plan } = await import('./index');
+    expect(home.meta('Wednesday', 'Dublin', '13°C')).toBe('Wednesday · Dublin · 13°C');
+    expect(home.meta('Wednesday', null, null)).toBe('Wednesday');
+    expect(home.metaSpoken('overcast', 'Wednesday · Dublin · 13°C')).toBe(
+      'overcast · Wednesday · Dublin · 13°C',
+    );
+    expect(home.metaSpoken(null, 'Wednesday')).toBe('Wednesday');
+    expect(home.weather('Dublin', '13°C', 'overcast')).toBe('Dublin · 13°C · overcast');
+    expect(plan.day.weather('Dublin', 'light rain', '9–14°C')).toBe('Dublin · light rain · 9–14°C');
+  });
+});
+
 describe('season labels', () => {
   it('spell a band one way on the wardrobe, the Lookbook and a look', () => {
     expect(copy.lookbook.refine.seasons).toBe(copy.wardrobe.filter.seasons);

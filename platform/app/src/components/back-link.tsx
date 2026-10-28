@@ -2,8 +2,8 @@ import { Icon } from '@robes/icons/web';
 import Link from 'next/link';
 
 // The return band's one pill: ‹ and the previous screen's own title (legacy nav architecture).
-// It stands in the top bar in place of the wordmark (AppShell, lib/nav backFor): a 32px pill on a
-// 44pt target, so it sits inside the bar as beta's #rb-backpill does.
+// AppShell draws it from lib/nav backFor: in the top bar in place of the wordmark below 768, at the
+// head of the page from 768 (beta). A 32px pill on a 44pt target, as beta's #rb-backpill.
 export function BackLink({ href, label }: { href: string; label: string }) {
   return (
     <Link

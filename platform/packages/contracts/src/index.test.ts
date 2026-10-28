@@ -1,6 +1,13 @@
 import { CONSENT_KINDS } from '@robes/core';
 import { describe, expect, it } from 'vitest';
-import { Consents, ErrorBody, ErrorCode, HealthOutput, UpdateConsentsInput } from './index';
+import {
+  Consents,
+  ErrorBody,
+  ErrorCode,
+  HealthOutput,
+  TodayWeather,
+  UpdateConsentsInput,
+} from './index';
 
 describe('contracts', () => {
   it('accepts a well-formed error body', () => {
@@ -107,5 +114,19 @@ describe('job contracts', async () => {
     ]) {
       expect(UpdateConsentsInput.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
     }
+  });
+});
+
+describe('today weather', () => {
+  it('carries the live reading, and reads an older server’s line without one', () => {
+    const day = { city: 'Dublin', tempRange: '11–15°C', condition: 'clear' };
+    expect(TodayWeather.parse(day)).toEqual({ ...day, nowC: null, code: null });
+    expect(TodayWeather.parse({ ...day, nowC: 13, code: 3 })).toEqual({
+      ...day,
+      nowC: 13,
+      code: 3,
+    });
+    expect(TodayWeather.parse(null)).toBeNull();
+    expect(TodayWeather.safeParse({ ...day, nowC: 12.5 }).success).toBe(false);
   });
 });

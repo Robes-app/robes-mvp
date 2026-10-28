@@ -1,24 +1,11 @@
 import type { Weather } from '@robes/ai/prompts/daily';
+import { weatherCondition } from '@robes/core/weather';
 
 // Today's weather for the daily prompt (Open-Meteo, no key). Fixed hosts only; every failure is
 // null so the job never waits on weather.
 const GEOCODE = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST = 'https://api.open-meteo.com/v1/forecast';
 const TIMEOUT_MS = 3_000;
-
-// WMO weather codes → a plain word (open-meteo.com/en/docs).
-export function conditionWord(code: number): string {
-  if (code === 0) return 'clear';
-  if (code <= 2) return 'partly cloudy';
-  if (code === 3) return 'overcast';
-  if (code === 45 || code === 48) return 'fog';
-  if (code >= 51 && code <= 57) return 'drizzle';
-  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82))
-    return code <= 61 || code === 80 ? 'light rain' : 'rain';
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
-  if (code >= 95) return 'thunderstorms';
-  return 'mixed';
-}
 
 export function parseGeocode(json: unknown): { lat: number; lon: number; name: string } | null {
   const r = (json as { results?: { latitude?: unknown; longitude?: unknown; name?: unknown }[] })
@@ -27,7 +14,9 @@ export function parseGeocode(json: unknown): { lat: number; lon: number; name: s
   return { lat: r.latitude, lon: r.longitude, name: typeof r.name === 'string' ? r.name : '' };
 }
 
-export function parseForecast(json: unknown): { tempRange: string; condition: string } | null {
+export function parseForecast(
+  json: unknown,
+): { tempRange: string; condition: string; code: number | null } | null {
   const d = (json as { daily?: Record<string, unknown[]> })?.daily;
   const max = d?.temperature_2m_max?.[0];
   const min = d?.temperature_2m_min?.[0];
@@ -35,7 +24,8 @@ export function parseForecast(json: unknown): { tempRange: string; condition: st
   if (typeof max !== 'number' || typeof min !== 'number') return null;
   return {
     tempRange: `${Math.round(min)}–${Math.round(max)}°C`,
-    condition: typeof code === 'number' ? conditionWord(code) : '',
+    condition: typeof code === 'number' ? weatherCondition(code) : '',
+    code: typeof code === 'number' ? code : null,
   };
 }
 
@@ -44,8 +34,11 @@ type Fetch = (
   init: { signal: AbortSignal },
 ) => Promise<{ ok: boolean; json(): Promise<unknown> }>;
 
+// The day's reading and its WMO code (the weather line's icon for a day ahead).
+export type DayWeather = Weather & { code: number | null };
+
 export function createWeather(fetchFn: Fetch = fetch as unknown as Fetch) {
-  const cache = new Map<string, Weather | null>();
+  const cache = new Map<string, DayWeather | null>();
   const get = async (url: string) => {
     const res = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) throw new Error('weather request failed');
@@ -57,11 +50,11 @@ export function createWeather(fetchFn: Fetch = fetch as unknown as Fetch) {
     lon: number | null;
     date: string;
     month: string;
-  }): Promise<Weather | null> {
+  }): Promise<DayWeather | null> {
     if (!place.city && (place.lat === null || place.lon === null)) return null;
     const key = `${place.lat ?? ''},${place.lon ?? ''},${place.city ?? ''}|${place.date}`;
     if (cache.has(key)) return cache.get(key) ?? null;
-    let result: Weather | null = null;
+    let result: DayWeather | null = null;
     try {
       let coords =
         place.lat !== null && place.lon !== null ? { lat: place.lat, lon: place.lon } : null;
@@ -88,6 +81,79 @@ export function createWeather(fetchFn: Fetch = fetch as unknown as Fetch) {
   };
 }
 export type WeatherFor = ReturnType<typeof createWeather>;
+
+export interface LiveWeather {
+  nowC: number;
+  code: number | null;
+}
+
+export function parseCurrent(json: unknown): LiveWeather | null {
+  const c = (json as { current?: Record<string, unknown> })?.current;
+  const temp = c?.temperature_2m;
+  const code = c?.weather_code;
+  if (typeof temp !== 'number' || !Number.isFinite(temp)) return null;
+  return { nowC: Math.round(temp), code: typeof code === 'number' ? code : null };
+}
+
+// Today's live reading for the weather line (beta's current=temperature_2m,weather_code): the
+// temperature and conditions now. Bounded per-instance caches like createWeather's, but a reading
+// lives LIVE_TTL_MS so the line is never a day stale; a city's coordinates are kept (they don't move).
+export const LIVE_TTL_MS = 15 * 60 * 1000;
+
+export function createLiveWeather(
+  fetchFn: Fetch = fetch as unknown as Fetch,
+  clock: () => number = Date.now,
+) {
+  const cache = new Map<string, { at: number; value: LiveWeather | null }>();
+  const coords = new Map<string, { lat: number; lon: number } | null>();
+  const keep = <V>(m: Map<string, V>, k: string, v: V) => {
+    if (m.size > 500) m.clear();
+    m.set(k, v);
+  };
+  const get = async (url: string) => {
+    const res = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error('weather request failed');
+    return res.json();
+  };
+  return async function liveFor(place: {
+    city: string | null;
+    lat: number | null;
+    lon: number | null;
+  }): Promise<LiveWeather | null> {
+    if (!place.city && (place.lat === null || place.lon === null)) return null;
+    const key = `${place.lat ?? ''},${place.lon ?? ''},${place.city ?? ''}`;
+    const now = clock();
+    const hit = cache.get(key);
+    if (hit && now - hit.at < LIVE_TTL_MS) return hit.value;
+    let value: LiveWeather | null = null;
+    try {
+      let at = place.lat !== null && place.lon !== null ? { lat: place.lat, lon: place.lon } : null;
+      if (!at && place.city) {
+        const name = place.city.toLowerCase();
+        if (coords.has(name)) at = coords.get(name) ?? null;
+        else {
+          const geo = parseGeocode(
+            await get(`${GEOCODE}?name=${encodeURIComponent(place.city)}&count=1`),
+          );
+          at = geo && { lat: geo.lat, lon: geo.lon };
+          keep(coords, name, at);
+        }
+      }
+      if (at) {
+        value = parseCurrent(
+          await get(
+            `${FORECAST}?latitude=${at.lat}&longitude=${at.lon}&current=temperature_2m,weather_code&timezone=auto`,
+          ),
+        );
+      }
+    } catch {
+      value = null;
+    }
+    keep(cache, key, { at: now, value });
+    return value;
+  };
+}
+export type LiveWeatherFor = ReturnType<typeof createLiveWeather>;
 
 export interface DayForecast {
   city: string | null;
@@ -126,14 +192,8 @@ export function createDayForecast(fetchFn: Fetch = fetch as unknown as Fetch) {
       const f = parseForecast(json);
       const d = (json as { daily?: Record<string, unknown[]> })?.daily;
       const max = d?.temperature_2m_max?.[0];
-      const code = d?.weather_code?.[0];
       if (!f || typeof max !== 'number') return null;
-      return {
-        city: place.city,
-        ...f,
-        tmax: Math.round(max),
-        code: typeof code === 'number' ? code : null,
-      };
+      return { city: place.city, ...f, tmax: Math.round(max) };
     } catch {
       return null;
     }
@@ -165,7 +225,7 @@ export function parseRange(json: unknown): {
     minC,
     maxC,
     tempRange: `${minC}–${maxC}°C`,
-    condition: dominant === undefined ? '' : conditionWord(dominant),
+    condition: dominant === undefined ? '' : weatherCondition(dominant),
   };
 }
 

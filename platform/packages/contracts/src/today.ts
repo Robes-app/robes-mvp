@@ -104,9 +104,18 @@ export type Today = z.infer<typeof Today>;
 export const HomeLaterInput = z.object({ step: HomeStep });
 export const HomeLater = z.object({ snoozed: Home.shape.state.shape.snoozed });
 
-// The masthead's weather line: her home city today (Open-Meteo); null without a city.
+// The masthead's weather line: her home city's day (Open-Meteo); null without a city. `tempRange`
+// and `condition` are the day's (the prompts and the day's advice read them). Today also carries the
+// live reading — `nowC` the temperature now, `code` the WMO code now; a day ahead carries that day's
+// code and no `nowC`. Both default to null so either side may be older than the other.
 export const TodayWeather = z
-  .object({ city: z.string().nullable(), tempRange: z.string(), condition: z.string() })
+  .object({
+    city: z.string().nullable(),
+    tempRange: z.string(),
+    condition: z.string(),
+    nowC: z.number().int().nullable().default(null),
+    code: z.number().int().nullable().default(null),
+  })
   .nullable();
 export type TodayWeather = z.infer<typeof TodayWeather>;
 

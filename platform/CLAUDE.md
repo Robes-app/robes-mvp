@@ -90,4 +90,6 @@ Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Toda
 **A look and a piece are components, not drawings.** A look is `LookTile` (`app/src/components/looks/look-tile.tsx`, `mobile/src/features/looks/LookTile.tsx`) — the photograph and what the look is held in ONE frame, with an eyebrow, a meta line and slots for what sits on the photograph and in the corner. A piece is `cardLines` → `CardRow`/`CardTile` (`app/src/components/wardrobe/piece-card.tsx`). Every surface composes them; never hand-roll a second anatomy for the same object.
 
 ## Conventions
+- **Global CSS goes in `@layer base`** (`app/src/app/globals.css`), so component utilities can override it; never `!` to beat a global rule. An unlayered `:focus-visible` once boxed every quiet field (28 Oct).
+- **Weekday and month names come from the `@robes/core/calendar` tables**, never `Intl`/`toLocale*` (newer ICU prints "Sept"). `Intl` is only for reading a date in a timezone.
 Match surrounding code; single quotes; 2-space indent; no comments unless the why is non-obvious. Tests live next to code (`*.test.ts`) except e2e (`app/e2e`, `mobile/e2e`) and DB tests (`packages/db/test`, need `pnpm services:up`).

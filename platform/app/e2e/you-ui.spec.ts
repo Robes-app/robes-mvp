@@ -40,7 +40,8 @@ test('deleting the account needs the typed word, then signs her out', async ({ p
   await dialog.getByLabel('Type DELETE to confirm').fill('DELETE');
   await confirm.click();
   // She is told and signed out at once, as on the phone; the job deletes the account behind her.
-  await expect(page.getByText('Your account is being deleted.')).toBeVisible();
+  // The toast is echoed in its screen-reader live region: check the visible one.
+  await expect(page.getByText('Your account is being deleted.').first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();

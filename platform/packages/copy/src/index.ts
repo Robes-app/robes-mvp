@@ -1111,6 +1111,9 @@ export const plan = {
     chooseHint: 'pick one or several',
     dress: 'Dress this day…',
     weatherLabel: 'The day’s weather',
+    // After the conditions' icon: today the temperature now, a day ahead its range.
+    weather: (city: string | null, condition: string, temp: string): string =>
+      [city, condition, temp].filter(Boolean).join(' · '),
     // What the forecast means for the case, in Robes' voice (legacy layer hint).
     advice: (condition: string, tempRange: string): string => {
       const high = Number(String(tempRange).match(/(-?\d+)°/)?.[1]);

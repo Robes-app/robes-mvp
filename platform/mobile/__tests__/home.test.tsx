@@ -57,8 +57,10 @@ test('stage 1: the greeting, the question, the one-door Style DNA card and the m
   await renderWithApi(<HomeView />);
   expect(await screen.findByText('Good morning, Niall.')).toBeTruthy();
   expect(screen.getByText(copy.echo)).toBeTruthy();
-  // The meta line under the greeting: the weekday, the city, the day's range (beta's H0).
+  // The meta line under the greeting: the weekday, the city and, from a server without the live
+  // reading, the day's range (beta's H0) — and no conditions icon.
   expect(await screen.findByText('Thursday · Dublin · 9–14°C')).toBeTruthy();
+  expect(screen.getByLabelText('Thursday · Dublin · 9–14°C')).toBeTruthy();
   expect(screen.queryByText('Dublin · 9–14°C · light rain')).toBeNull();
   expect(screen.getByText(copy.o1.eyebrow)).toBeTruthy();
   expect(screen.getByLabelText(lookbook.prompt.doorNew)).toBeTruthy();
@@ -69,6 +71,25 @@ test('stage 1: the greeting, the question, the one-door Style DNA card and the m
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/me/home/later'))?.body).toEqual({ step: 'O1' }),
   );
+});
+
+test('the meta line is live: the conditions now lead it, then the temperature now', async () => {
+  mockFetch({
+    'GET /today': todayWith(activated),
+    'GET /today/weather': {
+      city: 'Dublin',
+      tempRange: '11–15°C',
+      condition: 'clear',
+      nowC: 13,
+      code: 3,
+    },
+  });
+  await renderWithApi(<HomeView />);
+  expect(await screen.findByText('Thursday · Dublin · 13°C')).toBeTruthy();
+  expect(screen.queryByText('Thursday · Dublin · 11–15°C')).toBeNull();
+  expect(screen.getByLabelText('overcast · Thursday · Dublin · 13°C')).toBeTruthy();
+  // Today's week card reads the same live reading.
+  expect(screen.getByText('Dublin · 13°C · overcast')).toBeTruthy();
 });
 
 test('an open map row expands its step; a done one opens its page', async () => {

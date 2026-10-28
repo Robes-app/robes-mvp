@@ -1,5 +1,6 @@
 import { looks, plan, ui, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { localDate } from '../src/features/looks/saved-looks';
 import { DayView } from '../src/features/plan/DayView';
 import { PlanView } from '../src/features/plan/PlanView';
 import { dayLabel } from '../src/features/plan/plan';
@@ -118,6 +119,47 @@ test('the day page names the day, opens a look and takes it off with Undo', asyn
     await fireEvent.press(screen.getAllByRole('button', { name: ui.undo }).at(-1) as never);
   });
   await waitFor(() => expect(calls.some((c) => c.path.endsWith('/restore'))).toBe(true));
+});
+
+const dayOnly = (date: string) => ({
+  from: date,
+  to: date,
+  days: [{ date, name: null, entries: [] }],
+});
+
+test('today’s page reads the weather now: the temperature now, the conditions now', async () => {
+  const today = localDate();
+  const calls = mockFetch({
+    'GET /plan': dayOnly(today),
+    'GET /today/weather': {
+      city: 'Dublin',
+      tempRange: '11–15°C',
+      condition: 'light rain',
+      nowC: 13,
+      code: 3,
+    },
+  });
+  await renderWithApi(<DayView date={today} />);
+  expect(await screen.findByText('Dublin · overcast · 13°C')).toBeTruthy();
+  // The advice still reads the whole day.
+  expect(screen.getByText(plan.day.advice('light rain', '11–15°C'))).toBeTruthy();
+  expect(calls.find((c) => c.path.endsWith('/today/weather'))?.url).toContain(`date=${today}`);
+});
+
+test('a day ahead reads that day’s range and conditions', async () => {
+  mockFetch({
+    'GET /plan': dayOnly('2099-01-01'),
+    'GET /today/weather': {
+      city: 'Dublin',
+      tempRange: '4–9°C',
+      condition: 'snow',
+      nowC: null,
+      code: 73,
+    },
+  });
+  await renderWithApi(<DayView date="2099-01-01" />);
+  expect(await screen.findByText('Dublin · snow · 4–9°C')).toBeTruthy();
+  expect(screen.getByText(plan.day.advice('snow', '4–9°C'))).toBeTruthy();
 });
 
 test('the camera on a day’s look adds her photograph to the look, and the day re-reads', async () => {

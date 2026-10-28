@@ -12,6 +12,7 @@ import {
   WORE_IT_HOUR,
 } from '@robes/core/home';
 import { anchorName } from '@robes/core/looks';
+import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/native';
 import {
   ErrorText,
@@ -38,8 +39,6 @@ import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { HomeBox, type HomeBoxHandle } from './HomeBox';
 import { StepCard, StepMap } from './HomeSteps';
-
-const WEATHER_STALE_MS = 30 * 60_000;
 
 const isRunning = (t: Today | undefined) => t?.tray.some((j) => !isTerminal(j)) ?? false;
 
@@ -110,9 +109,12 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
       .catch((err) => toast.show({ message: errorMessage(err) }));
   };
   const wx = weather.data;
-  const weatherLine = wx ? copy.weather(wx.city, wx.tempRange, wx.condition) : null;
-  // Beta's H0 meta: the weekday, then where she is and the day's range once the forecast lands.
-  const metaLine = copy.meta(weekdayLong(data.date), wx?.city ?? null, wx?.tempRange ?? null);
+  const weatherLine = wx ? copy.weather(wx.city, weatherTemp(wx), weatherWord(wx)) : null;
+  // Beta's H0 meta, led by the conditions' line icon: the weekday, then where she is and the
+  // temperature now once the reading lands (the day's range without a live one). Twin of web
+  // home-view.tsx.
+  const metaLine = copy.meta(weekdayLong(data.date), wx?.city ?? null, wx ? weatherTemp(wx) : null);
+  const wxIcon = weatherIcon(wx?.code);
 
   return (
     <ScrollView
@@ -134,10 +136,15 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
           <View
             className="mt-1.5 flex-row items-center gap-2"
             accessible
-            accessibilityLabel={metaLine}
+            accessibilityLabel={copy.metaSpoken(wx && wxIcon ? weatherWord(wx) : null, metaLine)}
             testID="home-meta"
           >
-            <Icon name="today" size={16} color={faint} />
+            {wxIcon ? (
+              <>
+                <Icon name={wxIcon} size={16} color={faint} />
+                <Eyebrow>·</Eyebrow>
+              </>
+            ) : null}
             <Eyebrow>{metaLine}</Eyebrow>
           </View>
         </View>

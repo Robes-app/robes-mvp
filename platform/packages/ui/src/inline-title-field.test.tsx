@@ -62,7 +62,7 @@ describe('InlineTitleField', () => {
 
   it('is the title: the serif at the heading size, an underline and no box', async () => {
     const { input } = setup({ size: 'lg', italic: true, placeholder: 'Name the day' });
-    expect(input).toHaveClass('font-display', 'text-3xl', 'italic', 'border-b', 'outline-none!');
+    expect(input).toHaveClass('font-display', 'text-3xl', 'italic', 'border-b', 'outline-none');
     expect(input).toHaveClass('min-h-11', 'focus-visible:border-ink');
     expect(input).not.toHaveClass('rounded-input');
     expect(input).toHaveAttribute('placeholder', 'Name the day');
