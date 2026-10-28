@@ -1,4 +1,4 @@
-import { APP_LINK_PREFIXES } from '@robes/core/app-links';
+import { APP_LINK_HOME, APP_LINK_PREFIXES } from '@robes/core/app-links';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 // One codebase, three installable apps (set APP_VARIANT per EAS profile, eas.json):
@@ -47,10 +47,13 @@ function appLinks(host: string | null) {
           action: 'VIEW',
           autoVerify: true,
           category: ['BROWSABLE', 'DEFAULT'],
-          data: APP_LINK_PREFIXES.flatMap((p) => [
-            { scheme: 'https', host, path: p },
-            { scheme: 'https', host, pathPrefix: `${p}/` },
-          ]),
+          data: [
+            { scheme: 'https', host, path: APP_LINK_HOME },
+            ...APP_LINK_PREFIXES.flatMap((p) => [
+              { scheme: 'https', host, path: p },
+              { scheme: 'https', host, pathPrefix: `${p}/` },
+            ]),
+          ],
         },
       ],
     },

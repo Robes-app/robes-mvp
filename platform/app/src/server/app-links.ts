@@ -1,4 +1,4 @@
-import { APP_LINK_PREFIXES } from '@robes/core/app-links';
+import { APP_LINK_HOME, APP_LINK_PREFIXES } from '@robes/core/app-links';
 import { z } from 'zod';
 
 // The two files that let an installed phone app open this host's links instead of the browser
@@ -40,7 +40,10 @@ export function appleAppSiteAssociation(
         ? [
             {
               appIDs: [config.iosAppId],
-              components: APP_LINK_PREFIXES.flatMap((p) => [{ '/': p }, { '/': `${p}/*` }]),
+              components: [
+                { '/': APP_LINK_HOME },
+                ...APP_LINK_PREFIXES.flatMap((p) => [{ '/': p }, { '/': `${p}/*` }]),
+              ],
             },
           ]
         : [],
