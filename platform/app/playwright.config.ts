@@ -1,5 +1,11 @@
 import { defineConfig } from '@playwright/test';
-import { E2E_DATABASE_URL, E2E_GEOCODE_URL, E2E_MEDIA_ENDPOINT, E2E_UNSUB_KEY } from './e2e/env';
+import {
+  E2E_APP_LINKS,
+  E2E_DATABASE_URL,
+  E2E_GEOCODE_URL,
+  E2E_MEDIA_ENDPOINT,
+  E2E_UNSUB_KEY,
+} from './e2e/env';
 
 // Configurable so parallel checkouts can run e2e side by side.
 const port = Number(process.env.E2E_PORT ?? 3310);
@@ -26,6 +32,7 @@ export default defineConfig({
       REVERSE_GEOCODE_URL: E2E_GEOCODE_URL,
       // Dummy key: consent.spec intercepts the PostHog host and proves nothing loads before consent.
       NEXT_PUBLIC_POSTHOG_KEY: 'phc_e2e_dummy',
+      ...E2E_APP_LINKS,
     },
     command: `next start -p ${port}`,
     port,

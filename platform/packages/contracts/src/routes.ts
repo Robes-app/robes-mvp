@@ -23,7 +23,7 @@ import {
   ListAuditInput,
   SetAdminFlagInput,
 } from './admin';
-import { EmptyInput, HealthOutput } from './common';
+import { AuthProviders, EmptyInput, HealthOutput } from './common';
 import { Consents, UpdateConsentsInput } from './consents';
 import {
   DecideInboxInput,
@@ -930,6 +930,13 @@ export const routes = {
     params: ShareParams,
     input: EmptyInput,
     output: SharedLook,
+  },
+  'public.authProviders': {
+    method: 'GET',
+    path: '/public/auth-providers',
+    auth: 'public',
+    input: EmptyInput,
+    output: AuthProviders,
   },
   'public.waitlist.join': {
     method: 'POST',

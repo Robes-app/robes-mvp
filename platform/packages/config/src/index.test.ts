@@ -123,6 +123,41 @@ describe('parseEnv(appServerEnv)', () => {
     );
   });
 
+  it('names the apps for app links only when fully configured', () => {
+    expect(parseEnv(appServerEnv, base).appLinks).toEqual({ iosAppId: null, android: null });
+    const fp = Array.from({ length: 32 }, () => 'AB').join(':');
+    const env = parseEnv(appServerEnv, {
+      ...base,
+      APPLE_TEAM_ID: 'ABCDE12345',
+      APPLE_APP_BUNDLE_ID: 'com.byrobes.app.staging',
+      ANDROID_APP_PACKAGE: 'com.byrobes.app.staging',
+      ANDROID_CERT_SHA256: `${fp}, ${fp.replaceAll('AB', 'CD')}`,
+    });
+    expect(env.appLinks).toEqual({
+      iosAppId: 'ABCDE12345.com.byrobes.app.staging',
+      android: {
+        packageName: 'com.byrobes.app.staging',
+        fingerprints: [fp, fp.replaceAll('AB', 'CD')],
+      },
+    });
+    expect(() => parseEnv(appServerEnv, { ...base, APPLE_TEAM_ID: 'ABCDE12345' })).toThrow(
+      /APPLE_APP_BUNDLE_ID/,
+    );
+    expect(() => parseEnv(appServerEnv, { ...base, APPLE_TEAM_ID: 'abc' })).toThrow(
+      /APPLE_TEAM_ID/,
+    );
+    expect(() =>
+      parseEnv(appServerEnv, { ...base, ANDROID_APP_PACKAGE: 'com.byrobes.app' }),
+    ).toThrow(/ANDROID_CERT_SHA256/);
+    expect(() =>
+      parseEnv(appServerEnv, {
+        ...base,
+        ANDROID_APP_PACKAGE: 'com.byrobes.app',
+        ANDROID_CERT_SHA256: 'ab:cd',
+      }),
+    ).toThrow(/ANDROID_CERT_SHA256/);
+  });
+
   it('refuses dev-only flags and http auth URLs in production', () => {
     expect(() =>
       parseEnv(appServerEnv, { ...base, APP_ENV: 'production', ALLOW_PRIVATE_FETCH: '1' }),

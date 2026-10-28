@@ -64,6 +64,8 @@ export const auth = {
   or: 'or',
   apple: 'Continue with Apple',
   google: 'Continue with Google',
+  // Native only: the web's provider flow reports back on its own page.
+  socialFailed: 'Robes couldn’t sign you in. Try again.',
   invalidEmail: 'That email doesn’t look quite right.',
   invalidCode: 'That code didn’t match. Check it and try again.',
   sendFailed: 'Robes couldn’t send a code just now. Try again in a moment.',
