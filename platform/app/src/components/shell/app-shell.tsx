@@ -34,6 +34,7 @@ import {
   NAV_ITEMS,
 } from '@/lib/nav';
 import { FeaturesProvider } from '../features';
+import { useDeviceLocation } from './device-location';
 
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
@@ -68,6 +69,7 @@ export function AppShell({
   const [pushed, setPushed] = useState(false);
   const toggleCommand = useCallback(() => setCommandOpen((o) => !o), []);
   useCommandHotkey(toggleCommand);
+  useDeviceLocation();
   const current = activeRoot(pathname);
   const inFlow = isFlowPath(pathname) || pushed;
   const create = useMemo(() => createItems(features), [features]);

@@ -37,7 +37,13 @@ export const PATCH = route({
   handler: async ({ user, input }) => {
     const userId = verifiedUserId(user.id);
     const { notifications, ...fields } = input;
-    await repos.profiles.update(userId, fields);
+    // A city she types replaces a device location: its coordinates would forecast the old place.
+    const before = fields.homeCity === undefined ? null : await repos.profiles.get(userId);
+    const moved = before !== null && (before?.homeCity ?? '') !== fields.homeCity;
+    await repos.profiles.update(
+      userId,
+      moved ? { ...fields, homeLat: null, homeLon: null } : fields,
+    );
     if (notifications) await repos.profiles.mergeNotificationPrefs(userId, notifications);
     return loadMe(user.id);
   },

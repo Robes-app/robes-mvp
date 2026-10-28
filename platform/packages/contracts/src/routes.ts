@@ -77,6 +77,7 @@ import {
   RequestDeletionInput,
   StyleOverrides,
   StyleProfile,
+  UpdateLocationInput,
   UpdateMeInput,
   UpdateModelInput,
 } from './me';
@@ -199,6 +200,14 @@ export const routes = {
     auth: 'user',
     input: EmptyInput,
     output: OnboardingComplete,
+  },
+  // Her device location, after she allowed it: rounded, named and kept as her home for the weather.
+  'me.location': {
+    method: 'POST',
+    path: '/me/location',
+    auth: 'user',
+    input: UpdateLocationInput,
+    output: Ok,
   },
   // Later on a home step: it stands down for a day.
   'me.home.later': {

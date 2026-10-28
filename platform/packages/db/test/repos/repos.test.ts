@@ -32,6 +32,25 @@ describe('profiles', () => {
     expect((await repos.profiles.get(bob))?.firstName).toBe('Bob');
   });
 
+  it('writes a device location to the caller alone, ~1 km of it', async () => {
+    await repos.profiles.update(bob, { homeCity: 'Leeds', homeLat: 53.8, homeLon: -1.55 });
+    const updated = await repos.profiles.update(alice, {
+      homeCity: 'Dublin',
+      homeLat: 53.35,
+      homeLon: -6.26,
+    });
+    expect(updated).toMatchObject({ homeCity: 'Dublin', homeLat: '53.350', homeLon: '-6.260' });
+    expect(await repos.profiles.get(bob)).toMatchObject({
+      homeCity: 'Leeds',
+      homeLat: '53.800',
+      homeLon: '-1.550',
+    });
+    // A typed city clears the coordinates (PATCH /me); the city alone then carries the forecast.
+    await repos.profiles.update(alice, { homeLat: null, homeLon: null });
+    expect(await repos.profiles.get(alice)).toMatchObject({ homeLat: null, homeLon: null });
+    expect((await repos.profiles.get(bob))?.homeLat).toBe('53.800');
+  });
+
   it('completes onboarding once', async () => {
     const first = await repos.profiles.completeOnboarding(alice);
     const second = await repos.profiles.completeOnboarding(alice);

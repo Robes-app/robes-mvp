@@ -112,3 +112,39 @@ describe('trip weather', () => {
     expect(down).toBeNull();
   });
 });
+
+describe('reverse geocoding', () => {
+  it('names the city (else town, village, county), identifies itself, and caches', async () => {
+    const { createReverseGeocode, parseReverse, GEOCODER_USER_AGENT } = await import('./weather');
+    expect(parseReverse({ address: { town: 'Bray', county: 'Wicklow' } })).toBe('Bray');
+    expect(parseReverse({ address: { county: 'Wicklow' } })).toBe('Wicklow');
+    expect(parseReverse({ error: 'Unable to geocode' })).toBeNull();
+    const fetchFn = vi.fn(async (_url: string, _init: { headers: Record<string, string> }) => ({
+      ok: true,
+      json: async () => ({ address: { city: 'Dublin' } }),
+    }));
+    const cityAt = createReverseGeocode({ url: 'http://fake/reverse', fetchFn });
+    expect(await cityAt(53.35, -6.26)).toBe('Dublin');
+    expect(await cityAt(53.35, -6.26)).toBe('Dublin');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchFn.mock.calls[0] ?? [];
+    expect(url).toBe(
+      'http://fake/reverse?format=json&zoom=10&addressdetails=1&accept-language=en&lat=53.35&lon=-6.26',
+    );
+    expect(init?.headers['user-agent']).toBe(GEOCODER_USER_AGENT);
+  });
+
+  it('is null on any failure', async () => {
+    const { createReverseGeocode } = await import('./weather');
+    const down = createReverseGeocode({
+      fetchFn: async () => {
+        throw new Error('offline');
+      },
+    });
+    expect(await down(1, 2)).toBeNull();
+    const bad = createReverseGeocode({
+      fetchFn: async () => ({ ok: false, json: async () => ({}) }),
+    });
+    expect(await bad(1, 2)).toBeNull();
+  });
+});

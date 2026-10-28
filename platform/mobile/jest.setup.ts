@@ -10,6 +10,16 @@ jest.mock('expo-notifications', () => ({
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
 }));
 jest.mock('expo-device', () => ({ isDevice: false }));
+// Location is a native module: undecided and unread unless a test says otherwise.
+jest.mock('expo-location', () => ({
+  Accuracy: { Low: 2 },
+  getForegroundPermissionsAsync: jest.fn(async () => ({ status: 'undetermined' })),
+  requestForegroundPermissionsAsync: jest.fn(async () => ({ status: 'denied' })),
+  getLastKnownPositionAsync: jest.fn(async () => null),
+  getCurrentPositionAsync: jest.fn(async () => {
+    throw new Error('no location under jest');
+  }),
+}));
 
 // The clipboard is a native module: Paste and tap-to-copy read and write this stand-in.
 jest.mock('expo-clipboard', () => {
