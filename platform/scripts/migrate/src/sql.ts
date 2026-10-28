@@ -201,7 +201,10 @@ update app.profiles t set
   bust_cm = case when not b.bra and (f.f ->> 'bust_cm') ~ '^[0-9]+$'
     and (f.f ->> 'bust_cm')::int between 70 and 140 then (f.f ->> 'bust_cm')::int end,
   waist_cm = case when (f.f ->> 'waist_cm') ~ '^[0-9]+$' and (f.f ->> 'waist_cm')::int between 50 and 130
-    then (f.f ->> 'waist_cm')::int end
+    then (f.f ->> 'waist_cm')::int end,
+  -- Beta's style walk "Done" confirmed her Style DNA (home's O1 is done from it).
+  style_confirmed_at = case when (p.style_dna ->> 'confirmed_at') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+(Z|[+-][0-9:]+)?$'
+    then (p.style_dna ->> 'confirmed_at')::timestamptz end
 from legacy.profiles p,
   lateral (select case when jsonb_typeof(p.style_dna -> 'facts') = 'object' then p.style_dna -> 'facts' else '{}'::jsonb end as f) f,
   lateral (select coalesce(coalesce(f.f ->> 'bust_mode', 'bra') <> 'cm' and (f.f ->> 'bust_cup') in ${CUPS}

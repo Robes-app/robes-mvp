@@ -409,6 +409,7 @@ export interface Profiles {
   splurgeCategories: Generated<string[]>;
   styleArchetypes: Generated<string[]>;
   styleBrands: Generated<string[]>;
+  styleConfirmedAt: Timestamp | null;
   styleIcons: Generated<string[]>;
   timezone: Generated<string>;
   updatedAt: Generated<Timestamp>;

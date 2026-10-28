@@ -130,6 +130,8 @@ test('a saved look is worn today through the diary sheet (her local date) and re
   expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/wears'))?.body).toEqual({
     wornOn: today,
   });
+  // Beta says so (L10): today's wear is "Worn today ✓", never silence.
+  expect(await screen.findByText(lookbook.diary.wornToday)).toBeTruthy();
 
   await fireEvent.press(screen.getByRole('button', { name: looks.page.remove }));
   expect(mockRouter.back).toHaveBeenCalled();

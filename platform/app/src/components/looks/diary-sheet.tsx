@@ -86,7 +86,11 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const wear = useApiMutation('looks.wear', {
-    onSuccess: (w) => settle(copy.diary.recordedOn(formatDay(w.wornOn))),
+    // Today's wear says so as beta does; a day gone by names its date.
+    onSuccess: (w) =>
+      settle(
+        w.wornOn === today ? copy.diary.wornToday : copy.diary.recordedOn(formatDay(w.wornOn)),
+      ),
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const busy = pin.isPending || wear.isPending;

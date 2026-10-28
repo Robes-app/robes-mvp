@@ -44,7 +44,7 @@ type SeasonBandId = (typeof SEASON_BANDS)[number];
 // A tool pill on the count row (beta's Last worn · Filter): 36px white on the fine edge, the
 // label ink-muted, the hit area reaching 44px. The native twin is LooksView.tsx ToolPill.
 function toolPill(expanded: boolean): string {
-  return `relative inline-flex h-9 items-center gap-1.5 rounded-pill border bg-surface-raised px-3 font-sans text-xs text-ink-muted after:absolute after:inset-x-0 after:-inset-y-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:text-ink-faint disabled:hover:text-ink-faint ${
+  return `relative inline-flex h-9 items-center gap-1.5 rounded-pill border bg-surface-raised px-3 font-sans text-xs text-ink-muted after:absolute after:inset-x-0 after:-inset-y-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
     expanded ? 'border-selected-line' : 'border-rule-mid'
   }`;
 }
@@ -81,19 +81,19 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
   }, [sortOpen]);
   const current = tab === 'saved' ? saved : suggested;
   const all = current.data?.items ?? [];
+  // Sort and Filter stand on Saved from four looks; below, beta hides them — never inert. A
+  // filter left on holds only while the tools that show it stand.
+  const sortable = tab === 'saved' && all.length >= SORT_FROM;
+  const filtering = sortable && filters > 0;
   // Within an axis picks OR, across axes AND (legacy _lkMatchRefine).
-  const raw =
-    tab === 'saved' && filters
-      ? all.filter(
-          (l) =>
-            (!bands.length || bands.includes(l.climateBand as SeasonBandId)) &&
-            (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
-        )
-      : all;
+  const raw = filtering
+    ? all.filter(
+        (l) =>
+          (!bands.length || bands.includes(l.climateBand as SeasonBandId)) &&
+          (!wear.length || lookWearFor(l).some((t) => wear.includes(t))),
+      )
+    : all;
   const wearOpts = tab === 'saved' ? wearForOptions(all) : [];
-  // Beta renders Sort and Filter at every count on Saved and leaves them inert below four.
-  const tooled = tab === 'saved';
-  const sortable = tooled && all.length >= SORT_FROM;
   const items = sortable ? sortLooks(raw, sort) : raw;
   const draftItems = drafts.data?.items ?? [];
   const count =
@@ -139,7 +139,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
         ) : (
           <span />
         )}
-        {tooled ? (
+        {sortable ? (
           <div ref={tools} className="relative flex flex-wrap items-center gap-1.5">
             {/* One pill naming the sort in play, opening the three — never three pills. */}
             <button
@@ -147,7 +147,6 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               aria-haspopup="menu"
               aria-expanded={sortOpen}
               aria-label={`${copy.sort.label}: ${copy.sort[sort]}`}
-              disabled={!sortable}
               onClick={() => setSortOpen((o) => !o)}
               className={toolPill(sortOpen)}
             >
@@ -158,7 +157,6 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               type="button"
               aria-expanded={refineOpen}
               aria-controls={refineId}
-              disabled={!sortable}
               onClick={() => setRefineOpen(!refineOpen)}
               className={toolPill(refineOpen)}
             >
@@ -296,7 +294,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           ))}
         </ul>
       ) : items.length === 0 ? (
-        tab === 'saved' && filters ? (
+        filtering ? (
           // A filter that matches nothing names it and offers the way back, never a bare grid.
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <p className="font-display text-ink text-xl">{copy.refine.none}</p>

@@ -120,6 +120,64 @@ test('activated: the strip selects a day; Dress {weekday} puts the box on the da
   });
 });
 
+test('a day gone by with nothing on it says so; it is never dressed', async () => {
+  mockFetch({
+    'GET /today': todayWith(activated, { date: '2026-10-03' }),
+    'GET /today/weather': null,
+  });
+  await renderWithApi(<HomeView />);
+  await fireEvent.press(await screen.findByTestId('week-day-2026-10-02'));
+  expect(await screen.findByText(copy.week.nothing)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: copy.week.dress('Friday') })).toBeNull();
+  // A day ahead still dresses.
+  await fireEvent.press(screen.getByTestId('week-day-2026-10-04'));
+  expect(await screen.findByRole('button', { name: copy.week.dress('Sunday') })).toBeTruthy();
+});
+
+test('the studio tray lists running and finished jobs, each opening where it lands', async () => {
+  type Job = Today['tray'][number];
+  const snap = (over: Partial<Job> & Pick<Job, 'id'>): Job => ({
+    kind: 'key_piece',
+    status: 'running',
+    stage: 'text',
+    output: {},
+    error: null,
+    cancelRequested: false,
+    createdAt: '2026-10-01T09:00:00.000Z',
+    updatedAt: '2026-10-01T09:00:00.000Z',
+    finishedAt: null,
+    ...over,
+  });
+  const DAILY = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  mockFetch({
+    'GET /today': todayWith(activated, {
+      tray: [
+        snap({ id: JOB_ID }),
+        snap({
+          id: '99999999-9999-4999-8999-999999999999',
+          kind: 'daily',
+          status: 'succeeded',
+          stage: 'done',
+          output: { dailyLookId: DAILY },
+        }),
+      ],
+    }),
+    'GET /today/weather': null,
+  });
+  await renderWithApi(<HomeView />);
+  expect(await screen.findByText(todayCopy.tray.title)).toBeTruthy();
+  await fireEvent.press(
+    screen.getByRole('link', {
+      name: `${todayCopy.tray.stylePiece} · ${todayCopy.tray.running}`,
+    }),
+  );
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/job/${JOB_ID}`);
+  await fireEvent.press(
+    screen.getByRole('link', { name: `${todayCopy.daily.trayTitle} · ${todayCopy.tray.ready}` }),
+  );
+  expect(mockRouter.push).toHaveBeenCalledWith(`/today/look/${DAILY}`);
+});
+
 test('today’s card carries the forecast; the overnight look is that card, never a second row', async () => {
   mockFetch({
     'GET /today': todayWith(activated, {
