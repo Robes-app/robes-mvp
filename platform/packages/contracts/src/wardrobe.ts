@@ -99,6 +99,10 @@ export type PieceValues = Pick<
 
 export const PieceParams = z.object({ id: z.uuid() });
 
+// Change photo: an asset she uploaded (kind `wardrobe`) becomes the piece's photograph.
+export const PiecePhotoInput = z.object({ assetId: z.uuid() });
+export type PiecePhotoInput = z.infer<typeof PiecePhotoInput>;
+
 // A piece's own record: the days it was on her, and the look she wore it in. A wear is
 // immutable, so these rows keep saying what was worn after the look moves on.
 export const PieceWear = z.object({

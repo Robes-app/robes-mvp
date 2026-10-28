@@ -345,6 +345,9 @@ export const wardrobe = {
     // and the brand is its own tappable line, empty or not.
     editName: 'Edit the name',
     addBrand: 'Add the brand',
+    // The pill on the record's photograph (legacy rb-pc-rephoto); with no photo, it adds one.
+    changePhoto: 'Change photo',
+    addPhoto: 'Add a photo',
     // The record's sections (legacy Piece_Sheet 01): every fact is a row, a tap opens its drawer.
     sections: {
       piece: 'The piece',

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, test } from '@playwright/test';
+import { type APIRequestContext, expect, test } from '@playwright/test';
 import { isolateClientIp, signIn } from './helpers';
 
 // Upload → batch → rendition → wardrobe_analyse job → filed piece, entirely on the local stack
@@ -78,5 +78,43 @@ test('another user cannot see or change the piece', async ({ page, browser }) =>
   expect((await otherPage.request.get(url)).status()).toBe(404);
   expect((await otherPage.request.patch(url, { data: { label: 'Mine now' } })).status()).toBe(404);
   expect((await otherPage.request.delete(url)).status()).toBe(404);
+  await other.close();
+});
+
+async function upload(api: APIRequestContext): Promise<string> {
+  const res = await api.post('/api/v1/uploads', {
+    data: { kind: 'wardrobe', contentType: 'image/jpeg', bytes: PHOTO.length },
+  });
+  const { assetId, upload: put } = await res.json();
+  expect((await fetch(put.url, { method: 'PUT', headers: put.headers, body: PHOTO })).ok).toBe(
+    true,
+  );
+  expect((await api.post(`/api/v1/uploads/${assetId}/complete`)).ok()).toBe(true);
+  return assetId;
+}
+
+// Change photo: her own upload replaces the piece's photograph; nobody else's photo or piece will do.
+test('a piece takes her new photograph, and only hers', async ({ page, browser }) => {
+  await signIn(page);
+  const created = await (
+    await page.request.post('/api/v1/wardrobe/items', { data: { label: 'Bare coat' } })
+  ).json();
+  expect(created.image).toBeNull();
+  const url = `/api/v1/wardrobe/items/${created.id}/photo`;
+  const mine = await upload(page.request);
+  const changed = await page.request.post(url, { data: { assetId: mine } });
+  expect(changed.status()).toBe(200);
+  expect((await changed.json()).image.assetId).toBe(mine);
+
+  const other = await browser.newContext();
+  await isolateClientIp(other);
+  const otherPage = await other.newPage();
+  await signIn(otherPage);
+  const theirs = await upload(otherPage.request);
+  // Her piece cannot take another woman's photo, and another woman cannot change her piece.
+  expect((await page.request.post(url, { data: { assetId: theirs } })).status()).toBe(404);
+  expect((await otherPage.request.post(url, { data: { assetId: theirs } })).status()).toBe(404);
+  const piece = await (await page.request.get(`/api/v1/wardrobe/items/${created.id}`)).json();
+  expect(piece.image.assetId).toBe(mine);
   await other.close();
 });

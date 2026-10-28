@@ -134,6 +134,7 @@ import {
   Piece,
   PiecePage,
   PieceParams,
+  PiecePhotoInput,
   PieceWearPage,
   UpdatePieceInput,
   UpdateWishInput,
@@ -445,6 +446,15 @@ export const routes = {
     auth: 'user',
     params: PieceParams,
     input: UpdatePieceInput,
+    output: Piece,
+  },
+  // Change photo: her new photograph replaces the piece's; what Robes read from it stays hers.
+  'wardrobe.photo': {
+    method: 'POST',
+    path: '/wardrobe/items/:id/photo',
+    auth: 'user',
+    params: PieceParams,
+    input: PiecePhotoInput,
     output: Piece,
   },
   'wardrobe.delete': {
