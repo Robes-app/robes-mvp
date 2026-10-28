@@ -1,4 +1,4 @@
-import { lookbook, looks, ui } from '@robes/copy';
+import { lookbook, looks, ui, you } from '@robes/copy';
 import { longDate, lookDateName, monthOf, shiftMonth } from '@robes/core/calendar';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
@@ -28,11 +28,30 @@ test('a suggested name is renamed with the pencil, never a "Keep this name" line
   expect(screen.queryByText('Robes’ suggestion')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Keep this name' })).toBeNull();
 
+  // The title itself becomes the field: no label, no Save name, no Cancel.
   await fireEvent.press(screen.getByRole('button', { name: looks.page.rename }));
-  await fireEvent.changeText(screen.getByLabelText(looks.look.nameLabel), 'Gallery opening');
-  await fireEvent.press(screen.getByRole('button', { name: looks.look.saveName }));
+  const field = screen.getByLabelText(looks.look.nameLabel);
+  expect(field.props.value).toBe('Camel coat, styled');
+  expect(screen.queryByText('Save name')).toBeNull();
+  expect(screen.queryByText('Cancel')).toBeNull();
+  await fireEvent.changeText(field, 'Gallery opening');
+  await fireEvent(field, 'submitEditing');
   expect(await screen.findByText('Gallery opening')).toBeTruthy();
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Gallery opening' });
+});
+
+test('an emptied name is refused: the look keeps its name and nothing is sent', async () => {
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look({ name: 'Gallery opening' }),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: looks.page.rename }));
+  const field = screen.getByLabelText(looks.look.nameLabel);
+  await fireEvent.changeText(field, '  ');
+  await fireEvent(field, 'blur');
+  expect(await screen.findByText('Gallery opening')).toBeTruthy();
+  expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
 });
 
 test('the diary on the picture opens the one diary drawer and pins the chosen local date', async () => {
@@ -119,6 +138,41 @@ test('the record logs a day through the same drawer', async () => {
   await fireEvent.press(await screen.findByRole('button', { name: looks.page.wears.addDate }));
   // The same drawer, named for the look — never a second way to log a date.
   expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
+});
+
+test('a re-draw that failed says so on the picture, and Try again asks once more', async () => {
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look({ onModel: 'failed' }),
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /me/model': {
+      filed: false,
+      presence: 'woman',
+      skin: 3,
+      hair: 1,
+      line: null,
+      frame: null,
+      source: 'hand',
+      reads: { colour: false, silhouette: false },
+      cellId: 'w-s3-h1-nt',
+      cell: { status: 'none', imageUrl: null },
+      swatches: { skin: [], hair: [] },
+      skinSet: false,
+      hairSet: false,
+      adj: { shoulders: null, bust: null, hips: null },
+      closeUpUrl: null,
+      twin: { status: 'none', current: false, imageUrl: null },
+      stand: { imageUrl: 'https://m.test/w-s4-h1-nt.png', generic: true },
+    },
+    [`POST /looks/${LOOK_ID}/render`]: {
+      jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'queued',
+    },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: you.model.undressed }));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
+  );
 });
 
 test('a look carries no share door, and no save-as-new (27 Oct)', async () => {

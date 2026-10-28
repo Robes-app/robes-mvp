@@ -66,6 +66,58 @@ describe('gemini adapter', () => {
     expect(call.config.mediaResolution).toBeUndefined();
   });
 
+  it('draws at 1K unless 2K is asked, and prices the tier', async () => {
+    const generateContent = vi.fn(async () => ({
+      candidates: [
+        { content: { parts: [{ inlineData: { data: 'AA==', mimeType: 'image/png' } }] } },
+      ],
+      usageMetadata: { promptTokenCount: 0 },
+    }));
+    const ai = createGeminiProvider({ models: { generateContent } as never });
+    const base = {
+      feature: 't',
+      capability: 'image.hero' as const,
+      prompt: 'p',
+      aspectRatio: '4:5' as const,
+      signal: signal(),
+    };
+    const one = await ai.generateImage(base);
+    const two = await ai.generateImage({ ...base, imageSize: '2K' });
+    const sizes = generateContent.mock.calls.map(
+      (c) =>
+        ((c as unknown[])[0] as { config: { imageConfig: { imageSize: string } } }).config
+          .imageConfig.imageSize,
+    );
+    expect(sizes).toEqual(['1K', '2K']);
+    expect([one.usage.costMicros, two.usage.costMicros]).toEqual([67_000, 101_000]);
+  });
+
+  it('gives a deliberate read medium thinking and full detail', async () => {
+    const generateContent = vi.fn(async () => ({
+      text: '{"title":"Easy Sunday","pieces":["coat"]}',
+      usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 },
+    }));
+    const ai = createGeminiProvider({ models: { generateContent } as never });
+    await ai.generateJson({
+      feature: 'test',
+      capability: 'text.reasoning',
+      system: 's',
+      user: 'u',
+      images: [{ mimeType: 'image/jpeg', data: new Uint8Array([1]) }],
+      schema: Look,
+      maxOutputTokens: 500,
+      deliberate: true,
+      signal: signal(),
+    });
+    const call = (generateContent.mock.calls[0] as unknown[])[0] as {
+      config: Record<string, unknown>;
+    };
+    expect(call.config).toMatchObject({
+      thinkingConfig: { thinkingLevel: 'MEDIUM' },
+      mediaResolution: 'MEDIA_RESOLUTION_HIGH',
+    });
+  });
+
   it('reads a photo on Flash at full resolution with minimal thinking', async () => {
     const generateContent = vi.fn(async () => ({
       text: '{"title":"Easy Sunday","pieces":["coat"]}',

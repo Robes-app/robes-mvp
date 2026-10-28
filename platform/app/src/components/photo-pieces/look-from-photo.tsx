@@ -14,6 +14,7 @@ import {
   Heading,
   IconButton,
   Image,
+  InlineTitleField,
   Pill,
   Skeleton,
   Text,
@@ -158,16 +159,17 @@ export function LookFromPhoto() {
     <form onSubmit={save} className="mx-auto flex w-full max-w-md flex-col gap-6 pb-28">
       <header className="flex flex-col items-center gap-2 text-center">
         <Eyebrow>{lookbook.eyebrow.draft}</Eyebrow>
-        <label className="w-full">
-          <span className="sr-only">{lookbook.name.label}</span>
-          <input
-            value={name}
-            maxLength={120}
-            placeholder={lookbook.figure.untitled}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full border-0 border-transparent border-b bg-transparent text-center font-display font-light text-3xl text-ink italic placeholder:text-ink-faint focus-visible:border-ink focus-visible:outline-none"
-          />
-        </label>
+        {/* The draft's masthead, as in the composer; the name rides with Save. */}
+        <InlineTitleField
+          value={name}
+          label={lookbook.name.label}
+          placeholder={lookbook.figure.untitled}
+          size="lg"
+          italic
+          align="center"
+          autoFocus={false}
+          onChange={setName}
+        />
       </header>
       <section className="flex flex-col gap-3">
         <Eyebrow>{reading ? copy.headReading : copy.head(onRack.length)}</Eyebrow>

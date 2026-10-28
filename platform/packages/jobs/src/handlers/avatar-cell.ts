@@ -61,6 +61,9 @@ export function createAvatarCellHandler(deps: AvatarCellDeps): JobHandler {
         prompt: buildTwinPrompt(twinSpec(inputs, face !== null)),
         ...(face ? { references: [{ mimeType: 'image/jpeg' as const, data: face }] } : {}),
         aspectRatio: '4:5',
+        // Her face is a small region of a full-length frame and every render copies from it:
+        // the twin is drawn at 2K (legacy twinGenerate), everything else stays 1K.
+        imageSize: '2K',
         signal: ctx.signal,
       });
       await deps.ledger.record({

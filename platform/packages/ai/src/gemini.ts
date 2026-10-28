@@ -66,12 +66,19 @@ export function createGeminiProvider(opts: { apiKey: string } | { models: Models
             // Thinking is billed as output; styling JSON doesn't need it (cost lever 5). A photo
             // read is filing, not reasoning: minimal thinking, and full resolution so a small
             // label (the brand, the composition) and a fine print can be read.
-            ...(req.capability === 'vision.analyse'
+            ...(req.deliberate
               ? {
-                  thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
-                  mediaResolution: MediaResolution.MEDIA_RESOLUTION_HIGH,
+                  thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
+                  ...(req.images?.length
+                    ? { mediaResolution: MediaResolution.MEDIA_RESOLUTION_HIGH }
+                    : {}),
                 }
-              : { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }),
+              : req.capability === 'vision.analyse'
+                ? {
+                    thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+                    mediaResolution: MediaResolution.MEDIA_RESOLUTION_HIGH,
+                  }
+                : { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }),
             abortSignal: req.signal,
           },
         });
@@ -117,7 +124,7 @@ export function createGeminiProvider(opts: { apiKey: string } | { models: Models
           ],
           config: {
             responseModalities: ['IMAGE'],
-            imageConfig: { aspectRatio: req.aspectRatio, imageSize: '1K' },
+            imageConfig: { aspectRatio: req.aspectRatio, imageSize: req.imageSize ?? '1K' },
             abortSignal: req.signal,
           },
         });
@@ -129,7 +136,7 @@ export function createGeminiProvider(opts: { apiKey: string } | { models: Models
           tokensIn,
           tokensOut: 0,
           images: part ? 1 : 0,
-          costMicros: imageCostMicros(spec, tokensIn, part ? 1 : 0),
+          costMicros: imageCostMicros(spec, tokensIn, part ? 1 : 0, req.imageSize),
           latencyMs: Date.now() - started,
         };
         const data = part?.inlineData?.data;

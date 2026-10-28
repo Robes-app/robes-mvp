@@ -1,5 +1,7 @@
 import type { Features } from '@robes/contracts';
-import { lookbook, nav, shell, wardrobe, you } from '@robes/copy';
+import { lookbook, looks, nav, plan, shell, wardrobe, you } from '@robes/copy';
+import { isDestination } from '@robes/core/add-flow';
+import { monthLabel } from '@robes/core/calendar';
 import type { IconName } from '@robes/icons/web';
 
 export interface NavItem {
@@ -130,4 +132,46 @@ export function isFlowPath(pathname: string): boolean {
 // no avatar and no dock there (legacy settings.html, redlines G1–G3).
 export function isSettingsPath(pathname: string): boolean {
   return pathname === '/you' || pathname.startsWith('/you/');
+}
+
+export interface Back {
+  href: string;
+  label: string;
+}
+
+const DAY = /^\/plan\/(\d{4}-(?:0[1-9]|1[0-2])-\d{2})$/;
+
+// A pushed page's way back: ‹ and the previous screen's own title, in the top bar where the
+// wordmark sits on the roots (beta's header; native StackScreen's 44pt row). Decided from the URL
+// so the server draws the bar as it will stay — no wordmark flashing before the pill.
+export function backFor(pathname: string, search: URLSearchParams): Back | null {
+  const day = DAY.exec(pathname)?.[1];
+  if (day) {
+    return search.get('from') === 'today'
+      ? { href: '/', label: plan.day.back(plan.today) }
+      : { href: '/plan', label: plan.day.back(monthLabel(day.slice(0, 7))) };
+  }
+  if (/^\/look\/[^/]+$/.test(pathname)) return { href: '/looks', label: looks.title };
+  if (pathname === '/looks/new' || pathname === '/looks/new/photo') {
+    return { href: '/looks', label: looks.title };
+  }
+  if (/^\/looks\/ideas\/[^/]+$/.test(pathname)) {
+    return { href: '/looks/ideas', label: shell.segments.ideas };
+  }
+  if (/^\/looks\/style\/[^/]+$/.test(pathname)) {
+    return search.get('from') === 'home' ? { href: '/', label: nav.today } : null;
+  }
+  if (/^\/piece\/[^/]+$/.test(pathname) || pathname === '/wardrobe/inbox') {
+    return { href: '/wardrobe', label: wardrobe.piece.back };
+  }
+  if (pathname === '/wardrobe/add') return { href: '/wardrobe', label: wardrobe.title };
+  if (pathname === '/wardrobe/receipt') return { href: '/wardrobe/add', label: wardrobe.add.title };
+  if (pathname === '/wardrobe/manual' || pathname === '/wardrobe/link') {
+    const to = search.get('to');
+    return {
+      href: `/wardrobe/add?to=${isDestination(to) ? to : 'wardrobe'}`,
+      label: wardrobe.add.title,
+    };
+  }
+  return null;
 }

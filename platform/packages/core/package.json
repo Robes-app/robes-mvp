@@ -25,6 +25,7 @@
     "./add-flow": "./src/add-flow/index.ts",
     "./inbox": "./src/inbox/index.ts",
     "./home": "./src/home/index.ts",
+    "./location": "./src/location/index.ts",
     "./fence": "./src/fence/index.ts"
   },
   "scripts": {

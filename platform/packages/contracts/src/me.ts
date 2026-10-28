@@ -46,6 +46,15 @@ export const UpdateMeInput = z
   .partial();
 export type UpdateMeInput = z.infer<typeof UpdateMeInput>;
 
+// Her device's position, sent only after she allowed it; the server keeps ~1 km of it.
+export const UpdateLocationInput = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+  })
+  .strict();
+export type UpdateLocationInput = z.infer<typeof UpdateLocationInput>;
+
 export const OnboardingComplete = z.object({ onboardedAt: z.iso.datetime() });
 
 export const DeletionRequest = z.object({

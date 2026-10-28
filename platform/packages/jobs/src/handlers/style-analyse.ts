@@ -66,8 +66,12 @@ export function createStyleAnalyseHandler(deps: StyleAnalyseDeps): JobHandler {
             user: USER,
             images: [{ mimeType: 'image/jpeg', data: image }],
             schema,
-            maxOutputTokens: 4096,
+            // Thinking counts inside the cap: room for medium thinking and the full read.
+            maxOutputTokens: 8192,
             temperature: 0,
+            // Legacy ran this on Pro with a thinking budget: medium thinking, her photo at full
+            // detail (staging's low-thinking read put a Clear Spring at low contrast, 28 Oct).
+            deliberate: true,
             signal: ctx.signal,
           });
           await record(result.usage, 'ok');

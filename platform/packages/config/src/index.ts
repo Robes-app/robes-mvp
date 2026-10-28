@@ -184,6 +184,8 @@ export const appServerEnv = z
     ALLOW_PRIVATE_FETCH: z.string().optional(),
     NOTIFY_DEBUG: z.string().optional(),
     JOBS_TRANSPORT_INLINE: z.string().optional(),
+    // Dev/e2e only: a stand-in for Nominatim's reverse geocoder, so tests never send coordinates out.
+    REVERSE_GEOCODE_URL: z.url().optional(),
     // Only the dev inline worker calls Gemini from the web process; without it the fake is used.
     GEMINI_API_KEY: optionalSecret,
     // SQS jobs-interactive queue; without it jobs run in-process after the response (dev only).
@@ -212,6 +214,13 @@ export const appServerEnv = z
       });
     }
     if (deployed) {
+      if (env.REVERSE_GEOCODE_URL) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['REVERSE_GEOCODE_URL'],
+          message: 'deployed environments use Nominatim',
+        });
+      }
       for (const key of [
         'ROBES_AWS_REGION',
         'ROBES_AWS_ACCESS_KEY_ID',

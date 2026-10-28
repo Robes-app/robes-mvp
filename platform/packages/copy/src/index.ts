@@ -784,9 +784,6 @@ export const looks = {
   page: {
     eyebrow: 'Look',
     rename: 'Rename',
-    nameLabel: 'Name',
-    saveName: 'Save name',
-    cancel: 'Cancel',
     note: 'Notes',
     pieces: 'Pieces',
     dayLabel: 'Day',
@@ -859,7 +856,6 @@ export const looks = {
     pieces: 'Pieces',
     imageAlt: (name: string): string => `The look: ${name}`,
     nameLabel: 'Name this look',
-    saveName: 'Save name',
   },
 } as const;
 
@@ -1040,6 +1036,8 @@ export const you = {
     failed: 'Robes couldn’t draw your model just now. Change a pick to try again.',
     imageAlt: 'Your model',
     dressing: 'Dressing your model…',
+    // A render that failed says so, with the way back (never a stale picture passed off as new).
+    undressed: 'Couldn’t dress your model · Try again',
   },
 } as const;
 
@@ -1099,7 +1097,6 @@ export const plan = {
     back: (label: string): string => label,
     rename: 'Rename the day',
     name: 'Name the day',
-    nameLabel: 'The day’s name',
     planned: 'Looks planned',
     filed: 'Looks filed',
     filedToday: 'Looks filed today',
