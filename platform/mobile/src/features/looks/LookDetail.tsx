@@ -116,7 +116,12 @@ function SavedLook({ look }: { look: Look }) {
   const meta = lookbook.meta.saved(lookFacts(look, editor.rack.rows.length));
   return (
     <View className="flex-1">
-      <ScrollView contentContainerClassName="gap-6 px-6 pb-32">
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerClassName="gap-6 px-6 pb-32"
+      >
         <LookHero
           look={look}
           eyebrow={editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}

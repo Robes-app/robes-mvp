@@ -6,7 +6,8 @@ const name = z.string().trim().max(60);
 // You › Notifications; missing keys read as the default so new kinds need no migration.
 export const NotificationPrefs = z.object({
   looksReady: z.boolean().default(true),
-  morningCue: z.boolean().default(true),
+  // Off until she asks for it (beta: the morning line is opt-in, never on by default).
+  morningCue: z.boolean().default(false),
   nudges: z.boolean().default(false),
   receipts: z.boolean().default(true),
 });

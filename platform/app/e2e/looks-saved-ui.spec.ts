@@ -39,7 +39,12 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Camel coat, styled' })).toBeVisible();
+  // Unnamed, a hand-built look saves as her today ("Wednesday 28 Oct"), the month from the table.
+  const heading = page.getByRole('heading', { level: 1 });
+  await expect(heading).toHaveText(
+    /^[A-Z][a-z]+day \d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/,
+  );
+  const name = (await heading.textContent())?.trim() ?? '';
   // Saved look is said once, over the picture; no "Robes’ suggestion · Keep this name" (27 Oct).
   await expect(page.getByText('Saved look', { exact: true })).toHaveCount(1);
   await expect(page.getByText('Robes’ suggestion')).toHaveCount(0);
@@ -103,7 +108,7 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
 
   // The plan lists summary rows; the row opens the day page, where the day is named and edited.
   await page.goto('/plan');
-  await page.getByRole('link', { name: /Camel coat, styled$/ }).click();
+  await page.getByRole('link', { name: new RegExp(`${name}$`) }).click();
   await expect(page).toHaveURL(new RegExp(`/plan/${tomorrow}$`));
   expect(await seriousViolations(page)).toEqual([]);
   // The day keeps its own title (beta): unnamed, it invites a name rather than borrowing the look's.
@@ -118,13 +123,13 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     })
     .toBe('Gallery opening');
 
-  await page.getByRole('button', { name: 'Take Camel coat, styled off the day' }).click();
-  await expect(page.getByRole('link', { name: /Camel coat, styled/ })).toBeHidden();
+  await page.getByRole('button', { name: `Take ${name} off the day` }).click();
+  await expect(page.getByRole('link', { name })).toBeHidden();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByRole('link', { name: /Camel coat, styled/ })).toBeVisible();
+  await expect(page.getByRole('link', { name })).toBeVisible();
 
   await page.goto('/looks');
-  await expect(page.getByRole('link', { name: 'Camel coat, styled' })).toBeVisible();
+  await expect(page.getByRole('link', { name })).toBeVisible();
 });
 
 test('removing a look can be undone', async ({ page }) => {

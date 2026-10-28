@@ -538,14 +538,23 @@ export function looksRepo(db: Db) {
     },
 
     // Suggested or draft → saved (one tap from a suggestion, or the draft's Save). Saved never goes
-    // back; saving a saved look changes nothing.
-    save(userId: UserId, id: string, opts: { name?: string | undefined } = {}) {
+    // back; saving a saved look changes nothing. A name she typed is hers; `datedName` (an unnamed
+    // hand-built draft) replaces the offer but stays provisional, hers to change.
+    save(
+      userId: UserId,
+      id: string,
+      opts: { name?: string | undefined; datedName?: string | undefined } = {},
+    ) {
       return db
         .updateTable('looks')
         .set({
           status: 'saved',
           edits: null,
-          ...(opts.name !== undefined ? { name: opts.name, nameProvisional: false } : {}),
+          ...(opts.name !== undefined
+            ? { name: opts.name, nameProvisional: false }
+            : opts.datedName !== undefined
+              ? { name: opts.datedName, nameProvisional: true }
+              : {}),
           updatedAt: sql`now()`,
         })
         .where('userId', '=', userId)
