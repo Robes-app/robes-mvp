@@ -6,6 +6,7 @@ import { Icon } from '@robes/icons/web';
 import { Heading, SegmentedControl } from '@robes/ui';
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
+import { BackLink } from '@/components/back-link';
 import {
   type AddDestination,
   isPhoto,
@@ -69,6 +70,8 @@ export function AddFlow({ initial, start }: { initial: AddDestination; start: 'c
 
   return (
     <>
+      {/* Review has its own × beside its title; a back pill above it would be a second header. */}
+      {stage === 'review' ? null : <BackLink href="/wardrobe" label={wardrobe.title} />}
       <input
         ref={device}
         type="file"

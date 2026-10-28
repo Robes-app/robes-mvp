@@ -313,15 +313,6 @@ export function Review({
         />
         {slow ? fillIn : <BreathingRows />}
         {failed.size ? <Retry onRetry={() => setFailed(new Set())} /> : null}
-        {slow ? null : (
-          <Button
-            variant="quiet"
-            className="self-center"
-            onPress={() => router.replace({ pathname: '/wardrobe/add', params: { to } })}
-          >
-            {copy.review.cancel}
-          </Button>
-        )}
       </ScrollView>
     );
   }

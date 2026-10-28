@@ -1,8 +1,6 @@
-import { wardrobe } from '@robes/copy';
 import { isDestination } from '@robes/core/add-flow';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
-import { BackLink } from '@/components/back-link';
 import { Review } from '@/components/wardrobe/add/review';
 
 // Review for a link (photos are reviewed on the Add pieces page, where they were taken): the
@@ -17,9 +15,7 @@ export default async function ReviewPage({
   if (!entry.success) notFound();
   const dest = isDestination(to) ? to : 'wardrobe';
   return (
-    <div className="flex flex-col gap-4">
-      <BackLink href={`/wardrobe/add?to=${dest}`} label={wardrobe.add.title} />
-      <Review to={dest} link={entry.data} />
-    </div>
+    // Review carries its own × (no back pill above its title).
+    <Review to={dest} link={entry.data} />
   );
 }

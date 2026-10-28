@@ -245,7 +245,8 @@ test('the draft: a swap lands behind Undo, and her photograph is added from the 
   // L10: the swap lands at once; Undo (6 s) puts the rack back.
   await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Dark straight jean' }).click();
-  await expect(page.getByText('Dark straight jean is on the look.')).toBeVisible();
+  // The toast's text is also echoed in its screen-reader live region: check the first (visible) one.
+  await expect(page.getByText('Dark straight jean is on the look.').first()).toBeVisible();
   await expect.poll(pieces).toEqual([ids[1]]);
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(pieces).toEqual([ids[0]]);

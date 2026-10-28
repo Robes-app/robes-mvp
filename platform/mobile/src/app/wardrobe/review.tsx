@@ -1,4 +1,3 @@
-import { wardrobe } from '@robes/copy';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StackScreen } from '@/components/StackScreen';
@@ -17,7 +16,8 @@ export default function ReviewRoute() {
   const [shots] = useState(() => parseShots(params.shots));
   const from = params.from === 'camera' || params.from === 'roll' ? params.from : null;
   return (
-    <StackScreen title={wardrobe.add.review.eyebrow}>
+    // No header title: Review's own serif title says where she is (one header, as beta's × row).
+    <StackScreen close>
       <Review
         to={destinationOf(params.to)}
         from={from}

@@ -108,10 +108,16 @@ test('several pieces from one photo, reviewed one at a time (design "Add Piece")
 
   await page.goto('/wardrobe/add');
   await expect(page.getByRole('heading', { name: 'Add pieces' })).toBeVisible();
+  const back = page.getByRole('main').getByRole('link', { name: 'Wardrobe', exact: true });
+  await expect(back).toBeVisible();
   await choosePhoto(page, 'Camera roll');
   await expect(page.getByRole('heading', { name: 'Here’s what Robes saw.' })).toBeVisible({
     timeout: 30_000,
   });
+  // One header: the title and × beside it — no "Review" eyebrow, no back pill above it.
+  await expect(page.getByText('Review', { exact: true })).toHaveCount(0);
+  await expect(back).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
   // Three pieces read: a strip of them, the first on the screen.
   await expect(
     page.getByRole('navigation', { name: 'Pieces to review' }).getByRole('button'),
