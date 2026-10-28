@@ -6,7 +6,7 @@ import type { Piece } from './wardrobe';
 // with how each is worn and a draft's working notes. Shared so web and native map it the same.
 
 export function pieceRow(
-  piece: Pick<Piece, 'id' | 'label' | 'category' | 'brand'>,
+  piece: Pick<Piece, 'id' | 'label' | 'category' | 'categoryL2' | 'brand'>,
   role: LookRole | null,
 ): RackRow {
   return {
@@ -14,6 +14,7 @@ export function pieceRow(
     pieceId: piece.id,
     name: piece.label,
     category: piece.category,
+    categoryL2: piece.categoryL2,
     brand: piece.brand,
     role,
     proposal: null,

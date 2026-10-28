@@ -112,6 +112,7 @@ export function useLookEditor(look: Look) {
             pieceId: piece.id,
             name: piece.label,
             category: piece.category,
+            categoryL2: piece.categoryL2,
             brand: piece.brand,
           },
         },

@@ -24,8 +24,12 @@ export interface CardStatus {
   error?: boolean;
 }
 
+// The card's lines, composed by every piece row (the wardrobe, the look's rack; web twin
+// cardLines in app/src/components/wardrobe/piece-card.tsx).
+type LinePiece = Pick<CardPiece, 'label' | 'category' | 'categoryL2' | 'brand'>;
+
 // "BOTTOMS · M&S" in one quiet tone: rose is kept for Robes' hand and "Never worn" (beta).
-function Eyebrow({ piece }: { piece: CardPiece }) {
+export function Eyebrow({ piece }: { piece: LinePiece }) {
   const eye = pieceEyebrow(piece);
   return (
     <Text
@@ -38,7 +42,7 @@ function Eyebrow({ piece }: { piece: CardPiece }) {
   );
 }
 
-function Name({ piece }: { piece: CardPiece }) {
+export function Name({ piece }: { piece: LinePiece }) {
   return (
     <Text
       numberOfLines={2}
@@ -50,7 +54,7 @@ function Name({ piece }: { piece: CardPiece }) {
   );
 }
 
-function Status({ status }: { status: CardStatus }) {
+export function Status({ status }: { status: CardStatus }) {
   const danger = useColor('danger');
   if (status.error) {
     return (
