@@ -22,6 +22,7 @@ import {
   orderRack,
   pickerOrder,
   pieceNoun,
+  pinnedFor,
   type RackRow,
   type RackState,
   rackSignature,
@@ -328,6 +329,20 @@ describe('lookFacts', () => {
       around: null,
     });
     expect(lookFacts({ timesWorn: 1, lastWornOn: null }, 1).lastWorn).toBeNull();
+  });
+});
+
+describe('pinnedFor', () => {
+  it('names the first day from her today on, the month from the table', () => {
+    expect(pinnedFor(['2026-09-29', '2026-10-01', '2026-09-27'], '2026-09-28')).toBe(
+      'Tuesday 29 Sep',
+    );
+    expect(pinnedFor(['2026-09-28'], '2026-09-28')).toBe('Monday 28 Sep');
+  });
+
+  it('says nothing once every pinned day has gone by', () => {
+    expect(pinnedFor(['2026-09-27'], '2026-09-28')).toBeNull();
+    expect(pinnedFor([], '2026-09-28')).toBeNull();
   });
 });
 

@@ -92,13 +92,15 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
   };
 }
 
-export function useSaveLook(onSaved?: (look: Look) => void) {
+// `from` picks beta's toast: a suggestion saved as it stands, or a look she worked on, by name.
+export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 'draft' = 'draft') {
   const toast = useToast();
   const refresh = useRefreshLooks();
   return useApiMutation('looks.save', {
     onSuccess: (look) => {
       refresh(look);
       onSaved?.(look);
+      toast({ message: from === 'suggested' ? copy.saved : copy.savedAs(look.name) });
     },
     onError: (err) => toast({ message: errorCopy(err) }),
   });

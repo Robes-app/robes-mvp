@@ -86,13 +86,16 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
   };
 }
 
-export function useSaveLook(onSaved?: (look: Look) => void) {
+// `from` picks beta's toast: a suggestion saved as it stands, or a look she worked on, by name.
+// The web twin is app/src/lib/look-states.ts.
+export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 'draft' = 'draft') {
   const toast = useToast();
   const refresh = useInvalidateLooks();
   return useApiMutation('looks.save', {
     onSuccess: (look) => {
       refresh(look);
       onSaved?.(look);
+      toast.show({ message: from === 'suggested' ? copy.saved : copy.savedAs(look.name) });
       // Push is asked for after her first saved look, never on launch (7-day brief).
       void askForPushOnce(appApi).catch(() => undefined);
     },

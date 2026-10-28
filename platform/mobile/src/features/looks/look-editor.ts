@@ -11,7 +11,7 @@ import {
 import { errors, lookbook, ui } from '@robes/copy';
 import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui-native';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { isDraftsFull, useInvalidateLooks, useRedress, useRequestFrame } from './look-states';
 import type { RowMark } from './RackRow';
@@ -29,6 +29,9 @@ export function useLookEditor(look: Look) {
   const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
   const [dirty, setDirty] = useState(false);
+  // The rack as it stands now, for an Undo that fires after later renders.
+  const current = useRef(rack);
+  current.current = rack;
   const original = useMemo(() => new Set(rackFromLook(look).rows.map((r) => r.key)), [look]);
   // A fresh look from the server replaces the local rack unless she has unsaved edits.
   const [seen, setSeen] = useState(look.updatedAt);
@@ -142,7 +145,29 @@ export function useLookEditor(look: Look) {
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
-    swap: (key: string, piece: Piece) => change(swapped(key, piece)),
+    // A saved look's swap lands at once while she edits (legacy L5), behind a 6 s Undo that puts
+    // the rack back — unless she has changed it again since.
+    swap: (key: string, piece: Piece) => {
+      const next = swapped(key, piece);
+      if (live) {
+        change(next);
+        return;
+      }
+      const before = rack;
+      const wasDirty = dirty;
+      change(next);
+      toast.show({
+        message: lookbook.swap.swapped(piece.label),
+        action: {
+          label: ui.undo,
+          onPress: () => {
+            if (current.current !== next) return;
+            setRack(before);
+            setDirty(wasDirty);
+          },
+        },
+      });
+    },
     // ↻ on a suggested look (legacy 0.1): the swap lands on the suggestion at once, which stays
     // suggested, behind a quiet Undo that puts the rack back.
     swapKeep: (key: string, piece: Piece) => {
@@ -217,6 +242,7 @@ export function useLookEditor(look: Look) {
         .then(() => {
           setDirty(false);
           setEditing(false);
+          toast.show({ message: lookbook.updated });
         })
         .catch(() => undefined),
     discard: () => {

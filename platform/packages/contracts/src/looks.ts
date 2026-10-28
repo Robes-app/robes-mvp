@@ -201,6 +201,9 @@ export const Look = z.object({
   dateHint: wornOn.nullable(),
   timesWorn: z.number().int().min(0),
   lastWornOn: wornOn.nullable(),
+  // The days it is pinned on from yesterday on, earliest first; the client keeps her today on.
+  // Defaulted so a phone build ahead of the server still parses an older response.
+  pinnedOn: z.array(wornOn).default([]),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });

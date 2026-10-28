@@ -200,6 +200,8 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.saveToLookbook }));
   // The diary opens every time as beta's month, the day her words named already picked.
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
+  // Beta's toast for a suggestion kept as it stands.
+  expect(await screen.findByText(lookbook.saved)).toBeTruthy();
   expect(calls.find((c) => c.path.endsWith('/save'))?.body).toEqual({});
   await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.put }));
   await waitFor(() =>

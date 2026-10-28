@@ -3,7 +3,7 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { looks as looksCopy } from '@robes/copy';
-import { dayMonth, longDate } from '@robes/core/calendar';
+import { longDate, weekdayDayMonth } from '@robes/core/calendar';
 import { wearDiff } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { Button, ErrorText, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
@@ -80,7 +80,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
                   className="flex min-w-0 flex-1 items-center gap-3 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                 >
                   <Text size="small" className="shrink-0">
-                    {dayMonth(wear.wornOn)}
+                    {weekdayDayMonth(wear.wornOn)}
                   </Text>
                   <Text size="caption" tone="faint" italic className="min-w-0 flex-1 truncate">
                     {diff.differs ? copy.diff(diff.instead, diff.without) : copy.asSaved}

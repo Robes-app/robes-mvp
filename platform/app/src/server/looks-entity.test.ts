@@ -11,7 +11,11 @@ const NOW = Date.parse('2026-10-15T12:00:00Z');
 
 const assets = new Map<string, { id: string; status: 'pending' | 'ready' | 'failed' }>();
 const repos = {
-  looks: { piecesFor: vi.fn(async () => []), wearStats: vi.fn(async () => []) },
+  looks: {
+    piecesFor: vi.fn(async () => []),
+    wearStats: vi.fn(async () => []),
+    pinnedDays: vi.fn(async (): Promise<{ lookId: string | null; dayDate: string }[]> => []),
+  },
   assets: {
     getManyForUser: vi.fn(async (_u: unknown, ids: string[]) =>
       ids.flatMap((id) => (assets.has(id) ? [assets.get(id)] : [])),
@@ -134,5 +138,19 @@ describe('the record: her photograph or her model', () => {
     assets.set(FRAME, { id: FRAME, status: 'ready' });
     const [look] = await toLooks(USER, [row({ frameAssetId: FRAME, recordImage: 'photo' })], NOW);
     expect(look).toMatchObject({ photo: null, image: { assetId: FRAME } });
+  });
+});
+
+describe('the days a look is pinned on', () => {
+  it('lists each day once, earliest first, and none for a look on no day', async () => {
+    repos.looks.pinnedDays.mockResolvedValueOnce([
+      { lookId: LOOK, dayDate: '2026-10-20' },
+      { lookId: LOOK, dayDate: '2026-10-20' },
+      { lookId: LOOK, dayDate: '2026-10-22' },
+    ]);
+    const [look] = await toLooks(USER, [row({ status: 'saved' })], NOW);
+    expect(look?.pinnedOn).toEqual(['2026-10-20', '2026-10-22']);
+    const [none] = await toLooks(USER, [row({ status: 'saved' })], NOW);
+    expect(none?.pinnedOn).toEqual([]);
   });
 });

@@ -65,6 +65,17 @@ describe('next line counts', () => {
   });
 });
 
+describe('a saved look’s meta line', () => {
+  it('ends on the next day it is pinned for, when it has one (beta)', async () => {
+    const { lookbook } = await import('./index');
+    const facts = { pieces: 3, timesWorn: 2, lastWorn: '23 Jul', around: null };
+    expect(lookbook.meta.saved({ ...facts, pinnedFor: 'Tuesday 29 Sep' })).toBe(
+      '3 pieces · 2 wears · last 23 Jul · pinned for Tuesday 29 Sep',
+    );
+    expect(lookbook.meta.saved(facts)).toBe('3 pieces · 2 wears · last 23 Jul');
+  });
+});
+
 describe('the day’s advice', () => {
   it('reads the condition first, then the high', async () => {
     const { plan } = await import('./index');

@@ -16,6 +16,7 @@ export function RackRowCard({
   image,
   mark,
   styled,
+  wears,
   onOpen,
   onSwap,
   onWish,
@@ -25,6 +26,8 @@ export function RackRowCard({
   image?: PieceImage | null;
   mark?: RowMark | null;
   styled?: string | null;
+  // The piece's own wear count, on a saved look at rest (beta's ledger, L19).
+  wears?: number;
   onOpen?: () => void;
   onSwap?: () => void;
   onWish?: () => void;
@@ -88,6 +91,11 @@ export function RackRowCard({
             style={{ fontSize: 9.5, letterSpacing: 1.7, color: rose }}
           >
             {copy.rack.roles[row.role]}
+          </Text>
+        ) : null}
+        {wears !== undefined ? (
+          <Text size="caption" tone="faint">
+            {copy.meta.wears(wears)}
           </Text>
         ) : null}
         {ctx.length ? (

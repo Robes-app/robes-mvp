@@ -1,7 +1,7 @@
 // Looks: one entity in three states (docs/look-states-brief.md) and the rack the look prompt edits
 // (docs/look-prompt-brief.md). Pure, shared by the API, the workers and both clients.
 
-import { dayMonth } from '../calendar';
+import { dayMonth, lookDateName } from '../calendar';
 
 export * from './draft';
 
@@ -81,6 +81,13 @@ export function lookFacts(
     lastWorn: look.timesWorn && look.lastWornOn ? dayMonth(look.lastWornOn) : null,
     around: around || null,
   };
+}
+
+// "Wednesday 28 Oct": the first day she has the look pinned on from her today, as the saved
+// look's meta line names it (beta's "pinned for …").
+export function pinnedFor(pinnedOn: readonly string[], today: string): string | null {
+  const next = [...pinnedOn].sort().find((d) => d >= today);
+  return next ? lookDateName(next) : null;
 }
 
 // ── The rack ────────────────────────────────────────────────────────────
