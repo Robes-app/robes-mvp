@@ -38,6 +38,8 @@ jobs:
       ROBES_STAGING_BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
       ROBES_STAGING_BUDGETS: ${{ vars.BUDGETS }}
       ROBES_STAGING_GENERATE_RESERVED_CONCURRENCY: ${{ vars.GENERATE_RESERVED_CONCURRENCY }}
+      # Read by the workers at synth (config/staging.ts posthog.key); unset, a deploy drops it.
+      ROBES_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/platform-setup
