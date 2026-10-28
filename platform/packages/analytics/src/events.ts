@@ -13,9 +13,10 @@ const none = z.object({}).strict();
 const count = z.number().int().min(0);
 const status = z.enum(LOOK_STATUSES);
 const category = z.enum(LEGACY_CATEGORIES);
-// Where a look prompt or a box sits: a look in each state, a day page, home, a piece page.
+// Where a look prompt sits (a look in each state, a day page), and where a new-look box sits:
+// home, or the create box (the Lookbook, Create, a piece page).
 const askSurface = z.enum(['suggested', 'draft', 'saved', 'day']);
-const boxSurface = z.enum(['home', 'piece']);
+const boxSurface = z.enum(['home', 'create']);
 const askIntent = z.enum(['swap', 'back', 'rule', 'styled', 'clarify', 'draft', 'none']);
 
 export const EVENTS = {
@@ -97,7 +98,7 @@ export const EVENTS = {
   // The look prompt folds (×), after `turns` asks.
   look_prompt_closed: z.object({ surface: askSurface, turns: count }).strict(),
 
-  // The box (home or a piece page): a new look is asked for, and whether the ask was accepted.
+  // The new-look box: a look is asked for (a piece, or her words), and whether the ask was taken.
   prompt_submitted: z
     .object({
       surface: boxSurface,

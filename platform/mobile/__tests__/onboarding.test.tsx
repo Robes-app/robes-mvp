@@ -5,6 +5,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import NameScreen from '../src/app/onboarding/index';
 import FirstPiece from '../src/app/onboarding/piece';
+import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, JOB_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
@@ -40,6 +41,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.useRealTimers();
 });
+// Call sites report through the consent-gated client (observability.test.ts proves the gate).
+const track = jest.spyOn(nativeAnalytics, 'track');
 
 test('the splash hands to the name, which saves and moves to the first piece', async () => {
   const calls = mockFetch({
@@ -53,6 +56,10 @@ test('the splash hands to the name, which saves and moves to the first piece', a
   await fireEvent.press(screen.getByRole('button', { name: copy.name.continue }));
   await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/piece'));
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ firstName: 'Niall' });
+  expect(track.mock.calls).toEqual([
+    ['onboarding_step', { step: 'name', outcome: 'shown' }],
+    ['onboarding_step', { step: 'name', outcome: 'answered' }],
+  ]);
 });
 
 test('the first piece is photographed, read into the ledger, styled three ways onto the deck; a retry reuses the job', async () => {
@@ -220,4 +227,8 @@ test('Skip takes two taps, then home with the cache already onboarded', async ()
   });
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/'));
   expect(queryClient.getQueryData<Me>(queryKeys.call('me.get'))?.onboarded).toBe(true);
+  expect(track.mock.calls).toEqual([
+    ['onboarding_step', { step: 'piece', outcome: 'shown' }],
+    ['onboarding_step', { step: 'piece', outcome: 'skipped' }],
+  ]);
 });

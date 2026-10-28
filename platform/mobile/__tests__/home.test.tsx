@@ -3,6 +3,7 @@ import { home as copy, lookbook, today as todayCopy, twin } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { HomeView } from '../src/features/home/HomeView';
 import { dayLabel } from '../src/features/plan/plan';
+import { nativeAnalytics } from '../src/lib/analytics';
 import { mockFetch, renderWithApi } from './support/api';
 import { JOB_ID, LOOK_ID, look, NOTICE_ID, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
@@ -11,6 +12,8 @@ jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouter
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
 beforeEach(() => jest.clearAllMocks());
+// Call sites report through the consent-gated client (observability.test.ts proves the gate).
+const track = jest.spyOn(nativeAnalytics, 'track');
 
 const DATE = '2026-10-01';
 const DECK = { pathname: '/looks/job/[jobId]', params: { jobId: JOB_ID, from: 'home' } };
@@ -111,6 +114,13 @@ test('an open map row expands its step; a done one opens its page', async () => 
   });
   await fireEvent.press(screen.getByTestId('home-map-O1'));
   expect(mockRouter.push).toHaveBeenCalledWith('/you/style');
+  expect(track.mock.calls).toEqual([
+    ['home_module_view', { id: 'O2' }],
+    ['home_row_tapped', { step: 'O4', done: false }],
+    ['home_module_view', { id: 'O4' }],
+    ['first_look_started', { piece_id: PIECE_ID }],
+    ['home_row_tapped', { step: 'O1', done: true }],
+  ]);
 });
 
 test('activated: the strip selects a day; Dress {weekday} puts the box on the date → the deck', async () => {

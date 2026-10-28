@@ -88,7 +88,7 @@ export const HomeBox = forwardRef<
   const [error, setError] = useState<string | null>(null);
   // Her ask, held while the box asks where its pieces come from.
   const [held, setHeld] = useState<string | null>(null);
-  const surface = fromHome ? 'home' : 'piece';
+  const surface = fromHome ? 'home' : 'create';
   const { filing, file, reset } = usePhotoFiling();
   useImperativeHandle(ref, () => ({ focus: () => input.current?.focus() }));
 

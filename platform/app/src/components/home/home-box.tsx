@@ -80,7 +80,7 @@ export function HomeBox({
   // Her ask, held while the box asks where its pieces come from.
   const [held, setHeld] = useState<string | null>(null);
   const { track } = useAnalytics().analytics;
-  const surface = fromHome ? 'home' : 'piece';
+  const surface = fromHome ? 'home' : 'create';
   const { filing, file, reset } = usePhotoFiling();
 
   useEffect(() => {
