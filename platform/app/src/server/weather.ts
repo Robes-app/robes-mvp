@@ -1,6 +1,7 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
 import type { TodayWeather } from '@robes/contracts';
+import { monthLong } from '@robes/core/calendar';
 import type { UserId } from '@robes/db';
 import { createLiveWeather, createWeather } from '@robes/jobs';
 import { repos } from './db';
@@ -36,7 +37,7 @@ export async function loadTodayWeather(
     weatherFor({
       ...place,
       date,
-      month: new Date(`${date}T12:00:00Z`).toLocaleString('en-GB', { month: 'long' }),
+      month: monthLong(date),
     }),
     date === today ? liveFor(place) : null,
   ]);
