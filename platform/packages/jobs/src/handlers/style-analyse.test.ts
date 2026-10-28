@@ -48,10 +48,20 @@ function setup(opts: { photoKind?: string; statuses?: string[]; colour?: object 
       writeStage,
       isCancelled: async () => false,
     });
-  return { run, profiles, ledger, writeStage, storage };
+  return { run, profiles, ledger, writeStage, storage, generateJson: vi.spyOn(ai, 'generateJson') };
 }
 
 describe('stylenotes_analyse handler', () => {
+  it('reads deliberately: the reasoning model, room to think, her photo at full detail', async () => {
+    const { run, generateJson } = setup();
+    await run('colour');
+    expect(generateJson.mock.calls[0]?.[0]).toMatchObject({
+      capability: 'text.reasoning',
+      deliberate: true,
+      maxOutputTokens: 8192,
+    });
+  });
+
   it('reads colouring from the headshot master and saves the composed profile', async () => {
     const { run, profiles, ledger, storage, writeStage } = setup({
       statuses: ['pending', 'ready'],
