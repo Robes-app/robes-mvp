@@ -299,7 +299,7 @@ export function HomeBox({
       data-testid="home-box"
     >
       {open ? (
-        <div className="relative flex flex-col gap-3 rounded-[24px] border border-selected-line bg-surface-raised p-3 shadow-[0_6px_20px_color-mix(in_srgb,var(--color-ink)_6%,transparent)]">
+        <div className="relative flex flex-col gap-3 rounded-[24px] border border-selected-line bg-surface-raised p-3 has-[textarea:focus-visible]:border-ink shadow-[0_6px_20px_color-mix(in_srgb,var(--color-ink)_6%,transparent)]">
           {attached ? (
             <div
               className="flex items-center gap-3 rounded-soft border border-hairline bg-bg p-2"

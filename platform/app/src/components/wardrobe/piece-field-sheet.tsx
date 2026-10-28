@@ -568,7 +568,7 @@ function WearForPicker({
                 onBlur={() => {
                   if (!draft.trim()) setAdding(false);
                 }}
-                className="min-h-11 w-40 rounded-pill border border-border-control bg-surface-raised px-4 font-sans text-base text-ink focus-visible:border-ink focus-visible:outline-none sm:text-sm"
+                className="min-h-11 w-40 rounded-pill border border-border-control bg-surface-raised px-4 font-sans text-base text-ink focus-visible:border-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ink focus-visible:ring-inset sm:text-sm"
               />
             </form>
           ) : (
