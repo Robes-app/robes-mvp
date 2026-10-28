@@ -1036,6 +1036,8 @@ export const you = {
     failed: 'Robes couldn’t draw your model just now. Change a pick to try again.',
     imageAlt: 'Your model',
     dressing: 'Dressing your model…',
+    // A render that failed says so, with the way back (never a stale picture passed off as new).
+    undressed: 'Couldn’t dress your model · Try again',
   },
 } as const;
 

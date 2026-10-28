@@ -210,11 +210,23 @@ function useDress(look: Look, enabled: boolean) {
     }, DRESS_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [api, queryClient, enabled, key, asked, look.id]);
-  return (
+  const dressing =
     enabled &&
     key !== '' &&
-    (look.onModel === 'pending' || (key !== asked && key !== settled.current))
-  );
+    (look.onModel === 'pending' || (key !== asked && key !== settled.current));
+  // A render that failed is said, with a retry — never a blank frame (web twin composer.tsx).
+  const failed = enabled && key !== '' && !dressing && look.onModel === 'failed';
+  const retry = () => {
+    void api
+      .call('looks.renderOnModel', { params: { id: look.id } })
+      .then(() =>
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.call('looks.get', { params: { id: look.id } }),
+        }),
+      )
+      .catch(() => undefined);
+  };
+  return { dressing, failed, retry };
 }
 
 function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) => void }) {
@@ -228,7 +240,11 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
   const [asking, setAsking] = useState(false);
   const rows = editor.rack.rows;
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
-  const dressing = useDress(look, Boolean(model.data) && look.pieces.length > 0);
+  const {
+    dressing,
+    failed: undressed,
+    retry,
+  } = useDress(look, Boolean(model.data) && look.pieces.length > 0);
   const typed = name.trim() && name.trim() !== look.name ? name.trim() : undefined;
 
   const pick = (piece: Piece, how: Opened) => {
@@ -247,7 +263,7 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
   const own = look.photo !== null && look.record === 'photo';
   const rendered = own
     ? look
-    : look.onModel && look.model && look.pieces.length > 0
+    : look.onModel && look.model?.status === 'ready' && look.pieces.length > 0
       ? { ...look, image: look.model }
       : null;
 
@@ -276,6 +292,9 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
             }
             onHotspot={(slot) => setOpened({ slot })}
             photo={herPhoto}
+            {...(undressed && !own
+              ? { undressed: { label: copy.figure.undressed(pronoun(model.data)), onRetry: retry } }
+              : {})}
           />
           {herPhoto.sheet}
           {herPhoto.hasPhoto ? (
@@ -460,6 +479,7 @@ function ModelCanvas({
   disabled = false,
   onHotspot,
   photo,
+  undressed,
 }: {
   model: Model | undefined;
   pending: boolean;
@@ -470,6 +490,7 @@ function ModelCanvas({
   disabled?: boolean;
   onHotspot: (slot: HotspotSlot) => void;
   photo?: { hasPhoto: boolean; label: string; busy: boolean; pick: () => void };
+  undressed?: { label: string; onRetry: () => void };
 }) {
   const control = useColor('border-control');
   const stand = model?.stand?.imageUrl ?? (model?.filed ? model.cell.imageUrl : null);
@@ -525,6 +546,17 @@ function ModelCanvas({
               {chip}
             </Text>
           </View>
+        </View>
+      ) : null}
+      {undressed ? (
+        <View className="absolute inset-x-0 items-center" style={{ top: '44%' }}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={undressed.onRetry}
+            className="min-h-11 justify-center rounded-pill border border-hairline bg-bg px-4"
+          >
+            <Text size="caption">{undressed.label}</Text>
+          </Pressable>
         </View>
       ) : null}
       {/* No model of her own yet: the generic one stands in, and the badge is the door. */}

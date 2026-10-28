@@ -140,6 +140,15 @@ export function LookHero({
               {you.model.dressing}
             </Text>
           </View>
+        ) : look.onModel === 'failed' && canDress && look.record !== 'photo' ? (
+          // The rack changed and the re-draw failed: say so (web twin look-hero.tsx).
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => dress.mutate({ params: { id: look.id } })}
+            className="absolute top-3 left-3 min-h-11 justify-center rounded-pill border border-hairline bg-bg px-3"
+          >
+            <Text size="caption">{you.model.undressed}</Text>
+          </Pressable>
         ) : null}
         <View className="absolute bottom-3 left-3 rounded-pill bg-bg">
           <IconButton icon="plan" label={lookbook.card.diary} onPress={onDiary} />

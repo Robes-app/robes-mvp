@@ -1,4 +1,4 @@
-import { lookbook, looks, ui } from '@robes/copy';
+import { lookbook, looks, ui, you } from '@robes/copy';
 import { longDate, lookDateName, monthOf, shiftMonth } from '@robes/core/calendar';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
@@ -138,6 +138,41 @@ test('the record logs a day through the same drawer', async () => {
   await fireEvent.press(await screen.findByRole('button', { name: looks.page.wears.addDate }));
   // The same drawer, named for the look — never a second way to log a date.
   expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
+});
+
+test('a re-draw that failed says so on the picture, and Try again asks once more', async () => {
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look({ onModel: 'failed' }),
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /me/model': {
+      filed: false,
+      presence: 'woman',
+      skin: 3,
+      hair: 1,
+      line: null,
+      frame: null,
+      source: 'hand',
+      reads: { colour: false, silhouette: false },
+      cellId: 'w-s3-h1-nt',
+      cell: { status: 'none', imageUrl: null },
+      swatches: { skin: [], hair: [] },
+      skinSet: false,
+      hairSet: false,
+      adj: { shoulders: null, bust: null, hips: null },
+      closeUpUrl: null,
+      twin: { status: 'none', current: false, imageUrl: null },
+      stand: { imageUrl: 'https://m.test/w-s4-h1-nt.png', generic: true },
+    },
+    [`POST /looks/${LOOK_ID}/render`]: {
+      jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'queued',
+    },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: you.model.undressed }));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
+  );
 });
 
 test('a look carries no share door, and no save-as-new (27 Oct)', async () => {

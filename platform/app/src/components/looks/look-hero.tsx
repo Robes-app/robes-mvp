@@ -118,6 +118,15 @@ export function LookHero({
           >
             {you.model.dressing}
           </p>
+        ) : look.onModel === 'failed' && canDress && look.record !== 'photo' ? (
+          // The rack changed and the re-draw failed: say so, never pass the old picture off.
+          <button
+            type="button"
+            onClick={() => dress.mutate({ params: { id: look.id } })}
+            className="absolute top-3 left-3 z-10 min-h-11 rounded-pill border border-hairline bg-bg/90 px-3 font-sans text-ink text-xs focus-visible:outline-2 focus-visible:outline-focus-ring"
+          >
+            {you.model.undressed}
+          </button>
         ) : null}
         <button
           type="button"

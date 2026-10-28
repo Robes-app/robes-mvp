@@ -184,6 +184,51 @@ test('a piece on the draft dresses her model once the rack settles, a top lights
   );
 });
 
+test('a render that failed says so on the canvas, and Try again asks once more', async () => {
+  const calls = mockFetch({
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /me/model': {
+      filed: false,
+      presence: 'woman',
+      skin: 3,
+      hair: 1,
+      line: null,
+      frame: null,
+      source: 'hand',
+      reads: { colour: false, silhouette: false },
+      cellId: 'w-s3-h1-nt',
+      cell: { status: 'none', imageUrl: null },
+      swatches: { skin: [], hair: [] },
+      skinSet: false,
+      hairSet: false,
+      adj: { shoulders: null, bust: null, hips: null },
+      closeUpUrl: null,
+      twin: { status: 'none', current: false, imageUrl: null },
+      stand: { imageUrl: 'https://m.test/w-s4-h1-nt.png', generic: true },
+    },
+    [`POST /looks/${LOOK_ID}/render`]: {
+      jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'queued',
+    },
+  });
+  const draft = look({
+    status: 'draft',
+    onModel: 'failed',
+    pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+  });
+  await renderWithApi(<Composer look={draft} />);
+  const renders = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/render'));
+  const retry = await screen.findByRole(
+    'button',
+    { name: lookbook.figure.undressed('her') },
+    { timeout: 4_000 },
+  );
+  expect(renders()).toHaveLength(1);
+  await fireEvent.press(retry);
+  await waitFor(() => expect(renders()).toHaveLength(2));
+});
+
 test('a swap on the draft lands at once behind Undo, which puts the rack back', async () => {
   const draft = look({ status: 'draft' });
   const calls = mockFetch({

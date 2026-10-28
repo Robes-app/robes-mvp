@@ -183,6 +183,7 @@ export const lookbook = {
     filled: { top: '✓ Top', bottom: '✓ Bottom', shoes: '✓ Shoes' },
     // While the next frame comes the last one stays up, under this chip.
     dressing: (pronoun: string): string => `Dressing ${pronoun}…`,
+    undressed: (pronoun: string): string => `Couldn’t dress ${pronoun} · Try again`,
     reading: 'Reading the piece…',
     prompt: 'Ask Robes about this look',
   },

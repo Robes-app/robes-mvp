@@ -232,11 +232,23 @@ function useDress(look: Look, enabled: boolean) {
     }, DRESS_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [api, queryClient, enabled, key, asked, look.id]);
-  return (
+  const dressing =
     enabled &&
     key !== '' &&
-    (look.onModel === 'pending' || (key !== asked && key !== settled.current))
-  );
+    (look.onModel === 'pending' || (key !== asked && key !== settled.current));
+  // A render that failed is said, with a retry — never a blank frame (staging, 28 Oct).
+  const failed = enabled && key !== '' && !dressing && look.onModel === 'failed';
+  const retry = () => {
+    void api
+      .call('looks.renderOnModel', { params: { id: look.id } })
+      .then(() =>
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.call('looks.get', { params: { id: look.id } }),
+        }),
+      )
+      .catch(() => undefined);
+  };
+  return { dressing, failed, retry };
 }
 
 function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) => void }) {
@@ -252,7 +264,11 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
   const typed = name.trim() && name.trim() !== look.name ? name.trim() : undefined;
   const rows = editor.rack.rows;
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
-  const dressing = useDress(look, Boolean(model.data) && look.pieces.length > 0);
+  const {
+    dressing,
+    failed: undressed,
+    retry,
+  } = useDress(look, Boolean(model.data) && look.pieces.length > 0);
 
   const pick = (piece: Piece, how: Opened) => {
     if ('swap' in how) return editor.swap(how.swap, piece);
@@ -275,7 +291,7 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
   const own = look.photo !== null && look.record === 'photo';
   const rendered = own
     ? look
-    : look.onModel && look.model && look.pieces.length > 0
+    : look.onModel && look.model?.status === 'ready' && look.pieces.length > 0
       ? { ...look, image: look.model }
       : null;
 
@@ -305,6 +321,9 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
             }
             onHotspot={(slot) => setOpened({ slot })}
             photo={herPhoto}
+            {...(undressed && !own && !reading
+              ? { undressed: { label: copy.figure.undressed(pronoun(model.data)), onRetry: retry } }
+              : {})}
           />
           {herPhoto.input}
           {herPhoto.hasPhoto ? (
@@ -504,6 +523,7 @@ function ModelCanvas({
   disabled = false,
   onHotspot,
   photo,
+  undressed,
 }: {
   model: Model | undefined;
   pending: boolean;
@@ -514,6 +534,7 @@ function ModelCanvas({
   disabled?: boolean;
   onHotspot: (slot: HotspotSlot) => void;
   photo?: { hasPhoto: boolean; label: string; busy: boolean; pick: () => void };
+  undressed?: { label: string; onRetry: () => void };
 }) {
   const stand = model?.stand?.imageUrl ?? (model?.filed ? model.cell.imageUrl : null);
   return (
@@ -558,6 +579,15 @@ function ModelCanvas({
         >
           {chip}
         </span>
+      ) : null}
+      {undressed ? (
+        <button
+          type="button"
+          onClick={undressed.onRetry}
+          className={`absolute top-[44%] left-1/2 min-h-11 -translate-x-1/2 rounded-pill border border-hairline bg-bg/90 px-4 font-sans text-ink text-xs backdrop-blur ${focus}`}
+        >
+          {undressed.label}
+        </button>
       ) : null}
       {/* No model of her own yet: the generic one stands in, and the badge is the door. */}
       {own ? null : <GenericModelBadge />}
