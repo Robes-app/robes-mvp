@@ -11,6 +11,15 @@ export async function readPref(key: string): Promise<string | null> {
   }
 }
 
+// The same read, at once: for a pick the first frame must already show (the wardrobe layout).
+export function readPrefNow(key: string): string | null {
+  try {
+    return SecureStore.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 export async function writePref(key: string, value: string): Promise<void> {
   try {
     await SecureStore.setItemAsync(key, value);
