@@ -53,7 +53,7 @@ export function usePushedView(): void {
 }
 
 // A stage of a pushed page that carries its own way out (Add pieces' Review and its ×) takes the
-// back pill out of the top bar while it shows.
+// back pill away (top bar and page head alike) while it shows.
 const HideBackContext = createContext<(on: boolean) => void>(() => {});
 export function useHideBack(hidden: boolean): void {
   const set = useContext(HideBackContext);
@@ -138,14 +138,22 @@ export function AppShell({
         className={`sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur ${pushed && !back ? 'max-md:hidden' : ''}`}
       >
         <div className="mx-auto flex h-11 max-w-5xl items-center gap-2 px-5 md:h-16 md:px-4">
-          {/* A pushed page's back pill stands where the wordmark sits: one header row (beta). */}
+          {/* A pushed page's back pill: below 768 it stands where the wordmark sits, one header row;
+              from 768 the bar keeps the wordmark and the pill heads the page (beta's #rb-backpill and
+              .rb-ret). Both are drawn and CSS picks one, so the server render is final; the other is
+              display:none, out of the accessibility tree. */}
           {back ? (
-            <BackLink href={back.href} label={back.label} />
-          ) : (
-            <Link href="/" aria-label={nav.today} className={`text-ink ${focus}`}>
-              <Wordmark />
-            </Link>
-          )}
+            <div className="md:hidden">
+              <BackLink href={back.href} label={back.label} />
+            </div>
+          ) : null}
+          <Link
+            href="/"
+            aria-label={nav.today}
+            className={`text-ink ${back ? 'max-md:hidden' : ''} ${focus}`}
+          >
+            <Wordmark />
+          </Link>
           <nav aria-label={shell.primaryNav} className="ml-6 hidden items-center gap-1 md:flex">
             {/* Beta's top nav: the wordmark is Home; Lookbook · Diary · Wardrobe sit beside it. */}
             {NAV_ITEMS.filter((item) => item.href !== '/').map((item) => (
@@ -199,6 +207,11 @@ export function AppShell({
         id="main"
         className={`mx-auto w-full max-w-5xl flex-1 px-5 pt-3.5 md:px-4 md:pt-6 md:pb-16 ${inFlow ? 'pb-8' : 'pb-32'}`}
       >
+        {back ? (
+          <div className="mb-4 max-md:hidden">
+            <BackLink href={back.href} label={back.label} />
+          </div>
+        ) : null}
         <PushedContext value={setPushed}>
           <HideBackContext value={setBackHidden}>
             <FeaturesProvider value={features}>{children}</FeaturesProvider>
