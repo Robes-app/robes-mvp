@@ -107,6 +107,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await page.goto('/looks/new');
   // The draft stands on a figure: a slot per part of her, each opening her wardrobe.
   await expect(page.getByLabel('Name this look')).toHaveAttribute('placeholder', 'Untitled Look');
+  // The draft's title is the field: the serif on an underline, never a boxed outline on focus.
+  await page.getByLabel('Name this look').focus();
+  await expect(page.getByLabel('Name this look')).toHaveCSS('outline-style', 'none');
+  await expect(page.getByLabel('Name this look')).toHaveCSS('text-align', 'center');
   for (const slot of ['+ Top', '+ Bottom', '+ Shoes']) {
     await expect(page.getByRole('button', { name: slot })).toBeVisible();
   }

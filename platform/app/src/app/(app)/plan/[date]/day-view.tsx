@@ -11,7 +11,16 @@ import type { PlanEntry } from '@robes/contracts';
 import { plan, wardrobe } from '@robes/copy';
 import { daySummary, longDate, monthLabel } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
-import { ErrorText, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
+import {
+  ErrorText,
+  Eyebrow,
+  Heading,
+  IconButton,
+  InlineTitleField,
+  Skeleton,
+  Text,
+  useToast,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -76,7 +85,7 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
 
   async function commitName(value: string) {
     setNaming(false);
-    const next = value.trim() || null;
+    const next = value || null;
     if ((next ?? '') === words) return;
     // The day keeps its name with or without looks; the looks on it carry it too (server-side).
     await rename.mutateAsync({ params: { date }, input: { name: next } }).catch(() => null);
@@ -96,26 +105,19 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
         <Eyebrow>{longDate(date)}</Eyebrow>
         <div className="flex items-center gap-2">
           {naming ? (
-            <input
-              // biome-ignore lint/a11y/noAutofocus: the pencil asked for this field
-              autoFocus
-              aria-label={copy.nameLabel}
-              defaultValue={words}
-              maxLength={120}
+            <InlineTitleField
+              value={words}
+              label={copy.name}
               placeholder={copy.name}
-              onBlur={(e) => void commitName(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur();
-                if (e.key === 'Escape') setNaming(false);
-              }}
-              className="min-h-11 w-full max-w-md border-b border-border-control bg-transparent font-display text-3xl text-ink italic placeholder:text-ink-faint focus-visible:border-ink focus-visible:outline-none"
+              size="lg"
+              italic
+              onCommit={(v) => void commitName(v)}
+              onCancel={() => setNaming(false)}
             />
           ) : (
-            <h1
-              className={`font-display text-3xl leading-tight italic ${title ? 'text-ink' : 'text-ink-faint'}`}
-            >
+            <Heading level={1} size="lg" italic tone={title ? 'default' : 'faint'}>
               {title ?? copy.name}
-            </h1>
+            </Heading>
           )}
           {/* Any day can be named, so she can plan a week before adding outfits. */}
           {!naming ? (

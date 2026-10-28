@@ -14,6 +14,7 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorText } from './ErrorText';
 export { Field, type FieldProps } from './Field';
 export { ASPECTS, type Aspect, Image, type ImageProps } from './Image';
+export { InlineTitleField, type InlineTitleFieldProps } from './InlineTitleField';
 export { useReducedMotion } from './motion';
 export { Chip, type ChipProps, Pill, type PillProps } from './Pill';
 export { PreferenceControl, type PreferenceControlProps } from './PreferenceControl';

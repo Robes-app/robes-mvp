@@ -18,6 +18,7 @@ import {
   Dialog,
   Eyebrow,
   IconButton,
+  InlineTitleField,
   SegmentedControl,
   Skeleton,
   useToast,
@@ -285,6 +286,7 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
       onNameDone={() => {
         if (typed) editor.rename(typed);
       }}
+      onNameCancel={() => setName(look.nameProvisional ? '' : look.name)}
       count={rows.length}
       canvas={
         <>
@@ -441,6 +443,7 @@ function DraftLayout({
   name,
   onName,
   onNameDone,
+  onNameCancel,
   count,
   canvas,
   footer,
@@ -451,6 +454,8 @@ function DraftLayout({
   name: string;
   onName: (v: string) => void;
   onNameDone?: () => void;
+  // Escape: back to the name the look had.
+  onNameCancel?: () => void;
   count: number;
   canvas: ReactNode;
   footer: ReactNode;
@@ -462,17 +467,18 @@ function DraftLayout({
         <h1 className="sr-only">{name.trim() || heading}</h1>
         <Eyebrow>{copy.eyebrow.draft}</Eyebrow>
         {/* The title is the name: tap the italic line and write over it. */}
-        <label className="w-full">
-          <span className="sr-only">{copy.name.label}</span>
-          <input
-            value={name}
-            maxLength={120}
-            placeholder={copy.figure.untitled}
-            onChange={(e) => onName(e.target.value)}
-            onBlur={onNameDone}
-            className="w-full border-0 border-transparent border-b bg-transparent text-center font-display font-light text-3xl text-ink italic placeholder:text-ink-faint focus-visible:border-ink focus-visible:outline-none"
-          />
-        </label>
+        <InlineTitleField
+          value={name}
+          label={copy.name.label}
+          placeholder={copy.figure.untitled}
+          size="lg"
+          italic
+          align="center"
+          autoFocus={false}
+          onChange={onName}
+          onCommit={() => onNameDone?.()}
+          onCancel={onNameCancel}
+        />
       </header>
       <figure className="flex flex-col gap-3">
         <Eyebrow>{copy.figure.head(count)}</Eyebrow>

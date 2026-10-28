@@ -10,7 +10,15 @@ import {
 import type { Look } from '@robes/contracts';
 import { lookbook, looks, wardrobe } from '@robes/copy';
 import { isHandBuiltDraft } from '@robes/core/looks';
-import { Button, ErrorText, Field, Heading, IconButton, Skeleton, Text, useToast } from '@robes/ui';
+import {
+  ErrorText,
+  Heading,
+  IconButton,
+  InlineTitleField,
+  Skeleton,
+  Text,
+  useToast,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -146,46 +154,34 @@ function LookName({
   meta: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(look.name);
+  // Her name in place of the title; empty or unchanged keeps the name it had (a look is named).
   // The page shows the saved name once the update lands; errors surface as a toast.
   const save = (next: string) => {
-    update.mutate({ params: { id: look.id }, input: { name: next } });
     setEditing(false);
+    if (next !== look.name) update.mutate({ params: { id: look.id }, input: { name: next } });
   };
-
-  if (editing) {
-    return (
-      <form
-        className="flex flex-wrap items-end gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (name.trim()) save(name.trim());
-        }}
-      >
-        <Field
-          label={copy.nameLabel}
-          value={name}
-          maxLength={120}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Button type="submit" variant="secondary" loading={update.isPending}>
-          {copy.saveName}
-        </Button>
-        <Button type="button" variant="quiet" onClick={() => setEditing(false)}>
-          {copy.cancel}
-        </Button>
-      </form>
-    );
-  }
   // The eyebrow is over the picture; no "Robes’ suggestion · Keep this name" — the pencil is how
   // she renames (27 Oct). The name and its one line of facts sit close together.
   return (
     <header className="flex flex-col gap-1">
       <div className="flex items-start gap-2">
-        <Heading level={1} size="xl" className="min-w-0 flex-1">
-          {look.name}
-        </Heading>
-        <IconButton icon="pencil" label={copy.rename} onClick={() => setEditing(true)} />
+        {editing ? (
+          <InlineTitleField
+            value={look.name}
+            label={looks.look.nameLabel}
+            size="xl"
+            required
+            onCommit={save}
+            onCancel={() => setEditing(false)}
+          />
+        ) : (
+          <>
+            <Heading level={1} size="xl" className="min-w-0 flex-1">
+              {look.name}
+            </Heading>
+            <IconButton icon="pencil" label={copy.rename} onClick={() => setEditing(true)} />
+          </>
+        )}
       </div>
       <Text size="small" tone="muted">
         {meta}

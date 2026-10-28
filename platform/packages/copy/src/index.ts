@@ -784,9 +784,6 @@ export const looks = {
   page: {
     eyebrow: 'Look',
     rename: 'Rename',
-    nameLabel: 'Name',
-    saveName: 'Save name',
-    cancel: 'Cancel',
     note: 'Notes',
     pieces: 'Pieces',
     dayLabel: 'Day',
@@ -859,7 +856,6 @@ export const looks = {
     pieces: 'Pieces',
     imageAlt: (name: string): string => `The look: ${name}`,
     nameLabel: 'Name this look',
-    saveName: 'Save name',
   },
 } as const;
 
@@ -1099,7 +1095,6 @@ export const plan = {
     back: (label: string): string => label,
     rename: 'Rename the day',
     name: 'Name the day',
-    nameLabel: 'The day’s name',
     planned: 'Looks planned',
     filed: 'Looks filed',
     filedToday: 'Looks filed today',

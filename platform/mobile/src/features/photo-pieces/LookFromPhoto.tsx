@@ -7,10 +7,10 @@ import {
   Button,
   ErrorText,
   Eyebrow,
-  Field,
   Heading,
   IconButton,
   Image,
+  InlineTitleField,
   Pill,
   PrimaryScope,
   Sheet,
@@ -162,13 +162,16 @@ export function LookFromPhoto() {
       <ScrollView contentContainerClassName="gap-5 px-6 pb-32">
         <View className="items-center gap-2">
           <Eyebrow>{lookbook.eyebrow.draft}</Eyebrow>
-          <Field
-            variant="underline"
+          {/* The draft's masthead, as in the composer; the name rides with Save. */}
+          <InlineTitleField
+            value={name}
             label={lookbook.name.label}
             placeholder={lookbook.figure.untitled}
-            value={name}
-            onChangeText={setName}
-            maxLength={120}
+            size={30}
+            italic
+            align="center"
+            autoFocus={false}
+            onChange={setName}
           />
         </View>
         <Eyebrow>{reading ? copy.headReading : copy.head(onRack.length)}</Eyebrow>

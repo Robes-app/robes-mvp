@@ -3,7 +3,7 @@
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import { anchorName, lookFacts, noteShort, pinnedFor } from '@robes/core/looks';
-import { Button, Dialog, Eyebrow, Field, Heading, Text } from '@robes/ui';
+import { Button, Dialog, Eyebrow, Heading, InlineTitleField, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useLookEditor } from '@/lib/look-editor';
@@ -179,15 +179,18 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
               {look.name}
             </Heading>
           ) : (
-            <Field
+            // The title is the name, as in the composer: tap it and write over it.
+            <InlineTitleField
+              value={name}
               label={copy.name.label}
               placeholder={look.name || copy.name.placeholder}
-              value={name}
-              maxLength={120}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => {
+              size="xl"
+              autoFocus={false}
+              onChange={setName}
+              onCommit={() => {
                 if (typed) editor.rename(typed);
               }}
+              onCancel={() => setName(look.nameProvisional ? '' : look.name)}
             />
           )}
           <Text size="small" tone="muted">
