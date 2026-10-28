@@ -16,7 +16,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 import { BackLink } from '@/components/back-link';
+import { useHerPhoto } from '@/components/looks/her-photo';
 import { LookTile } from '@/components/looks/look-tile';
+import { OnPhoto } from '@/components/looks/look-tiles';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { LookPicker } from '../look-picker';
@@ -150,30 +152,18 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
         <ErrorText>{errorCopy(query.error)}</ErrorText>
       ) : !query.data ? (
         <div aria-busy className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <Skeleton className="aspect-[4/5]" />
-          <Skeleton className="aspect-[4/5]" />
+          <Skeleton className="aspect-[3/4]" />
+          <Skeleton className="aspect-[3/4]" />
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {entries.map((entry, i) => (
             <li key={entry.id} className="flex">
-              <LookTile
-                look={entry.look}
-                href={`/look/${entry.look.id}`}
-                sizes="(min-width: 768px) 30vw, 50vw"
-                aspect="3:4"
-                eyebrow={copy.lookEyebrow(i + 1)}
-                badge={entry.worn ? copy.worn : null}
-                meta={plan.list.pieces(entry.look.pieces.length)}
-                className="flex-1"
-                corner={
-                  <IconButton
-                    icon="close"
-                    label={copy.remove(entry.look.name)}
-                    onClick={() => unpin.mutate({ params: { id: entry.id } })}
-                    className="bg-bg/90"
-                  />
-                }
+              <DayLook
+                entry={entry}
+                n={i + 1}
+                onLanded={refresh}
+                onRemove={() => unpin.mutate({ params: { id: entry.id } })}
               />
             </li>
           ))}
@@ -234,5 +224,59 @@ export function DayView({ date, from }: { date: string; from: 'plan' | 'today' }
         </Link>
       ) : null}
     </article>
+  );
+}
+
+// A look on the day: ✕ takes it off the day; the camera on the photograph adds her photograph of
+// it (beta's day card), kept on the LOOK — ↻ replaces it while her photograph is the record.
+// Native twin: mobile/src/features/plan/DayView.tsx LookCard.
+function DayLook({
+  entry,
+  n,
+  onLanded,
+  onRemove,
+}: {
+  entry: PlanEntry;
+  n: number;
+  onLanded: () => void;
+  onRemove: () => void;
+}) {
+  const photo = useHerPhoto(entry.look, onLanded);
+  const camera = !photo.hasPhoto || entry.look.record === 'photo';
+  return (
+    <>
+      <LookTile
+        look={entry.look}
+        href={`/look/${entry.look.id}`}
+        sizes="(min-width: 768px) 30vw, 50vw"
+        aspect="3:4"
+        eyebrow={copy.lookEyebrow(n)}
+        badge={entry.worn ? copy.worn : null}
+        meta={plan.list.pieces(entry.look.pieces.length)}
+        className="flex-1"
+        onImage={
+          camera ? (
+            <div className="absolute right-2 bottom-2">
+              <OnPhoto
+                icon={photo.hasPhoto ? 'swap' : 'camera'}
+                label={photo.label}
+                size={36}
+                disabled={photo.busy}
+                onClick={photo.pick}
+              />
+            </div>
+          ) : null
+        }
+        corner={
+          <IconButton
+            icon="close"
+            label={copy.remove(entry.look.name)}
+            onClick={onRemove}
+            className="bg-bg/90"
+          />
+        }
+      />
+      {photo.input}
+    </>
   );
 }

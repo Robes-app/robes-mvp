@@ -150,7 +150,15 @@ export function useLookEditor(look: Look) {
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
-    swap: (key: string, piece: Piece) => change(swapped(key, piece)),
+    // A swap lands at once behind a 6 s Undo that puts the rack back (beta's swap pill).
+    swap: (key: string, piece: Piece) => {
+      const before = rack;
+      change(swapped(key, piece));
+      toast({
+        message: lookbook.swap.swapped(piece.label),
+        action: { label: wardrobe.undo, onAction: () => change(before) },
+      });
+    },
     // ↻ on a suggested look (legacy 0.1): the swap lands on the suggestion at once, which stays
     // suggested, behind a quiet Undo that puts the rack back.
     swapKeep: (key: string, piece: Piece) => {

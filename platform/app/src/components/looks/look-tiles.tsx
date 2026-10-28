@@ -16,7 +16,7 @@ const focus =
 
 // A control on the photograph: drawn small (32px ✕, 36px calendar — beta's size, not a large
 // white disc) with the hit area reaching out to 44px. The native twin is LookTiles.tsx OnPhoto.
-function OnPhoto({
+export function OnPhoto({
   icon,
   label,
   size,
