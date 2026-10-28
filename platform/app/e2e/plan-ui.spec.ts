@@ -76,6 +76,58 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   await expect(page).toHaveURL(new RegExp(`/plan/${date}$`));
 });
 
+// Focus (28 Oct): the default ring sits in the base layer, so a quiet field's own focus wins (an
+// underline that darkens, no box) while a control with nothing of its own still draws the ring.
+test('a quiet field focuses as an underline; a bare control keeps the ring', async ({ page }) => {
+  await signIn(page);
+  await declineConsent(page);
+  const { date } = await (await page.request.get('/api/v1/today')).json();
+  await page.goto(`/plan/${date}`);
+  await page.getByRole('button', { name: 'Name the day' }).click();
+  const dayName = page.getByRole('textbox', { name: 'Name the day' });
+  await expect(dayName).toBeFocused();
+  const field = await dayName.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return {
+      focusVisible: el.matches(':focus-visible'),
+      boxed: s.outlineStyle !== 'none' && s.outlineWidth !== '0px',
+      underline: s.borderBottomWidth,
+      shadow: s.boxShadow,
+    };
+  });
+  expect(field.focusVisible).toBe(true);
+  expect(field.boxed).toBe(false);
+  expect(field.underline).toBe('1px');
+  expect(field.shadow).not.toBe('none');
+  await dayName.press('Escape');
+
+  // A button with no focus style of its own, reached from the keyboard, takes the default ring.
+  await page.evaluate(() => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = 'Bare';
+    b.id = 'bare-focus-probe';
+    document.body.append(b);
+  });
+  await page.keyboard.press('Shift');
+  const probe = page.locator('#bare-focus-probe');
+  await probe.focus();
+  const bare = await probe.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return {
+      focusVisible: el.matches(':focus-visible'),
+      style: s.outlineStyle,
+      width: s.outlineWidth,
+    };
+  });
+  expect(bare).toEqual({ focusVisible: true, style: 'solid', width: '2px' });
+  // The shared Button keeps its ring too.
+  const named = page.getByRole('button', { name: 'Name the day' });
+  await named.focus();
+  await expect(named).toHaveCSS('outline-style', 'solid');
+  await expect(named).toHaveCSS('outline-width', '2px');
+});
+
 test('the camera on a day’s look adds her photograph to the look', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);

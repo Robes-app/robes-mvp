@@ -41,7 +41,7 @@ function Field({
   };
   return (
     <div
-      className={`flex items-end gap-2 rounded-soft border px-3 py-2 ${drafted ? 'border-border-control bg-bg' : 'border-hairline bg-surface'}`}
+      className={`flex items-end gap-2 rounded-soft border px-3 py-2 has-[textarea:focus-visible]:border-ink has-[textarea:focus-visible]:ring-1 has-[textarea:focus-visible]:ring-ink has-[textarea:focus-visible]:ring-inset ${drafted ? 'border-border-control bg-bg' : 'border-hairline bg-surface'}`}
       data-drafted={drafted || undefined}
     >
       <span className="py-2 text-ink-muted" aria-hidden>

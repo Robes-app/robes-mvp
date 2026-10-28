@@ -111,7 +111,7 @@ export function SwapSheet({
     >
       <div className="flex flex-col gap-4">
         <label
-          className={`flex min-h-11 items-center gap-2 rounded-pill border border-border-control bg-surface-raised px-4 focus-within:border-ink`}
+          className={`flex min-h-11 items-center gap-2 rounded-pill border border-border-control bg-surface-raised px-4 focus-within:border-ink focus-within:ring-1 focus-within:ring-ink focus-within:ring-inset`}
         >
           <Icon name="search" size={16} className="text-ink-muted" />
           <span className="sr-only">{copy.sheet.search}</span>
