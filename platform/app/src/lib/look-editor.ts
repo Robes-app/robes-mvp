@@ -153,9 +153,10 @@ export function useLookEditor(look: Look) {
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
-    // A swap lands at once behind a 6 s Undo that puts the rack back (beta's swap pill) —
-    // unless she has changed it again since. A draft writes the rack back; a saved look being
-    // edited goes back to how it stood, unsaved changes and all (L5, L10).
+    // A swap lands at once behind a 6 s Undo that puts the rack back (beta's swap pill). A draft
+    // writes the rack back (its rack is re-read from the server after each write); a saved look
+    // being edited goes back to how it stood, unsaved changes and all, unless she has changed it
+    // again since (L5, L10).
     swap: (key: string, piece: Piece) => {
       const before = rack;
       const wasDirty = dirty;
@@ -166,11 +167,11 @@ export function useLookEditor(look: Look) {
         action: {
           label: wardrobe.undo,
           onAction: () => {
-            if (current.current !== next) return;
             if (live) {
               change(before);
               return;
             }
+            if (current.current !== next) return;
             setRack(before);
             setDirty(wasDirty);
           },
