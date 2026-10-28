@@ -62,6 +62,34 @@ describe('gemini adapter', () => {
     expect(call.config.responseJsonSchema).toMatchObject({ type: 'object' });
     // Gemini rejects maxItems on arrays of objects; the cap is checked by zod instead.
     expect(JSON.stringify(call.config.responseJsonSchema)).not.toContain('maxItems');
+    expect(call.config).toMatchObject({ thinkingConfig: { thinkingLevel: 'LOW' } });
+    expect(call.config.mediaResolution).toBeUndefined();
+  });
+
+  it('reads a photo on Flash at full resolution with minimal thinking', async () => {
+    const generateContent = vi.fn(async () => ({
+      text: '{"title":"Easy Sunday","pieces":["coat"]}',
+      usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 200 },
+    }));
+    const ai = createGeminiProvider({ models: { generateContent } as never });
+    const { usage } = await ai.generateJson({
+      feature: 'test',
+      capability: 'vision.analyse',
+      system: 'sys',
+      user: 'u',
+      images: [{ mimeType: 'image/jpeg', data: new Uint8Array([1]) }],
+      schema: Look,
+      maxOutputTokens: 500,
+      signal: signal(),
+    });
+    expect(usage.model).toBe('gemini-3.8-flash');
+    const call = (generateContent.mock.calls[0] as unknown[])[0] as {
+      config: Record<string, unknown>;
+    };
+    expect(call.config).toMatchObject({
+      thinkingConfig: { thinkingLevel: 'MINIMAL' },
+      mediaResolution: 'MEDIA_RESOLUTION_HIGH',
+    });
   });
 
   it('still enforces array caps on the answer', async () => {

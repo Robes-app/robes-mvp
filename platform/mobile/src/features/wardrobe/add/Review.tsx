@@ -17,6 +17,7 @@ import {
   SCAN_STEPS,
   scanTags,
   wishChanges,
+  withTagDefaults,
 } from '@robes/core/add-flow';
 import { shade } from '@robes/core/colour';
 import { pieceWord } from '@robes/core/photo-pieces';
@@ -401,7 +402,12 @@ export function Review({
           ) : null}
         </View>
         <FadeIn key={cur.key}>
-          <RecordRows values={values} onField={setField} withName reading={!ready} />
+          <RecordRows
+            values={withTagDefaults(values)}
+            onField={setField}
+            withName
+            reading={!ready}
+          />
         </FadeIn>
         <Button variant="quiet" className="self-center" onPress={() => answer(cur, 'skip')}>
           {copy.review.notThis}

@@ -51,6 +51,8 @@ test('a photo read files each answered piece once, and only for her', async ({ p
   ]);
   expect(pieces[2]).toMatchObject({ match: { pieceId: shoes, confidence: 0.8 } });
   expect(pieces[0]).not.toHaveProperty('itemDna');
+  // The read carries the colour model and the material (wardrobe.pieces v2)…
+  expect(pieces[0]).toMatchObject({ colourShade: 'cream', print: null, material: 'cotton' });
 
   const fileUrl = `/api/v1/wardrobe/photo-reads/${jobId}/file`;
   // Nothing is filed on Robes' word alone: every piece needs an answer.
@@ -65,6 +67,12 @@ test('a photo read files each answered piece once, and only for her', async ({ p
   const filed = await (await api.post(fileUrl, { data: { answers } })).json();
   expect(filed.filed.map((p: { label: string }) => p.label)).toEqual(['Cream long-sleeve t-shirt']);
   expect(filed.photoAdded).toEqual([shoes]);
+  // …and filing keeps them, with the category's season (apply_tag_defaults).
+  expect(filed.filed[0]).toMatchObject({
+    colourShade: 'cream',
+    material: 'cotton',
+    seasonBand: 'year_round',
+  });
   // Each piece's photo is its own crop, cut and rendered by the rendition pipeline.
   for (const id of [filed.filed[0].id, shoes]) {
     await expect

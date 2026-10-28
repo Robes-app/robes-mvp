@@ -63,11 +63,15 @@ export function createGeminiProvider(opts: { apiKey: string } | { models: Models
             responseJsonSchema: geminiSchema(req.schema),
             maxOutputTokens: req.maxOutputTokens,
             temperature: req.temperature ?? 0.4,
-            // Thinking is billed as output; styling JSON doesn't need it (cost lever 5).
-            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+            // Thinking is billed as output; styling JSON doesn't need it (cost lever 5). A photo
+            // read is filing, not reasoning: minimal thinking, and full resolution so a small
+            // label (the brand, the composition) and a fine print can be read.
             ...(req.capability === 'vision.analyse'
-              ? { mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM }
-              : {}),
+              ? {
+                  thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+                  mediaResolution: MediaResolution.MEDIA_RESOLUTION_HIGH,
+                }
+              : { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }),
             abortSignal: req.signal,
           },
         });

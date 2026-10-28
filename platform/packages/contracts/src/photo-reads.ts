@@ -19,6 +19,12 @@ export const ReadPiece = z.object({
   color: z.string().nullable(),
   brand: z.string().nullable(),
   notes: z.string().nullable(),
+  // The colour model and the material, as the single read files them (wardrobe.pieces v2).
+  // Defaulted so a read stored before v2 still parses.
+  colourShade: z.string().nullable().default(null),
+  colourExtra: z.array(z.string()).default([]),
+  print: z.string().nullable().default(null),
+  material: z.string().nullable().default(null),
   // Fractions of the photo: the tag sits at its centre.
   box: PieceBox,
   // Her piece it very likely is, read against her wardrobe; null when Robes sees a new one.
