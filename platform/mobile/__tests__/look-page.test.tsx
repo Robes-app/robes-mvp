@@ -3,6 +3,7 @@ import { longDate, lookDateName, monthOf, shiftMonth } from '@robes/core/calenda
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
 import { localDate, nextDays } from '../src/features/looks/saved-looks';
+import { nativeAnalytics } from '../src/lib/analytics';
 import { mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
@@ -13,6 +14,8 @@ jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null
 const _TOKEN = 'AbCdEfGhIjKlMnOpQrStUv';
 
 beforeEach(() => jest.clearAllMocks());
+// Call sites report through the consent-gated client (observability.test.ts proves the gate).
+const track = jest.spyOn(nativeAnalytics, 'track');
 
 test('a suggested name is renamed with the pencil, never a "Keep this name" line', async () => {
   const calls = mockFetch({
@@ -70,6 +73,7 @@ test('the diary on the picture opens the one diary drawer and pins the chosen lo
     String(url).includes('/plan/looks/'),
   );
   expect(JSON.parse(String(pin?.[1]?.body))).toEqual({ dates: [tomorrow], slot: 'day' });
+  await waitFor(() => expect(track).toHaveBeenCalledWith('look_pinned', { offset_from_today: 1 }));
 });
 
 test('a day already carrying the look opens that day from the drawer (L7)', async () => {
@@ -246,4 +250,9 @@ test('editing a saved look, a swap lands on one tap behind Undo; Update says Upd
   await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.update }));
   expect(await screen.findByText(lookbook.updated)).toBeTruthy();
   expect(JSON.stringify(calls.find((c) => c.method === 'PATCH')?.body)).toContain(COAT);
+  expect(track).toHaveBeenCalledWith('swap_drawer_opened', { mode: 'swap' });
+  expect(track).toHaveBeenCalledWith('piece_swapped', { surface: 'saved', cat: 'Outerwear' });
+  expect(track).toHaveBeenCalledWith('look_updated', { pieces: 1 });
+  // No piece's name ever rides an event.
+  expect(JSON.stringify(track.mock.calls)).not.toContain('wool coat');
 });

@@ -24,6 +24,7 @@ import { type PhotoSource, pickOne } from '@/features/home/file-photo';
 import { useFirstPiece } from '@/features/home/first-piece';
 import { isTerminal } from '@/features/looks/ideas';
 import { CropThumb } from '@/features/photo-pieces/PhotoFrame';
+import { nativeAnalytics } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 
 const REVEAL_MS = 480;
@@ -47,6 +48,16 @@ export default function FirstPiece() {
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const styled = useRef<{ pieceId: string; jobId: string } | null>(null);
+  useEffect(
+    () => nativeAnalytics.track('onboarding_step', { step: 'piece', outcome: 'shown' }),
+    [],
+  );
+  // Her first piece is filed as Robes reads it (twin: onboarding-form.tsx).
+  const pieceId = piece?.id;
+  useEffect(() => {
+    if (pieceId)
+      nativeAnalytics.track('wardrobe_added', { source: 'onboarding', batch_n: 1, batch_i: 1 });
+  }, [pieceId]);
 
   useEffect(() => {
     if (!piece) {
@@ -81,6 +92,7 @@ export default function FirstPiece() {
           .jobId;
       styled.current = { pieceId: p.id, jobId: id };
       await finish();
+      nativeAnalytics.track('onboarding_step', { step: 'piece', outcome: 'answered' });
       setJobId(id);
     } catch (err) {
       setError(errorMessage(err));
@@ -96,6 +108,7 @@ export default function FirstPiece() {
     setLeaving('skip');
     try {
       await finish();
+      nativeAnalytics.track('onboarding_step', { step: 'piece', outcome: 'skipped' });
       router.replace('/');
     } catch {
       setError(onboarding.failed);

@@ -4,6 +4,7 @@ import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import {
+  daysBetween,
   diaryMarks,
   diaryPick,
   longDate,
@@ -18,6 +19,7 @@ import { Button, Sheet, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { formatDay, localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { LookImage } from './look-image';
@@ -38,6 +40,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
   const toast = useToast();
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { track } = useAnalytics().analytics;
 
   // The month's filed days, for the dots: one call per month, as the Plan page makes.
   const grid = monthGrid(month);
@@ -82,15 +85,24 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     close();
   };
   const pin = useApiMutation('plan.pin', {
-    onSuccess: () => settle(copy.diary.inDiaryFor(look?.name ?? '', formatDay(day))),
+    onSuccess: () => {
+      track('look_pinned', { offset_from_today: daysBetween(today, day) });
+      settle(copy.diary.inDiaryFor(look?.name ?? '', formatDay(day)));
+    },
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const wear = useApiMutation('looks.wear', {
     // Today's wear says so as beta does; a day gone by names its date.
-    onSuccess: (w) =>
+    onSuccess: (w) => {
+      track('wear_confirmed', {
+        source: 'diary',
+        pieces: w.pieceIds.length,
+        offset_from_today: daysBetween(today, w.wornOn),
+      });
       settle(
         w.wornOn === today ? copy.diary.wornToday : copy.diary.recordedOn(formatDay(w.wornOn)),
-      ),
+      );
+    },
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const busy = pin.isPending || wear.isPending;

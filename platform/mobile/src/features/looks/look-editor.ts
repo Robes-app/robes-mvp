@@ -13,6 +13,7 @@ import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/look
 import { useToast } from '@robes/ui-native';
 import { useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
+import { nativeAnalytics } from '@/lib/analytics';
 import { isDraftsFull, useInvalidateLooks, useRedress, useRequestFrame } from './look-states';
 import type { RowMark } from './RackRow';
 
@@ -154,6 +155,7 @@ export function useLookEditor(look: Look) {
       const before = rack;
       const wasDirty = dirty;
       const next = swapped(key, piece);
+      nativeAnalytics.track('piece_swapped', { surface: look.status, cat: piece.category });
       change(next);
       toast.show({
         message: lookbook.swap.swapped(piece.label),
@@ -176,6 +178,7 @@ export function useLookEditor(look: Look) {
     swapKeep: (key: string, piece: Piece) => {
       const before = rack;
       const next = swapped(key, piece);
+      nativeAnalytics.track('piece_swapped', { surface: look.status, cat: piece.category });
       const put = (r: RackState) =>
         api.call('looks.update', {
           params: { id: look.id },
@@ -207,8 +210,12 @@ export function useLookEditor(look: Look) {
           toast.show({ message: errors.internal });
         });
     },
-    add: (piece: Piece) => change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] }),
+    add: (piece: Piece) => {
+      nativeAnalytics.track('look_piece_added', { surface: look.status, cat: piece.category });
+      change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] });
+    },
     remove: (key: string) => {
+      nativeAnalytics.track('look_piece_removed', { surface: look.status });
       const { [key]: _gone, ...edits } = rack.edits;
       change({ ...rack, rows: rack.rows.filter((r) => r.key !== key), edits });
     },
@@ -242,7 +249,8 @@ export function useLookEditor(look: Look) {
     update: () =>
       void write
         .mutateAsync({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: false }) })
-        .then(() => {
+        .then((updated) => {
+          nativeAnalytics.track('look_updated', { pieces: updated.pieces.length });
           setDirty(false);
           setEditing(false);
           toast.show({ message: lookbook.updated });

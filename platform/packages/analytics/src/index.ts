@@ -30,6 +30,20 @@ export function createAnalytics(
   };
 }
 
+// Review files one photo's (or one link's) answers: one `pieces_filed`, then `wardrobe_added` for
+// each piece kept in her wardrobe. Shared by the web and native Review.
+export function trackFiled(
+  track: Analytics['track'],
+  source: 'photo' | 'link',
+  answers: readonly { state: 'add' | 'skip' }[],
+  to: 'wardrobe' | 'wishlist',
+): void {
+  const n = answers.filter((a) => a.state === 'add').length;
+  track('pieces_filed', { source, n, skipped: answers.length - n, to });
+  if (to !== 'wardrobe') return;
+  for (let i = 1; i <= n; i++) track('wardrobe_added', { source, batch_n: n, batch_i: i });
+}
+
 export const noopAnalytics: Analytics = {
   track() {},
   identify() {},

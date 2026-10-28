@@ -8,6 +8,7 @@ import { Icon } from '@robes/icons/web';
 import { Button, buttonClasses, Eyebrow, Heading, Image, Text } from '@robes/ui';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { SwapSheet } from '@/components/looks/swap-sheet';
 import { imageSources } from '@/lib/image';
 
@@ -141,9 +142,11 @@ function TwinCard({ onLater }: { onLater: () => void }) {
 
 // O3 · the wardrobe: the count once, in words; the two bulk routes.
 function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
+  const { track } = useAnalytics().analytics;
   const route = (href: string, icon: 'camera' | 'mail', title: string, line: string) => (
     <Link
       href={href}
+      onClick={() => track('catalogue_route', { route: icon === 'mail' ? 'receipt' : 'snap' })}
       className="flex min-h-11 items-center gap-4 py-3 focus-visible:outline-2 focus-visible:outline-focus-ring"
     >
       <Icon name={icon} size={20} className="text-ink-muted" />
@@ -194,6 +197,7 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
 function FirstLookCard({ candidates }: { candidates: HomePiece[] }) {
   const [picked, setPicked] = useState<HomePiece | null>(null);
   const [all, setAll] = useState(false);
+  const { track } = useAnalytics().analytics;
   const pick = picked ?? candidates[0] ?? null;
   const shown =
     pick && !candidates.some((c) => c.id === pick.id)
@@ -236,6 +240,7 @@ function FirstLookCard({ candidates }: { candidates: HomePiece[] }) {
         {pick ? (
           <Link
             href={`/looks/new?pieceId=${pick.id}`}
+            onClick={() => track('first_look_started', { piece_id: pick.id })}
             className={buttonClasses({ variant: 'secondary' })}
           >
             {copy.o4.cta}
@@ -290,11 +295,13 @@ export function StepMap({
   onExpand: (step: HomeStep) => void;
 }) {
   const keys = mapRows(resolved);
+  const { track } = useAnalytics().analytics;
   if (!keys.length) return null;
   const line = (k: HomeStep, done: boolean) =>
     k === 'O3' ? copy.map.line.O3(pics) : copy.map.line[k](done);
   const row = (k: HomeStep) => {
     const done = resolved.done[k];
+    const tapped = () => track('home_row_tapped', { step: k, done });
     const inner = (
       <>
         <span
@@ -320,11 +327,19 @@ export function StepMap({
           <Link
             href={done ? DONE_HREF[k] : k === 'O1' ? '/you/style' : '/you/model'}
             className={cls}
+            onClick={tapped}
           >
             {inner}
           </Link>
         ) : (
-          <button type="button" className={cls} onClick={() => onExpand(k)}>
+          <button
+            type="button"
+            className={cls}
+            onClick={() => {
+              tapped();
+              onExpand(k);
+            }}
+          >
             {inner}
           </button>
         )}

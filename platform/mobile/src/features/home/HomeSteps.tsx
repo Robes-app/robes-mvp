@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { SwapSheet } from '@/features/looks/SwapSheet';
 import { pickFromRoll, reviewHref } from '@/features/wardrobe/add/flow';
+import { nativeAnalytics } from '@/lib/analytics';
 import { renditionUri } from '@/lib/images';
 
 // A step card sits on white with a hairline (Design principle 3); the web twin is home-steps.tsx.
@@ -145,7 +146,10 @@ function WardrobeCard({ pics, recent }: { pics: number; recent: HomePiece[] }) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
-      onPress={onPress}
+      onPress={() => {
+        nativeAnalytics.track('catalogue_route', { route: icon === 'mail' ? 'receipt' : 'snap' });
+        onPress();
+      }}
       className="min-h-11 flex-row items-center gap-4 border-hairline border-b py-3"
     >
       <Icon name={icon} size={20} color={muted} />
@@ -223,7 +227,10 @@ function FirstLookCard({ candidates }: { candidates: HomePiece[] }) {
       {pick ? (
         <Button
           variant="secondary"
-          onPress={() => router.push({ pathname: '/looks/new', params: { pieceId: pick.id } })}
+          onPress={() => {
+            nativeAnalytics.track('first_look_started', { piece_id: pick.id });
+            router.push({ pathname: '/looks/new', params: { pieceId: pick.id } });
+          }}
         >
           {copy.o4.cta}
         </Button>
@@ -291,7 +298,11 @@ export function StepMap({
               key={k}
               accessibilityRole={done || resolved.activated ? 'link' : 'button'}
               accessibilityLabel={`${copy.map.steps[k]}, ${line}`}
-              onPress={() => (done || resolved.activated ? router.push(DONE_HREF[k]) : onExpand(k))}
+              onPress={() => {
+                nativeAnalytics.track('home_row_tapped', { step: k, done });
+                if (done || resolved.activated) router.push(DONE_HREF[k]);
+                else onExpand(k);
+              }}
               className="min-h-11 flex-row items-center gap-4 border-hairline border-b py-3"
               testID={`home-map-${k}`}
             >

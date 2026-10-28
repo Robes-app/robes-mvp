@@ -3,9 +3,10 @@ import { lookbook as copy } from '@robes/copy';
 import { pieceMatches, sheetCategoryOf, sheetChips, theName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import { Button, Chip, fonts, Image, PrimaryScope, Sheet, Text, useColor } from '@robes/ui-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { usePieces } from '@/features/wardrobe/pieces';
+import { nativeAnalytics } from '@/lib/analytics';
 import { renditionUri } from '@/lib/images';
 
 const inCategory = (p: Piece, c: string) => sheetCategoryOf(p) === c || p.category === c;
@@ -74,6 +75,11 @@ export function SwapSheet({
   const [category, setCategory] = useState<string | null | undefined>(undefined);
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Piece | null>(null);
+  // Fires as the sheet opens, once per opening.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per opening, not per prop.
+  useEffect(() => {
+    if (open) nativeAnalytics.track('swap_drawer_opened', { mode: swapping ? 'swap' : 'add' });
+  }, [open]);
   const preset = swapping?.category ?? opensOn;
   const active =
     category !== undefined
