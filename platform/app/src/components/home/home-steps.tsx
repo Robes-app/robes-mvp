@@ -12,7 +12,7 @@ import { SwapSheet } from '@/components/looks/swap-sheet';
 import { imageSources } from '@/lib/image';
 
 // A step card sits on white with a hairline (Design principle 3), never on the beige page.
-const card = 'flex flex-col gap-3 rounded-soft border border-hairline bg-surface-raised p-5';
+const card = 'flex flex-col gap-3 rounded-card border border-hairline bg-surface-raised p-5';
 
 function Title({ title, em }: { title: string; em: string }) {
   return (

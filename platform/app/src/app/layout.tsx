@@ -15,7 +15,7 @@ const cormorant = Cormorant({
 });
 const inter = Inter({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
+  weight: ['300', '400', '500'],
   variable: '--font-inter',
 });
 
@@ -26,7 +26,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   await connection();
   const state = await currentConsents();
   return (
-    <html lang="en" className={`${cormorant.variable} ${inter.variable}`}>
+    // Light only, as beta: a dark-mode device must still see cream (dark waits for a setting).
+    <html lang="en" data-theme="light" className={`${cormorant.variable} ${inter.variable}`}>
       <body>
         <Providers>
           <AnalyticsProvider

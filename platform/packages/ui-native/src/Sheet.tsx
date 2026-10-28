@@ -142,7 +142,7 @@ export function Sheet({
         </Animated.View>
         <Animated.View
           accessibilityViewIsModal
-          className={cx('rounded-t-soft bg-bg px-6 pb-10', className)}
+          className={cx('rounded-t-sheet bg-bg px-6 pb-10', className)}
           // A tall drawer stops short of the status bar and Dynamic Island; its content scrolls.
           style={{ maxHeight: SHEET_MAX, transform: [{ translateY }] }}
         >
@@ -156,7 +156,7 @@ export function Sheet({
               onPress={onClose}
               className="min-h-11 w-24 items-center justify-center"
             >
-              <View className="h-1 w-10 rounded-pill bg-border-control" />
+              <View className="h-1 w-9 rounded-pill bg-rule-mid" />
             </Pressable>
           </View>
           {media ? (

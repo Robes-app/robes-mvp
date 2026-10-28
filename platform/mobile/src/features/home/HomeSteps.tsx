@@ -22,7 +22,7 @@ import { pickFromRoll, reviewHref } from '@/features/wardrobe/add/flow';
 import { renditionUri } from '@/lib/images';
 
 // A step card sits on white with a hairline (Design principle 3); the web twin is home-steps.tsx.
-const card = 'gap-4 rounded-soft border border-hairline bg-surface-raised p-5';
+const card = 'gap-4 rounded-card border border-hairline bg-surface-raised p-5';
 
 function Title({ title, em }: { title: string; em: string }) {
   return (

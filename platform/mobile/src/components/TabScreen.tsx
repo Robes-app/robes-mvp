@@ -1,6 +1,6 @@
 import { useApi } from '@robes/api-client/react';
 import { shell } from '@robes/copy';
-import { Avatar, fonts, MIN_TOUCH, Wordmark } from '@robes/ui-native';
+import { Avatar, MIN_TOUCH, Wordmark } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
@@ -31,7 +31,6 @@ export function TabScreen({
             accessibilityRole="none"
             importantForAccessibility="no"
             accessibilityElementsHidden
-            style={{ fontFamily: fonts.displayRegular, fontSize: 18, letterSpacing: 6 }}
           />
         </View>
         <Pressable

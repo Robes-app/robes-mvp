@@ -185,7 +185,7 @@ export function HomeView({ initial, dress = null }: { initial: Today; dress?: st
 
 // Each alert is its own white card on a hairline (beta's .rb-al).
 const alertCard =
-  'flex items-center gap-3 rounded-soft border border-hairline bg-surface-raised px-4 py-3';
+  'flex items-center gap-3 rounded-card border border-hairline bg-surface-raised px-4 py-3';
 
 // H1 · alerts: the receipt strip, the look Robes made overnight, one line Robes noticed. While the
 // week is on screen the overnight look is today's card there instead, never a second row.

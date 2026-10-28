@@ -85,7 +85,7 @@ export function SettingsGroup({
           {title}
         </Eyebrow>
       ) : null}
-      <div className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
+      <div className="overflow-hidden rounded-card border border-hairline bg-surface-raised">
         {children}
       </div>
     </section>

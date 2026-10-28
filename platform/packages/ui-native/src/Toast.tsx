@@ -12,7 +12,13 @@ import {
 import { AccessibilityInfo, Animated, Pressable, Text, View } from 'react-native';
 import { cx } from './cx';
 import { useReducedMotion } from './motion';
-import { fonts, MIN_TOUCH, maxFontSizeMultiplier, TOAST_MIN_DURATION } from './scale';
+import {
+  fonts,
+  MIN_TOUCH,
+  maxFontSizeMultiplier,
+  TOAST_DEFAULT_DURATION,
+  TOAST_MIN_DURATION,
+} from './scale';
 
 export interface ToastAction {
   label: string;
@@ -53,7 +59,7 @@ export function Toast({ message, action, onDismiss, className }: ToastProps) {
   return (
     <View
       accessibilityLiveRegion="polite"
-      className={cx('flex-row items-center gap-3 rounded-soft bg-ink py-2 pl-4 pr-2', className)}
+      className={cx('flex-row items-center gap-3 rounded-pill bg-ink py-2 pl-5 pr-2', className)}
     >
       <Text
         maxFontSizeMultiplier={maxFontSizeMultiplier.body}
@@ -120,7 +126,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     else Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
     const timer = setTimeout(
       () => setToast((current) => (current?.id === toast.id ? null : current)),
-      Math.max(toast.duration ?? TOAST_MIN_DURATION, TOAST_MIN_DURATION),
+      toast.action
+        ? Math.max(toast.duration ?? TOAST_MIN_DURATION, TOAST_MIN_DURATION)
+        : (toast.duration ?? TOAST_DEFAULT_DURATION),
     );
     return () => clearTimeout(timer);
   }, [toast, reduced, opacity]);
