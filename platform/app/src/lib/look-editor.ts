@@ -20,6 +20,7 @@ import type { RowMark } from '@/components/looks/rack-row';
 import {
   isDraftsFull,
   useRefreshLooks as useInvalidateLooks,
+  useRedress,
   useRequestFrame,
 } from './look-states';
 
@@ -31,6 +32,7 @@ export function useLookEditor(look: Look) {
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const requestFrame = useRequestFrame();
+  const redress = useRedress();
   const live = look.status !== 'saved';
   const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
@@ -42,8 +44,10 @@ export function useLookEditor(look: Look) {
     setSeen(look.updatedAt);
     setRack(rackFromLook(look));
   }
+  // Robes' frame is re-dressed for the new rack; a saved look on her model is drawn again.
   const reframe = (l: Look) => {
     if (l.frame || l.setId) requestFrame(l.id);
+    else redress(l);
   };
   const write = useApiMutation('looks.update', {
     onSuccess: (updated) => {

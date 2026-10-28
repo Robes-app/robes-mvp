@@ -300,15 +300,56 @@ test('her photograph on a look her model has not worn: You · Model stands, and 
       ...JSON.parse(String(init.body)),
     }),
     [`POST /looks/${LOOK_ID}/render`]: { jobId: '77777777-7777-4777-8777-777777777777' },
-    'GET /me/model': modelData({ filed: true, cell: { status: 'ready', imageUrl: null } }),
+    // No twin, no filed model: she stands on the generic Robes model, which can still wear it.
+    'GET /me/model': modelData({
+      filed: false,
+      stand: { imageUrl: 'https://media.test/generic.webp', generic: true },
+    }),
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  // Beta dressed every saved look: with her model on file, the Model side is hers to ask for.
+  // Beta dressed every saved look on whatever model she stands on: the Model side is hers to ask for.
   const modelSide = await screen.findByRole('radio', { name: looks.page.record.model });
   await fireEvent.press(modelSide);
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),
   );
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ record: 'model' });
+});
+
+test('Update on a saved look her model wears asks her model to wear the new rack', async () => {
+  const jeans = piece({ id: '99999999-9999-4999-8999-999999999999', label: 'Straight jeans' });
+  const mine = look({
+    pieces: [
+      { piece: piece(), slot: null, role: null },
+      { piece: jeans, slot: null, role: null },
+    ],
+    // Already drawn on her model, so opening it starts nothing; only Update should.
+    model: piece().image,
+    onModel: 'ready',
+  });
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: mine,
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    [`PATCH /looks/${LOOK_ID}`]: { ...mine, pieces: [mine.pieces[0]] },
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: '77777777-7777-4777-8777-777777777777' },
+    'GET /me/model': modelData({
+      stand: { imageUrl: 'https://media.test/generic.webp', generic: true },
+    }),
+    'GET /looks': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.editLook }));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
+  );
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.update }));
+  // The picture must not keep showing the jeans she took off (beta re-dressed the model live).
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),
+  );
+  const patch = calls.findIndex((c) => c.method === 'PATCH');
+  const render = calls.findIndex((c) => c.method === 'POST' && c.path.endsWith('/render'));
+  expect(patch).toBeGreaterThan(-1);
+  expect(patch).toBeLessThan(render);
 });

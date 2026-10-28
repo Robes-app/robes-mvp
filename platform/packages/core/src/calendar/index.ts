@@ -116,6 +116,16 @@ export function weekdayLong(date: string): string {
   return new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' }).format(at(date));
 }
 
+// "Tue 8 Sep": a day in a list or a wear row, the month from the table.
+export function weekdayDayMonth(date: string): string {
+  return `${weekdayShort(date)} ${dayMonth(date)}`;
+}
+
+// "Wednesday 28 Oct": the name an unnamed hand-built look saves under (beta's _lkFmtLong).
+export function lookDateName(date: string): string {
+  return `${weekdayLong(date)} ${dayMonth(date)}`;
+}
+
 // "Tuesday 13 October", the day page's eyebrow.
 export function longDate(date: string): string {
   return LONG_DAY.format(at(date));

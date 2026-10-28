@@ -39,6 +39,12 @@ describe('day planning', () => {
     const { dayMonth } = await import('./index');
     expect(dayMonth('2026-09-06')).toBe('6 Sep');
     expect(longDate('2026-10-13')).toBe('Tuesday 13 October');
+    const { lookDateName } = await import('./index');
+    expect(lookDateName('2026-10-28')).toBe('Wednesday 28 Oct');
+    // Never "Sept": the month comes from the table.
+    expect(lookDateName('2026-09-08')).toBe('Tuesday 8 Sep');
+    const { weekdayDayMonth } = await import('./index');
+    expect(weekdayDayMonth('2026-09-08')).toBe('Tue 8 Sep');
     expect(weekdayShort('2026-10-13')).toBe('Tue');
     expect(mondayOf('2026-10-18')).toBe('2026-10-12');
   });

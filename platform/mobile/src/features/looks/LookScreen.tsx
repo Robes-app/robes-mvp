@@ -87,7 +87,12 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
   const hasAny = editor.rack.rows.length > 0 || look.image !== null;
   return (
     <View className="flex-1">
-      <ScrollView contentContainerClassName="gap-6 px-6 pb-40">
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerClassName="gap-6 px-6 pb-40"
+      >
         <View className="items-center gap-2">
           <Eyebrow>{eyebrowOf(look)}</Eyebrow>
           {suggested ? (

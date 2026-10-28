@@ -435,7 +435,7 @@ export function startedLabel(createdAt: string, today: string, timeZone?: string
   const off = daysBetween(day, today);
   if (off <= 0) return 'today';
   if (off < 7) return fmt({ weekday: 'long' });
-  return fmt({ day: 'numeric', month: 'short' });
+  return dayMonth(day);
 }
 
 // The Saved tab's sort (legacy __lkSortMenu): newest first, last worn first, or by name. Sort

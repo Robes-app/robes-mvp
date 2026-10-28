@@ -1,6 +1,14 @@
 import { ui } from '@robes/copy';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Modal, PanResponder, Pressable, View } from 'react-native';
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Modal,
+  PanResponder,
+  Platform,
+  Pressable,
+  View,
+} from 'react-native';
 import { IconButton, PrimaryScope } from './Button';
 import { cx } from './cx';
 import { useReducedMotion } from './motion';
@@ -119,7 +127,11 @@ export function Sheet({
       onRequestClose={onClose}
       testID={testID}
     >
-      <View className="flex-1 justify-end">
+      {/* A field in the sheet (a name, a search) rides above the keyboard, never under it. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 justify-end"
+      >
         <Animated.View
           className="absolute inset-0 bg-ink"
           style={{ opacity: backdrop }}
@@ -177,7 +189,7 @@ export function Sheet({
           {/* A drawer is a layer of its own: its one filled button stands beside the screen's. */}
           <PrimaryScope>{children}</PrimaryScope>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

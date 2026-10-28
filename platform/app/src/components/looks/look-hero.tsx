@@ -7,7 +7,7 @@ import { lookLine, lookWearFor } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { Eyebrow, Pill, SegmentedControl, Sheet, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
 import { LookImage } from './look-image';
@@ -44,13 +44,10 @@ export function LookHero({
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
   };
   const onError = (err: unknown) => toast({ message: errorCopy(err) });
-  // Her model can wear the look once she has one filed and drawn (beta dressed every saved look).
+  // Every saved look can be worn by a model: her twin, her filed cell, else the generic Robes
+  // model — `stand`, the one renderOnModel draws on (beta dressed every saved look).
   const me = useApi('me.model.get');
-  const canDress =
-    me.data?.filed === true &&
-    me.data.cell.status === 'ready' &&
-    look.pieces.length > 0 &&
-    !look.frame;
+  const canDress = !!me.data?.stand?.imageUrl && look.pieces.length > 0 && !look.frame;
   const dress = useApiMutation('looks.renderOnModel', {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
     onError,
@@ -60,6 +57,18 @@ export function LookHero({
       dress.mutate({ params: { id: l.id } });
     }
   };
+  // Opened with nothing drawn on a model yet (beta rendered every saved look on open): start it
+  // quietly, once per look — a model still being drawn (conflict) waits for the next open.
+  const opened = useRef<string | null>(null);
+  useEffect(() => {
+    if (!canDress || look.model !== null || look.onModel === 'pending') return;
+    if (look.status !== 'saved' || opened.current === look.id) return;
+    opened.current = look.id;
+    void api
+      .call('looks.renderOnModel', { params: { id: look.id } })
+      .then(() => queryClient.invalidateQueries({ queryKey: key }))
+      .catch(() => undefined);
+  }, [api, canDress, key, look.id, look.model, look.onModel, look.status, queryClient]);
   // Her photograph lands; her model starts dressing the look, so You · Model has both sides.
   const attach = useApiMutation('looks.photo', {
     onSuccess: (updated) => {

@@ -389,7 +389,12 @@ function DraftLayout({
   const faint = useColor('ink-faint');
   return (
     <View className="flex-1">
-      <ScrollView contentContainerClassName="gap-6 px-6 pb-48">
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerClassName="gap-6 px-6 pb-48"
+      >
         <View className="items-center gap-1">
           <Eyebrow>{copy.eyebrow.draft}</Eyebrow>
           {/* The title is the name: tap the italic line and write over it. */}

@@ -143,6 +143,25 @@ export function useRestyle() {
   };
 }
 
+// A saved look's pieces changed: her model wears the new rack (beta re-dressed it live). The
+// render is keyed by model and rack, so an unchanged rack costs nothing; a model not drawn yet
+// (conflict) waits for the next open.
+export function useRedress() {
+  const api = useApiClient();
+  const queryClient = useQueryClient();
+  return (look: Look) => {
+    if (look.status !== 'saved' || look.frame || look.setId || look.pieces.length === 0) return;
+    void api
+      .call('looks.renderOnModel', { params: { id: look.id } })
+      .then(() =>
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.call('looks.get', { params: { id: look.id } }),
+        }),
+      )
+      .catch(() => undefined);
+  };
+}
+
 export function useRequestFrame() {
   const api = useApiClient();
   const refresh = useRefreshLooks();

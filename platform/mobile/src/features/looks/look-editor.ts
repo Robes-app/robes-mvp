@@ -13,7 +13,7 @@ import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/look
 import { useToast } from '@robes/ui-native';
 import { useMemo, useState } from 'react';
 import { Alert } from 'react-native';
-import { isDraftsFull, useInvalidateLooks, useRequestFrame } from './look-states';
+import { isDraftsFull, useInvalidateLooks, useRedress, useRequestFrame } from './look-states';
 import type { RowMark } from './RackRow';
 
 // One look's rack while she works on it. A suggestion or a draft writes through on every change
@@ -24,6 +24,7 @@ export function useLookEditor(look: Look) {
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const requestFrame = useRequestFrame();
+  const redress = useRedress();
   const live = look.status !== 'saved';
   const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
@@ -35,8 +36,10 @@ export function useLookEditor(look: Look) {
     setSeen(look.updatedAt);
     setRack(rackFromLook(look));
   }
+  // Robes' frame is re-dressed for the new rack; a saved look on her model is drawn again.
   const reframe = (l: Look) => {
     if (l.frame || l.setId) requestFrame(l.id);
+    else redress(l);
   };
   const write = useApiMutation('looks.update', {
     onSuccess: (updated) => {
