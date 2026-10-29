@@ -31,6 +31,7 @@ node scripts/looks_harness.mjs      # set CHROME_PATH if playwright's browser is
 | Settings, twin, Style DNA | `settings_harness` |
 | Onboarding | `onboarding_harness` |
 | Prompt block | `style_dna_block_test` |
+| The place in the prompt (landscapes, the weather line) | `landscape_test` (boots the real server, stubs Gemini) |
 | Colour / material models | `colour_model_test`, `material_model_test` |
 | Mail, real-server route mounts | `notify_smoke` |
 | Receipt inbox | `inbox_smoke` |

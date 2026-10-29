@@ -24,6 +24,7 @@ Breaking one of these has been the bug every time.
 - **A look is named, then saved.** Robes names what it generates (an offer, `name_provisional`); an unnamed hand-built look saves as today's date.
 - **Wears are history.** A wear snapshots the pieces worn; it is never edited, only deleted and recreated.
 - **She is in control of her Style DNA.** What Robes observes is pending until she keeps it; a rule typed in a look prompt waits under Observations. Prompt order is the hierarchy: her hard nos (the only absolutes) → her brief → memory → taste → photo reads (guidance). A colour she avoids is soft: never proposed new, still styled when she owns it.
+- **The place she names decides the weather; a landscape is practical, never a style.** It shapes fabric, footwear and layers; her own style decides the rest (Liberty, 28 Oct — `landscapes.js`).
 - **Nothing is gated by piece count.** Copy never says lock/unlock; a threshold is a capability appearing.
 - **Copy**: never "AI" or "the engine" — it's Robes. Her own words render verbatim. Months print by table (`Sept` is a bug).
 - **Hidden, not deleted**: the trip (`_RB_TRIP_HIDDEN`, relaunch checklist in the history's 2026-10-10 entry), moodboards (`_RB_MB_HIDDEN`). The weekly track is deleted (ADR-001) — week planning is day chips in the Diary.
@@ -38,7 +39,7 @@ Breaking one of these has been the bug every time.
 - **Images** are generated in background jobs (`imageJobs` + `GET /api/images/:jobId`), one at a time with retries (all users share one key's rate limit), and hosted on Cloudinary before they reach a job or a saved row — base64 never lands in the client or the database.
 - **Identity**: a `userId` in a request body is attribution for logging only, never a key to read another user's rows.
 - **Section headers are `//` lines.** A `/* ──` header once commented out a whole route and `node --check` still passed. Every generation route the page harnesses stub needs a mount pin in `scripts/notify_smoke.mjs`.
-- **Generated sources** — edit the source, then regenerate the SQL: `wardrobe_taxonomy.js` → `scripts/gen_taxonomy_migration.mjs`; `colour_model.cjs` → `scripts/gen_colour_model_migration.mjs`; `CATEGORY_DEFAULTS` → `scripts/gen_tag_defaults_migration.mjs`. `colour_model.cjs` and `material_model.cjs` stay CommonJS with the `typeof module` guard: the same file runs as a browser `<script>`.
+- **Generated sources** — edit the source, then regenerate the SQL: `wardrobe_taxonomy.js` → `scripts/gen_taxonomy_migration.mjs`; `colour_model.cjs` → `scripts/gen_colour_model_migration.mjs`; `CATEGORY_DEFAULTS` → `scripts/gen_tag_defaults_migration.mjs`. `landscapes.js` is generated FROM the platform (`platform/packages/core/src/landscape/index.ts` → `scripts/gen_landscapes.mjs`); never edit it by hand. `colour_model.cjs` and `material_model.cjs` stay CommonJS with the `typeof module` guard: the same file runs as a browser `<script>`.
 - `generation_log` captures every Gemini call through one wrapper on `ai.models.generateContent` (needs `SUPABASE_SERVICE_ROLE_KEY`); `gen_id` ties a prompt to its calls and its saved artifact. Admin panel reference: `docs/admin-architecture.md`.
 - Never set `NOTIFY_DEBUG=1` or `INBOX_ALLOW_PRIVATE=1` on a deployed service — both are test doors.
 
