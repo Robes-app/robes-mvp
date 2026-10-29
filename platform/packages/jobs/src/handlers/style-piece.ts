@@ -4,12 +4,14 @@ import {
   buildSystem,
   buildUser,
   type DayContext,
+  type DayPlace,
   FALLBACK_PIECE,
   FEATURE,
   MAX_OUTPUT_TOKENS,
   type Mode,
   normalisePieces,
   Output,
+  placeLine,
   type RecentSet,
   type Refine,
   type Steer,
@@ -18,6 +20,7 @@ import {
   VERSION,
 } from '@robes/ai/prompts/style-piece';
 import { KeyPieceJobInput } from '@robes/contracts';
+import { LANDSCAPES, type PlaceRead, readPlace } from '@robes/core/landscape';
 import {
   askDate,
   BALANCES,
@@ -31,7 +34,7 @@ import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
-import type { DayForecastFor } from '../weather';
+import type { DayForecastFor, DestinationWeatherFor } from '../weather';
 import { drawSuggestedFrame, type FrameRackPiece, modelReference } from './look-frame';
 
 export interface StylePieceDeps {
@@ -47,6 +50,8 @@ export interface StylePieceDeps {
     Partial<Pick<SystemRepositories['modelRender'], 'model'>>;
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
   forecast?: DayForecastFor;
+  // The weather at a place she names in her ask (absent: her own weather only).
+  destination?: DestinationWeatherFor;
   // Generated frames are stored as uploads; AWS renders them from the S3 event, dev renders here.
   onGenerated?(key: string): Promise<void>;
   now?: () => Date;
@@ -65,6 +70,11 @@ const ROLE_OF: Record<string, LookRole> = {
   'The Exclamation Point': 'exclamation',
 };
 
+const LANDSCAPE_KEYS = LANDSCAPES.map((l) => l.key) as [
+  PlaceRead['landscapes'][number],
+  ...PlaceRead['landscapes'],
+];
+
 // The set's record (the generation), read back on ↻ and by the deck.
 export const StoredSet = z.object({
   set: z.literal(true),
@@ -82,6 +92,27 @@ export const StoredSet = z.object({
       month: z.string().nullable(),
       tempRange: z.string().nullable(),
       condition: z.string().nullable(),
+      // The place her words named, so ↻ dresses the same place (style-piece v5).
+      place: z
+        .object({
+          read: z.object({
+            landscapes: z.array(z.enum(LANDSCAPE_KEYS)).max(2),
+            activity: z.string().nullable(),
+            destination: z.string().nullable(),
+            named: z.boolean(),
+          }),
+          there: z
+            .object({
+              place: z.string(),
+              tempRange: z.string().nullable(),
+              condition: z.string().nullable(),
+              seasonal: z.boolean(),
+            })
+            .nullable(),
+        })
+        .nullable()
+        .optional()
+        .catch(null),
     })
     .nullable(),
   fallback: z.boolean(),
@@ -184,10 +215,18 @@ export function specFromWay(
 // many earlier sets rode along as ALREADY SHOWN, and owned/total per way — the read that says
 // whether "suggest new pieces" was honoured. Counts and one enum; her own words never land here,
 // only the fact that she wrote some ('words').
-function askDetail(steer: Steer): Record<string, unknown> {
+// The place read rides beside it in Robes' own vocabulary only: which landscapes fired and which
+// weather the look was dressed for (there / season / home / today), never the place she wrote.
+function askDetail(steer: Steer, day: DayContext | null = null): Record<string, unknown> {
   const balance = steer.balance ?? (steer.balanceNote?.trim() ? 'words' : null);
   const shown = steer.recent?.length ?? 0;
-  return { ...(balance ? { balance } : {}), ...(shown ? { shown } : {}) };
+  const line = day?.place ? placeLine(day) : null;
+  const place = line ? { landscapes: day?.place?.read.landscapes ?? [], wx: line.rung } : null;
+  return {
+    ...(balance ? { balance } : {}),
+    ...(shown ? { shown } : {}),
+    ...(place && (place.landscapes.length || place.wx !== 'today') ? { place } : {}),
+  };
 }
 
 // Counted on the pieces as they will be stored, so the row says what she was actually shown.
@@ -265,13 +304,36 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     }
   }
 
-  async function dayContext(userId: UserId, date: string | undefined) {
+  // Where her words put the day (style-piece v5): a place she names is read for its own weather.
+  async function placeOf(
+    prompt: string,
+    day: string,
+    home: { city: string | null; lat: number | null; lon: number | null },
+  ): Promise<DayPlace> {
+    const read = readPlace(prompt);
+    const there =
+      read.destination && deps.destination
+        ? await deps.destination({
+            name: read.destination,
+            date: day,
+            home,
+            ...(deps.now ? { now: deps.now() } : {}),
+          })
+        : null;
+    // A name the geocoder could not confirm is not a place (Liberty's named places excepted).
+    const destination = there ? there.place : read.named ? read.destination : null;
+    return { read: { ...read, destination }, there };
+  }
+
+  async function dayContext(userId: UserId, date: string | undefined, prompt: string) {
     const her = await deps.styling.dailyContext(userId);
     const today = localToday(deps.now?.() ?? new Date(), her.timezone);
     const day = askDate(date, today) ?? today;
-    const forecast = deps.forecast
-      ? await deps.forecast({ city: her.homeCity, lat: her.homeLat, lon: her.homeLon, date: day })
-      : null;
+    const home = { city: her.homeCity, lat: her.homeLat, lon: her.homeLon };
+    const [forecast, place] = await Promise.all([
+      deps.forecast ? deps.forecast({ ...home, date: day }) : null,
+      placeOf(prompt, day, home),
+    ]);
     const ctx: DayContext = {
       // The day is named only when it isn't today (legacy dayLabel).
       dayLabel: day === today ? null : fmt(day, { weekday: 'long', day: 'numeric', month: 'long' }),
@@ -279,6 +341,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       month: fmt(day, { month: 'long' }),
       tempRange: forecast?.tempRange ?? null,
       condition: forecast?.condition ?? null,
+      place,
     };
     return { day: ctx, dateHint: askDate(date, today) };
   }
@@ -441,12 +504,13 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           balanceNote: set.data.balanceNote ?? null,
           recent,
         };
+        const day = mode === 'dress-me' ? (set.data.day ?? null) : null;
         const out = await generate(
           ctx,
-          buildSystem(styleCtx, mode, steer),
+          buildSystem(styleCtx, mode, steer, day?.place?.read ?? null),
           buildUser(ask, { hasPhoto: Boolean(photo), refine }),
           photo,
-          askDetail(steer),
+          askDetail(steer, day),
           (o) => ownedOfTotal(o.ways.slice(0, 1), styleCtx.closet),
         );
         const raw = out.ways[0];
@@ -503,7 +567,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       };
       if (prompted) {
         mode = 'dress-me';
-        const dated = await dayContext(ctx.userId, input.date);
+        const dated = await dayContext(ctx.userId, input.date, input.prompt);
         day = dated.day;
         dateHint = dated.dateHint;
         ask = { mode, prompt: input.prompt, day };
@@ -528,10 +592,10 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
 
       const out = await generate(
         ctx,
-        buildSystem(styleCtx, mode, steer),
+        buildSystem(styleCtx, mode, steer, day?.place?.read ?? null),
         buildUser(ask, { hasPhoto: Boolean(photo) }),
         photo,
-        askDetail(steer),
+        askDetail(steer, day),
         (o) => ownedOfTotal(o.ways.slice(0, WAYS), styleCtx.closet),
       );
       const { fallback } = out;

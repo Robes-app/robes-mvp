@@ -9,6 +9,7 @@ import {
 import {
   createAnchorRenderer,
   createDayForecast,
+  createDestinationWeather,
   createExpoPushSender,
   createHandlers,
   createInlineTransport,
@@ -153,6 +154,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
             suggested: system.suggested,
             cells: system.modelRender,
             forecast: createDayForecast(),
+            destination: createDestinationWeather(),
             ledger: system.ledger,
           },
           lookRender: {
@@ -198,6 +200,7 @@ async function createWorkerContext(): Promise<WorkerContext> {
             styling: system.styling,
             ledger: system.ledger,
             weather: createWeather(),
+            destination: createDestinationWeather(),
           },
           travel: {
             ai,
