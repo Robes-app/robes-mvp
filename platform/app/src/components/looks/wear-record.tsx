@@ -9,6 +9,7 @@ import { Icon } from '@robes/icons/web';
 import { Button, ErrorText, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useAnalytics } from '@/components/analytics-provider';
 import { errorCopy } from '@/lib/error-copy';
 
 const copy = looksCopy.page.wears;
@@ -20,6 +21,7 @@ const copy = looksCopy.page.wears;
 export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => void }) {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { track } = useAnalytics().analytics;
   const query = useApi('looks.wears', { params: { id: look.id } });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });
@@ -28,6 +30,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
   };
   const remove = useApiMutation('looks.unwear', {
     onSuccess: () => {
+      track('wear_undone');
       toast({ message: copy.removed });
       refresh();
     },

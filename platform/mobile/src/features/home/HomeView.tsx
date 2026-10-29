@@ -35,6 +35,7 @@ import { isTerminal } from '@/features/looks/ideas';
 import { LookTile } from '@/features/looks/LookTile';
 import { DayDots } from '@/features/plan/DayDots';
 import { dayLabel } from '@/features/plan/plan';
+import { nativeAnalytics } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { HomeBox, type HomeBoxHandle } from './HomeBox';
@@ -89,6 +90,21 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
   const box = useRef<HomeBoxHandle>(null);
   const scroll = useRef<ScrollViewInstance>(null);
   const data = query.data;
+  const resolved = data ? resolveHome(data.home.state, { force }) : null;
+  const next = resolved?.next ?? null;
+  useEffect(() => {
+    if (next) nativeAnalytics.track('home_module_view', { id: next });
+  }, [next]);
+  // Her first own look and activation, seen as they happen on home (twin: home-view.tsx).
+  const was = useRef(resolved);
+  useEffect(() => {
+    const prev = was.current;
+    if (prev && resolved && !prev.done.O4 && resolved.done.O4)
+      nativeAnalytics.track('first_look_saved');
+    if (prev && resolved && !prev.activated && resolved.activated)
+      nativeAnalytics.track('home_activated');
+    if (resolved) was.current = resolved;
+  });
   if (query.isError) {
     return (
       <View className="flex-1 justify-center px-6">
@@ -96,12 +112,12 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
       </View>
     );
   }
-  if (!data) return null;
+  if (!data || !resolved) return null;
   const home = data.home;
-  const resolved = resolveHome(home.state, { force });
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
   const later = (step: HomeStep) => {
+    nativeAnalytics.track('home_module_later', { id: step });
     if (force === step) setForce(null);
     void api
       .call('me.home.later', { input: { step } })

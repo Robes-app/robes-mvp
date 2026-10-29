@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { FirstRunFrame } from '@/features/home/FirstRunFrame';
+import { nativeAnalytics } from '@/lib/analytics';
 
 const SPLASH_MS = 2_000;
 
@@ -36,6 +37,9 @@ export default function Onboarding() {
     const t = setTimeout(() => setSplash(false), SPLASH_MS);
     return () => clearTimeout(t);
   }, [splash]);
+  useEffect(() => {
+    if (!splash) nativeAnalytics.track('onboarding_step', { step: 'name', outcome: 'shown' });
+  }, [splash]);
 
   async function submit() {
     const first = name.trim().split(/\s+/)[0];
@@ -45,6 +49,7 @@ export default function Onboarding() {
     try {
       await api.call('me.update', { input: { firstName: first } });
       await queryClient.invalidateQueries({ queryKey: queryKeys.route('me.get') });
+      nativeAnalytics.track('onboarding_step', { step: 'name', outcome: 'answered' });
       router.push('/onboarding/piece');
     } catch {
       setError(onboarding.failed);

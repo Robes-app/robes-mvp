@@ -27,7 +27,7 @@ import {
 } from '@robes/core/wardrobe';
 import { Icon } from '@robes/icons/web';
 import { Button, Field, IconButton, Pill, Sheet, Text, TextArea } from '@robes/ui';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { ColourPicker, OptionRow, PrintPicker } from './colour-field';
 import { MaterialPicker } from './material-field';
 
@@ -132,8 +132,12 @@ export function PieceFieldSheet({
   const stepper =
     system !== 'plain' && (!piece.size || parseUkSize(system, piece.size) !== null) ? system : null;
 
-  // The drawer opens on what is filed now, whichever field she tapped.
+  // The drawer opens on what is filed now, whichever field she tapped. Only on opening: callers
+  // pass a fresh piece object each render, and a re-render must not wipe what she is typing.
+  const opened = useRef<PieceField | null>(null);
   useEffect(() => {
+    if (field === opened.current) return;
+    opened.current = field;
     if (!field) return;
     setColour(colourOf(piece));
     setText(textOf(field, piece));

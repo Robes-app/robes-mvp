@@ -5,6 +5,13 @@ export function addDays(date: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Whole days from `from` to `date` (negative for a day gone by).
+export function daysBetween(from: string, date: string): number {
+  return Math.round(
+    (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000,
+  );
+}
+
 // The days the save sheet offers (today and the fortnight after); the day her words named leads
 // selected when it is one of them, never a day gone by.
 export const DIARY_DAYS = 14;

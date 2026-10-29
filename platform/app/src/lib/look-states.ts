@@ -15,6 +15,7 @@ import { isTerminalJobStatus } from '@robes/core/jobs';
 import { useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { errorCopy } from './error-copy';
 import { useJob } from './use-job';
 
@@ -96,8 +97,15 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
 export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 'draft' = 'draft') {
   const toast = useToast();
   const refresh = useRefreshLooks();
+  const { track } = useAnalytics().analytics;
   return useApiMutation('looks.save', {
     onSuccess: (look) => {
+      track('look_created', {
+        from,
+        pieces: look.pieces.length,
+        proposed: look.proposals.length,
+        anchored: look.anchor !== null,
+      });
       refresh(look);
       onSaved?.(look);
       toast({ message: from === 'suggested' ? copy.saved : copy.savedAs(look.name) });

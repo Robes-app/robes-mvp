@@ -7,6 +7,7 @@ import { Button, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Pressable, View } from 'react-native';
+import { nativeAnalytics } from '@/lib/analytics';
 
 const copy = looksCopy.page.wears;
 const _PAST_DAYS = 14;
@@ -28,6 +29,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
     ]);
   const remove = useApiMutation('looks.unwear', {
     onSuccess: async () => {
+      nativeAnalytics.track('wear_undone');
       toast.show({ message: copy.removed });
       await refresh();
     },

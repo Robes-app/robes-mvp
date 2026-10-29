@@ -2,6 +2,7 @@ import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import {
+  daysBetween,
   diaryMarks,
   diaryPick,
   longDate,
@@ -18,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { dayLabel, usePinLook } from '@/features/plan/plan';
+import { nativeAnalytics } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 import { LookPhoto } from './LookTile';
 import { localDate } from './saved-looks';
@@ -79,8 +81,14 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
   };
   const wear = useApiMutation('looks.wear', {
     // Today's wear says so as beta does; a day gone by names its date (twin: diary-sheet.tsx).
-    onSuccess: (w) =>
-      settle(w.wornOn === today ? copy.diary.wornToday : copy.diary.recordedOn(dayLabel(w.wornOn))),
+    onSuccess: (w) => {
+      nativeAnalytics.track('wear_confirmed', {
+        source: 'diary',
+        pieces: w.pieceIds.length,
+        offset_from_today: daysBetween(today, w.wornOn),
+      });
+      settle(w.wornOn === today ? copy.diary.wornToday : copy.diary.recordedOn(dayLabel(w.wornOn)));
+    },
     onError: (err: unknown) => toast.show({ message: errorMessage(err) }),
   });
   const busy = pin.isPending || wear.isPending;
@@ -98,7 +106,10 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
       return;
     }
     pin.mutateAsync({ params: { id: look.id }, input: { dates: [day], slot: 'day' } }).then(
-      () => settle(copy.diary.inDiaryFor(look.name, dayLabel(day))),
+      () => {
+        nativeAnalytics.track('look_pinned', { offset_from_today: daysBetween(today, day) });
+        settle(copy.diary.inDiaryFor(look.name, dayLabel(day)));
+      },
       (err: unknown) => toast.show({ message: errorMessage(err) }),
     );
   };

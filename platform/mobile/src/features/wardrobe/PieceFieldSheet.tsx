@@ -37,7 +37,7 @@ import {
   Text,
   useColor,
 } from '@robes/ui-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { ColourPicker, OptionRow, PrintPicker } from './ColourField';
 import { MaterialPicker } from './MaterialField';
@@ -151,8 +151,12 @@ export function PieceFieldSheet({
   const stepper =
     system !== 'plain' && (!piece.size || parseUkSize(system, piece.size) !== null) ? system : null;
 
-  // The drawer opens on what is filed now, whichever field she tapped.
+  // The drawer opens on what is filed now, whichever field she tapped. Only on opening: callers
+  // pass a fresh piece object each render, and a re-render must not wipe what she is typing.
+  const opened = useRef<PieceField | null>(null);
   useEffect(() => {
+    if (field === opened.current) return;
+    opened.current = field;
     if (!field) return;
     setColour(colourOf(piece));
     setText(textOf(field, piece));

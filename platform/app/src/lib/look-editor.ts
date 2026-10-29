@@ -16,6 +16,7 @@ import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/look
 import { useToast } from '@robes/ui';
 import { useMemo, useRef, useState } from 'react';
 import type { z } from 'zod';
+import { useAnalytics } from '@/components/analytics-provider';
 import type { RowMark } from '@/components/looks/rack-row';
 import {
   isDraftsFull,
@@ -33,6 +34,7 @@ export function useLookEditor(look: Look) {
   const refresh = useInvalidateLooks();
   const requestFrame = useRequestFrame();
   const redress = useRedress();
+  const { track } = useAnalytics().analytics;
   const live = look.status !== 'saved';
   const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
@@ -161,6 +163,7 @@ export function useLookEditor(look: Look) {
       const before = rack;
       const wasDirty = dirty;
       const next = swapped(key, piece);
+      track('piece_swapped', { surface: look.status, cat: piece.category });
       change(next);
       toast({
         message: lookbook.swap.swapped(piece.label),
@@ -183,6 +186,7 @@ export function useLookEditor(look: Look) {
     swapKeep: (key: string, piece: Piece) => {
       const before = rack;
       const next = swapped(key, piece);
+      track('piece_swapped', { surface: look.status, cat: piece.category });
       const put = (r: RackState) =>
         api.call('looks.update', {
           params: { id: look.id },
@@ -214,8 +218,12 @@ export function useLookEditor(look: Look) {
           toast({ message: errors.internal });
         });
     },
-    add: (piece: Piece) => change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] }),
+    add: (piece: Piece) => {
+      track('look_piece_added', { surface: look.status, cat: piece.category });
+      change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] });
+    },
     remove: (key: string) => {
+      track('look_piece_removed', { surface: look.status });
       const { [key]: _gone, ...edits } = rack.edits;
       change({ ...rack, rows: rack.rows.filter((r) => r.key !== key), edits });
     },
@@ -249,7 +257,8 @@ export function useLookEditor(look: Look) {
     update: () =>
       void write
         .mutateAsync({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: false }) })
-        .then(() => {
+        .then((updated) => {
+          track('look_updated', { pieces: updated.pieces.length });
           setDirty(false);
           setEditing(false);
           toast({ message: lookbook.updated });

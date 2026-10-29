@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
+  daysBetween,
   diaryDays,
   diaryMarks,
   diaryPick,
@@ -28,6 +29,10 @@ describe('calendar', () => {
     expect(shiftMonth('2026-12', 1)).toBe('2027-01');
     expect(shiftMonth('2026-01', -1)).toBe('2025-12');
     expect(addDays('2026-02-28', 1)).toBe('2026-03-01');
+    expect(daysBetween('2026-02-28', '2026-03-01')).toBe(1);
+    expect(daysBetween('2026-10-28', '2026-10-21')).toBe(-7);
+    // Across a clock change the count is still whole days.
+    expect(daysBetween('2026-03-28', '2026-03-30')).toBe(2);
     expect(monthLabel('2026-10')).toBe('October 2026');
   });
 });

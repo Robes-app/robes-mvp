@@ -13,6 +13,7 @@ import { lookbook as copy, errors, ui } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { nativeAnalytics } from '@/lib/analytics';
 import { api as appApi } from '@/lib/api';
 import { askForPushOnce } from '@/lib/push';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
@@ -93,6 +94,12 @@ export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 
   const refresh = useInvalidateLooks();
   return useApiMutation('looks.save', {
     onSuccess: (look) => {
+      nativeAnalytics.track('look_created', {
+        from,
+        pieces: look.pieces.length,
+        proposed: look.proposals.length,
+        anchored: look.anchor !== null,
+      });
       refresh(look);
       onSaved?.(look);
       toast.show({ message: from === 'suggested' ? copy.saved : copy.savedAs(look.name) });

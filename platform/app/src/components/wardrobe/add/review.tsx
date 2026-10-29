@@ -1,5 +1,6 @@
 'use client';
 
+import { trackFiled } from '@robes/analytics';
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { InboxEntry, PieceValues, ReadPiece, UpdatePieceInput } from '@robes/contracts';
 import { ui, wardrobe } from '@robes/copy';
@@ -28,6 +29,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { CropThumb } from '@/components/photo-pieces/photo-frame';
 import { PinnedAction } from '@/components/pinned-action';
 import {
@@ -99,6 +101,7 @@ export function Review({
 }) {
   const api = useApiClient();
   const queryClient = useQueryClient();
+  const { track } = useAnalytics().analytics;
   const reduced = useReducedMotion();
   // A link's own entry (links never sit in the Inbox list, which holds receipts).
   const inbox = useApi('inbox.get', { params: { id: link ?? '' } }, { enabled: link !== null });
@@ -244,6 +247,7 @@ export function Review({
         },
       });
     }
+    trackFiled(track, group.startsWith('inbox:') ? 'link' : 'photo', groupAnswers, to);
     if (to === 'wishlist') {
       await queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
     } else {
@@ -253,6 +257,7 @@ export function Review({
 
   function answer(entry: Entry, state: 'add' | 'skip') {
     const edits = changes[entry.key];
+    track('piece_answered', { state, edited: edits !== undefined });
     setAnswers((a) => ({ ...a, [entry.key]: { answer: state, ...(edits ? { edits } : {}) } }));
     const next = nextPending(
       entries.map((e) => (e.key === entry.key ? { ...e, answer: state } : e)),

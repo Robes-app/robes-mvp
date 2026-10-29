@@ -9,6 +9,7 @@ import { LookScreen } from '../src/features/looks/LookScreen';
 import { LooksView } from '../src/features/looks/LooksView';
 import { localDate } from '../src/features/looks/saved-looks';
 import { dayLabel } from '../src/features/plan/plan';
+import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { Providers } from './support/providers';
@@ -18,6 +19,8 @@ jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouter
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
 beforeEach(() => jest.clearAllMocks());
+// Every call site reports through the consent-gated client (observability.test.ts proves the gate).
+const track = jest.spyOn(nativeAnalytics, 'track');
 
 const SET_ID = '77777777-7777-4777-8777-777777777777';
 const SECOND = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -169,6 +172,16 @@ test('every new-look door asks where the pieces come from once she has filed any
       balance: 'mix',
     }),
   );
+  await waitFor(() =>
+    expect(track).toHaveBeenCalledWith('prompt_submitted', {
+      surface: 'create',
+      intent: 'words',
+      scope: 'none',
+      ok: true,
+    }),
+  );
+  expect(track).toHaveBeenCalledWith('balance_asked', { surface: 'create', piece: false });
+  expect(track).toHaveBeenCalledWith('balance_answered', { surface: 'create', balance: 'mix' });
 });
 
 test('a suggested look reads as Robes composed it; Save to lookbook opens the diary', async () => {
@@ -213,6 +226,13 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   expect(
     await screen.findByText(lookbook.diary.inDiaryFor('Garden party', dayLabel(tomorrow))),
   ).toBeTruthy();
+  expect(track).toHaveBeenCalledWith('look_created', {
+    from: 'suggested',
+    pieces: 1,
+    proposed: 1,
+    anchored: true,
+  });
+  expect(track).toHaveBeenCalledWith('look_pinned', { offset_from_today: 1 });
 });
 
 test('closing the diary after Save is not yet: nothing is pinned', async () => {
@@ -366,6 +386,19 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     [JEAN]: { was: expect.objectContaining({ name: 'Black pointed mules' }) },
   });
   expect(screen.getByText(lookbook.rack.swappedIn('the black pointed mules'))).toBeTruthy();
+  // Counts and enums only: never her words.
+  expect(track).toHaveBeenCalledWith('look_prompt_opened', { surface: 'draft' });
+  expect(track).toHaveBeenCalledWith('look_prompt_sent', {
+    surface: 'draft',
+    chars: 'swap the mules for my dark jean'.length,
+    from_draft: false,
+  });
+  expect(track).toHaveBeenCalledWith('look_prompt_applied', {
+    surface: 'draft',
+    intent: 'swap',
+    slots: 1,
+  });
+  expect(JSON.stringify(track.mock.calls)).not.toContain('dark jean');
 });
 
 test('a rule said in the prompt waits under Robes noticed; a vague ask is written into the field', async () => {

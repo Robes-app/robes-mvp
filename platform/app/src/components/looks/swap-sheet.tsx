@@ -6,7 +6,8 @@ import { lookbook as copy } from '@robes/copy';
 import { pieceMatches, sheetCategoryOf, sheetChips, theName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { Button, Pill, Sheet, Text } from '@robes/ui';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 
 const focus =
@@ -53,6 +54,12 @@ export function SwapSheet({
   const [category, setCategory] = useState<string | null | undefined>(undefined);
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Piece | null>(null);
+  const { track } = useAnalytics().analytics;
+  // Fires as the sheet opens, once per opening.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per opening, not per prop.
+  useEffect(() => {
+    if (open) track('swap_drawer_opened', { mode: swapping ? 'swap' : 'add' });
+  }, [open]);
   const file = useRef<HTMLInputElement>(null);
   const first = useRef<HTMLButtonElement>(null);
   const preset = swapping?.category ?? opensOn;
