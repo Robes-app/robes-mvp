@@ -1,3 +1,4 @@
+import { GENDER_IDENTITIES } from '@robes/core/avatar';
 import { HOME_STEPS } from '@robes/core/home';
 import { z } from 'zod';
 import { JobSnapshot } from './jobs';
@@ -12,7 +13,7 @@ export const NextStep = z
     remaining: z.number().int().min(1).optional(),
     count: z.number().int().min(1).optional(),
     lookName: z.string().optional(),
-    presence: z.enum(['woman', 'man', 'unspecified']).optional(),
+    presence: z.enum(GENDER_IDENTITIES).optional(),
   })
   .nullable();
 export type NextStep = z.infer<typeof NextStep>;

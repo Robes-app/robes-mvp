@@ -2,6 +2,7 @@ import { styleDnaPromptBlock } from '@robes/core/style-dna';
 import { z } from 'zod';
 import { FENCE_RULE, fenceUserText } from '../../fence';
 import { BANNED_CONSTRUCTIONS_RULE } from '../daily/v1';
+import { NON_BINARY_DIRECTIVE } from '../gender';
 
 // Ported from legacy server.js /api/stylenotes/brief (beta 2026-10-13): Robes drafts her personal
 // style brief from evidence (what she owns, wears and has said) as lines she keeps or strikes.
@@ -26,7 +27,7 @@ export const Output = z.object({
 });
 export type Output = z.infer<typeof Output>;
 
-export type Gender = 'woman' | 'man' | 'unspecified';
+export type Gender = 'woman' | 'man' | 'non_binary' | 'unspecified';
 
 export interface Piece {
   label: string;
@@ -73,6 +74,7 @@ export interface BriefContext {
 const GENDER_DIRECTIVE: Record<Gender, string> = {
   woman: 'The user is a woman (from her profile): every piece and look is womenswear.',
   man: 'The user is a man (from his profile): every piece, look and reference is menswear — male cuts, sizing, styling codes and brands, never womenswear. Where these notes say "she"/"her", read "he"/"him".',
+  non_binary: NON_BINARY_DIRECTIVE,
   unspecified:
     'The user has not said how they identify: judge whose clothing to propose from their words and their pieces; when nothing points a direction, keep pieces and styling gender-neutral. "She"/"her" in these notes simply means this client.',
 };

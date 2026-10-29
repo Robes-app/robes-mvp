@@ -107,3 +107,46 @@ describe('season labels', () => {
     expect(copy.lookbook.refine.seasons.spring_summer).toBe('Spring/Summer');
   });
 });
+
+// Non-binary (29 Oct): the pickers name it, and her model reads as they.
+describe('gender copy', () => {
+  const find = (o: unknown, key: string): unknown => {
+    if (!o || typeof o !== 'object') return undefined;
+    for (const [k, v] of Object.entries(o)) {
+      if (k === key) return v;
+      const hit = find(v, key);
+      if (hit !== undefined) return hit;
+    }
+    return undefined;
+  };
+
+  it('offers Non-binary beside the other three', () => {
+    expect(find(copy, 'genderOptions')).toEqual({
+      woman: 'Woman',
+      man: 'Man',
+      non_binary: 'Non-binary',
+      unspecified: 'Prefer not to say',
+    });
+  });
+
+  it('says they, with the verb agreeing', () => {
+    const asIs = find(copy, 'asIs') as (p: string) => string;
+    expect(asIs('non_binary')).toBe('As they are');
+    expect(asIs('unspecified')).toBe('As they are');
+    expect(asIs('woman')).toBe('As she is');
+    // The status line sits beside asIs, under the model's copy.
+    const parentOf = (o: unknown, key: string): Record<string, unknown> | undefined => {
+      if (!o || typeof o !== 'object') return undefined;
+      if (key in o) return o as Record<string, unknown>;
+      for (const v of Object.values(o)) {
+        const hit = parentOf(v, key);
+        if (hit) return hit;
+      }
+      return undefined;
+    };
+    const status = parentOf(copy, 'asIs')?.status as (p: string, r: string) => string;
+    expect(status('non_binary', 'facts')).toBe(
+      'Drawn from your facts. Add a close-up and they take your face.',
+    );
+  });
+});

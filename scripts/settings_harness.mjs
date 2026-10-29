@@ -363,7 +363,7 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(await p.locator('#sh-body .fx-row').count() === 7 && (await p.locator('#sh-body .fx-k').allInnerTexts()).map(t => t.trim().toLowerCase()).join(' | ') === 'height | size | shoes | bust | waist | age | gender', 'seven rows: Height · Size · Shoes · Bust · Waist · Age · Gender');
     ok(!/weight/i.test(await txt(p, '#sh-body').then(t => t.replace(/Size, never weight/g, ''))), 'no weight anywhere');
     ok(/A soft tape over a thin layer\. Bust at the fullest point, waist at the narrowest\./.test(await txt(p, '#sh-body')), 'the tape line under Bust and Waist');
-    ok(await p.locator('#sh-body [data-axis="presence"]').count() === 3 && /Woman/.test(await txt(p, '#sh-body [data-axis="presence"].on')), 'Gender: Woman · Man · Prefer not to say, Woman on file');
+    ok((await p.locator('#sh-body [data-axis="presence"]').allTextContents()).map(t => t.replace('✓', '').trim()).join(' · ') === 'Woman · Man · Non-binary · Prefer not to say' && /Woman/.test(await txt(p, '#sh-body [data-axis="presence"].on')), 'Gender: Woman · Man · Non-binary · Prefer not to say, Woman on file');
     await p.click('#sh-body [data-step="height_cm"][data-dir="1"]'); await p.waitForTimeout(150);
     ok(/169 cm/.test(await txt(p, '#sh-body')) && (await upd('u.style_dna && u.style_dna.facts')).style_dna.facts.height_cm === 169, 'height steps from 168 and writes style_dna.facts');
     ok(/169 cm/.test(await txt(p, '#sub-body #tw-facts-strip')) && /169 cm/.test(await txt(p, '#sub-body .tw-frows')), 'and the page beneath the drawer follows at once');
@@ -391,6 +391,8 @@ for (const [label, vp] of [['desktop', { width: 1280, height: 900 }], ['mobile',
     ok(/29 in/.test(await txt(p, '#sh-body .fx-row:nth-child(5)')) && (await upd('u.style_dna && u.style_dna.facts')).style_dna.facts.waist_cm === 74, 'in inches the step is an inch — 74 cm underneath');
     await p.click('#sh-body [data-age="45–54"]'); await p.waitForTimeout(150);
     ok(/45–54/.test(await txt(p, '#sh-body [data-age].on')), 'an age chip selects');
+    await p.click('#sh-body [data-axis="presence"][data-v="non_binary"]'); await p.waitForTimeout(250);
+    ok((await upd('u.gender_identity')).gender_identity === 'non_binary' && /Non-binary/.test(await txt(p, '#sh-body [data-axis="presence"].on')), 'Non-binary writes profiles.gender_identity at once, and the pill moves');
     await p.click('#sh-body [data-axis="presence"][data-v="man"]'); await p.waitForTimeout(250);
     ok((await upd('u.gender_identity')).gender_identity === 'man', 'Man writes profiles.gender_identity at once');
     ok(/Man/.test(await txt(p, '#sh-body [data-axis="presence"].on')) && /chest/i.test((await p.locator('#sh-body .fx-k').allInnerTexts()).map(t => t.trim())[3]) && await p.locator('#sh-body [data-bust]').count() === 0, 'and the pill moves; Bust reads Chest for a man, the tape alone');

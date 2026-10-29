@@ -10,7 +10,7 @@ import {
   hasTwinInputs,
   type ModelPicks,
   NO_ADJ,
-  type Presence,
+  presenceOf,
   resolveModel,
   SKIN_SWATCHES,
   twinInputsOf,
@@ -37,10 +37,6 @@ const StoredPicks = z.object({
 
 const wearerOf = (g: string | null | undefined): 'woman' | 'man' =>
   presenceOf(g) === 'man' ? 'man' : 'woman';
-
-function presenceOf(genderIdentity: string | null | undefined): Presence {
-  return genderIdentity === 'man' || genderIdentity === 'unspecified' ? genderIdentity : 'woman';
-}
 
 async function current(userId: UserId) {
   const row = await repos.model.get(userId);

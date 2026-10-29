@@ -915,7 +915,8 @@
     const MV_HAIR_NAMES = ['jet black','espresso brown','chestnut brown','caramel blonde','ash blonde'];
     // Gender — the fifth fact (labelled Gender on screen, decision 2026-10-07).
     // Values match profiles.gender_identity; asked, never inferred.
-    const MV_PRESENCE = [['woman','Woman'],['man','Man'],['unspecified','Prefer not to say']];
+    const MV_PRESENCE = [['woman','Woman'],['man','Man'],['non_binary','Non-binary'],['unspecified','Prefer not to say']];
+    const MV_GENDERS = MV_PRESENCE.map(p => p[0]);
     // The three scales (design 3C): five stops each, 0 = "As she is" (her facts).
     const TW_SCALES = [['shoulders', 'Shoulders', 'Narrower', 'Broader'], ['bust', 'Bust', 'Smaller', 'Fuller'], ['hips', 'Hips', 'Narrower', 'Fuller']];
     const TW_CUPS = ['AA', 'A', 'B', 'C', 'D', 'DD', 'E', 'F', 'G+'];
@@ -1103,12 +1104,15 @@
     }
     function mvGender() {
       const g = st.model.gender || st.gender;
-      return (g === 'man' || g === 'unspecified') ? g : 'woman';
+      return MV_GENDERS.includes(g) ? g : 'woman';
     }
     const mvMan = () => mvGender() === 'man';
+    // Non-binary and "Prefer not to say" read as they (the platform's copy does the same).
     const mvP = () => mvMan()
-      ? { She: 'He', she: 'he', her: 'his', him: 'him', hers: 'his', Shes: 'He’s' }
-      : { She: 'She', she: 'she', her: 'her', him: 'her', hers: 'hers', Shes: 'She’s' };
+      ? { She: 'He', she: 'he', her: 'his', him: 'him', hers: 'his', Shes: 'He’s', s: 's', is: 'is' }
+      : mvGender() === 'woman'
+        ? { She: 'She', she: 'she', her: 'her', him: 'her', hers: 'hers', Shes: 'She’s', s: 's', is: 'is' }
+        : { She: 'They', she: 'they', her: 'their', him: 'them', hers: 'theirs', Shes: 'They’re', s: '', is: 'are' };
     // The legacy catalog handle — the fallback every render surface keeps
     // for an account with no twin on file yet (no figure axis any more).
     function mvModelId() { return (mvMan() ? 'm' : 'w') + '-s' + mvSkinIdx() + '-h' + mvHairIdx() + '-nt'; }
@@ -1218,10 +1222,10 @@
       if (typeof shRepaintIf === 'function') { shRepaintIf('photos'); shRepaintIf('body'); }
       const note = document.getElementById('mv-status');
       let txt;
-      if (hasPhoto && hasFacts) txt = 'Read from your close-up and your facts. ' + P.Shes + ' as close as ' + P.she + ' gets.';
+      if (hasPhoto && hasFacts) txt = 'Read from your close-up and your facts. ' + P.Shes + ' as close as ' + P.she + ' get' + P.s + '.';
       else if (hasPhoto) txt = 'Read from your close-up. Add your facts and Robes draws ' + P.her + ' line.';
-      else if (hasFacts) txt = 'Drawn from your facts. Add a close-up and ' + P.she + ' takes your face.';
-      else if (any) txt = 'Shaped by hand. A close-up or your facts, whenever you like — ' + P.she + ' updates.';
+      else if (hasFacts) txt = 'Drawn from your facts. Add a close-up and ' + P.she + ' take' + P.s + ' your face.';
+      else if (any) txt = 'Shaped by hand. A close-up or your facts, whenever you like — ' + P.she + ' update' + P.s + '.';
       else txt = 'Nothing yet. Add a close-up, or set your line from your facts.';
       note.textContent = txt;
 
@@ -1263,7 +1267,11 @@
       if (v !== mvGender()) {
         st.model.gender = v;
         st.gender = v;
-        save({ gender_identity: v });
+        // Until migration 30 runs the database refuses 'non_binary' (check
+        // constraint, 23514): the nearest value it holds is saved instead.
+        save({ gender_identity: v }).then(err => {
+          if (err && v === 'non_binary' && String(err.code) === '23514') save({ gender_identity: 'unspecified' });
+        });
         if (mvChosen() || mvReadAny()) mvFile(); else renderModel();
       }
     }
@@ -2067,7 +2075,7 @@
           const g = st.gender ? factGender() : '';
           const scales = TW_SCALES.map(([k, label, l, r]) => {
             const cur = twEff(k);
-            const stops = [-2, -1, 0, 1, 2].map(v => '<button type="button" class="tw-stop' + (cur === v ? ' on' : '') + '" data-axis="adj" data-k="' + k + '" data-v="' + v + '" aria-pressed="' + (cur === v ? 'true' : 'false') + '" aria-label="' + esc(twScaleLabel(k, label) + ': ' + (v === 0 ? 'As ' + P.she + ' is' : twWord(k, v, l, r))) + '"></button>').join('');
+            const stops = [-2, -1, 0, 1, 2].map(v => '<button type="button" class="tw-stop' + (cur === v ? ' on' : '') + '" data-axis="adj" data-k="' + k + '" data-v="' + v + '" aria-pressed="' + (cur === v ? 'true' : 'false') + '" aria-label="' + esc(twScaleLabel(k, label) + ': ' + (v === 0 ? 'As ' + P.she + ' ' + P.is : twWord(k, v, l, r))) + '"></button>').join('');
             return '<div class="tw-scale"><div class="tw-sc-k">' + twScaleLabel(k, label) + '</div>' +
               '<div class="tw-stops" role="group" aria-label="' + esc(twScaleLabel(k, label)) + '">' + stops + '</div><div class="tw-sc-ends"><span>' + l + '</span><span>' + r + '</span></div></div>';
           }).join('');
@@ -2842,7 +2850,7 @@
         if (Array.isArray(profile.style_icons)) st.icons = profile.style_icons.filter(x => typeof x === 'string' && x.trim());
         if (profile.headshot_url) st.headshotUrl = profile.headshot_url;
         if (profile.full_length_url) st.fullLengthUrl = profile.full_length_url;
-        if (profile.gender_identity === 'man' || profile.gender_identity === 'unspecified') st.gender = profile.gender_identity;
+        if (MV_GENDERS.includes(profile.gender_identity) && profile.gender_identity !== 'woman') st.gender = profile.gender_identity;
         st.notify = (profile.notification_prefs && typeof profile.notification_prefs === 'object') ? profile.notification_prefs : null;
         const dna = st.styleDna || {};
         st.types = Array.isArray(dna.style_archetypes) ? dna.style_archetypes.filter(x => typeof x === 'string') : [];
@@ -2873,7 +2881,7 @@
           st.model = {
             skin: Number.isInteger(prefs.skin) ? prefs.skin : null, hair: Number.isInteger(prefs.hair) ? prefs.hair : null,
             adj: prefs.adj && typeof prefs.adj === 'object' ? prefs.adj : null, kept: !!prefs.kept,
-            gender: (prefs.gender === 'man' || prefs.gender === 'woman' || prefs.gender === 'unspecified') ? prefs.gender : null,
+            gender: MV_GENDERS.includes(prefs.gender) ? prefs.gender : null,
             touched: !!(prefs.kept || Number.isInteger(prefs.skin) || Number.isInteger(prefs.hair) || prefs.gender),
           };
         }

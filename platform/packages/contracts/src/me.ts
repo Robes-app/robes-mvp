@@ -1,3 +1,4 @@
+import { GENDER_IDENTITIES } from '@robes/core/avatar';
 import { COLOUR_FAMILY_IDS, PATTERNS, SHADE_IDS } from '@robes/core/colour';
 import { z } from 'zod';
 
@@ -172,7 +173,7 @@ export const PushTokenParams = z.object({ token: ExpoPushToken });
 
 // You › Your model (M6 task 1): her picks over what her photo reads say. The swatches are data for
 // the pickers; the cell is the shared reference portrait her looks are rendered on.
-export const ModelPresence = z.enum(['woman', 'man', 'unspecified']);
+export const ModelPresence = z.enum(GENDER_IDENTITIES);
 const stop = z.number().int().min(-2).max(2).nullable();
 export const TwinAdj = z.object({ shoulders: stop, bust: stop, hips: stop });
 export type TwinAdj = z.infer<typeof TwinAdj>;

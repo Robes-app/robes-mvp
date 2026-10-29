@@ -1,6 +1,7 @@
 import { styleDnaPromptBlock } from '@robes/core/style-dna';
 import { z } from 'zod';
 import { fenceUserText } from '../../fence';
+import { NON_BINARY_DIRECTIVE } from '../gender';
 
 // Ported from legacy server.js /api/style (key-piece mode); style-DNA block arrives with the
 // packages/core style-dna port (M4 task 2). Versioned: change wording only via a new version.
@@ -8,7 +9,7 @@ export const FEATURE = 'looks.style_piece';
 export const VERSION = 1;
 export const FALLBACK_PIECE = 'black Balmain waistcoat with gold buttons';
 
-export type Gender = 'woman' | 'man' | 'unspecified';
+export type Gender = 'woman' | 'man' | 'non_binary' | 'unspecified';
 
 export const Way = z.object({
   eyebrow: z.string().max(60),
@@ -59,6 +60,7 @@ export function genderBlock(g: Gender): string {
   if (g === 'man') {
     return 'The user identifies as a man. Every piece, look and recommendation must be menswear — male cuts, sizing and styling codes, menswear brands and male style references throughout. Never suggest womenswear. Where these instructions use "she"/"her" generically, they refer to this male client — read them as "he"/"him".';
   }
+  if (g === 'non_binary') return NON_BINARY_DIRECTIVE;
   if (g === 'unspecified') {
     return 'The user has not said how they identify. Use your best judgement from their words, their pieces and their wardrobe to decide whose clothing to recommend; when nothing points a direction, keep pieces and styling gender-neutral. Where these instructions use "she"/"her" generically, they simply refer to this client.';
   }
@@ -68,7 +70,7 @@ export function genderBlock(g: Gender): string {
 export function wearerRule(g: Gender): string {
   if (g === 'man')
     return 'Set "wearer" to "man" — the user is a man and every look is styled for him.';
-  if (g === 'unspecified') {
+  if (g === 'unspecified' || g === 'non_binary') {
     return 'Set "wearer" to your best judgement of who the looks are styled for, based only on the user\'s words and the piece itself.';
   }
   return 'Set "wearer" to who the looks are styled for: "woman" unless the user\'s words clearly state the wearer is male — the piece itself being menswear or unisex (sportswear, an oversized jacket, boyfriend jeans) NEVER makes the wearer male.';
