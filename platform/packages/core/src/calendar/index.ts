@@ -12,18 +12,6 @@ export function daysBetween(from: string, date: string): number {
   );
 }
 
-// The days the save sheet offers (today and the fortnight after); the day her words named leads
-// selected when it is one of them, never a day gone by.
-export const DIARY_DAYS = 14;
-export function diaryDays(
-  today: string,
-  hint: string | null | undefined,
-  n = DIARY_DAYS,
-): { days: string[]; preset: string | null } {
-  const days = Array.from({ length: n }, (_, i) => addDays(today, i));
-  return { days, preset: hint && days.includes(hint) ? hint : null };
-}
-
 // The diary sheet's one rule (legacy `_lkDiaryPaint`): a day gone by records a wear, a day
 // ahead files the look, and the CTA names whichever it is about to do. Shared so the web sheet
 // and the native sheet cannot drift.

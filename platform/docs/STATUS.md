@@ -109,8 +109,8 @@ reading as her row; the swap glyph is already the one circular-arrows icon (`fc6
 **Legacy-only:** home's empty Style DNA card as one "Log your style notes" door (`f044b35`) — the
 platform has no modular home yet; harness and CLAUDE.md edits.
 
-**New in legacy, not built here** (rough effort):
-- The saved look's calendar on a Lookbook card (schedule a day or log a wear from the grid, `76187f0`), S.
+**New in legacy, since built here:** the saved look's calendar on a Lookbook card (the diary sheet
+over the grid, web and native — beta parity pass 4, 2026-10-28).
 
 ## Legacy sync 2026-10-24 — admin
 
@@ -198,6 +198,22 @@ MinIO); the unit, DB and native suites and `next build` pass.
   the `robes-staging-inbound` SES rule set activated (runbooks/environments.md §9 step 7). Native
   camera refused → Settings (the OS-camera fallback is gone, per the audit). Size conversions are
   womenswear only.
+
+## Beta parity — 2026-10-28
+
+Beta and staging compared screen by screen, every gap listed and closed in seven passes
+(`plans/2026-10-28-beta-parity-move-to-staging.md` — the gap list, Annie's decisions and each
+pass's notes). Done on web and native: the blockers (unnamed save, model re-render after an edit,
+"Sept"), beta's visual tokens, the look page and piece metadata, the diary/Lookbook/home/wardrobe/You
+details, live weather from her location, the inline title field, the photo read's print and
+material, the native shell (not-found, deep links, app links), and product events after consent.
+
+**Still outside code:** a staging worker deploy (`runbooks/staging-deploy-handoff.md` — until then
+photo reads, the twin, the colour read and model dressing run the 23 Oct workers); the GitHub
+`staging` environment and `STAGING_AUTO_DEPLOY`; the app-link env (Apple team and bundle id,
+Android package and cert) and Associated Domains; a new EAS build; the live checklist (plan §8).
+**Open:** native Sign in with Apple (N9, App Store blocker); consent during onboarding; the
+week's list in plan §7.
 
 ## Flakes to watch
 

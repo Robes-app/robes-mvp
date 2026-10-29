@@ -225,7 +225,7 @@ blockers ship first and the token pass doesn't conflict with component work.
 | **4 · Diary · Lookbook · Home · Wardrobe · You (S items)** ✅ 2026-10-28 (`fix/parity-pass-4`) | Open the day from the sheet; worn dots from `looks.wears`; "· Worn" rows; persisted toggles; copy; native tray/past-day/weekday; sort/filter hidden under four; native prints/pieces swatches; sign-in line; Download data on native | L7 L9/L3 D2 D4 D7 D9 L1 L7 L9 L10 F6 F7 F9 F10 W4 W8 Y6 Y7 Y4 F4 N1 | 3–4 h | `diary-sheet.tsx` ↔ `DiarySheet.tsx`, `plan-list/plan-view/plan-month.tsx` ↔ `PlanView/PlanMonth.tsx`, `lookbook.tsx` ↔ `LooksView.tsx`, `home-view.tsx` ↔ `HomeView.tsx`, `db/repos/wardrobe.ts`, `features/you/{Palette,StyleDna,Privacy}.tsx`, `(auth)/sign-in.tsx`, `packages/copy/src/index.ts` |
 | **5 · Native shell** ✅ 2026-10-28 (`fix/parity-pass-5`) | `+not-found`; `links.ts` rules; Create as formSheet; sheet bottom inset; Google button; associated domains + AASA (config) | N5 N6 D1 D2 D3 F5 N4 | 1.5 h | `mobile/src/app/{+not-found,_layout}.tsx`, `mobile/src/lib/links.ts` (+ test), `packages/ui-native/src/Sheet.tsx`, `mobile/app.json`, web AASA route |
 | **6 · Product events** (decision 11) ✅ 2026-10-28 (`fix/parity-pass-6`) | Events catalogue + call sites on both clients | N8 | M | `packages/analytics`, `Camera.tsx`, `SwapSheet.tsx`, `look-editor.ts` + web twins |
-| **7 · Docs** | Correct the stale lines (§9); history entry; `STATUS.md` | — | 0.5 h | `docs/plans/2026-10-23-cutover-readiness.md`, `docs/STATUS.md`, `docs/legacy-app-history.md` |
+| **7 · Docs** ✅ 2026-10-29 (`fix/parity-pass-7`) | Correct the stale lines (§9); history entry; `STATUS.md` | — | 0.5 h | `docs/plans/2026-10-23-cutover-readiness.md`, `docs/STATUS.md`, `docs/legacy-app-history.md` |
 
 **Pass 1 notes (done).** L1: the rule lives server-side (`saveLook`, `lookDateName` in
 `@robes/core/calendar`), applies to `source='manual'` drafts with no `setId`, in her profile's
@@ -331,6 +331,13 @@ during onboarding; native analytics mounts in the tabs); the admin funnel reads 
 (`app.events` has no writer); `look_generated` / `pieces_read` belong server-side (no worker
 analytics client); `look_dismissed`, `draft_discarded`, `inbox_reviewed` not wired.
 
+**Pass 7 notes (done).** §9's stale lines corrected in the cutover plan and `STATUS.md` (which
+now carries a beta-parity section); `diaryDays`/`DIARY_DAYS` deleted (no caller since the month
+sheet); the legacy history carries the dated entry. Left: the `material_model.cjs` header ("43
+materials", 40 in the list) is a legacy file, so it waits for a legacy pass on `beta`. Also in
+pass 6's PR: the piece field drawer fills itself only when it opens — Review passes a fresh piece
+each render, and a re-render had wiped her typing (CI's `photo-pieces.spec`).
+
 Passes 1 → 2 → 3 are the move-today bar. 4 and 5 are the same day if hands allow; nothing in
 them stops a tester. The M/L items left in §4 (held card M4/M5, deck card M8, key-piece tile M15,
 O4 Robes-build F8, filter multi-select W5, cascade W6, Review "Already mine" W9, morning hour Y2,
@@ -369,7 +376,7 @@ spec) and compare against beta by eye.
 
 ---
 
-## 9. Stale lines to correct in older docs
+## 9. Stale lines to correct in older docs (done in pass 7, except the legacy header)
 
 - `2026-10-23-cutover-readiness.md` §A: "diary sheet is 14 day pills" → closed (both clients);
   "digital twin screens not at redline" → closed after `20f7dda`; "createNativeAnalytics has no

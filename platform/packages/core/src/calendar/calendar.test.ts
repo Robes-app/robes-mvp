@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   addDays,
   daysBetween,
-  diaryDays,
   diaryMarks,
   diaryPick,
   longDate,
@@ -110,17 +109,6 @@ describe('trip bands', () => {
     expect(bands.get('2026-10-12')).toMatchObject({ first: false, head: true });
     expect(bands.get('2026-10-11')?.head).toBe(false);
     expect(bands.get('2026-10-13')).toMatchObject({ last: true, range: '10–13 Oct' });
-  });
-
-  it('offers today and the fortnight after, the named day preset only when it is one of them', () => {
-    const { days, preset } = diaryDays('2026-10-30', '2026-11-02');
-    expect(days).toHaveLength(14);
-    expect(days[0]).toBe('2026-10-30');
-    expect(days[13]).toBe('2026-11-12');
-    expect(preset).toBe('2026-11-02');
-    expect(diaryDays('2026-10-30', '2026-10-29').preset).toBeNull();
-    expect(diaryDays('2026-10-30', null).preset).toBeNull();
-    expect(diaryDays('2026-10-30', '2026-12-25').preset).toBeNull();
   });
 });
 

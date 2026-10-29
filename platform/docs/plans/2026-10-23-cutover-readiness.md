@@ -78,32 +78,24 @@ list below separates "the behaviour is there" from "it reads as beta does".
       rounded square quartered into four shades (it was four circles), prints the same square (a
       circle), and the answer sits on the sheet's own avoid · no view · love control, not the
       header's uppercase segmented control. Fixed web and native.
-- [ ] **The diary sheet is 14 day pills, not beta's month calendar** (`diary-sheet.tsx`,
-      `packages/core/src/calendar`). Consequences: no past days, so **retro "record it as worn"
-      is unreachable**; no filed-day dots; no "I wore this today"; and nothing is preselected on
-      an undated save, so the CTA opens disabled where beta's is live. M.
+- [x] **The diary sheet is beta's month calendar** on web and native (`monthGrid`, `diaryPick`):
+      past days record a wear, filed and worn days carry dots, "Open the day" routes, and the
+      Lookbook card opens the same sheet (parity pass 4, 2026-10-28).
 - [x] **The generic-model badge** — on the deck's top card (`bcf8b8a`), the suggested look's
       frame and the empty draft's canvas (2026-10-27), opening the twin drawer, never a navigation.
 - [x] **The scanner** — the deck's dressing card, the suggested tile and the look page's busy
       frame (`9ca0bf3`), with the three line lists kept apart.
-- [ ] **The digital twin screens** — the engine is a faithful port (every constant matches) but
-      the redline is not: the hero is not full-bleed over cream with the 90px fade and the caption
-      inside it, the "Build your model" CTA the redline **deleted** was re-added, and the italic
-      five-state status line and the empty state are missing. The parametric figure underlay is
-      absent, so the stage is empty until the first twin lands. L.
-- [x] **The in-app camera with Single | Several** (`bc56305`) — web over `getUserMedia`, native
-      on `expo-camera` (+ `expo-image-manipulator`, both in Expo Go so no dev build), the mode
-      remembered per device, Several collecting shots into the existing batch, and the OS camera
-      as the fallback on a refused permission.
+- [x] **The digital twin screens** are at the 27 Oct redline on web and native (`20f7dda`).
+- [x] **The in-app camera** (`bc56305`) — web over `getUserMedia`, native on `expo-camera`
+      (+ `expo-image-manipulator`, both in Expo Go), the OS camera as the fallback on a refused
+      permission. No Single | Several mode: every shot is read and counted (decision 9, W10).
 - [x] **The piece page leads with its photograph** and carries the Hero Rack star, which until
-      now was reachable from the grid alone. **Change photo is NOT built**: there is no route to
-      replace a piece's asset, and a button that does nothing is worse than its absence — it
-      needs a contract + handler, scoped below.
+      now was reachable from the grid alone.
 - [x] **The receipt door** is its address card (the one action), the three numbered steps and a
       line naming what is waiting in the Inbox.
-- [ ] **Change photo on a piece**: add `wardrobe.photo` to `packages/contracts/src/routes.ts`
-      plus its handler, then the corner pill on the record door. S–M, needs the api-security
-      checklist.
+- [x] **Change photo on a piece**: `wardrobe.photo` (`POST /wardrobe/items/:id/photo`, asset and
+      piece both hers, cross-user tested) behind a "Change photo" pill; no re-read, so her fields
+      stand (parity pass 3, 2026-10-28).
 - [x] **A saved look has no wear record.** Closed 2026-10-24 (`ac827fb`, `1a0b3db`): a dedicated
       `looks.wears` read (the day, and the pieces she wore that day named from the wear's own
       snapshot), `wearDiff` in `@robes/core`, and the record under the rack on both clients —
@@ -115,16 +107,11 @@ list below separates "the behaviour is there" from "it reads as beta does".
 - [x] **The balance question on every new-look door** — the home box, the empty Suggested tab and
       the Create sheet (one `HomeBox`), a dated day door, and the piece page (web: the box opens
       with the piece inside it; native: Style a piece asks it) (2026-10-27).
-- [ ] **No product events come from either client's components.** Legacy fires `camera_opened`,
-      `camera_filed`, `piece_removed`, `swap_drawer_opened` and dozens more through `_rbTrack`.
-      On the platform, `@robes/analytics` is a closed typed catalogue, the web exposes only
-      consent controls through `useAnalytics()`, and `createNativeAnalytics` in
-      `mobile/src/lib/analytics.tsx` has **no consumer at all** — no provider is mounted in the
-      Expo app. So the in-app camera carries `shortcut:` comments where its two events belong
-      (`mobile/src/features/wardrobe/Camera.tsx`), and the web camera doesn't track them either.
-      Deliberately not fixed in the parity pass: capturing product events from components is an
-      architecture decision across both clients, not a port. Decide before cutover whether the
-      new app needs legacy's event coverage on day one — the admin funnel reads these.
+- [x] **Product events from both clients** (decision 11, parity pass 6, 2026-10-28): the
+      `@robes/analytics` catalogue (strict shapes, no free text) with call sites on web and native,
+      after consent only. **Open:** onboarding events rarely reach PostHog (consent isn't asked
+      during onboarding); the admin funnel reads tables, not events; `look_generated` and
+      `pieces_read` belong server-side.
 - [ ] Re-run the parity pass right before cutover (the founder keeps shipping on legacy until then).
 
 Ask the founders to **freeze new legacy features** from the cutover date minus two weeks, or every
