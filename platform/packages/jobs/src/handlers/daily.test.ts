@@ -59,6 +59,11 @@ function setup(opts: { output?: Output; ai?: AiProvider; weather?: unknown } = {
       ? { city: 'Dublin', month: 'September', tempRange: '11–17°C', condition: 'light rain' }
       : opts.weather,
   );
+  const destination = vi.fn(async (q: { name: string }) =>
+    q.name === 'Lisbon'
+      ? { place: 'Lisbon, Portugal', tempRange: '15–21°C', condition: 'clear', seasonal: false }
+      : null,
+  );
   const writeStage = vi.fn(async (_stage: string, _output: unknown) => {});
   const handler = createDailyHandler({
     ai,
@@ -66,6 +71,7 @@ function setup(opts: { output?: Output; ai?: AiProvider; weather?: unknown } = {
     styling: styling as never,
     ledger,
     weather: weather as never,
+    destination,
     now: () => new Date('2026-09-24T09:00:00Z'),
   });
   const run = (input: Record<string, unknown> = { prompt: 'Studio day' }) =>
@@ -77,7 +83,7 @@ function setup(opts: { output?: Output; ai?: AiProvider; weather?: unknown } = {
       writeStage,
       isCancelled: async () => false,
     });
-  return { run, styling, storage, ledger, weather, writeStage };
+  return { run, ai, styling, storage, ledger, weather, destination, writeStage };
 }
 
 describe('daily handler (style it for today)', () => {
@@ -110,6 +116,26 @@ describe('daily handler (style it for today)', () => {
       images: [{ idx: 0, assetId: ASSET, status: 'ready' }],
     });
     expect(writeStage.mock.calls.map((c) => c[0])).toEqual(['text', 'images']);
+  });
+
+  it('dresses a place she names for its weather there, and sets the frame there', async () => {
+    const { run, ai, styling, destination } = setup();
+    const generateJson = vi.spyOn(ai, 'generateJson');
+    await run({ prompt: 'Lunch in Lisbon' });
+    expect(destination).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Lisbon', date: '2026-09-24' }),
+    );
+    const req = generateJson.mock.calls.at(-1)?.[0];
+    expect(req?.user).toContain(
+      'She is dressing for Lisbon, Portugal. Forecast there: 15–21°C, clear.',
+    );
+    expect(req?.user).not.toContain('REAL-TIME CONTEXT');
+    const saved = styling.createDailyLook.mock.calls.at(-1)?.[1] as { data: { weather: unknown } };
+    expect(saved.data.weather).toEqual({
+      city: 'Lisbon, Portugal',
+      tempRange: '15–21°C',
+      condition: 'clear',
+    });
   });
 
   it('runs without weather', async () => {

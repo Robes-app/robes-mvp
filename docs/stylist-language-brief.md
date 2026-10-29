@@ -1,6 +1,6 @@
 # The stylist's language — Liberty's glossary in the prompt, a weekly feed, one look per ask (build brief)
 
-**Date**: 2026-10-22, updated 2026-10-28 (Landscape-Aware Styling) · **Branch**: `beta` · **Status**: brief, nothing built
+**Date**: 2026-10-22, updated 2026-10-28 (Landscape-Aware Styling) · **Branch**: `beta` · **Status**: slice P built 2026-10-29 on beta and the platform (history 2026-10-29); the rest is brief
 **Sources**: Liberty's *Fashion Language Glossary & Context* (22 Oct), her four archetype grids (women ×2, men, non-binary), her 24 street-style boards (25 Oct), her *Landscape-Aware Styling* (28 Oct), Annie's call that one prompt should return ONE look refined through the box
 **Companion briefs**: `docs/style-memory-brief.md` (the memory every prompt reads), `docs/look-prompt-brief.md` (the box and `/api/look/ask`), `docs/front-door-brief.md`
 
@@ -102,6 +102,8 @@ Move `ARCHETYPES`, `BRAND_SEED`, `ICON_SEED` out of `settings.html` into the mod
 **Houses**: the women's boards and three non-binary boards (Bold Maximalist, Workwear, Modern) carry none; the runway grids carry a trio per cell. Until Liberty confirms a trio per cell, the grids' trios stand for women and men and the boards' for non-binary. Two non-binary trios moved between the grid and the board (Punk: Westwood / Dr. Martens / Rick Owens → Vetements / Martine Rose / CdG; Soft Masc: Our Legacy / Sandy Liang / Dries → The Row / Lemaire / Aimé Leon Dore) — the board wins, being newer.
 
 Then the prompt can say, for a man placed Minimal who ticked no houses: "STYLE TYPE — Minimal (The Row, COS, Lemaire are its houses; clean lines, understated luxury, refined proportions)". The trend entries carry their archetype so "office siren" steers Classic without her ever having chosen it.
+
+**Agreed 29 Oct (Annie with Liberty)**: women, men and non-binary keep ONE consistent set of archetypes — the same registers for all three, not a separate non-binary vocabulary. Liberty's non-binary set landed in Drive the same day (`Lib Style Archetypes`, image1–8.png); Drive reads no text from them, so they are transcribed by hand before slice B. That settles most of decision 10 (Gender-Fluid is not its own register) and the shape of decision 2.
 
 **Owed and open** (§4): four boards before onboarding can ship (women's Minimal and Utility, men's Classic and Avant-garde — the grids cover all four, the street boards do not exist yet); the men's Eclectic board reads as cream-and-khaki relaxed tailoring, closer to men's Modern than to the women's leopard-and-patchwork Eclectic — either the register means something different for men and the glossary should say so, or the board needs the women's register; one house trio per cell; whether Gender-Fluid stays a deck card; the non-binary deck implies a `gender_identity` value the enum lacks.
 
@@ -278,7 +280,7 @@ Cheaper per ask by two-thirds in frames and text; dearer per *session* if she as
 8. **Men's Eclectic**: a different register for men (say so in the glossary) or a board redrawn to the women's register.
 9. **One house trio per cell**: the women's boards and three non-binary boards carry none; confirm the grid trios or supply new ones.
 10. **Gender-Fluid**: a deck card that maps to no register — keep it as a modifier, or fold it.
-11. **Ship the weather fix first** (slice P, Finding 4). It is a live bug: a named place is dressed for her home forecast. It needs nothing from Liberty, using only the destination capture and the four weather rungs, with a stub landscape list taken from her client phrases as they stand. Recommendation: yes, ahead of A.
+11. ~~**Ship the weather fix first**~~ — **built 2026-10-29** on beta (`server.js`, `landscapes.js`, `scripts/landscape_test.mjs`) and the platform (`@robes/core/landscape`, style-piece v5, daily v4), so staging and native carry it once the workers deploy. Not yet: the place filed on a saved look for `/api/look/ask` (§1.9 row 6). (Slice P, Finding 4.) It is a live bug: a named place is dressed for her home forecast. It needs nothing from Liberty, using only the destination capture and the four weather rungs, with a stub landscape list taken from her client phrases as they stand. Recommendation: yes, ahead of A.
 12. **A `setting` facet on looks** (`look_tags.setting`: city · country · coast…, inside `data`, so no migration) for "my coast looks" in the Lookbook. It is later, after P has filed `data.place` on enough looks to show whether she searches by place.
 
 ### 4b · Questions for Liberty — Landscape-Aware Styling (28 Oct)

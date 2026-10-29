@@ -10,6 +10,7 @@ import { buildColorHarmony, buildSilhouette, styleDnaPromptBlock, SEASONS } from
 import { TAXONOMY_GROUPS, resolveTaxonomy, taxonomyPromptBlock, tagDefaultRows, WEAR_SEEDS } from './wardrobe_taxonomy.js';
 import { createNotifier } from './notify.js';
 import { createInbox } from './inbox.js';
+import { readPlace, placeBlock, placeWeatherLine, PLACE_RULE, pickDestination, geocodeQuery } from './landscapes.js';
 import { createRequire } from 'module';
 // The colour and pattern model (2026-10-22) — a .cjs so the same file runs as
 // the browser's /js/colour-model.js; see colour_model.cjs.
@@ -681,15 +682,20 @@ app.post('/api/style', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
   const threeWays = wantsNew
     ? 'THREE WAYS, THREE LOOKS — no two ways share the same Anchor, and every Anchor is a NEW piece she has yet to find, three different pieces from three different houses; the three differ in register (one easier, one sharper, one unexpected), never three colourways of one idea, never three ways of dressing the same owned pieces.'
     : 'THREE WAYS, THREE LOOKS — no two ways share the same Anchor; where her wardrobe holds three candidates, each way leads with a different owned piece; the three differ in register (one easier, one sharper, one unexpected), never three colourways of one idea. A small wardrobe is varied by combination, by how a piece is worn and by the scene — never by inventing pieces she did not ask for.';
-  const formulaBlock = `THE FORMULA — every look layers 1) THE ANCHOR, the hero piece for the weather and agenda; 2) THE CANVAS, premium supporting basics; 3) THE TEXTURE, one depth-adding element; 4) THE EXCLAMATION POINT, the footwear plus the one finish that injects identity — a bag, a belt, eyewear, a scarf, hosiery or jewellery, whichever earns its place in this look; a bag is not owed to every look. Name exact cuts, fabrications and how a piece is worn — never "jeans and a top".
+  const formulaBlock = `THE FORMULA — every look layers 1) THE ANCHOR, the hero piece for the weather, the place and what she does there; 2) THE CANVAS, premium supporting basics; 3) THE TEXTURE, one depth-adding element; 4) THE EXCLAMATION POINT, the footwear plus the one finish that injects identity — a bag, a belt, eyewear, a scarf, hosiery or jewellery, whichever earns its place in this look; a bag is not owed to every look. Name exact cuts, fabrications and how a piece is worn — never "jeans and a top".
 
-SANITY CHECK — every styling move is one a respected stylist would shoot on the street, in the key piece's natural register: sporty pieces stay elevated-casual (no belted knitwear over athletic shorts, no waist-cinching tricks on a sporty silhouette, no tailoring over gym wear). ${selectRule}; the colour and line notes only tilt a choice between pieces that both fit, and never dictate how a piece is contorted. A trick that needs explaining is dropped.
+SANITY CHECK — every styling move is one a respected stylist would shoot on the street, in the key piece's natural register: sporty pieces stay elevated-casual (no belted knitwear over athletic shorts, no waist-cinching tricks on a sporty silhouette, no tailoring over gym wear). ${selectRule}; the colour and line notes only tilt a choice between pieces that both fit, and never dictate how a piece is contorted. A trick that needs explaining is dropped. ${PLACE_RULE}
 
 THE PIECES ARE THE LOOK — "pieces" is the complete outfit head to toe, three to six entries in the order Canvas → Anchor → Texture → Exclamation Point (one "role" each; the key piece is always one of them). "name" is the piece as worn ("Ivory silk shirt"); "color" a plain word, "color_hex" one hex. "wardrobe_index" is the owned piece's number from her wardrobe (its exact label as the name), else -1. Only a piece she must find carries "brand", "retailer_hint" and "price_point" (EUR, "€89"); leave them empty on an owned piece. ONE PIECE PER SLOT: exactly one pair of shoes, at most one bag, one bottom or one dress, one top under a layer — a look never lists two of the same kind (never two pairs of shoes, never a second bottom). ${pickRule}
 
 ${threeWays}
 
-THE SCENE — one sentence under thirty words: the occasion, the setting, the mood, how the pieces are worn (tucked, open, sleeves pushed). It names no garment, shoe, bag or accessory, not even by type — the pieces list carries them and the two must never disagree. "A late dinner in the Marais, the top tucked and the jacket worn open, understated and unhurried." is the register; "paired with a pencil skirt and loafers" is forbidden.`;
+THE SCENE — one sentence under thirty words: the occasion, the setting, the mood, how the pieces are worn (tucked, open, sleeves pushed). It names no garment, shoe, bag or accessory, not even by type — the pieces list carries them and the two must never disagree. "A late dinner in the Marais, the top tucked and the jacket worn open, understated and unhurried." is the register; "paired with a pencil skirt and loafers" is forbidden. The setting is the place she names, as it really is in that season, never its postcard.`;
+
+  // The place her words name (Liberty, 28 Oct): read for its own weather and
+  // rendered as THE PLACE — practical, never a style. Dress-me asks only.
+  const place = daily && prompt ? await placeForAsk(prompt, rtContext) : null;
+  const placeText = place ? placeBlock(place.read) : '';
 
   const brief = daily
     ? `She is dressing for a real day. Build three complete, wearable outfits for it — each a distinct mood or register, all right for the occasion and the forecast given.`
@@ -707,7 +713,7 @@ THE SCENE — one sentence under thirty words: the occasion, the setting, the mo
 
   const systemInstruction = `You are Robes' head stylist — elegant, directional, precise; warm, editorial copy. ${genderDirective(g)} ${who}
 
-${brief}${balanceLead ? '\n\n' + balanceLead : ''}
+${brief}${balanceLead ? '\n\n' + balanceLead : ''}${placeText ? '\n\n' + placeText : ''}
 
 ${formulaBlock}
 
@@ -716,7 +722,12 @@ ${fallbackRule}${wearerRule ? ' ' + wearerRule : ''}${dnaBlock ? '\n\n' + dnaBlo
   // A dated ask (2026-10-10): the looks are for THAT day — its own
   // forecast rides in place of today's, and the day is named.
   const rtDay = daily && rtContext && rtContext.dayLabel ? String(rtContext.dayLabel).slice(0, 40) : '';
-  const rtLine = daily && rtContext && (rtContext.city || rtContext.tempRange)
+  // A place she names takes the weather line (the forecast there, its season,
+  // or her own city demoted to a guide); otherwise the line is unchanged.
+  const placeWx = place && place.matters && rtContext
+    ? placeWeatherLine({ dayLabel: rtDay || null, month: rtContext.month ? String(rtContext.month).slice(0, 20) : null, home: { city: rtContext.city || null, tempRange: rtContext.tempRange || null, condition: rtContext.condition || null }, read: place.read, there: place.there })
+    : null;
+  const rtLine = placeWx ? placeWx.line : daily && rtContext && (rtContext.city || rtContext.tempRange)
     ? `${rtDay ? 'She is dressing for ' + rtDay + '. Forecast for that day' : 'Real-time context'}: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. Dress the user for exactly this weather and place.`
     : rtDay ? `She is dressing for ${rtDay}${rtContext.month ? ' (' + String(rtContext.month).slice(0, 20) + ')' : ''}. No forecast reaches that far — dress for the season and the place.` : '';
 
@@ -799,7 +810,7 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
     // owned/new per way — the read that shows whether her balance answer
     // was honoured (Annie's live test, 2026-10-19: "new" came back all hers).
     const mixLine = ways.map(w => { const ps = Array.isArray(w.pieces) ? w.pieces : []; const own = ps.filter(p => p && p.wardrobe_match).length; return own + '/' + ps.length; }).join(' ');
-    logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback, refine: refineWay != null ? refineWay : undefined, balance: bal || (balNote ? 'words' : undefined), owned_of_total: mixLine || undefined, shown: shownBlock ? (Array.isArray(recent && recent.sets) ? recent.sets.length : 1) : undefined });
+    logAI({ feature: 'style', stage: 'text', model: 'gemini-2.5-flash', ms: textMs, fallback, refine: refineWay != null ? refineWay : undefined, balance: bal || (balNote ? 'words' : undefined), owned_of_total: mixLine || undefined, shown: shownBlock ? (Array.isArray(recent && recent.sets) ? recent.sets.length : 1) : undefined, place: placeWx ? { landscapes: place.read.landscapes, wx: placeWx.rung } : undefined });
 
     // Create image job and respond immediately — images generate in background
     const jobId = randomBytes(6).toString('hex');
@@ -1271,7 +1282,14 @@ app.post('/api/daily', rateLimit({ windowMs: 60_000, max: 10 }), async (req, res
       ? `WARDROBE STATE: GROWING (${n}/15). Hybrid build: wherever an owned piece genuinely serves the brief, use it — set its "wardrobe_index" and use its exact label as the name. Fill true gaps with aspirational pieces (wardrobe_index -1, real retailer_hint + price_point). When an owned piece and a hypothetical piece would both work, ALWAYS choose the owned piece.`
       : `WARDROBE STATE: COMPLETE (${n} pieces). Closet-first build: compose the look primarily from the digitised wardrobe — nearly every item should carry a valid "wardrobe_index" and its exact owned label. Introduce a new piece (wardrobe_index -1) only for a true gap or the finishing exclamation point.`;
 
-  const rtLine = rtContext && (rtContext.city || rtContext.tempRange)
+  // The place her brief names (Liberty, 28 Oct): its own weather, and THE
+  // PLACE — practical, never a style. Otherwise her own forecast, unchanged.
+  const place = prompt ? await placeForAsk(prompt, rtContext) : null;
+  const placeWx = place && place.matters
+    ? placeWeatherLine({ dayLabel: null, month: rtContext?.month ? String(rtContext.month).slice(0, 20) : null, home: { city: rtContext?.city || null, tempRange: rtContext?.tempRange || null, condition: rtContext?.condition || null }, read: place.read, there: place.there })
+    : null;
+  const placeText = place ? placeBlock(place.read) : '';
+  const rtLine = placeWx ? placeWx.line : rtContext && (rtContext.city || rtContext.tempRange)
     ? `REAL-TIME CONTEXT: ${[rtContext.city, rtContext.month].filter(Boolean).join(' · ')}${rtContext.tempRange ? ' | ' + rtContext.tempRange : ''}${rtContext.condition ? ' | ' + rtContext.condition : ''}. This is the atmospheric reality — fabric weight, layers and footwear must answer to it.`
     : '';
 
@@ -1286,6 +1304,8 @@ THE FRAMEWORK — work through it in this order:
    - "The Accents" — exactly 2 items: the definitive footwear plus one piece of hardware (bag, jewellery) that finish the look.
 3. THE GOLDEN RATIOS. Balance the build through body architecture: the Rule of Thirds (never a 50/50 visual split — aim for 1/3 : 2/3, e.g. a high-waisted trouser with a tucked-in top lengthens the leg line), Volume Balancing (an oversized or voluminous piece demands a point of structure or compression elsewhere), and Textural Contrast (mix matte, sheen and rough — silk + wool + leather — so the look never falls flat). Let this thinking show in the stylist_summary and item descriptions.
 4. THE TRANSITION PROTOCOL. She moves between environments without going home. "transition_tip" is ONE concrete move — subtractive styling (drop a layer to lower the formality) or hardware swapping (daytime tote + sneakers → clutch + kitten heel) — that shifts today's look into its next scene.
+
+${PLACE_RULE}${placeText ? '\n\n' + placeText : ''}
 
 ${stateDirective}${heroBlock ? '\n\n' + heroBlock : ''}${lockedBlock ? '\n\n' + lockedBlock : ''}
 
@@ -1360,7 +1380,7 @@ ${refBlock
     });
     if (!flat.length) throw new Error('empty daily look');
     const dailyOwnedCount = flat.filter(f => f.item.wardrobe_match).length;
-    logAI({ feature: 'daily', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: flat.length, owned: dailyOwnedCount, fallback: parsed.fallback === true, refine: !!refBlock });
+    logAI({ feature: 'daily', stage: 'text', model: 'gemini-2.5-flash', ms: Date.now() - t0, items: flat.length, owned: dailyOwnedCount, fallback: parsed.fallback === true, refine: !!refBlock, place: placeWx ? { landscapes: place.read.landscapes, wx: placeWx.rung } : undefined });
     // Composition (addendum to Tranche 2 Build 2): logAI only reaches
     // Railway's console, not the queryable generation_log table — the
     // owned-vs-total gate the original Build 2 brief asked for was
@@ -1400,7 +1420,7 @@ ${refBlock
     // else a still-life. Only hosted URLs reach the client (lookbook-safe).
     const t1 = Date.now();
     const allNames = flat.map(f => f.item.name).join(', ');
-    const scene = [parsed.occasion_label ? parsed.occasion_label.toLowerCase() : '', rtContext?.city].filter(Boolean).join(' in ');
+    const scene = [parsed.occasion_label ? parsed.occasion_label.toLowerCase() : '', (place && place.read.destination) || rtContext?.city].filter(Boolean).join(' in ');
     (async () => {
       // The anchor's full-look frame wears the kept model when one exists —
       // still-lifes stay garment-only (no figure to condition).
@@ -2354,6 +2374,76 @@ async function fetchJson(url, ms = 6000) {
   ]);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
+}
+
+// The place she names in an ask (Liberty's Landscape-Aware Styling, 28 Oct;
+// platform twin: createDestinationWeather in platform/packages/jobs). The
+// geocoder must confirm a real place of some size that is not home, then its
+// weather is read for the day: the live forecast inside the 16-day horizon,
+// else last year's same date as a typical reading. Never throws; null means
+// it is not somewhere else, and the ask keeps her own weather.
+const _placeHomes = new Map();
+const _placeWx = new Map();
+function _placeKeep(m, k, v) { if (m.size > 500) m.clear(); m.set(k, v); }
+async function fetchPlaceWeather(name, date, homeCity) {
+  const wrote = geocodeQuery(String(name || ''));
+  if (!wrote || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;
+  const key = `${wrote.toLowerCase()}|${date}|${String(homeCity || '').toLowerCase()}`;
+  if (_placeWx.has(key)) return _placeWx.get(key);
+  let out = null;
+  try {
+    let home = null;
+    const hk = String(homeCity || '').trim().toLowerCase().slice(0, 80);
+    if (hk) {
+      if (_placeHomes.has(hk)) home = _placeHomes.get(hk);
+      else {
+        try {
+          const g = await fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(hk)}&count=1&language=en`, 2500);
+          const r = g?.results?.[0];
+          home = r && Number.isFinite(r.latitude) && Number.isFinite(r.longitude) ? { lat: r.latitude, lon: r.longitude } : null;
+        } catch { home = null; }
+        _placeKeep(_placeHomes, hk, home);
+      }
+    }
+    const geo = await fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(wrote)}&count=5&language=en`, 2500);
+    const hits = (geo?.results || [])
+      .filter(r => r && typeof r.name === 'string' && Number.isFinite(r.latitude) && Number.isFinite(r.longitude))
+      .map(r => ({ name: r.name, country: r.country || '', lat: r.latitude, lon: r.longitude, featureCode: r.feature_code || '', population: Number.isFinite(r.population) ? r.population : null }));
+    const hit = pickDestination(hits, wrote, home);
+    if (hit) {
+      out = { place: [hit.name, hit.country].filter(Boolean).join(', '), tempRange: null, condition: null, seasonal: false };
+      const daily = 'temperature_2m_max,temperature_2m_min,weather_code';
+      const last = (() => { const x = new Date(date + 'T00:00:00Z'); x.setUTCFullYear(x.getUTCFullYear() - 1); return x.toISOString().slice(0, 10); })();
+      const live = `https://api.open-meteo.com/v1/forecast?latitude=${hit.lat}&longitude=${hit.lon}&daily=${daily}&start_date=${date}&end_date=${date}&timezone=auto`;
+      const archive = `https://archive-api.open-meteo.com/v1/archive?latitude=${hit.lat}&longitude=${hit.lon}&daily=${daily}&start_date=${last}&end_date=${last}`;
+      const days = Math.round((Date.parse(date + 'T00:00:00Z') - Date.now()) / 86400000);
+      const plan = days >= -1 && days <= 15 ? [[live, false], [archive, true]] : [[archive, true], [live, false]];
+      for (const [url, seasonal] of plan) {
+        let d;
+        try { d = await fetchJson(url, 2500); } catch { continue; }
+        const mx = (d?.daily?.temperature_2m_max || []).filter(Number.isFinite);
+        const mn = (d?.daily?.temperature_2m_min || []).filter(Number.isFinite);
+        if (!mx.length || !mn.length) continue;
+        const code = (d?.daily?.weather_code || []).find(Number.isFinite);
+        out = { ...out, tempRange: `${Math.round(Math.min(...mn))}–${Math.round(Math.max(...mx))}°C`, condition: wxCondition(code) || null, seasonal };
+        break;
+      }
+    }
+  } catch { out = null; }
+  _placeKeep(_placeWx, key, out);
+  return out;
+}
+
+// Where her words put the day: the place read, its weather, and the line the
+// prompt says. `home` is the forecast the client sent (her own city).
+async function placeForAsk(text, rtContext) {
+  const read = readPlace(text);
+  const ctxDate = /^\d{4}-\d{2}-\d{2}$/.test(String(rtContext?.date || '')) ? rtContext.date : new Date().toISOString().slice(0, 10);
+  const there = read.destination ? await fetchPlaceWeather(read.destination, ctxDate, rtContext?.city || '') : null;
+  // A name the geocoder could not confirm is not a place (Liberty's named places excepted).
+  const placed = { ...read, destination: there ? there.place : (read.named ? read.destination : null) };
+  const matters = !!(there || placed.destination || placed.landscapes.length);
+  return { read: placed, there, matters };
 }
 
 // FR-101: geocode the destination, then real forecast when the window is
