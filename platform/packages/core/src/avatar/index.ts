@@ -14,7 +14,17 @@ export const SKIN_SWATCHES = [
 export const HAIR_SWATCHES = ['#1B1614', '#3A2A20', '#6B4A2E', '#A9793F', '#CBAE87'] as const;
 export const FIGURES = ['hg', 'pe', 're', 'it', 'ap', 'nt'] as const;
 export type Figure = (typeof FIGURES)[number];
-export type Presence = 'woman' | 'man' | 'unspecified';
+// profiles.gender_identity. 'non_binary' (29 Oct) is styled across menswear and womenswear; it and
+// 'unspecified' read as they/them and ride the woman's figure catalog, as 'unspecified' always has.
+export const GENDER_IDENTITIES = ['woman', 'man', 'non_binary', 'unspecified'] as const;
+export type Presence = (typeof GENDER_IDENTITIES)[number];
+export const readsAsThey = (p: Presence | null | undefined): boolean =>
+  p === 'unspecified' || p === 'non_binary';
+export function presenceOf(genderIdentity: string | null | undefined): Presence {
+  return (GENDER_IDENTITIES as readonly string[]).includes(genderIdentity ?? '')
+    ? (genderIdentity as Presence)
+    : 'woman';
+}
 export type LineNudge = 'soft' | 'straight';
 export type FrameNudge = 'fuller' | 'narrower';
 

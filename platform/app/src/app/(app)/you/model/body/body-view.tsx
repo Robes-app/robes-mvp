@@ -3,7 +3,14 @@
 import { useApi } from '@robes/api-client/react';
 import type { Facts, Model, UpdateModelInput } from '@robes/contracts';
 import { twin, ui } from '@robes/copy';
-import { effectiveStops, isAdjusted, readAdj, STOPS, TWIN_SCALES } from '@robes/core/avatar';
+import {
+  effectiveStops,
+  GENDER_IDENTITIES,
+  isAdjusted,
+  readAdj,
+  STOPS,
+  TWIN_SCALES,
+} from '@robes/core/avatar';
 import { AGE_BANDS, ageBandLabel, euSize } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/web';
 import { Button, ErrorText, Sheet, Skeleton } from '@robes/ui';
@@ -129,7 +136,7 @@ function PillMenu<T extends string>({
   );
 }
 
-const GENDERS = (['woman', 'man', 'unspecified'] as const).map((key) => ({
+const GENDERS = GENDER_IDENTITIES.map((key) => ({
   key,
   label: f.genderOptions[key],
 }));

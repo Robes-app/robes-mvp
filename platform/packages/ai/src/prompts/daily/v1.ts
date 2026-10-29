@@ -1,13 +1,14 @@
 import { styleDnaPromptBlock } from '@robes/core/style-dna';
 import { z } from 'zod';
 import { fenceUserText } from '../../fence';
+import { NON_BINARY_DIRECTIVE } from '../gender';
 
 // Ported verbatim from legacy server.js POST /api/daily (the Context-to-Core framework).
 // Versioned: change wording only via a new version.
 export const FEATURE = 'today.daily';
 export const VERSION = 1;
 
-export type Gender = 'woman' | 'man' | 'unspecified';
+export type Gender = 'woman' | 'man' | 'non_binary' | 'unspecified';
 
 export const DAILY_STEP_TITLES = [
   'The Anchor',
@@ -83,6 +84,7 @@ export const GENDER_DIRECTIVE: Record<Gender, string> = {
   man: 'The user identifies as a man. Every piece, look and recommendation must be menswear — male cuts, sizing and styling codes, menswear brands and male style references throughout. Never suggest womenswear. Where these instructions use "she"/"her" generically, they refer to this male client — read them as "he"/"him".',
   unspecified:
     'The user has not said how they identify. Use your best judgement from their words, their pieces and their wardrobe to decide whose clothing to recommend; when nothing points a direction, keep pieces and styling gender-neutral. Where these instructions use "she"/"her" generically, they simply refer to this client.',
+  non_binary: NON_BINARY_DIRECTIVE,
   woman: 'Unless the brief clearly indicates a male wearer, style for a woman.',
 };
 
@@ -348,6 +350,7 @@ const FULL_BODY_FRAME =
 const WEARER: Record<Gender, { noun: string; wears: string }> = {
   woman: { noun: 'woman', wears: 'She wears' },
   man: { noun: 'man', wears: 'He wears' },
+  non_binary: { noun: 'person', wears: 'They wear' },
   unspecified: { noun: 'person', wears: 'They wear' },
 };
 

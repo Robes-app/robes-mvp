@@ -3,6 +3,11 @@ import { legal } from './legal';
 import { lookbook } from './lookbook';
 import { SEASON_LABELS } from './seasons';
 
+// profiles.gender_identity (@robes/core/avatar GENDER_IDENTITIES). Non-binary and "Prefer not to
+// say" both read as they/them.
+type Presence = 'woman' | 'man' | 'non_binary' | 'unspecified';
+const asThey = (p: Presence | undefined): boolean => p === 'unspecified' || p === 'non_binary';
+
 // Every user-facing string lives here (SPEC principle 6); voice rules: brand-and-design.md §1.
 // Keys are stable ids; values are en-GB. Use curly apostrophes (’) and no exclamation marks.
 
@@ -119,8 +124,8 @@ export const today = {
     week: { text: 'Nothing planned this week. Pin a look to a day.', door: 'Open the plan' },
     none: 'What are we dressing for today?',
     model: {
-      text: (look: string, presence: 'woman' | 'man' | 'unspecified'): string =>
-        `Build your model and ${presence === 'man' ? 'he’ll' : presence === 'unspecified' ? 'they’ll' : 'she’ll'} wear ${look}.`,
+      text: (look: string, presence: Presence): string =>
+        `Build your model and ${presence === 'man' ? 'he’ll' : asThey(presence) ? 'they’ll' : 'she’ll'} wear ${look}.`,
       door: 'Build your model',
     },
   },
@@ -187,7 +192,7 @@ export function nextLine(
     remaining?: number;
     count?: number;
     lookName?: string;
-    presence?: 'woman' | 'man' | 'unspecified';
+    presence?: Presence;
   } | null,
 ): { text: string; door: { label: string; target: NextDoorTarget } | null } {
   const n = today.next;
@@ -1030,7 +1035,12 @@ export const you = {
     },
     photos: 'Read from a photo',
     presence: 'Presence',
-    presenceOptions: { woman: 'Woman', man: 'Man', unspecified: 'Prefer not to say' },
+    presenceOptions: {
+      woman: 'Woman',
+      man: 'Man',
+      non_binary: 'Non-binary',
+      unspecified: 'Prefer not to say',
+    },
     skin: 'Skin',
     skinNames: ['Espresso', 'Mahogany', 'Chestnut', 'Tan', 'Honey', 'Sand', 'Peach', 'Porcelain'],
     hair: 'Hair',
@@ -1671,8 +1681,8 @@ export const twin = {
     skinAndHairHand: 'Or choose them by hand until a close-up reads.',
     yourLine: 'Your line',
     edit: 'Edit',
-    proportions: (presence: 'woman' | 'man' | 'unspecified'): string =>
-      `${presence === 'man' ? 'His' : presence === 'unspecified' ? 'Their' : 'Her'} proportions`,
+    proportions: (presence: Presence): string =>
+      `${presence === 'man' ? 'His' : asThey(presence) ? 'Their' : 'Her'} proportions`,
     adjust: 'Adjust by hand',
     scales: {
       shoulders: { label: 'Shoulders', less: 'Narrower', more: 'Broader' },
@@ -1680,8 +1690,8 @@ export const twin = {
       hips: { label: 'Hips', less: 'Narrower', more: 'Fuller' },
     },
     chest: 'Chest',
-    asIs: (presence: 'woman' | 'man' | 'unspecified'): string =>
-      `As ${presence === 'man' ? 'he' : presence === 'unspecified' ? 'they' : 'she'} is`,
+    asIs: (presence: Presence): string =>
+      `As ${presence === 'man' ? 'he is' : asThey(presence) ? 'they are' : 'she is'}`,
     // A cell's spoken name: "Hips: much fuller".
     stop: (label: string, stop: number, less: string, more: string, asIs: string): string =>
       `${label}: ${stop === 0 ? asIs : `${Math.abs(stop) === 2 ? 'much ' : ''}${String(stop < 0 ? less : more).toLowerCase()}`}`,
@@ -1690,15 +1700,13 @@ export const twin = {
     age: 'Age',
     // The one italic line under her model (legacy #mv-status): what Robes drew her from, and what
     // would take her further. "Nothing yet" is retired from the chrome, so the last rung says drawn.
-    status: (
-      presence: 'woman' | 'man' | 'unspecified',
-      read: 'both' | 'closeUp' | 'facts' | 'hand' | 'none',
-    ): string => {
+    status: (presence: Presence, read: 'both' | 'closeUp' | 'facts' | 'hand' | 'none'): string => {
       const man = presence === 'man';
-      const they = presence === 'unspecified' ? 'they' : man ? 'he' : 'she';
-      const theyAre = presence === 'unspecified' ? 'They’re' : man ? 'He’s' : 'She’s';
-      const their = presence === 'unspecified' ? 'their' : man ? 'his' : 'her';
-      const s = presence === 'unspecified' ? '' : 's';
+      const plural = asThey(presence);
+      const they = plural ? 'they' : man ? 'he' : 'she';
+      const theyAre = plural ? 'They’re' : man ? 'He’s' : 'She’s';
+      const their = plural ? 'their' : man ? 'his' : 'her';
+      const s = plural ? '' : 's';
       if (read === 'both')
         return `Read from your close-up and your facts. ${theyAre} as close as ${they} get${s}.`;
       if (read === 'closeUp')
@@ -1725,7 +1733,12 @@ export const twin = {
     cm: 'cm',
     ftIn: 'ft / in',
     clear: 'Clear the facts',
-    genderOptions: { woman: 'Woman', man: 'Man', unspecified: 'Prefer not to say' },
+    genderOptions: {
+      woman: 'Woman',
+      man: 'Man',
+      non_binary: 'Non-binary',
+      unspecified: 'Prefer not to say',
+    },
     unspecified: '—',
     bust: 'Bust',
     waist: 'Waist',

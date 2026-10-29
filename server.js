@@ -491,23 +491,32 @@ function styleIconsImageLine(styleIcons) {
    'woman' (default — every signup starts here, and any missing/invalid
    value normalises to it, so pre-migration clients behave exactly as
    before), 'man' (menswear only, everywhere), or 'unspecified'
-   ("Prefer not to say" — the model judges from the brief). The stylist
+   ("Prefer not to say" — the model judges from the brief), or
+   'non_binary' (migration 30, 2026-10-29: styled across menswear and
+   womenswear, they/them; the frames' wearer is judged per look, as for
+   'unspecified', and the model catalog is the woman's). The stylist
    prompts use "she"/"her" generically throughout; rewriting every
    pronoun per-request would be fragile, so the directive tells the
    model how to read them instead. */
-const normGender = (g) => (g === 'man' || g === 'unspecified') ? g : 'woman';
+const normGender = (g) => (g === 'man' || g === 'unspecified' || g === 'non_binary') ? g : 'woman';
+// Whose catalog a figure is drawn from: only a man's profile reads the men's.
+const catalogGender = (g) => (g === 'man' ? 'man' : 'woman');
+// The profile does not decide the frame's wearer: the model judges it per look.
+const judgesWearer = (g) => g === 'unspecified' || g === 'non_binary';
 
 function genderDirective(gender) {
   if (gender === 'man')
     return 'The user is a man (from his profile): every piece, look and reference is menswear — male cuts, sizing, styling codes and brands, never womenswear. Where these notes say "she"/"her", read "he"/"him".';
+  if (gender === 'non_binary')
+    return 'The user is non-binary (from their profile): style across menswear and womenswear freely — cuts, sizing and houses from either side, and pieces that sit between them — led by their style type and their own words, never defaulting to one side. Where these notes say "she"/"her", read "they"/"their".';
   if (gender === 'unspecified')
     return 'The user has not said how they identify: judge whose clothing to propose from their words and their pieces; when nothing points a direction, keep pieces and styling gender-neutral. "She"/"her" in these notes simply means this client.';
   return 'The user is a woman (from her profile): every piece and look is womenswear.';
 }
 
 // Image-prompt fragments — who stands in the editorial frame.
-const wearerNoun = (g) => g === 'man' ? 'man' : g === 'unspecified' ? 'person' : 'woman';
-const wearerWears = (g) => g === 'man' ? 'He wears' : g === 'unspecified' ? 'They wear' : 'She wears';
+const wearerNoun = (g) => g === 'man' ? 'man' : judgesWearer(g) ? 'person' : 'woman';
+const wearerWears = (g) => g === 'man' ? 'He wears' : judgesWearer(g) ? 'They wear' : 'She wears';
 
 const STYLE_SCHEMA = {
   type: 'object',
@@ -701,7 +710,7 @@ THE SCENE — one sentence under thirty words: the occasion, the setting, the mo
 
   // Who the looks are for comes off her profile (the Facts — Settings'
   // Gender row). The model is asked only when the profile is silent.
-  const wearerRule = g === 'unspecified'
+  const wearerRule = judgesWearer(g)
     ? `Set "wearer" ("woman" or "man") to your judgement of who the looks are for, from her words and the piece alone.`
     : '';
 
@@ -813,7 +822,7 @@ Style this key piece three ways — distinct occasions, moods and dressing codes
     // Her profile decides the wearer; the model's judgement stands only
     // for 'unspecified' (there that judgement IS the routing decision, so
     // the frames match the looks it wrote).
-    const wearer = g === 'unspecified' ? (parsed.wearer === 'man' ? 'man' : 'woman') : g;
+    const wearer = judgesWearer(g) ? (parsed.wearer === 'man' ? 'man' : 'woman') : g;
     const iconLine = styleIconsImageLine(styleIcons);
     const briefLine = !fallback && prompt ? `The user's brief: "${String(prompt).slice(0, 200)}". ` : '';
     // Strictly ONE generation in flight at a time — the daily/travel/
@@ -4094,7 +4103,7 @@ function twinInputs(src) {
   const a = s.adj && typeof s.adj === 'object' ? s.adj : {};
   const g = normGender(s.gender);
   return {
-    gender: g === 'unspecified' ? 'woman' : g,
+    gender: catalogGender(g),
     facts: {
       height_cm: twinNum(f.height_cm, 120, 230),
       size_uk: twinNum(f.size_uk, 2, 30),

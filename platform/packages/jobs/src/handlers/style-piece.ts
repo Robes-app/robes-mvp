@@ -536,7 +536,10 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       );
       const { fallback } = out;
       // Her profile decides the wearer; the model's judgement stands only when it is silent.
-      const wearer = styleCtx.gender === 'unspecified' ? (out.wearer ?? 'woman') : styleCtx.gender;
+      const wearer =
+        styleCtx.gender === 'man' || styleCtx.gender === 'woman'
+          ? styleCtx.gender
+          : (out.wearer ?? 'woman');
       const ways = out.ways.slice(0, WAYS).map((w) => ({
         ...w,
         scene: sceneOf(w),

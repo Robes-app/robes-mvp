@@ -2,6 +2,7 @@ import { ApiClientError } from '@robes/api-client';
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { CreateLookInput, Look, Model, Piece } from '@robes/contracts';
 import { lookbook as copy, errors, looks as looksCopy } from '@robes/copy';
+import { readsAsThey } from '@robes/core/avatar';
 import {
   compositionKey,
   DRESS_DEBOUNCE_MS,
@@ -45,7 +46,7 @@ const draftsFull = (err: unknown): boolean =>
   (err.details as { reason?: string } | undefined)?.reason === 'drafts_full';
 
 const pronoun = (m: Model | undefined) =>
-  m?.presence === 'man' ? 'him' : m?.presence === 'unspecified' ? 'them' : 'her';
+  m?.presence === 'man' ? 'him' : readsAsThey(m?.presence) ? 'them' : 'her';
 
 type Opened = { slot: HotspotSlot } | { add: true } | { swap: string };
 

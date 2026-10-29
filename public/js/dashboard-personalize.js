@@ -72,7 +72,7 @@
       // profile (column absent) behaves exactly as before.
       const _rbGender = () => {
         const g = (window.__robes_profile || {}).gender_identity;
-        return (g === 'man' || g === 'unspecified') ? g : 'woman';
+        return (g === 'man' || g === 'unspecified' || g === 'non_binary') ? g : 'woman';
       };
       // Kill the bundle's mock "Today / Cream on cream" section instantly —
       // _rbApplyLayout removes it at 900ms, but on slow loads the mock look
@@ -15634,7 +15634,7 @@ body:has(#rb-lp.rb-lp-dock) .rb-pc-spark{display:none}
           if (!p || !p.kept) return null;
           const dna = _rbStyleDna() || {};
           const bt = dna.silhouette_proportions && dna.silhouette_proportions.body_type;
-          const g = (p.gender === 'man' || p.gender === 'woman' || p.gender === 'unspecified') ? p.gender : _rbGender();
+          const g = (p.gender === 'man' || p.gender === 'woman' || p.gender === 'unspecified' || p.gender === 'non_binary') ? p.gender : _rbGender();
           let id = (g === 'man' ? 'm' : 'w') + '-s' + (Number.isInteger(p.skin) ? p.skin : 3) + '-h' + (Number.isInteger(p.hair) ? p.hair : 1) + '-' + (_AV_FIG_KEYS[bt] || 'nt');
           const n = p.nudges || {};
           if (n.line) id += '-l' + String(n.line).toLowerCase();

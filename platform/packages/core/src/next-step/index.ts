@@ -1,5 +1,6 @@
 // Today's one next step (legacy `_rbNextLine`, legacy-features.md §1.3): ordered rules, first match
 // wins. Not ported yet: `finish` (needs look proposals).
+import type { Presence } from '../avatar';
 export type NextStepRule = 'start' | 'model' | 'five' | 'build' | 'wear' | 'week';
 
 export interface NextStepState {
@@ -12,7 +13,7 @@ export interface NextStepState {
   // She has filed a model; her newest saved look's name for the `model` line.
   hasModel?: boolean;
   newestLook?: string | null;
-  presence?: 'woman' | 'man' | 'unspecified';
+  presence?: Presence;
 }
 
 export type NextStep = {
@@ -21,7 +22,7 @@ export type NextStep = {
   // `build`: how many photographed pieces she has, so the line never reads "Five" at fifty.
   count?: number;
   lookName?: string;
-  presence?: 'woman' | 'man' | 'unspecified';
+  presence?: Presence;
 } | null;
 
 export const PIECES_TO_BUILD = 5;

@@ -1,3 +1,4 @@
+import { presenceOf } from '@robes/core/avatar';
 import { ageBandLabel, iconTag, investmentLabel } from '@robes/core/style-dna';
 import { sql } from 'kysely';
 import type { Db } from '../client';
@@ -129,7 +130,7 @@ export function stylingRepo(db: Db) {
         },
         wardrobeCount: Number(count?.n ?? 0),
         firstName: profile?.firstName ?? null,
-        gender: (profile?.genderIdentity ?? 'woman') as 'woman' | 'man' | 'unspecified',
+        gender: presenceOf(profile?.genderIdentity),
         styleIcons: profile?.styleIcons ?? [],
         closet: closet.map((c) => ({
           id: c.id,

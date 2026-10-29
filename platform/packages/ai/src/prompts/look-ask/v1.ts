@@ -71,7 +71,7 @@ export interface PoolItem {
 }
 
 export interface AskContext {
-  gender: 'woman' | 'man' | 'unspecified';
+  gender: 'woman' | 'man' | 'non_binary' | 'unspecified';
   styleDna: unknown;
   styleIcons: string[];
   // 'capsule' = a trip's packed case: only these pieces may go on the look.

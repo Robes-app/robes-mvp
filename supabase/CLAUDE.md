@@ -53,5 +53,6 @@ where table_schema = 'public' and column_name in ('material', 'colour_shade', 't
 | 27 | `colour_model_migration.sql` | colour_shade / colour_extra / print (generated) |
 | 28 | `looks_admin_read_migration.sql` | admin read on looks |
 | 29 | `material_migration.sql` | material |
+| 30 | `non_binary_gender_migration.sql` | 'non_binary' in profiles.gender_identity's check |
 
 One-offs: `weekly_plan_sweep.sql` (archives weekly plans, ADR-001). Edge function: `functions/wardrobe-context`.
