@@ -61,11 +61,12 @@ test('onboarding: name, identity, styles, brands and colours, saved once, then h
   await expect(page.getByRole('button', { name: 'Love Utility', pressed: true })).toBeVisible();
   await next.click();
 
-  // The wall leads with a man's Utility houses, in her tap order.
+  // The design's eighteen lead; then a man's Utility and Heritage houses, in her tap order.
   await expect(title('Any favourite brands?')).toBeVisible();
   const tiles = page.getByRole('list').getByRole('button');
-  await expect(tiles).toHaveCount(18);
-  await expect(tiles.first()).toHaveText('Stone Island');
+  await expect(tiles).toHaveCount(31);
+  await expect(tiles.first()).toHaveText('Totême');
+  await expect(tiles.nth(18)).toHaveText('Stone Island');
   await page.getByRole('button', { name: 'Barbour' }).click();
   expect(await seriousViolations(page), 'onboarding, brands').toEqual([]);
   await next.click();

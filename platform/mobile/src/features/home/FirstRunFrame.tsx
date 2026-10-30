@@ -1,7 +1,7 @@
 import { firstRun as copy } from '@robes/copy';
-import { Em, Eyebrow, Heading, IconButton } from '@robes/ui-native';
+import { Em, fonts, Heading, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, Text as RNText, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const STEPS = 5;
@@ -25,15 +25,55 @@ export function FirstRunFrame({
   footer: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const rose = useColor('accent-warm');
+  const ink = useColor('ink');
   return (
     <View className="flex-1 bg-bg" style={{ paddingTop: insets.top + 4 }}>
       <View className="min-h-11 flex-row items-center px-3.5">
         <View className="w-16 items-start">
-          {onBack ? <IconButton icon="back" label={copy.backLabel} onPress={onBack} /> : null}
+          {onBack ? (
+            // The design's back: a 32pt white circle on a hairline, in a 44pt target.
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copy.backLabel}
+              onPress={onBack}
+              className="size-11 items-center justify-center"
+            >
+              <View className="size-8 items-center justify-center rounded-full border border-rule-mid bg-surface-raised">
+                <RNText
+                  allowFontScaling={false}
+                  style={{
+                    fontFamily: fonts.displayRegular,
+                    fontSize: 20,
+                    lineHeight: 22,
+                    marginTop: -2,
+                    marginRight: 1,
+                    color: ink,
+                  }}
+                >
+                  {copy.backGlyph}
+                </RNText>
+              </View>
+            </Pressable>
+          ) : null}
         </View>
-        <Eyebrow className="flex-1 text-center text-accent-warm" numberOfLines={1}>
+        {/* Rose eyebrow, 500 9pt at .26em: the deep rose, the one that reads at 4.5:1 this small.
+            Inline so Eyebrow's own grey never wins (redline audit 30 Oct). */}
+        <RNText
+          numberOfLines={1}
+          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+          style={{
+            flex: 1,
+            textAlign: 'center',
+            textTransform: 'uppercase',
+            fontFamily: fonts.sansMedium,
+            fontSize: 9,
+            letterSpacing: 9 * 0.26,
+            color: rose,
+          }}
+        >
           {copy.eyebrow}
-        </Eyebrow>
+        </RNText>
         <View className="w-16" />
       </View>
       <View

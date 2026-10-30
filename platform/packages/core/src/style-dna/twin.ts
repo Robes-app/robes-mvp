@@ -161,6 +161,7 @@ export const BRAND_POOL: readonly string[] = [
   'The North Face',
   "Levi's",
   'Uniqlo U',
+  'Nanushka',
 ];
 
 // Each archetype's houses by who she is (Annie's table, 30 Oct); her picks lead the brand walls.
@@ -342,10 +343,35 @@ export function wallRanked(
     .map((x) => x.n);
 }
 
-// The onboarding wall: eighteen houses, hers first.
-export const ONBOARDING_BRAND_COUNT = 18;
-export const onboardingBrands = (types: readonly string[], presence?: string | null): string[] =>
-  wallPool('brands', types, presence).slice(0, ONBOARDING_BRAND_COUNT);
+// The onboarding wall (redline audit, 30 Oct): the design's eighteen houses first, then the
+// houses of the styles she picked, for who she is, in her tap order.
+export const ONBOARDING_BRAND_BASELINE: readonly string[] = [
+  'Totême',
+  'COS',
+  'Arket',
+  'Ganni',
+  'Zara',
+  'Khaite',
+  'The Row',
+  'Reformation',
+  'Jacquemus',
+  'Prada',
+  'Miu Miu',
+  'Sézane',
+  'Celine',
+  'Loewe',
+  'Uniqlo',
+  'Max Mara',
+  'Nanushka',
+  'Vince',
+];
+export function onboardingBrands(types: readonly string[], presence?: string | null): string[] {
+  const out = [...ONBOARDING_BRAND_BASELINE];
+  const wearer = seedWearerOf(presence);
+  for (const t of styleTypesOf(types))
+    for (const n of BRAND_SEED[t][wearer]) if (!out.some((x) => sameName(x, n))) out.push(n);
+  return out;
+}
 
 // One mandatory answer by yearly spend; the label is what the prompt reads.
 export const INVESTMENT_LEVELS = [
