@@ -131,16 +131,17 @@ export function BrandsStep({
             <button
               type="button"
               aria-pressed={on}
+              aria-label={m.lines ? name : undefined}
               onClick={() => onToggle(name)}
               className={cn(
-                'flex h-[66px] w-full items-center justify-center rounded-input px-1.5 text-center',
+                'flex h-[66px] w-full items-center justify-center overflow-hidden rounded-input px-1.5 text-center text-ink',
                 choice(on),
-                on ? 'text-ink' : 'text-ink-muted',
               )}
             >
               <span
                 className={cn(
-                  'leading-none',
+                  'whitespace-nowrap',
+                  m.lines ? 'leading-[1.15]' : 'leading-none',
                   m.face === 'serif' ? 'font-display' : 'font-sans',
                   m.upper && 'uppercase',
                   m.italic && 'italic',
@@ -151,7 +152,14 @@ export function BrandsStep({
                   letterSpacing: `${m.tracking}em`,
                 }}
               >
-                {name}
+                {m.lines
+                  ? m.lines.map((line, i) => (
+                      <span key={line} className="block">
+                        {i > 0 ? ' ' : ''}
+                        {line}
+                      </span>
+                    ))
+                  : name}
               </span>
             </button>
           </li>
@@ -178,14 +186,20 @@ export function ColoursStep({
             key={f.id}
             className={cn(
               'flex items-center gap-4 border-hairline border-b px-2.5 py-2 motion-safe:transition-colors',
-              v === 1 && 'bg-selected',
+              v === 1 && 'bg-surface-sunk',
             )}
           >
-            <span className={cn(v === -1 && 'opacity-35 grayscale-[.6]')}>
-              <FamilyTile family={f} size={34} />
+            {/* Avoid greys the swatch; the name softens to ink-muted, which still reads at 4.5:1. */}
+            <span className={cn('block shrink-0', v === -1 && 'opacity-40 grayscale-[.6]')}>
+              <FamilyTile family={f} size={34} shape="tile" />
             </span>
-            {/* Avoid fades the swatch only; the name stays ink for contrast (as in You › Colours). */}
-            <span className={cn('flex-1 font-sans text-ink text-sm', v === 1 && 'font-medium')}>
+            <span
+              className={cn(
+                'flex-1 font-light font-sans text-sm',
+                v === 1 && 'font-medium',
+                v === -1 ? 'text-ink-muted' : 'text-ink',
+              )}
+            >
               {f.name}
             </span>
             <PreferenceControl

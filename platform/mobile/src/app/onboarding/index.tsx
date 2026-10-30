@@ -2,7 +2,7 @@ import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Me } from '@robes/contracts';
 import { firstRun as copy, onboarding, ui } from '@robes/copy';
 import { onboardingBrands, type StyleType } from '@robes/core/style-dna';
-import { Button, ErrorText, Field, PrimaryScope, Text, Wordmark } from '@robes/ui-native';
+import { Button, ErrorText, Field, PrimaryScope, Wordmark } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
@@ -161,26 +161,21 @@ export default function Onboarding() {
       ...copy.name,
       footer: footer(copy.continue, saveName, name.trim().length === 0),
       body: (
-        <>
-          <Field
-            variant="underline"
-            autoFocus
-            label={copy.name.label}
-            placeholder={copy.name.placeholder}
-            autoComplete="given-name"
-            textContentType="givenName"
-            maxLength={60}
-            value={name}
-            onChangeText={(v) => {
-              setTouched(true);
-              setFirstName(v);
-            }}
-            onSubmitEditing={saveName}
-          />
-          <Text size="small" tone="muted">
-            {copy.name.notes}
-          </Text>
-        </>
+        <Field
+          variant="underline"
+          autoFocus
+          label={copy.name.label}
+          placeholder={copy.name.placeholder}
+          autoComplete="given-name"
+          textContentType="givenName"
+          maxLength={60}
+          value={name}
+          onChangeText={(v) => {
+            setTouched(true);
+            setFirstName(v);
+          }}
+          onSubmitEditing={saveName}
+        />
       ),
     },
     2: {

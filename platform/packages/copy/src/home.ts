@@ -167,6 +167,7 @@ export const home = {
 // labels and the colour states are You's own (you.model.presenceOptions, you.style.palette.states).
 export const firstRun = {
   backLabel: 'Back',
+  backGlyph: '‹',
   progress: (step: number, of: number): string => `Step ${step} of ${of}`,
   eyebrow: 'Getting to know you',
   continue: 'Continue',
@@ -176,8 +177,6 @@ export const firstRun = {
     titleEm: 'call you?',
     label: 'First name',
     placeholder: 'Your first name',
-    // The first week's notes (7-day brief, decision 1): named before any is sent.
-    notes: 'Robes sends a few notes in your first week. Each one has a link to stop them.',
   },
   identity: { title: 'How do you', titleEm: 'identify?' },
   styles: {

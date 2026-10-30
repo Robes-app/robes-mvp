@@ -3,7 +3,7 @@
 import { useApiClient } from '@robes/api-client/react';
 import { firstRun as copy, onboarding } from '@robes/copy';
 import { onboardingBrands, type StyleType } from '@robes/core/style-dna';
-import { Button, ErrorText, Eyebrow, Field, Heading, IconButton, Text, Wordmark } from '@robes/ui';
+import { Button, ErrorText, Field, Heading, Wordmark } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
@@ -46,9 +46,27 @@ function Frame({
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
       <header className="grid min-h-11 grid-cols-[64px_1fr_64px] items-center px-3.5 pt-1">
         <span>
-          {onBack ? <IconButton icon="back" label={copy.backLabel} onClick={onBack} /> : null}
+          {onBack ? (
+            // The design's back: a 32px white circle on a hairline, in a 44px target.
+            <button
+              type="button"
+              aria-label={copy.backLabel}
+              onClick={onBack}
+              className="flex size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              <span
+                aria-hidden
+                className="flex size-8 items-center justify-center rounded-full border border-rule-mid bg-surface-raised pr-px pb-0.5 font-display text-ink text-xl leading-none"
+              >
+                {copy.backGlyph}
+              </span>
+            </button>
+          ) : null}
         </span>
-        <Eyebrow className="whitespace-nowrap text-center text-accent-warm">{copy.eyebrow}</Eyebrow>
+        {/* Rose eyebrow, 500 9px at .26em: the deep rose, the one that reads at 4.5:1 this small. */}
+        <p className="whitespace-nowrap text-center font-medium font-sans text-[9px] text-accent-warm uppercase leading-none tracking-[0.26em]">
+          {copy.eyebrow}
+        </p>
         <span />
       </header>
       <div
@@ -208,9 +226,6 @@ export function OnboardingForm({ initialFirstName }: { initialFirstName: string 
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <Text size="small" tone="muted">
-            {copy.name.notes}
-          </Text>
         </Frame>
       </form>
     );

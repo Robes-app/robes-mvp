@@ -16,7 +16,7 @@ import {
   iconTag,
   investmentLabel,
   normName,
-  ONBOARDING_BRAND_COUNT,
+  ONBOARDING_BRAND_BASELINE,
   onboardingBrands,
   SEED_WEARERS,
   STYLE_TYPES,
@@ -63,7 +63,10 @@ describe('the twin vocabulary', () => {
         expect(m.size, name).toBeGreaterThanOrEqual(17);
         expect(m.weight, name).toBeLessThanOrEqual(400);
       } else expect(m.size, name).toBeGreaterThanOrEqual(10);
+      if (m.lines) expect(m.lines.join(' '), name).toBe(name);
     }
+    expect(brandMark('Comme des Garçons').lines).toEqual(['Comme des', 'Garçons']);
+    expect(brandMark('COS').lines).toBeNull();
   });
 
   it('reads the retired types as their archetype', () => {
@@ -122,11 +125,22 @@ describe('the twin vocabulary', () => {
     expect(new Set(all).size).toBe(all.length);
   });
 
-  it('fills the onboarding wall to eighteen, her houses first', () => {
-    const wall = onboardingBrands(['Utility'], 'man');
-    expect(wall).toHaveLength(ONBOARDING_BRAND_COUNT);
-    expect(wall.slice(0, 9)).toEqual(BRAND_SEED.Utility.man);
-    expect(onboardingBrands([], 'unspecified')).toEqual(onboardingBrands([], 'woman'));
+  it('opens the onboarding wall on the design’s eighteen, then her styles’ houses', () => {
+    expect(onboardingBrands([], 'man')).toEqual([...ONBOARDING_BRAND_BASELINE]);
+    expect(ONBOARDING_BRAND_BASELINE).toHaveLength(18);
+    const pool = new Set(BRAND_POOL.map(normName));
+    for (const b of ONBOARDING_BRAND_BASELINE) expect(pool.has(normName(b))).toBe(true);
+    // A man's Utility then Heritage, baseline houses not repeated.
+    const wall = onboardingBrands(['Utility', 'Heritage'], 'man');
+    expect(wall.slice(18, 21)).toEqual(['Stone Island', 'Carhartt WIP', 'A-Cold-Wall*']);
+    expect(wall).toContain('Barbour');
+    expect(new Set(wall.map(normName)).size).toBe(wall.length);
+    // A woman's Minimal adds Lemaire, Studio Nicholson and Jil Sander; COS is already there.
+    expect(onboardingBrands(['Minimal'], 'woman').slice(18)).toEqual([
+      'Lemaire',
+      'Studio Nicholson',
+      'Jil Sander',
+    ]);
   });
 
   it('ranks unkept names by her types and what she kept, ties in pool order', () => {

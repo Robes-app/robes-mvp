@@ -25,8 +25,8 @@ const ORDER: Pref[] = [-1, 0, 1];
 const NEXT = new Set(['ArrowRight', 'ArrowDown']);
 const PREV = new Set(['ArrowLeft', 'ArrowUp']);
 
-// The palette's three-state control (legacy .pf-ctl): a track, a thumb that slides to the
-// answer, and three verbs. Selected is the warm fill, never black; love is rose. A shade with no
+// The palette's three-state control (legacy .pf-ctl): a white track on a hairline, a thumb that
+// slides to the answer, and three verbs; only the answer is warm (redline audit 30 Oct). Selected is the warm fill, never black; love is rose. A shade with no
 // answer of its own shows an OUTLINE thumb on its family's answer — it follows, it hasn't been set.
 export function PreferenceControl({
   label,
@@ -63,7 +63,7 @@ export function PreferenceControl({
       role="radiogroup"
       aria-label={following && follows ? `${label}: following ${follows}` : label}
       className={cn(
-        'relative inline-grid grid-flow-col auto-cols-fr rounded-pill border border-hairline bg-surface p-0.5',
+        'relative inline-grid grid-flow-col auto-cols-fr rounded-pill border border-rule-mid bg-surface-raised p-0.5',
         size === 'md' ? 'h-11 w-36' : 'h-8 w-27',
         className,
       )}
