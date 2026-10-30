@@ -88,14 +88,16 @@ export function StylesStep({
               className={cn('flex w-full flex-col rounded-card p-[5px] text-left', choice(on))}
             >
               <span className="grid h-[164px] grid-cols-4 gap-[3px] overflow-hidden rounded-[10px]">
-                {archetypeImages(type, identity).map(({ key, src }) =>
-                  src ? (
-                    // biome-ignore lint/performance/noImgElement: small bundled stills, no optimiser needed
-                    <img key={key} src={src} alt="" className="size-full object-cover" />
-                  ) : (
-                    <span key={key} className="size-full bg-surface-sunk" />
-                  ),
-                )}
+                {archetypeImages(type, identity).map(({ key, src }) => (
+                  // biome-ignore lint/performance/noImgElement: small bundled stills, no optimiser needed
+                  <img
+                    key={key}
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className="size-full bg-surface-sunk object-cover"
+                  />
+                ))}
               </span>
               <span className="flex min-h-9 items-center justify-between px-1.5 pt-1.5 pb-0.5">
                 <span className="font-display text-ink text-xl">{type}</span>

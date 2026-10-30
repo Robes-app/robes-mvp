@@ -3,7 +3,8 @@ import { COLOUR_FAMILIES } from '@robes/core/colour';
 import { type BrandMark, brandMark, STYLE_TYPES, type StyleType } from '@robes/core/style-dna';
 import { Icon } from '@robes/icons/native';
 import { fonts, PreferenceControl, Text, useColor } from '@robes/ui-native';
-import { Image, Pressable, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, View } from 'react-native';
 import { FamilyTile } from '@/features/wardrobe/ColourField';
 import { archetypeImages } from './archetype-images';
 
@@ -80,13 +81,14 @@ export function StylesStep({
             <View className="h-[164px] flex-row gap-[3px] overflow-hidden rounded-[10px]">
               {archetypeImages(type, identity).map(({ key, src }) =>
                 src ? (
-                  <Image
-                    key={key}
-                    source={src}
-                    accessibilityIgnoresInvertColors
-                    className="h-full flex-1"
-                    resizeMode="cover"
-                  />
+                  <View key={key} className="h-full flex-1 bg-surface-sunk">
+                    <Image
+                      source={src}
+                      contentFit="cover"
+                      accessible={false}
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  </View>
                 ) : (
                   <View key={key} className="h-full flex-1 bg-surface-sunk" />
                 ),

@@ -1,8 +1,10 @@
 import { queryKeys } from '@robes/api-client/react';
 import type { Me } from '@robes/contracts';
 import { firstRun as copy, onboarding } from '@robes/copy';
+import { SEED_WEARERS, STYLE_TYPES } from '@robes/core/style-dna';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import Onboarding from '../src/app/onboarding/index';
+import { archetypeImages } from '../src/features/onboarding/archetype-images';
 import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { mockRouter } from './support/router';
@@ -129,3 +131,10 @@ test('styles, brands and colours may be left empty; a failed finish stays and sa
   expect(track).toHaveBeenCalledWith('onboarding_step', { step: 'styles', outcome: 'skipped' });
   expect(track).toHaveBeenCalledWith('onboarding_answered', { styles: 0, brands: 0, colours: 0 });
 }, 20_000);
+
+test('every archetype carries its four bundled photographs for each wearer', () => {
+  for (const type of STYLE_TYPES)
+    for (const wearer of [...SEED_WEARERS, 'unspecified'])
+      for (const { key, src } of archetypeImages(type, wearer))
+        expect({ key, filed: src !== null }).toEqual({ key, filed: true });
+});
