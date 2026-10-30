@@ -4,21 +4,50 @@
 import { buildColorHarmony } from './compose';
 import type { SeasonName } from './types';
 
+// The eight style archetypes (Annie, 30 Oct), in the order onboarding shows them.
 export const STYLE_TYPES = [
   'Minimal',
-  'Bohemian',
+  'Modern',
   'Classic',
-  'Romantic',
   'Sculptural',
-  'Utility',
-  'Heritage',
+  'Bohemian',
   'Eclectic',
-  'Off-duty',
-  'Avant-garde',
+  'Heritage',
+  'Utility',
 ] as const;
 export type StyleType = (typeof STYLE_TYPES)[number];
 
-// The names the app carried, the prototype's fifty and Liberty's list, deduped by name.
+// The types retired on 30 Oct, read as their nearest archetype wherever a stored or older client's
+// value arrives.
+export const RETIRED_STYLE_TYPES: Readonly<Record<string, StyleType>> = {
+  Romantic: 'Bohemian',
+  'Off-duty': 'Modern',
+  'Avant-garde': 'Sculptural',
+};
+
+export function styleTypeOf(name: string): StyleType | null {
+  if ((STYLE_TYPES as readonly string[]).includes(name)) return name as StyleType;
+  return Object.hasOwn(RETIRED_STYLE_TYPES, name) ? (RETIRED_STYLE_TYPES[name] ?? null) : null;
+}
+
+// Her types as archetypes: retired names mapped, unknown dropped, first pick kept.
+export function styleTypesOf(names: readonly string[]): StyleType[] {
+  const out: StyleType[] = [];
+  for (const n of names) {
+    const t = styleTypeOf(n);
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+// Whose houses the walls lead with. 'unspecified' (Prefer not to say) is styled as a woman.
+export const SEED_WEARERS = ['woman', 'man', 'non_binary'] as const;
+export type SeedWearer = (typeof SEED_WEARERS)[number];
+export const seedWearerOf = (presence: string | null | undefined): SeedWearer =>
+  presence === 'man' || presence === 'non_binary' ? presence : 'woman';
+
+// The names the app carried, the prototype's fifty, Liberty's list and the archetype houses
+// (30 Oct), deduped by name.
 export const BRAND_POOL: readonly string[] = [
   'The Row',
   'Totême',
@@ -95,28 +124,127 @@ export const BRAND_POOL: readonly string[] = [
   'Mango',
   'Dunnes Stores',
   'Penneys',
+  'Studio Nicholson',
+  'Our Legacy',
+  'Aimé Leon Dore',
+  'Universal Works',
+  'M&S Autograph',
+  'Zegna',
+  'Reiss',
+  'SuitSupply',
+  'Tom Ford',
+  'J.Crew',
+  'Margaret Howell',
+  'Wales Bonner',
+  'Story mfg.',
+  'Bode',
+  'Collina Strada',
+  'Sandy Liang',
+  'Craig Green',
+  'Supreme',
+  'Stüssy',
+  'Charles Jeffrey Loverboy',
+  'Telfar',
+  'Vivienne Westwood',
+  'Dr. Martens',
+  'Joules',
+  'Barbour',
+  "Drake's",
+  'Belstaff',
+  'Carhartt WIP',
+  'Stone Island',
+  'A-Cold-Wall*',
+  'Orslow',
+  'Dickies',
+  'Filson',
+  'Patagonia',
+  'The North Face',
+  "Levi's",
+  'Uniqlo U',
 ];
 
-export const BRAND_SEED: Record<StyleType, readonly string[]> = {
-  Minimal: ['The Row', 'Phoebe Philo', 'Lemaire', 'COS', 'Jil Sander', 'Arket', 'Uniqlo'],
-  Bohemian: ['Dôen', 'Chloé', 'Ulla Johnson', 'Zimmermann'],
-  Classic: [
-    'Max Mara',
-    'Ralph Lauren',
-    'Joseph',
-    'Loro Piana',
-    'Marks & Spencer',
-    'Zara',
-    'Mango',
-    'Dunnes Stores',
-  ],
-  Romantic: ['Simone Rocha', 'Zimmermann', 'Dôen', '& Other Stories'],
-  Sculptural: ['Totême', 'Khaite', 'Alaïa', 'Jil Sander'],
-  Utility: ['Arket', 'Carhartt', 'Nike', 'Adidas'],
-  Heritage: ['Loro Piana', 'Brunello Cucinelli', 'Ralph Lauren'],
-  Eclectic: ['Miu Miu', 'Marni', 'Chopova Lowena', 'Dries Van Noten'],
-  'Off-duty': ['Auralee', 'Nike', 'Adidas', 'Uniqlo', 'H&M', 'Penneys'],
-  'Avant-garde': ['Rick Owens', 'Comme des Garçons', 'Yohji Yamamoto', 'Maison Margiela'],
+// Each archetype's houses by who she is (Annie's table, 30 Oct); her picks lead the brand walls.
+export const BRAND_SEED: Record<StyleType, Record<SeedWearer, readonly string[]>> = {
+  Minimal: {
+    woman: ['COS', 'Lemaire', 'Studio Nicholson', 'Jil Sander'],
+    man: ['COS', 'Lemaire', 'The Row', 'Jil Sander'],
+    non_binary: ['COS', 'Lemaire', 'Studio Nicholson', 'Jil Sander'],
+  },
+  Modern: {
+    woman: ['Zara', 'Lemaire', 'Auralee', 'Our Legacy', 'Celine', 'Rick Owens'],
+    man: ['Auralee', 'Our Legacy', 'Celine', 'Rick Owens', 'Aimé Leon Dore', 'Universal Works'],
+    non_binary: ['Celine', 'Auralee', 'Our Legacy', 'The Row'],
+  },
+  Classic: {
+    woman: ['M&S Autograph', 'Ralph Lauren', 'Brunello Cucinelli', 'Zegna'],
+    man: [
+      'Ralph Lauren',
+      'Brunello Cucinelli',
+      'Zegna',
+      'Reiss',
+      'SuitSupply',
+      'Tom Ford',
+      'J.Crew',
+    ],
+    non_binary: ['Margaret Howell', 'COS', 'Auralee'],
+  },
+  Sculptural: {
+    woman: ['COS', '& Other Stories'],
+    man: ['Lemaire', 'Rick Owens', 'Celine'],
+    non_binary: ['Celine', 'Lemaire', 'The Row', 'Jil Sander', 'Dries Van Noten'],
+  },
+  Bohemian: {
+    woman: ['Dôen', 'Wales Bonner', 'Zimmermann'],
+    man: ['Wales Bonner', 'Story mfg.', 'Bode'],
+    non_binary: ['Marni', 'Dries Van Noten', 'Collina Strada', 'Sandy Liang'],
+  },
+  Eclectic: {
+    woman: [
+      '& Other Stories',
+      'Comme des Garçons',
+      'Craig Green',
+      'Dries Van Noten',
+      'Marni',
+      'Gucci',
+    ],
+    man: [
+      'Comme des Garçons',
+      'Craig Green',
+      'Dries Van Noten',
+      'Marni',
+      'Gucci',
+      'Supreme',
+      'Stüssy',
+    ],
+    non_binary: [
+      'Comme des Garçons',
+      'Rick Owens',
+      'Charles Jeffrey Loverboy',
+      'Telfar',
+      'Vivienne Westwood',
+      'Dr. Martens',
+    ],
+  },
+  Heritage: {
+    woman: ['Joules', 'Barbour', "Drake's", 'Belstaff'],
+    man: ['Barbour', "Drake's", 'Belstaff', 'Joules'],
+    non_binary: ['Universal Works', 'Carhartt WIP', 'Margaret Howell'],
+  },
+  Utility: {
+    woman: ['Carhartt WIP', 'Stone Island', 'A-Cold-Wall*'],
+    man: [
+      'Stone Island',
+      'Carhartt WIP',
+      'A-Cold-Wall*',
+      'Orslow',
+      'Dickies',
+      'Filson',
+      'Patagonia',
+      'The North Face',
+      "Levi's",
+    ],
+    non_binary: ['Carhartt WIP', 'Universal Works', 'Uniqlo U', 'Dickies', "Levi's"],
+  },
 };
 
 // Each icon carries the one tag Robes reads as a register.
@@ -146,15 +274,13 @@ export const ICON_POOL: readonly (readonly [name: string, tag: string])[] = [
 
 export const ICON_SEED: Record<StyleType, readonly string[]> = {
   Minimal: ['Carolyn Bessette-Kennedy', 'Phoebe Philo', 'Gwyneth Paltrow'],
-  Bohemian: ['Jane Birkin', 'Sienna Miller'],
-  Classic: ['Grace Kelly', 'Carolyn Bessette-Kennedy', 'Lee Radziwill'],
-  Romantic: ['Sofia Coppola', 'Audrey Hepburn'],
+  Modern: ['Olivia Dean', 'Kendall Jenner', 'Hailey Bieber'],
+  Classic: ['Grace Kelly', 'Carolyn Bessette-Kennedy', 'Lee Radziwill', 'Audrey Hepburn'],
   Sculptural: ['Tilda Swinton', 'Phoebe Philo'],
-  Utility: ['Margot Robbie', 'Lauren Hutton'],
-  Heritage: ['Diane Keaton', 'Lauren Hutton'],
+  Bohemian: ['Jane Birkin', 'Sienna Miller'],
   Eclectic: ['Iris Apfel', 'Zoë Kravitz'],
-  'Off-duty': ['Hailey Bieber', 'Zoë Kravitz'],
-  'Avant-garde': ['Tilda Swinton'],
+  Heritage: ['Diane Keaton', 'Lauren Hutton', 'Sofia Coppola'],
+  Utility: ['Margot Robbie', 'Lauren Hutton'],
 };
 
 export const normName = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -166,36 +292,60 @@ export function iconTag(name: string): string {
 
 export type WallKind = 'brands' | 'icons';
 
-// Her types' houses first, then the whole wall; deduped by name.
-export function wallPool(kind: WallKind, types: readonly string[]): string[] {
+const seedFor = (kind: WallKind, type: StyleType, wearer: SeedWearer): readonly string[] =>
+  kind === 'brands' ? BRAND_SEED[type][wearer] : ICON_SEED[type];
+
+// Her types' houses first, then every house seeded for who she is, then the whole wall; deduped by
+// name. Retired type names read as their archetype.
+export function wallPool(
+  kind: WallKind,
+  types: readonly string[],
+  presence?: string | null,
+): string[] {
+  const wearer = seedWearerOf(presence);
   const out: string[] = [];
   const push = (n: string) => {
     if (n && !out.some((x) => sameName(x, n))) out.push(n);
   };
-  const seed = kind === 'brands' ? BRAND_SEED : ICON_SEED;
-  for (const t of types) for (const n of seed[t as StyleType] ?? []) push(n);
+  for (const t of styleTypesOf(types)) for (const n of seedFor(kind, t, wearer)) push(n);
+  for (const t of STYLE_TYPES) for (const n of seedFor(kind, t, wearer)) push(n);
   for (const n of kind === 'brands' ? BRAND_POOL : ICON_POOL.map(([n]) => n)) push(n);
   return out;
 }
 
-function seedTypes(kind: WallKind, name: string): string[] {
-  const seed = kind === 'brands' ? BRAND_SEED : ICON_SEED;
-  return Object.keys(seed).filter((t) => seed[t as StyleType].some((x) => sameName(x, name)));
+function seedTypes(kind: WallKind, name: string, wearer: SeedWearer): StyleType[] {
+  return STYLE_TYPES.filter((t) => seedFor(kind, t, wearer).some((x) => sameName(x, name)));
 }
 
 // The unkept names she would reach for rise first: her types weigh 2, each kept name's types 1;
 // ties keep the pool's order. A client rule, never a model call (legacy 2026-10-09).
-export function wallRanked(kind: WallKind, types: readonly string[], kept: readonly string[]) {
-  const pool = wallPool(kind, types).filter((n) => !kept.some((k) => sameName(k, n)));
-  const score = new Map<string, number>();
-  for (const t of types) score.set(t, (score.get(t) ?? 0) + 2);
-  for (const n of kept) for (const t of seedTypes(kind, n)) score.set(t, (score.get(t) ?? 0) + 1);
+export function wallRanked(
+  kind: WallKind,
+  types: readonly string[],
+  kept: readonly string[],
+  presence?: string | null,
+) {
+  const wearer = seedWearerOf(presence);
+  const pool = wallPool(kind, types, presence).filter((n) => !kept.some((k) => sameName(k, n)));
+  const score = new Map<StyleType, number>();
+  for (const t of styleTypesOf(types)) score.set(t, (score.get(t) ?? 0) + 2);
+  for (const n of kept)
+    for (const t of seedTypes(kind, n, wearer)) score.set(t, (score.get(t) ?? 0) + 1);
   if (score.size === 0) return pool;
   return pool
-    .map((n, i) => ({ n, i, s: seedTypes(kind, n).reduce((a, t) => a + (score.get(t) ?? 0), 0) }))
+    .map((n, i) => ({
+      n,
+      i,
+      s: seedTypes(kind, n, wearer).reduce((a, t) => a + (score.get(t) ?? 0), 0),
+    }))
     .sort((a, b) => b.s - a.s || a.i - b.i)
     .map((x) => x.n);
 }
+
+// The onboarding wall: eighteen houses, hers first.
+export const ONBOARDING_BRAND_COUNT = 18;
+export const onboardingBrands = (types: readonly string[], presence?: string | null): string[] =>
+  wallPool('brands', types, presence).slice(0, ONBOARDING_BRAND_COUNT);
 
 // One mandatory answer by yearly spend; the label is what the prompt reads.
 export const INVESTMENT_LEVELS = [
@@ -318,4 +468,15 @@ export function chooseSeason(season: SeasonName, current: unknown) {
     render: { ...built.render, ...(read ? { read_season: read } : {}) },
     dna: { ...built.dna, classification },
   };
+}
+
+// Onboarding's four photographs per archetype, chosen by who she is; each app bundles the files
+// under these keys (web public/archetypes, native assets/archetypes).
+export const ARCHETYPE_IMAGE_COUNT = 4;
+export function archetypeImageKeys(type: StyleType, presence?: string | null): string[] {
+  const slug = type.toLowerCase().replace(/[^a-z]+/g, '-');
+  return Array.from(
+    { length: ARCHETYPE_IMAGE_COUNT },
+    (_, i) => `${seedWearerOf(presence).replace('_', '-')}/${slug}-${i + 1}`,
+  );
 }

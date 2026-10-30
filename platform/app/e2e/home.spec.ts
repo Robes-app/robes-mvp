@@ -1,56 +1,105 @@
-import { readFileSync } from 'node:fs';
 import { expect, type Page, test } from '@playwright/test';
 import {
   declineConsent,
   isolateClientIp,
   PHOTO,
+  photographedPiece,
   seriousViolations,
   signIn,
+  styledPiece,
   uniqueEmail,
 } from './helpers';
+import { latestCodeFor } from './mailpit';
 
 // The modular home (legacy 0478e63 → f044b35): onboarding lands on the deck, home stacks its
 // modules by her activation, the box asks for a new look (by words, by a day, by a piece).
 test.beforeEach(({ context }) => isolateClientIp(context));
 
-const BYTES = readFileSync(PHOTO);
-
-async function photographedPiece(page: Page, label: string): Promise<string> {
-  const api = page.request;
-  const { assetId, upload } = await (
-    await api.post('/api/v1/uploads', {
-      data: { kind: 'wardrobe', contentType: 'image/jpeg', bytes: BYTES.length },
-    })
-  ).json();
-  await fetch(upload.url, { method: 'PUT', headers: upload.headers, body: BYTES });
-  expect((await api.post(`/api/v1/uploads/${assetId}/complete`)).ok()).toBe(true);
-  const piece = await (
-    await api.post('/api/v1/wardrobe/items', { data: { label, imageAssetId: assetId } })
-  ).json();
-  return piece.id;
-}
-
 async function deckLive(page: Page): Promise<void> {
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
 }
 
-test('onboarding: splash → name → the first piece read live → Composing → the deck, back home', async ({
+// Getting to know you (handoff 30 Oct): name and identity are required; styles, brands and
+// colours may be left empty; Back keeps every answer; Get started files them all and lands home.
+test('onboarding: name, identity, styles, brands and colours, saved once, then home', async ({
   page,
 }) => {
-  await signIn(page, uniqueEmail('e2e-home-onb'), 'Annie', true);
+  const email = uniqueEmail('e2e-home-onb');
+  await page.goto('/auth/sign-in');
+  await page.getByLabel('Email').fill(email);
+  await page.getByRole('button', { name: 'Email me a code' }).click();
+  await page.getByLabel('Code').fill(await latestCodeFor(email));
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page).toHaveURL(/\/onboarding$/);
+
+  const next = page.getByRole('button', { name: 'Continue' });
+  const title = (name: string) => page.getByRole('heading', { level: 1, name });
+  await page.getByLabel('First name').fill('Annie');
+  await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0);
+  expect(await seriousViolations(page), 'onboarding, name').toEqual([]);
+  await next.click();
+
+  await expect(title('How do you identify?')).toBeVisible();
+  await expect(next).toBeDisabled();
+  await page.getByRole('radio', { name: 'Man', exact: true }).click();
+  await expect(next).toBeEnabled();
+  expect(await seriousViolations(page), 'onboarding, identity').toEqual([]);
+  await next.click();
+
+  await expect(title('Which styles feel like you?')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Love / })).toHaveCount(8);
+  await page.getByRole('button', { name: 'Love Utility' }).click();
+  await page.getByRole('button', { name: 'Love Heritage' }).click();
+  expect(await seriousViolations(page), 'onboarding, styles').toEqual([]);
+  // Back keeps her answers.
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page.getByRole('radio', { name: 'Man', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await next.click();
+  await expect(page.getByRole('button', { name: 'Love Utility', pressed: true })).toBeVisible();
+  await next.click();
+
+  // The wall leads with a man's Utility houses, in her tap order.
+  await expect(title('Any favourite brands?')).toBeVisible();
+  const tiles = page.getByRole('list').getByRole('button');
+  await expect(tiles).toHaveCount(18);
+  await expect(tiles.first()).toHaveText('Stone Island');
+  await page.getByRole('button', { name: 'Barbour' }).click();
+  expect(await seriousViolations(page), 'onboarding, brands').toEqual([]);
+  await next.click();
+
+  await expect(title('Colours you love or avoid.')).toBeVisible();
+  const blacks = page.getByRole('radiogroup', { name: 'Blacks: love, no view or avoid' });
+  await blacks.getByRole('radio', { name: 'Love' }).click();
+  const pinks = page.getByRole('radiogroup', { name: 'Pinks: love, no view or avoid' });
+  await pinks.getByRole('radio', { name: 'Avoid' }).click();
+  expect(await seriousViolations(page), 'onboarding, colours').toEqual([]);
+  await page.getByRole('button', { name: 'Get started' }).click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
+  const dna = await (await page.request.get('/api/v1/me/dna')).json();
+  expect(dna).toMatchObject({
+    types: ['Utility', 'Heritage'],
+    brands: ['Barbour'],
+    gender: 'man',
+  });
+  const style = await (await page.request.get('/api/v1/me/style')).json();
+  expect(style.palette.fam).toEqual({ blacks: 1, pinks: -1 });
+});
+
+test('a styled piece lands on the deck and home carries it on', async ({ page }) => {
+  await signIn(page, uniqueEmail('e2e-home-deck'), 'Annie');
   await declineConsent(page);
+  await styledPiece(page);
   await expect(page.getByText(/^Around your/)).toBeVisible({ timeout: 30_000 });
   await deckLive(page);
 
   await page.getByRole('link', { name: 'Home' }).first().click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
-  await expect(page.getByText('What are you dressing for today?')).toBeVisible();
-  // Three pieces filed (the one styled, the others quietly): Style DNA leads; the map carries the
-  // rest; the deck's looks wait in Suggested.
-  await expect(page.getByText('Next · Style DNA')).toBeVisible();
-  const map = page.getByRole('region', { name: 'Getting to know you' });
-  await expect(map.getByText('Three pieces filed')).toBeVisible();
   const suggested = page.getByTestId('home-suggested');
   const card = suggested.getByRole('listitem').first().getByRole('link');
   await expect(card).toBeVisible();

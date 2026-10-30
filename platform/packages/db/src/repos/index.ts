@@ -134,7 +134,7 @@ export { OVERNIGHT_LEASE_HOURS, OVERNIGHT_LOCAL_HOUR, overnightKey } from './ove
 export { encodeCursor, type Page } from './paging';
 export type { PieceAnalysis } from './piece-analysis';
 export type { PlanSlot } from './plan';
-export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
+export { EDITABLE_PROFILE_FIELDS, type OnboardingAnswers, type ProfilePatch } from './profiles';
 export type { PushPlatform } from './push-tokens';
 export { mintShareToken, type ShareSubject } from './shares';
 export {

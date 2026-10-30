@@ -1,6 +1,13 @@
 import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
-import { declineConsent, isolateClientIp, seriousViolations, signIn, uniqueEmail } from './helpers';
+import {
+  declineConsent,
+  isolateClientIp,
+  seriousViolations,
+  signIn,
+  styledPiece,
+  uniqueEmail,
+} from './helpers';
 
 // Look states on the web (legacy beta 2026-10-06 → 10-13): a styling job lands on the keep-or-
 // pass deck; a suggestion is saved as is or edited into a draft; the look prompt edits a draft.
@@ -15,11 +22,12 @@ async function deckLive(page: Page): Promise<void> {
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
 }
 
-test('onboarding’s first piece lands on the deck: keep, pass with Undo, then See Suggested', async ({
+test('a styled piece lands on the deck: keep, pass with Undo, then See Suggested', async ({
   page,
 }) => {
-  await signIn(page, uniqueEmail('e2e-onb'), 'Niall', true);
+  await signIn(page, uniqueEmail('e2e-onb'));
   await declineConsent(page);
+  await styledPiece(page);
   await expect(page.getByText('From your prompt').or(page.getByText(/^Around your/))).toBeVisible({
     timeout: 30_000,
   });

@@ -180,6 +180,8 @@ Summary first, detail after.
 
 ### D10 · Onboarding in two screens, value inside 60s — P0 · S · both
 
+> **Superseded (Annie, 30 Oct):** onboarding is now *Getting to know you* — name, identity, styles, brands, colours, then Home (`docs/plans/2026-10-30-onboarding-getting-to-know-you.md`). The first piece moved to Home's first-run steps.
+
 - **What.** Sign in with Apple or Google (native, one tap), then **screen 1**: "Show Robes one piece" (camera, library, paste a link, or pick a stand-in). Generation starts on capture (D2/D3). **Screen 2** is the result itself, streaming in. Taste questions (icons, archetype) move *inside* the result as an optional card ("Tell Robes whose style you admire and it'll sharpen these") instead of being a step. The name comes from auth, and there is no splash.
 - **Why.** Onboarding has been re-cut repeatedly (§1.5). Its Style step exists to fill a wait that D2/D3 remove. Time-to-first-wow is the headline metric (`FTUE` headline metrics).
 - **How.** An auth provider plus a profile row minted by a trigger (as today). `onboarded_at` is set on the first job. The "skip never survives an answer" rule carries over.

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { BRAND_MARK_ROWS, brandMark, DEFAULT_BRAND_MARK, hasBrandMark } from './brand-marks';
 import { buildColorHarmony } from './compose';
 import { briefList, styleDnaPromptBlock } from './prompt';
 import {
   ageBandLabel,
+  archetypeImageKeys,
   BRAND_POOL,
   BRAND_SEED,
   chooseSeason,
@@ -10,10 +12,19 @@ import {
   euSize,
   feetInches,
   ICON_POOL,
+  ICON_SEED,
   iconTag,
   investmentLabel,
+  normName,
+  ONBOARDING_BRAND_COUNT,
+  onboardingBrands,
+  SEED_WEARERS,
+  STYLE_TYPES,
   seasonChoices,
+  seedWearerOf,
   stepFact,
+  styleTypeOf,
+  styleTypesOf,
   wallPool,
   wallRanked,
 } from './twin';
@@ -26,11 +37,62 @@ describe('the twin vocabulary', () => {
     expect(ICON_POOL.every(([, tag]) => tag.length > 0)).toBe(true);
   });
 
-  it('carries the high street, each seeded under a style type', () => {
-    const high = ['Marks & Spencer', '& Other Stories', 'Mango', 'Dunnes Stores', 'Penneys'];
-    expect(BRAND_POOL).toEqual(expect.arrayContaining(high));
-    const seeded = new Set(Object.values(BRAND_SEED).flat());
-    for (const b of high) expect(seeded.has(b)).toBe(true);
+  it('seeds every archetype for each wearer from houses on the wall', () => {
+    expect(Object.keys(BRAND_SEED)).toEqual([...STYLE_TYPES]);
+    const pool = new Set(BRAND_POOL.map(normName));
+    for (const t of STYLE_TYPES)
+      for (const w of SEED_WEARERS) {
+        expect(BRAND_SEED[t][w].length).toBeGreaterThan(0);
+        for (const b of BRAND_SEED[t][w]) expect(pool.has(normName(b))).toBe(true);
+      }
+    expect(Object.keys(ICON_SEED)).toEqual([...STYLE_TYPES]);
+  });
+
+  it('sets every seeded house in its own wordmark', () => {
+    for (const t of STYLE_TYPES)
+      for (const w of SEED_WEARERS)
+        for (const b of BRAND_SEED[t][w]) expect(hasBrandMark(b)).toBe(true);
+    expect(brandMark(' the  row ').face).toBe('serif');
+    expect(brandMark('Nobody Yet')).toEqual(DEFAULT_BRAND_MARK);
+  });
+
+  it('keeps every wordmark inside the brand type rules', () => {
+    for (const name of [...Object.keys(BRAND_MARK_ROWS), 'Nobody Yet']) {
+      const m = brandMark(name);
+      if (m.face === 'serif') {
+        expect(m.size, name).toBeGreaterThanOrEqual(17);
+        expect(m.weight, name).toBeLessThanOrEqual(400);
+      } else expect(m.size, name).toBeGreaterThanOrEqual(10);
+    }
+  });
+
+  it('reads the retired types as their archetype', () => {
+    expect(STYLE_TYPES).toHaveLength(8);
+    expect(styleTypeOf('Romantic')).toBe('Bohemian');
+    expect(styleTypeOf('Off-duty')).toBe('Modern');
+    expect(styleTypeOf('Avant-garde')).toBe('Sculptural');
+    expect(styleTypeOf('toString')).toBeNull();
+    expect(styleTypesOf(['Avant-garde', 'Sculptural', 'Nope', 'Minimal'])).toEqual([
+      'Sculptural',
+      'Minimal',
+    ]);
+  });
+
+  it('names four photographs per archetype, by who she is', () => {
+    expect(archetypeImageKeys('Minimal', 'non_binary')).toEqual([
+      'non-binary/minimal-1',
+      'non-binary/minimal-2',
+      'non-binary/minimal-3',
+      'non-binary/minimal-4',
+    ]);
+    expect(archetypeImageKeys('Utility', 'unspecified')[0]).toBe('woman/utility-1');
+  });
+
+  it('styles Prefer not to say as a woman', () => {
+    expect(seedWearerOf('unspecified')).toBe('woman');
+    expect(seedWearerOf(null)).toBe('woman');
+    expect(seedWearerOf('man')).toBe('man');
+    expect(seedWearerOf('non_binary')).toBe('non_binary');
   });
 
   it('tags an icon from the pool, ignoring case and spacing', () => {
@@ -38,21 +100,40 @@ describe('the twin vocabulary', () => {
     expect(iconTag('Someone Else')).toBe('');
   });
 
-  it('seeds the pool with her types’ houses first', () => {
-    expect(wallPool('brands', ['Avant-garde']).slice(0, 4)).toEqual([
-      'Rick Owens',
-      'Comme des Garçons',
-      'Yohji Yamamoto',
-      'Maison Margiela',
+  it('seeds the pool with her types’ houses for who she is, first pick first', () => {
+    expect(wallPool('brands', ['Heritage', 'Utility'], 'man').slice(0, 5)).toEqual([
+      'Barbour',
+      "Drake's",
+      'Belstaff',
+      'Joules',
+      'Stone Island',
     ]);
+    expect(wallPool('brands', ['Bohemian'], 'non_binary').slice(0, 4)).toEqual(
+      BRAND_SEED.Bohemian.non_binary,
+    );
+    // A retired type reads as its archetype.
+    expect(wallPool('brands', ['Avant-garde']).slice(0, 5)).toEqual(
+      wallPool('brands', ['Sculptural']).slice(0, 5),
+    );
+    // With no type picked, her wearer's houses lead, archetype by archetype.
+    expect(wallPool('brands', [], 'man').slice(0, 4)).toEqual(BRAND_SEED.Minimal.man);
     expect(wallPool('icons', [])[0]).toBe('Carolyn Bessette-Kennedy');
+    const all = wallPool('brands', ['Minimal'], 'woman').map(normName);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it('fills the onboarding wall to eighteen, her houses first', () => {
+    const wall = onboardingBrands(['Utility'], 'man');
+    expect(wall).toHaveLength(ONBOARDING_BRAND_COUNT);
+    expect(wall.slice(0, 9)).toEqual(BRAND_SEED.Utility.man);
+    expect(onboardingBrands([], 'unspecified')).toEqual(onboardingBrands([], 'woman'));
   });
 
   it('ranks unkept names by her types and what she kept, ties in pool order', () => {
-    const ranked = wallRanked('brands', [], ['Nike']);
-    expect(ranked).not.toContain('Nike');
-    // Nike seeds Utility and Off-duty: Adidas shares both, so it leads.
-    expect(ranked[0]).toBe('Adidas');
+    const ranked = wallRanked('brands', [], ['Stone Island'], 'man');
+    expect(ranked).not.toContain('Stone Island');
+    // Stone Island seeds the man's Utility: its houses lead, in pool order.
+    expect(ranked.slice(0, 2)).toEqual(['Carhartt WIP', 'A-Cold-Wall*']);
     expect(wallRanked('brands', [], [])).toEqual(wallPool('brands', []));
   });
 

@@ -33,6 +33,14 @@ function pickEditable(patch: ProfilePatch): ProfilePatch {
   return out as ProfilePatch;
 }
 
+// What onboarding asks (identity, styles, brands, colours), already cleaned by the route.
+export interface OnboardingAnswers {
+  genderIdentity?: string;
+  styleArchetypes?: string[];
+  styleBrands?: string[];
+  colourFamilies?: Record<string, 1 | -1>;
+}
+
 export function profilesRepo(db: Db) {
   return {
     get(userId: UserId) {
@@ -74,14 +82,54 @@ export function profilesRepo(db: Db) {
       return (row?.homeSnoozes ?? {}) as Record<string, string>;
     },
 
-    async completeOnboarding(userId: UserId): Promise<Date | null> {
-      const row = await db
-        .updateTable('profiles')
-        .set({ onboardedAt: sql<Date>`coalesce(onboarded_at, now())` })
-        .where('id', '=', userId)
-        .returning('onboardedAt')
-        .executeTakeFirst();
-      return row?.onboardedAt ?? null;
+    // Her onboarding answers and the moment she finished, in one write. Answers land only on the
+    // first finish, so a late retry never overwrites what she has since changed in You.
+    async completeOnboarding(
+      userId: UserId,
+      answers: OnboardingAnswers = {},
+    ): Promise<Date | null> {
+      return db.transaction().execute(async (trx) => {
+        const current = await trx
+          .selectFrom('profiles')
+          .select('onboardedAt')
+          .where('id', '=', userId)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!current) return null;
+        if (current.onboardedAt) return current.onboardedAt;
+        const { colourFamilies, ...profile } = answers;
+        const set = Object.fromEntries(
+          Object.entries(profile).filter(([, v]) => v !== undefined),
+        ) as Omit<OnboardingAnswers, 'colourFamilies'>;
+        const row = await trx
+          .updateTable('profiles')
+          .set({ ...set, onboardedAt: sql<Date>`now()` })
+          .where('id', '=', userId)
+          .returning('onboardedAt')
+          .executeTakeFirstOrThrow();
+        if (colourFamilies && Object.keys(colourFamilies).length > 0) {
+          const fam = JSON.stringify(colourFamilies);
+          // Her families join whatever palette stands; shades and prints are left as they are.
+          await trx
+            .insertInto('styleProfiles')
+            .values({
+              userId,
+              palette: JSON.stringify({ fam: colourFamilies, shade: {}, print: {} }),
+            })
+            .onConflict((oc) =>
+              oc.column('userId').doUpdateSet({
+                palette: sql`jsonb_set(
+                  coalesce(style_profiles.palette, '{}'::jsonb),
+                  '{fam}',
+                  coalesce(style_profiles.palette -> 'fam', '{}'::jsonb) || ${fam}::jsonb
+                )`,
+                userOverrides: sql`style_profiles.user_overrides - 'loved_colors' - 'rejected_colors'`,
+              }),
+            )
+            .execute();
+        }
+        return row.onboardedAt;
+      });
     },
   };
 }

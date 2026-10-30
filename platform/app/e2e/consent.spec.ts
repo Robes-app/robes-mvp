@@ -1,6 +1,6 @@
 import { gunzipSync } from 'node:zlib';
 import { expect, type Page, type Request, test } from '@playwright/test';
-import { isolateClientIp, signIn } from './helpers';
+import { isolateClientIp, photographedPiece, signIn } from './helpers';
 
 // The EU ingest host and its assets host (remote config); both must stay silent before consent.
 const POSTHOG = /^https:\/\/eu(-assets)?\.i\.posthog\.com\//;
@@ -75,9 +75,10 @@ async function saveALook(page: Page): Promise<void> {
 
 const banner = (page: Page) => page.getByRole('region', { name: 'Help shape Robes.' });
 
-// The ask waits for her first real moment: a filed piece (the onboarding photograph).
+// The ask waits for her first real moment: a filed piece.
 async function signInWithPiece(page: Page): Promise<void> {
-  await signIn(page, undefined, 'Niall', true);
+  await signIn(page);
+  await photographedPiece(page, 'Cream long-sleeve t-shirt');
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /, Niall\.$/ })).toBeVisible();
 }
