@@ -39,6 +39,31 @@ describe('Text, Heading, Eyebrow', () => {
     expect(screen.getByText('Body')).toHaveClass('text-ink-muted');
   });
 
+  it("lets a caller's size, colour or face replace the component's own", () => {
+    render(
+      <>
+        <Text className="text-lg">Large</Text>
+        <Text className="font-display">Serif</Text>
+        <Eyebrow className="text-accent-warm">Rose</Eyebrow>
+        <Heading level={1} className="text-2xl">
+          Smaller.
+        </Heading>
+      </>,
+    );
+    const large = screen.getByText('Large');
+    expect(large).toHaveClass('text-lg', 'leading-relaxed');
+    expect(large).not.toHaveClass('text-base');
+    const serif = screen.getByText('Serif');
+    expect(serif).toHaveClass('font-display');
+    expect(serif).not.toHaveClass('font-sans');
+    const rose = screen.getByText('Rose');
+    expect(rose).toHaveClass('text-xs', 'uppercase', 'text-accent-warm');
+    expect(rose).not.toHaveClass('text-ink-faint');
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading).toHaveClass('text-2xl', 'leading-tight');
+    expect(heading).not.toHaveClass('text-4xl');
+  });
+
   it('has no serious accessibility violations', async () => {
     render(
       <main>

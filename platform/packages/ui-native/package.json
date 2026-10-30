@@ -12,7 +12,8 @@
   "dependencies": {
     "@robes/copy": "workspace:*",
     "@robes/icons": "workspace:*",
-    "@robes/tokens": "workspace:*"
+    "@robes/tokens": "workspace:*",
+    "tailwind-merge": "3.7.0"
   },
   "peerDependencies": {
     "expo-haptics": ">=58",

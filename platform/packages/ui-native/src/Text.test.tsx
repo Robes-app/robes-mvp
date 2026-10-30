@@ -1,6 +1,7 @@
+import { ui } from '@robes/copy';
 import { render, screen } from '@testing-library/react-native';
 import { maxFontSizeMultiplier } from './scale';
-import { Em, Eyebrow, Heading, Text } from './Text';
+import { Em, Eyebrow, Heading, Text, Wordmark } from './Text';
 
 test('Heading is a header in Cormorant and never below 17pt', async () => {
   await render(
@@ -72,4 +73,28 @@ test('a font-display class sets the serif, which the inline sans would otherwise
   );
   expect(screen.getByText('Light Spring')).toHaveStyle({ fontFamily: 'Cormorant_300Light' });
   expect(screen.getByText('Sans')).toHaveStyle({ fontFamily: 'Inter_300Light' });
+});
+
+test("a caller's size or colour class replaces the component's own", async () => {
+  await render(
+    <>
+      <Text className="text-lg">Large</Text>
+      <Eyebrow className="text-accent-warm">Rose</Eyebrow>
+      <Heading tone="muted" className="text-ink">
+        Inked.
+      </Heading>
+      <Wordmark size="hero" className="text-bg" />
+    </>,
+  );
+  const classes = (text: string) => screen.getByText(text).props.className.split(' ');
+  expect(classes('Large')).toContain('text-lg');
+  expect(classes('Large')).not.toContain('text-base');
+  expect(classes('Rose')).toEqual(
+    expect.arrayContaining(['text-xs', 'uppercase', 'text-accent-warm']),
+  );
+  expect(classes('Rose')).not.toContain('text-ink-faint');
+  expect(classes('Inked.')).toContain('text-ink');
+  expect(classes('Inked.')).not.toContain('text-ink-muted');
+  expect(classes(ui.wordmark)).toContain('text-bg');
+  expect(classes(ui.wordmark)).not.toContain('text-ink');
 });

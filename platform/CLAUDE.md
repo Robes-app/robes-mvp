@@ -91,5 +91,6 @@ Naming, voice and copy rules: `docs/reference/brand-and-design.md` §1. IA: Toda
 
 ## Conventions
 - **Global CSS goes in `@layer base`** (`app/src/app/globals.css`), so component utilities can override it; never `!` to beat a global rule. An unlayered `:focus-visible` once boxed every quiet field (28 Oct).
+- **A class passed to a kit component beats its own default**: `cn` (`@robes/ui`) and `cx` (`@robes/ui-native`) merge with tailwind-merge, last class wins. Build every kit class list through them; a caller's size or colour class needs no inline-style workaround (native `Heading` and italic `Text` still size inline, for the 17pt floor).
 - **Weekday and month names come from the `@robes/core/calendar` tables**, never `Intl`/`toLocale*` (newer ICU prints "Sept"). `Intl` is only for reading a date in a timezone.
 Match surrounding code; single quotes; 2-space indent; no comments unless the why is non-obvious. Tests live next to code (`*.test.ts`) except e2e (`app/e2e`, `mobile/e2e`) and DB tests (`packages/db/test`, need `pnpm services:up`).
