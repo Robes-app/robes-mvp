@@ -63,6 +63,7 @@ import {
 } from './looks';
 import {
   AnalyseStyleInput,
+  CompleteOnboardingInput,
   DataExport,
   DataExportStatus,
   DeletionRequest,
@@ -198,7 +199,7 @@ export const routes = {
     method: 'POST',
     path: '/me/onboarding/complete',
     auth: 'user',
-    input: EmptyInput,
+    input: CompleteOnboardingInput,
     output: OnboardingComplete,
   },
   // Her device location, after she allowed it: rounded, named and kept as her home for the weather.

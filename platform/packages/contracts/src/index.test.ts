@@ -47,6 +47,33 @@ describe('me contracts', async () => {
     expect(() => UpdateMeInput.parse({ firstName: '' })).toThrow();
     expect(() => UpdateMeInput.parse({ instagramHandle: 'bad handle' })).toThrow();
   });
+
+  it('takes the onboarding answers, all optional, and nothing else', async () => {
+    const { CompleteOnboardingInput } = await import('./me');
+    expect(CompleteOnboardingInput.parse({})).toEqual({});
+    const answers = {
+      identity: 'non_binary',
+      styles: ['Utility', 'Minimal'],
+      brands: [' Barbour '],
+      colours: { blacks: 1, pinks: -1 },
+    };
+    expect(CompleteOnboardingInput.parse(answers)).toEqual({ ...answers, brands: ['Barbour'] });
+    expect(() => CompleteOnboardingInput.parse({ styles: ['Romantic'] })).toThrow();
+    expect(() => CompleteOnboardingInput.parse({ colours: { blacks: 0 } })).toThrow();
+    expect(() => CompleteOnboardingInput.parse({ colours: { tartan: 1 } })).toThrow();
+    expect(() => CompleteOnboardingInput.parse({ identity: 'other' })).toThrow();
+    expect(() => CompleteOnboardingInput.parse({ firstName: 'Niall' })).toThrow();
+  });
+
+  it('reads a retired style type from an older build as its archetype', async () => {
+    const { UpdateStyleDnaInput } = await import('./twin');
+    expect(UpdateStyleDnaInput.parse({ types: ['Avant-garde', 'Sculptural', 'Off-duty'] })).toEqual(
+      {
+        types: ['Sculptural', 'Modern'],
+      },
+    );
+    expect(() => UpdateStyleDnaInput.parse({ types: ['Gothic'] })).toThrow();
+  });
 });
 
 describe('job contracts', async () => {

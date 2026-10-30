@@ -1,5 +1,6 @@
 import { GENDER_IDENTITIES } from '@robes/core/avatar';
 import { COLOUR_FAMILY_IDS, PATTERNS, SHADE_IDS } from '@robes/core/colour';
+import { STYLE_TYPES } from '@robes/core/style-dna';
 import { z } from 'zod';
 
 const name = z.string().trim().max(60);
@@ -118,6 +119,21 @@ export const Palette = z.object({
   shade: z.partialRecord(ids(SHADE_IDS), z.union([pref, z.literal(0)])),
   print: z.partialRecord(ids(PATTERNS.filter((p) => p.pref).map((p) => p.id)), pref),
 });
+
+// Getting to know you (onboarding, 30 Oct): saved once, on Get started. Every answer but her name
+// (already saved) is optional, and an older phone build finishes with none.
+export const CompleteOnboardingInput = z
+  .object({
+    identity: z.enum(GENDER_IDENTITIES),
+    // Archetype names, in tap order.
+    styles: z.array(z.enum(STYLE_TYPES)).max(STYLE_TYPES.length),
+    brands: z.array(z.string().trim().min(1).max(80)).max(40),
+    // Love (1) or avoid (-1) by colour family; a missing family is no view.
+    colours: z.partialRecord(ids(COLOUR_FAMILY_IDS), pref),
+  })
+  .partial()
+  .strict();
+export type CompleteOnboardingInput = z.infer<typeof CompleteOnboardingInput>;
 export type Palette = z.infer<typeof Palette>;
 
 export const StyleProfile = z.object({

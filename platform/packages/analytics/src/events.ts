@@ -27,13 +27,16 @@ export const EVENTS = {
   // Server: a generation job is queued.
   job_started: z.object({ kind: z.enum(JOB_KINDS) }).strict(),
 
-  // Onboarding: a step is shown, answered, or skipped (Skip anyway).
+  // Onboarding: a step is shown, answered, or left empty (styles, brands and colours may be).
+  // 'piece' stays for builds that still carry the first-piece step.
   onboarding_step: z
     .object({
-      step: z.enum(['name', 'piece']),
+      step: z.enum(['name', 'identity', 'styles', 'brands', 'colours', 'piece']),
       outcome: z.enum(['shown', 'answered', 'skipped']),
     })
     .strict(),
+  // Get started: how many styles, brands and colours she marked; never which.
+  onboarding_answered: z.object({ styles: count, brands: count, colours: count }).strict(),
 
   // Add pieces: the in-app camera opens.
   camera_opened: none,

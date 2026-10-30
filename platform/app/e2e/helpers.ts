@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type BrowserContext, expect, type Page } from '@playwright/test';
 import { E2E_DATABASE_URL } from './env';
@@ -16,13 +17,29 @@ export function uniqueEmail(tag = 'e2e'): string {
 
 export const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
-// Signs up a fresh user with an emailed code and completes onboarding: splash → name → the first
-// piece (skipped with the two-tap Skip, or photographed and styled onto the deck); lands home.
+// Walks onboarding from the name (handoff 30 Oct): name → identity → styles, brands and colours
+// left empty → Get started; lands home.
+export async function completeOnboarding(page: Page, firstName = 'Niall'): Promise<void> {
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.getByLabel('First name').fill(firstName);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('radio', { name: 'Woman' }).click();
+  for (const title of ['Which styles feel like you?', 'Any favourite brands?']) {
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await page.getByRole('button', { name: 'Continue' }).click();
+  }
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Colours you love or avoid.' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Get started' }).click();
+  await expect(page.getByRole('heading', { name: new RegExp(`, ${firstName}\\.$`) })).toBeVisible();
+}
+
+// Signs up a fresh user with an emailed code and completes onboarding; lands home.
 export async function signIn(
   page: Page,
   email = uniqueEmail(),
   firstName = 'Niall',
-  firstPiece = false,
 ): Promise<string> {
   await page.goto('/auth/sign-in');
   await page.getByLabel('Email').fill(email);
@@ -31,24 +48,37 @@ export async function signIn(
 
   await page.getByLabel('Code').fill(await latestCodeFor(email));
   await page.getByRole('button', { name: 'Continue' }).click();
-
-  await expect(page).toHaveURL(/\/onboarding$/);
-  await page.getByLabel('First name').fill(firstName);
-  await page.getByRole('button', { name: 'Continue' }).click();
-  if (firstPiece) {
-    await page.getByLabel('Add photo').setInputFiles(PHOTO);
-    // The offline read sees three pieces: she picks which first; the others file quietly.
-    await page
-      .getByRole('button', { name: 'Cream long-sleeve t-shirt' })
-      .click({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Style it three ways →' }).click({ timeout: 30_000 });
-    await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/, { timeout: 30_000 });
-    return email;
-  }
-  await page.getByRole('button', { name: 'Skip for now' }).click();
-  await page.getByRole('button', { name: 'Skip anyway — Robes styles only what you add' }).click();
-  await expect(page.getByRole('heading', { name: new RegExp(`, ${firstName}\\.$`) })).toBeVisible();
+  await completeOnboarding(page, firstName);
   return email;
+}
+
+const BYTES = readFileSync(PHOTO);
+
+// A photographed piece filed straight through the API.
+export async function photographedPiece(page: Page, label: string): Promise<string> {
+  const api = page.request;
+  const { assetId, upload } = await (
+    await api.post('/api/v1/uploads', {
+      data: { kind: 'wardrobe', contentType: 'image/jpeg', bytes: BYTES.length },
+    })
+  ).json();
+  await fetch(upload.url, { method: 'PUT', headers: upload.headers, body: BYTES });
+  expect((await api.post(`/api/v1/uploads/${assetId}/complete`)).ok()).toBe(true);
+  const piece = await (
+    await api.post('/api/v1/wardrobe/items', { data: { label, imageAssetId: assetId } })
+  ).json();
+  return piece.id;
+}
+
+// A photographed piece styled three ways: the deck opens on its looks.
+export async function styledPiece(page: Page, label = 'Cream long-sleeve t-shirt'): Promise<void> {
+  const pieceId = await photographedPiece(page, label);
+  const res = await page.request.post('/api/v1/looks/generate', {
+    data: { anchor: { type: 'piece', pieceId } },
+  });
+  expect(res.ok()).toBe(true);
+  const { jobId } = await res.json();
+  await page.goto(`/looks/style/${jobId}?from=home`);
 }
 
 // Zero serious/critical axe violations (ux-opportunities.md §4.4).

@@ -57,6 +57,31 @@ describe('profiles', () => {
     expect(first).toBeInstanceOf(Date);
     expect(second?.getTime()).toBe(first?.getTime());
   });
+
+  it('files her onboarding answers on the first finish only, and to her alone', async () => {
+    const at = await repos.profiles.completeOnboarding(bob, {
+      genderIdentity: 'non_binary',
+      styleArchetypes: ['Utility', 'Minimal'],
+      styleBrands: ['Carhartt WIP'],
+      colourFamilies: { blacks: 1, pinks: -1 },
+    });
+    expect(at).toBeInstanceOf(Date);
+    expect(await repos.profiles.get(bob)).toMatchObject({
+      genderIdentity: 'non_binary',
+      styleArchetypes: ['Utility', 'Minimal'],
+      styleBrands: ['Carhartt WIP'],
+    });
+    expect((await repos.styleProfile.get(bob))?.palette).toEqual({
+      fam: { blacks: 1, pinks: -1 },
+      shade: {},
+      print: {},
+    });
+    // A late retry keeps what she has since changed.
+    await repos.profiles.completeOnboarding(bob, { styleArchetypes: ['Classic'] });
+    expect((await repos.profiles.get(bob))?.styleArchetypes).toEqual(['Utility', 'Minimal']);
+    expect((await repos.profiles.get(alice))?.styleArchetypes).toEqual([]);
+    expect(await repos.styleProfile.get(alice)).toBeUndefined();
+  });
 });
 
 describe('notification prefs', () => {

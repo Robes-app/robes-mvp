@@ -361,7 +361,7 @@ Back button, step chip ("Step 0N · …"), 2px progress rail, eyebrow, serif H1 
 
 ##### 2.5 Step 02 · Style: archetype first, then icons (`renderStyle` L640–838)
 - **Title:** "While Robes composes your three looks — where does your *style sit?*" when `st.pieceStyled` (a handoff was written); otherwise "Where does your *style sit?*". Step chip "Step 02 · Style", eyebrow "Style", CTA "Continue to your dashboard".
-- **Ten archetype cards** (`ARCHETYPES` L432–443): Minimal, Bohemian, Classic, Romantic, Sculptural, Utility, Heritage, Eclectic, Off-duty, Avant-garde.
+- **Ten archetype cards** (`ARCHETYPES` L432–443): Minimal, Bohemian, Classic, Romantic, Sculptural, Utility, Heritage, Eclectic, Off-duty, Avant-garde. *Platform (30 Oct): eight archetypes — Minimal, Modern, Classic, Sculptural, Bohemian, Eclectic, Heritage, Utility; Romantic → Bohemian, Off-duty → Modern, Avant-garde → Sculptural (`@robes/core/style-dna` `RETIRED_STYLE_TYPES`).*
   - Each has a one-line descriptor, rendered only once the card is selected.
   - Multi-select, no minimum, second tap clears. Selected style is `#F3EFE6` fill with a `#C9BCA6` border and a ✓.
   - Grid is 3 columns on desktop, 2 at ≤560px.

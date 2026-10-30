@@ -163,50 +163,32 @@ export const home = {
   },
 } as const;
 
+// Onboarding, splash to home (handoff 30 Oct): name, identity, styles, brands, colours. Identity
+// labels and the colour states are You's own (you.model.presenceOptions, you.style.palette.states).
 export const firstRun = {
   backLabel: 'Back',
   progress: (step: number, of: number): string => `Step ${step} of ${of}`,
+  eyebrow: 'Getting to know you',
+  continue: 'Continue',
+  finish: 'Get started',
   name: {
-    eyebrow: 'Hello',
     title: 'What should Robes',
     titleEm: 'call you?',
     label: 'First name',
     placeholder: 'Your first name',
     // The first week's notes (7-day brief, decision 1): named before any is sent.
     notes: 'Robes sends a few notes in your first week. Each one has a link to stop them.',
-    continue: 'Continue',
   },
-  piece: {
-    eyebrow: (name: string | null): string => (name ? `${name}’s wardrobe` : 'Your wardrobe'),
-    reading: 'Reading',
-    filed: 'Filed',
-    title: 'Add your',
-    titleEm: 'first piece.',
-    keyPiece: 'Your key piece',
-    add: 'Add photo',
-    retake: '↻ Retake',
-    rows: ['The piece', 'Category', 'Brand', 'Colour', 'Cut'],
-    awaiting: 'Awaiting',
-    readingRow: 'Reading…',
-    read: 'Read',
-    unlabelled: 'Unlabelled',
-    style: 'Style it three ways →',
-    filing: 'Filing your piece…',
-    wait: 'Robes is reading your piece…',
-    skip: 'Skip for now',
-    skipAnyway: 'Skip anyway — Robes styles only what you add',
-    noPiece: 'Robes couldn’t find a piece in that photo — try a clear shot of the piece.',
-    failed: 'Robes couldn’t read that piece just now — try again in a moment.',
-    unreadable: 'Couldn’t read that image — try another file.',
-    // Several pieces in one photo (legacy 0.8): she picks the one to style; the rest file quietly.
-    many: (n: number): string => `Robes sees ${n} pieces`,
-    whichFirst: 'Which one first?',
+  identity: { title: 'How do you', titleEm: 'identify?' },
+  styles: {
+    title: 'Which styles',
+    titleEm: 'feel like you?',
+    love: (style: string): string => `Love ${style}`,
   },
-  compose: {
-    title: 'Composing',
-    titleEm: (name: string | null): string => (name ? `three looks, ${name}.` : 'three looks.'),
-    lines: ['A first look', 'A second look', 'A third look'],
-    dressing: 'dressing…',
-    foot: 'Every look borrows the rest until you photograph your own.',
+  brands: { title: 'Any favourite', titleEm: 'brands?' },
+  colours: {
+    title: 'Colours you',
+    titleEm: 'love or avoid.',
+    control: (family: string): string => `${family}: love, no view or avoid`,
   },
 } as const;
