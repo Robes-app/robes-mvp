@@ -23,7 +23,9 @@ export async function completeOnboarding(page: Page, firstName = 'Niall'): Promi
   await expect(page).toHaveURL(/\/onboarding$/);
   await page.getByLabel('First name').fill(firstName);
   await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'How do you identify?' })).toBeVisible();
   await page.getByRole('radio', { name: 'Woman' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
   for (const title of ['Which styles feel like you?', 'Any favourite brands?']) {
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();

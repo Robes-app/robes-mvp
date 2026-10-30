@@ -180,11 +180,8 @@ export function ColoursStep({
             <View className={v === -1 ? 'opacity-35' : undefined}>
               <FamilyTile family={f} size={34} />
             </View>
-            <Text
-              size="small"
-              weight={v === 1 ? 'medium' : 'regular'}
-              className={`flex-1 ${v === -1 ? 'opacity-35' : ''}`}
-            >
+            {/* Avoid fades the swatch only; the name stays ink for contrast (as in You › Colours). */}
+            <Text size="small" weight={v === 1 ? 'medium' : 'regular'} className="flex-1">
               {f.name}
             </Text>
             <PreferenceControl

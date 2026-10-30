@@ -184,13 +184,8 @@ export function ColoursStep({
             <span className={cn(v === -1 && 'opacity-35 grayscale-[.6]')}>
               <FamilyTile family={f} size={34} />
             </span>
-            <span
-              className={cn(
-                'flex-1 font-sans text-ink text-sm',
-                v === 1 && 'font-medium',
-                v === -1 && 'opacity-35',
-              )}
-            >
+            {/* Avoid fades the swatch only; the name stays ink for contrast (as in You › Colours). */}
+            <span className={cn('flex-1 font-sans text-ink text-sm', v === 1 && 'font-medium')}>
               {f.name}
             </span>
             <PreferenceControl
