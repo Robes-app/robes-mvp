@@ -58,3 +58,11 @@ describe('weather reading', () => {
     expect(weatherWord(day)).toBe('clear');
   });
 });
+
+describe('shortRange', () => {
+  it('drops the unit for a chip', async () => {
+    const { shortRange } = await import('./index');
+    expect(shortRange('9–13°C')).toBe('9–13°');
+    expect(shortRange('9–13°')).toBe('9–13°');
+  });
+});

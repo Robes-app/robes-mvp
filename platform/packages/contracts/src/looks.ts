@@ -301,6 +301,8 @@ export const SaveLookInput = z.object({ name: lookName.optional() });
 // around, and where she is that day when it is not home. Both are ids and intent only (SEC-16).
 const PromptAround = {
   pieceIds: z.array(z.uuid()).max(8).optional(),
+  // × on the weather chip: the look is dressed for the day without its forecast.
+  weather: z.boolean().optional(),
   place: z
     .object({
       city: z.string().trim().min(1).max(120),

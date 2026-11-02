@@ -6,6 +6,7 @@ import { Icon } from '@robes/icons/web';
 import { Sheet } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { useId } from 'react';
+import { dayQuestion } from '@/lib/diary';
 import { setPendingPhoto } from '@/lib/pending-photo';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 
@@ -33,13 +34,7 @@ export function LogSheet({
   const router = useRouter();
   const inputId = useId();
   const open = date !== null;
-  const question = !date
-    ? ''
-    : date < today
-      ? copy.log.past
-      : date === today
-        ? copy.log.today
-        : copy.log.ahead;
+  const question = date ? dayQuestion(date, today) : '';
   return (
     <Sheet
       open={open}

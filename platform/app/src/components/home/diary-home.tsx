@@ -12,12 +12,13 @@ import { Eyebrow, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
-import { dayWordOf, LookPicker, type PickerMode } from '@/app/(app)/plan/look-picker';
+import { LookPicker } from '@/app/(app)/plan/look-picker';
+import { dayWordOf, type PickerMode } from '@/lib/diary';
 import { errorCopy } from '@/lib/error-copy';
 import { DaySlot } from './day-slot';
 import { DiaryStrip } from './diary-strip';
-import { HomeBox } from './home-box';
 import { LogSheet } from './log-sheet';
+import { PromptBox } from './prompt-box';
 
 const isRunning = (t: Today | undefined) =>
   t?.tray.some((j) => !isTerminalJobStatus(j.status)) ?? false;
@@ -91,6 +92,17 @@ export function DiaryHome({ initial, day = null }: { initial: Today; day?: strin
     };
   const past = current.date < today;
   const dayWord = dayWordOf(current.date, today);
+  // Her home, with the selected day's weather there: the diary's day when she is home, else the
+  // masthead's reading (today's) stands in for the name alone.
+  const homePlace =
+    !current.place && current.weather?.city
+      ? {
+          city: current.weather.city,
+          weather: { tempRange: current.weather.tempRange, code: current.weather.code },
+        }
+      : weather.data?.city
+        ? { city: weather.data.city, weather: null }
+        : null;
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
 
@@ -168,12 +180,10 @@ export function DiaryHome({ initial, day = null }: { initial: Today; day?: strin
       />
 
       {past ? null : (
-        <HomeBox
-          placeholder={
-            current.date === today ? copy.door.today : copy.door.day(weekdayLong(current.date))
-          }
-          date={current.date === today ? null : current.date}
-          onDateClear={() => setSelected(today)}
+        <PromptBox
+          day={current}
+          today={today}
+          home={homePlace}
           hasPieces={data.home.state.pics > 0}
         />
       )}

@@ -317,6 +317,11 @@ describe('key_piece handler (suggested looks)', () => {
     });
     expect(generateJson.mock.calls[1]?.[0]?.user).toContain('Dublin · October');
     expect(generateJson.mock.calls[1]?.[0]?.user).not.toContain('Forecast there');
+    // The weather left out: no forecast is read, and none is written.
+    forecast.mockClear();
+    await run({ mode: 'prompt', prompt: 'the office', date: '2026-10-17', weather: false });
+    expect(forecast).not.toHaveBeenCalled();
+    expect(generateJson.mock.calls[2]?.[0]?.user).not.toContain('9–14°C');
   });
 
   it('renders THE PLACE for a landscape, keeping her weather only as a guide', async () => {

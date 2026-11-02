@@ -361,6 +361,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     date: string | undefined,
     prompt: string,
     chosen?: { city: string; country: string | null; lat: number; lon: number },
+    weather = true,
   ) {
     const her = await deps.styling.dailyContext(userId);
     const today = localToday(deps.now?.() ?? new Date(), her.timezone);
@@ -368,9 +369,14 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     const home = { city: her.homeCity, lat: her.homeLat, lon: her.homeLon };
     const away =
       chosen && chosen.city.trim().toLowerCase() !== (her.homeCity ?? '').trim().toLowerCase();
+    // The weather left out (design 3k's × on the chip): the day is named, never its forecast.
     const [forecast, place] = await Promise.all([
-      deps.forecast ? deps.forecast({ ...home, date: day }) : null,
-      away ? chosenPlace(chosen, prompt, day) : placeOf(prompt, day, home),
+      deps.forecast && weather ? deps.forecast({ ...home, date: day }) : null,
+      away && weather
+        ? chosenPlace(chosen, prompt, day)
+        : weather
+          ? placeOf(prompt, day, home)
+          : null,
     ]);
     const ctx: DayContext = {
       // The day is named only when it isn't today (legacy dayLabel).
@@ -611,7 +617,13 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       };
       if (prompted) {
         mode = 'dress-me';
-        const dated = await dayContext(ctx.userId, input.date, input.prompt, input.place);
+        const dated = await dayContext(
+          ctx.userId,
+          input.date,
+          input.prompt,
+          input.place,
+          input.weather !== false,
+        );
         day = dated.day;
         dateHint = dated.dateHint;
         // The pieces she chose: hers, by id (SEC-16); one she has since let go of is left out.

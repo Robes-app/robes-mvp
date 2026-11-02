@@ -1,8 +1,8 @@
-import { queryKeys, useApi } from '@robes/api-client/react';
+import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
 import type { PlanEntry } from '@robes/contracts';
-import { plan as copy } from '@robes/copy';
-import { daySummary, longDate } from '@robes/core/calendar';
-import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
+import { diary as copy, plan } from '@robes/copy';
+import { longDate } from '@robes/core/calendar';
+import { WEATHER_STALE_MS, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/native';
 import {
   ErrorText,
@@ -10,98 +10,121 @@ import {
   fonts,
   IconButton,
   InlineTitleField,
+  maxFontSizeMultiplier,
+  MIN_TOUCH,
   Skeleton,
   Text,
   useColor,
+  useToast,
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, Text as RNText, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
-import { useHerPhoto } from '../looks/her-photo';
 import { LookTile } from '../looks/LookTile';
-import { OnPhoto } from '../looks/LookTiles';
 import { localDate } from '../looks/saved-looks';
 import { LookPicker } from './LookPicker';
 import { useNameDay, usePlanDay, useUnpin } from './plan';
 
-// A look on the day: ✕ takes it off the day; the camera on the photograph adds her photograph of
-// it (beta's day card), kept on the LOOK — ↻ replaces it while her photograph is the record.
-// Web twin: app/src/app/(app)/plan/[date]/day-view.tsx DayLook.
-function LookCard({ entry, n }: { entry: PlanEntry; n: number }) {
+// A look on the day: ★ marks the OOTD (position 0, the one that leads home); ☆ on the others
+// makes them it; × takes a look off the day. Web twin: day-view.tsx DayLook.
+function DayLook({
+  entry,
+  hero,
+  n,
+  onStar,
+  onRemove,
+}: {
+  entry: PlanEntry;
+  hero: boolean;
+  n: number;
+  onStar: () => void;
+  onRemove: () => void;
+}) {
   const router = useRouter();
-  const unpin = useUnpin();
-  const queryClient = useQueryClient();
-  const photo = useHerPhoto(entry.look, () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
-  });
-  const camera = !photo.hasPhoto || entry.look.record === 'photo';
+  const ink = useColor('ink');
+  const muted = useColor('ink-muted');
+  const star = 30;
   return (
-    <>
-      <LookTile
-        look={entry.look}
-        onPress={() => router.push(`/look/${entry.look.id}`)}
-        className="w-[47%]"
-        aspect="3:4"
-        eyebrow={copy.day.lookEyebrow(n)}
-        badge={entry.worn ? copy.day.worn : null}
-        meta={copy.list.pieces(entry.look.pieces.length)}
-        onImage={
-          camera ? (
-            <View className="absolute right-2 bottom-2">
-              <OnPhoto
-                icon={photo.hasPhoto ? 'swap' : 'camera'}
-                label={photo.label}
-                size={36}
-                disabled={photo.busy}
-                onPress={photo.pick}
-              />
-            </View>
-          ) : null
-        }
-        corner={
-          <View className="rounded-pill bg-bg">
-            <IconButton
-              icon="close"
-              tone="ink-muted"
-              label={copy.day.remove(entry.look.name)}
-              onPress={() => unpin.mutate({ params: { id: entry.id } })}
-            />
+    <LookTile
+      look={entry.look}
+      onPress={() => router.push(`/look/${entry.look.id}`)}
+      eyebrow={hero ? copy.day.ootd : copy.day.look(n)}
+      eyebrowTone={hero ? 'warm' : 'faint'}
+      selected={hero}
+      {...(hero ? { testID: 'day-ootd' } : {})}
+      onImage={
+        hero ? (
+          <View
+            accessible
+            accessibilityLabel={copy.day.isOotd}
+            style={{ width: star, height: star }}
+            className="absolute top-2 left-2 items-center justify-center rounded-pill border border-selected-line bg-selected"
+          >
+            <Icon name="star" size={14} color={ink} />
           </View>
-        }
-      />
-      {photo.sheet}
-    </>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.day.makeOotd(entry.look.name)}
+            onPress={onStar}
+            hitSlop={(MIN_TOUCH - star) / 2}
+            style={{ width: star, height: star }}
+            className="absolute top-2 left-2 items-center justify-center rounded-pill border border-rule-mid bg-surface-raised/95"
+          >
+            <Icon name="star" size={14} color={muted} />
+          </Pressable>
+        )
+      }
+      corner={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.day.takeOff(entry.look.name)}
+          onPress={onRemove}
+          hitSlop={(MIN_TOUCH - 28) / 2}
+          style={{ width: 28, height: 28 }}
+          className="items-center justify-center rounded-pill border border-rule-mid bg-surface-raised"
+        >
+          <Icon name="close" size={13} color={muted} />
+        </Pressable>
+      }
+    />
   );
 }
 
-// The day page (legacy ff87e89): the date as eyebrow, her name for the day with the pencil, the
-// looks on it, and the door to add one or several.
+// The day page (Front Door design 3k, plan 2026-11-02 §1.10): the date as a rose eyebrow, her
+// name for the day, the day's weather, then every look on it — the OOTD starred, the others a
+// tap from leading — with × to take one off and a dashed door to add more. Web twin:
+// app/src/app/(app)/plan/[date]/day-view.tsx.
 export function DayView({ date }: { date: string }) {
-  const muted = useColor('ink-muted');
+  const api = useApiClient();
+  const toast = useToast();
+  const queryClient = useQueryClient();
   const ink = useColor('ink');
   const today = localDate();
   const query = usePlanDay(date);
+  // The day's range and conditions, for a day gone by too (plan 2026-11-02 B3).
+  const weather = useApi('today.weather', { input: { date } }, { staleTime: WEATHER_STALE_MS });
+  const wx = weather.data;
   const nameDay = useNameDay();
+  const unpin = useUnpin();
   const [picking, setPicking] = useState(false);
   const [naming, setNaming] = useState(false);
-  const entries = query.data?.days[0]?.entries ?? [];
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
+  };
+  const star = useApiMutation('plan.ootd', {
+    onSuccess: refresh,
+    onError: (err) => toast.show({ message: errorMessage(err) }),
+  });
+
+  const entries: PlanEntry[] = query.data?.days[0]?.entries ?? [];
   const dayName = query.data?.days[0]?.name ?? null;
-  const s = daySummary(entries, dayName);
   const words = dayName ?? entries.find((e) => e.activity?.trim())?.activity?.trim() ?? '';
   // The day's title is hers (beta): never borrowed from the one look on it.
   const title = words || null;
-  const router = useRouter();
-  const ahead = date >= today;
-  const weather = useApi(
-    'today.weather',
-    { input: { date } },
-    { enabled: ahead, staleTime: WEATHER_STALE_MS },
-  );
-  const wx = ahead ? weather.data : null;
-  const wxIcon = weatherIcon(wx?.code);
 
   function commit(value: string) {
     setNaming(false);
@@ -110,151 +133,129 @@ export function DayView({ date }: { date: string }) {
     nameDay.mutate({ params: { date }, input: { name: next } });
   }
 
-  const section =
-    date === today ? copy.day.filedToday : date < today ? copy.day.filed : copy.day.planned;
+  // A wear is the record (immutable): a worn look leaves the day through its wear, not a pin.
+  const remove = (entry: PlanEntry) => {
+    if (entry.worn) {
+      void api
+        .call('looks.unwear', { params: { id: entry.look.id, date } })
+        .then(refresh)
+        .catch((err) => toast.show({ message: errorMessage(err) }));
+      return;
+    }
+    unpin.mutate({ params: { id: entry.id } });
+  };
 
   return (
-    <View className="flex-1">
-      <ScrollView contentContainerClassName="gap-6 px-6 pb-28" testID="day-page">
-        <View className="gap-2">
-          <Eyebrow>{longDate(date)}</Eyebrow>
-          <View className="flex-row items-center gap-2">
-            {naming ? (
-              <InlineTitleField
-                value={words}
-                label={copy.day.name}
-                placeholder={copy.day.name}
-                size={30}
-                italic
-                weight="regular"
-                onCommit={commit}
-                onCancel={() => setNaming(false)}
-              />
-            ) : (
-              <Text
-                accessibilityRole="header"
-                className={`flex-1 text-3xl ${title ? 'text-ink' : 'text-ink-faint'}`}
-                style={{ fontFamily: fonts.displayRegularItalic }}
-              >
-                {title ?? copy.day.name}
-              </Text>
-            )}
-            {/* Any day can be named, so she can plan a week before adding outfits. */}
-            {!naming ? (
-              <IconButton
-                framed
-                icon="pencil"
-                tone="ink-muted"
-                label={title ? copy.day.rename : copy.day.name}
-                onPress={() => setNaming(true)}
-              />
-            ) : null}
-          </View>
-          {wx ? (
-            <View className="gap-1" accessibilityLabel={copy.day.weatherLabel}>
-              {/* Today live, the temperature and conditions now; a day ahead its range (web day-view.tsx). */}
-              <View className="flex-row items-center gap-2" testID="day-weather">
-                {wxIcon ? <Icon name={wxIcon} size={16} color={muted} /> : null}
-                <Text
-                  size="caption"
-                  tone="muted"
-                  weight="medium"
-                  className="uppercase"
-                  style={{ letterSpacing: 1.6 }}
-                >
-                  {copy.day.weather(wx.city, weatherWord(wx), weatherTemp(wx))}
-                </Text>
-              </View>
-              <Text size="small" tone="muted" italic>
-                {copy.day.advice(wx.condition, wx.tempRange)}
-              </Text>
-            </View>
+    <ScrollView contentContainerClassName="gap-6 px-6 pb-12" testID="day-page">
+      <View className="gap-2.5">
+        <Eyebrow className="text-accent-warm">{longDate(date)}</Eyebrow>
+        <View className="flex-row items-center gap-2">
+          {naming ? (
+            <InlineTitleField
+              value={words}
+              label={copy.day.name}
+              placeholder={copy.day.name}
+              size={26}
+              italic
+              weight="regular"
+              onCommit={commit}
+              onCancel={() => setNaming(false)}
+            />
+          ) : (
+            <Text
+              accessibilityRole="header"
+              className={`flex-1 ${title ? 'text-ink' : 'text-ink-faint'}`}
+              style={{ fontFamily: fonts.displayRegularItalic, fontSize: 26, lineHeight: 30 }}
+            >
+              {title ?? copy.day.name}
+            </Text>
+          )}
+          {/* Any day can be named, so she can plan a week before adding outfits. */}
+          {!naming ? (
+            <IconButton
+              framed
+              icon="pencil"
+              tone="ink-muted"
+              label={title ? plan.day.rename : copy.day.name}
+              onPress={() => setNaming(true)}
+            />
           ) : null}
         </View>
-
-        <View className="flex-row items-baseline justify-between border-b border-hairline pb-2">
-          <Text
-            className="text-[10px] text-ink-faint uppercase"
-            style={{ fontFamily: fonts.sans, letterSpacing: 2.4 }}
+        {wx ? (
+          <RNText
+            maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+            className="text-ink-muted"
+            style={{ fontFamily: fonts.sans, fontSize: 11.5 }}
+            testID="day-weather"
           >
-            {section}
-          </Text>
-          <Text size="caption" tone="muted">
-            {s.looks ? copy.day.stat(s.looks, s.pieces) : ''}
-          </Text>
-        </View>
+            {copy.day.weather(wx.city, weatherWord(wx), wx.tempRange)}
+          </RNText>
+        ) : null}
+      </View>
 
-        {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
-        {query.isPending ? (
-          <View className="flex-row gap-3" accessibilityState={{ busy: true }}>
-            <Skeleton width="47%" aspectRatio={3 / 4} />
-            <Skeleton width="47%" aspectRatio={3 / 4} />
-          </View>
-        ) : (
-          <View className="flex-row flex-wrap gap-4">
-            {entries.map((entry, i) => (
-              <LookCard key={entry.id} entry={entry} n={i + 1} />
-            ))}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={entries.length ? copy.day.addAnother : copy.day.choose}
-              accessibilityHint={entries.length ? copy.day.addAnotherHint : copy.day.chooseHint}
-              onPress={() => setPicking(true)}
-              // Beside a look it stands as tall as the card (the row stretches it); alone, a floor.
-              style={entries.length ? { width: '47%', minHeight: 220 } : { width: '100%' }}
-              // Beta's two doors (twin: day-view.tsx): a dashed slot beside the looks; on an empty
-              // day one white door to her looks, its icon in a cream circle.
-              className={`rounded-soft p-4 ${
-                entries.length
-                  ? 'items-center justify-center gap-2 border border-dashed border-rule-mid bg-surface'
-                  : 'flex-row items-center gap-4 border border-hairline bg-surface-raised'
-              }`}
-            >
-              {entries.length ? (
-                <Icon name="plus" size={18} color={muted} />
-              ) : (
-                <View className="size-11 items-center justify-center rounded-pill bg-surface-sunk">
-                  <Icon name="looks" size={18} color={muted} />
-                </View>
-              )}
-              <View className={entries.length ? 'items-center' : 'flex-1'}>
-                {entries.length ? (
-                  <Text
-                    className="text-[10px] text-ink uppercase"
-                    style={{ fontFamily: fonts.sans, letterSpacing: 2.2 }}
-                  >
-                    {copy.day.addAnother}
-                  </Text>
-                ) : (
-                  <Text className="text-base text-ink" style={{ fontFamily: fonts.sans }}>
-                    {copy.day.choose}
-                  </Text>
-                )}
-                <Text size="caption" tone="faint" italic>
-                  {entries.length ? copy.day.addAnotherHint : copy.day.chooseHint}
-                </Text>
-              </View>
-              {entries.length ? null : <Icon name="forward" size={16} color={ink} />}
-            </Pressable>
-          </View>
-        )}
-        <LookPicker date={picking ? date : null} title={title} onClose={() => setPicking(false)} />
-      </ScrollView>
-      {ahead ? (
-        // Beta's floating door: a new look for this day, from the box on Today.
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.day.dress}
-          onPress={() => router.push({ pathname: '/', params: { dress: date } })}
-          className="absolute right-4 bottom-6 min-h-11 flex-row items-center gap-2 rounded-pill border border-border-control bg-bg px-5"
-          testID="dress-this-day"
+      <View className="flex-row items-baseline justify-between border-hairline border-b pb-2.5">
+        <RNText
+          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+          className="text-ink-muted uppercase"
+          style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8 }}
         >
-          <Icon name="looks" size={18} color={ink} />
-          <Text className="text-lg text-ink" style={{ fontFamily: fonts.displayItalic }}>
-            {copy.day.dress}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
+          {copy.day.looksFor}
+        </RNText>
+        <RNText
+          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+          className="text-ink-faint"
+          style={{ fontFamily: fonts.sans, fontSize: 11 }}
+        >
+          {copy.day.count(entries.length)}
+        </RNText>
+      </View>
+
+      {query.isError ? <ErrorText>{errorMessage(query.error)}</ErrorText> : null}
+      {query.isPending ? (
+        <View className="flex-row justify-between" accessibilityState={{ busy: true }}>
+          <Skeleton width="48.4%" aspectRatio={4 / 5} />
+          <Skeleton width="48.4%" aspectRatio={4 / 5} />
+        </View>
+      ) : (
+        <View className="flex-row flex-wrap justify-between gap-y-2.5">
+          {entries.map((entry, i) => (
+            <View key={entry.id} style={{ width: '48.4%' }}>
+              <DayLook
+                entry={entry}
+                hero={i === 0}
+                n={i + 1}
+                onStar={() => star.mutate({ params: { date }, input: { entryId: entry.id } })}
+                onRemove={() => remove(entry)}
+              />
+            </View>
+          ))}
+          {/* The dashed door to the drawer: beside the looks as tall as a card; alone, a floor. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.day.add}
+            onPress={() => setPicking(true)}
+            testID="day-add"
+            style={entries.length ? { width: '48.4%', aspectRatio: 4 / 5 } : { width: '100%', minHeight: 160 }}
+            className="items-center justify-center gap-1.5 rounded-[3px] border border-dashed border-selected-line bg-surface"
+          >
+            <Icon name="plus" size={20} color={ink} />
+            <RNText
+              maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+              className="text-ink uppercase"
+              style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8 }}
+            >
+              {copy.day.add}
+            </RNText>
+          </Pressable>
+        </View>
+      )}
+      <LookPicker
+        date={picking ? date : null}
+        today={today}
+        mode="add"
+        onClose={() => setPicking(false)}
+        onChanged={refresh}
+      />
+    </ScrollView>
   );
 }
