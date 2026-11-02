@@ -8,16 +8,17 @@ import { Icon } from '@robes/icons/native';
 import { ErrorText, Eyebrow, Heading, PrimaryScope, useColor, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View } from 'react-native';
 import { isTerminal } from '@/features/looks/ideas';
 import { LookPicker } from '@/features/plan/LookPicker';
 import { errorMessage } from '@/lib/errors';
+import { DayOneBand } from './DayOneBand';
 import { DaySlot } from './DaySlot';
 import { DiaryStrip } from './DiaryStrip';
 import { dayWordOf, type PickerMode } from './diary';
-import { HomeBox } from './HomeBox';
 import { Tray } from './HomeView';
 import { LogSheet } from './LogSheet';
+import { PromptBox } from './PromptBox';
 
 const isRunning = (t: Today | undefined) => t?.tray.some((j) => !isTerminal(j)) ?? false;
 
@@ -82,6 +83,17 @@ export function DiaryHome({ day = null }: { day?: string | null } = {}) {
     };
   const past = current.date < today;
   const dayWord = dayWordOf(current.date, today);
+  // Her home, with the selected day's weather there: the diary's day when she is home, else the
+  // masthead's reading (today's) stands in for the name alone.
+  const homePlace =
+    !current.place && current.weather?.city
+      ? {
+          city: current.weather.city,
+          weather: { tempRange: current.weather.tempRange, code: current.weather.code },
+        }
+      : weather.data?.city
+        ? { city: weather.data.city, weather: null }
+        : null;
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
 
@@ -123,80 +135,86 @@ export function DiaryHome({ day = null }: { day?: string | null } = {}) {
   const metaLine = homeCopy.meta(weekdayLong(today), wx?.city ?? null, wx ? weatherTemp(wx) : null);
 
   return (
-    <ScrollView
-      contentContainerClassName="gap-6 px-5 pt-[22px] pb-8"
-      keyboardShouldPersistTaps="handled"
-      testID="diary-home"
-      refreshControl={
-        <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
-      }
+    // The prompt box's field rides above the keyboard (parity plan N2), as StylePiece's does.
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      className="flex-1"
     >
-      <PrimaryScope>
-        <View className="gap-2">
-          <Heading size="xl" style={{ fontSize: 32, lineHeight: 34 }}>
-            {todayCopy.greeting(name, data.hour)}
-          </Heading>
-          <View
-            className="flex-row items-center gap-2"
-            accessible
-            accessibilityLabel={homeCopy.metaSpoken(
-              wx && wxIcon ? weatherWord(wx) : null,
-              metaLine,
-            )}
-            testID="home-meta"
-          >
-            <Eyebrow>{metaLine}</Eyebrow>
-            {wx && wxIcon ? <Icon name={wxIcon} size={14} color={faint} /> : null}
+      <ScrollView
+        contentContainerClassName="gap-6 px-5 pt-[22px] pb-8"
+        keyboardShouldPersistTaps="handled"
+        testID="diary-home"
+        refreshControl={
+          <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
+        }
+      >
+        <PrimaryScope>
+          <View className="gap-2">
+            <Heading size="xl" style={{ fontSize: 32, lineHeight: 34 }}>
+              {todayCopy.greeting(name, data.hour)}
+            </Heading>
+            <View
+              className="flex-row items-center gap-2"
+              accessible
+              accessibilityLabel={homeCopy.metaSpoken(
+                wx && wxIcon ? weatherWord(wx) : null,
+                metaLine,
+              )}
+              testID="home-meta"
+            >
+              <Eyebrow>{metaLine}</Eyebrow>
+              {wx && wxIcon ? <Icon name={wxIcon} size={14} color={faint} /> : null}
+            </View>
           </View>
-        </View>
 
-        {diary ? (
-          <DiaryStrip
-            days={diary.days}
+          <DayOneBand state={data.home.state} />
+
+          {diary ? (
+            <DiaryStrip
+              days={diary.days}
+              today={today}
+              selected={current.date}
+              onSelect={setPicked}
+            />
+          ) : null}
+
+          <DaySlot
+            day={current}
+            dayWord={dayWord}
+            onAdd={() => setLog(current.date)}
+            onChange={() => setDrawer({ date: current.date, mode: 'change' })}
+            onRemove={remove}
+          />
+
+          {past ? null : (
+            <PromptBox
+              day={current}
+              today={today}
+              home={homePlace}
+              hasPieces={data.home.state.pics > 0}
+            />
+          )}
+
+          {data.tray.length > 0 ? <Tray jobs={data.tray} /> : null}
+
+          <LogSheet
+            date={log}
             today={today}
-            selected={current.date}
-            onSelect={setPicked}
+            onClose={() => setLog(null)}
+            onPick={(date) => {
+              setLog(null);
+              setDrawer({ date, mode: 'add' });
+            }}
           />
-        ) : null}
-
-        <DaySlot
-          day={current}
-          dayWord={dayWord}
-          onAdd={() => setLog(current.date)}
-          onChange={() => setDrawer({ date: current.date, mode: 'change' })}
-          onRemove={remove}
-        />
-
-        {past ? null : (
-          <HomeBox
-            placeholder={
-              current.date === today ? copy.door.today : copy.door.day(weekdayLong(current.date))
-            }
-            date={current.date === today ? null : current.date}
-            onDateClear={() => setPicked(today)}
-            hasPieces={data.home.state.pics > 0}
+          <LookPicker
+            date={drawer?.date ?? null}
+            today={today}
+            mode={drawer?.mode ?? 'add'}
+            onClose={() => setDrawer(null)}
+            onChanged={refresh}
           />
-        )}
-
-        {data.tray.length > 0 ? <Tray jobs={data.tray} /> : null}
-
-        <LogSheet
-          date={log}
-          today={today}
-          onClose={() => setLog(null)}
-          onPick={(date) => {
-            setLog(null);
-            setDrawer({ date, mode: 'add' });
-          }}
-        />
-        <LookPicker
-          date={drawer?.date ?? null}
-          today={today}
-          mode={drawer?.mode ?? 'add'}
-          onClose={() => setDrawer(null)}
-          onChanged={refresh}
-        />
-      </PrimaryScope>
-    </ScrollView>
+        </PrimaryScope>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

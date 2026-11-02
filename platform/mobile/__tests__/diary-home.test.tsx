@@ -136,7 +136,7 @@ test('the strip: 21 cells, today’s page centred, a ring for a plan and a dot f
   expect(mark(`diary-mark-${TWO}-1`)).toBeTruthy();
   // Today's OOTD leads; the prompt box is there for today.
   expect(screen.getByTestId('ootd-card')).toBeTruthy();
-  expect(screen.getByTestId('home-box')).toBeTruthy();
+  expect(screen.getByTestId('prompt-box')).toBeTruthy();
 });
 
 test('a day with two looks shows the OOTD and the +1 stack, which opens the day', async () => {
@@ -157,7 +157,7 @@ test('a day with two looks shows the OOTD and the +1 stack, which opens the day'
   // The lookbook icon opens the drawer to change the look, the day's look ticked as Scheduled.
   expect(screen.getByRole('button', { name: diary.slot.change })).toBeTruthy();
   // The box follows the day, so the deep link `?day=` lands on it too.
-  expect(screen.getByTestId('home-box')).toBeTruthy();
+  expect(screen.getByTestId('prompt-box')).toBeTruthy();
 });
 
 test('an empty day: Add look → the log sheet → Pick Look → the drawer with the day’s question', async () => {
@@ -202,7 +202,7 @@ test('a day gone by: the worn look is the card, no prompt box; × takes the wear
   });
   await renderWithApi(<DiaryHome day={PAST} />);
   expect(await screen.findByTestId('ootd-card')).toBeTruthy();
-  expect(screen.queryByTestId('home-box')).toBeNull();
+  expect(screen.queryByTestId('prompt-box')).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: diary.slot.remove('Weekend navy', 'Tuesday') }),
   );

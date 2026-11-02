@@ -1,6 +1,7 @@
-import type { Look } from '@robes/contracts';
+import type { Look, Today } from '@robes/contracts';
 import { diary as copy } from '@robes/copy';
 import { weekdayDayMonth, weekdayLong } from '@robes/core/calendar';
+import { shortRange } from '@robes/core/weather';
 
 // The diary home's words (Front Door design 3k, plan 2026-11-02), pure so web and native tests
 // pin the same answers. The web twin is app/src/lib/diary.ts.
@@ -58,7 +59,29 @@ export function drawerLine(
   return copy.drawer.notWorn;
 }
 
+// The flyout's foot (plan §1.9): idle until she ticks; Include n once she has; Clear pieces when
+// she unticks everything the box already carried.
+export function flyoutCta(selected: number, carried: number): { label: string; ready: boolean } {
+  if (selected > 0) return { label: copy.flyout.include(selected), ready: true };
+  if (carried > 0) return { label: copy.flyout.clear, ready: true };
+  return { label: copy.flyout.idle, ready: false };
+}
+
+// What the place chip says: the city, then that day's range at it (plan §1.8).
+export function placeChipLabel(city: string, tempRange: string | null): string {
+  return copy.door.placeChip(city, tempRange ? shortRange(tempRange) : null);
+}
+
 // What a day asks when she adds a look (plan §1.6).
 export function dayQuestion(date: string, today: string): string {
   return date < today ? copy.log.past : date === today ? copy.log.today : copy.log.ahead;
+}
+
+// Which of day one's asks show (design 3a): the model until she has one on file, her first pieces
+// until she has photographed one; each stands down for good once she dismisses it.
+export function dayOneAsks(state: Today['home']['state']): { model: boolean; pieces: boolean } {
+  return {
+    model: !state.twinOnFile && !state.dayOne?.modelAsked,
+    pieces: state.pics === 0 && !state.dayOne?.piecesAsked,
+  };
 }
