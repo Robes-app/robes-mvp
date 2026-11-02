@@ -31,8 +31,7 @@ export const Me = z.object({
 export type Me = z.infer<typeof Me>;
 
 // Which flagged doors her clients show (GET /me/features); flags themselves stay server-side.
-// `homeDiary` defaults so an older server's answer still parses on a newer client.
-export const Features = z.object({ trips: z.boolean(), homeDiary: z.boolean().default(false) });
+export const Features = z.object({ trips: z.boolean() });
 export type Features = z.infer<typeof Features>;
 
 export const UpdateMeInput = z

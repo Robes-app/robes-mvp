@@ -32,15 +32,16 @@ export const ADDED_FEATURE_FLAGS = {
     description:
       'Draw a new model portrait when her picks need one (avatar_cell job; picks still save when off)',
   },
-  // 20261102203200_home_diary_flag: home as the OOTD diary (plan 2026-11-02), dark until it lands whole.
+  // 20261102203200_home_diary_flag: seeded for the diary home's rollout; retired the same day
+  // (plan 2026-11-02 P4) — both clients render the diary, so nothing reads it.
   'home.diary': {
     enabled: false,
-    description: 'Home as the OOTD diary (strip, day slot, prompt chips, bell)',
+    description: 'Retired: home as the OOTD diary ships to every client',
   },
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS | keyof typeof ADDED_FEATURE_FLAGS;
 
 // Flags the clients read to show or hide doors (GET /me/features).
-export const CLIENT_FLAGS = ['trips', 'home.diary'] as const satisfies readonly FeatureFlag[];
+export const CLIENT_FLAGS = ['trips'] as const satisfies readonly FeatureFlag[];
 export type ClientFlag = (typeof CLIENT_FLAGS)[number];

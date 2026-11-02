@@ -2,13 +2,30 @@ import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { DiaryDay, PlanEntry, Today } from '@robes/contracts';
 import { diary as copy, home as homeCopy, today as todayCopy, ui } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
-import { greetingName } from '@robes/core/home';
+import { greetingName, trayKind, trayState } from '@robes/core/home';
 import { WEATHER_STALE_MS, weatherIcon, weatherTemp, weatherWord } from '@robes/core/weather';
 import { Icon } from '@robes/icons/native';
-import { ErrorText, Eyebrow, Heading, PrimaryScope, useColor, useToast } from '@robes/ui-native';
+import {
+  ErrorText,
+  Eyebrow,
+  Heading,
+  MIN_TOUCH,
+  PrimaryScope,
+  Text,
+  useColor,
+  useToast,
+} from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  View,
+} from 'react-native';
 import { isTerminal } from '@/features/looks/ideas';
 import { LookPicker } from '@/features/plan/LookPicker';
 import { errorMessage } from '@/lib/errors';
@@ -16,7 +33,6 @@ import { DayOneBand } from './DayOneBand';
 import { DaySlot } from './DaySlot';
 import { DiaryStrip } from './DiaryStrip';
 import { dayWordOf, type PickerMode } from './diary';
-import { Tray } from './HomeView';
 import { LogSheet } from './LogSheet';
 import { PromptBox } from './PromptBox';
 
@@ -216,5 +232,57 @@ export function DiaryHome({ day = null }: { day?: string | null } = {}) {
         </PrimaryScope>
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+type TrayJob = Today['tray'][number];
+// Where a tray row opens: the native routes for the web's trayHref (home-view.tsx).
+function trayRoute(job: TrayJob): string {
+  const kind = trayKind(job);
+  if (kind === 'styleColour') return '/you/style';
+  if (kind === 'trip') {
+    return job.output.tripId ? `/trip/${job.output.tripId}` : `/trip/job/${job.id}`;
+  }
+  if (kind === 'daily') {
+    return job.output.dailyLookId
+      ? `/today/look/${job.output.dailyLookId}`
+      : `/today/job/${job.id}`;
+  }
+  return job.output.ideaId ? `/idea/${job.output.ideaId}` : `/looks/job/${job.id}`;
+}
+const TRAY_TITLE = {
+  styleColour: todayCopy.tray.styleColour,
+  trip: todayCopy.tray.trip,
+  daily: todayCopy.daily.trayTitle,
+  stylePiece: todayCopy.tray.stylePiece,
+} as const;
+
+// The studio tray: running jobs and ones just finished, each opening where it lands (the web twin
+// is home-view.tsx). Twin of diary-home.tsx.
+export function Tray({ jobs }: { jobs: TrayJob[] }) {
+  const router = useRouter();
+  return (
+    <View className="gap-3" testID="home-tray">
+      <Eyebrow>{todayCopy.tray.title}</Eyebrow>
+      <View className="gap-2">
+        {jobs.map((job) => {
+          const title = TRAY_TITLE[trayKind(job)];
+          const state = todayCopy.tray[trayState(job.status)];
+          return (
+            <Pressable
+              key={job.id}
+              accessibilityRole="link"
+              accessibilityLabel={`${title} · ${state}`}
+              onPress={() => router.push(trayRoute(job))}
+              style={{ minHeight: MIN_TOUCH }}
+              className="flex-row items-center justify-between gap-4"
+            >
+              <Text>{title}</Text>
+              <Text tone="muted">{state}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }

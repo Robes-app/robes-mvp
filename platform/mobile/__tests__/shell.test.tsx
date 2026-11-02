@@ -141,7 +141,7 @@ test('four tabs in beta order; the sparkle beside them opens Create', async () =
   // The tab bar names the place, so the header carries the wordmark and the tab name is read only.
   expect(screen.getByRole('header', { name: nav.today })).toBeTruthy();
 
-  await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
+  await fireEvent.press(screen.getByRole('button', { name: nav.create }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
   expect(screen.getByText(wardrobe.add.doors.photograph)).toBeTruthy();
   // Ask Robes is the new-look box itself, leading the sheet (beta's sparkle).
@@ -153,7 +153,7 @@ test('a long press on the sparkle goes straight to the camera', async () => {
   mockFetch(ROUTES);
   const router = await app();
   expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
-  await fireEvent(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }), 'longPress');
+  await fireEvent(screen.getByRole('button', { name: nav.create }), 'longPress');
   // Create passes straight through to the in-app camera (legacy bc56305), not the OS one.
   await waitFor(() => expect(router.getPathname()).toBe('/wardrobe/camera'));
   expect(screen.getByRole('button', { name: wardrobe.camera.shutter })).toBeTruthy();
@@ -177,7 +177,7 @@ test('trips are hidden by default: no Create door, and a deep link lands on Toda
   mockFetch(ROUTES);
   const router = await app();
   await screen.findByText(/, Niall\.$/);
-  await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
+  await fireEvent.press(screen.getByRole('button', { name: nav.create }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
   await screen.findByText(wardrobe.add.doors.photograph);
   expect(screen.queryByText(shell.create.planTrip)).toBeNull();
@@ -191,7 +191,7 @@ test('with trips on, Create offers Plan a trip', async () => {
   mockFetch({ ...ROUTES, 'GET /me/features': { trips: true } });
   const router = await app();
   await screen.findByText(/, Niall\.$/);
-  await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
+  await fireEvent.press(screen.getByRole('button', { name: nav.create }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
   expect(await screen.findByText(shell.create.planTrip)).toBeTruthy();
 });

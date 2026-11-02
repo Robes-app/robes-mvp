@@ -28,7 +28,7 @@ const dayOf = (date: string, over: Partial<DiaryDay> = {}): DiaryDay => ({
   ...over,
 });
 const ROUTES = {
-  'GET /me/features': { trips: false, homeDiary: true },
+  'GET /me/features': { trips: false },
   'POST /looks/prompt': { jobId: JOB_ID, status: 'queued' },
 };
 const box = (day: DiaryDay, hasPieces = false) => (

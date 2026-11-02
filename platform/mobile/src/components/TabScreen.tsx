@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFeatures } from '@/lib/features';
 import { Bell } from './Bell';
 
 // Every tab root wears beta's header: ROBES left, the avatar that opens You right, 44pt tall.
@@ -24,7 +23,6 @@ export function TabScreen({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: me } = useApi('me.get');
-  const { features } = useFeatures();
   return (
     // Uniwind doesn't style third-party views, so insets go on a plain View.
     <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
@@ -38,7 +36,7 @@ export function TabScreen({
         </View>
         <View className="flex-row items-center">
           {/* The bell (design 3k) stands between the wordmark and the avatar once home is the diary. */}
-          {features.homeDiary ? <Bell /> : null}
+          <Bell />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={shell.openYou}

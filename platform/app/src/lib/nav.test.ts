@@ -43,8 +43,8 @@ describe('nav', () => {
   });
 
   it('drops the trip door while trips are hidden', () => {
-    expect(createItems({ trips: false, homeDiary: false }).map((i) => i.id)).not.toContain('trip');
-    expect(createItems({ trips: true, homeDiary: false }).map((i) => i.id)).toContain('trip');
+    expect(createItems({ trips: false }).map((i) => i.id)).not.toContain('trip');
+    expect(createItems({ trips: true }).map((i) => i.id)).toContain('trip');
   });
 
   it('marks the owning root for nested pages', () => {

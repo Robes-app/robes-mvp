@@ -90,7 +90,7 @@ const ENTRIES: Record<string, PlanEntry[]> = {
 const ROUTES = {
   'GET /today': todayWith(ENTRIES),
   'GET /today/weather': { city: 'Dublin', tempRange: '9–14°C', condition: 'light rain' },
-  'GET /me/features': { trips: false, homeDiary: true },
+  'GET /me/features': { trips: false },
 };
 
 test('the drawer’s words are the web’s (lib/diary.ts)', () => {
