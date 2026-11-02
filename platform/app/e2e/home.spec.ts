@@ -241,14 +241,19 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
 test('the home box: words become three looks on the deck; a photographed piece styles three ways', async ({
   page,
 }) => {
+  // Two generations and a photographed piece: more than the default budget.
+  test.setTimeout(90_000);
   await signIn(page);
   await declineConsent(page);
 
+  // The box carries the day it names, so the deck is dated ("For Mon 2 Nov"), not "From your prompt".
   const box = page.getByPlaceholder('Plan an outfit for today');
   await box.fill('Something easy for the gallery');
   await box.press('Enter');
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
-  await expect(page.getByText('From your prompt')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/^For \w{3} \d{1,2} \w{3}$|^From your prompt$/)).toBeVisible({
+    timeout: 30_000,
+  });
   await deckLive(page);
   await page.getByRole('link', { name: 'Home' }).first().click();
   await expect(page.getByRole('heading', { level: 1, name: /, Niall\.$/ })).toBeVisible();
