@@ -9,7 +9,7 @@ const profile = {
 };
 const repos = {
   profiles: { get: vi.fn(async () => profile) },
-  inbox: { list: vi.fn(async () => ({ items: [] as { retailer: string | null }[] })) },
+  inbox: { listHeld: vi.fn(async () => [] as { retailer: string | null }[]) },
   looks: { wornDays: vi.fn(async () => [] as string[]), count: vi.fn(async () => 3) },
   uiState: { dismissed: vi.fn(async () => ({}) as Record<string, string>), dismiss: vi.fn() },
 };
@@ -21,7 +21,7 @@ const ann = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const now = new Date('2026-11-02T09:00:00Z');
 
 beforeEach(() => {
-  repos.inbox.list.mockResolvedValue({ items: [] });
+  repos.inbox.listHeld.mockResolvedValue([]);
   repos.looks.wornDays.mockResolvedValue([]);
   repos.looks.count.mockResolvedValue(3);
   repos.uiState.dismissed.mockResolvedValue({});
@@ -29,7 +29,7 @@ beforeEach(() => {
 
 describe('the bell', () => {
   it('lists receipts to review, then the unlogged days of the last week, newest first', async () => {
-    repos.inbox.list.mockResolvedValue({ items: [{ retailer: 'Arket' }, { retailer: 'COS' }] });
+    repos.inbox.listHeld.mockResolvedValue([{ retailer: 'Arket' }, { retailer: 'COS' }]);
     repos.looks.wornDays.mockResolvedValue(['2026-10-31', '2026-11-01']);
     const { items } = await loadNotifications(ann, now);
     expect(items.map((i) => [i.key, i.text, i.line, i.date])).toEqual([

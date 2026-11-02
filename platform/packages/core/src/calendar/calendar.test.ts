@@ -7,6 +7,7 @@ import {
   daysBetween,
   diaryDays,
   diaryMarks,
+  diaryPages,
   diaryPick,
   diaryWindow,
   longDate,
@@ -15,6 +16,7 @@ import {
   monthLong,
   shiftMonth,
   WEEKDAYS_SHORT,
+  weekdayDay,
   weekdayLong,
   weekdayShort,
 } from './index';
@@ -212,6 +214,10 @@ describe('the diary window', () => {
     expect([w.from, w.to]).toEqual(['2026-10-23', '2026-11-12']);
     expect(w.days).toHaveLength(DIARY_BACK + DIARY_AHEAD + 1);
     expect(w.days[DIARY_BACK]).toBe('2026-11-02');
+    const pages = diaryPages(w.days);
+    expect(pages.map((p) => p.length)).toEqual([7, 7, 7]);
+    expect(pages[1]?.[3]).toBe('2026-11-02');
+    expect(weekdayDay('2026-11-03')).toBe('Tue 3');
   });
 
   it('leads a day with what she wore, else the first in order', () => {

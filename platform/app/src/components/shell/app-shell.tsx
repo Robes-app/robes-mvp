@@ -25,6 +25,7 @@ import {
 } from 'react';
 import { BackLink } from '@/components/back-link';
 import { NewLookBox } from '@/components/home/home-box';
+import { Bell } from '@/components/shell/bell';
 import {
   activeRoot,
   backFor,
@@ -191,6 +192,8 @@ export function AppShell({
               <Icon name="looks" size={16} />
               {nav.create}
             </button>
+            {/* The bell (design 3k): alerts leave home for here, a dot while anything waits. */}
+            {features.homeDiary ? <Bell /> : null}
             <Link
               href="/you"
               aria-label={shell.openYou}

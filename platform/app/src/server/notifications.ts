@@ -18,13 +18,13 @@ export async function loadNotifications(userId: UserId, now = new Date()): Promi
   const today = todayIn(profile.timezone, now);
   const since = todayIn(profile.timezone, profile.createdAt);
   const [inbox, wornDays, savedLooks, dismissed] = await Promise.all([
-    repos.inbox.list(userId),
+    repos.inbox.listHeld(userId),
     repos.looks.wornDays(userId, addDays(today, -BELL_NUDGE_DAYS), today),
     repos.looks.count(userId),
     repos.uiState.dismissed(userId),
   ]);
   const items: NotificationItem[] = [];
-  const held = inbox.items;
+  const held = inbox;
   if (held.length) {
     items.push({
       key: `receipts:${held.length}`,

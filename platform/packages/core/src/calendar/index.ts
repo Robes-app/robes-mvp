@@ -26,6 +26,18 @@ export function diaryWindow(today: string): { from: string; to: string; days: st
   };
 }
 
+// The strip's pages: seven days each, today's page in the middle.
+export function diaryPages<T>(days: readonly T[], size = 7): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < days.length; i += size) out.push(days.slice(i, i + size));
+  return out;
+}
+
+// "Tue 3": the day chip and the strip's cell, or Today.
+export function weekdayDay(date: string): string {
+  return `${weekdayShort(date)} ${at(date).getUTCDate()}`;
+}
+
 // The look that leads a day on home (design 3k): what she wore if she logged it, else the first
 // in the day's order (position 0 is the starred OOTD). Shared so web and native never disagree.
 export function dayOotd<T extends { worn: boolean; position: number }>(

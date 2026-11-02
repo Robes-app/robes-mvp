@@ -67,7 +67,7 @@ export function PlanView() {
       ) : (
         <PlanMonth today={today} month={month} />
       )}
-      <LookPicker date={picking ? today : null} onClose={() => setPicking(false)} />
+      <LookPicker date={picking ? today : null} today={today} onClose={() => setPicking(false)} />
     </div>
   );
 }
