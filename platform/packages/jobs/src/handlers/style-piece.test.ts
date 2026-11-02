@@ -279,11 +279,10 @@ describe('key_piece handler (suggested looks)', () => {
   it('builds the day around the pieces she chose, where she says she is (design 3k)', async () => {
     const { run, generateJson, forecast, destination, suggested, styling } = setup();
     const gone = '99999999-9999-4999-8999-999999999999';
-    styling.anchorPiece.mockImplementation(async (_u: unknown, id: string) =>
+    vi.mocked(styling.anchorPiece).mockImplementation((async (_u: unknown, id: string) =>
       id === PIECE
         ? { id: PIECE, label: 'Camel coat', imageAssetId: ASSET, wearFor: [] }
-        : undefined,
-    );
+        : undefined) as never);
     await run({
       mode: 'prompt',
       prompt: 'the office',
