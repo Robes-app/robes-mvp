@@ -193,7 +193,7 @@ export function AppShell({
               {nav.create}
             </button>
             {/* The bell (design 3k): alerts leave home for here, a dot while anything waits. */}
-            {features.homeDiary ? <Bell /> : null}
+            <Bell />
             <Link
               href="/you"
               aria-label={shell.openYou}

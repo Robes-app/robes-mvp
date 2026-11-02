@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { DiaryHome } from '@/components/home/diary-home';
-import { HomeView } from '@/components/home/home-view';
 import { WaitlistForm } from '@/components/marketing/waitlist-form';
 import { AppShell } from '@/components/shell/app-shell';
 import { env } from '@/server/env';
@@ -44,7 +43,7 @@ const JSON_LD = JSON.stringify({
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ dress?: string | string[]; day?: string | string[] }>;
+  searchParams: Promise<{ day?: string | string[] }>;
 }) {
   const profile = await currentProfile();
 
@@ -75,17 +74,14 @@ export default async function Home({
 
   if (!profile.onboardedAt) redirect('/onboarding');
 
-  const features = await clientFeatures();
   const params = await searchParams;
-  const initial = await loadToday(profile.userId);
   return (
-    <AppShell name={displayName(profile)} features={features}>
-      {features.homeDiary ? (
-        // The OOTD diary home (plan 2026-11-02); the bell's nudges land on their day.
-        <DiaryHome initial={initial} day={z.iso.date().safeParse(params.day).data ?? null} />
-      ) : (
-        <HomeView initial={initial} dress={z.iso.date().safeParse(params.dress).data ?? null} />
-      )}
+    <AppShell name={displayName(profile)} features={await clientFeatures()}>
+      {/* The OOTD diary home (plan 2026-11-02); the bell's nudges land on their day. */}
+      <DiaryHome
+        initial={await loadToday(profile.userId)}
+        day={z.iso.date().safeParse(params.day).data ?? null}
+      />
     </AppShell>
   );
 }
