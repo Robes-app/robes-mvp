@@ -15,8 +15,16 @@ const ENTRY_COLUMNS = [
   'pinned',
   'status',
   'activity',
+  'position',
   'createdAt',
 ] as const;
+
+export interface DayPlace {
+  city: string;
+  country: string | null;
+  lat: number;
+  lon: number;
+}
 
 export type PlanSlot = 'day' | 'evening';
 
@@ -47,6 +55,7 @@ export function planRepo(db: Db) {
           'p.pinned',
           'p.status',
           'p.activity',
+          'p.position',
           'p.createdAt',
           sql<string>`p.day_date::text`.as('dayDate'),
           wornHere('p').as('worn'),
@@ -58,6 +67,7 @@ export function planRepo(db: Db) {
         .where('p.dayDate', '>=', sql<Date>`${from}::date`)
         .where('p.dayDate', '<=', sql<Date>`${to}::date`)
         .orderBy('p.dayDate')
+        .orderBy('p.position')
         .orderBy(sql`case p.slot when 'day' then 0 else 1 end`)
         .orderBy('p.createdAt')
         .execute();
@@ -102,6 +112,8 @@ export function planRepo(db: Db) {
         const nameOf = new Map(named.map((n) => [n.dayDate, n.name]));
         const ids: string[] = [];
         for (const day of days) {
+          // A new look joins the end of the day, so the OOTD she starred keeps leading.
+          const next = sql<number>`coalesce((select max(q.position) + 1 from app.planned_days q where q.user_id = ${userId} and q.day_date = ${day}::date and q.deleted_at is null), 0)`;
           const row = await trx
             .insertInto('plannedDays')
             .values({
@@ -113,6 +125,7 @@ export function planRepo(db: Db) {
               pinned: true,
               activity: opts.activity ?? nameOf.get(day) ?? null,
               itemIds: pieces.map((p) => p.wardrobeItemId),
+              position: next,
             })
             .onConflict((oc) =>
               oc
@@ -148,6 +161,72 @@ export function planRepo(db: Db) {
         .where('sourceKind', '=', 'look')
         .executeTakeFirst();
       return res.numUpdatedRows > 0n ? entry(userId, id) : undefined;
+    },
+
+    // Make one of the day's looks its OOTD (position 0); the others keep their order behind it.
+    // Returns false when the entry is not hers or not on that day.
+    async setOotd(userId: UserId, day: string, entryId: string): Promise<boolean> {
+      return db.transaction().execute(async (trx) => {
+        const rows = await trx
+          .selectFrom('plannedDays')
+          .select(['id'])
+          .where('userId', '=', userId)
+          .where('dayDate', '=', sql<Date>`${day}::date`)
+          .where('sourceKind', '=', 'look')
+          .where('deletedAt', 'is', null)
+          .orderBy('position')
+          .orderBy(sql`case slot when 'day' then 0 else 1 end`)
+          .orderBy('createdAt')
+          .execute();
+        if (!rows.some((r) => r.id === entryId)) return false;
+        const order = [entryId, ...rows.map((r) => r.id).filter((id) => id !== entryId)];
+        for (const [position, id] of order.entries()) {
+          await trx
+            .updateTable('plannedDays')
+            .set({ position })
+            .where('userId', '=', userId)
+            .where('id', '=', id)
+            .execute();
+        }
+        return true;
+      });
+    },
+
+    // Where she is on each day of [from, to] that is not home.
+    async places(userId: UserId, from: string, to: string) {
+      const rows = await db
+        .selectFrom('dayPlaces')
+        .select([dayDate.as('dayDate'), 'city', 'country', 'lat', 'lon'])
+        .where('userId', '=', userId)
+        .where('dayDate', '>=', sql<Date>`${from}::date`)
+        .where('dayDate', '<=', sql<Date>`${to}::date`)
+        .orderBy('dayDate')
+        .execute();
+      return rows.map((r) => ({
+        dayDate: r.dayDate,
+        city: r.city,
+        country: r.country,
+        lat: Number(r.lat),
+        lon: Number(r.lon),
+      }));
+    },
+
+    // Sets where she is on a day; null puts her back home (the row goes, nothing to undo).
+    async setPlace(userId: UserId, day: string, place: DayPlace | null): Promise<void> {
+      if (place === null) {
+        await db
+          .deleteFrom('dayPlaces')
+          .where('userId', '=', userId)
+          .where('dayDate', '=', sql<Date>`${day}::date`)
+          .execute();
+        return;
+      }
+      const values = { city: place.city, country: place.country, lat: place.lat, lon: place.lon };
+      await db
+        .insertInto('dayPlaces')
+        .values({ userId, dayDate: day, ...values })
+        .onConflict((oc) => oc.columns(['userId', 'dayDate']).doUpdateSet(values))
+        .execute();
     },
 
     // Her names for the days on [from, to], with or without looks on them.

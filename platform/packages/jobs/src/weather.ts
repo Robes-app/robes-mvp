@@ -1,5 +1,5 @@
 import type { Weather } from '@robes/ai/prompts/daily';
-import { type GeoHit, geocodeQuery, pickDestination } from '@robes/core/landscape';
+import { acceptableHit, type GeoHit, geocodeQuery, pickDestination } from '@robes/core/landscape';
 import { weatherCondition } from '@robes/core/weather';
 
 // Today's weather for the daily prompt (Open-Meteo, no key). Fixed hosts only; every failure is
@@ -201,6 +201,126 @@ export function createDayForecast(fetchFn: Fetch = fetch as unknown as Fetch) {
   };
 }
 export type DayForecastFor = ReturnType<typeof createDayForecast>;
+
+// A window of daily readings by date (the diary home, plan 2026-11-02): one Open-Meteo call for the
+// whole range, which may start in the past (the forecast API carries recent days).
+export interface RangeDay {
+  tempRange: string;
+  condition: string;
+  code: number | null;
+}
+export function parseRangeDays(json: unknown): Map<string, RangeDay> {
+  const d = (json as { daily?: Record<string, unknown[]> })?.daily;
+  const out = new Map<string, RangeDay>();
+  const dates = d?.time ?? [];
+  dates.forEach((date, i) => {
+    const max = d?.temperature_2m_max?.[i];
+    const min = d?.temperature_2m_min?.[i];
+    const code = d?.weather_code?.[i];
+    if (typeof date !== 'string' || typeof max !== 'number' || typeof min !== 'number') return;
+    out.set(date, {
+      tempRange: `${Math.round(min)}–${Math.round(max)}°C`,
+      condition: typeof code === 'number' ? weatherCondition(code) : '',
+      code: typeof code === 'number' ? code : null,
+    });
+  });
+  return out;
+}
+
+export const RANGE_TTL_MS = 15 * 60 * 1000;
+
+export function createRangeWeather(
+  fetchFn: Fetch = fetch as unknown as Fetch,
+  clock: () => number = Date.now,
+) {
+  const cache = new Map<string, { at: number; value: Map<string, RangeDay> }>();
+  const get = async (url: string) => {
+    const res = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error('weather request failed');
+    return res.json();
+  };
+  return async function rangeFor(place: {
+    city: string | null;
+    lat: number | null;
+    lon: number | null;
+    from: string;
+    to: string;
+  }): Promise<Map<string, RangeDay>> {
+    if (!place.city && (place.lat === null || place.lon === null)) return new Map();
+    const key = `${place.lat ?? ''},${place.lon ?? ''},${place.city ?? ''}|${place.from}|${place.to}`;
+    const now = clock();
+    const hit = cache.get(key);
+    if (hit && now - hit.at < RANGE_TTL_MS) return hit.value;
+    let value = new Map<string, RangeDay>();
+    try {
+      let coords =
+        place.lat !== null && place.lon !== null ? { lat: place.lat, lon: place.lon } : null;
+      if (!coords && place.city) {
+        coords = parseGeocode(
+          await get(`${GEOCODE}?name=${encodeURIComponent(place.city)}&count=1`),
+        );
+      }
+      if (coords) {
+        value = parseRangeDays(
+          await get(
+            `${FORECAST}?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&start_date=${place.from}&end_date=${place.to}`,
+          ),
+        );
+      }
+    } catch {
+      value = new Map();
+    }
+    if (cache.size > 500) cache.clear();
+    cache.set(key, { at: now, value });
+    return value;
+  };
+}
+export type RangeWeatherFor = ReturnType<typeof createRangeWeather>;
+
+// The place picker's search (design 3k): cities by name from Open-Meteo's geocoder, real places of
+// some size only, as her words would be read. Bounded cache per query; never throws.
+export interface PlaceFound {
+  city: string;
+  country: string | null;
+  lat: number;
+  lon: number;
+}
+export const PLACE_HITS = 8;
+
+export function createPlaceSearch(fetchFn: Fetch = fetch as unknown as Fetch) {
+  const cache = new Map<string, PlaceFound[]>();
+  return async function placesFor(q: string): Promise<PlaceFound[]> {
+    const query = geocodeQuery(q);
+    if (!query) return [];
+    const key = query.toLowerCase();
+    const hit = cache.get(key);
+    if (hit) return hit;
+    let found: PlaceFound[] = [];
+    try {
+      const res = await fetchFn(
+        `${GEOCODE}?name=${encodeURIComponent(query)}&count=10&language=en`,
+        { signal: AbortSignal.timeout(TIMEOUT_MS) },
+      );
+      if (res.ok) {
+        found = parseGeoHits(await res.json())
+          .filter((h) => acceptableHit(h))
+          .slice(0, PLACE_HITS)
+          .map((h) => ({
+            city: h.name,
+            country: h.country || null,
+            lat: Math.round(h.lat * 100) / 100,
+            lon: Math.round(h.lon * 100) / 100,
+          }));
+      }
+    } catch {
+      found = [];
+    }
+    if (cache.size > 500) cache.clear();
+    cache.set(key, found);
+    return found;
+  };
+}
+export type PlacesFor = ReturnType<typeof createPlaceSearch>;
 
 const ARCHIVE = 'https://archive-api.open-meteo.com/v1/archive';
 

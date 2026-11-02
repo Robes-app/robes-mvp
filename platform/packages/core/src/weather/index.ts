@@ -50,3 +50,8 @@ export function weatherWord(w: WeatherReading): string {
     ? weatherCondition(w.code)
     : w.condition;
 }
+
+// "9–13°" for a chip (design 3k): the day's range without its unit.
+export function shortRange(tempRange: string): string {
+  return tempRange.replace(/°C$/, '°');
+}

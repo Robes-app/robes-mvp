@@ -159,3 +159,33 @@ const TRIP_ASK =
 export function isTripAsk(text: string): boolean {
   return TRIP_ASK.test(text);
 }
+
+// Day one's two asks (design 3a): dismissed for good through the bell's dismissal store.
+export const DAY_ONE_KEYS = { model: 'dayone:model', pieces: 'dayone:pieces' } as const;
+
+// The bell's diary nudges (plan 2026-11-02): the days of the last week she logged no wear on, newest
+// first — only days since her account began, and only once she has a look to log. Pure, so the
+// server and its test agree; the dates are plain YYYY-MM-DD in her timezone.
+export const BELL_NUDGE_DAYS = 7;
+export function bellNudgeDays(o: {
+  today: string;
+  since: string;
+  wornDays: Iterable<string>;
+  hasLooks: boolean;
+}): string[] {
+  if (!o.hasLooks) return [];
+  const worn = new Set(o.wornDays);
+  const out: string[] = [];
+  for (let i = 1; i <= BELL_NUDGE_DAYS; i++) {
+    const day = shiftDay(o.today, -i);
+    if (day < o.since) break;
+    if (!worn.has(day)) out.push(day);
+  }
+  return out;
+}
+
+function shiftDay(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}

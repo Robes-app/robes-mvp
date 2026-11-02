@@ -28,7 +28,8 @@ vi.mock('./plan', () => ({
   addDays: (d: string, n: number) =>
     new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10),
 }));
-vi.mock('@robes/jobs', () => ({ createWeather, createLiveWeather }));
+const createRangeWeather = () => async () => new Map();
+vi.mock('@robes/jobs', () => ({ createWeather, createLiveWeather, createRangeWeather }));
 
 const { loadTodayWeather } = await import('./weather');
 const ann = verifiedUserId('11111111-1111-4111-8111-111111111111');
@@ -81,10 +82,13 @@ describe('today weather', () => {
     expect(liveFor).not.toHaveBeenCalled();
   });
 
-  it('nothing outside the forecast’s reach', async () => {
-    expect(await loadTodayWeather(ann, now, '2026-10-15')).toBeNull();
+  it('nothing outside the forecast’s reach, or further back than the diary shows', async () => {
+    expect(await loadTodayWeather(ann, now, '2026-10-05')).toBeNull();
     expect(await loadTodayWeather(ann, now, '2026-11-30')).toBeNull();
     expect(weatherFor).not.toHaveBeenCalled();
+    expect(liveFor).not.toHaveBeenCalled();
+    // A day gone by inside the diary's window reads its own range, never a live reading.
+    expect(await loadTodayWeather(ann, now, '2026-10-15')).toMatchObject({ nowC: null });
     expect(liveFor).not.toHaveBeenCalled();
   });
 

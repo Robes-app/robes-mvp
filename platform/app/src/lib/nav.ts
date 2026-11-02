@@ -1,7 +1,7 @@
 import type { Features } from '@robes/contracts';
 import { lookbook, looks, nav, plan, shell, wardrobe, you } from '@robes/copy';
 import { isDestination } from '@robes/core/add-flow';
-import { monthLabel } from '@robes/core/calendar';
+import { monthLabel, weekdayDayMonth } from '@robes/core/calendar';
 import type { IconName } from '@robes/icons/web';
 
 export interface NavItem {
@@ -140,6 +140,7 @@ export interface Back {
 }
 
 const DAY = /^\/plan\/(\d{4}-(?:0[1-9]|1[0-2])-\d{2})$/;
+const ISO_DAY = /^\d{4}-(?:0[1-9]|1[0-2])-\d{2}$/;
 
 // A pushed page's way back: ‹ and the previous screen's own title, in the top bar where the
 // wordmark sits on the roots (beta's header; native StackScreen's 44pt row). Decided from the URL
@@ -148,10 +149,15 @@ export function backFor(pathname: string, search: URLSearchParams): Back | null 
   const day = DAY.exec(pathname)?.[1];
   if (day) {
     return search.get('from') === 'today'
-      ? { href: '/', label: plan.day.back(plan.today) }
+      ? { href: `/?day=${day}`, label: plan.day.back(nav.today) }
       : { href: '/plan', label: plan.day.back(monthLabel(day.slice(0, 7))) };
   }
-  if (/^\/look\/[^/]+$/.test(pathname)) return { href: '/looks', label: looks.title };
+  if (/^\/look\/[^/]+$/.test(pathname)) {
+    // Opened from a day on home (design 3k): ‹ Wed 4 Nov leads back to that day.
+    const from = search.get('day');
+    if (from && ISO_DAY.test(from)) return { href: `/?day=${from}`, label: weekdayDayMonth(from) };
+    return { href: '/looks', label: looks.title };
+  }
   if (pathname === '/looks/new' || pathname === '/looks/new/photo') {
     return { href: '/looks', label: looks.title };
   }

@@ -227,6 +227,9 @@ export const Model = z.object({
   // What a new look stands on in the composer: her twin, else her filed cell, else the first
   // generic Robes model (`generic`) while she has none. Signed; null until that portrait exists.
   stand: z.object({ imageUrl: z.url().nullable(), generic: z.boolean() }).optional(),
+  // The three Robes models to choose from on day one (design 3a, plan 2026-11-02 D4): each a
+  // catalog cell with its portrait once drawn. `chosen` is the one her picks match, if any.
+  generics: z.array(z.object({ id: z.string(), imageUrl: z.url().nullable() })).optional(),
 });
 export type Model = z.infer<typeof Model>;
 

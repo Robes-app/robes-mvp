@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createLiveWeather,
+  createPlaceSearch,
+  createRangeWeather,
   createWeather,
   LIVE_TTL_MS,
   parseCurrent,
   parseForecast,
   parseGeocode,
+  parseRangeDays,
+  RANGE_TTL_MS,
 } from './weather';
 
 const geo = { results: [{ name: 'Dublin', latitude: 53.35, longitude: -6.26 }] };
@@ -206,5 +210,101 @@ describe('reverse geocoding', () => {
       fetchFn: async () => ({ ok: false, json: async () => ({}) }),
     });
     expect(await bad(1, 2)).toBeNull();
+  });
+});
+
+describe('weather for a window (the diary home)', () => {
+  const range = {
+    daily: {
+      time: ['2026-11-01', '2026-11-02', '2026-11-03'],
+      temperature_2m_max: [12.4, 11.2, 'x'],
+      temperature_2m_min: [8.6, 7.1, 5],
+      weather_code: [3, 61, 0],
+    },
+  };
+
+  it('reads each day by date and skips a day without numbers', () => {
+    const days = parseRangeDays(range);
+    expect([...days.keys()]).toEqual(['2026-11-01', '2026-11-02']);
+    expect(days.get('2026-11-02')).toEqual({
+      tempRange: '7–11°C',
+      condition: 'light rain',
+      code: 61,
+    });
+    expect(parseRangeDays({})).toEqual(new Map());
+  });
+
+  it('asks once per place and window, for a quarter of an hour, and never throws', async () => {
+    let now = 0;
+    const fetchFn = vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => (url.includes('geocoding') ? geo : range),
+    }));
+    const rangeFor = createRangeWeather(fetchFn, () => now);
+    const dublin = { city: 'Dublin', lat: 53.35, lon: -6.26, from: '2026-11-01', to: '2026-11-03' };
+    expect((await rangeFor(dublin)).size).toBe(2);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(fetchFn.mock.calls[0]?.[0]).toContain('start_date=2026-11-01&end_date=2026-11-03');
+    await rangeFor(dublin);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    now = RANGE_TTL_MS + 1;
+    await rangeFor(dublin);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    // A city with no coordinates is geocoded first; nowhere at all is an empty window.
+    await rangeFor({ ...dublin, lat: null, lon: null });
+    expect(fetchFn).toHaveBeenCalledTimes(4);
+    expect((await rangeFor({ ...dublin, city: null, lat: null, lon: null })).size).toBe(0);
+    const failing = createRangeWeather(async () => {
+      throw new Error('down');
+    });
+    expect((await failing(dublin)).size).toBe(0);
+  });
+});
+
+describe('the place picker', () => {
+  const hits = {
+    results: [
+      {
+        name: 'Paris',
+        country: 'France',
+        latitude: 48.8566,
+        longitude: 2.3522,
+        feature_code: 'PPLC',
+        population: 2_000_000,
+      },
+      {
+        name: 'Paris',
+        country: 'United States',
+        latitude: 33.66,
+        longitude: -95.55,
+        feature_code: 'PPL',
+        population: 24_000,
+      },
+      {
+        name: 'Paris Hill',
+        country: 'United States',
+        latitude: 44.2,
+        longitude: -70.5,
+        feature_code: 'PPL',
+        population: 300,
+      },
+    ],
+  };
+
+  it('finds real places of some size, rounded, and caches the query', async () => {
+    const fetchFn = vi.fn(async (_url: string) => ({ ok: true, json: async () => hits }));
+    const placesFor = createPlaceSearch(fetchFn);
+    expect(await placesFor('the Paris')).toEqual([
+      { city: 'Paris', country: 'France', lat: 48.86, lon: 2.35 },
+      { city: 'Paris', country: 'United States', lat: 33.66, lon: -95.55 },
+    ]);
+    expect(fetchFn.mock.calls[0]?.[0]).toContain('name=Paris&count=10');
+    await placesFor('paris');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(await placesFor('   ')).toEqual([]);
+    const failing = createPlaceSearch(async () => {
+      throw new Error('down');
+    });
+    expect(await failing('Paris')).toEqual([]);
   });
 });

@@ -82,7 +82,7 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                 ) : null}
                 <View className="flex-row items-center gap-1">
                   <Text
-                    className={isToday ? 'text-ink' : 'text-ink-faint'}
+                    className={isToday || band ? 'text-ink' : 'text-ink-faint'}
                     style={{
                       fontFamily: fonts.display,
                       fontSize: 17,

@@ -62,6 +62,9 @@ export interface LookTileProps {
   // On the photograph (a diary door, a mark, the scan line) and in the corner (✕, ↻).
   onImage?: ReactNode;
   corner?: ReactNode;
+  // The OOTD card on home (design 3k, twin of look-tile.tsx): a 6px radius, the name in small
+  // caps with a chevron, no eyebrow or meta.
+  variant?: 'card' | 'ootd';
   className?: string;
   testID?: string;
 }
@@ -87,14 +90,18 @@ export function LookTile({
   dimmed = false,
   onImage,
   corner,
+  variant = 'card',
   className,
   testID,
 }: LookTileProps) {
   const title = name ?? look.name;
+  const ootd = variant === 'ootd';
   // Beta's card: white on a hairline (Card), the dashed draft on the fine rule-mid edge.
   const frame = [
     dashed ? 'border-dashed border-rule-mid bg-transparent p-[6px]' : '',
-    selected ? 'border-ink' : '',
+    ootd ? 'rounded-[6px]' : '',
+    // A pick is warm, never black (root CLAUDE.md): the warm fill on the warm edge.
+    selected ? 'border-selected-line bg-selected' : '',
     dimmed ? 'opacity-60' : '',
     className ?? '',
   ]
@@ -114,64 +121,82 @@ export function LookTile({
           <LookPhoto look={look} width={width} aspect={aspect} />
           {onImage}
         </View>
-        <View className={dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-[2px] px-3 pt-[10px] pb-3'}>
-          {eyebrow || badge ? (
-            <View className="flex-row items-center justify-between gap-2">
-              <Eyebrow
-                numberOfLines={1}
-                className={`flex-1 ${eyebrowTone === 'warm' ? 'text-accent-warm' : ''}`}
-                style={{ fontSize: dashed ? 10 : 11 }}
-              >
-                {eyebrow ?? ''}
-              </Eyebrow>
-              {badge ? (
-                <View className="rounded-pill border border-selected-line bg-selected px-2 py-px">
-                  <RNText
-                    maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-                    className="text-ink"
-                    style={{ fontFamily: fonts.sans, fontSize: 10 }}
-                  >
-                    {badge}
-                  </RNText>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-          <RNText
-            numberOfLines={1}
-            maxFontSizeMultiplier={maxFontSizeMultiplier.heading}
-            className="text-ink"
-            style={{
-              fontFamily: italic ? fonts.displayItalic : fonts.display,
-              fontSize: dashed ? 18 : 20,
-              lineHeight: dashed ? 22 : 23,
-            }}
-          >
-            {title}
-          </RNText>
-          {tag ? (
-            <View className="mt-1 mb-0.5 self-start rounded-pill border border-hairline bg-surface px-2 py-0.5">
+        {ootd ? (
+          <View className="min-h-11 flex-row items-center justify-between gap-2 px-[14px] py-3">
+            <RNText
+              numberOfLines={1}
+              maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+              className="flex-1 text-ink uppercase"
+              style={{ fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.6 }}
+            >
+              {title}
+            </RNText>
+            {onPress ? (
+              <RNText className="text-ink-faint" style={{ fontFamily: fonts.sans, fontSize: 15 }}>
+                ›
+              </RNText>
+            ) : null}
+          </View>
+        ) : (
+          <View className={dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-[2px] px-3 pt-[10px] pb-3'}>
+            {eyebrow || badge ? (
+              <View className="flex-row items-center justify-between gap-2">
+                <Eyebrow
+                  numberOfLines={1}
+                  className={`flex-1 ${eyebrowTone === 'warm' ? 'text-accent-warm' : ''}`}
+                  style={{ fontSize: dashed ? 10 : 11 }}
+                >
+                  {eyebrow ?? ''}
+                </Eyebrow>
+                {badge ? (
+                  <View className="rounded-pill border border-selected-line bg-selected px-2 py-px">
+                    <RNText
+                      maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                      className="text-ink"
+                      style={{ fontFamily: fonts.sans, fontSize: 10 }}
+                    >
+                      {badge}
+                    </RNText>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+            <RNText
+              numberOfLines={1}
+              maxFontSizeMultiplier={maxFontSizeMultiplier.heading}
+              className="text-ink"
+              style={{
+                fontFamily: italic ? fonts.displayItalic : fonts.display,
+                fontSize: dashed ? 18 : 20,
+                lineHeight: dashed ? 22 : 23,
+              }}
+            >
+              {title}
+            </RNText>
+            {tag ? (
+              <View className="mt-1 mb-0.5 self-start rounded-pill border border-hairline bg-surface px-2 py-0.5">
+                <RNText
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                  className="text-ink-muted"
+                  style={{ fontFamily: fonts.sans, fontSize: 10 }}
+                >
+                  {tag}
+                </RNText>
+              </View>
+            ) : null}
+            {meta ? (
               <RNText
                 numberOfLines={1}
                 maxFontSizeMultiplier={maxFontSizeMultiplier.label}
                 className="text-ink-muted"
-                style={{ fontFamily: fonts.sans, fontSize: 10 }}
+                style={{ fontFamily: fonts.sans, fontSize: 11 }}
               >
-                {tag}
+                {meta}
               </RNText>
-            </View>
-          ) : null}
-          {meta ? (
-            <RNText
-              numberOfLines={1}
-              maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-              className="text-ink-muted"
-              style={{ fontFamily: fonts.sans, fontSize: 11 }}
-            >
-              {meta}
-            </RNText>
-          ) : null}
-        </View>
+            ) : null}
+          </View>
+        )}
       </Card>
       {corner ? <View className="absolute top-[6px] right-[6px]">{corner}</View> : null}
     </View>

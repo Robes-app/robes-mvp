@@ -76,10 +76,22 @@ describe('nav', () => {
 describe('backFor', () => {
   const q = (s = '') => new URLSearchParams(s);
 
-  it('gives the day page its month, or Today when it came from Today', () => {
+  it('gives the day page its month, or Home (on that day) when it came from home', () => {
     expect(backFor('/plan/2026-10-28', q())).toEqual({ href: '/plan', label: 'October 2026' });
-    expect(backFor('/plan/2026-10-28', q('from=today'))).toEqual({ href: '/', label: 'Today' });
+    expect(backFor('/plan/2026-10-28', q('from=today'))).toEqual({
+      href: '/?day=2026-10-28',
+      label: 'Home',
+    });
     expect(backFor('/plan/2026-13-01', q())).toBeNull();
+  });
+
+  it('leads a look opened from a day on home back to that day (design 3k)', () => {
+    const id = '0b9f4c1e-0000-4000-8000-000000000000';
+    expect(backFor(`/look/${id}`, q('day=2026-11-04'))).toEqual({
+      href: '/?day=2026-11-04',
+      label: 'Wed 4 Nov',
+    });
+    expect(backFor(`/look/${id}`, q('day=nope'))).toEqual({ href: '/looks', label: 'Lookbook' });
   });
 
   it('names the previous screen on every pushed page', () => {

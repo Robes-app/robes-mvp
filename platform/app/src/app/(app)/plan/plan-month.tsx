@@ -81,9 +81,10 @@ export function PlanMonth({ today, month }: { today: string; month: string }) {
                   isToday && !band ? 'md:border-accent-inspire' : ''
                 } ${band ? 'md:pt-9' : ''} ${focus}`}
               >
+                {/* On a trip band (mauve) the faint number falls under 4.5:1, so it reads in ink. */}
                 <span
                   className={`flex items-center gap-1 font-display text-[17px] leading-none font-light ${
-                    isToday ? 'text-ink' : 'text-ink-faint'
+                    isToday || band ? 'text-ink' : 'text-ink-faint'
                   }`}
                 >
                   {Number(date.slice(8))}

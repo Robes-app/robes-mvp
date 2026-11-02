@@ -84,10 +84,11 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
       /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/,
     ),
   ).toBeVisible();
-  // The wear put the look on its day (beta): Worn ✓ on its card, and the day keeps its own title.
+  // The wear put the look on its day (beta): it leads the day as the OOTD, and the day keeps its
+  // own title.
   await record.getByRole('link', { name: `Open ${longToday}` }).click();
   await expect(page).toHaveURL(new RegExp(`/plan/${todayLocal}`));
-  await expect(page.getByText('Worn ✓', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('day-ootd')).toBeVisible();
   await expect(page.getByRole('heading', { level: 1, name: 'Name the day' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Add a look/ })).toBeVisible();
   await page.goBack();

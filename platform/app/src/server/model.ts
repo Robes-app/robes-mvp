@@ -96,6 +96,7 @@ export async function loadModel(userId: UserId): Promise<Model> {
   const imageUrl =
     cell?.status === 'ready' && cell.bucketKey ? await mediaDelivery.url(cell.bucketKey) : null;
   const stand = await standOf(row, twin.imageUrl);
+  const generics = await genericsOf(row);
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
   return Model.parse({
     filed: row.filedCellId !== null,
@@ -115,7 +116,21 @@ export async function loadModel(userId: UserId): Promise<Model> {
     closeUpUrl: closeUp.url,
     twin,
     stand,
+    generics,
   });
+}
+
+// The three Robes models she can choose on day one (design 3a): the shared catalog portraits,
+// signed, null while one is still to be drawn.
+async function genericsOf(row: Row) {
+  return Promise.all(
+    genericCellIds(wearerOf(row.genderIdentity)).map(async (id) => {
+      const cell = await repos.avatarCells.get(cellKey(id));
+      const imageUrl =
+        cell?.status === 'ready' && cell.bucketKey ? await mediaDelivery.url(cell.bucketKey) : null;
+      return { id, imageUrl };
+    }),
+  );
 }
 
 // The model a new look stands on — the same one renderOnModel draws on (her twin, her filed cell,

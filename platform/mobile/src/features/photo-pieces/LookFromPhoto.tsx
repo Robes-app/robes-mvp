@@ -19,7 +19,7 @@ import {
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Switch, View } from 'react-native';
 import { usePieces } from '@/features/wardrobe/pieces';
 import { renditionUri } from '@/lib/images';
@@ -61,7 +61,15 @@ function Thumb({
 }
 
 // Use case 2b on native: every piece in her photo confirmed (hers, new, or left out) before Save.
-export function LookFromPhoto() {
+// From a day's Capture Look (design 3k) it arrives with that day, the camera opening on mount.
+// Web twin: app/src/components/photo-pieces/look-from-photo.tsx.
+export function LookFromPhoto({
+  day = null,
+  start = null,
+}: {
+  day?: string | null;
+  start?: 'camera' | null;
+} = {}) {
   const read = usePhotoRead('look_photo');
   const model = useApi('me.model.get');
   const api = useApiClient();
@@ -74,9 +82,15 @@ export function LookFromPhoto() {
   const [finding, setFinding] = useState<number | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const [wear, setWear] = useState(false);
+  // Capture Look on a day (design 3k): a day gone by or today files the wear; a day ahead pins.
+  const [wear, setWear] = useState(day !== null && day <= today());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One tap from the day to her photograph: the camera opens as the screen does.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount
+  useEffect(() => {
+    if (start === 'camera') void read.start('camera');
+  }, []);
 
   if (read.status === 'done' && read.jobId && seenJob !== read.jobId) {
     setSeenJob(read.jobId);
@@ -100,12 +114,17 @@ export function LookFromPhoto() {
                 : { index: piece.index, state: state.state === 'new' ? 'new' : 'skip' },
           ),
           ...(name.trim() ? { name: name.trim() } : {}),
-          ...(wear ? { wornOn: today() } : {}),
+          ...(wear ? { wornOn: day && day <= today() ? day : today() } : {}),
         },
       });
+      if (day && day > today()) {
+        await api.call('plan.pin', { params: { id: look.id }, input: { dates: [day] } });
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
         queryClient.invalidateQueries({ queryKey: queryKeys.route('wardrobe.list') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('plan.get') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') }),
       ]);
       router.replace(`/look/${look.id}`);
     } catch {

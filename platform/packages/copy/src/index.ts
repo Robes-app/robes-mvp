@@ -1,4 +1,4 @@
-import { firstRun, home } from './home';
+import { bell, diary, firstRun, home } from './home';
 import { legal } from './legal';
 import { lookbook } from './lookbook';
 import { SEASON_LABELS } from './seasons';
@@ -1911,7 +1911,7 @@ export const twin = {
   },
 } as const;
 
-export { firstRun, home } from './home';
+export { bell, diary, firstRun, home } from './home';
 export { legal } from './legal';
 export { lookbook } from './lookbook';
 
@@ -1997,6 +1997,8 @@ export const keyPiece = {
 export const copy = {
   home,
   firstRun,
+  bell,
+  diary,
   lookbook,
   wardrobe,
   photoPieces,

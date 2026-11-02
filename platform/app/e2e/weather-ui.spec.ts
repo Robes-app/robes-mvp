@@ -33,25 +33,23 @@ test('home and today’s page read the weather now; a day ahead reads its range'
   const meta = page.getByTestId('home-meta');
   await expect(meta).toContainText(/Dublin · 13°C$/);
   await expect(meta).not.toContainText('11–15°C');
-  // Led by the conditions' line icon (an svg, never an emoji), then a dot.
+  // The weekday, the city, the temperature now, then the conditions' line icon (an svg, never an
+  // emoji) — design 3k's today line.
   await expect(meta.getByRole('img', { name: 'overcast' })).toBeVisible();
   expect(await meta.locator('svg').count()).toBe(1);
-  expect(await meta.textContent()).toMatch(/^·\s*\w+day · Dublin · 13°C$/);
+  expect(await meta.textContent()).toMatch(/^\w+day · Dublin · 13°C$/);
 
   await page.goto(`/plan/${today}`);
+  // The day page reads the day: city · conditions · the day's range, one line (design 3k).
   const now = page.getByTestId('day-weather');
-  await expect(now).toContainText('Dublin · overcast · 13°C');
-  // The advice reads the whole day.
-  await expect(now).toContainText('Bring one warm layer.');
-  await expect(now.locator('svg')).toHaveCount(1);
+  await expect(now).toHaveText('Dublin · overcast · 11–15°C');
 
   const later = new Date(`${today}T12:00:00Z`);
   later.setUTCDate(later.getUTCDate() + 3);
   const date = later.toISOString().slice(0, 10);
   await page.goto(`/plan/${date}`);
   const day = page.getByTestId('day-weather');
-  await expect(day).toContainText('Dublin · snow · 4–9°C');
-  await expect(day).toContainText('Boots, and a warm coat.');
+  await expect(day).toHaveText('Dublin · snow · 4–9°C');
   expect(asked).toContain(date);
 });
 

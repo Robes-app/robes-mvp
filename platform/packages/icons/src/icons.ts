@@ -106,6 +106,10 @@ export const ICONS = {
   send: ['M12 19V5', 'M6 11l6-6 6 6'],
   // A row that leaves the app ↗ (Privacy notice, terms).
   external: ['M7 17L17 7', 'M8 7h9v9'],
+  // The diary home (Front Door design 3k): the bell, the prompt's place pin, a receipt to review.
+  bell: ['M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z', 'M10 20.5a2 2 0 0 0 4 0'],
+  pin: ['M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z', 'M12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
+  receipt: ['M6 3h12v18l-3-2-3 2-3-2-3 2z', 'M9 8h6M9 12h6'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

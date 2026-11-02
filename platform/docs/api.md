@@ -87,7 +87,8 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `PATCH /me` | client REST PATCH `profiles` | only user-writable fields; a typed `homeCity` that differs clears `home_lat`/`home_lon` |
 | `POST /me/location` `{ lat, lon }` → `{ ok }` (10/h/user) | browser geolocation + Nominatim in the client (`dashboard-personalize.js`) | her device position, sent only after she allowed it: rounded to 2 decimals (~1 km), named server-side by Nominatim (rounded coords only, no user id), written to `home_lat`/`home_lon`/`home_city`; an unnamed place keeps her city |
 | `PUT /me/style/palette` (Your colours and Your prints: avoid · love per family, shade and print) | Settings `style_dna.palette` |
-| `GET /me/features` | `_RB_TRIP_HIDDEN`, `?trip=on` | the flagged doors clients show (`trips`); flags stay server-side |
+| `GET /me/features` | `_RB_TRIP_HIDDEN`, `?trip=on` | the flagged doors clients show (`trips`, `homeDiary`); flags stay server-side |
+| `GET /me/notifications` · `POST /me/notifications/dismiss` `{ key }` | home's receipts strip and the 7-day nudges mail | the bell (plan 2026-11-02): receipts to review and the last week's unlogged days, computed per read; a dismissed key is kept in `user_ui_state.dismissed` for 30 days |
 | `POST /me/onboarding/complete` | client writes `onboarded_at` | server sets |
 | `GET/PATCH /me/preferences` | notification_prefs, avatar_prefs, localStorage state | incl. `user_ui_state` |
 | `POST /me/push-tokens`, `DELETE /me/push-tokens/:id` | — | native |
@@ -141,6 +142,8 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `POST /looks/:id/wears` · `DELETE /wears/:id` | client REST `wears` |
 | `GET /artifacts?type=` · `GET /artifacts/:id` · `PATCH /artifacts/:id` (title, packed/pins state) · `DELETE` (soft) | client REST `lookbook_items` + localStorage merge |
 | `GET /plan?from=&to=` · `PUT /plan/days/:date/name` | client REST `planned_days` + client sweeps (legacy `day` rows for a named day) |
+| `PUT /plan/days/:date/ootd` `{ entryId }` → the day's entries in order (`position` 0 leads home) · `PUT /plan/days/:date/place` `{ place \| null }` (where she is that day; the diary's weather follows it) · `GET /places?q=&date=` (30/min; cities from Open-Meteo's geocoder with the day's range at each) | — (the OOTD diary home, plan 2026-11-02) |
+| `GET /today` carries `diary` — ten days back and ahead, each with her name for the day, her place, the day's weather and every look in order | the home week strip (7 days ahead) |
 
 ### Sharing
 | New | Legacy |

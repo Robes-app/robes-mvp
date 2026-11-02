@@ -708,6 +708,20 @@ export function looksRepo(db: Db) {
     },
 
     // Looks she recorded wearing on a calendar day.
+    // The days on [from, to] she logged any wear (the bell's nudges read the gaps).
+    async wornDays(userId: UserId, from: string, to: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom('wears')
+        .select(wornOnText.as('wornOn'))
+        .distinct()
+        .where('userId', '=', userId)
+        .where('wornOn', '>=', sql<Date>`${from}::date`)
+        .where('wornOn', '<=', sql<Date>`${to}::date`)
+        .orderBy('wornOn')
+        .execute();
+      return rows.map((r) => r.wornOn);
+    },
+
     async wornOn(userId: UserId, day: string): Promise<string[]> {
       const rows = await db
         .selectFrom('wears')

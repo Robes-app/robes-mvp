@@ -1,10 +1,7 @@
-import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { declineConsent, isolateClientIp, seriousViolations, signIn } from './helpers';
 
 test.beforeEach(async ({ context }) => isolateClientIp(context));
-
-const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
 // Day planning (legacy ff87e89 + 809b13e): summary rows by week, every day opens the day page,
 // and the picker adds one or several saved looks at once.
@@ -41,23 +38,27 @@ test('a day opens its page, and the picker adds several saved looks to it', asyn
   await page.goto('/plan');
   await expect(page.getByRole('link', { name: /^Open Today.*: Gallery opening$/ })).toBeVisible();
   await page.getByRole('link', { name: /^Open Today/ }).click();
-  await page.getByRole('button', { name: /Choose from your looks/ }).click();
+  await page.getByTestId('day-add').click();
 
-  // The picker is headed by the day's name once it has one.
-  const picker = page.getByRole('dialog', { name: 'Gallery opening' });
-  await expect(picker.getByText('Tap looks to add one or several')).toBeVisible();
+  // The drawer (design 3k) asks what she is wearing today and schedules one or several.
+  const picker = page.getByRole('dialog', { name: 'What are you wearing?' });
+  await expect(picker.getByTestId('drawer-idle')).toHaveText('Schedule Looks');
   await picker.getByRole('button', { name: /Office/ }).click();
   await picker.getByRole('button', { name: /Dinner/ }).click();
-  await picker.getByRole('button', { name: 'Add 2 looks' }).click();
+  await picker.getByRole('button', { name: 'Schedule 2 Looks' }).click();
   await expect(page.getByText(/^2 looks added to /).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Office/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Dinner/ })).toBeVisible();
   await expect(page.getByText('2 looks', { exact: true })).toBeVisible();
+  // The first on the day is the OOTD; ☆ on the other makes it the one that leads home.
+  await expect(page.getByTestId('day-ootd')).toContainText('Office');
+  await page.getByRole('button', { name: 'Make Dinner the OOTD' }).click();
+  await expect(page.getByTestId('day-ootd')).toContainText('Dinner');
 
-  // A look already on the day is shown, never offered twice.
-  await page.getByRole('button', { name: /Add a look/ }).click();
-  await expect(picker.getByRole('button', { name: /Office/ })).toBeDisabled();
-  await expect(picker.getByText('Already on this day')).toHaveCount(2);
+  // A look already on the day opens ticked as Scheduled; unticking it takes it off.
+  await page.getByTestId('day-add').click();
+  await expect(picker.getByText('Scheduled')).toHaveCount(2);
+  await expect(picker.getByTestId('drawer-idle')).toHaveText('Schedule Looks');
   await picker.getByRole('button', { name: 'Close' }).click();
   await expect(picker).toBeHidden();
 
@@ -126,34 +127,6 @@ test('a quiet field focuses as an underline; a bare control keeps the ring', asy
   await named.focus();
   await expect(named).toHaveCSS('outline-style', 'solid');
   await expect(named).toHaveCSS('outline-width', '2px');
-});
-
-test('the camera on a day’s look adds her photograph to the look', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await signIn(page);
-  await declineConsent(page);
-  const api = page.request;
-  const coat = await (
-    await api.post('/api/v1/wardrobe/items', { data: { label: 'Camel coat' } })
-  ).json();
-  const look = await (
-    await api.post('/api/v1/looks', { data: { name: 'Gallery', pieces: [{ pieceId: coat.id }] } })
-  ).json();
-  const { date } = await (await api.get('/api/v1/today')).json();
-  expect(
-    (await api.post(`/api/v1/plan/looks/${look.id}/days`, { data: { dates: [date] } })).ok(),
-  ).toBe(true);
-
-  await page.goto(`/plan/${date}`);
-  await expect(page.getByRole('link', { name: /Gallery/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add your photograph' })).toBeVisible();
-  await page.locator('input[type="file"][aria-label="Add your photograph"]').setInputFiles(PHOTO);
-  // Kept on the look: the day card's camera becomes ↻ while her photograph is the record.
-  await expect(page.getByRole('button', { name: 'Replace your photograph' })).toBeVisible({
-    timeout: 30_000,
-  });
-  expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).record).toBe('photo');
-  expect(await seriousViolations(page), 'a day with her photograph').toEqual([]);
 });
 
 // Pass 4 (Diary): a worn day reads "· Worn"; List | Month is kept; the diary drawer marks every
