@@ -41,7 +41,8 @@ export const Home = z.object({
     // Any saved look: the week strip shows from the first (legacy 0.3).
     anyLook: z.boolean().optional(),
     snoozed: z.partialRecord(HomeStep, z.iso.datetime()),
-    // Day one's band (design 3a): which of its two asks she has dismissed.
+    // Day one's band (design 3a): which of its two asks is answered — dismissed, or (the model)
+    // her own close-up on file. A picked Robes model keeps the ask, ticked.
     dayOne: z.object({ modelAsked: z.boolean(), piecesAsked: z.boolean() }).optional(),
   }),
   // O1's rows: her chips, three at most.

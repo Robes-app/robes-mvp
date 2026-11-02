@@ -96,5 +96,9 @@ describe('the drawer (design 3k)', () => {
       model: false,
       pieces: true,
     });
+    // A Robes model picked files a model, but the ask stays (ticked) until she dismisses it.
+    expect(
+      dayOneAsks(state({ twinOnFile: true, dayOne: { modelAsked: false, piecesAsked: false } })),
+    ).toEqual({ model: true, pieces: true });
   });
 });

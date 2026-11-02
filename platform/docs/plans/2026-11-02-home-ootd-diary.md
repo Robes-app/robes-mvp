@@ -317,6 +317,8 @@ Where the build departs from §1, and why:
 
 - **Past-day inks.** The design's `#A0927A` / `#B9AD95` fail the 4.5:1 text rule on cream, so past
   numerals and weekdays use `ink-faint` (80% of it failed too, CI run 83); the past still recedes.
+- **A Robes model picked keeps the ask**, ticked, until × (the design's tick has to be seen);
+  only her own close-up on file retires it unasked. The pieces ask retires with her first photo.
 - **The day chip** is sunk (`surface-sunk`, hairline) in `ink-faint`: the design's 40% ink fails
   4.5:1, and `ink-muted` on `surface-sunk` is 4.4 (CI run 84). The month view's day number reads
   in ink on a trip band for the same reason.

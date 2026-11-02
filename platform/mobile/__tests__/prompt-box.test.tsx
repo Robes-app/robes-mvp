@@ -54,6 +54,9 @@ test('the words are the web’s (lib/diary.ts)', () => {
     model: false,
     pieces: true,
   });
+  expect(
+    dayOneAsks({ ...state, twinOnFile: true, dayOne: { modelAsked: false, piecesAsked: false } }),
+  ).toEqual({ model: true, pieces: true });
   expect(dayOneAsks({ ...state, twinOnFile: true, pics: 3 })).toEqual({
     model: false,
     pieces: false,
