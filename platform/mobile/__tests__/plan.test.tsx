@@ -1,4 +1,5 @@
 import { diary, plan, ui } from '@robes/copy';
+import { monthLabel } from '@robes/core/calendar';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { localDate } from '../src/features/looks/saved-looks';
 import { DayView } from '../src/features/plan/DayView';
@@ -277,7 +278,7 @@ test('the switcher and + sit pinned under the header; the eyebrow names the wind
     new RegExp(plan.today),
   );
   await fireEvent.press(screen.getByRole('radio', { name: plan.view.month }));
-  expect(await screen.findByText('October 2026')).toBeTruthy();
+  expect(await screen.findByText(monthLabel(localDate().slice(0, 7)))).toBeTruthy();
   expect(screen.getByRole('button', { name: plan.prevMonth })).toBeTruthy();
 });
 
