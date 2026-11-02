@@ -317,8 +317,9 @@ Where the build departs from §1, and why:
 
 - **Past-day inks.** The design's `#A0927A` / `#B9AD95` fail the 4.5:1 text rule on cream, so past
   numerals and weekdays use `ink-faint` (80% of it failed too, CI run 83); the past still recedes.
-- **The day chip** is sunk (`surface-sunk`, hairline) in `ink-muted`: the design's 40% ink fails
-  4.5:1 (CI run 84). The month view's day number reads in ink on a trip band for the same reason.
+- **The day chip** is sunk (`surface-sunk`, hairline) in `ink-faint`: the design's 40% ink fails
+  4.5:1, and `ink-muted` on `surface-sunk` is 4.4 (CI run 84). The month view's day number reads
+  in ink on a trip band for the same reason.
 - **The generation tray** stays at the foot of home (the design never shows a running job); it is
   the way back to a deck that is still composing.
 - **Capture Look on web** opens the file picker from the sheet (one tap, a user gesture) and hands

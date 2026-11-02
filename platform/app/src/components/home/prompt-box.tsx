@@ -30,8 +30,8 @@ const chip =
 const warm = `${chip} border-selected-line bg-selected text-ink`;
 const quiet = `${chip} border-rule-mid bg-surface-raised text-ink`;
 // The day chip is passive: it names the day she picked on the strip and is never a date field.
-// Sunk, in ink-muted: the design's 40% ink fell under 4.5:1 (CI run 84).
-const passive = `${chip} border-hairline bg-surface-sunk text-ink-muted`;
+// Sunk, in ink-faint (4.6:1 on surface-sunk; ink-muted is 4.4): the design's 40% ink failed.
+const passive = `${chip} border-hairline bg-surface-sunk text-ink-faint`;
 
 // The prompt box (Front Door design 3k, plan 2026-11-02 §1.8): the day chip, the place chip with
 // its weather (× leaves the weather out), the hanger to build the day around pieces of hers, her
