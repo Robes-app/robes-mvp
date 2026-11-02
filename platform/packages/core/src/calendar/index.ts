@@ -12,6 +12,28 @@ export function daysBetween(from: string, date: string): number {
   );
 }
 
+// The home diary's window (Front Door design 3k, plan 2026-11-02 D1): three pages of seven days with
+// today's page centred, so the strip reaches ten days back and ten ahead.
+export const DIARY_BACK = 10;
+export const DIARY_AHEAD = 10;
+export function diaryWindow(today: string): { from: string; to: string; days: string[] } {
+  const from = addDays(today, -DIARY_BACK);
+  const to = addDays(today, DIARY_AHEAD);
+  return {
+    from,
+    to,
+    days: Array.from({ length: DIARY_BACK + DIARY_AHEAD + 1 }, (_, i) => addDays(from, i)),
+  };
+}
+
+// The look that leads a day on home (design 3k): what she wore if she logged it, else the first
+// in the day's order (position 0 is the starred OOTD). Shared so web and native never disagree.
+export function dayOotd<T extends { worn: boolean; position: number }>(
+  entries: readonly T[],
+): T | null {
+  return entries.find((e) => e.worn) ?? entries[0] ?? null;
+}
+
 // The days the save sheet offers (today and the fortnight after); the day her words named leads
 // selected when it is one of them, never a day gone by.
 export const DIARY_DAYS = 14;

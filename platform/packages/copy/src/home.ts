@@ -191,3 +191,26 @@ export const firstRun = {
     control: (family: string): string => `${family}: love, no view or avoid`,
   },
 } as const;
+
+const ordinal = (n: number): string => {
+  const rem = n % 100;
+  const suffix = rem >= 11 && rem <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+  return `${n}${suffix}`;
+};
+
+// The bell (Front Door design 3k): what waits for her, each line with where it leads.
+export const bell = {
+  title: 'Notifications',
+  open: 'Notifications',
+  empty: 'Nothing new.',
+  dismiss: 'Dismiss',
+  dest: { receipts: 'Wardrobe', diary: 'Diary' },
+  receipts: (n: number): string => (n === 1 ? '1 receipt to review' : `${n} receipts to review`),
+  receiptsLine: (retailers: readonly string[]): string | null => {
+    const names = retailers.filter(Boolean).slice(0, 2);
+    if (names.length === 0) return null;
+    return `From ${names.join(' and ')}`;
+  },
+  logWear: (weekday: string): string => `Log ${weekday}’s wear`,
+  logWearLine: (dayOfMonth: number): string => `Nothing filed for the ${ordinal(dayOfMonth)}`,
+} as const;

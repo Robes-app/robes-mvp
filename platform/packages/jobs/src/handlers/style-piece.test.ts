@@ -159,7 +159,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 5 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 6 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
@@ -274,6 +274,49 @@ describe('key_piece handler (suggested looks)', () => {
     };
     expect(detail.detail).toMatchObject({ place: { landscapes: [], wx: 'there' } });
     expect(JSON.stringify(detail.detail)).not.toContain('Lisbon');
+  });
+
+  it('builds the day around the pieces she chose, where she says she is (design 3k)', async () => {
+    const { run, generateJson, forecast, destination, suggested, styling } = setup();
+    const gone = '99999999-9999-4999-8999-999999999999';
+    styling.anchorPiece.mockImplementation(async (_u: unknown, id: string) =>
+      id === PIECE
+        ? { id: PIECE, label: 'Camel coat', imageAssetId: ASSET, wearFor: [] }
+        : undefined,
+    );
+    await run({
+      mode: 'prompt',
+      prompt: 'the office',
+      date: '2026-10-17',
+      pieceIds: [PIECE, gone],
+      place: { city: 'Paris', country: 'France', lat: 48.86, lon: 2.35 },
+    });
+    // The chip's place is read for its own weather, never geocoded from her words.
+    expect(forecast).toHaveBeenCalledWith({
+      city: 'Paris',
+      lat: 48.86,
+      lon: 2.35,
+      date: '2026-10-17',
+    });
+    expect(destination).not.toHaveBeenCalled();
+    const req = generateJson.mock.calls[0]?.[0];
+    expect(req?.user).toContain('She is dressing for Paris, France, Saturday 17 October.');
+    expect(req?.user).toContain('BUILD AROUND — she chose these pieces of hers');
+    expect(req?.user.endsWith('Camel coat.')).toBe(true);
+    // The piece she chose is on every rack, and rides on the set so ↻ keeps it.
+    const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
+    expect(specs.every((s) => s.pieces.some((p) => p.pieceId === PIECE))).toBe(true);
+    expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
+      data: { around: [{ pieceId: PIECE, label: 'Camel coat' }] },
+    });
+    // Her home city on the chip is just home.
+    await run({
+      mode: 'prompt',
+      prompt: 'the office',
+      place: { city: 'dublin', country: 'Ireland', lat: 53.3, lon: -6.2 },
+    });
+    expect(generateJson.mock.calls[1]?.[0]?.user).toContain('Dublin · October');
+    expect(generateJson.mock.calls[1]?.[0]?.user).not.toContain('Forecast there');
   });
 
   it('renders THE PLACE for a landscape, keeping her weather only as a guide', async () => {

@@ -4,7 +4,7 @@ import { Redirect } from 'expo-router';
 import type { ReactNode } from 'react';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
-const HIDDEN: Features = { trips: false };
+const HIDDEN: Features = { trips: false, homeDiary: false };
 
 // The flagged doors (GET /me/features); anything unanswered reads as off, so a door never flashes.
 export function useFeatures(): { features: Features; ready: boolean } {

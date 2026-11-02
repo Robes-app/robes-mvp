@@ -123,6 +123,11 @@ export const StoredSet = z.object({
   // Where she said the pieces come from; ↻ on one of the set's looks honours it again.
   balance: z.enum(BALANCES).nullable().optional(),
   balanceNote: z.string().nullable().optional(),
+  // The pieces she chose to build the day around (design 3k's hanger); ↻ keeps them.
+  around: z
+    .array(z.object({ pieceId: z.uuid(), label: z.string() }))
+    .optional()
+    .catch(undefined),
 });
 
 // The sets Robes already made her, read back as titles and piece names (ALREADY SHOWN).
@@ -175,7 +180,7 @@ const specKey = (spec: SuggestedSpec) =>
 export function specFromWay(
   way: { title: string; scene: string; pieces: StoredPiece[] },
   setIndex: number,
-  o: { anchorPieceId: string | null; dateHint: string | null },
+  o: { anchorPieceId: string | null; dateHint: string | null; aroundIds?: readonly string[] },
 ): SuggestedSpec {
   const pieces: SuggestedSpec['pieces'][number][] = [];
   const proposals: Record<string, unknown>[] = [];
@@ -199,6 +204,10 @@ export function specFromWay(
   }
   if (o.anchorPieceId && !pieces.some((x) => x.pieceId === o.anchorPieceId)) {
     pieces.unshift({ pieceId: o.anchorPieceId, role: 'anchor' });
+  }
+  // A piece she chose to build around is on the rack whether or not the model named it.
+  for (const id of o.aroundIds ?? []) {
+    if (!pieces.some((x) => x.pieceId === id)) pieces.push({ pieceId: id, role: null });
   }
   return {
     setIndex,
@@ -325,14 +334,43 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     return { read: { ...read, destination }, there };
   }
 
-  async function dayContext(userId: UserId, date: string | undefined, prompt: string) {
+  // The place chip (design 3k): where she says she is that day stands in for anything her words
+  // name, read for its own weather; her home city on the chip is just home.
+  async function chosenPlace(
+    chosen: { city: string; country: string | null; lat: number; lon: number },
+    prompt: string,
+    day: string,
+  ): Promise<DayPlace> {
+    const forecast = deps.forecast
+      ? await deps.forecast({ city: chosen.city, lat: chosen.lat, lon: chosen.lon, date: day })
+      : null;
+    const place = chosen.country ? `${chosen.city}, ${chosen.country}` : chosen.city;
+    return {
+      read: { ...readPlace(prompt), destination: chosen.city, named: true },
+      there: {
+        place,
+        tempRange: forecast?.tempRange ?? null,
+        condition: forecast?.condition ?? null,
+        seasonal: false,
+      },
+    };
+  }
+
+  async function dayContext(
+    userId: UserId,
+    date: string | undefined,
+    prompt: string,
+    chosen?: { city: string; country: string | null; lat: number; lon: number },
+  ) {
     const her = await deps.styling.dailyContext(userId);
     const today = localToday(deps.now?.() ?? new Date(), her.timezone);
     const day = askDate(date, today) ?? today;
     const home = { city: her.homeCity, lat: her.homeLat, lon: her.homeLon };
+    const away =
+      chosen && chosen.city.trim().toLowerCase() !== (her.homeCity ?? '').trim().toLowerCase();
     const [forecast, place] = await Promise.all([
       deps.forecast ? deps.forecast({ ...home, date: day }) : null,
-      placeOf(prompt, day, home),
+      away ? chosenPlace(chosen, prompt, day) : placeOf(prompt, day, home),
     ]);
     const ctx: DayContext = {
       // The day is named only when it isn't today (legacy dayLabel).
@@ -466,7 +504,12 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         const mode: Mode = set.data.mode === 'prompt' ? 'dress-me' : 'piece';
         const ask: Ask =
           mode === 'dress-me'
-            ? { mode, prompt: set.data.prompt ?? set.data.anchor.label, day: set.data.day }
+            ? {
+                mode,
+                prompt: set.data.prompt ?? set.data.anchor.label,
+                day: set.data.day,
+                ...(set.data.around?.length ? { around: set.data.around } : {}),
+              }
             : {
                 mode,
                 anchor: anchorPiece
@@ -560,6 +603,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       let day: DayContext | null = null;
       let dateHint: string | null = null;
       let brief: string | null = null;
+      let around: { pieceId: string; label: string }[] = [];
       const steer: Steer = {
         balance: 'balance' in input ? (input.balance ?? null) : null,
         balanceNote: 'balanceNote' in input ? (input.balanceNote ?? null) : null,
@@ -567,10 +611,21 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       };
       if (prompted) {
         mode = 'dress-me';
-        const dated = await dayContext(ctx.userId, input.date, input.prompt);
+        const dated = await dayContext(ctx.userId, input.date, input.prompt, input.place);
         day = dated.day;
         dateHint = dated.dateHint;
-        ask = { mode, prompt: input.prompt, day };
+        // The pieces she chose: hers, by id (SEC-16); one she has since let go of is left out.
+        around = (
+          await Promise.all(
+            (input.pieceIds ?? []).map((id) => deps.styling.anchorPiece(ctx.userId, id)),
+          )
+        ).flatMap((p) => (p ? [{ pieceId: p.id, label: p.label }] : []));
+        ask = {
+          mode,
+          prompt: input.prompt,
+          day,
+          ...(around.length ? { around: around.map((p) => ({ label: p.label })) } : {}),
+        };
         anchor = { type: 'text', label: input.prompt };
         brief = input.prompt;
       } else if (!('mode' in input)) {
@@ -626,12 +681,17 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           ways,
           balance: steer.balance,
           balanceNote: steer.balanceNote,
+          ...(around.length ? { around } : {}),
           images: [],
           promptVersion: VERSION,
         },
       });
       const specs = ways.map((w, i) =>
-        specFromWay(w, i, { anchorPieceId: fallback ? null : anchorPieceId, dateHint }),
+        specFromWay(w, i, {
+          anchorPieceId: fallback ? null : anchorPieceId,
+          dateHint,
+          aroundIds: fallback ? [] : around.map((p) => p.pieceId),
+        }),
       );
       // The hero's frame is claimed with the mint, before the set is exposed (no second draw).
       const [heroSpec] = specs;

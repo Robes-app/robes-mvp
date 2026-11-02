@@ -22,5 +22,9 @@ export function invalidateFlag(key: string): void {
 
 // What GET /me/features answers; server pages read it directly.
 export async function clientFeatures(): Promise<Features> {
-  return { trips: await isFlagEnabled('trips') };
+  const [trips, homeDiary] = await Promise.all([
+    isFlagEnabled('trips'),
+    isFlagEnabled('home.diary'),
+  ]);
+  return { trips, homeDiary };
 }

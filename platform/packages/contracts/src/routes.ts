@@ -83,6 +83,7 @@ import {
   UpdateModelInput,
 } from './me';
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
+import { DismissNotificationInput, Notifications } from './notifications';
 import { JoinWaitlistInput, Ok, OneClickUnsubInput, UnsubParams } from './notify';
 import {
   FileReadInput,
@@ -93,14 +94,19 @@ import {
 } from './photo-reads';
 import {
   DayName,
+  DayPlace,
+  DayPlaceInput,
   GetPlanInput,
   NameDayInput,
   PinLookInput,
   PinnedEntries,
+  PlaceHits,
+  PlaceSearchInput,
   Plan,
   PlanDayParams,
   PlanEntry,
   PlanEntryParams,
+  SetOotdInput,
   UpdatePlanEntryInput,
 } from './plan';
 import { CreateShareInput, Share, SharedLook, ShareParams } from './shares';
@@ -217,6 +223,22 @@ export const routes = {
     auth: 'user',
     input: HomeLaterInput,
     output: HomeLater,
+  },
+  // The bell: receipts to review and days with no wear logged, computed on each read.
+  'notifications.list': {
+    method: 'GET',
+    path: '/me/notifications',
+    auth: 'user',
+    input: EmptyInput,
+    output: Notifications,
+  },
+  // Naturally idempotent: dismissing a dismissed item changes nothing.
+  'notifications.dismiss': {
+    method: 'POST',
+    path: '/me/notifications/dismiss',
+    auth: 'user',
+    input: DismissNotificationInput,
+    output: Ok,
   },
   'me.deletion.get': {
     method: 'GET',
@@ -907,6 +929,32 @@ export const routes = {
     params: PlanEntryParams,
     input: EmptyInput,
     output: Deleted,
+  },
+  // Make a look the day's OOTD (position 0); the day's entries come back in their new order.
+  'plan.ootd': {
+    method: 'PUT',
+    path: '/plan/days/:date/ootd',
+    auth: 'user',
+    params: PlanDayParams,
+    input: SetOotdInput,
+    output: PinnedEntries,
+  },
+  // Where she is on a day (the prompt's place chip); null clears it back to home.
+  'plan.place': {
+    method: 'PUT',
+    path: '/plan/days/:date/place',
+    auth: 'user',
+    params: PlanDayParams,
+    input: DayPlaceInput,
+    output: DayPlace,
+  },
+  // The place picker: cities by name, with the day's weather at each.
+  'places.search': {
+    method: 'GET',
+    path: '/places',
+    auth: 'user',
+    input: PlaceSearchInput,
+    output: PlaceHits,
   },
   // Naturally idempotent: sharing a look again returns its existing link.
   'shares.create': {

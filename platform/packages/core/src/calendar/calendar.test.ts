@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
+  DIARY_AHEAD,
+  DIARY_BACK,
+  dayOotd,
   daysBetween,
   diaryDays,
   diaryMarks,
   diaryPick,
+  diaryWindow,
   longDate,
   monthGrid,
   monthLabel,
@@ -199,5 +203,22 @@ describe('names come from the tables', () => {
     expect(weekdayLong('2026-10-28')).toBe('Wednesday');
     expect(monthLong('2026-09-30')).toBe('September');
     expect(weekdayLong('2026-11-01')).toBe('Sunday');
+  });
+});
+
+describe('the diary window', () => {
+  it('reaches ten days back and ahead of today, every date present', () => {
+    const w = diaryWindow('2026-11-02');
+    expect([w.from, w.to]).toEqual(['2026-10-23', '2026-11-12']);
+    expect(w.days).toHaveLength(DIARY_BACK + DIARY_AHEAD + 1);
+    expect(w.days[DIARY_BACK]).toBe('2026-11-02');
+  });
+
+  it('leads a day with what she wore, else the first in order', () => {
+    const a = { worn: false, position: 0 };
+    const b = { worn: true, position: 1 };
+    expect(dayOotd([a, b])).toBe(b);
+    expect(dayOotd([a, { worn: false, position: 1 }])).toBe(a);
+    expect(dayOotd([])).toBeNull();
   });
 });

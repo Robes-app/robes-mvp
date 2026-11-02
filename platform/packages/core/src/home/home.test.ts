@@ -163,3 +163,26 @@ describe('module helpers', () => {
     expect(trayState('cancelled')).toBe('failed');
   });
 });
+
+describe('bell nudges', () => {
+  it('names the unlogged days of the last week, newest first, inside her account', async () => {
+    const { bellNudgeDays } = await import('./index');
+    expect(
+      bellNudgeDays({
+        today: '2026-11-02',
+        since: '2026-10-29',
+        wornDays: ['2026-10-31', '2026-11-02'],
+        hasLooks: true,
+      }),
+    ).toEqual(['2026-11-01', '2026-10-30', '2026-10-29']);
+    expect(
+      bellNudgeDays({ today: '2026-11-02', since: '2026-01-01', wornDays: [], hasLooks: true }),
+    ).toHaveLength(7);
+    expect(
+      bellNudgeDays({ today: '2026-11-02', since: '2026-01-01', wornDays: [], hasLooks: false }),
+    ).toEqual([]);
+    expect(
+      bellNudgeDays({ today: '2026-11-02', since: '2026-11-02', wornDays: [], hasLooks: true }),
+    ).toEqual([]);
+  });
+});
