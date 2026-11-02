@@ -28,12 +28,13 @@ const chip = 'min-h-7 flex-row items-center gap-1.5 rounded-pill border px-2.5';
 const warm = `${chip} border-selected-line bg-selected`;
 const quiet = `${chip} border-rule-mid bg-surface-raised`;
 // The day chip is passive: it names the day she picked on the strip and is never a date field.
-const passive = `${chip} border-ink/10 bg-ink/5`;
+// Sunk, in ink-muted: the design's 40% ink fell under 4.5:1 (web twin, CI run 84).
+const passive = `${chip} border-hairline bg-surface-sunk`;
 
 function ChipText({ children, faded = false }: { children: string; faded?: boolean }) {
   return (
     <RNText
-      className={`text-[11px] ${faded ? 'text-ink/40' : 'text-ink'}`}
+      className={`text-[11px] ${faded ? 'text-ink-muted' : 'text-ink'}`}
       style={{ fontFamily: fonts.sans }}
       numberOfLines={1}
     >

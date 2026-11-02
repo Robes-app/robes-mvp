@@ -258,7 +258,8 @@ test('the home box: words become three looks on the deck; a photographed piece s
   await page.reload();
   await page.getByTestId('hanger').click();
   const flyout = page.getByTestId('wardrobe-picker');
-  await expect(flyout.getByTestId('flyout-idle')).toHaveText('Tap pieces to add them');
+  // The foot sits in the sheet's footer, beside the picker's list.
+  await expect(page.getByTestId('flyout-idle')).toHaveText('Tap pieces to add them');
   await flyout.getByRole('button', { name: 'Include Camel coat' }).click();
   await page.getByRole('button', { name: 'Include 1 Piece' }).click();
   await expect(page.getByTestId(`piece-token-${pieceId}`)).toContainText('Camel coat');
