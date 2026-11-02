@@ -30,6 +30,8 @@ export const HomePiece = z.object({
 export type HomePiece = z.infer<typeof HomePiece>;
 
 // The modular home (legacy 0478e63): her state for the resolver plus what each module paints.
+// Kept for installed builds after the diary home replaced it on both clients (plan 2026-11-02 P4);
+// the diary home reads `state` alone (pics, twinOnFile, dayOne).
 export const Home = z.object({
   state: z.object({
     styleConfirmed: z.boolean(),
@@ -116,7 +118,8 @@ export const Today = z.object({
   nextStep: NextStep.optional(),
   // Looks pinned to today; `worn` once she's recorded wearing it.
   today: z.array(z.object({ entry: PlanEntry, worn: z.boolean() })),
-  // The next seven days (today first) with how many looks each holds.
+  // The next seven days (today first) with how many looks each holds. Kept for installed builds;
+  // the diary home reads `diary` instead (plan 2026-11-02).
   week: z
     .array(
       z.object({

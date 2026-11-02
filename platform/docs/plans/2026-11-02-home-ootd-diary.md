@@ -329,5 +329,10 @@ Where the build departs from §1, and why:
   from the diary read.
 - **Web e2e** for the diary home lands with P4 (the flag is global across the e2e database, so a
   spec that flips it would collide with the specs that pin the modular home).
-- **The old home** (`HomeView`, `HomeSteps`, `me.home.later`) stays untouched while the flag is
-  dark; P4 deletes it with its tests.
+- **P4 keeps the server's old shape.** `Today.week`, `Today.home` and `POST /me/home/later` stay
+  so installed phone builds keep parsing and working until a store build ships; only the clients'
+  modular home is deleted. `home.diary` is no longer read by the clients: signed-in `/` and the
+  home tab always render the diary.
+- **Native clock-bound tests.** Two pre-existing tests (`plan.test.tsx` "the switcher and + sit
+  pinned…", `trips.test.tsx` "the plan switches to a month…") read the real clock and look for
+  "October 2026"; they fail from 1 November regardless of this work.
