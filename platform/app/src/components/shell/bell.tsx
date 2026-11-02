@@ -12,9 +12,12 @@ import { useState } from 'react';
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// Where each line leads: receipts to the Wardrobe inbox, a diary nudge to that day on home.
+// Where each line leads: receipts to the Wardrobe inbox, a diary nudge to that day on home, the
+// overnight look to its page.
 export function notificationHref(item: NotificationItem): string {
-  return item.kind === 'receipts' ? '/wardrobe/inbox' : `/?day=${item.date ?? ''}`;
+  if (item.kind === 'receipts') return '/wardrobe/inbox';
+  if (item.kind === 'overnight') return `/today/looks/${item.lookId ?? ''}`;
+  return `/?day=${item.date ?? ''}`;
 }
 
 // The bell (design 3k, plan §1.12): in the header beside the avatar, a rose dot while anything
@@ -70,7 +73,16 @@ export function Bell() {
                   className={`flex min-w-0 flex-1 items-center gap-3 rounded-soft border border-hairline bg-surface-raised py-3 pr-3.5 pl-3 hover:border-selected-line ${focus}`}
                 >
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-input bg-surface-sunk text-ink-muted">
-                    <Icon name={item.kind === 'receipts' ? 'receipt' : 'plan'} size={14} />
+                    <Icon
+                      name={
+                        item.kind === 'receipts'
+                          ? 'receipt'
+                          : item.kind === 'overnight'
+                            ? 'looks'
+                            : 'plan'
+                      }
+                      size={14}
+                    />
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="font-display text-base text-ink leading-tight">

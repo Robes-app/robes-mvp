@@ -12,6 +12,11 @@ const repos = {
   inbox: { listHeld: vi.fn(async () => [] as { retailer: string | null }[]) },
   looks: { wornDays: vi.fn(async () => [] as string[]), count: vi.fn(async () => 3) },
   uiState: { dismissed: vi.fn(async () => ({}) as Record<string, string>), dismiss: vi.fn() },
+  dailyLooks: {
+    overnightFor: vi.fn(
+      async () => null as { id: string; title: string; subtitle: string | null } | null,
+    ),
+  },
 };
 vi.mock('./db', () => ({ repos }));
 
@@ -25,6 +30,7 @@ beforeEach(() => {
   repos.looks.wornDays.mockResolvedValue([]);
   repos.looks.count.mockResolvedValue(3);
   repos.uiState.dismissed.mockResolvedValue({});
+  repos.dailyLooks.overnightFor.mockResolvedValue(null);
 });
 
 describe('the bell', () => {
@@ -41,6 +47,26 @@ describe('the bell', () => {
       ['diary:2026-10-26', 'Log Monday’s wear', 'Nothing filed for the 26th', '2026-10-26'],
     ]);
     expect(repos.looks.wornDays).toHaveBeenCalledWith(ann, '2026-10-26', '2026-11-02');
+  });
+
+  it('leads with the look Robes made overnight, which opens the daily look (D2)', async () => {
+    repos.dailyLooks.overnightFor.mockResolvedValue({
+      id: '22222222-2222-4222-8222-222222222222',
+      title: 'Monday, layered',
+      subtitle: 'Wool under a trench',
+    });
+    repos.looks.count.mockResolvedValue(0);
+    const { items } = await loadNotifications(ann, now);
+    expect(items).toEqual([
+      {
+        key: 'overnight:22222222-2222-4222-8222-222222222222',
+        kind: 'overnight',
+        text: 'Robes dressed you for today',
+        line: 'Wool under a trench',
+        date: '2026-11-02',
+        lookId: '22222222-2222-4222-8222-222222222222',
+      },
+    ]);
   });
 
   it('keeps what she dismissed away, and asks for nothing before she has a look', async () => {

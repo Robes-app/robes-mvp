@@ -204,7 +204,8 @@ export const bell = {
   open: 'Notifications',
   empty: 'Nothing new.',
   dismiss: 'Dismiss',
-  dest: { receipts: 'Wardrobe', diary: 'Diary' },
+  dest: { receipts: 'Wardrobe', diary: 'Diary', overnight: 'Today' },
+  overnight: (weekday: string): string => `Robes dressed you for ${weekday}`,
   receipts: (n: number): string => (n === 1 ? '1 receipt to review' : `${n} receipts to review`),
   receiptsLine: (retailers: readonly string[]): string | null => {
     const names = retailers.filter(Boolean).slice(0, 2);
