@@ -48,7 +48,10 @@ describe('the drawer (design 3k)', () => {
       ready: true,
     });
     expect(drawerCta({ ...base, picks: 2, changed: true }).label).toBe('Schedule 2 Looks');
-    expect(drawerCta({ ...base, picks: 2, changed: false }).ready).toBe(false);
+    expect(drawerCta({ ...base, picks: 2, changed: false })).toEqual({
+      label: 'Schedule Looks',
+      ready: false,
+    });
   });
 
   it('lines each card: Scheduled, Adding, its wears, when it was saved, or that it waits', () => {

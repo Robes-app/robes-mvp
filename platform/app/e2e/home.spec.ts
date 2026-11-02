@@ -97,13 +97,18 @@ test('a styled piece lands on the deck and home carries it on', async ({ page })
   await expect(page.getByText(/^Around your/)).toBeVisible({ timeout: 30_000 });
   await deckLive(page);
 
+  const name = (await page.getByTestId(/^deck-card-/).getAttribute('aria-label')) ?? '';
+
+  // Home is the diary (design 3k): the suggestion waits in the Lookbook, one tap from the dock,
+  // and its card opens the look (68ff778), never an empty composer.
   await page.getByRole('link', { name: 'Home' }).first().click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { level: 1, name: /, Annie\.$/ })).toBeVisible();
-  const suggested = page.getByTestId('home-suggested');
-  const card = suggested.getByRole('listitem').first().getByRole('link');
+  await expect(page.getByTestId('diary-strip')).toBeVisible();
+  await page.getByRole('link', { name: 'Lookbook' }).first().click();
+  await page.getByRole('radio', { name: 'Suggested' }).click();
+  const card = page.getByRole('list', { name: 'Suggested' }).getByRole('link', { name });
   await expect(card).toBeVisible();
-  // A home Suggested card opens its look (68ff778), never an empty composer.
   await card.click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
 });
@@ -239,7 +244,7 @@ test('the home box: words become three looks on the deck; a photographed piece s
   await signIn(page);
   await declineConsent(page);
 
-  const box = page.getByPlaceholder('Where to, and how should it feel?');
+  const box = page.getByPlaceholder('Plan an outfit for today');
   await box.fill('Something easy for the gallery');
   await box.press('Enter');
   await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);

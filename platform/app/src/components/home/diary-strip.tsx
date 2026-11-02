@@ -96,11 +96,7 @@ function DayCell({
         selected ? 'border-selected-line' : 'border-transparent'
       } ${focus}`}
     >
-      <span
-        className={`font-sans text-[9px] font-normal uppercase tracking-[0.1em] ${
-          past ? 'text-ink-faint/80' : 'text-ink-faint'
-        }`}
-      >
+      <span className="font-sans text-[9px] font-normal uppercase tracking-[0.1em] text-ink-faint">
         {isToday ? copy.today : weekdayShort(day.date)}
       </span>
       <span

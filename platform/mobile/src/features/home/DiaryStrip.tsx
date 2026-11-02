@@ -112,7 +112,7 @@ function DayCell({
     >
       <RNText
         maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-        className={`uppercase ${past ? 'text-ink-faint opacity-80' : 'text-ink-faint'}`}
+        className="uppercase text-ink-faint"
         style={{ fontFamily: fonts.sansRegular, fontSize: 9, letterSpacing: 0.9 }}
       >
         {isToday ? copy.today : weekdayShort(day.date)}

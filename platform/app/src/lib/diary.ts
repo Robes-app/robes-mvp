@@ -29,7 +29,9 @@ export function drawerCta(o: {
   const past = o.date < o.today;
   const dayWord = dayWordOf(o.date, o.today);
   if (o.mode === 'add') {
-    return { label: copy.drawer.schedule(o.picks), ready: o.changed && o.picks > 0 };
+    // Looks already on the day open ticked; until she changes something the foot stays idle.
+    if (!o.changed) return { label: copy.drawer.schedule(0), ready: false };
+    return { label: copy.drawer.schedule(o.picks), ready: o.picks > 0 };
   }
   if (!o.changed) return { label: copy.drawer.idle(dayWord), ready: false };
   if (o.picks === 0) return { label: copy.drawer.clearDay(dayWord), ready: true };
