@@ -67,10 +67,10 @@ export function LookFromPhoto({ day = null }: { day?: string | null } = {}) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The photo she picked in the log sheet starts its read here, one tap from the day.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount
   useEffect(() => {
     const file = takePendingPhoto();
     if (file) void read.start(file);
-    // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount
   }, []);
 
   if (read.status === 'done' && read.jobId && seenJob !== read.jobId) {

@@ -305,3 +305,29 @@ handling on the prompt box (N2 in the parity plan) is part of P2.
 | D7 | Settings page (§1.13) now or later? | Later (§5.5); the avatar keeps opening `/you` |
 
 Answer any of these by editing the Default column; silence means the default.
+
+**Answered 2026-11-02 (Annie):** D1 the design · D2 ok · D3 yes · D4 three generic models (the
+catalog's `GENERIC_CELLS`) · D5 default · D6 Home · D7 no change.
+
+---
+
+## 8. Build notes (2026-11-02, branch `feat/home-ootd-diary`)
+
+Where the build departs from §1, and why:
+
+- **Past-day inks.** The design's `#A0927A` / `#B9AD95` fail the 4.5:1 text rule on cream, so past
+  numerals use `ink-faint` and past weekdays `ink-faint` at 80%; the past still recedes.
+- **The generation tray** stays at the foot of home (the design never shows a running job); it is
+  the way back to a deck that is still composing.
+- **Capture Look on web** opens the file picker from the sheet (one tap, a user gesture) and hands
+  the file to `/looks/new/photo?day=` through `lib/pending-photo.ts`; native opens the camera on
+  that route directly.
+- **The bell on day one** shows always (D5), its dot only with items.
+- **Day one's dismissals** persist through the bell's dismissal store (`user_ui_state.dismissed`,
+  keys `dayone:model` and `dayone:pieces`), not a new column; `Home.state.dayOne` reads them.
+- **Recent places** in the popover are kept for the session only; home and the day's place come
+  from the diary read.
+- **Web e2e** for the diary home lands with P4 (the flag is global across the e2e database, so a
+  spec that flips it would collide with the specs that pin the modular home).
+- **The old home** (`HomeView`, `HomeSteps`, `me.home.later`) stays untouched while the flag is
+  dark; P4 deletes it with its tests.

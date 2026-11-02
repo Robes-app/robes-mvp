@@ -66,6 +66,8 @@ export function PromptBox({
   const [error, setError] = useState<string | null>(null);
   // Her ask, held while the box asks where its pieces come from.
   const [held, setHeld] = useState<string | null>(null);
+  // The popover belongs to the day it opened on.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: closes when the day changes
   useEffect(() => setPlaceOpen(false), [day.date]);
 
   const isToday = day.date === today;

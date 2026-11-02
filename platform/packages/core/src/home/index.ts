@@ -160,6 +160,9 @@ export function isTripAsk(text: string): boolean {
   return TRIP_ASK.test(text);
 }
 
+// Day one's two asks (design 3a): dismissed for good through the bell's dismissal store.
+export const DAY_ONE_KEYS = { model: 'dayone:model', pieces: 'dayone:pieces' } as const;
+
 // The bell's diary nudges (plan 2026-11-02): the days of the last week she logged no wear on, newest
 // first — only days since her account began, and only once she has a look to log. Pure, so the
 // server and its test agree; the dates are plain YYYY-MM-DD in her timezone.

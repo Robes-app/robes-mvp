@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { dayWordOf, drawerCta, drawerLine, flyoutCta, placeChipLabel, whenWord } from './diary';
+import {
+  dayOneAsks,
+  dayWordOf,
+  drawerCta,
+  drawerLine,
+  flyoutCta,
+  placeChipLabel,
+  whenWord,
+} from './diary';
 
 const today = '2026-11-02';
 
@@ -64,5 +72,26 @@ describe('the drawer (design 3k)', () => {
     expect(flyoutCta(1, 0)).toEqual({ label: 'Include 1 Piece', ready: true });
     expect(flyoutCta(2, 1)).toEqual({ label: 'Include 2 Pieces', ready: true });
     expect(flyoutCta(0, 2)).toEqual({ label: 'Clear pieces', ready: true });
+  });
+
+  it('day one asks for a model and first pieces until each is done or dismissed', () => {
+    const state = (over: object) =>
+      ({
+        styleConfirmed: false,
+        twinOnFile: false,
+        pics: 0,
+        ownLookSaved: false,
+        snoozed: {},
+        ...over,
+      }) as never;
+    expect(dayOneAsks(state({}))).toEqual({ model: true, pieces: true });
+    expect(dayOneAsks(state({ twinOnFile: true, pics: 2 }))).toEqual({
+      model: false,
+      pieces: false,
+    });
+    expect(dayOneAsks(state({ dayOne: { modelAsked: true, piecesAsked: false } }))).toEqual({
+      model: false,
+      pieces: true,
+    });
   });
 });

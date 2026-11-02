@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { LookPicker } from '@/app/(app)/plan/look-picker';
 import { dayWordOf, type PickerMode } from '@/lib/diary';
 import { errorCopy } from '@/lib/error-copy';
+import { DayOneBand } from './day-one-band';
 import { DaySlot } from './day-slot';
 import { DiaryStrip } from './diary-strip';
 import { LogSheet } from './log-sheet';
@@ -161,6 +162,8 @@ export function DiaryHome({ initial, day = null }: { initial: Today; day?: strin
           {wx && wxIcon ? <Icon name={wxIcon} size={14} label={weatherWord(wx)} /> : null}
         </p>
       </header>
+
+      <DayOneBand state={data.home.state} />
 
       {diary ? (
         <DiaryStrip

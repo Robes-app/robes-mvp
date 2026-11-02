@@ -1,6 +1,7 @@
 import 'server-only';
 import type { Home, HomePiece } from '@robes/contracts';
 import {
+  DAY_ONE_KEYS,
   firstLookCandidates,
   HOME_NOTICED_AFTER,
   HOME_STEPS,
@@ -31,7 +32,7 @@ function snoozes(raw: unknown): Home['state']['snoozed'] {
 
 // Everything the modular home paints, read once with Today (legacy _rbHomeState + the modules).
 export async function loadHome(userId: UserId, profile: Profile, savedCount: number) {
-  const [pics, ownLook, hasModel, style, inbox, saved, suggested] = await Promise.all([
+  const [pics, ownLook, hasModel, style, inbox, saved, suggested, dismissed] = await Promise.all([
     repos.wardrobe.photographed(userId),
     repos.looks.hasOwnLook(userId),
     repos.model.hasModel(userId),
@@ -39,6 +40,7 @@ export async function loadHome(userId: UserId, profile: Profile, savedCount: num
     loadInbox(userId),
     repos.looks.list(userId, { limit: 4, status: 'saved' }),
     repos.looks.list(userId, { limit: 4, status: 'suggested' }),
+    repos.uiState.dismissed(userId),
   ]);
   const rows = {
     brands: chips(profile.styleBrands),
@@ -102,6 +104,11 @@ export async function loadHome(userId: UserId, profile: Profile, savedCount: num
       ownLookSaved: ownLook,
       anyLook: savedCount > 0,
       snoozed: snoozes(profile.homeSnoozes),
+      // Day one's asks stand down for good once she says Okay (design 3a's dialogs).
+      dayOne: {
+        modelAsked: DAY_ONE_KEYS.model in dismissed,
+        piecesAsked: DAY_ONE_KEYS.pieces in dismissed,
+      },
     },
     rows,
     recent: await Promise.all(pics.rows.slice(0, 4).map(toPiece)),

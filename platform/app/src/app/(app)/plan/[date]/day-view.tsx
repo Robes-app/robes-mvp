@@ -219,6 +219,7 @@ function DayLook({
       onImage={
         hero ? (
           <span
+            role="img"
             aria-label={copy.day.isOotd}
             title={copy.day.isOotd}
             className="absolute top-2 left-2 z-10 flex size-[30px] items-center justify-center rounded-pill border border-selected-line bg-selected text-ink"

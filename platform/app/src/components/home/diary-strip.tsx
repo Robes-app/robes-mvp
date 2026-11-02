@@ -24,7 +24,7 @@ export function DiaryStrip({
   selected: string;
   onSelect: (date: string) => void;
 }) {
-  const scroller = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLElement>(null);
   const pages = diaryPages(days);
   const home = Math.max(
     0,
@@ -37,9 +37,8 @@ export function DiaryStrip({
     if (el) el.scrollLeft = el.clientWidth * home;
   }, []);
   return (
-    <div
+    <section
       ref={scroller}
-      role="group"
       aria-label={copy.strip.label}
       data-testid="diary-strip"
       className="-mx-5 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -63,7 +62,7 @@ export function DiaryStrip({
           ))}
         </ol>
       ))}
-    </div>
+    </section>
   );
 }
 
