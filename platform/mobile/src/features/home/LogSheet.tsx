@@ -5,6 +5,7 @@ import { Icon } from '@robes/icons/native';
 import { fonts, maxFontSizeMultiplier, Sheet, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, Text as RNText, View } from 'react-native';
+import { dayQuestion } from './diary';
 
 // What a day asks when she adds a look (design 3k, plan §1.6): past days "What did you wear?",
 // today "What are you wearing?", a day ahead "What will you wear?"; then Pick Look (the drawer)
@@ -22,13 +23,7 @@ export function LogSheet({
 }) {
   const router = useRouter();
   const open = date !== null;
-  const question = !date
-    ? ''
-    : date < today
-      ? copy.log.past
-      : date === today
-        ? copy.log.today
-        : copy.log.ahead;
+  const question = date ? dayQuestion(date, today) : '';
   return (
     <Sheet
       open={open}

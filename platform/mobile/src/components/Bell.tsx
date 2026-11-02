@@ -2,7 +2,7 @@ import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { NotificationItem, Notifications } from '@robes/contracts';
 import { bell as copy } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
-import { fonts, maxFontSizeMultiplier, MIN_TOUCH, Sheet, Text, useColor } from '@robes/ui-native';
+import { fonts, MIN_TOUCH, maxFontSizeMultiplier, Sheet, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -35,6 +35,7 @@ export function Bell() {
   const go = (item: NotificationItem) => {
     setOpen(false);
     if (item.kind === 'receipts') router.push('/wardrobe/inbox');
+    else if (item.kind === 'overnight') router.push(`/today/look/${item.lookId ?? ''}`);
     else router.push({ pathname: '/', params: { day: item.date ?? '' } });
   };
   return (
@@ -73,7 +74,17 @@ export function Bell() {
                   className="min-h-14 flex-1 flex-row items-center gap-3 rounded-soft border border-hairline bg-surface-raised py-3 pr-3.5 pl-3"
                 >
                   <View className="size-8 items-center justify-center rounded-input bg-surface-sunk">
-                    <Icon name={item.kind === 'receipts' ? 'receipt' : 'plan'} size={14} color={muted} />
+                    <Icon
+                      name={
+                        item.kind === 'receipts'
+                          ? 'receipt'
+                          : item.kind === 'overnight'
+                            ? 'looks'
+                            : 'plan'
+                      }
+                      size={14}
+                      color={muted}
+                    />
                   </View>
                   <View className="flex-1">
                     <RNText

@@ -10,8 +10,8 @@ import {
   fonts,
   IconButton,
   InlineTitleField,
-  maxFontSizeMultiplier,
   MIN_TOUCH,
+  maxFontSizeMultiplier,
   Skeleton,
   Text,
   useColor,
@@ -235,7 +235,11 @@ export function DayView({ date }: { date: string }) {
             accessibilityLabel={copy.day.add}
             onPress={() => setPicking(true)}
             testID="day-add"
-            style={entries.length ? { width: '48.4%', aspectRatio: 4 / 5 } : { width: '100%', minHeight: 160 }}
+            style={
+              entries.length
+                ? { width: '48.4%', aspectRatio: 4 / 5 }
+                : { width: '100%', minHeight: 160 }
+            }
             className="items-center justify-center gap-1.5 rounded-[3px] border border-dashed border-selected-line bg-surface"
           >
             <Icon name="plus" size={20} color={ink} />

@@ -2,10 +2,10 @@ import type { DiaryDay, PlanEntry } from '@robes/contracts';
 import { diary as copy } from '@robes/copy';
 import { dayOotd } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { fonts, Image, maxFontSizeMultiplier, MIN_TOUCH, useColor } from '@robes/ui-native';
+import { fonts, Image, MIN_TOUCH, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, Text as RNText, ScrollView, useWindowDimensions, View } from 'react-native';
-import { lookHero, LookTile } from '@/features/looks/LookTile';
+import { LookTile, lookHero } from '@/features/looks/LookTile';
 import { OnPhoto } from '@/features/looks/LookTiles';
 import { renditionUri } from '@/lib/images';
 
@@ -62,12 +62,22 @@ export function DaySlot({
           onImage={
             <>
               <View className="absolute bottom-3 left-3">
-                <OnPhoto icon="book" label={copy.slot.change} size={36} onPress={() => onChange(ootd)} />
+                <OnPhoto
+                  icon="book"
+                  label={copy.slot.change}
+                  size={36}
+                  onPress={() => onChange(ootd)}
+                />
               </View>
               {others.length ? <Stack entries={others} date={day.date} dayWord={dayWord} /> : null}
             </>
           }
-          corner={<Remove label={copy.slot.remove(ootd.look.name, dayWord)} onPress={() => onRemove(ootd)} />}
+          corner={
+            <Remove
+              label={copy.slot.remove(ootd.look.name, dayWord)}
+              onPress={() => onRemove(ootd)}
+            />
+          }
         />
       ) : null}
       <AddLookTile dayWord={dayWord} width={width} onPress={onAdd} />

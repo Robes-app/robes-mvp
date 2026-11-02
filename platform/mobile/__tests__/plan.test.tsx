@@ -1,11 +1,11 @@
-import { looks, plan, ui, wardrobe } from '@robes/copy';
+import { diary, plan, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { localDate } from '../src/features/looks/saved-looks';
 import { DayView } from '../src/features/plan/DayView';
 import { PlanView } from '../src/features/plan/PlanView';
 import { dayLabel } from '../src/features/plan/plan';
 import { mockFetch, renderWithApi } from './support/api';
-import { ASSET_ID, LOOK_ID, look, piece } from './support/fixtures';
+import { LOOK_ID, look } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -127,7 +127,7 @@ const dayOnly = (date: string) => ({
   days: [{ date, name: null, entries: [] }],
 });
 
-test('today’s page reads the weather now: the temperature now, the conditions now', async () => {
+test('the day page reads the day’s weather: the conditions, then its range (design 3k)', async () => {
   const today = localDate();
   const calls = mockFetch({
     'GET /plan': dayOnly(today),
@@ -140,15 +140,13 @@ test('today’s page reads the weather now: the temperature now, the conditions 
     },
   });
   await renderWithApi(<DayView date={today} />);
-  expect(await screen.findByText('Dublin · overcast · 13°C')).toBeTruthy();
-  // The advice still reads the whole day.
-  expect(screen.getByText(plan.day.advice('light rain', '11–15°C'))).toBeTruthy();
+  expect(await screen.findByText('Dublin · overcast · 11–15°C')).toBeTruthy();
   expect(calls.find((c) => c.path.endsWith('/today/weather'))?.url).toContain(`date=${today}`);
 });
 
-test('a day ahead reads that day’s range and conditions', async () => {
-  mockFetch({
-    'GET /plan': dayOnly('2099-01-01'),
+test('a day gone by reads its range and conditions too', async () => {
+  const calls = mockFetch({
+    'GET /plan': dayOnly('2026-09-20'),
     'GET /today/weather': {
       city: 'Dublin',
       tempRange: '4–9°C',
@@ -157,73 +155,102 @@ test('a day ahead reads that day’s range and conditions', async () => {
       code: 73,
     },
   });
-  await renderWithApi(<DayView date="2099-01-01" />);
+  await renderWithApi(<DayView date="2026-09-20" />);
   expect(await screen.findByText('Dublin · snow · 4–9°C')).toBeTruthy();
-  expect(screen.getByText(plan.day.advice('snow', '4–9°C'))).toBeTruthy();
+  expect(calls.find((c) => c.path.endsWith('/today/weather'))?.url).toContain('date=2026-09-20');
 });
 
-test('the camera on a day’s look adds her photograph to the look, and the day re-reads', async () => {
-  const photo = piece().image;
-  if (!photo) throw new Error('fixture piece has an image');
-  const calls = mockFetch({
-    'GET /plan': planWith(true),
-    [`POST /looks/${LOOK_ID}/photo`]: look({ photo, image: photo, record: 'photo' }),
-    'GET /looks': { items: [], nextCursor: null },
-  });
-  await renderWithApi(<DayView date="2026-10-01" />);
-  await fireEvent.press(await screen.findByRole('button', { name: looks.page.addPhoto }));
-  await fireEvent.press(await screen.findByRole('button', { name: wardrobe.add.doors.cameraRoll }));
-  await waitFor(() =>
-    expect(calls.find((c) => c.path.endsWith('/photo'))?.body).toEqual({ assetId: ASSET_ID }),
-  );
-  await waitFor(() =>
-    expect(calls.filter((c) => c.method === 'GET' && c.path.endsWith('/plan'))).toHaveLength(2),
-  );
-});
-
-test('a look she wore on the day carries Worn ✓; the day never borrows the look’s name', async () => {
+test('a look she wore leads as the OOTD; × takes the wear back, never a pin', async () => {
   const p = planWith(true);
   const entry = p.days[0]?.entries[0] as Record<string, unknown>;
   entry.activity = null;
   entry.worn = true;
-  mockFetch({ 'GET /plan': p });
+  const calls = mockFetch({
+    'GET /plan': p,
+    [`DELETE /looks/${LOOK_ID}/wears/2026-10-01`]: { ok: true },
+  });
   await renderWithApi(<DayView date="2026-10-01" />);
-  expect(await screen.findByText(plan.day.worn)).toBeTruthy();
+  expect(await screen.findByTestId('day-ootd')).toBeTruthy();
+  expect(screen.getByText(diary.day.ootd)).toBeTruthy();
+  expect(screen.getByLabelText(diary.day.isOotd)).toBeTruthy();
+  expect(screen.getByText(diary.day.count(1))).toBeTruthy();
   // One look on an unnamed day: the title still invites her to name it.
-  expect(screen.getByRole('header').props.children).toBe(plan.day.name);
-  expect(screen.getByRole('button', { name: plan.day.addAnother })).toBeTruthy();
+  expect(screen.getByRole('header').props.children).toBe(diary.day.name);
+  await fireEvent.press(screen.getByRole('button', { name: diary.day.takeOff('Weekend navy') }));
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'DELETE' && c.path.endsWith('/wears/2026-10-01'))).toBe(
+      true,
+    ),
+  );
+  expect(calls.some((c) => c.path.includes('/plan/entries/'))).toBe(false);
 });
 
-test('an empty day’s one door opens the picker, which adds several looks at once', async () => {
+test('☆ on a second look makes it the OOTD', async () => {
+  const p = planWith(true);
+  const second = {
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    date: '2026-10-01',
+    slot: 'day',
+    activity: null,
+    position: 1,
+    look: look({ id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', name: 'Gallery night' }),
+  };
+  p.days[0]?.entries.push(second as never);
+  const calls = mockFetch({
+    'GET /plan': p,
+    'PUT /plan/days/2026-10-01/ootd': { entries: [] },
+  });
+  await renderWithApi(<DayView date="2026-10-01" />);
+  expect(await screen.findByText(diary.day.look(2))).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: diary.day.makeOotd('Gallery night') }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ entryId: second.id }),
+  );
+});
+
+// The drawer reads the real clock (a day gone by files wears, a day ahead pins): today's page.
+test('an empty day’s dashed door opens the drawer, which schedules several looks at once', async () => {
+  const today = localDate();
   const second = look({ id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', name: 'Gallery night' });
   const third = look({ id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', name: 'Errands' });
   const calls = mockFetch({
-    'GET /plan': planWith(false),
+    'GET /plan': dayOnly(today),
     'GET /looks': { items: [look(), second, third], nextCursor: null },
     [`POST /plan/looks/${LOOK_ID}/days`]: { entries: [] },
     [`POST /plan/looks/${second.id}/days`]: { entries: [] },
   });
-  await renderWithApi(<DayView date="2026-10-01" />);
-  await fireEvent.press(await screen.findByRole('button', { name: plan.day.choose }));
-  expect(await screen.findByText(plan.picker.hint)).toBeTruthy();
+  await renderWithApi(<DayView date={today} />);
+  await fireEvent.press(await screen.findByRole('button', { name: diary.day.add }));
+  expect(await screen.findByTestId('drawer-idle')).toHaveTextContent(diary.drawer.schedule(0));
   await fireEvent.press(await screen.findByRole('button', { name: 'Weekend navy' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Gallery night' }));
-  await fireEvent.press(screen.getByRole('button', { name: plan.picker.add(2) }));
-  expect(await screen.findByText(plan.picker.added(2, 'Thursday'))).toBeTruthy();
+  expect(screen.getAllByText(diary.drawer.adding)).toHaveLength(2);
+  await fireEvent.press(screen.getByRole('button', { name: diary.drawer.schedule(2) }));
+  expect(await screen.findByText(diary.drawer.added(2, 'today'))).toBeTruthy();
   const pins = calls.filter((c) => c.method === 'POST' && c.path.endsWith('/days'));
-  expect(pins.map((c) => c.body)).toEqual([{ dates: ['2026-10-01'] }, { dates: ['2026-10-01'] }]);
+  expect(pins.map((c) => c.body)).toEqual([{ dates: [today] }, { dates: [today] }]);
 });
 
-test('a look already on the day is shown, never offered twice', async () => {
-  mockFetch({
-    'GET /plan': planWith(true),
+test('a look already on the day starts ticked as Scheduled; unticking it takes it off', async () => {
+  const today = localDate();
+  const p = dayOnly(today);
+  (p.days[0] as { entries: unknown[] }).entries = [
+    { id: ENTRY_ID, date: today, slot: 'day', activity: null, look: look() },
+  ];
+  const calls = mockFetch({
+    'GET /plan': p,
     'GET /looks': { items: [look()], nextCursor: null },
+    [`DELETE /plan/entries/${ENTRY_ID}`]: { ok: true },
   });
-  await renderWithApi(<DayView date="2026-10-01" />);
-  await fireEvent.press(await screen.findByRole('button', { name: plan.day.addAnother }));
-  expect(await screen.findByText(plan.picker.already)).toBeTruthy();
-  const tiles = screen.getAllByRole('button', { name: 'Weekend navy' });
-  expect(tiles.at(-1)?.props.accessibilityState.disabled).toBe(true);
+  await renderWithApi(<DayView date={today} />);
+  await fireEvent.press(await screen.findByRole('button', { name: diary.day.add }));
+  expect(await screen.findByText(diary.drawer.scheduled)).toBeTruthy();
+  const tile = screen.getByTestId(`drawer-look-${LOOK_ID}`);
+  expect(tile.props.accessibilityState.selected).toBe(true);
+  // From Pick Look, unticking the only look leaves nothing to schedule: the foot stays idle.
+  await fireEvent.press(tile);
+  expect(screen.getByTestId('drawer-idle')).toHaveTextContent(diary.drawer.schedule(0));
+  expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
 });
 
 test('an empty day can be named, so she can plan a week before adding outfits', async () => {

@@ -217,8 +217,8 @@ export function HomeView({ dress = null }: { dress?: string | null } = {}) {
 }
 
 // The studio tray: running jobs and ones just finished, each opening where it lands (the web twin
-// is home-view.tsx).
-function Tray({ jobs }: { jobs: TrayJob[] }) {
+// is home-view.tsx). Shared with the diary home (DiaryHome.tsx).
+export function Tray({ jobs }: { jobs: TrayJob[] }) {
   const router = useRouter();
   return (
     <View className="gap-3" testID="home-tray">

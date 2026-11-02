@@ -1,5 +1,5 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
-import type { Look, PlanEntry } from '@robes/contracts';
+import type { PlanEntry } from '@robes/contracts';
 import { diary as copy, lookbook } from '@robes/copy';
 import { weekdayDayMonth, weekdayLong } from '@robes/core/calendar';
 import { lookMatches, lookWearFor, pickerOrder, wearForOptions } from '@robes/core/looks';
@@ -19,59 +19,18 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Text as RNText, ScrollView, TextInput, View } from 'react-native';
+import {
+  dayQuestion,
+  dayWordOf,
+  drawerCta,
+  drawerLine,
+  type PickerMode,
+} from '@/features/home/diary';
 import { errorMessage } from '@/lib/errors';
 import { LookTile } from '../looks/LookTile';
 
 const BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type Band = (typeof BANDS)[number];
-
-export type PickerMode = 'add' | 'change';
-
-// 'today', else 'on Tuesday': how the CTA names the day. Twin of web look-picker.tsx.
-export function whenWord(date: string, today: string): string {
-  return date === today ? 'today' : `on ${weekdayLong(date)}`;
-}
-export function dayWordOf(date: string, today: string): string {
-  return date === today ? 'today' : weekdayLong(date);
-}
-
-// What the drawer's one button says (design 3k, plan §1.7), the same rule as the web's.
-export function drawerCta(o: {
-  mode: PickerMode;
-  date: string;
-  today: string;
-  picks: number;
-  changed: boolean;
-}): { label: string; ready: boolean } {
-  const past = o.date < o.today;
-  const dayWord = dayWordOf(o.date, o.today);
-  if (o.mode === 'add') {
-    return { label: copy.drawer.schedule(o.picks), ready: o.changed && o.picks > 0 };
-  }
-  if (!o.changed) return { label: copy.drawer.idle(dayWord), ready: false };
-  if (o.picks === 0) return { label: copy.drawer.clearDay(dayWord), ready: true };
-  if (past) {
-    return {
-      label: o.picks === 1 ? copy.drawer.woreOne(dayWord) : copy.drawer.woreMany(dayWord),
-      ready: true,
-    };
-  }
-  const when = whenWord(o.date, o.today);
-  return {
-    label: o.picks === 1 ? copy.drawer.wearOne(when) : copy.drawer.wearMany(o.picks, when),
-    ready: true,
-  };
-}
-
-// The look's line under its name in the drawer: Scheduled (on the day), Adding (ticked), else
-// how often she has worn it, when she saved it, or that it waits.
-export function drawerLine(look: Look, on: boolean, had: boolean): string {
-  if (on && had) return copy.drawer.scheduled;
-  if (on) return copy.drawer.adding;
-  if (look.timesWorn > 0) return copy.drawer.wears(look.timesWorn);
-  if (look.createdAt) return copy.drawer.savedOn(weekdayDayMonth(look.createdAt.slice(0, 10)));
-  return copy.drawer.notWorn;
-}
 
 // A small-caps label: the drawer's YOUR LOOKS row and the Refine card's headings.
 function Caps({ children, warm = false }: { children: string; warm?: boolean }) {
@@ -192,13 +151,7 @@ export function LookPicker({
     ),
     lastWornFirst,
   );
-  const question = !date
-    ? ''
-    : date < today
-      ? copy.log.past
-      : date === today
-        ? copy.log.today
-        : copy.log.ahead;
+  const question = date ? dayQuestion(date, today) : '';
   const cta = date
     ? drawerCta({ mode, date, today, picks: chosen.length, changed })
     : { label: '', ready: false };
