@@ -109,12 +109,8 @@ This lets the **Run workflow** button deploy staging, and lets Part C make it au
    ```bash
    gh secret set MIGRATION_DATABASE_URL --env staging -R Robes-app/robes-mvp
    ```
-   Or pipe it from Vercel without printing it (run from `platform/app`, linked to `robes-app`):
-   ```bash
-   vercel env pull /tmp/stg.env --environment=staging -y >/dev/null \
-     && grep '^DATABASE_ADMIN_URL=' /tmp/stg.env | cut -d= -f2- | tr -d '"' \
-     | gh secret set MIGRATION_DATABASE_URL --env staging -R Robes-app/robes-mvp; rm -f /tmp/stg.env
-   ```
+   It's a **sensitive** Vercel variable (`staging` custom environment): `vercel env pull` returns it
+   empty, so it has to come from the password manager.
 4. Test it: GitHub → Actions → **platform-deploy-staging** → **Run workflow** → branch `beta`.
    It must go green through `db migrate`, `cdk deploy (Staging)` and `smoke`. If `cdk deploy`
    fails on credentials, re-check step 1 and the environment name.
