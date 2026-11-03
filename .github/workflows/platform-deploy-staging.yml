@@ -29,17 +29,6 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || vars.STAGING_AUTO_DEPLOY == 'true'
     runs-on: ubuntu-latest
     environment: staging
-    env:
-      ROBES_STAGING_AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-      ROBES_STAGING_CF_PUBLIC_KEY: ${{ vars.CLOUDFRONT_PUBLIC_KEY }}
-      ROBES_STAGING_MEDIA_DOMAIN: ${{ vars.MEDIA_DOMAIN }}
-      ROBES_STAGING_MEDIA_CERT_ARN: ${{ vars.MEDIA_CERT_ARN }}
-      ROBES_STAGING_ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
-      ROBES_STAGING_BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
-      ROBES_STAGING_BUDGETS: ${{ vars.BUDGETS }}
-      ROBES_STAGING_GENERATE_RESERVED_CONCURRENCY: ${{ vars.GENERATE_RESERVED_CONCURRENCY }}
-      # Read by the workers at synth (config/staging.ts posthog.key); unset, a deploy drops it.
-      ROBES_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/platform-setup
@@ -53,6 +42,18 @@ jobs:
           role-session-name: robes-deploy-staging-${{ github.run_id }}
 
       - name: cdk deploy (Staging)
+        # Synth inputs for this deploy only: the infra tests above run with a clean environment.
+        env:
+          ROBES_STAGING_AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          ROBES_STAGING_CF_PUBLIC_KEY: ${{ vars.CLOUDFRONT_PUBLIC_KEY }}
+          ROBES_STAGING_MEDIA_DOMAIN: ${{ vars.MEDIA_DOMAIN }}
+          ROBES_STAGING_MEDIA_CERT_ARN: ${{ vars.MEDIA_CERT_ARN }}
+          ROBES_STAGING_ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+          ROBES_STAGING_BUDGET_EMAIL: ${{ vars.BUDGET_EMAIL }}
+          ROBES_STAGING_BUDGETS: ${{ vars.BUDGETS }}
+          ROBES_STAGING_GENERATE_RESERVED_CONCURRENCY: ${{ vars.GENERATE_RESERVED_CONCURRENCY }}
+          # Read by the workers at synth (config/staging.ts posthog.key); unset, a deploy drops it.
+          ROBES_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
         working-directory: platform/infra
         # A script, not `pnpm exec`: exec puts a relative .bin on PATH and esbuild bundling breaks.
         # Stacks live inside the Staging Stage, so select them by path; --all only sees top-level stacks.

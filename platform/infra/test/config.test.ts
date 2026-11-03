@@ -9,6 +9,7 @@ describe('stage config helpers', () => {
   });
 
   it('reads alert emails as a comma-separated list', () => {
+    delete process.env.ROBES_STAGING_ALERT_EMAIL;
     expect(listFromEnv('ROBES_STAGING_ALERT_EMAIL')).toEqual([]);
     process.env.ROBES_STAGING_ALERT_EMAIL = 'a@byrobes.com, b@codu.co,';
     expect(listFromEnv('ROBES_STAGING_ALERT_EMAIL')).toEqual(['a@byrobes.com', 'b@codu.co']);
