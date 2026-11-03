@@ -71,13 +71,20 @@ describe('the draft composer', () => {
     expect(compositionKey([])).toBe('');
   });
 
-  it('opens a hand-built draft in the composer, never a suggestion or a photograph', () => {
-    const base = { status: 'draft', setId: null, frame: false, image: null, onModel: null };
+  it('opens a hand-built draft in the composer, never a suggestion or a Robes picture', () => {
+    const base = { status: 'draft', setId: null, frame: false, model: null, onModel: null };
     expect(isHandBuiltDraft(base)).toBe(true);
-    expect(isHandBuiltDraft({ ...base, image: {}, onModel: 'ready' })).toBe(true);
-    expect(isHandBuiltDraft({ ...base, image: {} })).toBe(false);
+    expect(isHandBuiltDraft({ ...base, model: {}, onModel: 'ready' })).toBe(true);
+    expect(isHandBuiltDraft({ ...base, model: {} })).toBe(false);
     expect(isHandBuiltDraft({ ...base, setId: 'x' })).toBe(false);
     expect(isHandBuiltDraft({ ...base, frame: true })).toBe(false);
     expect(isHandBuiltDraft({ ...base, status: 'saved' })).toBe(false);
+  });
+
+  it('keeps a hand-built draft in the composer once her photograph is added to it', () => {
+    const draft = { status: 'draft', setId: null, frame: false, onModel: null };
+    // Her photograph is the record (image), but Robes has drawn nothing: still the composer.
+    const withPhoto = { ...draft, image: {}, photo: {}, model: null };
+    expect(isHandBuiltDraft(withPhoto)).toBe(true);
   });
 });

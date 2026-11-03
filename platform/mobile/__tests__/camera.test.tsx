@@ -3,6 +3,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Alert, Linking } from 'react-native';
 import { Camera } from '../src/features/wardrobe/Camera';
 import { CAPTURE_MAX, captureSize, downscale } from '../src/features/wardrobe/camera-capture';
+import { nativeAnalytics } from '../src/lib/analytics';
 import { mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, JOB_ID } from './support/fixtures';
 import { mockParams, mockRouter } from './support/router';
@@ -45,6 +46,9 @@ jest.mock('expo-camera', () => {
     },
   };
 });
+
+// Call sites report through the consent-gated client (observability.test.ts proves the gate).
+const track = jest.spyOn(nativeAnalytics, 'track');
 
 const mockResize = jest.fn();
 const mockSave = jest.fn(async () => ({ uri: 'file:///tmp/small.jpg', width: 1200, height: 1600 }));
@@ -192,6 +196,7 @@ test('each shot is read as it is taken; the tray counts, and Review opens on the
   expect(JSON.parse(href.params.shots)).toEqual([
     { uri: 'file:///tmp/small.jpg', width: 1200, height: 1600, jobId: JOB_ID },
   ]);
+  expect(track.mock.calls).toEqual([['camera_opened'], ['camera_filed', { n: 1 }]]);
 });
 
 test('where the pieces go comes from the Add pieces sheet; the camera has no toggle', async () => {

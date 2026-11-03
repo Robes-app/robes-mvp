@@ -7,6 +7,7 @@ import {
 } from '@robes/api-client/react';
 import type { Plan } from '@robes/contracts';
 import { plan as copy, errors, ui } from '@robes/copy';
+import { weekdayDayMonth } from '@robes/core/calendar';
 import { useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -22,15 +23,10 @@ export function usePlanDay(date: string) {
   return useApi('plan.get', { input: { from: date, days: 1 } });
 }
 
-// "Thu 1 Oct" for a calendar date; dates are calendar text, so format them in UTC.
+// "Thu 1 Oct" for a calendar date, months from the table (never "Sept"). Twin of web lib/dates.ts.
 export function dayLabel(date: string, today?: string): string {
   if (date === today) return copy.today;
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  }).format(new Date(`${date}T00:00:00Z`));
+  return weekdayDayMonth(date);
 }
 
 function withoutEntry(old: unknown, id: string): unknown {

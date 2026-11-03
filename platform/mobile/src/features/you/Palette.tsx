@@ -15,7 +15,7 @@ import { Button, PreferenceControl, Text, useColor, useToast } from '@robes/ui-n
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { FamilyTile, ShadeSwatch } from '@/features/wardrobe/ColourField';
+import { FamilyTile, PrintSwatch, ShadeSwatch } from '@/features/wardrobe/ColourField';
 import { errorMessage } from '@/lib/errors';
 
 const copy = you.style.palette;
@@ -150,8 +150,8 @@ export function ColoursBody() {
   );
 }
 
-// Your prints: the ten prints Robes can act on. A pattern is a CSS gradient on the web, which
-// React Native cannot paint, so a print row here is its name and her answer.
+// Your prints: the ten prints Robes can act on, each a square of its own print beside its name
+// (the SVG twin of the web's css swatch); avoid fades the swatch only, as a colour row does.
 export function PrintsBody() {
   const { palette, set } = usePalette();
   if (!palette) return null;
@@ -164,7 +164,12 @@ export function PrintsBody() {
           return (
             <View key={p.id} className={rowClass(v)}>
               <View className="flex-row items-center gap-3 py-3">
-                <Text className="flex-1">{p.name}</Text>
+                <View className="flex-1 flex-row items-center gap-4">
+                  <View className={v === -1 ? 'opacity-40' : undefined}>
+                    <PrintSwatch id={p.id} size={48} />
+                  </View>
+                  <Text className="flex-1">{p.name}</Text>
+                </View>
                 <PreferenceControl
                   label={p.name}
                   value={v}

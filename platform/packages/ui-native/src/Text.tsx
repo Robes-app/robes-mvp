@@ -100,14 +100,27 @@ export function Heading({
 }
 
 // ROBES in Cormorant caps, tracked wide: the mark, never typed text.
-export function Wordmark({ className, style, ...rest }: RNTextProps) {
+// Beta's header mark (.nav-logo): Cormorant 400 at 17, tracked .34em; hero is the splash.
+// Twin of web ui wordmark.tsx.
+const WORDMARK = {
+  header: { className: 'text-[17px]', font: fonts.displayRegular, letterSpacing: 5.8 },
+  hero: { className: 'text-5xl', font: fonts.display, letterSpacing: 15 },
+} as const;
+
+export function Wordmark({
+  size = 'header',
+  className,
+  style,
+  ...rest
+}: RNTextProps & { size?: keyof typeof WORDMARK }) {
+  const mark = WORDMARK[size];
   return (
     <RNText
       accessibilityRole="header"
       maxFontSizeMultiplier={maxFontSizeMultiplier.heading}
       {...rest}
-      className={cx('text-xl uppercase text-ink', className)}
-      style={[{ fontFamily: fonts.display, letterSpacing: 6 }, style]}
+      className={cx(mark.className, 'uppercase text-ink', className)}
+      style={[{ fontFamily: mark.font, letterSpacing: mark.letterSpacing }, style]}
     >
       {ui.wordmark}
     </RNText>

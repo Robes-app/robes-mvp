@@ -1,4 +1,5 @@
 import { applyAsk } from '@robes/core/looks';
+import { pieceEyebrow } from '@robes/core/wardrobe';
 import { describe, expect, it } from 'vitest';
 import { askChanges, askRack, rackFromLook, rackUpdate } from './rack';
 
@@ -97,5 +98,17 @@ describe('the rack, shared by both clients', () => {
       },
     });
     expect(askChanges({ swaps: [], back: [], backAll: false, styled: [] })).toBe(false);
+  });
+
+  it('carries each piece’s subcategory, so the rack and the wardrobe share one eyebrow', () => {
+    const knit = { ...tee, label: 'Grey jumper', categoryL2: 'Jumpers & sweaters', brand: 'COS' };
+    const rack = rackFromLook({ ...look, pieces: [{ piece: knit, role: 'canvas' }] } as never);
+    const row = rack.rows.find((r) => r.pieceId === knit.id);
+    expect(row).toMatchObject({ category: 'Tops', categoryL2: 'Jumpers & sweaters' });
+    if (!row) throw new Error('no row');
+    expect(pieceEyebrow({ ...row, categoryL2: row.categoryL2 ?? null })).toEqual({
+      category: 'Knitwear',
+      brand: 'COS',
+    });
   });
 });

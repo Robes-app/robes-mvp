@@ -6,7 +6,8 @@ import { lookbook as copy } from '@robes/copy';
 import { pieceMatches, sheetCategoryOf, sheetChips, theName } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { Button, Pill, Sheet, Text } from '@robes/ui';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 
 const focus =
@@ -41,7 +42,7 @@ export function SwapSheet({
   title?: string;
   // "Photograph one": the photograph files straight into her wardrobe and onto the look.
   onSnap?: (file: File) => void;
-  // A suggested look swaps on the one tap (legacy 0.1); its Undo is the way back.
+  // One tap swaps (a suggestion, legacy 0.1; a saved look while she edits, L5); its Undo is the way back.
   instant?: boolean;
 }) {
   const pieces = useApi('wardrobe.list', { input: { limit: 100 } }, { enabled: open });
@@ -53,6 +54,12 @@ export function SwapSheet({
   const [category, setCategory] = useState<string | null | undefined>(undefined);
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Piece | null>(null);
+  const { track } = useAnalytics().analytics;
+  // Fires as the sheet opens, once per opening.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per opening, not per prop.
+  useEffect(() => {
+    if (open) track('swap_drawer_opened', { mode: swapping ? 'swap' : 'add' });
+  }, [open]);
   const file = useRef<HTMLInputElement>(null);
   const first = useRef<HTMLButtonElement>(null);
   const preset = swapping?.category ?? opensOn;
@@ -111,7 +118,7 @@ export function SwapSheet({
     >
       <div className="flex flex-col gap-4">
         <label
-          className={`flex min-h-11 items-center gap-2 rounded-pill border border-border-control bg-surface-raised px-4 focus-within:border-ink`}
+          className={`flex min-h-11 items-center gap-2 rounded-pill border border-border-control bg-surface-raised px-4 focus-within:border-ink focus-within:ring-1 focus-within:ring-ink focus-within:ring-inset`}
         >
           <Icon name="search" size={16} className="text-ink-muted" />
           <span className="sr-only">{copy.sheet.search}</span>

@@ -6,6 +6,7 @@ export * from './jobs';
 export * from './looks';
 export * from './me';
 export * from './media';
+export * from './notifications';
 export * from './notify';
 export * from './photo-reads';
 export * from './plan';

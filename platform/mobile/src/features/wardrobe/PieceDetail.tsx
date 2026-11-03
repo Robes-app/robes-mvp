@@ -12,6 +12,7 @@ import {
   IconButton,
   Image,
   PrimaryScope,
+  Sheet,
   Skeleton,
   Text,
   useColor,
@@ -22,12 +23,13 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SavedTile } from '@/features/looks/LookTiles';
 import { SuggestedRail } from '@/features/looks/SuggestedRail';
+import { SettingsRow } from '@/features/you/Settings';
 import { errorMessage } from '@/lib/errors';
 import { renditionUri } from '@/lib/images';
 import { StarButton } from './PieceCard';
 import { type PieceField, PieceFieldSheet } from './PieceFieldSheet';
 import { RecordRows } from './PieceRows';
-import { READING_REFRESH_MS, useDeletePiece, useStarPiece } from './pieces';
+import { READING_REFRESH_MS, useDeletePiece, usePiecePhoto, useStarPiece } from './pieces';
 
 const LOOKS_LIMIT = 30;
 
@@ -38,6 +40,7 @@ export function PieceDetail({ id }: { id: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [field, setField] = useState<PieceField | null>(null);
+  const photo = usePiecePhoto(id);
   const {
     data: piece,
     isPending,
@@ -46,8 +49,16 @@ export function PieceDetail({ id }: { id: string }) {
   } = useApi(
     'wardrobe.get',
     { params: { id } },
-    { refetchInterval: (q) => (q.state.data?.status === 'reading' ? READING_REFRESH_MS : false) },
+    {
+      // Reading, or the photo she just changed still rendering: refresh until it fills in.
+      refetchInterval: (q) =>
+        q.state.data?.status === 'reading' ||
+        (photo.preview !== null && q.state.data?.image?.status === 'pending')
+          ? READING_REFRESH_MS
+          : false,
+    },
   );
+  const [choosing, setChoosing] = useState(false);
   const remove = useDeletePiece();
   const star = useStarPiece();
   const update = useApiMutation('wardrobe.update', {
@@ -68,23 +79,33 @@ export function PieceDetail({ id }: { id: string }) {
   if (isError || !piece) return <EmptyState title={errorMessage(error)} />;
 
   const uri = renditionUri(piece.image, 400);
+  // The photo she just picked stands in until its renditions land.
+  const shown = uri ?? photo.preview;
   const reading = piece.status === 'reading';
   const ready = piece.status === 'ready';
   const save = (input: UpdatePieceInput) => update.mutate({ params: { id: piece.id }, input });
   return (
     <View className="flex-1">
       <ScrollView contentContainerClassName="gap-5 px-6 pb-10">
-        {/* The whole cut-out, contained on white in a 4:5 frame: never cropped at the hem. */}
-        {uri ? (
-          <View className="rounded-crisp border border-hairline bg-surface-raised p-4">
+        {/* The whole cut-out, contained on white in a 4:5 frame: never cropped at the hem. The
+            frame stands without a photo too, so Change photo has a place to sit. */}
+        <View className="relative rounded-crisp border border-hairline bg-surface-raised p-4">
+          {shown ? (
             <Image
-              source={uri}
+              source={shown}
               alt={copy.photoAlt(piece.label)}
-              blurhash={piece.image?.blurhash}
+              blurhash={uri ? piece.image?.blurhash : null}
               contentFit="contain"
             />
-          </View>
-        ) : null}
+          ) : (
+            <View accessibilityElementsHidden style={{ aspectRatio: 4 / 5 }} />
+          )}
+          <ChangePhoto
+            hasPhoto={piece.image !== null}
+            busy={photo.busy}
+            onPress={() => setChoosing(true)}
+          />
+        </View>
         <View className="gap-1.5">
           <View className="flex-row items-start gap-2">
             {/* Until Robes has read it, "New piece" is a placeholder, not a fact. */}
@@ -172,7 +193,60 @@ export function PieceDetail({ id }: { id: string }) {
         onSave={save}
         saving={update.isPending}
       />
+      <Sheet
+        open={choosing}
+        onClose={() => setChoosing(false)}
+        title={piece.image ? copy.piece.changePhoto : copy.piece.addPhoto}
+        closeButton
+      >
+        <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
+          <SettingsRow
+            first
+            label={copy.add.doors.photograph}
+            onPress={() => {
+              setChoosing(false);
+              void photo.take('camera');
+            }}
+          />
+          <SettingsRow
+            label={copy.add.doors.cameraRoll}
+            onPress={() => {
+              setChoosing(false);
+              void photo.take('library');
+            }}
+          />
+        </View>
+      </Sheet>
     </View>
+  );
+}
+
+// The pill at the photograph's bottom-right (legacy rb-pc-rephoto): ↻ Change photo, or the camera
+// when there is none yet. Web twin: ChangePhoto in app/src/app/(app)/piece/[id]/piece-detail.tsx.
+function ChangePhoto({
+  hasPhoto,
+  busy,
+  onPress,
+}: {
+  hasPhoto: boolean;
+  busy: boolean;
+  onPress: () => void;
+}) {
+  const ink = useColor('ink');
+  const label = hasPhoto ? copy.piece.changePhoto : copy.piece.addPhoto;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: busy, busy }}
+      disabled={busy}
+      onPress={onPress}
+      style={{ minHeight: 44 }}
+      className={`absolute right-3.5 bottom-3.5 flex-row items-center gap-2 rounded-pill border border-hairline bg-bg pr-4 pl-3.5 ${busy ? 'opacity-50' : ''}`}
+    >
+      <Icon name={hasPhoto ? 'swap' : 'camera'} size={16} color={ink} />
+      <Text size="small">{label}</Text>
+    </Pressable>
   );
 }
 

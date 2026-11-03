@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AccessibilityInfo, Pressable, Text } from 'react-native';
-import { TOAST_MIN_DURATION } from './scale';
+import { TOAST_DEFAULT_DURATION, TOAST_MIN_DURATION } from './scale';
 import { type ToastOptions, ToastProvider, useToast } from './Toast';
 
 function Trigger({ options }: { options: ToastOptions }) {
@@ -31,10 +31,33 @@ test('shows a message with an Undo action that runs and dismisses', async () => 
   expect(screen.queryByText('Piece removed.')).toBeNull();
 });
 
-test('stays up for at least 6 s even when asked for less', async () => {
+test('a plain toast leaves after the default, as on web', async () => {
   await render(
     <ToastProvider>
-      <Trigger options={{ message: 'Piece removed.', duration: 1000 }} />
+      <Trigger options={{ message: 'Saved.' }} />
+    </ToastProvider>,
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
+  await act(async () => {
+    jest.advanceTimersByTime(TOAST_DEFAULT_DURATION - 1);
+  });
+  expect(screen.getByText('Saved.')).toBeTruthy();
+  await act(async () => {
+    jest.advanceTimersByTime(1);
+  });
+  expect(screen.queryByText('Saved.')).toBeNull();
+});
+
+test('an Undo toast stays up for at least 6 s even when asked for less', async () => {
+  await render(
+    <ToastProvider>
+      <Trigger
+        options={{
+          message: 'Piece removed.',
+          duration: 1000,
+          action: { label: 'Undo', onPress: () => {} },
+        }}
+      />
     </ToastProvider>,
   );
   await fireEvent.press(screen.getByRole('button', { name: 'Remove' }));
@@ -69,12 +92,13 @@ test('a newer toast replaces the old one and gets its own full duration', async 
   );
   await fireEvent.press(screen.getByRole('button', { name: 'One' }));
   await act(async () => {
-    jest.advanceTimersByTime(4000);
+    jest.advanceTimersByTime(3000);
   });
   await fireEvent.press(screen.getByRole('button', { name: 'Two' }));
   expect(screen.queryByText('First.')).toBeNull();
+  // Past where the first would have gone, the second still has its own time left.
   await act(async () => {
-    jest.advanceTimersByTime(4000);
+    jest.advanceTimersByTime(3000);
   });
   expect(screen.getByText('Second.')).toBeTruthy();
 });

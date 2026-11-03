@@ -19,4 +19,7 @@ export const fonts = {
 
 export const HEADING_MIN_SIZE = 17;
 export const MIN_TOUCH = 44;
+// A toast with an action (Undo) stays at least this long; a plain one leaves after the default.
+// Twin of web toast.tsx ACTION_MIN_DURATION / DEFAULT_DURATION.
 export const TOAST_MIN_DURATION = 6000;
+export const TOAST_DEFAULT_DURATION = 4000;

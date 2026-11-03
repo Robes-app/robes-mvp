@@ -1,5 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, diaryDays, diaryPick, monthGrid, monthLabel, shiftMonth } from './index';
+import {
+  addDays,
+  DIARY_AHEAD,
+  DIARY_BACK,
+  dayOotd,
+  daysBetween,
+  diaryDays,
+  diaryMarks,
+  diaryPages,
+  diaryPick,
+  diaryWindow,
+  longDate,
+  monthGrid,
+  monthLabel,
+  monthLong,
+  shiftMonth,
+  WEEKDAYS_SHORT,
+  weekdayDay,
+  weekdayLong,
+  weekdayShort,
+} from './index';
 
 describe('calendar', () => {
   it('builds a Monday-first month grid', () => {
@@ -15,6 +35,10 @@ describe('calendar', () => {
     expect(shiftMonth('2026-12', 1)).toBe('2027-01');
     expect(shiftMonth('2026-01', -1)).toBe('2025-12');
     expect(addDays('2026-02-28', 1)).toBe('2026-03-01');
+    expect(daysBetween('2026-02-28', '2026-03-01')).toBe(1);
+    expect(daysBetween('2026-10-28', '2026-10-21')).toBe(-7);
+    // Across a clock change the count is still whole days.
+    expect(daysBetween('2026-03-28', '2026-03-30')).toBe(2);
     expect(monthLabel('2026-10')).toBe('October 2026');
   });
 });
@@ -39,6 +63,12 @@ describe('day planning', () => {
     const { dayMonth } = await import('./index');
     expect(dayMonth('2026-09-06')).toBe('6 Sep');
     expect(longDate('2026-10-13')).toBe('Tuesday 13 October');
+    const { lookDateName } = await import('./index');
+    expect(lookDateName('2026-10-28')).toBe('Wednesday 28 Oct');
+    // Never "Sept": the month comes from the table.
+    expect(lookDateName('2026-09-08')).toBe('Tuesday 8 Sep');
+    const { weekdayDayMonth } = await import('./index');
+    expect(weekdayDayMonth('2026-09-08')).toBe('Tue 8 Sep');
     expect(weekdayShort('2026-10-13')).toBe('Tue');
     expect(mondayOf('2026-10-18')).toBe('2026-10-12');
   });
@@ -130,5 +160,71 @@ describe('diaryPick', () => {
 
   it('treats today as a day ahead, so it files rather than records', () => {
     expect(diaryPick('2026-10-23', '2026-10-23', clear).action).toBe('put');
+  });
+});
+
+describe('diaryMarks', () => {
+  const day = (date: string, ...ids: string[]) => ({
+    date,
+    entries: ids.map((id) => ({ look: { id } })),
+  });
+
+  it('marks every wear of the look, not only the last, as worn and filed', () => {
+    const m = diaryMarks([day('2026-10-01'), day('2026-10-02', 'b')], 'a', [
+      '2026-10-03',
+      '2026-09-12',
+      null,
+    ]);
+    expect([...m.worn].sort()).toEqual(['2026-09-12', '2026-10-03']);
+    expect([...m.filed].sort()).toEqual(['2026-09-12', '2026-10-02', '2026-10-03']);
+    expect(m.pinned.size).toBe(0);
+  });
+
+  it('knows the days this look is pinned to', () => {
+    const m = diaryMarks([day('2026-10-02', 'b', 'a'), day('2026-10-04', 'b')], 'a', []);
+    expect([...m.pinned]).toEqual(['2026-10-02']);
+    expect(diaryMarks([day('2026-10-02', 'a')], null, []).pinned.size).toBe(0);
+  });
+});
+
+describe('weekdays', () => {
+  it('heads a Monday-first month from one table, and names a day from it', () => {
+    expect(WEEKDAYS_SHORT).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+    // 1 Oct 2026 is a Thursday: monthGrid pads three cells, so the heads line up over it.
+    expect(monthGrid('2026-10').cells.indexOf('2026-10-01')).toBe(3);
+    expect(weekdayShort('2026-10-01')).toBe(WEEKDAYS_SHORT[3]);
+    expect(weekdayShort('2026-10-04')).toBe('Sun');
+    expect(weekdayShort('2026-10-05')).toBe('Mon');
+  });
+});
+
+describe('names come from the tables', () => {
+  it('reads every month and weekday in full, the same everywhere', () => {
+    expect(monthLabel('2026-09')).toBe('September 2026');
+    expect(longDate('2026-09-08')).toBe('Tuesday 8 September');
+    expect(weekdayLong('2026-10-28')).toBe('Wednesday');
+    expect(monthLong('2026-09-30')).toBe('September');
+    expect(weekdayLong('2026-11-01')).toBe('Sunday');
+  });
+});
+
+describe('the diary window', () => {
+  it('reaches ten days back and ahead of today, every date present', () => {
+    const w = diaryWindow('2026-11-02');
+    expect([w.from, w.to]).toEqual(['2026-10-23', '2026-11-12']);
+    expect(w.days).toHaveLength(DIARY_BACK + DIARY_AHEAD + 1);
+    expect(w.days[DIARY_BACK]).toBe('2026-11-02');
+    const pages = diaryPages(w.days);
+    expect(pages.map((p) => p.length)).toEqual([7, 7, 7]);
+    expect(pages[1]?.[3]).toBe('2026-11-02');
+    expect(weekdayDay('2026-11-03')).toBe('Tue 3');
+  });
+
+  it('leads a day with what she wore, else the first in order', () => {
+    const a = { worn: false, position: 0 };
+    const b = { worn: true, position: 1 };
+    expect(dayOotd([a, b])).toBe(b);
+    expect(dayOotd([a, { worn: false, position: 1 }])).toBe(a);
+    expect(dayOotd([])).toBeNull();
   });
 });

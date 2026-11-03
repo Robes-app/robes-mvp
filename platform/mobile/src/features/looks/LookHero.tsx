@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { errors, lookbook, looks as looksCopy, ui, wardrobe, you } from '@robes/copy';
+import { errors, lookbook, looks as looksCopy, ui, you } from '@robes/copy';
 import { lookLine, lookWearFor } from '@robes/core/looks';
 import {
   Eyebrow,
@@ -13,12 +13,10 @@ import {
   useToast,
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { PICKER_OPTIONS, uploadPhoto } from '@/features/wardrobe/add-pieces';
-import { SettingsRow } from '@/features/you/Settings';
 import { renditionUri } from '@/lib/images';
+import { useHerPhoto } from './her-photo';
 import { LookPicture } from './LookPicture';
 
 const copy = looksCopy.page;
@@ -43,21 +41,16 @@ export function LookHero({
   const toast = useToast();
   const queryClient = useQueryClient();
   const key = queryKeys.call('looks.get', { params: { id: look.id } });
-  const [busy, setBusy] = useState(false);
-  const [choosing, setChoosing] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const landed = (updated: Look) => {
     queryClient.setQueryData(key, updated);
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
   };
-  // Her model can wear the look once she has one filed and drawn (beta dressed every saved look).
+  // Every saved look can be worn by a model: her twin, her filed cell, else the generic Robes
+  // model — `stand`, the one renderOnModel draws on (beta dressed every saved look).
   // Twin of web components/looks/look-hero.tsx.
   const me = useApi('me.model.get');
-  const canDress =
-    me.data?.filed === true &&
-    me.data.cell.status === 'ready' &&
-    look.pieces.length > 0 &&
-    !look.frame;
+  const canDress = !!me.data?.stand?.imageUrl && look.pieces.length > 0 && !look.frame;
   const dress = useApiMutation('looks.renderOnModel', {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: key }),
     onError: () => toast.show({ message: errors.internal }),
@@ -67,14 +60,20 @@ export function LookHero({
       dress.mutate({ params: { id: l.id } });
     }
   };
+  // Opened with nothing drawn on a model yet (beta rendered every saved look on open): start it
+  // quietly, once per look — a model still being drawn (conflict) waits for the next open.
+  const opened = useRef<string | null>(null);
+  useEffect(() => {
+    if (!canDress || look.model !== null || look.onModel === 'pending') return;
+    if (look.status !== 'saved' || opened.current === look.id) return;
+    opened.current = look.id;
+    void api
+      .call('looks.renderOnModel', { params: { id: look.id } })
+      .then(() => queryClient.invalidateQueries({ queryKey: key }))
+      .catch(() => undefined);
+  }, [api, canDress, key, look.id, look.model, look.onModel, look.status, queryClient]);
   // Her photograph lands; her model starts dressing the look, so You · Model has both sides.
-  const attach = useApiMutation('looks.photo', {
-    onSuccess: (updated) => {
-      landed(updated);
-      dressIfNeeded(updated);
-    },
-    onError: () => toast.show({ message: errors.internal }),
-  });
+  const herPhoto = useHerPhoto(look, dressIfNeeded);
   const update = useApiMutation('looks.update', {
     onSuccess: landed,
     onError: () => {
@@ -83,39 +82,10 @@ export function LookHero({
     },
   });
 
-  const take = async (from: 'camera' | 'library') => {
-    setChoosing(false);
-    if (from === 'camera') {
-      const allowed = await ImagePicker.requestCameraPermissionsAsync();
-      if (!allowed.granted) return;
-    }
-    const picked =
-      from === 'camera'
-        ? await ImagePicker.launchCameraAsync(PICKER_OPTIONS)
-        : await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
-    const photo = picked.assets?.[0];
-    if (picked.canceled || !photo) return;
-    setBusy(true);
-    try {
-      const assetId = await uploadPhoto(api, photo, 'look_photo');
-      attach.mutate({ params: { id: look.id }, input: { assetId } });
-    } catch {
-      toast.show({ message: errors.internal });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // The tap is the choice: the picture swaps at once, then the record is saved.
+  // Model before her model has worn it starts the dressing; the picture follows when it lands.
   const choose = (record: 'photo' | 'model') => {
     if (record === look.record) return;
-    queryClient.setQueryData(key, {
-      ...look,
-      record,
-      image: record === 'photo' ? look.photo : (look.model ?? look.photo),
-    });
-    update.mutate({ params: { id: look.id }, input: { record } });
-    // Model before her model has worn it starts the dressing; the picture follows when it lands.
+    herPhoto.choose(record);
     if (record === 'model') dressIfNeeded(look);
   };
 
@@ -170,6 +140,15 @@ export function LookHero({
               {you.model.dressing}
             </Text>
           </View>
+        ) : look.onModel === 'failed' && canDress && look.record !== 'photo' ? (
+          // The rack changed and the re-draw failed: say so (web twin look-hero.tsx).
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => dress.mutate({ params: { id: look.id } })}
+            className="absolute top-3 left-3 min-h-11 justify-center rounded-pill border border-hairline bg-bg px-3"
+          >
+            <Text size="caption">{you.model.undressed}</Text>
+          </Pressable>
         ) : null}
         <View className="absolute bottom-3 left-3 rounded-pill bg-bg">
           <IconButton icon="plan" label={lookbook.card.diary} onPress={onDiary} />
@@ -177,9 +156,9 @@ export function LookHero({
         <View className="absolute right-3 bottom-3 rounded-pill bg-bg">
           <IconButton
             icon={hasPhoto ? 'swap' : 'camera'}
-            label={hasPhoto ? copy.replacePhoto : copy.addPhoto}
-            disabled={busy || attach.isPending}
-            onPress={() => setChoosing(true)}
+            label={herPhoto.label}
+            disabled={herPhoto.busy}
+            onPress={herPhoto.pick}
           />
         </View>
       </View>
@@ -232,21 +211,7 @@ export function LookHero({
           </Text>
         )}
       </View>
-      <Sheet
-        open={choosing}
-        onClose={() => setChoosing(false)}
-        title={hasPhoto ? copy.replacePhoto : copy.addPhoto}
-        closeButton
-      >
-        <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
-          <SettingsRow
-            first
-            label={wardrobe.add.doors.photograph}
-            onPress={() => void take('camera')}
-          />
-          <SettingsRow label={wardrobe.add.doors.cameraRoll} onPress={() => void take('library')} />
-        </View>
-      </Sheet>
+      {herPhoto.sheet}
       <Sheet
         open={tagsOpen}
         onClose={() => setTagsOpen(false)}

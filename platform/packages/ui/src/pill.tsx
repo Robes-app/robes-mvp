@@ -4,10 +4,11 @@ import { cn, focusRing } from './cn';
 
 const base =
   'relative inline-flex items-center gap-1.5 rounded-pill border font-sans motion-safe:transition-colors motion-safe:duration-150';
-// md: 44 tall. sm: a 36-tall chip at 12px for dense walls (brands, icons), its hit area still 44.
+// Beta's .rb-pill: md 36 tall at 12px; sm a 32-tall chip for dense walls (brands, icons). Both
+// keep a 44 hit area past the visible edge. Twin of ui-native Pill.tsx.
 const sizes = {
-  md: 'min-h-11 px-4 text-sm',
-  sm: "min-h-9 px-3.5 text-xs after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
+  md: "min-h-9 px-4 text-xs after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
+  sm: "min-h-8 px-3.5 text-xs after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']",
 } as const;
 
 // The pill anatomy on its own, for the controls that are not toggles — a menu

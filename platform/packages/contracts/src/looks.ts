@@ -130,6 +130,7 @@ const RackRowJson = z.object({
   pieceId: z.uuid().nullable(),
   name: z.string().max(120),
   category: z.string().max(40),
+  categoryL2: z.string().max(60).nullable().optional(),
   brand: z.string().max(60).nullable(),
   role: LookRole.nullable(),
   proposal: Proposal.nullable(),
@@ -201,6 +202,9 @@ export const Look = z.object({
   dateHint: wornOn.nullable(),
   timesWorn: z.number().int().min(0),
   lastWornOn: wornOn.nullable(),
+  // The days it is pinned on from yesterday on, earliest first; the client keeps her today on.
+  // Defaulted so a phone build ahead of the server still parses an older response.
+  pinnedOn: z.array(wornOn).default([]),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -293,9 +297,25 @@ export const SaveWayInput = z.object({ wayIdx: z.number().int().min(0).max(2) })
 export const SaveLookInput = z.object({ name: lookName.optional() });
 
 // A new look in her words: three suggested looks for a day (dated when her words or a door name one).
+// The prompt box's pieces and place (Front Door design 3k): pieces of hers every look is built
+// around, and where she is that day when it is not home. Both are ids and intent only (SEC-16).
+const PromptAround = {
+  pieceIds: z.array(z.uuid()).max(8).optional(),
+  // × on the weather chip: the look is dressed for the day without its forecast.
+  weather: z.boolean().optional(),
+  place: z
+    .object({
+      city: z.string().trim().min(1).max(120),
+      country: z.string().trim().max(120).nullable().default(null),
+      lat: z.number().min(-90).max(90),
+      lon: z.number().min(-180).max(180),
+    })
+    .optional(),
+};
 export const PromptLookInput = z.object({
   prompt: z.string().trim().min(2).max(300),
   date: wornOn.optional(),
+  ...PromptAround,
   ...BalanceFields,
 });
 export type PromptLookInput = z.infer<typeof PromptLookInput>;
@@ -351,6 +371,7 @@ export const AskTarget = z.union([
     pieceId: z.uuid(),
     name: z.string(),
     category: z.string(),
+    categoryL2: z.string().nullable().optional(),
     brand: z.string().nullable(),
   }),
   z.object({
@@ -387,6 +408,7 @@ export const KeyPieceJobInput = z.union([
     mode: z.literal('prompt'),
     prompt: z.string().min(2).max(300),
     date: wornOn.optional(),
+    ...PromptAround,
     ...BalanceFields,
   }),
   z.object({ mode: z.literal('restyle'), lookId: z.uuid() }),

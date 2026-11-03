@@ -1,4 +1,5 @@
-# Passwordless sign-in → two-screen onboarding → the shell (tabs, Create, You) → sign out,
+# Passwordless sign-in → Getting to know you (name, identity; styles, brands, colours left
+# empty) → the shell (tabs, Create, You) → sign out,
 # in Expo Go against the local API.
 # Run with: pnpm --filter @robes/mobile e2e (starts nothing; needs dev:web + expo start running).
 # EMAIL and EXPO_URL come from e2e/run.sh (a flow-level env block would override them).
@@ -30,10 +31,16 @@ appId: host.exp.Exponent
 - inputText: 'Niall'
 - tapOn: 'Continue'
 - extendedWaitUntil:
-    visible: 'Add your first piece.'
+    visible: 'How do you identify?'
     timeout: 15000
-- tapOn: 'Skip for now'
-- tapOn: 'Skip anyway — Robes styles only what you add'
+- tapOn: 'Woman'
+- tapOn: 'Continue'
+- assertVisible: 'Which styles feel like you?'
+- tapOn: 'Continue'
+- assertVisible: 'Any favourite brands?'
+- tapOn: 'Continue'
+- assertVisible: 'Colours you love or avoid.'
+- tapOn: 'Get started'
 - extendedWaitUntil:
     visible: '.*, Niall\.'
     timeout: 15000

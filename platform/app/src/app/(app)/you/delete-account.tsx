@@ -1,24 +1,28 @@
 'use client';
 
-import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
+import { useApi, useApiMutation } from '@robes/api-client/react';
 import { errors, you } from '@robes/copy';
-import { Button, Dialog, Field, Text } from '@robes/ui';
-import { useQueryClient } from '@tanstack/react-query';
+import { Button, Dialog, Field, Text, useToast } from '@robes/ui';
 import { useState } from 'react';
 import { SettingsRowContent, settingsRowClass } from '@/components/settings/settings-chrome';
+import { useSignOut } from '@/components/use-sign-out';
 
 const CONFIRM_WORD = 'DELETE';
 
-// SEC-80 (a row of the Account tab's Profile card): typed confirmation, then the request is recorded and the account shows as being deleted.
+// SEC-80 (a row of the Account tab's Profile card): typed confirmation, then the request is
+// recorded, she is told and signed out; the deletion job removes everything within minutes.
+// Native twin: mobile/src/features/you/DeleteAccount.tsx.
 export function DeleteAccount() {
-  const queryClient = useQueryClient();
+  const signOut = useSignOut();
+  const toast = useToast();
   const status = useApi('me.deletion.get');
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState('');
   const request = useApiMutation('me.deletion.request', {
-    onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.call('me.deletion.get'), { request: data });
+    onSuccess: () => {
       setOpen(false);
+      toast({ message: you.deletion.requested });
+      void signOut();
     },
   });
 

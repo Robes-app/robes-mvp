@@ -97,7 +97,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
       ROBES_PRODUCTION_GITHUB_OIDC_PROVIDER_ARN=arn:aws:iam::259887029472:oidc-provider/token.actions.githubusercontent.com \
       pnpm cdk deploy 'Production/*' -c stage=production --output cdk.out.prod
     ```
-    Lambda's account limit is 10 (hence no reserved concurrency), the account is an Organizations member (no budgets), and neither stage has a custom media domain yet (`MEDIA_PUBLIC_ORIGIN` is the CloudFront domain). The GitHub `staging`/`production` environments are not set up, so `platform-deploy-*` never runs: deploy from a laptop after merging worker or infra changes, and always `cdk diff` first.
+    Lambda's account limit is 10 (hence no reserved concurrency), the account is an Organizations member (no budgets), and neither stage has a custom media domain yet (`MEDIA_PUBLIC_ORIGIN` is the CloudFront domain). The GitHub `staging`/`production` environments are not set up yet, so deploy staging from a laptop after merging worker or infra changes (always `cdk diff` first) until §5 step 5 is done. The website alone redeploys on a `beta` merge; the workers (photo reads, looks, images) do not — a merge that changes `packages/jobs`, `packages/ai` or `workers/` reaches staging only with a deploy.
 11. Confirm the SNS email subscription for alerts/budgets (`ROBES_<STAGE>_ALERT_EMAIL`). Optional: AWS Chatbot → Slack `#robes-alerts` subscribed to `robes-<env>-alerts`.
 
 ## 5. GitHub
@@ -105,6 +105,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 1. Settings → Environments: create `staging` and `production`. Production: required reviewer, deployment branches limited to `platform` (later the trunk).
 2. Per environment **variables**: `AWS_ACCOUNT_ID`, `AWS_DEPLOY_ROLE_ARN`, `APP_URL` (`https://staging.byrobes.com` / `https://app.byrobes.com`), `MEDIA_DOMAIN`, `MEDIA_CERT_ARN`, `CLOUDFRONT_PUBLIC_KEY` (optional if committed), `ALERT_EMAIL`, `BUDGET_EMAIL`, and optionally `BUDGETS` (`off` in a member account) and `GENERATE_RESERVED_CONCURRENCY` (§4 step 10).
 3. Per environment **secrets**: `MIGRATION_DATABASE_URL` (§2 step 4; migration role, never `robes_app`).
+5. **Staging deploys on every `beta` merge** that touches `platform/**` (`platform-deploy-staging.yml`, 2026-10-28), once the repo variable `STAGING_AUTO_DEPLOY` is `true` (Settings → Secrets and variables → Actions → Variables). Set it only after steps 1–3 exist for `staging`: `AWS_DEPLOY_ROLE_ARN` is the staging stack's `robes-staging-github-deploy` role, `AWS_ACCOUNT_ID` 259887029472, `APP_URL` `https://staging.byrobes.com`, `BUDGETS` `off`, `GENERATE_RESERVED_CONCURRENCY` `0`. **Run workflow** (manual) works as soon as the environment exists, switch or not.
 4. Renovate: install the Renovate app and add a root `renovate.json` containing `{ "extends": ["local>Robes-app/robes-mvp//platform/renovate.json"] }` (Renovate only reads config at the repo root).
 
 ## 6. Vercel
@@ -124,6 +125,8 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | §3 |
 | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | §3; private key sensitive |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | §3; secret sensitive |
+| `APPLE_APP_BUNDLE_ID` + `APPLE_TEAM_ID` | universal links (§12): `com.byrobes.app.staging` / `com.byrobes.app` and the team id; served in `/.well-known/apple-app-site-association`. Unset → the file lists no app |
+| `ANDROID_APP_PACKAGE`, `ANDROID_CERT_SHA256` | Android App Links (§12): the stage's package and its signing certificate SHA-256 (comma-separated, `AA:BB:…`; from `eas credentials` or Play Console → App signing). Served in `/.well-known/assetlinks.json`; unset → `[]` |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | token sensitive |
 | `ROBES_AWS_REGION`, `ROBES_AWS_ACCESS_KEY_ID`, `ROBES_AWS_SECRET_ACCESS_KEY` | `eu-west-1`; keys of `robes-<env>-api` from Secrets Manager (step 8); secret key sensitive. `ROBES_`-prefixed because Vercel reserves `AWS_*` names; the API passes them to its SES, S3 and SQS clients explicitly |
 | `JOBS_INTERACTIVE_QUEUE_URL`, `JOBS_BATCH_QUEUE_URL`, `FETCH_QUEUE_URL` | Queues stack. Without `FETCH_QUEUE_URL` deployed link imports return `disabled` (the API never fetches user URLs itself) |
@@ -213,6 +216,8 @@ CDK (`EmailStack`) creates the domain identity (Easy DKIM, RSA 2048), MAIL FROM 
 ## 12. Mobile (EAS)
 
 EAS project linked to `platform/mobile`; channels `preview` (staging) and `production`. EAS env holds **public** values only (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_POSTHOG_KEY` — after `eas init`: `eas env:create --name EXPO_PUBLIC_POSTHOG_KEY --value <phc_…> --environment preview --environment production --visibility plaintext`). `expo/access-token` in Secrets Manager is the push-sending token for `notifyFn`.
+
+**Universal links (N4).** Staging builds claim `staging.byrobes.com`, production builds `app.byrobes.com`, development builds nothing (`mobile/app.config.ts`); the paths are `@robes/core/app-links`. For each stage: (1) Apple Developer → Identifiers → the App ID (`com.byrobes.app.staging` / `com.byrobes.app`) has **Associated Domains** on (EAS normally syncs this on build); (2) set the Vercel env above and check `https://<host>/.well-known/apple-app-site-association` and `/assetlinks.json` list the app; (3) a **new EAS build** (entitlements are native, not OTA). iOS reads the file at install, so path changes need a new build too. Native Google/Apple sign-in through the browser also needs the stage's scheme (`robes-staging://` / `robes://`) in `AUTH_TRUSTED_ORIGINS`.
 
 ## Checklist before the first deploy
 

@@ -3,12 +3,13 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { looks as looksCopy } from '@robes/copy';
-import { dayMonth, longDate } from '@robes/core/calendar';
+import { longDate, weekdayDayMonth } from '@robes/core/calendar';
 import { wearDiff } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
 import { Button, ErrorText, Eyebrow, IconButton, Skeleton, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useAnalytics } from '@/components/analytics-provider';
 import { errorCopy } from '@/lib/error-copy';
 
 const copy = looksCopy.page.wears;
@@ -20,6 +21,7 @@ const copy = looksCopy.page.wears;
 export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => void }) {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { track } = useAnalytics().analytics;
   const query = useApi('looks.wears', { params: { id: look.id } });
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.wears') });
@@ -28,6 +30,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
   };
   const remove = useApiMutation('looks.unwear', {
     onSuccess: () => {
+      track('wear_undone');
       toast({ message: copy.removed });
       refresh();
     },
@@ -80,7 +83,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
                   className="flex min-w-0 flex-1 items-center gap-3 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                 >
                   <Text size="small" className="shrink-0">
-                    {dayMonth(wear.wornOn)}
+                    {weekdayDayMonth(wear.wornOn)}
                   </Text>
                   <Text size="caption" tone="faint" italic className="min-w-0 flex-1 truncate">
                     {diff.differs ? copy.diff(diff.instead, diff.without) : copy.asSaved}

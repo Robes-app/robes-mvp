@@ -12,5 +12,6 @@ describe('dates', () => {
     expect(dayLabel('2026-10-01', '2026-09-30')).toBe('Tomorrow');
     expect(dayLabel('2026-10-03', '2026-09-30')).toBe(formatDay('2026-10-03'));
     expect(formatDay('2026-10-03')).toBe('Sat 3 Oct');
+    expect(formatDay('2026-09-08')).toBe('Tue 8 Sep');
   });
 });

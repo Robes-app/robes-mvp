@@ -32,6 +32,7 @@ import { styleAnalysisRepo, styleProfileRepo } from './style-profile';
 import { stylingRepo } from './styling';
 import { suggestedLooksRepo } from './suggested';
 import { tripsRepo } from './trips';
+import { uiStateRepo } from './ui-state';
 import { usageRepo } from './usage';
 import { waitlistRepo } from './waitlist';
 import { wardrobeRepo } from './wardrobe';
@@ -64,6 +65,7 @@ export function createRepositories(db: Db) {
     capacity: { isExhausted: ledgerRepo(db).isExhausted },
     plan: planRepo(db),
     profiles: profilesRepo(db),
+    uiState: uiStateRepo(db),
     // Public signups (SEC-60): insert-only for callers; confirmation by signed link.
     waitlist: waitlistRepo(db),
     // Token-addressed public reads (the token is the capability, SEC-13); no user id.
@@ -134,7 +136,7 @@ export { OVERNIGHT_LEASE_HOURS, OVERNIGHT_LOCAL_HOUR, overnightKey } from './ove
 export { encodeCursor, type Page } from './paging';
 export type { PieceAnalysis } from './piece-analysis';
 export type { PlanSlot } from './plan';
-export { EDITABLE_PROFILE_FIELDS, type ProfilePatch } from './profiles';
+export { EDITABLE_PROFILE_FIELDS, type OnboardingAnswers, type ProfilePatch } from './profiles';
 export type { PushPlatform } from './push-tokens';
 export { mintShareToken, type ShareSubject } from './shares';
 export {

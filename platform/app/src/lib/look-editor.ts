@@ -14,12 +14,14 @@ import {
 import { errors, lookbook, wardrobe } from '@robes/copy';
 import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { z } from 'zod';
+import { useAnalytics } from '@/components/analytics-provider';
 import type { RowMark } from '@/components/looks/rack-row';
 import {
   isDraftsFull,
   useRefreshLooks as useInvalidateLooks,
+  useRedress,
   useRequestFrame,
 } from './look-states';
 
@@ -31,10 +33,15 @@ export function useLookEditor(look: Look) {
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const requestFrame = useRequestFrame();
+  const redress = useRedress();
+  const { track } = useAnalytics().analytics;
   const live = look.status !== 'saved';
   const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
   const [dirty, setDirty] = useState(false);
+  // The rack as it stands now, for an Undo that fires after later renders.
+  const current = useRef(rack);
+  current.current = rack;
   const original = useMemo(() => new Set(rackFromLook(look).rows.map((r) => r.key)), [look]);
   // A fresh look from the server replaces the local rack unless she has unsaved edits.
   const [seen, setSeen] = useState(look.updatedAt);
@@ -42,8 +49,10 @@ export function useLookEditor(look: Look) {
     setSeen(look.updatedAt);
     setRack(rackFromLook(look));
   }
+  // Robes' frame is re-dressed for the new rack; a saved look on her model is drawn again.
   const reframe = (l: Look) => {
     if (l.frame || l.setId) requestFrame(l.id);
+    else redress(l);
   };
   const write = useApiMutation('looks.update', {
     onSuccess: (updated) => {
@@ -104,6 +113,7 @@ export function useLookEditor(look: Look) {
             pieceId: piece.id,
             name: piece.label,
             category: piece.category,
+            categoryL2: piece.categoryL2,
             brand: piece.brand,
           },
         },
@@ -145,12 +155,38 @@ export function useLookEditor(look: Look) {
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
-    swap: (key: string, piece: Piece) => change(swapped(key, piece)),
+    // A swap lands at once behind a 6 s Undo that puts the rack back (beta's swap pill). A draft
+    // writes the rack back (its rack is re-read from the server after each write); a saved look
+    // being edited goes back to how it stood, unsaved changes and all, unless she has changed it
+    // again since (L5, L10).
+    swap: (key: string, piece: Piece) => {
+      const before = rack;
+      const wasDirty = dirty;
+      const next = swapped(key, piece);
+      track('piece_swapped', { surface: look.status, cat: piece.category });
+      change(next);
+      toast({
+        message: lookbook.swap.swapped(piece.label),
+        action: {
+          label: wardrobe.undo,
+          onAction: () => {
+            if (live) {
+              change(before);
+              return;
+            }
+            if (current.current !== next) return;
+            setRack(before);
+            setDirty(wasDirty);
+          },
+        },
+      });
+    },
     // ↻ on a suggested look (legacy 0.1): the swap lands on the suggestion at once, which stays
     // suggested, behind a quiet Undo that puts the rack back.
     swapKeep: (key: string, piece: Piece) => {
       const before = rack;
       const next = swapped(key, piece);
+      track('piece_swapped', { surface: look.status, cat: piece.category });
       const put = (r: RackState) =>
         api.call('looks.update', {
           params: { id: look.id },
@@ -182,8 +218,12 @@ export function useLookEditor(look: Look) {
           toast({ message: errors.internal });
         });
     },
-    add: (piece: Piece) => change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] }),
+    add: (piece: Piece) => {
+      track('look_piece_added', { surface: look.status, cat: piece.category });
+      change({ ...rack, rows: [...rack.rows, pieceRow(piece, null)] });
+    },
     remove: (key: string) => {
+      track('look_piece_removed', { surface: look.status });
       const { [key]: _gone, ...edits } = rack.edits;
       change({ ...rack, rows: rack.rows.filter((r) => r.key !== key), edits });
     },
@@ -217,9 +257,11 @@ export function useLookEditor(look: Look) {
     update: () =>
       void write
         .mutateAsync({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: false }) })
-        .then(() => {
+        .then((updated) => {
+          track('look_updated', { pieces: updated.pieces.length });
           setDirty(false);
           setEditing(false);
+          toast({ message: lookbook.updated });
         })
         .catch(() => undefined),
     discard: () => {

@@ -1,3 +1,4 @@
+export * from './brand-marks';
 export * from './catalog';
 export * from './classify';
 export * from './compose';

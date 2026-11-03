@@ -33,14 +33,17 @@ export function ShadeSwatch({ shade: s, size = 24 }: { shade: Shade | null; size
 export function FamilyTile({
   family,
   size = 48,
+  shape = 'soft',
 }: {
   family: { name: string; tile: readonly Shade[] };
   size?: number;
+  // tile: onboarding's small square, 5px corners on a hairline (redline audit 30 Oct).
+  shape?: 'soft' | 'tile';
 }) {
   return (
     <span
       aria-hidden
-      className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-soft"
+      className={`grid shrink-0 grid-cols-2 gap-px overflow-hidden ${shape === 'tile' ? 'rounded-[5px] border-[0.5px] border-rule-mid' : 'rounded-soft'}`}
       style={{ width: size, height: size }}
     >
       {family.tile.map((s) => (

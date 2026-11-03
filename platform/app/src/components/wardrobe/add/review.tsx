@@ -1,5 +1,6 @@
 'use client';
 
+import { trackFiled } from '@robes/analytics';
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { InboxEntry, PieceValues, ReadPiece, UpdatePieceInput } from '@robes/contracts';
 import { ui, wardrobe } from '@robes/copy';
@@ -19,13 +20,16 @@ import {
   SCAN_STEPS,
   scanTags,
   wishChanges,
+  withTagDefaults,
 } from '@robes/core/add-flow';
 import { shade } from '@robes/core/colour';
 import { pieceWord } from '@robes/core/photo-pieces';
-import { Button, buttonClasses, ErrorText, Eyebrow, Heading, Text } from '@robes/ui';
+import { Button, buttonClasses, ErrorText, Heading, IconButton, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { CropThumb } from '@/components/photo-pieces/photo-frame';
 import { PinnedAction } from '@/components/pinned-action';
 import {
@@ -97,6 +101,7 @@ export function Review({
 }) {
   const api = useApiClient();
   const queryClient = useQueryClient();
+  const { track } = useAnalytics().analytics;
   const reduced = useReducedMotion();
   // A link's own entry (links never sit in the Inbox list, which holds receipts).
   const inbox = useApi('inbox.get', { params: { id: link ?? '' } }, { enabled: link !== null });
@@ -242,6 +247,7 @@ export function Review({
         },
       });
     }
+    trackFiled(track, group.startsWith('inbox:') ? 'link' : 'photo', groupAnswers, to);
     if (to === 'wishlist') {
       await queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
     } else {
@@ -251,6 +257,7 @@ export function Review({
 
   function answer(entry: Entry, state: 'add' | 'skip') {
     const edits = changes[entry.key];
+    track('piece_answered', { state, edited: edits !== undefined });
     setAnswers((a) => ({ ...a, [entry.key]: { answer: state, ...(edits ? { edits } : {}) } }));
     const next = nextPending(
       entries.map((e) => (e.key === entry.key ? { ...e, answer: state } : e)),
@@ -276,10 +283,11 @@ export function Review({
     const stalled = session.shots.some((s) => s.failed);
     return (
       <div className="mx-auto flex w-full max-w-md flex-col gap-4">
-        <Eyebrow>{copy.review.eyebrow}</Eyebrow>
-        <Heading level={1} size="lg" role="status">
-          {copy.review.unread}
-        </Heading>
+        <ReviewHead to={to} onClose={onAnother}>
+          <Heading level={1} size="lg" role="status">
+            {copy.review.unread}
+          </Heading>
+        </ReviewHead>
         <Text tone="muted">{stalled ? copy.review.stalled : copy.review.nothing}</Text>
         {fillIn}
       </div>
@@ -291,17 +299,18 @@ export function Review({
     const count = Math.max(1, session.shots.length);
     return (
       <div className="mx-auto flex w-full max-w-md flex-col gap-5" aria-busy={!slow}>
-        <Eyebrow>{copy.review.eyebrow}</Eyebrow>
-        <Heading level={1} size="lg" role="status">
-          {slow ? (
-            copy.review.unread
-          ) : (
-            <>
-              {copy.review.readingHead.pre} <em>{copy.review.readingHead.wink}</em>{' '}
-              {copy.review.readingHead.post(count)}
-            </>
-          )}
-        </Heading>
+        <ReviewHead to={to} onClose={onAnother}>
+          <Heading level={1} size="lg" role="status">
+            {slow ? (
+              copy.review.unread
+            ) : (
+              <>
+                {copy.review.readingHead.pre} <em>{copy.review.readingHead.wink}</em>{' '}
+                {copy.review.readingHead.post(count)}
+              </>
+            )}
+          </Heading>
+        </ReviewHead>
         <ScanPhoto
           source={latest ? { ...latest, box: { x: 0, y: 0, w: 1, h: 1 } } : null}
           monogram={copy.review.eyebrow}
@@ -327,7 +336,6 @@ export function Review({
           </div>
         )}
         {failed.size ? <Retry onRetry={() => setFailed(new Set())} /> : null}
-        {slow ? null : <CancelLink to={to} onCancel={onAnother} />}
       </div>
     );
   }
@@ -379,10 +387,11 @@ export function Review({
         </nav>
       ) : null}
       <header className="flex flex-col gap-2">
-        <Eyebrow>{copy.review.eyebrow}</Eyebrow>
-        <Heading level={1} size="lg">
-          {copy.review.title} <em>{copy.review.wink}</em>
-        </Heading>
+        <ReviewHead to={to} onClose={onAnother}>
+          <Heading level={1} size="lg">
+            {copy.review.title} <em>{copy.review.wink}</em>
+          </Heading>
+        </ReviewHead>
         <Text size="small" tone="muted">
           {isRead ? copy.review.sub.photo : copy.review.sub.link}
         </Text>
@@ -407,7 +416,7 @@ export function Review({
         ) : null}
       </div>
       <div key={cur.key} className="motion-safe:animate-fade-in">
-        <RecordRows values={values} onField={setField} withName reading={!ready} />
+        <RecordRows values={withTagDefaults(values)} onField={setField} withName reading={!ready} />
       </div>
       <Button variant="quiet" className="self-center" onClick={() => answer(cur, 'skip')}>
         {copy.review.notThis}
@@ -451,17 +460,27 @@ function FillIn({
   );
 }
 
-// Leaving while it reads: nothing has filed, so it simply stops.
-function CancelLink({ to, onCancel }: { to: AddDestination; onCancel?: (() => void) | undefined }) {
-  const quiet = buttonClasses({ variant: 'quiet' });
-  return onCancel ? (
-    <button type="button" className={`${quiet} self-center`} onClick={onCancel}>
-      {copy.review.cancel}
-    </button>
-  ) : (
-    <Link href={`/wardrobe/add?to=${to}`} className={`${quiet} self-center`}>
-      {copy.review.cancel}
-    </Link>
+// Review's one header (beta's add flow: the title, and × to leave): no eyebrow restating the
+// title, no back pill above it. × goes back to Add pieces; anything not yet answered isn't filed.
+function ReviewHead({
+  to,
+  onClose,
+  children,
+}: {
+  to: AddDestination;
+  onClose?: (() => void) | undefined;
+  children: ReactNode;
+}) {
+  const router = useRouter();
+  return (
+    <div className="flex items-start justify-between gap-3">
+      {children}
+      <IconButton
+        icon="close"
+        label={ui.close}
+        onClick={onClose ?? (() => router.push(`/wardrobe/add?to=${to}`))}
+      />
+    </div>
   );
 }
 

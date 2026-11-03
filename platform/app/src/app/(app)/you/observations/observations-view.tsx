@@ -4,6 +4,7 @@ import { useApi } from '@robes/api-client/react';
 import type { BriefLine } from '@robes/contracts';
 import { twin } from '@robes/copy';
 import { asSentence } from '@robes/core';
+import { monthLong } from '@robes/core/calendar';
 import { ErrorText, Eyebrow, IconButton, Progress, Skeleton, Text, useToast } from '@robes/ui';
 import { ObservationThumbs } from '@/components/observation-thumbs';
 import { errorCopy } from '@/lib/error-copy';
@@ -13,7 +14,7 @@ const copy = twin.observations;
 
 const keptIn = (iso: string, now = new Date()): string => {
   const d = new Date(iso);
-  const month = d.toLocaleString('en-GB', { month: 'long' });
+  const month = monthLong(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`);
   return copy.keptIn(d.getFullYear() === now.getFullYear() ? month : `${month} ${d.getFullYear()}`);
 };
 

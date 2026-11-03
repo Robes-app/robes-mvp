@@ -21,6 +21,7 @@ import {
   Field,
   fonts,
   IconButton,
+  Image,
   MIN_TOUCH,
   Pill,
   Sheet,
@@ -31,6 +32,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
+import { renditionUri } from '@/lib/images';
 import { useDnaMutations } from './dna';
 import { ColoursBody, PrintsBody, paletteSummary, usePalette } from './Palette';
 import { SettingsGroup, SettingsRow } from './Settings';
@@ -259,11 +261,12 @@ function WallBody({ dna, kind }: { dna: Dna; kind: WallKind }) {
     setQ('');
   };
   const query = normName(q);
-  const pool = wallRanked(kind, dna.types, mine);
+  const pool = wallRanked(kind, dna.types, mine, dna.gender);
   const matches = query
     ? pool.filter((n) => normName(n).includes(query)).slice(0, 12)
     : pool.slice(0, WALL_N);
-  const exact = query && (wallPool(kind, dna.types).some((n) => normName(n) === query) || has(q));
+  const exact =
+    query && (wallPool(kind, dna.types, dna.gender).some((n) => normName(n) === query) || has(q));
   const label = (n: string) => (!brands && iconTag(n) ? `${n} · ${iconTag(n)}` : n);
   const placeholder = brands ? twin.wall.searchBrands : twin.wall.searchIcons;
   return (
@@ -350,24 +353,44 @@ function PiecesBody({ dna, onClose }: { dna: Dna; onClose: () => void }) {
   return (
     <View className="gap-3">
       {dna.pieces.length ? (
-        dna.pieces.map((p) => (
-          <Pressable
-            key={p.id}
-            accessibilityRole="button"
-            accessibilityLabel={p.label}
-            onPress={() => {
-              onClose();
-              router.push(`/piece/${p.id}`);
-            }}
-            style={{ minHeight: MIN_TOUCH }}
-            className="justify-center gap-0.5 border-b border-hairline py-2"
-          >
-            <Text size="caption" tone="muted">
-              {[p.category, p.brand].filter(Boolean).join(' · ')}
-            </Text>
-            <Text>{p.label}</Text>
-          </Pressable>
-        ))
+        dna.pieces.map((p) => {
+          const uri = renditionUri(p.image, 52);
+          return (
+            <Pressable
+              key={p.id}
+              accessibilityRole="button"
+              accessibilityLabel={p.label}
+              onPress={() => {
+                onClose();
+                router.push(`/piece/${p.id}`);
+              }}
+              style={{ minHeight: MIN_TOUCH }}
+              className="flex-row items-center gap-4 py-1"
+            >
+              {/* Her photograph beside the lines, as the web (dna-view.tsx PiecesBody). */}
+              <View style={{ width: 52 }}>
+                {uri ? (
+                  <Image
+                    source={uri}
+                    alt=""
+                    aspect="4:5"
+                    blurhash={p.image?.blurhash}
+                    recyclingKey={p.id}
+                    testID={`loved-photo-${p.id}`}
+                  />
+                ) : (
+                  <View className="bg-surface-sunk" style={{ aspectRatio: 4 / 5 }} />
+                )}
+              </View>
+              <View className="flex-1 gap-0.5">
+                <Text size="caption" tone="muted">
+                  {[p.category, p.brand].filter(Boolean).join(' · ')}
+                </Text>
+                <Text>{p.label}</Text>
+              </View>
+            </Pressable>
+          );
+        })
       ) : (
         <Text tone="muted">{twin.pieces.empty}</Text>
       )}

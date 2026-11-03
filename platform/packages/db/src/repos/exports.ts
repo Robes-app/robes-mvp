@@ -118,6 +118,7 @@ export function dataExportRepo(db: Db) {
         wears,
         plan,
         dayNames,
+        dayPlaces,
         ideas,
         shares,
         assets,
@@ -214,6 +215,20 @@ export function dataExportRepo(db: Db) {
           .orderBy('dayDate')
           .execute(),
         db
+          .selectFrom('dayPlaces')
+          .select([
+            'city',
+            'country',
+            'lat',
+            'lon',
+            'createdAt',
+            'updatedAt',
+            sql<string>`day_date::text`.as('dayDate'),
+          ])
+          .where('userId', '=', userId)
+          .orderBy('dayDate')
+          .execute(),
+        db
           .selectFrom('artifacts')
           .select([
             'id',
@@ -306,6 +321,7 @@ export function dataExportRepo(db: Db) {
         wears,
         plan,
         dayNames,
+        dayPlaces,
         ideas,
         shares,
         assets,

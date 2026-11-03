@@ -54,7 +54,7 @@ export function usePhotoRead(kind: UploadKind) {
     },
   );
 
-  // A photo already picked (the first-piece screen picks its own).
+  // A photo already picked.
   const startPicked = useCallback(
     async (picked: PickedPhoto & { width: number; height: number }) => {
       setError(null);

@@ -65,6 +65,17 @@ describe('next line counts', () => {
   });
 });
 
+describe('a saved look’s meta line', () => {
+  it('ends on the next day it is pinned for, when it has one (beta)', async () => {
+    const { lookbook } = await import('./index');
+    const facts = { pieces: 3, timesWorn: 2, lastWorn: '23 Jul', around: null };
+    expect(lookbook.meta.saved({ ...facts, pinnedFor: 'Tuesday 29 Sep' })).toBe(
+      '3 pieces · 2 wears · last 23 Jul · pinned for Tuesday 29 Sep',
+    );
+    expect(lookbook.meta.saved(facts)).toBe('3 pieces · 2 wears · last 23 Jul');
+  });
+});
+
 describe('the day’s advice', () => {
   it('reads the condition first, then the high', async () => {
     const { plan } = await import('./index');
@@ -73,5 +84,69 @@ describe('the day’s advice', () => {
     expect(plan.day.advice('partly cloudy', '10–15°C')).toBe('Bring one warm layer.');
     expect(plan.day.advice('clear', '18–27°C')).toBe('Light and breathable.');
     expect(plan.day.advice('overcast', '12–19°C')).toBe('Easy layers.');
+  });
+});
+
+describe('the weather line', () => {
+  it('reads the weekday, the city and the temperature, the conditions spoken first', async () => {
+    const { home, plan } = await import('./index');
+    expect(home.meta('Wednesday', 'Dublin', '13°C')).toBe('Wednesday · Dublin · 13°C');
+    expect(home.meta('Wednesday', null, null)).toBe('Wednesday');
+    expect(home.metaSpoken('overcast', 'Wednesday · Dublin · 13°C')).toBe(
+      'overcast · Wednesday · Dublin · 13°C',
+    );
+    expect(home.metaSpoken(null, 'Wednesday')).toBe('Wednesday');
+    expect(home.weather('Dublin', '13°C', 'overcast')).toBe('Dublin · 13°C · overcast');
+    expect(plan.day.weather('Dublin', 'light rain', '9–14°C')).toBe('Dublin · light rain · 9–14°C');
+  });
+});
+
+describe('season labels', () => {
+  it('spell a band one way on the wardrobe, the Lookbook and a look', () => {
+    expect(copy.lookbook.refine.seasons).toBe(copy.wardrobe.filter.seasons);
+    expect(copy.lookbook.refine.seasons.spring_summer).toBe('Spring/Summer');
+  });
+});
+
+// Non-binary (29 Oct): the pickers name it, and her model reads as they.
+describe('gender copy', () => {
+  const find = (o: unknown, key: string): unknown => {
+    if (!o || typeof o !== 'object') return undefined;
+    for (const [k, v] of Object.entries(o)) {
+      if (k === key) return v;
+      const hit = find(v, key);
+      if (hit !== undefined) return hit;
+    }
+    return undefined;
+  };
+
+  it('offers Non-binary beside the other three', () => {
+    expect(find(copy, 'genderOptions')).toEqual({
+      woman: 'Woman',
+      man: 'Man',
+      non_binary: 'Non-binary',
+      unspecified: 'Prefer not to say',
+    });
+  });
+
+  it('says they, with the verb agreeing', () => {
+    const asIs = find(copy, 'asIs') as (p: string) => string;
+    expect(asIs('non_binary')).toBe('As they are');
+    expect(asIs('unspecified')).toBe('As they are');
+    expect(asIs('woman')).toBe('As she is');
+    // The status line sits beside asIs, under the model's copy.
+    const parentOf = (o: unknown, key: string): Record<string, unknown> | undefined => {
+      if (!o || typeof o !== 'object') return undefined;
+      if (key in o) return o as Record<string, unknown>;
+      for (const v of Object.values(o)) {
+        const hit = parentOf(v, key);
+        if (hit) return hit;
+      }
+      return undefined;
+    };
+    const status = parentOf(copy, 'asIs')?.status as (p: string, r: string) => string;
+    expect(status('non_binary', 'facts')).toBe(
+      'Drawn from your facts. Add a close-up and they take your face.',
+    );
   });
 });

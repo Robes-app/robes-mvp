@@ -3,7 +3,8 @@
 import { isApiClientError } from '@robes/api-client';
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { CreateLookInput, Look, Model, Piece } from '@robes/contracts';
-import { lookbook as copy } from '@robes/copy';
+import { lookbook as copy, looks as looksCopy } from '@robes/copy';
+import { readsAsThey } from '@robes/core/avatar';
 import {
   compositionKey,
   DRESS_DEBOUNCE_MS,
@@ -13,7 +14,16 @@ import {
   placePick,
 } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { Button, Dialog, Eyebrow, IconButton, Skeleton, useToast } from '@robes/ui';
+import {
+  Button,
+  Dialog,
+  Eyebrow,
+  IconButton,
+  InlineTitleField,
+  SegmentedControl,
+  Skeleton,
+  useToast,
+} from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -24,6 +34,7 @@ import { usePhotoFiling } from '@/lib/file-photo';
 import { useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
 import { GenericModelBadge } from './generic-model-badge';
+import { useHerPhoto } from './her-photo';
 import { LookImage } from './look-image';
 import { LookPromptBox } from './look-prompt-box';
 import { RackRowCard } from './rack-row';
@@ -38,7 +49,7 @@ const draftsFull = (err: unknown): boolean =>
   (err.details as { reason?: string } | undefined)?.reason === 'drafts_full';
 
 const pronoun = (m: Model | undefined) =>
-  m?.presence === 'man' ? 'him' : m?.presence === 'unspecified' ? 'them' : 'her';
+  m?.presence === 'man' ? 'him' : readsAsThey(m?.presence) ? 'them' : 'her';
 
 type Opened = { slot: HotspotSlot } | { add: true } | { swap: string };
 
@@ -65,6 +76,8 @@ export function Composer({
 
 // Before the first piece: the model in her base layer and the doors in; the first pick makes the
 // draft and the composer carries on under its own address.
+// shortcut: no "Add your photograph" here yet (beta showed it on the new canvas) — her photograph
+// lands on a look, and nothing is a row until the first piece; the camera stands from the draft on.
 function EmptyComposer({ pieceId }: { pieceId?: string }) {
   const router = useRouter();
   const api = useApiClient();
@@ -220,11 +233,23 @@ function useDress(look: Look, enabled: boolean) {
     }, DRESS_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [api, queryClient, enabled, key, asked, look.id]);
-  return (
+  const dressing =
     enabled &&
     key !== '' &&
-    (look.onModel === 'pending' || (key !== asked && key !== settled.current))
-  );
+    (look.onModel === 'pending' || (key !== asked && key !== settled.current));
+  // A render that failed is said, with a retry — never a blank frame (staging, 28 Oct).
+  const failed = enabled && key !== '' && !dressing && look.onModel === 'failed';
+  const retry = () => {
+    void api
+      .call('looks.renderOnModel', { params: { id: look.id } })
+      .then(() =>
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.call('looks.get', { params: { id: look.id } }),
+        }),
+      )
+      .catch(() => undefined);
+  };
+  return { dressing, failed, retry };
 }
 
 function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) => void }) {
@@ -240,7 +265,11 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
   const typed = name.trim() && name.trim() !== look.name ? name.trim() : undefined;
   const rows = editor.rack.rows;
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
-  const dressing = useDress(look, Boolean(model.data) && look.pieces.length > 0);
+  const {
+    dressing,
+    failed: undressed,
+    retry,
+  } = useDress(look, Boolean(model.data) && look.pieces.length > 0);
 
   const pick = (piece: Piece, how: Opened) => {
     if ('swap' in how) return editor.swap(how.swap, piece);
@@ -257,7 +286,15 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
     pick(filed, snapFor.current);
   });
   const reading = photo.filing.phase === 'uploading' || photo.filing.phase === 'reading';
-  const rendered = look.onModel && look.image && look.pieces.length > 0 ? look : null;
+  // Her photograph of the look (beta's camera on the canvas): once kept, You · Model under the
+  // canvas picks which picture stands — her photograph, or her model wearing the rack.
+  const herPhoto = useHerPhoto(look);
+  const own = look.photo !== null && look.record === 'photo';
+  const rendered = own
+    ? look
+    : look.onModel && look.model?.status === 'ready' && look.pieces.length > 0
+      ? { ...look, image: look.model }
+      : null;
 
   return (
     <DraftLayout
@@ -266,22 +303,42 @@ function DraftComposer({ look, onSaved }: { look: Look; onSaved?: (look: Look) =
       onNameDone={() => {
         if (typed) editor.rename(typed);
       }}
+      onNameCancel={() => setName(look.nameProvisional ? '' : look.name)}
       count={rows.length}
       canvas={
-        <ModelCanvas
-          model={model.data}
-          pending={model.isPending}
-          rendered={rendered}
-          filled={filledSlots(rows.map((r) => r.category))}
-          chip={
-            reading
-              ? copy.figure.reading
-              : dressing
-                ? copy.figure.dressing(pronoun(model.data))
-                : null
-          }
-          onHotspot={(slot) => setOpened({ slot })}
-        />
+        <>
+          <ModelCanvas
+            model={model.data}
+            pending={model.isPending}
+            rendered={rendered}
+            own={own}
+            filled={filledSlots(rows.map((r) => r.category))}
+            chip={
+              reading
+                ? copy.figure.reading
+                : dressing && !own
+                  ? copy.figure.dressing(pronoun(model.data))
+                  : null
+            }
+            onHotspot={(slot) => setOpened({ slot })}
+            photo={herPhoto}
+            {...(undressed && !own && !reading
+              ? { undressed: { label: copy.figure.undressed(pronoun(model.data)), onRetry: retry } }
+              : {})}
+          />
+          {herPhoto.input}
+          {herPhoto.hasPhoto ? (
+            <SegmentedControl
+              label={looksCopy.page.record.label}
+              value={look.record}
+              options={[
+                { value: 'photo', label: looksCopy.page.record.you },
+                { value: 'model', label: looksCopy.page.record.model },
+              ]}
+              onChange={herPhoto.choose}
+            />
+          ) : null}
+        </>
       }
       footer={
         <DraftBar
@@ -406,6 +463,7 @@ function DraftLayout({
   name,
   onName,
   onNameDone,
+  onNameCancel,
   count,
   canvas,
   footer,
@@ -416,6 +474,8 @@ function DraftLayout({
   name: string;
   onName: (v: string) => void;
   onNameDone?: () => void;
+  // Escape: back to the name the look had.
+  onNameCancel?: () => void;
   count: number;
   canvas: ReactNode;
   footer: ReactNode;
@@ -427,17 +487,18 @@ function DraftLayout({
         <h1 className="sr-only">{name.trim() || heading}</h1>
         <Eyebrow>{copy.eyebrow.draft}</Eyebrow>
         {/* The title is the name: tap the italic line and write over it. */}
-        <label className="w-full">
-          <span className="sr-only">{copy.name.label}</span>
-          <input
-            value={name}
-            maxLength={120}
-            placeholder={copy.figure.untitled}
-            onChange={(e) => onName(e.target.value)}
-            onBlur={onNameDone}
-            className="w-full border-0 border-transparent border-b bg-transparent text-center font-display font-light text-3xl text-ink italic placeholder:text-ink-faint focus-visible:border-ink focus-visible:outline-none"
-          />
-        </label>
+        <InlineTitleField
+          value={name}
+          label={copy.name.label}
+          placeholder={copy.figure.untitled}
+          size="lg"
+          italic
+          align="center"
+          autoFocus={false}
+          onChange={onName}
+          onCommit={() => onNameDone?.()}
+          onCancel={onNameCancel}
+        />
       </header>
       <figure className="flex flex-col gap-3">
         <Eyebrow>{copy.figure.head(count)}</Eyebrow>
@@ -451,22 +512,30 @@ function DraftLayout({
 
 // Her model on a 4:5 canvas — the render of what she has on once one lands, else the model in her
 // base layer — with "+ Top · + Bottom · + Shoes" on the figure; a filled slot reads warm with ✓.
+// Her own photograph (`own`) stands without the hotspots: they are drawn for the model's figure.
+// The camera bottom-right adds her photograph, ↻ once one is kept (as on the saved look).
 function ModelCanvas({
   model,
   pending,
   rendered = null,
+  own = false,
   filled,
   chip,
   disabled = false,
   onHotspot,
+  photo,
+  undressed,
 }: {
   model: Model | undefined;
   pending: boolean;
   rendered?: Look | null;
+  own?: boolean;
   filled: Set<HotspotSlot>;
   chip: string | null;
   disabled?: boolean;
   onHotspot: (slot: HotspotSlot) => void;
+  photo?: { hasPhoto: boolean; label: string; busy: boolean; pick: () => void };
+  undressed?: { label: string; onRetry: () => void };
 }) {
   const stand = model?.stand?.imageUrl ?? (model?.filed ? model.cell.imageUrl : null);
   return (
@@ -487,7 +556,7 @@ function ModelCanvas({
           <Icon name="user" size={160} className="text-border-control" />
         </div>
       )}
-      {HOTSPOTS.map((h) => {
+      {(own ? [] : HOTSPOTS).map((h) => {
         const on = filled.has(h.slot);
         return (
           <button
@@ -512,8 +581,29 @@ function ModelCanvas({
           {chip}
         </span>
       ) : null}
+      {undressed ? (
+        <button
+          type="button"
+          onClick={undressed.onRetry}
+          className={`absolute top-[44%] left-1/2 min-h-11 -translate-x-1/2 rounded-pill border border-hairline bg-bg/90 px-4 font-sans text-ink text-xs backdrop-blur ${focus}`}
+        >
+          {undressed.label}
+        </button>
+      ) : null}
       {/* No model of her own yet: the generic one stands in, and the badge is the door. */}
-      <GenericModelBadge />
+      {own ? null : <GenericModelBadge />}
+      {photo ? (
+        <button
+          type="button"
+          onClick={photo.pick}
+          disabled={disabled || photo.busy}
+          aria-label={photo.label}
+          title={photo.label}
+          className={`absolute right-3 bottom-3 z-10 flex size-11 items-center justify-center rounded-pill bg-bg/90 text-ink shadow-sm hover:bg-bg disabled:text-ink-faint ${focus}`}
+        >
+          <Icon name={photo.hasPhoto ? 'swap' : 'camera'} size={17} />
+        </button>
+      ) : null}
     </div>
   );
 }

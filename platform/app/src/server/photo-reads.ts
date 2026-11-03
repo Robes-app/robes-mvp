@@ -97,10 +97,12 @@ function toRow(
     currency: edits?.currency !== undefined ? edits.currency : piece.currency,
     size: edits?.size !== undefined ? edits.size : piece.size,
     seasonBand: edits?.seasonBand,
-    colourShade: edits?.colourShade,
-    colourExtra: edits?.colourExtra,
-    print: edits?.print,
-    material: edits?.material,
+    // Her answer, else Robes' read (undefined leaves the column to the colour fold).
+    colourShade:
+      edits?.colourShade !== undefined ? edits.colourShade : (piece.colourShade ?? undefined),
+    colourExtra: edits?.colourExtra ?? (piece.colourExtra.length ? piece.colourExtra : undefined),
+    print: edits?.print !== undefined ? edits.print : (piece.print ?? undefined),
+    material: edits?.material !== undefined ? edits.material : (piece.material ?? undefined),
     itemDna: { ...piece.itemDna, source },
     imageAssetId: piece.cropAssetId,
   };

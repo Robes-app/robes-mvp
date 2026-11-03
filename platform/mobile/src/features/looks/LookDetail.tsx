@@ -1,19 +1,18 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { looks as copy, lookbook, ui } from '@robes/copy';
-import { lookFacts } from '@robes/core/looks';
+import { looks as copy, lookbook } from '@robes/copy';
+import { lookFacts, pinnedFor } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
   Eyebrow,
-  Field,
   Heading,
   IconButton,
+  InlineTitleField,
   MIN_TOUCH,
   PrimaryScope,
   Skeleton,
   Text,
-  useColor,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -25,57 +24,36 @@ import { LookPromptBox } from './LookPromptBox';
 import { useLookEditor } from './look-editor';
 import { RackRowCard } from './RackRow';
 import { SwapSheet } from './SwapSheet';
-import { useRemoveLook, useRenameLook } from './saved-looks';
+import { localDate, useRemoveLook, useRenameLook } from './saved-looks';
 import { WearRecord } from './WearRecord';
 
-// A provisional name is Robes' suggestion: she can keep it or name the look herself.
-// The pencil sits on the name; the field only exists while she is changing it.
+// The pencil sits on the name; the title itself becomes the field while she changes it.
+// Empty or unchanged keeps the name it had (a look is named). Web twin: look-view.tsx LookName.
 function Name({ look }: { look: Look }) {
   const rename = useRenameLook();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(look.name);
-  const dirty = name.trim() !== '' && name.trim() !== look.name;
-  if (editing) {
-    return (
-      <View className="gap-3">
-        <Field
-          label={copy.look.nameLabel}
-          value={name}
-          onChangeText={setName}
-          maxLength={120}
-          returnKeyType="done"
-        />
-        <View className="flex-row items-center gap-3">
-          <Button
-            variant="secondary"
-            disabled={!dirty}
-            loading={rename.isPending}
-            loadingLabel={ui.loading}
-            onPress={() => {
-              rename.mutate({ params: { id: look.id }, input: { name: name.trim() } });
-              setEditing(false);
-            }}
-          >
-            {copy.look.saveName}
-          </Button>
-          <Button
-            variant="quiet"
-            onPress={() => {
-              setName(look.name);
-              setEditing(false);
-            }}
-          >
-            {copy.page.cancel}
-          </Button>
-        </View>
-      </View>
-    );
-  }
   // No "Robes’ suggestion · Keep this name": the pencil is how she renames (27 Oct).
   return (
     <View className="flex-row items-start gap-2">
-      <Heading className="min-w-0 flex-1">{look.name}</Heading>
-      <IconButton icon="pencil" label={copy.page.rename} onPress={() => setEditing(true)} />
+      {editing ? (
+        <InlineTitleField
+          value={look.name}
+          label={copy.look.nameLabel}
+          required
+          onCommit={(next) => {
+            setEditing(false);
+            if (next !== look.name) {
+              rename.mutate({ params: { id: look.id }, input: { name: next } });
+            }
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        <>
+          <Heading className="min-w-0 flex-1">{look.name}</Heading>
+          <IconButton icon="pencil" label={copy.page.rename} onPress={() => setEditing(true)} />
+        </>
+      )}
     </View>
   );
 }
@@ -109,14 +87,21 @@ function SavedLook({ look }: { look: Look }) {
   const editor = useLookEditor(look);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  // The deep rose: the brand's rose at a size small text can read (4.5:1).
-  const rose = useColor('accent-warm');
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const swapRow = editor.rack.rows.find((r) => r.key === swapping) ?? null;
-  const meta = lookbook.meta.saved(lookFacts(look, editor.rack.rows.length));
+  // The web twin is savedMeta in look-page.tsx.
+  const meta = lookbook.meta.saved({
+    ...lookFacts(look, editor.rack.rows.length),
+    pinnedFor: pinnedFor(look.pinnedOn, localDate()),
+  });
   return (
     <View className="flex-1">
-      <ScrollView contentContainerClassName="gap-6 px-6 pb-32">
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerClassName="gap-6 px-6 pb-32"
+      >
         <LookHero
           look={look}
           eyebrow={editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}
@@ -140,6 +125,9 @@ function SavedLook({ look }: { look: Look }) {
               image={row.pieceId ? piecesById.get(row.pieceId)?.image : null}
               mark={editor.mark(row.key)}
               styled={editor.rack.styling[row.key]}
+              {...(!editor.editing && row.pieceId
+                ? { wears: piecesById.get(row.pieceId)?.wearCount ?? 0 }
+                : {})}
               {...(row.pieceId ? { onOpen: () => router.push(`/piece/${row.pieceId}`) } : {})}
               {...(row.proposal ? { onWish: () => editor.wish(row.key) } : {})}
               {...(editor.editing
@@ -180,7 +168,9 @@ function SavedLook({ look }: { look: Look }) {
                 style={{ minHeight: MIN_TOUCH }}
                 className="items-center justify-center self-center"
               >
-                <Text size="small" style={{ color: rose }}>
+                {/* Destructive text is danger on both clients (web twin look-view.tsx); rose marks
+                    now and Robes' hand (design-system.md, 25 Oct). */}
+                <Text size="small" tone="danger">
                   {copy.page.remove}
                 </Text>
               </Pressable>
@@ -231,6 +221,8 @@ function SavedLook({ look }: { look: Look }) {
           setSwapping(null);
           setAdding(false);
         }}
+        // One tap swaps while she edits, behind a 6 s Undo (web twin: Rack in look-page.tsx).
+        instant
         onPick={(piece) => (swapping ? editor.swap(swapping, piece) : editor.add(piece))}
       />
     </View>

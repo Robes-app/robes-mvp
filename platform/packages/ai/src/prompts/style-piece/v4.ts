@@ -148,7 +148,7 @@ export function buildSystem(ctx: StyleContext, mode: Mode, steer: Steer = {}): s
     ? '"fallback" is true only for gibberish; a plain occasion, agenda or mood is a valid brief.'
     : `"fallback" is true when the input is gibberish, names no identifiable garment or accessory, or is too vague to style (a lone colour, a generic word, a non-fashion idea) — then style a ${FALLBACK_PIECE} instead. Otherwise false.`;
   const wearerRule =
-    ctx.gender === 'unspecified'
+    ctx.gender === 'unspecified' || ctx.gender === 'non_binary'
       ? ' Set "wearer" ("woman" or "man") to your judgement of who the looks are for, from her words and the piece alone.'
       : '';
   const dna = styleDnaPromptBlock(ctx.styleDna, ctx.wardrobeCount, ctx.styleIcons, {

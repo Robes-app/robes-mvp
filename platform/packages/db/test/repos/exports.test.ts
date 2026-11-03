@@ -58,7 +58,22 @@ describe('data export (SEC-81)', () => {
     await repos.plan.pin(ann, look.id, ['2026-10-01'], { slot: 'day' });
     await repos.plan.nameDay(ann, '2026-10-02', 'Ann’s gallery night');
     await repos.plan.nameDay(bea, '2026-10-02', 'Bea’s day');
+    await repos.plan.setPlace(ann, '2026-10-03', {
+      city: 'Paris',
+      country: 'France',
+      lat: 48.86,
+      lon: 2.35,
+    });
+    await repos.plan.setPlace(bea, '2026-10-03', {
+      city: 'Bea’s town',
+      country: null,
+      lat: 1,
+      lon: 1,
+    });
     const doc = await dataExport.collect(ann);
+    expect(doc.dayPlaces).toEqual([
+      expect.objectContaining({ dayDate: '2026-10-03', city: 'Paris' }),
+    ]);
     expect(doc.dayNames).toEqual([
       expect.objectContaining({ dayDate: '2026-10-02', name: 'Ann’s gallery night' }),
     ]);
@@ -70,6 +85,7 @@ describe('data export (SEC-81)', () => {
     const json = JSON.stringify(doc);
     expect(json).not.toContain('Bea coat');
     expect(json).not.toContain('Bea’s day');
+    expect(json).not.toContain('Bea’s town');
     expect(json).not.toMatch(/"token":"[^"]*session/i);
     expect(Object.keys(doc)).not.toContain('sessions');
   });

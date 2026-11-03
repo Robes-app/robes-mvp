@@ -10,6 +10,7 @@ import { Icon } from '@robes/icons/web';
 import { Button, ErrorText, Eyebrow, Heading, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { PinnedAction } from '@/components/pinned-action';
 import type { AddDestination } from '@/lib/add-flow';
 import { PHOTO_ACCEPT, uploadPhoto } from '@/lib/upload';
@@ -35,6 +36,7 @@ const EMPTY = readDraft({
 // features/wardrobe/add/ManualAdd.tsx.
 export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: File }) {
   const api = useApiClient();
+  const { track } = useAnalytics().analytics;
   const queryClient = useQueryClient();
   const toast = useToast();
   const inputId = useId();
@@ -84,6 +86,7 @@ export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: 
         await queryClient.invalidateQueries({ queryKey: queryKeys.route('wishlist.list') });
       } else {
         await api.call('wardrobe.create', { input: { ...changes, label, ...image } });
+        track('wardrobe_added', { source: 'hand', batch_n: 1, batch_i: 1 });
         await invalidateWardrobe(queryClient);
       }
       setDone(true);

@@ -4,7 +4,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react-nativ
 import { Observations } from '../src/features/you/Observations';
 import { StyleDna } from '../src/features/you/StyleDna';
 import { mockFetch, renderWithApi } from './support/api';
-import { JOB_ID, LINE_ID, NOTICE_ID, styleDna } from './support/fixtures';
+import { JOB_ID, LINE_ID, NOTICE_ID, PIECE_ID, piece, styleDna } from './support/fixtures';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -83,6 +83,41 @@ test('Your colours: a family on Love and a shade on Avoid save the whole palette
       print: {},
     }),
   );
+});
+
+test('Your prints: each print row carries its own swatch, as the web', async () => {
+  const style = {
+    colour: null,
+    silhouette: null,
+    overrides: { lovedColors: [], rejectedColors: [], measurements: {} },
+    palette: { fam: {}, shade: {}, print: { stripes: 1 } },
+    updatedAt: null,
+  };
+  mockFetch({ 'GET /me/dna': styleDna(), 'GET /me/style': style });
+  const copy = you.style.palette;
+  await renderWithApi(<StyleDna />);
+  await fireEvent.press(
+    await screen.findByRole('button', {
+      name: `${copy.printsTitle}, ${copy.summary(['Stripes'])}`,
+    }),
+  );
+  expect(await screen.findByTestId('print-swatch-stripes')).toBeTruthy();
+  expect(screen.getByTestId('print-swatch-dots')).toBeTruthy();
+});
+
+test('Pieces you love shows each starred piece with its photograph', async () => {
+  const { id, label, category, brand, image } = piece({ brand: 'COS' });
+  mockFetch({ 'GET /me/dna': styleDna({ pieces: [{ id, label, category, brand, image }] }) });
+  await renderWithApi(<StyleDna />);
+  await fireEvent.press(
+    await screen.findByRole('button', {
+      name: `${twin.dnaPage.pieces}, ${twin.dnaPage.piecesCount(1)}`,
+    }),
+  );
+  expect(
+    await screen.findByTestId(`loved-photo-${PIECE_ID}`, { includeHiddenElements: true }),
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: label })).toBeTruthy();
 });
 
 test('the brand wall adds a house that is not in the pool', async () => {

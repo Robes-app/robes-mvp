@@ -46,9 +46,11 @@ test('the look Robes makes overnight is waiting on Today in the morning', async 
   expect(look.steps.length).toBeGreaterThan(0);
 
   await page.goto('/');
-  // The modular home carries it among the alerts (H1), under the masthead.
-  const alerts = page.getByTestId('home-alerts');
-  await expect(alerts.getByText('Your look for today')).toBeVisible();
-  await alerts.getByRole('link', { name: 'Open it ›' }).click();
+  // It waits behind the bell (plan 2026-11-02 D2): a card that opens the daily look.
+  const bell = page.getByTestId('bell');
+  await expect(bell).toHaveAttribute('data-alert', 'true');
+  await bell.click();
+  const sheet = page.getByRole('dialog', { name: 'Notifications' });
+  await sheet.getByRole('link', { name: /^Robes dressed you for today/ }).click();
   await expect(page).toHaveURL(new RegExp(`/today/looks/${t.overnight.id}$`));
 });

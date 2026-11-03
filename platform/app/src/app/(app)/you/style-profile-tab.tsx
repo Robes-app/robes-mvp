@@ -12,7 +12,7 @@ import { useBriefRead } from '@/lib/use-dna';
 
 // A landing card prints its title only (redlines G4/L5): white on a hairline, the whole card the door.
 const card =
-  'flex items-center justify-between gap-4 rounded-soft border border-hairline bg-surface-raised px-[22px] py-5 font-display text-2xl text-ink leading-tight hover:border-rule-mid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'flex items-center justify-between gap-4 rounded-card border border-hairline bg-surface-raised px-[22px] py-5 font-display text-2xl text-ink leading-tight hover:border-rule-mid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // Style Profile: the three cards print their title only; the one card that asks is an Observation.
 export function StyleProfileTab() {
@@ -45,7 +45,7 @@ function NoticedCard({ line }: { line: Observation }) {
   return (
     <section
       aria-label={twin.noticed.eyebrow}
-      className="flex flex-col gap-2.5 rounded-soft border border-rule-mid bg-surface-raised px-[22px] pt-5 pb-[18px]"
+      className="flex flex-col gap-2.5 rounded-card border border-rule-mid bg-surface-raised px-[22px] pt-5 pb-[18px]"
     >
       <Eyebrow className="text-[9.5px] text-accent-plan">{twin.noticed.eyebrow}</Eyebrow>
       <p className="line-clamp-3 font-display text-[22px] text-ink leading-snug">

@@ -152,6 +152,7 @@ export function createLookAskHandler(deps: LookAskDeps): JobHandler {
                   pieceId: piece.id,
                   name: piece.label,
                   category: piece.category ?? '',
+                  categoryL2: piece.categoryL2 ?? null,
                   brand: piece.brand,
                 },
               },

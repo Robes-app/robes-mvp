@@ -84,14 +84,15 @@ export function compositionKey(pieceIds: readonly string[]): string {
 }
 
 // A draft she builds by hand opens in the composer; a draft from Robes' suggestion keeps its
-// frame on the working page, and a look from her own photograph keeps the photograph.
+// frame on the working page, as does one Robes drew without her model. Robes' picture (`model`),
+// not the record: her own photograph, added from the composer's canvas, keeps her in it.
 export function isHandBuiltDraft(look: {
   status: string;
   setId: string | null;
   frame: boolean;
-  image: unknown;
+  model: unknown;
   onModel?: string | null;
 }): boolean {
   if (look.status !== 'draft' || look.setId || look.frame) return false;
-  return !look.image || Boolean(look.onModel);
+  return !look.model || Boolean(look.onModel);
 }

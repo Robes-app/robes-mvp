@@ -1,6 +1,7 @@
 import { styleDnaPromptBlock } from '@robes/core/style-dna';
 import { z } from 'zod';
 import { fenceUserText } from '../../fence';
+import { NON_BINARY_DIRECTIVE } from '../gender';
 import { FALLBACK_PIECE, type Gender } from './v1';
 
 // v3 (legacy beta 2026-10-07 → 10-13): every way is ONE scene line plus the complete outfit
@@ -148,6 +149,7 @@ export function sceneOf(way: { scene?: string; outfit?: string }): string {
 export function genderDirective(g: Gender): string {
   if (g === 'man')
     return 'The user is a man (from his profile): every piece, look and reference is menswear — male cuts, sizing, styling codes and brands, never womenswear. Where these notes say "she"/"her", read "he"/"him".';
+  if (g === 'non_binary') return NON_BINARY_DIRECTIVE;
   if (g === 'unspecified')
     return 'The user has not said how they identify: judge whose clothing to propose from their words and their pieces; when nothing points a direction, keep pieces and styling gender-neutral. "She"/"her" in these notes simply means this client.';
   return 'The user is a woman (from her profile): every piece and look is womenswear.';
@@ -187,7 +189,7 @@ export function buildSystem(ctx: StyleContext, mode: Mode): string {
     ? '"fallback" is true only for gibberish; a plain occasion, agenda or mood is a valid brief.'
     : `"fallback" is true when the input is gibberish, names no identifiable garment or accessory, or is too vague to style (a lone colour, a generic word, a non-fashion idea) — then style a ${FALLBACK_PIECE} instead. Otherwise false.`;
   const wearerRule =
-    ctx.gender === 'unspecified'
+    ctx.gender === 'unspecified' || ctx.gender === 'non_binary'
       ? ' Set "wearer" ("woman" or "man") to your judgement of who the looks are for, from her words and the piece alone.'
       : '';
   const dna = styleDnaPromptBlock(ctx.styleDna, ctx.wardrobeCount, ctx.styleIcons);

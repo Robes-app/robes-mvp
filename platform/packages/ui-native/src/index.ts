@@ -14,6 +14,7 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorText } from './ErrorText';
 export { Field, type FieldProps } from './Field';
 export { ASPECTS, type Aspect, Image, type ImageProps } from './Image';
+export { InlineTitleField, type InlineTitleFieldProps } from './InlineTitleField';
 export { useReducedMotion } from './motion';
 export { Chip, type ChipProps, Pill, type PillProps } from './Pill';
 export { PreferenceControl, type PreferenceControlProps } from './PreferenceControl';
@@ -30,6 +31,7 @@ export {
   HEADING_MIN_SIZE,
   MIN_TOUCH,
   maxFontSizeMultiplier,
+  TOAST_DEFAULT_DURATION,
   TOAST_MIN_DURATION,
 } from './scale';
 export { Em, Eyebrow, Heading, type HeadingProps, Text, type TextProps, Wordmark } from './Text';

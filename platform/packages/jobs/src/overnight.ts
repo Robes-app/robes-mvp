@@ -1,5 +1,6 @@
 import { type BatchProvider, parseBatchResult } from '@robes/ai';
 import { FEATURE, Output } from '@robes/ai/prompts/daily';
+import { GENDER_IDENTITIES } from '@robes/core/avatar';
 import type { Repositories, SystemRepositories, UserId } from '@robes/db';
 import { verifiedUserId } from '@robes/db';
 import { z } from 'zod';
@@ -46,7 +47,7 @@ const StoredPlan = z.object({
       condition: z.string().nullable(),
     })
     .nullable(),
-  gender: z.enum(['woman', 'man', 'unspecified']),
+  gender: z.enum(GENDER_IDENTITIES),
   styleIcons: z.array(z.string()),
   homeCity: z.string().nullable(),
 });

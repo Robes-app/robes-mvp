@@ -47,6 +47,38 @@ describe('wardrobe schema', () => {
       expect(item?.season_band).toBe('spring_summer');
     }));
 
+  it('files a photo piece’s defaults when its read lands (reading → ready), once', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q(
+        `insert into app.wardrobe_items (id, user_id, label, status) values ($1, $2, 'New piece', 'reading')`,
+        [ITEM_2, USER_A],
+      );
+      const before = await q('select 1 from app.tag_pieces where wardrobe_item_id = $1', [ITEM_2]);
+      expect(before).toEqual([]);
+      await q(
+        `update app.wardrobe_items set status = 'ready', category = 'Tops',
+           category_l2 = 'Shirts & blouses', category_l3 = null where id = $1`,
+        [ITEM_2],
+      );
+      const [item] = await q('select season_band from app.wardrobe_items where id = $1', [ITEM_2]);
+      expect(item?.season_band).toBe('year_round');
+      const tags = await q<{ slug: string }>(
+        `select t.slug from app.tag_pieces tp join app.tags t on t.id = tp.tag_id
+         where tp.wardrobe_item_id = $1`,
+        [ITEM_2],
+      );
+      expect(tags).toEqual([{ slug: 'everyday' }]);
+      // A later edit is hers to make: re-filing it doesn't re-run the defaults.
+      await q(
+        `update app.wardrobe_items set season_band = 'spring_summer', season_source = 'user',
+           category = 'Outerwear', category_l2 = 'Coats', category_l3 = null where id = $1`,
+        [ITEM_2],
+      );
+      const [after] = await q('select season_band from app.wardrobe_items where id = $1', [ITEM_2]);
+      expect(after?.season_band).toBe('spring_summer');
+    }));
+
   it('cannot attach another user’s asset (composite FK)', () =>
     inTx(async (q) => {
       await setup(q);

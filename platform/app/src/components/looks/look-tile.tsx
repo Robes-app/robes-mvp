@@ -1,5 +1,5 @@
 import type { Look } from '@robes/contracts';
-import { Card } from '@robes/ui';
+import { type Aspect, Card } from '@robes/ui';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { LookImage } from './look-image';
@@ -10,6 +10,8 @@ const focus =
 export interface LookTileProps {
   look: Look;
   sizes: string;
+  // The photograph's shape on this surface: 3:4 in the Lookbook grid and on a day (beta).
+  aspect?: Aspect;
   // The whole tile opens the look, or answers a pick — never both.
   href?: string;
   onSelect?: () => void;
@@ -33,6 +35,9 @@ export interface LookTileProps {
   // On the photograph (a diary door, a mark, the scan line) and in the corner (✕, ↻).
   onImage?: ReactNode;
   corner?: ReactNode;
+  // The OOTD card on home (design 3k): the same frame on a 6px radius, the name in small caps
+  // with a chevron, no eyebrow or meta — the day's look, not a catalogue card.
+  variant?: 'card' | 'ootd';
   className?: string;
   testId?: string;
 }
@@ -45,6 +50,7 @@ export interface LookTileProps {
 export function LookTile({
   look,
   sizes,
+  aspect = '4:5',
   href,
   onSelect,
   selected = false,
@@ -62,10 +68,12 @@ export function LookTile({
   dimmed = false,
   onImage,
   corner,
+  variant = 'card',
   className,
   testId,
 }: LookTileProps) {
   const title = name ?? look.name;
+  const ootd = variant === 'ootd';
   // The whole card is the target: a stretched link (or button) behind the actions on top of it.
   const stretched = `${focus} rounded-soft after:absolute after:inset-0 after:rounded-soft`;
   const heading = href ? (
@@ -95,7 +103,9 @@ export function LookTile({
         'min-w-0',
         // The dashed draft: unfinished, on the fine edge, its photograph inset in the frame.
         dashed ? 'border-dashed border-rule-mid bg-transparent p-1.5' : '',
-        selected ? 'border-ink' : '',
+        ootd ? 'rounded-[6px]' : '',
+        // A pick is warm, never black (root CLAUDE.md): the warm fill on the warm edge.
+        selected ? 'border-selected-line bg-selected' : '',
         dimmed ? 'opacity-60' : '',
         className ?? '',
       ]
@@ -104,40 +114,53 @@ export function LookTile({
       media={
         <>
           <div className={`relative ${dashed ? 'overflow-hidden rounded-[8px]' : ''}`}>
-            <LookImage look={look} sizes={sizes} priority={priority} />
+            <LookImage look={look} sizes={sizes} priority={priority} aspect={aspect} />
             {onImage}
           </div>
-          <div
-            className={`flex flex-col ${dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-0.5 px-3 pt-2.5 pb-3'}`}
-          >
-            {eyebrow || badge ? (
-              <div className="flex min-w-0 items-center justify-between gap-2">
-                <p
-                  className={`truncate font-sans font-normal uppercase tracking-[0.22em] ${
-                    eyebrowTone === 'warm' ? 'text-accent-warm' : 'text-ink-faint'
-                  } ${dashed ? 'text-[10px]' : 'text-[11px]'}`}
-                >
-                  {eyebrow}
-                </p>
-                {badge ? (
-                  <span className="shrink-0 rounded-pill border border-selected-line bg-selected px-2 py-px font-sans text-[10px] text-ink">
-                    {badge}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-            <h3
-              className={`truncate font-display font-light text-ink ${dashed ? 'text-lg leading-[22px]' : 'text-xl leading-[23px]'}`}
-            >
+          {ootd ? (
+            <h3 className="flex min-h-11 items-center justify-between gap-2 px-3.5 py-3 font-sans text-[10px] font-medium uppercase tracking-[0.16em] text-ink">
               {heading}
+              {href || onSelect ? (
+                <span aria-hidden className="text-[15px] font-light text-ink-faint">
+                  ›
+                </span>
+              ) : null}
             </h3>
-            {tag ? (
-              <span className="mt-1 mb-0.5 self-start rounded-pill border border-hairline bg-surface px-2 py-0.5 font-sans text-[10px] text-ink-muted">
-                {tag}
-              </span>
-            ) : null}
-            {meta ? <p className="truncate font-sans text-[11px] text-ink-muted">{meta}</p> : null}
-          </div>
+          ) : (
+            <div
+              className={`flex flex-col ${dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-0.5 px-3 pt-2.5 pb-3'}`}
+            >
+              {eyebrow || badge ? (
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                  <p
+                    className={`truncate font-sans font-normal uppercase tracking-[0.22em] ${
+                      eyebrowTone === 'warm' ? 'text-accent-warm' : 'text-ink-faint'
+                    } ${dashed ? 'text-[10px]' : 'text-[11px]'}`}
+                  >
+                    {eyebrow}
+                  </p>
+                  {badge ? (
+                    <span className="shrink-0 rounded-pill border border-selected-line bg-selected px-2 py-px font-sans text-[10px] text-ink">
+                      {badge}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+              <h3
+                className={`truncate font-display font-light text-ink ${dashed ? 'text-lg leading-[22px]' : 'text-xl leading-[23px]'}`}
+              >
+                {heading}
+              </h3>
+              {tag ? (
+                <span className="mt-1 mb-0.5 self-start rounded-pill border border-hairline bg-surface px-2 py-0.5 font-sans text-[10px] text-ink-muted">
+                  {tag}
+                </span>
+              ) : null}
+              {meta ? (
+                <p className="truncate font-sans text-[11px] text-ink-muted">{meta}</p>
+              ) : null}
+            </div>
+          )}
         </>
       }
       {...(corner

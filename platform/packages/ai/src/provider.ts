@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { ImageCapability, TextCapability } from './models';
+import type { ImageCapability, ImageSize, TextCapability } from './models';
 
 export interface InlineImage {
   mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
@@ -26,6 +26,9 @@ export interface JsonRequest<T> {
   schema: z.ZodType<T>;
   maxOutputTokens: number;
   temperature?: number;
+  // A judgement that earns more reasoning and the photo at full detail (her colour read). Every
+  // other call keeps the defaults: low thinking (billed as output), and a photo read is filing.
+  deliberate?: boolean;
   signal: AbortSignal;
 }
 
@@ -35,6 +38,8 @@ export interface ImageRequest {
   prompt: string;
   references?: InlineImage[];
   aspectRatio: '4:5' | '1:1' | '3:4';
+  // 1K unless asked: 2K only where a face must survive a full-length frame (her twin).
+  imageSize?: ImageSize;
   signal: AbortSignal;
 }
 

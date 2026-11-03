@@ -5,6 +5,47 @@ export function addDays(date: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Whole days from `from` to `date` (negative for a day gone by).
+export function daysBetween(from: string, date: string): number {
+  return Math.round(
+    (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000,
+  );
+}
+
+// The home diary's window (Front Door design 3k, plan 2026-11-02 D1): three pages of seven days with
+// today's page centred, so the strip reaches ten days back and ten ahead.
+export const DIARY_BACK = 10;
+export const DIARY_AHEAD = 10;
+export function diaryWindow(today: string): { from: string; to: string; days: string[] } {
+  const from = addDays(today, -DIARY_BACK);
+  const to = addDays(today, DIARY_AHEAD);
+  return {
+    from,
+    to,
+    days: Array.from({ length: DIARY_BACK + DIARY_AHEAD + 1 }, (_, i) => addDays(from, i)),
+  };
+}
+
+// The strip's pages: seven days each, today's page in the middle.
+export function diaryPages<T>(days: readonly T[], size = 7): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < days.length; i += size) out.push(days.slice(i, i + size));
+  return out;
+}
+
+// "Tue 3": the day chip and the strip's cell, or Today.
+export function weekdayDay(date: string): string {
+  return `${weekdayShort(date)} ${at(date).getUTCDate()}`;
+}
+
+// The look that leads a day on home (design 3k): what she wore if she logged it, else the first
+// in the day's order (position 0 is the starred OOTD). Shared so web and native never disagree.
+export function dayOotd<T extends { worn: boolean; position: number }>(
+  entries: readonly T[],
+): T | null {
+  return entries.find((e) => e.worn) ?? entries[0] ?? null;
+}
+
 // The days the save sheet offers (today and the fortnight after); the day her words named leads
 // selected when it is one of them, never a day gone by.
 export const DIARY_DAYS = 14;
@@ -37,6 +78,29 @@ export function diaryPick(
   };
 }
 
+// What the diary sheet's month marks for one look: every day carrying a look is filed, the days
+// this look is pinned to say "already in the diary", and every day she wore it (its wears, not
+// only the last one) is worn — and filed, so the month shows its history.
+export function diaryMarks(
+  days: ReadonlyArray<{ date: string; entries: ReadonlyArray<{ look: { id: string } }> }>,
+  lookId: string | null | undefined,
+  wornOn: Iterable<string | null | undefined>,
+): { filed: Set<string>; pinned: Set<string>; worn: Set<string> } {
+  const filed = new Set<string>();
+  const pinned = new Set<string>();
+  for (const d of days) {
+    if (d.entries.length) filed.add(d.date);
+    if (lookId && d.entries.some((e) => e.look.id === lookId)) pinned.add(d.date);
+  }
+  const worn = new Set<string>();
+  for (const d of wornOn) {
+    if (!d) continue;
+    worn.add(d);
+    filed.add(d);
+  }
+  return { filed, pinned, worn };
+}
+
 export function monthOf(date: string): string {
   return date.slice(0, 7);
 }
@@ -61,12 +125,9 @@ export function monthGrid(month: string): { from: string; days: number; cells: (
   return { from, days, cells };
 }
 
+// "October 2026": the month view's head and the day page's back link.
 export function monthLabel(month: string): string {
-  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-GB', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
+  return `${monthLong(`${month}-01`)} ${month.slice(0, 4)}`;
 }
 
 // Day planning (legacy ff87e89, Day_Planning design): the list is summary rows grouped by week,
@@ -77,13 +138,31 @@ export function mondayOf(date: string): string {
   return addDays(date, -((d.getUTCDay() + 6) % 7));
 }
 
-const SHORT_DAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
-const LONG_DAY = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  timeZone: 'UTC',
-});
+// Every month and weekday name comes from a table, never Intl (root CLAUDE.md: months print by
+// table): newer ICU prints "Sept", and a table reads the same on every server, browser and phone.
+const MONTHS_LONG = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
+const WEEKDAYS_LONG = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+] as const;
 // Short months come from a table, never Intl: newer ICU prints "Sept", and beta (and every
 // fixed-width cell that holds one) always reads three letters.
 const MONTHS_SHORT = [
@@ -100,6 +179,8 @@ const MONTHS_SHORT = [
   'Nov',
   'Dec',
 ] as const;
+// Monday first, as every month grid here is: the heads over a month and a day's short name.
+export const WEEKDAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 const at = (date: string) => new Date(`${date}T00:00:00Z`);
 const monthShort = (date: string) => MONTHS_SHORT[at(date).getUTCMonth()] ?? '';
 
@@ -109,16 +190,31 @@ export function dayMonth(date: string): string {
 }
 
 export function weekdayShort(date: string): string {
-  return SHORT_DAY.format(at(date));
+  return WEEKDAYS_SHORT[(at(date).getUTCDay() + 6) % 7] ?? '';
 }
 
 export function weekdayLong(date: string): string {
-  return new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' }).format(at(date));
+  return WEEKDAYS_LONG[(at(date).getUTCDay() + 6) % 7] ?? '';
+}
+
+// "October": a date's month in full.
+export function monthLong(date: string): string {
+  return MONTHS_LONG[at(date).getUTCMonth()] ?? '';
+}
+
+// "Tue 8 Sep": a day in a list or a wear row, the month from the table.
+export function weekdayDayMonth(date: string): string {
+  return `${weekdayShort(date)} ${dayMonth(date)}`;
+}
+
+// "Wednesday 28 Oct": the name an unnamed hand-built look saves under (beta's _lkFmtLong).
+export function lookDateName(date: string): string {
+  return `${weekdayLong(date)} ${dayMonth(date)}`;
 }
 
 // "Tuesday 13 October", the day page's eyebrow.
 export function longDate(date: string): string {
-  return LONG_DAY.format(at(date));
+  return `${weekdayLong(date)} ${at(date).getUTCDate()} ${monthLong(date)}`;
 }
 
 // "5–11 Oct", or "28 Sep – 4 Oct" across months.

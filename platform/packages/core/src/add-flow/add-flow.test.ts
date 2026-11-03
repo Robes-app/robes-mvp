@@ -15,6 +15,7 @@ import {
   scanTags,
   TAG_SPOTS,
   wishChanges,
+  withTagDefaults,
 } from '.';
 
 const entry = (
@@ -72,7 +73,44 @@ describe('add flow', () => {
       wearFor: [],
       price: null,
     });
-    expect(readDraft({ ...draft, color: null }).colourShade).toBeNull();
+    expect(readDraft({ ...draft, color: null, colourShade: null }).colourShade).toBeNull();
+  });
+
+  it("keeps the read's shade, extra shades, print and material", () => {
+    const draft = readDraft({
+      label: 'White lace blouse',
+      brand: 'Sézane',
+      notes: null,
+      categoryL2: 'Shirts & blouses',
+      categoryL3: 'Blouse',
+      color: 'Optic white',
+      colourShade: 'optic',
+      colourExtra: ['cream'],
+      print: 'other',
+      material: 'cotton',
+    });
+    expect(draft).toMatchObject({
+      colourShade: 'optic',
+      colourExtra: ['cream'],
+      print: 'other',
+      material: 'cotton',
+    });
+  });
+
+  it('shows the category defaults on unanswered season and wear-for rows, never over hers', () => {
+    const blazer = { categoryL2: 'Blazers', seasonBand: null, wearFor: [] as string[] };
+    expect(withTagDefaults(blazer)).toEqual({
+      categoryL2: 'Blazers',
+      seasonBand: 'year_round',
+      wearFor: ['Work', 'Everyday'],
+    });
+    expect(
+      withTagDefaults({ ...blazer, seasonBand: 'spring_summer', wearFor: ['Evening'] }),
+    ).toEqual({ categoryL2: 'Blazers', seasonBand: 'spring_summer', wearFor: ['Evening'] });
+    expect(withTagDefaults({ ...blazer, categoryL2: null })).toEqual({
+      ...blazer,
+      categoryL2: null,
+    });
   });
 
   it('walks to the next piece waiting, then wraps, then stops', () => {

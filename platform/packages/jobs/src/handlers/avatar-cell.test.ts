@@ -44,6 +44,7 @@ describe('avatar_cell', () => {
     const { run, cells, storage, generateImage } = setup();
     await expect(run('w-s3-h1-nt@v2')).resolves.toEqual({ status: 'succeeded' });
     expect(generateImage.mock.calls[0]?.[0].prompt).toContain('this is the reference portrait');
+    expect(generateImage.mock.calls[0]?.[0].imageSize).toBeUndefined();
     expect(storage.putObject.mock.calls[0]?.[0]).toMatch(
       /^catalog\/avatar\/w-s3-h1-nt@v2\.(png|jpg|webp)$/,
     );
@@ -138,6 +139,8 @@ describe('avatar_cell · her twin', () => {
     expect(req?.prompt).toContain('IMAGE 1 is a photograph of this exact person');
     expect(req?.prompt).toContain('full hips, fuller than the shoulders');
     expect(req?.prompt).toContain('35 years old');
+    // Her face must survive a full-length frame: the twin alone is drawn at 2K.
+    expect(req?.imageSize).toBe('2K');
     expect(storage.putObject.mock.calls[0]?.[0]).toBe(`uploads/${USER}/${TWIN_ASSET}/original`);
     expect(model.setTwin).toHaveBeenCalledWith(USER, key, TWIN_ASSET);
   });

@@ -1,7 +1,5 @@
 import { JobIdParams } from '@robes/contracts';
-import { nav } from '@robes/copy';
 import { notFound } from 'next/navigation';
-import { BackLink } from '@/components/back-link';
 import { StyleProgress } from './style-progress';
 
 export default async function StyleJobPage({
@@ -16,7 +14,6 @@ export default async function StyleJobPage({
   const home = (await searchParams).from === 'home';
   return (
     <div className="flex flex-col gap-4">
-      {home ? <BackLink href="/" label={nav.today} /> : null}
       <StyleProgress jobId={parsed.data.id} home={home} />
     </div>
   );

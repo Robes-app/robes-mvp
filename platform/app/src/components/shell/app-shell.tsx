@@ -13,7 +13,7 @@ import {
   Wordmark,
 } from '@robes/ui';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   createContext,
   type ReactNode,
@@ -23,9 +23,12 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { BackLink } from '@/components/back-link';
 import { NewLookBox } from '@/components/home/home-box';
+import { Bell } from '@/components/shell/bell';
 import {
   activeRoot,
+  backFor,
   CREATE_GROUPS,
   createItems,
   GO_TO_ITEMS,
@@ -34,6 +37,7 @@ import {
   NAV_ITEMS,
 } from '@/lib/nav';
 import { FeaturesProvider } from '../features';
+import { useDeviceLocation } from './device-location';
 
 const focus =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
@@ -47,6 +51,17 @@ export function usePushedView(): void {
     set(true);
     return () => set(false);
   }, [set]);
+}
+
+// A stage of a pushed page that carries its own way out (Add pieces' Review and its ×) takes the
+// back pill away (top bar and page head alike) while it shows.
+const HideBackContext = createContext<(on: boolean) => void>(() => {});
+export function useHideBack(hidden: boolean): void {
+  const set = useContext(HideBackContext);
+  useEffect(() => {
+    set(hidden);
+    return () => set(false);
+  }, [set, hidden]);
 }
 
 // Signed-in chrome: top nav ≥768; below it beta's dock — a floating bar of the four roots with
@@ -66,8 +81,12 @@ export function AppShell({
   const [createOpen, setCreateOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [pushed, setPushed] = useState(false);
+  const [backHidden, setBackHidden] = useState(false);
+  const search = useSearchParams();
+  const back = backHidden ? null : backFor(pathname, search);
   const toggleCommand = useCallback(() => setCommandOpen((o) => !o), []);
   useCommandHotkey(toggleCommand);
+  useDeviceLocation();
   const current = activeRoot(pathname);
   const inFlow = isFlowPath(pathname) || pushed;
   const create = useMemo(() => createItems(features), [features]);
@@ -117,10 +136,23 @@ export function AppShell({
   return (
     <div className="flex min-h-dvh flex-col">
       <header
-        className={`sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur ${pushed ? 'max-md:hidden' : ''}`}
+        className={`sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur ${pushed && !back ? 'max-md:hidden' : ''}`}
       >
         <div className="mx-auto flex h-11 max-w-5xl items-center gap-2 px-5 md:h-16 md:px-4">
-          <Link href="/" aria-label={nav.today} className={`text-ink ${focus}`}>
+          {/* A pushed page's back pill: below 768 it stands where the wordmark sits, one header row;
+              from 768 the bar keeps the wordmark and the pill heads the page (beta's #rb-backpill and
+              .rb-ret). Both are drawn and CSS picks one, so the server render is final; the other is
+              display:none, out of the accessibility tree. */}
+          {back ? (
+            <div className="md:hidden">
+              <BackLink href={back.href} label={back.label} />
+            </div>
+          ) : null}
+          <Link
+            href="/"
+            aria-label={nav.today}
+            className={`text-ink ${back ? 'max-md:hidden' : ''} ${focus}`}
+          >
             <Wordmark />
           </Link>
           <nav aria-label={shell.primaryNav} className="ml-6 hidden items-center gap-1 md:flex">
@@ -160,6 +192,8 @@ export function AppShell({
               <Icon name="looks" size={16} />
               {nav.create}
             </button>
+            {/* The bell (design 3k): alerts leave home for here, a dot while anything waits. */}
+            <Bell />
             <Link
               href="/you"
               aria-label={shell.openYou}
@@ -176,8 +210,15 @@ export function AppShell({
         id="main"
         className={`mx-auto w-full max-w-5xl flex-1 px-5 pt-3.5 md:px-4 md:pt-6 md:pb-16 ${inFlow ? 'pb-8' : 'pb-32'}`}
       >
+        {back ? (
+          <div className="mb-4 max-md:hidden">
+            <BackLink href={back.href} label={back.label} />
+          </div>
+        ) : null}
         <PushedContext value={setPushed}>
-          <FeaturesProvider value={features}>{children}</FeaturesProvider>
+          <HideBackContext value={setBackHidden}>
+            <FeaturesProvider value={features}>{children}</FeaturesProvider>
+          </HideBackContext>
         </PushedContext>
       </main>
 

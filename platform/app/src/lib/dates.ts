@@ -1,4 +1,5 @@
 import { plan } from '@robes/copy';
+import { weekdayDayMonth } from '@robes/core/calendar';
 
 // YYYY-MM-DD for the browser's own calendar day ("Wear it today" means her today).
 export function localToday(now = new Date()): string {
@@ -8,16 +9,9 @@ export function localToday(now = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
-const DAY_FORMAT = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-  timeZone: 'UTC',
-});
-
-// Calendar dates are plain days: format them in UTC so no timezone moves them.
+// "Sat 3 Oct": months from the table, never Intl ("Sept"); calendar text, so no timezone moves it.
 export function formatDay(date: string): string {
-  return DAY_FORMAT.format(new Date(`${date}T00:00:00Z`));
+  return weekdayDayMonth(date);
 }
 
 export function dayLabel(date: string, today: string): string {

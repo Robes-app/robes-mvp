@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView } from 'react-native';
 import { PinnedAction } from '@/components/PinnedAction';
+import { nativeAnalytics } from '@/lib/analytics';
 import { PICKER_OPTIONS, uploadPhoto } from '../add-pieces';
 import { type PieceField, PieceFieldSheet } from '../PieceFieldSheet';
 import { RecordRows } from '../PieceRows';
@@ -97,6 +98,7 @@ export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: 
         await api.call('wishlist.create', { input: { ...wishChanges(changes), label, ...image } });
       } else {
         await api.call('wardrobe.create', { input: { ...changes, label, ...image } });
+        nativeAnalytics.track('wardrobe_added', { source: 'hand', batch_n: 1, batch_i: 1 });
       }
       await queryClient.invalidateQueries({
         queryKey: queryKeys.route(to === 'wishlist' ? 'wishlist.list' : 'wardrobe.list'),

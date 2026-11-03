@@ -14,16 +14,18 @@ import {
   Heading,
   IconButton,
   Image,
+  InlineTitleField,
   Pill,
   Skeleton,
   Text,
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useId, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useId, useMemo, useState } from 'react';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
+import { takePendingPhoto } from '@/lib/pending-photo';
 import { usePhotoRead } from '@/lib/photo-read';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 import { invalidateWardrobe } from '@/lib/wardrobe';
@@ -42,7 +44,7 @@ const sheetOf = (p: { categoryL2: string | null; category: string }): string =>
 
 // Use case 2b: a look from her photo. Robes reads every piece; each is confirmed (hers, new, or
 // left out) before Save; new pieces file to the wardrobe on save with their own crops.
-export function LookFromPhoto() {
+export function LookFromPhoto({ day = null }: { day?: string | null } = {}) {
   const read = usePhotoRead('look_photo');
   const model = useApi('me.model.get');
   const router = useRouter();
@@ -59,9 +61,17 @@ export function LookFromPhoto() {
   const [natural, setNatural] = useState<Natural | null>(null);
   const [finding, setFinding] = useState<number | null>(null);
   const [name, setName] = useState('');
-  const [wear, setWear] = useState(false);
+  const today = localToday();
+  // Capture Look on a day (design 3k): a day gone by or today files the wear; a day ahead pins.
+  const [wear, setWear] = useState(day !== null && day <= today);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The photo she picked in the log sheet starts its read here, one tap from the day.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount
+  useEffect(() => {
+    const file = takePendingPhoto();
+    if (file) void read.start(file);
+  }, []);
 
   if (read.status === 'done' && read.jobId && seenJob !== read.jobId) {
     setSeenJob(read.jobId);
@@ -87,9 +97,12 @@ export function LookFromPhoto() {
                 : { index: piece.index, state: state.state === 'new' ? 'new' : 'skip' },
           ),
           ...(name.trim() ? { name: name.trim() } : {}),
-          ...(wear ? { wornOn: localToday() } : {}),
+          ...(wear ? { wornOn: day && day <= today ? day : today } : {}),
         },
       });
+      if (day && day > today) {
+        await client.call('plan.pin', { params: { id: look.id }, input: { dates: [day] } });
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') }),
         invalidateWardrobe(queryClient),
@@ -158,16 +171,17 @@ export function LookFromPhoto() {
     <form onSubmit={save} className="mx-auto flex w-full max-w-md flex-col gap-6 pb-28">
       <header className="flex flex-col items-center gap-2 text-center">
         <Eyebrow>{lookbook.eyebrow.draft}</Eyebrow>
-        <label className="w-full">
-          <span className="sr-only">{lookbook.name.label}</span>
-          <input
-            value={name}
-            maxLength={120}
-            placeholder={lookbook.figure.untitled}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full border-0 border-transparent border-b bg-transparent text-center font-display font-light text-3xl text-ink italic placeholder:text-ink-faint focus-visible:border-ink focus-visible:outline-none"
-          />
-        </label>
+        {/* The draft's masthead, as in the composer; the name rides with Save. */}
+        <InlineTitleField
+          value={name}
+          label={lookbook.name.label}
+          placeholder={lookbook.figure.untitled}
+          size="lg"
+          italic
+          align="center"
+          autoFocus={false}
+          onChange={setName}
+        />
       </header>
       <section className="flex flex-col gap-3">
         <Eyebrow>{reading ? copy.headReading : copy.head(onRack.length)}</Eyebrow>

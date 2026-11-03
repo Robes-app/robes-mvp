@@ -23,7 +23,7 @@ import {
   ListAuditInput,
   SetAdminFlagInput,
 } from './admin';
-import { EmptyInput, HealthOutput } from './common';
+import { AuthProviders, EmptyInput, HealthOutput } from './common';
 import { Consents, UpdateConsentsInput } from './consents';
 import {
   DecideInboxInput,
@@ -63,6 +63,7 @@ import {
 } from './looks';
 import {
   AnalyseStyleInput,
+  CompleteOnboardingInput,
   DataExport,
   DataExportStatus,
   DeletionRequest,
@@ -77,10 +78,12 @@ import {
   RequestDeletionInput,
   StyleOverrides,
   StyleProfile,
+  UpdateLocationInput,
   UpdateMeInput,
   UpdateModelInput,
 } from './me';
 import { Asset, AssetParams, CreateUploadInput, CreateUploadOutput, MediaSession } from './media';
+import { DismissNotificationInput, Notifications } from './notifications';
 import { JoinWaitlistInput, Ok, OneClickUnsubInput, UnsubParams } from './notify';
 import {
   FileReadInput,
@@ -91,14 +94,19 @@ import {
 } from './photo-reads';
 import {
   DayName,
+  DayPlace,
+  DayPlaceInput,
   GetPlanInput,
   NameDayInput,
   PinLookInput,
   PinnedEntries,
+  PlaceHits,
+  PlaceSearchInput,
   Plan,
   PlanDayParams,
   PlanEntry,
   PlanEntryParams,
+  SetOotdInput,
   UpdatePlanEntryInput,
 } from './plan';
 import { CreateShareInput, Share, SharedLook, ShareParams } from './shares';
@@ -134,6 +142,7 @@ import {
   Piece,
   PiecePage,
   PieceParams,
+  PiecePhotoInput,
   PieceWearPage,
   UpdatePieceInput,
   UpdateWishInput,
@@ -196,8 +205,16 @@ export const routes = {
     method: 'POST',
     path: '/me/onboarding/complete',
     auth: 'user',
-    input: EmptyInput,
+    input: CompleteOnboardingInput,
     output: OnboardingComplete,
+  },
+  // Her device location, after she allowed it: rounded, named and kept as her home for the weather.
+  'me.location': {
+    method: 'POST',
+    path: '/me/location',
+    auth: 'user',
+    input: UpdateLocationInput,
+    output: Ok,
   },
   // Later on a home step: it stands down for a day.
   'me.home.later': {
@@ -206,6 +223,22 @@ export const routes = {
     auth: 'user',
     input: HomeLaterInput,
     output: HomeLater,
+  },
+  // The bell: receipts to review and days with no wear logged, computed on each read.
+  'notifications.list': {
+    method: 'GET',
+    path: '/me/notifications',
+    auth: 'user',
+    input: EmptyInput,
+    output: Notifications,
+  },
+  // Naturally idempotent: dismissing a dismissed item changes nothing.
+  'notifications.dismiss': {
+    method: 'POST',
+    path: '/me/notifications/dismiss',
+    auth: 'user',
+    input: DismissNotificationInput,
+    output: Ok,
   },
   'me.deletion.get': {
     method: 'GET',
@@ -445,6 +478,15 @@ export const routes = {
     auth: 'user',
     params: PieceParams,
     input: UpdatePieceInput,
+    output: Piece,
+  },
+  // Change photo: her new photograph replaces the piece's; what Robes read from it stays hers.
+  'wardrobe.photo': {
+    method: 'POST',
+    path: '/wardrobe/items/:id/photo',
+    auth: 'user',
+    params: PieceParams,
+    input: PiecePhotoInput,
     output: Piece,
   },
   'wardrobe.delete': {
@@ -888,6 +930,32 @@ export const routes = {
     input: EmptyInput,
     output: Deleted,
   },
+  // Make a look the day's OOTD (position 0); the day's entries come back in their new order.
+  'plan.ootd': {
+    method: 'PUT',
+    path: '/plan/days/:date/ootd',
+    auth: 'user',
+    params: PlanDayParams,
+    input: SetOotdInput,
+    output: PinnedEntries,
+  },
+  // Where she is on a day (the prompt's place chip); null clears it back to home.
+  'plan.place': {
+    method: 'PUT',
+    path: '/plan/days/:date/place',
+    auth: 'user',
+    params: PlanDayParams,
+    input: DayPlaceInput,
+    output: DayPlace,
+  },
+  // The place picker: cities by name, with the day's weather at each.
+  'places.search': {
+    method: 'GET',
+    path: '/places',
+    auth: 'user',
+    input: PlaceSearchInput,
+    output: PlaceHits,
+  },
   // Naturally idempotent: sharing a look again returns its existing link.
   'shares.create': {
     method: 'POST',
@@ -911,6 +979,13 @@ export const routes = {
     params: ShareParams,
     input: EmptyInput,
     output: SharedLook,
+  },
+  'public.authProviders': {
+    method: 'GET',
+    path: '/public/auth-providers',
+    auth: 'public',
+    input: EmptyInput,
+    output: AuthProviders,
   },
   'public.waitlist.join': {
     method: 'POST',

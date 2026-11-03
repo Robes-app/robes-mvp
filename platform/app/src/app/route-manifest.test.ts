@@ -5,7 +5,10 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 // Every public route must be listed here AND in docs/api.md §3.
 const PUBLIC_ROUTES = new Set([
+  '/.well-known/apple-app-site-association',
+  '/.well-known/assetlinks.json',
   '/api/v1/health',
+  '/api/v1/public/auth-providers',
   '/api/v1/public/shares/[token]',
   '/api/v1/public/unsub/[token]',
   '/api/v1/public/waitlist',
@@ -16,7 +19,8 @@ const DELEGATED_ROUTES = new Set(['/api/auth/[...all]']);
 const BUILDERS = ['route', 'sseRoute'];
 const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const;
 const here = dirname(fileURLToPath(import.meta.url));
-const files = globSync('**/route.ts', { cwd: here });
+// `**` skips dot folders, so `.well-known/*` needs its own pattern.
+const files = [...new Set(globSync(['**/route.ts', '**/.*/**/route.ts'], { cwd: here }))];
 
 function urlPath(file: string): string {
   const segments = dirname(file)
@@ -31,7 +35,10 @@ describe('route manifest (SEC-01)', () => {
   // The first route import loads the whole server stack; pay that once, outside the per-route timeout.
   beforeAll(() => import('@/server/route'), 60_000);
 
-  it('finds routes', () => expect(files.length).toBeGreaterThan(0));
+  it('finds routes, including those in dot folders', () => {
+    expect(files.length).toBeGreaterThan(0);
+    expect(files).toContain('.well-known/assetlinks.json/route.ts');
+  });
 
   it.each(files)('%s is built with route() and protected unless allow-listed', async (file) => {
     const path = urlPath(file);

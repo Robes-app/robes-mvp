@@ -101,7 +101,7 @@ export function CommandBar({
           className="fixed top-[12dvh] left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 flex-col overflow-hidden rounded-crisp border border-hairline bg-bg text-ink shadow-xl"
         >
           <RadixDialog.Title className="sr-only">{label}</RadixDialog.Title>
-          <div className="flex items-center gap-3 border-b border-hairline px-4">
+          <div className="flex items-center gap-3 border-b border-hairline px-4 focus-within:border-ink">
             <Icon name="search" size={20} className="text-ink-muted" />
             <input
               role="combobox"

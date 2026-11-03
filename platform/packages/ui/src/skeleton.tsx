@@ -2,7 +2,7 @@ import type { HTMLAttributes } from 'react';
 import { cn } from './cn';
 
 const shapes = {
-  rect: 'rounded-crisp',
+  rect: 'rounded-soft',
   text: 'h-4 rounded-crisp',
   circle: 'rounded-pill',
 } as const;

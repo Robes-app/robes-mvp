@@ -11,11 +11,13 @@ import { cn } from './cn';
 // Controls carry a ≥3:1 boundary (border-control) and inputs render at 16px so iOS doesn't zoom.
 // Focus is quiet: the boundary goes ink and doubles, never a ring that outshouts the screen.
 const control =
-  'w-full rounded-crisp border bg-surface-raised px-4 py-3 font-sans text-base text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:border-ink focus-visible:ring-1 focus-visible:ring-ink focus-visible:ring-inset disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint';
+  'w-full rounded-input border bg-surface-raised px-4 py-3 font-sans text-base text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:border-ink focus-visible:ring-1 focus-visible:ring-ink focus-visible:ring-inset disabled:cursor-not-allowed disabled:border-hairline disabled:text-ink-faint';
 
 // The notebook line (onboarding's question): the question is the label, her answer in Cormorant.
+// The line is the field's boundary: border-control (3:1) at rest; focus deepens it to ink-muted,
+// one pixel, never ink (redline audit 30 Oct).
 const underline =
-  'w-full border-0 border-b bg-transparent px-0 py-2 font-display text-3xl font-light text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:border-ink focus-visible:shadow-[0_1px_0_0_var(--color-ink)]';
+  'w-full border-0 border-b bg-transparent px-0 py-2 font-display text-3xl font-light text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:border-ink-muted';
 
 interface FieldShellProps {
   label: string;

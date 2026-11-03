@@ -8,6 +8,7 @@ describe('css generation', () => {
     expect(css).toContain('--color-cream50: #FAF8F5;');
     expect(css).toContain('--color-surface: var(--surface);');
     expect(css).toContain('--radius-crisp: 4px;');
+    expect(css).toContain('--radius-sheet: 18px;');
     expect(css).toContain('--font-display:');
   });
 

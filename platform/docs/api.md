@@ -44,6 +44,8 @@ export const POST = route({
 | Route | Protection |
 |---|---|
 | `GET /api/v1/health` | returns `{ ok: true }` only |
+| `GET /api/v1/public/auth-providers` (built) | returns `{ apple, google }` booleans from env only, so native sign-in shows the web's buttons (F5); 60/min per IP |
+| `GET /.well-known/apple-app-site-association`, `GET /.well-known/assetlinks.json` (built) | universal-link files for Apple's CDN and Google's verifier (N4); built from env only (`APPLE_TEAM_ID` + `APPLE_APP_BUNDLE_ID`, `ANDROID_APP_PACKAGE` + `ANDROID_CERT_SHA256`; unset → a valid file listing no app); paths from `@robes/core/app-links` (an explicit list of the screens the app has, `/` exactly plus e.g. `/look/*`, `/plan/*`; never a catch-all, never `/api`, `/auth`, `/share`, `/legal`, `/unsubscribe`, `/waitlist`, `/admin`, `/dev`); `application/json`; 60/min per IP |
 | `POST /api/v1/public/waitlist` (built) | Turnstile + 5/hour per IP + `signups` kill switch; insert-only (an existing contact is never changed) and the same 202 either way; double opt-in via the `/waitlist/confirm?t=` page (HMAC, purpose-bound token, button confirms) |
 | `GET /api/v1/public/shares/:token` (built) | 128-bit token; whitelisted snapshot projected through `SharedLook`; images signed ≤2 h; IP rate limit |
 | Page `/share/[token]` with a 10-character legacy token (built; `/board/:id` redirects here) | Only a migrated row with `legacy_token = true`, not revoked, not past its 180-day expiry; text-only whitelisted snapshot (title, ways, piece names, never images or ids); 30/min per IP (`public.legacy-shares`), over the limit reads as not found. No API route: the JSON endpoint above accepts 128-bit tokens only. |
@@ -82,9 +84,11 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | New | Legacy | Notes |
 |---|---|---|
 | `GET /me` | client REST `profiles` | profile + style summary + entitlements + flags |
-| `PATCH /me` | client REST PATCH `profiles` | only user-writable fields |
+| `PATCH /me` | client REST PATCH `profiles` | only user-writable fields; a typed `homeCity` that differs clears `home_lat`/`home_lon` |
+| `POST /me/location` `{ lat, lon }` → `{ ok }` (10/h/user) | browser geolocation + Nominatim in the client (`dashboard-personalize.js`) | her device position, sent only after she allowed it: rounded to 2 decimals (~1 km), named server-side by Nominatim (rounded coords only, no user id), written to `home_lat`/`home_lon`/`home_city`; an unnamed place keeps her city |
 | `PUT /me/style/palette` (Your colours and Your prints: avoid · love per family, shade and print) | Settings `style_dna.palette` |
-| `GET /me/features` | `_RB_TRIP_HIDDEN`, `?trip=on` | the flagged doors clients show (`trips`); flags stay server-side |
+| `GET /me/features` | `_RB_TRIP_HIDDEN`, `?trip=on` | the flagged doors clients show (`trips`, `homeDiary`); flags stay server-side |
+| `GET /me/notifications` · `POST /me/notifications/dismiss` `{ key }` | home's receipts strip and the 7-day nudges mail | the bell (plan 2026-11-02): receipts to review and the last week's unlogged days, computed per read; a dismissed key is kept in `user_ui_state.dismissed` for 30 days |
 | `POST /me/onboarding/complete` | client writes `onboarded_at` | server sets |
 | `GET/PATCH /me/preferences` | notification_prefs, avatar_prefs, localStorage state | incl. `user_ui_state` |
 | `POST /me/push-tokens`, `DELETE /me/push-tokens/:id` | — | native |
@@ -105,6 +109,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 |---|---|
 | `GET /wardrobe/items` (filters incl. `colourFamily`) · `POST` · `PATCH /:id` (incl. `colourShade` / `colourExtra` / `print` / `material`) · `DELETE /:id` (soft, undoable) · `POST /:id/restore` | client REST `wardrobe_items` |
 | `POST /wardrobe/items/batch` (N uploaded assets → N draft items + analyse jobs) | — (new: batch capture) |
+| `POST /wardrobe/items/:id/photo` `{ assetId }` → `Piece` (Change photo: her uploaded `wardrobe` asset replaces the piece's photograph; no re-read, her fields stay; 404 for an asset or piece that isn't hers; 60/min) | `/api/wardrobe/upload` + client `PATCH wardrobe_items.image_url` |
 | `POST /wardrobe/photo-reads` (one photo → `wardrobe_pieces` job: every piece, its box, crop and match) · `POST /:id/file` (each answered piece filed once, with her edits on any field; `to: 'wardrobe' \| 'wishlist'`, default wardrobe — a wishlist filing takes `add`/`skip` only and is idempotent on the crop) · `POST /:id/look` (new pieces filed, then a look with the photo as its record, optional wear) | `POST /api/wardrobe/pieces` + client writes |
 | `GET /wardrobe/summary` (piece counts per category, for the tabs) | — |
 | `POST /wardrobe/analyse` Job | `/api/wardrobe/analyse` |
@@ -137,6 +142,8 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `POST /looks/:id/wears` · `DELETE /wears/:id` | client REST `wears` |
 | `GET /artifacts?type=` · `GET /artifacts/:id` · `PATCH /artifacts/:id` (title, packed/pins state) · `DELETE` (soft) | client REST `lookbook_items` + localStorage merge |
 | `GET /plan?from=&to=` · `PUT /plan/days/:date/name` | client REST `planned_days` + client sweeps (legacy `day` rows for a named day) |
+| `PUT /plan/days/:date/ootd` `{ entryId }` → the day's entries in order (`position` 0 leads home) · `PUT /plan/days/:date/place` `{ place \| null }` (where she is that day; the diary's weather follows it) · `GET /places?q=&date=` (30/min; cities from Open-Meteo's geocoder with the day's range at each) | — (the OOTD diary home, plan 2026-11-02) |
+| `GET /today` carries `diary` — ten days back and ahead, each with her name for the day, her place, the day's weather and every look in order | the home week strip (7 days ahead) |
 
 ### Sharing
 | New | Legacy |

@@ -41,17 +41,26 @@ export function ShadeSwatch({ shade: s, size = 22 }: { shade: Shade | null; size
 export function FamilyTile({
   family,
   size = 48,
+  shape = 'soft',
 }: {
   family: { name: string; tile: readonly Shade[] };
   size?: number;
+  // tile: onboarding's small square, 5pt corners on a hairline (redline audit 30 Oct; twin:
+  // app/src/components/wardrobe/colour-field.tsx).
+  shape?: 'soft' | 'tile';
 }) {
+  const edge = useColor('rule-mid');
   return (
     <View
-      className="flex-row flex-wrap overflow-hidden rounded-soft"
-      style={{ width: size, height: size }}
+      className={`flex-row flex-wrap overflow-hidden ${shape === 'tile' ? '' : 'rounded-soft'}`}
+      style={[
+        { width: size, height: size },
+        shape === 'tile' ? { borderRadius: 5, borderWidth: 0.5, borderColor: edge } : null,
+      ]}
     >
       {family.tile.map((s) => (
-        <View key={s.id} style={{ width: size / 2, height: size / 2, backgroundColor: s.hex }} />
+        // Halves, not size / 2: the tile's hairline takes its share of the box.
+        <View key={s.id} style={{ width: '50%', height: '50%', backgroundColor: s.hex }} />
       ))}
     </View>
   );
