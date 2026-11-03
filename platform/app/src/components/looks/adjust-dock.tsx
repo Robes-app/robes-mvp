@@ -33,8 +33,12 @@ export function ThreadLines({
 }) {
   const end = useRef<HTMLDivElement>(null);
   const n = thread.length;
+  // Scrolls when a line lands. A block body: scrollIntoView returns a promise in newer Chromium,
+  // and an effect that returned it handed React a cleanup that was not a function.
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrolls when a line lands
-  useEffect(() => end.current?.scrollIntoView({ block: 'nearest' }), [n]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'nearest' });
+  }, [n]);
   if (n === 0) return null;
   return (
     <div
