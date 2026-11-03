@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 import { Today } from '@robes/contracts';
 import {
   declineConsent,
+  explainError,
   isolateClientIp,
   photographedPiece,
   seriousViolations,
@@ -56,7 +57,9 @@ function watchErrors(page: Page): string[] {
   page.on('console', (msg) => {
     if (msg.type() === 'error') seen.push(msg.text().slice(0, 400));
   });
-  page.on('pageerror', (err) => seen.push(`pageerror: ${err.message.slice(0, 400)}`));
+  page.on('pageerror', (err) => {
+    void explainError(page, err).then((text) => seen.push(`pageerror: ${text}`));
+  });
   page.on('requestfailed', (req) => seen.push(`failed: ${req.url()} ${req.failure()?.errorText}`));
   page.on('response', (res) => {
     if (!res.url().includes('/api/v1/today')) return;

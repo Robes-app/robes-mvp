@@ -126,3 +126,18 @@ export function grantAdmin(email: string): void {
     env: { ...process.env, DATABASE_URL: E2E_DATABASE_URL },
   });
 }
+
+// A browser crash is minified; the code around its first frame names the culprit.
+export async function explainError(page: Page, err: Error): Promise<string> {
+  const frame = /(https?:\/\/[^\s)]+\.js):(\d+):(\d+)/.exec(err.stack ?? '');
+  if (!frame) return `${err.message} (no frame)`;
+  const [, url, line, col] = frame;
+  try {
+    const text = await (await page.request.get(url as string)).text();
+    const row = text.split('\n')[Number(line) - 1] ?? '';
+    const at = Number(col);
+    return `${err.message} @ ${url}:${line}:${col} … ${row.slice(Math.max(0, at - 260), at + 140)}`;
+  } catch {
+    return `${err.message} @ ${url}:${line}:${col} (chunk unreadable)`;
+  }
+}

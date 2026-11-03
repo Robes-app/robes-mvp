@@ -3,7 +3,9 @@
 // how many changes the picture has not caught up with. Pure; web and native drive it the same
 // way. Nothing here is ever stored: a page load starts a fresh thread.
 
-import { ASK_THREAD_MAX } from './index';
+// The thread sent with an ask is its last six lines (legacy REFINE thread). Defined here, not in
+// the index that re-exports this file, so the two never import each other.
+export const ASK_THREAD_MAX = 6;
 
 export type ThreadWho = 'her' | 'robes' | 'work' | 'filed';
 export interface ThreadLine {

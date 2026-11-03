@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
 import {
   declineConsent,
+  explainError,
   isolateClientIp,
   seriousViolations,
   signIn,
@@ -113,7 +114,9 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   page.on('console', (msg) => {
     if (msg.type() === 'error') errors.push(msg.text().slice(0, 400));
   });
-  page.on('pageerror', (err) => errors.push(`pageerror: ${err.message.slice(0, 400)}`));
+  page.on('pageerror', (err) => {
+    void explainError(page, err).then((text) => errors.push(`pageerror: ${text}`));
+  });
   await signIn(page);
   await declineConsent(page);
   for (const label of ['White wide-leg trouser', 'Dark straight jean']) {
