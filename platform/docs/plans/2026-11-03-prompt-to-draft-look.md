@@ -369,5 +369,10 @@ Where the build departs from §1–§5, and why:
   (`NewDraft`): the model in its base layer, the dashed row, Start from a photo.
 - **The saved look's eyebrow** reads `Saved look · changed` while the rack or the picture is behind
   (not 3b's "In your Lookbook"; 3k's look page says Saved look).
-- **Tests.** Web e2e (`looks-ui`, `home`) rewritten for the draft page and the tile — not run here
-  (no services); native jest suites green; DB test for the draft room written, not run here.
+- **Tests.** Web e2e (`looks-ui`, `home`) rewritten for the draft page and the tile; native jest
+  suites green; DB test for the draft room green in CI's `database` job. The draft specs now read
+  back the browser's own errors, its diary reads and the contract parse when a tile stalls, and
+  print the minified code at a crash's first frame (`explainError`) — that is how the one real
+  bug was found: `scrollIntoView` returns a promise in current Chromium, and the thread's
+  one-line effect handed it to React as a cleanup. Effects that call a DOM method take a block
+  body.
