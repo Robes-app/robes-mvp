@@ -64,7 +64,7 @@ new code goes live minutes after a merge.
    deployment keeps serving. Check the build log for `node scripts/db-migrate.mjs`.
    `bash scripts/migrate-staging.sh` (from `platform/`, in a real terminal) still works to apply
    migrations by hand ahead of a deploy.
-3. **Production migrates itself the same way** (2026-11-03): a `main` build runs `pnpm db:migrate`
+3. **Production migrates itself the same way** (2026-11-03): a `main` build (Vercel project `robes-prod`) runs `pnpm db:migrate`
    with production's `DATABASE_ADMIN_URL`, the `robes_migrator` role. Production's `app` schema lives
    in Robes_p0 beside legacy beta's tables, and `robes_migrator` has no rights on those, so a
    migration cannot read or change beta's data. Never run production migrations from a laptop.
