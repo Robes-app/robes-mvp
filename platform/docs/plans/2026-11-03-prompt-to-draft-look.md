@@ -1,6 +1,6 @@
 # Prompt → one draft look: implementation plan
 
-Status: plan, 2026-11-03 (Annie + Claude). **Decided 2026-11-03 (§8); building on `feat/prompt-to-draft-look`.**
+Status: plan, 2026-11-03 (Annie + Claude). **Built 2026-11-03 on `feat/prompt-to-draft-look` (P0–P3 + D6 + D7, web + native); §9 records where the build departs.**
 Owner: Annie. Web and native land together (CLAUDE.md). Follows `2026-11-02-home-ootd-diary.md`
 (built; its §8 build notes stand).
 
@@ -329,3 +329,45 @@ footer's Save reads **↻ Update look** (her capture). This plan builds all eigh
 | D6 | The **saved look's** prompt: the pill → card thread now, or keep `LookPromptBox` until a saved-look design exists? | **The thread now**, on saved looks too: the pill → card, **Update the model · N**, and the footer's **↻ Update look** once changed (Discard puts it back). `LookPromptBox` retires. |
 | D7 | Multiple looks on a day (§7): match the frame (one card per look, no stack) or keep the stack? | Match the frame. |
 | D8 | The to-find row's dashed `#D9CBB7`: new token or `selected-line`? | `selected-line` (it is the same warm family; one fewer token). |
+
+---
+
+## 9. Build notes (2026-11-03, branch `feat/prompt-to-draft-look`)
+
+Where the build departs from §1–§5, and why:
+
+- **The one-draft door is opt-in** (`PromptLookInput.draft`). Only the diary's prompt box sends
+  it; the Create sheet's words door (`HomeBox` / `NewLookBox`) and the piece door still deal three
+  suggestions on the deck, as D1 kept them. The server's `looks.prompt` route is unchanged in shape.
+- **No prompt v7.** Robes' first line in the thread is composed from the look's note and the count
+  of pieces to find (`lookbook.draft.first` / `toFind`); the description under the picture is the
+  look's `note` (the scene line), as it was. A richer description is a prompt-module task for later.
+- **Dress it again** is `looks.restyle` with `note`; the draft is re-written in place by the same
+  `rewrite` the deck's ↻ uses (its working notes go with the old rack). ↻ on the tile re-dresses
+  through the existing `useRestyle` hook and does not narrate itself in the box's thread.
+- **The picture waits for her on every look** (D3): the editor's `redraw` is the only way the
+  frame or her model is drawn again — Update the model, Dress it again, Save (and ↻ Update look on a
+  saved look, D6). A suggestion's swap-in-place still re-frames by itself. `Look.pictureStale` is the
+  server's word on whether the picture matches the rack; the thread counts changes since the last
+  draw on top of it. The hand-built draft's debounce (`useDress`) is gone with the composer.
+- **Save while stale** starts the draw and saves at once (`drawForSave`); the picture lands on the
+  saved look a moment later (the slot's card scans meanwhile). On a saved look, Update commits the
+  rack first and draws after, since a saved look's edits live on the client until Update.
+- **One draft per day from the box.** A new ask on a day soft-deletes that day's earlier unsaved
+  Robes draft (`mintSet` with `status: 'draft'`), and past five drafts the oldest goes without
+  asking — the worker has nobody to ask (`makeDraftRoom` in `suggested.ts`).
+- **The thread is memory only** (one per page or box instance); reload starts it fresh, with the
+  draft and its stale count intact from the server.
+- **`DiaryDay.draft`** carries `{ look, jobId }`: the job before the look is minted, the look while
+  it is drawn. Draft jobs leave the tray; the diary refetches every 2 s while one runs. The box
+  keeps her words for the day in the session so the thread opens with them.
+- **The slot (D7)** renders every entry as its own `ootd` card — the OOTD first, then the others,
+  then the draft tile, then Add look. The `Stack` and its `+N` door are gone; the Day page's door
+  stays the day number and the Diary. After Save the home URL carries `?saved=<id>` so that card
+  says **Saved to Lookbook** for the visit.
+- **Hotspots retired (D4)**; `/looks/new` is the same draft page before its first piece
+  (`NewDraft`): the model in its base layer, the dashed row, Start from a photo.
+- **The saved look's eyebrow** reads `Saved look · changed` while the rack or the picture is behind
+  (not 3b's "In your Lookbook"; 3k's look page says Saved look).
+- **Tests.** Web e2e (`looks-ui`, `home`) rewritten for the draft page and the tile — not run here
+  (no services); native jest suites green; DB test for the draft room written, not run here.
