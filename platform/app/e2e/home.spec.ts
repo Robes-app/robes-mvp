@@ -368,7 +368,8 @@ test('the home box: words become one draft in the slot; the hanger builds it aro
   await declineConsent(page);
 
   // Her words make a draft for the day, dressing in the slot; the box holds the thread.
-  const { date } = await (await page.request.get('/api/v1/today')).json();
+  const { date, diary } = await (await page.request.get('/api/v1/today')).json();
+  const tomorrow: string = diary.days[11].date;
   const box = page.getByPlaceholder('Plan an outfit for today');
   await box.fill('Something easy for the gallery');
   await box.press('Enter');
@@ -388,9 +389,16 @@ test('the home box: words become one draft in the slot; the hanger builds it aro
     timeout: 60_000,
   });
 
-  // The hanger (design 3k): pieces of hers become tokens the ask is built around.
+  // Today's box is the draft's thread now (design 3b): no hanger until she saves or lets it go.
+  await expect(page.getByTestId('prompt-box')).toHaveAttribute('data-state', 'live');
+  await expect(page.getByTestId('hanger')).toHaveCount(0);
+
+  // The hanger (design 3k), on tomorrow's empty day: pieces of hers become tokens the ask is
+  // built around.
   const pieceId = await photographedPiece(page, 'Camel coat');
   await page.reload();
+  await page.getByTestId(`diary-day-${tomorrow}`).click();
+  await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'empty');
   await page.getByTestId('hanger').click();
   const flyout = page.getByTestId('wardrobe-picker');
   // The foot sits in the sheet's footer, beside the picker's list.
@@ -404,9 +412,12 @@ test('the home box: words become one draft in the slot; the hanger builds it aro
   await expect(page.getByText('Where should the pieces in your look come from?')).toBeVisible();
   await page.getByPlaceholder('Or say it your way').fill('Suggest new pieces');
   await page.getByPlaceholder('Or say it your way').press('Enter');
-  // A new ask on the day replaces its unsaved draft: one draft tile, dressing again.
+  // One draft tile dresses in tomorrow's slot; today keeps its own.
   await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'generating', {
     timeout: 30_000,
   });
   await expect(page.getByTestId('draft-tile')).toHaveCount(1);
+  await page.getByTestId(`diary-day-${date}`).click();
+  await expect(page.getByTestId('draft-tile')).toHaveCount(1);
+  await expect(page.getByTestId('prompt-box')).toHaveAttribute('data-state', 'live');
 });
