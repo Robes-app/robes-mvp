@@ -172,7 +172,8 @@ update public.profiles set
   avatar_id = 'avatar-niall', twin_url = '${CDN}/niall-twin.png', twin_key = 'legacy-twin-key-niall'
 where id = '${NIALL}';
 
-update public.profiles set first_name = 'Bea', instagram_handle = '@bea.style!', is_admin = true
+update public.profiles set first_name = 'Bea', instagram_handle = '@bea.style!', is_admin = true,
+  gender_identity = 'non_binary'
 where id = '${BEA}';
 
 -- Out-of-range bust and waist are dropped; a twin with no filed model still carries over.

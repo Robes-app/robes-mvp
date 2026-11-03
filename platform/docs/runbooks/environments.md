@@ -136,7 +136,7 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 | `MEDIA_COOKIE_DOMAIN` | parent domain shared by the app and media host (`staging.byrobes.com` / `byrobes.com`) so web signed cookies reach CloudFront. Set it together with `MEDIA_PUBLIC_ORIGIN` = the `media.` domain; on the bare `*.cloudfront.net` origin the cookies never arrive |
 | `GEMINI_API_KEY` | only if the API makes sub-3 s model calls; otherwise workers only |
 | `MAIL_FROM`, `SES_CONFIGURATION_SET` | `Robes <hello@staging.mail.byrobes.com>` / `robes-staging-email` (production: `mail.byrobes.com`, `robes-prod-email`) |
-| `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | |
+| `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | optional pair (2026-11-03): the waitlist's human check; without it, its per-IP limit |
 | `NEXT_PUBLIC_POSTHOG_KEY` | required outside dev; publishable ingest key, read at runtime and passed to the browser |
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional, default `https://eu.i.posthog.com` (https required outside dev); CSP gains it and `https://eu-assets.i.posthog.com` |
 | `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID` | build-time only: source-map upload to PostHog error tracking. Key sensitive, scope *Error tracking: write*. Without them the build skips the upload |
