@@ -72,8 +72,9 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fake() })) {
     modelCellId: vi.fn(async () => null),
   };
   const suggested = {
-    mintSet: vi.fn(async (_u: string, _s: string, specs: unknown[], _claim?: unknown) =>
-      specs.map((_, i) => `l${i}`),
+    mintSet: vi.fn(
+      async (_u: string, _s: string, specs: unknown[], _claim?: unknown, _opts?: unknown) =>
+        specs.map((_, i) => `l${i}`),
     ),
     rewrite: vi.fn(async () => true),
     setFrame: vi.fn(async () => true),
