@@ -1,9 +1,19 @@
+import { fileURLToPath } from 'node:url';
 import { expect, type Page, test } from '@playwright/test';
-import { declineConsent, isolateClientIp, seriousViolations, signIn, uniqueEmail } from './helpers';
+import {
+  declineConsent,
+  isolateClientIp,
+  seriousViolations,
+  signIn,
+  styledPiece,
+  uniqueEmail,
+} from './helpers';
 
 // Look states on the web (legacy beta 2026-10-06 → 10-13): a styling job lands on the keep-or-
 // pass deck; a suggestion is saved as is or edited into a draft; the look prompt edits a draft.
 test.beforeEach(({ context }) => isolateClientIp(context));
+
+const PHOTO = fileURLToPath(new URL('./fixtures/photo.jpg', import.meta.url));
 
 async function deckLive(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: /three ways\.$/ })).toBeVisible({
@@ -12,11 +22,12 @@ async function deckLive(page: Page): Promise<void> {
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
 }
 
-test('onboarding’s first piece lands on the deck: keep, pass with Undo, then See Suggested', async ({
+test('a styled piece lands on the deck: keep, pass with Undo, then See Suggested', async ({
   page,
 }) => {
-  await signIn(page, uniqueEmail('e2e-onb'), 'Niall', true);
+  await signIn(page, uniqueEmail('e2e-onb'));
   await declineConsent(page);
+  await styledPiece(page);
   await expect(page.getByText('From your prompt').or(page.getByText(/^Around your/))).toBeVisible({
     timeout: 30_000,
   });
@@ -104,6 +115,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await page.goto('/looks/new');
   // The draft stands on a figure: a slot per part of her, each opening her wardrobe.
   await expect(page.getByLabel('Name this look')).toHaveAttribute('placeholder', 'Untitled Look');
+  // The draft's title is the field: the serif on an underline, never a boxed outline on focus.
+  await page.getByLabel('Name this look').focus();
+  await expect(page.getByLabel('Name this look')).toHaveCSS('outline-style', 'none');
+  await expect(page.getByLabel('Name this look')).toHaveCSS('text-align', 'center');
   for (const slot of ['+ Top', '+ Bottom', '+ Shoes']) {
     await expect(page.getByRole('button', { name: slot })).toBeVisible();
   }
@@ -139,6 +154,14 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
   await page.goto('/looks');
   await expect(page.getByTestId('looks-count')).toHaveText('1 look');
+  // Under four looks Sort and Filter are hidden, as beta — never rendered inert (L1).
+  await expect(page.getByRole('button', { name: /^Sort/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Filter' })).toHaveCount(0);
+  // Nothing suggested: beta's line, and the prompt (L7).
+  await page.getByRole('radio', { name: 'Suggested' }).click();
+  await expect(
+    page.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
+  ).toBeVisible();
 });
 
 test('the draft look at 390: her model, the wardrobe sheet, and Discard · Save at the foot', async ({
@@ -211,4 +234,55 @@ test('passing every card ends the deck: none kept, a way back', async ({ page })
   // The set refetches with no looks left; the end stays the end.
   await page.waitForTimeout(2_500);
   await expect(page.getByRole('heading', { name: 'No suggested looks kept.' })).toBeVisible();
+});
+
+test('the draft: a swap lands behind Undo, and her photograph is added from the canvas', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await declineConsent(page);
+  const api = page.request;
+  const ids: string[] = [];
+  for (const label of ['White wide-leg trouser', 'Dark straight jean']) {
+    const res = await api.post('/api/v1/wardrobe/items', {
+      data: { label, categoryL2: 'Trousers' },
+    });
+    ids.push((await res.json()).id);
+  }
+  const draft = await (
+    await api.post('/api/v1/looks', { data: { status: 'draft', pieces: [{ pieceId: ids[0] }] } })
+  ).json();
+  const pieces = async () =>
+    (
+      (await (await api.get(`/api/v1/looks/${draft.id}`)).json()).pieces as {
+        piece: { id: string };
+      }[]
+    ).map((p) => p.piece.id);
+
+  await page.goto(`/look/${draft.id}`);
+  await expect(page.getByText('Draft look')).toBeVisible();
+  // L10: the swap lands at once; Undo (6 s) puts the rack back.
+  await page.getByRole('button', { name: 'Swap White wide-leg trouser' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Dark straight jean' }).click();
+  // The toast's text is also echoed in its screen-reader live region: check the first (visible) one.
+  await expect(page.getByText('Dark straight jean is on the look.').first()).toBeVisible();
+  await expect.poll(pieces).toEqual([ids[1]]);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(pieces).toEqual([ids[0]]);
+
+  // L4: the camera on the canvas adds her photograph to the draft; it stays in the composer,
+  // You · Model stands under the canvas, and the camera becomes ↻.
+  await expect(page.getByRole('radiogroup', { name: 'The record of this look' })).toBeHidden();
+  await page.locator('input[type="file"][aria-label="Add your photograph"]').setInputFiles(PHOTO);
+  const record = page.getByRole('radiogroup', { name: 'The record of this look' });
+  await expect(record).toBeVisible({ timeout: 30_000 });
+  await expect(record.getByRole('radio', { name: 'You' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('button', { name: 'Replace your photograph' })).toBeVisible();
+  await expect(page.getByText('Draft look')).toBeVisible();
+  expect(
+    (await (await api.get(`/api/v1/looks/${draft.id}`)).json()).photo,
+    'her photograph is on the draft',
+  ).not.toBeNull();
+  expect(await seriousViolations(page), 'a draft with her photograph').toEqual([]);
 });

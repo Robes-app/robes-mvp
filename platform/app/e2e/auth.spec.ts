@@ -23,6 +23,8 @@ test('passwordless sign-in, onboarding and sign-out', async ({ page }) => {
 
 test('the Terms and Privacy notice are public, linked from sign-in', async ({ page }) => {
   await page.goto('/auth/sign-in');
+  // One line for testers who signed in with a password on beta (F4).
+  await expect(page.getByText('Used a password? Robes emails you a code now.')).toBeVisible();
   await page.getByRole('link', { name: 'Privacy notice' }).click();
   await expect(page).toHaveURL(/\/legal\/privacy$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Privacy notice' })).toBeVisible();

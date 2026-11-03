@@ -105,4 +105,65 @@ describe('plan repo', () => {
     expect((await plan.range(ann, '2026-11-02', '2026-11-02'))[0]?.activity).toBeNull();
     expect((await plan.names(bea, '2026-11-02', '2026-11-02'))[0]?.name).toBe('Not hers');
   });
+
+  it('orders a day by position, puts a new look last and stars one as the OOTD', async () => {
+    const third = (await looks.create(ann, { name: 'Third', nameProvisional: false, pieces: [] }))
+      .id;
+    const [first] = (await plan.pin(ann, lookId, ['2027-01-10'], { slot: 'day' })) ?? [];
+    const [second] = (await plan.pin(ann, other, ['2027-01-10'], { slot: 'day' })) ?? [];
+    const [last] = (await plan.pin(ann, third, ['2027-01-10'], { slot: 'evening' })) ?? [];
+    const day = () =>
+      plan
+        .range(ann, '2027-01-10', '2027-01-10')
+        .then((rows) => rows.map((r) => [r.id, r.position]));
+    expect(await day()).toEqual([
+      [first, 0],
+      [second, 1],
+      [last, 2],
+    ]);
+    expect(await plan.setOotd(ann, '2027-01-10', last ?? '')).toBe(true);
+    expect(await day()).toEqual([
+      [last, 0],
+      [first, 1],
+      [second, 2],
+    ]);
+    // Not hers, or not on that day: nothing moves.
+    expect(await plan.setOotd(bea, '2027-01-10', last ?? '')).toBe(false);
+    expect(await plan.setOotd(ann, '2027-01-11', last ?? '')).toBe(false);
+    expect(await day()).toEqual([
+      [last, 0],
+      [first, 1],
+      [second, 2],
+    ]);
+  });
+
+  it('keeps where she is on a day, rounded as a place, hers alone, and clears it', async () => {
+    const paris = { city: 'Paris', country: 'France', lat: 48.8566, lon: 2.3522 };
+    await plan.setPlace(ann, '2027-02-03', paris);
+    await plan.setPlace(ann, '2027-02-03', { ...paris, lat: 48.86, lon: 2.35 });
+    await plan.setPlace(bea, '2027-02-03', {
+      city: 'Bergen',
+      country: null,
+      lat: 60.39,
+      lon: 5.32,
+    });
+    expect(await plan.places(ann, '2027-02-01', '2027-02-28')).toEqual([
+      { dayDate: '2027-02-03', city: 'Paris', country: 'France', lat: 48.86, lon: 2.35 },
+    ]);
+    await plan.setPlace(ann, '2027-02-03', null);
+    expect(await plan.places(ann, '2027-02-01', '2027-02-28')).toEqual([]);
+    expect((await plan.places(bea, '2027-02-01', '2027-02-28'))[0]?.city).toBe('Bergen');
+  });
+
+  it('lists the days she logged a wear in a window, once each', async () => {
+    await looks.wear(ann, lookId, '2027-03-02');
+    await looks.wear(ann, other, '2027-03-02');
+    await looks.wear(ann, lookId, '2027-03-05');
+    await looks.wear(bea, lookId, '2027-03-03');
+    expect(await looks.wornDays(ann, '2027-03-01', '2027-03-07')).toEqual([
+      '2027-03-02',
+      '2027-03-05',
+    ]);
+    expect(await looks.wornDays(bea, '2027-03-01', '2027-03-07')).toEqual([]);
+  });
 });

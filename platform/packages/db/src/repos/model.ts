@@ -1,3 +1,4 @@
+import type { Presence } from '@robes/core/avatar';
 import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
@@ -93,11 +94,7 @@ export function modelRepo(db: Db) {
     },
 
     // Merged key by key in SQL, so two quick picks never lose one another.
-    async savePicks(
-      userId: UserId,
-      picks: StoredModelPicks,
-      presence?: 'woman' | 'man' | 'unspecified',
-    ): Promise<void> {
+    async savePicks(userId: UserId, picks: StoredModelPicks, presence?: Presence): Promise<void> {
       await db
         .updateTable('profiles')
         .set({

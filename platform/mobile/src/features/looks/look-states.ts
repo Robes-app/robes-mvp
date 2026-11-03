@@ -13,6 +13,7 @@ import { lookbook as copy, errors, ui } from '@robes/copy';
 import { useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { nativeAnalytics } from '@/lib/analytics';
 import { api as appApi } from '@/lib/api';
 import { askForPushOnce } from '@/lib/push';
 import { isTerminal, JOB_REFRESH_MS } from './ideas';
@@ -86,13 +87,22 @@ export function useLetGo(label: string = copy.removed, onUndo?: (id: string) => 
   };
 }
 
-export function useSaveLook(onSaved?: (look: Look) => void) {
+// `from` picks beta's toast: a suggestion saved as it stands, or a look she worked on, by name.
+// The web twin is app/src/lib/look-states.ts.
+export function useSaveLook(onSaved?: (look: Look) => void, from: 'suggested' | 'draft' = 'draft') {
   const toast = useToast();
   const refresh = useInvalidateLooks();
   return useApiMutation('looks.save', {
     onSuccess: (look) => {
+      nativeAnalytics.track('look_created', {
+        from,
+        pieces: look.pieces.length,
+        proposed: look.proposals.length,
+        anchored: look.anchor !== null,
+      });
       refresh(look);
       onSaved?.(look);
+      toast.show({ message: from === 'suggested' ? copy.saved : copy.savedAs(look.name) });
       // Push is asked for after her first saved look, never on launch (7-day brief).
       void askForPushOnce(appApi).catch(() => undefined);
     },
@@ -146,6 +156,25 @@ export function useRestyle() {
 }
 
 // Robes' frame for the rack as it stands; the look refreshes until it lands.
+// A saved look's pieces changed: her model wears the new rack (beta re-dressed it live). Twin of web lib/look-states.ts. The
+// render is keyed by model and rack, so an unchanged rack costs nothing; a model not drawn yet
+// (conflict) waits for the next open.
+export function useRedress() {
+  const api = useApiClient();
+  const queryClient = useQueryClient();
+  return (look: Look) => {
+    if (look.status !== 'saved' || look.frame || look.setId || look.pieces.length === 0) return;
+    void api
+      .call('looks.renderOnModel', { params: { id: look.id } })
+      .then(() =>
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.call('looks.get', { params: { id: look.id } }),
+        }),
+      )
+      .catch(() => undefined);
+  };
+}
+
 export function useRequestFrame() {
   const api = useApiClient();
   const refresh = useInvalidateLooks();

@@ -24,8 +24,8 @@ export interface PreferenceControlProps {
 const ORDER: Pref[] = [-1, 0, 1];
 const BOX = { md: { h: 44, w: 144, icon: 16, dot: 4 }, sm: { h: 32, w: 108, icon: 13, dot: 3 } };
 
-// The palette's three-state control (legacy .pf-ctl): a track, three verbs, and the answer as the
-// warm fill — never black; love is rose. A shade with no answer of its own sits on its family's
+// The palette's three-state control (legacy .pf-ctl): a white track on a hairline, three verbs,
+// and the answer as the warm fill — never black; love is rose. A shade with no answer of its own sits on its family's
 // answer as an OUTLINE: it follows, it hasn't been set.
 export function PreferenceControl({
   label,
@@ -41,6 +41,8 @@ export function PreferenceControl({
   const rose = useColor('accent-inspire');
   const ink = useColor('ink');
   const faint = useColor('ink-faint');
+  const selected = useColor('selected');
+  const selectedLine = useColor('selected-line');
   const box = BOX[size];
   const following = value === null;
   const shown = following ? inherited : value;
@@ -52,7 +54,10 @@ export function PreferenceControl({
       accessibilityLabel={following && follows ? `${label}: following ${follows}` : label}
       testID={testID}
       style={{ height: box.h, width: box.w }}
-      className={cx('flex-row rounded-pill border border-hairline bg-surface p-0.5', className)}
+      className={cx(
+        'flex-row rounded-pill border border-rule-mid bg-surface-raised p-0.5',
+        className,
+      )}
     >
       {ORDER.map((pref, index) => {
         const checked = pref === shown;
@@ -69,11 +74,16 @@ export function PreferenceControl({
               Haptics.selectionAsync().catch(() => {});
               onChange(pref);
             }}
-            className={cx(
-              'flex-1 items-center justify-center rounded-pill',
-              checked &&
-                (following ? 'border border-ink-faint' : 'border border-selected-line bg-selected'),
-            )}
+            className="flex-1 items-center justify-center rounded-pill"
+            // Inline, not classes: a bare border class could draw the ring in ink beside the
+            // warm line, so the answer read as an ink outline (redline audit 30 Oct).
+            style={
+              checked
+                ? following
+                  ? { borderWidth: 1, borderColor: faint }
+                  : { borderWidth: 1, borderColor: selectedLine, backgroundColor: selected }
+                : undefined
+            }
           >
             {pref === 0 ? (
               <View

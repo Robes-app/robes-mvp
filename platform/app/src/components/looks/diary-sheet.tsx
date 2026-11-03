@@ -4,17 +4,22 @@ import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
 import {
+  daysBetween,
+  diaryMarks,
   diaryPick,
   longDate,
   monthGrid,
   monthLabel,
   monthOf,
   shiftMonth,
+  WEEKDAYS_SHORT,
 } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
 import { Button, Sheet, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useAnalytics } from '@/components/analytics-provider';
 import { formatDay, localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { LookImage } from './look-image';
@@ -34,6 +39,8 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
   const day = picked ?? look?.dateHint ?? today;
   const toast = useToast();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const { track } = useAnalytics().analytics;
 
   // The month's filed days, for the dots: one call per month, as the Plan page makes.
   const grid = monthGrid(month);
@@ -42,17 +49,21 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     { input: { from: grid.from, days: grid.days } },
     { enabled: look !== null },
   );
-  const filled = new Set(
-    (plan.data?.days ?? []).filter((d) => d.entries.length > 0).map((d) => d.date),
+  // Every day she wore this look (its record of wears; the look's last wear stands in until it
+  // loads), so a month gone by shows its history and a worn day reads "Already worn" (L9).
+  const wears = useApi(
+    'looks.wears',
+    { params: { id: look?.id ?? '' } },
+    { enabled: look !== null },
   );
-  const pins = new Set(
-    (plan.data?.days ?? [])
-      .filter((d) => d.entries.some((e) => e.look.id === look?.id))
-      .map((d) => d.date),
-  );
-  // This look's own wears count as filed days too, so a month shows its history.
-  const worn = new Set(look?.lastWornOn ? [look.lastWornOn] : []);
-  for (const d of worn) filled.add(d);
+  const {
+    filed: filled,
+    pinned: pins,
+    worn,
+  } = diaryMarks(plan.data?.days ?? [], look?.id, [
+    look?.lastWornOn,
+    ...(wears.data?.items ?? []).map((w) => w.wornOn),
+  ]);
 
   const state = diaryPick(day, today, {
     pinned: pins.has(day),
@@ -74,11 +85,24 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     close();
   };
   const pin = useApiMutation('plan.pin', {
-    onSuccess: () => settle(copy.diary.inDiaryFor(look?.name ?? '', formatDay(day))),
+    onSuccess: () => {
+      track('look_pinned', { offset_from_today: daysBetween(today, day) });
+      settle(copy.diary.inDiaryFor(look?.name ?? '', formatDay(day)));
+    },
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const wear = useApiMutation('looks.wear', {
-    onSuccess: (w) => settle(copy.diary.recordedOn(formatDay(w.wornOn))),
+    // Today's wear says so as beta does; a day gone by names its date.
+    onSuccess: (w) => {
+      track('wear_confirmed', {
+        source: 'diary',
+        pieces: w.pieceIds.length,
+        offset_from_today: daysBetween(today, w.wornOn),
+      });
+      settle(
+        w.wornOn === today ? copy.diary.wornToday : copy.diary.recordedOn(formatDay(w.wornOn)),
+      );
+    },
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const busy = pin.isPending || wear.isPending;
@@ -93,7 +117,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
     // Already pinned: the day page is where it lives, so go there rather than pin it twice.
     if (state.action === 'already') {
       close();
-      window.location.assign(`/plan/${day}`);
+      router.push(`/plan/${day}`);
       return;
     }
     pin.mutate({ params: { id: look.id }, input: { dates: [day], slot: 'day' } });
@@ -168,7 +192,7 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
             </span>
           </div>
           <div aria-hidden className="grid grid-cols-7 gap-1 text-center">
-            {copy.diary.weekdays.map((w) => (
+            {WEEKDAYS_SHORT.map((w) => (
               <span
                 key={w}
                 className="font-sans text-[10px] text-ink-faint uppercase tracking-[0.12em]"

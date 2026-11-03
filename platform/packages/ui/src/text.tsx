@@ -48,7 +48,7 @@ export function Text({
 }
 
 // Cormorant never renders below 17px (brand-and-design.md §3.1): the smallest step is 18px.
-const headingSizes = {
+export const headingSizes = {
   sm: 'text-lg leading-snug',
   md: 'text-2xl leading-tight',
   lg: 'text-3xl leading-tight',

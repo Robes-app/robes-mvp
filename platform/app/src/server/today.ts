@@ -1,6 +1,7 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
-import { Today } from '@robes/contracts';
+import { type Diary, Today } from '@robes/contracts';
+import { DIARY_BACK, diaryWindow } from '@robes/core/calendar';
 import type { UserId } from '@robes/db';
 import { repos } from './db';
 import { isFlagEnabled } from './flags';
@@ -8,6 +9,7 @@ import { loadHome } from './home';
 import { toJobSnapshot } from './jobs';
 import { toIdeas } from './looks';
 import { loadPlan, todayIn } from './plan';
+import { loadDiaryWeather } from './weather';
 
 function hourIn(timezone: string, now: Date): number {
   return (
@@ -27,8 +29,11 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
   if (!profile) throw new ApiError('not_found');
   const date = todayIn(profile.timezone, now);
   const tripsOn = await isFlagEnabled('trips');
-  const [plan, looks, worn, jobs, ideaRows, inboxCount, overnight] = await Promise.all([
-    loadPlan(userId, date, 7),
+  // One plan read covers the diary's window; the week ahead is its middle (old clients).
+  const window = diaryWindow(date);
+  const [whole, places, looks, worn, jobs, ideaRows, inboxCount, overnight] = await Promise.all([
+    loadPlan(userId, window.from, window.days.length),
+    repos.plan.places(userId, window.from, window.to),
     repos.looks.count(userId),
     repos.looks.wornOn(userId, date),
     repos.jobs.recent(userId, [
@@ -42,6 +47,30 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
     repos.inbox.piecesWaiting(userId),
     repos.dailyLooks.overnightFor(userId, date),
   ]);
+  const plan = { ...whole, days: whole.days.slice(DIARY_BACK, DIARY_BACK + 7) };
+  const placeOf = new Map(
+    places.map((p) => [p.dayDate, { city: p.city, country: p.country, lat: p.lat, lon: p.lon }]),
+  );
+  const weather = await loadDiaryWeather(
+    whole.days.map((d) => ({ date: d.date, place: placeOf.get(d.date) ?? null })),
+    {
+      city: profile.homeCity,
+      lat: profile.homeLat === null ? null : Number(profile.homeLat),
+      lon: profile.homeLon === null ? null : Number(profile.homeLon),
+    },
+    window,
+  );
+  const diary: Diary = {
+    from: whole.from,
+    to: whole.to,
+    days: whole.days.map((d) => ({
+      date: d.date,
+      name: d.name,
+      place: placeOf.get(d.date) ?? null,
+      weather: weather.get(d.date) ?? null,
+      entries: d.entries,
+    })),
+  };
   const todayEntries = (plan.days[0]?.entries ?? []).map((entry) => ({
     entry,
     worn: worn.includes(entry.look.id),
@@ -74,5 +103,6 @@ export async function loadToday(userId: UserId, now = new Date()): Promise<Today
       ? { id: overnight.id, title: overnight.title, headline: overnight.subtitle }
       : null,
     home: await loadHome(userId, profile, looks),
+    diary,
   });
 }

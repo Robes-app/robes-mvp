@@ -80,6 +80,7 @@ const privacy: LegalDoc = {
           'Emails are sent through Amazon SES. On the phone app, notifications travel through Expo, Apple and Google.',
           'Errors on our servers are reported to PostHog, on European servers, with email addresses removed and never linked to you. Rate limits are counted by Upstash in the EU.',
           'The waitlist form is checked by Cloudflare Turnstile to keep out bots.',
+          'If you allow Robes to use your location, it keeps it only to about a kilometre and only to dress you for the weather. Our servers send that rounded position, with nothing else about you, to OpenStreetMap’s Nominatim to name your town, and your town or position to Open-Meteo for the forecast.',
           'If you agree, how the app is used is measured in PostHog, on European servers.',
         ],
       ],

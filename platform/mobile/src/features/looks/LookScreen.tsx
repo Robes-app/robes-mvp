@@ -6,8 +6,8 @@ import {
   Button,
   EmptyState,
   Eyebrow,
-  Field,
   Heading,
+  InlineTitleField,
   PrimaryScope,
   Skeleton,
   Text,
@@ -76,7 +76,7 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
   const router = useRouter();
   const editor = useLookEditor(look);
   const refresh = useInvalidateLooks();
-  const save = useSaveLook(onSaved);
+  const save = useSaveLook(onSaved, look.status === 'suggested' ? 'suggested' : 'draft');
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -87,24 +87,31 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
   const hasAny = editor.rack.rows.length > 0 || look.image !== null;
   return (
     <View className="flex-1">
-      <ScrollView contentContainerClassName="gap-6 px-6 pb-40">
+      <ScrollView
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerClassName="gap-6 px-6 pb-40"
+      >
         <View className="items-center gap-2">
           <Eyebrow>{eyebrowOf(look)}</Eyebrow>
           {suggested ? (
             <Heading className="text-center">{look.name}</Heading>
           ) : (
-            <Field
+            // The title is the name, as in the composer: tap it and write over it.
+            // Web twin: look-page.tsx WorkingLook.
+            <InlineTitleField
+              value={name}
               label={copy.name.label}
               placeholder={look.name || copy.name.placeholder}
-              value={name}
-              maxLength={120}
-              onChangeText={setName}
-              onBlur={() => {
-                const next = name.trim();
-                if (next && next !== look.name) {
-                  editor.rename(next);
-                }
+              size={36}
+              align="center"
+              autoFocus={false}
+              onChange={setName}
+              onCommit={(next) => {
+                if (next && next !== look.name) editor.rename(next);
               }}
+              onCancel={() => setName(look.nameProvisional ? '' : look.name)}
             />
           )}
           <Text size="small" tone="muted">

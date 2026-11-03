@@ -1,7 +1,7 @@
 // Looks: one entity in three states (docs/look-states-brief.md) and the rack the look prompt edits
 // (docs/look-prompt-brief.md). Pure, shared by the API, the workers and both clients.
 
-import { dayMonth } from '../calendar';
+import { dayMonth, lookDateName, weekdayLong } from '../calendar';
 
 export * from './draft';
 
@@ -83,6 +83,13 @@ export function lookFacts(
   };
 }
 
+// "Wednesday 28 Oct": the first day she has the look pinned on from her today, as the saved
+// look's meta line names it (beta's "pinned for …").
+export function pinnedFor(pinnedOn: readonly string[], today: string): string | null {
+  const next = [...pinnedOn].sort().find((d) => d >= today);
+  return next ? lookDateName(next) : null;
+}
+
 // ── The rack ────────────────────────────────────────────────────────────
 // A look's rows: her pieces (key = the piece id) and the pieces Robes proposes (key = `p-…`).
 
@@ -103,7 +110,10 @@ export interface RackRow {
   // Her piece, or null for a proposal.
   pieceId: string | null;
   name: string;
+  // The stored category (slots and the sheet read it); the eyebrow reads the sheet's L1 from
+  // categoryL2 when the taxonomy knows it (pieceEyebrow), so the rack and the wardrobe agree.
   category: string;
+  categoryL2?: string | null;
   brand: string | null;
   role: LookRole | null;
   proposal: Proposal | null;
@@ -159,7 +169,13 @@ export function changedKeys(state: Pick<RackState, 'edits'>): string[] {
 
 // An edit from the look prompt, resolved by the server against the rack she sent.
 export type AskTarget =
-  | { pieceId: string; name: string; category: string; brand: string | null }
+  | {
+      pieceId: string;
+      name: string;
+      category: string;
+      categoryL2?: string | null;
+      brand: string | null;
+    }
   | {
       proposal: Omit<Proposal, 'key' | 'role' | 'wishlisted'>;
     };
@@ -207,6 +223,7 @@ export function applyAsk(
         pieceId: to.pieceId,
         name: to.name,
         category: to.category,
+        categoryL2: to.categoryL2 ?? null,
         brand: to.brand,
         role: cur.role,
         proposal: null,
@@ -425,22 +442,19 @@ export function frameKey(
 
 // "started Tuesday" on a draft tile: today, a weekday this week, else the date.
 export function startedLabel(createdAt: string, today: string, timeZone?: string): string {
-  const fmt = (o: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat('en-GB', { ...o, ...(timeZone ? { timeZone } : {}) }).format(
-      new Date(createdAt),
-    );
   const day = new Intl.DateTimeFormat('en-CA', timeZone ? { timeZone } : {}).format(
     new Date(createdAt),
   );
   const off = daysBetween(day, today);
   if (off <= 0) return 'today';
-  if (off < 7) return fmt({ weekday: 'long' });
-  return fmt({ day: 'numeric', month: 'short' });
+  if (off < 7) return weekdayLong(day);
+  return dayMonth(day);
 }
 
-// The Saved tab's sort (legacy __lkSortMenu): newest first, last worn first, or by name. Sort
-// shows from four looks (never inert).
-export const SORTS = ['newest', 'lastWorn', 'name'] as const;
+// The Saved tab's sort, in beta's menu order (legacy __lkSortMenu, F12 · 2): last worn first (the
+// standing sort), newest, then by name. Sort and Filter show from four looks — hidden below, never
+// inert.
+export const SORTS = ['lastWorn', 'newest', 'name'] as const;
 export type LookSort = (typeof SORTS)[number];
 export const SORT_FROM = 4;
 export function sortLooks<T extends { name: string; createdAt: string; lastWornOn: string | null }>(

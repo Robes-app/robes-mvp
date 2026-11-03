@@ -125,6 +125,10 @@ export function SignInForm({
         <Button variant="primary" type="submit" loading={busy} loadingLabel={copy.sendingCode}>
           {copy.sendCode}
         </Button>
+        {/* Native twin: mobile/src/app/(auth)/sign-in.tsx. */}
+        <Text size="small" tone="muted" className="-mt-3 text-center">
+          {copy.noPassword}
+        </Text>
       </form>
       {providers.apple || providers.google ? (
         <div className="flex flex-col gap-3">

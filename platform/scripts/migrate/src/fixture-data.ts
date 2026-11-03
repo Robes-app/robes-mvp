@@ -117,6 +117,8 @@ update public.profiles set
     style_archetypes: ['Minimalist', 'Classic'],
     brands: ['The Row', 'COS'],
     investment: '€500–1,500',
+    // Beta's style walk Done (home's O1).
+    confirmed_at: '2026-10-11T09:30:00.000Z',
     // Bust as a bra size (the tape is ignored in bra mode) and the waist (legacy migration 26).
     facts: {
       height_cm: 168,

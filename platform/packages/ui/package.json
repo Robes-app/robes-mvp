@@ -17,6 +17,7 @@
     "./field": "./src/field.tsx",
     "./icon-button": "./src/icon-button.tsx",
     "./image": "./src/image.tsx",
+    "./inline-title-field": "./src/inline-title-field.tsx",
     "./pill": "./src/pill.tsx",
     "./progress": "./src/progress.tsx",
     "./segmented-control": "./src/segmented-control.tsx",

@@ -1,15 +1,16 @@
 import { nav } from '@robes/copy';
 import { useLocalSearchParams } from 'expo-router';
 import { TabScreen } from '@/components/TabScreen';
-import { HomeView } from '@/features/home/HomeView';
+import { DiaryHome } from '@/features/home/DiaryHome';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+// The OOTD diary home (plan 2026-11-02); the bell's nudges land on their day.
 export default function Today() {
-  const { dress } = useLocalSearchParams<{ dress?: string }>();
+  const { day } = useLocalSearchParams<{ day?: string }>();
   return (
     <TabScreen title={nav.today}>
-      <HomeView dress={dress && ISO_DATE.test(dress) ? dress : null} />
+      <DiaryHome day={day && ISO_DATE.test(day) ? day : null} />
     </TabScreen>
   );
 }

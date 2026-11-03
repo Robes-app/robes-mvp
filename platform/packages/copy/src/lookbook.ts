@@ -1,6 +1,8 @@
 // Look states, the keep-or-pass deck and the look prompt (legacy beta 2026-10-01 → 10-13).
 // en-GB, curly apostrophes, Robes in the third person, no exclamation marks.
 
+import { SEASON_LABELS } from './seasons';
+
 const pieces = (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`);
 const KEPT_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
 const ROLE = { canvas: 'Canvas', anchor: 'Anchor', texture: 'Texture', exclamation: 'Exclamation' };
@@ -13,6 +15,8 @@ export interface LookFacts {
   timesWorn: number;
   lastWorn: string | null;
   around: string | null;
+  // The saved look page only: the next day it is pinned on ("Wednesday 28 Oct").
+  pinnedFor?: string | null;
 }
 
 export const lookbook = {
@@ -58,7 +62,7 @@ export const lookbook = {
   },
   suggestedEmpty: {
     title: 'Nothing suggested yet.',
-    body: 'Ask Robes for a look, or style one of your pieces three ways.',
+    body: 'Tell Robes where you’re going, or pick a piece, and it dresses you.',
   },
   // The look page, in each state.
   eyebrow: {
@@ -76,6 +80,7 @@ export const lookbook = {
     wears: (n: number): string => (n === 1 ? '1 wear' : `${n} wears`),
     lastWorn: (when: string): string => `last ${when}`,
     around: (piece: string): string => `around your ${piece}`,
+    pinnedFor: (day: string): string => `pinned for ${day}`,
     photographOnly: 'Photograph · not yet filed',
     // One line of facts, built from the same words wherever a saved look says them.
     // On a card the wears LEAD — how often a look actually gets worn is the card's
@@ -93,6 +98,7 @@ export const lookbook = {
         f.timesWorn ? lookbook.meta.wears(f.timesWorn) : lookbook.meta.notYetWorn,
         f.lastWorn ? lookbook.meta.lastWorn(f.lastWorn) : null,
         f.around ? lookbook.meta.around(f.around) : null,
+        f.pinnedFor ? lookbook.meta.pinnedFor(f.pinnedFor) : null,
       ]),
   },
   composedByRobes: 'Composed by Robes',
@@ -106,11 +112,8 @@ export const lookbook = {
     season: 'Season',
     wearFor: 'Wear it for',
     vibe: 'Vibe',
-    seasons: {
-      spring_summer: 'Spring / Summer',
-      autumn_winter: 'Autumn / Winter',
-      year_round: 'Year-round',
-    },
+    // The wardrobe's labels (wardrobe.filter.seasons): one spelling for a band.
+    seasons: SEASON_LABELS,
     none: 'Nothing in this edit.',
     on: 'Filters on',
   },
@@ -129,7 +132,10 @@ export const lookbook = {
     update: 'Update look',
     notForYou: 'Not for you',
   },
+  // Beta's save and update toasts: a suggestion kept as it stands, a look she worked on by name.
   saved: 'Saved to your lookbook',
+  savedAs: (name: string): string => `${name} saved to your Lookbook ✓`,
+  updated: 'Updated',
   addedToDay: (day: string): string => `In your plan for ${day}.`,
   // Save opens the diary every time (legacy 0.2); closing it is "not yet" and writes nothing.
   // The diary sheet is beta's month (legacy _lkDiaryPaint): any day is one tap, a day gone by
@@ -141,7 +147,6 @@ export const lookbook = {
     add: (day: string): string => `Add to ${day}`,
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
-    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     // "Today, Friday 17 October · records it as worn"
     picked: (long: string, today: boolean, suffix: 'worn' | 'filed' | null): string =>
       `${today ? 'Today, ' : ''}${long}${
@@ -157,6 +162,8 @@ export const lookbook = {
     recorded: 'Already worn that day',
     woreToday: 'I wore this today',
     recordedOn: (day: string): string => `Recorded — worn ${day}`,
+    // "I wore this today" says so (beta's __lkDiaryWoreToday).
+    wornToday: 'Worn today ✓',
     inDiaryFor: (look: string, day: string): string => `“${look}” is in your diary for ${day}`,
   },
   discarded: 'Draft let go.',
@@ -176,6 +183,7 @@ export const lookbook = {
     filled: { top: '✓ Top', bottom: '✓ Bottom', shoes: '✓ Shoes' },
     // While the next frame comes the last one stays up, under this chip.
     dressing: (pronoun: string): string => `Dressing ${pronoun}…`,
+    undressed: (pronoun: string): string => `Couldn’t dress ${pronoun} · Try again`,
     reading: 'Reading the piece…',
     prompt: 'Ask Robes about this look',
   },

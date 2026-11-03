@@ -1,3 +1,4 @@
+export * from './aspect';
 export * from './avatar';
 export * from './button';
 export * from './button-styles';
@@ -9,6 +10,7 @@ export * from './error-text';
 export * from './field';
 export * from './icon-button';
 export * from './image';
+export * from './inline-title-field';
 export * from './pill';
 export * from './preference-control';
 export * from './progress';

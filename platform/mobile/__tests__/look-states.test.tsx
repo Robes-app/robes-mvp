@@ -9,6 +9,7 @@ import { LookScreen } from '../src/features/looks/LookScreen';
 import { LooksView } from '../src/features/looks/LooksView';
 import { localDate } from '../src/features/looks/saved-looks';
 import { dayLabel } from '../src/features/plan/plan';
+import { nativeAnalytics } from '../src/lib/analytics';
 import { errorReply, ME, mockFetch, renderWithApi } from './support/api';
 import { JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { Providers } from './support/providers';
@@ -18,6 +19,8 @@ jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouter
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
 
 beforeEach(() => jest.clearAllMocks());
+// Every call site reports through the consent-gated client (observability.test.ts proves the gate).
+const track = jest.spyOn(nativeAnalytics, 'track');
 
 const SET_ID = '77777777-7777-4777-8777-777777777777';
 const SECOND = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -169,6 +172,16 @@ test('every new-look door asks where the pieces come from once she has filed any
       balance: 'mix',
     }),
   );
+  await waitFor(() =>
+    expect(track).toHaveBeenCalledWith('prompt_submitted', {
+      surface: 'create',
+      intent: 'words',
+      scope: 'none',
+      ok: true,
+    }),
+  );
+  expect(track).toHaveBeenCalledWith('balance_asked', { surface: 'create', piece: false });
+  expect(track).toHaveBeenCalledWith('balance_answered', { surface: 'create', balance: 'mix' });
 });
 
 test('a suggested look reads as Robes composed it; Save to lookbook opens the diary', async () => {
@@ -200,6 +213,8 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.saveToLookbook }));
   // The diary opens every time as beta's month, the day her words named already picked.
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
+  // Beta's toast for a suggestion kept as it stands.
+  expect(await screen.findByText(lookbook.saved)).toBeTruthy();
   expect(calls.find((c) => c.path.endsWith('/save'))?.body).toEqual({});
   await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.put }));
   await waitFor(() =>
@@ -211,6 +226,13 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   expect(
     await screen.findByText(lookbook.diary.inDiaryFor('Garden party', dayLabel(tomorrow))),
   ).toBeTruthy();
+  expect(track).toHaveBeenCalledWith('look_created', {
+    from: 'suggested',
+    pieces: 1,
+    proposed: 1,
+    anchored: true,
+  });
+  expect(track).toHaveBeenCalledWith('look_pinned', { offset_from_today: 1 });
 });
 
 test('closing the diary after Save is not yet: nothing is pinned', async () => {
@@ -364,6 +386,19 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     [JEAN]: { was: expect.objectContaining({ name: 'Black pointed mules' }) },
   });
   expect(screen.getByText(lookbook.rack.swappedIn('the black pointed mules'))).toBeTruthy();
+  // Counts and enums only: never her words.
+  expect(track).toHaveBeenCalledWith('look_prompt_opened', { surface: 'draft' });
+  expect(track).toHaveBeenCalledWith('look_prompt_sent', {
+    surface: 'draft',
+    chars: 'swap the mules for my dark jean'.length,
+    from_draft: false,
+  });
+  expect(track).toHaveBeenCalledWith('look_prompt_applied', {
+    surface: 'draft',
+    intent: 'swap',
+    slots: 1,
+  });
+  expect(JSON.stringify(track.mock.calls)).not.toContain('dark jean');
 });
 
 test('a rule said in the prompt waits under Robes noticed; a vague ask is written into the field', async () => {
@@ -685,17 +720,54 @@ test('the Lookbook opens on the looks worn last; a draft reads as started; sugge
   expect(mockRouter.push).toHaveBeenCalledWith(`/piece/${PIECE_ID}`);
 });
 
-test('Sort and Filter stand on Saved at every count, inert below four looks', async () => {
+test('Sort and Filter hide below four looks — never inert', async () => {
   mockFetch({
     'GET /looks': byStatus({ saved: [look({ id: LOOK_ID })] }),
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LooksView />);
-  const sort = await screen.findByRole('button', { name: new RegExp(`^${lookbook.sort.label}`) });
-  expect(sort).toBeDisabled();
+  await screen.findByText('Weekend navy');
+  expect(screen.queryByRole('button', { name: new RegExp(`^${lookbook.sort.label}`) })).toBeNull();
+  expect(screen.queryByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) })).toBeNull();
+});
+
+test('from four looks Sort and Filter stand, the menu in beta’s order', async () => {
+  const id = (n: number) => `dddddddd-dddd-4ddd-8ddd-00000000000${n}`;
+  mockFetch({
+    'GET /looks': byStatus({
+      saved: [1, 2, 3, 4].map((n) => look({ id: id(n), name: `Look ${n}` })),
+    }),
+    'GET /plan': { from: localDate(), to: localDate(), days: [] },
+  });
+  await renderWithApi(<LooksView />);
+  await screen.findByText('Look 4');
+  expect(screen.getByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) })).toBeTruthy();
+  await fireEvent.press(
+    screen.getByRole('button', { name: new RegExp(`^${lookbook.sort.label}`) }),
+  );
+  // The sheet lists the three after the pill naming the sort in play.
+  await screen.findByText(lookbook.sort.newest);
+  const menu = [lookbook.sort.lastWorn, lookbook.sort.newest, lookbook.sort.name];
+  const shown = screen
+    .getAllByText(new RegExp(`^(${menu.join('|')})$`))
+    .map((t) => t.props.children);
+  expect(shown.slice(-3)).toEqual(menu);
+});
+
+test('nothing suggested says beta’s line and offers the prompt', async () => {
+  mockFetch({
+    'GET /me': ME,
+    'GET /looks': byStatus({}),
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  mockParams.tab = 'suggested';
+  await renderWithApi(<LooksView />);
+  expect(await screen.findByText(lookbook.suggestedEmpty.title)).toBeTruthy();
   expect(
-    screen.getByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) }),
-  ).toBeDisabled();
+    screen.getByText('Tell Robes where you’re going, or pick a piece, and it dresses you.'),
+  ).toBeTruthy();
+  expect(screen.getByLabelText(lookbook.prompt.doorNew)).toBeTruthy();
+  delete mockParams.tab;
 });
 
 test('once today is logged, the diary sheet carries no second "worn today" line', async () => {

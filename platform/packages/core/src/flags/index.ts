@@ -32,6 +32,12 @@ export const ADDED_FEATURE_FLAGS = {
     description:
       'Draw a new model portrait when her picks need one (avatar_cell job; picks still save when off)',
   },
+  // 20261102203200_home_diary_flag: seeded for the diary home's rollout; retired the same day
+  // (plan 2026-11-02 P4) — both clients render the diary, so nothing reads it.
+  'home.diary': {
+    enabled: false,
+    description: 'Retired: home as the OOTD diary ships to every client',
+  },
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS | keyof typeof ADDED_FEATURE_FLAGS;

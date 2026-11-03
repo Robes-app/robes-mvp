@@ -175,6 +175,17 @@ export interface DayNames {
   userId: string;
 }
 
+export interface DayPlaces {
+  city: string;
+  country: string | null;
+  createdAt: Generated<Timestamp>;
+  dayDate: Timestamp;
+  lat: Numeric;
+  lon: Numeric;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
+}
+
 export interface EmailSuppressions {
   createdAt: Generated<Timestamp>;
   email: string;
@@ -359,6 +370,7 @@ export interface PlannedDays {
   itemIds: Generated<string[]>;
   lookId: string | null;
   pinned: Generated<boolean>;
+  position: Generated<number>;
   slot: Generated<string>;
   sourceKind: string;
   status: Generated<string>;
@@ -409,6 +421,7 @@ export interface Profiles {
   splurgeCategories: Generated<string[]>;
   styleArchetypes: Generated<string[]>;
   styleBrands: Generated<string[]>;
+  styleConfirmedAt: Timestamp | null;
   styleIcons: Generated<string[]>;
   timezone: Generated<string>;
   updatedAt: Generated<Timestamp>;
@@ -728,6 +741,7 @@ export interface DB {
   consents: Consents;
   dataExportRequests: DataExportRequests;
   dayNames: DayNames;
+  dayPlaces: DayPlaces;
   emailSuppressions: EmailSuppressions;
   entitlements: Entitlements;
   events: Events;

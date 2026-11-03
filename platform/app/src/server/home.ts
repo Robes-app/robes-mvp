@@ -1,6 +1,7 @@
 import 'server-only';
 import type { Home, HomePiece } from '@robes/contracts';
 import {
+  DAY_ONE_KEYS,
   firstLookCandidates,
   HOME_NOTICED_AFTER,
   HOME_STEPS,
@@ -31,15 +32,18 @@ function snoozes(raw: unknown): Home['state']['snoozed'] {
 
 // Everything the modular home paints, read once with Today (legacy _rbHomeState + the modules).
 export async function loadHome(userId: UserId, profile: Profile, savedCount: number) {
-  const [pics, ownLook, hasModel, style, inbox, saved, suggested] = await Promise.all([
-    repos.wardrobe.photographed(userId),
-    repos.looks.hasOwnLook(userId),
-    repos.model.hasModel(userId),
-    repos.styleProfile.get(userId),
-    loadInbox(userId),
-    repos.looks.list(userId, { limit: 4, status: 'saved' }),
-    repos.looks.list(userId, { limit: 4, status: 'suggested' }),
-  ]);
+  const [pics, ownLook, hasModel, modelRow, style, inbox, saved, suggested, dismissed] =
+    await Promise.all([
+      repos.wardrobe.photographed(userId),
+      repos.looks.hasOwnLook(userId),
+      repos.model.hasModel(userId),
+      repos.model.get(userId),
+      repos.styleProfile.get(userId),
+      loadInbox(userId),
+      repos.looks.list(userId, { limit: 4, status: 'saved' }),
+      repos.looks.list(userId, { limit: 4, status: 'suggested' }),
+      repos.uiState.dismissed(userId),
+    ]);
   const rows = {
     brands: chips(profile.styleBrands),
     icons: chips(profile.styleIcons),
@@ -95,13 +99,19 @@ export async function loadHome(userId: UserId, profile: Profile, savedCount: num
 
   return {
     state: {
-      styleConfirmed: styleConfirmed(rows),
+      styleConfirmed: styleConfirmed(rows, profile.styleConfirmedAt),
       // A model on file, or a colour or line read of her.
       twinOnFile: hasModel || Boolean(style?.season || style?.bodyType),
       pics: pics.total,
       ownLookSaved: ownLook,
       anyLook: savedCount > 0,
       snoozed: snoozes(profile.homeSnoozes),
+      // Day one's asks stand down for good once she says Okay (design 3a's dialogs). A Robes model
+      // she picks keeps the ask, ticked; only her own close-up on file retires it unasked.
+      dayOne: {
+        modelAsked: DAY_ONE_KEYS.model in dismissed || Boolean(modelRow?.headshotAssetId),
+        piecesAsked: DAY_ONE_KEYS.pieces in dismissed,
+      },
     },
     rows,
     recent: await Promise.all(pics.rows.slice(0, 4).map(toPiece)),

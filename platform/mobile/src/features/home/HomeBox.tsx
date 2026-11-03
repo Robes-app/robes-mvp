@@ -28,6 +28,7 @@ import { BalanceQuestion } from '@/features/looks/BalanceQuestion';
 import { SwapSheet } from '@/features/looks/SwapSheet';
 import { localDate } from '@/features/looks/saved-looks';
 import { dayLabel } from '@/features/plan/plan';
+import { nativeAnalytics } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 import { useFeatures } from '@/lib/features';
 import { renditionUri } from '@/lib/images';
@@ -87,6 +88,7 @@ export const HomeBox = forwardRef<
   const [error, setError] = useState<string | null>(null);
   // Her ask, held while the box asks where its pieces come from.
   const [held, setHeld] = useState<string | null>(null);
+  const surface = fromHome ? 'home' : 'create';
   const { filing, file, reset } = usePhotoFiling();
   useImperativeHandle(ref, () => ({ focus: () => input.current?.focus() }));
 
@@ -116,6 +118,7 @@ export const HomeBox = forwardRef<
   // Once per new look, while she has filed anything: the ask waits for her answer.
   const holdFor = (words: string, steer: Steer | undefined) => {
     if (steer || !(hasPieces || forSend)) return false;
+    nativeAnalytics.track('balance_asked', { surface, piece: forSend !== null });
     setHeld(words);
     setText('');
     return true;
@@ -127,6 +130,12 @@ export const HomeBox = forwardRef<
         : { pathname: '/looks/job/[jobId]', params: { jobId } },
     );
   const failed = (err: unknown, words: string) => {
+    nativeAnalytics.track('prompt_submitted', {
+      surface,
+      intent: attached ? 'piece' : 'words',
+      scope: date ? 'day' : 'none',
+      ok: false,
+    });
     if (held !== null) setText(words);
     setHeld(null);
     setError(errorMessage(err));
@@ -142,6 +151,11 @@ export const HomeBox = forwardRef<
     }
     const words = (held ?? text).trim();
     setError(null);
+    if (steer)
+      nativeAnalytics.track('balance_answered', {
+        surface,
+        balance: 'balance' in steer ? steer.balance : 'words',
+      });
     if (attached) {
       if (stillFiling) {
         setWaiting(true);
@@ -160,6 +174,12 @@ export const HomeBox = forwardRef<
             ...(words ? { occasion: words.slice(0, 120) } : {}),
             ...steer,
           },
+        });
+        nativeAnalytics.track('prompt_submitted', {
+          surface,
+          intent: 'piece',
+          scope: 'none',
+          ok: true,
         });
         setText('');
         setPiece(null);
@@ -186,6 +206,12 @@ export const HomeBox = forwardRef<
     try {
       const { jobId } = await api.call('looks.prompt', {
         input: { prompt: words, ...(day ? { date: day } : {}), ...steer },
+      });
+      nativeAnalytics.track('prompt_submitted', {
+        surface,
+        intent: 'words',
+        scope: day ? 'day' : 'none',
+        ok: true,
       });
       setText('');
       setHeld(null);

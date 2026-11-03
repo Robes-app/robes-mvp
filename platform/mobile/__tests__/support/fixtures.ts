@@ -110,6 +110,7 @@ export function look(overrides: Partial<Look> = {}): Look {
     dateHint: null,
     timesWorn: 2,
     lastWornOn: '2026-09-01',
+    pinnedOn: [],
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,

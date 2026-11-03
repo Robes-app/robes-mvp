@@ -1,3 +1,5 @@
+import { isTerminalJobStatus, type JobStatus } from '../jobs';
+
 // The modular home (legacy 0478e63, Annie's Homepage_Modules): a stack of independent modules,
 // resolved by how far she has come. O1 Style DNA · O2 the twin · O3 the wardrobe · O4 the first
 // look lead until O3 and O4 are done; then the week (H3) and the looks (H4) take over.
@@ -44,8 +46,10 @@ export interface HomeResolved {
   modules: HomeModule[];
 }
 
-// Style DNA is confirmed by two of the three rows filled (brands · icons · styles).
-export function styleConfirmed(rows: StyleRows): boolean {
+// Style DNA is confirmed once she said so (legacy style_dna.confirmed_at, beta's style walk Done),
+// or by two of the three rows filled (brands · icons · styles).
+export function styleConfirmed(rows: StyleRows, confirmedAt: Date | string | null = null): boolean {
+  if (confirmedAt) return true;
   return [rows.brands, rows.icons, rows.styles].filter((r) => r.length > 0).length >= 2;
 }
 
@@ -125,6 +129,20 @@ export function noticedLine(text: string, max = HOME_NOTICED_CHARS): string {
   return `${t.slice(0, max).replace(/\s+\S*$/, '')}…`;
 }
 
+// The studio tray (Today's running jobs, and ones just finished): what each row is, and where it
+// stands. Both clients read these; each maps a row to its own route.
+export type TrayKind = 'styleColour' | 'trip' | 'daily' | 'stylePiece';
+export function trayKind(job: { kind: string; output: { dailyLookId?: string } }): TrayKind {
+  if (job.kind === 'stylenotes_analyse') return 'styleColour';
+  if (job.kind === 'travel') return 'trip';
+  if (job.kind === 'daily' || job.output.dailyLookId) return 'daily';
+  return 'stylePiece';
+}
+export function trayState(status: JobStatus): 'running' | 'failed' | 'ready' {
+  if (!isTerminalJobStatus(status)) return 'running';
+  return status === 'failed' || status === 'cancelled' ? 'failed' : 'ready';
+}
+
 // After 19:00 today's planned look asks Wore it?
 export const WORE_IT_HOUR = 19;
 
@@ -140,4 +158,34 @@ const TRIP_ASK =
   /\b(trip|holiday|getaway|city break|packing|pack for|travell?ing)\b|\b(\d+|two|three|four|five|six|seven|eight|nine|ten|a few)\s+(days|nights)\s+(in|at|away)\b|\bweekend (in|away)\b/i;
 export function isTripAsk(text: string): boolean {
   return TRIP_ASK.test(text);
+}
+
+// Day one's two asks (design 3a): dismissed for good through the bell's dismissal store.
+export const DAY_ONE_KEYS = { model: 'dayone:model', pieces: 'dayone:pieces' } as const;
+
+// The bell's diary nudges (plan 2026-11-02): the days of the last week she logged no wear on, newest
+// first — only days since her account began, and only once she has a look to log. Pure, so the
+// server and its test agree; the dates are plain YYYY-MM-DD in her timezone.
+export const BELL_NUDGE_DAYS = 7;
+export function bellNudgeDays(o: {
+  today: string;
+  since: string;
+  wornDays: Iterable<string>;
+  hasLooks: boolean;
+}): string[] {
+  if (!o.hasLooks) return [];
+  const worn = new Set(o.wornDays);
+  const out: string[] = [];
+  for (let i = 1; i <= BELL_NUDGE_DAYS; i++) {
+    const day = shiftDay(o.today, -i);
+    if (day < o.since) break;
+    if (!worn.has(day)) out.push(day);
+  }
+  return out;
+}
+
+function shiftDay(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }

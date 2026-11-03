@@ -4,12 +4,14 @@ import {
   buildSystem,
   buildUser,
   type DayContext,
+  type DayPlace,
   FALLBACK_PIECE,
   FEATURE,
   MAX_OUTPUT_TOKENS,
   type Mode,
   normalisePieces,
   Output,
+  placeLine,
   type RecentSet,
   type Refine,
   type Steer,
@@ -18,6 +20,7 @@ import {
   VERSION,
 } from '@robes/ai/prompts/style-piece';
 import { KeyPieceJobInput } from '@robes/contracts';
+import { LANDSCAPES, type PlaceRead, readPlace } from '@robes/core/landscape';
 import {
   askDate,
   BALANCES,
@@ -31,7 +34,7 @@ import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
-import type { DayForecastFor } from '../weather';
+import type { DayForecastFor, DestinationWeatherFor } from '../weather';
 import { drawSuggestedFrame, type FrameRackPiece, modelReference } from './look-frame';
 
 export interface StylePieceDeps {
@@ -47,6 +50,8 @@ export interface StylePieceDeps {
     Partial<Pick<SystemRepositories['modelRender'], 'model'>>;
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
   forecast?: DayForecastFor;
+  // The weather at a place she names in her ask (absent: her own weather only).
+  destination?: DestinationWeatherFor;
   // Generated frames are stored as uploads; AWS renders them from the S3 event, dev renders here.
   onGenerated?(key: string): Promise<void>;
   now?: () => Date;
@@ -65,6 +70,11 @@ const ROLE_OF: Record<string, LookRole> = {
   'The Exclamation Point': 'exclamation',
 };
 
+const LANDSCAPE_KEYS = LANDSCAPES.map((l) => l.key) as [
+  PlaceRead['landscapes'][number],
+  ...PlaceRead['landscapes'],
+];
+
 // The set's record (the generation), read back on ↻ and by the deck.
 export const StoredSet = z.object({
   set: z.literal(true),
@@ -82,6 +92,27 @@ export const StoredSet = z.object({
       month: z.string().nullable(),
       tempRange: z.string().nullable(),
       condition: z.string().nullable(),
+      // The place her words named, so ↻ dresses the same place (style-piece v5).
+      place: z
+        .object({
+          read: z.object({
+            landscapes: z.array(z.enum(LANDSCAPE_KEYS)).max(2),
+            activity: z.string().nullable(),
+            destination: z.string().nullable(),
+            named: z.boolean(),
+          }),
+          there: z
+            .object({
+              place: z.string(),
+              tempRange: z.string().nullable(),
+              condition: z.string().nullable(),
+              seasonal: z.boolean(),
+            })
+            .nullable(),
+        })
+        .nullable()
+        .optional()
+        .catch(null),
     })
     .nullable(),
   fallback: z.boolean(),
@@ -92,6 +123,11 @@ export const StoredSet = z.object({
   // Where she said the pieces come from; ↻ on one of the set's looks honours it again.
   balance: z.enum(BALANCES).nullable().optional(),
   balanceNote: z.string().nullable().optional(),
+  // The pieces she chose to build the day around (design 3k's hanger); ↻ keeps them.
+  around: z
+    .array(z.object({ pieceId: z.uuid(), label: z.string() }))
+    .optional()
+    .catch(undefined),
 });
 
 // The sets Robes already made her, read back as titles and piece names (ALREADY SHOWN).
@@ -144,7 +180,7 @@ const specKey = (spec: SuggestedSpec) =>
 export function specFromWay(
   way: { title: string; scene: string; pieces: StoredPiece[] },
   setIndex: number,
-  o: { anchorPieceId: string | null; dateHint: string | null },
+  o: { anchorPieceId: string | null; dateHint: string | null; aroundIds?: readonly string[] },
 ): SuggestedSpec {
   const pieces: SuggestedSpec['pieces'][number][] = [];
   const proposals: Record<string, unknown>[] = [];
@@ -169,6 +205,10 @@ export function specFromWay(
   if (o.anchorPieceId && !pieces.some((x) => x.pieceId === o.anchorPieceId)) {
     pieces.unshift({ pieceId: o.anchorPieceId, role: 'anchor' });
   }
+  // A piece she chose to build around is on the rack whether or not the model named it.
+  for (const id of o.aroundIds ?? []) {
+    if (!pieces.some((x) => x.pieceId === id)) pieces.push({ pieceId: id, role: null });
+  }
   return {
     setIndex,
     name: way.title.replace(/\.$/, '').trim() || 'A look',
@@ -184,10 +224,18 @@ export function specFromWay(
 // many earlier sets rode along as ALREADY SHOWN, and owned/total per way — the read that says
 // whether "suggest new pieces" was honoured. Counts and one enum; her own words never land here,
 // only the fact that she wrote some ('words').
-function askDetail(steer: Steer): Record<string, unknown> {
+// The place read rides beside it in Robes' own vocabulary only: which landscapes fired and which
+// weather the look was dressed for (there / season / home / today), never the place she wrote.
+function askDetail(steer: Steer, day: DayContext | null = null): Record<string, unknown> {
   const balance = steer.balance ?? (steer.balanceNote?.trim() ? 'words' : null);
   const shown = steer.recent?.length ?? 0;
-  return { ...(balance ? { balance } : {}), ...(shown ? { shown } : {}) };
+  const line = day?.place ? placeLine(day) : null;
+  const place = line ? { landscapes: day?.place?.read.landscapes ?? [], wx: line.rung } : null;
+  return {
+    ...(balance ? { balance } : {}),
+    ...(shown ? { shown } : {}),
+    ...(place && (place.landscapes.length || place.wx !== 'today') ? { place } : {}),
+  };
 }
 
 // Counted on the pieces as they will be stored, so the row says what she was actually shown.
@@ -265,13 +313,71 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
     }
   }
 
-  async function dayContext(userId: UserId, date: string | undefined) {
+  // Where her words put the day (style-piece v5): a place she names is read for its own weather.
+  async function placeOf(
+    prompt: string,
+    day: string,
+    home: { city: string | null; lat: number | null; lon: number | null },
+  ): Promise<DayPlace> {
+    const read = readPlace(prompt);
+    const there =
+      read.destination && deps.destination
+        ? await deps.destination({
+            name: read.destination,
+            date: day,
+            home,
+            ...(deps.now ? { now: deps.now() } : {}),
+          })
+        : null;
+    // A name the geocoder could not confirm is not a place (Liberty's named places excepted).
+    const destination = there ? there.place : read.named ? read.destination : null;
+    return { read: { ...read, destination }, there };
+  }
+
+  // The place chip (design 3k): where she says she is that day stands in for anything her words
+  // name, read for its own weather; her home city on the chip is just home.
+  async function chosenPlace(
+    chosen: { city: string; country: string | null; lat: number; lon: number },
+    prompt: string,
+    day: string,
+  ): Promise<DayPlace> {
+    const forecast = deps.forecast
+      ? await deps.forecast({ city: chosen.city, lat: chosen.lat, lon: chosen.lon, date: day })
+      : null;
+    const place = chosen.country ? `${chosen.city}, ${chosen.country}` : chosen.city;
+    return {
+      read: { ...readPlace(prompt), destination: chosen.city, named: true },
+      there: {
+        place,
+        tempRange: forecast?.tempRange ?? null,
+        condition: forecast?.condition ?? null,
+        seasonal: false,
+      },
+    };
+  }
+
+  async function dayContext(
+    userId: UserId,
+    date: string | undefined,
+    prompt: string,
+    chosen?: { city: string; country: string | null; lat: number; lon: number },
+    weather = true,
+  ) {
     const her = await deps.styling.dailyContext(userId);
     const today = localToday(deps.now?.() ?? new Date(), her.timezone);
     const day = askDate(date, today) ?? today;
-    const forecast = deps.forecast
-      ? await deps.forecast({ city: her.homeCity, lat: her.homeLat, lon: her.homeLon, date: day })
-      : null;
+    const home = { city: her.homeCity, lat: her.homeLat, lon: her.homeLon };
+    const away =
+      chosen && chosen.city.trim().toLowerCase() !== (her.homeCity ?? '').trim().toLowerCase();
+    // The weather left out (design 3k's × on the chip): the day is named, never its forecast.
+    const [forecast, place] = await Promise.all([
+      deps.forecast && weather ? deps.forecast({ ...home, date: day }) : null,
+      away && weather
+        ? chosenPlace(chosen, prompt, day)
+        : weather
+          ? placeOf(prompt, day, home)
+          : null,
+    ]);
     const ctx: DayContext = {
       // The day is named only when it isn't today (legacy dayLabel).
       dayLabel: day === today ? null : fmt(day, { weekday: 'long', day: 'numeric', month: 'long' }),
@@ -279,6 +385,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       month: fmt(day, { month: 'long' }),
       tempRange: forecast?.tempRange ?? null,
       condition: forecast?.condition ?? null,
+      place,
     };
     return { day: ctx, dateHint: askDate(date, today) };
   }
@@ -403,7 +510,12 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         const mode: Mode = set.data.mode === 'prompt' ? 'dress-me' : 'piece';
         const ask: Ask =
           mode === 'dress-me'
-            ? { mode, prompt: set.data.prompt ?? set.data.anchor.label, day: set.data.day }
+            ? {
+                mode,
+                prompt: set.data.prompt ?? set.data.anchor.label,
+                day: set.data.day,
+                ...(set.data.around?.length ? { around: set.data.around } : {}),
+              }
             : {
                 mode,
                 anchor: anchorPiece
@@ -441,12 +553,13 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           balanceNote: set.data.balanceNote ?? null,
           recent,
         };
+        const day = mode === 'dress-me' ? (set.data.day ?? null) : null;
         const out = await generate(
           ctx,
-          buildSystem(styleCtx, mode, steer),
+          buildSystem(styleCtx, mode, steer, day?.place?.read ?? null),
           buildUser(ask, { hasPhoto: Boolean(photo), refine }),
           photo,
-          askDetail(steer),
+          askDetail(steer, day),
           (o) => ownedOfTotal(o.ways.slice(0, 1), styleCtx.closet),
         );
         const raw = out.ways[0];
@@ -496,6 +609,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       let day: DayContext | null = null;
       let dateHint: string | null = null;
       let brief: string | null = null;
+      let around: { pieceId: string; label: string }[] = [];
       const steer: Steer = {
         balance: 'balance' in input ? (input.balance ?? null) : null,
         balanceNote: 'balanceNote' in input ? (input.balanceNote ?? null) : null,
@@ -503,10 +617,27 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       };
       if (prompted) {
         mode = 'dress-me';
-        const dated = await dayContext(ctx.userId, input.date);
+        const dated = await dayContext(
+          ctx.userId,
+          input.date,
+          input.prompt,
+          input.place,
+          input.weather !== false,
+        );
         day = dated.day;
         dateHint = dated.dateHint;
-        ask = { mode, prompt: input.prompt, day };
+        // The pieces she chose: hers, by id (SEC-16); one she has since let go of is left out.
+        around = (
+          await Promise.all(
+            (input.pieceIds ?? []).map((id) => deps.styling.anchorPiece(ctx.userId, id)),
+          )
+        ).flatMap((p) => (p ? [{ pieceId: p.id, label: p.label }] : []));
+        ask = {
+          mode,
+          prompt: input.prompt,
+          day,
+          ...(around.length ? { around: around.map((p) => ({ label: p.label })) } : {}),
+        };
         anchor = { type: 'text', label: input.prompt };
         brief = input.prompt;
       } else if (!('mode' in input)) {
@@ -528,15 +659,18 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
 
       const out = await generate(
         ctx,
-        buildSystem(styleCtx, mode, steer),
+        buildSystem(styleCtx, mode, steer, day?.place?.read ?? null),
         buildUser(ask, { hasPhoto: Boolean(photo) }),
         photo,
-        askDetail(steer),
+        askDetail(steer, day),
         (o) => ownedOfTotal(o.ways.slice(0, WAYS), styleCtx.closet),
       );
       const { fallback } = out;
       // Her profile decides the wearer; the model's judgement stands only when it is silent.
-      const wearer = styleCtx.gender === 'unspecified' ? (out.wearer ?? 'woman') : styleCtx.gender;
+      const wearer =
+        styleCtx.gender === 'man' || styleCtx.gender === 'woman'
+          ? styleCtx.gender
+          : (out.wearer ?? 'woman');
       const ways = out.ways.slice(0, WAYS).map((w) => ({
         ...w,
         scene: sceneOf(w),
@@ -559,12 +693,17 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           ways,
           balance: steer.balance,
           balanceNote: steer.balanceNote,
+          ...(around.length ? { around } : {}),
           images: [],
           promptVersion: VERSION,
         },
       });
       const specs = ways.map((w, i) =>
-        specFromWay(w, i, { anchorPieceId: fallback ? null : anchorPieceId, dateHint }),
+        specFromWay(w, i, {
+          anchorPieceId: fallback ? null : anchorPieceId,
+          dateHint,
+          aroundIds: fallback ? [] : around.map((p) => p.pieceId),
+        }),
       );
       // The hero's frame is claimed with the mint, before the set is exposed (no second draw).
       const [heroSpec] = specs;

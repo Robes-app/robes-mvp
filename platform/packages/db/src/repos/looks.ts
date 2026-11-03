@@ -384,6 +384,22 @@ export function looksRepo(db: Db) {
         .execute();
     },
 
+    // The days each look is pinned on from yesterday on, earliest first (a day can hold a look in
+    // both slots, so a day may repeat). The client drops the days before her own today; the day of
+    // slack covers time zones behind the server's.
+    async pinnedDays(userId: UserId, lookIds: readonly string[]) {
+      if (lookIds.length === 0) return [];
+      return db
+        .selectFrom('plannedDays')
+        .select(['lookId', sql<string>`day_date::text`.as('dayDate')])
+        .where('userId', '=', userId)
+        .where('lookId', 'in', [...lookIds])
+        .where('deletedAt', 'is', null)
+        .where('dayDate', '>=', sql<Date>`current_date - 1`)
+        .orderBy('dayDate')
+        .execute();
+    },
+
     async create(
       userId: UserId,
       look: LookFields & {
@@ -538,14 +554,23 @@ export function looksRepo(db: Db) {
     },
 
     // Suggested or draft → saved (one tap from a suggestion, or the draft's Save). Saved never goes
-    // back; saving a saved look changes nothing.
-    save(userId: UserId, id: string, opts: { name?: string | undefined } = {}) {
+    // back; saving a saved look changes nothing. A name she typed is hers; `datedName` (an unnamed
+    // hand-built draft) replaces the offer but stays provisional, hers to change.
+    save(
+      userId: UserId,
+      id: string,
+      opts: { name?: string | undefined; datedName?: string | undefined } = {},
+    ) {
       return db
         .updateTable('looks')
         .set({
           status: 'saved',
           edits: null,
-          ...(opts.name !== undefined ? { name: opts.name, nameProvisional: false } : {}),
+          ...(opts.name !== undefined
+            ? { name: opts.name, nameProvisional: false }
+            : opts.datedName !== undefined
+              ? { name: opts.datedName, nameProvisional: true }
+              : {}),
           updatedAt: sql`now()`,
         })
         .where('userId', '=', userId)
@@ -683,6 +708,20 @@ export function looksRepo(db: Db) {
     },
 
     // Looks she recorded wearing on a calendar day.
+    // The days on [from, to] she logged any wear (the bell's nudges read the gaps).
+    async wornDays(userId: UserId, from: string, to: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom('wears')
+        .select(wornOnText.as('wornOn'))
+        .distinct()
+        .where('userId', '=', userId)
+        .where('wornOn', '>=', sql<Date>`${from}::date`)
+        .where('wornOn', '<=', sql<Date>`${to}::date`)
+        .orderBy('wornOn')
+        .execute();
+      return rows.map((r) => r.wornOn);
+    },
+
     async wornOn(userId: UserId, day: string): Promise<string[]> {
       const rows = await db
         .selectFrom('wears')

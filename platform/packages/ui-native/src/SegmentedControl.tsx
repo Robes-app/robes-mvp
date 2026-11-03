@@ -18,16 +18,16 @@ export interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
-  // md: the tab header's track (beta parity canvas: 38pt segments in a 3pt sunk track = 44pt);
-  // sm: the count row's small grid | list toggle (32pt).
+  // md: the tab header's track (beta .rb-seg2, 36pt); sm: the count row's grid | list toggle (32pt).
   size?: 'md' | 'sm';
   className?: string;
   testID?: string;
 }
 
-const HEIGHT = { md: 44, sm: 32 } as const;
+// Beta's .rb-seg2 is 36 tall; the hit area reaches 44 past it (hitSlop below).
+const HEIGHT = { md: 36, sm: 32 } as const;
 
-// The header's segmented control (legacy header audit): a sunk track, a raised thumb, tracked caps.
+// The header's segmented control (legacy header audit): a cream track, a raised thumb, tracked caps.
 export function SegmentedControl<T extends string>({
   label,
   options,
@@ -39,7 +39,7 @@ export function SegmentedControl<T extends string>({
   testID,
 }: SegmentedControlProps<T>) {
   const ink = useColor('ink');
-  // Unselected labels sit on the sunk track, where ink-muted is 4.44:1 (under AA); faint passes.
+  // Unselected labels read ink-faint on the track (AA), as on web.
   const muted = useColor('ink-faint');
   const height = HEIGHT[size];
   // The track is shorter than a touch target; the hit area reaches past it.
@@ -51,7 +51,7 @@ export function SegmentedControl<T extends string>({
       testID={testID}
       // 232 holds "SUGGESTED" on one line at 10pt tracked caps (Look redline 27 Oct: it broke).
       style={{ height, minWidth: size === 'md' ? 232 : 72 }}
-      className={cx('flex-row rounded-pill bg-surface-sunk p-[3px]', className)}
+      className={cx('flex-row rounded-pill border border-hairline bg-surface p-[3px]', className)}
     >
       {options.map((option) => {
         const selected = option.value === value;

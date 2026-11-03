@@ -42,6 +42,14 @@ test('photos become pieces she can edit, remove and undo', async ({ page }) => {
   await pieces.getByRole('link', { name: /Camel wool coat/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Camel wool coat' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Photo of Camel wool coat' })).toBeVisible();
+  // Change photo sits on the photograph (legacy rb-pc-rephoto): a pick uploads and replaces it.
+  await expect(page.getByRole('button', { name: 'Change photo' })).toBeVisible();
+  const changed = page.waitForResponse(
+    (r) => /\/wardrobe\/items\/[^/]+\/photo$/.test(r.url()) && r.request().method() === 'POST',
+  );
+  await page.locator('input[type="file"][aria-label="Change photo"]').setInputFiles(PHOTO);
+  expect((await changed).status()).toBe(200);
+  await expect(page.getByRole('img', { name: 'Photo of Camel wool coat' })).toBeVisible();
   // Every fact is a row that opens its own drawer, and the line under the name is the truth:
   // a brand she adds shows there at once, with no form to save.
   await page.getByRole('button', { name: 'Add the brand' }).click();

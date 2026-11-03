@@ -152,6 +152,21 @@ export const appServerEnv = z
     APPLE_CLIENT_ID: optionalSecret,
     APPLE_CLIENT_SECRET: optionalSecret,
     APPLE_APP_BUNDLE_ID: optionalSecret,
+    // With APPLE_APP_BUNDLE_ID, names the iOS app in /.well-known/apple-app-site-association.
+    APPLE_TEAM_ID: z
+      .string()
+      .regex(/^[A-Z0-9]{10}$/)
+      .optional(),
+    // The Android app and its signing certificates (comma-separated SHA-256, AA:BB:…) for
+    // /.well-known/assetlinks.json. Unset: the file lists no app and links stay in the browser.
+    ANDROID_APP_PACKAGE: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/i)
+      .optional(),
+    ANDROID_CERT_SHA256: z
+      .string()
+      .regex(/^([0-9A-F]{2}(:[0-9A-F]{2}){31})(\s*,\s*[0-9A-F]{2}(:[0-9A-F]{2}){31})*$/)
+      .optional(),
     GOOGLE_CLIENT_ID: optionalSecret,
     GOOGLE_CLIENT_SECRET: optionalSecret,
     MAIL_FROM: z.string().min(3).default('Robes <hello@byrobes.com>'),
@@ -184,6 +199,8 @@ export const appServerEnv = z
     ALLOW_PRIVATE_FETCH: z.string().optional(),
     NOTIFY_DEBUG: z.string().optional(),
     JOBS_TRANSPORT_INLINE: z.string().optional(),
+    // Dev/e2e only: a stand-in for Nominatim's reverse geocoder, so tests never send coordinates out.
+    REVERSE_GEOCODE_URL: z.url().optional(),
     // Only the dev inline worker calls Gemini from the web process; without it the fake is used.
     GEMINI_API_KEY: optionalSecret,
     // SQS jobs-interactive queue; without it jobs run in-process after the response (dev only).
@@ -212,6 +229,13 @@ export const appServerEnv = z
       });
     }
     if (deployed) {
+      if (env.REVERSE_GEOCODE_URL) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['REVERSE_GEOCODE_URL'],
+          message: 'deployed environments use Nominatim',
+        });
+      }
       for (const key of [
         'ROBES_AWS_REGION',
         'ROBES_AWS_ACCESS_KEY_ID',
@@ -260,6 +284,20 @@ export const appServerEnv = z
         code: 'custom',
         path: ['APPLE_CLIENT_SECRET'],
         message: 'Apple needs id and secret',
+      });
+    }
+    if (env.APPLE_TEAM_ID && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(env.APPLE_APP_BUNDLE_ID ?? '')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['APPLE_APP_BUNDLE_ID'],
+        message: 'app links need the iOS bundle id beside the team id',
+      });
+    }
+    if (Boolean(env.ANDROID_APP_PACKAGE) !== Boolean(env.ANDROID_CERT_SHA256)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ANDROID_CERT_SHA256'],
+        message: 'Android app links need the package and its certificate fingerprint',
       });
     }
     if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
@@ -321,6 +359,20 @@ export const appServerEnv = z
         s3: { ...media.s3, credentials: media.s3.credentials ?? aws?.credentials },
       },
       observability: observabilityConfig(env),
+      // The installed apps that may open this host's links; null keeps links in the browser.
+      appLinks: {
+        iosAppId:
+          env.APPLE_TEAM_ID && env.APPLE_APP_BUNDLE_ID
+            ? `${env.APPLE_TEAM_ID}.${env.APPLE_APP_BUNDLE_ID}`
+            : null,
+        android:
+          env.ANDROID_APP_PACKAGE && env.ANDROID_CERT_SHA256
+            ? {
+                packageName: env.ANDROID_APP_PACKAGE,
+                fingerprints: env.ANDROID_CERT_SHA256.split(',').map((f) => f.trim()),
+              }
+            : null,
+      },
       turnstile:
         env.TURNSTILE_SECRET_KEY && env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
           ? { siteKey: env.NEXT_PUBLIC_TURNSTILE_SITE_KEY, secretKey: env.TURNSTILE_SECRET_KEY }

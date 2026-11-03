@@ -23,5 +23,7 @@
 | `roadmap.md` → M6 Profile, sharing, comms, admin, **web cutover** | style analysis, shares, emails, deletion/export, admin, migration | brief → expand | ☐ |
 | `roadmap.md` → M7 Native parity & store launch | native gaps, offline, push, share extension, store compliance | brief → expand | ☐ |
 | `roadmap.md` → M8 Monetisation (optional) | plans, Stripe, RevenueCat | brief → expand | ☐ |
+| `2026-10-28-beta-parity-move-to-staging.md` | Every beta ↔ staging gap (web + native) and the passes to close them so testers move off beta | bite-sized (passes 0–7) | ☐ audit complete 2026-10-28; passes 1–3 are the move bar |
+| `2026-11-02-home-ootd-diary.md` | Home → the OOTD diary (strip + one day, prompt chips + wardrobe flyout, bell, day-one band) from the Front Door design, web + native | bite-sized (P0–P4) | ☑ built 2026-11-02 on `feat/home-ootd-diary` (P0–P4, web + native); the server keeps `week`/`home` for installed builds |
 
 Dependencies: M0 → M1 → (M2 ∥ M3 infra-free parts) → M3 → M4 → M5 → M6 → M7. M2 can start once M1's auth + job system exist. Native screens for M3–M6 are built inside those milestones unless marked web-first.

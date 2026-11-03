@@ -5,6 +5,7 @@ import {
   nameWithoutBrand,
   pieceEyebrow,
   rankCategories,
+  seasonBandOn,
 } from './index';
 
 describe('the piece card', () => {
@@ -102,5 +103,15 @@ describe('suggestPieceName', () => {
     expect(suggestPieceName({ categoryL2: 'Coats', categoryL3: null })).toBe('Coats');
     expect(suggestPieceName({ colourName: 'Navy' })).toBeNull();
     expect(suggestPieceName({})).toBeNull();
+  });
+});
+
+describe('the season in force', () => {
+  it('reads April to September as spring/summer, the rest as autumn/winter (beta)', () => {
+    expect(seasonBandOn('2026-03-31')).toBe('autumn_winter');
+    expect(seasonBandOn('2026-04-01')).toBe('spring_summer');
+    expect(seasonBandOn('2026-09-30')).toBe('spring_summer');
+    expect(seasonBandOn('2026-10-01')).toBe('autumn_winter');
+    expect(seasonBandOn('2027-01-15')).toBe('autumn_winter');
   });
 });

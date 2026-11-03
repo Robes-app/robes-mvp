@@ -81,14 +81,14 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
 
   await page.getByRole('button', { name: /^Brands/ }).click();
   const brands = page.getByRole('dialog', { name: 'Brands' });
-  // Her type's houses lead the pool.
-  await brands.getByRole('button', { name: 'The Row', exact: true }).click();
+  // Her type's houses lead the pool (a woman's Minimal: COS, Lemaire, Studio Nicholson, Jil Sander).
+  await brands.getByRole('button', { name: 'Lemaire', exact: true }).click();
   await brands.getByLabel('Search brands').fill('Atelier Nouveau');
   await brands.getByRole('button', { name: '+ Add “Atelier Nouveau”' }).click();
   await expect(brands.getByRole('button', { name: 'Remove Atelier Nouveau' })).toBeVisible();
   // The row reads the first name and a count, never a list cut mid-word.
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: /^Brands.*The Row \+1/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Brands.*Lemaire \+1/ })).toBeVisible();
 
   await page.getByRole('button', { name: /^Investment level/ }).click();
   // One answer: the levels are radios, and the sheet closes on Done (every tap already saved).
@@ -129,7 +129,7 @@ test('Style DNA: her types, a brand, the investment level, a hard no and a fact'
   const dna = await (await page.request.get('/api/v1/me/dna')).json();
   expect(dna).toMatchObject({
     types: ['Minimal'],
-    brands: ['The Row', 'Atelier Nouveau'],
+    brands: ['Lemaire', 'Atelier Nouveau'],
     investment: '500_1500',
     facts: { sizeUk: 10, ageBand: '45_54' },
   });

@@ -32,11 +32,55 @@ describe('profiles', () => {
     expect((await repos.profiles.get(bob))?.firstName).toBe('Bob');
   });
 
+  it('writes a device location to the caller alone, ~1 km of it', async () => {
+    await repos.profiles.update(bob, { homeCity: 'Leeds', homeLat: 53.8, homeLon: -1.55 });
+    const updated = await repos.profiles.update(alice, {
+      homeCity: 'Dublin',
+      homeLat: 53.35,
+      homeLon: -6.26,
+    });
+    expect(updated).toMatchObject({ homeCity: 'Dublin', homeLat: '53.350', homeLon: '-6.260' });
+    expect(await repos.profiles.get(bob)).toMatchObject({
+      homeCity: 'Leeds',
+      homeLat: '53.800',
+      homeLon: '-1.550',
+    });
+    // A typed city clears the coordinates (PATCH /me); the city alone then carries the forecast.
+    await repos.profiles.update(alice, { homeLat: null, homeLon: null });
+    expect(await repos.profiles.get(alice)).toMatchObject({ homeLat: null, homeLon: null });
+    expect((await repos.profiles.get(bob))?.homeLat).toBe('53.800');
+  });
+
   it('completes onboarding once', async () => {
     const first = await repos.profiles.completeOnboarding(alice);
     const second = await repos.profiles.completeOnboarding(alice);
     expect(first).toBeInstanceOf(Date);
     expect(second?.getTime()).toBe(first?.getTime());
+  });
+
+  it('files her onboarding answers on the first finish only, and to her alone', async () => {
+    const at = await repos.profiles.completeOnboarding(bob, {
+      genderIdentity: 'non_binary',
+      styleArchetypes: ['Utility', 'Minimal'],
+      styleBrands: ['Carhartt WIP'],
+      colourFamilies: { blacks: 1, pinks: -1 },
+    });
+    expect(at).toBeInstanceOf(Date);
+    expect(await repos.profiles.get(bob)).toMatchObject({
+      genderIdentity: 'non_binary',
+      styleArchetypes: ['Utility', 'Minimal'],
+      styleBrands: ['Carhartt WIP'],
+    });
+    expect((await repos.styleProfile.get(bob))?.palette).toEqual({
+      fam: { blacks: 1, pinks: -1 },
+      shade: {},
+      print: {},
+    });
+    // A late retry keeps what she has since changed.
+    await repos.profiles.completeOnboarding(bob, { styleArchetypes: ['Classic'] });
+    expect((await repos.profiles.get(bob))?.styleArchetypes).toEqual(['Utility', 'Minimal']);
+    expect((await repos.profiles.get(alice))?.styleArchetypes).toEqual([]);
+    expect(await repos.styleProfile.get(alice)).toBeUndefined();
   });
 });
 

@@ -1,5 +1,12 @@
 import { BUST_CUPS } from '@robes/core/avatar';
-import { AGE_BAND_KEYS, INVESTMENT_KEYS, SEASON_WHEEL, STYLE_TYPES } from '@robes/core/style-dna';
+import {
+  AGE_BAND_KEYS,
+  INVESTMENT_KEYS,
+  RETIRED_STYLE_TYPES,
+  SEASON_WHEEL,
+  STYLE_TYPES,
+  styleTypesOf,
+} from '@robes/core/style-dna';
 import { z } from 'zod';
 import { ModelPresence } from './me';
 import { PieceImage } from './wardrobe';
@@ -70,6 +77,12 @@ export type Facts = z.infer<typeof Facts>;
 
 const name = z.string().trim().min(1).max(80);
 
+// An older phone build may still send a retired type (30 Oct): read as its archetype, deduped.
+const STYLE_TYPE_NAMES = [...STYLE_TYPES, ...Object.keys(RETIRED_STYLE_TYPES)] as [
+  string,
+  ...string[],
+];
+
 export const StyleDna = z.object({
   types: z.array(z.string()),
   brands: z.array(z.string()),
@@ -103,7 +116,7 @@ export type StyleDna = z.infer<typeof StyleDna>;
 
 export const UpdateStyleDnaInput = z
   .object({
-    types: z.array(z.enum(STYLE_TYPES)).max(10),
+    types: z.array(z.enum(STYLE_TYPE_NAMES)).max(10).transform(styleTypesOf),
     brands: z.array(name).max(40),
     icons: z.array(name).max(20),
     investment: InvestmentLevel,

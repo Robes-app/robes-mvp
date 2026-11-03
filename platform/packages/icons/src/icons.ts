@@ -26,6 +26,29 @@ export const ICONS = {
   // The stepper's step down (the Size drawer), the plus's twin.
   minus: ['M5 12h14'],
   cloud: ['M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 11.2 3.4 3.4 0 0 0 7 18z'],
+  // The weather line's conditions (@robes/core/weather weatherIcon; beta's _rbWxSvg). `cloud` is overcast.
+  sun: [
+    'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+    'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4',
+  ],
+  partCloud: [
+    'M8 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    'M8 3v1.5M3 9h1.5M4.5 5.5l1 1',
+    'M9 19h8.5a3 3 0 0 0 .3-6 4.5 4.5 0 0 0-8.6-1.2A3.5 3.5 0 0 0 9 19z',
+  ],
+  fog: ['M4 10h16M4 14h16M6 18h12'],
+  rain: [
+    'M7 15h9.5a3 3 0 0 0 .3-6 4.5 4.5 0 0 0-8.6-1.2A3.5 3.5 0 0 0 7 15z',
+    'M9 18l-1 2.5M13 18l-1 2.5M17 18l-1 2.5',
+  ],
+  snow: [
+    'M7 14h9.5a3 3 0 0 0 .3-6 4.5 4.5 0 0 0-8.6-1.2A3.5 3.5 0 0 0 7 14z',
+    'M9 18.5h.01M13 20h.01M16 18.5h.01',
+  ],
+  thunder: [
+    'M7 14h9.5a3 3 0 0 0 .3-6 4.5 4.5 0 0 0-8.6-1.2A3.5 3.5 0 0 0 7 14z',
+    'M12 14l-2 4h3l-1.5 3.5',
+  ],
   close: ['M6 6l12 12M18 6 6 18'],
   back: ['M15 18l-6-6 6-6'],
   forward: ['M9 6l6 6-6 6'],
@@ -83,6 +106,10 @@ export const ICONS = {
   send: ['M12 19V5', 'M6 11l6-6 6 6'],
   // A row that leaves the app ↗ (Privacy notice, terms).
   external: ['M7 17L17 7', 'M8 7h9v9'],
+  // The diary home (Front Door design 3k): the bell, the prompt's place pin, a receipt to review.
+  bell: ['M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z', 'M10 20.5a2 2 0 0 0 4 0'],
+  pin: ['M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z', 'M12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
+  receipt: ['M6 3h12v18l-3-2-3 2-3-2-3 2z', 'M9 8h6M9 12h6'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type IconName = keyof typeof ICONS;

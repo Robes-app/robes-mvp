@@ -3,6 +3,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { TabBar } from '@/components/TabBar';
 import { AnalyticsSetup } from '@/lib/analytics';
+import { LocationSetup } from '@/lib/location';
 import { useAuthGate } from '@/lib/use-auth-gate';
 import { PushSetup } from '@/lib/use-push';
 
@@ -19,6 +20,7 @@ export default function TabsLayout() {
     <>
       <PushSetup />
       <AnalyticsSetup />
+      <LocationSetup />
       <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
         <Tabs.Screen name="index" options={{ title: nav.today, tabBarButtonTestID: 'today-tab' }} />
         <Tabs.Screen name="looks" options={{ title: nav.looks, tabBarButtonTestID: 'looks-tab' }} />

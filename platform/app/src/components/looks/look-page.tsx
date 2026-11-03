@@ -2,8 +2,8 @@
 
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
-import { anchorName, lookFacts, noteShort } from '@robes/core/looks';
-import { Button, Dialog, Eyebrow, Field, Heading, Text } from '@robes/ui';
+import { anchorName, lookFacts, noteShort, pinnedFor } from '@robes/core/looks';
+import { Button, Dialog, Eyebrow, Heading, InlineTitleField, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useLookEditor } from '@/lib/look-editor';
@@ -107,6 +107,9 @@ export function Rack({
               image={row.pieceId ? piecesById.get(row.pieceId)?.image : null}
               mark={editor.mark(row.key)}
               styled={editor.rack.styling[row.key]}
+              {...(look.status === 'saved' && !editable && row.pieceId
+                ? { wears: piecesById.get(row.pieceId)?.wearCount ?? 0 }
+                : {})}
               {...(row.proposal ? { onWish: () => editor.wish(row.key) } : {})}
               {...(editable
                 ? { onSwap: () => setSwapping(row.key), onRemove: () => editor.remove(row.key) }
@@ -134,7 +137,8 @@ export function Rack({
           setSwapping(null);
           setAdding(false);
         }}
-        instant={swapInPlace}
+        // A suggestion's ↻ and a saved look's swap land on one tap, each behind an Undo.
+        instant={swapInPlace || look.status === 'saved'}
         onPick={(piece) =>
           swapping
             ? swapInPlace
@@ -151,7 +155,7 @@ export function Rack({
 export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => void }) {
   const router = useRouter();
   const editor = useLookEditor(look);
-  const save = useSaveLook(onSaved);
+  const save = useSaveLook(onSaved, look.status === 'suggested' ? 'suggested' : 'draft');
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [name, setName] = useState(look.nameProvisional ? '' : look.name);
   const suggested = look.status === 'suggested';
@@ -175,15 +179,18 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
               {look.name}
             </Heading>
           ) : (
-            <Field
+            // The title is the name, as in the composer: tap it and write over it.
+            <InlineTitleField
+              value={name}
               label={copy.name.label}
               placeholder={look.name || copy.name.placeholder}
-              value={name}
-              maxLength={120}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => {
+              size="xl"
+              autoFocus={false}
+              onChange={setName}
+              onCommit={() => {
                 if (typed) editor.rename(typed);
               }}
+              onCancel={() => setName(look.nameProvisional ? '' : look.name)}
             />
           )}
           <Text size="small" tone="muted">
@@ -334,6 +341,7 @@ export function SavedRack({ look, editor }: { look: Look; editor: Editor }) {
   );
 }
 
-export function savedMeta(look: Look, rows: number): string {
-  return copy.meta.saved(lookFacts(look, rows));
+// The native twin builds the same line in LookDetail.tsx.
+export function savedMeta(look: Look, rows: number, today: string): string {
+  return copy.meta.saved({ ...lookFacts(look, rows), pinnedFor: pinnedFor(look.pinnedOn, today) });
 }

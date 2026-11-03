@@ -28,12 +28,16 @@ const pieces = (n: number): string => (n === 1 ? 'piece' : 'pieces');
 export const home = {
   // H0: the standing question under the greeting.
   echo: 'What are you dressing for today?',
-  weather: (city: string | null, tempRange: string, condition: string): string =>
-    [city, tempRange, condition].filter(Boolean).join(' · '),
+  // The temperature is today's live reading (or the day's range without one).
+  weather: (city: string | null, temp: string, condition: string): string =>
+    [city, temp, condition].filter(Boolean).join(' · '),
   weatherLabel: 'Today’s weather',
-  // The meta line under the greeting (beta's H0): the weekday, the city, the day's range.
-  meta: (weekday: string, city: string | null, tempRange: string | null): string =>
-    [weekday, city, tempRange].filter(Boolean).join(' · '),
+  // The meta line under the greeting (beta's H0), after the conditions' icon: the weekday, the
+  // city, the temperature now. Read aloud with the conditions first, as the icon shows them.
+  meta: (weekday: string, city: string | null, temp: string | null): string =>
+    [weekday, city, temp].filter(Boolean).join(' · '),
+  metaSpoken: (condition: string | null, meta: string): string =>
+    [condition, meta].filter(Boolean).join(' · '),
   doorDay: (day: string): string => `Dress ${day}…`,
   later: 'Later',
   map: {
@@ -159,50 +163,204 @@ export const home = {
   },
 } as const;
 
+// Onboarding, splash to home (handoff 30 Oct): name, identity, styles, brands, colours. Identity
+// labels and the colour states are You's own (you.model.presenceOptions, you.style.palette.states).
 export const firstRun = {
   backLabel: 'Back',
+  backGlyph: '‹',
   progress: (step: number, of: number): string => `Step ${step} of ${of}`,
+  eyebrow: 'Getting to know you',
+  continue: 'Continue',
+  finish: 'Get started',
   name: {
-    eyebrow: 'Hello',
     title: 'What should Robes',
     titleEm: 'call you?',
     label: 'First name',
     placeholder: 'Your first name',
-    // The first week's notes (7-day brief, decision 1): named before any is sent.
-    notes: 'Robes sends a few notes in your first week. Each one has a link to stop them.',
-    continue: 'Continue',
   },
-  piece: {
-    eyebrow: (name: string | null): string => (name ? `${name}’s wardrobe` : 'Your wardrobe'),
-    reading: 'Reading',
-    filed: 'Filed',
-    title: 'Add your',
-    titleEm: 'first piece.',
-    keyPiece: 'Your key piece',
-    add: 'Add photo',
-    retake: '↻ Retake',
-    rows: ['The piece', 'Category', 'Brand', 'Colour', 'Cut'],
-    awaiting: 'Awaiting',
-    readingRow: 'Reading…',
-    read: 'Read',
-    unlabelled: 'Unlabelled',
-    style: 'Style it three ways →',
-    filing: 'Filing your piece…',
-    wait: 'Robes is reading your piece…',
-    skip: 'Skip for now',
-    skipAnyway: 'Skip anyway — Robes styles only what you add',
-    noPiece: 'Robes couldn’t find a piece in that photo — try a clear shot of the piece.',
-    failed: 'Robes couldn’t read that piece just now — try again in a moment.',
-    unreadable: 'Couldn’t read that image — try another file.',
-    // Several pieces in one photo (legacy 0.8): she picks the one to style; the rest file quietly.
-    many: (n: number): string => `Robes sees ${n} pieces`,
-    whichFirst: 'Which one first?',
+  identity: { title: 'How do you', titleEm: 'identify?' },
+  styles: {
+    title: 'Which styles',
+    titleEm: 'feel like you?',
+    love: (style: string): string => `Love ${style}`,
   },
-  compose: {
-    title: 'Composing',
-    titleEm: (name: string | null): string => (name ? `three looks, ${name}.` : 'three looks.'),
-    lines: ['A first look', 'A second look', 'A third look'],
-    dressing: 'dressing…',
-    foot: 'Every look borrows the rest until you photograph your own.',
+  brands: { title: 'Any favourite', titleEm: 'brands?' },
+  colours: {
+    title: 'Colours you',
+    titleEm: 'love or avoid.',
+    control: (family: string): string => `${family}: love, no view or avoid`,
+  },
+} as const;
+
+const ordinal = (n: number): string => {
+  const rem = n % 100;
+  const suffix = rem >= 11 && rem <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+  return `${n}${suffix}`;
+};
+
+// The bell (Front Door design 3k): what waits for her, each line with where it leads.
+export const bell = {
+  title: 'Notifications',
+  open: 'Notifications',
+  empty: 'Nothing new.',
+  dismiss: 'Dismiss',
+  dest: { receipts: 'Wardrobe', diary: 'Diary', overnight: 'Today' },
+  overnight: (weekday: string): string => `Robes dressed you for ${weekday}`,
+  receipts: (n: number): string => (n === 1 ? '1 receipt to review' : `${n} receipts to review`),
+  receiptsLine: (retailers: readonly string[]): string | null => {
+    const names = retailers.filter(Boolean).slice(0, 2);
+    if (names.length === 0) return null;
+    return `From ${names.join(' and ')}`;
+  },
+  logWear: (weekday: string): string => `Log ${weekday}’s wear`,
+  logWearLine: (dayOfMonth: number): string => `Nothing filed for the ${ordinal(dayOfMonth)}`,
+} as const;
+
+const look = (n: number): string => (n === 1 ? 'look' : 'looks');
+
+// The OOTD diary home (Front Door design 3a · 3k, plan 2026-11-02): the strip, the day's slot, the
+// log sheet, the drawer, the day page, the prompt box's chips and flyout, and day one. `when` is
+// the day in words: 'today', else 'on Tuesday'; `dayWord` 'today' or the weekday.
+export const diary = {
+  today: 'Today',
+  strip: {
+    label: 'The diary',
+    page: (n: number): string =>
+      n === 0 ? 'The week before' : n === 1 ? 'This week' : 'The week after',
+    day: (label: string, looks: number, worn: boolean): string =>
+      `${label}, ${worn ? 'worn' : looks === 0 ? 'free' : `${looks} ${look(looks)} planned`}`,
+  },
+  slot: {
+    open: (name: string): string => `Open ${name}`,
+    remove: (name: string, day: string): string => `Take ${name} off ${day}`,
+    removed: 'Taken off the day.',
+    change: 'Change the look from your lookbook',
+    more: (n: number): string => `+${n}`,
+    moreLabel: (n: number, day: string): string => `${n} more ${look(n)} on ${day}; open the day`,
+    add: 'Add look',
+    addLabel: (day: string): string => `Add a look to ${day}`,
+  },
+  log: {
+    past: 'What did you wear?',
+    today: 'What are you wearing?',
+    ahead: 'What will you wear?',
+    pick: 'Pick Look',
+    capture: 'Capture Look',
+  },
+  drawer: {
+    eyebrow: (dayWord: string, date: string): string => `${dayWord} · ${date}`,
+    yourLooks: 'Your looks',
+    lastWorn: 'Last worn ↓',
+    firstWorn: 'First worn ↑',
+    sortLabel: 'Order',
+    refine: 'Refine',
+    refineOn: (n: number): string => `Refine · ${n}`,
+    search: 'Search by name or piece',
+    season: 'Season',
+    wearFor: 'Wear it for',
+    none: 'No looks match.',
+    clear: 'Clear refine',
+    scheduled: 'Scheduled',
+    adding: 'Adding',
+    wears: (n: number): string => (n === 1 ? '1 wear' : `${n} wears`),
+    savedOn: (day: string): string => `Saved ${day}`,
+    notWorn: 'Not worn yet',
+    idle: (day: string): string => `Tap looks to add or take off ${day}`,
+    wearOne: (when: string): string => `Wear this look ${when}`,
+    wearMany: (n: number, when: string): string => `Wear ${n} looks ${when}`,
+    woreOne: (weekday: string): string => `Wore this on ${weekday}`,
+    woreMany: (weekday: string): string => `Wore these on ${weekday}`,
+    clearDay: (day: string): string => `Clear ${day}`,
+    schedule: (n: number): string =>
+      n === 0 ? 'Schedule Looks' : `Schedule ${n} ${n === 1 ? 'Look' : 'Looks'}`,
+    empty: 'Nothing saved yet.',
+    emptyLine: 'Save a look you like and it can go on a day.',
+    toLooks: 'Go to Lookbook',
+    added: (n: number, day: string): string =>
+      n === 1 ? `Added to ${day}.` : `${n} looks added to ${day}.`,
+    changed: (day: string): string => `${day}’s look changed.`,
+    worn: (day: string): string => `Filed as worn on ${day}.`,
+    cleared: (day: string): string => `${day} cleared.`,
+  },
+  day: {
+    home: 'Home',
+    name: 'Name the day',
+    looksFor: 'Looks for the day',
+    count: (n: number): string => `${n} ${look(n)}`,
+    ootd: 'The OOTD',
+    look: (n: number): string => `Look ${n}`,
+    makeOotd: (name: string): string => `Make ${name} the OOTD`,
+    isOotd: 'The OOTD on home',
+    takeOff: (name: string): string => `Take ${name} off the day`,
+    add: 'Add a look',
+    weather: (city: string | null, condition: string, range: string): string =>
+      [city, condition, range].filter(Boolean).join(' · '),
+  },
+  look: {
+    saved: 'Saved look',
+    edit: 'Edit look',
+    meta: (pieces: number, wears: number, lastWorn: string | null): string =>
+      [
+        `${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`,
+        `${wears} ${wears === 1 ? 'wear' : 'wears'}`,
+        lastWorn ? `last worn ${lastWorn}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+  },
+  // The prompt box (design 3k): a passive day chip, the place chip with the day's range, the hanger.
+  door: {
+    today: 'Plan an outfit for today',
+    day: (weekday: string): string => `Plan an outfit for ${weekday}`,
+    send: 'Send',
+    dayChip: (label: string): string => `For ${label}`,
+    placeChip: (place: string, range: string | null): string =>
+      range ? `${place}, ${range}` : place,
+    changePlace: 'Change where you are that day',
+    weatherOut: 'Leave the weather out',
+    weather: 'Weather',
+    weatherBack: 'Bring the weather back',
+    pieces: 'Add pieces from your wardrobe',
+    piecesOn: (n: number): string => `${n} ${n === 1 ? 'piece' : 'pieces'} to build around`,
+    removePieces: 'Remove all pieces',
+    removePiece: (label: string): string => `Remove ${label}`,
+  },
+  place: {
+    search: 'Type a city',
+    close: 'Close',
+    forToday: 'For today only',
+    forDay: (day: string): string => `For ${day} only`,
+    recent: 'Home and recent',
+    cities: 'Cities',
+    home: 'Home',
+    none: (q: string): string => `No match for “${q}”. Try another spelling.`,
+  },
+  flyout: {
+    eyebrow: 'Add from your wardrobe',
+    title: (dayWord: string): string => `Build ${dayWord} around`,
+    cancel: 'Cancel',
+    search: 'Search your wardrobe',
+    all: 'All',
+    photograph: 'Photograph one',
+    adds: 'Adds straight in',
+    idle: 'Tap pieces to add them',
+    include: (n: number): string => `Include ${n} ${n === 1 ? 'Piece' : 'Pieces'}`,
+    clear: 'Clear pieces',
+    pick: (label: string): string => `Include ${label}`,
+  },
+  // Day one (design 3a): choose your model, add your first pieces.
+  dayOne: {
+    model: 'Choose your model',
+    twin: 'Create your digital twin',
+    another: 'Another model',
+    modelPick: (n: number): string => `Model ${n}`,
+    pieces: 'Add your first pieces',
+    tiles: ['Tops', 'Bottoms', 'Shoes', 'Anything'] as const,
+    browse: 'or browse files',
+    tile: (what: string): string => `Photograph ${what.toLowerCase()}`,
+    modelAsk: 'You can select another model in your profile at any time.',
+    piecesAsk: 'You can add pieces in your Wardrobe at any time.',
+    ok: 'Okay',
+    dismiss: 'Dismiss',
   },
 } as const;

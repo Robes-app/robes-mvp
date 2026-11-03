@@ -3,17 +3,20 @@ import {
   buildAnchorPrompt,
   buildSystem,
   buildUser,
+  type DailyPlace,
   FEATURE,
   normalise,
   Output,
+  type Weather,
 } from '@robes/ai/prompts/daily';
 import { TodayGenerateInput } from '@robes/contracts';
+import { readPlace } from '@robes/core/landscape';
 import type { SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
-import type { WeatherFor } from '../weather';
+import type { DestinationWeatherFor, WeatherFor } from '../weather';
 
 export interface DailyDeps {
   ai: AiProvider;
@@ -21,6 +24,8 @@ export interface DailyDeps {
   styling: SystemRepositories['styling'];
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
   weather: WeatherFor;
+  // The weather at a place she names in her brief (absent: her own weather only).
+  destination?: DestinationWeatherFor;
   // Frames are stored as uploads; AWS renders them from the S3 event, dev renders here.
   onGenerated?(key: string): Promise<void>;
   now?: () => Date;
@@ -43,7 +48,7 @@ export interface DailyPlan {
   system: string;
   user: string;
   closetIds: string[];
-  weather: Awaited<ReturnType<WeatherFor>>;
+  weather: Weather | null;
   gender: DailyContext['gender'];
   styleIcons: string[];
   homeCity: string | null;
@@ -54,32 +59,63 @@ type DailyContext = Awaited<ReturnType<SystemRepositories['styling']['dailyConte
 // Everything the model is asked, built server-side from her data (SEC-16). Shared by the
 // interactive handler and the overnight batch so both send the same prompt.
 export async function planDaily(
-  deps: Pick<DailyDeps, 'styling' | 'weather' | 'now'>,
+  deps: Pick<DailyDeps, 'styling' | 'weather' | 'destination' | 'now'>,
   userId: UserId,
   input: TodayGenerateInput,
 ): Promise<DailyPlan> {
   const her = await deps.styling.dailyContext(userId);
   const { date, month } = localDay(deps.now?.() ?? new Date(), her.timezone);
-  const weather = await deps.weather({
+  const day = await deps.weather({
     city: her.homeCity,
     lat: her.homeLat,
     lon: her.homeLon,
     date,
     month,
   });
+  // The prompt's fields only (the weather line's icon code stays off the stored plan).
+  const weather: Weather | null = day && {
+    city: day.city,
+    month: day.month,
+    tempRange: day.tempRange,
+    condition: day.condition,
+  };
   const brief = [input.occasion, input.prompt].filter(Boolean).join('. ');
+  // Where her words put the day (daily v4): a place she names is read for its own weather, and the
+  // frame's setting follows it.
+  const read = readPlace(brief);
+  const there =
+    read.destination && deps.destination
+      ? await deps.destination({
+          name: read.destination,
+          date,
+          home: { city: her.homeCity, lat: her.homeLat, lon: her.homeLon },
+          ...(deps.now ? { now: deps.now() } : {}),
+        })
+      : null;
+  const place: DailyPlace = {
+    read: { ...read, destination: there ? there.place : read.named ? read.destination : null },
+    there,
+  };
+  const placeWeather: Weather | null = there
+    ? { city: there.place, month, tempRange: there.tempRange, condition: there.condition }
+    : place.read.destination
+      ? { city: place.read.destination, month, tempRange: null, condition: null }
+      : weather;
   return {
-    system: buildSystem({
-      firstName: her.firstName,
-      gender: her.gender,
-      styleIcons: her.styleIcons,
-      styleDna: her.styleDna,
-      closet: her.closet,
-      ...(input.lockedPieceIds ? { lockedPieceIds: input.lockedPieceIds } : {}),
-    }),
-    user: buildUser(brief, weather),
+    system: buildSystem(
+      {
+        firstName: her.firstName,
+        gender: her.gender,
+        styleIcons: her.styleIcons,
+        styleDna: her.styleDna,
+        closet: her.closet,
+        ...(input.lockedPieceIds ? { lockedPieceIds: input.lockedPieceIds } : {}),
+      },
+      place.read,
+    ),
+    user: buildUser(brief, weather, place, month),
     closetIds: her.closet.map((c) => c.id),
-    weather,
+    weather: placeWeather,
     gender: her.gender,
     styleIcons: her.styleIcons,
     homeCity: her.homeCity,

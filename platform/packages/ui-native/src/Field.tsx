@@ -48,7 +48,7 @@ export const Field = forwardRef<TextInputInstance, FieldProps>(function Field(
         className={cx(
           variant === 'underline'
             ? 'min-h-11 border-b py-2 text-3xl text-ink'
-            : 'min-h-11 rounded-crisp border bg-surface-raised px-4 py-3 text-base text-ink',
+            : 'min-h-11 rounded-input border bg-surface-raised px-4 py-3 text-base text-ink',
           error ? 'border-danger' : 'border-border-control',
           multiline && 'min-h-24',
           className,

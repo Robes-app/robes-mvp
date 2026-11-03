@@ -9,8 +9,13 @@ test('Today reads her day in her timezone: today’s looks, the week, the wear',
   const get = async () => (await api.get('/api/v1/today')).json();
 
   const fresh = await get();
+  // The week ahead stays for installed builds; the diary is ten days back and ahead, today in
+  // the middle, every date present (plan 2026-11-02).
   expect(fresh.week).toHaveLength(7);
   expect(fresh.week[0].date).toBe(fresh.date);
+  expect(fresh.diary.days).toHaveLength(21);
+  expect(fresh.diary.days[10]).toMatchObject({ date: fresh.date, entries: [], place: null });
+  expect(fresh.diary.from).toBe(fresh.diary.days[0].date);
   expect(fresh.today).toEqual([]);
 
   const coat = await (
@@ -32,10 +37,27 @@ test('Today reads her day in her timezone: today’s looks, the week, the wear',
     expect.objectContaining({ worn: false, entry: expect.objectContaining({ date }) }),
   ]);
   expect(planned.week[0].looks).toBe(1);
+  expect(planned.diary.days[10].entries).toEqual([
+    expect.objectContaining({
+      position: 0,
+      worn: false,
+      look: expect.objectContaining({ id: look.id }),
+    }),
+  ]);
 
   await api.post(`/api/v1/looks/${look.id}/wears`, { data: { wornOn: date } });
   const worn = await get();
   expect(worn.today[0].worn).toBe(true);
+  expect(worn.diary.days[10].entries[0].worn).toBe(true);
+
+  // Where she is on a day rides on its diary day, with that place's weather when known.
+  const paris = { city: 'Paris', country: 'France', lat: 48.86, lon: 2.35 };
+  expect((await api.put(`/api/v1/plan/days/${date}/place`, { data: { place: paris } })).ok()).toBe(
+    true,
+  );
+  expect((await get()).diary.days[10].place).toEqual(paris);
+  await api.put(`/api/v1/plan/days/${date}/place`, { data: { place: null } });
+  expect((await get()).diary.days[10].place).toBeNull();
 });
 
 test('the tray shows a styling job while it runs and just after', async ({ page }) => {
@@ -49,15 +71,16 @@ test('the tray shows a styling job while it runs and just after', async ({ page 
   expect(today.tray.map((j: { id: string }) => j.id)).toContain(jobId);
 });
 
-test('home: the greeting, the week once activated, and her look for today on the day card', async ({
+test('home: the greeting, the strip from day one, and her look for today in the slot', async ({
   page,
 }) => {
   await signIn(page);
   await declineConsent(page);
   await page.goto('/');
-  await expect(page.getByText('What are you dressing for today?')).toBeVisible();
-  // Not activated yet: no week, the box reads "Where to, and how should it feel?".
-  await expect(page.getByTestId('home-week')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1, name: /^Good \w+, Niall\.$/ })).toBeVisible();
+  // The strip stands from day one: twenty-one cells, today's current, nothing on it yet.
+  await expect(page.getByTestId(/^diary-day-/)).toHaveCount(21);
+  await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'empty');
 
   const api = page.request;
   const look = await (
@@ -72,4 +95,9 @@ test('home: the greeting, the week once activated, and her look for today on the
     looks: 1,
     first: { id: look.id, name: 'Office', worn: false },
   });
+  await page.reload();
+  await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'look');
+  await expect(page.getByTestId('ootd-card')).toContainText('Office');
+  await expect(page.getByTestId(`diary-day-${date}`)).toHaveAttribute('aria-current', 'date');
+  await expect(page.getByTestId(`diary-day-${date}`)).toHaveAccessibleName('Today, 1 look planned');
 });

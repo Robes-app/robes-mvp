@@ -7,6 +7,7 @@ import {
   type PromptLookInput,
   type StartJobOutput,
 } from '@robes/contracts';
+import { lookDateName } from '@robes/core/calendar';
 import { frameKey } from '@robes/core/looks';
 import { DraftsFull, type UserId } from '@robes/db';
 import { z } from 'zod';
@@ -14,6 +15,7 @@ import { repos } from './db';
 import { startJob } from './jobs';
 import { toLook, toLooks } from './looks-entity';
 import { ensureGenericCells } from './model';
+import { todayIn } from './plan';
 
 // Look states (docs/look-states-brief.md) and the look prompt (docs/look-prompt-brief.md).
 
@@ -37,8 +39,31 @@ export async function draftsFull<T>(write: () => Promise<T>): Promise<T> {
   }
 }
 
-export async function saveLook(userId: UserId, id: string, name: string | undefined) {
-  return toLook(userId, await repos.looks.save(userId, id, { name }));
+// A hand-built draft she never named saves as her today ("Wednesday 28 Oct"), provisional (beta
+// rule, legacy history 2026-10-05). Robes' looks keep Robes' name.
+export async function saveLook(
+  userId: UserId,
+  id: string,
+  name: string | undefined,
+  now = new Date(),
+) {
+  const look = await repos.looks.get(userId, id);
+  if (!look) throw new ApiError('not_found');
+  let datedName: string | undefined;
+  if (name === undefined && isUnnamedHandBuilt(look)) {
+    const profile = await repos.profiles.get(userId);
+    if (profile) datedName = lookDateName(todayIn(profile.timezone, now));
+  }
+  return toLook(userId, await repos.looks.save(userId, id, { name, datedName }));
+}
+
+export function isUnnamedHandBuilt(look: {
+  status: string;
+  nameProvisional: boolean;
+  source: string;
+  setId: string | null;
+}): boolean {
+  return look.status === 'draft' && look.nameProvisional && look.source === 'manual' && !look.setId;
 }
 
 // Her words for a day → three suggested looks on the deck (legacy __rbPromptLook, 2026-10-09).

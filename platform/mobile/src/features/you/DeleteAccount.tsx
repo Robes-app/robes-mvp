@@ -9,7 +9,8 @@ import { useSignOut } from '@/lib/use-sign-out';
 const copy = you.deletion;
 const CONFIRM = 'DELETE';
 
-// SEC-80: typed confirmation, then the request is recorded and she is signed out.
+// SEC-80: typed confirmation, then the request is recorded, she is told and signed out; the
+// deletion job removes everything within minutes. Web twin: app/(app)/you/delete-account.tsx.
 export function DeleteAccount() {
   const signOut = useSignOut();
   const toast = useToast();

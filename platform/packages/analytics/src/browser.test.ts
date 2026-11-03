@@ -24,6 +24,7 @@ describe('browser analytics (SEC-84)', () => {
     const { client, load } = fakePostHog();
     const analytics = createBrowserAnalytics(config, load);
     analytics.track('$pageview');
+    analytics.track('look_created', { from: 'draft', pieces: 3, proposed: 0, anchored: false });
     analytics.identify('u1');
     analytics.stop();
     expect(load).not.toHaveBeenCalled();

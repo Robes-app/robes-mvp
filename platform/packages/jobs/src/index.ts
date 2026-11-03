@@ -64,10 +64,24 @@ export {
 } from './runtime';
 export { createInlineTransport, createSqsTransport, type JobTransport } from './transport';
 export {
+  type CityAt,
   createDayForecast,
+  createDestinationWeather,
+  createLiveWeather,
+  createPlaceSearch,
+  createRangeWeather,
+  createReverseGeocode,
   createTripWeather,
   createWeather,
   type DayForecastFor,
+  type DayWeather,
+  type DestinationWeather,
+  type DestinationWeatherFor,
+  type LiveWeatherFor,
+  type PlaceFound,
+  type PlacesFor,
+  type RangeDay,
+  type RangeWeatherFor,
   type TripWeatherFor,
   type WeatherFor,
 } from './weather';

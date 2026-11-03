@@ -1,3 +1,4 @@
+// Kept for installed builds: the diary home (plan 2026-11-02) has no step to snooze.
 import { HomeLater, HomeLaterInput } from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';

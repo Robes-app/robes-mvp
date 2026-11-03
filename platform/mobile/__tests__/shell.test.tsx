@@ -1,7 +1,8 @@
-import { lookbook, nav, shell, twin, wardrobe, you } from '@robes/copy';
+import { lookbook, nav, shell, twin, ui, wardrobe, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { Text } from 'react-native';
+import NotFound from '../src/app/+not-found';
 import TabsLayout from '../src/app/(tabs)/_layout';
 import Today from '../src/app/(tabs)/index';
 import Looks from '../src/app/(tabs)/looks';
@@ -13,6 +14,7 @@ import Soon from '../src/app/soon';
 import NewTrip from '../src/app/trip/new';
 import CameraRoute from '../src/app/wardrobe/camera';
 import YouIndex from '../src/app/you/index';
+import { nativePath } from '../src/lib/links';
 import { ME, mockFetch, newQueryClient } from './support/api';
 import { Providers } from './support/providers';
 
@@ -51,6 +53,7 @@ async function app(initialUrl = '/') {
       '(tabs)/wardrobe': Wardrobe,
       '(tabs)/looks': Looks,
       '(tabs)/plan': Plan,
+      '+not-found': NotFound,
       create: Create,
       soon: Soon,
       'trip/new': NewTrip,
@@ -138,7 +141,7 @@ test('four tabs in beta order; the sparkle beside them opens Create', async () =
   // The tab bar names the place, so the header carries the wordmark and the tab name is read only.
   expect(screen.getByRole('header', { name: nav.today })).toBeTruthy();
 
-  await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
+  await fireEvent.press(screen.getByRole('button', { name: nav.create }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
   expect(screen.getByText(wardrobe.add.doors.photograph)).toBeTruthy();
   // Ask Robes is the new-look box itself, leading the sheet (beta's sparkle).
@@ -150,7 +153,7 @@ test('a long press on the sparkle goes straight to the camera', async () => {
   mockFetch(ROUTES);
   const router = await app();
   expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
-  await fireEvent(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }), 'longPress');
+  await fireEvent(screen.getByRole('button', { name: nav.create }), 'longPress');
   // Create passes straight through to the in-app camera (legacy bc56305), not the OS one.
   await waitFor(() => expect(router.getPathname()).toBe('/wardrobe/camera'));
   expect(screen.getByRole('button', { name: wardrobe.camera.shutter })).toBeTruthy();
@@ -174,7 +177,7 @@ test('trips are hidden by default: no Create door, and a deep link lands on Toda
   mockFetch(ROUTES);
   const router = await app();
   await screen.findByText(/, Niall\.$/);
-  await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
+  await fireEvent.press(screen.getByRole('button', { name: nav.create }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
   await screen.findByText(wardrobe.add.doors.photograph);
   expect(screen.queryByText(shell.create.planTrip)).toBeNull();
@@ -188,7 +191,27 @@ test('with trips on, Create offers Plan a trip', async () => {
   mockFetch({ ...ROUTES, 'GET /me/features': { trips: true } });
   const router = await app();
   await screen.findByText(/, Niall\.$/);
-  await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nav.create}`) }));
+  await fireEvent.press(screen.getByRole('button', { name: nav.create }));
   await waitFor(() => expect(router.getPathname()).toBe('/create'));
   expect(await screen.findByText(shell.create.planTrip)).toBeTruthy();
+});
+
+test('a link to a screen that isn’t here says so in one line and goes home', async () => {
+  mockSession = { data: { user: { id: ME.id } }, isPending: false };
+  mockFetch(ROUTES);
+  const router = await app(nativePath('robes://looks/nope'));
+  expect(await screen.findByText(shell.notFound.title)).toBeTruthy();
+  expect(router.getPathname()).toBe('/looks/nope');
+  await fireEvent.press(screen.getByRole('button', { name: shell.notFound.back }));
+  expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
+  expect(router.getPathname()).toBe('/');
+});
+
+test('the back chevron on a missing screen goes home too', async () => {
+  mockSession = { data: { user: { id: ME.id } }, isPending: false };
+  mockFetch(ROUTES);
+  const router = await app('/plan/tomorrow');
+  expect(await screen.findByText(shell.notFound.title)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: ui.back }));
+  await waitFor(() => expect(router.getPathname()).toBe('/'));
 });

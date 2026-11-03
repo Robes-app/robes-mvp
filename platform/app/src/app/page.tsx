@@ -5,7 +5,7 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { HomeView } from '@/components/home/home-view';
+import { DiaryHome } from '@/components/home/diary-home';
 import { WaitlistForm } from '@/components/marketing/waitlist-form';
 import { AppShell } from '@/components/shell/app-shell';
 import { env } from '@/server/env';
@@ -43,7 +43,7 @@ const JSON_LD = JSON.stringify({
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ dress?: string | string[] }>;
+  searchParams: Promise<{ day?: string | string[] }>;
 }) {
   const profile = await currentProfile();
 
@@ -74,11 +74,13 @@ export default async function Home({
 
   if (!profile.onboardedAt) redirect('/onboarding');
 
+  const params = await searchParams;
   return (
     <AppShell name={displayName(profile)} features={await clientFeatures()}>
-      <HomeView
+      {/* The OOTD diary home (plan 2026-11-02); the bell's nudges land on their day. */}
+      <DiaryHome
         initial={await loadToday(profile.userId)}
-        dress={z.iso.date().safeParse((await searchParams).dress).data ?? null}
+        day={z.iso.date().safeParse(params.day).data ?? null}
       />
     </AppShell>
   );

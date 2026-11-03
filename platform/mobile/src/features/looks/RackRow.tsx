@@ -4,18 +4,20 @@ import { nameNoBrand, type RackRow, type RowNote, theName } from '@robes/core/lo
 import { Icon } from '@robes/icons/native';
 import { IconButton, Image, Text, useColor } from '@robes/ui-native';
 import { Pressable, View } from 'react-native';
+import { Eyebrow, Name, Status } from '@/features/wardrobe/PieceCard';
 import { renditionUri } from '@/lib/images';
 
 export type RowMark = RowNote | { kind: 'added' };
 
-// One piece on a look's rack, read like the wardrobe list (legacy fix 13): Category · Brand, the
-// name without its brand, then the role and the exception ("Not yours yet", a price). The whole
-// card opens the piece; ♡ saves a proposal to her wishlist; ⇅ swaps it while editing.
+// One piece on a look's rack, composed from the wardrobe row's lines (legacy fix 13): Category ·
+// Brand, the name without its brand, then the role and the exception ("Not yours yet", a price).
+// The whole card opens the piece; ♡ saves a proposal to her wishlist; ⇅ swaps it while editing.
 export function RackRowCard({
   row,
   image,
   mark,
   styled,
+  wears,
   onOpen,
   onSwap,
   onWish,
@@ -25,6 +27,8 @@ export function RackRowCard({
   image?: PieceImage | null;
   mark?: RowMark | null;
   styled?: string | null;
+  // The piece's own wear count, on a saved look at rest (beta's ledger, L19).
+  wears?: number;
   onOpen?: () => void;
   onSwap?: () => void;
   onWish?: () => void;
@@ -35,7 +39,8 @@ export function RackRowCard({
   const uri = renditionUri(image, 52);
   const proposal = row.proposal;
   const faint = useColor('ink-faint');
-  const rose = useColor('accent-warm');
+  // The name is already stripped of its brand (nameNoBrand reads "… by Brand" too).
+  const piece = { label: name, category: row.category, categoryL2: row.categoryL2 ?? null, brand };
   const ctx = [
     proposal ? (proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours) : null,
     proposal?.retailerHint || null,
@@ -66,28 +71,14 @@ export function RackRowCard({
         )}
       </View>
       <View className="flex-1 gap-0.5">
-        {/* Beta's row (Look redline 27 Oct; web twin rack-row.tsx): the tracked eyebrow, the name
-            in the serif, its role in rose. */}
-        <Text
-          size="caption"
-          tone="muted"
-          numberOfLines={1}
-          className="uppercase"
-          style={{ fontSize: 9.5, letterSpacing: 1.7 }}
-        >
-          {brand ? `${row.category} · ${brand}` : row.category}
-        </Text>
-        <Text numberOfLines={2} className="font-display text-lg">
-          {name}
-        </Text>
-        {row.role ? (
-          <Text
-            size="caption"
-            numberOfLines={1}
-            className="uppercase"
-            style={{ fontSize: 9.5, letterSpacing: 1.7, color: rose }}
-          >
-            {copy.rack.roles[row.role]}
+        {/* The piece card's own lines (one anatomy with the wardrobe row; web twin rack-row.tsx):
+            the sheet's eyebrow, the serif name, the role in rose as its status. */}
+        <Eyebrow piece={piece} />
+        <Name piece={piece} />
+        {row.role ? <Status status={{ text: copy.rack.roles[row.role], warm: true }} /> : null}
+        {wears !== undefined ? (
+          <Text size="caption" tone="faint">
+            {copy.meta.wears(wears)}
           </Text>
         ) : null}
         {ctx.length ? (

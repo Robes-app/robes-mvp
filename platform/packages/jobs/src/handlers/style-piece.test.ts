@@ -109,6 +109,11 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fake() })) {
     tmax: 14,
     code: 61,
   }));
+  const destination = vi.fn(async (q: { name: string }) =>
+    q.name === 'Lisbon'
+      ? { place: 'Lisbon, Portugal', tempRange: '15–21°C', condition: 'clear', seasonal: false }
+      : null,
+  );
   const generateJson = vi.spyOn(ai, 'generateJson');
   const generateImage = vi.spyOn(ai, 'generateImage');
   const handler = createStylePieceHandler({
@@ -119,6 +124,7 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fake() })) {
     ledger,
     onGenerated,
     forecast,
+    destination,
     now: () => new Date('2026-10-15T09:00:00Z'),
   });
   const writeStage = vi.fn(async () => {});
@@ -138,6 +144,7 @@ function setup(ai = createFakeProvider({ 'looks.style_piece': () => fake() })) {
     storage,
     ledger,
     forecast,
+    destination,
     writeStage,
     generateJson,
     generateImage,
@@ -152,7 +159,7 @@ describe('key_piece handler (suggested looks)', () => {
       USER,
       expect.objectContaining({
         title: 'Camel coat',
-        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 4 }),
+        data: expect.objectContaining({ set: true, mode: 'piece', promptVersion: 6 }),
       }),
     );
     const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
@@ -238,6 +245,92 @@ describe('key_piece handler (suggested looks)', () => {
     await run({ mode: 'prompt', prompt: 'what to wear', date: '2026-10-01' });
     const later = suggested.mintSet.mock.calls[1]?.[2] as ReturnType<typeof specFromWay>[];
     expect(later[0]?.dateHint).toBeNull();
+  });
+
+  it('dresses a place she names for its own weather, never her city (Liberty, 28 Oct)', async () => {
+    const { run, generateJson, destination, styling, ledger } = setup();
+    await run({ mode: 'prompt', prompt: 'A weekend in Lisbon, walking a lot', date: '2026-10-17' });
+    expect(destination).toHaveBeenCalledWith({
+      name: 'Lisbon',
+      date: '2026-10-17',
+      home: { city: 'Dublin', lat: 53.3, lon: -6.2 },
+      now: new Date('2026-10-15T09:00:00Z'),
+    });
+    const req = generateJson.mock.calls[0]?.[0];
+    expect(req?.user).toContain(
+      'She is dressing for Lisbon, Portugal, Saturday 17 October. Forecast there: 15–21°C, clear.',
+    );
+    expect(req?.user).not.toContain('Dublin');
+    expect(req?.system).toContain(
+      'the hero piece for the weather, the place and what she does there',
+    );
+    // The place rides on the set, so ↻ dresses the same place.
+    expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
+      data: { day: { place: { there: { place: 'Lisbon, Portugal' } } } },
+    });
+    // The ledger says which weather the look was dressed for, never the place she wrote.
+    const detail = (ledger.record.mock.calls[0] as unknown[] | undefined)?.[0] as {
+      detail?: Record<string, unknown>;
+    };
+    expect(detail.detail).toMatchObject({ place: { landscapes: [], wx: 'there' } });
+    expect(JSON.stringify(detail.detail)).not.toContain('Lisbon');
+  });
+
+  it('builds the day around the pieces she chose, where she says she is (design 3k)', async () => {
+    const { run, generateJson, forecast, destination, suggested, styling } = setup();
+    const gone = '99999999-9999-4999-8999-999999999999';
+    vi.mocked(styling.anchorPiece).mockImplementation((async (_u: unknown, id: string) =>
+      id === PIECE
+        ? { id: PIECE, label: 'Camel coat', imageAssetId: ASSET, wearFor: [] }
+        : undefined) as never);
+    await run({
+      mode: 'prompt',
+      prompt: 'the office',
+      date: '2026-10-17',
+      pieceIds: [PIECE, gone],
+      place: { city: 'Paris', country: 'France', lat: 48.86, lon: 2.35 },
+    });
+    // The chip's place is read for its own weather, never geocoded from her words.
+    expect(forecast).toHaveBeenCalledWith({
+      city: 'Paris',
+      lat: 48.86,
+      lon: 2.35,
+      date: '2026-10-17',
+    });
+    expect(destination).not.toHaveBeenCalled();
+    const req = generateJson.mock.calls[0]?.[0];
+    expect(req?.user).toContain('She is dressing for Paris, France, Saturday 17 October.');
+    expect(req?.user).toContain('BUILD AROUND — she chose these pieces of hers');
+    expect(req?.user.endsWith('Camel coat.')).toBe(true);
+    // The piece she chose is on every rack, and rides on the set so ↻ keeps it.
+    const specs = suggested.mintSet.mock.calls[0]?.[2] as ReturnType<typeof specFromWay>[];
+    expect(specs.every((s) => s.pieces.some((p) => p.pieceId === PIECE))).toBe(true);
+    expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
+      data: { around: [{ pieceId: PIECE, label: 'Camel coat' }] },
+    });
+    // Her home city on the chip is just home.
+    await run({
+      mode: 'prompt',
+      prompt: 'the office',
+      place: { city: 'dublin', country: 'Ireland', lat: 53.3, lon: -6.2 },
+    });
+    expect(generateJson.mock.calls[1]?.[0]?.user).toContain('Dublin · October');
+    expect(generateJson.mock.calls[1]?.[0]?.user).not.toContain('Forecast there');
+    // The weather left out: no forecast is read, and none is written.
+    forecast.mockClear();
+    await run({ mode: 'prompt', prompt: 'the office', date: '2026-10-17', weather: false });
+    expect(forecast).not.toHaveBeenCalled();
+    expect(generateJson.mock.calls[2]?.[0]?.user).not.toContain('9–14°C');
+  });
+
+  it('renders THE PLACE for a landscape, keeping her weather only as a guide', async () => {
+    const { run, generateJson, destination } = setup();
+    await run({ mode: 'prompt', prompt: 'a coastal walk then lunch' });
+    expect(destination).not.toHaveBeenCalled();
+    const req = generateJson.mock.calls[0]?.[0];
+    expect(req?.system).toContain('THE PLACE — the coast · walking.');
+    expect(req?.user).toContain('Where she is now: Dublin · October | 9–14°C | light rain.');
+    expect(req?.user).not.toContain('Dress the user for exactly this weather and place.');
   });
 
   it('re-writes one suggestion on ↻, keeping the key piece and distinct from the others', async () => {

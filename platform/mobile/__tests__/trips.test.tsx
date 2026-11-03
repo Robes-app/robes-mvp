@@ -1,5 +1,7 @@
 import { plan, trips } from '@robes/copy';
+import { monthLong, rangeLabel } from '@robes/core/calendar';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { localDate } from '../src/features/looks/saved-looks';
 import { PlanView } from '../src/features/plan/PlanView';
 import { TripStart } from '../src/features/trips/TripStart';
 import { TripJobView, TripView } from '../src/features/trips/TripView';
@@ -164,6 +166,10 @@ test('the plan switches to a month and a day opens its page', async () => {
             : [],
       };
     });
+  // The month view opens on this month (the real clock), so the trip sits in it.
+  const month0 = localDate().slice(0, 7);
+  const dateFrom = `${month0}-14`;
+  const dateTo = `${month0}-16`;
   mockFetch({
     'GET /me/features': { trips: true },
     'GET /trips': {
@@ -171,9 +177,9 @@ test('the plan switches to a month and a day opens its page', async () => {
         {
           id: TRIP_ID,
           destination: 'Lisbon',
-          dateFrom: '2026-10-14',
-          dateTo: '2026-10-16',
-          tripLabel: 'LISBON · OCTOBER',
+          dateFrom,
+          dateTo,
+          tripLabel: `LISBON · ${monthLong(dateFrom).toUpperCase()}`,
         },
       ],
     },
@@ -195,7 +201,9 @@ test('the plan switches to a month and a day opens its page', async () => {
   await fireEvent.press(day);
   expect(mockRouter.push).toHaveBeenCalledWith(expect.stringMatching(/^\/day\/\d{4}-\d{2}-15$/));
   // With trips on, the month lists its trips under the grid (ff87e89) and draws their band.
-  const lisbon = await screen.findByRole('button', { name: /^Lisbon, 14–16 Oct · 3 days$/ });
+  const lisbon = await screen.findByRole('button', {
+    name: new RegExp(`^Lisbon, ${rangeLabel(dateFrom, dateTo)} · 3 days$`),
+  });
   await fireEvent.press(lisbon);
   expect(mockRouter.push).toHaveBeenCalledWith(`/trip/${TRIP_ID}`);
 });

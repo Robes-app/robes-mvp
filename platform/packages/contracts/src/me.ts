@@ -1,4 +1,6 @@
+import { GENDER_IDENTITIES } from '@robes/core/avatar';
 import { COLOUR_FAMILY_IDS, PATTERNS, SHADE_IDS } from '@robes/core/colour';
+import { STYLE_TYPES } from '@robes/core/style-dna';
 import { z } from 'zod';
 
 const name = z.string().trim().max(60);
@@ -6,7 +8,8 @@ const name = z.string().trim().max(60);
 // You › Notifications; missing keys read as the default so new kinds need no migration.
 export const NotificationPrefs = z.object({
   looksReady: z.boolean().default(true),
-  morningCue: z.boolean().default(true),
+  // Off until she asks for it (beta: the morning line is opt-in, never on by default).
+  morningCue: z.boolean().default(false),
   nudges: z.boolean().default(false),
   receipts: z.boolean().default(true),
 });
@@ -44,6 +47,15 @@ export const UpdateMeInput = z
   })
   .partial();
 export type UpdateMeInput = z.infer<typeof UpdateMeInput>;
+
+// Her device's position, sent only after she allowed it; the server keeps ~1 km of it.
+export const UpdateLocationInput = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+  })
+  .strict();
+export type UpdateLocationInput = z.infer<typeof UpdateLocationInput>;
 
 export const OnboardingComplete = z.object({ onboardedAt: z.iso.datetime() });
 
@@ -107,6 +119,21 @@ export const Palette = z.object({
   shade: z.partialRecord(ids(SHADE_IDS), z.union([pref, z.literal(0)])),
   print: z.partialRecord(ids(PATTERNS.filter((p) => p.pref).map((p) => p.id)), pref),
 });
+
+// Getting to know you (onboarding, 30 Oct): saved once, on Get started. Every answer but her name
+// (already saved) is optional, and an older phone build finishes with none.
+export const CompleteOnboardingInput = z
+  .object({
+    identity: z.enum(GENDER_IDENTITIES),
+    // Archetype names, in tap order.
+    styles: z.array(z.enum(STYLE_TYPES)).max(STYLE_TYPES.length),
+    brands: z.array(z.string().trim().min(1).max(80)).max(40),
+    // Love (1) or avoid (-1) by colour family; a missing family is no view.
+    colours: z.partialRecord(ids(COLOUR_FAMILY_IDS), pref),
+  })
+  .partial()
+  .strict();
+export type CompleteOnboardingInput = z.infer<typeof CompleteOnboardingInput>;
 export type Palette = z.infer<typeof Palette>;
 
 export const StyleProfile = z.object({
@@ -162,7 +189,7 @@ export const PushTokenParams = z.object({ token: ExpoPushToken });
 
 // You › Your model (M6 task 1): her picks over what her photo reads say. The swatches are data for
 // the pickers; the cell is the shared reference portrait her looks are rendered on.
-export const ModelPresence = z.enum(['woman', 'man', 'unspecified']);
+export const ModelPresence = z.enum(GENDER_IDENTITIES);
 const stop = z.number().int().min(-2).max(2).nullable();
 export const TwinAdj = z.object({ shoulders: stop, bust: stop, hips: stop });
 export type TwinAdj = z.infer<typeof TwinAdj>;
@@ -200,6 +227,9 @@ export const Model = z.object({
   // What a new look stands on in the composer: her twin, else her filed cell, else the first
   // generic Robes model (`generic`) while she has none. Signed; null until that portrait exists.
   stand: z.object({ imageUrl: z.url().nullable(), generic: z.boolean() }).optional(),
+  // The three Robes models to choose from on day one (design 3a, plan 2026-11-02 D4): each a
+  // catalog cell with its portrait once drawn. `chosen` is the one her picks match, if any.
+  generics: z.array(z.object({ id: z.string(), imageUrl: z.url().nullable() })).optional(),
 });
 export type Model = z.infer<typeof Model>;
 

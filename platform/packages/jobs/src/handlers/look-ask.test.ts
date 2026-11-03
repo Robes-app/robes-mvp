@@ -28,6 +28,7 @@ function setup() {
       id: JEAN,
       label: 'Dark straight jean',
       category: 'Bottoms',
+      categoryL2: 'Jeans',
       color: 'indigo',
       brand: 'Agolde',
       timesWorn: 3,
@@ -99,7 +100,13 @@ describe('look_ask handler (the look prompt)', () => {
     expect(system).toContain('[0] Dark straight jean [Bottoms], indigo, Agolde');
     expect(answer()).toMatchObject({
       intent: 'swap',
-      swaps: [{ key: TROUSER, to: { pieceId: JEAN, name: 'Dark straight jean', brand: 'Agolde' } }],
+      // The swap names the piece's subcategory, so the rack's eyebrow reads the sheet.
+      swaps: [
+        {
+          key: TROUSER,
+          to: { pieceId: JEAN, name: 'Dark straight jean', categoryL2: 'Jeans', brand: 'Agolde' },
+        },
+      ],
       noticed: false,
     });
     expect(ledger.record).toHaveBeenCalledWith(

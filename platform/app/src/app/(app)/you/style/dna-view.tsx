@@ -244,11 +244,12 @@ function WallBody({ dna, kind }: { dna: StyleDna; kind: WallKind }) {
     setQ('');
   };
   const query = normName(q);
-  const pool = wallRanked(kind, dna.types, mine);
+  const pool = wallRanked(kind, dna.types, mine, dna.gender);
   const matches = query
     ? pool.filter((n) => normName(n).includes(query)).slice(0, 12)
     : pool.slice(0, WALL_N);
-  const exact = query && (wallPool(kind, dna.types).some((n) => normName(n) === query) || has(q));
+  const exact =
+    query && (wallPool(kind, dna.types, dna.gender).some((n) => normName(n) === query) || has(q));
   const tag = (n: string) => (brands ? '' : iconTag(n));
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return;

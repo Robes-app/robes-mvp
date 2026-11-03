@@ -1,19 +1,24 @@
 import { ApiError } from '@robes/api';
-import { EmptyInput, OnboardingComplete } from '@robes/contracts';
+import { CompleteOnboardingInput, OnboardingComplete } from '@robes/contracts';
 import { verifiedUserId } from '@robes/db';
 import { after } from 'next/server';
 import { serverAnalytics } from '@/server/analytics';
 import { repos } from '@/server/db';
 import { logger } from '@/server/logger';
+import { onboardingAnswers } from '@/server/onboarding';
 import { route } from '@/server/route';
 
 export const POST = route({
   auth: 'user',
-  input: EmptyInput,
+  input: CompleteOnboardingInput,
   output: OnboardingComplete,
   rateLimit: { key: 'me.onboarding', limit: 10, windowSeconds: 60 },
-  handler: async ({ user }) => {
-    const at = await repos.profiles.completeOnboarding(verifiedUserId(user.id));
+  // Her answers ride the finish (all optional: an older phone build sends none).
+  handler: async ({ user, input }) => {
+    const at = await repos.profiles.completeOnboarding(
+      verifiedUserId(user.id),
+      onboardingAnswers(input),
+    );
     if (!at) throw new ApiError('not_found');
     after(() =>
       serverAnalytics

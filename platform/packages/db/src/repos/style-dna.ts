@@ -1,3 +1,4 @@
+import { presenceOf } from '@robes/core/avatar';
 import { paletteFromWords } from '@robes/core/colour';
 import { BRIEF_KEPT_MAX, paletteOf } from '@robes/core/style-dna';
 import { type Kysely, sql, type Transaction } from 'kysely';
@@ -599,7 +600,7 @@ export function styleBriefRepo(db: Db) {
       const memory = await styleMemoryRepo(db).recent(userId, 40);
       return {
         firstName: profile?.firstName ?? null,
-        gender: (profile?.genderIdentity ?? 'woman') as 'woman' | 'man' | 'unspecified',
+        gender: presenceOf(profile?.genderIdentity),
         styleIcons: profile?.styleIcons ?? [],
         wardrobe: wardrobe.map((w) => ({
           label: w.label,

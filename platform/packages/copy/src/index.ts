@@ -1,6 +1,12 @@
-import { firstRun, home } from './home';
+import { bell, diary, firstRun, home } from './home';
 import { legal } from './legal';
 import { lookbook } from './lookbook';
+import { SEASON_LABELS } from './seasons';
+
+// profiles.gender_identity (@robes/core/avatar GENDER_IDENTITIES). Non-binary and "Prefer not to
+// say" both read as they/them.
+type Presence = 'woman' | 'man' | 'non_binary' | 'unspecified';
+const asThey = (p: Presence | undefined): boolean => p === 'unspecified' || p === 'non_binary';
 
 // Every user-facing string lives here (SPEC principle 6); voice rules: brand-and-design.md §1.
 // Keys are stable ids; values are en-GB. Use curly apostrophes (’) and no exclamation marks.
@@ -51,6 +57,8 @@ export const auth = {
   emailPlaceholder: 'you@example.com',
   sendCode: 'Email me a code',
   sendingCode: 'Sending…',
+  // For beta testers who signed in with a password (F4): one line, under the button.
+  noPassword: 'Used a password? Robes emails you a code now.',
   codeTitle: 'Check your email.',
   codeSubtitle: (email: string): string => `Robes sent a six-digit code to ${email}.`,
   codeLabel: 'Code',
@@ -61,6 +69,8 @@ export const auth = {
   or: 'or',
   apple: 'Continue with Apple',
   google: 'Continue with Google',
+  // Native only: the web's provider flow reports back on its own page.
+  socialFailed: 'Robes couldn’t sign you in. Try again.',
   invalidEmail: 'That email doesn’t look quite right.',
   invalidCode: 'That code didn’t match. Check it and try again.',
   sendFailed: 'Robes couldn’t send a code just now. Try again in a moment.',
@@ -114,8 +124,8 @@ export const today = {
     week: { text: 'Nothing planned this week. Pin a look to a day.', door: 'Open the plan' },
     none: 'What are we dressing for today?',
     model: {
-      text: (look: string, presence: 'woman' | 'man' | 'unspecified'): string =>
-        `Build your model and ${presence === 'man' ? 'he’ll' : presence === 'unspecified' ? 'they’ll' : 'she’ll'} wear ${look}.`,
+      text: (look: string, presence: Presence): string =>
+        `Build your model and ${presence === 'man' ? 'he’ll' : asThey(presence) ? 'they’ll' : 'she’ll'} wear ${look}.`,
       door: 'Build your model',
     },
   },
@@ -182,7 +192,7 @@ export function nextLine(
     remaining?: number;
     count?: number;
     lookName?: string;
-    presence?: 'woman' | 'man' | 'unspecified';
+    presence?: Presence;
   } | null,
 ): { text: string; door: { label: string; target: NextDoorTarget } | null } {
   const n = today.next;
@@ -345,6 +355,9 @@ export const wardrobe = {
     // and the brand is its own tappable line, empty or not.
     editName: 'Edit the name',
     addBrand: 'Add the brand',
+    // The pill on the record's photograph (legacy rb-pc-rephoto); with no photo, it adds one.
+    changePhoto: 'Change photo',
+    addPhoto: 'Add a photo',
     // The record's sections (legacy Piece_Sheet 01): every fact is a row, a tap opens its drawer.
     sections: {
       piece: 'The piece',
@@ -485,11 +498,7 @@ export const wardrobe = {
     title: 'Filter',
     season: 'Season',
     colour: 'Colour',
-    seasons: {
-      spring_summer: 'Spring/Summer',
-      autumn_winter: 'Autumn/Winter',
-      year_round: 'Year-round',
-    },
+    seasons: SEASON_LABELS,
     wearFor: 'Wear it for',
     brand: 'Brand',
     allBrands: 'All brands',
@@ -715,6 +724,11 @@ export const shell = {
     body: 'This part of Robes is being built. Everything you add now will be here when it lands.',
     back: 'Back to Today',
   },
+  // A link to a page that isn't there (web not-found.tsx, native +not-found.tsx): one line, home.
+  notFound: {
+    title: 'Robes couldn’t find that.',
+    back: 'Back to Today',
+  },
   segments: {
     saved: 'Saved',
     ideas: 'Ideas',
@@ -782,9 +796,6 @@ export const looks = {
   page: {
     eyebrow: 'Look',
     rename: 'Rename',
-    nameLabel: 'Name',
-    saveName: 'Save name',
-    cancel: 'Cancel',
     note: 'Notes',
     pieces: 'Pieces',
     dayLabel: 'Day',
@@ -857,7 +868,6 @@ export const looks = {
     pieces: 'Pieces',
     imageAlt: (name: string): string => `The look: ${name}`,
     nameLabel: 'Name this look',
-    saveName: 'Save name',
   },
 } as const;
 
@@ -909,10 +919,10 @@ export const you = {
   signOut: 'Sign out',
   deletion: {
     title: 'Delete account',
-    body: 'Robes will delete your pieces, looks, photos and account. This can’t be undone.',
+    body: 'Robes signs you out and deletes your pieces, looks, photos and account. This can’t be undone.',
     confirmLabel: 'Type DELETE to confirm',
     confirm: 'Delete my account',
-    requested: 'Your account is being deleted. You’ll be signed out when it’s done.',
+    requested: 'Your account is being deleted.',
   },
   style: {
     title: 'Your colours and shape',
@@ -1025,7 +1035,12 @@ export const you = {
     },
     photos: 'Read from a photo',
     presence: 'Presence',
-    presenceOptions: { woman: 'Woman', man: 'Man', unspecified: 'Prefer not to say' },
+    presenceOptions: {
+      woman: 'Woman',
+      man: 'Man',
+      non_binary: 'Non-binary',
+      unspecified: 'Prefer not to say',
+    },
     skin: 'Skin',
     skinNames: ['Espresso', 'Mahogany', 'Chestnut', 'Tan', 'Honey', 'Sand', 'Peach', 'Porcelain'],
     hair: 'Hair',
@@ -1038,6 +1053,8 @@ export const you = {
     failed: 'Robes couldn’t draw your model just now. Change a pick to try again.',
     imageAlt: 'Your model',
     dressing: 'Dressing your model…',
+    // A render that failed says so, with the way back (never a stale picture passed off as new).
+    undressed: 'Couldn’t dress your model · Try again',
   },
 } as const;
 
@@ -1059,7 +1076,8 @@ export const plan = {
   empty: {
     title: 'Nothing planned',
     titleEm: 'yet.',
-    body: 'Open a look and choose Wear on a day.',
+    // Beta's empty diary with the trip hidden (legacy _dyListHtml).
+    body: 'Name a day below and add a look. The diary keeps the dates; the lookbook keeps the looks.',
     action: 'Go to Lookbook',
   },
   monthCaption: 'Month reads the shape of it. List is where you plan.',
@@ -1087,6 +1105,8 @@ export const plan = {
     nameTheDay: 'Name the day',
     looks: (n: number): string => (n === 1 ? '1 look' : `${n} looks`),
     pieces: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+    // A day she wore a look carries it after the count (legacy .dy-r-worn).
+    worn: 'Worn',
     open: (day: string): string => `Open ${day}`,
   },
   // The day page: the one door every day opens (legacy ff87e89).
@@ -1094,7 +1114,6 @@ export const plan = {
     back: (label: string): string => label,
     rename: 'Rename the day',
     name: 'Name the day',
-    nameLabel: 'The day’s name',
     planned: 'Looks planned',
     filed: 'Looks filed',
     filedToday: 'Looks filed today',
@@ -1109,6 +1128,9 @@ export const plan = {
     chooseHint: 'pick one or several',
     dress: 'Dress this day…',
     weatherLabel: 'The day’s weather',
+    // After the conditions' icon: today the temperature now, a day ahead its range.
+    weather: (city: string | null, condition: string, temp: string): string =>
+      [city, condition, temp].filter(Boolean).join(' · '),
     // What the forecast means for the case, in Robes' voice (legacy layer hint).
     advice: (condition: string, tempRange: string): string => {
       const high = Number(String(tempRange).match(/(-?\d+)°/)?.[1]);
@@ -1659,8 +1681,8 @@ export const twin = {
     skinAndHairHand: 'Or choose them by hand until a close-up reads.',
     yourLine: 'Your line',
     edit: 'Edit',
-    proportions: (presence: 'woman' | 'man' | 'unspecified'): string =>
-      `${presence === 'man' ? 'His' : presence === 'unspecified' ? 'Their' : 'Her'} proportions`,
+    proportions: (presence: Presence): string =>
+      `${presence === 'man' ? 'His' : asThey(presence) ? 'Their' : 'Her'} proportions`,
     adjust: 'Adjust by hand',
     scales: {
       shoulders: { label: 'Shoulders', less: 'Narrower', more: 'Broader' },
@@ -1668,8 +1690,8 @@ export const twin = {
       hips: { label: 'Hips', less: 'Narrower', more: 'Fuller' },
     },
     chest: 'Chest',
-    asIs: (presence: 'woman' | 'man' | 'unspecified'): string =>
-      `As ${presence === 'man' ? 'he' : presence === 'unspecified' ? 'they' : 'she'} is`,
+    asIs: (presence: Presence): string =>
+      `As ${presence === 'man' ? 'he is' : asThey(presence) ? 'they are' : 'she is'}`,
     // A cell's spoken name: "Hips: much fuller".
     stop: (label: string, stop: number, less: string, more: string, asIs: string): string =>
       `${label}: ${stop === 0 ? asIs : `${Math.abs(stop) === 2 ? 'much ' : ''}${String(stop < 0 ? less : more).toLowerCase()}`}`,
@@ -1678,15 +1700,13 @@ export const twin = {
     age: 'Age',
     // The one italic line under her model (legacy #mv-status): what Robes drew her from, and what
     // would take her further. "Nothing yet" is retired from the chrome, so the last rung says drawn.
-    status: (
-      presence: 'woman' | 'man' | 'unspecified',
-      read: 'both' | 'closeUp' | 'facts' | 'hand' | 'none',
-    ): string => {
+    status: (presence: Presence, read: 'both' | 'closeUp' | 'facts' | 'hand' | 'none'): string => {
       const man = presence === 'man';
-      const they = presence === 'unspecified' ? 'they' : man ? 'he' : 'she';
-      const theyAre = presence === 'unspecified' ? 'They’re' : man ? 'He’s' : 'She’s';
-      const their = presence === 'unspecified' ? 'their' : man ? 'his' : 'her';
-      const s = presence === 'unspecified' ? '' : 's';
+      const plural = asThey(presence);
+      const they = plural ? 'they' : man ? 'he' : 'she';
+      const theyAre = plural ? 'They’re' : man ? 'He’s' : 'She’s';
+      const their = plural ? 'their' : man ? 'his' : 'her';
+      const s = plural ? '' : 's';
       if (read === 'both')
         return `Read from your close-up and your facts. ${theyAre} as close as ${they} get${s}.`;
       if (read === 'closeUp')
@@ -1713,7 +1733,12 @@ export const twin = {
     cm: 'cm',
     ftIn: 'ft / in',
     clear: 'Clear the facts',
-    genderOptions: { woman: 'Woman', man: 'Man', unspecified: 'Prefer not to say' },
+    genderOptions: {
+      woman: 'Woman',
+      man: 'Man',
+      non_binary: 'Non-binary',
+      unspecified: 'Prefer not to say',
+    },
     unspecified: '—',
     bust: 'Bust',
     waist: 'Waist',
@@ -1758,15 +1783,13 @@ export const twin = {
     sub: 'Pick as many as feel like you.',
     desc: {
       Minimal: 'Clean lines, few decisions, nothing loud.',
-      Bohemian: 'Loose shapes, print and texture worn together.',
+      Modern: 'Cut for now, worn without fuss.',
       Classic: 'Tailoring, good shoes, nothing that dates.',
-      Romantic: 'Soft volume, lace, colour that flatters.',
       Sculptural: 'Architectural cuts. The volume is the point.',
-      Utility: 'Workwear roots, pockets, honest hardware.',
-      Heritage: 'Collars, knits, a little of the old school.',
+      Bohemian: 'Loose shapes, print and texture worn together.',
       Eclectic: 'Nothing matches. It works anyway.',
-      'Off-duty': 'Technical fabric, worn like it is not.',
-      'Avant-garde': 'Asymmetry, black, the unfamiliar shape.',
+      Heritage: 'Collars, knits, a little of the old school.',
+      Utility: 'Workwear roots, pockets, honest hardware.',
     } as Record<string, string>,
   },
   wall: {
@@ -1888,7 +1911,7 @@ export const twin = {
   },
 } as const;
 
-export { firstRun, home } from './home';
+export { bell, diary, firstRun, home } from './home';
 export { legal } from './legal';
 export { lookbook } from './lookbook';
 
@@ -1974,6 +1997,8 @@ export const keyPiece = {
 export const copy = {
   home,
   firstRun,
+  bell,
+  diary,
   lookbook,
   wardrobe,
   photoPieces,

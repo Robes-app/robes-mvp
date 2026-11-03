@@ -20,6 +20,8 @@ test('PostHog loads only after consent and sends only catalogue events', async (
   const load = jest.fn(async () => client);
   const analytics = createNativeAnalytics(CONFIG, load);
   analytics.track('onboarding_completed');
+  analytics.track('camera_opened');
+  analytics.track('look_created', { from: 'draft', pieces: 3, proposed: 0, anchored: false });
   expect(load).not.toHaveBeenCalled();
 
   await analytics.start('u1');
@@ -28,6 +30,13 @@ test('PostHog loads only after consent and sends only catalogue events', async (
   analytics.track('job_started', { kind: 'key_piece' });
   analytics.track('not_an_event' as never, {} as never);
   expect(client.capture.mock.calls).toEqual([['job_started', { kind: 'key_piece' }]]);
+  analytics.track('look_created', { from: 'suggested', pieces: 2, proposed: 1, anchored: true });
+  expect(client.capture).toHaveBeenLastCalledWith('look_created', {
+    from: 'suggested',
+    pieces: 2,
+    proposed: 1,
+    anchored: true,
+  });
 });
 
 test('withdrawing consent or signing out stops capture and forgets her', async () => {

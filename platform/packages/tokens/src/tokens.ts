@@ -142,6 +142,15 @@ export const font = {
   sans: "var(--font-inter), 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
 } as const;
 
-export const radius = { crisp: '4px', soft: '12px', pill: '999px' } as const;
+// Beta's steps (public/css/tokens.css): fields 8, home and Settings cards 14 (--rad-card), the
+// bottom sheet's top edge 18 (.sheet / .rb-ps-sheet / .kp-sheet).
+export const radius = {
+  crisp: '4px',
+  input: '8px',
+  soft: '12px',
+  card: '14px',
+  sheet: '18px',
+  pill: '999px',
+} as const;
 
 export { colorValue, semanticColor } from './value';

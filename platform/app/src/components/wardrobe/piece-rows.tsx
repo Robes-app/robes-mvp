@@ -117,7 +117,7 @@ function NameRow({
         autoComplete="off"
         placeholder={offer ?? fields.name.placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="min-h-11 min-w-0 flex-1 bg-transparent text-right font-sans text-base text-ink placeholder:text-ink-faint focus-visible:outline-none sm:text-sm"
+        className="min-h-11 min-w-0 flex-1 border-0 border-transparent border-b bg-transparent text-right font-sans text-base text-ink placeholder:text-ink-faint focus-visible:border-ink focus-visible:shadow-[0_1px_0_0_var(--color-ink)] focus-visible:outline-none sm:text-sm"
       />
     </div>
   );
@@ -173,7 +173,8 @@ export function RecordRows({
   const v = (value: string | null | undefined) => (reading ? wardrobe.add.review.reading : value);
   const open = (field: PieceField) => (reading ? undefined : () => onField(field));
   return (
-    <>
+    // The sections own their spacing, so every screen that holds them reads the same.
+    <div className="flex flex-col gap-6">
       <PieceSection title={copy.sections.piece}>
         {withName && onName && !reading ? (
           <NameRow
@@ -271,6 +272,6 @@ export function RecordRows({
           ) : null}
         </PieceRow>
       </PieceSection>
-    </>
+    </div>
   );
 }

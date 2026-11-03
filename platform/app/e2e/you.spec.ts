@@ -12,7 +12,7 @@ test('notification prefs default, merge and persist', async ({ page }) => {
   const api = page.request;
   expect((await (await api.get('/api/v1/me')).json()).notifications).toEqual({
     looksReady: true,
-    morningCue: true,
+    morningCue: false,
     nudges: false,
     receipts: true,
   });

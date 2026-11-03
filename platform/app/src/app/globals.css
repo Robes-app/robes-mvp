@@ -13,9 +13,14 @@ body {
   font-weight: 300;
 }
 
-:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+/* The default ring for every control that draws none of its own. It sits in the base layer so a
+   component's own focus utilities (a quiet field's underline, a ring in another colour) win:
+   unlayered CSS beats every layer, whatever the specificity. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
 }
 
 /* The sign-in ground: cream warming to blush (legacy signup.html). Dark mode keeps the plain ground. */

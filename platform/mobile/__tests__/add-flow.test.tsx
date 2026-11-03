@@ -4,6 +4,7 @@ import { AccessibilityInfo } from 'react-native';
 import { AddPiecesPanel } from '../src/features/wardrobe/add/AddPiecesPanel';
 import { ManualAdd } from '../src/features/wardrobe/add/ManualAdd';
 import { Review } from '../src/features/wardrobe/add/Review';
+import { nativeAnalytics } from '../src/lib/analytics';
 import { mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, JOB_ID, PIECE_ID, piece } from './support/fixtures';
 import { mockParams, mockRouter } from './support/router';
@@ -16,6 +17,8 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 const add = wardrobe.add;
+// Call sites report through the consent-gated client (observability.test.ts proves the gate).
+const track = jest.spyOn(nativeAnalytics, 'track');
 const ENTRY_ID = '99999999-9999-4999-8999-999999999999';
 
 beforeEach(() => {
@@ -103,6 +106,12 @@ test('Review walks the pieces one at a time and files the read once each is answ
     ],
   });
   expect(await screen.findByText(add.filed.line.wardrobe)).toBeTruthy();
+  expect(track.mock.calls).toEqual([
+    ['piece_answered', { state: 'add', edited: false }],
+    ['piece_answered', { state: 'skip', edited: false }],
+    ['pieces_filed', { source: 'photo', n: 1, skipped: 1, to: 'wardrobe' }],
+    ['wardrobe_added', { source: 'photo', batch_n: 1, batch_i: 1 }],
+  ]);
 });
 
 test('a row she changes on Review rides the filing, and the wishlist is the destination', async () => {
