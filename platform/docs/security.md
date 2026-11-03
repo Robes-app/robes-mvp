@@ -44,7 +44,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 
 **SEC-04 — Rate limiting is per identity, per route, in a shared store.**
 - Upstash Redis sliding window keyed `rl:{route}:{userId|ip}`; IP derived only from the platform-provided header (`x-vercel-forwarded-for` / `request.ip`), never raw `X-Forwarded-For`.
-- Anonymous public routes (waitlist, share view, try-it-free if kept) additionally require Cloudflare Turnstile.
+- Anonymous public routes (waitlist, share view, try-it-free if kept) use Cloudflare Turnstile when its keys are set; until then (decided 2026-11-03, no Cloudflare account yet) the waitlist relies on its tight per-IP limit and the signups flag.
 - Test: limiter unit tests with a fake store; e2e check that the 11th call/minute returns 429.
 
 **SEC-05 — Generation calls are cancellable and time-boxed.** Every Gemini call passes an `AbortSignal` with a per-step budget; Lambda timeouts bound total work; no fire-and-forget promises in request handlers.
@@ -123,7 +123,7 @@ Trust boundaries: **client (web/native) → API (Next.js route handlers on Verce
 
 ### CRM and email (closes M3, F-11)
 
-**SEC-60 — Waitlist is Postgres-first with double opt-in.** `waitlist_signups` table, Turnstile, per-IP limit, confirmation email; no unauthenticated update of existing contacts. CRM sync is one-way, outbound, from a worker.
+**SEC-60 — Waitlist is Postgres-first with double opt-in.** `waitlist_signups` table, Turnstile (optional, when keyed), per-IP limit, confirmation email; no unauthenticated update of existing contacts. CRM sync is one-way, outbound, from a worker.
 
 **SEC-61 — Email sending.** Resend with a verified domain, DKIM/SPF/DMARC; one-click unsubscribe (RFC 8058) with HMAC-signed, expiring, single-purpose tokens; per-user preference table; idempotency ledger unique on `(user_id, kind, period)`.
 

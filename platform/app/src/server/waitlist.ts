@@ -10,7 +10,8 @@ import { mailer } from './mailer';
 const PURPOSE = 'waitlist-confirm';
 const copy = marketing.waitlist;
 
-// Cloudflare Turnstile (SEC-60). Dev without keys skips the check; config requires them elsewhere.
+// Cloudflare Turnstile (SEC-60), optional in every stage: without keys the check is skipped and the
+// per-IP limit carries the waitlist.
 export async function verifyTurnstile(token: string | undefined, ip: string): Promise<boolean> {
   if (!env.turnstile) return true;
   if (!token) return false;
