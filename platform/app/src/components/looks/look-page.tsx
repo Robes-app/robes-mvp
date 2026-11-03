@@ -6,11 +6,12 @@ import { anchorName, lookFacts, noteShort, pinnedFor } from '@robes/core/looks';
 import { Button, Dialog, Eyebrow, Heading, InlineTitleField, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { type Adjust, useAdjust } from '@/lib/adjust';
 import { useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRequestFrame, useSaveLook } from '@/lib/look-states';
+import { AdjustDock } from './adjust-dock';
 import { GenericModelBadge } from './generic-model-badge';
 import { LookImage } from './look-image';
-import { LookPromptBox } from './look-prompt-box';
 import { LookVerdict } from './look-verdict';
 import { RackRowCard } from './rack-row';
 import { Scanning, scanningLine } from './scan-line';
@@ -165,7 +166,10 @@ export function Rack({
 // Suggested (F8) and draft (F9 / 4d): one page, one bar.
 export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => void }) {
   const router = useRouter();
-  const editor = useLookEditor(look);
+  const adjustRef = useRef<Adjust | null>(null);
+  const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
+  const adjust = useAdjust(look, editor, look.status === 'suggested' ? 'suggested' : 'draft');
+  adjustRef.current = adjust;
   const save = useSaveLook(onSaved, look.status === 'suggested' ? 'suggested' : 'draft');
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [name, setName] = useState(look.nameProvisional ? '' : look.name);
@@ -218,18 +222,7 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
           </Text>
         ) : null}
         <Rack look={look} editor={editor} editable={!suggested} swapInPlace={suggested} />
-        {editor.rack.rows.length > 0 ? (
-          <LookPromptBox
-            lookId={look.id}
-            name={look.name}
-            surface={suggested ? 'suggested' : 'draft'}
-            rack={editor.rack}
-            anchorPieceId={look.anchor?.id ?? null}
-            changed={editor.changed}
-            draft={!suggested}
-            onAnswer={editor.answer}
-          />
-        ) : null}
+        {editor.rack.rows.length > 0 ? <AdjustDock adjust={adjust} name={look.name} /> : null}
         {suggested ? (
           <>
             <LookVerdict
@@ -306,22 +299,21 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
   );
 }
 
-// The saved look's rack, Editing and its prompt (5a–5e).
-export function SavedRack({ look, editor }: { look: Look; editor: Editor }) {
+// The saved look's rack, Editing and its thread (5a–5e; plan 2026-11-03 D6): her words edit the
+// rack at once, the picture falls behind, and ↻ Update look commits the rack and draws it again.
+export function SavedRack({
+  look,
+  editor,
+  adjust,
+}: {
+  look: Look;
+  editor: Editor;
+  adjust: Adjust;
+}) {
   return (
     <>
       <Rack look={look} editor={editor} editable={editor.editing} />
-      {editor.rack.rows.length > 0 ? (
-        <LookPromptBox
-          lookId={look.id}
-          name={look.name}
-          surface="saved"
-          rack={editor.rack}
-          anchorPieceId={look.anchor?.id ?? null}
-          changed={editor.changed}
-          onAnswer={editor.answer}
-        />
-      ) : null}
+      {editor.rack.rows.length > 0 ? <AdjustDock adjust={adjust} name={look.name} /> : null}
       {/* The look's one bar, held at the foot: Edit look, or Done and Update while she works.
           Fixed above the tab bar on a phone, at the foot of the window on the web. */}
       <div
@@ -337,11 +329,15 @@ export function SavedRack({ look, editor }: { look: Look; editor: Editor }) {
               </Button>
               <Button
                 variant="primary"
-                disabled={!editor.dirty}
+                disabled={!editor.dirty && !adjust.stale}
                 loading={editor.saving}
-                onClick={editor.update}
+                onClick={() =>
+                  void editor.update().then((ok) => {
+                    if (ok) adjust.drawForSave();
+                  })
+                }
               >
-                {copy.bar.update}
+                {adjust.stale ? `↻ ${copy.bar.update}` : copy.bar.update}
               </Button>
             </>
           ) : (

@@ -113,25 +113,22 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
     await page.request.post('/api/v1/wardrobe/items', { data: { label, categoryL2: 'Trousers' } });
   }
   await page.goto('/looks/new');
-  // The draft stands on a figure: a slot per part of her, each opening her wardrobe.
+  // The one draft page (design 3b): the name, her model in its base layer, the dashed row.
   await expect(page.getByLabel('Name this look')).toHaveAttribute('placeholder', 'Untitled Look');
   // The draft's title is the field: the serif on an underline, never a boxed outline on focus.
   await page.getByLabel('Name this look').focus();
   await expect(page.getByLabel('Name this look')).toHaveCSS('outline-style', 'none');
   await expect(page.getByLabel('Name this look')).toHaveCSS('text-align', 'center');
-  for (const slot of ['+ Top', '+ Bottom', '+ Shoes']) {
-    await expect(page.getByRole('button', { name: slot })).toBeVisible();
-  }
-  await page.getByRole('button', { name: '+ Bottom' }).click();
-  // The sheet opens on the slot's own category.
+  await page.getByRole('button', { name: '+ Add a piece' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'White wide-leg trouser' }).click();
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
-  // The draft stays in the one composer: the slot it filled reads warm, Discard · Save at the foot.
+  // The draft carries on in the same page: the piece on the rack, Discard · Save at the foot.
   await expect(page.getByText('Draft look')).toBeVisible();
-  await expect(page.getByRole('button', { name: '+ Bottom' })).toHaveText('✓ Bottom');
-  await page.getByRole('button', { name: 'Ask Robes about this look' }).click();
+  await expect(page.getByText('The look · 1 piece')).toBeVisible();
+  // The pill opens the card; her words edit the rack through the look prompt (plan 2026-11-03).
+  await page.getByTestId('adjust-pill').click();
 
-  const field = page.getByLabel('Change this draft…');
+  const field = page.getByLabel('Adjust this look…');
   await field.fill('swap the trouser for the dark straight jean');
   await field.press('Enter');
   await expect(
@@ -187,11 +184,11 @@ test('the draft look at 390: her model, the wardrobe sheet, and Discard · Save 
   const box = await bar.boundingBox();
   expect(Math.round((box?.y ?? 0) + (box?.height ?? 0))).toBe(844);
 
-  // The slot's sheet: titled for the slot, a search, one row of chips, Photograph one first.
-  await page.getByRole('button', { name: '+ Shoes' }).click();
-  const sheet = page.getByRole('dialog', { name: 'Add shoes' });
+  // The rack's sheet: a search, one row of chips (All leads), Photograph one first.
+  await page.getByRole('button', { name: '+ Add a piece' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Add a piece' });
   await expect(sheet.getByText('From your wardrobe')).toBeVisible();
-  await expect(sheet.getByRole('button', { name: 'Shoes', exact: true })).toHaveAttribute(
+  await expect(sheet.getByRole('button', { name: 'All', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
@@ -203,13 +200,11 @@ test('the draft look at 390: her model, the wardrobe sheet, and Discard · Save 
   expect(await seriousViolations(page), 'the wardrobe sheet').toEqual([]);
   await sheet.getByRole('button', { name: 'Cream silk shirt' }).click();
 
-  // The first piece makes the draft; it carries on in the same composer.
+  // The first piece makes the draft; it carries on in the same page.
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
   await expect(page.getByText('The look · 1 piece')).toBeVisible();
-  // Picked from + Shoes, the shirt lands in its own slot.
-  await expect(page.getByRole('button', { name: '+ Top' })).toHaveText('✓ Top');
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
-  await page.getByRole('button', { name: '+ Bottom' }).click();
+  await page.getByRole('button', { name: '+ Add a piece' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'White wide-leg trouser' }).click();
   await expect(page.getByText('The look · 2 pieces')).toBeVisible();
   await expect(page.getByText('Draft look')).toBeVisible();
@@ -271,7 +266,7 @@ test('the draft: a swap lands behind Undo, and her photograph is added from the 
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(pieces).toEqual([ids[0]]);
 
-  // L4: the camera on the canvas adds her photograph to the draft; it stays in the composer,
+  // L4: the camera on the picture adds her photograph to the draft; it stays on the draft page,
   // You · Model stands under the canvas, and the camera becomes ↻.
   await expect(page.getByRole('radiogroup', { name: 'The record of this look' })).toBeHidden();
   await page.locator('input[type="file"][aria-label="Add your photograph"]').setInputFiles(PHOTO);

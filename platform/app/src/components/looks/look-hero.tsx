@@ -2,19 +2,19 @@
 
 import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { lookbook, looks as looksCopy, ui, you } from '@robes/copy';
-import { lookLine, lookWearFor } from '@robes/core/looks';
+import { lookbook, looks as looksCopy, you } from '@robes/copy';
+import { lookLine } from '@robes/core/looks';
 import { Icon } from '@robes/icons/web';
-import { Eyebrow, Pill, SegmentedControl, Sheet, useToast } from '@robes/ui';
+import { Eyebrow, SegmentedControl, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { useHerPhoto } from './her-photo';
 import { LookImage } from './look-image';
 import { LookMix, LookPicture } from './look-page';
+import { lookTags, TagsSheet } from './tags-sheet';
 
 const copy = looksCopy.page;
-const seasons = lookbook.refine.seasons;
 const onImage =
   'absolute z-10 flex size-10 items-center justify-center rounded-pill bg-bg/90 text-ink shadow-sm hover:bg-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:text-ink-faint';
 
@@ -69,13 +69,6 @@ export function LookHero({
   }, [api, canDress, key, look.id, look.model, look.onModel, look.status, queryClient]);
   // Her photograph lands; her model starts dressing the look, so You · Model has both sides.
   const herPhoto = useHerPhoto(look, dressIfNeeded);
-  const update = useApiMutation('looks.update', {
-    onSuccess: landed,
-    onError: (err) => {
-      onError(err);
-      void queryClient.invalidateQueries({ queryKey: key });
-    },
-  });
 
   // Model before her model has worn it starts the dressing; the picture follows when it lands.
   const choose = (record: 'photo' | 'model') => {
@@ -85,10 +78,7 @@ export function LookHero({
   };
 
   const line = lookLine(look);
-  const tags = [
-    ...(look.climateBand === 'year_round' ? [] : [seasons[look.climateBand]]),
-    ...lookWearFor(look),
-  ];
+  const tags = lookTags(look);
   // You · Model stands once there is her photograph and a model side: drawn, or hers to dress.
   const both = look.photo !== null && (look.model !== null || canDress);
   const dressing = (look.onModel === 'pending' || dress.isPending) && !look.frame;
@@ -197,24 +187,7 @@ export function LookHero({
           </p>
         )}
       </div>
-      <Sheet open={tagsOpen} onOpenChange={setTagsOpen} title={copy.tags} closeLabel={ui.done}>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="pb-2 font-sans text-ink-muted text-sm">{copy.season}</legend>
-          <div className="flex flex-wrap gap-2">
-            {(['spring_summer', 'autumn_winter', 'year_round'] as const).map((b) => (
-              <Pill
-                key={b}
-                selected={look.climateBand === b}
-                onClick={() =>
-                  update.mutate({ params: { id: look.id }, input: { climateBand: b } })
-                }
-              >
-                {seasons[b]}
-              </Pill>
-            ))}
-          </div>
-        </fieldset>
-      </Sheet>
+      <TagsSheet look={look} open={tagsOpen} onOpenChange={setTagsOpen} />
     </div>
   );
 }
