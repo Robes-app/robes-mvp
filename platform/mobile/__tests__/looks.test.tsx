@@ -345,7 +345,8 @@ test('Update on a saved look her model wears asks her model to wear the new rack
   await fireEvent.press(
     await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.update }));
+  // The piece taken off leaves the picture behind, so Update reads ↻ and draws it after (D6).
+  await fireEvent.press(await screen.findByRole('button', { name: `↻ ${lookbook.bar.update}` }));
   // The picture must not keep showing the jeans she took off (beta re-dressed the model live).
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),
