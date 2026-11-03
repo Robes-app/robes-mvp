@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { Today } from '@robes/contracts';
 import {
   declineConsent,
   isolateClientIp,
@@ -26,7 +27,36 @@ type DayDraft = {
 } | null;
 async function readDraft(page: Page, date: string): Promise<DayDraft> {
   const today = await (await page.request.get('/api/v1/today')).json();
+  // The client parses every response with the contract: what the server sends must pass it.
+  const parsed = Today.safeParse(today);
+  expect(parsed.success, JSON.stringify(parsed.error?.issues ?? null)).toBe(true);
   return today.diary.days.find((d: { date: string }) => d.date === date)?.draft ?? null;
+}
+
+// Polls a reading until it matches or the time runs out; the last reading is in the failure.
+async function pollUntil(
+  read: () => Promise<string>,
+  ok: (value: string) => boolean,
+  timeoutMs: number,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let last = '';
+  while (Date.now() < deadline) {
+    last = await read();
+    if (ok(last)) return last;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return last;
+}
+
+// Browser-side errors while a test runs, read back when an expectation fails.
+function watchErrors(page: Page): string[] {
+  const seen: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') seen.push(msg.text().slice(0, 400));
+  });
+  page.on('pageerror', (err) => seen.push(`pageerror: ${err.message.slice(0, 400)}`));
+  return seen;
 }
 async function draftLanded(page: Page, date: string): Promise<void> {
   const api = page.request;
@@ -204,6 +234,7 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
 }) => {
   // The day flows, then a generation: more than the default budget.
   test.setTimeout(120_000);
+  const errors = watchErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);
   await declineConsent(page);
@@ -279,9 +310,13 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await expect(page.getByTestId('prompt-box')).toContainText('Dinner with friends');
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
   await draftLanded(page, date);
-  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
-    timeout: 30_000,
-  });
+  const tile = await pollUntil(
+    async () =>
+      `${await page.getByTestId('draft-tile').getAttribute('data-state')} · ${errors.join(' | ')}`,
+    (v) => v.startsWith('ready'),
+    30_000,
+  );
+  expect(tile, tile).toMatch(/^ready/);
   await expect(page.getByTestId('prompt-box')).toContainText('Here’s a first look');
   // Her words adjust the draft from the box; View draft opens its page on the day.
   await expect(page.getByRole('button', { name: 'Dress it again' })).toBeVisible();
@@ -300,6 +335,7 @@ test('the home box: words become one draft in the slot; the hanger builds it aro
 }) => {
   // Two generations and a photographed piece: more than the default budget.
   test.setTimeout(150_000);
+  const errors = watchErrors(page);
   await signIn(page);
   await declineConsent(page);
 
@@ -310,9 +346,13 @@ test('the home box: words become one draft in the slot; the hanger builds it aro
   await box.press('Enter');
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
   await draftLanded(page, date);
-  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
-    timeout: 30_000,
-  });
+  const tile = await pollUntil(
+    async () =>
+      `${await page.getByTestId('draft-tile').getAttribute('data-state')} · ${errors.join(' | ')}`,
+    (v) => v.startsWith('ready'),
+    30_000,
+  );
+  expect(tile, tile).toMatch(/^ready/);
   await expect(page.getByRole('heading', { level: 1, name: /, Niall\.$/ })).toBeVisible();
   // ↻ on the tile: another take, same brief, drawn in place.
   await page.getByRole('button', { name: 'Another take, same brief' }).click();

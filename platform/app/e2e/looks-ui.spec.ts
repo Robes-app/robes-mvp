@@ -109,6 +109,11 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
 }) => {
   // Two asks, each a job: more than the default budget.
   test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text().slice(0, 400));
+  });
+  page.on('pageerror', (err) => errors.push(`pageerror: ${err.message.slice(0, 400)}`));
   await signIn(page);
   await declineConsent(page);
   for (const label of ['White wide-leg trouser', 'Dark straight jean']) {
@@ -144,9 +149,14 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   // A rule waits under Robes noticed; it changes nothing. The thread's text names what landed.
   await page.getByLabel('Anything else, or put something back…').fill("I don't wear double denim");
   await page.getByLabel('Anything else, or put something back…').press('Enter');
-  await expect
-    .poll(() => page.getByTestId('adjust-thread').textContent(), { timeout: 30_000 })
-    .toContain('Waiting under Robes noticed — keep it there and it becomes a rule.');
+  const noticed = 'Waiting under Robes noticed — keep it there and it becomes a rule.';
+  const deadline = Date.now() + 30_000;
+  let thread = '';
+  while (Date.now() < deadline && !thread.includes(noticed)) {
+    thread = `${await page.getByTestId('adjust-thread').textContent()} · errors: ${errors.join(' | ')}`;
+    await page.waitForTimeout(500);
+  }
+  expect(thread, thread).toContain(noticed);
   expect(await seriousViolations(page), 'a draft with the prompt open').toEqual([]);
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
