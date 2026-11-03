@@ -61,7 +61,7 @@ register as you go. In order:
 4. **Better Auth** (§3): production secret, `BETTER_AUTH_URL=https://app.byrobes.com`, Google
    production OAuth client with exact redirect URIs. Apple stays off until TestFlight.
 5. **Gemini** (§10): production key restricted to the Generative Language API, budget and quotas.
-6. **Upstash** (§8) and **Turnstile** keys.
+6. **Upstash** (§8), and **Turnstile** keys if you want the waitlist's human check (optional).
 7. **PostHog** (§11): authorized URLs include `app.byrobes.com`; consent gating checked on prod.
 8. **GitHub** (§5): the `production` environment with a required reviewer and its variables
    (`AWS_ACCOUNT_ID`, `AWS_DEPLOY_ROLE_ARN`, `APP_URL=https://app.byrobes.com`, `MEDIA_DOMAIN`,

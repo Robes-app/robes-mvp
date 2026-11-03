@@ -271,14 +271,9 @@ export const appServerEnv = z
         path: ['TURNSTILE_SECRET_KEY'],
         message: 'Turnstile needs the site key and the secret',
       });
-    } else if (env.APP_ENV === 'production' && !env.TURNSTILE_SECRET_KEY) {
-      // Staging without Turnstile relies on the waitlist's per-IP limit and the signups flag.
-      ctx.addIssue({
-        code: 'custom',
-        path: ['TURNSTILE_SECRET_KEY'],
-        message: 'required in production',
-      });
     }
+    // Optional in every stage (2026-11-03): without it the waitlist relies on its per-IP limit and
+    // the signups flag. Set both keys and the check turns on.
     if (Boolean(env.APPLE_CLIENT_ID) !== Boolean(env.APPLE_CLIENT_SECRET)) {
       ctx.addIssue({
         code: 'custom',

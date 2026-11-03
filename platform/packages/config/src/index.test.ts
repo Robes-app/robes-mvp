@@ -67,12 +67,12 @@ describe('parseEnv(appServerEnv)', () => {
     expect(parseEnv(appServerEnv, base).INBOUND_MAIL_DOMAIN).toBe('in.staging.mail.byrobes.com');
   });
 
-  it('requires Turnstile in production, optional in staging, always as a pair', () => {
+  it('takes Turnstile as an optional pair in every stage', () => {
     const { TURNSTILE_SECRET_KEY: _s, NEXT_PUBLIC_TURNSTILE_SITE_KEY: _k, ...none } = base;
     expect(() => parseEnv(appServerEnv, none)).not.toThrow();
-    expect(() => parseEnv(appServerEnv, { ...none, APP_ENV: 'production' })).toThrow(
-      /TURNSTILE_SECRET_KEY/,
-    );
+    const prod = { ...none, APP_ENV: 'production', BETTER_AUTH_URL: 'https://app.byrobes.com' };
+    expect(() => parseEnv(appServerEnv, prod)).not.toThrow();
+    expect(parseEnv(appServerEnv, prod).turnstile).toBeNull();
     expect(() => parseEnv(appServerEnv, { ...none, TURNSTILE_SECRET_KEY: 'x' })).toThrow(
       /TURNSTILE/,
     );
