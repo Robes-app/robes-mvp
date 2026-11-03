@@ -49,14 +49,40 @@ async function pollUntil(
   return last;
 }
 
-// Browser-side errors while a test runs, read back when an expectation fails.
+// Browser-side errors while a test runs, and every answer to the diary read, read back when an
+// expectation fails.
 function watchErrors(page: Page): string[] {
   const seen: string[] = [];
   page.on('console', (msg) => {
     if (msg.type() === 'error') seen.push(msg.text().slice(0, 400));
   });
   page.on('pageerror', (err) => seen.push(`pageerror: ${err.message.slice(0, 400)}`));
+  page.on('requestfailed', (req) => seen.push(`failed: ${req.url()} ${req.failure()?.errorText}`));
+  page.on('response', (res) => {
+    if (!res.url().includes('/api/v1/today')) return;
+    void res
+      .json()
+      .then((body) => {
+        const days = body?.diary?.days ?? [];
+        const drafts = days
+          .filter((d: { draft: unknown }) => d.draft)
+          .map(
+            (d: { date: string; draft: { jobId: string | null; look: { id: string } | null } }) =>
+              `${d.date}:job=${d.draft.jobId ? 'on' : 'off'}:look=${d.draft.look ? 'yes' : 'no'}`,
+          );
+        seen.push(`today ${res.status()} [${drafts.join(',')}]`);
+      })
+      .catch(() => seen.push(`today ${res.status()} unreadable`));
+  });
   return seen;
+}
+
+// What the browser itself sees in the slot and from the diary read, for a failure's message.
+async function slotReport(page: Page, errors: string[]): Promise<string> {
+  const state = await page.getByTestId('day-slot').getAttribute('data-state');
+  const tiles = await page.getByTestId('draft-tile').count();
+  const tile = tiles ? await page.getByTestId('draft-tile').getAttribute('data-state') : 'none';
+  return `slot=${state} tile=${tile} · ${errors.slice(-12).join(' | ')}`;
 }
 async function draftLanded(page: Page, date: string): Promise<void> {
   const api = page.request;
@@ -311,12 +337,11 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
   await draftLanded(page, date);
   const tile = await pollUntil(
-    async () =>
-      `${await page.getByTestId('draft-tile').getAttribute('data-state')} · ${errors.join(' | ')}`,
-    (v) => v.startsWith('ready'),
+    () => slotReport(page, errors),
+    (v) => v.includes('tile=ready'),
     30_000,
   );
-  expect(tile, tile).toMatch(/^ready/);
+  expect(tile, tile).toContain('tile=ready');
   await expect(page.getByTestId('prompt-box')).toContainText('Here’s a first look');
   // Her words adjust the draft from the box; View draft opens its page on the day.
   await expect(page.getByRole('button', { name: 'Dress it again' })).toBeVisible();
@@ -347,12 +372,11 @@ test('the home box: words become one draft in the slot; the hanger builds it aro
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
   await draftLanded(page, date);
   const tile = await pollUntil(
-    async () =>
-      `${await page.getByTestId('draft-tile').getAttribute('data-state')} · ${errors.join(' | ')}`,
-    (v) => v.startsWith('ready'),
+    () => slotReport(page, errors),
+    (v) => v.includes('tile=ready'),
     30_000,
   );
-  expect(tile, tile).toMatch(/^ready/);
+  expect(tile, tile).toContain('tile=ready');
   await expect(page.getByRole('heading', { level: 1, name: /, Niall\.$/ })).toBeVisible();
   // ↻ on the tile: another take, same brief, drawn in place.
   await page.getByRole('button', { name: 'Another take, same brief' }).click();

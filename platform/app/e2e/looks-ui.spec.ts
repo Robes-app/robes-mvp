@@ -153,7 +153,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   const deadline = Date.now() + 30_000;
   let thread = '';
   while (Date.now() < deadline && !thread.includes(noticed)) {
-    thread = `${await page.getByTestId('adjust-thread').textContent()} · errors: ${errors.join(' | ')}`;
+    const threads = await page.getByTestId('adjust-thread').count();
+    const text = threads ? await page.getByTestId('adjust-thread').textContent() : 'no thread';
+    const cards = await page.getByTestId('adjust-card').count();
+    thread = `${text} · card=${cards} · errors: ${errors.join(' | ')}`;
     await page.waitForTimeout(500);
   }
   expect(thread, thread).toContain(noticed);
