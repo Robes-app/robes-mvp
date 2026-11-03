@@ -247,7 +247,8 @@ test('editing a saved look, a swap lands on one tap behind Undo; Update says Upd
     screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
   await fireEvent.press(await screen.findByRole('radio', { name: 'Navy wool coat' }));
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.update }));
+  // The swap left the picture behind, so Update reads ↻ and draws it as it commits (D6).
+  await fireEvent.press(screen.getByRole('button', { name: `↻ ${lookbook.bar.update}` }));
   expect(await screen.findByText(lookbook.updated)).toBeTruthy();
   expect(JSON.stringify(calls.find((c) => c.method === 'PATCH')?.body)).toContain(COAT);
   expect(track).toHaveBeenCalledWith('swap_drawer_opened', { mode: 'swap' });

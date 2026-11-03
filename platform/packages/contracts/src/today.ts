@@ -99,12 +99,19 @@ export const TodayWeatherInput = z.object({ date: z.iso.date().optional() });
 // One day of the home diary (Front Door design 3k, plan 2026-11-02): her name for it, where she is
 // that day (null is home), that place's weather for the day, and every look on it in the day's
 // order (`position`; `worn` once she logged it). Every date in the window is sent, empty ones too.
+// The draft Robes is making, or made, for the day from the prompt box (plan 2026-11-03 §1.2):
+// the look once it is minted (null while the job still reads her words), and the job while it
+// runs (null once it ended). Nothing here is on the day until she saves.
+export const DiaryDraft = z.object({ look: Look.nullable(), jobId: z.uuid().nullable() });
+export type DiaryDraft = z.infer<typeof DiaryDraft>;
 export const DiaryDay = z.object({
   date: z.iso.date(),
   name: z.string().nullable(),
   place: DiaryPlace.nullable(),
   weather: TodayWeather,
   entries: z.array(PlanEntry),
+  // Defaulted so a phone build ahead of the server still parses an older response.
+  draft: DiaryDraft.nullable().default(null),
 });
 export type DiaryDay = z.infer<typeof DiaryDay>;
 export const Diary = z.object({ from: z.iso.date(), to: z.iso.date(), days: z.array(DiaryDay) });

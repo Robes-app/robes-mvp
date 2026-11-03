@@ -100,6 +100,10 @@ export const EVENTS = {
   look_prompt_applied: z.object({ surface: askSurface, intent: askIntent, slots: count }).strict(),
   // The look prompt folds (×), after `turns` asks.
   look_prompt_closed: z.object({ surface: askSurface, turns: count }).strict(),
+  // The draft's thread (plan 2026-11-03): Dress it again, with what she said is not right or as
+  // another take; the model asked to wear `pending` changes.
+  draft_redressed: z.object({ surface: askSurface, asked: z.boolean() }).strict(),
+  draft_model_updated: z.object({ surface: askSurface, pending: count }).strict(),
 
   // The new-look box: a look is asked for (a piece, or her words), and whether the ask was taken.
   prompt_submitted: z

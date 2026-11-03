@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}));
 const repos = {
   looks: { get: vi.fn(), save: vi.fn() },
   profiles: { get: vi.fn() },
+  plan: { pin: vi.fn() },
 };
 vi.mock('./db', () => ({ repos }));
 vi.mock('./looks-entity', () => ({ toLook: vi.fn(async (_u, row) => row), toLooks: vi.fn() }));
@@ -27,16 +28,17 @@ describe('saving an unnamed look', () => {
     repos.looks.get.mockResolvedValue(draft);
     repos.profiles.get.mockResolvedValue({ timezone: 'Australia/Sydney' });
     // 14:00 UTC on the 27th is already the 28th in Sydney: her day, not the server's.
-    await saveLook(USER, 'l1', undefined, new Date('2026-10-27T14:00:00Z'));
+    await saveLook(USER, 'l1', {}, new Date('2026-10-27T14:00:00Z'));
     expect(repos.looks.save).toHaveBeenCalledWith(USER, 'l1', {
       name: undefined,
       datedName: 'Wednesday 28 Oct',
     });
+    expect(repos.plan.pin).not.toHaveBeenCalled();
   });
 
   it('keeps a typed name, and Robes’ names on Robes’ looks', async () => {
     repos.looks.get.mockResolvedValue(draft);
-    await saveLook(USER, 'l1', 'Gallery day');
+    await saveLook(USER, 'l1', { name: 'Gallery day' });
     expect(repos.looks.save).toHaveBeenLastCalledWith(USER, 'l1', {
       name: 'Gallery day',
       datedName: undefined,
@@ -49,7 +51,19 @@ describe('saving an unnamed look', () => {
 
   it('is not_found for a look that is not hers', async () => {
     repos.looks.get.mockResolvedValue(undefined);
-    await expect(saveLook(USER, 'l1', undefined)).rejects.toMatchObject({ code: 'not_found' });
+    await expect(saveLook(USER, 'l1', {})).rejects.toMatchObject({ code: 'not_found' });
     expect(repos.looks.save).not.toHaveBeenCalled();
+    expect(repos.plan.pin).not.toHaveBeenCalled();
+  });
+
+  // The diary's draft (plan 2026-11-03 D5): Save pins it to the day the chip named, one act.
+  it('pins the saved look to the day the diary asked for', async () => {
+    repos.looks.get.mockResolvedValue({ ...draft, source: 'generated', setId: 's1' });
+    await saveLook(USER, 'l1', { date: '2026-11-04' });
+    expect(repos.looks.save).toHaveBeenCalledWith(USER, 'l1', {
+      name: undefined,
+      datedName: undefined,
+    });
+    expect(repos.plan.pin).toHaveBeenCalledWith(USER, 'l1', ['2026-11-04'], { slot: 'day' });
   });
 });

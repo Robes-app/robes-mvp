@@ -1,7 +1,7 @@
 'use client';
 
 import { queryKeys, useApiClient } from '@robes/api-client/react';
-import type { DiaryDay, DiaryPlace, Piece, PlaceHit } from '@robes/contracts';
+import type { DiaryDay, DiaryPlace, Look, Piece, PlaceHit } from '@robes/contracts';
 import { diary, lookbook } from '@robes/copy';
 import { weekdayDay, weekdayLong } from '@robes/core/calendar';
 import { isTripAsk } from '@robes/core/home';
@@ -14,10 +14,13 @@ import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { useFeatures } from '@/components/features';
+import { AdjustField, AdjustOptions, ThreadLines } from '@/components/looks/adjust-dock';
 import { BalanceQuestion } from '@/components/looks/balance-question';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 import { WardrobePicker } from '@/components/wardrobe/wardrobe-picker';
+import { type Adjust, useAdjust } from '@/lib/adjust';
 import { errorCopy } from '@/lib/error-copy';
+import { useLookEditor } from '@/lib/look-editor';
 import { type HomePlace, PlacePopover } from './place-popover';
 
 const copy = diary.door;
@@ -35,20 +38,26 @@ const passive = `${chip} border-hairline bg-surface-sunk text-ink-faint`;
 
 // The prompt box (Front Door design 3k, plan 2026-11-02 §1.8): the day chip, the place chip with
 // its weather (× leaves the weather out), the hanger to build the day around pieces of hers, her
-// words in the serif, → once there is anything to send. Her words become three suggested looks
-// for the day on the deck; nothing reaches the day until she saves one. The native twin is
-// mobile/src/features/home/PromptBox.tsx.
+// words in the serif, → once there is anything to send. Her words become ONE draft for the day
+// in the slot (design 3b, plan 2026-11-03 §1.1): the box then holds the thread, locks its chips
+// and folds its field until she adjusts; nothing reaches the day until she saves. The native
+// twin is mobile/src/features/home/PromptBox.tsx.
 export function PromptBox({
   day,
   today,
   home,
   hasPieces,
+  sent,
+  onSent,
 }: {
   day: DiaryDay;
   today: string;
   // Her home city with the day's weather there, from the diary's own day.
   home: HomePlace | null;
   hasPieces: boolean;
+  // Her words for this day as sent this session, so the thread can open with them.
+  sent: string | null;
+  onSent: (words: string) => void;
 }) {
   const router = useRouter();
   const api = useApiClient();
@@ -67,6 +76,10 @@ export function PromptBox({
   const [error, setError] = useState<string | null>(null);
   // Her ask, held while the box asks where its pieces come from.
   const [held, setHeld] = useState<string | null>(null);
+  // Her words just sent, until the diary shows the draft they make (reset with the day).
+  const [justSent, setJustSent] = useState<string | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new day, a new send
+  useEffect(() => setJustSent(null), [day.date]);
   // The popover belongs to the day it opened on.
   // biome-ignore lint/correctness/useExhaustiveDependencies: closes when the day changes
   useEffect(() => setPlaceOpen(false), [day.date]);
@@ -119,10 +132,11 @@ export function PromptBox({
     if (holdFor(words, steer)) return;
     setBusy(lookbook.prompt.busyRead);
     try {
-      const { jobId } = await api.call('looks.prompt', {
+      await api.call('looks.prompt', {
         input: {
           prompt: words.length >= 2 ? words : copy.day(weekdayLong(day.date)),
           date: day.date,
+          draft: true,
           ...(pieces.length ? { pieceIds: pieces.map((p) => p.id) } : {}),
           ...(day.place && !off ? { place: day.place } : {}),
           ...(off ? { weather: false } : {}),
@@ -130,7 +144,15 @@ export function PromptBox({
         },
       });
       track('prompt_submitted', { surface: 'home', intent: 'words', scope: 'day', ok: true });
-      router.push(`/looks/style/${jobId}?from=home`);
+      // The draft dresses in the day's slot (plan 2026-11-03): the diary reads the job at once.
+      const said = words.length >= 2 ? words : copy.day(weekdayLong(day.date));
+      onSent(said);
+      setJustSent(said);
+      setText('');
+      setHeld(null);
+      setPieces([]);
+      setBusy(null);
+      refreshDiary();
     } catch (err) {
       track('prompt_submitted', { surface: 'home', intent: 'words', scope: 'day', ok: false });
       setBusy(null);
@@ -154,6 +176,29 @@ export function PromptBox({
       : isToday
         ? copy.today
         : copy.day(weekdayLong(day.date));
+  const chips = {
+    dayLabel: isToday ? diary.today : weekdayDay(day.date),
+    city,
+    wx: off ? null : wx,
+  };
+
+  // A draft on the day: the box is its thread.
+  if (day.draft?.look) {
+    return (
+      <LiveBox
+        key={day.draft.look.id}
+        look={day.draft.look}
+        day={day}
+        running={day.draft.jobId !== null}
+        sent={sent}
+        chips={chips}
+      />
+    );
+  }
+  // Her words sent and the draft not yet minted: the box says so while Robes reads them.
+  if (day.draft?.jobId || justSent !== null) {
+    return <SentBox sent={sent ?? justSent} chips={chips} />;
+  }
 
   return (
     <fieldset
@@ -346,5 +391,116 @@ export function PromptBox({
         onApply={setPieces}
       />
     </fieldset>
+  );
+}
+
+type Chips = { dayLabel: string; city: string | null; wx: DiaryDay['weather'] };
+
+// The chips locked while a draft is live (design 3b): the day and the place it was dressed for.
+function LockedChips({ chips }: { chips: Chips }) {
+  const wxIcon = weatherIcon(chips.wx?.code);
+  return (
+    <div className="flex flex-wrap gap-1.5 px-1.5" aria-hidden>
+      <span className={passive}>
+        <Icon name="plan" size={11} />
+        {chips.dayLabel}
+      </span>
+      {chips.city ? (
+        <span className={`${chip} border-rule-mid bg-surface-sunk text-ink-muted`}>
+          <Icon name="pin" size={11} className="shrink-0" />
+          {chips.city}
+          {chips.wx ? (
+            <>
+              <span className="text-ink-faint">·</span>
+              {wxIcon ? <Icon name={wxIcon} size={11} /> : null}
+              {shortRange(chips.wx.tempRange)}
+            </>
+          ) : null}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+const shell =
+  'flex min-w-0 flex-col gap-3 rounded-sheet border border-rule-mid bg-bg px-1.5 pt-2.5 pb-2.5';
+
+// Her words sent, the draft not yet minted: the thread opens with them and Robes at work.
+function SentBox({ sent, chips }: { sent: string | null; chips: Chips }) {
+  const thread = [
+    ...(sent ? [{ id: 1, who: 'her' as const, text: sent }] : []),
+    { id: 2, who: 'work' as const, text: lookbook.draft.dressing },
+  ];
+  return (
+    <div className={shell} data-testid="prompt-box" data-state="sent">
+      <LockedChips chips={chips} />
+      <ThreadLines thread={thread} />
+    </div>
+  );
+}
+
+// The box while a draft is live (design 3b §1.1): the chips locked, the thread, the options —
+// Dress it again · Adjust · View draft — and the field only while she adjusts. Her words edit the
+// draft's rack through the look prompt, as on its page; the tile in the slot shows the picture.
+function LiveBox({
+  look,
+  day,
+  running,
+  sent,
+  chips,
+}: {
+  look: Look;
+  day: DiaryDay;
+  running: boolean;
+  sent: string | null;
+  chips: Chips;
+}) {
+  const router = useRouter();
+  const adjustRef = useRef<Adjust | null>(null);
+  const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
+  const adjust = useAdjust(look, editor, 'day');
+  adjustRef.current = adjust;
+  const [open, setOpen] = useState(false);
+  // Dressing until the picture lands (a job still running with nothing drawn is dressing too).
+  const dressing = look.framePending || (!look.image && running);
+  // The thread opens with her words and Robes at work; Robes' first line lands with the picture.
+  const seeded = useRef(false);
+  const wasDressing = useRef(false);
+  useEffect(() => {
+    if (!seeded.current) {
+      seeded.current = true;
+      if (sent) adjust.her(sent);
+      if (dressing) adjust.work(lookbook.draft.dressing);
+      else if (sent) adjust.landed(look);
+      wasDressing.current = dressing;
+      return;
+    }
+    if (wasDressing.current && !dressing) adjust.landed(look);
+    wasDressing.current = dressing;
+  }, [dressing, sent, look, adjust]);
+  const view = () => router.push(`/look/${look.id}?day=${day.date}`);
+  const fieldOpen = open || adjust.state.asking;
+  return (
+    <div className={shell} data-testid="prompt-box" data-state="live">
+      <LockedChips chips={chips} />
+      <ThreadLines thread={adjust.state.thread} />
+      {dressing ? null : (
+        <AdjustOptions
+          adjust={adjust}
+          onAdjust={() => setOpen((o) => !o)}
+          adjustOpen={open}
+          onView={view}
+        />
+      )}
+      {fieldOpen && !dressing ? (
+        <AdjustField
+          placeholder={adjust.placeholder}
+          disabled={adjust.busy}
+          onSend={adjust.send}
+          autoFocus={open}
+          testId="prompt-field"
+        />
+      ) : null}
+    </div>
   );
 }

@@ -1,6 +1,8 @@
 import { expect, type Page, test } from '@playwright/test';
+import { Today } from '@robes/contracts';
 import {
   declineConsent,
+  explainError,
   isolateClientIp,
   photographedPiece,
   seriousViolations,
@@ -16,6 +18,103 @@ test.beforeEach(({ context }) => isolateClientIp(context));
 
 async function deckLive(page: Page): Promise<void> {
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
+}
+
+// The draft Robes is making for a day (plan 2026-11-03): its job followed through the API until
+// it ends, so a tile that never settles says why.
+type DayDraft = {
+  jobId: string | null;
+  look: { id: string; framePending: boolean; image: unknown } | null;
+} | null;
+async function readDraft(page: Page, date: string): Promise<DayDraft> {
+  const today = await (await page.request.get('/api/v1/today')).json();
+  // The client parses every response with the contract: what the server sends must pass it.
+  const parsed = Today.safeParse(today);
+  expect(parsed.success, JSON.stringify(parsed.error?.issues ?? null)).toBe(true);
+  return today.diary.days.find((d: { date: string }) => d.date === date)?.draft ?? null;
+}
+
+// Polls a reading until it matches or the time runs out; the last reading is in the failure.
+async function pollUntil(
+  read: () => Promise<string>,
+  ok: (value: string) => boolean,
+  timeoutMs: number,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let last = '';
+  while (Date.now() < deadline) {
+    last = await read();
+    if (ok(last)) return last;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return last;
+}
+
+// Browser-side errors while a test runs, and every answer to the diary read, read back when an
+// expectation fails.
+function watchErrors(page: Page): string[] {
+  const seen: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') seen.push(msg.text().slice(0, 400));
+  });
+  page.on('pageerror', (err) => {
+    void explainError(page, err).then((text) => seen.push(`pageerror: ${text}`));
+  });
+  page.on('requestfailed', (req) => seen.push(`failed: ${req.url()} ${req.failure()?.errorText}`));
+  page.on('response', (res) => {
+    if (!res.url().includes('/api/v1/today')) return;
+    void res
+      .json()
+      .then((body) => {
+        const days = body?.diary?.days ?? [];
+        const drafts = days
+          .filter((d: { draft: unknown }) => d.draft)
+          .map(
+            (d: { date: string; draft: { jobId: string | null; look: { id: string } | null } }) =>
+              `${d.date}:job=${d.draft.jobId ? 'on' : 'off'}:look=${d.draft.look ? 'yes' : 'no'}`,
+          );
+        seen.push(`today ${res.status()} [${drafts.join(',')}]`);
+      })
+      .catch(() => seen.push(`today ${res.status()} unreadable`));
+  });
+  return seen;
+}
+
+// What the browser itself sees in the slot and from the diary read, for a failure's message.
+async function slotReport(page: Page, errors: string[]): Promise<string> {
+  const state = await page.getByTestId('day-slot').getAttribute('data-state');
+  const tiles = await page.getByTestId('draft-tile').count();
+  const tile = tiles ? await page.getByTestId('draft-tile').getAttribute('data-state') : 'none';
+  return `slot=${state} tile=${tile} · ${errors.slice(-12).join(' | ')}`;
+}
+async function draftLanded(page: Page, date: string): Promise<void> {
+  const api = page.request;
+  await expect.poll(() => readDraft(page, date), { timeout: 15_000 }).not.toBeNull();
+  const jobId = (await readDraft(page, date))?.jobId;
+  if (jobId) {
+    let snap: { status: string; error: string | null } = { status: 'queued', error: null };
+    await expect
+      .poll(
+        async () => {
+          snap = await (await api.get(`/api/v1/jobs/${jobId}`)).json();
+          return snap.status;
+        },
+        { timeout: 45_000 },
+      )
+      .toMatch(/succeeded|partial|failed|cancelled/);
+    expect(snap.status, JSON.stringify(snap)).toMatch(/succeeded|partial/);
+  }
+  await expect
+    .poll(
+      async () => {
+        const d = await readDraft(page, date);
+        return d
+          ? `job=${d.jobId} look=${d.look?.id ?? null} framePending=${d.look?.framePending} image=${d.look?.image !== null}`
+          : 'none';
+      },
+      { timeout: 30_000 },
+    )
+    .toMatch(/^job=null look=[0-9a-f-]+ framePending=false/);
 }
 
 // Getting to know you (handoff 30 Oct): name and identity are required; styles, brands and
@@ -162,6 +261,9 @@ test('day one: the band asks for a model and first pieces; each × asks once, th
 test('the diary: the strip selects a day, the slot adds and changes its look, the box dresses it', async ({
   page,
 }) => {
+  // The day flows, then a generation: more than the default budget.
+  test.setTimeout(120_000);
+  const errors = watchErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);
   await declineConsent(page);
@@ -227,40 +329,76 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
 
-  // Back to today: her words for the day go to the deck, dated.
+  // Back to today: her words make ONE draft for the day, dressing in the slot (plan 2026-11-03);
+  // the box holds the thread meanwhile and never leaves home.
   await page.getByTestId(`diary-day-${date}`).click();
   const box = page.getByPlaceholder('Plan an outfit for today');
   await box.fill('Dinner with friends');
   await page.getByTestId('prompt-send').click();
-  await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
-  await expect(page.getByText(/^For \w{3} \d{1,2} \w{3}$|^From your prompt$/)).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(page).toHaveURL(/\/(\?day=.*)?$/);
+  await expect(page.getByTestId('prompt-box')).toContainText('Dinner with friends');
+  await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
+  await draftLanded(page, date);
+  const tile = await pollUntil(
+    () => slotReport(page, errors),
+    (v) => v.includes('tile=ready'),
+    30_000,
+  );
+  expect(tile, tile).toContain('tile=ready');
+  await expect(page.getByTestId('prompt-box')).toContainText('Here’s a first look');
+  // Her words adjust the draft from the box; View draft opens its page on the day.
+  await expect(page.getByRole('button', { name: 'Dress it again' })).toBeVisible();
+  await page.getByRole('button', { name: 'View draft' }).click();
+  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}\?day=/);
+  await expect(page.getByText('Draft look')).toBeVisible();
+  // Save pins it to the day in the same act: home shows it as the day's card, just saved.
+  await page.getByTestId('look-bar').getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL(/\/\?day=.*&saved=/);
+  await expect(page.getByTestId('saved-badge')).toBeVisible();
+  await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'look');
 });
 
-test('the home box: words become three looks on the deck; a photographed piece styles three ways', async ({
+test('the home box: words become one draft in the slot; the hanger builds it around her pieces', async ({
   page,
 }) => {
   // Two generations and a photographed piece: more than the default budget.
-  test.setTimeout(90_000);
+  test.setTimeout(150_000);
+  const errors = watchErrors(page);
   await signIn(page);
   await declineConsent(page);
 
-  // The box carries the day it names, so the deck is dated ("For Mon 2 Nov"), not "From your prompt".
+  // Her words make a draft for the day, dressing in the slot; the box holds the thread.
+  const { date, diary } = await (await page.request.get('/api/v1/today')).json();
+  const tomorrow: string = diary.days[11].date;
   const box = page.getByPlaceholder('Plan an outfit for today');
   await box.fill('Something easy for the gallery');
   await box.press('Enter');
-  await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
-  await expect(page.getByText(/^For \w{3} \d{1,2} \w{3}$|^From your prompt$/)).toBeVisible({
-    timeout: 30_000,
-  });
-  await deckLive(page);
-  await page.getByRole('link', { name: 'Home' }).first().click();
+  await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
+  await draftLanded(page, date);
+  const tile = await pollUntil(
+    () => slotReport(page, errors),
+    (v) => v.includes('tile=ready'),
+    30_000,
+  );
+  expect(tile, tile).toContain('tile=ready');
   await expect(page.getByRole('heading', { level: 1, name: /, Niall\.$/ })).toBeVisible();
+  // ↻ on the tile: another take, same brief, drawn in place.
+  await page.getByRole('button', { name: 'Another take, same brief' }).click();
+  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'generating');
+  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
+    timeout: 60_000,
+  });
 
-  // The hanger (design 3k): pieces of hers become tokens the ask is built around.
+  // Today's box is the draft's thread now (design 3b): no hanger until she saves or lets it go.
+  await expect(page.getByTestId('prompt-box')).toHaveAttribute('data-state', 'live');
+  await expect(page.getByTestId('hanger')).toHaveCount(0);
+
+  // The hanger (design 3k), on tomorrow's empty day: pieces of hers become tokens the ask is
+  // built around.
   const pieceId = await photographedPiece(page, 'Camel coat');
   await page.reload();
+  await page.getByTestId(`diary-day-${tomorrow}`).click();
+  await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'empty');
   await page.getByTestId('hanger').click();
   const flyout = page.getByTestId('wardrobe-picker');
   // The foot sits in the sheet's footer, beside the picker's list.
@@ -274,8 +412,12 @@ test('the home box: words become three looks on the deck; a photographed piece s
   await expect(page.getByText('Where should the pieces in your look come from?')).toBeVisible();
   await page.getByPlaceholder('Or say it your way').fill('Suggest new pieces');
   await page.getByPlaceholder('Or say it your way').press('Enter');
-  await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
-  await expect(page.getByText(/^From your prompt$|^For \w{3} \d{1,2} \w{3}$/)).toBeVisible({
+  // One draft tile dresses in tomorrow's slot; today keeps its own.
+  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'generating', {
     timeout: 30_000,
   });
+  await expect(page.getByTestId('draft-tile')).toHaveCount(1);
+  await page.getByTestId(`diary-day-${date}`).click();
+  await expect(page.getByTestId('draft-tile')).toHaveCount(1);
+  await expect(page.getByTestId('prompt-box')).toHaveAttribute('data-state', 'live');
 });

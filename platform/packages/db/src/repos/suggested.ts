@@ -1,3 +1,4 @@
+import { MAX_DRAFTS } from '@robes/core/looks';
 import { sql, type Transaction } from 'kysely';
 import type { Db } from '../client';
 import type { DB } from '../database.types';
@@ -66,9 +67,53 @@ export function suggestedLooksRepo(db: Db) {
       .execute();
   }
 
+  // A draft Robes makes has no one to ask (plan 2026-11-03): the day's earlier unsaved draft from
+  // the prompt box gives way to the new one, and past five drafts the oldest goes, as Save's
+  // letGoOldest would.
+  async function makeDraftRoom(
+    trx: Transaction<DB>,
+    userId: UserId,
+    dates: readonly string[],
+    incoming: number,
+  ) {
+    if (dates.length) {
+      await trx
+        .updateTable('looks')
+        .set({ deletedAt: sql`now()` })
+        .where('userId', '=', userId)
+        .where('status', '=', 'draft')
+        .where('source', '=', 'generated')
+        .where('deletedAt', 'is', null)
+        .where(sql<boolean>`date_hint = any(${[...dates]}::date[])`)
+        .execute();
+    }
+    const drafts = await trx
+      .selectFrom('looks')
+      .select('id')
+      .where('userId', '=', userId)
+      .where('status', '=', 'draft')
+      .where('deletedAt', 'is', null)
+      .orderBy('createdAt')
+      .forUpdate()
+      .execute();
+    const over = drafts.length + incoming - MAX_DRAFTS;
+    if (over <= 0) return;
+    await trx
+      .updateTable('looks')
+      .set({ deletedAt: sql`now()` })
+      .where('userId', '=', userId)
+      .where(
+        'id',
+        'in',
+        drafts.slice(0, over).map((d) => d.id),
+      )
+      .execute();
+  }
+
   return {
-    // A generation's three looks, minted together as suggestions (legacy _lkSuggLand). A piece she
-    // no longer owns drops out; the anchor stays only while it is hers.
+    // A generation's three looks, minted together as suggestions (legacy _lkSuggLand) — or, from
+    // the prompt box, one look minted as her draft for the day (plan 2026-11-03). A piece she no
+    // longer owns drops out; the anchor stays only while it is hers.
     // `claim` marks the look whose frame this job draws as already drawing, before any client sees
     // the set, so nobody asks for that frame a second time.
     async mintSet(
@@ -76,8 +121,18 @@ export function suggestedLooksRepo(db: Db) {
       setId: string,
       specs: readonly SuggestedSpec[],
       claim?: { setIndex: number; frameKey: string; jobId: string },
+      opts: { status?: 'suggested' | 'draft' } = {},
     ) {
+      const status = opts.status ?? 'suggested';
       return db.transaction().execute(async (trx) => {
+        if (status === 'draft') {
+          await makeDraftRoom(
+            trx,
+            userId,
+            [...new Set(specs.flatMap((s) => (s.dateHint ? [s.dateHint] : [])))],
+            specs.length,
+          );
+        }
         const anchors = await ownedOnly(
           trx,
           userId,
@@ -93,7 +148,7 @@ export function suggestedLooksRepo(db: Db) {
               nameProvisional: true,
               note: spec.note?.slice(0, 2000) ?? null,
               source: 'generated',
-              status: 'suggested',
+              status,
               setId,
               setIndex: spec.setIndex,
               anchorPieceId:
@@ -118,7 +173,8 @@ export function suggestedLooksRepo(db: Db) {
       });
     },
 
-    // ↻ on a suggestion: the same row re-written in place (the frame comes again).
+    // ↻ on a suggestion, or Dress it again on a draft from the prompt box: the same row re-written
+    // in place (the frame comes again; a draft's working notes go with the old rack).
     // The frame it draws next is claimed in the same write (see mintSet).
     async rewrite(
       userId: UserId,
@@ -135,6 +191,7 @@ export function suggestedLooksRepo(db: Db) {
             note: spec.note?.slice(0, 2000) ?? null,
             proposals: spec.proposals.length ? JSON.stringify(spec.proposals) : null,
             styling: null,
+            edits: null,
             frameAssetId: null,
             frameKey: null,
             renderStatus: 'pending',
@@ -145,7 +202,7 @@ export function suggestedLooksRepo(db: Db) {
           })
           .where('userId', '=', userId)
           .where('id', '=', lookId)
-          .where('status', '=', 'suggested')
+          .where('status', 'in', ['suggested', 'draft'])
           .where('deletedAt', 'is', null)
           .executeTakeFirst();
         if (res.numUpdatedRows === 0n) return false;

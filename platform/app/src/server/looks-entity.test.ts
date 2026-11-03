@@ -41,6 +41,8 @@ vi.mock('./asset-urls', () => ({
 }));
 
 const { toLooks } = await import('./looks-entity');
+const { frameKey } = await import('@robes/core/looks');
+const { rackHash } = await import('./render-key');
 
 const row = (o: Record<string, unknown> = {}) =>
   ({
@@ -115,6 +117,33 @@ describe('a look’s frame', () => {
       NOW,
     );
     expect(look).toMatchObject({ framePending: false, image: { assetId: PHOTO } });
+  });
+});
+
+// The picture is stale once the rack it was drawn for differs from the rack now (plan 2026-11-03).
+describe('a stale picture', () => {
+  it('reads stale when the frame was drawn for another rack', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    const current = frameKey([], [], {});
+    const fresh = row({ frameAssetId: FRAME, frameKey: current, renderStatus: 'ready' });
+    expect((await toLooks(USER, [fresh], NOW))[0]?.pictureStale).toBe(false);
+    const stale = row({ frameAssetId: FRAME, frameKey: 'other', renderStatus: 'ready' });
+    expect((await toLooks(USER, [stale], NOW))[0]?.pictureStale).toBe(true);
+  });
+
+  it('reads stale when the render on her model was for another rack', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    const hash = rackHash([], {});
+    const fresh = row({
+      renderAssetId: FRAME,
+      renderKey: `twin:abc:${hash}`,
+      renderStatus: 'ready',
+    });
+    expect((await toLooks(USER, [fresh], NOW))[0]?.pictureStale).toBe(false);
+    const stale = row({ renderAssetId: FRAME, renderKey: 'twin:abc:other', renderStatus: 'ready' });
+    expect((await toLooks(USER, [stale], NOW))[0]?.pictureStale).toBe(true);
+    // No picture yet: nothing to be stale.
+    expect((await toLooks(USER, [row()], NOW))[0]?.pictureStale).toBe(false);
   });
 });
 

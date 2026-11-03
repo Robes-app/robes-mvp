@@ -340,6 +340,19 @@ export function looksRepo(db: Db) {
     },
 
     // A generation's looks (the keep-or-pass deck), in the order Robes wrote them.
+    // The drafts Robes made from the prompt box for the days in a window (plan 2026-11-03),
+    // newest first: the diary shows the newest per day until she saves or discards it.
+    draftsFor(userId: UserId, from: string, to: string) {
+      return active()
+        .select(LOOK_SELECT)
+        .where('userId', '=', userId)
+        .where('status', '=', 'draft')
+        .where('source', '=', 'generated')
+        .where(sql<boolean>`date_hint between ${from}::date and ${to}::date`)
+        .orderBy('createdAt', 'desc')
+        .execute();
+    },
+
     listSet(userId: UserId, setId: string) {
       return active()
         .select(LOOK_SELECT)

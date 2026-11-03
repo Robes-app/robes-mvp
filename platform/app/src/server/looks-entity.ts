@@ -2,11 +2,13 @@ import 'server-only';
 import { ApiError } from '@robes/api';
 import { Edits, Look, LookRole, LookStatus, Proposal, Styling } from '@robes/contracts';
 import { looks as copy } from '@robes/copy';
+import { frameKey } from '@robes/core/looks';
 import { LookPiecesNotFound, type UserId } from '@robes/db';
 import { z } from 'zod';
 import { toImage } from './asset-urls';
 import { repos } from './db';
 import { mediaDelivery } from './media';
+import { rackHash } from './render-key';
 import { toPieces } from './wardrobe';
 
 const Proposals = z.array(z.unknown()).catch([]);
@@ -133,6 +135,28 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       now - row.renderClaimedAt.getTime() < CLAIM_MS;
     const framePending =
       drawing || (row.frameAssetId ? images.get(row.frameAssetId)?.status === 'pending' : false);
+    const lookPieces = byLook.get(row.id) ?? [];
+    const styling = Styling.catch({}).parse(row.styling ?? {});
+    // The picture was drawn for another rack than this one (plan 2026-11-03 §1.4): the frame's
+    // key, or the render's rack hash, no longer matches the pieces and how they are worn.
+    const pictureStale =
+      row.frameAssetId && row.frameKey
+        ? row.frameKey !==
+          frameKey(
+            lookPieces.map((p) => p.piece.id),
+            proposals.map((p) => ({ name: p.name, brand: p.brand })),
+            styling,
+          )
+        : row.renderAssetId !== null &&
+            row.renderStatus === 'ready' &&
+            !frameRender &&
+            row.renderKey
+          ? row.renderKey.split(':').at(-1) !==
+            rackHash(
+              lookPieces.map((p) => ({ id: p.piece.id })),
+              styling,
+            )
+          : false;
     return Look.parse({
       id: row.id,
       status: LookStatus.parse(row.status),
@@ -151,9 +175,10 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       composedByRobes: ROBES_SOURCES.has(row.source) || proposals.length > 0,
       // A frame look never renders on her model (legacy 2026-10-07).
       onModel: frameRender ? null : (row.renderStatus ?? null),
-      pieces: byLook.get(row.id) ?? [],
+      pictureStale,
+      pieces: lookPieces,
       proposals,
-      styling: Styling.catch({}).parse(row.styling ?? {}),
+      styling,
       edits: Edits.catch({}).parse(row.edits ?? {}),
       anchor: anchor
         ? { id: anchor.id, label: anchor.label, brand: anchor.brand, image: anchor.image }

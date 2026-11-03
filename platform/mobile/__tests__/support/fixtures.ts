@@ -100,6 +100,7 @@ export function look(overrides: Partial<Look> = {}): Look {
     frame: false,
     framePending: false,
     composedByRobes: false,
+    pictureStale: false,
     pieces: [{ piece: piece(), slot: null, role: null }],
     proposals: [],
     styling: {},

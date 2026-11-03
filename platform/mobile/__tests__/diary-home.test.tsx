@@ -46,6 +46,7 @@ const diaryOf = (entries: Record<string, PlanEntry[]>): Today['diary'] => {
         name: null,
         place: null,
         weather: null,
+        draft: null,
         entries: entries[date] ?? [],
       }),
     ),
@@ -139,7 +140,8 @@ test('the strip: 21 cells, today’s page centred, a ring for a plan and a dot f
   expect(screen.getByTestId('prompt-box')).toBeTruthy();
 });
 
-test('a day with two looks shows the OOTD and the +1 stack, which opens the day', async () => {
+// Design 3k "Wed 4" (plan 2026-11-03 §7, D7): every look on the day is its own card in the slot.
+test('a day with two looks shows the OOTD, then the second look as its own card', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DiaryHome />);
   await fireEvent.press(await screen.findByTestId(`diary-day-${TWO}`));
@@ -148,14 +150,14 @@ test('a day with two looks shows the OOTD and the +1 stack, which opens the day'
   });
   const card = screen.getByTestId('ootd-card');
   expect(card.props.accessibilityLabel).toBe(diary.slot.open('Weekend navy'));
-  const stack = screen.getByTestId('ootd-stack');
-  expect(stack.props.accessibilityLabel).toBe(diary.slot.moreLabel(1, 'Saturday'));
-  await fireEvent.press(stack);
-  expect(mockRouter.push).toHaveBeenCalledWith(`/day/${TWO}`);
+  expect(screen.queryByTestId('ootd-stack')).toBeNull();
+  const second = screen.getByTestId('day-card-ffffffff-ffff-4fff-8fff-ffffffffffff');
+  await fireEvent.press(second);
+  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${SECOND_LOOK}?day=${TWO}`);
   await fireEvent.press(card);
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}?day=${TWO}`);
-  // The lookbook icon opens the drawer to change the look, the day's look ticked as Scheduled.
-  expect(screen.getByRole('button', { name: diary.slot.change })).toBeTruthy();
+  // Each card carries the lookbook icon that changes its look from the drawer.
+  expect(screen.getAllByRole('button', { name: diary.slot.change })).toHaveLength(2);
   // The box follows the day, so the deep link `?day=` lands on it too.
   expect(screen.getByTestId('prompt-box')).toBeTruthy();
 });

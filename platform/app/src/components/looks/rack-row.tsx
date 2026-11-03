@@ -12,8 +12,10 @@ import { imageSources } from '@/lib/image';
 export type RowMark = RowNote | { kind: 'added' };
 
 // One piece on a look's rack, composed from the wardrobe row's lines (legacy fix 13): Category ·
-// Brand, the name without its brand, then the role and the exception. The card opens the piece.
-// The native twin is mobile/src/features/looks/RackRow.tsx.
+// Brand, the name without its brand, then the role (with the price on a piece to find) and the
+// exception. The card opens the piece; the hanger swaps it from her wardrobe, ♡ saves a piece to
+// find (Front Door design 3b, plan 2026-11-03 §1.5). A row the prompt changed reads warm with an
+// ink dot at its edge. The native twin is mobile/src/features/looks/RackRow.tsx.
 export function RackRowCard({
   row,
   image,
@@ -41,20 +43,25 @@ export function RackRowCard({
   // The piece card's own lines (one anatomy with the wardrobe row): the sheet's eyebrow, the
   // serif name, and the role in rose as its status (Look redline 27 Oct). The name is already
   // stripped of its brand here (nameNoBrand reads "… by Brand" too).
+  // The role line carries the price of a piece to find ("EXCLAMATION · €180").
+  const role = row.role ? copy.rack.roles[row.role] : '';
+  const price = proposal?.pricePoint?.trim() || '';
+  const status = [role, price].filter(Boolean).join(' · ');
   const lines = cardLines({
     piece: { label: name, category: row.category, categoryL2: row.categoryL2 ?? null, brand },
-    status: row.role ? { text: copy.rack.roles[row.role], warm: true } : null,
+    status: status ? { text: status, warm: true } : null,
   });
   // The exception follows the role, faint.
   const ctx = [
     proposal ? (proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours) : null,
     proposal?.retailerHint || null,
-    proposal?.pricePoint || null,
   ].filter(Boolean);
   const changed = mark !== null && mark !== undefined;
   const body = (
     <>
-      <div className="w-13 shrink-0 overflow-hidden rounded-crisp">
+      <div
+        className={`w-13 shrink-0 overflow-hidden rounded-crisp ${proposal ? 'border border-dashed border-selected-line' : ''}`}
+      >
         {sources ? (
           <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />
         ) : (
@@ -106,8 +113,14 @@ export function RackRowCard({
   return (
     <li
       data-testid={`rack-row-${row.key}`}
-      className={`flex items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
+      className={`relative flex items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
     >
+      {changed ? (
+        <span
+          aria-hidden
+          className="absolute top-1/2 -left-1 size-2 -translate-y-1/2 rounded-pill bg-ink"
+        />
+      ) : null}
       {row.pieceId ? (
         <Link
           href={`/piece/${row.pieceId}`}
@@ -129,7 +142,9 @@ export function RackRowCard({
             onClick={onWish}
           />
         ) : null}
-        {onSwap ? <IconButton icon="swap" label={copy.rack.swap(name)} onClick={onSwap} /> : null}
+        {onSwap ? (
+          <IconButton icon="wardrobe" label={copy.rack.swap(name)} onClick={onSwap} />
+        ) : null}
         {onRemove ? (
           <IconButton icon="close" label={copy.rack.remove(name)} onClick={onRemove} />
         ) : null}

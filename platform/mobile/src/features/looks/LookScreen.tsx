@@ -1,7 +1,7 @@
 import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook as copy } from '@robes/copy';
-import { anchorName, isHandBuiltDraft, noteShort } from '@robes/core/looks';
+import { anchorName, noteShort } from '@robes/core/looks';
 import {
   Button,
   EmptyState,
@@ -13,19 +13,20 @@ import {
   Text,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
-import { Composer } from './Composer';
+import { AdjustDock } from './AdjustDock';
+import { type Adjust, useAdjust } from './adjust';
 import { DiarySheet } from './DiarySheet';
+import { DraftPage } from './DraftPage';
 import { GenericModelBadge } from './GenericModelBadge';
 import { JOB_REFRESH_MS } from './ideas';
 import { LookDetail } from './LookDetail';
-import { LookPicture } from './LookPicture';
-import { LookPromptBox } from './LookPromptBox';
+import { LookMix, LookPicture } from './LookPicture';
 import { LookVerdict } from './LookVerdict';
 import { useLookEditor } from './look-editor';
-import { useInvalidateLooks, useLetGo, useSaveLook } from './look-states';
+import { useLetGo, useSaveLook } from './look-states';
 import { RackRowCard } from './RackRow';
 import { SwapSheet } from './SwapSheet';
 
@@ -46,9 +47,9 @@ export function LookScreen({ id }: { id: string }) {
   const look = query.data;
   return (
     <>
-      {isHandBuiltDraft(look) ? (
-        // A draft she builds by hand stays in the composer until she saves it.
-        <Composer look={look} onSaved={setJustSaved} />
+      {look.status === 'draft' ? (
+        // Every draft — from the prompt box or built by hand — is the one draft page (plan 2026-11-03).
+        <DraftPage look={look} onSaved={setJustSaved} />
       ) : look.status === 'saved' ? (
         <LookDetail id={id} />
       ) : (
@@ -74,8 +75,10 @@ function eyebrowOf(look: Look): string {
 // Suggested (F8) and draft (F9 / 4d): the rack, the prompt box and one bar.
 function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => void }) {
   const router = useRouter();
-  const editor = useLookEditor(look);
-  const refresh = useInvalidateLooks();
+  const adjustRef = useRef<Adjust | null>(null);
+  const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
+  const adjust = useAdjust(look, editor, look.status === 'suggested' ? 'suggested' : 'draft');
+  adjustRef.current = adjust;
   const save = useSaveLook(onSaved, look.status === 'suggested' ? 'suggested' : 'draft');
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [swapping, setSwapping] = useState<string | null>(null);
@@ -114,17 +117,25 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
               onCancel={() => setName(look.nameProvisional ? '' : look.name)}
             />
           )}
-          <Text size="small" tone="muted">
-            {copy.meta.pieces(editor.rack.rows.length)}
-          </Text>
         </View>
         {look.image || look.setId ? (
-          <View>
-            <LookPicture look={look} />
-            {suggested && look.frame ? <GenericModelBadge /> : null}
+          <View className="gap-3">
+            <LookMix
+              yours={editor.rack.rows.filter((r) => r.pieceId).length}
+              toFind={editor.rack.rows.filter((r) => r.proposal).length}
+              composed={look.composedByRobes}
+            />
+            <View>
+              <LookPicture look={look} />
+              {suggested && look.frame ? <GenericModelBadge /> : null}
+            </View>
           </View>
         ) : null}
-        {look.note ? <Text>{noteShort(look.note)}</Text> : null}
+        {look.note ? (
+          <Text italic tone="muted" style={{ fontSize: 17 }}>
+            {noteShort(look.note)}
+          </Text>
+        ) : null}
         <View className="gap-3">
           <Eyebrow>{copy.rack.title(editor.rack.rows.length)}</Eyebrow>
           {editor.rack.rows.length === 0 ? (
@@ -162,18 +173,10 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
           )}
         </View>
         {editor.rack.rows.length > 0 ? (
-          <LookPromptBox
-            lookId={look.id}
+          <AdjustDock
+            adjust={adjust}
             name={look.name}
             surface={suggested ? 'suggested' : 'draft'}
-            rack={editor.rack}
-            anchorPieceId={look.anchor?.id ?? null}
-            changed={editor.changed}
-            draft={!suggested}
-            onAnswer={(result) => {
-              editor.answer(result);
-              if (suggested) refresh();
-            }}
           />
         ) : null}
         {suggested ? (
