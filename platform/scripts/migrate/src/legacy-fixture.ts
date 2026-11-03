@@ -35,6 +35,7 @@ export const LEGACY_SQL_ORDER = [
   'twin_migration.sql',
   'colour_model_migration.sql',
   'material_migration.sql',
+  'non_binary_gender_migration.sql',
 ] as const;
 
 // The legacy app's schema sits beside platform/ only on branches that carry it (beta, not main).
