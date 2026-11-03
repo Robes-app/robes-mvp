@@ -30,6 +30,7 @@ Breaking one of these has been the bug every time.
 - **Hidden, not deleted**: the trip (`_RB_TRIP_HIDDEN`, relaunch checklist in the history's 2026-10-10 entry), moodboards (`_RB_MB_HIDDEN`). The weekly track is deleted (ADR-001) — week planning is day chips in the Diary.
 
 ## Keep beta up
+- **The legacy database is frozen (2026-11-03).** No new `supabase/*.sql`, and nothing changed in the Supabase SQL editor or Table Editor: Robes_p0 now also holds production's `app` schema. New work lands on the platform, and a database change is a platform migration (`platform/docs/runbooks/database-migrations.md`). Terms: `GLOSSARY.md`.
 - Work on `beta`. Keep `main` in sync with path-level PRs from beta (`sync/<topic>` branches: `platform/`, this file, the history) — never a whole-branch merge, which would put the beta app on www.byrobes.com. Commit or push only when asked.
 - Migrations are run by hand and lag the deploy, so **every new column ships with a client degrade**: strip the column on a PGRST204 naming it, retry, and stand the feature down quietly (`supabase/CLAUDE.md`).
 - Run the harness for every surface you touch and read its **exit code**, not its last line (`scripts/CLAUDE.md`).

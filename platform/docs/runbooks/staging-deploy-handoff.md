@@ -18,6 +18,10 @@ A blouse with a Sézane collar label still files with no brand, print or materia
 
 Do **Part A** today so Annie can test. Do **Part B** and **Part C** so it never happens again.
 
+**Status, 2026-11-03:** Part A done (workers deployed 11:29 UTC; they had been on the 27 Oct
+build, not 23 Oct). The values in step 3 below are the ones that matched AWS on that day. Part B
+variables set; see the Done-when list for what's left.
+
 ## Rules for the agent
 
 - Staging only. Never touch `Production/*` or the `production` environment.
@@ -45,20 +49,21 @@ Needs AWS credentials for account 259887029472 with CDK deploy rights (the ones 
    ```bash
    aws sts get-caller-identity   # Account must be 259887029472
    ```
-3. Set the synth inputs. Use the **same values as the 23 Oct deploy**, or the diff will strip
-   them:
+3. Set the synth inputs to match what's deployed, or the diff will strip them:
    ```bash
    export ROBES_STAGING_AWS_ACCOUNT_ID=259887029472
    export ROBES_STAGING_BUDGETS=off
    export ROBES_STAGING_GENERATE_RESERVED_CONCURRENCY=0
-   export ROBES_STAGING_ALERT_EMAIL=...   # the address that gets staging alerts today
-   export ROBES_POSTHOG_KEY=...           # the PostHog project key the workers carry today
-   # Only if they were set on 23 Oct (staging has no custom media domain yet, so normally unset):
-   # export ROBES_STAGING_MEDIA_DOMAIN=... ROBES_STAGING_MEDIA_CERT_ARN=...
+   # Staging HAS a media domain: leave these unset and the alias comes off the distribution.
+   export ROBES_STAGING_MEDIA_DOMAIN=media.staging.byrobes.com
+   export ROBES_STAGING_MEDIA_CERT_ARN=arn:aws:acm:us-east-1:259887029472:certificate/d5942a0f-f1c1-49f4-b98e-56f80c373a25
+   # Comma-separated; each address gets an SNS subscription (and must confirm it by email).
+   export ROBES_STAGING_ALERT_EMAIL=annie@byrobes.com,niall@codu.co
+   # ROBES_POSTHOG_KEY: leave unset; config falls back to the shared project key.
    ```
-   To find the current values without guessing: in AWS Lambda (eu-west-1), open any
-   `robes-staging-*` worker → Configuration → Environment variables (`POSTHOG_KEY`), and SNS →
-   topic `robes-staging-alerts` → Subscriptions (the alert email).
+   To check against AWS rather than trust this file: CloudFront → the distribution aliased
+   `media.staging.byrobes.com` (alias and ACM cert), and SNS → topic `robes-staging-alerts` →
+   Subscriptions.
 4. Diff, read it, then deploy:
    ```bash
    cd infra
@@ -93,18 +98,15 @@ This lets the **Run workflow** button deploy staging, and lets Part C make it au
    gh variable set APP_URL --env staging -R $R -b https://staging.byrobes.com
    gh variable set BUDGETS --env staging -R $R -b off
    gh variable set GENERATE_RESERVED_CONCURRENCY --env staging -R $R -b 0
-   gh variable set ALERT_EMAIL --env staging -R $R -b '<same as Part A>'
-   gh variable set POSTHOG_KEY --env staging -R $R -b '<same as Part A>'   # a publishable key, not a secret
-   # Only if Part A used them: MEDIA_DOMAIN, MEDIA_CERT_ARN, BUDGET_EMAIL, CLOUDFRONT_PUBLIC_KEY
+   gh variable set MEDIA_DOMAIN --env staging -R $R -b media.staging.byrobes.com
+   gh variable set MEDIA_CERT_ARN --env staging -R $R -b <the cert ARN from Part A step 3>
+   gh variable set ALERT_EMAIL --env staging -R $R -b annie@byrobes.com,niall@codu.co
+   # POSTHOG_KEY, BUDGET_EMAIL, CLOUDFRONT_PUBLIC_KEY: not needed (config defaults / committed key)
    ```
-3. Add the one secret, the **migration** role's URL for the staging database (owns the schema;
-   never the runtime `robes_app` URL). It's the value Vercel's staging build uses as
-   `DATABASE_ADMIN_URL`. Have the human paste it at the prompt so it never lands in history:
-   ```bash
-   gh secret set MIGRATION_DATABASE_URL --env staging -R Robes-app/robes-mvp
-   ```
+3. No database secret: the workflow doesn't migrate (2026-11-03). Vercel's staging build is the
+   one place staging migrates (`database-migrations.md`).
 4. Test it: GitHub → Actions → **platform-deploy-staging** → **Run workflow** → branch `beta`.
-   It must go green through `db migrate`, `cdk deploy (Staging)` and `smoke`. If `cdk deploy`
+   It must go green through `cdk deploy (Staging)` and `smoke`. If `cdk deploy`
    fails on credentials, re-check step 1 and the environment name.
 
 ## Part C: deploy on every `beta` merge (1 min, after Part B is green)
@@ -121,8 +123,8 @@ the variable to `false`.
 
 ## Done when
 
-- [ ] Part A: `cdk deploy` finished with nothing unexpected removed; a photo read on staging
-      returns brand, print and material.
+- [x] Part A: `cdk deploy` finished with nothing unexpected removed (2026-11-03).
+- [ ] A photo read on staging returns brand, print and material (Annie).
 - [ ] Part B: a manual **Run workflow** on `beta` is green.
 - [ ] Part C: `STAGING_AUTO_DEPLOY=true`, and the next `beta` merge's deploy is green.
 - [ ] Update `environments.md` §4 step 10: the "GitHub environments are not set up" line becomes

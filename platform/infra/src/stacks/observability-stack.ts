@@ -43,8 +43,8 @@ export class ObservabilityStack extends RobesStack {
         conditions: { StringEquals: { 'aws:SourceAccount': this.account } },
       }),
     );
-    if (config.alerts.email) {
-      this.topic.addSubscription(new subscriptions.EmailSubscription(config.alerts.email));
+    for (const email of config.alerts.emails) {
+      this.topic.addSubscription(new subscriptions.EmailSubscription(email));
     }
     const notify = new actions.SnsAction(this.topic);
     const alarm = (a: cloudwatch.Alarm): void => {
