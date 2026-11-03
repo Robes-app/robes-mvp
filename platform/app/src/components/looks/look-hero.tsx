@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
 import { useHerPhoto } from './her-photo';
 import { LookImage } from './look-image';
-import { LookPicture } from './look-page';
+import { LookMix, LookPicture } from './look-page';
 
 const copy = looksCopy.page;
 const seasons = lookbook.refine.seasons;
@@ -105,6 +105,11 @@ export function LookHero({
   return (
     <div className="flex flex-col gap-3">
       <Eyebrow>{eyebrow}</Eyebrow>
+      <LookMix
+        yours={look.pieces.length}
+        toFind={look.proposals.length}
+        composed={look.composedByRobes}
+      />
       <div className="relative">
         {look.frame && !(hasPhoto && look.record === 'photo') ? (
           <LookPicture look={look} />

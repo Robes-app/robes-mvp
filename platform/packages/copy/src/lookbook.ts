@@ -103,6 +103,9 @@ export const lookbook = {
   },
   composedByRobes: 'Composed by Robes',
   noteLabel: 'The look',
+  // The text block over a look's picture (plan 2026-11-03 §1.3): what it is made of.
+  mix: (yours: number, toFind: number): string =>
+    toFind === 0 ? `The look · ${pieces(yours)}` : `The look · ${yours} yours, ${toFind} to find`,
   // The Lookbook's Filter drawer (legacy Refine): the axes a saved look can be narrowed by.
   refine: {
     open: 'Filter',

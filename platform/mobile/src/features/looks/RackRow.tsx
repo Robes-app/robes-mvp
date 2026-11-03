@@ -10,8 +10,10 @@ import { renditionUri } from '@/lib/images';
 export type RowMark = RowNote | { kind: 'added' };
 
 // One piece on a look's rack, composed from the wardrobe row's lines (legacy fix 13): Category ·
-// Brand, the name without its brand, then the role and the exception ("Not yours yet", a price).
-// The whole card opens the piece; ♡ saves a proposal to her wishlist; ⇅ swaps it while editing.
+// Brand, the name without its brand, then the role (with the price on a piece to find) and the
+// exception ("Not yours yet"). The whole card opens the piece; ♡ saves a piece to find to her
+// wishlist; the hanger swaps it from her wardrobe (Front Door design 3b, plan 2026-11-03 §1.5).
+// A row the prompt changed reads warm with an ink dot at its edge. Web twin: rack-row.tsx.
 export function RackRowCard({
   row,
   image,
@@ -44,8 +46,11 @@ export function RackRowCard({
   const ctx = [
     proposal ? (proposal.wishlisted ? copy.rack.wishlist : copy.rack.notYours) : null,
     proposal?.retailerHint || null,
-    proposal?.pricePoint || null,
   ].filter(Boolean);
+  // The role line carries the price of a piece to find ("EXCLAMATION · €180").
+  const status = [row.role ? copy.rack.roles[row.role] : '', proposal?.pricePoint?.trim() || '']
+    .filter(Boolean)
+    .join(' · ');
   const changed = mark?.kind === 'was' || mark?.kind === 'back' || mark?.kind === 'added';
   return (
     <Pressable
@@ -54,9 +59,19 @@ export function RackRowCard({
       onPress={onOpen}
       disabled={!onOpen}
       testID={`rack-row-${row.key}`}
-      className={`flex-row items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
+      className={`relative flex-row items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
     >
-      <View className="overflow-hidden rounded-crisp" style={{ width: 52 }}>
+      {changed ? (
+        <View
+          accessibilityElementsHidden
+          className="absolute size-2 rounded-pill bg-ink"
+          style={{ left: -4, top: '50%', marginTop: -4 }}
+        />
+      ) : null}
+      <View
+        className={`overflow-hidden rounded-crisp ${proposal ? 'border border-dashed border-selected-line' : ''}`}
+        style={{ width: 52 }}
+      >
         {uri ? (
           <Image source={uri} alt="" aspect="4:5" blurhash={image?.blurhash} />
         ) : (
@@ -75,7 +90,7 @@ export function RackRowCard({
             the sheet's eyebrow, the serif name, the role in rose as its status. */}
         <Eyebrow piece={piece} />
         <Name piece={piece} />
-        {row.role ? <Status status={{ text: copy.rack.roles[row.role], warm: true }} /> : null}
+        {status ? <Status status={{ text: status, warm: true }} /> : null}
         {wears !== undefined ? (
           <Text size="caption" tone="faint">
             {copy.meta.wears(wears)}
@@ -114,7 +129,9 @@ export function RackRowCard({
             tone={proposal.wishlisted ? 'ink' : 'ink-muted'}
           />
         ) : null}
-        {onSwap ? <IconButton icon="swap" label={copy.rack.swap(name)} onPress={onSwap} /> : null}
+        {onSwap ? (
+          <IconButton icon="wardrobe" label={copy.rack.swap(name)} onPress={onSwap} />
+        ) : null}
         {onRemove ? (
           <IconButton icon="close" label={copy.rack.remove(name)} onPress={onRemove} />
         ) : null}

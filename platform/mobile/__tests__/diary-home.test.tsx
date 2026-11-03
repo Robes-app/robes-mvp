@@ -46,6 +46,7 @@ const diaryOf = (entries: Record<string, PlanEntry[]>): Today['diary'] => {
         name: null,
         place: null,
         weather: null,
+        draft: null,
         entries: entries[date] ?? [],
       }),
     ),

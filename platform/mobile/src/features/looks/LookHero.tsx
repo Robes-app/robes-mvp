@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 import { useHerPhoto } from './her-photo';
-import { LookPicture } from './LookPicture';
+import { LookMix, LookPicture } from './LookPicture';
 
 const copy = looksCopy.page;
 const seasons = lookbook.refine.seasons;
@@ -118,6 +118,11 @@ export function LookHero({
   return (
     <View className="gap-3">
       <Eyebrow>{eyebrow}</Eyebrow>
+      <LookMix
+        yours={look.pieces.length}
+        toFind={look.proposals.length}
+        composed={look.composedByRobes}
+      />
       <View className="relative">
         {look.frame && !(hasPhoto && look.record === 'photo') ? (
           <LookPicture look={look} />

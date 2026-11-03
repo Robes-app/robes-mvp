@@ -29,19 +29,30 @@ export function LookPicture({ look }: { look: Look }) {
   // The frame is scanned while it is drawn, so the page never rests on the bare pieces.
   const busy = scanningLine(look);
   return (
-    <figure className="flex flex-col gap-1">
-      <div className="relative overflow-hidden rounded-crisp">
-        <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
-        {busy ? <Scanning line={busy} corner /> : null}
-      </div>
-      <figcaption className="flex justify-end">
-        {!busy && look.composedByRobes ? (
-          <Text size="caption" tone="faint">
-            {copy.composedByRobes}
-          </Text>
-        ) : null}
-      </figcaption>
+    <figure className="relative overflow-hidden rounded-crisp">
+      <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
+      {busy ? <Scanning line={busy} corner /> : null}
     </figure>
+  );
+}
+
+// The text block over a look's picture (Front Door design 3b, plan 2026-11-03 §1.3): what the look
+// is made of — hers, and the pieces to find — with Robes' hand named when it composed the look.
+// The native twin is mobile/src/features/looks/LookPicture.tsx LookMix.
+export function LookMix({
+  yours,
+  toFind,
+  composed,
+}: {
+  yours: number;
+  toFind: number;
+  composed: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 font-medium font-sans text-[9px] text-ink-muted uppercase tracking-[0.2em]">
+      <span>{copy.mix(yours, toFind)}</span>
+      {composed ? <span>{copy.composedByRobes}</span> : null}
+    </div>
   );
 }
 
@@ -164,9 +175,16 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
   return (
     <article className="grid grid-cols-[minmax(0,1fr)] gap-8 pb-40 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       {look.image || look.setId ? (
-        <div className="relative">
-          <LookPicture look={look} />
-          {suggested && look.frame ? <GenericModelBadge /> : null}
+        <div className="flex flex-col gap-3">
+          <LookMix
+            yours={editor.rack.rows.filter((r) => r.pieceId).length}
+            toFind={editor.rack.rows.filter((r) => r.proposal).length}
+            composed={look.composedByRobes}
+          />
+          <div className="relative">
+            <LookPicture look={look} />
+            {suggested && look.frame ? <GenericModelBadge /> : null}
+          </div>
         </div>
       ) : (
         <div aria-hidden />
@@ -193,11 +211,12 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
               onCancel={() => setName(look.nameProvisional ? '' : look.name)}
             />
           )}
-          <Text size="small" tone="muted">
-            {copy.meta.pieces(editor.rack.rows.length)}
-          </Text>
         </header>
-        {look.note ? <Text>{noteShort(look.note)}</Text> : null}
+        {look.note ? (
+          <Text className="font-display text-[17px] text-ink-muted italic">
+            {noteShort(look.note)}
+          </Text>
+        ) : null}
         <Rack look={look} editor={editor} editable={!suggested} swapInPlace={suggested} />
         {editor.rack.rows.length > 0 ? (
           <LookPromptBox

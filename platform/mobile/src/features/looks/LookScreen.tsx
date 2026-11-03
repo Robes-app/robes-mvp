@@ -21,7 +21,7 @@ import { DiarySheet } from './DiarySheet';
 import { GenericModelBadge } from './GenericModelBadge';
 import { JOB_REFRESH_MS } from './ideas';
 import { LookDetail } from './LookDetail';
-import { LookPicture } from './LookPicture';
+import { LookMix, LookPicture } from './LookPicture';
 import { LookPromptBox } from './LookPromptBox';
 import { LookVerdict } from './LookVerdict';
 import { useLookEditor } from './look-editor';
@@ -114,17 +114,25 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
               onCancel={() => setName(look.nameProvisional ? '' : look.name)}
             />
           )}
-          <Text size="small" tone="muted">
-            {copy.meta.pieces(editor.rack.rows.length)}
-          </Text>
         </View>
         {look.image || look.setId ? (
-          <View>
-            <LookPicture look={look} />
-            {suggested && look.frame ? <GenericModelBadge /> : null}
+          <View className="gap-3">
+            <LookMix
+              yours={editor.rack.rows.filter((r) => r.pieceId).length}
+              toFind={editor.rack.rows.filter((r) => r.proposal).length}
+              composed={look.composedByRobes}
+            />
+            <View>
+              <LookPicture look={look} />
+              {suggested && look.frame ? <GenericModelBadge /> : null}
+            </View>
           </View>
         ) : null}
-        {look.note ? <Text>{noteShort(look.note)}</Text> : null}
+        {look.note ? (
+          <Text italic tone="muted" style={{ fontSize: 17 }}>
+            {noteShort(look.note)}
+          </Text>
+        ) : null}
         <View className="gap-3">
           <Eyebrow>{copy.rack.title(editor.rack.rows.length)}</Eyebrow>
           {editor.rack.rows.length === 0 ? (

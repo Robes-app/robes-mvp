@@ -24,6 +24,7 @@ const dayOf = (date: string, over: Partial<DiaryDay> = {}): DiaryDay => ({
   name: null,
   place: null,
   weather: WX,
+  draft: null,
   entries: [],
   ...over,
 });
