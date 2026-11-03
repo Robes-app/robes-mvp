@@ -2,6 +2,8 @@
 
 Project `Robes_p0`, shared by beta and production. There is no migration runner: each file is pasted into the Supabase SQL editor by hand, in the order below, so the live schema can lag the code by weeks.
 
+**Frozen since 2026-11-03.** Nothing in this folder runs again; the legacy schema only changes shape at cutover, when its data is copied to the platform. Robes_p0 also holds the platform's `app` and `private` schemas and `public.schema_migrations`, owned by `robes_migrator` and changed only by platform migrations: never touch them from the SQL editor.
+
 ## Before relying on a column
 The history marks many migrations "NOT yet run", and that record goes stale. Check the live schema instead:
 ```sql

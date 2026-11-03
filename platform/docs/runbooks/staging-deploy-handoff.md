@@ -103,16 +103,10 @@ This lets the **Run workflow** button deploy staging, and lets Part C make it au
    gh variable set ALERT_EMAIL --env staging -R $R -b annie@byrobes.com,niall@codu.co
    # POSTHOG_KEY, BUDGET_EMAIL, CLOUDFRONT_PUBLIC_KEY: not needed (config defaults / committed key)
    ```
-3. Add the one secret, the **migration** role's URL for the staging database (owns the schema;
-   never the runtime `robes_app` URL). It's the value Vercel's staging build uses as
-   `DATABASE_ADMIN_URL`. Have the human paste it at the prompt so it never lands in history:
-   ```bash
-   gh secret set MIGRATION_DATABASE_URL --env staging -R Robes-app/robes-mvp
-   ```
-   It's a **sensitive** Vercel variable (`staging` custom environment): `vercel env pull` returns it
-   empty, so it has to come from the password manager.
+3. No database secret: the workflow doesn't migrate (2026-11-03). Vercel's staging build is the
+   one place staging migrates (`database-migrations.md`).
 4. Test it: GitHub → Actions → **platform-deploy-staging** → **Run workflow** → branch `beta`.
-   It must go green through `db migrate`, `cdk deploy (Staging)` and `smoke`. If `cdk deploy`
+   It must go green through `cdk deploy (Staging)` and `smoke`. If `cdk deploy`
    fails on credentials, re-check step 1 and the environment name.
 
 ## Part C: deploy on every `beta` merge (1 min, after Part B is green)

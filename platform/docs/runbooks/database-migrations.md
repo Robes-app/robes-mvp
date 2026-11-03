@@ -3,6 +3,13 @@
 How to change the database safely. Written for whoever runs Claude from this folder: follow it in
 order, and stop to ask the owner where it says so.
 
+## In plain words
+
+- The database changes only through a **migration**: a file in `db/migrations`, committed and merged. Never the Supabase SQL editor or Table Editor, in any project.
+- Merging to `beta` migrates staging; merging to `main` migrates production. Nobody runs one by hand.
+- A migration only adds. To remove or rename anything, ask Niall first.
+- If staging and production ever differ, tell Niall rather than fixing it by hand.
+
 ## When you need one
 
 You need a migration whenever the app must store something new or store it differently: a new
@@ -57,8 +64,10 @@ new code goes live minutes after a merge.
    deployment keeps serving. Check the build log for `node scripts/db-migrate.mjs`.
    `bash scripts/migrate-staging.sh` (from `platform/`, in a real terminal) still works to apply
    migrations by hand ahead of a deploy.
-3. **Production:** only through the `platform-deploy-prod` workflow (manual, a reviewer approves).
-   It migrates, then deploys. Ask the owner first; never run production migrations from a laptop.
+3. **Production migrates itself the same way** (2026-11-03): a `main` build runs `pnpm db:migrate`
+   with production's `DATABASE_ADMIN_URL`, the `robes_migrator` role. Production's `app` schema lives
+   in Robes_p0 beside legacy beta's tables, and `robes_migrator` has no rights on those, so a
+   migration cannot read or change beta's data. Never run production migrations from a laptop.
 
 The migration runs while the previous deployment is still live, and the phone app stays on
 whatever version people have installed (App Store review, and some never update). So every
