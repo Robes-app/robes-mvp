@@ -127,13 +127,24 @@ test('styling a piece mints three suggestions; one is saved as is, one edited in
   const drafts = await (await api.get('/api/v1/looks?status=draft')).json();
   expect(drafts.items.map((l: { id: string }) => l.id)).toEqual([second.id]);
 
-  // ↻ re-writes a suggestion in place; a draft can't be re-rolled.
+  // ↻ re-writes a suggestion in place; Dress it again does the same to a draft Robes made (plan
+  // 2026-11-03 D2); a saved look is never re-rolled.
   const restyle = await api.post(`/api/v1/looks/${third.id}/restyle`, { headers: key() });
   expect(restyle.status()).toBe(202);
   expect((await settle(page, (await restyle.json()).jobId)).status).toBe('succeeded');
   const rewritten = await (await api.get(`/api/v1/looks/${third.id}`)).json();
   expect(rewritten).toMatchObject({ status: 'suggested', setIndex: 2 });
-  expect((await api.post(`/api/v1/looks/${second.id}/restyle`, { headers: key() })).status()).toBe(
+  const redress = await api.post(`/api/v1/looks/${second.id}/restyle`, {
+    headers: key(),
+    data: { note: 'Softer shoes' },
+  });
+  expect(redress.status()).toBe(202);
+  expect((await settle(page, (await redress.json()).jobId)).status).toBe('succeeded');
+  expect(await (await api.get(`/api/v1/looks/${second.id}`)).json()).toMatchObject({
+    status: 'draft',
+    setIndex: 1,
+  });
+  expect((await api.post(`/api/v1/looks/${first.id}/restyle`, { headers: key() })).status()).toBe(
     409,
   );
 

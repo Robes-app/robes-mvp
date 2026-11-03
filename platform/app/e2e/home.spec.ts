@@ -18,6 +18,46 @@ async function deckLive(page: Page): Promise<void> {
   await expect(page.getByTestId(/^deck-card-/)).toBeVisible({ timeout: 30_000 });
 }
 
+// The draft Robes is making for a day (plan 2026-11-03): its job followed through the API until
+// it ends, so a tile that never settles says why.
+type DayDraft = {
+  jobId: string | null;
+  look: { id: string; framePending: boolean; image: unknown } | null;
+} | null;
+async function readDraft(page: Page, date: string): Promise<DayDraft> {
+  const today = await (await page.request.get('/api/v1/today')).json();
+  return today.diary.days.find((d: { date: string }) => d.date === date)?.draft ?? null;
+}
+async function draftLanded(page: Page, date: string): Promise<void> {
+  const api = page.request;
+  await expect.poll(() => readDraft(page, date), { timeout: 15_000 }).not.toBeNull();
+  const jobId = (await readDraft(page, date))?.jobId;
+  if (jobId) {
+    let snap: { status: string; error: string | null } = { status: 'queued', error: null };
+    await expect
+      .poll(
+        async () => {
+          snap = await (await api.get(`/api/v1/jobs/${jobId}`)).json();
+          return snap.status;
+        },
+        { timeout: 45_000 },
+      )
+      .toMatch(/succeeded|partial|failed|cancelled/);
+    expect(snap.status, JSON.stringify(snap)).toMatch(/succeeded|partial/);
+  }
+  await expect
+    .poll(
+      async () => {
+        const d = await readDraft(page, date);
+        return d
+          ? `job=${d.jobId} look=${d.look?.id ?? null} framePending=${d.look?.framePending} image=${d.look?.image !== null}`
+          : 'none';
+      },
+      { timeout: 30_000 },
+    )
+    .toMatch(/^job=null look=[0-9a-f-]+ framePending=false/);
+}
+
 // Getting to know you (handoff 30 Oct): name and identity are required; styles, brands and
 // colours may be left empty; Back keeps every answer; Get started files them all and lands home.
 test('onboarding: name, identity, styles, brands and colours, saved once, then home', async ({
@@ -162,6 +202,8 @@ test('day one: the band asks for a model and first pieces; each × asks once, th
 test('the diary: the strip selects a day, the slot adds and changes its look, the box dresses it', async ({
   page,
 }) => {
+  // The day flows, then a generation: more than the default budget.
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);
   await declineConsent(page);
@@ -236,8 +278,9 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await expect(page).toHaveURL(/\/(\?day=.*)?$/);
   await expect(page.getByTestId('prompt-box')).toContainText('Dinner with friends');
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
+  await draftLanded(page, date);
   await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
-    timeout: 60_000,
+    timeout: 30_000,
   });
   await expect(page.getByTestId('prompt-box')).toContainText('Here’s a first look');
   // Her words adjust the draft from the box; View draft opens its page on the day.
@@ -256,17 +299,19 @@ test('the home box: words become one draft in the slot; the hanger builds it aro
   page,
 }) => {
   // Two generations and a photographed piece: more than the default budget.
-  test.setTimeout(90_000);
+  test.setTimeout(150_000);
   await signIn(page);
   await declineConsent(page);
 
   // Her words make a draft for the day, dressing in the slot; the box holds the thread.
+  const { date } = await (await page.request.get('/api/v1/today')).json();
   const box = page.getByPlaceholder('Plan an outfit for today');
   await box.fill('Something easy for the gallery');
   await box.press('Enter');
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
+  await draftLanded(page, date);
   await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
-    timeout: 60_000,
+    timeout: 30_000,
   });
   await expect(page.getByRole('heading', { level: 1, name: /, Niall\.$/ })).toBeVisible();
   // ↻ on the tile: another take, same brief, drawn in place.

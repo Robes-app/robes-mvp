@@ -107,6 +107,8 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
 test('a new look is a draft; the look prompt swaps a piece and names what it replaced', async ({
   page,
 }) => {
+  // Two asks, each a job: more than the default budget.
+  test.setTimeout(90_000);
   await signIn(page);
   await declineConsent(page);
   for (const label of ['White wide-leg trouser', 'Dark straight jean']) {
@@ -139,12 +141,12 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
   await expect(page.getByText('Swapped in · was the white wide-leg trouser')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Dark straight jean' })).toBeVisible();
 
-  // A rule waits under Robes noticed; it changes nothing.
+  // A rule waits under Robes noticed; it changes nothing. The thread's text names what landed.
   await page.getByLabel('Anything else, or put something back…').fill("I don't wear double denim");
   await page.getByLabel('Anything else, or put something back…').press('Enter');
-  await expect(
-    page.getByText('Waiting under Robes noticed — keep it there and it becomes a rule.'),
-  ).toBeVisible({ timeout: 30_000 });
+  await expect
+    .poll(() => page.getByTestId('adjust-thread').textContent(), { timeout: 30_000 })
+    .toContain('Waiting under Robes noticed — keep it there and it becomes a rule.');
   expect(await seriousViolations(page), 'a draft with the prompt open').toEqual([]);
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
