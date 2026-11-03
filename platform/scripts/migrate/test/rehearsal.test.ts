@@ -3,7 +3,7 @@ import { assertMigration } from '../src/assert';
 import { LEGACY_CATALOG } from '../src/catalog';
 import { databaseUrl, dropDatabase, recreateDatabase, withClient } from '../src/db';
 import { extract, legacyTableName } from '../src/extract';
-import { CAT, L, NIALL, SHARE_TOKEN, W } from '../src/fixture-data';
+import { BEA, CAT, L, NIALL, SHARE_TOKEN, W } from '../src/fixture-data';
 import { legacyUuid } from '../src/ids';
 import { buildLegacyFixture, legacySchemaPresent } from '../src/legacy-fixture';
 import { applyRehost, planRehost } from '../src/rehost';
@@ -156,6 +156,15 @@ describe.skipIf(!legacySchemaPresent())(
         { label: 'Trench coat', material: 'cotton' },
         { label: 'Scarf', material: null },
       ]);
+    });
+
+    it('carries gender as she chose it, Non-binary included (migration 30)', async () => {
+      expect(await one(`select gender_identity from app.profiles where id = $1`, [BEA])).toEqual({
+        gender_identity: 'non_binary',
+      });
+      expect(await one(`select gender_identity from app.profiles where id = $1`, [CAT])).toEqual({
+        gender_identity: 'unspecified',
+      });
     });
 
     it('carries the twin (migration 26): bust and waist in range, the image as an asset, no key', async () => {

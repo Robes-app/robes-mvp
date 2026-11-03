@@ -114,7 +114,7 @@ update app.profiles t set
   first_name = left(nullif(trim(p.first_name), ''), 60),
   last_name = left(nullif(trim(p.last_name), ''), 60),
   mobile = left(p.mobile, 32),
-  gender_identity = case when p.gender_identity in ('woman', 'man', 'unspecified') then p.gender_identity else 'woman' end,
+  gender_identity = case when p.gender_identity in ('woman', 'man', 'non_binary', 'unspecified') then p.gender_identity else 'woman' end,
   style_icons = coalesce(p.style_icons[1:20], '{}'),
   style_archetypes = coalesce(array(
     select left(x, 60) from jsonb_array_elements_text(
