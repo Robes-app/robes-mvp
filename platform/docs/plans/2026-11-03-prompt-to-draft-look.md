@@ -1,6 +1,6 @@
 # Prompt → one draft look: implementation plan
 
-Status: plan, 2026-11-03 (Annie + Claude). **Not started — Annie reviews §2 and §8 first.**
+Status: plan, 2026-11-03 (Annie + Claude). **Decided 2026-11-03 (§8); building on `feat/prompt-to-draft-look`.**
 Owner: Annie. Web and native land together (CLAUDE.md). Follows `2026-11-02-home-ootd-diary.md`
 (built; its §8 build notes stand).
 
@@ -261,7 +261,7 @@ the tile, View draft → `DraftPage` with `‹ Today`; the deck no longer reache
 piece door keeps it). Tests: `prompt-box.test.tsx` + `diary-home.test.tsx` (native),
 `home.spec.ts` (web e2e: send → tile → adjust → save → OOTD card), `jobs.spec.ts` for `ways: 1`.
 
-**P4 · Tidy (S).** Delete `LookPromptBox` if D6 retires it on saved looks too; copy and docs;
+**P4 · Tidy (S).** Delete `LookPromptBox` (D6 retires it everywhere); copy and docs;
 `STATUS.md`; a dated entry in the legacy history is **not** needed (platform only).
 
 Order inside a phase: contract → server + tests → web → native → e2e. P1 can ship before P0.
@@ -272,11 +272,9 @@ Order inside a phase: contract → server + tests → web → native → e2e. P1
 
 1. **The piece door** (HomeBox "+ piece", piece page "Style it three ways"): one draft around the
    piece, the thread, Dress it again — the deck and `suggested` retire entirely (D1).
-2. **The saved look page**: the pill → card thread in place of the folding `LookPromptBox`, with
-   **Update look** (D6).
-3. **Today's daily look and the trip packer**: the stale picture + Update the model pattern
+2. **Today's daily look and the trip packer**: the stale picture + Update the model pattern
    instead of drawing after every change.
-4. **The Lookbook's In progress row**: the draft tile's three states as the card.
+3. **The Lookbook's In progress row**: the draft tile's three states as the card.
 
 ---
 
@@ -315,15 +313,19 @@ slot **after the day's looks and before Add look** when a draft is live. This is
 
 ---
 
-## 8. Decisions for Annie (defaults I will build to)
+## 8. Decisions (Annie, 2026-11-03)
 
-| # | Question | Default |
+Annie took the default on every row but D6, where the saved look gets the thread now, for
+consistency: an adjustment on a saved look shows **Update the model · N** in the card and the
+footer's Save reads **↻ Update look** (her capture). This plan builds all eight.
+
+| # | Question | Decided |
 |---|---|---|
-| D1 | Does the **piece door** (HomeBox "+ piece", "Style it three ways") also become one draft now, retiring the deck and `suggested` for good? | **Not this pass.** The prompt door becomes one draft (3b); the piece door keeps the deck until a design for it exists. `suggested` stays in the model. |
+| D1 | Does the **piece door** (HomeBox "+ piece", "Style it three ways") also become one draft now, retiring the deck and `suggested` for good? | Not this pass. The prompt door becomes one draft (3b); the piece door keeps the deck until a design for it exists. `suggested` stays in the model. |
 | D2 | **Dress it again**: a new version **in place** (same look id, thread kept) or a second draft beside the first? | In place, as 3b draws it (`dV` increments, one tile). |
 | D3 | Who draws the model: by itself after a change (today's debounce) or only **Update the model · N** and Save? | Only on ask / Save, both for prompt and hand-built drafts (one behaviour, one image spend). |
 | D4 | The hand-built draft's **hotspots** (`+ Top · + Bottom · + Shoes` on the figure) — keep on the one draft page? | Retire; the rack's **+ Add a piece** and the hanger are the doors, as 3b. The empty draft shows the bare model and the dashed row. |
 | D5 | Save from home: pin to the day the chip named **in the same act**, or open the DiarySheet as the Lookbook does? | Same act (`SaveLookInput.date`), tile → OOTD card; the sheet stays for the Lookbook. |
-| D6 | The **saved look's** prompt: the pill → card thread now, or keep `LookPromptBox` until a saved-look design exists? | Keep `LookPromptBox` on saved looks this pass; P4 revisits. |
+| D6 | The **saved look's** prompt: the pill → card thread now, or keep `LookPromptBox` until a saved-look design exists? | **The thread now**, on saved looks too: the pill → card, **Update the model · N**, and the footer's **↻ Update look** once changed (Discard puts it back). `LookPromptBox` retires. |
 | D7 | Multiple looks on a day (§7): match the frame (one card per look, no stack) or keep the stack? | Match the frame. |
 | D8 | The to-find row's dashed `#D9CBB7`: new token or `selected-line`? | `selected-line` (it is the same warm family; one fewer token). |
