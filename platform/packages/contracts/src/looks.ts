@@ -189,6 +189,9 @@ export const Look = z.object({
   composedByRobes: z.boolean(),
   // "See it on me": where the render on her model stands (absent when never asked).
   onModel: z.enum(['pending', 'ready', 'failed']).nullable().optional(),
+  // The picture was drawn for another rack than the one on the look now (plan 2026-11-03 §1.4):
+  // the draft reads stale until she asks for the model again, or saves. Defaulted for older servers.
+  pictureStale: z.boolean().default(false),
   pieces: z.array(
     z.object({ piece: Piece, slot: z.string().nullable(), role: LookRole.nullable() }),
   ),
@@ -294,7 +297,14 @@ export type LookWearPage = z.infer<typeof LookWearPage>;
 export const SaveWayInput = z.object({ wayIdx: z.number().int().min(0).max(2) });
 
 // Suggested or draft → saved; a name she typed makes it hers.
-export const SaveLookInput = z.object({ name: lookName.optional() });
+// `date` (the diary home's draft, plan 2026-11-03 D5): saving pins the look to that day in the
+// same act — the one way a look reaches a day before she picks one herself.
+export const SaveLookInput = z.object({ name: lookName.optional(), date: wornOn.optional() });
+
+// Dress it again (plan 2026-11-03 §1.4): the look re-written in place from the same brief; `note`
+// is her answer to "What's not right with this one?".
+export const RestyleLookInput = z.object({ note: z.string().trim().max(300).optional() });
+export type RestyleLookInput = z.infer<typeof RestyleLookInput>;
 
 // A new look in her words: three suggested looks for a day (dated when her words or a door name one).
 // The prompt box's pieces and place (Front Door design 3k): pieces of hers every look is built
@@ -408,10 +418,12 @@ export const KeyPieceJobInput = z.union([
     mode: z.literal('prompt'),
     prompt: z.string().min(2).max(300),
     date: wornOn.optional(),
+    // The prompt box's door (plan 2026-11-03): one look, minted as her draft for the day.
+    draft: z.literal(true).optional(),
     ...PromptAround,
     ...BalanceFields,
   }),
-  z.object({ mode: z.literal('restyle'), lookId: z.uuid() }),
+  z.object({ mode: z.literal('restyle'), lookId: z.uuid(), note: z.string().max(300).optional() }),
 ]);
 export type KeyPieceJobInput = z.infer<typeof KeyPieceJobInput>;
 

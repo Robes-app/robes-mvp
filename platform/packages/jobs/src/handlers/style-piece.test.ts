@@ -359,6 +359,65 @@ describe('key_piece handler (suggested looks)', () => {
     });
   });
 
+  // The prompt box (plan 2026-11-03): her words make one draft for the day, not three suggestions.
+  it('mints one draft for the day from the prompt box, its frame claimed with it', async () => {
+    const { run, suggested, styling, writeStage } = setup();
+    await expect(
+      run({ mode: 'prompt', draft: true, prompt: 'the office, then drinks', date: '2026-10-17' }),
+    ).resolves.toEqual({ status: 'succeeded', artifactId: SET });
+    const [, , specs, claim, opts] = suggested.mintSet.mock.calls[0] ?? [];
+    expect((specs as unknown[]).length).toBe(1);
+    expect((specs as ReturnType<typeof specFromWay>[])[0]?.dateHint).toBe('2026-10-17');
+    expect(claim).toMatchObject({ setIndex: 0, jobId: JOB });
+    expect(opts).toEqual({ status: 'draft' });
+    expect((styling.createSet.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
+      data: { mode: 'prompt', ways: [expect.objectContaining({ title: expect.any(String) })] },
+    });
+    expect(writeStage).toHaveBeenCalledWith('text', expect.objectContaining({ lookIds: ['l0'] }));
+  });
+
+  it('dresses a draft again from the same brief, with what she said is not right', async () => {
+    const { run, generateJson, suggested } = setup();
+    suggested.look.mockResolvedValueOnce({
+      look: {
+        id: LOOK,
+        name: 'Office, sharpened',
+        status: 'draft',
+        setId: SET,
+        setIndex: 0,
+        anchorPieceId: null,
+        proposals: [],
+        styling: null,
+        frameAssetId: null,
+        renderKey: null,
+        dateHint: '2026-10-17',
+      },
+      pieces: [{ id: PIECE, label: 'Camel coat', category: 'Outerwear' }],
+      siblings: [],
+    } as never);
+    await expect(
+      run({ mode: 'restyle', lookId: LOOK, note: 'Too formal — softer shoes' }),
+    ).resolves.toEqual({ status: 'succeeded' });
+    const user = generateJson.mock.calls[0]?.[0].user ?? '';
+    expect(user).toContain('Too formal — softer shoes');
+    expect(user).not.toContain('A different look entirely');
+    expect(suggested.rewrite).toHaveBeenCalledWith(
+      USER,
+      LOOK,
+      expect.objectContaining({ dateHint: '2026-10-17', setIndex: 0 }),
+      expect.objectContaining({ jobId: JOB }),
+    );
+    // A saved look is never re-written.
+    suggested.look.mockResolvedValueOnce({
+      look: { id: LOOK, name: 'Kept', status: 'saved', setId: SET, setIndex: 0 },
+      pieces: [],
+      siblings: [],
+    } as never);
+    await expect(run({ mode: 'restyle', lookId: LOOK })).rejects.toMatchObject({
+      code: 'not_found',
+    });
+  });
+
   it('steers by where she said the pieces come from, and never repeats what she has seen', async () => {
     const { run, generateJson, styling, suggested, ledger } = setup();
     await run({ anchor: { type: 'piece', pieceId: PIECE }, balance: 'new' });

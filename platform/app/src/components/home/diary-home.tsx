@@ -90,6 +90,7 @@ export function DiaryHome({ initial, day = null }: { initial: Today; day?: strin
       place: null,
       weather: null,
       entries: [],
+      draft: null,
     };
   const past = current.date < today;
   const dayWord = dayWordOf(current.date, today);

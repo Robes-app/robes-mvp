@@ -122,7 +122,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Styling engines (all Jobs)
 | New | Legacy |
 |---|---|
-| `POST /looks/generate` (key-piece styling) · `POST /looks/prompt` (a new look in her words: three suggested looks, dated when her words name a day) · `POST /looks/:id/restyle` (↻ one suggestion) | `/api/style` (dress-me intent, `refine` + `wayIndex`) |
+| `POST /looks/generate` (key-piece styling: three suggestions on the deck) · `POST /looks/prompt` (a new look in her words: ONE draft for the day, in the diary's slot — plan 2026-11-03) · `POST /looks/:id/restyle` `{ note? }` (↻ one suggestion; Dress it again on a draft Robes made, `note` = what's not right with it) | `/api/style` (dress-me intent, `refine` + `wayIndex`) |
 | `POST /looks/:id/ask` (the look prompt; the edit is the job's output) | `/api/look/ask` (supersedes `/api/look/refine`) |
 | `POST /looks/:id/frame` (Robes' frame for the rack as it stands: first open, or re-dressed after an edit) | `/api/avatar/render` frame mode |
 | `POST /today/generate` (daily look; also produced by overnight batch) | `/api/daily` |
@@ -138,12 +138,12 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Looks, artifacts, planning
 | New | Legacy |
 |---|---|
-| `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` (suggested/draft → saved) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
+| `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` `{ name?, date? }` (suggested/draft → saved; with `date` it is pinned to that day in the same act) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
 | `POST /looks/:id/wears` · `DELETE /wears/:id` | client REST `wears` |
 | `GET /artifacts?type=` · `GET /artifacts/:id` · `PATCH /artifacts/:id` (title, packed/pins state) · `DELETE` (soft) | client REST `lookbook_items` + localStorage merge |
 | `GET /plan?from=&to=` · `PUT /plan/days/:date/name` | client REST `planned_days` + client sweeps (legacy `day` rows for a named day) |
 | `PUT /plan/days/:date/ootd` `{ entryId }` → the day's entries in order (`position` 0 leads home) · `PUT /plan/days/:date/place` `{ place \| null }` (where she is that day; the diary's weather follows it) · `GET /places?q=&date=` (30/min; cities from Open-Meteo's geocoder with the day's range at each) | — (the OOTD diary home, plan 2026-11-02) |
-| `GET /today` carries `diary` — ten days back and ahead, each with her name for the day, her place, the day's weather and every look in order | the home week strip (7 days ahead) |
+| `GET /today` carries `diary` — ten days back and ahead, each with her name for the day, her place, the day's weather, every look in order and `draft` (the look Robes is making or made for the day from the prompt box, with its job while it runs; plan 2026-11-03) | the home week strip (7 days ahead) |
 
 ### Sharing
 | New | Legacy |
