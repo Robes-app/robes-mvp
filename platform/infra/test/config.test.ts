@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { budgetsEnabled, mediaBucketName, reservedConcurrency } from '../config/env';
+import { budgetsEnabled, listFromEnv, mediaBucketName, reservedConcurrency } from '../config/env';
 
 describe('stage config helpers', () => {
   afterEach(() => {
     delete process.env.ROBES_STAGING_GENERATE_RESERVED_CONCURRENCY;
     delete process.env.ROBES_STAGING_BUDGETS;
+    delete process.env.ROBES_STAGING_ALERT_EMAIL;
+  });
+
+  it('reads alert emails as a comma-separated list', () => {
+    expect(listFromEnv('ROBES_STAGING_ALERT_EMAIL')).toEqual([]);
+    process.env.ROBES_STAGING_ALERT_EMAIL = 'a@byrobes.com, b@codu.co,';
+    expect(listFromEnv('ROBES_STAGING_ALERT_EMAIL')).toEqual(['a@byrobes.com', 'b@codu.co']);
   });
 
   it('suffixes bucket names with the account so stages and accounts never collide', () => {
