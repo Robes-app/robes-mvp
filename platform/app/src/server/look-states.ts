@@ -71,8 +71,9 @@ export function isUnnamedHandBuilt(look: {
   return look.status === 'draft' && look.nameProvisional && look.source === 'manual' && !look.setId;
 }
 
-// Her words for a day → one draft look for that day (plan 2026-11-03; it was three suggestions on
-// the deck, legacy __rbPromptLook, 2026-10-09). The job mints the draft; the diary shows it.
+// Her words for a day → three suggested looks on the deck (legacy __rbPromptLook, 2026-10-09), or,
+// from the diary's prompt box (`draft`, plan 2026-11-03), ONE draft look for that day: the job
+// mints the draft and the diary shows it in the day's slot.
 export async function promptLook(
   userId: UserId,
   req: Request,
@@ -82,9 +83,10 @@ export async function promptLook(
     throw new ApiError('capacity');
   }
   await ensureGenericCells(userId);
+  const { draft, ...rest } = input;
   return startJob(userId, req, {
     kind: 'key_piece',
-    input: { mode: 'prompt', draft: true, ...input },
+    input: { mode: 'prompt', ...rest, ...(draft ? { draft: true } : {}) },
     quota: [...SET_QUOTA],
   });
 }

@@ -227,18 +227,32 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
 
-  // Back to today: her words for the day go to the deck, dated.
+  // Back to today: her words make ONE draft for the day, dressing in the slot (plan 2026-11-03);
+  // the box holds the thread meanwhile and never leaves home.
   await page.getByTestId(`diary-day-${date}`).click();
   const box = page.getByPlaceholder('Plan an outfit for today');
   await box.fill('Dinner with friends');
   await page.getByTestId('prompt-send').click();
-  await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
-  await expect(page.getByText(/^For \w{3} \d{1,2} \w{3}$|^From your prompt$/)).toBeVisible({
-    timeout: 30_000,
+  await expect(page).toHaveURL(/\/(\?day=.*)?$/);
+  await expect(page.getByTestId('prompt-box')).toContainText('Dinner with friends');
+  await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
+    timeout: 60_000,
   });
+  await expect(page.getByTestId('prompt-box')).toContainText('Here’s a first look');
+  // Her words adjust the draft from the box; View draft opens its page on the day.
+  await expect(page.getByRole('button', { name: 'Dress it again' })).toBeVisible();
+  await page.getByRole('button', { name: 'View draft' }).click();
+  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}\?day=/);
+  await expect(page.getByText('Draft look')).toBeVisible();
+  // Save pins it to the day in the same act: home shows it as the day's card, just saved.
+  await page.getByTestId('look-bar').getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page).toHaveURL(/\/\?day=.*&saved=/);
+  await expect(page.getByTestId('saved-badge')).toBeVisible();
+  await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'look');
 });
 
-test('the home box: words become three looks on the deck; a photographed piece styles three ways', async ({
+test('the home box: words become one draft in the slot; the hanger builds it around her pieces', async ({
   page,
 }) => {
   // Two generations and a photographed piece: more than the default budget.
@@ -246,17 +260,21 @@ test('the home box: words become three looks on the deck; a photographed piece s
   await signIn(page);
   await declineConsent(page);
 
-  // The box carries the day it names, so the deck is dated ("For Mon 2 Nov"), not "From your prompt".
+  // Her words make a draft for the day, dressing in the slot; the box holds the thread.
   const box = page.getByPlaceholder('Plan an outfit for today');
   await box.fill('Something easy for the gallery');
   await box.press('Enter');
-  await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
-  await expect(page.getByText(/^For \w{3} \d{1,2} \w{3}$|^From your prompt$/)).toBeVisible({
-    timeout: 30_000,
+  await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
+    timeout: 60_000,
   });
-  await deckLive(page);
-  await page.getByRole('link', { name: 'Home' }).first().click();
   await expect(page.getByRole('heading', { level: 1, name: /, Niall\.$/ })).toBeVisible();
+  // ↻ on the tile: another take, same brief, drawn in place.
+  await page.getByRole('button', { name: 'Another take, same brief' }).click();
+  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'generating');
+  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
+    timeout: 60_000,
+  });
 
   // The hanger (design 3k): pieces of hers become tokens the ask is built around.
   const pieceId = await photographedPiece(page, 'Camel coat');
@@ -274,8 +292,9 @@ test('the home box: words become three looks on the deck; a photographed piece s
   await expect(page.getByText('Where should the pieces in your look come from?')).toBeVisible();
   await page.getByPlaceholder('Or say it your way').fill('Suggest new pieces');
   await page.getByPlaceholder('Or say it your way').press('Enter');
-  await expect(page).toHaveURL(/\/looks\/style\/[0-9a-f-]{36}\?from=home$/);
-  await expect(page.getByText(/^From your prompt$|^For \w{3} \d{1,2} \w{3}$/)).toBeVisible({
+  // A new ask on the day replaces its unsaved draft: one draft tile, dressing again.
+  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'generating', {
     timeout: 30_000,
   });
+  await expect(page.getByTestId('draft-tile')).toHaveCount(1);
 });

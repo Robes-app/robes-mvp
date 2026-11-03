@@ -71,7 +71,7 @@ export function DraftPage({ look, onSaved }: { look: Look; onSaved?: (look: Look
   const adjust = useAdjust(look, editor, 'draft');
   adjustRef.current = adjust;
   const save = useSaveLook((saved) => {
-    if (forDay) router.push(`/?day=${forDay}`);
+    if (forDay) router.push(`/?day=${forDay}&saved=${saved.id}`);
     else onSaved?.(saved);
   });
   const rows = editor.rack.rows;
@@ -230,7 +230,7 @@ export function DraftPage({ look, onSaved }: { look: Look; onSaved?: (look: Look
 }
 
 // The dressing lines (design 3b), one at a time while the picture is drawn.
-function useDressingLine(lines: readonly string[], on: boolean): string {
+export function useDressingLine(lines: readonly string[], on: boolean): string {
   const [i, setI] = useState(0);
   useEffect(() => {
     if (!on) return;

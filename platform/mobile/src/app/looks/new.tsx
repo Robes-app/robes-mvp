@@ -1,12 +1,12 @@
 import { useLocalSearchParams } from 'expo-router';
 import { StackScreen } from '@/components/StackScreen';
-import { Composer } from '@/features/looks/Composer';
+import { NewDraft } from '@/features/looks/DraftPage';
 
 export default function NewLookRoute() {
   const { pieceId } = useLocalSearchParams<{ pieceId?: string }>();
   return (
     <StackScreen>
-      <Composer {...(pieceId ? { pieceId } : {})} />
+      <NewDraft {...(pieceId ? { pieceId } : {})} />
     </StackScreen>
   );
 }

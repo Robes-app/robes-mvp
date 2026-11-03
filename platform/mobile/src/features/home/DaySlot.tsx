@@ -1,43 +1,55 @@
 import type { DiaryDay, PlanEntry } from '@robes/contracts';
-import { diary as copy } from '@robes/copy';
+import { diary as copy, lookbook } from '@robes/copy';
 import { dayOotd } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { fonts, Image, MIN_TOUCH, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
+import { fonts, MIN_TOUCH, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, Text as RNText, ScrollView, useWindowDimensions, View } from 'react-native';
-import { LookTile, lookHero } from '@/features/looks/LookTile';
+import { LookTile } from '@/features/looks/LookTile';
 import { OnPhoto } from '@/features/looks/LookTiles';
-import { renditionUri } from '@/lib/images';
+import { DraftTile } from './DraftTile';
 
-// The slot bleeds to the screen's edges: 44pt of gutter either side of the card, so the Add look
-// tile peeks in; the page's own 20pt when the tile stands alone.
+// The slot bleeds to the screen's edges: 44pt of gutter either side of the card, so the next card
+// peeks in; the page's own 20pt when the Add look tile stands alone.
 const GUTTER = 44;
 const PAGE = 20;
 const GAP = 10;
 
-// The slot (design 3k, plan §1.5): the selected day's OOTD as one hero card, then the dashed Add
-// look tile peeking at the edge; an empty day shows the tile alone, full width. Over the card:
-// × takes the look off the day, the lookbook icon changes it from the drawer, and the +N stack
-// of the day's other looks opens the day. The web twin is components/home/day-slot.tsx.
+// The slot (design 3k, plan 2026-11-02 §1.5; 2026-11-03 §7 D7): the selected day's looks as
+// cards in one scroller — the OOTD first, then the others — then the draft Robes is making for
+// the day (plan 2026-11-03 §1.2), then the dashed Add look tile peeking at the edge; an empty day
+// shows the tile alone, full width. Over a card: × takes the look off the day, the lookbook icon
+// changes it from the drawer. The web twin is components/home/day-slot.tsx.
 export function DaySlot({
   day,
+  today,
   dayWord,
+  justSaved = null,
   onAdd,
   onChange,
   onRemove,
+  onAnother,
+  anotherBusy = false,
 }: {
   day: DiaryDay;
+  today: string;
   // 'today' or the weekday, for the labels.
   dayWord: string;
+  // The look just saved from the draft: its card says so for a moment.
+  justSaved?: string | null;
   onAdd: () => void;
   onChange: (entry: PlanEntry) => void;
   onRemove: (entry: PlanEntry) => void;
+  onAnother: (lookId: string) => void;
+  anotherBusy?: boolean;
 }) {
   const router = useRouter();
   const window = useWindowDimensions();
   const ootd = dayOotd(day.entries);
-  const others = day.entries.filter((e) => e !== ootd);
-  const side = ootd ? GUTTER : PAGE;
+  const cards = ootd ? [ootd, ...day.entries.filter((e) => e !== ootd)] : [];
+  const draft = day.date >= today ? day.draft : null;
+  const scrolls = cards.length > 0 || draft !== null;
+  const side = scrolls ? GUTTER : PAGE;
   const width = window.width - side * 2;
   return (
     <ScrollView
@@ -46,19 +58,20 @@ export function DaySlot({
       snapToAlignment="center"
       decelerationRate="fast"
       showsHorizontalScrollIndicator={false}
-      scrollEnabled={!!ootd}
+      scrollEnabled={scrolls}
       testID="day-slot"
       className="-mx-5"
       contentContainerStyle={{ paddingHorizontal: side, gap: GAP }}
     >
-      {ootd ? (
+      {cards.map((entry, i) => (
         <LookTile
-          look={ootd.look}
+          key={entry.id}
+          look={entry.look}
           variant="ootd"
           width={width}
-          onPress={() => router.push(`/look/${ootd.look.id}?day=${day.date}`)}
-          label={copy.slot.open(ootd.look.name)}
-          testID="ootd-card"
+          onPress={() => router.push(`/look/${entry.look.id}?day=${day.date}`)}
+          label={copy.slot.open(entry.look.name)}
+          testID={i === 0 ? 'ootd-card' : `day-card-${entry.id}`}
           onImage={
             <>
               <View className="absolute bottom-3 left-3">
@@ -66,18 +79,41 @@ export function DaySlot({
                   icon="book"
                   label={copy.slot.change}
                   size={36}
-                  onPress={() => onChange(ootd)}
+                  onPress={() => onChange(entry)}
                 />
               </View>
-              {others.length ? <Stack entries={others} date={day.date} dayWord={dayWord} /> : null}
+              {justSaved === entry.look.id ? (
+                <View
+                  testID="saved-badge"
+                  className="absolute top-2.5 left-2.5 rounded-pill bg-surface-raised px-2.5 py-1.5"
+                >
+                  <RNText
+                    maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                    className="text-accent-plan uppercase"
+                    style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8 }}
+                  >
+                    ✓ {lookbook.draft.badgeSaved}
+                  </RNText>
+                </View>
+              ) : null}
             </>
           }
           corner={
             <Remove
-              label={copy.slot.remove(ootd.look.name, dayWord)}
-              onPress={() => onRemove(ootd)}
+              label={copy.slot.remove(entry.look.name, dayWord)}
+              onPress={() => onRemove(entry)}
             />
           }
+        />
+      ))}
+      {draft ? (
+        <DraftTile
+          draft={draft}
+          day={day}
+          today={today}
+          width={width}
+          onAnother={onAnother}
+          anotherBusy={anotherBusy}
         />
       ) : null}
       <AddLookTile dayWord={dayWord} width={width} onPress={onAdd} />
@@ -85,7 +121,7 @@ export function DaySlot({
   );
 }
 
-// The × on the OOTD: drawn small (28pt, half-cream on the photograph) with the hit area reaching
+// The × on a card: drawn small (28pt, half-cream on the photograph) with the hit area reaching
 // out to 44pt.
 function Remove({ label, onPress }: { label: string; onPress: () => void }) {
   const ink = useColor('ink');
@@ -100,47 +136,6 @@ function Remove({ label, onPress }: { label: string; onPress: () => void }) {
       className="items-center justify-center rounded-pill bg-bg/50"
     >
       <Icon name="close" size={13} color={ink} />
-    </Pressable>
-  );
-}
-
-// The day's other looks, fanned at the corner of the OOTD: one door into the day.
-function Stack({
-  entries,
-  date,
-  dayWord,
-}: {
-  entries: PlanEntry[];
-  date: string;
-  dayWord: string;
-}) {
-  const router = useRouter();
-  const rot = ['3deg', '-4deg', '6deg'];
-  return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={copy.slot.moreLabel(entries.length, dayWord)}
-      onPress={() => router.push(`/day/${date}`)}
-      testID="ootd-stack"
-      className="absolute right-3 bottom-3 flex-row-reverse items-end"
-    >
-      {entries.slice(0, 3).map((e, i) => {
-        const uri = renditionUri(lookHero(e.look), 58);
-        return (
-          <View
-            key={e.id}
-            style={{
-              width: 58,
-              transform: [{ rotate: rot[i] ?? '0deg' }],
-              zIndex: 10 - i,
-              marginRight: i ? -30 : 0,
-            }}
-            className="overflow-hidden rounded-input border-2 border-surface-raised bg-surface-sunk"
-          >
-            {uri ? <Image source={uri} alt="" aspect="4:5" /> : <View className="aspect-[4/5]" />}
-          </View>
-        );
-      })}
     </Pressable>
   );
 }

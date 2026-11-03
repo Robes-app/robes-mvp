@@ -15,14 +15,17 @@ import { useState } from 'react';
 import { LookPicker } from '@/app/(app)/plan/look-picker';
 import { dayWordOf, type PickerMode } from '@/lib/diary';
 import { errorCopy } from '@/lib/error-copy';
+import { useRestyle } from '@/lib/look-states';
 import { DayOneBand } from './day-one-band';
 import { DaySlot } from './day-slot';
 import { DiaryStrip } from './diary-strip';
 import { LogSheet } from './log-sheet';
 import { PromptBox } from './prompt-box';
 
+// The tray's jobs, and the draft Robes is making for a day (plan 2026-11-03): read every 2 s.
 const isRunning = (t: Today | undefined) =>
-  t?.tray.some((j) => !isTerminalJobStatus(j.status)) ?? false;
+  (t?.tray.some((j) => !isTerminalJobStatus(j.status)) ?? false) ||
+  (t?.diary?.days.some((d) => d.draft?.jobId || d.draft?.look?.framePending) ?? false);
 
 type TrayJob = Today['tray'][number];
 function trayHref(job: TrayJob): string {
@@ -64,7 +67,16 @@ export function withoutDiaryEntry(id: string) {
 // today's weather, the strip, the selected day's slot, and — for today and days ahead — the
 // prompt box. Alerts live behind the bell; the day-one band (P3) sits above the strip. The native
 // twin is mobile/src/features/home/DiaryHome.tsx.
-export function DiaryHome({ initial, day = null }: { initial: Today; day?: string | null }) {
+export function DiaryHome({
+  initial,
+  day = null,
+  saved = null,
+}: {
+  initial: Today;
+  day?: string | null;
+  // The look just saved from its draft (`?saved=`): its card says so for the visit.
+  saved?: string | null;
+}) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -83,6 +95,10 @@ export function DiaryHome({ initial, day = null }: { initial: Today; day?: strin
   const [selected, setSelected] = useState(inWindow);
   const [log, setLog] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
+  // Her words per day as sent this session, so the box's thread opens with them.
+  const [asked, setAsked] = useState<Record<string, string>>({});
+  // ↻ on the draft tile: another take, same brief.
+  const another = useRestyle();
   const current: DiaryDay = diary?.days.find((d) => d.date === selected) ??
     diary?.days.find((d) => d.date === today) ?? {
       date: today,
@@ -177,10 +193,14 @@ export function DiaryHome({ initial, day = null }: { initial: Today; day?: strin
 
       <DaySlot
         day={current}
+        today={today}
         dayWord={dayWord}
+        justSaved={saved}
         onAdd={() => setLog(current.date)}
         onChange={() => setDrawer({ date: current.date, mode: 'change' })}
         onRemove={remove}
+        onAnother={another.restyle}
+        anotherBusy={another.busyId !== null && another.busyId === current.draft?.look?.id}
       />
 
       {past ? null : (
@@ -189,6 +209,8 @@ export function DiaryHome({ initial, day = null }: { initial: Today; day?: strin
           today={today}
           home={homePlace}
           hasPieces={data.home.state.pics > 0}
+          sent={asked[current.date] ?? null}
+          onSent={(words) => setAsked((a) => ({ ...a, [current.date]: words }))}
         />
       )}
 

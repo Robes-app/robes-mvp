@@ -353,9 +353,9 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     'GET /looks': byStatus({}),
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // A hand-built draft opens in the composer: the ✦ above Discard · Save opens the prompt.
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.prompt }));
-  const field = await screen.findByLabelText(lookbook.prompt.doorDraft);
+  // Every draft is the one draft page: the pill above Discard · Save opens the thread's card.
+  await fireEvent.press(await screen.findByTestId('adjust-pill'));
+  const field = await screen.findByLabelText(lookbook.draft.adjust);
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
   expect(await screen.findByText('Done. The dark jean is on the look now.')).toBeTruthy();
@@ -427,9 +427,9 @@ test('a rule said in the prompt waits under Robes noticed; a vague ask is writte
     noticed: true,
   };
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // A hand-built draft opens in the composer: the ✦ above Discard · Save opens the prompt.
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.prompt }));
-  const field = await screen.findByLabelText(lookbook.prompt.doorDraft);
+  // Every draft is the one draft page: the pill above Discard · Save opens the thread's card.
+  await fireEvent.press(await screen.findByTestId('adjust-pill'));
+  const field = await screen.findByLabelText(lookbook.draft.adjust);
   await fireEvent.changeText(field, 'never grey');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
   expect(await screen.findByText(lookbook.prompt.noticed)).toBeTruthy();

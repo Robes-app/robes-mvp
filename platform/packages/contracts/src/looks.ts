@@ -325,6 +325,9 @@ const PromptAround = {
 export const PromptLookInput = z.object({
   prompt: z.string().trim().min(2).max(300),
   date: wornOn.optional(),
+  // The diary's prompt box (plan 2026-11-03): ONE look, minted as her draft for the day, in the
+  // day's slot. Without it her words still deal three suggestions on the deck (the Create sheet).
+  draft: z.boolean().optional(),
   ...PromptAround,
   ...BalanceFields,
 });

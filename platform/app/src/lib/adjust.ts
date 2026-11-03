@@ -188,6 +188,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     },
     // The rack changed by hand or by the prompt: the picture falls one change behind.
     changed: () => dispatch({ type: 'changed' }),
+    // Her words as sent from home's box, before the draft exists to ask about.
+    her: (text: string) => dispatch({ type: 'her', text }),
     work: (text: string) => dispatch({ type: 'work', text }),
     settle: () => dispatch({ type: 'settle' }),
     reset: () => dispatch({ type: 'reset' }),

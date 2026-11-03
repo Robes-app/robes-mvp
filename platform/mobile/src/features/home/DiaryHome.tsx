@@ -27,6 +27,7 @@ import {
   View,
 } from 'react-native';
 import { isTerminal } from '@/features/looks/ideas';
+import { useRestyle } from '@/features/looks/look-states';
 import { LookPicker } from '@/features/plan/LookPicker';
 import { errorMessage } from '@/lib/errors';
 import { DayOneBand } from './DayOneBand';
@@ -36,7 +37,10 @@ import { dayWordOf, type PickerMode } from './diary';
 import { LogSheet } from './LogSheet';
 import { PromptBox } from './PromptBox';
 
-const isRunning = (t: Today | undefined) => t?.tray.some((j) => !isTerminal(j)) ?? false;
+// The tray's jobs, and the draft Robes is making for a day (plan 2026-11-03): read every 2 s.
+const isRunning = (t: Today | undefined) =>
+  (t?.tray.some((j) => !isTerminal(j)) ?? false) ||
+  (t?.diary?.days.some((d) => d.draft?.jobId || d.draft?.look?.framePending) ?? false);
 
 // Today's cache with one look taken off its day (optimistic; the server read follows).
 export function withoutDiaryEntry(id: string) {
@@ -57,7 +61,14 @@ export function withoutDiaryEntry(id: string) {
 // today's weather, the strip, the selected day's slot, and — for today and days ahead — the
 // prompt box. Alerts live behind the bell; the day-one band (P3) sits above the strip. The web
 // twin is app/src/components/home/diary-home.tsx.
-export function DiaryHome({ day = null }: { day?: string | null } = {}) {
+export function DiaryHome({
+  day = null,
+  saved = null,
+}: {
+  day?: string | null;
+  // The look just saved from its draft (`?saved=`): its card says so for the visit.
+  saved?: string | null;
+} = {}) {
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -73,6 +84,10 @@ export function DiaryHome({ day = null }: { day?: string | null } = {}) {
   const [picked, setPicked] = useState<string | null>(null);
   const [log, setLog] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
+  // Her words per day as sent this session, so the box's thread opens with them.
+  const [asked, setAsked] = useState<Record<string, string>>({});
+  // ↻ on the draft tile: another take, same brief.
+  const another = useRestyle();
   // The tab stays mounted: a bell nudge or deep link lands on its day whenever it arrives.
   useEffect(() => {
     if (day) setPicked(day);
@@ -197,10 +212,14 @@ export function DiaryHome({ day = null }: { day?: string | null } = {}) {
 
           <DaySlot
             day={current}
+            today={today}
             dayWord={dayWord}
+            justSaved={saved}
             onAdd={() => setLog(current.date)}
             onChange={() => setDrawer({ date: current.date, mode: 'change' })}
             onRemove={remove}
+            onAnother={another.restyle}
+            anotherBusy={another.busyId !== null && another.busyId === current.draft?.look?.id}
           />
 
           {past ? null : (
@@ -209,6 +228,8 @@ export function DiaryHome({ day = null }: { day?: string | null } = {}) {
               today={today}
               home={homePlace}
               hasPieces={data.home.state.pics > 0}
+              sent={asked[current.date] ?? null}
+              onSent={(words) => setAsked((a) => ({ ...a, [current.date]: words }))}
             />
           )}
 

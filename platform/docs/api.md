@@ -122,7 +122,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 ### Styling engines (all Jobs)
 | New | Legacy |
 |---|---|
-| `POST /looks/generate` (key-piece styling: three suggestions on the deck) · `POST /looks/prompt` (a new look in her words: ONE draft for the day, in the diary's slot — plan 2026-11-03) · `POST /looks/:id/restyle` `{ note? }` (↻ one suggestion; Dress it again on a draft Robes made, `note` = what's not right with it) | `/api/style` (dress-me intent, `refine` + `wayIndex`) |
+| `POST /looks/generate` (key-piece styling: three suggestions on the deck) · `POST /looks/prompt` (a new look in her words: three suggestions on the deck, or with `draft: true` — the diary's prompt box, plan 2026-11-03 — ONE draft for the day, in the diary's slot) · `POST /looks/:id/restyle` `{ note? }` (↻ one suggestion; Dress it again on a draft Robes made, `note` = what's not right with it) | `/api/style` (dress-me intent, `refine` + `wayIndex`) |
 | `POST /looks/:id/ask` (the look prompt; the edit is the job's output) | `/api/look/ask` (supersedes `/api/look/refine`) |
 | `POST /looks/:id/frame` (Robes' frame for the rack as it stands: first open, or re-dressed after an edit) | `/api/avatar/render` frame mode |
 | `POST /today/generate` (daily look; also produced by overnight batch) | `/api/daily` |

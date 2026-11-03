@@ -1,27 +1,17 @@
 import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { errors, lookbook, looks as looksCopy, ui, you } from '@robes/copy';
-import { lookLine, lookWearFor } from '@robes/core/looks';
-import {
-  Eyebrow,
-  IconButton,
-  Image,
-  Pill,
-  SegmentedControl,
-  Sheet,
-  Text,
-  useToast,
-} from '@robes/ui-native';
+import { errors, lookbook, looks as looksCopy, you } from '@robes/copy';
+import { lookLine } from '@robes/core/looks';
+import { Eyebrow, IconButton, Image, SegmentedControl, Text, useToast } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 import { useHerPhoto } from './her-photo';
 import { LookMix, LookPicture } from './LookPicture';
+import { lookTags, TagsSheet } from './TagsSheet';
 
 const copy = looksCopy.page;
-const seasons = lookbook.refine.seasons;
-const BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 
 // The saved look's picture and what sits under it (Look redline 27 Oct; web twin
 // app/src/components/looks/look-hero.tsx): THE LOOK, the picture with the diary bottom-left and
@@ -42,10 +32,6 @@ export function LookHero({
   const queryClient = useQueryClient();
   const key = queryKeys.call('looks.get', { params: { id: look.id } });
   const [tagsOpen, setTagsOpen] = useState(false);
-  const landed = (updated: Look) => {
-    queryClient.setQueryData(key, updated);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
-  };
   // Every saved look can be worn by a model: her twin, her filed cell, else the generic Robes
   // model — `stand`, the one renderOnModel draws on (beta dressed every saved look).
   // Twin of web components/looks/look-hero.tsx.
@@ -74,13 +60,6 @@ export function LookHero({
   }, [api, canDress, key, look.id, look.model, look.onModel, look.status, queryClient]);
   // Her photograph lands; her model starts dressing the look, so You · Model has both sides.
   const herPhoto = useHerPhoto(look, dressIfNeeded);
-  const update = useApiMutation('looks.update', {
-    onSuccess: landed,
-    onError: () => {
-      toast.show({ message: errors.internal });
-      void queryClient.invalidateQueries({ queryKey: key });
-    },
-  });
 
   // Model before her model has worn it starts the dressing; the picture follows when it lands.
   const choose = (record: 'photo' | 'model') => {
@@ -111,10 +90,7 @@ export function LookHero({
       </Text>
     </Pressable>
   );
-  const tags = [
-    ...(look.climateBand === 'year_round' ? [] : [seasons[look.climateBand]]),
-    ...lookWearFor(look),
-  ];
+  const tags = lookTags(look);
   return (
     <View className="gap-3">
       <Eyebrow>{eyebrow}</Eyebrow>
@@ -217,31 +193,7 @@ export function LookHero({
         )}
       </View>
       {herPhoto.sheet}
-      <Sheet
-        open={tagsOpen}
-        onClose={() => setTagsOpen(false)}
-        title={copy.tags}
-        closeLabel={ui.done}
-      >
-        <View className="gap-2 pb-4">
-          <Text size="small" tone="muted">
-            {copy.season}
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {BANDS.map((b) => (
-              <Pill
-                key={b}
-                selected={look.climateBand === b}
-                onPress={() =>
-                  update.mutate({ params: { id: look.id }, input: { climateBand: b } })
-                }
-              >
-                {seasons[b]}
-              </Pill>
-            ))}
-          </View>
-        </View>
-      </Sheet>
+      <TagsSheet look={look} open={tagsOpen} onClose={() => setTagsOpen(false)} />
     </View>
   );
 }
