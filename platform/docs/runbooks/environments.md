@@ -111,8 +111,8 @@ Sessions live in Postgres; sign-in is email OTP (passwordless) plus Apple and Go
 ## 6. Vercel
 
 1. Project `robes-app`, root directory `platform/app`, framework Next.js, Node 24, Fluid compute on, function region `dub1`.
-2. **One project, two release branches** (2026-10-27): `main` → Production (`app.byrobes.com`); `beta` → the custom environment **`staging`** (`staging.byrobes.com`); other branches are protected previews. Each environment has its own variables; `staging`'s are a separate set from Production's.
-3. Build command migrates **staging only** (`if [ "$VERCEL_TARGET_ENV" = staging ]; then pnpm db:migrate; fi`): production shares the database beta runs on, so its migrations are a deliberate step at release (`database-migrations.md`), never a side effect of a merge. Ignored build step: `case "$VERCEL_TARGET_ENV" in production|staging) git diff --quiet HEAD^ HEAD -- ../ ;; *) exit 0 ;; esac`.
+2. **Two projects** (as found 2026-11-03): `robes-app` builds `beta` into the custom environment **`staging`** (`staging.byrobes.com`); **`robes-prod`** builds `main` into Production (`app.byrobes.com`, plus `beta.byrobes.com` attached as a redirect to it, live once DNS moves at cutover). `robes-app`'s own Production target also builds `main` and has no database: a leftover to switch off. Each environment has its own variables.
+3. Both build commands migrate before `next build`: `robes-app` when `$VERCEL_TARGET_ENV` is `staging`, `robes-prod` when `$VERCEL_ENV` is `production` (2026-11-03). Production shares Robes_p0 with legacy beta, so its `DATABASE_ADMIN_URL` is the `robes_migrator` role, which owns `app`/`private` and has no rights on beta's tables (`database-migrations.md`). Ignored build steps: `robes-app` `case "$VERCEL_TARGET_ENV" in production|staging) git diff --quiet HEAD^ HEAD -- ../ ;; *) exit 0 ;; esac`; `robes-prod` builds production only.
 4. AWS access is by the stage's IAM user keys (ADR-021), not OIDC federation; leave Vercel OIDC Federation off.
 5. Deployment protection on previews; Firewall rate-limit rule on `/api/v1/*`; BotID on auth + waitlist.
 6. Spend management: set a monthly cap and alert.

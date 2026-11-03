@@ -45,12 +45,7 @@ jobs:
       - uses: ./.github/actions/platform-setup
       - run: pnpm --filter @robes/infra test
 
-      # Migration role URL (owns the schema), never the runtime robes_app URL (ADR-020).
-      - name: db migrate
-        env:
-          DATABASE_ADMIN_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
-        run: pnpm db:migrate
-
+      # No db migrate here: Vercel's staging build migrates (database-migrations.md), one runner per environment.
       - uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}

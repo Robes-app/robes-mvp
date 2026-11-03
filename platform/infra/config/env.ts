@@ -6,6 +6,14 @@ export function fromEnv(name: string): string | undefined {
   return value === undefined || value === '' ? undefined : value;
 }
 
+/** A comma-separated variable as a list, blanks dropped. */
+export function listFromEnv(name: string): string[] {
+  return (fromEnv(name) ?? '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
 export function publicKeyFor(stage: string): string | undefined {
   const inline = fromEnv(`ROBES_${stage.toUpperCase()}_CF_PUBLIC_KEY`);
   if (inline) return inline;

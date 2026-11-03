@@ -1,6 +1,7 @@
 import {
   budgetsEnabled,
   fromEnv,
+  listFromEnv,
   mediaBucketName,
   publicKeyFor,
   reservedConcurrency,
@@ -37,7 +38,7 @@ export const production: StageConfig = {
   workers: { generateReservedConcurrency: reservedConcurrency('production', 20) },
   // One PostHog project for both stages for now; events carry `environment`.
   posthog: { key: fromEnv('ROBES_POSTHOG_KEY') },
-  alerts: { email: fromEnv('ROBES_PRODUCTION_ALERT_EMAIL') },
+  alerts: { emails: listFromEnv('ROBES_PRODUCTION_ALERT_EMAIL') },
   budget: {
     enabled: budgetsEnabled('production'),
     monthlyUsd: 1000,
