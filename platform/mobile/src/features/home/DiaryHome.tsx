@@ -26,6 +26,7 @@ import {
   ScrollView,
   View,
 } from 'react-native';
+import { useTabScroll } from '@/components/TabScreen';
 import { isTerminal } from '@/features/looks/ideas';
 import { useRestyle } from '@/features/looks/look-states';
 import { LookPicker } from '@/features/plan/LookPicker';
@@ -69,6 +70,7 @@ export function DiaryHome({
   // The look just saved from its draft (`?saved=`): its card says so for the visit.
   saved?: string | null;
 } = {}) {
+  const tabScroll = useTabScroll();
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -173,6 +175,7 @@ export function DiaryHome({
       className="flex-1"
     >
       <ScrollView
+        {...tabScroll}
         contentContainerClassName="gap-6 px-5 pt-[22px] pb-8"
         keyboardShouldPersistTaps="handled"
         testID="diary-home"

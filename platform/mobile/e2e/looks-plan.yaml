@@ -22,12 +22,7 @@ appId: host.exp.Exponent
     notVisible: 'Silk scarf is in your wardrobe now.'
     timeout: 20000
 - tapOn:
-    id: 'create-tab'
-- extendedWaitUntil:
-    visible: 'Photograph pieces'
-    timeout: 10000
-- scrollUntilVisible:
-    element: 'New look'
+    id: 'looks-tab'
 - tapOn: 'New look'
 - extendedWaitUntil:
     visible: 'Choose the pieces'

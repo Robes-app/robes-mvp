@@ -20,8 +20,9 @@ export function notificationHref(item: NotificationItem): string {
   return `/?day=${item.date ?? ''}`;
 }
 
-// The bell (design 3k, plan §1.12): in the header beside the avatar, a rose dot while anything
-// waits; its sheet lists each item as a card with where it leads and a × that dismisses it.
+// The bell (design 3k, plan §1.12): in the header beside the avatar, a 6pt ink dot while anything
+// waits, and the count in its label (iOS navigation redline); its sheet lists each item as a card
+// with where it leads and a × that dismisses it.
 // The native twin is mobile/src/components/Bell.tsx.
 export function Bell() {
   const queryClient = useQueryClient();
@@ -43,18 +44,19 @@ export function Bell() {
     <>
       <button
         type="button"
-        aria-label={copy.open}
+        aria-label={copy.openNew(items.length)}
         title={copy.open}
         onClick={() => setOpen(true)}
         data-testid="bell"
         data-alert={items.length > 0 ? 'true' : undefined}
-        className={`relative flex size-11 items-center justify-center rounded-pill text-ink ${focus}`}
+        className={`relative flex size-11 items-center justify-center rounded-pill text-ink transition-colors duration-100 active:text-ink-muted ${focus}`}
       >
-        <Icon name="bell" size={18} />
+        <Icon name="bell" size={20} />
         {items.length ? (
+          // 6 of ink inside a 1.5 ring of the page, at the glyph's shoulder.
           <span
             aria-hidden
-            className="absolute top-2.5 right-3 size-[7px] rounded-pill border-[1.5px] border-bg bg-accent-inspire"
+            className="absolute top-[8.5px] right-[9.5px] size-[9px] rounded-pill border-[1.5px] border-bg bg-ink"
           />
         ) : null}
       </button>

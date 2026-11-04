@@ -700,7 +700,7 @@ export const ui = {
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.
 export const shell = {
   primaryNav: 'Main',
-  openYou: 'You',
+  openYou: 'Your profile and settings',
   create: {
     title: 'Create',
     groups: { add: 'Add pieces', dress: 'Dress' },

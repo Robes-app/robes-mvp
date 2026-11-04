@@ -48,6 +48,8 @@ test('two items render with where each leads; a tap routes, × dismisses and the
   await waitFor(() =>
     expect(screen.getByTestId('bell-dot', { includeHiddenElements: true })).toBeTruthy(),
   );
+  // The dot is never colour alone: the count is in the label.
+  expect(button.props.accessibilityLabel).toBe('Notifications, 2 new');
   await fireEvent.press(button);
   expect(await screen.findByText(bell.title)).toBeTruthy();
   expect(screen.getByText(bell.receipts(2))).toBeTruthy();
@@ -88,7 +90,9 @@ test('two items render with where each leads; a tap routes, × dismisses and the
 test('with nothing waiting the bell carries no dot and the sheet says so', async () => {
   mockFetch({ 'GET /me/notifications': { items: [] } });
   await renderWithApi(<Bell />);
-  await fireEvent.press(await screen.findByTestId('bell'));
+  const button = await screen.findByTestId('bell');
+  expect(button.props.accessibilityLabel).toBe('Notifications');
+  await fireEvent.press(button);
   expect(await screen.findByText(bell.empty)).toBeTruthy();
   expect(screen.queryByTestId('bell-dot', { includeHiddenElements: true })).toBeNull();
 });

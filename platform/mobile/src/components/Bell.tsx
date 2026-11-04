@@ -4,12 +4,14 @@ import { bell as copy } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
 import { fonts, MIN_TOUCH, maxFontSizeMultiplier, Sheet, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
 
-// The bell (design 3k, plan §1.12): in the header beside the avatar, a rose dot while anything
-// waits; its sheet lists each item as a card with where it leads and a × that dismisses it.
+// The bell (design 3k, plan §1.12): in the header beside the avatar, a 6pt ink dot while anything
+// waits, and the count in its label (iOS navigation redline); its sheet lists each item as a card
+// with where it leads and a × that dismisses it.
 // The web twin is app/src/components/shell/bell.tsx.
 export function Bell() {
   const router = useRouter();
@@ -42,21 +44,29 @@ export function Bell() {
     <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={copy.open}
-        onPress={() => setOpen(true)}
+        accessibilityLabel={copy.openNew(items.length)}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          setOpen(true);
+        }}
         testID="bell"
         style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
         className="items-center justify-center rounded-pill"
       >
-        <Icon name="bell" size={18} color={ink} />
-        {items.length ? (
-          <View
-            testID="bell-dot"
-            importantForAccessibility="no-hide-descendants"
-            style={{ width: 7, height: 7, borderWidth: 1.5 }}
-            className="absolute top-2.5 right-3 rounded-pill border-bg bg-accent-inspire"
-          />
-        ) : null}
+        {({ pressed }) => (
+          <>
+            <Icon name="bell" size={20} color={pressed ? muted : ink} />
+            {items.length ? (
+              // 6 of ink inside a 1.5 ring of the page, at the glyph's shoulder.
+              <View
+                testID="bell-dot"
+                importantForAccessibility="no-hide-descendants"
+                style={{ width: 9, height: 9, borderWidth: 1.5, top: 8.5, right: 9.5 }}
+                className="absolute rounded-pill border-bg bg-ink"
+              />
+            ) : null}
+          </>
+        )}
       </Pressable>
       <Sheet open={open} onClose={() => setOpen(false)} title={copy.title} closeButton>
         {items.length === 0 ? (

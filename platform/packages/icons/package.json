@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "gen:tab-images": "tsx scripts/gen-tab-images.ts"
   },
   "peerDependencies": {
     "react": "^19.2",
@@ -26,6 +27,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native-svg": "15.16.0",
+    "sharp": "0.35.5",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

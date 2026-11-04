@@ -1,10 +1,9 @@
 // One source for every icon: 24×24 line drawings stroked with currentColor, rendered by
 // web.tsx (DOM SVG) and native.tsx (react-native-svg). Add icons here only.
 export const ICONS = {
-  today: [
-    'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
-    'M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
-  ],
+  // The Home tab: a house on the 24pt grid, roof apex at y 4, walls 4–20, a door 6 wide (iOS
+  // navigation redline, 2026-11-04). The sun read as weather; `sun` stays for the weather line.
+  home: ['M4 10.2 12 4l8 6.2V19a1 1 0 0 1-1 1h-4v-5.5h-6V20H5a1 1 0 0 1-1-1z'],
   wardrobe: [
     'M10 5a2 2 0 1 1 2 2v1.5',
     'M12 8.5 3.5 15a1.5 1.5 0 0 0 .9 2.7h15.2a1.5 1.5 0 0 0 .9-2.7L12 8.5',
@@ -116,3 +115,13 @@ export type IconName = keyof typeof ICONS;
 export const ICON_NAMES = Object.keys(ICONS) as IconName[];
 export const ICON_VIEWBOX = '0 0 24 24';
 export const ICON_STROKE_WIDTH = 1.5;
+
+// The four tab glyphs, in tab order. The native tab bar is the system's own, so these ship as
+// template PNGs (mobile/assets/tabs): after changing one, run `pnpm --filter @robes/icons
+// gen:tab-images` (mobile/__tests__/tab-icons.test.ts fails until you do).
+export const TAB_ICONS = [
+  'home',
+  'book',
+  'plan',
+  'wardrobe',
+] as const satisfies readonly IconName[];

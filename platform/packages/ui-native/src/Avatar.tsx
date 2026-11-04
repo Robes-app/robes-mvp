@@ -9,6 +9,8 @@ export interface AvatarProps {
   name?: string | null;
   source?: string | null;
   size?: keyof typeof sizes;
+  // `ring`: the header's quieter chrome (iOS navigation redline) — no fill, one italic initial.
+  tone?: 'filled' | 'ring';
   // Defaults to the name; pass '' when a neighbouring label already names her.
   label?: string;
   className?: string;
@@ -23,7 +25,15 @@ export function initials(name: string | null | undefined): string {
     .join('');
 }
 
-export function Avatar({ name, source, size = 'md', label, className, testID }: AvatarProps) {
+export function Avatar({
+  name,
+  source,
+  size = 'md',
+  tone = 'filled',
+  label,
+  className,
+  testID,
+}: AvatarProps) {
   const px = sizes[size];
   const a11y = label ?? name ?? '';
   return (
@@ -33,7 +43,8 @@ export function Avatar({ name, source, size = 'md', label, className, testID }: 
       accessibilityRole={a11y ? 'image' : undefined}
       accessibilityLabel={a11y || undefined}
       className={cx(
-        'items-center justify-center overflow-hidden rounded-pill border border-hairline bg-surface-sunk',
+        'items-center justify-center overflow-hidden rounded-pill border',
+        tone === 'ring' ? 'border-border-control' : 'border-hairline bg-surface-sunk',
         className,
       )}
       style={{ width: px, height: px }}
@@ -45,6 +56,15 @@ export function Avatar({ name, source, size = 'md', label, className, testID }: 
           accessible={false}
           style={{ width: px, height: px }}
         />
+      ) : tone === 'ring' ? (
+        <Text
+          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+          className="text-ink"
+          // Nudged 1pt down to sit optically centred in the ring.
+          style={{ fontFamily: fonts.displayRegularItalic, fontSize: 18, marginTop: 1 }}
+        >
+          {initials(name).slice(0, 1)}
+        </Text>
       ) : (
         <Text
           maxFontSizeMultiplier={maxFontSizeMultiplier.label}

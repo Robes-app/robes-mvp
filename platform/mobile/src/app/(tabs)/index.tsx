@@ -1,4 +1,3 @@
-import { nav } from '@robes/copy';
 import { useLocalSearchParams } from 'expo-router';
 import { TabScreen } from '@/components/TabScreen';
 import { DiaryHome } from '@/features/home/DiaryHome';
@@ -10,7 +9,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export default function Today() {
   const { day, saved } = useLocalSearchParams<{ day?: string; saved?: string }>();
   return (
-    <TabScreen title={nav.today}>
+    <TabScreen>
       <DiaryHome
         day={day && ISO_DATE.test(day) ? day : null}
         saved={saved && UUID.test(saved) ? saved : null}
