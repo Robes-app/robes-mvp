@@ -3,7 +3,7 @@ import { clientIp } from '@/server/client-ip';
 import { route } from '@/server/route';
 import { joinWaitlist } from '@/server/waitlist';
 
-// Public by design (SEC-60): Turnstile + a tight per-IP limit; allow-listed in route-manifest.test.
+// Public by design (SEC-60): a tight per-IP limit, plus Turnstile when keyed; allow-listed in route-manifest.test.
 export const POST = route({
   auth: 'public',
   flag: 'signups',
