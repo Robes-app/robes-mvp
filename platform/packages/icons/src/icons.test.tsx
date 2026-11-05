@@ -5,7 +5,17 @@ import { Icon } from './web';
 
 describe('icons', () => {
   it('has the IA destinations and core actions', () => {
-    for (const name of ['today', 'wardrobe', 'looks', 'plan', 'plus', 'user', 'close', 'undo']) {
+    for (const name of [
+      'home',
+      'book',
+      'wardrobe',
+      'looks',
+      'plan',
+      'plus',
+      'user',
+      'close',
+      'undo',
+    ]) {
       expect(ICON_NAMES).toContain(name);
     }
   });

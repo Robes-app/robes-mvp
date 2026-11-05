@@ -5,6 +5,7 @@ import {
   type LookAskInput,
   LookSet,
   type PromptLookInput,
+  type RestyleLookInput,
   type StartJobOutput,
 } from '@robes/contracts';
 import { lookDateName } from '@robes/core/calendar';
@@ -40,13 +41,15 @@ export async function draftsFull<T>(write: () => Promise<T>): Promise<T> {
 }
 
 // A hand-built draft she never named saves as her today ("Wednesday 28 Oct"), provisional (beta
-// rule, legacy history 2026-10-05). Robes' looks keep Robes' name.
+// rule, legacy history 2026-10-05). Robes' looks keep Robes' name. With `date` (the diary home's
+// draft, plan 2026-11-03 D5) the saved look is pinned to that day in the same act.
 export async function saveLook(
   userId: UserId,
   id: string,
-  name: string | undefined,
+  input: { name?: string | undefined; date?: string | undefined },
   now = new Date(),
 ) {
+  const { name, date } = input;
   const look = await repos.looks.get(userId, id);
   if (!look) throw new ApiError('not_found');
   let datedName: string | undefined;
@@ -54,7 +57,9 @@ export async function saveLook(
     const profile = await repos.profiles.get(userId);
     if (profile) datedName = lookDateName(todayIn(profile.timezone, now));
   }
-  return toLook(userId, await repos.looks.save(userId, id, { name, datedName }));
+  const saved = await repos.looks.save(userId, id, { name, datedName });
+  if (date) await repos.plan.pin(userId, id, [date], { slot: 'day' });
+  return toLook(userId, saved);
 }
 
 export function isUnnamedHandBuilt(look: {
@@ -66,7 +71,9 @@ export function isUnnamedHandBuilt(look: {
   return look.status === 'draft' && look.nameProvisional && look.source === 'manual' && !look.setId;
 }
 
-// Her words for a day → three suggested looks on the deck (legacy __rbPromptLook, 2026-10-09).
+// Her words for a day → three suggested looks on the deck (legacy __rbPromptLook, 2026-10-09), or,
+// from the diary's prompt box (`draft`, plan 2026-11-03), ONE draft look for that day: the job
+// mints the draft and the diary shows it in the day's slot.
 export async function promptLook(
   userId: UserId,
   req: Request,
@@ -76,28 +83,31 @@ export async function promptLook(
     throw new ApiError('capacity');
   }
   await ensureGenericCells(userId);
+  const { draft, ...rest } = input;
   return startJob(userId, req, {
     kind: 'key_piece',
-    input: { mode: 'prompt', ...input },
+    input: { mode: 'prompt', ...rest, ...(draft ? { draft: true } : {}) },
     quota: [...SET_QUOTA],
   });
 }
 
-// ↻ on a suggestion: that one look re-written in place, its frame drawn again.
+// ↻ on a suggestion, or Dress it again on a draft Robes made: that one look re-written in place
+// from the same brief (and what she said is not right with it), its frame drawn again.
 export async function restyleLook(
   userId: UserId,
   req: Request,
   id: string,
+  input: RestyleLookInput = {},
 ): Promise<StartJobOutput> {
   const look = await repos.looks.get(userId, id);
   if (!look) throw new ApiError('not_found');
-  if (look.status !== 'suggested' || !look.setId) throw new ApiError('conflict');
+  if (!['suggested', 'draft'].includes(look.status) || !look.setId) throw new ApiError('conflict');
   if (await repos.capacity.isExhausted([...TEXT_FAMILIES, ...IMAGE_FAMILIES])) {
     throw new ApiError('capacity');
   }
   return startJob(userId, req, {
     kind: 'key_piece',
-    input: { mode: 'restyle', lookId: id },
+    input: { mode: 'restyle', lookId: id, ...(input.note ? { note: input.note } : {}) },
     quota: [...SET_QUOTA],
   });
 }

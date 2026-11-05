@@ -56,7 +56,7 @@ export default async function YouPage({
               <SettingsRow
                 href="/legal/terms"
                 external
-                label={you.legal.betaTerms}
+                label={you.legal.terms}
                 sub={you.subs.terms}
               />
             </SettingsGroup>

@@ -26,7 +26,7 @@ Without `GEMINI_API_KEY` every AI call uses the deterministic fake, so all flows
 | Media | uploads, signed renditions | camera/roll upload | presigned PUT → RenditionFn (sharp, AVIF/WebP, blurhash); CloudFront signed URLs/cookies |
 | M2 shell | nav, ⌘K, Create sheet, You area | tabs, Create modal, You stack | `/me`, notification prefs, deletion request |
 | M3 wardrobe | grid, add, piece page, wishlist | same | pieces CRUD + undo, batch analyse job, wishlist + "I bought this" |
-| M4 styling | style a piece, ideas, saved looks, look page, composer, share, You › Style | same | `key_piece` job (text then frames), ideas, looks + variants + wears, style DNA engine (legacy parity fixtures), colour/silhouette analysis job, shares (128-bit token, signed ≤2 h images) |
+| M4 styling | style a piece, ideas, saved looks, look page, the draft page (plan 2026-11-03; the composer retired), share, You › Style | same | `key_piece` job (text then frames; one draft from the diary's box), ideas, looks + variants + wears, style DNA engine (legacy parity fixtures), colour/silhouette analysis job, shares (128-bit token, signed ≤2 h images) |
 | M5 today & plan | Today (next step, week strip, tray), Style it for today, Plan | same | `/today`, next-step rules, `daily` job (weather via Open-Meteo), plan pin/unpin/rename |
 | M6 comms & admin | unsubscribe page, waitlist + confirm, admin app, data export | — | notify tick (looks ready, five, empty week, morning cue; RFC 8058 one-click), account deletion (SEC-80), data export (SEC-81), admin reads (every read audited), waitlist (SEC-60) |
 | M7 native | — | push registration + deep links, consent-gated PostHog (analytics + JS errors) | push tokens API, Expo push channel on the notify tick |

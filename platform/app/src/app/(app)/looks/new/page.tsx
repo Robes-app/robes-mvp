@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Composer } from '@/components/looks/composer';
+import { NewDraft } from '@/components/looks/draft-page';
 
 const Search = z.object({ pieceId: z.uuid().optional() }).catch({});
 
@@ -11,7 +11,7 @@ export default async function NewLookPage({
   const { pieceId } = Search.parse(await searchParams);
   return (
     <div className="flex flex-col gap-4">
-      <Composer {...(pieceId ? { pieceId } : {})} />
+      <NewDraft {...(pieceId ? { pieceId } : {})} />
     </div>
   );
 }

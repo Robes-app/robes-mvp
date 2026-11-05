@@ -3,6 +3,7 @@
 
 import { dayMonth, lookDateName, weekdayLong } from '../calendar';
 
+export * from './adjust';
 export * from './draft';
 
 export const LOOK_STATUSES = ['suggested', 'draft', 'saved'] as const;
@@ -17,7 +18,6 @@ export const MAX_DRAFTS = 5;
 export const NOTE_SENTENCES = 3;
 // What she types into a look's prompt (legacy REFINE_MAX).
 export const ASK_MAX_CHARS = 240;
-export const ASK_THREAD_MAX = 6;
 export const ASK_RACK_MAX = 14;
 
 export function noteShort(note: string | null | undefined, n = NOTE_SENTENCES): string {

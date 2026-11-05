@@ -4,6 +4,7 @@
 import { SEASON_LABELS } from './seasons';
 
 const pieces = (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`);
+const TO_FIND_WORDS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'] as const;
 const KEPT_WORDS = ['None', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
 const ROLE = { canvas: 'Canvas', anchor: 'Anchor', texture: 'Texture', exclamation: 'Exclamation' };
 const line = (parts: (string | null)[]): string => parts.filter(Boolean).join(' · ');
@@ -72,7 +73,8 @@ export const lookbook = {
     draft: 'Draft look',
     draftFromSuggestion: 'Draft · from Robes’ suggestion',
     saved: 'Saved look',
-    editing: 'Editing',
+    // Once her words or her hands have changed it and the picture is behind (design 3b).
+    editing: 'Saved look · changed',
   },
   meta: {
     pieces,
@@ -103,6 +105,9 @@ export const lookbook = {
   },
   composedByRobes: 'Composed by Robes',
   noteLabel: 'The look',
+  // The text block over a look's picture (plan 2026-11-03 §1.3): what it is made of.
+  mix: (yours: number, toFind: number): string =>
+    toFind === 0 ? `The look · ${pieces(yours)}` : `The look · ${yours} yours, ${toFind} to find`,
   // The Lookbook's Filter drawer (legacy Refine): the axes a saved look can be narrowed by.
   refine: {
     open: 'Filter',
@@ -186,6 +191,68 @@ export const lookbook = {
     undressed: (pronoun: string): string => `Couldn’t dress ${pronoun} · Try again`,
     reading: 'Reading the piece…',
     prompt: 'Ask Robes about this look',
+  },
+  // The draft look and its thread (Front Door design 3b, plan 2026-11-03): one page for every
+  // draft, worked on through the prompt on home and here alike; the picture falls behind the rack
+  // until she asks for the model again, or saves.
+  draft: {
+    eyebrow: 'Draft look',
+    inLookbook: 'In your Lookbook',
+    changed: 'In your Lookbook · changed',
+    untagged: 'Untagged — season, agenda, vibe',
+    tags: '+ Tags',
+    // The pill on the page, and home's box while a draft is live.
+    adjust: 'Adjust this look…',
+    adjustAfter: 'Anything else, or put something back…',
+    notRight: 'What’s not right with it…',
+    // The options under the thread.
+    redress: 'Dress it again',
+    updateModel: (n: number): string => `Update the model · ${n}`,
+    adjustOpt: 'Adjust',
+    view: 'View draft',
+    // Robes' lines.
+    first: (line: string): string => `Here’s a first look: ${line}`,
+    toFind: (n: number): string =>
+      n === 0 ? '' : n === 1 ? 'One piece to find.' : `${TO_FIND_WORDS[n] ?? n} pieces to find.`,
+    ask: 'What’s not right with this one? Tell me, and I’ll dress it again.',
+    thanks: 'Thanks, that helps. Here it is, dressed again.',
+    another: 'Here’s another take, same brief.',
+    modelAsked: 'Update the model',
+    modelDone: 'Done. The model now wears your changes.',
+    savedUpdated: 'Saved, with the model updated.',
+    changedBy: (what: string): string => `Updated the rack with your change: ${what}.`,
+    // Work lines, and what the picture says while it is drawn.
+    dressing: 'Dressing it…',
+    dressingAgain: 'Dressing it again…',
+    reading: 'Reading your change…',
+    usually: 'Usually under a minute',
+    rack: 'The rack',
+    linesFirst: [
+      'Reading your words…',
+      'Pulling pieces from your wardrobe…',
+      'Finding the pieces to find…',
+      'Dressing it on your model…',
+    ],
+    linesAgain: [
+      'Reading your change…',
+      'Swapping the pieces…',
+      'Keeping the rest as it was…',
+      'Dressing it on your model…',
+      'Lighting the photo…',
+    ],
+    // The tile in the day's slot.
+    badgeSaved: 'Saved to Lookbook',
+    tileBar: 'Draft look',
+    tileDressing: 'Dressing…',
+    tileRegen: 'Another take, same brief',
+    open: 'Open the draft',
+    // The bar.
+    saving: 'Saving…',
+    saved: 'Saved',
+    discardChanges: 'Discard changes',
+    // The pending count on the picture, read out.
+    behind: (n: number): string => `${n} ${n === 1 ? 'change' : 'changes'} the picture is behind`,
+    stale: 'The picture is behind your changes',
   },
   // The one wardrobe sheet behind every + and every swap (legacy 2026-10-15, design 2 / 4a).
   sheet: {

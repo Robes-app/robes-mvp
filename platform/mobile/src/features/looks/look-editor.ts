@@ -1,4 +1,4 @@
-import { useApiClient, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApiClient, useApiMutation } from '@robes/api-client/react';
 import {
   askChanges,
   type Look,
@@ -11,21 +11,26 @@ import {
 import { errors, lookbook, ui } from '@robes/copy';
 import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { nativeAnalytics } from '@/lib/analytics';
-import { isDraftsFull, useInvalidateLooks, useRedress, useRequestFrame } from './look-states';
+import { isDraftsFull, useInvalidateLooks, useRequestFrame } from './look-states';
 import type { RowMark } from './RackRow';
 
 // One look's rack while she works on it. A suggestion or a draft writes through on every change
-// (a suggestion becomes a draft as it does); a saved look edits in place until Update. A look
-// Robes framed has its frame re-dressed for the new rack, never her model (legacy 2026-10-07).
-export function useLookEditor(look: Look) {
+// (a suggestion becomes a draft as it does); a saved look edits in place until Update. The
+// picture is drawn again only when she asks — Update the model, Dress it again, Save (plan
+// 2026-11-03 D3) — through `redraw`; a suggestion's swap-in-place still re-frames by itself.
+// `onChange` fires on every change to the rack. Web twin: app/src/lib/look-editor.ts.
+export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) {
   const api = useApiClient();
+  const queryClient = useQueryClient();
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const requestFrame = useRequestFrame();
-  const redress = useRedress();
+  const onChange = useRef(opts.onChange);
+  onChange.current = opts.onChange;
   const live = look.status !== 'saved';
   const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
@@ -40,10 +45,9 @@ export function useLookEditor(look: Look) {
     setSeen(look.updatedAt);
     setRack(rackFromLook(look));
   }
-  // Robes' frame is re-dressed for the new rack; a saved look on her model is drawn again.
+  // A suggestion's frame follows its rack by itself; a draft's and a saved look's wait for her.
   const reframe = (l: Look) => {
-    if (l.frame || l.setId) requestFrame(l.id);
-    else redress(l);
+    if (l.status === 'suggested' && (l.frame || l.setId)) requestFrame(l.id);
   };
   const write = useApiMutation('looks.update', {
     onSuccess: (updated) => {
@@ -83,6 +87,7 @@ export function useLookEditor(look: Look) {
 
   const change = (next: RackState) => {
     setRack(next);
+    onChange.current?.();
     if (live) {
       write.mutate({ params: { id: look.id }, input: rackUpdate(next, { keepEdits: true }) });
     } else {
@@ -144,6 +149,14 @@ export function useLookEditor(look: Look) {
     startDraft: () =>
       write.mutate({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: true }) }),
     rename: (name: string) => write.mutate({ params: { id: look.id }, input: { name } }),
+    // The picture drawn again for the rack as it stands: Robes' frame, else her model.
+    redraw: async () => {
+      if (look.frame || look.setId) await api.call('looks.frame', { params: { id: look.id } });
+      else await api.call('looks.renderOnModel', { params: { id: look.id } });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.call('looks.get', { params: { id: look.id } }),
+      });
+    },
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
@@ -246,16 +259,17 @@ export function useLookEditor(look: Look) {
         .catch(() => toast.show({ message: errors.internal }));
     },
     // Saved look: Update commits the rack (working notes drop); Done/Discard leaves it as it was.
-    update: () =>
-      void write
+    update: (): Promise<boolean> =>
+      write
         .mutateAsync({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: false }) })
         .then((updated) => {
           nativeAnalytics.track('look_updated', { pieces: updated.pieces.length });
           setDirty(false);
           setEditing(false);
           toast.show({ message: lookbook.updated });
+          return true;
         })
-        .catch(() => undefined),
+        .catch(() => false),
     discard: () => {
       setRack(rackFromLook(look));
       setDirty(false);

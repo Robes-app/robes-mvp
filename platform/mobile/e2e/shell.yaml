@@ -1,4 +1,4 @@
-# Signed in on Today: every tab, the Create modal and You are reachable (sign-out is in sign-in.yaml).
+# Signed in on Home: every tab and You are reachable (sign-out is in sign-in.yaml). No Create button.
 appId: host.exp.Exponent
 ---
 - tapOn:
@@ -16,13 +16,8 @@ appId: host.exp.Exponent
 - extendedWaitUntil:
     visible: 'Nothing planned yet.'
     timeout: 10000
-- tapOn:
+- assertNotVisible:
     id: 'create-tab'
-- extendedWaitUntil:
-    visible: 'Photograph pieces'
-    timeout: 10000
-- assertVisible: 'Paste a link'
-- tapOn: 'Close'
 - tapOn:
     id: 'today-tab'
 - assertVisible: '.*, Niall\.'

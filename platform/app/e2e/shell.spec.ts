@@ -20,7 +20,19 @@ test('the roots match beta on desktop and phone, and each is reachable', async (
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(nav.getByRole('link')).toHaveText(ROOTS);
-  await expect(nav.getByRole('button', { name: 'Create' })).toBeVisible();
+  // iOS navigation redline: one capsule, 16 from each side, 64 tall, 24 above the screen edge, and
+  // no sparkle beside it (dressing starts from home's composer).
+  await expect(nav.getByRole('button', { name: 'Create' })).toHaveCount(0);
+  expect(await nav.getByRole('list').boundingBox()).toEqual({
+    x: 16,
+    y: 844 - 24 - 64,
+    width: 390 - 32,
+    height: 64,
+  });
+  // The bar: the avatar's ring stands 16 from the edge, inside a 44 hit area.
+  const you = page.getByRole('banner').getByRole('link', { name: 'Your profile and settings' });
+  const hit = await you.boundingBox();
+  expect(hit && [hit.width, hit.height, 390 - (hit.x + hit.width)]).toEqual([44, 44, 10]);
 
   for (const [label, path] of [
     ['Wardrobe', '/wardrobe'],
@@ -32,6 +44,43 @@ test('the roots match beta on desktop and phone, and each is reachable', async (
     await expect(page).toHaveURL(new RegExp(`${path === '/' ? '/' : path}$`));
     await expect(nav.getByRole('link', { name: label })).toHaveAttribute('aria-current', 'page');
   }
+});
+
+test('the bar draws its hairline once scrolled; the grids minimise the dock on scroll down', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await declineConsent(page);
+  const banner = page.getByRole('banner');
+  const nav = page.getByRole('navigation', { name: 'Main' });
+  // Room to scroll whatever the wardrobe holds.
+  const scrollTo = (y: number) =>
+    page.evaluate((top) => {
+      document.body.style.minHeight = '4000px';
+      window.scrollTo(0, top);
+    }, y);
+
+  await page.goto('/wardrobe');
+  await expect(banner).not.toHaveAttribute('data-scrolled');
+  await scrollTo(600);
+  await expect(banner).toHaveAttribute('data-scrolled', 'true');
+  // Minimised: the current tab alone at the leading edge; scrolling up restores the four.
+  await expect(nav.getByRole('link')).toHaveCount(0);
+  const current = nav.getByRole('button', { name: 'Wardrobe' });
+  expect(await current.boundingBox()).toEqual(expect.objectContaining({ x: 16, width: 56 }));
+  await scrollTo(200);
+  await expect(nav.getByRole('link')).toHaveText(ROOTS);
+  // A tap restores it too.
+  await scrollTo(900);
+  await current.click();
+  await expect(nav.getByRole('link')).toHaveText(ROOTS);
+
+  // Off by default: Home keeps its dock whole however far she scrolls.
+  await page.goto('/');
+  await scrollTo(900);
+  await expect(banner).toHaveAttribute('data-scrolled', 'true');
+  await expect(nav.getByRole('link')).toHaveText(ROOTS);
 });
 
 test('a pushed page’s back pill: in the top bar on a phone, at the head of the page on desktop', async ({
@@ -49,7 +98,7 @@ test('a pushed page’s back pill: in the top bar on a phone, at the head of the
   await expect(main.getByRole('link', { name: 'October 2026' })).toHaveCount(0);
   // Only one pill reaches assistive tech: the other is display:none at this width.
   await expect(page.getByRole('link', { name: 'October 2026' })).toHaveCount(1);
-  await expect(banner.getByRole('link', { name: 'You' })).toBeVisible();
+  await expect(banner.getByRole('link', { name: 'Your profile and settings' })).toBeVisible();
 
   // Desktop (≥768, beta's .rb-ret): the bar keeps the wordmark; the pill heads the page.
   await page.setViewportSize({ width: 1280, height: 844 });
@@ -63,7 +112,7 @@ test('a pushed page’s back pill: in the top bar on a phone, at the head of the
   const [pill, title] = await Promise.all([back.boundingBox(), heading.boundingBox()]);
   expect(pill && title && pill.y + pill.height <= title.y).toBe(true);
   // Keyboard: the bar first, then the pill, then the page.
-  await page.getByRole('link', { name: 'You' }).focus();
+  await page.getByRole('link', { name: 'Your profile and settings' }).focus();
   await page.keyboard.press('Tab');
   await expect(back).toBeFocused();
 

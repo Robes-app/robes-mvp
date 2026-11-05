@@ -43,7 +43,7 @@ const JSON_LD = JSON.stringify({
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ day?: string | string[] }>;
+  searchParams: Promise<{ day?: string | string[]; saved?: string | string[] }>;
 }) {
   const profile = await currentProfile();
 
@@ -81,6 +81,7 @@ export default async function Home({
       <DiaryHome
         initial={await loadToday(profile.userId)}
         day={z.iso.date().safeParse(params.day).data ?? null}
+        saved={z.uuid().safeParse(params.saved).data ?? null}
       />
     </AppShell>
   );

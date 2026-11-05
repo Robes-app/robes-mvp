@@ -35,6 +35,7 @@ import {
   isFlowPath,
   isSettingsPath,
   NAV_ITEMS,
+  type NavItem,
 } from '@/lib/nav';
 import { FeaturesProvider } from '../features';
 import { useDeviceLocation } from './device-location';
@@ -64,9 +65,13 @@ export function useHideBack(hidden: boolean): void {
   }, [set, hidden]);
 }
 
-// Signed-in chrome: top nav ≥768; below it beta's dock — a floating bar of the four roots with
-// the sparkle beside it for Create (the native twin is mobile/src/components/TabBar.tsx).
-// Create sheet and ⌘K everywhere (IA §3.2).
+// The roots whose grids minimise the dock as she scrolls down (iOS navigation redline).
+const MINIMISES = new Set(['/looks', '/wardrobe']);
+
+// Signed-in chrome (iOS navigation redline, 2026-11-04): the top bar on every width, the roots
+// beside the wordmark ≥768; below it one full-width capsule of the four roots. No sparkle beside
+// it on a phone: dressing starts from home's composer. Native twins: TabScreen (the bar) and
+// app/(tabs)/_layout.tsx (the system tab bar). Create sheet from the desktop bar; ⌘K everywhere.
 export function AppShell({
   name,
   features,
@@ -89,6 +94,7 @@ export function AppShell({
   useDeviceLocation();
   const current = activeRoot(pathname);
   const inFlow = isFlowPath(pathname) || pushed;
+  const { scrolled, minimised, restore } = useScrollChrome(MINIMISES.has(current), pathname);
   const create = useMemo(() => createItems(features), [features]);
   // The new-look box in the sheet navigates to the deck; the sheet goes with the page it opened on.
   // biome-ignore lint/correctness/useExhaustiveDependencies: closes on every route change
@@ -135,10 +141,12 @@ export function AppShell({
 
   return (
     <div className="flex min-h-dvh flex-col">
+      {/* At the scroll edge no hairline; scrolled, a mostly opaque bar with a hairline beneath. */}
       <header
-        className={`sticky top-0 z-40 border-b border-hairline bg-bg/95 backdrop-blur ${pushed && !back ? 'max-md:hidden' : ''}`}
+        data-scrolled={scrolled ? 'true' : undefined}
+        className={`sticky top-0 z-40 border-b ${scrolled ? 'border-hairline bg-bg/95 backdrop-blur' : 'border-transparent bg-bg'} ${pushed && !back ? 'max-md:hidden' : ''}`}
       >
-        <div className="mx-auto flex h-11 max-w-5xl items-center gap-2 px-5 md:h-16 md:px-4">
+        <div className="mx-auto flex h-11 max-w-5xl items-center gap-2 px-4 md:h-16">
           {/* A pushed page's back pill: below 768 it stands where the wordmark sits, one header row;
               from 768 the bar keeps the wordmark and the pill heads the page (beta's #rb-backpill and
               .rb-ret). Both are drawn and CSS picks one, so the server render is final; the other is
@@ -173,7 +181,8 @@ export function AppShell({
               </Link>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-1">
+          {/* The avatar's 44 hit area runs 6 past its ring, so the ring stands 16 from the edge. */}
+          <div className="-mr-1.5 ml-auto flex items-center md:gap-1">
             <button
               type="button"
               onClick={toggleCommand}
@@ -198,9 +207,9 @@ export function AppShell({
               href="/you"
               aria-label={shell.openYou}
               aria-current={pathname.startsWith('/you') ? 'page' : undefined}
-              className={`ml-1 rounded-pill ${focus}`}
+              className={`flex size-11 items-center justify-center rounded-pill transition-opacity duration-100 active:opacity-60 ${focus}`}
             >
-              <Avatar name={name} size="sm" />
+              <Avatar name={name} size="sm" tone="ring" />
             </Link>
           </div>
         </div>
@@ -222,24 +231,22 @@ export function AppShell({
         </PushedContext>
       </main>
 
+      {/* One capsule, 16 from each side and 24 above the screen edge; 4 inset round four tabs. */}
       <nav
         aria-label={shell.primaryNav}
         hidden={inFlow}
-        className="fixed inset-x-3.5 bottom-0 z-40 flex items-center gap-2.5 pb-[max(env(safe-area-inset-bottom),12px)] md:hidden"
+        data-minimised={minimised ? 'true' : undefined}
+        className="fixed inset-x-4 bottom-6 z-40 md:hidden"
       >
-        <ul className="flex h-16 grow items-center justify-between rounded-pill border border-hairline bg-bg/90 px-1.5 shadow-[0_10px_30px_color-mix(in_srgb,var(--color-ink)_10%,transparent)] backdrop-blur-xl">
-          {NAV_ITEMS.map((item) => (
-            <TabLink key={item.href} item={item} active={current === item.href} />
-          ))}
-        </ul>
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          aria-label={nav.create}
-          className={`flex size-16 shrink-0 items-center justify-center rounded-pill border border-hairline bg-bg/90 text-ink shadow-[0_10px_30px_color-mix(in_srgb,var(--color-ink)_10%,transparent)] backdrop-blur-xl ${focus}`}
-        >
-          <Icon name="looks" size={22} />
-        </button>
+        {minimised ? (
+          <MinimisedTab item={NAV_ITEMS.find((i) => i.href === current)} onRestore={restore} />
+        ) : (
+          <ul className={`flex h-16 items-center rounded-pill border border-hairline p-1 ${DOCK}`}>
+            {NAV_ITEMS.map((item) => (
+              <TabLink key={item.href} item={item} active={current === item.href} />
+            ))}
+          </ul>
+        )}
       </nav>
 
       <Sheet title={shell.create.title} open={createOpen} onOpenChange={setCreateOpen}>
@@ -288,20 +295,66 @@ export function AppShell({
   );
 }
 
-// Active: ink on a sunk pill; the rest ink-muted (Native parity handoff).
+// Lighter glass and a softer shadow than the old dock keep the cream dominant.
+const DOCK =
+  'bg-bg/80 shadow-[0_6px_20px_color-mix(in_srgb,var(--color-ink)_6%,transparent)] backdrop-blur-xl';
+
+// Selected: ink icon and label on a pale surface pill; the rest ink-muted. Labels are authored in
+// sentence case and capitalised for display only.
 function TabLink({ item, active }: { item: (typeof NAV_ITEMS)[number]; active: boolean }) {
   return (
     <li className="flex-1">
       <Link
         href={item.href}
         aria-current={active ? 'page' : undefined}
-        className={`flex h-13 flex-col items-center justify-center gap-[3px] rounded-pill font-sans text-[9px] font-medium uppercase tracking-[0.14em] ${
-          active ? 'bg-surface-sunk text-ink' : 'text-ink-muted'
+        className={`flex h-14 flex-col items-center justify-center gap-0.5 rounded-pill font-sans font-medium text-[10px] uppercase leading-3 tracking-[0.08em] whitespace-nowrap ${
+          active ? 'bg-surface text-ink' : 'text-ink-muted'
         } ${focus}`}
       >
-        <Icon name={item.icon} size={20} />
+        <Icon name={item.icon} size={24} />
         {item.label}
       </Link>
     </li>
   );
+}
+
+// Minimised on scroll: the current tab alone, a 56 circle at the leading edge; a tap restores.
+function MinimisedTab({ item, onRestore }: { item?: NavItem; onRestore: () => void }) {
+  if (!item) return null;
+  return (
+    <button
+      type="button"
+      aria-label={item.label}
+      aria-expanded={false}
+      onClick={onRestore}
+      className={`flex size-14 items-center justify-center rounded-pill border border-hairline text-ink ${DOCK} ${focus}`}
+    >
+      <Icon name={item.icon} size={24} />
+    </button>
+  );
+}
+
+// The bar's hairline once she leaves the scroll edge; the dock minimises while she scrolls down a
+// grid and comes back when she scrolls up.
+function useScrollChrome(canMinimise: boolean, pathname: string) {
+  const [scrolled, setScrolled] = useState(false);
+  const [minimised, setMinimised] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new page starts with the dock whole
+  useEffect(() => setMinimised(false), [pathname]);
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 0);
+      if (canMinimise && Math.abs(y - last) > 8) {
+        setMinimised(y > last && y > 64);
+        last = y;
+      }
+      if (!canMinimise) last = y;
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [canMinimise]);
+  return { scrolled, minimised, restore: useCallback(() => setMinimised(false), []) };
 }

@@ -700,7 +700,7 @@ export const ui = {
 // App shell (IA §3.2): nav, Create sheet, command bar, placeholder routes.
 export const shell = {
   primaryNav: 'Main',
-  openYou: 'You',
+  openYou: 'Your profile and settings',
   create: {
     title: 'Create',
     groups: { add: 'Add pieces', dress: 'Dress' },
@@ -876,7 +876,7 @@ export const you = {
   title: 'You',
   // The header row's title on the root (legacy settings.html): the avatar's door reads Settings.
   settings: 'Settings',
-  version: 'Robes beta',
+  version: 'Robes',
   // The Account tab's groups and the line under each row (beta's Settings › Account).
   sections: { profile: 'Profile', notifications: 'Notifications', privacy: 'Privacy & terms' },
   subs: {
@@ -912,8 +912,6 @@ export const you = {
   privacy: 'Your data',
   legal: {
     terms: 'Terms',
-    // The Settings row while Robes is in beta.
-    betaTerms: 'Beta terms',
     privacyNotice: 'Privacy notice',
   },
   signOut: 'Sign out',

@@ -1,7 +1,7 @@
 import { lookbook, looks, ui, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { Composer } from '../src/features/looks/Composer';
+import { DraftPage, NewDraft } from '../src/features/looks/DraftPage';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { ASSET_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
 import { mockRouter } from './support/router';
@@ -22,6 +22,25 @@ jest.mock('../src/features/wardrobe/add-pieces', () => ({
 }));
 
 const SCARF = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const MODEL = {
+  filed: false,
+  presence: 'woman',
+  skin: 3,
+  hair: 1,
+  line: null,
+  frame: null,
+  source: 'hand',
+  reads: { colour: false, silhouette: false },
+  cellId: 'w-s3-h1-nt',
+  cell: { status: 'none', imageUrl: null },
+  swatches: { skin: [], hair: [] },
+  skinSet: false,
+  hairSet: false,
+  adj: { shoulders: null, bust: null, hips: null },
+  closeUpUrl: null,
+  twin: { status: 'none', current: false, imageUrl: null },
+  stand: { imageUrl: 'https://m.test/w-s4-h1-nt.png', generic: true },
+};
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -34,11 +53,8 @@ test('a new look is a draft from its first piece, named when she names it, then 
     'POST /looks': look({ status: 'draft' }),
     'GET /looks': { items: [], nextCursor: null },
   });
-  await renderWithApi(<Composer />);
-  expect(await screen.findByText(lookbook.figure.head(0))).toBeTruthy();
-  for (const slot of Object.values(lookbook.figure.slots)) {
-    expect(screen.getByRole('button', { name: slot })).toBeTruthy();
-  }
+  await renderWithApi(<NewDraft />);
+  expect(await screen.findByText(lookbook.mix(0, 0))).toBeTruthy();
   await fireEvent.changeText(screen.getByLabelText(lookbook.name.label), 'Gallery');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.rack.addPiece }));
   await fireEvent.press(await screen.findByRole('radio', { name: 'Silk scarf' }));
@@ -63,13 +79,8 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
     },
     'GET /looks': { items: [look({ name: 'Oldest draft', status: 'draft' })], nextCursor: null },
   });
-  await renderWithApi(<Composer pieceId={PIECE_ID} />);
+  await renderWithApi(<NewDraft pieceId={PIECE_ID} />);
   await waitFor(() => expect(alert).toHaveBeenCalled());
-  await waitFor(() =>
-    expect(
-      screen.getByRole('button', { name: lookbook.bar.save }).props.accessibilityState.busy,
-    ).toBe(false),
-  );
   const [title, body, buttons] = alert.mock.calls[0] as [
     string,
     string,
@@ -93,140 +104,77 @@ test('a sixth draft asks to let the oldest go, and only then makes room', async 
   });
 });
 
-test('a slot opens her wardrobe on its category, and All still widens it', async () => {
-  mockFetch({
-    'GET /wardrobe/items': {
-      items: [piece(), piece({ id: SCARF, label: 'Silk shirt', category: 'Tops' })],
-      nextCursor: null,
-    },
-    'GET /looks': { items: [], nextCursor: null },
-  });
-  await renderWithApi(<Composer />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.slots.top }));
-  expect(await screen.findByRole('radio', { name: 'Silk shirt' })).toBeTruthy();
-  expect(screen.queryByRole('radio', { name: 'Camel wool coat' })).toBeNull();
-  await fireEvent.press(screen.getByText(lookbook.swap.all));
-  expect(await screen.findByRole('radio', { name: 'Camel wool coat' })).toBeTruthy();
-});
-
-test('the empty draft stands her model on the canvas with Discard and a held Save at the foot', async () => {
+test('the empty draft stands her model on the mat with Discard and a held Save at the foot', async () => {
   mockFetch({
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
     'GET /looks': { items: [], nextCursor: null },
+    'GET /me/model': MODEL,
   });
-  await renderWithApi(<Composer />);
-  expect(await screen.findByText(lookbook.eyebrow.draft)).toBeTruthy();
+  await renderWithApi(<NewDraft />);
+  expect(await screen.findByText(lookbook.draft.eyebrow)).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.bar.discard })).toBeTruthy();
   expect(
     screen.getByRole('button', { name: lookbook.bar.save }).props.accessibilityState.disabled,
   ).toBe(true);
-  // A hotspot titles the sheet for its slot, and Photograph one leads the grid.
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.figure.slots.shoes }));
-  expect(await screen.findByText(lookbook.sheet.slot.shoes)).toBeTruthy();
-  expect(screen.getByText(lookbook.sheet.eyebrow)).toBeTruthy();
+  // The dashed row opens the one wardrobe sheet: Photograph one leads the grid, with a search.
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.rack.addPiece }));
+  expect(await screen.findByText(lookbook.sheet.eyebrow)).toBeTruthy();
   expect(screen.getByRole('button', { name: lookbook.sheet.photograph })).toBeTruthy();
   expect(screen.getByLabelText(lookbook.sheet.search)).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText(lookbook.sheet.search), 'camel');
+  expect(await screen.findByRole('radio', { name: 'Camel wool coat' })).toBeTruthy();
 });
 
-test('the sheet searches her whole wardrobe', async () => {
-  mockFetch({
+// The one draft page (design 3b, plan 2026-11-03 D3): the picture is drawn only when she asks.
+test('a draft reads its text block; a swap leaves the picture behind until Update the model', async () => {
+  const draft = look({
+    status: 'draft',
+    pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+    model: piece().image,
+    onModel: 'ready',
+  });
+  const calls = mockFetch({
     'GET /wardrobe/items': {
-      items: [piece(), piece({ id: SCARF, label: 'Silk scarf', category: 'Accessories' })],
+      items: [piece(), piece({ id: SCARF, label: 'Navy silk top', category: 'Tops' })],
       nextCursor: null,
     },
     'GET /looks': { items: [], nextCursor: null },
-  });
-  await renderWithApi(<Composer />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.slots.top }));
-  await fireEvent.changeText(screen.getByLabelText(lookbook.sheet.search), 'silk');
-  expect(await screen.findByRole('radio', { name: 'Silk scarf' })).toBeTruthy();
-  expect(screen.queryByRole('radio', { name: 'Camel wool coat' })).toBeNull();
-});
-
-test('a piece on the draft dresses her model once the rack settles, a top lights ✓ Top', async () => {
-  const calls = mockFetch({
-    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
-    'GET /looks': { items: [], nextCursor: null },
-    'GET /me/model': {
-      filed: false,
-      presence: 'woman',
-      skin: 3,
-      hair: 1,
-      line: null,
-      frame: null,
-      source: 'hand',
-      reads: { colour: false, silhouette: false },
-      cellId: 'w-s3-h1-nt',
-      cell: { status: 'none', imageUrl: null },
-      swatches: { skin: [], hair: [] },
-      skinSet: false,
-      hairSet: false,
-      adj: { shoulders: null, bust: null, hips: null },
-      closeUpUrl: null,
-      twin: { status: 'none', current: false, imageUrl: null },
-      stand: { imageUrl: 'https://m.test/w-s4-h1-nt.png', generic: true },
-    },
+    'GET /me/model': MODEL,
+    'POST /me/memory': { ok: true },
+    [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) => ({
+      ...draft,
+      updatedAt: new Date().toISOString(),
+      ...JSON.parse(String(init.body)),
+      pieces: draft.pieces,
+    }),
     [`POST /looks/${LOOK_ID}/render`]: {
       jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
       status: 'queued',
     },
   });
-  const draft = look({
-    status: 'draft',
-    pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
-  });
-  await renderWithApi(<Composer look={draft} />);
-  expect(await screen.findByText(lookbook.figure.dressing('her'))).toBeTruthy();
-  expect(screen.getByText(lookbook.figure.filled.top)).toBeTruthy();
-  await waitFor(
-    () => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/render'))).toBe(true),
-    { timeout: 4_000 },
-  );
-});
-
-test('a render that failed says so on the canvas, and Try again asks once more', async () => {
-  const calls = mockFetch({
-    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
-    'GET /looks': { items: [], nextCursor: null },
-    'GET /me/model': {
-      filed: false,
-      presence: 'woman',
-      skin: 3,
-      hair: 1,
-      line: null,
-      frame: null,
-      source: 'hand',
-      reads: { colour: false, silhouette: false },
-      cellId: 'w-s3-h1-nt',
-      cell: { status: 'none', imageUrl: null },
-      swatches: { skin: [], hair: [] },
-      skinSet: false,
-      hairSet: false,
-      adj: { shoulders: null, bust: null, hips: null },
-      closeUpUrl: null,
-      twin: { status: 'none', current: false, imageUrl: null },
-      stand: { imageUrl: 'https://m.test/w-s4-h1-nt.png', generic: true },
-    },
-    [`POST /looks/${LOOK_ID}/render`]: {
-      jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-      status: 'queued',
-    },
-  });
-  const draft = look({
-    status: 'draft',
-    onModel: 'failed',
-    pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
-  });
-  await renderWithApi(<Composer look={draft} />);
+  await renderWithApi(<DraftPage look={draft} />);
+  expect(await screen.findByText(lookbook.draft.eyebrow)).toBeTruthy();
+  expect(screen.getByText(lookbook.mix(1, 0))).toBeTruthy();
+  expect(screen.getByText(lookbook.draft.untagged)).toBeTruthy();
+  expect(screen.getByTestId('draft-picture')).toBeTruthy();
+  // Nothing is drawn by itself on opening.
   const renders = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/render'));
-  const retry = await screen.findByRole(
-    'button',
-    { name: lookbook.figure.undressed('her') },
-    { timeout: 4_000 },
+  expect(renders()).toHaveLength(0);
+  // The hanger swaps from her wardrobe; the picture is now one change behind.
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
-  expect(renders()).toHaveLength(1);
-  await fireEvent.press(retry);
-  await waitFor(() => expect(renders()).toHaveLength(2));
+  await fireEvent.press(await screen.findByRole('radio', { name: 'Navy silk top' }));
+  expect(await screen.findByText(lookbook.swap.swapped('Navy silk top'))).toBeTruthy();
+  expect(await screen.findByTestId('draft-picture-stale')).toBeTruthy();
+  expect(screen.getAllByLabelText(lookbook.draft.behind(1)).length).toBeGreaterThan(0);
+  expect(renders()).toHaveLength(0);
+  // The pill opens the card; its option draws the model, and the count clears.
+  await fireEvent.press(screen.getByTestId('adjust-pill'));
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.draft.updateModel(1) }));
+  await waitFor(() => expect(renders()).toHaveLength(1));
+  expect(screen.getByText(lookbook.draft.modelAsked)).toBeTruthy();
+  expect(screen.queryAllByLabelText(lookbook.draft.behind(1))).toHaveLength(0);
 });
 
 test('a swap on the draft lands at once behind Undo, which puts the rack back', async () => {
@@ -245,7 +193,7 @@ test('a swap on the draft lands at once behind Undo, which puts the rack back', 
       pieces: draft.pieces,
     }),
   });
-  await renderWithApi(<Composer look={draft} />);
+  await renderWithApi(<DraftPage look={draft} />);
   await fireEvent.press(
     await screen.findByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
   );
@@ -266,7 +214,22 @@ test('a swap on the draft lands at once behind Undo, which puts the rack back', 
   expect(back.pieces.map((p) => p.pieceId)).toEqual([PIECE_ID]);
 });
 
-test('her photograph is added to the draft from the camera on the canvas', async () => {
+test('a render that failed says so on the picture', async () => {
+  mockFetch({
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /me/model': MODEL,
+  });
+  const draft = look({
+    status: 'draft',
+    onModel: 'failed',
+    pieces: [{ piece: piece({ category: 'Tops' }), slot: null, role: null }],
+  });
+  await renderWithApi(<DraftPage look={draft} />);
+  expect(await screen.findByText(lookbook.figure.undressed('her'))).toBeTruthy();
+});
+
+test('her photograph is added to the draft from the camera on the picture', async () => {
   const draft = look({ status: 'draft' });
   const photo = piece().image;
   if (!photo) throw new Error('fixture piece has an image');
@@ -275,7 +238,7 @@ test('her photograph is added to the draft from the camera on the canvas', async
     'GET /looks': { items: [], nextCursor: null },
     [`POST /looks/${LOOK_ID}/photo`]: { ...draft, photo, image: photo, record: 'photo' },
   });
-  await renderWithApi(<Composer look={draft} />);
+  await renderWithApi(<DraftPage look={draft} />);
   expect(screen.queryByRole('radio', { name: looks.page.record.you })).toBeNull();
   await fireEvent.press(await screen.findByRole('button', { name: looks.page.addPhoto }));
   await fireEvent.press(await screen.findByRole('button', { name: wardrobe.add.doors.cameraRoll }));
@@ -284,7 +247,7 @@ test('her photograph is added to the draft from the camera on the canvas', async
   );
 });
 
-test('a draft with her photograph: You · Model under the canvas, ↻ on it, no hotspots', async () => {
+test('a draft with her photograph: You · Model under the picture, ↻ on it', async () => {
   const photo = piece().image;
   if (!photo) throw new Error('fixture piece has an image');
   const mine = look({ status: 'draft', photo, image: photo, record: 'photo' });
@@ -296,11 +259,9 @@ test('a draft with her photograph: You · Model under the canvas, ↻ on it, no 
       ...JSON.parse(String(init.body)),
     }),
   });
-  await renderWithApi(<Composer look={mine} />);
+  await renderWithApi(<DraftPage look={mine} />);
   expect(await screen.findByRole('radio', { name: looks.page.record.you })).toBeTruthy();
   expect(screen.getByRole('button', { name: looks.page.replacePhoto })).toBeTruthy();
-  // The hotspots are drawn for the model's figure; on her photograph they step aside.
-  expect(screen.queryByRole('button', { name: lookbook.figure.slots.top })).toBeNull();
   await fireEvent.press(screen.getByRole('radio', { name: looks.page.record.model }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ record: 'model' }),

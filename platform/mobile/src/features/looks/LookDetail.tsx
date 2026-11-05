@@ -15,12 +15,13 @@ import {
   Text,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
+import { AdjustDock } from './AdjustDock';
+import { type Adjust, useAdjust } from './adjust';
 import { DiarySheet } from './DiarySheet';
 import { LookHero } from './LookHero';
-import { LookPromptBox } from './LookPromptBox';
 import { useLookEditor } from './look-editor';
 import { RackRowCard } from './RackRow';
 import { SwapSheet } from './SwapSheet';
@@ -84,7 +85,10 @@ function SavedLook({ look }: { look: Look }) {
   const router = useRouter();
   const remove = useRemoveLook();
   const [diary, setDiary] = useState(false);
-  const editor = useLookEditor(look);
+  const adjustRef = useRef<Adjust | null>(null);
+  const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
+  const adjust = useAdjust(look, editor, 'saved');
+  adjustRef.current = adjust;
   const [swapping, setSwapping] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
@@ -104,7 +108,9 @@ function SavedLook({ look }: { look: Look }) {
       >
         <LookHero
           look={look}
-          eyebrow={editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}
+          eyebrow={
+            editor.editing || adjust.stale ? lookbook.eyebrow.editing : lookbook.eyebrow.saved
+          }
           onDiary={() => setDiary(true)}
         />
         {/* The name and its one line of facts, close together; the eyebrow is over the picture. */}
@@ -142,15 +148,7 @@ function SavedLook({ look }: { look: Look }) {
           ) : null}
         </View>
         {editor.rack.rows.length > 0 ? (
-          <LookPromptBox
-            lookId={look.id}
-            name={look.name}
-            surface="saved"
-            rack={editor.rack}
-            anchorPieceId={look.anchor?.id ?? null}
-            changed={editor.changed}
-            onAnswer={editor.answer}
-          />
+          <AdjustDock adjust={adjust} name={look.name} surface="saved" />
         ) : null}
         {editor.editing ? null : <WearRecord look={look} onAddDate={() => setDiary(true)} />}
         {editor.editing ? null : (
@@ -189,12 +187,16 @@ function SavedLook({ look }: { look: Look }) {
               {editor.dirty ? lookbook.bar.discard : lookbook.bar.done}
             </Button>
             <Button
-              onPress={editor.update}
-              disabled={!editor.dirty}
+              onPress={() =>
+                void editor.update().then((ok) => {
+                  if (ok) adjust.drawForSave();
+                })
+              }
+              disabled={!editor.dirty && !adjust.stale}
               loading={editor.saving}
               className="flex-1"
             >
-              {lookbook.bar.update}
+              {adjust.stale ? `↻ ${lookbook.bar.update}` : lookbook.bar.update}
             </Button>
           </PrimaryScope>
         ) : (
