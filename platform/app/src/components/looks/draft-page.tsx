@@ -27,11 +27,11 @@ import { usePhotoFiling } from '@/lib/file-photo';
 import { useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
 import { AdjustDock } from './adjust-dock';
-import { GenericModelBadge } from './generic-model-badge';
 import { useHerPhoto } from './her-photo';
 import { LookImage } from './look-image';
 import { LookMix } from './look-page';
 import { RackRowCard } from './rack-row';
+import { RobesModelBadge } from './robes-model-badge';
 import { Scanning } from './scan-line';
 import { SwapSheet } from './swap-sheet';
 import { lookTags, TagsSheet } from './tags-sheet';
@@ -326,7 +326,7 @@ function DraftPicture({
             {copy.figure.undressed(pronoun)}
           </span>
         ) : null}
-        {own ? null : <GenericModelBadge />}
+        {own ? null : <RobesModelBadge look={look} />}
         <button
           type="button"
           onClick={photo.pick}
@@ -527,7 +527,7 @@ export function NewDraft({ pieceId }: { pieceId?: string }) {
             {copy.figure.reading}
           </span>
         ) : null}
-        <GenericModelBadge />
+        <RobesModelBadge on={model.data?.stand?.on === 'robes'} />
       </div>
       <AddPiece disabled={busy} onClick={() => setOpened(true)} />
       <Link

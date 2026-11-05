@@ -28,3 +28,21 @@ describe('robes models schema', () => {
       await expectPgError(q, '23514', "insert into app.avatar_cells (id) values ('preset:w4@v1')");
     }));
 });
+
+describe('what a look’s picture stood on', () => {
+  it('is one of twin, cell or robes, or nothing', () =>
+    inTx(async (q) => {
+      await insertUsers(q, USER_A);
+      const [row] = await q(
+        "insert into app.looks (user_id, name, stood_on) values ($1, 'Office', 'robes') returning stood_on",
+        [USER_A],
+      );
+      expect(row?.stood_on).toBe('robes');
+      await expectPgError(
+        q,
+        '23514',
+        "insert into app.looks (user_id, name, stood_on) values ($1, 'Office', 'preset')",
+        [USER_A],
+      );
+    }));
+});

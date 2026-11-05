@@ -1,4 +1,5 @@
 import type { Look } from '@robes/contracts';
+import { lookbook } from '@robes/copy';
 import {
   ASPECTS,
   type Aspect,
@@ -119,6 +120,22 @@ export function LookTile({
       >
         <View className={dashed ? 'overflow-hidden rounded-[8px]' : undefined}>
           <LookPhoto look={look} width={width} aspect={aspect} />
+          {/* The `Robes model` tag (plan 2026-11-05 §1.3): quiet on a tile, whose one target is
+              the look; the look screen's badge is the one that opens the sheet. */}
+          {look.onRobesModel ? (
+            <View
+              className="absolute top-2 left-2 rounded-pill border border-hairline bg-bg px-2 py-1"
+              testID="robes-model-tag"
+            >
+              <RNText
+                maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+                className="text-[9px] text-ink-muted uppercase"
+                style={{ fontFamily: fonts.sans, letterSpacing: 1.4 }}
+              >
+                {lookbook.deck.robesModel}
+              </RNText>
+            </View>
+          ) : null}
           {onImage}
         </View>
         {ootd ? (

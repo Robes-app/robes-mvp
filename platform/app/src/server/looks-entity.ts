@@ -2,6 +2,7 @@ import 'server-only';
 import { ApiError } from '@robes/api';
 import { Edits, Look, LookRole, LookStatus, Proposal, Styling } from '@robes/contracts';
 import { looks as copy } from '@robes/copy';
+import { stoodOnOf } from '@robes/core/avatar';
 import { frameKey } from '@robes/core/looks';
 import { LookPiecesNotFound, type UserId } from '@robes/db';
 import { z } from 'zod';
@@ -176,6 +177,12 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       // A frame look never renders on her model (legacy 2026-10-07).
       onModel: frameRender ? null : (row.renderStatus ?? null),
       pictureStale,
+      // The tag follows Robes' picture while it is the one shown: the row's record of what it
+      // stood on, else (a render from before the column) its key.
+      onRobesModel:
+        record === 'model' &&
+        model !== null &&
+        (row.stoodOn ?? (frameRender ? null : stoodOnOf(row.renderKey))) === 'robes',
       pieces: lookPieces,
       proposals,
       styling,

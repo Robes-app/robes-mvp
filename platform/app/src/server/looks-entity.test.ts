@@ -57,6 +57,7 @@ const row = (o: Record<string, unknown> = {}) =>
     renderStatus: null,
     renderKey: null,
     renderClaimedAt: null,
+    stoodOn: null,
     status: 'suggested',
     anchorPieceId: null,
     setId: null,
@@ -181,5 +182,37 @@ describe('the days a look is pinned on', () => {
     expect(look?.pinnedOn).toEqual(['2026-10-20', '2026-10-22']);
     const [none] = await toLooks(USER, [row({ status: 'saved' })], NOW);
     expect(none?.pinnedOn).toEqual([]);
+  });
+});
+
+describe('the Robes model tag', () => {
+  it('follows what Robes’ picture stood on, never her account', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    const robes = row({ frameAssetId: FRAME, renderStatus: 'ready', stoodOn: 'robes' });
+    const twin = row({ frameAssetId: FRAME, renderStatus: 'ready', stoodOn: 'twin' });
+    const before = row({ frameAssetId: FRAME, renderStatus: 'ready' });
+    const [a, b, c] = await toLooks(USER, [robes, twin, before], NOW);
+    expect(a?.onRobesModel).toBe(true);
+    expect(b?.onRobesModel).toBe(false);
+    // A frame from before the column says nothing: no tag.
+    expect(c?.onRobesModel).toBe(false);
+  });
+
+  it('reads a render’s key when the row has no record, and stands down behind her photograph', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    const render = row({ renderAssetId: FRAME, renderKey: 'w-r2@v1:rack', renderStatus: 'ready' });
+    const hers = row({ renderAssetId: FRAME, renderKey: 'twin:k:rack', renderStatus: 'ready' });
+    const behind = row({
+      renderAssetId: FRAME,
+      renderKey: 'w-r2@v1:rack',
+      renderStatus: 'ready',
+      photoAssetId: PHOTO,
+    });
+    const [a, b, c] = await toLooks(USER, [render, hers, behind], NOW);
+    expect(a?.onRobesModel).toBe(true);
+    expect(b?.onRobesModel).toBe(false);
+    expect(c?.onRobesModel).toBe(false);
   });
 });

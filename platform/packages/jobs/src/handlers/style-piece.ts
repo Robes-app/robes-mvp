@@ -447,11 +447,12 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       const { spec: _spec, lookId: _lookId, ...draw } = o;
       const assetId = await drawSuggestedFrame(frameDeps(), ctx, {
         ...draw,
-        model,
+        model: model.image,
         capability: 'image.hero',
       });
-      // Lands only while the look still wants this rack (she may have changed it meanwhile).
-      await deps.suggested?.setFrame(ctx.userId, o.lookId, specKey(o.spec), assetId);
+      // Lands only while the look still wants this rack (she may have changed it meanwhile), and
+      // records what the frame stood on (plan 2026-11-05 §2.4).
+      await deps.suggested?.setFrame(ctx.userId, o.lookId, specKey(o.spec), assetId, model.on);
       await deps.styling.trackImage({
         jobId: ctx.jobId,
         userId: ctx.userId,

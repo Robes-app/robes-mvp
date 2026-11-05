@@ -1,3 +1,4 @@
+import { stoodOnOf } from '@robes/core/avatar';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
 import { failTwin, modelRow } from './model';
@@ -41,10 +42,16 @@ export function modelRenderRepo(db: Db) {
     },
 
     // Lands only if the look still wants this render (she may have changed model or rack since).
+    // The key names the model it stood on; the row remembers (plan 2026-11-05 §2.4).
     async setRender(userId: UserId, lookId: string, renderKey: string, assetId: string) {
       await db
         .updateTable('looks')
-        .set({ renderStatus: 'ready', renderAssetId: assetId, renderClaimedAt: null })
+        .set({
+          renderStatus: 'ready',
+          renderAssetId: assetId,
+          renderClaimedAt: null,
+          stoodOn: stoodOnOf(renderKey),
+        })
         .where('userId', '=', userId)
         .where('id', '=', lookId)
         .where('renderKey', '=', renderKey)

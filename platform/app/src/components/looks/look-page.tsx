@@ -10,10 +10,10 @@ import { type Adjust, useAdjust } from '@/lib/adjust';
 import { useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRequestFrame, useSaveLook } from '@/lib/look-states';
 import { AdjustDock } from './adjust-dock';
-import { GenericModelBadge } from './generic-model-badge';
 import { LookImage } from './look-image';
 import { LookVerdict } from './look-verdict';
 import { RackRowCard } from './rack-row';
+import { RobesModelBadge } from './robes-model-badge';
 import { Scanning, scanningLine } from './scan-line';
 import { SwapSheet } from './swap-sheet';
 
@@ -187,7 +187,7 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
           />
           <div className="relative">
             <LookPicture look={look} />
-            {suggested && look.frame ? <GenericModelBadge /> : null}
+            <RobesModelBadge look={look} />
           </div>
         </div>
       ) : (

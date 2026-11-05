@@ -342,6 +342,7 @@ export interface Looks {
   setIndex: number | null;
   source: Generated<string>;
   status: Generated<string>;
+  stoodOn: string | null;
   styling: Json | null;
   updatedAt: Generated<Timestamp>;
   userId: string;

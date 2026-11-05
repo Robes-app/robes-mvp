@@ -103,11 +103,13 @@ describe('look_render: Robes’ frame of a look', () => {
     expect(req?.prompt).toContain('- IMAGE 2: the Silk shirt (ivory Tops)');
     expect(req?.prompt).toContain('Worn: tucked at the front.');
     expect(req?.prompt).toContain('- the Black mules (Shoes by Toteme).');
+    // A re-dressed frame keeps the model its first drawing stood on.
     expect(suggested.setFrame).toHaveBeenCalledWith(
       USER,
       LOOK,
       'k1',
       '44444444-4444-4444-8444-444444444444',
+      undefined,
     );
   });
 
@@ -184,23 +186,27 @@ describe('modelReference', () => {
     },
   });
 
-  it('shoots on her twin first, else her catalog cell', async () => {
+  it('shoots on her twin first, else her catalog cell, and says which', async () => {
     const twin = await modelReference(deps(FRAME), USER);
-    expect(new TextDecoder().decode(twin?.data)).toBe(`media/${USER}/${FRAME}/master.jpg`);
+    expect(twin.on).toBe('twin');
+    expect(new TextDecoder().decode(twin.image?.data)).toBe(`media/${USER}/${FRAME}/master.jpg`);
     const cell = await modelReference(deps(null), USER);
-    expect(cell?.mimeType).toBe('image/png');
-    expect(new TextDecoder().decode(cell?.data)).toBe('catalog/avatar/w-s3-h1-nt@v2.png');
+    expect(cell.on).toBe('cell');
+    expect(cell.image?.mimeType).toBe('image/png');
+    expect(new TextDecoder().decode(cell.image?.data)).toBe('catalog/avatar/w-s3-h1-nt@v2.png');
   });
 
   it('shoots on the Robes model she chose over her twin, and every way on that one', async () => {
     const d = deps(FRAME, { modelPreset: 4 });
     const chosen = await modelReference(d, USER, { wearer: 'woman', index: 1 });
-    expect(new TextDecoder().decode(chosen?.data)).toBe('catalog/avatar/w-r4@v1.png');
+    expect(chosen.on).toBe('robes');
+    expect(new TextDecoder().decode(chosen.image?.data)).toBe('catalog/avatar/w-r4@v1.png');
     // None chosen, nothing of her own: the k-th way on the k-th Robes model.
     const kth = await modelReference(deps(null, { filedCellId: null }), USER, {
       wearer: 'man',
       index: 6,
     });
-    expect(new TextDecoder().decode(kth?.data)).toBe('catalog/avatar/m-r2@v1.png');
+    expect(kth.on).toBe('robes');
+    expect(new TextDecoder().decode(kth.image?.data)).toBe('catalog/avatar/m-r2@v1.png');
   });
 });

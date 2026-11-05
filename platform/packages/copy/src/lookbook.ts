@@ -343,18 +343,18 @@ export const lookbook = {
     // filed — the deck's own lists never carry it.
     scanOverlay: ['Styling a look', 'Choosing the shoes', 'Finding a layer', 'Setting the colour'],
     scanGeneric: 'On a Robes model for now',
-    // On a suggested look's frame while she has no model; it opens the build-your-model door.
-    genericModel: 'Generic model',
-    genericModelLabel: 'Generic model — see every look on you',
-    // The badge's own drawer (legacy design 1a): it opens here, never a navigation. Closing it
-    // changes nothing, so an undecided deck stays where it was.
+    // The tag on a look whose picture stands on a Robes model (plan 2026-11-05 §1.3): a quiet chip
+    // on the photograph; on the look page, the deck and a draft it opens the sheet below.
+    robesModel: 'Robes model',
+    robesModelLabel: 'Robes model — see every look on you',
+    // The tag's sheet (design 3b): it opens here, never a navigation, so an undecided deck stays
+    // where it was. Capture Selfie is the camera; Adjust Robes Model is her model page.
     twin: {
-      eyebrow: 'Generic model',
+      eyebrow: 'Robes model',
       title: 'See every look',
       titleEm: 'on you.',
-      body: 'Two photos — a close-up, and full length in good light. Robes builds your digital twin, and dresses her in every look.',
-      upload: 'Upload digital twin',
-      keep: 'Keep styling on the generic model',
+      capture: 'Capture Selfie',
+      adjust: 'Adjust Robes Model',
     },
     teach: 'Swipe left to pass, right to keep.',
     keep: 'Keep',

@@ -270,10 +270,24 @@ export function suggestedLooksRepo(db: Db) {
     },
 
     // Lands a drawn frame only if the look still wants the rack it was drawn for.
-    async setFrame(userId: UserId, lookId: string, frameKey: string, assetId: string) {
+    // `stoodOn` is what the frame was drawn on (plan 2026-11-05 §2.4); left out, a re-dressed
+    // frame keeps the model its first drawing stood on.
+    async setFrame(
+      userId: UserId,
+      lookId: string,
+      frameKey: string,
+      assetId: string,
+      stoodOn?: 'twin' | 'cell' | 'robes' | null,
+    ) {
       const res = await db
         .updateTable('looks')
-        .set({ frameAssetId: assetId, frameKey, renderStatus: 'ready', renderClaimedAt: null })
+        .set({
+          frameAssetId: assetId,
+          frameKey,
+          renderStatus: 'ready',
+          renderClaimedAt: null,
+          ...(stoodOn === undefined ? {} : { stoodOn }),
+        })
         .where('userId', '=', userId)
         .where('id', '=', lookId)
         .where('renderKey', '=', `frame:${frameKey}`)

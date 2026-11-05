@@ -17,7 +17,13 @@ import {
 import { FEATURE as STYLE_FEATURE } from '@robes/ai/prompts/style-piece';
 import { buildImagePrompt as buildIdeaImagePrompt } from '@robes/ai/prompts/style-piece/v2';
 import { LookRenderInput } from '@robes/contracts';
-import { catalogGender, catalogKey, twinInputsOf, twinSpec } from '@robes/core/avatar';
+import {
+  catalogGender,
+  catalogKey,
+  type StoodOn,
+  twinInputsOf,
+  twinSpec,
+} from '@robes/core/avatar';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -343,6 +349,8 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       throw new JobError(err instanceof AiError ? `ai_${err.code}` : 'render_failed');
     };
     let assetId: string;
+    // A frame drawn anew records what it stood on; a re-dressed frame keeps its first model.
+    let stoodOn: StoodOn | null | undefined;
     if (found.look.frameAssetId) {
       const frame = await deps.storage
         .getObject(mediaKeys.master(ctx.userId, found.look.frameAssetId))
@@ -423,16 +431,18 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           ? 'man'
           : 'woman';
       try {
+        const ref = await modelReference(frameDeps, ctx.userId, {
+          wearer,
+          index: found.look.setIndex ?? 0,
+        });
+        stoodOn = ref.on;
         assetId = await drawSuggestedFrame(frameDeps, ctx, {
           wearer,
           mode: set?.success && set.data.mode === 'prompt' ? 'dress-me' : 'piece',
           fallback: set?.success ? set.data.fallback : false,
           pieceLabel: anchor?.label ?? null,
           piecePhoto,
-          model: await modelReference(frameDeps, ctx.userId, {
-            wearer,
-            index: found.look.setIndex ?? 0,
-          }),
+          model: ref.image,
           styleIcons: styleCtx.styleIcons,
           brief: set?.success ? set.data.prompt : null,
           way: {
@@ -447,7 +457,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         return fail(err);
       }
     }
-    await suggested.setFrame(ctx.userId, lookId, frameKey, assetId);
+    await suggested.setFrame(ctx.userId, lookId, frameKey, assetId, stoodOn);
     await ctx.writeStage('images', { images: [{ idx: 0, status: 'ready', assetId }] });
     return { status: 'succeeded' as const };
   }

@@ -20,7 +20,6 @@ import { AdjustDock } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
 import { DiarySheet } from './DiarySheet';
 import { DraftPage } from './DraftPage';
-import { GenericModelBadge } from './GenericModelBadge';
 import { JOB_REFRESH_MS } from './ideas';
 import { LookDetail } from './LookDetail';
 import { LookMix, LookPicture } from './LookPicture';
@@ -28,6 +27,7 @@ import { LookVerdict } from './LookVerdict';
 import { useLookEditor } from './look-editor';
 import { useLetGo, useSaveLook } from './look-states';
 import { RackRowCard } from './RackRow';
+import { RobesModelBadge } from './RobesModelBadge';
 import { SwapSheet } from './SwapSheet';
 
 // A look in whichever state it stands (docs/look-states-brief.md §3.2): one page, one bar.
@@ -127,7 +127,7 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
             />
             <View>
               <LookPicture look={look} />
-              {suggested && look.frame ? <GenericModelBadge /> : null}
+              <RobesModelBadge look={look} />
             </View>
           </View>
         ) : null}

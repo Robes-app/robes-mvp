@@ -1,4 +1,5 @@
 import type { Look } from '@robes/contracts';
+import { lookbook } from '@robes/copy';
 import { type Aspect, Card } from '@robes/ui';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -115,6 +116,13 @@ export function LookTile({
         <>
           <div className={`relative ${dashed ? 'overflow-hidden rounded-[8px]' : ''}`}>
             <LookImage look={look} sizes={sizes} priority={priority} aspect={aspect} />
+            {/* The `Robes model` tag (plan 2026-11-05 §1.3): quiet on a tile, whose one target is
+                the look; the look page's badge is the one that opens the sheet. */}
+            {look.onRobesModel ? (
+              <span className="absolute top-2 left-2 z-10 rounded-pill border border-hairline bg-bg/90 px-2 py-1 font-sans text-[9px] text-ink-muted uppercase tracking-[0.16em]">
+                {lookbook.deck.robesModel}
+              </span>
+            ) : null}
             {onImage}
           </div>
           {ootd ? (

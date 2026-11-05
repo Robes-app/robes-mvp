@@ -11,6 +11,7 @@ import {
   robesModelIds,
   robesModelSpec,
   standOf,
+  stoodOnOf,
 } from './index';
 
 describe('the Robes models', () => {
@@ -94,5 +95,17 @@ describe('what her looks stand on', () => {
       cellId: 'w-s3-h1-nt',
     });
     expect(standOf({ ...base, filedCellId: 'w-s3-h1-nt', modelPreset: 2 }).on).toBe('robes');
+  });
+});
+
+describe('what a picture stood on, from its render key', () => {
+  it('names a twin, a Robes model (new or legacy generic), a hand-built cell; a frame says nothing', () => {
+    expect(stoodOnOf('twin:abc123:rack')).toBe('twin');
+    expect(stoodOnOf('w-r4@v1:rack')).toBe('robes');
+    expect(stoodOnOf('m-s1-h0-nt@v2:rack')).toBe('robes');
+    expect(stoodOnOf('w-s3-h1-nt-ll@v2:rack')).toBe('cell');
+    expect(stoodOnOf('frame:k1')).toBeNull();
+    expect(stoodOnOf(null)).toBeNull();
+    expect(stoodOnOf('nonsense')).toBeNull();
   });
 });

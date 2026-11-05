@@ -99,3 +99,21 @@ export function standOf(s: StandSource): Stand {
   const chosen = n ?? 1;
   return { on: 'robes', cellId: robesModelId(wearerOf(s.genderIdentity), chosen), n: chosen };
 }
+
+// What a look's picture stood on, read from its render key (plan 2026-11-05 §2.4): a twin, a
+// hand-built cell, or a Robes model (the five, or the three legacy generic cells). A frame's key
+// names its rack, not its model, so a frame answers null here and is recorded when it lands.
+export type StoodOn = Stand['on'];
+export function stoodOnOf(renderKey: string | null | undefined): StoodOn | null {
+  if (!renderKey) return null;
+  if (renderKey.startsWith('twin:')) return 'twin';
+  if (renderKey.startsWith('frame:')) return null;
+  const key = renderKey.slice(0, renderKey.lastIndexOf(':'));
+  const cellId = key.slice(0, key.lastIndexOf('@'));
+  if (parseRobesModelId(cellId)) return 'robes';
+  if (LEGACY_GENERIC_CELLS.has(cellId)) return 'robes';
+  return parseCellId(cellId) ? 'cell' : null;
+}
+const LEGACY_GENERIC_CELLS = new Set(
+  ['s4-h1-nt', 's1-h0-nt', 's7-h3-nt'].flatMap((c) => [`w-${c}`, `m-${c}`]),
+);

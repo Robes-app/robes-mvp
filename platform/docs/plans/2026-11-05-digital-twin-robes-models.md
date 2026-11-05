@@ -260,6 +260,19 @@ Lookbook and Diary tiles through `LookTile`'s on-photograph slot. Copy retired: 
 `genericModelLabel`, `deck.twin.*` (its body still asks for two photos). Tests: a look rendered on
 `preset:w2…` carries the tag, one on `twin:…` does not; the sheet's rows route.
 
+> **P3 built 2026-11-05.** A frame's key names its rack, not its model, so the look row gained
+> `stood_on` (`twin` · `cell` · `robes`; migration `20261105160000_look_stood_on.sql`), written when
+> a frame lands (`modelReference` now says what its image is) and when a render lands (from the
+> render key, `stoodOnOf`). `Look.onRobesModel` reads it while Robes' picture is the one shown; a
+> render from before the column reads its key, a frame from before says nothing (no tag).
+> `RobesModelBadge` (web `components/looks/robes-model-badge.tsx`, native
+> `features/looks/RobesModelBadge.tsx`) replaces `GenericModelBadge` on the look page, the deck and
+> the draft page — a quiet chip that pulls up a `Sheet` with Capture Selfie (the camera) and Adjust
+> Robes Model (her model page); on an empty draft it follows the stand she is about to be dressed
+> on. `LookTile` carries the same chip, passive, on every tile (the tile's one target is the look).
+> Copy: `Generic model` and its drawer retired. Not run here: the schema test and the e2e. Lint,
+> typecheck and the unit suites (core, jobs, contracts, copy, web server, native looks) are green.
+
 **P4 · Tidy (S).** Retire `genericCellIds`/`genericCellId`, `ensureGenericCells` and the
 `GenericModelBadge` files; history entry; `docs/plans/README.md` row ticked.
 

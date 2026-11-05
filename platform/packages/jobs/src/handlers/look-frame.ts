@@ -6,7 +6,7 @@ import {
   MAX_REFERENCES,
   type Mode,
 } from '@robes/ai/prompts/style-piece';
-import { catalogKey, robesModelId, standOf } from '@robes/core/avatar';
+import { catalogKey, robesModelId, type StoodOn, standOf } from '@robes/core/avatar';
 import type { SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -43,6 +43,14 @@ async function read(storage: FrameDeps['storage'], key: string): Promise<Uint8Ar
   }
 }
 
+export interface ModelReference {
+  image: InlineImage | null;
+  // What the image is (plan 2026-11-05 §2.4), recorded on the look when the frame lands; null
+  // with no image.
+  on: StoodOn | null;
+}
+const NO_MODEL: ModelReference = { image: null, on: null };
+
 // What she stands on, as IMAGE 1 when ready (standOf, plan 2026-11-05): her twin, else her
 // hand-built cell, else a Robes model. With none chosen, the k-th way of a set stands on the k-th
 // Robes model (legacy 0.4), so the ways read as different people; one chosen carries every way.
@@ -50,8 +58,8 @@ export async function modelReference(
   deps: Pick<FrameDeps, 'storage' | 'styling' | 'cells'>,
   userId: UserId,
   generic?: { wearer: 'woman' | 'man'; index: number },
-): Promise<InlineImage | null> {
-  if (!deps.cells) return null;
+): Promise<ModelReference> {
+  if (!deps.cells) return NO_MODEL;
   const row = deps.cells.model ? await deps.cells.model(userId) : undefined;
   const stand = row
     ? standOf(row)
@@ -59,7 +67,7 @@ export async function modelReference(
   // Her twin first: it is her (legacy modelRefsForUser, 2026-10-20).
   if (stand.on === 'twin' && row?.twinAssetId) {
     const data = await read(deps.storage, mediaKeys.master(userId, row.twinAssetId));
-    if (data) return { mimeType: 'image/jpeg', data };
+    if (data) return { image: { mimeType: 'image/jpeg', data }, on: 'twin' };
   }
   let cellId: string | null = stand.on === 'twin' ? null : stand.cellId;
   const unchosen = stand.on === 'robes' ? row?.modelPreset == null : !cellId;
@@ -67,13 +75,13 @@ export async function modelReference(
     const n = ((generic.index % 5) + 5) % 5;
     cellId = robesModelId(generic.wearer, (n + 1) as 1 | 2 | 3 | 4 | 5);
   }
-  if (!cellId) return null;
+  if (!cellId) return NO_MODEL;
   const cell = await deps.cells.cell(catalogKey(cellId));
-  if (cell?.status !== 'ready' || !cell.bucketKey) return null;
+  if (cell?.status !== 'ready' || !cell.bucketKey) return NO_MODEL;
   const data = await read(deps.storage, cell.bucketKey);
-  if (!data) return null;
+  if (!data) return NO_MODEL;
   const mimeType = (cell.contentType ?? 'image/png') as InlineImage['mimeType'];
-  return { mimeType, data };
+  return { image: { mimeType, data }, on: unchosen || stand.on === 'robes' ? 'robes' : 'cell' };
 }
 
 export async function drawSuggestedFrame(

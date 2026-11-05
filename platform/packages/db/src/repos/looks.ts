@@ -24,6 +24,7 @@ const LOOK_COLUMNS = [
   'setIndex',
   'frameAssetId',
   'frameKey',
+  'stoodOn',
   'proposals',
   'styling',
   'edits',

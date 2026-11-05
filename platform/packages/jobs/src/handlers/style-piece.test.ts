@@ -197,6 +197,7 @@ describe('key_piece handler (suggested looks)', () => {
       'l0',
       claim?.frameKey,
       '44444444-4444-4444-8444-444444444440',
+      null,
     );
   });
 
@@ -353,6 +354,7 @@ describe('key_piece handler (suggested looks)', () => {
       LOOK,
       expect.any(String),
       expect.any(String),
+      null,
     );
     suggested.look.mockResolvedValueOnce(undefined as never);
     await expect(run({ mode: 'restyle', lookId: LOOK })).rejects.toMatchObject({

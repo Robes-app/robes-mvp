@@ -27,12 +27,12 @@ import { usePieces } from '@/features/wardrobe/pieces';
 import { renditionUri } from '@/lib/images';
 import { AdjustDock } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
-import { GenericModelBadge } from './GenericModelBadge';
 import { useHerPhoto } from './her-photo';
 import { LookMix } from './LookPicture';
 import { useLookEditor } from './look-editor';
 import { useInvalidateLooks, useLetGo, useSaveLook } from './look-states';
 import { RackRowCard } from './RackRow';
+import { RobesModelBadge } from './RobesModelBadge';
 import { Scanning } from './ScanLine';
 import { SwapSheet } from './SwapSheet';
 import { lookTags, TagsSheet } from './TagsSheet';
@@ -334,7 +334,7 @@ function DraftPicture({
           </Text>
         </View>
       ) : null}
-      {own ? null : <GenericModelBadge />}
+      {own ? null : <RobesModelBadge look={look} />}
       <View className="absolute right-3 bottom-3 rounded-pill bg-bg">
         <IconButton
           icon={photo.hasPhoto ? 'swap' : 'camera'}
@@ -535,7 +535,7 @@ export function NewDraft({ pieceId }: { pieceId?: string }) {
               </View>
             </View>
           ) : null}
-          <GenericModelBadge />
+          <RobesModelBadge on={model.data?.stand?.on === 'robes'} />
         </View>
         <AddPiece disabled={busy} onPress={() => setOpened(true)} />
         <Button variant="quiet" className="self-center" onPress={() => router.push('/looks/photo')}>

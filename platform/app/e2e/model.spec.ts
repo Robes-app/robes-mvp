@@ -45,6 +45,8 @@ test('she builds her model, Today stops asking, and a look is rendered on her', 
       timeout: 30_000,
     })
     .toBe('ready');
+  // Drawn on a Robes model: the look wears the tag (plan 2026-11-05 §2.4), read from the picture.
+  expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).onRobesModel).toBe(true);
 
   // Her facts draw a twin of her own; once asked for, it stands over the Robes model she chose.
   await api.patch('/api/v1/me/dna', { data: { facts: { heightCm: 170, sizeUk: 12 } } });
@@ -79,6 +81,8 @@ test('she builds her model, Today stops asking, and a look is rendered on her', 
       { timeout: 30_000 },
     )
     .toBe(true);
+  // Re-drawn on her: the tag goes.
+  expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).onRobesModel).toBe(false);
 });
 
 test('a model and its renders are hers alone', async ({ page, browser }) => {
