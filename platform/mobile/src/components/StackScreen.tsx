@@ -1,8 +1,9 @@
 import { ui } from '@robes/copy';
-import { Heading, IconButton } from '@robes/ui-native';
+import { Icon } from '@robes/icons/native';
+import { Heading, IconButton, MIN_TOUCH, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Pushed screens and modals (a piece, a look, a day): a back (or close) chevron and a small
@@ -13,6 +14,7 @@ export function StackScreen({
   close = false,
   home = false,
   settings = false,
+  bare = false,
 }: {
   title?: string;
   children: ReactNode;
@@ -21,9 +23,31 @@ export function StackScreen({
   settings?: boolean;
   // Back always lands home (a screen reached from onboarding has nothing worth going back to).
   home?: boolean;
+  // No header row (redlines R1/R2): the screen's picture starts under the status bar and the
+  // back control floats over it — a 44pt glass disc 14pt from the top-left of the safe area.
+  bare?: boolean;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const ink = useColor('ink');
+  const back = () => (!home && router.canGoBack() ? router.back() : router.replace('/'));
+  if (bare) {
+    return (
+      <View className="flex-1 bg-bg" style={{ paddingBottom: insets.bottom }}>
+        <View className="flex-1">{children}</View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={ui.back}
+          onPress={back}
+          className="absolute items-center justify-center rounded-pill bg-glass"
+          style={{ top: insets.top + 14, left: 14, width: MIN_TOUCH, height: MIN_TOUCH }}
+          testID="stack-back"
+        >
+          <Icon name="back" size={18} color={ink} />
+        </Pressable>
+      </View>
+    );
+  }
   return (
     // Uniwind doesn't style third-party views, so insets go on a plain View.
     <View className="flex-1 bg-bg" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
@@ -47,7 +71,7 @@ export function StackScreen({
         <IconButton
           icon={close ? 'close' : 'back'}
           label={close ? ui.close : ui.back}
-          onPress={() => (!home && router.canGoBack() ? router.back() : router.replace('/'))}
+          onPress={back}
         />
       </View>
       <View className="flex-1">{children}</View>

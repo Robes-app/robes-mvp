@@ -149,8 +149,8 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
   const ownImage = model.twin.imageUrl ?? model.cell.imageUrl;
   const chosen = onRobes ? (model.preset ?? 1) : null;
   const check = (
-    <span className="absolute bottom-2 left-2 flex size-5 items-center justify-center rounded-pill border-2 border-surface-raised bg-accent-plan text-surface-raised">
-      <Icon name="check" size={10} />
+    <span className="absolute bottom-1 left-1 flex size-[18px] items-center justify-center rounded-pill border-2 border-surface-raised bg-accent-plan text-surface-raised">
+      <Icon name="check" size={9} />
     </span>
   );
   const portrait = (url: string | null, alt: string) =>
@@ -163,13 +163,13 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
       />
     ) : (
       <span className="absolute inset-0 flex items-center justify-center text-ink-faint">
-        <Icon name="user" size={22} />
+        <Icon name="user" size={16} />
       </span>
     );
   return (
     <fieldset
       aria-label={twin.twinPage.lineup}
-      className="-mx-6 flex min-w-0 gap-2.5 overflow-x-auto px-6 [scrollbar-width:none] md:mx-0 md:px-0"
+      className="flex min-w-0 gap-1.5 overflow-x-auto [scrollbar-width:none]"
     >
       {own ? (
         <button
@@ -179,7 +179,7 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
           disabled={pending}
           onClick={() => (onRobes ? pick({ preset: null }) : undefined)}
           data-testid="lineup-you"
-          className={`${tile} ${onRobes ? 'border-hairline' : 'border-ink border-[1.5px]'}`}
+          className={`${tile} ${onRobes ? 'border-hairline-strong' : 'border-ink border-[1.5px]'}`}
         >
           {portrait(ownImage, '')}
           {onRobes ? null : check}
@@ -196,7 +196,7 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
             disabled={pending}
             onClick={() => (on ? undefined : pick({ preset: m.n }))}
             data-testid={`lineup-${m.n}`}
-            className={`${tile} ${on ? 'border-ink border-[1.5px]' : 'border-hairline'}`}
+            className={`${tile} ${on ? 'border-ink border-[1.5px]' : 'border-hairline-strong'}`}
           >
             {portrait(m.imageUrl, '')}
             {on ? check : null}

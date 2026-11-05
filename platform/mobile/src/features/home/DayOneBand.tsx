@@ -136,7 +136,7 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
               accessibilityLabel={copy.twin}
               accessibilityState={{ disabled: selfie.busy }}
               disabled={selfie.busy}
-              onPress={() => void selfie.start()}
+              onPress={selfie.start}
               style={TILE}
               className={`${tile} px-2.5`}
             >
@@ -157,9 +157,9 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
                   accessibilityState={{ checked: on }}
                   accessibilityLabel={copy.modelPick(g.n)}
                   onPress={() => pick(g.n)}
-                  style={TILE}
-                  className={`overflow-hidden rounded-soft border bg-surface ${
-                    on ? 'border-selected-line' : 'border-transparent'
+                  style={[TILE, { borderWidth: on ? 1.5 : 0.5 }]}
+                  className={`overflow-hidden rounded-soft bg-surface ${
+                    on ? 'border-ink' : 'border-hairline-strong'
                   }`}
                   testID={`day-one-model-${i}`}
                 >
@@ -178,8 +178,8 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
                     </View>
                   )}
                   {on ? (
-                    <View className="absolute bottom-2 left-2 size-5 items-center justify-center rounded-pill border-2 border-surface-raised bg-accent-plan">
-                      <Icon name="check" size={10} color={onPlan} />
+                    <View className="absolute bottom-1 left-1 size-[18px] items-center justify-center rounded-pill border-2 border-surface-raised bg-accent-plan">
+                      <Icon name="check" size={9} color={onPlan} />
                     </View>
                   ) : null}
                 </Pressable>
@@ -187,6 +187,7 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
             })}
           </ScrollView>
           {selfie.error ? <ErrorText>{selfie.error}</ErrorText> : null}
+          {selfie.chooser}
         </View>
       ) : null}
       {showPieces ? <PiecesAsk onDismiss={() => setAsking('pieces')} onFiled={refresh} /> : null}

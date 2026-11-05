@@ -56,8 +56,10 @@ test('day one shows both asks: the twin’s door, the five Robes models, the fou
   expect(screen.getByTestId('day-one-model-1').props.accessibilityState).toEqual({
     checked: false,
   });
-  // Create your digital twin opens the front camera at once (plan 2026-11-05), no screen between.
+  // Create your digital twin goes straight to the selfie (plan 2026-11-05; redlines R21): the
+  // chooser of camera or photos, no screen between.
   await fireEvent.press(screen.getByRole('button', { name: copy.twin }));
+  await fireEvent.press(await screen.findByTestId('selfie-camera'));
   await waitFor(() =>
     expect(ImagePicker.launchCameraAsync).toHaveBeenCalledWith(
       expect.objectContaining({ cameraType: 'front' }),

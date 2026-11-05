@@ -7,6 +7,7 @@ import {
   radius,
   type Semantic,
   semanticNames,
+  shadow,
 } from './tokens';
 import { colorValue } from './value';
 
@@ -20,6 +21,7 @@ export function buildThemeCss(): string {
   for (const name of semanticNames) lines.push(`  --color-${name}: var(--${name});`);
   lines.push(`  --font-display: ${font.display};`, `  --font-sans: ${font.sans};`);
   for (const [key, v] of Object.entries(radius)) lines.push(`  --radius-${key}: ${v};`);
+  for (const [key, v] of Object.entries(shadow)) lines.push(`  --shadow-${key}: ${v};`);
   lines.push('}');
   return `${lines.join('\n')}\n`;
 }

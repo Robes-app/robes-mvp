@@ -84,7 +84,8 @@ export function Section({ title, children }: { title: string; children: ReactNod
   );
 }
 
-const TILE = { width: 104, height: 132 };
+// R11 (redlines 2026-11-05): 56×70 on the small radius, 6pt apart — five in a row, no scroll.
+const TILE = { width: 56, height: 70 };
 
 // The lineup (plan 2026-11-05 §1.4–1.5): her own model first, once she has one, then the five
 // Robes models; the one her looks stand on is ringed. Choosing a Robes model keeps her selfie and
@@ -112,8 +113,8 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
       accessibilityLabel={label}
       disabled={pending}
       onPress={onPress}
-      style={[TILE, on ? { borderWidth: 1.5 } : null]}
-      className={`overflow-hidden rounded-soft border bg-surface ${on ? 'border-ink' : 'border-hairline'}`}
+      style={[TILE, { borderWidth: on ? 1.5 : 0.5 }]}
+      className={`overflow-hidden rounded-sm bg-surface ${on ? 'border-ink' : 'border-hairline-strong'}`}
       testID={testID}
     >
       {url ? (
@@ -121,18 +122,18 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
         <ExpoImage
           source={{ uri: url }}
           contentFit="cover"
-          contentPosition={{ top: '10%', left: '50%' }}
+          contentPosition={{ top: '12%', left: '50%' }}
           accessible={false}
           style={{ width: '100%', height: '100%' }}
         />
       ) : (
         <View className="flex-1 items-center justify-center">
-          <Icon name="user" size={22} color={faint} />
+          <Icon name="user" size={16} color={faint} />
         </View>
       )}
       {on ? (
-        <View className="absolute bottom-2 left-2 size-5 items-center justify-center rounded-pill border-2 border-surface-raised bg-accent-plan">
-          <Icon name="check" size={10} color={onPlan} />
+        <View className="absolute bottom-1 left-1 size-[18px] items-center justify-center rounded-pill border-2 border-surface-raised bg-accent-plan">
+          <Icon name="check" size={9} color={onPlan} />
         </View>
       ) : null}
     </Pressable>
@@ -143,8 +144,7 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
       showsHorizontalScrollIndicator={false}
       accessibilityRole="radiogroup"
       accessibilityLabel={twin.twinPage.lineup}
-      className="-mx-6"
-      contentContainerClassName="gap-2.5 px-6"
+      contentContainerClassName="gap-1.5"
     >
       {own
         ? tile(

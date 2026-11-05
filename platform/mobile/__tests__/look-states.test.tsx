@@ -317,6 +317,7 @@ test('the Robes model tag follows the picture, opens its sheet; Adjust navigates
 
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.deck.robesModelLabel }));
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.deck.twin.capture }));
+  await fireEvent.press(await screen.findByTestId('selfie-camera'));
   await waitFor(() =>
     expect(ImagePicker.launchCameraAsync).toHaveBeenCalledWith(
       expect.objectContaining({ cameraType: 'front' }),

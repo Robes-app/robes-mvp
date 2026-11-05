@@ -1,30 +1,43 @@
 import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
-import { you } from '@robes/copy';
+import { twin, you } from '@robes/copy';
+import { Sheet } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { View } from 'react-native';
 import { isTerminal, JOB_REFRESH_MS } from '@/features/looks/ideas';
 import { PICKER_OPTIONS, uploadPhoto } from '@/features/wardrobe/add-pieces';
+import { SettingsRow } from './Settings';
 
 const copy = you.style;
+const tw = twin.twinPage;
 // The read's job, carried in the route params from the camera to Your digital twin.
 export const READ_PARAM = 'read';
 
-// The one door to her twin (plan 2026-11-05 §2.6), behind every selfie button: the front camera
-// (the photo library when the camera is refused), the photograph uploaded as her close-up and read
-// for her colouring, then Your digital twin at once with the read's job in the params so that
-// screen can draw her when it lands. Web twin: app/src/lib/use-selfie.tsx.
-export function useSelfie(): { start: () => Promise<void>; busy: boolean; error: string | null } {
+// The one door to her twin (plan 2026-11-05 §2.6), behind every selfie button: a sheet that
+// offers the front camera or her photo library (the design's selfie screen offers both), the
+// photograph uploaded as her close-up and read for her colouring, then Your digital twin at once
+// with the read's job in the params so that screen can draw her when it lands. The caller renders
+// `chooser`. Web twin: app/src/lib/use-selfie.tsx.
+export function useSelfie(): {
+  start: () => void;
+  chooser: ReactNode;
+  busy: boolean;
+  error: string | null;
+} {
   const api = useApiClient();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function start() {
-    const camera = await ImagePicker.requestCameraPermissionsAsync();
+  async function take(from: 'camera' | 'library') {
+    setChoosing(false);
     let result: ImagePicker.ImagePickerResult;
-    if (camera.granted) {
+    if (from === 'camera') {
+      const camera = await ImagePicker.requestCameraPermissionsAsync();
+      if (!camera.granted) return;
       result = await ImagePicker.launchCameraAsync({
         ...PICKER_OPTIONS,
         cameraType: ImagePicker.CameraType.front,
@@ -50,7 +63,24 @@ export function useSelfie(): { start: () => Promise<void>; busy: boolean; error:
       setBusy(false);
     }
   }
-  return { start, busy, error };
+  const chooser = (
+    <Sheet open={choosing} onClose={() => setChoosing(false)} title={tw.addSelfie} closeButton>
+      <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
+        <SettingsRow
+          first
+          label={tw.selfieCamera}
+          onPress={() => void take('camera')}
+          testID="selfie-camera"
+        />
+        <SettingsRow
+          label={tw.selfieLibrary}
+          onPress={() => void take('library')}
+          testID="selfie-library"
+        />
+      </View>
+    </Sheet>
+  );
+  return { start: () => setChoosing(true), chooser, busy, error };
 }
 
 // Your digital twin, landed on from the camera: follows the read named in the params and, when it

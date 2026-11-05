@@ -1649,7 +1649,11 @@ export const twin = {
     robesModel: 'Robes model',
     addSelfie: 'Add a selfie',
     addSelfieSub: 'Create your digital twin.',
-    retake: 'Retake your selfie',
+    // The one way to another selfie: the redraw control on her twin's hero (redlines R15).
+    retake: 'Retake selfie to update your twin',
+    // Take one or choose one (the design's selfie screen offers the library too).
+    selfieCamera: 'Take a selfie',
+    selfieLibrary: 'Choose from your photos',
     lineup: 'Choose a model',
     you: 'You',
     // While her selfie reads and her twin draws (design 3d lands with the read).
@@ -1698,25 +1702,6 @@ export const twin = {
     backToFacts: 'Back to your facts',
     gender: 'Gender',
     age: 'Age',
-    // The one italic line under her model (legacy #mv-status): what Robes drew her from, and what
-    // would take her further. "Nothing yet" is retired from the chrome, so the last rung says drawn.
-    status: (presence: Presence, read: 'both' | 'closeUp' | 'facts' | 'hand' | 'none'): string => {
-      const man = presence === 'man';
-      const plural = asThey(presence);
-      const they = plural ? 'they' : man ? 'he' : 'she';
-      const theyAre = plural ? 'They’re' : man ? 'He’s' : 'She’s';
-      const their = plural ? 'their' : man ? 'his' : 'her';
-      const s = plural ? '' : 's';
-      if (read === 'both')
-        return `Read from your close-up and your facts. ${theyAre} as close as ${they} get${s}.`;
-      if (read === 'closeUp')
-        return `Read from your close-up. Add your facts and Robes draws ${their} line.`;
-      if (read === 'facts')
-        return `Drawn from your facts. Add a close-up and ${they} take${s} your face.`;
-      if (read === 'hand')
-        return `Shaped by hand. A close-up or your facts, whenever you like — ${they} update${s}.`;
-      return 'Nothing drawn yet. Add a close-up, or set your line from your facts.';
-    },
     // The stage with nothing on it (legacy #mv-fig-empty), over the ghost figure.
     stageEmpty: 'Your model starts here.',
   },

@@ -41,7 +41,7 @@ export function Colouring() {
   return (
     <ScrollView contentContainerClassName="gap-5 px-6 pb-12" keyboardShouldPersistTaps="handled">
       <Section title={tw.season}>
-        <Seasons profile={profile} onSelfie={() => void selfie.start()} busy={selfie.busy} />
+        <Seasons profile={profile} onSelfie={selfie.start} busy={selfie.busy} />
         {selfie.error ? <ErrorText>{selfie.error}</ErrorText> : null}
       </Section>
       <Section title={tw.skinAndHair}>
@@ -50,6 +50,7 @@ export function Colouring() {
         </Text>
         <SkinAndHair model={model} pick={pick} />
       </Section>
+      {selfie.chooser}
     </ScrollView>
   );
 }

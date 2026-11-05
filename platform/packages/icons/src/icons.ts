@@ -102,6 +102,13 @@ export const ICONS = {
   avoid: ['M20.5 12a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0', 'M6 6l12 12'],
   heart: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
   swap: ['M20 12a8 8 0 1 1-2.35-5.65', 'M20 4v5h-5'],
+  // Two arrows round: redraw (the twin's retake, redlines 2026-11-05).
+  refresh: [
+    'M20 11a8 8 0 0 0-14.5-4.5L4 8',
+    'M4 3v5h5',
+    'M4 13a8 8 0 0 0 14.5 4.5L20 16',
+    'M20 21v-5h-5',
+  ],
   send: ['M12 19V5', 'M6 11l6-6 6 6'],
   // A row that leaves the app ↗ (Privacy notice, terms).
   external: ['M7 17L17 7', 'M8 7h9v9'],

@@ -27,6 +27,7 @@ export {
 export { Sheet, type SheetProps } from './Sheet';
 export { Skeleton, type SkeletonProps } from './Skeleton';
 export {
+  appCaps,
   fonts,
   HEADING_MIN_SIZE,
   MIN_TOUCH,

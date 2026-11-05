@@ -4,7 +4,7 @@ import { ModelView } from './model-view';
 
 export default function YouModelPage() {
   return (
-    <SettingsPage title={twin.twinPage.title} back="/you" wide>
+    <SettingsPage title={twin.twinPage.title} back="/you" wide bare>
       <ModelView />
     </SettingsPage>
   );

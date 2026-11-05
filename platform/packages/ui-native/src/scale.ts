@@ -23,3 +23,7 @@ export const MIN_TOUCH = 44;
 // Twin of web toast.tsx ACTION_MIN_DURATION / DEFAULT_DURATION.
 export const TOAST_MIN_DURATION = 6000;
 export const TOAST_DEFAULT_DURATION = 4000;
+
+// Draft (digital twin redlines, 2026-11-05): the smallest caps line — an eyebrow at 9/500, 0.2em
+// (1.8pt), in the faint ink (`text-ink-faint` on the element). Web twin: `app-caps` in globals.css.
+export const appCaps = { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8 } as const;

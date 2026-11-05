@@ -56,6 +56,12 @@ export const semanticNames = [
   'rule-mid',
   'selected',
   'selected-line',
+  // Draft tokens from the digital twin redlines (2026-11-05), to be ratified by the design-system
+  // overhaul: a translucent ground for controls over a photograph, the firmer card edge, and the
+  // warm edge by the name the designs use (the same value as `selected-line`).
+  'glass',
+  'hairline-strong',
+  'border-warm',
 ] as const;
 
 export type Semantic = (typeof semanticNames)[number];
@@ -80,6 +86,9 @@ export const light: Record<Semantic, ColorRef> = {
   'rule-mid': { base: 'ink', alpha: 0.12 },
   selected: 'warmFill',
   'selected-line': 'warmLine',
+  glass: { base: 'cream50', alpha: 0.94 },
+  'hairline-strong': { base: 'ink', alpha: 0.12 },
+  'border-warm': 'warmLine',
 };
 
 export const dark: Record<Semantic, ColorRef> = {
@@ -102,6 +111,9 @@ export const dark: Record<Semantic, ColorRef> = {
   'rule-mid': { base: 'cream50', alpha: 0.16 },
   selected: 'ink800',
   'selected-line': 'warmLineDark',
+  glass: { base: 'ink800', alpha: 0.94 },
+  'hairline-strong': { base: 'cream50', alpha: 0.16 },
+  'border-warm': 'warmLineDark',
 };
 
 // Accent colours are declared at 3:1 (large text, icons, fills only) per the brand guideline.
@@ -147,10 +159,27 @@ export const font = {
 export const radius = {
   crisp: '4px',
   input: '8px',
+  // Draft (digital twin redlines, 2026-11-05): the small tile.
+  sm: '8px',
   soft: '12px',
   card: '14px',
   sheet: '18px',
   pill: '999px',
+} as const;
+
+// Draft (digital twin redlines, 2026-11-05): the lift under a control floating over a photograph.
+// The web reads the CSS shadow (`shadow-float`); native takes the same shadow as style props.
+export const shadow = {
+  float: '0 6px 16px -6px rgba(32, 32, 33, 0.30)',
+} as const;
+export const shadowNative = {
+  float: {
+    shadowColor: palette.ink,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 16,
+    shadowOpacity: 0.3,
+    elevation: 6,
+  },
 } as const;
 
 export { colorValue, semanticColor } from './value';

@@ -32,12 +32,27 @@ export function SettingsHeader({ title, back }: { title: string; back: string })
   );
 }
 
+// The back control over a photograph (digital twin redlines R2): a 44px glass disc, 14px from the
+// top-left of the safe area, the chevron in ink. Native twin: components/StackScreen.tsx bare.
+export function FloatingBack({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label={ui.back}
+      className={`absolute top-[calc(env(safe-area-inset-top)+14px)] left-3.5 z-40 flex size-11 items-center justify-center rounded-pill bg-glass text-ink backdrop-blur-[22px] ${focus}`}
+    >
+      <Icon name="back" size={18} />
+    </Link>
+  );
+}
+
 export function SettingsPage({
   title,
   back,
   sub,
   wide = false,
   narrow = false,
+  bare = false,
   children,
 }: {
   title: string;
@@ -47,12 +62,24 @@ export function SettingsPage({
   wide?: boolean;
   // A twin sub-page (Colouring, Body shape) reads in a 560 column (legacy #sub-wrap).
   narrow?: boolean;
+  // No header bar (redlines R1): the page's picture starts under the safe area and the back
+  // control floats over it (`title` names the document only).
+  bare?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-bg">
-      <SettingsHeader title={title} back={back} />
-      <div className="mx-auto w-full max-w-[1440px] flex-1 px-6 pt-6 pb-[calc(40px+env(safe-area-inset-bottom))] md:px-20 md:pb-20">
+    <div className="relative flex min-h-dvh flex-col bg-bg">
+      {bare ? (
+        <>
+          <h1 className="sr-only">{title}</h1>
+          <FloatingBack href={back} />
+        </>
+      ) : (
+        <SettingsHeader title={title} back={back} />
+      )}
+      <div
+        className={`mx-auto w-full max-w-[1440px] flex-1 px-6 pb-[calc(40px+env(safe-area-inset-bottom))] md:px-20 md:pb-20 ${bare ? 'pt-0 md:pt-6' : 'pt-6'}`}
+      >
         <div
           className={`mx-auto w-full ${wide ? 'max-w-[1100px]' : narrow ? 'max-w-[560px]' : 'max-w-[720px]'}`}
         >
@@ -68,7 +95,8 @@ export function SettingsPage({
   );
 }
 
-// A titled white card of rows (legacy .sp-gk + .sp-group).
+// A titled white card of rows (legacy .sp-gk + .sp-group; redlines R6/R7 2026-11-05: 12px radius
+// on the firmer hairline, the eyebrow at the smallest caps).
 export function SettingsGroup({
   id,
   title,
@@ -81,18 +109,19 @@ export function SettingsGroup({
   return (
     <section aria-labelledby={title ? id : undefined} className="flex flex-col gap-2.5">
       {title ? (
-        <Eyebrow id={id} className="ml-0.5 text-[9.5px]">
+        <Eyebrow id={id} className="app-caps ml-0.5">
           {title}
         </Eyebrow>
       ) : null}
-      <div className="overflow-hidden rounded-card border border-hairline bg-surface-raised">
+      <div className="overflow-hidden rounded-soft border-[0.5px] border-hairline-strong bg-surface-raised">
         {children}
       </div>
     </section>
   );
 }
 
-export const settingsRowClass = `flex min-h-[60px] w-full items-center gap-3.5 border-hairline border-t px-[18px] py-3.5 text-left first:border-t-0 ${focus}`;
+// Rows ≥ 62px, 12/16 padding, a hairline between them (redlines R6).
+export const settingsRowClass = `flex min-h-[62px] w-full items-center gap-3.5 border-hairline border-t px-4 py-3 text-left first:border-t-0 ${focus}`;
 
 export interface SettingsRowProps {
   label: string;
@@ -123,7 +152,7 @@ export function SettingsRowContent({
     <>
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span
-          className={`font-display text-[17px] leading-tight ${tone === 'danger' ? 'text-danger' : 'text-ink'}`}
+          className={`font-display text-lg leading-tight ${tone === 'danger' ? 'text-danger' : 'text-ink'}`}
         >
           {label}
         </span>
@@ -143,7 +172,7 @@ export function SettingsRowContent({
           <Icon
             name={chevron}
             size={chevron === 'external' ? 14 : 16}
-            className="shrink-0 text-ink-faint"
+            className="shrink-0 text-ink-muted"
           />
         ) : null)}
     </>

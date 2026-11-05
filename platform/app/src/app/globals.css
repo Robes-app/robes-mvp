@@ -23,6 +23,18 @@ body {
   }
 }
 
+/* Draft (digital twin redlines, 2026-11-05): the smallest caps line — an eyebrow at 9px/500,
+   0.2em, in the faint ink. Tailwind's `@utility`, so it composes with the usual classes. */
+@utility app-caps {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
 /* The sign-in ground: cream warming to blush (legacy signup.html). Dark mode keeps the plain ground. */
 .warm-ground {
   background:

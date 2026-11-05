@@ -58,7 +58,7 @@ export function RobesModelBadge({
             disabled={selfie.busy}
             onPress={() => {
               setOpen(false);
-              void selfie.start();
+              selfie.start();
             }}
           />
           <Row
@@ -73,6 +73,7 @@ export function RobesModelBadge({
           />
         </View>
       </Sheet>
+      {selfie.chooser}
     </>
   );
 }

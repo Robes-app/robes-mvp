@@ -287,6 +287,42 @@ Lookbook and Diary tiles through `LookTile`'s on-photograph slot. Copy retired: 
 
 ---
 
+## 4a. Redlines applied (2026-11-05, Annie's `digital-twin-redlines.md`)
+
+Built the same day, web and native together: R1–R11 bar R12, R15–R18, R19–R21, plus the library
+as a way in beside the camera. Left as they stand on Annie's word: **R12** (Colouring and Body
+shape stay the twin's, closed on a Robes model, the server still refusing), **R13/R14** (the lineup
+stays on her twin's screen with her first; no switch-back link), **R23** (the × stays on Choose your
+model), **R24** (the tab bar; native's is the system's own). **R22** was already done.
+
+- Draft tokens, marked draft in `@robes/tokens` for the design-system overhaul to ratify:
+  `glass` (cream50 at 0.94; ink800 in the dark), `hairline-strong` (ink at 0.12), `border-warm`
+  (the warm line, by the designs' name), `radius-sm` (8px), `shadow-float` (+ `shadowNative.float`
+  for RN style props), and the smallest caps line `app-caps` (web `@utility`; native `appCaps`).
+  The icon set gained `refresh`.
+- **R1/R2**: `SettingsPage bare` (web) and `StackScreen bare` (native): no header, the picture
+  under the safe area, a 44 glass back disc 14 from the top-left (web with the 22px blur; native's
+  glass is near-opaque and takes no blur — `expo-blur` is not in the app).
+- **R3–R5**: the hero at 520, full width, cover, 50% 30% on a Robes model and centred on her twin,
+  no fade. Full-length portraits at 4:5 lose a little at the sides, never head or feet (R4).
+- **R6/R7**: every Settings card and row on both platforms (one component family): 12 radius on the
+  0.5 `hairline-strong`, rows ≥ 62 at 12/16, Cormorant 18 over Inter 12, the chevron in `ink-muted`,
+  eyebrows at `app-caps`.
+- **R8–R11**: the tag bottom-left on glass with its dot; Add a selfie as the dashed warm row 12
+  under the picture; one card with the lineup (16 padding, hairline below) over the closed doors;
+  56×70 tiles on `radius-sm`, 6 apart, five in a row, the chosen one on 1.5 ink with the 18 tick.
+- **R15–R18**: the redraw control at 44 on glass with `shadow-float`, 14 from the bottom-right,
+  labelled "Retake selfie to update your twin"; the caption Cormorant italic 300 at 20, 18 from
+  the left and bottom; the footer status line gone (and its copy); the facts eyebrow at R7.
+- **R19–R21**: the band's tick as R11 on both platforms (the first ticked until she chooses); one
+  order and one selection (`model_preset`) on the band and the lineup; the twin tile straight to the
+  selfie.
+- **The library**: web drops `capture="user"`, so a phone's own chooser offers camera or library;
+  native's `useSelfie` opens a two-row sheet (Take a selfie · Choose from your photos) and the
+  caller renders `chooser`.
+- Not run here: the e2e and screenshots against the canvas frames (no database in this
+  environment); lint, typecheck and every unit suite are green.
+
 ## 5. Things that will bite
 
 - **Portraits cost a draw each, once ever**: ten new (five women, five men) under `preset:`.

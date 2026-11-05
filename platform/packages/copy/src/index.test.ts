@@ -134,19 +134,5 @@ describe('gender copy', () => {
     expect(asIs('non_binary')).toBe('As they are');
     expect(asIs('unspecified')).toBe('As they are');
     expect(asIs('woman')).toBe('As she is');
-    // The status line sits beside asIs, under the model's copy.
-    const parentOf = (o: unknown, key: string): Record<string, unknown> | undefined => {
-      if (!o || typeof o !== 'object') return undefined;
-      if (key in o) return o as Record<string, unknown>;
-      for (const v of Object.values(o)) {
-        const hit = parentOf(v, key);
-        if (hit) return hit;
-      }
-      return undefined;
-    };
-    const status = parentOf(copy, 'asIs')?.status as (p: string, r: string) => string;
-    expect(status('non_binary', 'facts')).toBe(
-      'Drawn from your facts. Add a close-up and they take your face.',
-    );
   });
 });
