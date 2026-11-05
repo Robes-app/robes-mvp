@@ -25,7 +25,8 @@ commands out of them, follow them in place.
    the legacy Supabase project `Robes_p0` (so the migration source and target are one database,
    and the copy is set-based inside it). Confirm that, or name another EU host with PITR.
 3. **Domains on day one**: the app at `app.byrobes.com`; whether `www.byrobes.com` becomes the
-   rebuilt marketing site (OD-5) or keeps a static page; `beta.byrobes.com` redirects to `app.`.
+   rebuilt marketing site (OD-5) or keeps a static page; `beta.byrobes.com` stays on Railway
+   through cutover (the rollback) and redirects to `app.` only at T+30 days (§8).
 4. **Cutover date** and the legacy feature freeze two weeks before it.
 5. **Her rejected colours** (soft avoid on the platform, a hard no on beta, `30d7ea5`): Annie's call.
 6. **Product events**: whether the new app needs legacy's `_rbTrack` coverage on day one.
@@ -163,8 +164,9 @@ Then, in a low-traffic window with the founders available for 48 h:
 3. **Images**: `pnpm migrate:rehost -- --target=production --apply --bucket=<bucket>`, re-run until
    `failed` is empty. The app shows nothing for a `cloudinary_legacy` asset, so this is before DNS.
 4. **Admins**: grant `app.admin_users` by hand (`is_admin` is not carried).
-5. **DNS**: `app.byrobes.com` public; `beta.byrobes.com` and `www.byrobes.com` → Vercel per
-   decision 0.3. The redirects in `app/src/lib/legacy-redirects.ts` take over every beta path
+5. **DNS**: `app.byrobes.com` public; `www.byrobes.com` → Vercel per decision 0.3.
+   `beta.byrobes.com` is **not** moved: it stays on Railway as the rollback. When it moves (§8),
+   the redirects in `app/src/lib/legacy-redirects.ts` take over every beta path
    (`/dashboard`, `/wardrobe`, `/wishlist`, `/lookbook`, `/inspiration`, `/diary`, `/calendar`,
    `/settings`, `/stylenotes`, `/board/:id`, `/moodboard/:slug`, `/signup`, `/reset`, `/terms`,
    `/privacy`, the legacy unsubscribe links, and the query deep links `?d=`, `?open=`,
@@ -178,7 +180,8 @@ Then, in a low-traffic window with the founders available for 48 h:
 ## 6. Rollback
 
 - Before DNS (step 5): turn the legacy read-only flag off. Nothing else changed for users.
-- After DNS: point DNS back, turn legacy writes back on, and export what users wrote on the new
+- After DNS: turn legacy writes back on and send users back to `beta.byrobes.com` (still on
+  Railway; point `www` back if it moved), and export what users wrote on the new
   app since T-0 for re-entry: `pnpm migrate:reverse-delta -- --target=production --since=<T-0 ISO> --out=delta.json`.
 
 ## 7. Go / no-go (the day before) [human]
@@ -201,3 +204,5 @@ Go only if every line is true:
 From `../migration.md` §4: cancel Cloudinary once no `cloudinary_legacy` assets remain, archive
 Airtable (export to the backups bucket), pause `Robes_p0` and keep a final dump 90 days, delete
 the Railway services, remove the legacy code in one PR, make the legacy redirects permanent.
+Before deleting Railway: add `beta.byrobes.com` to the `robes-prod` Vercel project as a 307 →
+`app.byrobes.com`, then point its DNS at Vercel. Not before: Railway keeps it as the rollback.
