@@ -262,7 +262,7 @@ test('colouring offers the seasons next door; a pick changes it', async () => {
   expect(screen.getByRole('button', { name: 'Soft Summer' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Light Spring' })).toBeNull();
   // No close-up card: the selfie was taken a screen earlier (plan 2026-11-05 §1.6).
-  expect(screen.queryByText(tw.closeUpCard)).toBeNull();
+  expect(screen.queryByText('Your close-up')).toBeNull();
   // Another season opens the rest, then reads Fewer seasons.
   await fireEvent.press(screen.getByRole('button', { name: tw.anotherSeason }));
   expect(screen.getByRole('button', { name: 'Light Spring' })).toBeTruthy();

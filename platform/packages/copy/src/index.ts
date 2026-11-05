@@ -929,11 +929,8 @@ export const you = {
     colourBody: 'A clear photo of your face in daylight, no filter.',
     silhouetteTitle: 'Your shape',
     silhouetteBody: 'A full-length photo, standing straight, in fitted clothes.',
-    choosePhoto: 'Choose a photo',
-    reading: 'Robes is reading your photo…',
-    retake: 'Use another photo',
+    // The selfie's read (use-selfie): what it says when no face, or nothing, came back.
     noFace: 'Robes couldn’t see a face clearly. Try another photo.',
-    noPerson: 'Robes couldn’t see your full figure. Try another photo.',
     failed: 'Robes couldn’t read that photo. Try another.',
     best: 'Wear',
     avoid: 'Go easy on',
@@ -973,10 +970,6 @@ export const you = {
         love.length > 1 ? `${love[0]} +${love.length - 1}` : (love[0] ?? 'Not yet'),
     },
     // Native's close-up card (Colouring).
-    colour: {
-      reading: 'Reading your colouring…',
-      noSubject: 'Robes couldn’t see a face in that photo. Try another.',
-    },
   },
   // SEC-81: her data as one file.
   dataExport: {
@@ -1669,8 +1662,6 @@ export const twin = {
     drawing: 'Drawing your model…',
     twinFailed:
       'Robes couldn’t photograph your model just now. A close-up in daylight, facing the camera, helps.',
-    closeUpCard: 'Your close-up',
-    closeUpHelp: 'Robes reads your season, skin and hair from this.',
     season: 'Your season',
     addSeason: 'Add a selfie and Robes reads your season.',
     colourNotes: 'Full colour notes',

@@ -276,6 +276,15 @@ Lookbook and Diary tiles through `LookTile`'s on-photograph slot. Copy retired: 
 **P4 · Tidy (S).** Retire `genericCellIds`/`genericCellId`, `ensureGenericCells` and the
 `GenericModelBadge` files; history entry; `docs/plans/README.md` row ticked.
 
+> **P4 built 2026-11-05.** `genericCellId`, `ensureGenericCells` and both `GenericModelBadge`
+> files went with P0 and P3. The close-up card's hooks (`useAnalyse` on web and native) had no
+> caller left and went, with the copy nobody read any more (`choosePhoto`, `retake`, `noPerson`,
+> the colour read's own lines, `closeUpCard`, `closeUpHelp`). **Kept on purpose:** `generics` and
+> `genericCellIds` — the three legacy cells still served to phone builds installed before the
+> Robes models (§2.5, one release); retire both together once no installed build reads them.
+> Status: this row in `docs/plans/README.md` is the record (the platform keeps no separate
+> history; `docs/legacy-app-history.md` is the legacy app's).
+
 ---
 
 ## 5. Things that will bite
