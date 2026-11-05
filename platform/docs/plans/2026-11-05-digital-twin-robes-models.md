@@ -1,0 +1,271 @@
+# Digital twin · Robes models: implementation plan
+
+Status: plan, 2026-11-05 (Annie + Claude). Not started. Owner: Annie.
+Web (staging.byrobes.com) and native (Expo) land together (CLAUDE.md). Platform only; the legacy
+beta app is untouched.
+
+**Sources.** The Claude Design canvas *First-time experience*
+(`claude.ai/code/artifact/6ddc9052-6923-4bff-8139-8e815402f3a7`), flow row "Digital twin · Robes
+model flow": 0a Home · Your twin tile, 3a Look · Robes model tag, 3b Tag tapped, 2c Selfie, 3c Your
+digital twin · on a Robes model, 3d Your digital twin · ready, 3e/3f Colouring. The "in production"
+row is screenshots of today, for reference. Annie's answers to the twelve questions of 5 Nov are
+in §6; the design is the spec and §1 transcribes it so nothing is built from memory.
+
+---
+
+## 0. The short version
+
+- **Five Robes models, not three**, for women and for men: the three today, plus an older woman and
+  a larger woman (their male twins likewise). Non-binary rides the women's set, as it does today.
+  Drawn by Gemini once ever, as the three are now.
+- **Picking a Robes model is remembered as a pick** (`profiles.model_preset`), never as skin and
+  hair picks. Today a pick is indistinguishable from a hand-built model; after this it isn't.
+- **Create your digital twin opens the selfie camera at once.** Every door to it is one hook: the
+  home tile, the model page's "Add a selfie" row, the look tag's Capture Selfie, and the retake on
+  the twin's hero. The selfie reads her colouring; the twin draws from it; her line comes later.
+- **"Robes model" is the tag**, the words `Generic model` wear now, on every look whose picture
+  stands on a Robes model (read from the look's render or frame key, never from her account).
+  Tapping it opens a sheet: Capture Selfie · Adjust Robes Model.
+- **Colouring and Body shape are the twin's.** On a Robes model the page shows the lineup and
+  "Add a selfie" only; the doors appear once she has a twin.
+- **Her twin joins the lineup.** Once drawn, it is the first tile and the chosen one; choosing a
+  Robes model again stands her looks on it and keeps her selfie and twin on file. No
+  "Use a Robes model instead" button: the lineup is that.
+- **Colouring loses the close-up card** (the selfie is captured a screen earlier). Retake lives
+  bottom-right on the twin's hero.
+- **"Another model" goes** from the home band.
+
+---
+
+## 1. The design, transcribed
+
+Tokens are the platform's (`@robes/tokens`); Robes copy (`@robes/copy`), never literals.
+
+### 1.1 Home · Choose your model (0a; supersedes plan 2026-11-02 §1.3 for this row)
+Row of 104×132 tiles, `rad` 12: dashed "Create your digital twin" (camera icon) → **opens the
+camera** (no page in between); then **five** Robes model portraits. Chosen = 1.5px ink edge and the
+check bottom-left (as built today); unchosen = 1px band hairline. A portrait still to be drawn shows
+the person icon. **No "+ Another model" tile.** The ×, the dialog and the persisted dismissal stay
+as built.
+
+### 1.2 Selfie (2c)
+Native: the system camera, front-facing, through `expo-image-picker` (`cameraType: front`); the
+screen's own words ("Your selfie" · "Face the light.") are not built — the picker is the system's.
+Web: `<input type="file" accept=… capture="user">`, which opens the front camera on a phone and the
+file picker on a laptop (accepted, §6 Q6). Permission refused on native → the photo library.
+
+### 1.3 Look · Robes model tag (3a) and the tag sheet (3b)
+A small quiet chip `Robes model` on the look's picture (the home OOTD card in the design; every
+surface that shows a look's picture on a Robes model — look page, deck, draft, Lookbook tile,
+Diary). It sits where `GenericModelBadge` sits today (top-right pill, 44pt hit area) and reads the
+same on the Lookbook/Diary tiles through `LookTile`'s on-photograph slot. Tap → bottom `Sheet`
+(never a modal): eyebrow `Robes model`, title *See every look* **on you.**, two rows:
+**Capture Selfie ›** (camera icon) → the camera (§1.2); **Adjust Robes Model ›** (person icon) →
+`/you/model`. Closing changes nothing.
+
+### 1.4 Your digital twin · on a Robes model (3c)
+Hero: the chosen Robes model's portrait, eyebrow `Robes model`. Under it one row, the screen's one
+ink commitment: camera icon · **Add a selfie** · *Create your digital twin.* → the camera. Then the
+**lineup**: the five portraits, chosen = 1.5px ink edge; a tap re-stands her looks on that one.
+Below, dimmed and not tappable (decided §6 Q9): the two doors **Colouring** *Skin, hair and
+season.* and **Body shape** *Set your line by hand.* — present so she sees what the twin unlocks,
+disabled until she has one. No status line.
+
+### 1.5 Your digital twin · ready (3d)
+Hero: her twin, caption her colour words (`Peach · ash blonde hair`), **retake** as a 32pt circle
+bottom-right on the hero (camera icon; → the camera). Group `Read from your photograph and facts`:
+**Colouring** `Neutral · Low, blended` · value `Clear Winter`; **Body shape** `167 cm · UK 12` (or
+*Set your line by hand.*). Then the **lineup** with **her twin as the first tile, chosen**, and the
+five Robes models after it. Tapping a Robes model stands her looks on it (her selfie and twin stay
+on file); tapping her twin stands them on her again. The italic status line stays as built.
+
+### 1.6 Colouring (3e, 3f)
+Sections: **Your season** — the chosen season row (warm fill, ink check), its nine-swatch palette,
+`{axes} — {summary}`, *Full colour notes* (the sheet); the two nearest seasons; **Another season**
+expands to the rest (3f), then reads *Fewer seasons*. **Skin and hair** — *Read from your selfie.
+Change by hand.*; swatch rows titled `Skin · Peach`, `Hair · Ash blonde`. **No close-up card, no
+retake, no Choose photo.** Swatch names are the catalog's (`you.model.skinNames/hairNames`); the
+design's names are illustrative.
+With no colour read on file (a legacy hand-built twin): *Add a selfie and Robes reads your season.*
+with one quiet **Add a selfie** button → the camera.
+
+### 1.7 Body shape
+Unchanged (redline 3c, 27 Oct). Reachable only with a twin.
+
+---
+
+## 2. Model and data
+
+### 2.1 Robes models (`packages/core/src/avatar/presets.ts`)
+```ts
+export const ROBES_MODELS = [
+  { n: 1, skin: 4, hair: 1, age: 35, sizeUk: 10 },  // today's generic 0
+  { n: 2, skin: 1, hair: 0, age: 35, sizeUk: 10 },  // today's generic 1
+  { n: 3, skin: 7, hair: 3, age: 35, sizeUk: 10 },  // today's generic 2
+  { n: 4, skin: 5, hair: 4, age: 62, sizeUk: 12 },  // older
+  { n: 5, skin: 3, hair: 1, age: 35, sizeUk: 18 },  // larger
+] as const;
+export type PresetId = `${'w' | 'm'}${1 | 2 | 3 | 4 | 5}`;   // 'w4'
+export const PRESET_STYLE = 'v1';
+export const presetKey = (id: PresetId) => `preset:${id}@${PRESET_STYLE}`;
+export function presetSpec(id: PresetId): TwinSpec   // gender, age, sizeUk, skin, hair, stops 0, hasFace false
+export function presetIds(wearer: 'woman' | 'man'): PresetId[]
+```
+Skin and hair indexes for 4 and 5 are a first pass; Annie picks them from the swatches before the
+portraits are drawn (one draw each, so decide first). A Robes model is **drawn by the twin prompt
+with no face** (`buildTwinPrompt(presetSpec(id))`): age and size are already words there, so the
+older and larger models need no new prompt. Portraits live in `app.avatar_cells` under
+`presetKey(id)`, drawn once for everyone (the claim), never charged to her quota. The three legacy
+generic cells (`w-s4-h1-nt@v2` …) stay in the table for installed phone builds; nothing new reads
+them. `genericCellIds`/`genericCellId` are retired once every caller moves (§3).
+
+### 2.2 Her pick: `profiles.model_preset`
+Migration `pnpm db:new model_preset`:
+```sql
+alter table app.profiles
+  add column model_preset text check (model_preset ~ '^[wm][1-5]$');
+```
+Null = never picked (she stands on `w1`/`m1`, as today's index 0). Set by `me.model.update
+{ preset }`; **picking a preset no longer writes skin or hair picks** and clears any that a Robes
+model pick wrote (`avatar_prefs - 'skin' - 'hair'` when the row has no close-up and no twin — a
+hand-built legacy model keeps its picks). `docs/data-inventory.md` `app.profiles` row gains
+`model_preset` (which Robes model she chose; not personal, listed for completeness). Old code and
+phone builds never read the column, so the migration is safe under skew (runbook).
+
+### 2.3 The stand (what a look is drawn on)
+Resolved in one place, `standOf(row)` in `app/src/server/model.ts`, and mirrored for the worker in
+`@robes/core/avatar` as a pure function over `TwinSource`:
+1. **her twin** when `twin_asset_id` is set, its key is current **and** `model_preset` is null or
+   `'twin'` — see below;
+2. else **her filed catalog cell** (legacy hand-built, `avatars.avatar_id`, only when
+   `model_preset` is null);
+3. else the **Robes model** `model_preset ?? first of her wearer`.
+
+Choosing a Robes model while she has a twin (§1.5) sets `model_preset = 'w3'`; choosing her twin
+again sets it **null** (her twin is the default once it exists). So no `'twin'` value is stored; the
+regex above stands.
+
+Keys: a render on a preset is `${presetKey(id)}:${rack}`; on a twin `twin:${key}:${rack}`; on a
+cell `${cellKey}:${rack}` (unchanged). The frame key likewise. `look-render.ts` and
+`look-frame.ts` resolve a `preset:` prefix to the portrait in `avatar_cells` exactly as they
+resolve a cell key today.
+
+### 2.4 The look's tag
+`onRobesModel: boolean` on the look contract (list and detail), computed in the looks repository
+from the key the picture was drawn with: true when the frame key or render key starts with
+`preset:` or is a legacy generic cell key. Never from her account. A look with no picture is false.
+Older phone builds don't read the field (zod strips nothing on the client; the field is additive).
+
+### 2.5 Contract (`packages/contracts/src/me.ts`)
+`Model` gains `preset: PresetId | null` and `robesModels: { id, imageUrl, status }[]` (five, her
+wearer); `stand` gains `on: 'twin' | 'cell' | 'preset'`. `generics` keeps being sent, grown to the
+five preset portraits in the same `{id, imageUrl}` shape, for installed phone builds whose band
+still reads it; retire it one release later. `UpdateModelInput` gains `preset: PresetId | null`.
+`me.model.update` with `skin`/`hair`/`adj` while she stands on a Robes model and has no twin is
+answered `conflict` (Q9: the Robes model is not hers to adjust).
+
+### 2.6 The selfie → twin sequence
+`useSelfie()` (web `app/src/lib/use-selfie.ts`, native `mobile/src/features/you/use-selfie.ts`):
+1. open the camera (§1.2); cancel → nothing;
+2. `uploadPhoto(kind: 'headshot')` → `me.style.analyse { kind: 'colour', assetId }` (exists);
+3. navigate to `/you/model` at once; the hero shows the ghost figure and the `Drawing your model…`
+   chip while the read runs;
+4. when the analyse job finishes (`useAnalyse` already invalidates `me.model.get`), **call
+   `me.model.twin`** — today the twin draws only on mount, which lands before the close-up is on
+   file. `useDrawTwin` gains a `'when-read'` mode or the page calls it from the job's completion;
+5. the twin lands; `model_preset` is cleared so her twin stands (§2.3).
+Consent: the terms accepted at onboarding cover photo analysis (§6 Q5); no sheet.
+
+---
+
+## 3. Where it lands (web ↔ native twins)
+
+| Surface | Web | Native |
+|---|---|---|
+| Robes models, keys, stand | `packages/core/src/avatar/presets.ts` (+ test), `twin.ts` `standOf` | shared |
+| Migration, repo, inventory | `db/migrations/*_model_preset.sql`, `packages/db/src/repos/model.ts` (`savePreset`), `packages/db/test/schema`, `docs/data-inventory.md` | — |
+| Contracts | `packages/contracts/src/me.ts`, `looks.ts` (`onRobesModel`) | shared |
+| Server | `app/src/server/model.ts` (`standOf`, `ensureRobesModels` replaces `ensureGenericCells`, `updateModel` preset + conflict), `app/src/server/looks.ts` or the looks repo for `onRobesModel` | — |
+| Jobs | `packages/jobs/src/handlers/avatar-cell.ts` (`preset` target → `buildTwinPrompt(presetSpec)`), `look-render.ts`, `look-frame.ts` (`preset:` keys) + tests | — |
+| Copy | `packages/copy/src/lookbook.ts` (`genericModel` → `Robes model`, sheet rows), `index.ts` `twin.twinPage` (`addSelfie`, `addSelfieSub`, `retake`, `robesModel`, `fewerSeasons`) | shared |
+| Home band | `app/src/components/home/day-one-band.tsx` | `mobile/src/features/home/DayOneBand.tsx` |
+| Selfie hook | `app/src/lib/use-selfie.ts` | `mobile/src/features/you/use-selfie.ts` |
+| Model page | `app/src/app/(app)/you/model/model-view.tsx`, `twin-parts.tsx` (`Lineup`, `Retake`) | `mobile/src/features/you/Model.tsx`, `twin.tsx` |
+| Colouring | `…/you/model/colouring/colouring-view.tsx` | `mobile/src/features/you/Colouring.tsx` |
+| Tag + sheet | `app/src/components/looks/robes-model-badge.tsx` (renames `generic-model-badge.tsx`), `look-tile.tsx` callers | `mobile/src/features/looks/RobesModelBadge.tsx` |
+| Tests | `app/src/server/model.test.ts`, `app/e2e/model.spec.ts`, `home.spec.ts` | `mobile/__tests__/day-one-band.test.tsx`, `model.test.tsx`, `looks.test.tsx` |
+
+---
+
+## 4. Passes (each a PR into `beta`; web + native in the same pass)
+
+**P0 · Robes models exist (S).** `presets.ts` + test; migration + repo + schema test + inventory;
+`avatar-cell` job draws a preset through the twin prompt (test: the spec carries age 62 / size 18;
+no face); `ensureRobesModels`. `Model` gains `preset`, `robesModels`, `stand.on`; `generics` grows
+to five. Nothing visible changes yet except five tiles on the band.
+
+**P1 · The pick and the stand (M).** `me.model.update { preset }` writes the column and clears a
+Robes-model pick's skin/hair; `standOf` order §2.3; render and frame keys on `preset:`;
+`look-render`/`look-frame` resolve them; `conflict` on adjusting a Robes model. Band: tiles pick
+the preset, "Another model" removed. Tests: `model.test.ts` (stand order, conflict, clearing),
+`look-render-model.test.ts`, route manifest unchanged.
+
+**P2 · The selfie (M).** `useSelfie` web + native; the band's twin tile, the model page's "Add a
+selfie" row and hero retake, Colouring's fallback button all call it; the twin draws when the read
+lands (§2.6 step 4). Model page states 3c and 3d with the lineup (her twin first when drawn).
+Colouring loses the close-up card, gains *Fewer seasons*. e2e: `model.spec.ts` "she builds her
+model" becomes "she takes a selfie, her colouring reads, her twin draws, a look renders on her";
+a second case picks a Robes model and checks Colouring is closed to her.
+
+**P3 · The tag (S).** `onRobesModel` on looks; `RobesModelBadge` + sheet (Capture Selfie · Adjust
+Robes Model) replaces `GenericModelBadge` on the look page, deck and draft, and reaches the
+Lookbook and Diary tiles through `LookTile`'s on-photograph slot. Copy retired: `Generic model`,
+`genericModelLabel`, `deck.twin.*` (its body still asks for two photos). Tests: a look rendered on
+`preset:w2…` carries the tag, one on `twin:…` does not; the sheet's rows route.
+
+**P4 · Tidy (S).** Retire `genericCellIds`/`genericCellId`, `ensureGenericCells` and the
+`GenericModelBadge` files; history entry; `docs/plans/README.md` row ticked.
+
+---
+
+## 5. Things that will bite
+
+- **Portraits cost a draw each, once ever**: ten new (five women, five men) under `preset:`.
+  Decide 4's and 5's swatches before P0 ships to staging; a change bumps `PRESET_STYLE` and
+  redraws all ten.
+- **The twin draws before the close-up lands** today (mount-only). §2.6 step 4 is the fix; without
+  it the first twin after a selfie has no face until her next visit.
+- **A Robes-model pick today wrote skin/hair picks.** Accounts on staging that picked one carry
+  `skinSet`/`hairSet`; P1's clear runs only on the next pick. Acceptable on staging; a one-off
+  backfill is not worth a migration.
+- **`twinOnFile` / day-one `modelAsked`** keep today's rule: a close-up on file answers the ask, a
+  Robes model keeps it ticked. Unchanged.
+- **`home.diary` flag.** The band exists only on the diary home, which is what staging shows
+  Annie today (her 5 Nov screenshot: the band above the strip, a look in today's slot). The modular
+  home is unchanged and goes with the flag.
+- **The design's swatch names** (Peach, Porcelain, Ash blonde…) are not the catalog's; the catalog's
+  stay. Decide separately if the names should change (copy-only).
+- **Men's lineup**: the twin prompt already speaks for a man (`His figure…`); check the first five
+  male portraits by eye before the flag… there is no flag here: the portraits appear for every man
+  on staging as they are drawn.
+
+---
+
+## 6. Decisions (Annie, 2026-11-05)
+
+| # | Question | Answer |
+|---|---|---|
+| 1 | Robes models: data and portraits | Gemini-drawn catalog cells; the three today plus an older woman and a larger woman |
+| 2 | Men | Five men too; non-binary rides the women's set for now |
+| 3 | Tag: look or account | The look's picture (render/frame key); nothing re-renders on its own |
+| 4 | Where the tag shows | Everywhere `Generic model` shows, renamed; one chip |
+| 5 | Consent before the camera | The onboarding terms cover it; no sheet |
+| 6 | Camera per platform | Native front camera via the picker; web `capture="user"`; asymmetry accepted |
+| 7 | Selfie after a Robes-model pick | The selfie wins; the pick clears |
+| 8 | Between selfie and twin | Land on Your digital twin at once; ghost figure + drawing chip; Body shape door empty |
+| 9 | Adjusting a Robes model | Not allowed: Colouring and Body shape are the twin's |
+| 10 | Retake | Bottom-right on the twin's hero |
+| 11 | "Use a Robes model instead" | Her twin joins the lineup; choosing a Robes model keeps her selfie and twin |
+| 12 | Scope | Platform only: staging web + Expo; the diary home |
+
+Open for Annie before P0: the skin and hair swatches of models 4 and 5 (§2.1).
