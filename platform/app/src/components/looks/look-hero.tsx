@@ -12,6 +12,7 @@ import { errorCopy } from '@/lib/error-copy';
 import { useHerPhoto } from './her-photo';
 import { LookImage } from './look-image';
 import { LookMix, LookPicture } from './look-page';
+import { RobesModelBadge } from './robes-model-badge';
 import { lookTags, TagsSheet } from './tags-sheet';
 
 const copy = looksCopy.page;
@@ -106,6 +107,9 @@ export function LookHero({
         ) : (
           <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
         )}
+        {/* The `Robes model` tag on a saved look (Annie, 5 Nov): here, where it opens its sheet,
+            and nowhere a tile stands in for the look. */}
+        <RobesModelBadge look={look} />
         {dressing ? (
           <p
             role="status"

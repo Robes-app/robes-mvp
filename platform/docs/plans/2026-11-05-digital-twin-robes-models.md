@@ -269,7 +269,11 @@ Lookbook and Diary tiles through `LookTile`'s on-photograph slot. Copy retired: 
 > `features/looks/RobesModelBadge.tsx`) replaces `GenericModelBadge` on the look page, the deck and
 > the draft page — a quiet chip that pulls up a `Sheet` with Capture Selfie (the camera) and Adjust
 > Robes Model (her model page); on an empty draft it follows the stand she is about to be dressed
-> on. `LookTile` carries the same chip, passive, on every tile (the tile's one target is the look).
+> on. **Later the same day (Annie):** the tag is the saved look's, on its hero (`LookHero`, both
+> platforms), where it opens the sheet — and on no tile (the Lookbook grid, home's card, the
+> Diary), which stand in for the look rather than show it. A backfill migration
+> (`20261105180000_look_stood_on_backfill.sql`) records a best reading for pictures from before
+> the column, so looks already on staging wear it.
 > Copy: `Generic model` and its drawer retired. Not run here: the schema test and the e2e. Lint,
 > typecheck and the unit suites (core, jobs, contracts, copy, web server, native looks) are green.
 

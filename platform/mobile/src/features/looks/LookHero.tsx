@@ -9,6 +9,7 @@ import { Pressable, View } from 'react-native';
 import { renditionUri } from '@/lib/images';
 import { useHerPhoto } from './her-photo';
 import { LookMix, LookPicture } from './LookPicture';
+import { RobesModelBadge } from './RobesModelBadge';
 import { lookTags, TagsSheet } from './TagsSheet';
 
 const copy = looksCopy.page;
@@ -114,6 +115,9 @@ export function LookHero({
             style={{ aspectRatio: 4 / 5 }}
           />
         )}
+        {/* The `Robes model` tag on a saved look (Annie, 5 Nov): here, where it opens its sheet,
+            and nowhere a tile stands in for the look. */}
+        <RobesModelBadge look={look} />
         {(look.onModel === 'pending' || dress.isPending) && !look.frame ? (
           // Her model is being dressed: a small chip on the picture.
           <View className="absolute top-3 left-3 rounded-pill border border-hairline bg-bg px-3 py-1.5">

@@ -744,15 +744,15 @@ test('the Lookbook opens on the looks worn last; a draft reads as started; sugge
   expect(mockRouter.push).toHaveBeenCalledWith(`/piece/${PIECE_ID}`);
 });
 
-test('Sort and Filter hide below four looks — never inert; a tile wears the Robes model tag quietly', async () => {
+test('Sort and Filter hide below four looks — never inert; a tile wears no Robes model tag', async () => {
   mockFetch({
     'GET /looks': byStatus({ saved: [look({ id: LOOK_ID, onRobesModel: true })] }),
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LooksView />);
   await screen.findByText('Weekend navy');
-  // On a tile the tag is a chip, not a button: the tile's one target is the look.
-  expect(screen.getByTestId('robes-model-tag')).toBeTruthy();
+  // The tag lives on the saved look itself (Annie, 5 Nov), never on a tile standing in for it.
+  expect(screen.queryByTestId('robes-model-tag')).toBeNull();
   expect(screen.queryByRole('button', { name: lookbook.deck.robesModelLabel })).toBeNull();
   expect(screen.queryByRole('button', { name: new RegExp(`^${lookbook.sort.label}`) })).toBeNull();
   expect(screen.queryByRole('button', { name: new RegExp(`^${lookbook.refine.open}`) })).toBeNull();
@@ -811,4 +811,19 @@ test('once today is logged, the diary sheet carries no second "worn today" line'
   // It read like a bug, two checks in a row (27 Oct): the link simply goes.
   expect(screen.queryByRole('button', { name: lookbook.diary.woreToday })).toBeNull();
   expect(screen.queryByText(/Worn today/)).toBeNull();
+});
+
+test('a saved look on a Robes model wears the tag on its picture, and the tag opens its sheet', async () => {
+  mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look({ onRobesModel: true, frame: true }),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    'GET /plan': { days: [] },
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /me/model': GENERIC_MODEL,
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.deck.robesModelLabel }));
+  expect(await screen.findByTestId('robes-model-sheet')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.twin.adjust }));
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/model');
 });
