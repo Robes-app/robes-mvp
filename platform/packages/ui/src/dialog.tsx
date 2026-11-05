@@ -7,7 +7,7 @@ import { PrimaryScope } from './button';
 import { buttonClasses } from './button-styles';
 import { cn } from './cn';
 import { IconButton } from './icon-button';
-import { Eyebrow, Heading, Text } from './text';
+import { Eyebrow, Heading, Text, type TextTone } from './text';
 
 // Reversible actions never get a confirm dialog; they run with an Undo toast (design-system §5).
 export interface DialogProps {
@@ -32,10 +32,17 @@ export interface DialogProps {
   // A Sheet only: where focus lands on open, in place of the first field — a picker whose first
   // control is a search must not raise the phone's keyboard before she has looked.
   initialFocus?: RefObject<HTMLElement | null>;
+  // A Sheet only: the floating panel (redlines 2026-11-05) — inset 10px from the left, right and
+  // bottom, every corner on the sheet radius, hugging its content over the lighter scrim, with no
+  // ×: the handle, Escape or a tap on the scrim closes it.
+  floating?: boolean;
+  // The eyebrow's colour: faint by default, warm (rose) where the design asks.
+  eyebrowTone?: TextTone;
 }
 
-// The screen behind dims; it never blurs to mush (beta).
+// The screen behind dims; it never blurs to mush (beta). A floating sheet dims it less (`scrim`).
 const overlay = 'fixed inset-0 z-50 bg-ink/35 motion-safe:data-[state=open]:animate-fade-in';
+const overlayLight = 'fixed inset-0 z-50 bg-scrim motion-safe:data-[state=open]:animate-fade-in';
 
 function Frame({
   title,
@@ -50,6 +57,8 @@ function Frame({
   className,
   titleSize,
   initialFocus,
+  floating = false,
+  eyebrowTone,
 }: Pick<
   DialogProps,
   | 'title'
@@ -61,6 +70,8 @@ function Frame({
   | 'leading'
   | 'closeLabel'
   | 'initialFocus'
+  | 'floating'
+  | 'eyebrowTone'
 > & {
   grabBar?: boolean;
   className: string;
@@ -68,9 +79,14 @@ function Frame({
 }) {
   const titles = (
     <div
-      className={cn('flex min-w-0 flex-col gap-2', !leading && (closeLabel ? 'pr-16' : 'pr-10'))}
+      className={cn(
+        'flex min-w-0 flex-col gap-2',
+        !leading && !floating && (closeLabel ? 'pr-16' : 'pr-10'),
+      )}
     >
-      {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+      {eyebrow ? (
+        <Eyebrow {...(eyebrowTone ? { tone: eyebrowTone } : {})}>{eyebrow}</Eyebrow>
+      ) : null}
       <RadixDialog.Title asChild>
         <Heading level={2} size={titleSize}>
           {title}
@@ -93,7 +109,7 @@ function Frame({
   );
   return (
     <RadixDialog.Portal>
-      <RadixDialog.Overlay className={overlay} />
+      <RadixDialog.Overlay className={floating ? overlayLight : overlay} />
       <RadixDialog.Content
         className={cn('fixed z-50 flex flex-col gap-6 bg-bg text-ink', className)}
         {...(description ? {} : { 'aria-describedby': undefined })}
@@ -108,8 +124,19 @@ function Frame({
           : {})}
       >
         <PrimaryScope>
-          {/* The drawer's own handle: it says this pulls up from the edge, and nothing else. */}
-          {grabBar ? (
+          {/* The drawer's own handle: it says this pulls up from the edge, and nothing else. On a
+              floating sheet it is also the close, in place of the ×. */}
+          {grabBar && floating ? (
+            <RadixDialog.Close asChild>
+              <button
+                type="button"
+                aria-label={ui.close}
+                className="-my-3 mx-auto flex h-9 w-24 shrink-0 items-center justify-center focus-visible:outline-2 focus-visible:outline-focus-ring"
+              >
+                <span aria-hidden className="h-1 w-9 rounded-pill bg-rule-mid" />
+              </button>
+            </RadixDialog.Close>
+          ) : grabBar ? (
             <span aria-hidden className="mx-auto h-1 w-9 shrink-0 rounded-pill bg-rule-mid" />
           ) : null}
           {media ? (
@@ -123,18 +150,20 @@ function Frame({
           {children}
           {footer ? <div className="flex flex-col gap-3">{footer}</div> : null}
           {/* Last in DOM order so opening focuses the content, not the close button. */}
-          <RadixDialog.Close asChild>
-            {closeLabel ? (
-              <button
-                type="button"
-                className={cn(buttonClasses({ variant: 'quiet' }), 'absolute top-3 right-3')}
-              >
-                {closeLabel}
-              </button>
-            ) : (
-              <IconButton icon="close" label={ui.close} className="absolute top-3 right-3" />
-            )}
-          </RadixDialog.Close>
+          {floating ? null : (
+            <RadixDialog.Close asChild>
+              {closeLabel ? (
+                <button
+                  type="button"
+                  className={cn(buttonClasses({ variant: 'quiet' }), 'absolute top-3 right-3')}
+                >
+                  {closeLabel}
+                </button>
+              ) : (
+                <IconButton icon="close" label={ui.close} className="absolute top-3 right-3" />
+              )}
+            </RadixDialog.Close>
+          )}
         </PrimaryScope>
       </RadixDialog.Content>
     </RadixDialog.Portal>
@@ -202,6 +231,8 @@ export function Sheet({
   leading,
   closeLabel,
   initialFocus,
+  floating = false,
+  eyebrowTone,
   ...root
 }: DialogProps) {
   return (
@@ -214,10 +245,16 @@ export function Sheet({
         footer={footer}
         {...(media ? { media } : {})}
         {...(leading ? { leading } : {})}
-        {...(closeLabel ? { closeLabel } : {})}
+        {...(closeLabel && !floating ? { closeLabel } : {})}
+        {...(eyebrowTone ? { eyebrowTone } : {})}
+        floating={floating}
         grabBar
         titleSize="md"
-        className="inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up"
+        className={
+          floating
+            ? 'inset-x-2.5 bottom-[calc(10px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-sheet px-5 pt-3 pb-5 shadow-callout motion-safe:data-[state=open]:animate-sheet-up'
+            : 'inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up'
+        }
       >
         {children}
       </Frame>

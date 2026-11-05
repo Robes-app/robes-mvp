@@ -5,6 +5,8 @@ const tones = {
   default: 'text-ink',
   muted: 'text-ink-muted',
   faint: 'text-ink-faint',
+  // The rose for small text (the darkened rose, 4.5:1 on every cream): a sheet's eyebrow.
+  warm: 'text-accent-warm',
   danger: 'text-danger',
   success: 'text-success',
 } as const;

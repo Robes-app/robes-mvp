@@ -327,6 +327,20 @@ model), **R24** (the tab bar; native's is the system's own). **R22** was already
 - Not run here: the e2e and screenshots against the canvas frames (no database in this
   environment); lint, typecheck and every unit suite are green.
 
+### 4b. The tag and its drawer, redlined (2026-11-05, R25–R41 by Annie's account)
+
+- **The tag** on the saved look: a 28 glass pill top-right of the picture (the corner buttons own
+  the bottom), a 6 dot before the words at `app-caps`, a 12 chevron after, in a 44 hit area.
+- **The drawer** is the `Sheet`'s new `floating` variant on both platforms: inset 10 from the left,
+  right and bottom, every corner on `radius-sheet`, hugging its content, `shadow-callout` over the
+  `scrim` (ink at 0.28, a new draft token), no × — the handle (a close control on web), a swipe
+  down or a tap on the scrim closes it. The eyebrow in the darkened rose (`eyebrowTone="warm"`,
+  a new `warm` text tone on web); the headline plain on both platforms.
+- **The rows**: two equal boxed rows, transparent, Cormorant 18 — Capture Selfie on a dashed
+  `border-warm` with the new `selfie` icon (a face in a frame, so the look's camera button, which
+  logs what she wore, and the selfie never share a glyph); Adjust Robes Model on the 0.5
+  `hairline-strong` with her current model's 20×25 thumbnail.
+
 ## 5. Things that will bite
 
 - **Portraits cost a draw each, once ever**: ten new (five women, five men) under `preset:`.

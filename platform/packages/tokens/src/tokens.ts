@@ -62,6 +62,8 @@ export const semanticNames = [
   'glass',
   'hairline-strong',
   'border-warm',
+  // Draft: the dim behind a floating sheet (ink at 0.28, redlines 2026-11-05).
+  'scrim',
 ] as const;
 
 export type Semantic = (typeof semanticNames)[number];
@@ -89,6 +91,7 @@ export const light: Record<Semantic, ColorRef> = {
   glass: { base: 'cream50', alpha: 0.94 },
   'hairline-strong': { base: 'ink', alpha: 0.12 },
   'border-warm': 'warmLine',
+  scrim: { base: 'ink', alpha: 0.28 },
 };
 
 export const dark: Record<Semantic, ColorRef> = {
@@ -114,6 +117,7 @@ export const dark: Record<Semantic, ColorRef> = {
   glass: { base: 'ink800', alpha: 0.94 },
   'hairline-strong': { base: 'cream50', alpha: 0.16 },
   'border-warm': 'warmLineDark',
+  scrim: { base: 'ink', alpha: 0.6 },
 };
 
 // Accent colours are declared at 3:1 (large text, icons, fills only) per the brand guideline.
@@ -171,6 +175,8 @@ export const radius = {
 // The web reads the CSS shadow (`shadow-float`); native takes the same shadow as style props.
 export const shadow = {
   float: '0 6px 16px -6px rgba(32, 32, 33, 0.30)',
+  // The floating sheet's lift off the scrim (redlines 2026-11-05).
+  callout: '0 12px 32px -12px rgba(32, 32, 33, 0.35)',
 } as const;
 export const shadowNative = {
   float: {
@@ -179,6 +185,13 @@ export const shadowNative = {
     shadowRadius: 16,
     shadowOpacity: 0.3,
     elevation: 6,
+  },
+  callout: {
+    shadowColor: palette.ink,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 32,
+    shadowOpacity: 0.35,
+    elevation: 10,
   },
 } as const;
 

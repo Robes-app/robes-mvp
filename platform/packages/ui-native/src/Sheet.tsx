@@ -1,4 +1,5 @@
 import { ui } from '@robes/copy';
+import { shadowNative } from '@robes/tokens';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -34,11 +35,20 @@ export interface SheetProps {
   children: ReactNode;
   className?: string;
   testID?: string;
+  // The floating panel (redlines 2026-11-05): inset 10pt from the left, right and bottom, every
+  // corner on the sheet radius, hugging its content over the lighter scrim; the handle, a swipe
+  // down or a tap on the scrim closes it (no ×).
+  floating?: boolean;
+  // The eyebrow's colour: faint by default, warm (rose) where the design asks.
+  eyebrowTone?: 'faint' | 'warm';
 }
 
 const OFFSCREEN = 800;
 const DISMISS_DRAG = 120;
 const BACKDROP_OPACITY = 0.4;
+// The floating sheet's scrim (the `scrim` token's alpha; the backdrop is ink, so opacity carries it).
+const SCRIM_OPACITY = 0.28;
+const FLOAT_INSET = 10;
 // The top 8% stays clear: past every iPhone's status bar and island (59pt of 874 on a 17).
 const SHEET_MAX = '92%';
 // Space under the last row; the home indicator's inset is added below it.
@@ -77,6 +87,8 @@ export function Sheet({
   children,
   className,
   testID,
+  floating = false,
+  eyebrowTone = 'faint',
 }: SheetProps) {
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
@@ -92,7 +104,7 @@ export function Sheet({
   useEffect(() => {
     if (!visible) return;
     const to = open ? 0 : OFFSCREEN;
-    const shade = open ? BACKDROP_OPACITY : 0;
+    const shade = open ? (floating ? SCRIM_OPACITY : BACKDROP_OPACITY) : 0;
     if (reduced) {
       translateY.setValue(to);
       backdrop.setValue(shade);
@@ -107,9 +119,10 @@ export function Sheet({
       if (finished && !open) setVisible(false);
     });
     return () => animation.stop();
-  }, [open, visible, reduced, translateY, backdrop]);
+  }, [open, visible, reduced, translateY, backdrop, floating]);
 
-  const close = closeLabel ? (
+  const eyebrowClass = eyebrowTone === 'warm' ? 'text-accent-warm' : undefined;
+  const close = floating ? null : closeLabel ? (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={closeLabel}
@@ -168,14 +181,26 @@ export function Sheet({
         </Animated.View>
         <Animated.View
           accessibilityViewIsModal
-          className={cx('rounded-t-sheet bg-bg px-6', className)}
+          className={cx(
+            floating ? 'rounded-sheet bg-bg px-5' : 'rounded-t-sheet bg-bg px-6',
+            className,
+          )}
           // A tall drawer stops short of the status bar and Dynamic Island; its content scrolls.
           // Its last row (a footer button) sits above the home indicator, never under it.
-          style={{
-            maxHeight: SHEET_MAX,
-            paddingBottom: SHEET_PAD + (keyboard ? 0 : insets.bottom),
-            transform: [{ translateY }],
-          }}
+          style={[
+            {
+              maxHeight: SHEET_MAX,
+              paddingBottom: floating ? SHEET_PAD : SHEET_PAD + (keyboard ? 0 : insets.bottom),
+              transform: [{ translateY }],
+            },
+            floating
+              ? {
+                  marginHorizontal: FLOAT_INSET,
+                  marginBottom: FLOAT_INSET + (keyboard ? 0 : insets.bottom),
+                  ...shadowNative.callout,
+                }
+              : null,
+          ]}
         >
           <View {...drag.panHandlers} className="items-center py-3">
             {/* With a close in the header, the grab bar is only the handle, so a reader hears
@@ -194,7 +219,7 @@ export function Sheet({
             <View className="mb-4 flex-row items-start gap-4">
               <View>{media}</View>
               <View className="min-w-0 flex-1">
-                {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
+                {eyebrow ? <Eyebrow className={cx('mb-1', eyebrowClass)}>{eyebrow}</Eyebrow> : null}
                 {title ? <Heading size="md">{title}</Heading> : null}
               </View>
               {close}
@@ -210,7 +235,7 @@ export function Sheet({
               {leading}
               <View className="min-w-0 flex-1">
                 {eyebrow ? (
-                  <Eyebrow className={title ? 'mb-1' : undefined}>{eyebrow}</Eyebrow>
+                  <Eyebrow className={cx(title ? 'mb-1' : null, eyebrowClass)}>{eyebrow}</Eyebrow>
                 ) : null}
                 {title ? <Heading size="md">{title}</Heading> : null}
               </View>
