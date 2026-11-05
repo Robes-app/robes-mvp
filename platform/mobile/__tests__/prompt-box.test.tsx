@@ -128,6 +128,31 @@ test('typing shows the arrow; the ask carries her words and the day, and the box
   expect(await screen.findByText(lookbook.draft.dressing)).toBeTruthy();
 });
 
+test('a prompt whose job fails gives her words back with the error, never Dressing for ever', async () => {
+  const calls = mockFetch({
+    ...ROUTES,
+    [`GET /jobs/${JOB_ID}`]: {
+      id: JOB_ID,
+      kind: 'key_piece',
+      status: 'failed',
+      stage: 'text',
+      output: {},
+      error: 'provider',
+      cancelRequested: false,
+      createdAt: '2026-10-01T10:00:00.000Z',
+      updatedAt: '2026-10-01T10:00:05.000Z',
+      finishedAt: '2026-10-01T10:00:05.000Z',
+    },
+  });
+  await renderWithApi(box(dayOf(DATE)));
+  await fireEvent.changeText(screen.getByLabelText(diary.door.today), 'Lunch in town');
+  await fireEvent.press(await screen.findByTestId('prompt-send'));
+  expect(await screen.findByText(lookbook.prompt.failed)).toBeTruthy();
+  expect(calls.some((c) => c.path.endsWith(`/jobs/${JOB_ID}`))).toBe(true);
+  expect(screen.queryByText(lookbook.draft.dressing)).toBeNull();
+  expect(screen.getByLabelText(diary.door.today).props.value).toBe('Lunch in town');
+});
+
 test('a draft on the day: the box is its thread — Dress it again, Adjust, View draft', async () => {
   mockFetch({ ...ROUTES, 'GET /looks': { items: [], nextCursor: null } });
   const draft = look({
