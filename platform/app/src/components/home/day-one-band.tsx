@@ -5,14 +5,14 @@ import type { Today } from '@robes/contracts';
 import { diary } from '@robes/copy';
 import { DAY_ONE_KEYS } from '@robes/core/home';
 import { Icon } from '@robes/icons/web';
-import { Button, Dialog, useToast } from '@robes/ui';
+import { Button, Dialog, ErrorText, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { dayOneAsks } from '@/lib/diary';
 import { errorCopy } from '@/lib/error-copy';
 import { usePhotoFiling } from '@/lib/file-photo';
 import { PHOTO_ACCEPT } from '@/lib/upload';
+import { useSelfie } from '@/lib/use-selfie';
 
 const copy = diary.dayOne;
 const focus =
@@ -37,6 +37,8 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
   const [asking, setAsking] = useState<Ask | null>(null);
   const [hidden, setHidden] = useState<Record<Ask, boolean>>({ model: false, pieces: false });
   const model = useApi('me.model.get', undefined, { enabled: asks.model });
+  // Create your digital twin opens the camera at once (plan 2026-11-05 §1.1), no page between.
+  const selfie = useSelfie();
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
 
@@ -91,10 +93,15 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
           </div>
           <ul className="-mx-5 flex gap-2.5 overflow-x-auto px-5 [scrollbar-width:none]">
             <li>
-              <Link href="/you/model" className={`${tile} px-2.5 text-ink-muted ${focus}`}>
+              <button
+                type="button"
+                onClick={selfie.start}
+                disabled={selfie.busy}
+                className={`${tile} px-2.5 text-ink-muted ${focus}`}
+              >
                 <Icon name="camera" size={15} />
                 <span className="font-sans text-[11.5px] leading-[1.3]">{copy.twin}</span>
-              </Link>
+              </button>
             </li>
             {(model.data?.robesModels ?? []).map((g, i) => {
               const on = g.n === chosen;
@@ -132,6 +139,8 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
               );
             })}
           </ul>
+          {selfie.error ? <ErrorText>{selfie.error}</ErrorText> : null}
+          {selfie.field}
         </div>
       ) : null}
       {showPieces ? <PiecesAsk onDismiss={() => setAsking('pieces')} onFiled={refresh} /> : null}

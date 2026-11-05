@@ -166,5 +166,16 @@ export const modelData = (over: object = {}) => ({
   adj: { shoulders: null, bust: null, hips: null },
   closeUpUrl: null,
   twin: { status: 'none', current: false, imageUrl: null },
+  // Plan 2026-11-05: on the first Robes model until she has one of her own.
+  stand: { imageUrl: null, generic: true, on: 'robes' },
+  preset: null,
+  robesModels: [1, 2, 3, 4, 5].map((n) => ({
+    id: `w-r${n}`,
+    n,
+    imageUrl: n === 1 ? 'https://media.test/catalog/avatar/w-r1@v1.png' : null,
+    status: n === 1 ? 'ready' : 'none',
+  })),
   ...over,
 });
+// Her own model stands (a twin or a hand-built cell): the doors open, the lineup ticks her.
+export const ownStand = { imageUrl: null, generic: false, on: 'cell' };

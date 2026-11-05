@@ -1648,9 +1648,20 @@ export const twin = {
     title: 'Your digital twin',
     readFrom: 'Read from your photograph and facts',
     colouring: 'Colouring',
-    colouringSub: 'One close-up reads your season.',
+    colouringSub: 'Skin, hair and season.',
     bodyShape: 'Body shape',
     bodyShapeSub: 'Set your line by hand.',
+    // On a Robes model (plan 2026-11-05, design 3c): the eyebrow on the hero, the one commitment
+    // (the camera), and the lineup she chooses from — her own twin first, once drawn.
+    robesModel: 'Robes model',
+    addSelfie: 'Add a selfie',
+    addSelfieSub: 'Create your digital twin.',
+    retake: 'Retake your selfie',
+    lineup: 'Choose a model',
+    you: 'You',
+    // While her selfie reads and her twin draws (design 3d lands with the read).
+    reading: 'Reading your selfie…',
+    fewerSeasons: 'Fewer seasons',
     // The caption under her model: colour words only, never a shape.
     // Only what she chose or a close-up read: an unchosen skin or hair has no name to show.
     caption: (skin: string, hair: string): string =>
@@ -1661,7 +1672,7 @@ export const twin = {
     closeUpCard: 'Your close-up',
     closeUpHelp: 'Robes reads your season, skin and hair from this.',
     season: 'Your season',
-    addSeason: 'Add a close-up and Robes reads your season.',
+    addSeason: 'Add a selfie and Robes reads your season.',
     colourNotes: 'Full colour notes',
     anotherSeason: 'Another season',
     seasonFailed: 'Robes couldn’t change the reading just now.',
@@ -1675,8 +1686,8 @@ export const twin = {
       return axes && sum ? `${axes} — ${sum}` : axes || sum;
     },
     skinAndHair: 'Skin and hair',
-    skinAndHairRead: 'Read from your close-up. Nudge either if it looks off.',
-    skinAndHairHand: 'Or choose them by hand until a close-up reads.',
+    skinAndHairRead: 'Read from your selfie. Change by hand.',
+    skinAndHairHand: 'Chosen by hand until a selfie reads.',
     yourLine: 'Your line',
     edit: 'Edit',
     proportions: (presence: Presence): string =>

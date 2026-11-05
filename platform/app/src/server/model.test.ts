@@ -188,14 +188,20 @@ describe('a Robes model chosen', () => {
     expect(startJob).not.toHaveBeenCalled();
   });
 
-  it('gives way to a hand pick: shaping her own model stands it again', async () => {
+  it('is not hers to shape: a hand pick while a Robes model stands is a conflict', async () => {
     row = { ...base, modelPreset: 2 };
-    await updateModel(USER, req, { hair: 5 });
-    expect(repos.model.savePreset).toHaveBeenCalledWith(USER, null);
-    expect(repos.model.savePicks).toHaveBeenCalledWith(USER, { hair: 5 }, undefined);
-    repos.model.savePreset.mockClear();
-    // Her gender alone shapes nothing.
+    await expect(updateModel(USER, req, { hair: 5 })).rejects.toMatchObject({ code: 'conflict' });
+    row = { ...base, filedCellId: null };
+    await expect(updateModel(USER, req, { adj: { hips: 1 } })).rejects.toMatchObject({
+      code: 'conflict',
+    });
+    expect(repos.model.savePicks).not.toHaveBeenCalled();
+    // Her gender alone shapes nothing; her own model, hers to shape.
     await updateModel(USER, req, { presence: 'man' });
+    expect(repos.model.savePicks).toHaveBeenCalledWith(USER, {}, 'man');
+    row = { ...base, twinAssetId: TWIN, twinKey: 'k' };
+    await updateModel(USER, req, { hair: 5 });
+    expect(repos.model.savePicks).toHaveBeenLastCalledWith(USER, { hair: 5 }, undefined);
     expect(repos.model.savePreset).not.toHaveBeenCalled();
   });
 

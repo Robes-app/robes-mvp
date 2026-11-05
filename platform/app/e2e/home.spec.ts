@@ -223,10 +223,10 @@ test('day one: the band asks for a model and first pieces; each × asks once, th
   const band = page.getByTestId('day-one');
   await expect(band.getByRole('heading', { name: 'Choose your model' })).toBeVisible();
   await expect(band.getByRole('heading', { name: 'Add your first pieces' })).toBeVisible();
-  await expect(band.getByRole('link', { name: 'Create your digital twin' })).toHaveAttribute(
-    'href',
-    '/you/model',
-  );
+  // Create your digital twin opens the camera at once (plan 2026-11-05): a button over a hidden
+  // file input that asks the phone for its front camera.
+  await expect(band.getByRole('button', { name: 'Create your digital twin' })).toBeVisible();
+  await expect(band.getByTestId('selfie-input')).toHaveAttribute('capture', 'user');
   await expect(band.getByRole('button', { name: /^Model \d$/ })).toHaveCount(5);
   await expect(band.getByRole('button', { name: 'Photograph tops' })).toBeVisible();
   expect(await seriousViolations(page), 'home, day one').toEqual([]);

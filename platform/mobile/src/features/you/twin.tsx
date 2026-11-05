@@ -1,6 +1,6 @@
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Facts, Model, StyleDna, UpdateModelInput } from '@robes/contracts';
-import { twin, you } from '@robes/copy';
+import { diary, twin, you } from '@robes/copy';
 import {
   BUST_CUPS,
   chosenTones,
@@ -22,6 +22,7 @@ import {
   useToast,
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { Image as ExpoImage } from 'expo-image';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import Svg, { Ellipse, Line, Path, Rect } from 'react-native-svg';
@@ -80,6 +81,92 @@ export function Section({ title, children }: { title: string; children: ReactNod
       <Eyebrow>{title}</Eyebrow>
       {children}
     </View>
+  );
+}
+
+const TILE = { width: 104, height: 132 };
+
+// The lineup (plan 2026-11-05 §1.4–1.5): her own model first, once she has one, then the five
+// Robes models; the one her looks stand on is ringed. Choosing a Robes model keeps her selfie and
+// twin on file; choosing herself again hands the stand back. Web twin:
+// app/(app)/you/model/twin-parts.tsx Lineup.
+export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pending: boolean }) {
+  const faint = useColor('ink-faint');
+  const onPlan = useColor('surface-raised');
+  const onRobes = model.stand?.on === 'robes';
+  const own = model.filed;
+  const ownImage = model.twin.imageUrl ?? model.cell.imageUrl;
+  const chosen = onRobes ? (model.preset ?? 1) : null;
+  const tile = (
+    key: string,
+    label: string,
+    on: boolean,
+    url: string | null,
+    onPress: () => void,
+    testID: string,
+  ) => (
+    <Pressable
+      key={key}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: on, disabled: pending }}
+      accessibilityLabel={label}
+      disabled={pending}
+      onPress={onPress}
+      style={[TILE, on ? { borderWidth: 1.5 } : null]}
+      className={`overflow-hidden rounded-soft border bg-surface ${on ? 'border-ink' : 'border-hairline'}`}
+      testID={testID}
+    >
+      {url ? (
+        // A catalog portrait, or her own, in a fixed frame with the face kept in view.
+        <ExpoImage
+          source={{ uri: url }}
+          contentFit="cover"
+          contentPosition={{ top: '10%', left: '50%' }}
+          accessible={false}
+          style={{ width: '100%', height: '100%' }}
+        />
+      ) : (
+        <View className="flex-1 items-center justify-center">
+          <Icon name="user" size={22} color={faint} />
+        </View>
+      )}
+      {on ? (
+        <View className="absolute bottom-2 left-2 size-5 items-center justify-center rounded-pill border-2 border-surface-raised bg-accent-plan">
+          <Icon name="check" size={10} color={onPlan} />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      accessibilityRole="radiogroup"
+      accessibilityLabel={twin.twinPage.lineup}
+      className="-mx-6"
+      contentContainerClassName="gap-2.5 px-6"
+    >
+      {own
+        ? tile(
+            'you',
+            twin.twinPage.you,
+            !onRobes,
+            ownImage,
+            () => (onRobes ? pick({ preset: null }) : undefined),
+            'lineup-you',
+          )
+        : null}
+      {model.robesModels.map((m) =>
+        tile(
+          m.id,
+          diary.dayOne.modelPick(m.n),
+          m.n === chosen,
+          m.imageUrl,
+          () => (m.n === chosen ? undefined : pick({ preset: m.n })),
+          `lineup-${m.n}`,
+        ),
+      )}
+    </ScrollView>
   );
 }
 

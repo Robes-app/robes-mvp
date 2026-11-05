@@ -225,9 +225,11 @@ export async function updateModel(
   }
   const shaped = adj !== undefined || Object.keys(picks).length > 0;
   if (!shaped && presence === undefined) return loadModel(userId);
-  // A hand pick shapes her own model, so it stands again over any Robes model she chose
-  // (plan 2026-11-05 §2.3; P1 closes Colouring and Body shape while a Robes model stands).
-  if (shaped && preset === undefined) await repos.model.savePreset(userId, null);
+  // Colouring and Body shape are the twin's (plan 2026-11-05 Q9): a Robes model is not hers to
+  // shape. Her own model (twin or hand-built cell) stands again when she picks it in the lineup.
+  if (shaped && preset === undefined && standOf((await current(userId)).row).on === 'robes') {
+    throw new ApiError('conflict');
+  }
   // A scale moved merges over the sliders as they stand (a legacy seed included); {} is "back to
   // your facts".
   const sliders =

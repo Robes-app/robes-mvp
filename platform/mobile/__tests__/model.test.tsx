@@ -1,19 +1,29 @@
-import { twin, you } from '@robes/copy';
+import { diary, twin } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { BodyShape } from '../src/features/you/BodyShape';
 import { Colouring } from '../src/features/you/Colouring';
 import { Model } from '../src/features/you/Model';
 import { twinRead } from '../src/features/you/twin';
 import { mockFetch, renderWithApi } from './support/api';
-import { modelData, styleDna } from './support/fixtures';
-import { mockRouter } from './support/router';
+import { modelData, ownStand, styleDna } from './support/fixtures';
+import { mockParams, mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
+jest.mock('expo-image-picker', () => ({
+  CameraType: { front: 'front', back: 'back' },
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  for (const k of Object.keys(mockParams)) delete mockParams[k];
+});
 
-const _copy = you.model;
 const tw = twin.twinPage;
 const noStyle = {
   colour: null,
@@ -27,29 +37,107 @@ const model = modelData;
 const twinCalls = (calls: { method: string; path: string }[]) =>
   calls.filter((c) => c.method === 'POST' && c.path.endsWith('/me/model/twin'));
 
-test('her model is the hero with two doors; landing asks for the twin once', async () => {
+test('on a Robes model (3c): its portrait, Add a selfie, the lineup, the doors closed; landing asks for the twin once', async () => {
   const calls = mockFetch({
     ...TWIN,
-    'GET /me/model': model(),
+    'GET /me/model': model({
+      stand: {
+        imageUrl: 'https://media.test/catalog/avatar/w-r1@v1.png',
+        generic: true,
+        on: 'robes',
+      },
+    }),
     'POST /me/model/twin': model(),
-    'PATCH /me/model': (init: RequestInit) =>
-      model({ filed: true, ...JSON.parse(String(init.body)) }),
+    'PATCH /me/model': (init: RequestInit) => model({ ...JSON.parse(String(init.body)) }),
     'GET /today': {},
   });
   await renderWithApi(<Model />);
-  // Nothing on file: the stage carries the invitation, not a caption.
-  expect(await screen.findByText(tw.stageEmpty)).toBeTruthy();
-  expect(screen.queryByText(tw.caption('Tan', 'Espresso'))).toBeNull();
+  expect(await screen.findByText(tw.robesModel, {}, { timeout: 4000 })).toBeTruthy();
+  expect(screen.queryByText(tw.stageEmpty)).toBeNull();
   await waitFor(() => expect(twinCalls(calls)).toHaveLength(1));
-  // The redline cut Build your model from the twin: the hero and the two doors are all it carries.
-  expect(screen.queryByRole('button', { name: 'Build your model' })).toBeNull();
-  // The hero already says it, so nothing repeats under the doors (redline 27 Oct).
+  // The one commitment is the camera: the front camera, at once.
+  await fireEvent.press(screen.getByTestId('twin-add-selfie'));
+  await waitFor(() =>
+    expect(ImagePicker.launchCameraAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ cameraType: 'front' }),
+    ),
+  );
+  // Colouring and Body shape are the twin's: no door opens, nothing is said under them.
+  expect(screen.queryByRole('button', { name: new RegExp(tw.bodyShape) })).toBeNull();
+  expect(screen.queryByRole('button', { name: new RegExp(tw.colouring) })).toBeNull();
+  expect(screen.getByText(tw.colouringSub)).toBeTruthy();
   expect(screen.queryByText(tw.status('woman', 'none'))).toBeNull();
+  // The lineup: the five, the first ticked, nothing of her own yet; a tap stores the pick.
+  expect(screen.queryByTestId('lineup-you')).toBeNull();
+  expect(screen.getByTestId('lineup-1').props.accessibilityState).toMatchObject({ checked: true });
+  await fireEvent.press(screen.getByRole('radio', { name: diary.dayOne.modelPick(4) }));
+  await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ preset: 4 }));
+  expect(screen.queryByTestId('twin-retake')).toBeNull();
+});
+
+test('on her own twin (3d): the retake, the doors open, herself first in the lineup', async () => {
+  const twinUrl = 'https://media.test/media/twin.jpg';
+  const hers = model({
+    filed: true,
+    closeUpUrl: CLOSE_UP,
+    twin: { status: 'ready', current: true, imageUrl: twinUrl },
+    stand: { imageUrl: twinUrl, generic: false, on: 'twin' },
+  });
+  const calls = mockFetch({
+    ...TWIN,
+    'GET /me/model': hers,
+    // The mount's ask answers with the same model (nothing changed): the page must not flip.
+    'POST /me/model/twin': hers,
+    'PATCH /me/model': (init: RequestInit) => model({ ...JSON.parse(String(init.body)) }),
+    'GET /today': {},
+  });
+  await renderWithApi(<Model />);
+  expect(await screen.findByTestId('twin-retake', {}, { timeout: 4000 })).toBeTruthy();
+  expect(screen.queryByText(tw.robesModel)).toBeNull();
+  expect(screen.queryByTestId('twin-add-selfie')).toBeNull();
+  expect(screen.getByText(tw.status('woman', 'closeUp'))).toBeTruthy();
   await fireEvent.press(
     screen.getByRole('button', { name: `${tw.bodyShape}, ${tw.bodyShapeSub}` }),
   );
   expect(mockRouter.push).toHaveBeenCalledWith('/you/model/body');
-  expect(screen.queryByText(twin.facts.title)).toBeNull();
+  expect(screen.getByTestId('lineup-you').props.accessibilityState).toMatchObject({
+    checked: true,
+  });
+  expect(screen.getByTestId('lineup-1').props.accessibilityState).toMatchObject({ checked: false });
+  await fireEvent.press(screen.getByTestId('twin-retake'));
+  await waitFor(() => expect(ImagePicker.launchCameraAsync).toHaveBeenCalled());
+  // A Robes model chosen over her: her selfie and twin stay; the pick is all that changes, and
+  // the page turns to the Robes model's (3c) — no retake there.
+  await fireEvent.press(screen.getByRole('radio', { name: diary.dayOne.modelPick(2) }));
+  await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ preset: 2 }));
+  await waitFor(() => expect(screen.queryByTestId('twin-retake')).toBeNull());
+});
+
+test('landed from the camera: the read is followed, then the twin asked for, the address cleaned', async () => {
+  const JOB = '77777777-7777-4777-8777-777777777777';
+  mockParams.read = JOB;
+  const calls = mockFetch({
+    ...TWIN,
+    'GET /me/model': model(),
+    'POST /me/model/twin': model(),
+    [`GET /jobs/${JOB}`]: {
+      id: JOB,
+      kind: 'stylenotes_analyse',
+      status: 'succeeded',
+      stage: 'text',
+      output: {},
+      error: null,
+      cancelRequested: false,
+      createdAt: '2026-11-05T10:00:00.000Z',
+      updatedAt: '2026-11-05T10:00:00.000Z',
+      finishedAt: '2026-11-05T10:00:01.000Z',
+    },
+    'GET /today': {},
+  });
+  await renderWithApi(<Model />);
+  // The mount's ask, then the one the landed read makes.
+  await waitFor(() => expect(twinCalls(calls)).toHaveLength(2));
+  expect(mockRouter.setParams).toHaveBeenCalledWith({ read: undefined });
 });
 
 const facts = (over: object = {}) => ({ ...styleDna().facts, ...over });
@@ -71,6 +159,7 @@ test('says so while her twin is being drawn, and shows the twin over the catalog
     filed: true,
     skinSet: true,
     hairSet: true,
+    stand: ownStand,
     cell: { status: 'ready', imageUrl: 'https://media.test/catalog/cell.png' },
     twin: { status: 'pending', current: false, imageUrl: 'https://media.test/media/twin.jpg' },
   });
@@ -81,7 +170,7 @@ test('says so while her twin is being drawn, and shows the twin over the catalog
 });
 
 test('a skin or hair she never chose is never named under her model', async () => {
-  const handHair = model({ filed: true, hairSet: true });
+  const handHair = model({ filed: true, hairSet: true, stand: ownStand });
   mockFetch({ ...TWIN, 'GET /me/model': handHair, 'POST /me/model/twin': handHair });
   await renderWithApi(<Model />);
   expect(await screen.findByText(tw.caption('', 'Espresso'))).toBeTruthy();
@@ -172,10 +261,30 @@ test('colouring offers the seasons next door; a pick changes it', async () => {
   expect(await screen.findByRole('button', { name: 'True Autumn' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Soft Summer' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Light Spring' })).toBeNull();
+  // No close-up card: the selfie was taken a screen earlier (plan 2026-11-05 §1.6).
+  expect(screen.queryByText(tw.closeUpCard)).toBeNull();
+  // Another season opens the rest, then reads Fewer seasons.
+  await fireEvent.press(screen.getByRole('button', { name: tw.anotherSeason }));
+  expect(screen.getByRole('button', { name: 'Light Spring' })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: tw.fewerSeasons }));
+  expect(screen.queryByRole('button', { name: 'Light Spring' })).toBeNull();
   // One dash: the read's own dash becomes a comma.
   expect(screen.getByText('Warm · Low, blended — Warm and dusty, never icy.')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: 'True Autumn' }));
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ season: 'True Autumn' }),
   );
+});
+
+test('colouring with no read yet: the camera is still the one way to a season', async () => {
+  mockFetch({
+    ...TWIN,
+    'GET /me/model': model({ filed: true, stand: ownStand }),
+    'POST /me/model/twin': model({ filed: true }),
+  });
+  await renderWithApi(<Colouring />);
+  expect(await screen.findByText(tw.addSeason)).toBeTruthy();
+  expect(screen.getByText(tw.skinAndHairHand)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: tw.addSelfie }));
+  await waitFor(() => expect(ImagePicker.launchCameraAsync).toHaveBeenCalled());
 });

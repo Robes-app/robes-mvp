@@ -1,13 +1,20 @@
 import type { Today } from '@robes/contracts';
 import { diary } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { DayOneBand } from '../src/features/home/DayOneBand';
 import { mockFetch, renderWithApi } from './support/api';
 import { modelData } from './support/fixtures';
-import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
+jest.mock('expo-image-picker', () => ({
+  CameraType: { front: 'front', back: 'back' },
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -49,8 +56,13 @@ test('day one shows both asks: the twin’s door, the five Robes models, the fou
   expect(screen.getByTestId('day-one-model-1').props.accessibilityState).toEqual({
     checked: false,
   });
+  // Create your digital twin opens the front camera at once (plan 2026-11-05), no screen between.
   await fireEvent.press(screen.getByRole('button', { name: copy.twin }));
-  expect(mockRouter.push).toHaveBeenCalledWith('/you/model');
+  await waitFor(() =>
+    expect(ImagePicker.launchCameraAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ cameraType: 'front' }),
+    ),
+  );
 });
 
 test('picking a Robes model is remembered as a pick, never as skin and hair', async () => {

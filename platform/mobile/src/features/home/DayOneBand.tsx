@@ -5,6 +5,7 @@ import { DAY_ONE_KEYS } from '@robes/core/home';
 import { Icon } from '@robes/icons/native';
 import {
   Button,
+  ErrorText,
   fonts,
   MIN_TOUCH,
   maxFontSizeMultiplier,
@@ -15,9 +16,9 @@ import {
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
-import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, Text as RNText, ScrollView, View } from 'react-native';
+import { useSelfie } from '@/features/you/use-selfie';
 import { errorMessage } from '@/lib/errors';
 import { dayOneAsks } from './diary';
 import { type PhotoSource, pickOne, usePhotoFiling } from './file-photo';
@@ -72,7 +73,6 @@ function Head({
 // Anything), each with a × that asks once and then stands down. The web twin is
 // app/src/components/home/day-one-band.tsx.
 export function DayOneBand({ state }: { state: Today['home']['state'] }) {
-  const router = useRouter();
   const api = useApiClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -83,6 +83,8 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
   const [asking, setAsking] = useState<Ask | null>(null);
   const [hidden, setHidden] = useState<Record<Ask, boolean>>({ model: false, pieces: false });
   const model = useApi('me.model.get', undefined, { enabled: asks.model });
+  // Create your digital twin opens the camera at once (plan 2026-11-05 §1.1), no screen between.
+  const selfie = useSelfie();
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
 
@@ -132,7 +134,9 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={copy.twin}
-              onPress={() => router.push('/you/model')}
+              accessibilityState={{ disabled: selfie.busy }}
+              disabled={selfie.busy}
+              onPress={() => void selfie.start()}
               style={TILE}
               className={`${tile} px-2.5`}
             >
@@ -182,6 +186,7 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
               );
             })}
           </ScrollView>
+          {selfie.error ? <ErrorText>{selfie.error}</ErrorText> : null}
         </View>
       ) : null}
       {showPieces ? <PiecesAsk onDismiss={() => setAsking('pieces')} onFiled={refresh} /> : null}

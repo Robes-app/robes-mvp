@@ -239,6 +239,21 @@ Colouring loses the close-up card, gains *Fewer seasons*. e2e: `model.spec.ts` "
 model" becomes "she takes a selfie, her colouring reads, her twin draws, a look renders on her";
 a second case picks a Robes model and checks Colouring is closed to her.
 
+> **P2 built 2026-11-05.** One selfie hook on each platform (`app/src/lib/use-selfie.tsx`,
+> `mobile/src/features/you/use-selfie.ts`): the front camera (native: `expo-image-picker` with
+> `cameraType: front`, the library when the camera is refused; web: `capture="user"`), the upload
+> as her close-up, the colour read started, and Your digital twin at once with the read's job in
+> the address (`?read=<jobId>` / the `read` param). On that page `useSelfieRead` follows the job
+> and, when it lands, asks for the twin and cleans the address — the fix for §2.6 step 4. Behind it:
+> the band's twin tile, the model page's "Add a selfie" row, the retake bottom-right on the hero,
+> and Colouring's fallback button. The model page has its two states: on a Robes model (3c) the
+> portrait under a `Robes model` eyebrow, Add a selfie, the lineup of five, the doors dimmed and
+> closed; on her own (3d) the twin, the retake, the doors, and the lineup with her first. The
+> server's `conflict` on shaping a Robes model (the rule P1 left) landed here. Colouring lost its
+> close-up card and gained *Fewer seasons*. Not run here: the e2e (`model.spec.ts` rewritten for the
+> closed doors and the facts-drawn twin; `home.spec.ts` for the camera tile). Lint, typecheck and
+> the unit suites (web server, copy, contracts, native model/colouring/band) are green.
+
 **P3 · The tag (S).** `onRobesModel` on looks; `RobesModelBadge` + sheet (Capture Selfie · Adjust
 Robes Model) replaces `GenericModelBadge` on the look page, deck and draft, and reaches the
 Lookbook and Diary tiles through `LookTile`'s on-photograph slot. Copy retired: `Generic model`,
