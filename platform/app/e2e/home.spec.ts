@@ -227,15 +227,25 @@ test('day one: the band asks for a model and first pieces; each × asks once, th
     'href',
     '/you/model',
   );
-  await expect(band.getByRole('button', { name: /^Model \d$/ })).toHaveCount(3);
+  await expect(band.getByRole('button', { name: /^Model \d$/ })).toHaveCount(5);
   await expect(band.getByRole('button', { name: 'Photograph tops' })).toBeVisible();
   expect(await seriousViolations(page), 'home, day one').toEqual([]);
 
-  // A Robes model picked: her picks become that cell's, and it is the one ticked.
-  const generics = (await (await api.get('/api/v1/me/model')).json()).generics;
+  // A Robes model picked is remembered as a pick (plan 2026-11-05), never as skin and hair, and
+  // it is the one ticked; her looks stand on it.
   await band.getByRole('button', { name: 'Model 2' }).click();
   await expect(band.getByRole('button', { name: 'Model 2', pressed: true })).toBeVisible();
-  expect((await (await api.get('/api/v1/me/model')).json()).cellId).toBe(generics[1].id);
+  const model = await (await api.get('/api/v1/me/model')).json();
+  expect(model.preset).toBe(2);
+  expect(model.filed).toBe(false);
+  expect(model.stand.on).toBe('robes');
+  expect(model.robesModels.map((m: { id: string }) => m.id)).toEqual([
+    'w-r1',
+    'w-r2',
+    'w-r3',
+    'w-r4',
+    'w-r5',
+  ]);
 
   // × asks once; Okay folds the ask away, and it stays away.
   await band.getByRole('button', { name: 'Dismiss: Choose your model' }).click();

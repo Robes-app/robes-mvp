@@ -3,7 +3,6 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Today } from '@robes/contracts';
 import { diary } from '@robes/copy';
-import { parseCellId } from '@robes/core/avatar';
 import { DAY_ONE_KEYS } from '@robes/core/home';
 import { Icon } from '@robes/icons/web';
 import { Button, Dialog, useToast } from '@robes/ui';
@@ -25,10 +24,11 @@ const dismissBtn = `flex size-7 shrink-0 items-center justify-center rounded-pil
 
 type Ask = 'model' | 'pieces';
 
-// Day one (Front Door design 3a, plan 2026-11-02 §1.3): a full-bleed band above the strip with
-// Choose your model (her twin's door, then the three Robes models) and Add your first pieces
-// (Tops · Bottoms · Shoes · Anything), each with a × that asks once and then stands down. The
-// native twin is mobile/src/features/home/DayOneBand.tsx.
+// Day one (Front Door design 3a, plan 2026-11-02 §1.3; the five Robes models and no "Another
+// model", plan 2026-11-05 §1.1): a full-bleed band above the strip with Choose your model (her
+// twin's door, then the five Robes models) and Add your first pieces (Tops · Bottoms · Shoes ·
+// Anything), each with a × that asks once and then stands down. The native twin is
+// mobile/src/features/home/DayOneBand.tsx.
 export function DayOneBand({ state }: { state: Today['home']['state'] }) {
   const api = useApiClient();
   const queryClient = useQueryClient();
@@ -53,19 +53,20 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
       .then(refresh)
       .catch((err) => toast({ message: errorCopy(err) }));
   };
-  // A Robes model picked: her picks become that cell's, and it stands under her looks.
-  const pick = (id: string) => {
-    const cell = parseCellId(id);
-    if (!cell) return;
+  // A Robes model picked is remembered as a pick (never as skin and hair), and it stands under
+  // her looks.
+  const pick = (n: number) => {
     void api
-      .call('me.model.update', { input: { skin: cell.skin, hair: cell.hair } })
+      .call('me.model.update', { input: { preset: n } })
       .then(() => {
         void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') });
         refresh();
       })
       .catch((err) => toast({ message: errorCopy(err) }));
   };
-  const chosen = model.data?.filed ? model.data.cellId : (model.data?.generics?.[0]?.id ?? null);
+  // Ticked: the Robes model her looks stand on — the one she chose, or the first until she does.
+  const stand = model.data?.stand;
+  const chosen = stand && stand.on !== 'robes' ? null : (model.data?.preset ?? 1);
 
   return (
     <section
@@ -95,15 +96,15 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
                 <span className="font-sans text-[11.5px] leading-[1.3]">{copy.twin}</span>
               </Link>
             </li>
-            {(model.data?.generics ?? []).map((g, i) => {
-              const on = g.id === chosen;
+            {(model.data?.robesModels ?? []).map((g, i) => {
+              const on = g.n === chosen;
               return (
                 <li key={g.id}>
                   <button
                     type="button"
                     aria-pressed={on}
-                    aria-label={copy.modelPick(i + 1)}
-                    onClick={() => pick(g.id)}
+                    aria-label={copy.modelPick(g.n)}
+                    onClick={() => pick(g.n)}
                     data-testid={`day-one-model-${i}`}
                     className={`relative h-[132px] w-[104px] shrink-0 overflow-hidden rounded-soft border bg-surface ${
                       on ? 'border-selected-line' : 'border-transparent'
@@ -130,16 +131,6 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
                 </li>
               );
             })}
-            <li>
-              <Link
-                href="/you/model"
-                className={`${tile} text-ink-faint ${focus}`}
-                aria-label={copy.another}
-              >
-                <span className="font-sans text-[11px]">+</span>
-                <span className="font-sans text-[11px] text-ink-muted">{copy.another}</span>
-              </Link>
-            </li>
           </ul>
         </div>
       ) : null}

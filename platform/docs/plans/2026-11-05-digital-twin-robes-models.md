@@ -204,11 +204,33 @@ Consent: the terms accepted at onboarding cover photo analysis (§6 Q5); no shee
 no face); `ensureRobesModels`. `Model` gains `preset`, `robesModels`, `stand.on`; `generics` grows
 to five. Nothing visible changes yet except five tiles on the band.
 
-**P1 · The pick and the stand (M).** `me.model.update { preset }` writes the column and clears a
-Robes-model pick's skin/hair; `standOf` order §2.3; render and frame keys on `preset:`;
-`look-render`/`look-frame` resolve them; `conflict` on adjusting a Robes model. Band: tiles pick
-the preset, "Another model" removed. Tests: `model.test.ts` (stand order, conflict, clearing),
-`look-render-model.test.ts`, route manifest unchanged.
+> **Built 2026-11-05**, with P1's pick and stand folded in, because the band's tap had to keep
+> working: with the pick stored as a pick, a tap that did nothing to the stand until P1 would have
+> been a regression. What landed, and where it departs from §2:
+> - A Robes model is a **catalog cell in its own grammar** (`w-r4@v1`, `m-r2@v1`,
+>   `packages/core/src/avatar/robes-models.ts`), not a `preset:` key: the `avatar_cells` id check,
+>   the media key and the job input all validate one regex (`CATALOG_KEY`), so storage, delivery
+>   and caching are the cells' unchanged. `catalogKey(cellId)` picks the style for either grammar.
+> - `profiles.model_preset` is a **smallint 1–5** (migration `20261105140000_robes_models.sql`),
+>   so the pick follows her wearer; the id is built from it. Never chosen = null = the first.
+> - **Hair gains silver** (swatch 5, `#B5AFA8`, "Silver", prompt word "soft silver grey"); every
+>   bound on the hair index moved with it (contract, stored picks, cell grammar, DB check).
+> - **Models 4 and 5**, chosen 5 Nov: 4 = skin 6 (peach), silver hair, 62, UK 12; 5 = skin 2
+>   (chestnut), espresso hair, 35, UK 18, bust and hips one stop fuller. Men mirror them. Portraits
+>   draw on first need, once each.
+> - `standOf` (core) is the one rule for what a look stands on; the web stand, `renderOnModel`,
+>   `look-render` and `look-frame` all read it. `me.model.update { preset }` saves the pick and
+>   draws the five; a hand pick (skin, hair, line, frame, a scale) clears the pick so her own model
+>   stands again; a twin drawn anew clears it too (the selfie wins). The P1 `conflict` rule is not
+>   built: the doors close in P2 with the model page.
+> - `generics` is still served (the three legacy cells, no longer drawn) for installed phone
+>   builds; `genericCellId` and `ensureGenericCells` are gone, `genericCellIds` stays for that.
+> - Not run here: the schema tests (`pnpm db:test`, needs Postgres) and the e2e (`home.spec.ts`
+>   updated for five tiles and the stored pick). Everything else green: lint, typecheck, core,
+>   contracts, media, copy, jobs, app and the native band tests.
+
+**P1 · The pick and the stand (M).** Folded into P0 (above) but for the `conflict` on adjusting a
+Robes model, which lands with P2's model page, where the doors close.
 
 **P2 · The selfie (M).** `useSelfie` web + native; the band's twin tile, the model page's "Add a
 selfie" row and hero retake, Colouring's fallback button all call it; the twin draws when the read

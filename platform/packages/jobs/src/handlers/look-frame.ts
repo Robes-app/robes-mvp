@@ -6,7 +6,7 @@ import {
   MAX_REFERENCES,
   type Mode,
 } from '@robes/ai/prompts/style-piece';
-import { cellKey, genericCellId } from '@robes/core/avatar';
+import { catalogKey, robesModelId, standOf } from '@robes/core/avatar';
 import type { SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -43,25 +43,32 @@ async function read(storage: FrameDeps['storage'], key: string): Promise<Uint8Ar
   }
 }
 
-// Her twin first, else her model cell, as IMAGE 1 when ready. With no model of her own, the
-// k-th way stands on the k-th generic Robes model (legacy 0.4) once that cell is drawn.
+// What she stands on, as IMAGE 1 when ready (standOf, plan 2026-11-05): her twin, else her
+// hand-built cell, else a Robes model. With none chosen, the k-th way of a set stands on the k-th
+// Robes model (legacy 0.4), so the ways read as different people; one chosen carries every way.
 export async function modelReference(
   deps: Pick<FrameDeps, 'storage' | 'styling' | 'cells'>,
   userId: UserId,
   generic?: { wearer: 'woman' | 'man'; index: number },
 ): Promise<InlineImage | null> {
   if (!deps.cells) return null;
+  const row = deps.cells.model ? await deps.cells.model(userId) : undefined;
+  const stand = row
+    ? standOf(row)
+    : { on: 'cell' as const, cellId: await deps.styling.modelCellId(userId) };
   // Her twin first: it is her (legacy modelRefsForUser, 2026-10-20).
-  const twin = deps.cells.model ? (await deps.cells.model(userId))?.twinAssetId : null;
-  if (twin) {
-    const data = await read(deps.storage, mediaKeys.master(userId, twin));
+  if (stand.on === 'twin' && row?.twinAssetId) {
+    const data = await read(deps.storage, mediaKeys.master(userId, row.twinAssetId));
     if (data) return { mimeType: 'image/jpeg', data };
   }
-  const cellId =
-    (await deps.styling.modelCellId(userId)) ??
-    (generic ? genericCellId(generic.wearer, generic.index) : null);
+  let cellId: string | null = stand.on === 'twin' ? null : stand.cellId;
+  const unchosen = stand.on === 'robes' ? row?.modelPreset == null : !cellId;
+  if (unchosen && generic) {
+    const n = ((generic.index % 5) + 5) % 5;
+    cellId = robesModelId(generic.wearer, (n + 1) as 1 | 2 | 3 | 4 | 5);
+  }
   if (!cellId) return null;
-  const cell = await deps.cells.cell(cellKey(cellId));
+  const cell = await deps.cells.cell(catalogKey(cellId));
   if (cell?.status !== 'ready' || !cell.bucketKey) return null;
   const data = await read(deps.storage, cell.bucketKey);
   if (!data) return null;

@@ -20,29 +20,31 @@ const dayOne: State = {
   ownLookSaved: false,
   snoozed: {},
 };
-const GENERICS = [
-  { id: 'w-s1-h1-nt', imageUrl: null },
-  { id: 'w-s3-h2-nt', imageUrl: 'https://media.test/catalog/w-s3-h2-nt.png' },
-  { id: 'w-s5-h3-nt', imageUrl: null },
-];
+const ROBES_MODELS = [1, 2, 3, 4, 5].map((n) => ({
+  id: `w-r${n}`,
+  n,
+  imageUrl: n === 2 ? 'https://media.test/catalog/avatar/w-r2@v1.png' : null,
+  status: n === 2 ? 'ready' : 'none',
+}));
+const stand = { imageUrl: null, generic: true, on: 'robes' };
 const ROUTES = {
-  'GET /me/model': modelData({ generics: GENERICS }),
+  'GET /me/model': modelData({ robesModels: ROBES_MODELS, stand }),
   'GET /today': {},
 };
 
-test('day one shows both asks: the twin’s door, the three models, the four piece tiles', async () => {
+test('day one shows both asks: the twin’s door, the five Robes models, the four piece tiles', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DayOneBand state={dayOne} />);
   expect(screen.getByTestId('day-one')).toBeTruthy();
   expect(screen.getByText(copy.model)).toBeTruthy();
   expect(screen.getByText(copy.pieces)).toBeTruthy();
   expect(screen.getByRole('button', { name: copy.twin })).toBeTruthy();
-  expect(screen.getByRole('button', { name: copy.another })).toBeTruthy();
   for (const what of copy.tiles) {
     expect(screen.getByRole('button', { name: copy.tile(what) })).toBeTruthy();
   }
-  // The first Robes model stands chosen until she has one on file.
+  // The first of the five Robes models stands chosen until she chooses one.
   const first = await screen.findByTestId('day-one-model-0');
+  expect(screen.getAllByRole('radio')).toHaveLength(5);
   expect(first.props.accessibilityState).toEqual({ checked: true });
   expect(screen.getByTestId('day-one-model-1').props.accessibilityState).toEqual({
     checked: false,
@@ -51,17 +53,28 @@ test('day one shows both asks: the twin’s door, the three models, the four pie
   expect(mockRouter.push).toHaveBeenCalledWith('/you/model');
 });
 
-test('picking a Robes model files its skin and hair', async () => {
+test('picking a Robes model is remembered as a pick, never as skin and hair', async () => {
   const calls = mockFetch({
     ...ROUTES,
     'PATCH /me/model': (init: RequestInit) =>
-      modelData({ filed: true, generics: GENERICS, ...JSON.parse(String(init.body)) }),
+      modelData({ robesModels: ROBES_MODELS, stand, ...JSON.parse(String(init.body)) }),
   });
   await renderWithApi(<DayOneBand state={dayOne} />);
-  await fireEvent.press(await screen.findByTestId('day-one-model-1'));
-  await waitFor(() =>
-    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ skin: 3, hair: 2 }),
-  );
+  await fireEvent.press(await screen.findByTestId('day-one-model-3'));
+  await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ preset: 4 }));
+});
+
+test('her own twin on file: no Robes model is ticked', async () => {
+  mockFetch({
+    ...ROUTES,
+    'GET /me/model': modelData({
+      robesModels: ROBES_MODELS,
+      stand: { imageUrl: null, generic: false, on: 'twin' },
+    }),
+  });
+  await renderWithApi(<DayOneBand state={dayOne} />);
+  const first = await screen.findByTestId('day-one-model-0');
+  expect(first.props.accessibilityState).toEqual({ checked: false });
 });
 
 test('× asks once; Okay dismisses the model ask for good and the section leaves', async () => {

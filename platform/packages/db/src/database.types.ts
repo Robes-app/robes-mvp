@@ -414,6 +414,7 @@ export interface Profiles {
   lastName: string | null;
   locale: Generated<string>;
   mobile: string | null;
+  modelPreset: number | null;
   notificationPrefs: Generated<Json>;
   onboardedAt: Timestamp | null;
   shoeUk: Numeric | null;

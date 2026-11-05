@@ -9,7 +9,7 @@ const repos = {
 vi.mock('./db', () => ({ repos }));
 vi.mock('./looks-entity', () => ({ toLook: vi.fn(async (_u, row) => row), toLooks: vi.fn() }));
 vi.mock('./jobs', () => ({ startJob: vi.fn() }));
-vi.mock('./model', () => ({ ensureGenericCells: vi.fn() }));
+vi.mock('./model', () => ({ ensureRobesModels: vi.fn() }));
 vi.mock('./flags', () => ({ isFlagEnabled: vi.fn() }));
 
 const { saveLook, isUnnamedHandBuilt } = await import('./look-states');

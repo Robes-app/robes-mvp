@@ -22,6 +22,7 @@ const HAIR_WORDS = [
   'chestnut brown',
   'golden caramel blonde',
   'light ash blonde',
+  'soft silver grey',
 ];
 // Prompt-side figure vocabulary only; it never reaches consumer copy.
 const FIG_WORDS: Record<ParsedCell['figure'], string> = {

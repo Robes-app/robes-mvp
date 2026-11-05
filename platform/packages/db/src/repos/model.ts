@@ -22,6 +22,7 @@ export function modelRow(db: Db, userId: UserId) {
       'p.bustCm',
       'p.waistCm',
       'p.ageBand',
+      'p.modelPreset',
       'a.avatarId as filedCellId',
       'a.twinAssetId',
       'a.twinKey',
@@ -103,6 +104,12 @@ export function modelRepo(db: Db) {
         })
         .where('id', '=', userId)
         .execute();
+    },
+
+    // The Robes model she chose (plan 2026-11-05); null hands her looks back to her own twin or
+    // cell. A number into a fixed catalog, checked again by the column.
+    async savePreset(userId: UserId, n: number | null): Promise<void> {
+      await db.updateTable('profiles').set({ modelPreset: n }).where('id', '=', userId).execute();
     },
 
     // Files the model she sees now (legacy auto-file on every pick).

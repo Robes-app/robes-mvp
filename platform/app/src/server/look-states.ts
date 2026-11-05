@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { repos } from './db';
 import { startJob } from './jobs';
 import { toLook, toLooks } from './looks-entity';
-import { ensureGenericCells } from './model';
+import { ensureRobesModels } from './model';
 import { todayIn } from './plan';
 
 // Look states (docs/look-states-brief.md) and the look prompt (docs/look-prompt-brief.md).
@@ -82,7 +82,7 @@ export async function promptLook(
   if (await repos.capacity.isExhausted([...TEXT_FAMILIES, ...IMAGE_FAMILIES])) {
     throw new ApiError('capacity');
   }
-  await ensureGenericCells(userId);
+  await ensureRobesModels(userId);
   const { draft, ...rest } = input;
   return startJob(userId, req, {
     kind: 'key_piece',

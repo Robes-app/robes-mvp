@@ -3,7 +3,6 @@ import {
   cellKey,
   figureFromBodyType,
   formatCellId,
-  genericCellId,
   genericCellIds,
   nearestIndex,
   parseCellId,
@@ -60,11 +59,9 @@ describe('her model', () => {
   });
 });
 
-describe('the generic models', () => {
-  it('stands each of the three ways on its own catalog cell, a man on the m- catalog', () => {
+describe('the legacy generic cells', () => {
+  it('still names the three cells installed builds read', () => {
     expect(genericCellIds('woman')).toEqual(['w-s4-h1-nt', 'w-s1-h0-nt', 'w-s7-h3-nt']);
-    expect(genericCellId('man', 1)).toBe('m-s1-h0-nt');
-    expect(genericCellId('woman', 3)).toBe('w-s4-h1-nt');
     for (const id of genericCellIds('man')) expect(parseCellId(id)?.gender).toBe('man');
   });
 });

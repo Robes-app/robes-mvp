@@ -1042,7 +1042,7 @@ export const you = {
     skin: 'Skin',
     skinNames: ['Espresso', 'Mahogany', 'Chestnut', 'Tan', 'Honey', 'Sand', 'Peach', 'Porcelain'],
     hair: 'Hair',
-    hairNames: ['Jet black', 'Espresso', 'Chestnut', 'Caramel', 'Ash blonde'],
+    hairNames: ['Jet black', 'Espresso', 'Chestnut', 'Caramel', 'Ash blonde', 'Silver'],
     line: 'The line',
     lineOptions: { soft: 'Softer', none: 'As she is', straight: 'Straighter' },
     frame: 'The frame',

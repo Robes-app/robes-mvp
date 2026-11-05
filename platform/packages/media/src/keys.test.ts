@@ -55,6 +55,8 @@ describe('media key layout (infrastructure.md §5)', () => {
 
   it('keeps model portraits in the shared catalog, keyed by picks only', () => {
     expect(mediaKeys.avatarCell('w-s3-h1-nt@v2', 'png')).toBe('catalog/avatar/w-s3-h1-nt@v2.png');
+    expect(mediaKeys.avatarCell('w-r4@v1', 'jpg')).toBe('catalog/avatar/w-r4@v1.jpg');
+    expect(mediaKeys.avatarCell('m-s2-h5-nt@v2', 'png')).toBe('catalog/avatar/m-s2-h5-nt@v2.png');
     expect(() => mediaKeys.avatarCell('../media/x@v2', 'png')).toThrow('invalid cellKey');
   });
 });

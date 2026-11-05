@@ -17,7 +17,7 @@ import {
 import { FEATURE as STYLE_FEATURE } from '@robes/ai/prompts/style-piece';
 import { buildImagePrompt as buildIdeaImagePrompt } from '@robes/ai/prompts/style-piece/v2';
 import { LookRenderInput } from '@robes/contracts';
-import { cellKey, parseCellId, twinInputsOf, twinSpec } from '@robes/core/avatar';
+import { catalogGender, catalogKey, twinInputsOf, twinSpec } from '@robes/core/avatar';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -212,22 +212,22 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         twinLine = { face: face !== null, figure: twinFigureLine(twinSpec(inputs, face !== null)) };
       }
     } else {
-      // The key names the cell the render stands on (her filed cell, or a generic Robes model
-      // while she has none): `{cellId}@{style}:{rack}`.
+      // The key names the catalog cell the render stands on (the cell she built by hand, or a
+      // Robes model — plan 2026-11-05): `{cellId}@{style}:{rack}`.
       const key = renderKey.slice(0, renderKey.lastIndexOf(':'));
       const cellId = key.slice(0, key.lastIndexOf('@'));
-      const cell = cellKey(cellId) === key ? await model.cell(key) : undefined;
-      const parsedCell = parseCellId(cellId);
+      const cell = catalogKey(cellId) === key ? await model.cell(key) : undefined;
+      const cellGender = catalogGender(cellId);
       const cellImage =
         cell?.status === 'ready' && cell.bucketKey
           ? await deps.storage.getObject(cell.bucketKey)
           : null;
-      if (cellImage && parsedCell) {
+      if (cellImage && cellGender) {
         references.push({
           mimeType: (cell?.contentType as 'image/jpeg' | 'image/png' | 'image/webp') ?? 'image/png',
           data: cellImage,
         });
-        gender = parsedCell.gender;
+        gender = cellGender;
       }
     }
     if (!gender) {

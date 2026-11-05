@@ -2,8 +2,8 @@ import 'server-only';
 import { ApiError } from '@robes/api';
 import { JobStatus, Model, type StartJobOutput, type UpdateModelInput } from '@robes/contracts';
 import {
+  catalogKey,
   cellKey,
-  genericCellId,
   genericCellIds,
   HAIR_SWATCHES,
   hasTwinInputs,
@@ -11,9 +11,12 @@ import {
   NO_ADJ,
   presenceOf,
   resolveModel,
+  robesModelIds,
   SKIN_SWATCHES,
+  standOf,
   twinInputsOf,
   twinKey,
+  wearerOf,
 } from '@robes/core/avatar';
 import type { UserId } from '@robes/db';
 import { z } from 'zod';
@@ -30,13 +33,16 @@ const DRAW_STALE_MS = 10 * 60_000;
 // Stored picks are read defensively: anything malformed is ignored, never trusted.
 const StoredPicks = z.object({
   skin: z.number().int().min(0).max(7).optional().catch(undefined),
-  hair: z.number().int().min(0).max(4).optional().catch(undefined),
+  hair: z
+    .number()
+    .int()
+    .min(0)
+    .max(HAIR_SWATCHES.length - 1)
+    .optional()
+    .catch(undefined),
   line: z.enum(['soft', 'straight']).nullable().optional().catch(undefined),
   frame: z.enum(['fuller', 'narrower']).nullable().optional().catch(undefined),
 });
-
-const wearerOf = (g: string | null | undefined): 'woman' | 'man' =>
-  presenceOf(g) === 'man' ? 'man' : 'woman';
 
 async function current(userId: UserId) {
   const row = await repos.model.get(userId);
@@ -95,8 +101,11 @@ export async function loadModel(userId: UserId): Promise<Model> {
   ]);
   const imageUrl =
     cell?.status === 'ready' && cell.bucketKey ? await mediaDelivery.url(cell.bucketKey) : null;
-  const stand = await standOf(row, twin.imageUrl);
-  const generics = await genericsOf(row);
+  const [stand, robesModels, generics] = await Promise.all([
+    standView(row, twin.imageUrl),
+    robesModelsOf(row),
+    genericsOf(row),
+  ]);
   // Rows never leave as-is (CLAUDE.md rule 8): parse through the contract.
   return Model.parse({
     filed: row.filedCellId !== null,
@@ -116,12 +125,33 @@ export async function loadModel(userId: UserId): Promise<Model> {
     closeUpUrl: closeUp.url,
     twin,
     stand,
+    preset: row.modelPreset,
+    robesModels,
     generics,
   });
 }
 
-// The three Robes models she can choose on day one (design 3a): the shared catalog portraits,
-// signed, null while one is still to be drawn.
+// A catalog portrait's signed-free URL once drawn (catalog/ is public, no user data in it).
+async function portraitOf(cellId: string) {
+  const cell = await repos.avatarCells.get(catalogKey(cellId));
+  const imageUrl =
+    cell?.status === 'ready' && cell.bucketKey ? await mediaDelivery.url(cell.bucketKey) : null;
+  return { status: cell?.status ?? ('none' as const), imageUrl };
+}
+
+// The five Robes models for her wearer (plan 2026-11-05), each with its portrait once drawn.
+async function robesModelsOf(row: Row) {
+  return Promise.all(
+    robesModelIds(wearerOf(row.genderIdentity)).map(async (id, i) => ({
+      id,
+      n: i + 1,
+      ...(await portraitOf(id)),
+    })),
+  );
+}
+
+// The three legacy generic cells, for phone builds installed before the Robes models; nothing new
+// reads them, and nothing draws them any more.
 async function genericsOf(row: Row) {
   return Promise.all(
     genericCellIds(wearerOf(row.genderIdentity)).map(async (id) => {
@@ -133,17 +163,14 @@ async function genericsOf(row: Row) {
   );
 }
 
-// The model a new look stands on — the same one renderOnModel draws on (her twin, her filed cell,
-// else the first generic Robes model).
-async function standOf(row: Row, twinUrl: string | null) {
-  if (row.filedCellId && row.twinAssetId && row.twinKey && twinUrl) {
-    return { imageUrl: twinUrl, generic: false };
-  }
-  const cellId = row.filedCellId ?? genericCellId(wearerOf(row.genderIdentity), 0);
-  const cell = await repos.avatarCells.get(cellKey(cellId));
-  const imageUrl =
-    cell?.status === 'ready' && cell.bucketKey ? await mediaDelivery.url(cell.bucketKey) : null;
-  return { imageUrl, generic: row.filedCellId === null };
+// The model a new look stands on — the same one renderOnModel draws on (standOf: her twin, her
+// hand-built cell, else the Robes model she chose or the first). A twin whose picture isn't
+// delivered yet stands aside until it is.
+async function standView(row: Row, twinUrl: string | null) {
+  const stand = standOf(twinUrl ? row : { ...row, twinAssetId: null });
+  if (stand.on === 'twin') return { imageUrl: twinUrl, generic: false, on: stand.on };
+  const { imageUrl } = await portraitOf(stand.cellId);
+  return { imageUrl, generic: stand.on === 'robes', on: stand.on };
 }
 
 // Draws the portrait for a cell nobody has drawn yet (shared catalog); `start` makes the job.
@@ -151,7 +178,7 @@ async function ensureCell(
   cellId: string,
   start: (key: string) => Promise<StartJobOutput>,
 ): Promise<void> {
-  const key = cellKey(cellId);
+  const key = catalogKey(cellId);
   // Kill switch for the paid draw only; her picks still save and the portrait waits.
   if (!(await isFlagEnabled('model.portraits'))) return;
   if (!(await repos.avatarCells.claim(key))) return;
@@ -169,14 +196,14 @@ async function ensureCell(
   }
 }
 
-// With no model of her own, a set's three ways stand on three generic Robes models (legacy 0.4):
-// their shared catalog portraits are drawn once ever (the claim), the first time anyone needs
-// them. Not charged to her quota (it is Robes' catalog, six portraits in all), and never on her
-// request's idempotency key, which belongs to the look she asked for.
-export async function ensureGenericCells(userId: UserId): Promise<void> {
+// While her looks stand on a Robes model, the five for her wearer are drawn once ever (the claim),
+// the first time anyone needs them (plan 2026-11-05; legacy 0.4 for the three generics). Not
+// charged to her quota (it is Robes' catalog, ten portraits in all), and never on her request's
+// idempotency key, which belongs to the look she asked for.
+export async function ensureRobesModels(userId: UserId): Promise<void> {
   const row = await repos.model.get(userId);
-  if (!row || row.filedCellId !== null) return;
-  for (const id of genericCellIds(wearerOf(row.genderIdentity))) {
+  if (!row || standOf(row).on !== 'robes') return;
+  for (const id of robesModelIds(wearerOf(row.genderIdentity))) {
     await ensureCell(id, (key) =>
       createAndEnqueueJob(userId, { kind: 'avatar_cell', input: { cellKey: key } }),
     );
@@ -189,7 +216,18 @@ export async function updateModel(
   req: Request,
   input: UpdateModelInput,
 ): Promise<Model> {
-  const { presence, adj, ...picks } = input;
+  const { presence, adj, preset, ...picks } = input;
+  // A Robes model chosen (or given up): her looks stand on it from now; its portrait is drawn if
+  // nobody has yet. Nothing else about her model changes.
+  if (preset !== undefined) {
+    await repos.model.savePreset(userId, preset);
+    await ensureRobesModels(userId);
+  }
+  const shaped = adj !== undefined || Object.keys(picks).length > 0;
+  if (!shaped && presence === undefined) return loadModel(userId);
+  // A hand pick shapes her own model, so it stands again over any Robes model she chose
+  // (plan 2026-11-05 §2.3; P1 closes Colouring and Body shape while a Robes model stands).
+  if (shaped && preset === undefined) await repos.model.savePreset(userId, null);
   // A scale moved merges over the sliders as they stand (a legacy seed included); {} is "back to
   // your facts".
   const sliders =
@@ -222,6 +260,8 @@ export async function drawTwin(userId: UserId, req: Request): Promise<Model> {
   }
   const key = await twinKey(inputs);
   if (await repos.model.claimTwin(userId, key)) {
+    // A twin drawn anew is hers to stand on (a selfie after a Robes model: the selfie wins).
+    if (row.modelPreset !== null) await repos.model.savePreset(userId, null);
     try {
       if (await repos.capacity.isExhausted(['gemini-image'])) throw new ApiError('capacity');
       await startJob(userId, req, {
@@ -258,14 +298,14 @@ export async function renderOnModel(
   }
   const row = await repos.model.get(userId);
   if (!row) throw new ApiError('conflict');
-  // Her twin when she has one, else the catalog cell she filed; with no model of her own, the
-  // first generic Robes model (legacy 2026-10-15, day 0) — its portrait drawn once ever.
-  const twin = row.filedCellId && row.twinAssetId && row.twinKey ? `twin:${row.twinKey}` : null;
-  const cellId = row.filedCellId ?? genericCellId(wearerOf(row.genderIdentity), 0);
-  if (!twin) {
-    const cell = await repos.avatarCells.get(cellKey(cellId));
+  // Her twin when she stands on it, else the cell she built by hand, else the Robes model she
+  // chose or the first (standOf) — a Robes model's portrait drawn once ever.
+  const stand = standOf(row);
+  const model = stand.on === 'twin' ? `twin:${row.twinKey}` : catalogKey(stand.cellId);
+  if (stand.on !== 'twin') {
+    const cell = await repos.avatarCells.get(model);
     if (cell?.status !== 'ready') {
-      if (!row.filedCellId) await ensureGenericCells(userId);
+      if (stand.on === 'robes') await ensureRobesModels(userId);
       throw new ApiError('conflict');
     }
   }
@@ -275,7 +315,7 @@ export async function renderOnModel(
   const notes = look.styling && typeof look.styling === 'object' ? look.styling : {};
   const rack = rackHash(pieces, notes as Record<string, unknown>);
   // The key names the model it stands on, so the worker draws on exactly that one.
-  const renderKey = `${twin ?? cellKey(cellId)}:${rack}`;
+  const renderKey = `${model}:${rack}`;
 
   if (!(await repos.looks.claimRender(userId, lookId, renderKey))) {
     const again = await repos.looks.renderState(userId, lookId);

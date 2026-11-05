@@ -354,7 +354,7 @@ export const diary = {
   dayOne: {
     model: 'Choose your model',
     twin: 'Create your digital twin',
-    another: 'Another model',
+    // The five Robes models (plan 2026-11-05); "Another model" went with the fifth.
     modelPick: (n: number): string => `Model ${n}`,
     pieces: 'Add your first pieces',
     tiles: ['Tops', 'Bottoms', 'Shoes', 'Anything'] as const,

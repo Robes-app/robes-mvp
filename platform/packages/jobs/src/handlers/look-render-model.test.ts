@@ -109,12 +109,13 @@ describe('look_render on her model', () => {
     expect(none.generateImage).not.toHaveBeenCalled();
   });
 
-  it('stands a draft on the generic Robes model the key names while she has none', async () => {
-    const key = 'w-s4-h1-nt@v2:rack1';
-    const { run, model, storage } = setup({ renderKey: key, asked: key });
+  it('stands a draft on the Robes model the key names while she has none of her own', async () => {
+    const key = 'm-r4@v1:rack1';
+    const { run, model, storage, generateImage } = setup({ renderKey: key, asked: key });
     await expect(run()).resolves.toEqual({ status: 'succeeded' });
-    expect(model.cell).toHaveBeenCalledWith('w-s4-h1-nt@v2');
-    expect(storage.getObject).toHaveBeenNthCalledWith(1, 'catalog/avatar/w-s4-h1-nt@v2.png');
+    expect(model.cell).toHaveBeenCalledWith('m-r4@v1');
+    expect(storage.getObject).toHaveBeenNthCalledWith(1, 'catalog/avatar/m-r4@v1.png');
+    expect(generateImage.mock.calls[0]?.[0]?.prompt).toContain('Keep the SAME man');
   });
 
   it('fails the render (so she can ask again) when her model cell is not ready', async () => {

@@ -1,7 +1,6 @@
 import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { Today } from '@robes/contracts';
 import { diary } from '@robes/copy';
-import { parseCellId } from '@robes/core/avatar';
 import { DAY_ONE_KEYS } from '@robes/core/home';
 import { Icon } from '@robes/icons/native';
 import {
@@ -67,10 +66,11 @@ function Head({
   );
 }
 
-// Day one (Front Door design 3a, plan 2026-11-02 §1.3): a full-bleed band above the strip with
-// Choose your model (her twin's door, then the three Robes models) and Add your first pieces
-// (Tops · Bottoms · Shoes · Anything), each with a × that asks once and then stands down. The
-// web twin is app/src/components/home/day-one-band.tsx.
+// Day one (Front Door design 3a, plan 2026-11-02 §1.3; the five Robes models and no "Another
+// model", plan 2026-11-05 §1.1): a full-bleed band above the strip with Choose your model (her
+// twin's door, then the five Robes models) and Add your first pieces (Tops · Bottoms · Shoes ·
+// Anything), each with a × that asks once and then stands down. The web twin is
+// app/src/components/home/day-one-band.tsx.
 export function DayOneBand({ state }: { state: Today['home']['state'] }) {
   const router = useRouter();
   const api = useApiClient();
@@ -99,19 +99,20 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
       .then(refresh)
       .catch((err) => toast.show({ message: errorMessage(err) }));
   };
-  // A Robes model picked: her picks become that cell's, and it stands under her looks.
-  const pick = (id: string) => {
-    const cell = parseCellId(id);
-    if (!cell) return;
+  // A Robes model picked is remembered as a pick (never as skin and hair), and it stands under
+  // her looks.
+  const pick = (n: number) => {
     void api
-      .call('me.model.update', { input: { skin: cell.skin, hair: cell.hair } })
+      .call('me.model.update', { input: { preset: n } })
       .then(() => {
         void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') });
         refresh();
       })
       .catch((err) => toast.show({ message: errorMessage(err) }));
   };
-  const chosen = model.data?.filed ? model.data.cellId : (model.data?.generics?.[0]?.id ?? null);
+  // Ticked: the Robes model her looks stand on — the one she chose, or the first until she does.
+  const stand = model.data?.stand;
+  const chosen = stand && stand.on !== 'robes' ? null : (model.data?.preset ?? 1);
 
   return (
     <View
@@ -143,15 +144,15 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
                 {copy.twin}
               </RNText>
             </Pressable>
-            {(model.data?.generics ?? []).map((g, i) => {
-              const on = g.id === chosen;
+            {(model.data?.robesModels ?? []).map((g, i) => {
+              const on = g.n === chosen;
               return (
                 <Pressable
                   key={g.id}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: on }}
-                  accessibilityLabel={copy.modelPick(i + 1)}
-                  onPress={() => pick(g.id)}
+                  accessibilityLabel={copy.modelPick(g.n)}
+                  onPress={() => pick(g.n)}
                   style={TILE}
                   className={`overflow-hidden rounded-soft border bg-surface ${
                     on ? 'border-selected-line' : 'border-transparent'
@@ -180,20 +181,6 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
                 </Pressable>
               );
             })}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={copy.another}
-              onPress={() => router.push('/you/model')}
-              style={TILE}
-              className={tile}
-            >
-              <RNText className="text-[11px] text-ink-faint" style={{ fontFamily: fonts.sans }}>
-                +
-              </RNText>
-              <RNText className="text-[11px] text-ink-muted" style={{ fontFamily: fonts.sans }}>
-                {copy.another}
-              </RNText>
-            </Pressable>
           </ScrollView>
         </View>
       ) : null}
