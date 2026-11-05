@@ -1,6 +1,6 @@
 import { useApi } from '@robes/api-client/react';
 import type { ListPiecesInput, Piece } from '@robes/contracts';
-import { wardrobe as copy, nav, ui } from '@robes/copy';
+import { wardrobe as copy, ui } from '@robes/copy';
 import { COLOUR_FAMILIES } from '@robes/core/colour';
 import { WEAR_SEEDS } from '@robes/core/taxonomy';
 import { rankCategories } from '@robes/core/wardrobe';
@@ -17,7 +17,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
-import { TabScreen } from '@/components/TabScreen';
+import { TabScreen, useTabScroll } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { FamilyTile } from './ColourField';
 import { useInbox } from './inbox';
@@ -176,6 +176,7 @@ function FilterGroup({
 }
 
 function Pieces() {
+  const tabScroll = useTabScroll();
   const router = useRouter();
   const [layout, setLayout] = useWardrobeLayout();
   const [category, setCategory] = useState<Category | null>(null);
@@ -252,6 +253,7 @@ function Pieces() {
         onLayout={setLayout}
       />
       <FlatList
+        {...tabScroll}
         testID="pieces-list"
         key={layout}
         data={pieces}
@@ -339,7 +341,6 @@ export function WardrobeView() {
   const waiting = inbox.data?.count ?? 0;
   return (
     <TabScreen
-      title={nav.wardrobe}
       toolbar={
         <HeaderRow
           segment={segment}

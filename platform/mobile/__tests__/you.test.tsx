@@ -38,9 +38,7 @@ test('You opens on Style Profile; Account prints her answers and signs out', asy
   for (const label of [you.privacy, you.deletion.title]) {
     expect(screen.getByRole('button', { name: label })).toBeTruthy();
   }
-  expect(
-    screen.getByRole('link', { name: `${you.legal.betaTerms}, ${you.subs.terms}` }),
-  ).toBeTruthy();
+  expect(screen.getByRole('link', { name: `${you.legal.terms}, ${you.subs.terms}` })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: you.signOut }));
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/sign-in'));
   expect(mockSignOut).toHaveBeenCalled();

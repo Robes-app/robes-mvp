@@ -1,5 +1,5 @@
 import type { PlanEntry } from '@robes/contracts';
-import { plan as copy, nav, ui } from '@robes/copy';
+import { plan as copy, ui } from '@robes/copy';
 import { daySummary, monthLabel, shiftMonth, weekdayShort, weekGroups } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
 import {
@@ -17,7 +17,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
-import { TabScreen } from '@/components/TabScreen';
+import { TabScreen, useTabScroll } from '@/components/TabScreen';
 import { errorMessage } from '@/lib/errors';
 import { readPref, writePref } from '@/lib/prefs';
 import { localDate } from '../looks/saved-looks';
@@ -88,7 +88,6 @@ export function PlanView() {
   const [picking, setPicking] = useState(false);
   return (
     <TabScreen
-      title={nav.plan}
       toolbar={
         <View className="flex-row items-center justify-between gap-4">
           <SegmentedControl<View_>
@@ -235,6 +234,7 @@ function DayRow({
 
 // The rolling 30 days as summary rows grouped by week (legacy ff87e89): every row opens its day.
 export function PlanList() {
+  const tabScroll = useTabScroll();
   const { data, isPending, isError, error, refetch, isRefetching } = usePlan();
   if (isPending) {
     return (
@@ -255,6 +255,7 @@ export function PlanList() {
   const planned = data.days.some((d) => d.entries.length > 0 || d.name);
   return (
     <ScrollView
+      {...tabScroll}
       testID="plan-list"
       contentContainerClassName="gap-3 px-5 pb-12"
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}

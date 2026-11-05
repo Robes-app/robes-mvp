@@ -9,7 +9,6 @@ import {
 } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
 import { lookbook, looks, wardrobe } from '@robes/copy';
-import { isHandBuiltDraft } from '@robes/core/looks';
 import {
   ErrorText,
   Heading,
@@ -21,13 +20,14 @@ import {
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { Composer } from '@/components/looks/composer';
+import { useRef, useState } from 'react';
 import { DiarySheet } from '@/components/looks/diary-sheet';
+import { DraftPage } from '@/components/looks/draft-page';
 import { LookHero } from '@/components/looks/look-hero';
 import { SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
 import { WearRecord } from '@/components/looks/wear-record';
 import { usePushedView } from '@/components/shell/app-shell';
+import { type Adjust, useAdjust } from '@/lib/adjust';
 import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { useLookEditor } from '@/lib/look-editor';
@@ -56,9 +56,9 @@ export function LookView({ id }: { id: string }) {
   return (
     <>
       {/* One look, three states (docs/look-states-brief.md): suggested and draft are hers to work on. */}
-      {isHandBuiltDraft(query.data) ? (
-        // A draft she builds by hand stays in the composer until she saves it.
-        <Composer look={query.data} onSaved={setJustSaved} />
+      {query.data.status === 'draft' ? (
+        // Every draft — from the prompt box or built by hand — is the one draft page (plan 2026-11-03).
+        <DraftPage look={query.data} onSaved={setJustSaved} />
       ) : query.data.status !== 'saved' ? (
         <WorkingLook look={query.data} onSaved={setJustSaved} />
       ) : (
@@ -103,7 +103,10 @@ function useLookActions(look: Look) {
 function LookBody({ look }: { look: Look }) {
   const router = useRouter();
   const actions = useLookActions(look);
-  const editor = useLookEditor(look);
+  const adjustRef = useRef<Adjust | null>(null);
+  const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
+  const adjust = useAdjust(look, editor, 'saved');
+  adjustRef.current = adjust;
   const [diary, setDiary] = useState(false);
 
   return (
@@ -111,7 +114,7 @@ function LookBody({ look }: { look: Look }) {
     <article className="grid gap-8 pb-40 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <LookHero
         look={look}
-        eyebrow={editor.editing ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}
+        eyebrow={editor.editing || adjust.stale ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}
         onDiary={() => setDiary(true)}
       />
       <div className="flex flex-col gap-6">
@@ -120,7 +123,7 @@ function LookBody({ look }: { look: Look }) {
           update={actions.update}
           meta={savedMeta(look, editor.rack.rows.length, localToday())}
         />
-        <SavedRack look={look} editor={editor} />
+        <SavedRack look={look} editor={editor} adjust={adjust} />
         {editor.editing ? null : (
           <>
             <WearRecord look={look} onAddDate={() => setDiary(true)} />

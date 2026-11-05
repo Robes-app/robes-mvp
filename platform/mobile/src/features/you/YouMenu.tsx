@@ -132,7 +132,7 @@ function Account() {
           onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
         />
         <SettingsRow
-          label={copy.legal.betaTerms}
+          label={copy.legal.terms}
           sub={copy.subs.terms}
           external
           onPress={() => void WebBrowser.openBrowserAsync(LEGAL_URLS.terms)}

@@ -1,5 +1,4 @@
 import 'server-only';
-import { createHash } from 'node:crypto';
 import { ApiError } from '@robes/api';
 import { JobStatus, Model, type StartJobOutput, type UpdateModelInput } from '@robes/contracts';
 import {
@@ -24,6 +23,7 @@ import { isFlagEnabled } from './flags';
 import { createAndEnqueueJob, startJob } from './jobs';
 import { logger } from './logger';
 import { mediaDelivery } from './media';
+import { rackHash } from './render-key';
 
 const DRAW_STALE_MS = 10 * 60_000;
 
@@ -273,12 +273,7 @@ export async function renderOnModel(
   if (pieces.length === 0) throw new ApiError('invalid_input');
   // How each piece is worn is part of what the render shows, so a changed note re-renders once.
   const notes = look.styling && typeof look.styling === 'object' ? look.styling : {};
-  const rack = createHash('sha256')
-    .update(
-      pieces.map((p) => `${p.id}~${(notes as Record<string, unknown>)[p.id] ?? ''}`).join(','),
-    )
-    .digest('base64url')
-    .slice(0, 22);
+  const rack = rackHash(pieces, notes as Record<string, unknown>);
   // The key names the model it stands on, so the worker draws on exactly that one.
   const renderKey = `${twin ?? cellKey(cellId)}:${rack}`;
 

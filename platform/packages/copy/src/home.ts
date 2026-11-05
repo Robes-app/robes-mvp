@@ -202,6 +202,8 @@ const ordinal = (n: number): string => {
 export const bell = {
   title: 'Notifications',
   open: 'Notifications',
+  // The unread dot is never colour alone: the count lives in the bell's label.
+  openNew: (n: number): string => (n > 0 ? `Notifications, ${n} new` : 'Notifications'),
   empty: 'Nothing new.',
   dismiss: 'Dismiss',
   dest: { receipts: 'Wardrobe', diary: 'Diary', overnight: 'Today' },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useApiClient, useApiMutation } from '@robes/api-client/react';
+import { queryKeys, useApiClient, useApiMutation } from '@robes/api-client/react';
 import {
   askChanges,
   type Look,
@@ -14,6 +14,7 @@ import {
 import { errors, lookbook, wardrobe } from '@robes/copy';
 import { applyAsk, changedKeys, type RackState, rowNote } from '@robes/core/looks';
 import { useToast } from '@robes/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
 import type { z } from 'zod';
 import { useAnalytics } from '@/components/analytics-provider';
@@ -21,20 +22,24 @@ import type { RowMark } from '@/components/looks/rack-row';
 import {
   isDraftsFull,
   useRefreshLooks as useInvalidateLooks,
-  useRedress,
   useRequestFrame,
 } from './look-states';
 
 // One look's rack while she works on it. A suggestion or a draft writes through on every change
-// (a suggestion becomes a draft as it does); a saved look edits in place until Update. A look
-// Robes framed has its frame re-dressed for the new rack, never her model (legacy 2026-10-07).
-export function useLookEditor(look: Look) {
+// (a suggestion becomes a draft as it does); a saved look edits in place until Update. The
+// picture is drawn again only when she asks — Update the model, Dress it again, Save (plan
+// 2026-11-03 D3) — through `redraw`: Robes' frame for a look it framed, else her model. A
+// suggestion's swap-in-place still re-frames by itself (its tile says so). `onChange` fires on
+// every change to the rack, so the thread can count what the picture is behind.
+export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) {
   const api = useApiClient();
+  const queryClient = useQueryClient();
   const toast = useToast();
   const refresh = useInvalidateLooks();
   const requestFrame = useRequestFrame();
-  const redress = useRedress();
   const { track } = useAnalytics().analytics;
+  const onChange = useRef(opts.onChange);
+  onChange.current = opts.onChange;
   const live = look.status !== 'saved';
   const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
@@ -49,10 +54,9 @@ export function useLookEditor(look: Look) {
     setSeen(look.updatedAt);
     setRack(rackFromLook(look));
   }
-  // Robes' frame is re-dressed for the new rack; a saved look on her model is drawn again.
+  // A suggestion's frame follows its rack by itself; a draft's and a saved look's wait for her.
   const reframe = (l: Look) => {
-    if (l.frame || l.setId) requestFrame(l.id);
-    else redress(l);
+    if (l.status === 'suggested' && (l.frame || l.setId)) requestFrame(l.id);
   };
   const write = useApiMutation('looks.update', {
     onSuccess: (updated) => {
@@ -80,6 +84,7 @@ export function useLookEditor(look: Look) {
 
   const change = (next: RackState) => {
     setRack(next);
+    onChange.current?.();
     if (live) {
       write.mutate({ params: { id: look.id }, input: rackUpdate(next, { keepEdits: true }) });
     } else {
@@ -152,6 +157,15 @@ export function useLookEditor(look: Look) {
     startDraft: () =>
       write.mutate({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: true }) }),
     rename: (name: string) => write.mutate({ params: { id: look.id }, input: { name } }),
+    // The picture drawn again for the rack as it stands: Robes' frame, else her model. Resolves
+    // once the job is started; the look then reads pending until it lands.
+    redraw: async () => {
+      if (look.frame || look.setId) await api.call('looks.frame', { params: { id: look.id } });
+      else await api.call('looks.renderOnModel', { params: { id: look.id } });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.call('looks.get', { params: { id: look.id } }),
+      });
+    },
     answer: (result: LookAskResult) => {
       if (askChanges(result)) change(applyAsk(rack, result));
     },
@@ -254,16 +268,17 @@ export function useLookEditor(look: Look) {
         .catch(() => toast({ message: errors.internal }));
     },
     // Saved look: Update commits the rack (working notes drop); Done/Discard leaves it as it was.
-    update: () =>
-      void write
+    update: (): Promise<boolean> =>
+      write
         .mutateAsync({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: false }) })
         .then((updated) => {
           track('look_updated', { pieces: updated.pieces.length });
           setDirty(false);
           setEditing(false);
           toast({ message: lookbook.updated });
+          return true;
         })
-        .catch(() => undefined),
+        .catch(() => false),
     discard: () => {
       setRack(rackFromLook(look));
       setDirty(false);

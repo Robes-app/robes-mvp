@@ -11,9 +11,10 @@ export interface NavItem {
 }
 
 // The four roots, in beta's dock order on every surface (Native parity handoff 2026-10-25; the
-// native twin is mobile/src/app/(tabs)/_layout.tsx). Create is the sparkle beside them.
+// native twin is mobile/src/app/(tabs)/_layout.tsx). No sparkle beside them on a phone (iOS
+// navigation redline, 2026-11-04): Create opens from the desktop bar.
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: '/', label: nav.today, icon: 'today' },
+  { href: '/', label: nav.today, icon: 'home' },
   { href: '/looks', label: nav.looks, icon: 'book' },
   { href: '/plan', label: nav.plan, icon: 'plan' },
   { href: '/wardrobe', label: nav.wardrobe, icon: 'wardrobe' },

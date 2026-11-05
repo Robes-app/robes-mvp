@@ -28,7 +28,7 @@ export interface CardStatus {
 // cardLines in app/src/components/wardrobe/piece-card.tsx).
 type LinePiece = Pick<CardPiece, 'label' | 'category' | 'categoryL2' | 'brand'>;
 
-// "BOTTOMS · M&S" in one quiet tone: rose is kept for Robes' hand and "Never worn" (beta).
+// "BOTTOMS · M&S", the brand in rose (Front Door design 3b, plan 2026-11-03 §1.5).
 export function Eyebrow({ piece }: { piece: LinePiece }) {
   const eye = pieceEyebrow(piece);
   return (
@@ -37,7 +37,8 @@ export function Eyebrow({ piece }: { piece: LinePiece }) {
       className="text-[10px] text-ink-faint uppercase"
       style={{ fontFamily: fonts.sansRegular, letterSpacing: 2.2 }}
     >
-      {eye.brand ? `${eye.category} · ${eye.brand}` : eye.category}
+      {eye.category}
+      {eye.brand ? <Text className="text-accent-warm"> · {eye.brand}</Text> : null}
     </Text>
   );
 }

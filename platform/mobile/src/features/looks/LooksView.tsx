@@ -1,5 +1,5 @@
 import type { Look } from '@robes/contracts';
-import { lookbook as copy, nav, ui } from '@robes/copy';
+import { lookbook as copy, ui } from '@robes/copy';
 import {
   type LookSort,
   lookWearFor,
@@ -261,102 +261,107 @@ export function LooksView() {
   );
 
   return (
-    <TabScreen title={nav.looks} toolbar={toolbar}>
-      {current.isPending ? (
-        <View className="flex-row gap-3 px-5 pt-5">
-          <CardSkeleton className="flex-1" />
-          <CardSkeleton className="flex-1" />
-        </View>
-      ) : current.isError ? (
-        <EmptyState
-          title={errorMessage(current.error)}
-          action={{ label: ui.retry, onPress: () => void current.refetch() }}
-        />
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(l) => l.id}
-          numColumns={2}
-          columnWrapperClassName="gap-3"
-          contentContainerClassName="gap-3 px-5 pt-[18px] pb-8"
-          ListHeaderComponent={header}
-          renderItem={({ item }) => (
-            <View className="flex-1">
-              {tab === 'saved' ? (
-                <SavedTile
-                  look={item}
-                  aspect="3:4"
-                  onPress={() => open(item)}
-                  onDiary={() => setDiary(item)}
-                  onDelete={() => letGo(item.id)}
-                />
-              ) : (
-                <SuggestedTile
-                  look={item}
-                  aspect="3:4"
-                  onPress={() => open(item)}
-                  onRemove={() => letGo(item.id)}
-                  onSwap={() => restyle.restyle(item.id)}
-                  swapping={restyle.busyId === item.id}
-                />
-              )}
+    <TabScreen toolbar={toolbar}>
+      {(tabScroll) => (
+        <>
+          {current.isPending ? (
+            <View className="flex-row gap-3 px-5 pt-5">
+              <CardSkeleton className="flex-1" />
+              <CardSkeleton className="flex-1" />
             </View>
-          )}
-          refreshControl={
-            <RefreshControl
-              refreshing={current.isRefetching}
-              onRefresh={() => void Promise.all([current.refetch(), drafts.refetch()])}
+          ) : current.isError ? (
+            <EmptyState
+              title={errorMessage(current.error)}
+              action={{ label: ui.retry, onPress: () => void current.refetch() }}
             />
-          }
-          ListEmptyComponent={
-            filtering ? (
-              // A filter that matches nothing names it and offers the way back.
-              <View className="items-center gap-2 py-8">
-                <Text
-                  className="text-ink text-xl"
-                  style={{ fontFamily: fonts.displayRegular }}
-                  maxFontSizeMultiplier={maxFontSizeMultiplier.body}
-                >
-                  {copy.refine.none}
-                </Text>
-                <Button variant="quiet" onPress={clearFilters}>
-                  {copy.refine.clear}
-                </Button>
-              </View>
-            ) : tab === 'saved' ? (
-              draftItems.length ? undefined : (
-                <EmptyState
-                  title={copy.savedEmpty.title}
-                  body={copy.savedEmpty.body}
-                  action={{ label: copy.newLook, onPress: () => router.push('/looks/new') }}
+          ) : (
+            <FlatList
+              {...tabScroll}
+              data={items}
+              keyExtractor={(l) => l.id}
+              numColumns={2}
+              columnWrapperClassName="gap-3"
+              contentContainerClassName="gap-3 px-5 pt-[18px] pb-8"
+              ListHeaderComponent={header}
+              renderItem={({ item }) => (
+                <View className="flex-1">
+                  {tab === 'saved' ? (
+                    <SavedTile
+                      look={item}
+                      aspect="3:4"
+                      onPress={() => open(item)}
+                      onDiary={() => setDiary(item)}
+                      onDelete={() => letGo(item.id)}
+                    />
+                  ) : (
+                    <SuggestedTile
+                      look={item}
+                      aspect="3:4"
+                      onPress={() => open(item)}
+                      onRemove={() => letGo(item.id)}
+                      onSwap={() => restyle.restyle(item.id)}
+                      swapping={restyle.busyId === item.id}
+                    />
+                  )}
+                </View>
+              )}
+              refreshControl={
+                <RefreshControl
+                  refreshing={current.isRefetching}
+                  onRefresh={() => void Promise.all([current.refetch(), drafts.refetch()])}
                 />
-              )
-            ) : (
-              <View className="gap-4">
-                <EmptyState title={copy.suggestedEmpty.title} body={copy.suggestedEmpty.body} />
-                <NewLookBox />
-              </View>
-            )
-          }
-        />
+              }
+              ListEmptyComponent={
+                filtering ? (
+                  // A filter that matches nothing names it and offers the way back.
+                  <View className="items-center gap-2 py-8">
+                    <Text
+                      className="text-ink text-xl"
+                      style={{ fontFamily: fonts.displayRegular }}
+                      maxFontSizeMultiplier={maxFontSizeMultiplier.body}
+                    >
+                      {copy.refine.none}
+                    </Text>
+                    <Button variant="quiet" onPress={clearFilters}>
+                      {copy.refine.clear}
+                    </Button>
+                  </View>
+                ) : tab === 'saved' ? (
+                  draftItems.length ? undefined : (
+                    <EmptyState
+                      title={copy.savedEmpty.title}
+                      body={copy.savedEmpty.body}
+                      action={{ label: copy.newLook, onPress: () => router.push('/looks/new') }}
+                    />
+                  )
+                ) : (
+                  <View className="gap-4">
+                    <EmptyState title={copy.suggestedEmpty.title} body={copy.suggestedEmpty.body} />
+                    <NewLookBox />
+                  </View>
+                )
+              }
+            />
+          )}
+          <Sheet open={sortOpen} onClose={() => setSortOpen(false)} title={copy.sort.label}>
+            <View className="gap-2">
+              {SORTS.map((s) => (
+                <Button
+                  key={s}
+                  variant={sort === s ? 'secondary' : 'quiet'}
+                  onPress={() => {
+                    setSort(s);
+                    setSortOpen(false);
+                  }}
+                >
+                  {copy.sort[s]}
+                </Button>
+              ))}
+            </View>
+          </Sheet>
+          <DiarySheet look={diary} onClose={() => setDiary(null)} />
+        </>
       )}
-      <Sheet open={sortOpen} onClose={() => setSortOpen(false)} title={copy.sort.label}>
-        <View className="gap-2">
-          {SORTS.map((s) => (
-            <Button
-              key={s}
-              variant={sort === s ? 'secondary' : 'quiet'}
-              onPress={() => {
-                setSort(s);
-                setSortOpen(false);
-              }}
-            >
-              {copy.sort[s]}
-            </Button>
-          ))}
-        </View>
-      </Sheet>
-      <DiarySheet look={diary} onClose={() => setDiary(null)} />
     </TabScreen>
   );
 }

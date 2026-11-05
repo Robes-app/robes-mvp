@@ -232,6 +232,67 @@ describe('suggested looks (look states)', () => {
     expect(await system.suggested.look(bea, id)).toBeUndefined();
   });
 
+  // The prompt box's draft (plan 2026-11-03): one per day; a new ask replaces the day's unsaved
+  // draft, Dress it again re-writes it in place, and the diary reads the newest per day.
+  it('mints a draft for the day in place of the day’s earlier draft, and re-writes it', async () => {
+    const spec = (name: string, dateHint: string | null) => ({
+      setIndex: 0,
+      name,
+      note: null,
+      pieces: [{ pieceId: dress, role: 'anchor' as const }],
+      proposals: [],
+      anchorPieceId: null,
+      dateHint,
+    });
+    const [first] = await system.suggested.mintSet(
+      ann,
+      await newSet(ann),
+      [spec('Wed, first', '2026-11-04')],
+      undefined,
+      { status: 'draft' },
+    );
+    const [second] = await system.suggested.mintSet(
+      ann,
+      await newSet(ann),
+      [spec('Wed, second', '2026-11-04')],
+      undefined,
+      { status: 'draft' },
+    );
+    const [thu] = await system.suggested.mintSet(
+      ann,
+      await newSet(ann),
+      [spec('Thu', '2026-11-05')],
+      undefined,
+      { status: 'draft' },
+    );
+    if (!first || !second || !thu) throw new Error('no look');
+    expect(await looks.get(ann, first)).toBeUndefined();
+    expect((await looks.get(ann, second))?.status).toBe('draft');
+    const drafts = await looks.draftsFor(ann, '2026-11-01', '2026-11-10');
+    expect(drafts.map((d) => [d.name, d.dateHint])).toEqual([
+      ['Thu', '2026-11-05'],
+      ['Wed, second', '2026-11-04'],
+    ]);
+    expect(await looks.draftsFor(bea, '2026-11-01', '2026-11-10')).toEqual([]);
+    // Dress it again: the draft is re-written in place, its working notes gone with the old rack.
+    await looks.update(ann, second, { edits: { [dress]: { back: true } } });
+    expect(
+      await system.suggested.rewrite(
+        ann,
+        second,
+        { name: 'Wed, again', note: null, pieces: [{ pieceId: bag, role: null }], proposals: [] },
+        CLAIM,
+      ),
+    ).toBe(true);
+    expect(await looks.get(ann, second)).toMatchObject({
+      name: 'Wed, again',
+      status: 'draft',
+      edits: null,
+    });
+    await looks.remove(ann, second);
+    await looks.remove(ann, thu);
+  });
+
   it('lands a frame only for the rack it was drawn for', async () => {
     const [id] = await system.suggested.mintSet(ann, await newSet(ann), [
       {

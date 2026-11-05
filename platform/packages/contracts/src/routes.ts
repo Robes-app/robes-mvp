@@ -54,6 +54,7 @@ import {
   LookSetParams,
   LookWearPage,
   PromptLookInput,
+  RestyleLookInput,
   SaveLookInput,
   SaveWayInput,
   UpdateLookInput,
@@ -751,7 +752,7 @@ export const routes = {
     input: SaveLookInput,
     output: Look,
   },
-  // A new look in her words: three suggested looks on the keep-or-pass deck.
+  // A new look in her words: one draft for the day, in the diary's slot (plan 2026-11-03).
   'looks.prompt': {
     method: 'POST',
     path: '/looks/prompt',
@@ -766,7 +767,7 @@ export const routes = {
     path: '/looks/:id/restyle',
     auth: 'user',
     params: LookParams,
-    input: EmptyInput,
+    input: RestyleLookInput,
     output: StartJobOutput,
     idempotent: true,
   },

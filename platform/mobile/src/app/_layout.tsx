@@ -43,8 +43,7 @@ export default function RootLayout() {
         <View className="flex-1 bg-bg">
           <ToastProvider>
             <Stack screenOptions={{ headerShown: false }}>
-              {/* Create and Add pieces pull up from the bottom edge the same way (beta parity). */}
-              <Stack.Screen name="create" options={FORM_SHEET} />
+              {/* Add pieces pulls up from the bottom edge (beta parity). */}
               <Stack.Screen name="wardrobe/add" options={FORM_SHEET} />
             </Stack>
           </ToastProvider>

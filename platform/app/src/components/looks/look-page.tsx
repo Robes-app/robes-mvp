@@ -6,11 +6,12 @@ import { anchorName, lookFacts, noteShort, pinnedFor } from '@robes/core/looks';
 import { Button, Dialog, Eyebrow, Heading, InlineTitleField, Text } from '@robes/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { type Adjust, useAdjust } from '@/lib/adjust';
 import { useLookEditor } from '@/lib/look-editor';
 import { useLetGo, useRequestFrame, useSaveLook } from '@/lib/look-states';
+import { AdjustDock } from './adjust-dock';
 import { GenericModelBadge } from './generic-model-badge';
 import { LookImage } from './look-image';
-import { LookPromptBox } from './look-prompt-box';
 import { LookVerdict } from './look-verdict';
 import { RackRowCard } from './rack-row';
 import { Scanning, scanningLine } from './scan-line';
@@ -29,19 +30,30 @@ export function LookPicture({ look }: { look: Look }) {
   // The frame is scanned while it is drawn, so the page never rests on the bare pieces.
   const busy = scanningLine(look);
   return (
-    <figure className="flex flex-col gap-1">
-      <div className="relative overflow-hidden rounded-crisp">
-        <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
-        {busy ? <Scanning line={busy} corner /> : null}
-      </div>
-      <figcaption className="flex justify-end">
-        {!busy && look.composedByRobes ? (
-          <Text size="caption" tone="faint">
-            {copy.composedByRobes}
-          </Text>
-        ) : null}
-      </figcaption>
+    <figure className="relative overflow-hidden rounded-crisp">
+      <LookImage look={look} priority sizes="(min-width: 768px) 40vw, 100vw" />
+      {busy ? <Scanning line={busy} corner /> : null}
     </figure>
+  );
+}
+
+// The text block over a look's picture (Front Door design 3b, plan 2026-11-03 §1.3): what the look
+// is made of — hers, and the pieces to find — with Robes' hand named when it composed the look.
+// The native twin is mobile/src/features/looks/LookPicture.tsx LookMix.
+export function LookMix({
+  yours,
+  toFind,
+  composed,
+}: {
+  yours: number;
+  toFind: number;
+  composed: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 font-medium font-sans text-[9px] text-ink-muted uppercase tracking-[0.2em]">
+      <span>{copy.mix(yours, toFind)}</span>
+      {composed ? <span>{copy.composedByRobes}</span> : null}
+    </div>
   );
 }
 
@@ -154,7 +166,10 @@ export function Rack({
 // Suggested (F8) and draft (F9 / 4d): one page, one bar.
 export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => void }) {
   const router = useRouter();
-  const editor = useLookEditor(look);
+  const adjustRef = useRef<Adjust | null>(null);
+  const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
+  const adjust = useAdjust(look, editor, look.status === 'suggested' ? 'suggested' : 'draft');
+  adjustRef.current = adjust;
   const save = useSaveLook(onSaved, look.status === 'suggested' ? 'suggested' : 'draft');
   const letGo = useLetGo(look.status === 'draft' ? copy.discarded : copy.removed);
   const [name, setName] = useState(look.nameProvisional ? '' : look.name);
@@ -164,9 +179,16 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
   return (
     <article className="grid grid-cols-[minmax(0,1fr)] gap-8 pb-40 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       {look.image || look.setId ? (
-        <div className="relative">
-          <LookPicture look={look} />
-          {suggested && look.frame ? <GenericModelBadge /> : null}
+        <div className="flex flex-col gap-3">
+          <LookMix
+            yours={editor.rack.rows.filter((r) => r.pieceId).length}
+            toFind={editor.rack.rows.filter((r) => r.proposal).length}
+            composed={look.composedByRobes}
+          />
+          <div className="relative">
+            <LookPicture look={look} />
+            {suggested && look.frame ? <GenericModelBadge /> : null}
+          </div>
         </div>
       ) : (
         <div aria-hidden />
@@ -193,24 +215,14 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
               onCancel={() => setName(look.nameProvisional ? '' : look.name)}
             />
           )}
-          <Text size="small" tone="muted">
-            {copy.meta.pieces(editor.rack.rows.length)}
-          </Text>
         </header>
-        {look.note ? <Text>{noteShort(look.note)}</Text> : null}
-        <Rack look={look} editor={editor} editable={!suggested} swapInPlace={suggested} />
-        {editor.rack.rows.length > 0 ? (
-          <LookPromptBox
-            lookId={look.id}
-            name={look.name}
-            surface={suggested ? 'suggested' : 'draft'}
-            rack={editor.rack}
-            anchorPieceId={look.anchor?.id ?? null}
-            changed={editor.changed}
-            draft={!suggested}
-            onAnswer={editor.answer}
-          />
+        {look.note ? (
+          <Text className="font-display text-[17px] text-ink-muted italic">
+            {noteShort(look.note)}
+          </Text>
         ) : null}
+        <Rack look={look} editor={editor} editable={!suggested} swapInPlace={suggested} />
+        {editor.rack.rows.length > 0 ? <AdjustDock adjust={adjust} name={look.name} /> : null}
         {suggested ? (
           <>
             <LookVerdict
@@ -287,22 +299,21 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
   );
 }
 
-// The saved look's rack, Editing and its prompt (5a–5e).
-export function SavedRack({ look, editor }: { look: Look; editor: Editor }) {
+// The saved look's rack, Editing and its thread (5a–5e; plan 2026-11-03 D6): her words edit the
+// rack at once, the picture falls behind, and ↻ Update look commits the rack and draws it again.
+export function SavedRack({
+  look,
+  editor,
+  adjust,
+}: {
+  look: Look;
+  editor: Editor;
+  adjust: Adjust;
+}) {
   return (
     <>
       <Rack look={look} editor={editor} editable={editor.editing} />
-      {editor.rack.rows.length > 0 ? (
-        <LookPromptBox
-          lookId={look.id}
-          name={look.name}
-          surface="saved"
-          rack={editor.rack}
-          anchorPieceId={look.anchor?.id ?? null}
-          changed={editor.changed}
-          onAnswer={editor.answer}
-        />
-      ) : null}
+      {editor.rack.rows.length > 0 ? <AdjustDock adjust={adjust} name={look.name} /> : null}
       {/* The look's one bar, held at the foot: Edit look, or Done and Update while she works.
           Fixed above the tab bar on a phone, at the foot of the window on the web. */}
       <div
@@ -318,11 +329,15 @@ export function SavedRack({ look, editor }: { look: Look; editor: Editor }) {
               </Button>
               <Button
                 variant="primary"
-                disabled={!editor.dirty}
+                disabled={!editor.dirty && !adjust.stale}
                 loading={editor.saving}
-                onClick={editor.update}
+                onClick={() =>
+                  void editor.update().then((ok) => {
+                    if (ok) adjust.drawForSave();
+                  })
+                }
               >
-                {copy.bar.update}
+                {adjust.stale ? `↻ ${copy.bar.update}` : copy.bar.update}
               </Button>
             </>
           ) : (

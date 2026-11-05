@@ -1,4 +1,4 @@
-import { lookbook, nav, shell, twin, ui, wardrobe, you } from '@robes/copy';
+import { nav, shell, twin, ui, you } from '@robes/copy';
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { Text } from 'react-native';
@@ -8,11 +8,9 @@ import Today from '../src/app/(tabs)/index';
 import Looks from '../src/app/(tabs)/looks';
 import Plan from '../src/app/(tabs)/plan';
 import Wardrobe from '../src/app/(tabs)/wardrobe';
-import Create from '../src/app/create';
 import OnboardingLayout from '../src/app/onboarding/_layout';
 import Soon from '../src/app/soon';
 import NewTrip from '../src/app/trip/new';
-import CameraRoute from '../src/app/wardrobe/camera';
 import YouIndex from '../src/app/you/index';
 import { nativePath } from '../src/lib/links';
 import { ME, mockFetch, newQueryClient } from './support/api';
@@ -54,10 +52,8 @@ async function app(initialUrl = '/') {
       '(tabs)/looks': Looks,
       '(tabs)/plan': Plan,
       '+not-found': NotFound,
-      create: Create,
       soon: Soon,
       'trip/new': NewTrip,
-      'wardrobe/camera': CameraRoute,
       'you/index': YouIndex,
       'sign-in': () => <Text>sign-in screen</Text>,
       'onboarding/_layout': OnboardingLayout,
@@ -128,35 +124,64 @@ test('an onboarded person who lands on onboarding goes home', async () => {
   expect(router.getPathname()).toBe('/');
 });
 
-test('four tabs in beta order; the sparkle beside them opens Create', async () => {
+type Node = { type: string; props: Record<string, unknown>; children: Node[] | null };
+
+// Host views in render order whose props pass `match` (the system tab bar's own views).
+function hostViews(match: (props: Record<string, unknown>) => boolean): Node[] {
+  const out: Node[] = [];
+  const walk = (n: unknown): void => {
+    if (!n || typeof n !== 'object') return;
+    if (Array.isArray(n)) {
+      for (const child of n) walk(child);
+      return;
+    }
+    const node = n as Node;
+    if (match(node.props ?? {})) out.push(node);
+    (node.children ?? []).forEach(walk);
+  };
+  walk(screen.toJSON());
+  return out;
+}
+
+// The tab screens the system tab bar hosts: one per tab, in bar order.
+const tabItems = () => hostViews((p) => typeof p.tabBarItemTestID === 'string');
+
+test('four tabs in the system tab bar, in beta order, and no Create beside them', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
-  const router = await app();
+  await app();
   expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
-  const tabs = screen.getAllByRole('tab').map((t) => t.props.accessibilityLabel);
-  expect(tabs).toEqual([nav.today, nav.looks, nav.plan, nav.wardrobe]);
-  expect(screen.getByRole('tab', { name: nav.today }).props.accessibilityState).toEqual({
-    selected: true,
-  });
-  // The tab bar names the place, so the header carries the wordmark and the tab name is read only.
-  expect(screen.getByRole('header', { name: nav.today })).toBeTruthy();
-
-  await fireEvent.press(screen.getByRole('button', { name: nav.create }));
-  await waitFor(() => expect(router.getPathname()).toBe('/create'));
-  expect(screen.getByText(wardrobe.add.doors.photograph)).toBeTruthy();
-  // Ask Robes is the new-look box itself, leading the sheet (beta's sparkle).
-  expect(screen.getByLabelText(lookbook.prompt.doorNew)).toBeTruthy();
+  const tabs = tabItems();
+  // Read in sentence case; shown in capitals.
+  expect(tabs.map((t) => t.props.tabBarItemAccessibilityLabel)).toEqual([
+    nav.today,
+    nav.looks,
+    nav.plan,
+    nav.wardrobe,
+  ]);
+  expect(tabs.map((t) => t.props.title)).toEqual(['HOME', 'LOOKBOOK', 'DIARY', 'WARDROBE']);
+  expect(tabs.map((t) => t.props.tabBarItemTestID)).toEqual([
+    'today-tab',
+    'looks-tab',
+    'plan-tab',
+    'wardrobe-tab',
+  ]);
+  // The sparkle is gone: dressing starts from home's composer.
+  expect(screen.queryByRole('button', { name: nav.create })).toBeNull();
+  // The bar carries the wordmark as a header labelled Robes, never a button.
+  expect(screen.getAllByRole('header', { name: ui.wordmark }).length).toBeGreaterThan(0);
 });
 
-test('a long press on the sparkle goes straight to the camera', async () => {
+test('the bar minimises on scroll over the Lookbook and Wardrobe grids only', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
-  const router = await app();
-  expect(await screen.findByText(/, Niall\.$/)).toBeTruthy();
-  await fireEvent(screen.getByRole('button', { name: nav.create }), 'longPress');
-  // Create passes straight through to the in-app camera (legacy bc56305), not the OS one.
-  await waitFor(() => expect(router.getPathname()).toBe('/wardrobe/camera'));
-  expect(screen.getByRole('button', { name: wardrobe.camera.shutter })).toBeTruthy();
+  const host = () =>
+    hostViews((p) => p.tabBarMinimizeBehavior !== undefined)[0]?.props.tabBarMinimizeBehavior;
+  await app();
+  await screen.findByText(/, Niall\.$/);
+  expect(host()).toBe('never');
+  await app('/looks');
+  await waitFor(() => expect(host()).toBe('onScrollDown'));
 });
 
 test('the avatar opens You', async () => {
@@ -164,7 +189,10 @@ test('the avatar opens You', async () => {
   mockFetch(ROUTES);
   const router = await app();
   await screen.findByText(/, Niall\.$/);
-  await fireEvent.press(screen.getByTestId('open-you'));
+  // Every tab is mounted under the system tab bar; Home's bar is the first.
+  const [avatar] = screen.getAllByTestId('open-you');
+  if (!avatar) throw new Error('no avatar');
+  await fireEvent.press(avatar);
   await waitFor(() => expect(router.getPathname()).toBe('/you'));
   expect(screen.getByText(twin.cards.twin)).toBeTruthy();
   await fireEvent.press(screen.getByRole('radio', { name: twin.tabs.account }));
@@ -172,28 +200,11 @@ test('the avatar opens You', async () => {
   expect(screen.getByText(you.deletion.title)).toBeTruthy();
 });
 
-test('trips are hidden by default: no Create door, and a deep link lands on Today', async () => {
+test('trips are hidden by default: a deep link lands on Home', async () => {
   mockSession = { data: { user: { id: ME.id } }, isPending: false };
   mockFetch(ROUTES);
-  const router = await app();
-  await screen.findByText(/, Niall\.$/);
-  await fireEvent.press(screen.getByRole('button', { name: nav.create }));
-  await waitFor(() => expect(router.getPathname()).toBe('/create'));
-  await screen.findByText(wardrobe.add.doors.photograph);
-  expect(screen.queryByText(shell.create.planTrip)).toBeNull();
-
   const deep = await app('/trip/new');
   await waitFor(() => expect(deep.getPathname()).toBe('/'));
-});
-
-test('with trips on, Create offers Plan a trip', async () => {
-  mockSession = { data: { user: { id: ME.id } }, isPending: false };
-  mockFetch({ ...ROUTES, 'GET /me/features': { trips: true } });
-  const router = await app();
-  await screen.findByText(/, Niall\.$/);
-  await fireEvent.press(screen.getByRole('button', { name: nav.create }));
-  await waitFor(() => expect(router.getPathname()).toBe('/create'));
-  expect(await screen.findByText(shell.create.planTrip)).toBeTruthy();
 });
 
 test('a link to a screen that isn’t here says so in one line and goes home', async () => {

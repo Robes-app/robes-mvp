@@ -206,9 +206,9 @@ test('a suggested look reads as Robes composed it; Save to lookbook opens the di
   // The note is three sentences at most; the rack reads like the wardrobe.
   expect(screen.getByText('A long lunch in the sun. The jacket open. Easy.')).toBeTruthy();
   expect(screen.getByText('Shoes · Toteme')).toBeTruthy();
-  // The role stands on its own line in rose; the proposal's facts follow beneath.
-  expect(screen.getByText('Exclamation')).toBeTruthy();
-  expect(screen.getByText('Not yours yet · toteme.com · €390')).toBeTruthy();
+  // The role line carries the price of a piece to find (design 3b); the facts follow beneath.
+  expect(screen.getByText('Exclamation · €390')).toBeTruthy();
+  expect(screen.getByText('Not yours yet · toteme.com')).toBeTruthy();
   expect(screen.getByText(lookbook.composedByRobes)).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.bar.saveToLookbook }));
   // The diary opens every time as beta's month, the day her words named already picked.
@@ -353,9 +353,9 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     'GET /looks': byStatus({}),
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // A hand-built draft opens in the composer: the ✦ above Discard · Save opens the prompt.
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.prompt }));
-  const field = await screen.findByLabelText(lookbook.prompt.doorDraft);
+  // Every draft is the one draft page: the pill above Discard · Save opens the thread's card.
+  await fireEvent.press(await screen.findByTestId('adjust-pill'));
+  const field = await screen.findByLabelText(lookbook.draft.adjust);
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
   expect(await screen.findByText('Done. The dark jean is on the look now.')).toBeTruthy();
@@ -427,9 +427,9 @@ test('a rule said in the prompt waits under Robes noticed; a vague ask is writte
     noticed: true,
   };
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // A hand-built draft opens in the composer: the ✦ above Discard · Save opens the prompt.
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.figure.prompt }));
-  const field = await screen.findByLabelText(lookbook.prompt.doorDraft);
+  // Every draft is the one draft page: the pill above Discard · Save opens the thread's card.
+  await fireEvent.press(await screen.findByTestId('adjust-pill'));
+  const field = await screen.findByLabelText(lookbook.draft.adjust);
   await fireEvent.changeText(field, 'never grey');
   await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
   expect(await screen.findByText(lookbook.prompt.noticed)).toBeTruthy();

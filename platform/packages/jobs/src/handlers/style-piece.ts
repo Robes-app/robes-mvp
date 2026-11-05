@@ -493,11 +493,12 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       ]);
       const recent = recentFrom(recentRows);
 
-      // ↻ on one suggested look: re-written in place, then its frame.
+      // ↻ on one suggested look, or Dress it again on a draft from the prompt box (plan
+      // 2026-11-03 D2): re-written in place, then its frame.
       if ('mode' in input && input.mode === 'restyle') {
         if (!deps.suggested) throw new JobError('unsupported');
         const found = await deps.suggested.look(ctx.userId, input.lookId);
-        if (!found || found.look.status !== 'suggested' || !found.look.setId) {
+        if (!found || !['suggested', 'draft'].includes(found.look.status) || !found.look.setId) {
           throw new JobError('not_found');
         }
         const setRow = await deps.styling.getSet(ctx.userId, found.look.setId);
@@ -527,8 +528,12 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           .catch([])
           .parse(found.look.proposals ?? []);
         const others = found.siblings.map((s) => s.name);
+        // What she said is not right with it goes in her words; ↻ alone asks for another take.
+        const said = input.note?.trim() ?? '';
         const refine: Refine = {
-          adjustment: `A different look entirely — change the whole direction, not one piece${anchorPiece ? ', built around the same key piece' : ''}${others.length ? ', unlike the other looks' : ''}.`,
+          adjustment: said
+            ? said
+            : `A different look entirely — change the whole direction, not one piece${anchorPiece ? ', built around the same key piece' : ''}${others.length ? ', unlike the other looks' : ''}.`,
           title: found.look.name,
           pieces: [
             ...found.pieces.map((p) => ({
@@ -572,6 +577,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         const spec = specFromWay(way, found.look.setIndex ?? 0, {
           anchorPieceId: anchorPiece?.id ?? null,
           dateHint: found.look.dateHint,
+          // The pieces she chose to build the day around stay on the rack through a re-dress.
+          aroundIds: (set.data.around ?? []).map((p) => p.pieceId),
         });
         if (
           !(await deps.suggested.rewrite(ctx.userId, input.lookId, spec, {
@@ -599,8 +606,11 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         return { status: 'succeeded' };
       }
 
-      // A piece, or her words for a day.
+      // A piece, or her words for a day. From the prompt box (plan 2026-11-03) her words make ONE
+      // look, minted as her draft for the day; the piece door still deals three suggestions.
       const prompted = 'mode' in input && input.mode === 'prompt';
+      const draft = prompted && input.draft === true;
+      const count = draft ? 1 : WAYS;
       let mode: Mode = 'piece';
       let ask: Ask;
       let anchor: z.infer<typeof StoredSet>['anchor'];
@@ -663,7 +673,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         buildUser(ask, { hasPhoto: Boolean(photo) }),
         photo,
         askDetail(steer, day),
-        (o) => ownedOfTotal(o.ways.slice(0, WAYS), styleCtx.closet),
+        (o) => ownedOfTotal(o.ways.slice(0, count), styleCtx.closet),
       );
       const { fallback } = out;
       // Her profile decides the wearer; the model's judgement stands only when it is silent.
@@ -671,7 +681,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         styleCtx.gender === 'man' || styleCtx.gender === 'woman'
           ? styleCtx.gender
           : (out.wearer ?? 'woman');
-      const ways = out.ways.slice(0, WAYS).map((w) => ({
+      const ways = out.ways.slice(0, count).map((w) => ({
         ...w,
         scene: sceneOf(w),
         pieces: normalisePieces(w.pieces, styleCtx.closet),
@@ -713,6 +723,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
             setId,
             specs,
             heroSpec ? { setIndex: 0, frameKey: specKey(heroSpec), jobId: ctx.jobId } : undefined,
+            { status: draft ? 'draft' : 'suggested' },
           )
         : [];
       await ctx.writeStage('text', { setId, lookIds, fallback, wearer, ways });
