@@ -271,7 +271,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       const { image, usage } = await deps.ai.generateImage({
         feature,
         capability: 'image.hero',
-        prompt: buildRenderPrompt(gender, pieces, twinLine),
+        prompt: buildRenderPrompt(gender, pieces, twinLine, found.look.pictureNote),
         references,
         aspectRatio: '4:5',
         signal: ctx.signal,
@@ -375,7 +375,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         const { image, usage } = await deps.ai.generateImage({
           feature: FRAME_FEATURE,
           capability: 'image.hero',
-          prompt: buildFrameRenderPrompt(gender, pieces),
+          prompt: buildFrameRenderPrompt(gender, pieces, found.look.pictureNote),
           references,
           aspectRatio: '4:5',
           signal: ctx.signal,
@@ -452,6 +452,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           },
           rack,
           capability: (found.look.setIndex ?? 0) === 0 ? 'image.hero' : 'image.secondary',
+          pictureNote: found.look.pictureNote,
         });
       } catch (err) {
         return fail(err);

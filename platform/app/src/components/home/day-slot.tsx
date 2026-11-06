@@ -6,8 +6,10 @@ import { dayOotd } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/web';
 import { ActionDisc, ActionDiscs, Skeleton } from '@robes/ui';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { LookTile } from '@/components/looks/look-tile';
+import { ImageStack } from '@/components/looks/saved-look';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 import { DraftTile } from './draft-tile';
 import { ModelStack } from './model-stack';
@@ -53,6 +55,7 @@ export function DaySlot({
   onAnother: (lookId: string) => void;
   anotherBusy?: boolean;
 }) {
+  const router = useRouter();
   const scroller = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
   const ootd = dayOotd(day.entries);
@@ -85,14 +88,23 @@ export function DaySlot({
               label={copy.slot.open(entry.look.name)}
               testId={i === 0 ? 'ootd-card' : `day-card-${entry.id}`}
               onImage={
-                justSaved === entry.look.id ? (
-                  <span
-                    data-testid="saved-badge"
-                    className="type-label absolute top-2.5 left-2.5 z-10 rounded-pill bg-surface-raised/95 px-2.5 py-1.5 text-accent-plan"
-                  >
-                    ✓ {lookbook.draft.badgeSaved}
-                  </span>
-                ) : null
+                <>
+                  {justSaved === entry.look.id ? (
+                    <span
+                      data-testid="saved-badge"
+                      className="type-label absolute top-2.5 left-2.5 z-10 rounded-pill bg-surface-raised/95 px-2.5 py-1.5 text-accent-plan"
+                    >
+                      ✓ {lookbook.draft.badgeSaved}
+                    </span>
+                  ) : null}
+                  {/* Felix 3k: the image stack opens the Edit look drawer on Add a photo (D19). */}
+                  <ImageStack
+                    look={entry.look}
+                    onOpen={() =>
+                      router.push(`/looks/draft/${entry.look.id}?day=${day.date}&images=add`)
+                    }
+                  />
+                </>
               }
               corner={
                 // Felix's 28 veil-mid disc with the × in ink-mute; its hit area 44.

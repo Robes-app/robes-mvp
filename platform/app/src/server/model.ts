@@ -1,6 +1,12 @@
 import 'server-only';
 import { ApiError } from '@robes/api';
-import { JobStatus, Model, type StartJobOutput, type UpdateModelInput } from '@robes/contracts';
+import {
+  JobStatus,
+  Model,
+  type RedrawLookInput,
+  type StartJobOutput,
+  type UpdateModelInput,
+} from '@robes/contracts';
 import {
   catalogKey,
   cellKey,
@@ -26,6 +32,7 @@ import { isFlagEnabled } from './flags';
 import { createAndEnqueueJob, startJob } from './jobs';
 import { logger } from './logger';
 import { mediaDelivery } from './media';
+import { writePictureNote } from './picture-note';
 import { rackHash } from './render-key';
 
 const DRAW_STALE_MS = 10 * 60_000;
@@ -288,6 +295,7 @@ export async function renderOnModel(
   userId: UserId,
   req: Request,
   lookId: string,
+  input: RedrawLookInput = {},
 ): Promise<StartJobOutput> {
   const state = await repos.looks.renderState(userId, lookId);
   if (!state) throw new ApiError('not_found');
@@ -313,13 +321,18 @@ export async function renderOnModel(
   }
   const pieces = await repos.looks.piecesFor(userId, [lookId]);
   if (pieces.length === 0) throw new ApiError('invalid_input');
+  // Her picture note (D21) is written first, so the job reads it and the key holds it; sent, it
+  // asks for a fresh picture even when nothing else changed.
+  const pictureNote = await writePictureNote(userId, lookId, input.note, look.pictureNote);
   // How each piece is worn is part of what the render shows, so a changed note re-renders once.
   const notes = look.styling && typeof look.styling === 'object' ? look.styling : {};
-  const rack = rackHash(pieces, notes as Record<string, unknown>);
+  const rack = rackHash(pieces, notes as Record<string, unknown>, pictureNote);
   // The key names the model it stands on, so the worker draws on exactly that one.
   const renderKey = `${model}:${rack}`;
 
-  if (!(await repos.looks.claimRender(userId, lookId, renderKey))) {
+  if (
+    !(await repos.looks.claimRender(userId, lookId, renderKey, { force: input.note !== undefined }))
+  ) {
     const again = await repos.looks.renderState(userId, lookId);
     const job = again?.renderJobId
       ? await repos.jobs.getForUser(userId, again.renderJobId)

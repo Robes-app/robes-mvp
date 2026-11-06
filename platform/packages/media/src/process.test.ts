@@ -35,8 +35,10 @@ function harness(status = 'pending') {
   const assets: AssetStore = {
     get: async (id) => rows.get(id),
     markReady: async (id, meta) => {
+      if (!rows.has(id)) return false;
       ready.set(id, meta);
       rows.set(id, { userId: USER, status: 'ready' });
+      return true;
     },
     markFailed: async (id, error) => {
       rows.set(id, { userId: USER, status: 'failed', error });
@@ -47,6 +49,14 @@ function harness(status = 'pending') {
     putObject: async (key: string, body: Uint8Array) => {
       puts += 1;
       objects.set(key, body);
+    },
+    deleteObject: async (key: string) => {
+      objects.delete(key);
+    },
+    deletePrefix: async (prefix: string) => {
+      const keys = [...objects.keys()].filter((k) => k.startsWith(prefix));
+      for (const k of keys) objects.delete(k);
+      return keys.length;
     },
   };
   async function upload(bytes: Uint8Array, owner = USER, crop?: unknown) {
@@ -191,6 +201,25 @@ describe('processUpload', () => {
       '33333333-3333-4333-8333-333333333333',
     );
     expect(await processUpload(h.deps, other.key)).toMatchObject({ reason: 'owner_mismatch' });
+  });
+
+  it('removes what it wrote when the asset was discarded while it rendered', async () => {
+    const h = harness();
+    const { assetId, key } = await h.upload(await solid(400, 300).jpeg().toBuffer());
+    const deps = {
+      ...h.deps,
+      storage: {
+        ...h.deps.storage,
+        // The row goes as the renditions land (uploads.discard or the stale-upload sweep).
+        putObject: async (k: string, body: Uint8Array) => {
+          h.rows.delete(assetId);
+          await h.deps.storage.putObject(k, body);
+        },
+      },
+    };
+    expect(await processUpload(deps, key)).toEqual({ status: 'skipped', reason: 'unknown_asset' });
+    expect([...h.objects.keys()].filter((k) => k.includes(assetId))).toEqual([]);
+    expect(h.ready.has(assetId)).toBe(false);
   });
 
   it('lets storage errors propagate so the invoker retries', async () => {

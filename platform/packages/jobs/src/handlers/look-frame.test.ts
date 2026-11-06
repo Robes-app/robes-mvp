@@ -113,6 +113,24 @@ describe('look_render: Robes’ frame of a look', () => {
     );
   });
 
+  // D21: her picture note rides every frame, re-dressed or drawn fresh; the rack is the rack.
+  it('carries her picture note into the frame, re-dressed or drawn fresh', async () => {
+    const redress = setup({ pictureNote: 'sleeves rolled up' });
+    await redress.run();
+    const re = redress.generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(re).toContain('<user_input>\nsleeves rolled up\n</user_input>');
+    expect(re).toContain('- IMAGE 2: the Silk shirt (ivory Tops)');
+    expect(re).toContain('- the Black mules (Shoes by Toteme).');
+    const fresh = setup({ frameAssetId: null, pictureNote: 'hair up' });
+    await fresh.run();
+    const fr = fresh.generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(fr).toContain('<user_input>\nhair up\n</user_input>');
+    expect(fr).toContain('Look: "Garden party" — Evening.');
+    const plain = setup();
+    await plain.run();
+    expect(plain.generateImage.mock.calls[0]?.[0].prompt).not.toContain('HER NOTE');
+  });
+
   it('draws a suggestion’s first frame from its set when it has none', async () => {
     const { run, generateImage } = setup({ frameAssetId: null });
     await run();

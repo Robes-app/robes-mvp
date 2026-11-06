@@ -59,6 +59,7 @@ const repos = {
     get: vi.fn(async (): Promise<unknown> => look),
     piecesFor: vi.fn(async () => [{ id: 'piece-1' }]),
     claimRender: vi.fn(async () => true),
+    setPictureNote: vi.fn(async () => true),
     setRenderJob: vi.fn(async () => {}),
     releaseRender: vi.fn(async () => {}),
   },
@@ -330,6 +331,57 @@ describe('a look on her model', () => {
     await expect(renderOnModel(USER, req, LOOK)).rejects.toMatchObject({ code: 'conflict' });
     look = { status: 'suggested', frameAssetId: null, styling: {} };
     await expect(renderOnModel(USER, req, LOOK)).rejects.toMatchObject({ code: 'conflict' });
+    expect(startJob).not.toHaveBeenCalled();
+  });
+
+  // D21: the AdjustSheet's Send writes her note on the look, then draws again with it.
+  it('writes her picture note first and draws again, the note part of the key', async () => {
+    repos.avatarCells.get.mockImplementation(readyCell);
+    await renderOnModel(USER, req, LOOK);
+    const plain = (repos.looks.claimRender.mock.calls[0] as unknown[])[2] as string;
+    expect((repos.looks.claimRender.mock.calls[0] as unknown[])[3]).toEqual({ force: false });
+    expect(repos.looks.setPictureNote).not.toHaveBeenCalled();
+    vi.clearAllMocks();
+    await renderOnModel(USER, req, LOOK, { note: 'sleeves rolled up' });
+    expect(repos.looks.setPictureNote).toHaveBeenCalledWith(USER, LOOK, 'sleeves rolled up');
+    const [, , noted, opts] = repos.looks.claimRender.mock.calls[0] as unknown[];
+    expect(noted).not.toBe(plain);
+    expect(opts).toEqual({ force: true });
+    // The job carries ids and intent only: the worker reads her note from the look.
+    expect(JSON.stringify(startJob.mock.calls[0])).not.toContain('sleeves');
+  });
+
+  it('keeps the note already on the look, and an empty one clears it', async () => {
+    repos.avatarCells.get.mockImplementation(readyCell);
+    look = { status: 'saved', frameAssetId: null, styling: {}, pictureNote: 'hair up' };
+    await renderOnModel(USER, req, LOOK);
+    const kept = (repos.looks.claimRender.mock.calls[0] as unknown[])[2];
+    vi.clearAllMocks();
+    await renderOnModel(USER, req, LOOK, { note: 'hair up' });
+    expect((repos.looks.claimRender.mock.calls[0] as unknown[])[2]).toBe(kept);
+    vi.clearAllMocks();
+    look = { status: 'saved', frameAssetId: null, styling: {} };
+    await renderOnModel(USER, req, LOOK);
+    const bare = (repos.looks.claimRender.mock.calls[0] as unknown[])[2];
+    vi.clearAllMocks();
+    look = { status: 'saved', frameAssetId: null, styling: {}, pictureNote: 'hair up' };
+    await renderOnModel(USER, req, LOOK, { note: '' });
+    expect(repos.looks.setPictureNote).toHaveBeenCalledWith(USER, LOOK, '');
+    expect((repos.looks.claimRender.mock.calls[0] as unknown[])[2]).toBe(bare);
+  });
+
+  it('writes no note on a look it can’t draw, nor on one that is not hers', async () => {
+    repos.avatarCells.get.mockImplementation(readyCell);
+    look = { status: 'draft', frameAssetId: 'f', styling: {} };
+    await expect(renderOnModel(USER, req, LOOK, { note: 'cuffed' })).rejects.toMatchObject({
+      code: 'conflict',
+    });
+    expect(repos.looks.setPictureNote).not.toHaveBeenCalled();
+    look = { status: 'draft', frameAssetId: null, styling: {} };
+    repos.looks.setPictureNote.mockResolvedValueOnce(false);
+    await expect(renderOnModel(USER, req, LOOK, { note: 'cuffed' })).rejects.toMatchObject({
+      code: 'not_found',
+    });
     expect(startJob).not.toHaveBeenCalled();
   });
 });

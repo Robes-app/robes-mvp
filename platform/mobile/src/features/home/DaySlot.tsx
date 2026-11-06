@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text as RNText, ScrollView, useWindowDimensions, View } from 'react-native';
 import { LookTile } from '@/features/looks/LookTile';
+import { ImageStack } from '@/features/looks/SavedLook';
 import { DraftTile } from './DraftTile';
 import { ModelStack } from './ModelStack';
 
@@ -99,7 +100,18 @@ export function DaySlot({
               onPress={() => router.push(`/look/${entry.look.id}?day=${day.date}`)}
               label={copy.slot.open(entry.look.name)}
               testID={i === 0 ? 'ootd-card' : `day-card-${entry.id}`}
-              onImage={justSaved === entry.look.id ? <SavedBadge /> : null}
+              onImage={
+                <>
+                  {justSaved === entry.look.id ? <SavedBadge /> : null}
+                  {/* Felix 3k: the image stack opens the Edit look sheet on Add a photo (D19). */}
+                  <ImageStack
+                    look={entry.look}
+                    onOpen={() =>
+                      router.push(`/looks/draft/${entry.look.id}?day=${day.date}&images=add`)
+                    }
+                  />
+                </>
+              }
               corner={
                 <Remove
                   label={copy.slot.remove(entry.look.name, dayWord)}

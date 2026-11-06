@@ -4,7 +4,7 @@ import { detectImageFormat } from './detect';
 import { mediaKeys, parseOriginalKey } from './keys';
 import type { RenditionManifest } from './manifest';
 import { cropImage, RejectedImage, type RejectReason, renderImage } from './render';
-import type { MediaStorage } from './storage';
+import { deleteAssetObjects, type MediaStorage } from './storage';
 
 export { cropImage, IMAGE_LIMITS, RejectedImage, type RejectReason, renderImage } from './render';
 
@@ -26,12 +26,12 @@ export interface AssetStore {
       blurhash: string;
       renditions: RenditionManifest;
     },
-  ): Promise<void>;
+  ): Promise<boolean>;
   markFailed(assetId: string, error: string): Promise<void>;
 }
 
 export interface ProcessUploadDeps {
-  storage: Pick<MediaStorage, 'getObject' | 'putObject'>;
+  storage: Pick<MediaStorage, 'getObject' | 'putObject' | 'deleteObject' | 'deletePrefix'>;
   assets: AssetStore;
 }
 
@@ -106,12 +106,18 @@ export async function processUpload(deps: ProcessUploadDeps, key: string): Promi
     master: { width, height },
     widths: [...new Set(rendered.renditions.map((r) => r.width))],
   };
-  await deps.assets.markReady(assetId, {
+  const marked = await deps.assets.markReady(assetId, {
     bucketKey: masterKey,
     width,
     height,
     blurhash: rendered.blurhash,
     renditions: manifest,
   });
+  // Discarded while it rendered (uploads.discard, the stale-upload sweep): its row went before
+  // these files landed, so nothing else would ever remove them.
+  if (!marked) {
+    await deleteAssetObjects(deps.storage, userId, assetId);
+    return { status: 'skipped', reason: 'unknown_asset' };
+  }
   return { status: 'ready', assetId, manifest };
 }

@@ -90,6 +90,17 @@ describe('cross-user isolation', () => {
     ]);
   });
 
+  it("looks.setPictureNote and setRobesHidden never touch another person's look", async () => {
+    expect(await repos.looks.setPictureNote(bea, lookId, 'Taken')).toBe(false);
+    expect(await repos.looks.setRobesHidden(bea, lookId, false)).toBeUndefined();
+    const still = await db
+      .selectFrom('looks')
+      .select(['pictureNote', 'robesHidden'])
+      .where('id', '=', lookId)
+      .executeTakeFirstOrThrow();
+    expect(still).toEqual({ pictureNote: null, robesHidden: false });
+  });
+
   it('suggested.look, setFrame and failFrame are scoped to the owner', async () => {
     expect(await system.suggested.look(bea, lookId)).toBeUndefined();
     expect((await system.suggested.look(ann, lookId))?.look.id).toBe(lookId);

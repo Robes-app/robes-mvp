@@ -200,4 +200,28 @@ describe('looks and planning schema', () => {
         LOOK,
       ]);
     }));
+
+  // D21: her note on Robes' picture; D19: Robes' picture hidden, never destroyed.
+  it('keeps a picture note to 280 characters, and Robes’ picture shown by default', () =>
+    inTx(async (q) => {
+      await setup(q);
+      const [fresh] = await q('select picture_note, robes_hidden from app.looks where id = $1', [
+        LOOK,
+      ]);
+      expect(fresh).toEqual({ picture_note: null, robes_hidden: false });
+      await q('update app.looks set picture_note = $2, robes_hidden = true where id = $1', [
+        LOOK,
+        'x'.repeat(280),
+      ]);
+      await expectPgError(q, '23514', 'update app.looks set picture_note = $2 where id = $1', [
+        LOOK,
+        'x'.repeat(281),
+      ]);
+      await expectPgError(q, '23514', "update app.looks set picture_note = '' where id = $1", [
+        LOOK,
+      ]);
+      await expectPgError(q, '23502', 'update app.looks set robes_hidden = null where id = $1', [
+        LOOK,
+      ]);
+    }));
 });

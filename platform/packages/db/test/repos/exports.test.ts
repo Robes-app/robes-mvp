@@ -61,6 +61,7 @@ describe('data export (SEC-81)', () => {
       bytes: 1000,
     });
     await repos.looks.addImage(ann, look.id, photo.id);
+    await repos.looks.setPictureNote(ann, look.id, 'Sleeves rolled up');
     await repos.plan.pin(ann, look.id, ['2026-10-01'], { slot: 'day' });
     await repos.plan.nameDay(ann, '2026-10-02', 'Ann’s gallery night');
     await repos.plan.nameDay(bea, '2026-10-02', 'Bea’s day');
@@ -86,6 +87,8 @@ describe('data export (SEC-81)', () => {
     expect(doc.user?.email).toBe(`${ann}@test.dev`);
     expect(doc.pieces.map((p) => [p.label, p.material])).toEqual([['Niall coat', 'tweed']]);
     expect(doc.wears[0]?.wornOn).toBe('2026-09-24');
+    // Her note on Robes' picture (D21) is her words, so it leaves with the look.
+    expect(doc.looks.find((l) => l.id === look.id)?.pictureNote).toBe('Sleeves rolled up');
     expect(doc.lookImages).toEqual([
       expect.objectContaining({ lookId: look.id, assetId: photo.id, position: 0 }),
     ]);

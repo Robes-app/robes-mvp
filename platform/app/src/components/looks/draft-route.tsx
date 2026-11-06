@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { DraftLook, type DraftPresentation, type DraftSheet } from './draft-look';
+import { DraftLook, type DraftPresentation } from './draft-look';
 
 // The draft's route, as a drawer over the screen that opened it (the intercepting route under
 // app/(app)/@drawer) or as a page on a deep link. Closing a drawer goes back; a page with nothing
@@ -10,13 +10,13 @@ export function DraftRoute({
   id,
   pieceId,
   day,
-  sheet,
+  images,
   presentation,
 }: {
   id: string;
   pieceId?: string;
   day?: string;
-  sheet?: DraftSheet;
+  images?: 'add';
   presentation: DraftPresentation;
 }) {
   const router = useRouter();
@@ -29,7 +29,7 @@ export function DraftRoute({
       id={id}
       {...(pieceId ? { pieceId } : {})}
       {...(day ? { day } : {})}
-      {...(sheet ? { sheet } : {})}
+      {...(images ? { images } : {})}
       presentation={presentation}
       onClose={onClose}
     />

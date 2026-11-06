@@ -18,6 +18,7 @@ function setup(
     asked?: string;
     pieces?: object[];
     twin?: object;
+    pictureNote?: string | null;
   } = {},
 ) {
   const model = {
@@ -28,6 +29,7 @@ function setup(
         renderKey: opts.renderKey ?? KEY,
         renderStatus: 'pending',
         styling: { 'piece-coat': 'worn open' },
+        pictureNote: opts.pictureNote ?? null,
       },
       pieces: opts.pieces ?? [
         {
@@ -131,6 +133,26 @@ describe('look_render on her model: how a piece is worn', () => {
     const { run, generateImage } = setup();
     await run();
     expect(generateImage.mock.calls[0]?.[0].prompt).toContain('Worn: worn open.');
+  });
+});
+
+// D21: her picture note, read from the look, styles the picture and never the rack.
+describe('look_render on her model: her picture note', () => {
+  it('rides the prompt as styling for the picture, the pieces unchanged', async () => {
+    const { run, generateImage, model } = setup({ pictureNote: 'sleeves rolled up' });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    const prompt = generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(prompt).toContain('<user_input>\nsleeves rolled up\n</user_input>');
+    expect(prompt).toContain('never adds, removes or substitutes a piece');
+    expect(prompt).toContain('- IMAGE 2: the Camel coat');
+    expect(prompt).toContain('- the Loafers');
+    expect(model.setRender).toHaveBeenCalledWith(USER, LOOK, KEY, NEW_ASSET);
+  });
+
+  it('says nothing of a note when the look has none', async () => {
+    const { run, generateImage } = setup();
+    await run();
+    expect(generateImage.mock.calls[0]?.[0].prompt).not.toContain('HER NOTE');
   });
 });
 

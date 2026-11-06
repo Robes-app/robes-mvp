@@ -37,6 +37,12 @@ export {
   pollOvernight,
 } from './overnight';
 export {
+  filePassedPins,
+  PASSED_PINS_CATCH_UP_DAYS,
+  PASSED_PINS_FROM,
+  type PassedPinsDeps,
+} from './passed-pins';
+export {
   type HeldReceipt,
   type IngestOutcome,
   ingestReceipt,
@@ -62,6 +68,12 @@ export {
   type RunOutcome,
   runJob,
 } from './runtime';
+export {
+  STALE_UPLOAD_HOURS,
+  STALE_UPLOAD_WITHIN_DAYS,
+  type StaleUploadsDeps,
+  sweepStaleUploads,
+} from './stale-uploads';
 export { createInlineTransport, createSqsTransport, type JobTransport } from './transport';
 export {
   type CityAt,

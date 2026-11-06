@@ -167,12 +167,14 @@ function localToday(now: Date, timezone: string): string {
 const fmt = (iso: string, o: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat('en-GB', { ...o, timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
 
-// The rack a set's frame shows, as the API computes it from the stored look.
-const specKey = (spec: SuggestedSpec) =>
+// The rack a set's frame shows, as the API computes it from the stored look, with her picture note
+// (D21) when the look carries one.
+const specKey = (spec: SuggestedSpec, pictureNote?: string | null) =>
   frameKey(
     spec.pieces.map((p) => p.pieceId),
     spec.proposals.map((p) => ({ name: String(p.name ?? ''), brand: String(p.brand ?? '') })),
     {},
+    pictureNote,
   );
 
 // A suggested look from one way (legacy _lkSuggSpec): her pieces with their roles, the anchor
@@ -429,6 +431,8 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       rack: FrameRackPiece[];
       styleIcons: string[];
       spec: SuggestedSpec;
+      // Her note on the picture (D21): a re-dress keeps it.
+      pictureNote?: string | null;
     },
   ): Promise<boolean> {
     await deps.styling.trackImage({
@@ -452,7 +456,13 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       });
       // Lands only while the look still wants this rack (she may have changed it meanwhile), and
       // records what the frame stood on (plan 2026-11-05 §2.4).
-      await deps.suggested?.setFrame(ctx.userId, o.lookId, specKey(o.spec), assetId, model.on);
+      await deps.suggested?.setFrame(
+        ctx.userId,
+        o.lookId,
+        specKey(o.spec, o.pictureNote),
+        assetId,
+        model.on,
+      );
       await deps.styling.trackImage({
         jobId: ctx.jobId,
         userId: ctx.userId,
@@ -465,7 +475,9 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
       return true;
     } catch (err) {
       // The claim goes back either way, so she can ask for the frame again.
-      await deps.suggested?.failFrame(ctx.userId, o.lookId, specKey(o.spec)).catch(() => undefined);
+      await deps.suggested
+        ?.failFrame(ctx.userId, o.lookId, specKey(o.spec, o.pictureNote))
+        .catch(() => undefined);
       if (ctx.signal.aborted) throw err;
       await deps.styling.trackImage({
         jobId: ctx.jobId,
@@ -583,7 +595,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
         });
         if (
           !(await deps.suggested.rewrite(ctx.userId, input.lookId, spec, {
-            frameKey: specKey(spec),
+            frameKey: specKey(spec, found.look.pictureNote),
             jobId: ctx.jobId,
           }))
         ) {
@@ -603,6 +615,7 @@ export function createStylePieceHandler(deps: StylePieceDeps): JobHandler {
           rack: rackOf(way.pieces, styleCtx.closet),
           styleIcons: styleCtx.styleIcons,
           spec,
+          pictureNote: found.look.pictureNote,
         });
         return { status: 'succeeded' };
       }

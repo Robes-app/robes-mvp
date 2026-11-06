@@ -149,8 +149,11 @@ export const lookbook = {
       photo: (n: number): string => `Photograph ${n}`,
       add: 'Add a photo',
       remove: 'Remove this image',
-      lead: (what: string): string => `${what} leads the look`,
       done: 'Done',
+      // 409 look_needs_image (D19): the change would leave the look with no image.
+      lastImage: 'A look keeps at least one image.',
+      // 409 upload_in_use on uploads.discard: the photo is already on a look, so it stays.
+      inUse: 'This photo is on a look, so it stays.',
     },
     details: {
       tags: 'Tags',
@@ -198,16 +201,18 @@ export const lookbook = {
     editTitle: 'Edit look',
     newName: 'New look',
     close: 'Close',
-    // The done disc: Save on a draft, Update on a saved look; its tooltip says what Save does.
+    // The done disc: Save on a draft; on a saved look's edit it only closes, once nothing waits
+    // for Update look (D18).
     done: 'Save look',
-    doneEdit: 'Update look',
+    doneEdit: 'Done',
+    // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
+    update: 'Update look',
     doneForDay: 'Save and schedule for this day',
     // The prompt card.
     placeholder: 'Describe look…',
     editPlaceholder: 'Describe other changes…',
-    // Felix's Generate · Regenerate, in Robes' words: Robes styles, it never generates.
+    // Felix's Generate, in Robes' words: Robes styles, it never generates.
     generate: 'Style it',
-    regenerate: 'Style it again',
     thread: 'Your words on this look',
     // The context chip: the day's place and weather, read from the diary.
     context: (place: string, range: string): string => `${place} · ${range}`,

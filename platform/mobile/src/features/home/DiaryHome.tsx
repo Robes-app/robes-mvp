@@ -17,15 +17,8 @@ import {
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  View,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useTabScroll } from '@/components/TabScreen';
 import { isTerminal } from '@/features/looks/ideas';
 import { useRestyle } from '@/features/looks/look-states';
@@ -35,7 +28,6 @@ import { DaySlot } from './DaySlot';
 import { DiaryStrip } from './DiaryStrip';
 import { dayWordOf, type PickerMode } from './diary';
 import { ModelPicker } from './ModelPicker';
-import { PromptBox, type PromptBoxHandle } from './PromptBox';
 
 // The tray's jobs, and the draft Robes is making for a day (plan 2026-11-03): read every 2 s.
 const isRunning = (t: Today | undefined) =>
@@ -58,9 +50,9 @@ export function withoutDiaryEntry(id: string) {
 }
 
 // Home as the OOTD diary (Felix 3a · 3k, D7): the greeting and today's weather, the strip, the
-// selected day — its looks with Swap · Edit, then her model with Capture · Describe · Pick — and,
-// for today and days ahead, the prompt box that Describe opens. Alerts live behind the bell. The
-// web twin is app/src/components/home/diary-home.tsx.
+// selected day — its looks with Swap · Edit, then her model with Capture · Describe · Pick.
+// Describe opens the Draft look sheet for the day (D22); Home holds no prompt box. Alerts live
+// behind the bell. The web twin is app/src/components/home/diary-home.tsx.
 export function DiaryHome({
   day = null,
   saved = null,
@@ -86,11 +78,8 @@ export function DiaryHome({
   const model = useApi('me.model.get');
   const [picked, setPicked] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
-  const prompt = useRef<PromptBoxHandle>(null);
   const router = useRouter();
   const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
-  // Her words per day as sent this session, so the box's thread opens with them.
-  const [asked, setAsked] = useState<Record<string, string>>({});
   // ↻ on the draft tile: another take, same brief.
   const another = useRestyle();
   // The tab stays mounted: a bell nudge or deep link lands on its day whenever it arrives.
@@ -120,17 +109,6 @@ export function DiaryHome({
     };
   const past = current.date < today;
   const dayWord = dayWordOf(current.date, today);
-  // Her home, with the selected day's weather there: the diary's day when she is home, else the
-  // masthead's reading (today's) stands in for the name alone.
-  const homePlace =
-    !current.place && current.weather?.city
-      ? {
-          city: current.weather.city,
-          weather: { tempRange: current.weather.tempRange, code: current.weather.code },
-        }
-      : weather.data?.city
-        ? { city: weather.data.city, weather: null }
-        : null;
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
 
@@ -172,97 +150,80 @@ export function DiaryHome({
   const metaLine = homeCopy.meta(weekdayLong(today), wx?.city ?? null, wx ? weatherTemp(wx) : null);
 
   return (
-    // The prompt box's field rides above the keyboard (parity plan N2), as StylePiece's does.
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1"
+    <ScrollView
+      {...tabScroll}
+      contentContainerClassName="gap-6 px-5 pt-[22px] pb-8"
+      keyboardShouldPersistTaps="handled"
+      testID="diary-home"
+      refreshControl={
+        <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
+      }
     >
-      <ScrollView
-        {...tabScroll}
-        contentContainerClassName="gap-6 px-5 pt-[22px] pb-8"
-        keyboardShouldPersistTaps="handled"
-        testID="diary-home"
-        refreshControl={
-          <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
-        }
-      >
-        <PrimaryScope>
-          <View className="gap-2">
-            <Heading size="xl" style={{ fontSize: 32, lineHeight: 34 }}>
-              {todayCopy.greeting(name, data.hour)}
-            </Heading>
-            <View
-              className="flex-row items-center gap-2"
-              accessible
-              accessibilityLabel={homeCopy.metaSpoken(
-                wx && wxIcon ? weatherWord(wx) : null,
-                metaLine,
-              )}
-              testID="home-meta"
-            >
-              <Eyebrow>{metaLine}</Eyebrow>
-              {wx && wxIcon ? <Icon name={wxIcon} size={14} color={faint} /> : null}
-            </View>
+      <PrimaryScope>
+        <View className="gap-2">
+          <Heading size="xl" style={{ fontSize: 32, lineHeight: 34 }}>
+            {todayCopy.greeting(name, data.hour)}
+          </Heading>
+          <View
+            className="flex-row items-center gap-2"
+            accessible
+            accessibilityLabel={homeCopy.metaSpoken(
+              wx && wxIcon ? weatherWord(wx) : null,
+              metaLine,
+            )}
+            testID="home-meta"
+          >
+            <Eyebrow>{metaLine}</Eyebrow>
+            {wx && wxIcon ? <Icon name={wxIcon} size={14} color={faint} /> : null}
           </View>
+        </View>
 
-          {diary ? (
-            <DiaryStrip
-              days={diary.days}
-              today={today}
-              selected={current.date}
-              onSelect={setPicked}
-            />
-          ) : null}
-
-          <DaySlot
-            day={current}
+        {diary ? (
+          <DiaryStrip
+            days={diary.days}
             today={today}
-            dayWord={dayWord}
-            justSaved={saved}
-            model={model.data}
-            actions={{
-              // The camera opens on arrival: one tap from the day to her photograph.
-              onCapture: () =>
-                router.push({
-                  pathname: '/looks/photo',
-                  params: { day: current.date, start: 'camera' },
-                }),
-              onDescribe: past ? null : () => prompt.current?.focus(),
-              onPick: () => setDrawer({ date: current.date, mode: 'add' }),
-              onSwap: () => setDrawer({ date: current.date, mode: 'change' }),
-              onEdit: (entry) => router.push(`/looks/draft/${entry.look.id}?day=${current.date}`),
-              onRemove: remove,
-              onModel: () => setChoosing(true),
-            }}
-            onAnother={another.restyle}
-            anotherBusy={another.busyId !== null && another.busyId === current.draft?.look?.id}
+            selected={current.date}
+            onSelect={setPicked}
           />
+        ) : null}
 
-          {past ? null : (
-            <PromptBox
-              ref={prompt}
-              day={current}
-              today={today}
-              home={homePlace}
-              hasPieces={data.home.state.pics > 0}
-              sent={asked[current.date] ?? null}
-              onSent={(words) => setAsked((a) => ({ ...a, [current.date]: words }))}
-            />
-          )}
+        <DaySlot
+          day={current}
+          today={today}
+          dayWord={dayWord}
+          justSaved={saved}
+          model={model.data}
+          actions={{
+            // The camera opens on arrival: one tap from the day to her photograph.
+            onCapture: () =>
+              router.push({
+                pathname: '/looks/photo',
+                params: { day: current.date, start: 'camera' },
+              }),
+            // Describe opens the Draft look sheet for the day (Felix 3a, D22).
+            onDescribe: past ? null : () => router.push(`/looks/draft/new?day=${current.date}`),
+            onPick: () => setDrawer({ date: current.date, mode: 'add' }),
+            onSwap: () => setDrawer({ date: current.date, mode: 'change' }),
+            onEdit: (entry) => router.push(`/looks/draft/${entry.look.id}?day=${current.date}`),
+            onRemove: remove,
+            onModel: () => setChoosing(true),
+          }}
+          onAnother={another.restyle}
+          anotherBusy={another.busyId !== null && another.busyId === current.draft?.look?.id}
+        />
 
-          {data.tray.length > 0 ? <Tray jobs={data.tray} /> : null}
+        {data.tray.length > 0 ? <Tray jobs={data.tray} /> : null}
 
-          <ModelPicker open={choosing} model={model.data} onClose={() => setChoosing(false)} />
-          <LookPicker
-            date={drawer?.date ?? null}
-            today={today}
-            mode={drawer?.mode ?? 'add'}
-            onClose={() => setDrawer(null)}
-            onChanged={refresh}
-          />
-        </PrimaryScope>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <ModelPicker open={choosing} model={model.data} onClose={() => setChoosing(false)} />
+        <LookPicker
+          date={drawer?.date ?? null}
+          today={today}
+          mode={drawer?.mode ?? 'add'}
+          onClose={() => setDrawer(null)}
+          onChanged={refresh}
+        />
+      </PrimaryScope>
+    </ScrollView>
   );
 }
 

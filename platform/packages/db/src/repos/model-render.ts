@@ -1,4 +1,5 @@
 import { stoodOnOf } from '@robes/core/avatar';
+import { sql } from 'kysely';
 import type { Db } from '../client';
 import type { UserId } from '../ids';
 import { failTwin, modelRow } from './model';
@@ -10,7 +11,7 @@ export function modelRenderRepo(db: Db) {
     async look(userId: UserId, lookId: string) {
       const look = await db
         .selectFrom('looks')
-        .select(['id', 'name', 'renderKey', 'renderStatus', 'styling'])
+        .select(['id', 'name', 'renderKey', 'renderStatus', 'styling', 'pictureNote'])
         .where('userId', '=', userId)
         .where('id', '=', lookId)
         .where('deletedAt', 'is', null)
@@ -42,7 +43,9 @@ export function modelRenderRepo(db: Db) {
     },
 
     // Lands only if the look still wants this render (she may have changed model or rack since).
-    // The key names the model it stood on; the row remembers (plan 2026-11-05 §2.4).
+    // The key names the model it stood on; the row remembers (plan 2026-11-05 §2.4). A fresh
+    // picture is shown again; it leads only when she had hidden Robes' picture, else the cover
+    // she chose stays in front (D19; Annie, 6 Nov).
     async setRender(userId: UserId, lookId: string, renderKey: string, assetId: string) {
       await db
         .updateTable('looks')
@@ -51,6 +54,10 @@ export function modelRenderRepo(db: Db) {
           renderAssetId: assetId,
           renderClaimedAt: null,
           stoodOn: stoodOnOf(renderKey),
+          robesHidden: false,
+          recordImage: sql<
+            string | null
+          >`case when robes_hidden then 'model' else record_image end`,
         })
         .where('userId', '=', userId)
         .where('id', '=', lookId)

@@ -163,13 +163,13 @@ test('a swap from the picker leaves the picture behind; the chip draws the model
   expect(screen.queryAllByLabelText(lookbook.draft.behind(1))).toHaveLength(0);
 });
 
-test('the adjust disc opens the AdjustSheet; her sentence goes through the look prompt', async () => {
+test('the adjust disc opens the AdjustSheet; her sentence redraws the picture alone (D21)', async () => {
   const draft = draftOf();
   const calls = mockFetch({
     ...BASE,
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
     [`GET /looks/${LOOK_ID}`]: draft,
-    [`POST /looks/${LOOK_ID}/ask`]: {
+    [`POST /looks/${LOOK_ID}/render`]: {
       jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
       status: 'queued',
     },
@@ -179,12 +179,13 @@ test('the adjust disc opens the AdjustSheet; her sentence goes through the look 
   expect(await screen.findByTestId('adjust-sheet')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('adjust-sheet-field'), 'sleeves rolled up');
   await fireEvent.press(screen.getByRole('button', { name: copy.adjustSheet.send }));
+  // Her note goes with the redraw; the look prompt (which could change the pieces) is never asked.
   await waitFor(() =>
-    expect(calls.find((c) => c.path.endsWith('/ask'))?.body).toMatchObject({
-      text: 'sleeves rolled up',
-      surface: 'draft',
+    expect(calls.find((c) => c.path.endsWith('/render'))?.body).toEqual({
+      note: 'sleeves rolled up',
     }),
   );
+  expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
   // The sheet closes behind the send; her words stand in the thread.
   expect(screen.queryByTestId('adjust-sheet')).toBeNull();
   expect(screen.getByText('sleeves rolled up')).toBeTruthy();
@@ -243,24 +244,99 @@ test('closing asks: Discard lets the draft go, Keep for later only closes', asyn
   expect(onClose).toHaveBeenCalledTimes(2);
 });
 
-test('a saved look opens the same sheet in edit mode: Update look waits, Delete lives here', async () => {
-  mockFetch({
+// Home's Edit opens a saved look as the Edit look sheet (3k, D18): Update look at its foot is the
+// one accept; the tick only closes, once nothing waits.
+test('the Edit look sheet: Update look waits for a change, the tick only closes, × asks first', async () => {
+  const jeans = piece({ id: SCARF, label: 'Straight jeans', category: 'Bottoms' });
+  const saved = look({
+    pieces: [
+      { piece: piece(), slot: null, role: null },
+      { piece: jeans, slot: null, role: null },
+    ],
+    model: piece().image,
+    onModel: 'ready',
+  });
+  const calls = mockFetch({
     ...BASE,
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
-    [`GET /looks/${LOOK_ID}`]: look(),
+    [`GET /looks/${LOOK_ID}`]: saved,
+    [`PATCH /looks/${LOOK_ID}`]: {
+      ...saved,
+      pieces: [saved.pieces[0]],
+      updatedAt: new Date().toISOString(),
+    },
+    [`POST /looks/${LOOK_ID}/render`]: {
+      jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'queued',
+    },
   });
   const onClose = jest.fn();
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={onClose} />);
   expect(await screen.findByText(copy.editTitle)).toBeTruthy();
-  const done = screen.getByTestId('draft-done');
-  expect(done.props.accessibilityLabel).toBe(copy.doneEdit);
-  expect(done.props.accessibilityState.disabled).toBe(true);
-  expect(screen.getByText(copy.regenerate)).toBeTruthy();
-  expect(screen.getByText(copy.delete)).toBeTruthy();
-  // Nothing changed: × closes without a question.
+  const done = () => screen.getByTestId('draft-done');
+  const update = () => screen.getByTestId('update-look');
+  expect(done().props.accessibilityLabel).toBe(copy.doneEdit);
+  // Nothing waits: the tick is live, Update look sits dimmed, the card has no chip of its own.
+  expect(done().props.accessibilityState.disabled).toBe(false);
+  expect(update().props.accessibilityLabel).toBe(copy.update);
+  expect(update().props.accessibilityState.disabled).toBe(true);
+  expect(screen.queryByTestId('draft-generate')).toBeNull();
+  // A change: Update look wakes, the tick dims, × asks Discard your changes?
+  await fireEvent.press(
+    screen.getByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
+  );
+  expect(update().props.accessibilityState.disabled).toBe(false);
+  expect(done().props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(done());
+  expect(onClose).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByTestId('draft-close'));
+  expect(await screen.findByText(copy.discardEdit.title)).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: copy.discard.keep }));
+  // Update look applies it and she stays in the sheet; then the tick closes.
+  await fireEvent.press(update());
+  await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+  expect(await screen.findByText(lookbook.updated)).toBeTruthy();
+  expect(onClose).not.toHaveBeenCalled();
+  await waitFor(() => expect(done().props.accessibilityState.disabled).toBe(false));
+  await fireEvent.press(done());
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test('a saved look keeps Delete at the foot of Details, and × closes untouched without a question', async () => {
+  mockFetch({
+    ...BASE,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    [`GET /looks/${LOOK_ID}`]: look(),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+  });
+  const onClose = jest.fn();
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={onClose} />);
+  expect(await screen.findByText(copy.editTitle)).toBeTruthy();
+  expect(screen.queryByText(copy.delete)).toBeNull();
+  await fireEvent.press(screen.getByRole('tab', { name: lookbook.savedLook.tabs.details }));
+  expect(await screen.findByText(copy.delete)).toBeTruthy();
+  // Worn opens WornView, whose "+ Add a date" opens the one diary drawer.
+  await fireEvent.press(screen.getByTestId('details-worn'));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.savedLook.wornView.add }),
+  );
+  expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
   await fireEvent.press(screen.getByTestId('draft-close'));
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(screen.queryByText(copy.discardEdit.title)).toBeNull();
+});
+
+test('a saved look opened with `schedule` has the diary up', async () => {
+  mockFetch({
+    ...BASE,
+    'GET /wardrobe/items': { items: [piece()], nextCursor: null },
+    [`GET /looks/${LOOK_ID}`]: look(),
+    'GET /plan': { days: [] },
+  });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} presentation="saved" schedule onClose={() => undefined} />,
+  );
+  expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
 });
 
 test('a render that failed says so on the picture', async () => {

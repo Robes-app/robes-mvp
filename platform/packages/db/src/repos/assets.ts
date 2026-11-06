@@ -1,6 +1,7 @@
 import type { UsageMetric } from '@robes/core';
-import { sql } from 'kysely';
+import { type RawBuilder, sql } from 'kysely';
 import type { Db } from '../client';
+import type { DB } from '../database.types';
 import type { UserId } from '../ids';
 import { usageRepo } from './usage';
 
@@ -30,6 +31,68 @@ const ASSET_COLUMNS = [
   'hasCutout',
   'createdAt',
 ] as const;
+
+// Every column that can hold an asset id, and how it is matched: `owner` within her own rows
+// (composite FK, or hers by construction), `any` by id alone, `array` inside a uuid[]. Keyed by the
+// generated schema, so typecheck fails when a new `…AssetId(s)` column isn't listed here; the DB
+// test checks every foreign key into app.assets against it too.
+type AssetIdColumn<T> = {
+  [K in keyof T & string]: K extends `${string}${'assetId' | 'AssetId' | 'assetIds' | 'AssetIds'}`
+    ? K
+    : never;
+}[keyof T & string];
+type AssetIdRef = { [T in keyof DB & string]: `${T}.${AssetIdColumn<DB[T]>}` }[keyof DB & string];
+
+export const ASSET_ID_COLUMNS = {
+  'artifacts.coverAssetId': 'owner',
+  'assets.sourceAssetId': 'owner',
+  'avatars.twinAssetId': 'owner',
+  // Its FK is on the id alone and nulls on delete, so it would never stop one.
+  'feedback.photoAssetId': 'any',
+  'generationAssets.assetId': 'owner',
+  'generationCache.assetIds': 'array',
+  'lookImages.assetId': 'owner',
+  'looks.frameAssetId': 'owner',
+  'looks.photoAssetId': 'owner',
+  'looks.renderAssetId': 'owner',
+  'styleProfiles.fullLengthAssetId': 'owner',
+  'styleProfiles.headshotAssetId': 'owner',
+  'wardrobeItems.cutoutAssetId': 'owner',
+  'wardrobeItems.imageAssetId': 'owner',
+  'wardrobeItems.sourceAssetId': 'owner',
+  'wishlistItems.imageAssetId': 'owner',
+} as const satisfies Record<AssetIdRef, 'owner' | 'any' | 'array'>;
+
+const snake = (name: string) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+
+// True while nothing holds asset `a` (callers alias app.assets as `a`): no column above, no job
+// that was handed it (a photo read's input and output), no idea's frame. One `not exists` per
+// place, so Postgres can anti-join them.
+function unheld(): RawBuilder<boolean> {
+  const checks = Object.entries(ASSET_ID_COLUMNS).map(([ref, scope]) => {
+    const [table, column] = ref.split('.').map(snake) as [string, string];
+    const col = sql.id('r', column);
+    const match =
+      scope === 'array'
+        ? sql`a.id = any(${col})`
+        : scope === 'owner'
+          ? sql`${col} = a.id and r.user_id = a.user_id`
+          : sql`${col} = a.id`;
+    return sql`not exists (select 1 from ${sql.id('app', table)} r where ${match})`;
+  });
+  checks.push(
+    sql`not exists (select 1 from app.generation_jobs r where r.user_id = a.user_id and a.id::text in (lower(r.input ->> 'assetId'), lower(r.output ->> 'assetId')))`,
+    sql`not exists (select 1 from app.artifacts r where r.user_id = a.user_id and r.data -> 'images' @> jsonb_build_array(jsonb_build_object('assetId', a.id::text)))`,
+  );
+  return sql<boolean>`(${sql.join(checks, sql` and `)})`;
+}
+
+// Only a look photo is ever discarded (D20: picked in image mode, never accepted).
+const DISCARDABLE = 'look_photo';
+
+export type DiscardOutcome = 'discarded' | 'held' | 'not_found';
+// Removes the asset's files; runs once its row is deleted, before the deletion commits.
+export type RemoveAssetFiles = (userId: UserId, assetId: string) => Promise<unknown>;
 
 export function assetsRepo(db: Db) {
   const usage = usageRepo(db);
@@ -104,6 +167,34 @@ export function assetsRepo(db: Db) {
       return Number(res.numUpdatedRows);
     },
 
+    // D20: a look photo she uploaded in image mode and discarded before it was ever accepted.
+    // Marked deleted at once (gone from every read); the maintenance worker, which alone may
+    // delete media, removes its files and the row within the hour (staleUploads). Anyone else's,
+    // another kind, or one already gone is `not_found`; one anything holds stays (`held`). The
+    // row lock serialises a racing attach: its foreign key waits on the lock.
+    async discardUpload(userId: UserId, assetId: string): Promise<DiscardOutcome> {
+      return db.transaction().execute(async (trx) => {
+        const row = await trx
+          .selectFrom('assets')
+          .select('id')
+          .where('id', '=', assetId)
+          .where('userId', '=', userId)
+          .where('kind', '=', DISCARDABLE)
+          .where('deletedAt', 'is', null)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!row) return 'not_found';
+        const marked = await trx
+          .updateTable('assets as a')
+          .set({ status: 'deleted', deletedAt: sql`now()` })
+          .where('a.id', '=', assetId)
+          .where('a.userId', '=', userId)
+          .where(unheld())
+          .executeTakeFirst();
+        return Number(marked.numUpdatedRows) > 0 ? 'discarded' : 'held';
+      });
+    },
+
     getForUser(userId: UserId, assetId: string) {
       return db
         .selectFrom('assets')
@@ -136,8 +227,10 @@ export function assetProcessingRepo(db: Db) {
         blurhash: string;
         renditions: Record<string, unknown>;
       },
-    ): Promise<void> {
-      await db
+    ): Promise<boolean> {
+      // False once it is discarded (marked deleted, or gone) mid-render: the caller removes what
+      // it wrote, and the row stays deleted rather than coming back as ready.
+      const res = await db
         .updateTable('assets')
         .set({
           status: 'ready',
@@ -149,7 +242,9 @@ export function assetProcessingRepo(db: Db) {
           error: null,
         })
         .where('id', '=', assetId)
-        .execute();
+        .where('deletedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) > 0;
     },
 
     async markFailed(assetId: string, error: string): Promise<void> {
@@ -158,6 +253,78 @@ export function assetProcessingRepo(db: Db) {
         .set({ status: 'failed', error: error.slice(0, 200) })
         .where('id', '=', assetId)
         .execute();
+    },
+  };
+}
+
+// Worker side (D20): deletes, files and row, every look photo nothing holds that she discarded
+// (marked deleted by uploads.discard) or that has waited `olderThanHours` unattached (the app closed
+// before Discard, or the discard failed). Only uploads from the last `withinDays` are looked at, so
+// the photos on her looks aren't re-checked on every run forever.
+function staleCandidate(opts: { olderThanHours: number; withinDays: number }): RawBuilder<boolean> {
+  return sql<boolean>`(a.deleted_at is not null or (a.created_at < now() - make_interval(hours => ${opts.olderThanHours}) and a.created_at > now() - make_interval(days => ${opts.withinDays})))`;
+}
+
+export function staleUploadsRepo(db: Db) {
+  return {
+    // Keyset-paged by id.
+    due(opts: {
+      olderThanHours: number;
+      withinDays: number;
+      limit: number;
+      afterId?: string | undefined;
+    }) {
+      let q = db
+        .selectFrom('assets as a')
+        .select(['a.id', 'a.userId'])
+        .where('a.kind', '=', DISCARDABLE)
+        .where('a.userId', 'is not', null)
+        .where(staleCandidate(opts))
+        .where(unheld())
+        .orderBy('a.id')
+        .limit(opts.limit)
+        .$narrowType<{ userId: string }>();
+      if (opts.afterId) q = q.where('a.id', '>', opts.afterId);
+      return q.execute();
+    },
+
+    // One transaction: lock her row, delete it only while nothing holds it (an attach since `due`
+    // keeps it), then remove its files. A storage failure rolls the row back, so the next run
+    // tries again; a commit that fails after the files went leaves a row the next run finds.
+    async discard(
+      userId: UserId,
+      assetId: string,
+      opts: { olderThanHours: number; withinDays: number },
+      removeFiles: RemoveAssetFiles,
+    ): Promise<DiscardOutcome> {
+      try {
+        return await db.transaction().execute(async (trx) => {
+          const row = await trx
+            .selectFrom('assets as a')
+            .select('a.id')
+            .where('a.id', '=', assetId)
+            .where('a.userId', '=', userId)
+            .where('a.kind', '=', DISCARDABLE)
+            .where(staleCandidate(opts))
+            .forUpdate()
+            .executeTakeFirst();
+          if (!row) return 'not_found';
+          const gone = await trx
+            .deleteFrom('assets as a')
+            .where('a.id', '=', assetId)
+            .where('a.userId', '=', userId)
+            .where(unheld())
+            .returning('a.id')
+            .executeTakeFirst();
+          if (!gone) return 'held';
+          await removeFiles(userId, assetId);
+          return 'discarded';
+        });
+      } catch (err) {
+        // 23503: a foreign key still points at it. unheld() should have caught it first.
+        if ((err as { code?: string }).code === '23503') return 'held';
+        throw err;
+      }
     },
   };
 }

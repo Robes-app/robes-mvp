@@ -1,4 +1,5 @@
 import { AiError, type AiProvider, type InlineImage } from '@robes/ai';
+import { withPictureNote } from '@robes/ai/prompts/avatar';
 import {
   buildImagePrompt,
   FEATURE,
@@ -99,6 +100,8 @@ export async function drawSuggestedFrame(
     way: { title: string; eyebrow: string; scene: string };
     rack: readonly FrameRackPiece[];
     capability: 'image.hero' | 'image.secondary';
+    // Her note on the picture (D21): how it is drawn, never what is worn.
+    pictureNote?: string | null;
   },
 ): Promise<string> {
   const references: InlineImage[] = [];
@@ -133,18 +136,21 @@ export async function drawSuggestedFrame(
     const { image, usage } = await deps.ai.generateImage({
       feature,
       capability: opts.capability,
-      prompt: buildImagePrompt({
-        wearer: opts.wearer,
-        mode: opts.mode,
-        fallback: opts.fallback,
-        pieceLabel: opts.pieceLabel,
-        hasModel: Boolean(opts.model),
-        hasPiecePhoto: Boolean(opts.piecePhoto),
-        styleIcons: opts.styleIcons,
-        brief: opts.brief,
-        way: opts.way,
-        pieces,
-      }),
+      prompt: withPictureNote(
+        buildImagePrompt({
+          wearer: opts.wearer,
+          mode: opts.mode,
+          fallback: opts.fallback,
+          pieceLabel: opts.pieceLabel,
+          hasModel: Boolean(opts.model),
+          hasPiecePhoto: Boolean(opts.piecePhoto),
+          styleIcons: opts.styleIcons,
+          brief: opts.brief,
+          way: opts.way,
+          pieces,
+        }),
+        opts.pictureNote,
+      ),
       ...(references.length ? { references } : {}),
       aspectRatio: '4:5',
       signal: ctx.signal,

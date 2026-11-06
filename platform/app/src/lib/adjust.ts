@@ -198,6 +198,21 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     updateModel: () => {
       if (!busy) updateModel();
     },
+    // The AdjustSheet (D21): her words restyle the picture alone, never the pieces. The picture
+    // is drawn again at once with them, and they stay with the look for every later redraw.
+    picture: (words: string) => {
+      const note = words.trim();
+      if (!note || busy) return;
+      dispatch({ type: 'her', text: note });
+      dispatch({ type: 'work', text: d.dressing });
+      sawPending.current = false;
+      setDrawing(true);
+      editor.redraw(note).catch((err) => {
+        setDrawing(false);
+        dispatch({ type: 'settle' });
+        toast({ message: errorCopy(err) });
+      });
+    },
     // Save with the picture behind: it is drawn as the look is saved.
     drawForSave: () => {
       if (stale) updateModel(true);

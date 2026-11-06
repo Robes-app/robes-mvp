@@ -1,0 +1,103 @@
+'use client';
+
+import { queryKeys, useApiClient } from '@robes/api-client/react';
+import { type Look, lookStack } from '@robes/contracts';
+import {
+  EMPTY_STAGE,
+  type ImageStage,
+  sameCard,
+  stageChanged,
+  stageFront,
+} from '@robes/core/looks';
+import { useToast } from '@robes/ui';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import type { StageUpdate } from '@/components/looks/image-manager';
+import { errorCopy } from './error-copy';
+
+// The image stack she is working (D19, D20): what she added, took out, hid and left in front,
+// held until she accepts the look. `commit` writes it in an order the server's "one image always
+// remains" rule accepts at every step: adds, Robes' picture back, the cover, removals, Robes'
+// picture hidden. Native twin: mobile/src/features/looks/look-images.ts.
+export function useImageStage(look: Look) {
+  const api = useApiClient();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [stage, setStage] = useState<ImageStage>(EMPTY_STAGE);
+  const [committing, setCommitting] = useState(false);
+  const base = lookStack(look);
+  const changed = stageChanged(base, stage);
+  const discard = (assetIds: string[]) => {
+    for (const id of assetIds) {
+      void api.call('uploads.discard', { params: { id } }).catch(() => undefined);
+    }
+  };
+
+  const commit = async (): Promise<boolean> => {
+    if (!changed) return true;
+    setCommitting(true);
+    const params = { id: look.id };
+    try {
+      let latest = look;
+      const idFor = new Map<string, string>();
+      for (const assetId of stage.added) {
+        latest = await api.call('looks.images.add', { params, input: { assetId } });
+        const img = latest.images.find((i) => i.image.assetId === assetId);
+        if (img) idFor.set(assetId, img.id);
+      }
+      const hide = stage.robesHidden !== null && stage.robesHidden !== base.robesHidden;
+      if (hide && stage.robesHidden === false) {
+        latest = await api.call('looks.images.robes', { params, input: { hidden: false } });
+      }
+      const front = stageFront(base, stage);
+      if (front && !sameCard(front, base.cover)) {
+        const imageId =
+          front.kind === 'robes'
+            ? null
+            : front.kind === 'photo'
+              ? front.id
+              : (idFor.get(front.assetId) ?? null);
+        latest = await api.call('looks.images.cover', { params, input: { imageId } });
+      }
+      for (const imageId of stage.removed) {
+        latest = await api.call('looks.images.remove', { params: { id: look.id, imageId } });
+      }
+      if (hide && stage.robesHidden === true) {
+        latest = await api.call('looks.images.robes', { params, input: { hidden: true } });
+      }
+      queryClient.setQueryData(queryKeys.call('looks.get', { params }), latest);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
+      setStage(EMPTY_STAGE);
+      return true;
+    } catch (err) {
+      toast({ message: errorCopy(err) });
+      // What landed before the failure is re-read and the stage cleared, so a second try can
+      // never add the same photograph twice.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.call('looks.get', { params }) });
+      setStage(EMPTY_STAGE);
+      return false;
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  return {
+    stage,
+    // A photo taken back out before it was kept is let go of at once (D20); the hourly sweep
+    // catches any the app never got to.
+    update: ((fn) =>
+      setStage((s) => {
+        const next = fn(s);
+        discard(s.added.filter((a) => !next.added.includes(a)));
+        return next;
+      })) as StageUpdate,
+    changed,
+    committing,
+    commit,
+    // Discard: the photos she added and never kept go too.
+    reset: () => {
+      discard(stage.added);
+      setStage(EMPTY_STAGE);
+    },
+  };
+}

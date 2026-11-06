@@ -5,6 +5,7 @@ import {
   BALANCE_NOTE_MAX,
   BALANCES,
   LOOK_STATUSES,
+  PICTURE_NOTE_MAX,
   PROPOSAL_KEY_PATTERN,
 } from '@robes/core/looks';
 import { z } from 'zod';
@@ -198,6 +199,12 @@ export const Look = z.object({
   // Her photographs of the look, the one in front first (D13): `photo` is the first of these. Robes'
   // picture is `model`, never one of them. Defaulted across version skew.
   images: z.array(LookImage).default([]),
+  // She took Robes' picture off the stack (D19): kept, not destroyed, and `model` reads null until
+  // the next redraw lands and brings a fresh one back as the cover. Defaulted across skew.
+  robesHidden: z.boolean().default(false),
+  // Her note on how Robes' picture is drawn ("sleeves rolled up", D21): every redraw reads it, and
+  // it never changes the pieces. Her own words, verbatim. Defaulted across skew.
+  pictureNote: z.string().nullable().default(null),
   // True when the picture is Robes' frame: it holds through every state; edits re-draw it and
   // her model never replaces it.
   frame: z.boolean(),
@@ -303,6 +310,18 @@ export type LookPhotoInput = z.infer<typeof LookPhotoInput>;
 export const LookImageParams = z.object({ id: z.uuid(), imageId: z.uuid() });
 export const LookCoverInput = z.object({ imageId: z.uuid().nullable() });
 export type LookCoverInput = z.infer<typeof LookCoverInput>;
+// Robes' picture off the stack, or back on it (D19). Hidden, it is kept; a look always keeps one
+// image, so it can be hidden only behind a photograph of hers (409 look_needs_image).
+export const LookRobesInput = z.object({ hidden: z.boolean() });
+export type LookRobesInput = z.infer<typeof LookRobesInput>;
+
+// Redraw Robes' picture (renderOnModel, frame). `note` is the AdjustSheet's Send (D21): her words
+// on how the picture is drawn, kept on the look for every later redraw; an empty one clears it.
+// Absent, the look's own note stands. The pieces never change here.
+export const RedrawLookInput = z.object({
+  note: z.string().trim().max(PICTURE_NOTE_MAX).optional(),
+});
+export type RedrawLookInput = z.infer<typeof RedrawLookInput>;
 
 export const WearInput = z.object({ wornOn });
 export const Wear = z.object({

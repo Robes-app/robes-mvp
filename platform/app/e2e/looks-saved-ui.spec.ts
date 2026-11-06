@@ -171,11 +171,10 @@ test('removing a look can be undone', async ({ page }) => {
     await page.request.post('/api/v1/looks', { data: { name: 'Weekend', pieces: [] } })
   ).json();
   await page.goto(`/look/${look.id}`);
-  // Delete lives in Editing (D9): destructive text in danger, as on the phone, behind a confirm.
+  // Delete (D9) is destructive text in danger at the foot of Details (3e edits in place, D17),
+  // behind a confirm.
   await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveCount(0);
-  // + Add pieces opens the draft drawer in edit mode (D14), where Delete lives.
-  await page.getByRole('button', { name: '+ Add pieces' }).click();
-  await expect(page.getByTestId('draft-look')).toBeVisible();
+  await page.getByRole('tab', { name: 'Details' }).click();
   await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveClass(/text-danger/);
   await page.getByRole('button', { name: 'Delete this look' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
@@ -185,7 +184,7 @@ test('removing a look can be undone', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Weekend' })).toBeVisible();
 });
 
-test('the image stack (D13): a photograph joins behind Robes’ picture, a tap brings one to the front, Done keeps it', async ({
+test('the image stack (D19, D20): a photograph lands in focus, waits for Update look, and the card in front leads', async ({
   page,
 }) => {
   await signIn(page);
@@ -219,29 +218,35 @@ test('the image stack (D13): a photograph joins behind Robes’ picture, a tap b
   await page.getByTestId('saved-look-stack').click();
   const manager = page.getByTestId('image-manager');
   await expect(manager).toBeVisible();
+  // One card: the last one left has no ×.
+  await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
   await manager.locator('input[type="file"][aria-label="Add a photo"]').setInputFiles(PHOTO);
-  // The photograph joins behind Robes' picture; it can be removed, Robes' picture cannot.
-  await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(1, {
-    timeout: 30_000,
-  });
-  await expect
-    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).images.length)
-    .toBe(1);
-  // Bring her photograph to the front; Done keeps it as the record.
-  await manager.getByRole('button', { name: 'Photograph 1 leads the look' }).click();
+  // The photograph lands in the frame at once, and now each card has its × — Robes' picture too.
+  await expect(manager.getByTestId('image-card-added')).toBeInViewport({ timeout: 30_000 });
+  // ✓ straight away, while the strip may still be gliding to the new card: it still leads.
+  await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(2);
+  // Nothing is written until Update look (D20).
+  expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).images).toEqual([]);
+  // ✓ leaves the card in view in front; the photo shows it, and Update look keeps it.
   await page.getByTestId('image-manager-done').click();
   await expect(manager).toBeHidden();
+  await page.getByTestId('update-look').click();
   await expect
-    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).record)
-    .toBe('photo');
+    .poll(async () => {
+      const now = await (await api.get(`/api/v1/looks/${look.id}`)).json();
+      return [now.images.length, now.record];
+    })
+    .toEqual([1, 'photo']);
   await expect(page.getByTestId('saved-look-stack')).toContainText('1');
-  // Robes' picture back in front: her photograph stays in the stack.
+  // Hiding Robes' picture leaves her photograph as the only card: it keeps no ×.
   await page.getByTestId('saved-look-stack').click();
-  await manager.getByRole('button', { name: 'Robes’ picture leads the look' }).click();
+  await manager.getByRole('button', { name: 'Remove this image · Robes’ picture' }).click();
+  await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
   await page.getByTestId('image-manager-done').click();
+  await page.getByTestId('update-look').click();
   await expect
-    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).record)
-    .toBe('model');
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).robesHidden)
+    .toBe(true);
   expect(await seriousViolations(page)).toEqual([]);
 });
 
@@ -299,7 +304,7 @@ test('Details: the caption keeps on blur, Seasons picks the four seasons, Tags p
   expect(await seriousViolations(page)).toEqual([]);
 });
 
-test('editing a saved look: a swap is one tap behind Undo, and Update says Updated', async ({
+test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update look applies', async ({
   page,
 }) => {
   await signIn(page);
@@ -317,25 +322,30 @@ test('editing a saved look: a swap is one tap behind Undo, and Update says Updat
     })
   ).json();
   await page.goto(`/look/${look.id}`);
-  // At rest, each row carries the piece's own wears (beta's ledger).
-  await expect(page.getByTestId(`rack-row-${camel}`).getByText('0 wears')).toBeVisible();
-  // Edit look opens the draft drawer in edit mode (D14); the rack is worked there.
-  await page.getByRole('button', { name: 'Edit look' }).click();
-  const drawer = page.getByTestId('draft-look');
-  await expect(drawer.getByText('Edit look')).toBeVisible();
+  // 3e edits in place (D17): no Edit chip, the rows carry their swap and × discs, and nothing
+  // waits to be applied yet.
+  const look3e = page.getByTestId('saved-look');
+  await expect(page.getByRole('button', { name: 'Edit look' })).toHaveCount(0);
+  await expect(look3e.getByTestId('update-look')).toHaveCount(0);
   const picker = page.getByTestId('piece-picker');
-  await drawer.getByRole('button', { name: /^Swap / }).click();
+  await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
   await picker.getByRole('button', { name: 'Swap it in' }).click();
-  // The swap lands in the drawer; Undo puts the rack back.
-  await expect(drawer.getByTestId(`rack-row-${navy}`)).toBeVisible();
+  // The swap lands on the page; Undo puts the rack back.
+  await expect(look3e.getByTestId(`rack-row-${navy}`)).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(drawer.getByTestId(`rack-row-${camel}`)).toBeVisible();
-  await expect(drawer.getByTestId(`rack-row-${navy}`)).toHaveCount(0);
-  await drawer.getByRole('button', { name: /^Swap / }).click();
+  await expect(look3e.getByTestId(`rack-row-${camel}`)).toBeVisible();
+  await expect(look3e.getByTestId(`rack-row-${navy}`)).toHaveCount(0);
+  await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
   await picker.getByRole('button', { name: 'Swap it in' }).click();
-  await drawer.getByRole('button', { name: 'Update look' }).click();
+  // Leaving with the change unapplied asks first; Keep editing stays.
+  await page.getByTestId('saved-look-back').click();
+  const ask = page.getByRole('alertdialog', { name: 'Discard your changes?' });
+  await ask.getByRole('button', { name: 'Keep editing' }).click();
+  await expect(look3e.getByTestId(`rack-row-${navy}`)).toBeVisible();
+  // The pill under the prompt card applies it, and she stays on the look.
+  await look3e.getByTestId('update-look').click();
   await expect(page.getByText('Updated', { exact: true })).toBeVisible();
   await expect
     .poll(async () =>
