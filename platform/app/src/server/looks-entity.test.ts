@@ -15,6 +15,9 @@ const repos = {
     piecesFor: vi.fn(async () => []),
     wearStats: vi.fn(async () => []),
     pinnedDays: vi.fn(async (): Promise<{ lookId: string | null; dayDate: string }[]> => []),
+    imagesFor: vi.fn(
+      async (): Promise<{ id: string; lookId: string; assetId: string; position: number }[]> => [],
+    ),
   },
   assets: {
     getManyForUser: vi.fn(async (_u: unknown, ids: string[]) =>
@@ -53,6 +56,7 @@ const row = (o: Record<string, unknown> = {}) =>
     source: 'generated',
     originLookId: null,
     climateBand: 'year_round',
+    seasons: [],
     renderAssetId: null,
     renderStatus: null,
     renderKey: null,
@@ -75,7 +79,52 @@ const row = (o: Record<string, unknown> = {}) =>
     ...o,
   }) as never;
 
-beforeEach(() => assets.clear());
+beforeEach(() => {
+  assets.clear();
+  repos.looks.imagesFor.mockResolvedValue([]);
+});
+
+const IMG_1 = '55555555-5555-4555-8555-555555555555';
+const IMG_2 = '66666666-6666-4666-8666-666666666666';
+
+// The stack (Felix rebuild D13): her photographs lead `photo`; one whose renditions failed drops out.
+describe('a look’s image stack', () => {
+  it('reads her photographs in stack order, the first as the photograph', async () => {
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    assets.set(IMG_2, { id: IMG_2, status: 'ready' });
+    repos.looks.imagesFor.mockResolvedValue([
+      { id: IMG_1, lookId: LOOK, assetId: IMG_2, position: 0 },
+      { id: IMG_2, lookId: LOOK, assetId: PHOTO, position: 1 },
+    ]);
+    const [look] = await toLooks(USER, [row({ photoAssetId: IMG_2 })], NOW);
+    expect(look?.images.map((i) => [i.id, i.image.assetId, i.position])).toEqual([
+      [IMG_1, IMG_2, 0],
+      [IMG_2, PHOTO, 1],
+    ]);
+    expect(look).toMatchObject({ photo: { assetId: IMG_2 }, record: 'photo' });
+  });
+
+  it('drops a photograph whose renditions failed, and falls back to the row’s own photograph', async () => {
+    assets.set(IMG_2, { id: IMG_2, status: 'failed' });
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    repos.looks.imagesFor.mockResolvedValue([
+      { id: IMG_1, lookId: LOOK, assetId: IMG_2, position: 0 },
+    ]);
+    const [look] = await toLooks(USER, [row({ photoAssetId: PHOTO })], NOW);
+    expect(look?.images).toEqual([]);
+    expect(look?.photo?.assetId).toBe(PHOTO);
+  });
+
+  it('keeps another look’s photographs out', async () => {
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    repos.looks.imagesFor.mockResolvedValue([
+      { id: IMG_1, lookId: FRAME, assetId: PHOTO, position: 0 },
+    ]);
+    const [look] = await toLooks(USER, [row()], NOW);
+    expect(look?.images).toEqual([]);
+    expect(look?.photo).toBeNull();
+  });
+});
 
 describe('a look’s frame', () => {
   it('stays pending while a job draws it, and lets go of an abandoned claim', async () => {

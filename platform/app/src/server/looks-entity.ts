@@ -65,10 +65,12 @@ const CLAIM_MS = 10 * 60_000;
 
 export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now()): Promise<Look[]> {
   const ids = rows.map((r) => r.id);
+  const imageRows = await repos.looks.imagesFor(userId, ids);
   const renderIds = rows.flatMap((r) => {
     const ids = [r.frameAssetId, r.renderAssetId, r.photoAssetId];
     return ids.filter((id): id is string => id !== null);
   });
+  for (const r of imageRows) renderIds.push(r.assetId);
   const anchorIds = [...new Set(rows.flatMap((r) => (r.anchorPieceId ? [r.anchorPieceId] : [])))];
   const [pieceRows, stats, pinRows, renders, anchorRows] = await Promise.all([
     repos.looks.piecesFor(userId, ids),
@@ -118,7 +120,14 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       return img && img.status !== 'failed' ? img : null;
     };
     const model = usable(row.frameAssetId) ?? usable(row.renderAssetId);
-    const photo = usable(row.photoAssetId);
+    // Her photographs, the one in front first (D13); a photograph whose renditions failed drops
+    // out of the stack. `photo` is the first of them, else the single photograph of older rows.
+    const stack = imageRows.flatMap((r) => {
+      if (r.lookId !== row.id) return [];
+      const image = usable(r.assetId);
+      return image ? [{ id: r.id, image, position: r.position }] : [];
+    });
+    const photo = stack[0]?.image ?? usable(row.photoAssetId);
     const record: 'photo' | 'model' =
       row.recordImage === 'model' || row.recordImage === 'photo'
         ? row.recordImage
@@ -167,10 +176,12 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       source: row.source,
       originLookId: row.originLookId,
       climateBand: row.climateBand,
+      seasons: row.seasons,
       image,
       photo,
       model,
       record,
+      images: stack,
       frame: row.frameAssetId !== null,
       framePending,
       composedByRobes: ROBES_SOURCES.has(row.source) || proposals.length > 0,

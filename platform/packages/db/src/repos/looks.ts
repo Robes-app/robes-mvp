@@ -1,4 +1,6 @@
+import type { Season } from '@robes/core';
 import { type LookStatus, MAX_DRAFTS } from '@robes/core/looks';
+import { normaliseSeasons } from '@robes/core/wardrobe';
 import { sql, type Transaction } from 'kysely';
 import type { Db } from '../client';
 import type { DB } from '../database.types';
@@ -14,6 +16,7 @@ const LOOK_COLUMNS = [
   'source',
   'originLookId',
   'climateBand',
+  'seasons',
   'renderAssetId',
   'renderStatus',
   'renderKey',
@@ -48,7 +51,10 @@ export interface LookFields {
   // A name she typed; Robes' suggestion stays provisional until she accepts it (M4 task 6).
   name?: string | undefined;
   note?: string | null | undefined;
+  // The season as a band (older clients) or as seasons (D12); the database keeps the two in step,
+  // and seasons win when both are given.
   climateBand?: 'spring_summer' | 'autumn_winter' | 'year_round' | undefined;
+  seasons?: readonly Season[] | undefined;
   // The pieces Robes proposes (not hers yet), how each row is worn, and a draft's working notes.
   proposals?: readonly Record<string, unknown>[] | null | undefined;
   styling?: Record<string, string> | null | undefined;
@@ -71,9 +77,66 @@ export class DraftsFull extends Error {
   }
 }
 
+// A look's stack holds at most LOOK_IMAGES_MAX photographs (the position check in the database).
+export const LOOK_IMAGES_MAX = 20;
+export class LookImagesFull extends Error {
+  constructor() {
+    super('look_images_full');
+  }
+}
+
 const json = (v: unknown) => (v == null ? null : JSON.stringify(v));
 const emptyToNull = (v: Record<string, unknown> | readonly unknown[] | null | undefined) =>
   v == null || (Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0) ? null : v;
+
+// Her season, in whichever spelling she sent: seasons set the band (the trigger derives it), a
+// band alone sets the seasons the same way. Nothing sent leaves the row's own.
+function seasonColumns(fields: Pick<LookFields, 'climateBand' | 'seasons'>) {
+  if (fields.seasons !== undefined) {
+    return { seasons: normaliseSeasons(fields.seasons), climateSource: 'user' as const };
+  }
+  if (fields.climateBand !== undefined) {
+    return { climateBand: fields.climateBand, climateSource: 'user' as const };
+  }
+  return {};
+}
+
+// Keeps `photo_asset_id` the stack's first photograph, so code and phone builds from before the
+// stack read the one in front; a photograph in front is the record, none is Robes' picture.
+async function syncLeadPhoto(trx: Transaction<DB>, userId: UserId, lookId: string) {
+  const first = await trx
+    .selectFrom('lookImages')
+    .select('assetId')
+    .where('userId', '=', userId)
+    .where('lookId', '=', lookId)
+    .orderBy('position')
+    .limit(1)
+    .executeTakeFirst();
+  await trx
+    .updateTable('looks')
+    .set({
+      photoAssetId: first?.assetId ?? null,
+      ...(first
+        ? {}
+        : { recordImage: sql`case when record_image = 'photo' then null else record_image end` }),
+    })
+    .where('userId', '=', userId)
+    .where('id', '=', lookId)
+    .execute();
+}
+
+// Positions run 0..n-1 in the order given.
+async function renumberImages(trx: Transaction<DB>, userId: UserId, ids: readonly string[]) {
+  for (const [position, id] of ids.entries()) {
+    await trx
+      .updateTable('lookImages')
+      .set({ position })
+      .where('userId', '=', userId)
+      .where('id', '=', id)
+      .where('position', '!=', position)
+      .execute();
+  }
+}
 
 // Wear dates are calendar days: read as text so no timezone can move them.
 const wornOnText = sql<string>`worn_on::text`;
@@ -443,8 +506,7 @@ export function looksRepo(db: Db) {
             name: look.name,
             nameProvisional: look.nameProvisional,
             note: look.note ?? null,
-            climateBand: look.climateBand ?? 'year_round',
-            climateSource: look.climateBand ? 'user' : 'derived',
+            ...seasonColumns(look),
             source: look.source ?? 'manual',
             originLookId: look.originLookId ?? null,
             renderAssetId: look.renderAssetId ?? null,
@@ -503,9 +565,7 @@ export function looksRepo(db: Db) {
           .set({
             ...(fields.name !== undefined ? { name: fields.name, nameProvisional: false } : {}),
             ...(fields.note !== undefined ? { note: fields.note } : {}),
-            ...(fields.climateBand !== undefined
-              ? { climateBand: fields.climateBand, climateSource: 'user' }
-              : {}),
+            ...seasonColumns(fields),
             ...(fields.proposals !== undefined
               ? { proposals: json(emptyToNull(fields.proposals)) }
               : {}),
@@ -678,17 +738,149 @@ export function looksRepo(db: Db) {
       });
     },
 
-    // Her own photograph of the look. Both the look and the asset must be hers; the composite
-    // key means the database refuses the pairing even if a caller ever got past this filter.
-    setPhoto(userId: UserId, lookId: string, photoAssetId: string) {
+    // Her photographs of a look, the one in front first (D13).
+    imagesFor(userId: UserId, lookIds: readonly string[]) {
+      if (lookIds.length === 0) return Promise.resolve([]);
       return db
-        .updateTable('looks')
-        .set({ photoAssetId })
+        .selectFrom('lookImages')
+        .select(['id', 'lookId', 'assetId', 'position'])
         .where('userId', '=', userId)
-        .where('id', '=', lookId)
-        .where('deletedAt', 'is', null)
-        .returning(LOOK_SELECT)
-        .executeTakeFirst();
+        .where('lookId', 'in', [...lookIds])
+        .orderBy('lookId')
+        .orderBy('position')
+        .execute();
+    },
+
+    // A photograph joins the back of the stack; the same asset twice is the one row. Both the look
+    // and the asset must be hers: the composite keys refuse the pairing even if a caller ever got
+    // past this filter. `lead` brings it to the front (the camera on a look: the new photograph
+    // is the one she means).
+    addImage(userId: UserId, lookId: string, assetId: string, opts: { lead?: boolean } = {}) {
+      return db.transaction().execute(async (trx) => {
+        const look = await trx
+          .selectFrom('looks')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .where('deletedAt', 'is', null)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!look) return undefined;
+        const rows = await trx
+          .selectFrom('lookImages')
+          .select(['id', 'assetId'])
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId)
+          .orderBy('position')
+          .execute();
+        let row = rows.find((r) => r.assetId === assetId);
+        if (!row) {
+          if (rows.length >= LOOK_IMAGES_MAX) throw new LookImagesFull();
+          row = await trx
+            .insertInto('lookImages')
+            .values({ userId, lookId, assetId, position: rows.length })
+            .returning(['id', 'assetId'])
+            .executeTakeFirstOrThrow();
+          rows.push(row);
+        }
+        if (opts.lead) {
+          const { id } = row;
+          await renumberImages(trx, userId, [
+            id,
+            ...rows.filter((r) => r.id !== id).map((r) => r.id),
+          ]);
+          await trx
+            .updateTable('looks')
+            .set({ recordImage: 'photo' })
+            .where('userId', '=', userId)
+            .where('id', '=', lookId)
+            .execute();
+        }
+        await syncLeadPhoto(trx, userId, lookId);
+        return trx
+          .selectFrom('looks')
+          .select(LOOK_SELECT)
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .executeTakeFirst();
+      });
+    },
+
+    // A photograph leaves the stack; the rest close up. Robes' picture is not a row here, so it
+    // can never be removed this way. Undefined when the look or the photograph is not hers.
+    removeImage(userId: UserId, lookId: string, imageId: string) {
+      return db.transaction().execute(async (trx) => {
+        const gone = await trx
+          .deleteFrom('lookImages')
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId)
+          .where('id', '=', imageId)
+          .executeTakeFirst();
+        if (gone.numDeletedRows === 0n) return undefined;
+        const rest = await trx
+          .selectFrom('lookImages')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId)
+          .orderBy('position')
+          .execute();
+        await renumberImages(
+          trx,
+          userId,
+          rest.map((r) => r.id),
+        );
+        await syncLeadPhoto(trx, userId, lookId);
+        return trx
+          .selectFrom('looks')
+          .select(LOOK_SELECT)
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .where('deletedAt', 'is', null)
+          .executeTakeFirst();
+      });
+    },
+
+    // The front of the stack: one of her photographs leads the look (and is the record), or Robes'
+    // picture does (`null`) and her photographs keep their order behind it.
+    setCover(userId: UserId, lookId: string, imageId: string | null) {
+      return db.transaction().execute(async (trx) => {
+        const look = await trx
+          .selectFrom('looks')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .where('deletedAt', 'is', null)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!look) return undefined;
+        if (imageId !== null) {
+          const rows = await trx
+            .selectFrom('lookImages')
+            .select('id')
+            .where('userId', '=', userId)
+            .where('lookId', '=', lookId)
+            .orderBy('position')
+            .execute();
+          if (!rows.some((r) => r.id === imageId)) return undefined;
+          await renumberImages(trx, userId, [
+            imageId,
+            ...rows.filter((r) => r.id !== imageId).map((r) => r.id),
+          ]);
+        }
+        await trx
+          .updateTable('looks')
+          .set({ recordImage: imageId === null ? 'model' : 'photo' })
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .execute();
+        await syncLeadPhoto(trx, userId, lookId);
+        return trx
+          .selectFrom('looks')
+          .select(LOOK_SELECT)
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .executeTakeFirst();
+      });
     },
 
     // One look's record, newest first: the day and the pieces she wore that day, named from the

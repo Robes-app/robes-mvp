@@ -55,6 +55,12 @@ describe('data export (SEC-81)', () => {
       pieces: [],
     });
     await repos.looks.wear(ann, look.id, '2026-09-24');
+    const photo = await repos.assets.createPending(ann, {
+      kind: 'look_photo',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    await repos.looks.addImage(ann, look.id, photo.id);
     await repos.plan.pin(ann, look.id, ['2026-10-01'], { slot: 'day' });
     await repos.plan.nameDay(ann, '2026-10-02', 'Ann’s gallery night');
     await repos.plan.nameDay(bea, '2026-10-02', 'Bea’s day');
@@ -80,6 +86,9 @@ describe('data export (SEC-81)', () => {
     expect(doc.user?.email).toBe(`${ann}@test.dev`);
     expect(doc.pieces.map((p) => [p.label, p.material])).toEqual([['Niall coat', 'tweed']]);
     expect(doc.wears[0]?.wornOn).toBe('2026-09-24');
+    expect(doc.lookImages).toEqual([
+      expect.objectContaining({ lookId: look.id, assetId: photo.id, position: 0 }),
+    ]);
     // The wear filed the look on its day too, so the plan holds both days, as text.
     expect(doc.plan.map((p) => p.dayDate).sort()).toEqual(['2026-09-24', '2026-10-01']);
     const json = JSON.stringify(doc);

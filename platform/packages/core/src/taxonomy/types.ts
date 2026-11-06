@@ -14,6 +14,11 @@ export type LegacyCategory = (typeof LEGACY_CATEGORIES)[number];
 export const SEASON_BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 export type SeasonBand = (typeof SEASON_BANDS)[number];
 
+// The four seasons a look or a piece is for (Felix rebuild D12); none picked is year round. The
+// band is derived from them (`seasonBandOf` in @robes/core/wardrobe) for every older reader.
+export const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
+export type Season = (typeof SEASONS)[number];
+
 export interface TaxonomyGroup {
   sheetL1: string;
   l2: string;

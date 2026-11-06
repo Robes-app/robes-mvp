@@ -1,5 +1,6 @@
-import { resolveTaxonomy, type SeasonBand } from '@robes/core';
+import { resolveTaxonomy, type Season, type SeasonBand } from '@robes/core';
 import { familyShadeIds, shade, shadeByName } from '@robes/core/colour';
+import { normaliseSeasons } from '@robes/core/wardrobe';
 import {
   type ExpressionBuilder,
   type Insertable,
@@ -33,6 +34,7 @@ export const PIECE_COLUMNS = [
   'status',
   'heroPosition',
   'seasonBand',
+  'seasons',
   'seasonSource',
   'price',
   'currency',
@@ -54,6 +56,8 @@ export interface PieceFields {
   brand?: string | null;
   notes?: string | null;
   seasonBand?: SeasonBand;
+  // The seasons she picked (D12); they win over a band sent beside them.
+  seasons?: readonly Season[];
   price?: number | null;
   currency?: string | null;
   size?: string | null;
@@ -134,14 +138,22 @@ async function placeHero(
 type PieceColumns = Updateable<WardrobeItems>;
 
 function withTaxonomy(fields: PieceFields): PieceColumns {
-  const out: PieceColumns = { ...fields };
+  const { seasons, ...rest } = fields;
+  const out: PieceColumns = { ...rest };
   if (fields.categoryL2 !== undefined) {
     const tax = fields.categoryL2 ? resolveTaxonomy(fields.categoryL2, fields.categoryL3) : null;
     out.category = tax?.category ?? 'Other';
     out.categoryL2 = tax?.categoryL2 ?? null;
     out.categoryL3 = tax?.categoryL3 ?? null;
   }
-  if (fields.seasonBand !== undefined) out.seasonSource = 'user';
+  if (seasons !== undefined) {
+    // The database derives the band from the seasons; a band sent beside them is set aside.
+    out.seasons = normaliseSeasons(seasons);
+    delete out.seasonBand;
+    out.seasonSource = 'user';
+  } else if (fields.seasonBand !== undefined) {
+    out.seasonSource = 'user';
+  }
   // `color` stays the shade's display name, so every reader of the plain word agrees with it.
   if (fields.colourShade) out.color = shade(fields.colourShade)?.name ?? fields.color ?? null;
   return out;
