@@ -32,8 +32,10 @@ Sources:
 | 7 | The draft: DraftLook's anatomy on `DraftPage`, AdjustSheet, DescribeSheet, WardrobePicker (one draft page, one thread, the picture drawn only when she asks). | |
 | 8 | Wardrobe piece, NotificationsSheet, SettingsView. | |
 
-## Open questions
+## Decisions (Annie, 2026-11-06, continued)
 
-1. Where Delete lives on a saved look once the red Delete text goes (Felix keeps `danger` to a destructive reveal). Proposed: in the look's edit mode.
-2. Where the `Robes model` tag (5 Nov) goes: Felix has no tag on a saved look. Proposed: the model is chosen through ModelStack → ModelPicker; the adjust disc opens AdjustSheet.
-3. The worn mark on the week strip: Felix's CSS draws `ink-soft`, its README says `warm-past`. Proposed: `warm-past`.
+| # | Decision |
+|---|---|
+| D9 | Delete on a saved look moves into the look's edit mode (Felix keeps `danger` to a destructive reveal). |
+| D10 | The `Robes model` tag (5 Nov) is replaced by the ModelPicker control at the top left of the photo (ModelStack). Once she has made her digital twin, it is not shown. |
+| D11 | The week strip's worn mark is `warm-past`. |
