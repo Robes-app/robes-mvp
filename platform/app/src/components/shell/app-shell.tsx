@@ -146,9 +146,9 @@ export function AppShell({
           always. The native twin is mobile/src/components/TabScreen.tsx. */}
       <header
         data-scrolled={scrolled ? 'true' : undefined}
-        className={`sticky top-0 z-40 border-hairline border-b-[0.5px] bg-nav-glass backdrop-blur-nav ${pushed && !back ? 'max-md:hidden' : ''}`}
+        className={`sticky top-0 z-40 box-border h-16 border-hairline border-b-[0.5px] bg-nav-glass backdrop-blur-nav ${pushed && !back ? 'max-md:hidden' : ''}`}
       >
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-6 md:px-4">
+        <div className="mx-auto flex h-full max-w-5xl items-center gap-2 px-6 md:px-4">
           {/* A pushed page's back pill: below 768 it stands where the wordmark sits, one header row;
               from 768 the bar keeps the wordmark and the pill heads the page (beta's #rb-backpill and
               .rb-ret). Both are drawn and CSS picks one, so the server render is final; the other is

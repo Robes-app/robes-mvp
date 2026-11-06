@@ -54,7 +54,11 @@ export function TabScreen({
         className="border-hairline bg-bg"
         style={{ borderBottomWidth: FINE_EDGE }}
       >
-        <View className="h-16 flex-row items-center justify-between px-6">
+        {/* 64 with the hairline inside it, as Felix draws the bar. */}
+        <View
+          className="flex-row items-center justify-between px-6"
+          style={{ height: 64 - FINE_EDGE }}
+        >
           <Wordmark accessibilityLabel={ui.wordmark} />
           <View className="flex-row items-center gap-1.5">
             <Bell />
