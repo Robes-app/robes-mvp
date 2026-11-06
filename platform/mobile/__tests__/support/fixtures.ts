@@ -95,6 +95,7 @@ export function look(overrides: Partial<Look> = {}): Look {
     originLookId: null,
     climateBand: 'year_round',
     seasons: [],
+    tags: [],
     image: null,
     photo: null,
     model: null,

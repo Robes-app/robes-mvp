@@ -28,6 +28,7 @@ export {
 } from './SegmentedControl';
 export { Sheet, type SheetProps } from './Sheet';
 export { Skeleton, type SkeletonProps } from './Skeleton';
+export { OptionList, OptionRow, Subview } from './Subview';
 export {
   appCaps,
   FINE_EDGE,

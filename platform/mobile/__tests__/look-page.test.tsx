@@ -26,8 +26,8 @@ test('a suggested name is renamed with the pencil, never a "Keep this name" line
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
   expect(await screen.findByText('Camel coat, styled')).toBeTruthy();
-  // Saved look is said once, over the picture; the suggestion line is gone (27 Oct).
-  expect(screen.getAllByText(lookbook.eyebrow.saved)).toHaveLength(1);
+  // No suggestion line, no eyebrow over the picture (Felix 3e keeps the photo bare).
+  expect(screen.queryByText(lookbook.eyebrow.saved)).toBeNull();
   expect(screen.queryByText('Robes’ suggestion')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Keep this name' })).toBeNull();
 
@@ -65,7 +65,7 @@ test('the diary on the picture opens the one diary drawer and pins the chosen lo
     [`POST /plan/looks/${LOOK_ID}/days`]: { entries: [] },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.card.diary }));
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.schedule }));
   const [, tomorrow] = nextDays(2);
   await fireEvent.press(await screen.findByLabelText(longDate(tomorrow ?? '')));
   await fireEvent.press(screen.getByRole('button', { name: lookbook.diary.put }));
@@ -102,7 +102,7 @@ test('a day already carrying the look opens that day from the drawer (L7)', asyn
     },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.card.diary }));
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.schedule }));
   await fireEvent.press(await screen.findByLabelText(longDate(tomorrow)));
   await act(async () => {
     await fireEvent.press(await screen.findByRole('button', { name: lookbook.diary.already }));
@@ -124,7 +124,7 @@ test('every wear on the look marks its day, not only the last (L9)', async () =>
     'GET /plan': { days: [] },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.card.diary }));
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.schedule }));
   await fireEvent.press(await screen.findByLabelText(lookbook.diary.prevMonth));
   await fireEvent.press(await screen.findByLabelText(longDate(earlier)));
   await waitFor(() =>
@@ -139,7 +139,12 @@ test('the record logs a day through the same drawer', async () => {
     'GET /plan': { days: [] },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: looks.page.wears.addDate }));
+  // Details › Worn, then "+ Add a date" (Felix WornView): the one drawer that logs a date.
+  await fireEvent.press(await screen.findByRole('tab', { name: lookbook.savedLook.tabs.details }));
+  await fireEvent.press(await screen.findByTestId('details-worn'));
+  await fireEvent.press(
+    await screen.findByRole('button', { name: lookbook.savedLook.wornView.add }),
+  );
   // The same drawer, named for the look — never a second way to log a date.
   expect(await screen.findByLabelText(lookbook.diary.prevMonth)).toBeTruthy();
 });
@@ -209,9 +214,10 @@ test('the saved look says the day it is pinned for, each piece its wears, each w
     ),
   ).toBeTruthy();
   expect(screen.getByText(lookbook.meta.wears(4))).toBeTruthy();
+  // The wears live behind Details › Worn (Felix 3e), each with its weekday.
+  await fireEvent.press(screen.getByRole('tab', { name: lookbook.savedLook.tabs.details }));
+  await fireEvent.press(await screen.findByTestId('details-worn'));
   expect(await screen.findByText('Tue 8 Sep')).toBeTruthy();
-  // Delete this look is destructive text, as on the web.
-  expect(screen.getByText(looks.page.remove).props.className).toContain('text-danger');
 });
 
 test('editing a saved look, a swap lands on one tap behind Undo; Update says Updated', async () => {
@@ -228,7 +234,7 @@ test('editing a saved look, a swap lands on one tap behind Undo; Update says Upd
     'GET /plan': { from: localDate(), to: localDate(), days: [] },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.bar.editLook }));
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.edit }));
   // Editing hides the ledger: the rows swap and remove.
   expect(screen.queryByText(lookbook.meta.wears(0))).toBeNull();
   await fireEvent.press(
@@ -266,5 +272,7 @@ test('opened to edit, the look starts in Editing', async () => {
   });
   await renderWithApi(<LookDetail id={LOOK_ID} edit />);
   expect(await screen.findByRole('button', { name: lookbook.bar.update })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: lookbook.bar.editLook })).toBeNull();
+  expect(screen.queryByRole('button', { name: lookbook.savedLook.edit })).toBeNull();
+  // Delete this look is destructive text, as on the web, and lives in Editing (D9).
+  expect(screen.getByText(looks.page.remove).props.className).toContain('text-danger');
 });

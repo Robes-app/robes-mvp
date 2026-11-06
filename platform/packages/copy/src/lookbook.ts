@@ -126,6 +126,71 @@ export const lookbook = {
     diary: 'Put this look in the diary',
     delete: 'Delete this look',
   },
+  // The saved look as Felix 3e (plan 2026-11-06 D8–D10): the photo with its three discs, Pieces ·
+  // Details, and one Schedule look. Web components/looks/saved-look.tsx and look-details.tsx;
+  // native features/looks/SavedLook.tsx and LookDetails.tsx.
+  savedLook: {
+    tabs: { pieces: 'Pieces', details: 'Details' },
+    back: 'Back',
+    adjust: 'Adjust model image',
+    // The image stack badge: the count of her photographs, or + before the first.
+    images: 'Images of this look',
+    schedule: 'Schedule look',
+    edit: 'Edit look',
+    // Editing's foot (D9): Delete is a destructive reveal, asked before it runs.
+    deleteTitle: 'Delete this look?',
+    deleteBody: 'It leaves your Lookbook and the days it is on.',
+    delete: 'Delete',
+    keep: 'Keep it',
+    // The image manager: a strip of cards over the photo until Done.
+    manager: {
+      title: 'Images of this look',
+      robes: 'Robes’ picture',
+      photo: (n: number): string => `Photograph ${n}`,
+      add: 'Add a photo',
+      remove: 'Remove this image',
+      lead: (what: string): string => `${what} leads the look`,
+      done: 'Done',
+    },
+    details: {
+      tags: 'Tags',
+      seasons: 'Seasons',
+      worn: 'Worn',
+      caption: 'Caption',
+      none: 'None',
+      yearRound: 'Year round',
+      notWorn: 'Not worn yet',
+      // "5 times · last 27 Oct"
+      wornSummary: (n: number, last: string | null): string =>
+        `${n === 1 ? '1 time' : `${n} times`}${last ? ` · last ${last}` : ''}`,
+      editCaption: 'Edit the caption',
+      captionPlaceholder: 'Add a caption',
+      clearCaption: 'Clear the caption',
+      saveCaption: 'Keep the caption',
+    },
+    tagsView: {
+      title: 'Tags',
+      add: 'Add a tag',
+      keep: 'Keep the tag',
+      toggle: (tag: string): string => `Tag it ${tag}`,
+    },
+    seasonsView: {
+      title: 'Seasons',
+      names: {
+        spring: 'Spring',
+        summer: 'Summer',
+        autumn: 'Autumn',
+        winter: 'Winter',
+      } as const,
+      yearRound: 'Year round',
+    },
+    wornView: {
+      title: (n: number): string =>
+        n === 0 ? 'Worn' : n === 1 ? 'Worn · 1 time' : `Worn · ${n} times`,
+      none: 'Not worn yet',
+      add: '+ Add a date',
+    },
+  },
   bar: {
     save: 'Save',
     saveToLookbook: 'Save to lookbook',

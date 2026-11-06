@@ -299,63 +299,6 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
   );
 }
 
-// The saved look's rack, Editing and its thread (5a–5e; plan 2026-11-03 D6): her words edit the
-// rack at once, the picture falls behind, and ↻ Update look commits the rack and draws it again.
-export function SavedRack({
-  look,
-  editor,
-  adjust,
-}: {
-  look: Look;
-  editor: Editor;
-  adjust: Adjust;
-}) {
-  return (
-    <>
-      <Rack look={look} editor={editor} editable={editor.editing} />
-      {editor.rack.rows.length > 0 ? <AdjustDock adjust={adjust} name={look.name} /> : null}
-      {/* The look's one bar, held at the foot: Edit look, or Done and Update while she works.
-          Fixed above the tab bar on a phone, at the foot of the window on the web. */}
-      <div
-        // The look is a pushed view on a phone, so nothing sits under the bar.
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
-        data-testid="look-bar"
-      >
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-end gap-3 px-4 py-3">
-          {editor.editing ? (
-            <>
-              <Button variant="quiet" onClick={editor.discard}>
-                {editor.dirty ? copy.bar.discard : copy.bar.done}
-              </Button>
-              <Button
-                variant="primary"
-                disabled={!editor.dirty && !adjust.stale}
-                loading={editor.saving}
-                onClick={() =>
-                  void editor.update().then((ok) => {
-                    if (ok) adjust.drawForSave();
-                  })
-                }
-              >
-                {adjust.stale ? `↻ ${copy.bar.update}` : copy.bar.update}
-              </Button>
-            </>
-          ) : (
-            // Beta's size and case: a small hairline pill in sentence case (its hit area stays 44).
-            <button
-              type="button"
-              onClick={editor.startEditing}
-              className="relative min-h-9 rounded-pill border border-border-control px-4 font-sans text-ink text-sm after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] hover:border-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-              {look.pieces.length || look.proposals.length ? copy.bar.editLook : copy.bar.addPieces}
-            </button>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
-
 // The native twin builds the same line in LookDetail.tsx.
 export function savedMeta(look: Look, rows: number, today: string): string {
   return copy.meta.saved({ ...lookFacts(look, rows), pinnedFor: pinnedFor(look.pinnedOn, today) });

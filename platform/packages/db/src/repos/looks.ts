@@ -738,6 +738,69 @@ export function looksRepo(db: Db) {
       });
     },
 
+    // Her tags on each look (Details › Tags), oldest first.
+    async tagsFor(userId: UserId, lookIds: readonly string[]): Promise<Map<string, string[]>> {
+      if (lookIds.length === 0) return new Map();
+      const rows = await db
+        .selectFrom('tagLooks')
+        .innerJoin('tags', (j) =>
+          j.onRef('tags.id', '=', 'tagLooks.tagId').onRef('tags.userId', '=', 'tagLooks.userId'),
+        )
+        .select(['tagLooks.lookId', 'tags.label'])
+        .where('tagLooks.userId', '=', userId)
+        .where('tagLooks.lookId', 'in', [...lookIds])
+        .where('tags.deletedAt', 'is', null)
+        .orderBy('tagLooks.createdAt')
+        .execute();
+      const out = new Map<string, string[]>();
+      for (const r of rows) out.set(r.lookId, [...(out.get(r.lookId) ?? []), r.label]);
+      return out;
+    },
+
+    // Her tags on a look, replaced as a set: a label she types joins her tag namespace (the
+    // same `wear_for` tags her pieces wear); a tag not in the set comes off this look only.
+    // False when the look is not hers, and nothing is written.
+    async setTags(userId: UserId, lookId: string, labels: readonly string[]): Promise<boolean> {
+      const clean = [...new Set(labels.map((l) => l.trim()).filter(Boolean))].slice(0, 6);
+      return db.transaction().execute(async (tx) => {
+        const owns = await tx
+          .selectFrom('looks')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .where('deletedAt', 'is', null)
+          .executeTakeFirst();
+        if (!owns) return false;
+        const ids: string[] = [];
+        for (const label of clean) {
+          await tx
+            .insertInto('tags')
+            .values({ userId, kind: 'wear_for', label, isSeed: false })
+            .onConflict((oc) => oc.columns(['userId', 'kind', 'slug']).doNothing())
+            .execute();
+          const tag = await tx
+            .selectFrom('tags')
+            .select('id')
+            .where('userId', '=', userId)
+            .where('kind', '=', 'wear_for')
+            .where(sql`slug`, '=', sql`private.tag_slug(${label})`)
+            .executeTakeFirst();
+          if (tag) ids.push(tag.id);
+        }
+        let drop = tx.deleteFrom('tagLooks').where('userId', '=', userId).where('lookId', '=', lookId);
+        if (ids.length) drop = drop.where('tagId', 'not in', ids);
+        await drop.execute();
+        if (ids.length) {
+          await tx
+            .insertInto('tagLooks')
+            .values(ids.map((tagId) => ({ userId, lookId, tagId, source: 'user' })))
+            .onConflict((oc) => oc.columns(['tagId', 'lookId']).doNothing())
+            .execute();
+        }
+        return true;
+      });
+    },
+
     // Her photographs of a look, the one in front first (D13).
     imagesFor(userId: UserId, lookIds: readonly string[]) {
       if (lookIds.length === 0) return Promise.resolve([]);

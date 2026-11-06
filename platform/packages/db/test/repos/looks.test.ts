@@ -224,6 +224,19 @@ describe('looks repo', () => {
     expect((await looks.imagesFor(ann, [look.id])).length).toBe(LOOK_IMAGES_MAX);
   });
 
+  // Her tags on a look (Details › Tags), in the namespace her pieces share.
+  it('tags a look with her own labels, replaced as a set, to its owner only', async () => {
+    const look = await create(ann, [coat], 'Tagged');
+    expect(await looks.setTags(ann, look.id, ['Work', ' work ', 'Weekend casual'])).toBe(true);
+    expect((await looks.tagsFor(ann, [look.id])).get(look.id)).toEqual(['Work', 'Weekend casual']);
+    expect(await looks.setTags(ann, look.id, ['Work'])).toBe(true);
+    expect((await looks.tagsFor(ann, [look.id])).get(look.id)).toEqual(['Work']);
+    expect(await looks.setTags(bea, look.id, ['Hers'])).toBe(false);
+    expect(await looks.tagsFor(bea, [look.id])).toEqual(new Map());
+    expect(await looks.setTags(ann, look.id, [])).toBe(true);
+    expect((await looks.tagsFor(ann, [look.id])).get(look.id)).toBeUndefined();
+  });
+
   // Seasons (D12): the four seasons she picks, and the band every older reader still sees.
   it('spells the season as seasons and as the band, whichever she sent', async () => {
     const look = await looks.create(ann, {

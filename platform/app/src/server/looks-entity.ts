@@ -72,12 +72,13 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
   });
   for (const r of imageRows) renderIds.push(r.assetId);
   const anchorIds = [...new Set(rows.flatMap((r) => (r.anchorPieceId ? [r.anchorPieceId] : [])))];
-  const [pieceRows, stats, pinRows, renders, anchorRows] = await Promise.all([
+  const [pieceRows, stats, pinRows, renders, anchorRows, tags] = await Promise.all([
     repos.looks.piecesFor(userId, ids),
     repos.looks.wearStats(userId, ids),
     repos.looks.pinnedDays(userId, ids),
     repos.assets.getManyForUser(userId, renderIds),
     Promise.all(anchorIds.map((id) => repos.wardrobe.get(userId, id))),
+    repos.looks.tagsFor(userId, ids),
   ]);
   const [pieces, anchorPieces] = await Promise.all([
     toPieces(userId, pieceRows),
@@ -177,6 +178,7 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       originLookId: row.originLookId,
       climateBand: row.climateBand,
       seasons: row.seasons,
+      tags: tags.get(row.id) ?? [],
       image,
       photo,
       model,

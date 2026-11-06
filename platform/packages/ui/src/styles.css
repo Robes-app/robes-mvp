@@ -28,6 +28,18 @@
       transform: translateY(100%);
     }
   }
+  /* Felix's subview: in from the right over 0.28s. */
+  @keyframes robes-slide-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  /* Felix's ImageManager: the strip zooms in from 1.26× over 0.26s. */
+  @keyframes robes-zoom-in {
+    from {
+      transform: scale(1.26);
+    }
+  }
   /* The scanner over a piece while its looks compose: top to bottom and back. */
   @keyframes robes-scan {
     from {
