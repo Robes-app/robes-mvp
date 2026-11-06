@@ -123,11 +123,13 @@ export function Heading({
 }
 
 export interface EyebrowProps extends HTMLAttributes<HTMLParagraphElement> {
+  // `ink-soft` by default; a sheet's eyebrow is the rose for small text (`warm`).
+  tone?: TextTone;
   children?: ReactNode;
 }
 
-// Felix's eyebrow: 10/500 caps at 0.24em in `ink-soft`. Author in sentence case; the style
-// uppercases it (brand-and-design.md §1). Twin of ui-native Text.tsx Eyebrow.
-export function Eyebrow({ className, ...rest }: EyebrowProps) {
-  return <p {...rest} className={cn('type-eyebrow text-ink-muted', className)} />;
+// Felix's eyebrow: 10/500 caps at 0.24em. Author in sentence case; the style uppercases it
+// (brand-and-design.md §1). Twin of ui-native Text.tsx Eyebrow.
+export function Eyebrow({ tone = 'muted', className, ...rest }: EyebrowProps) {
+  return <p {...rest} className={cn('type-eyebrow', tones[tone], className)} />;
 }

@@ -1,3 +1,4 @@
+export { AlertDialog, type AlertDialogAction, type AlertDialogProps } from './AlertDialog';
 export { Avatar, type AvatarProps, initials } from './Avatar';
 export {
   Button,
