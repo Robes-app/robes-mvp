@@ -87,7 +87,7 @@ export function ModelView() {
               type="button"
               onClick={selfie.start}
               disabled={selfie.busy}
-              className={`flex min-h-[62px] w-full items-center gap-3.5 rounded-soft border border-border-warm border-dashed px-4 py-3 text-left ${focus}`}
+              className={`flex min-h-[62px] w-full items-center gap-3.5 rounded-soft border border-warm-line border-dashed px-4 py-3 text-left ${focus}`}
               data-testid="twin-add-selfie"
             >
               <Icon name="camera" size={20} className="shrink-0 text-ink-muted" />
@@ -195,7 +195,7 @@ function ModelStage({
         ) : null}
         {onRobes ? (
           // R8: the tag, bottom-left, on glass.
-          <p className="absolute bottom-4 left-4 flex h-7 items-center gap-2 rounded-pill bg-glass px-3 backdrop-blur-[22px]">
+          <p className="absolute bottom-4 left-4 flex h-7 items-center gap-2 rounded-pill bg-veil px-3 backdrop-blur-[22px]">
             <span aria-hidden className="size-1.5 rounded-pill bg-ink-faint" />
             <span className="app-caps text-ink">{tw.robesModel}</span>
           </p>
@@ -215,7 +215,7 @@ function ModelStage({
           // The chip on the stage while she is drawn (legacy .mv-photo-busy).
           <p
             role="status"
-            className="absolute top-[calc(env(safe-area-inset-top)+14px)] right-3.5 flex h-7 items-center rounded-pill bg-glass px-3 backdrop-blur-[22px] motion-safe:animate-pulse"
+            className="absolute top-[calc(env(safe-area-inset-top)+14px)] right-3.5 flex h-7 items-center rounded-pill bg-veil px-3 backdrop-blur-[22px] motion-safe:animate-pulse"
           >
             <span className="app-caps text-ink">{chip}</span>
           </p>
@@ -227,7 +227,7 @@ function ModelStage({
             aria-label={tw.retake}
             title={tw.retake}
             onClick={onRetake}
-            className={`absolute right-3.5 bottom-3.5 flex size-11 items-center justify-center rounded-pill bg-glass text-ink shadow-float backdrop-blur-[22px] ${focus}`}
+            className={`absolute right-3.5 bottom-3.5 flex size-11 items-center justify-center rounded-pill bg-veil text-ink shadow-float backdrop-blur-[22px] ${focus}`}
             data-testid="twin-retake"
           >
             <Icon name="refresh" size={18} />

@@ -23,9 +23,19 @@ export const palette = {
   warmFill: '#F3EFE6',
   warmLine: '#C9BCA6',
   warmLineDark: '#8A7F6C',
+  // Felix's worn mark on a past day (#A0927A), darkened to reach 3:1 on cream and white.
+  warmPast: '#968973',
+  warmPastDark: '#A0927A',
+  // Felix's dashed edge on a piece still to find.
+  warmDash: '#D9CBB7',
+  // The base of Felix's sage washes (avatar disc, sage chips).
+  sageTint: '#E3E1CC',
+  // Felix's unread dot: never text.
+  alert: '#D0342C',
   success: '#3F6B4C',
   successLight: '#7FB08E',
-  danger: '#8B3A30',
+  // Felix's danger: error text on cream and the swipe-to-delete reveal (white label 5.3:1).
+  danger: '#B5483A',
   dangerLight: '#E08A7E',
   mutedDark: '#B9B3A8',
   faintDark: '#A89E8C',
@@ -56,14 +66,34 @@ export const semanticNames = [
   'rule-mid',
   'selected',
   'selected-line',
-  // Draft tokens from the digital twin redlines (2026-11-05), to be ratified by the design-system
-  // overhaul: a translucent ground for controls over a photograph, the firmer card edge, and the
-  // warm edge by the name the designs use (the same value as `selected-line`).
-  'glass',
-  'hairline-strong',
-  'border-warm',
-  // Draft: the dim behind a floating sheet (ink at 0.28, redlines 2026-11-05).
+  // Felix Design System (2026-11-06). The warm family: the edge of chips, the today cell and an add
+  // slot (`warm-line`), a past day's worn mark, and the dashed edge of a piece still to find.
+  'warm-line',
+  'warm-past',
+  'warm-dash',
+  // The unread dot.
+  'alert',
+  // Dims: behind a drawer (`backdrop`), a drawer behind a confirm (`backdrop-strong`), and the dark
+  // glass disc on a photograph (`scrim`, white glyph).
+  'backdrop',
+  'backdrop-strong',
   'scrim',
+  // Cream glass on a photograph: discs (`veil`), the light back and adjust discs (`veil-soft`), the
+  // image stack's add card (`veil-paper`), the remove-image disc (`veil-mid`) and its × (`ink-mute`).
+  'veil',
+  'veil-soft',
+  'veil-paper',
+  'veil-mid',
+  'ink-mute',
+  // The top bar and the dock: their glass and the dock's edge.
+  'nav-glass',
+  'dock-glass',
+  'dock-line',
+  // Washes behind a rose or sage chip; `sage-mid` is the avatar disc.
+  'rose-bg',
+  'rose-mid',
+  'sage-bg',
+  'sage-mid',
 ] as const;
 
 export type Semantic = (typeof semanticNames)[number];
@@ -88,10 +118,25 @@ export const light: Record<Semantic, ColorRef> = {
   'rule-mid': { base: 'ink', alpha: 0.12 },
   selected: 'warmFill',
   'selected-line': 'warmLine',
-  glass: { base: 'cream50', alpha: 0.94 },
-  'hairline-strong': { base: 'ink', alpha: 0.12 },
-  'border-warm': 'warmLine',
-  scrim: { base: 'ink', alpha: 0.28 },
+  'warm-line': 'warmLine',
+  'warm-past': 'warmPast',
+  'warm-dash': 'warmDash',
+  alert: 'alert',
+  backdrop: { base: 'ink', alpha: 0.28 },
+  'backdrop-strong': { base: 'ink', alpha: 0.35 },
+  scrim: { base: 'ink', alpha: 0.55 },
+  veil: { base: 'cream50', alpha: 0.94 },
+  'veil-soft': { base: 'cream50', alpha: 0.55 },
+  'veil-paper': { base: 'cream50', alpha: 0.8 },
+  'veil-mid': { base: 'cream50', alpha: 0.5 },
+  'ink-mute': { base: 'ink', alpha: 0.6 },
+  'nav-glass': { base: 'cream50', alpha: 0.9 },
+  'dock-glass': { base: 'white', alpha: 0.7 },
+  'dock-line': { base: 'cream300', alpha: 0.85 },
+  'rose-bg': { base: 'mauve', alpha: 0.26 },
+  'rose-mid': { base: 'mauve', alpha: 0.6 },
+  'sage-bg': { base: 'sageTint', alpha: 0.4 },
+  'sage-mid': { base: 'sageTint', alpha: 0.72 },
 };
 
 export const dark: Record<Semantic, ColorRef> = {
@@ -114,10 +159,26 @@ export const dark: Record<Semantic, ColorRef> = {
   'rule-mid': { base: 'cream50', alpha: 0.16 },
   selected: 'ink800',
   'selected-line': 'warmLineDark',
-  glass: { base: 'ink800', alpha: 0.94 },
-  'hairline-strong': { base: 'cream50', alpha: 0.16 },
-  'border-warm': 'warmLineDark',
-  scrim: { base: 'ink', alpha: 0.6 },
+  // Felix has no dark theme yet: these are proposed, like the rest of this map.
+  'warm-line': 'warmLineDark',
+  'warm-past': 'warmPastDark',
+  'warm-dash': 'warmLineDark',
+  alert: 'dangerLight',
+  backdrop: { base: 'ink', alpha: 0.6 },
+  'backdrop-strong': { base: 'ink', alpha: 0.7 },
+  scrim: { base: 'ink', alpha: 0.7 },
+  veil: { base: 'ink800', alpha: 0.94 },
+  'veil-soft': { base: 'ink800', alpha: 0.55 },
+  'veil-paper': { base: 'ink800', alpha: 0.8 },
+  'veil-mid': { base: 'ink800', alpha: 0.5 },
+  'ink-mute': { base: 'cream50', alpha: 0.6 },
+  'nav-glass': { base: 'ink', alpha: 0.9 },
+  'dock-glass': { base: 'ink800', alpha: 0.7 },
+  'dock-line': { base: 'cream50', alpha: 0.12 },
+  'rose-bg': { base: 'mauve', alpha: 0.12 },
+  'rose-mid': { base: 'mauve', alpha: 0.24 },
+  'sage-bg': { base: 'sageTint', alpha: 0.12 },
+  'sage-mid': { base: 'sageTint', alpha: 0.24 },
 };
 
 // Accent colours are declared at 3:1 (large text, icons, fills only) per the brand guideline.
@@ -151,6 +212,12 @@ export const pairs: Array<{ fg: Semantic; bg: Semantic; min: number }> = [
   { fg: 'border-control', bg: 'surface', min: 3 },
   { fg: 'focus-ring', bg: 'bg', min: 3 },
   { fg: 'ink', bg: 'selected', min: 4.5 },
+  { fg: 'warm-past', bg: 'bg', min: 3 },
+  { fg: 'warm-past', bg: 'surface', min: 3 },
+  { fg: 'warm-past', bg: 'surface-raised', min: 3 },
+  { fg: 'alert', bg: 'bg', min: 3 },
+  { fg: 'alert', bg: 'surface-raised', min: 3 },
+  { fg: 'surface-raised', bg: 'danger', min: 4.5 },
 ];
 
 export const font = {
@@ -160,39 +227,58 @@ export const font = {
 
 // Beta's steps (public/css/tokens.css): fields 8, home and Settings cards 14 (--rad-card), the
 // bottom sheet's top edge 18 (.sheet / .rb-ps-sheet / .kp-sheet).
+// Felix's names: rad-xs `xs`, rad-row `crisp`, rad-tile `tile`, rad-sm `sm`, rad-thumb `thumb`,
+// rad `soft`, rad-card `card`, rad-lg `sheet`, rad-dock `dock`, rad-pill `pill`.
 export const radius = {
+  xs: '2px',
   crisp: '4px',
+  tile: '6px',
   input: '8px',
-  // Draft (digital twin redlines, 2026-11-05): the small tile.
   sm: '8px',
+  thumb: '10px',
   soft: '12px',
   card: '14px',
   sheet: '18px',
+  dock: '24px',
   pill: '999px',
 } as const;
 
-// Draft (digital twin redlines, 2026-11-05): the lift under a control floating over a photograph.
+// Felix's shadows: things that float over the page or a photograph cast one; nothing else does.
 // The web reads the CSS shadow (`shadow-float`); native takes the same shadow as style props.
 export const shadow = {
+  // Action discs on the photo's edge.
+  disc: '0 8px 18px -6px rgba(32, 32, 33, 0.38), 0 1px 3px rgba(32, 32, 33, 0.12)',
+  // White + discs and small floating buttons.
   float: '0 6px 16px -6px rgba(32, 32, 33, 0.30)',
-  // The floating sheet's lift off the scrim (redlines 2026-11-05).
-  callout: '0 12px 32px -12px rgba(32, 32, 33, 0.35)',
+  // Floating sheets and popovers.
+  sheet: '0 18px 40px -14px rgba(32, 32, 33, 0.35)',
+  modal: '0 18px 48px -18px rgba(32, 32, 33, 0.28)',
+  // Centred confirm dialogs.
+  dialog: '0 30px 60px -30px rgba(32, 32, 33, 0.5)',
 } as const;
+// Native can't spread a shadow inward, so each takes its offset, blur and opacity alone.
+function nativeShadow(y: number, radius: number, opacity: number, elevation: number) {
+  return {
+    shadowColor: palette.ink,
+    shadowOffset: { width: 0, height: y },
+    shadowRadius: radius,
+    shadowOpacity: opacity,
+    elevation,
+  };
+}
 export const shadowNative = {
-  float: {
-    shadowColor: palette.ink,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 16,
-    shadowOpacity: 0.3,
-    elevation: 6,
-  },
-  callout: {
-    shadowColor: palette.ink,
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 32,
-    shadowOpacity: 0.35,
-    elevation: 10,
-  },
+  disc: nativeShadow(8, 18, 0.38, 6),
+  float: nativeShadow(6, 16, 0.3, 6),
+  sheet: nativeShadow(18, 40, 0.35, 10),
+  modal: nativeShadow(18, 48, 0.28, 12),
+  dialog: nativeShadow(30, 60, 0.5, 16),
+} as const;
+
+// Backdrop blur under glass: the top bar, the dock, and a scrim disc on a photograph.
+export const blur = {
+  nav: '16px',
+  dock: '22px',
+  disc: '8px',
 } as const;
 
 export { colorValue, semanticColor } from './value';

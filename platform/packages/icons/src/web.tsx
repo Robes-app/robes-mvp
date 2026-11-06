@@ -1,4 +1,4 @@
-import { ICON_STROKE_WIDTH, ICON_VIEWBOX, ICONS, type IconName } from './icons';
+import { ICON_SOLID, ICON_STROKE_WIDTH, ICON_VIEWBOX, ICONS, type IconName } from './icons';
 
 export interface IconProps {
   name: IconName;
@@ -29,6 +29,9 @@ export function Icon({ name, size = 24, className, label, filled = false }: Icon
     >
       {ICONS[name].map((d) => (
         <path key={d} d={d} />
+      ))}
+      {ICON_SOLID[name]?.map((d) => (
+        <path key={d} d={d} fill="currentColor" />
       ))}
     </svg>
   );

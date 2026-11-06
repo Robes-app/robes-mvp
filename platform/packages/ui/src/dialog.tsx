@@ -33,16 +33,16 @@ export interface DialogProps {
   // control is a search must not raise the phone's keyboard before she has looked.
   initialFocus?: RefObject<HTMLElement | null>;
   // A Sheet only: the floating panel (redlines 2026-11-05) — inset 10px from the left, right and
-  // bottom, every corner on the sheet radius, hugging its content over the lighter scrim, with no
-  // ×: the handle, Escape or a tap on the scrim closes it.
+  // bottom, every corner on the sheet radius, hugging its content over the lighter backdrop, with no
+  // ×: the handle, Escape or a tap on the backdrop closes it.
   floating?: boolean;
   // The eyebrow's colour: faint by default, warm (rose) where the design asks.
   eyebrowTone?: TextTone;
 }
 
-// The screen behind dims; it never blurs to mush (beta). A floating sheet dims it less (`scrim`).
+// The screen behind dims; it never blurs to mush (beta). A floating sheet dims it less (`backdrop`).
 const overlay = 'fixed inset-0 z-50 bg-ink/35 motion-safe:data-[state=open]:animate-fade-in';
-const overlayLight = 'fixed inset-0 z-50 bg-scrim motion-safe:data-[state=open]:animate-fade-in';
+const overlayLight = 'fixed inset-0 z-50 bg-backdrop motion-safe:data-[state=open]:animate-fade-in';
 
 function Frame({
   title,
@@ -252,7 +252,7 @@ export function Sheet({
         titleSize="md"
         className={
           floating
-            ? 'inset-x-2.5 bottom-[calc(10px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-sheet px-5 pt-3 pb-5 shadow-callout motion-safe:data-[state=open]:animate-sheet-up'
+            ? 'inset-x-2.5 bottom-[calc(10px+env(safe-area-inset-bottom))] mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-sheet px-5 pt-3 pb-5 shadow-sheet motion-safe:data-[state=open]:animate-sheet-up'
             : 'inset-x-0 bottom-0 mx-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-sheet px-6 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] motion-safe:data-[state=open]:animate-sheet-up'
         }
       >

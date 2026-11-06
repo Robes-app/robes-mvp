@@ -58,7 +58,7 @@ export function RobesModelBadge({
           if (stopTap) e.stopPropagation();
           setOpen(true);
         }}
-        className={`absolute top-3 right-3 z-10 flex h-7 items-center gap-2 rounded-pill bg-glass pr-2.5 pl-3 backdrop-blur-[22px] after:absolute after:-inset-x-1 after:-inset-y-2 after:content-[''] ${focus}`}
+        className={`absolute top-3 right-3 z-10 flex h-7 items-center gap-2 rounded-pill bg-veil pr-2.5 pl-3 backdrop-blur-[22px] after:absolute after:-inset-x-1 after:-inset-y-2 after:content-[''] ${focus}`}
       >
         <span aria-hidden className="size-1.5 shrink-0 rounded-pill bg-ink-faint" />
         <span className="app-caps text-ink">{copy.deck.robesModel}</span>
@@ -80,7 +80,7 @@ export function RobesModelBadge({
               selfie.start();
             }}
             disabled={selfie.busy}
-            className={`${row} border border-border-warm border-dashed`}
+            className={`${row} border border-warm-line border-dashed`}
             data-testid="robes-model-capture"
           >
             <Icon name="selfie" size={20} className="shrink-0 text-ink-muted" />
@@ -93,7 +93,7 @@ export function RobesModelBadge({
               setOpen(false);
               router.push('/you/model');
             }}
-            className={`${row} border-[0.5px] border-hairline-strong`}
+            className={`${row} border-[0.5px] border-rule-mid`}
             data-testid="robes-model-adjust"
           >
             {thumb ? (

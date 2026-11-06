@@ -112,7 +112,7 @@ export function Model() {
               accessibilityState={{ disabled: selfie.busy }}
               disabled={selfie.busy}
               onPress={selfie.start}
-              className="min-h-[62px] flex-row items-center gap-3.5 rounded-soft border border-border-warm px-4 py-3"
+              className="min-h-[62px] flex-row items-center gap-3.5 rounded-soft border border-warm-line px-4 py-3"
               style={{ borderStyle: 'dashed' }}
               testID="twin-add-selfie"
             >
@@ -244,7 +244,7 @@ function Stage({
         {onRobes ? (
           // R8: the tag, bottom-left, on glass.
           <View
-            className="absolute bottom-4 left-4 h-7 flex-row items-center gap-2 rounded-pill bg-glass px-3"
+            className="absolute bottom-4 left-4 h-7 flex-row items-center gap-2 rounded-pill bg-veil px-3"
             testID="twin-robes-tag"
           >
             <View className="size-1.5 rounded-pill bg-ink-faint" />
@@ -254,7 +254,7 @@ function Stage({
         {chip ? (
           // The chip on the stage while she is drawn (legacy .mv-photo-busy).
           <View
-            className="absolute right-3.5 h-7 justify-center rounded-pill bg-glass px-3"
+            className="absolute right-3.5 h-7 justify-center rounded-pill bg-veil px-3"
             style={{ top: 14 + 44 }}
             accessibilityLiveRegion="polite"
           >
@@ -284,7 +284,7 @@ function Stage({
             accessibilityRole="button"
             accessibilityLabel={tw.retake}
             onPress={onRetake}
-            className="absolute items-center justify-center rounded-pill bg-glass"
+            className="absolute items-center justify-center rounded-pill bg-veil"
             style={[
               { right: 14, bottom: 14, width: MIN_TOUCH, height: MIN_TOUCH },
               shadowNative.float,

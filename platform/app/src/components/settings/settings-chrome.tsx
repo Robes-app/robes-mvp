@@ -39,7 +39,7 @@ export function FloatingBack({ href }: { href: string }) {
     <Link
       href={href}
       aria-label={ui.back}
-      className={`absolute top-[calc(env(safe-area-inset-top)+14px)] left-3.5 z-40 flex size-11 items-center justify-center rounded-pill bg-glass text-ink backdrop-blur-[22px] ${focus}`}
+      className={`absolute top-[calc(env(safe-area-inset-top)+14px)] left-3.5 z-40 flex size-11 items-center justify-center rounded-pill bg-veil text-ink backdrop-blur-[22px] ${focus}`}
     >
       <Icon name="back" size={18} />
     </Link>
@@ -113,7 +113,7 @@ export function SettingsGroup({
           {title}
         </Eyebrow>
       ) : null}
-      <div className="overflow-hidden rounded-soft border-[0.5px] border-hairline-strong bg-surface-raised">
+      <div className="overflow-hidden rounded-soft border-[0.5px] border-rule-mid bg-surface-raised">
         {children}
       </div>
     </section>

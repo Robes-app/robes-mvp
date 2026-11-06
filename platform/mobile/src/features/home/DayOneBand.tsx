@@ -159,7 +159,7 @@ export function DayOneBand({ state }: { state: Today['home']['state'] }) {
                   onPress={() => pick(g.n)}
                   style={[TILE, { borderWidth: on ? 1.5 : 0.5 }]}
                   className={`overflow-hidden rounded-soft bg-surface ${
-                    on ? 'border-ink' : 'border-hairline-strong'
+                    on ? 'border-ink' : 'border-rule-mid'
                   }`}
                   testID={`day-one-model-${i}`}
                 >
