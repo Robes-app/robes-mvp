@@ -1,14 +1,10 @@
 import { useApi } from '@robes/api-client/react';
 import { type Look, rackFromLook } from '@robes/contracts';
-import { looks as copy, lookbook } from '@robes/copy';
-import { lookFacts, pinnedFor } from '@robes/core/looks';
+import { lookbook } from '@robes/copy';
 import {
   Button,
   EmptyState,
   FINE_EDGE,
-  Heading,
-  IconButton,
-  InlineTitleField,
   PrimaryScope,
   Skeleton,
   Tabs,
@@ -26,44 +22,12 @@ import { PieceList } from './PieceList';
 import { RackRowCard } from './RackRow';
 import { SavedLookPhoto } from './SavedLook';
 import { SeasonsView } from './SeasonsView';
-import { localDate, useRenameLook } from './saved-looks';
 import { TagsView, useLookDetails } from './TagsView';
 import { WornView } from './WornView';
 
 const saved = lookbook.savedLook;
 const TABS = [saved.tabs.pieces, saved.tabs.details] as const;
 type Tab = (typeof TABS)[number];
-
-// The pencil sits on the name; the title itself becomes the field while she changes it.
-// Empty or unchanged keeps the name it had (a look is named). Web twin: look-view.tsx LookName.
-function Name({ look }: { look: Look }) {
-  const rename = useRenameLook();
-  const [editing, setEditing] = useState(false);
-  // No "Robes’ suggestion · Keep this name": the pencil is how she renames (27 Oct).
-  return (
-    <View className="flex-row items-start gap-2">
-      {editing ? (
-        <InlineTitleField
-          value={look.name}
-          label={copy.look.nameLabel}
-          required
-          onCommit={(next) => {
-            setEditing(false);
-            if (next !== look.name) {
-              rename.mutate({ params: { id: look.id }, input: { name: next } });
-            }
-          }}
-          onCancel={() => setEditing(false)}
-        />
-      ) : (
-        <>
-          <Heading className="min-w-0 flex-1">{look.name}</Heading>
-          <IconButton icon="pencil" label={copy.page.rename} onPress={() => setEditing(true)} />
-        </>
-      )}
-    </View>
-  );
-}
 
 // `edit`: opened from home's Edit disc (Felix 3k), so the look opens its edit sheet; `schedule`:
 // a draft just saved from its sheet opens with the diary up.
@@ -120,11 +84,6 @@ function SavedLook({ look, edit, schedule }: { look: Look; edit: boolean; schedu
   }, [edit]);
   const piecesById = new Map(look.pieces.map((p) => [p.piece.id, p.piece]));
   const rows = rackFromLook(look).rows;
-  // The web twin is savedMeta in look-page.tsx.
-  const meta = lookbook.meta.saved({
-    ...lookFacts(look, rows.length),
-    pinnedFor: pinnedFor(look.pinnedOn, localDate()),
-  });
   return (
     <View className="flex-1">
       <ScrollView
@@ -143,13 +102,7 @@ function SavedLook({ look, edit, schedule }: { look: Look; edit: boolean; schedu
           />
         )}
         <View className="gap-3 px-5 pt-4">
-          {/* The name and its one line of facts, close together. */}
-          <View className="gap-1">
-            <Name key={look.name} look={look} />
-            <Text size="small" tone="muted">
-              {meta}
-            </Text>
-          </View>
+          {/* The name is the Caption in Details (D16): nothing stands between the photo and the tabs. */}
           <Tabs items={TABS} value={tab} onChange={setTab} testID="look-tabs" />
           {tab === TABS[0] ? (
             <View className="gap-4" testID="pieces-tab">
@@ -196,7 +149,7 @@ function SavedLook({ look, edit, schedule }: { look: Look; edit: boolean; schedu
               onTags={() => setSubview('tags')}
               onSeasons={() => setSubview('seasons')}
               onWorn={() => setSubview('worn')}
-              onCaption={(note) => update.mutate({ params: { id: look.id }, input: { note } })}
+              onCaption={(name) => update.mutate({ params: { id: look.id }, input: { name } })}
             />
           )}
         </View>

@@ -11,7 +11,6 @@ import {
   EmptyState,
   FINE_EDGE,
   Image,
-  InlineTitleField,
   Skeleton,
   Tabs,
   Text,
@@ -273,7 +272,6 @@ function NewDraft({
   const model = useApi('me.model.get');
   const control = useColor('border-control');
   const [picker, setPicker] = useState<PickerMode | null>(null);
-  const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [full, setFull] = useState<{ input: CreateLookInput; oldest: string } | null>(null);
@@ -297,11 +295,7 @@ function NewDraft({
     }
   };
   const start = (pieces: Piece[]) =>
-    void create({
-      status: 'draft',
-      pieces: pieces.map((p) => ({ pieceId: p.id })),
-      ...(name.trim() ? { name: name.trim() } : {}),
-    });
+    void create({ status: 'draft', pieces: pieces.map((p) => ({ pieceId: p.id })) });
   const snap = useSnap((piece) => start([piece]));
   // "Start a look with it" from a piece: the draft opens with that piece on the rack.
   const started = useRef(false);
@@ -344,15 +338,6 @@ function NewDraft({
         {snap.reading ? <ReadingChip /> : null}
       </View>
       <View className="gap-3 px-5 pt-3">
-        <InlineTitleField
-          value={name}
-          label={lookbook.name.label}
-          placeholder={lookbook.figure.untitled}
-          size={22}
-          align="center"
-          autoFocus={false}
-          onChange={setName}
-        />
         <PieceList rows={0} onAdd={() => setPicker({ add: true })}>
           {null}
         </PieceList>
@@ -418,8 +403,6 @@ function DraftBody({
   const update = useLookDetails(look);
   const model = useApi('me.model.get');
   const danger = useColor('danger');
-  const [name, setName] = useState(look.nameProvisional ? '' : look.name);
-  const typed = name.trim() && name.trim() !== look.name ? name.trim() : undefined;
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, mode === 'edit' ? 'saved' : 'draft');
@@ -454,10 +437,7 @@ function DraftBody({
     if (!canDone) return;
     if (mode === 'draft') {
       adjust.drawForSave();
-      save.mutate({
-        params: { id: look.id },
-        input: { ...(typed ? { name: typed } : {}), ...(forDay ? { date: forDay } : {}) },
-      });
+      save.mutate({ params: { id: look.id }, input: forDay ? { date: forDay } : {} });
       return;
     }
     void editor.update().then((ok) => {
@@ -587,19 +567,6 @@ function DraftBody({
         />
       )}
       <View className="gap-3 px-5 pt-3">
-        <InlineTitleField
-          value={name}
-          label={lookbook.name.label}
-          placeholder={look.name || lookbook.figure.untitled}
-          size={22}
-          align="center"
-          autoFocus={false}
-          onChange={setName}
-          onCommit={() => {
-            if (typed) editor.rename(typed);
-          }}
-          onCancel={() => setName(look.nameProvisional ? '' : look.name)}
-        />
         <Tabs items={TABS} value={tab} onChange={setTab} testID="draft-tabs" />
         {tab === TABS[0] ? (
           <View className="gap-3" testID="pieces-tab">
@@ -650,7 +617,8 @@ function DraftBody({
             look={look}
             onTags={() => setSubview('tags')}
             onSeasons={() => setSubview('seasons')}
-            onCaption={(note) => update.mutate({ params: { id: look.id }, input: { note } })}
+            // The Caption is the name (D16).
+            onCaption={(name) => update.mutate({ params: { id: look.id }, input: { name } })}
           />
         )}
       </View>

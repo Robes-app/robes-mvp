@@ -42,6 +42,7 @@ Sources:
 | D12 | Seasons are the four seasons, multi-select, Year Round the empty set: `seasons text[]` on `app.looks` and `app.wardrobe_items`, backfilled from the band. The band (`climate_band` / `season_band`) keeps being written from `seasons` so every older reader sees what it saw. ADR-002's three bands become a derived value. |
 | D13 | A look's image stack is Robes' picture (the frame, else the render) plus her photographs (`app.look_images`). Robes' picture can only be redrawn, never removed; her photographs come and go down to none. The front card is the cover: position 0, and `record_image` is written to match (`photo` when a photograph leads, `model` otherwise). |
 | D14 | The draft is one component (`DraftPage`) presented as a drawer over whatever started it: Home, the Lookbook, a piece, a saved look's Edit; a new door later is one line. Native presents it as a form sheet; web keeps the route for deep links and intercepts it from the app's screens. AdjustSheet and DescribeSheet both feed the one thread (`useAdjust`) and draw only on Send or Generate. A draft's Details tab has no Worn row. |
+| D16 | The name is the Caption (Annie, 6 Nov, on PR 6's open call): Details › Caption edits the look's name, its hierarchy reduced to that row. No name field between the photo and the tabs, and no facts line under it ("4 pieces · Not worn yet · pinned for …"). On the saved look and in the draft drawer alike. |
 | D15 | The sequence stops after PR 8. The Lookbook grid, the Diary, the Wardrobe grid and inbox, You's pages, onboarding and sign-in keep Felix's tokens and primitives with their old layouts until the next design round. Dark mode is ignored for now (no dark theme in Felix). Only Expo Go on staging runs native, so the compatibility window for old columns is the deploy's few minutes, not weeks. |
 
 Smaller calls from the same pass (Annie, 6 Nov): WornView's "+ Add a date" opens `DiarySheet` and a wear's note is written once when filed; the wardrobe piece keeps one photo, replaced through the regenerate icon; "Wear it for" on a piece reads its `wear_for` tags (no tag limit — the ten is the Hero Rack's, which the star keeps); NotificationsSheet's Done only closes; Home's pager already swipes through a day's looks (3k), so no 3f.
@@ -51,8 +52,8 @@ Smaller calls from the same pass (Annie, 6 Nov): WornView's "+ Add a date" opens
 Calls made while building, each worth Annie's eye; a ruling becomes a decision above or a one-line fix.
 
 **PR 6 (#83, the saved look)**
-- The name stays on the screen (Cormorant, with the pencil) between the photo and the tabs. Frame 3e shows no name, but a look is named and the Lookbook shows it. Say if it should move into Details.
-- Edit look is a `chip` above the piece list; Felix draws no explicit edit control on 3e.
+- ~~The name stays on the screen between the photo and the tabs.~~ Ruled: the name is the Caption (D16), landed in PR 7.
+- Edit look is a `chip` above the piece list; Felix draws no explicit edit control on 3e. Annie: fine for now, under evaluation.
 - TagsView's swipe-to-delete is left out: deleting a tag removes it from every piece and look that wears it, which needs its own confirm. Toggle and add are in.
 
 **PR 7 (the draft drawer)**
@@ -60,6 +61,7 @@ Calls made while building, each worth Annie's eye; a ruling becomes a decision a
 - The three sheets share the one thread: the prompt card's chip (Felix's Generate, in Robes' words *Style it* — Robes never generates) and AdjustSheet's Send both go through the look prompt and then draw; DescribeSheet is the door behind "Dress it again" and re-writes the look from her sentence (`looks.restyle`), so it shows only on a look Robes made. With nothing typed and the picture behind, the chip reads *Update the model · N*.
 - Felix's WardrobePicker is the draft's `PiecePicker`: home's wardrobe flyout (3k) and it draw the one `WardrobeGrid`; the picker is a subview with Add N pieces · Swap it in, the flyout a sheet with Include.
 - Closing a draft asks Discard · Keep editing, and a quiet third way, *Keep for later*, which Felix does not draw: without it a draft Robes made for a day could not be left for the Lookbook's In progress row.
+- The draft's name is its Caption too (D16): a draft keeps the name Robes offered until she writes one in Details, and Save keeps it.
 - The context chip (place · weather · range) is read from the day a draft is for, and is passive; "Leave the weather out" and the add-location chip wait for a place picker in the drawer.
 - "Start from a photo" stays as a quiet link under the add slot on a new, empty draft (not on Felix's frame; the Lookbook has no other door to the photo flow).
 

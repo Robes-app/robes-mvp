@@ -45,7 +45,7 @@ beforeEach(() => jest.clearAllMocks());
 const draftOf = (overrides: Parameters<typeof look>[0] = {}) =>
   look({ status: 'draft', timesWorn: 0, lastWornOn: null, ...overrides });
 
-test('a new look is a draft from the pieces she picks, named when she names it, then it carries on', async () => {
+test('a new look is a draft from the pieces she picks, then it carries on in the same sheet', async () => {
   const calls = mockFetch({
     ...BASE,
     'GET /wardrobe/items': {
@@ -60,7 +60,6 @@ test('a new look is a draft from the pieces she picks, named when she names it, 
   expect(await screen.findByText(copy.title)).toBeTruthy();
   // Nothing to keep yet: the done disc waits at 35%.
   expect(screen.getByTestId('draft-done').props.accessibilityState.disabled).toBe(true);
-  await fireEvent.changeText(screen.getByLabelText(lookbook.name.label), 'Gallery');
   // The add slot opens the piece picker: a search, Photograph one, a tick on every piece.
   await fireEvent.press(screen.getByRole('button', { name: lookbook.rack.addPiece }));
   expect(await screen.findByTestId('piece-picker')).toBeTruthy();
@@ -75,7 +74,6 @@ test('a new look is a draft from the pieces she picks, named when she names it, 
   expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
     status: 'draft',
     pieces: [{ pieceId: SCARF }],
-    name: 'Gallery',
   });
   // The draft carries on in the same sheet: its rack, its prompt card.
   expect(await screen.findByTestId('prompt-card')).toBeTruthy();

@@ -124,13 +124,10 @@ test('a new look is a draft; the look prompt swaps a piece and names what it rep
     await page.request.post('/api/v1/wardrobe/items', { data: { label, categoryL2: 'Trousers' } });
   }
   await page.goto('/looks/new');
-  // The old address lands on the draft (D14): the name, her model in its base layer, the add slot.
+  // The old address lands on the draft (D14): her model in its base layer and the add slot; no
+  // name field (D16: the name is the Caption in Details).
   await expect(page).toHaveURL(/\/looks\/draft\/new$/);
-  await expect(page.getByLabel('Name this look')).toHaveAttribute('placeholder', 'Untitled Look');
-  // The draft's title is the field: the serif on an underline, never a boxed outline on focus.
-  await page.getByLabel('Name this look').focus();
-  await expect(page.getByLabel('Name this look')).toHaveCSS('outline-style', 'none');
-  await expect(page.getByLabel('Name this look')).toHaveCSS('text-align', 'center');
+  await expect(page.getByLabel('Name this look')).toHaveCount(0);
   // The add slot opens the piece picker; Add 1 piece makes the draft.
   await page.getByRole('button', { name: '+ Add a piece' }).click();
   const picker = page.getByTestId('piece-picker');

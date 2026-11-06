@@ -118,8 +118,9 @@ test('a saved look is worn today through the diary sheet (her local date) and re
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  // One meta line under the title carries the wears; the old second "Worn 2 times" line is gone.
-  expect(await screen.findByText(/2 wears/)).toBeTruthy();
+  // No facts line under the photo (D16), and no "Worn 2 times" line either.
+  expect(await screen.findByRole('button', { name: lookbook.savedLook.schedule })).toBeTruthy();
+  expect(screen.queryByText(/2 wears/)).toBeNull();
   expect(screen.queryByText(looks.look.worn(2))).toBeNull();
   // No wear buttons on the page (27 Oct): the diary on the picture logs it, on any day.
   expect(screen.queryByRole('button', { name: 'Wear it today' })).toBeNull();

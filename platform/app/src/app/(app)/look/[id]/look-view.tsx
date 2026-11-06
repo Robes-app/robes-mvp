@@ -2,18 +2,8 @@
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import { type Look, rackFromLook } from '@robes/contracts';
-import { lookbook, looks } from '@robes/copy';
-import {
-  Button,
-  ErrorText,
-  Heading,
-  IconButton,
-  InlineTitleField,
-  Skeleton,
-  Tabs,
-  Text,
-  useToast,
-} from '@robes/ui';
+import { lookbook } from '@robes/copy';
+import { Button, ErrorText, Skeleton, Tabs, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -21,7 +11,7 @@ import { DiarySheet } from '@/components/looks/diary-sheet';
 import { DraftLook } from '@/components/looks/draft-look';
 import { ImageManager } from '@/components/looks/image-manager';
 import { LookDetails } from '@/components/looks/look-details';
-import { savedMeta, WorkingLook } from '@/components/looks/look-page';
+import { WorkingLook } from '@/components/looks/look-page';
 import { PieceList } from '@/components/looks/piece-list';
 import { RackRowCard } from '@/components/looks/rack-row';
 import { SavedLookPhoto } from '@/components/looks/saved-look';
@@ -29,10 +19,8 @@ import { SeasonsView } from '@/components/looks/seasons-view';
 import { TagsView } from '@/components/looks/tags-view';
 import { WornView } from '@/components/looks/worn-view';
 import { usePushedView } from '@/components/shell/app-shell';
-import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 
-const copy = looks.page;
 const saved = lookbook.savedLook;
 const TABS = [saved.tabs.pieces, saved.tabs.details] as const;
 type Tab = (typeof TABS)[number];
@@ -134,11 +122,8 @@ function LookBody({ look, edit, schedule }: { look: Look; edit: boolean; schedul
         />
       )}
       <div className="flex flex-col gap-3">
-        <LookName
-          look={look}
-          update={actions.update}
-          meta={savedMeta(look, rows.length, localToday())}
-        />
+        {/* The name is the Caption in Details (D16); the page still names itself for a reader. */}
+        <h1 className="sr-only">{look.name}</h1>
         <Tabs items={TABS} value={tab} onChange={setTab} label={saved.tabs.pieces} />
         {tab === TABS[0] ? (
           <div className="flex flex-col gap-4" data-testid="pieces-tab">
@@ -174,8 +159,8 @@ function LookBody({ look, edit, schedule }: { look: Look; edit: boolean; schedul
             onTags={() => setSubview('tags')}
             onSeasons={() => setSubview('seasons')}
             onWorn={() => setSubview('worn')}
-            onCaption={(note) =>
-              actions.update.mutate({ params: { id: look.id }, input: { note } })
+            onCaption={(name) =>
+              actions.update.mutate({ params: { id: look.id }, input: { name } })
             }
           />
         )}
@@ -205,52 +190,6 @@ function LookBody({ look, edit, schedule }: { look: Look; edit: boolean; schedul
       />
       <DiarySheet look={diary ? look : null} onClose={() => setDiary(false)} />
     </article>
-  );
-}
-
-function LookName({
-  look,
-  update,
-  meta,
-}: {
-  look: Look;
-  update: ReturnType<typeof useLookActions>['update'];
-  meta: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  // Her name in place of the title; empty or unchanged keeps the name it had (a look is named).
-  // The page shows the saved name once the update lands; errors surface as a toast.
-  const save = (next: string) => {
-    setEditing(false);
-    if (next !== look.name) update.mutate({ params: { id: look.id }, input: { name: next } });
-  };
-  // The eyebrow is over the picture; no "Robes’ suggestion · Keep this name" — the pencil is how
-  // she renames (27 Oct). The name and its one line of facts sit close together.
-  return (
-    <header className="flex flex-col gap-1">
-      <div className="flex items-start gap-2">
-        {editing ? (
-          <InlineTitleField
-            value={look.name}
-            label={looks.look.nameLabel}
-            size="xl"
-            required
-            onCommit={save}
-            onCancel={() => setEditing(false)}
-          />
-        ) : (
-          <>
-            <Heading level={1} size="xl" className="min-w-0 flex-1">
-              {look.name}
-            </Heading>
-            <IconButton icon="pencil" label={copy.rename} onClick={() => setEditing(true)} />
-          </>
-        )}
-      </div>
-      <Text size="small" tone="muted">
-        {meta}
-      </Text>
-    </header>
   );
 }
 

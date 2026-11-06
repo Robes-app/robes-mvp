@@ -254,13 +254,13 @@ test('Details: the caption keeps on blur, Seasons picks the four seasons, Tags p
   await expect(page.getByTestId('details-seasons')).toContainText('Year round');
   await expect(page.getByTestId('details-tags')).toContainText('None');
 
-  // The caption edits inline; blur keeps it.
+  // The caption is the look's name (D16); it edits inline, and Enter keeps it.
   await page.getByTestId('details-caption').click();
   await page.getByRole('textbox', { name: 'Caption' }).fill('Errands, then coffee');
   await page.getByRole('textbox', { name: 'Caption' }).press('Enter');
   await expect(page.getByTestId('details-caption')).toContainText('Errands, then coffee');
   await expect
-    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).note)
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).name)
     .toBe('Errands, then coffee');
 
   // Seasons: any of the four; the band every older reader sees follows (D12).
@@ -341,43 +341,34 @@ test('editing a saved look: a swap is one tap behind Undo, and Update says Updat
     .toEqual([navy]);
 });
 
-test('a saved look is renamed in place: its title becomes the field', async ({ page }) => {
+test('a saved look is renamed in Details › Caption: the name is the caption (D16)', async ({
+  page,
+}) => {
   await signIn(page);
   await declineConsent(page);
   const res = await page.request.post('/api/v1/looks', { data: { name: 'Office', pieces: [] } });
   const look = await res.json();
   await page.goto(`/look/${look.id}`);
-  const heading = page.getByRole('heading', { level: 1, name: 'Office' });
-  await expect(heading).toBeVisible();
-
-  // No NAME label, no Save name, no Cancel: the title is the field, focused with the name selected.
-  await page.getByRole('button', { name: 'Rename' }).click();
-  const field = page.getByRole('textbox', { name: 'Name this look' });
+  // Nothing between the photo and the tabs: no title, no pencil, no facts line.
+  await expect(page.getByRole('heading', { level: 1, name: 'Office' })).toBeAttached();
+  await expect(page.getByRole('button', { name: 'Rename' })).toHaveCount(0);
+  await expect(page.getByText(/pinned for/)).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Details' }).click();
+  await expect(page.getByTestId('details-caption')).toContainText('Office');
+  await page.getByTestId('details-caption').click();
+  const field = page.getByRole('textbox', { name: 'Caption' });
   await expect(field).toBeFocused();
   await expect(field).toHaveValue('Office');
-  await expect(field).toHaveCSS('outline-style', 'none');
-  await expect(field).toHaveCSS('border-top-width', '0px');
-  await expect(page.getByRole('button', { name: 'Save name' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
   expect(await seriousViolations(page)).toEqual([]);
-  // Typing replaces the selected name; Enter keeps it.
-  await page.keyboard.type('Gallery dinner');
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: 'Gallery dinner' })).toBeVisible();
+  await field.fill('Gallery dinner');
+  await field.press('Enter');
+  await expect(page.getByTestId('details-caption')).toContainText('Gallery dinner');
   await expect
     .poll(async () => (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).name)
     .toBe('Gallery dinner');
-
-  // Escape leaves the name as it was; an emptied name is refused (a look is named).
-  await page.getByRole('button', { name: 'Rename' }).click();
-  await page.keyboard.type('Nope');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('heading', { level: 1, name: 'Gallery dinner' })).toBeVisible();
-  await page.getByRole('button', { name: 'Rename' }).click();
+  // An emptied caption keeps the name it had: a look is named.
+  await page.getByTestId('details-caption').click();
   await field.fill('');
   await field.press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: 'Gallery dinner' })).toBeVisible();
-  await expect
-    .poll(async () => (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).name)
-    .toBe('Gallery dinner');
+  await expect(page.getByTestId('details-caption')).toContainText('Gallery dinner');
 });
