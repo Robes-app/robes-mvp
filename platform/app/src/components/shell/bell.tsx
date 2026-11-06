@@ -20,9 +20,9 @@ export function notificationHref(item: NotificationItem): string {
   return `/?day=${item.date ?? ''}`;
 }
 
-// The bell (design 3k, plan §1.12): in the header beside the avatar, a 6pt ink dot while anything
-// waits, and the count in its label (iOS navigation redline); its sheet lists each item as a card
-// with where it leads and a × that dismisses it.
+// The bell (design 3k, plan §1.12): Felix's 36px bell beside the avatar, the 17px glyph at 1.2, a
+// 7px rose dot while anything waits (D6), and the count in its label; its hit area reaches 44. Its
+// sheet lists each item as a card with where it leads and a × that dismisses it.
 // The native twin is mobile/src/components/Bell.tsx.
 export function Bell() {
   const queryClient = useQueryClient();
@@ -49,14 +49,14 @@ export function Bell() {
         onClick={() => setOpen(true)}
         data-testid="bell"
         data-alert={items.length > 0 ? 'true' : undefined}
-        className={`relative flex size-11 items-center justify-center rounded-pill text-ink transition-colors duration-100 active:text-ink-muted ${focus}`}
+        className={`relative flex size-9 items-center justify-center rounded-pill text-ink transition-colors duration-100 active:text-ink-muted after:absolute after:-inset-1 after:content-[''] ${focus}`}
       >
-        <Icon name="bell" size={20} />
+        <Icon name="bell" size={17} stroke={1.2} />
         {items.length ? (
-          // 6 of ink inside a 1.5 ring of the page, at the glyph's shoulder.
+          // Felix's 7px rose dot (a 1.5 ring of the page), at the glyph's shoulder.
           <span
             aria-hidden
-            className="absolute top-[8.5px] right-[9.5px] size-[9px] rounded-pill border-[1.5px] border-bg bg-ink"
+            className="absolute top-2 right-[9px] size-[7px] rounded-pill border-[1.5px] border-bg bg-accent-inspire"
           />
         ) : null}
       </button>

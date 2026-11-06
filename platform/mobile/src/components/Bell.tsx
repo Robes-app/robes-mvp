@@ -9,10 +9,12 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text as RNText, View } from 'react-native';
 
-// The bell (design 3k, plan §1.12): in the header beside the avatar, a 6pt ink dot while anything
-// waits, and the count in its label (iOS navigation redline); its sheet lists each item as a card
-// with where it leads and a × that dismisses it.
+// The bell (design 3k, plan §1.12): Felix's 36pt bell beside the avatar, the 17pt glyph at 1.2,
+// a 7pt rose dot while anything waits (D6), and the count in its label; its 44pt hit area reaches
+// past the box. Its sheet lists each item as a card with where it leads and a × that dismisses it.
 // The web twin is app/src/components/shell/bell.tsx.
+const BELL = 36;
+
 export function Bell() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -50,19 +52,20 @@ export function Bell() {
           setOpen(true);
         }}
         testID="bell"
-        style={{ width: MIN_TOUCH, height: MIN_TOUCH }}
+        hitSlop={(MIN_TOUCH - BELL) / 2}
+        style={{ width: BELL, height: BELL }}
         className="items-center justify-center rounded-pill"
       >
         {({ pressed }) => (
           <>
-            <Icon name="bell" size={20} color={pressed ? muted : ink} />
+            <Icon name="bell" size={17} stroke={1.2} color={pressed ? muted : ink} />
             {items.length ? (
-              // 6 of ink inside a 1.5 ring of the page, at the glyph's shoulder.
+              // Felix's 7pt rose dot (a 1.5 ring of the page), at the glyph's shoulder.
               <View
                 testID="bell-dot"
                 importantForAccessibility="no-hide-descendants"
-                style={{ width: 9, height: 9, borderWidth: 1.5, top: 8.5, right: 9.5 }}
-                className="absolute rounded-pill border-bg bg-ink"
+                style={{ width: 7, height: 7, borderWidth: 1.5, top: 8, right: 9 }}
+                className="absolute rounded-pill border-bg bg-accent-inspire"
               />
             ) : null}
           </>

@@ -29,10 +29,17 @@ test('the roots match beta on desktop and phone, and each is reachable', async (
     width: 390 - 32,
     height: 64,
   });
-  // The bar: the avatar's ring stands 16 from the edge, inside a 44 hit area.
-  const you = page.getByRole('banner').getByRole('link', { name: 'Your profile and settings' });
-  const hit = await you.boundingBox();
-  expect(hit && [hit.width, hit.height, 390 - (hit.x + hit.width)]).toEqual([44, 44, 10]);
+  // Felix's TopNav: 64 tall; the avatar a 30 disc standing 24 from the edge, its hit area 44.
+  const banner = page.getByRole('banner');
+  expect((await banner.boundingBox())?.height).toBe(64);
+  const you = banner.getByRole('link', { name: 'Your profile and settings' });
+  const disc = await you.boundingBox();
+  expect(disc && [disc.width, disc.height, 390 - (disc.x + disc.width)]).toEqual([30, 30, 24]);
+  const hit = await you.evaluate((el) => {
+    const after = getComputedStyle(el, '::after');
+    return [after.top, after.left];
+  });
+  expect(hit).toEqual(['-7px', '-7px']);
 
   for (const [label, path] of [
     ['Wardrobe', '/wardrobe'],
@@ -46,9 +53,7 @@ test('the roots match beta on desktop and phone, and each is reachable', async (
   }
 });
 
-test('the bar draws its hairline once scrolled; the grids minimise the dock on scroll down', async ({
-  page,
-}) => {
+test('the bar keeps its hairline; the grids minimise the dock on scroll down', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);
   await declineConsent(page);
@@ -62,6 +67,7 @@ test('the bar draws its hairline once scrolled; the grids minimise the dock on s
     }, y);
 
   await page.goto('/wardrobe');
+  await expect(banner).toHaveCSS('border-bottom-style', 'solid');
   await expect(banner).not.toHaveAttribute('data-scrolled');
   await scrollTo(600);
   await expect(banner).toHaveAttribute('data-scrolled', 'true');

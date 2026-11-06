@@ -53,9 +53,11 @@ export default function TabsLayout() {
       <NativeTabs
         tintColor={ink}
         iconColor={{ default: muted, selected: ink }}
+        // Felix's dock-label: Inter 500 at 9.5, ink-soft, the current tab ink. The bar is the
+        // system's own, so Felix's tracking and active bar are left to it.
         labelStyle={{
-          default: { fontFamily: fonts.sansMedium, fontSize: 10, color: muted },
-          selected: { fontFamily: fonts.sansMedium, fontSize: 10, color: ink },
+          default: { fontFamily: fonts.sansMedium, fontSize: 9.5, color: muted },
+          selected: { fontFamily: fonts.sansMedium, fontSize: 9.5, color: ink },
         }}
         minimizeBehavior={MINIMISES.has(pathname) ? 'onScrollDown' : 'never'}
       >
