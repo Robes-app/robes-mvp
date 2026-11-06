@@ -226,6 +226,7 @@ export function suggestedLooksRepo(db: Db) {
           'styling',
           'frameAssetId',
           'renderKey',
+          'pictureNote',
           sql<string | null>`date_hint::text`.as('dateHint'),
         ])
         .where('userId', '=', userId)
@@ -271,7 +272,8 @@ export function suggestedLooksRepo(db: Db) {
 
     // Lands a drawn frame only if the look still wants the rack it was drawn for.
     // `stoodOn` is what the frame was drawn on (plan 2026-11-05 §2.4); left out, a re-dressed
-    // frame keeps the model its first drawing stood on.
+    // frame keeps the model its first drawing stood on. A fresh frame is shown again and leads the
+    // look (D19, D21).
     async setFrame(
       userId: UserId,
       lookId: string,
@@ -286,6 +288,8 @@ export function suggestedLooksRepo(db: Db) {
           frameKey,
           renderStatus: 'ready',
           renderClaimedAt: null,
+          robesHidden: false,
+          recordImage: 'model',
           ...(stoodOn === undefined ? {} : { stoodOn }),
         })
         .where('userId', '=', userId)

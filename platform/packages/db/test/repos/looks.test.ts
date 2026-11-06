@@ -6,6 +6,7 @@ import {
   createRepositories,
   LOOK_IMAGES_MAX,
   LookImagesFull,
+  LookNeedsImage,
   LookPiecesNotFound,
 } from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
@@ -225,6 +226,58 @@ describe('looks repo', () => {
     const bare = await looks.removeImage(ann, look.id, second?.id ?? '');
     expect(bare).toMatchObject({ photoAssetId: null, recordImage: null });
     expect(await looks.removeImage(ann, look.id, second?.id ?? '')).toBeUndefined();
+  });
+
+  // D21: her note on Robes' picture, kept with the look.
+  it('keeps her picture note on her own look only, and an empty one clears it', async () => {
+    const look = await create(ann, [coat], 'Noted');
+    expect(look.pictureNote).toBeNull();
+    expect(await looks.setPictureNote(ann, look.id, '  Sleeves rolled up ')).toBe(true);
+    expect((await looks.get(ann, look.id))?.pictureNote).toBe('Sleeves rolled up');
+    expect(await looks.setPictureNote(bea, look.id, 'Hers now')).toBe(false);
+    expect((await looks.get(ann, look.id))?.pictureNote).toBe('Sleeves rolled up');
+    // The pieces never move with it.
+    expect((await looks.piecesFor(ann, [look.id])).map((p) => p.id)).toEqual([coat]);
+    expect(await looks.setPictureNote(ann, look.id, '   ')).toBe(true);
+    expect((await looks.get(ann, look.id))?.pictureNote).toBeNull();
+  });
+
+  // D19: Robes' picture can be hidden, never destroyed; a look always keeps one image.
+  it('hides Robes’ picture only behind a photograph of hers, to its owner only', async () => {
+    const look = await create(ann, [coat], 'Hidden');
+    await expect(looks.setRobesHidden(ann, look.id, true)).rejects.toBeInstanceOf(LookNeedsImage);
+    expect((await looks.get(ann, look.id))?.robesHidden).toBe(false);
+    const photo = await photoOf(ann);
+    await looks.addImage(ann, look.id, photo.id);
+    expect(await looks.setRobesHidden(bea, look.id, true)).toBeUndefined();
+    expect((await looks.get(ann, look.id))?.robesHidden).toBe(false);
+    expect(await looks.setRobesHidden(ann, look.id, true)).toMatchObject({
+      robesHidden: true,
+      recordImage: 'photo',
+      photoAssetId: photo.id,
+    });
+    // Her last photograph stays while Robes' picture is hidden; nothing is written.
+    const [only] = await looks.imagesFor(ann, [look.id]);
+    await expect(looks.removeImage(ann, look.id, only?.id ?? '')).rejects.toBeInstanceOf(
+      LookNeedsImage,
+    );
+    expect((await looks.imagesFor(ann, [look.id])).length).toBe(1);
+    // Another woman's request is not found, before any rule is read.
+    expect(await looks.removeImage(bea, look.id, only?.id ?? '')).toBeUndefined();
+    expect(await looks.removeImage(ann, look.id, randomUUID())).toBeUndefined();
+    // With a second photograph, one can go.
+    const two = await photoOf(ann);
+    await looks.addImage(ann, look.id, two.id);
+    expect((await looks.removeImage(ann, look.id, only?.id ?? ''))?.photoAssetId).toBe(two.id);
+    // Brought to the front, Robes' picture shows again; shown, her last photograph can go.
+    expect(await looks.setCover(ann, look.id, null)).toMatchObject({
+      robesHidden: false,
+      recordImage: 'model',
+    });
+    expect(await looks.setRobesHidden(ann, look.id, true)).toMatchObject({ robesHidden: true });
+    expect(await looks.setRobesHidden(ann, look.id, false)).toMatchObject({ robesHidden: false });
+    const [last] = await looks.imagesFor(ann, [look.id]);
+    expect((await looks.removeImage(ann, look.id, last?.id ?? ''))?.photoAssetId).toBeNull();
   });
 
   it('holds twenty photographs and refuses a twenty-first, writing nothing', async () => {

@@ -52,10 +52,12 @@ import {
   LookPage,
   LookParams,
   LookPhotoInput,
+  LookRobesInput,
   LookSet,
   LookSetParams,
   LookWearPage,
   PromptLookInput,
+  RedrawLookInput,
   RestyleLookInput,
   SaveLookInput,
   SaveWayInput,
@@ -282,13 +284,14 @@ export const routes = {
     input: EmptyInput,
     output: Model,
   },
-  // "See it on me": naturally idempotent per model and rack.
+  // "See it on me": naturally idempotent per model, rack and picture note. `note` (D21) writes her
+  // picture note first and draws again even when nothing else changed.
   'looks.renderOnModel': {
     method: 'POST',
     path: '/looks/:id/render',
     auth: 'user',
     params: LookParams,
-    input: EmptyInput,
+    input: RedrawLookInput,
     output: StartJobOutput,
   },
   'me.style.get': {
@@ -696,6 +699,15 @@ export const routes = {
     input: LookCoverInput,
     output: Look,
   },
+  // Robes' picture hidden from the stack, or shown again (D19); any redraw shows it again.
+  'looks.images.robes': {
+    method: 'POST',
+    path: '/looks/:id/images/robes',
+    auth: 'user',
+    params: LookParams,
+    input: LookRobesInput,
+    output: Look,
+  },
   // Naturally idempotent: one wear per look per day.
   'looks.wear': {
     method: 'POST',
@@ -799,13 +811,13 @@ export const routes = {
     idempotent: true,
   },
   // Robes' frame for the rack as it stands (drawn on first open, re-drawn after an edit);
-  // naturally idempotent like a render on her model.
+  // naturally idempotent like a render on her model, and takes her picture note the same way.
   'looks.frame': {
     method: 'POST',
     path: '/looks/:id/frame',
     auth: 'user',
     params: LookParams,
-    input: EmptyInput,
+    input: RedrawLookInput,
     output: StartJobOutput,
   },
   // The look prompt: her words read against the rack she sent; the edit lands as job output.

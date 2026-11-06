@@ -120,7 +120,8 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       const img = id ? images.get(id) : undefined;
       return img && img.status !== 'failed' ? img : null;
     };
-    const model = usable(row.frameAssetId) ?? usable(row.renderAssetId);
+    // Hidden (D19), Robes' picture is kept on the row but leaves the stack until a redraw lands.
+    const model = row.robesHidden ? null : (usable(row.frameAssetId) ?? usable(row.renderAssetId));
     // Her photographs, the one in front first (D13); a photograph whose renditions failed drops
     // out of the stack. `photo` is the first of them, else the single photograph of older rows.
     const stack = imageRows.flatMap((r) => {
@@ -130,11 +131,13 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
     });
     const photo = stack[0]?.image ?? usable(row.photoAssetId);
     const record: 'photo' | 'model' =
-      row.recordImage === 'model' || row.recordImage === 'photo'
-        ? row.recordImage
-        : photo
-          ? 'photo'
-          : 'model';
+      row.robesHidden && photo
+        ? 'photo'
+        : row.recordImage === 'model' || row.recordImage === 'photo'
+          ? row.recordImage
+          : photo
+            ? 'photo'
+            : 'model';
     const image = (record === 'photo' ? (photo ?? model) : (model ?? photo)) ?? null;
     const frameRender = row.renderKey?.startsWith('frame:') ?? false;
     // A frame is still coming while a job draws it (a claim younger than 10 minutes) or while its
@@ -157,6 +160,7 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
             lookPieces.map((p) => p.piece.id),
             proposals.map((p) => ({ name: p.name, brand: p.brand })),
             styling,
+            row.pictureNote,
           )
         : row.renderAssetId !== null &&
             row.renderStatus === 'ready' &&
@@ -166,6 +170,7 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
             rackHash(
               lookPieces.map((p) => ({ id: p.piece.id })),
               styling,
+              row.pictureNote,
             )
           : false;
     return Look.parse({
@@ -184,6 +189,8 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       model,
       record,
       images: stack,
+      robesHidden: row.robesHidden,
+      pictureNote: row.pictureNote,
       frame: row.frameAssetId !== null,
       framePending,
       composedByRobes: ROBES_SOURCES.has(row.source) || proposals.length > 0,

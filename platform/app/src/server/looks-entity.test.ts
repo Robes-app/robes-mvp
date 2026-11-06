@@ -74,6 +74,8 @@ const row = (o: Record<string, unknown> = {}) =>
     edits: null,
     photoAssetId: null,
     recordImage: null,
+    robesHidden: false,
+    pictureNote: null,
     dateHint: null,
     createdAt: new Date(NOW),
     updatedAt: new Date(NOW),
@@ -195,6 +197,54 @@ describe('a stale picture', () => {
     expect((await toLooks(USER, [stale], NOW))[0]?.pictureStale).toBe(true);
     // No picture yet: nothing to be stale.
     expect((await toLooks(USER, [row()], NOW))[0]?.pictureStale).toBe(false);
+  });
+
+  // D21: her picture note is part of what the picture shows.
+  it('reads stale when her picture note changed since the picture was drawn', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    const noted = frameKey([], [], {}, 'sleeves rolled up');
+    const frame = { frameAssetId: FRAME, renderStatus: 'ready', pictureNote: 'sleeves rolled up' };
+    const [fresh] = await toLooks(USER, [row({ ...frame, frameKey: noted })], NOW);
+    expect(fresh).toMatchObject({ pictureStale: false, pictureNote: 'sleeves rolled up' });
+    const [before] = await toLooks(USER, [row({ ...frame, frameKey: frameKey([], [], {}) })], NOW);
+    expect(before?.pictureStale).toBe(true);
+    const render = {
+      renderAssetId: FRAME,
+      renderStatus: 'ready',
+      pictureNote: 'hair up',
+      renderKey: `twin:abc:${rackHash([], {}, 'hair up')}`,
+    };
+    expect((await toLooks(USER, [row(render)], NOW))[0]?.pictureStale).toBe(false);
+    const cleared = { ...render, pictureNote: null };
+    expect((await toLooks(USER, [row(cleared)], NOW))[0]?.pictureStale).toBe(true);
+  });
+});
+
+// D19: Robes' picture hidden leaves the stack; it is kept on the row for the next redraw.
+describe('Robes’ picture hidden', () => {
+  it('reads no model picture, and her photograph leads whatever the record said', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    const fields = {
+      frameAssetId: FRAME,
+      photoAssetId: PHOTO,
+      renderStatus: 'ready',
+      recordImage: 'model',
+      stoodOn: 'robes',
+    };
+    const [look] = await toLooks(USER, [row({ ...fields, robesHidden: true })], NOW);
+    expect(look).toMatchObject({
+      robesHidden: true,
+      record: 'photo',
+      model: null,
+      photo: { assetId: PHOTO },
+      image: { assetId: PHOTO },
+      // Still Robes' frame: a redraw re-dresses it.
+      frame: true,
+      onRobesModel: false,
+    });
+    const [shown] = await toLooks(USER, [row({ ...fields, robesHidden: false })], NOW);
+    expect(shown).toMatchObject({ robesHidden: false, model: { assetId: FRAME } });
   });
 });
 

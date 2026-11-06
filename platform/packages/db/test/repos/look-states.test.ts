@@ -321,6 +321,19 @@ describe('suggested looks (look states)', () => {
     expect(await looks.get(ann, id)).toMatchObject({ frameAssetId: asset.id, frameKey: 'k1' });
     expect(await looks.claimFrame(ann, id, 'k1')).toBe(false);
     expect(await looks.claimFrame(bea, id, 'k3')).toBe(false);
+    // Her picture note sent (D21): the same rack draws again, but never twice at once.
+    expect(await looks.claimFrame(ann, id, 'k1', { force: true })).toBe(true);
+    expect(await looks.claimFrame(ann, id, 'k1', { force: true })).toBe(false);
+    expect(await looks.claimFrame(bea, id, 'k1', { force: true })).toBe(false);
+    // A frame that lands shows Robes' picture again and puts it in front (D19).
+    await db
+      .updateTable('looks')
+      .set({ robesHidden: true, recordImage: 'photo' })
+      .where('id', '=', id)
+      .execute();
+    expect(await system.suggested.setFrame(ann, id, 'k1', asset.id)).toBe(true);
+    expect(await looks.get(ann, id)).toMatchObject({ robesHidden: false, recordImage: 'model' });
+    expect((await system.suggested.look(ann, id))?.look).toHaveProperty('pictureNote', null);
   });
 
   it('claims the frame its own job draws when the set is minted', async () => {

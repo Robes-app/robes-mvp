@@ -132,6 +132,7 @@ export {
   LOOK_IMAGES_MAX,
   type LookFields,
   LookImagesFull,
+  LookNeedsImage,
   type LookPieceInput,
   LookPiecesNotFound,
   type LookRole,

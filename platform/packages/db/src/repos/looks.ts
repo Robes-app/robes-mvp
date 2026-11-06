@@ -33,6 +33,8 @@ const LOOK_COLUMNS = [
   'edits',
   'photoAssetId',
   'recordImage',
+  'robesHidden',
+  'pictureNote',
   'createdAt',
   'updatedAt',
 ] as const;
@@ -82,6 +84,14 @@ export const LOOK_IMAGES_MAX = 20;
 export class LookImagesFull extends Error {
   constructor() {
     super('look_images_full');
+  }
+}
+
+// A look always keeps one image (D19): Robes' picture is hidden only behind a photograph of hers,
+// and her last photograph stays while Robes' picture is hidden.
+export class LookNeedsImage extends Error {
+  constructor() {
+    super('look_needs_image');
   }
 }
 
@@ -411,7 +421,15 @@ export function looksRepo(db: Db) {
 
     // True when this call should start a render for `renderKey`: not already ready for that exact
     // model and rack, and not rendering right now (a claim older than 10 minutes is abandoned).
-    async claimRender(userId: UserId, id: string, renderKey: string): Promise<boolean> {
+    // `force` is her picture note sent (D21): she asked for a fresh picture, so a ready one for the
+    // same key draws again and a newer key takes over a claim still drawing an older one (as a
+    // frame does); only the same key already drawing stands.
+    async claimRender(
+      userId: UserId,
+      id: string,
+      renderKey: string,
+      opts: { force?: boolean } = {},
+    ): Promise<boolean> {
       const res = await db
         .updateTable('looks')
         .set({
@@ -425,11 +443,17 @@ export function looksRepo(db: Db) {
         .where('deletedAt', 'is', null)
         // coalesce: a look never rendered has NULL status, and NOT (NULL) would match nothing.
         .where(
-          sql<boolean>`not coalesce(
-            (render_status = 'ready' and render_key = ${renderKey})
-            or (render_status = 'pending' and render_claimed_at > now() - interval '10 minutes'),
-            false
-          )`,
+          opts.force
+            ? sql<boolean>`not coalesce(
+                render_key = ${renderKey} and render_status = 'pending'
+                  and render_claimed_at > now() - interval '10 minutes',
+                false
+              )`
+            : sql<boolean>`not coalesce(
+                (render_status = 'ready' and render_key = ${renderKey})
+                or (render_status = 'pending' and render_claimed_at > now() - interval '10 minutes'),
+                false
+              )`,
         )
         .executeTakeFirst();
       return res.numUpdatedRows > 0n;
@@ -437,9 +461,16 @@ export function looksRepo(db: Db) {
 
     // Robes' frame for one rack: true when this call should draw it. Unlike a render on her model,
     // a newer rack takes over a claim still drawing an older one, so the latest rack always wins
-    // (the older job stands down: it no longer matches render_key when it lands).
-    async claimFrame(userId: UserId, id: string, frameKey: string): Promise<boolean> {
+    // (the older job stands down: it no longer matches render_key when it lands). `force` (her
+    // picture note sent, D21) draws a ready frame for the same key again.
+    async claimFrame(
+      userId: UserId,
+      id: string,
+      frameKey: string,
+      opts: { force?: boolean } = {},
+    ): Promise<boolean> {
       const renderKey = `frame:${frameKey}`;
+      const ready = opts.force ? sql<boolean>`false` : sql<boolean>`render_status = 'ready'`;
       const res = await db
         .updateTable('looks')
         .set({ renderStatus: 'pending', renderKey, renderJobId: null, renderClaimedAt: sql`now()` })
@@ -448,11 +479,25 @@ export function looksRepo(db: Db) {
         .where('deletedAt', 'is', null)
         .where(
           sql<boolean>`not coalesce(
-            render_key = ${renderKey} and (render_status = 'ready'
+            render_key = ${renderKey} and (${ready}
               or (render_status = 'pending' and render_claimed_at > now() - interval '10 minutes')),
             false
           )`,
         )
+        .executeTakeFirst();
+      return res.numUpdatedRows > 0n;
+    },
+
+    // Her note on how Robes' picture is drawn (D21), or none. Written before the redraw that reads
+    // it; the pieces are never touched. False when the look is not hers.
+    async setPictureNote(userId: UserId, id: string, note: string | null): Promise<boolean> {
+      const trimmed = note?.trim();
+      const res = await db
+        .updateTable('looks')
+        .set({ pictureNote: trimmed ? trimmed : null })
+        .where('userId', '=', userId)
+        .where('id', '=', id)
+        .where('deletedAt', 'is', null)
         .executeTakeFirst();
       return res.numUpdatedRows > 0n;
     },
@@ -897,9 +942,29 @@ export function looksRepo(db: Db) {
     },
 
     // A photograph leaves the stack; the rest close up. Robes' picture is not a row here, so it
-    // can never be removed this way. Undefined when the look or the photograph is not hers.
+    // can never be removed this way. Undefined when the look or the photograph is not hers; her
+    // last photograph stays while Robes' picture is hidden (LookNeedsImage, D19).
     removeImage(userId: UserId, lookId: string, imageId: string) {
       return db.transaction().execute(async (trx) => {
+        const look = await trx
+          .selectFrom('looks')
+          .select('robesHidden')
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .where('deletedAt', 'is', null)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!look) return undefined;
+        if (look.robesHidden) {
+          const rows = await trx
+            .selectFrom('lookImages')
+            .select('id')
+            .where('userId', '=', userId)
+            .where('lookId', '=', lookId)
+            .execute();
+          if (!rows.some((r) => r.id === imageId)) return undefined;
+          if (rows.length === 1) throw new LookNeedsImage();
+        }
         const gone = await trx
           .deleteFrom('lookImages')
           .where('userId', '=', userId)
@@ -957,13 +1022,58 @@ export function looksRepo(db: Db) {
             ...rows.filter((r) => r.id !== imageId).map((r) => r.id),
           ]);
         }
+        // Robes' picture brought to the front is shown again (D19).
         await trx
           .updateTable('looks')
-          .set({ recordImage: imageId === null ? 'model' : 'photo' })
+          .set(
+            imageId === null
+              ? { recordImage: 'model', robesHidden: false }
+              : { recordImage: 'photo' },
+          )
           .where('userId', '=', userId)
           .where('id', '=', lookId)
           .execute();
         await syncLeadPhoto(trx, userId, lookId);
+        return trx
+          .selectFrom('looks')
+          .select(LOOK_SELECT)
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .executeTakeFirst();
+      });
+    },
+
+    // Robes' picture off the stack, or back on it (D19). Hidden, it is kept (the frame or render
+    // stays on the row) and her photograph in front is the cover; it can be hidden only behind a
+    // photograph of hers (LookNeedsImage). Shown again, it takes its place without leading; the
+    // next redraw that lands shows it too, as the cover. Undefined when the look is not hers.
+    setRobesHidden(userId: UserId, lookId: string, hidden: boolean) {
+      return db.transaction().execute(async (trx) => {
+        const look = await trx
+          .selectFrom('looks')
+          .select('id')
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .where('deletedAt', 'is', null)
+          .forUpdate()
+          .executeTakeFirst();
+        if (!look) return undefined;
+        if (hidden) {
+          const photo = await trx
+            .selectFrom('lookImages')
+            .select('id')
+            .where('userId', '=', userId)
+            .where('lookId', '=', lookId)
+            .limit(1)
+            .executeTakeFirst();
+          if (!photo) throw new LookNeedsImage();
+        }
+        await trx
+          .updateTable('looks')
+          .set(hidden ? { robesHidden: true, recordImage: 'photo' } : { robesHidden: false })
+          .where('userId', '=', userId)
+          .where('id', '=', lookId)
+          .execute();
         return trx
           .selectFrom('looks')
           .select(LOOK_SELECT)

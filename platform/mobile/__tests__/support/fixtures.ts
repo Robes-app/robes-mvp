@@ -101,6 +101,8 @@ export function look(overrides: Partial<Look> = {}): Look {
     model: null,
     record: 'model',
     images: [],
+    robesHidden: false,
+    pictureNote: null,
     frame: false,
     framePending: false,
     composedByRobes: false,

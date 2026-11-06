@@ -362,6 +362,27 @@ describe('key_piece handler (suggested looks)', () => {
     });
   });
 
+  // D21: her picture note stays with the look, so a re-dress draws it and keys its frame by it.
+  it('keeps her picture note through a re-dress, in the frame and its key', async () => {
+    const plain = setup();
+    await plain.run({ mode: 'restyle', lookId: LOOK });
+    const plainKey = (plain.suggested.rewrite.mock.calls[0] as unknown[])[3];
+    expect(plain.generateImage.mock.calls[0]?.[0].prompt).not.toContain('HER NOTE');
+    const noted = setup();
+    const stored = await noted.suggested.look();
+    noted.suggested.look.mockResolvedValueOnce({
+      ...stored,
+      look: { ...stored.look, pictureNote: 'sleeves rolled up' },
+    } as never);
+    await noted.run({ mode: 'restyle', lookId: LOOK });
+    const claim = (noted.suggested.rewrite.mock.calls[0] as unknown[])[3] as { frameKey: string };
+    expect(claim.frameKey).not.toBe((plainKey as { frameKey: string }).frameKey);
+    expect((noted.suggested.setFrame.mock.calls[0] as unknown[])[2]).toBe(claim.frameKey);
+    expect(noted.generateImage.mock.calls[0]?.[0].prompt).toContain(
+      '<user_input>\nsleeves rolled up\n</user_input>',
+    );
+  });
+
   // The prompt box (plan 2026-11-03): her words make one draft for the day, not three suggestions.
   it('mints one draft for the day from the prompt box, its frame claimed with it', async () => {
     const { run, suggested, styling, writeStage } = setup();

@@ -151,6 +151,8 @@ export const lookbook = {
       remove: 'Remove this image',
       lead: (what: string): string => `${what} leads the look`,
       done: 'Done',
+      // 409 look_needs_image (D19): the change would leave the look with no image.
+      lastImage: 'A look keeps at least one image.',
     },
     details: {
       tags: 'Tags',

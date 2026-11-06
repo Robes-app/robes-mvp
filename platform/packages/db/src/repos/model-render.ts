@@ -10,7 +10,7 @@ export function modelRenderRepo(db: Db) {
     async look(userId: UserId, lookId: string) {
       const look = await db
         .selectFrom('looks')
-        .select(['id', 'name', 'renderKey', 'renderStatus', 'styling'])
+        .select(['id', 'name', 'renderKey', 'renderStatus', 'styling', 'pictureNote'])
         .where('userId', '=', userId)
         .where('id', '=', lookId)
         .where('deletedAt', 'is', null)
@@ -42,7 +42,8 @@ export function modelRenderRepo(db: Db) {
     },
 
     // Lands only if the look still wants this render (she may have changed model or rack since).
-    // The key names the model it stood on; the row remembers (plan 2026-11-05 §2.4).
+    // The key names the model it stood on; the row remembers (plan 2026-11-05 §2.4). A fresh
+    // picture is shown again and leads the look (D19, D21).
     async setRender(userId: UserId, lookId: string, renderKey: string, assetId: string) {
       await db
         .updateTable('looks')
@@ -51,6 +52,8 @@ export function modelRenderRepo(db: Db) {
           renderAssetId: assetId,
           renderClaimedAt: null,
           stoodOn: stoodOnOf(renderKey),
+          robesHidden: false,
+          recordImage: 'model',
         })
         .where('userId', '=', userId)
         .where('id', '=', lookId)

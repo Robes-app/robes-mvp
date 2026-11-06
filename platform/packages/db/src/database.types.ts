@@ -341,6 +341,7 @@ export interface Looks {
   note: string | null;
   originLookId: string | null;
   photoAssetId: string | null;
+  pictureNote: string | null;
   proposals: Json | null;
   recordImage: string | null;
   renderAssetId: string | null;
@@ -348,6 +349,7 @@ export interface Looks {
   renderJobId: string | null;
   renderKey: string | null;
   renderStatus: string | null;
+  robesHidden: Generated<boolean>;
   seasons: Generated<string[]>;
   setId: string | null;
   setIndex: number | null;

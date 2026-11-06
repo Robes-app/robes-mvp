@@ -5,6 +5,7 @@ import {
   type LookAskInput,
   LookSet,
   type PromptLookInput,
+  type RedrawLookInput,
   type RestyleLookInput,
   type StartJobOutput,
 } from '@robes/contracts';
@@ -16,6 +17,7 @@ import { repos } from './db';
 import { startJob } from './jobs';
 import { toLook, toLooks } from './looks-entity';
 import { ensureRobesModels } from './model';
+import { writePictureNote } from './picture-note';
 import { todayIn } from './plan';
 
 // Look states (docs/look-states-brief.md) and the look prompt (docs/look-prompt-brief.md).
@@ -122,6 +124,7 @@ export async function requestFrame(
   userId: UserId,
   req: Request,
   id: string,
+  input: RedrawLookInput = {},
 ): Promise<StartJobOutput> {
   const look = await repos.looks.get(userId, id);
   if (!look) throw new ApiError('not_found');
@@ -130,6 +133,8 @@ export async function requestFrame(
   const pieces = await repos.looks.piecesFor(userId, [id]);
   const propsCount = StoredProposals.parse(look.proposals ?? []).length;
   if (pieces.length === 0 && propsCount === 0) throw new ApiError('invalid_input');
+  // Her picture note (D21) first, as for a render on her model.
+  const pictureNote = await writePictureNote(userId, id, input.note, look.pictureNote);
   const key = frameKey(
     pieces.map((p) => p.id),
     StoredProposals.parse(look.proposals ?? []),
@@ -137,8 +142,9 @@ export async function requestFrame(
       .record(z.string(), z.string())
       .catch({})
       .parse(look.styling ?? {}),
+    pictureNote,
   );
-  if (!(await repos.looks.claimFrame(userId, id, key))) {
+  if (!(await repos.looks.claimFrame(userId, id, key, { force: input.note !== undefined }))) {
     const again = await repos.looks.renderState(userId, id);
     const job = again?.renderJobId
       ? await repos.jobs.getForUser(userId, again.renderJobId)

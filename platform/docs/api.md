@@ -124,7 +124,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 |---|---|
 | `POST /looks/generate` (key-piece styling: three suggestions on the deck) · `POST /looks/prompt` (a new look in her words: three suggestions on the deck, or with `draft: true` — the diary's prompt box, plan 2026-11-03 — ONE draft for the day, in the diary's slot) · `POST /looks/:id/restyle` `{ note? }` (↻ one suggestion; Dress it again on a draft Robes made, `note` = what's not right with it) | `/api/style` (dress-me intent, `refine` + `wayIndex`) |
 | `POST /looks/:id/ask` (the look prompt; the edit is the job's output) | `/api/look/ask` (supersedes `/api/look/refine`) |
-| `POST /looks/:id/frame` (Robes' frame for the rack as it stands: first open, or re-dressed after an edit) | `/api/avatar/render` frame mode |
+| `POST /looks/:id/frame` `{ note? }` (Robes' frame for the rack as it stands: first open, or re-dressed after an edit; `note` is her picture note, D21, written first and drawn at once) | `/api/avatar/render` frame mode |
 | `POST /today/generate` (daily look; also produced by overnight batch) | `/api/daily` |
 | `POST /travel/plan` · `POST /travel/:id/looks` · `POST /travel/:id/days/:day/restyle` | `/api/travel`, `/api/travel/looks` |
 | `POST /moodboards/generate` (**deferred**: moodboards are flagged off in legacy, `_RB_MB_HIDDEN`; build only if product revives them) | `/api/moodboard` |
@@ -140,7 +140,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 |---|---|
 | `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` `{ name?, date? }` (suggested/draft → saved; with `date` it is pinned to that day in the same act) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
 | `POST /looks/:id/wears` · `DELETE /wears/:id` | client REST `wears` |
-| `POST /looks/:id/images` `{ assetId }` (a photograph joins the stack, D13) · `DELETE /looks/:id/images/:imageId` · `POST /looks/:id/images/cover` `{ imageId \| null }` (her photograph, or Robes' picture, leads) · `POST /looks/:id/photo` (kept: the new photograph joins and leads) | legacy's single look photo |
+| `POST /looks/:id/images` `{ assetId }` (a photograph joins the stack, D13) · `DELETE /looks/:id/images/:imageId` · `POST /looks/:id/images/cover` `{ imageId \| null }` (her photograph, or Robes' picture, leads) · `POST /looks/:id/images/robes` `{ hidden }` (Robes' picture hidden or shown, D19; 409 `look_needs_image` when no image would remain) · `POST /looks/:id/photo` (kept: the new photograph joins and leads) | legacy's single look photo |
 | `GET /artifacts?type=` · `GET /artifacts/:id` · `PATCH /artifacts/:id` (title, packed/pins state) · `DELETE` (soft) | client REST `lookbook_items` + localStorage merge |
 | `GET /plan?from=&to=` · `PUT /plan/days/:date/name` | client REST `planned_days` + client sweeps (legacy `day` rows for a named day) |
 | `PUT /plan/days/:date/ootd` `{ entryId }` → the day's entries in order (`position` 0 leads home) · `PUT /plan/days/:date/place` `{ place \| null }` (where she is that day; the diary's weather follows it) · `GET /places?q=&date=` (30/min; cities from Open-Meteo's geocoder with the day's range at each) | — (the OOTD diary home, plan 2026-11-02) |
