@@ -113,7 +113,7 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
           )}
         </>
       ) : off ? (
-        <Button variant="secondary" className="self-start" onClick={() => setOff(false)}>
+        <Button variant="outline" className="self-start" onClick={() => setOff(false)}>
           {copy.turnOn}
         </Button>
       ) : (

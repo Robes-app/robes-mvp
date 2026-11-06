@@ -1,7 +1,8 @@
 import { ui } from '@robes/copy';
+import type { TypeName } from '@robes/tokens';
 import { Text as RNText, type TextProps as RNTextProps, StyleSheet } from 'react-native';
 import { cx } from './cx';
-import { fonts, HEADING_MIN_SIZE, maxFontSizeMultiplier } from './scale';
+import { fonts, HEADING_MIN_SIZE, maxFontSizeMultiplier, typeStyle } from './scale';
 
 type Tone = 'ink' | 'muted' | 'faint' | 'danger' | 'success';
 
@@ -19,6 +20,9 @@ const sizeClass = { body: 'text-base', small: 'text-sm', caption: 'text-xs' } as
 const italicSize = { body: 20, small: 18, caption: 17 } as const;
 
 export interface TextProps extends RNTextProps {
+  // A Felix type style (body, meta, piece-name, italic-aside…); it sets the face, size, line height
+  // and tracking, and `size`, `weight` and `italic` are ignored. Twin of web Text `variant`.
+  variant?: TypeName;
   size?: keyof typeof sizeClass;
   tone?: Tone;
   weight?: 'regular' | 'medium';
@@ -26,6 +30,7 @@ export interface TextProps extends RNTextProps {
 }
 
 export function Text({
+  variant,
   size = 'body',
   tone = 'ink',
   weight = 'regular',
@@ -34,6 +39,16 @@ export function Text({
   style,
   ...rest
 }: TextProps) {
+  if (variant) {
+    return (
+      <RNText
+        maxFontSizeMultiplier={maxFontSizeMultiplier.body}
+        {...rest}
+        className={cx(toneClass[tone], className)}
+        style={[typeStyle(variant), style]}
+      />
+    );
+  }
   // The family rides inline (Uniwind can't name a loaded face), so a `font-display` class must
   // choose it here — otherwise the inline sans wins and a serif line renders in Inter.
   const family = /(^|\s)font-display(\s|$)/.test(className ?? '')
@@ -127,13 +142,15 @@ export function Wordmark({
   );
 }
 
+// Felix's eyebrow: 10/500 caps at 0.24em in `ink-soft` (a sheet's in the rose for small text,
+// `text-accent-warm`). Author in sentence case. Twin of web ui text.tsx Eyebrow.
 export function Eyebrow({ className, style, ...rest }: RNTextProps) {
   return (
     <RNText
       maxFontSizeMultiplier={maxFontSizeMultiplier.label}
       {...rest}
-      className={cx('text-xs uppercase text-ink-faint', className)}
-      style={[{ fontFamily: fonts.sansRegular, letterSpacing: 2.64 }, style]}
+      className={cx('text-ink-muted', className)}
+      style={[typeStyle('eyebrow'), style]}
     />
   );
 }

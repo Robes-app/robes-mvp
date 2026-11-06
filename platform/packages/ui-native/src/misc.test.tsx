@@ -122,7 +122,7 @@ describe('Progress', () => {
 });
 
 describe('EmptyState', () => {
-  test('has a title, body and one secondary action', async () => {
+  test('has a title, body and one outline action', async () => {
     const onPress = jest.fn();
     await render(
       <EmptyState

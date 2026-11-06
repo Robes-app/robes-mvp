@@ -282,3 +282,34 @@ export const blur = {
 } as const;
 
 export { colorValue, semanticColor } from './value';
+
+// Felix's type scale (platform/design/felix/tokens.json): Cormorant speaks, Inter labels. Sizes in
+// px/pt, line heights as multiples, tracking in em. Caps styles are authored in sentence case.
+// Cormorant never sets below 17, except `piece-name` at 15 (400, which holds at that size).
+export type TypeStyle = {
+  family: 'display' | 'sans';
+  size: number;
+  lineHeight: number;
+  weight: 300 | 400 | 500;
+  tracking?: number;
+  italic?: boolean;
+  caps?: boolean;
+};
+
+export const typeScale = {
+  display: { family: 'display', size: 48, lineHeight: 1.05, weight: 300 },
+  greeting: { family: 'display', size: 32, lineHeight: 1.05, weight: 300 },
+  title: { family: 'display', size: 24, lineHeight: 1.15, weight: 300 },
+  heading: { family: 'display', size: 22, lineHeight: 1.1, weight: 400 },
+  'day-number': { family: 'display', size: 20, lineHeight: 1, weight: 400 },
+  'italic-aside': { family: 'display', size: 17, lineHeight: 1.2, weight: 300, italic: true },
+  'piece-name': { family: 'display', size: 15, lineHeight: 1.3, weight: 400, tracking: 0.01 },
+  body: { family: 'sans', size: 13, lineHeight: 1.65, weight: 400 },
+  meta: { family: 'sans', size: 11, lineHeight: 1.4, weight: 400 },
+  eyebrow: { family: 'sans', size: 10, lineHeight: 1, weight: 500, tracking: 0.24, caps: true },
+  label: { family: 'sans', size: 9, lineHeight: 1, weight: 500, tracking: 0.22, caps: true },
+  category: { family: 'sans', size: 8.5, lineHeight: 1.3, weight: 500, tracking: 0.18, caps: true },
+} as const satisfies Record<string, TypeStyle>;
+
+export type TypeName = keyof typeof typeScale;
+export const SERIF_FLOOR = 17;

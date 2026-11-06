@@ -140,7 +140,7 @@ export function PieceDetail({ id }: { id: string }) {
           {ready ? (
             <Link
               href={`/looks/new?pieceId=${id}`}
-              className={buttonClasses({ variant: 'secondary' })}
+              className={buttonClasses({ variant: 'outline' })}
             >
               {lookbook.startLook}
             </Link>

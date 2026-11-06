@@ -448,7 +448,7 @@ function FillIn({
   shot: SessionShot | undefined;
   onFillIn?: ((shot: SessionShot | undefined) => void) | undefined;
 }) {
-  const pill = buttonClasses({ variant: 'secondary' });
+  const pill = buttonClasses({ variant: 'outline' });
   return onFillIn ? (
     <button type="button" className={`${pill} self-start`} onClick={() => onFillIn(shot)}>
       {copy.review.fillIn}
@@ -547,13 +547,13 @@ function Another({
   className?: string;
 }) {
   return onAnother ? (
-    <Button variant="secondary" className={className} onClick={onAnother}>
+    <Button variant="outline" className={className} onClick={onAnother}>
       {copy.filed.another}
     </Button>
   ) : (
     <Link
       href={`/wardrobe/add?to=${to}`}
-      className={`${buttonClasses({ variant: 'secondary', block: !className })} ${className}`}
+      className={`${buttonClasses({ variant: 'outline', block: !className })} ${className}`}
     >
       {copy.filed.another}
     </Link>

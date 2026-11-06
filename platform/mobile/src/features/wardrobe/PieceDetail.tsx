@@ -158,7 +158,7 @@ export function PieceDetail({ id }: { id: string }) {
               {copy.piece.stylePiece}
             </Button>
             <Button
-              variant="secondary"
+              variant="outline"
               disabled={reading}
               onPress={() => router.push({ pathname: '/looks/new', params: { pieceId: piece.id } })}
             >

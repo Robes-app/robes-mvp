@@ -122,7 +122,7 @@ function Receipt({ entry, more }: { entry: InboxEntry; more: number }) {
         </Button>
         <div className="flex items-center justify-between gap-3">
           <Button
-            variant="secondary"
+            variant="outline"
             disabled={decide.isPending || keep.length === 0}
             onClick={() => file('wishlist')}
           >

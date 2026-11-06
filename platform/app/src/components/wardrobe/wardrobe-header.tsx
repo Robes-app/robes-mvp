@@ -59,7 +59,7 @@ function InboxNotice() {
       <p className="font-sans text-[13px] text-ink-muted">
         {wardrobe.inbox.notice(receipts)} · {you.receipts.waiting(pieces)}
       </p>
-      <Link href="/wardrobe/inbox" className={buttonClasses({ variant: 'secondary' })}>
+      <Link href="/wardrobe/inbox" className={buttonClasses({ variant: 'outline' })}>
         {you.receipts.review(pieces)}
       </Link>
     </section>

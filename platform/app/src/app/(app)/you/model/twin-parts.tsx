@@ -324,7 +324,7 @@ function Stepper({
       <span className="font-sans text-base text-ink">{label}</span>
       <span className="flex flex-col items-end">
         <span className="flex items-center gap-2">
-          <Button variant="secondary" aria-label={`${f.less}: ${label}`} onClick={() => onStep(-1)}>
+          <Button variant="outline" aria-label={`${f.less}: ${label}`} onClick={() => onStep(-1)}>
             −
           </Button>
           <output
@@ -333,7 +333,7 @@ function Stepper({
           >
             {value || f.add}
           </output>
-          <Button variant="secondary" aria-label={`${f.more}: ${label}`} onClick={() => onStep(1)}>
+          <Button variant="outline" aria-label={`${f.more}: ${label}`} onClick={() => onStep(1)}>
             +
           </Button>
         </span>

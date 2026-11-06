@@ -167,7 +167,7 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
             />
           ))}
           {suggested ? null : (
-            <Button variant="secondary" onPress={() => setAdding(true)}>
+            <Button variant="outline" onPress={() => setAdding(true)}>
               {copy.rack.addPiece}
             </Button>
           )}
@@ -207,7 +207,7 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
       >
         <PrimaryScope>
           {suggested ? (
-            <Button variant="secondary" onPress={() => editor.startDraft()} className="flex-1">
+            <Button variant="outline" onPress={() => editor.startDraft()} className="flex-1">
               {copy.bar.edit}
             </Button>
           ) : (

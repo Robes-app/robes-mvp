@@ -138,10 +138,10 @@ export function LookFromPhoto({
       <ScrollView contentContainerClassName="gap-4 px-6 pb-12">
         <Heading>{copy.start.title}</Heading>
         <Text tone="muted">{copy.start.body}</Text>
-        <Button variant="secondary" icon="camera" onPress={() => void read.start('camera')}>
+        <Button variant="outline" icon="camera" onPress={() => void read.start('camera')}>
           {shell.create.photograph}
         </Button>
-        <Button variant="secondary" icon="image" onPress={() => void read.start('library')}>
+        <Button variant="outline" icon="image" onPress={() => void read.start('library')}>
           {shell.create.cameraRoll}
         </Button>
         {read.status === 'failed' && read.photo ? (

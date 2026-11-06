@@ -43,7 +43,7 @@ export function DownloadData() {
             <Text size="small">{copy.ready}</Text>
             <a
               href={current.downloadUrl}
-              className={buttonClasses({ variant: 'secondary' })}
+              className={buttonClasses({ variant: 'outline' })}
               download
             >
               {copy.download}
@@ -53,7 +53,7 @@ export function DownloadData() {
       </div>
       {canRequest ? (
         <Button
-          variant="secondary"
+          variant="outline"
           className="self-start"
           loading={request.isPending}
           loadingLabel={copy.requesting}

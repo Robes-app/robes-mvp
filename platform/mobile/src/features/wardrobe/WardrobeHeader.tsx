@@ -56,7 +56,7 @@ export function InboxNotice({
       <Text className="shrink text-[13px] text-ink-muted" style={{ fontFamily: fonts.sans }}>
         {`${copy.inbox.notice(receipts)} · ${you.receipts.waiting(pieces)}`}
       </Text>
-      <Button variant="secondary" onPress={onOpen} testID="wardrobe-inbox-review">
+      <Button variant="outline" onPress={onOpen} testID="wardrobe-inbox-review">
         {you.receipts.review(pieces)}
       </Button>
     </View>

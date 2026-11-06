@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react-native';
-import { maxFontSizeMultiplier } from './scale';
+import { StyleSheet } from 'react-native';
+import { fonts, maxFontSizeMultiplier } from './scale';
 import { Em, Eyebrow, Heading, Text } from './Text';
 
 test('Heading is a header in Cormorant and never below 17pt', async () => {
@@ -72,4 +73,31 @@ test('a font-display class sets the serif, which the inline sans would otherwise
   );
   expect(screen.getByText('Light Spring')).toHaveStyle({ fontFamily: 'Cormorant_300Light' });
   expect(screen.getByText('Sans')).toHaveStyle({ fontFamily: 'Inter_300Light' });
+});
+
+test('a Felix variant sets its face, size, line height and tracking', async () => {
+  await render(
+    <>
+      <Text variant="piece-name">Lime green sweatshirt</Text>
+      <Text variant="italic-aside">It always holds the door.</Text>
+      <Eyebrow>Monday</Eyebrow>
+    </>,
+  );
+  const flat = (t: string) => StyleSheet.flatten(screen.getByText(t).props.style);
+  expect(flat('Lime green sweatshirt')).toMatchObject({
+    fontFamily: fonts.displayRegular,
+    fontSize: 15,
+    lineHeight: 19.5,
+    letterSpacing: 0.15,
+  });
+  expect(flat('It always holds the door.')).toMatchObject({
+    fontFamily: fonts.displayItalic,
+    fontSize: 17,
+  });
+  expect(flat('Monday')).toMatchObject({
+    fontFamily: fonts.sansMedium,
+    fontSize: 10,
+    letterSpacing: 2.4,
+    textTransform: 'uppercase',
+  });
 });

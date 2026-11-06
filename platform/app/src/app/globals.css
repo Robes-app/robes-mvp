@@ -23,14 +23,14 @@ body {
   }
 }
 
-/* Draft (digital twin redlines, 2026-11-05): the smallest caps line — an eyebrow at 9px/500,
-   0.2em, in the faint ink. Tailwind's `@utility`, so it composes with the usual classes. */
+/* Felix's `label` (the smallest caps line, 9px/500 at 0.22em) in the faint ink, for the places
+   that used it before the type scale. New code uses `type-label` with its own colour. */
 @utility app-caps {
   font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: 0.2em;
+  line-height: 1;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--color-ink-faint);
 }

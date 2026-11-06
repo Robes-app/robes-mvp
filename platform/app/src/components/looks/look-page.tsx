@@ -269,7 +269,7 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
       >
         <div className="mx-auto flex max-w-3xl items-center justify-end gap-3">
           {suggested ? (
-            <Button variant="secondary" onClick={editor.startDraft} loading={editor.saving}>
+            <Button variant="outline" onClick={editor.startDraft} loading={editor.saving}>
               {copy.bar.edit}
             </Button>
           ) : (

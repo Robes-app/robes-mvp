@@ -12,7 +12,7 @@ export function Soon({ title }: { title: string }) {
         title={shell.soon.title}
         body={shell.soon.body}
         action={
-          <Link href="/" className={buttonClasses({ variant: 'secondary' })}>
+          <Link href="/" className={buttonClasses({ variant: 'outline' })}>
             {shell.soon.back}
           </Link>
         }

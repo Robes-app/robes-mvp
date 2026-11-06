@@ -32,6 +32,15 @@ describe('css generation', () => {
     expect(css).toContain('--dock-glass: rgba(255, 255, 255, 0.7);');
   });
 
+  it('emits a utility per Felix type style', () => {
+    const css = buildWebCss();
+    expect(css).toContain(
+      '@utility type-eyebrow {\n  font-family: var(--font-sans);\n  font-size: 10px;\n  line-height: 1;\n  font-weight: 500;\n  letter-spacing: 0.24em;\n  text-transform: uppercase;\n}',
+    );
+    expect(css).toContain('@utility type-italic-aside {');
+    expect(css).toContain('font-style: italic;');
+  });
+
   it('emits Uniwind light/dark variants', () => {
     const css = buildNativeCss();
     expect(css).toContain('@variant light');

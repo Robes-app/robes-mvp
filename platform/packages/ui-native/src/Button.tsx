@@ -7,7 +7,9 @@ import { useColor } from './color';
 import { cx } from './cx';
 import { fonts, MIN_TOUCH, maxFontSizeMultiplier } from './scale';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'quiet';
+// Felix's Button: `primary` (the ink pill), `outline` (white on the fine edge) and `chip` (the small
+// cream pill), plus `quiet` (a text action). Twin of web ui button-styles.ts.
+export type ButtonVariant = 'primary' | 'outline' | 'chip' | 'quiet';
 
 type Scope = { primaries: number };
 const globalScope: Scope = { primaries: 0 };
@@ -34,20 +36,31 @@ function usePrimaryGuard(active: boolean) {
   }, [active, scope]);
 }
 
+// Felix: the primary 48 tall at 0 28; the outline 40 tall at 0 20, white on a 0.5pt `rule-mid`
+// edge (the label is the cue); the chip 28 tall on `surface-sunk`. Each keeps a 44pt hit area.
 const container: Record<ButtonVariant, string> = {
-  primary: 'rounded-pill bg-ink px-6',
-  secondary: 'rounded-pill border border-border-control px-6',
+  primary: 'rounded-pill bg-ink px-7',
+  outline: 'rounded-pill border-[0.5px] border-rule-mid bg-surface-raised px-5',
+  chip: 'rounded-pill bg-surface-sunk px-3',
   quiet: 'px-1',
 };
 
-// The one primary (redline "one primary button spec"): an ink pill, 48pt, at 30% ink while it
-// waits on her.
-const PRIMARY_HEIGHT = 48;
+const height: Record<ButtonVariant, number> = { primary: 48, outline: 40, chip: 28, quiet: 36 };
 
 const label: Record<ButtonVariant, string> = {
   primary: 'text-bg',
-  secondary: 'text-ink',
-  quiet: 'text-ink-muted underline',
+  outline: 'text-ink',
+  chip: 'text-ink-muted',
+  quiet: 'text-ink-muted',
+};
+
+// Felix's `label` caps: 10/500 at 0.22em on the pill buttons, 9 at 0.16em on a chip; a quiet
+// action is 12 in sentence case.
+const labelType: Record<ButtonVariant, { fontSize: number; letterSpacing: number }> = {
+  primary: { fontSize: 10, letterSpacing: 2.2 },
+  outline: { fontSize: 10, letterSpacing: 2.2 },
+  chip: { fontSize: 9, letterSpacing: 1.44 },
+  quiet: { fontSize: 12, letterSpacing: 0 },
 };
 
 export interface ButtonProps {
@@ -77,7 +90,7 @@ export function Button({
 }: ButtonProps) {
   usePrimaryGuard(variant === 'primary');
   const onInk = useColor('bg');
-  const ink = useColor(variant === 'quiet' ? 'ink-muted' : 'ink');
+  const ink = useColor(variant === 'quiet' || variant === 'chip' ? 'ink-muted' : 'ink');
   const iconColor = variant === 'primary' ? onInk : ink;
   const inactive = disabled || loading;
   const text = loading ? loadingLabel : children;
@@ -96,27 +109,27 @@ export function Button({
         }
         onPress(event);
       }}
-      style={{ minHeight: variant === 'primary' ? PRIMARY_HEIGHT : MIN_TOUCH }}
+      // A control shorter than 44pt keeps its hit area through hitSlop, never a bigger glyph.
+      hitSlop={Math.max(0, (MIN_TOUCH - height[variant]) / 2)}
+      style={{ minHeight: height[variant] }}
       className={cx(
-        'flex-row items-center justify-center gap-2 py-3',
+        'flex-row items-center justify-center gap-1.5',
         container[variant],
-        // A waiting primary stays ink at 30% (the one primary button spec); the rest dim to half.
-        inactive && (variant === 'primary' ? 'opacity-30' : 'opacity-50'),
+        // A waiting primary stays ink at 30% (the one primary button spec); the rest dim to 40%.
+        inactive && (variant === 'primary' ? 'opacity-30' : 'opacity-40'),
         className,
       )}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={iconColor} />
-      ) : icon ? (
-        <Icon name={icon} size={18} color={iconColor} />
-      ) : null}
+      {loading ? <ActivityIndicator size="small" color={iconColor} /> : null}
       <Text
         maxFontSizeMultiplier={maxFontSizeMultiplier.control}
-        className={cx(variant === 'quiet' ? 'text-sm' : 'text-xs uppercase', label[variant])}
-        style={{ fontFamily: fonts.sansMedium, letterSpacing: variant === 'quiet' ? 0 : 1.9 }}
+        className={cx(variant === 'quiet' ? null : 'uppercase', label[variant])}
+        style={{ fontFamily: fonts.sansMedium, ...labelType[variant] }}
       >
         {text}
       </Text>
+      {/* Felix sets a button's glyph after its label, at 11pt. */}
+      {icon && !loading ? <Icon name={icon} size={11} color={iconColor} /> : null}
     </Pressable>
   );
 }

@@ -165,7 +165,7 @@ export function LookPicker({
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <p className="font-display text-2xl font-light text-ink">{copy.drawer.empty}</p>
           <p className="font-sans text-ink-muted text-sm">{copy.drawer.emptyLine}</p>
-          <Link href="/looks" className={buttonClasses({ variant: 'secondary' })}>
+          <Link href="/looks" className={buttonClasses({ variant: 'outline' })}>
             {copy.drawer.toLooks}
           </Link>
         </div>
