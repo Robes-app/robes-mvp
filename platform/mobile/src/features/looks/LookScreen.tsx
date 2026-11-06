@@ -21,7 +21,6 @@ import { type Adjust, useAdjust } from './adjust';
 import { DiarySheet } from './DiarySheet';
 import { DraftLook } from './DraftLook';
 import { JOB_REFRESH_MS } from './ideas';
-import { LookDetail } from './LookDetail';
 import { LookMix, LookPicture } from './LookPicture';
 import { LookVerdict } from './LookVerdict';
 import { useLookEditor } from './look-editor';
@@ -33,11 +32,9 @@ import { SwapSheet } from './SwapSheet';
 // A look in whichever state it stands (docs/look-states-brief.md §3.2): one page, one bar.
 export function LookScreen({
   id,
-  edit = false,
   schedule = false,
 }: {
   id: string;
-  edit?: boolean;
   // `?schedule=1`: a draft just saved from its sheet opens with the diary up.
   schedule?: boolean;
 }) {
@@ -65,7 +62,14 @@ export function LookScreen({
           onClose={() => (router.canGoBack() ? router.back() : router.replace('/looks'))}
         />
       ) : look.status === 'saved' ? (
-        <LookDetail id={id} edit={edit} schedule={schedule} />
+        // A saved look edits in place (Felix 3e, D17): the same DraftLook as Home's Edit look
+        // sheet, on its own page. Web twin: app/(app)/look/[id]/look-view.tsx.
+        <DraftLook
+          id={look.id}
+          presentation="saved"
+          schedule={schedule}
+          onClose={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+        />
       ) : (
         <WorkingLook look={look} onSaved={setJustSaved} />
       )}

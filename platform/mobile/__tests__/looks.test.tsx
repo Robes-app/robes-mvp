@@ -2,7 +2,7 @@ import { keyPiece, lookbook, looks, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { DraftLook } from '../src/features/looks/DraftLook';
 import { IdeaScreen, JobIdeaScreen } from '../src/features/looks/IdeaScreens';
-import { LookDetail } from '../src/features/looks/LookDetail';
+import { LookScreen } from '../src/features/looks/LookScreen';
 import { StylePiece } from '../src/features/looks/StylePiece';
 import { localDate } from '../src/features/looks/saved-looks';
 import { mockFetch, renderWithApi } from './support/api';
@@ -117,7 +117,7 @@ test('a saved look is worn today through the diary sheet (her local date) and re
     [`POST /looks/${LOOK_ID}/restore`]: look(),
     'GET /looks': { items: [], nextCursor: null },
   });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
   // No facts line under the photo (D16), and no "Worn 2 times" line either.
   expect(await screen.findByRole('button', { name: lookbook.savedLook.schedule })).toBeTruthy();
   expect(screen.queryByText(/2 wears/)).toBeNull();
@@ -136,13 +136,16 @@ test('a saved look is worn today through the diary sheet (her local date) and re
   // Beta says so (L10): today's wear is "Worn today ✓", never silence.
   expect(await screen.findByText(lookbook.diary.wornToday)).toBeTruthy();
 
-  // Delete lives in the draft sheet's edit mode (D9, D14): Edit look opens it.
+  // 3e edits in place (D17): no Edit chip; Delete waits at the foot of Details (D9).
   expect(screen.queryByRole('button', { name: looks.page.remove })).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.savedLook.edit }));
-  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}`);
+  expect(screen.queryByRole('button', { name: lookbook.savedLook.edit })).toBeNull();
+  expect(screen.queryByText(lookbook.draftLook.delete)).toBeNull();
+  await fireEvent.press(screen.getByRole('tab', { name: lookbook.savedLook.tabs.details }));
+  expect(await screen.findByText(lookbook.draftLook.delete)).toBeTruthy();
+  expect(mockRouter.push).not.toHaveBeenCalled();
 });
 
-test('Delete this look, in the draft sheet, asks first and lands behind Undo', async () => {
+test('Delete this look, at the foot of Details, asks first and lands behind Undo', async () => {
   const calls = mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
     [`DELETE /looks/${LOOK_ID}`]: { ok: true },
@@ -151,6 +154,7 @@ test('Delete this look, in the draft sheet, asks first and lands behind Undo', a
     'GET /wardrobe/items': { items: [], nextCursor: null },
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: lookbook.savedLook.tabs.details }));
   await fireEvent.press(await screen.findByText(lookbook.draftLook.delete));
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.delete }));
   expect(mockRouter.replace).toHaveBeenCalledWith('/looks');
@@ -274,7 +278,7 @@ test('the image stack (D13): her photographs behind Robes’ picture; a tap pick
     [`POST /looks/${LOOK_ID}/images/cover`]: { ...both, record: 'model', image: model },
     'GET /looks': { items: [], nextCursor: null },
   });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
   // The badge counts her photographs and opens the manager; no You · Model, no hint.
   expect(screen.queryByText(looks.page.photoNote)).toBeNull();
   await fireEvent.press(await screen.findByTestId('saved-look-stack'));
@@ -303,7 +307,7 @@ test('Details › Seasons picks the four seasons (D12); the row reads them back'
     }),
     'GET /looks': { items: [], nextCursor: null },
   });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByRole('tab', { name: lookbook.savedLook.tabs.details }));
   await fireEvent.press(await screen.findByTestId('details-seasons'));
   await fireEvent.press(
@@ -329,7 +333,7 @@ test('a look her model has not worn starts dressing on open, on whatever model s
     }),
     'GET /looks': { items: [], nextCursor: null },
   });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
   // Beta dressed every saved look on whatever model she stands on: it starts by itself.
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),
@@ -357,13 +361,13 @@ test('Update on a saved look her model wears asks her model to wear the new rack
     }),
     'GET /looks': { items: [], nextCursor: null },
   });
-  // The saved look edits in the draft sheet (D14): the rack is worked there, Update keeps it.
+  // Home's Edit look sheet (D18): the rack is worked there, Update look keeps it.
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   await fireEvent.press(
     await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
-  // The piece taken off leaves the picture behind, so Update draws it after (D6).
-  await fireEvent.press(screen.getByTestId('draft-done'));
+  // The piece taken off leaves the picture behind, so Update look draws it after (D6).
+  await fireEvent.press(screen.getByTestId('update-look'));
   // The picture must not keep showing the jeans she took off (beta re-dressed the model live).
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),

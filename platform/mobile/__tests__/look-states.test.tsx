@@ -5,7 +5,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
 import { NewLookBox } from '../src/features/home/HomeBox';
 import { Deck, JobDeck } from '../src/features/looks/Deck';
-import { LookDetail } from '../src/features/looks/LookDetail';
 import { LookScreen } from '../src/features/looks/LookScreen';
 import { LooksView } from '../src/features/looks/LooksView';
 import { localDate } from '../src/features/looks/saved-looks';
@@ -811,7 +810,7 @@ test('once today is logged, the diary sheet carries no second "worn today" line'
     'GET /plan': { days: [] },
     'GET /looks': { items: [], nextCursor: null },
   });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.schedule }));
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   // It read like a bug, two checks in a row (27 Oct): the link simply goes.
@@ -827,7 +826,7 @@ test('a saved look on a Robes model carries no tag on its picture (D10: the Mode
     'GET /looks': { items: [], nextCursor: null },
     'GET /me/model': GENERIC_MODEL,
   });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await renderWithApi(<LookScreen id={LOOK_ID} />);
   expect(await screen.findByTestId('saved-look-back')).toBeTruthy();
   expect(screen.queryByRole('button', { name: lookbook.deck.robesModelLabel })).toBeNull();
 });
