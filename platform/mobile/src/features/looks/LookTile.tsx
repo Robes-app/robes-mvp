@@ -62,8 +62,8 @@ export interface LookTileProps {
   // On the photograph (a diary door, a mark, the scan line) and in the corner (✕, ↻).
   onImage?: ReactNode;
   corner?: ReactNode;
-  // The OOTD card on home (design 3k, twin of look-tile.tsx): a 6px radius, the name in small
-  // caps with a chevron, no eyebrow or meta.
+  // The look on home's day (Felix 3k, twin of look-tile.tsx): the photograph alone on the tile
+  // radius, no frame and no words — its name stands under the discs.
   variant?: 'card' | 'ootd';
   className?: string;
   testID?: string;
@@ -99,7 +99,7 @@ export function LookTile({
   // Beta's card: white on a hairline (Card), the dashed draft on the fine rule-mid edge.
   const frame = [
     dashed ? 'border-dashed border-rule-mid bg-transparent p-[6px]' : '',
-    ootd ? 'rounded-[6px]' : '',
+    ootd ? 'rounded-tile bg-surface-sunk' : '',
     // A pick is warm, never black (root CLAUDE.md): the warm fill on the warm edge.
     selected ? 'border-selected-line bg-selected' : '',
     dimmed ? 'opacity-60' : '',
@@ -114,6 +114,7 @@ export function LookTile({
         testID={testID}
         {...(onPress ? { onPress } : {})}
         disabled={disabled}
+        edge={!ootd}
         accessibilityLabel={label ?? title}
         {...(selected || disabled ? { accessibilityState: { selected, disabled } } : {})}
       >
@@ -121,23 +122,7 @@ export function LookTile({
           <LookPhoto look={look} width={width} aspect={aspect} />
           {onImage}
         </View>
-        {ootd ? (
-          <View className="min-h-11 flex-row items-center justify-between gap-2 px-[14px] py-3">
-            <RNText
-              numberOfLines={1}
-              maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-              className="flex-1 text-ink uppercase"
-              style={{ fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.6 }}
-            >
-              {title}
-            </RNText>
-            {onPress ? (
-              <RNText className="text-ink-faint" style={{ fontFamily: fonts.sans, fontSize: 15 }}>
-                ›
-              </RNText>
-            ) : null}
-          </View>
-        ) : (
+        {ootd ? null : (
           <View className={dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-[2px] px-3 pt-[10px] pb-3'}>
             {eyebrow || badge ? (
               <View className="flex-row items-center justify-between gap-2">
@@ -198,7 +183,11 @@ export function LookTile({
           </View>
         )}
       </Card>
-      {corner ? <View className="absolute top-[6px] right-[6px]">{corner}</View> : null}
+      {corner ? (
+        <View className={ootd ? 'absolute top-3 right-3' : 'absolute top-[6px] right-[6px]'}>
+          {corner}
+        </View>
+      ) : null}
     </View>
   );
 }

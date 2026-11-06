@@ -1,3 +1,4 @@
+export { ActionDisc, type ActionDiscProps, ActionDiscs } from './ActionDisc';
 export { AlertDialog, type AlertDialogAction, type AlertDialogProps } from './AlertDialog';
 export { Avatar, type AvatarProps, initials } from './Avatar';
 export {

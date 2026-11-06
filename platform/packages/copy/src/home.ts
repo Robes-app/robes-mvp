@@ -350,6 +350,27 @@ export const diary = {
     clear: 'Clear pieces',
     pick: (label: string): string => `Include ${label}`,
   },
+  // The discs on the day's photo (Felix ActionDisc, design 3a · 3k): into a look, or onto one.
+  discs: {
+    capture: 'Capture',
+    describe: 'Describe',
+    pick: 'Pick',
+    swap: 'Swap',
+    edit: 'Edit',
+    captureLabel: (day: string): string => `Photograph a look for ${day}`,
+    describeLabel: (day: string): string => `Describe a look for ${day}`,
+    pickLabel: (day: string): string => `Pick a look for ${day}`,
+    swapLabel: (name: string): string => `Swap ${name} for another look`,
+    editLabel: (name: string): string => `Edit ${name}`,
+    add: 'Add another look',
+  },
+  // The model on the day's photo (Felix ModelStack · ModelPicker, D10): hidden once her twin stands.
+  model: {
+    choose: 'Choose your model',
+    title: 'Your model',
+    own: 'Use my likeness',
+    close: 'Close',
+  },
   // Day one (design 3a): choose your model, add your first pieces.
   dayOne: {
     model: 'Choose your model',

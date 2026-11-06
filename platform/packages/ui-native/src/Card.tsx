@@ -13,13 +13,16 @@ export interface CardProps {
   // A card that is a choice says so — picked, or already taken.
   accessibilityState?: AccessibilityState;
   disabled?: boolean;
+  // Felix's fine edge; off for a photograph that stands on its own (home's day).
+  edge?: boolean;
   className?: string;
   testID?: string;
 }
 
 // Felix's white card on the fine `rule-mid` edge, raised off the cream page; never a beige panel.
 const base = 'overflow-hidden rounded-soft border-rule-mid bg-surface-raised';
-const edge = { borderWidth: FINE_EDGE } as const;
+const FINE = { borderWidth: FINE_EDGE } as const;
+const NONE = { borderWidth: 0 } as const;
 
 export function Card({
   children,
@@ -27,9 +30,11 @@ export function Card({
   accessibilityLabel,
   accessibilityState,
   disabled = false,
+  edge: withEdge = true,
   className,
   testID,
 }: CardProps) {
+  const edge = withEdge ? FINE : NONE;
   if (!onPress) {
     return (
       <View testID={testID} className={cx(base, className)} style={edge}>
@@ -72,7 +77,7 @@ export function CardSkeleton({
       accessibilityLabel={ui.loading}
       accessibilityState={{ busy: true }}
       className={cx(base, className)}
-      style={edge}
+      style={FINE}
     >
       <Skeleton aspectRatio={ASPECTS[aspect]} className="rounded-none" />
       <View className="gap-2 p-3">
