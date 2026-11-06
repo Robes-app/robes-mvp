@@ -84,6 +84,9 @@ export function DiaryHome({
   useState(() => queryClient.setQueryData(queryKeys.call('today.get'), initial));
   const { data = initial } = useApi('today.get', undefined, {
     initialData: initial,
+    // Back from a drawer (Describe, D22) the page's props are the first visit's: read the day
+    // again whenever Home mounts.
+    refetchOnMount: 'always',
     refetchInterval: (q) => (isRunning(q.state.data) ? 2_000 : false),
   });
   const weather = useApi('today.weather', undefined, {

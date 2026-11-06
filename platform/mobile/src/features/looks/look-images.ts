@@ -35,6 +35,11 @@ export function useImageStage(look: Look) {
   const [committing, setCommitting] = useState(false);
   const base = lookStack(look);
   const changed = stageChanged(base, stage);
+  const discard = (assetIds: string[]) => {
+    for (const id of assetIds) {
+      void api.call('uploads.discard', { params: { id } }).catch(() => undefined);
+    }
+  };
 
   const commit = async (): Promise<boolean> => {
     if (!changed) return true;
@@ -86,10 +91,21 @@ export function useImageStage(look: Look) {
 
   return {
     stage,
-    update: ((fn) => setStage(fn)) as StageUpdate,
+    // A photo taken back out before it was kept is let go of at once (D20); the hourly sweep
+    // catches any the app never got to.
+    update: ((fn) =>
+      setStage((s) => {
+        const next = fn(s);
+        discard(s.added.filter((a) => !next.added.includes(a)));
+        return next;
+      })) as StageUpdate,
     changed,
     committing,
     commit,
-    reset: () => setStage(EMPTY_STAGE),
+    // Discard: the photos she added and never kept go too.
+    reset: () => {
+      discard(stage.added);
+      setStage(EMPTY_STAGE);
+    },
   };
 }

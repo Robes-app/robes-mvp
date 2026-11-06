@@ -163,13 +163,13 @@ test('a swap from the picker leaves the picture behind; the chip draws the model
   expect(screen.queryAllByLabelText(lookbook.draft.behind(1))).toHaveLength(0);
 });
 
-test('the adjust disc opens the AdjustSheet; her sentence goes through the look prompt', async () => {
+test('the adjust disc opens the AdjustSheet; her sentence redraws the picture alone (D21)', async () => {
   const draft = draftOf();
   const calls = mockFetch({
     ...BASE,
     'GET /wardrobe/items': { items: [piece()], nextCursor: null },
     [`GET /looks/${LOOK_ID}`]: draft,
-    [`POST /looks/${LOOK_ID}/ask`]: {
+    [`POST /looks/${LOOK_ID}/render`]: {
       jobId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
       status: 'queued',
     },
@@ -179,12 +179,13 @@ test('the adjust disc opens the AdjustSheet; her sentence goes through the look 
   expect(await screen.findByTestId('adjust-sheet')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('adjust-sheet-field'), 'sleeves rolled up');
   await fireEvent.press(screen.getByRole('button', { name: copy.adjustSheet.send }));
+  // Her note goes with the redraw; the look prompt (which could change the pieces) is never asked.
   await waitFor(() =>
-    expect(calls.find((c) => c.path.endsWith('/ask'))?.body).toMatchObject({
-      text: 'sleeves rolled up',
-      surface: 'draft',
+    expect(calls.find((c) => c.path.endsWith('/render'))?.body).toEqual({
+      note: 'sleeves rolled up',
     }),
   );
+  expect(calls.some((c) => c.path.endsWith('/ask'))).toBe(false);
   // The sheet closes behind the send; her words stand in the thread.
   expect(screen.queryByTestId('adjust-sheet')).toBeNull();
   expect(screen.getByText('sleeves rolled up')).toBeTruthy();

@@ -150,9 +150,9 @@ test('the strip: 21 cells, today’s page centred, a ring for a plan and a dot f
     'border-ink-muted bg-surface-raised',
   );
   expect(mark(`diary-mark-${TWO}-1`)).toBeTruthy();
-  // Today's OOTD leads; the prompt box is there for today.
+  // Today's OOTD leads. Home holds no prompt box (3a, D22).
   expect(screen.getByTestId('ootd-card')).toBeTruthy();
-  expect(screen.getByTestId('prompt-box')).toBeTruthy();
+  expect(screen.queryByTestId('prompt-box')).toBeNull();
 });
 
 // Design 3k "Wed 4" (Felix D7): every look on the day is its own page, Swap · Edit on each, then
@@ -184,8 +184,9 @@ test('a day with two looks shows the OOTD, then the second look, each with Swap 
   // Three pages (two looks, then the way into another): the pager shows.
   expect(screen.getByTestId('day-pager', { includeHiddenElements: true })).toBeTruthy();
   expect(screen.getByTestId('add-page').props.accessibilityLabel).toBe(diary.discs.add);
-  // The box follows the day, so the deep link `?day=` lands on it too.
-  expect(screen.getByTestId('prompt-box')).toBeTruthy();
+  // Describe opens the Draft look sheet for the selected day (3a, D22).
+  await fireEvent.press(screen.getByTestId('disc-describe'));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/new?day=${TWO}`);
 });
 
 test('an empty day: her model with Capture · Describe · Pick; Pick opens the drawer', async () => {

@@ -277,7 +277,7 @@ test('the diary: the strip selects a day, the slot adds and changes its look, De
   await expect(cells).toHaveCount(21);
   await expect(page.getByTestId(`diary-day-${date}`)).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'empty');
-  await expect(page.getByPlaceholder('Plan an outfit for today')).toBeVisible();
+  await expect(page.getByTestId('disc-describe')).toBeVisible();
   expect(await seriousViolations(page), 'home, the diary').toEqual([]);
 
   // Pick → the drawer asks what she is wearing and schedules one.

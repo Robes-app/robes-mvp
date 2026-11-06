@@ -260,7 +260,7 @@ test('a card opens its sheet piece by piece, her own pieces marked', async () =>
   expect(screen.getByText('Black loafers')).toBeTruthy();
 });
 
-test('the image stack (D13): her photographs behind Robes’ picture; a tap picks the lead, Done keeps it', async () => {
+test('the image stack (D19, D20): Robes’ picture can be hidden; nothing is written until Update look', async () => {
   const model = piece().image;
   if (!model) throw new Error('fixture piece has an image');
   const photo = { ...model, assetId: '99999999-9999-4999-8999-999999999999' };
@@ -275,7 +275,7 @@ test('the image stack (D13): her photographs behind Robes’ picture; a tap pick
   const calls = mockFetch({
     [`GET /looks/${LOOK_ID}`]: both,
     [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
-    [`POST /looks/${LOOK_ID}/images/cover`]: { ...both, record: 'model', image: model },
+    [`POST /looks/${LOOK_ID}/images/robes`]: { ...both, robesHidden: true, model: null },
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
@@ -283,18 +283,20 @@ test('the image stack (D13): her photographs behind Robes’ picture; a tap pick
   expect(screen.queryByText(looks.page.photoNote)).toBeNull();
   await fireEvent.press(await screen.findByTestId('saved-look-stack'));
   expect(await screen.findByTestId('image-manager')).toBeTruthy();
-  // Robes' picture is a card she can bring to the front, never remove.
-  expect(screen.queryByLabelText(new RegExp(lookbook.savedLook.manager.remove))).toBeTruthy();
-  await fireEvent.press(
-    screen.getByRole('button', {
-      name: lookbook.savedLook.manager.lead(lookbook.savedLook.manager.robes),
-    }),
-  );
+  // Two cards: each carries its ×, Robes' picture too.
+  const manager = lookbook.savedLook.manager;
+  expect(screen.getAllByLabelText(new RegExp(`^${manager.remove}`))).toHaveLength(2);
+  await fireEvent.press(screen.getByLabelText(`${manager.remove} · ${manager.robes}`));
+  // Her photograph is the last card left: it keeps no ×.
+  expect(screen.queryAllByLabelText(new RegExp(`^${manager.remove}`))).toHaveLength(0);
   await fireEvent.press(screen.getByTestId('image-manager-done'));
-  await waitFor(() =>
-    expect(calls.find((c) => c.path.endsWith('/images/cover'))?.body).toEqual({ imageId: null }),
-  );
   expect(screen.queryByTestId('image-manager')).toBeNull();
+  // Held until Update look (D20).
+  expect(calls.some((c) => c.path.includes('/images'))).toBe(false);
+  await fireEvent.press(screen.getByTestId('update-look'));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/images/robes'))?.body).toEqual({ hidden: true }),
+  );
 });
 
 test('Details › Seasons picks the four seasons (D12); the row reads them back', async () => {
