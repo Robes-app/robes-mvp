@@ -223,6 +223,7 @@ test('the image stack (D19, D20): a photograph lands in focus, waits for Update 
   await manager.locator('input[type="file"][aria-label="Add a photo"]').setInputFiles(PHOTO);
   // The photograph lands in the frame at once, and now each card has its × — Robes' picture too.
   await expect(manager.getByTestId('image-card-added')).toBeInViewport({ timeout: 30_000 });
+  // ✓ straight away, while the strip may still be gliding to the new card: it still leads.
   await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(2);
   // Nothing is written until Update look (D20).
   expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).images).toEqual([]);

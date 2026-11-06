@@ -52,6 +52,9 @@ export function ImageManager({
   const toast = useToast();
   const strip = useRef<HTMLDivElement>(null);
   const inView = useRef(0);
+  // While the strip scrolls itself to a card, the card in view is that card: a ✓ mid-scroll must
+  // never read a card it passes on the way. Her own touch takes the strip back.
+  const steering = useRef<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const base = lookStack(look);
   const cards = stageCards(base, stage);
@@ -65,6 +68,7 @@ export function ImageManager({
       behavior: smooth ? 'smooth' : 'auto',
     });
     inView.current = index;
+    steering.current = smooth ? index : null;
   };
   // As it opens: the Add a photo card (Home's +), else the card in front.
   // biome-ignore lint/correctness/useExhaustiveDependencies: once, as the strip opens
@@ -87,7 +91,12 @@ export function ImageManager({
     const first = el?.children[0] as HTMLElement | undefined;
     if (!el || !first) return;
     const step = first.offsetWidth + 10;
-    inView.current = Math.round(el.scrollLeft / Math.max(1, step));
+    const at = Math.round(el.scrollLeft / Math.max(1, step));
+    if (steering.current !== null) {
+      if (at === steering.current) steering.current = null;
+      return;
+    }
+    inView.current = at;
   };
   const finish = () => {
     const card = cards[inView.current];
@@ -118,6 +127,9 @@ export function ImageManager({
       <div
         ref={strip}
         onScroll={onScroll}
+        onPointerDown={() => {
+          steering.current = null;
+        }}
         className="absolute inset-0 flex snap-x snap-mandatory items-center gap-2.5 overflow-x-auto px-10 motion-safe:animate-[robes-zoom-in_260ms_cubic-bezier(.2,0,.2,1)] [scrollbar-width:none]"
       >
         {cards.map((card) => {
