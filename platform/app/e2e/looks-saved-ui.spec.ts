@@ -49,8 +49,10 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     /^[A-Z][a-z]+day \d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/,
   );
   const name = (await heading.textContent())?.trim() ?? '';
-  // Saved look is said once, over the picture; no "Robes’ suggestion · Keep this name" (27 Oct).
-  await expect(page.getByText('Saved look', { exact: true })).toHaveCount(1);
+  // Felix 3e keeps the photo bare: no eyebrow, no "Robes’ suggestion · Keep this name" (27 Oct);
+  // the back disc on the photo says where she is.
+  await expect(page.getByTestId('saved-look-back')).toBeVisible();
+  await expect(page.getByText('Saved look', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Robes’ suggestion')).toHaveCount(0);
   expect(await seriousViolations(page)).toEqual([]);
 
