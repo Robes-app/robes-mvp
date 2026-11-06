@@ -92,8 +92,19 @@ export function ImageManager({
     if (card) onStage((s) => stageInFront(s, card));
     onDone();
   };
-  const take = async (from: 'camera' | 'library') => {
+  // The camera or library opens only once the chooser has fully gone (Sheet onClosed): from the
+  // Edit look sheet, iOS refused to present over a closing sheet and the screen froze.
+  const picking = useRef<'camera' | 'library' | null>(null);
+  const pick = (from: 'camera' | 'library') => {
+    picking.current = from;
     setChoosing(false);
+  };
+  const chosen = () => {
+    const from = picking.current;
+    picking.current = null;
+    if (from) void take(from);
+  };
+  const take = async (from: 'camera' | 'library') => {
     if (from === 'camera') {
       const allowed = await ImagePicker.requestCameraPermissionsAsync();
       if (!allowed.granted) return;
@@ -198,14 +209,16 @@ export function ImageManager({
       >
         <Icon name="check" size={18} color={bg} />
       </Pressable>
-      <Sheet open={choosing} onClose={() => setChoosing(false)} title={copy.add} closeButton>
+      <Sheet
+        open={choosing}
+        onClose={() => setChoosing(false)}
+        onClosed={chosen}
+        title={copy.add}
+        closeButton
+      >
         <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
-          <SettingsRow
-            first
-            label={wardrobe.add.doors.photograph}
-            onPress={() => void take('camera')}
-          />
-          <SettingsRow label={wardrobe.add.doors.cameraRoll} onPress={() => void take('library')} />
+          <SettingsRow first label={wardrobe.add.doors.photograph} onPress={() => pick('camera')} />
+          <SettingsRow label={wardrobe.add.doors.cameraRoll} onPress={() => pick('library')} />
         </View>
       </Sheet>
     </View>

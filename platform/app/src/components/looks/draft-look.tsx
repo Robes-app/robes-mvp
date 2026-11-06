@@ -11,6 +11,7 @@ import {
 } from '@robes/contracts';
 import { lookbook, looks as looksCopy } from '@robes/copy';
 import { readsAsThey } from '@robes/core/avatar';
+import { isTerminalJobStatus } from '@robes/core/jobs';
 import { type ImageStage, stageChanged, stageFront } from '@robes/core/looks';
 import { shortRange, weatherIcon } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
@@ -37,6 +38,7 @@ import { usePhotoFiling } from '@/lib/file-photo';
 import { useLookEditor } from '@/lib/look-editor';
 import { useImageStage } from '@/lib/look-images';
 import { isDraftsFull, useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
+import { useJob } from '@/lib/use-job';
 import { ThreadLines } from './adjust-dock';
 import { DayContext } from './day-context';
 import { DiarySheet } from './diary-sheet';
@@ -349,6 +351,18 @@ function NewDraft({
   // carries on with it once the diary shows it. Without a day they deal suggestions (the deck).
   const [weatherOff, setWeatherOff] = useState(false);
   const [waiting, setWaiting] = useState(false);
+  // The job behind Style it: if it ends without the day's draft, the wait ends with a word.
+  const [promptJob, setPromptJob] = useState<string | null>(null);
+  const followed = useJob(promptJob);
+  const ended =
+    followed.job && isTerminalJobStatus(followed.job.status) ? followed.job.status : null;
+  useEffect(() => {
+    if (!ended || ended === 'succeeded' || ended === 'partial') return;
+    setPromptJob(null);
+    setWaiting(false);
+    setBusy(false);
+    toast({ message: copy.styleFailed });
+  }, [ended, toast]);
   const diary = useApi('today.get', undefined, {
     enabled: waiting,
     refetchInterval: waiting ? 2_000 : false,
@@ -368,7 +382,7 @@ function NewDraft({
     try {
       if (day) {
         const place = diary.data?.diary?.days.find((x) => x.date === day)?.place ?? null;
-        await api.call('looks.prompt', {
+        const { jobId } = await api.call('looks.prompt', {
           input: {
             prompt: words,
             date: day,
@@ -377,6 +391,7 @@ function NewDraft({
             ...(weatherOff ? { weather: false } : {}),
           },
         });
+        setPromptJob(jobId);
         setWaiting(true);
         return;
       }

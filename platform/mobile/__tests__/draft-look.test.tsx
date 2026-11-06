@@ -1,5 +1,6 @@
-import { diary, lookbook } from '@robes/copy';
+import { diary, lookbook, wardrobe } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { DraftLook } from '../src/features/looks/DraftLook';
 import { errorReply, mockFetch, renderWithApi } from './support/api';
 import { LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
@@ -350,4 +351,55 @@ test('a render that failed says so on the picture', async () => {
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   expect(await screen.findByText(lookbook.figure.undressed('her'))).toBeTruthy();
+});
+
+// Describe on Home (D22): Style it makes the day's one draft through a job. A job that ends
+// without it must end the wait with a word, never leave the sheet spinning with no way on.
+test('Describe: a Style it job that fails ends the wait and says so', async () => {
+  const JOB = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const calls = mockFetch({
+    ...BASE,
+    'POST /looks/prompt': { jobId: JOB, status: 'queued' },
+    [`GET /jobs/${JOB}`]: {
+      id: JOB,
+      kind: 'key_piece',
+      status: 'failed',
+      stage: 'text',
+      output: {},
+      error: 'timeout',
+      cancelRequested: false,
+      createdAt: '2026-11-06T09:00:00.000Z',
+      updatedAt: '2026-11-06T09:00:05.000Z',
+      finishedAt: '2026-11-06T09:00:05.000Z',
+    },
+  });
+  await renderWithApi(
+    <DraftLook id="new" day="2026-11-06" presentation="sheet" onClose={() => undefined} />,
+  );
+  await fireEvent.changeText(await screen.findByTestId('draft-prompt'), 'Dinner with friends');
+  await fireEvent.press(screen.getByTestId('draft-generate'));
+  await waitFor(() =>
+    expect(calls.find((c) => c.path.endsWith('/looks/prompt'))?.body).toMatchObject({
+      prompt: 'Dinner with friends',
+      date: '2026-11-06',
+      draft: true,
+    }),
+  );
+  expect(await screen.findByText(copy.styleFailed)).toBeTruthy();
+  // She can ask again.
+  await waitFor(() => expect(screen.getByTestId('draft-prompt').props.editable).not.toBe(false));
+});
+
+// Home's + (3k): the Edit look sheet opens on Add a photo. The camera opens only once the chooser
+// has fully gone: presented over a closing sheet, iOS refused it and the screen froze.
+test('image mode from Home: the camera opens after the chooser has closed, not over it', async () => {
+  mockFetch({ ...BASE, [`GET /looks/${LOOK_ID}`]: look() });
+  await renderWithApi(
+    <DraftLook id={LOOK_ID} images="add" presentation="sheet" onClose={() => undefined} />,
+  );
+  expect(await screen.findByTestId('image-manager')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: lookbook.savedLook.manager.add }));
+  await fireEvent.press(await screen.findByText(wardrobe.add.doors.photograph));
+  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
+  await waitFor(() => expect(ImagePicker.launchCameraAsync).toHaveBeenCalled());
 });

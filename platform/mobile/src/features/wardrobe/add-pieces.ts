@@ -27,12 +27,11 @@ export async function uploadPhoto(
   kind: UploadKind = 'wardrobe',
 ): Promise<string> {
   const body = await (await fetch(photo.uri)).blob();
+  // The presigned PUT signs the byte count, so it must be the bytes sent: the picker re-encodes
+  // (PICKER_OPTIONS), and its `fileSize` can be the original's, which storage then refuses.
+  if (!body.size) throw new Error('upload failed: empty photo');
   const { assetId, upload } = await api.call('uploads.create', {
-    input: {
-      kind,
-      contentType: contentTypeOf(photo),
-      bytes: photo.fileSize || body.size,
-    },
+    input: { kind, contentType: contentTypeOf(photo), bytes: body.size },
   });
   const put = await fetch(upload.url, { method: upload.method, headers: upload.headers, body });
   if (!put.ok) throw new Error(`upload failed: ${put.status}`);

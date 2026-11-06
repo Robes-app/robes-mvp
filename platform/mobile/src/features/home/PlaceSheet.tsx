@@ -145,7 +145,8 @@ export function PlaceSheet({
           const on = row.city === current;
           return (
             <Pressable
-              key={`${row.city}·${row.country ?? ''}`}
+              // Two towns can share a name and a country (Paris, Texas and Paris, Tennessee).
+              key={row.hit ? `${row.hit.lat},${row.hit.lon}` : 'home'}
               accessibilityRole="button"
               accessibilityLabel={[
                 row.country ? `${row.city} · ${row.country}` : row.city,
