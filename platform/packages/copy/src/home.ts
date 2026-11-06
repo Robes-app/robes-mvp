@@ -370,5 +370,4 @@ export const diary = {
   dayOne: {
     modelPick: (n: number): string => `Model ${n}`,
   },
-
 } as const;
