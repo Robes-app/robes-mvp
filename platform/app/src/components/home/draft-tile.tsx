@@ -55,7 +55,7 @@ export function DraftTile({
     <article
       data-testid="draft-tile"
       data-state={generating ? 'generating' : 'ready'}
-      className="flex w-full shrink-0 snap-center flex-col overflow-hidden rounded-[6px] border border-rule-mid bg-surface-raised"
+      className="flex w-full shrink-0 snap-start flex-col overflow-hidden rounded-tile border-[0.5px] border-rule-mid bg-surface-raised"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-surface">
         <div

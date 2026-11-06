@@ -19,8 +19,8 @@ import {
   useToast,
 } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { DiarySheet } from '@/components/looks/diary-sheet';
 import { DraftPage } from '@/components/looks/draft-page';
 import { LookHero } from '@/components/looks/look-hero';
@@ -47,6 +47,8 @@ export function LookView({ id }: { id: string }) {
   );
   // Save opens the diary every time; the sheet outlives the working page it was saved from.
   const [justSaved, setJustSaved] = useState<Look | null>(null);
+  // `?edit=1`: opened from home's Edit disc (Felix 3k), so a saved look opens in Editing.
+  const edit = useSearchParams().get('edit') === '1';
   // A look is a pushed view on a phone: the back pill alone, no masthead and no dock (redline).
   usePushedView();
   if (query.isError) {
@@ -62,7 +64,7 @@ export function LookView({ id }: { id: string }) {
       ) : query.data.status !== 'saved' ? (
         <WorkingLook look={query.data} onSaved={setJustSaved} />
       ) : (
-        <LookBody look={query.data} />
+        <LookBody look={query.data} edit={edit} />
       )}
       <DiarySheet look={justSaved} onClose={() => setJustSaved(null)} />
     </>
@@ -100,11 +102,19 @@ function useLookActions(look: Look) {
   return { update, remove };
 }
 
-function LookBody({ look }: { look: Look }) {
+function LookBody({ look, edit }: { look: Look; edit: boolean }) {
   const router = useRouter();
   const actions = useLookActions(look);
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
+  const opened = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, on the look's first open
+  useEffect(() => {
+    if (edit && !opened.current) {
+      opened.current = true;
+      editor.startEditing();
+    }
+  }, [edit]);
   const adjust = useAdjust(look, editor, 'saved');
   adjustRef.current = adjust;
   const [diary, setDiary] = useState(false);

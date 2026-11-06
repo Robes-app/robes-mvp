@@ -257,3 +257,14 @@ test('editing a saved look, a swap lands on one tap behind Undo; Update says Upd
   // No piece's name ever rides an event.
   expect(JSON.stringify(track.mock.calls)).not.toContain('wool coat');
 });
+
+// Home's Edit disc (Felix 3k) opens the look straight into Editing.
+test('opened to edit, the look starts in Editing', async () => {
+  mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look(),
+    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+  });
+  await renderWithApi(<LookDetail id={LOOK_ID} edit />);
+  expect(await screen.findByRole('button', { name: lookbook.bar.update })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: lookbook.bar.editLook })).toBeNull();
+});

@@ -11,16 +11,17 @@ import { Icon } from '@robes/icons/web';
 import { Eyebrow, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useRef, useState } from 'react';
 import { LookPicker } from '@/app/(app)/plan/look-picker';
 import { dayWordOf, type PickerMode } from '@/lib/diary';
 import { errorCopy } from '@/lib/error-copy';
 import { useRestyle } from '@/lib/look-states';
-import { DayOneBand } from './day-one-band';
+import { setPendingPhoto } from '@/lib/pending-photo';
 import { DaySlot } from './day-slot';
 import { DiaryStrip } from './diary-strip';
-import { LogSheet } from './log-sheet';
-import { PromptBox } from './prompt-box';
+import { ModelPicker } from './model-picker';
+import { PromptBox, type PromptBoxHandle } from './prompt-box';
 
 // The tray's jobs, and the draft Robes is making for a day (plan 2026-11-03): read every 2 s.
 const isRunning = (t: Today | undefined) =>
@@ -63,10 +64,10 @@ export function withoutDiaryEntry(id: string) {
   };
 }
 
-// Home as the OOTD diary (Front Door design 3a · 3k, plan 2026-11-02 §1): the greeting and
-// today's weather, the strip, the selected day's slot, and — for today and days ahead — the
-// prompt box. Alerts live behind the bell; the day-one band (P3) sits above the strip. The native
-// twin is mobile/src/features/home/DiaryHome.tsx.
+// Home as the OOTD diary (Felix 3a · 3k, D7): the greeting and today's weather, the strip, the
+// selected day — its looks with Swap · Edit, then her model with Capture · Describe · Pick — and,
+// for today and days ahead, the prompt box that Describe opens. Alerts live behind the bell. The
+// native twin is mobile/src/features/home/DiaryHome.tsx.
 export function DiaryHome({
   initial,
   day = null,
@@ -93,7 +94,11 @@ export function DiaryHome({
   const diary = data.diary;
   const inWindow = day && diary?.days.some((d) => d.date === day) ? day : today;
   const [selected, setSelected] = useState(inWindow);
-  const [log, setLog] = useState<string | null>(null);
+  // The model her looks stand on: the photograph on the day's last page, and the picker's ticks.
+  const model = useApi('me.model.get');
+  const [choosing, setChoosing] = useState(false);
+  const prompt = useRef<PromptBoxHandle>(null);
+  const router = useRouter();
   const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
   // Her words per day as sent this session, so the box's thread opens with them.
   const [asked, setAsked] = useState<Record<string, string>>({});
@@ -180,8 +185,6 @@ export function DiaryHome({
         </p>
       </header>
 
-      <DayOneBand state={data.home.state} />
-
       {diary ? (
         <DiaryStrip
           days={diary.days}
@@ -196,15 +199,26 @@ export function DiaryHome({
         today={today}
         dayWord={dayWord}
         justSaved={saved}
-        onAdd={() => setLog(current.date)}
-        onChange={() => setDrawer({ date: current.date, mode: 'change' })}
-        onRemove={remove}
+        model={model.data}
+        actions={{
+          // Her photograph goes with her to the photo flow for that day.
+          onCapture: (file) => {
+            setPendingPhoto(file);
+            router.push(`/looks/new/photo?day=${current.date}`);
+          },
+          onDescribe: past ? null : () => prompt.current?.focus(),
+          onPick: () => setDrawer({ date: current.date, mode: 'add' }),
+          onSwap: () => setDrawer({ date: current.date, mode: 'change' }),
+          onRemove: remove,
+          onModel: () => setChoosing(true),
+        }}
         onAnother={another.restyle}
         anotherBusy={another.busyId !== null && another.busyId === current.draft?.look?.id}
       />
 
       {past ? null : (
         <PromptBox
+          ref={prompt}
           day={current}
           today={today}
           home={homePlace}
@@ -235,15 +249,7 @@ export function DiaryHome({
         </section>
       ) : null}
 
-      <LogSheet
-        date={log}
-        today={today}
-        onClose={() => setLog(null)}
-        onPick={(date) => {
-          setLog(null);
-          setDrawer({ date, mode: 'add' });
-        }}
-      />
+      <ModelPicker open={choosing} model={model.data} onClose={() => setChoosing(false)} />
       <LookPicker
         date={drawer?.date ?? null}
         today={today}

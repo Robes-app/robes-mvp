@@ -236,18 +236,13 @@ export const diary = {
     open: (name: string): string => `Open ${name}`,
     remove: (name: string, day: string): string => `Take ${name} off ${day}`,
     removed: 'Taken off the day.',
-    change: 'Change the look from your lookbook',
     more: (n: number): string => `+${n}`,
     moreLabel: (n: number, day: string): string => `${n} more ${look(n)} on ${day}; open the day`,
-    add: 'Add look',
-    addLabel: (day: string): string => `Add a look to ${day}`,
   },
   log: {
     past: 'What did you wear?',
     today: 'What are you wearing?',
     ahead: 'What will you wear?',
-    pick: 'Pick Look',
-    capture: 'Capture Look',
   },
   drawer: {
     eyebrow: (dayWord: string, date: string): string => `${dayWord} · ${date}`,
@@ -350,19 +345,29 @@ export const diary = {
     clear: 'Clear pieces',
     pick: (label: string): string => `Include ${label}`,
   },
-  // Day one (design 3a): choose your model, add your first pieces.
+  // The discs on the day's photo (Felix ActionDisc, design 3a · 3k): into a look, or onto one.
+  discs: {
+    capture: 'Capture',
+    describe: 'Describe',
+    pick: 'Pick',
+    swap: 'Swap',
+    edit: 'Edit',
+    captureLabel: (day: string): string => `Photograph a look for ${day}`,
+    describeLabel: (day: string): string => `Describe a look for ${day}`,
+    pickLabel: (day: string): string => `Pick a look for ${day}`,
+    swapLabel: (name: string): string => `Swap ${name} for another look`,
+    editLabel: (name: string): string => `Edit ${name}`,
+    add: 'Add another look',
+  },
+  // The model on the day's photo (Felix ModelStack · ModelPicker, D10): hidden once her twin stands.
+  model: {
+    choose: 'Choose your model',
+    title: 'Your model',
+    own: 'Use my likeness',
+    close: 'Close',
+  },
+  // The five Robes models (plan 2026-11-05), by number, wherever she picks one.
   dayOne: {
-    model: 'Choose your model',
-    twin: 'Create your digital twin',
-    // The five Robes models (plan 2026-11-05); "Another model" went with the fifth.
     modelPick: (n: number): string => `Model ${n}`,
-    pieces: 'Add your first pieces',
-    tiles: ['Tops', 'Bottoms', 'Shoes', 'Anything'] as const,
-    browse: 'or browse files',
-    tile: (what: string): string => `Photograph ${what.toLowerCase()}`,
-    modelAsk: 'You can select another model in your profile at any time.',
-    piecesAsk: 'You can add pieces in your Wardrobe at any time.',
-    ok: 'Okay',
-    dismiss: 'Dismiss',
   },
 } as const;

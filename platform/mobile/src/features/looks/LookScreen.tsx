@@ -31,7 +31,7 @@ import { RobesModelBadge } from './RobesModelBadge';
 import { SwapSheet } from './SwapSheet';
 
 // A look in whichever state it stands (docs/look-states-brief.md §3.2): one page, one bar.
-export function LookScreen({ id }: { id: string }) {
+export function LookScreen({ id, edit = false }: { id: string; edit?: boolean }) {
   const query = useApi(
     'looks.get',
     { params: { id } },
@@ -51,7 +51,7 @@ export function LookScreen({ id }: { id: string }) {
         // Every draft — from the prompt box or built by hand — is the one draft page (plan 2026-11-03).
         <DraftPage look={look} onSaved={setJustSaved} />
       ) : look.status === 'saved' ? (
-        <LookDetail id={id} />
+        <LookDetail id={id} edit={edit} />
       ) : (
         <WorkingLook look={look} onSaved={setJustSaved} />
       )}

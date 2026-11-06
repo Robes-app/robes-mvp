@@ -2,7 +2,7 @@ import type { DiaryDay } from '@robes/contracts';
 import { diary, lookbook } from '@robes/copy';
 import { weekdayDay } from '@robes/core/calendar';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
-import { dayOneAsks, flyoutCta, placeChipLabel } from '../src/features/home/diary';
+import { flyoutCta, placeChipLabel } from '../src/features/home/diary';
 import { PromptBox } from '../src/features/home/PromptBox';
 import { type Call, mockFetch, renderWithApi } from './support/api';
 import { JOB_ID, LOOK_ID, look, PIECE_ID, piece } from './support/fixtures';
@@ -43,25 +43,6 @@ test('the words are the web’s (lib/diary.ts)', () => {
   expect(flyoutCta(0, 1)).toEqual({ label: diary.flyout.clear, ready: true });
   expect(placeChipLabel('Dublin', '9–13°C')).toBe('Dublin, 9–13°');
   expect(placeChipLabel('Dublin', null)).toBe('Dublin');
-  const state = {
-    styleConfirmed: true,
-    twinOnFile: false,
-    pics: 0,
-    ownLookSaved: false,
-    snoozed: {},
-  };
-  expect(dayOneAsks(state)).toEqual({ model: true, pieces: true });
-  expect(dayOneAsks({ ...state, dayOne: { modelAsked: true, piecesAsked: false } })).toEqual({
-    model: false,
-    pieces: true,
-  });
-  expect(
-    dayOneAsks({ ...state, twinOnFile: true, dayOne: { modelAsked: false, piecesAsked: false } }),
-  ).toEqual({ model: true, pieces: true });
-  expect(dayOneAsks({ ...state, twinOnFile: true, pics: 3 })).toEqual({
-    model: false,
-    pieces: false,
-  });
 });
 
 test('the day chip is passive and reads Today', async () => {

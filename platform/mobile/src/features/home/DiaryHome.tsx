@@ -17,7 +17,7 @@ import {
 } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -31,12 +31,11 @@ import { isTerminal } from '@/features/looks/ideas';
 import { useRestyle } from '@/features/looks/look-states';
 import { LookPicker } from '@/features/plan/LookPicker';
 import { errorMessage } from '@/lib/errors';
-import { DayOneBand } from './DayOneBand';
 import { DaySlot } from './DaySlot';
 import { DiaryStrip } from './DiaryStrip';
 import { dayWordOf, type PickerMode } from './diary';
-import { LogSheet } from './LogSheet';
-import { PromptBox } from './PromptBox';
+import { ModelPicker } from './ModelPicker';
+import { PromptBox, type PromptBoxHandle } from './PromptBox';
 
 // The tray's jobs, and the draft Robes is making for a day (plan 2026-11-03): read every 2 s.
 const isRunning = (t: Today | undefined) =>
@@ -58,10 +57,10 @@ export function withoutDiaryEntry(id: string) {
   };
 }
 
-// Home as the OOTD diary (Front Door design 3a · 3k, plan 2026-11-02 §1): the greeting and
-// today's weather, the strip, the selected day's slot, and — for today and days ahead — the
-// prompt box. Alerts live behind the bell; the day-one band (P3) sits above the strip. The web
-// twin is app/src/components/home/diary-home.tsx.
+// Home as the OOTD diary (Felix 3a · 3k, D7): the greeting and today's weather, the strip, the
+// selected day — its looks with Swap · Edit, then her model with Capture · Describe · Pick — and,
+// for today and days ahead, the prompt box that Describe opens. Alerts live behind the bell. The
+// web twin is app/src/components/home/diary-home.tsx.
 export function DiaryHome({
   day = null,
   saved = null,
@@ -83,8 +82,12 @@ export function DiaryHome({
     staleTime: WEATHER_STALE_MS,
     refetchOnWindowFocus: false,
   });
+  // The model her looks stand on: the photograph on the day's last page, and the picker's ticks.
+  const model = useApi('me.model.get');
   const [picked, setPicked] = useState<string | null>(null);
-  const [log, setLog] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  const prompt = useRef<PromptBoxHandle>(null);
+  const router = useRouter();
   const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
   // Her words per day as sent this session, so the box's thread opens with them.
   const [asked, setAsked] = useState<Record<string, string>>({});
@@ -202,8 +205,6 @@ export function DiaryHome({
             </View>
           </View>
 
-          <DayOneBand state={data.home.state} />
-
           {diary ? (
             <DiaryStrip
               days={diary.days}
@@ -218,15 +219,28 @@ export function DiaryHome({
             today={today}
             dayWord={dayWord}
             justSaved={saved}
-            onAdd={() => setLog(current.date)}
-            onChange={() => setDrawer({ date: current.date, mode: 'change' })}
-            onRemove={remove}
+            model={model.data}
+            actions={{
+              // The camera opens on arrival: one tap from the day to her photograph.
+              onCapture: () =>
+                router.push({
+                  pathname: '/looks/photo',
+                  params: { day: current.date, start: 'camera' },
+                }),
+              onDescribe: past ? null : () => prompt.current?.focus(),
+              onPick: () => setDrawer({ date: current.date, mode: 'add' }),
+              onSwap: () => setDrawer({ date: current.date, mode: 'change' }),
+              onEdit: (entry) => router.push(`/look/${entry.look.id}?day=${current.date}&edit=1`),
+              onRemove: remove,
+              onModel: () => setChoosing(true),
+            }}
             onAnother={another.restyle}
             anotherBusy={another.busyId !== null && another.busyId === current.draft?.look?.id}
           />
 
           {past ? null : (
             <PromptBox
+              ref={prompt}
               day={current}
               today={today}
               home={homePlace}
@@ -238,15 +252,7 @@ export function DiaryHome({
 
           {data.tray.length > 0 ? <Tray jobs={data.tray} /> : null}
 
-          <LogSheet
-            date={log}
-            today={today}
-            onClose={() => setLog(null)}
-            onPick={(date) => {
-              setLog(null);
-              setDrawer({ date, mode: 'add' });
-            }}
-          />
+          <ModelPicker open={choosing} model={model.data} onClose={() => setChoosing(false)} />
           <LookPicker
             date={drawer?.date ?? null}
             today={today}

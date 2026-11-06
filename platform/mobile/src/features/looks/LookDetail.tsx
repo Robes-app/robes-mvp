@@ -15,7 +15,7 @@ import {
   Text,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { errorMessage } from '@/lib/errors';
 import { AdjustDock } from './AdjustDock';
@@ -59,7 +59,8 @@ function Name({ look }: { look: Look }) {
   );
 }
 
-export function LookDetail({ id }: { id: string }) {
+// `edit`: opened from home's Edit disc, so the look opens in Editing.
+export function LookDetail({ id, edit = false }: { id: string; edit?: boolean }) {
   // Follows a render on her model until it lands.
   const {
     data: look,
@@ -76,17 +77,25 @@ export function LookDetail({ id }: { id: string }) {
   );
   if (isPending) return <Skeleton width="100%" aspectRatio={4 / 5} />;
   if (isError || !look) return <EmptyState title={errorMessage(error)} />;
-  return <SavedLook look={look} />;
+  return <SavedLook look={look} edit={edit} />;
 }
 
 // The saved look (5a–5e): its rack read like the wardrobe, Edit look → Editing (Done · Update
 // look), and the prompt box — a change made through it opens Editing.
-function SavedLook({ look }: { look: Look }) {
+function SavedLook({ look, edit }: { look: Look; edit: boolean }) {
   const router = useRouter();
   const remove = useRemoveLook();
   const [diary, setDiary] = useState(false);
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
+  const opened = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, on the look's first open
+  useEffect(() => {
+    if (edit && !opened.current) {
+      opened.current = true;
+      editor.startEditing();
+    }
+  }, [edit]);
   const adjust = useAdjust(look, editor, 'saved');
   adjustRef.current = adjust;
   const [swapping, setSwapping] = useState<string | null>(null);

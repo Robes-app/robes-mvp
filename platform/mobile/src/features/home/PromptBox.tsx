@@ -9,7 +9,7 @@ import { Icon } from '@robes/icons/native';
 import { ErrorText, fonts, Image, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { type Ref, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, Text as RNText, TextInput, type TextInputInstance, View } from 'react-native';
 import { AdjustField, AdjustOptions, ThreadLines } from '@/features/looks/AdjustDock';
 import { type Adjust, useAdjust } from '@/features/looks/adjust';
@@ -68,7 +68,13 @@ function ChipClose({ label, onPress }: { label: string; onPress: () => void }) {
 // in the slot (design 3b, plan 2026-11-03 §1.1): the box then holds the thread, locks its chips
 // and folds its field until she adjusts; nothing reaches the day until she saves. The web twin
 // is app/src/components/home/prompt-box.tsx.
+// Describe on the day's photo puts her in the box.
+export interface PromptBoxHandle {
+  focus: () => void;
+}
+
 export function PromptBox({
+  ref,
   day,
   today,
   home,
@@ -76,6 +82,7 @@ export function PromptBox({
   sent,
   onSent,
 }: {
+  ref?: Ref<PromptBoxHandle>;
   day: DiaryDay;
   today: string;
   // Her home city with the day's weather there, from the diary's own day.
@@ -90,6 +97,7 @@ export function PromptBox({
   const queryClient = useQueryClient();
   const { features } = useFeatures();
   const field = useRef<TextInputInstance>(null);
+  useImperativeHandle(ref, () => ({ focus: () => field.current?.focus() }), []);
   const ink = useColor('ink');
   const faint = useColor('ink-faint');
   const [text, setText] = useState('');
