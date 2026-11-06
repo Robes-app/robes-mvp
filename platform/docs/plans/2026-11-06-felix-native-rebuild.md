@@ -1,6 +1,6 @@
 # The Felix rebuild: web and native on the Felix Design System
 
-Status: decisions recorded 2026-11-06 (Annie); D12–D15 added later that day from the plan doc *Felix rebuild — PRs 5 to 8 and beyond*. PRs 1–6 merged (#78–#83). PR 7 in progress on `felix/draft-drawer`. The sequence stops after PR 8 (D15). Calls made while building that Annie has not ruled on are under **Open calls** at the foot.
+Status: decisions recorded 2026-11-06 (Annie); D12–D15 added later that day from the plan doc *Felix rebuild — PRs 5 to 8 and beyond*. PRs 1–7 merged (#78–#84). The review of PRs 5–7 (D17–D23) shipped as one PR, #85, merged 6 Nov. PR 8 is next; the sequence stops after it (D15). Calls made while building that Annie has not ruled on are under **Open calls** at the foot.
 
 Sources:
 - `platform/design/felix`: the design system (brand book, tokens, 26 component specs with previews). Felix is the source of truth for visual values from 2026-11-06.
@@ -29,7 +29,7 @@ Sources:
 | 4 | Home 3a/3k: WeekStrip deltas (current cell gets fill and edge, date 400, planned ring), content-width photo with pager dots, ActionDisc, ModelStack + ModelPicker, the caption under the discs. Pick opens `LookPicker` and Capture its capture flow (the one-drawer rules in platform/CLAUDE.md hold). A day with looks ends on the model page, so another look can still be added. | in review |
 | 5 | Look images (data): any number of images per look (D13) and the four seasons (D12). Migration (`look_images`, `seasons`), repository with cross-user test, routes (`looks.images.add` / `.remove` / `.cover`), `docs/data-inventory.md`, the export, `docs/api-security.md` checklist. `photo_asset_id`, `record_image` and the bands keep being written for the old code and Expo Go on staging. No screen changes. | #82 merged |
 | 6 | Saved look 3e: SavedLook (edge-to-edge photo, back, adjust, image stack), Tabs, PieceList, LookDetails, TagsView, SeasonsView (four seasons, D12), WornView (its "+ Add a date" opens `DiarySheet`; the × deletes the wear), ImageManager (D13), the `primary` Schedule look (opens `DiarySheet`); Delete as a `danger` reveal inside Editing (D9). Her own tags on a look (`tag_looks`, `Look.tags`, `UpdateLookInput.tags`) land here for TagsView. | #83 merged |
-| 7 | The draft: DraftLook's anatomy on `DraftPage`, presented as a drawer over whatever started it (D14); AdjustSheet and DescribeSheet are two doors into the one thread, drawing only on Send or Generate; WardrobePicker; `AlertDialog` for Discard and the drafts-full prompt; no Worn row on a draft. | `felix/draft-drawer` |
+| 7 | The draft: DraftLook's anatomy on `DraftPage`, presented as a drawer over whatever started it (D14); AdjustSheet and DescribeSheet are two doors into the one thread, drawing only on Send or Generate; WardrobePicker; `AlertDialog` for Discard and the drafts-full prompt; no Worn row on a draft. | #84 merged |
 | 8 | Wardrobe piece (one photo; the regenerate icon replaces it — no image stack), NotificationsSheet (Done closes; the `overnight` kind takes the `looks` icon; no dock dot), SettingsView (Account keeps every row it has today). | after 7. The sequence stops here (D15) |
 
 ## Decisions (Annie, 2026-11-06, continued)
@@ -59,15 +59,15 @@ Annie walked 3a, 3k and 3e (the *Front Door design frames* canvas, amended that 
 | D22 | **Home has no prompt box (3a).** Describe opens the Draft Look drawer for the selected day, at rest (no keyboard): her model, Pieces · Details, the add slot, the prompt card with the day's chip, Generate. Nothing is created until Generate or a first piece; closing an untouched drawer leaves nothing. Describe stays hidden on past days. |
 | D23 | **A pinned look becomes worn when its day passes.** Once a day ends in her timezone, every saved look pinned to it is filed as a wear (pieces as they stood), by a daily job. Her override is the × on that day's card (removes wear and pin) or the × on a date in WornView; an override is final. Applies to days that pass after this ships; pins already in the past are left as they are. |
 
-### Review PRs (after PR 8's slot; each web + native)
+### Review PRs (each web + native) — shipped together as #85, merged 2026-11-06
 
 | PR | Scope |
 |---|---|
 | 9 | **3e in place (D17, D18).** The saved look's body becomes one component that edits in place: PieceList in edit mode, the prompt card, the Update look pill, the Discard dialog on leave, the AdjustSheet from the adjust disc (sheet only). Home's Edit opens it as the Edit Look drawer (× · EDIT LOOK · ✓, Update look footer). The draft drawer drops its `edit` mode. |
-| 10 | **Image mode (D19, D20).** ImageManager holds its changes until Update look; opens on Add a photo from Home's stack (`?images=add`); a new photo lands in focus; the front card is the cover; Robes' picture can be hidden (`looks.robes_hidden`, cleared by any redraw); the last card has no ×; un-accepted uploads are deleted. Home's look gains the stack. Fixes the photo that never showed until saved (the upload wrote only the `looks.get` cache). |
+| 10 | **Image mode (D19, D20).** ImageManager holds its changes until Update look; opens on Add a photo from Home's stack (`?images=add`); a new photo lands in focus; the front card is the cover; Robes' picture can be hidden (`looks.robes_hidden`; a redraw brings it back as the cover, otherwise her chosen cover stays); the last card has no ×; un-accepted uploads are deleted (`DELETE /uploads/:id` and the hourly `stale-uploads` sweep). Home's look gains the stack. Fixes the photo that never showed until saved (the upload wrote only the `looks.get` cache). |
 | 11 | **Adjust model image (D21).** A look-level picture note (`looks.picture_note`) the render and frame jobs read; the AdjustSheet's Send writes it and redraws without `looks.ask`. |
 | 12 | **Describe on Home (D22).** The prompt box leaves Home; Describe opens a new draft drawer for the day with no look row until Generate or a first piece. |
-| 13 | **Past pins worn (D23).** A daily job files wears for saved looks pinned to a day that has ended in the user's timezone, skipping overridden days. |
+| 13 | **Past pins worn (D23).** The hourly `pins-worn` task files wears for saved looks pinned to a day that has ended in the user's timezone, from 9 Nov, skipping overridden days and a trip's looks. |
 
 Smaller calls from the same pass (Annie, 6 Nov): WornView's "+ Add a date" opens `DiarySheet` and a wear's note is written once when filed; the wardrobe piece keeps one photo, replaced through the regenerate icon; "Wear it for" on a piece reads its `wear_for` tags (no tag limit — the ten is the Hero Rack's, which the star keeps); NotificationsSheet's Done only closes; Home's pager already swipes through a day's looks (3k), so no 3f.
 
