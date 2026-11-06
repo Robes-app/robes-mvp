@@ -160,7 +160,12 @@ export function PieceDetail({ id }: { id: string }) {
             <Button
               variant="outline"
               disabled={reading}
-              onPress={() => router.push({ pathname: '/looks/new', params: { pieceId: piece.id } })}
+              onPress={() =>
+                router.push({
+                  pathname: '/looks/draft/[id]',
+                  params: { id: 'new', pieceId: piece.id },
+                })
+              }
             >
               {lookbook.startLook}
             </Button>

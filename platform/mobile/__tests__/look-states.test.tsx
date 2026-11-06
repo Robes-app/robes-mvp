@@ -117,7 +117,8 @@ test('the Lookbook: Saved leads with drafts in progress; Suggested tiles go with
   await fireEvent.press(
     screen.getByRole('button', { name: `Draft: ${lookbook.draftTile.untitled}` }),
   );
-  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${SECOND}`);
+  // A draft opens as its sheet (D14).
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${SECOND}`);
 
   await fireEvent.press(screen.getByRole('radio', { name: lookbook.tabs.suggested }));
   expect(await screen.findByText('Garden party')).toBeTruthy();
@@ -372,14 +373,14 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
       ...JSON.parse(String(init.body)),
       proposals: [],
     }),
+    [`POST /looks/${LOOK_ID}/render`]: { jobId: JOB_ID, status: 'queued' },
     'GET /looks': byStatus({}),
   });
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // Every draft is the one draft page: the pill above Discard · Save opens the thread's card.
-  await fireEvent.press(await screen.findByTestId('adjust-pill'));
-  const field = await screen.findByLabelText(lookbook.draft.adjust);
+  // Every draft is the one DraftLook (D14): the prompt card's field feeds the thread.
+  const field = await screen.findByTestId('draft-prompt');
   await fireEvent.changeText(field, 'swap the mules for my dark jean');
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
+  await fireEvent.press(screen.getByTestId('draft-generate'));
   expect(await screen.findByText('Done. The dark jean is on the look now.')).toBeTruthy();
   const ask = calls.find((c) => c.path.endsWith('/ask'))?.body as {
     rack: unknown[];
@@ -408,8 +409,14 @@ test('the look prompt lands a swap on a draft and remembers what it replaced', a
     [JEAN]: { was: expect.objectContaining({ name: 'Black pointed mules' }) },
   });
   expect(screen.getByText(lookbook.rack.swappedIn('the black pointed mules'))).toBeTruthy();
+  // Sent from the drawer, the picture is drawn once the rack is answered and written (D14).
+  await waitFor(() =>
+    expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBe(true),
+  );
+  expect(calls.findIndex((c) => c.method === 'PATCH')).toBeLessThan(
+    calls.findIndex((c) => c.method === 'POST' && c.path.endsWith('/render')),
+  );
   // Counts and enums only: never her words.
-  expect(track).toHaveBeenCalledWith('look_prompt_opened', { surface: 'draft' });
   expect(track).toHaveBeenCalledWith('look_prompt_sent', {
     surface: 'draft',
     chars: 'swap the mules for my dark jean'.length,
@@ -449,11 +456,10 @@ test('a rule said in the prompt waits under Robes noticed; a vague ask is writte
     noticed: true,
   };
   await renderWithApi(<LookScreen id={LOOK_ID} />);
-  // Every draft is the one draft page: the pill above Discard · Save opens the thread's card.
-  await fireEvent.press(await screen.findByTestId('adjust-pill'));
-  const field = await screen.findByLabelText(lookbook.draft.adjust);
+  // Every draft is the one DraftLook (D14): the prompt card's field feeds the thread.
+  const field = await screen.findByTestId('draft-prompt');
   await fireEvent.changeText(field, 'never grey');
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.prompt.send }));
+  await fireEvent.press(screen.getByTestId('draft-generate'));
   expect(await screen.findByText(lookbook.prompt.noticed)).toBeTruthy();
 });
 

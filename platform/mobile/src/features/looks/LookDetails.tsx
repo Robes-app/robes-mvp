@@ -85,8 +85,10 @@ export function LookDetails({
   look: Look;
   onTags: () => void;
   onSeasons: () => void;
-  onWorn: () => void;
-  onCaption: (caption: string | null) => void;
+  // A draft has no Worn row (D14): leave it out.
+  onWorn?: () => void;
+  // The Caption is the look's name (D16): empty or unchanged keeps the name it had.
+  onCaption: (name: string) => void;
 }) {
   const summary = detailSummaries(look);
   const ink = useColor('ink');
@@ -94,15 +96,15 @@ export function LookDetails({
   const faint = useColor('ink-faint');
   const line = useColor('selected-line');
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(look.note ?? '');
+  const [draft, setDraft] = useState(look.name);
   const field = useRef<ComponentRef<typeof TextInput>>(null);
   useEffect(() => {
     if (editing) field.current?.focus();
   }, [editing]);
   const keep = () => {
     setEditing(false);
-    const next = draft.trim() || null;
-    if (next !== (look.note ?? null)) onCaption(next);
+    const next = draft.trim();
+    if (next && next !== look.name) onCaption(next);
   };
   return (
     <View
@@ -140,14 +142,16 @@ export function LookDetails({
           </View>
         ) : null}
       </Row>
-      <Row
-        label={copy.worn}
-        summary={summary.worn}
-        empty={copy.notWorn}
-        muted
-        onOpen={onWorn}
-        testID="details-worn"
-      />
+      {onWorn ? (
+        <Row
+          label={copy.worn}
+          summary={summary.worn}
+          empty={copy.notWorn}
+          muted
+          onOpen={onWorn}
+          testID="details-worn"
+        />
+      ) : null}
       {editing ? (
         <View
           className="flex-row items-center gap-3 border-hairline pl-4"
@@ -164,7 +168,7 @@ export function LookDetails({
             onBlur={keep}
             onSubmitEditing={keep}
             returnKeyType="done"
-            maxLength={2000}
+            maxLength={120}
             placeholder={copy.captionPlaceholder}
             placeholderTextColor={faint}
             className="flex-1 text-right"
@@ -194,7 +198,7 @@ export function LookDetails({
           accessibilityRole="button"
           accessibilityLabel={copy.editCaption}
           onPress={() => {
-            setDraft(look.note ?? '');
+            setDraft(look.name);
             setEditing(true);
           }}
           testID="details-caption"
@@ -206,10 +210,10 @@ export function LookDetails({
           </Text>
           <Text
             numberOfLines={1}
-            className={`flex-1 text-right ${look.note ? 'text-ink-muted' : 'text-ink-faint'}`}
+            className="flex-1 text-right text-ink-muted"
             style={{ fontSize: 11 }}
           >
-            {look.note ?? copy.captionPlaceholder}
+            {look.name}
           </Text>
           <View
             className="items-center justify-center"

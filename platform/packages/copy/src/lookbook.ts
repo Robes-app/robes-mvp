@@ -191,6 +191,70 @@ export const lookbook = {
       add: '+ Add a date',
     },
   },
+  // The draft drawer (Felix DraftLook, plan 2026-11-06 D14): one drawer over whatever started it,
+  // for a draft and for a saved look's edit. Its three sheets feed the one thread.
+  draftLook: {
+    title: 'Draft look',
+    editTitle: 'Edit look',
+    newName: 'New look',
+    close: 'Close',
+    // The done disc: Save on a draft, Update on a saved look; its tooltip says what Save does.
+    done: 'Save look',
+    doneEdit: 'Update look',
+    doneForDay: 'Save and schedule for this day',
+    // The prompt card.
+    placeholder: 'Describe look…',
+    editPlaceholder: 'Describe other changes…',
+    // Felix's Generate · Regenerate, in Robes' words: Robes styles, it never generates.
+    generate: 'Style it',
+    regenerate: 'Style it again',
+    thread: 'Your words on this look',
+    // The context chip: the day's place and weather, read from the diary.
+    context: (place: string, range: string): string => `${place} · ${range}`,
+    // The add slot before the first piece.
+    addPieces: 'Add pieces',
+    startFromPhoto: 'Start from a photo',
+    // Delete, in edit mode (D9).
+    delete: 'Delete this look',
+    adjustSheet: {
+      title: 'Adjust model image',
+      placeholder: 'e.g: sleeves rolled up…',
+      send: 'Send',
+    },
+    describeSheet: {
+      title: 'Describe changes',
+      placeholder: 'e.g: more casual…',
+      send: 'Send',
+      pieces: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+      show: 'Show the pieces',
+      hide: 'Hide the pieces',
+      remove: (name: string): string => `Remove ${name} from the prompt`,
+    },
+    // The piece picker (Felix WardrobePicker): the wardrobe grid as a subview; its search, pills
+    // and Photograph one read home's flyout copy.
+    picker: {
+      title: 'Add pieces',
+      swapTitle: (name: string): string => `Swap the ${name}`,
+      cta: (n: number): string =>
+        n === 0 ? 'Add pieces' : n === 1 ? 'Add 1 piece' : `Add ${n} pieces`,
+      swapCta: 'Swap it in',
+      empty: 'Nothing here yet.',
+    },
+    discard: {
+      title: 'Discard this draft?',
+      body: 'The look won’t be saved or scheduled.',
+      discard: 'Discard',
+      keep: 'Keep editing',
+      // The quiet third way: the draft waits in the Lookbook's In progress row.
+      later: 'Keep for later',
+    },
+    discardEdit: {
+      title: 'Discard your changes?',
+      body: 'The look stays as it was.',
+      discard: 'Discard',
+      keep: 'Keep editing',
+    },
+  },
   bar: {
     save: 'Save',
     saveToLookbook: 'Save to lookbook',

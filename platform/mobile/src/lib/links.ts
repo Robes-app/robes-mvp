@@ -16,6 +16,8 @@ const RULES: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   rule('/looks/ideas', () => '/looks?tab=suggested'),
   rule(`/looks/ideas/${UUID}`, (m) => `/idea/${m[1]}`),
   rule('/looks/new/photo', () => '/looks/photo'),
+  // A new draft opens in the draft sheet (D14).
+  rule('/looks/new', () => '/looks/draft/new'),
   rule(`/looks/style/${UUID}`, (m) => `/looks/job/${m[1]}`),
   rule(`/today/looks/${UUID}`, (m) => `/today/look/${m[1]}`),
   rule(`/today/style/${UUID}`, (m) => `/today/job/${m[1]}`),

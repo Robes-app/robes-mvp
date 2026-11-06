@@ -44,6 +44,9 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
   const [editing, setEditing] = useState(live);
   const [rack, setRack] = useState<RackState>(() => rackFromLook(look));
   const [dirty, setDirty] = useState(false);
+  // The rack write in flight for a live look, so a picture asked for right after a change is
+  // drawn on the rack as written (the drawer sends, then draws).
+  const inFlight = useRef<Promise<unknown> | null>(null);
   // The rack as it stands now, for an Undo that fires after later renders.
   const current = useRef(rack);
   current.current = rack;
@@ -86,7 +89,9 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     setRack(next);
     onChange.current?.();
     if (live) {
-      write.mutate({ params: { id: look.id }, input: rackUpdate(next, { keepEdits: true }) });
+      inFlight.current = write
+        .mutateAsync({ params: { id: look.id }, input: rackUpdate(next, { keepEdits: true }) })
+        .catch(() => undefined);
     } else {
       setEditing(true);
       setDirty(true);
@@ -160,6 +165,7 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
     // The picture drawn again for the rack as it stands: Robes' frame, else her model. Resolves
     // once the job is started; the look then reads pending until it lands.
     redraw: async () => {
+      await inFlight.current;
       if (look.frame || look.setId) await api.call('looks.frame', { params: { id: look.id } });
       else await api.call('looks.renderOnModel', { params: { id: look.id } });
       await queryClient.invalidateQueries({

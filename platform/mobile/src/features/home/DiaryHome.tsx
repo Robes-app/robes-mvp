@@ -230,7 +230,7 @@ export function DiaryHome({
               onDescribe: past ? null : () => prompt.current?.focus(),
               onPick: () => setDrawer({ date: current.date, mode: 'add' }),
               onSwap: () => setDrawer({ date: current.date, mode: 'change' }),
-              onEdit: (entry) => router.push(`/look/${entry.look.id}?day=${current.date}&edit=1`),
+              onEdit: (entry) => router.push(`/looks/draft/${entry.look.id}?day=${current.date}`),
               onRemove: remove,
               onModel: () => setChoosing(true),
             }}

@@ -13,6 +13,7 @@ test.each([
   ['/looks/ideas', '/looks?tab=suggested'],
   [`/looks/ideas/${ID}`, `/idea/${ID}`],
   ['/looks/new/photo', '/looks/photo'],
+  ['/looks/new', '/looks/draft/new'],
   [`/looks/style/${ID}`, `/looks/job/${ID}`],
   [`/today/looks/${ID}`, `/today/look/${ID}`],
   [`/today/style/${ID}`, `/today/job/${ID}`],
@@ -23,7 +24,7 @@ test.each([
   // Paths both apps share pass through.
   ['/', '/'],
   ['/looks', '/looks'],
-  ['/looks/new', '/looks/new'],
+  [`/looks/draft/${ID}`, `/looks/draft/${ID}`],
   ['/looks/style', '/looks/style'],
   [`/looks/deck/${ID}`, `/looks/deck/${ID}`],
   [`/look/${ID}`, `/look/${ID}`],
@@ -64,7 +65,9 @@ test('the query keys a native screen reads ride along; the rest are dropped', ()
   expect(nativePath('/wardrobe/inbox?from=email')).toBe('/wardrobe/inbox');
   expect(nativePath('/looks?tab=suggested&from=email')).toBe('/looks?tab=suggested');
   expect(nativePath('/wardrobe/add?to=wishlist')).toBe('/wardrobe/add?to=wishlist');
-  expect(nativePath(`/looks/new?pieceId=${ID}&utm_source=x`)).toBe(`/looks/new?pieceId=${ID}`);
+  expect(nativePath(`/looks/new?pieceId=${ID}&utm_source=x`)).toBe(
+    `/looks/draft/new?pieceId=${ID}`,
+  );
   // A rule's own query wins over a link's.
   expect(nativePath('/looks/ideas?tab=saved')).toBe('/looks?tab=suggested');
   expect(nativePath('/looks?tab=a%20b')).toBe('/looks?tab=a%20b');
@@ -113,14 +116,22 @@ function urlOf(root: string, file: string): string {
   return `/${parts.join('/')}`;
 }
 
-const webPages = files(WEB, (f) => f === 'page.tsx').map((f) =>
-  urlOf(WEB, f)
-    .replace(/\/page\.tsx$/, '')
-    .replace(/\[(id|jobId)\]/g, ID)
-    .replace('[date]', DAY)
-    .replace('[slug]', 'trips')
-    .replace(/^$/, '/'),
-);
+// A parallel slot (app/(app)/@drawer) intercepts an address another page already serves.
+const inSlot = (f: string) =>
+  relative(WEB, f)
+    .split(sep)
+    .some((p) => p.startsWith('@'));
+
+const webPages = files(WEB, (f) => f === 'page.tsx')
+  .filter((f) => !inSlot(f))
+  .map((f) =>
+    urlOf(WEB, f)
+      .replace(/\/page\.tsx$/, '')
+      .replace(/\[(id|jobId)\]/g, ID)
+      .replace('[date]', DAY)
+      .replace('[slug]', 'trips')
+      .replace(/^$/, '/'),
+  );
 
 const nativeRoutes = files(NATIVE, (f) => /\.tsx$/.test(f) && !/^[_+]/.test(f)).map((f) => {
   const path = urlOf(NATIVE, f)

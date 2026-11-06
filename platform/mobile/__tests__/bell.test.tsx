@@ -76,8 +76,8 @@ test('two items render with where each leads; a tap routes, × dismisses and the
   await fireEvent.press(
     await screen.findByRole('button', { name: `${bell.dismiss}: ${bell.receipts(2)}` }),
   );
-  // The card leaves at once; the server read follows and agrees.
-  expect(screen.queryByText(bell.receipts(2))).toBeNull();
+  // The card leaves before the server agrees (an optimistic write, applied on the next tick).
+  await waitFor(() => expect(screen.queryByText(bell.receipts(2))).toBeNull());
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/notifications/dismiss'))?.body).toEqual({
       key: 'receipts:2',

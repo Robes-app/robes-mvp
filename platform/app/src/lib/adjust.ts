@@ -32,6 +32,10 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
   const [state, dispatch] = useReducer(adjustReduce, EMPTY_ADJUST);
   const d = copy.draft;
 
+  // A send that asked to draw once answered, and the draw it calls (defined further down).
+  const drawAfter = useRef(false);
+  const draw = useRef<() => void>(() => {});
+
   // Her ask: an edit comes back keyed by the rack she sent.
   const ask = useLookAsk(look.id, (result) => {
     dispatch({ type: 'robes', text: result.reply || copy.prompt.doneNone });
@@ -39,6 +43,11 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
     const slots = result.swaps.length + result.back.length + result.styled.length;
     if (slots) track('look_prompt_applied', { surface, intent: result.intent, slots });
     if (askChanges(result)) editor.answer(result);
+    // The drawer's Send and Generate draw the picture once the rack is answered (D14).
+    if (drawAfter.current) {
+      drawAfter.current = false;
+      if (askChanges(result)) draw.current();
+    }
   });
   const askFailed = useRef(ask.reading);
   useEffect(() => {
@@ -99,6 +108,8 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       });
   };
 
+  draw.current = () => updateModel();
+
   const stale = state.pending > 0 || look.pictureStale;
   const badge = state.pending || (look.pictureStale ? 1 : 0);
   const busy = ask.reading || redressJob !== null || drawing;
@@ -132,9 +143,12 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       : state.thread.some((l) => l.who === 'her')
         ? d.adjustAfter
         : d.adjust,
-    send: (words: string) => {
+    // `draw`: the picture is drawn once the answer lands (the drawer's Send and Generate); only a
+    // live look writes its rack as it goes, so a saved look's edit still draws on Update.
+    send: (words: string, opts: { draw?: boolean } = {}) => {
       const text = words.trim();
       if (!text || busy) return;
+      drawAfter.current = opts.draw === true && look.status === 'draft';
       dispatch({ type: 'her', text });
       if (state.asking) {
         dispatch({ type: 'answered' });
@@ -164,6 +178,15 @@ export function useAdjust(look: Look, editor: Editor, surface: AdjustSurface) {
       dispatch({ type: 'her', text: d.redress });
       dispatch({ type: 'robes', text: d.ask });
       dispatch({ type: 'ask' });
+    },
+    // The DescribeSheet: her sentence re-writes the look Robes made, the pieces she dropped gone.
+    describe: (words: string) => {
+      const text = words.trim();
+      if (!text || busy || look.setId === null) return;
+      dispatch({ type: 'her', text });
+      if (state.asking) dispatch({ type: 'answered' });
+      dispatch({ type: 'work', text: d.dressingAgain });
+      restyle(text);
     },
     // ↻ on the tile: another take, same brief, no question asked.
     another: () => {

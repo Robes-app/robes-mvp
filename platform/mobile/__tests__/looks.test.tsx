@@ -1,5 +1,6 @@
 import { keyPiece, lookbook, looks, ui } from '@robes/copy';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { DraftLook } from '../src/features/looks/DraftLook';
 import { IdeaScreen, JobIdeaScreen } from '../src/features/looks/IdeaScreens';
 import { LookDetail } from '../src/features/looks/LookDetail';
 import { StylePiece } from '../src/features/looks/StylePiece';
@@ -117,8 +118,9 @@ test('a saved look is worn today through the diary sheet (her local date) and re
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  // One meta line under the title carries the wears; the old second "Worn 2 times" line is gone.
-  expect(await screen.findByText(/2 wears/)).toBeTruthy();
+  // No facts line under the photo (D16), and no "Worn 2 times" line either.
+  expect(await screen.findByRole('button', { name: lookbook.savedLook.schedule })).toBeTruthy();
+  expect(screen.queryByText(/2 wears/)).toBeNull();
   expect(screen.queryByText(looks.look.worn(2))).toBeNull();
   // No wear buttons on the page (27 Oct): the diary on the picture logs it, on any day.
   expect(screen.queryByRole('button', { name: 'Wear it today' })).toBeNull();
@@ -134,12 +136,24 @@ test('a saved look is worn today through the diary sheet (her local date) and re
   // Beta says so (L10): today's wear is "Worn today ✓", never silence.
   expect(await screen.findByText(lookbook.diary.wornToday)).toBeTruthy();
 
-  // Delete lives in Editing (D9), behind a confirm.
+  // Delete lives in the draft sheet's edit mode (D9, D14): Edit look opens it.
   expect(screen.queryByRole('button', { name: looks.page.remove })).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.savedLook.edit }));
-  await fireEvent.press(await screen.findByRole('button', { name: looks.page.remove }));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}`);
+});
+
+test('Delete this look, in the draft sheet, asks first and lands behind Undo', async () => {
+  const calls = mockFetch({
+    [`GET /looks/${LOOK_ID}`]: look(),
+    [`DELETE /looks/${LOOK_ID}`]: { ok: true },
+    [`POST /looks/${LOOK_ID}/restore`]: look(),
+    'GET /looks': { items: [], nextCursor: null },
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
+  await fireEvent.press(await screen.findByText(lookbook.draftLook.delete));
   await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.delete }));
-  expect(mockRouter.back).toHaveBeenCalled();
+  expect(mockRouter.replace).toHaveBeenCalledWith('/looks');
   expect(await screen.findByText(looks.look.removed)).toBeTruthy();
   await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
   await act(async () => {
@@ -343,13 +357,13 @@ test('Update on a saved look her model wears asks her model to wear the new rack
     }),
     'GET /looks': { items: [], nextCursor: null },
   });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.edit }));
+  // The saved look edits in the draft sheet (D14): the rack is worked there, Update keeps it.
+  await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   await fireEvent.press(
     await screen.findByRole('button', { name: lookbook.rack.remove('Straight jeans') }),
   );
-  // The piece taken off leaves the picture behind, so Update reads ↻ and draws it after (D6).
-  await fireEvent.press(await screen.findByRole('button', { name: `↻ ${lookbook.bar.update}` }));
+  // The piece taken off leaves the picture behind, so Update draws it after (D6).
+  await fireEvent.press(screen.getByTestId('draft-done'));
   // The picture must not keep showing the jeans she took off (beta re-dressed the model live).
   await waitFor(() =>
     expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/render'))).toBeTruthy(),

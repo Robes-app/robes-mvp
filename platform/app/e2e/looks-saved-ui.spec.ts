@@ -24,17 +24,23 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     .getByRole('dialog', { name: 'Create' })
     .getByRole('link', { name: 'New look' })
     .click();
-  await expect(page).toHaveURL(/\/looks\/new$/);
-  // The first piece makes it a draft; the second joins its rack in the same composer; Save keeps it.
+  // The draft drawer (D14) opens over the screen; the first pieces make the draft, the done disc
+  // saves it, and the saved look opens with the diary up.
+  await expect(page).toHaveURL(/\/looks\/draft\/new$/);
   await page.getByRole('button', { name: '+ Add a piece' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Camel coat' }).click();
-  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
+  const picker = page.getByTestId('piece-picker');
+  await picker.getByRole('button', { name: 'Include Camel coat' }).click();
+  await picker.getByRole('button', { name: 'Add 1 piece' }).click();
+  await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Draft look')).toBeVisible();
   await page.getByRole('button', { name: '+ Add a piece' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Straight jeans' }).click();
-  await expect(page.getByText('The look · 2 pieces', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
+  await picker.getByRole('button', { name: 'Include Straight jeans' }).click();
+  await picker.getByRole('button', { name: 'Add 1 piece' }).click();
+  await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
+  await page.getByTestId('draft-done').click();
+  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
   // Beta's save toast names the look.
   await expect(
     page.getByText(/^[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2} saved to your Lookbook ✓$/),
@@ -42,7 +48,9 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // Save opens the diary every time; × closes it and writes nothing.
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
+  // The saved look opened with the diary up and dropped the parameter from its address.
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
+  await expect(page.getByTestId('draft-look')).toHaveCount(0);
   // Unnamed, a hand-built look saves as her today ("Wednesday 28 Oct"), the month from the table.
   const heading = page.getByRole('heading', { level: 1 });
   await expect(heading).toHaveText(
@@ -125,13 +133,10 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await diary.getByRole('button', { name: longTomorrow }).click();
   await diary.getByRole('button', { name: 'Put it in the diary' }).click();
   await expect(page.getByRole('listitem').getByText(/is in your diary for/)).toBeVisible();
-  // The saved look says the day it is pinned for, as beta's meta line does ("Thursday 29 Oct").
-  const pinnedDay = longTomorrow.split(' ');
-  await expect(
-    page.getByText(
-      new RegExp(`pinned for ${pinnedDay[0]} ${pinnedDay[1]} ${pinnedDay[2]?.slice(0, 3)}$`),
-    ),
-  ).toBeVisible();
+  // The facts line that named the pinned day is gone (D16); the look is pinned for tomorrow.
+  await expect
+    .poll(async () => (await (await page.request.get(`/api/v1/looks/${lookId}`)).json()).pinnedOn)
+    .toContain(tomorrow);
 
   // The plan lists summary rows; the row opens the day page, where the day is named and edited.
   await page.goto('/plan');
@@ -168,7 +173,9 @@ test('removing a look can be undone', async ({ page }) => {
   await page.goto(`/look/${look.id}`);
   // Delete lives in Editing (D9): destructive text in danger, as on the phone, behind a confirm.
   await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveCount(0);
+  // + Add pieces opens the draft drawer in edit mode (D14), where Delete lives.
   await page.getByRole('button', { name: '+ Add pieces' }).click();
+  await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveClass(/text-danger/);
   await page.getByRole('button', { name: 'Delete this look' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
@@ -252,13 +259,13 @@ test('Details: the caption keeps on blur, Seasons picks the four seasons, Tags p
   await expect(page.getByTestId('details-seasons')).toContainText('Year round');
   await expect(page.getByTestId('details-tags')).toContainText('None');
 
-  // The caption edits inline; blur keeps it.
+  // The caption is the look's name (D16); it edits inline, and Enter keeps it.
   await page.getByTestId('details-caption').click();
   await page.getByRole('textbox', { name: 'Caption' }).fill('Errands, then coffee');
   await page.getByRole('textbox', { name: 'Caption' }).press('Enter');
   await expect(page.getByTestId('details-caption')).toContainText('Errands, then coffee');
   await expect
-    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).note)
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).name)
     .toBe('Errands, then coffee');
 
   // Seasons: any of the four; the band every older reader sees follows (D12).
@@ -312,17 +319,23 @@ test('editing a saved look: a swap is one tap behind Undo, and Update says Updat
   await page.goto(`/look/${look.id}`);
   // At rest, each row carries the piece's own wears (beta's ledger).
   await expect(page.getByTestId(`rack-row-${camel}`).getByText('0 wears')).toBeVisible();
+  // Edit look opens the draft drawer in edit mode (D14); the rack is worked there.
   await page.getByRole('button', { name: 'Edit look' }).click();
-  await page.getByRole('button', { name: /^Swap / }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Navy coat' }).click();
-  // One tap: the sheet closes on the swap; Undo puts the rack back.
-  await expect(page.getByTestId(`rack-row-${navy}`)).toBeVisible();
+  const drawer = page.getByTestId('draft-look');
+  await expect(drawer.getByText('Edit look')).toBeVisible();
+  const picker = page.getByTestId('piece-picker');
+  await drawer.getByRole('button', { name: /^Swap / }).click();
+  await picker.getByRole('button', { name: 'Include Navy coat' }).click();
+  await picker.getByRole('button', { name: 'Swap it in' }).click();
+  // The swap lands in the drawer; Undo puts the rack back.
+  await expect(drawer.getByTestId(`rack-row-${navy}`)).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByTestId(`rack-row-${camel}`)).toBeVisible();
-  await expect(page.getByTestId(`rack-row-${navy}`)).toHaveCount(0);
-  await page.getByRole('button', { name: /^Swap / }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Navy coat' }).click();
-  await page.getByRole('button', { name: 'Update look' }).click();
+  await expect(drawer.getByTestId(`rack-row-${camel}`)).toBeVisible();
+  await expect(drawer.getByTestId(`rack-row-${navy}`)).toHaveCount(0);
+  await drawer.getByRole('button', { name: /^Swap / }).click();
+  await picker.getByRole('button', { name: 'Include Navy coat' }).click();
+  await picker.getByRole('button', { name: 'Swap it in' }).click();
+  await drawer.getByRole('button', { name: 'Update look' }).click();
   await expect(page.getByText('Updated', { exact: true })).toBeVisible();
   await expect
     .poll(async () =>
@@ -333,43 +346,34 @@ test('editing a saved look: a swap is one tap behind Undo, and Update says Updat
     .toEqual([navy]);
 });
 
-test('a saved look is renamed in place: its title becomes the field', async ({ page }) => {
+test('a saved look is renamed in Details › Caption: the name is the caption (D16)', async ({
+  page,
+}) => {
   await signIn(page);
   await declineConsent(page);
   const res = await page.request.post('/api/v1/looks', { data: { name: 'Office', pieces: [] } });
   const look = await res.json();
   await page.goto(`/look/${look.id}`);
-  const heading = page.getByRole('heading', { level: 1, name: 'Office' });
-  await expect(heading).toBeVisible();
-
-  // No NAME label, no Save name, no Cancel: the title is the field, focused with the name selected.
-  await page.getByRole('button', { name: 'Rename' }).click();
-  const field = page.getByRole('textbox', { name: 'Name this look' });
+  // Nothing between the photo and the tabs: no title, no pencil, no facts line.
+  await expect(page.getByRole('heading', { level: 1, name: 'Office' })).toBeAttached();
+  await expect(page.getByRole('button', { name: 'Rename' })).toHaveCount(0);
+  await expect(page.getByText(/pinned for/)).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Details' }).click();
+  await expect(page.getByTestId('details-caption')).toContainText('Office');
+  await page.getByTestId('details-caption').click();
+  const field = page.getByRole('textbox', { name: 'Caption' });
   await expect(field).toBeFocused();
   await expect(field).toHaveValue('Office');
-  await expect(field).toHaveCSS('outline-style', 'none');
-  await expect(field).toHaveCSS('border-top-width', '0px');
-  await expect(page.getByRole('button', { name: 'Save name' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
   expect(await seriousViolations(page)).toEqual([]);
-  // Typing replaces the selected name; Enter keeps it.
-  await page.keyboard.type('Gallery dinner');
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: 'Gallery dinner' })).toBeVisible();
+  await field.fill('Gallery dinner');
+  await field.press('Enter');
+  await expect(page.getByTestId('details-caption')).toContainText('Gallery dinner');
   await expect
     .poll(async () => (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).name)
     .toBe('Gallery dinner');
-
-  // Escape leaves the name as it was; an emptied name is refused (a look is named).
-  await page.getByRole('button', { name: 'Rename' }).click();
-  await page.keyboard.type('Nope');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('heading', { level: 1, name: 'Gallery dinner' })).toBeVisible();
-  await page.getByRole('button', { name: 'Rename' }).click();
+  // An emptied caption keeps the name it had: a look is named.
+  await page.getByTestId('details-caption').click();
   await field.fill('');
   await field.press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: 'Gallery dinner' })).toBeVisible();
-  await expect
-    .poll(async () => (await (await page.request.get(`/api/v1/looks/${look.id}`)).json()).name)
-    .toBe('Gallery dinner');
+  await expect(page.getByTestId('details-caption')).toContainText('Gallery dinner');
 });

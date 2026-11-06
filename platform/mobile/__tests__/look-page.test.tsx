@@ -1,5 +1,5 @@
-import { lookbook, looks, ui, you } from '@robes/copy';
-import { longDate, lookDateName, monthOf, shiftMonth } from '@robes/core/calendar';
+import { lookbook, looks, you } from '@robes/copy';
+import { longDate, monthOf, shiftMonth } from '@robes/core/calendar';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { LookDetail } from '../src/features/looks/LookDetail';
 import { localDate, nextDays } from '../src/features/looks/saved-looks';
@@ -17,7 +17,8 @@ beforeEach(() => jest.clearAllMocks());
 // Call sites report through the consent-gated client (observability.test.ts proves the gate).
 const track = jest.spyOn(nativeAnalytics, 'track');
 
-test('a suggested name is renamed with the pencil, never a "Keep this name" line', async () => {
+// The name is the Caption in Details (D16): nothing stands between the photo and the tabs.
+test('a suggested name is renamed in Details › Caption, never a "Keep this name" line', async () => {
   const calls = mockFetch({
     [`GET /looks/${LOOK_ID}`]: look({ nameProvisional: true, name: 'Camel coat, styled' }),
     [`PATCH /looks/${LOOK_ID}`]: (init: RequestInit) =>
@@ -25,15 +26,18 @@ test('a suggested name is renamed with the pencil, never a "Keep this name" line
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('tab', { name: lookbook.savedLook.tabs.details }));
   expect(await screen.findByText('Camel coat, styled')).toBeTruthy();
-  // No suggestion line, no eyebrow over the picture (Felix 3e keeps the photo bare).
+  // No title, no pencil, no facts line, no suggestion line, no eyebrow over the picture.
+  expect(screen.queryByRole('button', { name: looks.page.rename })).toBeNull();
+  expect(screen.queryByText(/pinned for/)).toBeNull();
   expect(screen.queryByText(lookbook.eyebrow.saved)).toBeNull();
   expect(screen.queryByText('Robes’ suggestion')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Keep this name' })).toBeNull();
 
-  // The title itself becomes the field: no label, no Save name, no Cancel.
-  await fireEvent.press(screen.getByRole('button', { name: looks.page.rename }));
-  const field = screen.getByLabelText(looks.look.nameLabel);
+  // The caption row becomes the field: no label, no Save name, no Cancel.
+  await fireEvent.press(screen.getByTestId('details-caption'));
+  const field = screen.getByLabelText(lookbook.savedLook.details.caption);
   expect(field.props.value).toBe('Camel coat, styled');
   expect(screen.queryByText('Save name')).toBeNull();
   expect(screen.queryByText('Cancel')).toBeNull();
@@ -43,14 +47,15 @@ test('a suggested name is renamed with the pencil, never a "Keep this name" line
   expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ name: 'Gallery opening' });
 });
 
-test('an emptied name is refused: the look keeps its name and nothing is sent', async () => {
+test('an emptied caption is refused: the look keeps its name and nothing is sent', async () => {
   const calls = mockFetch({
     [`GET /looks/${LOOK_ID}`]: look({ name: 'Gallery opening' }),
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: looks.page.rename }));
-  const field = screen.getByLabelText(looks.look.nameLabel);
+  await fireEvent.press(await screen.findByRole('tab', { name: lookbook.savedLook.tabs.details }));
+  await fireEvent.press(await screen.findByTestId('details-caption'));
+  const field = screen.getByLabelText(lookbook.savedLook.details.caption);
   await fireEvent.changeText(field, '  ');
   await fireEvent(field, 'blur');
   expect(await screen.findByText('Gallery opening')).toBeTruthy();
@@ -191,13 +196,13 @@ test('a look carries no share door, and no save-as-new (27 Oct)', async () => {
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  expect(await screen.findByText(look().name)).toBeTruthy();
+  expect(await screen.findByRole('button', { name: lookbook.savedLook.schedule })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Save as new' })).toBeNull();
 });
 
 test('the saved look says the day it is pinned for, each piece its wears, each wear its weekday', async () => {
-  const [today, tomorrow] = nextDays(2);
+  const [, tomorrow] = nextDays(2);
   mockFetch({
     [`GET /looks/${LOOK_ID}`]: look({
       pieces: [{ piece: piece({ wearCount: 4 }), slot: null, role: null }],
@@ -208,71 +213,34 @@ test('the saved look says the day it is pinned for, each piece its wears, each w
     },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  expect(
-    await screen.findByText(
-      `1 piece · 2 wears · last 1 Sep · pinned for ${lookDateName(tomorrow ?? today ?? '')}`,
-    ),
-  ).toBeTruthy();
-  expect(screen.getByText(lookbook.meta.wears(4))).toBeTruthy();
-  // The wears live behind Details › Worn (Felix 3e), each with its weekday.
-  await fireEvent.press(screen.getByRole('tab', { name: lookbook.savedLook.tabs.details }));
+  // No facts line under the photo (D16): the wears live behind Details › Worn (Felix 3e), each
+  // with its weekday.
+  await fireEvent.press(await screen.findByRole('tab', { name: lookbook.savedLook.tabs.details }));
+  expect(screen.queryByText(/pinned for/)).toBeNull();
   await fireEvent.press(await screen.findByTestId('details-worn'));
   expect(await screen.findByText('Tue 8 Sep')).toBeTruthy();
 });
 
-test('editing a saved look, a swap lands on one tap behind Undo; Update says Updated', async () => {
-  const COAT = '99999999-9999-4999-8999-999999999999';
-  const calls = mockFetch({
-    [`GET /looks/${LOOK_ID}`]: look(),
-    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
-    [`PATCH /looks/${LOOK_ID}`]: look(),
-    'GET /wardrobe/items': {
-      items: [piece(), piece({ id: COAT, label: 'Navy wool coat' })],
-      nextCursor: null,
-    },
-    'GET /looks': { items: [], nextCursor: null },
-    'GET /plan': { from: localDate(), to: localDate(), days: [] },
-  });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.edit }));
-  // Editing hides the ledger: the rows swap and remove.
-  expect(screen.queryByText(lookbook.meta.wears(0))).toBeNull();
-  await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
-  );
-  await fireEvent.press(await screen.findByRole('radio', { name: 'Navy wool coat' }));
-  // One tap: no "Swap in" step, and nothing written until Update.
-  expect(await screen.findByText(lookbook.swap.swapped('Navy wool coat'))).toBeTruthy();
-  expect(screen.getByTestId(`rack-row-${COAT}`)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: ui.undo }));
-  await waitFor(() => expect(screen.queryByTestId(`rack-row-${COAT}`)).toBeNull());
-  expect(screen.getByTestId(`rack-row-${PIECE_ID}`)).toBeTruthy();
-  expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(0);
-
-  await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
-  );
-  await fireEvent.press(await screen.findByRole('radio', { name: 'Navy wool coat' }));
-  // The swap left the picture behind, so Update reads ↻ and draws it as it commits (D6).
-  await fireEvent.press(screen.getByRole('button', { name: `↻ ${lookbook.bar.update}` }));
-  expect(await screen.findByText(lookbook.updated)).toBeTruthy();
-  expect(JSON.stringify(calls.find((c) => c.method === 'PATCH')?.body)).toContain(COAT);
-  expect(track).toHaveBeenCalledWith('swap_drawer_opened', { mode: 'swap' });
-  expect(track).toHaveBeenCalledWith('piece_swapped', { surface: 'saved', cat: 'Outerwear' });
-  expect(track).toHaveBeenCalledWith('look_updated', { pieces: 1 });
-  // No piece's name ever rides an event.
-  expect(JSON.stringify(track.mock.calls)).not.toContain('wool coat');
-});
-
-// Home's Edit disc (Felix 3k) opens the look straight into Editing.
-test('opened to edit, the look starts in Editing', async () => {
+// Edit look, the adjust disc and Home's Edit disc (Felix 3k) open the draft sheet in edit mode
+// (D14): the rack is worked there, and Delete lives there (D9).
+test('Edit look and the adjust disc open the draft sheet; `edit` opens it as the look opens', async () => {
   mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
     [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    'GET /looks': { items: [], nextCursor: null },
   });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.edit }));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}`);
+  await fireEvent.press(screen.getByTestId('saved-look-adjust'));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}?sheet=adjust`);
+  // The ledger stays: the rows carry their wear counts, never swap or remove.
+  expect(screen.queryByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeNull();
+  expect(screen.queryByText(looks.page.remove)).toBeNull();
+  expect(screen.queryByRole('button', { name: lookbook.bar.update })).toBeNull();
+
+  mockRouter.push.mockClear();
   await renderWithApi(<LookDetail id={LOOK_ID} edit />);
-  expect(await screen.findByRole('button', { name: lookbook.bar.update })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: lookbook.savedLook.edit })).toBeNull();
-  // Delete this look is destructive text, as on the web, and lives in Editing (D9).
-  expect(screen.getByText(looks.page.remove).props.className).toContain('text-danger');
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}`));
+  expect(mockRouter.push).toHaveBeenCalledTimes(1);
 });

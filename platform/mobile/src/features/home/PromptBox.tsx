@@ -522,7 +522,7 @@ function LiveBox({
           adjust={adjust}
           onAdjust={() => setOpen((o) => !o)}
           adjustOpen={open}
-          onView={() => router.push(`/look/${look.id}?day=${day.date}`)}
+          onView={() => router.push(`/looks/draft/${look.id}?day=${day.date}`)}
         />
       )}
       {fieldOpen && !dressing ? (

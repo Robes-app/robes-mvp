@@ -7,6 +7,7 @@ export * from './button-styles';
 export * from './card';
 export * from './command-bar';
 export * from './dialog';
+export * from './drawer';
 export * from './empty-state';
 export * from './error-text';
 export * from './field';

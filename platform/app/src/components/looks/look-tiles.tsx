@@ -95,7 +95,7 @@ export function DraftTile({ look }: { look: Look }) {
   return (
     <LookTile
       look={look}
-      href={`/look/${look.id}`}
+      href={`/looks/draft/${look.id}`}
       sizes="140px"
       dashed
       // Beta's In progress tile is 140 wide (Header Audit Round 2).

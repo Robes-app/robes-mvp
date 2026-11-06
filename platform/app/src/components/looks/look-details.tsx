@@ -74,20 +74,22 @@ export function LookDetails({
   look: Look;
   onTags: () => void;
   onSeasons: () => void;
-  onWorn: () => void;
-  onCaption: (caption: string | null) => void;
+  // A draft has no Worn row (D14): leave it out.
+  onWorn?: () => void;
+  // The Caption is the look's name (D16): empty or unchanged keeps the name it had.
+  onCaption: (name: string) => void;
 }) {
   const summary = detailSummaries(look);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(look.note ?? '');
+  const [draft, setDraft] = useState(look.name);
   const field = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (editing) field.current?.focus();
   }, [editing]);
   const keep = () => {
     setEditing(false);
-    const next = draft.trim() || null;
-    if (next !== (look.note ?? null)) onCaption(next);
+    const next = draft.trim();
+    if (next && next !== look.name) onCaption(next);
   };
   return (
     <div
@@ -119,14 +121,16 @@ export function LookDetails({
           </span>
         ) : null}
       </Row>
-      <Row
-        label={copy.worn}
-        summary={summary.worn}
-        empty={copy.notWorn}
-        muted
-        onOpen={onWorn}
-        testId="details-worn"
-      />
+      {onWorn ? (
+        <Row
+          label={copy.worn}
+          summary={summary.worn}
+          empty={copy.notWorn}
+          muted
+          onOpen={onWorn}
+          testId="details-worn"
+        />
+      ) : null}
       {editing ? (
         <div className="flex h-12 items-center gap-3 py-[7px] pr-[7px] pl-4">
           <span className="type-label shrink-0 text-ink-muted">{copy.caption}</span>
@@ -135,13 +139,13 @@ export function LookDetails({
             aria-label={copy.caption}
             value={draft}
             placeholder={copy.captionPlaceholder}
-            maxLength={2000}
+            maxLength={120}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={keep}
             onKeyDown={(e) => {
               if (e.key === 'Enter') keep();
               if (e.key === 'Escape') {
-                setDraft(look.note ?? '');
+                setDraft(look.name);
                 setEditing(false);
               }
             }}
@@ -162,7 +166,7 @@ export function LookDetails({
         <button
           type="button"
           onClick={() => {
-            setDraft(look.note ?? '');
+            setDraft(look.name);
             setEditing(true);
           }}
           aria-label={copy.editCaption}
@@ -170,10 +174,8 @@ export function LookDetails({
           className={`flex h-12 w-full items-center gap-3 pr-3 pl-4 text-left ${focus}`}
         >
           <span className="type-label shrink-0 text-ink-muted">{copy.caption}</span>
-          <span
-            className={`min-w-0 flex-1 truncate text-right font-sans text-[11px] ${look.note ? 'text-ink-muted' : 'text-ink-faint'}`}
-          >
-            {look.note ?? copy.captionPlaceholder}
+          <span className="min-w-0 flex-1 truncate text-right font-sans text-[11px] text-ink-muted">
+            {look.name}
           </span>
           <span className="-mx-1 flex size-8 shrink-0 items-center justify-center rounded-pill text-ink">
             <Icon name="pencil" size={14} />
