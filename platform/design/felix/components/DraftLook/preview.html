@@ -1,0 +1,23 @@
+<!-- @dsCard group="Looks" height=1720 subtitle="The 3a Draft Look drawer — empty, with pieces, Details, discard confirm" width=836 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>DraftLook — preview</title></head>
+<body>
+<div id="root" style="display:flex;flex-wrap:wrap;gap:24px;padding:16px;align-items:flex-start;background:var(--cream-300);width:836px;box-sizing:border-box"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+var frame = { width: 390, height: 820, flex: 'none' };
+var model = '/_blob/e9559bed176af4e02501eb7346faa305', ctx = { place: 'Dublin', weather: 'cloud', range: '9–13°' };
+var pieces = [
+  { img: '/_blob/045693b3417feb00a48ceb46f01e48c1', category: 'Tops', brand: 'Adidas', name: 'Lime green sweatshirt' },
+  { img: '/_blob/1b9efb672ddd48508701d0e03f6e2ebe', category: 'Bottoms', name: 'Black leggings' } ];
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: frame }, h(F.DraftLook, { image: model, context: ctx })),
+  h('div', { style: frame }, h(F.DraftLook, { image: '/_blob/e9559bed176af4e02501eb7346faa305', images: ['/_blob/e9559bed176af4e02501eb7346faa305', model], count: 2, context: ctx, pieces: pieces, canSave: true })),
+  h('div', { style: frame }, h(F.DraftLook, { mode: 'edit', image: '/_blob/e9559bed176af4e02501eb7346faa305', count: 2, tab: 'Details', canSave: true,
+    details: { tags: ['Weekend casual'], seasons: ['Spring', 'Autumn'], worn: '5 times · last 27 Oct' } })),
+  h('div', { style: frame }, h(F.DraftLook, { image: model, context: ctx, confirm: true }))
+));
+</script>
+</body>
+</html>

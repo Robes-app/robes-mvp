@@ -1,0 +1,12 @@
+<!-- @dsCard group="Actions" height=110 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>ActionDisc — preview</title></head>
+<body>
+<div id="root" class="fx-discs" style="padding:16px"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment,null,h(F.ActionDisc,{icon:'capture',label:'Capture'}),h(F.ActionDisc,{icon:'describe',label:'Describe'}),h(F.ActionDisc,{icon:'lookbook',label:'Pick'}),h(F.ActionDisc,{icon:'edit',label:'Edit'})));
+</script>
+</body>
+</html>

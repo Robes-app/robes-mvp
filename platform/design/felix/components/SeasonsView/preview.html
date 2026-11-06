@@ -1,0 +1,15 @@
+<!-- @dsCard group="Looks · Draft sub-sheets" height=860 subtitle="Details › Seasons: Year Round, or any of the four" width=422 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>SeasonsView — preview</title></head>
+<body>
+<div id="root" style="display:flex;gap:24px;padding:16px;align-items:flex-start;background:var(--cream-300);width:max-content"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+var frame = { width: 390, height: 820, flex: 'none' };
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: frame }, h(F.DraftLook, { mode: 'edit', image: '/_blob/963aef8bd203cb87e5113a54e2a70a7e', tab: 'Details', sheet: 'seasons', details: { seasons: ['Autumn', 'Winter'] } }))
+));
+</script>
+</body>
+</html>

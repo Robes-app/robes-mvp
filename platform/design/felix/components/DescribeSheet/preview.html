@@ -1,0 +1,17 @@
+<!-- @dsCard group="Looks · Draft sub-sheets" height=860 subtitle="Edit look › Regenerate: describe changes, keep or drop pieces" width=836 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>DescribeSheet — preview</title></head>
+<body>
+<div id="root" style="display:flex;gap:24px;padding:16px;align-items:flex-start;background:var(--cream-300);width:max-content"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+var frame = { width: 390, height: 820, flex: 'none', position: 'relative', overflow: 'hidden', borderRadius: 'var(--rad-lg) var(--rad-lg) 0 0' };
+var models = [{ src: '/_blob/e9559bed176af4e02501eb7346faa305', name: 'Classic', bs: '450% auto', bp: '50% 9%' }, { src: '/_blob/cacb5e202ab5a8f85ea74dace9b15933', name: 'Natural', bs: '450% auto', bp: '50% 9%' }, { src: '/_blob/d299121b7ee19b76bcb95cec5e0b4f47', name: 'Tailored', bs: '520% auto', bp: '50% 10%' }, { src: '/_blob/dd740bfa87e00a5bf25ccda73bd466e6', name: 'Street', bs: '520% auto', bp: '49% 10%' }, { src: '/_blob/963aef8bd203cb87e5113a54e2a70a7e', name: 'Evening', bs: '520% auto', bp: '47% 8%' }, { src: '/_blob/a396bd4f5f254ddf3bbbe537f5f4fe3a', name: 'Romantic', bs: '460% auto', bp: '42% 26%' }];
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: frame }, h(F.DraftLook, { mode: 'edit', image: '/_blob/963aef8bd203cb87e5113a54e2a70a7e', canSave: true, pieces: [{ img: '/_blob/045693b3417feb00a48ceb46f01e48c1', category: 'Tops', brand: 'Adidas', name: 'Lime green sweatshirt' }, { img: '/_blob/1b9efb672ddd48508701d0e03f6e2ebe', category: 'Bottoms', name: 'Black leggings' }, { img: '/_blob/0254148f4ceda43a923848a63e4165a9', category: 'Shoes', brand: 'Salamon XT-4', name: 'White Salamon Running Shoes' }], sheet: 'describe' })),
+  h('div', { style: frame }, h(F.DraftLook, { mode: 'edit', image: '/_blob/963aef8bd203cb87e5113a54e2a70a7e', canSave: true, pieces: [{ img: '/_blob/045693b3417feb00a48ceb46f01e48c1', category: 'Tops', brand: 'Adidas', name: 'Lime green sweatshirt' }, { img: '/_blob/1b9efb672ddd48508701d0e03f6e2ebe', category: 'Bottoms', name: 'Black leggings' }, { img: '/_blob/0254148f4ceda43a923848a63e4165a9', category: 'Shoes', brand: 'Salamon XT-4', name: 'White Salamon Running Shoes' }], sheet: 'describe', describeExpanded: true }))
+));
+</script>
+</body>
+</html>

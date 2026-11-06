@@ -1,0 +1,12 @@
+<!-- @dsCard group="Planning" height=92 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>WeekStrip — preview</title></head>
+<body>
+<div id="root" style="width:350px;padding:16px 20px;background:var(--cream)"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(F.WeekStrip,{days:[{w:'Fri',n:30,worn:true},{w:'Sat',n:31,worn:true},{w:'Sun',n:1},{today:true,n:2,looks:1},{w:'Tue',n:3,future:true},{w:'Wed',n:4,future:true,looks:2},{w:'Thu',n:5,future:true}]}));
+</script>
+</body>
+</html>

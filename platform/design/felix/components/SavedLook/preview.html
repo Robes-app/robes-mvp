@@ -1,0 +1,14 @@
+<!-- @dsCard group="Looks" height=500 subtitle="After saving — the look photo with its controls" -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>SavedLook — preview</title></head>
+<body>
+<div id="root" style="display:flex;gap:24px;padding:16px;align-items:flex-start"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: { width: 360 } }, h(F.SavedLook, { images: ['/_blob/963aef8bd203cb87e5113a54e2a70a7e', '/_blob/d299121b7ee19b76bcb95cec5e0b4f47'], count: 3 }))
+));
+</script>
+</body>
+</html>

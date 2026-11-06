@@ -1,0 +1,12 @@
+<!-- @dsCard group="Navigation" height=96 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Dock — preview</title></head>
+<body>
+<div id="root" style="width:390px;background:var(--cream)"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(F.Dock,{active:'home',dots:{wardrobe:true}}));
+</script>
+</body>
+</html>
