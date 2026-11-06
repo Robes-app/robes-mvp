@@ -45,6 +45,30 @@ Sources:
 | D16 | The name is the Caption (Annie, 6 Nov, on PR 6's open call): Details › Caption edits the look's name, its hierarchy reduced to that row. No name field between the photo and the tabs, and no facts line under it ("4 pieces · Not worn yet · pinned for …"). On the saved look and in the draft drawer alike. |
 | D15 | The sequence stops after PR 8. The Lookbook grid, the Diary, the Wardrobe grid and inbox, You's pages, onboarding and sign-in keep Felix's tokens and primitives with their old layouts until the next design round. Dark mode is ignored for now (no dark theme in Felix). Only Expo Go on staging runs native, so the compatibility window for old columns is the deploy's few minutes, not weeks. |
 
+## Decisions from the PR 5–7 review (Annie, 2026-11-06, evening)
+
+Annie walked 3a, 3k and 3e (the *Front Door design frames* canvas, amended that evening) against what PRs 5–7 shipped. **3e is the source of truth for a saved look.** These supersede D13's "never removed", D14's "a saved look's Edit" door and PR 7's first open call.
+
+| # | Decision |
+|---|---|
+| D17 | **A saved look is edited in place (3e).** Pieces are editable by default: swap and × discs on each row, the dashed + row to add. Under the pieces sits the prompt card, "Describe other changes…", quietly. Once anything changes, a small **Update look ↻** pill appears under it; Schedule look stays the footer's ink button. Leaving with changes not applied asks *Discard your changes?* (Discard · Keep editing). The Edit chip goes. The draft drawer is for drafts only. |
+| D18 | **Home's Edit and the image stack open the Edit Look drawer over Home with 3e inside** (one component, a page from the Lookbook, a drawer from Home). Tapping the look on Home opens the 3e page. In the drawer **Update look ↻** is the one accept (pieces, photos, cover, adjustments; redraws when pieces changed) and she stays to see it; the header ✓ is dimmed while anything is unapplied, then closes; × with changes asks *Discard your changes?* |
+| D19 | **The image stack (amends D13).** Home's stack (3k, bottom-right of the look) opens the drawer in image mode with *Add a photo* in focus. A picked photo uploads at once and loads into the current frame, in focus. Every card carries its × top-right except the last one left: a look always keeps one image. **Robes' picture can be removed: removing hides it**, and the next redraw (pieces changed, or an adjustment) brings a fresh one back **as the cover**. Image mode's ✓ returns to the photo showing the card in front. |
+| D20 | **Image changes wait for acceptance**, like pieces: the upload is immediate so the photo shows, but adding it, hiding cards and the front card are held until Update look. The card in front then becomes the cover. Discard drops them, and a photo uploaded but never accepted is deleted. |
+| D21 | **Adjust model image changes the picture, never the pieces** (reverses the Q7 answer). The adjust disc opens only the AdjustSheet ("e.g. sleeves rolled up…"), over the look. Send redraws Robes' picture at once with her note and nothing else; the new picture waits for Update look (Discard restores the old one). The note stays with the look, so every later redraw keeps it. Her photographs are never altered; the redrawn picture comes to the front as the cover. |
+| D22 | **Home has no prompt box (3a).** Describe opens the Draft Look drawer for the selected day, at rest (no keyboard): her model, Pieces · Details, the add slot, the prompt card with the day's chip, Generate. Nothing is created until Generate or a first piece; closing an untouched drawer leaves nothing. Describe stays hidden on past days. |
+| D23 | **A pinned look becomes worn when its day passes.** Once a day ends in her timezone, every saved look pinned to it is filed as a wear (pieces as they stood), by a daily job. Her override is the × on that day's card (removes wear and pin) or the × on a date in WornView; an override is final. Applies to days that pass after this ships; pins already in the past are left as they are. |
+
+### Review PRs (after PR 8's slot; each web + native)
+
+| PR | Scope |
+|---|---|
+| 9 | **3e in place (D17, D18).** The saved look's body becomes one component that edits in place: PieceList in edit mode, the prompt card, the Update look pill, the Discard dialog on leave, the AdjustSheet from the adjust disc (sheet only). Home's Edit opens it as the Edit Look drawer (× · EDIT LOOK · ✓, Update look footer). The draft drawer drops its `edit` mode. |
+| 10 | **Image mode (D19, D20).** ImageManager holds its changes until Update look; opens on Add a photo from Home's stack (`?images=add`); a new photo lands in focus; the front card is the cover; Robes' picture can be hidden (`looks.robes_hidden`, cleared by any redraw); the last card has no ×; un-accepted uploads are deleted. Home's look gains the stack. Fixes the photo that never showed until saved (the upload wrote only the `looks.get` cache). |
+| 11 | **Adjust model image (D21).** A look-level picture note (`looks.picture_note`) the render and frame jobs read; the AdjustSheet's Send writes it and redraws without `looks.ask`. |
+| 12 | **Describe on Home (D22).** The prompt box leaves Home; Describe opens a new draft drawer for the day with no look row until Generate or a first piece. |
+| 13 | **Past pins worn (D23).** A daily job files wears for saved looks pinned to a day that has ended in the user's timezone, skipping overridden days. |
+
 Smaller calls from the same pass (Annie, 6 Nov): WornView's "+ Add a date" opens `DiarySheet` and a wear's note is written once when filed; the wardrobe piece keeps one photo, replaced through the regenerate icon; "Wear it for" on a piece reads its `wear_for` tags (no tag limit — the ten is the Hero Rack's, which the star keeps); NotificationsSheet's Done only closes; Home's pager already swipes through a day's looks (3k), so no 3f.
 
 ## Open calls
@@ -53,11 +77,11 @@ Calls made while building, each worth Annie's eye; a ruling becomes a decision a
 
 **PR 6 (#83, the saved look)**
 - ~~The name stays on the screen between the photo and the tabs.~~ Ruled: the name is the Caption (D16), landed in PR 7.
-- Edit look is a `chip` above the piece list; Felix draws no explicit edit control on 3e. Annie: fine for now, under evaluation.
+- ~~Edit look is a `chip` above the piece list.~~ Ruled: 3e edits in place, no Edit chip (D17).
 - TagsView's swipe-to-delete is left out: deleting a tag removes it from every piece and look that wears it, which needs its own confirm. Toggle and add are in.
 
 **PR 7 (the draft drawer)**
-- The drawer takes a saved look too (D14's "a saved look's Edit"): Edit look and the adjust disc on 3e open it in `edit` mode (Felix's "Edit look" title, "Describe other changes…", Regenerate), and the saved look's in-place Editing from PR 6 goes. Delete stays in that edit mode as the danger reveal (D9). Felix's "Save your changes" choice (Update · Save as new) waits: Save as new needs the variants route on a drawn rack, so Done updates in place.
+- ~~The drawer takes a saved look too~~ Ruled: a saved look edits in place (D17) and Home's Edit opens 3e as a drawer (D18). Was: Edit look and the adjust disc on 3e open it in `edit` mode (Felix's "Edit look" title, "Describe other changes…", Regenerate), and the saved look's in-place Editing from PR 6 goes. Delete stays in that edit mode as the danger reveal (D9). Felix's "Save your changes" choice (Update · Save as new) waits: Save as new needs the variants route on a drawn rack, so Done updates in place.
 - The three sheets share the one thread: the prompt card's chip (Felix's Generate, in Robes' words *Style it* — Robes never generates) and AdjustSheet's Send both go through the look prompt and then draw; DescribeSheet is the door behind "Dress it again" and re-writes the look from her sentence (`looks.restyle`), so it shows only on a look Robes made. With nothing typed and the picture behind, the chip reads *Update the model · N*.
 - Felix's WardrobePicker is the draft's `PiecePicker`: home's wardrobe flyout (3k) and it draw the one `WardrobeGrid`; the picker is a subview with Add N pieces · Swap it in, the flyout a sheet with Include.
 - Closing a draft asks Discard · Keep editing, and a quiet third way, *Keep for later*, which Felix does not draw: without it a draft Robes made for a day could not be left for the Lookbook's In progress row.
