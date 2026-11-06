@@ -171,11 +171,10 @@ test('removing a look can be undone', async ({ page }) => {
     await page.request.post('/api/v1/looks', { data: { name: 'Weekend', pieces: [] } })
   ).json();
   await page.goto(`/look/${look.id}`);
-  // Delete lives in Editing (D9): destructive text in danger, as on the phone, behind a confirm.
+  // Delete (D9) is destructive text in danger at the foot of Details (3e edits in place, D17),
+  // behind a confirm.
   await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveCount(0);
-  // + Add pieces opens the draft drawer in edit mode (D14), where Delete lives.
-  await page.getByRole('button', { name: '+ Add pieces' }).click();
-  await expect(page.getByTestId('draft-look')).toBeVisible();
+  await page.getByRole('tab', { name: 'Details' }).click();
   await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveClass(/text-danger/);
   await page.getByRole('button', { name: 'Delete this look' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
@@ -299,7 +298,7 @@ test('Details: the caption keeps on blur, Seasons picks the four seasons, Tags p
   expect(await seriousViolations(page)).toEqual([]);
 });
 
-test('editing a saved look: a swap is one tap behind Undo, and Update says Updated', async ({
+test('a saved look edits in place (3e): a swap behind Undo, Discard asks, Update look applies', async ({
   page,
 }) => {
   await signIn(page);
@@ -317,25 +316,30 @@ test('editing a saved look: a swap is one tap behind Undo, and Update says Updat
     })
   ).json();
   await page.goto(`/look/${look.id}`);
-  // At rest, each row carries the piece's own wears (beta's ledger).
-  await expect(page.getByTestId(`rack-row-${camel}`).getByText('0 wears')).toBeVisible();
-  // Edit look opens the draft drawer in edit mode (D14); the rack is worked there.
-  await page.getByRole('button', { name: 'Edit look' }).click();
-  const drawer = page.getByTestId('draft-look');
-  await expect(drawer.getByText('Edit look')).toBeVisible();
+  // 3e edits in place (D17): no Edit chip, the rows carry their swap and × discs, and nothing
+  // waits to be applied yet.
+  const look3e = page.getByTestId('saved-look');
+  await expect(page.getByRole('button', { name: 'Edit look' })).toHaveCount(0);
+  await expect(look3e.getByTestId('update-look')).toHaveCount(0);
   const picker = page.getByTestId('piece-picker');
-  await drawer.getByRole('button', { name: /^Swap / }).click();
+  await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
   await picker.getByRole('button', { name: 'Swap it in' }).click();
-  // The swap lands in the drawer; Undo puts the rack back.
-  await expect(drawer.getByTestId(`rack-row-${navy}`)).toBeVisible();
+  // The swap lands on the page; Undo puts the rack back.
+  await expect(look3e.getByTestId(`rack-row-${navy}`)).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(drawer.getByTestId(`rack-row-${camel}`)).toBeVisible();
-  await expect(drawer.getByTestId(`rack-row-${navy}`)).toHaveCount(0);
-  await drawer.getByRole('button', { name: /^Swap / }).click();
+  await expect(look3e.getByTestId(`rack-row-${camel}`)).toBeVisible();
+  await expect(look3e.getByTestId(`rack-row-${navy}`)).toHaveCount(0);
+  await look3e.getByRole('button', { name: /^Swap / }).click();
   await picker.getByRole('button', { name: 'Include Navy coat' }).click();
   await picker.getByRole('button', { name: 'Swap it in' }).click();
-  await drawer.getByRole('button', { name: 'Update look' }).click();
+  // Leaving with the change unapplied asks first; Keep editing stays.
+  await page.getByTestId('saved-look-back').click();
+  const ask = page.getByRole('alertdialog', { name: 'Discard your changes?' });
+  await ask.getByRole('button', { name: 'Keep editing' }).click();
+  await expect(look3e.getByTestId(`rack-row-${navy}`)).toBeVisible();
+  // The pill under the prompt card applies it, and she stays on the look.
+  await look3e.getByTestId('update-look').click();
   await expect(page.getByText('Updated', { exact: true })).toBeVisible();
   await expect
     .poll(async () =>

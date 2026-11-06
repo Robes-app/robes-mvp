@@ -288,13 +288,15 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await drawer.getByRole('button', { name: 'Wear this look today' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
   await expect(page.getByTestId('ootd-card')).not.toContainText('Office');
-  // Edit opens the draft drawer in edit mode over the day (D14).
+  // Edit opens the Edit look drawer over the day (3k, D18): 3e inside, Update look at its foot,
+  // dimmed until something changes; the tick closes while nothing waits.
   await page.getByRole('link', { name: 'Edit Dinner' }).click();
   await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/);
   await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByText('Edit look')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Update look' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByTestId('update-look')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.getByTestId('draft-done')).toHaveAttribute('aria-disabled', 'false');
+  await page.getByTestId('draft-done').click();
   await expect(page.getByTestId('draft-look')).toHaveCount(0);
 
   // Tomorrow: empty, the box names the day; yesterday: no box at all, the tile logs a wear.

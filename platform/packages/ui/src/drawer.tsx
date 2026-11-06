@@ -27,6 +27,8 @@ export interface DrawerProps {
   children: ReactNode;
   // Anything floating over the body inside the drawer's frame: the AdjustSheet, the DescribeSheet.
   over?: ReactNode;
+  // Held under the scrolling body: the Edit look drawer's Update look (Felix 3k).
+  footer?: ReactNode;
   testId?: string;
 }
 
@@ -95,6 +97,7 @@ export function Drawer({
   done,
   children,
   over,
+  footer,
   testId,
 }: DrawerProps) {
   return (
@@ -131,6 +134,11 @@ export function Drawer({
               <div className="h-full overflow-y-auto overscroll-contain pb-8">{children}</div>
               {over}
             </div>
+            {footer ? (
+              <div className="shrink-0 border-hairline border-t-[0.5px] bg-bg px-5 pt-3 pb-[max(1.375rem,env(safe-area-inset-bottom))]">
+                {footer}
+              </div>
+            ) : null}
           </PrimaryScope>
         </RadixDialog.Content>
       </RadixDialog.Portal>
