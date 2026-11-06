@@ -30,7 +30,7 @@ function FloatingSheet({
     <>
       <button
         type="button"
-        aria-label={lookbook.draftLook.close}
+        aria-hidden
         tabIndex={-1}
         onClick={onClose}
         className="absolute inset-0 z-10 cursor-default"

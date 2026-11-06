@@ -41,9 +41,12 @@ export function ThreadLines({
   }, [n]);
   if (n === 0) return null;
   return (
-    <div
-      className="flex max-h-64 flex-col gap-3 overflow-y-auto px-1.5"
+    <section
+      className="flex max-h-64 flex-col gap-3 overflow-y-auto px-1.5 focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       aria-live="polite"
+      aria-label={copy.draftLook.thread}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: a region that scrolls needs a focus stop
+      tabIndex={0}
       data-testid={testId ?? 'adjust-thread'}
     >
       {thread.map((line) =>
@@ -74,7 +77,7 @@ export function ThreadLines({
         ),
       )}
       <div ref={end} />
-    </div>
+    </section>
   );
 }
 

@@ -84,8 +84,9 @@ export function DrawerHeader({
 // Felix's drawer (DraftLook): a cream panel 24px from the top over `backdrop`, soft top corners,
 // sliding up over 0.32s, with a 56px header — the × disc, the tracked title, the ink done disc —
 // over a 0.5px rule and a scrolling body. On a wide window it stands centred with room around it.
-// Native presents the same screen as a form sheet (expo-router). Twin of the native DRAFT_SHEET
-// route options in mobile/src/app/_layout.tsx.
+// It is not modal: a toast's Undo beside it stays reachable, so the backdrop is drawn here and a
+// tap on it asks the owner, as Escape and the × do. Native presents the same screen as a form
+// sheet (expo-router): the DRAFT_SHEET route options in mobile/src/app/_layout.tsx.
 export function Drawer({
   open,
   title,
@@ -99,15 +100,23 @@ export function Drawer({
   return (
     <RadixDialog.Root
       open={open}
+      modal={false}
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
     >
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 z-50 bg-backdrop motion-safe:animate-[robes-fade-in_250ms_ease]" />
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden
+          onClick={onClose}
+          className="fixed inset-0 z-50 cursor-default bg-backdrop motion-safe:animate-[robes-fade-in_250ms_ease]"
+        />
         <RadixDialog.Content
           aria-describedby={undefined}
           data-testid={testId}
+          onInteractOutside={(e) => e.preventDefault()}
           className="fixed inset-x-0 top-6 bottom-0 z-50 mx-auto flex w-full max-w-md flex-col overflow-hidden rounded-t-sheet bg-bg text-ink shadow-sheet motion-safe:animate-[robes-sheet-up_320ms_cubic-bezier(.2,0,.2,1)] md:inset-y-10 md:rounded-sheet"
         >
           <DrawerHeader

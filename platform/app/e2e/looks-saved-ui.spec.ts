@@ -24,17 +24,23 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
     .getByRole('dialog', { name: 'Create' })
     .getByRole('link', { name: 'New look' })
     .click();
-  await expect(page).toHaveURL(/\/looks\/new$/);
-  // The first piece makes it a draft; the second joins its rack in the same composer; Save keeps it.
+  // The draft drawer (D14) opens over the screen; the first pieces make the draft, the done disc
+  // saves it, and the saved look opens with the diary up.
+  await expect(page).toHaveURL(/\/looks\/draft\/new$/);
   await page.getByRole('button', { name: '+ Add a piece' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Camel coat' }).click();
-  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
+  const picker = page.getByTestId('piece-picker');
+  await picker.getByRole('button', { name: 'Include Camel coat' }).click();
+  await picker.getByRole('button', { name: 'Add 1 piece' }).click();
+  await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}$/);
   await expect(page.getByText('Draft look')).toBeVisible();
   await page.getByRole('button', { name: '+ Add a piece' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Straight jeans' }).click();
-  await expect(page.getByText('The look · 2 pieces', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
+  await picker.getByRole('button', { name: 'Include Straight jeans' }).click();
+  await picker.getByRole('button', { name: 'Add 1 piece' }).click();
+  await expect(page.getByRole('list', { name: 'The rack · 2 pieces' })).toBeVisible();
+  await page.getByTestId('draft-done').click();
+  await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
   // Beta's save toast names the look.
   await expect(
     page.getByText(/^[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2} saved to your Lookbook ✓$/),
@@ -42,7 +48,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // Save opens the diary every time; × closes it and writes nothing.
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
-  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}\?schedule=1$/);
+  await expect(page.getByTestId('draft-look')).toHaveCount(0);
   // Unnamed, a hand-built look saves as her today ("Wednesday 28 Oct"), the month from the table.
   const heading = page.getByRole('heading', { level: 1 });
   await expect(heading).toHaveText(
