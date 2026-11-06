@@ -15,6 +15,7 @@ const repos = {
     piecesFor: vi.fn(async () => []),
     wearStats: vi.fn(async () => []),
     pinnedDays: vi.fn(async (): Promise<{ lookId: string | null; dayDate: string }[]> => []),
+    tagsFor: vi.fn(async () => new Map<string, string[]>()),
     imagesFor: vi.fn(
       async (): Promise<{ id: string; lookId: string; assetId: string; position: number }[]> => [],
     ),

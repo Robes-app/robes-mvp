@@ -11,6 +11,31 @@ import { imageSources } from '@/lib/image';
 
 export type RowMark = RowNote | { kind: 'added' };
 
+// A row's action (swap, remove): a 32px `cream-200` disc with an `ink-soft` glyph, in a 44px hit area.
+function Disc({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: 'wardrobe' | 'close';
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="flex size-11 items-center justify-center rounded-pill focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+    >
+      <span className="flex size-8 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted">
+        <Icon name={icon} size={15} />
+      </span>
+    </button>
+  );
+}
+
 // One piece on a look's rack, composed from the wardrobe row's lines (legacy fix 13): Category ·
 // Brand, the name without its brand, then the role (with the price on a piece to find) and the
 // exception. The card opens the piece; the hanger swaps it from her wardrobe, ♡ saves a piece to
@@ -60,10 +85,10 @@ export function RackRowCard({
   const body = (
     <>
       <div
-        className={`w-13 shrink-0 overflow-hidden rounded-crisp ${proposal ? 'border border-dashed border-selected-line' : ''}`}
+        className={`w-11 shrink-0 overflow-hidden bg-surface-sunk ${proposal ? 'border border-dashed border-selected-line' : ''}`}
       >
         {sources ? (
-          <Image src={sources.src} srcSet={sources.srcSet} sizes="52px" alt="" aspect="4:5" />
+          <Image src={sources.src} srcSet={sources.srcSet} sizes="44px" alt="" aspect="4:5" />
         ) : (
           <div
             aria-hidden
@@ -110,10 +135,12 @@ export function RackRowCard({
       </div>
     </>
   );
+  // Felix's PieceList row: a 44×55 photo flush left, the lines, then the actions as 32px cream
+  // discs in 44px hit areas; the list around it draws the edge and the rules.
   return (
     <li
       data-testid={`rack-row-${row.key}`}
-      className={`relative flex items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
+      className={`relative flex items-center gap-3 pr-3 ${changed ? 'bg-selected' : ''}`}
     >
       {changed ? (
         <span
@@ -133,7 +160,7 @@ export function RackRowCard({
       ) : (
         <div className="flex min-w-0 flex-1 items-center gap-3">{body}</div>
       )}
-      <div className="flex shrink-0 items-center">
+      <div className="-mr-1.5 flex shrink-0 items-center gap-1">
         {proposal && onWish ? (
           <IconButton
             icon="heart"
@@ -142,12 +169,8 @@ export function RackRowCard({
             onClick={onWish}
           />
         ) : null}
-        {onSwap ? (
-          <IconButton icon="wardrobe" label={copy.rack.swap(name)} onClick={onSwap} />
-        ) : null}
-        {onRemove ? (
-          <IconButton icon="close" label={copy.rack.remove(name)} onClick={onRemove} />
-        ) : null}
+        {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onClick={onSwap} /> : null}
+        {onRemove ? <Disc icon="close" label={copy.rack.remove(name)} onClick={onRemove} /> : null}
       </div>
     </li>
   );

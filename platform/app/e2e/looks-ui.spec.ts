@@ -90,7 +90,8 @@ test('a suggestion is saved as is; another, edited, becomes a draft in progress'
   await expect(page.getByText('Put in the diary', { exact: true })).toBeVisible();
   // Save opens the diary every time; × closes it and writes nothing.
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
-  await expect(page.getByText('Saved look')).toBeVisible();
+  // The saved look (Felix 3e): Schedule look is its one ink button.
+  await expect(page.getByRole('button', { name: 'Schedule look' })).toBeVisible();
 
   // The piece page shows the rest of the set; Edit on one makes it a draft.
   await page.goto(`/piece/${piece.id}`);

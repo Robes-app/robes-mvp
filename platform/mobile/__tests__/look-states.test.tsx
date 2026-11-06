@@ -806,14 +806,14 @@ test('once today is logged, the diary sheet carries no second "worn today" line'
     'GET /looks': { items: [], nextCursor: null },
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.card.diary }));
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.schedule }));
   expect(await screen.findByText(lookbook.diary.eyebrow)).toBeTruthy();
   // It read like a bug, two checks in a row (27 Oct): the link simply goes.
   expect(screen.queryByRole('button', { name: lookbook.diary.woreToday })).toBeNull();
   expect(screen.queryByText(/Worn today/)).toBeNull();
 });
 
-test('a saved look on a Robes model wears the tag on its picture, and the tag opens its sheet', async () => {
+test('a saved look on a Robes model carries no tag on its picture (D10: the ModelStack on Home is the door)', async () => {
   mockFetch({
     [`GET /looks/${LOOK_ID}`]: look({ onRobesModel: true, frame: true }),
     [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
@@ -822,8 +822,6 @@ test('a saved look on a Robes model wears the tag on its picture, and the tag op
     'GET /me/model': GENERIC_MODEL,
   });
   await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.deck.robesModelLabel }));
-  expect(await screen.findByTestId('robes-model-sheet')).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: lookbook.deck.twin.adjust }));
-  expect(mockRouter.push).toHaveBeenCalledWith('/you/model');
+  expect(await screen.findByTestId('saved-look-back')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: lookbook.deck.robesModelLabel })).toBeNull();
 });

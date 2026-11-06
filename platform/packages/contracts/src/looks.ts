@@ -184,6 +184,9 @@ export const Look = z.object({
   // The seasons it is for (Felix rebuild D12); `climateBand` is derived from them. Defaulted so a
   // phone build ahead of the server still parses an older response.
   seasons: Seasons.default([]),
+  // What she wears the look for (Felix 3e Details › Tags): her own tags on the look, in the tag
+  // namespace she shares with her pieces. Defaulted across skew.
+  tags: z.array(z.string()).default([]),
   // The look's picture — the record, its cover on the Lookbook and in the diary: the one she picked
   // of `photo` and `model`, else her photograph when she has one, else Robes' picture.
   image: PieceImage.nullable(),
@@ -276,6 +279,8 @@ export const UpdateLookInput = z
     // Either spelling of the season: `seasons` wins when both are sent (D12).
     climateBand: SeasonBand,
     seasons: Seasons,
+    // Details › Tags: the whole set, replaced; at most six, like a piece's.
+    tags: z.array(z.string().trim().min(1).max(40)).max(6),
     pieces: z.array(LookPieceInput).max(50),
     ...rackFields,
     // Editing a suggestion makes it a draft: at five drafts, she lets the oldest go.

@@ -18,6 +18,7 @@ export * from './preference-control';
 export * from './progress';
 export * from './segmented-control';
 export * from './skeleton';
+export * from './subview';
 export * from './switch';
 export * from './tabs';
 export * from './text';

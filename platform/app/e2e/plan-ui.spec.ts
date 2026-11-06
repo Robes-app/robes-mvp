@@ -188,7 +188,7 @@ test('the diary list says Worn, keeps its view, and the drawer reads every wear'
       timeZone: 'UTC',
     }).format(new Date(`${d}T00:00:00Z`));
   await page.goto(`/look/${look.id}`);
-  await page.getByRole('button', { name: 'Put this look in the diary' }).click();
+  await page.getByRole('button', { name: 'Schedule look' }).click();
   const diary = page.getByRole('dialog');
   await diary.getByRole('button', { name: 'Previous month' }).click();
   await diary.getByRole('button', { name: long(earlier) }).click();

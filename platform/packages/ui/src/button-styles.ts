@@ -9,8 +9,9 @@ const variants = {
   // Felix's outline: white on the fine `rule-mid` edge (the label is the cue), 40 tall at 0 20.
   outline:
     'min-h-10 border-[0.5px] border-rule-mid bg-surface-raised text-ink hover:border-ink disabled:opacity-40',
-  // Felix's chip: the small cream pill, 28 tall, ink on hover.
-  chip: 'min-h-7 bg-surface-sunk text-ink-muted hover:text-ink disabled:opacity-40',
+  // Felix's chip: the small cream pill, 28 tall. Its 9px caps sit in `ink`, not Felix's `ink-soft`:
+  // on `cream-200` that pair misses 4.5:1, and the floor wins (D1).
+  chip: 'min-h-7 bg-surface-sunk text-ink hover:opacity-80 disabled:opacity-40',
   quiet: 'min-h-9 text-ink-muted hover:text-ink disabled:text-ink-faint',
 } as const;
 

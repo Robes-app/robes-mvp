@@ -170,6 +170,20 @@ describe('looks repo', () => {
     expect((await looks.get(ann, look.id))?.photoAssetId).toBe(one.id);
   });
 
+  it('starts the stack with the photograph a look is made from', async () => {
+    const photo = await photoOf(ann);
+    const look = await looks.create(ann, {
+      name: 'From a photo',
+      nameProvisional: false,
+      pieces: [{ pieceId: coat }],
+      photoAssetId: photo.id,
+    });
+    expect(look.photoAssetId).toBe(photo.id);
+    expect((await looks.imagesFor(ann, [look.id])).map((i) => [i.assetId, i.position])).toEqual([
+      [photo.id, 0],
+    ]);
+  });
+
   it('brings a photograph to the front, or Robes’ picture, and the rest keep their order', async () => {
     const look = await create(ann, [coat], 'Covered');
     const [one, two, three] = [await photoOf(ann), await photoOf(ann), await photoOf(ann)];
@@ -222,6 +236,19 @@ describe('looks repo', () => {
       LookImagesFull,
     );
     expect((await looks.imagesFor(ann, [look.id])).length).toBe(LOOK_IMAGES_MAX);
+  });
+
+  // Her tags on a look (Details › Tags), in the namespace her pieces share.
+  it('tags a look with her own labels, replaced as a set, to its owner only', async () => {
+    const look = await create(ann, [coat], 'Tagged');
+    expect(await looks.setTags(ann, look.id, ['Work', ' work ', 'Weekend casual'])).toBe(true);
+    expect((await looks.tagsFor(ann, [look.id])).get(look.id)).toEqual(['Work', 'Weekend casual']);
+    expect(await looks.setTags(ann, look.id, ['Work'])).toBe(true);
+    expect((await looks.tagsFor(ann, [look.id])).get(look.id)).toEqual(['Work']);
+    expect(await looks.setTags(bea, look.id, ['Hers'])).toBe(false);
+    expect(await looks.tagsFor(bea, [look.id])).toEqual(new Map());
+    expect(await looks.setTags(ann, look.id, [])).toBe(true);
+    expect((await looks.tagsFor(ann, [look.id])).get(look.id)).toBeUndefined();
   });
 
   // Seasons (D12): the four seasons she picks, and the band every older reader still sees.
