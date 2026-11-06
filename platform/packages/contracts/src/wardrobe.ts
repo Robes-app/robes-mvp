@@ -15,6 +15,10 @@ export const LEGACY_CATEGORY = z.enum([
   'Other',
 ]);
 export const SeasonBand = z.enum(['spring_summer', 'autumn_winter', 'year_round']);
+// The four seasons (Felix rebuild D12); none is Year Round. The band is derived from them.
+export const Season = z.enum(['spring', 'summer', 'autumn', 'winter']);
+export type Season = z.infer<typeof Season>;
+export const Seasons = z.array(Season).max(4);
 // The colour model (@robes/core/colour): one shade, up to three more, and a print (null = plain).
 export const ColourShade = z.enum(SHADE_IDS as [string, ...string[]]);
 export const ColourFamily = z.enum(COLOUR_FAMILY_IDS as [string, ...string[]]);
@@ -65,6 +69,8 @@ export const Piece = z.object({
   status: z.enum(['reading', 'ready', 'failed']),
   heroPosition: z.number().int().min(1).max(10).nullable(),
   seasonBand: SeasonBand,
+  // The seasons it is for (D12); the band above is derived from them. Defaulted across skew.
+  seasons: Seasons.default([]),
   // What she wears it for: the styling signal a look generated from this piece reads.
   wearFor: z.array(z.string()).default([]),
   price: z.number().nullable(),
@@ -149,7 +155,10 @@ const editable = {
   material: MaterialId.nullable(),
   brand: z.string().trim().max(80).nullable(),
   notes: z.string().trim().max(1000).nullable(),
+  // Either spelling of the season: `seasons` wins when both are sent; a band alone (an older
+  // client) still lands, and the database spells it as seasons.
   seasonBand: SeasonBand,
+  seasons: Seasons,
   wearFor: z.array(z.string().trim().min(1).max(40)).max(6),
   price: z.number().min(0).max(10_000_000).nullable(),
   currency: z

@@ -140,6 +140,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 |---|---|
 | `GET/POST/PATCH/DELETE /looks[...]` (`?status=saved\|suggested\|draft`, `&anchorPieceId=`) · `POST /looks/:id/save` `{ name?, date? }` (suggested/draft → saved; with `date` it is pinned to that day in the same act) · `GET /looks/sets/:id` (the keep-or-pass deck) | client REST `looks` (+ `status`, `anchor_piece_id`, `set_id`, `styling`), `look_pieces`; the drafts park `rb_lk_draft__<uid>` |
 | `POST /looks/:id/wears` · `DELETE /wears/:id` | client REST `wears` |
+| `POST /looks/:id/images` `{ assetId }` (a photograph joins the stack, D13) · `DELETE /looks/:id/images/:imageId` · `POST /looks/:id/images/cover` `{ imageId \| null }` (her photograph, or Robes' picture, leads) · `POST /looks/:id/photo` (kept: the new photograph joins and leads) | legacy's single look photo |
 | `GET /artifacts?type=` · `GET /artifacts/:id` · `PATCH /artifacts/:id` (title, packed/pins state) · `DELETE` (soft) | client REST `lookbook_items` + localStorage merge |
 | `GET /plan?from=&to=` · `PUT /plan/days/:date/name` | client REST `planned_days` + client sweeps (legacy `day` rows for a named day) |
 | `PUT /plan/days/:date/ootd` `{ entryId }` → the day's entries in order (`position` 0 leads home) · `PUT /plan/days/:date/place` `{ place \| null }` (where she is that day; the diary's weather follows it) · `GET /places?q=&date=` (30/min; cities from Open-Meteo's geocoder with the day's range at each) | — (the OOTD diary home, plan 2026-11-02) |

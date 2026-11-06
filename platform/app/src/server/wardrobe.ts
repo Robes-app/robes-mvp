@@ -38,6 +38,7 @@ async function toPiece(
     status: row.status,
     heroPosition: row.heroPosition,
     seasonBand: row.seasonBand,
+    seasons: row.seasons,
     wearFor,
     price: row.price === null ? null : Number(row.price),
     currency: row.currency,

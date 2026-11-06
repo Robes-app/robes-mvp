@@ -1,6 +1,6 @@
 # The Felix rebuild: web and native on the Felix Design System
 
-Status: decisions recorded 2026-11-06 (Annie). PR 1 open (#78). This is a sequence of PRs, not one pass.
+Status: decisions recorded 2026-11-06 (Annie); D12–D15 added later that day from the plan doc *Felix rebuild — PRs 5 to 8 and beyond*. PRs 1–4 merged (#78–#81). PR 5 in progress on `felix/look-images`. The sequence stops after PR 8 (D15).
 
 Sources:
 - `platform/design/felix`: the design system (brand book, tokens, 26 component specs with previews). Felix is the source of truth for visual values from 2026-11-06.
@@ -27,10 +27,10 @@ Sources:
 | 2 | Primitives: the type scale (Text, Heading, Eyebrow, Label, Category, Meta; Cormorant floor 15 for piece names); Button `outline` and `chip`, Felix label (10/500/0.22em), padding 0 28; Tabs (new); Avatar `sage-mid` disc; 0.5px `rule-mid` edges on Card, Pill and lists; Sheet floating inset 8 with border, `cream-400` handle, Felix motion, `rows`; AlertDialog (native new, web from Dialog); Icon `stroke` prop; focus ring 1.5px. Update the docs and code comments D6 supersedes. | #79 open (stacked on #78) |
 | 3 | TopNav (TabScreen, Bell, app-shell): 64 tall, glass, hairline, rose dot, avatar disc. Dock labels 9.5/500/0.04em; web active bar and dock glass. (The dock's unread dot waits for something to drive it.) | in review |
 | 4 | Home 3a/3k: WeekStrip deltas (current cell gets fill and edge, date 400, planned ring), content-width photo with pager dots, ActionDisc, ModelStack + ModelPicker, the caption under the discs. Pick opens `LookPicker` and Capture its capture flow (the one-drawer rules in platform/CLAUDE.md hold). A day with looks ends on the model page, so another look can still be added. | in review |
-| 5 | Look images (data): any number of images per look. Migration, repository with cross-user test, routes, `docs/data-inventory.md`, `docs/api-security.md` checklist. Old builds keep reading the two images they know. | |
-| 6 | Saved look 3e: SavedLook (edge-to-edge photo, back, adjust, image stack), Tabs, PieceList, LookDetails, TagsView, SeasonsView, WornView, ImageManager, the `primary` Schedule look (opens `DiarySheet`). | after 5 |
-| 7 | The draft: DraftLook's anatomy on `DraftPage`, AdjustSheet, DescribeSheet, WardrobePicker (one draft page, one thread, the picture drawn only when she asks). | |
-| 8 | Wardrobe piece, NotificationsSheet, SettingsView. | |
+| 5 | Look images (data): any number of images per look (D13) and the four seasons (D12). Migration (`look_images`, `seasons`), repository with cross-user test, routes (`looks.images.add` / `.remove` / `.cover`), `docs/data-inventory.md`, the export, `docs/api-security.md` checklist. `photo_asset_id`, `record_image` and the bands keep being written for the old code and Expo Go on staging. No screen changes. | `felix/look-images` |
+| 6 | Saved look 3e: SavedLook (edge-to-edge photo, back, adjust, image stack), Tabs, PieceList, LookDetails, TagsView, SeasonsView (four seasons, D12), WornView (its "+ Add a date" opens `DiarySheet`; the × deletes the wear), ImageManager (D13), the `primary` Schedule look (opens `DiarySheet`); Delete as a `danger` reveal inside Editing (D9). | after 5 |
+| 7 | The draft: DraftLook's anatomy on `DraftPage`, presented as a drawer over whatever started it (D14); AdjustSheet and DescribeSheet are two doors into the one thread, drawing only on Send or Generate; WardrobePicker; `AlertDialog` for Discard and the drafts-full prompt; no Worn row on a draft. | after 6; alongside 8 |
+| 8 | Wardrobe piece (one photo; the regenerate icon replaces it — no image stack), NotificationsSheet (Done closes; the `overnight` kind takes the `looks` icon; no dock dot), SettingsView (Account keeps every row it has today). | after 6; alongside 7. The sequence stops here (D15) |
 
 ## Decisions (Annie, 2026-11-06, continued)
 
@@ -39,3 +39,9 @@ Sources:
 | D9 | Delete on a saved look moves into the look's edit mode (Felix keeps `danger` to a destructive reveal). |
 | D10 | The `Robes model` tag (5 Nov) is replaced by the ModelPicker control at the top left of the photo (ModelStack). Once she has made her digital twin, it is not shown. |
 | D11 | The week strip's worn mark is `warm-past`. |
+| D12 | Seasons are the four seasons, multi-select, Year Round the empty set: `seasons text[]` on `app.looks` and `app.wardrobe_items`, backfilled from the band. The band (`climate_band` / `season_band`) keeps being written from `seasons` so every older reader sees what it saw. ADR-002's three bands become a derived value. |
+| D13 | A look's image stack is Robes' picture (the frame, else the render) plus her photographs (`app.look_images`). Robes' picture can only be redrawn, never removed; her photographs come and go down to none. The front card is the cover: position 0, and `record_image` is written to match (`photo` when a photograph leads, `model` otherwise). |
+| D14 | The draft is one component (`DraftPage`) presented as a drawer over whatever started it: Home, the Lookbook, a piece, a saved look's Edit; a new door later is one line. Native presents it as a form sheet; web keeps the route for deep links and intercepts it from the app's screens. AdjustSheet and DescribeSheet both feed the one thread (`useAdjust`) and draw only on Send or Generate. A draft's Details tab has no Worn row. |
+| D15 | The sequence stops after PR 8. The Lookbook grid, the Diary, the Wardrobe grid and inbox, You's pages, onboarding and sign-in keep Felix's tokens and primitives with their old layouts until the next design round. Dark mode is ignored for now (no dark theme in Felix). Only Expo Go on staging runs native, so the compatibility window for old columns is the deploy's few minutes, not weeks. |
+
+Smaller calls from the same pass (Annie, 6 Nov): WornView's "+ Add a date" opens `DiarySheet` and a wear's note is written once when filed; the wardrobe piece keeps one photo, replaced through the regenerate icon; "Wear it for" on a piece reads its `wear_for` tags (no tag limit — the ten is the Hero Rack's, which the star keeps); NotificationsSheet's Done only closes; Home's pager already swipes through a day's looks (3k), so no 3f.

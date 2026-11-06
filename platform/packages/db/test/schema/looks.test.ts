@@ -4,6 +4,8 @@ import { expectPgError, insertUsers, inTx, type Query, USER_A, USER_B } from '..
 const ITEM_A = 'bbbbbbbb-0000-4000-8000-000000000001';
 const ITEM_B = 'bbbbbbbb-0000-4000-8000-000000000002';
 const LOOK = 'cccccccc-0000-4000-8000-000000000001';
+const ASSET_A = 'aaaaaaaa-0000-4000-8000-000000000011';
+const ASSET_B = 'aaaaaaaa-0000-4000-8000-000000000012';
 
 async function setup(q: Query): Promise<void> {
   await insertUsers(q, USER_A, USER_B);
@@ -106,6 +108,87 @@ describe('looks and planning schema', () => {
       ]);
       await expectPgError(q, '23514', "update app.looks set styling = '[]' where id = $1", [LOOK]);
       await expectPgError(q, '23514', 'update app.looks set set_index = 3 where id = $1', [LOOK]);
+    }));
+
+  // The image stack (Felix rebuild D13).
+  it('holds her photographs of a look, hers alone, each once, in twenty places', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q(
+        "insert into app.assets (id, user_id, kind) values ($1, $2, 'look_photo'), ($3, $4, 'look_photo')",
+        [ASSET_A, USER_A, ASSET_B, USER_B],
+      );
+      await q('insert into app.look_images (user_id, look_id, asset_id) values ($1, $2, $3)', [
+        USER_A,
+        LOOK,
+        ASSET_A,
+      ]);
+      // Another woman's photograph can't be stacked on her look, nor her look stacked by another.
+      await expectPgError(
+        q,
+        '23503',
+        'insert into app.look_images (user_id, look_id, asset_id) values ($1, $2, $3)',
+        [USER_A, LOOK, ASSET_B],
+      );
+      await expectPgError(
+        q,
+        '23503',
+        'insert into app.look_images (user_id, look_id, asset_id) values ($1, $2, $3)',
+        [USER_B, LOOK, ASSET_B],
+      );
+      await expectPgError(
+        q,
+        '23505',
+        'insert into app.look_images (user_id, look_id, asset_id, position) values ($1, $2, $3, 1)',
+        [USER_A, LOOK, ASSET_A],
+      );
+      await expectPgError(
+        q,
+        '23514',
+        'update app.look_images set position = 20 where look_id = $1',
+        [LOOK],
+      );
+      // The look goes, its stack goes with it.
+      await q('delete from app.looks where id = $1', [LOOK]);
+      expect(await q('select 1 from app.look_images where look_id = $1', [LOOK])).toEqual([]);
+    }));
+
+  // Seasons (D12): the four seasons and the band, kept in step both ways.
+  it('derives the band from the seasons and the seasons from the band, on a look', () =>
+    inTx(async (q) => {
+      await setup(q);
+      const read = async () =>
+        (await q('select seasons, climate_band from app.looks where id = $1', [LOOK]))[0];
+      // A look made by older code, band only, reads as its seasons.
+      await q("update app.looks set climate_band = 'spring_summer' where id = $1", [LOOK]);
+      expect(await read()).toEqual({
+        seasons: ['spring', 'summer'],
+        climate_band: 'spring_summer',
+      });
+      // Seasons she picks set the band; spelled once each, in the order of the year.
+      await q("update app.looks set seasons = '{winter,autumn,winter}' where id = $1", [LOOK]);
+      expect(await read()).toEqual({
+        seasons: ['autumn', 'winter'],
+        climate_band: 'autumn_winter',
+      });
+      await q("update app.looks set seasons = '{summer,winter}' where id = $1", [LOOK]);
+      expect(await read()).toEqual({ seasons: ['summer', 'winter'], climate_band: 'year_round' });
+      await q("update app.looks set seasons = '{}' where id = $1", [LOOK]);
+      expect(await read()).toEqual({ seasons: [], climate_band: 'year_round' });
+      await expectPgError(q, '23514', "update app.looks set seasons = '{monsoon}' where id = $1", [
+        LOOK,
+      ]);
+      // On an insert, whichever side was given wins.
+      const [made] = await q(
+        "insert into app.looks (user_id, name, seasons) values ($1, 'Winter', '{winter}') returning climate_band",
+        [USER_A],
+      );
+      expect(made?.climate_band).toBe('autumn_winter');
+      const [banded] = await q(
+        "insert into app.looks (user_id, name, climate_band) values ($1, 'Band', 'spring_summer') returning seasons",
+        [USER_A],
+      );
+      expect(banded?.seasons).toEqual(['spring', 'summer']);
     }));
 
   it('names the record as her photograph or her model, nothing else', () =>

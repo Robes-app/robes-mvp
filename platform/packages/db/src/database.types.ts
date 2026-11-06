@@ -306,6 +306,16 @@ export interface InboxAddresses {
   userId: string;
 }
 
+export interface LookImages {
+  assetId: string;
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  lookId: string;
+  position: Generated<number>;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
+}
+
 export interface LookPieces {
   lookId: string;
   position: Generated<number>;
@@ -338,6 +348,7 @@ export interface Looks {
   renderJobId: string | null;
   renderKey: string | null;
   renderStatus: string | null;
+  seasons: Generated<string[]>;
   setId: string | null;
   setIndex: number | null;
   source: Generated<string>;
@@ -652,6 +663,7 @@ export interface WardrobeItems {
   price: Numeric | null;
   print: string | null;
   seasonBand: Generated<string>;
+  seasons: Generated<string[]>;
   seasonSource: Generated<string>;
   sentiment: string | null;
   size: string | null;
@@ -754,6 +766,7 @@ export interface DB {
   generationCalls: GenerationCalls;
   generationJobs: GenerationJobs;
   inboxAddresses: InboxAddresses;
+  lookImages: LookImages;
   lookPieces: LookPieces;
   looks: Looks;
   notifications: Notifications;

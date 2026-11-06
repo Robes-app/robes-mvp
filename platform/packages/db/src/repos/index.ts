@@ -126,7 +126,9 @@ export type { CreateJobInput, QuotaCost } from './jobs';
 export type { CallRecord } from './ledger';
 export {
   DraftsFull,
+  LOOK_IMAGES_MAX,
   type LookFields,
+  LookImagesFull,
   type LookPieceInput,
   LookPiecesNotFound,
   type LookRole,
