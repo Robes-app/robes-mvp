@@ -1,5 +1,6 @@
 import { diary } from '@robes/copy';
 import { Icon } from '@robes/icons/native';
+import { palette } from '@robes/tokens';
 import { MIN_TOUCH, useColor } from '@robes/ui-native';
 import { Image as ExpoImage } from 'expo-image';
 import { Pressable, View } from 'react-native';
@@ -38,7 +39,7 @@ export function ModelStack({
       style={[
         BADGE,
         {
-          shadowColor: '#000',
+          shadowColor: palette.ink,
           shadowOffset: { width: 0, height: 2 },
           shadowRadius: 6,
           shadowOpacity: 0.3,

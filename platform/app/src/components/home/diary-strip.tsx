@@ -11,8 +11,9 @@ const focus =
 // The strip (Front Door design 3k, plan 2026-11-02 §1.4): a pager of seven-day pages, today's page
 // centred so three days either side show; swipe for the week before and after. A cell carries one
 // mark per look — a ring when planned, a dot once worn — and a day gone by recedes to the faint
-// ink. Today's cell is always the warm fill; the selected cell takes the warm edge. The native
-// twin is mobile/src/features/home/DiaryStrip.tsx.
+// ink. Felix's WeekStrip: the current cell (the day picked, else today) takes the warm fill and
+// the warm edge, its weekday 500 in ink-soft and its date ink; a worn mark is `warm-past` (D11).
+// The native twin is mobile/src/features/home/DiaryStrip.tsx.
 export function DiaryStrip({
   days,
   today,
@@ -83,7 +84,8 @@ function DayCell({
   const label = isToday ? copy.today : weekdayLong(day.date);
   // Worn: one filled dot. Planned: a ring per look, its fill the cell's own ground.
   const marks = worn ? [{ filled: true }] : day.entries.map(() => ({ filled: false }));
-  const ground = isToday ? 'bg-selected' : 'bg-bg';
+  const current = selected;
+  const ground = current ? 'bg-selected' : 'bg-bg';
   return (
     <button
       type="button"
@@ -92,16 +94,18 @@ function DayCell({
       aria-label={copy.strip.day(label, day.entries.length, worn)}
       data-testid={`diary-day-${day.date}`}
       onClick={onSelect}
-      className={`flex w-[43px] flex-col items-center gap-[5px] rounded-input border pt-2 pb-[7px] ${ground} ${
-        selected ? 'border-selected-line' : 'border-transparent'
+      className={`flex w-[43px] flex-col items-center gap-[5px] rounded-sm border pt-2 pb-[7px] ${ground} ${
+        current ? 'border-selected-line' : 'border-transparent'
       } ${focus}`}
     >
-      <span className="font-sans text-[9px] font-normal uppercase tracking-[0.1em] text-ink-faint">
+      <span
+        className={`font-sans text-[9px] uppercase tracking-[0.1em] ${
+          current ? 'font-medium text-ink-muted' : 'font-normal text-ink-faint'
+        }`}
+      >
         {isToday ? copy.today : weekdayShort(day.date)}
       </span>
-      <span
-        className={`font-display text-[20px] font-normal leading-none ${past ? 'text-ink-faint' : 'text-ink'}`}
-      >
+      <span className={`type-day-number ${past && !current ? 'text-ink-faint' : 'text-ink'}`}>
         {Number(day.date.slice(8))}
       </span>
       <span aria-hidden className="flex h-[5px] pl-0.5">
@@ -109,15 +113,13 @@ function DayCell({
           <i
             // biome-ignore lint/suspicious/noArrayIndexKey: identical marks
             key={i}
+            // Worn: a solid warm-past dot. Planned: an ink-soft ring on white (the warm fill in the
+            // current cell); a plan left on a past day keeps its ring, never reading as worn.
             className={`-ml-0.5 box-border block size-[5px] rounded-pill ${
               m.filled
-                ? past
-                  ? 'bg-ink-faint'
-                  : 'bg-ink-muted'
-                : past
-                  ? 'bg-ink-faint'
-                  : `border border-ink-muted ${ground}`
-            } ${isToday ? 'shadow-[0_0_0_1px_var(--color-selected)]' : 'shadow-[0_0_0_1px_var(--color-bg)]'}`}
+                ? 'bg-warm-past'
+                : `border border-ink-muted ${current ? 'bg-selected' : 'bg-surface-raised'}`
+            } ${current ? 'shadow-[0_0_0_1px_var(--color-selected)]' : 'shadow-[0_0_0_1px_var(--color-bg)]'}`}
           />
         ))}
       </span>

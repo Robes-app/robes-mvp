@@ -11,7 +11,15 @@ import { Icon } from '@robes/icons/web';
 import { ErrorText, Text } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
+import {
+  type KeyboardEvent,
+  type Ref,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { useAnalytics } from '@/components/analytics-provider';
 import { useFeatures } from '@/components/features';
 import { AdjustField, AdjustOptions, ThreadLines } from '@/components/looks/adjust-dock';
@@ -42,7 +50,13 @@ const passive = `${chip} border-hairline bg-surface-sunk text-ink-faint`;
 // in the slot (design 3b, plan 2026-11-03 §1.1): the box then holds the thread, locks its chips
 // and folds its field until she adjusts; nothing reaches the day until she saves. The native
 // twin is mobile/src/features/home/PromptBox.tsx.
+// Describe on the day's photo puts her in the box (twin of the native PromptBoxHandle).
+export interface PromptBoxHandle {
+  focus: () => void;
+}
+
 export function PromptBox({
+  ref,
   day,
   today,
   home,
@@ -50,6 +64,7 @@ export function PromptBox({
   sent,
   onSent,
 }: {
+  ref?: Ref<PromptBoxHandle>;
   day: DiaryDay;
   today: string;
   // Her home city with the day's weather there, from the diary's own day.
@@ -65,6 +80,16 @@ export function PromptBox({
   const features = useFeatures();
   const id = useId();
   const field = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => {
+        field.current?.focus();
+        field.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      },
+    }),
+    [],
+  );
   const { track } = useAnalytics().analytics;
   const [text, setText] = useState('');
   const [pieces, setPieces] = useState<Piece[]>([]);

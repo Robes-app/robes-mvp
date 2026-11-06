@@ -1,4 +1,4 @@
-import type { Look, Today } from '@robes/contracts';
+import type { Look } from '@robes/contracts';
 import { diary as copy } from '@robes/copy';
 import { weekdayDayMonth, weekdayLong } from '@robes/core/calendar';
 import { shortRange } from '@robes/core/weather';

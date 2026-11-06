@@ -212,60 +212,38 @@ test('a styled piece lands on the deck and home carries it on', async ({ page })
   await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
 });
 
-test('day one: the band asks for a model and first pieces; each × asks once, then stands down', async ({
+test('an empty day: her model with Capture · Describe · Pick; the model stack opens Your model', async ({
   page,
 }) => {
   await signIn(page);
   await declineConsent(page);
   const api = page.request;
 
-  // No pieces, no model: both asks stand above the strip (design 3a).
-  const band = page.getByTestId('day-one');
-  await expect(band.getByRole('heading', { name: 'Choose your model' })).toBeVisible();
-  await expect(band.getByRole('heading', { name: 'Add your first pieces' })).toBeVisible();
-  // Create your digital twin opens the camera at once (plan 2026-11-05): a button over a hidden
-  // file input that asks the phone for its front camera.
-  await expect(band.getByRole('button', { name: 'Create your digital twin' })).toBeVisible();
-  await expect(band.getByTestId('selfie-input')).toHaveAttribute('capture', 'user');
-  await expect(band.getByRole('button', { name: /^Model \d$/ })).toHaveCount(5);
-  await expect(band.getByRole('button', { name: 'Photograph tops' })).toBeVisible();
+  // Felix 3a: no look, so the day is her model with the three ways in.
+  const add = page.getByTestId('add-page');
+  await expect(add.getByRole('button', { name: 'Describe a look for today' })).toBeVisible();
+  await expect(add.getByRole('button', { name: 'Pick a look for today' })).toBeVisible();
+  // Capture is the camera itself: a hidden file input under the disc.
+  await expect(add.getByLabel('Photograph a look for today')).toHaveAttribute(
+    'capture',
+    'environment',
+  );
   expect(await seriousViolations(page), 'home, day one').toEqual([]);
 
-  // A Robes model picked is remembered as a pick (plan 2026-11-05), never as skin and hair, and
-  // it is the one ticked; her looks stand on it.
-  await band.getByRole('button', { name: 'Model 2' }).click();
-  await expect(band.getByRole('button', { name: 'Model 2', pressed: true })).toBeVisible();
+  // Describe puts her in the prompt box.
+  await add.getByRole('button', { name: 'Describe a look for today' }).click();
+  await expect(page.getByPlaceholder('Plan an outfit for today')).toBeFocused();
+
+  // On a Robes model, the stack opens Your model; a pick is remembered as a pick (D10).
+  await add.getByRole('button', { name: 'Choose your model' }).click();
+  const picker = page.getByTestId('model-picker');
+  await expect(picker.getByRole('button', { name: /^Model \d$/ })).toHaveCount(5);
+  await expect(picker.getByRole('button', { name: 'Use my likeness' })).toBeVisible();
+  await picker.getByRole('button', { name: 'Model 2' }).click();
+  await expect(picker.getByRole('button', { name: 'Model 2', pressed: true })).toBeVisible();
   const model = await (await api.get('/api/v1/me/model')).json();
   expect(model.preset).toBe(2);
-  expect(model.filed).toBe(false);
   expect(model.stand.on).toBe('robes');
-  expect(model.robesModels.map((m: { id: string }) => m.id)).toEqual([
-    'w-r1',
-    'w-r2',
-    'w-r3',
-    'w-r4',
-    'w-r5',
-  ]);
-
-  // × asks once; Okay folds the ask away, and it stays away.
-  await band.getByRole('button', { name: 'Dismiss: Choose your model' }).click();
-  await expect(
-    page.getByText('You can select another model in your profile at any time.'),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Okay' }).click();
-  await expect(band.getByRole('heading', { name: 'Choose your model' })).toHaveCount(0);
-  await page.reload();
-  await expect(
-    page.getByTestId('day-one').getByRole('heading', { name: 'Choose your model' }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByTestId('day-one').getByRole('heading', { name: 'Add your first pieces' }),
-  ).toBeVisible();
-
-  // A photographed piece retires the pieces ask on its own.
-  await photographedPiece(page, 'Camel coat');
-  await page.reload();
-  await expect(page.getByTestId('day-one')).toHaveCount(0);
 });
 
 test('the diary: the strip selects a day, the slot adds and changes its look, the box dresses it', async ({
@@ -286,7 +264,7 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   const yesterday = diary.days[9].date;
   await page.goto('/');
 
-  // Twenty-one cells, today's current; an empty day shows the dashed Add look tile.
+  // Twenty-one cells, today's current; an empty day is her model with the three ways in.
   const cells = page.getByTestId(/^diary-day-/);
   await expect(cells).toHaveCount(21);
   await expect(page.getByTestId(`diary-day-${date}`)).toHaveAttribute('aria-pressed', 'true');
@@ -294,11 +272,8 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await expect(page.getByPlaceholder('Plan an outfit for today')).toBeVisible();
   expect(await seriousViolations(page), 'home, the diary').toEqual([]);
 
-  // Add look → the log sheet asks what she is wearing → Pick Look → the drawer schedules one.
-  await page.getByTestId('add-look').click();
-  const log = page.getByRole('dialog', { name: 'What are you wearing?' });
-  await expect(log.getByTestId('log-capture')).toBeVisible();
-  await log.getByTestId('log-pick').click();
+  // Pick → the drawer asks what she is wearing and schedules one.
+  await page.getByRole('button', { name: 'Pick a look for today' }).click();
   const drawer = page.getByRole('dialog', { name: 'What are you wearing?' });
   await expect(drawer.getByTestId('drawer-idle')).toHaveText('Schedule Looks');
   await drawer.getByRole('button', { name: /Office/ }).click();
@@ -306,13 +281,18 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
   await expect(page.getByTestId(`diary-day-${date}`)).toHaveAccessibleName('Today, 1 look planned');
 
-  // The lookbook icon on the card changes the look: one tap replaces it.
-  await page.getByRole('button', { name: 'Change the look from your lookbook' }).click();
+  // Swap on the look changes it: one tap replaces it.
+  await page.getByRole('button', { name: 'Swap Office for another look' }).click();
   await expect(drawer.getByTestId('drawer-idle')).toHaveText('Tap looks to add or take off today');
   await drawer.getByRole('button', { name: /Dinner/ }).click();
   await drawer.getByRole('button', { name: 'Wear this look today' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
   await expect(page.getByTestId('ootd-card')).not.toContainText('Office');
+  // Edit opens the look straight into Editing.
+  await page.getByRole('link', { name: 'Edit Dinner' }).click();
+  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}\?day=.*&edit=1$/);
+  await expect(page.getByRole('button', { name: /Update look/ })).toBeVisible();
+  await page.goBack();
 
   // Tomorrow: empty, the box names the day; yesterday: no box at all, the tile logs a wear.
   await page.getByTestId(`diary-day-${tomorrow}`).click();
@@ -320,8 +300,8 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await expect(page.getByPlaceholder(/^Plan an outfit for \w+day$/)).toBeVisible();
   await page.getByTestId(`diary-day-${yesterday}`).click();
   await expect(page.getByTestId('prompt-box')).toHaveCount(0);
-  await page.getByTestId('add-look').click();
-  await page.getByRole('dialog', { name: 'What did you wear?' }).getByTestId('log-pick').click();
+  await expect(page.getByTestId('disc-describe')).toHaveCount(0);
+  await page.getByRole('button', { name: /^Pick a look for \w+day$/ }).click();
   const past = page.getByRole('dialog', { name: 'What did you wear?' });
   await past.getByRole('button', { name: /Office/ }).click();
   await past.getByRole('button', { name: 'Schedule 1 Look' }).click();
