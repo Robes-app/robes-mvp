@@ -39,7 +39,7 @@ export function StackScreen({
           accessibilityRole="button"
           accessibilityLabel={ui.back}
           onPress={back}
-          className="absolute items-center justify-center rounded-pill bg-glass"
+          className="absolute items-center justify-center rounded-pill bg-veil"
           style={{ top: insets.top + 14, left: 14, width: MIN_TOUCH, height: MIN_TOUCH }}
           testID="stack-back"
         >

@@ -67,7 +67,7 @@ Seed `tokens.ts` from `reference/tokens.draft.json`. Canonical values (all contr
 | `accent-plan` (sage) | `#7E7C5A` | `#A9A67E` | Same rule (4.03:1) |
 | `accent-decor` (mauve) | `#D4C8C4` | `#D4C8C4` | Decorative only |
 | `success` | `#3F6B4C` (darkened from legacy `#4A7C59`, 4.29:1 on cream-100) | `#7FB08E` | |
-| `danger` | `#8B3A30` | `#E08A7E` | |
+| `danger` | `#B5483A` (Felix, 2026-11-06; was `#8B3A30`) | `#E08A7E` | 5.0:1 on bg, 4.7:1 on surface; white label on it 5.3:1 |
 | `focus-ring` | ink | cream | 2px, offset 2px, visible everywhere (legacy missing on several pages) |
 
 **Typography**
@@ -79,6 +79,8 @@ Seed `tokens.ts` from `reference/tokens.draft.json`. Canonical values (all contr
 **Shape**: keep both radius families deliberately (reference §4): `radius-soft` (8–18px, cards/sheets on native) and `radius-crisp` (2–6px, editorial cards/dialogs on web). Components pick one per the component spec; no ad-hoc radii.
 
 **Motion**: durations/easings from reference; respect `prefers-reduced-motion` / `AccessibilityInfo.isReduceMotionEnabled`.
+
+**Felix Design System (2026-11-06).** `platform/design/felix` is the design reference and its token values are adopted in `tokens.ts`, under the names its components use (`warm-line`, `warm-past`, `warm-dash`, `alert`, `backdrop`, `backdrop-strong`, `scrim`, the `veil` family, `nav-glass`, `dock-glass`, `dock-line`, the rose and sage washes; radii `xs`, `tile`, `thumb`, `dock`; shadows `disc`, `sheet`, `modal`, `dialog`; `blur`). Where a Felix value misses the accessibility floor, the floor wins: `ink-faint` stays `#74664A`, small rose text stays `accent-warm`, and `warm-past` is darkened to `#968973` (3:1 on cream). The draft tokens of 2026-11-05 were renamed to Felix's: `glass` → `veil`, `hairline-strong` → `rule-mid`, `border-warm` → `warm-line`, `scrim` (0.28) → `backdrop`; `scrim` is now Felix's dark disc (0.55). Felix has no dark theme: the dark values for its tokens are proposed.
 
 **Colour rules (2026-10-25).** Rose marks *now* and *Robes' hand* — today's label and dot, today's rule in Diary, Draft, the why-this-look mark, Robes' own labels, a wishlisted piece — one or two per screen. Small rose text (under 24px) is `accent-warm`; dots, rules and icons `accent-inspire`. Mauve (`accent-decor`) is a surface only (trip bands, a pinned day's ring, the day-scope chip), never text.
 

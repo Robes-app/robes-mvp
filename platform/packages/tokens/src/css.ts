@@ -1,4 +1,5 @@
 import {
+  blur,
   type ColorRef,
   dark,
   font,
@@ -22,6 +23,7 @@ export function buildThemeCss(): string {
   lines.push(`  --font-display: ${font.display};`, `  --font-sans: ${font.sans};`);
   for (const [key, v] of Object.entries(radius)) lines.push(`  --radius-${key}: ${v};`);
   for (const [key, v] of Object.entries(shadow)) lines.push(`  --shadow-${key}: ${v};`);
+  for (const [key, v] of Object.entries(blur)) lines.push(`  --blur-${key}: ${v};`);
   lines.push('}');
   return `${lines.join('\n')}\n`;
 }

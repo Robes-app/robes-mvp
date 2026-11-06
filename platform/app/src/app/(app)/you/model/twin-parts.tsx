@@ -179,7 +179,7 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
           disabled={pending}
           onClick={() => (onRobes ? pick({ preset: null }) : undefined)}
           data-testid="lineup-you"
-          className={`${tile} ${onRobes ? 'border-hairline-strong' : 'border-ink border-[1.5px]'}`}
+          className={`${tile} ${onRobes ? 'border-rule-mid' : 'border-ink border-[1.5px]'}`}
         >
           {portrait(ownImage, '')}
           {onRobes ? null : check}
@@ -196,7 +196,7 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
             disabled={pending}
             onClick={() => (on ? undefined : pick({ preset: m.n }))}
             data-testid={`lineup-${m.n}`}
-            className={`${tile} ${on ? 'border-ink border-[1.5px]' : 'border-hairline-strong'}`}
+            className={`${tile} ${on ? 'border-ink border-[1.5px]' : 'border-rule-mid'}`}
           >
             {portrait(m.imageUrl, '')}
             {on ? check : null}

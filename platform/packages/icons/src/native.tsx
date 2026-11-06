@@ -1,5 +1,5 @@
 import Svg, { Path } from 'react-native-svg';
-import { ICON_STROKE_WIDTH, ICON_VIEWBOX, ICONS, type IconName } from './icons';
+import { ICON_SOLID, ICON_STROKE_WIDTH, ICON_VIEWBOX, ICONS, type IconName } from './icons';
 
 export interface IconProps {
   name: IconName;
@@ -29,6 +29,9 @@ export function Icon({ name, size = 24, color, label, filled = false }: IconProp
     >
       {ICONS[name].map((d) => (
         <Path key={d} d={d} />
+      ))}
+      {ICON_SOLID[name]?.map((d) => (
+        <Path key={d} d={d} fill={color} />
       ))}
     </Svg>
   );

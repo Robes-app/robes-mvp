@@ -36,8 +36,8 @@ export interface SheetProps {
   className?: string;
   testID?: string;
   // The floating panel (redlines 2026-11-05): inset 10pt from the left, right and bottom, every
-  // corner on the sheet radius, hugging its content over the lighter scrim; the handle, a swipe
-  // down or a tap on the scrim closes it (no ×).
+  // corner on the sheet radius, hugging its content over the lighter backdrop; the handle, a swipe
+  // down or a tap on the backdrop closes it (no ×).
   floating?: boolean;
   // The eyebrow's colour: faint by default, warm (rose) where the design asks.
   eyebrowTone?: 'faint' | 'warm';
@@ -46,7 +46,7 @@ export interface SheetProps {
 const OFFSCREEN = 800;
 const DISMISS_DRAG = 120;
 const BACKDROP_OPACITY = 0.4;
-// The floating sheet's scrim (the `scrim` token's alpha; the backdrop is ink, so opacity carries it).
+// The floating sheet's backdrop (the `backdrop` token's alpha; it is ink, so opacity carries it).
 const SCRIM_OPACITY = 0.28;
 const FLOAT_INSET = 10;
 // The top 8% stays clear: past every iPhone's status bar and island (59pt of 874 on a 17).
@@ -197,7 +197,7 @@ export function Sheet({
               ? {
                   marginHorizontal: FLOAT_INSET,
                   marginBottom: FLOAT_INSET + (keyboard ? 0 : insets.bottom),
-                  ...shadowNative.callout,
+                  ...shadowNative.sheet,
                 }
               : null,
           ]}

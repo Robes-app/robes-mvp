@@ -39,7 +39,7 @@ export function RobesModelBadge({
         accessibilityLabel={copy.deck.robesModelLabel}
         onPress={() => setOpen(true)}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-        className="absolute top-3 right-3 h-7 flex-row items-center gap-2 rounded-pill bg-glass pr-2.5 pl-3"
+        className="absolute top-3 right-3 h-7 flex-row items-center gap-2 rounded-pill bg-veil pr-2.5 pl-3"
         testID="robes-model-badge"
       >
         <View className="size-1.5 rounded-pill bg-ink-faint" />
@@ -120,7 +120,7 @@ function Row({
       onPress={onPress}
       testID={testID}
       className={`min-h-[62px] flex-row items-center gap-3.5 rounded-soft px-4 py-3 ${
-        edge === 'dashed' ? 'border-border-warm' : 'border-hairline-strong'
+        edge === 'dashed' ? 'border-warm-line' : 'border-rule-mid'
       }`}
       style={edge === 'dashed' ? { borderWidth: 1, borderStyle: 'dashed' } : { borderWidth: 0.5 }}
     >

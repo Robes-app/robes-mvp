@@ -114,7 +114,7 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
       disabled={pending}
       onPress={onPress}
       style={[TILE, { borderWidth: on ? 1.5 : 0.5 }]}
-      className={`overflow-hidden rounded-sm bg-surface ${on ? 'border-ink' : 'border-hairline-strong'}`}
+      className={`overflow-hidden rounded-sm bg-surface ${on ? 'border-ink' : 'border-rule-mid'}`}
       testID={testID}
     >
       {url ? (

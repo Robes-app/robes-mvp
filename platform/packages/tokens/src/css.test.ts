@@ -11,6 +11,9 @@ describe('css generation', () => {
     expect(css).toContain('--radius-sheet: 18px;');
     expect(css).toContain('--radius-sm: 8px;');
     expect(css).toContain('--shadow-float: 0 6px 16px -6px rgba(32, 32, 33, 0.30);');
+    expect(css).toContain('--shadow-sheet: 0 18px 40px -14px rgba(32, 32, 33, 0.35);');
+    expect(css).toContain('--radius-dock: 24px;');
+    expect(css).toContain('--blur-dock: 22px;');
     expect(css).toContain('--font-display:');
   });
 
@@ -22,9 +25,11 @@ describe('css generation', () => {
     expect(css).toContain(':root:not([data-theme="light"])');
     expect(css).toContain(':root[data-theme="dark"]');
     expect(css).toContain('--border-control: rgba(32, 32, 33, 0.5);');
-    expect(css).toContain('--glass: rgba(250, 248, 245, 0.94);');
-    expect(css).toContain('--hairline-strong: rgba(32, 32, 33, 0.12);');
-    expect(css).toContain('--border-warm: #C9BCA6;');
+    expect(css).toContain('--veil: rgba(250, 248, 245, 0.94);');
+    expect(css).toContain('--backdrop: rgba(32, 32, 33, 0.28);');
+    expect(css).toContain('--scrim: rgba(32, 32, 33, 0.55);');
+    expect(css).toContain('--warm-line: #C9BCA6;');
+    expect(css).toContain('--dock-glass: rgba(255, 255, 255, 0.7);');
   });
 
   it('emits Uniwind light/dark variants', () => {
