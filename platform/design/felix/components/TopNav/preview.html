@@ -1,0 +1,14 @@
+<!-- @dsCard group="Navigation" height=160 width=1200 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>TopNav — preview</title></head>
+<body>
+<div id="root" style="display:flex;flex-direction:column;gap:24px;background:var(--cream-100);padding:16px 0"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment,null,
+ h('div',{style:{width:390}},h(F.TopNav,{bell:true,alert:true})),
+ h(F.TopNav,{variant:'desktop',current:'Lookbook',weather:{day:'Saturday',place:'Dublin',temp:'12°C',icon:'rain'}})));
+</script>
+</body>
+</html>

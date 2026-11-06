@@ -1,0 +1,1 @@
+Look photography: full-length, one person, soft natural light, warm neutral or real-world settings, cropped 4:5. Show the outfit, not the scene. Sits edge-to-edge in a card with `rad-tile`/`rad` corners on a `cream-200` well — no filters, overlays or text on the photo beyond the disc controls.

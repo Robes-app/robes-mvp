@@ -1,0 +1,12 @@
+<!-- @dsCard group="Actions" height=150 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Button — preview</title></head>
+<body>
+<div id="root" style="display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:20px;width:350px"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment,null,h(F.Button,{variant:'primary',block:true},'Schedule look'),h('div',{style:{display:'flex',gap:12}},h(F.Button,{variant:'outline'},'Try another'),h(F.Button,{variant:'chip',icon:'edit'},'Friday in Paris'))));
+</script>
+</body>
+</html>

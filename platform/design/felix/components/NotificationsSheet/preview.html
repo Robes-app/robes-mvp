@@ -1,0 +1,24 @@
+<!-- @dsCard group="Home · Profile" height=860 subtitle="The bell opens Notifications — tasks waiting for her" width=836 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>NotificationsSheet — preview</title></head>
+<body>
+<div id="root" style="display:flex;gap:24px;padding:16px;align-items:flex-start;background:var(--cream-300);width:max-content"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+var frame = { width: 390, height: 820, flex: 'none', position: 'relative', overflow: 'hidden', borderRadius: 'var(--rad-device)' };
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: frame }, h('div', { style: { position: 'absolute', inset: 0, background: 'var(--cream)' } },
+      h(F.TopNav, { bell: true, alert: true }),
+      h('div', { style: { padding: '24px 20px' } }, h('div', { style: { font: '300 32px/1.05 var(--font-serif)', marginBottom: 16 } }, 'Good morning, Annie.'),
+        h('div', { style: { position: 'relative', aspectRatio: '4/5', borderRadius: 'var(--rad-tile)', overflow: 'hidden' } },
+          h('img', { src: '/_blob/963aef8bd203cb87e5113a54e2a70a7e', alt: '', style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' } })))), h(F.NotificationsSheet, { alerts: [{ text: '2 receipts to review', dest: 'Wardrobe', icon: 'receipt' }, { text: 'Log Wednesday’s wear', dest: 'Diary', icon: 'calendar' }] })),
+  h('div', { style: frame }, h('div', { style: { position: 'absolute', inset: 0, background: 'var(--cream)' } },
+      h(F.TopNav, { bell: true, alert: true }),
+      h('div', { style: { padding: '24px 20px' } }, h('div', { style: { font: '300 32px/1.05 var(--font-serif)', marginBottom: 16 } }, 'Good morning, Annie.'),
+        h('div', { style: { position: 'relative', aspectRatio: '4/5', borderRadius: 'var(--rad-tile)', overflow: 'hidden' } },
+          h('img', { src: '/_blob/963aef8bd203cb87e5113a54e2a70a7e', alt: '', style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' } })))), h(F.NotificationsSheet, { alerts: [] }))
+));
+</script>
+</body>
+</html>
