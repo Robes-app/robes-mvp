@@ -179,10 +179,12 @@ test('her own photograph joins a look; You · Model chooses which picture is the
   const look = await (
     await api.post('/api/v1/looks', { data: { name: 'Gallery', pieces: [{ pieceId: coat.id }] } })
   ).json();
-  // Her model wears it first (the offline fake draws it), so the look has Robes' picture.
-  await api.patch('/api/v1/me/model', { data: { skin: 6 } });
+  // Her twin wears it first (her facts draw it; the offline fake draws the picture), so the look
+  // has Robes' picture. A skin pick on a Robes model is refused (plan 2026-11-05 Q9).
+  await api.patch('/api/v1/me/dna', { data: { facts: { heightCm: 168 } } });
+  await api.post('/api/v1/me/model/twin');
   await expect
-    .poll(async () => (await (await api.get('/api/v1/me/model')).json()).cell.status, {
+    .poll(async () => (await (await api.get('/api/v1/me/model')).json()).twin.status, {
       timeout: 30_000,
     })
     .toBe('ready');
@@ -224,9 +226,10 @@ test('her photograph on a look her model has not worn: her model dresses it, and
       data: { name: 'Runner look', pieces: [{ pieceId: shoes.id }] },
     })
   ).json();
-  await api.patch('/api/v1/me/model', { data: { skin: 6 } });
+  await api.patch('/api/v1/me/dna', { data: { facts: { heightCm: 168 } } });
+  await api.post('/api/v1/me/model/twin');
   await expect
-    .poll(async () => (await (await api.get('/api/v1/me/model')).json()).cell.status, {
+    .poll(async () => (await (await api.get('/api/v1/me/model')).json()).twin.status, {
       timeout: 30_000,
     })
     .toBe('ready');
