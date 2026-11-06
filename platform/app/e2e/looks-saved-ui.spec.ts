@@ -48,7 +48,8 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   // Save opens the diary every time; × closes it and writes nothing.
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
 
-  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}\?schedule=1$/);
+  // The saved look opened with the diary up and dropped the parameter from its address.
+  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}$/);
   await expect(page.getByTestId('draft-look')).toHaveCount(0);
   // Unnamed, a hand-built look saves as her today ("Wednesday 28 Oct"), the month from the table.
   const heading = page.getByRole('heading', { level: 1 });
