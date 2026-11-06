@@ -133,13 +133,10 @@ test('compose a look, wear it today with undo, plan it, then unpin and undo', as
   await diary.getByRole('button', { name: longTomorrow }).click();
   await diary.getByRole('button', { name: 'Put it in the diary' }).click();
   await expect(page.getByRole('listitem').getByText(/is in your diary for/)).toBeVisible();
-  // The saved look says the day it is pinned for, as beta's meta line does ("Thursday 29 Oct").
-  const pinnedDay = longTomorrow.split(' ');
-  await expect(
-    page.getByText(
-      new RegExp(`pinned for ${pinnedDay[0]} ${pinnedDay[1]} ${pinnedDay[2]?.slice(0, 3)}$`),
-    ),
-  ).toBeVisible();
+  // The facts line that named the pinned day is gone (D16); the look is pinned for tomorrow.
+  await expect
+    .poll(async () => (await (await page.request.get(`/api/v1/looks/${lookId}`)).json()).pinnedOn)
+    .toContain(tomorrow);
 
   // The plan lists summary rows; the row opens the day page, where the day is named and edited.
   await page.goto('/plan');
