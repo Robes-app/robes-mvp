@@ -523,6 +523,13 @@ export function looksRepo(db: Db) {
           .returning(LOOK_SELECT)
           .executeTakeFirstOrThrow();
         await writePieces(trx, userId, row.id, look.pieces);
+        // A look made from her photograph starts its stack with it (D13).
+        if (look.photoAssetId) {
+          await trx
+            .insertInto('lookImages')
+            .values({ userId, lookId: row.id, assetId: look.photoAssetId, position: 0 })
+            .execute();
+        }
         return row;
       });
     },

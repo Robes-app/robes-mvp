@@ -170,6 +170,20 @@ describe('looks repo', () => {
     expect((await looks.get(ann, look.id))?.photoAssetId).toBe(one.id);
   });
 
+  it('starts the stack with the photograph a look is made from', async () => {
+    const photo = await photoOf(ann);
+    const look = await looks.create(ann, {
+      name: 'From a photo',
+      nameProvisional: false,
+      pieces: [{ pieceId: coat }],
+      photoAssetId: photo.id,
+    });
+    expect(look.photoAssetId).toBe(photo.id);
+    expect((await looks.imagesFor(ann, [look.id])).map((i) => [i.assetId, i.position])).toEqual([
+      [photo.id, 0],
+    ]);
+  });
+
   it('brings a photograph to the front, or Robes’ picture, and the rest keep their order', async () => {
     const look = await create(ann, [coat], 'Covered');
     const [one, two, three] = [await photoOf(ann), await photoOf(ann), await photoOf(ann)];
