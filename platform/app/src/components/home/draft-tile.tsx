@@ -8,7 +8,7 @@ import { shortRange } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
 import { Image, Skeleton } from '@robes/ui';
 import Link from 'next/link';
-import { useDressingLine } from '@/components/looks/draft-page';
+import { useDressingLine } from '@/components/looks/draft-look';
 import { LookImage } from '@/components/looks/look-image';
 import { ScanLine } from '@/components/looks/scan-line';
 import { PieceImage } from '@/components/wardrobe/piece-image';
@@ -48,7 +48,8 @@ export function DraftTile({
   ]
     .filter(Boolean)
     .join(' · ');
-  const href = look ? `/look/${look.id}?day=${day.date}` : null;
+  // The draft opens as its drawer over the day (D14).
+  const href = look ? `/looks/draft/${look.id}?day=${day.date}` : null;
   const thumbs = look?.pieces.slice(0, 5) ?? [];
   const stale = !generating && look?.pictureStale === true;
   return (

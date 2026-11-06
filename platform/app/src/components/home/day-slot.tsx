@@ -115,7 +115,7 @@ export function DaySlot({
                 {...(i === 0 ? { testId: 'ootd-swap' } : {})}
               />
               <EditDisc
-                href={`/look/${entry.look.id}?day=${day.date}&edit=1`}
+                href={`/looks/draft/${entry.look.id}?day=${day.date}`}
                 name={entry.look.name}
                 {...(i === 0 ? { testId: 'ootd-edit' } : {})}
               />

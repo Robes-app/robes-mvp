@@ -177,7 +177,8 @@ test('a day with two looks shows the OOTD, then the second look, each with Swap 
   expect(screen.getAllByRole('button', { name: /^Swap / })).toHaveLength(2);
   expect(screen.getAllByText('Weekend navy').length).toBeGreaterThan(0);
   await fireEvent.press(screen.getByTestId('ootd-edit'));
-  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}?day=${TWO}&edit=1`);
+  // Edit opens the draft sheet over the day (D14).
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}?day=${TWO}`);
   await fireEvent.press(screen.getByTestId('ootd-swap'));
   expect(await screen.findByTestId('look-picker')).toBeTruthy();
   // Three pages (two looks, then the way into another): the pager shows.

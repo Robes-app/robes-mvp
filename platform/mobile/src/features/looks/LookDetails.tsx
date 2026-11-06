@@ -85,7 +85,8 @@ export function LookDetails({
   look: Look;
   onTags: () => void;
   onSeasons: () => void;
-  onWorn: () => void;
+  // A draft has no Worn row (D14): leave it out.
+  onWorn?: () => void;
   onCaption: (caption: string | null) => void;
 }) {
   const summary = detailSummaries(look);
@@ -140,14 +141,16 @@ export function LookDetails({
           </View>
         ) : null}
       </Row>
-      <Row
-        label={copy.worn}
-        summary={summary.worn}
-        empty={copy.notWorn}
-        muted
-        onOpen={onWorn}
-        testID="details-worn"
-      />
+      {onWorn ? (
+        <Row
+          label={copy.worn}
+          summary={summary.worn}
+          empty={copy.notWorn}
+          muted
+          onOpen={onWorn}
+          testID="details-worn"
+        />
+      ) : null}
       {editing ? (
         <View
           className="flex-row items-center gap-3 border-hairline pl-4"

@@ -15,31 +15,40 @@ export function PieceList({
   onAdd,
   empty,
   label,
+  rows,
 }: {
   children: ReactNode;
   // Edit mode: the dashed + row under the list.
   onAdd?: () => void;
   empty?: ReactNode;
   label?: string;
+  // How many rows the list holds: before the first, the add slot stands alone (Felix DraftLook:
+  // 55px, the wardrobe glyph in its disc, every corner soft).
+  rows?: number;
 }) {
+  const bare = onAdd !== undefined && rows === 0;
   return (
     <div data-testid="piece-list">
-      <ul
-        aria-label={label}
-        className={`divide-y divide-hairline overflow-hidden border-[0.5px] border-rule-mid bg-surface-raised ${onAdd ? 'rounded-t-soft' : 'rounded-soft'}`}
-      >
-        {children}
-      </ul>
+      {bare ? null : (
+        <ul
+          aria-label={label}
+          className={`divide-y divide-hairline overflow-hidden border-[0.5px] border-rule-mid bg-surface-raised ${onAdd ? 'rounded-t-soft' : 'rounded-soft'}`}
+        >
+          {children}
+        </ul>
+      )}
       {empty}
       {onAdd ? (
-        <div className="flex justify-center border-border-control border-x-[0.5px] border-b border-dashed py-2.5">
+        <div
+          className={`flex items-center justify-center border-dashed border-selected-line ${bare ? 'min-h-[55px] rounded-soft border' : 'border-x-[0.5px] border-b py-2.5'}`}
+        >
           <button
             type="button"
             onClick={onAdd}
             aria-label={lookbook.rack.addPiece}
-            className={`relative flex size-7 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted after:absolute after:-inset-2 after:content-[''] hover:text-ink ${focus}`}
+            className={`relative flex size-8 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted after:absolute after:-inset-2 after:content-[''] hover:text-ink ${focus}`}
           >
-            <Icon name="plus" size={13} />
+            <Icon name={bare ? 'wardrobe' : 'plus'} size={bare ? 15 : 13} />
           </button>
         </div>
       ) : null}

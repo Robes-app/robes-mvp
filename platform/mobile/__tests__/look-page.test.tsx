@@ -220,59 +220,26 @@ test('the saved look says the day it is pinned for, each piece its wears, each w
   expect(await screen.findByText('Tue 8 Sep')).toBeTruthy();
 });
 
-test('editing a saved look, a swap lands on one tap behind Undo; Update says Updated', async () => {
-  const COAT = '99999999-9999-4999-8999-999999999999';
-  const calls = mockFetch({
-    [`GET /looks/${LOOK_ID}`]: look(),
-    [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
-    [`PATCH /looks/${LOOK_ID}`]: look(),
-    'GET /wardrobe/items': {
-      items: [piece(), piece({ id: COAT, label: 'Navy wool coat' })],
-      nextCursor: null,
-    },
-    'GET /looks': { items: [], nextCursor: null },
-    'GET /plan': { from: localDate(), to: localDate(), days: [] },
-  });
-  await renderWithApi(<LookDetail id={LOOK_ID} />);
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.edit }));
-  // Editing hides the ledger: the rows swap and remove.
-  expect(screen.queryByText(lookbook.meta.wears(0))).toBeNull();
-  await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
-  );
-  await fireEvent.press(await screen.findByRole('radio', { name: 'Navy wool coat' }));
-  // One tap: no "Swap in" step, and nothing written until Update.
-  expect(await screen.findByText(lookbook.swap.swapped('Navy wool coat'))).toBeTruthy();
-  expect(screen.getByTestId(`rack-row-${COAT}`)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: ui.undo }));
-  await waitFor(() => expect(screen.queryByTestId(`rack-row-${COAT}`)).toBeNull());
-  expect(screen.getByTestId(`rack-row-${PIECE_ID}`)).toBeTruthy();
-  expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(0);
-
-  await fireEvent.press(
-    screen.getByRole('button', { name: lookbook.rack.swap('Camel wool coat') }),
-  );
-  await fireEvent.press(await screen.findByRole('radio', { name: 'Navy wool coat' }));
-  // The swap left the picture behind, so Update reads ↻ and draws it as it commits (D6).
-  await fireEvent.press(screen.getByRole('button', { name: `↻ ${lookbook.bar.update}` }));
-  expect(await screen.findByText(lookbook.updated)).toBeTruthy();
-  expect(JSON.stringify(calls.find((c) => c.method === 'PATCH')?.body)).toContain(COAT);
-  expect(track).toHaveBeenCalledWith('swap_drawer_opened', { mode: 'swap' });
-  expect(track).toHaveBeenCalledWith('piece_swapped', { surface: 'saved', cat: 'Outerwear' });
-  expect(track).toHaveBeenCalledWith('look_updated', { pieces: 1 });
-  // No piece's name ever rides an event.
-  expect(JSON.stringify(track.mock.calls)).not.toContain('wool coat');
-});
-
-// Home's Edit disc (Felix 3k) opens the look straight into Editing.
-test('opened to edit, the look starts in Editing', async () => {
+// Edit look, the adjust disc and Home's Edit disc (Felix 3k) open the draft sheet in edit mode
+// (D14): the rack is worked there, and Delete lives there (D9).
+test('Edit look and the adjust disc open the draft sheet; `edit` opens it as the look opens', async () => {
   mockFetch({
     [`GET /looks/${LOOK_ID}`]: look(),
     [`GET /looks/${LOOK_ID}/wears`]: { items: [] },
+    'GET /looks': { items: [], nextCursor: null },
   });
+  await renderWithApi(<LookDetail id={LOOK_ID} />);
+  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.edit }));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}`);
+  await fireEvent.press(screen.getByTestId('saved-look-adjust'));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}?sheet=adjust`);
+  // The ledger stays: the rows carry their wear counts, never swap or remove.
+  expect(screen.queryByRole('button', { name: lookbook.rack.swap('Camel wool coat') })).toBeNull();
+  expect(screen.queryByText(looks.page.remove)).toBeNull();
+  expect(screen.queryByRole('button', { name: lookbook.bar.update })).toBeNull();
+
+  mockRouter.push.mockClear();
   await renderWithApi(<LookDetail id={LOOK_ID} edit />);
-  expect(await screen.findByRole('button', { name: lookbook.bar.update })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: lookbook.savedLook.edit })).toBeNull();
-  // Delete this look is destructive text, as on the web, and lives in Editing (D9).
-  expect(screen.getByText(looks.page.remove).props.className).toContain('text-danger');
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}`));
+  expect(mockRouter.push).toHaveBeenCalledTimes(1);
 });

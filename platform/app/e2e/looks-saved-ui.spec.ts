@@ -168,7 +168,9 @@ test('removing a look can be undone', async ({ page }) => {
   await page.goto(`/look/${look.id}`);
   // Delete lives in Editing (D9): destructive text in danger, as on the phone, behind a confirm.
   await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveCount(0);
+  // + Add pieces opens the draft drawer in edit mode (D14), where Delete lives.
   await page.getByRole('button', { name: '+ Add pieces' }).click();
+  await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveClass(/text-danger/);
   await page.getByRole('button', { name: 'Delete this look' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
@@ -312,17 +314,23 @@ test('editing a saved look: a swap is one tap behind Undo, and Update says Updat
   await page.goto(`/look/${look.id}`);
   // At rest, each row carries the piece's own wears (beta's ledger).
   await expect(page.getByTestId(`rack-row-${camel}`).getByText('0 wears')).toBeVisible();
+  // Edit look opens the draft drawer in edit mode (D14); the rack is worked there.
   await page.getByRole('button', { name: 'Edit look' }).click();
-  await page.getByRole('button', { name: /^Swap / }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Navy coat' }).click();
-  // One tap: the sheet closes on the swap; Undo puts the rack back.
-  await expect(page.getByTestId(`rack-row-${navy}`)).toBeVisible();
+  const drawer = page.getByTestId('draft-look');
+  await expect(drawer.getByText('Edit look')).toBeVisible();
+  const picker = page.getByTestId('piece-picker');
+  await drawer.getByRole('button', { name: /^Swap / }).click();
+  await picker.getByRole('button', { name: 'Include Navy coat' }).click();
+  await picker.getByRole('button', { name: 'Swap it in' }).click();
+  // The swap lands in the drawer; Undo puts the rack back.
+  await expect(drawer.getByTestId(`rack-row-${navy}`)).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByTestId(`rack-row-${camel}`)).toBeVisible();
-  await expect(page.getByTestId(`rack-row-${navy}`)).toHaveCount(0);
-  await page.getByRole('button', { name: /^Swap / }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Navy coat' }).click();
-  await page.getByRole('button', { name: 'Update look' }).click();
+  await expect(drawer.getByTestId(`rack-row-${camel}`)).toBeVisible();
+  await expect(drawer.getByTestId(`rack-row-${navy}`)).toHaveCount(0);
+  await drawer.getByRole('button', { name: /^Swap / }).click();
+  await picker.getByRole('button', { name: 'Include Navy coat' }).click();
+  await picker.getByRole('button', { name: 'Swap it in' }).click();
+  await drawer.getByRole('button', { name: 'Update look' }).click();
   await expect(page.getByText('Updated', { exact: true })).toBeVisible();
   await expect
     .poll(async () =>

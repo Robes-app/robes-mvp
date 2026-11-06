@@ -19,7 +19,7 @@ import { errorMessage } from '@/lib/errors';
 import { AdjustDock } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
 import { DiarySheet } from './DiarySheet';
-import { DraftPage } from './DraftPage';
+import { DraftLook } from './DraftLook';
 import { JOB_REFRESH_MS } from './ideas';
 import { LookDetail } from './LookDetail';
 import { LookMix, LookPicture } from './LookPicture';
@@ -31,7 +31,17 @@ import { RobesModelBadge } from './RobesModelBadge';
 import { SwapSheet } from './SwapSheet';
 
 // A look in whichever state it stands (docs/look-states-brief.md §3.2): one page, one bar.
-export function LookScreen({ id, edit = false }: { id: string; edit?: boolean }) {
+export function LookScreen({
+  id,
+  edit = false,
+  schedule = false,
+}: {
+  id: string;
+  edit?: boolean;
+  // `?schedule=1`: a draft just saved from its sheet opens with the diary up.
+  schedule?: boolean;
+}) {
+  const router = useRouter();
   const query = useApi(
     'looks.get',
     { params: { id } },
@@ -48,10 +58,14 @@ export function LookScreen({ id, edit = false }: { id: string; edit?: boolean })
   return (
     <>
       {look.status === 'draft' ? (
-        // Every draft — from the prompt box or built by hand — is the one draft page (plan 2026-11-03).
-        <DraftPage look={look} onSaved={setJustSaved} />
+        // Every draft is the one DraftLook (D14): on its page here, a sheet from the app's screens.
+        <DraftLook
+          id={look.id}
+          presentation="page"
+          onClose={() => (router.canGoBack() ? router.back() : router.replace('/looks'))}
+        />
       ) : look.status === 'saved' ? (
-        <LookDetail id={id} edit={edit} />
+        <LookDetail id={id} edit={edit} schedule={schedule} />
       ) : (
         <WorkingLook look={look} onSaved={setJustSaved} />
       )}

@@ -117,7 +117,7 @@ export function SavedLookPhoto({
 
 // The image-stack badge: three fanned cards (a dashed paper back card, the next photograph at 4°,
 // the one in front) with an ink badge that counts her photographs, or reads + before the first.
-function ImageStack({ look, onOpen }: { look: Look; onOpen: () => void }) {
+export function ImageStack({ look, onOpen }: { look: Look; onOpen: () => void }) {
   const front = look.record === 'photo' ? (look.photo ?? look.model) : (look.model ?? look.photo);
   const next = look.images.find((i) => i.image.assetId !== front?.assetId)?.image ?? null;
   const count = look.images.length;

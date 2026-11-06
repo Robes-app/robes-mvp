@@ -503,7 +503,8 @@ function LiveBox({
     if (wasDressing.current && !dressing) adjust.landed(look);
     wasDressing.current = dressing;
   }, [dressing, sent, look, adjust]);
-  const view = () => router.push(`/look/${look.id}?day=${day.date}`);
+  // View draft opens the drawer over the day (D14).
+  const view = () => router.push(`/looks/draft/${look.id}?day=${day.date}`);
   const fieldOpen = open || adjust.state.asking;
   return (
     <div className={shell} data-testid="prompt-box" data-state="live">

@@ -288,11 +288,14 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await drawer.getByRole('button', { name: 'Wear this look today' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Dinner');
   await expect(page.getByTestId('ootd-card')).not.toContainText('Office');
-  // Edit opens the look straight into Editing.
+  // Edit opens the draft drawer in edit mode over the day (D14).
   await page.getByRole('link', { name: 'Edit Dinner' }).click();
-  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}\?day=.*&edit=1$/);
-  await expect(page.getByRole('button', { name: /Update look/ })).toBeVisible();
-  await page.goBack();
+  await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/);
+  await expect(page.getByTestId('draft-look')).toBeVisible();
+  await expect(page.getByText('Edit look')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Update look' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByTestId('draft-look')).toHaveCount(0);
 
   // Tomorrow: empty, the box names the day; yesterday: no box at all, the tile logs a wear.
   await page.getByTestId(`diary-day-${tomorrow}`).click();
@@ -336,13 +339,14 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   );
   expect(tile, tile).toContain('tile=ready');
   await expect(page.getByTestId('prompt-box')).toContainText('Here’s a first look');
-  // Her words adjust the draft from the box; View draft opens its page on the day.
+  // Her words adjust the draft from the box; View draft opens its drawer over the day (D14).
   await expect(page.getByRole('button', { name: 'Dress it again' })).toBeVisible();
   await page.getByRole('button', { name: 'View draft' }).click();
-  await expect(page).toHaveURL(/\/look\/[0-9a-f-]{36}\?day=/);
+  await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/);
+  await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByText('Draft look')).toBeVisible();
-  // Save pins it to the day in the same act: home shows it as the day's card, just saved.
-  await page.getByTestId('look-bar').getByRole('button', { name: 'Save', exact: true }).click();
+  // The done disc saves and pins it to the day in the same act: home shows it as the day's card.
+  await page.getByTestId('draft-done').click();
   await expect(page).toHaveURL(/\/\?day=.*&saved=/);
   await expect(page.getByTestId('saved-badge')).toBeVisible();
   await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'look');

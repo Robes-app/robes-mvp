@@ -1,17 +1,14 @@
+import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { NewDraft } from '@/components/looks/draft-page';
 
 const Search = z.object({ pieceId: z.uuid().optional() }).catch({});
 
+// The old address of a new draft (legacy mails, the Create menu): the draft drawer took it (D14).
 export default async function NewLookPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { pieceId } = Search.parse(await searchParams);
-  return (
-    <div className="flex flex-col gap-4">
-      <NewDraft {...(pieceId ? { pieceId } : {})} />
-    </div>
-  );
+  redirect(`/looks/draft/new${pieceId ? `?pieceId=${pieceId}` : ''}`);
 }

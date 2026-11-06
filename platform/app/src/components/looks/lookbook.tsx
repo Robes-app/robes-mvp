@@ -124,7 +124,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           framed
           icon="plus"
           label={copy.newLook}
-          onClick={() => router.push('/looks/new')}
+          onClick={() => router.push('/looks/draft/new')}
         />
       </div>
       {/* The count row holds its height on both tabs, so the grid never jumps on a switch. */}
@@ -314,7 +314,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               title={copy.savedEmpty.title}
               body={copy.savedEmpty.body}
               action={
-                <Link href="/looks/new" className={buttonClasses({ variant: 'primary' })}>
+                <Link href="/looks/draft/new" className={buttonClasses({ variant: 'primary' })}>
                   {copy.newLook}
                 </Link>
               }

@@ -139,7 +139,7 @@ test('a draft on the day: the box is its thread — Dress it again, Adjust, View
   expect(screen.queryByTestId('hanger')).toBeNull();
   expect(screen.getByRole('button', { name: lookbook.draft.redress })).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.draft.view }));
-  expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}?day=${TUESDAY}`);
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}?day=${TUESDAY}`);
   // Adjust opens the field for her words.
   expect(screen.queryByTestId('prompt-field')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: lookbook.draft.adjustOpt }));
