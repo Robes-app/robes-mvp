@@ -1,9 +1,17 @@
 'use client';
 
 import { queryKeys, useApi, useApiClient, useApiMutation } from '@robes/api-client/react';
-import type { CreateLookInput, DiaryDay, Look, Model, Piece } from '@robes/contracts';
+import {
+  type CreateLookInput,
+  type DiaryDay,
+  type Look,
+  lookStack,
+  type Model,
+  type Piece,
+} from '@robes/contracts';
 import { lookbook, looks as looksCopy } from '@robes/copy';
 import { readsAsThey } from '@robes/core/avatar';
+import { type ImageStage, stageChanged, stageFront } from '@robes/core/looks';
 import { shortRange, weatherIcon } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
 import {
@@ -27,11 +35,13 @@ import { type Adjust, useAdjust } from '@/lib/adjust';
 import { errorCopy } from '@/lib/error-copy';
 import { usePhotoFiling } from '@/lib/file-photo';
 import { useLookEditor } from '@/lib/look-editor';
+import { useImageStage } from '@/lib/look-images';
 import { isDraftsFull, useLetGo, useRefreshLooks, useSaveLook } from '@/lib/look-states';
 import { ThreadLines } from './adjust-dock';
+import { DayContext } from './day-context';
 import { DiarySheet } from './diary-sheet';
 import { AdjustSheet, DescribeSheet, SheetField } from './draft-sheets';
-import { ImageManager } from './image-manager';
+import { CardPicture, ImageManager } from './image-manager';
 import { LookDetails } from './look-details';
 import { LookImage } from './look-image';
 import { LookPicture } from './look-page';
@@ -82,6 +92,7 @@ export function DraftLook({
   pieceId,
   day,
   sheet,
+  images,
   schedule,
   presentation,
   onClose,
@@ -92,6 +103,8 @@ export function DraftLook({
   day?: string;
   // Opened from the saved look's adjust disc: the AdjustSheet is up as it opens.
   sheet?: DraftSheet;
+  // Opened from Home's image stack (3k): image mode, Add a photo in focus (D19).
+  images?: 'add';
   // A saved look opened with the diary up (a draft just saved, `?schedule=1`).
   schedule?: boolean;
   presentation: DraftPresentation;
@@ -111,6 +124,7 @@ export function DraftLook({
     return (
       <NewDraft
         {...(pieceId ? { pieceId } : {})}
+        {...(day ? { day } : {})}
         presentation={presentation}
         onClose={onClose}
         onCreated={(made) => {
@@ -146,6 +160,7 @@ export function DraftLook({
       forDay={query.data.setId ? query.data.dateHint : (day ?? null)}
       {...(sheet ? { initialSheet: sheet } : {})}
       schedule={schedule === true}
+      {...(images ? { images } : {})}
       presentation={presentation}
       onClose={onClose}
     />
@@ -276,11 +291,14 @@ function PageShell({
 // go to Robes as a brief (the Lookbook's "Where to?", a set of suggestions).
 function NewDraft({
   pieceId,
+  day,
   presentation,
   onClose,
   onCreated,
 }: {
   pieceId?: string;
+  // Describe on Home (D22): the day the draft is for; Style it makes that day's one draft.
+  day?: string;
   presentation: DraftPresentation;
   onClose: () => void;
   onCreated: (look: Look) => void;
@@ -331,11 +349,41 @@ function NewDraft({
     start([filed]);
   });
   const reading = photo.filing.phase === 'uploading' || photo.filing.phase === 'reading';
+  // Words for a day make ONE draft for it (plan 2026-11-03), dressed in the job; the drawer
+  // carries on with it once the diary shows it. Without a day they deal suggestions (the deck).
+  const [weatherOff, setWeatherOff] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  const diary = useApi('today.get', undefined, {
+    enabled: waiting,
+    refetchInterval: waiting ? 2_000 : false,
+  });
+  const dayDraft = waiting
+    ? (diary.data?.diary?.days.find((x) => x.date === day)?.draft?.look ?? null)
+    : null;
+  useEffect(() => {
+    if (!dayDraft) return;
+    setWaiting(false);
+    onCreated(dayDraft);
+  });
   const generate = async () => {
     const words = prompt.trim();
     if (words.length < 2 || busy) return;
     setBusy(true);
     try {
+      if (day) {
+        const place = diary.data?.diary?.days.find((x) => x.date === day)?.place ?? null;
+        await api.call('looks.prompt', {
+          input: {
+            prompt: words,
+            date: day,
+            draft: true,
+            ...(place && !weatherOff ? { place } : {}),
+            ...(weatherOff ? { weather: false } : {}),
+          },
+        });
+        setWaiting(true);
+        return;
+      }
       const { jobId } = await api.call('looks.prompt', { input: { prompt: words } });
       router.replace(`/looks/style/${jobId}`);
     } catch (err) {
@@ -366,12 +414,20 @@ function NewDraft({
           </div>
         )}
         {reading ? <ReadingChip /> : null}
+        {waiting ? <Scanning line={d.dressing} corner /> : null}
       </div>
       <div className="flex flex-col gap-3 px-5 pt-3">
         <PieceList rows={0} onAdd={() => setPicker({ add: true })}>
           {null}
         </PieceList>
         <PromptCard
+          {...(day
+            ? {
+                context: (
+                  <DayContext date={day} weatherOff={weatherOff} onWeatherOff={setWeatherOff} />
+                ),
+              }
+            : {})}
           placeholder={copy.placeholder}
           value={prompt}
           onChange={setPrompt}
@@ -419,6 +475,7 @@ function DraftBody({
   look,
   forDay,
   initialSheet,
+  images,
   schedule,
   presentation,
   onClose,
@@ -426,6 +483,7 @@ function DraftBody({
   look: Look;
   forDay: string | null;
   initialSheet?: DraftSheet;
+  images?: 'add';
   schedule: boolean;
   presentation: DraftPresentation;
   onClose: () => void;
@@ -465,7 +523,9 @@ function DraftBody({
   useEffect(() => {
     if (schedule) window.history.replaceState(null, '', `/look/${look.id}`);
   }, [schedule, look.id]);
-  const [managing, setManaging] = useState(false);
+  // Image mode (D19): opened from Home's + it starts on Add a photo.
+  const [managing, setManaging] = useState(images === 'add');
+  const stack = useImageStage(look);
   const [confirm, setConfirm] = useState<'discard' | 'delete' | null>(null);
   const [prompt, setPrompt] = useState('');
   const rows = editor.rack.rows;
@@ -481,19 +541,24 @@ function DraftBody({
     else editor.add(filed);
   });
   const reading = photo.filing.phase === 'uploading' || photo.filing.phase === 'reading';
-  const busy = adjust.busy || save.isPending || editor.saving;
+  const busy = adjust.busy || save.isPending || editor.saving || stack.committing;
   const words = prompt.trim();
-  // A saved look's edit: anything not yet applied with Update look (D17, D18).
-  const pending = mode === 'edit' && (editor.dirty || adjust.stale || words.length > 0);
+  // A saved look's edit: anything not yet applied with Update look (D17, D18, D20).
+  const pending =
+    mode === 'edit' && (editor.dirty || adjust.stale || words.length > 0 || stack.changed);
   const canDone =
     mode === 'draft' ? (rows.length > 0 || look.image !== null) && !busy : !pending && !busy;
   // Update look: the rack written, then the picture drawn for it. Words still in the field go
   // through the thread first; the write waits for their answer to land on the rack.
   const [applying, setApplying] = useState<'asked' | 'reading' | null>(null);
-  const commit = () => {
-    void editor.update().then((ok) => {
-      if (ok) adjust.drawForSave();
-    });
+  // Her photographs and the cover first, then the rack; a redraw for changed pieces brings
+  // Robes' picture back in front (D19).
+  const commit = async () => {
+    if (!(await stack.commit())) return;
+    if (editor.dirty) {
+      if (!(await editor.update())) return;
+    } else toast({ message: lookbook.updated });
+    adjust.drawForSave();
   };
   const apply = () => {
     if (mode !== 'edit' || busy || !pending) return;
@@ -504,20 +569,24 @@ function DraftBody({
       return;
     }
     setPrompt('');
-    commit();
+    void commit();
   };
   useEffect(() => {
     if (applying === 'asked' && adjust.busy) setApplying('reading');
     if (applying === 'reading' && !adjust.busy) {
       setApplying(null);
-      commit();
+      void commit();
     }
   });
   const done = () => {
     if (!canDone) return;
     if (mode === 'draft') {
-      adjust.drawForSave();
-      save.mutate({ params: { id: look.id }, input: forDay ? { date: forDay } : {} });
+      // A draft's photographs are kept as it is saved.
+      void stack.commit().then((ok) => {
+        if (!ok) return;
+        adjust.drawForSave();
+        save.mutate({ params: { id: look.id }, input: forDay ? { date: forDay } : {} });
+      });
       return;
     }
     onClose();
@@ -534,6 +603,7 @@ function DraftBody({
     if (mode === 'edit') {
       setPrompt('');
       editor.discard();
+      stack.reset();
       onClose();
       return;
     }
@@ -658,7 +728,13 @@ function DraftBody({
       }
     >
       {managing ? (
-        <ImageManager look={look} onDone={() => setManaging(false)} />
+        <ImageManager
+          look={look}
+          stage={stack.stage}
+          onStage={stack.update}
+          onDone={() => setManaging(false)}
+          focusAdd={images === 'add'}
+        />
       ) : (
         <DraftPhoto
           look={look}
@@ -671,6 +747,7 @@ function DraftBody({
           pronoun={pronoun(model.data)}
           onAdjust={() => setSheet('adjust')}
           onImages={() => setManaging(true)}
+          stage={stack.stage}
           {...(presentation === 'saved' ? { onBack: close } : {})}
         />
       )}
@@ -927,6 +1004,7 @@ function DraftPhoto({
   pronoun,
   onAdjust,
   onImages,
+  stage,
   onBack,
 }: {
   look: Look;
@@ -939,9 +1017,13 @@ function DraftPhoto({
   pronoun: string;
   onAdjust: () => void;
   onImages: () => void;
+  // What she has done in image mode and not yet applied: its front card shows here.
+  stage: ImageStage;
   // The saved look's page (3e): the back disc top-left is the way out.
   onBack?: () => void;
 }) {
+  const base = lookStack(look);
+  const staged = stageChanged(base, stage) ? stageFront(base, stage) : null;
   const own = look.photo !== null && look.record === 'photo';
   const rendered = own
     ? look
@@ -965,7 +1047,13 @@ function DraftPhoto({
         className={`transition-[opacity,filter] duration-500 ${stale && !drawing ? 'opacity-80 grayscale-[.75]' : ''} ${drawing ? 'opacity-60' : ''}`}
         data-testid={stale && !drawing ? 'draft-picture-stale' : 'draft-picture'}
       >
-        {look.frame && !own ? (
+        {staged ? (
+          <CardPicture
+            look={look}
+            card={staged}
+            alt={staged.kind === 'robes' ? lookbook.savedLook.manager.robes : look.name}
+          />
+        ) : look.frame && !own ? (
           <LookPicture look={look} />
         ) : rendered ? (
           <LookImage look={rendered} priority sizes="(min-width: 448px) 448px, 100vw" />

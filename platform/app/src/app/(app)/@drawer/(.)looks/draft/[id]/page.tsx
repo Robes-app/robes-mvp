@@ -21,6 +21,7 @@ export default async function DraftDrawer({
       {...(search.pieceId ? { pieceId: search.pieceId } : {})}
       {...(search.day ? { day: search.day } : {})}
       {...(search.sheet ? { sheet: search.sheet } : {})}
+      {...(search.images ? { images: search.images } : {})}
       presentation="drawer"
     />
   );

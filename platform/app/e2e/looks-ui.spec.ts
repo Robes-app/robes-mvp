@@ -283,14 +283,14 @@ test('the draft: a swap lands behind Undo, and her photograph joins its image st
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(pieces).toEqual([ids[0]]);
 
-  // D13: the image stack badge opens the manager; Add a photo files her photograph behind Robes'
-  // picture, and the draft stays a draft.
+  // D19, D20: the image stack opens the manager; Add a photo lands in the frame at once, and a
+  // draft keeps it only as it is saved.
   await page.getByTestId('saved-look-stack').click();
   await expect(page.getByTestId('image-manager')).toBeVisible();
   await page.locator('input[type="file"][aria-label="Add a photo"]').setInputFiles(PHOTO);
-  await expect.poll(async () => (await read()).images.length, { timeout: 30_000 }).toBe(1);
+  await expect(page.getByTestId('image-card-added')).toBeInViewport({ timeout: 30_000 });
   await page.getByTestId('image-manager-done').click();
   await expect(page.getByText('Draft look')).toBeVisible();
-  expect((await read()).photo, 'her photograph is on the draft').not.toBeNull();
+  expect((await read()).images, 'held until the draft is saved').toEqual([]);
   expect(await seriousViolations(page), 'a draft with her photograph').toEqual([]);
 });

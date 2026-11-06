@@ -184,7 +184,7 @@ test('removing a look can be undone', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Weekend' })).toBeVisible();
 });
 
-test('the image stack (D13): a photograph joins behind Robes’ picture, a tap brings one to the front, Done keeps it', async ({
+test('the image stack (D19, D20): a photograph lands in focus, waits for Update look, and the card in front leads', async ({
   page,
 }) => {
   await signIn(page);
@@ -218,29 +218,34 @@ test('the image stack (D13): a photograph joins behind Robes’ picture, a tap b
   await page.getByTestId('saved-look-stack').click();
   const manager = page.getByTestId('image-manager');
   await expect(manager).toBeVisible();
+  // One card: the last one left has no ×.
+  await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
   await manager.locator('input[type="file"][aria-label="Add a photo"]').setInputFiles(PHOTO);
-  // The photograph joins behind Robes' picture; it can be removed, Robes' picture cannot.
-  await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(1, {
-    timeout: 30_000,
-  });
-  await expect
-    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).images.length)
-    .toBe(1);
-  // Bring her photograph to the front; Done keeps it as the record.
-  await manager.getByRole('button', { name: 'Photograph 1 leads the look' }).click();
+  // The photograph lands in the frame at once, and now each card has its × — Robes' picture too.
+  await expect(manager.getByTestId('image-card-added')).toBeInViewport({ timeout: 30_000 });
+  await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(2);
+  // Nothing is written until Update look (D20).
+  expect((await (await api.get(`/api/v1/looks/${look.id}`)).json()).images).toEqual([]);
+  // ✓ leaves the card in view in front; the photo shows it, and Update look keeps it.
   await page.getByTestId('image-manager-done').click();
   await expect(manager).toBeHidden();
+  await page.getByTestId('update-look').click();
   await expect
-    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).record)
-    .toBe('photo');
+    .poll(async () => {
+      const now = await (await api.get(`/api/v1/looks/${look.id}`)).json();
+      return [now.images.length, now.record];
+    })
+    .toEqual([1, 'photo']);
   await expect(page.getByTestId('saved-look-stack')).toContainText('1');
-  // Robes' picture back in front: her photograph stays in the stack.
+  // Hiding Robes' picture leaves her photograph as the only card: it keeps no ×.
   await page.getByTestId('saved-look-stack').click();
-  await manager.getByRole('button', { name: 'Robes’ picture leads the look' }).click();
+  await manager.getByRole('button', { name: 'Remove this image · Robes’ picture' }).click();
+  await expect(manager.getByRole('button', { name: /^Remove this image/ })).toHaveCount(0);
   await page.getByTestId('image-manager-done').click();
+  await page.getByTestId('update-look').click();
   await expect
-    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).record)
-    .toBe('model');
+    .poll(async () => (await (await api.get(`/api/v1/looks/${look.id}`)).json()).robesHidden)
+    .toBe(true);
   expect(await seriousViolations(page)).toEqual([]);
 });
 

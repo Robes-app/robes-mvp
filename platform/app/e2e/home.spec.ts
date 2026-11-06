@@ -4,7 +4,6 @@ import {
   declineConsent,
   explainError,
   isolateClientIp,
-  photographedPiece,
   seriousViolations,
   signIn,
   styledPiece,
@@ -230,9 +229,19 @@ test('an empty day: her model with Capture · Describe · Pick; the model stack 
   );
   expect(await seriousViolations(page), 'home, day one').toEqual([]);
 
-  // Describe puts her in the prompt box.
+  // Home holds no prompt box (3a, D22): Describe opens the Draft look drawer for the day, at
+  // rest (nothing focused), with the day's place chip in its prompt card. Closing it untouched
+  // leaves nothing behind.
+  await expect(page.getByTestId('prompt-box')).toHaveCount(0);
   await add.getByRole('button', { name: 'Describe a look for today' }).click();
-  await expect(page.getByPlaceholder('Plan an outfit for today')).toBeFocused();
+  await expect(page).toHaveURL(/\/looks\/draft\/new\?day=/);
+  const drawer = page.getByTestId('draft-look');
+  await expect(drawer.getByText('Draft look')).toBeVisible();
+  await expect(drawer.getByTestId('draft-prompt')).not.toBeFocused();
+  await expect(drawer.getByTestId('draft-context')).toBeVisible();
+  await drawer.getByRole('button', { name: 'Close' }).click();
+  await expect(drawer).toHaveCount(0);
+  expect((await (await api.get('/api/v1/looks?status=draft')).json()).items).toEqual([]);
 
   // On a Robes model, the stack opens Your model; a pick is remembered as a pick (D10).
   await add.getByRole('button', { name: 'Choose your model' }).click();
@@ -246,12 +255,11 @@ test('an empty day: her model with Capture · Describe · Pick; the model stack 
   expect(model.stand.on).toBe('robes');
 });
 
-test('the diary: the strip selects a day, the slot adds and changes its look, the box dresses it', async ({
+test('the diary: the strip selects a day, the slot adds and changes its look, Describe drafts it', async ({
   page,
 }) => {
   // The day flows, then a generation: more than the default budget.
   test.setTimeout(120_000);
-  const errors = watchErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);
   await declineConsent(page);
@@ -299,12 +307,11 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await page.getByTestId('draft-done').click();
   await expect(page.getByTestId('draft-look')).toHaveCount(0);
 
-  // Tomorrow: empty, the box names the day; yesterday: no box at all, the tile logs a wear.
+  // Tomorrow: empty, Describe is there; yesterday: no Describe, the tile logs a wear.
   await page.getByTestId(`diary-day-${tomorrow}`).click();
   await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'empty');
-  await expect(page.getByPlaceholder(/^Plan an outfit for \w+day$/)).toBeVisible();
+  await expect(page.getByTestId('disc-describe')).toBeVisible();
   await page.getByTestId(`diary-day-${yesterday}`).click();
-  await expect(page.getByTestId('prompt-box')).toHaveCount(0);
   await expect(page.getByTestId('disc-describe')).toHaveCount(0);
   await page.getByRole('button', { name: /^Pick a look for \w+day$/ }).click();
   const past = page.getByRole('dialog', { name: 'What did you wear?' });
@@ -324,27 +331,13 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByTestId('ootd-card')).toContainText('Office');
 
-  // Back to today: her words make ONE draft for the day, dressing in the slot (plan 2026-11-03);
-  // the box holds the thread meanwhile and never leaves home.
+  // Back to today: Describe, and her words make ONE draft for the day (plan 2026-11-03, D22);
+  // the drawer carries on with it once it is made.
   await page.getByTestId(`diary-day-${date}`).click();
-  const box = page.getByPlaceholder('Plan an outfit for today');
-  await box.fill('Dinner with friends');
-  await page.getByTestId('prompt-send').click();
-  await expect(page).toHaveURL(/\/(\?day=.*)?$/);
-  await expect(page.getByTestId('prompt-box')).toContainText('Dinner with friends');
-  await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
-  await draftLanded(page, date);
-  const tile = await pollUntil(
-    () => slotReport(page, errors),
-    (v) => v.includes('tile=ready'),
-    30_000,
-  );
-  expect(tile, tile).toContain('tile=ready');
-  await expect(page.getByTestId('prompt-box')).toContainText('Here’s a first look');
-  // Her words adjust the draft from the box; View draft opens its drawer over the day (D14).
-  await expect(page.getByRole('button', { name: 'Dress it again' })).toBeVisible();
-  await page.getByRole('button', { name: 'View draft' }).click();
-  await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/);
+  await page.getByTestId('disc-describe').click();
+  await page.getByTestId('draft-prompt').fill('Dinner with friends');
+  await page.getByTestId('draft-generate').click();
+  await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
   await expect(page.getByTestId('draft-look')).toBeVisible();
   await expect(page.getByText('Draft look')).toBeVisible();
   // The done disc saves and pins it to the day in the same act: home shows it as the day's card.
@@ -354,21 +347,23 @@ test('the diary: the strip selects a day, the slot adds and changes its look, th
   await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'look');
 });
 
-test('the home box: words become one draft in the slot; the hanger builds it around her pieces', async ({
+test('Describe: her words become the day’s one draft, which dresses in the slot', async ({
   page,
 }) => {
-  // Two generations and a photographed piece: more than the default budget.
+  // Two generations: more than the default budget.
   test.setTimeout(150_000);
   const errors = watchErrors(page);
   await signIn(page);
   await declineConsent(page);
 
-  // Her words make a draft for the day, dressing in the slot; the box holds the thread.
-  const { date, diary } = await (await page.request.get('/api/v1/today')).json();
-  const tomorrow: string = diary.days[11].date;
-  const box = page.getByPlaceholder('Plan an outfit for today');
-  await box.fill('Something easy for the gallery');
-  await box.press('Enter');
+  // Her words in the drawer make a draft for the day; closed, it dresses in the slot.
+  const { date } = await (await page.request.get('/api/v1/today')).json();
+  await page.getByTestId('disc-describe').click();
+  await page.getByTestId('draft-prompt').fill('Something easy for the gallery');
+  await page.getByTestId('draft-generate').click();
+  await expect(page).toHaveURL(/\/looks\/draft\/[0-9a-f-]{36}\?day=/, { timeout: 30_000 });
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Keep for later' }).click();
   await expect(page.getByTestId('draft-tile')).toBeVisible({ timeout: 30_000 });
   await draftLanded(page, date);
   const tile = await pollUntil(
@@ -384,36 +379,4 @@ test('the home box: words become one draft in the slot; the hanger builds it aro
   await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'ready', {
     timeout: 60_000,
   });
-
-  // Today's box is the draft's thread now (design 3b): no hanger until she saves or lets it go.
-  await expect(page.getByTestId('prompt-box')).toHaveAttribute('data-state', 'live');
-  await expect(page.getByTestId('hanger')).toHaveCount(0);
-
-  // The hanger (design 3k), on tomorrow's empty day: pieces of hers become tokens the ask is
-  // built around.
-  const pieceId = await photographedPiece(page, 'Camel coat');
-  await page.reload();
-  await page.getByTestId(`diary-day-${tomorrow}`).click();
-  await expect(page.getByTestId('day-slot')).toHaveAttribute('data-state', 'empty');
-  await page.getByTestId('hanger').click();
-  const flyout = page.getByTestId('wardrobe-picker');
-  // The foot sits in the sheet's footer, beside the picker's list.
-  await expect(page.getByTestId('flyout-idle')).toHaveText('Tap pieces to add them');
-  await flyout.getByRole('button', { name: 'Include Camel coat' }).click();
-  await page.getByRole('button', { name: 'Include 1 Piece' }).click();
-  await expect(page.getByTestId(`piece-token-${pieceId}`)).toContainText('Camel coat');
-  await expect(page.getByRole('button', { name: '1 piece to build around' })).toBeVisible();
-  // A piece is an ask on its own; she has filed pieces, so the box asks where they come from.
-  await page.getByTestId('prompt-send').click();
-  await expect(page.getByText('Where should the pieces in your look come from?')).toBeVisible();
-  await page.getByPlaceholder('Or say it your way').fill('Suggest new pieces');
-  await page.getByPlaceholder('Or say it your way').press('Enter');
-  // One draft tile dresses in tomorrow's slot; today keeps its own.
-  await expect(page.getByTestId('draft-tile')).toHaveAttribute('data-state', 'generating', {
-    timeout: 30_000,
-  });
-  await expect(page.getByTestId('draft-tile')).toHaveCount(1);
-  await page.getByTestId(`diary-day-${date}`).click();
-  await expect(page.getByTestId('draft-tile')).toHaveCount(1);
-  await expect(page.getByTestId('prompt-box')).toHaveAttribute('data-state', 'live');
 });

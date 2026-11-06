@@ -5,6 +5,7 @@ import { dayMonth, lookDateName, weekdayLong } from '../calendar';
 
 export * from './adjust';
 export * from './draft';
+export * from './images';
 
 export const LOOK_STATUSES = ['suggested', 'draft', 'saved'] as const;
 export type LookStatus = (typeof LOOK_STATUSES)[number];

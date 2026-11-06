@@ -11,12 +11,14 @@ export function DraftRoute({
   pieceId,
   day,
   sheet,
+  images,
   presentation,
 }: {
   id: string;
   pieceId?: string;
   day?: string;
   sheet?: DraftSheet;
+  images?: 'add';
   presentation: DraftPresentation;
 }) {
   const router = useRouter();
@@ -30,6 +32,7 @@ export function DraftRoute({
       {...(pieceId ? { pieceId } : {})}
       {...(day ? { day } : {})}
       {...(sheet ? { sheet } : {})}
+      {...(images ? { images } : {})}
       presentation={presentation}
       onClose={onClose}
     />

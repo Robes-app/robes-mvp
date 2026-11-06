@@ -1,58 +1,95 @@
-import { queryKeys, useApiClient, useApiMutation } from '@robes/api-client/react';
-import type { Look } from '@robes/contracts';
+import { useApiClient } from '@robes/api-client/react';
+import { type Look, lookStack } from '@robes/contracts';
 import { errors, lookbook, wardrobe } from '@robes/copy';
+import {
+  canRemoveCard,
+  type ImageStage,
+  type StageCard,
+  sameCard,
+  stageAdd,
+  stageCards,
+  stageFront,
+  stageInFront,
+  stageRemove,
+} from '@robes/core/looks';
 import { Icon } from '@robes/icons/native';
 import { shadowNative } from '@robes/tokens';
 import { Image, Sheet, Text, useColor, useToast } from '@robes/ui-native';
-import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
-import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  type ScrollViewInstance,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { PICKER_OPTIONS, uploadPhoto } from '@/features/wardrobe/add-pieces';
 import { SettingsRow } from '@/features/you/Settings';
 import { renditionUri } from '@/lib/images';
+import { LookPicture } from './LookPicture';
+import { localPhoto, rememberLocalPhoto, type StageUpdate } from './look-images';
 
 const copy = lookbook.savedLook.manager;
-type Card = { kind: 'robes' } | { kind: 'photo'; id: string };
 
-// Felix's ImageManager (D13): the look's pictures as a swipeable strip of cards in the photo's
-// frame, opened from the image-stack badge. Robes' picture leads the strip and can only be
-// redrawn; her photographs follow, each with its ×; the last card adds one. A tap picks the card
-// that leads the look, and Done keeps it (`looks.images.cover`). Web twin:
-// app/src/components/looks/image-manager.tsx.
-export function ImageManager({ look, onDone }: { look: Look; onDone: () => void }) {
+// Felix's ImageManager (D19, D20): the look's pictures as a swipeable strip of cards in the
+// photo's frame, opened from the image stack. Robes' picture leads (unless she hid it), then her
+// photographs, then the Add a photo card. A photo she picks uploads at once and lands in the
+// frame, in focus; every card has its × but the last one left. ✓ leaves the card in view in
+// front. Nothing is written here: the owner holds the stage until Update look. Opened from Home's
+// stack, the Add a photo card is in focus. Web twin: app/src/components/looks/image-manager.tsx.
+export function ImageManager({
+  look,
+  stage,
+  onStage,
+  onDone,
+  focusAdd = false,
+}: {
+  look: Look;
+  stage: ImageStage;
+  onStage: StageUpdate;
+  onDone: () => void;
+  focusAdd?: boolean;
+}) {
   const api = useApiClient();
   const toast = useToast();
-  const queryClient = useQueryClient();
   const { width } = useWindowDimensions();
   const ink = useColor('ink');
   const bg = useColor('bg');
   const muted = useColor('ink-muted');
-  const key = queryKeys.call('looks.get', { params: { id: look.id } });
+  const strip = useRef<ScrollViewInstance>(null);
+  const inView = useRef(0);
   const [choosing, setChoosing] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const landed = (updated: Look) => {
-    queryClient.setQueryData(key, updated);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
+  const base = lookStack(look);
+  const cards = stageCards(base, stage);
+  const removable = canRemoveCard(base, stage);
+  // Cards are full width inside 40pt side padding, 10pt apart, snapping to centre.
+  const cardWidth = width - 80;
+  const step = cardWidth + 10;
+  const show = (index: number, animated: boolean) => {
+    strip.current?.scrollTo({ x: index * step, animated });
+    inView.current = index;
   };
-  const onError = () => toast.show({ message: errors.internal });
-  const add = useApiMutation('looks.images.add', { onSuccess: landed, onError });
-  const remove = useApiMutation('looks.images.remove', { onSuccess: landed, onError });
-  const cover = useApiMutation('looks.images.cover', { onSuccess: landed, onError });
-  const current: Card =
-    look.record === 'photo' && look.images[0]
-      ? { kind: 'photo', id: look.images[0].id }
-      : { kind: 'robes' };
-  const [lead, setLead] = useState<Card>(current);
-  const same = (a: Card, b: Card) =>
-    a.kind === b.kind && (a.kind !== 'photo' || b.kind !== 'photo' || a.id === b.id);
+  // As it opens: the Add a photo card (Home's +), else the card in front.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, as the strip opens
+  useEffect(() => {
+    const front = stageFront(base, stage);
+    const at = front ? cards.findIndex((c) => sameCard(c, front)) : 0;
+    requestAnimationFrame(() => show(focusAdd ? cards.length : Math.max(0, at), false));
+  }, []);
+  // A photograph she just added comes into the frame.
+  const added = stage.added.length;
+  const lastAdded = useRef(added);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: follows the count of added photos
+  useEffect(() => {
+    if (added > lastAdded.current) requestAnimationFrame(() => show(cards.length - 1, true));
+    lastAdded.current = added;
+  }, [added]);
+
   const finish = () => {
-    if (!same(lead, current)) {
-      cover.mutate({
-        params: { id: look.id },
-        input: { imageId: lead.kind === 'photo' ? lead.id : null },
-      });
-    }
+    const card = cards[inView.current];
+    if (card) onStage((s) => stageInFront(s, card));
     onDone();
   };
   const take = async (from: 'camera' | 'library') => {
@@ -70,18 +107,15 @@ export function ImageManager({ look, onDone }: { look: Look; onDone: () => void 
     setUploading(true);
     try {
       const assetId = await uploadPhoto(api, photo, 'look_photo');
-      add.mutate({ params: { id: look.id }, input: { assetId } });
+      rememberLocalPhoto(assetId, photo.uri);
+      onStage((s) => stageAdd(s, assetId));
     } catch {
-      onError();
+      toast.show({ message: errors.internal });
     } finally {
       setUploading(false);
     }
   };
-  // Cards are full width inside 40pt side padding, 10pt apart, snapping to centre.
-  const cardWidth = width - 80;
-  const ring = (on: boolean) => (on ? { borderWidth: 1.5, borderColor: ink } : {});
-  const robes = look.model;
-  const robesUri = renditionUri(robes, cardWidth);
+  let photoNo = 0;
   return (
     <View
       accessibilityLabel={copy.title}
@@ -90,69 +124,49 @@ export function ImageManager({ look, onDone }: { look: Look; onDone: () => void 
       style={{ aspectRatio: 4 / 5 }}
     >
       <ScrollView
+        ref={strip}
         horizontal
         pagingEnabled={false}
-        snapToInterval={cardWidth + 10}
+        snapToInterval={step}
         snapToAlignment="center"
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => {
+          inView.current = Math.round(e.nativeEvent.contentOffset.x / step);
+        }}
         contentContainerStyle={{ paddingHorizontal: 40, gap: 10, alignItems: 'center' }}
         className="flex-1"
       >
-        {robes && robesUri ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.lead(copy.robes)}
-            accessibilityState={{ selected: lead.kind === 'robes' }}
-            onPress={() => setLead({ kind: 'robes' })}
-            className="overflow-hidden rounded-tile bg-surface-sunk"
-            style={[{ width: cardWidth }, ring(lead.kind === 'robes'), shadowNative.float]}
-          >
-            <Image source={robesUri} alt={copy.robes} blurhash={robes.blurhash} />
-          </Pressable>
-        ) : null}
-        {look.images.map((img, i) => {
-          const on = lead.kind === 'photo' && lead.id === img.id;
-          const uri = renditionUri(img.image, cardWidth);
+        {cards.map((card) => {
+          const label = card.kind === 'robes' ? copy.robes : copy.photo(++photoNo);
           return (
             <View
-              key={img.id}
+              key={card.kind === 'robes' ? 'robes' : card.kind === 'photo' ? card.id : card.assetId}
+              accessibilityLabel={label}
+              testID={`image-card-${card.kind}`}
               className="overflow-hidden rounded-tile bg-surface-sunk"
-              style={[{ width: cardWidth }, ring(on), shadowNative.float]}
+              style={[{ width: cardWidth }, shadowNative.float]}
             >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={copy.lead(copy.photo(i + 1))}
-                accessibilityState={{ selected: on }}
-                onPress={() => setLead({ kind: 'photo', id: img.id })}
-              >
-                {uri ? (
-                  <Image source={uri} alt={copy.photo(i + 1)} blurhash={img.image.blurhash} />
-                ) : (
-                  <View style={{ aspectRatio: 4 / 5 }} />
-                )}
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${copy.remove} · ${copy.photo(i + 1)}`}
-                disabled={remove.isPending}
-                hitSlop={8}
-                onPress={() => {
-                  if (on) setLead({ kind: 'robes' });
-                  remove.mutate({ params: { id: look.id, imageId: img.id } });
-                }}
-                className="absolute items-center justify-center rounded-pill bg-veil-mid"
-                style={{ top: 10, right: 10, width: 28, height: 28 }}
-              >
-                <Icon name="close" size={12} color={muted} />
-              </Pressable>
+              <CardPicture look={look} card={card} alt={label} width={cardWidth} />
+              {removable ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${copy.remove} · ${label}`}
+                  hitSlop={8}
+                  onPress={() => onStage((s) => stageRemove(base, s, card))}
+                  className="absolute items-center justify-center rounded-pill bg-veil-mid"
+                  style={{ top: 10, right: 10, width: 28, height: 28 }}
+                >
+                  <Icon name="close" size={12} color={muted} />
+                </Pressable>
+              ) : null}
             </View>
           );
         })}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={copy.add}
-          disabled={uploading || add.isPending}
+          disabled={uploading}
           onPress={() => setChoosing(true)}
           className="items-center justify-center gap-2.5 rounded-tile border-border-control bg-bg"
           style={{
@@ -160,7 +174,7 @@ export function ImageManager({ look, onDone }: { look: Look; onDone: () => void 
             aspectRatio: 4 / 5,
             borderWidth: 1,
             borderStyle: 'dashed',
-            opacity: uploading || add.isPending ? 0.6 : 1,
+            opacity: uploading ? 0.6 : 1,
           }}
         >
           <View
@@ -195,5 +209,40 @@ export function ImageManager({ look, onDone }: { look: Look; onDone: () => void 
         </View>
       </Sheet>
     </View>
+  );
+}
+
+// One card's picture: Robes' frame or render, her photograph, or the one she just picked (shown
+// from the file in hand while its renditions are made).
+export function CardPicture({
+  look,
+  card,
+  alt,
+  width,
+}: {
+  look: Look;
+  card: StageCard;
+  alt: string;
+  width: number;
+}) {
+  if (card.kind === 'robes') {
+    if (look.frame) return <LookPicture look={look} />;
+    const uri = renditionUri(look.model, width);
+    return uri ? (
+      <Image source={uri} alt={alt} blurhash={look.model?.blurhash ?? null} />
+    ) : (
+      <View style={{ aspectRatio: 4 / 5 }} />
+    );
+  }
+  if (card.kind === 'added') {
+    const uri = localPhoto(card.assetId);
+    return uri ? <Image source={uri} alt={alt} /> : <View style={{ aspectRatio: 4 / 5 }} />;
+  }
+  const img = look.images.find((i) => i.id === card.id)?.image ?? null;
+  const uri = renditionUri(img, width);
+  return uri ? (
+    <Image source={uri} alt={alt} blurhash={img?.blurhash ?? null} />
+  ) : (
+    <View style={{ aspectRatio: 4 / 5 }} />
   );
 }
