@@ -18,7 +18,7 @@ const cn = (...parts: Array<string | false | null | undefined>): string =>
 // Selected is the warm fill with its edge, never black; unselected is white on a hairline.
 const choice = (on: boolean) =>
   cn(
-    'border motion-safe:transition-colors motion-safe:duration-[250ms] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
+    'border motion-safe:transition-colors motion-safe:duration-[250ms] focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
     on ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised',
   );
 

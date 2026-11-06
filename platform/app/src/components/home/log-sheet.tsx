@@ -11,7 +11,7 @@ import { setPendingPhoto } from '@/lib/pending-photo';
 import { PHOTO_ACCEPT } from '@/lib/upload';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const row =
   'flex min-h-14 w-full items-center gap-3.5 border-t border-hairline px-1 text-left font-sans text-[13px] text-ink';
 const disc =
@@ -57,7 +57,7 @@ export function LogSheet({
         </button>
         <label
           htmlFor={inputId}
-          className={`${row} cursor-pointer border-b focus-within:outline-2 focus-within:outline-focus-ring`}
+          className={`${row} cursor-pointer border-b focus-within:outline-[1.5px] focus-within:outline-focus-ring`}
           data-testid="log-capture"
         >
           <input

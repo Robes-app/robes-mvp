@@ -21,6 +21,9 @@ export const fonts = {
 } as const;
 
 export const HEADING_MIN_SIZE = 17;
+// Felix's fine edge: 0.5pt `rule-mid` on cards, lists, outline buttons and unselected pills. As a
+// style prop, since a 0.5pt width is not a class Uniwind is sure to draw.
+export const FINE_EDGE = 0.5;
 export const MIN_TOUCH = 44;
 // A toast with an action (Undo) stays at least this long; a plain one leaves after the default.
 // Twin of web toast.tsx ACTION_MIN_DURATION / DEFAULT_DURATION.

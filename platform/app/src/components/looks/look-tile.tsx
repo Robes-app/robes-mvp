@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { LookImage } from './look-image';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 export interface LookTileProps {
   look: Look;

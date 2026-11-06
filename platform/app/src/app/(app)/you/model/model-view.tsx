@@ -23,7 +23,7 @@ import {
 const copy = you.model;
 const tw = twin.twinPage;
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // You › Your digital twin (legacy 2026-10-20 redline 3a; plan 2026-11-05 §1.4–1.5; redlines
 // R1–R11, R15–R18 of 2026-11-05). On a Robes model (3c): its portrait as the hero, Add a selfie

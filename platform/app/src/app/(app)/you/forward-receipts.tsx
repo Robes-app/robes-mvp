@@ -70,7 +70,7 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
             <button
               type="button"
               onClick={() => void copyAddress(value)}
-              className="relative inline-flex h-9 items-center gap-1.5 self-start rounded-pill border border-rule-mid bg-surface-raised px-4 font-sans text-ink text-xs after:absolute after:-inset-y-1 after:inset-x-0 hover:border-border-control focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+              className="relative inline-flex h-9 items-center gap-1.5 self-start rounded-pill border border-rule-mid bg-surface-raised px-4 font-sans text-ink text-xs after:absolute after:-inset-y-1 after:inset-x-0 hover:border-border-control focus-visible:outline-[1.5px] focus-visible:outline-focus-ring focus-visible:outline-offset-2"
             >
               <Icon name={copied ? 'check' : 'link'} size={14} />
               <span aria-live="polite">{copied ? copy.copied : copy.copy}</span>

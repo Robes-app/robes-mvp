@@ -8,7 +8,7 @@ import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import type { Adjust } from '@/lib/adjust';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const d = copy.draft;
 
 // The breathing sparkle that heads a work line (Robes at work).

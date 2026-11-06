@@ -6,7 +6,7 @@ import { diaryPages, weekdayLong, weekdayShort } from '@robes/core/calendar';
 import { useLayoutEffect, useRef } from 'react';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The strip (Front Door design 3k, plan 2026-11-02 §1.4): a pager of seven-day pages, today's page
 // centred so three days either side show; swipe for the week before and after. A cell carries one

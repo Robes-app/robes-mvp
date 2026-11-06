@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const copy = diary.place;
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The places she picked lately, newest first, kept for the session (design 3k's "Home and recent").
 const recent: PlaceHit[] = [];

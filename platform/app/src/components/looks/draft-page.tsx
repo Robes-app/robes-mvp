@@ -37,7 +37,7 @@ import { SwapSheet } from './swap-sheet';
 import { lookTags, TagsSheet } from './tags-sheet';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const d = copy.draft;
 
 const draftsFull = (err: unknown): boolean =>

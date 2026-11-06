@@ -4,6 +4,7 @@ import { type AccessibilityState, type GestureResponderEvent, Pressable, View } 
 import { cx } from './cx';
 import { ASPECTS, type Aspect } from './Image';
 import { Skeleton } from './Skeleton';
+import { FINE_EDGE } from './scale';
 
 export interface CardProps {
   children: ReactNode;
@@ -16,8 +17,9 @@ export interface CardProps {
   testID?: string;
 }
 
-// Beta's white card on a hairline: raised off the cream page, never a beige panel.
-const base = 'overflow-hidden rounded-soft border border-hairline bg-surface-raised';
+// Felix's white card on the fine `rule-mid` edge, raised off the cream page; never a beige panel.
+const base = 'overflow-hidden rounded-soft border-rule-mid bg-surface-raised';
+const edge = { borderWidth: FINE_EDGE } as const;
 
 export function Card({
   children,
@@ -30,7 +32,7 @@ export function Card({
 }: CardProps) {
   if (!onPress) {
     return (
-      <View testID={testID} className={cx(base, className)}>
+      <View testID={testID} className={cx(base, className)} style={edge}>
         {children}
       </View>
     );
@@ -44,6 +46,7 @@ export function Card({
       onPress={onPress}
       testID={testID}
       className={cx(base, className)}
+      style={edge}
     >
       {children}
     </Pressable>
@@ -69,6 +72,7 @@ export function CardSkeleton({
       accessibilityLabel={ui.loading}
       accessibilityState={{ busy: true }}
       className={cx(base, className)}
+      style={edge}
     >
       <Skeleton aspectRatio={ASPECTS[aspect]} className="rounded-none" />
       <View className="gap-2 p-3">

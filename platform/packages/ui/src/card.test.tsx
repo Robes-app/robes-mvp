@@ -7,7 +7,7 @@ describe('Card', () => {
   it('renders eyebrow, title and meta with a hairline and no shadow', () => {
     render(<Card eyebrow="Key piece" title="Linen shirt" meta="Worn twice" />);
     const card = screen.getByRole('article');
-    expect(card).toHaveClass('border-hairline');
+    expect(card).toHaveClass('border-[0.5px]', 'border-rule-mid');
     expect(card.className).not.toMatch(/shadow/);
     expect(screen.getByRole('heading', { name: 'Linen shirt' })).toBeInTheDocument();
     expect(screen.getByText('Worn twice')).toBeInTheDocument();

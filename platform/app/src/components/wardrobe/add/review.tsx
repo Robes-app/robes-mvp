@@ -370,7 +370,7 @@ export function Review({
               aria-current={e.key === cur.key ? 'true' : undefined}
               disabled={e.answer !== 'pending'}
               onClick={() => setCurrent(e.key)}
-              className={`shrink-0 rounded-crisp border p-[2px] focus-visible:outline-2 focus-visible:outline-focus-ring ${e.key === cur.key ? 'border-selected-line' : 'border-transparent'} ${e.answer === 'pending' ? '' : 'opacity-40'}`}
+              className={`shrink-0 rounded-crisp border p-[2px] focus-visible:outline-[1.5px] focus-visible:outline-focus-ring ${e.key === cur.key ? 'border-selected-line' : 'border-transparent'} ${e.answer === 'pending' ? '' : 'opacity-40'}`}
             >
               {e.found.kind === 'read' ? (
                 <CropThumb
@@ -409,7 +409,7 @@ export function Review({
           <button
             type="button"
             onClick={onRetake}
-            className="absolute top-3 right-3 inline-flex min-h-11 items-center rounded-pill bg-bg px-4 font-sans text-ink text-sm focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="absolute top-3 right-3 inline-flex min-h-11 items-center rounded-pill bg-bg px-4 font-sans text-ink text-sm focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
           >
             {copy.review.retake}
           </button>

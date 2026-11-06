@@ -314,7 +314,7 @@ function WayCard({
             type="button"
             onClick={onOpen}
             aria-label={kp.open(way.title)}
-            className="text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            className="text-left focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             {way.title}
           </button>

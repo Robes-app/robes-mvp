@@ -125,7 +125,7 @@ export function LookFromPhoto({ day = null }: { day?: string | null } = {}) {
         </Text>
         <label
           htmlFor={inputId}
-          className="inline-flex min-h-11 w-fit cursor-pointer items-center gap-2 rounded-pill border border-border-control px-6 font-medium font-sans text-ink text-sm hover:border-ink focus-within:outline-2 focus-within:outline-focus-ring focus-within:outline-offset-2"
+          className="inline-flex min-h-11 w-fit cursor-pointer items-center gap-2 rounded-pill border border-border-control px-6 font-medium font-sans text-ink text-sm hover:border-ink focus-within:outline-[1.5px] focus-within:outline-focus-ring focus-within:outline-offset-2"
         >
           <Icon name="camera" size={16} />
           {copy.start.action}
@@ -492,7 +492,7 @@ function FindIt({
               type="button"
               aria-pressed={chosen === p.id}
               onClick={() => setChosen(p.id)}
-              className={`flex w-full flex-col gap-1 rounded-crisp p-1 text-left outline-offset-2 focus-visible:outline-2 focus-visible:outline-focus-ring ${chosen === p.id ? 'outline-2 outline-ink' : ''}`}
+              className={`flex w-full flex-col gap-1 rounded-crisp p-1 text-left outline-offset-2 focus-visible:outline-[1.5px] focus-visible:outline-focus-ring ${chosen === p.id ? 'outline-2 outline-ink' : ''}`}
             >
               <PieceImage piece={p} sizes="120px" />
               <Text as="span" size="small">

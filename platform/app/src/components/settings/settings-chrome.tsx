@@ -10,7 +10,7 @@ import type { ReactNode } from 'react';
 // The app shell stands down on /you (isSettingsPath). Native twin: components/StackScreen.tsx.
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 export function SettingsHeader({ title, back }: { title: string; back: string }) {
   return (

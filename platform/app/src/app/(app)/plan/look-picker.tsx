@@ -17,7 +17,7 @@ import { errorCopy } from '@/lib/error-copy';
 const BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type Band = (typeof BANDS)[number];
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The drawer (design 3k, plan §1.7): her saved looks for a day, the day's own looks ticked as
 // Scheduled. From Pick Look (`add`) she ticks one or several; from the lookbook icon on the OOTD

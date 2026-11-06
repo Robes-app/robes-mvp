@@ -140,6 +140,14 @@ describe('EmptyState', () => {
 });
 
 describe('Avatar', () => {
+  test('the top bar avatar is a 30pt sage disc with one initial', async () => {
+    await render(<Avatar name="Annie Slattery" tone="nav" size="lg" />);
+    const disc = screen.getByRole('image', { name: 'Annie Slattery' });
+    expect(disc.props.style).toMatchObject({ width: 30, height: 30 });
+    expect(disc.props.className).toContain('bg-sage-mid');
+    expect(screen.getByText('A')).toBeTruthy();
+  });
+
   test('falls back to initials and is labelled with her name', async () => {
     await render(<Avatar name="Niall Byrne" />);
     expect(screen.getByRole('image', { name: 'Niall Byrne' })).toBeTruthy();

@@ -14,7 +14,7 @@ import { PHOTO_ACCEPT } from '@/lib/upload';
 
 const copy = diary.flyout;
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 const inCategory = (p: Piece, c: string) => sheetCategoryOf(p) === c || p.category === c;
 

@@ -131,7 +131,7 @@ function Frame({
               <button
                 type="button"
                 aria-label={ui.close}
-                className="-my-3 mx-auto flex h-9 w-24 shrink-0 items-center justify-center focus-visible:outline-2 focus-visible:outline-focus-ring"
+                className="-my-3 mx-auto flex h-9 w-24 shrink-0 items-center justify-center focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
               >
                 <span aria-hidden className="h-1 w-9 rounded-pill bg-rule-mid" />
               </button>
@@ -151,18 +151,18 @@ function Frame({
           {footer ? <div className="flex flex-col gap-3">{footer}</div> : null}
           {/* Last in DOM order so opening focuses the content, not the close button. */}
           {floating ? null : (
-            <RadixDialog.Close asChild>
-              {closeLabel ? (
-                <button
-                  type="button"
-                  className={cn(buttonClasses({ variant: 'quiet' }), 'absolute top-3 right-3')}
-                >
-                  {closeLabel}
-                </button>
-              ) : (
-                <IconButton icon="close" label={ui.close} className="absolute top-3 right-3" />
-              )}
-            </RadixDialog.Close>
+            // The corner is held by a wrapper: a quiet button is `relative` (its hit ring).
+            <div className="absolute top-3 right-3">
+              <RadixDialog.Close asChild>
+                {closeLabel ? (
+                  <button type="button" className={buttonClasses({ variant: 'quiet' })}>
+                    {closeLabel}
+                  </button>
+                ) : (
+                  <IconButton icon="close" label={ui.close} />
+                )}
+              </RadixDialog.Close>
+            </div>
           )}
         </PrimaryScope>
       </RadixDialog.Content>

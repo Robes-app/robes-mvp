@@ -30,7 +30,7 @@ import { LookPicker } from '../look-picker';
 import { withoutEntry } from '../plan-cache';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The day page (Front Door design 3k, plan 2026-11-02 §1.10): the date as a rose eyebrow, her
 // name for the day, the day's weather, then every look on it — the OOTD starred, the others a

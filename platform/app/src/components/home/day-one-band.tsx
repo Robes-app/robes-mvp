@@ -16,7 +16,7 @@ import { useSelfie } from '@/lib/use-selfie';
 
 const copy = diary.dayOne;
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const tile =
   'flex h-[132px] w-[104px] shrink-0 flex-col items-center justify-center gap-2 rounded-soft border border-dashed border-selected-line bg-surface text-center';
 const eyebrow = 'flex-1 font-sans text-[10px] font-normal uppercase tracking-[0.26em] text-ink';

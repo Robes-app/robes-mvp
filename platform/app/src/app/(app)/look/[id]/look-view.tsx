@@ -135,7 +135,7 @@ function LookBody({ look }: { look: Look }) {
                 actions.remove.mutate({ params: { id: look.id } });
                 router.push('/looks');
               }}
-              className="min-h-11 self-start font-sans text-danger text-sm underline underline-offset-4 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-focus-ring"
+              className="min-h-11 self-start font-sans text-danger text-sm underline underline-offset-4 hover:opacity-80 focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
             >
               {copy.remove}
             </button>

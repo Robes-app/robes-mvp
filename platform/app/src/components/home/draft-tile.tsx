@@ -14,7 +14,7 @@ import { ScanLine } from '@/components/looks/scan-line';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const d = lookbook.draft;
 
 // The draft tile in the day's slot (Front Door design 3b, plan 2026-11-03 §1.2): where Add look

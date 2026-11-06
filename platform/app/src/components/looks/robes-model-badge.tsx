@@ -14,7 +14,7 @@ import {
 import { useSelfie } from '@/lib/use-selfie';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 // The sheet's two rows (redlines 2026-11-05): equal, boxed, transparent, the serif title.
 const row = `flex min-h-[62px] w-full items-center gap-3.5 rounded-soft px-4 py-3 text-left font-display text-ink text-lg leading-tight ${focus}`;
 

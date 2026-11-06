@@ -83,7 +83,7 @@ function Receipt({ entry, more }: { entry: InboxEntry; more: number }) {
                 type="button"
                 aria-pressed={on}
                 onClick={() => setKeep((k) => toggleKept(k, item.index))}
-                className={`flex min-h-14 w-full items-center gap-3 rounded-soft border px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${on ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised hover:border-border-control'}`}
+                className={`flex min-h-14 w-full items-center gap-3 rounded-soft border px-4 py-3 text-left focus-visible:outline-[1.5px] focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${on ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised hover:border-border-control'}`}
               >
                 <span className="flex min-w-0 flex-1 flex-col">
                   <Text>{item.label}</Text>

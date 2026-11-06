@@ -86,7 +86,7 @@ export function PieceRow({
     <button
       type="button"
       onClick={onClick}
-      className={`${shell} hover:bg-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring`}
+      className={`${shell} hover:bg-bg focus-visible:outline-[1.5px] focus-visible:-outline-offset-2 focus-visible:outline-focus-ring`}
     >
       {body}
     </button>

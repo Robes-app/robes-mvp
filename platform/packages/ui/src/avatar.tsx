@@ -17,9 +17,10 @@ export function initials(name: string): string {
 }
 
 const tones = {
-  filled: 'border-hairline bg-surface-sunk font-sans font-medium',
-  // The header's quieter chrome (iOS navigation redline): a ring, no fill, one italic initial.
-  ring: 'border-border-control font-display font-normal text-[18px] italic leading-none',
+  filled: 'border border-hairline bg-surface-sunk font-sans font-medium',
+  // Felix's top-bar avatar: a 30px `sage-mid` disc, one Inter 500 initial at 11, no edge (D6,
+  // 2026-11-06; it replaces the iOS navigation redline's ring). It overrides `size`.
+  nav: 'size-[30px] bg-sage-mid font-sans font-medium text-[11px] leading-none',
 } as const;
 
 export interface AvatarProps {
@@ -39,8 +40,8 @@ export function Avatar({ name, src, size = 'md', tone = 'filled', className }: A
       role="img"
       aria-label={name}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-pill border text-ink',
-        sizes[size],
+        'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-pill text-ink',
+        tone === 'nav' ? null : sizes[size],
         tones[tone],
         className,
       )}
@@ -49,10 +50,7 @@ export function Avatar({ name, src, size = 'md', tone = 'filled', className }: A
         // biome-ignore lint/performance/noImgElement: framework-agnostic primitive; src is already a sized rendition.
         <img src={src} alt="" className="size-full object-cover" onError={() => setFailed(true)} />
       ) : (
-        // The ring's initial sits 1pt low to centre optically.
-        <span aria-hidden className={tone === 'ring' ? 'translate-y-px' : undefined}>
-          {tone === 'ring' ? letters.slice(0, 1) : letters}
-        </span>
+        <span aria-hidden>{tone === 'nav' ? letters.slice(0, 1) : letters}</span>
       )}
     </span>
   );

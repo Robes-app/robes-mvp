@@ -98,7 +98,7 @@ export function OptionRow({
     <button
       type="button"
       {...button}
-      className={`flex min-h-11 w-full items-center gap-3 rounded-crisp border px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+      className={`flex min-h-11 w-full items-center gap-3 rounded-crisp border px-3 py-2 text-left focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
         selected ? 'border-selected-line bg-selected' : 'border-transparent hover:bg-surface'
       } ${className ?? ''}`}
     >
@@ -174,7 +174,7 @@ export function ColourPicker({
               type="button"
               aria-pressed={f.id === family}
               onClick={() => setFamily(f.id)}
-              className={`flex w-[4.5rem] flex-col items-center gap-1.5 rounded-crisp border px-1 py-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+              className={`flex w-[4.5rem] flex-col items-center gap-1.5 rounded-crisp border px-1 py-1.5 focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
                 f.id === family ? 'border-selected-line bg-selected' : 'border-transparent'
               }`}
             >
@@ -201,7 +201,7 @@ export function ColourPicker({
               type="button"
               aria-pressed={chosen.has(s.id)}
               onClick={() => onChange(pickShade(value, s.id, slot))}
-              className="flex w-full flex-col items-center gap-1.5 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              className="flex w-full flex-col items-center gap-1.5 rounded-crisp focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
               <span
                 className={`relative flex size-14 items-center justify-center rounded-pill border border-hairline ${

@@ -15,7 +15,7 @@ import { Section, SkinAndHair, useDrawTwin, useModel, useModelPick } from '../tw
 
 const tw = twin.twinPage;
 const rowClass =
-  'flex min-h-[60px] w-full items-center justify-between rounded-crisp border px-4 text-left font-display text-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'flex min-h-[60px] w-full items-center justify-between rounded-crisp border px-4 text-left font-display text-xl focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // Colouring (legacy redline 3b; plan 2026-11-05 §1.6): her season (the live twelve-season picker)
 // and skin and hair as overrides on what her selfie read. The selfie itself is taken a screen

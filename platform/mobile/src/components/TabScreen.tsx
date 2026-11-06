@@ -85,7 +85,7 @@ export function TabScreen({
               className="items-center justify-center"
               testID="open-you"
             >
-              <Avatar name={me?.firstName ?? me?.email ?? null} size="sm" tone="ring" label="" />
+              <Avatar name={me?.firstName ?? me?.email ?? null} tone="nav" label="" />
             </Pressable>
           </View>
         </View>

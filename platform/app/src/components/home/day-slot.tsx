@@ -9,7 +9,7 @@ import { LookTile } from '@/components/looks/look-tile';
 import { DraftTile } from './draft-tile';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The slot (design 3k, plan 2026-11-02 §1.5; 2026-11-03 §7 D7): the selected day's looks as
 // cards in one scroller — the OOTD first, then the others — then the draft Robes is making for

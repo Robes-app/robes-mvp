@@ -5,7 +5,7 @@ import { createContext, type ReactNode, useContext, useEffect, useRef } from 're
 import { ActivityIndicator, type GestureResponderEvent, Pressable, Text } from 'react-native';
 import { useColor } from './color';
 import { cx } from './cx';
-import { fonts, MIN_TOUCH, maxFontSizeMultiplier } from './scale';
+import { FINE_EDGE, fonts, MIN_TOUCH, maxFontSizeMultiplier } from './scale';
 
 // Felix's Button: `primary` (the ink pill), `outline` (white on the fine edge) and `chip` (the small
 // cream pill), plus `quiet` (a text action). Twin of web ui button-styles.ts.
@@ -40,7 +40,7 @@ function usePrimaryGuard(active: boolean) {
 // edge (the label is the cue); the chip 28 tall on `surface-sunk`. Each keeps a 44pt hit area.
 const container: Record<ButtonVariant, string> = {
   primary: 'rounded-pill bg-ink px-7',
-  outline: 'rounded-pill border-[0.5px] border-rule-mid bg-surface-raised px-5',
+  outline: 'rounded-pill border-rule-mid bg-surface-raised px-5',
   chip: 'rounded-pill bg-surface-sunk px-3',
   quiet: 'px-1',
 };
@@ -111,7 +111,7 @@ export function Button({
       }}
       // A control shorter than 44pt keeps its hit area through hitSlop, never a bigger glyph.
       hitSlop={Math.max(0, (MIN_TOUCH - height[variant]) / 2)}
-      style={{ minHeight: height[variant] }}
+      style={{ minHeight: height[variant], borderWidth: variant === 'outline' ? FINE_EDGE : 0 }}
       className={cx(
         'flex-row items-center justify-center gap-1.5',
         container[variant],

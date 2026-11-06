@@ -12,7 +12,7 @@ import type { ReactNode } from 'react';
 export { AddCircle } from '../add-circle';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // Pieces | Wishlist only: the Inbox is a notice that shows while a receipt waits (Native parity
 // handoff; the native twin is mobile/src/features/wardrobe/WardrobeHeader.tsx).

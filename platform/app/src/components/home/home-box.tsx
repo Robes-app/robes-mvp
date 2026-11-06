@@ -266,7 +266,7 @@ export function HomeBox({
                 type="button"
                 role="menuitem"
                 onClick={() => pick(k)}
-                className="flex w-full items-center gap-3 rounded-crisp px-3 py-2 text-left hover:bg-surface focus-visible:outline-2 focus-visible:outline-focus-ring"
+                className="flex w-full items-center gap-3 rounded-crisp px-3 py-2 text-left hover:bg-surface focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
               >
                 <span className="flex size-[34px] shrink-0 items-center justify-center rounded-pill bg-surface text-ink">
                   <Icon name={icon} size={16} />

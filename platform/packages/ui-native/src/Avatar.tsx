@@ -4,13 +4,15 @@ import { cx } from './cx';
 import { fonts, maxFontSizeMultiplier } from './scale';
 
 const sizes = { sm: 32, md: 44, lg: 72 } as const;
+const NAV_SIZE = 30;
 
 export interface AvatarProps {
   name?: string | null;
   source?: string | null;
   size?: keyof typeof sizes;
-  // `ring`: the header's quieter chrome (iOS navigation redline) — no fill, one italic initial.
-  tone?: 'filled' | 'ring';
+  // `nav`: Felix's top-bar avatar — a 30pt `sage-mid` disc with one Inter 500 initial at 11, no
+  // edge (D6, 2026-11-06; it replaces the iOS navigation redline's ring). It ignores `size`.
+  tone?: 'filled' | 'nav';
   // Defaults to the name; pass '' when a neighbouring label already names her.
   label?: string;
   className?: string;
@@ -34,7 +36,7 @@ export function Avatar({
   className,
   testID,
 }: AvatarProps) {
-  const px = sizes[size];
+  const px = tone === 'nav' ? NAV_SIZE : sizes[size];
   const a11y = label ?? name ?? '';
   return (
     <View
@@ -43,8 +45,8 @@ export function Avatar({
       accessibilityRole={a11y ? 'image' : undefined}
       accessibilityLabel={a11y || undefined}
       className={cx(
-        'items-center justify-center overflow-hidden rounded-pill border',
-        tone === 'ring' ? 'border-border-control' : 'border-hairline bg-surface-sunk',
+        'items-center justify-center overflow-hidden rounded-pill',
+        tone === 'nav' ? 'bg-sage-mid' : 'border border-hairline bg-surface-sunk',
         className,
       )}
       style={{ width: px, height: px }}
@@ -56,12 +58,11 @@ export function Avatar({
           accessible={false}
           style={{ width: px, height: px }}
         />
-      ) : tone === 'ring' ? (
+      ) : tone === 'nav' ? (
         <Text
           maxFontSizeMultiplier={maxFontSizeMultiplier.label}
           className="text-ink"
-          // Nudged 1pt down to sit optically centred in the ring.
-          style={{ fontFamily: fonts.displayRegularItalic, fontSize: 18, marginTop: 1 }}
+          style={{ fontFamily: fonts.sansMedium, fontSize: 11, lineHeight: 11 }}
         >
           {initials(name).slice(0, 1)}
         </Text>

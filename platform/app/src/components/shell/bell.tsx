@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // Where each line leads: receipts to the Wardrobe inbox, a diary nudge to that day on home, the
 // overnight look to its page.
