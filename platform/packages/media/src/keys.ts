@@ -26,6 +26,9 @@ export const mediaKeys = {
     `media/${segment(userId, 'userId')}/${segment(assetId, 'assetId')}/cutout.${format}`,
   generated: (userId: string, jobId: string, index: number): string =>
     `generated/${segment(userId, 'userId')}/${segment(jobId, 'jobId')}/${index}.png`,
+  // Everything rendered from one asset: master, renditions, cutout.
+  assetMediaPrefix: (userId: string, assetId: string): string =>
+    `media/${segment(userId, 'userId')}/${segment(assetId, 'assetId')}/`,
   // Path prefix covered by a user's signed cookie.
   userMediaPrefix: (userId: string): string => `media/${segment(userId, 'userId')}/`,
   // Shared model portraits (catalog/, public prefix): keyed by catalog picks, never by user.

@@ -13,12 +13,14 @@ describe('media key layout (infrastructure.md §5)', () => {
     expect(mediaKeys.cutout(USER, ASSET, 'png')).toBe(`media/${USER}/${ASSET}/cutout.png`);
     expect(mediaKeys.generated(USER, ASSET, 2)).toBe(`generated/${USER}/${ASSET}/2.png`);
     expect(mediaKeys.userMediaPrefix(USER)).toBe(`media/${USER}/`);
+    expect(mediaKeys.assetMediaPrefix(USER, ASSET)).toBe(`media/${USER}/${ASSET}/`);
   });
 
   it('refuses ids that could escape the prefix', () => {
     expect(() => mediaKeys.original('../x', ASSET)).toThrow(/userId/);
     expect(() => mediaKeys.master(USER, `${ASSET}/..`)).toThrow(/assetId/);
     expect(() => mediaKeys.userMediaPrefix('*')).toThrow();
+    expect(() => mediaKeys.assetMediaPrefix(USER, '')).toThrow(/assetId/);
     expect(() => mediaKeys.rendition(USER, ASSET, 0.5, 'webp')).toThrow(/width/);
   });
 

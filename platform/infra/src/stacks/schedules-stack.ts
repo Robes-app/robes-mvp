@@ -64,6 +64,12 @@ export const SCHEDULES: ScheduleSpec[] = [
     description: 'Hourly: pinned looks filed as worn once their day has ended in her timezone',
   },
   {
+    name: 'stale-uploads',
+    expression: scheduler.ScheduleExpression.cron({ minute: '25', ...UTC }),
+    queue: 'maintenance',
+    description: 'Hourly: discarded look photos, and ones a day old never attached, are deleted',
+  },
+  {
     name: 'batch-poll',
     expression: scheduler.ScheduleExpression.rate(Duration.minutes(5)),
     queue: 'jobs-batch',

@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   completeUpload,
   createUpload,
+  discardUpload,
   getAsset,
   startMediaSession,
   type UploadDeps,
@@ -40,6 +41,10 @@ function fakes(owned: Row | undefined = row(), stored = true) {
     assets: {
       createPending: vi.fn(async () => ({ id: ASSET, kind: 'wardrobe', status: 'pending' })),
       getForUser: vi.fn(async (userId: UserId) => (userId === ALICE ? owned : undefined)),
+      discardUpload: vi.fn(
+        async (userId: UserId): Promise<'discarded' | 'held' | 'not_found'> =>
+          userId === ALICE ? 'discarded' : 'not_found',
+      ),
     },
     storage: {
       presignPut: vi.fn(async (key: string) => ({
@@ -170,6 +175,26 @@ describe('completeUpload', () => {
     expect(await completeUpload(deps, ALICE, ASSET)).toMatchObject({ status: 'failed' });
     expect(deps.storage.head).not.toHaveBeenCalled();
     expect(deps.onUploaded).not.toHaveBeenCalled();
+  });
+});
+
+describe('discardUpload', () => {
+  it('discards her photo', async () => {
+    const deps = fakes();
+    expect(await discardUpload(deps, ALICE, ASSET)).toEqual({ ok: true });
+    expect(deps.assets.discardUpload).toHaveBeenCalledWith(ALICE, ASSET);
+  });
+
+  it('is 404 for anyone else’s', async () => {
+    expect((await apiError(discardUpload(fakes(), BOB, ASSET))).code).toBe('not_found');
+  });
+
+  it('is 409 upload_in_use while anything holds it', async () => {
+    const deps = fakes();
+    deps.assets.discardUpload.mockResolvedValueOnce('held');
+    const err = await apiError(discardUpload(deps, ALICE, ASSET));
+    expect(err.code).toBe('conflict');
+    expect(err.extra.details).toEqual({ reason: 'upload_in_use' });
   });
 });
 

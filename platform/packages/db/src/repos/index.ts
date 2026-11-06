@@ -1,7 +1,7 @@
 import type { Db } from '../client';
 import { adminRepo } from './admin';
 import { adminReadsRepo } from './admin-reads';
-import { assetProcessingRepo, assetsRepo } from './assets';
+import { assetProcessingRepo, assetsRepo, staleUploadsRepo } from './assets';
 import { avatarCellsRepo } from './avatar-cells';
 import { consentsRepo } from './consents';
 import { dailyLooksRepo } from './daily-looks';
@@ -100,6 +100,8 @@ export function createSystemRepositories(db: Db) {
     overnight: overnightRepo(db),
     // D23: pinned looks filed as worn once their day has ended in her timezone.
     passedPins: passedPinsRepo(db),
+    // D20: look photos uploaded and never attached.
+    staleUploads: staleUploadsRepo(db),
     pushDelivery: pushDeliveryRepo(db),
     pieces: pieceAnalysisRepo(db),
     // wardrobe_pieces: her photo, her closet and the crops cut from it.
@@ -121,7 +123,7 @@ export function createSystemRepositories(db: Db) {
 export type Repositories = ReturnType<typeof createRepositories>;
 export type SystemRepositories = ReturnType<typeof createSystemRepositories>;
 export type { AdminActor } from './admin-reads';
-export type { AssetKind } from './assets';
+export type { AssetKind, DiscardOutcome, RemoveAssetFiles } from './assets';
 export type { ConsentAnswers } from './consents';
 export type { FramedType, StoredFrame, StoredFrameStatus } from './frames';
 export { heldItems, type InboxAction, type InboxItem } from './inbox';

@@ -94,6 +94,20 @@ describe('maintenance handler', () => {
           due: vi.fn(async () => [{ id: JOB_B, userId: JOB_A }]),
           file: vi.fn(async () => true),
         },
+        staleUploads: {
+          due: vi.fn(async () => [{ id: JOB_B, userId: JOB_A }]),
+          discard: vi.fn(
+            async (
+              u: string,
+              id: string,
+              _o: unknown,
+              remove: (u: string, id: string) => unknown,
+            ) => {
+              await remove(u, id);
+              return 'discarded';
+            },
+          ),
+        },
         jobs: { stale: vi.fn(async () => [JOB_A]) },
         dataExport: {
           claimNext: vi.fn(async () => exportQueue.shift()),
@@ -108,7 +122,11 @@ describe('maintenance handler', () => {
         },
       },
       storage: storage
-        ? { deletePrefix: vi.fn(async () => 1), putObject: vi.fn(async () => {}) }
+        ? {
+            deletePrefix: vi.fn(async () => 1),
+            deleteObject: vi.fn(async () => {}),
+            putObject: vi.fn(async () => {}),
+          }
         : null,
       logger: logger(),
       transport: () => transport,
@@ -161,6 +179,28 @@ describe('maintenance handler', () => {
     });
     expect(ctx.system.passedPins.file).toHaveBeenCalledWith(JOB_A, JOB_B);
     expect(ctx.system.maintenance.run).not.toHaveBeenCalled();
+  });
+
+  it('deletes stale look photos and their files, and refuses to without the bucket', async () => {
+    const { ctx } = context();
+    await createMaintenanceHandler(async () => ctx)({
+      Records: [record('u', { kind: 'stale-uploads' })],
+    });
+    expect(ctx.system.staleUploads.discard).toHaveBeenCalledWith(
+      JOB_A,
+      JOB_B,
+      { olderThanHours: 24, withinDays: 7 },
+      expect.any(Function),
+    );
+    expect(ctx.storage?.deleteObject).toHaveBeenCalledWith(`uploads/${JOB_A}/${JOB_B}/original`);
+    expect(ctx.storage?.deletePrefix).toHaveBeenCalledWith(`media/${JOB_A}/${JOB_B}/`);
+
+    const bare = context({ storage: false });
+    const res = await createMaintenanceHandler(async () => bare.ctx)({
+      Records: [record('u', { kind: 'stale-uploads' })],
+    });
+    expect(res).toEqual({ batchItemFailures: [{ itemIdentifier: 'u' }] });
+    expect(bare.ctx.system.staleUploads.due).not.toHaveBeenCalled();
   });
 
   it('ignores unknown tasks and retries failed ones', async () => {

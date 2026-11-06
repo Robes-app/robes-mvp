@@ -8,7 +8,7 @@ import type { MediaStorage } from '@robes/media/storage';
 import { signedRenditions } from './asset-urls';
 
 export interface UploadDeps {
-  assets: Pick<Repositories['assets'], 'createPending' | 'getForUser'>;
+  assets: Pick<Repositories['assets'], 'createPending' | 'getForUser' | 'discardUpload'>;
   storage: Pick<MediaStorage, 'presignPut' | 'head'>;
   delivery: Pick<MediaDelivery, 'mode' | 'url' | 'sessionCookies'>;
   // Called once the original is in the bucket; dev renders in-process, AWS relies on the S3 event.
@@ -76,6 +76,20 @@ export async function completeUpload(
     deps.onUploaded?.(key);
   }
   return toAsset(deps, userId, row);
+}
+
+// D20: a look photo she picked in image mode, then discarded before Update look accepted it. It
+// leaves every read now; the maintenance worker (the only role that may delete media) removes its
+// files and row within the hour. One on a look stays (409 upload_in_use).
+export async function discardUpload(
+  deps: UploadDeps,
+  userId: UserId,
+  assetId: string,
+): Promise<{ ok: true }> {
+  const outcome = await deps.assets.discardUpload(userId, assetId);
+  if (outcome === 'not_found') throw new ApiError('not_found');
+  if (outcome === 'held') throw new ApiError('conflict', { details: { reason: 'upload_in_use' } });
+  return { ok: true };
 }
 
 export function startMediaSession(

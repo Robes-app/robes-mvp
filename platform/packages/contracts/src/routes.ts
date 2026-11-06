@@ -1235,6 +1235,16 @@ export const routes = {
     input: EmptyInput,
     output: Asset,
   },
+  // D20: a look photo picked in image mode and discarded before Update look. 409 while anything
+  // holds it (reason `upload_in_use`); 404 for anyone else's, another kind or one already gone.
+  'uploads.discard': {
+    method: 'DELETE',
+    path: '/uploads/:id',
+    auth: 'user',
+    params: AssetParams,
+    input: EmptyInput,
+    output: Deleted,
+  },
   'assets.get': {
     method: 'GET',
     path: '/assets/:id',

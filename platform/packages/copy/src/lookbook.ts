@@ -153,6 +153,8 @@ export const lookbook = {
       done: 'Done',
       // 409 look_needs_image (D19): the change would leave the look with no image.
       lastImage: 'A look keeps at least one image.',
+      // 409 upload_in_use on uploads.discard: the photo is already on a look, so it stays.
+      inUse: 'This photo is on a look, so it stays.',
     },
     details: {
       tags: 'Tags',
