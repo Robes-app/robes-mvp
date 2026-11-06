@@ -1,4 +1,4 @@
-import { processAccountDeletions, processDataExports, sweep } from '@robes/jobs';
+import { filePassedPins, processAccountDeletions, processDataExports, sweep } from '@robes/jobs';
 import { type WorkerContext, workerContext } from '../context';
 import { withErrorReporting } from '../errors';
 import { processBatch, type SqsBatchResponse, type SqsEvent } from '../sqs';
@@ -9,6 +9,7 @@ export const MAINTENANCE_TASKS = [
   'job-sweeper',
   'account-deletion',
   'data-export',
+  'pins-worn',
 ] as const;
 export type MaintenanceTask = (typeof MAINTENANCE_TASKS)[number];
 
@@ -22,6 +23,8 @@ export async function runMaintenance(
     if (task === 'retention') await ctx.system.maintenance.run();
     else if (task === 'job-sweeper') {
       await sweep({ jobs: ctx.system.jobs, transport: ctx.transport(), logger: ctx.logger });
+    } else if (task === 'pins-worn') {
+      await filePassedPins({ passedPins: ctx.system.passedPins, logger: ctx.logger });
     } else if (task === 'data-export') {
       if (!ctx.storage) throw new Error('data-export needs MEDIA_BUCKET');
       await processDataExports({

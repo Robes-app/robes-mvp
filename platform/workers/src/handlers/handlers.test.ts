@@ -90,6 +90,10 @@ describe('maintenance handler', () => {
     const ctx = {
       system: {
         maintenance: { run: vi.fn(async () => {}) },
+        passedPins: {
+          due: vi.fn(async () => [{ id: JOB_B, userId: JOB_A }]),
+          file: vi.fn(async () => true),
+        },
         jobs: { stale: vi.fn(async () => [JOB_A]) },
         dataExport: {
           claimNext: vi.fn(async () => exportQueue.shift()),
@@ -148,6 +152,15 @@ describe('maintenance handler', () => {
     await handler({ Records: [record('s', { kind: 'job-sweeper' })] });
     expect(sent).toEqual([JOB_A]);
     expect(ctx.system.maintenance.run).toHaveBeenCalledTimes(1);
+  });
+
+  it('files passed pins as worn on pins-worn', async () => {
+    const { ctx } = context();
+    await createMaintenanceHandler(async () => ctx)({
+      Records: [record('p', { kind: 'pins-worn' })],
+    });
+    expect(ctx.system.passedPins.file).toHaveBeenCalledWith(JOB_A, JOB_B);
+    expect(ctx.system.maintenance.run).not.toHaveBeenCalled();
   });
 
   it('ignores unknown tasks and retries failed ones', async () => {

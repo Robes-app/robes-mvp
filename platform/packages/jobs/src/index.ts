@@ -37,6 +37,12 @@ export {
   pollOvernight,
 } from './overnight';
 export {
+  filePassedPins,
+  PASSED_PINS_CATCH_UP_DAYS,
+  PASSED_PINS_FROM,
+  type PassedPinsDeps,
+} from './passed-pins';
+export {
   type HeldReceipt,
   type IngestOutcome,
   ingestReceipt,

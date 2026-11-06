@@ -58,6 +58,12 @@ export const SCHEDULES: ScheduleSpec[] = [
     description: 'Self-serve data exports (SEC-81), minutes after the request',
   },
   {
+    name: 'pins-worn',
+    expression: scheduler.ScheduleExpression.cron({ minute: '5', ...UTC }),
+    queue: 'maintenance',
+    description: 'Hourly: pinned looks filed as worn once their day has ended in her timezone',
+  },
+  {
     name: 'batch-poll',
     expression: scheduler.ScheduleExpression.rate(Duration.minutes(5)),
     queue: 'jobs-batch',

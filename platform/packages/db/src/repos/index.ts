@@ -20,6 +20,7 @@ import { modelRepo } from './model';
 import { modelRenderRepo } from './model-render';
 import { notifierRepo } from './notifier';
 import { overnightRepo } from './overnight';
+import { passedPinsRepo } from './passed-pins';
 import { photoReadRepo } from './photo-reads';
 import { pieceAnalysisRepo } from './piece-analysis';
 import { planRepo } from './plan';
@@ -97,6 +98,8 @@ export function createSystemRepositories(db: Db) {
     modelRender: modelRenderRepo(db),
     notifier: notifierRepo(db),
     overnight: overnightRepo(db),
+    // D23: pinned looks filed as worn once their day has ended in her timezone.
+    passedPins: passedPinsRepo(db),
     pushDelivery: pushDeliveryRepo(db),
     pieces: pieceAnalysisRepo(db),
     // wardrobe_pieces: her photo, her closet and the crops cut from it.

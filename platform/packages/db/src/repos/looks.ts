@@ -143,6 +143,90 @@ const wornOnText = sql<string>`worn_on::text`;
 // A look's record is read whole; a wardrobe cannot hold enough wears for a page.
 const WEARS_MAX = 200;
 
+// Files a wear of a saved look, its pieces as they stand now: the one path every wear takes,
+// whether she records it (`looks`) or the day she pinned it to passes (`plan`, D23). Undefined
+// when the look is not hers, not saved or deleted; a repeat on the same day returns the existing
+// wear.
+export async function fileWear(
+  trx: Transaction<DB>,
+  userId: UserId,
+  lookId: string,
+  wornOn: string,
+  source: 'looks' | 'plan',
+) {
+  const look = await trx
+    .selectFrom('looks')
+    .select('id')
+    .where('userId', '=', userId)
+    .where('id', '=', lookId)
+    .where('status', '=', 'saved')
+    .where('deletedAt', 'is', null)
+    .executeTakeFirst();
+  if (!look) return undefined;
+  const pieces = await trx
+    .selectFrom('lookPieces')
+    .select('wardrobeItemId')
+    .where('userId', '=', userId)
+    .where('lookId', '=', lookId)
+    .orderBy('position')
+    .execute();
+  await trx
+    .insertInto('wears')
+    .values({ userId, lookId, wornOn, pieceIds: pieces.map((p) => p.wardrobeItemId), source })
+    .onConflict((oc) => oc.columns(['userId', 'lookId', 'wornOn']).doNothing())
+    .execute();
+  // Recording a wear and pinning to a day are one act (beta): the day she wore it holds the
+  // look, unless it is already there in either slot, where its planned pin turns worn. A named
+  // day lends the look its name.
+  const onDay = await trx
+    .selectFrom('plannedDays')
+    .select('id')
+    .where('userId', '=', userId)
+    .where('lookId', '=', lookId)
+    .where('dayDate', '=', sql<Date>`${wornOn}::date`)
+    .where('deletedAt', 'is', null)
+    .executeTakeFirst();
+  if (onDay) {
+    await trx
+      .updateTable('plannedDays')
+      .set({ status: 'worn' })
+      .where('userId', '=', userId)
+      .where('lookId', '=', lookId)
+      .where('dayDate', '=', sql<Date>`${wornOn}::date`)
+      .where('deletedAt', 'is', null)
+      .where('status', '=', 'planned')
+      .execute();
+  } else {
+    const named = await trx
+      .selectFrom('dayNames')
+      .select('name')
+      .where('userId', '=', userId)
+      .where('dayDate', '=', sql<Date>`${wornOn}::date`)
+      .executeTakeFirst();
+    await trx
+      .insertInto('plannedDays')
+      .values({
+        userId,
+        dayDate: wornOn,
+        sourceKind: 'look',
+        lookId,
+        slot: 'day',
+        pinned: true,
+        status: 'worn',
+        activity: named?.name ?? null,
+        itemIds: pieces.map((p) => p.wardrobeItemId),
+      })
+      .execute();
+  }
+  return trx
+    .selectFrom('wears')
+    .select(['id', 'lookId', 'pieceIds', 'confirmedAt', wornOnText.as('wornOn')])
+    .where('userId', '=', userId)
+    .where('lookId', '=', lookId)
+    .where('wornOn', '=', sql<Date>`${wornOn}::date`)
+    .executeTakeFirstOrThrow();
+}
+
 export function looksRepo(db: Db) {
   const active = () => db.selectFrom('looks').where('deletedAt', 'is', null);
 
@@ -674,75 +758,8 @@ export function looksRepo(db: Db) {
     },
 
     // Wears are immutable facts: one per look per day; a repeat returns the existing one.
-    async wear(userId: UserId, lookId: string, wornOn: string) {
-      return db.transaction().execute(async (trx) => {
-        const look = await trx
-          .selectFrom('looks')
-          .select('id')
-          .where('userId', '=', userId)
-          .where('id', '=', lookId)
-          .where('status', '=', 'saved')
-          .where('deletedAt', 'is', null)
-          .executeTakeFirst();
-        if (!look) return undefined;
-        const pieces = await trx
-          .selectFrom('lookPieces')
-          .select('wardrobeItemId')
-          .where('userId', '=', userId)
-          .where('lookId', '=', lookId)
-          .orderBy('position')
-          .execute();
-        await trx
-          .insertInto('wears')
-          .values({
-            userId,
-            lookId,
-            wornOn,
-            pieceIds: pieces.map((p) => p.wardrobeItemId),
-            source: 'looks',
-          })
-          .onConflict((oc) => oc.columns(['userId', 'lookId', 'wornOn']).doNothing())
-          .execute();
-        // Recording a wear and pinning to a day are one act (beta): the day she wore it holds the
-        // look, unless it is already there in either slot. A named day lends the look its name.
-        const onDay = await trx
-          .selectFrom('plannedDays')
-          .select('id')
-          .where('userId', '=', userId)
-          .where('lookId', '=', lookId)
-          .where('dayDate', '=', sql<Date>`${wornOn}::date`)
-          .where('deletedAt', 'is', null)
-          .executeTakeFirst();
-        if (!onDay) {
-          const named = await trx
-            .selectFrom('dayNames')
-            .select('name')
-            .where('userId', '=', userId)
-            .where('dayDate', '=', sql<Date>`${wornOn}::date`)
-            .executeTakeFirst();
-          await trx
-            .insertInto('plannedDays')
-            .values({
-              userId,
-              dayDate: wornOn,
-              sourceKind: 'look',
-              lookId,
-              slot: 'day',
-              pinned: true,
-              status: 'worn',
-              activity: named?.name ?? null,
-              itemIds: pieces.map((p) => p.wardrobeItemId),
-            })
-            .execute();
-        }
-        return trx
-          .selectFrom('wears')
-          .select(['id', 'lookId', 'pieceIds', 'confirmedAt', wornOnText.as('wornOn')])
-          .where('userId', '=', userId)
-          .where('lookId', '=', lookId)
-          .where('wornOn', '=', sql<Date>`${wornOn}::date`)
-          .executeTakeFirstOrThrow();
-      });
+    wear(userId: UserId, lookId: string, wornOn: string) {
+      return db.transaction().execute((trx) => fileWear(trx, userId, lookId, wornOn, 'looks'));
     },
 
     // Her tags on each look (Details › Tags), oldest first.
