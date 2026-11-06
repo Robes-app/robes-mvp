@@ -121,12 +121,12 @@ test('a quiet field focuses as an underline; a bare control keeps the ring', asy
       width: s.outlineWidth,
     };
   });
-  expect(bare).toEqual({ focusVisible: true, style: 'solid', width: '2px' });
+  expect(bare).toEqual({ focusVisible: true, style: 'solid', width: '1.5px' });
   // The shared Button keeps its ring too.
   const named = page.getByRole('button', { name: 'Name the day' });
   await named.focus();
   await expect(named).toHaveCSS('outline-style', 'solid');
-  await expect(named).toHaveCSS('outline-width', '2px');
+  await expect(named).toHaveCSS('outline-width', '1.5px');
 });
 
 // Pass 4 (Diary): a worn day reads "· Worn"; List | Month is kept; the diary drawer marks every
