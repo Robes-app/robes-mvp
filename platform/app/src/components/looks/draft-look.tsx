@@ -91,7 +91,6 @@ export function DraftLook({
   id,
   pieceId,
   day,
-  sheet,
   images,
   schedule,
   presentation,
@@ -101,8 +100,6 @@ export function DraftLook({
   pieceId?: string;
   // The day the draft is for (home's door): Save pins it there; Discard goes back to that day.
   day?: string;
-  // Opened from the saved look's adjust disc: the AdjustSheet is up as it opens.
-  sheet?: DraftSheet;
   // Opened from Home's image stack (3k): image mode, Add a photo in focus (D19).
   images?: 'add';
   // A saved look opened with the diary up (a draft just saved, `?schedule=1`).
@@ -158,7 +155,6 @@ export function DraftLook({
     <DraftBody
       look={query.data}
       forDay={query.data.setId ? query.data.dateHint : (day ?? null)}
-      {...(sheet ? { initialSheet: sheet } : {})}
       schedule={schedule === true}
       {...(images ? { images } : {})}
       presentation={presentation}
@@ -474,7 +470,6 @@ function NewDraft({
 function DraftBody({
   look,
   forDay,
-  initialSheet,
   images,
   schedule,
   presentation,
@@ -482,7 +477,6 @@ function DraftBody({
 }: {
   look: Look;
   forDay: string | null;
-  initialSheet?: DraftSheet;
   images?: 'add';
   schedule: boolean;
   presentation: DraftPresentation;
@@ -515,7 +509,7 @@ function DraftBody({
     onError: (err) => toast({ message: errorCopy(err) }),
   });
   const [tab, setTab] = useState<Tab>(TABS[0]);
-  const [sheet, setSheet] = useState<DraftSheet | null>(initialSheet ?? null);
+  const [sheet, setSheet] = useState<DraftSheet | null>(null);
   const [picker, setPicker] = useState<PickerMode | null>(null);
   const [subview, setSubview] = useState<'tags' | 'seasons' | 'worn' | null>(null);
   const [diary, setDiary] = useState(schedule);
@@ -627,11 +621,12 @@ function DraftBody({
     }
     if (adjust.stale) adjust.updateModel();
   };
+  // A draft's chip (a saved look's words wait for Update look instead).
   const chip = words
-    ? { label: mode === 'edit' ? copy.regenerate : copy.generate, disabled: busy }
+    ? { label: copy.generate, disabled: busy }
     : adjust.stale
       ? { label: d.updateModel(adjust.badge), disabled: busy, refresh: true }
-      : { label: mode === 'edit' ? copy.regenerate : copy.generate, disabled: true };
+      : { label: copy.generate, disabled: true };
   const dialog =
     confirm === 'delete'
       ? {
@@ -701,8 +696,9 @@ function DraftBody({
           <AdjustSheet
             open={sheet === 'adjust'}
             sending={adjust.busy}
+            // Adjust model image (D21): the picture alone, never the pieces.
             onSend={(text) => {
-              adjust.send(text, { draw: true });
+              adjust.picture(text);
               setSheet(null);
             }}
             onClose={() => setSheet(null)}
@@ -747,6 +743,7 @@ function DraftBody({
           pronoun={pronoun(model.data)}
           onAdjust={() => setSheet('adjust')}
           onImages={() => setManaging(true)}
+          onRetry={adjust.updateModel}
           stage={stack.stage}
           {...(presentation === 'saved' ? { onBack: close } : {})}
         />
@@ -1004,6 +1001,7 @@ function DraftPhoto({
   pronoun,
   onAdjust,
   onImages,
+  onRetry,
   stage,
   onBack,
 }: {
@@ -1017,6 +1015,7 @@ function DraftPhoto({
   pronoun: string;
   onAdjust: () => void;
   onImages: () => void;
+  onRetry: () => void;
   // What she has done in image mode and not yet applied: its front card shows here.
   stage: ImageStage;
   // The saved look's page (3e): the back disc top-left is the way out.
@@ -1101,12 +1100,14 @@ function DraftPhoto({
         </span>
       ) : null}
       {failed ? (
-        <span
-          role="status"
-          className="absolute top-3 right-3 z-10 rounded-pill border border-hairline bg-bg/90 px-3 py-1.5 font-sans text-ink text-xs"
+        // The re-draw failed: say so, never pass the old picture off; a tap draws it again.
+        <button
+          type="button"
+          onClick={onRetry}
+          className={`absolute top-3 right-3 z-10 min-h-11 rounded-pill border border-hairline bg-bg/90 px-3 font-sans text-ink text-xs ${focus}`}
         >
           {lookbook.figure.undressed(pronoun)}
-        </span>
+        </button>
       ) : null}
       <button
         type="button"

@@ -89,3 +89,11 @@ Calls made while building, each worth Annie's eye; a ruling becomes a decision a
 - The context chip (place · weather · range) is read from the day a draft is for, and is passive; "Leave the weather out" and the add-location chip wait for a place picker in the drawer.
 - "Start from a photo" stays as a quiet link under the add slot on a new, empty draft (not on Felix's frame; the Lookbook has no other door to the photo flow).
 
+
+**Review PRs 9–13 (built 6 Nov evening on `felix/review-fixes`)**
+- Adjust model image redraws at once and the new picture lands as the cover; the server keeps no pending picture, so Discard cannot bring the old one back yet (D21 asks that it can). Needs a ruling: keep the previous asset to restore, or let an adjusted picture count as applied.
+- Any redraw that lands now leads the look (Robes' picture back as the cover), including a plain "see it on me" render on a look whose photograph was in front.
+- Home's hanger (build a day around chosen pieces) and the balance question left with the prompt box (D22); in the drawer, pieces go in through the add slot.
+- Pins pinned by a trip (hidden) are filed as worn like any other pin (D23). The rule starts on `PASSED_PINS_FROM` (2026-11-09): move it to the day this reaches production if it ships later.
+- A saved look whose picture is stale on the server opens with Update look showing (stale counts as pending).
+- Un-accepted look photos: a delete route and a daily sweep are in progress.

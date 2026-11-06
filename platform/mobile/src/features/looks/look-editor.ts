@@ -155,10 +155,14 @@ export function useLookEditor(look: Look, opts: { onChange?: () => void } = {}) 
       write.mutate({ params: { id: look.id }, input: rackUpdate(rack, { keepEdits: true }) }),
     rename: (name: string) => write.mutate({ params: { id: look.id }, input: { name } }),
     // The picture drawn again for the rack as it stands: Robes' frame, else her model.
-    redraw: async () => {
+    // `note`: her Adjust model image words (D21), kept on the look for every later redraw; the
+    // pieces never change for it.
+    redraw: async (note?: string) => {
       await inFlight.current;
-      if (look.frame || look.setId) await api.call('looks.frame', { params: { id: look.id } });
-      else await api.call('looks.renderOnModel', { params: { id: look.id } });
+      const input = note === undefined ? {} : { note };
+      if (look.frame || look.setId)
+        await api.call('looks.frame', { params: { id: look.id }, input });
+      else await api.call('looks.renderOnModel', { params: { id: look.id }, input });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.call('looks.get', { params: { id: look.id } }),
       });

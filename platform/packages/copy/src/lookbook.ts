@@ -210,9 +210,8 @@ export const lookbook = {
     // The prompt card.
     placeholder: 'Describe look…',
     editPlaceholder: 'Describe other changes…',
-    // Felix's Generate · Regenerate, in Robes' words: Robes styles, it never generates.
+    // Felix's Generate, in Robes' words: Robes styles, it never generates.
     generate: 'Style it',
-    regenerate: 'Style it again',
     thread: 'Your words on this look',
     // The context chip: the day's place and weather, read from the diary.
     context: (place: string, range: string): string => `${place} · ${range}`,
