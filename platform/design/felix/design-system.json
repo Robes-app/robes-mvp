@@ -1,0 +1,434 @@
+{
+  "v": 3,
+  "assetGroups": {
+    "Icons": {
+      "files": {
+        "back.svg": {
+          "blob": "596a2a7fddaeec620bda8e726db291f1",
+          "name": "back.svg",
+          "size": 216,
+          "type": "image/svg+xml"
+        },
+        "bell.svg": {
+          "blob": "1d94ca219c12d86a30f8ea0575d446ee",
+          "name": "bell.svg",
+          "size": 267,
+          "type": "image/svg+xml"
+        },
+        "capture.svg": {
+          "blob": "cef5e5b23ba58746e12f4509ee4fd388",
+          "name": "capture.svg",
+          "size": 353,
+          "type": "image/svg+xml"
+        },
+        "check.svg": {
+          "blob": "f1a5ac792e4ebb1452cc2e6ec34190e5",
+          "name": "check.svg",
+          "size": 220,
+          "type": "image/svg+xml"
+        },
+        "chevron.svg": {
+          "blob": "38d72be50c5651f7d657317ce138aa63",
+          "name": "chevron.svg",
+          "size": 209,
+          "type": "image/svg+xml"
+        },
+        "close.svg": {
+          "blob": "b319a5e4b964b6a1e4b7a13cbe4a8e49",
+          "name": "close.svg",
+          "size": 217,
+          "type": "image/svg+xml"
+        },
+        "cloud.svg": {
+          "blob": "85e9f0cfb9cecd3d036f99079658b8ba",
+          "name": "cloud.svg",
+          "size": 279,
+          "type": "image/svg+xml"
+        },
+        "describe.svg": {
+          "blob": "a38f55d2df97d39f776c16f184c95327",
+          "name": "describe.svg",
+          "size": 435,
+          "type": "image/svg+xml"
+        },
+        "diary.svg": {
+          "blob": "e3fd1d649d53909677acd47721cc43d9",
+          "name": "diary.svg",
+          "size": 285,
+          "type": "image/svg+xml"
+        },
+        "edit.svg": {
+          "blob": "76b994d5ba73aa9fbeb35d68f6432e95",
+          "name": "edit.svg",
+          "size": 220,
+          "type": "image/svg+xml"
+        },
+        "home.svg": {
+          "blob": "a48d7abe871f947e88a49a1336e275e9",
+          "name": "home.svg",
+          "size": 243,
+          "type": "image/svg+xml"
+        },
+        "lookbook.svg": {
+          "blob": "ed44cb7c1b51ad0eb8ad4d2b88213b6b",
+          "name": "lookbook.svg",
+          "size": 262,
+          "type": "image/svg+xml"
+        },
+        "plus.svg": {
+          "blob": "70483ebf03b3e6121df9f3f8b43c5058",
+          "name": "plus.svg",
+          "size": 213,
+          "type": "image/svg+xml"
+        },
+        "rain.svg": {
+          "blob": "923cda106b757fb208d1ac3cf65f419f",
+          "name": "rain.svg",
+          "size": 254,
+          "type": "image/svg+xml"
+        },
+        "sun.svg": {
+          "blob": "c7d5da2e45b2fb88c80acb4dae2702f4",
+          "name": "sun.svg",
+          "size": 323,
+          "type": "image/svg+xml"
+        },
+        "wardrobe.svg": {
+          "blob": "95bde1c50b619d24433ad6886a5ee313",
+          "name": "wardrobe.svg",
+          "size": 307,
+          "type": "image/svg+xml"
+        },
+        "pin.svg": {
+          "blob": "de6ed30224f56730bceed56cc669fe6b",
+          "name": "pin.svg",
+          "size": 287,
+          "type": "image/svg+xml"
+        },
+        "forward.svg": {
+          "blob": "73c924356072f513b116465b25d29b0a",
+          "name": "forward.svg",
+          "size": 214,
+          "type": "image/svg+xml"
+        },
+        "refresh.svg": {
+          "blob": "900db67f5c40bb1a995b43cef3e48c7f",
+          "name": "refresh.svg",
+          "size": 343,
+          "type": "image/svg+xml"
+        },
+        "spring.svg": {
+          "blob": "a74b33efa25c9ad15928c4c47681e1f5",
+          "name": "spring.svg",
+          "size": 318,
+          "type": "image/svg+xml"
+        },
+        "summer.svg": {
+          "blob": "ea01e7e1ed1a67f6d3364a575b483eb0",
+          "name": "summer.svg",
+          "size": 370,
+          "type": "image/svg+xml"
+        },
+        "autumn.svg": {
+          "blob": "e5e94391065ff821985e71545712de57",
+          "name": "autumn.svg",
+          "size": 267,
+          "type": "image/svg+xml"
+        },
+        "winter.svg": {
+          "blob": "62c9fbe5974af649e44f571240d7d603",
+          "name": "winter.svg",
+          "size": 300,
+          "type": "image/svg+xml"
+        },
+        "tag.svg": {
+          "blob": "862e5857eee5e15af9212d91f41228c8",
+          "name": "tag.svg",
+          "size": 265,
+          "type": "image/svg+xml"
+        },
+        "camera.svg": {
+          "blob": "8fd806f4ead7e644ad363c3d3203e51a",
+          "name": "camera.svg",
+          "size": 267,
+          "type": "image/svg+xml"
+        },
+        "search.svg": {
+          "blob": "7b60f37aa42e20151eba6b56fc807ea4",
+          "name": "search.svg",
+          "size": 257,
+          "type": "image/svg+xml"
+        },
+        "receipt.svg": {
+          "blob": "71eb38b109cc3ae0f54029973d3383ba",
+          "name": "receipt.svg",
+          "size": 261,
+          "type": "image/svg+xml"
+        },
+        "calendar.svg": {
+          "blob": "1f5f62cc82c445964b78f7dbdf843715",
+          "name": "calendar.svg",
+          "size": 265,
+          "type": "image/svg+xml"
+        },
+        "star.svg": {
+          "blob": "677b5cd1fb2483ab587939d71d108730",
+          "name": "star.svg",
+          "size": 281,
+          "type": "image/svg+xml"
+        }
+      },
+      "name": "Icons",
+      "order": [
+        "home.svg",
+        "lookbook.svg",
+        "diary.svg",
+        "wardrobe.svg",
+        "capture.svg",
+        "camera.svg",
+        "describe.svg",
+        "edit.svg",
+        "star.svg",
+        "bell.svg",
+        "close.svg",
+        "check.svg",
+        "chevron.svg",
+        "back.svg",
+        "forward.svg",
+        "plus.svg",
+        "refresh.svg",
+        "pin.svg",
+        "tag.svg",
+        "search.svg",
+        "receipt.svg",
+        "calendar.svg",
+        "cloud.svg",
+        "sun.svg",
+        "rain.svg",
+        "spring.svg",
+        "summer.svg",
+        "autumn.svg",
+        "winter.svg"
+      ],
+      "tile": "xs"
+    },
+    "Imagery": {
+      "files": {
+        "b-model.jpg": {
+          "blob": "e9559bed176af4e02501eb7346faa305",
+          "name": "b-model.jpg",
+          "size": 54334,
+          "type": "image/jpeg"
+        },
+        "flatlay.jpg": {
+          "blob": "61417557e043cdb43b979c5321c6c842",
+          "name": "flatlay.jpg",
+          "size": 114113,
+          "type": "image/jpeg"
+        },
+        "model-clean.jpg": {
+          "blob": "cacb5e202ab5a8f85ea74dace9b15933",
+          "name": "model-clean.jpg",
+          "size": 38060,
+          "type": "image/jpeg"
+        },
+        "style-polished.jpg": {
+          "blob": "f58eeaeef0920432a8a4fc782c5100ae",
+          "name": "style-polished.jpg",
+          "size": 63034,
+          "type": "image/jpeg"
+        },
+        "style-romantic.jpg": {
+          "blob": "a396bd4f5f254ddf3bbbe537f5f4fe3a",
+          "name": "style-romantic.jpg",
+          "size": 133552,
+          "type": "image/jpeg"
+        },
+        "style-tailored.jpg": {
+          "blob": "a5785e80551126ee99464bdbcd7ce9e7",
+          "name": "style-tailored.jpg",
+          "size": 164473,
+          "type": "image/jpeg"
+        },
+        "way-1.jpg": {
+          "blob": "d299121b7ee19b76bcb95cec5e0b4f47",
+          "name": "way-1.jpg",
+          "size": 90814,
+          "type": "image/jpeg"
+        },
+        "way-2.jpg": {
+          "blob": "dd740bfa87e00a5bf25ccda73bd466e6",
+          "name": "way-2.jpg",
+          "size": 176055,
+          "type": "image/jpeg"
+        },
+        "way-3.jpg": {
+          "blob": "963aef8bd203cb87e5113a54e2a70a7e",
+          "name": "way-3.jpg",
+          "size": 129174,
+          "type": "image/jpeg"
+        }
+      },
+      "name": "Imagery",
+      "order": [
+        "model-clean.jpg",
+        "b-model.jpg",
+        "way-1.jpg",
+        "way-2.jpg",
+        "way-3.jpg",
+        "style-tailored.jpg",
+        "style-romantic.jpg",
+        "style-polished.jpg",
+        "flatlay.jpg"
+      ],
+      "tile": "l"
+    },
+    "Pieces": {
+      "files": {
+        "pc-bottom.jpg": {
+          "blob": "1b9efb672ddd48508701d0e03f6e2ebe",
+          "name": "pc-bottom.jpg",
+          "size": 9189,
+          "type": "image/jpeg"
+        },
+        "pc-shoes.jpg": {
+          "blob": "0254148f4ceda43a923848a63e4165a9",
+          "name": "pc-shoes.jpg",
+          "size": 10230,
+          "type": "image/jpeg"
+        },
+        "pc-top.jpg": {
+          "blob": "045693b3417feb00a48ceb46f01e48c1",
+          "name": "pc-top.jpg",
+          "size": 10249,
+          "type": "image/jpeg"
+        },
+        "piece-waistcoat.jpg": {
+          "blob": "c1e5a36fd6239951ac1049083bba9671",
+          "name": "piece-waistcoat.jpg",
+          "size": 29186,
+          "type": "image/jpeg"
+        },
+        "rk-boots.jpg": {
+          "blob": "1a58a1fd4471acb8e11ba656f7021198",
+          "name": "rk-boots.jpg",
+          "size": 11365,
+          "type": "image/jpeg"
+        },
+        "rk-cami.jpg": {
+          "blob": "d82e2434d4c5419448290a33622270ac",
+          "name": "rk-cami.jpg",
+          "size": 8426,
+          "type": "image/jpeg"
+        },
+        "rk-flats.jpg": {
+          "blob": "7b1e0bbabdc46788cfbfa7d677037c80",
+          "name": "rk-flats.jpg",
+          "size": 9237,
+          "type": "image/jpeg"
+        },
+        "rk-shacket.jpg": {
+          "blob": "740bafba59017a6788ee168f48199b6f",
+          "name": "rk-shacket.jpg",
+          "size": 6276,
+          "type": "image/jpeg"
+        },
+        "rk-tote.jpg": {
+          "blob": "7666658d6b85f67b1373f15beab4854a",
+          "name": "rk-tote.jpg",
+          "size": 5471,
+          "type": "image/jpeg"
+        },
+        "quad-jacket.png": {
+          "blob": "d66a92ff19f7b32be622a884ca1ee7e4",
+          "name": "quad-jacket.png",
+          "size": 98401,
+          "type": "image/png"
+        },
+        "quad-trousers.png": {
+          "blob": "34ecd9ea179a08dcb3184e52841f9219",
+          "name": "quad-trousers.png",
+          "size": 56241,
+          "type": "image/png"
+        },
+        "piece-sneakers.png": {
+          "blob": "ba762bb26d1884775aa2965e050b09a3",
+          "name": "piece-sneakers.png",
+          "size": 158603,
+          "type": "image/png"
+        },
+        "piece-tote.png": {
+          "blob": "adb4e9ebaed5da4084730ceda75ac8ae",
+          "name": "piece-tote.png",
+          "size": 91010,
+          "type": "image/png"
+        },
+        "piece-closeup.jpg": {
+          "blob": "af51286e25a55ae894b26fcb8d9e5fef",
+          "name": "piece-closeup.jpg",
+          "size": 80956,
+          "type": "image/jpeg"
+        },
+        "red-jacquard-dress.jpg": {
+          "blob": "4618f82c6467c005fccf0c4fb79cc143",
+          "name": "red-jacquard-dress.jpg",
+          "size": 152970,
+          "type": "image/jpeg"
+        }
+      },
+      "name": "Pieces",
+      "order": [
+        "red-jacquard-dress.jpg",
+        "pc-top.jpg",
+        "pc-bottom.jpg",
+        "pc-shoes.jpg",
+        "piece-waistcoat.jpg",
+        "quad-jacket.png",
+        "quad-trousers.png",
+        "piece-sneakers.png",
+        "piece-tote.png",
+        "piece-closeup.jpg",
+        "rk-cami.jpg",
+        "rk-shacket.jpg",
+        "rk-boots.jpg",
+        "rk-flats.jpg",
+        "rk-tote.jpg"
+      ],
+      "tile": "s"
+    }
+  },
+  "blobs": {},
+  "createdOnFiles": {
+    "at": "2026-11-06T07:28:28Z",
+    "v": 1
+  },
+  "docs": {
+    "readme": "project/README.md",
+    "sections": []
+  },
+  "groups": [
+    "Icons",
+    "Imagery",
+    "Pieces"
+  ],
+  "lastChange": {
+    "at": "2026-11-06T10:25:06Z",
+    "by": "Annie",
+    "note": "WardrobePiece: removed the Style this piece CTA",
+    "via": "Cowork"
+  },
+  "layout": "files",
+  "libraries": [
+    {
+      "name": "react",
+      "version": "18"
+    },
+    {
+      "name": "react-dom",
+      "version": "18"
+    }
+  ],
+  "namespace": "Felix",
+  "sections": {},
+  "title": "Felix Design System"
+}

@@ -1,0 +1,1 @@
+Outline icons from the designs: 24px grid, 1.5px stroke, round caps and joins. The SVG files are drawn in `ink` (#202021); in product, render them through the `Icon` component so they take `currentColor`.

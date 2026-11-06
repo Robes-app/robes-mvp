@@ -1,0 +1,12 @@
+<!-- @dsCard group="Overlays" height=300 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Sheet — preview</title></head>
+<body>
+<div id="root" style="width:390px;background:var(--cream-300);padding-top:24px"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(F.Sheet,{eyebrow:'Thursday',question:'What did you wear?',rows:[{icon:'lookbook',label:'Pick look'},{icon:'capture',label:'Capture look'}]}));
+</script>
+</body>
+</html>

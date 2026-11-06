@@ -1,0 +1,13 @@
+<!-- @dsCard group="Looks" height=380 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PieceList — preview</title></head>
+<body>
+<div id="root" style="width:350px;padding:16px 20px;display:flex;flex-direction:column;gap:20px"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+var items=[{img:'/_blob/045693b3417feb00a48ceb46f01e48c1',category:'Tops',brand:'Adidas',name:'Lime green sweatshirt'},{img:'/_blob/1b9efb672ddd48508701d0e03f6e2ebe',category:'Bottoms',name:'Black leggings'},{img:'/_blob/0254148f4ceda43a923848a63e4165a9',category:'Shoes',brand:'Salomon XT-4',name:'White Salomon running shoes'}];
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment,null,h(F.PieceList,{items:items,mode:'edit',onAdd:function(){}}),h(F.PieceList,{items:items.slice(0,2).map(function(i,k){return Object.assign({},i,{meta:k?'Worn 4×':'New'});})})));
+</script>
+</body>
+</html>

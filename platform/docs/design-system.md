@@ -6,6 +6,7 @@ Inputs:
 - `reference/brand-and-design.md` — extracted brand voice, palette, type, components, accessibility gaps (read §1 voice + naming map before writing any copy).
 - `reference/tokens.draft.json` — consolidated token values found in the legacy product (`status: proposed` marks values that don't exist yet, e.g. dark mode).
 - `reference/stack-versions.md` §Token-sharing approach — why Tailwind v4 + Uniwind and how the pipeline works.
+- `../design/felix/` — the Felix Design System (tokens, component guidelines, icons, imagery), exported from its claude.ai artifact; see `../design/README.md`.
 - Legacy canon: `public/css/tokens.css` and `public/specimen.html` on branch `platform` (= beta). The brand line is **"Warm, not cold. Restrained, not minimal."**
 
 ---

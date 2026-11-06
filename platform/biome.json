@@ -17,7 +17,8 @@
       "!docs/reference/tokens.draft.json",
       "!mobile/assets",
       "!**/uniwind-types.d.ts",
-      "!**/storybook-static"
+      "!**/storybook-static",
+      "!design/felix"
     ]
   },
   "css": {

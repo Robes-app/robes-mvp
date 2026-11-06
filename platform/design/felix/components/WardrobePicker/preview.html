@@ -1,0 +1,17 @@
+<!-- @dsCard group="Looks · Draft sub-sheets" height=860 subtitle="The add-pieces slot: search, filter by category, pick from the wardrobe" width=836 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>WardrobePicker — preview</title></head>
+<body>
+<div id="root" style="display:flex;gap:24px;padding:16px;align-items:flex-start;background:var(--cream-300);width:max-content"></div>
+<script>
+var F = window.Felix, h = React.createElement;
+var frame = { width: 390, height: 820, flex: 'none', position: 'relative', overflow: 'hidden', borderRadius: 'var(--rad-lg) var(--rad-lg) 0 0' };
+var models = [{ src: '/_blob/e9559bed176af4e02501eb7346faa305', name: 'Classic', bs: '450% auto', bp: '50% 9%' }, { src: '/_blob/cacb5e202ab5a8f85ea74dace9b15933', name: 'Natural', bs: '450% auto', bp: '50% 9%' }, { src: '/_blob/d299121b7ee19b76bcb95cec5e0b4f47', name: 'Tailored', bs: '520% auto', bp: '50% 10%' }, { src: '/_blob/dd740bfa87e00a5bf25ccda73bd466e6', name: 'Street', bs: '520% auto', bp: '49% 10%' }, { src: '/_blob/963aef8bd203cb87e5113a54e2a70a7e', name: 'Evening', bs: '520% auto', bp: '47% 8%' }, { src: '/_blob/a396bd4f5f254ddf3bbbe537f5f4fe3a', name: 'Romantic', bs: '460% auto', bp: '42% 26%' }];
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: frame }, h(F.DraftLook, { image: '/_blob/e9559bed176af4e02501eb7346faa305', sheet: 'wardrobe', wardrobe: [{ img: '/_blob/c1e5a36fd6239951ac1049083bba9671', name: 'Tailored waistcoat', cat: 'Tops', on: true }, { img: '/_blob/d66a92ff19f7b32be622a884ca1ee7e4', name: 'Wool jacket', cat: 'Outerwear' }, { img: '/_blob/34ecd9ea179a08dcb3184e52841f9219', name: 'Wide trousers', cat: 'Bottoms' }, { img: '/_blob/ba762bb26d1884775aa2965e050b09a3', name: 'White trainers', cat: 'Shoes' }, { img: '/_blob/adb4e9ebaed5da4084730ceda75ac8ae', name: 'Leather tote', cat: 'Bags' }, { img: '/_blob/af51286e25a55ae894b26fcb8d9e5fef', name: 'Cream knit', cat: 'Knitwear' }].map(function (w) { return Object.assign({}, w, { on: false }); }) })),
+  h('div', { style: frame }, h(F.DraftLook, { image: '/_blob/e9559bed176af4e02501eb7346faa305', sheet: 'wardrobe', wardrobe: [{ img: '/_blob/c1e5a36fd6239951ac1049083bba9671', name: 'Tailored waistcoat', cat: 'Tops', on: true }, { img: '/_blob/d66a92ff19f7b32be622a884ca1ee7e4', name: 'Wool jacket', cat: 'Outerwear' }, { img: '/_blob/34ecd9ea179a08dcb3184e52841f9219', name: 'Wide trousers', cat: 'Bottoms' }, { img: '/_blob/ba762bb26d1884775aa2965e050b09a3', name: 'White trainers', cat: 'Shoes' }, { img: '/_blob/adb4e9ebaed5da4084730ceda75ac8ae', name: 'Leather tote', cat: 'Bags' }, { img: '/_blob/af51286e25a55ae894b26fcb8d9e5fef', name: 'Cream knit', cat: 'Knitwear' }], wardrobeCategory: 'All' }))
+));
+</script>
+</body>
+</html>
