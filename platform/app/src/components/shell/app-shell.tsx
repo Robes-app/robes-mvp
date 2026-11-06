@@ -141,12 +141,14 @@ export function AppShell({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      {/* At the scroll edge no hairline; scrolled, a mostly opaque bar with a hairline beneath. */}
+      {/* Felix's TopNav (D6, 2026-11-06; it replaces the iOS navigation redline's bar): 64 tall at
+          every width, 24 in on a phone, nav glass with its blur and a 0.5px hairline beneath,
+          always. The native twin is mobile/src/components/TabScreen.tsx. */}
       <header
         data-scrolled={scrolled ? 'true' : undefined}
-        className={`sticky top-0 z-40 border-b ${scrolled ? 'border-hairline bg-bg/95 backdrop-blur' : 'border-transparent bg-bg'} ${pushed && !back ? 'max-md:hidden' : ''}`}
+        className={`sticky top-0 z-40 border-hairline border-b-[0.5px] bg-nav-glass backdrop-blur-nav ${pushed && !back ? 'max-md:hidden' : ''}`}
       >
-        <div className="mx-auto flex h-11 max-w-5xl items-center gap-2 px-4 md:h-16">
+        <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-6 md:px-4">
           {/* A pushed page's back pill: below 768 it stands where the wordmark sits, one header row;
               from 768 the bar keeps the wordmark and the pill heads the page (beta's #rb-backpill and
               .rb-ret). Both are drawn and CSS picks one, so the server render is final; the other is
@@ -181,8 +183,8 @@ export function AppShell({
               </Link>
             ))}
           </nav>
-          {/* The avatar's 44 hit area runs 6 past its ring, so the ring stands 16 from the edge. */}
-          <div className="-mr-1.5 ml-auto flex items-center md:gap-1">
+          {/* The bell and the avatar disc stand 6 apart; each hit area reaches 44 past its glyph. */}
+          <div className="ml-auto flex items-center gap-1.5 md:gap-3">
             <button
               type="button"
               onClick={toggleCommand}
@@ -207,7 +209,7 @@ export function AppShell({
               href="/you"
               aria-label={shell.openYou}
               aria-current={pathname.startsWith('/you') ? 'page' : undefined}
-              className={`flex size-11 items-center justify-center rounded-pill transition-opacity duration-100 active:opacity-60 ${focus}`}
+              className={`relative flex size-[30px] items-center justify-center rounded-pill transition-[opacity,box-shadow] duration-200 hover:shadow-[0_0_0_3px_var(--sage-bg)] active:opacity-60 after:absolute after:-inset-[7px] after:content-[''] ${focus}`}
             >
               <Avatar name={name} tone="nav" />
             </Link>
@@ -241,7 +243,7 @@ export function AppShell({
         {minimised ? (
           <MinimisedTab item={NAV_ITEMS.find((i) => i.href === current)} onRestore={restore} />
         ) : (
-          <ul className={`flex h-16 items-center rounded-pill border border-hairline p-1 ${DOCK}`}>
+          <ul className={`flex h-16 items-center rounded-dock border p-1 ${DOCK}`}>
             {NAV_ITEMS.map((item) => (
               <TabLink key={item.href} item={item} active={current === item.href} />
             ))}
@@ -295,23 +297,26 @@ export function AppShell({
   );
 }
 
-// Lighter glass and a softer shadow than the old dock keep the cream dominant.
-const DOCK =
-  'bg-bg/80 shadow-[0_6px_20px_color-mix(in_srgb,var(--color-ink)_6%,transparent)] backdrop-blur-xl';
+// Felix's dock glass: white at 70% with its blur, on the 1px dock line.
+const DOCK = 'border-dock-line bg-dock-glass backdrop-blur-dock';
 
-// Selected: ink icon and label on a pale surface pill; the rest ink-muted. Labels are authored in
-// sentence case and capitalised for display only.
+// Felix's dock items: a 20 glyph over the dock-label (9.5/500 at 0.04em), ink-soft; the current one
+// ink with a 24×2 ink bar above the glyph. Labels are authored in sentence case and capitalised
+// for display only.
 function TabLink({ item, active }: { item: (typeof NAV_ITEMS)[number]; active: boolean }) {
   return (
     <li className="flex-1">
       <Link
         href={item.href}
         aria-current={active ? 'page' : undefined}
-        className={`flex h-14 flex-col items-center justify-center gap-0.5 rounded-pill font-sans font-medium text-[10px] uppercase leading-3 tracking-[0.08em] whitespace-nowrap ${
-          active ? 'bg-surface text-ink' : 'text-ink-muted'
+        className={`relative flex h-14 flex-col items-center justify-center gap-1 rounded-pill font-sans font-medium text-[9.5px] uppercase leading-none tracking-[0.04em] whitespace-nowrap ${
+          active ? 'text-ink' : 'text-ink-muted'
         } ${focus}`}
       >
-        <Icon name={item.icon} size={24} />
+        {active ? (
+          <span aria-hidden className="absolute top-0.5 h-0.5 w-6 rounded-xs bg-ink" />
+        ) : null}
+        <Icon name={item.icon} size={20} />
         {item.label}
       </Link>
     </li>
@@ -327,7 +332,7 @@ function MinimisedTab({ item, onRestore }: { item?: NavItem; onRestore: () => vo
       aria-label={item.label}
       aria-expanded={false}
       onClick={onRestore}
-      className={`flex size-14 items-center justify-center rounded-pill border border-hairline text-ink ${DOCK} ${focus}`}
+      className={`flex size-14 items-center justify-center rounded-pill border text-ink ${DOCK} ${focus}`}
     >
       <Icon name={item.icon} size={24} />
     </button>

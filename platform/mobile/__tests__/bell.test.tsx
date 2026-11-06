@@ -50,6 +50,11 @@ test('two items render with where each leads; a tap routes, × dismisses and the
   );
   // The dot is never colour alone: the count is in the label.
   expect(button.props.accessibilityLabel).toBe('Notifications, 2 new');
+  // Felix's 36pt bell keeps a 44pt hit area; the dot is the rose.
+  expect(button.props.hitSlop).toBe(4);
+  expect(screen.getByTestId('bell-dot', { includeHiddenElements: true }).props.className).toContain(
+    'bg-accent-inspire',
+  );
   await fireEvent.press(button);
   expect(await screen.findByText(bell.title)).toBeTruthy();
   expect(screen.getByText(bell.receipts(2))).toBeTruthy();
