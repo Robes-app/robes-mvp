@@ -127,7 +127,10 @@ test('You › Your digital twin: on a Robes model the doors are closed; her fact
   await page.reload();
   await expect(page.getByRole('link', { name: /Colouring/ })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('button', { name: 'You', pressed: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Retake your selfie' })).toBeVisible();
+  // R15: the redraw control on the hero, named for what it does.
+  await expect(
+    page.getByRole('button', { name: 'Retake selfie to update your twin' }),
+  ).toBeVisible();
   await page.getByRole('link', { name: /Colouring/ }).click();
   // No close-up card: the selfie is taken a screen earlier, and the swatches read as hand picks.
   await expect(page.getByText('Your close-up')).toHaveCount(0);
