@@ -787,7 +787,10 @@ export function looksRepo(db: Db) {
             .executeTakeFirst();
           if (tag) ids.push(tag.id);
         }
-        let drop = tx.deleteFrom('tagLooks').where('userId', '=', userId).where('lookId', '=', lookId);
+        let drop = tx
+          .deleteFrom('tagLooks')
+          .where('userId', '=', userId)
+          .where('lookId', '=', lookId);
         if (ids.length) drop = drop.where('tagId', 'not in', ids);
         await drop.execute();
         if (ids.length) {
