@@ -34,11 +34,11 @@ test('a close-up reads her colouring; on Colouring, she picks the season next do
   // the page lands on Your digital twin while the read runs, then Colouring shows the season.
   await page.getByTestId('selfie-input').setInputFiles(PHOTO);
   await expect(page).toHaveURL(/\/you\/model/, { timeout: 30_000 });
+  // `read_season` is set only once she picks a season by hand; the read itself lands as `season`.
   await expect
-    .poll(
-      async () => (await (await page.request.get('/api/v1/me/style')).json()).colour?.read_season,
-      { timeout: 30_000 },
-    )
+    .poll(async () => (await (await page.request.get('/api/v1/me/style')).json()).colour?.season, {
+      timeout: 30_000,
+    })
     .toBe('Soft Autumn');
   await page.goto('/you/model/colouring');
   // The offline fake reads every face as Soft Autumn.
