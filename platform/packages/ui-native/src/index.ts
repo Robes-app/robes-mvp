@@ -1,3 +1,4 @@
+export { AlertDialog, type AlertDialogAction, type AlertDialogProps } from './AlertDialog';
 export { Avatar, type AvatarProps, initials } from './Avatar';
 export {
   Button,
@@ -34,7 +35,9 @@ export {
   maxFontSizeMultiplier,
   TOAST_DEFAULT_DURATION,
   TOAST_MIN_DURATION,
+  typeStyle,
 } from './scale';
+export { Tabs, type TabsProps } from './Tabs';
 export { Em, Eyebrow, Heading, type HeadingProps, Text, type TextProps, Wordmark } from './Text';
 export {
   Toast,

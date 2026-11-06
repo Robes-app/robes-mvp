@@ -159,7 +159,7 @@ function IdeaBody({
           <Button variant="quiet" onClick={onRemove} loading={removing}>
             {copy.remove}
           </Button>
-          <Button variant="secondary" disabled={saved} loading={saving} onClick={onSave}>
+          <Button variant="outline" disabled={saved} loading={saving} onClick={onSave}>
             {saved ? copy.saved : copy.save}
           </Button>
         </div>
@@ -252,7 +252,7 @@ function SaveWay({
 }) {
   return (
     <Button
-      variant="secondary"
+      variant="outline"
       loading={saving}
       onClick={() => onSaveWay(idx)}
       aria-label={`${looks.saveWay}: ${title}`}
@@ -314,7 +314,7 @@ function WayCard({
             type="button"
             onClick={onOpen}
             aria-label={kp.open(way.title)}
-            className="text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            className="text-left focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             {way.title}
           </button>

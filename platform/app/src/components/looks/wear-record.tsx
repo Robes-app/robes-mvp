@@ -80,7 +80,7 @@ export function WearRecord({ look, onAddDate }: { look: Look; onAddDate: () => v
                 <Link
                   href={`/plan/${wear.wornOn}`}
                   aria-label={copy.openDay(date)}
-                  className="flex min-w-0 flex-1 items-center gap-3 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-crisp focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                 >
                   <Text size="small" className="shrink-0">
                     {weekdayDayMonth(wear.wornOn)}

@@ -1,3 +1,4 @@
+export * from './alert-dialog';
 export * from './aspect';
 export * from './avatar';
 export * from './button';
@@ -17,6 +18,7 @@ export * from './progress';
 export * from './segmented-control';
 export * from './skeleton';
 export * from './switch';
+export * from './tabs';
 export * from './text';
 export * from './toast';
 export * from './wordmark';

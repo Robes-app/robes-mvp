@@ -132,7 +132,7 @@ function Receipt({
         </Button>
         <View className="flex-row items-center justify-between gap-3">
           <Button
-            variant="secondary"
+            variant="outline"
             disabled={decide.isPending || keep.length === 0}
             onPress={() => file('wishlist')}
           >

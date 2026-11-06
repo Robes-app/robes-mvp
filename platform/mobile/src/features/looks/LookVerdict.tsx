@@ -63,7 +63,7 @@ export function LookVerdict({ look, onLetGo }: { look: Look; onLetGo: () => void
         <View className="gap-2">
           <Field label={copy.verdict.ask} value={body} onChangeText={setBody} maxLength={240} />
           <Button
-            variant="secondary"
+            variant="outline"
             onPress={() => void record(0, body.trim() || undefined).then(onLetGo)}
           >
             {copy.verdict.send}

@@ -23,7 +23,7 @@ test.beforeEach(async ({ context }) => isolateClientIp(context));
 test('paste a link from Create, review it, and it files to the wishlist', async ({ page }) => {
   await signIn(page);
   await declineConsent(page);
-  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Create' })
     .getByRole('link', { name: 'Paste a link' })

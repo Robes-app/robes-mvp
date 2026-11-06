@@ -41,6 +41,13 @@ describe('icons', () => {
   });
 });
 
+describe('stroke', () => {
+  it('draws at 1.5 unless a lighter stroke is asked for', () => {
+    expect(renderToStaticMarkup(<Icon name="bell" />)).toContain('stroke-width="1.5"');
+    expect(renderToStaticMarkup(<Icon name="bell" stroke={1.2} />)).toContain('stroke-width="1.2"');
+  });
+});
+
 describe('filled icons', () => {
   it('fill with the current colour only when asked', () => {
     expect(renderToStaticMarkup(<Icon name="star" filled />)).toContain('fill="currentColor"');

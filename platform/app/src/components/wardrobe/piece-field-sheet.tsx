@@ -579,7 +579,7 @@ function WearForPicker({
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="inline-flex min-h-11 items-center rounded-pill border border-border-control border-dashed px-4 font-sans text-ink-muted text-sm hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              className="inline-flex min-h-11 items-center rounded-pill border border-border-control border-dashed px-4 font-sans text-ink-muted text-sm hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
               {fields.wearFor.own}
             </button>

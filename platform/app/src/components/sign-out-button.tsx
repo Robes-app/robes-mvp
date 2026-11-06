@@ -9,7 +9,7 @@ export function SignOutButton() {
   return (
     <Button
       // Settings' foot (legacy .sp-out): a small hairline pill; its hit area stays 44.
-      variant="secondary"
+      variant="outline"
       className="relative min-h-9 px-5 after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']"
       onClick={() => void signOut()}
     >

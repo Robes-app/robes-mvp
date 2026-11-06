@@ -340,7 +340,7 @@ function FilterSheet({
                 type="button"
                 aria-pressed={pick.family === f.id}
                 onClick={() => toggle('family', f.id)}
-                className={`flex min-h-11 flex-col items-center gap-1.5 rounded-crisp border px-1 py-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+                className={`flex min-h-11 flex-col items-center gap-1.5 rounded-crisp border px-1 py-1.5 focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
                   pick.family === f.id ? 'border-selected-line bg-selected' : 'border-transparent'
                 }`}
               >
@@ -363,7 +363,7 @@ function FilterSheet({
               aria-label={wardrobe.filter.brand}
               value={pick.brand ?? ''}
               onChange={(e) => setPick({ ...pick, brand: e.target.value || null })}
-              className="min-h-11 max-w-xs rounded-crisp border border-hairline bg-surface-raised px-3 text-ink text-sm focus-visible:outline-2 focus-visible:outline-focus-ring"
+              className="min-h-11 max-w-xs rounded-crisp border border-hairline bg-surface-raised px-3 text-ink text-sm focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
             >
               <option value="">{wardrobe.filter.allBrands}</option>
               {brands.map((b) => (

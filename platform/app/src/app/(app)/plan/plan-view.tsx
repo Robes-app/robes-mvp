@@ -12,7 +12,7 @@ import { PlanMonth } from './plan-month';
 import { type PlanViewKind, usePlanView } from './use-plan-view';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The Diary tab (beta parity canvas, 04 Diary; the native twin is mobile/src/features/plan/
 // PlanView.tsx): the List | Month track and the framed + pinned under the header; the eyebrow

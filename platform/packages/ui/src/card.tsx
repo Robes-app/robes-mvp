@@ -17,8 +17,8 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
   overlay?: ReactNode;
 }
 
-// Cards get a hairline, never a shadow (brand-and-design.md §4.5): beta's white card, raised off
-// the cream page (Native parity handoff 2026-10-25; the native twin is ui-native Card.tsx).
+// Cards get Felix's fine 0.5px `rule-mid` edge, never a shadow (brand-and-design.md §4.5): the
+// white card raised off the cream page (the native twin is ui-native Card.tsx).
 export function Card({
   as: Tag = 'article',
   media,
@@ -36,7 +36,7 @@ export function Card({
     <Tag
       {...rest}
       className={cn(
-        'relative flex flex-col overflow-hidden rounded-soft border border-hairline bg-surface-raised',
+        'relative flex flex-col overflow-hidden rounded-soft border-[0.5px] border-rule-mid bg-surface-raised',
         className,
       )}
     >
@@ -74,7 +74,7 @@ export function CardSkeleton({
     <div
       aria-hidden
       className={cn(
-        'flex flex-col overflow-hidden rounded-soft border border-hairline bg-surface-raised',
+        'flex flex-col overflow-hidden rounded-soft border-[0.5px] border-rule-mid bg-surface-raised',
         className,
       )}
     >

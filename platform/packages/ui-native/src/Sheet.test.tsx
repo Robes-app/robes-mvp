@@ -152,3 +152,24 @@ test('without a home indicator it keeps its own padding', async () => {
   );
   expect(panelStyle('Body')).toEqual(expect.objectContaining({ paddingBottom: 24 }));
 });
+
+test('a sheet asks one question with Felix choice rows', async () => {
+  const pick = jest.fn();
+  await render(
+    <Sheet
+      open
+      onClose={jest.fn()}
+      eyebrow="Monday"
+      title="What did you wear?"
+      rows={[
+        { icon: 'capture', label: 'Take a photo', onPress: pick },
+        { icon: 'book', label: 'Pick a look', onPress: jest.fn() },
+      ]}
+    />,
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Take a photo' }));
+  expect(pick).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('button', { name: 'Pick a look' }).props.style).toMatchObject({
+    minHeight: 56,
+  });
+});

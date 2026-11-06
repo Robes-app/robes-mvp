@@ -177,7 +177,7 @@ test('⌘K goes anywhere and Create opens the IA options', async ({ page }) => {
 
   // Settings carries its own header (no Create there): Create opens from a root.
   await page.goto('/');
-  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Create' });
   await expect(sheet.getByRole('link').first()).toBeVisible();
   // trips.spec flips the trips flag mid-run and pins its door itself.

@@ -18,12 +18,15 @@ test('primary press fires a haptic then the handler', async () => {
   expect(onPress).toHaveBeenCalledTimes(1);
 });
 
-test('secondary and quiet buttons never buzz', async () => {
+test('outline, chip and quiet buttons never buzz', async () => {
   const onPress = jest.fn();
   await render(
     <>
-      <Button variant="secondary" onPress={onPress}>
+      <Button variant="outline" onPress={onPress}>
         Wear on a day
+      </Button>
+      <Button variant="chip" onPress={onPress}>
+        Generate
       </Button>
       <Button variant="quiet" onPress={onPress}>
         Sign out
@@ -31,8 +34,9 @@ test('secondary and quiet buttons never buzz', async () => {
     </>,
   );
   await fireEvent.press(screen.getByRole('button', { name: 'Wear on a day' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Generate' }));
   await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
-  expect(onPress).toHaveBeenCalledTimes(2);
+  expect(onPress).toHaveBeenCalledTimes(3);
   expect(Haptics.impactAsync).not.toHaveBeenCalled();
 });
 
@@ -93,7 +97,7 @@ describe('one filled button per screen (UX-26)', () => {
     await render(
       <PrimaryScope>
         <Button onPress={() => {}}>Save this look</Button>
-        <Button variant="secondary" onPress={() => {}}>
+        <Button variant="outline" onPress={() => {}}>
           Wear on a day
         </Button>
       </PrimaryScope>,
@@ -123,7 +127,7 @@ describe('one filled button per screen (UX-26)', () => {
     );
     await rerender(
       <PrimaryScope>
-        <Button variant="secondary" onPress={() => {}}>
+        <Button variant="outline" onPress={() => {}}>
           Continue
         </Button>
         <Button onPress={() => {}}>Save this look</Button>
@@ -140,4 +144,13 @@ test('IconButton exposes its required label and a 44pt hit area', async () => {
   expect(button).toHaveStyle({ minWidth: 44, minHeight: 44 });
   await fireEvent.press(button);
   expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test('a chip under 44pt keeps a 44pt hit area', async () => {
+  await render(
+    <Button variant="chip" onPress={jest.fn()}>
+      Generate
+    </Button>,
+  );
+  expect(screen.getByRole('button', { name: 'Generate' }).props.hitSlop).toBe(8);
 });

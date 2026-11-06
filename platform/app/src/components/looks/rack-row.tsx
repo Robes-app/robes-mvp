@@ -125,7 +125,7 @@ export function RackRowCard({
         <Link
           href={`/piece/${row.pieceId}`}
           aria-label={copy.rack.open(name)}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-crisp focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           {body}
           <Icon name="forward" size={16} className="shrink-0 text-ink-faint" />

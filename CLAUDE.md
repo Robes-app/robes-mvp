@@ -14,7 +14,7 @@ After a change ships, add a dated entry at the top of the history's dated sectio
 ## Design principles (Annie, 2026-10-21) — override anything older
 1. **Text to an absolute minimum.** One line where there would be a paragraph; no helper copy a control can carry; never repeat what the screen already shows.
 2. **Native mobile first.** Start at 390pt, primary actions in thumb reach, bottom sheets over modals, touch targets ≥44pt. The web adapts from the phone.
-3. **Cards and selections sit on white** with a hairline, or a `#C9BCA6` edge when selected; beige only below the page (Native parity handoff, 2026-10-25). Never black.
+3. **Cards sit on white** on a fine `rule-mid` edge; **a selection is the warm fill on the `#C9BCA6` edge** (`selected` / `selected-line`; Felix, 2026-11-06, supersedes white selections of 2026-10-25). Never black.
 4. **Never show a count as a fraction** ("4 / 15", "4 of 15").
 - **Retired: "one black fill per screen."** Don't withhold or restyle a dark button on that ground; harness pins that count ink fills are stale — update them when the screen they cover changes.
 

@@ -22,7 +22,7 @@ const add = wardrobe.add;
 // A viewfinder is dark whatever the theme, so its chrome takes palette tokens, not the
 // semantic ones that flip with the ground — the focus ring with them.
 const DARK_FOCUS =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream50';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-cream50';
 
 // No camera API, or an insecure page: the OS capture input answers in the same tap.
 export function canUseCamera(): boolean {
@@ -223,7 +223,7 @@ export function Camera({
           {/* The last shot, so she can see what Robes has; a tap opens the camera roll. */}
           <label
             htmlFor={rollId}
-            className="relative flex h-[60px] w-12 cursor-pointer items-center justify-center justify-self-start overflow-hidden rounded-[8px] border border-cream50/75 bg-cream50/12 focus-within:outline-2 focus-within:outline-cream50 focus-within:outline-offset-2"
+            className="relative flex h-[60px] w-12 cursor-pointer items-center justify-center justify-self-start overflow-hidden rounded-[8px] border border-cream50/75 bg-cream50/12 focus-within:outline-[1.5px] focus-within:outline-cream50 focus-within:outline-offset-2"
           >
             {last ? (
               // biome-ignore lint/performance/noImgElement: a local object URL of her own photo

@@ -17,7 +17,7 @@ import { lookTags, TagsSheet } from './tags-sheet';
 
 const copy = looksCopy.page;
 const onImage =
-  'absolute z-10 flex size-10 items-center justify-center rounded-pill bg-bg/90 text-ink shadow-sm hover:bg-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:text-ink-faint';
+  'absolute z-10 flex size-10 items-center justify-center rounded-pill bg-bg/90 text-ink shadow-sm hover:bg-bg focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:text-ink-faint';
 
 // The saved look's picture and what sits under it (Look redline 27 Oct; native twin
 // mobile/src/features/looks/LookHero.tsx): THE LOOK, the picture with the diary bottom-left and
@@ -87,7 +87,7 @@ export function LookHero({
     <button
       type="button"
       onClick={() => setTagsOpen(true)}
-      className="relative shrink-0 font-sans text-[10px] text-ink-faint uppercase tracking-[0.2em] after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:text-ink focus-visible:outline-2 focus-visible:outline-focus-ring"
+      className="relative shrink-0 font-sans text-[10px] text-ink-faint uppercase tracking-[0.2em] after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
     >
       {copy.editTags}
     </button>
@@ -122,7 +122,7 @@ export function LookHero({
           <button
             type="button"
             onClick={() => dress.mutate({ params: { id: look.id } })}
-            className="absolute top-3 left-3 z-10 min-h-11 rounded-pill border border-hairline bg-bg/90 px-3 font-sans text-ink text-xs focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="absolute top-3 left-3 z-10 min-h-11 rounded-pill border border-hairline bg-bg/90 px-3 font-sans text-ink text-xs focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
           >
             {you.model.undressed}
           </button>

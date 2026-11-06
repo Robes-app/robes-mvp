@@ -175,7 +175,7 @@ function Option({
       {...state}
       disabled={disabled}
       onClick={onClick}
-      className={`flex min-h-14 w-full items-center justify-between gap-4 rounded-crisp border px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${on ? 'border-selected-line bg-selected' : 'border-hairline hover:border-ink'}`}
+      className={`flex min-h-14 w-full items-center justify-between gap-4 rounded-crisp border px-4 py-3 text-left focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${on ? 'border-selected-line bg-selected' : 'border-hairline hover:border-ink'}`}
     >
       <span className="flex flex-col gap-0.5">
         <span
@@ -345,7 +345,7 @@ function PiecesBody({ dna }: { dna: StyleDna }) {
               <li key={p.id}>
                 <Link
                   href={`/piece/${p.id}`}
-                  className="flex items-center gap-4 rounded-crisp focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                  className="flex items-center gap-4 rounded-crisp focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                 >
                   <span className="w-13 shrink-0">
                     {sources ? (

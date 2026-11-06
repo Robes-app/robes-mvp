@@ -41,7 +41,7 @@ import { FeaturesProvider } from '../features';
 import { useDeviceLocation } from './device-location';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // A pushed view (the draft look, legacy 2026-10-06 second pass): below 768 the header and the dock
 // stand down while it is open, and its own sticky footer closes the screen.
@@ -209,7 +209,7 @@ export function AppShell({
               aria-current={pathname.startsWith('/you') ? 'page' : undefined}
               className={`flex size-11 items-center justify-center rounded-pill transition-opacity duration-100 active:opacity-60 ${focus}`}
             >
-              <Avatar name={name} size="sm" tone="ring" />
+              <Avatar name={name} tone="nav" />
             </Link>
           </div>
         </div>

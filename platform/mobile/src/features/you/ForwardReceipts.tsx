@@ -127,7 +127,7 @@ export function ForwardReceipts({ door = false }: { door?: boolean }) {
           )}
         </View>
       ) : off ? (
-        <Button variant="secondary" onPress={() => setOff(false)}>
+        <Button variant="outline" onPress={() => setOff(false)}>
           {copy.turnOn}
         </Button>
       ) : null}

@@ -103,6 +103,26 @@ describe('Dialog and Sheet', () => {
     expect(error).not.toHaveBeenCalled();
   });
 
+  it('asks one question with Felix choice rows and a rose eyebrow', async () => {
+    const take = vi.fn();
+    render(
+      <Sheet
+        open
+        title="What did you wear?"
+        eyebrow="Monday"
+        rows={[
+          { icon: 'capture', label: 'Take a photo', onClick: take },
+          { icon: 'book', label: 'Pick a look', onClick: vi.fn() },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Monday')).toHaveClass('type-eyebrow', 'text-accent-warm');
+    const row = screen.getByRole('button', { name: 'Take a photo' });
+    expect(row).toHaveClass('min-h-14');
+    await userEvent.click(row);
+    expect(take).toHaveBeenCalledOnce();
+  });
+
   it('has no serious accessibility violations when open', async () => {
     render(
       <Sheet title="Create" description="Start something new." defaultOpen>

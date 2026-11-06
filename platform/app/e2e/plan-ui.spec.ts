@@ -121,12 +121,22 @@ test('a quiet field focuses as an underline; a bare control keeps the ring', asy
       width: s.outlineWidth,
     };
   });
-  expect(bare).toEqual({ focusVisible: true, style: 'solid', width: '2px' });
+  // Felix's 1.5px ring, as this browser draws it: Chrome snaps an outline to whole device pixels,
+  // so it reads 1px at 1x and 1.5px at 2x and up.
+  const ring = await page.evaluate(() => {
+    const ref = document.createElement('div');
+    ref.style.outline = '1.5px solid';
+    document.body.append(ref);
+    const width = getComputedStyle(ref).outlineWidth;
+    ref.remove();
+    return width;
+  });
+  expect(bare).toEqual({ focusVisible: true, style: 'solid', width: ring });
   // The shared Button keeps its ring too.
   const named = page.getByRole('button', { name: 'Name the day' });
   await named.focus();
   await expect(named).toHaveCSS('outline-style', 'solid');
-  await expect(named).toHaveCSS('outline-width', '2px');
+  await expect(named).toHaveCSS('outline-width', ring);
 });
 
 // Pass 4 (Diary): a worn day reads "· Worn"; List | Month is kept; the diary drawer marks every

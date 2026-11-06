@@ -136,7 +136,7 @@ export function Rack({
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="min-h-13 rounded-soft border border-dashed border-border-control text-sm text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          className="min-h-13 rounded-soft border border-dashed border-border-control text-sm text-ink-muted hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           {copy.rack.addPiece}
         </button>
@@ -269,7 +269,7 @@ export function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Loo
       >
         <div className="mx-auto flex max-w-3xl items-center justify-end gap-3">
           {suggested ? (
-            <Button variant="secondary" onClick={editor.startDraft} loading={editor.saving}>
+            <Button variant="outline" onClick={editor.startDraft} loading={editor.saving}>
               {copy.bar.edit}
             </Button>
           ) : (
@@ -345,7 +345,7 @@ export function SavedRack({
             <button
               type="button"
               onClick={editor.startEditing}
-              className="relative min-h-9 rounded-pill border border-border-control px-4 font-sans text-ink text-sm after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              className="relative min-h-9 rounded-pill border border-border-control px-4 font-sans text-ink text-sm after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] hover:border-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
               {look.pieces.length || look.proposals.length ? copy.bar.editLook : copy.bar.addPieces}
             </button>

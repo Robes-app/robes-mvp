@@ -17,7 +17,7 @@ import { errorCopy } from '@/lib/error-copy';
 const BANDS = ['spring_summer', 'autumn_winter', 'year_round'] as const;
 type Band = (typeof BANDS)[number];
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The drawer (design 3k, plan §1.7): her saved looks for a day, the day's own looks ticked as
 // Scheduled. From Pick Look (`add`) she ticks one or several; from the lookbook icon on the OOTD
@@ -165,7 +165,7 @@ export function LookPicker({
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <p className="font-display text-2xl font-light text-ink">{copy.drawer.empty}</p>
           <p className="font-sans text-ink-muted text-sm">{copy.drawer.emptyLine}</p>
-          <Link href="/looks" className={buttonClasses({ variant: 'secondary' })}>
+          <Link href="/looks" className={buttonClasses({ variant: 'outline' })}>
             {copy.drawer.toLooks}
           </Link>
         </div>

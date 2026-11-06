@@ -106,7 +106,7 @@ function SwatchRow({
             aria-label={names[i] ?? hex}
             aria-pressed={i === value}
             onClick={() => onPick(i)}
-            className="relative size-7 flex-none rounded-full border border-hairline outline-offset-2 after:absolute after:-inset-x-[3.5px] after:-inset-y-2 after:content-[''] aria-pressed:outline aria-pressed:outline-[1.5px] aria-pressed:outline-ink focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="relative size-7 flex-none rounded-full border border-hairline outline-offset-2 after:absolute after:-inset-x-[3.5px] after:-inset-y-2 after:content-[''] aria-pressed:outline aria-pressed:outline-[1.5px] aria-pressed:outline-ink focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
             style={{ backgroundColor: hex }}
           />
         ))}
@@ -138,7 +138,7 @@ export function SkinAndHair({ model, pick }: { model: Model; pick: Pick }) {
 }
 
 const tile =
-  'relative h-[132px] w-[104px] shrink-0 overflow-hidden rounded-soft border bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'relative h-[132px] w-[104px] shrink-0 overflow-hidden rounded-soft border bg-surface focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The lineup (plan 2026-11-05 §1.4–1.5): her own model first, once she has one, then the five
 // Robes models; the one her looks stand on is ringed. Choosing a Robes model keeps her selfie and
@@ -324,7 +324,7 @@ function Stepper({
       <span className="font-sans text-base text-ink">{label}</span>
       <span className="flex flex-col items-end">
         <span className="flex items-center gap-2">
-          <Button variant="secondary" aria-label={`${f.less}: ${label}`} onClick={() => onStep(-1)}>
+          <Button variant="outline" aria-label={`${f.less}: ${label}`} onClick={() => onStep(-1)}>
             −
           </Button>
           <output
@@ -333,7 +333,7 @@ function Stepper({
           >
             {value || f.add}
           </output>
-          <Button variant="secondary" aria-label={`${f.more}: ${label}`} onClick={() => onStep(1)}>
+          <Button variant="outline" aria-label={`${f.more}: ${label}`} onClick={() => onStep(1)}>
             +
           </Button>
         </span>

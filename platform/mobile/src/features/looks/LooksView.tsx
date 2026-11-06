@@ -348,7 +348,7 @@ export function LooksView() {
               {SORTS.map((s) => (
                 <Button
                   key={s}
-                  variant={sort === s ? 'secondary' : 'quiet'}
+                  variant={sort === s ? 'outline' : 'quiet'}
                   onPress={() => {
                     setSort(s);
                     setSortOpen(false);

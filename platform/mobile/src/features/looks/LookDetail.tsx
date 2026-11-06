@@ -142,7 +142,7 @@ function SavedLook({ look }: { look: Look }) {
             />
           ))}
           {editor.editing ? (
-            <Button variant="secondary" onPress={() => setAdding(true)}>
+            <Button variant="outline" onPress={() => setAdding(true)}>
               {lookbook.rack.addPiece}
             </Button>
           ) : null}

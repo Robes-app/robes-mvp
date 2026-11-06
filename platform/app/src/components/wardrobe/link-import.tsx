@@ -67,7 +67,7 @@ export function LinkImport({ initial: to }: { initial: AddDestination }) {
         >
           {copy.label}
         </label>
-        <div className="flex min-h-12 items-center rounded-crisp border border-hairline bg-surface-raised pl-4 focus-within:border-ink-muted focus-within:outline-2 focus-within:outline-focus-ring focus-within:outline-offset-2">
+        <div className="flex min-h-12 items-center rounded-crisp border border-hairline bg-surface-raised pl-4 focus-within:border-ink-muted focus-within:outline-[1.5px] focus-within:outline-focus-ring focus-within:outline-offset-2">
           <input
             ref={field}
             id={inputId}
@@ -114,7 +114,7 @@ export function LinkImport({ initial: to }: { initial: AddDestination }) {
         {copy.filingTo[to]} ·{' '}
         <Link
           href={`/wardrobe/add?to=${to}`}
-          className="text-ink underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-focus-ring"
+          className="text-ink underline underline-offset-4 focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
         >
           {copy.change}
         </Link>
@@ -127,14 +127,14 @@ export function LinkImport({ initial: to }: { initial: AddDestination }) {
           <button
             type="button"
             onClick={() => field.current?.focus()}
-            className="text-ink underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="text-ink underline underline-offset-4 focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
           >
             {copy.fixIt}
           </button>
           {' · '}
           <Link
             href={`/wardrobe/manual?to=${to}`}
-            className="text-ink underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="text-ink underline underline-offset-4 focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
           >
             {wardrobe.add.review.fillIn}
           </Link>

@@ -26,9 +26,9 @@ import { LookImage } from './look-image';
 
 // A day is a Cormorant numeral, small and ink-soft; the selected day a warm circle (Look redline).
 const CELL =
-  'relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-full font-display text-base [font-variant-numeric:lining-nums] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-full font-display text-base [font-variant-numeric:lining-nums] focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const ARROW =
-  "relative flex size-[22px] items-center justify-center rounded-full border border-rule-mid text-ink-muted after:absolute after:-inset-[11px] after:content-[''] hover:border-border-control hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+  "relative flex size-[22px] items-center justify-center rounded-full border border-rule-mid text-ink-muted after:absolute after:-inset-[11px] after:content-[''] hover:border-border-control hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 // Save opens the diary every time (legacy 0.2): beta's month, any day one tap, a day gone by
 // records it as worn, and "I wore this today" beneath. Closing it writes nothing.

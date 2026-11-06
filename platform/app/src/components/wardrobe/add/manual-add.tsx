@@ -120,7 +120,7 @@ export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: 
       <label
         htmlFor={inputId}
         aria-busy={uploading}
-        className="relative flex min-h-16 cursor-pointer items-center gap-4 overflow-hidden rounded-soft border border-border-control border-dashed px-4 text-ink-muted focus-within:outline-2 focus-within:outline-focus-ring focus-within:outline-offset-2"
+        className="relative flex min-h-16 cursor-pointer items-center gap-4 overflow-hidden rounded-soft border border-border-control border-dashed px-4 text-ink-muted focus-within:outline-[1.5px] focus-within:outline-focus-ring focus-within:outline-offset-2"
       >
         {photo ? (
           // biome-ignore lint/performance/noImgElement: a local object URL of her own photo

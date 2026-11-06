@@ -25,7 +25,7 @@ import { type HomePlace, PlacePopover } from './place-popover';
 
 const copy = diary.door;
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 type Steer = { balance: Balance } | { balanceNote: string };
 
 const chip =

@@ -35,8 +35,19 @@ describe('Text, Heading, Eyebrow', () => {
         <Text tone="muted">Body</Text>
       </>,
     );
-    expect(screen.getByText('Welcome')).toHaveClass('uppercase', 'text-ink-faint');
+    expect(screen.getByText('Welcome')).toHaveClass('type-eyebrow', 'text-ink-muted');
     expect(screen.getByText('Body')).toHaveClass('text-ink-muted');
+  });
+
+  it('sets a Felix type style by its utility', () => {
+    render(
+      <Text variant="piece-name" size="caption" italic>
+        Lime green sweatshirt
+      </Text>,
+    );
+    const el = screen.getByText('Lime green sweatshirt');
+    expect(el).toHaveClass('type-piece-name');
+    expect(el).not.toHaveClass('italic', 'text-xs');
   });
 
   it('has no serious accessibility violations', async () => {
