@@ -104,6 +104,10 @@ function LookBody({ look, edit, schedule }: { look: Look; edit: boolean; schedul
     }
   }, [edit]);
   const [diary, setDiary] = useState(schedule);
+  // `?schedule=1` opened the diary once; the address drops it so Back never re-opens it.
+  useEffect(() => {
+    if (schedule) window.history.replaceState(null, '', `/look/${look.id}`);
+  }, [schedule, look.id]);
   const [tab, setTab] = useState<Tab>(TABS[0]);
   const [managing, setManaging] = useState(false);
   const [subview, setSubview] = useState<'tags' | 'seasons' | 'worn' | null>(null);
