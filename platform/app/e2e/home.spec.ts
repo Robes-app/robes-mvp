@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import { Today } from '@robes/contracts';
+import { lookbook } from '@robes/copy';
 import {
   declineConsent,
   explainError,
@@ -430,4 +431,47 @@ test('the home box: words become one draft in the slot; the hanger builds it aro
   await page.getByTestId(`diary-day-${date}`).click();
   await expect(page.getByTestId('draft-tile')).toHaveCount(1);
   await expect(page.getByTestId('prompt-box')).toHaveAttribute('data-state', 'live');
+});
+
+test('the home box: a draft job that fails gives her words back with the error', async ({
+  page,
+}) => {
+  // The job is stubbed at the route: it fails before a draft is minted, as when the model call
+  // errors on a deployed stage. The box must not say Robes is at work for ever.
+  const job = '99999999-9999-4999-8999-999999999999';
+  await page.route('**/api/v1/looks/prompt', (route) =>
+    route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({ jobId: job, status: 'queued' }),
+    }),
+  );
+  await page.route(`**/api/v1/jobs/${job}/events*`, (route) => route.fulfill({ status: 503 }));
+  await page.route(`**/api/v1/jobs/${job}`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: job,
+        kind: 'key_piece',
+        status: 'failed',
+        stage: 'text',
+        output: {},
+        error: 'provider',
+        cancelRequested: false,
+        createdAt: '2026-11-05T10:00:00.000Z',
+        updatedAt: '2026-11-05T10:00:05.000Z',
+        finishedAt: '2026-11-05T10:00:05.000Z',
+      }),
+    }),
+  );
+  await signIn(page);
+  await declineConsent(page);
+
+  const box = page.getByPlaceholder('Plan an outfit for today');
+  await box.fill('Something easy for the gallery');
+  await box.press('Enter');
+  await expect(page.getByText(lookbook.prompt.failed)).toBeVisible({ timeout: 15_000 });
+  await expect(box).toHaveValue('Something easy for the gallery');
+  await expect(page.getByTestId('prompt-box')).not.toContainText(lookbook.draft.dressing);
 });

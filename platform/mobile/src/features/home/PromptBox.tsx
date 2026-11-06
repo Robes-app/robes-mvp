@@ -1,5 +1,5 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
-import type { DiaryDay, DiaryPlace, Look, Piece, PlaceHit } from '@robes/contracts';
+import type { DiaryDay, DiaryPlace, JobSnapshot, Look, Piece, PlaceHit } from '@robes/contracts';
 import { diary, lookbook } from '@robes/copy';
 import { weekdayDay, weekdayLong } from '@robes/core/calendar';
 import { isTripAsk } from '@robes/core/home';
@@ -9,12 +9,13 @@ import { Icon } from '@robes/icons/native';
 import { ErrorText, fonts, Image, Text, useColor } from '@robes/ui-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text as RNText, TextInput, type TextInputInstance, View } from 'react-native';
 import { AdjustField, AdjustOptions, ThreadLines } from '@/features/looks/AdjustDock';
 import { type Adjust, useAdjust } from '@/features/looks/adjust';
 import { BalanceQuestion } from '@/features/looks/BalanceQuestion';
 import { useLookEditor } from '@/features/looks/look-editor';
+import { useJobResult } from '@/features/looks/look-states';
 import { WardrobePicker } from '@/features/wardrobe/WardrobePicker';
 import { nativeAnalytics } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
@@ -104,8 +105,13 @@ export function PromptBox({
   const [held, setHeld] = useState<string | null>(null);
   // Her words just sent, until the diary shows the draft they make (reset with the day).
   const [justSent, setJustSent] = useState<string | null>(null);
+  // The job her words started, followed until the draft is minted or the job fails.
+  const [sentJob, setSentJob] = useState<{ id: string; words: string } | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new day, a new send
-  useEffect(() => setJustSent(null), [day.date]);
+  useEffect(() => {
+    setJustSent(null);
+    setSentJob(null);
+  }, [day.date]);
   // The sheet belongs to the day it opened on.
   // biome-ignore lint/correctness/useExhaustiveDependencies: closes when the day changes
   useEffect(() => setPlaceOpen(false), [day.date]);
@@ -118,8 +124,26 @@ export function PromptBox({
   const dayWord = isToday ? 'today' : weekdayLong(day.date);
   const dayLabel = isToday ? diary.today : weekdayDay(day.date);
 
-  const refreshDiary = () =>
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
+  const refreshDiary = useCallback(
+    () => void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') }),
+    [queryClient],
+  );
+  // A job that fails before its draft is minted leaves the day with no draft, so the box would
+  // say Robes is at work for ever: give her words back with the error instead.
+  const sentWords = sentJob?.words ?? '';
+  const onSentJob = useCallback(
+    (job: JobSnapshot) => {
+      setSentJob(null);
+      if (job.status === 'failed' || job.status === 'cancelled') {
+        setJustSent(null);
+        setText(sentWords);
+        setError(lookbook.prompt.failed);
+      }
+      refreshDiary();
+    },
+    [sentWords, refreshDiary],
+  );
+  useJobResult(sentJob?.id ?? null, onSentJob);
   const setPlace = (place: DiaryPlace | null, _hit: PlaceHit | null) => {
     setPlaceOpen(false);
     void api
@@ -159,7 +183,7 @@ export function PromptBox({
     if (holdFor(words, steer)) return;
     setBusy(lookbook.prompt.busyRead);
     try {
-      await api.call('looks.prompt', {
+      const started = await api.call('looks.prompt', {
         input: {
           prompt: words.length >= 2 ? words : copy.day(weekdayLong(day.date)),
           date: day.date,
@@ -180,6 +204,7 @@ export function PromptBox({
       const said = words.length >= 2 ? words : copy.day(weekdayLong(day.date));
       onSent(said);
       setJustSent(said);
+      setSentJob({ id: started.jobId, words });
       setText('');
       setHeld(null);
       setPieces([]);
