@@ -35,6 +35,8 @@ export function passedPinsRepo(db: Db) {
         .where('p.status', '=', 'planned')
         .where('l.status', '=', 'saved')
         .where('l.deletedAt', 'is', null)
+        // A trip's looks (hidden, _RB_TRIP_HIDDEN) are never filed as worn (Annie, 6 Nov).
+        .where('l.source', '<>', 'travel')
         .where('p.dayDate', '>=', sql<Date>`${opts.earliest}::date`)
         .where(sql<boolean>`p.day_date < ${today}`)
         .where(sql<boolean>`p.day_date >= ${today} - ${opts.catchUpDays}::int`)

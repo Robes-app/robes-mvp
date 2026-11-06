@@ -231,5 +231,18 @@ describe('look rendered on her model', () => {
       'pictureNote',
       null,
     );
+    // Her photograph in front by her choice: a later render never takes the cover from it.
+    const first = await db
+      .selectFrom('lookImages')
+      .select('id')
+      .where('lookId', '=', look.id)
+      .executeTakeFirstOrThrow();
+    await repos.looks.setCover(niall, look.id, first.id);
+    expect(await repos.looks.claimRender(niall, look.id, 'h2')).toBe(true);
+    await system.modelRender.setRender(niall, look.id, 'h2', asset);
+    expect(await repos.looks.get(niall, look.id)).toMatchObject({
+      robesHidden: false,
+      recordImage: 'photo',
+    });
   });
 });

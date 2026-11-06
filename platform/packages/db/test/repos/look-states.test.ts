@@ -334,6 +334,11 @@ describe('suggested looks (look states)', () => {
     expect(await system.suggested.setFrame(ann, id, 'k1', asset.id)).toBe(true);
     expect(await looks.get(ann, id)).toMatchObject({ robesHidden: false, recordImage: 'model' });
     expect((await system.suggested.look(ann, id))?.look).toHaveProperty('pictureNote', null);
+    // Her photograph in front by her choice (not hidden): a fresh frame leaves the cover alone.
+    await db.updateTable('looks').set({ recordImage: 'photo' }).where('id', '=', id).execute();
+    expect(await looks.claimFrame(ann, id, 'k1', { force: true })).toBe(true);
+    expect(await system.suggested.setFrame(ann, id, 'k1', asset.id)).toBe(true);
+    expect(await looks.get(ann, id)).toMatchObject({ robesHidden: false, recordImage: 'photo' });
   });
 
   it('claims the frame its own job draws when the set is minted', async () => {

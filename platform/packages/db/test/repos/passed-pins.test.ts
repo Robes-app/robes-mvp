@@ -142,6 +142,15 @@ describe('passed pins (D23)', () => {
     expect((await wearsOf(ann, worn)).map((w) => w.source)).toEqual(['looks']);
   });
 
+  it('leaves a trip’s looks alone: trips are hidden', async () => {
+    const trip = (await looks.create(ann, { name: 'Lisbon', nameProvisional: false, pieces: [] }))
+      .id;
+    await db.updateTable('looks').set({ source: 'travel' }).where('id', '=', trip).execute();
+    const tripPin = await pinOn(ann, trip, '2026-11-11');
+    expect(await dueIds()).not.toContain(tripPin);
+    expect(await wearsOf(ann, trip)).toEqual([]);
+  });
+
   it('files nothing across users', async () => {
     const pin = await pinOn(ann, office, '2026-11-10');
     expect(await passedPins.file(bea, pin)).toBe(false);

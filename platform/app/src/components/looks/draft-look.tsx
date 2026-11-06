@@ -545,8 +545,8 @@ function DraftBody({
   // Update look: the rack written, then the picture drawn for it. Words still in the field go
   // through the thread first; the write waits for their answer to land on the rack.
   const [applying, setApplying] = useState<'asked' | 'reading' | null>(null);
-  // Her photographs and the cover first, then the rack; a redraw for changed pieces brings
-  // Robes' picture back in front (D19).
+  // Her photographs and the cover first, then the rack and a redraw for changed pieces. The
+  // cover she chose stays in front; a hidden Robes' picture comes back as the cover (D19).
   const commit = async () => {
     if (!(await stack.commit())) return;
     if (editor.dirty) {
