@@ -1,7 +1,7 @@
 import { wardrobe } from '@robes/copy';
 import type { IconName } from '@robes/icons';
 import { Icon } from '@robes/icons/native';
-import { Heading, MIN_TOUCH, SegmentedControl, Text, useColor, useToast } from '@robes/ui-native';
+import { Heading, MIN_TOUCH, SegmentedControl, Text, useColor } from '@robes/ui-native';
 import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -16,7 +16,6 @@ const copy = wardrobe.add;
 // Web twin: components/wardrobe/add/add-flow.tsx (AddPiecesPanel).
 export function AddPiecesPanel({ initial = 'wardrobe' }: { initial?: AddDestination }) {
   const router = useRouter();
-  const toast = useToast();
   const [to, setTo] = useState<AddDestination>(initial);
   const [busy, setBusy] = useState(false);
   const go = (href: Href) => router.replace(href);
@@ -25,8 +24,7 @@ export function AddPiecesPanel({ initial = 'wardrobe' }: { initial?: AddDestinat
     setBusy(true);
     try {
       const shots = await pickFromRoll();
-      if (shots === 'denied') toast.show({ message: wardrobe.photosDenied });
-      else if (shots?.length) go(reviewHref({ to, shots, from: 'roll' }));
+      if (shots?.length) go(reviewHref({ to, shots, from: 'roll' }));
     } finally {
       setBusy(false);
     }

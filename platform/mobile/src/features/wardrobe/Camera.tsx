@@ -90,10 +90,6 @@ export function Camera() {
   // The last-photo thumb is the way to the camera roll; picks join this session's shots.
   async function roll() {
     const picked = await pickFromRoll();
-    if (picked === 'denied') {
-      toast.show({ message: wardrobe.photosDenied });
-      return;
-    }
     for (const photo of picked ?? []) void session.add(photo);
   }
 

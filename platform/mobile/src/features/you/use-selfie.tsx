@@ -54,8 +54,6 @@ export function useSelfie(): {
         cameraType: ImagePicker.CameraType.front,
       });
     } else {
-      const library = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!library.granted) return;
       result = await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
     }
     const photo = result.canceled ? undefined : result.assets[0];

@@ -26,8 +26,6 @@ async function pickOne(source: AddSource) {
     const result = await ImagePicker.launchCameraAsync(PICKER_OPTIONS);
     return result.canceled ? null : (result.assets[0] ?? null);
   }
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) return 'denied' as const;
   const result = await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
   return result.canceled ? null : (result.assets[0] ?? null);
 }
@@ -78,7 +76,7 @@ export function usePhotoRead(kind: UploadKind) {
     async (source: AddSource) => {
       const picked = await pickOne(source);
       if (picked === 'denied') {
-        setError(source === 'camera' ? wardrobe.cameraDenied : wardrobe.photosDenied);
+        setError(wardrobe.cameraDenied);
         return;
       }
       if (picked) await startPicked(picked);
