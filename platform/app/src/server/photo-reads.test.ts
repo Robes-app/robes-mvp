@@ -178,6 +178,35 @@ describe('photo reads', () => {
     expect(out.filed).toHaveLength(2);
   });
 
+  it("a field she set on Review files without Robes' check on it; the rest keep theirs", async () => {
+    const checks = { colour_check: true, material_check: true, brand_check: true };
+    repos.jobs.getForUser.mockResolvedValueOnce({
+      kind: 'wardrobe_pieces',
+      status: 'succeeded',
+      output: {
+        ...READ,
+        readPieces: READ.readPieces.map((p) => ({ ...p, itemDna: { ...p.itemDna, ...checks } })),
+      },
+    });
+    await fileRead(USER, JOB, [
+      { index: 0, state: 'add', edits: { label: 'Cream long-sleeve t-shirt', brand: 'Sézane' } },
+      {
+        index: 1,
+        state: 'add',
+        edits: { label: 'Black leggings', colourShade: 'navy', material: null },
+      },
+      { index: 2, state: 'add' },
+    ]);
+    const rows = repos.wardrobe.createFromRead.mock.calls[0]?.[2] as Array<{
+      itemDna: Record<string, unknown>;
+    }>;
+    const flags = (i: number) =>
+      Object.keys(rows[i]?.itemDna ?? {}).filter((k) => k.endsWith('_check'));
+    expect(flags(0)).toEqual(['colour_check', 'material_check']);
+    expect(flags(1)).toEqual(['brand_check']);
+    expect(flags(2)).toEqual(['colour_check', 'material_check', 'brand_check']);
+  });
+
   it('never points a piece at a row that is not hers, and discards crops nobody took', async () => {
     await expect(
       fileRead(USER, JOB, [

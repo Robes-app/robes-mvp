@@ -63,6 +63,8 @@ export const Piece = z.object({
   colourCheck: z.boolean().default(false),
   // …and of the material: the row carries "Check" until she answers it.
   materialCheck: z.boolean().default(false),
+  // …and of the brand, named from the design rather than a label it could read.
+  brandCheck: z.boolean().default(false),
   brand: z.string().nullable(),
   notes: z.string().nullable(),
   // 'reading' while Robes reads the photo; 'failed' when no piece was found in it.

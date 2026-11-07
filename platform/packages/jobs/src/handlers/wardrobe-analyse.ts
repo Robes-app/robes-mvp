@@ -5,11 +5,11 @@ import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
-import { waitFor } from '../wait';
+import { waitForMaster } from '../wait';
 
 export interface WardrobeAnalyseDeps {
   ai: AiProvider;
-  storage: Pick<MediaStorage, 'getObject'>;
+  storage: Pick<MediaStorage, 'getObject' | 'head'>;
   pieces: SystemRepositories['pieces'];
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
   // How long to wait for the upload's renditions before giving up.
@@ -32,21 +32,23 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
       if (!input.success) throw new JobError('invalid_input');
       const { pieceId } = input.data;
 
-      // The batch can start before renditions exist; wait for them server-side.
-      const piece = await waitFor(
+      // The batch can start before the photo is rendered; wait for its master server-side.
+      const master = (assetId: string) => mediaKeys.master(ctx.userId, assetId);
+      const { row: piece, readable } = await waitForMaster(
         () => deps.pieces.forAnalysis(ctx.userId, pieceId),
-        (p) => p?.assetStatus === 'pending',
+        (p) => p.assetStatus,
+        async (p) => !!p.imageAssetId && (await deps.storage.head(master(p.imageAssetId))) !== null,
         { timeoutMs: assetWaitMs, pollMs, signal: ctx.signal },
       );
-      if (!piece || !piece.imageAssetId) throw new JobError('not_found');
-      if (piece.assetStatus !== 'ready') {
+      if (!piece?.imageAssetId) throw new JobError('not_found');
+      if (!readable) {
         await deps.pieces.discard(ctx.userId, pieceId);
         throw new JobError(piece.assetStatus === 'failed' ? 'unreadable_photo' : 'asset_not_ready');
       }
 
       // The master always exists (renditions never upscale small photos); media resolution fixes
       // the token cost regardless of pixel size.
-      const image = await deps.storage.getObject(mediaKeys.master(ctx.userId, piece.imageAssetId));
+      const image = await deps.storage.getObject(master(piece.imageAssetId));
       if (!image) throw new JobError('asset_missing');
 
       let result: { data: Output; usage: Usage };

@@ -9,7 +9,9 @@ const USER = verifiedUserId('11111111-1111-4111-8111-111111111111');
 const PIECE = '22222222-2222-4222-8222-222222222222';
 const ASSET = '33333333-3333-4333-8333-333333333333';
 
-function setup(opts: { assetStatus?: string[]; output?: object; aiError?: AiError } = {}) {
+function setup(
+  opts: { assetStatus?: string[]; master?: boolean; output?: object; aiError?: AiError } = {},
+) {
   const statuses = [...(opts.assetStatus ?? ['ready'])];
   const pieces = {
     forAnalysis: vi.fn(async () => ({
@@ -23,7 +25,11 @@ function setup(opts: { assetStatus?: string[]; output?: object; aiError?: AiErro
     discard: vi.fn(async () => true),
   };
   const ledger = { record: vi.fn(async () => {}) };
-  const storage = { getObject: vi.fn(async () => new Uint8Array([1, 2, 3])) };
+  const storage = {
+    getObject: vi.fn(async () => new Uint8Array([1, 2, 3])),
+    // The master lands before the renditions; by default it isn't there until `ready`.
+    head: vi.fn(async () => (opts.master ? { bytes: 3, contentType: 'image/jpeg' } : null)),
+  };
   const ai = opts.aiError
     ? {
         name: 'fake' as const,
@@ -87,7 +93,20 @@ describe('wardrobe_analyse handler', () => {
       PIECE,
       expect.objectContaining({
         material: 'polyamide',
-        itemDna: expect.objectContaining({ material_check: true, prompt_version: 4 }),
+        itemDna: expect.objectContaining({ material_check: true, prompt_version: 5 }),
+      }),
+    );
+  });
+
+  it("files a brand read from the design with Robes' check on it", async () => {
+    const { run, pieces } = setup({ output: { brand: 'Barbour', brand_check: true } });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(pieces.apply).toHaveBeenCalledWith(
+      USER,
+      PIECE,
+      expect.objectContaining({
+        brand: 'Barbour',
+        itemDna: expect.objectContaining({ brand_check: true }),
       }),
     );
   });
@@ -106,6 +125,19 @@ describe('wardrobe_analyse handler', () => {
     const { run, pieces } = setup({ assetStatus: ['pending', 'pending', 'ready'] });
     await expect(run()).resolves.toEqual({ status: 'succeeded' });
     expect(pieces.forAnalysis).toHaveBeenCalledTimes(3);
+  });
+
+  it('reads as soon as the master is stored, without waiting for the renditions', async () => {
+    const { run, pieces, storage } = setup({ assetStatus: ['pending'], master: true });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(pieces.forAnalysis).toHaveBeenCalledTimes(1);
+    expect(storage.head).toHaveBeenCalledWith(`media/${USER}/${ASSET}/master.jpg`);
+  });
+
+  it('never reads a photo whose render failed, even with a master stored', async () => {
+    const { run, pieces } = setup({ assetStatus: ['failed'], master: true });
+    await expect(run()).rejects.toMatchObject({ code: 'unreadable_photo' });
+    expect(pieces.discard).toHaveBeenCalledWith(USER, PIECE);
   });
 
   it('gives up cleanly when the upload never becomes ready', async () => {

@@ -140,6 +140,20 @@ test('a colour answers on the tap, from the family tiles and their shades', asyn
   });
 });
 
+test('a brand Robes named from the design marks Check on the Brand row', async () => {
+  mockFetch({
+    [`GET /wardrobe/items/${PIECE_ID}`]: piece({ brand: 'Sézane', brandCheck: true }),
+    [`GET /wardrobe/items/${PIECE_ID}/wears`]: { items: [], undated: 0 },
+    'GET /wardrobe/items': { items: [], nextCursor: null },
+  });
+  await renderWithApi(<PieceDetail id={PIECE_ID} />);
+  expect(
+    await screen.findByRole('button', {
+      name: `${wardrobe.piece.brand}: Sézane. ${wardrobe.piece.brandCheck}`,
+    }),
+  ).toBeTruthy();
+});
+
 test('material is a row of Colour & material: the read marks Check, a pick answers it', async () => {
   const calls = mockFetch({
     [`GET /wardrobe/items/${PIECE_ID}`]: piece({ material: 'wool', materialCheck: true }),

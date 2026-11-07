@@ -104,9 +104,22 @@ function toRow(
     colourExtra: edits?.colourExtra ?? (piece.colourExtra.length ? piece.colourExtra : undefined),
     print: edits?.print !== undefined ? edits.print : (piece.print ?? undefined),
     material: edits?.material !== undefined ? edits.material : (piece.material ?? undefined),
-    itemDna: { ...piece.itemDna, source },
+    itemDna: { ...withoutAnswered(piece.itemDna, edits), source },
     imageAssetId: piece.cropAssetId,
   };
+}
+
+// A field she set on Review is answered: Robes' "check it" flag on it doesn't file.
+function withoutAnswered(
+  itemDna: StoredPiece['itemDna'],
+  edits?: Extract<FileAnswer, { state: 'add' }>['edits'],
+): StoredPiece['itemDna'] {
+  const answered: Record<string, boolean> = {
+    colour_check: edits?.colourShade !== undefined,
+    material_check: edits?.material !== undefined,
+    brand_check: edits?.brand !== undefined,
+  };
+  return Object.fromEntries(Object.entries(itemDna).filter(([key]) => !answered[key]));
 }
 
 // Owned pieces with no photograph take the crop; every crop nobody took is discarded.

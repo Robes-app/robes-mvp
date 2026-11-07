@@ -8,6 +8,24 @@ export interface PickedPhoto {
   uri: string;
   mimeType?: string | null;
   fileSize?: number | null;
+  // The picker's size, when it gave one: a photo larger than the server keeps is shrunk here.
+  width?: number | null;
+  height?: number | null;
+}
+
+// The server keeps a photo at most this long on its longest side (the renderer's master,
+// @robes/media IMAGE_LIMITS.masterEdge); anything larger is uploaded only to be thrown away, and
+// on a phone connection that upload is most of the wait before Robes can read it.
+// Web twin: UPLOAD_MAX in app/src/lib/upload.ts.
+export const UPLOAD_MAX = 2048;
+
+// The long side at UPLOAD_MAX, aspect kept; null when the photo already fits or its size is unknown.
+export function uploadResize(
+  width: number | null | undefined,
+  height: number | null | undefined,
+): { width: number } | { height: number } | null {
+  if (!width || !height || Math.max(width, height) <= UPLOAD_MAX) return null;
+  return width >= height ? { width: UPLOAD_MAX } : { height: UPLOAD_MAX };
 }
 
 // The picker is asked to re-encode (quality < 1), but iOS can still hand back the original HEIC:
@@ -35,7 +53,7 @@ async function renderableType(file: File): Promise<UploadContentType | null> {
 
 // The iOS picker can return the original HEIC labelled image/jpeg, which the renderer can't open:
 // every library photo of that kind failed as heic_unsupported (7 Nov). The bytes decide; anything
-// the renderer can't read is re-encoded to JPEG here, on the phone.
+// the renderer can't read, or larger than the server keeps, is re-encoded to JPEG here.
 async function renderableFile(
   photo: PickedPhoto,
 ): Promise<{ file: File; contentType: UploadContentType }> {
@@ -46,8 +64,10 @@ async function renderableFile(
     throw new Error(`upload failed: empty photo (exists ${file.exists}, scheme ${scheme})`);
   }
   const contentType = await renderableType(file);
-  if (contentType) return { file, contentType };
-  const image = await ImageManipulator.manipulate(photo.uri).renderAsync();
+  const resize = uploadResize(photo.width, photo.height);
+  if (contentType && !resize) return { file, contentType };
+  const context = ImageManipulator.manipulate(photo.uri);
+  const image = await (resize ? context.resize(resize) : context).renderAsync();
   const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 });
   return { file: new File(saved.uri), contentType: 'image/jpeg' };
 }

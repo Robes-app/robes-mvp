@@ -10,7 +10,13 @@ const ASSET = '33333333-3333-4333-8333-333333333333';
 const SHOES = '55555555-5555-4555-8555-555555555555';
 
 function setup(
-  opts: { status?: string[]; closet?: boolean; output?: object; aiError?: AiError } = {},
+  opts: {
+    status?: string[];
+    master?: boolean;
+    closet?: boolean;
+    output?: object;
+    aiError?: AiError;
+  } = {},
 ) {
   const statuses = [...(opts.status ?? ['ready'])];
   let crops = 0;
@@ -49,6 +55,8 @@ function setup(
   const storage = {
     getObject: vi.fn(async () => new Uint8Array([1, 2, 3])),
     copyObject: vi.fn(async () => {}),
+    // The master lands before the renditions; by default it isn't there until `ready`.
+    head: vi.fn(async () => (opts.master ? { bytes: 3, contentType: 'image/jpeg' } : null)),
   };
   const onGenerated = vi.fn(async () => {});
   const ai = opts.aiError
@@ -130,6 +138,16 @@ describe('wardrobe_pieces handler', () => {
       new JobError('unreadable_photo'),
     );
     await expect(setup().run({ assetId: 'nope' })).rejects.toEqual(new JobError('invalid_input'));
+  });
+
+  it('reads as soon as the master is stored, without waiting for the renditions', async () => {
+    const early = setup({ status: ['pending'], master: true });
+    await expect(early.run()).resolves.toEqual({ status: 'succeeded' });
+    expect(early.reads.source).toHaveBeenCalledTimes(1);
+    expect(early.storage.head).toHaveBeenCalledWith(`media/${USER}/${ASSET}/master.jpg`);
+    await expect(setup({ status: ['failed'], master: true }).run()).rejects.toEqual(
+      new JobError('unreadable_photo'),
+    );
   });
 
   it('keeps the photo and cuts nothing when no piece is seen', async () => {

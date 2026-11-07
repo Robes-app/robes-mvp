@@ -23,6 +23,7 @@ export function piece(overrides: Partial<Piece> = {}): Piece {
     material: null,
     colourCheck: false,
     materialCheck: false,
+    brandCheck: false,
     brand: null,
     notes: null,
     status: 'ready',

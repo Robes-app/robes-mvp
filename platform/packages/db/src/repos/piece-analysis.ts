@@ -44,9 +44,13 @@ export function pieceAnalysisRepo(db: Db) {
         .where('id', '=', pieceId)
         .executeTakeFirst();
       if (!current) return;
-      // Robes' doubt about a material she has already answered is no doubt at all.
-      const { material_check: _, ...answered } = a.itemDna;
-      const itemDna = current.material ? answered : a.itemDna;
+      // Robes' doubt about a material or a brand she has already answered is no doubt at all.
+      const { material_check, brand_check, ...rest } = a.itemDna;
+      const itemDna = {
+        ...rest,
+        ...(current.material ? {} : { material_check }),
+        ...(current.brand ? {} : { brand_check }),
+      };
       await db
         .updateTable('wardrobeItems')
         .set({

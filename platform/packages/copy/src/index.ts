@@ -355,6 +355,8 @@ export const wardrobe = {
     // and the brand is its own tappable line, empty or not.
     editName: 'Edit the name',
     addBrand: 'Add the brand',
+    // Robes named the house from the design, not a label it could read.
+    brandCheck: 'Robes named this brand from the design. Check it.',
     // The pill on the record's photograph (legacy rb-pc-rephoto); with no photo, it adds one.
     changePhoto: 'Change photo',
     addPhoto: 'Add a photo',

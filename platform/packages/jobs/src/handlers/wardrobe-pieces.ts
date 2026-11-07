@@ -12,11 +12,11 @@ import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
 import { z } from 'zod';
 import { JobError, type JobHandler } from '../runtime';
-import { waitFor } from '../wait';
+import { waitForMaster } from '../wait';
 
 export interface WardrobePiecesDeps {
   ai: AiProvider;
-  storage: Pick<MediaStorage, 'getObject' | 'copyObject'>;
+  storage: Pick<MediaStorage, 'getObject' | 'copyObject' | 'head'>;
   reads: SystemRepositories['photoReads'];
   ledger: Pick<SystemRepositories['ledger'], 'record'>;
   // Dev stand-in for the S3 event → RenditionFn on each crop's original.
@@ -44,16 +44,17 @@ export function createWardrobePiecesHandler(deps: WardrobePiecesDeps): JobHandle
       if (!input.success) throw new JobError('invalid_input');
       const { assetId } = input.data;
 
-      const source = await waitFor(
+      const masterKey = mediaKeys.master(ctx.userId, assetId);
+      const { row: source, readable } = await waitForMaster(
         () => deps.reads.source(ctx.userId, assetId),
-        (a) => a?.status === 'pending',
+        (a) => a.status,
+        async () => (await deps.storage.head(masterKey)) !== null,
         { timeoutMs: assetWaitMs, pollMs, signal: ctx.signal },
       );
       if (!source) throw new JobError('not_found');
-      if (source.status !== 'ready') {
+      if (!readable) {
         throw new JobError(source.status === 'failed' ? 'unreadable_photo' : 'asset_not_ready');
       }
-      const masterKey = mediaKeys.master(ctx.userId, assetId);
       const image = await deps.storage.getObject(masterKey);
       if (!image) throw new JobError('asset_missing');
 
