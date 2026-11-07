@@ -1,6 +1,7 @@
 import { queryKeys, useApiClient } from '@robes/api-client/react';
 import type { Model } from '@robes/contracts';
 import { diary } from '@robes/copy';
+import { lineupOrder } from '@robes/core/avatar';
 import { Icon } from '@robes/icons/native';
 import {
   ErrorText,
@@ -22,8 +23,9 @@ const copy = diary.model;
 
 // Felix's ModelPicker ("Your model", design 3a; D10): the body her looks are drawn on, opened
 // from the ModelStack. One sideways row of 96×120 face-cropped cards, 10 apart: first "Use my
-// likeness" (her selfie, the one door to her twin), then the five Robes models. A pick applies at
-// once and is remembered as a pick. The web twin is app/src/components/home/model-picker.tsx.
+// likeness" (her selfie, the one door to her twin), then the five Robes models in a fixed order
+// until she chooses; the chosen one then leads, ticked (lineupOrder). A pick applies at once and is
+// remembered as a pick. The web twin is app/src/components/home/model-picker.tsx.
 export function ModelPicker({
   open,
   model,
@@ -91,7 +93,9 @@ export function ModelPicker({
             {copy.own}
           </RNText>
         </Pressable>
-        {(model?.robesModels ?? []).map((g, i) => {
+        {lineupOrder({ own: false, chosen }).map((n, i) => {
+          const g = model?.robesModels.find((r) => r.n === n);
+          if (!g) return null;
           const on = g.n === chosen;
           return (
             <Pressable

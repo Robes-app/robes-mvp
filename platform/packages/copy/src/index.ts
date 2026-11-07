@@ -1744,6 +1744,7 @@ export const twin = {
   dnaPage: {
     title: 'Style DNA',
     sub: 'What you love, and the lines you dress by.',
+    you: 'You',
     taste: 'Your taste',
     words: 'In your words',
     styleType: 'Style type',

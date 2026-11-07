@@ -71,8 +71,15 @@ test('on a Robes model (3c): its portrait, Add a selfie, the lineup, the doors c
   // The lineup: the five, the first ticked, nothing of her own yet; a tap stores the pick.
   expect(screen.queryByTestId('lineup-you')).toBeNull();
   expect(screen.getByTestId('lineup-1').props.accessibilityState).toMatchObject({ checked: true });
+  const order = () => screen.getAllByTestId(/^lineup-/).map((t) => t.props.testID);
+  expect(order()).toEqual(['lineup-1', 'lineup-2', 'lineup-3', 'lineup-4', 'lineup-5']);
   await fireEvent.press(screen.getByRole('radio', { name: diary.dayOne.modelPick(4) }));
   await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ preset: 4 }));
+  // The chosen one leads, ticked; the rest keep their order.
+  await waitFor(() =>
+    expect(order()).toEqual(['lineup-4', 'lineup-1', 'lineup-2', 'lineup-3', 'lineup-5']),
+  );
+  expect(screen.getByTestId('lineup-4').props.accessibilityState).toMatchObject({ checked: true });
   expect(screen.queryByTestId('twin-retake')).toBeNull();
 });
 
@@ -210,16 +217,10 @@ test('body shape: the facts drawer, a scale by hand, back to her facts, a redraw
       facts: { sizeUk: 10 },
     }),
   );
-  // Gender is its own pill on Body shape: it opens a short list and saves on the pick.
-  await fireEvent.press(
-    screen.getByRole('button', { name: `${tw.gender}: ${twin.facts.genderOptions.woman}` }),
-  );
-  await fireEvent.press(screen.getByRole('radio', { name: twin.facts.genderOptions.man }));
-  await waitFor(() =>
-    expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/model'))?.body).toEqual({
-      presence: 'man',
-    }),
-  );
+  // Gender and age live in Style DNA › You now (Annie, 7 Nov): Body shape asks for neither.
+  expect(
+    screen.queryByRole('button', { name: `${tw.gender}: ${twin.facts.genderOptions.woman}` }),
+  ).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'Hips: much fuller' }));
   await waitFor(() =>
     expect(calls.filter((c) => c.method === 'PATCH').at(-1)?.body).toEqual({ adj: { hips: 2 } }),

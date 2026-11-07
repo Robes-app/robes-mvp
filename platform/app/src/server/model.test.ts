@@ -94,6 +94,7 @@ beforeEach(() => {
   row = { ...base };
   look = { status: 'draft', frameAssetId: null, styling: {} };
   repos.model.get.mockImplementation(async () => row);
+  repos.model.savePicks.mockImplementation(async () => {});
   repos.avatarCells.get.mockImplementation(async () => undefined);
   repos.avatarCells.claim.mockImplementation(async () => false);
 });
@@ -180,11 +181,11 @@ describe('a Robes model chosen', () => {
     expect(repos.model.savePicks).not.toHaveBeenCalled();
     expect(repos.model.file).not.toHaveBeenCalled();
     expect(repos.avatarCells.claim.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
-      'w-r1@v1',
-      'w-r2@v1',
-      'w-r3@v1',
-      'w-r4@v1',
-      'w-r5@v1',
+      'w-r1@v2',
+      'w-r2@v2',
+      'w-r3@v2',
+      'w-r4@v2',
+      'w-r5@v2',
     ]);
     expect(startJob).not.toHaveBeenCalled();
   });
@@ -206,10 +207,29 @@ describe('a Robes model chosen', () => {
     expect(repos.model.savePreset).not.toHaveBeenCalled();
   });
 
+  it('moves her to the other wearer’s five when her gender changes, filing and charging nothing', async () => {
+    row = { ...base, filedCellId: null };
+    repos.model.savePicks.mockImplementation(async () => {
+      row = { ...row, genderIdentity: 'man' };
+    });
+    repos.avatarCells.claim.mockResolvedValue(true);
+    await updateModel(USER, req, { presence: 'man' });
+    expect(repos.model.savePicks).toHaveBeenCalledWith(USER, {}, 'man');
+    expect(repos.model.file).not.toHaveBeenCalled();
+    expect(startJob).not.toHaveBeenCalled();
+    expect(repos.avatarCells.claim.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
+      'm-r1@v2',
+      'm-r2@v2',
+      'm-r3@v2',
+      'm-r4@v2',
+      'm-r5@v2',
+    ]);
+  });
+
   it('shows which one, with all five for her wearer', async () => {
     row = { ...base, genderIdentity: 'man', modelPreset: 5, filedCellId: null };
     repos.avatarCells.get.mockImplementation(async (key: string) =>
-      key === 'm-r5@v1' ? readyCell(key) : undefined,
+      key === 'm-r5@v2' ? readyCell(key) : undefined,
     );
     const m = await loadModel(USER);
     expect(m.preset).toBe(5);
@@ -220,9 +240,9 @@ describe('a Robes model chosen', () => {
       ['m-r4', 4, 'none'],
       ['m-r5', 5, 'ready'],
     ]);
-    expect(m.robesModels[4]?.imageUrl).toBe('https://m.test/catalog/avatar/m-r5@v1.png');
+    expect(m.robesModels[4]?.imageUrl).toBe('https://m.test/catalog/avatar/m-r5@v2.png');
     expect(m.stand).toEqual({
-      imageUrl: 'https://m.test/catalog/avatar/m-r5@v1.png',
+      imageUrl: 'https://m.test/catalog/avatar/m-r5@v2.png',
       generic: true,
       on: 'robes',
     });
@@ -235,15 +255,15 @@ describe('the Robes models', () => {
     repos.avatarCells.claim.mockResolvedValue(true);
     await ensureRobesModels(USER);
     expect(repos.avatarCells.claim.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
-      'm-r1@v1',
-      'm-r2@v1',
-      'm-r3@v1',
-      'm-r4@v1',
-      'm-r5@v1',
+      'm-r1@v2',
+      'm-r2@v2',
+      'm-r3@v2',
+      'm-r4@v2',
+      'm-r5@v2',
     ]);
     expect(createAndEnqueueJob).toHaveBeenCalledWith(USER, {
       kind: 'avatar_cell',
-      input: { cellKey: 'm-r1@v1' },
+      input: { cellKey: 'm-r1@v2' },
     });
     expect(startJob).not.toHaveBeenCalled();
   });
@@ -269,7 +289,7 @@ describe('what a new look stands on', () => {
     row = { ...base, filedCellId: null };
     repos.avatarCells.get.mockImplementation(readyCell);
     expect((await loadModel(USER)).stand).toEqual({
-      imageUrl: 'https://m.test/catalog/avatar/w-r1@v1.png',
+      imageUrl: 'https://m.test/catalog/avatar/w-r1@v2.png',
       generic: true,
       on: 'robes',
     });
@@ -290,7 +310,7 @@ describe('what a new look stands on', () => {
     });
     row = { ...base, twinAssetId: TWIN, twinKey: 'k', modelPreset: 2 };
     expect((await loadModel(USER)).stand).toMatchObject({
-      imageUrl: 'https://m.test/catalog/avatar/w-r2@v1.png',
+      imageUrl: 'https://m.test/catalog/avatar/w-r2@v2.png',
       on: 'robes',
     });
   });
@@ -312,11 +332,11 @@ describe('a look on her model', () => {
   it('stands a look on the Robes model while she has none, drawing it first if need be', async () => {
     row = { ...base, filedCellId: null, modelPreset: 4 };
     await expect(renderOnModel(USER, req, LOOK)).rejects.toMatchObject({ code: 'conflict' });
-    expect(repos.avatarCells.claim).toHaveBeenCalledWith('w-r4@v1');
+    expect(repos.avatarCells.claim).toHaveBeenCalledWith('w-r4@v2');
     expect(startJob).not.toHaveBeenCalled();
     repos.avatarCells.get.mockImplementation(readyCell);
     await renderOnModel(USER, req, LOOK);
-    expect((repos.looks.claimRender.mock.calls[0] as unknown[])[2]).toMatch(/^w-r4@v1:/);
+    expect((repos.looks.claimRender.mock.calls[0] as unknown[])[2]).toMatch(/^w-r4@v2:/);
   });
 
   it('stands a look on her twin once drawn, keyed by the twin', async () => {

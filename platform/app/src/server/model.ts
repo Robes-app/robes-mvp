@@ -234,8 +234,14 @@ export async function updateModel(
   if (!shaped && presence === undefined) return loadModel(userId);
   // Colouring and Body shape are the twin's (plan 2026-11-05 Q9): a Robes model is not hers to
   // shape. Her own model (twin or hand-built cell) stands again when she picks it in the lineup.
-  if (shaped && preset === undefined && standOf((await current(userId)).row).on === 'robes') {
-    throw new ApiError('conflict');
+  const onRobes = standOf((await current(userId)).row).on === 'robes';
+  if (shaped && preset === undefined && onRobes) throw new ApiError('conflict');
+  // Her gender alone, on a Robes model (Style DNA › You, Annie 7 Nov): her looks move to that
+  // wearer's five. Nothing is filed and no cell is drawn for her, or she would leave the lineup.
+  if (!shaped && onRobes) {
+    await repos.model.savePicks(userId, {}, presence);
+    await ensureRobesModels(userId);
+    return loadModel(userId);
   }
   // A scale moved merges over the sliders as they stand (a legacy seed included); {} is "back to
   // your facts".

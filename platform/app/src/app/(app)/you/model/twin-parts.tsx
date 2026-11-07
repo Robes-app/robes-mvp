@@ -6,6 +6,7 @@ import { diary, twin, you } from '@robes/copy';
 import {
   BUST_CUPS,
   chosenTones,
+  lineupOrder,
   stepTwinFact,
   type TwinAdj,
   type TwinStep,
@@ -140,9 +141,10 @@ export function SkinAndHair({ model, pick }: { model: Model; pick: Pick }) {
 const tile =
   'relative h-[132px] w-[104px] shrink-0 overflow-hidden rounded-soft border bg-surface focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
-// The lineup (plan 2026-11-05 §1.4–1.5): her own model first, once she has one, then the five
-// Robes models; the one her looks stand on is ringed. Choosing a Robes model keeps her selfie and
-// twin on file; choosing herself again hands the stand back. Native twin: features/you/twin.tsx.
+// The lineup (plan 2026-11-05 §1.4–1.5): her own model, once she has one, and the five Robes
+// models, in a fixed order until she chooses; the one her looks stand on then leads, ringed
+// (lineupOrder). Choosing a Robes model keeps her selfie and twin on file; choosing herself again
+// hands the stand back. Native twin: features/you/twin.tsx.
 export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pending: boolean }) {
   const onRobes = model.stand?.on === 'robes';
   const own = model.filed;
@@ -171,21 +173,26 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
       aria-label={twin.twinPage.lineup}
       className="flex min-w-0 gap-1.5 overflow-x-auto [scrollbar-width:none]"
     >
-      {own ? (
-        <button
-          type="button"
-          aria-pressed={!onRobes}
-          aria-label={twin.twinPage.you}
-          disabled={pending}
-          onClick={() => (onRobes ? pick({ preset: null }) : undefined)}
-          data-testid="lineup-you"
-          className={`${tile} ${onRobes ? 'border-rule-mid' : 'border-ink border-[1.5px]'}`}
-        >
-          {portrait(ownImage, '')}
-          {onRobes ? null : check}
-        </button>
-      ) : null}
-      {model.robesModels.map((m) => {
+      {lineupOrder({ own, chosen: chosen ?? 'own' }).map((slot) => {
+        if (slot === 'own') {
+          return (
+            <button
+              key="you"
+              type="button"
+              aria-pressed={!onRobes}
+              aria-label={twin.twinPage.you}
+              disabled={pending}
+              onClick={() => (onRobes ? pick({ preset: null }) : undefined)}
+              data-testid="lineup-you"
+              className={`${tile} ${onRobes ? 'border-rule-mid' : 'border-ink border-[1.5px]'}`}
+            >
+              {portrait(ownImage, '')}
+              {onRobes ? null : check}
+            </button>
+          );
+        }
+        const m = model.robesModels.find((r) => r.n === slot);
+        if (!m) return null;
         const on = m.n === chosen;
         return (
           <button
@@ -344,7 +351,7 @@ function Stepper({
 }
 
 // The facts drawer (size, never weight): height, size, bust, waist and shoes. Title and fields
-// only; her age and gender are set by their own dropdowns on Body shape (decided 27 Oct).
+// only; her age and gender are set in Style DNA › You (Annie, 7 Nov; were pills on Body shape).
 export function FactsBody({ dna, gender }: { dna: StyleDna; gender: Model['presence'] }) {
   const { update } = useDnaMutations();
   const [unit, setUnit] = useState<'cm' | 'ft'>('cm');

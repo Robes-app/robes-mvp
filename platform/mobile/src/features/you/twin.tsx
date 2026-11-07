@@ -4,6 +4,7 @@ import { diary, twin, you } from '@robes/copy';
 import {
   BUST_CUPS,
   chosenTones,
+  lineupOrder,
   readAdj,
   stepTwinFact,
   type TwinStep,
@@ -87,10 +88,10 @@ export function Section({ title, children }: { title: string; children: ReactNod
 // R11 (redlines 2026-11-05): 56×70 on the small radius, 6pt apart — five in a row, no scroll.
 const TILE = { width: 56, height: 70 };
 
-// The lineup (plan 2026-11-05 §1.4–1.5): her own model first, once she has one, then the five
-// Robes models; the one her looks stand on is ringed. Choosing a Robes model keeps her selfie and
-// twin on file; choosing herself again hands the stand back. Web twin:
-// app/(app)/you/model/twin-parts.tsx Lineup.
+// The lineup (plan 2026-11-05 §1.4–1.5): her own model, once she has one, and the five Robes
+// models, in a fixed order until she chooses; the one her looks stand on then leads, ringed
+// (lineupOrder). Choosing a Robes model keeps her selfie and twin on file; choosing herself again
+// hands the stand back. Web twin: app/(app)/you/model/twin-parts.tsx Lineup.
 export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pending: boolean }) {
   const faint = useColor('ink-faint');
   const onPlan = useColor('surface-raised');
@@ -146,26 +147,28 @@ export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pen
       accessibilityLabel={twin.twinPage.lineup}
       contentContainerClassName="gap-1.5"
     >
-      {own
-        ? tile(
+      {lineupOrder({ own, chosen: chosen ?? 'own' }).map((slot) => {
+        if (slot === 'own') {
+          return tile(
             'you',
             twin.twinPage.you,
             !onRobes,
             ownImage,
             () => (onRobes ? pick({ preset: null }) : undefined),
             'lineup-you',
-          )
-        : null}
-      {model.robesModels.map((m) =>
-        tile(
+          );
+        }
+        const m = model.robesModels.find((r) => r.n === slot);
+        if (!m) return null;
+        return tile(
           m.id,
           diary.dayOne.modelPick(m.n),
           m.n === chosen,
           m.imageUrl,
           () => (m.n === chosen ? undefined : pick({ preset: m.n })),
           `lineup-${m.n}`,
-        ),
-      )}
+        );
+      })}
     </ScrollView>
   );
 }
@@ -402,7 +405,7 @@ function Stepper({
 }
 
 // The facts drawer (size, never weight): height, size, bust, waist and shoes. Title and fields
-// only; her age and gender are set by their own pills on Body shape (decided 27 Oct).
+// only; her age and gender are set in Style DNA › You (Annie, 7 Nov; were pills on Body shape).
 export function FactsBody({ dna, gender }: { dna: StyleDna; gender: Model['presence'] }) {
   const { update } = useDnaMutations();
   const facts = dna.facts;

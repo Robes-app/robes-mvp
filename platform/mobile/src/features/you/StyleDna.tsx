@@ -2,7 +2,10 @@ import { useApi } from '@robes/api-client/react';
 import type { BriefLine, BriefListName, StyleDna as Dna } from '@robes/contracts';
 import { twin, ui, you } from '@robes/copy';
 import { asSentence } from '@robes/core';
+import { GENDER_IDENTITIES, type Presence } from '@robes/core/avatar';
 import {
+  AGE_BANDS,
+  ageBandLabel,
   INVESTMENT_LEVELS,
   iconTag,
   MUST_CHIPS,
@@ -36,9 +39,13 @@ import { renditionUri } from '@/lib/images';
 import { useDnaMutations } from './dna';
 import { ColoursBody, PrintsBody, paletteSummary, usePalette } from './Palette';
 import { SettingsGroup, SettingsRow } from './Settings';
+import { useModel, useModelPick } from './twin';
 
 const copy = twin.dnaPage;
+const f = twin.facts;
 type SheetKind =
+  | 'gender'
+  | 'age'
   | 'types'
   | 'brands'
   | 'icons'
@@ -90,9 +97,11 @@ function Option({
         ) : (
           <Text>{name}</Text>
         )}
-        <Text size={radio ? 'caption' : 'small'} tone="muted">
-          {desc}
-        </Text>
+        {desc ? (
+          <Text size={radio ? 'caption' : 'small'} tone="muted">
+            {desc}
+          </Text>
+        ) : null}
       </View>
       {radio ? (
         <View
@@ -110,11 +119,14 @@ function Option({
 // You › Style DNA (legacy Settings 02): her taste and the lines she dresses by.
 export function StyleDna() {
   const query = useApi('me.dna.get');
+  const model = useModel();
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const colours = usePalette().palette;
   if (query.isPending) return <CardSkeleton className="mx-6" />;
   if (query.isError || !query.data) return <EmptyState title={errorMessage(query.error)} />;
   const dna = query.data;
+  const presence = model.data?.presence;
+  const age = ageBandLabel(dna.facts.ageBand);
   const icons = dna.icons.map((i) => i.name);
   const n = (k: BriefListName) => dna.brief[k].length;
   const level = INVESTMENT_LEVELS.find((l) => l.key === dna.investment);
@@ -138,6 +150,12 @@ export function StyleDna() {
       <Text size="caption" tone="muted" className="text-center">
         {copy.sub}
       </Text>
+      {/* Gender and age set who her looks are drawn on, Robes model or twin alike (Annie, 7 Nov):
+          they live here, never behind Body shape, which a Robes model keeps closed. */}
+      <SettingsGroup title={copy.you}>
+        {presence ? row(f.gender, f.genderOptions[presence], false, 'gender', true) : null}
+        {row(f.age, age, !age, 'age', !presence)}
+      </SettingsGroup>
       <SettingsGroup title={copy.taste}>
         {row(copy.styleType, copy.firstPlus(dna.types), !dna.types.length, 'types', true)}
         {row(copy.brands, brands, !dna.brands.length, 'brands')}
@@ -162,12 +180,14 @@ export function StyleDna() {
         {row(copy.avoids, copy.linesCount(n('avoids')), !n('avoids'), 'avoids')}
         {row(copy.rules, copy.linesCount(n('rules')), !n('rules'), 'rules')}
       </SettingsGroup>
-      <DnaSheet dna={dna} kind={sheet} onClose={() => setSheet(null)} />
+      <DnaSheet dna={dna} presence={presence} kind={sheet} onClose={() => setSheet(null)} />
     </ScrollView>
   );
 }
 
 const HEAD: Record<SheetKind, [string, string]> = {
+  gender: [f.gender, ''],
+  age: [f.age, ''],
   types: [twin.types.title, twin.types.sub],
   brands: [twin.wall.brandsTitle, twin.wall.brandsSub],
   icons: [twin.wall.iconsTitle, twin.wall.iconsSub],
@@ -182,10 +202,12 @@ const HEAD: Record<SheetKind, [string, string]> = {
 
 function DnaSheet({
   dna,
+  presence,
   kind,
   onClose,
 }: {
   dna: Dna;
+  presence: Presence | undefined;
   kind: SheetKind | null;
   onClose: () => void;
 }) {
@@ -204,6 +226,8 @@ function DnaSheet({
         keyboardShouldPersistTaps="handled"
       >
         {sub ? <Text tone="muted">{sub}</Text> : null}
+        {kind === 'gender' && presence ? <GenderBody presence={presence} /> : null}
+        {kind === 'age' ? <AgeBody dna={dna} /> : null}
         {kind === 'types' ? <TypesBody dna={dna} /> : null}
         {kind === 'brands' || kind === 'icons' ? <WallBody dna={dna} kind={kind} /> : null}
         {kind === 'pieces' ? <PiecesBody dna={dna} onClose={onClose} /> : null}
@@ -404,6 +428,44 @@ function PiecesBody({ dna, onClose }: { dna: Dna; onClose: () => void }) {
       >
         {twin.pieces.starMore}
       </Button>
+    </View>
+  );
+}
+
+// Her gender saves as a model pick: on a Robes model her looks move to that wearer's five.
+// Web twin: app/(app)/you/style/dna-view.tsx GenderBody.
+function GenderBody({ presence }: { presence: Presence }) {
+  const { pick } = useModelPick();
+  return (
+    <View accessibilityRole="radiogroup" accessibilityLabel={f.gender} className="gap-2">
+      {GENDER_IDENTITIES.map((g) => (
+        <Option
+          radio
+          key={g}
+          name={f.genderOptions[g]}
+          desc=""
+          on={presence === g}
+          onPress={() => pick({ presence: g })}
+        />
+      ))}
+    </View>
+  );
+}
+
+function AgeBody({ dna }: { dna: Dna }) {
+  const { update } = useDnaMutations();
+  return (
+    <View accessibilityRole="radiogroup" accessibilityLabel={f.age} className="gap-2">
+      {AGE_BANDS.map((a) => (
+        <Option
+          radio
+          key={a.key}
+          name={a.label}
+          desc=""
+          on={dna.facts.ageBand === a.key}
+          onPress={() => update.mutate({ input: { facts: { ageBand: a.key } } })}
+        />
+      ))}
     </View>
   );
 }

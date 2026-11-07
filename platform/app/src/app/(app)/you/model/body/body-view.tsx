@@ -3,20 +3,11 @@
 import { useApi } from '@robes/api-client/react';
 import type { Facts, Model, UpdateModelInput } from '@robes/contracts';
 import { twin, ui } from '@robes/copy';
-import {
-  effectiveStops,
-  GENDER_IDENTITIES,
-  isAdjusted,
-  readAdj,
-  STOPS,
-  TWIN_SCALES,
-} from '@robes/core/avatar';
-import { AGE_BANDS, ageBandLabel, euSize } from '@robes/core/style-dna';
-import { Icon } from '@robes/icons/web';
+import { effectiveStops, isAdjusted, readAdj, STOPS, TWIN_SCALES } from '@robes/core/avatar';
+import { euSize } from '@robes/core/style-dna';
 import { Button, ErrorText, Sheet, Skeleton } from '@robes/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { errorCopy } from '@/lib/error-copy';
-import { useDnaMutations } from '@/lib/use-dna';
 import {
   bustOf,
   FactsBody,
@@ -46,7 +37,7 @@ export function BodyView() {
   const open = () => setFacts(true);
   return (
     <div className="flex flex-col gap-5">
-      <Line model={model} facts={dna.data.facts} onOpen={open} pick={pick} />
+      <Line model={model} facts={dna.data.facts} onOpen={open} />
       <Scales model={model} facts={dna.data.facts} pick={pick} />
       <Sheet open={facts} onOpenChange={setFacts} title={f.title} closeLabel={ui.done}>
         <FactsBody dna={dna.data} gender={model.presence} />
@@ -55,104 +46,7 @@ export function BodyView() {
   );
 }
 
-const selectClass =
-  'inline-flex min-h-11 items-center gap-2 rounded-pill border px-4 font-sans text-sm hover:border-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
-
-// A pill that opens its own short list and saves on the pick (decided 27 Oct): Gender and Age are
-// set here, never in the facts drawer. Twin of mobile features/you/BodyShape.tsx PillMenu.
-function PillMenu<T extends string>({
-  label,
-  value,
-  options,
-  current,
-  onPick,
-}: {
-  label: string;
-  value: string;
-  options: readonly { key: T; label: string }[];
-  current: T | null;
-  onPick: (key: T) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  // A menu closes on the next tap outside it, like the Lookbook's sort.
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('pointerdown', away);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('pointerdown', away);
-      document.removeEventListener('keydown', esc);
-    };
-  }, [open]);
-  return (
-    <div ref={box} className="relative">
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className={`${selectClass} ${value ? 'border-hairline text-ink' : 'border-border-control border-dashed text-ink-muted'}`}
-      >
-        <span className="font-sans text-[9.5px] text-ink-muted uppercase tracking-[0.2em]">
-          {label}
-        </span>
-        <span className={value ? '' : 'font-display text-base text-ink-faint italic'}>
-          {value || f.add}
-        </span>
-        <Icon name="down" size={12} />
-      </button>
-      {open ? (
-        <div
-          role="menu"
-          aria-label={label}
-          className="absolute top-full left-0 z-10 mt-2 flex w-48 flex-col rounded-soft border border-hairline bg-surface-raised p-1 shadow-sm"
-        >
-          {options.map((o) => (
-            <button
-              key={o.key}
-              type="button"
-              role="menuitemradio"
-              aria-checked={current === o.key}
-              onClick={() => {
-                onPick(o.key);
-                setOpen(false);
-              }}
-              className="flex min-h-11 items-center justify-between gap-2 rounded-crisp px-3 text-left font-sans text-ink text-sm hover:bg-surface-sunk focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
-            >
-              {o.label}
-              {current === o.key ? (
-                <Icon name="check" size={16} className="text-ink-muted" />
-              ) : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-const GENDERS = GENDER_IDENTITIES.map((key) => ({
-  key,
-  label: f.genderOptions[key],
-}));
-
-function Line({
-  model,
-  facts,
-  onOpen,
-  pick,
-}: {
-  model: Model;
-  facts: Facts;
-  onOpen: () => void;
-  pick: Pick;
-}) {
-  const { update } = useDnaMutations();
+function Line({ model, facts, onOpen }: { model: Model; facts: Facts; onOpen: () => void }) {
   const chest = model.presence === 'man' ? tw.chest : f.bust;
   const rows: [string, string][] = [
     [f.height, facts.heightCm ? f.heightValue(facts.heightCm) : ''],
@@ -167,8 +61,6 @@ function Line({
     [f.waist, rows[2]?.[1] ?? ''],
     [f.shoes, facts.shoeUk ? f.ukValue(facts.shoeUk) : ''],
   ];
-  const gender = f.genderOptions[model.presence];
-  const age = ageBandLabel(facts.ageBand);
   return (
     <section
       aria-label={tw.yourLine}
@@ -203,22 +95,6 @@ function Line({
             </dd>
           ))}
         </dl>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <PillMenu
-          label={tw.gender}
-          value={gender}
-          options={GENDERS}
-          current={model.presence}
-          onPick={(presence) => pick({ presence })}
-        />
-        <PillMenu
-          label={tw.age}
-          value={age}
-          options={AGE_BANDS}
-          current={facts.ageBand}
-          onPick={(ageBand) => update.mutate({ input: { facts: { ageBand } } })}
-        />
       </div>
       <button
         type="button"

@@ -4,7 +4,15 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react-nativ
 import { Observations } from '../src/features/you/Observations';
 import { StyleDna } from '../src/features/you/StyleDna';
 import { mockFetch, renderWithApi } from './support/api';
-import { JOB_ID, LINE_ID, NOTICE_ID, PIECE_ID, piece, styleDna } from './support/fixtures';
+import {
+  JOB_ID,
+  LINE_ID,
+  modelData,
+  NOTICE_ID,
+  PIECE_ID,
+  piece,
+  styleDna,
+} from './support/fixtures';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
 jest.mock('../src/lib/auth-client', () => ({ authClient: { getCookie: () => null } }));
@@ -43,6 +51,40 @@ test('Style DNA: a type, a brand from the wall and the investment level save at 
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Minimal' }).props.accessibilityState).toMatchObject({
       selected: true,
+    }),
+  );
+});
+
+test('You: her gender saves as a model pick and her age as a fact, above her taste', async () => {
+  const f = twin.facts;
+  const calls = mockFetch({
+    'GET /me/dna': styleDna(),
+    'PATCH /me/dna': (init: RequestInit) =>
+      styleDna({ facts: { ...styleDna().facts, ...JSON.parse(String(init.body)).facts } }),
+    'GET /me/model': modelData(),
+    'PATCH /me/model': (init: RequestInit) => modelData(JSON.parse(String(init.body))),
+    'GET /today': {},
+  });
+  await renderWithApi(<StyleDna />);
+  const gender = await screen.findByRole('button', {
+    name: `${f.gender}, ${f.genderOptions.woman}`,
+  });
+  // The You group comes first, Gender before Age before anything of her taste.
+  const labels = screen.getAllByRole('button').map((b) => b.props.accessibilityLabel);
+  expect(labels.indexOf(gender.props.accessibilityLabel)).toBe(0);
+  expect(labels[1]).toBe(`${f.age}, ${twin.dnaPage.notYet}`);
+  await fireEvent.press(gender);
+  await fireEvent.press(screen.getByRole('radio', { name: f.genderOptions.man }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/model'))?.body).toEqual({
+      presence: 'man',
+    }),
+  );
+  await fireEvent.press(screen.getByRole('button', { name: `${f.age}, ${twin.dnaPage.notYet}` }));
+  await fireEvent.press(screen.getByRole('radio', { name: '45–54' }));
+  await waitFor(() =>
+    expect(calls.find((c) => c.method === 'PATCH' && c.path.endsWith('/me/dna'))?.body).toEqual({
+      facts: { ageBand: '45_54' },
     }),
   );
 });
