@@ -28,6 +28,9 @@
         "APP_VARIANT": "production",
         "EXPO_PUBLIC_APP_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://app.byrobes.com"
+      },
+      "ios": {
+        "credentialsSource": "local"
       }
     }
   },
