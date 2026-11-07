@@ -263,6 +263,16 @@ describe('the frame key', () => {
     expect(frameKey(['x', 'y'], [{ name: 'Mules', brand: 'Toteme' }], { x: 'tucked' })).not.toBe(a);
     expect(a).toMatch(/^[0-9a-z]{14}$/);
   });
+
+  it('changes with her picture note, and reads as before without one', () => {
+    const a = frameKey(['x'], [], {});
+    expect(frameKey(['x'], [], {}, null)).toBe(a);
+    expect(frameKey(['x'], [], {}, '  ')).toBe(a);
+    const noted = frameKey(['x'], [], {}, 'sleeves rolled up');
+    expect(noted).not.toBe(a);
+    expect(frameKey(['x'], [], {}, ' sleeves rolled up ')).toBe(noted);
+    expect(noted).toMatch(/^[0-9a-z]{14}$/);
+  });
 });
 
 describe('a draft’s started line', () => {

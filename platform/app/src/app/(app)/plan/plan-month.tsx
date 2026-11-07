@@ -21,7 +21,7 @@ import { DayDots } from '@/components/plan/day-dots';
 import { errorCopy } from '@/lib/error-copy';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // Month view (the native twin is mobile/src/features/plan/PlanMonth.tsx; legacy _dcCard compact,
 // 2026-09-15/17). The day's state is its edge: a past day on cream behind a hairline, a day still

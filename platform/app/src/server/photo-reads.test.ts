@@ -106,6 +106,15 @@ describe('photo reads', () => {
     });
   });
 
+  it('waits while the photo-reading model is out of capacity', async () => {
+    const req = new Request('http://x');
+    repos.capacity.isExhausted.mockResolvedValueOnce(true);
+    await expect(startPhotoRead(USER, req, PHOTO)).rejects.toMatchObject({ code: 'capacity' });
+    // vision.analyse runs on the full Flash since 28 Oct; Lite running out must not refuse a read.
+    expect(repos.capacity.isExhausted).toHaveBeenCalledWith(['gemini-flash']);
+    expect(startJob).not.toHaveBeenCalled();
+  });
+
   it('answers only a finished read of hers', async () => {
     repos.jobs.getForUser.mockResolvedValueOnce(undefined);
     await expect(fileRead(USER, JOB, [{ index: 0, state: 'skip' }])).rejects.toMatchObject({

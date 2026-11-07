@@ -10,7 +10,7 @@ export default function NotFound() {
       <EmptyState
         title={shell.notFound.title}
         action={
-          <Link href="/" className={buttonClasses({ variant: 'secondary' })}>
+          <Link href="/" className={buttonClasses({ variant: 'outline' })}>
             {shell.notFound.back}
           </Link>
         }

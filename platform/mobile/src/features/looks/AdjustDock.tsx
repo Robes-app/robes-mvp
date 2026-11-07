@@ -201,13 +201,23 @@ export function AdjustDock({
   name,
   surface,
   disabled = false,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   adjust: Adjust;
   name: string;
   surface: AdjustSurface;
   disabled?: boolean;
+  // The saved look's adjust disc opens the dock from the photo (Felix 3e); otherwise it opens itself.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = controlledOpen ?? ownOpen;
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next);
+    onOpenChange?.(next);
+  };
   const ink = useColor('ink');
   const label = copy.prompt.label(name);
   const toggle = (next: boolean) => {

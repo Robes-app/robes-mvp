@@ -126,6 +126,142 @@ export const lookbook = {
     diary: 'Put this look in the diary',
     delete: 'Delete this look',
   },
+  // The saved look as Felix 3e (plan 2026-11-06 D8–D10): the photo with its three discs, Pieces ·
+  // Details, and one Schedule look. Web components/looks/saved-look.tsx and look-details.tsx;
+  // native features/looks/SavedLook.tsx and LookDetails.tsx.
+  savedLook: {
+    tabs: { pieces: 'Pieces', details: 'Details' },
+    back: 'Back',
+    adjust: 'Adjust model image',
+    // The image stack badge: the count of her photographs, or + before the first.
+    images: 'Images of this look',
+    schedule: 'Schedule look',
+    edit: 'Edit look',
+    // Editing's foot (D9): Delete is a destructive reveal, asked before it runs.
+    deleteTitle: 'Delete this look?',
+    deleteBody: 'It leaves your Lookbook and the days it is on.',
+    delete: 'Delete',
+    keep: 'Keep it',
+    // The image manager: a strip of cards over the photo until Done.
+    manager: {
+      title: 'Images of this look',
+      robes: 'Robes’ picture',
+      photo: (n: number): string => `Photograph ${n}`,
+      add: 'Add a photo',
+      remove: 'Remove this image',
+      done: 'Done',
+      // 409 look_needs_image (D19): the change would leave the look with no image.
+      lastImage: 'A look keeps at least one image.',
+      // 409 upload_in_use on uploads.discard: the photo is already on a look, so it stays.
+      inUse: 'This photo is on a look, so it stays.',
+    },
+    details: {
+      tags: 'Tags',
+      seasons: 'Seasons',
+      worn: 'Worn',
+      caption: 'Caption',
+      none: 'None',
+      yearRound: 'Year round',
+      notWorn: 'Not worn yet',
+      // "5 times · last 27 Oct"
+      wornSummary: (n: number, last: string | null): string =>
+        `${n === 1 ? '1 time' : `${n} times`}${last ? ` · last ${last}` : ''}`,
+      editCaption: 'Edit the caption',
+      captionPlaceholder: 'Add a caption',
+      clearCaption: 'Clear the caption',
+      saveCaption: 'Keep the caption',
+    },
+    tagsView: {
+      title: 'Tags',
+      add: 'Add a tag',
+      keep: 'Keep the tag',
+      toggle: (tag: string): string => `Tag it ${tag}`,
+    },
+    seasonsView: {
+      title: 'Seasons',
+      names: {
+        spring: 'Spring',
+        summer: 'Summer',
+        autumn: 'Autumn',
+        winter: 'Winter',
+      } as const,
+      yearRound: 'Year round',
+    },
+    wornView: {
+      title: (n: number): string =>
+        n === 0 ? 'Worn' : n === 1 ? 'Worn · 1 time' : `Worn · ${n} times`,
+      none: 'Not worn yet',
+      add: '+ Add a date',
+    },
+  },
+  // The draft drawer (Felix DraftLook, plan 2026-11-06 D14): one drawer over whatever started it,
+  // for a draft and for a saved look's edit. Its three sheets feed the one thread.
+  draftLook: {
+    title: 'Draft look',
+    editTitle: 'Edit look',
+    newName: 'New look',
+    close: 'Close',
+    // The done disc: Save on a draft; on a saved look's edit it only closes, once nothing waits
+    // for Update look (D18).
+    done: 'Save look',
+    doneEdit: 'Done',
+    // A saved look's one accept (3e's pill, the Edit look drawer's footer; D17, D18).
+    update: 'Update look',
+    doneForDay: 'Save and schedule for this day',
+    // The prompt card.
+    placeholder: 'Describe look…',
+    editPlaceholder: 'Describe other changes…',
+    // Felix's Generate, in Robes' words: Robes styles, it never generates.
+    generate: 'Style it',
+    // Describe's day draft: the job behind Style it ended without a look (D22).
+    styleFailed: 'Robes couldn’t style that one. Try again in a moment.',
+    thread: 'Your words on this look',
+    // The context chip: the day's place and weather, read from the diary.
+    context: (place: string, range: string): string => `${place} · ${range}`,
+    // The add slot before the first piece.
+    addPieces: 'Add pieces',
+    startFromPhoto: 'Start from a photo',
+    // Delete, in edit mode (D9).
+    delete: 'Delete this look',
+    adjustSheet: {
+      title: 'Adjust model image',
+      placeholder: 'e.g: sleeves rolled up…',
+      send: 'Send',
+    },
+    describeSheet: {
+      title: 'Describe changes',
+      placeholder: 'e.g: more casual…',
+      send: 'Send',
+      pieces: (n: number): string => (n === 1 ? '1 piece' : `${n} pieces`),
+      show: 'Show the pieces',
+      hide: 'Hide the pieces',
+      remove: (name: string): string => `Remove ${name} from the prompt`,
+    },
+    // The piece picker (Felix WardrobePicker): the wardrobe grid as a subview; its search, pills
+    // and Photograph one read home's flyout copy.
+    picker: {
+      title: 'Add pieces',
+      swapTitle: (name: string): string => `Swap the ${name}`,
+      cta: (n: number): string =>
+        n === 0 ? 'Add pieces' : n === 1 ? 'Add 1 piece' : `Add ${n} pieces`,
+      swapCta: 'Swap it in',
+      empty: 'Nothing here yet.',
+    },
+    discard: {
+      title: 'Discard this draft?',
+      body: 'The look won’t be saved or scheduled.',
+      discard: 'Discard',
+      keep: 'Keep editing',
+      // The quiet third way: the draft waits in the Lookbook's In progress row.
+      later: 'Keep for later',
+    },
+    discardEdit: {
+      title: 'Discard your changes?',
+      body: 'The look stays as it was.',
+      discard: 'Discard',
+      keep: 'Keep editing',
+    },
+  },
   bar: {
     save: 'Save',
     saveToLookbook: 'Save to lookbook',
@@ -343,18 +479,18 @@ export const lookbook = {
     // filed — the deck's own lists never carry it.
     scanOverlay: ['Styling a look', 'Choosing the shoes', 'Finding a layer', 'Setting the colour'],
     scanGeneric: 'On a Robes model for now',
-    // On a suggested look's frame while she has no model; it opens the build-your-model door.
-    genericModel: 'Generic model',
-    genericModelLabel: 'Generic model — see every look on you',
-    // The badge's own drawer (legacy design 1a): it opens here, never a navigation. Closing it
-    // changes nothing, so an undecided deck stays where it was.
+    // The tag on a look whose picture stands on a Robes model (plan 2026-11-05 §1.3): a quiet chip
+    // on the photograph; on the look page, the deck and a draft it opens the sheet below.
+    robesModel: 'Robes model',
+    robesModelLabel: 'Robes model — see every look on you',
+    // The tag's sheet (design 3b): it opens here, never a navigation, so an undecided deck stays
+    // where it was. Capture Selfie is the camera; Adjust Robes Model is her model page.
     twin: {
-      eyebrow: 'Generic model',
+      eyebrow: 'Robes model',
       title: 'See every look',
       titleEm: 'on you.',
-      body: 'Two photos — a close-up, and full length in good light. Robes builds your digital twin, and dresses her in every look.',
-      upload: 'Upload digital twin',
-      keep: 'Keep styling on the generic model',
+      capture: 'Capture Selfie',
+      adjust: 'Adjust Robes Model',
     },
     teach: 'Swipe left to pass, right to keep.',
     keep: 'Keep',

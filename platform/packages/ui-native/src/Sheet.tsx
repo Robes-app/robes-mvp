@@ -1,7 +1,10 @@
 import { ui } from '@robes/copy';
+import { Icon, type IconName } from '@robes/icons/native';
+import { shadowNative } from '@robes/tokens';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -12,14 +15,19 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, PrimaryScope } from './Button';
+import { useColor } from './color';
 import { cx } from './cx';
 import { useReducedMotion } from './motion';
-import { MIN_TOUCH } from './scale';
+import { FINE_EDGE, MIN_TOUCH } from './scale';
 import { Eyebrow, Heading, Text } from './Text';
 
 export interface SheetProps {
   open: boolean;
   onClose: () => void;
+  // Once the sheet has fully gone. Anything that presents a screen of its own after the sheet (the
+  // camera, the photo library) waits for this: iOS refuses to present while a modal is still
+  // dismissing, and the half-dismissed sheet is left over everything, taking every tap.
+  onClosed?: () => void;
   title?: string;
   // A small-caps line above the title (e.g. "Add a look · Wed 21 Oct").
   eyebrow?: string;
@@ -31,18 +39,41 @@ export interface SheetProps {
   closeButton?: boolean;
   // The close control as a word ("Done") where every tap already saved; implies closeButton.
   closeLabel?: string;
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
+  testID?: string;
+  // Felix's floating sheet: 8pt from the left, right and bottom, every corner on the sheet radius,
+  // on a 0.5pt `rule-mid` edge, hugging its content; the handle, a swipe down or a tap on the
+  // backdrop closes it (no ×).
+  floating?: boolean;
+  // The eyebrow's colour: Felix's rose (the darkened rose for small text) by default.
+  eyebrowTone?: 'faint' | 'warm';
+  // Felix's choice rows under the question: a 40pt disc with the glyph, a sentence-case label
+  // and a ›, 56pt tall between `hairline` rules. Two or three; the sheet asks one question.
+  rows?: readonly SheetRow[];
+}
+
+export interface SheetRow {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
   testID?: string;
 }
 
 const OFFSCREEN = 800;
 const DISMISS_DRAG = 120;
-const BACKDROP_OPACITY = 0.4;
+// Felix's `backdrop` behind every drawer (the token's alpha; it is ink, so opacity carries it).
+const BACKDROP_OPACITY = 0.28;
+const FLOAT_INSET = 8;
+// Felix's motion: 0.3s on cubic-bezier(.2, 0, .2, 1).
+const DURATION = 300;
+const EASE = Easing.bezier(0.2, 0, 0.2, 1);
 // The top 8% stays clear: past every iPhone's status bar and island (59pt of 874 on a 17).
 const SHEET_MAX = '92%';
 // Space under the last row; the home indicator's inset is added below it.
 const SHEET_PAD = 24;
+// Longest wait for iOS to confirm a dismissal before `onClosed` fires anyway.
+const DISMISS_FALLBACK_MS = 500;
 
 // While the keyboard is up the KeyboardAvoidingView already lifts the sheet clear of the home
 // indicator, so the inset is only added while it's down.
@@ -68,6 +99,7 @@ function useKeyboardShown(): boolean {
 export function Sheet({
   open,
   onClose,
+  onClosed,
   title,
   eyebrow,
   media,
@@ -77,11 +109,37 @@ export function Sheet({
   children,
   className,
   testID,
+  floating = false,
+  eyebrowTone = 'warm',
+  rows,
 }: SheetProps) {
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardShown();
   const [visible, setVisible] = useState(open);
+  const closed = useRef(onClosed);
+  closed.current = onClosed;
+  // `onClosed` once per close: iOS reports the native dismissal (Modal onDismiss), with a short
+  // fallback because onDismiss is not always delivered; elsewhere the modal is gone once hidden.
+  const closing = useRef(false);
+  const fireClosed = useRef(() => {
+    if (!closing.current) return;
+    closing.current = false;
+    closed.current?.();
+  }).current;
+  const shown = useRef(visible);
+  useEffect(() => {
+    const hid = shown.current && !visible;
+    shown.current = visible;
+    if (!hid) return;
+    closing.current = true;
+    if (Platform.OS !== 'ios') {
+      fireClosed();
+      return;
+    }
+    const fallback = setTimeout(fireClosed, DISMISS_FALLBACK_MS);
+    return () => clearTimeout(fallback);
+  }, [visible, fireClosed]);
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
 
@@ -100,8 +158,18 @@ export function Sheet({
       return;
     }
     const animation = Animated.parallel([
-      Animated.timing(translateY, { toValue: to, duration: 240, useNativeDriver: true }),
-      Animated.timing(backdrop, { toValue: shade, duration: 240, useNativeDriver: true }),
+      Animated.timing(translateY, {
+        toValue: to,
+        duration: DURATION,
+        easing: EASE,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdrop, {
+        toValue: shade,
+        duration: DURATION,
+        easing: EASE,
+        useNativeDriver: true,
+      }),
     ]);
     animation.start(({ finished }) => {
       if (finished && !open) setVisible(false);
@@ -109,7 +177,8 @@ export function Sheet({
     return () => animation.stop();
   }, [open, visible, reduced, translateY, backdrop]);
 
-  const close = closeLabel ? (
+  const eyebrowClass = eyebrowTone === 'warm' ? 'text-accent-warm' : undefined;
+  const close = floating ? null : closeLabel ? (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={closeLabel}
@@ -151,6 +220,7 @@ export function Sheet({
       animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
+      {...(Platform.OS === 'ios' ? { onDismiss: fireClosed } : {})}
       testID={testID}
     >
       {/* A field in the sheet (a name, a search) rides above the keyboard, never under it. */}
@@ -168,16 +238,29 @@ export function Sheet({
         </Animated.View>
         <Animated.View
           accessibilityViewIsModal
-          className={cx('rounded-t-sheet bg-bg px-6', className)}
+          className={cx(
+            floating ? 'rounded-sheet border-rule-mid bg-bg px-5' : 'rounded-t-sheet bg-bg px-5',
+            className,
+          )}
           // A tall drawer stops short of the status bar and Dynamic Island; its content scrolls.
           // Its last row (a footer button) sits above the home indicator, never under it.
-          style={{
-            maxHeight: SHEET_MAX,
-            paddingBottom: SHEET_PAD + (keyboard ? 0 : insets.bottom),
-            transform: [{ translateY }],
-          }}
+          style={[
+            {
+              maxHeight: SHEET_MAX,
+              paddingBottom: floating ? SHEET_PAD : SHEET_PAD + (keyboard ? 0 : insets.bottom),
+              transform: [{ translateY }],
+            },
+            floating
+              ? {
+                  borderWidth: FINE_EDGE,
+                  marginHorizontal: FLOAT_INSET,
+                  marginBottom: FLOAT_INSET + (keyboard ? 0 : insets.bottom),
+                  ...shadowNative.sheet,
+                }
+              : null,
+          ]}
         >
-          <View {...drag.panHandlers} className="items-center py-3">
+          <View {...drag.panHandlers} className="items-center pt-1 pb-2">
             {/* With a close in the header, the grab bar is only the handle, so a reader hears
                 one Close, not two. */}
             <Pressable
@@ -187,15 +270,15 @@ export function Sheet({
               onPress={onClose}
               className="min-h-11 w-24 items-center justify-center"
             >
-              <View className="h-1 w-9 rounded-pill bg-rule-mid" />
+              <View className="h-1 w-9 rounded bg-cream400 dark:bg-rule-mid" />
             </Pressable>
           </View>
           {media ? (
             <View className="mb-4 flex-row items-start gap-4">
               <View>{media}</View>
               <View className="min-w-0 flex-1">
-                {eyebrow ? <Eyebrow className="mb-1">{eyebrow}</Eyebrow> : null}
-                {title ? <Heading size="md">{title}</Heading> : null}
+                {eyebrow ? <Eyebrow className={cx('mb-2', eyebrowClass)}>{eyebrow}</Eyebrow> : null}
+                {title ? <Question>{title}</Question> : null}
               </View>
               {close}
             </View>
@@ -210,17 +293,60 @@ export function Sheet({
               {leading}
               <View className="min-w-0 flex-1">
                 {eyebrow ? (
-                  <Eyebrow className={title ? 'mb-1' : undefined}>{eyebrow}</Eyebrow>
+                  <Eyebrow className={cx(title ? 'mb-2' : null, eyebrowClass)}>{eyebrow}</Eyebrow>
                 ) : null}
-                {title ? <Heading size="md">{title}</Heading> : null}
+                {title ? <Question>{title}</Question> : null}
               </View>
               {close}
             </View>
           ) : null}
           {/* A drawer is a layer of its own: its one filled button stands beside the screen's. */}
-          <PrimaryScope>{children}</PrimaryScope>
+          <PrimaryScope>
+            {rows?.length ? <Rows rows={rows} /> : null}
+            {children}
+          </PrimaryScope>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
+  );
+}
+
+// Felix's question: Cormorant 300 at 24/1.15.
+function Question({ children }: { children: string }) {
+  return (
+    <Heading size="md" style={{ lineHeight: 27.6 }}>
+      {children}
+    </Heading>
+  );
+}
+
+function Rows({ rows }: { rows: readonly SheetRow[] }) {
+  const ink = useColor('ink');
+  const faint = useColor('ink-faint');
+  return (
+    <View className="border-hairline border-b">
+      {rows.map((row) => (
+        <Pressable
+          key={row.label}
+          accessibilityRole="button"
+          accessibilityLabel={row.label}
+          onPress={row.onPress}
+          testID={row.testID}
+          style={{ minHeight: 56 }}
+          className="flex-row items-center gap-3.5 border-hairline border-t px-1"
+        >
+          <View
+            className="size-10 items-center justify-center rounded-pill border-rule-mid bg-surface"
+            style={{ borderWidth: FINE_EDGE }}
+          >
+            <Icon name={row.icon} size={17} color={ink} stroke={1.4} />
+          </View>
+          <Text variant="body" className="flex-1">
+            {row.label}
+          </Text>
+          <Icon name="forward" size={15} color={faint} />
+        </Pressable>
+      ))}
+    </View>
   );
 }

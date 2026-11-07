@@ -18,7 +18,7 @@ export interface EmptyStateProps {
   testID?: string;
 }
 
-// One action at most; secondary by default so it never competes with the screen's primary.
+// One action at most; outline by default so it never competes with the screen's primary.
 export function EmptyState({ title, titleEm, body, action, className, testID }: EmptyStateProps) {
   return (
     <View
@@ -43,7 +43,7 @@ export function EmptyState({ title, titleEm, body, action, className, testID }: 
         </Text>
       ) : null}
       {action ? (
-        <Button variant={action.variant ?? 'secondary'} onPress={action.onPress} className="mt-3">
+        <Button variant={action.variant ?? 'outline'} onPress={action.onPress} className="mt-3">
           {action.label}
         </Button>
       ) : null}

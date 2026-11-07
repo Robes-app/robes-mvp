@@ -1,4 +1,5 @@
 import { AiError, type AiProvider, type InlineImage } from '@robes/ai';
+import { withPictureNote } from '@robes/ai/prompts/avatar';
 import {
   buildImagePrompt,
   FEATURE,
@@ -6,7 +7,7 @@ import {
   MAX_REFERENCES,
   type Mode,
 } from '@robes/ai/prompts/style-piece';
-import { cellKey, genericCellId } from '@robes/core/avatar';
+import { catalogKey, robesModelId, type StoodOn, standOf } from '@robes/core/avatar';
 import type { SystemRepositories, UserId } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -43,30 +44,45 @@ async function read(storage: FrameDeps['storage'], key: string): Promise<Uint8Ar
   }
 }
 
-// Her twin first, else her model cell, as IMAGE 1 when ready. With no model of her own, the
-// k-th way stands on the k-th generic Robes model (legacy 0.4) once that cell is drawn.
+export interface ModelReference {
+  image: InlineImage | null;
+  // What the image is (plan 2026-11-05 §2.4), recorded on the look when the frame lands; null
+  // with no image.
+  on: StoodOn | null;
+}
+const NO_MODEL: ModelReference = { image: null, on: null };
+
+// What she stands on, as IMAGE 1 when ready (standOf, plan 2026-11-05): her twin, else her
+// hand-built cell, else a Robes model. With none chosen, the k-th way of a set stands on the k-th
+// Robes model (legacy 0.4), so the ways read as different people; one chosen carries every way.
 export async function modelReference(
   deps: Pick<FrameDeps, 'storage' | 'styling' | 'cells'>,
   userId: UserId,
   generic?: { wearer: 'woman' | 'man'; index: number },
-): Promise<InlineImage | null> {
-  if (!deps.cells) return null;
+): Promise<ModelReference> {
+  if (!deps.cells) return NO_MODEL;
+  const row = deps.cells.model ? await deps.cells.model(userId) : undefined;
+  const stand = row
+    ? standOf(row)
+    : { on: 'cell' as const, cellId: await deps.styling.modelCellId(userId) };
   // Her twin first: it is her (legacy modelRefsForUser, 2026-10-20).
-  const twin = deps.cells.model ? (await deps.cells.model(userId))?.twinAssetId : null;
-  if (twin) {
-    const data = await read(deps.storage, mediaKeys.master(userId, twin));
-    if (data) return { mimeType: 'image/jpeg', data };
+  if (stand.on === 'twin' && row?.twinAssetId) {
+    const data = await read(deps.storage, mediaKeys.master(userId, row.twinAssetId));
+    if (data) return { image: { mimeType: 'image/jpeg', data }, on: 'twin' };
   }
-  const cellId =
-    (await deps.styling.modelCellId(userId)) ??
-    (generic ? genericCellId(generic.wearer, generic.index) : null);
-  if (!cellId) return null;
-  const cell = await deps.cells.cell(cellKey(cellId));
-  if (cell?.status !== 'ready' || !cell.bucketKey) return null;
+  let cellId: string | null = stand.on === 'twin' ? null : stand.cellId;
+  const unchosen = stand.on === 'robes' ? row?.modelPreset == null : !cellId;
+  if (unchosen && generic) {
+    const n = ((generic.index % 5) + 5) % 5;
+    cellId = robesModelId(generic.wearer, (n + 1) as 1 | 2 | 3 | 4 | 5);
+  }
+  if (!cellId) return NO_MODEL;
+  const cell = await deps.cells.cell(catalogKey(cellId));
+  if (cell?.status !== 'ready' || !cell.bucketKey) return NO_MODEL;
   const data = await read(deps.storage, cell.bucketKey);
-  if (!data) return null;
+  if (!data) return NO_MODEL;
   const mimeType = (cell.contentType ?? 'image/png') as InlineImage['mimeType'];
-  return { mimeType, data };
+  return { image: { mimeType, data }, on: unchosen || stand.on === 'robes' ? 'robes' : 'cell' };
 }
 
 export async function drawSuggestedFrame(
@@ -84,6 +100,8 @@ export async function drawSuggestedFrame(
     way: { title: string; eyebrow: string; scene: string };
     rack: readonly FrameRackPiece[];
     capability: 'image.hero' | 'image.secondary';
+    // Her note on the picture (D21): how it is drawn, never what is worn.
+    pictureNote?: string | null;
   },
 ): Promise<string> {
   const references: InlineImage[] = [];
@@ -118,18 +136,21 @@ export async function drawSuggestedFrame(
     const { image, usage } = await deps.ai.generateImage({
       feature,
       capability: opts.capability,
-      prompt: buildImagePrompt({
-        wearer: opts.wearer,
-        mode: opts.mode,
-        fallback: opts.fallback,
-        pieceLabel: opts.pieceLabel,
-        hasModel: Boolean(opts.model),
-        hasPiecePhoto: Boolean(opts.piecePhoto),
-        styleIcons: opts.styleIcons,
-        brief: opts.brief,
-        way: opts.way,
-        pieces,
-      }),
+      prompt: withPictureNote(
+        buildImagePrompt({
+          wearer: opts.wearer,
+          mode: opts.mode,
+          fallback: opts.fallback,
+          pieceLabel: opts.pieceLabel,
+          hasModel: Boolean(opts.model),
+          hasPiecePhoto: Boolean(opts.piecePhoto),
+          styleIcons: opts.styleIcons,
+          brief: opts.brief,
+          way: opts.way,
+          pieces,
+        }),
+        opts.pictureNote,
+      ),
       ...(references.length ? { references } : {}),
       aspectRatio: '4:5',
       signal: ctx.signal,

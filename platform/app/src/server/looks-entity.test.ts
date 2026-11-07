@@ -15,6 +15,10 @@ const repos = {
     piecesFor: vi.fn(async () => []),
     wearStats: vi.fn(async () => []),
     pinnedDays: vi.fn(async (): Promise<{ lookId: string | null; dayDate: string }[]> => []),
+    tagsFor: vi.fn(async () => new Map<string, string[]>()),
+    imagesFor: vi.fn(
+      async (): Promise<{ id: string; lookId: string; assetId: string; position: number }[]> => [],
+    ),
   },
   assets: {
     getManyForUser: vi.fn(async (_u: unknown, ids: string[]) =>
@@ -53,10 +57,12 @@ const row = (o: Record<string, unknown> = {}) =>
     source: 'generated',
     originLookId: null,
     climateBand: 'year_round',
+    seasons: [],
     renderAssetId: null,
     renderStatus: null,
     renderKey: null,
     renderClaimedAt: null,
+    stoodOn: null,
     status: 'suggested',
     anchorPieceId: null,
     setId: null,
@@ -68,13 +74,60 @@ const row = (o: Record<string, unknown> = {}) =>
     edits: null,
     photoAssetId: null,
     recordImage: null,
+    robesHidden: false,
+    pictureNote: null,
     dateHint: null,
     createdAt: new Date(NOW),
     updatedAt: new Date(NOW),
     ...o,
   }) as never;
 
-beforeEach(() => assets.clear());
+beforeEach(() => {
+  assets.clear();
+  repos.looks.imagesFor.mockResolvedValue([]);
+});
+
+const IMG_1 = '55555555-5555-4555-8555-555555555555';
+const IMG_2 = '66666666-6666-4666-8666-666666666666';
+
+// The stack (Felix rebuild D13): her photographs lead `photo`; one whose renditions failed drops out.
+describe('a look’s image stack', () => {
+  it('reads her photographs in stack order, the first as the photograph', async () => {
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    assets.set(IMG_2, { id: IMG_2, status: 'ready' });
+    repos.looks.imagesFor.mockResolvedValue([
+      { id: IMG_1, lookId: LOOK, assetId: IMG_2, position: 0 },
+      { id: IMG_2, lookId: LOOK, assetId: PHOTO, position: 1 },
+    ]);
+    const [look] = await toLooks(USER, [row({ photoAssetId: IMG_2 })], NOW);
+    expect(look?.images.map((i) => [i.id, i.image.assetId, i.position])).toEqual([
+      [IMG_1, IMG_2, 0],
+      [IMG_2, PHOTO, 1],
+    ]);
+    expect(look).toMatchObject({ photo: { assetId: IMG_2 }, record: 'photo' });
+  });
+
+  it('drops a photograph whose renditions failed, and falls back to the row’s own photograph', async () => {
+    assets.set(IMG_2, { id: IMG_2, status: 'failed' });
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    repos.looks.imagesFor.mockResolvedValue([
+      { id: IMG_1, lookId: LOOK, assetId: IMG_2, position: 0 },
+    ]);
+    const [look] = await toLooks(USER, [row({ photoAssetId: PHOTO })], NOW);
+    expect(look?.images).toEqual([]);
+    expect(look?.photo?.assetId).toBe(PHOTO);
+  });
+
+  it('keeps another look’s photographs out', async () => {
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    repos.looks.imagesFor.mockResolvedValue([
+      { id: IMG_1, lookId: FRAME, assetId: PHOTO, position: 0 },
+    ]);
+    const [look] = await toLooks(USER, [row()], NOW);
+    expect(look?.images).toEqual([]);
+    expect(look?.photo).toBeNull();
+  });
+});
 
 describe('a look’s frame', () => {
   it('stays pending while a job draws it, and lets go of an abandoned claim', async () => {
@@ -145,6 +198,54 @@ describe('a stale picture', () => {
     // No picture yet: nothing to be stale.
     expect((await toLooks(USER, [row()], NOW))[0]?.pictureStale).toBe(false);
   });
+
+  // D21: her picture note is part of what the picture shows.
+  it('reads stale when her picture note changed since the picture was drawn', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    const noted = frameKey([], [], {}, 'sleeves rolled up');
+    const frame = { frameAssetId: FRAME, renderStatus: 'ready', pictureNote: 'sleeves rolled up' };
+    const [fresh] = await toLooks(USER, [row({ ...frame, frameKey: noted })], NOW);
+    expect(fresh).toMatchObject({ pictureStale: false, pictureNote: 'sleeves rolled up' });
+    const [before] = await toLooks(USER, [row({ ...frame, frameKey: frameKey([], [], {}) })], NOW);
+    expect(before?.pictureStale).toBe(true);
+    const render = {
+      renderAssetId: FRAME,
+      renderStatus: 'ready',
+      pictureNote: 'hair up',
+      renderKey: `twin:abc:${rackHash([], {}, 'hair up')}`,
+    };
+    expect((await toLooks(USER, [row(render)], NOW))[0]?.pictureStale).toBe(false);
+    const cleared = { ...render, pictureNote: null };
+    expect((await toLooks(USER, [row(cleared)], NOW))[0]?.pictureStale).toBe(true);
+  });
+});
+
+// D19: Robes' picture hidden leaves the stack; it is kept on the row for the next redraw.
+describe('Robes’ picture hidden', () => {
+  it('reads no model picture, and her photograph leads whatever the record said', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    const fields = {
+      frameAssetId: FRAME,
+      photoAssetId: PHOTO,
+      renderStatus: 'ready',
+      recordImage: 'model',
+      stoodOn: 'robes',
+    };
+    const [look] = await toLooks(USER, [row({ ...fields, robesHidden: true })], NOW);
+    expect(look).toMatchObject({
+      robesHidden: true,
+      record: 'photo',
+      model: null,
+      photo: { assetId: PHOTO },
+      image: { assetId: PHOTO },
+      // Still Robes' frame: a redraw re-dresses it.
+      frame: true,
+      onRobesModel: false,
+    });
+    const [shown] = await toLooks(USER, [row({ ...fields, robesHidden: false })], NOW);
+    expect(shown).toMatchObject({ robesHidden: false, model: { assetId: FRAME } });
+  });
 });
 
 describe('the record: her photograph or her model', () => {
@@ -181,5 +282,37 @@ describe('the days a look is pinned on', () => {
     expect(look?.pinnedOn).toEqual(['2026-10-20', '2026-10-22']);
     const [none] = await toLooks(USER, [row({ status: 'saved' })], NOW);
     expect(none?.pinnedOn).toEqual([]);
+  });
+});
+
+describe('the Robes model tag', () => {
+  it('follows what Robes’ picture stood on, never her account', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    const robes = row({ frameAssetId: FRAME, renderStatus: 'ready', stoodOn: 'robes' });
+    const twin = row({ frameAssetId: FRAME, renderStatus: 'ready', stoodOn: 'twin' });
+    const before = row({ frameAssetId: FRAME, renderStatus: 'ready' });
+    const [a, b, c] = await toLooks(USER, [robes, twin, before], NOW);
+    expect(a?.onRobesModel).toBe(true);
+    expect(b?.onRobesModel).toBe(false);
+    // A frame from before the column says nothing: no tag.
+    expect(c?.onRobesModel).toBe(false);
+  });
+
+  it('reads a render’s key when the row has no record, and stands down behind her photograph', async () => {
+    assets.set(FRAME, { id: FRAME, status: 'ready' });
+    assets.set(PHOTO, { id: PHOTO, status: 'ready' });
+    const render = row({ renderAssetId: FRAME, renderKey: 'w-r2@v1:rack', renderStatus: 'ready' });
+    const hers = row({ renderAssetId: FRAME, renderKey: 'twin:k:rack', renderStatus: 'ready' });
+    const behind = row({
+      renderAssetId: FRAME,
+      renderKey: 'w-r2@v1:rack',
+      renderStatus: 'ready',
+      photoAssetId: PHOTO,
+    });
+    const [a, b, c] = await toLooks(USER, [render, hers, behind], NOW);
+    expect(a?.onRobesModel).toBe(true);
+    expect(b?.onRobesModel).toBe(false);
+    expect(c?.onRobesModel).toBe(false);
   });
 });

@@ -17,7 +17,13 @@ import {
 import { FEATURE as STYLE_FEATURE } from '@robes/ai/prompts/style-piece';
 import { buildImagePrompt as buildIdeaImagePrompt } from '@robes/ai/prompts/style-piece/v2';
 import { LookRenderInput } from '@robes/contracts';
-import { cellKey, parseCellId, twinInputsOf, twinSpec } from '@robes/core/avatar';
+import {
+  catalogGender,
+  catalogKey,
+  type StoodOn,
+  twinInputsOf,
+  twinSpec,
+} from '@robes/core/avatar';
 import type { StoredFrame, SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -212,22 +218,22 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         twinLine = { face: face !== null, figure: twinFigureLine(twinSpec(inputs, face !== null)) };
       }
     } else {
-      // The key names the cell the render stands on (her filed cell, or a generic Robes model
-      // while she has none): `{cellId}@{style}:{rack}`.
+      // The key names the catalog cell the render stands on (the cell she built by hand, or a
+      // Robes model — plan 2026-11-05): `{cellId}@{style}:{rack}`.
       const key = renderKey.slice(0, renderKey.lastIndexOf(':'));
       const cellId = key.slice(0, key.lastIndexOf('@'));
-      const cell = cellKey(cellId) === key ? await model.cell(key) : undefined;
-      const parsedCell = parseCellId(cellId);
+      const cell = catalogKey(cellId) === key ? await model.cell(key) : undefined;
+      const cellGender = catalogGender(cellId);
       const cellImage =
         cell?.status === 'ready' && cell.bucketKey
           ? await deps.storage.getObject(cell.bucketKey)
           : null;
-      if (cellImage && parsedCell) {
+      if (cellImage && cellGender) {
         references.push({
           mimeType: (cell?.contentType as 'image/jpeg' | 'image/png' | 'image/webp') ?? 'image/png',
           data: cellImage,
         });
-        gender = parsedCell.gender;
+        gender = cellGender;
       }
     }
     if (!gender) {
@@ -265,7 +271,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       const { image, usage } = await deps.ai.generateImage({
         feature,
         capability: 'image.hero',
-        prompt: buildRenderPrompt(gender, pieces, twinLine),
+        prompt: buildRenderPrompt(gender, pieces, twinLine, found.look.pictureNote),
         references,
         aspectRatio: '4:5',
         signal: ctx.signal,
@@ -343,6 +349,8 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
       throw new JobError(err instanceof AiError ? `ai_${err.code}` : 'render_failed');
     };
     let assetId: string;
+    // A frame drawn anew records what it stood on; a re-dressed frame keeps its first model.
+    let stoodOn: StoodOn | null | undefined;
     if (found.look.frameAssetId) {
       const frame = await deps.storage
         .getObject(mediaKeys.master(ctx.userId, found.look.frameAssetId))
@@ -367,7 +375,7 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
         const { image, usage } = await deps.ai.generateImage({
           feature: FRAME_FEATURE,
           capability: 'image.hero',
-          prompt: buildFrameRenderPrompt(gender, pieces),
+          prompt: buildFrameRenderPrompt(gender, pieces, found.look.pictureNote),
           references,
           aspectRatio: '4:5',
           signal: ctx.signal,
@@ -423,16 +431,18 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           ? 'man'
           : 'woman';
       try {
+        const ref = await modelReference(frameDeps, ctx.userId, {
+          wearer,
+          index: found.look.setIndex ?? 0,
+        });
+        stoodOn = ref.on;
         assetId = await drawSuggestedFrame(frameDeps, ctx, {
           wearer,
           mode: set?.success && set.data.mode === 'prompt' ? 'dress-me' : 'piece',
           fallback: set?.success ? set.data.fallback : false,
           pieceLabel: anchor?.label ?? null,
           piecePhoto,
-          model: await modelReference(frameDeps, ctx.userId, {
-            wearer,
-            index: found.look.setIndex ?? 0,
-          }),
+          model: ref.image,
           styleIcons: styleCtx.styleIcons,
           brief: set?.success ? set.data.prompt : null,
           way: {
@@ -442,12 +452,13 @@ export function createLookRenderHandler(deps: LookRenderDeps): JobHandler {
           },
           rack,
           capability: (found.look.setIndex ?? 0) === 0 ? 'image.hero' : 'image.secondary',
+          pictureNote: found.look.pictureNote,
         });
       } catch (err) {
         return fail(err);
       }
     }
-    await suggested.setFrame(ctx.userId, lookId, frameKey, assetId);
+    await suggested.setFrame(ctx.userId, lookId, frameKey, assetId, stoodOn);
     await ctx.writeStage('images', { images: [{ idx: 0, status: 'ready', assetId }] });
     return { status: 'succeeded' as const };
   }

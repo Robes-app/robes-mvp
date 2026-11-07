@@ -4,6 +4,7 @@ import { type AccessibilityState, type GestureResponderEvent, Pressable, View } 
 import { cx } from './cx';
 import { ASPECTS, type Aspect } from './Image';
 import { Skeleton } from './Skeleton';
+import { FINE_EDGE } from './scale';
 
 export interface CardProps {
   children: ReactNode;
@@ -12,12 +13,16 @@ export interface CardProps {
   // A card that is a choice says so — picked, or already taken.
   accessibilityState?: AccessibilityState;
   disabled?: boolean;
+  // Felix's fine edge; off for a photograph that stands on its own (home's day).
+  edge?: boolean;
   className?: string;
   testID?: string;
 }
 
-// Beta's white card on a hairline: raised off the cream page, never a beige panel.
-const base = 'overflow-hidden rounded-soft border border-hairline bg-surface-raised';
+// Felix's white card on the fine `rule-mid` edge, raised off the cream page; never a beige panel.
+const base = 'overflow-hidden rounded-soft border-rule-mid bg-surface-raised';
+const FINE = { borderWidth: FINE_EDGE } as const;
+const NONE = { borderWidth: 0 } as const;
 
 export function Card({
   children,
@@ -25,12 +30,14 @@ export function Card({
   accessibilityLabel,
   accessibilityState,
   disabled = false,
+  edge: withEdge = true,
   className,
   testID,
 }: CardProps) {
+  const edge = withEdge ? FINE : NONE;
   if (!onPress) {
     return (
-      <View testID={testID} className={cx(base, className)}>
+      <View testID={testID} className={cx(base, className)} style={edge}>
         {children}
       </View>
     );
@@ -44,6 +51,7 @@ export function Card({
       onPress={onPress}
       testID={testID}
       className={cx(base, className)}
+      style={edge}
     >
       {children}
     </Pressable>
@@ -69,6 +77,7 @@ export function CardSkeleton({
       accessibilityLabel={ui.loading}
       accessibilityState={{ busy: true }}
       className={cx(base, className)}
+      style={FINE}
     >
       <Skeleton aspectRatio={ASPECTS[aspect]} className="rounded-none" />
       <View className="gap-2 p-3">

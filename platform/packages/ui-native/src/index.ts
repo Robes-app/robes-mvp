@@ -1,3 +1,5 @@
+export { ActionDisc, type ActionDiscProps, ActionDiscs } from './ActionDisc';
+export { AlertDialog, type AlertDialogAction, type AlertDialogProps } from './AlertDialog';
 export { Avatar, type AvatarProps, initials } from './Avatar';
 export {
   Button,
@@ -26,14 +28,19 @@ export {
 } from './SegmentedControl';
 export { Sheet, type SheetProps } from './Sheet';
 export { Skeleton, type SkeletonProps } from './Skeleton';
+export { OptionList, OptionRow, Subview } from './Subview';
 export {
+  appCaps,
+  FINE_EDGE,
   fonts,
   HEADING_MIN_SIZE,
   MIN_TOUCH,
   maxFontSizeMultiplier,
   TOAST_DEFAULT_DURATION,
   TOAST_MIN_DURATION,
+  typeStyle,
 } from './scale';
+export { Tabs, type TabsProps } from './Tabs';
 export { Em, Eyebrow, Heading, type HeadingProps, Text, type TextProps, Wordmark } from './Text';
 export {
   Toast,

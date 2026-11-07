@@ -263,7 +263,7 @@ const pick = (prefs: unknown, k: string, max: number): number | undefined => {
 export function twinInputsOf(row: TwinSource): TwinInputs {
   const prefs = row.avatarPrefs;
   const skin = pick(prefs, 'skin', 7);
-  const hair = pick(prefs, 'hair', 4);
+  const hair = pick(prefs, 'hair', HAIR_SWATCHES.length - 1);
   const adj =
     prefs && typeof prefs === 'object' ? (prefs as Record<string, unknown>).adj : undefined;
   return {

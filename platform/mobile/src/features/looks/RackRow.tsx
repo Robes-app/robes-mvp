@@ -9,6 +9,35 @@ import { renditionUri } from '@/lib/images';
 
 export type RowMark = RowNote | { kind: 'added' };
 
+// A row's action (swap, remove): a 32pt `cream-200` disc with an `ink-soft` glyph, in a 44pt hit area.
+function Disc({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: 'wardrobe' | 'close';
+  label: string;
+  onPress: () => void;
+}) {
+  const muted = useColor('ink-muted');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      className="items-center justify-center"
+      style={{ width: 44, height: 44 }}
+    >
+      <View
+        className="items-center justify-center rounded-pill bg-surface-sunk"
+        style={{ width: 32, height: 32 }}
+      >
+        <Icon name={icon} size={15} color={muted} />
+      </View>
+    </Pressable>
+  );
+}
+
 // One piece on a look's rack, composed from the wardrobe row's lines (legacy fix 13): Category ·
 // Brand, the name without its brand, then the role (with the price on a piece to find) and the
 // exception ("Not yours yet"). The whole card opens the piece; ♡ saves a piece to find to her
@@ -59,7 +88,9 @@ export function RackRowCard({
       onPress={onOpen}
       disabled={!onOpen}
       testID={`rack-row-${row.key}`}
-      className={`relative flex-row items-center gap-3 rounded-soft border px-3 py-3 ${changed ? 'border-selected-line bg-selected' : 'border-hairline bg-surface-raised'}`}
+      // Felix's PieceList row: a 44×55 photo flush left, the lines, then the actions as 32pt
+      // cream discs in 44pt hit areas; the list around it draws the edge and the rules.
+      className={`relative flex-row items-center gap-3 pr-3 ${changed ? 'bg-selected' : ''}`}
     >
       {changed ? (
         <View
@@ -69,8 +100,8 @@ export function RackRowCard({
         />
       ) : null}
       <View
-        className={`overflow-hidden rounded-crisp ${proposal ? 'border border-dashed border-selected-line' : ''}`}
-        style={{ width: 52 }}
+        className={`overflow-hidden bg-surface-sunk ${proposal ? 'border border-dashed border-selected-line' : ''}`}
+        style={{ width: 44 }}
       >
         {uri ? (
           <Image source={uri} alt="" aspect="4:5" blurhash={image?.blurhash} />
@@ -129,12 +160,8 @@ export function RackRowCard({
             tone={proposal.wishlisted ? 'ink' : 'ink-muted'}
           />
         ) : null}
-        {onSwap ? (
-          <IconButton icon="wardrobe" label={copy.rack.swap(name)} onPress={onSwap} />
-        ) : null}
-        {onRemove ? (
-          <IconButton icon="close" label={copy.rack.remove(name)} onPress={onRemove} />
-        ) : null}
+        {onSwap ? <Disc icon="wardrobe" label={copy.rack.swap(name)} onPress={onSwap} /> : null}
+        {onRemove ? <Disc icon="close" label={copy.rack.remove(name)} onPress={onRemove} /> : null}
         {onOpen && !onSwap && !onRemove ? <Icon name="forward" size={16} color={faint} /> : null}
       </View>
     </Pressable>

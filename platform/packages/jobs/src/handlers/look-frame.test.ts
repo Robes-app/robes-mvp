@@ -103,12 +103,32 @@ describe('look_render: Robes’ frame of a look', () => {
     expect(req?.prompt).toContain('- IMAGE 2: the Silk shirt (ivory Tops)');
     expect(req?.prompt).toContain('Worn: tucked at the front.');
     expect(req?.prompt).toContain('- the Black mules (Shoes by Toteme).');
+    // A re-dressed frame keeps the model its first drawing stood on.
     expect(suggested.setFrame).toHaveBeenCalledWith(
       USER,
       LOOK,
       'k1',
       '44444444-4444-4444-8444-444444444444',
+      undefined,
     );
+  });
+
+  // D21: her picture note rides every frame, re-dressed or drawn fresh; the rack is the rack.
+  it('carries her picture note into the frame, re-dressed or drawn fresh', async () => {
+    const redress = setup({ pictureNote: 'sleeves rolled up' });
+    await redress.run();
+    const re = redress.generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(re).toContain('<user_input>\nsleeves rolled up\n</user_input>');
+    expect(re).toContain('- IMAGE 2: the Silk shirt (ivory Tops)');
+    expect(re).toContain('- the Black mules (Shoes by Toteme).');
+    const fresh = setup({ frameAssetId: null, pictureNote: 'hair up' });
+    await fresh.run();
+    const fr = fresh.generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(fr).toContain('<user_input>\nhair up\n</user_input>');
+    expect(fr).toContain('Look: "Garden party" — Evening.');
+    const plain = setup();
+    await plain.run();
+    expect(plain.generateImage.mock.calls[0]?.[0].prompt).not.toContain('HER NOTE');
   });
 
   it('draws a suggestion’s first frame from its set when it has none', async () => {
@@ -129,56 +149,82 @@ describe('look_render: Robes’ frame of a look', () => {
     expect(suggested.failFrame).toHaveBeenCalledWith(USER, LOOK, 'k1');
   });
 
-  it('with no model of her own, the k-th way stands on the k-th generic Robes model', async () => {
+  it('with no model of her own, the k-th way stands on the k-th Robes model', async () => {
     const cell = vi.fn(async (key: string) =>
-      key === 'w-s1-h0-nt@v2'
+      key === 'w-r2@v1'
         ? {
             id: key,
             status: 'ready',
-            bucketKey: 'catalog/w-s1-h0-nt.png',
+            bucketKey: 'catalog/avatar/w-r2@v1.png',
             contentType: 'image/png',
           }
         : undefined,
     );
     const { run, generateImage, storage } = setup({ frameAssetId: null }, { cell });
     await run();
-    expect(cell).toHaveBeenCalledWith('w-s1-h0-nt@v2');
-    expect(storage.getObject).toHaveBeenCalledWith('catalog/w-s1-h0-nt.png');
+    expect(cell).toHaveBeenCalledWith('w-r2@v1');
+    expect(storage.getObject).toHaveBeenCalledWith('catalog/avatar/w-r2@v1.png');
     expect(generateImage.mock.calls[0]?.[0]?.references?.[0]?.mimeType).toBe('image/png');
   });
 
-  it('shoots on no model while the generic cell is not drawn yet', async () => {
+  it('shoots on no model while the Robes model is not drawn yet', async () => {
     const cell = vi.fn(async () => undefined);
     const { run, generateImage } = setup({ frameAssetId: null }, { cell });
     await run();
-    expect(cell).toHaveBeenCalledWith('w-s1-h0-nt@v2');
+    expect(cell).toHaveBeenCalledWith('w-r2@v1');
     expect(generateImage.mock.calls[0]?.[0]?.references).toHaveLength(1);
   });
 });
 
 describe('modelReference', () => {
-  const deps = (twinAssetId: string | null) => ({
+  const deps = (twinAssetId: string | null, over: Record<string, unknown> = {}) => ({
     storage: {
       getObject: vi.fn(async (key: string) => new TextEncoder().encode(key)),
       putObject: vi.fn(),
     },
     styling: { modelCellId: vi.fn(async () => 'w-s3-h1-nt'), createGeneratedAsset: vi.fn() },
     cells: {
-      model: vi.fn(async () => ({ twinAssetId }) as never),
-      cell: vi.fn(async () => ({
-        id: 'w-s3-h1-nt@v2',
+      model: vi.fn(
+        async () =>
+          ({
+            genderIdentity: 'woman',
+            modelPreset: null,
+            filedCellId: 'w-s3-h1-nt',
+            twinAssetId,
+            twinKey: twinAssetId ? 'k' : null,
+            ...over,
+          }) as never,
+      ),
+      cell: vi.fn(async (key: string) => ({
+        id: key,
         status: 'ready',
-        bucketKey: 'catalog/avatar/w-s3-h1-nt@v2.png',
+        bucketKey: `catalog/avatar/${key}.png`,
         contentType: 'image/png',
       })),
     },
   });
 
-  it('shoots on her twin first, else her catalog cell', async () => {
+  it('shoots on her twin first, else her catalog cell, and says which', async () => {
     const twin = await modelReference(deps(FRAME), USER);
-    expect(new TextDecoder().decode(twin?.data)).toBe(`media/${USER}/${FRAME}/master.jpg`);
+    expect(twin.on).toBe('twin');
+    expect(new TextDecoder().decode(twin.image?.data)).toBe(`media/${USER}/${FRAME}/master.jpg`);
     const cell = await modelReference(deps(null), USER);
-    expect(cell?.mimeType).toBe('image/png');
-    expect(new TextDecoder().decode(cell?.data)).toBe('catalog/avatar/w-s3-h1-nt@v2.png');
+    expect(cell.on).toBe('cell');
+    expect(cell.image?.mimeType).toBe('image/png');
+    expect(new TextDecoder().decode(cell.image?.data)).toBe('catalog/avatar/w-s3-h1-nt@v2.png');
+  });
+
+  it('shoots on the Robes model she chose over her twin, and every way on that one', async () => {
+    const d = deps(FRAME, { modelPreset: 4 });
+    const chosen = await modelReference(d, USER, { wearer: 'woman', index: 1 });
+    expect(chosen.on).toBe('robes');
+    expect(new TextDecoder().decode(chosen.image?.data)).toBe('catalog/avatar/w-r4@v1.png');
+    // None chosen, nothing of her own: the k-th way on the k-th Robes model.
+    const kth = await modelReference(deps(null, { filedCellId: null }), USER, {
+      wearer: 'man',
+      index: 6,
+    });
+    expect(kth.on).toBe('robes');
+    expect(new TextDecoder().decode(kth.image?.data)).toBe('catalog/avatar/m-r2@v1.png');
   });
 });

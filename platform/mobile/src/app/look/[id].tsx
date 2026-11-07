@@ -3,10 +3,10 @@ import { StackScreen } from '@/components/StackScreen';
 import { LookScreen } from '@/features/looks/LookScreen';
 
 export default function LookRoute() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, schedule } = useLocalSearchParams<{ id: string; schedule?: string }>();
   return (
     <StackScreen>
-      <LookScreen id={id} />
+      <LookScreen id={id} schedule={schedule === '1'} />
     </StackScreen>
   );
 }

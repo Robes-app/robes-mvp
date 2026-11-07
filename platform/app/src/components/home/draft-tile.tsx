@@ -8,13 +8,13 @@ import { shortRange } from '@robes/core/weather';
 import { Icon } from '@robes/icons/web';
 import { Image, Skeleton } from '@robes/ui';
 import Link from 'next/link';
-import { useDressingLine } from '@/components/looks/draft-page';
+import { useDressingLine } from '@/components/looks/draft-look';
 import { LookImage } from '@/components/looks/look-image';
 import { ScanLine } from '@/components/looks/scan-line';
 import { PieceImage } from '@/components/wardrobe/piece-image';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const d = lookbook.draft;
 
 // The draft tile in the day's slot (Front Door design 3b, plan 2026-11-03 §1.2): where Add look
@@ -48,14 +48,15 @@ export function DraftTile({
   ]
     .filter(Boolean)
     .join(' · ');
-  const href = look ? `/look/${look.id}?day=${day.date}` : null;
+  // The draft opens as its drawer over the day (D14).
+  const href = look ? `/looks/draft/${look.id}?day=${day.date}` : null;
   const thumbs = look?.pieces.slice(0, 5) ?? [];
   const stale = !generating && look?.pictureStale === true;
   return (
     <article
       data-testid="draft-tile"
       data-state={generating ? 'generating' : 'ready'}
-      className="flex w-full shrink-0 snap-center flex-col overflow-hidden rounded-[6px] border border-rule-mid bg-surface-raised"
+      className="flex w-full shrink-0 snap-start flex-col overflow-hidden rounded-tile border-[0.5px] border-rule-mid bg-surface-raised"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-surface">
         <div

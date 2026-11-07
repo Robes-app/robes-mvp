@@ -24,7 +24,7 @@ export function PrimaryScope({ children }: { children: ReactNode }) {
 }
 
 export const ONE_PRIMARY_WARNING =
-  '@robes/ui: more than one primary Button is mounted on this screen. Keep one filled button for the single real commitment and make the rest secondary or quiet (UX-26).';
+  '@robes/ui: more than one primary Button is mounted on this screen. Keep one filled button for the single real commitment and make the rest outline, chip or quiet (UX-26).';
 
 function usePrimaryGuard(active: boolean): void {
   const scope = useContext(PrimaryScopeContext);
@@ -48,7 +48,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function Button({
-  variant = 'secondary',
+  variant = 'outline',
   loading = false,
   loadingLabel,
   block = false,

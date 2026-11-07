@@ -19,19 +19,26 @@ import { errorMessage } from '@/lib/errors';
 import { AdjustDock } from './AdjustDock';
 import { type Adjust, useAdjust } from './adjust';
 import { DiarySheet } from './DiarySheet';
-import { DraftPage } from './DraftPage';
-import { GenericModelBadge } from './GenericModelBadge';
+import { DraftLook } from './DraftLook';
 import { JOB_REFRESH_MS } from './ideas';
-import { LookDetail } from './LookDetail';
 import { LookMix, LookPicture } from './LookPicture';
 import { LookVerdict } from './LookVerdict';
 import { useLookEditor } from './look-editor';
 import { useLetGo, useSaveLook } from './look-states';
 import { RackRowCard } from './RackRow';
+import { RobesModelBadge } from './RobesModelBadge';
 import { SwapSheet } from './SwapSheet';
 
 // A look in whichever state it stands (docs/look-states-brief.md §3.2): one page, one bar.
-export function LookScreen({ id }: { id: string }) {
+export function LookScreen({
+  id,
+  schedule = false,
+}: {
+  id: string;
+  // `?schedule=1`: a draft just saved from its sheet opens with the diary up.
+  schedule?: boolean;
+}) {
+  const router = useRouter();
   const query = useApi(
     'looks.get',
     { params: { id } },
@@ -48,10 +55,21 @@ export function LookScreen({ id }: { id: string }) {
   return (
     <>
       {look.status === 'draft' ? (
-        // Every draft — from the prompt box or built by hand — is the one draft page (plan 2026-11-03).
-        <DraftPage look={look} onSaved={setJustSaved} />
+        // Every draft is the one DraftLook (D14): on its page here, a sheet from the app's screens.
+        <DraftLook
+          id={look.id}
+          presentation="page"
+          onClose={() => (router.canGoBack() ? router.back() : router.replace('/looks'))}
+        />
       ) : look.status === 'saved' ? (
-        <LookDetail id={id} />
+        // A saved look edits in place (Felix 3e, D17): the same DraftLook as Home's Edit look
+        // sheet, on its own page. Web twin: app/(app)/look/[id]/look-view.tsx.
+        <DraftLook
+          id={look.id}
+          presentation="saved"
+          schedule={schedule}
+          onClose={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+        />
       ) : (
         <WorkingLook look={look} onSaved={setJustSaved} />
       )}
@@ -127,7 +145,7 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
             />
             <View>
               <LookPicture look={look} />
-              {suggested && look.frame ? <GenericModelBadge /> : null}
+              <RobesModelBadge look={look} />
             </View>
           </View>
         ) : null}
@@ -167,7 +185,7 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
             />
           ))}
           {suggested ? null : (
-            <Button variant="secondary" onPress={() => setAdding(true)}>
+            <Button variant="outline" onPress={() => setAdding(true)}>
               {copy.rack.addPiece}
             </Button>
           )}
@@ -207,7 +225,7 @@ function WorkingLook({ look, onSaved }: { look: Look; onSaved: (look: Look) => v
       >
         <PrimaryScope>
           {suggested ? (
-            <Button variant="secondary" onPress={() => editor.startDraft()} className="flex-1">
+            <Button variant="outline" onPress={() => editor.startDraft()} className="flex-1">
               {copy.bar.edit}
             </Button>
           ) : (

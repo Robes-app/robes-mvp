@@ -11,6 +11,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { mediaKeys } from './keys';
 
 export const UPLOAD_URL_TTL_SECONDS = 5 * 60;
 
@@ -68,6 +69,17 @@ export interface MediaStorage {
   presignDownload(key: string, opts: { filename: string; expiresIn: number }): Promise<string>;
   // Deletes every object under the prefix (account deletion); returns how many went.
   deletePrefix(prefix: string): Promise<number>;
+}
+
+// One asset's files: the original she uploaded and everything rendered from it. Deleting a key
+// that is already gone succeeds, so a retry is safe. Returns how many rendered objects went.
+export async function deleteAssetObjects(
+  storage: Pick<MediaStorage, 'deleteObject' | 'deletePrefix'>,
+  userId: string,
+  assetId: string,
+): Promise<number> {
+  await storage.deleteObject(mediaKeys.original(userId, assetId));
+  return storage.deletePrefix(mediaKeys.assetMediaPrefix(userId, assetId));
 }
 
 function isMissing(err: unknown): boolean {

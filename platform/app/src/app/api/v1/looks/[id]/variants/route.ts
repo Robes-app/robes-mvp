@@ -1,13 +1,6 @@
 import { ApiError } from '@robes/api';
-import {
-  Look,
-  LookParams,
-  LookRole,
-  Proposal,
-  SeasonBand,
-  Styling,
-  UpdateLookInput,
-} from '@robes/contracts';
+import { Look, LookParams, LookRole, Proposal, Styling, UpdateLookInput } from '@robes/contracts';
+import { normaliseSeasons } from '@robes/core/wardrobe';
 import { verifiedUserId } from '@robes/db';
 import { repos } from '@/server/db';
 import { toLook, withOwnedPieces } from '@/server/looks-entity';
@@ -39,7 +32,12 @@ export const POST = route({
         name: input.name ?? origin.name,
         nameProvisional: input.name === undefined && origin.nameProvisional,
         note: input.note !== undefined ? input.note : origin.note,
-        climateBand: input.climateBand ?? SeasonBand.parse(origin.climateBand),
+        // Her season, in whichever spelling she sent; else the origin's (seasons carry the band).
+        ...(input.seasons !== undefined
+          ? { seasons: input.seasons }
+          : input.climateBand !== undefined
+            ? { climateBand: input.climateBand }
+            : { seasons: normaliseSeasons(origin.seasons) }),
         pieces,
         source: 'variant',
         originLookId: origin.id,

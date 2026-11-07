@@ -81,7 +81,13 @@ export const CREATE_ITEMS: readonly CreateItem[] = [
     icon: 'looks',
     keywords: 'three ways',
   },
-  { id: 'new-look', group: 'dress', href: '/looks/new', label: shell.create.newLook, icon: 'plus' },
+  {
+    id: 'new-look',
+    group: 'dress',
+    href: '/looks/draft/new',
+    label: shell.create.newLook,
+    icon: 'plus',
+  },
   {
     id: 'trip',
     group: 'dress',
@@ -160,6 +166,12 @@ export function backFor(pathname: string, search: URLSearchParams): Back | null 
     return { href: '/looks', label: looks.title };
   }
   if (pathname === '/looks/new' || pathname === '/looks/new/photo') {
+    return { href: '/looks', label: looks.title };
+  }
+  if (/^\/looks\/draft\/[^/]+$/.test(pathname)) {
+    // The draft on its own page (a deep link): back to the day it is for, else the Lookbook.
+    const from = search.get('day');
+    if (from && ISO_DAY.test(from)) return { href: `/?day=${from}`, label: weekdayDayMonth(from) };
     return { href: '/looks', label: looks.title };
   }
   if (/^\/looks\/ideas\/[^/]+$/.test(pathname)) {

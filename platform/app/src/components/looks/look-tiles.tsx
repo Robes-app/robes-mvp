@@ -12,7 +12,7 @@ import { LookTile } from './look-tile';
 import { Scanning, scanningLine } from './scan-line';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // A control on the photograph: drawn small (32px ✕, 36px calendar — beta's size, not a large
 // white disc) with the hit area reaching out to 44px. The native twin is LookTiles.tsx OnPhoto.
@@ -95,7 +95,7 @@ export function DraftTile({ look }: { look: Look }) {
   return (
     <LookTile
       look={look}
-      href={`/look/${look.id}`}
+      href={`/looks/draft/${look.id}`}
       sizes="140px"
       dashed
       // Beta's In progress tile is 140 wide (Header Audit Round 2).

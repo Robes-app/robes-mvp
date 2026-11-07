@@ -5,10 +5,11 @@ import {
   BALANCE_NOTE_MAX,
   BALANCES,
   LOOK_STATUSES,
+  PICTURE_NOTE_MAX,
   PROPOSAL_KEY_PATTERN,
 } from '@robes/core/looks';
 import { z } from 'zod';
-import { LEGACY_CATEGORY, Piece, PieceImage, SeasonBand } from './wardrobe';
+import { LEGACY_CATEGORY, Piece, PieceImage, SeasonBand, Seasons } from './wardrobe';
 
 // Style a piece: one of her pieces, or a piece described in words.
 export const LookAnchorInput = z.discriminatedUnion('type', [
@@ -163,6 +164,14 @@ export const LookAnchor = z.object({
 });
 export type LookAnchor = z.infer<typeof LookAnchor>;
 
+// One of her photographs of a look (app.look_images): the asset, and its place in the stack.
+export const LookImage = z.object({
+  id: z.uuid(),
+  image: PieceImage,
+  position: z.number().int().min(0),
+});
+export type LookImage = z.infer<typeof LookImage>;
+
 export const Look = z.object({
   id: z.uuid(),
   status: LookStatus,
@@ -173,6 +182,12 @@ export const Look = z.object({
   source: z.string(),
   originLookId: z.uuid().nullable(),
   climateBand: SeasonBand,
+  // The seasons it is for (Felix rebuild D12); `climateBand` is derived from them. Defaulted so a
+  // phone build ahead of the server still parses an older response.
+  seasons: Seasons.default([]),
+  // What she wears the look for (Felix 3e Details › Tags): her own tags on the look, in the tag
+  // namespace she shares with her pieces. Defaulted across skew.
+  tags: z.array(z.string()).default([]),
   // The look's picture — the record, its cover on the Lookbook and in the diary: the one she picked
   // of `photo` and `model`, else her photograph when she has one, else Robes' picture.
   image: PieceImage.nullable(),
@@ -181,6 +196,15 @@ export const Look = z.object({
   photo: PieceImage.nullable(),
   model: PieceImage.nullable(),
   record: z.enum(['photo', 'model']),
+  // Her photographs of the look, the one in front first (D13): `photo` is the first of these. Robes'
+  // picture is `model`, never one of them. Defaulted across version skew.
+  images: z.array(LookImage).default([]),
+  // She took Robes' picture off the stack (D19): kept, not destroyed, and `model` reads null until
+  // the next redraw lands and brings a fresh one back as the cover. Defaulted across skew.
+  robesHidden: z.boolean().default(false),
+  // Her note on how Robes' picture is drawn ("sleeves rolled up", D21): every redraw reads it, and
+  // it never changes the pieces. Her own words, verbatim. Defaulted across skew.
+  pictureNote: z.string().nullable().default(null),
   // True when the picture is Robes' frame: it holds through every state; edits re-draw it and
   // her model never replaces it.
   frame: z.boolean(),
@@ -192,6 +216,9 @@ export const Look = z.object({
   // The picture was drawn for another rack than the one on the look now (plan 2026-11-03 §1.4):
   // the draft reads stale until she asks for the model again, or saves. Defaulted for older servers.
   pictureStale: z.boolean().default(false),
+  // Robes' picture stands on a Robes model, not on her (plan 2026-11-05 §2.4): the look wears the
+  // `Robes model` tag. Read from what the picture was drawn on, never from her account.
+  onRobesModel: z.boolean().default(false),
   pieces: z.array(
     z.object({ piece: Piece, slot: z.string().nullable(), role: LookRole.nullable() }),
   ),
@@ -241,6 +268,7 @@ export const CreateLookInput = z.object({
   name: lookName.optional(),
   note: z.string().trim().max(2000).nullable().optional(),
   climateBand: SeasonBand.optional(),
+  seasons: Seasons.optional(),
   pieces: z.array(LookPieceInput).max(50),
   // A draft is hers, unsaved; five wait at most (letGoOldest makes room for a sixth).
   status: z.enum(['saved', 'draft']).optional(),
@@ -255,7 +283,11 @@ export const UpdateLookInput = z
   .object({
     name: lookName,
     note: z.string().trim().max(2000).nullable(),
+    // Either spelling of the season: `seasons` wins when both are sent (D12).
     climateBand: SeasonBand,
+    seasons: Seasons,
+    // Details › Tags: the whole set, replaced; at most six, like a piece's.
+    tags: z.array(z.string().trim().min(1).max(40)).max(6),
     pieces: z.array(LookPieceInput).max(50),
     ...rackFields,
     // Editing a suggestion makes it a draft: at five drafts, she lets the oldest go.
@@ -272,6 +304,24 @@ export type UpdateLookInput = z.infer<typeof UpdateLookInput>;
 // nothing to attach (the composite key on app.looks makes that true in the database too).
 export const LookPhotoInput = z.object({ assetId: z.uuid() });
 export type LookPhotoInput = z.infer<typeof LookPhotoInput>;
+
+// The image stack (D13): a photograph joins at the back; one of hers, or Robes' picture (`null`),
+// comes to the front and leads the look.
+export const LookImageParams = z.object({ id: z.uuid(), imageId: z.uuid() });
+export const LookCoverInput = z.object({ imageId: z.uuid().nullable() });
+export type LookCoverInput = z.infer<typeof LookCoverInput>;
+// Robes' picture off the stack, or back on it (D19). Hidden, it is kept; a look always keeps one
+// image, so it can be hidden only behind a photograph of hers (409 look_needs_image).
+export const LookRobesInput = z.object({ hidden: z.boolean() });
+export type LookRobesInput = z.infer<typeof LookRobesInput>;
+
+// Redraw Robes' picture (renderOnModel, frame). `note` is the AdjustSheet's Send (D21): her words
+// on how the picture is drawn, kept on the look for every later redraw; an empty one clears it.
+// Absent, the look's own note stands. The pieces never change here.
+export const RedrawLookInput = z.object({
+  note: z.string().trim().max(PICTURE_NOTE_MAX).optional(),
+});
+export type RedrawLookInput = z.infer<typeof RedrawLookInput>;
 
 export const WearInput = z.object({ wornOn });
 export const Wear = z.object({

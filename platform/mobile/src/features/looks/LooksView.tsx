@@ -136,7 +136,8 @@ export function LooksView() {
       : items.length
         ? copy.count.suggested(items.length)
         : '';
-  const open = (look: Look) => router.push(`/look/${look.id}`);
+  const open = (look: Look) =>
+    router.push(look.status === 'draft' ? `/looks/draft/${look.id}` : `/look/${look.id}`);
 
   const toolbar = (
     <View className="flex-row items-center justify-between gap-3">
@@ -146,7 +147,7 @@ export function LooksView() {
         framed
         icon="plus"
         label={copy.newLook}
-        onPress={() => router.push('/looks/new')}
+        onPress={() => router.push('/looks/draft/new')}
       />
     </View>
   );
@@ -331,7 +332,10 @@ export function LooksView() {
                     <EmptyState
                       title={copy.savedEmpty.title}
                       body={copy.savedEmpty.body}
-                      action={{ label: copy.newLook, onPress: () => router.push('/looks/new') }}
+                      action={{
+                        label: copy.newLook,
+                        onPress: () => router.push('/looks/draft/new'),
+                      }}
                     />
                   )
                 ) : (
@@ -348,7 +352,7 @@ export function LooksView() {
               {SORTS.map((s) => (
                 <Button
                   key={s}
-                  variant={sort === s ? 'secondary' : 'quiet'}
+                  variant={sort === s ? 'outline' : 'quiet'}
                   onPress={() => {
                     setSort(s);
                     setSortOpen(false);

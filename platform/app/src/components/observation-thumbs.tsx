@@ -18,7 +18,7 @@ export function ObservationThumbs({ line }: { line: Observation }) {
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="relative flex size-[30px] items-center justify-center rounded-full border border-rule-mid text-ink-muted after:absolute after:-inset-[7px] after:content-[''] hover:border-border-control hover:text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      className="relative flex size-[30px] items-center justify-center rounded-full border border-rule-mid text-ink-muted after:absolute after:-inset-[7px] after:content-[''] hover:border-border-control hover:text-ink disabled:opacity-50 focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
     >
       <Icon name={icon} size={14} />
     </button>

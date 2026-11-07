@@ -7,7 +7,7 @@ import { Icon } from '@robes/icons/native';
 import { fonts, Image, maxFontSizeMultiplier, Skeleton, Text, useColor } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
 import { Pressable, Text as RNText, View } from 'react-native';
-import { useDressingLine } from '@/features/looks/DraftPage';
+import { useDressingLine } from '@/features/looks/DraftLook';
 import { lookHero } from '@/features/looks/LookTile';
 import { OnPhoto } from '@/features/looks/LookTiles';
 import { ScanLine } from '@/features/looks/ScanLine';
@@ -53,7 +53,8 @@ export function DraftTile({
   const thumbs = look?.pieces.slice(0, 5) ?? [];
   const stale = !generating && look?.pictureStale === true;
   const open = () => {
-    if (look) router.push(`/look/${look.id}?day=${day.date}`);
+    // The draft opens as its sheet over the day (D14).
+    if (look) router.push(`/looks/draft/${look.id}?day=${day.date}`);
   };
   return (
     <View

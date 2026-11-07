@@ -1,5 +1,5 @@
 import { Icon } from '@robes/icons/native';
-import { Eyebrow, fonts, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
+import { appCaps, Eyebrow, fonts, MIN_TOUCH, Text, useColor } from '@robes/ui-native';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -7,20 +7,19 @@ import { Pressable, View } from 'react-native';
 // card on a hairline; a row is the serif name, a sans sub, her answer at the right and ›.
 // Web twin: app/src/components/settings/settings-chrome.tsx.
 
+// Redlines R6/R7 (2026-11-05): 12pt radius on the firmer hairline, the eyebrow at the smallest caps.
 export function SettingsGroup({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <View className="gap-2.5">
       {title ? (
-        // One line at 9.5px, tracked .24em, as on the web (redline 27 Oct).
-        <Eyebrow
-          numberOfLines={1}
-          className="ml-0.5"
-          style={{ fontSize: 9.5, letterSpacing: 2.28 }}
-        >
+        <Eyebrow numberOfLines={1} className="ml-0.5" style={appCaps}>
           {title}
         </Eyebrow>
       ) : null}
-      <View className="overflow-hidden rounded-card border border-hairline bg-surface-raised">
+      <View
+        className="overflow-hidden rounded-soft border-rule-mid bg-surface-raised"
+        style={{ borderWidth: 0.5 }}
+      >
         {children}
       </View>
     </View>
@@ -45,7 +44,7 @@ function RowBody({
       <View className="flex-1 gap-1">
         <Text
           tone={tone === 'danger' ? 'danger' : 'ink'}
-          style={{ fontFamily: fonts.displayRegular, fontSize: 17 }}
+          style={{ fontFamily: fonts.displayRegular, fontSize: 18 }}
         >
           {label}
         </Text>
@@ -92,8 +91,9 @@ export function SettingsRow({
   first?: boolean;
   testID?: string;
 }) {
-  const faint = useColor('ink-faint');
-  const className = `min-h-[60px] flex-row items-center gap-3.5 px-[18px] py-3.5 ${first ? '' : 'border-t border-hairline'}`;
+  const muted = useColor('ink-muted');
+  // Rows ≥ 62pt, 12/16 padding, a hairline between them (redlines R6).
+  const className = `min-h-[62px] flex-row items-center gap-3.5 px-4 py-3 ${first ? '' : 'border-t border-hairline'}`;
   if (!onPress) {
     return (
       <View className={className} testID={testID}>
@@ -111,7 +111,7 @@ export function SettingsRow({
       testID={testID}
     >
       <RowBody label={label} sub={sub} value={value} empty={empty} tone={tone} />
-      <Icon name={external ? 'external' : 'forward'} color={faint} size={external ? 14 : 16} />
+      <Icon name={external ? 'external' : 'forward'} color={muted} size={external ? 14 : 16} />
     </Pressable>
   );
 }

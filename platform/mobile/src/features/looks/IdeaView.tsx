@@ -281,7 +281,7 @@ export function IdeaView({
             </Button>
           ) : null}
           <Button
-            variant="secondary"
+            variant="outline"
             onPress={onSave}
             disabled={saved}
             loading={saving}

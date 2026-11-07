@@ -2,7 +2,7 @@
 
 import { queryKeys, useApi, useApiMutation } from '@robes/api-client/react';
 import type { Facts, Model, StyleDna, UpdateModelInput } from '@robes/contracts';
-import { twin, you } from '@robes/copy';
+import { diary, twin, you } from '@robes/copy';
 import {
   BUST_CUPS,
   chosenTones,
@@ -12,6 +12,7 @@ import {
   twinFigure,
 } from '@robes/core/avatar';
 import { euShoe, euSize, type FactStep, feetInches, stepFact } from '@robes/core/style-dna';
+import { Icon } from '@robes/icons/web';
 import { Button, Eyebrow, Pill, SegmentedControl, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
@@ -105,7 +106,7 @@ function SwatchRow({
             aria-label={names[i] ?? hex}
             aria-pressed={i === value}
             onClick={() => onPick(i)}
-            className="relative size-7 flex-none rounded-full border border-hairline outline-offset-2 after:absolute after:-inset-x-[3.5px] after:-inset-y-2 after:content-[''] aria-pressed:outline aria-pressed:outline-[1.5px] aria-pressed:outline-ink focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="relative size-7 flex-none rounded-full border border-hairline outline-offset-2 after:absolute after:-inset-x-[3.5px] after:-inset-y-2 after:content-[''] aria-pressed:outline aria-pressed:outline-[1.5px] aria-pressed:outline-ink focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
             style={{ backgroundColor: hex }}
           />
         ))}
@@ -133,6 +134,76 @@ export function SkinAndHair({ model, pick }: { model: Model; pick: Pick }) {
         onPick={(hair) => pick({ hair })}
       />
     </>
+  );
+}
+
+const tile =
+  'relative h-[132px] w-[104px] shrink-0 overflow-hidden rounded-soft border bg-surface focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+
+// The lineup (plan 2026-11-05 §1.4–1.5): her own model first, once she has one, then the five
+// Robes models; the one her looks stand on is ringed. Choosing a Robes model keeps her selfie and
+// twin on file; choosing herself again hands the stand back. Native twin: features/you/twin.tsx.
+export function Lineup({ model, pick, pending }: { model: Model; pick: Pick; pending: boolean }) {
+  const onRobes = model.stand?.on === 'robes';
+  const own = model.filed;
+  const ownImage = model.twin.imageUrl ?? model.cell.imageUrl;
+  const chosen = onRobes ? (model.preset ?? 1) : null;
+  const check = (
+    <span className="absolute bottom-1 left-1 flex size-[18px] items-center justify-center rounded-pill border-2 border-surface-raised bg-accent-plan text-surface-raised">
+      <Icon name="check" size={9} />
+    </span>
+  );
+  const portrait = (url: string | null, alt: string) =>
+    url ? (
+      // biome-ignore lint/performance/noImgElement: a catalog portrait or her own, fixed frame
+      <img
+        src={url}
+        alt={alt}
+        className="absolute inset-0 size-full object-cover object-[50%_10%]"
+      />
+    ) : (
+      <span className="absolute inset-0 flex items-center justify-center text-ink-faint">
+        <Icon name="user" size={16} />
+      </span>
+    );
+  return (
+    <fieldset
+      aria-label={twin.twinPage.lineup}
+      className="flex min-w-0 gap-1.5 overflow-x-auto [scrollbar-width:none]"
+    >
+      {own ? (
+        <button
+          type="button"
+          aria-pressed={!onRobes}
+          aria-label={twin.twinPage.you}
+          disabled={pending}
+          onClick={() => (onRobes ? pick({ preset: null }) : undefined)}
+          data-testid="lineup-you"
+          className={`${tile} ${onRobes ? 'border-rule-mid' : 'border-ink border-[1.5px]'}`}
+        >
+          {portrait(ownImage, '')}
+          {onRobes ? null : check}
+        </button>
+      ) : null}
+      {model.robesModels.map((m) => {
+        const on = m.n === chosen;
+        return (
+          <button
+            key={m.id}
+            type="button"
+            aria-pressed={on}
+            aria-label={diary.dayOne.modelPick(m.n)}
+            disabled={pending}
+            onClick={() => (on ? undefined : pick({ preset: m.n }))}
+            data-testid={`lineup-${m.n}`}
+            className={`${tile} ${on ? 'border-ink border-[1.5px]' : 'border-rule-mid'}`}
+          >
+            {portrait(m.imageUrl, '')}
+            {on ? check : null}
+          </button>
+        );
+      })}
+    </fieldset>
   );
 }
 
@@ -253,7 +324,7 @@ function Stepper({
       <span className="font-sans text-base text-ink">{label}</span>
       <span className="flex flex-col items-end">
         <span className="flex items-center gap-2">
-          <Button variant="secondary" aria-label={`${f.less}: ${label}`} onClick={() => onStep(-1)}>
+          <Button variant="outline" aria-label={`${f.less}: ${label}`} onClick={() => onStep(-1)}>
             −
           </Button>
           <output
@@ -262,7 +333,7 @@ function Stepper({
           >
             {value || f.add}
           </output>
-          <Button variant="secondary" aria-label={`${f.more}: ${label}`} onClick={() => onStep(1)}>
+          <Button variant="outline" aria-label={`${f.more}: ${label}`} onClick={() => onStep(1)}>
             +
           </Button>
         </span>

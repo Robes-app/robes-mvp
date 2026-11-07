@@ -11,7 +11,15 @@ export const SKIN_SWATCHES = [
   '#E3BE9C',
   '#F0D6BE',
 ] as const;
-export const HAIR_SWATCHES = ['#1B1614', '#3A2A20', '#6B4A2E', '#A9793F', '#CBAE87'] as const;
+// Silver (5) joined on 2026-11-05 for the older Robes model and for anyone whose hair has turned.
+export const HAIR_SWATCHES = [
+  '#1B1614',
+  '#3A2A20',
+  '#6B4A2E',
+  '#A9793F',
+  '#CBAE87',
+  '#B5AFA8',
+] as const;
 export const FIGURES = ['hg', 'pe', 're', 'it', 'ap', 'nt'] as const;
 export type Figure = (typeof FIGURES)[number];
 // profiles.gender_identity. 'non_binary' (29 Oct) is styled across menswear and womenswear; it and
@@ -128,7 +136,7 @@ export function resolveModel(
   };
 }
 
-// `{w|m}-s{0-7}-h{0-4}-{fig}[-l{l|r}][-f{l|r}]`; 'unspecified' rides the woman catalog (legacy).
+// `{w|m}-s{0-7}-h{0-5}-{fig}[-l{l|r}][-f{l|r}]`; 'unspecified' rides the woman catalog (legacy).
 export function formatCellId(m: {
   presence: Presence;
   skin: number;
@@ -150,7 +158,7 @@ export function formatCellId(m: {
   ].join('-');
 }
 
-const CELL_ID = /^([wm])-s([0-7])-h([0-4])-(hg|pe|re|it|ap|nt)((?:-(?:ll|lr|fl|fr))*)$/;
+const CELL_ID = /^([wm])-s([0-7])-h([0-5])-(hg|pe|re|it|ap|nt)((?:-(?:ll|lr|fl|fr))*)$/;
 
 export interface ParsedCell {
   gender: 'woman' | 'man';
@@ -175,15 +183,12 @@ export function parseCellId(id: string): ParsedCell | null {
 // The catalog row key: the cell id plus the art direction it was drawn in.
 export const cellKey = (cellId: string): string => `${cellId}@${CELL_STYLE}`;
 
-// Three Robes models for an account with no model of her own (legacy GENERIC_CELLS, 2026-10-17):
-// the k-th look of a set stands on the k-th, so the three ways read as three people; `m-` for a man.
+// The three generic cells of legacy GENERIC_CELLS (2026-10-17), served as `generics` to phone
+// builds installed before the Robes models (plan 2026-11-05); nothing new reads them.
 const GENERIC_CELLS = ['s4-h1-nt', 's1-h0-nt', 's7-h3-nt'] as const;
 export function genericCellIds(wearer: 'woman' | 'man'): string[] {
   return GENERIC_CELLS.map((c) => `${wearer === 'man' ? 'm' : 'w'}-${c}`);
 }
-export function genericCellId(wearer: 'woman' | 'man', index: number): string {
-  const ids = genericCellIds(wearer);
-  return ids[((index % ids.length) + ids.length) % ids.length] ?? ids[0] ?? '';
-}
 
+export * from './robes-models';
 export * from './twin';

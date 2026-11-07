@@ -36,7 +36,8 @@ export async function startPhotoRead(
   req: Request,
   assetId: string,
 ): Promise<StartJobOutput> {
-  if (await repos.capacity.isExhausted(['gemini-flash-lite'])) throw new ApiError('capacity');
+  // A photo read is vision.analyse, the full Flash (packages/ai/src/models.ts), not Lite.
+  if (await repos.capacity.isExhausted(['gemini-flash'])) throw new ApiError('capacity');
   const asset = await repos.assets.getForUser(userId, assetId);
   if (!asset || !READABLE_KINDS.has(asset.kind) || asset.status === 'failed') {
     throw new ApiError('not_found');

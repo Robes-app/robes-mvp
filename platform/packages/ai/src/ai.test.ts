@@ -23,6 +23,12 @@ describe('model registry', () => {
     // 2k in + 1k out on flash-lite = 0.0005 + 0.0015 USD = 2000 micros.
     expect(textCostMicros(MODEL_REGISTRY['text.fast'], 2000, 1000)).toBe(2000);
   });
+
+  it('reads photos on the family the web checks for capacity', () => {
+    // app/src/server/photo-reads.ts and wardrobe.ts check this family before a read; move them
+    // with it.
+    expect(MODEL_REGISTRY['vision.analyse'].family).toBe('gemini-flash');
+  });
 });
 
 describe('fenceUserText', () => {
@@ -139,7 +145,7 @@ describe('gemini adapter', () => {
       config: Record<string, unknown>;
     };
     expect(call.config).toMatchObject({
-      thinkingConfig: { thinkingLevel: 'MINIMAL' },
+      thinkingConfig: { thinkingLevel: 'LOW' },
       mediaResolution: 'MEDIA_RESOLUTION_HIGH',
     });
   });

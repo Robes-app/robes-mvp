@@ -13,7 +13,7 @@ import { errorCopy } from '@/lib/error-copy';
 export const PLAN_DAYS = 30;
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The rolling 30 days as white week cards of summary rows (beta parity canvas, 04 Diary; the
 // native twin is mobile/src/features/plan/PlanView.tsx PlanList): every row opens its day.

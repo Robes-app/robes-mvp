@@ -1,4 +1,4 @@
-import { GENDER_IDENTITIES } from '@robes/core/avatar';
+import { GENDER_IDENTITIES, HAIR_SWATCHES } from '@robes/core/avatar';
 import { COLOUR_FAMILY_IDS, PATTERNS, SHADE_IDS } from '@robes/core/colour';
 import { STYLE_TYPES } from '@robes/core/style-dna';
 import { z } from 'zod';
@@ -191,6 +191,13 @@ export const PushTokenParams = z.object({ token: ExpoPushToken });
 // the pickers; the cell is the shared reference portrait her looks are rendered on.
 export const ModelPresence = z.enum(GENDER_IDENTITIES);
 const stop = z.number().int().min(-2).max(2).nullable();
+const hair = z
+  .number()
+  .int()
+  .min(0)
+  .max(HAIR_SWATCHES.length - 1);
+// Which of the five Robes models (plan 2026-11-05); null = never chosen, the first stands.
+export const RobesModelN = z.number().int().min(1).max(5);
 export const TwinAdj = z.object({ shoulders: stop, bust: stop, hips: stop });
 export type TwinAdj = z.infer<typeof TwinAdj>;
 
@@ -198,7 +205,7 @@ export const Model = z.object({
   filed: z.boolean(),
   presence: ModelPresence,
   skin: z.number().int().min(0).max(7),
-  hair: z.number().int().min(0).max(4),
+  hair,
   line: z.enum(['soft', 'straight']).nullable(),
   frame: z.enum(['fuller', 'narrower']).nullable(),
   source: z.enum(['read', 'mixed', 'hand']),
@@ -224,11 +231,32 @@ export const Model = z.object({
     current: z.boolean(),
     imageUrl: z.url().nullable(),
   }),
-  // What a new look stands on in the composer: her twin, else her filed cell, else the first
-  // generic Robes model (`generic`) while she has none. Signed; null until that portrait exists.
-  stand: z.object({ imageUrl: z.url().nullable(), generic: z.boolean() }).optional(),
-  // The three Robes models to choose from on day one (design 3a, plan 2026-11-02 D4): each a
-  // catalog cell with its portrait once drawn. `chosen` is the one her picks match, if any.
+  // What a new look stands on in the composer (plan 2026-11-05 §2.3): her twin, else the cell she
+  // built by hand, else a Robes model (`generic`, kept for installed builds). Signed; null until
+  // that portrait exists.
+  stand: z
+    .object({
+      imageUrl: z.url().nullable(),
+      generic: z.boolean(),
+      on: z.enum(['twin', 'cell', 'robes']).optional(),
+    })
+    .optional(),
+  // The Robes model she chose on the home band or her model page; null = never chosen.
+  preset: RobesModelN.nullable().default(null),
+  // The five Robes models for her wearer (plan 2026-11-05): each a catalog cell with its portrait
+  // once drawn. Defaulted across version skew, so an older server's response still parses.
+  robesModels: z
+    .array(
+      z.object({
+        id: z.string(),
+        n: RobesModelN,
+        imageUrl: z.url().nullable(),
+        status: z.enum(['none', 'pending', 'ready', 'failed']),
+      }),
+    )
+    .default([]),
+  // The three legacy generic cells, for phone builds installed before the Robes models; nothing
+  // new reads it. Retire one release after the band moved to `robesModels`.
   generics: z.array(z.object({ id: z.string(), imageUrl: z.url().nullable() })).optional(),
 });
 export type Model = z.infer<typeof Model>;
@@ -237,11 +265,13 @@ export const UpdateModelInput = z
   .object({
     presence: ModelPresence,
     skin: z.number().int().min(0).max(7),
-    hair: z.number().int().min(0).max(4),
+    hair,
     line: z.enum(['soft', 'straight']).nullable(),
     frame: z.enum(['fuller', 'narrower']).nullable(),
     // A scale moved, or {} back to her facts.
     adj: TwinAdj.partial().strict(),
+    // A Robes model chosen (her looks stand on it), or null for her own twin or cell again.
+    preset: RobesModelN.nullable(),
   })
   .partial()
   .strict();

@@ -23,7 +23,7 @@ export default async function AdminUsers({ searchParams }: Props) {
       <PageHeader eyebrow={copy.eyebrow} title={copy.users.title} />
       <form method="get" className="flex items-end gap-3">
         <Field label={copy.users.search} name="email" type="search" defaultValue={q.email ?? ''} />
-        <button type="submit" className={buttonClasses({ variant: 'secondary' })}>
+        <button type="submit" className={buttonClasses({ variant: 'outline' })}>
           {copy.users.searchAction}
         </button>
       </form>

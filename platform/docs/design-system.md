@@ -67,18 +67,20 @@ Seed `tokens.ts` from `reference/tokens.draft.json`. Canonical values (all contr
 | `accent-plan` (sage) | `#7E7C5A` | `#A9A67E` | Same rule (4.03:1) |
 | `accent-decor` (mauve) | `#D4C8C4` | `#D4C8C4` | Decorative only |
 | `success` | `#3F6B4C` (darkened from legacy `#4A7C59`, 4.29:1 on cream-100) | `#7FB08E` | |
-| `danger` | `#8B3A30` | `#E08A7E` | |
-| `focus-ring` | ink | cream | 2px, offset 2px, visible everywhere (legacy missing on several pages) |
+| `danger` | `#B5483A` (Felix, 2026-11-06; was `#8B3A30`) | `#E08A7E` | 5.0:1 on bg, 4.7:1 on surface; white label on it 5.3:1 |
+| `focus-ring` | ink | cream | 1.5px, offset 2px (Felix, 2026-11-06), visible everywhere |
 
 **Typography**
-- Display/serif: **Cormorant** (not Cormorant Garamond), weights 300 and 400, italic 400. Minimum size 17px (brand rule).
-- Sans/UI: **Inter**, weights 300, 400, 500 **and 600** (legacy requests 600/700 but never loads them → faux bold). Ban 700.
+- Display/serif: **Cormorant** (not Cormorant Garamond), weights 300 and 400, italic 300 and 400. Minimum size 17px, except Felix's `piece-name` at 15px in 400 (D6, 2026-11-06).
+- Sans/UI: **Inter**, weights 300, 400 and 500 (Felix). Ban 600 and 700.
 - Both SIL OFL: self-host via `next/font/local` (web) and `expo-font` (native) from the same woff2/ttf files in `packages/tokens/fonts/` (subset Latin + Latin-ext).
-- Type scale: take the de facto scale from reference §3 into `size`/`leading`/`tracking` tokens; eyebrow labels = Inter 400, 12px, uppercase, 0.22em tracking, `ink-faint` (2026-10-25). Light (300) is the default weight for both families; a numeral or label goes 400 or full `ink` only when it marks today or a value she set. Pill and chip labels `ink-muted`; italic serif counts `ink-faint`.
+- Type scale: Felix's twelve styles are `typeScale` in `tokens.ts` (`display` 48, `greeting` 32, `title` 24, `heading` 22, `day-number` 20, `italic-aside` 17 italic, `piece-name` 15; `body` 13/1.65, `meta` 11, `eyebrow` 10/500/0.24em, `label` 9/500/0.22em, `category` 8.5/500/0.18em). Web uses the `type-<name>` utilities, native `typeStyle()` or `Text variant`. Eyebrows are `ink-soft` (`ink-muted`), a sheet's the rose for small text (`accent-warm`). Supersedes the 2026-10-25 eyebrow (12px, 400, `ink-faint`).
 
-**Shape**: keep both radius families deliberately (reference §4): `radius-soft` (8–18px, cards/sheets on native) and `radius-crisp` (2–6px, editorial cards/dialogs on web). Components pick one per the component spec; no ad-hoc radii.
+**Shape**: Felix's radii (`radius` in `tokens.ts`): `xs` thumbnails, `crisp` worn rows, `tile` look tiles, `sm` day cells, `thumb` model cards, `soft` lists, cards and inputs, `card` larger cards and dialogs, `sheet` sheets, `dock` the dock, `pill` every pill. Edges are Felix's fine 0.5px `rule-mid` on cards, lists, outline buttons and unselected pills. No ad-hoc radii.
 
-**Motion**: durations/easings from reference; respect `prefers-reduced-motion` / `AccessibilityInfo.isReduceMotionEnabled`.
+**Motion**: Felix's: colour and opacity 0.15–0.2s; sheets slide up in 0.3s on `cubic-bezier(.2,0,.2,1)`; dialogs fade in over 0.2s. Respect `prefers-reduced-motion` / `AccessibilityInfo.isReduceMotionEnabled`.
+
+**Felix Design System (2026-11-06).** `platform/design/felix` is the design reference and its token values are adopted in `tokens.ts`, under the names its components use (`warm-line`, `warm-past`, `warm-dash`, `alert`, `backdrop`, `backdrop-strong`, `scrim`, the `veil` family, `nav-glass`, `dock-glass`, `dock-line`, the rose and sage washes; radii `xs`, `tile`, `thumb`, `dock`; shadows `disc`, `sheet`, `modal`, `dialog`; `blur`). Where a Felix value misses the accessibility floor, the floor wins: `ink-faint` stays `#74664A`, small rose text stays `accent-warm`, and `warm-past` is darkened to `#968973` (3:1 on cream). The draft tokens of 2026-11-05 were renamed to Felix's: `glass` → `veil`, `hairline-strong` → `rule-mid`, `border-warm` → `warm-line`, `scrim` (0.28) → `backdrop`; `scrim` is now Felix's dark disc (0.55). Felix has no dark theme: the dark values for its tokens are proposed.
 
 **Colour rules (2026-10-25).** Rose marks *now* and *Robes' hand* — today's label and dot, today's rule in Diary, Draft, the why-this-look mark, Robes' own labels, a wishlisted piece — one or two per screen. Small rose text (under 24px) is `accent-warm`; dots, rules and icons `accent-inspire`. Mauve (`accent-decor`) is a surface only (trip bands, a pinned day's ring, the day-scope chip), never text.
 
@@ -88,14 +90,14 @@ Primitives (both `ui` and `ui-native`, same props):
 
 | Component | Notes / encoded rules |
 |---|---|
-| `Text`, `Heading`, `Eyebrow` | Heading enforces Cormorant ≥17px; Eyebrow is uppercase tracking |
-| `Button` | variants `primary` (filled ink — **max one per screen**, dev-mode warning if two mount), `secondary` (outline), `quiet` (text); `loading` state never says "Generating" |
+| `Text`, `Heading`, `Eyebrow` | `Text variant` takes a Felix type style; Heading enforces Cormorant ≥17px; Eyebrow is Felix's `eyebrow` |
+| `Button` | Felix's variants `primary` (filled ink, 48 — **max one per screen**, dev-mode warning if two mount, D3), `outline` (white on `rule-mid`, 40), `chip` (`surface-sunk`, 28), plus `quiet` (text); every one keeps a 44 hit area; `loading` never says "Generating" |
 | `IconButton` | 44×44 min hit area |
-| `Pill` / `Chip` | **selected is raised, never black**: the `selected` fill (white, = `surface-raised`) on the `selected-line` border (#C9BCA6) with ink text (2026-10-25; was the #F3EFE6 fill) — any selected control uses these two tokens, never an ink fill or ink outline. Unselected: white on `rule-mid`, `ink-muted` label |
+| `Pill` / `Chip` | Felix's pills, 32 (md) and 28 (sm). **Selected is warm, never black**: the `selected` fill (#F3EFE6) on a 1px `selected-line` (#C9BCA6), ink text and a check (D1/D2, 2026-11-06) — any selected control uses these two tokens, never an ink fill or ink outline. Unselected: white on 0.5px `rule-mid`, ink label |
 | `Card` (`PieceCard`, `LookCard`, `RackCard` variants) | aspect ratios from reference §5; blur placeholder; skeleton twin |
 | `Image` | wraps `next/image` loader / `expo-image` with our CDN loader, `sizes`, blurhash/thumbhash placeholder |
-| `Sheet` / `Dialog` | native bottom sheet; web dialog (Radix); focus trap; no confirm dialogs for reversible actions — use `Toast` with Undo |
-| `Field`, `TextArea`, `Select`, `SegmentedControl` | visible 3:1 borders; error text uses `danger` + icon |
+| `Sheet` / `Dialog` / `AlertDialog` | Felix's Sheet (rose eyebrow, one question, `rows`; floating 8 from the edges); `AlertDialog` the centred confirm for what can't be undone; focus trap; no confirm dialogs for reversible actions — use `Toast` with Undo |
+| `Field`, `TextArea`, `Select`, `SegmentedControl`, `Tabs` | visible 3:1 borders; error text uses `danger` + icon; `Tabs` is Felix's underline rail (Pieces · Details), in place of a segmented track inside a look (D6) |
 | `Toast` | supports action (Undo) |
 | `Skeleton` | shape-matched to final layout |
 | `Progress` (generation) | staged: "Styling your pieces" → per-image fill; copy from `packages/copy` |

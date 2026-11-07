@@ -4,7 +4,7 @@ import { Icon } from '@robes/icons/web';
 import Link from 'next/link';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The 44pt + circle beside a tab's switcher (beta parity canvas): white on the fine rule-mid
 // edge, a link or a button. The native twin is ui-native IconButton `framed`.

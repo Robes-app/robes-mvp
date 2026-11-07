@@ -78,7 +78,7 @@ export function LookVerdict({ look, onLetGo }: { look: Look; onLetGo: () => void
             onChange={(e) => setBody(e.target.value)}
           />
           <Button
-            variant="secondary"
+            variant="outline"
             className="self-start"
             onClick={() => void record(0, body.trim() || undefined).then(onLetGo)}
           >

@@ -2,17 +2,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 const repos = {
-  looks: { get: vi.fn(), save: vi.fn() },
+  looks: {
+    get: vi.fn(),
+    save: vi.fn(),
+    piecesFor: vi.fn(async () => [{ id: 'p1' }]),
+    setPictureNote: vi.fn(async () => true),
+    claimFrame: vi.fn(async () => true),
+    setRenderJob: vi.fn(),
+    releaseRender: vi.fn(),
+    renderState: vi.fn(),
+  },
   profiles: { get: vi.fn() },
   plan: { pin: vi.fn() },
+  capacity: { isExhausted: vi.fn(async () => false) },
+  jobs: { getForUser: vi.fn() },
 };
+const startJob = vi.fn(async () => ({ jobId: 'job', status: 'queued' }));
 vi.mock('./db', () => ({ repos }));
 vi.mock('./looks-entity', () => ({ toLook: vi.fn(async (_u, row) => row), toLooks: vi.fn() }));
-vi.mock('./jobs', () => ({ startJob: vi.fn() }));
-vi.mock('./model', () => ({ ensureGenericCells: vi.fn() }));
+vi.mock('./jobs', () => ({ startJob }));
+vi.mock('./model', () => ({ ensureRobesModels: vi.fn() }));
 vi.mock('./flags', () => ({ isFlagEnabled: vi.fn() }));
 
-const { saveLook, isUnnamedHandBuilt } = await import('./look-states');
+const { saveLook, isUnnamedHandBuilt, requestFrame } = await import('./look-states');
+const { frameKey } = await import('@robes/core/looks');
 // biome-ignore lint/suspicious/noExplicitAny: a test id
 const USER = 'u1' as any;
 const draft = { status: 'draft', nameProvisional: true, source: 'manual', setId: null };
@@ -65,5 +78,67 @@ describe('saving an unnamed look', () => {
       datedName: undefined,
     });
     expect(repos.plan.pin).toHaveBeenCalledWith(USER, 'l1', ['2026-11-04'], { slot: 'day' });
+  });
+});
+
+// D21: the AdjustSheet's Send on a look Robes framed writes her note, then re-dresses the frame.
+describe('redrawing Robes’ frame with her picture note', () => {
+  const framed = { status: 'saved', frameAssetId: 'f1', setId: 's1', proposals: [], styling: {} };
+  const req = new Request('https://robes.test/api/v1/looks/l1/frame', { method: 'POST' });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repos.looks.get.mockResolvedValue(framed);
+  });
+
+  it('keys the frame by the rack alone without a note, and asks for nothing new', async () => {
+    await requestFrame(USER, req, 'l1');
+    expect(repos.looks.setPictureNote).not.toHaveBeenCalled();
+    expect(repos.looks.claimFrame).toHaveBeenCalledWith(USER, 'l1', frameKey(['p1'], [], {}), {
+      force: false,
+    });
+  });
+
+  it('writes her note, keys the frame by it and draws again', async () => {
+    await requestFrame(USER, req, 'l1', { note: 'sleeves rolled up' });
+    expect(repos.looks.setPictureNote).toHaveBeenCalledWith(USER, 'l1', 'sleeves rolled up');
+    expect(repos.looks.claimFrame).toHaveBeenCalledWith(
+      USER,
+      'l1',
+      frameKey(['p1'], [], {}, 'sleeves rolled up'),
+      { force: true },
+    );
+    expect(startJob).toHaveBeenCalledWith(USER, req, {
+      kind: 'look_render',
+      input: {
+        target: 'frame',
+        lookId: 'l1',
+        frameKey: frameKey(['p1'], [], {}, 'sleeves rolled up'),
+      },
+      quota: { metric: 'generation.image', cost: 1 },
+    });
+  });
+
+  it('keeps the note on the look for a later redraw', async () => {
+    repos.looks.get.mockResolvedValue({ ...framed, pictureNote: 'hair up' });
+    await requestFrame(USER, req, 'l1');
+    expect(repos.looks.claimFrame).toHaveBeenCalledWith(
+      USER,
+      'l1',
+      frameKey(['p1'], [], {}, 'hair up'),
+      { force: false },
+    );
+  });
+
+  it('writes nothing on a look that is not hers, or one Robes never framed', async () => {
+    repos.looks.get.mockResolvedValue(undefined);
+    await expect(requestFrame(USER, req, 'l1', { note: 'x' })).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    repos.looks.get.mockResolvedValue({ ...framed, frameAssetId: null, setId: null });
+    await expect(requestFrame(USER, req, 'l1', { note: 'x' })).rejects.toMatchObject({
+      code: 'conflict',
+    });
+    expect(repos.looks.setPictureNote).not.toHaveBeenCalled();
+    expect(startJob).not.toHaveBeenCalled();
   });
 });

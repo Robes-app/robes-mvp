@@ -73,7 +73,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               onClick={entry.action.onAction}
               className={cn(
                 'min-h-11 rounded-pill px-3 font-sans text-sm font-medium text-bg underline underline-offset-4',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bg',
+                'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-bg',
               )}
             >
               {entry.action.label}
@@ -83,7 +83,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             aria-label={ui.dismiss}
             className={cn(
               'inline-flex size-11 items-center justify-center rounded-pill text-bg',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bg',
+              'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-bg',
             )}
           >
             <Icon name="close" size={18} />
@@ -93,7 +93,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <RadixToast.Viewport
         label={ui.notificationsRegion}
         className={cn(
-          'fixed inset-x-0 bottom-0 z-50 mx-auto flex w-full max-w-md flex-col gap-2 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
+          'fixed inset-x-0 bottom-0 z-[60] mx-auto flex w-full max-w-md flex-col gap-2 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
           focusRing,
         )}
       />

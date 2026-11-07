@@ -2,6 +2,7 @@ import 'server-only';
 import { ApiError } from '@robes/api';
 import { Edits, Look, LookRole, LookStatus, Proposal, Styling } from '@robes/contracts';
 import { looks as copy } from '@robes/copy';
+import { stoodOnOf } from '@robes/core/avatar';
 import { frameKey } from '@robes/core/looks';
 import { LookPiecesNotFound, type UserId } from '@robes/db';
 import { z } from 'zod';
@@ -64,17 +65,20 @@ const CLAIM_MS = 10 * 60_000;
 
 export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now()): Promise<Look[]> {
   const ids = rows.map((r) => r.id);
+  const imageRows = await repos.looks.imagesFor(userId, ids);
   const renderIds = rows.flatMap((r) => {
     const ids = [r.frameAssetId, r.renderAssetId, r.photoAssetId];
     return ids.filter((id): id is string => id !== null);
   });
+  for (const r of imageRows) renderIds.push(r.assetId);
   const anchorIds = [...new Set(rows.flatMap((r) => (r.anchorPieceId ? [r.anchorPieceId] : [])))];
-  const [pieceRows, stats, pinRows, renders, anchorRows] = await Promise.all([
+  const [pieceRows, stats, pinRows, renders, anchorRows, tags] = await Promise.all([
     repos.looks.piecesFor(userId, ids),
     repos.looks.wearStats(userId, ids),
     repos.looks.pinnedDays(userId, ids),
     repos.assets.getManyForUser(userId, renderIds),
     Promise.all(anchorIds.map((id) => repos.wardrobe.get(userId, id))),
+    repos.looks.tagsFor(userId, ids),
   ]);
   const [pieces, anchorPieces] = await Promise.all([
     toPieces(userId, pieceRows),
@@ -116,14 +120,24 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       const img = id ? images.get(id) : undefined;
       return img && img.status !== 'failed' ? img : null;
     };
-    const model = usable(row.frameAssetId) ?? usable(row.renderAssetId);
-    const photo = usable(row.photoAssetId);
+    // Hidden (D19), Robes' picture is kept on the row but leaves the stack until a redraw lands.
+    const model = row.robesHidden ? null : (usable(row.frameAssetId) ?? usable(row.renderAssetId));
+    // Her photographs, the one in front first (D13); a photograph whose renditions failed drops
+    // out of the stack. `photo` is the first of them, else the single photograph of older rows.
+    const stack = imageRows.flatMap((r) => {
+      if (r.lookId !== row.id) return [];
+      const image = usable(r.assetId);
+      return image ? [{ id: r.id, image, position: r.position }] : [];
+    });
+    const photo = stack[0]?.image ?? usable(row.photoAssetId);
     const record: 'photo' | 'model' =
-      row.recordImage === 'model' || row.recordImage === 'photo'
-        ? row.recordImage
-        : photo
-          ? 'photo'
-          : 'model';
+      row.robesHidden && photo
+        ? 'photo'
+        : row.recordImage === 'model' || row.recordImage === 'photo'
+          ? row.recordImage
+          : photo
+            ? 'photo'
+            : 'model';
     const image = (record === 'photo' ? (photo ?? model) : (model ?? photo)) ?? null;
     const frameRender = row.renderKey?.startsWith('frame:') ?? false;
     // A frame is still coming while a job draws it (a claim younger than 10 minutes) or while its
@@ -146,6 +160,7 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
             lookPieces.map((p) => p.piece.id),
             proposals.map((p) => ({ name: p.name, brand: p.brand })),
             styling,
+            row.pictureNote,
           )
         : row.renderAssetId !== null &&
             row.renderStatus === 'ready' &&
@@ -155,6 +170,7 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
             rackHash(
               lookPieces.map((p) => ({ id: p.piece.id })),
               styling,
+              row.pictureNote,
             )
           : false;
     return Look.parse({
@@ -166,16 +182,27 @@ export async function toLooks(userId: UserId, rows: LookRow[], now = Date.now())
       source: row.source,
       originLookId: row.originLookId,
       climateBand: row.climateBand,
+      seasons: row.seasons,
+      tags: tags.get(row.id) ?? [],
       image,
       photo,
       model,
       record,
+      images: stack,
+      robesHidden: row.robesHidden,
+      pictureNote: row.pictureNote,
       frame: row.frameAssetId !== null,
       framePending,
       composedByRobes: ROBES_SOURCES.has(row.source) || proposals.length > 0,
       // A frame look never renders on her model (legacy 2026-10-07).
       onModel: frameRender ? null : (row.renderStatus ?? null),
       pictureStale,
+      // The tag follows Robes' picture while it is the one shown: the row's record of what it
+      // stood on, else (a render from before the column) its key.
+      onRobesModel:
+        record === 'model' &&
+        model !== null &&
+        (row.stoodOn ?? (frameRender ? null : stoodOnOf(row.renderKey))) === 'robes',
       pieces: lookPieces,
       proposals,
       styling,

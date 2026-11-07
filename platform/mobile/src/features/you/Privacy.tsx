@@ -83,14 +83,14 @@ export function DownloadData() {
         {url ? (
           <>
             <Text size="small">{exportCopy.ready}</Text>
-            <Button variant="secondary" onPress={() => void Linking.openURL(url)}>
+            <Button variant="outline" onPress={() => void Linking.openURL(url)}>
               {exportCopy.download}
             </Button>
           </>
         ) : null}
         {canRequest ? (
           <Button
-            variant="secondary"
+            variant="outline"
             loading={request.isPending}
             loadingLabel={exportCopy.requesting}
             onPress={() => request.mutate({})}
