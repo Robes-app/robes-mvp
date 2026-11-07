@@ -12,7 +12,7 @@ const SHOES = '55555555-5555-4555-8555-555555555555';
 function setup(
   opts: {
     status?: string[];
-    master?: boolean;
+    master?: boolean | 'forbidden';
     closet?: boolean;
     output?: object;
     aiError?: AiError;
@@ -56,7 +56,12 @@ function setup(
     getObject: vi.fn(async () => new Uint8Array([1, 2, 3])),
     copyObject: vi.fn(async () => {}),
     // The master lands before the renditions; by default it isn't there until `ready`.
-    head: vi.fn(async () => (opts.master ? { bytes: 3, contentType: 'image/jpeg' } : null)),
+    head: vi.fn(async () => {
+      // The worker has no s3:ListBucket, so S3 answers a missing key with 403, not 404.
+      if (opts.master === 'forbidden')
+        throw Object.assign(new Error('Forbidden'), { $metadata: { httpStatusCode: 403 } });
+      return opts.master ? { bytes: 3, contentType: 'image/jpeg' } : null;
+    }),
   };
   const onGenerated = vi.fn(async () => {});
   const ai = opts.aiError
@@ -147,6 +152,16 @@ describe('wardrobe_pieces handler', () => {
     expect(early.storage.head).toHaveBeenCalledWith(`media/${USER}/${ASSET}/master.jpg`);
     await expect(setup({ status: ['failed'], master: true }).run()).rejects.toEqual(
       new JobError('unreadable_photo'),
+    );
+  });
+
+  // Staging, 7 Nov: every read failed while the photo rendered, on the 403 for a missing master.
+  it('waits for `ready` when the master check is refused, and never fails on it', async () => {
+    const refused = setup({ status: ['pending', 'pending', 'ready'], master: 'forbidden' });
+    await expect(refused.run()).resolves.toEqual({ status: 'succeeded' });
+    expect(refused.reads.source).toHaveBeenCalledTimes(3);
+    await expect(setup({ status: ['pending'], master: 'forbidden' }).run()).rejects.toEqual(
+      new JobError('asset_not_ready'),
     );
   });
 

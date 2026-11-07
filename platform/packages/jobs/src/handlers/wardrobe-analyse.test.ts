@@ -10,7 +10,12 @@ const PIECE = '22222222-2222-4222-8222-222222222222';
 const ASSET = '33333333-3333-4333-8333-333333333333';
 
 function setup(
-  opts: { assetStatus?: string[]; master?: boolean; output?: object; aiError?: AiError } = {},
+  opts: {
+    assetStatus?: string[];
+    master?: boolean | 'forbidden';
+    output?: object;
+    aiError?: AiError;
+  } = {},
 ) {
   const statuses = [...(opts.assetStatus ?? ['ready'])];
   const pieces = {
@@ -28,7 +33,12 @@ function setup(
   const storage = {
     getObject: vi.fn(async () => new Uint8Array([1, 2, 3])),
     // The master lands before the renditions; by default it isn't there until `ready`.
-    head: vi.fn(async () => (opts.master ? { bytes: 3, contentType: 'image/jpeg' } : null)),
+    head: vi.fn(async () => {
+      // The worker has no s3:ListBucket, so S3 answers a missing key with 403, not 404.
+      if (opts.master === 'forbidden')
+        throw Object.assign(new Error('Forbidden'), { $metadata: { httpStatusCode: 403 } });
+      return opts.master ? { bytes: 3, contentType: 'image/jpeg' } : null;
+    }),
   };
   const ai = opts.aiError
     ? {
@@ -138,6 +148,17 @@ describe('wardrobe_analyse handler', () => {
     const { run, pieces } = setup({ assetStatus: ['failed'], master: true });
     await expect(run()).rejects.toMatchObject({ code: 'unreadable_photo' });
     expect(pieces.discard).toHaveBeenCalledWith(USER, PIECE);
+  });
+
+  // Staging, 7 Nov: every read failed while the photo rendered, on the 403 for a missing master.
+  it('waits for `ready` when the master check is refused, and never fails on it', async () => {
+    const { run, pieces } = setup({
+      assetStatus: ['pending', 'pending', 'ready'],
+      master: 'forbidden',
+    });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    expect(pieces.forAnalysis).toHaveBeenCalledTimes(3);
+    expect(pieces.discard).not.toHaveBeenCalled();
   });
 
   it('gives up cleanly when the upload never becomes ready', async () => {
