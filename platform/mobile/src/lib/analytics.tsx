@@ -10,11 +10,12 @@ interface Client {
   optIn(): Promise<void> | void;
   optOut(): Promise<void> | void;
   register(properties: Record<string, string>): Promise<void> | void;
+  captureException(error: unknown): void;
 }
 type PostHogConfig = { key: string; host: string; environment: string };
 export type LoadPostHog = (config: PostHogConfig) => Promise<Client>;
 
-// Loaded only after consent, so nothing reaches PostHog before she says yes (SEC-84).
+// Loaded once she is signed in, unless she has turned analytics off in You › Privacy (SEC-84).
 const loadPostHog: LoadPostHog = async ({ key, host }) => {
   const { PostHog } = await import('posthog-react-native');
   return new PostHog(key, {
@@ -30,9 +31,11 @@ const loadPostHog: LoadPostHog = async ({ key, host }) => {
 export interface NativeAnalytics extends Analytics {
   start(userId: string): Promise<void>;
   stop(): void;
+  // A failure the app caught and showed her (a toast, an error line): autocapture never sees it.
+  reportError(error: unknown): void;
 }
 
-// Same contract as the web's browser analytics: `start` after consent, `stop` when withdrawn
+// Same contract as the web's browser analytics: `start` unless she has turned it off, `stop` when she does
 // or on sign-out. Every event is checked against the shared catalogue first.
 export function createNativeAnalytics(
   config: PostHogConfig | null,
@@ -68,17 +71,21 @@ export function createNativeAnalytics(
       void client.optOut();
       client.reset();
     },
+    reportError(error) {
+      if (active) client?.captureException(error);
+    },
   };
 }
 
 export const nativeAnalytics = createNativeAnalytics(POSTHOG);
 
-// Signed-in shell: follows her analytics consent (You › Privacy) as it changes.
+// Signed-in shell: on for everyone unless she turns analytics off in You › Privacy (null = never
+// asked = on), and follows that switch as it changes.
 export function AnalyticsSetup(): null {
   const me = useApi('me.get');
   const consents = useApi('me.consents.get');
   const userId = me.data?.id;
-  const allowed = consents.data?.analytics === true;
+  const allowed = consents.data !== undefined && consents.data.analytics !== false;
   useEffect(() => {
     if (userId && allowed) void nativeAnalytics.start(userId).catch(() => undefined);
     else nativeAnalytics.stop();
