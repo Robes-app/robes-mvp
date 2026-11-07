@@ -24,6 +24,10 @@ import { Eyebrow, Heading, Text } from './Text';
 export interface SheetProps {
   open: boolean;
   onClose: () => void;
+  // Once the sheet has fully gone. Anything that presents a screen of its own after the sheet (the
+  // camera, the photo library) waits for this: iOS refuses to present while a modal is still
+  // dismissing, and the half-dismissed sheet is left over everything, taking every tap.
+  onClosed?: () => void;
   title?: string;
   // A small-caps line above the title (e.g. "Add a look · Wed 21 Oct").
   eyebrow?: string;
@@ -68,6 +72,8 @@ const EASE = Easing.bezier(0.2, 0, 0.2, 1);
 const SHEET_MAX = '92%';
 // Space under the last row; the home indicator's inset is added below it.
 const SHEET_PAD = 24;
+// Longest wait for iOS to confirm a dismissal before `onClosed` fires anyway.
+const DISMISS_FALLBACK_MS = 500;
 
 // While the keyboard is up the KeyboardAvoidingView already lifts the sheet clear of the home
 // indicator, so the inset is only added while it's down.
@@ -93,6 +99,7 @@ function useKeyboardShown(): boolean {
 export function Sheet({
   open,
   onClose,
+  onClosed,
   title,
   eyebrow,
   media,
@@ -110,6 +117,29 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardShown();
   const [visible, setVisible] = useState(open);
+  const closed = useRef(onClosed);
+  closed.current = onClosed;
+  // `onClosed` once per close: iOS reports the native dismissal (Modal onDismiss), with a short
+  // fallback because onDismiss is not always delivered; elsewhere the modal is gone once hidden.
+  const closing = useRef(false);
+  const fireClosed = useRef(() => {
+    if (!closing.current) return;
+    closing.current = false;
+    closed.current?.();
+  }).current;
+  const shown = useRef(visible);
+  useEffect(() => {
+    const hid = shown.current && !visible;
+    shown.current = visible;
+    if (!hid) return;
+    closing.current = true;
+    if (Platform.OS !== 'ios') {
+      fireClosed();
+      return;
+    }
+    const fallback = setTimeout(fireClosed, DISMISS_FALLBACK_MS);
+    return () => clearTimeout(fallback);
+  }, [visible, fireClosed]);
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
 
@@ -190,6 +220,7 @@ export function Sheet({
       animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
+      {...(Platform.OS === 'ios' ? { onDismiss: fireClosed } : {})}
       testID={testID}
     >
       {/* A field in the sheet (a name, a search) rides above the keyboard, never under it. */}

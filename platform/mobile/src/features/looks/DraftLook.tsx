@@ -29,7 +29,7 @@ import {
   useToast,
 } from '@robes/ui-native';
 import { useRouter } from 'expo-router';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBareScreen } from '@/components/StackScreen';
@@ -46,7 +46,13 @@ import { LookDetails } from './LookDetails';
 import { LookPicture } from './LookPicture';
 import { useLookEditor } from './look-editor';
 import { useImageStage } from './look-images';
-import { isDraftsFull, useInvalidateLooks, useLetGo, useSaveLook } from './look-states';
+import {
+  isDraftsFull,
+  useInvalidateLooks,
+  useJobResult,
+  useLetGo,
+  useSaveLook,
+} from './look-states';
 import { PieceList } from './PieceList';
 import { type PickerMode, PiecePicker } from './PiecePicker';
 import { RackRowCard } from './RackRow';
@@ -391,6 +397,21 @@ function NewDraft({
   // carries on with it once the diary shows it. Without a day they deal suggestions (the deck).
   const [weatherOff, setWeatherOff] = useState(false);
   const [waiting, setWaiting] = useState(false);
+  // The job behind Style it: if it ends without the day's draft, the wait ends with a word.
+  const [promptJob, setPromptJob] = useState<string | null>(null);
+  useJobResult(
+    promptJob,
+    useCallback(
+      (job) => {
+        if (job.status === 'succeeded' || job.status === 'partial') return;
+        setPromptJob(null);
+        setWaiting(false);
+        setBusy(false);
+        toast.show({ message: copy.styleFailed });
+      },
+      [toast],
+    ),
+  );
   const diary = useApi('today.get', undefined, {
     enabled: waiting,
     refetchInterval: waiting ? 2_000 : false,
@@ -410,7 +431,7 @@ function NewDraft({
     try {
       if (day) {
         const place = diary.data?.diary?.days.find((x) => x.date === day)?.place ?? null;
-        await api.call('looks.prompt', {
+        const { jobId } = await api.call('looks.prompt', {
           input: {
             prompt: words,
             date: day,
@@ -419,6 +440,7 @@ function NewDraft({
             ...(weatherOff ? { weather: false } : {}),
           },
         });
+        setPromptJob(jobId);
         setWaiting(true);
         return;
       }

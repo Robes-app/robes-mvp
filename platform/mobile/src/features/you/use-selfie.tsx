@@ -32,8 +32,19 @@ export function useSelfie(): {
   const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function take(from: 'camera' | 'library') {
+  // The camera or library opens only once the chooser has fully gone (Sheet onClosed): iOS
+  // refuses to present over a closing sheet.
+  const picking = useRef<'camera' | 'library' | null>(null);
+  const pick = (from: 'camera' | 'library') => {
+    picking.current = from;
     setChoosing(false);
+  };
+  const chosen = () => {
+    const from = picking.current;
+    picking.current = null;
+    if (from) void take(from);
+  };
+  async function take(from: 'camera' | 'library') {
     let result: ImagePicker.ImagePickerResult;
     if (from === 'camera') {
       const camera = await ImagePicker.requestCameraPermissionsAsync();
@@ -64,17 +75,23 @@ export function useSelfie(): {
     }
   }
   const chooser = (
-    <Sheet open={choosing} onClose={() => setChoosing(false)} title={tw.addSelfie} closeButton>
+    <Sheet
+      open={choosing}
+      onClose={() => setChoosing(false)}
+      onClosed={chosen}
+      title={tw.addSelfie}
+      closeButton
+    >
       <View className="overflow-hidden rounded-soft border border-hairline bg-surface-raised">
         <SettingsRow
           first
           label={tw.selfieCamera}
-          onPress={() => void take('camera')}
+          onPress={() => pick('camera')}
           testID="selfie-camera"
         />
         <SettingsRow
           label={tw.selfieLibrary}
-          onPress={() => void take('library')}
+          onPress={() => pick('library')}
           testID="selfie-library"
         />
       </View>

@@ -127,7 +127,8 @@ export function PlacePopover({
           const wx = row.home ? home?.weather : row.hit?.weather;
           const icon = weatherIcon(wx?.code);
           return (
-            <li key={`${row.city}·${row.country ?? ''}`}>
+            // Two towns can share a name and a country (Paris, Texas and Paris, Tennessee).
+            <li key={row.hit ? `${row.hit.lat},${row.hit.lon}` : 'home'}>
               <button
                 type="button"
                 onClick={() => choose(row)}

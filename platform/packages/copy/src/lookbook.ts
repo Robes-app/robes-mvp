@@ -213,6 +213,8 @@ export const lookbook = {
     editPlaceholder: 'Describe other changes…',
     // Felix's Generate, in Robes' words: Robes styles, it never generates.
     generate: 'Style it',
+    // Describe's day draft: the job behind Style it ended without a look (D22).
+    styleFailed: 'Robes couldn’t style that one. Try again in a moment.',
     thread: 'Your words on this look',
     // The context chip: the day's place and weather, read from the diary.
     context: (place: string, range: string): string => `${place} · ${range}`,
