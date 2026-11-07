@@ -12,7 +12,9 @@ import { FALLBACK_PIECE, type Gender } from './v1';
 // her profile. v1/v2 stay for reference and their tests.
 export { FALLBACK_PIECE, FEATURE, type Gender } from './v1';
 export const VERSION = 3;
-export const MAX_OUTPUT_TOKENS = 3400;
+// Thinking is billed inside the cap: a style-piece answer stopped at 3,384 of 3,400 and was cut off
+// mid-JSON (staging, 5 Nov); good ones reach 3,342. Only what is used is billed.
+export const MAX_OUTPUT_TOKENS = 6000;
 // Her pieces' photographs that may ride one frame after the model cell and the key piece.
 export const MAX_REFERENCES = 9;
 
