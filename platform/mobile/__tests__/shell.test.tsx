@@ -197,8 +197,10 @@ test('the avatar opens You', async () => {
   await fireEvent.press(avatar);
   await waitFor(() => expect(router.getPathname()).toBe('/you'));
   expect(screen.getByText(twin.cards.twin)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('radio', { name: twin.tabs.account }));
-  expect(await screen.findByText(you.account.name)).toBeTruthy();
+  // Felix SettingsView: the subview header, then Style profile · Account as Tabs.
+  expect(screen.getByRole('header', { name: you.settings })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('tab', { name: twin.tabs.account }));
+  expect(await screen.findByText(you.rows.details)).toBeTruthy();
   expect(screen.getByText(you.deletion.title)).toBeTruthy();
 });
 

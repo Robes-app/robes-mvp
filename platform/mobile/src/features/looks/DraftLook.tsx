@@ -16,6 +16,7 @@ import {
   AlertDialog,
   type AlertDialogAction,
   Button,
+  DrawerHeader,
   EmptyState,
   FINE_EDGE,
   Image,
@@ -216,8 +217,6 @@ function Shell({
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
-  const muted = useColor('ink-muted');
-  const onInk = useColor('bg');
   if (presentation === 'saved') {
     return (
       <SavedShell over={over} footer={footer}>
@@ -228,46 +227,14 @@ function Shell({
   return (
     <View className="flex-1 bg-bg" style={{ paddingTop: presentation === 'page' ? insets.top : 0 }}>
       {presentation === 'page' ? <Bare /> : null}
-      <View
-        className="h-14 flex-row items-center justify-between border-hairline px-3"
-        style={{ borderBottomWidth: FINE_EDGE }}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.close}
-          onPress={onClose}
-          hitSlop={6}
-          className="items-center justify-center rounded-pill bg-surface-sunk"
-          style={{ width: 36, height: 36 }}
-          testID="draft-close"
-        >
-          <Icon name="close" size={14} color={muted} />
-        </Pressable>
-        <Text
-          accessibilityRole="header"
-          size="caption"
-          numberOfLines={1}
-          className="flex-1 text-center uppercase text-ink-muted"
-        >
-          {title}
-        </Text>
-        {done ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={done.label}
-            accessibilityState={{ disabled: done.disabled }}
-            onPress={done.onPress}
-            hitSlop={6}
-            className="items-center justify-center rounded-pill bg-ink"
-            style={{ width: 36, height: 36, opacity: done.disabled ? 0.35 : 1 }}
-            testID="draft-done"
-          >
-            <Icon name="check" size={15} color={onInk} />
-          </Pressable>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
-      </View>
+      <DrawerHeader
+        title={title}
+        onClose={onClose}
+        closeLabel={copy.close}
+        done={done}
+        closeTestID="draft-close"
+        doneTestID="draft-done"
+      />
       <View className="flex-1">
         <ScrollView
           automaticallyAdjustKeyboardInsets

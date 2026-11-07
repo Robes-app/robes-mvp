@@ -51,6 +51,6 @@ test('the look Robes makes overnight is waiting on Today in the morning', async 
   await expect(bell).toHaveAttribute('data-alert', 'true');
   await bell.click();
   const sheet = page.getByRole('dialog', { name: 'Notifications' });
-  await sheet.getByRole('link', { name: /^Robes dressed you for today/ }).click();
+  await sheet.getByRole('link', { name: /^See today’s look/ }).click();
   await expect(page).toHaveURL(new RegExp(`/today/looks/${t.overnight.id}$`));
 });

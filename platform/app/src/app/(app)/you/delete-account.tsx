@@ -2,14 +2,13 @@
 
 import { useApi, useApiMutation } from '@robes/api-client/react';
 import { errors, you } from '@robes/copy';
-import { Button, Dialog, Field, Text, useToast } from '@robes/ui';
+import { Button, Dialog, DrillRowContent, drillRowClass, Field, Text, useToast } from '@robes/ui';
 import { useState } from 'react';
-import { SettingsRowContent, settingsRowClass } from '@/components/settings/settings-chrome';
 import { useSignOut } from '@/components/use-sign-out';
 
 const CONFIRM_WORD = 'DELETE';
 
-// SEC-80 (a row of the Account tab's Profile card): typed confirmation, then the request is
+// SEC-80 (a row of the Account tab’s drill card): typed confirmation, then the request is
 // recorded, she is told and signed out; the deletion job removes everything within minutes.
 // Native twin: mobile/src/features/you/DeleteAccount.tsx.
 export function DeleteAccount() {
@@ -28,7 +27,7 @@ export function DeleteAccount() {
 
   if (status.data?.request) {
     return (
-      <div className={settingsRowClass}>
+      <div className={drillRowClass}>
         <Text role="status" size="small" tone="muted">
           {you.deletion.requested}
         </Text>
@@ -46,9 +45,10 @@ export function DeleteAccount() {
         if (!next) setTyped('');
       }}
       trigger={
-        // The last row of Profile (legacy Account): the danger name, then ›.
-        <button type="button" className={`${settingsRowClass} hover:bg-surface`}>
-          <SettingsRowContent label={you.deletion.title} tone="danger" />
+        // The Account card's last row; the danger waits for the dialog's own words (Felix keeps
+        // `danger` to a destructive reveal).
+        <button type="button" className={drillRowClass}>
+          <DrillRowContent label={you.deletion.title} />
         </button>
       }
       footer={

@@ -123,6 +123,30 @@ describe('Dialog and Sheet', () => {
     expect(take).toHaveBeenCalledOnce();
   });
 
+  it('takes the drawer header with done: × and ✓ both ask to close, no handle and no corner ×', async () => {
+    const onOpenChange = vi.fn();
+    const onDone = vi.fn();
+    render(
+      <Sheet
+        open
+        onOpenChange={onOpenChange}
+        title="Notifications"
+        done={{ label: 'Done', onClick: onDone }}
+      >
+        <p>Nothing new.</p>
+      </Sheet>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Notifications' });
+    expect(screen.getByText('Notifications')).toHaveClass('type-label');
+    expect(dialog.querySelector('header')).toHaveClass('h-10');
+    expect(screen.getAllByRole('button', { name: ui.close })).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(onDone).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole('button', { name: ui.close }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(await seriousViolations()).toEqual([]);
+  });
+
   it('has no serious accessibility violations when open', async () => {
     render(
       <Sheet title="Create" description="Start something new." defaultOpen>
