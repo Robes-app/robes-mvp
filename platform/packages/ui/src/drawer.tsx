@@ -5,6 +5,7 @@ import { Icon } from '@robes/icons/web';
 import type { ReactNode } from 'react';
 import { PrimaryScope } from './button';
 import { cn, focusRing } from './cn';
+import { CloseDisc } from './icon-button';
 
 export interface DrawerDone {
   label: string;
@@ -45,18 +46,7 @@ export function DrawerHeader({
 }) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-hairline border-b-[0.5px] px-3">
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label={closeLabel}
-        title={closeLabel}
-        className={cn(
-          "relative flex size-9 items-center justify-center rounded-pill bg-surface-sunk text-ink-muted after:absolute after:-inset-1 after:content-[''] hover:text-ink",
-          focusRing,
-        )}
-      >
-        <Icon name="close" size={14} />
-      </button>
+      <CloseDisc label={closeLabel} onClick={onClose} />
       <Title className="type-label min-w-0 flex-1 truncate text-center text-ink-muted">
         {title}
       </Title>

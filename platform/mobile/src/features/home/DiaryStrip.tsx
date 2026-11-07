@@ -16,9 +16,9 @@ const CELL = 43;
 
 // The strip (Front Door design 3k, plan 2026-11-02 §1.4): a pager of seven-day pages, today's page
 // centred so three days either side show; swipe for the week before and after. A cell carries one
-// mark per look — a ring when planned, a dot once worn — and a day gone by recedes to the faint
-// ink. Felix's WeekStrip: the current cell (the day picked, else today) takes the warm fill and
-// the warm edge, its weekday 500 in ink-soft and its date ink; a worn mark is `warm-past` (D11).
+// mark per look — a ring when planned, a dot once worn — and a day gone by recedes to `warm-past`.
+// Felix's WeekStrip (redline 7 Nov): today always keeps the warm fill, the day picked adds the
+// warm edge, and either one's weekday is 500 in ink-soft; a worn mark is `warm-past` (D11).
 // The web twin is app/src/components/home/diary-strip.tsx.
 export function DiaryStrip({
   days,
@@ -98,8 +98,10 @@ function DayCell({
   const label = isToday ? copy.today : weekdayLong(day.date);
   // Worn: one filled dot. Planned: a ring per look, its fill the cell's own ground.
   const marks = worn ? [{ filled: true }] : day.entries.map(() => ({ filled: false }));
-  const current = selected;
-  const ground = current ? 'bg-selected' : 'bg-bg';
+  // Today keeps its fill wherever the selection goes; the day picked is outlined (Felix 3a).
+  const ground = isToday ? 'bg-selected' : 'bg-bg';
+  const current = isToday || selected;
+  const dim = past && !selected;
   return (
     <Pressable
       accessibilityRole="button"
@@ -109,12 +111,14 @@ function DayCell({
       onPress={onSelect}
       style={{ width: CELL }}
       className={`items-center gap-[5px] rounded-sm border pt-2 pb-[7px] ${ground} ${
-        current ? 'border-selected-line' : 'border-transparent'
+        selected ? 'border-selected-line' : 'border-transparent'
       }`}
     >
       <RNText
         maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-        className={`uppercase ${current ? 'text-ink-muted' : 'text-ink-faint'}`}
+        className={`uppercase ${
+          current ? 'text-ink-muted' : dim ? 'text-warm-past' : 'text-ink-faint'
+        }`}
         style={{
           fontFamily: current ? fonts.sansMedium : fonts.sansRegular,
           fontSize: 9,
@@ -125,7 +129,7 @@ function DayCell({
       </RNText>
       <RNText
         maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-        className={past && !current ? 'text-ink-faint' : 'text-ink'}
+        className={dim ? 'text-warm-past' : 'text-ink'}
         style={typeStyle('day-number')}
       >
         {Number(day.date.slice(8))}
@@ -137,11 +141,11 @@ function DayCell({
             key={i}
             testID={`diary-mark-${day.date}-${i}`}
             // Worn: a solid warm-past dot. Planned: an ink-soft ring on white (the warm fill in the
-            // current cell); a plan left on a past day keeps its ring, never reading as worn.
+            // today's cell); a plan left on a past day keeps its ring, never reading as worn.
             className={`-ml-0.5 size-[5px] rounded-pill border ${
               m.filled
                 ? 'border-warm-past bg-warm-past'
-                : `border-ink-muted ${current ? 'bg-selected' : 'bg-surface-raised'}`
+                : `border-ink-muted ${isToday ? 'bg-selected' : 'bg-surface-raised'}`
             }`}
           />
         ))}

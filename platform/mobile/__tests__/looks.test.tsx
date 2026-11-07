@@ -155,8 +155,13 @@ test('Delete this look, at the foot of Details, asks first and lands behind Undo
   });
   await renderWithApi(<DraftLook id={LOOK_ID} presentation="sheet" onClose={() => undefined} />);
   await fireEvent.press(await screen.findByRole('tab', { name: lookbook.savedLook.tabs.details }));
-  await fireEvent.press(await screen.findByText(lookbook.draftLook.delete));
-  await fireEvent.press(await screen.findByRole('button', { name: lookbook.savedLook.delete }));
+  // An ink-soft link, never red text; the confirm's Delete is the danger fill (redline 7 Nov).
+  const link = await screen.findByText(lookbook.draftLook.delete);
+  expect(link.props.className).toContain('text-ink-muted');
+  await fireEvent.press(link);
+  const confirm = await screen.findByRole('button', { name: lookbook.savedLook.delete });
+  expect(confirm.props.className).toContain('bg-danger');
+  await fireEvent.press(confirm);
   expect(mockRouter.replace).toHaveBeenCalledWith('/looks');
   expect(await screen.findByText(looks.look.removed)).toBeTruthy();
   await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));

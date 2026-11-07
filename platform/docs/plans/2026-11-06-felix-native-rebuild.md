@@ -97,3 +97,18 @@ Calls made while building, each worth Annie's eye; a ruling becomes a decision a
 - ~~Trip pins filed as worn.~~ Ruled (Annie, 6 Nov): a trip's looks are never filed (trips are hidden). The rule starts Monday 9 Nov (`PASSED_PINS_FROM`) regardless of the ship date.
 - A saved look whose picture is stale on the server opens with Update look showing (stale counts as pending).
 - Un-accepted look photos: `DELETE /uploads/:id` hides one at once and the hourly sweep removes its files (the API has no S3 delete) — fine (Annie, 6 Nov).
+
+## Redline of 7 Nov (staging + iOS against 3a, 3k, 3e)
+
+Fixed on `felix/redline-fixes` (web + native; pieces and the greeting are parked):
+- **Week strip:** today keeps the warm fill wherever the selection goes; the day picked takes only the warm edge; past days recede to `warm-past` (weekday and date).
+- **Home (native):** the scroll pads 120 under the content, so the discs' labels, the caption and the pager clear the tab bar. Web already pads 128 in the shell.
+- **Adjust model image on the saved look:** the floating sheet sits over the Schedule look bar (web: a fixed layer above it; native: drawn after it).
+- **Delete this look:** an ink-soft link on a hairline underline; the confirm's Delete is a new `danger` Button variant (the primary's pill in `danger`, white label, counted as the screen's one fill) with a quiet Cancel.
+- **Sheet close:** every Sheet's × is Felix's 36 `cream-200` disc (`CloseDisc`, 44 hit area) on both platforms; the web Drawer uses the same component.
+- **Add a photo (native):** the chooser is the 3k sheet: eyebrow, question, the icon rows, the close disc.
+- **Put in the diary:** the web calendar drops `lining-nums` for Cormorant's own figures; the native sheet no longer adds padding of its own under the last row (it pushed "I wore this today" past the sheet's height).
+
+Open from the redline:
+- **Native dock's 24 × 2 active bar** is not built: the tab bar is the system's own (`expo-router/native-tabs`, D4) and is never hand-drawn. iOS draws its own selection; the bar would mean a custom tab bar again.
+- **Year round** shows no glyph in the Seasons row: the icon set has the four seasons only.

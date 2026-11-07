@@ -58,7 +58,8 @@ export function Button({
   children,
   ...rest
 }: ButtonProps) {
-  usePrimaryGuard(variant === 'primary');
+  // A danger fill is a filled button too: it counts against the one per screen (UX-26).
+  usePrimaryGuard(variant === 'primary' || variant === 'danger');
   return (
     <button
       {...rest}
