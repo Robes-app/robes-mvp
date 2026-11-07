@@ -80,8 +80,6 @@ beforeEach(() => {
 });
 
 const UPLOAD = {
-  'GET file:///tmp/small.jpg': {},
-  'GET file:///tmp/shot.jpg': {},
   'POST /uploads': {
     assetId: ASSET_ID,
     upload: {

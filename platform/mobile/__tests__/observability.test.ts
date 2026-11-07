@@ -10,6 +10,7 @@ function fakeClient() {
     optIn: jest.fn(async () => {}),
     optOut: jest.fn(async () => {}),
     register: jest.fn(),
+    captureException: jest.fn(),
   };
 }
 
@@ -56,4 +57,19 @@ test('without a key analytics never loads', async () => {
   const load = jest.fn();
   await createNativeAnalytics(null, load).start('u1');
   expect(load).not.toHaveBeenCalled();
+});
+
+test('a caught failure reaches PostHog once, and only while analytics run', async () => {
+  const client = fakeClient();
+  const analytics = createNativeAnalytics(CONFIG, async () => client);
+  const before = new Error('before start');
+  analytics.reportError(before);
+  expect(client.captureException).not.toHaveBeenCalled();
+  await analytics.start('u1');
+  const err = new Error('upload failed: empty photo');
+  analytics.reportError(err);
+  expect(client.captureException).toHaveBeenCalledWith(err);
+  analytics.stop();
+  analytics.reportError(new Error('after stop'));
+  expect(client.captureException).toHaveBeenCalledTimes(1);
 });
