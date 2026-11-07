@@ -33,7 +33,7 @@ export function Privacy() {
           first
           label={copy.analyticsLabel}
           sub={copy.analyticsHint}
-          value={consents.analytics === true}
+          value={consents.analytics !== false}
           // Recordings need usage counts, so turning counts off withdraws both.
           onChange={(v) => void set(v ? { analytics: true } : { analytics: false, replay: false })}
         />
@@ -41,7 +41,7 @@ export function Privacy() {
           label={copy.replayLabel}
           sub={copy.replayHint}
           value={consents.replay === true}
-          disabled={consents.analytics !== true}
+          disabled={consents.analytics === false}
           onChange={(v) => void set({ replay: v })}
         />
       </SettingsGroup>

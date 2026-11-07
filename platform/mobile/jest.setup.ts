@@ -32,3 +32,19 @@ jest.mock('expo-clipboard', () => {
     }),
   };
 });
+
+// Photos are native files: 2048 bytes (0 for an `empty` path), uploaded through fetch so the
+// tests' mockFetch sees the presigned PUT.
+jest.mock('expo-file-system', () => ({
+  UploadType: { BINARY_CONTENT: 0 },
+  File: class {
+    size: number;
+    constructor(path: string) {
+      this.size = path.includes('empty') ? 0 : 2048;
+    }
+    async upload(url: string, opts: { httpMethod: string; headers?: Record<string, string> }) {
+      const res = await fetch(url, { method: opts.httpMethod, headers: opts.headers });
+      return { status: res.status, body: '', headers: {} };
+    }
+  },
+}));

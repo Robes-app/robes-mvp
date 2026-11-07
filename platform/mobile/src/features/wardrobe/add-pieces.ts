@@ -1,5 +1,6 @@
 import type { ApiClient } from '@robes/api-client';
 import { UploadContentType, type UploadKind } from '@robes/contracts';
+import { File, UploadType } from 'expo-file-system';
 import type * as ImagePicker from 'expo-image-picker';
 
 export interface PickedPhoto {
@@ -26,15 +27,21 @@ export async function uploadPhoto(
   photo: PickedPhoto,
   kind: UploadKind = 'wardrobe',
 ): Promise<string> {
-  const body = await (await fetch(photo.uri)).blob();
-  // The presigned PUT signs the byte count, so it must be the bytes sent: the picker re-encodes
-  // (PICKER_OPTIONS), and its `fileSize` can be the original's, which storage then refuses.
-  if (!body.size) throw new Error('upload failed: empty photo');
+  // The presigned PUT signs the byte count, so it must be the file's own: the picker re-encodes
+  // (PICKER_OPTIONS), and its `fileSize` can be the original's, which storage then refuses. Read
+  // from the file and sent natively: fetch(file://).blob() reports 0 bytes in a release build, so
+  // every TestFlight upload failed before it started (7 Nov).
+  const file = new File(photo.uri);
+  if (!file.size) throw new Error('upload failed: empty photo');
   const { assetId, upload } = await api.call('uploads.create', {
-    input: { kind, contentType: contentTypeOf(photo), bytes: body.size },
+    input: { kind, contentType: contentTypeOf(photo), bytes: file.size },
   });
-  const put = await fetch(upload.url, { method: upload.method, headers: upload.headers, body });
-  if (!put.ok) throw new Error(`upload failed: ${put.status}`);
+  const put = await file.upload(upload.url, {
+    httpMethod: upload.method,
+    headers: upload.headers,
+    uploadType: UploadType.BINARY_CONTENT,
+  });
+  if (put.status < 200 || put.status >= 300) throw new Error(`upload failed: ${put.status}`);
   await api.call('uploads.complete', { params: { id: assetId } });
   return assetId;
 }
