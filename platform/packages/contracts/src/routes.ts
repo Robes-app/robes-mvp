@@ -80,6 +80,7 @@ import {
   Palette,
   PushTokenParams,
   RegisterPushTokenInput,
+  ReportClientErrorInput,
   RequestDeletionInput,
   StyleOverrides,
   StyleProfile,
@@ -417,6 +418,14 @@ export const routes = {
     path: '/me/push-tokens',
     auth: 'user',
     input: RegisterPushTokenInput,
+    output: Ok,
+  },
+  // Native diagnostics: logged server-side, nothing stored.
+  'me.clientErrors.report': {
+    method: 'POST',
+    path: '/me/client-errors',
+    auth: 'user',
+    input: ReportClientErrorInput,
     output: Ok,
   },
   'me.pushTokens.revoke': {

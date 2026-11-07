@@ -2,6 +2,7 @@ import { type Analytics, createAnalytics } from '@robes/analytics';
 import { useApi } from '@robes/api-client/react';
 import { useEffect } from 'react';
 import { POSTHOG } from './config';
+import { report } from './report';
 
 interface Client {
   capture(event: string, properties?: Record<string, unknown>): void;
@@ -33,6 +34,7 @@ export interface NativeAnalytics extends Analytics {
   stop(): void;
   // A failure the app caught and showed her (a toast, an error line): autocapture never sees it.
   reportError(error: unknown): void;
+  isActive(): boolean;
 }
 
 // Same contract as the web's browser analytics: `start` unless she has turned it off, `stop` when she does
@@ -74,6 +76,7 @@ export function createNativeAnalytics(
     reportError(error) {
       if (active) client?.captureException(error);
     },
+    isActive: () => active,
   };
 }
 
@@ -87,7 +90,8 @@ export function AnalyticsSetup(): null {
   const userId = me.data?.id;
   const allowed = consents.data !== undefined && consents.data.analytics !== false;
   useEffect(() => {
-    if (userId && allowed) void nativeAnalytics.start(userId).catch(() => undefined);
+    if (userId && allowed)
+      void nativeAnalytics.start(userId).catch((err) => report(err, 'analytics.start'));
     else nativeAnalytics.stop();
   }, [userId, allowed]);
   return null;

@@ -3,6 +3,7 @@ import type { JobSnapshot } from '@robes/contracts';
 import { useQueries } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isTerminal, JOB_REFRESH_MS } from '@/features/looks/ideas';
+import { report } from '@/lib/report';
 import type { PickedPhoto } from '../add-pieces';
 import { type ReviewShot, startRead } from './flow';
 
@@ -51,7 +52,8 @@ export function useShotSession(initial: readonly ReviewShot[] = []) {
         try {
           const jobId = await startRead(api, photo);
           setShots((all) => all.map((s) => (s.key === key ? { ...s, jobId } : s)));
-        } catch {
+        } catch (err) {
+          report(err, 'wardrobe.read');
           setShots((all) => all.map((s) => (s.key === key ? { ...s, failed: true } : s)));
         }
       });
