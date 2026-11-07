@@ -24,9 +24,10 @@ import { formatDay, localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
 import { LookImage } from './look-image';
 
-// A day is a Cormorant numeral, small and ink-soft; the selected day a warm circle (Look redline).
+// A day is a Cormorant 400 numeral with its old-style figures, as on the week strip and native
+// (redline 7 Nov), small and ink-soft; the selected day a warm circle (Look redline).
 const CELL =
-  'relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-full font-display text-base [font-variant-numeric:lining-nums] focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-full font-display font-normal text-base focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 const ARROW =
   "relative flex size-[22px] items-center justify-center rounded-full border border-rule-mid text-ink-muted after:absolute after:-inset-[11px] after:content-[''] hover:border-border-control hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 

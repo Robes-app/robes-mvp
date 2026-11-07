@@ -92,6 +92,7 @@ Legacy route → new endpoint. "Job" = returns 202 + job.
 | `POST /me/onboarding/complete` | client writes `onboarded_at` | server sets |
 | `GET/PATCH /me/preferences` | notification_prefs, avatar_prefs, localStorage state | incl. `user_ui_state` |
 | `POST /me/push-tokens`, `DELETE /me/push-tokens/:id` | — | native |
+| `POST /me/client-errors` `{ where, name, message, appVersion, analytics }` → `{ ok }` (30/min/user) | — | native: a failure the app met, written to the server log (`client_error`, URLs' queries stripped, no user id); nothing stored |
 | `POST /me/deletion` · `GET /me/deletion` | — | SEC-80 |
 | `POST /me/export` | — | SEC-81 |
 | `GET/POST /me/consents` | — | SEC-84; append-only, latest answer per kind wins; withdrawing analytics also withdraws replay |

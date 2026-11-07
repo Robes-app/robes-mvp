@@ -14,9 +14,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { IconButton, PrimaryScope } from './Button';
+import { CloseDisc, PrimaryScope } from './Button';
 import { useColor } from './color';
 import { cx } from './cx';
+import { DrawerHeader, type DrawerHeaderDone } from './DrawerHeader';
 import { useReducedMotion } from './motion';
 import { FINE_EDGE, MIN_TOUCH } from './scale';
 import { Eyebrow, Heading, Text } from './Text';
@@ -51,6 +52,10 @@ export interface SheetProps {
   // Felix's choice rows under the question: a 40pt disc with the glyph, a sentence-case label
   // and a ›, 56pt tall between `hairline` rules. Two or three; the sheet asks one question.
   rows?: readonly SheetRow[];
+  // The drawer header (× · the tracked title · the ink done disc) in place of the handle, the
+  // question and the × (Felix NotificationsSheet); a swipe down on it still closes. `null` keeps
+  // the × with a spacer.
+  done?: DrawerHeaderDone | null;
 }
 
 export interface SheetRow {
@@ -112,6 +117,7 @@ export function Sheet({
   floating = false,
   eyebrowTone = 'warm',
   rows,
+  done,
 }: SheetProps) {
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
@@ -191,13 +197,7 @@ export function Sheet({
       </Text>
     </Pressable>
   ) : closeButton ? (
-    <IconButton
-      icon="close"
-      label={ui.close}
-      tone="ink-muted"
-      onPress={onClose}
-      className="-mr-3"
-    />
+    <CloseDisc label={ui.close} onPress={onClose} />
   ) : null;
 
   const drag = useMemo(
@@ -260,20 +260,32 @@ export function Sheet({
               : null,
           ]}
         >
-          <View {...drag.panHandlers} className="items-center pt-1 pb-2">
-            {/* With a close in the header, the grab bar is only the handle, so a reader hears
-                one Close, not two. */}
-            <Pressable
-              accessible={!close}
-              accessibilityRole="button"
-              accessibilityLabel={ui.close}
-              onPress={onClose}
-              className="min-h-11 w-24 items-center justify-center"
-            >
-              <View className="h-1 w-9 rounded bg-cream400 dark:bg-rule-mid" />
-            </Pressable>
-          </View>
-          {media ? (
+          {done !== undefined ? (
+            <View {...drag.panHandlers} className="mb-6 pt-3">
+              <DrawerHeader
+                inSheet
+                title={title ?? ''}
+                onClose={onClose}
+                closeLabel={ui.close}
+                done={done}
+              />
+            </View>
+          ) : (
+            <View {...drag.panHandlers} className="items-center pt-1 pb-2">
+              {/* With a close in the header, the grab bar is only the handle, so a reader hears
+                  one Close, not two. */}
+              <Pressable
+                accessible={!close}
+                accessibilityRole="button"
+                accessibilityLabel={ui.close}
+                onPress={onClose}
+                className="min-h-11 w-24 items-center justify-center"
+              >
+                <View className="h-1 w-9 rounded bg-cream400 dark:bg-rule-mid" />
+              </Pressable>
+            </View>
+          )}
+          {done !== undefined ? null : media ? (
             <View className="mb-4 flex-row items-start gap-4">
               <View>{media}</View>
               <View className="min-w-0 flex-1">

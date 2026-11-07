@@ -7,7 +7,8 @@ import type { ReactElement, ReactNode, RefObject } from 'react';
 import { PrimaryScope } from './button';
 import { buttonClasses } from './button-styles';
 import { cn, focusRing } from './cn';
-import { IconButton } from './icon-button';
+import { type DrawerDone, DrawerHeader } from './drawer';
+import { CloseDisc } from './icon-button';
 import { Eyebrow, Heading, Text, type TextTone } from './text';
 
 // Reversible actions never get a confirm dialog; they run with an Undo toast (design-system §5).
@@ -42,6 +43,9 @@ export interface DialogProps {
   // A Sheet only: Felix's choice rows under the question — a 40px disc with the glyph, a
   // sentence-case label and a ›, 56px tall between `hairline` rules. Twin of ui-native Sheet rows.
   rows?: readonly SheetRow[];
+  // A Sheet only: the drawer header (× · the tracked title · the ink done disc) in place of the
+  // handle, the question and the × (Felix NotificationsSheet). `null` keeps the × and a spacer.
+  done?: DrawerDone | null;
 }
 
 export interface SheetRow {
@@ -72,6 +76,7 @@ function Frame({
   floating = false,
   eyebrowTone,
   rows,
+  drawer,
   overlay = overlaySheet,
 }: Pick<
   DialogProps,
@@ -89,6 +94,8 @@ function Frame({
   | 'rows'
 > & {
   overlay?: string;
+  // The drawer header in place of the handle, the titles and the ×.
+  drawer?: { done: DrawerDone | null; onClose: () => void };
   grabBar?: boolean;
   className: string;
   titleSize: 'lg' | 'md';
@@ -144,9 +151,19 @@ function Frame({
           : {})}
       >
         <PrimaryScope>
+          {drawer ? (
+            <DrawerHeader
+              inSheet
+              title={title}
+              titleAs={RadixDialog.Title}
+              onClose={drawer.onClose}
+              closeLabel={ui.close}
+              done={drawer.done}
+            />
+          ) : null}
           {/* The drawer's own handle: it says this pulls up from the edge, and nothing else. On a
               floating sheet it is also the close, in place of the ×. */}
-          {grabBar && floating ? (
+          {drawer ? null : grabBar && floating ? (
             <RadixDialog.Close asChild>
               <button
                 type="button"
@@ -162,7 +179,7 @@ function Frame({
               className="mx-auto h-1 w-9 shrink-0 rounded-[4px] bg-cream400 dark:bg-rule-mid"
             />
           ) : null}
-          {media ? (
+          {drawer ? null : media ? (
             <div className="flex items-start gap-4">
               <span className="shrink-0">{media}</span>
               {head}
@@ -194,16 +211,17 @@ function Frame({
           {children}
           {footer ? <div className="flex flex-col gap-3">{footer}</div> : null}
           {/* Last in DOM order so opening focuses the content, not the close button. */}
-          {floating ? null : (
-            // The corner is held by a wrapper: a quiet button is `relative` (its hit ring).
-            <div className="absolute top-3 right-3">
+          {floating || drawer ? null : (
+            // The corner is held by a wrapper: a quiet button and the disc are `relative` (their
+            // hit rings).
+            <div className={cn('absolute', closeLabel ? 'top-3 right-3' : 'top-4 right-4')}>
               <RadixDialog.Close asChild>
                 {closeLabel ? (
                   <button type="button" className={buttonClasses({ variant: 'quiet' })}>
                     {closeLabel}
                   </button>
                 ) : (
-                  <IconButton icon="close" label={ui.close} />
+                  <CloseDisc label={ui.close} />
                 )}
               </RadixDialog.Close>
             </div>
@@ -280,11 +298,15 @@ export function Sheet({
   floating = false,
   eyebrowTone,
   rows,
+  done,
   ...root
 }: DialogProps) {
   return (
     <Root {...root}>
       <Frame
+        {...(done === undefined
+          ? {}
+          : { drawer: { done, onClose: () => root.onOpenChange?.(false) } })}
         {...(initialFocus ? { initialFocus } : {})}
         title={title}
         eyebrow={eyebrow}

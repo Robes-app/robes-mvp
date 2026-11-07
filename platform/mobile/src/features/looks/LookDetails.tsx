@@ -2,8 +2,8 @@ import type { Look } from '@robes/contracts';
 import { lookbook } from '@robes/copy';
 import { dayMonth } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { FINE_EDGE, fonts, MIN_TOUCH, Text, typeStyle, useColor } from '@robes/ui-native';
-import { type ComponentRef, type ReactNode, useEffect, useRef, useState } from 'react';
+import { DrillList, DrillRow, FINE_EDGE, fonts, Text, typeStyle, useColor } from '@robes/ui-native';
+import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 const copy = lookbook.savedLook.details;
@@ -23,58 +23,9 @@ export function detailSummaries(look: Look): {
   };
 }
 
-// One drill row: a 9pt tracked label, the summary (faint when empty), a 14pt chevron.
-function Row({
-  label,
-  summary,
-  empty,
-  muted = false,
-  onOpen,
-  children,
-  first = false,
-  testID,
-}: {
-  label: string;
-  summary: string | null;
-  empty: string;
-  muted?: boolean;
-  onOpen: () => void;
-  children?: ReactNode;
-  first?: boolean;
-  testID?: string;
-}) {
-  const faint = useColor('ink-faint');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${label} · ${summary ?? empty}`}
-      onPress={onOpen}
-      testID={testID}
-      className="flex-row items-center gap-3 border-hairline pr-3 pl-4"
-      style={{ height: 48, minHeight: MIN_TOUCH, borderTopWidth: first ? 0 : FINE_EDGE }}
-    >
-      <Text className="text-ink-muted" style={typeStyle('label')}>
-        {label}
-      </Text>
-      <View className="flex-1 flex-row items-center justify-end gap-3">
-        {children ?? (
-          <Text
-            numberOfLines={1}
-            className={summary && !muted ? 'text-ink-muted' : 'text-ink-faint'}
-            style={{ fontSize: 11 }}
-          >
-            {summary ?? empty}
-          </Text>
-        )}
-      </View>
-      <Icon name="forward" size={14} color={faint} />
-    </Pressable>
-  );
-}
-
-// Felix's LookDetails (3e Details): Tags, Seasons, Worn and Caption as one drill-down card on
-// `white` with a 0.5pt `rule-mid` edge and 48pt rows. The caption edits inline on a `warm-line`
-// underline; Return or blur keeps it. Web twin: app/src/components/looks/look-details.tsx.
+// Felix's LookDetails (3e Details): Tags, Seasons, Worn and Caption as one drill-down card — the
+// shared DrillList, with SettingsView. The caption edits inline on a `warm-line` underline; Return
+// or blur keeps it. Web twin: app/src/components/looks/look-details.tsx.
 export function LookDetails({
   look,
   onTags,
@@ -107,24 +58,20 @@ export function LookDetails({
     if (next && next !== look.name) onCaption(next);
   };
   return (
-    <View
-      testID="look-details"
-      className="overflow-hidden rounded-soft border-rule-mid bg-surface-raised"
-      style={{ borderWidth: FINE_EDGE }}
-    >
-      <Row
+    <DrillList testID="look-details">
+      <DrillRow
         label={copy.tags}
-        summary={summary.tags}
-        empty={copy.none}
-        onOpen={onTags}
+        value={summary.tags ?? copy.none}
+        muted={!summary.tags}
+        onPress={onTags}
         first
         testID="details-tags"
       />
-      <Row
+      <DrillRow
         label={copy.seasons}
-        summary={summary.seasons}
-        empty={copy.yearRound}
-        onOpen={onSeasons}
+        value={summary.seasons ?? copy.yearRound}
+        muted={!summary.seasons}
+        onPress={onSeasons}
         testID="details-seasons"
       >
         {look.seasons.length ? (
@@ -140,15 +87,14 @@ export function LookDetails({
               </View>
             ))}
           </View>
-        ) : null}
-      </Row>
+        ) : undefined}
+      </DrillRow>
       {onWorn ? (
-        <Row
+        <DrillRow
           label={copy.worn}
-          summary={summary.worn}
-          empty={copy.notWorn}
+          value={summary.worn ?? copy.notWorn}
           muted
-          onOpen={onWorn}
+          onPress={onWorn}
           testID="details-worn"
         />
       ) : null}
@@ -194,35 +140,25 @@ export function LookDetails({
           </Pressable>
         </View>
       ) : (
-        <Pressable
-          accessibilityRole="button"
+        <DrillRow
+          label={copy.caption}
+          value={look.name}
           accessibilityLabel={copy.editCaption}
           onPress={() => {
             setDraft(look.name);
             setEditing(true);
           }}
           testID="details-caption"
-          className="flex-row items-center gap-3 border-hairline pr-3 pl-4"
-          style={{ height: 48, borderTopWidth: FINE_EDGE }}
-        >
-          <Text className="text-ink-muted" style={typeStyle('label')}>
-            {copy.caption}
-          </Text>
-          <Text
-            numberOfLines={1}
-            className="flex-1 text-right text-ink-muted"
-            style={{ fontSize: 11 }}
-          >
-            {look.name}
-          </Text>
-          <View
-            className="items-center justify-center"
-            style={{ width: 32, height: 32, marginHorizontal: -4 }}
-          >
-            <Icon name="pencil" size={14} color={ink} />
-          </View>
-        </Pressable>
+          trailing={
+            <View
+              className="items-center justify-center"
+              style={{ width: 32, height: 32, marginHorizontal: -4 }}
+            >
+              <Icon name="pencil" size={14} color={ink} />
+            </View>
+          }
+        />
       )}
-    </View>
+    </DrillList>
   );
 }

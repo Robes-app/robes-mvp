@@ -198,7 +198,8 @@ const ordinal = (n: number): string => {
   return `${n}${suffix}`;
 };
 
-// The bell (Front Door design 3k): what waits for her, each line with where it leads.
+// The bell (Front Door design 3k, Felix NotificationsSheet): what waits for her, each line a short
+// task with where it leads — no exclamation marks.
 export const bell = {
   title: 'Notifications',
   open: 'Notifications',
@@ -206,8 +207,8 @@ export const bell = {
   openNew: (n: number): string => (n > 0 ? `Notifications, ${n} new` : 'Notifications'),
   empty: 'Nothing new.',
   dismiss: 'Dismiss',
-  dest: { receipts: 'Wardrobe', diary: 'Diary', overnight: 'Today' },
-  overnight: (weekday: string): string => `Robes dressed you for ${weekday}`,
+  dest: { receipts: 'Wardrobe', diary: 'Diary', overnight: 'Lookbook' },
+  overnight: (weekday: string): string => `See ${weekday}’s look`,
   receipts: (n: number): string => (n === 1 ? '1 receipt to review' : `${n} receipts to review`),
   receiptsLine: (retailers: readonly string[]): string | null => {
     const names = retailers.filter(Boolean).slice(0, 2);

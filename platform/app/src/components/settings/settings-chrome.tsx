@@ -1,6 +1,14 @@
 import { ui } from '@robes/copy';
 import { Icon } from '@robes/icons/web';
-import { Eyebrow } from '@robes/ui';
+import {
+  DrillRowContent,
+  type DrillRowContentProps,
+  drillRowClass,
+  Eyebrow,
+  SubviewBackIcon,
+  SubviewHeader,
+  subviewBackClass,
+} from '@robes/ui';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -46,6 +54,42 @@ export function FloatingBack({ href }: { href: string }) {
   );
 }
 
+// A drill row that is a door (Felix SettingsView): a page in the app, a mailto, or a page outside
+// it (↗, a new tab). Rows that open in place use DrillRow from @robes/ui.
+export function DrillLink({
+  href,
+  external = false,
+  ...content
+}: DrillRowContentProps & { href: string; external?: boolean }) {
+  const body = (
+    <DrillRowContent
+      {...content}
+      {...(external
+        ? { trailing: <Icon name="external" size={14} className="shrink-0 text-ink-faint" /> }
+        : {})}
+    />
+  );
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className={drillRowClass}>
+        {body}
+      </a>
+    );
+  }
+  if (href.startsWith('mailto:')) {
+    return (
+      <a href={href} className={drillRowClass}>
+        {body}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={drillRowClass}>
+      {body}
+    </Link>
+  );
+}
+
 export function SettingsPage({
   title,
   back,
@@ -53,6 +97,7 @@ export function SettingsPage({
   wide = false,
   narrow = false,
   bare = false,
+  subview = false,
   children,
 }: {
   title: string;
@@ -65,8 +110,30 @@ export function SettingsPage({
   // No header bar (redlines R1): the page's picture starts under the safe area and the back
   // control floats over it (`title` names the document only).
   bare?: boolean;
+  // Felix's subview header (SettingsView): the back chevron, the tracked title centred, a 56px
+  // bar over a 0.5px rule; the body pads 20 at the sides.
+  subview?: boolean;
   children: ReactNode;
 }) {
+  if (subview) {
+    return (
+      <div className="relative flex min-h-dvh flex-col bg-bg">
+        <div className="sticky top-0 z-40 bg-bg">
+          <SubviewHeader
+            title={title}
+            back={
+              <Link href={back} aria-label={ui.back} className={subviewBackClass}>
+                <SubviewBackIcon />
+              </Link>
+            }
+          />
+        </div>
+        <div className="mx-auto w-full max-w-[720px] flex-1 px-5 pt-1.5 pb-[calc(32px+env(safe-area-inset-bottom))]">
+          {children}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="relative flex min-h-dvh flex-col bg-bg">
       {bare ? (

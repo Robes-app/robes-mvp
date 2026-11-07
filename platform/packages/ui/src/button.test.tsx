@@ -53,6 +53,20 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Quiet' }).className).not.toMatch(/\bbg-ink\b/);
   });
 
+  it('fills a danger confirm in danger with a white label, counted as the screen’s one fill', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(
+      <>
+        <Button variant="danger">Delete</Button>
+        <Button variant="primary">Save</Button>
+      </>,
+    );
+    const del = screen.getByRole('button', { name: 'Delete' }).className;
+    expect(del).toMatch(/\bbg-danger\b/);
+    expect(del).toMatch(/\btext-surface-raised\b/);
+    expect(error).toHaveBeenCalledWith(ONE_PRIMARY_WARNING);
+  });
+
   it('warns in development when two primaries mount on one screen', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(

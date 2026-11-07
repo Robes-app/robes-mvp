@@ -15,7 +15,7 @@ test('passwordless sign-in, onboarding and sign-out', async ({ page }) => {
   expect(await me.json()).toMatchObject({ email, firstName: 'Niall', onboarded: true });
 
   await page.getByRole('link', { name: 'Your profile and settings' }).click();
-  await page.getByRole('radio', { name: 'Account' }).click();
+  await page.getByRole('tab', { name: 'Account' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   expect((await page.request.get('/api/v1/me')).status()).toBe(401);

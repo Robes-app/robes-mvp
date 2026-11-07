@@ -875,18 +875,18 @@ export const you = {
   title: 'You',
   // The header row's title on the root (legacy settings.html): the avatar's door reads Settings.
   settings: 'Settings',
-  version: 'Robes',
-  // The Account tab's groups and the line under each row (beta's Settings › Account).
-  sections: { profile: 'Profile', notifications: 'Notifications', privacy: 'Privacy & terms' },
-  subs: {
-    account: 'Name, email and home city',
-    notifications: 'Your looks when they’re ready, and the odd note from Robes',
-    receipts: 'Forward an order email and Robes files the pieces',
-    privacy: 'What Robes keeps, and why',
-    terms: 'Plain English',
-  },
-  help: 'Need a hand?',
   helpEmail: 'hello@byrobes.com',
+  // Settings' rows (Felix SettingsView, PR 8): one drill card per tab. Account keeps every row it
+  // had (Annie, 7 Nov); the pages behind them keep their routes.
+  rows: {
+    details: 'Details',
+    notifications: 'Notifications',
+    // What waits behind the bell, as the Notifications row's value.
+    newAlerts: (n: number): string => `${n} new`,
+    receipts: 'Receipts',
+    privacy: 'Privacy and data',
+    help: 'Help',
+  },
   account: {
     title: 'Account',
     name: 'Name',

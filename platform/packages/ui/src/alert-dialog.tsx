@@ -6,8 +6,8 @@ import { Button, PrimaryScope } from './button';
 export interface AlertDialogAction {
   label: string;
   // Felix: `primary` the consequence, verb first ("Discard"); `outline` the safe way back ("Keep
-  // editing"); `quiet` an optional "Cancel".
-  variant: 'primary' | 'outline' | 'quiet';
+  // editing"); `quiet` an optional "Cancel"; `danger` the consequence when it destroys ("Delete").
+  variant: 'primary' | 'outline' | 'quiet' | 'danger';
   onClick: () => void;
 }
 

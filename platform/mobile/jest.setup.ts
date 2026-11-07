@@ -39,6 +39,7 @@ jest.mock('expo-file-system', () => ({
   UploadType: { BINARY_CONTENT: 0 },
   File: class {
     size: number;
+    exists = true;
     constructor(path: string) {
       this.size = path.includes('empty') ? 0 : 2048;
     }

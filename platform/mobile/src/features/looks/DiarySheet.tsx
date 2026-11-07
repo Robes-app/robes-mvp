@@ -136,7 +136,9 @@ export function DiarySheet({ look, onClose }: { look: Look | null; onClose: () =
       testID="diary-sheet"
     >
       <PrimaryScope>
-        <View className="gap-4 pb-6">
+        {/* The sheet pads under the last row itself; more here pushed "I wore this today" past
+            the sheet's height on a phone (redline 7 Nov). */}
+        <View className="gap-4">
           {/* Beta's month sits on a white card (twin: diary-sheet.tsx). */}
           <View className="gap-3 rounded-soft border border-hairline bg-surface-raised p-4">
             <View className="flex-row items-center justify-between">
