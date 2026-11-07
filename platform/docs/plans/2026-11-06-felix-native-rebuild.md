@@ -101,7 +101,7 @@ Calls made while building, each worth Annie's eye; a ruling becomes a decision a
 ## Redline of 7 Nov (staging + iOS against 3a, 3k, 3e)
 
 Fixed on `felix/redline-fixes` (web + native; pieces and the greeting are parked):
-- **Week strip:** today keeps the warm fill wherever the selection goes; the day picked takes only the warm edge; past days recede to `warm-past` (weekday and date).
+- **Week strip:** today keeps the warm fill wherever the selection goes; the day picked takes only the warm edge. Past days stay at `ink-faint`: Felix's lighter past (`#B9AD95` / `#A0927A`) misses 4.5:1 on 9–20px text and the axe check fails it; the floor wins (D1).
 - **Home (native):** the scroll pads 120 under the content, so the discs' labels, the caption and the pager clear the tab bar. Web already pads 128 in the shell.
 - **Adjust model image on the saved look:** the floating sheet sits over the Schedule look bar (web: a fixed layer above it; native: drawn after it).
 - **Delete this look:** an ink-soft link on a hairline underline; the confirm's Delete is a new `danger` Button variant (the primary's pill in `danger`, white label, counted as the screen's one fill) with a quiet Cancel.

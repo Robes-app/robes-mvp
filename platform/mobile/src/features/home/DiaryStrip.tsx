@@ -16,9 +16,10 @@ const CELL = 43;
 
 // The strip (Front Door design 3k, plan 2026-11-02 §1.4): a pager of seven-day pages, today's page
 // centred so three days either side show; swipe for the week before and after. A cell carries one
-// mark per look — a ring when planned, a dot once worn — and a day gone by recedes to `warm-past`.
-// Felix's WeekStrip (redline 7 Nov): today always keeps the warm fill, the day picked adds the
-// warm edge, and either one's weekday is 500 in ink-soft; a worn mark is `warm-past` (D11).
+// mark per look — a ring when planned, a dot once worn — and a day gone by recedes to the faint
+// ink: Felix's lighter `warm-past` text misses 4.5:1, and the floor wins (D1). Felix's WeekStrip
+// (redline 7 Nov): today always keeps the warm fill, the day picked adds the warm edge, and either
+// one's weekday is 500 in ink-soft; a worn mark is `warm-past` (D11).
 // The web twin is app/src/components/home/diary-strip.tsx.
 export function DiaryStrip({
   days,
@@ -116,9 +117,7 @@ function DayCell({
     >
       <RNText
         maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-        className={`uppercase ${
-          current ? 'text-ink-muted' : dim ? 'text-warm-past' : 'text-ink-faint'
-        }`}
+        className={`uppercase ${current ? 'text-ink-muted' : 'text-ink-faint'}`}
         style={{
           fontFamily: current ? fonts.sansMedium : fonts.sansRegular,
           fontSize: 9,
@@ -129,7 +128,7 @@ function DayCell({
       </RNText>
       <RNText
         maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-        className={dim ? 'text-warm-past' : 'text-ink'}
+        className={dim ? 'text-ink-faint' : 'text-ink'}
         style={typeStyle('day-number')}
       >
         {Number(day.date.slice(8))}
