@@ -79,6 +79,12 @@
     "experiments": {
       "typedRoutes": false,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f0944c88-f3d7-4d52-a5eb-af04401320e7"
+      }
+    },
+    "owner": "nialljoemaher"
   }
 }
