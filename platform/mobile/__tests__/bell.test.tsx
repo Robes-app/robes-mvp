@@ -50,6 +50,11 @@ test('two items render with where each leads; a tap routes, × dismisses and the
   );
   // The dot is never colour alone: the count is in the label.
   expect(button.props.accessibilityLabel).toBe('Notifications, 2 new');
+  // Felix's 36pt bell keeps a 44pt hit area; the dot is the rose.
+  expect(button.props.hitSlop).toBe(4);
+  expect(screen.getByTestId('bell-dot', { includeHiddenElements: true }).props.className).toContain(
+    'bg-accent-inspire',
+  );
   await fireEvent.press(button);
   expect(await screen.findByText(bell.title)).toBeTruthy();
   expect(screen.getByText(bell.receipts(2))).toBeTruthy();
@@ -71,8 +76,8 @@ test('two items render with where each leads; a tap routes, × dismisses and the
   await fireEvent.press(
     await screen.findByRole('button', { name: `${bell.dismiss}: ${bell.receipts(2)}` }),
   );
-  // The card leaves at once; the server read follows and agrees.
-  expect(screen.queryByText(bell.receipts(2))).toBeNull();
+  // The card leaves before the server agrees (an optimistic write, applied on the next tick).
+  await waitFor(() => expect(screen.queryByText(bell.receipts(2))).toBeNull());
   await waitFor(() =>
     expect(calls.find((c) => c.path.endsWith('/notifications/dismiss'))?.body).toEqual({
       key: 'receipts:2',

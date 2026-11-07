@@ -1,3 +1,4 @@
+import type { TypeName } from '@robes/tokens';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from './cn';
 
@@ -5,6 +6,8 @@ const tones = {
   default: 'text-ink',
   muted: 'text-ink-muted',
   faint: 'text-ink-faint',
+  // The rose for small text (the darkened rose, 4.5:1 on every cream): a sheet's eyebrow.
+  warm: 'text-accent-warm',
   danger: 'text-danger',
   success: 'text-success',
 } as const;
@@ -25,8 +28,28 @@ const italicSizes = {
   caption: 'text-lg leading-snug',
 } as const;
 
+// Felix's type styles (the `type-<name>` utilities @robes/tokens emits). Literal class names, so
+// Tailwind finds them.
+export const typeClasses: Record<TypeName, string> = {
+  display: 'type-display',
+  greeting: 'type-greeting',
+  title: 'type-title',
+  heading: 'type-heading',
+  'day-number': 'type-day-number',
+  'italic-aside': 'type-italic-aside',
+  'piece-name': 'type-piece-name',
+  body: 'type-body',
+  meta: 'type-meta',
+  eyebrow: 'type-eyebrow',
+  label: 'type-label',
+  category: 'type-category',
+};
+
 export interface TextProps extends HTMLAttributes<HTMLElement> {
   as?: 'p' | 'span' | 'div' | 'li';
+  // A Felix type style; it sets the face, size, line height and tracking, and `size` and `italic`
+  // are ignored. Twin of ui-native Text `variant`.
+  variant?: TypeName;
   size?: keyof typeof textSizes;
   tone?: TextTone;
   italic?: boolean;
@@ -35,15 +58,18 @@ export interface TextProps extends HTMLAttributes<HTMLElement> {
 
 export function Text({
   as: Tag = 'p',
+  variant,
   size = 'body',
   tone = 'default',
   italic = false,
   className,
   ...rest
 }: TextProps) {
-  const face = italic
-    ? cn('font-display font-light italic', italicSizes[size])
-    : cn('font-sans', textSizes[size]);
+  const face = variant
+    ? typeClasses[variant]
+    : italic
+      ? cn('font-display font-light italic', italicSizes[size])
+      : cn('font-sans', textSizes[size]);
   return <Tag {...rest} className={cn(face, tones[tone], className)} />;
 }
 
@@ -97,18 +123,13 @@ export function Heading({
 }
 
 export interface EyebrowProps extends HTMLAttributes<HTMLParagraphElement> {
+  // `ink-soft` by default; a sheet's eyebrow is the rose for small text (`warm`).
+  tone?: TextTone;
   children?: ReactNode;
 }
 
-// Author in sentence case; the style uppercases it (brand-and-design.md §1).
-export function Eyebrow({ className, ...rest }: EyebrowProps) {
-  return (
-    <p
-      {...rest}
-      className={cn(
-        'font-sans text-xs font-normal uppercase tracking-[0.22em] text-ink-faint',
-        className,
-      )}
-    />
-  );
+// Felix's eyebrow: 10/500 caps at 0.24em. Author in sentence case; the style uppercases it
+// (brand-and-design.md §1). Twin of ui-native Text.tsx Eyebrow.
+export function Eyebrow({ tone = 'muted', className, ...rest }: EyebrowProps) {
+  return <p {...rest} className={cn('type-eyebrow', tones[tone], className)} />;
 }

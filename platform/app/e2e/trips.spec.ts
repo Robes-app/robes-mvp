@@ -29,7 +29,7 @@ test('trips are hidden by default: no door, no page, no API', async ({ page }) =
   await signIn(page);
   await declineConsent(page);
   expect(await (await page.request.get('/api/v1/me/features')).json()).toEqual({ trips: false });
-  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Create' });
   await expect(sheet.getByRole('link', { name: 'New look' })).toBeVisible();
   await expect(sheet.getByRole('link', { name: 'Plan a trip' })).toHaveCount(0);

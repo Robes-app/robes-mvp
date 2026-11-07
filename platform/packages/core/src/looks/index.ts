@@ -5,6 +5,7 @@ import { dayMonth, lookDateName, weekdayLong } from '../calendar';
 
 export * from './adjust';
 export * from './draft';
+export * from './images';
 
 export const LOOK_STATUSES = ['suggested', 'draft', 'saved'] as const;
 export type LookStatus = (typeof LOOK_STATUSES)[number];
@@ -19,6 +20,8 @@ export const NOTE_SENTENCES = 3;
 // What she types into a look's prompt (legacy REFINE_MAX).
 export const ASK_MAX_CHARS = 240;
 export const ASK_RACK_MAX = 14;
+// Her note on Robes' picture of a look (Felix rebuild D21): how it is drawn, never what is worn.
+export const PICTURE_NOTE_MAX = 280;
 
 export function noteShort(note: string | null | undefined, n = NOTE_SENTENCES): string {
   const t = String(note ?? '')
@@ -418,6 +421,8 @@ export function deckTop(state: DeckState): string | null {
 // ── Robes' frame ────────────────────────────────────────────────────────────
 // Which rack a frame shows (her pieces, the proposals, how each is worn), order-free: a frame is
 // re-drawn only when this changes. FNV-1a, so it runs the same on the server and in the apps.
+// Her picture note (D21) is part of what the frame shows; without one the key is as it always was,
+// so frames drawn before the note stay current.
 function fnv(s: string, seed: number): string {
   let h = seed >>> 0;
   for (let i = 0; i < s.length; i += 1) {
@@ -431,12 +436,14 @@ export function frameKey(
   pieceIds: readonly string[],
   proposals: readonly { name: string; brand?: string | null }[],
   styling: Readonly<Record<string, string>>,
+  pictureNote?: string | null,
 ): string {
   const parts = [
     ...pieceIds.map((id) => `${id}~${styling[id] ?? ''}`),
     ...proposals.map((p) => `${p.name}|${p.brand ?? ''}`),
   ].sort();
-  const s = parts.join(';');
+  const note = pictureNote?.trim();
+  const s = parts.join(';') + (note ? `\u0000note:${note}` : '');
   return `${fnv(s, 0x811c9dc5)}${fnv(s, 0x01000193)}`;
 }
 

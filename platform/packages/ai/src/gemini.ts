@@ -64,7 +64,7 @@ export function createGeminiProvider(opts: { apiKey: string } | { models: Models
             maxOutputTokens: req.maxOutputTokens,
             temperature: req.temperature ?? 0.4,
             // Thinking is billed as output; styling JSON doesn't need it (cost lever 5). A photo
-            // read is filing, not reasoning: minimal thinking, and full resolution so a small
+            // read is filing, not reasoning: low thinking, and full resolution so a small
             // label (the brand, the composition) and a fine print can be read.
             ...(req.deliberate
               ? {
@@ -75,7 +75,8 @@ export function createGeminiProvider(opts: { apiKey: string } | { models: Models
                 }
               : req.capability === 'vision.analyse'
                 ? {
-                    thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+                    // LOW, not MINIMAL: gemini-3.8-flash has 400d MINIMAL since 5 Nov 2026 (every read failed).
+                    thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
                     mediaResolution: MediaResolution.MEDIA_RESOLUTION_HIGH,
                   }
                 : { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }),

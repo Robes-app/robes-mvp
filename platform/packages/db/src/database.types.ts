@@ -306,6 +306,16 @@ export interface InboxAddresses {
   userId: string;
 }
 
+export interface LookImages {
+  assetId: string;
+  createdAt: Generated<Timestamp>;
+  id: Generated<string>;
+  lookId: string;
+  position: Generated<number>;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
+}
+
 export interface LookPieces {
   lookId: string;
   position: Generated<number>;
@@ -331,6 +341,7 @@ export interface Looks {
   note: string | null;
   originLookId: string | null;
   photoAssetId: string | null;
+  pictureNote: string | null;
   proposals: Json | null;
   recordImage: string | null;
   renderAssetId: string | null;
@@ -338,10 +349,13 @@ export interface Looks {
   renderJobId: string | null;
   renderKey: string | null;
   renderStatus: string | null;
+  robesHidden: Generated<boolean>;
+  seasons: Generated<string[]>;
   setId: string | null;
   setIndex: number | null;
   source: Generated<string>;
   status: Generated<string>;
+  stoodOn: string | null;
   styling: Json | null;
   updatedAt: Generated<Timestamp>;
   userId: string;
@@ -414,6 +428,7 @@ export interface Profiles {
   lastName: string | null;
   locale: Generated<string>;
   mobile: string | null;
+  modelPreset: number | null;
   notificationPrefs: Generated<Json>;
   onboardedAt: Timestamp | null;
   shoeUk: Numeric | null;
@@ -650,6 +665,7 @@ export interface WardrobeItems {
   price: Numeric | null;
   print: string | null;
   seasonBand: Generated<string>;
+  seasons: Generated<string[]>;
   seasonSource: Generated<string>;
   sentiment: string | null;
   size: string | null;
@@ -752,6 +768,7 @@ export interface DB {
   generationCalls: GenerationCalls;
   generationJobs: GenerationJobs;
   inboxAddresses: InboxAddresses;
+  lookImages: LookImages;
   lookPieces: LookPieces;
   looks: Looks;
   notifications: Notifications;

@@ -176,4 +176,73 @@ describe('look rendered on her model', () => {
     expect(await repos.looks.renderState(bea, look.id)).toBeUndefined();
     expect(await system.modelRender.look(bea, look.id)).toBeUndefined();
   });
+
+  // D21: her picture note sent asks for a fresh picture even when the key is the same.
+  it('draws again when forced, but never twice at once, and only for her own look', async () => {
+    const look = await repos.looks.create(niall, {
+      name: 'Adjusted',
+      nameProvisional: false,
+      pieces: [],
+    });
+    expect(await repos.looks.claimRender(niall, look.id, 'n1')).toBe(true);
+    // The same key already drawing stands, forced or not.
+    expect(await repos.looks.claimRender(niall, look.id, 'n1', { force: true })).toBe(false);
+    // A newer key forced takes over the older claim; the older render can no longer land.
+    expect(await repos.looks.claimRender(niall, look.id, 'n2', { force: true })).toBe(true);
+    const asset = await system.styling.createGeneratedAsset(niall);
+    await system.modelRender.setRender(niall, look.id, 'n1', asset);
+    expect((await repos.looks.renderState(niall, look.id))?.renderStatus).toBe('pending');
+    await system.modelRender.setRender(niall, look.id, 'n2', asset);
+    expect(await repos.looks.claimRender(niall, look.id, 'n2')).toBe(false);
+    expect(await repos.looks.claimRender(niall, look.id, 'n2', { force: true })).toBe(true);
+    expect(await repos.looks.claimRender(bea, look.id, 'n3', { force: true })).toBe(false);
+  });
+
+  // D19: a render that lands brings Robes' picture back, in front.
+  it('shows Robes’ picture again, as the cover, when a render lands', async () => {
+    const look = await repos.looks.create(niall, {
+      name: 'Hidden',
+      nameProvisional: false,
+      pieces: [],
+    });
+    const photo = await repos.assets.createPending(niall, {
+      kind: 'look_photo',
+      contentType: 'image/jpeg',
+      bytes: 1000,
+    });
+    await repos.looks.addImage(niall, look.id, photo.id);
+    await repos.looks.setRobesHidden(niall, look.id, true);
+    expect(await repos.looks.claimRender(niall, look.id, 'h1')).toBe(true);
+    const asset = await system.styling.createGeneratedAsset(niall);
+    // Another woman's job lands nothing on her look.
+    await system.modelRender.setRender(bea, look.id, 'h1', asset);
+    expect(await repos.looks.get(niall, look.id)).toMatchObject({
+      robesHidden: true,
+      recordImage: 'photo',
+    });
+    await system.modelRender.setRender(niall, look.id, 'h1', asset);
+    expect(await repos.looks.get(niall, look.id)).toMatchObject({
+      robesHidden: false,
+      recordImage: 'model',
+      renderAssetId: asset,
+      photoAssetId: photo.id,
+    });
+    expect((await system.modelRender.look(niall, look.id))?.look).toHaveProperty(
+      'pictureNote',
+      null,
+    );
+    // Her photograph in front by her choice: a later render never takes the cover from it.
+    const first = await db
+      .selectFrom('lookImages')
+      .select('id')
+      .where('lookId', '=', look.id)
+      .executeTakeFirstOrThrow();
+    await repos.looks.setCover(niall, look.id, first.id);
+    expect(await repos.looks.claimRender(niall, look.id, 'h2')).toBe(true);
+    await system.modelRender.setRender(niall, look.id, 'h2', asset);
+    expect(await repos.looks.get(niall, look.id)).toMatchObject({
+      robesHidden: false,
+      recordImage: 'photo',
+    });
+  });
 });

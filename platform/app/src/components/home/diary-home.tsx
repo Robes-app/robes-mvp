@@ -11,16 +11,16 @@ import { Icon } from '@robes/icons/web';
 import { Eyebrow, Text, useToast } from '@robes/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { LookPicker } from '@/app/(app)/plan/look-picker';
 import { dayWordOf, type PickerMode } from '@/lib/diary';
 import { errorCopy } from '@/lib/error-copy';
 import { useRestyle } from '@/lib/look-states';
-import { DayOneBand } from './day-one-band';
+import { setPendingPhoto } from '@/lib/pending-photo';
 import { DaySlot } from './day-slot';
 import { DiaryStrip } from './diary-strip';
-import { LogSheet } from './log-sheet';
-import { PromptBox } from './prompt-box';
+import { ModelPicker } from './model-picker';
 
 // The tray's jobs, and the draft Robes is making for a day (plan 2026-11-03): read every 2 s.
 const isRunning = (t: Today | undefined) =>
@@ -63,10 +63,11 @@ export function withoutDiaryEntry(id: string) {
   };
 }
 
-// Home as the OOTD diary (Front Door design 3a · 3k, plan 2026-11-02 §1): the greeting and
-// today's weather, the strip, the selected day's slot, and — for today and days ahead — the
-// prompt box. Alerts live behind the bell; the day-one band (P3) sits above the strip. The native
-// twin is mobile/src/features/home/DiaryHome.tsx.
+// Home as the OOTD diary (Felix 3a · 3k, D7): the greeting and today's weather, the strip, the
+// selected day — its looks with Swap · Edit, then her model with Capture · Describe · Pick.
+// Describe opens the Draft look drawer for the day (D22); Home holds no prompt box. Alerts live
+// behind the bell. The
+// native twin is mobile/src/features/home/DiaryHome.tsx.
 export function DiaryHome({
   initial,
   day = null,
@@ -83,6 +84,9 @@ export function DiaryHome({
   useState(() => queryClient.setQueryData(queryKeys.call('today.get'), initial));
   const { data = initial } = useApi('today.get', undefined, {
     initialData: initial,
+    // Back from a drawer (Describe, D22) the page's props are the first visit's: read the day
+    // again whenever Home mounts.
+    refetchOnMount: 'always',
     refetchInterval: (q) => (isRunning(q.state.data) ? 2_000 : false),
   });
   const weather = useApi('today.weather', undefined, {
@@ -93,10 +97,11 @@ export function DiaryHome({
   const diary = data.diary;
   const inWindow = day && diary?.days.some((d) => d.date === day) ? day : today;
   const [selected, setSelected] = useState(inWindow);
-  const [log, setLog] = useState<string | null>(null);
+  // The model her looks stand on: the photograph on the day's last page, and the picker's ticks.
+  const model = useApi('me.model.get');
+  const [choosing, setChoosing] = useState(false);
+  const router = useRouter();
   const [drawer, setDrawer] = useState<{ date: string; mode: PickerMode } | null>(null);
-  // Her words per day as sent this session, so the box's thread opens with them.
-  const [asked, setAsked] = useState<Record<string, string>>({});
   // ↻ on the draft tile: another take, same brief.
   const another = useRestyle();
   const current: DiaryDay = diary?.days.find((d) => d.date === selected) ??
@@ -110,17 +115,6 @@ export function DiaryHome({
     };
   const past = current.date < today;
   const dayWord = dayWordOf(current.date, today);
-  // Her home, with the selected day's weather there: the diary's day when she is home, else the
-  // masthead's reading (today's) stands in for the name alone.
-  const homePlace =
-    !current.place && current.weather?.city
-      ? {
-          city: current.weather.city,
-          weather: { tempRange: current.weather.tempRange, code: current.weather.code },
-        }
-      : weather.data?.city
-        ? { city: weather.data.city, weather: null }
-        : null;
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: queryKeys.route('today.get') });
 
@@ -180,8 +174,6 @@ export function DiaryHome({
         </p>
       </header>
 
-      <DayOneBand state={data.home.state} />
-
       {diary ? (
         <DiaryStrip
           days={diary.days}
@@ -196,23 +188,23 @@ export function DiaryHome({
         today={today}
         dayWord={dayWord}
         justSaved={saved}
-        onAdd={() => setLog(current.date)}
-        onChange={() => setDrawer({ date: current.date, mode: 'change' })}
-        onRemove={remove}
+        model={model.data}
+        actions={{
+          // Her photograph goes with her to the photo flow for that day.
+          onCapture: (file) => {
+            setPendingPhoto(file);
+            router.push(`/looks/new/photo?day=${current.date}`);
+          },
+          // Describe opens the Draft look drawer for the day (Felix 3a, D22).
+          onDescribe: past ? null : () => router.push(`/looks/draft/new?day=${current.date}`),
+          onPick: () => setDrawer({ date: current.date, mode: 'add' }),
+          onSwap: () => setDrawer({ date: current.date, mode: 'change' }),
+          onRemove: remove,
+          onModel: () => setChoosing(true),
+        }}
         onAnother={another.restyle}
         anotherBusy={another.busyId !== null && another.busyId === current.draft?.look?.id}
       />
-
-      {past ? null : (
-        <PromptBox
-          day={current}
-          today={today}
-          home={homePlace}
-          hasPieces={data.home.state.pics > 0}
-          sent={asked[current.date] ?? null}
-          onSent={(words) => setAsked((a) => ({ ...a, [current.date]: words }))}
-        />
-      )}
 
       {data.tray.length > 0 ? (
         <section aria-labelledby="tray" className="flex flex-col gap-3">
@@ -235,15 +227,7 @@ export function DiaryHome({
         </section>
       ) : null}
 
-      <LogSheet
-        date={log}
-        today={today}
-        onClose={() => setLog(null)}
-        onPick={(date) => {
-          setLog(null);
-          setDrawer({ date, mode: 'add' });
-        }}
-      />
+      <ModelPicker open={choosing} model={model.data} onClose={() => setChoosing(false)} />
       <LookPicker
         date={drawer?.date ?? null}
         today={today}

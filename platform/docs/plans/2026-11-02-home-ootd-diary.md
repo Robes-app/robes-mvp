@@ -1,5 +1,7 @@
 # Home → the OOTD diary: implementation plan
 
+> **Superseded in part (2026-11-06, Felix D7):** the day is pages (each look with Swap · Edit, then her model with Capture · Describe · Pick and the ModelStack); the day-one band (§1.3), the Add look tile and the log sheet (§1.5–1.6) are gone. See `2026-11-06-felix-native-rebuild.md`.
+
 Status: plan, 2026-11-02 (Annie + Claude). Not started. Owner: Annie.
 Supersedes the FTUE and Today directions listed in §6. Web and native land together (CLAUDE.md).
 

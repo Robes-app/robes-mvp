@@ -55,6 +55,20 @@ describe('avatar_cell', () => {
     );
   });
 
+  it('draws a Robes model by the twin prompt with no face: its age and size are words', async () => {
+    const { run, cells, storage, generateImage } = setup();
+    await expect(run('w-r4@v1')).resolves.toEqual({ status: 'succeeded' });
+    const prompt = generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(prompt).toContain('62 years old');
+    expect(prompt).toContain('soft silver grey hair');
+    expect(prompt).not.toContain('IMAGE 1');
+    expect(generateImage.mock.calls[0]?.[0].references).toBeUndefined();
+    expect(storage.putObject.mock.calls[0]?.[0]).toMatch(/^catalog\/avatar\/w-r4@v1\./);
+    expect(cells.ready).toHaveBeenCalledWith('w-r4@v1', expect.any(String), expect.any(String));
+    await expect(run('m-r5@v1')).resolves.toEqual({ status: 'succeeded' });
+    expect(generateImage.mock.calls[1]?.[0].prompt).toContain('a fuller build');
+  });
+
   it('does nothing for a cell that is already ready', async () => {
     const { run, generateImage } = setup('ready');
     await expect(run('w-s3-h1-nt@v2')).resolves.toEqual({ status: 'succeeded' });

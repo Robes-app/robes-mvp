@@ -58,7 +58,7 @@ export default async function Home({
         <Text tone="muted">{marketing.subtitle}</Text>
         <Link
           href="/auth/sign-in"
-          className={`${buttonClasses({ variant: 'secondary' })} mt-4 self-start`}
+          className={`${buttonClasses({ variant: 'outline' })} mt-4 self-start`}
         >
           {marketing.signIn}
         </Link>

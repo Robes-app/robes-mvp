@@ -1,3 +1,4 @@
+import { CATALOG_KEY } from '@robes/core/avatar';
 // Bucket key layout: infrastructure.md §5. Every private key starts with a user id so delivery
 // can be scoped to `/media/{userId}/*`.
 
@@ -25,13 +26,14 @@ export const mediaKeys = {
     `media/${segment(userId, 'userId')}/${segment(assetId, 'assetId')}/cutout.${format}`,
   generated: (userId: string, jobId: string, index: number): string =>
     `generated/${segment(userId, 'userId')}/${segment(jobId, 'jobId')}/${index}.png`,
+  // Everything rendered from one asset: master, renditions, cutout.
+  assetMediaPrefix: (userId: string, assetId: string): string =>
+    `media/${segment(userId, 'userId')}/${segment(assetId, 'assetId')}/`,
   // Path prefix covered by a user's signed cookie.
   userMediaPrefix: (userId: string): string => `media/${segment(userId, 'userId')}/`,
   // Shared model portraits (catalog/, public prefix): keyed by catalog picks, never by user.
   avatarCell: (cellKey: string, format: 'png' | 'jpg' | 'webp'): string => {
-    if (!/^[wm]-s[0-7]-h[0-4]-(hg|pe|re|it|ap|nt)(-(ll|lr|fl|fr))*@v[0-9]+$/.test(cellKey)) {
-      throw new Error('invalid cellKey');
-    }
+    if (!CATALOG_KEY.test(cellKey)) throw new Error('invalid cellKey');
     return `catalog/avatar/${cellKey}.${format}`;
   },
   // Every prefix holding her files; account deletion (SEC-80) empties all of them.

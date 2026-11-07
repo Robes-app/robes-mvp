@@ -3,4 +3,4 @@ export function cn(...parts: Array<string | false | null | undefined>): string {
 }
 
 export const focusRing =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';

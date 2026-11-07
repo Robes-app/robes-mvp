@@ -1,17 +1,9 @@
-import { queryKeys, useApi, useApiClient } from '@robes/api-client/react';
 import type { StyleProfile } from '@robes/contracts';
 import { you } from '@robes/copy';
-import { Eyebrow, Heading, Text, useToast } from '@robes/ui-native';
-import { useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useState } from 'react';
+import { Eyebrow, Heading, Text } from '@robes/ui-native';
 import { View } from 'react-native';
-import { isTerminal, JOB_REFRESH_MS } from '@/features/looks/ideas';
-import { PICKER_OPTIONS, uploadPhoto } from '@/features/wardrobe/add-pieces';
 
 const copy = you.style;
-type Kind = 'colour' | 'silhouette';
-const PHOTO_KIND = { colour: 'headshot', silhouette: 'full_length' } as const;
 
 // Swatch colours are her profile's data from the API, not design tokens.
 function Swatches({
@@ -61,52 +53,4 @@ export function ColourResult({ colour }: { colour: NonNullable<StyleProfile['col
       />
     </View>
   );
-}
-
-// Photo → upload → analysis job, polled until it lands on the profile. The close-up card
-// (Colouring) is its one door.
-export function useAnalyse(kind: Kind) {
-  const api = useApiClient();
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [noSubject, setNoSubject] = useState(false);
-  const job = useApi(
-    'jobs.get',
-    { params: { id: jobId ?? '' } },
-    {
-      enabled: jobId !== null,
-      refetchInterval: (q) => (isTerminal(q.state.data) ? false : JOB_REFRESH_MS),
-    },
-  );
-  const finished = jobId !== null && isTerminal(job.data);
-  useEffect(() => {
-    if (!finished || !job.data) return;
-    setNoSubject(job.data.output.noSubject === true);
-    if (job.data.status === 'failed') toast.show({ message: copy.failed });
-    setJobId(null);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.style.get') });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.route('me.model.get') });
-  }, [finished, job.data, queryClient, toast]);
-
-  async function start() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
-    const photo = result.canceled ? undefined : result.assets[0];
-    if (!photo) return;
-    setBusy(true);
-    setNoSubject(false);
-    try {
-      const assetId = await uploadPhoto(api, photo, PHOTO_KIND[kind]);
-      const started = await api.call('me.style.analyse', { input: { kind, assetId } });
-      setJobId(started.jobId);
-    } catch {
-      toast.show({ message: copy.failed });
-    } finally {
-      setBusy(false);
-    }
-  }
-  return { start, busy, reading: jobId !== null, noSubject };
 }

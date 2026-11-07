@@ -5,7 +5,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { DiaryHome } from '../src/features/home/DiaryHome';
 import { dayWordOf, drawerCta, drawerLine, whenWord } from '../src/features/home/diary';
 import { mockFetch, renderWithApi } from './support/api';
-import { LOOK_ID, look } from './support/fixtures';
+import { LOOK_ID, look, modelData } from './support/fixtures';
 import { mockRouter } from './support/router';
 
 jest.mock('expo-router', () => jest.requireActual('./support/router').mockRouterModule);
@@ -88,8 +88,19 @@ const ENTRIES: Record<string, PlanEntry[]> = {
     }),
   ],
 };
+const ROBES_MODELS = [1, 2, 3, 4, 5].map((n) => ({
+  id: `w-r${n}`,
+  n,
+  imageUrl: `https://media.test/catalog/avatar/w-r${n}@v1.png`,
+  status: 'ready',
+}));
+const ON_ROBES = modelData({
+  robesModels: ROBES_MODELS,
+  stand: { imageUrl: 'https://media.test/catalog/avatar/w-r1@v1.png', generic: true, on: 'robes' },
+});
 const ROUTES = {
   'GET /today': todayWith(ENTRIES),
+  'GET /me/model': ON_ROBES,
   'GET /today/weather': { city: 'Dublin', tempRange: '9–14°C', condition: 'light rain' },
   'GET /me/features': { trips: false },
 };
@@ -128,20 +139,25 @@ test('the strip: 21 cells, today’s page centred, a ring for a plan and a dot f
   expect(screen.getByTestId(`diary-day-${PAST}`).props.accessibilityLabel).toBe(
     diary.strip.day('Tuesday', 1, true),
   );
-  // Planned: a ring on the cell's own ground. Worn: one filled dot. (Hidden from readers: the
+  // Felix: the current cell takes the warm fill and edge. Planned: an ink-soft ring on white (the
+  // warm fill in the current cell). Worn: one warm-past dot (D11). (Hidden from readers: the
   // cell's label says it.)
+  expect(todayCell.props.className).toContain('bg-selected border-selected-line');
   const mark = (id: string) => screen.getByTestId(id, { includeHiddenElements: true });
   expect(mark(`diary-mark-${DATE}-0`).props.className).toContain('border-ink-muted bg-selected');
-  expect(mark(`diary-mark-${PAST}-0`).props.className).toContain('bg-ink-faint');
-  expect(mark(`diary-mark-${TWO}-0`).props.className).toContain('border-ink-muted bg-bg');
+  expect(mark(`diary-mark-${PAST}-0`).props.className).toContain('bg-warm-past');
+  expect(mark(`diary-mark-${TWO}-0`).props.className).toContain(
+    'border-ink-muted bg-surface-raised',
+  );
   expect(mark(`diary-mark-${TWO}-1`)).toBeTruthy();
-  // Today's OOTD leads; the prompt box is there for today.
+  // Today's OOTD leads. Home holds no prompt box (3a, D22).
   expect(screen.getByTestId('ootd-card')).toBeTruthy();
-  expect(screen.getByTestId('prompt-box')).toBeTruthy();
+  expect(screen.queryByTestId('prompt-box')).toBeNull();
 });
 
-// Design 3k "Wed 4" (plan 2026-11-03 §7, D7): every look on the day is its own card in the slot.
-test('a day with two looks shows the OOTD, then the second look as its own card', async () => {
+// Design 3k "Wed 4" (Felix D7): every look on the day is its own page, Swap · Edit on each, then
+// the page that adds another.
+test('a day with two looks shows the OOTD, then the second look, each with Swap and Edit', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DiaryHome />);
   await fireEvent.press(await screen.findByTestId(`diary-day-${TWO}`));
@@ -156,27 +172,37 @@ test('a day with two looks shows the OOTD, then the second look as its own card'
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${SECOND_LOOK}?day=${TWO}`);
   await fireEvent.press(card);
   expect(mockRouter.push).toHaveBeenCalledWith(`/look/${LOOK_ID}?day=${TWO}`);
-  // Each card carries the lookbook icon that changes its look from the drawer.
-  expect(screen.getAllByRole('button', { name: diary.slot.change })).toHaveLength(2);
-  // The box follows the day, so the deep link `?day=` lands on it too.
-  expect(screen.getByTestId('prompt-box')).toBeTruthy();
+  // Each look carries Swap and Edit; its name stands under the discs.
+  expect(screen.getByRole('button', { name: diary.discs.swapLabel('Weekend navy') })).toBeTruthy();
+  expect(screen.getAllByRole('button', { name: /^Swap / })).toHaveLength(2);
+  expect(screen.getAllByText('Weekend navy').length).toBeGreaterThan(0);
+  await fireEvent.press(screen.getByTestId('ootd-edit'));
+  // Edit opens the draft sheet over the day (D14).
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/${LOOK_ID}?day=${TWO}`);
+  await fireEvent.press(screen.getByTestId('ootd-swap'));
+  expect(await screen.findByTestId('look-picker')).toBeTruthy();
+  // Three pages (two looks, then the way into another): the pager shows.
+  expect(screen.getByTestId('day-pager', { includeHiddenElements: true })).toBeTruthy();
+  expect(screen.getByTestId('add-page').props.accessibilityLabel).toBe(diary.discs.add);
+  // Describe opens the Draft look sheet for the selected day (3a, D22).
+  await fireEvent.press(screen.getByTestId('disc-describe'));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/looks/draft/new?day=${TWO}`);
 });
 
-test('an empty day: Add look → the log sheet → Pick Look → the drawer with the day’s question', async () => {
+test('an empty day: her model with Capture · Describe · Pick; Pick opens the drawer', async () => {
   mockFetch({
     ...ROUTES,
     'GET /looks': { items: [look()], nextCursor: null },
     'GET /plan': { from: EMPTY, to: EMPTY, days: [{ date: EMPTY, name: null, entries: [] }] },
   });
   await renderWithApi(<DiaryHome day={EMPTY} />);
-  const add = await screen.findByTestId('add-look');
+  expect(await screen.findByTestId('add-page')).toBeTruthy();
   expect(screen.queryByTestId('ootd-card')).toBeNull();
-  expect(add.props.accessibilityLabel).toBe(diary.slot.addLabel('Friday'));
-  await fireEvent.press(add);
-  expect(await screen.findByTestId('log-sheet')).toBeTruthy();
-  expect(screen.getByText(diary.log.ahead)).toBeTruthy();
-  expect(screen.getByText('Friday 2')).toBeTruthy();
-  await fireEvent.press(screen.getByTestId('log-pick'));
+  // One page: no pager.
+  expect(screen.queryByTestId('day-pager', { includeHiddenElements: true })).toBeNull();
+  expect(screen.getByRole('button', { name: diary.discs.captureLabel('Friday') })).toBeTruthy();
+  expect(screen.getByRole('button', { name: diary.discs.describeLabel('Friday') })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: diary.discs.pickLabel('Friday') }));
   expect(await screen.findByTestId('look-picker')).toBeTruthy();
   expect(await screen.findByTestId('drawer-idle')).toHaveTextContent(diary.drawer.schedule(0));
   expect(screen.getByText(diary.drawer.eyebrow('Friday', 'Fri 2 Oct'))).toBeTruthy();
@@ -186,11 +212,10 @@ test('an empty day: Add look → the log sheet → Pick Look → the drawer with
   expect(screen.getByRole('button', { name: diary.drawer.schedule(1) })).toBeTruthy();
 });
 
-test('Capture Look leaves for the photo flow with the day and the camera opening', async () => {
+test('Capture leaves for the photo flow with the day and the camera opening', async () => {
   mockFetch(ROUTES);
   await renderWithApi(<DiaryHome day={EMPTY} />);
-  await fireEvent.press(await screen.findByTestId('add-look'));
-  await fireEvent.press(await screen.findByTestId('log-capture'));
+  await fireEvent.press(await screen.findByTestId('disc-capture'));
   expect(mockRouter.push).toHaveBeenCalledWith({
     pathname: '/looks/photo',
     params: { day: EMPTY, start: 'camera' },
@@ -240,4 +265,51 @@ test('× on today’s planned look unpins it, with Undo', async () => {
       calls.some((c) => c.method === 'DELETE' && c.path.endsWith(`/plan/entries/${ENTRY_ID}`)),
     ).toBe(true),
   );
+});
+
+// Felix ModelStack → ModelPicker (D10): on a Robes model the stack opens the picker; a pick applies.
+test('the model stack opens Your model; a pick is remembered', async () => {
+  const picks: unknown[] = [];
+  mockFetch({
+    ...ROUTES,
+    'PATCH /me/model': (init: RequestInit) => {
+      picks.push(JSON.parse(String(init.body)));
+      return ON_ROBES;
+    },
+  });
+  await renderWithApi(<DiaryHome day={EMPTY} />);
+  await fireEvent.press(await screen.findByRole('button', { name: diary.model.choose }));
+  expect(await screen.findByTestId('model-picker')).toBeTruthy();
+  expect(screen.getByText(diary.model.title)).toBeTruthy();
+  expect(screen.getByRole('button', { name: diary.model.own })).toBeTruthy();
+  expect(
+    screen.getByRole('radio', { name: diary.dayOne.modelPick(1) }).props.accessibilityState,
+  ).toEqual({
+    checked: true,
+  });
+  await fireEvent.press(screen.getByRole('radio', { name: diary.dayOne.modelPick(3) }));
+  await waitFor(() => expect(picks).toEqual([{ preset: 3 }]));
+});
+
+test('once her twin stands, the model stack is gone', async () => {
+  mockFetch({
+    ...ROUTES,
+    'GET /me/model': modelData({
+      robesModels: ROBES_MODELS,
+      stand: { imageUrl: 'https://media.test/me/twin.png', generic: false, on: 'twin' },
+    }),
+  });
+  await renderWithApi(<DiaryHome day={EMPTY} />);
+  expect(await screen.findByTestId('disc-capture')).toBeTruthy();
+  await waitFor(() => expect(screen.queryByTestId('model-stack')).toBeNull());
+});
+
+test('a day gone by keeps Capture and Pick, without Describe', async () => {
+  mockFetch(ROUTES);
+  await renderWithApi(<DiaryHome day={PAST} />);
+  // The worn look's page, then the way into another.
+  expect(await screen.findByTestId('ootd-card')).toBeTruthy();
+  expect(screen.getByTestId('disc-capture')).toBeTruthy();
+  expect(screen.getByTestId('disc-pick')).toBeTruthy();
+  expect(screen.queryByTestId('disc-describe')).toBeNull();
 });

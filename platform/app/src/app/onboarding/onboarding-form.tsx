@@ -52,7 +52,7 @@ function Frame({
               type="button"
               aria-label={copy.backLabel}
               onClick={onBack}
-              className="flex size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              className="flex size-11 items-center justify-center rounded-full focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
               <span
                 aria-hidden

@@ -1,7 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { UserId } from '../../src/ids';
-import { createRepositories, LookPiecesNotFound } from '../../src/repos';
+import {
+  createRepositories,
+  LOOK_IMAGES_MAX,
+  LookImagesFull,
+  LookNeedsImage,
+  LookPiecesNotFound,
+} from '../../src/repos';
 import { createTestDb, createTestUser, deleteTestUsers } from '../fixtures';
 
 const db = createTestDb();
@@ -143,17 +150,177 @@ describe('looks repo', () => {
     expect(await looks.wears(bea, look.id)).toEqual([]);
   });
 
-  it('keeps her photograph of a look to its owner', async () => {
+  const photoOf = (user: UserId) =>
+    assets.createPending(user, { kind: 'look_photo', contentType: 'image/jpeg', bytes: 1000 });
+
+  // The image stack (Felix rebuild D13): her photographs, the one in front leading the look.
+  it('stacks her photographs behind one another, the first leading as the photograph', async () => {
     const look = await create(ann, [coat], 'Photographed');
-    const photo = await assets.createPending(ann, {
-      kind: 'look_photo',
-      contentType: 'image/jpeg',
-      bytes: 1000,
-    });
-    expect((await looks.setPhoto(ann, look.id, photo.id))?.photoAssetId).toBe(photo.id);
+    const [one, two] = [await photoOf(ann), await photoOf(ann)];
+    expect((await looks.addImage(ann, look.id, one.id))?.photoAssetId).toBe(one.id);
+    expect((await looks.addImage(ann, look.id, two.id))?.photoAssetId).toBe(one.id);
+    // The same photograph again is the one row.
+    await looks.addImage(ann, look.id, two.id);
+    expect((await looks.imagesFor(ann, [look.id])).map((i) => [i.assetId, i.position])).toEqual([
+      [one.id, 0],
+      [two.id, 1],
+    ]);
     // Another woman's look is not hers to put a photograph on, and nothing is written.
-    expect(await looks.setPhoto(bea, look.id, photo.id)).toBeUndefined();
-    expect((await looks.get(ann, look.id))?.photoAssetId).toBe(photo.id);
+    expect(await looks.addImage(bea, look.id, one.id)).toBeUndefined();
+    expect(await looks.imagesFor(bea, [look.id])).toEqual([]);
+    expect((await looks.get(ann, look.id))?.photoAssetId).toBe(one.id);
+  });
+
+  it('starts the stack with the photograph a look is made from', async () => {
+    const photo = await photoOf(ann);
+    const look = await looks.create(ann, {
+      name: 'From a photo',
+      nameProvisional: false,
+      pieces: [{ pieceId: coat }],
+      photoAssetId: photo.id,
+    });
+    expect(look.photoAssetId).toBe(photo.id);
+    expect((await looks.imagesFor(ann, [look.id])).map((i) => [i.assetId, i.position])).toEqual([
+      [photo.id, 0],
+    ]);
+  });
+
+  it('brings a photograph to the front, or Robes’ picture, and the rest keep their order', async () => {
+    const look = await create(ann, [coat], 'Covered');
+    const [one, two, three] = [await photoOf(ann), await photoOf(ann), await photoOf(ann)];
+    await looks.addImage(ann, look.id, one.id);
+    await looks.addImage(ann, look.id, two.id);
+    await looks.addImage(ann, look.id, three.id);
+    const order = async () => (await looks.imagesFor(ann, [look.id])).map((i) => i.assetId);
+    const [, second] = await looks.imagesFor(ann, [look.id]);
+    const led = await looks.setCover(ann, look.id, second?.id ?? '');
+    expect(led).toMatchObject({ photoAssetId: two.id, recordImage: 'photo' });
+    expect(await order()).toEqual([two.id, one.id, three.id]);
+    // Robes' picture in front: the photographs stay where they are, behind it.
+    const robes = await looks.setCover(ann, look.id, null);
+    expect(robes).toMatchObject({ photoAssetId: two.id, recordImage: 'model' });
+    expect(await order()).toEqual([two.id, one.id, three.id]);
+    // The camera on a look (the old photo route): the new photograph joins and leads.
+    const four = await photoOf(ann);
+    const taken = await looks.addImage(ann, look.id, four.id, { lead: true });
+    expect(taken).toMatchObject({ photoAssetId: four.id, recordImage: 'photo' });
+    expect(await order()).toEqual([four.id, two.id, one.id, three.id]);
+    // Not hers: nothing leads, nothing is written.
+    expect(await looks.setCover(bea, look.id, second?.id ?? '')).toBeUndefined();
+    expect(await looks.setCover(ann, look.id, randomUUID())).toBeUndefined();
+    expect(await order()).toEqual([four.id, two.id, one.id, three.id]);
+  });
+
+  it('lets a photograph go; the rest close up, and none leaves Robes’ picture leading', async () => {
+    const look = await create(ann, [coat], 'Thinned');
+    const [one, two] = [await photoOf(ann), await photoOf(ann)];
+    await looks.addImage(ann, look.id, one.id);
+    await looks.addImage(ann, look.id, two.id);
+    const [first, second] = await looks.imagesFor(ann, [look.id]);
+    expect(await looks.removeImage(bea, look.id, first?.id ?? '')).toBeUndefined();
+    expect((await looks.removeImage(ann, look.id, first?.id ?? ''))?.photoAssetId).toBe(two.id);
+    expect((await looks.imagesFor(ann, [look.id])).map((i) => [i.id, i.position])).toEqual([
+      [second?.id, 0],
+    ]);
+    await looks.update(ann, look.id, { record: 'photo' });
+    const bare = await looks.removeImage(ann, look.id, second?.id ?? '');
+    expect(bare).toMatchObject({ photoAssetId: null, recordImage: null });
+    expect(await looks.removeImage(ann, look.id, second?.id ?? '')).toBeUndefined();
+  });
+
+  // D21: her note on Robes' picture, kept with the look.
+  it('keeps her picture note on her own look only, and an empty one clears it', async () => {
+    const look = await create(ann, [coat], 'Noted');
+    expect(look.pictureNote).toBeNull();
+    expect(await looks.setPictureNote(ann, look.id, '  Sleeves rolled up ')).toBe(true);
+    expect((await looks.get(ann, look.id))?.pictureNote).toBe('Sleeves rolled up');
+    expect(await looks.setPictureNote(bea, look.id, 'Hers now')).toBe(false);
+    expect((await looks.get(ann, look.id))?.pictureNote).toBe('Sleeves rolled up');
+    // The pieces never move with it.
+    expect((await looks.piecesFor(ann, [look.id])).map((p) => p.id)).toEqual([coat]);
+    expect(await looks.setPictureNote(ann, look.id, '   ')).toBe(true);
+    expect((await looks.get(ann, look.id))?.pictureNote).toBeNull();
+  });
+
+  // D19: Robes' picture can be hidden, never destroyed; a look always keeps one image.
+  it('hides Robes’ picture only behind a photograph of hers, to its owner only', async () => {
+    const look = await create(ann, [coat], 'Hidden');
+    await expect(looks.setRobesHidden(ann, look.id, true)).rejects.toBeInstanceOf(LookNeedsImage);
+    expect((await looks.get(ann, look.id))?.robesHidden).toBe(false);
+    const photo = await photoOf(ann);
+    await looks.addImage(ann, look.id, photo.id);
+    expect(await looks.setRobesHidden(bea, look.id, true)).toBeUndefined();
+    expect((await looks.get(ann, look.id))?.robesHidden).toBe(false);
+    expect(await looks.setRobesHidden(ann, look.id, true)).toMatchObject({
+      robesHidden: true,
+      recordImage: 'photo',
+      photoAssetId: photo.id,
+    });
+    // Her last photograph stays while Robes' picture is hidden; nothing is written.
+    const [only] = await looks.imagesFor(ann, [look.id]);
+    await expect(looks.removeImage(ann, look.id, only?.id ?? '')).rejects.toBeInstanceOf(
+      LookNeedsImage,
+    );
+    expect((await looks.imagesFor(ann, [look.id])).length).toBe(1);
+    // Another woman's request is not found, before any rule is read.
+    expect(await looks.removeImage(bea, look.id, only?.id ?? '')).toBeUndefined();
+    expect(await looks.removeImage(ann, look.id, randomUUID())).toBeUndefined();
+    // With a second photograph, one can go.
+    const two = await photoOf(ann);
+    await looks.addImage(ann, look.id, two.id);
+    expect((await looks.removeImage(ann, look.id, only?.id ?? ''))?.photoAssetId).toBe(two.id);
+    // Brought to the front, Robes' picture shows again; shown, her last photograph can go.
+    expect(await looks.setCover(ann, look.id, null)).toMatchObject({
+      robesHidden: false,
+      recordImage: 'model',
+    });
+    expect(await looks.setRobesHidden(ann, look.id, true)).toMatchObject({ robesHidden: true });
+    expect(await looks.setRobesHidden(ann, look.id, false)).toMatchObject({ robesHidden: false });
+    const [last] = await looks.imagesFor(ann, [look.id]);
+    expect((await looks.removeImage(ann, look.id, last?.id ?? ''))?.photoAssetId).toBeNull();
+  });
+
+  it('holds twenty photographs and refuses a twenty-first, writing nothing', async () => {
+    const look = await create(ann, [coat], 'Full');
+    for (let i = 0; i < LOOK_IMAGES_MAX; i++) {
+      await looks.addImage(ann, look.id, (await photoOf(ann)).id);
+    }
+    await expect(looks.addImage(ann, look.id, (await photoOf(ann)).id)).rejects.toBeInstanceOf(
+      LookImagesFull,
+    );
+    expect((await looks.imagesFor(ann, [look.id])).length).toBe(LOOK_IMAGES_MAX);
+  });
+
+  // Her tags on a look (Details › Tags), in the namespace her pieces share.
+  it('tags a look with her own labels, replaced as a set, to its owner only', async () => {
+    const look = await create(ann, [coat], 'Tagged');
+    expect(await looks.setTags(ann, look.id, ['Work', ' work ', 'Weekend casual'])).toBe(true);
+    expect((await looks.tagsFor(ann, [look.id])).get(look.id)).toEqual(['Work', 'Weekend casual']);
+    expect(await looks.setTags(ann, look.id, ['Work'])).toBe(true);
+    expect((await looks.tagsFor(ann, [look.id])).get(look.id)).toEqual(['Work']);
+    expect(await looks.setTags(bea, look.id, ['Hers'])).toBe(false);
+    expect(await looks.tagsFor(bea, [look.id])).toEqual(new Map());
+    expect(await looks.setTags(ann, look.id, [])).toBe(true);
+    expect((await looks.tagsFor(ann, [look.id])).get(look.id)).toBeUndefined();
+  });
+
+  // Seasons (D12): the four seasons she picks, and the band every older reader still sees.
+  it('spells the season as seasons and as the band, whichever she sent', async () => {
+    const look = await looks.create(ann, {
+      name: 'Spring',
+      nameProvisional: false,
+      pieces: [],
+      seasons: ['summer', 'spring', 'spring'],
+    });
+    expect(look).toMatchObject({ seasons: ['spring', 'summer'], climateBand: 'spring_summer' });
+    const banded = await looks.update(ann, look.id, { climateBand: 'autumn_winter' });
+    expect(banded).toMatchObject({ seasons: ['autumn', 'winter'], climateBand: 'autumn_winter' });
+    const mixed = await looks.update(ann, look.id, {
+      seasons: ['winter', 'summer'],
+      climateBand: 'spring_summer',
+    });
+    expect(mixed).toMatchObject({ seasons: ['summer', 'winter'], climateBand: 'year_round' });
+    expect((await looks.update(ann, look.id, { seasons: [] }))?.climateBand).toBe('year_round');
   });
 
   it('keeps which picture is the record, and only she can set it', async () => {

@@ -44,7 +44,7 @@ type SeasonBandId = (typeof SEASON_BANDS)[number];
 // A tool pill on the count row (beta's Last worn · Filter): 36px white on the fine edge, the
 // label ink-muted, the hit area reaching 44px. The native twin is LooksView.tsx ToolPill.
 function toolPill(expanded: boolean): string {
-  return `relative inline-flex h-9 items-center gap-1.5 rounded-pill border bg-surface-raised px-3 font-sans text-xs text-ink-muted after:absolute after:inset-x-0 after:-inset-y-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+  return `relative inline-flex h-9 items-center gap-1.5 rounded-pill border bg-surface-raised px-3 font-sans text-xs text-ink-muted after:absolute after:inset-x-0 after:-inset-y-1 hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
     expanded ? 'border-selected-line' : 'border-rule-mid'
   }`;
 }
@@ -124,7 +124,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
           framed
           icon="plus"
           label={copy.newLook}
-          onClick={() => router.push('/looks/new')}
+          onClick={() => router.push('/looks/draft/new')}
         />
       </div>
       {/* The count row holds its height on both tabs, so the grid never jumps on a switch. */}
@@ -188,7 +188,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
                       setSort(s);
                       setSortOpen(false);
                     }}
-                    className="flex items-center justify-between gap-2 rounded-crisp px-3 py-2 text-left font-sans text-ink text-sm hover:bg-surface-sunk focus-visible:outline-2 focus-visible:outline-focus-ring"
+                    className="flex items-center justify-between gap-2 rounded-crisp px-3 py-2 text-left font-sans text-ink text-sm hover:bg-surface-sunk focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
                   >
                     {copy.sort[s]}
                     {sort === s ? <Icon name="check" size={16} className="text-ink-muted" /> : null}
@@ -314,7 +314,7 @@ export function Lookbook({ tab }: { tab: LookbookTab }) {
               title={copy.savedEmpty.title}
               body={copy.savedEmpty.body}
               action={
-                <Link href="/looks/new" className={buttonClasses({ variant: 'primary' })}>
+                <Link href="/looks/draft/new" className={buttonClasses({ variant: 'primary' })}>
                   {copy.newLook}
                 </Link>
               }

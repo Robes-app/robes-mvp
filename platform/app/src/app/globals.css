@@ -18,9 +18,21 @@ body {
    unlayered CSS beats every layer, whatever the specificity. */
 @layer base {
   :focus-visible {
-    outline: 2px solid var(--focus-ring);
+    outline: 1.5px solid var(--focus-ring);
     outline-offset: 2px;
   }
+}
+
+/* Felix's `label` (the smallest caps line, 9px/500 at 0.22em) in the faint ink, for the places
+   that used it before the type scale. New code uses `type-label` with its own colour. */
+@utility app-caps {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
 }
 
 /* The sign-in ground: cream warming to blush (legacy signup.html). Dark mode keeps the plain ground. */

@@ -3,12 +3,12 @@ import type { ButtonHTMLAttributes, HTMLAttributes, Ref } from 'react';
 import { cn, focusRing } from './cn';
 
 const base =
-  'relative inline-flex items-center gap-1.5 rounded-pill border font-sans motion-safe:transition-colors motion-safe:duration-150';
-// Beta's .rb-pill: md 36 tall at 12px; sm a 32-tall chip for dense walls (brands, icons). Both
-// keep a 44 hit area past the visible edge. Twin of ui-native Pill.tsx.
+  'relative inline-flex items-center gap-1.5 rounded-pill font-sans font-normal text-ink motion-safe:transition-colors motion-safe:duration-150';
+// Felix's pills: md 32 tall at 0 13 with 12px text (the category pill), sm 28 tall at 0 11 with
+// 11px (the context chip). Both keep a 44 hit area past the visible edge. Twin of ui-native Pill.
 const sizes = {
-  md: "min-h-9 px-4 text-xs after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
-  sm: "min-h-8 px-3.5 text-xs after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']",
+  md: "min-h-8 px-[13px] text-xs after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']",
+  sm: "min-h-7 px-[11px] text-[11px] after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
 } as const;
 
 // The pill anatomy on its own, for the controls that are not toggles — a menu
@@ -24,9 +24,9 @@ export function pillClasses({
     base,
     sizes[size],
     selected
-      ? 'border-selected-line bg-selected text-ink'
-      : 'border-rule-mid bg-surface-raised text-ink-muted hover:border-border-control hover:text-ink',
-    'disabled:border-hairline disabled:text-ink-faint',
+      ? 'border border-selected-line bg-selected'
+      : 'border-[0.5px] border-rule-mid bg-surface-raised hover:border-border-control',
+    'disabled:opacity-40',
     focusRing,
   );
 }
@@ -39,8 +39,9 @@ export interface PillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>,
   ref?: Ref<HTMLButtonElement>;
 }
 
-// Selected is warm, never black or white: the warm fill on the warm line, ink text and a check. Unselected, the
-// label is the cue, so the edge is the fine rule-mid (the native twin is ui-native Pill.tsx).
+// Felix: unselected is white on the fine 0.5px `rule-mid` with an ink label; selected is the warm
+// fill on a 1px warm line. The check stays on a selected pill though Felix drops it: the warm fill
+// alone is too close to white to carry the state (D1). The native twin is ui-native Pill.tsx.
 export function Pill({
   selected = false,
   size = 'md',
@@ -70,7 +71,7 @@ export function Chip({ className, ...rest }: HTMLAttributes<HTMLSpanElement>) {
     <span
       {...rest}
       className={cn(
-        'inline-flex items-center gap-1 rounded-pill border border-hairline bg-surface px-3 py-1 font-sans text-xs text-ink-muted',
+        'inline-flex min-h-7 items-center gap-1 rounded-pill border-[0.5px] border-rule-mid bg-surface-raised px-[11px] font-sans text-[11px] text-ink',
         className,
       )}
     />

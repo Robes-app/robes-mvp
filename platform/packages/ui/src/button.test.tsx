@@ -8,12 +8,13 @@ import { Button, ONE_PRIMARY_WARNING, PrimaryScope } from './button';
 describe('Button', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('clicks and is at least 44px tall', async () => {
+  it('clicks and keeps a 44px hit area', async () => {
     const onClick = vi.fn();
     render(<Button onClick={onClick}>Save this look</Button>);
     const button = screen.getByRole('button', { name: 'Save this look' });
     expect(button).toHaveAttribute('type', 'button');
-    expect(button).toHaveClass('min-h-11', 'uppercase');
+    // Felix's outline is 40px; the ring adds 2px above and below.
+    expect(button).toHaveClass('min-h-10', 'after:-inset-y-0.5', 'uppercase');
     await userEvent.click(button);
     expect(onClick).toHaveBeenCalledOnce();
   });
@@ -44,7 +45,7 @@ describe('Button', () => {
   it('never fills anything but primary', () => {
     render(
       <>
-        <Button variant="secondary">Secondary</Button>
+        <Button variant="outline">Secondary</Button>
         <Button variant="quiet">Quiet</Button>
       </>,
     );
@@ -68,7 +69,7 @@ describe('Button', () => {
     const { unmount } = render(
       <>
         <Button variant="primary">Page</Button>
-        <Button variant="secondary">Other</Button>
+        <Button variant="outline">Other</Button>
         <PrimaryScope>
           <Button variant="primary">Dialog</Button>
         </PrimaryScope>

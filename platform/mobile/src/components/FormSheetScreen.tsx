@@ -19,6 +19,10 @@ export const FORM_SHEET: {
   sheetCornerRadius: 22,
 };
 
+// The draft look's sheet (Felix DraftLook, D14): the same bottom-edge presentation at full height,
+// 24pt under the top edge, so it stands over whatever started it. Twin of the web Drawer.
+export const DRAFT_SHEET: typeof FORM_SHEET = { ...FORM_SHEET, sheetAllowedDetents: [1] };
+
 // The head of a FORM_SHEET route, one for both (Add Piece handoff redline 02): its own grab handle
 // (36×4, 8pt from the top), then a 44pt row with × left and the serif title centred. The sheet
 // runs to the screen's bottom edge, so the body stops above the home indicator.

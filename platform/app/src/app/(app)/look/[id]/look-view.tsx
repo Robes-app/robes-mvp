@@ -1,39 +1,15 @@
 'use client';
 
-import {
-  queryKeys,
-  useApi,
-  useApiClient,
-  useApiMutation,
-  useUndoableMutation,
-} from '@robes/api-client/react';
+import { useApi } from '@robes/api-client/react';
 import type { Look } from '@robes/contracts';
-import { lookbook, looks, wardrobe } from '@robes/copy';
-import {
-  ErrorText,
-  Heading,
-  IconButton,
-  InlineTitleField,
-  Skeleton,
-  Text,
-  useToast,
-} from '@robes/ui';
-import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { ErrorText, Skeleton } from '@robes/ui';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { DiarySheet } from '@/components/looks/diary-sheet';
-import { DraftPage } from '@/components/looks/draft-page';
-import { LookHero } from '@/components/looks/look-hero';
-import { SavedRack, savedMeta, WorkingLook } from '@/components/looks/look-page';
-import { WearRecord } from '@/components/looks/wear-record';
+import { DraftLook } from '@/components/looks/draft-look';
+import { WorkingLook } from '@/components/looks/look-page';
 import { usePushedView } from '@/components/shell/app-shell';
-import { type Adjust, useAdjust } from '@/lib/adjust';
-import { localToday } from '@/lib/dates';
 import { errorCopy } from '@/lib/error-copy';
-import { useLookEditor } from '@/lib/look-editor';
-import { withoutId } from '@/lib/wardrobe';
-
-const copy = looks.page;
 
 export function LookView({ id }: { id: string }) {
   // Follows a render on her model until it lands.
@@ -47,6 +23,10 @@ export function LookView({ id }: { id: string }) {
   );
   // Save opens the diary every time; the sheet outlives the working page it was saved from.
   const [justSaved, setJustSaved] = useState<Look | null>(null);
+  const search = useSearchParams();
+  // `?schedule=1`: a draft just saved from its drawer opens with the diary up.
+  const schedule = search.get('schedule') === '1';
+  const router = useRouter();
   // A look is a pushed view on a phone: the back pill alone, no masthead and no dock (redline).
   usePushedView();
   if (query.isError) {
@@ -57,139 +37,28 @@ export function LookView({ id }: { id: string }) {
     <>
       {/* One look, three states (docs/look-states-brief.md): suggested and draft are hers to work on. */}
       {query.data.status === 'draft' ? (
-        // Every draft — from the prompt box or built by hand — is the one draft page (plan 2026-11-03).
-        <DraftPage look={query.data} onSaved={setJustSaved} />
+        // Every draft is the one DraftLook (D14): on its own page here, a drawer from the app's
+        // screens (/looks/draft/:id).
+        <DraftLook
+          id={query.data.id}
+          {...(search.get('day') ? { day: search.get('day') ?? undefined } : {})}
+          presentation="page"
+          onClose={() => router.push(search.get('day') ? `/?day=${search.get('day')}` : '/looks')}
+        />
       ) : query.data.status !== 'saved' ? (
         <WorkingLook look={query.data} onSaved={setJustSaved} />
       ) : (
-        <LookBody look={query.data} />
+        // A saved look edits in place (Felix 3e, D17): the same DraftLook as Home's Edit look
+        // drawer, on its own page.
+        <DraftLook
+          id={query.data.id}
+          presentation="saved"
+          schedule={schedule}
+          onClose={() => router.back()}
+        />
       )}
       <DiarySheet look={justSaved} onClose={() => setJustSaved(null)} />
     </>
-  );
-}
-
-function useLookActions(look: Look) {
-  const client = useApiClient();
-  const queryClient = useQueryClient();
-  const toast = useToast();
-  const onError = (err: unknown) => toast({ message: errorCopy(err) });
-  const key = queryKeys.call('looks.get', { params: { id: look.id } });
-
-  const update = useApiMutation('looks.update', {
-    onSuccess: (data) => {
-      queryClient.setQueryData(key, data);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.route('looks.list') });
-    },
-    onError,
-  });
-  const remove = useUndoableMutation('looks.delete', {
-    optimistic: (args) => [
-      { queryKey: queryKeys.route('looks.list'), update: withoutId(args.params.id) },
-    ],
-    onError,
-    undo: {
-      onAvailable: (handle) =>
-        toast({
-          message: copy.removed,
-          action: { label: wardrobe.undo, onAction: () => void handle.undo() },
-        }),
-      compensate: (args) => client.call('looks.restore', { params: { id: args.params.id } }),
-    },
-  });
-  return { update, remove };
-}
-
-function LookBody({ look }: { look: Look }) {
-  const router = useRouter();
-  const actions = useLookActions(look);
-  const adjustRef = useRef<Adjust | null>(null);
-  const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
-  const adjust = useAdjust(look, editor, 'saved');
-  adjustRef.current = adjust;
-  const [diary, setDiary] = useState(false);
-
-  return (
-    // The foot clears the look's fixed bar (Edit look, or Done · Update).
-    <article className="grid gap-8 pb-40 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <LookHero
-        look={look}
-        eyebrow={editor.editing || adjust.stale ? lookbook.eyebrow.editing : lookbook.eyebrow.saved}
-        onDiary={() => setDiary(true)}
-      />
-      <div className="flex flex-col gap-6">
-        <LookName
-          look={look}
-          update={actions.update}
-          meta={savedMeta(look, editor.rack.rows.length, localToday())}
-        />
-        <SavedRack look={look} editor={editor} adjust={adjust} />
-        {editor.editing ? null : (
-          <>
-            <WearRecord look={look} onAddDate={() => setDiary(true)} />
-            {/* Beta's foot: the record, then Delete this look. Wearing is the diary on the
-                picture, a new look the composer, her model You · Model (27 Oct). */}
-            <button
-              type="button"
-              onClick={() => {
-                actions.remove.mutate({ params: { id: look.id } });
-                router.push('/looks');
-              }}
-              className="min-h-11 self-start font-sans text-danger text-sm underline underline-offset-4 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-focus-ring"
-            >
-              {copy.remove}
-            </button>
-          </>
-        )}
-      </div>
-      <DiarySheet look={diary ? look : null} onClose={() => setDiary(false)} />
-    </article>
-  );
-}
-
-function LookName({
-  look,
-  update,
-  meta,
-}: {
-  look: Look;
-  update: ReturnType<typeof useLookActions>['update'];
-  meta: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  // Her name in place of the title; empty or unchanged keeps the name it had (a look is named).
-  // The page shows the saved name once the update lands; errors surface as a toast.
-  const save = (next: string) => {
-    setEditing(false);
-    if (next !== look.name) update.mutate({ params: { id: look.id }, input: { name: next } });
-  };
-  // The eyebrow is over the picture; no "Robes’ suggestion · Keep this name" — the pencil is how
-  // she renames (27 Oct). The name and its one line of facts sit close together.
-  return (
-    <header className="flex flex-col gap-1">
-      <div className="flex items-start gap-2">
-        {editing ? (
-          <InlineTitleField
-            value={look.name}
-            label={looks.look.nameLabel}
-            size="xl"
-            required
-            onCommit={save}
-            onCancel={() => setEditing(false)}
-          />
-        ) : (
-          <>
-            <Heading level={1} size="xl" className="min-w-0 flex-1">
-              {look.name}
-            </Heading>
-            <IconButton icon="pencil" label={copy.rename} onClick={() => setEditing(true)} />
-          </>
-        )}
-      </div>
-      <Text size="small" tone="muted">
-        {meta}
-      </Text>
-    </header>
   );
 }
 

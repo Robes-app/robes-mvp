@@ -21,7 +21,7 @@ import { Review } from './review';
 
 const copy = wardrobe.add;
 const focusRing =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // The Add pieces page (design "Add Piece — Handoff"): the sheet's body, the camera over it, and
 // Review in its place once photos are in — one page, so her photos never leave it. Native twin:
@@ -164,7 +164,7 @@ export function AddPiecesPanel({
           <Icon name="camera" size={22} className="text-ink" />
           <span className="font-display text-[19px] text-ink">{copy.doors.photograph}</span>
         </button>
-        <label htmlFor={rollId} className={`${tile} cursor-pointer focus-within:outline-2`}>
+        <label htmlFor={rollId} className={`${tile} cursor-pointer focus-within:outline-[1.5px]`}>
           <Icon name="image" size={22} className="text-ink" />
           <span className="font-display text-[19px] text-ink">{copy.doors.cameraRoll}</span>
           <input

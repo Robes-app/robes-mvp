@@ -5,7 +5,7 @@ import {
   CELL_FEATURE,
   TWIN_FEATURE,
 } from '@robes/ai/prompts/avatar';
-import { twinInputsOf, twinKey, twinSpec } from '@robes/core/avatar';
+import { CATALOG_KEY, robesModelSpec, twinInputsOf, twinKey, twinSpec } from '@robes/core/avatar';
 import type { SystemRepositories } from '@robes/db';
 import { mediaKeys } from '@robes/media';
 import type { MediaStorage } from '@robes/media/storage';
@@ -27,9 +27,7 @@ export interface AvatarCellDeps {
   };
 }
 
-export const AvatarCellInput = z.object({
-  cellKey: z.string().regex(/^[wm]-s[0-7]-h[0-4]-(hg|pe|re|it|ap|nt)(-(ll|lr|fl|fr))*@v[0-9]+$/),
-});
+export const AvatarCellInput = z.object({ cellKey: z.string().regex(CATALOG_KEY) });
 // Input carries the key she asked for only; everything it is drawn from is read here (SEC-16).
 export const AvatarTwinInput = z.object({
   target: z.literal('twin'),
@@ -106,7 +104,11 @@ export function createAvatarCellHandler(deps: AvatarCellDeps): JobHandler {
       const { cellKey } = parsed.data;
       const current = await deps.cells.get(cellKey);
       if (current?.status === 'ready') return { status: 'succeeded' };
-      const prompt = buildCellPrompt(cellKey.split('@')[0] ?? '');
+      // A Robes model (plan 2026-11-05) is drawn by the twin prompt with no face: its age and
+      // size are words there; a picks cell keeps its own descriptor.
+      const cellId = cellKey.split('@')[0] ?? '';
+      const robes = robesModelSpec(cellId);
+      const prompt = robes ? buildTwinPrompt(robes) : buildCellPrompt(cellId);
       if (!prompt) throw new JobError('invalid_input');
       try {
         const { image, usage } = await deps.ai.generateImage({

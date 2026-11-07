@@ -929,11 +929,8 @@ export const you = {
     colourBody: 'A clear photo of your face in daylight, no filter.',
     silhouetteTitle: 'Your shape',
     silhouetteBody: 'A full-length photo, standing straight, in fitted clothes.',
-    choosePhoto: 'Choose a photo',
-    reading: 'Robes is reading your photo…',
-    retake: 'Use another photo',
+    // The selfie's read (use-selfie): what it says when no face, or nothing, came back.
     noFace: 'Robes couldn’t see a face clearly. Try another photo.',
-    noPerson: 'Robes couldn’t see your full figure. Try another photo.',
     failed: 'Robes couldn’t read that photo. Try another.',
     best: 'Wear',
     avoid: 'Go easy on',
@@ -973,10 +970,6 @@ export const you = {
         love.length > 1 ? `${love[0]} +${love.length - 1}` : (love[0] ?? 'Not yet'),
     },
     // Native's close-up card (Colouring).
-    colour: {
-      reading: 'Reading your colouring…',
-      noSubject: 'Robes couldn’t see a face in that photo. Try another.',
-    },
   },
   // SEC-81: her data as one file.
   dataExport: {
@@ -1042,7 +1035,7 @@ export const you = {
     skin: 'Skin',
     skinNames: ['Espresso', 'Mahogany', 'Chestnut', 'Tan', 'Honey', 'Sand', 'Peach', 'Porcelain'],
     hair: 'Hair',
-    hairNames: ['Jet black', 'Espresso', 'Chestnut', 'Caramel', 'Ash blonde'],
+    hairNames: ['Jet black', 'Espresso', 'Chestnut', 'Caramel', 'Ash blonde', 'Silver'],
     line: 'The line',
     lineOptions: { soft: 'Softer', none: 'As she is', straight: 'Straighter' },
     frame: 'The frame',
@@ -1648,9 +1641,24 @@ export const twin = {
     title: 'Your digital twin',
     readFrom: 'Read from your photograph and facts',
     colouring: 'Colouring',
-    colouringSub: 'One close-up reads your season.',
+    colouringSub: 'Skin, hair and season.',
     bodyShape: 'Body shape',
     bodyShapeSub: 'Set your line by hand.',
+    // On a Robes model (plan 2026-11-05, design 3c): the eyebrow on the hero, the one commitment
+    // (the camera), and the lineup she chooses from — her own twin first, once drawn.
+    robesModel: 'Robes model',
+    addSelfie: 'Add a selfie',
+    addSelfieSub: 'Create your digital twin.',
+    // The one way to another selfie: the redraw control on her twin's hero (redlines R15).
+    retake: 'Retake selfie to update your twin',
+    // Take one or choose one (the design's selfie screen offers the library too).
+    selfieCamera: 'Take a selfie',
+    selfieLibrary: 'Choose from your photos',
+    lineup: 'Choose a model',
+    you: 'You',
+    // While her selfie reads and her twin draws (design 3d lands with the read).
+    reading: 'Reading your selfie…',
+    fewerSeasons: 'Fewer seasons',
     // The caption under her model: colour words only, never a shape.
     // Only what she chose or a close-up read: an unchosen skin or hair has no name to show.
     caption: (skin: string, hair: string): string =>
@@ -1658,10 +1666,8 @@ export const twin = {
     drawing: 'Drawing your model…',
     twinFailed:
       'Robes couldn’t photograph your model just now. A close-up in daylight, facing the camera, helps.',
-    closeUpCard: 'Your close-up',
-    closeUpHelp: 'Robes reads your season, skin and hair from this.',
     season: 'Your season',
-    addSeason: 'Add a close-up and Robes reads your season.',
+    addSeason: 'Add a selfie and Robes reads your season.',
     colourNotes: 'Full colour notes',
     anotherSeason: 'Another season',
     seasonFailed: 'Robes couldn’t change the reading just now.',
@@ -1675,8 +1681,8 @@ export const twin = {
       return axes && sum ? `${axes} — ${sum}` : axes || sum;
     },
     skinAndHair: 'Skin and hair',
-    skinAndHairRead: 'Read from your close-up. Nudge either if it looks off.',
-    skinAndHairHand: 'Or choose them by hand until a close-up reads.',
+    skinAndHairRead: 'Read from your selfie. Change by hand.',
+    skinAndHairHand: 'Chosen by hand until a selfie reads.',
     yourLine: 'Your line',
     edit: 'Edit',
     proportions: (presence: Presence): string =>
@@ -1696,25 +1702,6 @@ export const twin = {
     backToFacts: 'Back to your facts',
     gender: 'Gender',
     age: 'Age',
-    // The one italic line under her model (legacy #mv-status): what Robes drew her from, and what
-    // would take her further. "Nothing yet" is retired from the chrome, so the last rung says drawn.
-    status: (presence: Presence, read: 'both' | 'closeUp' | 'facts' | 'hand' | 'none'): string => {
-      const man = presence === 'man';
-      const plural = asThey(presence);
-      const they = plural ? 'they' : man ? 'he' : 'she';
-      const theyAre = plural ? 'They’re' : man ? 'He’s' : 'She’s';
-      const their = plural ? 'their' : man ? 'his' : 'her';
-      const s = plural ? '' : 's';
-      if (read === 'both')
-        return `Read from your close-up and your facts. ${theyAre} as close as ${they} get${s}.`;
-      if (read === 'closeUp')
-        return `Read from your close-up. Add your facts and Robes draws ${their} line.`;
-      if (read === 'facts')
-        return `Drawn from your facts. Add a close-up and ${they} take${s} your face.`;
-      if (read === 'hand')
-        return `Shaped by hand. A close-up or your facts, whenever you like — ${they} update${s}.`;
-      return 'Nothing drawn yet. Add a close-up, or set your line from your facts.';
-    },
     // The stage with nothing on it (legacy #mv-fig-empty), over the ghost figure.
     stageEmpty: 'Your model starts here.',
   },

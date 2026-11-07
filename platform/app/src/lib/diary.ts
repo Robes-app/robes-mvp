@@ -1,4 +1,4 @@
-import type { Look, Today } from '@robes/contracts';
+import type { Look } from '@robes/contracts';
 import { diary as copy } from '@robes/copy';
 import { weekdayLong } from '@robes/core/calendar';
 import { shortRange } from '@robes/core/weather';
@@ -78,14 +78,4 @@ export function placeChipLabel(city: string, tempRange: string | null): string {
 // What a day asks when she adds a look (plan §1.6).
 export function dayQuestion(date: string, today: string): string {
   return date < today ? copy.log.past : date === today ? copy.log.today : copy.log.ahead;
-}
-
-// Which of day one's asks show (design 3a): the model until her own is on file or she dismisses
-// it (a Robes model she picks stays, ticked), her first pieces until she has photographed one or
-// dismisses that. `dayOne` carries the server's answer; without it the modular state decides.
-export function dayOneAsks(state: Today['home']['state']): { model: boolean; pieces: boolean } {
-  return {
-    model: state.dayOne ? !state.dayOne.modelAsked : !state.twinOnFile,
-    pieces: state.pics === 0 && !state.dayOne?.piecesAsked,
-  };
 }

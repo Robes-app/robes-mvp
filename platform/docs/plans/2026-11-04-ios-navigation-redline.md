@@ -2,6 +2,8 @@
 
 Source: Annie's "Robes iOS navigation redline" (four boards: overview on iPhone 16, top navigation @2x, tab bar @2x, iOS build notes). It supersedes the Native parity handoff's dock (2026-10-25) for the sparkle and the tab bar's drawing. Built on web and native in one pass.
 
+> **Superseded in part (2026-11-06, Felix D6):** the top bar is now Felix's TopNav — 64 tall, 24 in, nav glass with a hairline always, a 36 bell with a 7 rose dot, the avatar a 30 `sage-mid` disc — and the web dock items take Felix's 9.5 labels, 20 glyphs and 24×2 active bar. The system tab bar on native, the capsule's geometry and the no-sparkle rule stand. See `2026-11-06-felix-native-rebuild.md`.
+
 ## What changed
 
 | Element | Before | Now |

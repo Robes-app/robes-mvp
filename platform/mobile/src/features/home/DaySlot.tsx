@@ -1,33 +1,55 @@
-import type { DiaryDay, PlanEntry } from '@robes/contracts';
+import type { DiaryDay, Model, PlanEntry } from '@robes/contracts';
 import { diary as copy, lookbook } from '@robes/copy';
 import { dayOotd } from '@robes/core/calendar';
 import { Icon } from '@robes/icons/native';
-import { fonts, MIN_TOUCH, maxFontSizeMultiplier, useColor } from '@robes/ui-native';
+import {
+  ActionDisc,
+  ActionDiscs,
+  ASPECTS,
+  Image,
+  MIN_TOUCH,
+  maxFontSizeMultiplier,
+  Skeleton,
+  Text,
+  typeStyle,
+  useColor,
+} from '@robes/ui-native';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, Text as RNText, ScrollView, useWindowDimensions, View } from 'react-native';
 import { LookTile } from '@/features/looks/LookTile';
-import { OnPhoto } from '@/features/looks/LookTiles';
+import { ImageStack } from '@/features/looks/SavedLook';
 import { DraftTile } from './DraftTile';
+import { ModelStack } from './ModelStack';
 
-// The slot bleeds to the screen's edges: 44pt of gutter either side of the card, so the next card
-// peeks in; the page's own 20pt when the Add look tile stands alone.
-const GUTTER = 44;
+// The page's own gutter: each page is the content width, one whole page at a time.
 const PAGE = 20;
-const GAP = 10;
 
-// The slot (design 3k, plan 2026-11-02 §1.5; 2026-11-03 §7 D7): the selected day's looks as
-// cards in one scroller — the OOTD first, then the others — then the draft Robes is making for
-// the day (plan 2026-11-03 §1.2), then the dashed Add look tile peeking at the edge; an empty day
-// shows the tile alone, full width. Over a card: × takes the look off the day, the lookbook icon
-// changes it from the drawer. The web twin is components/home/day-slot.tsx.
+export interface DayActions {
+  // Into a look (the last page): her photograph, her words (today and ahead only), her lookbook.
+  onCapture: () => void;
+  onDescribe: (() => void) | null;
+  onPick: () => void;
+  // Onto a look: Swap from the lookbook, Edit on its page, × off the day.
+  onSwap: (entry: PlanEntry) => void;
+  onEdit: (entry: PlanEntry) => void;
+  onRemove: (entry: PlanEntry) => void;
+  // The model under the day's looks (Felix ModelStack → ModelPicker, D10).
+  onModel: () => void;
+}
+
+// The day on home (Felix 3a · 3k, D7): one page per look — the OOTD first, then the others — each
+// the content width on the tile radius, Swap · Edit standing half over its foot and its name
+// beneath; then the draft Robes is making for the day; and last her model with Capture · Describe
+// · Pick, the way into another look (on an empty day the only page). Pager dots when there is
+// more than one. The web twin is components/home/day-slot.tsx.
 export function DaySlot({
   day,
   today,
   dayWord,
   justSaved = null,
-  onAdd,
-  onChange,
-  onRemove,
+  model,
+  actions,
   onAnother,
   anotherBusy = false,
 }: {
@@ -35,96 +57,215 @@ export function DaySlot({
   today: string;
   // 'today' or the weekday, for the labels.
   dayWord: string;
-  // The look just saved from the draft: its card says so for a moment.
+  // The look just saved from the draft: its page says so for a moment.
   justSaved?: string | null;
-  onAdd: () => void;
-  onChange: (entry: PlanEntry) => void;
-  onRemove: (entry: PlanEntry) => void;
+  model: Model | undefined;
+  actions: DayActions;
   onAnother: (lookId: string) => void;
   anotherBusy?: boolean;
 }) {
   const router = useRouter();
   const window = useWindowDimensions();
+  const [page, setPage] = useState(0);
   const ootd = dayOotd(day.entries);
-  const cards = ootd ? [ootd, ...day.entries.filter((e) => e !== ootd)] : [];
+  const looks = ootd ? [ootd, ...day.entries.filter((e) => e !== ootd)] : [];
   const draft = day.date >= today ? day.draft : null;
-  const scrolls = cards.length > 0 || draft !== null;
-  const side = scrolls ? GUTTER : PAGE;
-  const width = window.width - side * 2;
+  const pages = looks.length + (draft ? 1 : 0) + 1;
+  const width = window.width - PAGE * 2;
+  const step = width + PAGE;
   return (
-    <ScrollView
-      horizontal
-      snapToInterval={width + GAP}
-      snapToAlignment="center"
-      decelerationRate="fast"
-      showsHorizontalScrollIndicator={false}
-      scrollEnabled={scrolls}
-      testID="day-slot"
-      className="-mx-5"
-      contentContainerStyle={{ paddingHorizontal: side, gap: GAP }}
-    >
-      {cards.map((entry, i) => (
-        <LookTile
-          key={entry.id}
-          look={entry.look}
-          variant="ootd"
-          width={width}
-          onPress={() => router.push(`/look/${entry.look.id}?day=${day.date}`)}
-          label={copy.slot.open(entry.look.name)}
-          testID={i === 0 ? 'ootd-card' : `day-card-${entry.id}`}
-          onImage={
-            <>
-              <View className="absolute bottom-3 left-3">
-                <OnPhoto
-                  icon="book"
-                  label={copy.slot.change}
-                  size={36}
-                  onPress={() => onChange(entry)}
+    <View className="gap-4">
+      <ScrollView
+        horizontal
+        snapToInterval={step}
+        decelerationRate="fast"
+        disableIntervalMomentum
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled={pages > 1}
+        onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / step))}
+        testID="day-slot"
+        className="-mx-5"
+        contentContainerStyle={{ paddingHorizontal: PAGE, gap: PAGE }}
+      >
+        {looks.map((entry, i) => (
+          <View
+            key={entry.id}
+            style={{ width }}
+            testID={i === 0 ? 'ootd-page' : `day-page-${entry.id}`}
+          >
+            <LookTile
+              look={entry.look}
+              variant="ootd"
+              width={width}
+              onPress={() => router.push(`/look/${entry.look.id}?day=${day.date}`)}
+              label={copy.slot.open(entry.look.name)}
+              testID={i === 0 ? 'ootd-card' : `day-card-${entry.id}`}
+              onImage={
+                <>
+                  {justSaved === entry.look.id ? <SavedBadge /> : null}
+                  {/* Felix 3k: the image stack opens the Edit look sheet on Add a photo (D19). */}
+                  <ImageStack
+                    look={entry.look}
+                    onOpen={() =>
+                      router.push(`/looks/draft/${entry.look.id}?day=${day.date}&images=add`)
+                    }
+                  />
+                </>
+              }
+              corner={
+                <Remove
+                  label={copy.slot.remove(entry.look.name, dayWord)}
+                  onPress={() => actions.onRemove(entry)}
                 />
-              </View>
-              {justSaved === entry.look.id ? (
-                <View
-                  testID="saved-badge"
-                  className="absolute top-2.5 left-2.5 rounded-pill bg-surface-raised px-2.5 py-1.5"
-                >
-                  <RNText
-                    maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-                    className="text-accent-plan uppercase"
-                    style={{ fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8 }}
-                  >
-                    ✓ {lookbook.draft.badgeSaved}
-                  </RNText>
-                </View>
-              ) : null}
-            </>
-          }
-          corner={
-            <Remove
-              label={copy.slot.remove(entry.look.name, dayWord)}
-              onPress={() => onRemove(entry)}
+              }
             />
-          }
-        />
-      ))}
-      {draft ? (
-        <DraftTile
-          draft={draft}
-          day={day}
-          today={today}
+            <ActionDiscs>
+              <ActionDisc
+                icon="book"
+                label={copy.discs.swap}
+                accessibilityLabel={copy.discs.swapLabel(entry.look.name)}
+                onPress={() => actions.onSwap(entry)}
+                testID={i === 0 ? 'ootd-swap' : undefined}
+              />
+              <ActionDisc
+                icon="pencil"
+                label={copy.discs.edit}
+                accessibilityLabel={copy.discs.editLabel(entry.look.name)}
+                onPress={() => actions.onEdit(entry)}
+                testID={i === 0 ? 'ootd-edit' : undefined}
+              />
+            </ActionDiscs>
+            {/* Felix's caption: her look's name, sentence case, under the discs. */}
+            <Text variant="meta" tone="muted" numberOfLines={1} className="mt-3 text-center">
+              {entry.look.name}
+            </Text>
+          </View>
+        ))}
+        {draft ? (
+          <DraftTile
+            draft={draft}
+            day={day}
+            today={today}
+            width={width}
+            onAnother={onAnother}
+            anotherBusy={anotherBusy}
+          />
+        ) : null}
+        <AddPage
           width={width}
-          onAnother={onAnother}
-          anotherBusy={anotherBusy}
+          dayWord={dayWord}
+          model={model}
+          actions={actions}
+          another={looks.length > 0}
         />
-      ) : null}
-      <AddLookTile dayWord={dayWord} width={width} onPress={onAdd} />
-    </ScrollView>
+      </ScrollView>
+      {pages > 1 ? <Pager pages={pages} page={Math.min(page, pages - 1)} /> : null}
+    </View>
   );
 }
 
-// The × on a card: drawn small (28pt, half-cream on the photograph) with the hit area reaching
-// out to 44pt.
+// The way into a look: her model on the day's photograph, the model stack at its top left until
+// her twin stands, Capture · Describe · Pick on its foot.
+function AddPage({
+  width,
+  dayWord,
+  model,
+  actions,
+  another,
+}: {
+  width: number;
+  dayWord: string;
+  model: Model | undefined;
+  actions: DayActions;
+  another: boolean;
+}) {
+  const stand = model?.stand;
+  const portrait = stand?.imageUrl ?? null;
+  return (
+    <View
+      style={{ width }}
+      accessibilityLabel={another ? copy.discs.add : undefined}
+      testID="add-page"
+    >
+      <View className="overflow-hidden rounded-tile bg-surface-sunk">
+        {portrait ? (
+          <Image source={portrait} alt="" aspect="4:5" />
+        ) : (
+          <Skeleton width="100%" aspectRatio={ASPECTS['4:5']} className="rounded-none" />
+        )}
+        {stand && stand.on !== 'twin' ? (
+          <ModelStack portrait={portrait} onPress={actions.onModel} />
+        ) : null}
+      </View>
+      <ActionDiscs>
+        <ActionDisc
+          icon="capture"
+          label={copy.discs.capture}
+          accessibilityLabel={copy.discs.captureLabel(dayWord)}
+          onPress={actions.onCapture}
+          testID="disc-capture"
+        />
+        {actions.onDescribe ? (
+          <ActionDisc
+            icon="describe"
+            label={copy.discs.describe}
+            accessibilityLabel={copy.discs.describeLabel(dayWord)}
+            onPress={actions.onDescribe}
+            testID="disc-describe"
+          />
+        ) : null}
+        <ActionDisc
+          icon="book"
+          label={copy.discs.pick}
+          accessibilityLabel={copy.discs.pickLabel(dayWord)}
+          onPress={actions.onPick}
+          testID="disc-pick"
+        />
+      </ActionDiscs>
+    </View>
+  );
+}
+
+// The pager under the day (frame 3k): the current page an ink bar, the rest small cream dots.
+// Decorative: each page names itself.
+function Pager({ pages, page }: { pages: number; page: number }) {
+  return (
+    <View
+      className="flex-row items-center justify-center gap-1.5"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      testID="day-pager"
+    >
+      {Array.from({ length: pages }, (_, i) => i).map((i) => (
+        <View
+          key={i}
+          className={`h-1 rounded-pill ${i === page ? 'w-4 bg-ink' : 'w-1 bg-cream400'}`}
+        />
+      ))}
+    </View>
+  );
+}
+
+function SavedBadge() {
+  return (
+    <View
+      testID="saved-badge"
+      className="absolute top-2.5 left-2.5 rounded-pill bg-surface-raised px-2.5 py-1.5"
+    >
+      <RNText
+        maxFontSizeMultiplier={maxFontSizeMultiplier.label}
+        className="text-accent-plan"
+        style={typeStyle('label')}
+      >
+        ✓ {lookbook.draft.badgeSaved}
+      </RNText>
+    </View>
+  );
+}
+
+// The × on a look: Felix's 28pt veil-mid disc with the × in ink-mute, its hit area 44.
 function Remove({ label, onPress }: { label: string; onPress: () => void }) {
-  const ink = useColor('ink');
+  const mute = useColor('ink-mute');
   const size = 28;
   return (
     <Pressable
@@ -133,47 +274,9 @@ function Remove({ label, onPress }: { label: string; onPress: () => void }) {
       onPress={onPress}
       hitSlop={(MIN_TOUCH - size) / 2}
       style={{ width: size, height: size }}
-      className="items-center justify-center rounded-pill bg-bg/50"
+      className="items-center justify-center rounded-pill bg-veil-mid"
     >
-      <Icon name="close" size={13} color={ink} />
-    </Pressable>
-  );
-}
-
-// The dashed tile: white on the warm dashed edge, a + in a raised circle, ADD LOOK beneath.
-function AddLookTile({
-  dayWord,
-  width,
-  onPress,
-}: {
-  dayWord: string;
-  width: number;
-  onPress: () => void;
-}) {
-  const ink = useColor('ink');
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={copy.slot.addLabel(dayWord)}
-      onPress={onPress}
-      testID="add-look"
-      style={{ width }}
-      className="overflow-hidden rounded-[6px] border border-dashed border-selected-line bg-surface-raised"
-    >
-      <View className="aspect-[4/5] items-center justify-center border-b border-dashed border-selected-line bg-surface">
-        <View className="size-[52px] items-center justify-center rounded-pill border border-rule-mid bg-surface-raised">
-          <Icon name="plus" size={20} color={ink} />
-        </View>
-      </View>
-      <View className="min-h-[45px] items-center justify-center bg-surface px-3.5">
-        <RNText
-          maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-          className="text-ink-faint uppercase"
-          style={{ fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.6 }}
-        >
-          {copy.slot.add}
-        </RNText>
-      </View>
+      <Icon name="close" size={12} color={mute} />
     </Pressable>
   );
 }

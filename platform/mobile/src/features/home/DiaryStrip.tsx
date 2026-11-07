@@ -1,7 +1,7 @@
 import type { DiaryDay } from '@robes/contracts';
 import { diary as copy } from '@robes/copy';
 import { diaryPages, weekdayLong, weekdayShort } from '@robes/core/calendar';
-import { fonts, maxFontSizeMultiplier } from '@robes/ui-native';
+import { fonts, maxFontSizeMultiplier, typeStyle } from '@robes/ui-native';
 import { useRef, useState } from 'react';
 import {
   Pressable,
@@ -17,8 +17,9 @@ const CELL = 43;
 // The strip (Front Door design 3k, plan 2026-11-02 §1.4): a pager of seven-day pages, today's page
 // centred so three days either side show; swipe for the week before and after. A cell carries one
 // mark per look — a ring when planned, a dot once worn — and a day gone by recedes to the faint
-// ink. Today's cell is always the warm fill; the selected cell takes the warm edge. The web twin
-// is app/src/components/home/diary-strip.tsx.
+// ink. Felix's WeekStrip: the current cell (the day picked, else today) takes the warm fill and
+// the warm edge, its weekday 500 in ink-soft and its date ink; a worn mark is `warm-past` (D11).
+// The web twin is app/src/components/home/diary-strip.tsx.
 export function DiaryStrip({
   days,
   today,
@@ -97,7 +98,8 @@ function DayCell({
   const label = isToday ? copy.today : weekdayLong(day.date);
   // Worn: one filled dot. Planned: a ring per look, its fill the cell's own ground.
   const marks = worn ? [{ filled: true }] : day.entries.map(() => ({ filled: false }));
-  const ground = isToday ? 'bg-selected' : 'bg-bg';
+  const current = selected;
+  const ground = current ? 'bg-selected' : 'bg-bg';
   return (
     <Pressable
       accessibilityRole="button"
@@ -106,21 +108,25 @@ function DayCell({
       testID={`diary-day-${day.date}`}
       onPress={onSelect}
       style={{ width: CELL }}
-      className={`items-center gap-[5px] rounded-input border pt-2 pb-[7px] ${ground} ${
-        selected ? 'border-selected-line' : 'border-transparent'
+      className={`items-center gap-[5px] rounded-sm border pt-2 pb-[7px] ${ground} ${
+        current ? 'border-selected-line' : 'border-transparent'
       }`}
     >
       <RNText
         maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-        className="uppercase text-ink-faint"
-        style={{ fontFamily: fonts.sansRegular, fontSize: 9, letterSpacing: 0.9 }}
+        className={`uppercase ${current ? 'text-ink-muted' : 'text-ink-faint'}`}
+        style={{
+          fontFamily: current ? fonts.sansMedium : fonts.sansRegular,
+          fontSize: 9,
+          letterSpacing: 0.9,
+        }}
       >
         {isToday ? copy.today : weekdayShort(day.date)}
       </RNText>
       <RNText
         maxFontSizeMultiplier={maxFontSizeMultiplier.label}
-        className={past ? 'text-ink-faint' : 'text-ink'}
-        style={{ fontFamily: fonts.display, fontSize: 20, lineHeight: 22 }}
+        className={past && !current ? 'text-ink-faint' : 'text-ink'}
+        style={typeStyle('day-number')}
       >
         {Number(day.date.slice(8))}
       </RNText>
@@ -130,14 +136,12 @@ function DayCell({
             // biome-ignore lint/suspicious/noArrayIndexKey: identical marks
             key={i}
             testID={`diary-mark-${day.date}-${i}`}
+            // Worn: a solid warm-past dot. Planned: an ink-soft ring on white (the warm fill in the
+            // current cell); a plan left on a past day keeps its ring, never reading as worn.
             className={`-ml-0.5 size-[5px] rounded-pill border ${
               m.filled
-                ? past
-                  ? 'border-ink-faint bg-ink-faint'
-                  : 'border-ink-muted bg-ink-muted'
-                : past
-                  ? 'border-ink-faint bg-ink-faint'
-                  : `border-ink-muted ${ground}`
+                ? 'border-warm-past bg-warm-past'
+                : `border-ink-muted ${current ? 'bg-selected' : 'bg-surface-raised'}`
             }`}
           />
         ))}

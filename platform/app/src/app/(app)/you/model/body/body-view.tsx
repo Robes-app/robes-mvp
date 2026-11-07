@@ -56,7 +56,7 @@ export function BodyView() {
 }
 
 const selectClass =
-  'inline-flex min-h-11 items-center gap-2 rounded-pill border px-4 font-sans text-sm hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'inline-flex min-h-11 items-center gap-2 rounded-pill border px-4 font-sans text-sm hover:border-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 // A pill that opens its own short list and saves on the pick (decided 27 Oct): Gender and Age are
 // set here, never in the facts drawer. Twin of mobile features/you/BodyShape.tsx PillMenu.
@@ -122,7 +122,7 @@ function PillMenu<T extends string>({
                 onPick(o.key);
                 setOpen(false);
               }}
-              className="flex min-h-11 items-center justify-between gap-2 rounded-crisp px-3 text-left font-sans text-ink text-sm hover:bg-surface-sunk focus-visible:outline-2 focus-visible:outline-focus-ring"
+              className="flex min-h-11 items-center justify-between gap-2 rounded-crisp px-3 text-left font-sans text-ink text-sm hover:bg-surface-sunk focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
             >
               {o.label}
               {current === o.key ? (
@@ -181,7 +181,7 @@ function Line({
         <button
           type="button"
           onClick={onOpen}
-          className="-mr-2 inline-flex min-h-11 items-center px-2 font-sans text-[11px] text-ink-faint hover:text-ink focus-visible:outline-2 focus-visible:outline-focus-ring"
+          className="-mr-2 inline-flex min-h-11 items-center px-2 font-sans text-[11px] text-ink-faint hover:text-ink focus-visible:outline-[1.5px] focus-visible:outline-focus-ring"
         >
           {`${tw.edit} →`}
         </button>
@@ -224,7 +224,7 @@ function Line({
         type="button"
         onClick={onOpen}
         aria-label={f.title}
-        className="grid grid-cols-5 rounded-crisp border border-hairline text-left hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        className="grid grid-cols-5 rounded-crisp border border-hairline text-left hover:border-ink focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
         {strip.map(([k, v], i) => (
           <span
@@ -269,7 +269,7 @@ function Scales({ model, facts, pick }: { model: Model; facts: Facts; pick: Pick
                     aria-label={tw.stop(label, v, s.less, s.more, asIs)}
                     // A second tap on the chosen stop hands the scale back to her facts.
                     onClick={() => pick({ adj: { [k]: on ? null : v } as UpdateModelInput['adj'] })}
-                    className={`flex h-11 items-center justify-center focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring ${on ? 'rounded-pill bg-selected ring-1 ring-selected-line ring-inset' : 'hover:bg-surface-sunk'}`}
+                    className={`flex h-11 items-center justify-center focus-visible:outline-[1.5px] focus-visible:-outline-offset-2 focus-visible:outline-focus-ring ${on ? 'rounded-pill bg-selected ring-1 ring-selected-line ring-inset' : 'hover:bg-surface-sunk'}`}
                   >
                     {on ? <span aria-hidden className="size-1.5 rounded-full bg-ink" /> : null}
                   </button>

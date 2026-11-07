@@ -274,7 +274,7 @@ export function Review({
   const latest = session.shots.at(-1);
   const fillIn = (
     <Button
-      variant="secondary"
+      variant="outline"
       className="self-start"
       onPress={() => router.replace(manualHref(to, latest))}
     >
@@ -513,7 +513,7 @@ export function Filed({ to, kept }: { to: AddDestination; kept: number }) {
         <View className="gap-3">
           <Button onPress={() => go(wardrobeHref(to))}>{copy.filed.see[to]}</Button>
           <Button
-            variant="secondary"
+            variant="outline"
             onPress={() => go({ pathname: '/wardrobe/add', params: { to } })}
           >
             {copy.filed.another}

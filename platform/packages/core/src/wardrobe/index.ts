@@ -1,4 +1,11 @@
-import { LEGACY_CATEGORIES, type LegacyCategory, type SeasonBand, sheetL1For } from '../taxonomy';
+import {
+  LEGACY_CATEGORIES,
+  type LegacyCategory,
+  SEASONS,
+  type Season,
+  type SeasonBand,
+  sheetL1For,
+} from '../taxonomy';
 
 // The piece card everywhere (legacy b4b051a "the rack card as the wardrobe's row"): one anatomy
 // for a list row and a grid tile, on the wardrobe and the wishlist, web and native.
@@ -19,6 +26,29 @@ export function isWardrobeLayout(value: unknown): value is WardrobeLayout {
 export function seasonBandOn(date: string): Exclude<SeasonBand, 'year_round'> {
   const month = Number(date.slice(5, 7));
   return month >= 4 && month <= 9 ? 'spring_summer' : 'autumn_winter';
+}
+
+// The band the seasons she picked fall in, as the database's `private.season_band_of` derives it
+// (migration 20261106150000): spring or summer alone is the spring/summer band, autumn or winter
+// alone the autumn/winter one; a mix, or none, is year round. Older readers see only the band.
+export function seasonBandOf(seasons: readonly Season[]): SeasonBand {
+  const warm = seasons.includes('spring') || seasons.includes('summer');
+  const cold = seasons.includes('autumn') || seasons.includes('winter');
+  if (warm && !cold) return 'spring_summer';
+  if (cold && !warm) return 'autumn_winter';
+  return 'year_round';
+}
+
+// The seasons a band stands for, for a row written before the seasons column.
+export function seasonsOfBand(band: SeasonBand): Season[] {
+  if (band === 'spring_summer') return ['spring', 'summer'];
+  if (band === 'autumn_winter') return ['autumn', 'winter'];
+  return [];
+}
+
+// One spelling: each season once, in the order of the year.
+export function normaliseSeasons(seasons: readonly string[]): Season[] {
+  return SEASONS.filter((s) => seasons.includes(s));
 }
 
 // Eyebrow "Category · Brand": the sheet's category when the taxonomy knows the type.

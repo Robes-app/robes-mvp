@@ -115,6 +115,7 @@ export function dataExportRepo(db: Db) {
         wishlist,
         looks,
         lookPieces,
+        lookImages,
         wears,
         plan,
         dayNames,
@@ -177,6 +178,14 @@ export function dataExportRepo(db: Db) {
           .selectFrom('lookPieces')
           .select(['lookId', 'wardrobeItemId', 'slot', 'role', 'position'])
           .where('userId', '=', userId)
+          .execute(),
+        // Her photographs of each look, in stack order (the asset itself is listed under assets).
+        db
+          .selectFrom('lookImages')
+          .select(['id', 'lookId', 'assetId', 'position', 'createdAt'])
+          .where('userId', '=', userId)
+          .orderBy('lookId')
+          .orderBy('position')
           .execute(),
         db
           .selectFrom('wears')
@@ -318,6 +327,7 @@ export function dataExportRepo(db: Db) {
         wishlist,
         looks,
         lookPieces,
+        lookImages,
         wears,
         plan,
         dayNames,

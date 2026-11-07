@@ -139,8 +139,8 @@ export function PieceDetail({ id }: { id: string }) {
           </Button>
           {ready ? (
             <Link
-              href={`/looks/new?pieceId=${id}`}
-              className={buttonClasses({ variant: 'secondary' })}
+              href={`/looks/draft/new?pieceId=${id}`}
+              className={buttonClasses({ variant: 'outline' })}
             >
               {lookbook.startLook}
             </Link>
@@ -196,7 +196,7 @@ function ChangePhoto({ id, hasPhoto }: { id: string; hasPhoto: boolean }) {
         onClick={() => file.current?.click()}
         disabled={photo.busy}
         aria-busy={photo.busy}
-        className="absolute right-3.5 bottom-3.5 z-10 flex min-h-11 items-center gap-2 rounded-pill border border-hairline bg-bg/95 pr-4 pl-3.5 font-sans text-ink text-sm shadow-sm hover:bg-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:text-ink-faint"
+        className="absolute right-3.5 bottom-3.5 z-10 flex min-h-11 items-center gap-2 rounded-pill border border-hairline bg-bg/95 pr-4 pl-3.5 font-sans text-ink text-sm shadow-sm hover:bg-bg focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:text-ink-faint"
       >
         <Icon name={hasPhoto ? 'swap' : 'camera'} size={16} />
         {label}
@@ -299,7 +299,7 @@ function Wears({ pieceId }: { pieceId: string }) {
               <Link
                 href={`/plan/${wear.wornOn}`}
                 aria-label={copy.wears.openDay(longDate(wear.wornOn))}
-                className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
+                className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-bg focus-visible:outline-[1.5px] focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
               >
                 <Text size="small" className="shrink-0">
                   {dayMonth(wear.wornOn)}

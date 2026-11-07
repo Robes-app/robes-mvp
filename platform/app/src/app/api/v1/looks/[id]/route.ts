@@ -25,10 +25,13 @@ export const PATCH = route({
   rateLimit: { key: 'looks.update', limit: 120, windowSeconds: 60 },
   handler: async ({ user, input, params }) => {
     const userId = verifiedUserId(user.id);
+    const { tags, ...fields } = input;
     // Editing a suggestion makes it a draft, within the five (409 drafts_full, then letGoOldest).
     const row = await draftsFull(() =>
-      withOwnedPieces(() => repos.looks.update(userId, params.id, input)),
+      withOwnedPieces(() => repos.looks.update(userId, params.id, fields)),
     );
+    // What she wears it for lives in the tag namespace, not a column on the look.
+    if (tags && row) await repos.looks.setTags(userId, params.id, tags);
     return toLook(userId, row);
   },
 });

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { LookImage } from './look-image';
 
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 export interface LookTileProps {
   look: Look;
@@ -37,6 +37,8 @@ export interface LookTileProps {
   corner?: ReactNode;
   // The OOTD card on home (design 3k): the same frame on a 6px radius, the name in small caps
   // with a chevron, no eyebrow or meta — the day's look, not a catalogue card.
+  // The look on home's day (Felix 3k): the photograph alone on the tile radius, no frame and no
+  // words on it — its name stands under the discs; the whole photo opens it.
   variant?: 'card' | 'ootd';
   className?: string;
   testId?: string;
@@ -99,11 +101,12 @@ export function LookTile({
     <Card
       as="article"
       data-testid={testId}
+      edge={!ootd}
       className={[
         'min-w-0',
         // The dashed draft: unfinished, on the fine edge, its photograph inset in the frame.
         dashed ? 'border-dashed border-rule-mid bg-transparent p-1.5' : '',
-        ootd ? 'rounded-[6px]' : '',
+        ootd ? 'rounded-tile bg-surface-sunk' : '',
         // A pick is warm, never black (root CLAUDE.md): the warm fill on the warm edge.
         selected ? 'border-selected-line bg-selected' : '',
         dimmed ? 'opacity-60' : '',
@@ -118,14 +121,8 @@ export function LookTile({
             {onImage}
           </div>
           {ootd ? (
-            <h3 className="flex min-h-11 items-center justify-between gap-2 px-3.5 py-3 font-sans text-[10px] font-medium uppercase tracking-[0.16em] text-ink">
-              {heading}
-              {href || onSelect ? (
-                <span aria-hidden className="text-[15px] font-light text-ink-faint">
-                  ›
-                </span>
-              ) : null}
-            </h3>
+            // The name is read, not shown: the stretched link covers the photograph.
+            <h3 className="[&_span]:sr-only">{heading}</h3>
           ) : (
             <div
               className={`flex flex-col ${dashed ? 'gap-px px-1 pt-2 pb-1' : 'gap-0.5 px-3 pt-2.5 pb-3'}`}
@@ -164,7 +161,13 @@ export function LookTile({
         </>
       }
       {...(corner
-        ? { overlay: <div className="absolute top-1.5 right-1.5 z-10">{corner}</div> }
+        ? {
+            overlay: (
+              <div className={`absolute z-10 ${ootd ? 'top-3 right-3' : 'top-1.5 right-1.5'}`}>
+                {corner}
+              </div>
+            ),
+          }
         : {})}
     />
   );

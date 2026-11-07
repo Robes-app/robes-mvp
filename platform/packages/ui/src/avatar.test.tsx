@@ -21,6 +21,14 @@ describe('Avatar', () => {
     expect(screen.getByRole('img', { name: 'Niall Byrne' })).toHaveTextContent('NB');
   });
 
+  it('draws the top bar avatar as a sage disc with one initial', () => {
+    render(<Avatar name="Annie Slattery" tone="nav" size="lg" />);
+    const disc = screen.getByRole('img', { name: 'Annie Slattery' });
+    expect(disc).toHaveClass('size-[30px]', 'bg-sage-mid');
+    expect(disc).not.toHaveClass('size-16', 'border');
+    expect(disc).toHaveTextContent(/^A$/);
+  });
+
   it('has no serious accessibility violations', async () => {
     render(
       <main>

@@ -99,12 +99,12 @@ export default function SignIn() {
                 <View className="gap-3">
                   <Eyebrow className="text-center">{copy.or}</Eyebrow>
                   {providers.apple ? (
-                    <Button variant="secondary" onPress={() => social('apple')}>
+                    <Button variant="outline" onPress={() => social('apple')}>
                       {copy.apple}
                     </Button>
                   ) : null}
                   {providers.google ? (
-                    <Button variant="secondary" onPress={() => social('google')}>
+                    <Button variant="outline" onPress={() => social('google')}>
                       {copy.google}
                     </Button>
                   ) : null}

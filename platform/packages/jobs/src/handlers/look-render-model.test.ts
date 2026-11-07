@@ -18,6 +18,7 @@ function setup(
     asked?: string;
     pieces?: object[];
     twin?: object;
+    pictureNote?: string | null;
   } = {},
 ) {
   const model = {
@@ -28,6 +29,7 @@ function setup(
         renderKey: opts.renderKey ?? KEY,
         renderStatus: 'pending',
         styling: { 'piece-coat': 'worn open' },
+        pictureNote: opts.pictureNote ?? null,
       },
       pieces: opts.pieces ?? [
         {
@@ -109,12 +111,13 @@ describe('look_render on her model', () => {
     expect(none.generateImage).not.toHaveBeenCalled();
   });
 
-  it('stands a draft on the generic Robes model the key names while she has none', async () => {
-    const key = 'w-s4-h1-nt@v2:rack1';
-    const { run, model, storage } = setup({ renderKey: key, asked: key });
+  it('stands a draft on the Robes model the key names while she has none of her own', async () => {
+    const key = 'm-r4@v1:rack1';
+    const { run, model, storage, generateImage } = setup({ renderKey: key, asked: key });
     await expect(run()).resolves.toEqual({ status: 'succeeded' });
-    expect(model.cell).toHaveBeenCalledWith('w-s4-h1-nt@v2');
-    expect(storage.getObject).toHaveBeenNthCalledWith(1, 'catalog/avatar/w-s4-h1-nt@v2.png');
+    expect(model.cell).toHaveBeenCalledWith('m-r4@v1');
+    expect(storage.getObject).toHaveBeenNthCalledWith(1, 'catalog/avatar/m-r4@v1.png');
+    expect(generateImage.mock.calls[0]?.[0]?.prompt).toContain('Keep the SAME man');
   });
 
   it('fails the render (so she can ask again) when her model cell is not ready', async () => {
@@ -130,6 +133,26 @@ describe('look_render on her model: how a piece is worn', () => {
     const { run, generateImage } = setup();
     await run();
     expect(generateImage.mock.calls[0]?.[0].prompt).toContain('Worn: worn open.');
+  });
+});
+
+// D21: her picture note, read from the look, styles the picture and never the rack.
+describe('look_render on her model: her picture note', () => {
+  it('rides the prompt as styling for the picture, the pieces unchanged', async () => {
+    const { run, generateImage, model } = setup({ pictureNote: 'sleeves rolled up' });
+    await expect(run()).resolves.toEqual({ status: 'succeeded' });
+    const prompt = generateImage.mock.calls[0]?.[0].prompt ?? '';
+    expect(prompt).toContain('<user_input>\nsleeves rolled up\n</user_input>');
+    expect(prompt).toContain('never adds, removes or substitutes a piece');
+    expect(prompt).toContain('- IMAGE 2: the Camel coat');
+    expect(prompt).toContain('- the Loafers');
+    expect(model.setRender).toHaveBeenCalledWith(USER, LOOK, KEY, NEW_ASSET);
+  });
+
+  it('says nothing of a note when the look has none', async () => {
+    const { run, generateImage } = setup();
+    await run();
+    expect(generateImage.mock.calls[0]?.[0].prompt).not.toContain('HER NOTE');
   });
 });
 

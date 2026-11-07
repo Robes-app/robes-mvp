@@ -1,4 +1,4 @@
-import { ICON_STROKE_WIDTH, ICON_VIEWBOX, ICONS, type IconName } from './icons';
+import { ICON_SOLID, ICON_STROKE_WIDTH, ICON_VIEWBOX, ICONS, type IconName } from './icons';
 
 export interface IconProps {
   name: IconName;
@@ -8,9 +8,18 @@ export interface IconProps {
   label?: string;
   // Solid shapes for an "on" state (a starred piece, a chosen thumb).
   filled?: boolean;
+  // Felix thins a glyph in some places (the bell 1.2, sheet rows 1.4); 1.5 by default.
+  stroke?: number;
 }
 
-export function Icon({ name, size = 24, className, label, filled = false }: IconProps) {
+export function Icon({
+  name,
+  size = 24,
+  className,
+  label,
+  filled = false,
+  stroke = ICON_STROKE_WIDTH,
+}: IconProps) {
   return (
     <svg
       viewBox={ICON_VIEWBOX}
@@ -18,7 +27,7 @@ export function Icon({ name, size = 24, className, label, filled = false }: Icon
       height={size}
       fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
-      strokeWidth={ICON_STROKE_WIDTH}
+      strokeWidth={stroke}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -29,6 +38,9 @@ export function Icon({ name, size = 24, className, label, filled = false }: Icon
     >
       {ICONS[name].map((d) => (
         <path key={d} d={d} />
+      ))}
+      {ICON_SOLID[name]?.map((d) => (
+        <path key={d} d={d} fill="currentColor" />
       ))}
     </svg>
   );

@@ -33,6 +33,7 @@ const HAIR_WORDS = [
   'chestnut brown',
   'golden caramel blonde',
   'light ash blonde',
+  'soft silver grey',
 ];
 const FULL_BODY_FRAME =
   'FULL-LENGTH FRAMING, HEAD TO TOE: the entire figure fits inside the frame — the full head and hair visible with clear space above, both shoes fully visible with clear space below. Never crop the face, head, hands or feet. Subject standing, centred, photographed from far enough back to capture the whole body.';

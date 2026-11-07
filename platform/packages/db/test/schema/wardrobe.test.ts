@@ -35,6 +35,30 @@ describe('wardrobe schema', () => {
       ]);
     }));
 
+  // Seasons (D12): the taxonomy's band, or a band from older code, spells the seasons; hers set the band.
+  it('keeps a piece’s seasons and its band in step, from the defaults on', () =>
+    inTx(async (q) => {
+      await setup(q);
+      await q(
+        `insert into app.wardrobe_items (id, user_id, label, category, category_l2)
+         values ($1, $2, 'Wool coat', 'Outerwear', 'Coats')`,
+        [ITEM_2, USER_A],
+      );
+      const read = async () =>
+        (await q('select seasons, season_band from app.wardrobe_items where id = $1', [ITEM_2]))[0];
+      expect(await read()).toEqual({ seasons: ['autumn', 'winter'], season_band: 'autumn_winter' });
+      await q("update app.wardrobe_items set seasons = '{spring}' where id = $1", [ITEM_2]);
+      expect(await read()).toEqual({ seasons: ['spring'], season_band: 'spring_summer' });
+      await q("update app.wardrobe_items set season_band = 'year_round' where id = $1", [ITEM_2]);
+      expect(await read()).toEqual({ seasons: [], season_band: 'year_round' });
+      await expectPgError(
+        q,
+        '23514',
+        "update app.wardrobe_items set seasons = '{spring,mud}' where id = $1",
+        [ITEM_2],
+      );
+    }));
+
   it('never overwrites a season she chose', () =>
     inTx(async (q) => {
       await setup(q);

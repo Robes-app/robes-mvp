@@ -52,7 +52,9 @@ test('a photo goes presigned PUT → complete, then its read starts', async () =
   expect(calls[4]?.body).toEqual({ assetId: ASSET_ID });
 });
 
-test('an unknown picker mime type uploads as JPEG, and nothing follows a failed upload', async () => {
+// The presigned PUT signs the byte count: the bytes sent are declared, never the picker's
+// `fileSize` (the picker re-encodes, so it can describe a different file; storage refused it).
+test('an unknown picker mime type uploads as JPEG, the bytes sent are declared, and nothing follows a failed upload', async () => {
   const calls = mockFetch({
     'GET file:///tmp/b': {},
     'POST /uploads': () => {
@@ -62,7 +64,7 @@ test('an unknown picker mime type uploads as JPEG, and nothing follows a failed 
   await expect(
     uploadPhoto(api, { uri: 'file:///tmp/b', mimeType: 'application/octet-stream', fileSize: 10 }),
   ).rejects.toThrow();
-  expect(calls[1]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/jpeg', bytes: 10 });
+  expect(calls[1]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/jpeg', bytes: 2048 });
   expect(calls.some((c) => c.method === 'PUT')).toBe(false);
 });
 

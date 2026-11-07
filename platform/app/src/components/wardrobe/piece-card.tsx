@@ -8,7 +8,7 @@ import { type PointerEvent, type ReactNode, useRef, useState } from 'react';
 
 const copy = wardrobe.card;
 const focus =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+  'focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
 
 export interface CardPiece {
   id: string;

@@ -192,6 +192,8 @@ test('the avatar opens You', async () => {
   // Every tab is mounted under the system tab bar; Home's bar is the first.
   const [avatar] = screen.getAllByTestId('open-you');
   if (!avatar) throw new Error('no avatar');
+  // Felix's 30pt disc keeps a 44pt hit area.
+  expect(avatar.props.hitSlop).toBe(7);
   await fireEvent.press(avatar);
   await waitFor(() => expect(router.getPathname()).toBe('/you'));
   expect(screen.getByText(twin.cards.twin)).toBeTruthy();

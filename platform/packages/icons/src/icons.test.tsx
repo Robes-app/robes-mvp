@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ICON_NAMES, ICONS } from './icons';
+import { ICON_NAMES, ICON_SOLID, ICONS } from './icons';
 import { Icon } from './web';
 
 describe('icons', () => {
@@ -41,9 +41,51 @@ describe('icons', () => {
   });
 });
 
+describe('stroke', () => {
+  it('draws at 1.5 unless a lighter stroke is asked for', () => {
+    expect(renderToStaticMarkup(<Icon name="bell" />)).toContain('stroke-width="1.5"');
+    expect(renderToStaticMarkup(<Icon name="bell" stroke={1.2} />)).toContain('stroke-width="1.2"');
+  });
+});
+
 describe('filled icons', () => {
   it('fill with the current colour only when asked', () => {
     expect(renderToStaticMarkup(<Icon name="star" filled />)).toContain('fill="currentColor"');
     expect(renderToStaticMarkup(<Icon name="star" />)).toContain('fill="none"');
+  });
+});
+
+describe('Felix icons', () => {
+  it('has every glyph the Felix Design System draws', () => {
+    for (const name of [
+      'capture',
+      'describe',
+      'pencil',
+      'tag',
+      'calendar',
+      'spring',
+      'summer',
+      'autumn',
+      'winter',
+      'bell',
+      'pin',
+      'receipt',
+      'refresh',
+    ]) {
+      expect(ICON_NAMES).toContain(name);
+    }
+  });
+
+  it('draws a solid shape filled with the current colour whatever the filled prop', () => {
+    const markup = renderToStaticMarkup(<Icon name="describe" />);
+    expect(markup).toContain('fill="none"');
+    expect(markup.match(/<path/g)).toHaveLength(2);
+    expect(markup).toMatch(/<path d="M18 15[^"]*" fill="currentColor"/);
+  });
+
+  it('keeps solid shapes to valid path data', () => {
+    for (const paths of Object.values(ICON_SOLID)) {
+      for (const d of paths ?? []) expect(d).toMatch(/^[MmLlHhVvCcSsQqTtAaZz0-9 .,-]+$/);
+    }
   });
 });

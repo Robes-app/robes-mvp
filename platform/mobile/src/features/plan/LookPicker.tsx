@@ -192,7 +192,7 @@ export function LookPicker({
             {copy.drawer.emptyLine}
           </Text>
           <Button
-            variant="secondary"
+            variant="outline"
             onPress={() => {
               onClose();
               router.push('/looks');
