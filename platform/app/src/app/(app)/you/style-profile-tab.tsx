@@ -4,17 +4,13 @@ import { useApi } from '@robes/api-client/react';
 import type { Observation } from '@robes/contracts';
 import { twin } from '@robes/copy';
 import { asSentence } from '@robes/core';
-import { Icon } from '@robes/icons/web';
-import { Eyebrow, Text } from '@robes/ui';
-import Link from 'next/link';
+import { DrillList, Eyebrow, Text } from '@robes/ui';
 import { ObservationThumbs } from '@/components/observation-thumbs';
+import { DrillLink } from '@/components/settings/settings-chrome';
 import { useBriefRead } from '@/lib/use-dna';
 
-// A landing card prints its title only (redlines G4/L5): white on a hairline, the whole card the door.
-const card =
-  'flex items-center justify-between gap-4 rounded-card border border-hairline bg-surface-raised px-[22px] py-5 font-display text-2xl text-ink leading-tight hover:border-rule-mid focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
-
-// Style Profile: the three cards print their title only; the one card that asks is an Observation.
+// Style profile (Felix SettingsView): the one card that asks is an Observation; under it the three
+// doors as one drill card. Native twin: features/you/YouMenu.tsx StyleProfile.
 export function StyleProfileTab() {
   const { data: dna } = useApi('me.dna.get');
   useBriefRead(dna);
@@ -22,19 +18,12 @@ export function StyleProfileTab() {
   return (
     <div className="flex flex-col gap-3.5">
       {first ? <NoticedCard line={first} /> : null}
-      <nav aria-label={twin.tabs.style} className="flex flex-col gap-3.5">
-        <Link href="/you/model" className={card}>
-          {twin.cards.twin}
-          <Icon name="forward" size={16} className="shrink-0 text-ink-faint" />
-        </Link>
-        <Link href="/you/style" className={card}>
-          {twin.cards.dna}
-          <Icon name="forward" size={16} className="shrink-0 text-ink-faint" />
-        </Link>
-        <Link href="/you/observations" className={card}>
-          {twin.cards.observations}
-          <Icon name="forward" size={16} className="shrink-0 text-ink-faint" />
-        </Link>
+      <nav aria-label={twin.tabs.style}>
+        <DrillList>
+          <DrillLink href="/you/model" label={twin.cards.twin} />
+          <DrillLink href="/you/style" label={twin.cards.dna} />
+          <DrillLink href="/you/observations" label={twin.cards.observations} />
+        </DrillList>
       </nav>
     </div>
   );

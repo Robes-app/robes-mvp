@@ -18,31 +18,98 @@ jest.mock('../src/lib/auth-client', () => ({
 
 beforeEach(() => jest.clearAllMocks());
 
-test('You opens on Style Profile; Account prints her answers and signs out', async () => {
-  mockFetch({ 'GET /me': ME, 'GET /me/dna': styleDna() });
+const WAITING = {
+  items: [
+    {
+      key: 'receipts:2',
+      kind: 'receipts',
+      text: '2 receipts to review',
+      line: null,
+      date: null,
+      lookId: null,
+    },
+    {
+      key: 'diary:2026-09-30',
+      kind: 'diary',
+      text: 'Log Wednesday’s wear',
+      line: null,
+      date: '2026-09-30',
+      lookId: null,
+    },
+  ],
+};
+
+test('Settings (Felix SettingsView): Tabs over one drill card each; Account keeps every row', async () => {
+  mockFetch({ 'GET /me': ME, 'GET /me/dna': styleDna(), 'GET /me/notifications': WAITING });
   const { queryClient } = await renderWithApi(<YouMenu />);
-  // Settings carries no avatar block: the three cards are the page.
+  // The pill toggle is gone: Style profile · Account are underline tabs.
+  expect(screen.queryByRole('radio')).toBeNull();
+  expect(screen.getByRole('tab', { name: twin.tabs.style }).props.accessibilityState.selected).toBe(
+    true,
+  );
+  // Style profile: three drill rows.
   for (const label of [twin.cards.twin, twin.cards.dna, twin.cards.observations]) {
     expect(await screen.findByRole('button', { name: label })).toBeTruthy();
   }
   await fireEvent.press(screen.getByRole('button', { name: twin.cards.observations }));
   expect(mockRouter.push).toHaveBeenCalledWith('/you/observations');
-  await fireEvent.press(screen.getByRole('radio', { name: twin.tabs.account }));
-  // Profile prints her name and email; notifications switch in place.
+
+  await fireEvent.press(screen.getByRole('tab', { name: twin.tabs.account }));
+  // Details prints her name and leads to the page it always did.
   await fireEvent.press(
-    await screen.findByRole('button', { name: `${you.account.name}, ${ME.firstName}` }),
+    await screen.findByRole('button', { name: `${you.rows.details} · ${ME.firstName}` }),
   );
   expect(mockRouter.push).toHaveBeenCalledWith('/you/account');
+  // Her email reads in place: a row, not a door.
   expect(screen.getByText(ME.email)).toBeTruthy();
-  expect(await screen.findByLabelText(you.notifications.nudges)).toBeTruthy();
-  for (const label of [you.privacy, you.deletion.title]) {
-    expect(screen.getByRole('button', { name: label })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: new RegExp(you.account.email) })).toBeNull();
+  // Notifications shows what waits behind the bell, never as a fraction.
+  await fireEvent.press(
+    await screen.findByRole('button', {
+      name: `${you.rows.notifications} · ${you.rows.newAlerts(2)}`,
+    }),
+  );
+  expect(mockRouter.push).toHaveBeenCalledWith('/you/notifications');
+  // Every row the tab had stays, behind the same routes.
+  for (const [label, route] of [
+    [you.rows.receipts, '/you/receipts'],
+    [you.rows.privacy, '/you/privacy'],
+    [you.deletion.title, '/you/delete'],
+  ] as const) {
+    await fireEvent.press(screen.getByRole('button', { name: label }));
+    expect(mockRouter.push).toHaveBeenCalledWith(route);
   }
-  expect(screen.getByRole('link', { name: `${you.legal.terms}, ${you.subs.terms}` })).toBeTruthy();
+  for (const label of [you.legal.privacyNotice, you.legal.terms]) {
+    expect(screen.getByRole('link', { name: label })).toBeTruthy();
+  }
+  const help = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  await fireEvent.press(screen.getByRole('link', { name: `${you.rows.help} · ${you.helpEmail}` }));
+  expect(help).toHaveBeenCalledWith(`mailto:${you.helpEmail}`);
+  // Each row is Felix's 48pt drill row on one card.
+  const rows = screen.getByTestId('account-rows');
+  expect(rows.props.className).toContain('rounded-soft');
+  expect(screen.getByRole('button', { name: you.rows.receipts }).props.style).toMatchObject({
+    height: 48,
+  });
+
+  // Sign out is the outline button under the card: an action, so no chevron.
   await fireEvent.press(screen.getByRole('button', { name: you.signOut }));
   await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/sign-in'));
   expect(mockSignOut).toHaveBeenCalled();
   expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+});
+
+test('with nothing waiting, Notifications carries no value', async () => {
+  const calls = mockFetch({
+    'GET /me': ME,
+    'GET /me/dna': styleDna(),
+    'GET /me/notifications': { items: [] },
+  });
+  const { queryClient } = await renderWithApi(<YouMenu initialTab="account" />);
+  await waitFor(() => expect(calls.some((c) => c.path.endsWith('/me/notifications'))).toBe(true));
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  expect(screen.getByRole('button', { name: you.rows.notifications })).toBeTruthy();
+  expect(screen.queryByText(/ new$/)).toBeNull();
 });
 
 test('a notification toggle flips at once and saves just that key', async () => {

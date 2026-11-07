@@ -23,8 +23,8 @@ export function Notifications() {
   );
 }
 
-// The rows of the Account tab's Notifications card (legacy .sp-tog rows).
-export function NotificationRows() {
+// The rows of You › Notifications (legacy .sp-tog rows).
+function NotificationRows() {
   const queryClient = useQueryClient();
   const meKey = queryKeys.call('me.get');
   const { data: me } = useApi('me.get');

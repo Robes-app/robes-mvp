@@ -1,6 +1,6 @@
 # The Felix rebuild: web and native on the Felix Design System
 
-Status: decisions recorded 2026-11-06 (Annie); D12–D15 added later that day from the plan doc *Felix rebuild — PRs 5 to 8 and beyond*. PRs 1–7 merged (#78–#84). The review of PRs 5–7 (D17–D23) shipped as one PR, #85, merged 6 Nov. PR 8 is next; the sequence stops after it (D15). Calls made while building that Annie has not ruled on are under **Open calls** at the foot.
+Status: decisions recorded 2026-11-06 (Annie); D12–D15 added later that day from the plan doc *Felix rebuild — PRs 5 to 8 and beyond*. PRs 1–7 merged (#78–#84). The review of PRs 5–7 (D17–D23) shipped as one PR, #85, merged 6 Nov. PR 8's NotificationsSheet and SettingsView are built (7 Nov); its wardrobe piece waits for Felix's rework. The sequence stops after it (D15). Calls made while building that Annie has not ruled on are under **Open calls** at the foot.
 
 Sources:
 - `platform/design/felix`: the design system (brand book, tokens, 26 component specs with previews). Felix is the source of truth for visual values from 2026-11-06.
@@ -30,7 +30,7 @@ Sources:
 | 5 | Look images (data): any number of images per look (D13) and the four seasons (D12). Migration (`look_images`, `seasons`), repository with cross-user test, routes (`looks.images.add` / `.remove` / `.cover`), `docs/data-inventory.md`, the export, `docs/api-security.md` checklist. `photo_asset_id`, `record_image` and the bands keep being written for the old code and Expo Go on staging. No screen changes. | #82 merged |
 | 6 | Saved look 3e: SavedLook (edge-to-edge photo, back, adjust, image stack), Tabs, PieceList, LookDetails, TagsView, SeasonsView (four seasons, D12), WornView (its "+ Add a date" opens `DiarySheet`; the × deletes the wear), ImageManager (D13), the `primary` Schedule look (opens `DiarySheet`); Delete as a `danger` reveal inside Editing (D9). Her own tags on a look (`tag_looks`, `Look.tags`, `UpdateLookInput.tags`) land here for TagsView. | #83 merged |
 | 7 | The draft: DraftLook's anatomy on `DraftPage`, presented as a drawer over whatever started it (D14); AdjustSheet and DescribeSheet are two doors into the one thread, drawing only on Send or Generate; WardrobePicker; `AlertDialog` for Discard and the drafts-full prompt; no Worn row on a draft. | #84 merged |
-| 8 | Wardrobe piece (one photo; the regenerate icon replaces it — no image stack), NotificationsSheet (Done closes; the `overnight` kind takes the `looks` icon; no dock dot), SettingsView (Account keeps every row it has today). | after 7. The sequence stops here (D15) |
+| 8 | Wardrobe piece (one photo; the regenerate icon replaces it — no image stack), NotificationsSheet (Done closes; the `overnight` kind takes the `looks` icon; no dock dot), SettingsView (Account keeps every row it has today). | Notifications and Settings built on felix/pr8-notifications-settings; wardrobe piece waits for Felix's rework. The sequence stops here (D15) |
 
 ## Decisions (Annie, 2026-11-06, continued)
 
@@ -97,6 +97,15 @@ Calls made while building, each worth Annie's eye; a ruling becomes a decision a
 - ~~Trip pins filed as worn.~~ Ruled (Annie, 6 Nov): a trip's looks are never filed (trips are hidden). The rule starts Monday 9 Nov (`PASSED_PINS_FROM`) regardless of the ship date.
 - A saved look whose picture is stale on the server opens with Update look showing (stale counts as pending).
 - Un-accepted look photos: `DELETE /uploads/:id` hides one at once and the hourly sweep removes its files (the API has no S3 delete) — fine (Annie, 6 Nov).
+
+**PR 8 (NotificationsSheet and SettingsView, built 7 Nov on `felix/pr8-notifications-settings`; the wardrobe piece waits for Felix's rework)**
+- Account keeps every row it had, on one drill card, in this order: Details (her name; `/you/account`), Email (reads in place), Notifications ("2 new" while anything waits; `/you/notifications`), Receipts, Privacy and data, Privacy notice ↗, Terms ↗, Help (the mail link), Delete account. The four notification switches that sat on the tab now sit only behind the Notifications row, on the page that always held them. Delete account moved to the foot of the card and lost its danger colour (Felix keeps `danger` for a destructive reveal; the dialog still asks for DELETE). The "Robes" mark above Sign out went (text to a minimum).
+- Row names follow the plan doc: "Receipts" (the page is still titled Forward receipts) and "Privacy and data" (the page is still Your data). The lines under the old rows ("Plain English", …) went.
+- The overnight alert reads as a task, "See today's look", and its eyebrow is Lookbook (the plan doc's three destinations), though it opens the daily look's page.
+- Sign out is Felix's outline Button at its standard 40 with a 44 hit ring, full width, rather than a 44-tall variant.
+- The NotificationsSheet keeps native's swipe-down: the drawer header carries the drag, with no handle drawn.
+- One drill row (`DrillList`/`DrillRow`, `@robes/ui` and `@robes/ui-native`) now draws LookDetails and Settings; the drawer header is one component on native too (`DrawerHeader`), shared by DraftLook and the sheet. The other You pages keep their 2026-10 rows (D15).
+- `packages/ui/test/no-retired-controls.test.ts` fails on a new `SegmentedControl` or `Alert.alert`; the existing callers are listed in it.
 
 ## Redline of 7 Nov (staging + iOS against 3a, 3k, 3e)
 

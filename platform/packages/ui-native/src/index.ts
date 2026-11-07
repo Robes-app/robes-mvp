@@ -13,6 +13,8 @@ export {
 } from './Button';
 export { Card, type CardProps, CardSkeleton } from './Card';
 export { resolveColor, useColor } from './color';
+export { DrawerHeader, type DrawerHeaderDone } from './DrawerHeader';
+export { DrillList, DrillRow, type DrillRowProps } from './Drill';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorText } from './ErrorText';
 export { Field, type FieldProps } from './Field';
@@ -29,7 +31,7 @@ export {
 } from './SegmentedControl';
 export { Sheet, type SheetProps } from './Sheet';
 export { Skeleton, type SkeletonProps } from './Skeleton';
-export { OptionList, OptionRow, Subview } from './Subview';
+export { OptionList, OptionRow, Subview, SubviewHeader } from './Subview';
 export {
   appCaps,
   FINE_EDGE,

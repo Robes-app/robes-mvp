@@ -9,6 +9,34 @@ import { focusRing } from './cn';
 
 const focus = focusRing;
 
+export const subviewBackClass = `flex size-9 shrink-0 items-center justify-center rounded-pill text-ink ${focus}`;
+
+export function SubviewBackIcon() {
+  return <Icon name="back" size={20} className="-ml-0.5" />;
+}
+
+// The subview's 56px header on its own: the back control (a Close in a Subview, a link on a page
+// such as Settings), the 9px tracked title centred, a 36px spacer, over a 0.5px rule.
+export function SubviewHeader({
+  title,
+  back,
+  titleAs: Title = 'h1',
+}: {
+  title: string;
+  back: ReactNode;
+  titleAs?: 'h1' | typeof RadixDialog.Title;
+}) {
+  return (
+    <header className="flex h-14 shrink-0 items-center gap-3 border-hairline border-b-[0.5px] px-3">
+      {back}
+      <Title className="type-label min-w-0 flex-1 truncate text-center text-ink-muted">
+        {title}
+      </Title>
+      <span aria-hidden className="w-9 shrink-0" />
+    </header>
+  );
+}
+
 // Felix's subview shell (TagsView, SeasonsView, WornView): a full-height cream page that slides in
 // from the right over the look, with a 56px header — the back chevron, the tracked title centred,
 // a 36px spacer — over a 0.5px rule, a 20px-padded body and an optional footer over a rule. On a
@@ -42,21 +70,17 @@ export function Subview({
           data-testid={testId}
           className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-bg text-ink motion-safe:animate-[robes-slide-in_280ms_cubic-bezier(.2,0,.2,1)] md:w-[420px] md:shadow-sheet"
         >
-          <header className="flex h-14 shrink-0 items-center gap-3 border-hairline border-b-[0.5px] px-3">
-            <RadixDialog.Close asChild>
-              <button
-                type="button"
-                aria-label={ui.back}
-                className={`flex size-9 items-center justify-center rounded-pill text-ink ${focus}`}
-              >
-                <Icon name="back" size={20} className="-ml-0.5" />
-              </button>
-            </RadixDialog.Close>
-            <RadixDialog.Title className="type-label min-w-0 flex-1 truncate text-center text-ink-muted">
-              {title}
-            </RadixDialog.Title>
-            <span aria-hidden className="w-9 shrink-0" />
-          </header>
+          <SubviewHeader
+            title={title}
+            titleAs={RadixDialog.Title}
+            back={
+              <RadixDialog.Close asChild>
+                <button type="button" aria-label={ui.back} className={subviewBackClass}>
+                  <SubviewBackIcon />
+                </button>
+              </RadixDialog.Close>
+            }
+          />
           <PrimaryScope>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-8">{children}</div>
             {footer ? (
