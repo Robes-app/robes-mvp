@@ -73,7 +73,7 @@ Seed `tokens.ts` from `reference/tokens.draft.json`. Canonical values (all contr
 **Typography**
 - Display/serif: **Cormorant** (not Cormorant Garamond), weights 300 and 400, italic 300 and 400. Minimum size 17px, except Felix's `piece-name` at 15px in 400 (D6, 2026-11-06).
 - Sans/UI: **Inter**, weights 300, 400 and 500 (Felix). Ban 600 and 700.
-- Both SIL OFL: self-host via `next/font/local` (web) and `expo-font` (native) from the same woff2/ttf files in `packages/tokens/fonts/` (subset Latin + Latin-ext).
+- Both SIL OFL, self-hosted: web via `next/font/local` from `app/src/app/fonts/` (the variable Latin woff2 files of `design/felix/fonts/`; a build never fetches Google Fonts); native via `@expo-google-fonts/*`, bundled in the app.
 - Type scale: Felix's twelve styles are `typeScale` in `tokens.ts` (`display` 48, `greeting` 32, `title` 24, `heading` 22, `day-number` 20, `italic-aside` 17 italic, `piece-name` 15; `body` 13/1.65, `meta` 11, `eyebrow` 10/500/0.24em, `label` 9/500/0.22em, `category` 8.5/500/0.18em). Web uses the `type-<name>` utilities, native `typeStyle()` or `Text variant`. Eyebrows are `ink-soft` (`ink-muted`), a sheet's the rose for small text (`accent-warm`). Supersedes the 2026-10-25 eyebrow (12px, 400, `ink-faint`).
 
 **Shape**: Felix's radii (`radius` in `tokens.ts`): `xs` thumbnails, `crisp` worn rows, `tile` look tiles, `sm` day cells, `thumb` model cards, `soft` lists, cards and inputs, `card` larger cards and dialogs, `sheet` sheets, `dock` the dock, `pill` every pill. Edges are Felix's fine 0.5px `rule-mid` on cards, lists, outline buttons and unselected pills. No ad-hoc radii.
