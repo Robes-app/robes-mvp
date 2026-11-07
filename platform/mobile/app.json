@@ -8,7 +8,6 @@
     "scheme": "robes",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.byrobes.app",
       "supportsTablet": false,
       "infoPlist": {

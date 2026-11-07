@@ -139,7 +139,7 @@ describe('gemini adapter', () => {
       config: Record<string, unknown>;
     };
     expect(call.config).toMatchObject({
-      thinkingConfig: { thinkingLevel: 'MINIMAL' },
+      thinkingConfig: { thinkingLevel: 'LOW' },
       mediaResolution: 'MEDIA_RESOLUTION_HIGH',
     });
   });
