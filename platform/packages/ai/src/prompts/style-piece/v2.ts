@@ -26,7 +26,9 @@ export {
 export const VERSION = 2;
 // A stored way as image prompts read it (pieces aren't needed to draw the look).
 export const ImageWay = WayV1;
-export const MAX_OUTPUT_TOKENS = 3400;
+// Thinking is billed inside the cap: a style-piece answer stopped at 3,384 of 3,400 and was cut off
+// mid-JSON (staging, 5 Nov); good ones reach 3,342. Only what is used is billed.
+export const MAX_OUTPUT_TOKENS = 6000;
 
 export const PIECE_ROLES = [
   'The Canvas',

@@ -58,7 +58,8 @@ export function createWardrobeAnalyseHandler(deps: WardrobeAnalyseDeps): JobHand
           user: buildUser(),
           images: [{ mimeType: 'image/jpeg', data: image }],
           schema: Output,
-          maxOutputTokens: 900,
+          // Thinking is billed inside the cap; 900 is the cap that cut asks off mid-JSON.
+          maxOutputTokens: 2400,
           temperature: 0,
           signal: ctx.signal,
         });
