@@ -9,7 +9,9 @@ import { genderDirective } from '../style-piece/v3';
 // beta feedback corpus sorted. A rule is in HER voice and waits as a Robes-noticed line.
 export const FEATURE = 'looks.ask';
 export const VERSION = 1;
-export const MAX_OUTPUT_TOKENS = 900;
+// Thinking is billed inside the cap: at 900 a quarter of asks were cut off mid-JSON on staging
+// (every failure stopped at 883–884 tokens; 6–7 Nov). Only what is used is billed.
+export const MAX_OUTPUT_TOKENS = 2400;
 export const TEMPERATURE = 0.2;
 export const RACK_MAX = 14;
 export const POOL_MAX = 80;
