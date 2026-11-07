@@ -93,7 +93,8 @@ export async function createBatch(
   traceparent?: string,
 ): Promise<BatchPiecesOutput> {
   const unique = [...new Set(assetIds)];
-  if (await repos.capacity.isExhausted(['gemini-flash-lite'])) throw new ApiError('capacity');
+  // A photo read is vision.analyse, the full Flash (packages/ai/src/models.ts), not Lite.
+  if (await repos.capacity.isExhausted(['gemini-flash'])) throw new ApiError('capacity');
 
   const assets = await repos.assets.getManyForUser(userId, unique);
   const usable = new Map(
