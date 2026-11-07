@@ -10,9 +10,10 @@ const focus =
 
 // The strip (Front Door design 3k, plan 2026-11-02 §1.4): a pager of seven-day pages, today's page
 // centred so three days either side show; swipe for the week before and after. A cell carries one
-// mark per look — a ring when planned, a dot once worn — and a day gone by recedes to `warm-past`.
-// Felix's WeekStrip (redline 7 Nov): today always keeps the warm fill, the day picked adds the
-// warm edge, and either one's weekday is 500 in ink-soft; a worn mark is `warm-past` (D11).
+// mark per look — a ring when planned, a dot once worn — and a day gone by recedes to the faint
+// ink: Felix's lighter `warm-past` text misses 4.5:1, and the floor wins (D1). Felix's WeekStrip
+// (redline 7 Nov): today always keeps the warm fill, the day picked adds the warm edge, and either
+// one's weekday is 500 in ink-soft; a worn mark is `warm-past` (D11).
 // The native twin is mobile/src/features/home/DiaryStrip.tsx.
 export function DiaryStrip({
   days,
@@ -102,14 +103,12 @@ function DayCell({
     >
       <span
         className={`font-sans text-[9px] uppercase tracking-[0.1em] ${
-          current
-            ? 'font-medium text-ink-muted'
-            : `font-normal ${dim ? 'text-warm-past' : 'text-ink-faint'}`
+          current ? 'font-medium text-ink-muted' : 'font-normal text-ink-faint'
         }`}
       >
         {isToday ? copy.today : weekdayShort(day.date)}
       </span>
-      <span className={`type-day-number ${dim ? 'text-warm-past' : 'text-ink'}`}>
+      <span className={`type-day-number ${dim ? 'text-ink-faint' : 'text-ink'}`}>
         {Number(day.date.slice(8))}
       </span>
       <span aria-hidden className="flex h-[5px] pl-0.5">
