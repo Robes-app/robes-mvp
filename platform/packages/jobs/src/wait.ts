@@ -17,6 +17,8 @@ export async function waitFor<T>(
 
 // A photo is readable once its master is stored: the renderer writes it before the renditions,
 // which are most of its time, so a read never waits for `ready`. A failed render is never read.
+// A check that fails counts as "not stored yet": without s3:ListBucket, S3 answers 403 (not 404)
+// for a key that doesn't exist, so the read falls back to waiting for `ready` (staging, 7 Nov).
 export async function waitForMaster<T>(
   load: () => Promise<T | undefined>,
   status: (row: T) => string | null,
@@ -27,7 +29,8 @@ export async function waitForMaster<T>(
     const row = await load();
     const state = row ? status(row) : null;
     const readable =
-      state === 'ready' || (state === 'pending' && !!row && (await masterStored(row)));
+      state === 'ready' ||
+      (state === 'pending' && !!row && (await masterStored(row).catch(() => false)));
     return { row, readable, pending: state === 'pending' };
   };
   const { row, readable } = await waitFor(check, (s) => s.pending && !s.readable, opts);
