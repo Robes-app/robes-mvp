@@ -72,6 +72,7 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "e2e": "./e2e/run.sh",
+    "eas-build-post-install": "pnpm --filter @robes/tokens build",
     "testflight": "npx eas-cli@latest build --profile staging --platform ios --non-interactive && npx eas-cli@latest submit --profile staging --platform ios --latest --non-interactive --what-to-test \"$(node -p \"require('./testflight.json').whatToTest\")\"",
     "store:push": "npx eas-cli@latest metadata:push --profile production"
   },

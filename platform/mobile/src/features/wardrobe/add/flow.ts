@@ -81,9 +81,7 @@ export async function startRead(api: ApiClient, photo: PickedPhoto): Promise<str
 }
 
 // The camera roll: several at once, in the order she picked them.
-export async function pickFromRoll(): Promise<ReviewShot[] | 'denied' | null> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) return 'denied';
+export async function pickFromRoll(): Promise<ReviewShot[] | null> {
   const result = await ImagePicker.launchImageLibraryAsync({
     ...PICKER_OPTIONS,
     allowsMultipleSelection: true,

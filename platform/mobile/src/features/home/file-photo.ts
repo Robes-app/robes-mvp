@@ -20,11 +20,10 @@ export type PhotoSource = 'camera' | 'library';
 export async function pickOne(
   source: PhotoSource,
 ): Promise<ImagePicker.ImagePickerAsset | 'denied' | null> {
-  const permission =
-    source === 'camera'
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) return 'denied';
+  // The iOS photo picker needs no library permission; only the camera asks.
+  if (source === 'camera' && !(await ImagePicker.requestCameraPermissionsAsync()).granted) {
+    return 'denied';
+  }
   const result =
     source === 'camera'
       ? await ImagePicker.launchCameraAsync(PICKER_OPTIONS)

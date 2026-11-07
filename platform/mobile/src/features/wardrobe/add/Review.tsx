@@ -255,8 +255,7 @@ export function Review({
   async function retake() {
     if (from === 'roll') {
       const picked = await pickFromRoll();
-      if (picked && picked !== 'denied' && picked.length)
-        router.replace(reviewHref({ to, shots: picked, from: 'roll' }));
+      if (picked?.length) router.replace(reviewHref({ to, shots: picked, from: 'roll' }));
       return;
     }
     router.replace({ pathname: '/wardrobe/camera', params: { to } });

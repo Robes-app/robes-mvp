@@ -510,7 +510,6 @@ export const wardrobe = {
   },
   edit: 'Edit',
   addFailed: 'Robes couldn’t add those photos. Try again in a moment.',
-  photosDenied: 'Allow Robes to see your photos in Settings to add pieces.',
   cameraDenied: 'Allow Robes to use the camera in Settings to photograph pieces.',
   category: 'Category',
   // Wardrobe › Inbox: one forwarded receipt at a time, every piece ticked until she unticks what
