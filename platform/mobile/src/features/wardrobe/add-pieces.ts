@@ -32,7 +32,11 @@ export async function uploadPhoto(
   // from the file and sent natively: fetch(file://).blob() reports 0 bytes in a release build, so
   // every TestFlight upload failed before it started (7 Nov).
   const file = new File(photo.uri);
-  if (!file.size) throw new Error('upload failed: empty photo');
+  if (!file.size) {
+    // Why it is empty says where to look: a missing file, or an address File can't read.
+    const scheme = photo.uri.split(':')[0];
+    throw new Error(`upload failed: empty photo (exists ${file.exists}, scheme ${scheme})`);
+  }
   const { assetId, upload } = await api.call('uploads.create', {
     input: { kind, contentType: contentTypeOf(photo), bytes: file.size },
   });
