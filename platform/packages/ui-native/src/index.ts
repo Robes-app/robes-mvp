@@ -5,6 +5,7 @@ export {
   Button,
   type ButtonProps,
   type ButtonVariant,
+  CloseDisc,
   DOUBLE_PRIMARY_WARNING,
   IconButton,
   type IconButtonProps,

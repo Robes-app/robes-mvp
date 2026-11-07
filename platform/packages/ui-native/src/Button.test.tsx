@@ -93,6 +93,19 @@ describe('one filled button per screen (UX-26)', () => {
     expect(warn).toHaveBeenCalledWith(DOUBLE_PRIMARY_WARNING);
   });
 
+  test('a danger fill counts as the screen’s one filled button', async () => {
+    await render(
+      <PrimaryScope>
+        <Button onPress={() => {}}>Save this look</Button>
+        <Button variant="danger" onPress={() => {}}>
+          Delete
+        </Button>
+      </PrimaryScope>,
+    );
+    expect(warn).toHaveBeenCalledWith(DOUBLE_PRIMARY_WARNING);
+    expect(screen.getByRole('button', { name: 'Delete' }).props.className).toContain('bg-danger');
+  });
+
   test('stays quiet for one primary plus secondaries', async () => {
     await render(
       <PrimaryScope>

@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { IconButton, PrimaryScope } from './Button';
+import { CloseDisc, PrimaryScope } from './Button';
 import { useColor } from './color';
 import { cx } from './cx';
 import { useReducedMotion } from './motion';
@@ -191,13 +191,7 @@ export function Sheet({
       </Text>
     </Pressable>
   ) : closeButton ? (
-    <IconButton
-      icon="close"
-      label={ui.close}
-      tone="ink-muted"
-      onPress={onClose}
-      className="-mr-3"
-    />
+    <CloseDisc label={ui.close} onPress={onClose} />
   ) : null;
 
   const drag = useMemo(

@@ -171,13 +171,20 @@ test('removing a look can be undone', async ({ page }) => {
     await page.request.post('/api/v1/looks', { data: { name: 'Weekend', pieces: [] } })
   ).json();
   await page.goto(`/look/${look.id}`);
-  // Delete (D9) is destructive text in danger at the foot of Details (3e edits in place, D17),
-  // behind a confirm.
+  // Delete (D9) is an ink-soft link at the foot of Details (3e edits in place, D17), behind a
+  // confirm whose Delete is the danger fill; Cancel leaves the look (redline 7 Nov).
   await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Details' }).click();
-  await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveClass(/text-danger/);
+  await expect(page.getByRole('button', { name: 'Delete this look' })).toHaveClass(
+    /text-ink-muted/,
+  );
   await page.getByRole('button', { name: 'Delete this look' }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Delete this look' }).click();
+  const confirm = page.getByRole('alertdialog').getByRole('button', { name: 'Delete' });
+  await expect(confirm).toHaveClass(/bg-danger/);
+  await confirm.click();
   await expect(page).toHaveURL(/\/looks$/);
   await expect(page.getByText('Look removed.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();

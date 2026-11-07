@@ -316,7 +316,6 @@ function SavedShell({
       >
         {children}
       </ScrollView>
-      {over}
       {footer ? (
         <View
           className="absolute inset-x-0 bottom-0 flex-row items-center border-hairline bg-bg px-5 pt-3"
@@ -326,6 +325,8 @@ function SavedShell({
           <PrimaryScope>{footer}</PrimaryScope>
         </View>
       ) : null}
+      {/* After the bar, so a floating sheet sits 8pt above everything (redline 7 Nov). */}
+      {over}
     </View>
   );
 }
@@ -547,7 +548,6 @@ function DraftBody({
   const remove = useRemoveLook();
   const update = useLookDetails(look);
   const model = useApi('me.model.get');
-  const danger = useColor('danger');
   const adjustRef = useRef<Adjust | null>(null);
   const editor = useLookEditor(look, { onChange: () => adjustRef.current?.changed() });
   const adjust = useAdjust(look, editor, mode === 'edit' ? 'saved' : 'draft');
@@ -679,8 +679,8 @@ function DraftBody({
           title: lookbook.savedLook.deleteTitle,
           message: lookbook.savedLook.deleteBody,
           actions: [
-            { label: lookbook.savedLook.delete, variant: 'primary', onPress: del },
-            { label: lookbook.savedLook.keep, variant: 'outline', onPress: () => setConfirm(null) },
+            { label: lookbook.savedLook.delete, variant: 'danger', onPress: del },
+            { label: lookbook.savedLook.cancel, variant: 'quiet', onPress: () => setConfirm(null) },
           ],
         }
       : confirm === 'discard'
@@ -825,13 +825,15 @@ function DraftBody({
               onCaption={(name) => update.mutate({ params: { id: look.id }, input: { name } })}
             />
             {mode === 'edit' ? (
-              // Delete (D9): a destructive reveal at the foot of the look's details, asked first.
+              // Delete (D9), asked first. Felix keeps both reds off text: the link is ink-soft and
+              // underlined, and danger fills only the confirm's Delete (redline 7 Nov).
               <Pressable
                 accessibilityRole="button"
                 onPress={() => setConfirm('delete')}
                 className="min-h-11 justify-center self-start"
+                testID="delete-look"
               >
-                <Text size="small" style={{ color: danger, textDecorationLine: 'underline' }}>
+                <Text size="small" tone="muted" style={{ textDecorationLine: 'underline' }}>
                   {copy.delete}
                 </Text>
               </Pressable>
