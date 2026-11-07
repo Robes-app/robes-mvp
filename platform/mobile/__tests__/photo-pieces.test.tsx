@@ -67,7 +67,6 @@ function routes(extra: Record<string, unknown>) {
       ],
       nextCursor: null,
     },
-    'GET file:///tmp/run.jpg': {},
     'POST /uploads': {
       assetId: ASSET_ID,
       upload: {

@@ -25,7 +25,6 @@ test('a late answer for a photo she removed never comes back into the box', asyn
   const noop = () => undefined;
   let answer: (v: unknown) => void = noop;
   mockFetch({
-    'GET file:///tmp/a.jpg': {},
     'POST /uploads': {
       assetId: ASSET_ID,
       upload: {

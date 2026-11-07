@@ -32,7 +32,6 @@ const UPLOAD = {
 
 test('a photo goes presigned PUT → complete, then its read starts', async () => {
   const calls = mockFetch({
-    'GET file:///tmp/a.jpg': {},
     ...UPLOAD,
     'POST /wardrobe/photo-reads': { jobId: JOB_ID, status: 'queued' },
   });
@@ -40,23 +39,21 @@ test('a photo goes presigned PUT → complete, then its read starts', async () =
     startRead(api, { uri: 'file:///tmp/a.jpg', mimeType: 'image/heic', fileSize: null }),
   ).resolves.toBe(JOB_ID);
   expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
-    'GET file:///tmp/a.jpg',
     'POST /api/v1/uploads',
     'PUT /robes/uploads/x/original',
     `POST /api/v1/uploads/${ASSET_ID}/complete`,
     'POST /api/v1/wardrobe/photo-reads',
   ]);
-  // No file size from the picker: the blob's size is declared, and the signed headers are sent.
-  expect(calls[1]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/heic', bytes: 2048 });
-  expect(calls[2]?.headers).toEqual({ 'content-type': 'image/jpeg' });
-  expect(calls[4]?.body).toEqual({ assetId: ASSET_ID });
+  // No file size from the picker: the file's own size is declared, and the signed headers are sent.
+  expect(calls[0]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/heic', bytes: 2048 });
+  expect(calls[1]?.headers).toEqual({ 'content-type': 'image/jpeg' });
+  expect(calls[3]?.body).toEqual({ assetId: ASSET_ID });
 });
 
 // The presigned PUT signs the byte count: the bytes sent are declared, never the picker's
 // `fileSize` (the picker re-encodes, so it can describe a different file; storage refused it).
 test('an unknown picker mime type uploads as JPEG, the bytes sent are declared, and nothing follows a failed upload', async () => {
   const calls = mockFetch({
-    'GET file:///tmp/b': {},
     'POST /uploads': () => {
       throw new Error('stop');
     },
@@ -64,8 +61,14 @@ test('an unknown picker mime type uploads as JPEG, the bytes sent are declared, 
   await expect(
     uploadPhoto(api, { uri: 'file:///tmp/b', mimeType: 'application/octet-stream', fileSize: 10 }),
   ).rejects.toThrow();
-  expect(calls[1]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/jpeg', bytes: 2048 });
+  expect(calls[0]?.body).toEqual({ kind: 'wardrobe', contentType: 'image/jpeg', bytes: 2048 });
   expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+});
+
+test('a photo file with no bytes stops before anything is sent', async () => {
+  const calls = mockFetch(UPLOAD);
+  await expect(uploadPhoto(api, { uri: 'file:///tmp/empty.jpg' })).rejects.toThrow('empty photo');
+  expect(calls).toEqual([]);
 });
 
 test("Review's shots survive the trip through the route, and only well-formed ones", () => {
