@@ -42,8 +42,5 @@ example
 /ios
 /android
 
-# Signing material used by local EAS builds; lives in ~/Projects/ios-deployment-stuff/robes.
+# EAS local credentials (signing files live in ~/Projects/ios-deployment-stuff/robes).
 credentials.json
-*.p12
-*.p8
-*.mobileprovision
