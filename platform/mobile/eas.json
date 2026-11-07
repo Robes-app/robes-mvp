@@ -39,7 +39,7 @@
     },
     "production": {
       "ios": {
-        "ascAppId": "REPLACE_WITH_ROBES_ASC_APP_ID"
+        "ascAppId": "6831989422"
       }
     }
   }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Robes",
     "slug": "robes",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "robes",
@@ -41,19 +41,36 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Robes uses the camera to photograph your pieces.",
+          "cameraPermission": "Robes uses the camera to photograph your pieces and, when you choose, your close-up.",
           "recordAudioAndroid": false,
-          "barcodeScannerEnabled": false
+          "barcodeScannerEnabled": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Robes opens your photos when you choose one to add a piece or your close-up.",
+          "cameraPermission": "Robes uses the camera to photograph your pieces and, when you choose, your close-up.",
+          "microphonePermission": false
         }
       ],
       "expo-font",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-image",
       "expo-localization",
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Robes uses your location to dress you for the weather."
+          "locationWhenInUsePermission": "Robes uses your location to dress you for the weather.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false
         }
       ],
       "expo-status-bar",

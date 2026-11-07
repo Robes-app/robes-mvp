@@ -66,11 +66,6 @@ export function ManualAdd({ to, photo: initial }: { to: AddDestination; photo?: 
   }, []);
 
   async function addPhoto() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      toast.show({ message: wardrobe.photosDenied });
-      return;
-    }
     const result = await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
     const asset = result.canceled ? undefined : result.assets[0];
     if (asset) await attach(asset);
